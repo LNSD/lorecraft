@@ -88,7 +88,7 @@ from lorecraft.core.error import Error
 from lorecraft.core.mapping import Frozen, FrozenMapping
 from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.core.path import RootRelativePath
-from lorecraft.project.syntax import Heading
+from lorecraft.project.syntax import SectionHeading
 
 from .frontmatter_problem import (
     BlockLimit,
@@ -453,11 +453,11 @@ class SectionEntry:
     description: str | None = None
     examples: tuple[str, ...] = ()
 
-    def names(self, heading: Heading) -> bool:
+    def names(self, heading: SectionHeading) -> bool:
         """Whether the heading is the section this entry names.
 
         Args:
-            heading: Any heading of the document.
+            heading: The heading of an H2 section of the document.
         """
         return self.name.names(heading)
 

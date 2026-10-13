@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from typing import assert_never
 
 from lorecraft.core.path import RootRelativePath
-from lorecraft.project.syntax import SECTION_LEVEL, Heading
+from lorecraft.project.syntax import Heading, SectionHeading, find_sections
 
 from .section_name import SectionName
 from .structure import AnySections, OutlineEntry, SectionEntry, StructureSpec
@@ -29,16 +29,15 @@ class NamedAlignment:
         entry: The `SectionEntry` whose name is the section's heading text.
     """
 
-    section: Heading
+    section: SectionHeading
     entry: SectionEntry
 
     def __post_init__(self) -> None:
-        """Refuse a heading that is no H2 section, or an entry that names another section.
+        """Refuse an entry that names another section.
 
         Raises:
-            ValueError: If `section` is not an H2, or `entry` does not name it.
+            ValueError: If `entry` does not name `section`.
         """
-        _require_section_level(self.section)
         if not self.entry.names(self.section):
             raise ValueError(f'entry `{self.entry.name}` does not name section `{self.section.text}`')
 
@@ -54,17 +53,9 @@ class AnyRunAlignment:
             names a forbidden section, so such a section falls in an `any` run or in nothing.
     """
 
-    section: Heading
+    section: SectionHeading
     run: AnySections
     forbidden: bool
-
-    def __post_init__(self) -> None:
-        """Refuse a heading that is no H2 section.
-
-        Raises:
-            ValueError: If `section` is not an H2.
-        """
-        _require_section_level(self.section)
 
 
 @dataclass(frozen=True, slots=True)
@@ -76,34 +67,13 @@ class UnalignedSection:
         forbidden: Whether the specification lists the section's heading text under `forbidden`.
     """
 
-    section: Heading
+    section: SectionHeading
     forbidden: bool
-
-    def __post_init__(self) -> None:
-        """Refuse a heading that is no H2 section.
-
-        Raises:
-            ValueError: If `section` is not an H2.
-        """
-        _require_section_level(self.section)
 
 
 # One H2 section of a document, and the outline entry it falls in: the entry that names it, the `any` run it falls in,
 # or nothing.
 type AlignedSection = NamedAlignment | AnyRunAlignment | UnalignedSection
-
-
-def _require_section_level(section: Heading) -> None:
-    """Refuse a heading that is no H2, which an outline never aligns.
-
-    Args:
-        section: The heading an alignment is built for.
-
-    Raises:
-        ValueError: If `section` is not an H2.
-    """
-    if section.level != SECTION_LEVEL:
-        raise ValueError(f'section `{section.text}` is an H{section.level}, not an H{SECTION_LEVEL}')
 
 
 @dataclass(frozen=True, slots=True)
@@ -128,7 +98,8 @@ class OutlineAlignmentSpec:
             heading: Any heading of the document.
         """
         for aligned in self.sections:
-            if aligned.section == heading:
+            # Compared by line, as two headings never start on the same one.
+            if aligned.section.line == heading.line:
                 return aligned
         return None
 
@@ -150,7 +121,7 @@ def align_outlines(
     Returns:
         One entry per specification, in the order given.
     """
-    sections = tuple(heading for heading in headings if heading.level == SECTION_LEVEL)
+    sections = find_sections(headings)
     return tuple(
         OutlineAlignmentSpec(
             spec=structure_spec.path,
@@ -161,7 +132,7 @@ def align_outlines(
     )
 
 
-def _align_sections(structure_spec: StructureSpec, sections: tuple[Heading, ...]) -> tuple[AlignedSection, ...]:
+def _align_sections(structure_spec: StructureSpec, sections: tuple[SectionHeading, ...]) -> tuple[AlignedSection, ...]:
     """Align each section to the entry of the specification's outline that names it, or the `any` run it falls in.
 
     Args:
@@ -188,7 +159,7 @@ def _align_sections(structure_spec: StructureSpec, sections: tuple[Heading, ...]
     return tuple(aligned)
 
 
-def _is_forbidden(forbidden: tuple[SectionName, ...], section: Heading) -> bool:
+def _is_forbidden(forbidden: tuple[SectionName, ...], section: SectionHeading) -> bool:
     """Whether one of the forbidden names stands for the section. Raises nothing.
 
     Args:
@@ -198,7 +169,7 @@ def _is_forbidden(forbidden: tuple[SectionName, ...], section: Heading) -> bool:
     return any(name.names(section) for name in forbidden)
 
 
-def _find_named_entry(outline: tuple[OutlineEntry, ...], section: Heading) -> tuple[int, SectionEntry] | None:
+def _find_named_entry(outline: tuple[OutlineEntry, ...], section: SectionHeading) -> tuple[int, SectionEntry] | None:
     """The section entry naming `section` and where it sits in the outline, or `None` when none does. Raises nothing.
 
     Args:

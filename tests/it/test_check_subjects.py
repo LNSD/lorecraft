@@ -59,7 +59,9 @@ from lorecraft.project.syntax import (
     InvalidYamlFrontmatter,
     LineNumber,
     ParsedDocument,
+    SectionHeading,
     count_tokens,
+    find_sections,
     parse_document,
     parse_frontmatter,
 )
@@ -445,6 +447,22 @@ def _heading(text: bytes, heading_text: str) -> Heading:
         if heading.text == heading_text:
             return heading
     raise AssertionError(f'the document holds a heading `{heading_text}`')
+
+
+def _section(text: bytes, heading_text: str) -> SectionHeading:
+    """The first H2 section with this heading text, as the real parser reads it from a document's text.
+
+    Args:
+        text: The document's UTF-8 text.
+        heading_text: The heading's plain text.
+
+    Raises:
+        AssertionError: If the document holds no such section.
+    """
+    for section in find_sections(parse_document(text.decode()).headings):
+        if section.text == heading_text:
+            return section
+    raise AssertionError(f'the document holds a section `{heading_text}`')
 
 
 def _budget(tokens: int) -> bytes:
@@ -1764,7 +1782,7 @@ class TestCheckSubjects:
             spec=CODE_SPEC,
             line=LineNumber.from_int(5),
             section=SectionName.parse('Usage'),
-            before=DocumentEnd(last_line=LineNumber.from_int(5), after=_heading(guide, 'Install')),
+            before=DocumentEnd(last_line=LineNumber.from_int(5), after=_section(guide, 'Install')),
             description='How to run it.',
             example=None,
         )
@@ -1788,7 +1806,7 @@ class TestCheckSubjects:
         reports = check_subjects(database, (GUIDE,), package_table)
 
         #: Then
-        expected = ExpectedSection(name=SectionName.parse('Install'), written_at=_heading(guide, 'Install'))
+        expected = ExpectedSection(name=SectionName.parse('Install'), written_at=_section(guide, 'Install'))
         occurrence = SectionOutOfOrder(spec=CODE_SPEC, line=LineNumber.from_int(3), section='Usage', placement=expected)
         assert reports == (
             CheckedSubject(
@@ -1810,7 +1828,7 @@ class TestCheckSubjects:
         reports = check_subjects(database, (GUIDE,), package_table)
 
         #: Then
-        expected = ExpectedSection(name=SectionName.parse('Usage'), written_at=_heading(guide, 'Usage'))
+        expected = ExpectedSection(name=SectionName.parse('Usage'), written_at=_section(guide, 'Usage'))
         occurrence = UnexpectedSection(spec=CODE_SPEC, line=LineNumber.from_int(7), section='Tips', placement=expected)
         assert reports == (
             CheckedSubject(

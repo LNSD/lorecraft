@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from typing import assert_never
 
 from lorecraft.core.path import RootRelativePath
-from lorecraft.project.syntax import Heading, LineNumber
+from lorecraft.project.syntax import LineNumber, SectionHeading
 
 from .outline_alignment import AlignedSection, AnyRunAlignment, NamedAlignment, OutlineAlignmentSpec, UnalignedSection
 from .section_name import SectionName
@@ -28,7 +28,7 @@ class DocumentEnd:
     """
 
     last_line: LineNumber
-    after: Heading | None
+    after: SectionHeading | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -47,7 +47,7 @@ class AbsentSection:
     name: SectionName
     description: str | None
     example: str | None
-    before: Heading | DocumentEnd
+    before: SectionHeading | DocumentEnd
 
 
 @dataclass(frozen=True, slots=True)
@@ -60,7 +60,7 @@ class ExpectedSection:
     """
 
     name: SectionName
-    written_at: Heading
+    written_at: SectionHeading
 
 
 @dataclass(frozen=True, slots=True)
@@ -72,7 +72,7 @@ class LeftOver:
             `None` when this is its only heading, an optional section the document skipped and wrote late.
     """
 
-    earlier: Heading | None
+    earlier: SectionHeading | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -83,7 +83,7 @@ class OutlineEnd:
         last_matched: The last section the outline matched or skipped over, or `None` when it matched none.
     """
 
-    last_matched: Heading | None
+    last_matched: SectionHeading | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -96,7 +96,7 @@ class MisplacedSection:
             left over once the outline is used up.
     """
 
-    section: Heading
+    section: SectionHeading
     placement: ExpectedSection | LeftOver
 
 
@@ -110,7 +110,7 @@ class UnlistedSection:
             the outline, when the section comes after it.
     """
 
-    section: Heading
+    section: SectionHeading
     placement: ExpectedSection | OutlineEnd
 
 

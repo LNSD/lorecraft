@@ -10,7 +10,7 @@ from typing import Final
 import pytest
 
 from lorecraft.core.path import PathComponent, RootRelativePath
-from lorecraft.project.syntax import Heading, LineNumber, count_lines, parse_document
+from lorecraft.project.syntax import LineNumber, SectionHeading, count_lines, find_sections, parse_document
 
 from ..name import parse_spec_name
 from ..outline_alignment import align_outlines
@@ -80,16 +80,16 @@ def _match_corpus_outline(outline: str, text: str) -> tuple[OutlineDivergenceSpe
     return match_outlines(alignments, count_lines(text))
 
 
-def _section(text: str, name: str) -> Heading:
+def _section(text: str, name: str) -> SectionHeading:
     """The H2 section with this heading text, as the parser reads it from a document's text.
 
     Args:
         text: The document's text.
         name: The section's heading text.
     """
-    for heading in parse_document(text).headings:
-        if heading.level == 2 and heading.text == name:
-            return heading
+    for section in find_sections(parse_document(text).headings):
+        if section.text == name:
+            return section
     raise AssertionError(f'the document holds a section `{name}`')
 
 
@@ -247,7 +247,9 @@ class TestMatchOutlines:
         text = '# Typing\n\n## Rule\n\nAnnotate every signature.\n\n## Rule\n\nAnnotate again.\n'
         outline = '{"outline": [{"section": "Rule"}]}'
         first = _section(text, 'Rule')
-        second = next(h for h in parse_document(text).headings if h.text == 'Rule' and h.line != first.line)
+        second = next(
+            s for s in find_sections(parse_document(text).headings) if s.text == 'Rule' and s.line != first.line
+        )
         misplaced = MisplacedSection(section=second, placement=LeftOver(earlier=first))
 
         #: When

@@ -56,6 +56,45 @@ class Heading:
                 assert_never(self.level)
 
 
+@dataclass(frozen=True, slots=True)
+class SectionHeading:
+    """The heading of one section of a document.
+
+    It is told apart from a title or a subsection heading by its type, so a reader of an alignment cannot be handed
+    a heading that opens no section. Only `find_sections` builds one, and for now only from H2 headings; the level
+    is kept so that nested sections can follow.
+
+    Attributes:
+        level: The heading depth, 1 for a title through 6.
+        text: The heading's plain text, as `Heading.text`.
+        line: The document line the heading starts on.
+        empty: True when nothing follows the heading before the next heading of the same or a higher level, as
+            `Heading.empty`.
+        words: The prose words in the section the heading opens, as `Heading.words`.
+    """
+
+    level: HeadingLevel
+    text: str
+    line: LineNumber
+    empty: bool
+    words: int
+
+
+def find_sections(headings: tuple[Heading, ...]) -> tuple[SectionHeading, ...]:
+    """A document's sections, in document order, which are its H2 headings for now. Raises nothing.
+
+    Args:
+        headings: The document's top-level headings, of every level, in document order.
+    """
+    return tuple(
+        SectionHeading(
+            level=heading.level, text=heading.text, line=heading.line, empty=heading.empty, words=heading.words
+        )
+        for heading in headings
+        if heading.level == SECTION_LEVEL
+    )
+
+
 def find_title(headings: tuple[Heading, ...]) -> Heading | None:
     """A document's title: its first H1 heading, or `None` when it has none. Raises nothing.
 
