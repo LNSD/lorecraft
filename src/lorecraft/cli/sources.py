@@ -4,11 +4,13 @@ A diagnostic points at lines of its own subject and of other files, such as the 
 The lines come from the same database as the rules' own, so an excerpt shows the text the rules numbered.
 """
 
+from typing import assert_never
+
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.database import Database
 from lorecraft.rules.report import RunReport
 
-from .diagnostic_parts import diagnostic_marks, ordered_diagnostics
+from .diagnostic_parts import LineMark, WholeFileMark, diagnostic_marks, ordered_diagnostics
 from .diagnostic_text import SourceLines
 
 
@@ -25,8 +27,13 @@ def read_sources(database: Database, reports: tuple[RunReport, ...]) -> SourceLi
     paths: set[RootRelativePath] = set()
     for diagnostic in ordered_diagnostics(reports):
         for mark in diagnostic_marks(diagnostic):
-            if mark.line is not None:
-                paths.add(mark.path)
+            match mark:
+                case LineMark():
+                    paths.add(mark.path)
+                case WholeFileMark():
+                    pass
+                case _:
+                    assert_never(mark)
 
     sources: dict[RootRelativePath, tuple[str, ...]] = {}
     for path in paths:
