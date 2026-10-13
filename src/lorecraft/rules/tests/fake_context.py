@@ -46,8 +46,10 @@ from lorecraft.project.syntax import (
     FrontmatterNode,
     Heading,
     ParsedDocument,
+    SectionHeading,
     count_lines,
     count_tokens,
+    find_sections,
     parse_document,
     parse_frontmatter,
 )
@@ -96,6 +98,22 @@ def heading_in(text: str, heading_text: str) -> Heading:
         if heading.text == heading_text:
             return heading
     raise AssertionError(f'the document holds a heading `{heading_text}`')
+
+
+def section_in(text: str, heading_text: str) -> SectionHeading:
+    """The first H2 section with this heading text, as the real parser reads it from a document's text.
+
+    Args:
+        text: Markdown document to parse, frontmatter included.
+        heading_text: The heading's plain text.
+
+    Raises:
+        AssertionError: If the document holds no such section.
+    """
+    for section in find_sections(parse_document(text).headings):
+        if section.text == heading_text:
+            return section
+    raise AssertionError(f'the document holds a section `{heading_text}`')
 
 
 def namespace_spec(corpus: str, namespace: str, structure: str) -> NamespaceSpec:

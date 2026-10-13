@@ -16,7 +16,7 @@ from lorecraft.project.corpus import CorpusName
 from lorecraft.project.database import Database, DocumentText
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.schemas import AbsentSection, DocumentEnd, OutlineDivergenceSpec, SectionName
-from lorecraft.project.syntax import Heading, LineNumber, ParsedDocument, parse_document
+from lorecraft.project.syntax import LineNumber, ParsedDocument, SectionHeading, find_sections, parse_document
 from lorecraft.project.workspace import WorkspaceModel
 from lorecraft.vfs import Snapshot, VirtualFileSystem
 
@@ -86,15 +86,15 @@ def _snapshot(corpus_spec: bytes | None, namespace_spec: bytes | None, text: str
     return Snapshot.from_tree({'docs': {'__meta__': meta, 'code': {'python-typing.md': text.encode()}}})
 
 
-def _checklist_heading() -> Heading:
+def _checklist_heading() -> SectionHeading:
     """The `Checklist` section of `RULE_ASIDE_CHECKLIST`, as the real parser reads it.
 
     Raises:
         AssertionError: If the document holds no such heading.
     """
-    for heading in parse_document(RULE_ASIDE_CHECKLIST).headings:
-        if heading.text == 'Checklist':
-            return heading
+    for section in find_sections(parse_document(RULE_ASIDE_CHECKLIST).headings):
+        if section.text == 'Checklist':
+            return section
     raise AssertionError('the document holds a `Checklist` section')
 
 

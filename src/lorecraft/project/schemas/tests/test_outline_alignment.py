@@ -10,7 +10,7 @@ from typing import Final, assert_never
 import pytest
 
 from lorecraft.core.path import PathComponent, RootRelativePath
-from lorecraft.project.syntax import parse_document
+from lorecraft.project.syntax import find_sections, parse_document
 
 from ..name import parse_spec_name
 from ..outline_alignment import (
@@ -23,7 +23,7 @@ from ..outline_alignment import (
 )
 from ..section_name import SectionName
 from ..spec_file import SpecFileType, StructureSpecFile, spec_filename
-from ..structure import AnySections, SectionEntry, StructureSchema, StructureSpec
+from ..structure import SectionEntry, StructureSchema, StructureSpec
 
 SPECS_DIR: Final[RootRelativePath] = RootRelativePath.parse('docs/__meta__')
 
@@ -264,7 +264,7 @@ class TestOutlineAlignmentSpecFind:
 
         #: Then
         assert aligned is not None, 'the section is one of the document'
-        assert aligned.section == aside, 'the aligned section holds the heading it was found by'
+        assert aligned.section.line == aside.line, 'the aligned section holds the heading it was found by'
 
     def test_find_with_the_title_returns_none(self) -> None:
         #: Given
@@ -281,11 +281,11 @@ class TestOutlineAlignmentSpecFind:
 
 
 @pytest.mark.unit
-class TestAlignedSectionInvariants:
+class TestNamedAlignmentInvariants:
     def test_named_alignment_with_an_entry_naming_another_section_raises(self) -> None:
         #: Given
-        headings = parse_document(RULE_ASIDE_CHECKLIST).headings
-        aside = next(heading for heading in headings if heading.text == 'Aside')
+        sections = find_sections(parse_document(RULE_ASIDE_CHECKLIST).headings)
+        aside = next(section for section in sections if section.text == 'Aside')
         entry = SectionEntry(name=SectionName.parse('Rule'))
 
         #: When
@@ -294,25 +294,3 @@ class TestAlignedSectionInvariants:
 
         #: Then
         assert 'Aside' in str(exc_info.value), 'the error names the section the entry does not name'
-
-    def test_any_run_alignment_with_a_title_raises(self) -> None:
-        #: Given
-        title = parse_document(RULE_ASIDE_CHECKLIST).headings[0]
-
-        #: When
-        with pytest.raises(ValueError) as exc_info:
-            AnyRunAlignment(section=title, run=AnySections(words=None), forbidden=False)
-
-        #: Then
-        assert 'Typing' in str(exc_info.value), 'the error names the heading that is no H2'
-
-    def test_unaligned_section_with_a_title_raises(self) -> None:
-        #: Given
-        title = parse_document(RULE_ASIDE_CHECKLIST).headings[0]
-
-        #: When
-        with pytest.raises(ValueError) as exc_info:
-            UnalignedSection(section=title, forbidden=False)
-
-        #: Then
-        assert 'Typing' in str(exc_info.value), 'the error names the heading that is no H2'

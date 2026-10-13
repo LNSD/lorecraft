@@ -14,7 +14,7 @@ from lorecraft.core.path import RootRelativePath
 from lorecraft.project.schemas import ExpectedSection, OutlineEnd, SectionName
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.location import Elsewhere, Help, Here, Label, Note
-from lorecraft.rules.tests.fake_context import FakeDocumentContext, heading_in, namespace_spec, structure_spec_path
+from lorecraft.rules.tests.fake_context import FakeDocumentContext, namespace_spec, section_in, structure_spec_path
 
 from ..unexpected_section import UnexpectedSection
 
@@ -37,11 +37,11 @@ AFTERWORD: Final[str] = FOLLOWS + '\n## Afterword\n\nThanks.\n'
 """`FOLLOWS`, then `Afterword` on line 11, which no outline here names."""
 
 EXPECTED_OPTIONS: Final[ExpectedSection] = ExpectedSection(
-    name=SectionName.parse('Options'), written_at=heading_in(TIPS_BETWEEN, 'Options')
+    name=SectionName.parse('Options'), written_at=section_in(TIPS_BETWEEN, 'Options')
 )
 """The section the outline places where `Tips` is written, with its heading in `TIPS_BETWEEN`, on line 11."""
 
-ENDS_AFTER_OPTIONS: Final[OutlineEnd] = OutlineEnd(last_matched=heading_in(FOLLOWS, 'Options'))
+ENDS_AFTER_OPTIONS: Final[OutlineEnd] = OutlineEnd(last_matched=section_in(FOLLOWS, 'Options'))
 """The end of the outline in `AFTERWORD`, whose last section matched is `Options`, on line 7."""
 
 
@@ -129,7 +129,7 @@ class TestUnexpectedSection:
                 spec=NAMESPACE_SPEC,
                 line=LineNumber.from_int(15),
                 section='Afterword',
-                placement=OutlineEnd(last_matched=heading_in(TIPS_BETWEEN, 'Options')),
+                placement=OutlineEnd(last_matched=section_in(TIPS_BETWEEN, 'Options')),
             ),
         ), 'each specification applies on its own, so the document is reported once for each, in order'
 

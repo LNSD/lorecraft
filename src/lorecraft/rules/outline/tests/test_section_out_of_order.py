@@ -14,7 +14,7 @@ from lorecraft.core.path import RootRelativePath
 from lorecraft.project.schemas import ExpectedSection, LeftOver, SectionName
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.location import Elsewhere, Help, Here, Label, Note
-from lorecraft.rules.tests.fake_context import FakeDocumentContext, heading_in, namespace_spec, structure_spec_path
+from lorecraft.rules.tests.fake_context import FakeDocumentContext, namespace_spec, section_in, structure_spec_path
 
 from ..section_out_of_order import SectionOutOfOrder
 
@@ -38,11 +38,11 @@ LEFT_OVER: Final[str] = FOLLOWS + '\n## Usage\n\nRun it again.\n'
 """`FOLLOWS`, then `Usage` once more on line 11, after every section the outline matched."""
 
 EXPECTED_USAGE: Final[ExpectedSection] = ExpectedSection(
-    name=SectionName.parse('Usage'), written_at=heading_in(OUT_OF_ORDER, 'Usage')
+    name=SectionName.parse('Usage'), written_at=section_in(OUT_OF_ORDER, 'Usage')
 )
 """The section the outline places where `Options` is written, with its heading in `OUT_OF_ORDER`, on line 7."""
 
-REPEATS_USAGE: Final[LeftOver] = LeftOver(earlier=heading_in(FOLLOWS, 'Usage'))
+REPEATS_USAGE: Final[LeftOver] = LeftOver(earlier=section_in(FOLLOWS, 'Usage'))
 """The section left over in `LEFT_OVER`, which repeats the `Usage` written on line 3."""
 
 
@@ -127,7 +127,7 @@ class TestSectionOutOfOrder:
                 spec=NAMESPACE_SPEC,
                 line=LineNumber.from_int(11),
                 section='Options',
-                placement=LeftOver(earlier=heading_in(OUT_OF_ORDER, 'Options')),
+                placement=LeftOver(earlier=section_in(OUT_OF_ORDER, 'Options')),
             ),
         ), 'each specification applies on its own, so the document is reported once for each, in order'
 

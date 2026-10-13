@@ -6,7 +6,7 @@ from typing import ClassVar, Self, assert_never
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.context import DocumentContext
 from lorecraft.project.schemas import AbsentSection, DocumentEnd, MisplacedSection, SectionName, UnlistedSection
-from lorecraft.project.syntax import Heading
+from lorecraft.project.syntax import SectionHeading
 from lorecraft.rules.declaration import Level, Release, RuleCode, RuleName, rule
 from lorecraft.rules.location import Help, Here, Label, Subdiagnostic
 from lorecraft.rules.subject import DocumentRule, Facet
@@ -92,7 +92,7 @@ class MissingSection(DocumentRule):
 
     spec: RootRelativePath
     section: SectionName
-    before: Heading | DocumentEnd
+    before: SectionHeading | DocumentEnd
     description: str | None
     example: str | None
 
@@ -108,7 +108,7 @@ class MissingSection(DocumentRule):
         """
         before = self.before
         match before:
-            case Heading():
+            case SectionHeading():
                 return (Label(Here(self.line), f'expected `{self.section}` before `{before.text}`'),)
             case DocumentEnd():
                 after = before.after
@@ -169,7 +169,7 @@ class MissingSection(DocumentRule):
         """
         before = absent.before
         match before:
-            case Heading():
+            case SectionHeading():
                 line = before.line
             case DocumentEnd():
                 line = before.last_line

@@ -1,10 +1,10 @@
-"""The top-level headings of a document's parse tree, and finding its title among them."""
+"""The top-level headings of a document's parse tree, and finding its title and its sections among them."""
 
 from typing import cast
 
 import pytest
 
-from ..heading import Heading, HeadingLevel, find_title
+from ..heading import Heading, HeadingLevel, SectionHeading, find_sections, find_title
 from ..position import LineNumber
 
 
@@ -88,3 +88,21 @@ class TestFindTitle:
 
         #: Then
         assert title is None, 'a document with no H1 has no title'
+
+
+@pytest.mark.unit
+class TestFindSections:
+    def test_find_sections_with_headings_of_every_level_returns_only_the_h2_headings_in_order(self) -> None:
+        #: Given
+        first = _heading(2, 'Rule', 3)
+        second = _heading(2, 'Checklist', 9)
+        headings = (_heading(1, 'Title', 1), first, _heading(3, 'Detail', 5), second, _heading(1, 'Again', 12))
+
+        #: When
+        sections = find_sections(headings)
+
+        #: Then
+        assert sections == (
+            SectionHeading(level=2, text='Rule', line=first.line, empty=first.empty, words=first.words),
+            SectionHeading(level=2, text='Checklist', line=second.line, empty=second.empty, words=second.words),
+        ), 'only an H2 opens a section, and they keep document order'

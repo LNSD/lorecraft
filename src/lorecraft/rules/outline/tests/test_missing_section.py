@@ -12,9 +12,9 @@ import pytest
 
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.schemas import DocumentEnd, SectionName
-from lorecraft.project.syntax import Heading, LineNumber
+from lorecraft.project.syntax import LineNumber, SectionHeading
 from lorecraft.rules.location import Elsewhere, Help, Here, Label, Note
-from lorecraft.rules.tests.fake_context import FakeDocumentContext, heading_in, namespace_spec, structure_spec_path
+from lorecraft.rules.tests.fake_context import FakeDocumentContext, namespace_spec, section_in, structure_spec_path
 
 from ..missing_section import MissingSection
 
@@ -51,16 +51,16 @@ FOLLOWS: Final[str] = '# Check\n\n## Usage\n\nRun it.\n\n## Options\n\nPass a fl
 OUT_OF_ORDER: Final[str] = '# Check\n\n## Options\n\nPass a flag.\n\n## Usage\n\nRun it.\n'
 """A document writing `Options`, then `Usage`."""
 
-BEFORE_OPTIONS: Final[Heading] = heading_in(OPTIONS_ONLY, 'Options')
+BEFORE_OPTIONS: Final[SectionHeading] = section_in(OPTIONS_ONLY, 'Options')
 """The `Options` section of `OPTIONS_ONLY`, on line 3, before which `Usage` belongs."""
 
 END_AFTER_USAGE: Final[DocumentEnd] = DocumentEnd(
-    last_line=LineNumber.from_int(5), after=heading_in(USAGE_ONLY, 'Usage')
+    last_line=LineNumber.from_int(5), after=section_in(USAGE_ONLY, 'Usage')
 )
 """The end of `USAGE_ONLY`, on line 5, after its last section `Usage`."""
 
 END_AFTER_OPTIONS: Final[DocumentEnd] = DocumentEnd(
-    last_line=LineNumber.from_int(5), after=heading_in(OPTIONS_ONLY, 'Options')
+    last_line=LineNumber.from_int(5), after=section_in(OPTIONS_ONLY, 'Options')
 )
 """The end of `OPTIONS_ONLY`, on line 5, after its last section `Options`."""
 
@@ -249,7 +249,7 @@ class TestMissingSection:
             spec=CORPUS_SPEC,
             line=LineNumber.from_int(3),
             section=SectionName.parse('Options'),
-            before=DocumentEnd(last_line=LineNumber.from_int(3), after=heading_in(document, 'Usage')),
+            before=DocumentEnd(last_line=LineNumber.from_int(3), after=section_in(document, 'Usage')),
             description=None,
             example=None,
         )
