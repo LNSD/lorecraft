@@ -456,3 +456,77 @@ class TestDescribeError:
         assert problem == SyntaxProblem('the block holds the control character U+0007', 'Remove it', 1), (
             'a control character is named by its code point, on the line it is on'
         )
+
+    def test_describe_error_with_an_anchor_that_has_no_name_returns_the_anchor_refusal(self) -> None:
+        #: Given
+        error = _error(
+            "expected alphabetic or numeric character, but found '\\n'",
+            _mark(0, 4),
+            context='while scanning an anchor',
+            context_mark=_mark(0, 3),
+        )
+
+        #: When
+        problem = describe_error(error, 'a: &\n')
+
+        #: Then
+        assert problem == SyntaxProblem('found the anchor &, which frontmatter does not allow', None, 0), (
+            'a malformed anchor is refused as the anchor, named as the block writes it'
+        )
+
+    def test_describe_error_with_an_alias_that_has_no_name_returns_the_alias_refusal(self) -> None:
+        #: Given
+        error = _error(
+            "expected alphabetic or numeric character, but found '\\n'",
+            _mark(0, 4),
+            context='while scanning an alias',
+            context_mark=_mark(0, 3),
+        )
+
+        #: When
+        problem = describe_error(error, 'a: *\n')
+
+        #: Then
+        assert problem == SyntaxProblem('found the alias *, which frontmatter does not allow', None, 0), (
+            'a malformed alias is refused as the alias, named as the block writes it'
+        )
+
+    def test_describe_error_with_an_undefined_tag_handle_returns_the_tag_refusal(self) -> None:
+        #: Given
+        error = _error(
+            "found undefined tag handle '!e!'", _mark(0, 3), context='while parsing a node', context_mark=_mark(0, 3)
+        )
+
+        #: When
+        problem = describe_error(error, 'a: !e!foo\n')
+
+        #: Then
+        assert problem == SyntaxProblem("found the tag '!e!foo', which frontmatter does not allow", None, 0), (
+            'a tag the parser cannot resolve is refused as the tag, named as the block writes it'
+        )
+
+    def test_describe_error_with_a_verbatim_tag_never_closed_returns_the_tag_to_the_line_end(self) -> None:
+        #: Given
+        error = _error(
+            "expected '>' but found '\\n'", _mark(0, 6), context='while parsing a tag', context_mark=_mark(0, 3)
+        )
+
+        #: When
+        problem = describe_error(error, 'a: !<x\n')
+
+        #: Then
+        assert problem == SyntaxProblem("found the tag '!<x', which frontmatter does not allow", None, 0), (
+            'a verbatim tag with no closing `>` is named to the end of its text'
+        )
+
+    def test_describe_error_with_an_anchor_and_no_mark_returns_the_refusal_with_no_line(self) -> None:
+        #: Given
+        error = _error('expected alphabetic or numeric character', None, context='while scanning an anchor')
+
+        #: When
+        problem = describe_error(error, 'a: &\n')
+
+        #: Then
+        assert problem == SyntaxProblem('found an anchor, which frontmatter does not allow', None, None), (
+            'with no mark there is no text to name and no line'
+        )

@@ -27,9 +27,10 @@ class InvalidYaml(FrontmatterRule):
     ## What it does
 
     Checks for documents whose structure specification sets a `frontmatter` schema, and for skills, whose
-    frontmatter block cannot be read as YAML. It is reported on the line the YAML stops being readable, or on the
-    first line, the one that opens the block, when that line cannot be known, such as for collections nested too
-    deeply to read.
+    frontmatter block cannot be read as YAML, or uses a construct frontmatter does not allow, such as a tag, an
+    anchor or a key that is not a string. It is reported on the line the writer fixes, with what is wrong and, for
+    a syntax error, what to do, or on the first line, the one that opens the block, when that line cannot be
+    known, such as for collections nested too deeply to read.
 
     A document no `frontmatter` schema governs is not checked.
 
@@ -106,7 +107,7 @@ class InvalidYaml(FrontmatterRule):
         return 'frontmatter is not valid YAML'
 
     def labels(self) -> tuple[Label, ...]:
-        """Give the YAML reader's problem where it stopped, or else say it lies somewhere in the block."""
+        """Give the problem where it is, or else say it lies somewhere in the block."""
         if self.stopped_at is None:
             return (Label(Here(self.line), f'{self.problem}, somewhere in the block opened here'),)
         return (Label(Here(self.line), self.problem),)

@@ -11,7 +11,7 @@ import pytest
 
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.syntax import LineNumber
-from lorecraft.rules.location import Elsewhere, Here, Label, Note
+from lorecraft.rules.location import Elsewhere, Help, Here, Label, Note
 from lorecraft.rules.tests.fake_context import FakeDocumentContext, FakeSkillContext, structure_spec_path
 
 from ..invalid_yaml import InvalidYaml
@@ -173,6 +173,24 @@ class TestInvalidYaml:
         assert children == (Note('the frontmatter schema is set here', at=Elsewhere(SPEC)),), (
             'a note points at the specification that sets the schema'
         )
+
+    def test_children_with_a_help_put_the_help_before_the_specification(self) -> None:
+        #: Given
+        occurrence = InvalidYaml(
+            spec=SPEC,
+            problem='this quote is never closed',
+            stopped_at=LineNumber.from_int(3),
+            help='Close it on the line it continues to, or remove it',
+        )
+
+        #: When
+        children = occurrence.children()
+
+        #: Then
+        assert children == (
+            Help('Close it on the line it continues to, or remove it'),
+            Note('the frontmatter schema is set here', at=Elsewhere(SPEC)),
+        ), 'a syntax error names what to do about it before the specification that governs the block'
 
     def test_children_with_a_skill_name_the_agent_skills_specification(self) -> None:
         #: Given
