@@ -62,14 +62,15 @@ document that leads to another names it under References, and the other names it
 what shipped keeps changing after a requirement or a decision is settled, and an architecture document that
 linked it would go stale with it.
 
-Work not yet done is cited by its issue, never by the release it is planned for: a planned release can move, and
-the document would go stale with it. A kind's namespace meta spec may forbid citing issues at all; an ADR cites
-none.
+**No document cites an issue or a pull request**, under References or inline, by link or by number, whatever
+its kind. A document comes from the documents it builds on, and cites those; what was settled on an issue is
+stated in the document itself. Work not yet done is named by what it is, never by an issue or by the release it is
+planned for: an issue tracks the work and a planned release can move, and only the document is meant to last.
 
 ## 5. Document Structure
 
 A document has one H1 title, first in the file, and no empty section. It closes with **References**, the
-documents and issues it comes from and leads to. Every other section is the namespace meta spec's to state.
+documents it comes from and leads to. Every other section is the namespace meta spec's to state.
 
 **No length limit.** No section has a word cap and no file has a token budget: an architecture document is as
 long as its requirements or its decisions need, and it is read when the work it describes is done, not loaded on
@@ -91,7 +92,6 @@ status: "{{status}}"
 
 ## References
 
-- [#{{issue}}]({{issue-url}}) - Source: {{The issue the document comes from}}
 - [{{kind}}-{{NNN}}]({{kind}}-{{NNN}}-{{slug}}.md) - Leads to: {{The document it leads to}}
 ````
 
@@ -102,4 +102,6 @@ status: "{{status}}"
 - [ ] `type` equals the filename's kind prefix
 - [ ] The document closes with References, and every document it cites names it back
 - [ ] The document links no feat spec in `docs/feat/`, in References or inline
+- [ ] The document cites no issue or pull request, in References or inline, and names work not yet done by what
+  it is
 - [ ] A renumbered document has every citation of it updated

@@ -31,18 +31,17 @@ identified, configured and documented the same way, and cheap to add.
 ## Non-Goals
 
 - Linting source code: the engine lints the documents and skills Lorecraft governs, nothing else.
-- New lints: which rules are added, and their defaults, are designed in their own issues.
+- New lints: which rules are added, and their defaults, are designed separately.
 - Unchanged output: the engine ships in a breaking release, whose release notes carry the migration.
 - Rules loaded from outside Lorecraft: the set of codes is fixed by the release.
 - Automatic fixes and inline suppression: a diagnostic leaves room for both, and neither ships here.
 - An IDE-like, long-lived mode: re-checking on each change, unsaved content, rejecting a superseded revision's
   results and ranged locations need a runtime a single run cannot exercise, and are deferred until it exists.
 - Selection by path in this release: the command checks the whole workspace (FR-002), and checking a file or a
-  directory, FR-003 to FR-007, is deferred to [#442](https://github.com/LNSD/lorecraft/issues/442).
+  directory, FR-003 to FR-007, is deferred.
 - Setting a rule's level in this release: every rule runs at its default level (FR-023). A repository's
-  configuration, FR-015's configuration half, FR-024 and FR-025, is deferred to where its location and format are
-  designed ([#322](https://github.com/LNSD/lorecraft/issues/322), [#205](https://github.com/LNSD/lorecraft/issues/205)),
-  together with level options on the command line and failing a run on warnings.
+  configuration, FR-015's configuration half, FR-024 and FR-025, is deferred until its location and format are
+  designed, together with level options on the command line and failing a run on warnings.
 
 ## User Stories
 
@@ -54,7 +53,7 @@ of file.
 **Independent test:** Check a file, a directory and the workspace, each holding a known violation.
 
 This release delivers the one command over the whole workspace; checking a file or a directory, and both scenarios
-below, are deferred to [#442](https://github.com/LNSD/lorecraft/issues/442).
+below, are deferred.
 
 ```gherkin
 Scenario: A single file
@@ -91,8 +90,8 @@ want stops failing its runs.
 
 **Independent test:** Check one violating document under each of the three levels.
 
-This release delivers each rule's default level; setting a level, and both scenarios below, are deferred to
-[#322](https://github.com/LNSD/lorecraft/issues/322).
+This release delivers each rule's default level; setting a level, and both scenarios below, are deferred until
+the configuration that sets it is designed.
 
 ```gherkin
 Scenario: A rule made advisory
@@ -140,7 +139,7 @@ Scenario: A sample rule
 
 - **FR-001:** THE SYSTEM SHALL report, under a rule, every condition the v0.2 checks report, except the three
   conditions on a skill's `metadata` that v0.2.1 reports and that read a meaning into it the Agent Skills
-  specification does not give ([#421](https://github.com/LNSD/lorecraft/issues/421)).
+  specification does not give.
 - **FR-002:** WHEN a user checks with no path, THE SYSTEM SHALL check the whole workspace.
 - **FR-003:** WHEN a user checks a file, THE SYSTEM SHALL check every subject that file is, a skill's resource
   on its own included.
@@ -234,9 +233,6 @@ Scenario: A sample rule
 
 ## References
 
-- [#315](https://github.com/LNSD/lorecraft/issues/315) - Source: The exploration this PRD consolidates
-- [#442](https://github.com/LNSD/lorecraft/issues/442) - Leads to: Checking a file or a directory
-- [#322](https://github.com/LNSD/lorecraft/issues/322) - Leads to: The configuration that sets a rule's level
 - [adr-016](adr-016-specifications.md) - Foundation: How a document's meta specs layer onto each other
 - [adr-009](adr-009-rules.md) - Leads to: How a rule is declared and identified
 - [adr-010](adr-010-diagnostics.md) - Leads to: What a rule reports, and how it reaches the user

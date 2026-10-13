@@ -28,7 +28,7 @@ its number with the PRD it answers. `adr-<NNN>` is how other documents cite it.
 | Field | Value | Notes |
 |---|---|---|
 | `type` | `"adr"` | Always |
-| `status` | `proposed`, `accepted`, `rejected`, `superseded` or `deprecated` | `accepted` once the owner settles it; frozen once `rejected`, `superseded` or `deprecated` |
+| `status` | `proposed`, `accepted`, `rejected`, `superseded` or `deprecated` | `accepted` once its implementation has landed and the owner settles it; frozen once `rejected`, `superseded` or `deprecated` |
 
 **An ADR is superseded when its replacement is accepted, not when the replacement is proposed.** Until then the old
 record stays as it is and keeps binding code, so the code is never left without a binding record of what it does.
@@ -51,8 +51,9 @@ The change that accepts the replacement turns its callout into `Supersedes …`,
 
 **An accepted ADR binds code.** It binds like any code spec in `docs/code/`: agents load it by its `description`, so the
 description ends with a trigger clause, `Load when …`, naming the work it governs, and a `## Checklist` of
-`- [ ]` items, one per verifiable statement, is what a code review walks. A `proposed`, `rejected`,
-`superseded` or `deprecated` ADR binds nothing.
+`- [ ]` items, one per verifiable statement, is what a code review walks. A `proposed` ADR is the design its
+implementation is built to, and it binds code only once that implementation has landed and the ADR is accepted.
+A `rejected`, `superseded` or `deprecated` ADR binds nothing.
 
 ## 3. Sections
 
@@ -71,10 +72,9 @@ design, not an inventory: which rules, commands, fields or files exist and how m
 that lists them goes stale with the next one added. An ADR never links a feat spec, though a feat spec may link
 the ADR: what shipped is described once, in `docs/feat/`, and a decision stays true whatever the feat spec says.
 
-**An ADR cites no issue**, under References or inline, by link or by number. It comes from the PRD it answers and
-the records it builds on, and cites those; what was settled on an issue is stated in the ADR itself, as context,
-decision or alternative. Deferred work is named by what it is, never by an issue or an unreleased milestone. This
-narrows the corpus rule that cites work not yet done by its issue.
+An ADR cites no issue, as the [arch](arch.md#4-cross-references) corpus states for every document. It comes from
+the PRD it answers and the records it builds on, and cites those; what was settled on an issue is stated in the
+ADR itself, as context, decision or alternative.
 
 ## 4. Template
 
@@ -118,5 +118,4 @@ status: "proposed"
 - [ ] An `accepted` ADR's description ends with a `Load when …` trigger, and it carries a checklist when it
   states something code can be checked against
 - [ ] The ADR states the design, lists no inventory of rules, commands, fields or files, and links no feat spec
-- [ ] The ADR cites no issue, under References or inline, and names deferred work by what it is, never by an issue
-  or an unreleased milestone
+- [ ] An `accepted` ADR's implementation has landed
