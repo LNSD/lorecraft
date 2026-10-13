@@ -204,7 +204,7 @@ def decode_frontmatter(block: str) -> FrontmatterNode:
         block: The lines between the delimiters, line endings kept; the first of them is document line 2.
     """
     try:
-        return _read_document(_EventStream(block))
+        return _read_document(EventStream(block))
     except ReaderError as exc:
         # The reader checks every character as it is built, so a control character fails before the first event.
         line = LineNumber.from_int(block.count('\n', 0, exc.position) + _FIRST_BLOCK_LINE)
@@ -258,13 +258,16 @@ class _BasicYaml(YAML):
         pass
 
 
-class _EventStream:
+class EventStream:
     """The events of a block, read lazily, one at a time, with one event of lookahead.
 
     The events come from ruamel.yaml's pure-Python reader, scanner and parser. The value is built from them by this
     module, never by ruamel.yaml's loader or constructor, so no tag ruamel.yaml resolves and no type it constructs
     is ever involved. They are read lazily so that a refusal early in the block is reported before a syntax error
     further down, as the parser reaches them.
+
+    The package does not re-export it. It is public in this module so the tests can read the events the decoding
+    reads, and hold them to another parser's.
     """
 
     def __init__(self, block: str) -> None:
@@ -623,7 +626,7 @@ class _BasicYamlScanner(Scanner):
         return TagToken((handle, suffix), start_mark, self.reader.get_mark())
 
 
-def _read_document(parser: _EventStream) -> Frontmatter | NonMappingFrontmatter:
+def _read_document(parser: EventStream) -> Frontmatter | NonMappingFrontmatter:
     """Read the block's one document, if any, and decode it.
 
     Every value is read to its end even when the document is not a mapping, so a refused construct or a syntax
@@ -654,7 +657,7 @@ def _read_document(parser: _EventStream) -> Frontmatter | NonMappingFrontmatter:
     return node
 
 
-def _peek_node_start(parser: _EventStream) -> ScalarEvent | SequenceStartEvent | MappingStartEvent:
+def _peek_node_start(parser: EventStream) -> ScalarEvent | SequenceStartEvent | MappingStartEvent:
     """The event the next value starts with, left unread, once it is known to use nothing basic YAML leaves out.
 
     Args:
@@ -680,7 +683,7 @@ def _peek_node_start(parser: _EventStream) -> ScalarEvent | SequenceStartEvent |
     return event
 
 
-def _read_value(parser: _EventStream) -> Frozen:
+def _read_value(parser: EventStream) -> Frozen:
     """Read one value and everything in it, and decode it frozen: to a `FrozenMapping`, a tuple or a scalar.
 
     Args:
@@ -698,7 +701,7 @@ def _read_value(parser: _EventStream) -> Frozen:
     return _scalar_value(event)
 
 
-def _read_mapping(parser: _EventStream) -> list[_Entry]:
+def _read_mapping(parser: EventStream) -> list[_Entry]:
     """Read one mapping, every pair in the order it is written, a repeated key once per occurrence.
 
     Args:
@@ -718,7 +721,7 @@ def _read_mapping(parser: _EventStream) -> list[_Entry]:
     return entries
 
 
-def _read_sequence(parser: _EventStream) -> tuple[Frozen, ...]:
+def _read_sequence(parser: EventStream) -> tuple[Frozen, ...]:
     """Read one sequence, every item in the order it is written, as a tuple, the sequence that cannot change.
 
     Args:
@@ -735,7 +738,7 @@ def _read_sequence(parser: _EventStream) -> tuple[Frozen, ...]:
     return tuple(items)
 
 
-def _read_key(parser: _EventStream) -> FrontmatterKey:
+def _read_key(parser: EventStream) -> FrontmatterKey:
     """Read one key of a mapping, which must be a scalar that decodes to a string.
 
     Args:

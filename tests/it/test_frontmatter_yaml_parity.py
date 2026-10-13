@@ -1,21 +1,157 @@
-"""The frontmatter parser's `FM002` problems and lines against PyYAML's, which it replaced.
+"""The frontmatter parser's ruamel.yaml events and errors against PyYAML's, which it replaced.
 
 `decode_frontmatter` reads ruamel.yaml's events, where it once read PyYAML's, and what lorecraft accepts as
-frontmatter and the line of every `FM002` must not move. These tests hold the two parsers to each other on every
-error probe: the problem and the line each reports. This tier alone may import PyYAML, a development dependency: the
-package never does.
+frontmatter and the line of every `FM002` must not move. These tests hold the two parsers to each other: the events of
+every frontmatter block of the repository's own documents and of blocks covering the syntax a block may use, and the
+problem and line of every error probe. This tier alone may import PyYAML, a development dependency: the package never
+does.
 """
+
+import re
+from pathlib import Path
+from typing import Final
 
 import pytest
 import yaml
+from ruamel.yaml.error import MarkedYAMLError
+from ruamel.yaml.reader import ReaderError
 from yaml.error import MarkedYAMLError as PyYamlMarkedError
+from yaml.parser import Parser as PyYamlParser
+from yaml.reader import Reader as PyYamlReader
 from yaml.reader import ReaderError as PyYamlReaderError
+from yaml.scanner import Scanner as PyYamlScanner
 
 from lorecraft.core.mapping import FrozenMapping
-from lorecraft.project.syntax.frontmatter import Frontmatter, InvalidYamlFrontmatter, decode_frontmatter
+from lorecraft.project.syntax.frontmatter import (
+    EventStream,
+    Frontmatter,
+    InvalidYamlFrontmatter,
+    decode_frontmatter,
+)
+
+REPOSITORY_ROOT: Final[Path] = Path(__file__).resolve().parents[2]
+"""The repository the tests run in, whose documents are the corpus."""
+
+CORPUS_DIRECTORIES: Final[tuple[str, ...]] = ('docs', 'skills', '.claude/skills')
+"""The directories of the repository whose Markdown documents hold the corpus.
+
+Mutation testing runs the tests from a copy of the repository that holds only `skills/` of these, so the corpus
+is whatever of them is on disk, and the test below asks that it is not empty rather than how large it is."""
+
+type EventSummary = tuple[str, str | None, str | None, str | None, str | None, int | None]
+"""One event as both parsers must agree on it: its type, value, style, anchor, tag and block line."""
 
 type ErrorSummary = tuple[str, int | None]
 """What `FM002` reports about a block: the problem, and the block line it is on, counted from 0."""
+
+
+def pyyaml_events(block: str) -> list[EventSummary]:
+    """The events PyYAML's reader, scanner and parser read from the block, ending with the error if it raises one.
+
+    Args:
+        block: The YAML text, as `decode_frontmatter` takes it.
+    """
+
+    class Parser(PyYamlReader, PyYamlScanner, PyYamlParser):
+        """PyYAML's reader, scanner and parser, which read a string into events and build no value."""
+
+        def __init__(self, text: str) -> None:
+            PyYamlReader.__init__(self, text)
+            PyYamlScanner.__init__(self)
+            PyYamlParser.__init__(self)
+
+    events: list[object] = []
+    failure: EventSummary | None = None
+    try:
+        parser = Parser(block)
+        while parser.check_event():
+            events.append(parser.get_event())
+    except (PyYamlMarkedError, PyYamlReaderError) as exc:
+        failure = ('error', str(exc).splitlines()[0], None, None, None, None)
+    return summarize_stream(events, failure)
+
+
+def ruamel_events(block: str) -> list[EventSummary]:
+    """The events `decode_frontmatter` reads from the block, ending with the error if the parser raises one.
+
+    Args:
+        block: The YAML text, as `decode_frontmatter` takes it.
+    """
+    events: list[object] = []
+    failure: EventSummary | None = None
+    stream = EventStream(block)
+    try:
+        while True:
+            event = stream.get_event()
+            events.append(event)
+            if type(event).__name__ == 'StreamEndEvent':
+                break
+    except (MarkedYAMLError, ReaderError) as exc:
+        failure = ('error', str(exc).splitlines()[0], None, None, None, None)
+    return summarize_stream(events, failure)
+
+
+def summarize_stream(events: list[object], failure: EventSummary | None) -> list[EventSummary]:
+    """The events as both parsers must agree on them, followed by the error that ended the stream, if one did.
+
+    Args:
+        events: The events of either library, in the order they were read.
+        failure: The error the parser raised after them, or None when it read to the stream's end.
+    """
+    summaries: list[EventSummary] = []
+    # One entry per open collection: whether the next node of a mapping is a key, or None for a sequence.
+    expects_key: list[bool | None] = []
+    for event in events:
+        kind = type(event).__name__
+        is_node = kind in ('ScalarEvent', 'AliasEvent', 'SequenceStartEvent', 'MappingStartEvent')
+        is_mapping_value = False
+        if is_node and expects_key and expects_key[-1] is not None:
+            is_mapping_value = not expects_key[-1]
+            expects_key[-1] = not expects_key[-1]
+        if kind == 'MappingStartEvent':
+            expects_key.append(True)
+        elif kind == 'SequenceStartEvent':
+            expects_key.append(None)
+        elif kind in ('MappingEndEvent', 'SequenceEndEvent'):
+            expects_key.pop()
+        summaries.append(summarize(event, is_mapping_value))
+    if failure is not None:
+        summaries.append(failure)
+    return summaries
+
+
+def summarize(event: object, is_mapping_value: bool) -> EventSummary:
+    """One event as both parsers must agree on it.
+
+    Args:
+        event: An event of either library.
+        is_mapping_value: Whether the event is the value of a mapping's pair.
+    """
+    kind = type(event).__name__
+    value = getattr(event, 'value', None)
+    tag = getattr(event, 'tag', None)
+    mark = getattr(event, 'start_mark', None)
+    # The one mark that differs is a mapping value written as nothing, `a:` and then no text, with no tag or anchor
+    # and not quoted: ruamel.yaml puts it on the next token's line where PyYAML puts it after the `:`. Nothing
+    # reads it. `decode_frontmatter` takes a line from the start of a key, and from an anchor, a tag or an alias,
+    # and an empty value has none of those. The empty scalar of a tagged or anchored value starts at its tag or
+    # anchor, which is compared. A key written as nothing is compared too, and read in a test below.
+    is_unread_mark = (
+        is_mapping_value
+        and kind == 'ScalarEvent'
+        and value == ''
+        and tag is None
+        and getattr(event, 'anchor', None) is None
+        and getattr(event, 'style', None) is None
+    )
+    return (
+        kind,
+        value,
+        getattr(event, 'style', None),
+        getattr(event, 'anchor', None),
+        None if tag is None else str(tag),
+        None if mark is None or is_unread_mark else mark.line,
+    )
 
 
 def pyyaml_error(block: str) -> ErrorSummary:
@@ -44,6 +180,141 @@ def frontmatter_error(block: str) -> ErrorSummary:
     node = decode_frontmatter(block)
     assert isinstance(node, InvalidYamlFrontmatter), f'the block should be refused as invalid YAML, got {node!r}'
     return node.problem, None if node.line is None else node.line.number - 2
+
+
+def corpus_blocks() -> dict[str, str]:
+    """The frontmatter block of every Markdown document under the corpus directories, by path.
+
+    A document's block is its lines between a first line of `---` and the next line of `---`.
+    """
+    blocks: dict[str, str] = {}
+    for directory in CORPUS_DIRECTORIES:
+        for path in sorted((REPOSITORY_ROOT / directory).rglob('*.md')):
+            lines = path.read_text(encoding='utf-8').splitlines(keepends=True)
+            if not lines or lines[0].rstrip() != '---':
+                continue
+            closing = next((n for n, line in enumerate(lines[1:], start=1) if re.fullmatch(r'---\s*', line)), None)
+            if closing is not None:
+                blocks[str(path.relative_to(REPOSITORY_ROOT))] = ''.join(lines[1:closing])
+    return blocks
+
+
+def reads_same_events(block: str) -> bool:
+    """Whether both parsers read the block as the same events, with the same type, value, style, anchor, tag, line.
+
+    Args:
+        block: The YAML text to read with both.
+    """
+    return ruamel_events(block) == pyyaml_events(block)
+
+
+@pytest.mark.it
+class TestCorpusEventParity:
+    def test_event_stream_with_the_repository_corpus_matches_pyyaml(self) -> None:
+        #: Given
+        # The one test that loops: the cases are the documents found on disk, so there is no case to name, and the
+        # names of the differing blocks are what the failure reports.
+        blocks = corpus_blocks()
+
+        #: When
+        names = [name for name, block in blocks.items() if not reads_same_events(block)]
+
+        #: Then
+        assert blocks, 'discovery should find the documents of the directories the corpus is read from'
+        assert names == [], 'every block reads as the same events, with the same type, value, style, anchor, tag, line'
+
+
+@pytest.mark.it
+class TestSyntaxEventParity:
+    def test_event_stream_with_a_block_mapping_and_sequence_matches_pyyaml(self) -> None:
+        #: Given
+        block = 'name: guide\ntags:\n  - a\n  - b\nnested:\n  key: value\n'
+
+        #: When
+        same = reads_same_events(block)
+
+        #: Then
+        assert same, 'a block mapping and sequence read as the same events'
+
+    def test_event_stream_with_an_indentless_sequence_matches_pyyaml(self) -> None:
+        #: Given
+        block = 'tags:\n- a\n- b\n'
+
+        #: When
+        same = reads_same_events(block)
+
+        #: Then
+        assert same, "a sequence written at its key's indent reads as the same events"
+
+    def test_event_stream_with_flow_collections_matches_pyyaml(self) -> None:
+        #: Given
+        block = 'a: [1, two, {three: 3}]\nb: {c: [d, e], f: g}\n'
+
+        #: When
+        same = reads_same_events(block)
+
+        #: Then
+        assert same, 'flow collections read as the same events'
+
+    def test_event_stream_with_quoted_scalars_matches_pyyaml(self) -> None:
+        #: Given
+        block = "a: \"double \\x41 \\u00e9 \\n \\/\"\nb: 'it''s'\n"
+
+        #: When
+        same = reads_same_events(block)
+
+        #: Then
+        assert same, 'escapes and doubled quotes read as the same events'
+
+    def test_event_stream_with_multi_line_scalars_matches_pyyaml(self) -> None:
+        #: Given
+        block = 'a: plain\n  continued\nb: "quoted\n  continued"\n'
+
+        #: When
+        same = reads_same_events(block)
+
+        #: Then
+        assert same, 'a scalar continued on the next line reads as the same events'
+
+    def test_event_stream_with_block_scalars_matches_pyyaml(self) -> None:
+        #: Given
+        block = 'a: |\n  literal\n  text\nb: >-\n  folded\n  text\n\nc: |+\n  keep\n\n'
+
+        #: When
+        same = reads_same_events(block)
+
+        #: Then
+        assert same, 'literal and folded block scalars read as the same events'
+
+    def test_event_stream_with_directives_matches_pyyaml(self) -> None:
+        #: Given
+        block = '%YAML 1.1\n%TAG !e! tag:example.org,2026:\n---\na: !e!t 1\n'
+
+        #: When
+        same = reads_same_events(block)
+
+        #: Then
+        assert same, 'a YAML and a TAG directive read as the same events'
+
+    def test_event_stream_with_explicit_document_markers_matches_pyyaml(self) -> None:
+        #: Given
+        block = '---\na: 1\n...\n'
+
+        #: When
+        same = reads_same_events(block)
+
+        #: Then
+        assert same, 'explicit document start and end markers read as the same events'
+
+    def test_event_stream_with_two_documents_matches_pyyaml(self) -> None:
+        #: Given
+        block = '---\na: 1\n---\nb: 2\n'
+
+        #: When
+        same = reads_same_events(block)
+
+        #: Then
+        assert same, 'a second document reads as the same events'
 
 
 @pytest.mark.it
