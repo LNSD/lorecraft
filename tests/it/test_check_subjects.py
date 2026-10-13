@@ -997,7 +997,7 @@ class TestCheckSubjects:
         occurrence = InvalidYaml(
             spec=CODE_SPEC,
             problem=_invalid_yaml_problem(guide),
-            stopped_at=LineNumber.from_int(3),
+            stopped_at=LineNumber.from_int(2),
         )
         assert reports == (
             CheckedSubject(
@@ -1103,7 +1103,7 @@ class TestCheckSubjects:
         occurrence = InvalidYaml(
             spec=None,
             problem=_invalid_yaml_problem(review),
-            stopped_at=LineNumber.from_int(3),
+            stopped_at=LineNumber.from_int(2),
         )
         assert reports == (
             CheckedSubject(
@@ -2035,7 +2035,7 @@ class TestCheckSubjects:
         invalid_yaml = InvalidYaml(
             spec=None,
             problem=_invalid_yaml_problem(review),
-            stopped_at=LineNumber.from_int(3),
+            stopped_at=LineNumber.from_int(2),
         )
         absolute_link = AbsoluteLink(line=LineNumber.from_int(4), url='/x.md')
         assert reports == (
