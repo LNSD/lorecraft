@@ -2,7 +2,7 @@
 
 Every document's headings are read from its text by the real parser, and every outline decoded from a structure
 specification's JSON by the real decoder: a document that follows its outline, one that writes its sections out of
-order, one with a section no entry names and no run covers, and one held to two specifications.
+order, one with a section no entry names and no `any` run covers, and one held to two specifications.
 """
 
 from typing import Final, assert_never
@@ -13,7 +13,15 @@ from lorecraft.core.path import RootRelativePath
 from lorecraft.project.syntax import parse_document
 
 from ..name import parse_spec_name
-from ..outline_alignment import AlignedSection, OutlineAlignmentSpec, align_outlines
+from ..outline_alignment import (
+    AlignedSection,
+    AnyRunAlignment,
+    NamedAlignment,
+    OutlineAlignmentSpec,
+    UnalignedSection,
+    align_outlines,
+)
+from ..section_name import SectionName
 from ..spec_file import SpecFileType, StructureSpecFile, spec_filename
 from ..structure import AnySections, SectionEntry, StructureSchema, StructureSpec
 
@@ -75,17 +83,34 @@ def _entry_summary(aligned: tuple[AlignedSection, ...]) -> list[str]:
     """
     summary: list[str] = []
     for section in aligned:
-        entry = section.entry
-        match entry:
-            case SectionEntry():
-                summary.append(entry.name.value)
-            case AnySections():
+        match section:
+            case NamedAlignment():
+                summary.append(section.entry.name.value)
+            case AnyRunAlignment():
                 summary.append('any')
-            case None:
+            case UnalignedSection():
                 summary.append('-')
             case _:
-                assert_never(entry)
+                assert_never(section)
     return summary
+
+
+def _forbidden_flags(aligned: tuple[AlignedSection, ...]) -> list[bool]:
+    """Whether each aligned section is forbidden, in document order; a named section never is.
+
+    Args:
+        aligned: The aligned sections.
+    """
+    flags: list[bool] = []
+    for section in aligned:
+        match section:
+            case NamedAlignment():
+                flags.append(False)
+            case AnyRunAlignment() | UnalignedSection():
+                flags.append(section.forbidden)
+            case _:
+                assert_never(section)
+    return flags
 
 
 @pytest.mark.unit
@@ -99,7 +124,7 @@ class TestAlignOutlines:
 
         #: Then
         assert _entry_summary(aligned) == ['Rule', 'any', 'Checklist'], (
-            'a named section falls in the entry naming it, and an unnamed one in the run between its neighbours'
+            'a named section falls in the entry naming it, and an unnamed one in the `any` run between its neighbours'
         )
 
     def test_align_outlines_with_sections_written_out_of_order_aligns_each_to_the_entry_naming_it(self) -> None:
@@ -112,10 +137,10 @@ class TestAlignOutlines:
         #: Then
         assert _entry_summary(aligned) == ['Rule', '-', 'Checklist'], (
             'a named section falls in the entry naming it, in or out of its turn; `Aside` follows `Rule`, which '
-            'the outline places last, so no run follows to cover it'
+            'the outline places last, so no `any` run follows to cover it'
         )
 
-    def test_align_outlines_with_an_unnamed_section_after_every_run_aligns_it_to_nothing(self) -> None:
+    def test_align_outlines_with_an_unnamed_section_after_every_any_run_aligns_it_to_nothing(self) -> None:
         #: Given
         spec_json = '{"outline": [{"any": true}, {"section": "Rule"}, {"section": "Checklist"}]}'
 
@@ -124,10 +149,10 @@ class TestAlignOutlines:
 
         #: Then
         assert _entry_summary(aligned) == ['Rule', '-', 'Checklist'], (
-            'the run precedes `Rule`, so `Aside` after it is covered by no run and falls in no entry'
+            'the `any` run precedes `Rule`, so `Aside` after it is covered by no `any` run and falls in no entry'
         )
 
-    def test_align_outlines_with_an_unnamed_section_before_a_later_run_aligns_it_to_that_run(self) -> None:
+    def test_align_outlines_with_an_unnamed_section_before_a_later_any_run_aligns_it_to_that_any_run(self) -> None:
         #: Given
         text = '# Typing\n\n## Aside\n\nRead the rationale once.\n\n## Rule\n\nAnnotate every signature.\n'
         spec_json = '{"outline": [{"section": "Rule"}, {"any": true}]}'
@@ -137,17 +162,27 @@ class TestAlignOutlines:
 
         #: Then
         assert _entry_summary(aligned) == ['any', 'Rule'], (
-            'a section before every named one falls in the first run of the outline, whatever its place'
+            'a section before every named one falls in the first `any` run of the outline, whatever its place'
         )
 
-    def test_align_outlines_with_a_run_holding_a_cap_aligns_the_section_to_that_run(self) -> None:
+    def test_align_outlines_with_an_any_run_holding_a_cap_aligns_the_section_to_that_any_run(self) -> None:
         #: Given
         spec_json = '{"outline": [{"section": "Rule", "words": 30}, {"any": true, "words": 5}]}'
 
         #: When
         aligned = _align_corpus(spec_json, RULE_ASIDE_CHECKLIST)
-        entries = [section.entry for section in aligned]
-        caps = [entry.words.value if entry is not None and entry.words else None for entry in entries]
+        caps: list[int | None] = []
+        for section in aligned:
+            match section:
+                case NamedAlignment():
+                    cap = section.entry.words
+                case AnyRunAlignment():
+                    cap = section.run.words
+                case UnalignedSection():
+                    cap = None
+                case _:
+                    assert_never(section)
+            caps.append(cap.value if cap is not None else None)
 
         #: Then
         assert caps == [30, 5, 5], (
@@ -162,9 +197,9 @@ class TestAlignOutlines:
         aligned = _align_corpus(spec_json, RULE_ASIDE_CHECKLIST)
 
         #: Then
-        assert [section.forbidden for section in aligned] == [False, True, False], 'only `Aside` is forbidden'
+        assert _forbidden_flags(aligned) == [False, True, False], 'only `Aside` is forbidden'
         assert _entry_summary(aligned) == ['Rule', 'any', 'any'], (
-            'a forbidden section is no named one, so the run covers it as it covers any unnamed section'
+            'a forbidden section is no named one, so the `any` run covers it as it covers any unnamed section'
         )
 
     def test_align_outlines_with_a_specification_stating_no_outline_aligns_each_section_to_nothing(self) -> None:
@@ -176,7 +211,7 @@ class TestAlignOutlines:
 
         #: Then
         assert _entry_summary(aligned) == ['-', '-', '-'], 'with no outline there is no entry to fall in'
-        assert [section.forbidden for section in aligned] == [False, True, False], 'the forbidden names still apply'
+        assert _forbidden_flags(aligned) == [False, True, False], 'the forbidden names still apply'
 
     def test_align_outlines_with_a_subsection_aligns_only_the_h2_sections(self) -> None:
         #: Given
@@ -205,9 +240,11 @@ class TestAlignOutlines:
 
         #: Then
         assert specs == [CORPUS_SPEC, NAMESPACE_SPEC], 'one entry per specification, in the order given'
-        assert corpus_summary == ['Rule', 'any', 'any'], 'the corpus outline names `Rule`, then a run covers the rest'
+        assert corpus_summary == ['Rule', 'any', 'any'], (
+            'the corpus outline names `Rule`, then an `any` run covers the rest'
+        )
         assert namespace_summary == ['-', '-', 'Checklist'], (
-            'the namespace outline names only `Checklist`, so the sections before it fall in no run of it'
+            'the namespace outline names only `Checklist`, so the sections before it fall in no `any` run of it'
         )
 
 
@@ -239,3 +276,41 @@ class TestOutlineAlignmentSpecFind:
 
         #: Then
         assert aligned is None, 'the title is no H2, so no outline aligns it'
+
+
+@pytest.mark.unit
+class TestAlignedSectionInvariants:
+    def test_named_alignment_with_an_entry_naming_another_section_raises(self) -> None:
+        #: Given
+        headings = parse_document(RULE_ASIDE_CHECKLIST).headings
+        aside = next(heading for heading in headings if heading.text == 'Aside')
+        entry = SectionEntry(name=SectionName.parse('Rule'))
+
+        #: When
+        with pytest.raises(ValueError) as exc_info:
+            NamedAlignment(section=aside, entry=entry)
+
+        #: Then
+        assert 'Aside' in str(exc_info.value), 'the error names the section the entry does not name'
+
+    def test_any_run_alignment_with_a_title_raises(self) -> None:
+        #: Given
+        title = parse_document(RULE_ASIDE_CHECKLIST).headings[0]
+
+        #: When
+        with pytest.raises(ValueError) as exc_info:
+            AnyRunAlignment(section=title, run=AnySections(words=None), forbidden=False)
+
+        #: Then
+        assert 'Typing' in str(exc_info.value), 'the error names the heading that is no H2'
+
+    def test_unaligned_section_with_a_title_raises(self) -> None:
+        #: Given
+        title = parse_document(RULE_ASIDE_CHECKLIST).headings[0]
+
+        #: When
+        with pytest.raises(ValueError) as exc_info:
+            UnalignedSection(section=title, forbidden=False)
+
+        #: Then
+        assert 'Typing' in str(exc_info.value), 'the error names the heading that is no H2'

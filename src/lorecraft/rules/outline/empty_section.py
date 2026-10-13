@@ -5,7 +5,13 @@ from typing import ClassVar, Self, assert_never
 
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.context import DocumentContext
-from lorecraft.project.schemas import AnySections, OutlineAlignmentSpec, SectionEntry
+from lorecraft.project.schemas import (
+    AnyRunAlignment,
+    NamedAlignment,
+    OutlineAlignmentSpec,
+    SectionEntry,
+    UnalignedSection,
+)
 from lorecraft.project.syntax import Heading, find_title
 from lorecraft.rules.declaration import Level, Release, RuleCode, RuleName, rule
 from lorecraft.rules.location import Help, Subdiagnostic
@@ -30,15 +36,14 @@ def _find_required_entry(alignments: tuple[OutlineAlignmentSpec, ...], heading: 
         aligned = alignment.find(heading)
         if aligned is None:
             continue
-        entry = aligned.entry
-        match entry:
-            case SectionEntry():
-                if not entry.optional:
-                    return entry
-            case AnySections() | None:
-                pass  # a run, or nothing, requires no section
+        match aligned:
+            case NamedAlignment():
+                if not aligned.entry.optional:
+                    return aligned.entry
+            case AnyRunAlignment() | UnalignedSection():
+                pass  # an `any` run, or nothing, requires no section
             case _:
-                assert_never(entry)
+                assert_never(aligned)
     return None
 
 

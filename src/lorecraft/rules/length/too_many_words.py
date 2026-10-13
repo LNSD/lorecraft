@@ -5,7 +5,7 @@ from typing import ClassVar, Final, Self, assert_never
 
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.context import DocumentContext
-from lorecraft.project.schemas import AnySections, SectionEntry
+from lorecraft.project.schemas import AnyRunAlignment, NamedAlignment, UnalignedSection
 from lorecraft.rules.declaration import Level, Release, RuleCode, RuleName, rule
 from lorecraft.rules.location import Help, Here, Label, Note, Subdiagnostic
 from lorecraft.rules.subject import DocumentRule, Facet
@@ -24,7 +24,7 @@ class AnyRunCap:
 
 
 type CapSource = NamedSectionCap | AnyRunCap
-"""Where a section's cap comes from: the entry naming it, or the run of unnamed sections it falls in."""
+"""Where a section's cap comes from: the entry naming it, or the `any` run of unnamed sections it falls in."""
 
 
 _SPLIT_HELP: Final[Help] = Help(
@@ -148,18 +148,18 @@ class TooManyWords(DocumentRule):
         occurrences: list[Self] = []
         for alignment in subject.outline_alignment():
             for aligned in alignment.sections:
-                entry = aligned.entry
                 cap_source: CapSource  # declared once, so each branch below may assign either variant
-                match entry:
-                    case SectionEntry():
+                match aligned:
+                    case NamedAlignment():
                         cap_source = NamedSectionCap()
-                    case AnySections():
+                        cap = aligned.entry.words
+                    case AnyRunAlignment():
                         cap_source = AnyRunCap()
-                    case None:
+                        cap = aligned.run.words
+                    case UnalignedSection():
                         continue
                     case _:
-                        assert_never(entry)
-                cap = entry.words
+                        assert_never(aligned)
                 section = aligned.section
                 if cap is not None and section.words > cap.value:
                     occurrences.append(
