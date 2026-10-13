@@ -598,7 +598,7 @@ class TestDecodeFrontmatter:
             problem='found the directive %YAML, which frontmatter does not allow', line=LineNumber.from_int(3)
         ), 'the directive is refused on its own line, ahead of the second document it introduces'
 
-    def test_decode_frontmatter_with_a_directive_after_an_end_marker_returns_invalid_yaml_on_the_directive(
+    def test_decode_frontmatter_with_a_directive_after_an_end_marker_returns_invalid_yaml_on_the_end_marker(
         self,
     ) -> None:
         #: Given
@@ -617,8 +617,8 @@ class TestDecodeFrontmatter:
 
         #: Then
         assert node == InvalidYamlFrontmatter(
-            problem='found the directive %YAML, which frontmatter does not allow', line=LineNumber.from_int(4)
-        ), 'the directive is refused on its own line, whatever lines separate it from the `---`'
+            problem='found the document marker ..., which frontmatter does not allow', line=LineNumber.from_int(3)
+        ), 'the end marker comes before the directive, so it is the one reported'
 
     def test_decode_frontmatter_with_a_percent_sign_that_starts_no_line_returns_it_as_text(self) -> None:
         #: Given
@@ -761,18 +761,136 @@ class TestDecodeFrontmatter:
             'only a plain scalar is resolved; a quoted or block scalar is its text, whatever it reads like'
         )
 
-    def test_decode_frontmatter_with_a_second_document_returns_invalid_yaml_on_its_line(self) -> None:
+    def test_decode_frontmatter_with_a_document_start_marker_returns_invalid_yaml_on_its_line(self) -> None:
         #: Given
-        # a `---` line with content after it starts a document without closing the block, as a bare one would
-        block = 'name: guide\n--- type: rule\n'
+        block = dedent("""\
+            name: guide
+            --- type: rule
+            """)
 
         #: When
         node = decode_frontmatter(block)
 
         #: Then
         assert node == InvalidYamlFrontmatter(
-            problem='found a second document, which frontmatter does not allow', line=LineNumber.from_int(3)
-        ), 'a block holds one document, so a second is a finding on the line that starts it'
+            problem='found the document marker ---, which frontmatter does not allow', line=LineNumber.from_int(3)
+        ), 'a `---` inside the block would start a second document, and is a finding on its own line'
+
+    def test_decode_frontmatter_with_a_document_start_marker_on_the_first_line_returns_invalid_yaml_on_its_line(
+        self,
+    ) -> None:
+        #: Given
+        block = '--- a\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem='found the document marker ---, which frontmatter does not allow', line=LineNumber.from_int(2)
+        ), 'a marker is refused where the block opens as well'
+
+    def test_decode_frontmatter_with_a_document_end_marker_returns_invalid_yaml_on_its_line(self) -> None:
+        #: Given
+        block = dedent("""\
+            name: guide
+            ...
+            """)
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem='found the document marker ..., which frontmatter does not allow', line=LineNumber.from_int(3)
+        ), 'the end marker is refused like the start one, although the parser would end the document there'
+
+    def test_decode_frontmatter_with_a_document_end_marker_on_the_first_line_returns_invalid_yaml_on_its_line(
+        self,
+    ) -> None:
+        #: Given
+        block = dedent("""\
+            ...
+            name: guide
+            """)
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem='found the document marker ..., which frontmatter does not allow', line=LineNumber.from_int(2)
+        ), 'a leading end marker is refused, although the parser would skip it without an event'
+
+    def test_decode_frontmatter_with_a_document_marker_on_a_quoted_continuation_line_returns_invalid_yaml(
+        self,
+    ) -> None:
+        #: Given
+        block = dedent("""\
+            a: "x
+            --- y"
+            """)
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem='found the document marker ---, which frontmatter does not allow', line=LineNumber.from_int(3)
+        ), 'a marker inside a quoted scalar is refused as every other marker is, not in the parser words'
+
+    def test_decode_frontmatter_with_a_document_marker_after_a_blank_line_of_a_quoted_scalar_returns_invalid_yaml(
+        self,
+    ) -> None:
+        #: Given
+        block = dedent("""\
+            a: 'x
+
+            ... y'
+            """)
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem='found the document marker ..., which frontmatter does not allow', line=LineNumber.from_int(4)
+        ), 'a blank line before the marker does not hide it'
+
+    def test_decode_frontmatter_with_an_indented_marker_in_a_quoted_continuation_line_returns_it_as_text(self) -> None:
+        #: Given
+        block = dedent("""\
+            a: "x
+              --- y"
+            """)
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert isinstance(node, Frontmatter), f'a YAML mapping is frontmatter, got {node!r}'
+        assert node.data == FrozenMapping({'a': 'x --- y'}), (
+            'a marker is three characters at the start of a line, so an indented one is text'
+        )
+
+    def test_decode_frontmatter_with_marker_like_text_returns_it_as_text(self) -> None:
+        #: Given
+        block = dedent("""\
+            a: ---
+            b: ...
+            c: "--- x"
+            d: |
+              ---
+            """)
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert isinstance(node, Frontmatter), f'a YAML mapping is frontmatter, got {node!r}'
+        assert node.data == FrozenMapping({'a': '---', 'b': '...', 'c': '--- x', 'd': '---\n'}), (
+            'a marker is three characters at the start of a line, not inside a value or an indented line'
+        )
 
     def test_decode_frontmatter_with_a_bad_indent_returns_invalid_yaml_on_its_line(self) -> None:
         #: Given

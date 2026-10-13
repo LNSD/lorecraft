@@ -9,10 +9,10 @@ failure of the parse.
 The block is read as basic YAML, which decodes to exactly what JSON can hold: block and flow mappings whose keys
 are strings, block and flow sequences, and scalars. A quoted or block scalar is a string. A plain scalar is null,
 a boolean, an integer or a float when its whole text is one in YAML 1.2's core schema, such as `~`, `true`, `12` or
-`1.5`, and a string otherwise, so `yes`, `2026-10-05` and `1:30` are strings. A directive, an anchor, an alias, an
-explicit tag and a key that is not a string are refused, on their line, as a block that is not YAML: none is needed
-to write a document's metadata, an alias can make a collection hold itself, a tag builds values JSON has no
-counterpart for, and JSON names every key with a string.
+`1.5`, and a string otherwise, so `yes`, `2026-10-05` and `1:30` are strings. A directive, a document marker, an
+anchor, an alias, an explicit tag and a key that is not a string are refused, on their line, as a block that is
+not YAML: none is needed to write a document's metadata, an alias can make a collection hold itself, a tag builds
+values JSON has no counterpart for, and JSON names every key with a string.
 """
 
 import math
@@ -197,9 +197,9 @@ def decode_frontmatter(block: str) -> FrontmatterNode:
 
     Never `MissingFrontmatter`: whether a block exists is decided before this is called. Every block the YAML
     parser cannot parse is `InvalidYamlFrontmatter`, including the few it fails on with a plain Python exception
-    rather than its own error, and so is every block that uses a directive, an anchor, an alias or a tag, writes a
-    key, at any depth, that is not a string, such as `1:`, `true:` or `null:`, nests collections too deeply to
-    read, or holds more than one document.
+    rather than its own error, and so is every block that uses a directive, a document marker, an anchor, an
+    alias or a tag, writes a key, at any depth, that is not a string, such as `1:`, `true:` or `null:`, or nests
+    collections too deeply to read.
 
     Args:
         block: The lines between the delimiters, line endings kept; the first of them is document line 2.
@@ -330,10 +330,11 @@ class _BasicYamlScanner(Scanner):
     A block is accepted or refused by the YAML 1.1 grammar, and a refusal names the problem and the line the scanner
     found it on.
 
-    A directive is refused at its indicator, before anything after it is read, so the block's own text never reaches
-    ruamel.yaml's directive scanner, whose version number conversion raises a plain `ValueError` for more digits
-    than Python converts to an `int`, 4300 by default. That refusal is a `MarkedYAMLError` of lorecraft's own, not
-    a `ScannerError`: `decode_frontmatter` reports it as it is worded, where it rewords the scanner's problems.
+    A directive and a document marker are refused at their indicator, before anything after it is read, so the
+    block's own text never reaches ruamel.yaml's directive scanner, whose version number conversion raises a plain
+    `ValueError` for more digits than Python converts to an `int`, 4300 by default. Those refusals are a
+    `MarkedYAMLError` of lorecraft's own, not a `ScannerError`: `decode_frontmatter` reports them as they are
+    worded, where it rewords the scanner's problems.
 
     A double-quoted `\U` escape above `U+10FFFF` is the one other place a plain Python exception escapes: `chr`
     raises a `ValueError`, or an `OverflowError` for one too large for a C `int`. It is raised here as a
@@ -352,6 +353,54 @@ class _BasicYamlScanner(Scanner):
             length += 1
         problem = f'found the directive {self.reader.prefix(length)}, which frontmatter does not allow'
         raise MarkedYAMLError(problem=problem, problem_mark=start_mark)
+
+    def fetch_document_start(self) -> Never:
+        """Refuse a `---` marker written inside the block.
+
+        Raises:
+            MarkedYAMLError: Always: the block is the body of one document, whose delimiters are not part of it.
+        """
+        self._refuse_document_marker()
+
+    def fetch_document_end(self) -> Never:
+        """Refuse a `...` marker written inside the block.
+
+        Raises:
+            MarkedYAMLError: Always: the block is the body of one document, whose delimiters are not part of it.
+        """
+        self._refuse_document_marker()
+
+    def _refuse_document_marker(self) -> Never:
+        """Refuse the three-character marker the reader is on.
+
+        Raises:
+            MarkedYAMLError: Always: the marker is not allowed inside the block.
+        """
+        start_mark = self.reader.get_mark()
+        problem = f'found the document marker {self.reader.prefix(3)}, which frontmatter does not allow'
+        raise MarkedYAMLError(problem=problem, problem_mark=start_mark)
+
+    def scan_flow_scalar_breaks(self, double: bool, start_mark: StreamMark) -> list[str]:
+        """Scan the line breaks and blank lines inside a quoted scalar, refusing a marker that starts a line.
+
+        Args:
+            double: True for a double-quoted scalar; False for a single-quoted one.
+            start_mark: Where the scalar starts, for the scanner's own error messages.
+
+        Raises:
+            MarkedYAMLError: A line of the scalar starts with a `---` or `...` marker.
+        """
+        # ruamel.yaml refuses a marker on a continuation line itself, in its own words, and the format refuses
+        # every marker the same way, so the loop is its own with that one check changed.
+        chunks: list[str] = []
+        while True:
+            if self.reader.prefix(3) in ('---', '...') and self.reader.peek(3) in _SPACE_CHARACTERS:
+                self._refuse_document_marker()
+            while self.reader.peek() in ' \t':
+                self.reader.forward()
+            if self.reader.peek() not in '\r\n\x85\u2028\u2029':
+                return chunks
+            chunks.append(self.scan_line_break())
 
     # Where ruamel.yaml's scanner differs from PyYAML's, each method below is PyYAML's reading, because `FM002` has
     # always reported what PyYAML's scanner found: the same blocks refused, with the same problem on the same line.
@@ -530,8 +579,7 @@ def _read_document(parser: _EventStream) -> Frontmatter | NonMappingFrontmatter:
         parser: The block's parser, before its first event is read.
 
     Raises:
-        MarkedYAMLError: The block is not valid YAML, uses what basic YAML leaves out, or holds a second
-            document.
+        MarkedYAMLError: The block is not valid YAML or uses what basic YAML leaves out.
     """
     parser.get_event()  # The stream's start.
     if parser.check_event(StreamEndEvent):
@@ -546,8 +594,8 @@ def _read_document(parser: _EventStream) -> Frontmatter | NonMappingFrontmatter:
         node = NonMappingFrontmatter()
     parser.get_event()  # The document's end.
     if not parser.check_event(StreamEndEvent):
-        problem = 'found a second document, which frontmatter does not allow'
-        raise MarkedYAMLError(problem=problem, problem_mark=parser.peek_event().start_mark)
+        # A second document starts with a `---` or a `...` marker, which the scanner refuses where it stands.
+        raise AssertionError('unreachable: the scanner refuses every document marker')
     return node
 
 
