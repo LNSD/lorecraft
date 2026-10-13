@@ -179,5 +179,6 @@ parser text; every syntax-error probe is held to a kind, so the fallback stays a
 ## References
 
 - [prd-018](prd-018-frontmatter-format.md) - Source: The frontmatter format this decision answers
+- [adr-017](adr-017-yaml-parser.md) - Leads to: The parser that reads the format
 - [module-lorecraft-project](../code/module-lorecraft-project.md) - Related: The package whose frontmatter decoding
   this decision governs
