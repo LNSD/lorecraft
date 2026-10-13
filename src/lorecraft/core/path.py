@@ -6,6 +6,9 @@ from typing import Final, Self
 
 from lorecraft.core.error import Error
 
+_RESERVED_NAMES: Final[frozenset[str]] = frozenset({'', '.', '..'})
+"""The names that are not one entry of a directory: nothing, the directory itself and its parent."""
+
 
 class PathComponentError(Error):
     """A name is empty, is `.` or `..`, or holds a `/`, so it is not one component of a path.
@@ -62,7 +65,7 @@ class PathComponent:
         Raises:
             PathComponentError: If the name is empty, is `.` or `..`, or holds a `/`.
         """
-        if self.value in ('', '.', '..') or '/' in self.value:
+        if self.value in _RESERVED_NAMES or '/' in self.value:
             raise PathComponentError(self.value)
 
     def __str__(self) -> str:
