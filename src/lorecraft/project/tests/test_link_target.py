@@ -8,9 +8,8 @@ from pathlib import PurePosixPath
 
 import pytest
 
-from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.path import RootRelativePath
-from lorecraft.vfs import EntryRecord, FileTree, ScopeIndex, Snapshot, SymlinkRecord, VirtualFileSystem
+from lorecraft.vfs import EntryRecord, FileTree, ScopeIndex, Snapshot, SnapshotRecords, SymlinkRecord, VirtualFileSystem
 
 from ..layout import SNAPSHOT_SCOPE
 from ..link_target import (
@@ -54,7 +53,7 @@ def _snapshot(*links: tuple[str, str]) -> Snapshot:
     records: dict[RootRelativePath, EntryRecord] = dict(Snapshot.from_tree(TREE).records)
     for path, target in links:
         records[RootRelativePath.parse(path)] = SymlinkRecord(PurePosixPath(target))
-    return Snapshot(FrozenMapping(records), scope=SNAPSHOT_SCOPE)
+    return Snapshot(SnapshotRecords(records), scope=SNAPSHOT_SCOPE)
 
 
 def _link_target(path: str, lookup: PathLookup) -> LinkTarget:

@@ -20,7 +20,6 @@ import pytest
 
 from lib.overruns import overrun
 from lorecraft import rules
-from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.path import RootRelativePath
 from lorecraft.engine import check_subjects
 from lorecraft.project.aspect import AspectFilename
@@ -108,6 +107,7 @@ from lorecraft.vfs import (
     EntryRecord,
     ResolvedPath,
     Snapshot,
+    SnapshotRecords,
     SymlinkRecord,
     Utf8Failure,
     Utf8Line,
@@ -884,7 +884,7 @@ class TestCheckSubjects:
         shipped = Snapshot.from_tree({'.agents': {'skills': {}}, 'skills': {'review': {'SKILL.md': _skill_of(501)}}})
         records: dict[RootRelativePath, EntryRecord] = dict(shipped.records)
         records[RootRelativePath.parse('.agents/skills/review')] = SymlinkRecord(PurePosixPath('../../skills/review'))
-        database = Database.open(Snapshot(FrozenMapping(records)))
+        database = Database.open(Snapshot(SnapshotRecords(records)))
 
         #: When
         reports = check_subjects(database, (_location(database, REVIEW),), package_table)
@@ -1197,7 +1197,7 @@ class TestCheckSubjects:
         records[RootRelativePath.parse('.agents/skills/review')] = SymlinkRecord(
             PurePosixPath('../../skills/code-review')
         )
-        database = Database.open(Snapshot(FrozenMapping(records)))
+        database = Database.open(Snapshot(SnapshotRecords(records)))
 
         #: When
         reports = check_subjects(database, (_location(database, REVIEW),), package_table)
@@ -2220,7 +2220,7 @@ class TestCheckSubjects:
         )
         records: dict[RootRelativePath, EntryRecord] = dict(shipped.records)
         records[RootRelativePath.parse('.agents/skills/review')] = SymlinkRecord(PurePosixPath('../../skills/review'))
-        database = Database.open(Snapshot(FrozenMapping(records)))
+        database = Database.open(Snapshot(SnapshotRecords(records)))
         a = SkillResourceRef(REVIEW, SkillRelativePath.parse('references/a.md'))
 
         #: When

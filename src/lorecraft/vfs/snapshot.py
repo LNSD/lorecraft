@@ -173,6 +173,45 @@ type EntryRecord = DirectoryRecord | FileRecord | SymlinkRecord | OtherRecord | 
 """What a snapshot recorded at one path: one record per path, so a path never has two kinds."""
 
 
+class SnapshotRecords(FrozenMapping[RootRelativePath, EntryRecord]):
+    """The records of one snapshot, keyed by path, never holding a record below a path that is no directory.
+
+    Every record sits at a resolved path, so each recorded ancestor of a record is a directory. A file at `a` with a
+    record at `a/b` describes no tree, and a view built from it would list `a` as a file and as a directory at once.
+    The scan refuses to take such records (`ChangedSnapshotEntryError`); this refuses to hold them, so a snapshot
+    built by hand cannot either. An ancestor that is not recorded is a directory too, and needs no record.
+
+    Raises:
+        ValueError: If a record is below a path recorded as a file, a symlink or another entry that is no
+            directory; the message names both paths.
+    """
+
+    __slots__ = ()
+
+    def __init__(self, items: Mapping[RootRelativePath, EntryRecord]) -> None:
+        """Copy the records and refuse them if any sits below a path that is no directory.
+
+        Args:
+            items: One record for each path, in any order; copied, so the caller may change it afterwards.
+        """
+        super().__init__(items)
+        # Each ancestor is looked at once, however many records share it: a walk up from a record stops at the first
+        # ancestor already looked at, since everything above that one was looked at with it.
+        checked: set[RootRelativePath] = set()
+        for path in self:
+            if path == ROOT:
+                continue
+            ancestor = path.parent
+            while ancestor not in checked:
+                above = self.get(ancestor)
+                if above is not None and above.kind is not EntryKind.DIRECTORY:
+                    raise ValueError(f'{path} is recorded below {ancestor}, which is recorded as {above.kind.name}')
+                checked.add(ancestor)
+                if ancestor == ROOT:
+                    break
+                ancestor = ancestor.parent
+
+
 @dataclass(frozen=True, slots=True)
 class Snapshot:
     """What one scan saw: its scope, and one record for every path it recorded. Never mutated.
@@ -211,7 +250,7 @@ class Snapshot:
             was scanned, as for a snapshot built by `from_tree` or by hand, and then no path is in scope.
     """
 
-    records: FrozenMapping[RootRelativePath, EntryRecord]
+    records: SnapshotRecords
     # Defaults to empty: a snapshot built by hand scanned nothing, so it declares no scope.
     scope: tuple[ScanRoot, ...] = ()
 
@@ -233,7 +272,7 @@ class Snapshot:
         """
         records: dict[RootRelativePath, EntryRecord] = {ROOT: DirectoryRecord(listed=True)}
         _record_tree(ROOT, tree, records)
-        return cls(FrozenMapping(records), scope=())
+        return cls(SnapshotRecords(records), scope=())
 
     def symlink_targets(self) -> dict[RootRelativePath, PurePosixPath]:
         """Every recorded symlink's target, keyed by the link's path in path order; what the scope query follows."""

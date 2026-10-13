@@ -36,6 +36,7 @@ from lorecraft.vfs import (
     FileRecord,
     ScanRoot,
     Snapshot,
+    SnapshotRecords,
     SymlinkRecord,
     Utf8Failure,
     Utf8Line,
@@ -105,7 +106,7 @@ def _snapshot_of(records: Mapping[str, EntryRecord], *, scope: tuple[ScanRoot, .
     parsed: dict[RootRelativePath, EntryRecord] = {}
     for raw_path, record in records.items():
         parsed[RootRelativePath.parse(raw_path)] = record
-    return Snapshot(FrozenMapping(parsed), scope=scope)
+    return Snapshot(SnapshotRecords(parsed), scope=scope)
 
 
 def _climbing_chain_snapshot() -> Snapshot:
@@ -599,7 +600,7 @@ class TestDatabase:
         )
         records: dict[RootRelativePath, EntryRecord] = dict(shipped.records)
         records[RootRelativePath.parse('.agents/skills/review')] = SymlinkRecord(PurePosixPath('../../skills/review'))
-        database = Database.open(Snapshot(FrozenMapping(records)))
+        database = Database.open(Snapshot(SnapshotRecords(records)))
         source = _skill_text(database, REVIEW)
 
         #: When

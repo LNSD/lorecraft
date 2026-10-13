@@ -126,6 +126,19 @@ class TestFrozenMapping:
         #: Then
         assert len(distinct) == 1, 'equal mappings hash alike, so a set holds one'
 
+    def test_repr_of_a_subclass_names_the_subclass(self) -> None:
+        #: Given
+        class Records(FrozenMapping[str, int]):
+            pass
+
+        mapping = Records({'a': 1})
+
+        #: When
+        text = repr(mapping)
+
+        #: Then
+        assert text == "Records({'a': 1})", 'a failing assertion shows the type the value was built as'
+
 
 @pytest.mark.unit
 class TestFrozenMappingFromPlain:

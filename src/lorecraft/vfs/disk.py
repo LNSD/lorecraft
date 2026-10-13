@@ -13,7 +13,6 @@ from pathlib import Path, PurePosixPath
 from typing import assert_never
 
 from lorecraft.core.error import Error
-from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.core.path import PathComponent, RootRelativePath
 
@@ -34,6 +33,7 @@ from .snapshot import (
     RefusedListing,
     RefusedRead,
     Snapshot,
+    SnapshotRecords,
     SymlinkRecord,
 )
 from .view import (
@@ -607,9 +607,9 @@ class _SnapshotRecorder:
             self._records[path] = _merge_records(path, recorded, found)
         self._directories_above.update(ancestors)
 
-    def to_records(self) -> FrozenMapping[RootRelativePath, EntryRecord]:
+    def to_records(self) -> SnapshotRecords:
         """Every record taken so far, one per path, as a snapshot holds them."""
-        return FrozenMapping(self._records)
+        return SnapshotRecords(self._records)
 
 
 def _merge_records(path: RootRelativePath, recorded: EntryRecord, found: EntryRecord) -> EntryRecord:

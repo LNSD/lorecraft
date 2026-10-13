@@ -12,7 +12,6 @@ from typing import Final
 
 import pytest
 
-from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.num import UnsignedInt
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectFilename
@@ -40,7 +39,7 @@ from lorecraft.project.layout import SNAPSHOT_SCOPE
 from lorecraft.project.link_target import DocumentDirectory, EscapingTarget, LinkTarget, PathLookup, SkillRoot
 from lorecraft.project.skill import OutsideSymlink, SkillLocation, SkillRef
 from lorecraft.project.syntax import NormalisedLinkPath, count_lines, count_tokens
-from lorecraft.vfs import EntryRecord, FileTree, RootExit, Snapshot, SymlinkRecord, take_snapshot
+from lorecraft.vfs import EntryRecord, FileTree, RootExit, Snapshot, SnapshotRecords, SymlinkRecord, take_snapshot
 
 TYPING: Final[DocumentRef] = DocumentRef(CorpusName.parse('code'), AspectFilename.parse('python-typing'))
 """A document of corpus `code` its `python` namespace governs too."""
@@ -410,7 +409,7 @@ class TestDatabaseSkillContext:
         )
         records: dict[RootRelativePath, EntryRecord] = dict(shipped.records)
         records[RootRelativePath.parse('.agents/skills/review')] = SymlinkRecord(PurePosixPath('../../skills/review'))
-        database = Database.open(Snapshot(FrozenMapping(records)))
+        database = Database.open(Snapshot(SnapshotRecords(records)))
         context = _skill_context(database)
 
         #: When
@@ -587,7 +586,7 @@ class TestDatabaseLayoutContext:
         # is read.
         records: dict[RootRelativePath, EntryRecord] = dict(_snapshot().records)
         records[RootRelativePath.parse('.agents/skills/x')] = SymlinkRecord(PurePosixPath('/elsewhere/x'))
-        database = Database.open(Snapshot(FrozenMapping(records)))
+        database = Database.open(Snapshot(SnapshotRecords(records)))
         context = _layout_context(database)
 
         #: When

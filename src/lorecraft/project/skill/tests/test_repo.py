@@ -11,7 +11,6 @@ from typing import Final
 
 import pytest
 
-from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.path import RootRelativePath
 from lorecraft.vfs import (
     EntryRecord,
@@ -19,6 +18,7 @@ from lorecraft.vfs import (
     ResolvedPath,
     RootExit,
     Snapshot,
+    SnapshotRecords,
     SymlinkRecord,
     TextDecodeError,
     VirtualFileSystem,
@@ -73,7 +73,7 @@ def _repository(files: Mapping[str, bytes], symlinks: Mapping[str, str]) -> Repo
     records: dict[RootRelativePath, EntryRecord] = dict(Snapshot.from_tree(_file_tree(files)).records)
     for path, target in symlinks.items():
         records[RootRelativePath.parse(path)] = SymlinkRecord(PurePosixPath(target))
-    return Repository(VirtualFileSystem(Snapshot(FrozenMapping(records))))
+    return Repository(VirtualFileSystem(Snapshot(SnapshotRecords(records))))
 
 
 def _outside(path: str, link: str, target: str) -> OutsideSymlink:

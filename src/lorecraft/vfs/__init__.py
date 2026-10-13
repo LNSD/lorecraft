@@ -33,6 +33,7 @@ from .snapshot import (
     RefusedRead,
     RefusedRecord,
     Snapshot,
+    SnapshotRecords,
     SymlinkRecord,
     VirtualFileSystem,
 )
@@ -77,6 +78,7 @@ __all__: list[str] = [
     'disk_location',
     'VirtualFileSystem',
     'Snapshot',
+    'SnapshotRecords',
     'FileTree',
     'EntryRecord',
     'DirectoryRecord',
