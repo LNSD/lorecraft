@@ -24,6 +24,8 @@ class NamedAlignment:
 
     A named section is never forbidden: a structure specification refuses to forbid a section its own outline names.
 
+    Only `_find_named_alignment` builds one, from an entry that already names the section.
+
     Attributes:
         section: The section's H2 heading.
         entry: The `SectionEntry` whose name is the section's heading text.
@@ -31,15 +33,6 @@ class NamedAlignment:
 
     section: SectionHeading
     entry: SectionEntry
-
-    def __post_init__(self) -> None:
-        """Refuse an entry that names another section.
-
-        Raises:
-            ValueError: If `entry` does not name `section`.
-        """
-        if not self.entry.names(self.section):
-            raise ValueError(f'entry `{self.entry.name}` does not name section `{self.section.text}`')
 
 
 @dataclass(frozen=True, slots=True)
@@ -144,11 +137,11 @@ def _align_sections(structure_spec: StructureSpec, sections: tuple[SectionHeadin
     last_named_at = -1  # the outline index of the last named section passed; -1 before any
     aligned: list[AlignedSection] = []
     for section in sections:
-        named = _find_named_entry(outline, section)
+        named = _find_named_alignment(outline, section)
         if named is not None:
-            entry_at, entry = named
+            entry_at, alignment = named
             last_named_at = entry_at
-            aligned.append(NamedAlignment(section=section, entry=entry))
+            aligned.append(alignment)
             continue
         is_forbidden = _is_forbidden(forbidden, section)
         run = _find_run(outline, after=last_named_at)
@@ -169,8 +162,12 @@ def _is_forbidden(forbidden: tuple[SectionName, ...], section: SectionHeading) -
     return any(name.names(section) for name in forbidden)
 
 
-def _find_named_entry(outline: tuple[OutlineEntry, ...], section: SectionHeading) -> tuple[int, SectionEntry] | None:
-    """The section entry naming `section` and where it sits in the outline, or `None` when none does. Raises nothing.
+def _find_named_alignment(
+    outline: tuple[OutlineEntry, ...], section: SectionHeading
+) -> tuple[int, NamedAlignment] | None:
+    """The alignment of `section` to its entry, and where that sits in the outline, or `None` if no entry names it.
+
+    Raises nothing. The entry is checked to name `section` before the alignment is built.
 
     Args:
         outline: The entries to search, in outline order.
@@ -180,7 +177,7 @@ def _find_named_entry(outline: tuple[OutlineEntry, ...], section: SectionHeading
         match entry:
             case SectionEntry():
                 if entry.names(section):
-                    return index, entry
+                    return index, NamedAlignment(section=section, entry=entry)
             case AnySections():
                 pass  # an `any` run names no section
             case _:
