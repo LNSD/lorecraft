@@ -10,7 +10,7 @@ from typing import Final, assert_never
 import pytest
 
 from lorecraft.core.path import PathComponent, RootRelativePath
-from lorecraft.project.syntax import find_sections, parse_document
+from lorecraft.project.syntax import parse_document
 
 from ..name import parse_spec_name
 from ..outline_alignment import (
@@ -21,9 +21,8 @@ from ..outline_alignment import (
     UnalignedSection,
     align_outlines,
 )
-from ..section_name import SectionName
 from ..spec_file import SpecFileType, StructureSpecFile, spec_filename
-from ..structure import SectionEntry, StructureSchema, StructureSpec
+from ..structure import StructureSchema, StructureSpec
 
 SPECS_DIR: Final[RootRelativePath] = RootRelativePath.parse('docs/__meta__')
 
@@ -249,6 +248,23 @@ class TestAlignOutlines:
             'the namespace outline names only `Checklist`, so the sections before it fall in no `any` run of it'
         )
 
+    def test_align_outlines_with_named_and_unnamed_sections_pairs_each_named_section_with_the_entry_naming_it(
+        self,
+    ) -> None:
+        #: Given
+        text = RULE_ASIDE_CHECKLIST + '\n### Detail\n\nMore.\n\n## Appendix\n\nExtra.\n'
+        spec_json = '{"outline": [{"section": "Checklist"}, {"any": true}, {"section": "Rule"}]}'
+
+        #: When
+        aligned = _align_corpus(spec_json, text)
+
+        #: Then
+        named = [section for section in aligned if isinstance(section, NamedAlignment)]
+        assert [section.section.text for section in named] == ['Rule', 'Checklist'], 'two sections are named'
+        assert all(section.entry.names(section.section) for section in named), (
+            'a named alignment holds the entry that names its section, whichever sections surround it'
+        )
+
 
 @pytest.mark.unit
 class TestOutlineAlignmentSpecFind:
@@ -278,19 +294,3 @@ class TestOutlineAlignmentSpecFind:
 
         #: Then
         assert aligned is None, 'the title is no H2, so no outline aligns it'
-
-
-@pytest.mark.unit
-class TestNamedAlignmentInvariants:
-    def test_named_alignment_with_an_entry_naming_another_section_raises(self) -> None:
-        #: Given
-        sections = find_sections(parse_document(RULE_ASIDE_CHECKLIST).headings)
-        aside = next(section for section in sections if section.text == 'Aside')
-        entry = SectionEntry(name=SectionName.parse('Rule'))
-
-        #: When
-        with pytest.raises(ValueError) as exc_info:
-            NamedAlignment(section=aside, entry=entry)
-
-        #: Then
-        assert 'Aside' in str(exc_info.value), 'the error names the section the entry does not name'
