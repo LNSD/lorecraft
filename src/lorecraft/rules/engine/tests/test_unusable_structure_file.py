@@ -2,6 +2,7 @@
 
 import pytest
 
+from lorecraft.project.schemas.section_name import SectionName
 from lorecraft.project.schemas.structure_file import JSON_SCHEMA_DIALECT
 from lorecraft.rules.declaration import Severity
 from lorecraft.rules.location import Help, Note, Subdiagnostic, WholeSubject
@@ -22,17 +23,17 @@ from ..unusable_structure_file import (
 
 _CASES: list[tuple[Cause, str, tuple[Subdiagnostic, ...]]] = [
     (
-        RepeatedOutlineSection(sections=('Details', 'Overview')),
+        RepeatedOutlineSection(sections=(SectionName('Details'), SectionName('Overview'))),
         'outline names a section more than once',
         (Note('repeated: Details, Overview'), Help('name each section once')),
     ),
     (
-        RepeatedForbiddenSection(sections=('Draft',)),
+        RepeatedForbiddenSection(sections=(SectionName('Draft'),)),
         'a section is forbidden more than once',
         (Note('repeated: Draft'), Help('forbid each section once')),
     ),
     (
-        ForbiddenOutlineSection(sections=('Overview',)),
+        ForbiddenOutlineSection(sections=(SectionName('Overview'),)),
         'outline names a section the file also forbids',
         (
             Note('named and forbidden: Overview'),

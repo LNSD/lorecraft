@@ -18,6 +18,7 @@ so they judge only a document some outline governs.
 from typing import Final
 
 from lorecraft.core.path import RootRelativePath
+from lorecraft.project.schemas import SectionName
 from lorecraft.rules.declaration import RuleGroup, RuleGroupPrefix
 from lorecraft.rules.location import Elsewhere, Note
 
@@ -35,13 +36,13 @@ def spec_note(spec: RootRelativePath) -> Note:
     return Note('the document structure is set here', at=Elsewhere(spec))
 
 
-def example_note(section: str, example: str) -> Note:
+def example_note(section: SectionName, example: str) -> Note:
     """The note giving a section's example, written under the section's heading as a document would write it.
 
     The example is the outline entry's, printed as the specification wrote it.
 
     Args:
-        section: The heading text of the section the example is for.
+        section: The name the outline entry gives the section the example is for.
         example: The sample of the section's body, without its heading.
     """
     return Note(f'for example:\n## {section}\n\n{example}')

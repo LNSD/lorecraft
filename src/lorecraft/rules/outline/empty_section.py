@@ -160,7 +160,7 @@ class EmptySection(DocumentRule):
                 else:
                     parts.append(Help(f'write what the section holds: {role.description}'))
                 if role.examples:
-                    parts.append(example_note(self.section, role.examples[0]))
+                    parts.append(example_note(role.name, role.examples[0]))
             case None:
                 parts.append(Help('omit the section rather than leave it empty'))
             case _:

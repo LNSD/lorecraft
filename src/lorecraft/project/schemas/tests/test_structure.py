@@ -937,7 +937,7 @@ class TestStructureSpecParse:
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'the shape lets a repeated entry through, the rules refuse it'
-        assert exc_info.value.sections == ('Changelog',), (
+        assert exc_info.value.sections == (SectionName('Changelog'),), (
             f'the error carries the repeated name once, got {exc_info.value.sections}'
         )
 
@@ -1005,7 +1005,7 @@ class TestStructureSpecConstruction:
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'a name fixes one position, so it cannot be given two'
-        assert exc_info.value.sections == ('Checklist',), (
+        assert exc_info.value.sections == (SectionName('Checklist'),), (
             f'the error carries the repeated name once, got {exc_info.value.sections}'
         )
         assert 'Checklist' in str(exc_info.value), f'the message names the repeated section, got {exc_info.value}'
@@ -1028,7 +1028,7 @@ class TestStructureSpecConstruction:
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'a second entry would report every forbidden section twice'
-        assert exc_info.value.sections == ('Changelog',), (
+        assert exc_info.value.sections == (SectionName('Changelog'),), (
             f'the error carries only the repeated name, once, got {exc_info.value.sections}'
         )
         assert 'Changelog' in str(exc_info.value), f'the message names the repeated section, got {exc_info.value}'
@@ -1051,7 +1051,7 @@ class TestStructureSpecConstruction:
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'a section cannot be both placed and forbidden'
-        assert exc_info.value.sections == ('Checklist',), (
+        assert exc_info.value.sections == (SectionName('Checklist'),), (
             f'the error carries the contradicted name, got {exc_info.value.sections}'
         )
         assert 'Checklist' in str(exc_info.value), f'the message names the contradicted section, got {exc_info.value}'

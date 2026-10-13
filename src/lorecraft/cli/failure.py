@@ -135,11 +135,14 @@ def _failure_lines(failure: LoadFailure) -> list[str]:
         case EmptyStructureSpec():
             return [f'invalid structure schema {path}: states no rule, so it would check nothing']
         case RepeatedOutlineSections(sections=sections):
-            return [f'invalid structure schema {path}: names sections more than once in the outline: {list(sections)}']
+            names = [str(name) for name in sections]
+            return [f'invalid structure schema {path}: names sections more than once in the outline: {names}']
         case RepeatedForbiddenSections(sections=sections):
-            return [f'invalid structure schema {path}: forbids sections more than once: {list(sections)}']
+            names = [str(name) for name in sections]
+            return [f'invalid structure schema {path}: forbids sections more than once: {names}']
         case ForbiddenOutlineSections(sections=sections):
-            return [f'invalid structure schema {path}: forbids sections its own outline names: {list(sections)}']
+            names = [str(name) for name in sections]
+            return [f'invalid structure schema {path}: forbids sections its own outline names: {names}']
         case AdjacentAnyRuns():
             return [f'invalid structure schema {path}: places two `any` runs side by side']
         case InvalidTitlePattern(pattern=pattern):

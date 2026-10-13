@@ -24,6 +24,7 @@ from pydantic.json_schema import JsonSchemaValue
 from pydantic_core import PydanticCustomError, core_schema
 
 from lorecraft.core.error import Error
+from lorecraft.project.syntax import Heading
 
 # The pydantic error type the value object raises its rejection under, typed as a literal because
 # `PydanticCustomError` takes only a literal string.
@@ -67,7 +68,7 @@ class MultilineSectionNameError(Error):
 
 @dataclass(frozen=True, slots=True)
 class SectionName:
-    """A section's heading text, without its `#` markers or inline markup.
+    """A section's name as a specification gives it, which a heading's text must equal to be that section.
 
     A valid name:
 
@@ -123,6 +124,17 @@ class SectionName:
         # means a break inside the name.
         if len(self.value.splitlines()) > 1:
             raise MultilineSectionNameError(self.value)
+
+    def names(self, heading: Heading) -> bool:
+        """Whether the heading is the section this name stands for: its text is exactly the name.
+
+        Every comparison of a name with a document's heading goes through here, so a change to what makes them
+        match is made once.
+
+        Args:
+            heading: Any heading of the document.
+        """
+        return heading.text == self.value
 
     def __str__(self) -> str:
         """The name, exactly as supplied."""

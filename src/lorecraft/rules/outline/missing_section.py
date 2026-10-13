@@ -77,7 +77,7 @@ class MissingSection(DocumentRule):
 
     Attributes:
         spec: The structure specification whose outline requires the section.
-        section: The heading text of the section the document lacks.
+        section: The name the outline entry gives the section the document lacks.
         before: The heading of the section it should come before, which the occurrence is reported at; or the end
             of the document, when it belongs there, and the occurrence is reported at the document's last line.
         description: What the section holds, as the outline entry states it, or `None` when it states none.
@@ -134,7 +134,7 @@ class MissingSection(DocumentRule):
         if self.description is not None:
             parts.append(Help(self.description))
         if self.example is not None:
-            parts.append(example_note(self.section.value, self.example))
+            parts.append(example_note(self.section, self.example))
         return tuple(parts)
 
     @classmethod
