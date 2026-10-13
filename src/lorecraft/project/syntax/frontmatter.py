@@ -11,9 +11,10 @@ are strings, block and flow sequences, and scalars. A quoted or block scalar is 
 a boolean, an integer or a float when its whole text is one in YAML 1.2's core schema, such as `~`, `true`, `12` or
 `1.5`, and a string otherwise, so `yes`, `2026-10-05` and `1:30` are strings. A directive, a document marker, an
 anchor, an alias, a merge key, a tag, an explicit or empty key, a key that is not a string, a flow collection
-that spreads over lines and a block scalar's indentation indicator are refused, on their line, as a block that is
-not YAML: none is needed to write a document's metadata, an alias can make a collection hold itself, a tag builds
-values JSON has no counterpart for, and JSON names every key with a string.
+that spreads over lines, holds a collection or is the whole block, a block scalar's indentation indicator and a
+block sequence as an item of a block sequence are refused, on their line, as a block that is not YAML: none is
+needed to write a document's metadata, an alias can make a collection hold itself, a tag builds values JSON has no
+counterpart for, and JSON names every key with a string.
 """
 
 import math
@@ -319,7 +320,7 @@ class _RefusedCollectionKeyError(_RefusedConstructError):
     """A mapping's key is a collection, not a string."""
 
     def __init__(self, mark: StreamMark) -> None:
-        super().__init__(mark, 'found a key that is not a string')
+        super().__init__(mark, f'found a collection as a key, {_NOT_ALLOWED}')
 
 
 class _RefusedNonStringKeyError(_RefusedConstructError):
@@ -333,11 +334,28 @@ class _RefusedNonStringKeyError(_RefusedConstructError):
 
     def __init__(self, key: str, mark: StreamMark) -> None:
         self.key = key
-        # A key written as nothing at all reads as null, and has no text to name.
-        if key:
-            super().__init__(mark, f'found the key {key}, which is not a string')
-        else:
-            super().__init__(mark, 'found a key that is not a string')
+        super().__init__(mark, f'found the non-string key {key}, {_NOT_ALLOWED}')
+
+
+class _RefusedFlowBlockError(_RefusedConstructError):
+    """The whole block is a flow collection, not a block mapping."""
+
+    def __init__(self, mark: StreamMark) -> None:
+        super().__init__(mark, f'found a flow collection as the block, {_NOT_ALLOWED}')
+
+
+class _RefusedFlowNestedCollectionError(_RefusedConstructError):
+    """A flow collection holds a collection."""
+
+    def __init__(self, mark: StreamMark) -> None:
+        super().__init__(mark, f'found a collection inside a flow collection, {_NOT_ALLOWED}')
+
+
+class _RefusedNestedBlockSequenceError(_RefusedConstructError):
+    """A block sequence holds a block sequence as an item."""
+
+    def __init__(self, mark: StreamMark) -> None:
+        super().__init__(mark, f'found a block sequence as an item of a block sequence, {_NOT_ALLOWED}')
 
 
 class _RefusedEscapeError(_RefusedConstructError):
@@ -833,8 +851,11 @@ def _read_document(parser: _EventStream) -> Frontmatter | NonMappingFrontmatter:
         # An empty block, or one holding only comments, has no document at all.
         return NonMappingFrontmatter()
     parser.get_event()  # The document's start.
-    if isinstance(_peek_node_start(parser), MappingStartEvent):
-        entries = _read_mapping(parser)
+    first = _peek_node_start(parser)
+    if isinstance(first, SequenceStartEvent | MappingStartEvent) and first.flow_style:
+        raise _RefusedFlowBlockError(_mark_of(first))
+    if isinstance(first, MappingStartEvent):
+        entries = _read_mapping(parser, first)
         node: Frontmatter | NonMappingFrontmatter = Frontmatter(data=_to_mapping(entries), keys=_keys(entries))
     else:
         _read_value(parser)
@@ -883,18 +904,19 @@ def _read_value(parser: _EventStream) -> Frozen:
     """
     event = _peek_node_start(parser)
     if isinstance(event, MappingStartEvent):
-        return _to_mapping(_read_mapping(parser))
+        return _to_mapping(_read_mapping(parser, event))
     if isinstance(event, SequenceStartEvent):
-        return _read_sequence(parser)
+        return _read_sequence(parser, event)
     parser.get_event()
     return _scalar_value(event)
 
 
-def _read_mapping(parser: _EventStream) -> list[_Entry]:
+def _read_mapping(parser: _EventStream, start: MappingStartEvent) -> list[_Entry]:
     """Read one mapping, every pair in the order it is written, a repeated key once per occurrence.
 
     Args:
         parser: The parser, whose next event starts the mapping.
+        start: The event that starts it, which says whether it is written in flow style.
 
     Raises:
         MarkedYAMLError: The mapping is not valid YAML.
@@ -905,17 +927,19 @@ def _read_mapping(parser: _EventStream) -> list[_Entry]:
     entries: list[_Entry] = []
     while not parser.check_event(MappingEndEvent):
         key = _read_key(parser)
+        _refuse_nested_collection(parser, start)
         value = _read_value(parser)
         entries.append((key, value))
     parser.get_event()  # The mapping's end.
     return entries
 
 
-def _read_sequence(parser: _EventStream) -> tuple[Frozen, ...]:
+def _read_sequence(parser: _EventStream, start: SequenceStartEvent) -> tuple[Frozen, ...]:
     """Read one sequence, every item in the order it is written, as a tuple, the sequence that cannot change.
 
     Args:
         parser: The parser, whose next event starts the sequence.
+        start: The event that starts it, which says whether it is written in flow style.
 
     Raises:
         MarkedYAMLError: An item is not valid YAML.
@@ -924,6 +948,7 @@ def _read_sequence(parser: _EventStream) -> tuple[Frozen, ...]:
     parser.get_event()  # The sequence's start.
     items: list[Frozen] = []
     while not parser.check_event(SequenceEndEvent):
+        _refuse_nested_collection(parser, start)
         items.append(_read_value(parser))
     parser.get_event()  # The sequence's end.
     return tuple(items)
@@ -955,6 +980,29 @@ def _read_key(parser: _EventStream) -> FrontmatterKey:
         # A plain `<<` is YAML 1.1's merge key, which pulls in the entries of the mapping an alias names.
         raise _RefusedMergeKeyError(mark)
     return FrontmatterKey(name=name, line=_document_line(mark.line))
+
+
+def _refuse_nested_collection(parser: _EventStream, parent: SequenceStartEvent | MappingStartEvent) -> None:
+    """Refuse the next value when it is a collection `parent` does not hold.
+
+    A flow collection holds no collection, and a block sequence holds no block sequence. A block mapping is the item
+    a block sequence of records is made of, and a flow collection is one line of scalars, so those stay.
+
+    Args:
+        parser: The parser, whose next event starts a value of `parent`.
+        parent: The event that started the collection the value belongs to.
+
+    Raises:
+        _RefusedFlowNestedCollectionError: The value is a collection inside a flow collection.
+        _RefusedNestedBlockSequenceError: The value is a block sequence that is an item of a block sequence.
+    """
+    event = _peek_node_start(parser)
+    if not isinstance(event, SequenceStartEvent | MappingStartEvent):
+        return
+    if parent.flow_style:
+        raise _RefusedFlowNestedCollectionError(_mark_of(event))
+    if isinstance(parent, SequenceStartEvent) and isinstance(event, SequenceStartEvent) and not event.flow_style:
+        raise _RefusedNestedBlockSequenceError(_mark_of(event))
 
 
 def _scalar_value(event: ScalarEvent) -> str | int | float | bool | None:
