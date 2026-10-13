@@ -1,5 +1,6 @@
 """How many lines a text holds, and what they are, counted from the raw text without a parse."""
 
+import re
 from typing import NewType
 
 from lorecraft.core.num import UnsignedInt
@@ -40,3 +41,16 @@ def split_lines(text: str) -> tuple[str, ...]:
     if lines[-1] == '':
         lines.pop()
     return tuple(line.removesuffix('\r') for line in lines)
+
+
+def newline_offsets(text: str) -> tuple[int, ...]:
+    r"""The offset of every line break in `text`, in ascending order, one per `\n`.
+
+    The breaks `count_lines` and `split_lines` end a line at, so the line an offset is on is one more than the number
+    of these before it. Built once, a binary search over them locates an offset without counting from the start of
+    the text.
+
+    Args:
+        text: Text to scan, a whole file.
+    """
+    return tuple(match.start() for match in re.finditer('\n', text))

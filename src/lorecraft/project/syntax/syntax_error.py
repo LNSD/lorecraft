@@ -16,6 +16,8 @@ from typing import Final
 from ruamel.yaml.error import MarkedYAMLError, StreamMark
 from ruamel.yaml.reader import ReaderError
 
+from .lines import split_lines
+
 _TOKEN_END_CHARACTERS: Final[str] = ' \t\r\n\x85  ,[]{}'
 """The characters that end an anchor, an alias or a tag as the block writes it: whitespace or a flow indicator."""
 
@@ -48,7 +50,7 @@ def describe_error(error: MarkedYAMLError, block: str) -> SyntaxProblem:
         error: The scanner's or the parser's error, whose class, problem, context and marks pick the kind.
         block: The text the parser read, the lines between the frontmatter delimiters.
     """
-    lines = block.splitlines()
+    lines = list(split_lines(block))
     problem = error.problem or ''
     context = error.context or ''
     mark = error.problem_mark

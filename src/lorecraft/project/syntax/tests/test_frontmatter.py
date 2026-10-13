@@ -71,6 +71,85 @@ class TestDecodeFrontmatter:
             FrontmatterKey('type', LineNumber.from_int(3)),
         ), 'a CRLF line ending counts as one line break'
 
+    def test_decode_frontmatter_with_a_next_line_returns_each_key_on_its_document_line(self) -> None:
+        #: Given
+        separator = '\x85'
+        block = f'name: guide{separator}type: rule\ncount: 1\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert isinstance(node, Frontmatter), f'a YAML mapping is frontmatter, got {node!r}'
+        assert node.keys == (
+            FrontmatterKey('name', LineNumber.from_int(2)),
+            FrontmatterKey('type', LineNumber.from_int(2)),
+            FrontmatterKey('count', LineNumber.from_int(3)),
+        ), f'{separator!r} breaks a YAML line but ends no document line, which only a `\\n` does'
+
+    def test_decode_frontmatter_with_a_lone_carriage_return_returns_each_key_on_the_same_document_line(self) -> None:
+        #: Given
+        block = 'name: guide\rtype: rule\ncount: 1\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert isinstance(node, Frontmatter), f'a YAML mapping is frontmatter, got {node!r}'
+        assert node.keys == (
+            FrontmatterKey('name', LineNumber.from_int(2)),
+            FrontmatterKey('type', LineNumber.from_int(2)),
+            FrontmatterKey('count', LineNumber.from_int(3)),
+        ), 'a lone `\\r` breaks a YAML line but ends no document line, which only a `\\n` does'
+
+    def test_decode_frontmatter_with_an_unclosed_quote_after_a_next_line_returns_invalid_yaml_on_its_line(self) -> None:
+        #: Given
+        block = 'name: guide\x85type: "open\nx: 1\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert isinstance(node, InvalidYamlFrontmatter), f'an unclosed quote is invalid YAML, got {node!r}'
+        assert node.line == LineNumber.from_int(2), (
+            f'U+0085 ends no document line, so the quote is on line 2, got {node.line}'
+        )
+        assert node.help == 'Close it on the line it continues to, or remove it', (
+            f'the help is the one for the quote, read from the line the parser marked, got {node.help!r}'
+        )
+
+    def test_decode_frontmatter_with_a_line_separator_returns_each_key_on_its_document_line(self) -> None:
+        #: Given
+        separator = '\u2028'
+        block = f'name: guide{separator}type: rule\ncount: 1\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert isinstance(node, Frontmatter), f'a YAML mapping is frontmatter, got {node!r}'
+        assert node.keys == (
+            FrontmatterKey('name', LineNumber.from_int(2)),
+            FrontmatterKey('type', LineNumber.from_int(2)),
+            FrontmatterKey('count', LineNumber.from_int(3)),
+        ), f'{separator!r} breaks a YAML line but ends no document line, which only a `\\n` does'
+
+    def test_decode_frontmatter_with_a_paragraph_separator_returns_each_key_on_its_document_line(self) -> None:
+        #: Given
+        separator = '\u2029'
+        block = f'name: guide{separator}type: rule\ncount: 1\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert isinstance(node, Frontmatter), f'a YAML mapping is frontmatter, got {node!r}'
+        assert node.keys == (
+            FrontmatterKey('name', LineNumber.from_int(2)),
+            FrontmatterKey('type', LineNumber.from_int(2)),
+            FrontmatterKey('count', LineNumber.from_int(3)),
+        ), f'{separator!r} breaks a YAML line but ends no document line, which only a `\\n` does'
+
     def test_decode_frontmatter_with_quoted_keys_returns_each_key_by_its_decoded_name(self) -> None:
         #: Given
         block = dedent("""\

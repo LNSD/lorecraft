@@ -4,7 +4,7 @@ import pytest
 
 from lorecraft.core.num import UnsignedInt
 
-from ..lines import count_lines, split_lines
+from ..lines import count_lines, newline_offsets, split_lines
 
 
 @pytest.mark.unit
@@ -142,3 +142,81 @@ class TestSplitLines:
 
         #: Then
         assert lines == (), f'empty text holds no line, got {lines}'
+
+
+@pytest.mark.unit
+class TestNewlineOffsets:
+    def test_newline_offsets_with_empty_text_returns_no_offset(self) -> None:
+        #: Given
+        text = ''
+
+        #: When
+        offsets = newline_offsets(text)
+
+        #: Then
+        assert offsets == (), f'empty text holds no line break, got {offsets}'
+
+    def test_newline_offsets_with_a_crlf_break_returns_the_offset_of_its_line_feed(self) -> None:
+        #: Given
+        text = 'one\r\ntwo\n'
+
+        #: When
+        offsets = newline_offsets(text)
+
+        #: Then
+        assert offsets == (4, 8), f'a CRLF break is the offset of its `\\n`, got {offsets}'
+
+    def test_newline_offsets_with_a_vertical_tab_returns_no_offset_for_it(self) -> None:
+        #: Given
+        separator = '\x0b'
+        text = f'one{separator}two\nthree'
+
+        #: When
+        offsets = newline_offsets(text)
+
+        #: Then
+        assert offsets == (7,), f'only a `\\n` is a line break, {separator!r} is not, got {offsets}'
+
+    def test_newline_offsets_with_a_form_feed_returns_no_offset_for_it(self) -> None:
+        #: Given
+        separator = '\x0c'
+        text = f'one{separator}two\nthree'
+
+        #: When
+        offsets = newline_offsets(text)
+
+        #: Then
+        assert offsets == (7,), f'only a `\\n` is a line break, {separator!r} is not, got {offsets}'
+
+    def test_newline_offsets_with_a_next_line_returns_no_offset_for_it(self) -> None:
+        #: Given
+        separator = '\x85'
+        text = f'one{separator}two\nthree'
+
+        #: When
+        offsets = newline_offsets(text)
+
+        #: Then
+        assert offsets == (7,), f'only a `\\n` is a line break, {separator!r} is not, got {offsets}'
+
+    def test_newline_offsets_with_a_line_separator_returns_no_offset_for_it(self) -> None:
+        #: Given
+        separator = '\u2028'
+        text = f'one{separator}two\nthree'
+
+        #: When
+        offsets = newline_offsets(text)
+
+        #: Then
+        assert offsets == (7,), f'only a `\\n` is a line break, {separator!r} is not, got {offsets}'
+
+    def test_newline_offsets_with_a_paragraph_separator_returns_no_offset_for_it(self) -> None:
+        #: Given
+        separator = '\u2029'
+        text = f'one{separator}two\nthree'
+
+        #: When
+        offsets = newline_offsets(text)
+
+        #: Then
+        assert offsets == (7,), f'only a `\\n` is a line break, {separator!r} is not, got {offsets}'
