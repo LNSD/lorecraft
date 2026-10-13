@@ -24,6 +24,19 @@ from lorecraft.rules.report import Diagnostic, RunReport, diagnostic_order
 
 
 @dataclass(frozen=True, slots=True)
+class FilePlace:
+    """A file a diagnostic, label, help or note points at, and the line of it when it points at one.
+
+    Attributes:
+        path: The file the place is in.
+        line: The line it points at, or None when it points at the whole of the file.
+    """
+
+    path: RootRelativePath
+    line: LineNumber | None
+
+
+@dataclass(frozen=True, slots=True)
 class Mark:
     """A place a diagnostic points at, drawn on the source in text output.
 
@@ -72,7 +85,7 @@ def primary_line(diagnostic: Diagnostic) -> LineNumber | None:
             assert_never(primary)
 
 
-def place(subject: RootRelativePath, at: Here | Elsewhere) -> tuple[RootRelativePath, LineNumber | None]:
+def place(subject: RootRelativePath, at: Here | Elsewhere) -> FilePlace:
     """The file and the line a location names; the line is None for the whole of another file.
 
     Args:
@@ -81,37 +94,34 @@ def place(subject: RootRelativePath, at: Here | Elsewhere) -> tuple[RootRelative
     """
     match at:
         case Here():
-            return subject, at.line
+            return FilePlace(subject, at.line)
         case Elsewhere():
-            return at.path, at.line
+            return FilePlace(at.path, at.line)
         case _:
             assert_never(at)
 
 
-def child_place(
-    subject: RootRelativePath, child: Subdiagnostic | EntrySubdiagnostic
-) -> tuple[RootRelativePath | None, LineNumber | None]:
-    """The file and the line a help or note points at; both None when it points nowhere.
+def child_place(subject: RootRelativePath, child: Subdiagnostic | EntrySubdiagnostic) -> FilePlace | None:
+    """The file and the line a help or note points at, or None when it points nowhere.
 
     Args:
         subject: The path of the subject the diagnostic was found in, which a line of the subject is reported at.
         child: The help or note whose place is read.
     """
     if child.at is None:
-        return None, None
+        return None
     return place(subject, child.at)
 
 
-def format_place(path: RootRelativePath, line: LineNumber | None) -> str:
+def format_place(at: FilePlace) -> str:
     """A place as text: `path:line`, or the path alone for a whole file.
 
     Args:
-        path: The file the place is in, printed as it is.
-        line: The line the place points at in that file, or None when it points at the whole file.
+        at: The place to print, its path as it is.
     """
-    if line is None:
-        return str(path)
-    return f'{path}:{line.number}'
+    if at.line is None:
+        return str(at.path)
+    return f'{at.path}:{at.line.number}'
 
 
 def child_kind(child: Subdiagnostic | EntrySubdiagnostic) -> Literal['help', 'note']:
@@ -144,18 +154,18 @@ def diagnostic_marks(diagnostic: Diagnostic) -> list[Mark]:
 
     marks: list[Mark] = []
     for label in occurrence.labels():
-        path, line = place(subject, label.at)
-        is_primary = path == subject and line is not None and line == reported_at
-        marks.append(Mark(path, line, label.text, is_primary))
+        at = place(subject, label.at)
+        is_primary = at.path == subject and at.line is not None and at.line == reported_at
+        marks.append(Mark(at.path, at.line, label.text, is_primary))
     if reported_at is not None and not any(mark.primary for mark in marks):
         marks.insert(0, Mark(subject, reported_at, '', True))
 
     for child in occurrence.children():
-        path, line = child_place(subject, child)
-        if path is None:
+        at = child_place(subject, child)
+        if at is None:
             continue
         # A whole file is already pointed at by any mark in it.
-        if any(mark.path == path and (line is None or mark.line == line) for mark in marks):
+        if any(mark.path == at.path and (at.line is None or mark.line == at.line) for mark in marks):
             continue
-        marks.append(Mark(path, line, '', False))
+        marks.append(Mark(at.path, at.line, '', False))
     return marks
