@@ -5,17 +5,28 @@ guide. This package declares the shape of each; an agent's own package states it
 """
 
 from .agent import Agent
-from .agents_md import UNIVERSAL_PROJECT_AGENTS_MD_FILE, AgentsMdFiles
+from .agents_md import UNIVERSAL_PROJECT_AGENTS_MD_FILE, ProjectAgentsMdFiles, UserAgentsMdFiles
 from .name import AgentName
-from .skills import SKILL_ENTRY_FILENAME, UNIVERSAL_PROJECT_SKILLS_DIR, UNIVERSAL_USER_SKILLS_DIR, SkillsDirs
+from .scope import ProjectPath, UserPath
+from .skills import (
+    SKILL_ENTRY_FILENAME,
+    UNIVERSAL_PROJECT_SKILLS_DIR,
+    UNIVERSAL_USER_SKILLS_DIR,
+    ProjectSkillsDirs,
+    UserSkillsDirs,
+)
 
 __all__: list[str] = [
     'Agent',
     'AgentName',
-    'SkillsDirs',
+    'ProjectPath',
+    'UserPath',
+    'ProjectSkillsDirs',
+    'UserSkillsDirs',
     'UNIVERSAL_PROJECT_SKILLS_DIR',
     'UNIVERSAL_USER_SKILLS_DIR',
     'SKILL_ENTRY_FILENAME',
-    'AgentsMdFiles',
+    'ProjectAgentsMdFiles',
+    'UserAgentsMdFiles',
     'UNIVERSAL_PROJECT_AGENTS_MD_FILE',
 ]

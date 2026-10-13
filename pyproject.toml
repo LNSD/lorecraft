@@ -254,6 +254,14 @@ type = "forbidden"
 source_modules = ["lorecraft.rules"]
 forbidden_modules = ["lorecraft.project.database"]
 
+# The agents are data over `lorecraft.core`. `vfs` sits below them in the layers contract, so that contract alone
+# would let them import it; they state paths and never read a filesystem.
+[[tool.importlinter.contracts]]
+name = "The agents never import the filesystem"
+type = "forbidden"
+source_modules = ["lorecraft.agents"]
+forbidden_modules = ["lorecraft.vfs"]
+
 # A long-lived front end reaches the engine without the command line, so the engine never imports the command line's
 # toolkit. The layers contract above already stops it importing `lorecraft.cli`.
 [[tool.importlinter.contracts]]

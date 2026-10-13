@@ -30,7 +30,7 @@ def _skills_scan_roots() -> list[ScanRoot]:  # pragma: no mutate block
     scan_roots: list[ScanRoot] = []
     for agent in iter_agents():
         for skills_dir in agent.project_skills_dirs:
-            scan_root = ScanRoot(RootRelativePath(skills_dir), depth=None, follow_links=True)
+            scan_root = ScanRoot(skills_dir, depth=None, follow_links=True)
             if scan_root not in scan_roots:
                 scan_roots.append(scan_root)
     return scan_roots

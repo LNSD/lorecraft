@@ -7,10 +7,15 @@ repository's or a user's.
 
 from typing import Final
 
-from lorecraft.agents.base import UNIVERSAL_PROJECT_SKILLS_DIR, UNIVERSAL_USER_SKILLS_DIR, SkillsDirs
+from lorecraft.agents.base import (
+    UNIVERSAL_PROJECT_SKILLS_DIR,
+    UNIVERSAL_USER_SKILLS_DIR,
+    ProjectSkillsDirs,
+    UserSkillsDirs,
+)
 
-CODEX_PROJECT_SKILLS_DIRS: Final[SkillsDirs] = (UNIVERSAL_PROJECT_SKILLS_DIR,)
+CODEX_PROJECT_SKILLS_DIRS: Final[ProjectSkillsDirs] = (UNIVERSAL_PROJECT_SKILLS_DIR,)
 """Codex reads the universal skills directory of a repository as it is."""
 
-CODEX_USER_SKILLS_DIRS: Final[SkillsDirs] = (UNIVERSAL_USER_SKILLS_DIR,)
+CODEX_USER_SKILLS_DIRS: Final[UserSkillsDirs] = (UNIVERSAL_USER_SKILLS_DIR,)
 """Codex reads the user's own skills from the universal user directory, ``~/.agents/skills``."""
