@@ -66,7 +66,7 @@ witness and every per-file query takes one; a context is a thin adapter over the
 - `module-lorecraft-project` and the Analysis package's module rule move the queries, the witnesses, the carry-over rule and
   the context implementations from the second to the first.
 - What stays true: every value derived from the snapshot is a query on the database
-  ([adr-004](adr-004-database.md)), a check and a rule are pure, and a rule's result is never cached.
+  ([adr-015](adr-015-database.md)), a check and a rule are pure, and a rule's result is never cached.
 - adr-001 keeps `status: accepted`. The ADR meta spec defines supersession of a whole record only, and the
   roles this record leaves untouched must keep binding code, so the partial relation is carried by the callouts
   and the References entries alone: a deliberate reading of the meta spec, not a gap in following it.
@@ -89,10 +89,10 @@ Before committing code, verify:
   `lorecraft.project`
 - [adr-001-snapshot-model](adr-001-snapshot-model.md) - Supersedes: The Derivation and Analysis rows of the role
   table
-- [adr-004-database](adr-004-database.md) - Foundation: Revisions, the view and the queries
+- [adr-015-database](adr-015-database.md) - Foundation: Revisions, the view and the queries
 - [adr-005-incremental](adr-005-incremental.md) - Related: Carry-over and the store, the only caching across
   revisions
 - [adr-011-rules-engine](adr-011-rules-engine.md) - Related: Where the engine's code lives
 - [module-lorecraft-project](../code/module-lorecraft-project.md) - Leads to: The Derivation package's rules
 - [module-lorecraft-engine](../code/module-lorecraft-engine.md) - Leads to: The Analysis package's rules
-- [adr-015-database](adr-015-database.md) - Related: The database opened with its model, proposed to supersede adr-004
+- [adr-004-database](adr-004-database.md) - Related: The record adr-015 supersedes

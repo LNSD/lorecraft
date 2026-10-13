@@ -286,7 +286,7 @@ type SubjectReport = CheckedSubject | UndecodableSubject | CheckedLayoutEntry
   presented per file (FR-016), and the machine-readable output is one document holding the diagnostics, the
   summary and the coverage (FR-021).
 - **Exit codes** are 0 for a clean run, warnings included, 1 for any error diagnostic or undecodable file, and 2
-  for a failure or invalid input. A failure, such as a meta spec that cannot be loaded or a file missing from the
+  for a failure or invalid input. A failure, such as a `docs/` that cannot be listed or a file missing from the
   snapshot, is outside every level and selection. Most are raised before any subject is checked, and one raised
   during the run discards what the run found: the command line prints the failure alone, never a partial report.
   Invalid input, such as an unknown selector or a usage error, also exits 2, before the run starts.
@@ -358,4 +358,4 @@ Before committing code, verify:
 - [adr-007-findings](adr-007-findings.md) - Supersedes: Violations, findings and failures
 - [error-boundaries](../code/error-boundaries.md) - Foundation: Where a failure is raised and where it is reported
 - [adr-015-database](adr-015-database.md) - Related: Load failures reported as engine diagnostics that exit 1
-- [adr-016-specifications](adr-016-specifications.md) - Related: Meta specs and governance restated, proposed to supersede adr-006
+- [adr-016-specifications](adr-016-specifications.md) - Related: Meta specs and governance restated, which supersedes adr-006

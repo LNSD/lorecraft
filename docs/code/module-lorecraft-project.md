@@ -118,11 +118,11 @@ Before committing code, verify:
 - [adr-001-snapshot-model](../arch/adr-001-snapshot-model.md) - Foundation: The package roles
 - [adr-012-database-derivation](../arch/adr-012-database-derivation.md) - Foundation: The Derivation role, the
   database included
-- [adr-004-database](../arch/adr-004-database.md) - Foundation: Revisions, the view and the queries
+- [adr-015-database](../arch/adr-015-database.md) - Foundation: Revisions, the view and the queries
 - [adr-005-incremental](../arch/adr-005-incremental.md) - Foundation: The carry-over rule and persisted results
 - [adr-003-project-model](../arch/adr-003-project-model.md) - Foundation: Declared scope against captured content, identity
   against location
-- [adr-006-specifications](../arch/adr-006-specifications.md) - Foundation: Meta specs decoded and proved usable at load
+- [adr-016-specifications](../arch/adr-016-specifications.md) - Foundation: Meta specs decoded and proved usable at load
 - [adr-002-vfs](../arch/adr-002-vfs.md) - Foundation: Every read of the workspace goes through the snapshot
 - [adr-010-diagnostics](../arch/adr-010-diagnostics.md) - Foundation: A broken document is a diagnostic, not a failure
 - [principle-single-responsibility](principle-single-responsibility.md) - Foundation: One reason to change

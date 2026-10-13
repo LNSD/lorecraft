@@ -2,10 +2,13 @@
 name: "adr-006-specifications"
 description: "How meta specs govern documents: a meta spec is configuration the project model decodes and proves usable, governance is computed once from a document's path, every governing meta spec applies on its own by conjunction, each check reads only its own keys of a structure file, and skills answer to a specification fixed in code. Load when adding a check, a meta spec file type or a key to a meta spec dialect, or deciding which meta specs a check applies"
 type: "adr"
-status: "accepted"
+status: "superseded"
 ---
 
 # Meta Specs and Governance
+
+> [!NOTE]
+> Superseded by [adr-016-specifications](adr-016-specifications.md). It binds no code.
 
 ## Context
 
@@ -132,6 +135,6 @@ Before committing code, verify:
   feat specs
 - [principle-validate-at-edge](../code/principle-validate-at-edge.md) - Foundation: A dialect is decoded and proved at
   the edge
-- [adr-015-database](adr-015-database.md) - Related: Proposes that a meta spec that cannot be loaded be a diagnostic, not a failure
-- [prd-014-resilient-model-loading](prd-014-resilient-model-loading.md) - Related: Requirements that rely on layers applying by conjunction
-- [adr-016-specifications](adr-016-specifications.md) - Related: Proposed replacement in which a meta spec that cannot be loaded is a failed layer
+- [adr-016-specifications](adr-016-specifications.md) - Superseded by: Meta specs and governance, a meta spec that cannot be loaded as a failed layer
+- [adr-015-database](adr-015-database.md) - Related: The model that records a meta spec that cannot be loaded
+- [prd-014-resilient-model-loading](prd-014-resilient-model-loading.md) - Related: The requirements behind the replacement

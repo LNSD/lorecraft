@@ -64,4 +64,4 @@ Before committing code, verify:
 - [adr-004-database](adr-004-database.md) - Related: The database that wraps a snapshot
 - [principle-validate-at-edge](../code/principle-validate-at-edge.md) - Foundation: The snapshot is the edge, so
   everything above it is trusted values
-- [adr-015-database](adr-015-database.md) - Related: The database opened with its model, proposed to supersede adr-004
+- [adr-015-database](adr-015-database.md) - Related: The database opened with its model, which supersedes adr-004

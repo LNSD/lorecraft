@@ -2,14 +2,14 @@
 name: "adr-015-database"
 description: "The database of a revision, opened with its model: one report reads one revision, a revision is never updated in place, the view and the cache, the kinds of query, a model that records what failed to load as values, and skip or partial as the consumer's policy. Load when adding a query, opening or advancing a database, reading the workspace from a check or a command, handling a load failure, running work in parallel, or handling a new revision while work is running"
 type: "adr"
-status: "proposed"
+status: "accepted"
 ---
 
 # The Database, Opened with Its Model
 
 > [!NOTE]
-> Proposed to supersede [adr-004-database](adr-004-database.md): its revisions, view, cache and kinds of query,
-> restated here unchanged except for how the model is loaded. adr-004 stays binding until this record is accepted.
+> Supersedes [adr-004-database](adr-004-database.md): its revisions, view, cache and kinds of query, restated here
+> unchanged except for how the model is loaded. adr-004 binds no code.
 
 ## Context
 
@@ -72,7 +72,7 @@ design states the gap rather than guard it, as [adr-011](adr-011-rules-engine.md
 2. **A failure is recorded per meta spec layer.** A corpus meta spec or a namespace meta spec whose structure file
    fails holds the failure where it would hold its structure: `structure: StructureSpec | FailedStructure | None`. So
    a document's governance holds each layer as loaded or failed, in the layer order
-   [adr-006](adr-006-specifications.md) fixes.
+   [adr-016](adr-016-specifications.md) fixes.
 3. **Every load failure is also listed once on the model**, with its path and its condition, whatever its origin: a
    structure file, a corpus directory, a skills directory, a skill entry or a `SKILL.md`. This list is what the run
    reports (FR-006).
@@ -111,8 +111,11 @@ Names in the sketches are illustrative; the shapes are the decision.
    a report of its own, filed at the failure's path: the structure file, the directory or the skill entry. The report
    joins the subject reports in the one total order of [adr-010](adr-010-diagnostics.md) (FR-001 to FR-004, FR-006).
 3. **The exit code follows from the severity.** A load failure is an error diagnostic, so a check run that reports
-   one exits 1 (FR-014). What stops the run before any report, such as root discovery, the snapshot, an invalid
-   selection or a linked layout, still exits 2 (FR-015).
+   one exits 1 (FR-014). What stops the run before any report, such as root discovery, a path outside the
+   declaration the snapshot cannot read, an invalid selection or a linked layout, still exits 2 (FR-015). A
+   refusal the snapshot meets on a unit of the declaration is recorded by the snapshot and becomes that unit's load
+   failure, so it is reported like any other. A refusal on a link the snapshot follows to reach such a unit still
+   exits 2, since no load failure stands for it yet (prd-014 Edge Cases).
 4. **A documentation root or meta spec directory that cannot be listed stops the run** (FR-005). The model still
    records it as a value, a load failure like any other, so the database is opened and nothing raises. The command
    reads it before selecting any subject, prints it as a failure and exits 2, as it does when the root cannot be
@@ -203,10 +206,9 @@ their analyses without being looked at again.
   documents it governs are skipped and listed in coverage.
 - **Two other records change with this one, so no two accepted records contradict each other.**
   [adr-006](adr-006-specifications.md) says a meta spec that cannot be loaded is a failure of the run. It is
-  restated in [adr-016](adr-016-specifications.md), which is proposed to supersede it and is accepted together with
-  this record. [adr-010](adr-010-diagnostics.md) keeps its decision. The change that accepts this record edits its
-  example of a failure that exits 2, replacing "a meta spec that cannot be loaded" with a `docs/` that cannot be
-  listed.
+  restated in [adr-016](adr-016-specifications.md), which supersedes it and was accepted together with this record.
+  [adr-010](adr-010-diagnostics.md) keeps its decision; its example of a failure that exits 2 is now a `docs/` that
+  cannot be listed instead of a meta spec that cannot be loaded.
 - **Every caller opens the database.** The two commands and the tests that build a database call `Database.open`, and
   nothing reads the model before it.
 - **The loader catches what it reads, unit by unit.** Each repository still raises its own error variant. The loader
@@ -266,13 +268,13 @@ Before committing code, verify:
 ## References
 
 - [prd-014-resilient-model-loading](prd-014-resilient-model-loading.md) - Source: The requirements this design answers
-- [adr-004-database](adr-004-database.md) - Supersedes (proposed): The database this record restates
+- [adr-004-database](adr-004-database.md) - Supersedes: The database this record restates
 - [adr-001-snapshot-model](adr-001-snapshot-model.md) - Related: The model and the package roles
 - [adr-002-vfs](adr-002-vfs.md) - Related: The snapshot the database wraps
 - [adr-005-incremental](adr-005-incremental.md) - Related: What a query's result, and a recorded failure, carries over
-- [adr-006-specifications](adr-006-specifications.md) - Related: The layers a failure is recorded per
-- [adr-016-specifications](adr-016-specifications.md) - Related: The restated adr-006, in which a meta spec that
-  cannot be loaded is a failed layer
+- [adr-016-specifications](adr-016-specifications.md) - Related: The layers a failure is recorded per, and a meta
+  spec that cannot be loaded as a failed layer
+- [adr-006-specifications](adr-006-specifications.md) - Related: The record adr-016 supersedes
 - [adr-009-rules](adr-009-rules.md) - Related: The engine conditions a load failure is reported as
 - [adr-010-diagnostics](adr-010-diagnostics.md) - Related: The order, the report and the exit codes
 - [adr-011-rules-engine](adr-011-rules-engine.md) - Related: The runner that applies the skip policy

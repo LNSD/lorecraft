@@ -415,9 +415,9 @@ Before committing code, verify:
 - [#315](https://github.com/LNSD/lorecraft/issues/315) - Source: The research and the decisions behind it
 - [adr-009-rules](adr-009-rules.md) - Foundation: The rules the engine runs, and the glossary
 - [adr-010-diagnostics](adr-010-diagnostics.md) - Related: What a run reports
-- [adr-004-database](adr-004-database.md) - Foundation: Revisions and queries
+- [adr-015-database](adr-015-database.md) - Foundation: Revisions and queries
 - [adr-005-incremental](adr-005-incremental.md) - Foundation: Carry-over rules and persistable results
-- [adr-006-specifications](adr-006-specifications.md) - Foundation: Governance, computed once by the model
+- [adr-016-specifications](adr-016-specifications.md) - Foundation: Governance, computed once by the model
 - [adr-012-database-derivation](adr-012-database-derivation.md) - Foundation: The database in the Derivation package
 - [module-lorecraft-engine](../code/module-lorecraft-engine.md) - Foundation: The package the runner lives in
-- [adr-015-database](adr-015-database.md) - Related: The database opened with its model, proposed to supersede adr-004
+- [adr-004-database](adr-004-database.md) - Related: The record adr-015 supersedes
