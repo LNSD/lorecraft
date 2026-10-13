@@ -31,8 +31,9 @@ returns at its subject, as a diagnostic of `lorecraft.rules.report`.
 - One entry point per mode, each carrying that mode's policy for a document a failed layer governs: `skip.py` for the
   check run, which gives such a document no rule and reports it as skipped, `partial.py` for the LSP-style mode later.
 - The report of each load failure the model lists (`load_failures.py`): the engine condition of its kind, filed
-  once at the failure's path, whatever the configuration and the selection. Which failure stops a run is the
-  command's choice, never the engine's.
+  once at the failure's path, whatever the configuration and the selection. A `docs/` or `docs/__meta__/` that
+  cannot be listed comes back as `UnlistableRoot` instead of a report. Which failure stops a run is the command's
+  choice, never the engine's.
 
 ## Belongs Elsewhere
 

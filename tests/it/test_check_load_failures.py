@@ -10,6 +10,7 @@ run has none to report. Those conditions are in `test_load_failure_conditions`.
 """
 
 import json
+import os
 from pathlib import Path
 from typing import Final
 
@@ -395,3 +396,28 @@ class TestCheckLeavesWhatAFailureDoesNotTouchAsItWas:
         )
         assert _severities_at(document, STRUCTURE_FILE_OF_PYTHON) == ['error'], 'it is reported as an error'
         assert exit_code == 1, 'the run fails with the status for findings'
+
+
+@pytest.mark.it
+@pytest.mark.skipif(os.geteuid() == 0, reason='root ignores directory permissions')
+class TestCheckWithAnUnlistableMetaDirectory:
+    def test_check_with_a_meta_directory_that_cannot_be_listed_stops_before_checking_anything(
+        self, tmp_path: Path
+    ) -> None:
+        #: Given
+        root = _write_workspace(tmp_path)
+        meta = root / 'docs' / '__meta__'
+        meta.chmod(0o000)
+
+        #: When
+        try:
+            result = runner.invoke(build_app(), ['check', '--root', str(root), '--format', 'json'])
+        finally:
+            meta.chmod(0o755)
+
+        #: Then
+        assert result.exit_code == 2, 'with no meta spec known nothing can be checked, so the run is an error'
+        assert result.stdout == '', 'and no report is printed, since one would read as a clean result'
+        assert 'error: cannot list directory docs/__meta__: permission denied' in result.stderr, (
+            'the directory is printed as a failure, as it is when the root cannot be found'
+        )

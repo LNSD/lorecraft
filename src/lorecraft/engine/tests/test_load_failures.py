@@ -45,7 +45,7 @@ from lorecraft.rules.engine.unreadable_path import NotARegularFile, Refused
 from lorecraft.rules.report import LoadFailureReport
 from lorecraft.vfs import OsRefusal, Utf8Failure, Utf8Reason
 
-from ..load_failures import report_load_failures
+from ..load_failures import UnlistableRoot, report_load_failures
 
 _PATH: Final[RootRelativePath] = RootRelativePath.parse('docs/__meta__/code.structure.json')
 _ENTRY: Final[RootRelativePath] = RootRelativePath.parse('.claude/skills/review')
@@ -72,7 +72,9 @@ def _condition_of(condition: LoadFailureCondition, path: RootRelativePath = _PAT
         condition: What failed.
         path: Where it failed.
     """
-    (report,) = report_load_failures(_model(LoadFailure(path, condition)))
+    result = report_load_failures(_model(LoadFailure(path, condition)))
+    assert not isinstance(result, UnlistableRoot), 'the failure is one the run reports'
+    (report,) = result
     return report.occurrence
 
 
@@ -109,15 +111,27 @@ class TestReportLoadFailures:
             ),
         ), 'one report per failure, in the order the model lists them, each at its own path'
 
-    def test_report_load_failures_with_an_unlistable_docs_directory_reports_none_for_it(self) -> None:
+    def test_report_load_failures_with_an_unlistable_docs_directory_returns_it_as_the_unlistable_root(self) -> None:
         #: Given
         failure = LoadFailure(RootRelativePath.parse('docs'), UnlistableDirectory(_REFUSAL))
 
         #: When
-        reports = report_load_failures(_model(failure))
+        result = report_load_failures(_model(failure))
 
         #: Then
-        assert reports == (), 'the command stops the run for it before any report, so no diagnostic stands for it'
+        assert result == UnlistableRoot(failure), 'no diagnostic stands for it: the command stops the run on it'
+
+    def test_report_load_failures_with_an_unlistable_directory_among_others_returns_the_first_one(self) -> None:
+        #: Given
+        other = LoadFailure(_PATH, EmptyStructureSpec())
+        first = LoadFailure(RootRelativePath.parse('docs/__meta__'), UnlistableDirectory(_REFUSAL))
+        second = LoadFailure(RootRelativePath.parse('docs'), UnlistableDirectory(_REFUSAL))
+
+        #: When
+        result = report_load_failures(_model(other, first, second))
+
+        #: Then
+        assert result == UnlistableRoot(first), 'the failure is the first the model listed, and no report is returned'
 
     def test_report_load_failures_with_an_unreadable_structure_file_reports_the_refusal(self) -> None:
         #: Given
