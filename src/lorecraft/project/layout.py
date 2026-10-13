@@ -9,11 +9,12 @@ from lorecraft.agents import iter_agents
 from lorecraft.core.error import Error
 from lorecraft.core.num import UnsignedInt
 from lorecraft.core.path import RootRelativePath
-from lorecraft.vfs import EntryKind, FileSystem, ScanRoot
+from lorecraft.vfs import Declaration, EntryKind, FileSystem, ScanRoot
 
 DOCS_DIR: Final[RootRelativePath] = RootRelativePath.parse('docs')
 SPECS_DIR: Final[RootRelativePath] = DOCS_DIR / '__meta__'
 DOCUMENT_SUFFIX: Final[str] = '.md'
+STRUCTURE_FILE_SUFFIX: Final[str] = '.structure.json'
 
 
 # Runs once per process, before mutmut swaps a mutant in, so no test can ever see a mutant of it.
@@ -53,6 +54,30 @@ ancestors has the scan read that ancestor's whole subtree once, and ends there.
 """
 
 
+def _is_declared_file(path: RootRelativePath) -> bool:
+    """Whether `path` is a structure file, the one kind of regular file the model reads for its own sake.
+
+    A document is read by a check, and a skill's `SKILL.md` by the rules over it; neither is a unit of the
+    declaration the loader reads and can report, so neither is named here.
+
+    Args:
+        path: The root-relative, resolved path of a regular file the scan reads.
+    """
+    return path.parent == SPECS_DIR and path.name.endswith(STRUCTURE_FILE_SUFFIX)
+
+
+DECLARATION: Final[Declaration] = Declaration(is_file=_is_declared_file)
+"""What a snapshot keeps a refusal of instead of stopping the scan, for a model loaded from it to report.
+
+The scan keeps every directory it cannot list, every entry it cannot inspect on the chain of a link under a skills
+directory, and each `*.structure.json` in `docs/__meta__/` it cannot read. It is the loader that decides what of
+that is a unit of the declaration: it reports the listing of `docs/`, of `docs/__meta__/`, of a corpus directory,
+of a skills directory and of a skill entry, the chain of a skills directory, of a skill entry and of a `SKILL.md`,
+and a structure file. A refusal kept that the loader never meets, such as a directory no meta spec names, is
+raised by the command, which scans again with no declaration. A refusal on a document or on any other file is not
+kept at all: the scan stops there, and reporting it is the owner's to decide."""
+
+
 class LinkedLayoutError(Error):
     """A directory the layout fixes, ``docs/`` or ``docs/__meta__/``, is a symlink.
 
@@ -80,7 +105,9 @@ def reject_linked_layout(fs: FileSystem) -> None:
 
     Raises:
         LinkedLayoutError: If ``docs/`` is a symlink, or else if ``docs/__meta__/`` is one.
-        EntryInspectError: If the view cannot inspect either directory; a view over a snapshot never raises it.
+        EntryInspectError: If the disk view cannot inspect either directory.
+        RecordedEntryInspectError: If the snapshot recorded that the scan could not inspect either directory; it
+            records one only on the chain of a link, and neither directory is one.
     """
     # `docs/` first: a scan stops at a linked `docs/`, so a snapshot never knows what `docs/__meta__/` is.
     for directory in (DOCS_DIR, SPECS_DIR):

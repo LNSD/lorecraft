@@ -74,12 +74,18 @@ from lorecraft.project.skill.repo import (
 )
 from lorecraft.project.skill.skills_dir import SkillsDir
 from lorecraft.vfs import (
-    DirListError,
+    DIR_LIST_FAILURES,
+    ENTRY_INSPECT_FAILURES,
     DirResolveError,
     EntryInspectError,
     FileReadError,
     FileResolveError,
     FileSystem,
+    RecordedDirResolveError,
+    RecordedEntryInspectError,
+    RecordedFileReadError,
+    RecordedFileReadPathError,
+    RecordedFileResolveError,
     ResolvedPath,
     TextDecodeError,
     UnrecordedFileError,
@@ -211,7 +217,7 @@ def _list_spec_paths(schemas: SchemaRepository, failures: list[LoadFailure]) -> 
     """
     try:
         return schemas.list_spec_paths()
-    except DirListError as exc:
+    except DIR_LIST_FAILURES as exc:
         failures.append(LoadFailure(exc.path, UnlistableDirectory(exc.refusal)))
         return []
 
@@ -225,7 +231,7 @@ def _list_corpus_directories(documents: DocumentRepository, failures: list[LoadF
     """
     try:
         return documents.list_corpus_directories()
-    except DirListError as exc:
+    except DIR_LIST_FAILURES as exc:
         failures.append(LoadFailure(exc.path, UnlistableDirectory(exc.refusal)))
         return ()
 
@@ -335,7 +341,7 @@ def _load_structure(
                     structure = StructureSpec.parse(spec_file, schemas.get_structure_schema(name))
                 except StructureSchemaReadError as exc:
                     match exc.source:
-                        case FileReadError():
+                        case FileReadError() | RecordedFileReadError() | RecordedFileReadPathError():
                             failure: StructureLoadFailure = UnreadableStructureFile(exc.name, exc.source.refusal)
                         case UnrecordedFileError():
                             failure = UnrecordedStructureFile(exc.name)
@@ -458,7 +464,11 @@ def _load_skills_dirs(
             except DirResolveError as exc:
                 failures.append(LoadFailure(path, UnresolvableSkillsDirectory(exc.refusal)))
                 continue
-            except EntryInspectError as exc:
+            except RecordedDirResolveError as exc:
+                # The snapshot kept which entry on the way was refused, which the disk's lookup does not say.
+                failures.append(LoadFailure(path, UninspectableSkillsDirectory(exc.source.path, exc.refusal)))
+                continue
+            except ENTRY_INSPECT_FAILURES as exc:
                 failures.append(LoadFailure(path, UninspectableSkillsDirectory(exc.path, exc.refusal)))
                 continue
             skills_dirs.append(SkillsDir(agent=agent.name, path=path, resolves_to=resolves_to))
@@ -513,7 +523,9 @@ def _list_skill_locations(
                 match exc.source:
                     case DirResolveError():
                         condition = UnresolvableSkillEntry(exc.source.refusal)
-                    case EntryInspectError():
+                    case RecordedDirResolveError():
+                        condition = UninspectableSkillEntry(exc.source.source.path, exc.source.refusal)
+                    case EntryInspectError() | RecordedEntryInspectError():
                         condition = UninspectableSkillEntry(exc.source.path, exc.source.refusal)
                     case _:
                         assert_never(exc.source)
@@ -528,7 +540,9 @@ def _list_skill_locations(
                 match exc.source:
                     case FileResolveError():
                         condition = UnresolvableSkillFile(exc.skill_file, exc.source.refusal)
-                    case EntryInspectError():
+                    case RecordedFileResolveError():
+                        condition = UninspectableSkillFile(exc.skill_file, exc.source.source.path, exc.source.refusal)
+                    case EntryInspectError() | RecordedEntryInspectError():
                         condition = UninspectableSkillFile(exc.skill_file, exc.source.path, exc.source.refusal)
                     case _:
                         assert_never(exc.source)

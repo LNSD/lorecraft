@@ -15,7 +15,17 @@ from lorecraft.core.path import RootRelativePath
 
 from ..changes import Change, ChangeKind, ChangeSet, diff
 from ..scan_root import ScanRoot
-from ..snapshot import DirectoryRecord, EntryRecord, FileRecord, OtherRecord, Snapshot, SymlinkRecord
+from ..snapshot import (
+    DirectoryRecord,
+    EntryRecord,
+    FileRecord,
+    OtherRecord,
+    RefusedListing,
+    RefusedRead,
+    Snapshot,
+    SymlinkRecord,
+)
+from ..view import OsRefusal
 
 
 def _snapshot(records: Mapping[str, EntryRecord], *, scope: tuple[ScanRoot, ...] = ()) -> Snapshot:
@@ -164,6 +174,50 @@ class TestDiff:
 
         #: Then
         assert changes == expected, 'an other entry records nothing that could change but its kind'
+
+    def test_diff_with_a_directory_that_can_now_be_listed_returns_it_modified(self) -> None:
+        #: Given
+        old = _snapshot({'docs': RefusedListing(OsRefusal.PERMISSION_DENIED)})
+        new = _snapshot({'docs': DirectoryRecord(listed=True)})
+
+        #: When
+        changes = diff(old, new)
+
+        #: Then
+        assert changes == {Change(RootRelativePath.parse('docs'), ChangeKind.MODIFIED)}, 'a refusal lost is a change'
+
+    def test_diff_with_a_directory_that_can_no_longer_be_listed_returns_it_modified(self) -> None:
+        #: Given
+        old = _snapshot({'docs': DirectoryRecord(listed=True)})
+        new = _snapshot({'docs': RefusedListing(OsRefusal.PERMISSION_DENIED)})
+
+        #: When
+        changes = diff(old, new)
+
+        #: Then
+        assert changes == {Change(RootRelativePath.parse('docs'), ChangeKind.MODIFIED)}, 'a refusal gained is a change'
+
+    def test_diff_with_a_file_that_can_no_longer_be_read_returns_it_modified(self) -> None:
+        #: Given
+        old = _snapshot({'docs/a.md': FileRecord(b'# A\n')})
+        new = _snapshot({'docs/a.md': RefusedRead(OsRefusal.PERMISSION_DENIED)})
+
+        #: When
+        changes = diff(old, new)
+
+        #: Then
+        assert changes == {Change(RootRelativePath.parse('docs/a.md'), ChangeKind.MODIFIED)}
+
+    def test_diff_with_the_same_refusal_returns_empty(self) -> None:
+        #: Given
+        old = _snapshot({'docs': RefusedListing(OsRefusal.PERMISSION_DENIED)})
+        new = _snapshot({'docs': RefusedListing(OsRefusal.PERMISSION_DENIED, climbed=True)})
+
+        #: When
+        changes = diff(old, new)
+
+        #: Then
+        assert changes == set(), 'a directory that is refused both times is unchanged, whatever flags it holds'
 
     def test_diff_with_a_new_file_returns_it_added(self) -> None:
         #: Given

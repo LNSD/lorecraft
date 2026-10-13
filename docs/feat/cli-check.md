@@ -178,16 +178,15 @@ ungoverned part or a skipped document. Every coverage item has `path`, `ungovern
 For `--format json`, every path, including the workspace root, must be valid UTF-8. Non-ASCII text in paths,
 messages, labels and notes is written as UTF-8 characters instead of `\uXXXX` escapes.
 
-The compact form is intentional for tools that consume JSON. Pipe `lorecraft check --format json | jq .`
-for an indented view.
-
 ### Exit Status
 
 | Code | Meaning |
 |------|---------|
 | `0`  | No diagnostic is an error; warnings and ungoverned parts do not count |
-| `1`  | At least one diagnostic is an error, including a structure file load failure |
-| `2`  | The run could not start: no root, snapshot failure, unlistable or linked `docs/` or `docs/__meta__/`, invalid selection or usage. Invalid `--select` and `--ignore` values report a usage error on stderr, as [cli](cli.md) describes; other failures print `error: ...` |
+| `1`  | At least one error diagnostic, including `LC002` for a path needed to load the workspace |
+| `2`  | No root; unreadable non-structure file or symlink target; unlistable or linked `docs/` or `docs/__meta__/`; unlistable directory or uninspectable entry on a followed chain that no load failure reports; changed snapshot entry; invalid selection or usage. Errors print `error: ...` on stderr; selector usage errors follow [cli](cli.md) |
+
+With multiple unreported refusals, exit `2` names the first path in path order.
 
 ## Limitations
 
@@ -215,12 +214,14 @@ each rule's condition and fix, as [cli-rule](cli-rule.md) describes.
 | `LEN` | Length limits: a document's tokens, a section's or its title's words or characters, a `SKILL.md`'s lines. `LEN001` too-many-tokens, `LEN002` too-many-lines, `LEN003` too-many-words, `LEN004` title-too-many-words, `LEN005` title-too-long |
 | `LINK` | Links in Markdown files: a document governed for its structure, a `SKILL.md` and each resource, a skill's relative link read from the skill root. `LINK001` absolute-link, `LINK002` missing-fragment, `LINK003` broken-link, `LINK004` escaping-link |
 | `LAY` | Skill layout checks: `LAY001` outside-symlink, a symlink an agent reaches whose chain leaves the repository |
-| `LC` | Engine conditions are errors with no level; selection and configuration cannot turn them off. `LC001` invalid-utf8 reports a file that cannot be decoded, including a structure file; `LC003` malformed-structure-file reports a structure file that breaks the format or states no rule; `LC004` unusable-structure-file reports a well-formed structure file with rules that repeat, contradict each other or cannot be applied. |
+| `LC` | Engine conditions are errors with no level; selection and configuration cannot turn them off. `LC001` invalid-utf8 reports a file that cannot be decoded, including a structure file; `LC002` unreadable-path reports a workspace path the run cannot read, list or follow; `LC003` malformed-structure-file reports a structure file that breaks the format or states no rule; `LC004` unusable-structure-file reports a well-formed structure file with rules that repeat, contradict each other or cannot be applied. |
 
 Each reported structure-file failure appears once at that file, and the documents it governs are listed as skipped.
-`LC001` points to the first invalid byte; `LC003` and `LC004` are whole-file diagnostics. The
-[rulebook](../rulebook/) also lists `LC002` unreadable-path, but a refusal while the snapshot is taken stops
-`check` with exit `2` before it can report that code.
+`LC001` points to the first invalid byte; `LC002`, `LC003` and `LC004` are whole-file diagnostics.
+`LC002` covers unreadable structure files, unlistable corpus or skills directories, unlistable or unresolved
+skill entries, and `SKILL.md` links that cannot be followed. For a failed link lookup, the note names the entry
+the operating system refused to inspect, not the link. Only an unreadable structure file lists its governed
+documents as skipped; the other cases have a diagnostic alone.
 
 `FM008` ends with the field's example when the schema gives one. `FM009` labels malformed skill names with
 their pattern. `FM010` and `FM012` carry counts in messages only.

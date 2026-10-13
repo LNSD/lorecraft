@@ -17,9 +17,11 @@ from lorecraft.core.path import RootRelativePath
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.layout import DOCS_DIR, DOCUMENT_SUFFIX
 from lorecraft.vfs import (
-    DirListError,
+    DIR_LIST_FAILURES,
+    FILE_READ_FAILURES,
+    DirListFailure,
     EntryKind,
-    FileReadError,
+    FileReadFailure,
     FileSystem,
     TextDecodeError,
     UnrecordedFileError,
@@ -63,9 +65,9 @@ class CorpusListError(Error):
     """
 
     corpus: CorpusName
-    source: DirListError
+    source: DirListFailure
 
-    def __init__(self, corpus: CorpusName, *, source: DirListError) -> None:
+    def __init__(self, corpus: CorpusName, *, source: DirListFailure) -> None:
         self.corpus = corpus
         self.source = source
         super().__init__(f'cannot list the documents of corpus {corpus}')
@@ -81,9 +83,9 @@ class DocumentReadError(Error):
     """
 
     ref: DocumentRef
-    source: FileReadError | UnrecordedFileError
+    source: FileReadFailure | UnrecordedFileError
 
-    def __init__(self, ref: DocumentRef, *, source: FileReadError | UnrecordedFileError) -> None:
+    def __init__(self, ref: DocumentRef, *, source: FileReadFailure | UnrecordedFileError) -> None:
         self.ref = ref
         self.source = source
         super().__init__(f'cannot read document {ref.path}')
@@ -126,7 +128,8 @@ class Repository:
         a corpus is a regular directory.
 
         Raises:
-            DirListError: If docs/ cannot be listed.
+            DirListError: If docs/ cannot be listed, on disk.
+            RecordedDirListError: If a snapshot recorded that docs/ could not be listed.
         """
         # A failure to list docs/ is the listing's own, with docs/ as its path: this layer adds nothing to it.
         entries = self._fs.list_dir(DOCS_DIR)
@@ -152,7 +155,7 @@ class Repository:
         corpus_dir = DOCS_DIR / str(corpus)
         try:
             entries = self._fs.list_dir(corpus_dir)
-        except DirListError as exc:
+        except DIR_LIST_FAILURES as exc:
             raise CorpusListError(corpus, source=exc) from exc
 
         documents: list[DocumentFile] = []
@@ -180,6 +183,6 @@ class Repository:
             text = self._fs.read_text(ref.path)
         except TextDecodeError as exc:
             raise DocumentDecodeError(ref, source=exc) from exc
-        except (FileReadError, UnrecordedFileError) as exc:
+        except (*FILE_READ_FAILURES, UnrecordedFileError) as exc:
             raise DocumentReadError(ref, source=exc) from exc
         return Document(ref, text)

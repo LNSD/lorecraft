@@ -1,0 +1,8 @@
+[
+  {
+    "path": ".agents/skills/audit",
+    "line": null,
+    "severity": "error",
+    "code": "LC002"
+  }
+]

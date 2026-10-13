@@ -3,8 +3,10 @@
 A case is a directory under `tests/it/rule_cases/<CODE>/<kind>/<case>/` holding `root/`, the repository
 `lorecraft check` runs over, and `expected.json`, the diagnostics the run reports, as a list of objects with a
 `path`, a `line` (null for a whole file), a `severity` and a `code`; and, only when the repository holds symlinks, a
-`links.json` mapping each link's path in the root to the target it holds. The kind is `trigger` for a repository the
-code fires on and `near_miss` for one that looks like it could and does not.
+`links.json` mapping each link's path in the root to the target it holds; and, only when the code reports what the
+operating system refuses, a `locked.json` listing the paths in the root that are given no permission before the run.
+The kind is `trigger` for a repository the code fires on and `near_miss` for one that looks like it could and does
+not.
 
 The parametrized tests run the checker over every case and compare the diagnostics it prints with the expected ones,
 whole: a second code reported on a line, or a diagnostic the case does not list, fails the case, so a pair of codes
@@ -13,14 +15,14 @@ expects its own code and a near miss does not. The tests that read the registry 
 one names every code that lacks either kind, one every directory named for a code no rule has, and one every entry
 that is not a `trigger/` or `near_miss/` directory under a code.
 
-The code that stands for an operating system's refusal is the one exception to a case on disk: a check run reads a
-snapshot, and a refusal while it is taken stops the run before any report, so no repository can make `lorecraft check`
-report it. It is listed in `REFUSAL_CODES`, and its triggers and near misses are in
-`test_load_failure_conditions`, which loads the model through the disk, where the refusal happens.
+A case that locks a path cannot run as the superuser, who ignores permissions, and is skipped there.
 """
 
 import json
+import os
 import shutil
+import stat
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Final, Literal, TypedDict
@@ -43,13 +45,6 @@ NEAR_MISS: Final[str] = 'near_miss'
 """The kind of case whose repository looks like the code could fire on it, and it does not."""
 
 KINDS: Final[tuple[str, ...]] = (TRIGGER, NEAR_MISS)
-
-REFUSAL_CODES: Final[frozenset[str]] = frozenset({'LC002'})
-"""The code of the load failure that stands for the operating system's refusal of a read, a listing or a lookup.
-
-A check run takes its snapshot before it reports anything, and a refusal while it is taken stops the run with an error,
-so it is not reported by a repository `lorecraft check` runs over. `test_load_failure_conditions` holds its
-cases."""
 
 runner = CliRunner()
 
@@ -118,6 +113,30 @@ class RuleCase:
                 path.symlink_to(target)
         return root
 
+    def locked_paths(self) -> list[str]:
+        """The paths of the root the case gives no permission before the run, as `locked.json` lists them."""
+        locked_file = self.directory / 'locked.json'
+        if not locked_file.exists():
+            return []
+        return json.loads(locked_file.read_text(encoding='utf-8'))
+
+
+@pytest.fixture(scope='function')
+def lock() -> Iterator[Callable[[Path], None]]:
+    """A function that makes a path refuse every access, restoring each path afterwards for pytest's cleanup.
+
+    Paths are restored in the order they were locked, so a locked parent is searchable again before its child.
+    """
+    locked: list[tuple[Path, int]] = []
+
+    def lock_path(path: Path) -> None:
+        locked.append((path, stat.S_IMODE(path.stat().st_mode)))
+        path.chmod(0o000)
+
+    yield lock_path
+    for path, mode in locked:
+        path.chmod(mode)
+
 
 def discover_cases() -> tuple[RuleCase, ...]:
     """Every case under the rule cases directory, in code, kind and name order."""
@@ -180,10 +199,15 @@ def case_ids(cases: tuple[RuleCase, ...]) -> list[str]:
 class TestRuleCases:
     @pytest.mark.parametrize('case', CASES, ids=case_ids(CASES))
     def test_check_over_a_rule_case_reports_exactly_its_expected_diagnostics(
-        self, case: RuleCase, tmp_path: Path
+        self, case: RuleCase, tmp_path: Path, lock: Callable[[Path], None]
     ) -> None:
         #: Given
+        locked_paths = case.locked_paths()
+        if locked_paths and os.geteuid() == 0:
+            pytest.skip('root ignores file and directory permissions')
         root = case.write_repository(tmp_path)
+        for locked_path in locked_paths:
+            lock(root / locked_path)
         expected = case.expected()
 
         #: When
@@ -248,7 +272,7 @@ class TestRuleCases:
 
     def test_rule_cases_with_the_registry_cover_every_code_with_a_trigger_and_a_near_miss(self) -> None:
         #: Given
-        codes = [code for code in reported_codes() if code not in REFUSAL_CODES]
+        codes = reported_codes()
         covered = {(case.code, case.kind) for case in CASES}
 
         #: When
@@ -256,13 +280,3 @@ class TestRuleCases:
 
         #: Then
         assert missing == [], f'every code needs a trigger and a near_miss case; missing: {missing}'
-
-    def test_rule_cases_with_the_refusal_codes_name_only_codes_the_registry_has(self) -> None:
-        #: Given
-        known_codes = set(reported_codes())
-
-        #: When
-        unknown = sorted(REFUSAL_CODES - known_codes)
-
-        #: Then
-        assert unknown == [], f'a code exempted from a case on disk must be a code a rule or condition has: {unknown}'

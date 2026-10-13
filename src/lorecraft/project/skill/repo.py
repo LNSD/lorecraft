@@ -27,13 +27,18 @@ from lorecraft.agents import SKILL_ENTRY_FILENAME
 from lorecraft.core.error import Error
 from lorecraft.core.path import ROOT, RootRelativePath
 from lorecraft.vfs import (
+    DIR_LIST_FAILURES,
+    DIR_RESOLVE_FAILURES,
+    ENTRY_INSPECT_FAILURES,
+    FILE_READ_FAILURES,
+    FILE_RESOLVE_FAILURES,
     DirEntry,
-    DirListError,
-    DirResolveError,
-    EntryInspectError,
+    DirListFailure,
+    DirResolveFailure,
+    EntryInspectFailure,
     EntryKind,
-    FileReadError,
-    FileResolveError,
+    FileReadFailure,
+    FileResolveFailure,
     FileSystem,
     ResolvedPath,
     RootExit,
@@ -108,9 +113,9 @@ class SkillsDirListError(Error):
     """
 
     skills_dir: RootRelativePath
-    source: DirListError
+    source: DirListFailure
 
-    def __init__(self, skills_dir: RootRelativePath, *, source: DirListError) -> None:
+    def __init__(self, skills_dir: RootRelativePath, *, source: DirListFailure) -> None:
         self.skills_dir = skills_dir
         self.source = source
         super().__init__(f'cannot list the skills in {skills_dir}')
@@ -126,9 +131,14 @@ class SkillEntryResolveError(Error):
     """
 
     entry: RootRelativePath
-    source: DirResolveError | EntryInspectError
+    source: DirResolveFailure | EntryInspectFailure
 
-    def __init__(self, entry: RootRelativePath, *, source: DirResolveError | EntryInspectError) -> None:
+    def __init__(
+        self,
+        entry: RootRelativePath,
+        *,
+        source: DirResolveFailure | EntryInspectFailure,
+    ) -> None:
         self.entry = entry
         self.source = source
         super().__init__(f'cannot resolve skill entry {entry}')
@@ -144,9 +154,9 @@ class SkillDirListError(Error):
     """
 
     directory: RootRelativePath
-    source: DirListError
+    source: DirListFailure
 
-    def __init__(self, directory: RootRelativePath, *, source: DirListError) -> None:
+    def __init__(self, directory: RootRelativePath, *, source: DirListFailure) -> None:
         self.directory = directory
         self.source = source
         super().__init__(f'cannot look for {SKILL_ENTRY_FILENAME} in {directory}')
@@ -162,9 +172,14 @@ class SkillFileResolveError(Error):
     """
 
     skill_file: RootRelativePath
-    source: FileResolveError | EntryInspectError
+    source: FileResolveFailure | EntryInspectFailure
 
-    def __init__(self, skill_file: RootRelativePath, *, source: FileResolveError | EntryInspectError) -> None:
+    def __init__(
+        self,
+        skill_file: RootRelativePath,
+        *,
+        source: FileResolveFailure | EntryInspectFailure,
+    ) -> None:
         self.skill_file = skill_file
         self.source = source
         super().__init__(f'cannot resolve {skill_file}')
@@ -180,9 +195,9 @@ class SkillReadError(Error):
     """
 
     ref: SkillRef
-    source: FileReadError | UnrecordedFileError
+    source: FileReadFailure | UnrecordedFileError
 
-    def __init__(self, ref: SkillRef, *, source: FileReadError | UnrecordedFileError) -> None:
+    def __init__(self, ref: SkillRef, *, source: FileReadFailure | UnrecordedFileError) -> None:
         self.ref = ref
         self.source = source
         super().__init__(f'cannot read skill {ref.path}')
@@ -218,9 +233,9 @@ class SkillResourcesListError(Error):
 
     skill: SkillRef
     directory: RootRelativePath
-    source: DirListError
+    source: DirListFailure
 
-    def __init__(self, skill: SkillRef, directory: RootRelativePath, *, source: DirListError) -> None:
+    def __init__(self, skill: SkillRef, directory: RootRelativePath, *, source: DirListFailure) -> None:
         self.skill = skill
         self.directory = directory
         self.source = source
@@ -239,14 +254,14 @@ class SkillResourcesSymlinkResolveError(Error):
 
     skill: SkillRef
     symlink: RootRelativePath
-    source: DirResolveError | FileResolveError | EntryInspectError
+    source: DirResolveFailure | FileResolveFailure | EntryInspectFailure
 
     def __init__(
         self,
         skill: SkillRef,
         symlink: RootRelativePath,
         *,
-        source: DirResolveError | FileResolveError | EntryInspectError,
+        source: DirResolveFailure | FileResolveFailure | EntryInspectFailure,
     ) -> None:
         self.skill = skill
         self.symlink = symlink
@@ -264,9 +279,9 @@ class SkillResourceReadError(Error):
     """
 
     ref: SkillResourceRef
-    source: FileReadError | UnrecordedFileError
+    source: FileReadFailure | UnrecordedFileError
 
-    def __init__(self, ref: SkillResourceRef, *, source: FileReadError | UnrecordedFileError) -> None:
+    def __init__(self, ref: SkillResourceRef, *, source: FileReadFailure | UnrecordedFileError) -> None:
         self.ref = ref
         self.source = source
         super().__init__(f'cannot read resource {ref.path} of skill {ref.skill.directory}')
@@ -315,6 +330,7 @@ class Repository:
 
         Raises:
             DirResolveError: If the operating system refuses the lookup.
+            RecordedDirResolveError: If a snapshot recorded that the scan could not inspect an entry on the way.
         """
         # A refused lookup is the resolve's own, with the skills directory as its path: nothing to add here.
         return self._fs.find_dir(skills_dir)
@@ -327,6 +343,7 @@ class Repository:
 
         Raises:
             EntryInspectError: If an entry on the way cannot be inspected, or a link's target cannot be read.
+            RecordedEntryInspectError: If a snapshot recorded that the scan could not inspect an entry on the way.
         """
         # A refused lookup is the view's own, with the path it stopped at: nothing to add here.
         leaves_at = self._fs.find_root_exit(skills_dir)
@@ -374,7 +391,7 @@ class Repository:
         try:
             # The seam lists entries in name order, so what is found entry by entry comes out sorted.
             return self._fs.list_dir(skills_dir)
-        except DirListError as exc:
+        except DIR_LIST_FAILURES as exc:
             raise SkillsDirListError(skills_dir, source=exc) from exc
 
     def list_skill_entry(self, skills_dir: ResolvedPath, entry: DirEntry) -> SkillsListing:
@@ -447,7 +464,7 @@ class Repository:
             text = self._fs.read_text(ref.path)
         except TextDecodeError as exc:
             raise SkillDecodeError(ref, source=exc) from exc
-        except (FileReadError, UnrecordedFileError) as exc:
+        except (*FILE_READ_FAILURES, UnrecordedFileError) as exc:
             raise SkillReadError(ref, source=exc) from exc
         return Skill(ref, text)
 
@@ -502,7 +519,7 @@ class Repository:
             text = self._fs.read_text(location.resolves_to)
         except TextDecodeError as exc:
             raise SkillResourceDecodeError(location.ref, source=exc) from exc
-        except (FileReadError, UnrecordedFileError) as exc:
+        except (*FILE_READ_FAILURES, UnrecordedFileError) as exc:
             raise SkillResourceReadError(location.ref, source=exc) from exc
         return SkillResource(location.ref, text)
 
@@ -517,7 +534,7 @@ class Repository:
         """
         try:
             return self._fs.find_dir(entry)
-        except DirResolveError as exc:
+        except DIR_RESOLVE_FAILURES as exc:
             raise SkillEntryResolveError(entry, source=exc) from exc
 
     def _find_entry_exit(self, entry: RootRelativePath) -> RootExit | None:
@@ -532,7 +549,7 @@ class Repository:
         """
         try:
             return self._fs.find_root_exit(entry)
-        except EntryInspectError as exc:
+        except ENTRY_INSPECT_FAILURES as exc:
             raise SkillEntryResolveError(entry, source=exc) from exc
 
     def _find_skill_file(self, directory: ResolvedPath) -> ResolvedPath | RootExit | None:
@@ -551,7 +568,7 @@ class Repository:
         """
         try:
             entries = self._fs.list_dir(directory)
-        except DirListError as exc:
+        except DIR_LIST_FAILURES as exc:
             raise SkillDirListError(directory, source=exc) from exc
 
         skill_file = directory / SKILL_ENTRY_FILENAME
@@ -568,7 +585,7 @@ class Repository:
                         if resolved_file is not None:
                             return resolved_file
                         return self._fs.find_root_exit(skill_file)
-                    except (FileResolveError, EntryInspectError) as exc:
+                    except (*FILE_RESOLVE_FAILURES, *ENTRY_INSPECT_FAILURES) as exc:
                         raise SkillFileResolveError(skill_file, source=exc) from exc
                 case EntryKind.DIRECTORY:
                     continue  # a directory named `SKILL.md` is no file an agent reads
@@ -662,7 +679,7 @@ class _SkillResourcesWalk:
         self._entered.add(resolved)
         try:
             entries = self._fs.list_dir(resolved)
-        except DirListError as exc:
+        except DIR_LIST_FAILURES as exc:
             raise SkillResourcesListError(self._location.ref, resolved, source=exc) from exc
 
         for entry in entries:
@@ -697,7 +714,7 @@ class _SkillResourcesWalk:
         """
         try:
             directory = self._fs.find_dir(symlink)
-        except DirResolveError as exc:
+        except DIR_RESOLVE_FAILURES as exc:
             raise SkillResourcesSymlinkResolveError(self._location.ref, symlink, source=exc) from exc
         if directory is not None:
             self._directories.append(_PendingDirectory(named, directory))
@@ -706,7 +723,7 @@ class _SkillResourcesWalk:
         # Asked of every symlink, whatever its name: one leading outside the root is reported, not just skipped.
         try:
             leaves_at = self._fs.find_root_exit(symlink)
-        except EntryInspectError as exc:
+        except ENTRY_INSPECT_FAILURES as exc:
             raise SkillResourcesSymlinkResolveError(self._location.ref, symlink, source=exc) from exc
         if leaves_at is not None:
             # `OutsideSymlink` names every symlink of the skill layout root-relative, one inside a skill too.
@@ -719,7 +736,7 @@ class _SkillResourcesWalk:
             return
         try:
             file = self._fs.find_file(symlink)
-        except FileResolveError as exc:
+        except FILE_RESOLVE_FAILURES as exc:
             raise SkillResourcesSymlinkResolveError(self._location.ref, symlink, source=exc) from exc
         if file is not None:
             self._resources.append(SkillResourceLocation(resource, file))

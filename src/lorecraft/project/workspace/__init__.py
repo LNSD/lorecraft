@@ -31,6 +31,13 @@ from .failure import (
 )
 from .loader import load_model, load_workspace
 from .model import Corpus, CorpusNamespace, CorpusSpec, Governance, NamespaceSpec, Spec, WorkspaceModel
+from .refusals import (
+    UnreportedDirListError,
+    UnreportedEntryInspectError,
+    UnreportedFileReadError,
+    find_unreported_refusals,
+    reject_unreported_refusals,
+)
 
 __all__: list[str] = [
     'WorkspaceModel',
@@ -69,4 +76,9 @@ __all__: list[str] = [
     'UninspectableSkillFile',
     'load_workspace',
     'load_model',
+    'find_unreported_refusals',
+    'reject_unreported_refusals',
+    'UnreportedDirListError',
+    'UnreportedFileReadError',
+    'UnreportedEntryInspectError',
 ]

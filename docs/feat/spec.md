@@ -55,13 +55,11 @@ claimed by no pattern, like any other unknown JSON file, so it is left out and n
 
 ### Loading
 
-Every structure file whose name the rules above keep is read and validated before any document, from
-one snapshot of the tree. A prose file is never read: its name alone counts. Nor is any file at a meta spec
-name left out above, such as a namespace meta spec whose corpus has no directory. A structure file that cannot be read,
-is not valid JSON, or does not state usable rules in its dialect is a load failure. `lorecraft check` reports
-failures recorded in the model as error diagnostics at the structure file and exits `1`. It skips documents
-the file governs and checks other documents. `lorecraft inspect` still stops with exit `2` on a load failure.
-A read refusal while the snapshot is taken also stops a command with exit `2`.
+Every selected structure file is read and validated before any document, from one snapshot. A prose file's name
+alone counts; an excluded name is not read. Invalid JSON or unusable rules are load failures. `check` reports
+these and unreadable structure files (`LC002`) as errors at the file, skips governed documents, checks the rest
+and exits `1`. `inspect` exits `2` on a load failure. A snapshot refusal on another file also exits `2` under
+`check`.
 
 ### Governed or Not
 

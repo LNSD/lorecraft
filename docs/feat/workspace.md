@@ -88,11 +88,14 @@ meta spec, so a command stops with an error naming the linked directory rather t
 - The snapshot reads the whole of a skill, but [check](cli-check.md) checks only its Markdown files: the
   `SKILL.md`'s frontmatter and length, and the links in every Markdown file of the skill. Its other files are
   read, not checked.
-- A link inside a skill to an ancestor directory, or to a large directory, makes the snapshot read that whole
-  subtree; a directory is never read twice, so the read is finite. A directory in it that cannot be read stops
-  the command. A link into `docs/` reads that part of `docs/` as a skill is read, its symlinks followed.
+- A skill link can read a large subtree, including an ancestor; each directory is read once. A link into `docs/`
+  follows its symlinks. For `check`, an unlistable or unresolvable skills directory or entry, or an unresolvable
+  `SKILL.md` link, gives `LC002`. An unlistable directory inside a skill that no load failure reports exits `2`.
 - An entry that changes kind while the snapshot is read, such as a directory replaced by a symlink, stops the
   command with an error naming it. Running it again reads the tree as it then stands.
+- An unlistable directory under `docs/` that no meta spec names stops `check` with exit `2` and
+  `cannot snapshot directory <path>: permission denied`.
+- An entry on a followed link chain that the run cannot inspect also exits `2` when no load failure reports it.
 
 ## References
 
