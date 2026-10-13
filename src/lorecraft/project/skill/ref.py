@@ -71,8 +71,8 @@ class SkillRelativePath:
         return SkillRelativePath(self.value / name)
 
     @property
-    def name(self) -> str:
-        """The last component, or `''` for the skill's directory."""
+    def name(self) -> PathComponent | None:
+        """The last component, or `None` for the skill's directory."""
         return self.value.name
 
     def under(self, directory: RootRelativePath) -> RootRelativePath:
@@ -124,7 +124,8 @@ class SkillRef:
         Args:
             path: Where an agent reaches the file, spelled from the skill's directory.
         """
-        if not path.name.endswith(DOCUMENT_SUFFIX):
+        name = path.name
+        if name is None or not name.value.endswith(DOCUMENT_SUFFIX):
             return None
         if path == _SKILL_ENTRY:
             return None

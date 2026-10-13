@@ -147,9 +147,13 @@ class RootRelativePath:
         return RootRelativePath(self.value / str(name))
 
     @property
-    def name(self) -> str:
-        """The last component, or ``''`` for the root."""
-        return self.value.name
+    def name(self) -> PathComponent | None:
+        """The last component, or `None` for the root, which has no name."""
+        if self.value == PurePosixPath('.'):
+            return None
+        # Below the root a path ends in one component that `PurePosixPath` has already split on `/` and
+        # normalised, and `__post_init__` has refused a `..`, so it is never empty, `.` or `..`.
+        return PathComponent(self.value.name)
 
     @property
     def parts(self) -> tuple[str, ...]:

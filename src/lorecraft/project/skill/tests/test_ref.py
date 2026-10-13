@@ -36,7 +36,7 @@ class TestSkillRelativePath:
         path = SkillRelativePath.parse('.')
 
         #: Then
-        assert path.name == '', 'the skill directory has no name'
+        assert path.name is None, 'the skill directory has no name'
         assert str(path) == '.', 'the skill directory prints as `.`'
 
     def test_truediv_with_a_name_returns_the_joined_path(self) -> None:

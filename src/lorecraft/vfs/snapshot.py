@@ -425,12 +425,13 @@ class VirtualFileSystem(FileSystem):
             RecordedEntryInspectError: If the snapshot recorded that the scan could not inspect the entry, or an
                 entry on the way to it.
         """
-        if path == ROOT:
-            return EntryKind.DIRECTORY
+        name = path.name
+        if name is None:
+            return EntryKind.DIRECTORY  # the root
         parent = self._find_resolved_directory(path.parent)
         if parent is None:
             return None
-        return self._entries.find_kind(parent / path.name)
+        return self._entries.find_kind(parent / name)
 
     def find_dir(self, path: RootRelativePath) -> ResolvedPath | None:
         """Follow the recorded links in `path` and return the resolved directory it leads to; see `FileSystem`.
@@ -577,12 +578,12 @@ def _derive_listings(records: Mapping[RootRelativePath, EntryRecord]) -> dict[Ro
             case _:
                 assert_never(record)
     for path, record in records.items():
-        if path == ROOT:
+        name = path.name
+        if name is None:
             continue  # the root is its own parent, and never an entry of its own listing
         siblings = found.get(path.parent)
         if siblings is not None:
-            # A record's path below the root ends in one valid component, so parsing its name never raises.
-            siblings.append(DirEntry(PathComponent.parse(path.name), record.kind))
+            siblings.append(DirEntry(name, record.kind))
     listings: dict[RootRelativePath, tuple[DirEntry, ...]] = {}
     for directory, entries in found.items():
         entries.sort(key=lambda entry: entry.name)

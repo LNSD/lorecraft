@@ -132,7 +132,13 @@ class DatabaseSkillContext:
 
     def directory_name(self) -> str:
         """The name of the skill's directory as an agent lists it, read from its ref."""
-        return self._source.ref.directory.name
+        name = self._source.ref.directory.name
+        # A skill's directory is built as `<skills directory>/<entry name>`, so it always has a name.
+        if name is None:
+            raise AssertionError(
+                'unreachable: a skill directory is an entry listed in a skills directory, never the root'
+            )
+        return str(name)
 
     def link_target(self) -> ResolvedPath | None:
         """The resolved directory the listed directory leads to when it is a link, or `None` when it is not.
