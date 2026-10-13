@@ -13,7 +13,15 @@ from lorecraft.core.path import RootRelativePath
 from lorecraft.vfs import EntryRecord, FileTree, ScopeIndex, Snapshot, SymlinkRecord, VirtualFileSystem
 
 from ..layout import SNAPSHOT_SCOPE
-from ..link_target import DocumentDirectory, LinkTarget, PathLookup, SkillRoot, find_link_targets
+from ..link_target import (
+    DocumentDirectory,
+    EscapingTarget,
+    LinkTarget,
+    LinkTargetEntry,
+    PathLookup,
+    SkillRoot,
+    find_link_targets,
+)
 from ..syntax import LineNumber, Link
 
 REVIEW_ROOT: SkillRoot = SkillRoot(RootRelativePath.parse('.agents/skills/review'))
@@ -59,7 +67,7 @@ def _link_target(path: str, lookup: PathLookup) -> LinkTarget:
     return LinkTarget(path=RootRelativePath.parse(path), lookup=lookup)
 
 
-def _find(urls: tuple[str, ...], base: SkillRoot | DocumentDirectory, snapshot: Snapshot) -> dict[str, LinkTarget]:
+def _find(urls: tuple[str, ...], base: SkillRoot | DocumentDirectory, snapshot: Snapshot) -> dict[str, LinkTargetEntry]:
     """The link targets of a file holding one link per destination, keyed by each normalised path as a string.
 
     Args:
@@ -71,7 +79,7 @@ def _find(urls: tuple[str, ...], base: SkillRoot | DocumentDirectory, snapshot: 
     for url in urls:
         links.append(Link(url, LineNumber.from_int(1)))
     targets = find_link_targets(tuple(links), base, VirtualFileSystem(snapshot), ScopeIndex(snapshot))
-    found: dict[str, LinkTarget] = {}
+    found: dict[str, LinkTargetEntry] = {}
     for path, target in targets.items():
         found[str(path)] = target
     return found
@@ -118,7 +126,31 @@ class TestFindLinkTargetsInASkill:
             'SKILL.md': _link_target('.agents/skills/review/SKILL.md', PathLookup.PRESENT),
         }, 'every link is read from the skill root, and a `..` cancels the directory written before it'
 
-    def test_find_link_targets_with_a_link_climbing_above_the_skill_root_gives_it_no_entry(self) -> None:
+    def test_find_link_targets_with_a_link_to_the_skill_root_itself_finds_it_present(self) -> None:
+        #: Given
+        urls = ('references/..',)
+
+        #: When
+        found = _find(urls, REVIEW_ROOT, _snapshot())
+
+        #: Then
+        assert found == {'.': _link_target('.agents/skills/review', PathLookup.PRESENT)}, (
+            'references/.. normalises to the skill root itself, which is not above it'
+        )
+
+    def test_find_link_targets_with_a_link_out_and_back_in_by_the_repository_path_finds_it_escaping(self) -> None:
+        #: Given
+        urls = ('../../skills/review/SKILL.md',)
+
+        #: When
+        found = _find(urls, REVIEW_ROOT, _snapshot())
+
+        #: Then
+        assert found == {'../../skills/review/SKILL.md': EscapingTarget()}, (
+            'the path alone decides, so a link out and back in by where the skill lies in the repository escapes'
+        )
+
+    def test_find_link_targets_with_a_link_climbing_above_the_skill_root_finds_it_escaping(self) -> None:
         #: Given
         urls = ('../review/SKILL.md',)
 
@@ -126,7 +158,9 @@ class TestFindLinkTargetsInASkill:
         found = _find(urls, REVIEW_ROOT, _snapshot())
 
         #: Then
-        assert found == {}, 'a link climbing above the skill root names nothing the skill carries, so it has no entry'
+        assert found == {'../review/SKILL.md': EscapingTarget()}, (
+            'a link climbing above the skill root names nothing the skill carries, so it is an escaping target'
+        )
 
     def test_find_link_targets_with_links_spelling_no_relative_path_gives_them_no_entry(self) -> None:
         #: Given
@@ -181,7 +215,7 @@ class TestFindLinkTargetsInADocument:
             'a path in a directory the scan never read is outside the scope, whatever the snapshot holds there'
         )
 
-    def test_find_link_targets_with_a_link_climbing_above_the_repository_gives_it_no_entry(self) -> None:
+    def test_find_link_targets_with_a_link_climbing_above_the_repository_finds_it_escaping(self) -> None:
         #: Given
         urls = ('../../../x.md',)
 
@@ -189,4 +223,6 @@ class TestFindLinkTargetsInADocument:
         found = _find(urls, GUIDE_DIRECTORY, _snapshot())
 
         #: Then
-        assert found == {}, 'a path climbing above the repository root names nothing the snapshot can hold'
+        assert found == {'../../../x.md': EscapingTarget()}, (
+            'a path climbing above the repository root names nothing the snapshot can hold, so it is escaping'
+        )

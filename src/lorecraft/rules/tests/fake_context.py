@@ -12,7 +12,6 @@ file, so the test states it by hand too.
 """
 
 from collections.abc import Mapping
-from pathlib import PurePosixPath
 from typing import Final
 
 from lorecraft.core.mapping import FrozenMapping
@@ -23,7 +22,7 @@ from lorecraft.project.context import DocumentFrontmatterOwner, SkillFrontmatter
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.layout import SPECS_DIR
-from lorecraft.project.link_target import DocumentDirectory, LinkTarget, SkillRoot
+from lorecraft.project.link_target import DocumentDirectory, LinkTargetEntry, SkillRoot
 from lorecraft.project.schemas import (
     CorpusSpecName,
     NamespaceSpecName,
@@ -45,6 +44,7 @@ from lorecraft.project.schemas import (
 from lorecraft.project.syntax import (
     FrontmatterNode,
     Heading,
+    NormalisedLinkPath,
     ParsedDocument,
     SectionHeading,
     count_lines,
@@ -263,7 +263,7 @@ class FakeDocumentContext:
         """The directory holding the document, read from its ref."""
         return DocumentDirectory(self._governance.ref.path.parent)
 
-    def link_targets(self) -> Mapping[PurePosixPath, LinkTarget]:
+    def link_targets(self) -> Mapping[NormalisedLinkPath, LinkTargetEntry]:
         """None: a fake document holds no link target."""
         return FrozenMapping({})
 
@@ -343,7 +343,7 @@ class FakeSkillContext:
         """The skill directory, under the skills directory, at the name the test listed it under."""
         return SkillRoot(_SKILLS_DIRECTORY / PathComponent.parse(self._directory_name))
 
-    def link_targets(self) -> Mapping[PurePosixPath, LinkTarget]:
+    def link_targets(self) -> Mapping[NormalisedLinkPath, LinkTargetEntry]:
         """None: a fake skill holds no link target."""
         return FrozenMapping({})
 
@@ -365,14 +365,14 @@ class FakeSkillResourceContext:
 
     _text: str
     _skill_directory: RootRelativePath
-    _link_targets: Mapping[PurePosixPath, LinkTarget]
+    _link_targets: Mapping[NormalisedLinkPath, LinkTargetEntry]
 
     def __init__(
         self,
         text: str,
         *,
         skill_directory: RootRelativePath = DEFAULT_SKILL_DIRECTORY,
-        link_targets: Mapping[PurePosixPath, LinkTarget] = FrozenMapping({}),
+        link_targets: Mapping[NormalisedLinkPath, LinkTargetEntry] = FrozenMapping({}),
     ) -> None:
         """Hold the resource's text, its skill's directory and what the snapshot holds at each link target.
 
@@ -394,7 +394,7 @@ class FakeSkillResourceContext:
         """The skill root, at the directory the test named."""
         return SkillRoot(self._skill_directory)
 
-    def link_targets(self) -> Mapping[PurePosixPath, LinkTarget]:
+    def link_targets(self) -> Mapping[NormalisedLinkPath, LinkTargetEntry]:
         """What the snapshot holds at each link target, as the test stated it."""
         return self._link_targets
 
@@ -404,14 +404,14 @@ class FakeDocumentMarkdownContext:
 
     _text: str
     _directory: RootRelativePath
-    _link_targets: Mapping[PurePosixPath, LinkTarget]
+    _link_targets: Mapping[NormalisedLinkPath, LinkTargetEntry]
 
     def __init__(
         self,
         text: str,
         *,
         directory: RootRelativePath = DEFAULT_DOCUMENT_DIRECTORY,
-        link_targets: Mapping[PurePosixPath, LinkTarget] = FrozenMapping({}),
+        link_targets: Mapping[NormalisedLinkPath, LinkTargetEntry] = FrozenMapping({}),
     ) -> None:
         """Hold the document's text, its directory and what the snapshot holds at each link target.
 
@@ -433,7 +433,7 @@ class FakeDocumentMarkdownContext:
         """The document's own directory, as the test named it."""
         return DocumentDirectory(self._directory)
 
-    def link_targets(self) -> Mapping[PurePosixPath, LinkTarget]:
+    def link_targets(self) -> Mapping[NormalisedLinkPath, LinkTargetEntry]:
         """What the snapshot holds at each link target, as the test stated it."""
         return self._link_targets
 

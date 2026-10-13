@@ -8,9 +8,9 @@ a document, it is read from the document's own directory, as Markdown renders it
 missing, or in a directory the scan never read, so the snapshot cannot tell. Each entry keeps the root-relative path
 it joined beside the lookup, so a reader says where a link really leads. It is a fact of the revision, never a
 judgment: whether a missing target makes a link broken is a rule's to decide. A link spelling no relative path has no
-entry, and neither has one that climbs past its bound: above the skill root in a file of a skill, which names nothing
-the skill carries once it is installed elsewhere, or above the repository root in a document, which names nothing the
-snapshot can hold.
+entry. One that climbs past its bound has an `EscapingTarget` instead of a `LinkTarget`: above the skill root in a
+file of a skill, which names nothing the skill carries once it is installed elsewhere, or above the repository root in
+a document, which names nothing the snapshot can hold.
 """
 
 import posixpath
@@ -24,7 +24,14 @@ from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.path import RootRelativePath
 from lorecraft.vfs import ScopeIndex, VirtualFileSystem
 
-from .syntax import Link
+from .syntax import (
+    AbsoluteDestination,
+    ExternalDestination,
+    FragmentDestination,
+    Link,
+    NormalisedLinkPath,
+    RelativeDestination,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -83,13 +90,28 @@ class LinkTarget:
     lookup: PathLookup
 
 
+@dataclass(frozen=True, slots=True)
+class EscapingTarget:
+    """A link that climbs past its bound, so it names no path of the snapshot.
+
+    The bound is the skill root in a file of a skill and the repository root in a document, which only the base
+    knows, so a link's destination alone cannot say it.
+    """
+
+
+# What a relative link leads to: a path the snapshot can be asked about, or none at all. A union of two records rather
+# than one with a flag, so an escaping link can never carry a path or a lookup.
+type LinkTargetEntry = LinkTarget | EscapingTarget
+
+
 def find_link_targets(
     links: tuple[Link, ...], base: LinkBase, view: VirtualFileSystem, scope: ScopeIndex
-) -> Mapping[PurePosixPath, LinkTarget]:
+) -> Mapping[NormalisedLinkPath, LinkTargetEntry]:
     """Where each relative link leads and what the snapshot holds there, keyed by its normalised path. Raises nothing.
 
-    The key is `Link.to_normalised_relative_path`'s, so a reader finds a link's entry from the link alone: two links
-    spelling one path share an entry. A link spelling no relative path, or climbing past its bound, has none.
+    The key is the `NormalisedLinkPath` of the link's `RelativeDestination`, so a reader finds a link's entry from the
+    link alone: two links spelling one path share an entry. A link spelling no relative path has none, and one
+    climbing past its bound has an `EscapingTarget`.
 
     Args:
         links: Every link and image of one Markdown file, as its parse tree holds them.
@@ -97,15 +119,21 @@ def find_link_targets(
         view: The snapshot's view each target is looked up through, every recorded link on the way followed.
         scope: The scope the snapshot was taken of, which tells a path the scan never read.
     """
-    targets: dict[PurePosixPath, LinkTarget] = {}
+    targets: dict[NormalisedLinkPath, LinkTargetEntry] = {}
     for link in links:
-        normalised = link.to_normalised_relative_path()
-        if normalised is None:
-            continue
-        path = _joined_path(normalised, base)
+        destination = link.to_destination()
+        match destination:
+            case RelativeDestination():
+                normalised = destination.path
+            case ExternalDestination() | AbsoluteDestination() | FragmentDestination():
+                continue
+            case _:
+                assert_never(destination)
+        path = _joined_path(normalised.path, base)
         if path is None:
-            continue
-        targets[normalised] = LinkTarget(path=path, lookup=_look_up(path, view, scope))
+            targets[normalised] = EscapingTarget()
+        else:
+            targets[normalised] = LinkTarget(path=path, lookup=_look_up(path, view, scope))
     return FrozenMapping(targets)
 
 
@@ -116,12 +144,16 @@ def _joined_path(normalised: PurePosixPath, base: LinkBase) -> RootRelativePath 
     would lead to.
 
     Args:
-        normalised: The link's relative path, as `Link.to_normalised_relative_path` returns it.
+        normalised: The link's relative path, as its `NormalisedLinkPath` holds it.
         base: Where the file's relative links are read from.
     """
     match base:
         case SkillRoot():
-            # Climbing above the skill root names nothing the skill carries once it is installed elsewhere.
+            # Climbing above the skill root names nothing the skill carries once it is installed elsewhere. Lexical
+            # on purpose, rather than a containment check of resolved paths: nothing here performs I/O, and the link
+            # is text read from the skill root, not a filesystem path. The path alone decides, never joined to the
+            # skill's directory first: a link that climbs out and back in by the repository's own path, such as
+            # `../../skills/review/SKILL.md`, depends on where the skill is installed, so it escapes too.
             if _climbs_above(normalised):
                 return None
             return base.directory / RootRelativePath(normalised)

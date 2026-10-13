@@ -16,7 +16,7 @@ does not.
 
 A Markdown file also states two facts beyond its own text, for a rule that follows its links: the directory its
 relative links are read from, a `LinkBase`, and where each link leads with what the snapshot holds there, a
-`LinkTarget`. Both are facts of the revision, never a judgment of a link.
+`LinkTargetEntry`. Both are facts of the revision, never a judgment of a link.
 
 `LayoutContext` is the one context of a subject with no text: a layout entry, one symlink of the skill layout whose
 chain leaves the repository, as the model or a skill's resource listing records it. A symlink is never decoded, so
@@ -26,7 +26,6 @@ finding.
 
 from collections.abc import Mapping
 from dataclasses import dataclass
-from pathlib import PurePosixPath
 from typing import Protocol
 
 from lorecraft.core.num import UnsignedInt
@@ -34,9 +33,9 @@ from lorecraft.core.path import RootRelativePath
 from lorecraft.vfs import ResolvedPath, RootExit
 
 from .aspect import AspectFilename
-from .link_target import LinkBase, LinkTarget
+from .link_target import LinkBase, LinkTargetEntry
 from .schemas import OutlineAlignmentSpec, OutlineDivergenceSpec, SchemaProblems, StructureSpec
-from .syntax import FrontmatterNode, ParsedDocument
+from .syntax import FrontmatterNode, NormalisedLinkPath, ParsedDocument
 from .workspace import Governance
 
 
@@ -87,11 +86,11 @@ class MarkdownContext(Protocol):
         """Where the file's relative links are read from: its skill's root, or the document's own directory."""
         ...
 
-    def link_targets(self) -> Mapping[PurePosixPath, LinkTarget]:
+    def link_targets(self) -> Mapping[NormalisedLinkPath, LinkTargetEntry]:
         """Where each relative link leads and what the snapshot holds there, keyed by its normalised relative path.
 
-        A link spelling no relative path has no entry, and neither has one climbing past its bound: above the skill
-        root in a file of a skill, above the repository root in a document.
+        A link spelling no relative path has no entry. One climbing past its bound, above the skill root in a file of
+        a skill or above the repository root in a document, has an `EscapingTarget`.
         """
         ...
 

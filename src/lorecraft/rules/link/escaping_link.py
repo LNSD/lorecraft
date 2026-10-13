@@ -1,10 +1,12 @@
 """`LINK004`: a relative link in a skill's file climbs above the skill root."""
 
 from dataclasses import dataclass
-from typing import ClassVar, Self
+from typing import ClassVar, Self, assert_never
 from urllib.parse import unquote
 
 from lorecraft.project.context import SkillFileContext
+from lorecraft.project.link_target import EscapingTarget, LinkTarget
+from lorecraft.project.syntax import AbsoluteDestination, ExternalDestination, FragmentDestination, RelativeDestination
 from lorecraft.rules.declaration import Level, Release, RuleCode, RuleName, rule
 from lorecraft.rules.location import Help, Subdiagnostic
 from lorecraft.rules.subject import SkillFileRule
@@ -87,18 +89,25 @@ class EscapingLink(SkillFileRule):
         Args:
             subject: The skill's `SKILL.md` or one of its resources, whose links are read from the skill root.
         """
+        targets = subject.link_targets()
         occurrences: list[Self] = []
         for link in subject.parse().links:
-            # Lexical on purpose, rather than a containment check of resolved paths: a rule performs no I/O, and the
-            # link is text read from the skill root, not a filesystem path. The path alone decides, never joined to
-            # the skill's directory first: a link that climbs out and back in by the repository's own path, such as
-            # `../../skills/review/SKILL.md`, depends on where the skill is installed, so it escapes too.
-            normalised = link.to_normalised_relative_path()
-            # A URL with a scheme, an absolute or a fragment-only link spells no relative path, so it never escapes.
-            if normalised is None:
-                continue
-            # Normalising leaves a `..` only at the start, so the first component alone decides. A slice, not
-            # `parts[0]`: `references/..` normalises to `.`, whose `parts` is empty.
-            if normalised.parts[:1] == ('..',):
-                occurrences.append(cls(line=link.line, url=link.url))
+            # The link target decides whether the path climbs past the skill root.
+            destination = link.to_destination()
+            match destination:
+                case RelativeDestination():
+                    entry = targets.get(destination.path)
+                # A URL with a scheme, an absolute or a fragment-only link spells no relative path, so it never escapes.
+                case ExternalDestination() | AbsoluteDestination() | FragmentDestination():
+                    continue
+                case _:
+                    assert_never(destination)
+            match entry:
+                case EscapingTarget():
+                    occurrences.append(cls(line=link.line, url=link.url))
+                # An entry inside the skill, or none.
+                case LinkTarget() | None:
+                    continue
+                case _:
+                    assert_never(entry)
         return tuple(occurrences)

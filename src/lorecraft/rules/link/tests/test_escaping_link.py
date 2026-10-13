@@ -6,18 +6,43 @@ reads what any of a skill's files has, so a `SKILL.md` is judged the same way.
 
 import pytest
 
-from lorecraft.project.syntax import LineNumber
+from lorecraft.core.mapping import FrozenMapping
+from lorecraft.core.path import RootRelativePath
+from lorecraft.project.link_target import EscapingTarget, LinkTarget, PathLookup
+from lorecraft.project.syntax import LineNumber, NormalisedLinkPath
 from lorecraft.rules.location import Help, Note
 from lorecraft.rules.tests.fake_context import FakeSkillResourceContext
 
 from ..escaping_link import EscapingLink
 
 
+def _escaping(url: str) -> FrozenMapping[NormalisedLinkPath, EscapingTarget]:
+    """The link targets of a file whose one link climbs past the skill root, keyed by its normalised path.
+
+    Args:
+        url: The link's destination, already percent-decoded and normalised, as the key of its entry.
+    """
+    return FrozenMapping({NormalisedLinkPath.parse(url): EscapingTarget()})
+
+
+def _inside(url: str, path: str) -> FrozenMapping[NormalisedLinkPath, LinkTarget]:
+    """The link targets of a file whose one link leads to a path the snapshot holds inside the skill.
+
+    Args:
+        url: The link's destination, already percent-decoded and normalised, as the key of its entry.
+        path: The root-relative path the link names once read from the skill root.
+    """
+    target = LinkTarget(path=RootRelativePath.parse(path), lookup=PathLookup.PRESENT)
+    return FrozenMapping({NormalisedLinkPath.parse(url): target})
+
+
 @pytest.mark.unit
 class TestEscapingLink:
     def test_check_with_a_link_climbing_above_the_skill_root_reports_it_on_its_line(self) -> None:
         #: Given
-        subject = FakeSkillResourceContext('# Checklist\n\nStart from [the steps](../SKILL.md).\n')
+        subject = FakeSkillResourceContext(
+            '# Checklist\n\nStart from [the steps](../SKILL.md).\n', link_targets=_escaping('../SKILL.md')
+        )
 
         #: When
         occurrences = EscapingLink.check(subject)
@@ -29,7 +54,9 @@ class TestEscapingLink:
 
     def test_check_with_a_link_back_in_by_the_repository_path_reports_it(self) -> None:
         #: Given
-        subject = FakeSkillResourceContext('[the steps](../../skills/review/SKILL.md)\n')
+        subject = FakeSkillResourceContext(
+            '[the steps](../../skills/review/SKILL.md)\n', link_targets=_escaping('../../skills/review/SKILL.md')
+        )
 
         #: When
         occurrences = EscapingLink.check(subject)
@@ -41,7 +68,7 @@ class TestEscapingLink:
 
     def test_check_with_an_image_climbing_above_the_skill_root_reports_it(self) -> None:
         #: Given
-        subject = FakeSkillResourceContext('![flow](../../flow.png)\n')
+        subject = FakeSkillResourceContext('![flow](../../flow.png)\n', link_targets=_escaping('../../flow.png'))
 
         #: When
         occurrences = EscapingLink.check(subject)
@@ -53,7 +80,7 @@ class TestEscapingLink:
 
     def test_check_with_percent_encoded_dots_climbing_above_the_skill_root_reports_it(self) -> None:
         #: Given
-        subject = FakeSkillResourceContext('[a b](%2E%2E/a%20b.md)\n')
+        subject = FakeSkillResourceContext('[a b](%2E%2E/a%20b.md)\n', link_targets=_escaping('../a b.md'))
 
         #: When
         occurrences = EscapingLink.check(subject)
@@ -65,7 +92,10 @@ class TestEscapingLink:
 
     def test_check_with_a_link_climbing_and_coming_back_inside_reports_nothing(self) -> None:
         #: Given
-        subject = FakeSkillResourceContext('[the steps](references/../SKILL.md)\n')
+        subject = FakeSkillResourceContext(
+            '[the steps](references/../SKILL.md)\n',
+            link_targets=_inside('SKILL.md', '.agents/skills/review/SKILL.md'),
+        )
 
         #: When
         occurrences = EscapingLink.check(subject)
@@ -75,7 +105,9 @@ class TestEscapingLink:
 
     def test_check_with_a_link_to_the_skill_root_itself_reports_nothing(self) -> None:
         #: Given
-        subject = FakeSkillResourceContext('[the skill](references/..)\n')
+        subject = FakeSkillResourceContext(
+            '[the skill](references/..)\n', link_targets=_inside('.', '.agents/skills/review')
+        )
 
         #: When
         occurrences = EscapingLink.check(subject)
