@@ -30,7 +30,15 @@ from lorecraft.rules.report import (
     UndecodableSubject,
 )
 
-from .diagnostic_parts import child_kind, child_place, format_place, ordered_diagnostics, place, primary_line
+from .diagnostic_parts import (
+    FilePlace,
+    child_kind,
+    child_place,
+    format_place,
+    ordered_diagnostics,
+    place,
+    primary_line,
+)
 
 # The JSON `render_json` prints, one `BaseModel` per object, so a misspelt or missing key fails the type check. The
 # keys are the command's published output: renaming one is a change to that contract, not a refactor. A field is
@@ -166,7 +174,7 @@ def render_short(reports: tuple[RunReport, ...]) -> str:
         occurrence = diagnostic.occurrence
         line = primary_line(diagnostic)
         head = f'{diagnostic.severity.value}[{occurrence.CODE}]: {occurrence.message()}'
-        lines.append(f'{format_place(diagnostic.path, line)}: {head}')
+        lines.append(f'{format_place(FilePlace(diagnostic.path, line))}: {head}')
     return '\n'.join(lines)
 
 
@@ -344,19 +352,22 @@ def _json_diagnostic(diagnostic: Diagnostic) -> _DiagnosticJson:
     occurrence = diagnostic.occurrence
     labels: list[_LabelJson] = []
     for label in occurrence.labels():
-        path, line = place(diagnostic.path, label.at)
-        labels.append(_LabelJson(path=str(path), line=_json_line(line), text=label.text))
+        at = place(diagnostic.path, label.at)
+        labels.append(_LabelJson(path=str(at.path), line=_json_line(at.line), text=label.text))
     children: list[_ChildJson] = []
     for child in occurrence.children():
-        child_path, child_line = child_place(diagnostic.path, child)
-        children.append(
-            _ChildJson(
-                kind=child_kind(child),
-                text=child.text,
-                path=None if child_path is None else str(child_path),
-                line=_json_line(child_line),
+        child_at = child_place(diagnostic.path, child)
+        if child_at is None:
+            children.append(_ChildJson(kind=child_kind(child), text=child.text, path=None, line=None))
+        else:
+            children.append(
+                _ChildJson(
+                    kind=child_kind(child),
+                    text=child.text,
+                    path=str(child_at.path),
+                    line=_json_line(child_at.line),
+                )
             )
-        )
     return _DiagnosticJson(
         path=str(diagnostic.path),
         line=_json_line(primary_line(diagnostic)),

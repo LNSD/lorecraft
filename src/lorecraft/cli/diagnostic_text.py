@@ -42,6 +42,7 @@ from lorecraft.rules.location import EntrySubdiagnostic, Subdiagnostic
 from lorecraft.rules.report import Diagnostic, RunReport
 
 from .diagnostic_parts import (
+    FilePlace,
     Mark,
     child_kind,
     diagnostic_marks,
@@ -136,7 +137,9 @@ def _diagnostic_lines(diagnostic: Diagnostic, sources: SourceLines, style: TextS
     for index, (path, group) in enumerate(_group_by_file(diagnostic.path, marks)):
         arrow = '-->' if index == 0 else ':::'
         reported_at = primary_line(diagnostic) if index == 0 else _first_line(group)
-        lines.append(f'{" " * width}{_paint(style, arrow, fg="blue", bold=True)} {format_place(path, reported_at)}')
+        lines.append(
+            f'{" " * width}{_paint(style, arrow, fg="blue", bold=True)} {format_place(FilePlace(path, reported_at))}'
+        )
 
         # A label whose source is not at hand is told under the place it is in, with no excerpt.
         excerpted: list[Mark] = []
@@ -145,7 +148,7 @@ def _diagnostic_lines(diagnostic: Diagnostic, sources: SourceLines, style: TextS
                 excerpted.append(mark)
             elif mark.text:
                 equals = _paint(style, '=', fg='blue', bold=True)
-                lines.append(f'{lead}{equals} at {format_place(mark.path, mark.line)}: {mark.text}')
+                lines.append(f'{lead}{equals} at {format_place(FilePlace(mark.path, mark.line))}: {mark.text}')
         if excerpted:
             lines.append(blank_gutter)
             lines.extend(_excerpt_lines(excerpted, sources[path], width, diagnostic.severity, style, glyphs))
