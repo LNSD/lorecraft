@@ -50,7 +50,10 @@ every option.
    long to convert, it is raised as a scanner error on its line first.
 4. **`ruamel.yaml` is a runtime dependency, pinned `>=0.19,<0.20`**, and its C extension is never installed:
    `ruamel.yaml.clib` is not a dependency of lorecraft, and the `clib` extra is not requested.
-5. **`pyyaml` is not a runtime dependency**, and no module under `src/` imports `yaml`.
+5. **`pyyaml` is not a dependency of lorecraft**, at runtime or in development: `pyproject.toml` declares it in no
+   dependency group or extra, and no module under `src/` or `tests/` imports `yaml`.
+6. **Parity with PyYAML is checked once**, on the change that switches parsers, and its result is recorded on that
+   pull request. No committed test compares with PyYAML: from then on, adr-019's tests hold what frontmatter reads as.
 
 ## Alternatives Considered
 
@@ -73,23 +76,26 @@ every option.
 - **The parser glue in `frontmatter.py` is rebuilt.** ruamel.yaml wires its reader, scanner and parser through a
   loader object instead of PyYAML's mixin classes, and raises a reader error during the parse rather than at
   construction. The event walking, the core-schema resolution and adr-019's refusals sit on top of it.
-- **Parity is proved by tests inside adr-019's format**: on the corpus, the events match PyYAML's. What a syntax
-  error says, and on which line, is adr-019's, and its tests hold it.
+- **Parity is proved once, not kept**: on the switch, the events inside adr-019's format match PyYAML's on the
+  corpus. After that nothing compares with PyYAML; adr-019 defines the format, and its per-construct tests and the
+  corpus check hold it. What a syntax error says, and on which line, is adr-019's.
 - **The upgrade path is lighter**: lorecraft's runtime dependencies install from one pure wheel on any CPython,
   free-threaded builds included.
 - **ruamel.yaml has one maintainer and has changed its API between minor versions**, so the pin stops below the
   next minor and each minor upgrade is a deliberate change that re-runs the tests.
-- **PyYAML may stay in the development lock**, for the parity tests and tools that depend on it; only the runtime
-  dependency goes.
+- **PyYAML leaves lorecraft's own dependencies**, development ones included, so nothing lorecraft declares ties its
+  CPython floor to PyYAML's wheels. A tool that depends on PyYAML may still bring it into the development lock; that
+  is the tool's dependency, not lorecraft's.
 
 ## Checklist
 
-- [ ] No module under `src/` imports `yaml`
-- [ ] `pyproject.toml` lists no `pyyaml` runtime dependency, and lists `ruamel.yaml>=0.19,<0.20`
+- [ ] No module under `src/` or `tests/` imports `yaml`
+- [ ] `pyproject.toml` declares `pyyaml` in no dependency group or extra, and lists `ruamel.yaml>=0.19,<0.20`
 - [ ] `ruamel.yaml.clib` is not installed by lorecraft's runtime dependencies, and the `clib` extra is not requested
 - [ ] `frontmatter.py` builds the value from ruamel.yaml's events and never calls a ruamel.yaml loader or constructor
 - [ ] `frontmatter.py` states no format rule of its own beyond adr-019's
-- [ ] Inside adr-019's format, event parity tests pass on the corpus: type, value, style and line match PyYAML's
+- [ ] The switch's pull request records that, inside adr-019's format, the events on the corpus match PyYAML's in
+  type, value, style and line
 - [ ] A `\U` escape above `U+10FFFF` and a directive with an over-long version number are `FM002` on their line, not
   an exception
 
