@@ -14,6 +14,7 @@ with no lines, such as a layout entry or a file that did not decode:
     docs/code/a.md:3: error[FM005]: duplicate key 'name'
 """
 
+from dataclasses import dataclass
 from typing import Literal, assert_never
 
 from pydantic import BaseModel, ConfigDict
@@ -214,8 +215,10 @@ def render_summary(reports: tuple[RunReport, ...]) -> str:
         reports: One report per subject the run checked, and one per load failure; each subject counts as one,
             whatever it held, and a load failure counts as none.
     """
-    errors, warnings = _count_severities(ordered_diagnostics(reports))
-    return f'checked {_count_subjects(reports)} subject(s): {errors} error(s), {warnings} warning(s)'
+    severities = _count_severities(ordered_diagnostics(reports))
+    return (
+        f'checked {_count_subjects(reports)} subject(s): {severities.errors} error(s), {severities.warnings} warning(s)'
+    )
 
 
 def render_prefix_summary(reports: tuple[RunReport, ...]) -> str:
@@ -237,12 +240,12 @@ def render_prefix_summary(reports: tuple[RunReport, ...]) -> str:
     prefix_width = max((len(prefix) for prefix in by_prefix), default=0)
     lines: list[str] = []
     for prefix in sorted(by_prefix):
-        errors, warnings = _count_severities(by_prefix[prefix])
+        severities = _count_severities(by_prefix[prefix])
         counts: list[str] = []
-        if errors:
-            counts.append(_count(errors, 'error'))
-        if warnings:
-            counts.append(_count(warnings, 'warning'))
+        if severities.errors:
+            counts.append(_count(severities.errors, 'error'))
+        if severities.warnings:
+            counts.append(_count(severities.warnings, 'warning'))
         lines.append(f'{prefix:<{prefix_width}}  {", ".join(counts)}')
     return '\n'.join(lines)
 
@@ -260,7 +263,7 @@ def render_json(reports: tuple[RunReport, ...]) -> str:
     diagnostic_objects: list[_DiagnosticJson] = []
     for diagnostic in diagnostics:
         diagnostic_objects.append(_json_diagnostic(diagnostic))
-    errors, warnings = _count_severities(diagnostics)
+    severities = _count_severities(diagnostics)
     coverage: list[_CoverageJson] = []
     for subject in _coverage_subjects(reports):
         match subject:
@@ -278,7 +281,7 @@ def render_json(reports: tuple[RunReport, ...]) -> str:
                 assert_never(subject)
     document = _ReportJson(
         diagnostics=diagnostic_objects,
-        summary=_SummaryJson(subjects=_count_subjects(reports), errors=errors, warnings=warnings),
+        summary=_SummaryJson(subjects=_count_subjects(reports), errors=severities.errors, warnings=severities.warnings),
         coverage=coverage,
     )
     return document.model_dump_json()
@@ -324,8 +327,21 @@ def _count_subjects(reports: tuple[RunReport, ...]) -> int:
     return count
 
 
-def _count_severities(diagnostics: list[Diagnostic]) -> tuple[int, int]:
-    """How many of the diagnostics are errors, and how many warnings, in that order.
+@dataclass(frozen=True, slots=True)
+class SeverityCounts:
+    """How many diagnostics a run reported at each severity.
+
+    Attributes:
+        errors: The diagnostics reported as errors.
+        warnings: The diagnostics reported as warnings.
+    """
+
+    errors: int
+    warnings: int
+
+
+def _count_severities(diagnostics: list[Diagnostic]) -> SeverityCounts:
+    """How many of the diagnostics are errors, and how many warnings.
 
     Args:
         diagnostics: The diagnostics to count, each by the severity it is reported at.
@@ -340,7 +356,7 @@ def _count_severities(diagnostics: list[Diagnostic]) -> tuple[int, int]:
                 warnings += 1
             case _:
                 assert_never(diagnostic.severity)
-    return errors, warnings
+    return SeverityCounts(errors=errors, warnings=warnings)
 
 
 def _json_diagnostic(diagnostic: Diagnostic) -> _DiagnosticJson:

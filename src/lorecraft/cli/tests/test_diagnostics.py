@@ -32,7 +32,7 @@ from lorecraft.rules.report import (
 from lorecraft.rules.subject import Facet
 from lorecraft.vfs import RootExit, Utf8Failure, Utf8Reason
 
-from ..diagnostic_text import SourceLines, TextStyle, render_text
+from ..diagnostic_text import SourceLines, SourceText, TextStyle, render_text
 from ..diagnostics import render_coverage, render_json, render_prefix_summary, render_short, render_summary
 
 _CODE_SPEC: Final[RootRelativePath] = RootRelativePath.parse('docs/__meta__/code.structure.json')
@@ -45,8 +45,10 @@ _PLAIN: Final[TextStyle] = TextStyle(color=False, unicode=True, width=80)
 def _sources() -> SourceLines:
     """The lines of the documents of `_every_kind_of_report` that carry a label."""
     return {
-        RootRelativePath.parse('docs/code/a.md'): ('---', 'name: a', 'name: b', 'description: x', '---'),
-        RootRelativePath.parse('docs/feat/check.md'): ('---', 'name: check', '---', '', '## Options', '', 'Text.'),
+        RootRelativePath.parse('docs/code/a.md'): SourceText(('---', 'name: a', 'name: b', 'description: x', '---')),
+        RootRelativePath.parse('docs/feat/check.md'): SourceText(
+            ('---', 'name: check', '---', '', '## Options', '', 'Text.')
+        ),
     }
 
 
