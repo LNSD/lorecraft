@@ -6,7 +6,15 @@ from urllib.parse import unquote
 
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.context import MarkdownContext
-from lorecraft.project.link_target import DocumentDirectory, LinkBase, PathLookup, SkillRoot
+from lorecraft.project.link_target import (
+    DocumentDirectory,
+    EscapingTarget,
+    LinkBase,
+    LinkTarget,
+    PathLookup,
+    SkillRoot,
+)
+from lorecraft.project.syntax import AbsoluteDestination, ExternalDestination, FragmentDestination, RelativeDestination
 from lorecraft.rules.declaration import Level, Release, RuleCode, RuleName, rule
 from lorecraft.rules.location import Help, Note, Subdiagnostic
 from lorecraft.rules.subject import MarkdownRule
@@ -115,22 +123,33 @@ class BrokenLink(MarkdownRule):
         targets = subject.link_targets()
         occurrences: list[Self] = []
         for link in subject.parse().links:
-            normalised = link.to_normalised_relative_path()
-            # A link spelling no relative path names no target.
-            if normalised is None:
-                continue
-            target = targets.get(normalised)
-            # No entry: the link climbs past its bound, above the skill root or above the repository root.
-            if target is None:
-                continue
-            match target.lookup:
-                case PathLookup.MISSING:
-                    occurrences.append(cls(line=link.line, url=link.url, base=base, target=target.path))
-                case PathLookup.PRESENT:
-                    continue
-                # The scan never read where the path leads, so whether it names anything cannot be told.
-                case PathLookup.OUTSIDE_SCOPE:
+            destination = link.to_destination()
+            match destination:
+                case RelativeDestination():
+                    entry = targets.get(destination.path)
+                # A link spelling no relative path names no target.
+                case ExternalDestination() | AbsoluteDestination() | FragmentDestination():
                     continue
                 case _:
-                    assert_never(target.lookup)
+                    assert_never(destination)
+            match entry:
+                case LinkTarget():
+                    match entry.lookup:
+                        case PathLookup.MISSING:
+                            occurrences.append(cls(line=link.line, url=link.url, base=base, target=entry.path))
+                        case PathLookup.PRESENT:
+                            continue
+                        # The scan never read where the path leads, so whether it names anything cannot be told.
+                        case PathLookup.OUTSIDE_SCOPE:
+                            continue
+                        case _:
+                            assert_never(entry.lookup)
+                # The link climbs past its bound, which `LINK004` reports in a skill and nothing reports in a document.
+                case EscapingTarget():
+                    continue
+                # No entry: the context holds no target for the path.
+                case None:
+                    continue
+                case _:
+                    assert_never(entry)
         return tuple(occurrences)

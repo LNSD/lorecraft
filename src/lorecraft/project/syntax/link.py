@@ -16,7 +16,7 @@ import posixpath
 import re
 from dataclasses import dataclass
 from pathlib import PurePosixPath
-from typing import Final, Self, assert_never
+from typing import Final, Self
 from urllib.parse import unquote
 
 from .position import LineNumber
@@ -136,35 +136,3 @@ class Link:
                 return FragmentDestination(fragment=self.url.removeprefix('#'))
             return FragmentDestination(fragment='')
         return RelativeDestination(path=NormalisedLinkPath.parse(decoded))
-
-    def to_relative_path(self) -> PurePosixPath | None:
-        """The relative path the destination spells, percent-decoded, or `None` when it spells none.
-
-        The path is everything before the destination's `?query` or `#fragment`, decoded: `a%20b.md#usage` is
-        `a b.md`. It is not normalised, so a `..` stays where it was written, and it is not resolved against any
-        directory: which one it is read from is the caller's question.
-
-        `None` unless `to_destination` is a `RelativeDestination`.
-        """
-        destination = self.to_destination()
-        match destination:
-            case RelativeDestination():
-                return PurePosixPath(_decoded_path(self.url))
-            case ExternalDestination() | AbsoluteDestination() | FragmentDestination():
-                return None
-            case _:
-                assert_never(destination)
-
-    def to_normalised_relative_path(self) -> PurePosixPath | None:
-        """The relative path the destination spells, as `to_relative_path` reads it, normalised lexically.
-
-        `None` exactly when `to_relative_path` is `None`.
-        """
-        destination = self.to_destination()
-        match destination:
-            case RelativeDestination():
-                return destination.path.path
-            case ExternalDestination() | AbsoluteDestination() | FragmentDestination():
-                return None
-            case _:
-                assert_never(destination)

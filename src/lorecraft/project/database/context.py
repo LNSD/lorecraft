@@ -17,15 +17,14 @@ listing returned, the memoized query value itself, and reads every fact from it.
 """
 
 from collections.abc import Mapping
-from pathlib import PurePosixPath
 
 from lorecraft.core.num import UnsignedInt
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.context import DocumentFrontmatterOwner, SkillFrontmatterOwner
-from lorecraft.project.link_target import DocumentDirectory, LinkTarget, SkillRoot
+from lorecraft.project.link_target import DocumentDirectory, LinkTargetEntry, SkillRoot
 from lorecraft.project.schemas import OutlineAlignmentSpec, OutlineDivergenceSpec, SchemaProblems, StructureSpec
 from lorecraft.project.skill import OutsideSymlink, SkillLocation
-from lorecraft.project.syntax import FrontmatterNode, ParsedDocument
+from lorecraft.project.syntax import FrontmatterNode, NormalisedLinkPath, ParsedDocument
 from lorecraft.project.workspace import Governance
 from lorecraft.vfs import ResolvedPath, RootExit
 
@@ -75,7 +74,7 @@ class DatabaseDocumentContext:
         """The directory holding the document, read from its ref."""
         return DocumentDirectory(self._source.ref.path.parent)
 
-    def link_targets(self) -> Mapping[PurePosixPath, LinkTarget]:
+    def link_targets(self) -> Mapping[NormalisedLinkPath, LinkTargetEntry]:
         """Where each relative link leads and what the snapshot holds there, from the `link_targets` query."""
         return self._database.link_targets(self._source)
 
@@ -169,7 +168,7 @@ class DatabaseSkillContext:
         """The skill directory where an agent reaches it, read from its ref, never where a link there leads."""
         return SkillRoot(self._source.ref.directory)
 
-    def link_targets(self) -> Mapping[PurePosixPath, LinkTarget]:
+    def link_targets(self) -> Mapping[NormalisedLinkPath, LinkTargetEntry]:
         """Where each relative link leads and what the snapshot holds there, from the `skill_link_targets` query."""
         return self._database.skill_link_targets(self._source)
 
@@ -201,7 +200,7 @@ class DatabaseSkillResourceContext:
         """The directory of the resource's skill where an agent reaches it, read from its ref."""
         return SkillRoot(self._source.ref.skill.directory)
 
-    def link_targets(self) -> Mapping[PurePosixPath, LinkTarget]:
+    def link_targets(self) -> Mapping[NormalisedLinkPath, LinkTargetEntry]:
         """Where each relative link leads and what the snapshot holds there, from `skill_resource_link_targets`."""
         return self._database.skill_resource_link_targets(self._source)
 

@@ -37,9 +37,9 @@ from lorecraft.project.database import (
 )
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.layout import SNAPSHOT_SCOPE
-from lorecraft.project.link_target import DocumentDirectory, LinkTarget, PathLookup, SkillRoot
+from lorecraft.project.link_target import DocumentDirectory, EscapingTarget, LinkTarget, PathLookup, SkillRoot
 from lorecraft.project.skill import OutsideSymlink, SkillLocation, SkillRef
-from lorecraft.project.syntax import count_lines, count_tokens
+from lorecraft.project.syntax import NormalisedLinkPath, count_lines, count_tokens
 from lorecraft.vfs import EntryRecord, FileTree, RootExit, Snapshot, SymlinkRecord, take_snapshot
 
 TYPING: Final[DocumentRef] = DocumentRef(CorpusName.parse('code'), AspectFilename.parse('python-typing'))
@@ -372,10 +372,11 @@ class TestDatabaseDocumentContext:
             'the targets are the ones the database memoizes, not ones the context looked up again'
         )
         assert dict(targets) == {
-            PurePosixPath('../__meta__/code.md'): _link_target('docs/__meta__/code.md', PathLookup.PRESENT),
-            PurePosixPath('gone.md'): _link_target('docs/code/gone.md', PathLookup.MISSING),
-            PurePosixPath('../../src/main.py'): _link_target('src/main.py', PathLookup.OUTSIDE_SCOPE),
-        }, "each link is read from the document's directory, and the one climbing above the repository has no entry"
+            NormalisedLinkPath.parse('../__meta__/code.md'): _link_target('docs/__meta__/code.md', PathLookup.PRESENT),
+            NormalisedLinkPath.parse('gone.md'): _link_target('docs/code/gone.md', PathLookup.MISSING),
+            NormalisedLinkPath.parse('../../src/main.py'): _link_target('src/main.py', PathLookup.OUTSIDE_SCOPE),
+            NormalisedLinkPath.parse('../../../x.md'): EscapingTarget(),
+        }, "each link is read from the document's directory, and the one climbing above the repository escapes"
 
 
 @pytest.mark.it
@@ -505,13 +506,14 @@ class TestDatabaseSkillContext:
             'the targets are the ones the database memoizes, not ones the context looked up again'
         )
         assert dict(targets) == {
-            PurePosixPath('references/checklist.md'): _link_target(
+            NormalisedLinkPath.parse('references/checklist.md'): _link_target(
                 '.agents/skills/review/references/checklist.md', PathLookup.PRESENT
             ),
-            PurePosixPath('references/gone.md'): _link_target(
+            NormalisedLinkPath.parse('references/gone.md'): _link_target(
                 '.agents/skills/review/references/gone.md', PathLookup.MISSING
             ),
-        }, 'each link is read from the skill root, and the one climbing above it has no entry'
+            NormalisedLinkPath.parse('../x.md'): EscapingTarget(),
+        }, 'each link is read from the skill root, and the one climbing above it escapes'
 
 
 @pytest.mark.it
@@ -552,8 +554,8 @@ class TestDatabaseSkillResourceContext:
             'the targets are the ones the database memoizes, not ones the context looked up again'
         )
         assert dict(targets) == {
-            PurePosixPath('SKILL.md'): _link_target('.agents/skills/review/SKILL.md', PathLookup.PRESENT),
-            PurePosixPath('gone.md'): _link_target('.agents/skills/review/gone.md', PathLookup.MISSING),
+            NormalisedLinkPath.parse('SKILL.md'): _link_target('.agents/skills/review/SKILL.md', PathLookup.PRESENT),
+            NormalisedLinkPath.parse('gone.md'): _link_target('.agents/skills/review/gone.md', PathLookup.MISSING),
         }, "a resource's links are read from the skill root, so `SKILL.md` names the skill's own"
 
 

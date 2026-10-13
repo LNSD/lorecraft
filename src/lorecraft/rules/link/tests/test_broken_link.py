@@ -6,14 +6,12 @@ the snapshot holds at each link's target is a cross-file state, so the test stat
 normalised relative path; where each link leads is `find_link_targets`'s, tested beside it.
 """
 
-from pathlib import PurePosixPath
-
 import pytest
 
 from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.path import RootRelativePath
-from lorecraft.project.link_target import DocumentDirectory, LinkTarget, PathLookup, SkillRoot
-from lorecraft.project.syntax import LineNumber
+from lorecraft.project.link_target import DocumentDirectory, EscapingTarget, LinkTarget, PathLookup, SkillRoot
+from lorecraft.project.syntax import LineNumber, NormalisedLinkPath
 from lorecraft.rules.location import Help, Note
 from lorecraft.rules.tests.fake_context import (
     DEFAULT_DOCUMENT_DIRECTORY,
@@ -33,7 +31,7 @@ DOCUMENT_DIRECTORY: DocumentDirectory = DocumentDirectory(DEFAULT_DOCUMENT_DIREC
 
 def _targets(
     base: SkillRoot | DocumentDirectory, path: str, lookup: PathLookup
-) -> FrozenMapping[PurePosixPath, LinkTarget]:
+) -> FrozenMapping[NormalisedLinkPath, LinkTarget]:
     """The link targets of a file with one relative path, holding what the snapshot holds where it leads.
 
     Args:
@@ -42,7 +40,7 @@ def _targets(
         lookup: What the snapshot holds at the link's target.
     """
     return FrozenMapping(
-        {PurePosixPath(path): LinkTarget(path=base.directory / RootRelativePath.parse(path), lookup=lookup)}
+        {NormalisedLinkPath.parse(path): LinkTarget(path=base.directory / RootRelativePath.parse(path), lookup=lookup)}
     )
 
 
@@ -94,17 +92,19 @@ class TestBrokenLinkInASkill:
         #: Then
         assert occurrences == (), 'whether a target the scan never read holds anything cannot be told'
 
-    def test_check_with_a_link_having_no_target_entry_reports_nothing(self) -> None:
+    def test_check_with_a_link_climbing_past_its_bound_reports_nothing(self) -> None:
         #: Given
-        # A link climbing above the skill root has no entry.
-        subject = FakeSkillResourceContext('# Guide\n\nSee [up](../SKILL.md).\n')
+        subject = FakeSkillResourceContext(
+            '# Guide\n\nSee [up](../SKILL.md).\n',
+            link_targets=FrozenMapping({NormalisedLinkPath.parse('../SKILL.md'): EscapingTarget()}),
+        )
 
         #: When
         occurrences = BrokenLink.check(subject)
 
         #: Then
         assert occurrences == (), (
-            'a link with no target entry, such as one climbing above the skill root, is not judged'
+            'a link climbing above the skill root belongs to `LINK004`, so it is not judged as broken'
         )
 
     def test_check_with_links_spelling_no_relative_path_reports_nothing(self) -> None:
