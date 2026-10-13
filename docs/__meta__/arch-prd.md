@@ -34,7 +34,7 @@ A PRD is named `prd-<NNN>-<feature>.md`, as in `prd-007-structured-checks.md`:
 | `name` | `prd-<NNN>-<feature>` | Matches the filename minus `.md`; see [Naming](#1-naming) |
 | `description` | One sentence | The feature, and the problem it solves |
 | `type` | `"prd"` | Always |
-| `status` | `draft`, `approved`, `shipped` or `dropped` | `approved` once no open question is left; frozen once `shipped` or `dropped` |
+| `status` | `draft`, `approved`, `shipped` or `dropped` | `approved` once its implementation has landed and no open question is left; frozen once `shipped` or `dropped` |
 
 ## 3. Sections
 
@@ -50,7 +50,7 @@ A PRD is named `prd-<NNN>-<feature>.md`, as in `prd-007-structured-checks.md`:
 | Success Criteria | yes | Numbered `SC-` items, measurable and technology-agnostic |
 | Assumptions | no | What the requirements take for granted |
 | Open Questions | no | Every `[NEEDS CLARIFICATION]` marker, gathered |
-| References | yes | The issue it comes from, and the documents it leads to |
+| References | yes | The documents it comes from and leads to |
 
 The sections are the whole document, in this order; a PRD adds none of its own. No section has a word cap and the
 file has no token budget, as the `arch` corpus states for every document in it: a PRD is as long as its
@@ -254,7 +254,6 @@ Scenario: {{Short title}}
 
 ## References
 
-- [#{{issue}}]({{issue-url}}) - Source: {{The issue the PRD comes from}}
 - [{{design-document}}]({{design-document}}.md) - Leads to: {{How the feature is built}}
 ````
 
@@ -271,4 +270,6 @@ Scenario: {{Short title}}
 - [ ] No identifier was renumbered or reused
 - [ ] Every success criterion is measurable
 - [ ] Every `[NEEDS CLARIFICATION]` marker is listed under Open Questions, and an `approved` PRD has none
+- [ ] An `approved` PRD's implementation has landed
 - [ ] The PRD links no feat spec, whatever its status
+- [ ] The PRD cites no issue, under References or inline, and names deferred work by what it is

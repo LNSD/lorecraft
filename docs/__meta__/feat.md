@@ -400,6 +400,9 @@ Use a simple list, with the relationship named before the description:
 architecture document links a feat spec, so a feat spec never expects one to name it back. What the feat spec
 describes is what shipped; the PRD and ADRs record what was required and decided before it did.
 
+**No feat spec cites an issue or a pull request**, under References or inline, by link or by number. An issue
+tracks work, and a feat spec describes what exists; what a feature does is stated in the feat spec itself.
+
 ### Reference Direction Rules
 
 A document's **base** is the document whose name is the longest hyphen-delimited prefix of its own name that
@@ -616,6 +619,7 @@ Before committing a feat spec:
 - [ ] References use the defined relationship types (`Dependency`, `Alternative`, `Related`, `Extended by`, `Base`,
       `Source`)
 - [ ] A `Source` entry links a PRD or an ADR in `docs/arch/`, and no other relationship does
+- [ ] The document cites no issue or pull request, in the References section or inline
 - [ ] The document links UP to its base with `Base`, unless it is the top of its domain
 - [ ] The document does NOT link to its extensions, in the References section or inline; only a **component** MAY link to the components it contains
 
