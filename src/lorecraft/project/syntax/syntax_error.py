@@ -14,6 +14,10 @@ from dataclasses import dataclass
 from typing import Final
 
 from ruamel.yaml.error import MarkedYAMLError, StreamMark
+from ruamel.yaml.reader import ReaderError
+
+_ESCAPE_HEX_DIGITS: Final[dict[str, int]] = {'x': 2, 'u': 4, 'U': 8}
+"""How many hexadecimal digits the escapes `\\x`, `\\u` and `\\U` take after their letter."""
 
 _BLOCK_SCALAR_HEADER: Final[re.Pattern[str]] = re.compile(r'(?:^|\s)[|>][+-]?[0-9]?\s*(?:#.*)?$')
 """The end of a line that opens a literal or folded block scalar, with its indicators and a comment after them."""
@@ -55,8 +59,14 @@ def describe_error(error: MarkedYAMLError, block: str) -> SyntaxProblem:
             'Close it on the line it continues to, or remove it',
             _line_of(context_mark or mark),
         )
+    if 'quoted scalar' in context and problem.startswith(('found unknown escape', 'expected escape sequence')):
+        return _unknown_escape(mark, lines)
+    if problem.startswith('found character') and 'cannot start any token' in problem:
+        return _unstartable_character(problem, mark, lines)
     if problem == 'mapping values are not allowed here':
         return _misplaced_colon(mark, lines)
+    if problem == 'mapping keys are not allowed here':
+        return _cannot_start_value('?', mark)
     if problem.startswith(
         (
             "expected <block end>, but found '<block",
@@ -232,6 +242,8 @@ def _misplaced_colon(mark: StreamMark | None, lines: list[str]) -> SyntaxProblem
         return _unreadable(None)
     text = _text(lines, mark.line)
     before = text[: mark.column]
+    if before.rstrip().endswith(':'):
+        return _cannot_start_value(':', mark)
     if ': ' in before:
         key, _, value = text.strip().partition(': ')
         quoted = f'`{key}: "{value}"`' if value and '"' not in value else 'it'
@@ -301,3 +313,64 @@ def _below_block_scalar(line: int, lines: list[str]) -> bool:
             return False
         text_indent = _indent(text) if text_indent is None else min(text_indent, _indent(text))
     return False
+
+
+def describe_control_character(error: ReaderError, block: str) -> SyntaxProblem:
+    """Name a character the reader refuses, and the line it is on.
+
+    Args:
+        error: The reader's error, whose position is the character's index in the block.
+        block: The text the reader read.
+    """
+    character = error.character
+    code = character if isinstance(character, int) else ord(character)
+    return SyntaxProblem(
+        f'the block holds the control character U+{code:04X}', 'Remove it', block.count('\n', 0, error.position)
+    )
+
+
+def _cannot_start_value(character: str, mark: StreamMark | None) -> SyntaxProblem:
+    """The kind for a character that cannot start a plain value.
+
+    Args:
+        character: The character, shown in the label.
+        mark: Where the scanner found it.
+    """
+    return SyntaxProblem(f'a plain value cannot start with `{character}`', 'Quote the value', _line_of(mark))
+
+
+def _unstartable_character(problem: str, mark: StreamMark | None, lines: list[str]) -> SyntaxProblem:
+    """Classify a character that cannot start a token: a tab, or a character no plain value starts with.
+
+    Args:
+        problem: The scanner's problem, which names the character between quotes.
+        mark: Where the scanner found it.
+        lines: The block's lines.
+    """
+    if "'\\t'" in problem:
+        text = _text(lines, mark.line) if mark is not None else ''
+        if text.startswith('\t') or text.lstrip(' ').startswith('\t'):
+            return SyntaxProblem('a tab indents this line', 'Indent with spaces', _line_of(mark))
+        return SyntaxProblem('a tab is not whitespace here', 'Use spaces', _line_of(mark))
+    character = problem.split("'")[1] if "'" in problem else '?'
+    return _cannot_start_value(character, mark)
+
+
+def _unknown_escape(mark: StreamMark | None, lines: list[str]) -> SyntaxProblem:
+    """The kind for an escape double quotes do not know, naming the escape as written.
+
+    Args:
+        mark: Where the scanner found the bad character of the escape.
+        lines: The block's lines.
+    """
+    if mark is None:
+        return _unreadable(None)
+    text = _text(lines, mark.line)
+    start = text.rfind('\\', 0, mark.column + 1)
+    if start == -1:
+        return _unreadable(mark.line)
+    letter = text[start + 1 : start + 2]
+    escape = text[start : start + 2 + _ESCAPE_HEX_DIGITS.get(letter, 0)]
+    return SyntaxProblem(
+        f'`{escape}` is not an escape', 'Write `\\\\` for a backslash, or use single quotes', mark.line
+    )

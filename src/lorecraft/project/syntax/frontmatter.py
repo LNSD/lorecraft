@@ -46,7 +46,7 @@ from lorecraft.core.error import Error
 from lorecraft.core.mapping import Frozen, FrozenMapping
 
 from .position import LineNumber
-from .syntax_error import SyntaxProblem, describe_error
+from .syntax_error import SyntaxProblem, describe_control_character, describe_error
 
 _FIRST_BLOCK_LINE: Final[int] = 2
 """The document line the block's first YAML line sits on: the opening delimiter is always line 1."""
@@ -398,8 +398,7 @@ def decode_frontmatter(block: str) -> FrontmatterNode:
         node = _read_document(stream)
     except ReaderError as exc:
         # The reader checks every character as it is built, so a control character fails before the first event.
-        line = LineNumber.from_int(block.count('\n', 0, exc.position) + _FIRST_BLOCK_LINE)
-        return InvalidYamlFrontmatter(problem=exc.reason, line=line)
+        return _invalid_yaml(describe_control_character(exc, block))
     except _RefusedConstructError as exc:
         # The read stopped at a construct this module refuses. The scanner reads ahead of the parser, so it may
         # have recorded one written above it, which is the one the block is reported for.
@@ -800,7 +799,7 @@ class _BasicYamlScanner(Scanner):
                 colon_ends_scalar = ch == ':' and self.reader.peek(length + 1) in (
                     _SPACE_CHARACTERS + (',[]{}' if self.flow_level else '')
                 )
-                flow_indicator = self.flow_level and ch in ',?[]{}'
+                flow_indicator = self.flow_level and ch in ',[]{}'
                 if ch in _SPACE_CHARACTERS or colon_ends_scalar or flow_indicator:
                     break
                 length += 1

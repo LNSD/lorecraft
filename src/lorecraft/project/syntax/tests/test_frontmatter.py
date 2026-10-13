@@ -626,7 +626,7 @@ class TestDecodeFrontmatter:
 
         #: Then
         assert node == InvalidYamlFrontmatter(
-            problem='special characters are not allowed', line=LineNumber.from_int(2)
+            problem='the block holds the control character U+0000', help='Remove it', line=LineNumber.from_int(2)
         ), 'a character the reader refuses is a finding on its line, not a crash'
 
     def test_decode_frontmatter_with_a_control_character_after_a_blank_line_returns_invalid_yaml_on_its_line(
@@ -641,7 +641,7 @@ class TestDecodeFrontmatter:
 
         #: Then
         assert node == InvalidYamlFrontmatter(
-            problem='special characters are not allowed', line=LineNumber.from_int(3)
+            problem='the block holds the control character U+0000', help='Remove it', line=LineNumber.from_int(3)
         ), 'the line counts every line break before the refused character'
 
     def test_decode_frontmatter_with_an_escape_beyond_unicode_returns_invalid_yaml_on_the_escapes_line(
@@ -1214,7 +1214,7 @@ class TestDecodeFrontmatter:
 
         #: Then
         assert node == InvalidYamlFrontmatter(
-            problem='the block cannot be read from this line on', line=LineNumber.from_int(3)
+            problem='a tab indents this line', help='Indent with spaces', line=LineNumber.from_int(3)
         ), 'a tab where indentation is expected is reported on its line'
 
     def test_decode_frontmatter_with_a_tab_in_a_flow_collection_returns_invalid_yaml_on_its_line(self) -> None:
@@ -1226,7 +1226,7 @@ class TestDecodeFrontmatter:
 
         #: Then
         assert node == InvalidYamlFrontmatter(
-            problem='the block cannot be read from this line on', line=LineNumber.from_int(3)
+            problem='a tab is not whitespace here', help='Use spaces', line=LineNumber.from_int(3)
         ), 'a tab is not whitespace in a flow collection either'
 
     def test_decode_frontmatter_with_a_key_written_as_nothing_returns_invalid_yaml_on_its_line(self) -> None:
@@ -1374,7 +1374,7 @@ class TestDecodeFrontmatter:
             'an anchor, an alias or a tag starts a node; inside a value the character is text'
         )
 
-    def test_decode_frontmatter_with_a_question_mark_ending_a_plain_scalar_in_a_flow_sequence_is_no_explicit_key(
+    def test_decode_frontmatter_with_a_question_mark_ending_a_plain_scalar_in_a_flow_sequence_returns_it_as_text(
         self,
     ) -> None:
         #: Given
@@ -1384,11 +1384,12 @@ class TestDecodeFrontmatter:
         node = decode_frontmatter(block)
 
         #: Then
-        assert node == InvalidYamlFrontmatter(
-            problem='the block cannot be read from this line on', line=LineNumber.from_int(2)
-        ), 'a `?` inside a plain scalar is no explicit key, so it is the parser that stops there, not a refusal'
+        assert isinstance(node, Frontmatter), f'a YAML mapping is frontmatter, got {node!r}'
+        assert node.data == FrozenMapping({'a': ('what?',)}), (
+            'a `?` inside a plain scalar is text, so the flow sequence is an accepted one'
+        )
 
-    def test_decode_frontmatter_with_a_spaced_question_mark_in_a_flow_sequence_is_no_explicit_key(self) -> None:
+    def test_decode_frontmatter_with_a_spaced_question_mark_in_a_flow_sequence_returns_it_as_text(self) -> None:
         #: Given
         block = 'a: [what ? x]\n'
 
@@ -1396,9 +1397,10 @@ class TestDecodeFrontmatter:
         node = decode_frontmatter(block)
 
         #: Then
-        assert node == InvalidYamlFrontmatter(
-            problem='the block cannot be read from this line on', line=LineNumber.from_int(2)
-        ), 'a `?` after a scalar is no explicit key, so it is the parser that stops there'
+        assert isinstance(node, Frontmatter), f'a YAML mapping is frontmatter, got {node!r}'
+        assert node.data == FrozenMapping({'a': ('what ? x',)}), (
+            'a `?` after a scalar is part of the plain scalar, as YAML 1.2 reads it'
+        )
 
     def test_decode_frontmatter_with_a_question_mark_alone_in_a_flow_sequence_returns_invalid_yaml_on_its_line(
         self,
@@ -1923,6 +1925,74 @@ class TestDecodeFrontmatter:
             help='Align it with the key it belongs beside',
             line=LineNumber.from_int(3),
         ), 'a key with no value is a key too, so it is the same mistake as one with a value'
+
+    def test_decode_frontmatter_with_an_escape_double_quotes_do_not_know_returns_invalid_yaml_on_its_line(self) -> None:
+        #: Given
+        block = 'a: "\\q"\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem='`\\q` is not an escape',
+            help='Write `\\\\` for a backslash, or use single quotes',
+            line=LineNumber.from_int(2),
+        ), 'an unknown escape is named as written'
+
+    def test_decode_frontmatter_with_a_hexadecimal_escape_with_no_digits_returns_invalid_yaml_on_its_line(self) -> None:
+        #: Given
+        block = 'a: "\\xZZ"\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem='`\\xZZ` is not an escape',
+            help='Write `\\\\` for a backslash, or use single quotes',
+            line=LineNumber.from_int(2),
+        ), 'an escape with the wrong digits is named with them'
+
+    def test_decode_frontmatter_with_a_character_that_cannot_start_a_plain_value_returns_invalid_yaml_on_its_line(
+        self,
+    ) -> None:
+        #: Given
+        block = 'a: @b\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem='a plain value cannot start with `@`', help='Quote the value', line=LineNumber.from_int(2)
+        ), 'a character no plain value starts with is named on its line'
+
+    def test_decode_frontmatter_with_a_colon_that_starts_a_value_returns_invalid_yaml_on_its_line(self) -> None:
+        #: Given
+        block = 'a: :\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem='a plain value cannot start with `:`', help='Quote the value', line=LineNumber.from_int(2)
+        ), 'a `:` where a value starts is named on its line'
+
+    def test_decode_frontmatter_with_an_explicit_key_where_a_key_is_not_allowed_returns_invalid_yaml_on_its_line(
+        self,
+    ) -> None:
+        #: Given
+        block = 'a: ? b\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem='a plain value cannot start with `?`', help='Quote the value', line=LineNumber.from_int(2)
+        ), 'a `?` where a value starts is named on its line'
 
     def test_decode_frontmatter_with_a_yaml_list_returns_non_mapping(self) -> None:
         #: Given
