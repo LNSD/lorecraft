@@ -3,11 +3,13 @@
 from dataclasses import dataclass
 from typing import ClassVar, Self
 
+from lorecraft.core.num import UnsignedInt
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.context import DocumentContext
 from lorecraft.project.syntax import count_words, find_title
 from lorecraft.rules.declaration import Level, Release, RuleCode, RuleName, rule
 from lorecraft.rules.location import Here, Label, Subdiagnostic
+from lorecraft.rules.overrun import Overrun, find_overrun
 from lorecraft.rules.subject import DocumentRule, Facet
 
 from .__ruleset__ import GROUP_ID, TITLE_HELP, spec_note
@@ -58,8 +60,7 @@ class TitleTooManyWords(DocumentRule):
 
     Attributes:
         spec: The structure specification that sets the exceeded cap.
-        word_count: The words of the title's text.
-        cap: The cap it exceeds, in words.
+        overrun: The words of the title's text against the cap they exceed.
     """
 
     CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 4)
@@ -69,16 +70,15 @@ class TitleTooManyWords(DocumentRule):
     GOVERNED_BY: ClassVar[Facet] = Facet.STRUCTURE
 
     spec: RootRelativePath
-    word_count: int
-    cap: int
+    overrun: Overrun
 
     def message(self) -> str:
         """Name the title's words against the cap they exceed."""
-        return f'too many words in the title ({self.word_count} > {self.cap})'
+        return f'too many words in the title ({self.overrun.count} > {self.overrun.cap})'
 
     def labels(self) -> tuple[Label, ...]:
         """Say how many words the title runs past its cap, at the title."""
-        return (Label(Here(self.line), f'words over the cap: {self.word_count - self.cap}'),)
+        return (Label(Here(self.line), f'words over the cap: {self.overrun.excess}'),)
 
     def children(self) -> tuple[Subdiagnostic, ...]:
         """Point at the specification that sets the cap, then say what a title holds."""
@@ -96,13 +96,13 @@ class TitleTooManyWords(DocumentRule):
         title = find_title(subject.parse().headings)
         if title is None:
             return ()
-        word_count = count_words(title.text)
+        word_count = UnsignedInt(count_words(title.text))
         occurrences: list[Self] = []
         for structure_spec in subject.specifications().structure_specs():
             title_checks = structure_spec.title
             if title_checks is None or title_checks.words is None:
                 continue
-            cap = title_checks.words.value
-            if word_count > cap:
-                occurrences.append(cls(spec=structure_spec.path, line=title.line, word_count=word_count, cap=cap))
+            overrun = find_overrun(word_count, title_checks.words)
+            if overrun is not None:
+                occurrences.append(cls(spec=structure_spec.path, line=title.line, overrun=overrun))
         return tuple(occurrences)

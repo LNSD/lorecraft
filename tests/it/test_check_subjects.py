@@ -576,7 +576,7 @@ class TestCheckSubjects:
 
         #: Then
         occurrence = TooManyTokens(
-            spec=CODE_SPEC, line=LineNumber.from_int(1), token_count=count_tokens(GUIDE_TEXT), budget=5
+            spec=CODE_SPEC, line=LineNumber.from_int(1), overrun=overrun(count_tokens(GUIDE_TEXT), 5)
         )
         assert reports == (
             CheckedSubject(
@@ -612,9 +612,9 @@ class TestCheckSubjects:
 
         #: Then
         token_count = count_tokens(typing_text)
-        corpus_budget = TooManyTokens(spec=CODE_SPEC, line=LineNumber.from_int(1), token_count=token_count, budget=5)
+        corpus_budget = TooManyTokens(spec=CODE_SPEC, line=LineNumber.from_int(1), overrun=overrun(token_count, 5))
         namespace_budget = TooManyTokens(
-            spec=namespace_spec, line=LineNumber.from_int(1), token_count=token_count, budget=3
+            spec=namespace_spec, line=LineNumber.from_int(1), overrun=overrun(token_count, 3)
         )
         assert reports == (
             CheckedSubject(
@@ -1668,8 +1668,7 @@ class TestCheckSubjects:
             spec=CODE_SPEC,
             line=LineNumber.from_int(3),
             section='Run',
-            word_count=5,
-            cap=3,
+            overrun=overrun(5, 3),
             cap_source=NamedSectionCap(),
         )
         assert reports == (
@@ -1691,7 +1690,7 @@ class TestCheckSubjects:
         reports = check_subjects(database, (GUIDE,), package_table)
 
         #: Then
-        occurrence = TitleTooManyWords(spec=CODE_SPEC, line=LineNumber.from_int(1), word_count=4, cap=3)
+        occurrence = TitleTooManyWords(spec=CODE_SPEC, line=LineNumber.from_int(1), overrun=overrun(4, 3))
         assert reports == (
             CheckedSubject(
                 GUIDE,
@@ -1715,7 +1714,7 @@ class TestCheckSubjects:
         reports = check_subjects(database, (GUIDE,), package_table)
 
         #: Then
-        occurrence = TitleTooLong(spec=CODE_SPEC, line=LineNumber.from_int(1), char_count=20, cap=12)
+        occurrence = TitleTooLong(spec=CODE_SPEC, line=LineNumber.from_int(1), overrun=overrun(20, 12))
         assert reports == (
             CheckedSubject(
                 GUIDE,

@@ -8,6 +8,7 @@ from typing import Final
 
 import pytest
 
+from lib.overruns import overrun
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.location import Elsewhere, Help, Here, Label, Note
@@ -66,8 +67,7 @@ class TestTooManyWords:
                 spec=CORPUS_SPEC,
                 line=LineNumber.from_int(7),
                 section='Configuration',
-                word_count=12,
-                cap=10,
+                overrun=overrun(12, 10),
                 cap_source=NamedSectionCap(),
             ),
         ), 'a section over its cap is one occurrence, at its heading, naming the specification that sets the cap'
@@ -105,16 +105,14 @@ class TestTooManyWords:
                 spec=CORPUS_SPEC,
                 line=LineNumber.from_int(3),
                 section='Run',
-                word_count=6,
-                cap=5,
+                overrun=overrun(6, 5),
                 cap_source=NamedSectionCap(),
             ),
             TooManyWords(
                 spec=CORPUS_SPEC,
                 line=LineNumber.from_int(7),
                 section='Configuration',
-                word_count=12,
-                cap=10,
+                overrun=overrun(12, 10),
                 cap_source=NamedSectionCap(),
             ),
         ), 'each section over its cap is reported, in document order'
@@ -149,16 +147,14 @@ class TestTooManyWords:
                 spec=CORPUS_SPEC,
                 line=LineNumber.from_int(3),
                 section='Rule',
-                word_count=3,
-                cap=2,
+                overrun=overrun(3, 2),
                 cap_source=NamedSectionCap(),
             ),
             TooManyWords(
                 spec=CORPUS_SPEC,
                 line=LineNumber.from_int(7),
                 section='Aside',
-                word_count=4,
-                cap=2,
+                overrun=overrun(4, 2),
                 cap_source=AnyRunCap(),
             ),
         ), 'a named section is held to its entry cap, an unnamed one to its run cap, and one with no cap to none'
@@ -194,8 +190,7 @@ class TestTooManyWords:
                 spec=NAMESPACE_SPEC,
                 line=LineNumber.from_int(7),
                 section='Configuration',
-                word_count=12,
-                cap=10,
+                overrun=overrun(12, 10),
                 cap_source=NamedSectionCap(),
             ),
         ), 'a namespace cap does not replace the corpus one, so the section is held to it on its own'
@@ -218,16 +213,14 @@ class TestTooManyWords:
                 spec=CORPUS_SPEC,
                 line=LineNumber.from_int(7),
                 section='Configuration',
-                word_count=12,
-                cap=10,
+                overrun=overrun(12, 10),
                 cap_source=NamedSectionCap(),
             ),
             TooManyWords(
                 spec=NAMESPACE_SPEC,
                 line=LineNumber.from_int(7),
                 section='Configuration',
-                word_count=12,
-                cap=8,
+                overrun=overrun(12, 8),
                 cap_source=NamedSectionCap(),
             ),
         ), 'each specification applies on its own, so the section is reported once for each cap, in order'
@@ -277,8 +270,7 @@ class TestTooManyWords:
             spec=CORPUS_SPEC,
             line=LineNumber.from_int(7),
             section='Aside',
-            word_count=4,
-            cap=2,
+            overrun=overrun(4, 2),
             cap_source=AnyRunCap(),
         )
 
@@ -302,7 +294,6 @@ def _named_occurrence() -> TooManyWords:
         spec=CORPUS_SPEC,
         line=LineNumber.from_int(7),
         section='Configuration',
-        word_count=12,
-        cap=10,
+        overrun=overrun(12, 10),
         cap_source=NamedSectionCap(),
     )
