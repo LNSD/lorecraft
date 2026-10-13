@@ -27,7 +27,6 @@ def _stopped_at_line_3() -> InvalidYaml:
     """A document's occurrence for a block the YAML parser stopped reading on line 3."""
     return InvalidYaml(
         spec=SPEC,
-        line=LineNumber.from_int(3),
         problem='mapping values are not allowed here',
         stopped_at=LineNumber.from_int(3),
     )
@@ -47,7 +46,6 @@ class TestInvalidYaml:
         assert occurrences == (
             InvalidYaml(
                 spec=SPEC,
-                line=LineNumber.from_int(3),
                 problem='mapping values are not allowed here',
                 stopped_at=LineNumber.from_int(3),
             ),
@@ -68,7 +66,6 @@ class TestInvalidYaml:
         assert occurrences == (
             InvalidYaml(
                 spec=None,
-                line=LineNumber.from_int(1),
                 problem='found collections nested too deeply to parse',
                 stopped_at=None,
             ),
@@ -116,9 +113,45 @@ class TestInvalidYaml:
             'the label sits on the line the parser stopped on and carries its words'
         )
 
+    def test_construction_with_a_stopping_line_reports_at_that_line(self) -> None:
+        #: Given
+        stopped_at = LineNumber.from_int(3)
+
+        #: When
+        occurrence = InvalidYaml(spec=SPEC, problem='found a problem', stopped_at=stopped_at)
+
+        #: Then
+        assert occurrence.line == stopped_at, 'the occurrence is reported on the line the reader stopped on'
+
+    def test_construction_with_no_known_line_reports_at_line_1(self) -> None:
+        #: Given
+        stopped_at = None
+
+        #: When
+        occurrence = InvalidYaml(spec=SPEC, problem='found a problem', stopped_at=stopped_at)
+
+        #: Then
+        assert occurrence.line == LineNumber.from_int(1), 'the occurrence is reported where the block opens'
+
+    def test_construction_with_a_line_of_its_own_is_refused(self) -> None:
+        #: Given
+        stopped_at = LineNumber.from_int(3)
+
+        #: When
+        with pytest.raises(TypeError):
+            InvalidYaml(
+                spec=SPEC,
+                line=LineNumber.from_int(9),  # ty: ignore[unknown-argument]
+                problem='bad',
+                stopped_at=stopped_at,
+            )
+
+        #: Then
+        # the line is derived from `stopped_at`, so no caller can state one that disagrees with it
+
     def test_labels_with_no_known_line_say_the_problem_lies_in_the_block_opened_on_line_1(self) -> None:
         #: Given
-        occurrence = InvalidYaml(spec=SPEC, line=LineNumber.from_int(1), problem='found a problem', stopped_at=None)
+        occurrence = InvalidYaml(spec=SPEC, problem='found a problem', stopped_at=None)
 
         #: When
         labels = occurrence.labels()
@@ -144,7 +177,6 @@ class TestInvalidYaml:
         #: Given
         occurrence = InvalidYaml(
             spec=None,
-            line=LineNumber.from_int(3),
             problem='mapping values are not allowed here',
             stopped_at=LineNumber.from_int(3),
         )

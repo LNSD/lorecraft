@@ -11,12 +11,14 @@ from typing import Final
 import pytest
 
 from lorecraft.core.mapping import FrozenMapping
-from lorecraft.core.num import NonZeroUnsignedInt
+from lorecraft.core.num import NonZeroUnsignedInt, UnsignedInt
 from lorecraft.core.path import PathComponent, RootRelativePath
 
 from ..frontmatter_problem import (
     BlockProblem,
+    FieldCount,
     FieldGuidance,
+    FieldLimit,
     InvalidValueProblem,
     JsonType,
     MaxFields,
@@ -1642,9 +1644,9 @@ class TestFrontmatterSchema:
         problems = frontmatter.validate(FrozenMapping.from_plain(data))
 
         #: Then
-        assert problems == (BlockProblem('{} should be non-empty', MinFields(1), 0),), (
-            'a rule over the block concerns no field'
-        )
+        assert problems == (
+            BlockProblem('{} should be non-empty', MinFields(FieldLimit(UnsignedInt(1))), FieldCount(UnsignedInt(0))),
+        ), 'a rule over the block concerns no field'
 
     def test_validate_with_too_many_fields_returns_a_block_problem_with_the_limit_and_the_description(self) -> None:
         #: Given
@@ -1658,7 +1660,10 @@ class TestFrontmatterSchema:
         #: Then
         assert problems == (
             BlockProblem(
-                "{'name': 'guide', 'type': 'rule'} has too many properties", MaxFields(1), 2, description='A guide.'
+                "{'name': 'guide', 'type': 'rule'} has too many properties",
+                MaxFields(FieldLimit(UnsignedInt(1))),
+                FieldCount(UnsignedInt(2)),
+                description='A guide.',
             ),
         ), 'the limit, the number of fields written and the root description are carried'
 
@@ -1674,7 +1679,9 @@ class TestFrontmatterSchema:
         #: Then
         assert problems == (
             BlockProblem(
-                "{'name': 'guide'} should not be valid under {'required': ['name']}", OtherBlockConstraint(), 1
+                "{'name': 'guide'} should not be valid under {'required': ['name']}",
+                OtherBlockConstraint(),
+                FieldCount(UnsignedInt(1)),
             ),
         ), "a keyword with no typed constraint keeps the validator's wording"
 

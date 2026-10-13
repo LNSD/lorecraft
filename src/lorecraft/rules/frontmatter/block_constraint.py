@@ -6,6 +6,7 @@ from typing import ClassVar, Self, assert_never
 from lorecraft.project.context import FrontmatterContext
 from lorecraft.project.schemas import (
     BlockProblem,
+    FieldCount,
     InvalidValueProblem,
     MaxFields,
     MinFields,
@@ -155,7 +156,7 @@ class BlockConstraint(FrontmatterRule):
         return tuple(occurrences)
 
 
-def _wrong_number_of_fields(found: int, limit: str) -> str:
+def _wrong_number_of_fields(found: FieldCount, limit: str) -> str:
     """The message for a block holding a number of fields its schema does not allow.
 
     Args:

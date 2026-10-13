@@ -16,9 +16,11 @@ from pydantic import ValidationError
 from pydantic_core import ErrorDetails
 
 from lorecraft.core.mapping import Frozen, FrozenMapping
+from lorecraft.core.num import UnsignedInt
 
 from .frontmatter_problem import (
     BlockProblem,
+    FieldCount,
     FieldGuidance,
     FrontmatterProblem,
     InvalidValueProblem,
@@ -60,7 +62,8 @@ class SkillFrontmatterSchema:
         except ValidationError as exc:
             problems: list[FrontmatterProblem] = []
             for detail in exc.errors(include_url=False):
-                problems.append(_frontmatter_problem(detail, len(data)))
+                # A length is never negative, so building the `UnsignedInt` cannot raise `NegativeIntError` here.
+                problems.append(_frontmatter_problem(detail, FieldCount(UnsignedInt(len(data)))))
             return tuple(problems)
         return ()
 
@@ -93,7 +96,7 @@ _FIELD_GUIDANCE: Final[Mapping[str, FieldGuidance]] = _field_guidance()
 """What the specification states about each field, by the name the frontmatter writes it under."""
 
 
-def _frontmatter_problem(detail: ErrorDetails, field_count: int) -> FrontmatterProblem:
+def _frontmatter_problem(detail: ErrorDetails, field_count: FieldCount) -> FrontmatterProblem:
     """One pydantic error, as the problem it reports on the top-level field it concerns.
 
     Args:

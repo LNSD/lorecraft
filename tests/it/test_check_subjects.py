@@ -34,7 +34,9 @@ from lorecraft.project.schemas import (
     BlockProblem,
     DocumentEnd,
     ExpectedSection,
+    FieldCount,
     FieldGuidance,
+    FieldLimit,
     InvalidValueProblem,
     JsonType,
     MinFields,
@@ -994,7 +996,6 @@ class TestCheckSubjects:
         #: Then
         occurrence = InvalidYaml(
             spec=CODE_SPEC,
-            line=LineNumber.from_int(3),
             problem=_invalid_yaml_problem(guide),
             stopped_at=LineNumber.from_int(3),
         )
@@ -1101,7 +1102,6 @@ class TestCheckSubjects:
         #: Then
         occurrence = InvalidYaml(
             spec=None,
-            line=LineNumber.from_int(3),
             problem=_invalid_yaml_problem(review),
             stopped_at=LineNumber.from_int(3),
         )
@@ -1326,8 +1326,8 @@ class TestCheckSubjects:
             problem=BlockProblem(
                 "{'name': 'guide', 'description': ['a'], 'extra': 'y', 'status': 'Final'} "
                 'does not have enough properties',
-                MinFields(6),
-                4,
+                MinFields(FieldLimit(UnsignedInt(6))),
+                FieldCount(UnsignedInt(4)),
             ),
         )
         assert reports == (
@@ -1783,7 +1783,6 @@ class TestCheckSubjects:
         #: Then
         occurrence = MissingSection(
             spec=CODE_SPEC,
-            line=LineNumber.from_int(5),
             section=SectionName.parse('Usage'),
             before=DocumentEnd(last_line=LineNumber.from_int(5), after=_section(guide, 'Install')),
             description='How to run it.',
@@ -2035,7 +2034,6 @@ class TestCheckSubjects:
         #: Then
         invalid_yaml = InvalidYaml(
             spec=None,
-            line=LineNumber.from_int(3),
             problem=_invalid_yaml_problem(review),
             stopped_at=LineNumber.from_int(3),
         )

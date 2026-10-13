@@ -712,7 +712,7 @@ class Database:
             alignments = self.outline_alignment(source)
             # Only a document some outline governs has its lines counted.
             if any(alignment.outline for alignment in alignments):
-                divergences = match_outlines(alignments, self.document_lines(source).value)
+                divergences = match_outlines(alignments, self.document_lines(source))
             else:
                 divergences = ()
             self._outline_divergences[source.ref] = divergences

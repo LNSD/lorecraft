@@ -1,12 +1,12 @@
 """`OUT006`: a document lacks a section its outline requires."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import ClassVar, Self, assert_never
 
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.context import DocumentContext
 from lorecraft.project.schemas import AbsentSection, DocumentEnd, MisplacedSection, SectionName, UnlistedSection
-from lorecraft.project.syntax import SectionHeading
+from lorecraft.project.syntax import LineNumber, SectionHeading
 from lorecraft.rules.declaration import Level, Release, RuleCode, RuleName, rule
 from lorecraft.rules.location import Help, Here, Label, Subdiagnostic
 from lorecraft.rules.subject import DocumentRule, Facet
@@ -91,10 +91,26 @@ class MissingSection(DocumentRule):
     GOVERNED_BY: ClassVar[Facet] = Facet.OUTLINE
 
     spec: RootRelativePath
+    # Reported at the section it should precede, or else at the document's last line, so it is derived from `before`
+    # and no caller can state a line that disagrees with it.
+    line: LineNumber = field(init=False)
     section: SectionName
     before: SectionHeading | DocumentEnd
     description: str | None
     example: str | None
+
+    def __post_init__(self) -> None:
+        """Derive the reported line from where the section belongs."""
+        before = self.before
+        match before:
+            case SectionHeading():
+                line = before.line
+            case DocumentEnd():
+                line = before.last_line
+            case _:
+                assert_never(before)
+        # The dataclass is frozen, so the field a rule derives is set the one way a frozen dataclass allows.
+        object.__setattr__(self, 'line', line)
 
     def message(self) -> str:
         """Name the section the document lacks."""
@@ -152,34 +168,17 @@ class MissingSection(DocumentRule):
             divergence = outline_spec.divergence
             match divergence:
                 case AbsentSection():
-                    occurrences.append(cls._from_absent(outline_spec.spec, divergence))
+                    occurrences.append(
+                        cls(
+                            spec=outline_spec.spec,
+                            section=divergence.name,
+                            before=divergence.before,
+                            description=divergence.description,
+                            example=divergence.example,
+                        )
+                    )
                 case MisplacedSection() | UnlistedSection() | None:
                     pass  # the document matches the outline, or diverges from it otherwise
                 case _:
                     assert_never(divergence)
         return tuple(occurrences)
-
-    @classmethod
-    def _from_absent(cls, spec: RootRelativePath, absent: AbsentSection) -> Self:
-        """The occurrence of one absent section, at the section it should precede or at the document's last line.
-
-        Args:
-            spec: The structure specification whose outline requires the section.
-            absent: The required section the document holds nowhere.
-        """
-        before = absent.before
-        match before:
-            case SectionHeading():
-                line = before.line
-            case DocumentEnd():
-                line = before.last_line
-            case _:
-                assert_never(before)
-        return cls(
-            spec=spec,
-            line=line,
-            section=absent.name,
-            before=before,
-            description=absent.description,
-            example=absent.example,
-        )

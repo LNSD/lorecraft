@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from typing import assert_never
 
 from lorecraft.core.path import RootRelativePath
-from lorecraft.project.syntax import LineNumber, SectionHeading
+from lorecraft.project.syntax import LineCount, LineNumber, SectionHeading
 
 from .outline_alignment import AlignedSection, AnyRunAlignment, NamedAlignment, OutlineAlignmentSpec, UnalignedSection
 from .section_name import SectionName
@@ -133,7 +133,9 @@ class OutlineDivergenceSpec:
     divergence: OutlineDivergence | None
 
 
-def match_outlines(alignments: tuple[OutlineAlignmentSpec, ...], line_count: int) -> tuple[OutlineDivergenceSpec, ...]:
+def match_outlines(
+    alignments: tuple[OutlineAlignmentSpec, ...], line_count: LineCount
+) -> tuple[OutlineDivergenceSpec, ...]:
     """Find where a document's aligned sections first stop matching each outline, in the alignments given.
 
     Each outline is matched on its own: a document governed by a corpus and a namespace specification that both
@@ -157,7 +159,7 @@ def match_outlines(alignments: tuple[OutlineAlignmentSpec, ...], line_count: int
         # An empty document has no line at all, so its end is reported on line 1. A count is never negative, so
         # `from_int` cannot raise here.
         document_end = DocumentEnd(
-            last_line=LineNumber.from_int(max(line_count, 1)), after=sections[-1].section if sections else None
+            last_line=LineNumber.from_int(max(line_count.value, 1)), after=sections[-1].section if sections else None
         )
         divergence = _first_divergence(alignment.outline, sections, document_end)
         specs.append(OutlineDivergenceSpec(spec=alignment.spec, divergence=divergence))

@@ -78,7 +78,6 @@ class TestMissingSection:
         assert occurrences == (
             MissingSection(
                 spec=CORPUS_SPEC,
-                line=LineNumber.from_int(3),
                 section=USAGE,
                 before=BEFORE_OPTIONS,
                 description='How to invoke the command.',
@@ -97,13 +96,54 @@ class TestMissingSection:
         assert occurrences == (
             MissingSection(
                 spec=CORPUS_SPEC,
-                line=LineNumber.from_int(5),
                 section=SectionName.parse('Options'),
                 before=END_AFTER_USAGE,
                 description=None,
                 example=None,
             ),
         ), "a section expected at the end of the document is reported at the document's last line"
+
+    def test_construction_with_a_section_after_derives_the_line_from_that_section(self) -> None:
+        #: Given
+        occurrence = MissingSection(
+            spec=CORPUS_SPEC, section=USAGE, before=BEFORE_OPTIONS, description=None, example=None
+        )
+
+        #: When
+        line = occurrence.line
+
+        #: Then
+        assert line == BEFORE_OPTIONS.line, 'the occurrence is reported on the heading of the section it precedes'
+
+    def test_construction_at_the_end_derives_the_line_from_the_document_end(self) -> None:
+        #: Given
+        occurrence = MissingSection(
+            spec=CORPUS_SPEC, section=USAGE, before=END_AFTER_OPTIONS, description=None, example=None
+        )
+
+        #: When
+        line = occurrence.line
+
+        #: Then
+        assert line == END_AFTER_OPTIONS.last_line, "the occurrence is reported on the document's last line"
+
+    def test_construction_with_a_line_of_its_own_is_refused(self) -> None:
+        #: Given
+        line = LineNumber.from_int(9)
+
+        #: When
+        with pytest.raises(TypeError):
+            MissingSection(
+                spec=CORPUS_SPEC,
+                line=line,  # ty: ignore[unknown-argument]
+                section=USAGE,
+                before=BEFORE_OPTIONS,
+                description=None,
+                example=None,
+            )
+
+        #: Then
+        # the line is derived from `before`, so no caller can state one that disagrees with it
 
     def test_check_with_a_misplaced_section_reports_nothing(self) -> None:
         #: Given
@@ -151,7 +191,6 @@ class TestMissingSection:
         assert occurrences == (
             MissingSection(
                 spec=CORPUS_SPEC,
-                line=LineNumber.from_int(3),
                 section=USAGE,
                 before=BEFORE_OPTIONS,
                 description=None,
@@ -159,7 +198,6 @@ class TestMissingSection:
             ),
             MissingSection(
                 spec=NAMESPACE_SPEC,
-                line=LineNumber.from_int(5),
                 section=USAGE,
                 before=END_AFTER_OPTIONS,
                 description=None,
@@ -171,7 +209,6 @@ class TestMissingSection:
         #: Given
         occurrence = MissingSection(
             spec=CORPUS_SPEC,
-            line=LineNumber.from_int(3),
             section=USAGE,
             before=BEFORE_OPTIONS,
             description=None,
@@ -188,7 +225,6 @@ class TestMissingSection:
         #: Given
         occurrence = MissingSection(
             spec=CORPUS_SPEC,
-            line=LineNumber.from_int(3),
             section=USAGE,
             before=BEFORE_OPTIONS,
             description=None,
@@ -207,7 +243,6 @@ class TestMissingSection:
         #: Given
         occurrence = MissingSection(
             spec=CORPUS_SPEC,
-            line=LineNumber.from_int(5),
             section=SectionName.parse('Options'),
             before=END_AFTER_USAGE,
             description=None,
@@ -227,7 +262,6 @@ class TestMissingSection:
         #: Given
         occurrence = MissingSection(
             spec=CORPUS_SPEC,
-            line=LineNumber.from_int(1),
             section=USAGE,
             before=DocumentEnd(last_line=LineNumber.from_int(1), after=None),
             description=None,
@@ -247,7 +281,6 @@ class TestMissingSection:
         document = '# Check\n\n## Usage'
         occurrence = MissingSection(
             spec=CORPUS_SPEC,
-            line=LineNumber.from_int(3),
             section=SectionName.parse('Options'),
             before=DocumentEnd(last_line=LineNumber.from_int(3), after=section_in(document, 'Usage')),
             description=None,
@@ -266,7 +299,6 @@ class TestMissingSection:
         #: Given
         occurrence = MissingSection(
             spec=CORPUS_SPEC,
-            line=LineNumber.from_int(3),
             section=USAGE,
             before=BEFORE_OPTIONS,
             description='How to invoke the command.',
@@ -287,7 +319,6 @@ class TestMissingSection:
         #: Given
         occurrence = MissingSection(
             spec=CORPUS_SPEC,
-            line=LineNumber.from_int(3),
             section=USAGE,
             before=BEFORE_OPTIONS,
             description='How to invoke the command.',
@@ -307,7 +338,6 @@ class TestMissingSection:
         #: Given
         occurrence = MissingSection(
             spec=CORPUS_SPEC,
-            line=LineNumber.from_int(3),
             section=USAGE,
             before=BEFORE_OPTIONS,
             description=None,
@@ -327,7 +357,6 @@ class TestMissingSection:
         #: Given
         occurrence = MissingSection(
             spec=CORPUS_SPEC,
-            line=LineNumber.from_int(3),
             section=USAGE,
             before=BEFORE_OPTIONS,
             description=None,

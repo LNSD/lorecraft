@@ -86,13 +86,15 @@ from referencing.jsonschema import DRAFT202012
 
 from lorecraft.core.error import Error
 from lorecraft.core.mapping import Frozen, FrozenMapping
-from lorecraft.core.num import NonZeroUnsignedInt
+from lorecraft.core.num import NonZeroUnsignedInt, UnsignedInt
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.syntax import SectionHeading
 
 from .frontmatter_problem import (
     BlockLimit,
     BlockProblem,
+    FieldCount,
+    FieldLimit,
     FrontmatterProblem,
     InvalidValueProblem,
     JsonType,
@@ -632,7 +634,8 @@ def _frontmatter_problems(
         BlockProblem(
             error.message,
             _block_constraint(error),
-            len(data),
+            # A length is never negative, so building the `UnsignedInt` cannot raise `NegativeIntError` here.
+            FieldCount(UnsignedInt(len(data))),
             description=schema_guidance(validator.schema).description,
         )
     ]
@@ -732,10 +735,11 @@ def _block_constraint(error: SchemaValidationError) -> BlockLimit:
         error: The error the block's constraint reported.
     """
     limit = error.validator_value
-    if error.validator == 'minProperties' and isinstance(limit, int):
-        return MinFields(limit)
-    if error.validator == 'maxProperties' and isinstance(limit, int):
-        return MaxFields(limit)
+    # A negative limit is no schema a validator accepts, so it falls to the untyped constraint rather than raising.
+    if error.validator == 'minProperties' and isinstance(limit, int) and limit >= 0:
+        return MinFields(FieldLimit(UnsignedInt(limit)))
+    if error.validator == 'maxProperties' and isinstance(limit, int) and limit >= 0:
+        return MaxFields(FieldLimit(UnsignedInt(limit)))
     return OtherBlockConstraint()
 
 
