@@ -215,6 +215,20 @@ class TestNameMismatch:
             Help("or rename the skill directory to 'code-review'"),
         ), 'a link to a directory of the listed name explains nothing, so no note names it'
 
+    def test_children_with_a_skill_name_over_the_length_cap_offer_no_directory_rename(self) -> None:
+        #: Given
+        expectation = DirectoryNameExpected(directory_name='review', link_target=None)
+        occurrence = NameMismatch(spec=None, line=LineNumber.from_int(2), name='a' * 70, expectation=expectation)
+
+        #: When
+        children = occurrence.children()
+
+        #: Then
+        assert children == (
+            Note('the Agent Skills specification requires `name` to match the skill directory name'),
+            Help("set `name` to 'review'"),
+        ), 'a directory renamed to a name FM009 rejects would trade this finding for that one, so it is not offered'
+
     def test_children_with_a_skill_linked_to_the_root_name_the_repository_root(self) -> None:
         #: Given
         expectation = DirectoryNameExpected(directory_name='review', link_target=ResolvedPath(ROOT))

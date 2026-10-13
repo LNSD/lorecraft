@@ -1,13 +1,18 @@
 """`FM004`: a frontmatter `name` differs from the name its document or skill is found under."""
 
-import re
 from dataclasses import dataclass
-from typing import ClassVar, Final, Self, assert_never
+from typing import ClassVar, Self, assert_never
 
 from lorecraft.core.path import ROOT
 from lorecraft.project.context import DocumentFrontmatterOwner, FrontmatterContext, SkillFrontmatterOwner
 from lorecraft.project.layout import DOCUMENT_SUFFIX
-from lorecraft.project.schemas import field_line
+from lorecraft.project.schemas import (
+    EmptySkillNameError,
+    InvalidSkillNameFormatError,
+    OverlongSkillNameError,
+    SkillName,
+    field_line,
+)
 from lorecraft.project.syntax import Frontmatter, InvalidYamlFrontmatter, MissingFrontmatter, NonMappingFrontmatter
 from lorecraft.rules.declaration import Level, Release, RuleCode, RuleName, rule
 from lorecraft.rules.location import Help, Here, Label, Note, Subdiagnostic
@@ -15,9 +20,6 @@ from lorecraft.rules.subject import FrontmatterRule
 from lorecraft.vfs import ResolvedPath
 
 from .__ruleset__ import GROUP_ID, owner_spec
-
-_SKILL_NAME: Final[re.Pattern[str]] = re.compile(r'[a-z0-9]+(-[a-z0-9]+)*')
-"""The Agent Skills specification's `name`: lowercase letters, digits and single hyphens between them."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -107,6 +109,8 @@ class NameMismatch(FrontmatterRule):
     # Setup
     ```
 
+    A skill's directory rename is offered only for a `name` the Agent Skills specification accepts.
+
     Attributes:
         spec: The structure specification whose frontmatter schema governs the document, or `None` for a skill,
             whose frontmatter the package governs after the Agent Skills specification. It tells which kind of
@@ -155,7 +159,7 @@ class NameMismatch(FrontmatterRule):
                     Help(f'set `name` to {expectation.directory_name!r}'),
                 ]
                 # Renaming the directory to a `name` the specification rejects would trade this finding for another.
-                if _SKILL_NAME.fullmatch(self.name):
+                if _is_skill_name(self.name):
                     parts.append(Help(f'or rename the skill directory to {self.name!r}'))
                 parts.extend(_link_notes(expectation))
                 return tuple(parts)
@@ -213,6 +217,19 @@ def _expected_name(expectation: NameExpectation) -> str:
             return expectation.directory_name
         case _:
             assert_never(expectation)
+
+
+def _is_skill_name(name: str) -> bool:
+    """Whether the Agent Skills specification accepts `name` as a skill's `name`, its length included.
+
+    Args:
+        name: The `name` the frontmatter writes.
+    """
+    try:
+        SkillName.parse(name)
+    except (EmptySkillNameError, OverlongSkillNameError, InvalidSkillNameFormatError):
+        return False
+    return True
 
 
 def _link_notes(expectation: DirectoryNameExpected) -> tuple[Note, ...]:
