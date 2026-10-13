@@ -5,6 +5,7 @@ literal whose first line is document line 2. Finding the block in a document is 
 """
 
 import sys
+from textwrap import dedent
 
 import pytest
 
@@ -636,6 +637,173 @@ class TestDecodeFrontmatter:
         assert node == InvalidYamlFrontmatter(
             problem='found a second document, which frontmatter does not allow', line=LineNumber.from_int(3)
         ), 'a block holds one document, so a second is a finding on the line that starts it'
+
+    def test_decode_frontmatter_with_a_bad_indent_returns_invalid_yaml_on_its_line(self) -> None:
+        #: Given
+        block = dedent("""\
+            a:
+              b: 1
+             c: 2
+            """)
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem="expected <block end>, but found '<block mapping start>'", line=LineNumber.from_int(4)
+        ), 'a line indented to no level of the block is reported on that line'
+
+    def test_decode_frontmatter_with_an_unclosed_flow_collection_returns_invalid_yaml_on_the_line_it_stops_at(
+        self,
+    ) -> None:
+        #: Given
+        block = dedent("""\
+            name: guide
+            tags: [a, b
+            type: rule
+            """)
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem="expected ',' or ']', but got ':'", line=LineNumber.from_int(4)
+        ), 'a flow collection left open runs on until a line that cannot continue it, which is reported'
+
+    def test_decode_frontmatter_with_a_second_colon_in_a_plain_value_returns_invalid_yaml_on_its_line(self) -> None:
+        #: Given
+        block = dedent("""\
+            name: guide
+            a: b: c
+            """)
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem='mapping values are not allowed here', line=LineNumber.from_int(3)
+        ), 'a `: ` inside a plain value is reported on the line holding it'
+
+    def test_decode_frontmatter_with_an_unclosed_quote_returns_invalid_yaml_on_its_line(self) -> None:
+        #: Given
+        block = dedent("""\
+            name: guide
+            description: "never closed
+            type: rule
+            """)
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(problem='found unexpected end of stream', line=LineNumber.from_int(5)), (
+            'a quoted scalar left open is reported where the block ends'
+        )
+
+    def test_decode_frontmatter_with_a_tab_indent_returns_invalid_yaml_on_its_line(self) -> None:
+        #: Given
+        block = 'a:\n\tb: 1\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem="found character '\\t' that cannot start any token", line=LineNumber.from_int(3)
+        ), 'a tab where indentation is expected is reported on its line'
+
+    def test_decode_frontmatter_with_a_tab_in_a_flow_collection_returns_invalid_yaml_on_its_line(self) -> None:
+        #: Given
+        block = 'name: guide\ntags: [a,\tb]\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem="found character '\\t' that cannot start any token", line=LineNumber.from_int(3)
+        ), 'a tab is not whitespace in a flow collection either'
+
+    def test_decode_frontmatter_with_a_key_written_as_nothing_returns_invalid_yaml_on_its_line(self) -> None:
+        #: Given
+        block = dedent("""\
+            name: guide
+            : value
+            """)
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem="expected <block end>, but found ':'", line=LineNumber.from_int(3)
+        ), 'a `:` with no key before it is not YAML 1.1, and is reported on its line'
+
+    def test_decode_frontmatter_with_an_unindented_top_level_block_scalar_returns_invalid_yaml_on_its_line(
+        self,
+    ) -> None:
+        #: Given
+        block = dedent("""\
+            >
+            ?
+            """)
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem="expected '<document start>', but found '<block mapping start>'", line=LineNumber.from_int(3)
+        ), 'a top-level block scalar must be indented, so the line after it is reported'
+
+    def test_decode_frontmatter_with_a_nested_block_scalar_after_a_short_blank_line_returns_its_text(self) -> None:
+        #: Given
+        block = 'name: guide\nnotes:\n  summary: |\n  \n    First paragraph.\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert isinstance(node, Frontmatter), f'a blank line shorter than the text is part of the scalar, got {node!r}'
+        assert node.data == FrozenMapping(
+            {'name': 'guide', 'notes': FrozenMapping({'summary': '\nFirst paragraph.\n'})}
+        ), 'the blank line is part of the scalar, before the text'
+
+    def test_decode_frontmatter_with_a_literal_scalar_after_a_one_space_line_returns_its_text(self) -> None:
+        #: Given
+        block = 'a: |\n \n  x\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert isinstance(node, Frontmatter), f'a one-space line before the text is accepted, got {node!r}'
+        assert node.data == FrozenMapping({'a': '\nx\n'}), 'the scalar is a blank line and the text'
+
+    def test_decode_frontmatter_with_a_folded_scalar_after_a_one_space_line_returns_its_text(self) -> None:
+        #: Given
+        block = 'a: >\n \n  x\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert isinstance(node, Frontmatter), f'a one-space line before the text is accepted, got {node!r}'
+        assert node.data == FrozenMapping({'a': '\nx\n'}), 'the scalar is a blank line and the text'
+
+    def test_decode_frontmatter_with_a_literal_scalar_after_a_line_of_the_parent_indent_returns_its_text(self) -> None:
+        #: Given
+        block = 'a: |\n  \n   x\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert isinstance(node, Frontmatter), f'a blank line indented less than the text is accepted, got {node!r}'
+        assert node.data == FrozenMapping({'a': '\nx\n'}), 'the scalar is a blank line and the text'
 
     def test_decode_frontmatter_with_a_yaml_list_returns_non_mapping(self) -> None:
         #: Given
