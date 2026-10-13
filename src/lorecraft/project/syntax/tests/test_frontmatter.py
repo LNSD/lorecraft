@@ -612,8 +612,8 @@ class TestDecodeFrontmatter:
 
         #: Then
         assert node == InvalidYamlFrontmatter(
-            problem='this value holds `: `',
-            help='Quote the value: `b: "c"`',
+            problem='`b` is indented under `description`, whose value is text',
+            help='Align it with the key it belongs beside',
             line=LineNumber.from_int(4),
         ), 'a key indented under a text value is reported on the indented line, with the key it sits under'
 
@@ -1622,6 +1622,63 @@ class TestDecodeFrontmatter:
             line=LineNumber.from_int(2),
         ), 'text written after a closing quote is reported on its line'
 
+    def test_decode_frontmatter_with_a_key_under_a_multi_line_text_value_returns_invalid_yaml_on_its_line(
+        self,
+    ) -> None:
+        #: Given
+        block = dedent("""\
+            description: a
+              more text
+              b: c
+            """)
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem='`b` is indented under `description`, whose value is text',
+            help='Align it with the key it belongs beside',
+            line=LineNumber.from_int(4),
+        ), 'the key is named under the key the scalar began on, not quoted as a value'
+
+    def test_decode_frontmatter_with_a_key_indented_under_a_quoted_value_returns_invalid_yaml_on_its_line(self) -> None:
+        #: Given
+        block = dedent("""\
+            name: "a"
+              description: b
+            """)
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem='`description` is indented under `name`, whose value is text',
+            help='Align it with the key it belongs beside',
+            line=LineNumber.from_int(3),
+        ), 'a quoted value takes no key under it either'
+
+    def test_decode_frontmatter_with_a_key_indented_under_a_text_value_past_a_comment_returns_invalid_yaml_on_its_line(
+        self,
+    ) -> None:
+        #: Given
+        block = dedent("""\
+            a: b
+            # note: x
+              c: d
+            """)
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem='`c` is indented under `a`, whose value is text',
+            help='Align it with the key it belongs beside',
+            line=LineNumber.from_int(4),
+        ), 'a comment between the two lines does not hide the key it sits under'
+
     def test_decode_frontmatter_with_text_after_a_flow_collection_returns_invalid_yaml_on_its_line(self) -> None:
         #: Given
         block = 'a: [b, c] d\n'
@@ -1645,6 +1702,43 @@ class TestDecodeFrontmatter:
         assert node == InvalidYamlFrontmatter(
             problem='the block cannot be read from this line on', line=LineNumber.from_int(2)
         ), 'an error no kind of the table matches is reported on the parser line, with no help'
+
+    def test_decode_frontmatter_with_a_key_indented_under_a_list_item_returns_invalid_yaml_on_its_line(self) -> None:
+        #: Given
+        block = dedent("""\
+            l:
+            - a: b
+                c: d
+            """)
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem='`c` is indented under `a`, whose value is text',
+            help='Align it with the key it belongs beside',
+            line=LineNumber.from_int(4),
+        ), 'the parent is the item key, not the item marker written before it'
+
+    def test_decode_frontmatter_with_a_key_without_a_value_under_a_quoted_value_returns_invalid_yaml_on_its_line(
+        self,
+    ) -> None:
+        #: Given
+        block = dedent("""\
+            name: "a"
+              description:
+            """)
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem='`description` is indented under `name`, whose value is text',
+            help='Align it with the key it belongs beside',
+            line=LineNumber.from_int(3),
+        ), 'a key with no value is a key too, so it is the same mistake as one with a value'
 
     def test_decode_frontmatter_with_a_yaml_list_returns_non_mapping(self) -> None:
         #: Given

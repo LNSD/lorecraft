@@ -61,6 +61,25 @@ class TestDescribeError:
             'a `: ` inside a plain value is the value kind, with the value quoted in the help'
         )
 
+    def test_describe_error_with_a_key_under_a_text_value_returns_the_indented_kind(self) -> None:
+        #: Given
+        error = _error('mapping values are not allowed here', _mark(1, 13))
+
+        block = dedent("""\
+            name: a
+              description: b
+            """)
+
+        #: When
+        problem = describe_error(error, block)
+
+        #: Then
+        assert problem == SyntaxProblem(
+            '`description` is indented under `name`, whose value is text',
+            'Align it with the key it belongs beside',
+            1,
+        ), 'a key indented under a key whose value is text names both'
+
     def test_describe_error_with_a_colon_and_no_mark_returns_the_fallback_with_no_line(self) -> None:
         #: Given
         error = _error('mapping values are not allowed here', None)
