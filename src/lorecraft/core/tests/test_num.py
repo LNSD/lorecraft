@@ -5,15 +5,7 @@ from typing import Final
 import pytest
 from pydantic import TypeAdapter, ValidationError
 
-from ..num import (
-    NegativeIntError,
-    NonPositiveIntError,
-    NonZeroUnsignedInt,
-    NotOverCapError,
-    Overrun,
-    UnsignedInt,
-    find_overrun,
-)
+from ..num import NegativeIntError, NonPositiveIntError, NonZeroUnsignedInt, UnsignedInt
 
 ADAPTER: Final[TypeAdapter[NonZeroUnsignedInt]] = TypeAdapter(NonZeroUnsignedInt)
 
@@ -223,62 +215,3 @@ class TestUnsignedInt:
 
         #: Then
         assert text == '250', f'a number interpolates as its digits, got {text!r}'
-
-
-@pytest.mark.unit
-class TestOverrun:
-    def test_find_overrun_with_a_count_past_the_cap_keeps_both(self) -> None:
-        #: Given
-        count = UnsignedInt(501)
-        cap = NonZeroUnsignedInt(500)
-
-        #: When
-        overrun = find_overrun(count, cap)
-
-        #: Then
-        assert overrun == Overrun(count, cap), f'a count past its cap is an overrun of both, got {overrun}'
-
-    def test_find_overrun_with_a_count_equal_to_the_cap_returns_none(self) -> None:
-        #: Given
-        count = UnsignedInt(500)
-        cap = NonZeroUnsignedInt(500)
-
-        #: When
-        overrun = find_overrun(count, cap)
-
-        #: Then
-        assert overrun is None, f'a count equal to its cap is within it, got {overrun}'
-
-    def test_find_overrun_with_a_count_below_the_cap_returns_none(self) -> None:
-        #: Given
-        count = UnsignedInt(0)
-        cap = NonZeroUnsignedInt(500)
-
-        #: When
-        overrun = find_overrun(count, cap)
-
-        #: Then
-        assert overrun is None, f'a count below its cap is within it, got {overrun}'
-
-    def test_construction_with_a_count_within_the_cap_raises_not_over_cap(self) -> None:
-        #: Given
-        count = UnsignedInt(500)
-        cap = NonZeroUnsignedInt(500)
-
-        #: When
-        with pytest.raises(NotOverCapError) as exc_info:
-            Overrun(count, cap)
-
-        #: Then
-        assert exc_info.value.count == 500, 'the error keeps the rejected count'
-        assert exc_info.value.cap == 500, 'the error keeps the cap'
-
-    def test_excess_is_the_count_past_the_cap(self) -> None:
-        #: Given
-        overrun = Overrun(UnsignedInt(612), NonZeroUnsignedInt(500))
-
-        #: When
-        excess = overrun.excess
-
-        #: Then
-        assert excess == NonZeroUnsignedInt(112), f'612 is 112 past 500, got {excess}'
