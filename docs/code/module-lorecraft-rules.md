@@ -33,14 +33,14 @@ the database there, so a rule reads nothing but what it is handed.
   takes the context a `SKILL.md` and a resource share, and never judges a document. A base over what both a
   document and a skill share, such as the frontmatter, declares, for every rule on it, the facet a document is
   gated on.
-- A removed rule, the decorator that registers a declaration, and the registry, with every check it makes on a
-  declaration as the package loads.
-- The rule index, `lorecraft.rules.index`: each declaration's identity as strings and tuples, generated from the
-  registry by `lorecraft_gen` and held to it by `gen-check`, for a reader that must know which codes exist
-  without the engine. It is derived output, never a source of rules.
+- A removed rule, the decorator that registers a declaration, and the registry, with the checks it makes as the
+  package loads.
+- The rule index, `lorecraft.rules.index`: each declaration's identity as plain data, generated from the
+  registry by `lorecraft_gen`, for a reader that must know which codes exist without the engine. It is derived
+  output, never a source of rules.
 - An engine condition: what the engine reports before any rule runs, such as a file that does not decode or a
   meta spec that fails to load. Declared and rendered like a rule, under the engine's group `LC`,
-  with a fixed severity in place of a level and no `check`.
+  with a fixed severity in place of a level and no `check`; it derives from `FileCondition` or `EntryCondition`.
 - The one-run selection, the rule table and the report of a run; their module docstrings state each.
 - A rule group, as a subpackage: its `__ruleset__.py` declares the group as `GROUP_ID` and whatever else its rules
   share, its `__init__.py` holds only the docstring, and each rule is one module. The `LC` group is declared the

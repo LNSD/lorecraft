@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import ClassVar, assert_never
 
 from lorecraft.project.syntax import LineNumber
-from lorecraft.rules.declaration import EngineCondition, Release, RuleCode, RuleName, Severity, rule
+from lorecraft.rules.declaration import FileCondition, Release, RuleCode, RuleName, Severity, rule
 from lorecraft.rules.location import Help, Here, Label, Subdiagnostic
 from lorecraft.vfs import Utf8Failure, Utf8Reason
 
@@ -13,7 +13,7 @@ from .__ruleset__ import GROUP_ID
 
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
-class InvalidUtf8(EngineCondition):
+class InvalidUtf8(FileCondition):
     """A file is not valid UTF-8.
 
     ## What it does

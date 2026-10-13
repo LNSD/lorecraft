@@ -743,6 +743,16 @@ class TestEngineCondition:
         #: Then
         assert children == (), 'a condition prints no help or note unless it says so'
 
+    def test_primary_of_an_entry_condition_occurrence_is_the_whole_subject(self) -> None:
+        #: Given
+        occurrence = SampleCondition()
+
+        #: When
+        primary = occurrence.primary()
+
+        #: Then
+        assert primary == WholeSubject(), 'a path whose content was not read has no line to point at'
+
 
 @pytest.mark.unit
 class TestRuleDecorator:

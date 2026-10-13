@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from typing import ClassVar, assert_never
 
-from lorecraft.rules.declaration import EngineCondition, Release, RuleCode, RuleName, Severity, rule
+from lorecraft.rules.declaration import FileCondition, Release, RuleCode, RuleName, Severity, rule
 from lorecraft.rules.location import Help, Note, Subdiagnostic, WholeSubject
 
 from .__ruleset__ import GROUP_ID
@@ -31,7 +31,7 @@ type Cause = FormatViolated | NoRuleStated
 
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
-class MalformedStructureFile(EngineCondition):
+class MalformedStructureFile(FileCondition):
     """A structure file does not follow the structure format, or states no rule.
 
     ## What it does

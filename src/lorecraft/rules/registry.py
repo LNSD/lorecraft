@@ -29,6 +29,8 @@ from typing import Final, Self, assert_never
 
 from .declaration import (
     EngineCondition,
+    EntryCondition,
+    FileCondition,
     RemovedRule,
     Rule,
     RuleDeclaration,
@@ -472,7 +474,7 @@ def _is_in_unit_tests(module_name: str, package_name: str) -> bool:
 
 def _split_by_kind(
     declarations: Iterable[RuleDeclaration],
-) -> tuple[tuple[type[Rule], ...], tuple[type[RemovedRule], ...], tuple[type[EngineCondition], ...]]:
+) -> tuple[tuple[type[Rule], ...], tuple[type[RemovedRule], ...], tuple[type[FileCondition | EntryCondition], ...]]:
     """Separate the rules in service, the removed rules and the engine conditions, each in the order given.
 
     A `match` class pattern tests an instance, not a class, so the branch on a declaration's kind is an
@@ -483,13 +485,13 @@ def _split_by_kind(
     """
     rule_classes: list[type[Rule]] = []
     removed_rules: list[type[RemovedRule]] = []
-    conditions: list[type[EngineCondition]] = []
+    conditions: list[type[FileCondition | EntryCondition]] = []
     for declaration in declarations:
         if issubclass(declaration, Rule):
             rule_classes.append(declaration)
         elif issubclass(declaration, RemovedRule):
             removed_rules.append(declaration)
-        elif issubclass(declaration, EngineCondition):
+        elif issubclass(declaration, FileCondition | EntryCondition):
             conditions.append(declaration)
         else:
             assert_never(declaration)

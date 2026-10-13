@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from typing import ClassVar
 
-from lorecraft.rules.declaration import EngineCondition, Release, RuleCode, RuleName, Severity, rule
+from lorecraft.rules.declaration import EntryCondition, Release, RuleCode, RuleName, Severity, rule
 from lorecraft.rules.location import WholeSubject
 
 from ..groups import SAMPLE
@@ -11,7 +11,7 @@ from ..groups import SAMPLE
 
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
-class Misplaced(EngineCondition):
+class Misplaced(EntryCondition):
     """A sample condition whose code is in the group `SAMPLE`, not the engine's."""
 
     CODE: ClassVar[RuleCode] = RuleCode(SAMPLE, 1)
