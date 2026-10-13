@@ -9,10 +9,10 @@ failure of the parse.
 The block is read as basic YAML, which decodes to exactly what JSON can hold: block and flow mappings whose keys
 are strings, block and flow sequences, and scalars. A quoted or block scalar is a string. A plain scalar is null,
 a boolean, an integer or a float when its whole text is one in YAML 1.2's core schema, such as `~`, `true`, `12` or
-`1.5`, and a string otherwise, so `yes`, `2026-10-05` and `1:30` are strings. An anchor, an alias, an explicit tag
-and a key that is not a string are refused, on their line, as a block that is not YAML: none is needed to write a
-document's metadata, an alias can make a collection hold itself, a tag builds values JSON has no counterpart for,
-and JSON names every key with a string.
+`1.5`, and a string otherwise, so `yes`, `2026-10-05` and `1:30` are strings. A directive, an anchor, an alias, an
+explicit tag and a key that is not a string are refused, on their line, as a block that is not YAML: none is needed
+to write a document's metadata, an alias can make a collection hold itself, a tag builds values JSON has no
+counterpart for, and JSON names every key with a string.
 """
 
 import math
@@ -21,13 +21,12 @@ import string
 import sys
 from collections.abc import Iterator
 from dataclasses import dataclass
-from typing import Final, assert_never
+from typing import Final, Never, assert_never
 
 from ruamel.yaml import YAML
 from ruamel.yaml.error import MarkedYAMLError, StreamMark
 from ruamel.yaml.events import (
     AliasEvent,
-    DocumentStartEvent,
     Event,
     MappingEndEvent,
     MappingStartEvent,
@@ -40,7 +39,7 @@ from ruamel.yaml.parser import ParserError
 from ruamel.yaml.reader import Reader, ReaderError
 from ruamel.yaml.resolver import VersionedResolver
 from ruamel.yaml.scanner import Scanner, ScannerError
-from ruamel.yaml.tokens import AliasToken, AnchorToken, DirectiveToken, ScalarToken, TagToken
+from ruamel.yaml.tokens import AliasToken, AnchorToken, ScalarToken, TagToken
 
 from lorecraft.core.mapping import Frozen, FrozenMapping
 
@@ -83,8 +82,11 @@ _SPACE_CHARACTERS: Final[str] = '\0 \t\r\n\x85\u2028\u2029'
 _LINE_END_CHARACTERS: Final[str] = '\0\r\n\x85\u2028\u2029'
 """The characters that end a line: the end of the text, or a line break."""
 
-_DIRECTIVE_END_CHARACTERS: Final[str] = '\0 \r\n\x85\u2028\u2029'
-"""The characters a directive's name may be followed by: the end of the text, a space or a line break."""
+_TAG_END_CHARACTERS: Final[str] = '\0 \r\n\x85\u2028\u2029'
+"""The characters a tag may be followed by: the end of the text, a space or a line break."""
+
+_DIRECTIVE_NAME_END_CHARACTERS: Final[str] = _SPACE_CHARACTERS + ',[]{}:'
+"""The characters that end the name a refused directive is reported by: whitespace, a flow indicator or a `:`."""
 
 _ANCHOR_END_CHARACTERS: Final[str] = '\0 \t\r\n\x85\u2028\u2029?:,]}%@`'
 """The characters a name may be followed by: the end of the text, a space or a break, or an indicator."""
@@ -101,7 +103,6 @@ _PYYAML_WORDING: Final[tuple[tuple[str, str], ...]] = (
     ('hexdecimal numbers', 'hexadecimal numbers'),
     ("expected '!' but found", "expected '!', but found"),
     ('while scanning an tag', 'while scanning a tag'),
-    ('while scanning an directive', 'while scanning a directive'),
 )
 """Where ruamel.yaml 0.19 words a scanner problem differently from PyYAML, as (ruamel.yaml's text, PyYAML's text)."""
 
@@ -196,9 +197,9 @@ def decode_frontmatter(block: str) -> FrontmatterNode:
 
     Never `MissingFrontmatter`: whether a block exists is decided before this is called. Every block the YAML
     parser cannot parse is `InvalidYamlFrontmatter`, including the few it fails on with a plain Python exception
-    rather than its own error, and so is every block that uses an anchor, an alias or a tag, writes a key, at any
-    depth, that is not a string, such as `1:`, `true:` or `null:`, nests collections too deeply to read, or holds
-    more than one document.
+    rather than its own error, and so is every block that uses a directive, an anchor, an alias or a tag, writes a
+    key, at any depth, that is not a string, such as `1:`, `true:` or `null:`, nests collections too deeply to
+    read, or holds more than one document.
 
     Args:
         block: The lines between the delimiters, line endings kept; the first of them is document line 2.
@@ -239,25 +240,6 @@ def reads_back_as_string(text: str) -> bool:
             assert_never(node)
 
 
-class _BasicYaml(YAML):
-    """ruamel.yaml's entry point, without a state of its own to keep: the YAML version is always 1.1.
-
-    The reader and the scanner read the block as YAML 1.1 through `_BasicYamlResolver`, so the version a document
-    declares has no use here. ruamel.yaml stores it all the same, in a setter that asserts it is 1.1 or 1.2, and an
-    assertion error is no `FM002`.
-    """
-
-    @property
-    def version(self) -> None:
-        """The version a document declared, which is never kept."""
-        return None
-
-    @version.setter
-    def version(self, value: object) -> None:
-        # PyYAML takes a `%YAML` directive of any 1.x version, and ruamel.yaml's setter asserts on `1.0` and `1.3`.
-        pass
-
-
 class _EventStream:
     """The events of a block, read lazily, one at a time, with one event of lookahead.
 
@@ -275,14 +257,13 @@ class _EventStream:
         """
         # Setting the reader and the scanner already selects the pure parser; `pure` states the intent, so a
         # change in how ruamel.yaml chooses its parser cannot bring the C one, which has no reader of ours, in.
-        yaml = _BasicYaml(typ='safe', pure=True)
+        yaml = YAML(typ='safe', pure=True)
         yaml.Reader = _BasicYamlReader
         yaml.Resolver = _BasicYamlResolver
         # PyYAML reads a top-level block scalar's content as indented, which ruamel.yaml does for YAML 1.1 only
         # when the loader says so.
         yaml.top_level_block_style_scalar_no_indent_error_1_1 = True
         yaml.Scanner = _BasicYamlScanner
-        self._yaml = yaml
         self._events: Iterator[Event] = iter(yaml.parse(block))
         self._peeked: Event | None = None
 
@@ -295,22 +276,7 @@ class _EventStream:
         """
         if self._peeked is None:
             self._peeked = next(self._events)
-            if isinstance(self._peeked, DocumentStartEvent):
-                self._mark_document_start(self._peeked)
         return self._peeked
-
-    def _mark_document_start(self, event: DocumentStartEvent) -> None:
-        """Move a document start's mark to the first directive written before it, where there is one.
-
-        Args:
-            event: The document start the parser has just produced.
-        """
-        # ruamel.yaml marks a document start on its `---`, and PyYAML on the first directive above it, which is the
-        # line a second document is reported on.
-        directive_marks: list[StreamMark] = self._yaml.scanner.directive_marks
-        if directive_marks:
-            event.start_mark = directive_marks[0]
-            directive_marks.clear()
 
     def get_event(self) -> Event:
         """The next event, read.
@@ -352,48 +318,43 @@ class _BasicYamlResolver(VersionedResolver):
     @property
     def processing_version(self) -> tuple[int, int]:
         """The YAML version the scanner and parser read as."""
-        # ruamel.yaml reads YAML 1.2 unless a directive says otherwise, and the grammars accept different blocks:
+        # ruamel.yaml reads YAML 1.2 unless told otherwise, and the grammars accept different blocks:
         # 1.2 takes a key written as nothing, `: value`, and `?` inside a plain scalar, which PyYAML refuses. The
         # scalars are resolved by this module's own core schema rules, never by the resolver.
         return (1, 1)
 
 
 class _BasicYamlScanner(Scanner):
-    r"""ruamel.yaml's scanner, reading the YAML 1.1 grammar and failing only with a `ScannerError`.
+    r"""ruamel.yaml's scanner, reading the YAML 1.1 grammar and failing with a `ScannerError`.
 
     A block is accepted or refused by the YAML 1.1 grammar, and a refusal names the problem and the line the scanner
-    found it on. The scanner also keeps the mark of every directive it scans, for the document start that follows.
+    found it on.
 
-    Two places let a plain Python exception escape, and each is raised here as the scanner's error, which
-    `decode_frontmatter` turns into invalid YAML:
+    A directive is refused at its indicator, before anything after it is read, so the block's own text never reaches
+    ruamel.yaml's directive scanner, whose version number conversion raises a plain `ValueError` for more digits
+    than Python converts to an `int`, 4300 by default. That refusal is a `MarkedYAMLError` of lorecraft's own, not
+    a `ScannerError`: `decode_frontmatter` reports it as it is worded, where it rewords the scanner's problems.
 
-    - A double-quoted `\U` escape above `U+10FFFF` names no character, and `chr` raises a `ValueError`,
-      or an `OverflowError` for one too large for a C `int`. It is a `ScannerError` on the escape's line.
-    - A `%YAML` directive whose version number has more digits than Python converts to an `int`, 4300 by
-      default, raises a `ValueError`. It is a `ScannerError` on the directive's line.
+    A double-quoted `\U` escape above `U+10FFFF` is the one other place a plain Python exception escapes: `chr`
+    raises a `ValueError`, or an `OverflowError` for one too large for a C `int`. It is raised here as a
+    `ScannerError` on the escape's line, which `decode_frontmatter` turns into invalid YAML.
     """
 
-    # Where ruamel.yaml's scanner differs from PyYAML's, the method below is PyYAML's reading, because `FM002` has
-    # always reported what PyYAML's scanner found: the same blocks refused, with the same problem on the same line.
-
-    def __init__(self, loader: object = None) -> None:
-        """Start scanning with no directive seen.
-
-        Args:
-            loader: The object ruamel.yaml's entry point passes in, which holds the reader.
-        """
-        super().__init__(loader)
-        self.directive_marks: list[StreamMark] = []
-
-    def scan_directive(self) -> DirectiveToken:
-        """Scan a directive, and keep where it starts.
+    def fetch_directive(self) -> Never:
+        """Refuse a directive, a `%` line, naming it by the `%` and the name that follows it.
 
         Raises:
-            ScannerError: The directive is malformed.
+            MarkedYAMLError: Always: frontmatter holds no directive.
         """
-        token = super().scan_directive()
-        self.directive_marks.append(token.start_mark)
-        return token
+        start_mark = self.reader.get_mark()
+        length = 1
+        while self.reader.peek(length) not in _DIRECTIVE_NAME_END_CHARACTERS:
+            length += 1
+        problem = f'found the directive {self.reader.prefix(length)}, which frontmatter does not allow'
+        raise MarkedYAMLError(problem=problem, problem_mark=start_mark)
+
+    # Where ruamel.yaml's scanner differs from PyYAML's, each method below is PyYAML's reading, because `FM002` has
+    # always reported what PyYAML's scanner found: the same blocks refused, with the same problem on the same line.
 
     def scan_block_scalar_indentation(self) -> tuple[list[str], int, StreamMark]:
         """Scan the blank lines before a block scalar's text, and the widest indent among them.
@@ -435,49 +396,6 @@ class _BasicYamlScanner(Scanner):
             problem = 'found an escape sequence that names no Unicode character'
             raise ScannerError(None, None, problem, self.reader.get_mark()) from exc
 
-    def scan_yaml_directive_number(self, start_mark: StreamMark) -> int:
-        """Scan one number of a `%YAML` directive's version.
-
-        Args:
-            start_mark: Where the directive starts, for the scanner's own error messages.
-
-        Raises:
-            ScannerError: The number is too long to read, or the text is not a number.
-        """
-        try:
-            return super().scan_yaml_directive_number(start_mark)
-        except ValueError as exc:
-            # The scanner reads every digit there is and converts them with `int`, which refuses more digits than
-            # the interpreter's integer string conversion limit. The scanner stops before the digits, so its
-            # current mark is on the directive's line.
-            problem = 'found a YAML version number too long to read'
-            raise ScannerError(None, None, problem, self.reader.get_mark()) from exc
-
-    def scan_yaml_directive_value(self, start_mark: StreamMark) -> tuple[int, int]:
-        """Scan a `%YAML` directive's version, two numbers joined by a `.` and followed by a space or a line break.
-
-        Args:
-            start_mark: Where the directive starts, for the scanner's own error messages.
-
-        Raises:
-            ScannerError: The version is not two numbers joined by a `.`, or is followed by a character that cannot
-                follow it.
-        """
-        # PyYAML says "or ' '" after the minor number, where ruamel.yaml repeats "or '.'", and `FM002` has
-        # always quoted PyYAML.
-        while self.reader.peek() == ' ':
-            self.reader.forward()
-        major = self.scan_yaml_directive_number(start_mark)
-        if self.reader.peek() != '.':
-            problem = f"expected a digit or '.', but found {self.reader.peek()!r}"
-            raise ScannerError('while scanning a directive', start_mark, problem, self.reader.get_mark())
-        self.reader.forward()
-        minor = self.scan_yaml_directive_number(start_mark)
-        if self.reader.peek() not in _DIRECTIVE_END_CHARACTERS:
-            problem = f"expected a digit or ' ', but found {self.reader.peek()!r}"
-            raise ScannerError('while scanning a directive', start_mark, problem, self.reader.get_mark())
-        return major, minor
-
     def scan_to_next_token(self) -> None:
         r"""Skip spaces, comments and line breaks to the next token; a tab is no whitespace, in a flow collection too.
 
@@ -498,27 +416,6 @@ class _BasicYamlScanner(Scanner):
                     self.allow_simple_key = True
             else:
                 found = True
-
-    def scan_directive_name(self, start_mark: StreamMark) -> str:
-        """Scan a directive's name, made of ASCII letters, digits, `-` and `_`.
-
-        Args:
-            start_mark: Where the directive starts, for the scanner's own error messages.
-
-        Raises:
-            ScannerError: The name is empty, or is followed by a character that cannot follow it.
-        """
-        # ruamel.yaml also takes `:` and `.` into the name, so `%YAML:1.1` is a directive there, and PyYAML's is not.
-        length = 0
-        while self.reader.peek(length) in _ANCHOR_NAME_CHARACTERS:
-            length += 1
-        if length == 0 or self.reader.peek(length) not in _DIRECTIVE_END_CHARACTERS:
-            self.reader.forward(length)
-            problem = f'expected alphabetic or numeric character, but found {self.reader.peek()!r}'
-            raise ScannerError('while scanning a directive', start_mark, problem, self.reader.get_mark())
-        name = self.reader.prefix(length)
-        self.reader.forward(length)
-        return name
 
     def scan_plain(self) -> ScalarToken:
         """Scan a plain scalar, which ends at a `:` before a flow indicator inside a flow collection."""
@@ -604,7 +501,7 @@ class _BasicYamlScanner(Scanner):
         else:
             length = 1
             use_handle = False
-            while ch not in _DIRECTIVE_END_CHARACTERS:
+            while ch not in _TAG_END_CHARACTERS:
                 if ch == '!':
                     use_handle = True
                     break
@@ -617,7 +514,7 @@ class _BasicYamlScanner(Scanner):
                 self.reader.forward()
             suffix = self.scan_tag_uri('tag', start_mark)
         ch = self.reader.peek()
-        if ch not in _DIRECTIVE_END_CHARACTERS:
+        if ch not in _TAG_END_CHARACTERS:
             problem = f"expected ' ', but found {ch!r}"
             raise ScannerError('while scanning a tag', start_mark, problem, self.reader.get_mark())
         return TagToken((handle, suffix), start_mark, self.reader.get_mark())
@@ -875,8 +772,8 @@ def _written_tag(tag: str) -> str:
     """The tag spelled as a block writes it: `!!str` for one YAML defines, `!team` for a local one, else `!<...>`.
 
     The parser hands over a tag resolved to its full name, so `!!str` arrives as `tag:yaml.org,2002:str`, which an
-    author reading the problem would not recognise as what they wrote. Any other full name, written verbatim or
-    through a `%TAG` shorthand, is printed in the verbatim `!<...>` form, which names it exactly.
+    author reading the problem would not recognise as what they wrote. Any other full name, written verbatim, is
+    printed in the verbatim `!<...>` form, which names it exactly.
 
     Args:
         tag: A tag the block writes, as the parser resolved it.

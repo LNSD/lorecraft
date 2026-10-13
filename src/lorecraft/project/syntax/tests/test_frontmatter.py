@@ -488,6 +488,51 @@ class TestDecodeFrontmatter:
             problem='found an escape sequence that names no Unicode character', line=LineNumber.from_int(3)
         ), 'an escape one above the last code point is a finding on its line, not a crash'
 
+    def test_decode_frontmatter_with_a_yaml_directive_returns_invalid_yaml_on_its_line(self) -> None:
+        #: Given
+        block = dedent("""\
+            %YAML 1.2
+            name: guide
+            """)
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem='found the directive %YAML, which frontmatter does not allow', line=LineNumber.from_int(2)
+        ), 'a version directive is refused on its line, whatever version it names'
+
+    def test_decode_frontmatter_with_a_tag_directive_returns_invalid_yaml_on_its_line(self) -> None:
+        #: Given
+        block = dedent("""\
+            name: guide
+            %TAG ! tag:example.com,2026:
+            """)
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem='found the directive %TAG, which frontmatter does not allow', line=LineNumber.from_int(3)
+        ), 'a directive anywhere in the block is refused on its line'
+
+    def test_decode_frontmatter_with_an_unknown_directive_returns_invalid_yaml_on_its_line(self) -> None:
+        #: Given
+        block = dedent("""\
+            %FOO bar
+            name: guide
+            """)
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem='found the directive %FOO, which frontmatter does not allow', line=LineNumber.from_int(2)
+        ), 'any line starting with `%` is a directive, the ones YAML does not define included'
+
     def test_decode_frontmatter_with_a_yaml_version_too_long_to_read_returns_invalid_yaml_on_its_line(self) -> None:
         #: Given
         # one digit more than the interpreter converts to an int, read from it rather than assumed to be 4300
@@ -499,8 +544,99 @@ class TestDecodeFrontmatter:
 
         #: Then
         assert node == InvalidYamlFrontmatter(
-            problem='found a YAML version number too long to read', line=LineNumber.from_int(2)
-        ), 'a version number too long to read is a finding on the directive line, not a crash'
+            problem='found the directive %YAML, which frontmatter does not allow', line=LineNumber.from_int(2)
+        ), 'a directive is refused before its version is read, so a number too long to convert is no crash'
+
+    def test_decode_frontmatter_with_a_directive_ending_in_a_flow_indicator_names_it_without_the_indicator(
+        self,
+    ) -> None:
+        #: Given
+        block = dedent("""\
+            tags: [a,
+            %b]
+            """)
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem='found the directive %b, which frontmatter does not allow', line=LineNumber.from_int(3)
+        ), 'a flow indicator ends the name, so the diagnostic does not quote the rest of the line'
+
+    def test_decode_frontmatter_with_a_directive_name_holding_a_colon_names_it_up_to_the_colon(self) -> None:
+        #: Given
+        block = dedent("""\
+            %YAML:1.1
+            name: guide
+            """)
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem='found the directive %YAML, which frontmatter does not allow', line=LineNumber.from_int(2)
+        ), 'a `:` ends the name, as it does a key'
+
+    def test_decode_frontmatter_with_a_directive_before_a_second_document_returns_invalid_yaml_on_the_directive(
+        self,
+    ) -> None:
+        #: Given
+        block = dedent("""\
+            a: 1
+            %YAML 1.1
+            ---
+            b: 2
+            """)
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem='found the directive %YAML, which frontmatter does not allow', line=LineNumber.from_int(3)
+        ), 'the directive is refused on its own line, ahead of the second document it introduces'
+
+    def test_decode_frontmatter_with_a_directive_after_an_end_marker_returns_invalid_yaml_on_the_directive(
+        self,
+    ) -> None:
+        #: Given
+        block = dedent("""\
+            a: 1
+            ...
+            %YAML 1.1
+
+
+            ---
+            b: 2
+            """)
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem='found the directive %YAML, which frontmatter does not allow', line=LineNumber.from_int(4)
+        ), 'the directive is refused on its own line, whatever lines separate it from the `---`'
+
+    def test_decode_frontmatter_with_a_percent_sign_that_starts_no_line_returns_it_as_text(self) -> None:
+        #: Given
+        block = dedent("""\
+            name: guide
+            score: 50%
+            rate: "%YAML"
+            note: a %TAG
+            """)
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert isinstance(node, Frontmatter), f'a YAML mapping is frontmatter, got {node!r}'
+        assert node.data == FrozenMapping({'name': 'guide', 'score': '50%', 'rate': '%YAML', 'note': 'a %TAG'}), (
+            'a `%` is a directive only as the first character of a line'
+        )
 
     def test_decode_frontmatter_with_flow_collections_nested_too_deeply_returns_invalid_yaml_with_no_line(
         self,
