@@ -23,6 +23,18 @@ class TestSourceText:
         #: Then
         assert text == '---', 'line 1 is the first line, not the second'
 
+    def test_line_with_a_first_line_opening_with_a_byte_order_mark_returns_it_without_the_mark(self) -> None:
+        #: Given
+        source = SourceText(('\ufeff---', '\ufeffname: a'))
+
+        #: When
+        first = source.line(_line(1))
+        second = source.line(_line(2))
+
+        #: Then
+        assert first == '---', 'the mark takes no column of the first line'
+        assert second == '\ufeffname: a', 'only the file opens with a byte order mark'
+
     def test_line_with_the_last_line_returns_the_last_text(self) -> None:
         #: Given
         source = SourceText(('---', 'name: a'))
