@@ -351,7 +351,7 @@ class TestSplitSections:
 fixtures under `tests/it/rule_cases/`. There each case is a directory on disk, not a row in a table: its name states
 the condition, its `root/` states the input and its `expected.json` states the promise, all three in the open, and a
 case is added without touching the test. The exemption covers that suite alone, and
-[tests-organization](tests-organization.md#8-every-rule-code-has-a-trigger-and-a-near-miss-case) states the cases a
+[tests-organization](tests-organization.md#7-every-rule-code-has-a-trigger-and-a-near-miss-case) states the cases a
 rule needs.
 
 ## 7. Forbidden — Sleeping, Real Network, Order Dependence
