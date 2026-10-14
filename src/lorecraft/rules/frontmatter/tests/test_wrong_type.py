@@ -1,7 +1,7 @@
 """`FM008`, `wrong-type`, over the problems the frontmatter schemas find in a subject's frontmatter.
 
 Every case is a document or a `SKILL.md` written as text, read through a fake context that holds it to its schemas as
-the real analysis does, under structure specifications decoded from JSON; no file is read from disk.
+the real analysis does, under structure files decoded from JSON; no file is read from disk.
 """
 
 from textwrap import dedent
@@ -24,16 +24,16 @@ from lorecraft.rules.tests.fake_context import (
 from ..wrong_type import WrongType
 
 CORPUS_SPEC: Final[RootRelativePath] = structure_spec_path('guide')
-"""Where the corpus structure specification lies."""
+"""Where the corpus structure file lies."""
 
 NAMESPACE_SPEC: Final[RootRelativePath] = structure_spec_path('guide-setup')
-"""Where a namespace structure specification under the same corpus lies."""
+"""Where a namespace structure file under the same corpus lies."""
 
 CORPUS_SOURCE: Final[StructureSpecSchema] = StructureSpecSchema(spec=CORPUS_SPEC)
-"""The schema the corpus specification states."""
+"""The schema the corpus meta spec states."""
 
 NAMESPACE_SOURCE: Final[StructureSpecSchema] = StructureSpecSchema(spec=NAMESPACE_SPEC)
-"""The schema the namespace specification states."""
+"""The schema the namespace meta spec states."""
 
 AGENT_SKILLS_SOURCE: Final[AgentSkillsSchema] = AgentSkillsSchema()
 """The schema the Agent Skills specification states, which governs a skill."""
@@ -41,7 +41,7 @@ AGENT_SKILLS_SOURCE: Final[AgentSkillsSchema] = AgentSkillsSchema()
 STRING_DESCRIPTION: Final[str] = (
     '{"frontmatter": {"type": "object", "properties": {"description": {"type": "string", "minLength": 20}}}}'
 )
-"""A structure specification whose frontmatter schema holds `description` to a string of at least 20 characters."""
+"""A structure file whose frontmatter schema holds `description` to a string of at least 20 characters."""
 
 TEXT: Final[str] = dedent("""\
     ---

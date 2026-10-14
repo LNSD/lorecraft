@@ -1,7 +1,7 @@
 """Where an occurrence points, and the labels, help and notes it renders around its message.
 
 An occurrence names no subject: `Here` is a line of the subject it was found in, `WholeSubject` the subject itself,
-and the run that checked the subject supplies its path. `Elsewhere` names another file, such as the specification
+and the run that checked the subject supplies its path. `Elsewhere` names another file, such as the meta spec
 that states the rule.
 
 Each subject kind gets only the locations it has. A subject with lines, a document or a skill, takes `Label`,
@@ -34,7 +34,7 @@ class WholeSubject:
 
 @dataclass(frozen=True, slots=True)
 class Elsewhere:
-    """A place in another file: the specification, a link's target, a first definition.
+    """A place in another file: the meta spec, a link's target, a first definition.
 
     Attributes:
         path: The other file.

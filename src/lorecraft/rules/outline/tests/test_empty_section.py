@@ -1,7 +1,7 @@
 """`OUT004`, `empty-section`, over a document's headings.
 
 Every case is a document written as text, read through a fake context that parses it as the real parser does, under
-structure specifications decoded from JSON; no document is read from disk.
+structure files decoded from JSON; no document is read from disk.
 """
 
 from typing import Final
@@ -18,16 +18,16 @@ from lorecraft.rules.tests.fake_context import FakeDocumentContext, namespace_sp
 from ..empty_section import EmptySection, EmptyTitle, OtherSection
 
 CORPUS_SPEC: Final[RootRelativePath] = structure_spec_path('guide')
-"""The corpus structure specification."""
+"""The corpus structure file."""
 
 NAMESPACE_SPEC: Final[RootRelativePath] = structure_spec_path('guide-cli')
-"""A namespace structure specification under the same corpus."""
+"""A namespace structure file under the same corpus."""
 
 FORBIDS_EMPTY: Final[str] = '{"empty_sections": "forbidden"}'
-"""A structure specification that forbids empty sections."""
+"""A structure file that forbids empty sections."""
 
 ALLOWS_EMPTY: Final[str] = '{"forbidden": ["Changelog"]}'
-"""A structure specification that states another rule, and leaves empty sections allowed."""
+"""A structure file that states another rule, and leaves empty sections allowed."""
 
 EMPTY_INSTALL: Final[str] = '# Setup\n\n## Install\n\n## Run\n\nRun the toolkit once over the repository.\n'
 """A document whose title holds two sections: `Install`, empty, on line 3, and `Run`, holding prose, on line 5."""

@@ -2,7 +2,7 @@
 
 A fake answers every fact of its subject's own file from the subject's text, through the real parsers and analyses of
 `lorecraft.project` the database's queries call, so a test cannot hand a rule a parse or a count no file would
-produce. Only what no single file states is set by hand: a document's governance, from structure specifications
+produce. Only what no single file states is set by hand: a document's governance, from structure files
 decoded from their JSON by the real decoder, where a skill is listed and what a link there leads to, and, as a
 cross-file state, what the snapshot holds at the target of each relative link, keyed by the link's normalised relative
 path. A fake document or skill holds no link target; a test of a rule over links states them on
@@ -69,10 +69,10 @@ _SKILLS_DIRECTORY: Final[RootRelativePath] = RootRelativePath.parse('.agents/ski
 
 
 def structure_spec_path(name: str) -> RootRelativePath:
-    """Where the structure specification at a specification name lies, such as `docs/__meta__/guide.structure.json`.
+    """Where the structure file at a meta spec name lies, such as `docs/__meta__/guide.structure.json`.
 
     Args:
-        name: The specification name, such as `guide` or `guide-cli`.
+        name: The meta spec name, such as `guide` or `guide-cli`.
 
     Raises:
         EmptyCorpusNameError: If the corpus token is empty.
@@ -119,12 +119,12 @@ def section_in(text: str, heading_text: str) -> SectionHeading:
 
 
 def namespace_spec(corpus: str, namespace: str, structure: str) -> NamespaceSpec:
-    """A namespace's specification, with its structure specification decoded from JSON by the real decoder.
+    """A namespace's meta spec, with its structure file decoded from JSON by the real decoder.
 
     Args:
         corpus: The corpus the namespace narrows, such as `guide`.
         namespace: The namespace, such as `cli`.
-        structure: The JSON of the namespace's structure specification.
+        structure: The JSON of the namespace's structure file.
 
     Raises:
         EmptyCorpusNameError: If the corpus is empty.
@@ -137,10 +137,10 @@ def namespace_spec(corpus: str, namespace: str, structure: str) -> NamespaceSpec
 
 
 def _files(spec_name: SpecName) -> tuple[RootRelativePath, ...]:
-    """The files at a specification name, sorted: its prose, then its structure specification.
+    """The files at a meta spec name, sorted: its prose, then its structure file.
 
     Args:
-        spec_name: The specification name.
+        spec_name: The meta spec name.
     """
     return (
         SPECS_DIR / PathComponent.parse(spec_filename(spec_name, SpecFileType.PROSE)),
@@ -149,11 +149,11 @@ def _files(spec_name: SpecName) -> tuple[RootRelativePath, ...]:
 
 
 def _decode_structure(spec_name: SpecName, structure: str) -> StructureSpec:
-    """A structure specification decoded from its JSON by the real decoder.
+    """A structure file decoded from its JSON by the real decoder.
 
     Args:
-        spec_name: The specification name the file lies at.
-        structure: The structure specification's JSON.
+        spec_name: The meta spec name the file lies at.
+        structure: The structure file's JSON.
     """
     file = StructureSpecFile(
         path=SPECS_DIR / PathComponent.parse(spec_filename(spec_name, SpecFileType.LEGACY_STRUCTURE)), name=spec_name
@@ -164,10 +164,10 @@ def _decode_structure(spec_name: SpecName, structure: str) -> StructureSpec:
 
 
 class FakeDocumentContext:
-    """A document a test writes as text, governed by the specifications the test states; a `DocumentContext`.
+    """A document a test writes as text, governed by the meta specs the test states; a `DocumentContext`.
 
-    The governance is set by hand, as the model would find it: the corpus's specification first, then each
-    namespace's the test lists, broad to narrow. The specifications are built through a `Corpus`, as the model builds
+    The governance is set by hand, as the model would find it: the corpus's meta spec first, then each
+    namespace's the test lists, broad to narrow. The meta specs are built through a `Corpus`, as the model builds
     them, so a namespace the filename does not match is refused rather than dropped.
     """
 
@@ -184,14 +184,14 @@ class FakeDocumentContext:
         namespaces: tuple[NamespaceSpec, ...] = (),
         filename: str | None = None,
     ) -> None:
-        """Hold the document's text and the specifications that govern it.
+        """Hold the document's text and the meta specs that govern it.
 
         Args:
             text: The document's whole text, frontmatter included.
-            corpus: The document's corpus, which is its specification name, such as `guide`.
-            structure: The JSON of the corpus's structure specification; a document's context exists only for a
+            corpus: The document's corpus, which is its meta spec name, such as `guide`.
+            structure: The JSON of the corpus's structure file; a document's context exists only for a
                 corpus that states one.
-            namespaces: The namespace specifications that govern the document, broad to narrow, as `namespace_spec`
+            namespaces: The namespace meta specs that govern the document, broad to narrow, as `namespace_spec`
                 builds them.
             filename: The document's filename, without its extension; `setup`, or `<namespace>-setup` for the
                 narrowest namespace listed, which every namespace listed then governs.
@@ -231,7 +231,7 @@ class FakeDocumentContext:
         return locate_schema_problems(self.frontmatter(), self._governance.frontmatter_schemas())
 
     def frontmatter_owner(self) -> DocumentFrontmatterOwner:
-        """The document, with its filename and its corpus's structure specification."""
+        """The document, with its filename and its corpus's structure file."""
         return DocumentFrontmatterOwner(filename=self.filename(), spec=self._corpus_structure.path)
 
     def parse(self) -> ParsedDocument:
@@ -255,15 +255,15 @@ class FakeDocumentContext:
         return count_lines(self._text)
 
     def specifications(self) -> Governance:
-        """The specifications the test stated."""
+        """The meta specs the test stated."""
         return self._governance
 
     def corpus_structure(self) -> StructureSpec:
-        """The corpus's structure specification, decoded from the JSON the test stated."""
+        """The corpus's structure file, decoded from the JSON the test stated."""
         return self._corpus_structure
 
     def outline_alignment(self) -> tuple[OutlineAlignmentSpec, ...]:
-        """Where the sections fall in each governing specification's outline, as the real analysis finds it."""
+        """Where the sections fall in each governing meta spec's outline, as the real analysis finds it."""
         return align_outlines(self._governance.structure_specs(), self.parse().headings)
 
     def outline_divergences(self) -> tuple[OutlineDivergenceSpec, ...]:

@@ -1,7 +1,7 @@
 """`FM013`, `too-many-fields`, over the problems the frontmatter schemas find in a subject's frontmatter.
 
 Every case is a document written as text, read through a fake context that holds it to its schemas as the real
-analysis does, under structure specifications decoded from JSON; no file is read from disk.
+analysis does, under structure files decoded from JSON; no file is read from disk.
 """
 
 from textwrap import dedent
@@ -19,22 +19,22 @@ from lorecraft.rules.tests.fake_context import FakeDocumentContext, namespace_sp
 from ..too_many_fields import TooManyFields
 
 CORPUS_SPEC: Final[RootRelativePath] = structure_spec_path('guide')
-"""Where the corpus structure specification lies."""
+"""Where the corpus structure file lies."""
 
 NAMESPACE_SPEC: Final[RootRelativePath] = structure_spec_path('guide-setup')
-"""Where a namespace structure specification under the same corpus lies."""
+"""Where a namespace structure file under the same corpus lies."""
 
 CORPUS_SOURCE: Final[StructureSpecSchema] = StructureSpecSchema(spec=CORPUS_SPEC)
-"""The schema the corpus specification states."""
+"""The schema the corpus meta spec states."""
 
 NAMESPACE_SOURCE: Final[StructureSpecSchema] = StructureSpecSchema(spec=NAMESPACE_SPEC)
-"""The schema the namespace specification states."""
+"""The schema the namespace meta spec states."""
 
 MAX_PROPERTIES: Final[str] = '{"frontmatter": {"type": "object", "maxProperties": 1}}'
-"""A structure specification whose frontmatter schema allows at most one field."""
+"""A structure file whose frontmatter schema allows at most one field."""
 
 MIN_PROPERTIES: Final[str] = '{"frontmatter": {"type": "object", "minProperties": 3}}'
-"""A structure specification whose frontmatter schema requires at least three fields."""
+"""A structure file whose frontmatter schema requires at least three fields."""
 
 TEXT: Final[str] = dedent("""\
     ---

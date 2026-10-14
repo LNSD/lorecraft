@@ -1,7 +1,7 @@
 """`OUT001`, `missing-title`, over a document's headings.
 
 Every case is a document written as text, read through a fake context that parses it as the real parser does, under
-structure specifications decoded from JSON; no document is read from disk.
+structure files decoded from JSON; no document is read from disk.
 """
 
 from typing import Final
@@ -16,7 +16,7 @@ from lorecraft.rules.tests.fake_context import FakeDocumentContext, namespace_sp
 from ..missing_title import MissingTitle
 
 STRUCTURE: Final[str] = '{"forbidden": ["Changelog"]}'
-"""A structure specification that states a rule other than the title, which no key states."""
+"""A structure file that states a rule other than the title, which no key states."""
 
 UNTITLED: Final[str] = '## Install\n\nInstall the toolkit, then run it once over the repository.\n'
 """A document with one section and no H1 title."""

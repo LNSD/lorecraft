@@ -1,7 +1,7 @@
 """`OUT003`, `title-not-first`, over a document's headings.
 
 Every case is a document written as text, read through a fake context that parses it as the real parser does, under
-structure specifications decoded from JSON; no document is read from disk.
+structure files decoded from JSON; no document is read from disk.
 """
 
 from typing import Final
@@ -16,7 +16,7 @@ from lorecraft.rules.tests.fake_context import FakeDocumentContext, namespace_sp
 from ..title_not_first import TitleNotFirst
 
 STRUCTURE: Final[str] = '{"forbidden": ["Changelog"]}'
-"""A structure specification that states a rule other than the title, which no key states."""
+"""A structure file that states a rule other than the title, which no key states."""
 
 SECTION_FIRST: Final[str] = '## Install\n\nInstall the toolkit, then run it once over the repository.\n\n# Setup\n'
 """A document opening with an H2 section on line 1, its H1 title on line 5."""

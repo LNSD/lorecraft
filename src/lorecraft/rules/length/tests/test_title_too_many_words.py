@@ -1,7 +1,7 @@
 """`LEN004`, `title-too-many-words`, over the word cap of a document's title.
 
 Every case is a document written as text, read through a fake context that parses it as the real parser does, under
-structure specifications decoded from JSON; no document is read from disk.
+structure files decoded from JSON; no document is read from disk.
 """
 
 from typing import Final
@@ -18,20 +18,20 @@ from lorecraft.rules.tests.fake_context import FakeDocumentContext, namespace_sp
 from ..title_too_many_words import TitleTooManyWords
 
 CORPUS_SPEC: Final[RootRelativePath] = structure_spec_path('guide')
-"""The corpus structure specification."""
+"""The corpus structure file."""
 
 NAMESPACE_SPEC: Final[RootRelativePath] = structure_spec_path('guide-cli')
-"""A namespace structure specification under the same corpus, which sets a title cap of its own."""
+"""A namespace structure file under the same corpus, which sets a title cap of its own."""
 
 TEXT: Final[str] = '# Setting up the toolkit on a new machine\n\n## Run\n\nRun the toolkit over the repository.\n'
 """A document whose H1 title, on line 1, is of eight words, followed by one section."""
 
 NO_CAP: Final[str] = '{"empty_sections": "forbidden"}'
-"""A structure specification that sets no cap on the title."""
+"""A structure file that sets no cap on the title."""
 
 
 def _title_cap(words: int) -> str:
-    """A structure specification that caps the title's words and states nothing else.
+    """A structure file that caps the title's words and states nothing else.
 
     Args:
         words: The most words the title may hold; at least 1.

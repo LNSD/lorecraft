@@ -43,7 +43,7 @@ class Rule(ABC):
     `ContentRule` or `LayoutRule` and declares the abstract `check` a rule implements.
 
     Attributes:
-        spec: The specification file that states the rule, or None for a rule the package itself states.
+        spec: The structure file that states the rule, or None for a rule the package itself states.
         CODE: The rule's code, such as `OUT002`.
         NAME: The rule's kebab-case name, such as `empty-section`.
         LEVEL: The level the rule runs at when nothing configures it.
