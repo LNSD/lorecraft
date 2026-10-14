@@ -45,6 +45,7 @@ from lorecraft.project.workspace import (
     UnlistableSkillsDirectory,
     UnreadableStructureFile,
     UnrecordedStructureFile,
+    UnresolvableFrontmatterSchemaRef,
     UnresolvableSkillEntry,
     UnresolvableSkillFile,
     UnresolvableSkillsDirectory,
@@ -336,6 +337,22 @@ class TestReportLoadFailure:
 
         #: Then
         assert actual == expected, 'the interim report is the one the raised error gave'
+
+    def test_report_load_failure_with_unresolvable_frontmatter_schema_ref_writes_what_the_replaced_error_wrote(
+        self, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        #: Given
+        failure = LoadFailure(_PATH, UnresolvableFrontmatterSchemaRef('#/$defs/missing'))
+        error = Error(
+            f"invalid structure schema {_PATH}: frontmatter schema holds a $ref '#/$defs/missing' that does not "
+            'resolve inside it'
+        )
+
+        #: When
+        expected, actual = _written_for(capsys, failure, error)
+
+        #: Then
+        assert actual == expected, 'the interim report names the reference'
 
     def test_report_load_failure_with_untyped_frontmatter_schema_writes_what_the_replaced_error_wrote(
         self, capsys: pytest.CaptureFixture[str]

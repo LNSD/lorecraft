@@ -33,6 +33,7 @@ from lorecraft.project.workspace import (
     UnlistableSkillsDirectory,
     UnreadableStructureFile,
     UnrecordedStructureFile,
+    UnresolvableFrontmatterSchemaRef,
     UnresolvableSkillEntry,
     UnresolvableSkillFile,
     UnresolvableSkillsDirectory,
@@ -302,6 +303,18 @@ class TestReportLoadFailures:
         assert occurrence == unusable_structure_file.UnusableStructureFile(
             cause=unusable_structure_file.ForeignFrontmatterDialect(dialect="'http://json-schema.org/draft-07/schema#'")
         ), 'the condition holds what `$schema` named'
+
+    def test_report_load_failures_with_an_unresolvable_frontmatter_schema_ref_reports_the_reference(self) -> None:
+        #: Given
+        condition = UnresolvableFrontmatterSchemaRef('#/$defs/missing')
+
+        #: When
+        occurrence = _condition_of(condition)
+
+        #: Then
+        assert occurrence == unusable_structure_file.UnusableStructureFile(
+            cause=unusable_structure_file.UnresolvableFrontmatterSchemaRef(ref="'#/$defs/missing'")
+        ), 'the condition holds what `$ref` named'
 
     def test_report_load_failures_with_an_untyped_frontmatter_schema_reports_it(self) -> None:
         #: Given

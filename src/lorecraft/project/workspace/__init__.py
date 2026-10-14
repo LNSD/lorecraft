@@ -11,6 +11,7 @@ from lorecraft.project.schemas.structure_failure import (
     RepeatedForbiddenSections,
     RepeatedOutlineSections,
     UndecodableStructureSpec,
+    UnresolvableFrontmatterSchemaRef,
     UntypedFrontmatterSchema,
 )
 
@@ -66,6 +67,7 @@ __all__: list[str] = [
     'InvalidFrontmatterSchema',
     'FrontmatterSchemaId',
     'ForeignFrontmatterDialect',
+    'UnresolvableFrontmatterSchemaRef',
     'UntypedFrontmatterSchema',
     'UnlistableDirectory',
     'UnlistableCorpusDirectory',

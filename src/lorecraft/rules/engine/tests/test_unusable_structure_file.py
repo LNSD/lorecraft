@@ -17,6 +17,7 @@ from ..unusable_structure_file import (
     InvalidTitlePattern,
     RepeatedForbiddenSection,
     RepeatedOutlineSection,
+    UnresolvableFrontmatterSchemaRef,
     UntypedFrontmatterSchema,
     UnusableStructureFile,
 )
@@ -66,6 +67,14 @@ _CASES: list[tuple[Cause, str, tuple[Subdiagnostic, ...]]] = [
         (
             Note("$schema holds 'http://json-schema.org/draft-07/schema#'"),
             Help(f'name {JSON_SCHEMA_DIALECT}, or leave $schema out'),
+        ),
+    ),
+    (
+        UnresolvableFrontmatterSchemaRef(ref="'#/$defs/missing'"),
+        'frontmatter schema holds a $ref that does not resolve inside it',
+        (
+            Note("$ref holds '#/$defs/missing'"),
+            Help('point every $ref at a location inside the frontmatter schema, such as #/$defs/name'),
         ),
     ),
     (

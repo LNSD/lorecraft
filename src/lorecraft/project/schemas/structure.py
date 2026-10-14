@@ -83,6 +83,8 @@ from jsonschema.exceptions import SchemaError, best_match
 from jsonschema.exceptions import ValidationError as SchemaValidationError
 from jsonschema.protocols import Validator
 from pydantic import ValidationError
+from referencing import Registry
+from referencing.exceptions import Unresolvable
 from referencing.jsonschema import DRAFT202012
 
 from lorecraft.core.mapping import Frozen, FrozenMapping, Plain
@@ -148,6 +150,7 @@ from .structure_failure import (
     StructureSpecProblem,
     StructureSpecRuleFailure,
     UndecodableStructureSpec,
+    UnresolvableFrontmatterSchemaRef,
     UntypedFrontmatterSchema,
 )
 from .structure_file import (
@@ -310,7 +313,11 @@ type OutlineEntry = SectionEntry | AnySections
 
 
 type FrontmatterSchemaFailure = (
-    InvalidFrontmatterSchema | FrontmatterSchemaId | ForeignFrontmatterDialect | UntypedFrontmatterSchema
+    InvalidFrontmatterSchema
+    | FrontmatterSchemaId
+    | ForeignFrontmatterDialect
+    | UnresolvableFrontmatterSchemaRef
+    | UntypedFrontmatterSchema
 )
 """A reason a structure specification's `frontmatter` schema cannot be held."""
 
@@ -336,21 +343,25 @@ class FrontmatterSchema:
         """Check a schema a structure specification can hold a document's frontmatter to.
 
         That is a schema that is a well-formed Draft 2020-12 schema, that does not leave it for another resource or
-        dialect anywhere inside it, and that describes an object.
+        dialect anywhere inside it, whose every `$ref` resolves inside it, and that describes an object.
 
         Args:
             schema: The file's `frontmatter` JSON Schema, as read.
 
         Returns:
             The checked schema, or the failure naming what is wrong with it: the meta-schema's rejection, an `$id`, a
-            dialect other than Draft 2020-12 in `$schema`, or a root that does not say `"type": "object"`.
+            dialect other than Draft 2020-12 in `$schema`, a `$ref` that does not resolve inside the schema, or a
+            root that does not say `"type": "object"`.
         """
         # `jsonschema` takes a JSON object only as a `dict` and an array only as a `list`, so every schema and
         # frontmatter it reads is handed to it as plain data, copied from the frozen value.
+        plain = schema.to_plain()
         try:
-            Draft202012Validator.check_schema(schema.to_plain())
+            Draft202012Validator.check_schema(plain)
         except SchemaError as exc:
             return InvalidFrontmatterSchema(exc.message)
+        # No `$id` is allowed below, so the whole schema is one resource, and every `$ref` is read against it.
+        registry = Registry().with_resource('', DRAFT202012.create_resource(plain))
         for subschema in _schemas_within(schema):
             if '$id' in subschema:
                 # An `$id` would make that schema a resource of its own, with its own base URI, and so change what
@@ -363,6 +374,17 @@ class FrontmatterSchema:
                 # The check applies every schema under Draft 2020-12, so a schema written for another dialect would
                 # be read by rules it was not written for.
                 return ForeignFrontmatterDialect(dialect)
+            for keyword in ('$ref', '$dynamicRef'):
+                ref = subschema.get(keyword)
+                if ref is None:
+                    continue
+                # The meta-schema check above has refused a reference that is not a string.
+                if not isinstance(ref, str):
+                    raise AssertionError(f'unreachable: the meta-schema proved `{keyword}` is a string')
+                if not _resolves_inside(registry, ref):
+                    # `validate` raises nothing, and `jsonschema` raises when it meets a reference that does not
+                    # resolve to a schema, so it is refused here, where the schema is loaded.
+                    return UnresolvableFrontmatterSchemaRef(ref)
         # A frontmatter is a mapping, so the schema must say so itself: a schema that left `type` out would accept
         # a list or a string where the frontmatter should be.
         if schema.get('type') != 'object':
@@ -694,6 +716,26 @@ def _schema_object(value: Plain) -> Mapping[str, Plain]:
         # Every caller passes a value the meta-schema, checked when the schema was loaded, requires to be an object.
         raise AssertionError('unreachable: the meta-schema proved this schema value is an object')
     return schema
+
+
+def _resolves_inside(registry: Registry, ref: str) -> bool:
+    """Whether a `$ref` or `$dynamicRef` names a schema inside the one schema the registry holds.
+
+    Only a reference that is empty or opens with `#` can: any other names another resource, which is never fetched,
+    so it is refused without being looked up. What it names must be a schema, an object or a boolean, as `jsonschema`
+    raises when it reads anything else, such as `#/required/0`, as one.
+
+    Args:
+        registry: A registry holding the schema alone, under the empty base URI.
+        ref: What the reference holds, as written; the empty reference is the schema itself, as `#` is.
+    """
+    if ref and not ref.startswith('#'):
+        return False
+    try:
+        target = registry.resolver().lookup(ref).contents
+    except Unresolvable:
+        return False
+    return isinstance(target, Mapping | bool)
 
 
 def _schemas_within(schema: Mapping[str, Plain]) -> Iterator[Mapping[str, Plain]]:
