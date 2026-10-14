@@ -207,7 +207,9 @@ class TestDiff:
         changes = diff(old, new)
 
         #: Then
-        assert changes == {RootRelativePath.parse('docs/a.md'): ChangeKind.MODIFIED}
+        assert changes == {RootRelativePath.parse('docs/a.md'): ChangeKind.MODIFIED}, (
+            'a file that was read and is now refused is a change'
+        )
 
     def test_diff_with_the_same_refusal_returns_empty(self) -> None:
         #: Given

@@ -116,12 +116,13 @@ class _RecordedLinks:
         """
         self._targets = targets
         # A climbed directory exists, and a recorded link sits in one, so each of them and its ancestors exist.
-        self._known_directories: set[RootRelativePath] = set()
+        known_directories: set[RootRelativePath] = set()
         for directory in climbed_directories:
-            self._known_directories.add(directory)
-            self._known_directories.update(directory.parents)
+            known_directories.add(directory)
+            known_directories.update(directory.parents)
         for link in targets:
-            self._known_directories.update(link.parents)
+            known_directories.update(link.parents)
+        self._known_directories = frozenset(known_directories)
 
     def paths(self) -> tuple[RootRelativePath, ...]:
         """Every recorded link's root-relative path."""

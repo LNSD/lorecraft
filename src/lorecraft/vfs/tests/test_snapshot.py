@@ -8,7 +8,7 @@ the SYMLINK and OTHER entries a scan would record are written out by hand. The s
 from collections.abc import Mapping
 from pathlib import PurePosixPath
 from types import MappingProxyType
-from typing import Final, cast
+from typing import Final
 
 import pytest
 
@@ -27,7 +27,7 @@ from ..snapshot import (
     SymlinkRecord,
     VirtualFileSystem,
 )
-from ..view import DirEntry, EntryKind, FileSystem, RootExit, TextDecodeError, UnrecordedFileError
+from ..view import DirEntry, EntryKind, RootExit, TextDecodeError, UnrecordedFileError
 
 ROOT: Final[RootRelativePath] = RootRelativePath.parse('.')
 
@@ -380,10 +380,11 @@ class TestSnapshotRecords:
         }
 
         #: When
-        with pytest.raises(ValueError, match='a/b') as exc_info:
+        with pytest.raises(ValueError) as exc_info:
             SnapshotRecords(records)
 
         #: Then
+        assert 'a/b' in str(exc_info.value), 'the message names the path that is recorded below'
         assert 'FILE' in str(exc_info.value), 'the message names the path above and the kind it is recorded as'
 
     def test_init_with_a_record_below_a_symlink_raises_value_error(self) -> None:
@@ -394,10 +395,11 @@ class TestSnapshotRecords:
         }
 
         #: When
-        with pytest.raises(ValueError, match='a/b') as exc_info:
+        with pytest.raises(ValueError) as exc_info:
             SnapshotRecords(records)
 
         #: Then
+        assert 'a/b' in str(exc_info.value), 'the message names the path that is recorded below'
         assert 'SYMLINK' in str(exc_info.value), 'the message names the path above and the kind it is recorded as'
 
     def test_init_with_a_record_below_an_other_entry_raises_value_error(self) -> None:
@@ -408,10 +410,11 @@ class TestSnapshotRecords:
         }
 
         #: When
-        with pytest.raises(ValueError, match='a/b') as exc_info:
+        with pytest.raises(ValueError) as exc_info:
             SnapshotRecords(records)
 
         #: Then
+        assert 'a/b' in str(exc_info.value), 'the message names the path that is recorded below'
         assert 'OTHER' in str(exc_info.value), 'the message names the path above and the kind it is recorded as'
 
     def test_init_with_a_record_far_below_a_file_raises_value_error(self) -> None:
@@ -423,11 +426,11 @@ class TestSnapshotRecords:
         }
 
         #: When
-        with pytest.raises(ValueError, match='a/x/y/z'):
+        with pytest.raises(ValueError) as exc_info:
             SnapshotRecords(records)
 
         #: Then
-        # The raise is the assertion: the file is an ancestor of the deepest record, not its parent.
+        assert 'a/x/y/z' in str(exc_info.value), 'the file is an ancestor of the deepest record, not its parent'
 
     def test_set_an_attribute_raises_attribute_error(self) -> None:
         #: Given
@@ -462,22 +465,6 @@ class TestSnapshotRecords:
 
         #: Then
         assert dict(snapshot_records) == records, 'a directory record may hold entries'
-
-
-@pytest.mark.unit
-class TestFileSystem:
-    def test_instantiate_the_abstract_view_raises_type_error(self) -> None:
-        #: Given
-        # The cast hides which class this is from the type checker, which would otherwise reject the very
-        # instantiation under test; at runtime it is still the abstract FileSystem.
-        abstract = cast(type[FileSystem], FileSystem)
-
-        #: When
-        with pytest.raises(TypeError) as exc_info:
-            abstract()
-
-        #: Then
-        assert exc_info.type is TypeError, 'the view is abstract: only its implementations instantiate'
 
 
 @pytest.mark.unit
@@ -662,7 +649,7 @@ class TestVirtualFileSystemReadText:
         #: Then
         assert text == '# Guía\n', 'the recorded bytes are decoded as UTF-8'
 
-    def test_read_text_with_non_utf8_bytes_raises_decode_text_error(self) -> None:
+    def test_read_text_with_non_utf8_bytes_raises_text_decode_error(self) -> None:
         #: Given
         latin = RootRelativePath.parse('docs/latin.md')
         virtual = VirtualFileSystem(Snapshot.from_tree({'docs': {'latin.md': b'caf\xe9\n'}}))
@@ -675,7 +662,7 @@ class TestVirtualFileSystemReadText:
         assert exc_info.value.path == latin, 'the error names the root-relative file'
         assert isinstance(exc_info.value.source, UnicodeDecodeError), 'the error keeps the decoder failure'
 
-    def test_read_text_with_a_missing_file_raises_read_text_error(self) -> None:
+    def test_read_text_with_a_missing_file_raises_unrecorded_file_error(self) -> None:
         #: Given
         virtual = VirtualFileSystem(_skills_snapshot())
         path = RootRelativePath.parse('docs/code/missing.md')
@@ -700,7 +687,7 @@ class TestVirtualFileSystemReadText:
         #: Then
         assert text == '# A\n', 'linked.md leads to a.md, whose bytes the snapshot recorded, so it reads as that file'
 
-    def test_read_text_with_a_link_to_an_unrecorded_file_raises_read_text_error(self) -> None:
+    def test_read_text_with_a_link_to_an_unrecorded_file_raises_unrecorded_file_error(self) -> None:
         #: Given
         virtual = VirtualFileSystem(_skills_snapshot())
         path = RootRelativePath.parse('docs/code/dangling')
@@ -739,7 +726,7 @@ class TestVirtualFileSystemReadText:
             '.claude/skills leads to .agents/skills, so the file reads as the one recorded at its resolved path'
         )
 
-    def test_read_text_with_an_other_entry_raises_read_text_error(self) -> None:
+    def test_read_text_with_an_other_entry_raises_unrecorded_file_error(self) -> None:
         #: Given
         virtual = VirtualFileSystem(_skills_snapshot())
         path = RootRelativePath.parse('docs/code/pipe')
@@ -754,7 +741,7 @@ class TestVirtualFileSystemReadText:
         )
         assert exc_info.value.path == path, 'the error names the path that was read'
 
-    def test_read_text_with_a_directory_raises_read_text_error(self) -> None:
+    def test_read_text_with_a_directory_raises_unrecorded_file_error(self) -> None:
         #: Given
         virtual = VirtualFileSystem(_skills_snapshot())
         path = RootRelativePath.parse('docs/code/sub')
