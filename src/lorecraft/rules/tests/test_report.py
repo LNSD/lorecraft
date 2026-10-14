@@ -136,7 +136,7 @@ class TestDiagnosticOrder:
         #: Then
         assert ordered == [eighty_one, ninety], 'the message text breaks a tie on every other step'
 
-    def test_diagnostic_order_with_any_input_order_sorts_to_the_same_output(self) -> None:
+    def test_diagnostic_order_with_any_input_order_sorts_by_path_location_severity_and_code(self) -> None:
         #: Given
         path = RootRelativePath.parse('docs/a.md')
         long_line = RuleDiagnostic(
@@ -153,17 +153,39 @@ class TestDiagnosticOrder:
             Severity.ERROR,
         )
         diagnostics = [long_line, trailing_space, empty_line, whole_subject, next_path]
-        reordered = reversed(diagnostics)
 
         #: When
-        forward = sorted(diagnostics, key=diagnostic_order)
-        backward = sorted(reordered, key=diagnostic_order)
+        ordered = sorted(diagnostics, key=diagnostic_order)
 
         #: Then
-        assert forward == [whole_subject, empty_line, trailing_space, long_line, next_path], (
+        assert ordered == [whole_subject, empty_line, trailing_space, long_line, next_path], (
             'the diagnostics sort by path, location, severity and code'
         )
-        assert backward == forward, 'the order is total, so the input order never shows in the output'
+
+    def test_diagnostic_order_with_any_input_order_in_reverse_input_order_sorts_to_the_same_output(self) -> None:
+        #: Given
+        path = RootRelativePath.parse('docs/a.md')
+        long_line = RuleDiagnostic(
+            path, LongLine(spec=None, line=LineNumber(NonZeroUnsignedInt(3)), length=81), Severity.WARNING
+        )
+        trailing_space = RuleDiagnostic(
+            path, TrailingSpace(spec=None, line=LineNumber(NonZeroUnsignedInt(3))), Severity.ERROR
+        )
+        empty_line = RuleDiagnostic(path, EmptyLine(spec=None, line=LineNumber(NonZeroUnsignedInt(3))), Severity.ERROR)
+        whole_subject = RuleDiagnostic(path, UppercaseEntry(spec=None), Severity.ERROR)
+        next_path = RuleDiagnostic(
+            RootRelativePath.parse('docs/b.md'),
+            EmptyLine(spec=None, line=LineNumber(NonZeroUnsignedInt(1))),
+            Severity.ERROR,
+        )
+        diagnostics = [long_line, trailing_space, empty_line, whole_subject, next_path]
+        expected = sorted(diagnostics, key=diagnostic_order)
+
+        #: When
+        ordered = sorted(reversed(diagnostics), key=diagnostic_order)
+
+        #: Then
+        assert ordered == expected, 'the order is total, so the input order never shows in the output'
 
     def test_diagnostic_order_with_an_engine_condition_and_a_rule_sorts_them_by_line(self) -> None:
         #: Given
