@@ -118,6 +118,15 @@ from .schema_guidance import (
     schema_reason,
     value_text,
 )
+from .schema_keyword import (
+    AdditionalPropertiesKeyword,
+    DependentRequiredKeyword,
+    OtherKeyword,
+    RequiredKeyword,
+    TypeKeyword,
+    UnevaluatedPropertiesKeyword,
+    keyword_of,
+)
 from .section_name import SectionName
 from .spec_file import SpecFileType, StructureSpecFile, spec_filename
 from .structure_file import (
@@ -585,15 +594,16 @@ def _frontmatter_problems(
         error: One error from validating `data` against the schema; its path and validator pick the problems.
         data: The frontmatter that was validated, as plain data, read to tell which fields are at fault.
     """
+    keyword = keyword_of(error)
     if error.path:
         # Anything wrong below the top-level field, such as a key its value lacks, is that field's value at fault.
         field = str(error.path[0])
-        if len(error.path) == 1 and error.validator == 'type':
+        if len(error.path) == 1 and isinstance(keyword, TypeKeyword):
             return [
                 WrongTypeProblem(
                     field,
                     error.message,
-                    _expected_types(error.validator_value),
+                    tuple(JsonType(name) for name in keyword.names),
                     json_type_of(error.instance),
                     guidance=property_guidance(validator.schema, field),
                 )
@@ -605,41 +615,44 @@ def _frontmatter_problems(
         return [_invalid_value(validator, error, str(error.instance))]
     # Past this point the error has no path, so the value it is about is `data` itself: read that rather than
     # `error.instance`, which `jsonschema` types as `Any`.
-    if error.validator == 'required':
-        # `jsonschema` types `error.validator_value` as `Any`; the meta-schema proved `required` is an array.
-        if not isinstance(error.validator_value, list):
-            raise AssertionError('unreachable: `required` is an array of field names')
-        problems: list[FrontmatterProblem] = []
-        for required in error.validator_value:
-            field = str(required)
-            if field not in data:
-                message = f'{field!r} is a required property'
-                # The schema the keyword sits in, which holds no `properties` when `required` is a branch's.
-                problems.append(MissingFieldProblem(field, message, guidance=property_guidance(error.schema, field)))
-        return problems
-    if error.validator == 'dependentRequired':
-        return _dependency_problems(validator, error, data)
-    if error.validator == 'additionalProperties':
-        # `jsonschema` types `error.schema` to allow a boolean schema, but a keyword only fires inside an object one.
-        schema = _schema_object(error.schema)
-        problems = []
-        for key in _additional_keys(schema, data):
-            # `jsonschema`'s wording for one unexpected key.
-            message = f'Additional properties are not allowed ({key!r} was unexpected)'
-            problems.append(UnknownFieldProblem(key, message, known_fields(schema)))
-        return problems
-    if error.validator == 'unevaluatedProperties':
-        return _unevaluated_problems(validator, _schema_object(error.schema), data)
-    # A rule over the whole block, such as `minProperties`, concerns no field.
-    return [
-        BlockProblem(
-            error.message,
-            _block_constraint(error),
-            # A length is never negative, so building the `UnsignedInt` cannot raise `NegativeIntError` here.
-            FieldCount(UnsignedInt(len(data))),
-            description=schema_guidance(validator.schema).description,
-        )
-    ]
+    match keyword:
+        case RequiredKeyword(fields):
+            problems: list[FrontmatterProblem] = []
+            for field in fields:
+                if field not in data:
+                    message = f'{field!r} is a required property'
+                    # The schema the keyword sits in, which holds no `properties` when `required` is a branch's.
+                    problems.append(
+                        MissingFieldProblem(field, message, guidance=property_guidance(error.schema, field))
+                    )
+            return problems
+        case DependentRequiredKeyword():
+            return _dependency_problems(validator, error, keyword, data)
+        case AdditionalPropertiesKeyword():
+            # `jsonschema` types `error.schema` to allow a boolean schema, but a keyword only fires inside an object
+            # one.
+            schema = _schema_object(error.schema)
+            problems = []
+            for key in _additional_keys(schema, data):
+                # `jsonschema`'s wording for one unexpected key.
+                message = f'Additional properties are not allowed ({key!r} was unexpected)'
+                problems.append(UnknownFieldProblem(key, message, known_fields(schema)))
+            return problems
+        case UnevaluatedPropertiesKeyword():
+            return _unevaluated_problems(validator, _schema_object(error.schema), data)
+        case TypeKeyword() | OtherKeyword():
+            # A rule over the whole block, such as `minProperties`, concerns no field.
+            return [
+                BlockProblem(
+                    error.message,
+                    _block_constraint(error),
+                    # A length is never negative, so building the `UnsignedInt` cannot raise `NegativeIntError` here.
+                    FieldCount(UnsignedInt(len(data))),
+                    description=schema_guidance(validator.schema).description,
+                )
+            ]
+        case _:
+            assert_never(keyword)
 
 
 def _invalid_value(validator: Validator, error: SchemaValidationError, field: str) -> InvalidValueProblem:
@@ -660,7 +673,7 @@ def _invalid_value(validator: Validator, error: SchemaValidationError, field: st
 
 
 def _dependency_problems(
-    validator: Validator, error: SchemaValidationError, data: Mapping[str, Plain]
+    validator: Validator, error: SchemaValidationError, keyword: DependentRequiredKeyword, data: Mapping[str, Plain]
 ) -> list[FrontmatterProblem]:
     """One problem per written field whose `dependentRequired` fields are not all written, on the written field.
 
@@ -669,16 +682,14 @@ def _dependency_problems(
 
     Args:
         validator: The validator that reported the error, holding the whole schema.
-        error: The `dependentRequired` error, whose value maps each field to the fields it requires.
+        error: The `dependentRequired` error, which reports one missing dependency of one field.
+        keyword: The error's keyword, which maps each field to the fields it requires.
         data: The frontmatter that was validated, as plain data.
     """
     problems: list[FrontmatterProblem] = []
-    for field, dependencies in _schema_object(error.validator_value).items():
+    for field, dependencies in keyword.dependencies:
         if field not in data:
             continue
-        # The meta-schema proved each value is an array of field names.
-        if not isinstance(dependencies, list):
-            raise AssertionError('unreachable: `dependentRequired` maps a field to an array of field names')
         for dependency in dependencies:
             if dependency not in data:
                 message = f'{dependency!r} is a dependency of {field!r}'
@@ -692,21 +703,6 @@ def _dependency_problems(
                     )
                 )
     return problems
-
-
-def _expected_types(value: object) -> tuple[JsonType, ...]:
-    """The types a `type` keyword accepts, from its value: one name or an array of names.
-
-    Args:
-        value: The `type` keyword's value, which the meta-schema proved is a type name or an array of them.
-    """
-    if isinstance(value, str):
-        return (JsonType(value),)
-    if isinstance(value, list):
-        return tuple(JsonType(str(name)) for name in value)
-    # The meta-schema accepts a `type` only as a name or an array of names, and a schema is checked against it when
-    # loaded, so no other value reaches here.
-    raise AssertionError('unreachable: `type` is a type name or an array of them')
 
 
 def _value_constraint(error: SchemaValidationError, *, nested: bool) -> ValueConstraint:
