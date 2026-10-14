@@ -106,9 +106,10 @@ class TestCheckSubjectsLayout:
         (root / '.claude').mkdir()
         (root / '.claude' / 'skills').symlink_to(elsewhere)
         database = Database.from_snapshot(take_snapshot(root, SNAPSHOT_SCOPE))
+        subjects = _layout_subjects(database)
 
         #: When
-        reports = check_subjects(database, _layout_subjects(database), package_table)
+        reports = check_subjects(database, subjects, package_table)
 
         #: Then
         assert reports == (_outside_report('.claude/skills', '.claude/skills', elsewhere),), (
@@ -124,9 +125,10 @@ class TestCheckSubjectsLayout:
         (root / '.agents' / 'skills').mkdir(parents=True)
         (root / '.agents' / 'skills' / 'x').symlink_to(target)
         database = Database.from_snapshot(take_snapshot(root, SNAPSHOT_SCOPE))
+        subjects = _layout_subjects(database)
 
         #: When
-        reports = check_subjects(database, _layout_subjects(database), package_table)
+        reports = check_subjects(database, subjects, package_table)
 
         #: Then
         assert reports == (_outside_report('.agents/skills/x', '.agents/skills/x', target),), (
@@ -142,9 +144,10 @@ class TestCheckSubjectsLayout:
         (root / '.agents' / 'skills' / 'review').mkdir(parents=True)
         (root / '.agents' / 'skills' / 'review' / 'SKILL.md').symlink_to(target)
         database = Database.from_snapshot(take_snapshot(root, SNAPSHOT_SCOPE))
+        subjects = _layout_subjects(database)
 
         #: When
-        reports = check_subjects(database, _layout_subjects(database), package_table)
+        reports = check_subjects(database, subjects, package_table)
 
         #: Then
         assert reports == (
@@ -160,9 +163,10 @@ class TestCheckSubjectsLayout:
         _write(root, '.agents/skills/review/SKILL.md', CLEAN_SKILL_MD)
         (root / '.agents' / 'skills' / 'review' / 'references').symlink_to(target)
         database = Database.from_snapshot(take_snapshot(root, SNAPSHOT_SCOPE))
+        subjects = _layout_subjects(database)
 
         #: When
-        reports = check_subjects(database, _layout_subjects(database), package_table)
+        reports = check_subjects(database, subjects, package_table)
 
         #: Then
         assert reports == (
@@ -179,9 +183,10 @@ class TestCheckSubjectsLayout:
         (root / '.agents' / 'skills' / 'x').symlink_to('../../hop/x')
         (root / 'hop').symlink_to(elsewhere)
         database = Database.from_snapshot(take_snapshot(root, SNAPSHOT_SCOPE))
+        subjects = _layout_subjects(database)
 
         #: When
-        reports = check_subjects(database, _layout_subjects(database), package_table)
+        reports = check_subjects(database, subjects, package_table)
 
         #: Then
         assert reports == (_outside_report('.agents/skills/x', 'hop', elsewhere),), (
@@ -196,9 +201,10 @@ class TestCheckSubjectsLayout:
         _write(root, '.agents/skills/review/SKILL.md', CLEAN_SKILL_MD)
         (root / '.agents' / 'skills' / 'review' / 'shared').symlink_to('../../../../elsewhere/x')
         database = Database.from_snapshot(take_snapshot(root, SNAPSHOT_SCOPE))
+        subjects = _layout_subjects(database)
 
         #: When
-        reports = check_subjects(database, _layout_subjects(database), package_table)
+        reports = check_subjects(database, subjects, package_table)
 
         #: Then
         assert reports == (
@@ -214,9 +220,10 @@ class TestCheckSubjectsLayout:
         (root / '.agents' / 'skills' / 'gone').symlink_to('../../skills/gone')
         (root / '.agents' / 'skills' / 'review' / 'references').symlink_to('../../../missing')
         database = Database.from_snapshot(take_snapshot(root, SNAPSHOT_SCOPE))
+        subjects = _layout_subjects(database)
 
         #: When
-        reports = check_subjects(database, _layout_subjects(database), package_table)
+        reports = check_subjects(database, subjects, package_table)
 
         #: Then
         assert reports == (), 'a link dangling inside the repository is not one leading outside it, so none is judged'
@@ -230,9 +237,10 @@ class TestCheckSubjectsLayout:
         (root / '.claude').mkdir()
         (root / '.claude' / 'skills').symlink_to('../.agents/skills')
         database = Database.from_snapshot(take_snapshot(root, SNAPSHOT_SCOPE))
+        subjects = _layout_subjects(database)
 
         #: When
-        reports = check_subjects(database, _layout_subjects(database), package_table)
+        reports = check_subjects(database, subjects, package_table)
 
         #: Then
         assert reports == (), 'a skills directory linked to another inside the repository is self-contained'
