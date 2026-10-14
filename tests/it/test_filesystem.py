@@ -3074,8 +3074,12 @@ class TestPlainRootWalksItsLinksForTheRecord:
     def test_take_snapshot_with_a_plain_root_records_the_climbs_on_its_links_and_lists_nothing_through_them(
         self, plain_climbing_tree: Path
     ) -> None:
+        #: Given
+        root = plain_climbing_tree
+        scope = PLAIN_DOCS_SCOPE
+
         #: When
-        snapshot = take_snapshot(plain_climbing_tree, PLAIN_DOCS_SCOPE)
+        snapshot = take_snapshot(root, scope)
 
         #: Then
         assert snapshot == _snapshot(

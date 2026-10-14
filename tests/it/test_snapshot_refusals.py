@@ -7,7 +7,7 @@ it. The command tests at the end hold what `lorecraft check` does with a refusal
 """
 
 import os
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from pathlib import Path
 from typing import Final
 
@@ -91,6 +91,23 @@ def tree(tmp_path: Path) -> Path:
     (tmp_path / '.agents' / 'skills' / 'review').mkdir()
     (tmp_path / '.agents' / 'skills' / 'review' / 'SKILL.md').symlink_to('../../../texts/REVIEW.md')
     return tmp_path
+
+
+@pytest.fixture(scope='function')
+def unsearchable_links_directory(tree: Path) -> Iterator[Path]:
+    """A `links` directory of the tree holding a link, readable and not searchable; restored afterwards.
+
+    The names in it are listed, and no link in it can be read.
+
+    Args:
+        tree: The repository the directory is added to, holding the `texts/REVIEW.md` the link points at.
+    """
+    links = tree / 'links'
+    links.mkdir()
+    (links / 'up.md').symlink_to('../texts/REVIEW.md')
+    links.chmod(0o444)
+    yield links
+    links.chmod(0o755)
 
 
 @pytest.mark.it
@@ -180,21 +197,16 @@ class TestSnapshotWithADeclaration:
         #: Then
         assert exc_info.value.path == _path('docs/code/logging.md'), 'a file the declaration does not name stops it'
 
-    def test_take_snapshot_with_a_link_whose_target_cannot_be_read_still_stops(self, tree: Path) -> None:
+    def test_take_snapshot_with_a_link_whose_target_cannot_be_read_still_stops(
+        self, tree: Path, unsearchable_links_directory: Path
+    ) -> None:
         #: Given
-        links = tree / 'links'
-        links.mkdir()
-        (links / 'up.md').symlink_to('../texts/REVIEW.md')
-        # Readable and not searchable: the names are listed, and no link in it can be read.
-        links.chmod(0o444)
-        scope = (ScanRoot(_path('links'), depth=UnsignedInt(0)),)
+        links = _path(unsearchable_links_directory.relative_to(tree).as_posix())
+        scope = (ScanRoot(links, depth=UnsignedInt(0)),)
 
         #: When
-        try:
-            with pytest.raises(SnapshotLinkReadError) as exc_info:
-                take_snapshot(tree, scope, declaration=DECLARATION)
-        finally:
-            links.chmod(0o755)
+        with pytest.raises(SnapshotLinkReadError) as exc_info:
+            take_snapshot(tree, scope, declaration=DECLARATION)
 
         #: Then
         assert exc_info.value.path == _path('links/up.md'), 'a link it cannot resolve stops it'
