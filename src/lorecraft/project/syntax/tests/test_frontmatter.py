@@ -144,9 +144,10 @@ class TestDecodeFrontmatter:
 
         #: Then
         assert node == InvalidYamlFrontmatter(
-            problem='found a flow collection spread over lines, which frontmatter does not allow',
+            problem='the block holds U+0085, which is not a line break here',
+            help='Use a line feed, or remove it',
             line=LineNumber.from_int(2),
-        ), 'the reader counts a line at U+0085, so the collection that opens before it is the first construct refused'
+        ), 'a separator outside a quoted scalar is refused on its line, as the text has no line break there'
 
     def test_decode_frontmatter_with_a_next_line_inside_double_quotes_returns_it_as_text(self) -> None:
         #: Given
@@ -296,6 +297,24 @@ class TestDecodeFrontmatter:
             line=LineNumber.from_int(2),
         ), 'a separator outside a quoted scalar is refused on its line, as the text has no line break there'
 
+    def test_decode_frontmatter_with_a_line_separator_inside_double_quotes_returns_it_as_text(self) -> None:
+        #: Given
+        separator = '\u2028'
+        block = f'a: "x{separator}y"\nb: 1\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == Frontmatter(
+            data=FrozenMapping({'a': f'x{separator}y', 'b': 1}),
+            keys=(
+                FrontmatterKey(name='a', line=LineNumber.from_int(2)),
+                FrontmatterKey(name='b', line=LineNumber.from_int(3)),
+            ),
+            repeats=(),
+        ), 'a separator inside a quoted scalar is text, and ends no line'
+
     def test_decode_frontmatter_with_a_paragraph_separator_in_a_plain_value_returns_invalid_yaml_on_its_line(
         self,
     ) -> None:
@@ -312,6 +331,66 @@ class TestDecodeFrontmatter:
             help='Use a line feed, or remove it',
             line=LineNumber.from_int(2),
         ), 'a separator outside a quoted scalar is refused on its line, as the text has no line break there'
+
+    def test_decode_frontmatter_with_a_paragraph_separator_inside_double_quotes_returns_it_as_text(self) -> None:
+        #: Given
+        separator = '\u2029'
+        block = f'a: "x{separator}y"\nb: 1\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == Frontmatter(
+            data=FrozenMapping({'a': f'x{separator}y', 'b': 1}),
+            keys=(
+                FrontmatterKey(name='a', line=LineNumber.from_int(2)),
+                FrontmatterKey(name='b', line=LineNumber.from_int(3)),
+            ),
+            repeats=(),
+        ), 'a separator inside a quoted scalar is text, and ends no line'
+
+    def test_decode_frontmatter_with_a_colon_before_a_comma_in_a_flow_mapping_returns_the_key_with_no_value(
+        self,
+    ) -> None:
+        #: Given
+        block = 'a: {a:, b: c}\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == Frontmatter(
+            data=FrozenMapping({'a': FrozenMapping({'a': None, 'b': 'c'})}),
+            keys=(FrontmatterKey(name='a', line=LineNumber.from_int(2)),),
+            repeats=(),
+        ), 'YAML 1.2 ends a plain scalar at a `:` before a flow indicator, so `a` is a key with no value'
+
+    def test_decode_frontmatter_with_a_colon_before_a_comma_in_a_flow_sequence_returns_invalid_yaml(self) -> None:
+        #: Given
+        block = 'a: [a:, b]\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem='found a collection inside a flow collection, which frontmatter does not allow',
+            line=LineNumber.from_int(2),
+        ), '`a:` is a one-pair mapping, which a flow sequence does not hold'
+
+    def test_decode_frontmatter_with_a_colon_before_a_bracket_in_a_flow_mapping_returns_invalid_yaml(self) -> None:
+        #: Given
+        block = 'a: {c:[d]}\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem='found a collection inside a flow collection, which frontmatter does not allow',
+            line=LineNumber.from_int(2),
+        ), 'the `:` ends `c` as a key, and its value is a collection'
 
     def test_decode_frontmatter_with_a_lone_carriage_return_returns_each_key_on_its_document_line(self) -> None:
         #: Given
@@ -1577,9 +1656,7 @@ class TestDecodeFrontmatter:
             problem='found an empty key, which frontmatter does not allow', line=LineNumber.from_int(3)
         ), 'a `:` with no key before it is an empty key, and is reported on its line'
 
-    def test_decode_frontmatter_with_an_unindented_top_level_block_scalar_returns_invalid_yaml_on_its_line(
-        self,
-    ) -> None:
+    def test_decode_frontmatter_with_an_unindented_top_level_block_scalar_returns_a_non_mapping(self) -> None:
         #: Given
         block = dedent("""\
             >
@@ -1590,11 +1667,7 @@ class TestDecodeFrontmatter:
         node = decode_frontmatter(block)
 
         #: Then
-        assert node == InvalidYamlFrontmatter(
-            problem='this line is not `key: value` or `- item`',
-            help='Add `: ` after the key, or quote a value that runs on',
-            line=LineNumber.from_int(3),
-        ), 'a top-level block scalar must be indented, so the line after it is reported'
+        assert node == NonMappingFrontmatter(), 'YAML 1.2 reads the text as the scalar, which is not a mapping'
 
     def test_decode_frontmatter_with_a_nested_block_scalar_after_a_short_blank_line_returns_its_text(self) -> None:
         #: Given
