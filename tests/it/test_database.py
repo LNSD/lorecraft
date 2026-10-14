@@ -26,7 +26,7 @@ from lorecraft.project.corpus import CorpusName
 from lorecraft.project.database import Database, DocumentText, SkillResourceText, SkillText, Undecodable
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.layout import LinkedLayoutError
-from lorecraft.project.skill import SkillRef
+from lorecraft.project.skill import SkillLocation, SkillRef
 from lorecraft.project.syntax import Frontmatter, Heading, LineNumber, count_tokens, split_lines
 from lorecraft.project.syntax import Link as MarkdownLink
 from lorecraft.project.workspace import EmptyStructureSpec, FailedStructure, LoadFailure
@@ -97,9 +97,21 @@ def _skill_text(database: Database, ref: SkillRef) -> SkillText:
         database: The database the `SKILL.md` is decoded by.
         ref: A skill whose `SKILL.md` bytes are UTF-8.
     """
-    source = database.skill_text(ref)
+    source = database.skill_text(_location(database, ref))
     assert isinstance(source, SkillText), f'{ref.path} was written as UTF-8, so it decodes'
     return source
+
+
+def _location(database: Database, ref: SkillRef) -> SkillLocation:
+    """Where the database's model locates a skill it lists.
+
+    Args:
+        database: The database whose model lists the skill.
+        ref: The skill to locate.
+    """
+    location = database.model().find_skill_location(ref.directory)
+    assert location is not None, f'the model lists the skill {ref.directory}'
+    return location
 
 
 def _snapshot_of(records: Mapping[str, EntryRecord], *, scope: tuple[ScanRoot, ...] = ()) -> Snapshot:
@@ -616,17 +628,19 @@ class TestDatabase:
         database = Database.open(_skill_snapshot(b'---\nname: review\n---\n'))
 
         #: When
-        source = database.skill_text(REVIEW)
+        source = database.skill_text(_location(database, REVIEW))
 
         #: Then
-        assert source == SkillText(REVIEW, '---\nname: review\n---\n'), 'the witness holds the ref and its text'
+        assert source == SkillText(_location(database, REVIEW), '---\nname: review\n---\n'), (
+            'the witness holds the model-issued location and the text'
+        )
 
     def test_skill_text_of_a_skill_that_is_not_utf8_returns_undecodable(self) -> None:
         #: Given
         database = Database.open(_skill_snapshot(b'---\nname: caf\xe9\n---\n'))
 
         #: When
-        source = database.skill_text(REVIEW)
+        source = database.skill_text(_location(database, REVIEW))
 
         #: Then
         failure = Utf8Failure(
@@ -642,10 +656,10 @@ class TestDatabase:
     def test_skill_text_of_a_skill_that_is_not_utf8_called_twice_returns_the_first_answer(self) -> None:
         #: Given
         database = Database.open(_skill_snapshot(b'---\nname: caf\xe9\n---\n'))
-        first = database.skill_text(REVIEW)
+        first = database.skill_text(_location(database, REVIEW))
 
         #: When
-        second = database.skill_text(REVIEW)
+        second = database.skill_text(_location(database, REVIEW))
 
         #: Then
         assert second is first, 'an undecodable skill is cached like any answer, so it is decoded once'
@@ -678,11 +692,14 @@ class TestDatabase:
     def test_skill_parse_of_a_linked_skill_parses_the_skill_the_link_leads_to(self) -> None:
         #: Given
         # What a scan records for `.agents/skills/review -> ../../skills/review`: the link in the skills directory,
-        # and the SKILL.md at the resolved path it leads to.
+        # and the SKILL.md at the resolved path it leads to, and the directories on the way, listed so the model
+        # lists the skill and climbed by the link's `..`.
         shipped = Snapshot.from_tree(
             {'skills': {'review': {'SKILL.md': b'---\nname: review\n---\n[the guide](guide.md)\n'}}}
         )
         records: dict[RootRelativePath, EntryRecord] = dict(shipped.records)
+        records[RootRelativePath.parse('.agents')] = DirectoryRecord(listed=True, climbed=True)
+        records[RootRelativePath.parse('.agents/skills')] = DirectoryRecord(listed=True, climbed=True)
         records[RootRelativePath.parse('.agents/skills/review')] = SymlinkRecord(PurePosixPath('../../skills/review'))
         database = Database.open(Snapshot(SnapshotRecords(records)))
         source = _skill_text(database, REVIEW)

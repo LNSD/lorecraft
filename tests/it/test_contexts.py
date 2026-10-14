@@ -146,7 +146,7 @@ def _skill_text(database: Database) -> SkillText:
     Args:
         database: The database the `SKILL.md` is decoded by.
     """
-    source = database.skill_text(REVIEW)
+    source = database.skill_text(_location(database))
     assert isinstance(source, SkillText), f'{REVIEW.path} was written as UTF-8, so it decodes'
     return source
 
@@ -189,7 +189,7 @@ def _skill_context(database: Database) -> SkillContext:
     Args:
         database: The database `REVIEW` is read from.
     """
-    return DatabaseSkillContext(database, _skill_text(database), _location(database))
+    return DatabaseSkillContext(database, _skill_text(database))
 
 
 def _scanned(root: Path) -> Database:

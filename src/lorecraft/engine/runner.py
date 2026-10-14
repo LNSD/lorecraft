@@ -134,31 +134,28 @@ def check_skill(database: Database, location: SkillLocation, table: RuleTable) -
         SkillReadError: If the skill's `SKILL.md` is missing from the snapshot; a decode failure is a diagnostic.
     """
     ref = location.ref
-    source = database.skill_text(ref)
+    source = database.skill_text(location)
     match source:
         case Undecodable():
             return UndecodableSubject(ref, source.failure)
         case SkillText():
-            return _check_skill_text(database, source, location, table)
+            return _check_skill_text(database, source, table)
         case _:
             assert_never(source)
 
 
-def _check_skill_text(
-    database: Database, source: SkillText, location: SkillLocation, table: RuleTable
-) -> CheckedSkillFile:
+def _check_skill_text(database: Database, source: SkillText, table: RuleTable) -> CheckedSkillFile:
     """Run the enabled rules over a decoded `SKILL.md`. Raises nothing.
 
     Args:
         database: The revision the skill is read from.
         source: The skill's `SKILL.md` text, the witness every per-file query takes.
-        location: The skill, and where its files live, as the model hands it out.
         table: The rules the run enables.
     """
     diagnostics: list[Diagnostic] = []
 
     # Building the context asks nothing of the database; each rule asks it only for what it reads.
-    context = DatabaseSkillContext(database, source, location)
+    context = DatabaseSkillContext(database, source)
 
     # The package governs every skill, so each rule over the frontmatter and each rule over a skill judges it through
     # its context, the frontmatter rules first, as on a document.
