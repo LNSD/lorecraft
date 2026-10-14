@@ -72,6 +72,14 @@ class PathComponent:
         """The name exactly as supplied, such as `SKILL.md`."""
         return self.value
 
+    def has_suffix(self, *suffixes: str) -> bool:
+        """Whether the name ends in any of `suffixes`, such as `.md`.
+
+        Args:
+            suffixes: The endings to look for, taken literally and compared case-sensitively.
+        """
+        return self.value.endswith(suffixes)
+
 
 class RootRelativePathError(Error):
     """A path is absolute or holds a `..` component, so it could name something outside the root.

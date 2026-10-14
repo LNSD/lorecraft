@@ -14,7 +14,7 @@ for the one cause no typed constraint describes.
 """
 
 from dataclasses import KW_ONLY, dataclass
-from enum import Enum
+from enum import StrEnum
 from typing import NewType
 
 from lorecraft.core.num import UnsignedInt
@@ -26,7 +26,7 @@ FieldLimit = NewType('FieldLimit', UnsignedInt)
 """The number of top-level fields a schema's `minProperties` or `maxProperties` sets as a bound; 0 is a valid one."""
 
 
-class JsonType(Enum):
+class JsonType(StrEnum):
     """A type JSON Schema names; the value is the name its `type` keyword spells it with."""
 
     ARRAY = 'array'

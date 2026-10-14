@@ -163,13 +163,12 @@ def _section_words(blocks: tuple[CountedBlock, ...], heading_index: int, level: 
         heading_index: Where the heading opening the section sits in `blocks`.
         level: That heading's depth.
     """
-    words = 0
+    words = UnsignedInt(0)
     for index in range(heading_index + 1, len(blocks)):
         if _closes_section(blocks[index].block, level):
             break
-        words += blocks[index].words.value
-    # A count is never negative, so building the `UnsignedInt` cannot raise `NegativeIntError` here.
-    return WordCount(UnsignedInt(words))
+        words += blocks[index].words
+    return WordCount(words)
 
 
 def _closes_section(block: HeadingBlock | ContentBlock, level: HeadingLevel) -> bool:
@@ -205,26 +204,25 @@ def _prose_words(block: HeadingBlock | ContentBlock) -> WordCount:
         case HeadingBlock():
             return WordCount(UnsignedInt(0))
         case ContentBlock():
-            words = 0
+            words = UnsignedInt(0)
             for source in block.source_outside_code:
                 words += _source_words(source)
-            # A count is never negative, so building the `UnsignedInt` cannot raise `NegativeIntError` here.
-            return WordCount(UnsignedInt(words))
+            return WordCount(words)
         case _:
             assert_never(block)
 
 
-def _source_words(source: str) -> int:
+def _source_words(source: str) -> UnsignedInt:
     """The whitespace-delimited tokens of a stretch of Markdown source, table rows left out.
 
     Args:
         source: Markdown source with no code block in it; a line starting with `|` is skipped as a table row.
     """
-    words = 0
+    words = UnsignedInt(0)
     for line in split_lines(source):
         # The parser has no table extension, so a table is read as a paragraph of `|` lines. Those lines are
         # skipped here: a table is a reference, not prose.
         if line.strip().startswith('|'):
             continue
-        words += count_words(line).value
+        words += count_words(line)
     return words

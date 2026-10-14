@@ -38,7 +38,7 @@ class NonPositiveIntError(Error):
         super().__init__(f'must be at least {NonZeroUnsignedInt.MINIMUM}, got {value}')
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, order=True)
 class NonZeroUnsignedInt:
     """A whole number of at least 1.
 
@@ -66,6 +66,37 @@ class NonZeroUnsignedInt:
     def __str__(self) -> str:
         """The number in decimal digits."""
         return str(self.value)
+
+    def __format__(self, format_spec: str) -> str:
+        """The number in decimal digits, formatted as an integer is: `f'{number:>3}'` pads it to 3 columns."""
+        return format(self.value, format_spec)
+
+    def as_unsigned(self) -> 'UnsignedInt':
+        """The same number as an `UnsignedInt`, to compare or combine it with one."""
+        return UnsignedInt(self.value)
+
+    def successor(self) -> 'NonZeroUnsignedInt':
+        """The number one above this one."""
+        return NonZeroUnsignedInt(self.value + 1)
+
+    def between(self, earlier: 'NonZeroUnsignedInt') -> 'UnsignedInt':
+        """How many whole numbers lie strictly between `earlier` and this number: 0 for two that are adjacent.
+
+        Args:
+            earlier: The lower end, which this number is above.
+
+        Raises:
+            NegativeIntError: If this number is not above `earlier`.
+        """
+        return UnsignedInt(self.value - earlier.value - 1)
+
+    def position(self) -> int:
+        """Where this number's element sits in a sequence counted from 1 but held from 0: 0 for 1.
+
+        This is the one exit to a bare integer, for indexing the sequence; a number that is written out is
+        formatted instead.
+        """
+        return self.value - 1
 
     @classmethod
     def __get_pydantic_core_schema__(
@@ -133,7 +164,7 @@ class NegativeIntError(Error):
         super().__init__(f'must be at least {UnsignedInt.MINIMUM}, got {value}')
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, order=True)
 class UnsignedInt:
     """A whole number of at least 0.
 
@@ -161,3 +192,51 @@ class UnsignedInt:
     def __str__(self) -> str:
         """The number in decimal digits."""
         return str(self.value)
+
+    def __format__(self, format_spec: str) -> str:
+        """The number in decimal digits, formatted as an integer is: `f'{number:>3}'` pads it to 3 columns."""
+        return format(self.value, format_spec)
+
+    def __add__(self, other: 'UnsignedInt') -> 'UnsignedInt':
+        """The sum of two numbers, which is again a number of at least 0."""
+        return UnsignedInt(self.value + other.value)
+
+    def exceeds(self, cap: NonZeroUnsignedInt) -> bool:
+        """Whether this number is past `cap`; a number equal to the cap is within it.
+
+        Args:
+            cap: The most the number may reach.
+        """
+        return self > cap.as_unsigned()
+
+    def excess_over(self, cap: NonZeroUnsignedInt) -> NonZeroUnsignedInt:
+        """How far this number runs past `cap`.
+
+        Args:
+            cap: The most the number may reach.
+
+        Raises:
+            NonPositiveIntError: If the number does not exceed `cap`, so there is no excess.
+        """
+        return NonZeroUnsignedInt(self.value - cap.as_unsigned().value)
+
+    def minus(self, other: NonZeroUnsignedInt) -> 'UnsignedInt | None':
+        """The number left after taking `other` away, or `None` when `other` is more than this number holds.
+
+        Args:
+            other: The amount to take away.
+        """
+        taken = other.as_unsigned()
+        if self < taken:
+            return None
+        return UnsignedInt(self.value - taken.value)
+
+    def or_one(self) -> NonZeroUnsignedInt:
+        """The number itself, or 1 when it is 0: the nearest number of at least 1."""
+        if self == UnsignedInt(0):
+            return NonZeroUnsignedInt(1)
+        return NonZeroUnsignedInt(self.value)
+
+    def successor(self) -> NonZeroUnsignedInt:
+        """The number one above this one, which is at least 1."""
+        return NonZeroUnsignedInt(self.value + 1)

@@ -191,8 +191,7 @@ def _json_types(value: object) -> JsonTypes | None:
     names = (value,) if isinstance(value, str) else _names(value)
     if not names:
         return None
-    known = frozenset(member.value for member in JsonType)
-    if any(name not in known for name in names):
+    if any(name not in JsonType for name in names):
         return None
     first, *rest = (JsonType(name) for name in names)
     return (first, *rest)

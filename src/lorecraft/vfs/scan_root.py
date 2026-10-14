@@ -54,7 +54,7 @@ class ScanRoot:
             return False
         if self.depth is None:
             return True
-        return self.listing_level(path).value <= self.depth.value
+        return self.listing_level(path) <= self.depth
 
     def listing_level(self, path: RootRelativePath) -> UnsignedInt:
         """How many levels below `directory` the directory listing `path` sits; 0 for an entry of `directory`.
@@ -85,10 +85,10 @@ class ScanRoot:
         """
         if self.depth is None:
             return ScanRoot(directory, None, follow_links=self.follow_links)
-        depth_left = self.depth.value - levels.value
-        if depth_left < 0:
+        depth_left = self.depth.minus(levels)
+        if depth_left is None:
             return None
-        return ScanRoot(directory, UnsignedInt(depth_left), follow_links=self.follow_links)
+        return ScanRoot(directory, depth_left, follow_links=self.follow_links)
 
     def is_at_least_as_deep_as(self, other: 'ScanRoot') -> bool:
         """Whether a scan of this root lists at least as many levels below its directory as one of `other`.
@@ -104,4 +104,4 @@ class ScanRoot:
             return True
         if other.depth is None:
             return False
-        return self.depth.value >= other.depth.value
+        return self.depth >= other.depth

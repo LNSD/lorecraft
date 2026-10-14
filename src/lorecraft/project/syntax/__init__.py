@@ -33,7 +33,7 @@ from .link import (
     NormalisedLinkPath,
     RelativeDestination,
 )
-from .position import LineNumber
+from .position import FIRST_LINE, LineNumber
 from .tokens import TokenCount, count_tokens
 from .words import WordCount, count_words
 
@@ -65,6 +65,7 @@ __all__: list[str] = [
     'AnchorNumber',
     'InvalidAnchorError',
     'LineNumber',
+    'FIRST_LINE',
     'TokenCount',
     'count_tokens',
     'LineCount',

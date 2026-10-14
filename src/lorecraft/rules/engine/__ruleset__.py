@@ -1,6 +1,6 @@
 """What the `LC` group's conditions share: the group they are declared under, and what a refusal was of."""
 
-from enum import Enum
+from enum import StrEnum
 from typing import Final
 
 from lorecraft.rules.declaration import ENGINE_GROUP, RuleGroup
@@ -10,7 +10,7 @@ GROUP_ID: Final[RuleGroup] = ENGINE_GROUP
 the package loads, a rule or a removed rule inside it."""
 
 
-class RefusedOperation(Enum):
+class RefusedOperation(StrEnum):
     """What the operating system refused while a structure file, a directory or a `SKILL.md` was reached.
 
     Each value is the verb a message states it with.

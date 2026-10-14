@@ -98,7 +98,7 @@ def _is_resource_path(path: SkillRelativePath) -> bool:
     directory, has no name, so it is none.
     """
     name = path.name
-    if name is None or not name.value.endswith(DOCUMENT_SUFFIX):
+    if name is None or not name.has_suffix(DOCUMENT_SUFFIX):
         return False
     return path != _SKILL_ENTRY_PATH
 

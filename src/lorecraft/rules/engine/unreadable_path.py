@@ -112,7 +112,7 @@ class UnreadablePath(EntryCondition):
         match self.cause:
             case Refused(operation=operation, refusal=refusal):
                 return (
-                    EntryNote(f'cannot {operation.value} {self.failed_at}: {refusal.value}'),
+                    EntryNote(f'cannot {operation} {self.failed_at}: {refusal}'),
                     EntryHelp('make the path, and what it links to, accessible to the process that runs the check'),
                 )
             case NotARegularFile():

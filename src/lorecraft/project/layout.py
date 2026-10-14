@@ -70,7 +70,7 @@ def _is_declared_file(path: RootRelativePath) -> bool:
     name = path.name
     if path.parent != SPECS_DIR or name is None:
         return False
-    return name.value.endswith((SPEC_FILE_SUFFIX, LEGACY_STRUCTURE_FILE_SUFFIX))
+    return name.has_suffix(SPEC_FILE_SUFFIX, LEGACY_STRUCTURE_FILE_SUFFIX)
 
 
 DECLARATION: Final[Declaration] = Declaration(is_file=_is_declared_file)

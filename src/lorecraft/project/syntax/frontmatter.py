@@ -34,7 +34,7 @@ import re
 import sys
 from collections.abc import Iterator, Sequence
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 from typing import Final, Never, assert_never, get_args
 
 from ruamel.yaml import YAML
@@ -219,7 +219,7 @@ type _Entry = tuple[FrontmatterKey, Frozen]
 """One pair of a mapping as it is written: the key, with its line, and the decoded value."""
 
 
-class _RecordedConstruct(Enum):
+class _RecordedConstruct(StrEnum):
     """The constructs the scanner records without stopping, each with how the problem names it."""
 
     EXPLICIT_KEY = 'an explicit key'
@@ -249,7 +249,7 @@ class _RecordedRefusal:
         """The problem as `FM002` words it, `found <construct>, which frontmatter does not allow` by default."""
         if self.character is not None:
             return f'the block holds U+{ord(self.character):04X}, which is not a line break here'
-        return f'found {self.construct.value}, {_NOT_ALLOWED}'
+        return f'found {self.construct}, {_NOT_ALLOWED}'
 
     @property
     def help(self) -> str | None:
@@ -1252,7 +1252,7 @@ def _read_document(parser: _EventStream) -> Frontmatter | NonMappingFrontmatter:
     if isinstance(first, MappingStartEvent):
         entries = _read_mapping(parser, first, repeats)
         # An inner mapping ends before the one that holds it, so its repeats came first; document order is by line.
-        in_document_order = tuple(sorted(repeats, key=lambda repeat: repeat.line.value))
+        in_document_order = tuple(sorted(repeats, key=lambda repeat: repeat.line))
         node: Frontmatter | NonMappingFrontmatter = _frontmatter(entries, in_document_order)
     else:
         _read_value(parser, repeats)

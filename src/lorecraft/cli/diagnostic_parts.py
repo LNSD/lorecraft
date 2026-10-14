@@ -147,7 +147,7 @@ def format_place(at: FilePlace) -> str:
     """
     if at.line is None:
         return str(at.path)
-    return f'{at.path}:{at.line.value}'
+    return f'{at.path}:{at.line}'
 
 
 def child_kind(child: Subdiagnostic | EntrySubdiagnostic) -> Literal['help', 'note']:
