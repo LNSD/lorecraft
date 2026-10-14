@@ -10,7 +10,7 @@ words that do not change with pydantic's version.
 from collections.abc import Mapping
 from dataclasses import dataclass, replace
 from types import MappingProxyType
-from typing import Final
+from typing import Final, assert_never
 
 from pydantic import ValidationError
 from pydantic_core import ErrorDetails
@@ -33,7 +33,7 @@ from .frontmatter_problem import (
     WrongTypeProblem,
 )
 from .schema_guidance import json_type_of, known_fields, schema_guidance
-from .skill_frontmatter import SKILL_NAME_PATTERN, SkillFrontmatter, find_value_object_message, is_name_format_error
+from .skill_frontmatter import SKILL_NAME_PATTERN, SkillFrontmatter, value_object_error_type
 
 
 # It holds nothing, since the specification is fixed. It is an object rather than a function so that it has the
@@ -113,11 +113,19 @@ def _frontmatter_problem(detail: ErrorDetails, field_count: FieldCount) -> Front
     guidance = _FIELD_GUIDANCE.get(field, FieldGuidance())
     if len(location) > 1:
         return InvalidValueProblem(field, _nested_message(field, detail), OtherValueConstraint(), guidance=guidance)
-    value_object_reason = find_value_object_message(detail)
-    if value_object_reason is not None:
-        # A name's characters are the one value-object rejection a pattern states, as a document's are.
-        constraint = PatternMismatch(SKILL_NAME_PATTERN) if is_name_format_error(detail) else OtherValueConstraint()
-        return InvalidValueProblem(field, value_object_reason, constraint, guidance=guidance)
+    # The value objects word their own rejections, so the message is theirs and the error type says which rule broke.
+    value_object_error = value_object_error_type(detail)
+    match value_object_error:
+        case None:
+            pass
+        case 'skill_name_format':
+            # A name's characters are the one value-object rejection a pattern states, as a document's are.
+            constraint = PatternMismatch(SKILL_NAME_PATTERN)
+            return InvalidValueProblem(field, detail['msg'], constraint, guidance=guidance)
+        case 'skill_name' | 'skill_description' | 'skill_compatibility':
+            return InvalidValueProblem(field, detail['msg'], OtherValueConstraint(), guidance=guidance)
+        case _:
+            assert_never(value_object_error)
     match detail['type']:
         case 'missing':
             return MissingFieldProblem(field, f'`{field}` is required', guidance=guidance)

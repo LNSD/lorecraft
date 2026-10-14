@@ -59,41 +59,31 @@ from pydantic_core import ErrorDetails, PydanticCustomError, core_schema
 from lorecraft.core.error import Error
 
 # The pydantic error types the value objects raise their rejections under, typed as literals because
-# `PydanticCustomError` takes only a literal string. `find_value_object_message` and `is_name_format_error` read
-# them back. `SkillName` raises a format fault under `skill_name_format`, and its other faults under `skill_name`,
-# so that `is_name_format_error` can tell the format fault apart.
-_NAME_ERROR_TYPE: Final[Literal['skill_name']] = 'skill_name'
-_NAME_FORMAT_ERROR_TYPE: Final[Literal['skill_name_format']] = 'skill_name_format'
-_DESCRIPTION_ERROR_TYPE: Final[Literal['skill_description']] = 'skill_description'
-_COMPATIBILITY_ERROR_TYPE: Final[Literal['skill_compatibility']] = 'skill_compatibility'
+# `PydanticCustomError` takes only a literal string. `value_object_error_type` reads them back. `SkillName` raises a
+# format fault under `skill_name_format`, and its other faults under `skill_name`, so that a reader can tell the
+# format fault apart.
+type ValueObjectErrorType = Literal['skill_name', 'skill_name_format', 'skill_description', 'skill_compatibility']
+"""The pydantic error types the value objects raise their rejections under."""
+
+_NAME_ERROR_TYPE: Final[ValueObjectErrorType] = 'skill_name'
+_NAME_FORMAT_ERROR_TYPE: Final[ValueObjectErrorType] = 'skill_name_format'
+_DESCRIPTION_ERROR_TYPE: Final[ValueObjectErrorType] = 'skill_description'
+_COMPATIBILITY_ERROR_TYPE: Final[ValueObjectErrorType] = 'skill_compatibility'
 
 
-def find_value_object_message(detail: ErrorDetails) -> str | None:
-    """The message a value object rejected a field's value with, or `None` when `detail` is not such an error.
+def value_object_error_type(detail: ErrorDetails) -> ValueObjectErrorType | None:
+    """The error type a value object rejected a field's value under, or `None` when `detail` is not such an error.
 
-    The message is the error's formatted `msg`: see the note on the pydantic hooks above.
-
-    Args:
-        detail: One entry of a pydantic `ValidationError`; only the error types the value objects raise yield a message.
-    """
-    value_object_types = (
-        _NAME_ERROR_TYPE,
-        _NAME_FORMAT_ERROR_TYPE,
-        _DESCRIPTION_ERROR_TYPE,
-        _COMPATIBILITY_ERROR_TYPE,
-    )
-    if detail['type'] not in value_object_types:
-        return None
-    return detail['msg']
-
-
-def is_name_format_error(detail: ErrorDetails) -> bool:
-    """Whether `detail` is a skill name rejected for its characters or hyphens, which `SKILL_NAME_PATTERN` states.
+    The rejection's message is the error's formatted `msg`: see the note on the pydantic hooks above.
 
     Args:
-        detail: One entry of a pydantic `ValidationError`.
+        detail: One entry of a pydantic `ValidationError`; only the error types the value objects raise yield a type.
     """
-    return detail['type'] == _NAME_FORMAT_ERROR_TYPE
+    match detail['type']:
+        case 'skill_name' | 'skill_name_format' | 'skill_description' | 'skill_compatibility' as error_type:
+            return error_type
+        case _:
+            return None
 
 
 SKILL_NAME_MAX_LENGTH: Final[int] = 64
