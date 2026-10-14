@@ -12,7 +12,7 @@ from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Subdiagnostic
 from lorecraft.rules.subject import SkillFileRule
 
-from .__ruleset__ import GROUP_ID, skill_note
+from .__ruleset__ import GROUP_ID, SKILL_NOTE
 
 
 @rule
@@ -81,7 +81,7 @@ class EscapingLink(SkillFileRule):
 
     def children(self) -> tuple[Subdiagnostic, ...]:
         """Point at the meta spec that reads the link from the skill root, then say how to name the file."""
-        return (skill_note(), Help('link a file inside the skill, relative to the skill root'))
+        return (SKILL_NOTE, Help('link a file inside the skill, relative to the skill root'))
 
     @classmethod
     def check(cls, subject: SkillFileContext) -> tuple[Self, ...]:

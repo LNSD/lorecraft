@@ -1,20 +1,16 @@
 """A sample rule at `warn` over the token count: a document holds more than half the tokens a budget allows."""
 
 from dataclasses import dataclass
-from typing import ClassVar, Final, Self
+from typing import ClassVar, Self
 
-from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.context import DocumentContext
-from lorecraft.project.syntax import LineNumber
+from lorecraft.project.syntax import FIRST_LINE
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.subject import DocumentRule, Facet
 
 from ..groups import SAMPLE
-
-_FIRST_LINE: Final[LineNumber] = LineNumber(NonZeroUnsignedInt(1))
-"""Where an occurrence is reported: a budget concerns the whole file."""
 
 
 @rule
@@ -55,6 +51,6 @@ class OverHalfBudget(DocumentRule):
             budget = structure_spec.tokens
             if budget is not None and token_count * 2 > budget.value:
                 occurrences.append(
-                    cls(spec=structure_spec.path, line=_FIRST_LINE, token_count=token_count, budget=budget.value)
+                    cls(spec=structure_spec.path, line=FIRST_LINE, token_count=token_count, budget=budget.value)
                 )
         return tuple(occurrences)

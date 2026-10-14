@@ -13,7 +13,6 @@ from lorecraft.project.context import (
     FrontmatterOwner,
     SkillFrontmatterOwner,
 )
-from lorecraft.project.schemas import FIRST_LINE
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Here, Label, Note, Subdiagnostic
@@ -135,7 +134,7 @@ class MissingFrontmatter(FrontmatterRule):
         frontmatter = subject.frontmatter()
         match frontmatter:
             case syntax.MissingFrontmatter():
-                return (cls(owner=subject.frontmatter_owner(), line=FIRST_LINE),)
+                return (cls(owner=subject.frontmatter_owner(), line=syntax.FIRST_LINE),)
             case syntax.InvalidYamlFrontmatter() | syntax.NonMappingFrontmatter() | syntax.Frontmatter():
                 return ()
             case _:

@@ -20,7 +20,7 @@ from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Here, Label, Subdiagnostic
 from lorecraft.rules.subject import SkillRule
 
-from .__ruleset__ import GROUP_ID, allowed_tools_note
+from .__ruleset__ import ALLOWED_TOOLS_NOTE, GROUP_ID
 
 
 @dataclass(frozen=True, slots=True)
@@ -115,7 +115,7 @@ class MalformedAllowedTools(SkillRule):
                 fix = 'write the entry as `Tool` or `Tool(pattern)`'
             case _:
                 assert_never(problem)
-        return (allowed_tools_note(), Help(fix))
+        return (ALLOWED_TOOLS_NOTE, Help(fix))
 
     @classmethod
     def check(cls, subject: SkillContext) -> tuple[Self, ...]:

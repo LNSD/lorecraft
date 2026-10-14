@@ -1,12 +1,11 @@
 """`LEN001`: a document is longer than its token budget allows."""
 
 from dataclasses import dataclass
-from typing import ClassVar, Final, Self
+from typing import ClassVar, Self
 
-from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.context import DocumentContext
-from lorecraft.project.syntax import LineNumber
+from lorecraft.project.syntax import FIRST_LINE
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Here, Label, Note, Subdiagnostic
@@ -14,11 +13,6 @@ from lorecraft.rules.overrun import Overrun, find_overrun
 from lorecraft.rules.subject import DocumentRule, Facet
 
 from .__ruleset__ import GROUP_ID, spec_note
-
-# A budget concerns the whole file, not one of its lines, but an occurrence under `ContentRule` carries a line, so
-# it is reported at the first line.
-_FIRST_LINE: Final[LineNumber] = LineNumber(NonZeroUnsignedInt(1))
-"""Where an occurrence is reported: the subject's first line."""
 
 
 @rule
@@ -133,5 +127,5 @@ class TooManyTokens(DocumentRule):
         for spec_path, budget in budgets:
             overrun = find_overrun(token_count, budget)
             if overrun is not None:
-                occurrences.append(cls(spec=spec_path, line=_FIRST_LINE, overrun=overrun))
+                occurrences.append(cls(spec=spec_path, line=FIRST_LINE, overrun=overrun))
         return tuple(occurrences)

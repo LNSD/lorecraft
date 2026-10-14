@@ -20,7 +20,7 @@ from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Note, Subdiagnostic
 from lorecraft.rules.subject import MarkdownRule
 
-from .__ruleset__ import GROUP_ID, skill_note
+from .__ruleset__ import GROUP_ID, SKILL_NOTE
 
 
 @rule
@@ -101,7 +101,7 @@ class BrokenLink(MarkdownRule):
         match self.base:
             case SkillRoot():
                 return (
-                    skill_note(),
+                    SKILL_NOTE,
                     Help('link a file or a directory the skill holds, relative to the skill root'),
                     Note(f'read from the skill root, it names `{self.target}`'),
                 )

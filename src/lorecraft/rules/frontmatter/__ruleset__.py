@@ -6,7 +6,7 @@ derive from `FrontmatterRule`, so one check judges a document and a skill alike,
 subject from its context, through `owner_spec` for the block and `schema_spec` for a schema's problems. It says which
 it is through `spec_note` or `schema_note`, so a document's occurrence and a skill's read apart. Rules over a skill's
 `allowed-tools` alone derive from `SkillRule`, and both say where the meta spec states the field through
-`allowed_tools_note`; its recommended length is set by Lorecraft, not the meta spec.
+`ALLOWED_TOOLS_NOTE`; its recommended length is set by Lorecraft, not the meta spec.
 
 A field's line, or line 1 in its absence, is decided in one place, `field_line` in `lorecraft.project.schemas`: the
 schema problems arrive placed through it, and a rule that reports at a field's line calls it rather than search the
@@ -114,9 +114,8 @@ def example_note(field: str, example: str) -> Note:
     return Note(f'for example:\n{field}: {example}')
 
 
-def allowed_tools_note() -> Note:
-    """The note naming where the Agent Skills specification states `allowed-tools`, which it marks experimental."""
-    return Note(
-        "the Agent Skills specification's experimental `allowed-tools` field: "
-        'https://agentskills.io/specification#allowed-tools-field'
-    )
+ALLOWED_TOOLS_NOTE: Final[Note] = Note(
+    "the Agent Skills specification's experimental `allowed-tools` field: "
+    'https://agentskills.io/specification#allowed-tools-field'
+)
+"""The note naming where the Agent Skills specification states `allowed-tools`, which it marks experimental."""
