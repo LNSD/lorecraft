@@ -304,7 +304,7 @@ type = "forbidden"
 source_modules = ["lorecraft"]
 forbidden_modules = ["ruamel"]
 ignore_imports = [
-    "lorecraft.yaml.basic_yaml -> ruamel",
+    "lorecraft.yaml.** -> ruamel",
     "lorecraft.project.syntax.frontmatter -> ruamel",
     "lorecraft.project.syntax.syntax_error -> ruamel",
     "lorecraft.project.syntax.tests.test_syntax_error -> ruamel",
