@@ -75,10 +75,16 @@ class SourceText:
     def line(self, number: LineNumber) -> str:
         """The text of a line, which the file must run to.
 
+        A byte order mark opening the file is no character a reader sees and takes no column, so the first line is
+        returned without it, and an underline sits under the text it labels.
+
         Args:
             number: The line to read, which `has_line` confirmed.
         """
-        return self.lines[number.number - 1]
+        text = self.lines[number.number - 1]
+        if number.number == 1:
+            return text.removeprefix('\ufeff')
+        return text
 
 
 # The source text of every file a diagnostic of the run excerpts, by path.

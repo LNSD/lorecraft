@@ -95,20 +95,15 @@ and the gutter and location markers bold blue.
 ## Usage
 
 ```bash
-# Every rule over the workspace around the working directory
 lorecraft check
 
-# Another repository, as JSON
 lorecraft check --root ../other-repo --format json
 
-# One line per diagnostic, for a tool to match
 lorecraft check --format short
 
-# The frontmatter rules and one length rule; then every rule but the links
 lorecraft check --select FM,LEN003
 lorecraft check --ignore LINK
 
-# One outline rule, though its group is ignored; then the outline rules numbered 001 to 009
 lorecraft check --select OUT006 --ignore OUT
 lorecraft check --select OUT00
 ```
@@ -195,8 +190,10 @@ With multiple unreported refusals, exit `2` names the first path in path order.
 - A warning does not fail the run: a rule whose default level is `warn`, such as
   [`FM007`](../rulebook/FM007-unknown-field.md), exits 0.
 - A whole subject, such as a layout entry, shows `--> path` without an excerpt. When source text cannot be
-  read, a label appears as `= at path:line: text`. An excerpt of a file starting with a UTF-8 byte order mark
-  shows line 1 without the mark. The gutter and underlines use `| ^ - .` when UTF-8 output is unavailable.
+  read, a label appears as `= at path:line: text`. Source lines are available for documents, skills' `SKILL.md`
+  files, skill resources and specification files directly in `docs/__meta__/`; other paths have no excerpt.
+  A UTF-8 byte order mark is omitted from excerpted line 1, so its underline spans only the visible text.
+  The gutter and underlines use `| ^ - .` when UTF-8 output is unavailable.
 - A repository with skills and no `docs/__meta__/` needs `--root`.
 - A key repeated inside a nested frontmatter mapping is not reported as repeated.
 - A fragment after a path, such as `guide.md#usage`, is not checked against the file it names.

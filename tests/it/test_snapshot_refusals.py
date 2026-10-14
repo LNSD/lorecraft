@@ -7,8 +7,7 @@ it. The command tests at the end hold what `lorecraft check` does with a refusal
 """
 
 import os
-import stat
-from collections.abc import Callable, Iterator
+from collections.abc import Callable
 from pathlib import Path
 from typing import Final
 
@@ -73,20 +72,6 @@ def _path(text: str) -> RootRelativePath:
         text: A root-relative path, such as `docs/code`.
     """
     return RootRelativePath.parse(text)
-
-
-@pytest.fixture(scope='function')
-def lock() -> Iterator[Callable[[Path], None]]:
-    """A function that makes a path refuse every access, restoring each path afterwards for pytest's cleanup."""
-    locked: list[tuple[Path, int]] = []
-
-    def lock_path(path: Path) -> None:
-        locked.append((path, stat.S_IMODE(path.stat().st_mode)))
-        path.chmod(0o000)
-
-    yield lock_path
-    for path, mode in locked:
-        path.chmod(mode)
 
 
 @pytest.fixture(scope='function')

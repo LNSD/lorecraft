@@ -10,8 +10,9 @@ Every snapshot here is built in memory, so no case reads the disk: the database 
 the model loader, the layout guard and the parser together.
 """
 
-from collections.abc import Mapping
-from pathlib import PurePosixPath
+import os
+from collections.abc import Callable, Mapping
+from pathlib import Path, PurePosixPath
 from textwrap import dedent
 from typing import Final
 
@@ -22,15 +23,16 @@ from lorecraft.core.num import UnsignedInt
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
-from lorecraft.project.database import Database, DocumentText, SkillText, Undecodable
+from lorecraft.project.database import Database, DocumentText, SkillResourceText, SkillText, Undecodable
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.layout import LinkedLayoutError
 from lorecraft.project.skill import SkillRef
-from lorecraft.project.syntax import Frontmatter, Heading, LineNumber, count_tokens
+from lorecraft.project.syntax import Frontmatter, Heading, LineNumber, count_tokens, split_lines
 from lorecraft.project.syntax import Link as MarkdownLink
 from lorecraft.project.workspace import EmptyStructureSpec, FailedStructure, LoadFailure
 from lorecraft.vfs import (
     ByteOffset,
+    Declaration,
     DirectoryRecord,
     EntryRecord,
     FileRecord,
@@ -41,6 +43,7 @@ from lorecraft.vfs import (
     Utf8Failure,
     Utf8Line,
     Utf8Reason,
+    take_snapshot,
 )
 
 GUIDE: Final[DocumentRef] = DocumentRef(CorpusName.parse('code'), AspectFilename.parse('guide'))
@@ -404,15 +407,47 @@ class TestDatabase:
         #: Then
         assert lines == ('one', 'two\x0cstill two'), f'only a newline ends a line, got {lines}'
 
-    def test_source_lines_of_a_file_opening_with_a_byte_order_mark_drops_the_mark(self) -> None:
+    def test_source_lines_of_a_document_opening_with_a_byte_order_mark_returns_the_lines_of_its_decoded_text(
+        self,
+    ) -> None:
         #: Given
         database = Database.open(_snapshot(b'\xef\xbb\xbf# Guide\nBody\n'))
+        decoded = _document_text(database, GUIDE)
 
         #: When
         lines = database.source_lines(GUIDE.path)
 
         #: Then
-        assert lines == ('# Guide', 'Body'), f'the mark is no character of the first line, got {lines}'
+        assert lines == split_lines(decoded.text), f'the excerpt is cut from the decoded text, got {lines}'
+        assert lines == ('\ufeff# Guide', 'Body'), f'the mark stays in the text the rules numbered, got {lines}'
+
+    def test_source_lines_of_a_skill_returns_the_lines_of_its_decoded_text(self) -> None:
+        #: Given
+        database = Database.open(_skill_snapshot(b'\xef\xbb\xbf---\nname: review\n---\nBody\n'))
+        decoded = _skill_text(database, REVIEW)
+
+        #: When
+        lines = database.source_lines(REVIEW.path)
+
+        #: Then
+        assert lines == split_lines(decoded.text), f'the excerpt is cut from the decoded text, got {lines}'
+
+    def test_source_lines_of_a_skill_resource_returns_the_lines_of_its_decoded_text(self) -> None:
+        #: Given
+        snapshot = Snapshot.from_tree(
+            {'.agents': {'skills': {'review': {'SKILL.md': b'# Review\n', 'guide.md': b'\xef\xbb\xbfone\ntwo\n'}}}}
+        )
+        database = Database.open(snapshot)
+        location = database.model().skill_locations[REVIEW]
+        resource = database.skill_resources(location).resources[0]
+        decoded = database.skill_resource_text(resource)
+        assert isinstance(decoded, SkillResourceText), 'the resource was written as UTF-8, so it decodes'
+
+        #: When
+        lines = database.source_lines(resource.ref.path)
+
+        #: Then
+        assert lines == split_lines(decoded.text), f'the excerpt is cut from the decoded text, got {lines}'
 
     def test_source_lines_of_a_specification_returns_its_lines(self) -> None:
         #: Given
@@ -434,7 +469,7 @@ class TestDatabase:
         #: Then
         assert lines is None, f'a file that does not decode has nothing to excerpt, got {lines}'
 
-    def test_source_lines_of_a_path_the_snapshot_does_not_hold_returns_none(self) -> None:
+    def test_source_lines_of_a_path_no_decode_query_owns_returns_none(self) -> None:
         #: Given
         database = Database.open(_snapshot(b'# Guide\n'))
 
@@ -442,7 +477,37 @@ class TestDatabase:
         lines = database.source_lines(RootRelativePath.parse('docs/code/missing.md'))
 
         #: Then
-        assert lines is None, f'a missing file has nothing to excerpt, got {lines}'
+        assert lines is None, f'a path that is no listed file has nothing to excerpt, got {lines}'
+
+    def test_source_lines_of_a_specification_the_snapshot_does_not_hold_returns_none(self) -> None:
+        #: Given
+        database = Database.open(_snapshot(b'# Guide\n'))
+
+        #: When
+        lines = database.source_lines(RootRelativePath.parse('docs/__meta__/missing.structure.json'))
+
+        #: Then
+        assert lines is None, f'a missing specification has nothing to excerpt, got {lines}'
+
+    @pytest.mark.skipif(os.geteuid() == 0, reason='root ignores file and directory permissions')
+    def test_source_lines_of_a_resource_of_a_skill_that_cannot_be_listed_returns_none(
+        self, tmp_path: Path, lock: Callable[[Path], None]
+    ) -> None:
+        #: Given
+        skill = tmp_path / '.agents' / 'skills' / 'review'
+        (skill / 'references').mkdir(parents=True)
+        (skill / 'SKILL.md').write_text('# Review\n', encoding='utf-8')
+        (skill / 'guide.md').write_text('# Guide\n', encoding='utf-8')
+        # The walk over the skill's resources enters `references`, which the scan then records as refused.
+        lock(skill / 'references')
+        scope = (ScanRoot(RootRelativePath.parse('.agents/skills'), depth=None, follow_links=True),)
+        database = Database.open(take_snapshot(tmp_path, scope, declaration=Declaration(is_file=lambda _: False)))
+
+        #: When
+        lines = database.source_lines(RootRelativePath.parse('.agents/skills/review/guide.md'))
+
+        #: Then
+        assert lines is None, f'a skill whose resources cannot be listed has nothing to excerpt, got {lines}'
 
     def test_frontmatter_of_a_listed_document_returns_its_decoded_block(self) -> None:
         #: Given

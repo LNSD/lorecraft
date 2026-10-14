@@ -113,5 +113,5 @@ class CorpusName:
             raise ReservedCorpusNameError(self.value)
 
     def __str__(self) -> str:
-        """The directory name exactly as supplied, which also prefixes the corpus's rule identifiers."""
+        """The directory name exactly as supplied."""
         return self.value

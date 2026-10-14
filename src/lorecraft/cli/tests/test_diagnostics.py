@@ -168,6 +168,24 @@ class TestRenderText:
         assert '\x1b[33m\x1b[1mwarning[LEN001]\x1b[0m' in text, 'a warning is bold yellow'
         assert '\x1b[34m\x1b[1m-->\x1b[0m' in text, 'the location arrow is bold blue'
 
+    def test_render_text_with_a_source_opening_with_a_byte_order_mark_underlines_the_visible_text(self) -> None:
+        #: Given
+        reports = _every_kind_of_report()
+        sources = {
+            RootRelativePath.parse('docs/code/a.md'): SourceText(
+                ('\ufeff---', 'name: a', 'name: b', 'description: x', '---')
+            ),
+        }
+
+        #: When
+        text = render_text(reports, sources, _PLAIN)
+
+        #: Then
+        assert '\ufeff' not in text, 'the mark is not printed'
+        assert '1 │ ---\n  │ ─── tokens over the budget: 400' in text, (
+            'the line is printed without the mark and the underline spans the three visible characters'
+        )
+
     def test_render_text_without_the_source_of_a_label_prints_it_as_an_at_line(self) -> None:
         #: Given
         reports = _every_kind_of_report()

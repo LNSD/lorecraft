@@ -88,15 +88,17 @@ one path is cheap:
   above, built on the first call, with the path walked through the snapshot's recorded links to tell where it
   leads, and never from which directories the snapshot holds. The index is what costs, so it is kept; the
   answer for one path is cheap, so it is not.
-- `source_lines(path)`: the lines of one file for a diagnostic to excerpt, numbered as the rules number them. It is the
-  exception to the witness rule below: it takes a bare path, because it excerpts files that are not documents, such
-  as the specifications a diagnostic points at, and it decodes the bytes itself. It returns `None` for a file that is
-  missing or not UTF-8. It is for rendering excerpts only and no rule reads it, so a change to how a rule sees a
-  document's text, such as a normalisation in `text`, does not reach it unless it is made there too.
+- `source_lines(path)`: the lines of one file for a diagnostic to excerpt, numbered as the rules number them. It takes
+  a bare path, since a diagnostic names a file by its path, and finds the decode query the path belongs to: the
+  excerpt of a document, a `SKILL.md` or a resource is cut from the text that decode query returned, so it shows what
+  the rules numbered and no other code path decodes those files. A specification file has no decode query, as the
+  model reads it itself, so its excerpt is cut from its bytes decoded as UTF-8, as the model reads a structure
+  file. It returns `None` for a path it holds no such file at, or a file that is missing or not UTF-8, and no rule
+  reads it.
 
-Every query about one file's content, `source_lines` aside, takes the witness its decode query returned, never a
-bare ref, so a fact of a file that is not UTF-8 cannot be asked for: a reader matches the decode once and no later
-reader carries a branch for it. Each still caches by the witness's ref.
+Every query about one file's content takes the witness its decode query returned, never a bare ref, so a fact of a
+file that is not UTF-8 cannot be asked for: a reader matches the decode once and no later reader carries a branch for
+it. Each still caches by the witness's ref.
 
 Rules are pure functions of the values a subject's context reads for them through the database, like an inspection
 run over one file: the runner matches each file's decode once and hands a rule the context of the part it judges. A
@@ -153,9 +155,9 @@ from collections.abc import Mapping
 from typing import Self
 
 from lorecraft.core.path import RootRelativePath
-from lorecraft.project.document import DocumentDecodeError, DocumentRef
+from lorecraft.project.document import DocumentDecodeError, DocumentReadError, DocumentRef
 from lorecraft.project.document import Repository as DocumentRepository
-from lorecraft.project.layout import reject_linked_layout
+from lorecraft.project.layout import SPECS_DIR, reject_linked_layout
 from lorecraft.project.link_target import DocumentDirectory, LinkTargetEntry, SkillRoot, find_link_targets
 from lorecraft.project.schemas import (
     OutlineAlignmentSpec,
@@ -170,11 +172,15 @@ from lorecraft.project.skill import Repository as SkillRepository
 from lorecraft.project.skill import (
     SkillDecodeError,
     SkillLocation,
+    SkillReadError,
     SkillRef,
     SkillResourceDecodeError,
     SkillResourceListing,
     SkillResourceLocation,
+    SkillResourceReadError,
     SkillResourceRef,
+    SkillResourcesListError,
+    SkillResourcesSymlinkResolveError,
 )
 from lorecraft.project.syntax import (
     FrontmatterNode,
@@ -201,6 +207,17 @@ from lorecraft.vfs import (
 )
 
 from .text import DocumentText, SkillResourceText, SkillText, Undecodable
+
+
+def _witness_text(source: DocumentText | SkillText | SkillResourceText | Undecodable) -> str | None:
+    """The text a decode query returned, or None when its file is not UTF-8.
+
+    Args:
+        source: The answer of a decode query.
+    """
+    if isinstance(source, Undecodable):
+        return None
+    return source.text
 
 
 class Database:
@@ -329,27 +346,70 @@ class Database:
     def source_lines(self, path: RootRelativePath) -> tuple[str, ...] | None:
         """The lines of one file under the root, for a diagnostic to excerpt, numbered as the rules number them.
 
-        Any file the snapshot recorded can be asked for: a document, a skill's `SKILL.md`, a resource or a
-        specification. The lines are those of `split_lines` over the file's bytes decoded as UTF-8, except that a
-        byte order mark opening the first line is dropped, since it is no character of the line a reader sees.
+        The lines are those of `split_lines` over the text the file was read as:
 
-        Not cached: an excerpt asks each file once, and a cache would need a carry-over rule of its own.
+        - A document, a skill's `SKILL.md` or a resource: the text its decode query returned, so the excerpt shows
+          what the rules numbered and the file is decoded once. The decode query caches it.
+        - A specification file: its bytes decoded as UTF-8, as the model reads a structure file; no decode
+          query exists for it.
+
+        Any other path has no excerpt. Not cached: an excerpt asks each file once.
 
         Args:
-            path: The root-relative file; a symlink on the way to it, or at it, is followed.
+            path: The root-relative file, as a diagnostic names it: a document's path, a skill's
+                `<directory>/SKILL.md`, a resource's `path` or a file directly in `docs/__meta__/`.
 
         Returns:
-            The lines, or None when the file is missing from the snapshot or is not UTF-8, so there is nothing to
-            excerpt; a file that does not decode is a diagnostic of its own, reported by `text`.
+            The lines, or None when the path is none of those, the file is missing from the snapshot, or it is not
+            UTF-8, so there is nothing to excerpt; a file that does not decode is a diagnostic of its own, reported
+            by its decode query.
         """
         try:
-            text = self._fs.read_text(path)
-        except (TextDecodeError, *FILE_READ_FAILURES, UnrecordedFileError):
+            text = self._source_text(path)
+        except (
+            DocumentReadError,
+            SkillReadError,
+            SkillResourceReadError,
+            SkillResourcesListError,
+            SkillResourcesSymlinkResolveError,
+        ):
             return None
-        lines = split_lines(text)
-        if lines:
-            lines = (lines[0].removeprefix('\ufeff'), *lines[1:])
-        return lines
+        if text is None:
+            return None
+        return split_lines(text)
+
+    def _source_text(self, path: RootRelativePath) -> str | None:
+        """The text an excerpt of `path` is cut from, or None when the path has none to give.
+
+        Args:
+            path: The root-relative file, as `source_lines` is asked for it.
+
+        Raises:
+            DocumentReadError: If the snapshot holds no regular file at the document's path.
+            SkillReadError: If the snapshot holds no regular file at the skill's `SKILL.md`.
+            SkillResourceReadError: If the snapshot holds no regular file at the resource's resolved file.
+            SkillResourcesListError: If a directory the walk over the skill's resources enters cannot be listed.
+            SkillResourcesSymlinkResolveError: If a symlink the walk over the skill's resources meets cannot be
+                resolved.
+        """
+        document = self._model.find_document(path)
+        if document is not None:
+            return _witness_text(self.text(document))
+
+        for location in self._model.skill_locations.values():
+            if path == location.ref.path:
+                return _witness_text(self.skill_text(location.ref))
+            if path.is_relative_to(location.ref.directory):
+                for resource in self.skill_resources(location).resources:
+                    if path == resource.ref.path:
+                        return _witness_text(self.skill_resource_text(resource))
+
+        if path.parent == SPECS_DIR:
+            try:
+                return self._fs.read_text(path)
+            except (TextDecodeError, *FILE_READ_FAILURES, UnrecordedFileError):
+                return None
+        return None
 
     def skill_text(self, ref: SkillRef) -> SkillText | Undecodable:
         """One skill's `SKILL.md` decoded as UTF-8, read from the snapshot on the first call for its ref.
