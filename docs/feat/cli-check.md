@@ -209,8 +209,9 @@ With multiple unreported refusals, exit `2` names the first path in path order.
 | `LAY` | Skill layout checks: `LAY001` escaping-symlink, a symlink an agent reaches whose chain leaves the repository |
 | `LC` | Engine conditions are errors with no level; selection and configuration cannot turn them off. `LC001` invalid-utf8 reports a file that cannot be decoded, including a structure file; `LC002` unreadable-path reports a workspace path the run cannot read, list or follow; `LC003` malformed-structure-file reports a structure file that breaks the format or states no rule; `LC004` unusable-structure-file reports a well-formed structure file with rules that repeat, contradict each other or cannot be applied. |
 
-Each reported structure-file failure appears once at that file, and the documents it governs are listed as skipped.
-`LC001` points to the first invalid byte; `LC002`, `LC003` and `LC004` are whole-file diagnostics.
+Each reported structure-file failure appears once at that file.
+`LC001` points to the first invalid byte; `LC002`, `LC003` and `LC004` are whole-file diagnostics that give
+their help before their notes.
 `LC002` covers unreadable structure files, unlistable corpus or skills directories, unlistable or unresolved
 skill entries, and `SKILL.md` links that cannot be followed. For a failed link lookup, the note names the entry
 the operating system refused to inspect, not the link. Only an unreadable structure file lists its governed
@@ -218,7 +219,7 @@ documents as skipped; the other cases have a diagnostic alone.
 
 `FM008` ends with the field's example when the schema gives one. `FM009` labels malformed skill names with
 their pattern. `FM010` reports other whole-block constraints with one message and no label; its note gives the
-validator's wording. `FM012`, `FM013` and `FM014` carry counts in messages only.
+validator's wording. `FM012` to `FM014` and the `LEN` rules label the amount past the limit.
 
 ## References
 

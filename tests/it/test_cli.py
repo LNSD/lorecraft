@@ -688,7 +688,7 @@ class TestCheckCommand:
                         {
                             'path': '.agents/skills/review/SKILL.md',
                             'line': 4,
-                            'text': 'characters over the recommended length',
+                            'text': 'characters over the recommended length: 1',
                         },
                     ],
                     'children': [

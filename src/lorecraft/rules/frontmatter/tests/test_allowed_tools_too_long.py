@@ -254,7 +254,7 @@ class TestAllowedToolsTooLong:
         #: Then
         assert message == '`allowed-tools` value too long (501 > 500)', 'the value and recommendation are explicit'
 
-    def test_labels_with_an_occurrence_name_what_is_over_the_recommendation_on_the_field_line(self) -> None:
+    def test_labels_with_an_occurrence_name_the_characters_over_the_recommendation_on_the_field_line(self) -> None:
         #: Given
         occurrence = AllowedToolsTooLong(line=LineNumber(NonZeroUnsignedInt(4)), overrun=overrun(520, 500))
 
@@ -262,9 +262,9 @@ class TestAllowedToolsTooLong:
         labels = occurrence.labels()
 
         #: Then
-        assert labels == (Label(Here(LineNumber(NonZeroUnsignedInt(4))), 'characters over the recommended length'),), (
-            'the label names what overruns and carries no number: the message has it'
-        )
+        assert labels == (
+            Label(Here(LineNumber(NonZeroUnsignedInt(4))), 'characters over the recommended length: 20'),
+        ), 'the label names what overruns and how far: 520 is 20 past 500'
 
     def test_children_with_an_occurrence_say_how_to_shorten_the_value_and_where_the_limit_comes_from(
         self,

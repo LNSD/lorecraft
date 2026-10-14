@@ -108,8 +108,8 @@ class TooManyFields(FrontmatterRule):
         return f'too many fields ({self.field_count} > {self.limit})'
 
     def labels(self) -> tuple[Label, ...]:
-        """Name what is out of limit on line 1."""
-        return (Label(Here(self.line), 'number of fields'),)
+        """Say how many fields the block holds past the limit, on line 1."""
+        return (Label(Here(self.line), f'fields over the limit: {self.field_count.value - self.limit.value}'),)
 
     def children(self) -> tuple[Subdiagnostic, ...]:
         """Say where the schema is stated, then what it describes, when it says."""

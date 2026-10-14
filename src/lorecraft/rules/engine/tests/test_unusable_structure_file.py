@@ -65,7 +65,7 @@ class TestUnusableStructureFile:
         #: Then
         assert message == 'outline names a section more than once', 'the message states the case, lowercase, no period'
 
-    def test_children_of_repeated_outline_section_say_what_was_found_and_how_to_fix_it(self) -> None:
+    def test_children_of_repeated_outline_section_say_how_to_fix_it_and_what_was_found(self) -> None:
         #: Given
         occurrence = UnusableStructureFile(
             cause=RepeatedOutlineSection(sections=(SectionName('Details'), SectionName('Overview')))
@@ -75,7 +75,7 @@ class TestUnusableStructureFile:
         children = occurrence.children()
 
         #: Then
-        assert children == (Note('repeated: Details, Overview'), Help('name each section once')), (
+        assert children == (Help('name each section once'), Note('repeated: Details, Overview')), (
             'the facts the case holds are said as notes, and the fix as a help'
         )
 
@@ -89,7 +89,7 @@ class TestUnusableStructureFile:
         #: Then
         assert message == 'a section is forbidden more than once', 'the message states the case, lowercase, no period'
 
-    def test_children_of_repeated_forbidden_section_say_what_was_found_and_how_to_fix_it(self) -> None:
+    def test_children_of_repeated_forbidden_section_say_how_to_fix_it_and_what_was_found(self) -> None:
         #: Given
         occurrence = UnusableStructureFile(cause=RepeatedForbiddenSection(sections=(SectionName('Draft'),)))
 
@@ -97,7 +97,7 @@ class TestUnusableStructureFile:
         children = occurrence.children()
 
         #: Then
-        assert children == (Note('repeated: Draft'), Help('forbid each section once')), (
+        assert children == (Help('forbid each section once'), Note('repeated: Draft')), (
             'the facts the case holds are said as notes, and the fix as a help'
         )
 
@@ -113,7 +113,7 @@ class TestUnusableStructureFile:
             'the message states the case, lowercase, no period'
         )
 
-    def test_children_of_forbidden_outline_section_say_what_was_found_and_how_to_fix_it(self) -> None:
+    def test_children_of_forbidden_outline_section_say_how_to_fix_it_and_what_was_found(self) -> None:
         #: Given
         occurrence = UnusableStructureFile(cause=ForbiddenOutlineSection(sections=(SectionName('Overview'),)))
 
@@ -122,8 +122,8 @@ class TestUnusableStructureFile:
 
         #: Then
         assert children == (
-            Note('named and forbidden: Overview'),
             Help('keep each section in the outline or in the forbidden list, not both'),
+            Note('named and forbidden: Overview'),
         ), 'the facts the case holds are said as notes, and the fix as a help'
 
     def test_message_of_adjacent_any_runs_names_the_case(self) -> None:
@@ -138,7 +138,7 @@ class TestUnusableStructureFile:
             'the message states the case, lowercase, no period'
         )
 
-    def test_children_of_adjacent_any_runs_say_what_was_found_and_how_to_fix_it(self) -> None:
+    def test_children_of_adjacent_any_runs_say_how_to_fix_it_and_what_was_found(self) -> None:
         #: Given
         occurrence = UnusableStructureFile(cause=AdjacentAnyRuns())
 
@@ -164,7 +164,7 @@ class TestUnusableStructureFile:
             'the message states the case, lowercase, no period'
         )
 
-    def test_children_of_invalid_title_pattern_say_what_was_found_and_how_to_fix_it(self) -> None:
+    def test_children_of_invalid_title_pattern_say_how_to_fix_it_and_what_was_found(self) -> None:
         #: Given
         occurrence = UnusableStructureFile(
             cause=InvalidTitlePattern(pattern='[A-Z', problem='unterminated character set at position 0')
@@ -190,7 +190,7 @@ class TestUnusableStructureFile:
             'the message states the case, lowercase, no period'
         )
 
-    def test_children_of_invalid_frontmatter_schema_say_what_was_found_and_how_to_fix_it(self) -> None:
+    def test_children_of_invalid_frontmatter_schema_say_how_to_fix_it_and_what_was_found(self) -> None:
         #: Given
         occurrence = UnusableStructureFile(cause=InvalidFrontmatterSchema(problem="'name' is not of type 'array'"))
 
@@ -212,7 +212,7 @@ class TestUnusableStructureFile:
         #: Then
         assert message == 'frontmatter schema carries $id', 'the message states the case, lowercase, no period'
 
-    def test_children_of_frontmatter_schema_id_say_what_was_found_and_how_to_fix_it(self) -> None:
+    def test_children_of_frontmatter_schema_id_say_how_to_fix_it_and_what_was_found(self) -> None:
         #: Given
         occurrence = UnusableStructureFile(cause=FrontmatterSchemaId())
 
@@ -238,7 +238,7 @@ class TestUnusableStructureFile:
             'the message states the case, lowercase, no period'
         )
 
-    def test_children_of_foreign_frontmatter_dialect_say_what_was_found_and_how_to_fix_it(self) -> None:
+    def test_children_of_foreign_frontmatter_dialect_say_how_to_fix_it_and_what_was_found(self) -> None:
         #: Given
         occurrence = UnusableStructureFile(
             cause=ForeignFrontmatterDialect(dialect="'http://json-schema.org/draft-07/schema#'")
@@ -249,8 +249,8 @@ class TestUnusableStructureFile:
 
         #: Then
         assert children == (
-            Note("$schema holds 'http://json-schema.org/draft-07/schema#'"),
             Help(f'name {JSON_SCHEMA_DIALECT}, or leave $schema out'),
+            Note("$schema holds 'http://json-schema.org/draft-07/schema#'"),
         ), 'the facts the case holds are said as notes, and the fix as a help'
 
     def test_message_of_unresolvable_frontmatter_schema_ref_names_the_case(self) -> None:
@@ -265,7 +265,7 @@ class TestUnusableStructureFile:
             'the message states the case, lowercase, no period'
         )
 
-    def test_children_of_unresolvable_frontmatter_schema_ref_say_what_was_found_and_how_to_fix_it(self) -> None:
+    def test_children_of_unresolvable_frontmatter_schema_ref_say_how_to_fix_it_and_what_was_found(self) -> None:
         #: Given
         occurrence = UnusableStructureFile(cause=UnresolvableFrontmatterSchemaRef(ref="'#/$defs/missing'"))
 
@@ -274,8 +274,8 @@ class TestUnusableStructureFile:
 
         #: Then
         assert children == (
-            Note("$ref holds '#/$defs/missing'"),
             Help('point every $ref at a location inside the frontmatter schema, such as #/$defs/name'),
+            Note("$ref holds '#/$defs/missing'"),
         ), 'the facts the case holds are said as notes, and the fix as a help'
 
     def test_message_of_untyped_frontmatter_schema_names_the_case(self) -> None:
@@ -290,7 +290,7 @@ class TestUnusableStructureFile:
             'the message states the case, lowercase, no period'
         )
 
-    def test_children_of_untyped_frontmatter_schema_say_what_was_found_and_how_to_fix_it(self) -> None:
+    def test_children_of_untyped_frontmatter_schema_say_how_to_fix_it_and_what_was_found(self) -> None:
         #: Given
         occurrence = UnusableStructureFile(cause=UntypedFrontmatterSchema())
 

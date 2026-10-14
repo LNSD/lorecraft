@@ -80,8 +80,8 @@ class AllowedToolsTooLong(SkillRule):
         return f'`allowed-tools` value too long ({self.overrun.count} > {self.overrun.cap})'
 
     def labels(self) -> tuple[Label, ...]:
-        """Name what is over the recommended length, on the field's line."""
-        return (Label(Here(self.line), 'characters over the recommended length'),)
+        """Say how many characters the value runs past the recommended length, on the field's line."""
+        return (Label(Here(self.line), f'characters over the recommended length: {self.overrun.excess}'),)
 
     def children(self) -> tuple[Subdiagnostic, ...]:
         """Say where the field is specified, how to shorten the value, and whose limit this is."""

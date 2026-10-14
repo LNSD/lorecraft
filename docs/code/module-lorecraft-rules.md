@@ -130,13 +130,13 @@ A rule is named for what is wrong, as the established linters name theirs, so it
   `Note` pointing at a schema, and says in its own words what it requires. A title rule, held to by every governed
   document, has `spec` `None` and carries no meta spec `Note`. A rule the package
   itself states has `spec` `None`: its `Note` names the external specification that sets the limit in its text,
-  with no `at`. A link rule that depends on the Agent Skills specification names it in a group-level `Note`,
-  written once in the group's `__ruleset__.py` and placed first in `children()`. A rule the package states that no
-  external specification sets carries no meta spec `Note`.
+  with no `at`. A rule over an Agent Skills field names the Agent Skills specification in a
+  group-level `Note`, written once in the group's `__ruleset__.py` and placed first in `children()`. A rule the
+  package states that no external specification sets carries no meta spec `Note`.
 - **A `Help` gives the fix for this occurrence** when its fields make it concrete, such as the description an
   outline gives a section the document lacks. A limit's message already names the value found against it, so a
-  `Help` restating the difference adds nothing; a `Label` places the overrun at a line, and may name what it
-  overruns, with no number. The general fix is the docstring's, but a rule may give it as a
+  `Help` restating the difference adds nothing; a `Label` places the overrun at a line, and may state the amount
+  over the limit. The general fix is the docstring's, but a rule may give it as a
   fixed `Help`, such as "move the title above every section", and a rule the package states may add a `Help`
   with the fix the external specification itself prescribes. `children()` orders the meta spec `Note` first,
   then the `Help`, then the other `Note`s.
