@@ -41,9 +41,10 @@ class TestFrontmatterSchema:
     def test_parse_with_an_object_schema_keeps_it(self) -> None:
         #: Given
         schema: dict[str, Plain] = {'type': 'object', 'required': ['name'], 'description': 'read by people'}
+        mapping = FrozenMapping.from_plain(schema)
 
         #: When
-        frontmatter = FrontmatterSchema.parse(FrozenMapping.from_plain(schema))
+        frontmatter = FrontmatterSchema.parse(mapping)
 
         #: Then
         assert isinstance(frontmatter, FrontmatterSchema), f'the schema is held, got {frontmatter!r}'
@@ -52,9 +53,10 @@ class TestFrontmatterSchema:
     def test_parse_with_the_draft_2020_12_dialect_in_schema_keeps_it(self) -> None:
         #: Given
         schema: dict[str, Plain] = {'$schema': 'https://json-schema.org/draft/2020-12/schema', 'type': 'object'}
+        mapping = FrozenMapping.from_plain(schema)
 
         #: When
-        frontmatter = FrontmatterSchema.parse(FrozenMapping.from_plain(schema))
+        frontmatter = FrontmatterSchema.parse(mapping)
 
         #: Then
         assert isinstance(frontmatter, FrontmatterSchema), f'the schema is held, got {frontmatter!r}'
@@ -67,9 +69,10 @@ class TestFrontmatterSchema:
             'if': {'properties': {'type': {'const': 'pattern'}}},
             'then': {'required': ['scope']},
         }
+        mapping = FrozenMapping.from_plain(schema)
 
         #: When
-        frontmatter = FrontmatterSchema.parse(FrozenMapping.from_plain(schema))
+        frontmatter = FrontmatterSchema.parse(mapping)
 
         #: Then
         assert isinstance(frontmatter, FrontmatterSchema), f'the schema is held, got {frontmatter!r}'
@@ -80,9 +83,10 @@ class TestFrontmatterSchema:
     def test_parse_with_an_id_inside_an_enum_value_keeps_it(self) -> None:
         #: Given
         schema: dict[str, Plain] = {'type': 'object', 'properties': {'ref': {'enum': [{'$id': 'data'}]}}}
+        mapping = FrozenMapping.from_plain(schema)
 
         #: When
-        frontmatter = FrontmatterSchema.parse(FrozenMapping.from_plain(schema))
+        frontmatter = FrontmatterSchema.parse(mapping)
 
         #: Then
         assert isinstance(frontmatter, FrontmatterSchema), f'the schema is held, got {frontmatter!r}'
@@ -93,9 +97,10 @@ class TestFrontmatterSchema:
     def test_parse_with_a_malformed_schema_returns_invalid_frontmatter_schema(self) -> None:
         #: Given
         schema: dict[str, Plain] = {'type': 'object', 'required': 'name'}
+        mapping = FrozenMapping.from_plain(schema)
 
         #: When
-        failure = FrontmatterSchema.parse(FrozenMapping.from_plain(schema))
+        failure = FrontmatterSchema.parse(mapping)
 
         #: Then
         assert failure == InvalidFrontmatterSchema("'name' is not of type 'array'"), (
@@ -105,9 +110,10 @@ class TestFrontmatterSchema:
     def test_parse_without_a_type_returns_untyped_frontmatter_schema(self) -> None:
         #: Given
         schema: dict[str, Plain] = {'required': ['name']}
+        mapping = FrozenMapping.from_plain(schema)
 
         #: When
-        failure = FrontmatterSchema.parse(FrozenMapping.from_plain(schema))
+        failure = FrontmatterSchema.parse(mapping)
 
         #: Then
         assert failure == UntypedFrontmatterSchema(), 'an implied object type is refused'
@@ -115,9 +121,10 @@ class TestFrontmatterSchema:
     def test_parse_with_a_non_object_type_returns_untyped_frontmatter_schema(self) -> None:
         #: Given
         schema: dict[str, Plain] = {'type': 'array'}
+        mapping = FrozenMapping.from_plain(schema)
 
         #: When
-        failure = FrontmatterSchema.parse(FrozenMapping.from_plain(schema))
+        failure = FrontmatterSchema.parse(mapping)
 
         #: Then
         assert failure == UntypedFrontmatterSchema(), 'a frontmatter is always a mapping'
@@ -125,9 +132,10 @@ class TestFrontmatterSchema:
     def test_parse_with_a_type_list_returns_untyped_frontmatter_schema(self) -> None:
         #: Given
         schema: dict[str, Plain] = {'type': ['object', 'null']}
+        mapping = FrozenMapping.from_plain(schema)
 
         #: When
-        failure = FrontmatterSchema.parse(FrozenMapping.from_plain(schema))
+        failure = FrontmatterSchema.parse(mapping)
 
         #: Then
         assert failure == UntypedFrontmatterSchema(), 'the type is exactly "object"'
@@ -135,9 +143,10 @@ class TestFrontmatterSchema:
     def test_parse_with_a_dangling_local_ref_returns_unresolvable_frontmatter_schema_ref(self) -> None:
         #: Given
         schema: dict[str, Plain] = {'type': 'object', 'properties': {'name': {'$ref': '#/$defs/missing'}}}
+        mapping = FrozenMapping.from_plain(schema)
 
         #: When
-        failure = FrontmatterSchema.parse(FrozenMapping.from_plain(schema))
+        failure = FrontmatterSchema.parse(mapping)
 
         #: Then
         assert failure == UnresolvableFrontmatterSchemaRef('#/$defs/missing'), (
@@ -150,9 +159,10 @@ class TestFrontmatterSchema:
             'type': 'object',
             'properties': {'name': {'$ref': 'https://example.com/name.json'}},
         }
+        mapping = FrozenMapping.from_plain(schema)
 
         #: When
-        failure = FrontmatterSchema.parse(FrozenMapping.from_plain(schema))
+        failure = FrontmatterSchema.parse(mapping)
 
         #: Then
         assert failure == UnresolvableFrontmatterSchemaRef('https://example.com/name.json'), (
@@ -162,9 +172,10 @@ class TestFrontmatterSchema:
     def test_parse_with_a_ref_to_its_own_schema_returns_cyclic_frontmatter_schema_ref(self) -> None:
         #: Given
         schema: dict[str, Plain] = {'type': 'object', '$ref': '#'}
+        mapping = FrozenMapping.from_plain(schema)
 
         #: When
-        failure = FrontmatterSchema.parse(FrozenMapping.from_plain(schema))
+        failure = FrontmatterSchema.parse(mapping)
 
         #: Then
         assert failure == CyclicFrontmatterSchemaRef('#'), 'a reference that only leads back to itself is refused'
@@ -176,9 +187,10 @@ class TestFrontmatterSchema:
             'allOf': [{'$ref': '#/$defs/a'}],
             '$defs': {'a': {'anyOf': [{'$ref': '#/$defs/b'}]}, 'b': {'$ref': '#/$defs/a'}},
         }
+        mapping = FrozenMapping.from_plain(schema)
 
         #: When
-        failure = FrontmatterSchema.parse(FrozenMapping.from_plain(schema))
+        failure = FrontmatterSchema.parse(mapping)
 
         #: Then
         assert failure == CyclicFrontmatterSchemaRef('#/$defs/a'), 'a cycle through applicators is refused'
@@ -186,9 +198,10 @@ class TestFrontmatterSchema:
     def test_parse_with_a_ref_cycle_through_dependent_schemas_returns_cyclic_frontmatter_schema_ref(self) -> None:
         #: Given
         schema: dict[str, Plain] = {'type': 'object', 'dependentSchemas': {'a': {'$ref': '#'}}}
+        mapping = FrozenMapping.from_plain(schema)
 
         #: When
-        failure = FrontmatterSchema.parse(FrozenMapping.from_plain(schema))
+        failure = FrontmatterSchema.parse(mapping)
 
         #: Then
         assert failure == CyclicFrontmatterSchemaRef('#'), 'a dependent schema applies to the same value'
@@ -199,9 +212,10 @@ class TestFrontmatterSchema:
             'type': 'object',
             '$defs': {'a': {'$ref': '#/$defs/b'}, 'b': {'$ref': '#/$defs/a'}},
         }
+        mapping = FrozenMapping.from_plain(schema)
 
         #: When
-        failure = FrontmatterSchema.parse(FrozenMapping.from_plain(schema))
+        failure = FrontmatterSchema.parse(mapping)
 
         #: Then
         assert isinstance(failure, CyclicFrontmatterSchemaRef), 'a cycle nothing refers to is still refused'
@@ -209,9 +223,10 @@ class TestFrontmatterSchema:
     def test_parse_with_a_recursive_ref_below_properties_returns_the_schema(self) -> None:
         #: Given
         schema: dict[str, Plain] = {'type': 'object', 'properties': {'child': {'$ref': '#'}}}
+        mapping = FrozenMapping.from_plain(schema)
 
         #: When
-        parsed = FrontmatterSchema.parse(FrozenMapping.from_plain(schema))
+        parsed = FrontmatterSchema.parse(mapping)
 
         #: Then
         assert isinstance(parsed, FrontmatterSchema), 'a reference applied to a smaller value is not a cycle'
@@ -223,9 +238,10 @@ class TestFrontmatterSchema:
             'properties': {'name': {'$ref': '#/$defs/name'}},
             '$defs': {'name': {'type': 'string'}},
         }
+        mapping = FrozenMapping.from_plain(schema)
 
         #: When
-        parsed = FrontmatterSchema.parse(FrozenMapping.from_plain(schema))
+        parsed = FrontmatterSchema.parse(mapping)
 
         #: Then
         assert isinstance(parsed, FrontmatterSchema), 'a reference that resolves inside the schema is accepted'
@@ -237,9 +253,10 @@ class TestFrontmatterSchema:
             'properties': {'name': {'$ref': '#label'}},
             '$defs': {'name': {'$anchor': 'label', 'type': 'string'}},
         }
+        mapping = FrozenMapping.from_plain(schema)
 
         #: When
-        parsed = FrontmatterSchema.parse(FrozenMapping.from_plain(schema))
+        parsed = FrontmatterSchema.parse(mapping)
 
         #: Then
         assert isinstance(parsed, FrontmatterSchema), 'a reference to an `$anchor` of the schema is accepted'
@@ -247,9 +264,10 @@ class TestFrontmatterSchema:
     def test_parse_with_an_empty_ref_returns_the_schema(self) -> None:
         #: Given
         schema: dict[str, Plain] = {'type': 'object', 'properties': {'child': {'$ref': ''}}}
+        mapping = FrozenMapping.from_plain(schema)
 
         #: When
-        parsed = FrontmatterSchema.parse(FrozenMapping.from_plain(schema))
+        parsed = FrontmatterSchema.parse(mapping)
 
         #: Then
         assert isinstance(parsed, FrontmatterSchema), 'the empty reference is the schema itself, as `#` is'
@@ -261,9 +279,10 @@ class TestFrontmatterSchema:
             'required': ['name'],
             'properties': {'name': {'$ref': '#/required/0'}},
         }
+        mapping = FrozenMapping.from_plain(schema)
 
         #: When
-        failure = FrontmatterSchema.parse(FrozenMapping.from_plain(schema))
+        failure = FrontmatterSchema.parse(mapping)
 
         #: Then
         assert failure == UnresolvableFrontmatterSchemaRef('#/required/0'), (
@@ -273,9 +292,10 @@ class TestFrontmatterSchema:
     def test_parse_with_a_dangling_dynamic_ref_returns_unresolvable_frontmatter_schema_ref(self) -> None:
         #: Given
         schema: dict[str, Plain] = {'type': 'object', 'properties': {'name': {'$dynamicRef': '#/$defs/missing'}}}
+        mapping = FrozenMapping.from_plain(schema)
 
         #: When
-        failure = FrontmatterSchema.parse(FrozenMapping.from_plain(schema))
+        failure = FrontmatterSchema.parse(mapping)
 
         #: Then
         assert failure == UnresolvableFrontmatterSchemaRef('#/$defs/missing'), 'a dynamic reference is held to the same'
@@ -286,9 +306,10 @@ class TestFrontmatterSchema:
             'type': 'object',
             'properties': {'name': {'$dynamicRef': 'https://example.com/name.json'}},
         }
+        mapping = FrozenMapping.from_plain(schema)
 
         #: When
-        failure = FrontmatterSchema.parse(FrozenMapping.from_plain(schema))
+        failure = FrontmatterSchema.parse(mapping)
 
         #: Then
         assert failure == UnresolvableFrontmatterSchemaRef('https://example.com/name.json'), (
@@ -298,9 +319,10 @@ class TestFrontmatterSchema:
     def test_parse_with_an_id_returns_frontmatter_schema_id(self) -> None:
         #: Given
         schema: dict[str, Plain] = {'$id': 'https://example.com/code', 'type': 'object'}
+        mapping = FrozenMapping.from_plain(schema)
 
         #: When
-        failure = FrontmatterSchema.parse(FrozenMapping.from_plain(schema))
+        failure = FrontmatterSchema.parse(mapping)
 
         #: Then
         assert failure == FrontmatterSchemaId(), 'an $id would change how relative $refs resolve'
@@ -308,9 +330,10 @@ class TestFrontmatterSchema:
     def test_parse_with_an_id_in_a_nested_schema_returns_frontmatter_schema_id(self) -> None:
         #: Given
         schema: dict[str, Plain] = {'type': 'object', 'properties': {'name': {'$id': 'https://example.com/name'}}}
+        mapping = FrozenMapping.from_plain(schema)
 
         #: When
-        failure = FrontmatterSchema.parse(FrozenMapping.from_plain(schema))
+        failure = FrontmatterSchema.parse(mapping)
 
         #: Then
         assert failure == FrontmatterSchemaId(), 'an $id at any depth makes a resource of its own'
@@ -318,9 +341,10 @@ class TestFrontmatterSchema:
     def test_parse_with_a_foreign_dialect_returns_foreign_frontmatter_dialect(self) -> None:
         #: Given
         schema: dict[str, Plain] = {'$schema': 'http://json-schema.org/draft-07/schema#', 'type': 'object'}
+        mapping = FrozenMapping.from_plain(schema)
 
         #: When
-        failure = FrontmatterSchema.parse(FrozenMapping.from_plain(schema))
+        failure = FrontmatterSchema.parse(mapping)
 
         #: Then
         assert failure == ForeignFrontmatterDialect('http://json-schema.org/draft-07/schema#'), (
@@ -335,9 +359,10 @@ class TestFrontmatterSchema:
             'type': 'object',
             '$defs': {'scope': {'$schema': 'http://json-schema.org/draft-07/schema#', 'type': 'string'}},
         }
+        mapping = FrozenMapping.from_plain(schema)
 
         #: When
-        failure = FrontmatterSchema.parse(FrozenMapping.from_plain(schema))
+        failure = FrontmatterSchema.parse(mapping)
 
         #: Then
         assert failure == ForeignFrontmatterDialect('http://json-schema.org/draft-07/schema#'), (
@@ -348,9 +373,10 @@ class TestFrontmatterSchema:
         #: Given
         frontmatter = FrontmatterSchema(schema=FrozenMapping.from_plain({'type': 'object', 'required': ['name']}))
         data: dict[str, Plain] = {'name': 'guide'}
+        mapping = FrozenMapping.from_plain(data)
 
         #: When
-        problems = frontmatter.validate(FrozenMapping.from_plain(data))
+        problems = frontmatter.validate(mapping)
 
         #: Then
         assert problems == (), 'a frontmatter the schema accepts has no problems'
@@ -361,9 +387,10 @@ class TestFrontmatterSchema:
             schema=FrozenMapping.from_plain({'type': 'object', 'required': ['name', 'type']})
         )
         data: dict[str, Plain] = {}
+        mapping = FrozenMapping.from_plain(data)
 
         #: When
-        problems = frontmatter.validate(FrozenMapping.from_plain(data))
+        problems = frontmatter.validate(mapping)
 
         #: Then
         assert problems == (
@@ -377,9 +404,10 @@ class TestFrontmatterSchema:
             schema=FrozenMapping.from_plain({'type': 'object', 'required': ['name', 'type']})
         )
         data: dict[str, Plain] = {'name': 'guide'}
+        mapping = FrozenMapping.from_plain(data)
 
         #: When
-        problems = frontmatter.validate(FrozenMapping.from_plain(data))
+        problems = frontmatter.validate(mapping)
 
         #: Then
         assert problems == (MissingFieldProblem('type', "'type' is a required property"),), (
@@ -395,9 +423,10 @@ class TestFrontmatterSchema:
         }
         frontmatter = FrontmatterSchema(schema=FrozenMapping.from_plain(schema))
         data: dict[str, Plain] = {'name': 3, 'type': 'guide'}
+        mapping = FrozenMapping.from_plain(data)
 
         #: When
-        problems = frontmatter.validate(FrozenMapping.from_plain(data))
+        problems = frontmatter.validate(mapping)
 
         #: Then
         assert problems == (
@@ -420,9 +449,10 @@ class TestFrontmatterSchema:
         }
         frontmatter = FrontmatterSchema(schema=FrozenMapping.from_plain(schema))
         data: dict[str, Plain] = {'name': 'guide', 'x-owner': 'me', 'model': 'opus', 'tier': 1}
+        mapping = FrozenMapping.from_plain(data)
 
         #: When
-        problems = frontmatter.validate(FrozenMapping.from_plain(data))
+        problems = frontmatter.validate(mapping)
 
         #: Then
         assert problems == (
@@ -456,9 +486,10 @@ class TestFrontmatterSchema:
             'desc': 'x',
             'tier': 1,
         }
+        mapping = FrozenMapping.from_plain(data)
 
         #: When
-        problems = frontmatter.validate(FrozenMapping.from_plain(data))
+        problems = frontmatter.validate(mapping)
 
         #: Then
         assert problems == (
@@ -484,9 +515,10 @@ class TestFrontmatterSchema:
         }
         frontmatter = FrontmatterSchema(schema=FrozenMapping.from_plain(schema))
         data: dict[str, Plain] = {'name': 3, 'owner': 'me', 'tier': 1}
+        mapping = FrozenMapping.from_plain(data)
 
         #: When
-        problems = frontmatter.validate(FrozenMapping.from_plain(data))
+        problems = frontmatter.validate(mapping)
 
         #: Then
         assert problems == (InvalidValueProblem('tier', "1 is not of type 'string'", OtherValueConstraint()),), (
@@ -498,9 +530,10 @@ class TestFrontmatterSchema:
         schema: dict[str, Plain] = {'type': 'object', 'properties': {'name': {'type': 'string'}}}
         frontmatter = FrontmatterSchema(schema=FrozenMapping.from_plain(schema))
         data: dict[str, Plain] = {'name': 3}
+        mapping = FrozenMapping.from_plain(data)
 
         #: When
-        problems = frontmatter.validate(FrozenMapping.from_plain(data))
+        problems = frontmatter.validate(mapping)
 
         #: Then
         assert problems == (
@@ -512,9 +545,10 @@ class TestFrontmatterSchema:
         schema: dict[str, Plain] = {'type': 'object', 'properties': {'type': {'enum': ['rule', 'pattern']}}}
         frontmatter = FrontmatterSchema(schema=FrozenMapping.from_plain(schema))
         data: dict[str, Plain] = {'type': 'guide'}
+        mapping = FrozenMapping.from_plain(data)
 
         #: When
-        problems = frontmatter.validate(FrozenMapping.from_plain(data))
+        problems = frontmatter.validate(mapping)
 
         #: Then
         assert problems == (
@@ -535,9 +569,10 @@ class TestFrontmatterSchema:
         }
         frontmatter = FrontmatterSchema(schema=FrozenMapping.from_plain(schema))
         data: dict[str, Plain] = {'name': 'Setup'}
+        mapping = FrozenMapping.from_plain(data)
 
         #: When
-        problems = frontmatter.validate(FrozenMapping.from_plain(data))
+        problems = frontmatter.validate(mapping)
 
         #: Then
         assert problems == (
@@ -563,9 +598,10 @@ class TestFrontmatterSchema:
         }
         frontmatter = FrontmatterSchema(schema=FrozenMapping.from_plain(schema))
         data: dict[str, Plain] = {'description': 'Load when x.'}
+        mapping = FrozenMapping.from_plain(data)
 
         #: When
-        problems = frontmatter.validate(FrozenMapping.from_plain(data))
+        problems = frontmatter.validate(mapping)
 
         #: Then
         assert problems == (
@@ -582,9 +618,10 @@ class TestFrontmatterSchema:
         schema: dict[str, Plain] = {'type': 'object', 'properties': {'type': {'const': 'rule'}}}
         frontmatter = FrontmatterSchema(schema=FrozenMapping.from_plain(schema))
         data: dict[str, Plain] = {'type': 'guide'}
+        mapping = FrozenMapping.from_plain(data)
 
         #: When
-        problems = frontmatter.validate(FrozenMapping.from_plain(data))
+        problems = frontmatter.validate(mapping)
 
         #: Then
         assert problems == (
@@ -604,9 +641,10 @@ class TestFrontmatterSchema:
         }
         frontmatter = FrontmatterSchema(schema=FrozenMapping.from_plain(schema))
         data: dict[str, Plain] = {'tags': ['c']}
+        mapping = FrozenMapping.from_plain(data)
 
         #: When
-        problems = frontmatter.validate(FrozenMapping.from_plain(data))
+        problems = frontmatter.validate(mapping)
 
         #: Then
         assert problems == (InvalidValueProblem('tags', "'c' is not one of ['a', 'b']", OtherValueConstraint()),), (
@@ -621,9 +659,10 @@ class TestFrontmatterSchema:
         }
         frontmatter = FrontmatterSchema(schema=FrozenMapping.from_plain(schema))
         data: dict[str, Plain] = {'tags': ['A']}
+        mapping = FrozenMapping.from_plain(data)
 
         #: When
-        problems = frontmatter.validate(FrozenMapping.from_plain(data))
+        problems = frontmatter.validate(mapping)
 
         #: Then
         assert problems == (InvalidValueProblem('tags', "'A' does not match '^[a-z]+$'", OtherValueConstraint()),), (
@@ -638,9 +677,10 @@ class TestFrontmatterSchema:
         }
         frontmatter = FrontmatterSchema(schema=FrozenMapping.from_plain(schema))
         data: dict[str, Plain] = {'metadata': {'owner': 'me'}}
+        mapping = FrozenMapping.from_plain(data)
 
         #: When
-        problems = frontmatter.validate(FrozenMapping.from_plain(data))
+        problems = frontmatter.validate(mapping)
 
         #: Then
         assert problems == (
@@ -659,9 +699,10 @@ class TestFrontmatterSchema:
         }
         frontmatter = FrontmatterSchema(schema=FrozenMapping.from_plain(schema))
         data: dict[str, Plain] = {'tags': ['a', 'b'], 'meta': {'owner': 'me'}}
+        mapping = FrozenMapping.from_plain(data)
 
         #: When
-        problems = frontmatter.validate(FrozenMapping.from_plain(data))
+        problems = frontmatter.validate(mapping)
 
         #: Then
         assert problems == (), 'a frozen list is still a JSON array to the schema, and a frozen mapping an object'
@@ -671,9 +712,10 @@ class TestFrontmatterSchema:
         schema: dict[str, Plain] = {'type': 'object', 'properties': {'name': {'type': 'string'}}}
         frontmatter = FrontmatterSchema(schema=FrozenMapping.from_plain(schema))
         data: dict[str, Plain] = {'name': ['a']}
+        mapping = FrozenMapping.from_plain(data)
 
         #: When
-        problems = frontmatter.validate(FrozenMapping.from_plain(data))
+        problems = frontmatter.validate(mapping)
 
         #: Then
         assert problems == (
@@ -684,9 +726,10 @@ class TestFrontmatterSchema:
         #: Given
         frontmatter = FrontmatterSchema(schema=FrozenMapping.from_plain({'type': 'object', 'minProperties': 1}))
         data: dict[str, Plain] = {}
+        mapping = FrozenMapping.from_plain(data)
 
         #: When
-        problems = frontmatter.validate(FrozenMapping.from_plain(data))
+        problems = frontmatter.validate(mapping)
 
         #: Then
         assert problems == (
@@ -698,9 +741,10 @@ class TestFrontmatterSchema:
         schema: dict[str, Plain] = {'type': 'object', 'description': 'A guide.', 'maxProperties': 1}
         frontmatter = FrontmatterSchema(schema=FrozenMapping.from_plain(schema))
         data: dict[str, Plain] = {'name': 'guide', 'type': 'rule'}
+        mapping = FrozenMapping.from_plain(data)
 
         #: When
-        problems = frontmatter.validate(FrozenMapping.from_plain(data))
+        problems = frontmatter.validate(mapping)
 
         #: Then
         assert problems == (
@@ -717,9 +761,10 @@ class TestFrontmatterSchema:
         schema: dict[str, Plain] = {'type': 'object', 'not': {'required': ['name']}}
         frontmatter = FrontmatterSchema(schema=FrozenMapping.from_plain(schema))
         data: dict[str, Plain] = {'name': 'guide'}
+        mapping = FrozenMapping.from_plain(data)
 
         #: When
-        problems = frontmatter.validate(FrozenMapping.from_plain(data))
+        problems = frontmatter.validate(mapping)
 
         #: Then
         assert problems == (
@@ -735,9 +780,10 @@ class TestFrontmatterSchema:
         schema: dict[str, Plain] = {'type': 'object', 'propertyNames': {'pattern': '^[a-z]+$'}}
         frontmatter = FrontmatterSchema(schema=FrozenMapping.from_plain(schema))
         data: dict[str, Plain] = {'name': 'guide', 'B_': 2}
+        mapping = FrozenMapping.from_plain(data)
 
         #: When
-        problems = frontmatter.validate(FrozenMapping.from_plain(data))
+        problems = frontmatter.validate(mapping)
 
         #: Then
         assert problems == (
@@ -749,9 +795,10 @@ class TestFrontmatterSchema:
         schema: dict[str, Plain] = {'type': 'object', 'dependentRequired': {'status': ['owner', 'date']}}
         frontmatter = FrontmatterSchema(schema=FrozenMapping.from_plain(schema))
         data: dict[str, Plain] = {'status': 'draft', 'owner': 'me'}
+        mapping = FrozenMapping.from_plain(data)
 
         #: When
-        problems = frontmatter.validate(FrozenMapping.from_plain(data))
+        problems = frontmatter.validate(mapping)
 
         #: Then
         assert problems == (
@@ -770,9 +817,10 @@ class TestFrontmatterSchema:
         }
         frontmatter = FrontmatterSchema(schema=FrozenMapping.from_plain(schema))
         data: dict[str, Plain] = {}
+        mapping = FrozenMapping.from_plain(data)
 
         #: When
-        problems = frontmatter.validate(FrozenMapping.from_plain(data))
+        problems = frontmatter.validate(mapping)
 
         #: Then
         assert problems == (
@@ -794,9 +842,10 @@ class TestFrontmatterSchema:
         }
         frontmatter = FrontmatterSchema(schema=FrozenMapping.from_plain(schema))
         data: dict[str, Plain] = {'status': 'stable'}
+        mapping = FrozenMapping.from_plain(data)
 
         #: When
-        problems = frontmatter.validate(FrozenMapping.from_plain(data))
+        problems = frontmatter.validate(mapping)
 
         #: Then
         assert problems == (MissingFieldProblem('owner', "'owner' is a required property"),), (
@@ -808,9 +857,10 @@ class TestFrontmatterSchema:
         schema: dict[str, Plain] = {'type': 'object', 'properties': {'tags': {'type': ['string', 'null']}}}
         frontmatter = FrontmatterSchema(schema=FrozenMapping.from_plain(schema))
         data: dict[str, Plain] = {'tags': True}
+        mapping = FrozenMapping.from_plain(data)
 
         #: When
-        problems = frontmatter.validate(FrozenMapping.from_plain(data))
+        problems = frontmatter.validate(mapping)
 
         #: Then
         assert problems == (
@@ -827,9 +877,10 @@ class TestFrontmatterSchema:
         }
         frontmatter = FrontmatterSchema(schema=FrozenMapping.from_plain(schema))
         data: dict[str, Plain] = {'version': 1.5}
+        mapping = FrozenMapping.from_plain(data)
 
         #: When
-        problems = frontmatter.validate(FrozenMapping.from_plain(data))
+        problems = frontmatter.validate(mapping)
 
         #: Then
         assert problems == (

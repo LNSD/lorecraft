@@ -1064,6 +1064,7 @@ class TestStructureSpecAuthority:
         file = StructureSpecFile(
             path=SPECS_DIR / PathComponent.parse(spec_filename(name, SpecFileType.LEGACY_STRUCTURE)), name=name
         )
+        forbidden = (SectionName('Changelog'),)
 
         #: When
         structure_spec = StructureSpec(
@@ -1071,7 +1072,7 @@ class TestStructureSpecAuthority:
             title=None,
             forbid_empty_sections=False,
             outline=(),
-            forbidden=(SectionName('Changelog'),),
+            forbidden=forbidden,
             tokens=None,
             frontmatter=None,
         )

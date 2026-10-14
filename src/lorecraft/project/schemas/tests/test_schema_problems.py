@@ -190,9 +190,10 @@ class TestLocateSchemaProblems:
     def test_locate_with_no_block_holds_no_schema(self) -> None:
         #: Given
         frontmatter = parse_frontmatter('# Typing\n')
+        schemas = (_frontmatter_schema('code', REQUIRE_STATUS),)
 
         #: When
-        found = locate_schema_problems(frontmatter, (_frontmatter_schema('code', REQUIRE_STATUS),))
+        found = locate_schema_problems(frontmatter, schemas)
 
         #: Then
         assert found == (), 'no schema can hold a missing block: the block rules report it'
@@ -200,9 +201,10 @@ class TestLocateSchemaProblems:
     def test_locate_with_a_block_that_is_not_yaml_holds_no_schema(self) -> None:
         #: Given
         frontmatter = parse_frontmatter('---\nname: [unclosed\n---\n# Typing\n')
+        schemas = (_frontmatter_schema('code', REQUIRE_STATUS),)
 
         #: When
-        found = locate_schema_problems(frontmatter, (_frontmatter_schema('code', REQUIRE_STATUS),))
+        found = locate_schema_problems(frontmatter, schemas)
 
         #: Then
         assert found == (), 'no schema can hold a block that is not YAML: the block rules report it'
@@ -210,9 +212,10 @@ class TestLocateSchemaProblems:
     def test_locate_with_a_block_that_is_a_list_holds_no_schema(self) -> None:
         #: Given
         frontmatter = parse_frontmatter('---\n- status\n---\n# Typing\n')
+        schemas = (_frontmatter_schema('code', REQUIRE_STATUS),)
 
         #: When
-        found = locate_schema_problems(frontmatter, (_frontmatter_schema('code', REQUIRE_STATUS),))
+        found = locate_schema_problems(frontmatter, schemas)
 
         #: Then
         assert found == (), 'no schema can hold a block that is not a mapping: the block rules report it'

@@ -73,8 +73,11 @@ class TestParseSkillFields:
         assert fields == {}, 'only a string is an `allowed-tools` value'
 
     def test_parse_without_a_mapping_block_holds_no_field(self) -> None:
+        #: Given
+        frontmatter = parse_frontmatter('# Review\n')
+
         #: When
-        fields = parse_skill_fields(parse_frontmatter('# Review\n'))
+        fields = parse_skill_fields(frontmatter)
 
         #: Then
         assert fields == {}, 'a missing block holds no field'
