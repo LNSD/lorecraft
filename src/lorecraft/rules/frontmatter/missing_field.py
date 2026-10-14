@@ -1,13 +1,15 @@
 """`FM006`: a frontmatter lacks a field its schema requires."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import ClassVar, Self, assert_never
 
+from lorecraft.core.path import RootRelativePath
 from lorecraft.project.context import FrontmatterContext
 from lorecraft.project.schemas import (
     BlockProblem,
     InvalidValueProblem,
     MissingFieldProblem,
+    SchemaSource,
     UnknownFieldProblem,
     WrongTypeProblem,
 )
@@ -76,8 +78,9 @@ class MissingField(FrontmatterRule):
     ```
 
     Attributes:
-        spec: The structure specification whose frontmatter schema found the problem, or `None` for a skill, which
-            the Agent Skills specification governs.
+        spec: The specification file that states the schema, derived from `source`, so no caller states one that
+            disagrees with it; `None` for the Agent Skills specification.
+        source: The schema that found the problem: a structure specification's, or the Agent Skills specification's.
         problem: The field the schema requires and the frontmatter lacks, with what the schema states about it.
     """
 
@@ -86,7 +89,15 @@ class MissingField(FrontmatterRule):
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('0.3.0')
 
+    # The specification file is derived from `source`, so no caller can state one that disagrees with it.
+    spec: RootRelativePath | None = field(init=False)
+    source: SchemaSource
     problem: MissingFieldProblem
+
+    def __post_init__(self) -> None:
+        """Derive the specification file from the schema that found the problem."""
+        # The dataclass is frozen, so the field a rule derives is set the one way a frozen dataclass allows.
+        object.__setattr__(self, 'spec', schema_spec(self.source))
 
     def message(self) -> str:
         """Name the required field the frontmatter lacks."""
@@ -96,7 +107,7 @@ class MissingField(FrontmatterRule):
         """Say where the schema is stated and name the field to add, then what the schema states about it."""
         guidance = self.problem.guidance
         parts: list[Subdiagnostic] = [
-            schema_note(self.spec),
+            schema_note(self.source),
             Help(f'add `{self.problem.field}` to the frontmatter'),
         ]
         if guidance.description is not None:
@@ -120,7 +131,7 @@ class MissingField(FrontmatterRule):
                 problem = located.problem
                 match problem:
                     case MissingFieldProblem():
-                        occurrences.append(cls(spec=schema_spec(schema.source), line=located.line, problem=problem))
+                        occurrences.append(cls(source=schema.source, line=located.line, problem=problem))
                     case UnknownFieldProblem() | WrongTypeProblem() | InvalidValueProblem() | BlockProblem():
                         pass  # another rule's condition
                     case _:

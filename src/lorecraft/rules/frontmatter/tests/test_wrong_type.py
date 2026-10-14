@@ -10,7 +10,7 @@ from typing import Final
 import pytest
 
 from lorecraft.core.path import RootRelativePath
-from lorecraft.project.schemas import FieldGuidance, JsonType, WrongTypeProblem
+from lorecraft.project.schemas import AgentSkillsSchema, FieldGuidance, JsonType, StructureSpecSchema, WrongTypeProblem
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.location import Elsewhere, Help, Here, Label, Note
 from lorecraft.rules.tests.fake_context import (
@@ -27,6 +27,15 @@ CORPUS_SPEC: Final[RootRelativePath] = structure_spec_path('guide')
 
 NAMESPACE_SPEC: Final[RootRelativePath] = structure_spec_path('guide-setup')
 """Where a namespace structure specification under the same corpus lies."""
+
+CORPUS_SOURCE: Final[StructureSpecSchema] = StructureSpecSchema(spec=CORPUS_SPEC)
+"""The schema the corpus specification states."""
+
+NAMESPACE_SOURCE: Final[StructureSpecSchema] = StructureSpecSchema(spec=NAMESPACE_SPEC)
+"""The schema the namespace specification states."""
+
+AGENT_SKILLS_SOURCE: Final[AgentSkillsSchema] = AgentSkillsSchema()
+"""The schema the Agent Skills specification states, which governs a skill."""
 
 STRING_DESCRIPTION: Final[str] = (
     '{"frontmatter": {"type": "object", "properties": {"description": {"type": "string", "minLength": 20}}}}'
@@ -61,7 +70,7 @@ class TestWrongType:
         occurrences = WrongType.check(subject)
 
         #: Then
-        assert occurrences == (WrongType(spec=CORPUS_SPEC, line=LINE, problem=PROBLEM),), (
+        assert occurrences == (WrongType(source=CORPUS_SOURCE, line=LINE, problem=PROBLEM),), (
             "one problem is one occurrence, on the line its field is written on, naming the schema's specification"
         )
 
@@ -95,8 +104,8 @@ class TestWrongType:
 
         #: Then
         assert occurrences == (
-            WrongType(spec=CORPUS_SPEC, line=LINE, problem=PROBLEM),
-            WrongType(spec=NAMESPACE_SPEC, line=LINE, problem=PROBLEM),
+            WrongType(source=CORPUS_SOURCE, line=LINE, problem=PROBLEM),
+            WrongType(source=NAMESPACE_SOURCE, line=LINE, problem=PROBLEM),
         ), 'each schema is applied on its own, so each reports the problem under its own specification, in order'
 
     def test_check_with_a_skill_reports_it_with_no_specification_file(self) -> None:
@@ -128,7 +137,7 @@ class TestWrongType:
                 ),
             ),
         )
-        assert occurrences == (WrongType(spec=None, line=LINE, problem=problem),), (
+        assert occurrences == (WrongType(source=AGENT_SKILLS_SOURCE, line=LINE, problem=problem),), (
             "the package states the Agent Skills schema, so a skill's occurrence names no specification file"
         )
 
@@ -151,7 +160,7 @@ class TestWrongType:
 
     def test_message_with_an_occurrence_names_the_field(self) -> None:
         #: Given
-        occurrence = WrongType(spec=CORPUS_SPEC, line=LINE, problem=PROBLEM)
+        occurrence = WrongType(source=CORPUS_SOURCE, line=LINE, problem=PROBLEM)
 
         #: When
         message = occurrence.message()
@@ -163,7 +172,7 @@ class TestWrongType:
 
     def test_labels_with_an_occurrence_say_the_type_expected_and_the_type_found(self) -> None:
         #: Given
-        occurrence = WrongType(spec=CORPUS_SPEC, line=LINE, problem=PROBLEM)
+        occurrence = WrongType(source=CORPUS_SOURCE, line=LINE, problem=PROBLEM)
 
         #: When
         labels = occurrence.labels()
@@ -174,7 +183,7 @@ class TestWrongType:
     def test_labels_with_several_types_expected_join_them(self) -> None:
         #: Given
         problem = WrongTypeProblem('tags', 'wrong', (JsonType.STRING, JsonType.NULL), JsonType.OBJECT)
-        occurrence = WrongType(spec=CORPUS_SPEC, line=LINE, problem=problem)
+        occurrence = WrongType(source=CORPUS_SOURCE, line=LINE, problem=problem)
 
         #: When
         labels = occurrence.labels()
@@ -186,7 +195,7 @@ class TestWrongType:
 
     def test_children_with_a_document_occurrence_point_at_the_specification(self) -> None:
         #: Given
-        occurrence = WrongType(spec=CORPUS_SPEC, line=LINE, problem=PROBLEM)
+        occurrence = WrongType(source=CORPUS_SOURCE, line=LINE, problem=PROBLEM)
 
         #: When
         children = occurrence.children()
@@ -198,7 +207,7 @@ class TestWrongType:
 
     def test_children_with_a_skill_occurrence_name_the_agent_skills_specification(self) -> None:
         #: Given
-        occurrence = WrongType(spec=None, line=LINE, problem=PROBLEM)
+        occurrence = WrongType(source=AGENT_SKILLS_SOURCE, line=LINE, problem=PROBLEM)
 
         #: When
         children = occurrence.children()
@@ -211,7 +220,7 @@ class TestWrongType:
     def test_children_with_an_integer_where_a_string_belongs_say_to_quote_it(self) -> None:
         #: Given
         problem = WrongTypeProblem('version', 'wrong', (JsonType.STRING,), JsonType.INTEGER)
-        occurrence = WrongType(spec=CORPUS_SPEC, line=LINE, problem=problem)
+        occurrence = WrongType(source=CORPUS_SOURCE, line=LINE, problem=problem)
 
         #: When
         children = occurrence.children()
@@ -225,7 +234,7 @@ class TestWrongType:
     def test_children_with_a_number_where_a_string_belongs_say_to_quote_it(self) -> None:
         #: Given
         problem = WrongTypeProblem('version', 'wrong', (JsonType.STRING,), JsonType.NUMBER)
-        occurrence = WrongType(spec=CORPUS_SPEC, line=LINE, problem=problem)
+        occurrence = WrongType(source=CORPUS_SOURCE, line=LINE, problem=problem)
 
         #: When
         children = occurrence.children()
@@ -239,7 +248,7 @@ class TestWrongType:
     def test_children_with_a_boolean_where_a_string_belongs_say_to_quote_it(self) -> None:
         #: Given
         problem = WrongTypeProblem('version', 'wrong', (JsonType.STRING,), JsonType.BOOLEAN)
-        occurrence = WrongType(spec=CORPUS_SPEC, line=LINE, problem=problem)
+        occurrence = WrongType(source=CORPUS_SOURCE, line=LINE, problem=problem)
 
         #: When
         children = occurrence.children()
@@ -253,7 +262,7 @@ class TestWrongType:
     def test_children_with_a_number_where_no_string_is_expected_do_not_say_to_quote_it(self) -> None:
         #: Given
         problem = WrongTypeProblem('count', 'wrong', (JsonType.ARRAY,), JsonType.NUMBER)
-        occurrence = WrongType(spec=CORPUS_SPEC, line=LINE, problem=problem)
+        occurrence = WrongType(source=CORPUS_SOURCE, line=LINE, problem=problem)
 
         #: When
         children = occurrence.children()
@@ -267,7 +276,7 @@ class TestWrongType:
         #: Given
         guidance = FieldGuidance(description='What the field is for.')
         problem = WrongTypeProblem('version', 'wrong', (JsonType.STRING,), JsonType.NUMBER, guidance=guidance)
-        occurrence = WrongType(spec=CORPUS_SPEC, line=LINE, problem=problem)
+        occurrence = WrongType(source=CORPUS_SOURCE, line=LINE, problem=problem)
 
         #: When
         children = occurrence.children()
@@ -283,7 +292,7 @@ class TestWrongType:
         #: Given
         guidance = FieldGuidance(description='What the field is for.', example='1.0.0')
         problem = WrongTypeProblem('version', 'wrong', (JsonType.STRING,), JsonType.NUMBER, guidance=guidance)
-        occurrence = WrongType(spec=CORPUS_SPEC, line=LINE, problem=problem)
+        occurrence = WrongType(source=CORPUS_SOURCE, line=LINE, problem=problem)
 
         #: When
         children = occurrence.children()

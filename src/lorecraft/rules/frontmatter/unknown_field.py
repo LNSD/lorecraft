@@ -1,13 +1,15 @@
 """`FM007`: a frontmatter holds a field its schema does not define."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import ClassVar, Self, assert_never
 
+from lorecraft.core.path import RootRelativePath
 from lorecraft.project.context import FrontmatterContext
 from lorecraft.project.schemas import (
     BlockProblem,
     InvalidValueProblem,
     MissingFieldProblem,
+    SchemaSource,
     UnknownFieldProblem,
     WrongTypeProblem,
 )
@@ -80,8 +82,9 @@ class UnknownField(FrontmatterRule):
     ```
 
     Attributes:
-        spec: The structure specification whose frontmatter schema found the problem, or `None` for a skill, which
-            the Agent Skills specification governs.
+        spec: The specification file that states the schema, derived from `source`, so no caller states one that
+            disagrees with it; `None` for the Agent Skills specification.
+        source: The schema that found the problem: a structure specification's, or the Agent Skills specification's.
         problem: The field the schema does not define, with the fields it does.
     """
 
@@ -90,7 +93,15 @@ class UnknownField(FrontmatterRule):
     LEVEL: ClassVar[Level] = Level.WARN
     SINCE: ClassVar[Release] = Release('0.3.0')
 
+    # The specification file is derived from `source`, so no caller can state one that disagrees with it.
+    spec: RootRelativePath | None = field(init=False)
+    source: SchemaSource
     problem: UnknownFieldProblem
+
+    def __post_init__(self) -> None:
+        """Derive the specification file from the schema that found the problem."""
+        # The dataclass is frozen, so the field a rule derives is set the one way a frozen dataclass allows.
+        object.__setattr__(self, 'spec', schema_spec(self.source))
 
     def message(self) -> str:
         """Name the field the schema does not define."""
@@ -103,7 +114,7 @@ class UnknownField(FrontmatterRule):
     def children(self) -> tuple[Subdiagnostic, ...]:
         """Say where the schema is stated and name the field to remove or respell, then the fields it defines."""
         parts: list[Subdiagnostic] = [
-            schema_note(self.spec),
+            schema_note(self.source),
             Help(f'remove `{self.problem.field}`, or respell it as a field the schema defines'),
         ]
         known_fields = self.problem.known_fields
@@ -125,7 +136,7 @@ class UnknownField(FrontmatterRule):
                 problem = located.problem
                 match problem:
                     case UnknownFieldProblem():
-                        occurrences.append(cls(spec=schema_spec(schema.source), line=located.line, problem=problem))
+                        occurrences.append(cls(source=schema.source, line=located.line, problem=problem))
                     case MissingFieldProblem() | WrongTypeProblem() | InvalidValueProblem() | BlockProblem():
                         pass  # another rule's condition
                     case _:

@@ -10,7 +10,7 @@ from typing import Final
 import pytest
 
 from lorecraft.core.path import RootRelativePath
-from lorecraft.project.schemas import FieldGuidance, MissingFieldProblem
+from lorecraft.project.schemas import AgentSkillsSchema, FieldGuidance, MissingFieldProblem, StructureSpecSchema
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.location import Elsewhere, Help, Note
 from lorecraft.rules.tests.fake_context import (
@@ -27,6 +27,15 @@ CORPUS_SPEC: Final[RootRelativePath] = structure_spec_path('guide')
 
 NAMESPACE_SPEC: Final[RootRelativePath] = structure_spec_path('guide-setup')
 """Where a namespace structure specification under the same corpus lies."""
+
+CORPUS_SOURCE: Final[StructureSpecSchema] = StructureSpecSchema(spec=CORPUS_SPEC)
+"""The schema the corpus specification states."""
+
+NAMESPACE_SOURCE: Final[StructureSpecSchema] = StructureSpecSchema(spec=NAMESPACE_SPEC)
+"""The schema the namespace specification states."""
+
+AGENT_SKILLS_SOURCE: Final[AgentSkillsSchema] = AgentSkillsSchema()
+"""The schema the Agent Skills specification states, which governs a skill."""
 
 REQUIRE_DESCRIPTION: Final[str] = '{"frontmatter": {"type": "object", "required": ["description"]}}'
 """A structure specification whose frontmatter schema requires `description`."""
@@ -68,7 +77,7 @@ class TestMissingField:
         occurrences = MissingField.check(subject)
 
         #: Then
-        assert occurrences == (MissingField(spec=CORPUS_SPEC, line=LINE, problem=PROBLEM),), (
+        assert occurrences == (MissingField(source=CORPUS_SOURCE, line=LINE, problem=PROBLEM),), (
             "one problem is one occurrence, on line 1, since the field is written on none, naming the schema's "
             'specification'
         )
@@ -103,8 +112,8 @@ class TestMissingField:
 
         #: Then
         assert occurrences == (
-            MissingField(spec=CORPUS_SPEC, line=LINE, problem=PROBLEM),
-            MissingField(spec=NAMESPACE_SPEC, line=LINE, problem=PROBLEM),
+            MissingField(source=CORPUS_SOURCE, line=LINE, problem=PROBLEM),
+            MissingField(source=NAMESPACE_SOURCE, line=LINE, problem=PROBLEM),
         ), 'each schema is applied on its own, so each reports the problem under its own specification, in order'
 
     def test_check_with_a_skill_reports_it_with_no_specification_file(self) -> None:
@@ -122,7 +131,7 @@ class TestMissingField:
         #: Then
         assert occurrences == (
             MissingField(
-                spec=None,
+                source=AGENT_SKILLS_SOURCE,
                 line=LINE,
                 problem=MissingFieldProblem('description', '`description` is required', guidance=SKILL_DESCRIPTION),
             ),
@@ -147,7 +156,7 @@ class TestMissingField:
 
     def test_message_with_an_occurrence_names_the_field(self) -> None:
         #: Given
-        occurrence = MissingField(spec=CORPUS_SPEC, line=LINE, problem=PROBLEM)
+        occurrence = MissingField(source=CORPUS_SOURCE, line=LINE, problem=PROBLEM)
 
         #: When
         message = occurrence.message()
@@ -159,7 +168,7 @@ class TestMissingField:
 
     def test_children_with_a_document_occurrence_point_at_the_specification(self) -> None:
         #: Given
-        occurrence = MissingField(spec=CORPUS_SPEC, line=LINE, problem=PROBLEM)
+        occurrence = MissingField(source=CORPUS_SOURCE, line=LINE, problem=PROBLEM)
 
         #: When
         children = occurrence.children()
@@ -172,7 +181,7 @@ class TestMissingField:
 
     def test_children_with_a_skill_occurrence_name_the_agent_skills_specification(self) -> None:
         #: Given
-        occurrence = MissingField(spec=None, line=LINE, problem=PROBLEM)
+        occurrence = MissingField(source=AGENT_SKILLS_SOURCE, line=LINE, problem=PROBLEM)
 
         #: When
         children = occurrence.children()
@@ -203,7 +212,7 @@ class TestMissingField:
         guidance = FieldGuidance(description='The kind of document.', example='rule', allowed=('rule', 'pattern'))
         assert occurrences == (
             MissingField(
-                spec=CORPUS_SPEC,
+                source=CORPUS_SOURCE,
                 line=LINE,
                 problem=MissingFieldProblem('type', "'type' is a required property", guidance=guidance),
             ),
@@ -213,7 +222,7 @@ class TestMissingField:
         #: Given
         guidance = FieldGuidance(description='The kind of document.', example='rule', allowed=('rule', 'pattern'))
         problem = MissingFieldProblem('type', "'type' is a required property", guidance=guidance)
-        occurrence = MissingField(spec=CORPUS_SPEC, line=LINE, problem=problem)
+        occurrence = MissingField(source=CORPUS_SOURCE, line=LINE, problem=problem)
 
         #: When
         children = occurrence.children()
@@ -235,7 +244,7 @@ class TestMissingField:
         problem = MissingFieldProblem(
             'type', "'type' is a required property", guidance=FieldGuidance(allowed=('rule',))
         )
-        occurrence = MissingField(spec=CORPUS_SPEC, line=LINE, problem=problem)
+        occurrence = MissingField(source=CORPUS_SOURCE, line=LINE, problem=problem)
 
         #: When
         children = occurrence.children()
@@ -249,7 +258,7 @@ class TestMissingField:
 
     def test_labels_with_an_occurrence_label_nothing(self) -> None:
         #: Given
-        occurrence = MissingField(spec=CORPUS_SPEC, line=LINE, problem=PROBLEM)
+        occurrence = MissingField(source=CORPUS_SOURCE, line=LINE, problem=PROBLEM)
 
         #: When
         labels = occurrence.labels()

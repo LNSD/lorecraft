@@ -1,8 +1,9 @@
 """`FM009`: a frontmatter field's value breaks a constraint its schema sets."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import ClassVar, Self, assert_never
 
+from lorecraft.core.path import RootRelativePath
 from lorecraft.project.context import FrontmatterContext
 from lorecraft.project.schemas import (
     BlockProblem,
@@ -11,6 +12,7 @@ from lorecraft.project.schemas import (
     OneOfValues,
     OtherValueConstraint,
     PatternMismatch,
+    SchemaSource,
     UnknownFieldProblem,
     WrongTypeProblem,
 )
@@ -82,8 +84,9 @@ class InvalidValue(FrontmatterRule):
     ```
 
     Attributes:
-        spec: The structure specification whose frontmatter schema found the problem, or `None` for a skill, which
-            the Agent Skills specification governs.
+        spec: The specification file that states the schema, derived from `source`, so no caller states one that
+            disagrees with it; `None` for the Agent Skills specification.
+        source: The schema that found the problem: a structure specification's, or the Agent Skills specification's.
         problem: The field whose value breaks the constraint, with what the schema states about it.
     """
 
@@ -92,7 +95,15 @@ class InvalidValue(FrontmatterRule):
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('0.3.0')
 
+    # The specification file is derived from `source`, so no caller can state one that disagrees with it.
+    spec: RootRelativePath | None = field(init=False)
+    source: SchemaSource
     problem: InvalidValueProblem
+
+    def __post_init__(self) -> None:
+        """Derive the specification file from the schema that found the problem."""
+        # The dataclass is frozen, so the field a rule derives is set the one way a frozen dataclass allows.
+        object.__setattr__(self, 'spec', schema_spec(self.source))
 
     def message(self) -> str:
         """Name the field whose value breaks a constraint; the label names the constraint."""
@@ -114,7 +125,7 @@ class InvalidValue(FrontmatterRule):
     def children(self) -> tuple[Subdiagnostic, ...]:
         """Say where the schema is stated, why the value is wrong and what to write, then the validator's wording."""
         problem = self.problem
-        parts: list[Subdiagnostic] = [schema_note(self.spec)]
+        parts: list[Subdiagnostic] = [schema_note(self.source)]
         if problem.reason is not None:
             parts.append(Help(problem.reason))
         elif problem.guidance.description is not None:
@@ -149,7 +160,7 @@ class InvalidValue(FrontmatterRule):
                 problem = located.problem
                 match problem:
                     case InvalidValueProblem():
-                        occurrences.append(cls(spec=schema_spec(schema.source), line=located.line, problem=problem))
+                        occurrences.append(cls(source=schema.source, line=located.line, problem=problem))
                     case MissingFieldProblem() | UnknownFieldProblem() | WrongTypeProblem() | BlockProblem():
                         pass  # another rule's condition
                     case _:

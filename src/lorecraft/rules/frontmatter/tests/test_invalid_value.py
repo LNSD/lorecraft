@@ -11,11 +11,13 @@ import pytest
 
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.schemas import (
+    AgentSkillsSchema,
     FieldGuidance,
     InvalidValueProblem,
     OneOfValues,
     OtherValueConstraint,
     PatternMismatch,
+    StructureSpecSchema,
 )
 from lorecraft.project.schemas.skill_frontmatter import SKILL_NAME_PATTERN
 from lorecraft.project.syntax import LineNumber
@@ -34,6 +36,15 @@ CORPUS_SPEC: Final[RootRelativePath] = structure_spec_path('guide')
 
 NAMESPACE_SPEC: Final[RootRelativePath] = structure_spec_path('guide-setup')
 """Where a namespace structure specification under the same corpus lies."""
+
+CORPUS_SOURCE: Final[StructureSpecSchema] = StructureSpecSchema(spec=CORPUS_SPEC)
+"""The schema the corpus specification states."""
+
+NAMESPACE_SOURCE: Final[StructureSpecSchema] = StructureSpecSchema(spec=NAMESPACE_SPEC)
+"""The schema the namespace specification states."""
+
+AGENT_SKILLS_SOURCE: Final[AgentSkillsSchema] = AgentSkillsSchema()
+"""The schema the Agent Skills specification states, which governs a skill."""
 
 NAME_PATTERN: Final[str] = (
     '{"frontmatter": {"type": "object", "properties": {"name": {"type": "string", "pattern": "^[a-z-]+$"}}}}'
@@ -67,7 +78,7 @@ class TestInvalidValue:
         occurrences = InvalidValue.check(subject)
 
         #: Then
-        assert occurrences == (InvalidValue(spec=CORPUS_SPEC, line=LINE, problem=PROBLEM),), (
+        assert occurrences == (InvalidValue(source=CORPUS_SOURCE, line=LINE, problem=PROBLEM),), (
             "one problem is one occurrence, on the line its field is written on, naming the schema's specification"
         )
 
@@ -97,8 +108,8 @@ class TestInvalidValue:
 
         #: Then
         assert occurrences == (
-            InvalidValue(spec=CORPUS_SPEC, line=LINE, problem=PROBLEM),
-            InvalidValue(spec=NAMESPACE_SPEC, line=LINE, problem=PROBLEM),
+            InvalidValue(source=CORPUS_SOURCE, line=LINE, problem=PROBLEM),
+            InvalidValue(source=NAMESPACE_SOURCE, line=LINE, problem=PROBLEM),
         ), 'each schema is applied on its own, so each reports the problem under its own specification, in order'
 
     def test_check_with_a_skill_reports_it_with_no_specification_file(self) -> None:
@@ -128,9 +139,9 @@ class TestInvalidValue:
                 example='Designed for Claude Code (or similar products)',
             ),
         )
-        assert occurrences == (InvalidValue(spec=None, line=LineNumber.from_int(4), problem=problem),), (
-            "the package states the Agent Skills schema, so a skill's occurrence names no specification file"
-        )
+        assert occurrences == (
+            InvalidValue(source=AGENT_SKILLS_SOURCE, line=LineNumber.from_int(4), problem=problem),
+        ), "the package states the Agent Skills schema, so a skill's occurrence names no specification file"
 
     def test_labels_with_a_skill_name_outside_the_allowed_format_name_the_pattern(self) -> None:
         #: Given
@@ -170,7 +181,7 @@ class TestInvalidValue:
 
     def test_message_with_an_occurrence_names_the_field(self) -> None:
         #: Given
-        occurrence = InvalidValue(spec=CORPUS_SPEC, line=LINE, problem=PROBLEM)
+        occurrence = InvalidValue(source=CORPUS_SOURCE, line=LINE, problem=PROBLEM)
 
         #: When
         message = occurrence.message()
@@ -182,7 +193,7 @@ class TestInvalidValue:
 
     def test_labels_with_a_pattern_name_it_on_the_field_line(self) -> None:
         #: Given
-        occurrence = InvalidValue(spec=CORPUS_SPEC, line=LINE, problem=PROBLEM)
+        occurrence = InvalidValue(source=CORPUS_SOURCE, line=LINE, problem=PROBLEM)
 
         #: When
         labels = occurrence.labels()
@@ -195,7 +206,7 @@ class TestInvalidValue:
     def test_labels_with_values_allowed_say_the_value_is_not_one_of_them(self) -> None:
         #: Given
         problem = InvalidValueProblem('type', 'wrong', OneOfValues(('rule', 'pattern')))
-        occurrence = InvalidValue(spec=CORPUS_SPEC, line=LINE, problem=problem)
+        occurrence = InvalidValue(source=CORPUS_SOURCE, line=LINE, problem=problem)
 
         #: When
         labels = occurrence.labels()
@@ -206,7 +217,7 @@ class TestInvalidValue:
     def test_labels_with_another_keyword_label_nothing(self) -> None:
         #: Given
         problem = InvalidValueProblem('name', 'wrong', OtherValueConstraint())
-        occurrence = InvalidValue(spec=CORPUS_SPEC, line=LINE, problem=problem)
+        occurrence = InvalidValue(source=CORPUS_SOURCE, line=LINE, problem=problem)
 
         #: When
         labels = occurrence.labels()
@@ -216,7 +227,7 @@ class TestInvalidValue:
 
     def test_children_with_a_pattern_point_at_the_specification_only(self) -> None:
         #: Given
-        occurrence = InvalidValue(spec=CORPUS_SPEC, line=LINE, problem=PROBLEM)
+        occurrence = InvalidValue(source=CORPUS_SOURCE, line=LINE, problem=PROBLEM)
 
         #: When
         children = occurrence.children()
@@ -228,7 +239,7 @@ class TestInvalidValue:
 
     def test_children_with_a_skill_occurrence_name_the_agent_skills_specification(self) -> None:
         #: Given
-        occurrence = InvalidValue(spec=None, line=LINE, problem=PROBLEM)
+        occurrence = InvalidValue(source=AGENT_SKILLS_SOURCE, line=LINE, problem=PROBLEM)
 
         #: When
         children = occurrence.children()
@@ -244,7 +255,7 @@ class TestInvalidValue:
         problem = InvalidValueProblem(
             'name', 'wrong', PatternMismatch('^x$'), reason='Lowercase words only.', guidance=guidance
         )
-        occurrence = InvalidValue(spec=CORPUS_SPEC, line=LINE, problem=problem)
+        occurrence = InvalidValue(source=CORPUS_SOURCE, line=LINE, problem=problem)
 
         #: When
         children = occurrence.children()
@@ -263,7 +274,7 @@ class TestInvalidValue:
         #: Given
         guidance = FieldGuidance(description='The name.')
         problem = InvalidValueProblem('name', 'wrong', PatternMismatch('^x$'), guidance=guidance)
-        occurrence = InvalidValue(spec=CORPUS_SPEC, line=LINE, problem=problem)
+        occurrence = InvalidValue(source=CORPUS_SOURCE, line=LINE, problem=problem)
 
         #: When
         children = occurrence.children()
@@ -277,7 +288,7 @@ class TestInvalidValue:
     def test_children_with_values_allowed_list_them(self) -> None:
         #: Given
         problem = InvalidValueProblem('type', 'wrong', OneOfValues(('rule', 'pattern')))
-        occurrence = InvalidValue(spec=CORPUS_SPEC, line=LINE, problem=problem)
+        occurrence = InvalidValue(source=CORPUS_SOURCE, line=LINE, problem=problem)
 
         #: When
         children = occurrence.children()
@@ -297,7 +308,7 @@ class TestInvalidValue:
             reason='No trailing period.',
             guidance=FieldGuidance(example='Load when x'),
         )
-        occurrence = InvalidValue(spec=CORPUS_SPEC, line=LINE, problem=problem)
+        occurrence = InvalidValue(source=CORPUS_SOURCE, line=LINE, problem=problem)
 
         #: When
         children = occurrence.children()
@@ -334,7 +345,7 @@ class TestInvalidValue:
         problem = InvalidValueProblem(
             'description', message, OtherValueConstraint(), reason='No trailing period.', guidance=FieldGuidance()
         )
-        assert occurrences == (InvalidValue(spec=CORPUS_SPEC, line=LineNumber.from_int(2), problem=problem),), (
+        assert occurrences == (InvalidValue(source=CORPUS_SOURCE, line=LineNumber.from_int(2), problem=problem),), (
             "the schema's `$comment` reaches the occurrence as the reason, so it is the help, ahead of the "
             "validator's prose"
         )

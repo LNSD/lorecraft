@@ -76,15 +76,19 @@ def schema_spec(source: SchemaSource) -> RootRelativePath | None:
             assert_never(source)
 
 
-def schema_note(spec: RootRelativePath | None) -> Note:
+def schema_note(source: SchemaSource) -> Note:
     """The note naming where the frontmatter schema that found a problem is stated.
 
     Args:
-        spec: The structure specification that states the schema, or `None` for the Agent Skills specification's.
+        source: The schema the problem was found against.
     """
-    if spec is None:
-        return Note("the Agent Skills specification states a SKILL.md's frontmatter schema")
-    return Note('the frontmatter schema is set here', at=Elsewhere(spec))
+    match source:
+        case StructureSpecSchema():
+            return Note('the frontmatter schema is set here', at=Elsewhere(source.spec))
+        case AgentSkillsSchema():
+            return Note("the Agent Skills specification states a SKILL.md's frontmatter schema")
+        case _:
+            assert_never(source)
 
 
 def allowed_values_help(values: tuple[str, ...]) -> Help:

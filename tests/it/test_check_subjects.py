@@ -31,6 +31,7 @@ from lorecraft.project.document import DocumentRef
 from lorecraft.project.layout import SNAPSHOT_SCOPE
 from lorecraft.project.link_target import DocumentDirectory, SkillRoot
 from lorecraft.project.schemas import (
+    AgentSkillsSchema,
     BlockProblem,
     DocumentEnd,
     ExpectedSection,
@@ -45,6 +46,7 @@ from lorecraft.project.schemas import (
     PatternMismatch,
     SchemaProblems,
     SectionName,
+    StructureSpecSchema,
     TitlePattern,
     UnknownFieldProblem,
     WrongTypeProblem,
@@ -1281,10 +1283,12 @@ class TestCheckSubjects:
         #: Then
         line_1 = LineNumber.from_int(1)
         missing_field = MissingField(
-            spec=CODE_SPEC, line=line_1, problem=MissingFieldProblem('owner', "'owner' is a required property")
+            source=StructureSpecSchema(spec=CODE_SPEC),
+            line=line_1,
+            problem=MissingFieldProblem('owner', "'owner' is a required property"),
         )
         unknown_field = UnknownField(
-            spec=CODE_SPEC,
+            source=StructureSpecSchema(spec=CODE_SPEC),
             line=LineNumber.from_int(4),
             problem=UnknownFieldProblem(
                 'extra',
@@ -1293,21 +1297,21 @@ class TestCheckSubjects:
             ),
         )
         wrong_type = WrongType(
-            spec=CODE_SPEC,
+            source=StructureSpecSchema(spec=CODE_SPEC),
             line=LineNumber.from_int(3),
             problem=WrongTypeProblem(
                 'description', "['a'] is not of type 'string'", (JsonType.STRING,), JsonType.ARRAY
             ),
         )
         invalid_value = InvalidValue(
-            spec=CODE_SPEC,
+            source=StructureSpecSchema(spec=CODE_SPEC),
             line=LineNumber.from_int(5),
             problem=InvalidValueProblem(
                 'status', "'Final' does not match '^(draft|stable)$'", PatternMismatch('^(draft|stable)$')
             ),
         )
         block_constraint = BlockConstraint(
-            spec=CODE_SPEC,
+            source=StructureSpecSchema(spec=CODE_SPEC),
             line=line_1,
             problem=BlockProblem(
                 "{'name': 'guide', 'description': ['a'], 'extra': 'y', 'status': 'Final'} "
@@ -1347,12 +1351,12 @@ class TestCheckSubjects:
         #: Then
         line_1 = LineNumber.from_int(1)
         missing_field = MissingField(
-            spec=None,
+            source=AgentSkillsSchema(),
             line=line_1,
             problem=MissingFieldProblem('description', '`description` is required', guidance=DESCRIPTION_GUIDANCE),
         )
         unknown_field = UnknownField(
-            spec=None,
+            source=AgentSkillsSchema(),
             line=LineNumber.from_int(5),
             problem=UnknownFieldProblem(
                 'extra',
@@ -1361,7 +1365,7 @@ class TestCheckSubjects:
             ),
         )
         wrong_type = WrongType(
-            spec=None,
+            source=AgentSkillsSchema(),
             line=LineNumber.from_int(4),
             problem=WrongTypeProblem(
                 'metadata',
@@ -1372,7 +1376,7 @@ class TestCheckSubjects:
             ),
         )
         invalid_value = InvalidValue(
-            spec=None,
+            source=AgentSkillsSchema(),
             line=LineNumber.from_int(3),
             problem=InvalidValueProblem(
                 'compatibility',
@@ -1420,10 +1424,14 @@ class TestCheckSubjects:
         #: Then
         line_1 = LineNumber.from_int(1)
         status = MissingField(
-            spec=CODE_SPEC, line=line_1, problem=MissingFieldProblem('status', "'status' is a required property")
+            source=StructureSpecSchema(spec=CODE_SPEC),
+            line=line_1,
+            problem=MissingFieldProblem('status', "'status' is a required property"),
         )
         owner = MissingField(
-            spec=namespace_spec, line=line_1, problem=MissingFieldProblem('owner', "'owner' is a required property")
+            source=StructureSpecSchema(spec=namespace_spec),
+            line=line_1,
+            problem=MissingFieldProblem('owner', "'owner' is a required property"),
         )
         assert reports == (
             CheckedDocument(
