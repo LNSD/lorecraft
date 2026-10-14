@@ -6,12 +6,13 @@ from typing import ClassVar, Self, assert_never
 from lorecraft.project.context import SkillContext
 from lorecraft.project.schemas import (
     AllowedTool,
+    AllowedTools,
     CommaSeparated,
     MalformedEntry,
     NotATool,
+    SkillField,
     UnbalancedParentheses,
     field_line,
-    parse_allowed_tools,
 )
 from lorecraft.project.syntax import Frontmatter, InvalidYamlFrontmatter, MissingFrontmatter, NonMappingFrontmatter
 from lorecraft.rules.declaration import Level, Release, RuleCode, RuleName, rule
@@ -129,12 +130,11 @@ class MalformedAllowedTools(SkillRule):
             case _:
                 assert_never(frontmatter)
 
-        value = frontmatter.data.get('allowed-tools')
-        if not isinstance(value, str):
+        allowed_tools = subject.skill_fields().get(SkillField.ALLOWED_TOOLS)
+        if not isinstance(allowed_tools, AllowedTools):
             return ()
 
-        line = field_line(frontmatter, 'allowed-tools')
-        allowed_tools = parse_allowed_tools(value)
+        line = field_line(frontmatter, SkillField.ALLOWED_TOOLS)
         if not allowed_tools.entries:
             return (cls(line=line, problem=EmptyValue()),)
 

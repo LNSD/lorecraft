@@ -596,13 +596,14 @@ class SkillCompatibility:
 
 @dataclass(frozen=True, slots=True)
 class SkillAllowedTools:
-    """The ``allowed-tools`` field: the tools the skill may run without asking.
+    """The `allowed-tools` field: the tools the skill may run without asking.
 
     The specification calls it a space-separated string and marks it experimental. It is kept whole rather than
-    split into tools: a rule such as ``Bash(git add *)`` holds spaces of its own. ``FM011`` reads whitespace
-    outside parentheses as separators, without checking whether an agent recognises a tool or its pattern syntax.
-    ``FM012`` warns when the whole value exceeds Lorecraft's recommendation of 500 characters; the schema itself
-    imposes no length limit.
+    split into tools: a rule such as `Bash(git add *)` holds spaces of its own. The schema keeps the value whole;
+    `AllowedTools`, from `parse_skill_fields`, is the split form the rules read. `parse_allowed_tools` reads
+    whitespace outside parentheses as separators, without checking whether an agent recognises a tool or its
+    pattern syntax, and `FM011` reports the entries it finds malformed. `FM012` warns when the whole value
+    exceeds Lorecraft's recommendation of 500 characters; the schema itself imposes no length limit.
 
     Attributes:
         value: The tools, exactly as supplied.

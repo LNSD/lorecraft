@@ -22,7 +22,13 @@ from lorecraft.core.path import PathComponent
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.context import DocumentFrontmatterOwner, SkillFrontmatterOwner
 from lorecraft.project.link_target import DocumentDirectory, LinkTargetEntry, SkillRoot
-from lorecraft.project.schemas import OutlineAlignmentSpec, OutlineDivergenceSpec, SchemaProblems, StructureSpec
+from lorecraft.project.schemas import (
+    OutlineAlignmentSpec,
+    OutlineDivergenceSpec,
+    SchemaProblems,
+    SkillFields,
+    StructureSpec,
+)
 from lorecraft.project.skill import OutsideSymlink, SkillLocation
 from lorecraft.project.syntax import FrontmatterNode, LineCount, NormalisedLinkPath, ParsedDocument, TokenCount
 from lorecraft.project.workspace import Governance
@@ -147,6 +153,10 @@ class DatabaseSkillContext:
     def schema_problems(self) -> tuple[SchemaProblems, ...]:
         """What the Agent Skills specification rejects in the frontmatter, from the `skill_schema_problems` query."""
         return self._database.skill_schema_problems(self._source)
+
+    def skill_fields(self) -> SkillFields:
+        """The fields of the frontmatter that parse, from the `skill_fields` query."""
+        return self._database.skill_fields(self._source)
 
     def frontmatter_owner(self) -> SkillFrontmatterOwner:
         """The skill, with the directory name its frontmatter `name` must equal and where a link there leads."""

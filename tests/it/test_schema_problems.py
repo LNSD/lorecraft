@@ -22,6 +22,7 @@ from lorecraft.project.schemas import (
     LocatedProblem,
     MissingFieldProblem,
     SchemaProblems,
+    SkillField,
     StructureSpecSchema,
     UnknownFieldProblem,
     WrongTypeProblem,
@@ -297,6 +298,20 @@ class TestSkillSchemaProblems:
 
         #: Then
         assert found == (), 'no schema can hold a missing block: the block rules report it'
+
+    def test_skill_fields_called_twice_returns_the_first_answer(self) -> None:
+        #: Given
+        review = b'---\nname: review\nallowed-tools: Read\n---\n# Review\n'
+        database = Database.open(_snapshot(REQUIRE_STATUS, STRING_DESCRIPTION, typing=b'', review=review))
+        source = _skill_text(database, REVIEW)
+        first = database.skill_fields(source)
+
+        #: When
+        second = database.skill_fields(source)
+
+        #: Then
+        assert second is first, "a skill's fields are parsed once per database, then shared by every rule"
+        assert set(first) == {SkillField.NAME, SkillField.ALLOWED_TOOLS}, 'each written, conforming field is kept'
 
     def test_skill_schema_problems_called_twice_returns_the_first_answer(self) -> None:
         #: Given

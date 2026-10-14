@@ -28,6 +28,7 @@ from lorecraft.project.schemas import (
     OutlineAlignmentSpec,
     OutlineDivergenceSpec,
     SchemaProblems,
+    SkillFields,
     SpecFileType,
     SpecName,
     StructureSchema,
@@ -37,6 +38,7 @@ from lorecraft.project.schemas import (
     locate_schema_problems,
     locate_skill_schema_problems,
     match_outlines,
+    parse_skill_fields,
     parse_spec_name,
     spec_filename,
 )
@@ -329,6 +331,10 @@ class FakeSkillContext:
     def schema_problems(self) -> tuple[SchemaProblems, ...]:
         """What the Agent Skills specification rejects, as the real analysis finds it."""
         return locate_skill_schema_problems(self.frontmatter())
+
+    def skill_fields(self) -> SkillFields:
+        """The fields that parse, as the real analysis finds them."""
+        return parse_skill_fields(self.frontmatter())
 
     def frontmatter_owner(self) -> SkillFrontmatterOwner:
         """The skill, with its directory name and where a link there leads."""

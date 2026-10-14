@@ -33,7 +33,7 @@ from lorecraft.vfs import ResolvedPath, RootExit
 
 from .aspect import AspectFilename
 from .link_target import LinkBase, LinkTargetEntry
-from .schemas import OutlineAlignmentSpec, OutlineDivergenceSpec, SchemaProblems, StructureSpec
+from .schemas import OutlineAlignmentSpec, OutlineDivergenceSpec, SchemaProblems, SkillFields, StructureSpec
 from .syntax import FrontmatterNode, LineCount, NormalisedLinkPath, ParsedDocument, TokenCount
 from .workspace import Governance
 
@@ -181,6 +181,14 @@ class SkillContext(FrontmatterContext, SkillFileContext, Protocol):
     Its Markdown file is its `SKILL.md` alone, so its parse tree is that file's: each of its resources is a subject of
     its own.
     """
+
+    def skill_fields(self) -> SkillFields:
+        """The fields of the skill's frontmatter that parse, each on its own, by the field.
+
+        A field that is not written, is null or is rejected has no entry; none holds when the block is missing, not
+        YAML or not a mapping.
+        """
+        ...
 
     def directory_name(self) -> PathComponent:
         """The name of the skill's directory as an agent lists it, whatever a link there leads to."""
