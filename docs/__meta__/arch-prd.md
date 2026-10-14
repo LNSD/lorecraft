@@ -10,7 +10,7 @@ scope: "global"
 **Applies to every document in `docs/arch/` named `prd-*.md`.** The namespace also matches a bare `prd.md`, and
 no such file may exist: every PRD is about one feature, and its name says which. It is a namespace layer on the
 [arch](arch.md) corpus meta spec, and states only what it adds to it. Its machine-checkable half is
-[arch-prd.structure.json](arch-prd.structure.json), applied on its own beside the corpus file.
+[arch-prd.spec.json](arch-prd.spec.json), applied on its own beside the corpus file.
 
 A PRD states **what** a feature must do and **why**, and nothing about **how**. Its reader is an agent or a
 person who will build the feature without a follow-up conversation, so every requirement is explicit, numbered

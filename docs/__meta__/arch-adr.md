@@ -10,7 +10,7 @@ scope: "global"
 **Applies to every document in `docs/arch/` named `adr-*.md`.** The namespace also matches a bare `adr.md`, and no
 such file may exist: every ADR is about one decision, and its name says which. It is a namespace layer on the
 [arch](arch.md) corpus meta spec, and states only what it adds to it. Its machine-checkable half is
-[arch-adr.structure.json](arch-adr.structure.json), applied on its own beside the corpus file.
+[arch-adr.spec.json](arch-adr.spec.json), applied on its own beside the corpus file.
 
 An ADR states **how** something is built and **why**: the context that forced a decision, the decision, and what
 follows from it. It answers a PRD's requirements when there is one, and cites them by identifier. It is

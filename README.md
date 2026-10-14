@@ -75,9 +75,9 @@ Write your coding rules as documents in `docs/code/`, and describe what a rule d
 docs/
 ├── __meta__/
 │   ├── code.md                     # what every rule document looks like, in prose
-│   ├── code.structure.json         # its frontmatter, sections, word caps and token budget
+│   ├── code.spec.json              # its frontmatter, sections, word caps and token budget
 │   ├── code-python.md              # narrower rules for the python-* documents
-│   └── code-python.structure.json  # the frontmatter and sections they add
+│   └── code-python.spec.json       # the frontmatter and sections they add
 └── code/
     ├── logging.md                  # governed_by: [code]
     ├── python-modules.md           # governed_by: [code, code-python]
@@ -86,7 +86,7 @@ docs/
 ```
 
 Each specification is a pair of files that share a specification name, such as `code`: the prose,
-`<name>.md`, and the structure specification, `<name>.structure.json`, which the checks apply. `code` governs
+`<name>.md`, and the structure specification, `<name>.spec.json`, which the checks apply. `code` governs
 every document in `docs/code/`, and `code-python` adds its rules to the `python-*` documents.
 
 Keep the rule documents in shape, from the repository root:

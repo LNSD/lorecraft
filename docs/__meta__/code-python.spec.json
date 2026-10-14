@@ -1,6 +1,6 @@
 {
   "$schema": "../schemas/structure.spec.json",
-  "description": "Narrows code.structure.json for docs/code/python-*.md, which is applied as well. The prose authority is docs/__meta__/code-python.md; a python document's rule sections are named by their rules, so this file adds only the fixed type and the scopes allowed in the frontmatter, and that References is not optional here. Where References sits is code.structure.json's business.",
+  "description": "Narrows code.spec.json for docs/code/python-*.md, which is applied as well. The prose authority is docs/__meta__/code-python.md; a python document's rule sections are named by their rules, so this file adds only the fixed type and the scopes allowed in the frontmatter, and that References is not optional here. Where References sits is code.spec.json's business.",
   "frontmatter": {
     "type": "object",
     "properties": {
