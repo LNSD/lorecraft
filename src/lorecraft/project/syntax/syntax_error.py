@@ -17,17 +17,39 @@ from dataclasses import dataclass
 from types import MappingProxyType
 from typing import Final
 
-from ruamel.yaml.error import MarkedYAMLError, StreamMark
-from ruamel.yaml.reader import ReaderError
-
 from lorecraft.core.lines import line_at, split_lines
-from lorecraft.yaml.basic_yaml import LINE_SEPARATORS
+from lorecraft.yaml.problem import LINE_SEPARATORS, ControlCharacterProblem, SyntaxErrorProblem
+from lorecraft.yaml.tree import YamlPosition
 
 _ESCAPE_HEX_DIGITS: Final[Mapping[str, int]] = MappingProxyType({'x': 2, 'u': 4, 'U': 8})
 """How many hexadecimal digits the escapes `\\x`, `\\u` and `\\U` take after their letter."""
 
 _BLOCK_SCALAR_HEADER: Final[re.Pattern[str]] = re.compile(r'(?:^|\s)[|>][+-]?[0-9]?\s*(?:#.*)?$')
 """The end of a line that opens a literal or folded block scalar, with its indicators and a comment after them."""
+
+
+@dataclass(frozen=True, slots=True)
+class _Mark:
+    """Where the parser marked an error, counted from 0 as the classification below reads it.
+
+    Attributes:
+        line: The line of the block.
+        column: The column of the line, in characters.
+    """
+
+    line: int
+    column: int
+
+
+def _mark_of(position: YamlPosition | None) -> _Mark | None:
+    """The mark of a position, or `None` where the parser gave none.
+
+    Args:
+        position: A position of the parser's error, which counts from 1.
+    """
+    if position is None:
+        return None
+    return _Mark(position.line.value - 1, position.column.value - 1)
 
 
 @dataclass(frozen=True, slots=True)
@@ -45,18 +67,18 @@ class SyntaxProblem:
     line: int | None
 
 
-def describe_error(error: MarkedYAMLError, block: str) -> SyntaxProblem:
+def describe_error(error: SyntaxErrorProblem, block: str) -> SyntaxProblem:
     """Classify a scanner's or a parser's error into one of adr-019's syntax error kinds.
 
     Args:
-        error: The scanner's or the parser's error, whose class, problem, context and marks pick the kind.
+        error: The scanner's or the parser's error, whose problem, context and positions pick the kind.
         block: The text the parser read, the lines between the frontmatter delimiters.
     """
     lines = list(split_lines(block))
-    problem = error.problem or ''
-    context = error.context or ''
-    mark = error.problem_mark
-    context_mark = error.context_mark
+    problem = error.problem
+    context = error.context
+    mark = _mark_of(error.position)
+    context_mark = _mark_of(error.context_position)
 
     if problem == "could not find expected ':'":
         return _not_key_or_item(_line_of(context_mark or mark))
@@ -104,7 +126,7 @@ def describe_error(error: MarkedYAMLError, block: str) -> SyntaxProblem:
     return _unreadable(_line_of(mark or context_mark))
 
 
-def _line_of(mark: StreamMark | None) -> int | None:
+def _line_of(mark: _Mark | None) -> int | None:
     """The line a mark is on, counted from 0, or None when there is no mark.
 
     Args:
@@ -222,7 +244,7 @@ def _indent(text: str) -> int:
     return len(text) - len(text.lstrip(' '))
 
 
-def _bad_indent(mark: StreamMark | None, lines: list[str]) -> SyntaxProblem:
+def _bad_indent(mark: _Mark | None, lines: list[str]) -> SyntaxProblem:
     """Classify a line indented to no level of the block, which may be a key under a text value.
 
     Args:
@@ -251,7 +273,7 @@ def _matches_no_level(line: int | None) -> SyntaxProblem:
     )
 
 
-def _misplaced_colon(mark: StreamMark | None, lines: list[str]) -> SyntaxProblem:
+def _misplaced_colon(mark: _Mark | None, lines: list[str]) -> SyntaxProblem:
     """Classify a `:` where a key is not allowed: in a value, under a text value, or ending a multi-line scalar.
 
     Args:
@@ -298,7 +320,7 @@ def _scalar_start(lines: list[str], line: int) -> int:
     return start
 
 
-def _ends_a_flow_collection(mark: StreamMark | None, lines: list[str]) -> bool:
+def _ends_a_flow_collection(mark: _Mark | None, lines: list[str]) -> bool:
     """Whether the text on the mark's line before the mark ends in a `]` or a `}`.
 
     Args:
@@ -310,7 +332,7 @@ def _ends_a_flow_collection(mark: StreamMark | None, lines: list[str]) -> bool:
     return _text(lines, mark.line)[: mark.column].rstrip().endswith((']', '}'))
 
 
-def _text_after_value(mark: StreamMark | None, lines: list[str]) -> SyntaxProblem:
+def _text_after_value(mark: _Mark | None, lines: list[str]) -> SyntaxProblem:
     """Classify text where an entry ended: after a closing quote, after a flow collection, or below a block scalar.
 
     Args:
@@ -332,7 +354,7 @@ def _text_after_value(mark: StreamMark | None, lines: list[str]) -> SyntaxProble
     return _unreadable(_line_of(mark))
 
 
-def _closes_nothing(bracket: str, mark: StreamMark | None) -> SyntaxProblem:
+def _closes_nothing(bracket: str, mark: _Mark | None) -> SyntaxProblem:
     """The kind for a closing bracket that closes no flow collection.
 
     Args:
@@ -363,23 +385,21 @@ def _below_block_scalar(line: int, lines: list[str]) -> bool:
     return False
 
 
-def describe_control_character(error: ReaderError, block: str) -> SyntaxProblem:
+def describe_control_character(error: ControlCharacterProblem, block: str) -> SyntaxProblem:
     """Name a character the reader refuses, and the line it is on.
 
     Args:
-        error: The reader's error, whose position is the character's index in the block.
+        error: The refused character, with its index in the block.
         block: The text the reader read.
     """
-    character = error.character
-    code = character if isinstance(character, int) else ord(character)
     return SyntaxProblem(
-        f'the block holds the control character U+{code:04X}',
+        f'the block holds the control character U+{error.code:04X}',
         'Remove it',
-        line_at(block, error.position) - 1,
+        line_at(block, error.index) - 1,
     )
 
 
-def _cannot_start_value(character: str, mark: StreamMark | None) -> SyntaxProblem:
+def _cannot_start_value(character: str, mark: _Mark | None) -> SyntaxProblem:
     """The kind for a character that cannot start a plain value.
 
     Args:
@@ -391,7 +411,7 @@ def _cannot_start_value(character: str, mark: StreamMark | None) -> SyntaxProble
     return SyntaxProblem(f'a plain value cannot start with {named}', 'Quote the value', _line_of(mark))
 
 
-def _unstartable_character(problem: str, mark: StreamMark | None, lines: list[str]) -> SyntaxProblem:
+def _unstartable_character(problem: str, mark: _Mark | None, lines: list[str]) -> SyntaxProblem:
     """Classify a character that cannot start a token: a tab, or a character no plain value starts with.
 
     Args:
@@ -425,7 +445,7 @@ def _escaped_separator(problem: str) -> str | None:
     return character if isinstance(character, str) and character in LINE_SEPARATORS else None
 
 
-def _separator_escape(separator: str, mark: StreamMark | None) -> SyntaxProblem:
+def _separator_escape(separator: str, mark: _Mark | None) -> SyntaxProblem:
     """The kind for a backslash before a line separator, which is no line break to escape.
 
     Args:
@@ -440,7 +460,7 @@ def _separator_escape(separator: str, mark: StreamMark | None) -> SyntaxProblem:
     )
 
 
-def _unknown_escape(mark: StreamMark | None, lines: list[str]) -> SyntaxProblem:
+def _unknown_escape(mark: _Mark | None, lines: list[str]) -> SyntaxProblem:
     """The kind for an escape double quotes do not know, naming the escape as written.
 
     Args:

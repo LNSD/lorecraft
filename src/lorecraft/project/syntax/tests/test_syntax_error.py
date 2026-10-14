@@ -8,30 +8,32 @@ from textwrap import dedent
 from typing import Final
 
 import pytest
-from ruamel.yaml.error import MarkedYAMLError, StreamMark
-from ruamel.yaml.reader import ReaderError
+
+from lorecraft.core.num import NonZeroUnsignedInt
+from lorecraft.yaml.problem import ControlCharacterProblem, SyntaxErrorProblem
+from lorecraft.yaml.tree import YamlPosition
 
 from ..syntax_error import SyntaxProblem, describe_control_character, describe_error
 
 
-def _mark(line: int, column: int) -> StreamMark:
-    """A mark of the block, from its line and column counted from 0.
+def _mark(line: int, column: int) -> YamlPosition:
+    """A position of the block, from its line and column counted from 0.
 
     Args:
         line: The line.
         column: The column.
     """
-    return StreamMark('<unicode string>', 0, line, column)
+    return YamlPosition(NonZeroUnsignedInt(line + 1), NonZeroUnsignedInt(column + 1))
 
 
 def _error(
     problem: str,
-    mark: StreamMark | None,
+    mark: YamlPosition | None,
     *,
     context: str | None = None,
-    context_mark: StreamMark | None = None,
-) -> MarkedYAMLError:
-    """An error the way the parser raises it, with its problem, context and marks.
+    context_mark: YamlPosition | None = None,
+) -> SyntaxErrorProblem:
+    """An error the way the parser reports it, with its problem, context and positions.
 
     Args:
         problem: What the parser found wrong.
@@ -39,7 +41,7 @@ def _error(
         context: What it was reading, where it names one.
         context_mark: Where that began.
     """
-    return MarkedYAMLError(context, context_mark, problem, mark)
+    return SyntaxErrorProblem(problem, context or '', mark, context_mark)
 
 
 _NOT_KEY_OR_ITEM: Final[tuple[str, str]] = (
@@ -562,7 +564,7 @@ class TestDescribeError:
 
     def test_describe_control_character_with_a_bell_after_a_line_returns_its_code_point_and_line(self) -> None:
         #: Given
-        error = ReaderError('<unicode string>', 9, ord('\x07'), 'utf-8', 'special characters are not allowed')
+        error = ControlCharacterProblem(code=ord('\x07'), index=9)
 
         #: When
         problem = describe_control_character(error, 'a: b\nc: d\x07\n')

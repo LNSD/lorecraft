@@ -6,8 +6,8 @@ resolves and no type it constructs is ever involved. The text is read lazily and
 a syntax error anywhere in it is reported, and the constructs the scanner recorded by the time a read fails are the
 ones written above the failure.
 
-A read that fails raises one `YamlReadError`, which says what stopped it and the first construct the scanner or the
-reader had recorded, so the caller can decide which of the two its text is reported for.
+A read that fails returns the first problem the text writes, as a `YamlProblem`, never an exception: the construct the
+scanner recorded above the one the read stopped on comes first, whichever the library met first.
 """
 
 from collections.abc import Iterator
@@ -26,7 +26,6 @@ from ruamel.yaml.events import (
 )
 from ruamel.yaml.reader import ReaderError
 
-from lorecraft.core.error import Error
 from lorecraft.core.num import NonZeroUnsignedInt
 
 from .basic_yaml import (
@@ -48,35 +47,18 @@ from .basic_yaml import (
     RefusedTagError,
     written_token,
 )
+from .problem import (
+    ControlCharacterProblem,
+    NestingTooDeepProblem,
+    RefusedConstructProblem,
+    SyntaxErrorProblem,
+    YamlProblem,
+)
 from .scalar import resolve_plain_scalar
 from .tree import YamlKey, YamlMapping, YamlPosition, YamlScalar, YamlSequence, YamlValue
 
 
-class YamlReadError(Error):
-    """A YAML text could not be read into a tree.
-
-    Attributes:
-        cause: What stopped the read: a character YAML does not allow, a syntax error, a construct the subset leaves
-            out, or the interpreter's recursion limit. `None` when the text was read to its end and only a recorded
-            construct is left to report.
-        refusal: The first construct the scanner or the reader recorded without stopping, by where it is written, or
-            `None`. The scanner reads ahead of the parser, so it may be written above `cause`.
-    """
-
-    cause: ReaderError | MarkedYAMLError | Refusal | RecursionError | None
-    refusal: RecordedRefusal | None
-
-    def __init__(
-        self,
-        cause: ReaderError | MarkedYAMLError | Refusal | RecursionError | None,
-        refusal: RecordedRefusal | None,
-    ) -> None:
-        self.cause = cause
-        self.refusal = refusal
-        super().__init__('the YAML text could not be read')
-
-
-def read_yaml(text: str) -> YamlValue | None:
+def read_yaml(text: str) -> YamlValue | None | YamlProblem:
     """Read a YAML text, which holds one document, into its tree.
 
     Every value is read to its end, so a refused construct or a syntax error anywhere in the text is reported rather
@@ -86,32 +68,83 @@ def read_yaml(text: str) -> YamlValue | None:
         text: The YAML text to read, line endings kept.
 
     Returns:
-        The document's root, or `None` when the text holds no document: it is empty, or holds only comments.
-
-    Raises:
-        YamlReadError: The text is not valid YAML, holds a character YAML does not allow, writes a construct the
-            subset leaves out, or nests collections too deeply to read.
+        The document's root; `None` when the text holds no document, because it is empty or holds only comments; or
+        the first problem the text writes, when it cannot be read.
     """
     stream = _EventStream(text)
     try:
         root = _read_document(stream)
     except ReaderError as exc:
         # The reader checks every character as it is built, so a control character fails before the first event.
-        raise YamlReadError(exc, None) from exc
+        return ControlCharacterProblem(code=_code_point(exc), index=exc.position)
     except REFUSALS as exc:
-        raise YamlReadError(exc, stream.first_refusal()) from exc
+        # The read stopped at a construct the subset leaves out. The scanner reads ahead of the parser, so it may
+        # have recorded one written above it, which is the one the text is reported for.
+        recorded = stream.first_refusal()
+        if recorded is not None and recorded.mark.index <= exc.mark.index:
+            return _refused(recorded)
+        return _refused(exc)
     except MarkedYAMLError as exc:
-        raise YamlReadError(exc, stream.first_refusal()) from exc
-    except RecursionError as exc:
+        # Every other `MarkedYAMLError` is ruamel.yaml's own. The scanner reads ahead of the parser, so a construct
+        # it recorded is written above whatever the parser or the scanner failed on.
+        recorded = stream.first_refusal()
+        if recorded is not None:
+            return _refused(recorded)
+        return SyntaxErrorProblem(
+            problem=exc.problem or '',
+            context=exc.context or '',
+            position=_position_of_mark(exc.problem_mark),
+            context_position=_position_of_mark(exc.context_mark),
+        )
+    except RecursionError:
         # The value is read with one call per level of nesting, so only a deeply nested text reaches the
         # interpreter's limit. By the time this clause runs the stack has unwound to this frame, so there is room
-        # to go on, and the half-read parser is dropped.
-        raise YamlReadError(exc, stream.first_refusal()) from exc
+        # to go on, and the half-read parser is dropped. A construct the scanner recorded above the depth is
+        # reported instead, on its position.
+        recorded = stream.first_refusal()
+        if recorded is not None:
+            return _refused(recorded)
+        return NestingTooDeepProblem()
     # The text was read to its end, so every construct the scanner recorded is written above the end.
-    refusal = stream.first_refusal()
-    if refusal is not None:
-        raise YamlReadError(None, refusal)
+    recorded = stream.first_refusal()
+    if recorded is not None:
+        return _refused(recorded)
     return root
+
+
+def _code_point(error: ReaderError) -> int:
+    """The code point of the character the reader refused.
+
+    Args:
+        error: The reader's error, whose character is a code point, or a one-character text.
+    """
+    character = error.character
+    return character if isinstance(character, int) else ord(character)
+
+
+def _position_of_mark(mark: StreamMark | None) -> YamlPosition | None:
+    """A mark of the parser's error as a position, or `None` where it gave none.
+
+    Args:
+        mark: The mark, which counts its line and column from 0.
+    """
+    if mark is None:
+        return None
+    return YamlPosition(NonZeroUnsignedInt(mark.line + 1), NonZeroUnsignedInt(mark.column + 1))
+
+
+def _refused(refusal: RecordedRefusal | Refusal) -> RefusedConstructProblem:
+    """The problem of a construct the subset leaves out.
+
+    Args:
+        refusal: The construct, as the scanner recorded it or as the read stopped on it.
+    """
+    refusal_help = refusal.help if isinstance(refusal, RecordedRefusal) else None
+    position = _position_of_mark(refusal.mark)
+    if position is None:
+        # A refusal is marked where it is written.
+        raise AssertionError('unreachable: a refused construct has a mark')
+    return RefusedConstructProblem(message=refusal.problem, help=refusal_help, position=position)
 
 
 class _EventStream:

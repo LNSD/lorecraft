@@ -1,15 +1,13 @@
-"""Reading a YAML text: the tree it builds, where each node sits, and what stops a read."""
+"""Reading a YAML text: the tree it builds, where each node sits, and the problem that stops a read."""
 
 from textwrap import dedent
 
 import pytest
-from ruamel.yaml.error import MarkedYAMLError
-from ruamel.yaml.reader import ReaderError
 
 from lorecraft.core.num import NonZeroUnsignedInt
 
-from ..basic_yaml import RefusedAliasError, RefusedFlowBlockError
-from ..reader import YamlReadError, read_yaml
+from ..problem import ControlCharacterProblem, NestingTooDeepProblem, RefusedConstructProblem, SyntaxErrorProblem
+from ..reader import read_yaml
 from ..tree import YamlMapping, YamlPosition, YamlScalar, YamlSequence
 
 
@@ -195,78 +193,84 @@ class TestReadYaml:
         assert root.value == 'yes', f'{text!r} reads as yes, got {root.value!r}'
         assert type(root.value) is str, f'{text!r} is a str, got {type(root.value).__name__}'
 
-    def test_read_yaml_with_an_alias_raises_the_refusal_with_no_recorded_one(self) -> None:
+    def test_read_yaml_with_an_alias_returns_the_refused_construct_at_the_alias(self) -> None:
         #: Given
         text = 'a: *x\n'
 
         #: When
-        with pytest.raises(YamlReadError) as raised:
-            read_yaml(text)
+        problem = read_yaml(text)
 
         #: Then
-        assert isinstance(raised.value.cause, RefusedAliasError), f'an alias is refused, got {raised.value.cause!r}'
-        assert raised.value.refusal is None, 'the scanner recorded nothing above the alias'
+        assert problem == RefusedConstructProblem(
+            message='found the alias *x, which frontmatter does not allow', help=None, position=_at(1, 4)
+        ), f'an alias is refused where it is written, got {problem!r}'
 
-    def test_read_yaml_with_a_flow_collection_as_the_whole_text_raises_the_refusal(self) -> None:
+    def test_read_yaml_with_a_flow_collection_as_the_whole_text_returns_the_refused_construct(self) -> None:
         #: Given
         text = '[a, b]\n'
 
         #: When
-        with pytest.raises(YamlReadError) as raised:
-            read_yaml(text)
+        problem = read_yaml(text)
 
         #: Then
-        assert isinstance(raised.value.cause, RefusedFlowBlockError), (
-            f'a flow collection is not a block, got {raised.value.cause!r}'
-        )
+        assert problem == RefusedConstructProblem(
+            message='found a flow collection as the block, which frontmatter does not allow',
+            help=None,
+            position=_at(1, 1),
+        ), f'a flow collection is not a block, got {problem!r}'
 
-    def test_read_yaml_with_a_control_character_raises_the_reader_error(self) -> None:
+    def test_read_yaml_with_a_control_character_returns_its_code_and_index(self) -> None:
         #: Given
         text = 'a: \x07\n'
 
         #: When
-        with pytest.raises(YamlReadError) as raised:
-            read_yaml(text)
+        problem = read_yaml(text)
 
         #: Then
-        assert isinstance(raised.value.cause, ReaderError), f'a control character fails the reader, got {raised.value}'
+        assert problem == ControlCharacterProblem(code=7, index=3), f'a control character is refused, got {problem!r}'
 
-    def test_read_yaml_with_a_syntax_error_raises_the_marked_error(self) -> None:
+    def test_read_yaml_with_a_syntax_error_returns_the_parser_facts_and_the_position(self) -> None:
         #: Given
-        text = 'a: [1, 2\n'
+        text = 'a: b: c\n'
 
         #: When
-        with pytest.raises(YamlReadError) as raised:
-            read_yaml(text)
+        problem = read_yaml(text)
 
         #: Then
-        assert isinstance(raised.value.cause, MarkedYAMLError), (
-            f'a bracket left open is a syntax error, got {raised.value}'
-        )
+        assert isinstance(problem, SyntaxErrorProblem), f'a second colon is a syntax error, got {problem!r}'
+        assert problem.position is not None, 'the parser marks where it found the problem'
+        assert problem.problem != '', 'the parser words what it found'
 
-    def test_read_yaml_with_an_explicit_key_raises_with_the_recorded_refusal_and_no_cause(self) -> None:
+    def test_read_yaml_with_an_explicit_key_returns_the_recorded_construct_at_the_key(self) -> None:
         #: Given
         text = '? a\n: 1\n'
 
         #: When
-        with pytest.raises(YamlReadError) as raised:
-            read_yaml(text)
+        problem = read_yaml(text)
 
         #: Then
-        assert raised.value.cause is None, 'the text was read to its end, so nothing stopped it'
-        assert raised.value.refusal is not None, 'the explicit key was recorded'
-        assert raised.value.refusal.construct == 'an explicit key', (
-            f'an explicit key is recorded as one, got {raised.value.refusal}'
-        )
+        assert problem == RefusedConstructProblem(
+            message='found an explicit key, which frontmatter does not allow', help=None, position=_at(1, 1)
+        ), f'an explicit key is recorded where it is written, got {problem!r}'
 
-    def test_read_yaml_with_collections_nested_past_the_recursion_limit_raises_with_the_recursion_error(self) -> None:
+    def test_read_yaml_with_a_construct_below_an_error_returns_the_construct_written_first(self) -> None:
+        #: Given
+        text = '? a\n: b: c\n'
+
+        #: When
+        problem = read_yaml(text)
+
+        #: Then
+        assert isinstance(problem, RefusedConstructProblem), f'the explicit key comes first, got {problem!r}'
+        assert problem.position == _at(1, 1), 'the construct written above the error is the one reported'
+
+    def test_read_yaml_with_collections_nested_past_the_recursion_limit_returns_the_nesting_problem(self) -> None:
         #: Given
         depth = 10_000
         text = ''.join(f'{" " * (2 * level)}a:\n' for level in range(depth))
 
         #: When
-        with pytest.raises(YamlReadError) as raised:
-            read_yaml(text)
+        problem = read_yaml(text)
 
         #: Then
-        assert isinstance(raised.value.cause, RecursionError), f'a deep text exhausts the stack, got {raised.value}'
+        assert problem == NestingTooDeepProblem(), f'a deep text exhausts the stack, got {problem!r}'
