@@ -134,7 +134,7 @@ from .schema_keyword import (
 )
 from .section_name import SectionName
 from .spec_file import SpecFileType, StructureSpecFile, spec_filename
-from .structure_failure import StructureSpecProblem
+from .structure_failure import InvalidTitlePattern, StructureSpecProblem
 from .structure_file import (
     JSON_SCHEMA_DIALECT,
     StructureFile,
@@ -327,38 +327,12 @@ class UntypedFrontmatterSchemaError(Error):
         super().__init__(f'invalid structure schema {path}: frontmatter schema root must state "type": "object"')
 
 
-class InvalidTitlePatternError(Error):
-    """A title's `pattern` is not a regular expression that compiles.
-
-    Attributes:
-        path: Root-relative path of the rejected file.
-        pattern: The pattern, exactly as written.
-        problem: What the compiler rejected, read from its error.
-        source: The compiler's error.
-    """
-
-    path: RootRelativePath
-    pattern: str
-    problem: str
-    source: re.error
-
-    def __init__(self, path: RootRelativePath, pattern: str, problem: str, *, source: re.error) -> None:
-        self.path = path
-        self.pattern = pattern
-        self.problem = problem
-        self.source = source
-        super().__init__(
-            f'invalid structure schema {path}: title pattern {pattern!r} is not a valid regular expression'
-        )
-        self.__cause__ = source
-
-
 @dataclass(frozen=True, slots=True)
 class TitlePattern:
     """A regular expression a document's title text must match, compiled when its specification loads.
 
     It is held compiled, so a pattern that does not compile cannot be held at all: `parse` refuses it with
-    `InvalidTitlePatternError`, naming the file. It is Python's `re` syntax, matched as JSON Schema's
+    `InvalidTitlePattern`. It is Python's `re` syntax, matched as JSON Schema's
     `pattern` is: searched for anywhere in the text, so `Guide` matches `The Guide`, and a pattern that must hold
     the whole title anchors itself with `^` and `$`.
 
@@ -369,21 +343,20 @@ class TitlePattern:
     regex: re.Pattern[str]
 
     @classmethod
-    def parse(cls, pattern: str, *, path: RootRelativePath) -> Self:
+    def parse(cls, pattern: str) -> Self | InvalidTitlePattern:
         """Compile a title pattern as a structure specification writes it.
 
         Args:
             pattern: The pattern, exactly as written.
-            path: Root-relative path of the structure file, carried into the error a pattern that does not compile
-                raises.
 
-        Raises:
-            InvalidTitlePatternError: If the pattern does not compile.
+        Returns:
+            The compiled pattern, or the failure naming the pattern and what the compiler rejected when it does not
+            compile.
         """
         try:
             regex = re.compile(pattern)
         except re.error as exc:
-            raise InvalidTitlePatternError(path, pattern, exc.msg, source=exc) from exc
+            return InvalidTitlePattern(pattern, exc.msg)
         return cls(regex)
 
     def is_found_in(self, text: str) -> bool:
@@ -1004,16 +977,18 @@ class StructureSpec:
         return names
 
     @classmethod
-    def parse(cls, file: StructureSpecFile, schema: StructureSchema) -> Self:
+    def parse(cls, file: StructureSpecFile, schema: StructureSchema) -> Self | InvalidTitlePattern:
         """Deserialize a structure specification's text into its rules.
 
         Args:
             file: The structure specification file the text was read from; every rejection names its path.
             schema: The file's text.
 
+        Returns:
+            The rules, or the failure naming a title `pattern` that does not compile.
+
         Raises:
             StructureSpecDecodeError: If the text is not JSON or does not have the dialect's shape.
-            InvalidTitlePatternError: If its title's pattern does not compile.
             InvalidFrontmatterSchemaError: If its frontmatter schema is rejected by the meta-schema.
             FrontmatterSchemaIdError: If a schema in its frontmatter schema carries ``$id``.
             ForeignFrontmatterDialectError: If a schema in its frontmatter schema names another dialect.
@@ -1047,9 +1022,13 @@ class StructureSpec:
                 case _:
                     assert_never(entry)
 
+        title = _title_checks(structure_file.title)
+        if isinstance(title, InvalidTitlePattern):
+            return title
+
         return cls(
             file=file,
-            title=_title_checks(file.path, structure_file.title),
+            title=title,
             forbid_empty_sections=structure_file.empty_sections == 'forbidden',
             outline=tuple(outline),
             forbidden=structure_file.forbidden,
@@ -1058,20 +1037,21 @@ class StructureSpec:
         )
 
 
-def _title_checks(path: RootRelativePath, title: StructureFileTitle | None) -> TitleChecks | None:
+def _title_checks(title: StructureFileTitle | None) -> TitleChecks | InvalidTitlePattern | None:
     """The checks a file's `title` key states on the title, or None when the file leaves the key out.
 
     Args:
-        path: Root-relative path of the structure file, carried into the error a pattern that does not compile raises.
         title: The file's `title` key, as read; `None` when the file leaves it out.
 
-    Raises:
-        InvalidTitlePatternError: If the key's `pattern` does not compile.
+    Returns:
+        The checks, None, or the failure naming a `pattern` that does not compile.
     """
     if title is None:
         return None
     if title.pattern is not None:
-        pattern = TitlePattern.parse(title.pattern, path=path)
+        pattern = TitlePattern.parse(title.pattern)
+        if isinstance(pattern, InvalidTitlePattern):
+            return pattern
         return PatternedTitleChecks(pattern=pattern, words=title.words, chars=title.chars)
     if title.words is not None:
         return WordCappedTitleChecks(words=title.words, chars=title.chars)

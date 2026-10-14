@@ -66,7 +66,9 @@ def _structure_spec(spec_name: str, text: str) -> StructureSpec:
     file = StructureSpecFile(
         path=SPECS_DIR / PathComponent.parse(spec_filename(name, SpecFileType.LEGACY_STRUCTURE)), name=name
     )
-    return StructureSpec.parse(file, StructureSchema(text))
+    spec = StructureSpec.parse(file, StructureSchema(text))
+    assert isinstance(spec, StructureSpec), f'the test states a usable specification, got {spec!r}'
+    return spec
 
 
 def _match_corpus_outline(outline: str, text: str) -> tuple[OutlineDivergenceSpec, ...]:
