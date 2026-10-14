@@ -20,6 +20,7 @@ from lorecraft.rules.frontmatter.missing_field import MissingField
 from lorecraft.rules.frontmatter.missing_frontmatter import MissingFrontmatter
 from lorecraft.rules.frontmatter.name_mismatch import NameMismatch
 from lorecraft.rules.frontmatter.non_mapping_frontmatter import NonMappingFrontmatter
+from lorecraft.rules.frontmatter.too_many_fields import TooManyFields
 from lorecraft.rules.frontmatter.unknown_field import UnknownField
 from lorecraft.rules.frontmatter.wrong_type import WrongType
 from lorecraft.rules.layout.outside_symlink import OutsideSymlink
@@ -508,6 +509,7 @@ class TestPackageRegistry:
             InvalidFrontmatter,
             MalformedAllowedTools,
             AllowedToolsTooLong,
+            TooManyFields,
             OutsideSymlink,
             InvalidUtf8,
             UnreadablePath,
