@@ -389,19 +389,6 @@ def _answer(call: Callable[[RootRelativePath], object], path: RootRelativePath) 
         return type(exc)
 
 
-def _answers(
-    disk_call: Callable[[RootRelativePath], object], virtual_call: Callable[[RootRelativePath], object], path: str
-) -> tuple[object, object]:
-    """The disk view's answer and the virtual view's answer for the same path, in that order.
-
-    Args:
-        disk_call: The disk view's operation to ask.
-        virtual_call: The snapshot view's operation to ask, the same one as `disk_call`.
-        path: Root-relative path, as text, both operations are asked about.
-    """
-    return _answer(disk_call, RootRelativePath.parse(path)), _answer(virtual_call, RootRelativePath.parse(path))
-
-
 @pytest.mark.it
 class TestDiskFileSystemListDir:
     def test_list_dir_with_files_and_directories_returns_entries_sorted_by_name(self, tmp_path: Path) -> None:
@@ -2693,25 +2680,27 @@ class TestVirtualFileSystemMatchesDisk:
         #: Given
         disk = DiskFileSystem(parity_tree)
         virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
-        path = 'docs/code'
+        path = RootRelativePath.parse('docs/code')
+        expected = _answer(disk.find_dir, path)
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.find_dir, virtual.find_dir, path)
+        actual = _answer(virtual.find_dir, path)
 
         #: Then
-        assert virtual_answer == disk_answer, 'the listed docs/code resolves to itself on both'
+        assert actual == expected, 'the listed docs/code resolves to itself on both'
 
     def test_find_dir_over_a_snapshot_with_the_root_agrees_with_disk(self, parity_tree: Path) -> None:
         #: Given
         disk = DiskFileSystem(parity_tree)
         virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
-        path = '.'
+        path = RootRelativePath.parse('.')
+        expected = _answer(disk.find_dir, path)
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.find_dir, virtual.find_dir, path)
+        actual = _answer(virtual.find_dir, path)
 
         #: Then
-        assert virtual_answer == disk_answer, 'the root resolves to itself on both'
+        assert actual == expected, 'the root resolves to itself on both'
 
     def test_find_dir_over_a_snapshot_with_a_directory_behind_the_linked_scope_root_agrees_with_disk(
         self, parity_tree: Path
@@ -2719,13 +2708,14 @@ class TestVirtualFileSystemMatchesDisk:
         #: Given
         disk = DiskFileSystem(parity_tree)
         virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
-        path = '.claude/skills/alpha'
+        path = RootRelativePath.parse('.claude/skills/alpha')
+        expected = _answer(disk.find_dir, path)
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.find_dir, virtual.find_dir, path)
+        actual = _answer(virtual.find_dir, path)
 
         #: Then
-        assert virtual_answer == disk_answer, '.claude/skills/alpha leads to .agents/skills/alpha on both'
+        assert actual == expected, '.claude/skills/alpha leads to .agents/skills/alpha on both'
 
     def test_find_dir_over_a_snapshot_with_a_link_behind_the_linked_scope_root_agrees_with_disk(
         self, parity_tree: Path
@@ -2733,13 +2723,14 @@ class TestVirtualFileSystemMatchesDisk:
         #: Given
         disk = DiskFileSystem(parity_tree)
         virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
-        path = '.claude/skills/beta'
+        path = RootRelativePath.parse('.claude/skills/beta')
+        expected = _answer(disk.find_dir, path)
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.find_dir, virtual.find_dir, path)
+        actual = _answer(virtual.find_dir, path)
 
         #: Then
-        assert virtual_answer == disk_answer, '.claude/skills/beta follows two links to .agents/skills/alpha on both'
+        assert actual == expected, '.claude/skills/beta follows two links to .agents/skills/alpha on both'
 
     def test_find_dir_over_a_snapshot_with_a_directory_behind_an_absolute_link_agrees_with_disk(
         self, parity_tree: Path
@@ -2747,13 +2738,14 @@ class TestVirtualFileSystemMatchesDisk:
         #: Given
         disk = DiskFileSystem(parity_tree)
         virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
-        path = 'docs/absolute/sub'
+        path = RootRelativePath.parse('docs/absolute/sub')
+        expected = _answer(disk.find_dir, path)
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.find_dir, virtual.find_dir, path)
+        actual = _answer(virtual.find_dir, path)
 
         #: Then
-        assert virtual_answer == disk_answer, 'docs/absolute/sub leads to docs/code/sub on both'
+        assert actual == expected, 'docs/absolute/sub leads to docs/code/sub on both'
 
     def test_find_dir_over_a_snapshot_with_a_directory_behind_a_relative_link_agrees_with_disk(
         self, parity_tree: Path
@@ -2761,13 +2753,14 @@ class TestVirtualFileSystemMatchesDisk:
         #: Given
         disk = DiskFileSystem(parity_tree)
         virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
-        path = 'docs/code-link/sub'
+        path = RootRelativePath.parse('docs/code-link/sub')
+        expected = _answer(disk.find_dir, path)
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.find_dir, virtual.find_dir, path)
+        actual = _answer(virtual.find_dir, path)
 
         #: Then
-        assert virtual_answer == disk_answer, 'docs/code-link/sub leads to docs/code/sub on both'
+        assert actual == expected, 'docs/code-link/sub leads to docs/code/sub on both'
 
     def test_find_dir_over_a_snapshot_with_listed_components_after_a_link_up_agrees_with_disk(
         self, parity_tree: Path
@@ -2775,25 +2768,27 @@ class TestVirtualFileSystemMatchesDisk:
         #: Given
         disk = DiskFileSystem(parity_tree)
         virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
-        path = 'docs/up/docs/code'
+        path = RootRelativePath.parse('docs/up/docs/code')
+        expected = _answer(disk.find_dir, path)
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.find_dir, virtual.find_dir, path)
+        actual = _answer(virtual.find_dir, path)
 
         #: Then
-        assert virtual_answer == disk_answer, 'docs/up/docs/code climbs to the root, then leads to docs/code on both'
+        assert actual == expected, 'docs/up/docs/code climbs to the root, then leads to docs/code on both'
 
     def test_find_dir_over_a_snapshot_with_a_missing_path_agrees_with_disk(self, parity_tree: Path) -> None:
         #: Given
         disk = DiskFileSystem(parity_tree)
         virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
-        path = 'docs/missing'
+        path = RootRelativePath.parse('docs/missing')
+        expected = _answer(disk.find_dir, path)
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.find_dir, virtual.find_dir, path)
+        actual = _answer(virtual.find_dir, path)
 
         #: Then
-        assert virtual_answer == disk_answer, 'the missing docs/missing leads to no directory on either'
+        assert actual == expected, 'the missing docs/missing leads to no directory on either'
 
     def test_find_dir_over_a_snapshot_with_an_absolute_link_through_the_alias_agrees_with_disk(
         self, alias_root_with_a_link_through_the_alias: Path
@@ -2802,12 +2797,14 @@ class TestVirtualFileSystemMatchesDisk:
         root = alias_root_with_a_link_through_the_alias
         disk = DiskFileSystem(root)
         virtual = VirtualFileSystem(take_snapshot(root, SNAPSHOT_SCOPE))
+        path = RootRelativePath.parse('docs/absolute')
+        expected = _answer(disk.find_dir, path)
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.find_dir, virtual.find_dir, 'docs/absolute')
+        actual = _answer(virtual.find_dir, path)
 
         #: Then
-        assert virtual_answer == disk_answer, 'the absolute link leads to the same directory over the snapshot'
+        assert actual == expected, 'the absolute link leads to the same directory over the snapshot'
 
     def test_find_dir_over_a_snapshot_with_an_absolute_link_through_the_real_root_agrees_with_disk(
         self, alias_root_with_a_link_through_the_real_root: Path
@@ -2816,12 +2813,14 @@ class TestVirtualFileSystemMatchesDisk:
         root = alias_root_with_a_link_through_the_real_root
         disk = DiskFileSystem(root)
         virtual = VirtualFileSystem(take_snapshot(root, SNAPSHOT_SCOPE))
+        path = RootRelativePath.parse('docs/absolute')
+        expected = _answer(disk.find_dir, path)
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.find_dir, virtual.find_dir, 'docs/absolute')
+        actual = _answer(virtual.find_dir, path)
 
         #: Then
-        assert virtual_answer == disk_answer, 'the absolute link leads to the same directory over the snapshot'
+        assert actual == expected, 'the absolute link leads to the same directory over the snapshot'
 
     def test_list_dir_over_a_snapshot_with_a_dangling_claude_skills_link_agrees_with_disk(
         self, dangling_claude_skills_tree: Path
@@ -2829,12 +2828,14 @@ class TestVirtualFileSystemMatchesDisk:
         #: Given
         disk = DiskFileSystem(dangling_claude_skills_tree)
         virtual = VirtualFileSystem(take_snapshot(dangling_claude_skills_tree, SNAPSHOT_SCOPE))
+        path = RootRelativePath.parse('.claude')
+        expected = _answer(disk.list_dir, path)
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.list_dir, virtual.list_dir, '.claude')
+        actual = _answer(virtual.list_dir, path)
 
         #: Then
-        assert virtual_answer == disk_answer, 'the parent listing shows .claude/skills over the snapshot too'
+        assert actual == expected, 'the parent listing shows .claude/skills over the snapshot too'
 
     def test_list_dir_over_a_snapshot_with_a_claude_skills_file_agrees_with_disk(
         self, file_claude_skills_tree: Path
@@ -2842,12 +2843,14 @@ class TestVirtualFileSystemMatchesDisk:
         #: Given
         disk = DiskFileSystem(file_claude_skills_tree)
         virtual = VirtualFileSystem(take_snapshot(file_claude_skills_tree, SNAPSHOT_SCOPE))
+        path = RootRelativePath.parse('.claude')
+        expected = _answer(disk.list_dir, path)
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.list_dir, virtual.list_dir, '.claude')
+        actual = _answer(virtual.list_dir, path)
 
         #: Then
-        assert virtual_answer == disk_answer, 'the parent listing shows .claude/skills over the snapshot too'
+        assert actual == expected, 'the parent listing shows .claude/skills over the snapshot too'
 
     def test_find_dir_over_a_snapshot_with_a_dangling_claude_skills_link_agrees_with_disk(
         self, dangling_claude_skills_tree: Path
@@ -2855,12 +2858,14 @@ class TestVirtualFileSystemMatchesDisk:
         #: Given
         disk = DiskFileSystem(dangling_claude_skills_tree)
         virtual = VirtualFileSystem(take_snapshot(dangling_claude_skills_tree, SNAPSHOT_SCOPE))
+        path = RootRelativePath.parse('.claude/skills')
+        expected = _answer(disk.find_dir, path)
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.find_dir, virtual.find_dir, '.claude/skills')
+        actual = _answer(virtual.find_dir, path)
 
         #: Then
-        assert virtual_answer == disk_answer, '.claude/skills leads to no directory over the snapshot either'
+        assert actual == expected, '.claude/skills leads to no directory over the snapshot either'
 
     def test_find_dir_over_a_snapshot_with_a_claude_skills_file_agrees_with_disk(
         self, file_claude_skills_tree: Path
@@ -2868,12 +2873,14 @@ class TestVirtualFileSystemMatchesDisk:
         #: Given
         disk = DiskFileSystem(file_claude_skills_tree)
         virtual = VirtualFileSystem(take_snapshot(file_claude_skills_tree, SNAPSHOT_SCOPE))
+        path = RootRelativePath.parse('.claude/skills')
+        expected = _answer(disk.find_dir, path)
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.find_dir, virtual.find_dir, '.claude/skills')
+        actual = _answer(virtual.find_dir, path)
 
         #: Then
-        assert virtual_answer == disk_answer, '.claude/skills leads to no directory over the snapshot either'
+        assert actual == expected, '.claude/skills leads to no directory over the snapshot either'
 
 
 @pytest.mark.it
@@ -2884,13 +2891,14 @@ class TestVirtualFileSystemMatchesDiskThroughFollowedLinks:
         #: Given
         disk = DiskFileSystem(linked_skills_tree)
         virtual = VirtualFileSystem(take_snapshot(linked_skills_tree, FOLLOWING_SCOPE))
-        path = '.agents/skills/review'
+        path = RootRelativePath.parse('.agents/skills/review')
+        expected = _answer(disk.find_dir, path)
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.find_dir, virtual.find_dir, path)
+        actual = _answer(virtual.find_dir, path)
 
         #: Then
-        assert virtual_answer == disk_answer, 'the linked skill leads to skills/review over the snapshot too'
+        assert actual == expected, 'the linked skill leads to skills/review over the snapshot too'
 
     def test_find_dir_over_a_following_snapshot_with_a_skill_behind_two_links_agrees_with_disk(
         self, linked_skills_tree: Path
@@ -2898,13 +2906,14 @@ class TestVirtualFileSystemMatchesDiskThroughFollowedLinks:
         #: Given
         disk = DiskFileSystem(linked_skills_tree)
         virtual = VirtualFileSystem(take_snapshot(linked_skills_tree, FOLLOWING_SCOPE))
-        path = '.claude/skills/review'
+        path = RootRelativePath.parse('.claude/skills/review')
+        expected = _answer(disk.find_dir, path)
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.find_dir, virtual.find_dir, path)
+        actual = _answer(virtual.find_dir, path)
 
         #: Then
-        assert virtual_answer == disk_answer, (
+        assert actual == expected, (
             'through the linked skills directory and the linked skill, both views reach skills/review'
         )
 
@@ -2914,13 +2923,14 @@ class TestVirtualFileSystemMatchesDiskThroughFollowedLinks:
         #: Given
         disk = DiskFileSystem(linked_skills_tree)
         virtual = VirtualFileSystem(take_snapshot(linked_skills_tree, FOLLOWING_SCOPE))
-        path = '.claude/skills/review'
+        path = RootRelativePath.parse('.claude/skills/review')
+        expected = _answer(disk.list_dir, path)
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.list_dir, virtual.list_dir, path)
+        actual = _answer(virtual.list_dir, path)
 
         #: Then
-        assert virtual_answer == disk_answer, 'the linked skill lists its SKILL.md over the snapshot too'
+        assert actual == expected, 'the linked skill lists its SKILL.md over the snapshot too'
 
     def test_read_text_over_a_following_snapshot_with_a_file_in_a_skill_linked_out_of_the_scope_agrees_with_disk(
         self, linked_skills_tree: Path
@@ -2928,13 +2938,14 @@ class TestVirtualFileSystemMatchesDiskThroughFollowedLinks:
         #: Given
         disk = DiskFileSystem(linked_skills_tree)
         virtual = VirtualFileSystem(take_snapshot(linked_skills_tree, FOLLOWING_SCOPE))
-        path = '.claude/skills/review/SKILL.md'
+        path = RootRelativePath.parse('.claude/skills/review/SKILL.md')
+        expected = _answer(disk.read_text, path)
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.read_text, virtual.read_text, path)
+        actual = _answer(virtual.read_text, path)
 
         #: Then
-        assert virtual_answer == disk_answer, 'SKILL.md reads as the same text through the path an agent uses'
+        assert actual == expected, 'SKILL.md reads as the same text through the path an agent uses'
 
     def test_read_text_over_a_following_snapshot_with_a_linked_skill_file_agrees_with_disk(
         self, linked_skills_tree: Path
@@ -2945,13 +2956,14 @@ class TestVirtualFileSystemMatchesDiskThroughFollowedLinks:
         (linked_skills_tree / '.agents' / 'skills' / 'shared' / 'SKILL.md').symlink_to('../../../REVIEW.md')
         disk = DiskFileSystem(linked_skills_tree)
         virtual = VirtualFileSystem(take_snapshot(linked_skills_tree, FOLLOWING_SCOPE))
-        path = '.claude/skills/shared/SKILL.md'
+        path = RootRelativePath.parse('.claude/skills/shared/SKILL.md')
+        expected = _answer(disk.read_text, path)
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.read_text, virtual.read_text, path)
+        actual = _answer(virtual.read_text, path)
 
         #: Then
-        assert virtual_answer == disk_answer, 'a SKILL.md that is itself a link reads as the file it leads to on both'
+        assert actual == expected, 'a SKILL.md that is itself a link reads as the file it leads to on both'
 
     def test_find_dir_over_a_following_snapshot_with_a_chain_longer_than_the_system_follows_agrees_with_disk(
         self, tmp_path: Path, chain_of_41_links: str
@@ -2960,12 +2972,14 @@ class TestVirtualFileSystemMatchesDiskThroughFollowedLinks:
         scope = (ScanRoot(RootRelativePath.parse(chain_of_41_links), depth=UnsignedInt(0), follow_links=True),)
         disk = DiskFileSystem(tmp_path)
         virtual = VirtualFileSystem(take_snapshot(tmp_path, scope))
+        path = RootRelativePath.parse(chain_of_41_links)
+        expected = _answer(disk.find_dir, path)
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.find_dir, virtual.find_dir, chain_of_41_links)
+        actual = _answer(virtual.find_dir, path)
 
         #: Then
-        assert virtual_answer == disk_answer, 'a chain of 41 links leads to no directory on either view'
+        assert actual == expected, 'a chain of 41 links leads to no directory on either view'
 
     def test_find_dir_over_a_following_snapshot_with_a_chain_as_long_as_the_system_follows_reaches_its_end(
         self, tmp_path: Path, chain_of_40_links: str
@@ -2975,13 +2989,15 @@ class TestVirtualFileSystemMatchesDiskThroughFollowedLinks:
         disk = DiskFileSystem(tmp_path)
         virtual = VirtualFileSystem(take_snapshot(tmp_path, scope))
         real = RootRelativePath.parse('real')
+        path = RootRelativePath.parse(chain_of_40_links)
+        expected = _answer(disk.find_dir, path)
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.find_dir, virtual.find_dir, chain_of_40_links)
+        actual = _answer(virtual.find_dir, path)
 
         #: Then
-        assert disk_answer == real, 'disk: a chain of 40 links still leads to real on both views'
-        assert virtual_answer == real, 'snapshot view: a chain of 40 links still leads to real on both views'
+        assert expected == real, 'disk: a chain of 40 links still leads to real on both views'
+        assert actual == real, 'snapshot view: a chain of 40 links still leads to real on both views'
 
     def test_list_dir_over_a_following_snapshot_with_a_looping_link_agrees_with_disk(self, tmp_path: Path) -> None:
         #: Given
@@ -2989,13 +3005,14 @@ class TestVirtualFileSystemMatchesDiskThroughFollowedLinks:
         (tmp_path / '.agents' / 'skills' / 'loop').symlink_to('loop')
         disk = DiskFileSystem(tmp_path)
         virtual = VirtualFileSystem(take_snapshot(tmp_path, FOLLOWING_SCOPE))
-        path = '.agents/skills/loop'
+        path = RootRelativePath.parse('.agents/skills/loop')
+        expected = _answer(disk.list_dir, path)
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.list_dir, virtual.list_dir, path)
+        actual = _answer(virtual.list_dir, path)
 
         #: Then
-        assert virtual_answer == disk_answer, 'a looping link lists as nothing on both'
+        assert actual == expected, 'a looping link lists as nothing on both'
 
 
 @pytest.mark.it
@@ -3103,13 +3120,14 @@ class TestVirtualFileSystemMatchesDiskThroughClimbingLinks:
         #: Given
         disk = DiskFileSystem(climbing_chain_tree)
         virtual = VirtualFileSystem(take_snapshot(climbing_chain_tree, CLIMBING_CHAIN_SCOPE))
-        path = 'skills/l'
+        path = RootRelativePath.parse('skills/l')
+        expected = _answer(disk.list_dir, path)
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.list_dir, virtual.list_dir, path)
+        actual = _answer(virtual.list_dir, path)
 
         #: Then
-        assert virtual_answer == disk_answer, 'both views list a/b through a/tmp/..'
+        assert actual == expected, 'both views list a/b through a/tmp/..'
 
     def test_find_entry_kind_through_a_climb_out_of_a_directory_stepped_into_agrees_with_disk(
         self, climbing_chain_tree: Path
@@ -3117,13 +3135,14 @@ class TestVirtualFileSystemMatchesDiskThroughClimbingLinks:
         #: Given
         disk = DiskFileSystem(climbing_chain_tree)
         virtual = VirtualFileSystem(take_snapshot(climbing_chain_tree, CLIMBING_CHAIN_SCOPE))
-        path = 'skills/l/SKILL.md'
+        path = RootRelativePath.parse('skills/l/SKILL.md')
+        expected = _answer(disk.find_entry_kind, path)
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.find_entry_kind, virtual.find_entry_kind, path)
+        actual = _answer(virtual.find_entry_kind, path)
 
         #: Then
-        assert virtual_answer == disk_answer, 'both views find a/b/SKILL.md a file'
+        assert actual == expected, 'both views find a/b/SKILL.md a file'
 
     def test_read_text_through_a_climb_out_of_an_unlisted_directory_agrees_with_disk(
         self, climbing_chain_tree: Path
@@ -3131,13 +3150,14 @@ class TestVirtualFileSystemMatchesDiskThroughClimbingLinks:
         #: Given
         disk = DiskFileSystem(climbing_chain_tree)
         virtual = VirtualFileSystem(take_snapshot(climbing_chain_tree, CLIMBING_CHAIN_SCOPE))
-        path = 'skills/far/SKILL.md'
+        path = RootRelativePath.parse('skills/far/SKILL.md')
+        expected = _answer(disk.read_text, path)
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.read_text, virtual.read_text, path)
+        actual = _answer(virtual.read_text, path)
 
         #: Then
-        assert virtual_answer == disk_answer, 'the climbed directories show c/tmp, so both views read c/d/SKILL.md'
+        assert actual == expected, 'the climbed directories show c/tmp, so both views read c/d/SKILL.md'
 
     def test_find_file_through_a_climb_out_of_an_unlisted_directory_agrees_with_disk(
         self, climbing_chain_tree: Path
@@ -3145,13 +3165,14 @@ class TestVirtualFileSystemMatchesDiskThroughClimbingLinks:
         #: Given
         disk = DiskFileSystem(climbing_chain_tree)
         virtual = VirtualFileSystem(take_snapshot(climbing_chain_tree, CLIMBING_CHAIN_SCOPE))
-        path = 'skills/far/SKILL.md'
+        path = RootRelativePath.parse('skills/far/SKILL.md')
+        expected = _answer(disk.find_file, path)
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.find_file, virtual.find_file, path)
+        actual = _answer(virtual.find_file, path)
 
         #: Then
-        assert virtual_answer == disk_answer, 'both views resolve skills/far/SKILL.md to c/d/SKILL.md'
+        assert actual == expected, 'both views resolve skills/far/SKILL.md to c/d/SKILL.md'
 
     def test_find_dir_through_a_climb_out_of_a_missing_directory_agrees_with_disk(
         self, climbing_chain_tree: Path
@@ -3159,13 +3180,14 @@ class TestVirtualFileSystemMatchesDiskThroughClimbingLinks:
         #: Given
         disk = DiskFileSystem(climbing_chain_tree)
         virtual = VirtualFileSystem(take_snapshot(climbing_chain_tree, CLIMBING_CHAIN_SCOPE))
-        path = 'skills/n'
+        path = RootRelativePath.parse('skills/n')
+        expected = _answer(disk.find_dir, path)
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.find_dir, virtual.find_dir, path)
+        actual = _answer(virtual.find_dir, path)
 
         #: Then
-        assert virtual_answer == disk_answer, 'a/missing does not exist, so neither view climbs out of it'
+        assert actual == expected, 'a/missing does not exist, so neither view climbs out of it'
 
     def test_find_root_exit_through_a_climb_above_the_root_out_of_a_directory_stepped_into_agrees_with_disk(
         self, climbing_chain_tree: Path
@@ -3173,16 +3195,17 @@ class TestVirtualFileSystemMatchesDiskThroughClimbingLinks:
         #: Given
         disk = DiskFileSystem(climbing_chain_tree)
         virtual = VirtualFileSystem(take_snapshot(climbing_chain_tree, CLIMBING_CHAIN_SCOPE))
-        path = 'skills/out'
+        path = RootRelativePath.parse('skills/out')
+        expected = _answer(disk.find_root_exit, path)
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.find_root_exit, virtual.find_root_exit, path)
+        actual = _answer(virtual.find_root_exit, path)
 
         #: Then
-        assert virtual_answer == RootExit(RootRelativePath.parse('skills/out'), PurePosixPath('../a/tmp/../../..')), (
+        assert actual == RootExit(RootRelativePath.parse('skills/out'), PurePosixPath('../a/tmp/../../..')), (
             'snapshot view: both walks climb above the root at skills/out, after stepping into a/tmp'
         )
-        assert disk_answer == RootExit(RootRelativePath.parse('skills/out'), PurePosixPath('../a/tmp/../../..')), (
+        assert expected == RootExit(RootRelativePath.parse('skills/out'), PurePosixPath('../a/tmp/../../..')), (
             'disk: both walks climb above the root at skills/out, after stepping into a/tmp'
         )
 
@@ -3245,16 +3268,17 @@ class TestPlainRootWalksItsLinksForTheRecord:
         #: Given
         disk = DiskFileSystem(plain_climbing_tree)
         virtual = VirtualFileSystem(take_snapshot(plain_climbing_tree, PLAIN_DOCS_SCOPE))
-        path = 'docs/out'
+        path = RootRelativePath.parse('docs/out')
+        expected = _answer(disk.find_root_exit, path)
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.find_root_exit, virtual.find_root_exit, path)
+        actual = _answer(virtual.find_root_exit, path)
 
         #: Then
-        assert virtual_answer == RootExit(RootRelativePath.parse('docs/out'), PurePosixPath('../src/../../..')), (
+        assert actual == RootExit(RootRelativePath.parse('docs/out'), PurePosixPath('../src/../../..')), (
             'snapshot view: the scan recorded the climb out of src/, so both walks leave the root at docs/out'
         )
-        assert disk_answer == RootExit(RootRelativePath.parse('docs/out'), PurePosixPath('../src/../../..')), (
+        assert expected == RootExit(RootRelativePath.parse('docs/out'), PurePosixPath('../src/../../..')), (
             'disk: the scan recorded the climb out of src/, so both walks leave the root at docs/out'
         )
 
@@ -3748,25 +3772,27 @@ class TestFindRootExitMatchesDisk:
         #: Given
         disk = DiskFileSystem(leaving_tree)
         virtual = VirtualFileSystem(take_snapshot(leaving_tree, FOLLOWING_SCOPE))
-        path = '.agents/skills/out'
+        path = RootRelativePath.parse('.agents/skills/out')
+        expected = _answer(disk.find_root_exit, path)
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.find_root_exit, virtual.find_root_exit, path)
+        actual = _answer(virtual.find_root_exit, path)
 
         #: Then
-        assert virtual_answer == disk_answer, 'the snapshot records the absolute target the disk reads'
+        assert actual == expected, 'the snapshot records the absolute target the disk reads'
 
     def test_find_root_exit_over_a_snapshot_with_a_climbing_link_agrees_with_disk(self, leaving_tree: Path) -> None:
         #: Given
         disk = DiskFileSystem(leaving_tree)
         virtual = VirtualFileSystem(take_snapshot(leaving_tree, FOLLOWING_SCOPE))
-        path = '.agents/skills/up'
+        path = RootRelativePath.parse('.agents/skills/up')
+        expected = _answer(disk.find_root_exit, path)
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.find_root_exit, virtual.find_root_exit, path)
+        actual = _answer(virtual.find_root_exit, path)
 
         #: Then
-        assert virtual_answer == disk_answer, 'both walks climb above the root at the same link'
+        assert actual == expected, 'both walks climb above the root at the same link'
 
     def test_find_root_exit_over_a_snapshot_with_a_chain_leaving_through_another_link_agrees_with_disk(
         self, leaving_tree: Path
@@ -3774,13 +3800,14 @@ class TestFindRootExitMatchesDisk:
         #: Given
         disk = DiskFileSystem(leaving_tree)
         virtual = VirtualFileSystem(take_snapshot(leaving_tree, FOLLOWING_SCOPE))
-        path = '.agents/skills/via'
+        path = RootRelativePath.parse('.agents/skills/via')
+        expected = _answer(disk.find_root_exit, path)
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.find_root_exit, virtual.find_root_exit, path)
+        actual = _answer(virtual.find_root_exit, path)
 
         #: Then
-        assert virtual_answer == disk_answer, 'the scan records hop on the chain it followed, so both leave there'
+        assert actual == expected, 'the scan records hop on the chain it followed, so both leave there'
 
     def test_find_root_exit_over_a_snapshot_with_a_linked_skills_directory_agrees_with_disk(
         self, leaving_tree: Path
@@ -3788,22 +3815,24 @@ class TestFindRootExitMatchesDisk:
         #: Given
         disk = DiskFileSystem(leaving_tree)
         virtual = VirtualFileSystem(take_snapshot(leaving_tree, FOLLOWING_SCOPE))
-        path = '.claude/skills'
+        path = RootRelativePath.parse('.claude/skills')
+        expected = _answer(disk.find_root_exit, path)
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.find_root_exit, virtual.find_root_exit, path)
+        actual = _answer(virtual.find_root_exit, path)
 
         #: Then
-        assert virtual_answer == disk_answer, 'the scan records the link on the way to a scope root'
+        assert actual == expected, 'the scan records the link on the way to a scope root'
 
     def test_find_root_exit_over_a_snapshot_with_a_dangling_link_agrees_with_disk(self, leaving_tree: Path) -> None:
         #: Given
         disk = DiskFileSystem(leaving_tree)
         virtual = VirtualFileSystem(take_snapshot(leaving_tree, FOLLOWING_SCOPE))
-        path = '.agents/skills/dangling'
+        path = RootRelativePath.parse('.agents/skills/dangling')
+        expected = _answer(disk.find_root_exit, path)
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.find_root_exit, virtual.find_root_exit, path)
+        actual = _answer(virtual.find_root_exit, path)
 
         #: Then
-        assert virtual_answer == disk_answer, 'neither view says a link dangling inside the root leaves it'
+        assert actual == expected, 'neither view says a link dangling inside the root leaves it'
