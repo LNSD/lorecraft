@@ -25,7 +25,7 @@ more, and costs context in every listing that shows it.
 
 ## Example
 
-`docs/__meta__/guide.structure.json`:
+`docs/__meta__/guide.spec.json`:
 
 ```json
 {

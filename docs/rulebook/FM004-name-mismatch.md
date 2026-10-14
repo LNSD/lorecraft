@@ -26,7 +26,7 @@ differ, a reference by one name does not reach the file known by the other.
 
 ## Example
 
-`docs/__meta__/guide.structure.json`:
+`docs/__meta__/guide.spec.json`:
 
 ```json
 {

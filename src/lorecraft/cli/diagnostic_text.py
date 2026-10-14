@@ -12,7 +12,7 @@ reads, as `docs/arch/adr-010-diagnostics.md` lays it out:
     12 │ ## Options
        │ ────────── expected `Usage` before `Options`
        │
-      ::: docs/__meta__/feat.structure.json
+      ::: docs/__meta__/feat.spec.json
        │
        = note: the document structure is set here
        = help: describe how to invoke the command

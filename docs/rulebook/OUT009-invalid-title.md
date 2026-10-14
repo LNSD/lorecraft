@@ -26,7 +26,7 @@ document is; a title that breaks it reads apart from the rest, or hides what the
 
 ## Example
 
-`docs/__meta__/guide.structure.json`:
+`docs/__meta__/guide.spec.json`:
 
 ```json
 {

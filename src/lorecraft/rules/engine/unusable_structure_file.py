@@ -142,7 +142,7 @@ class UnusableStructureFile(FileCondition):
 
     ## A section named twice in the outline
 
-    `docs/__meta__/guide.structure.json`, naming `Overview` twice:
+    `docs/__meta__/guide.spec.json`, naming `Overview` twice:
 
     ```json
     {
@@ -167,7 +167,7 @@ class UnusableStructureFile(FileCondition):
 
     ## A section forbidden twice
 
-    `docs/__meta__/guide.structure.json`, forbidding `Draft` twice:
+    `docs/__meta__/guide.spec.json`, forbidding `Draft` twice:
 
     ```json
     {
@@ -185,7 +185,7 @@ class UnusableStructureFile(FileCondition):
 
     ## A section both in the outline and forbidden
 
-    `docs/__meta__/guide.structure.json`, requiring and forbidding `Overview`, so no document could hold to both:
+    `docs/__meta__/guide.spec.json`, requiring and forbidding `Overview`, so no document could hold to both:
 
     ```json
     {
@@ -205,7 +205,7 @@ class UnusableStructureFile(FileCondition):
 
     ## Two `any` runs side by side
 
-    `docs/__meta__/guide.structure.json`, with two runs in a row. Two runs side by side match exactly what one run
+    `docs/__meta__/guide.spec.json`, with two runs in a row. Two runs side by side match exactly what one run
     matches, so the outline would mean something other than what it says:
 
     ```json
@@ -229,7 +229,7 @@ class UnusableStructureFile(FileCondition):
 
     ## A title pattern that is not a regular expression
 
-    `docs/__meta__/guide.structure.json`, with an unclosed bracket in `title.pattern`:
+    `docs/__meta__/guide.spec.json`, with an unclosed bracket in `title.pattern`:
 
     ```json
     {
@@ -247,7 +247,7 @@ class UnusableStructureFile(FileCondition):
 
     ## A frontmatter schema that is not a valid JSON Schema
 
-    `docs/__meta__/guide.structure.json`, with `required` holding a string where a list is due. The `frontmatter` key
+    `docs/__meta__/guide.spec.json`, with `required` holding a string where a list is due. The `frontmatter` key
     must be a valid JSON Schema of the 2020-12 dialect:
 
     ```json
@@ -266,7 +266,7 @@ class UnusableStructureFile(FileCondition):
 
     ## A frontmatter schema that carries `$id`
 
-    `docs/__meta__/guide.structure.json`, with an `$id`, in the schema or in one inside it, which would make it a
+    `docs/__meta__/guide.spec.json`, with an `$id`, in the schema or in one inside it, which would make it a
     schema resource of its own that nothing can reach:
 
     ```json
@@ -288,7 +288,7 @@ class UnusableStructureFile(FileCondition):
 
     ## A frontmatter schema in another dialect
 
-    `docs/__meta__/guide.structure.json`, written in draft-07. A frontmatter schema, or a schema inside it, that sets
+    `docs/__meta__/guide.spec.json`, written in draft-07. A frontmatter schema, or a schema inside it, that sets
     `$schema` to anything but the 2020-12 dialect is refused, since that is the only one it is written in:
 
     ```json
@@ -313,7 +313,7 @@ class UnusableStructureFile(FileCondition):
 
     ## A frontmatter schema that states no object type
 
-    `docs/__meta__/guide.structure.json`, with a root that states properties but no type. A document's frontmatter is
+    `docs/__meta__/guide.spec.json`, with a root that states properties but no type. A document's frontmatter is
     always a mapping, so a schema that does not say so would accept values no document can hold:
 
     ```json

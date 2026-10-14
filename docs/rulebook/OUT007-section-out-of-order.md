@@ -28,7 +28,7 @@ reading where it expects the section to be.
 
 ## Example
 
-`docs/__meta__/guide.structure.json`:
+`docs/__meta__/guide.spec.json`:
 
 ```json
 {

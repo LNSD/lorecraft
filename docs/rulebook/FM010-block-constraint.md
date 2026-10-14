@@ -30,7 +30,7 @@ block outside it leaves the agent without some of them.
 
 ## Example
 
-`docs/__meta__/guide.structure.json`:
+`docs/__meta__/guide.spec.json`:
 
 ```json
 {

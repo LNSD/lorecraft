@@ -26,7 +26,7 @@ listing, and a word cap alone does not bound it when a few of its words are long
 
 ## Example
 
-`docs/__meta__/guide.structure.json`:
+`docs/__meta__/guide.spec.json`:
 
 ```json
 {

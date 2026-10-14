@@ -27,7 +27,7 @@ an agent looking for it in its usual place does not find it.
 
 ## Example
 
-`docs/__meta__/guide.structure.json`:
+`docs/__meta__/guide.spec.json`:
 
 ```json
 {
