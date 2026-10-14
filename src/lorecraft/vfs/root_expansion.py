@@ -24,7 +24,7 @@ from lorecraft.core.path import ROOT, PathComponent, RootRelativePath
 from .scan_root import ScanRoot
 from .view import EntryKind, ResolvedPath, RootExit
 
-MAX_LINKS: Final[int] = 40
+_MAX_LINKS: Final[int] = 40
 """Links followed before a chain counts as a loop; Linux's MAXSYMLINKS, past which the disk reports ELOOP.
 
 Every walk here counts against it, so the scan, the scope query and the virtual view give up on the same chain."""
@@ -123,7 +123,7 @@ def find_destination(
           step into or end at.
         - A regular file is not the last component: a file is no directory to step into.
         - A symlink is not followed, or is gone since its kind was read: nothing is read through it.
-        - The chain follows more than `MAX_LINKS` links: it counts as a loop, as the disk reports one.
+        - The chain follows more than `_MAX_LINKS` links: it counts as a loop, as the disk reports one.
         - `entries` will not let a `..` climb out of a directory it does not know to exist; only the scope
           query refuses one (see `EntryLookup.may_climb_out_of`).
 
@@ -168,7 +168,7 @@ def find_destination(
                 if target is None:
                     return None  # gone since `kind` answered, so nothing is there to follow
                 links_followed += 1
-                if not follow_links or links_followed > MAX_LINKS:
+                if not follow_links or links_followed > _MAX_LINKS:
                     return None
                 last_link = RootExit(candidate, target)
                 if target.is_absolute():

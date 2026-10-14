@@ -87,14 +87,14 @@ def value_object_error_type(detail: ErrorDetails) -> ValueObjectErrorType | None
             return None
 
 
-SKILL_NAME_MAX_LENGTH: Final[int] = 64
+_SKILL_NAME_MAX_LENGTH: Final[int] = 64
 """The most characters a skill name may have."""
 
 SKILL_NAME_PATTERN: Final[str] = r'^[a-z0-9]+(-[a-z0-9]+)*$'
 """Lowercase ASCII letters and digits in runs joined by single hyphens: no leading, trailing or doubled hyphen."""
 
 _SKILL_NAME_RULES: Final[TypeAdapter[str]] = TypeAdapter(
-    Annotated[str, StringConstraints(min_length=1, max_length=SKILL_NAME_MAX_LENGTH, pattern=SKILL_NAME_PATTERN)]
+    Annotated[str, StringConstraints(min_length=1, max_length=_SKILL_NAME_MAX_LENGTH, pattern=SKILL_NAME_PATTERN)]
 )
 """A skill name's rules, declared once: `SkillName` checks them and renders its JSON Schema from them."""
 
@@ -128,7 +128,7 @@ class OverlongSkillNameError(Error):
     def __init__(self, name: str, *, source: ValidationError) -> None:
         self.name = name
         self.source = source
-        super().__init__(f'skill name {name!r} is {len(name)} characters; the limit is {SKILL_NAME_MAX_LENGTH}')
+        super().__init__(f'skill name {name!r} is {len(name)} characters; the limit is {_SKILL_NAME_MAX_LENGTH}')
         self.__cause__ = source
 
 
@@ -255,12 +255,12 @@ class SkillName:
         return _SKILL_NAME_RULES.json_schema()
 
 
-SKILL_DESCRIPTION_MAX_LENGTH: Final[int] = 1024
+_SKILL_DESCRIPTION_MAX_LENGTH: Final[int] = 1024
 """The most characters a skill description may have."""
 
 # A pattern matches anywhere in the string, as in JSON Schema, so `\S` states "holds a non-whitespace character".
 _SKILL_DESCRIPTION_RULES: Final[TypeAdapter[str]] = TypeAdapter(
-    Annotated[str, StringConstraints(min_length=1, max_length=SKILL_DESCRIPTION_MAX_LENGTH, pattern=r'\S')]
+    Annotated[str, StringConstraints(min_length=1, max_length=_SKILL_DESCRIPTION_MAX_LENGTH, pattern=r'\S')]
 )
 """A skill description's rules, declared once: `SkillDescription` checks them and renders its JSON Schema from
 them."""
@@ -296,7 +296,7 @@ class OverlongSkillDescriptionError(Error):
         self.description = description
         self.source = source
         super().__init__(
-            f'skill description is {len(description)} characters; the limit is {SKILL_DESCRIPTION_MAX_LENGTH}'
+            f'skill description is {len(description)} characters; the limit is {_SKILL_DESCRIPTION_MAX_LENGTH}'
         )
         self.__cause__ = source
 
@@ -467,12 +467,12 @@ class SkillLicense:
         return {'type': 'string'}
 
 
-SKILL_COMPATIBILITY_MAX_LENGTH: Final[int] = 500
+_SKILL_COMPATIBILITY_MAX_LENGTH: Final[int] = 500
 """The most characters a skill compatibility note may have."""
 
 # A pattern matches anywhere in the string, as in JSON Schema, so `\S` states "holds a non-whitespace character".
 _SKILL_COMPATIBILITY_RULES: Final[TypeAdapter[str]] = TypeAdapter(
-    Annotated[str, StringConstraints(min_length=1, max_length=SKILL_COMPATIBILITY_MAX_LENGTH, pattern=r'\S')]
+    Annotated[str, StringConstraints(min_length=1, max_length=_SKILL_COMPATIBILITY_MAX_LENGTH, pattern=r'\S')]
 )
 """A skill compatibility note's rules, declared once: `SkillCompatibility` checks them and renders its JSON
 Schema from them."""
@@ -508,7 +508,7 @@ class OverlongSkillCompatibilityError(Error):
         self.compatibility = compatibility
         self.source = source
         super().__init__(
-            f'skill compatibility is {len(compatibility)} characters; the limit is {SKILL_COMPATIBILITY_MAX_LENGTH}'
+            f'skill compatibility is {len(compatibility)} characters; the limit is {_SKILL_COMPATIBILITY_MAX_LENGTH}'
         )
         self.__cause__ = source
 

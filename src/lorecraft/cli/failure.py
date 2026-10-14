@@ -86,7 +86,7 @@ def exit_on_load_failure(model: WorkspaceModel) -> None:
 
 
 @dataclass(frozen=True, slots=True)
-class FailureText:
+class _FailureText:
     """What a load failure is reported as: the message of the error it stands for, then the message of each cause.
 
     Attributes:
@@ -110,7 +110,7 @@ def report_load_failure(failure: LoadFailure) -> None:
         typer.echo(f'  caused by: {cause}', err=True)
 
 
-def _failure_text(failure: LoadFailure) -> FailureText:
+def _failure_text(failure: LoadFailure) -> _FailureText:
     """The message of the error a load failure stands for, then the message of each cause beneath it.
 
     Args:
@@ -120,72 +120,72 @@ def _failure_text(failure: LoadFailure) -> FailureText:
     condition = failure.condition
     match condition:
         case UnreadableStructureFile(name=name, refusal=refusal):
-            return FailureText(f'cannot read the structure schema {name}', (f'cannot read file {path}: {refusal}',))
+            return _FailureText(f'cannot read the structure schema {name}', (f'cannot read file {path}: {refusal}',))
         case UnrecordedStructureFile(name=name):
-            return FailureText(
+            return _FailureText(
                 f'cannot read the structure schema {name}', (f'cannot read file {path}: not in the snapshot',)
             )
         case NonUtf8StructureFile():
-            return FailureText(f'file {path} is not UTF-8')
+            return _FailureText(f'file {path} is not UTF-8')
         case UndecodableStructureSpec(problems=problems):
-            return FailureText(f'invalid structure schema {path}: {"; ".join(str(problem) for problem in problems)}')
+            return _FailureText(f'invalid structure schema {path}: {"; ".join(str(problem) for problem in problems)}')
         case EmptyStructureSpec():
-            return FailureText(f'invalid structure schema {path}: states no rule, so it would check nothing')
+            return _FailureText(f'invalid structure schema {path}: states no rule, so it would check nothing')
         case RepeatedOutlineSections(sections=sections):
             names = [str(name) for name in sections]
-            return FailureText(
+            return _FailureText(
                 f'invalid structure schema {path}: names sections more than once in the outline: {names}'
             )
         case RepeatedForbiddenSections(sections=sections):
             names = [str(name) for name in sections]
-            return FailureText(f'invalid structure schema {path}: forbids sections more than once: {names}')
+            return _FailureText(f'invalid structure schema {path}: forbids sections more than once: {names}')
         case ForbiddenOutlineSections(sections=sections):
             names = [str(name) for name in sections]
-            return FailureText(f'invalid structure schema {path}: forbids sections its own outline names: {names}')
+            return _FailureText(f'invalid structure schema {path}: forbids sections its own outline names: {names}')
         case AdjacentAnyRuns():
-            return FailureText(f'invalid structure schema {path}: places two `any` runs side by side')
+            return _FailureText(f'invalid structure schema {path}: places two `any` runs side by side')
         case InvalidTitlePattern(pattern=pattern):
-            return FailureText(
+            return _FailureText(
                 f'invalid structure schema {path}: title pattern {pattern!r} is not a valid regular expression'
             )
         case InvalidFrontmatterSchema(problem=problem):
-            return FailureText(f'invalid structure schema {path}: frontmatter is not a valid JSON Schema: {problem}')
+            return _FailureText(f'invalid structure schema {path}: frontmatter is not a valid JSON Schema: {problem}')
         case FrontmatterSchemaId():
-            return FailureText(f'invalid structure schema {path}: frontmatter schema may not carry $id')
+            return _FailureText(f'invalid structure schema {path}: frontmatter schema may not carry $id')
         case ForeignFrontmatterDialect(dialect=dialect):
-            return FailureText(
+            return _FailureText(
                 f'invalid structure schema {path}: frontmatter schema names {dialect!r} in $schema; only '
                 f'{JSON_SCHEMA_DIALECT} is allowed'
             )
         case UnresolvableFrontmatterSchemaRef(ref=ref):
-            return FailureText(
+            return _FailureText(
                 f'invalid structure schema {path}: frontmatter schema holds a $ref {ref!r} that does not resolve '
                 'inside it'
             )
         case UntypedFrontmatterSchema():
-            return FailureText(f'invalid structure schema {path}: frontmatter schema root must state "type": "object"')
+            return _FailureText(f'invalid structure schema {path}: frontmatter schema root must state "type": "object"')
         case UnlistableDirectory(refusal=refusal):
-            return FailureText(_cannot_list(path, refusal))
+            return _FailureText(_cannot_list(path, refusal))
         case UnlistableCorpusDirectory(corpus=corpus, refusal=refusal):
-            return FailureText(f'cannot list the documents of corpus {corpus}', (_cannot_list(path, refusal),))
+            return _FailureText(f'cannot list the documents of corpus {corpus}', (_cannot_list(path, refusal),))
         case UnresolvableSkillsDirectory(refusal=refusal):
-            return FailureText(f'cannot resolve directory {path}: {refusal}')
+            return _FailureText(f'cannot resolve directory {path}: {refusal}')
         case UninspectableSkillsDirectory(failed_at=failed_at, refusal=refusal):
-            return FailureText(f'cannot inspect entry {failed_at}: {refusal}')
+            return _FailureText(f'cannot inspect entry {failed_at}: {refusal}')
         case UnlistableSkillsDirectory(failed_at=failed_at, refusal=refusal):
-            return FailureText(f'cannot list the skills in {failed_at}', (_cannot_list(failed_at, refusal),))
+            return _FailureText(f'cannot list the skills in {failed_at}', (_cannot_list(failed_at, refusal),))
         case UnresolvableSkillEntry(refusal=refusal):
-            return FailureText(f'cannot resolve skill entry {path}', (f'cannot resolve directory {path}: {refusal}',))
+            return _FailureText(f'cannot resolve skill entry {path}', (f'cannot resolve directory {path}: {refusal}',))
         case UninspectableSkillEntry(failed_at=failed_at, refusal=refusal):
-            return FailureText(f'cannot resolve skill entry {path}', (f'cannot inspect entry {failed_at}: {refusal}',))
+            return _FailureText(f'cannot resolve skill entry {path}', (f'cannot inspect entry {failed_at}: {refusal}',))
         case UnlistableSkillDirectory(failed_at=failed_at, refusal=refusal):
-            return FailureText(
+            return _FailureText(
                 f'cannot look for {SKILL_ENTRY_FILENAME} in {failed_at}', (_cannot_list(failed_at, refusal),)
             )
         case UnresolvableSkillFile(failed_at=failed_at, refusal=refusal):
-            return FailureText(f'cannot resolve {failed_at}', (f'cannot resolve file {failed_at}: {refusal}',))
+            return _FailureText(f'cannot resolve {failed_at}', (f'cannot resolve file {failed_at}: {refusal}',))
         case UninspectableSkillFile(skill_file=skill_file, failed_at=failed_at, refusal=refusal):
-            return FailureText(f'cannot resolve {skill_file}', (f'cannot inspect entry {failed_at}: {refusal}',))
+            return _FailureText(f'cannot resolve {skill_file}', (f'cannot inspect entry {failed_at}: {refusal}',))
         case _:
             assert_never(condition)
 

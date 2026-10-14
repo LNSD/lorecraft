@@ -13,7 +13,7 @@ import pytest
 from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.path import RootRelativePath
 
-from ..disk import ChangedSnapshotEntryError, _SnapshotRecorder, disk_location
+from ..disk import ChangedSnapshotEntryError, SnapshotRecorder, disk_location
 from ..snapshot import DirectoryRecord, FileRecord, SymlinkRecord
 from ..view import EntryKind
 
@@ -54,7 +54,7 @@ class TestDiskLocation:
 class TestSnapshotRecorder:
     def test_record_with_a_path_recorded_nowhere_records_what_was_found(self) -> None:
         #: Given
-        recorder = _SnapshotRecorder()
+        recorder = SnapshotRecorder()
 
         #: When
         recorder.record(_path('docs/a.md'), FileRecord(b'a'))
@@ -66,7 +66,7 @@ class TestSnapshotRecorder:
 
     def test_record_with_a_climb_out_of_a_listed_directory_merges_both_flags(self) -> None:
         #: Given
-        recorder = _SnapshotRecorder()
+        recorder = SnapshotRecorder()
         recorder.record(_path('skills/tmp'), DirectoryRecord(listed=True))
 
         #: When
@@ -80,7 +80,7 @@ class TestSnapshotRecorder:
     def test_record_with_a_directory_entry_after_its_listing_keeps_it_listed(self) -> None:
         #: Given
         # a scope root listed first, then named again by the listing of its parent
-        recorder = _SnapshotRecorder()
+        recorder = SnapshotRecorder()
         recorder.record(_path('docs'), DirectoryRecord(listed=True))
 
         #: When
@@ -93,7 +93,7 @@ class TestSnapshotRecorder:
 
     def test_record_with_a_file_read_again_with_other_bytes_keeps_the_last_read(self) -> None:
         #: Given
-        recorder = _SnapshotRecorder()
+        recorder = SnapshotRecorder()
         recorder.record(_path('docs/a.md'), FileRecord(b'first'))
 
         #: When
@@ -106,7 +106,7 @@ class TestSnapshotRecorder:
 
     def test_record_with_a_link_read_again_with_another_target_keeps_the_last_read(self) -> None:
         #: Given
-        recorder = _SnapshotRecorder()
+        recorder = SnapshotRecorder()
         recorder.record(_path('skills/x'), SymlinkRecord(PurePosixPath('a')))
 
         #: When
@@ -120,7 +120,7 @@ class TestSnapshotRecorder:
     def test_record_with_a_symlink_where_a_directory_was_recorded_raises_changed_snapshot_entry_error(self) -> None:
         #: Given
         # a directory listed as an entry of its parent, then replaced by a symlink before a walk steps through it
-        recorder = _SnapshotRecorder()
+        recorder = SnapshotRecorder()
         recorder.record(_path('docs/code'), DirectoryRecord())
 
         #: When
@@ -134,7 +134,7 @@ class TestSnapshotRecorder:
 
     def test_record_below_a_path_recorded_as_a_file_raises_changed_snapshot_entry_error(self) -> None:
         #: Given
-        recorder = _SnapshotRecorder()
+        recorder = SnapshotRecorder()
         recorder.record(_path('docs/a'), FileRecord(b'a'))
 
         #: When
@@ -148,7 +148,7 @@ class TestSnapshotRecorder:
 
     def test_record_of_a_file_above_a_recorded_path_raises_changed_snapshot_entry_error(self) -> None:
         #: Given
-        recorder = _SnapshotRecorder()
+        recorder = SnapshotRecorder()
         recorder.record(_path('docs/a/b.md'), FileRecord(b'b'))
 
         #: When
@@ -162,7 +162,7 @@ class TestSnapshotRecorder:
 
     def test_record_of_a_directory_above_a_recorded_path_merges_without_error(self) -> None:
         #: Given
-        recorder = _SnapshotRecorder()
+        recorder = SnapshotRecorder()
         recorder.record(_path('docs/a/b.md'), FileRecord(b'b'))
 
         #: When

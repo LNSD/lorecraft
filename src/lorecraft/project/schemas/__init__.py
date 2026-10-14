@@ -11,7 +11,6 @@ from .frontmatter_problem import (
     FieldCount,
     FieldGuidance,
     FieldLimit,
-    FrontmatterProblem,
     InvalidValueProblem,
     JsonType,
     MaxFields,
@@ -27,7 +26,6 @@ from .frontmatter_problem import (
 from .frontmatter_schema import FrontmatterSchema, FrontmatterSchemaFailure, StatedFrontmatterSchema
 from .name import CorpusSpecName, NamespaceSpecName, SpecName, parse_spec_name
 from .outline_alignment import (
-    AlignedSection,
     AnyRunAlignment,
     NamedAlignment,
     OutlineAlignmentSpec,
@@ -56,8 +54,8 @@ from .schema_problems import (
     locate_schema_problems,
     locate_skill_schema_problems,
 )
-from .section_name import EmptySectionNameError, MultilineSectionNameError, PaddedSectionNameError, SectionName
-from .skill import SKILL_FRONTMATTER_SCHEMA, SkillFrontmatterSchema
+from .section_name import SectionName
+from .skill import SKILL_FRONTMATTER_SCHEMA
 from .skill_fields import (
     AllowedTool,
     AllowedTools,
@@ -72,18 +70,10 @@ from .skill_fields import (
 )
 from .skill_frontmatter import (
     SKILL_NAME_PATTERN,
-    EmptySkillCompatibilityError,
-    EmptySkillDescriptionError,
     EmptySkillNameError,
     InvalidSkillNameFormatError,
-    OverlongSkillCompatibilityError,
-    OverlongSkillDescriptionError,
     OverlongSkillNameError,
-    SkillAllowedTools,
-    SkillCompatibility,
-    SkillDescription,
     SkillFrontmatter,
-    SkillLicense,
     SkillName,
 )
 from .spec_file import (
@@ -100,16 +90,10 @@ from .spec_file import (
     spec_filename,
 )
 from .structure import (
-    AnySections,
-    CharCappedTitleChecks,
-    OutlineEntry,
-    PatternedTitleChecks,
     SectionEntry,
     StructureSchema,
     StructureSpec,
-    TitleChecks,
     TitlePattern,
-    WordCappedTitleChecks,
 )
 from .structure_failure import StructureSpecProblem
 from .structure_file import JSON_SCHEMA_DIALECT, StructureFile
@@ -136,18 +120,9 @@ __all__: list[str] = [
     'StatedFrontmatterSchema',
     'StructureFile',
     'JSON_SCHEMA_DIALECT',
-    'TitleChecks',
-    'PatternedTitleChecks',
-    'WordCappedTitleChecks',
-    'CharCappedTitleChecks',
     'TitlePattern',
-    'OutlineEntry',
     'SectionEntry',
     'SectionName',
-    'EmptySectionNameError',
-    'PaddedSectionNameError',
-    'MultilineSectionNameError',
-    'AnySections',
     'FrontmatterSchemaFailure',
     'StructureSpecProblem',
     'StructureSchemaReadError',
@@ -158,15 +133,6 @@ __all__: list[str] = [
     'EmptySkillNameError',
     'OverlongSkillNameError',
     'InvalidSkillNameFormatError',
-    'SkillDescription',
-    'EmptySkillDescriptionError',
-    'OverlongSkillDescriptionError',
-    'SkillLicense',
-    'SkillCompatibility',
-    'EmptySkillCompatibilityError',
-    'OverlongSkillCompatibilityError',
-    'SkillAllowedTools',
-    'SkillFrontmatterSchema',
     'SKILL_FRONTMATTER_SCHEMA',
     'SkillField',
     'SkillFieldValue',
@@ -178,7 +144,6 @@ __all__: list[str] = [
     'UnbalancedParentheses',
     'NotATool',
     'parse_skill_fields',
-    'FrontmatterProblem',
     'MissingFieldProblem',
     'UnknownFieldProblem',
     'WrongTypeProblem',
@@ -211,7 +176,6 @@ __all__: list[str] = [
     'UnlistedSection',
     'OutlineDivergenceSpec',
     'match_outlines',
-    'AlignedSection',
     'NamedAlignment',
     'AnyRunAlignment',
     'UnalignedSection',

@@ -11,7 +11,7 @@ stretch of text, the one word rule the tree's section word counts are made of.
 
 from lorecraft.core.lines import LineCount, count_lines, split_lines
 
-from .anchor import Anchor, AnchorNumber, InvalidAnchorError
+from .anchor import Anchor, AnchorNumber
 from .document import ParsedDocument, parse_document, parse_frontmatter
 from .frontmatter import (
     Frontmatter,
@@ -29,7 +29,6 @@ from .link import (
     ExternalDestination,
     FragmentDestination,
     Link,
-    LinkDestination,
     NormalisedLinkPath,
     RelativeDestination,
 )
@@ -55,7 +54,6 @@ __all__: list[str] = [
     'section_headings',
     'find_title',
     'Link',
-    'LinkDestination',
     'ExternalDestination',
     'AbsoluteDestination',
     'FragmentDestination',
@@ -63,7 +61,6 @@ __all__: list[str] = [
     'NormalisedLinkPath',
     'Anchor',
     'AnchorNumber',
-    'InvalidAnchorError',
     'LineNumber',
     'FIRST_LINE',
     'TokenCount',

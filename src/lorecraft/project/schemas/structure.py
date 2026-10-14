@@ -295,19 +295,6 @@ class StructureSpec:
         """
         return spec_filename(self.file.name, SpecFileType.PROSE)
 
-    def section_names(self) -> list[SectionName]:
-        """The names of the outline's section entries, in outline order."""
-        names: list[SectionName] = []
-        for entry in self.outline:
-            match entry:
-                case SectionEntry():
-                    names.append(entry.name)
-                case AnySections():
-                    pass  # a run names no section
-                case _:
-                    assert_never(entry)
-        return names
-
     @classmethod
     def parse(cls, file: StructureSpecFile, schema: StructureSchema) -> Self | StructureSpecFailure:
         """Deserialize a structure specification's text into its rules.
@@ -365,6 +352,20 @@ class StructureSpec:
         return spec
 
 
+def _section_names(outline: tuple[OutlineEntry, ...]) -> list[SectionName]:
+    """The names of an outline's section entries, in outline order."""
+    names: list[SectionName] = []
+    for entry in outline:
+        match entry:
+            case SectionEntry():
+                names.append(entry.name)
+            case AnySections():
+                pass  # a run names no section
+            case _:
+                assert_never(entry)
+    return names
+
+
 def _rule_failure(spec: StructureSpec) -> StructureSpecRuleFailure | None:
     """The way a specification's rules are not usable, or None when they are.
 
@@ -390,7 +391,7 @@ def _rule_failure(spec: StructureSpec) -> StructureSpecRuleFailure | None:
     if states_no_rule:
         return EmptyStructureSpec()
 
-    named = spec.section_names()
+    named = _section_names(spec.outline)
     repeated = sorted({name for name in named if named.count(name) > 1}, key=str)
     if repeated:
         return RepeatedOutlineSections(tuple(repeated))
