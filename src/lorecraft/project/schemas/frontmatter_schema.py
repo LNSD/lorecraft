@@ -1,25 +1,33 @@
-"""The translation of `jsonschema`'s errors into `FrontmatterProblem` values, and the walk of a schema it reads.
+"""The frontmatter schema a structure specification states, and the problems it reports a document's frontmatter in.
 
-The one place the package reads a `jsonschema` error: `FrontmatterSchema.validate` hands each error it finds to
-`_frontmatter_problems`. `_iter_schemas_within` and `_resolves_inside` walk a frontmatter schema's subschemas and
-resolve its `$ref` values, which is how `FrontmatterSchema.parse` finds an `$id`, a foreign dialect or a reference
-that leaves the schema.
+`FrontmatterSchema` is the `frontmatter` key of a structure specification: a Draft 2020-12 JSON Schema a document's
+frontmatter must satisfy. `parse` checks the schema once, where the specification loads, and returns the failure it
+finds; `validate` then holds one decoded frontmatter to it. `validate` translates `jsonschema`'s errors into
+`FrontmatterProblem` values here, because this is the one place the package reads a `jsonschema` error.
+
+`StatedFrontmatterSchema` pairs a checked schema with the structure specification that states it, so a problem can
+quote the file it comes from.
+
+Nothing here logs: `validate` raises nothing, and `parse` returns the failure it finds.
 """
 
 import re
 from collections.abc import Iterator, Mapping
-from typing import assert_never
+from dataclasses import dataclass
+from typing import Self, assert_never
 
+from jsonschema import Draft202012Validator
 from jsonschema._utils import find_evaluated_property_keys_by_schema
+from jsonschema.exceptions import SchemaError, best_match
 from jsonschema.exceptions import ValidationError as SchemaValidationError
-from jsonschema.exceptions import best_match
 from jsonschema.protocols import Validator
 from referencing import Registry
 from referencing.exceptions import Unresolvable
 from referencing.jsonschema import DRAFT202012
 
-from lorecraft.core.mapping import Plain
+from lorecraft.core.mapping import Frozen, FrozenMapping, Plain
 from lorecraft.core.num import UnsignedInt
+from lorecraft.core.path import RootRelativePath
 
 from .frontmatter_problem import (
     BlockLimit,
@@ -63,6 +71,142 @@ from .schema_keyword import (
     UnevaluatedPropertiesKeyword,
     keyword_of,
 )
+from .structure_failure import (
+    ForeignFrontmatterDialect,
+    FrontmatterSchemaId,
+    InvalidFrontmatterSchema,
+    UnresolvableFrontmatterSchemaRef,
+    UntypedFrontmatterSchema,
+)
+from .structure_file import JSON_SCHEMA_DIALECT
+
+type FrontmatterSchemaFailure = (
+    InvalidFrontmatterSchema
+    | FrontmatterSchemaId
+    | ForeignFrontmatterDialect
+    | UnresolvableFrontmatterSchemaRef
+    | UntypedFrontmatterSchema
+)
+"""A reason a structure specification's `frontmatter` schema cannot be held."""
+
+
+@dataclass(frozen=True, slots=True)
+class FrontmatterSchema:
+    """A structure specification's `frontmatter` key: a Draft 2020-12 JSON Schema describing an object.
+
+    `parse` is the one way in for a schema that is not yet known to be usable: it checks the schema and returns the
+    failure it finds instead of an instance, so an instance it returns is proof of the check and no code holding one
+    checks it again. Calling `FrontmatterSchema(...)` directly is unchecked, and is only for a schema already checked.
+    The file's path is the structure specification's own (`StructureSpec.path`), not kept here.
+
+    Attributes:
+        schema: The decoded schema, frozen all the way down: every object in it is a `FrozenMapping` and every
+            array a tuple, so no holder can write to the schema `parse` checked, at any depth.
+    """
+
+    schema: FrozenMapping[str, Frozen]
+
+    @classmethod
+    def parse(cls, schema: FrozenMapping[str, Frozen]) -> Self | FrontmatterSchemaFailure:
+        """Check a schema a structure specification can hold a document's frontmatter to.
+
+        That is a schema that is a well-formed Draft 2020-12 schema, that does not leave it for another resource or
+        dialect anywhere inside it, whose every `$ref` resolves inside it, and that describes an object.
+
+        Args:
+            schema: The file's `frontmatter` JSON Schema, as read.
+
+        Returns:
+            The checked schema, or the failure naming what is wrong with it: the meta-schema's rejection, an `$id`, a
+            dialect other than Draft 2020-12 in `$schema`, a `$ref` that does not resolve inside the schema, or a
+            root that does not say `"type": "object"`.
+        """
+        # `jsonschema` takes a JSON object only as a `dict` and an array only as a `list`, so every schema and
+        # frontmatter it reads is handed to it as plain data, copied from the frozen value.
+        plain = schema.to_plain()
+        try:
+            Draft202012Validator.check_schema(plain)
+        except SchemaError as exc:
+            return InvalidFrontmatterSchema(exc.message)
+        # No `$id` is allowed below, so the whole schema is one resource, and every `$ref` is read against it.
+        registry = Registry().with_resource('', DRAFT202012.create_resource(plain))
+        for subschema in _iter_schemas_within(schema):
+            if '$id' in subschema:
+                # An `$id` would make that schema a resource of its own, with its own base URI, and so change what
+                # every relative `$ref` beneath it resolves to.
+                return FrontmatterSchemaId()
+            dialect = subschema.get('$schema', JSON_SCHEMA_DIALECT)
+            # The meta-schema check above has refused a `$schema` that is not a string.
+            assert isinstance(dialect, str), 'unreachable: the meta-schema proved `$schema` is a string'
+            if dialect != JSON_SCHEMA_DIALECT:
+                # The check applies every schema under Draft 2020-12, so a schema written for another dialect would
+                # be read by rules it was not written for.
+                return ForeignFrontmatterDialect(dialect)
+            for keyword in ('$ref', '$dynamicRef'):
+                ref = subschema.get(keyword)
+                if ref is None:
+                    continue
+                # The meta-schema check above has refused a reference that is not a string.
+                if not isinstance(ref, str):
+                    raise AssertionError(f'unreachable: the meta-schema proved `{keyword}` is a string')
+                if not _resolves_inside(registry, ref):
+                    # `validate` raises nothing, and `jsonschema` raises when it meets a reference that does not
+                    # resolve to a schema, so it is refused here, where the schema is loaded.
+                    return UnresolvableFrontmatterSchemaRef(ref)
+        # A frontmatter is a mapping, so the schema must say so itself: a schema that left `type` out would accept
+        # a list or a string where the frontmatter should be.
+        if schema.get('type') != 'object':
+            return UntypedFrontmatterSchema()
+        return cls(schema=schema)
+
+    def validate(self, data: FrozenMapping[str, Frozen]) -> tuple[FrontmatterProblem, ...]:
+        """Hold one decoded frontmatter to the schema. Pure: raises nothing.
+
+        The messages are `jsonschema`'s own, unlike `SkillFrontmatterSchema`'s: the schema is the
+        repository's, so the validator's wording names constraints its authors wrote. Three errors `jsonschema`
+        reports on the whole block are split instead, in its own wording: an absent required field, each field
+        `additionalProperties` does not allow, and each field `unevaluatedProperties` rejects get a problem of
+        their own, on that field.
+
+        Args:
+            data: The decoded frontmatter mapping, frozen all the way down, every key a string at any depth, as JSON
+                names keys.
+
+        Returns:
+            One problem per field at fault, ordered by the field and then the message, or `()` when the
+            frontmatter conforms.
+        """
+        # Plain data, as `parse` hands `jsonschema` the schema: it reads only a `dict` as a JSON object.
+        validator = Draft202012Validator(self.schema.to_plain())
+        plain = data.to_plain()
+        # Sorted, unlike the skill schema's problems: `jsonschema` reports errors in the order it walks the
+        # schema's keywords, which says nothing about the fields.
+        errors = sorted(
+            validator.iter_errors(plain),
+            key=lambda error: (tuple(str(part) for part in error.path), error.message),
+        )
+        problems: list[FrontmatterProblem] = []
+        for error in errors:
+            for problem in _frontmatter_problems(validator, error, plain):
+                # One `required` error names one absent field, but its record lists all the schema requires, so
+                # every such error below would report every absent field again.
+                if problem not in problems:
+                    problems.append(problem)
+        return tuple(problems)
+
+
+@dataclass(frozen=True, slots=True)
+class StatedFrontmatterSchema:
+    """A frontmatter schema with the structure specification that states it.
+
+    Attributes:
+        spec: Root-relative path of the structure specification the schema is written in, quoted verbatim in
+            every problem it reports.
+        schema: The frontmatter schema that specification states.
+    """
+
+    spec: RootRelativePath
+    schema: FrontmatterSchema
 
 
 def _frontmatter_problems(

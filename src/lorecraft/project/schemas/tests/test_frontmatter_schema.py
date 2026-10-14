@@ -25,7 +25,7 @@ from ..frontmatter_problem import (
     UnknownFieldProblem,
     WrongTypeProblem,
 )
-from ..structure import FrontmatterSchema
+from ..frontmatter_schema import FrontmatterSchema
 from ..structure_failure import (
     ForeignFrontmatterDialect,
     FrontmatterSchemaId,
