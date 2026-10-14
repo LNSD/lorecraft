@@ -2,7 +2,9 @@
 
 A construct the format leaves out is either an error raised where the scanner or the parser meets it, a
 `Refused...Error`, or a `RecordedRefusal` the scanner notes and reads on from, because it reads ahead of the parser.
-Each carries the `mark` where it is written and the `problem` as `FM002` words it.
+Each carries the `mark` where it is written and the `problem` as `FM002` words it. The module also holds the
+subclasses of ruamel.yaml's reader and parser that record the line separators the format does not treat as breaks
+and that take every tag handle.
 """
 
 from dataclasses import dataclass
@@ -10,7 +12,10 @@ from enum import StrEnum
 from typing import Final, get_args
 
 from ruamel.yaml.error import StreamMark
+from ruamel.yaml.parser import Parser
+from ruamel.yaml.reader import Reader
 from ruamel.yaml.scanner import ScannerError
+from ruamel.yaml.tag import Tag
 
 from lorecraft.core.error import Error
 
@@ -22,6 +27,16 @@ MERGE_KEY: Final[str] = '<<'
 
 _NOT_ALLOWED: Final[str] = 'which frontmatter does not allow'
 """How the problem of a refused construct ends: `found <construct>, which frontmatter does not allow`."""
+
+
+SPACE_CHARACTERS: Final[str] = '\0 \t\r\n'
+"""The characters that end a plain scalar: the end of the text, a space or tab, or a line break."""
+
+LINE_END_CHARACTERS: Final[str] = '\0\r\n'
+"""The characters that end a line: the end of the text, or a line break."""
+
+_TOKEN_END_CHARACTERS: Final[str] = SPACE_CHARACTERS + ',[]{}'
+"""The characters that end an anchor, an alias or a tag as a block writes it: whitespace or a flow indicator."""
 
 
 class RecordedConstruct(StrEnum):
@@ -336,3 +351,85 @@ written and the `problem` as `FM002` words it, so the decoder reads them alike."
 
 REFUSALS: Final = get_args(Refusal.__value__)
 """The classes of `Refusal`, for the `except` that catches them."""
+
+
+class _AnyHandleMapping(dict[str, str]):
+    """The tag handles a parser resolves a tag against, with every handle defined: an unknown one stands for itself."""
+
+    def __contains__(self, handle: object) -> bool:
+        return True
+
+    def __missing__(self, handle: str) -> str:
+        return handle
+
+
+class BasicYamlParser(Parser):
+    """ruamel.yaml's parser, taking a tag whose handle no directive defines as it takes `!` and `!!`.
+
+    A directive is the only way to define a handle, and a directive is refused, so the parser would otherwise fail
+    on `!e!x` with an error of its own, before `project.syntax.frontmatter._peek_node_start` reaches the node, and
+    report the tag ahead of a construct written above it. Taking every handle lets the tag reach that function as an
+    event, refused in the order the block writes it, like `!!str`.
+    """
+
+    def select_tag_transform(self, tag: Tag) -> None:
+        """Make the tag resolve against every handle.
+
+        Args:
+            tag: The tag of the node the parser is on.
+        """
+        super().select_tag_transform(tag)
+        tag.handles = _AnyHandleMapping(tag.handles)
+
+
+class BasicYamlReader(Reader):
+    """ruamel.yaml's reader, recording the first U+0085, U+2028 or U+2029 it moves over outside a quoted scalar.
+
+    Attributes:
+        quoted: Whether the scanner is inside a single- or double-quoted scalar, where those characters are text.
+        separator: The first separator written outside a quoted scalar, or `None`.
+    """
+
+    quoted = False
+    separator: RecordedRefusal | None = None
+
+    def forward(self, length: int = 1) -> None:
+        """Advance `length` characters, recording a line separator written outside a quoted scalar.
+
+        Args:
+            length: The number of characters to advance by.
+        """
+        # The reader ends a line at a `\n` or a lone `\r` only, as `core/lines.py` does, so the separators are not
+        # breaks to it. The scanner still ends a line at them, which would read `a: 1<U+0085>b: 2` as two pairs, so
+        # one is recorded here and the block is reported for it, like for any construct the scanner records.
+        if not self.quoted and self.separator is None:
+            for offset, character in enumerate(self.prefix(length)):
+                if character in LINE_SEPARATORS:
+                    super().forward(offset)
+                    self.separator = RecordedRefusal(
+                        RecordedConstruct.LINE_SEPARATOR, self.get_mark(), character=character
+                    )
+                    super().forward(length - offset)
+                    return
+        super().forward(length)
+
+
+def written_token(text: str, start: int) -> str:
+    """The anchor, alias or tag that starts at `start` in `text`, spelled as the block writes it.
+
+    Args:
+        text: The block, or the reader's buffer, which ends with a NUL.
+        start: The index of the `&`, the `*` or the `!` the token starts with.
+    """
+    end = start
+    if text.startswith('!<', start):
+        # A verbatim tag is a URI, which may hold a `,` or a `]`, so it runs to its closing `>`, or to the end of the
+        # line when it is never closed.
+        while end < len(text) and text[end] not in LINE_END_CHARACTERS and text[end] != '>':
+            end += 1
+        if end < len(text) and text[end] == '>':
+            end += 1
+    else:
+        while end < len(text) and text[end] not in _TOKEN_END_CHARACTERS:
+            end += 1
+    return text[start:end]
