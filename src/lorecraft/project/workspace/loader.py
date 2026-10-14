@@ -104,6 +104,43 @@ from .model import Corpus, CorpusNamespace, CorpusSpec, WorkspaceModel, namespac
 
 
 @dataclass(slots=True)
+class _NameFiles:
+    """The specification files at one specification name.
+
+    A name has at most one structure file: where `<name>.spec.json` and the legacy `<name>.structure.json` both
+    exist, the legacy one is a shadowed fallback that is neither listed nor read, so it can fail to load, or be
+    unreadable, without a diagnostic. `refusals.py` accepts a refused read of such a file.
+
+    Attributes:
+        structure: The structure file, or None when the name has none.
+        prose: The prose files, in listing order.
+    """
+
+    structure: StructureSpecFile | None = None
+    prose: list[ProseSpecFile] = field(default_factory=list)
+
+    def add(self, spec_file: SpecFile) -> None:
+        """File one specification file under the name, keeping `<name>.spec.json` over a legacy structure file.
+
+        Args:
+            spec_file: A file at this specification name.
+        """
+        match spec_file:
+            case ProseSpecFile():
+                self.prose.append(spec_file)
+            case StructureSpecFile():
+                shadowed = self.structure is not None and self.structure.type is SpecFileType.SPEC
+                if not shadowed or spec_file.type is SpecFileType.SPEC:
+                    self.structure = spec_file
+            case _:
+                assert_never(spec_file)
+
+    def is_empty(self) -> bool:
+        """True when no file was filed under the name."""
+        return self.structure is None and not self.prose
+
+
+@dataclass(slots=True)
 class _CorpusFiles:
     """The specification files naming one corpus, gathered before `docs/<corpus>/` is checked.
 
@@ -112,8 +149,8 @@ class _CorpusFiles:
         namespaces: Files at each `<corpus>-<namespace>` specification name, keyed by namespace.
     """
 
-    spec: list[SpecFile] = field(default_factory=list)
-    namespaces: dict[AspectNamespace, list[SpecFile]] = field(default_factory=dict)
+    spec: _NameFiles = field(default_factory=_NameFiles)
+    namespaces: dict[AspectNamespace, _NameFiles] = field(default_factory=dict)
 
 
 def load_workspace(
@@ -142,7 +179,7 @@ def load_workspace(
     corpora: dict[CorpusName, Corpus] = {}
     for corpus_name in sorted(groups, key=str):
         files = groups[corpus_name]
-        if not files.spec:
+        if files.spec.is_empty():
             # A namespace spec narrows a corpus spec; without one there is nothing to narrow.
             continue
         if PathComponent.parse(str(corpus_name)) not in corpus_directories:
@@ -236,9 +273,9 @@ def _group_spec_files(spec_paths: list[RootRelativePath]) -> dict[CorpusName, _C
         group = groups.setdefault(spec_file.corpus, _CorpusFiles())
         match spec_file.name:
             case CorpusSpecName():
-                group.spec.append(spec_file)
+                group.spec.add(spec_file)
             case NamespaceSpecName(namespace=namespace):
-                group.namespaces.setdefault(namespace, []).append(spec_file)
+                group.namespaces.setdefault(namespace, _NameFiles()).add(spec_file)
             case _:
                 assert_never(spec_file.name)
     return groups
@@ -261,96 +298,73 @@ def _load_corpus(
         failures: The load failures so far; each structure file that fails is appended.
     """
     corpus_spec_name = CorpusSpecName(corpus_name)
-    # A legacy structure file shadowed by a `.spec.json` is ignored: it is neither listed nor read.
-    spec_files = _drop_shadowed_legacy_files(files.spec)
     corpus_spec = CorpusSpec(
         name=corpus_spec_name,
-        files=_sorted_paths(spec_files),
-        structure=_load_structure(schemas, spec_files, failures),
+        files=_sorted_paths(files.spec),
+        structure=_load_structure(schemas, files.spec.structure, failures),
     )
 
     # The corpus orders its namespace specs itself; they are decoded broad to narrow too, so that of two broken
     # structure specifications the broader one is the failure listed first.
     namespaces: dict[AspectNamespace, CorpusNamespace] = {}
     for namespace in sorted(files.namespaces, key=namespace_order_key):
-        namespace_files = _drop_shadowed_legacy_files(files.namespaces[namespace])
+        namespace_files = files.namespaces[namespace]
         namespaces[namespace] = CorpusNamespace(
             files=_sorted_paths(namespace_files),
-            structure=_load_structure(schemas, namespace_files, failures),
+            structure=_load_structure(schemas, namespace_files.structure, failures),
         )
 
     return Corpus(corpus_spec=corpus_spec, namespaces=FrozenMapping(namespaces), filenames=frozenset(filenames))
 
 
-def _sorted_paths(spec_files: list[SpecFile]) -> tuple[RootRelativePath, ...]:
+def _sorted_paths(name_files: _NameFiles) -> tuple[RootRelativePath, ...]:
     """The root-relative paths of the files at one specification name, sorted.
 
     Args:
-        spec_files: Files at one specification name, prose and JSON, in listing order.
+        name_files: Files at one specification name, prose and JSON.
     """
-    return tuple(sorted((spec_file.path for spec_file in spec_files), key=str))
+    paths = [prose.path for prose in name_files.prose]
+    if name_files.structure is not None:
+        paths.append(name_files.structure.path)
+    return tuple(sorted(paths, key=str))
 
 
 def _load_structure(
-    schemas: SchemaRepository, spec_files: list[SpecFile], failures: list[LoadFailure]
+    schemas: SchemaRepository, structure_file: StructureSpecFile | None, failures: list[LoadFailure]
 ) -> StructureSpec | FailedStructure | None:
-    """Decode the structure JSON among the files at one specification name into a structure specification.
+    """Decode the structure JSON at one specification name into a structure specification.
 
     Args:
         schemas: Repository the structure specification is read from.
-        spec_files: Files at that name, prose and JSON, in listing order; only the structure file among them is decoded.
+        structure_file: The name's structure file, or None when the name has none; the prose is never decoded.
         failures: The load failures so far; a structure file that cannot be read or used is appended.
 
     Returns:
         The structure specification, the failed structure standing in its place when the file cannot be read or
-        used, or None when no file at the name is a structure file.
+        used, or None when the name has no structure file.
     """
-    structure: StructureSpec | FailedStructure | None = None
-    for spec_file in spec_files:
-        match spec_file:
-            case StructureSpecFile():
-                try:
-                    text = schemas.get_structure_schema(spec_file)
-                except StructureSchemaReadError as exc:
-                    match exc.source:
-                        case FileReadError() | RecordedFileReadError() | RecordedFileReadPathError():
-                            failure: StructureLoadFailure = UnreadableStructureFile(exc.name, exc.source.refusal)
-                        case UnrecordedFileError():
-                            failure = UnrecordedStructureFile(exc.name)
-                        case TextDecodeError():
-                            failure = NonUtf8StructureFile(exc.source.failure)
-                        case _:
-                            assert_never(exc.source)
-                    structure = _record_failed_structure(failures, spec_file.path, failure)
-                    continue
-                # Parsing is the check, and it raises nothing: text that is not JSON in the structure dialect, a
-                # title pattern that does not compile, a frontmatter schema that cannot be held and rules that are
-                # not usable each come back as their failure record.
-                parsed = StructureSpec.parse(spec_file, text)
-                if isinstance(parsed, StructureSpec):
-                    structure = parsed
-                else:
-                    structure = _record_failed_structure(failures, spec_file.path, parsed)
-            case ProseSpecFile():
-                pass  # the prose is written for a reader, and no check decodes it
+    if structure_file is None:
+        return None
+    try:
+        text = schemas.get_structure_schema(structure_file)
+    except StructureSchemaReadError as exc:
+        match exc.source:
+            case FileReadError() | RecordedFileReadError() | RecordedFileReadPathError():
+                failure: StructureLoadFailure = UnreadableStructureFile(exc.name, exc.source.refusal)
+            case UnrecordedFileError():
+                failure = UnrecordedStructureFile(exc.name)
+            case TextDecodeError():
+                failure = NonUtf8StructureFile(exc.source.failure)
             case _:
-                assert_never(spec_file)
-    return structure
-
-
-def _drop_shadowed_legacy_files(spec_files: list[SpecFile]) -> list[SpecFile]:
-    """The files at one specification name, without the legacy `<name>.structure.json` when `<name>.spec.json` exists.
-
-    The legacy file is a fallback: where both exist it is not read and not listed as one of the name's files, so it
-    can fail to load, or be unreadable, without a diagnostic. `refusals.py` accepts a refused read of such a file.
-
-    Args:
-        spec_files: Files at one specification name, prose and JSON, in listing order.
-    """
-    has_spec_json = any(spec_file.type is SpecFileType.SPEC for spec_file in spec_files)
-    if not has_spec_json:
-        return spec_files
-    return [spec_file for spec_file in spec_files if spec_file.type is not SpecFileType.LEGACY_STRUCTURE]
+                assert_never(exc.source)
+        return _record_failed_structure(failures, structure_file.path, failure)
+    # Parsing is the check, and it raises nothing: text that is not JSON in the structure dialect, a title pattern
+    # that does not compile, a frontmatter schema that cannot be held and rules that are not usable each come back
+    # as their failure record.
+    parsed = StructureSpec.parse(structure_file, text)
+    if isinstance(parsed, StructureSpec):
+        return parsed
+    return _record_failed_structure(failures, structure_file.path, parsed)
 
 
 def _record_failed_structure(
