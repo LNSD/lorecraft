@@ -38,7 +38,7 @@ from ruamel.yaml.reader import ReaderError
 from lorecraft.core.mapping import Frozen, FrozenMapping
 from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.yaml.basic_yaml import REFUSALS, RecordedRefusal, Refusal
-from lorecraft.yaml.reader import YamlEventStream, read_document
+from lorecraft.yaml.reader import YamlReadError, read_yaml
 from lorecraft.yaml.tree import YamlMapping, YamlScalar, YamlSequence, YamlValue
 
 from .position import LineNumber
@@ -168,40 +168,18 @@ def decode_frontmatter(block: str) -> FrontmatterNode:
     Args:
         block: The lines between the delimiters, line endings kept; the first of them is document line 2.
     """
-    stream = YamlEventStream(block)
     try:
-        node = _node_of(read_document(stream))
-    except ReaderError as exc:
-        # The reader checks every character as it is built, so a control character fails before the first event.
-        return _invalid_yaml(describe_control_character(exc, block))
-    except REFUSALS as exc:
-        # The read stopped at a construct this module refuses. The scanner reads ahead of the parser, so it may
-        # have recorded one written above it, which is the one the block is reported for.
-        refusal = stream.first_refusal()
-        if refusal is not None and refusal.mark.index <= exc.mark.index:
-            return _invalid_refusal(refusal)
-        return _invalid_refusal(exc)
-    except MarkedYAMLError as exc:
-        # Every other `MarkedYAMLError` is ruamel.yaml's own. The scanner reads ahead of the parser, so a construct
-        # it recorded is written above whatever the parser or the scanner failed on.
-        refusal = stream.first_refusal()
-        if refusal is not None:
-            return _invalid_refusal(refusal)
-        return _invalid_yaml(describe_error(exc, block))
+        root = read_yaml(block)
+        node = _node_of(root)
+    except YamlReadError as exc:
+        return _invalid_yaml_of(exc, block)
     except RecursionError:
         # The value is read, and mapped, with one call per level of nesting, so only a deeply nested block reaches
-        # the interpreter's limit. By the time this clause runs the stack has unwound to this frame, so there is room
-        # to go on, and the half-read parser is dropped. The line is left out, because the depth reading stops at
-        # depends on the interpreter's recursion limit and on how deep the caller's stack already was. A construct
-        # the scanner recorded above the depth is reported instead, on its line.
-        refusal = stream.first_refusal()
-        if refusal is not None:
-            return _invalid_refusal(refusal)
+        # the interpreter's limit. The read reports its own limit with the construct recorded above it, so what is
+        # left is the mapping, once the read has finished and nothing was recorded. The stack has unwound to this
+        # frame, so there is room to go on. The line is left out, because the depth reading stops at depends on the
+        # interpreter's recursion limit and on how deep the caller's stack already was.
         return InvalidYamlFrontmatter(problem=_TOO_DEEP, line=None)
-    # The block was read to its end, so every construct the scanner recorded is written above the end.
-    refusal = stream.first_refusal()
-    if refusal is not None:
-        return _invalid_refusal(refusal)
     return node
 
 
@@ -343,3 +321,37 @@ def _invalid_yaml(problem: SyntaxProblem) -> InvalidYamlFrontmatter:
     """
     line = None if problem.line is None else _document_line(problem.line + 1)
     return InvalidYamlFrontmatter(problem=problem.label, line=line, help=problem.help)
+
+
+def _invalid_yaml_of(failure: YamlReadError, block: str) -> InvalidYamlFrontmatter:
+    """The node for a block that could not be read, reported for the construct or error that comes first.
+
+    Args:
+        failure: What stopped the read, and the first construct the scanner or the reader recorded.
+        block: The block's text, which words a syntax error.
+    """
+    cause = failure.cause
+    refusal = failure.refusal
+    if isinstance(cause, ReaderError):
+        return _invalid_yaml(describe_control_character(cause, block))
+    if isinstance(cause, REFUSALS):
+        # The read stopped at a construct `lorecraft.yaml` refuses. The scanner reads ahead of the parser, so it may
+        # have recorded one written above it, which is the one the block is reported for.
+        if refusal is not None and refusal.mark.index <= cause.mark.index:
+            return _invalid_refusal(refusal)
+        return _invalid_refusal(cause)
+    if isinstance(cause, MarkedYAMLError):
+        # Every other `MarkedYAMLError` is ruamel.yaml's own. The scanner reads ahead of the parser, so a construct
+        # it recorded is written above whatever the parser or the scanner failed on.
+        if refusal is not None:
+            return _invalid_refusal(refusal)
+        return _invalid_yaml(describe_error(cause, block))
+    if isinstance(cause, RecursionError):
+        # Out of depth. A construct the scanner recorded above the depth is reported instead, on its line.
+        if refusal is not None:
+            return _invalid_refusal(refusal)
+        return InvalidYamlFrontmatter(problem=_TOO_DEEP, line=None)
+    # Read to its end, with a construct the scanner recorded above it.
+    if refusal is None:
+        raise AssertionError('unreachable: a read that fails names its cause, or the construct it recorded')
+    return _invalid_refusal(refusal)

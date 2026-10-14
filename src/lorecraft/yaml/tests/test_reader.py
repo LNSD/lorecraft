@@ -9,16 +9,12 @@ from ruamel.yaml.reader import ReaderError
 from lorecraft.core.num import NonZeroUnsignedInt
 
 from ..basic_yaml import RefusedAliasError, RefusedFlowBlockError
-from ..reader import YamlEventStream, read_document
-from ..tree import YamlMapping, YamlPosition, YamlScalar, YamlSequence, YamlValue
+from ..reader import YamlReadError, read_yaml
+from ..tree import YamlMapping, YamlPosition, YamlScalar, YamlSequence
 
 
 def _at(line: int, column: int) -> YamlPosition:
     return YamlPosition(NonZeroUnsignedInt(line), NonZeroUnsignedInt(column))
-
-
-def _read(text: str) -> YamlValue | None:
-    return read_document(YamlEventStream(text))
 
 
 @pytest.mark.unit
@@ -28,7 +24,7 @@ class TestReadYaml:
         text = ''
 
         #: When
-        root = _read(text)
+        root = read_yaml(text)
 
         #: Then
         assert root is None, f'{text!r} holds no document, got {root!r}'
@@ -38,7 +34,7 @@ class TestReadYaml:
         text = '\n'
 
         #: When
-        root = _read(text)
+        root = read_yaml(text)
 
         #: Then
         assert root is None, f'{text!r} holds no document, got {root!r}'
@@ -48,7 +44,7 @@ class TestReadYaml:
         text = '# only a comment\n'
 
         #: When
-        root = _read(text)
+        root = read_yaml(text)
 
         #: Then
         assert root is None, f'{text!r} holds no document, got {root!r}'
@@ -62,7 +58,7 @@ class TestReadYaml:
             """)
 
         #: When
-        root = _read(text)
+        root = read_yaml(text)
 
         #: Then
         assert isinstance(root, YamlMapping), f'a block mapping is a mapping, got {root!r}'
@@ -79,7 +75,7 @@ class TestReadYaml:
         text = 'name: first\nname: last\n'
 
         #: When
-        root = _read(text)
+        root = read_yaml(text)
 
         #: Then
         assert isinstance(root, YamlMapping), f'a block mapping is a mapping, got {root!r}'
@@ -97,7 +93,7 @@ class TestReadYaml:
             """)
 
         #: When
-        root = _read(text)
+        root = read_yaml(text)
 
         #: Then
         assert isinstance(root, YamlMapping), f'a block mapping is a mapping, got {root!r}'
@@ -112,7 +108,7 @@ class TestReadYaml:
         text = 'guide\n'
 
         #: When
-        root = _read(text)
+        root = read_yaml(text)
 
         #: Then
         assert root == YamlScalar('guide', _at(1, 1)), f'a text of one scalar is its own root, got {root!r}'
@@ -122,7 +118,7 @@ class TestReadYaml:
         text = '~'
 
         #: When
-        root = _read(text)
+        root = read_yaml(text)
 
         #: Then
         assert isinstance(root, YamlScalar), f'{text!r} is a scalar, got {root!r}'
@@ -133,7 +129,7 @@ class TestReadYaml:
         text = 'true'
 
         #: When
-        root = _read(text)
+        root = read_yaml(text)
 
         #: Then
         assert isinstance(root, YamlScalar), f'{text!r} is a scalar, got {root!r}'
@@ -144,7 +140,7 @@ class TestReadYaml:
         text = '1'
 
         #: When
-        root = _read(text)
+        root = read_yaml(text)
 
         #: Then
         assert isinstance(root, YamlScalar), f'{text!r} is a scalar, got {root!r}'
@@ -156,7 +152,7 @@ class TestReadYaml:
         text = '1.0'
 
         #: When
-        root = _read(text)
+        root = read_yaml(text)
 
         #: Then
         assert isinstance(root, YamlScalar), f'{text!r} is a scalar, got {root!r}'
@@ -168,7 +164,7 @@ class TestReadYaml:
         text = "'1'"
 
         #: When
-        root = _read(text)
+        root = read_yaml(text)
 
         #: Then
         assert isinstance(root, YamlScalar), f'{text!r} is a scalar, got {root!r}'
@@ -180,7 +176,7 @@ class TestReadYaml:
         text = '"true"'
 
         #: When
-        root = _read(text)
+        root = read_yaml(text)
 
         #: Then
         assert isinstance(root, YamlScalar), f'{text!r} is a scalar, got {root!r}'
@@ -192,66 +188,85 @@ class TestReadYaml:
         text = 'yes'
 
         #: When
-        root = _read(text)
+        root = read_yaml(text)
 
         #: Then
         assert isinstance(root, YamlScalar), f'{text!r} is a scalar, got {root!r}'
         assert root.value == 'yes', f'{text!r} reads as yes, got {root.value!r}'
         assert type(root.value) is str, f'{text!r} is a str, got {type(root.value).__name__}'
 
-    def test_read_yaml_with_an_alias_raises_the_refusal(self) -> None:
+    def test_read_yaml_with_an_alias_raises_the_refusal_with_no_recorded_one(self) -> None:
         #: Given
         text = 'a: *x\n'
 
         #: When
-        with pytest.raises(RefusedAliasError) as raised:
-            _read(text)
+        with pytest.raises(YamlReadError) as raised:
+            read_yaml(text)
 
         #: Then
-        assert raised.value.anchor == 'x', f'the alias names the anchor it points at, got {raised.value.anchor!r}'
+        assert isinstance(raised.value.cause, RefusedAliasError), f'an alias is refused, got {raised.value.cause!r}'
+        assert raised.value.refusal is None, 'the scanner recorded nothing above the alias'
 
     def test_read_yaml_with_a_flow_collection_as_the_whole_text_raises_the_refusal(self) -> None:
         #: Given
         text = '[a, b]\n'
 
         #: When
-        with pytest.raises(RefusedFlowBlockError) as raised:
-            _read(text)
+        with pytest.raises(YamlReadError) as raised:
+            read_yaml(text)
 
         #: Then
-        assert raised.value.mark.line == 0, f'a flow collection is not a block, got {raised.value.mark}'
+        assert isinstance(raised.value.cause, RefusedFlowBlockError), (
+            f'a flow collection is not a block, got {raised.value.cause!r}'
+        )
 
     def test_read_yaml_with_a_control_character_raises_the_reader_error(self) -> None:
         #: Given
         text = 'a: \x07\n'
 
         #: When
-        with pytest.raises(ReaderError) as raised:
-            _read(text)
+        with pytest.raises(YamlReadError) as raised:
+            read_yaml(text)
 
         #: Then
-        assert raised.value.character == 0x07, f'a control character fails the reader, got {raised.value}'
+        assert isinstance(raised.value.cause, ReaderError), f'a control character fails the reader, got {raised.value}'
 
     def test_read_yaml_with_a_syntax_error_raises_the_marked_error(self) -> None:
         #: Given
         text = 'a: [1, 2\n'
 
         #: When
-        with pytest.raises(MarkedYAMLError) as raised:
-            _read(text)
+        with pytest.raises(YamlReadError) as raised:
+            read_yaml(text)
 
         #: Then
-        assert raised.value.problem_mark is not None, f'a bracket left open is a syntax error, got {raised.value}'
+        assert isinstance(raised.value.cause, MarkedYAMLError), (
+            f'a bracket left open is a syntax error, got {raised.value}'
+        )
 
-    def test_read_yaml_with_an_explicit_key_reads_to_the_end_and_records_the_refusal(self) -> None:
+    def test_read_yaml_with_an_explicit_key_raises_with_the_recorded_refusal_and_no_cause(self) -> None:
         #: Given
         text = '? a\n: 1\n'
-        stream = YamlEventStream(text)
-        read_document(stream)
 
         #: When
-        refusal = stream.first_refusal()
+        with pytest.raises(YamlReadError) as raised:
+            read_yaml(text)
 
         #: Then
-        assert refusal is not None, 'the scanner recorded the explicit key'
-        assert refusal.construct == 'an explicit key', f'an explicit key is recorded as one, got {refusal}'
+        assert raised.value.cause is None, 'the text was read to its end, so nothing stopped it'
+        assert raised.value.refusal is not None, 'the explicit key was recorded'
+        assert raised.value.refusal.construct == 'an explicit key', (
+            f'an explicit key is recorded as one, got {raised.value.refusal}'
+        )
+
+    def test_read_yaml_with_collections_nested_past_the_recursion_limit_raises_with_the_recursion_error(self) -> None:
+        #: Given
+        depth = 10_000
+        text = ''.join(f'{" " * (2 * level)}a:\n' for level in range(depth))
+
+        #: When
+        with pytest.raises(YamlReadError) as raised:
+            read_yaml(text)
+
+        #: Then
+        assert isinstance(raised.value.cause, RecursionError), f'a deep text exhausts the stack, got {raised.value}'
