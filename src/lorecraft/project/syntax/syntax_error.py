@@ -9,9 +9,14 @@ An error no kind matches is reported on the line the parser marked as `the block
 with no help, so a parser upgrade that rewords an error moves it there rather than to a wrong kind.
 """
 
+import re
 from dataclasses import dataclass
+from typing import Final
 
 from ruamel.yaml.error import MarkedYAMLError, StreamMark
+
+_BLOCK_SCALAR_HEADER: Final[re.Pattern[str]] = re.compile(r'(?:^|\s)[|>][+-]?[0-9]?\s*(?:#.*)?$')
+"""The end of a line that opens a literal or folded block scalar, with its indicators and a comment after them."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -52,8 +57,16 @@ def describe_error(error: MarkedYAMLError, block: str) -> SyntaxProblem:
         )
     if problem == 'mapping values are not allowed here':
         return _misplaced_colon(mark, lines)
-    if problem.startswith("expected <block end>, but found '<block"):
+    if problem.startswith(
+        (
+            "expected <block end>, but found '<block",
+            "expected <block end>, but found '-'",
+            "expected <block end>, but found '?'",
+        )
+    ):
         return _bad_indent(mark, lines)
+    if problem == 'sequence entries are not allowed here':
+        return _not_key_or_item(_line_of(mark))
     if problem.startswith("expected <block end>, but found '<scalar>'"):
         return _text_after_quote(mark, lines)
     if problem.startswith("expected '<document start>'"):
@@ -254,7 +267,7 @@ def _scalar_start(lines: list[str], line: int) -> int:
 
 
 def _text_after_quote(mark: StreamMark | None, lines: list[str]) -> SyntaxProblem:
-    """Classify text the parser found where a mapping entry ended: after a closing quote, or something else.
+    """Classify text where an entry ended: after a closing quote, below a block scalar's text, or something else.
 
     Args:
         mark: Where the parser found the text.
@@ -264,4 +277,27 @@ def _text_after_quote(mark: StreamMark | None, lines: list[str]) -> SyntaxProble
         before = _text(lines, mark.line)[: mark.column].rstrip()
         if before.endswith(('"', "'")):
             return SyntaxProblem('text follows the closing quote', 'Put the whole value inside the quotes', mark.line)
+        if _below_block_scalar(mark.line, lines):
+            return _bad_indent(mark, lines)
     return _unreadable(_line_of(mark))
+
+
+def _below_block_scalar(line: int, lines: list[str]) -> bool:
+    """Whether a line is indented less than the text of the block scalar above it, and more than its key.
+
+    Args:
+        line: The line, counted from 0.
+        lines: The block's lines.
+    """
+    indent = _indent(_text(lines, line))
+    text_indent: int | None = None
+    for number in range(line - 1, -1, -1):
+        text = lines[number]
+        if _is_skipped(text):
+            continue
+        if _BLOCK_SCALAR_HEADER.search(text):
+            return text_indent is not None and _indent(text) < indent < text_indent
+        if _indent(text) <= indent:
+            return False
+        text_indent = _indent(text) if text_indent is None else min(text_indent, _indent(text))
+    return False

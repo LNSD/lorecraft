@@ -164,6 +164,36 @@ class TestDescribeError:
         #: Then
         assert problem == SyntaxProblem(*_NO_MATCH, 2), 'a line indented to no level is the indentation kind'
 
+    def test_describe_error_with_a_dash_after_a_mapping_returns_the_indentation_kind(self) -> None:
+        #: Given
+        error = _error("expected <block end>, but found '-'", _mark(1, 0))
+
+        block = dedent("""\
+            a: 1
+            - b
+            """)
+
+        #: When
+        problem = describe_error(error, block)
+
+        #: Then
+        assert problem == SyntaxProblem(*_NO_MATCH, 1), 'an item among keys lines up with none of them'
+
+    def test_describe_error_with_a_key_after_a_sequence_returns_the_indentation_kind(self) -> None:
+        #: Given
+        error = _error("expected <block end>, but found '?'", _mark(1, 0))
+
+        block = dedent("""\
+            - a
+            b: c
+            """)
+
+        #: When
+        problem = describe_error(error, block)
+
+        #: Then
+        assert problem == SyntaxProblem(*_NO_MATCH, 1), 'a key among items lines up with none of them'
+
     def test_describe_error_with_a_line_that_is_no_key_returns_the_key_or_item_kind(self) -> None:
         #: Given
         error = _error(
@@ -196,6 +226,16 @@ class TestDescribeError:
 
         #: Then
         assert problem == SyntaxProblem(*_NOT_KEY_OR_ITEM, 1), 'text under a top-level scalar is no key or item'
+
+    def test_describe_error_with_a_sequence_entry_after_a_key_returns_the_key_or_item_kind(self) -> None:
+        #: Given
+        error = _error('sequence entries are not allowed here', _mark(0, 3))
+
+        #: When
+        problem = describe_error(error, 'a: - b\n')
+
+        #: Then
+        assert problem == SyntaxProblem(*_NOT_KEY_OR_ITEM, 0), 'an item written after a key is not what a line holds'
 
     def test_describe_error_with_an_unclosed_quote_returns_the_line_it_opens_on(self) -> None:
         #: Given
@@ -230,6 +270,22 @@ class TestDescribeError:
         assert problem == SyntaxProblem('text follows the closing quote', 'Put the whole value inside the quotes', 0), (
             'text after a closing quote is named by the quote'
         )
+
+    def test_describe_error_with_a_line_below_a_block_scalar_returns_the_indentation_kind(self) -> None:
+        #: Given
+        error = _error("expected <block end>, but found '<scalar>'", _mark(2, 1))
+
+        block = dedent("""\
+            a: |
+              x
+             y
+            """)
+
+        #: When
+        problem = describe_error(error, block)
+
+        #: Then
+        assert problem == SyntaxProblem(*_NO_MATCH, 2), 'a line less indented than the scalar text matches no level'
 
     def test_describe_error_with_text_after_a_flow_collection_returns_the_fallback(self) -> None:
         #: Given
