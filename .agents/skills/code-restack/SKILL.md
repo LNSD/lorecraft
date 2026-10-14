@@ -2,7 +2,7 @@
 name: code-restack
 description: Rebase a stack of pushed part branches onto a new base, run the gates on each, check that every commit is signed, and push them with a lease. Use when the base of a stack moved (a part below merged, or main advanced) and the branches above must follow. Not for applying a Writer's patch files or squashing a part (see /code-integrate), or for syncing open pull requests.
 compatibility: Requires python3, git with commit signing configured, and just with the repository's gate recipes. Imports gitflow.py from the code-integrate skill, so that skill must sit next to this one. Pushing needs a remote named origin.
-allowed-tools: Bash(python3 .agents/skills/code-restack/scripts/restack.py *)
+allowed-tools: Bash(python3 .agents/skills/code-restack/scripts/restack.py *) Bash(python3 */.agents/skills/code-restack/scripts/restack.py *)
 ---
 
 # Code Restack
@@ -20,14 +20,16 @@ or closes a pull request.
 
 ## Command
 
-Run from the repository root, on a clean working tree.
+Run on a clean working tree. `--repo` names the repository and defaults to the current directory, so the call
+needs no `cd`.
 
 ```bash
-python3 .agents/skills/code-restack/scripts/restack.py --onto origin/main --from <old-base> lnsd/<slug>-1 lnsd/<slug>-2 ...
+python3 <repo>/.agents/skills/code-restack/scripts/restack.py --repo <repo> --onto origin/main --from <old-base> lnsd/<slug>-1 lnsd/<slug>-2 ...
 ```
 
 | Argument | Meaning |
 |---|---|
+| `--repo` | The repository to work in; default the current directory |
 | `--onto` | The ref the bottom branch moves onto, such as `origin/main` |
 | `--from` | The ref the bottom branch sits on now: its old base, or the tip of the part that merged |
 | `<branch>...` | The part branches, bottom to top, as named on the remote |
@@ -40,9 +42,9 @@ Only when every branch passed does it push them all in one atomic `git push`, ea
 nothing is pushed. A local branch that another worktree has checked out is not moved, since git refuses to; the
 run is still `ok`, because the remote moved, and the branch is listed in `local_not_moved`.
 
-It refuses when the tree is not clean, when a ref does not exist, when a branch does not sit on the one below it,
-when a local branch holds commits its remote branch lacks, and when the push is rejected, in which case no remote
-branch moved.
+It refuses when `--repo` is not a git repository, when the tree is not clean, when a ref does not exist, when a
+branch does not sit on the one below it, when a local branch holds commits its remote branch lacks, and when the push
+is rejected, in which case no remote branch moved.
 
 ## Result
 

@@ -2,7 +2,7 @@
 name: code-sync
 description: Classify open pull requests as up to date, behind, conflicting or base moved, and bring the ones that are behind main up to date with a signed rebase, the gates and a leased push, marking each PR draft meanwhile. Use when main advanced and open PRs may need a rebase, or before merging one. Not for restacking a stack of parts (see /code-restack), for applying a Writer's patches (see /code-integrate), or for creating or editing PRs.
 compatibility: Requires python3, git with commit signing configured, gh authenticated for the repository, and just with the repository's gate recipes. Imports gitflow.py from the code-integrate skill, so that skill must sit next to this one. Pushing needs a remote named origin.
-allowed-tools: Bash(python3 .agents/skills/code-sync/scripts/sync.py *)
+allowed-tools: Bash(python3 .agents/skills/code-sync/scripts/sync.py *) Bash(python3 */.agents/skills/code-sync/scripts/sync.py *)
 ---
 
 # Code Sync
@@ -22,14 +22,16 @@ the only change it makes to one is the draft/ready toggle.
 
 ## Command
 
-Run from the repository root, on a clean working tree.
+Run on a clean working tree. `--repo` names the repository and defaults to the current directory, so the call
+needs no `cd`.
 
 ```bash
-python3 .agents/skills/code-sync/scripts/sync.py [--apply] <pr> [<pr> ...]
+python3 <repo>/.agents/skills/code-sync/scripts/sync.py --repo <repo> [--apply] <pr> [<pr> ...]
 ```
 
 | Argument | Meaning |
 |---|---|
+| `--repo` | The repository to work in; default the current directory |
 | `<pr>...` | The pull request numbers |
 | `--apply` | Run the fast lane on each pull request that is `behind`; without it the script only classifies |
 
@@ -48,13 +50,14 @@ commit is signed (`%G?` is `G`), push the rebased commit with a lease pinned to 
 the rebase, move the local branch, and mark the pull request ready. A pull request that was already a draft is not
 touched and stays one; only one this run drafted is marked ready again. A failure leaves the remote branch
 untouched, and the pull request a draft. A rejected push is such a failure: the entry is `refused` with the
-`reason`, and carries `"drafted":true` when this run drafted the pull request and did not mark it ready again. A local branch that another worktree has checked out is not moved, since
-git refuses to, and its entry carries `"local_not_moved":true`; the sync is still `synced`. When `gh pr ready` fails
-after the push, the entry stays `synced` and carries `"ready":false`; when `--undo` fails the run refuses before the
-rebase. The caller's branch is restored at the end.
+`reason`, and carries `"drafted":true` when this run drafted the pull request and did not mark it ready again. A
+local branch that another worktree has checked out is not moved, since git refuses to, and its entry carries
+`"local_not_moved":true`; the sync is still `synced`. When `gh pr ready` fails after the push, the entry stays
+`synced` and carries `"ready":false`; when `--undo` fails the run refuses before the rebase. The caller's branch is
+restored at the end.
 
-It refuses when the tree is not clean, when a pull request is not open or its branches do not exist, when a commit
-is unsigned and when a push is rejected.
+It refuses when `--repo` is not a git repository, when the tree is not clean, when a pull request is not open or its
+branches do not exist, when a commit is unsigned and when a push is rejected.
 
 ## Result
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Classify open pull requests against their base, and with `--apply` bring the ones that are behind up to date.
 
-    sync.py [--apply] PR...
+    sync.py [--repo DIR] [--apply] PR...
 
 Each pull request is `up_to_date`, `behind` (its base moved and it rebases cleanly), `conflicting` (it does not
 rebase cleanly) or `base_moved` (its base is another branch of a stack, so the stack is restacked instead).
@@ -233,7 +233,7 @@ def _unsigned_commits(repo: Path, log: Path, base: str, tip: str) -> list[str]:
 
 
 def main(argv: list[str]) -> int:
-    """Parse the arguments, sync in the current directory and print the result.
+    """Parse the arguments, sync in the repository and print the result.
 
     Args:
         argv: The command-line arguments, after the program name.
@@ -242,11 +242,16 @@ def main(argv: list[str]) -> int:
         The exit code the script ends with.
     """
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument(
+        '--repo', type=Path, default=Path(), help='the repository to work in, default the current directory'
+    )
     parser.add_argument('--apply', action='store_true', help='bring each pull request that is behind up to date')
     parser.add_argument('prs', nargs='+', type=int, help='the pull request numbers')
     args = parser.parse_args(argv)
 
-    repo = Path.cwd()
+    repo = args.repo.resolve()
+    if not gitflow.require_repository(repo):
+        return EXIT_REFUSED
     log = gitflow.default_log(repo, 'code-sync')
     try:
         result, code = sync(repo, args.prs, log, gitflow.default_gates(), apply=args.apply)
