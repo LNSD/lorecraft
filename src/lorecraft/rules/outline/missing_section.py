@@ -8,7 +8,8 @@ from lorecraft.project.context import DocumentContext
 from lorecraft.project.schemas import AbsentSection, DocumentEnd, MisplacedSection, SectionName, UnlistedSection
 from lorecraft.project.syntax import LineNumber, SectionHeading
 from lorecraft.rules.collector import rule
-from lorecraft.rules.declaration import Level, Release, RuleCode, RuleName
+from lorecraft.rules.declaration import RuleCode
+from lorecraft.rules.identity import Level, Release, RuleName
 from lorecraft.rules.location import Help, Here, Label, Subdiagnostic
 from lorecraft.rules.subject import DocumentRule, Facet
 
