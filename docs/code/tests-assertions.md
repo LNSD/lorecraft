@@ -169,7 +169,7 @@ Before committing code, verify:
 - [ ] More than three items sharing one fact are asserted once with `all()` or `any()`, the items interpolated
 - [ ] Identity, enum members and `None` are compared with `is`
 - [ ] Every `pytest.raises` matches an exception class, and the data the error carries is asserted after it
-- [ ] No `match=` or `in` asserts a word of a message's prose — only a value the message promises to name
+- [ ] No `match=` or `in` asserts a word of a raised error's message — only a value the message promises to name
 
 ## References
 
