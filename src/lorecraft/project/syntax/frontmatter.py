@@ -29,11 +29,10 @@ needed to write a document's metadata, an alias can make a collection hold itsel
 counterpart for, and JSON names every key with a string.
 """
 
-from collections.abc import Iterator, Sequence
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Final, assert_never
 
-from ruamel.yaml import YAML
 from ruamel.yaml.error import MarkedYAMLError, StreamMark
 from ruamel.yaml.events import (
     AliasEvent,
@@ -52,9 +51,6 @@ from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.yaml.basic_yaml import (
     MERGE_KEY,
     REFUSALS,
-    BasicYamlParser,
-    BasicYamlReader,
-    BasicYamlScanner,
     RecordedRefusal,
     Refusal,
     RefusedAliasError,
@@ -66,8 +62,8 @@ from lorecraft.yaml.basic_yaml import (
     RefusedNestedBlockSequenceError,
     RefusedNonStringKeyError,
     RefusedTagError,
-    written_token,
 )
+from lorecraft.yaml.reader import YamlEventStream
 from lorecraft.yaml.scalar import resolve_plain_scalar
 
 from .position import LineNumber
@@ -197,7 +193,7 @@ def decode_frontmatter(block: str) -> FrontmatterNode:
     Args:
         block: The lines between the delimiters, line endings kept; the first of them is document line 2.
     """
-    stream = _EventStream(block)
+    stream = YamlEventStream(block)
     try:
         node = _read_document(stream)
     except ReaderError as exc:
@@ -253,107 +249,22 @@ def reads_back_as_string(text: str) -> bool:
             assert_never(node)
 
 
-class _EventStream:
-    """The events of a block, read lazily, one at a time, with one event of lookahead.
+def _document_line(block_line: int) -> LineNumber:
+    r"""The document line a line of the block is.
 
-    The events come from ruamel.yaml's pure-Python reader, scanner and parser. The value is built from them by this
-    module, never by ruamel.yaml's loader or constructor, so no tag ruamel.yaml resolves and no type it constructs
-    is ever involved. They are read lazily, so a block that fails stops being read where it fails, and the constructs
-    the scanner recorded by then are the ones written above the failure.
+    The reader ends a line where `core/lines.py` does, at a `\n`, a `\r\n` or a lone `\r`, so its count is the
+    document's.
+
+    Args:
+        block_line: The line as the reader's mark counts it, from 0 at the block's first line.
     """
-
-    def __init__(self, block: str) -> None:
-        """Start reading `block`. No character is read until the first event is asked for.
-
-        Args:
-            block: The YAML text to parse.
-        """
-        # Setting the reader and the scanner already selects the pure parser; `pure` states the intent, so a
-        # change in how ruamel.yaml chooses its parser cannot bring the C one, which has no reader of ours, in.
-        yaml = YAML(typ='safe', pure=True)
-        yaml.Reader = BasicYamlReader
-        yaml.Scanner = BasicYamlScanner
-        yaml.Parser = BasicYamlParser
-        self._block = block
-        self._events: Iterator[Event] = iter(yaml.parse(block))
-        self._peeked: Event | None = None
-        self._yaml = yaml
-
-    def peek_event(self) -> Event:
-        """The next event, left unread.
-
-        Raises:
-            MarkedYAMLError: The block is not valid YAML.
-            ReaderError: The block holds a character YAML does not allow, such as a control character.
-        """
-        if self._peeked is None:
-            self._peeked = next(self._events)
-        return self._peeked
-
-    def document_line(self, block_line: int) -> LineNumber:
-        r"""The document line a line of the block is.
-
-        The reader ends a line where `core/lines.py` does, at a `\n`, a `\r\n` or a lone `\r`, so its count is the
-        document's.
-
-        Args:
-            block_line: The line as the reader's mark counts it, from 0 at the block's first line.
-        """
-        # The block starts on document line 2, below the opening delimiter.
-        return LineNumber(NonZeroUnsignedInt(block_line + _FIRST_BLOCK_LINE))
-
-    def first_refusal(self) -> RecordedRefusal | None:
-        """The first construct the scanner or the reader has recorded, in the order the block writes them, or `None`."""
-        scanner = self._yaml.scanner
-        reader = self._yaml.reader
-        if not isinstance(scanner, BasicYamlScanner) or not isinstance(reader, BasicYamlReader):
-            # The types are declared on the parser's base class; `_EventStream` always installs its own.
-            raise AssertionError("unreachable: the parser is built with `lorecraft.yaml`'s scanner and reader")
-        recorded = [*scanner.refusals[:1], *([reader.separator] if reader.separator is not None else [])]
-        if not recorded:
-            return None
-        return min(recorded, key=lambda refusal: refusal.mark.index)
-
-    def get_event(self) -> Event:
-        """The next event, read.
-
-        Raises:
-            MarkedYAMLError: The block is not valid YAML.
-            ReaderError: The block holds a character YAML does not allow, such as a control character.
-        """
-        event = self.peek_event()
-        self._peeked = None
-        return event
-
-    def written_tag(self, event: ScalarEvent | SequenceStartEvent | MappingStartEvent) -> str:
-        """The tag a node carries, spelled as the block writes it.
-
-        The parser hands over a tag resolved against its handles, so `!!!str` arrives as the tag `!!str` and a tag
-        in a flow collection can take the comma after it. The block's own text is what the author wrote.
-
-        Args:
-            event: The event of a node that carries a tag and no anchor. Its start mark is where the tag begins
-                only then, because an anchor written first would start the node, so `_peek_node_start` refuses
-                an anchor before it asks for the tag.
-        """
-        mark = event.start_mark
-        if mark is None:
-            # An event's mark is optional only in its constructor's signature: the parser marks every event it emits.
-            raise AssertionError('unreachable: ruamel.yaml marks every event it parses')
-        return written_token(self._block, mark.index)
-
-    def check_event(self, *kinds: type[Event]) -> bool:
-        """Whether the next event is of one of `kinds`, leaving it unread.
-
-        Args:
-            kinds: The event classes to test for.
-        """
-        return isinstance(self.peek_event(), kinds)
+    # The block starts on document line 2, below the opening delimiter.
+    return LineNumber(NonZeroUnsignedInt(block_line + _FIRST_BLOCK_LINE))
 
 
 def _invalid_refusal(
     refusal: RecordedRefusal | Refusal,
-    stream: _EventStream,
+    stream: YamlEventStream,
 ) -> InvalidYamlFrontmatter:
     """The facts about a block that writes a construct frontmatter leaves out: the problem, and its line.
 
@@ -362,9 +273,7 @@ def _invalid_refusal(
         stream: The block's events, which turns the construct's line into a document line.
     """
     refusal_help = refusal.help if isinstance(refusal, RecordedRefusal) else None
-    return InvalidYamlFrontmatter(
-        problem=refusal.problem, line=stream.document_line(refusal.mark.line), help=refusal_help
-    )
+    return InvalidYamlFrontmatter(problem=refusal.problem, line=_document_line(refusal.mark.line), help=refusal_help)
 
 
 def _mark_of(event: Event) -> StreamMark:
@@ -380,7 +289,7 @@ def _mark_of(event: Event) -> StreamMark:
     return mark
 
 
-def _read_document(parser: _EventStream) -> Frontmatter | NonMappingFrontmatter:
+def _read_document(parser: YamlEventStream) -> Frontmatter | NonMappingFrontmatter:
     """Read the block's one document, if any, and decode it.
 
     Every value is read to its end even when the document is not a mapping, so a refused construct or a syntax
@@ -428,7 +337,7 @@ def _read_document(parser: _EventStream) -> Frontmatter | NonMappingFrontmatter:
     return node
 
 
-def _peek_node_start(parser: _EventStream) -> ScalarEvent | SequenceStartEvent | MappingStartEvent:
+def _peek_node_start(parser: YamlEventStream) -> ScalarEvent | SequenceStartEvent | MappingStartEvent:
     """The event the next value starts with, left unread, once it is known to use nothing basic YAML leaves out.
 
     Args:
@@ -453,7 +362,7 @@ def _peek_node_start(parser: _EventStream) -> ScalarEvent | SequenceStartEvent |
     return event
 
 
-def _read_value(parser: _EventStream, repeats: list[RepeatedKey]) -> Frozen:
+def _read_value(parser: YamlEventStream, repeats: list[RepeatedKey]) -> Frozen:
     """Read one value and everything in it, and decode it frozen: to a `FrozenMapping`, a tuple or a scalar.
 
     Args:
@@ -481,7 +390,7 @@ def _read_value(parser: _EventStream, repeats: list[RepeatedKey]) -> Frozen:
     return _scalar_value(event)
 
 
-def _read_mapping(parser: _EventStream, start: MappingStartEvent, repeats: list[RepeatedKey]) -> list[_Entry]:
+def _read_mapping(parser: YamlEventStream, start: MappingStartEvent, repeats: list[RepeatedKey]) -> list[_Entry]:
     """Read one mapping, every pair in the order it is written, a repeated key once per occurrence.
 
     The keys it and the mappings inside it write again are added to `repeats`, those of the inner ones first.
@@ -513,7 +422,9 @@ def _read_mapping(parser: _EventStream, start: MappingStartEvent, repeats: list[
     return entries
 
 
-def _read_sequence(parser: _EventStream, start: SequenceStartEvent, repeats: list[RepeatedKey]) -> tuple[Frozen, ...]:
+def _read_sequence(
+    parser: YamlEventStream, start: SequenceStartEvent, repeats: list[RepeatedKey]
+) -> tuple[Frozen, ...]:
     """Read one sequence, every item in the order it is written, as a tuple, the sequence that cannot change.
 
     Args:
@@ -539,7 +450,7 @@ def _read_sequence(parser: _EventStream, start: SequenceStartEvent, repeats: lis
     return tuple(items)
 
 
-def _read_key(parser: _EventStream) -> FrontmatterKey:
+def _read_key(parser: YamlEventStream) -> FrontmatterKey:
     """Read one key of a mapping, which must be a scalar that decodes to a string.
 
     Args:
@@ -564,10 +475,10 @@ def _read_key(parser: _EventStream) -> FrontmatterKey:
     if event.style is None and name == MERGE_KEY:
         # A plain `<<` is YAML 1.1's merge key, which pulls in the entries of the mapping an alias names.
         raise RefusedMergeKeyError(mark)
-    return FrontmatterKey(name=name, line=parser.document_line(mark.line))
+    return FrontmatterKey(name=name, line=_document_line(mark.line))
 
 
-def _refuse_nested_collection(parser: _EventStream, parent: SequenceStartEvent | MappingStartEvent) -> None:
+def _refuse_nested_collection(parser: YamlEventStream, parent: SequenceStartEvent | MappingStartEvent) -> None:
     """Refuse the next value when it is a collection `parent` does not hold.
 
     A flow collection holds no collection, and a block sequence holds no block sequence. A block mapping is the item
@@ -651,12 +562,12 @@ def _repeats(entries: list[_Entry]) -> list[RepeatedKey]:
     return repeats
 
 
-def _invalid_yaml(problem: SyntaxProblem, stream: _EventStream) -> InvalidYamlFrontmatter:
+def _invalid_yaml(problem: SyntaxProblem, stream: YamlEventStream) -> InvalidYamlFrontmatter:
     """The node for a syntax error: its label, help and line, as the block's document lines count them.
 
     Args:
         problem: The syntax error as lorecraft words it, on the line the reader counted.
         stream: The block's events, which turns that line into a document line.
     """
-    line = None if problem.line is None else stream.document_line(problem.line)
+    line = None if problem.line is None else _document_line(problem.line)
     return InvalidYamlFrontmatter(problem=problem.label, line=line, help=problem.help)
