@@ -111,7 +111,8 @@ class DuplicateRuleCodeError(RuntimeError):
     """Two declarations share a code, whichever their kinds: rules, removed rules or engine conditions.
 
     Attributes:
-        code: The code bound twice, as printed.
+        code: The code bound twice, as printed: the registry's index is keyed by that text, so the error carries
+            the key and not a `RuleCode` or an `EngineCode`.
         first: The declaration the code was bound to first.
         second: The declaration that bound it again.
     """
@@ -170,7 +171,8 @@ class DuplicateAliasCodeError(RuntimeError):
     """An alias code is listed twice, or is spelled as a code or a name.
 
     Attributes:
-        code: The alias code bound twice, as printed.
+        code: The alias code bound twice, as printed: it is the index's key, which a code or a name may already hold,
+            so it is not an `AliasCode`.
         first: The declaration the alias code was bound to first.
         second: The declaration that bound it again.
     """
@@ -249,86 +251,27 @@ class Registry:
             AbstractRuleError: If a rule class or an engine condition is still abstract.
             RuleInEngineGroupError: If a rule's or a removed rule's code is in the engine's group.
             DuplicateRuleCodeError: If a code is bound twice.
-            UnknownReplacementError: If a removed rule is replaced by a code no declaration holds.
             ConflictingRuleGroupError: If two codes give one prefix two different groups.
+            UnknownReplacementError: If a removed rule is replaced by a code no declaration holds.
             DuplicateRuleNameError: If a name is bound twice.
             DuplicateAliasCodeError: If an alias code is bound twice, or is already bound as a code or a name.
         """
         rule_classes, removed_rules, conditions = _split_by_kind(declarations)
 
-        for rule_class in rule_classes:
-            _require_attributes(rule_class, _RULE_ATTRIBUTES)
-        # The runner gates a rule over a document on the facet it declares, so one that declares none would never run.
-        for rule_class in rule_classes:
-            if issubclass(rule_class, DocumentRule):
-                _require_attributes(rule_class, _DOCUMENT_RULE_ATTRIBUTES)
-        for removed_rule in removed_rules:
-            _require_attributes(removed_rule, _REMOVED_RULE_ATTRIBUTES)
-        for condition in conditions:
-            _require_attributes(condition, _CONDITION_ATTRIBUTES)
-
-        for rule_class in rule_classes:
-            if inspect.isabstract(rule_class):
-                missing = tuple(sorted(rule_class.__abstractmethods__))
-                raise AbstractRuleError(rule_class, missing)
-        for condition in conditions:
-            if inspect.isabstract(condition):
-                missing = tuple(sorted(condition.__abstractmethods__))
-                raise AbstractRuleError(condition, missing)
-
-        # A rule is compared by prefix rather than by group, so one that retitles `LC` is refused as well.
-        for rule_class in rule_classes:
-            if rule_class.CODE.group.prefix == ENGINE_GROUP.prefix:
-                raise RuleInEngineGroupError(rule_class)
-        for removed_rule in removed_rules:
-            if removed_rule.CODE.group.prefix == ENGINE_GROUP.prefix:
-                raise RuleInEngineGroupError(removed_rule)
+        _reject_unbound_attributes_of_kinds(rule_classes, removed_rules, conditions)
+        _reject_abstract(rule_classes, conditions)
+        _reject_rules_in_engine_group(rule_classes, removed_rules)
 
         self._rules = tuple(sorted((*rule_classes, *removed_rules, *conditions), key=_printed_code))
         self._rules_in_service = tuple(sorted(rule_classes, key=_printed_code))
         self._by_key = {}
-        self._groups = {}
+        _index_codes(self._rules, self._by_key)
+        _reject_conflicting_groups(self._rules)
+        _reject_unknown_replacements(removed_rules, self._by_key)
+        self._groups = _index_groups(rule_classes, conditions)
 
-        groups: dict[RuleGroupPrefix, tuple[RuleGroup, RuleDeclaration]] = {}
-        for declaration in self._rules:
-            code = str(declaration.CODE)
-            first = self._by_key.get(code)
-            if first is not None:
-                raise DuplicateRuleCodeError(code, first, declaration)
-            self._by_key[code] = declaration
-
-            group = declaration.CODE.group
-            bound = groups.get(group.prefix)
-            if bound is None:
-                groups[group.prefix] = (group, declaration)
-            elif bound[0] != group:
-                raise ConflictingRuleGroupError(group.prefix, bound[1], declaration)
-
-        # Every code is bound, so a replacement is checked against all of them, whichever order the rules sit in.
-        for removed_rule in removed_rules:
-            replaced_by = removed_rule.REPLACED_BY
-            if replaced_by is not None and str(replaced_by) not in self._by_key:
-                raise UnknownReplacementError(removed_rule)
-
-        # A group whose every code is a removed rule holds nothing a run could select, so it is not found by its prefix.
-        # Keyed by the prefix as text: `find_group` looks up what a user typed, which need not be a valid prefix.
-        for declaration in (*rule_classes, *conditions):
-            self._groups[str(declaration.CODE.group.prefix)] = declaration.CODE.group
-
-        for declaration in self._rules:
-            name = str(declaration.NAME)
-            first = self._by_key.get(name)
-            if first is not None:
-                raise DuplicateRuleNameError(declaration.NAME, first, declaration)
-            self._by_key[name] = declaration
-
-        for rule_class in sorted(rule_classes, key=_printed_code):
-            for alias in rule_class.ALIASES:
-                code = str(alias)
-                first = self._by_key.get(code)
-                if first is not None:
-                    raise DuplicateAliasCodeError(code, first, rule_class)
-                self._by_key[code] = rule_class
+        _index_names(self._rules, self._by_key)
+        _index_alias_codes(rule_classes, self._by_key)
 
     @classmethod
     def load(cls, package: ModuleType) -> Self:
@@ -343,8 +286,8 @@ class Registry:
             AbstractRuleError: If a rule class or an engine condition declared in the package is still abstract.
             RuleInEngineGroupError: If a rule's or a removed rule's code is in the engine's group.
             DuplicateRuleCodeError: If a code is bound twice.
-            UnknownReplacementError: If a removed rule is replaced by a code no declaration holds.
             ConflictingRuleGroupError: If two codes give one prefix two different groups.
+            UnknownReplacementError: If a removed rule is replaced by a code no declaration holds.
             DuplicateRuleNameError: If a name is bound twice.
             DuplicateAliasCodeError: If an alias code is bound twice, or is already bound as a code or a name.
             Exception: Whatever a module of the package raises as it is imported, unchanged, since a registry
@@ -476,7 +419,7 @@ def _split_by_kind(
     return tuple(rule_classes), tuple(removed_rules), tuple(conditions)
 
 
-def _require_attributes(declaration: RuleDeclaration, attributes: tuple[str, ...]) -> None:
+def _reject_unbound_attributes(declaration: RuleDeclaration, attributes: tuple[str, ...]) -> None:
     """Reject a declaration that leaves one of its kind's class attributes unbound.
 
     Args:
@@ -489,6 +432,183 @@ def _require_attributes(declaration: RuleDeclaration, attributes: tuple[str, ...
     for attribute in attributes:
         if not hasattr(declaration, attribute):
             raise UnsetRuleAttributeError(declaration, attribute)
+
+
+def _reject_unbound_attributes_of_kinds(
+    rule_classes: tuple[type[Rule], ...],
+    removed_rules: tuple[type[RemovedRule], ...],
+    conditions: tuple[type[FileCondition | EntryCondition], ...],
+) -> None:
+    """Reject a declaration of any kind that leaves a class attribute its kind requires unbound.
+
+    Args:
+        rule_classes: The rules in service.
+        removed_rules: The removed rules.
+        conditions: The engine conditions.
+
+    Raises:
+        UnsetRuleAttributeError: If a declaration leaves a required attribute unbound.
+    """
+    for rule_class in rule_classes:
+        _reject_unbound_attributes(rule_class, _RULE_ATTRIBUTES)
+    # The runner gates a rule over a document on the facet it declares, so one that declares none would never run.
+    for rule_class in rule_classes:
+        if issubclass(rule_class, DocumentRule):
+            _reject_unbound_attributes(rule_class, _DOCUMENT_RULE_ATTRIBUTES)
+    for removed_rule in removed_rules:
+        _reject_unbound_attributes(removed_rule, _REMOVED_RULE_ATTRIBUTES)
+    for condition in conditions:
+        _reject_unbound_attributes(condition, _CONDITION_ATTRIBUTES)
+
+
+def _reject_abstract(
+    rule_classes: tuple[type[Rule], ...],
+    conditions: tuple[type[FileCondition | EntryCondition], ...],
+) -> None:
+    """Reject a rule class or an engine condition that still leaves a method abstract.
+
+    Args:
+        rule_classes: The rules in service.
+        conditions: The engine conditions.
+
+    Raises:
+        AbstractRuleError: If one is abstract, naming the first in the given order.
+    """
+    for declaration in (*rule_classes, *conditions):
+        if inspect.isabstract(declaration):
+            missing = tuple(sorted(declaration.__abstractmethods__))
+            raise AbstractRuleError(declaration, missing)
+
+
+def _reject_rules_in_engine_group(
+    rule_classes: tuple[type[Rule], ...],
+    removed_rules: tuple[type[RemovedRule], ...],
+) -> None:
+    """Reject a rule or a removed rule whose code is in the engine's group.
+
+    A rule is compared by prefix rather than by group, so one that retitles `LC` is refused as well.
+
+    Args:
+        rule_classes: The rules in service.
+        removed_rules: The removed rules.
+
+    Raises:
+        RuleInEngineGroupError: If one has its code in the engine's group.
+    """
+    for declaration in (*rule_classes, *removed_rules):
+        if declaration.CODE.group.prefix == ENGINE_GROUP.prefix:
+            raise RuleInEngineGroupError(declaration)
+
+
+def _index_codes(declarations: tuple[RuleDeclaration, ...], by_key: dict[str, RuleDeclaration]) -> None:
+    """Add each declaration's printed code to the index, the first of its keys.
+
+    Args:
+        declarations: The declarations to index.
+        by_key: The index to add to.
+
+    Raises:
+        DuplicateRuleCodeError: If a code is bound twice.
+    """
+    for declaration in declarations:
+        code = str(declaration.CODE)
+        first = by_key.get(code)
+        if first is not None:
+            raise DuplicateRuleCodeError(code, first, declaration)
+        by_key[code] = declaration
+
+
+def _index_groups(
+    rule_classes: tuple[type[Rule], ...],
+    conditions: tuple[type[EngineCondition], ...],
+) -> dict[str, RuleGroup]:
+    """Key each group a run could select by its prefix.
+
+    A group whose every code is a removed rule holds nothing a run could select, so it is not found by its prefix.
+    The key is the prefix as text: `find_group` looks up what a user typed, which need not be a valid prefix.
+
+    Args:
+        rule_classes: The rules in service.
+        conditions: The engine conditions.
+    """
+    return {str(declaration.CODE.group.prefix): declaration.CODE.group for declaration in (*rule_classes, *conditions)}
+
+
+def _reject_conflicting_groups(declarations: tuple[RuleDeclaration, ...]) -> None:
+    """Reject two declarations that give one prefix two different groups.
+
+    Args:
+        declarations: The declarations to compare, in code order.
+
+    Raises:
+        ConflictingRuleGroupError: If a prefix has two groups, naming the declaration that bound it first.
+    """
+    groups: dict[RuleGroupPrefix, tuple[RuleGroup, RuleDeclaration]] = {}
+    for declaration in declarations:
+        group = declaration.CODE.group
+        bound = groups.get(group.prefix)
+        if bound is None:
+            groups[group.prefix] = (group, declaration)
+        elif bound[0] != group:
+            raise ConflictingRuleGroupError(group.prefix, bound[1], declaration)
+
+
+def _reject_unknown_replacements(
+    removed_rules: tuple[type[RemovedRule], ...],
+    by_key: dict[str, RuleDeclaration],
+) -> None:
+    """Reject a removed rule replaced by a code no declaration holds.
+
+    Every code is bound by now, so a replacement is checked against all of them, whichever order the rules sit in.
+
+    Args:
+        removed_rules: The removed rules.
+        by_key: The declarations by printed code.
+
+    Raises:
+        UnknownReplacementError: If a replacement is not a held code.
+    """
+    for removed_rule in removed_rules:
+        replaced_by = removed_rule.REPLACED_BY
+        if replaced_by is not None and str(replaced_by) not in by_key:
+            raise UnknownReplacementError(removed_rule)
+
+
+def _index_names(declarations: tuple[RuleDeclaration, ...], by_key: dict[str, RuleDeclaration]) -> None:
+    """Add each declaration's name to the index, beside the codes.
+
+    Args:
+        declarations: The declarations to index, in code order.
+        by_key: The index to add to.
+
+    Raises:
+        DuplicateRuleNameError: If a name is bound twice, or is already bound as a code.
+    """
+    for declaration in declarations:
+        name = str(declaration.NAME)
+        first = by_key.get(name)
+        if first is not None:
+            raise DuplicateRuleNameError(declaration.NAME, first, declaration)
+        by_key[name] = declaration
+
+
+def _index_alias_codes(rule_classes: tuple[type[Rule], ...], by_key: dict[str, RuleDeclaration]) -> None:
+    """Add each rule's alias codes to the index, beside the codes and names.
+
+    Args:
+        rule_classes: The rules in service.
+        by_key: The index to add to.
+
+    Raises:
+        DuplicateAliasCodeError: If an alias code is bound twice, or is already bound as a code or a name.
+    """
+    for rule_class in sorted(rule_classes, key=_printed_code):
+        for alias in rule_class.ALIASES:
+            code = str(alias)
+            first = by_key.get(code)
+            if first is not None:
+                raise DuplicateAliasCodeError(code, first, rule_class)
+            by_key[code] = rule_class
 
 
 def _printed_code(declaration: RuleDeclaration) -> str:
