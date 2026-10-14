@@ -87,7 +87,7 @@ decide."""
 
 
 class LinkedLayoutError(Error):
-    """A directory the layout fixes, ``docs/`` or ``docs/__meta__/``, is a symlink.
+    """A directory the layout fixes, `docs/` or `docs/__meta__/`, is a symlink.
 
     Attributes:
         path: The root-relative directory that is a symlink.
@@ -101,10 +101,10 @@ class LinkedLayoutError(Error):
 
 
 def reject_linked_layout(fs: FileSystem) -> None:
-    """Refuse a view in which ``docs/`` or ``docs/__meta__/`` is a symlink.
+    """Refuse a view in which `docs/` or `docs/__meta__/` is a symlink.
 
-    Under ``docs/`` a snapshot records a symlink and never reads through it. Behind a linked ``docs/`` or
-    ``docs/__meta__/`` it therefore holds no specification, and the model loaded from it has no corpus: a
+    Under `docs/` a snapshot records a symlink and never reads through it. Behind a linked `docs/` or
+    `docs/__meta__/` it therefore holds no specification, and the model loaded from it has no corpus: a
     command would report a clean run over a repository it never read. A root with neither directory is not
     refused; it declares nothing, which is a model with no corpora.
 
@@ -112,7 +112,7 @@ def reject_linked_layout(fs: FileSystem) -> None:
         fs: View of the repository whose `docs/` and `docs/__meta__/` entries are inspected, not followed.
 
     Raises:
-        LinkedLayoutError: If ``docs/`` is a symlink, or else if ``docs/__meta__/`` is one.
+        LinkedLayoutError: If `docs/` is a symlink, or else if `docs/__meta__/` is one.
         EntryInspectError: If the disk view cannot inspect either directory.
         RecordedEntryInspectError: If the snapshot recorded that the scan could not inspect either directory; it
             records one only on the chain of a link, and neither directory is one.

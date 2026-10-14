@@ -1,12 +1,12 @@
 """What each field of a skill's frontmatter holds once it is parsed, keyed by the field it was read from.
 
-``SkillFrontmatterSchema`` says what is wrong with a frontmatter; this module says what is right with it. Each field
+`SkillFrontmatterSchema` says what is wrong with a frontmatter; this module says what is right with it. Each field
 is parsed on its own, so a field that conforms is available even when another one is rejected: a rule over the
-``allowed-tools`` field has no reason to go silent because the ``name`` is misspelt. A field that is not written, is
+`allowed-tools` field has no reason to go silent because the `name` is misspelt. A field that is not written, is
 null, is not of the type the specification asks for, or is rejected by its value object, has no entry.
 
-The ``allowed-tools`` text is split into the entries it lists, each one a well-formed ``AllowedTool`` or a
-``MalformedEntry`` saying what is wrong with it, so a rule reads what the field holds instead of the raw text.
+The `allowed-tools` text is split into the entries it lists, each one a well-formed `AllowedTool` or a
+`MalformedEntry` saying what is wrong with it, so a rule reads what the field holds instead of the raw text.
 """
 
 from collections.abc import Callable

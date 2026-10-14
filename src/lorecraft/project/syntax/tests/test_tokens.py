@@ -1,6 +1,6 @@
-"""Counting a text's ``o200k_base`` tokens from the vocabulary shipped in the package, never downloaded.
+"""Counting a text's `o200k_base` tokens from the vocabulary shipped in the package, never downloaded.
 
-The expected counts are what OpenAI's own ``tiktoken.get_encoding('o200k_base')`` returns for the same text; they
+The expected counts are what OpenAI's own `tiktoken.get_encoding('o200k_base')` returns for the same text; they
 are literals here because that call downloads the vocabulary, and no test reaches the network.
 """
 
@@ -15,7 +15,7 @@ from lorecraft.core.num import UnsignedInt
 from ..tokens import count_tokens
 
 O200K_BASE_SHA256: Final[str] = '446a9538cb6c348e3516120d7c08b09f57c36495e2acfffe59a5bf8b0cfb1a2d'
-"""The hash tiktoken checks OpenAI's published ``o200k_base.tiktoken`` against, in `tiktoken_ext/openai_public.py`."""
+"""The hash tiktoken checks OpenAI's published `o200k_base.tiktoken` against, in `tiktoken_ext/openai_public.py`."""
 
 
 @pytest.mark.unit

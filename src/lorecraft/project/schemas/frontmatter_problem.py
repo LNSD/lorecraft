@@ -1,15 +1,15 @@
 """What a frontmatter schema says is wrong with one frontmatter, in the one shape every schema reports in.
 
 Two kinds of schema govern a frontmatter: the JSON Schema a structure specification states for a corpus, which
-``FrontmatterSchema`` applies with ``jsonschema``, and the Agent Skills specification, which
-``SkillFrontmatterSchema`` applies with pydantic. Each translates its validator's errors into
-``FrontmatterProblem`` values at its own seam, so a check reads the same shape from either and never reads a
+`FrontmatterSchema` applies with `jsonschema`, and the Agent Skills specification, which
+`SkillFrontmatterSchema` applies with pydantic. Each translates its validator's errors into
+`FrontmatterProblem` values at its own seam, so a check reads the same shape from either and never reads a
 validator's error record.
 
 Each cause is its own class. A problem on a top-level field names it; the one cause that concerns no field, a
-rule over the whole block, has no ``field`` at all. Besides what is wrong, a problem carries what the schema
+rule over the whole block, has no `field` at all. Besides what is wrong, a problem carries what the schema
 states that tells a reader how to put it right, as typed data: the field's description and an example, the
-values it allows, the types it expects, the limit it sets. The prose a validator words is kept as ``message``,
+values it allows, the types it expects, the limit it sets. The prose a validator words is kept as `message`,
 for the one cause no typed constraint describes.
 """
 
@@ -160,7 +160,7 @@ class UnknownFieldProblem:
 class WrongTypeProblem:
     """The field's value is of a type the schema does not accept.
 
-    Each schema states the type it expects in its own terms, a JSON Schema ``type`` keyword or a field of the Agent
+    Each schema states the type it expects in its own terms, a JSON Schema `type` keyword or a field of the Agent
     Skills specification, so the message names the type expected.
 
     Attributes:

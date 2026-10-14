@@ -1,7 +1,7 @@
 """Decoding the YAML of a frontmatter block into its node: every outcome and the line of each key.
 
-``decode_frontmatter`` is pure and takes the lines between the delimiters, so every case here is a block
-literal whose first line is document line 2. Finding the block in a document is covered in ``test_document``.
+`decode_frontmatter` is pure and takes the lines between the delimiters, so every case here is a block
+literal whose first line is document line 2. Finding the block in a document is covered in `test_document`.
 """
 
 import sys

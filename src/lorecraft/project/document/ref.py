@@ -1,7 +1,7 @@
 """A document's identity in the workspace model, separate from its content.
 
 The model lists which documents exist; their text stays behind the document repository and is read on
-demand. A ``DocumentRef`` is the key that ties the two together, and its ``path`` is the root-relative
+demand. A `DocumentRef` is the key that ties the two together, and its `path` is the root-relative
 location every finding reports.
 """
 
@@ -19,7 +19,7 @@ class DocumentRef:
 
     Attributes:
         corpus: The corpus directory name under docs/.
-        filename: The Markdown filename stem; the frontmatter ``name`` must equal it.
+        filename: The Markdown filename stem; the frontmatter `name` must equal it.
     """
 
     corpus: CorpusName
@@ -27,7 +27,7 @@ class DocumentRef:
 
     @property
     def path(self) -> RootRelativePath:
-        """Root-relative ``docs/<corpus>/<filename>.md``; the report path in findings."""
+        """Root-relative `docs/<corpus>/<filename>.md`; the report path in findings."""
         # A corpus name is validated snake case and a filename stem a validated aspect name, so both are components.
         return (
             DOCS_DIR / PathComponent.parse(str(self.corpus)) / PathComponent.parse(f'{self.filename}{DOCUMENT_SUFFIX}')

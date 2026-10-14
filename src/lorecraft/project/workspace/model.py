@@ -247,7 +247,7 @@ class Corpus:
 
     @property
     def directory(self) -> RootRelativePath:
-        """Root-relative ``docs/<name>``, the directory the corpus's documents sit directly inside."""
+        """Root-relative `docs/<name>`, the directory the corpus's documents sit directly inside."""
         # A corpus name is validated snake case, so it is a valid component.
         return DOCS_DIR / PathComponent.parse(str(self.name))
 
@@ -273,10 +273,10 @@ class WorkspaceModel:
         corpora: Every corpus, by name.
         skills_dirs: Every project skills directory an agent reads that the repository has, one record per
             agent and directory. Two agents reading one resolved directory are two records with the same
-            ``resolves_to``.
+            `resolves_to`.
         skill_locations: The location of every skill directly inside the directories those resolve to,
-            by the skill's ref; ``skills()`` lists the refs alone, and ``skill_agents`` says which
-            agents read one. A skill belongs to no corpus, so no spec governs it and ``documents()`` does not
+            by the skill's ref; `skills()` lists the refs alone, and `skill_agents` says which
+            agents read one. A skill belongs to no corpus, so no spec governs it and `documents()` does not
             list it. The locations, not the refs, record where each link leads, so two models differ when a
             link is retargeted even though every ref is the same.
         outside_symlinks: Every skills directory an agent declares, entry in a resolved skills directory, and
@@ -433,7 +433,7 @@ class WorkspaceModel:
             ref: Skill whose skills directory is matched against each skills directory's resolved directory.
 
         Returns:
-            The agents in name order, each once, or ``()`` when no skills directory leads there.
+            The agents in name order, each once, or `()` when no skills directory leads there.
         """
         agents: list[AgentName] = []
         for skills_dir in self.sorted_skills_dirs:

@@ -59,7 +59,7 @@ class Repository:
     def list_spec_paths(self) -> list[RootRelativePath]:
         """List the root-relative path of every regular file in the directory, sorted by name.
 
-        Nothing is parsed here: the caller parses each path with ``parse_spec_file``, and decides what to do
+        Nothing is parsed here: the caller parses each path with `parse_spec_file`, and decides what to do
         with a file whose name is not a specification filename. A missing directory lists as nothing.
 
         Raises:

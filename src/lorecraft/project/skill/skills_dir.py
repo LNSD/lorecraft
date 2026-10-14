@@ -1,6 +1,6 @@
 """A skills directory an agent reads in a repository, as the workspace model records it.
 
-Which directories an agent reads is the agent's own statement, in ``lorecraft.agents``. The model records the
+Which directories an agent reads is the agent's own statement, in `lorecraft.agents`. The model records the
 ones a repository actually has, each tied to the agent that reads it, so nothing above the model has to ask the
 agents again or guess whose a directory is.
 """

@@ -24,11 +24,11 @@ class Heading:
 
     Attributes:
         level: The heading depth, 1 for a title through 6.
-        text: The heading's plain text, inline markup stripped, so ``**Checklist**`` reads ``Checklist``.
+        text: The heading's plain text, inline markup stripped, so `**Checklist**` reads `Checklist`.
         line: The document line the heading starts on.
         empty: True when nothing follows the heading before the next heading of the same or a higher level,
             or before the end of the document. A deeper heading opens a subsection, which is content.
-        words: The prose words in the section the heading opens, up to the same boundary as ``empty``: a
+        words: The prose words in the section the heading opens, up to the same boundary as `empty`: a
             subsection's prose counts toward it, and no heading's own text does. Code blocks and table rows
             are not prose.
     """

@@ -140,7 +140,7 @@ class SkillRef:
 
     @property
     def path(self) -> RootRelativePath:
-        """Root-relative ``<directory>/SKILL.md``; the report path in findings."""
+        """Root-relative `<directory>/SKILL.md`; the report path in findings."""
         return self.directory / SKILL_ENTRY
 
     def find_resource(self, path: SkillRelativePath) -> 'SkillResourceRef | None':
