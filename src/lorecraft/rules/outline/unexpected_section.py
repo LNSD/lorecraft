@@ -21,12 +21,12 @@ class UnexpectedSection(DocumentRule):
 
     ## What it does
 
-    Checks for documents that write a section their structure specification's `outline` does not name, in a place
+    Checks for documents that write a section their structure file's `outline` does not name, in a place
     no `{"any": true}` entry of the outline covers. The section is reported where it stands, which is either where
     the outline expects a section the document only writes further down, or after the outline's end.
 
     Only the first place a document stops following its outline is reported, since every section after it is
-    compared with an entry it was never meant to match. A document that more than one specification governs, such
+    compared with an entry it was never meant to match. A document that more than one meta spec governs, such
     as a corpus and a namespace, must follow each outline, and is reported once for each it breaks.
 
     ## Why is this bad?
@@ -85,7 +85,7 @@ class UnexpectedSection(DocumentRule):
     ```
 
     Attributes:
-        spec: The structure specification whose outline does not allow the section.
+        spec: The structure file whose outline does not allow the section.
         section: The heading text of the section the outline does not name, which the occurrence is reported at.
         placement: The section the outline places there instead, with the heading where the document writes it
             further down; or the end of the outline, with the last section it matched, when the section comes
@@ -127,7 +127,7 @@ class UnexpectedSection(DocumentRule):
                 assert_never(placement)
 
     def children(self) -> tuple[Subdiagnostic, ...]:
-        """Point at the specification whose outline does not allow the section, and say where its content goes."""
+        """Point at the meta spec whose outline does not allow the section, and say where its content goes."""
         return (spec_note(self.spec), Help('move its content under a section the outline names, or remove it'))
 
     @classmethod

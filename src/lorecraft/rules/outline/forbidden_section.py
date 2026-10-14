@@ -1,4 +1,4 @@
-"""`OUT005`: a section a structure specification forbids appears in the document."""
+"""`OUT005`: a section a structure file forbids appears in the document."""
 
 from dataclasses import dataclass
 from typing import ClassVar, Self, assert_never
@@ -17,20 +17,20 @@ from .__ruleset__ import GROUP_ID, spec_note
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
 class ForbiddenSection(DocumentRule):
-    """A section a structure specification forbids appears in the document.
+    """A section a structure file forbids appears in the document.
 
     ## What it does
 
-    Checks for H2 sections whose heading text is one of the names a document's structure specification lists under
+    Checks for H2 sections whose heading text is one of the names a document's structure file lists under
     `forbidden`. Only H2 headings are sections: a title or a deeper heading of the same text is not reported. Every
     occurrence is reported, so a forbidden section written twice is reported twice.
 
-    A document that more than one specification governs, such as a corpus and a namespace, is reported once for
-    each specification that forbids the section.
+    A document that more than one meta spec governs, such as a corpus and a namespace, is reported once for
+    each meta spec that forbids the section.
 
     ## Why is this bad?
 
-    A specification forbids a section because what it would hold belongs elsewhere, or nowhere: a changelog kept in
+    A meta spec forbids a section because what it would hold belongs elsewhere, or nowhere: a changelog kept in
     the version history, or a history of the document that an agent reads as a current rule. Written anyway, the
     section is read as part of the document.
 
@@ -71,7 +71,7 @@ class ForbiddenSection(DocumentRule):
     ```
 
     Attributes:
-        spec: The structure specification that forbids the section.
+        spec: The structure file that forbids the section.
         section: The text of the forbidden section's heading.
     """
 
@@ -89,17 +89,17 @@ class ForbiddenSection(DocumentRule):
         return f'section `{self.section}` is forbidden'
 
     def children(self) -> tuple[Subdiagnostic, ...]:
-        """Point at the specification that forbids the section, and say to remove it."""
+        """Point at the meta spec that forbids the section, and say to remove it."""
         return (spec_note(self.spec), Help('remove the section'))
 
     @classmethod
     def check(cls, subject: DocumentContext) -> tuple[Self, ...]:
-        """One occurrence, at its heading, for each forbidden H2 section under each specification that forbids it.
+        """One occurrence, at its heading, for each forbidden H2 section under each meta spec that forbids it.
 
-        The specifications are taken in the order they apply, and the headings of each in document order.
+        The meta specs are taken in the order they apply, and the headings of each in document order.
 
         Args:
-            subject: The document, governed by a structure specification.
+            subject: The document, governed by a structure file.
         """
         occurrences: list[Self] = []
         for alignment in subject.outline_alignment():

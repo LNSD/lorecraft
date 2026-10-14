@@ -1,23 +1,23 @@
 ---
 name: "OUT002-extra-title"
-description: "A document a structure specification governs carries more than one H1 title"
+description: "A document a structure file governs carries more than one H1 title"
 code: "OUT002"
 since: "0.3.0"
 ---
 
 # extra-title (OUT002)
 
-A document a structure specification governs carries more than one H1 title.
+A document a structure file governs carries more than one H1 title.
 
 ## What it does
 
 Checks for documents with more than one `#` H1 heading, and reports each H1 after the first at its own heading,
 pointing back at the first: the first is the document's title, and every one after it is extra. Every document
-a structure specification governs is held to it, with no key to state it: the specification need not mention
+a structure file governs is held to it, with no key to state it: the meta spec need not mention
 the title at all. Only a heading at the top level of the document counts: one inside a list or a blockquote does
 not.
 
-A document that more than one specification governs, such as a corpus and a namespace, has each extra title
+A document that more than one meta spec governs, such as a corpus and a namespace, has each extra title
 reported once.
 
 ## Why is this bad?
