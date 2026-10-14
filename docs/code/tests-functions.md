@@ -26,6 +26,10 @@ but not whether the checker returned the wrong findings, returned none, or raise
 makes the failure legible without opening the file, and it is also what forces the author to decide what the
 test is actually asserting before writing it.
 
+The condition is left out only when the unit takes no input that varies between cases, as with a property of a
+value that has one form: `test_message_names_the_missing_section`. A filler such as `with_an_occurrence` names no
+condition and is not written.
+
 `test_` at the start is pytest's collection requirement, not a description; the word "test" never appears
 again in the name.
 
@@ -53,8 +57,8 @@ Every test body is three labelled parts in order, marked `#: Given`, `#: When` a
 are keyword-only: nothing follows the keyword on that line, and prose goes on the next line as an ordinary
 comment.
 
-**The form is chosen for grep and for tooling, not for decoration.** Keyword-only means one pattern matches
-every marker and nothing else, and `#:` survives `ruff format` — which inserts a space after `#` unless the
+**The form is chosen for grep and tooling.** Keyword-only means one pattern matches every marker and
+nothing else, and `#:` survives `ruff format` — which inserts a space after `#` unless the
 next character is one of `" !:#'"` — while containing no regex metacharacter, so the pattern needs no
 escaping:
 
@@ -62,28 +66,18 @@ escaping:
 ^\s*#: (Given|When|Then)$
 ```
 
-`#:` is also Sphinx's attribute-documentation comment, which is harmless here and worth knowing the shape
-of: Sphinx reads a `#:` comment only above a module-level or class-level assignment, or above a `self.x`
-assignment in a method. A marker above a local inside a test function is never one of those, and this
-repository has no documentation toolchain at all. Keep the markers to test bodies and the two conventions
-never meet.
-
 | Marker | Holds |
 |---|---|
-| `#: Given` | Preconditions: locals bound from fixtures, constructed inputs, the literals the case turns on |
-| `#: When` | **Exactly one** call — the thing under test, and nothing else |
-| `#: Then` | Assertions, and the reads that observe a side effect of that call |
+| `#: Given` | Preconditions: locals bound from fixtures, constructed inputs, the literals the case turns on, and expected values that take a call |
+| `#: When` | **Exactly one** call to the unit under test, its arguments names and literals |
+| `#: Then` | Assertions, and plain reads of what that call returned or changed |
 
 All three appear in every test, without exception. A test that constructs nothing still has a precondition, so
 `#: Given` binds it to a named local: the empty string, the id, the value the case turns on. Naming it is what
 leaves `#: When` holding the call alone, and what makes the scenario in the test's name findable in its body.
 
-What each assertion under `#: Then` checks, and the message it carries, is owned by
-[tests-assertions](tests-assertions.md).
-
-A second call under `#: When` means a failure names neither call. Logic under `#: Then` hides what is being
-verified: a value transformed before it is asserted on is either setup, and belongs in `#: Given`, or evidence
-that the test covers two behaviours ([§3](#3-one-behaviour-per-test)).
+What each marker may hold beyond that is [§3](#3-what-each-marker-may-hold). What each assertion under
+`#: Then` checks, and the message it carries, is owned by [tests-assertions](tests-assertions.md).
 
 Two pytest idioms and where they fall:
 
@@ -94,30 +88,15 @@ Two pytest idioms and where they fall:
 
 ```python
 # ✅ Good — one call under When, and Then only asserts
-def test_detailed_version_with_a_commit_reports_it_under_the_short_line(self) -> None:
+def test_parse_with_a_known_code_returns_the_key_as_written(self) -> None:
     #: Given
-    # a description as `git describe` returns it on a dirty tree
-    commit = 'v0.1.0-2-g93b1ed1-dirty'
+    raw = 'OUT004'
 
     #: When
-    text = detailed_version(commit)
+    key = RuleKey.parse(raw)
 
     #: Then
-    assert text.splitlines()[1] == 'Commit:   v0.1.0-2-g93b1ed1-dirty'
-```
-
-```python
-# ✅ Good — nothing to construct, so Given names the literal the case turns on
-def test_register_with_a_name_already_taken_raises_duplicate_command_error(self) -> None:
-    #: Given
-    name = 'version'
-
-    #: When
-    with pytest.raises(DuplicateCommandError) as exc_info:
-        register(name)(_other_handler)
-
-    #: Then
-    assert exc_info.value.name == name
+    assert key.text == 'OUT004'
 ```
 
 ```python
@@ -140,21 +119,76 @@ def test_version_command_matches_the_option(self) -> None:
     #: Then
     assert from_option.output == from_command.output
 
+```
 
-# ❌ Bad — the transformation under Then is setup, and it hides what is asserted
+## 3. What Each Marker May Hold
+
+**`#: When` takes names and literals only.** An argument built by a call is bound under `#: Given` first, so a failure
+has nowhere to hide. A curried call is split the same way: the outer call is bound under `#: Given`
+and the call that does the work is the `#: When`.
+
+**`#: Then` reads; it does not compute.** It may bind locals by decoding (`json.loads`), by a lookup or accessor
+on the result (`model.find_corpus(CODE)`), and by attribute and index access, each taking names and literals. A
+loop, a comprehension, a conditional or a string method (`.strip()`, `.split()`) is not written there; a value
+that must lose fields before it is compared goes through a module-level helper whose docstring says what it
+keeps. Logic under `#: Then` hides what is verified, or is a second behaviour ([§4](#4-one-behaviour-per-test)).
+
+**An expected value is built where it reads best, unless it takes behaviour.** The assertion may build it inline
+from constructors of plain value types — dataclasses, tuples, `frozenset` — whose arguments are names and
+literals. A value that takes a production function, a fixture or a snapshot is bound under `#: Given`. A parity
+test binds the reference implementation's answer so, and `#: When` asks only the one under test.
+
+**`#: Given` asserts only to narrow.** An `assert` there narrows a type `#: Given` built, for the type checker,
+with a message stating the precondition: `assert isinstance(source, DocumentText), 'the document is UTF-8, so
+it decodes'`. Any other assertion belongs under `#: Then`.
+
+```python
+# ✅ Good — the outer call builds the decorator under Given; applying it is the call under test
+def test_register_with_a_name_already_taken_raises_duplicate_command_error(self) -> None:
+    #: Given
+    name = 'version'
+    # `register` raises when its decorator is applied, not when it is called
+    decorate = register(name)
+
+    #: When
+    with pytest.raises(DuplicateCommandError) as exc_info:
+        decorate(_other_handler)
+
+    #: Then
+    assert exc_info.value.name == name
+```
+
+```python
+# ✅ Good — a parity test: the reference answer is a precondition, the view under test is the call
+def test_list_dir_over_a_snapshot_with_the_docs_listing_agrees_with_disk(self, parity_tree: Path) -> None:
+    #: Given
+    disk = DiskFileSystem(parity_tree)
+    virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
+    path = RootRelativePath.parse('docs')
+    expected = _answer(disk.list_dir, path)
+
+    #: When
+    actual = _answer(virtual.list_dir, path)
+
+    #: Then
+    assert actual == expected, 'docs lists the same entries over the snapshot'
+```
+
+```python
+# ❌ Bad — an argument built inside When, and a projection computed inline under Then
 def test_detailed_version_reports_the_install_path(self) -> None:
     #: Given
     commit = None
 
     #: When
-    text = detailed_version(commit)
+    text = detailed_version(normalise(commit))
 
     #: Then
     install_line = next(line for line in text.splitlines() if line.startswith('Install:'))
     assert install_line.split(':', 1)[1].strip().endswith('lorecraft')
 ```
 
-## 3. One Behaviour Per Test
+## 4. One Behaviour Per Test
 
 A test exercises one behaviour and asserts on it. Several assertions about that one behaviour are fine — a
 returned report's finding count, its per-document breakdown, and its exit status are one outcome seen from
@@ -191,7 +225,7 @@ class TestReportWriterLifecycle:
         assert written == 10, f'expected 10 findings written, got {written}'
 ```
 
-## 4. Fixtures Declare Their Scope
+## 5. Fixtures Declare Their Scope
 
 Every `@pytest.fixture` states its scope explicitly, including `scope='function'`. A fixture that parses the
 checked-in fixture corpus, compiles a JSON Schema, or builds a meta spec registry is `scope='session'` or
@@ -202,7 +236,7 @@ Writing the default out loud is what makes the choice visible in review. The two
 and both expensive: a corpus fixture left at function scope re-parses every fixture document once per test and
 turns a two-second suite into two minutes, while a mutable fixture promoted to session scope leaks state
 between tests and produces the order-dependent failures
-[§6](#6-forbidden--sleeping-real-network-order-dependence) bans.
+[§7](#7-forbidden--sleeping-real-network-order-dependence) bans.
 
 A session-scoped fixture yields something **immutable or externally reset**: the parsed corpus is shared, but
 each test writes its own document under its own temp directory.
@@ -235,7 +269,7 @@ def draft_document(tmp_path: Path) -> Iterator[Path]:
     path.unlink()
 ```
 
-## 5. One Test Per Case
+## 6. One Test Per Case
 
 Each case is its own test function, named for its condition. Neither a `for` loop over cases,
 `@pytest.mark.parametrize`, nor a fixture with `params=` is written; a fixture that varies by case is one
@@ -320,7 +354,7 @@ case is added without touching the test. The exemption covers that suite alone, 
 [tests-organization](tests-organization.md#8-every-rule-code-has-a-trigger-and-a-near-miss-case) states the cases a
 rule needs.
 
-## 6. Forbidden — Sleeping, Real Network, Order Dependence
+## 7. Forbidden — Sleeping, Real Network, Order Dependence
 
 Three things are never written in a test, in any tier.
 
@@ -364,8 +398,12 @@ def test_check_corpus_with_twelve_malformed_documents_reports_twelve_findings(
 Before committing code, verify:
 
 - [ ] Every test sits in a `Test<Subject>` class named for what is under test
-- [ ] Every test function name has all three segments: unit, condition, and expectation
-- [ ] No test name contains "test" after the mandatory `test_` prefix
+- [ ] Every test name has unit, condition and expectation; only a unit with no varying input omits the condition
+- [ ] `#: When` holds one call to the unit under test, every argument a name or a literal
+- [ ] `#: Then` holds assertions and plain reads only; a projection goes through a documented module helper
+- [ ] An expected value that takes a production function, fixture or snapshot is bound under `#: Given`
+- [ ] Every `assert` under `#: Given` narrows a type `#: Given` built and states the precondition
+- [ ] No test name repeats "test" after the `test_` prefix
 - [ ] No test exercises a second behaviour it also asserts on — those are two tests
 - [ ] Every `@pytest.fixture` states `scope=` explicitly, including `scope='function'`
 - [ ] No session- or module-scoped fixture yields mutable per-test state
