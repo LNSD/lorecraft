@@ -6,7 +6,6 @@ from pathlib import Path
 import pytest
 
 from lorecraft.agents import AgentName
-from lorecraft.cli.workspace_tree import render_json, render_text
 from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.project.aspect import AspectFilename, AspectNamespace
@@ -15,6 +14,8 @@ from lorecraft.project.schemas import CorpusSpecName
 from lorecraft.project.skill import SkillLocation, SkillRef, SkillsDir
 from lorecraft.project.workspace import Corpus, CorpusNamespace, CorpusSpec, WorkspaceModel
 from lorecraft.vfs import ResolvedPath
+
+from ..workspace_tree import render_json, render_text
 
 
 def _path(raw: str) -> RootRelativePath:
