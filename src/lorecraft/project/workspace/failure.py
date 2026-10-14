@@ -18,8 +18,7 @@ from dataclasses import dataclass
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.schemas.name import SpecName
-from lorecraft.project.schemas.section_name import SectionName
-from lorecraft.project.schemas.structure import StructureSpecProblem
+from lorecraft.project.schemas.structure_failure import StructureSpecFailure
 from lorecraft.vfs import OsRefusal, Utf8Failure
 
 # The conditions of a structure file, which stands in its meta spec layer as a `FailedStructure`.
@@ -60,121 +59,9 @@ class NonUtf8StructureFile:
     failure: Utf8Failure
 
 
-@dataclass(frozen=True, slots=True)
-class UndecodableStructureSpec:
-    """The structure file is not JSON, or does not have the structure dialect's shape.
-
-    Attributes:
-        problems: Every problem found.
-    """
-
-    problems: tuple[StructureSpecProblem, ...]
-
-
-@dataclass(frozen=True, slots=True)
-class EmptyStructureSpec:
-    """The structure file states no rule, so it would check nothing."""
-
-
-@dataclass(frozen=True, slots=True)
-class RepeatedOutlineSections:
-    """The structure file's outline names one section more than once.
-
-    Attributes:
-        sections: The repeated section names, sorted.
-    """
-
-    sections: tuple[SectionName, ...]
-
-
-@dataclass(frozen=True, slots=True)
-class RepeatedForbiddenSections:
-    """The structure file forbids one section more than once.
-
-    Attributes:
-        sections: The repeated section names, sorted.
-    """
-
-    sections: tuple[SectionName, ...]
-
-
-@dataclass(frozen=True, slots=True)
-class ForbiddenOutlineSections:
-    """The structure file forbids a section its own outline names.
-
-    Attributes:
-        sections: The sections both named and forbidden, sorted.
-    """
-
-    sections: tuple[SectionName, ...]
-
-
-@dataclass(frozen=True, slots=True)
-class AdjacentAnyRuns:
-    """The structure file's outline places two `any` runs side by side."""
-
-
-@dataclass(frozen=True, slots=True)
-class InvalidTitlePattern:
-    """The structure file's title `pattern` is not a regular expression that compiles.
-
-    Attributes:
-        pattern: The pattern, exactly as written.
-        problem: What the compiler rejected.
-    """
-
-    pattern: str
-    problem: str
-
-
-@dataclass(frozen=True, slots=True)
-class InvalidFrontmatterSchema:
-    """The structure file's frontmatter schema is rejected by the Draft 2020-12 meta-schema.
-
-    Attributes:
-        problem: What the meta-schema rejected.
-    """
-
-    problem: str
-
-
-@dataclass(frozen=True, slots=True)
-class FrontmatterSchemaId:
-    """A schema inside the structure file's frontmatter schema carries `$id`, which would make it a resource."""
-
-
-@dataclass(frozen=True, slots=True)
-class ForeignFrontmatterDialect:
-    """A schema inside the structure file's frontmatter schema names another dialect than Draft 2020-12.
-
-    Attributes:
-        dialect: What the schema's `$schema` holds, as it spells it.
-    """
-
-    dialect: str
-
-
-@dataclass(frozen=True, slots=True)
-class UntypedFrontmatterSchema:
-    """The structure file's frontmatter schema root does not state `"type": "object"`."""
-
-
 # Every condition a structure file fails with.
 type StructureLoadFailure = (
-    UnreadableStructureFile
-    | UnrecordedStructureFile
-    | NonUtf8StructureFile
-    | UndecodableStructureSpec
-    | EmptyStructureSpec
-    | RepeatedOutlineSections
-    | RepeatedForbiddenSections
-    | ForbiddenOutlineSections
-    | AdjacentAnyRuns
-    | InvalidTitlePattern
-    | InvalidFrontmatterSchema
-    | FrontmatterSchemaId
-    | ForeignFrontmatterDialect
-    | UntypedFrontmatterSchema
+    UnreadableStructureFile | UnrecordedStructureFile | NonUtf8StructureFile | StructureSpecFailure
 )
 
 

@@ -117,12 +117,12 @@ from .structure import (
     StructureSchema,
     StructureSpec,
     StructureSpecDecodeError,
-    StructureSpecProblem,
     TitleChecks,
     TitlePattern,
     UntypedFrontmatterSchemaError,
     WordCappedTitleChecks,
 )
+from .structure_failure import StructureSpecProblem
 from .structure_file import StructureFile
 
 __all__: list[str] = [

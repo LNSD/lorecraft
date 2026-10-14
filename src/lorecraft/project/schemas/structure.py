@@ -134,6 +134,7 @@ from .schema_keyword import (
 )
 from .section_name import SectionName
 from .spec_file import SpecFileType, StructureSpecFile, spec_filename
+from .structure_failure import StructureSpecProblem
 from .structure_file import (
     JSON_SCHEMA_DIALECT,
     StructureFile,
@@ -145,26 +146,6 @@ from .structure_file import (
 # The text of a structure specification file as read, not yet known to be JSON, the dialect's shape or usable
 # rules. A NewType only keeps it apart from other text; `StructureSpec.parse` is what proves it.
 StructureSchema = NewType('StructureSchema', str)
-
-
-@dataclass(frozen=True, slots=True)
-class StructureSpecProblem:
-    """One problem found in a structure specification file, read from the validation error.
-
-    Attributes:
-        location: The field the problem concerns, as the keys and indexes that lead to it from the file's root; empty
-            when the problem is about the file as a whole.
-        message: What is wrong there.
-    """
-
-    location: tuple[str | int, ...]
-    message: str
-
-    def __str__(self) -> str:
-        """The problem as ``<field path>: <message>``, or the bare message when it has no location."""
-        if not self.location:
-            return self.message
-        return f'{".".join(str(part) for part in self.location)}: {self.message}'
 
 
 class StructureSpecDecodeError(Error):
