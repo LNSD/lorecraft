@@ -1,5 +1,6 @@
 """`FM011`, `malformed-allowed-tools`, over a skill's `allowed-tools` frontmatter field."""
 
+from textwrap import dedent
 from typing import Final
 
 import pytest
@@ -25,16 +26,28 @@ SPECIFICATION_NOTE: Final[Note] = Note(
 
 def _skill_allowing(value: str) -> FakeSkillContext:
     """A skill whose `allowed-tools`, on line 4, holds the value."""
-    return FakeSkillContext(f'---\nname: review\ndescription: Review a change.\nallowed-tools: "{value}"\n---\n')
+    text = dedent(f"""\
+        ---
+        name: review
+        description: Review a change.
+        allowed-tools: "{value}"
+        ---
+        """)
+    return FakeSkillContext(text)
 
 
 @pytest.mark.unit
 class TestMalformedAllowedTools:
     def test_check_with_comma_separator_reports_the_bad_entry_and_accepts_pattern_comma(self) -> None:
         #: Given
-        subject = FakeSkillContext(
-            '---\nname: review\ndescription: Review a change.\nallowed-tools: Read, Bash(git log --format=%h,%s)\n---\n'
-        )
+        text = dedent("""\
+            ---
+            name: review
+            description: Review a change.
+            allowed-tools: Read, Bash(git log --format=%h,%s)
+            ---
+            """)
+        subject = FakeSkillContext(text)
 
         #: When
         occurrences = MalformedAllowedTools.check(subject)
@@ -46,9 +59,14 @@ class TestMalformedAllowedTools:
 
     def test_check_with_an_unbalanced_pattern_reports_the_whole_entry(self) -> None:
         #: Given
-        subject = FakeSkillContext(
-            '---\nname: review\ndescription: Review a change.\nallowed-tools: Bash(git diff *\n---\n'
-        )
+        text = dedent("""\
+            ---
+            name: review
+            description: Review a change.
+            allowed-tools: Bash(git diff *
+            ---
+            """)
+        subject = FakeSkillContext(text)
 
         #: When
         occurrences = MalformedAllowedTools.check(subject)
@@ -60,9 +78,14 @@ class TestMalformedAllowedTools:
 
     def test_check_with_text_after_a_pattern_reports_the_entry(self) -> None:
         #: Given
-        subject = FakeSkillContext(
-            '---\nname: review\ndescription: Review a change.\nallowed-tools: Bash(git *)tail\n---\n'
-        )
+        text = dedent("""\
+            ---
+            name: review
+            description: Review a change.
+            allowed-tools: Bash(git *)tail
+            ---
+            """)
+        subject = FakeSkillContext(text)
 
         #: When
         occurrences = MalformedAllowedTools.check(subject)
@@ -74,7 +97,7 @@ class TestMalformedAllowedTools:
 
     def test_check_with_empty_value_reports_it(self) -> None:
         #: Given
-        subject = FakeSkillContext('---\nname: review\ndescription: Review a change.\nallowed-tools: "  "\n---\n')
+        subject = _skill_allowing('  ')
 
         #: When
         occurrences = MalformedAllowedTools.check(subject)
@@ -95,7 +118,7 @@ class TestMalformedAllowedTools:
     )
     def test_check_with_a_well_formed_list_reports_nothing(self, value: str) -> None:
         #: Given
-        subject = FakeSkillContext(f'---\nname: review\ndescription: Review a change.\nallowed-tools: "{value}"\n---\n')
+        subject = _skill_allowing(value)
 
         #: When
         occurrences = MalformedAllowedTools.check(subject)
@@ -105,7 +128,13 @@ class TestMalformedAllowedTools:
 
     def test_check_with_no_field_reports_nothing(self) -> None:
         #: Given
-        subject = FakeSkillContext('---\nname: review\ndescription: Review a change.\n---\n')
+        text = dedent("""\
+            ---
+            name: review
+            description: Review a change.
+            ---
+            """)
+        subject = FakeSkillContext(text)
 
         #: When
         occurrences = MalformedAllowedTools.check(subject)
