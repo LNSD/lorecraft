@@ -77,9 +77,9 @@ package is a directory directly under a root that is not a root itself, `lorecra
 `lorecraft/<pkg>/`. An import whose target sits inside the importing module's own top-level package is
 relative: `from .report import OutlineReport`, `from ..registry import CheckerRegistry`. An import whose target
 sits outside it is absolute: another top-level package, a module directly in a root, or a root itself, as in
-`from lorecraft.project.layout import SNAPSHOT_SCOPE`. A module directly in a root has no top-level package,
-so every library import it makes is absolute; so is every import from one root into another, and every import
-in a test outside `src/`. A unit test co-located in a `tests/` subpackage is part of the package it sits in and
+`from lorecraft.project.layout import SNAPSHOT_SCOPE`. A module directly in a root imports the root's other
+direct modules relatively and any top-level package, even its own root's, absolutely. Imports between roots,
+and in tests outside `src/`, are absolute. A unit test co-located in a `tests/` subpackage is part of the package it sits in and
 follows the same rule as that package's code ([tests-organization](tests-organization.md) §2). A layer imports
 only the layers below it in the contract, which `just check` runs: a library never imports the command line,
 which sits above every library, and `lorecraft.core`, the base every other layer builds on, imports none at
@@ -109,6 +109,16 @@ from lorecraft.project.layout import SNAPSHOT_SCOPE
 
 from .rerun import affected
 ```
+
+```python
+# ✅ Good — in lorecraft/rules/registry.py, directly in the rules root: another root by
+# name, a sibling module by dot
+from lorecraft.core.error import Error
+
+from .declaration import RuleDeclaration
+```
+
+Review checks the form; ruff's `TID252` cannot tell which package a dot stays in.
 
 ## 4. A Relative Import Stops at Two Dots
 
@@ -263,16 +273,16 @@ from .outline import OutlineChecker  # noqa
 from .outline import OutlineChecker  # noqa: F401 — re-exported as package surface
 ```
 
-**A `noqa` naming a rule that is not in the select list is dead and must be deleted.** Ruff's select list is
-`E`, `F`, `I`, `B`; a `# noqa: UP007` or `# noqa: TRY400` suppresses nothing, because nothing was going to
+**A `noqa` naming a rule that is not in the select list is dead and must be deleted.** The select list is
+`[tool.ruff.lint]` in the root `pyproject.toml`; a `noqa` naming a rule outside it, such as `# noqa: TRY400`,
+suppresses nothing, because nothing was going to
 fire. It is worse than no comment: it tells a reader the line was reviewed against a rule that has never run
 here, so a genuine violation of the same kind elsewhere looks like an oversight rather than the norm.
 
 ```python
-# ❌ Bad — UP006 is not selected, so this suppresses nothing. It reads as "we know, it
+# ❌ Bad — SIM108 is not selected, so this suppresses nothing. It reads as "we know, it
 # is deliberate", which is exactly the impression the line should not give
-def check_all(documents: List[Document]) -> None:  # noqa: UP006 — legacy signature
-    ...
+level = 'error' if strict else 'warning'  # noqa: SIM108 — kept as one expression
 ```
 
 ## 9. Import Ordering Is Ruff's
@@ -290,7 +300,7 @@ Before committing code, verify:
 - [ ] No module or package name starts with a single underscore
 - [ ] Each concrete exception sits beside the code that raises it
 - [ ] An import inside `src/`, co-located tests included, is relative exactly when its target is in
-      the importing module's own top-level package; every other library import is absolute
+      its own top-level package or, from a module directly in a root, a sibling there; else absolute
 - [ ] A layer imports only the layers below it; `lorecraft.core` imports none
 - [ ] No relative import uses three or more dots; such a target is imported absolutely
 - [ ] Every package `__init__.py` that re-exports declares `__all__` as a list of string literals matching
@@ -300,8 +310,7 @@ Before committing code, verify:
       comment naming its purpose
 - [ ] An optional backend is `None`-guarded in `__init__.py` and raises
       `ImportError('<pkg> package required. Install with: pip install <pkg>')` in the constructor
-- [ ] Every `# noqa` names a rule code and a reason after an em dash, and no `noqa` names a rule outside
-      `E`, `F`, `I`, `B`
+- [ ] Every `# noqa` names a rule code and a reason after an em dash, and the rule is selected
 - [ ] Imports are in ruff's order because the formatter put them there, not because they were hand-sorted
 
 ## References

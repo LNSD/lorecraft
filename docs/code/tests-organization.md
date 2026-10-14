@@ -56,7 +56,8 @@ it tests, moves with it, and changes in the same diff.
 
 **Belonging to the package is what gives the test its reach.** A co-located test imports its subject from
 the module itself, by the rule the package's own code follows ([python-modules](python-modules.md) §3):
-relatively inside a top-level package, absolutely for a module directly in a root. It can
+relatively inside a top-level package, and relatively from a root's own `tests/` to a module directly in that
+root, `from ..registry import Registry`. It can
 therefore reach names the package's `__all__` does not re-export. The `it` and `e2e` tiers stay outside
 `src/`, because their job is to exercise the surface a user imports.
 

@@ -196,7 +196,8 @@ the next, and the reviewed snapshot fails on CI alone.
 
 ```python
 # ✅ Good — a dumb terminal 80 columns wide draws the same help on every machine
-PLAIN_TERMINAL: Final[dict[str, str | None]] = {'TERM': 'dumb', 'COLUMNS': '80'}
+PLAIN_TERMINAL: Final[Mapping[str, str | None]] = MappingProxyType({'TERM': 'dumb', 'COLUMNS': '80'})
+runner = CliRunner()
 
 
 def test_outline_with_help_prints_the_description_and_stops_before_raises(self, snapshot: SnapshotAssertion) -> None:

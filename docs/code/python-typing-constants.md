@@ -21,6 +21,12 @@ Every module-level name whose value is fixed once the module is imported is anno
 constants and values computed at import included. A table built by a function call at import is as constant as
 a literal, and the annotation says so.
 
+Three module-level names are not constants in this sense and take no `Final`. `__all__` is owned by
+[python-modules](python-modules.md#5-__all__-declares-a-packages-surface). The module `logger` is owned by
+[logging](logging.md) and is written `logger = logging.getLogger(__name__)`. A stateless helper instance a module
+shares, such as a test module's `runner = CliRunner()`, is a tool rather than a value, and is lower case without
+`Final`.
+
 A plain annotation lets any module rebind the name, and a test that patches it, or an assignment that meant to
 shadow it locally, changes the value for every caller in the process. `Final` turns that rebinding into a
 `just check-types` failure.
@@ -90,7 +96,8 @@ than a constant, and it is not annotated `Final`. The registry's shape is owned 
 
 Before committing code, verify:
 
-- [ ] Every new or changed module-level constant, private and computed ones included, is annotated `Final[...]`
+- [ ] Every new or changed module-level constant, private and computed ones included, is annotated `Final[...]`;
+      `__all__`, `logger` and a stateless helper instance are not
 - [ ] No `Final` is bare; the type inside the brackets is spelled out
 - [ ] Every `Final` collection is a `tuple`, `frozenset`, or `MappingProxyType`, annotated with a read-only type,
       and no mutable module-level registry is annotated `Final`
