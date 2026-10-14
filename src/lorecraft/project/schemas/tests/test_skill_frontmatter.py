@@ -33,23 +33,35 @@ class _Named(BaseModel):
 
 @pytest.mark.unit
 class TestSkillName:
-    @pytest.mark.parametrize(
-        'raw',
-        [
-            pytest.param('pdf-processing', id='hyphenated'),
-            pytest.param('v2', id='letters-and-digits'),
-            pytest.param('a' * 64, id='at-the-limit'),
-        ],
-    )
-    def test_parse_with_a_valid_name_keeps_it_as_written(self, raw: str) -> None:
+    def test_parse_with_a_hyphenated_name_keeps_it_as_written(self) -> None:
         #: Given
-        expected = raw
+        raw = 'pdf-processing'
 
         #: When
         name = SkillName.parse(raw)
 
         #: Then
-        assert name.value == expected, 'the spelling is kept'
+        assert name.value == raw, 'the spelling is kept'
+
+    def test_parse_with_a_letters_and_digits_name_keeps_it_as_written(self) -> None:
+        #: Given
+        raw = 'v2'
+
+        #: When
+        name = SkillName.parse(raw)
+
+        #: Then
+        assert name.value == raw, 'the spelling is kept'
+
+    def test_parse_with_a_name_at_the_limit_keeps_it_as_written(self) -> None:
+        #: Given
+        raw = 'a' * 64
+
+        #: When
+        name = SkillName.parse(raw)
+
+        #: Then
+        assert name.value == raw, 'the spelling is kept'
 
     def test_parse_with_an_empty_name_raises_empty_skill_name(self) -> None:
         #: Given
@@ -76,27 +88,81 @@ class TestSkillName:
         assert isinstance(exc_info.value.source, ValidationError), 'the broken rule is kept as the source'
         assert exc_info.value.source is exc_info.value.__cause__, 'the broken rule is the cause'
 
-    @pytest.mark.parametrize(
-        'raw',
-        [
-            pytest.param('PDF-Processing', id='uppercase'),
-            pytest.param('-pdf', id='leading-hyphen'),
-            pytest.param('pdf-', id='trailing-hyphen'),
-            pytest.param('pdf--processing', id='consecutive-hyphens'),
-            pytest.param('pdf_processing', id='underscore'),
-            pytest.param('café', id='non-ascii'),
-        ],
-    )
-    def test_parse_with_a_misformed_name_raises_invalid_skill_name_format(self, raw: str) -> None:
+    def test_parse_with_an_uppercase_name_raises_invalid_skill_name_format(self) -> None:
         #: Given
-        rejected = raw
+        raw = 'PDF-Processing'
 
         #: When
         with pytest.raises(InvalidSkillNameFormatError) as exc_info:
             SkillName.parse(raw)
 
         #: Then
-        assert exc_info.value.name == rejected, 'the error keeps the rejected name'
+        assert exc_info.value.name == raw, 'the error keeps the rejected name'
+        assert isinstance(exc_info.value.source, ValidationError), 'the broken rule is kept as the source'
+        assert exc_info.value.source is exc_info.value.__cause__, 'the broken rule is the cause'
+
+    def test_parse_with_a_leading_hyphen_raises_invalid_skill_name_format(self) -> None:
+        #: Given
+        raw = '-pdf'
+
+        #: When
+        with pytest.raises(InvalidSkillNameFormatError) as exc_info:
+            SkillName.parse(raw)
+
+        #: Then
+        assert exc_info.value.name == raw, 'the error keeps the rejected name'
+        assert isinstance(exc_info.value.source, ValidationError), 'the broken rule is kept as the source'
+        assert exc_info.value.source is exc_info.value.__cause__, 'the broken rule is the cause'
+
+    def test_parse_with_a_trailing_hyphen_raises_invalid_skill_name_format(self) -> None:
+        #: Given
+        raw = 'pdf-'
+
+        #: When
+        with pytest.raises(InvalidSkillNameFormatError) as exc_info:
+            SkillName.parse(raw)
+
+        #: Then
+        assert exc_info.value.name == raw, 'the error keeps the rejected name'
+        assert isinstance(exc_info.value.source, ValidationError), 'the broken rule is kept as the source'
+        assert exc_info.value.source is exc_info.value.__cause__, 'the broken rule is the cause'
+
+    def test_parse_with_consecutive_hyphens_raises_invalid_skill_name_format(self) -> None:
+        #: Given
+        raw = 'pdf--processing'
+
+        #: When
+        with pytest.raises(InvalidSkillNameFormatError) as exc_info:
+            SkillName.parse(raw)
+
+        #: Then
+        assert exc_info.value.name == raw, 'the error keeps the rejected name'
+        assert isinstance(exc_info.value.source, ValidationError), 'the broken rule is kept as the source'
+        assert exc_info.value.source is exc_info.value.__cause__, 'the broken rule is the cause'
+
+    def test_parse_with_an_underscore_raises_invalid_skill_name_format(self) -> None:
+        #: Given
+        raw = 'pdf_processing'
+
+        #: When
+        with pytest.raises(InvalidSkillNameFormatError) as exc_info:
+            SkillName.parse(raw)
+
+        #: Then
+        assert exc_info.value.name == raw, 'the error keeps the rejected name'
+        assert isinstance(exc_info.value.source, ValidationError), 'the broken rule is kept as the source'
+        assert exc_info.value.source is exc_info.value.__cause__, 'the broken rule is the cause'
+
+    def test_parse_with_a_non_ascii_name_raises_invalid_skill_name_format(self) -> None:
+        #: Given
+        raw = 'café'
+
+        #: When
+        with pytest.raises(InvalidSkillNameFormatError) as exc_info:
+            SkillName.parse(raw)
+
+        #: Then
+        assert exc_info.value.name == raw, 'the error keeps the rejected name'
         assert isinstance(exc_info.value.source, ValidationError), 'the broken rule is kept as the source'
         assert exc_info.value.source is exc_info.value.__cause__, 'the broken rule is the cause'
 
@@ -176,14 +242,25 @@ class TestSkillDescription:
         #: Then
         assert description.value == raw, 'the text is kept'
 
-    @pytest.mark.parametrize('raw', [pytest.param('', id='empty'), pytest.param('  \n', id='whitespace')])
-    def test_parse_with_a_blank_description_raises_empty_skill_description(self, raw: str) -> None:
+    def test_parse_with_an_empty_description_raises_empty_skill_description(self) -> None:
         #: Given
-        blank = raw
+        raw = ''
 
         #: When
         with pytest.raises(EmptySkillDescriptionError) as exc_info:
-            SkillDescription.parse(blank)
+            SkillDescription.parse(raw)
+
+        #: Then
+        assert isinstance(exc_info.value.source, ValidationError), 'the broken rule is kept as the source'
+        assert exc_info.value.source is exc_info.value.__cause__, 'the broken rule is the cause'
+
+    def test_parse_with_a_whitespace_only_description_raises_empty_skill_description(self) -> None:
+        #: Given
+        raw = '  \n'
+
+        #: When
+        with pytest.raises(EmptySkillDescriptionError) as exc_info:
+            SkillDescription.parse(raw)
 
         #: Then
         assert isinstance(exc_info.value.source, ValidationError), 'the broken rule is kept as the source'

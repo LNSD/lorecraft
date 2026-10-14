@@ -4,8 +4,6 @@ The `allowed-tools` entries are tested through `parse_allowed_tools`, since each
 judgement of it.
 """
 
-import pytest
-
 from lorecraft.project.syntax import parse_frontmatter
 
 from ..skill_fields import (
@@ -44,8 +42,30 @@ class TestParseSkillFields:
             'a field the specification rejects has no entry, and does not hold back its neighbours'
         )
 
-    @pytest.mark.parametrize('line', ['allowed-tools:', 'allowed-tools: 12', 'allowed-tools: [Read]'])
-    def test_parse_with_a_null_or_non_string_allowed_tools_holds_no_entry(self, line: str) -> None:
+    def test_parse_with_a_null_allowed_tools_holds_no_entry(self) -> None:
+        #: Given
+        line = 'allowed-tools:'
+
+        #: When
+        fields = _fields(line)
+
+        #: Then
+        assert fields == {}, 'only a string is an `allowed-tools` value'
+
+    def test_parse_with_a_number_as_allowed_tools_holds_no_entry(self) -> None:
+        #: Given
+        line = 'allowed-tools: 12'
+
+        #: When
+        fields = _fields(line)
+
+        #: Then
+        assert fields == {}, 'only a string is an `allowed-tools` value'
+
+    def test_parse_with_a_list_as_allowed_tools_holds_no_entry(self) -> None:
+        #: Given
+        line = 'allowed-tools: [Read]'
+
         #: When
         fields = _fields(line)
 
