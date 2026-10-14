@@ -1593,6 +1593,113 @@ class TestDecodeFrontmatter:
             'a chomping indicator is accepted, and only an indentation indicator is refused'
         )
 
+    def test_decode_frontmatter_with_an_unindented_block_sequence_returns_its_items(self) -> None:
+        #: Given
+        block = dedent("""\
+            tags:
+            - a
+            - 12
+            name: guide
+            """)
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert isinstance(node, Frontmatter), f'a YAML mapping is frontmatter, got {node!r}'
+        assert node.data == FrozenMapping({'tags': ('a', 12), 'name': 'guide'}), (
+            'a block sequence under its key, not indented, is a list of its scalar items'
+        )
+
+    def test_decode_frontmatter_with_a_plain_scalar_continued_on_indented_lines_returns_one_string(self) -> None:
+        #: Given
+        block = dedent("""\
+            title: A long
+              title that
+                runs on
+            name: guide
+            """)
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert isinstance(node, Frontmatter), f'a YAML mapping is frontmatter, got {node!r}'
+        assert node.data == FrozenMapping({'title': 'A long title that runs on', 'name': 'guide'}), (
+            'the lines of a plain scalar are folded into one string, joined by single spaces'
+        )
+
+    def test_decode_frontmatter_with_a_doubled_quote_in_a_single_quoted_scalar_returns_one_quote(self) -> None:
+        #: Given
+        block = "t: 'it''s'\n"
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert isinstance(node, Frontmatter), f'a YAML mapping is frontmatter, got {node!r}'
+        assert node.data == FrozenMapping({'t': "it's"}), 'a doubled single quote is one quote'
+
+    def test_decode_frontmatter_with_a_multi_line_single_quoted_scalar_returns_one_string(self) -> None:
+        #: Given
+        block = dedent("""\
+            t: 'first
+              second'
+            name: guide
+            """)
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert isinstance(node, Frontmatter), f'a YAML mapping is frontmatter, got {node!r}'
+        assert node.data == FrozenMapping({'t': 'first second', 'name': 'guide'}), (
+            'a single-quoted scalar continued on a more indented line is folded into one string'
+        )
+
+    def test_decode_frontmatter_with_a_double_quoted_scalar_with_escapes_returns_the_decoded_string(self) -> None:
+        #: Given
+        block = 't: "a\\tb\\u00e9"\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert isinstance(node, Frontmatter), f'a YAML mapping is frontmatter, got {node!r}'
+        assert node.data == FrozenMapping({'t': 'a\tbé'}), 'each escape is decoded to the character it names'
+
+    def test_decode_frontmatter_with_comments_and_blank_lines_returns_the_mapping_without_them(self) -> None:
+        #: Given
+        block = dedent("""\
+            # leading note
+            name: guide # after a node
+
+            # between keys
+            type: rule
+            """)
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == Frontmatter(
+            data=FrozenMapping({'name': 'guide', 'type': 'rule'}),
+            keys=(FrontmatterKey('name', LineNumber.from_int(3)), FrontmatterKey('type', LineNumber.from_int(6))),
+        ), 'a comment and a blank line are nothing, but they still count as lines'
+
+    def test_decode_frontmatter_with_a_bom_returns_the_mapping(self) -> None:
+        #: Given
+        block = '﻿name: guide\ntype: rule\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == Frontmatter(
+            data=FrozenMapping({'name': 'guide', 'type': 'rule'}),
+            keys=(FrontmatterKey('name', LineNumber.from_int(2)), FrontmatterKey('type', LineNumber.from_int(3))),
+        ), 'a BOM before the first line is not part of the first key'
+
     def test_decode_frontmatter_with_block_sequence_items_returns_them(self) -> None:
         #: Given
         block = dedent("""\
