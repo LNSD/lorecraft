@@ -133,7 +133,7 @@ class TestMissingSection:
         line = LineNumber(NonZeroUnsignedInt(9))
 
         #: When
-        with pytest.raises(TypeError):
+        with pytest.raises(TypeError) as exc_info:
             MissingSection(
                 spec=CORPUS_SPEC,
                 line=line,  # ty: ignore[unknown-argument]
@@ -145,6 +145,7 @@ class TestMissingSection:
 
         #: Then
         # the line is derived from `before`, so no caller can state one that disagrees with it
+        assert exc_info.type is TypeError, 'the occurrence takes no line of its own'
 
     def test_check_with_a_misplaced_section_reports_nothing(self) -> None:
         #: Given

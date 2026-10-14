@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Final
 
 import pytest
-from jsonschema import Draft202012Validator
+from jsonschema import Draft202012Validator, ValidationError
 
 REPOSITORY_ROOT: Final[Path] = Path(__file__).resolve().parents[2]
 SCHEMA_FILE: Final[Path] = REPOSITORY_ROOT / 'docs' / 'schemas' / 'structure.spec.json'
@@ -35,6 +35,29 @@ def _every_empty(found: Mapping[str, Sized]) -> bool:
     return all(not items for items in found.values())
 
 
+def _errors(validator: Draft202012Validator, spec: dict[str, object]) -> list[ValidationError]:
+    """Every error the validator finds in the specification, in the order it finds them.
+
+    Args:
+        validator: Validator of the structure specification schema.
+        spec: The specification to validate.
+    """
+    return list(validator.iter_errors(spec))
+
+
+def _messages_by_file(validator: Draft202012Validator, spec_files: list[Path]) -> dict[str, list[str]]:
+    """The messages of the errors the validator finds in each specification file, by file name.
+
+    Args:
+        validator: Validator of the structure specification schema.
+        spec_files: Specification files to read as JSON and validate.
+    """
+    return {
+        spec_file.name: [error.message for error in validator.iter_errors(json.loads(spec_file.read_text()))]
+        for spec_file in spec_files
+    }
+
+
 @pytest.mark.it
 class TestStructureSpecSchema:
     def test_structure_schema_when_checked_against_the_metaschema_is_well_formed(self) -> None:
@@ -54,10 +77,7 @@ class TestStructureSpecSchema:
         spec_files = sorted([*SPECS_DIR.glob('*.spec.json'), *SPECS_DIR.glob('*.structure.json')])
 
         #: When
-        schema_errors = {
-            spec_file.name: [error.message for error in validator.iter_errors(json.loads(spec_file.read_text()))]
-            for spec_file in spec_files
-        }
+        schema_errors = _messages_by_file(validator, spec_files)
 
         #: Then
         assert spec_files, 'the repository carries structure specifications, so the comparison is not vacuous'
@@ -72,7 +92,7 @@ class TestStructureSpecSchema:
         spec = {'frontmatter': {'type': 'object', 'required': ['name'], 'properties': {'name': {'type': 'string'}}}}
 
         #: When
-        errors = list(validator.iter_errors(spec))
+        errors = _errors(validator, spec)
 
         #: Then
         assert errors == [], 'an editor accepts a frontmatter schema stating an object type'
@@ -84,7 +104,7 @@ class TestStructureSpecSchema:
         spec = {'frontmatter': {'required': ['name']}}
 
         #: When
-        errors = list(validator.iter_errors(spec))
+        errors = _errors(validator, spec)
 
         #: Then
         assert errors, 'an editor refuses a frontmatter schema that leaves the object type implied'
@@ -96,7 +116,7 @@ class TestStructureSpecSchema:
         spec = {'frontmatter': {'type': 'object', 'required': 'name'}}
 
         #: When
-        errors = list(validator.iter_errors(spec))
+        errors = _errors(validator, spec)
 
         #: Then
         assert errors, 'an editor checks the frontmatter schema against the Draft 2020-12 meta-schema'
@@ -108,7 +128,7 @@ class TestStructureSpecSchema:
         spec = {'frontmatter': {'type': 'array'}}
 
         #: When
-        errors = list(validator.iter_errors(spec))
+        errors = _errors(validator, spec)
 
         #: Then
         assert errors, 'an editor refuses a frontmatter schema describing anything but an object'
@@ -120,7 +140,7 @@ class TestStructureSpecSchema:
         spec = {'frontmatter': {'type': ['object', 'null']}}
 
         #: When
-        errors = list(validator.iter_errors(spec))
+        errors = _errors(validator, spec)
 
         #: Then
         assert errors, 'an editor refuses a type list, even one naming object: the type is exactly "object"'
@@ -130,7 +150,7 @@ class TestStructureSpecSchema:
         spec = {'tokens': 100, 'frontmatter': None}
 
         #: When
-        errors = list(validator.iter_errors(spec))
+        errors = _errors(validator, spec)
 
         #: Then
         assert errors, 'an editor refuses null, as the load does: no rule is written by leaving the key out'
@@ -142,7 +162,7 @@ class TestStructureSpecSchema:
         spec = {'frontmatter': {'$id': 'https://example.com/code', 'type': 'object'}}
 
         #: When
-        errors = list(validator.iter_errors(spec))
+        errors = _errors(validator, spec)
 
         #: Then
         assert errors == [], 'no schema can refuse $id here, so the editor lets it through and the load refuses it'
@@ -154,7 +174,7 @@ class TestStructureSpecSchema:
         spec = {'frontmatter': {'$schema': 'http://json-schema.org/draft-07/schema#', 'type': 'object'}}
 
         #: When
-        errors = list(validator.iter_errors(spec))
+        errors = _errors(validator, spec)
 
         #: Then
         assert errors == [], 'the editor lets a foreign $schema through and the load refuses it'
@@ -164,7 +184,7 @@ class TestStructureSpecSchema:
         spec = {'outline': [{'section': ' Checklist'}]}
 
         #: When
-        errors = list(validator.iter_errors(spec))
+        errors = _errors(validator, spec)
 
         #: Then
         assert errors, 'an editor refuses a section name with whitespace at either end, as the load does'
@@ -174,7 +194,7 @@ class TestStructureSpecSchema:
         spec = {'forbidden': ['']}
 
         #: When
-        errors = list(validator.iter_errors(spec))
+        errors = _errors(validator, spec)
 
         #: Then
         assert errors, 'an editor refuses an empty section name, as the load does'
@@ -186,7 +206,7 @@ class TestStructureSpecSchema:
         spec = {'outline': [{'section': 'Code References'}], 'forbidden': ['Table of Contents']}
 
         #: When
-        errors = list(validator.iter_errors(spec))
+        errors = _errors(validator, spec)
 
         #: Then
         assert errors == [], 'whitespace inside a name is heading text, so the editor accepts it'
@@ -198,7 +218,7 @@ class TestStructureSpecSchema:
         spec = {'forbidden': ['Changelog', 'Changelog']}
 
         #: When
-        errors = list(validator.iter_errors(spec))
+        errors = _errors(validator, spec)
 
         #: Then
         assert errors, 'an editor refuses a repeated forbidden entry, which the load refuses too'

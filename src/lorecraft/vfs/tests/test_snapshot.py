@@ -437,11 +437,11 @@ class TestSnapshotRecords:
         snapshot_records = SnapshotRecords({})
 
         #: When
-        with pytest.raises(AttributeError):
+        with pytest.raises(AttributeError) as exc_info:
             snapshot_records.extra = 1  # type: ignore[attr-defined]  # ty: ignore[unresolved-attribute]
 
         #: Then
-        # The raise is the assertion: the records are an immutable value.
+        assert exc_info.type is AttributeError, 'the records are an immutable value'
 
     def test_init_with_a_record_below_a_path_that_is_not_recorded_keeps_the_records(self) -> None:
         #: Given

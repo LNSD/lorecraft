@@ -373,9 +373,11 @@ class TestCheckWithAFailedMetaSpec:
     def test_check_with_a_failed_meta_spec_prints_each_skipped_document_in_the_coverage(self, tmp_path: Path) -> None:
         #: Given
         root = _build_workspace(tmp_path, python_spec=STATES_NO_RULE)
+        app = build_app()
+        arguments = ['check', '--root', str(root), '--format', 'short']
 
         #: When
-        result = runner.invoke(build_app(), ['check', '--root', str(root), '--format', 'short'])
+        result = runner.invoke(app, arguments)
 
         #: Then
         lines = _lines(result.stdout)
@@ -524,9 +526,11 @@ class TestCheckWithAnUnlistableMetaDirectory:
     ) -> None:
         #: Given
         root = workspace_with_unlistable_meta_directory
+        app = build_app()
+        arguments = ['check', '--root', str(root), '--format', 'json']
 
         #: When
-        result = runner.invoke(build_app(), ['check', '--root', str(root), '--format', 'json'])
+        result = runner.invoke(app, arguments)
 
         #: Then
         assert result.exit_code == 2, 'with no meta spec known nothing can be checked, so the run is an error'

@@ -1013,9 +1013,10 @@ class TestLoadModel:
         (tmp_path / '.claude').mkdir()
         (tmp_path / '.claude' / 'skills').symlink_to('../.agents/skills')
         snapshot = take_snapshot(tmp_path, SNAPSHOT_SCOPE)
+        filesystem = VirtualFileSystem(snapshot)
 
         #: When
-        model = load_model(VirtualFileSystem(snapshot))
+        model = load_model(filesystem)
 
         #: Then
         assert model.sorted_skill_locations == (_skill_location('.agents/skills/review'),), (
@@ -1030,9 +1031,10 @@ class TestLoadModel:
         (tmp_path / '.agents' / 'skills').mkdir(parents=True)
         (tmp_path / '.agents' / 'skills' / 'review').symlink_to('../../skills/review')
         snapshot = take_snapshot(tmp_path, SNAPSHOT_SCOPE)
+        filesystem = VirtualFileSystem(snapshot)
 
         #: When
-        model = load_model(VirtualFileSystem(snapshot))
+        model = load_model(filesystem)
 
         #: Then
         assert model.sorted_skill_locations == (
@@ -1045,9 +1047,10 @@ class TestLoadModel:
         (tmp_path / '.agents' / 'skills' / 'review').mkdir(parents=True)
         (tmp_path / '.agents' / 'skills' / 'review' / 'SKILL.md').symlink_to('../../../shared/REVIEW.md')
         snapshot = take_snapshot(tmp_path, SNAPSHOT_SCOPE)
+        filesystem = VirtualFileSystem(snapshot)
 
         #: When
-        model = load_model(VirtualFileSystem(snapshot))
+        model = load_model(filesystem)
 
         #: Then
         assert model.sorted_skill_locations == (
@@ -1062,9 +1065,10 @@ class TestLoadModel:
         (tmp_path / '.claude').mkdir()
         (tmp_path / '.claude' / 'skills').symlink_to('../skills')
         snapshot = take_snapshot(tmp_path, SNAPSHOT_SCOPE)
+        filesystem = VirtualFileSystem(snapshot)
 
         #: When
-        model = load_model(VirtualFileSystem(snapshot))
+        model = load_model(filesystem)
 
         #: Then
         assert model.sorted_skill_locations == (_skill_location('skills/review'),), (
@@ -1828,11 +1832,13 @@ class TestLoadWorkspaceFailures:
             _write(root, 'docs/__meta__/code.structure.json', 'not json')
         ref = DocumentRef(CODE, AspectFilename.parse('logging'))
         first = load_model(DiskFileSystem(tmp_path)).find_governance(ref)
+        filesystem = DiskFileSystem(other)
 
         #: When
-        second = load_model(DiskFileSystem(other)).find_governance(ref)
+        model = load_model(filesystem)
 
         #: Then
+        second = model.find_governance(ref)
         assert first is not None, 'the document is governed'
         assert first == second, 'a failure compares by its path and condition, so the governances are equal'
 
@@ -1846,9 +1852,11 @@ class TestLoadWorkspaceFailures:
             _write(root, 'docs/__meta__/code.structure.json', content)
         ref = DocumentRef(CODE, AspectFilename.parse('logging'))
         first = load_model(DiskFileSystem(tmp_path)).find_governance(ref)
+        filesystem = DiskFileSystem(other)
 
         #: When
-        second = load_model(DiskFileSystem(other)).find_governance(ref)
+        model = load_model(filesystem)
 
         #: Then
+        second = model.find_governance(ref)
         assert first != second, 'a changed condition changes the governance, so what it governs is judged again'

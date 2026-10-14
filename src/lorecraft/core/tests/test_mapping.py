@@ -364,8 +364,11 @@ class TestFrozenMappingAsPydanticType:
         tree = FrozenMapping({'see': {'x'}})
 
         #: When
-        with pytest.raises(ValidationError):
+        with pytest.raises(ValidationError) as exc_info:
             _Model(tree=tree)  # ty: ignore[invalid-argument-type]
+
+        #: Then
+        assert exc_info.type is ValidationError, 'a held mapping holding a set is refused as invalid'
 
     def test_model_json_schema_states_the_object_of_the_dict(self) -> None:
         #: Given

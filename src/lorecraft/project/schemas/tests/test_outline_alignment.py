@@ -298,6 +298,9 @@ class TestOutlineAlignmentSpecAlignedSection:
         alignment = align_outlines((structure_spec,), document.headings)[0]
         stray = section_headings(parse_document('\n' * 99 + '## Stray\n').headings)[0]
 
-        #: When / Then
-        with pytest.raises(ValueError, match='no section of the aligned document'):
+        #: When
+        with pytest.raises(ValueError, match='no section of the aligned document') as exc_info:
             alignment.aligned_section(stray)
+
+        #: Then
+        assert exc_info.type is ValueError, 'a section of another document is refused as a bad value'
