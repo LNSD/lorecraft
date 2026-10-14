@@ -25,6 +25,7 @@ from lorecraft.project.schemas import (
     UnalignedSection,
     align_outlines,
 )
+from lorecraft.project.schemas.outline_alignment import AlignedSection
 from lorecraft.project.syntax import Heading, ParsedDocument
 from lorecraft.project.workspace import WorkspaceModel
 from lorecraft.vfs import Snapshot, VirtualFileSystem
@@ -125,6 +126,33 @@ def _counting(
     return counted
 
 
+def _specs(alignment: tuple[OutlineAlignmentSpec, ...]) -> list[RootRelativePath]:
+    """The structure specification file each part of an outline alignment belongs to, in the order given.
+
+    Args:
+        alignment: What `outline_alignment` returned, one part per governing specification.
+    """
+    return [aligned.spec for aligned in alignment]
+
+
+def _section_types(sections: tuple[AlignedSection, ...]) -> list[type[AlignedSection]]:
+    """The alignment kind of each section, in document order.
+
+    Args:
+        sections: Sections of one specification's alignment.
+    """
+    return [type(aligned) for aligned in sections]
+
+
+def _forbidden_flags(sections: tuple[AlignedSection, ...]) -> list[bool]:
+    """Whether each unaligned section is one the specification forbids, in document order.
+
+    Args:
+        sections: Sections of one specification's alignment; the aligned ones are left out.
+    """
+    return [aligned.forbidden for aligned in sections if isinstance(aligned, UnalignedSection)]
+
+
 @pytest.mark.it
 class TestOutlineAlignment:
     def test_outline_alignment_with_an_outlined_document_aligns_each_section_to_its_entry(self) -> None:
@@ -139,7 +167,8 @@ class TestOutlineAlignment:
         #: Then
         assert len(alignment) == 1, 'the one governing specification is aligned'
         assert alignment[0].spec == CORPUS_SPEC, 'it is the corpus specification'
-        assert [type(aligned) for aligned in alignment[0].sections] == [
+        sections = alignment[0].sections
+        assert _section_types(sections) == [
             NamedAlignment,
             AnyRunAlignment,
             NamedAlignment,
@@ -171,12 +200,12 @@ class TestOutlineAlignment:
 
         #: Then
         assert len(alignment) == 2, 'both specifications are aligned'
-        assert [aligned.spec for aligned in alignment] == [CORPUS_SPEC, NAMESPACE_SPEC], (
+        assert _specs(alignment) == [CORPUS_SPEC, NAMESPACE_SPEC], (
             'a specification that states no outline is aligned too, for the sections it forbids'
         )
         corpus_sections = alignment[0].sections
-        assert [type(aligned) for aligned in corpus_sections] == [UnalignedSection] * 3, 'it has no entry to align to'
-        assert [aligned.forbidden for aligned in corpus_sections if isinstance(aligned, UnalignedSection)] == [
+        assert _section_types(corpus_sections) == [UnalignedSection] * 3, 'it has no entry to align to'
+        assert _forbidden_flags(corpus_sections) == [
             False,
             True,
             False,

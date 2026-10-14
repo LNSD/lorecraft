@@ -7,6 +7,7 @@ is a well-formed schema, and that it accepts every skill this repository writes,
 """
 
 import json
+from collections.abc import Mapping, Sized
 from pathlib import Path
 from typing import Final
 
@@ -32,6 +33,15 @@ def repository_skills() -> list[Path]:
 def validator() -> Draft202012Validator:
     """A validator for the committed skill frontmatter schema."""
     return Draft202012Validator(json.loads(SCHEMA_FILE.read_text(encoding='utf-8')))
+
+
+def _every_empty(found: Mapping[str, Sized]) -> bool:
+    """Whether no name carries anything, such as an error or a problem.
+
+    Args:
+        found: What was found per name, one collection each.
+    """
+    return all(not items for items in found.values())
 
 
 @pytest.mark.it
@@ -66,7 +76,7 @@ class TestSkillFrontmatterSchema:
 
         #: Then
         assert data, 'the repository carries skills, so the comparison is not vacuous'
-        assert all(not errors for errors in schema_errors.values()), (
+        assert _every_empty(schema_errors), (
             f'every skill follows the specification, so the schema must accept them: {schema_errors}'
         )
 
@@ -82,6 +92,6 @@ class TestSkillFrontmatterSchema:
 
         #: Then
         assert data, 'the repository carries skills, so the comparison is not vacuous'
-        assert all(not found for found in problems.values()), (
+        assert _every_empty(problems), (
             f'every skill follows the specification, so the check must accept them as the schema does: {problems}'
         )

@@ -8,6 +8,7 @@ that it is a well-formed schema, that it accepts every specification this reposi
 """
 
 import json
+from collections.abc import Mapping, Sized
 from pathlib import Path
 from typing import Final
 
@@ -23,6 +24,15 @@ SPECS_DIR: Final[Path] = REPOSITORY_ROOT / 'docs' / '__meta__'
 def validator() -> Draft202012Validator:
     """A validator for the committed structure schema."""
     return Draft202012Validator(json.loads(SCHEMA_FILE.read_text(encoding='utf-8')))
+
+
+def _every_empty(found: Mapping[str, Sized]) -> bool:
+    """Whether no name carries anything, such as an error or a problem.
+
+    Args:
+        found: What was found per name, one collection each.
+    """
+    return all(not items for items in found.values())
 
 
 @pytest.mark.it
@@ -51,7 +61,7 @@ class TestStructureSpecSchema:
 
         #: Then
         assert spec_files, 'the repository carries structure specifications, so the comparison is not vacuous'
-        assert all(not errors for errors in schema_errors.values()), (
+        assert _every_empty(schema_errors), (
             f'the parser reads every one of them (`just check-docs`), so the schema must accept them: {schema_errors}'
         )
 

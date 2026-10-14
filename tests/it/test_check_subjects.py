@@ -103,7 +103,14 @@ from lorecraft.rules.outline.section_out_of_order import SectionOutOfOrder
 from lorecraft.rules.outline.title_not_first import TitleNotFirst
 from lorecraft.rules.outline.unexpected_section import UnexpectedSection
 from lorecraft.rules.registry import Registry
-from lorecraft.rules.report import CheckedDocument, CheckedSkillFile, RuleDiagnostic, UndecodableSubject
+from lorecraft.rules.report import (
+    CheckedDocument,
+    CheckedSkillFile,
+    RuleDiagnostic,
+    SubjectRef,
+    SubjectReport,
+    UndecodableSubject,
+)
 from lorecraft.rules.selection import AllRules, RuleSelection
 from lorecraft.rules.subject import DocumentRule, Facet
 from lorecraft.rules.table import RuleTable
@@ -522,6 +529,15 @@ def sample_table() -> RuleTable:
     )
 
 
+def _refs(reports: tuple[SubjectReport, ...]) -> list[SubjectRef]:
+    """The document, skill or resource each report is about, every report's, in the order the reports are given.
+
+    Args:
+        reports: Reports `check_subjects` returned.
+    """
+    return [report.ref for report in reports]
+
+
 @pytest.mark.it
 class TestCheckSubjects:
     def test_check_subjects_with_overlong_malformed_allowed_tools_reports_both_warnings(
@@ -817,7 +833,7 @@ class TestCheckSubjects:
         reports = check_subjects(database, (INTRO, GUIDE), package_table)
 
         #: Then
-        assert [report.ref for report in reports] == [INTRO, GUIDE], 'each document is reported in the order given'
+        assert _refs(reports) == [INTRO, GUIDE], 'each document is reported in the order given'
 
     def test_check_subjects_with_no_enabled_rule_over_the_token_count_never_counts_the_tokens(self) -> None:
         #: Given
