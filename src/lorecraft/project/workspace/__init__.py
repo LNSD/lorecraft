@@ -1,20 +1,24 @@
 """The workspace model and the loader that builds it through a filesystem view."""
 
-from .failure import (
+from lorecraft.project.schemas.structure_failure import (
     AdjacentAnyRuns,
     EmptyStructureSpec,
-    FailedStructure,
     ForbiddenOutlineSections,
     ForeignFrontmatterDialect,
     FrontmatterSchemaId,
     InvalidFrontmatterSchema,
     InvalidTitlePattern,
-    LoadFailure,
-    LoadFailureCondition,
-    NonUtf8StructureFile,
     RepeatedForbiddenSections,
     RepeatedOutlineSections,
     UndecodableStructureSpec,
+    UntypedFrontmatterSchema,
+)
+
+from .failure import (
+    FailedStructure,
+    LoadFailure,
+    LoadFailureCondition,
+    NonUtf8StructureFile,
     UninspectableSkillEntry,
     UninspectableSkillFile,
     UninspectableSkillsDirectory,
@@ -27,7 +31,6 @@ from .failure import (
     UnresolvableSkillEntry,
     UnresolvableSkillFile,
     UnresolvableSkillsDirectory,
-    UntypedFrontmatterSchema,
 )
 from .loader import load_model, load_workspace
 from .model import Corpus, CorpusNamespace, CorpusSpec, Governance, NamespaceSpec, Spec, WorkspaceModel

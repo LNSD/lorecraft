@@ -65,6 +65,19 @@ from lorecraft.project.schemas.structure import (
     StructureSpecDecodeError,
     UntypedFrontmatterSchemaError,
 )
+from lorecraft.project.schemas.structure_failure import (
+    AdjacentAnyRuns,
+    EmptyStructureSpec,
+    ForbiddenOutlineSections,
+    ForeignFrontmatterDialect,
+    FrontmatterSchemaId,
+    InvalidFrontmatterSchema,
+    InvalidTitlePattern,
+    RepeatedForbiddenSections,
+    RepeatedOutlineSections,
+    UndecodableStructureSpec,
+    UntypedFrontmatterSchema,
+)
 from lorecraft.project.skill.outside import OutsideSymlink
 from lorecraft.project.skill.ref import SkillLocation
 from lorecraft.project.skill.repo import Repository as SkillRepository
@@ -94,20 +107,10 @@ from lorecraft.vfs import (
 )
 
 from .failure import (
-    AdjacentAnyRuns,
-    EmptyStructureSpec,
     FailedStructure,
-    ForbiddenOutlineSections,
-    ForeignFrontmatterDialect,
-    FrontmatterSchemaId,
-    InvalidFrontmatterSchema,
-    InvalidTitlePattern,
     LoadFailure,
     NonUtf8StructureFile,
-    RepeatedForbiddenSections,
-    RepeatedOutlineSections,
     StructureLoadFailure,
-    UndecodableStructureSpec,
     UninspectableSkillEntry,
     UninspectableSkillFile,
     UninspectableSkillsDirectory,
@@ -120,7 +123,6 @@ from .failure import (
     UnresolvableSkillEntry,
     UnresolvableSkillFile,
     UnresolvableSkillsDirectory,
-    UntypedFrontmatterSchema,
 )
 from .model import Corpus, CorpusNamespace, CorpusSpec, WorkspaceModel, namespace_order_key
 
