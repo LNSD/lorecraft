@@ -105,6 +105,9 @@ _LINE_END_CHARACTERS: Final[str] = '\0\r\n\x85\u2028\u2029'
 _TOKEN_END_CHARACTERS: Final[str] = _SPACE_CHARACTERS + ',[]{}'
 """The characters that end an anchor, an alias or a tag as a block writes it: whitespace or a flow indicator."""
 
+_LINE_SEPARATORS: Final[str] = '\x85\u2028\u2029'
+"""The characters other YAML grammars end a line at, which `core/lines.py` does not: U+0085, U+2028 and U+2029."""
+
 _DIRECTIVE_NAME_END_CHARACTERS: Final[str] = _SPACE_CHARACTERS + ',[]{}:'
 """The characters that end the name a refused directive is reported by: whitespace, a flow indicator or a `:`."""
 
@@ -224,6 +227,8 @@ class _RecordedConstruct(Enum):
     EMPTY_KEY = 'an empty key'
     INDENTATION_INDICATOR = 'a block scalar indentation indicator'
     SPREAD_FLOW_COLLECTION = 'a flow collection spread over lines'
+    # Its problem is not worded from this value: `_RecordedRefusal.problem` names the character.
+    LINE_SEPARATOR = 'a line separator outside a quoted scalar'
 
 
 @dataclass(frozen=True, slots=True)
@@ -233,15 +238,26 @@ class _RecordedRefusal:
     Attributes:
         construct: Which construct it is.
         mark: Where it is written.
+        character: The line separator, for a `LINE_SEPARATOR`, and `None` for any other construct.
     """
 
     construct: _RecordedConstruct
     mark: StreamMark
+    character: str | None = None
 
     @property
     def problem(self) -> str:
-        """The problem as `FM002` words it, `found <construct>, which frontmatter does not allow`."""
+        """The problem as `FM002` words it, `found <construct>, which frontmatter does not allow` by default."""
+        if self.character is not None:
+            return f'the block holds U+{ord(self.character):04X}, which is not a line break here'
         return f'found {self.construct.value}, {_NOT_ALLOWED}'
+
+    @property
+    def help(self) -> str | None:
+        """What to do about it, or `None` where there is no more to say."""
+        if self.character is not None:
+            return 'Use a line feed, or remove it'
+        return None
 
 
 class _RefusedConstructError(Error):
@@ -541,12 +557,16 @@ class _EventStream:
         return LineNumber.from_int(self._document_lines[block_line] + _FIRST_BLOCK_LINE)
 
     def first_refusal(self) -> _RecordedRefusal | None:
-        """The first construct the scanner has recorded, in the order the block writes them, or `None`."""
+        """The first construct the scanner or the reader has recorded, in the order the block writes them, or `None`."""
         scanner = self._yaml.scanner
-        if not isinstance(scanner, _BasicYamlScanner):
-            # The scanner's type is declared on the parser's base class; `_EventStream` always installs its own.
-            raise AssertionError("unreachable: the parser is built with this module's scanner")
-        return scanner.refusals[0] if scanner.refusals else None
+        reader = self._yaml.reader
+        if not isinstance(scanner, _BasicYamlScanner) or not isinstance(reader, _BasicYamlReader):
+            # The types are declared on the parser's base class; `_EventStream` always installs its own.
+            raise AssertionError("unreachable: the parser is built with this module's scanner and reader")
+        recorded = [*scanner.refusals[:1], *([reader.separator] if reader.separator is not None else [])]
+        if not recorded:
+            return None
+        return min(recorded, key=lambda refusal: refusal.mark.index)
 
     def get_event(self) -> Event:
         """The next event, read.
@@ -636,7 +656,18 @@ class _BasicYamlParser(Parser):
 
 
 class _BasicYamlReader(Reader):
-    """ruamel.yaml's reader, counting a next line character and a Unicode line or paragraph separator as a line."""
+    """ruamel.yaml's reader, counting a next line character and a Unicode line or paragraph separator as a line.
+
+    It records the first U+0085, U+2028 or U+2029 it moves over outside a quoted scalar, which frontmatter refuses,
+    so only the ones inside a quoted scalar are ever counted.
+
+    Attributes:
+        quoted: Whether the scanner is inside a single- or double-quoted scalar, where those characters are text.
+        separator: The first separator written outside a quoted scalar, or `None`.
+    """
+
+    quoted = False
+    separator: _RecordedRefusal | None = None
 
     def forward(self, length: int = 1) -> None:
         """Advance `length` characters, counting every YAML 1.1 line break as one line.
@@ -644,6 +675,17 @@ class _BasicYamlReader(Reader):
         Args:
             length: The number of characters to advance by.
         """
+        # One outside a quoted scalar is recorded, and the block is reported for it like for any construct the
+        # scanner records, so the line count below is only ever asked about one inside a quoted scalar.
+        if not self.quoted and self.separator is None:
+            for offset, character in enumerate(self.prefix(length)):
+                if character in _LINE_SEPARATORS:
+                    self.forward_1_1(offset)
+                    self.separator = _RecordedRefusal(
+                        _RecordedConstruct.LINE_SEPARATOR, self.get_mark(), character=character
+                    )
+                    self.forward_1_1(length - offset)
+                    return
         # The column restarts at every YAML 1.1 break, which the scanner reads indentation from, so the line is
         # counted at each of them too: a mark's line and column then name one place in the block.
         # `_EventStream.document_line` turns that line into the document line a finding reports.
@@ -858,6 +900,27 @@ class _BasicYamlScanner(Scanner):
                 return chunks
             chunks.append(self.scan_line_break())
 
+    def scan_flow_scalar(self, style: str) -> Token:
+        """Scan a single- or double-quoted scalar, inside which a line separator is text.
+
+        Args:
+            style: The quote the scalar is written with.
+        """
+        self.reader.quoted = True
+        try:
+            return super().scan_flow_scalar(style)
+        finally:
+            self.reader.quoted = False
+
+    def scan_line_break(self) -> str:
+        """Scan a line break, which for ruamel.yaml includes U+0085, here kept as the text it is inside quotes."""
+        # ruamel.yaml folds a U+0085 into a line feed and keeps U+2028 and U+2029 as they are. Frontmatter refuses all
+        # three outside a quoted scalar, so one met here is quoted text, and it stays.
+        if self.reader.peek() == '\x85':
+            self.reader.forward()
+            return '\x85'
+        return str(super().scan_line_break())
+
     # Where ruamel.yaml's scanner differs from PyYAML's, each method below is PyYAML's reading, because `FM002` has
     # always reported what PyYAML's scanner found: the same blocks refused, with the same problem on the same line.
 
@@ -985,7 +1048,10 @@ def _invalid_refusal(
         refusal: The construct, as the scanner recorded it or as the read stopped on it.
         stream: The block's events, which turns the construct's line into a document line.
     """
-    return InvalidYamlFrontmatter(problem=refusal.problem, line=stream.document_line(refusal.mark.line))
+    refusal_help = refusal.help if isinstance(refusal, _RecordedRefusal) else None
+    return InvalidYamlFrontmatter(
+        problem=refusal.problem, line=stream.document_line(refusal.mark.line), help=refusal_help
+    )
 
 
 def _mark_of(event: Event) -> StreamMark:

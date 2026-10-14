@@ -125,6 +125,7 @@ help for the recognized kinds are:
 | Text after a flow collection, as in `a: [b, c] d` | `` text follows the closing `]` `` (`}` for a mapping) | Move the text inside the brackets, or quote the whole value |
 | Closing bracket that closes nothing, as in `a: ]` | `` this `]` closes nothing `` (`}` likewise) | Remove it, or quote the value |
 | Tab used to indent | `a tab indents this line` | Indent with spaces |
+| U+0085, U+2028 or U+2029 outside quotes; `name: guide␅type: rule` (`␅` = U+0085) | `the block holds U+0085, which is not a line break here` (with its code point) | Use a line feed, or remove it |
 | Invalid `\q` escape in double quotes | `` `\q` is not an escape `` | Write `\\` for a backslash, or use single quotes |
 | Character that cannot start a plain value | `` a plain value cannot start with `@` `` (for `@`) | Quote the value |
 | Control character | `the block holds the control character U+0007` (with its code point) | Remove it |
