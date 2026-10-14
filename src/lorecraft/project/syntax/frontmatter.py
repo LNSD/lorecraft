@@ -32,7 +32,6 @@ counterpart for, and JSON names every key with a string.
 import math
 import re
 import sys
-from bisect import bisect_left
 from collections.abc import Iterator, Sequence
 from dataclasses import dataclass
 from enum import Enum
@@ -53,17 +52,15 @@ from ruamel.yaml.events import (
 )
 from ruamel.yaml.parser import Parser
 from ruamel.yaml.reader import Reader, ReaderError
-from ruamel.yaml.resolver import VersionedResolver
 from ruamel.yaml.scanner import Scanner, ScannerError
 from ruamel.yaml.tag import Tag
 from ruamel.yaml.tokens import ScalarToken, TagToken, Token
 
 from lorecraft.core.error import Error
-from lorecraft.core.lines import newline_offsets
 from lorecraft.core.mapping import Frozen, FrozenMapping
 
 from .position import LineNumber
-from .syntax_error import LINE_SEPARATORS, SyntaxProblem, describe_control_character, describe_error, yaml_line_starts
+from .syntax_error import LINE_SEPARATORS, SyntaxProblem, describe_control_character, describe_error
 
 _FIRST_BLOCK_LINE: Final[int] = 2
 """The document line the block's first YAML line sits on: the opening delimiter is always line 1."""
@@ -96,10 +93,10 @@ _MERGE_KEY: Final[str] = '<<'
 _NOT_ALLOWED: Final[str] = 'which frontmatter does not allow'
 """How the problem of a refused construct ends: `found <construct>, which frontmatter does not allow`."""
 
-_SPACE_CHARACTERS: Final[str] = '\0 \t\r\n\x85\u2028\u2029'
+_SPACE_CHARACTERS: Final[str] = '\0 \t\r\n'
 """The characters that end a plain scalar: the end of the text, a space or tab, or a line break."""
 
-_LINE_END_CHARACTERS: Final[str] = '\0\r\n\x85\u2028\u2029'
+_LINE_END_CHARACTERS: Final[str] = '\0\r\n'
 """The characters that end a line: the end of the text, or a line break."""
 
 _TOKEN_END_CHARACTERS: Final[str] = _SPACE_CHARACTERS + ',[]{}'
@@ -522,14 +519,9 @@ class _EventStream:
         # change in how ruamel.yaml chooses its parser cannot bring the C one, which has no reader of ours, in.
         yaml = YAML(typ='safe', pure=True)
         yaml.Reader = _BasicYamlReader
-        yaml.Resolver = _BasicYamlResolver
-        # PyYAML reads a top-level block scalar's content as indented, which ruamel.yaml does for YAML 1.1 only
-        # when the loader says so.
-        yaml.top_level_block_style_scalar_no_indent_error_1_1 = True
         yaml.Scanner = _BasicYamlScanner
         yaml.Parser = _BasicYamlParser
         self._block = block
-        self._document_lines = _document_line_indexes(block)
         self._events: Iterator[Event] = iter(yaml.parse(block))
         self._peeked: Event | None = None
         self._yaml = yaml
@@ -548,14 +540,14 @@ class _EventStream:
     def document_line(self, block_line: int) -> LineNumber:
         r"""The document line a line of the block is.
 
-        The reader counts a line at every YAML 1.1 break, which keeps its columns and marks agreeing with the text
-        the parser reads. A finding is numbered by `\n`, as every other one is, so a line leaves the YAML layer here.
+        The reader ends a line where `core/lines.py` does, at a `\n`, a `\r\n` or a lone `\r`, so its count is the
+        document's.
 
         Args:
             block_line: The line as the reader's mark counts it, from 0 at the block's first line.
         """
         # The block starts on document line 2, below the opening delimiter.
-        return LineNumber.from_int(self._document_lines[block_line] + _FIRST_BLOCK_LINE)
+        return LineNumber.from_int(block_line + _FIRST_BLOCK_LINE)
 
     def first_refusal(self) -> _RecordedRefusal | None:
         """The first construct the scanner or the reader has recorded, in the order the block writes them, or `None`."""
@@ -657,10 +649,7 @@ class _BasicYamlParser(Parser):
 
 
 class _BasicYamlReader(Reader):
-    """ruamel.yaml's reader, counting a next line character and a Unicode line or paragraph separator as a line.
-
-    It records the first U+0085, U+2028 or U+2029 it moves over outside a quoted scalar, which frontmatter refuses,
-    so only the ones inside a quoted scalar are ever counted.
+    """ruamel.yaml's reader, recording the first U+0085, U+2028 or U+2029 it moves over outside a quoted scalar.
 
     Attributes:
         quoted: Whether the scanner is inside a single- or double-quoted scalar, where those characters are text.
@@ -671,45 +660,37 @@ class _BasicYamlReader(Reader):
     separator: _RecordedRefusal | None = None
 
     def forward(self, length: int = 1) -> None:
-        """Advance `length` characters, counting every YAML 1.1 line break as one line.
+        """Advance `length` characters, recording a line separator written outside a quoted scalar.
 
         Args:
             length: The number of characters to advance by.
         """
-        # One outside a quoted scalar is recorded, and the block is reported for it like for any construct the
-        # scanner records, so the line count below is only ever asked about one inside a quoted scalar.
+        # The reader ends a line at a `\n` or a lone `\r` only, as `core/lines.py` does, so the separators are not
+        # breaks to it. The scanner still ends a line at them, which would read `a: 1<U+0085>b: 2` as two pairs, so
+        # one is recorded here and the block is reported for it, like for any construct the scanner records.
         if not self.quoted and self.separator is None:
             for offset, character in enumerate(self.prefix(length)):
                 if character in LINE_SEPARATORS:
-                    self.forward_1_1(offset)
+                    super().forward(offset)
                     self.separator = _RecordedRefusal(
                         _RecordedConstruct.LINE_SEPARATOR, self.get_mark(), character=character
                     )
-                    self.forward_1_1(length - offset)
+                    super().forward(length - offset)
                     return
-        # The column restarts at every YAML 1.1 break, which the scanner reads indentation from, so the line is
-        # counted at each of them too: a mark's line and column then name one place in the block.
-        # `_EventStream.document_line` turns that line into the document line a finding reports.
-        self.forward_1_1(length)
-
-
-class _BasicYamlResolver(VersionedResolver):
-    """The resolver the scanner and parser ask which YAML version they read as, always 1.1."""
-
-    @property
-    def processing_version(self) -> tuple[int, int]:
-        """The YAML version the scanner and parser read as."""
-        # ruamel.yaml reads YAML 1.2 unless told otherwise, and the grammars accept different blocks:
-        # 1.2 takes a key written as nothing, `: value`, and `?` inside a plain scalar, which PyYAML refuses. The
-        # scalars are resolved by this module's own core schema rules, never by the resolver.
-        return (1, 1)
+        super().forward(length)
 
 
 class _BasicYamlScanner(Scanner):
-    r"""ruamel.yaml's scanner, reading the YAML 1.1 grammar and failing with a `ScannerError`.
+    r"""ruamel.yaml's scanner, reading the YAML 1.2 grammar and failing with a `ScannerError`.
 
-    A block is accepted or refused by the YAML 1.1 grammar, and a refusal names the problem and the line the scanner
-    found it on.
+    A block is accepted or refused by the YAML 1.2 grammar with two rules of frontmatter's own, and a refusal names
+    the problem and the line the scanner found it on. A blank line before a block scalar's text may hold fewer
+    spaces than the text, and a tab is never whitespace between tokens, in a flow collection too. The scanner also
+    ends a plain scalar inside a flow collection at a `:` followed by a flow indicator, which YAML 1.2 does and
+    ruamel.yaml does not.
+
+    U+0085, U+2028 and U+2029 are text inside a quoted scalar, and a refusal anywhere else, which the reader records
+    where it moves over one; `scan_flow_scalar` tells it where a quoted scalar is.
 
     A directive and a document marker are refused at their indicator, before anything after it is read, so the
     block's own text never reaches ruamel.yaml's directive scanner, whose version number conversion raises a plain
@@ -930,8 +911,7 @@ class _BasicYamlScanner(Scanner):
             return [whitespaces]
         return _strings(super().scan_flow_scalar_spaces(double, start_mark))
 
-    # Where ruamel.yaml's scanner differs from PyYAML's, each method below is PyYAML's reading, because `FM002` has
-    # always reported what PyYAML's scanner found: the same blocks refused, with the same problem on the same line.
+    # The two methods below are rules of frontmatter's own, not ruamel.yaml's reading of YAML 1.2.
 
     def scan_block_scalar_indentation(self) -> tuple[list[str], int, StreamMark]:
         """Scan the blank lines before a block scalar's text, and the widest indent among them.
@@ -943,7 +923,7 @@ class _BasicYamlScanner(Scanner):
         chunks: list[str] = []
         max_indent = 0
         end_mark = self._current_mark()
-        while self.reader.peek() in ' \r\n\x85\u2028\u2029':
+        while self.reader.peek() in ' \r\n':
             if self.reader.peek() != ' ':
                 chunks.append(self.scan_line_break())
                 end_mark = self._current_mark()
@@ -1034,7 +1014,8 @@ class _BasicYamlScanner(Scanner):
         A tab is a character that cannot start a token, so `[a,\tb]` is refused. Where the next token is on a later
         line than the one the flow collection it is in opened on, the collection is recorded as a refusal.
         """
-        # ruamel.yaml also skips a tab inside a flow collection, as YAML 1.2 allows, which PyYAML refuses.
+        # ruamel.yaml skips a tab inside a flow collection, as YAML 1.2 allows; frontmatter refuses it, so that a tab
+        # is never whitespace between tokens.
         if self.reader.index == 0 and self.reader.peek() == '\ufeff':
             self.reader.forward()
         found = False
@@ -1058,10 +1039,20 @@ class _BasicYamlScanner(Scanner):
             if not any(refusal.mark is self._flow_start for refusal in self.refusals):
                 self.refusals.append(_RecordedRefusal(_RecordedConstruct.SPREAD_FLOW_COLLECTION, self._flow_start))
 
+    def check_value(self) -> bool:
+        """Whether the `:` the reader is on is a value indicator, which includes one before a flow indicator."""
+        # YAML 1.2 reads a `:` followed by `,`, `[`, `]`, `{` or `}` inside a flow collection as a value indicator,
+        # which ruamel.yaml reads only as YAML 1.1. Without it, `scan_plain` below ends the scalar at that `:` and no
+        # token starts there.
+        if self.flow_level and self.reader.peek(1) in ',[]{}':
+            return True
+        return bool(super().check_value())
+
     def scan_plain(self) -> ScalarToken:
         """Scan a plain scalar, which ends at a `:` before a flow indicator inside a flow collection."""
-        # ruamel.yaml keeps such a `:` in the scalar, so `{c:[d]}` and `[a:, b]` read differently: PyYAML reads
-        # `c` and `a` as keys.
+        # YAML 1.2 ends a plain scalar inside a flow collection at a `:` followed by `,`, `[`, `]`, `{` or `}`, which
+        # ruamel.yaml misses: it keeps the `:` in the scalar, so `{c:[d]}` and `[a:, b]` would read `c` and `a` as
+        # part of their values instead of as keys.
         chunks: list[str] = []
         start_mark = self.reader.get_mark()
         end_mark = start_mark
@@ -1400,19 +1391,6 @@ def _strings(chunks: object) -> list[str]:
             raise AssertionError('unreachable: ruamel.yaml scans text into a list of strings')
         strings.append(chunk)
     return strings
-
-
-def _document_line_indexes(block: str) -> tuple[int, ...]:
-    r"""For each YAML line of the block, how many `\n` the block holds before the line starts.
-
-    That is the line's index among the block's document lines, from 0. Two YAML lines share one when a break between
-    them, such as U+0085, is no `\n`.
-
-    Args:
-        block: The lines between the delimiters, line endings kept.
-    """
-    newlines = newline_offsets(block)
-    return tuple(bisect_left(newlines, start) for start in yaml_line_starts(block))
 
 
 def _invalid_yaml(problem: SyntaxProblem, stream: _EventStream) -> InvalidYamlFrontmatter:

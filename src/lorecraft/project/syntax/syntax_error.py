@@ -20,8 +20,7 @@ from typing import Final
 from ruamel.yaml.error import MarkedYAMLError, StreamMark
 from ruamel.yaml.reader import ReaderError
 
-_YAML_BREAK: Final[re.Pattern[str]] = re.compile(r'\r\n|[\n\r\x85\u2028\u2029]')
-"""A YAML 1.1 line break, which the reader counts a line at: a CRLF pair as one, or any of the other five."""
+from lorecraft.core.lines import line_at, split_lines
 
 LINE_SEPARATORS: Final[str] = '\x85\u2028\u2029'
 """The characters other YAML grammars end a line at, which `core/lines.py` does not: U+0085, U+2028 and U+2029."""
@@ -48,27 +47,6 @@ class SyntaxProblem:
     line: int | None
 
 
-def yaml_line_starts(block: str) -> tuple[int, ...]:
-    """The offset each of the block's YAML lines starts at, in order, as the reader counts them.
-
-    Args:
-        block: The text the reader read.
-    """
-    return (0, *(match.end() for match in _YAML_BREAK.finditer(block)))
-
-
-def _yaml_lines(block: str) -> list[str]:
-    """The block's lines split at every YAML 1.1 break, so an index is the line a mark counts, from 0.
-
-    Args:
-        block: The text the reader read.
-    """
-    lines = _YAML_BREAK.split(block)
-    if lines[-1] == '':
-        lines.pop()
-    return lines
-
-
 def describe_error(error: MarkedYAMLError, block: str) -> SyntaxProblem:
     """Classify a scanner's or a parser's error into one of adr-019's syntax error kinds.
 
@@ -76,7 +54,7 @@ def describe_error(error: MarkedYAMLError, block: str) -> SyntaxProblem:
         error: The scanner's or the parser's error, whose class, problem, context and marks pick the kind.
         block: The text the parser read, the lines between the frontmatter delimiters.
     """
-    lines = _yaml_lines(block)
+    lines = list(split_lines(block))
     problem = error.problem or ''
     context = error.context or ''
     mark = error.problem_mark
@@ -399,7 +377,7 @@ def describe_control_character(error: ReaderError, block: str) -> SyntaxProblem:
     return SyntaxProblem(
         f'the block holds the control character U+{code:04X}',
         'Remove it',
-        len(_YAML_BREAK.findall(block, 0, error.position)),
+        line_at(block, error.position) - 1,
     )
 
 
