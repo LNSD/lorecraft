@@ -155,6 +155,9 @@ each runs, and the skills in [Skill Routing](#skill-routing) say when to run whi
 Flags pass straight through (`just check --statistics`); when no recipe covers what you need, run it under
 `uv run` rather than a system interpreter.
 
+The `uv` version is pinned once, as `required-version` under `[tool.uv]` in `pyproject.toml`. CI's
+`setup-uv` and a local `uv` both read it, so a mismatched `uv` fails with a version error; Renovate bumps it.
+
 Generated files are committed, and CI fails when `just gen` would change them; the `code-gen` skill owns when to
 run it and the rules for its output.
 

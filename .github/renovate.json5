@@ -30,6 +30,22 @@
     'github-actions',
     // .github/pre-commit-config.yaml
     'pre-commit',
+    // the uv pin in pyproject.toml, see customManagers
+    'custom.regex',
+  ],
+  customManagers: [
+    {
+      // pep621 uses required-version only to pick the uv that runs uv lock; it does not bump it.
+      customType: 'regex',
+      managerFilePatterns: [
+        '/^pyproject\\.toml$/',
+      ],
+      matchStrings: [
+        'required-version = "==(?<currentValue>[^"]+)"',
+      ],
+      datasourceTemplate: 'pypi',
+      depNameTemplate: 'uv',
+    },
   ],
   // The pre-commit manager is opt-in, and this repository keeps its config under
   // .github/ instead of the repository root, so both have to be stated.
