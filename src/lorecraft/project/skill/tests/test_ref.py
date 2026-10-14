@@ -169,16 +169,38 @@ class TestSkillResourceRef:
             'the report path is the path inside the skill, spelled from the root through the skill directory'
         )
 
-    @pytest.mark.parametrize('path', ['SKILL.md', '.', 'scripts/run.py'])
-    def test_init_with_a_path_that_is_no_resource_raises_not_a_skill_resource_error(self, path: str) -> None:
+    def test_init_with_the_skill_file_as_the_path_raises_not_a_skill_resource_error(self) -> None:
         #: Given
         skill = SkillRef(ResolvedPath(RootRelativePath.parse('.agents/skills')), PathComponent.parse('review'))
+        path = SkillRelativePath.parse('SKILL.md')
 
         #: When
         with pytest.raises(NotASkillResourceError) as exc_info:
-            SkillResourceRef(skill, SkillRelativePath.parse(path))
+            SkillResourceRef(skill, path)
 
         #: Then
-        assert exc_info.value.path == SkillRelativePath.parse(path), (
-            'the record refuses the skill file, the skill directory and a file not named as a document'
-        )
+        assert exc_info.value.path == path, 'the record refuses the skill file'
+
+    def test_init_with_the_skill_directory_as_the_path_raises_not_a_skill_resource_error(self) -> None:
+        #: Given
+        skill = SkillRef(ResolvedPath(RootRelativePath.parse('.agents/skills')), PathComponent.parse('review'))
+        path = SkillRelativePath.parse('.')
+
+        #: When
+        with pytest.raises(NotASkillResourceError) as exc_info:
+            SkillResourceRef(skill, path)
+
+        #: Then
+        assert exc_info.value.path == path, 'the record refuses the skill directory'
+
+    def test_init_with_a_file_not_named_as_a_document_raises_not_a_skill_resource_error(self) -> None:
+        #: Given
+        skill = SkillRef(ResolvedPath(RootRelativePath.parse('.agents/skills')), PathComponent.parse('review'))
+        path = SkillRelativePath.parse('scripts/run.py')
+
+        #: When
+        with pytest.raises(NotASkillResourceError) as exc_info:
+            SkillResourceRef(skill, path)
+
+        #: Then
+        assert exc_info.value.path == path, 'the record refuses a file not named as a document'
