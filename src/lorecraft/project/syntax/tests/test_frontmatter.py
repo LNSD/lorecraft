@@ -72,21 +72,149 @@ class TestDecodeFrontmatter:
             FrontmatterKey('type', LineNumber.from_int(3)),
         ), 'a CRLF line ending counts as one line break'
 
-    def test_decode_frontmatter_with_a_next_line_returns_each_key_on_its_document_line(self) -> None:
+    def test_decode_frontmatter_with_a_next_line_in_a_plain_value_returns_invalid_yaml_on_its_line(self) -> None:
         #: Given
         separator = '\x85'
-        block = f'name: guide{separator}type: rule\ncount: 1\n'
+        block = f'a: x{separator}y\n'
 
         #: When
         node = decode_frontmatter(block)
 
         #: Then
-        assert isinstance(node, Frontmatter), f'a YAML mapping is frontmatter, got {node!r}'
-        assert node.keys == (
-            FrontmatterKey('name', LineNumber.from_int(2)),
-            FrontmatterKey('type', LineNumber.from_int(2)),
-            FrontmatterKey('count', LineNumber.from_int(3)),
-        ), f'{separator!r} breaks a YAML line but ends no document line, as CommonMark has it'
+        assert node == InvalidYamlFrontmatter(
+            problem='the block holds U+0085, which is not a line break here',
+            help='Use a line feed, or remove it',
+            line=LineNumber.from_int(2),
+        ), 'a separator outside a quoted scalar is refused on its line, as the text has no line break there'
+
+    def test_decode_frontmatter_with_a_next_line_in_two_pairs_returns_invalid_yaml_on_its_line(self) -> None:
+        #: Given
+        separator = '\x85'
+        block = f'name: g{separator}title: a\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem='the block holds U+0085, which is not a line break here',
+            help='Use a line feed, or remove it',
+            line=LineNumber.from_int(2),
+        ), 'a separator outside a quoted scalar is refused on its line, as the text has no line break there'
+
+    def test_decode_frontmatter_with_a_next_line_in_a_block_sequence_item_returns_invalid_yaml_on_its_line(
+        self,
+    ) -> None:
+        #: Given
+        separator = '\x85'
+        block = f'l:\n- a{separator}b\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem='the block holds U+0085, which is not a line break here',
+            help='Use a line feed, or remove it',
+            line=LineNumber.from_int(3),
+        ), 'a separator outside a quoted scalar is refused on its line, as the text has no line break there'
+
+    def test_decode_frontmatter_with_a_next_line_in_a_comment_returns_invalid_yaml_on_its_line(self) -> None:
+        #: Given
+        separator = '\x85'
+        block = f'a: 1 # c{separator}d\nb: 2\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem='the block holds U+0085, which is not a line break here',
+            help='Use a line feed, or remove it',
+            line=LineNumber.from_int(2),
+        ), 'a separator outside a quoted scalar is refused on its line, as the text has no line break there'
+
+    def test_decode_frontmatter_with_a_next_line_in_a_flow_collection_returns_invalid_yaml_on_its_line(self) -> None:
+        #: Given
+        separator = '\x85'
+        block = f'a: [x,{separator}y]\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem='found a flow collection spread over lines, which frontmatter does not allow',
+            line=LineNumber.from_int(2),
+        ), 'the reader counts a line at U+0085, so the collection that opens before it is the first construct refused'
+
+    def test_decode_frontmatter_with_a_next_line_inside_double_quotes_returns_it_as_text(self) -> None:
+        #: Given
+        separator = '\x85'
+        block = f'a: "x{separator}y"\nb: 1\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == Frontmatter(
+            data=FrozenMapping({'a': f'x{separator}y', 'b': 1}),
+            keys=(
+                FrontmatterKey(name='a', line=LineNumber.from_int(2)),
+                FrontmatterKey(name='b', line=LineNumber.from_int(3)),
+            ),
+            repeats=(),
+        ), 'a separator inside a quoted scalar is text, and ends no line'
+
+    def test_decode_frontmatter_with_a_next_line_inside_single_quotes_returns_it_as_text(self) -> None:
+        #: Given
+        separator = '\x85'
+        block = f"a: 'x{separator}y'\nb: 1\n"
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == Frontmatter(
+            data=FrozenMapping({'a': f'x{separator}y', 'b': 1}),
+            keys=(
+                FrontmatterKey(name='a', line=LineNumber.from_int(2)),
+                FrontmatterKey(name='b', line=LineNumber.from_int(3)),
+            ),
+            repeats=(),
+        ), 'a separator inside a quoted scalar is text, and ends no line'
+
+    def test_decode_frontmatter_with_a_line_separator_in_a_plain_value_returns_invalid_yaml_on_its_line(self) -> None:
+        #: Given
+        separator = '\u2028'
+        block = f'a: x{separator}y\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem='the block holds U+2028, which is not a line break here',
+            help='Use a line feed, or remove it',
+            line=LineNumber.from_int(2),
+        ), 'a separator outside a quoted scalar is refused on its line, as the text has no line break there'
+
+    def test_decode_frontmatter_with_a_paragraph_separator_in_a_plain_value_returns_invalid_yaml_on_its_line(
+        self,
+    ) -> None:
+        #: Given
+        separator = '\u2029'
+        block = f'a: x{separator}y\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem='the block holds U+2029, which is not a line break here',
+            help='Use a line feed, or remove it',
+            line=LineNumber.from_int(2),
+        ), 'a separator outside a quoted scalar is refused on its line, as the text has no line break there'
 
     def test_decode_frontmatter_with_a_lone_carriage_return_returns_each_key_on_its_document_line(self) -> None:
         #: Given
@@ -136,19 +264,6 @@ class TestDecodeFrontmatter:
             f'the help is read from the line the parser marked, got {node.help!r}'
         )
 
-    def test_decode_frontmatter_with_a_flow_collection_spread_over_a_next_line_returns_invalid_yaml(self) -> None:
-        #: Given
-        block = 'name: g\ntags: [a,\x85b]\n'
-
-        #: When
-        node = decode_frontmatter(block)
-
-        #: Then
-        assert node == InvalidYamlFrontmatter(
-            problem='found a flow collection spread over lines, which frontmatter does not allow',
-            line=LineNumber.from_int(3),
-        ), 'U+0085 breaks a YAML line, so a flow collection across it is spread over lines'
-
     def test_decode_frontmatter_with_a_flow_collection_spread_over_a_lone_carriage_return_returns_invalid_yaml(
         self,
     ) -> None:
@@ -164,20 +279,6 @@ class TestDecodeFrontmatter:
             line=LineNumber.from_int(3),
         ), 'a lone `\\r` breaks a YAML line, so a flow collection across it is spread over lines'
 
-    def test_decode_frontmatter_with_a_second_colon_after_a_next_line_returns_the_help_for_its_own_line(self) -> None:
-        #: Given
-        block = 'name: g\x85title: a: b\n'
-
-        #: When
-        node = decode_frontmatter(block)
-
-        #: Then
-        assert isinstance(node, InvalidYamlFrontmatter), f'a second colon is invalid YAML, got {node!r}'
-        assert node.help == 'Quote the value: `title: "a: b"`', (
-            f'the help quotes the value on the YAML line the mark names, got {node.help!r}'
-        )
-        assert node.line == LineNumber.from_int(2), f'U+0085 ends no document line, got {node.line}'
-
     def test_decode_frontmatter_with_a_second_colon_after_a_lone_carriage_return_returns_the_help_for_its_own_line(
         self,
     ) -> None:
@@ -192,79 +293,6 @@ class TestDecodeFrontmatter:
         assert node.help == 'Quote the value: `title: "a: b"`', (
             f'the help quotes the value on the YAML line the mark names, got {node.help!r}'
         )
-
-    def test_decode_frontmatter_with_a_bad_escape_after_a_next_line_returns_the_escape_kind(self) -> None:
-        #: Given
-        block = 'name: g\x85title: "a\\qb"\n'
-
-        #: When
-        node = decode_frontmatter(block)
-
-        #: Then
-        assert node == InvalidYamlFrontmatter(
-            problem='`\\q` is not an escape',
-            help='Write `\\\\` for a backslash, or use single quotes',
-            line=LineNumber.from_int(2),
-        ), 'U+0085 ends no document line, so the unknown escape is named on line 2'
-
-    def test_decode_frontmatter_with_text_after_a_closing_quote_after_a_next_line_returns_its_kind(self) -> None:
-        #: Given
-        block = 'name: g\x85title: "a" b\n'
-
-        #: When
-        node = decode_frontmatter(block)
-
-        #: Then
-        assert isinstance(node, InvalidYamlFrontmatter), f'text after a quote is invalid YAML, got {node!r}'
-        assert node.problem == 'text follows the closing quote', f'the kind is kept, got {node.problem!r}'
-
-    def test_decode_frontmatter_with_an_unclosed_quote_after_a_next_line_returns_invalid_yaml_on_its_line(self) -> None:
-        #: Given
-        block = 'name: guide\x85type: "open\nx: 1\n'
-
-        #: When
-        node = decode_frontmatter(block)
-
-        #: Then
-        assert isinstance(node, InvalidYamlFrontmatter), f'an unclosed quote is invalid YAML, got {node!r}'
-        assert node.line == LineNumber.from_int(2), (
-            f'U+0085 ends no document line, so the quote is on line 2, got {node.line}'
-        )
-        assert node.help == 'Close it on the line it continues to, or remove it', (
-            f'the help is the one for the quote, read from the line the parser marked, got {node.help!r}'
-        )
-
-    def test_decode_frontmatter_with_a_line_separator_returns_each_key_on_its_document_line(self) -> None:
-        #: Given
-        separator = '\u2028'
-        block = f'name: guide{separator}type: rule\ncount: 1\n'
-
-        #: When
-        node = decode_frontmatter(block)
-
-        #: Then
-        assert isinstance(node, Frontmatter), f'a YAML mapping is frontmatter, got {node!r}'
-        assert node.keys == (
-            FrontmatterKey('name', LineNumber.from_int(2)),
-            FrontmatterKey('type', LineNumber.from_int(2)),
-            FrontmatterKey('count', LineNumber.from_int(3)),
-        ), f'{separator!r} breaks a YAML line but ends no document line, as CommonMark has it'
-
-    def test_decode_frontmatter_with_a_paragraph_separator_returns_each_key_on_its_document_line(self) -> None:
-        #: Given
-        separator = '\u2029'
-        block = f'name: guide{separator}type: rule\ncount: 1\n'
-
-        #: When
-        node = decode_frontmatter(block)
-
-        #: Then
-        assert isinstance(node, Frontmatter), f'a YAML mapping is frontmatter, got {node!r}'
-        assert node.keys == (
-            FrontmatterKey('name', LineNumber.from_int(2)),
-            FrontmatterKey('type', LineNumber.from_int(2)),
-            FrontmatterKey('count', LineNumber.from_int(3)),
-        ), f'{separator!r} breaks a YAML line but ends no document line, as CommonMark has it'
 
     def test_decode_frontmatter_with_quoted_keys_returns_each_key_by_its_decoded_name(self) -> None:
         #: Given
