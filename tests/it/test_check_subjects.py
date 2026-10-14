@@ -32,7 +32,6 @@ from lorecraft.project.layout import SNAPSHOT_SCOPE
 from lorecraft.project.link_target import DocumentDirectory, SkillRoot
 from lorecraft.project.schemas import (
     AgentSkillsSchema,
-    BlockProblem,
     DocumentEnd,
     ExpectedSection,
     FieldCount,
@@ -40,7 +39,6 @@ from lorecraft.project.schemas import (
     FieldLimit,
     InvalidValueProblem,
     JsonType,
-    MinFields,
     MissingFieldProblem,
     OtherValueConstraint,
     PatternMismatch,
@@ -74,7 +72,6 @@ from lorecraft.project.workspace import WorkspaceModel
 from lorecraft.rules.declaration import Level, Release, Rule, RuleCode, RuleGroup, RuleGroupPrefix, RuleName, Severity
 from lorecraft.rules.frontmatter.allowed_tools_too_long import AllowedToolsTooLong
 from lorecraft.rules.frontmatter.duplicate_key import DuplicateKey
-from lorecraft.rules.frontmatter.invalid_frontmatter import InvalidFrontmatter
 from lorecraft.rules.frontmatter.invalid_value import InvalidValue
 from lorecraft.rules.frontmatter.invalid_yaml import InvalidYaml
 from lorecraft.rules.frontmatter.malformed_allowed_tools import CommaSeparated, MalformedAllowedTools
@@ -82,6 +79,7 @@ from lorecraft.rules.frontmatter.missing_field import MissingField
 from lorecraft.rules.frontmatter.missing_frontmatter import MissingFrontmatter
 from lorecraft.rules.frontmatter.name_mismatch import NameMismatch
 from lorecraft.rules.frontmatter.non_mapping_frontmatter import NonMappingFrontmatter
+from lorecraft.rules.frontmatter.too_few_fields import TooFewFields
 from lorecraft.rules.frontmatter.unknown_field import UnknownField
 from lorecraft.rules.frontmatter.wrong_type import WrongType
 from lorecraft.rules.length.title_too_long import TitleTooLong
@@ -1322,15 +1320,11 @@ class TestCheckSubjects:
                 'status', "'Final' does not match '^(draft|stable)$'", PatternMismatch('^(draft|stable)$')
             ),
         )
-        invalid_frontmatter = InvalidFrontmatter(
+        too_few_fields = TooFewFields(
             source=StructureSpecSchema(spec=CODE_SPEC),
             line=line_1,
-            problem=BlockProblem(
-                "{'name': 'guide', 'description': ['a'], 'extra': 'y', 'status': 'Final'} "
-                'does not have enough properties',
-                MinFields(FieldLimit(UnsignedInt(6))),
-                FieldCount(UnsignedInt(4)),
-            ),
+            limit=FieldLimit(UnsignedInt(6)),
+            field_count=FieldCount(UnsignedInt(4)),
         )
         assert reports == (
             CheckedDocument(
@@ -1340,13 +1334,13 @@ class TestCheckSubjects:
                     RuleDiagnostic(GUIDE.path, unknown_field, Severity.WARNING),
                     RuleDiagnostic(GUIDE.path, wrong_type, Severity.ERROR),
                     RuleDiagnostic(GUIDE.path, invalid_value, Severity.ERROR),
-                    RuleDiagnostic(GUIDE.path, invalid_frontmatter, Severity.ERROR),
+                    RuleDiagnostic(GUIDE.path, too_few_fields, Severity.ERROR),
                 ),
                 ungoverned=(Facet.OUTLINE, Facet.BUDGET),
             ),
         ), (
-            'FM006 and FM008 to FM010 run at deny and FM007 at warn, each on its own problem, on its field line or '
-            'line 1, naming the specification'
+            'FM006, FM008, FM009 and FM014 run at deny and FM007 at warn, each on its own problem, on its field line '
+            'or line 1, naming the specification'
         )
 
     def test_check_subjects_with_a_skill_breaking_the_agent_skills_schema_reports_each_schema_rule(
