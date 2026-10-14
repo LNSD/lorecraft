@@ -28,8 +28,8 @@ from .frontmatter_problem import (
     UnknownFieldProblem,
     WrongTypeProblem,
 )
+from .frontmatter_schema import StatedFrontmatterSchema
 from .skill import SKILL_FRONTMATTER_SCHEMA
-from .structure import StatedFrontmatterSchema
 
 FIRST_LINE: Final[LineNumber] = LineNumber(NonZeroUnsignedInt(1))
 """Where an occurrence with no more precise line is reported: the subject's first line, which opens the block."""

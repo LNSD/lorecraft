@@ -14,13 +14,13 @@ from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.core.path import PathComponent, RootRelativePath
 
+from ..frontmatter_schema import FrontmatterSchema
 from ..name import SpecName, parse_spec_name
 from ..section_name import PaddedSectionNameError, SectionName
 from ..spec_file import SpecFileType, StructureSpecFile, spec_filename
 from ..structure import (
     AnySections,
     CharCappedTitleChecks,
-    FrontmatterSchema,
     PatternedTitleChecks,
     SectionEntry,
     StructureSchema,

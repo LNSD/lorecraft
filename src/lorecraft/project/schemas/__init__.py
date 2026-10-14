@@ -24,6 +24,7 @@ from .frontmatter_problem import (
     UnknownFieldProblem,
     WrongTypeProblem,
 )
+from .frontmatter_schema import FrontmatterSchema, FrontmatterSchemaFailure, StatedFrontmatterSchema
 from .name import CorpusSpecName, NamespaceSpecName, SpecName, parse_spec_name
 from .outline_alignment import (
     AlignedSection,
@@ -102,8 +103,6 @@ from .spec_file import (
 from .structure import (
     AnySections,
     CharCappedTitleChecks,
-    FrontmatterSchema,
-    FrontmatterSchemaFailure,
     OutlineEntry,
     PatternedTitleChecks,
     SectionEntry,
@@ -135,6 +134,7 @@ __all__: list[str] = [
     'StructureSchema',
     'StructureSpec',
     'FrontmatterSchema',
+    'StatedFrontmatterSchema',
     'StructureFile',
     'JSON_SCHEMA_DIALECT',
     'TitleChecks',

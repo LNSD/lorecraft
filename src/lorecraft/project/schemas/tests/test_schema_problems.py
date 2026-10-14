@@ -13,6 +13,7 @@ from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.project.syntax import Frontmatter, LineNumber, parse_frontmatter
 
 from ..frontmatter_problem import FieldGuidance, JsonType, MissingFieldProblem, UnknownFieldProblem, WrongTypeProblem
+from ..frontmatter_schema import StatedFrontmatterSchema
 from ..name import parse_spec_name
 from ..schema_problems import (
     AgentSkillsSchema,
@@ -24,7 +25,7 @@ from ..schema_problems import (
     locate_skill_schema_problems,
 )
 from ..spec_file import SpecFileType, StructureSpecFile, spec_filename
-from ..structure import StatedFrontmatterSchema, StructureSchema, StructureSpec
+from ..structure import StructureSchema, StructureSpec
 
 SPECS_DIR: Final[RootRelativePath] = RootRelativePath.parse('docs/__meta__')
 
