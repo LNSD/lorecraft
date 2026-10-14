@@ -19,12 +19,14 @@ from lorecraft.core.num import UnsignedInt
 from lorecraft.core.path import RootRelativePath
 from lorecraft.vfs import (
     Declaration,
+    DirectoryRecord,
     DirListError,
     DirResolveError,
     DiskFileSystem,
     FileReadError,
     FileResolveError,
     OsRefusal,
+    OtherRecord,
     RecordedDirListError,
     RecordedDirListPathError,
     RecordedDirResolveError,
@@ -108,6 +110,155 @@ def unsearchable_links_directory(tree: Path) -> Iterator[Path]:
     links.chmod(0o444)
     yield links
     links.chmod(0o755)
+
+
+@pytest.fixture(scope='function')
+def unsearchable_shelf(tree: Path) -> Iterator[Path]:
+    """A `shelf` directory of the tree, readable and not searchable, next to a `links` directory that leads into it.
+
+    `shelf` holds a directory `inner`, a structure file `note.structure.json` and a fifo `pipe`. Its listing names
+    all three, no entry in it can be read or inspected, and so each link of `links` is refused where it leads.
+
+    Args:
+        tree: The repository the directories are added to.
+    """
+    shelf = tree / 'shelf'
+    (shelf / 'inner').mkdir(parents=True)
+    (shelf / 'note.structure.json').write_text('{}', encoding='utf-8')
+    os.mkfifo(shelf / 'pipe')
+    links = tree / 'links'
+    links.mkdir()
+    (links / 'to_inner').symlink_to('../shelf/inner')
+    (links / 'to_note').symlink_to('../shelf/note.structure.json')
+    (links / 'to_pipe').symlink_to('../shelf/pipe')
+    shelf.chmod(0o444)
+    yield shelf
+    shelf.chmod(0o755)
+
+
+# The scan lists the last scope root first, so the order of a scope is the order the walks reach a shared path in.
+_SHELF: Final[ScanRoot] = ScanRoot(RootRelativePath.parse('shelf'), depth=UnsignedInt(0))
+_SHELF_AND_BELOW: Final[ScanRoot] = ScanRoot(RootRelativePath.parse('shelf'), depth=UnsignedInt(1))
+_LINKS: Final[ScanRoot] = ScanRoot(RootRelativePath.parse('links'), depth=UnsignedInt(0), follow_links=True)
+
+
+@pytest.mark.it
+@pytest.mark.skipif(os.geteuid() == 0, reason='root ignores file and directory permissions')
+class TestSnapshotOfAnUnsearchableDirectory:
+    # `links` is walked before `shelf` when it comes last in the scope, so the refused inspection is recorded
+    # first; with it first, the listing of `shelf` is recorded first.
+
+    def test_take_snapshot_with_a_directory_listed_before_its_inspection_is_refused_keeps_the_directory(
+        self, tree: Path, unsearchable_shelf: Path
+    ) -> None:
+        #: Given
+        scope = (_LINKS, _SHELF)
+
+        #: When
+        snapshot = take_snapshot(tree, scope, declaration=DECLARATION)
+
+        #: Then
+        assert snapshot.records[_path('shelf/inner')] == DirectoryRecord(), (
+            'the listing reached the directory, so the refused inspection is dropped'
+        )
+
+    def test_take_snapshot_with_a_directory_listed_after_its_inspection_is_refused_keeps_the_directory(
+        self, tree: Path, unsearchable_shelf: Path
+    ) -> None:
+        #: Given
+        scope = (_SHELF, _LINKS)
+
+        #: When
+        snapshot = take_snapshot(tree, scope, declaration=DECLARATION)
+
+        #: Then
+        assert snapshot.records[_path('shelf/inner')] == DirectoryRecord(), (
+            'the listing reached the directory, so the refused inspection is dropped'
+        )
+
+    def test_take_snapshot_with_a_file_read_refused_before_its_inspection_is_refused_keeps_the_refused_read(
+        self, tree: Path, unsearchable_shelf: Path
+    ) -> None:
+        #: Given
+        scope = (_LINKS, _SHELF)
+
+        #: When
+        snapshot = take_snapshot(tree, scope, declaration=DECLARATION)
+
+        #: Then
+        assert snapshot.records[_path('shelf/note.structure.json')] == RefusedRead(OsRefusal.PERMISSION_DENIED), (
+            'the read is what was refused of the file itself, so the refused inspection is dropped'
+        )
+
+    def test_take_snapshot_with_a_file_read_refused_after_its_inspection_is_refused_keeps_the_refused_read(
+        self, tree: Path, unsearchable_shelf: Path
+    ) -> None:
+        #: Given
+        scope = (_SHELF, _LINKS)
+
+        #: When
+        snapshot = take_snapshot(tree, scope, declaration=DECLARATION)
+
+        #: Then
+        assert snapshot.records[_path('shelf/note.structure.json')] == RefusedRead(OsRefusal.PERMISSION_DENIED), (
+            'the read is what was refused of the file itself, so the refused inspection is dropped'
+        )
+
+    def test_take_snapshot_with_a_listing_refused_before_the_inspection_is_refused_keeps_the_refused_listing(
+        self, tree: Path, unsearchable_shelf: Path
+    ) -> None:
+        #: Given
+        scope = (_LINKS, _SHELF_AND_BELOW)
+
+        #: When
+        snapshot = take_snapshot(tree, scope, declaration=DECLARATION)
+
+        #: Then
+        assert snapshot.records[_path('shelf/inner')] == RefusedListing(OsRefusal.PERMISSION_DENIED), (
+            'the listing is what was refused of the directory itself, so the refused inspection is dropped'
+        )
+
+    def test_take_snapshot_with_a_listing_refused_after_the_inspection_is_refused_keeps_the_refused_listing(
+        self, tree: Path, unsearchable_shelf: Path
+    ) -> None:
+        #: Given
+        scope = (_SHELF_AND_BELOW, _LINKS)
+
+        #: When
+        snapshot = take_snapshot(tree, scope, declaration=DECLARATION)
+
+        #: Then
+        assert snapshot.records[_path('shelf/inner')] == RefusedListing(OsRefusal.PERMISSION_DENIED), (
+            'the listing is what was refused of the directory itself, so the refused inspection is dropped'
+        )
+
+    def test_take_snapshot_with_a_fifo_listed_before_its_inspection_is_refused_keeps_the_fifo(
+        self, tree: Path, unsearchable_shelf: Path
+    ) -> None:
+        #: Given
+        scope = (_LINKS, _SHELF)
+
+        #: When
+        snapshot = take_snapshot(tree, scope, declaration=DECLARATION)
+
+        #: Then
+        assert snapshot.records[_path('shelf/pipe')] == OtherRecord(), (
+            'the listing reached the fifo, so the refused inspection is dropped'
+        )
+
+    def test_take_snapshot_with_a_fifo_listed_after_its_inspection_is_refused_keeps_the_fifo(
+        self, tree: Path, unsearchable_shelf: Path
+    ) -> None:
+        #: Given
+        scope = (_SHELF, _LINKS)
+
+        #: When
+        snapshot = take_snapshot(tree, scope, declaration=DECLARATION)
+
+        #: Then
+        assert snapshot.records[_path('shelf/pipe')] == OtherRecord(), (
+            'the listing reached the fifo, so the refused inspection is dropped'
+        )
 
 
 @pytest.mark.it

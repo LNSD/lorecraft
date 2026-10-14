@@ -572,6 +572,8 @@ class _SnapshotRecorder:
       reached the directory.
     - A file read again, or a link read again, keeps the last read; on a still tree the two reads agree.
     - A refusal merges with the directory record of the same path into the refusal, and two of one kind keep the first.
+    - A refused inspection merges with a directory record, a refused listing, a refused read or an other record of
+      the same path into that record: the entry was reached another way, and only the walk through it was refused.
     - Two records of different kinds mean the tree changed under the scan, and so does a record below a path
       recorded as no directory, since every record sits at a resolved path. Recording either raises.
     """
@@ -635,8 +637,25 @@ def _merge_records(path: RootRelativePath, recorded: EntryRecord, found: EntryRe
             return RefusedListing(found.refusal, climbed=recorded.climbed or found.climbed)
         case (RefusedRead(), RefusedRead()) | (RefusedInspect(), RefusedInspect()):
             return recorded  # refused again: the same refusal on a still tree, and the first is kept
-        case _:
+        # A refused inspection is the scan failing to see an entry that a listing or a read of it did reach, as on a
+        # directory that can be read but not searched. The record of what the entry is wins, in either order.
+        case (DirectoryRecord() | RefusedListing() | RefusedRead() | OtherRecord(), RefusedInspect()):
+            return recorded
+        case (RefusedInspect(), DirectoryRecord() | RefusedListing() | RefusedRead() | OtherRecord()):
+            return found
+        # Every other pair is of two records that cannot be one entry: the tree changed under the scan.
+        case (
+            (DirectoryRecord() | RefusedListing(), FileRecord() | RefusedRead() | SymlinkRecord() | OtherRecord())
+            | (FileRecord(), DirectoryRecord() | RefusedListing() | RefusedRead() | SymlinkRecord() | OtherRecord())
+            | (RefusedRead(), DirectoryRecord() | RefusedListing() | FileRecord() | SymlinkRecord() | OtherRecord())
+            | (SymlinkRecord(), DirectoryRecord() | RefusedListing() | FileRecord() | RefusedRead() | OtherRecord())
+            | (OtherRecord(), DirectoryRecord() | RefusedListing() | FileRecord() | RefusedRead() | SymlinkRecord())
+            | (FileRecord() | SymlinkRecord(), RefusedInspect())
+            | (RefusedInspect(), FileRecord() | SymlinkRecord())
+        ):
             raise ChangedSnapshotEntryError(path, recorded=recorded.kind, found=found.kind)
+        case _:
+            assert_never((recorded, found))
 
 
 class _DiskEntries:
