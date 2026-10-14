@@ -28,7 +28,7 @@ from .frontmatter_problem import (
     WrongTypeProblem,
 )
 from .skill import SKILL_FRONTMATTER_SCHEMA
-from .structure import FrontmatterSchema
+from .structure import StatedFrontmatterSchema
 
 FIRST_LINE: Final[LineNumber] = LineNumber.from_int(1)
 """Where an occurrence with no more precise line is reported: the subject's first line, which opens the block."""
@@ -82,7 +82,7 @@ class SchemaProblems:
 
 
 def locate_schema_problems(
-    frontmatter: FrontmatterNode, schemas: tuple[FrontmatterSchema, ...]
+    frontmatter: FrontmatterNode, schemas: tuple[StatedFrontmatterSchema, ...]
 ) -> tuple[SchemaProblems, ...]:
     """What each frontmatter schema rejects in a document's frontmatter, each problem on its line. Raises nothing.
 
@@ -109,8 +109,8 @@ def locate_schema_problems(
     for schema in schemas:
         found.append(
             SchemaProblems(
-                source=StructureSpecSchema(spec=schema.path),
-                problems=_located_problems(frontmatter, schema.validate(frontmatter.data)),
+                source=StructureSpecSchema(spec=schema.spec),
+                problems=_located_problems(frontmatter, schema.schema.validate(frontmatter.data)),
             )
         )
     return tuple(found)

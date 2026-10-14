@@ -103,7 +103,7 @@ def _spec_files(
         path = SPECS_DIR / PathComponent.parse(spec_filename(spec_name, SpecFileType.LEGACY_STRUCTURE))
         frontmatter_schema: FrontmatterSchema | None = None
         if frontmatter:
-            frontmatter_schema = FrontmatterSchema(path=path, schema=FrozenMapping({'type': 'object'}))
+            frontmatter_schema = FrontmatterSchema.parse(FrozenMapping({'type': 'object'}), path=path)
         structure_spec = StructureSpec(
             file=StructureSpecFile(path=path, name=spec_name),
             title=None,
@@ -155,7 +155,7 @@ class TestGovernance:
         schemas = governance.frontmatter_schemas()
 
         #: Then
-        assert tuple(schema.path for schema in schemas) == (SPECS_DIR / PathComponent.parse('code.structure.json'),), (
+        assert tuple(schema.spec for schema in schemas) == (SPECS_DIR / PathComponent.parse('code.structure.json'),), (
             'the corpus frontmatter schema is the only one when the corpus spec governs alone'
         )
 
@@ -175,7 +175,7 @@ class TestGovernance:
         schemas = governance.frontmatter_schemas()
 
         #: Then
-        assert tuple(schema.path for schema in schemas) == (
+        assert tuple(schema.spec for schema in schemas) == (
             SPECS_DIR / PathComponent.parse('code.structure.json'),
             SPECS_DIR / PathComponent.parse('code-python.structure.json'),
             SPECS_DIR / PathComponent.parse('code-python-errors.structure.json'),
@@ -193,7 +193,7 @@ class TestGovernance:
         schemas = governance.frontmatter_schemas()
 
         #: Then
-        assert tuple(schema.path for schema in schemas) == (
+        assert tuple(schema.spec for schema in schemas) == (
             SPECS_DIR / PathComponent.parse('code.structure.json'),
             SPECS_DIR / PathComponent.parse('code-python.structure.json'),
         ), 'the namespace schema follows the corpus schema when the namespace equals the filename'
@@ -210,7 +210,7 @@ class TestGovernance:
         schemas = governance.frontmatter_schemas()
 
         #: Then
-        assert tuple(schema.path for schema in schemas) == (SPECS_DIR / PathComponent.parse('code.structure.json'),), (
+        assert tuple(schema.spec for schema in schemas) == (SPECS_DIR / PathComponent.parse('code.structure.json'),), (
             'the python namespace schema does not apply to pythonic, only the corpus schema does'
         )
 
@@ -258,7 +258,7 @@ class TestGovernance:
         schemas = governance.frontmatter_schemas()
 
         #: Then
-        assert tuple(schema.path for schema in schemas) == (SPECS_DIR / PathComponent.parse('code.structure.json'),), (
+        assert tuple(schema.spec for schema in schemas) == (SPECS_DIR / PathComponent.parse('code.structure.json'),), (
             'a namespace structure stating no frontmatter schema adds none, so only the corpus schema applies'
         )
 

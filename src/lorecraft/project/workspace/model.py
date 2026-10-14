@@ -21,7 +21,7 @@ from lorecraft.project.corpus import CorpusName
 from lorecraft.project.document.ref import DocumentRef
 from lorecraft.project.layout import DOCS_DIR
 from lorecraft.project.schemas.name import CorpusSpecName, NamespaceSpecName
-from lorecraft.project.schemas.structure import FrontmatterSchema, StructureSpec
+from lorecraft.project.schemas.structure import StatedFrontmatterSchema, StructureSpec
 from lorecraft.project.skill.outside import OutsideSymlink
 from lorecraft.project.skill.ref import SkillLocation, SkillRef
 from lorecraft.project.skill.skills_dir import SkillsDir
@@ -126,8 +126,8 @@ class Governance:
                 structure_specs.append(spec.structure)
         return tuple(structure_specs)
 
-    def frontmatter_schemas(self) -> tuple[FrontmatterSchema, ...]:
-        """Frontmatter schemas to apply in order; `()` means ungoverned for frontmatter.
+    def frontmatter_schemas(self) -> tuple[StatedFrontmatterSchema, ...]:
+        """Frontmatter schemas to apply in order, each with its specification; `()` means ungoverned for frontmatter.
 
         Each comes from the `frontmatter` key of a structure specification that loaded. As with `structure_specs`, a
         corpus spec whose structure specification states no frontmatter schema leaves the document ungoverned even
@@ -136,10 +136,10 @@ class Governance:
         corpus_structure = self.corpus_structure()
         if corpus_structure is None or corpus_structure.frontmatter is None:
             return ()
-        schemas: list[FrontmatterSchema] = []
+        schemas: list[StatedFrontmatterSchema] = []
         for structure_spec in self.structure_specs():
             if structure_spec.frontmatter is not None:
-                schemas.append(structure_spec.frontmatter)
+                schemas.append(StatedFrontmatterSchema(spec=structure_spec.path, schema=structure_spec.frontmatter))
         return tuple(schemas)
 
     def outline_specs(self) -> tuple[StructureSpec, ...]:

@@ -12,16 +12,18 @@ from jsonschema.exceptions import ValidationError as SchemaValidationError
 
 from lorecraft.core.mapping import Plain
 
+from .frontmatter_problem import JsonType, JsonTypes
+
 
 @dataclass(frozen=True, slots=True)
 class TypeKeyword:
-    """`type`: the value must be one of these JSON type names.
+    """`type`: the value must be one of these JSON types.
 
     Attributes:
-        names: The type names, one for a keyword written as a name and several for one written as an array.
+        names: The types, one for a keyword written as a name and several for one written as an array.
     """
 
-    names: tuple[str, ...]
+    names: JsonTypes
 
 
 @dataclass(frozen=True, slots=True)
@@ -145,11 +147,9 @@ def keyword_of(error: SchemaValidationError) -> Keyword:
     value: Plain = error.validator_value
     match error.validator:
         case 'type':
-            if isinstance(value, str):
-                return TypeKeyword((value,))
-            names = _names(value)
-            if names is not None:
-                return TypeKeyword(names)
+            types = _json_types(value)
+            if types is not None:
+                return TypeKeyword(types)
         case 'required':
             fields = _names(value)
             if fields is not None:
@@ -178,6 +178,24 @@ def keyword_of(error: SchemaValidationError) -> Keyword:
             if isinstance(value, int) and value >= 0:
                 return MaxPropertiesKeyword(value)
     return OtherKeyword()
+
+
+def _json_types(value: object) -> JsonTypes | None:
+    """The JSON types a `type` keyword's value names, or `None` when it is not a name or a non-empty array of them.
+
+    A name that is not a JSON type is `None` too, so the keyword is read as `OtherKeyword`.
+
+    Args:
+        value: The keyword's value, which the meta-schema requires to be a type name or an array of them.
+    """
+    names = (value,) if isinstance(value, str) else _names(value)
+    if not names:
+        return None
+    known = frozenset(member.value for member in JsonType)
+    if any(name not in known for name in names):
+        return None
+    first, *rest = (JsonType(name) for name in names)
+    return (first, *rest)
 
 
 def _names(value: object) -> tuple[str, ...] | None:

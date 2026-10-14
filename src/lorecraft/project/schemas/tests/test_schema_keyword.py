@@ -6,6 +6,7 @@ from jsonschema.exceptions import ValidationError as SchemaValidationError
 
 from lorecraft.core.mapping import Plain
 
+from ..frontmatter_problem import JsonType
 from ..schema_keyword import (
     AdditionalPropertiesKeyword,
     ConstKeyword,
@@ -44,7 +45,7 @@ class TestKeywordOf:
         keyword = _keyword(schema, instance)
 
         #: Then
-        assert keyword == TypeKeyword(('string',)), 'a type written as a name holds that name'
+        assert keyword == TypeKeyword((JsonType.STRING,)), 'a type written as a name holds that name'
 
     def test_keyword_of_with_an_array_of_type_names_returns_every_name(self) -> None:
         #: Given
@@ -55,7 +56,7 @@ class TestKeywordOf:
         keyword = _keyword(schema, instance)
 
         #: Then
-        assert keyword == TypeKeyword(('string', 'null')), 'a type written as an array holds every name'
+        assert keyword == TypeKeyword((JsonType.STRING, JsonType.NULL)), 'a type written as an array holds every name'
 
     def test_keyword_of_with_required_returns_the_fields_it_names(self) -> None:
         #: Given

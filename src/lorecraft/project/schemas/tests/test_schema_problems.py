@@ -23,7 +23,7 @@ from ..schema_problems import (
     locate_skill_schema_problems,
 )
 from ..spec_file import SpecFileType, StructureSpecFile, spec_filename
-from ..structure import FrontmatterSchema, StructureSchema, StructureSpec
+from ..structure import StatedFrontmatterSchema, StructureSchema, StructureSpec
 
 SPECS_DIR: Final[RootRelativePath] = RootRelativePath.parse('docs/__meta__')
 
@@ -45,8 +45,8 @@ STRING_DESCRIPTION: Final[str] = (
 """A structure specification whose frontmatter schema requires `description` to be a string."""
 
 
-def _frontmatter_schema(spec_name: str, text: str) -> FrontmatterSchema:
-    """The frontmatter schema a structure specification states, decoded from its JSON.
+def _frontmatter_schema(spec_name: str, text: str) -> StatedFrontmatterSchema:
+    """The frontmatter schema a structure specification states, decoded from its JSON, with its path.
 
     Args:
         spec_name: The specification's name, such as `code` or `code-python`.
@@ -58,7 +58,7 @@ def _frontmatter_schema(spec_name: str, text: str) -> FrontmatterSchema:
     )
     frontmatter = StructureSpec.parse(file, StructureSchema(text)).frontmatter
     assert frontmatter is not None, f'{file.path} states a frontmatter schema'
-    return frontmatter
+    return StatedFrontmatterSchema(spec=file.path, schema=frontmatter)
 
 
 def _mapping(text: str) -> Frontmatter:
