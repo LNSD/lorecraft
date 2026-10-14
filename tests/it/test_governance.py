@@ -18,6 +18,7 @@ from lorecraft.project.aspect import AspectFilename, AspectNamespace
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.database import Database
 from lorecraft.project.document import DocumentRef
+from lorecraft.project.schemas.name import CorpusSpecName, NamespaceSpecName
 from lorecraft.project.workspace import Corpus, CorpusNamespace, Governance
 from lorecraft.rules.registry import Registry
 from lorecraft.rules.selection import AllRules, RuleSelection
@@ -76,9 +77,11 @@ class TestGovernance:
 
         #: Then
         assert governance is not None, 'the corpus `code` is one the model holds'
-        assert [spec.name.corpus for spec in governance.specs()] == [CorpusName.parse('code')] * 2, (
-            'the corpus spec and the `python` namespace spec govern the document'
-        )
+        code = CorpusName.parse('code')
+        assert [spec.name for spec in governance.specs()] == [
+            CorpusSpecName(code),
+            NamespaceSpecName(code, AspectNamespace.parse('python')),
+        ], 'the corpus spec and the `python` namespace spec govern the document'
         assert governance == database.model().find_governance(TYPING), 'the query answers what the model finds'
 
     def test_governance_with_a_document_in_a_corpus_the_model_lacks_holds_none(self) -> None:

@@ -36,7 +36,7 @@ def validator() -> Draft202012Validator:
 
 @pytest.mark.it
 class TestSkillFrontmatterSchema:
-    def test_skill_frontmatter_schema_is_a_well_formed_json_schema(self) -> None:
+    def test_skill_frontmatter_schema_when_checked_against_the_metaschema_is_well_formed(self) -> None:
         #: Given
         schema = json.loads(SCHEMA_FILE.read_text(encoding='utf-8'))
 
@@ -46,7 +46,9 @@ class TestSkillFrontmatterSchema:
         #: Then
         assert schema['$schema'] == 'https://json-schema.org/draft/2020-12/schema', 'the schema names its dialect'
 
-    def test_every_repository_skill_passes_the_schema(self, validator: Draft202012Validator) -> None:
+    def test_skill_frontmatter_schema_with_every_repository_skill_accepts_it(
+        self, validator: Draft202012Validator
+    ) -> None:
         #: Given
         frontmatters = {
             skill.parent.name: parse_frontmatter(skill.read_text(encoding='utf-8')) for skill in repository_skills()

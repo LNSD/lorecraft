@@ -2916,7 +2916,8 @@ class TestVirtualFileSystemMatchesDiskThroughFollowedLinks:
         disk_answer, virtual_answer = _answers(disk.find_dir, virtual.find_dir, chain_of_40_links)
 
         #: Then
-        assert (disk_answer, virtual_answer) == (real, real), 'a chain of 40 links still leads to real on both views'
+        assert disk_answer == real, 'disk: a chain of 40 links still leads to real on both views'
+        assert virtual_answer == real, 'snapshot view: a chain of 40 links still leads to real on both views'
 
     def test_list_dir_over_a_following_snapshot_with_a_looping_link_agrees_with_disk(self, tmp_path: Path) -> None:
         #: Given
@@ -3114,10 +3115,12 @@ class TestVirtualFileSystemMatchesDiskThroughClimbingLinks:
         disk_answer, virtual_answer = _answers(disk.find_root_exit, virtual.find_root_exit, path)
 
         #: Then
-        assert (virtual_answer, disk_answer) == (
-            RootExit(RootRelativePath.parse('skills/out'), PurePosixPath('../a/tmp/../../..')),
-            RootExit(RootRelativePath.parse('skills/out'), PurePosixPath('../a/tmp/../../..')),
-        ), 'both walks climb above the root at skills/out, after stepping into a/tmp'
+        assert virtual_answer == RootExit(RootRelativePath.parse('skills/out'), PurePosixPath('../a/tmp/../../..')), (
+            'snapshot view: both walks climb above the root at skills/out, after stepping into a/tmp'
+        )
+        assert disk_answer == RootExit(RootRelativePath.parse('skills/out'), PurePosixPath('../a/tmp/../../..')), (
+            'disk: both walks climb above the root at skills/out, after stepping into a/tmp'
+        )
 
 
 # A plain root like the layout's `docs/`: one level deep, its links recorded and not followed.
@@ -3184,10 +3187,12 @@ class TestPlainRootWalksItsLinksForTheRecord:
         disk_answer, virtual_answer = _answers(disk.find_root_exit, virtual.find_root_exit, path)
 
         #: Then
-        assert (virtual_answer, disk_answer) == (
-            RootExit(RootRelativePath.parse('docs/out'), PurePosixPath('../src/../../..')),
-            RootExit(RootRelativePath.parse('docs/out'), PurePosixPath('../src/../../..')),
-        ), 'the scan recorded the climb out of src/, so both walks leave the root at docs/out'
+        assert virtual_answer == RootExit(RootRelativePath.parse('docs/out'), PurePosixPath('../src/../../..')), (
+            'snapshot view: the scan recorded the climb out of src/, so both walks leave the root at docs/out'
+        )
+        assert disk_answer == RootExit(RootRelativePath.parse('docs/out'), PurePosixPath('../src/../../..')), (
+            'disk: the scan recorded the climb out of src/, so both walks leave the root at docs/out'
+        )
 
     def test_is_in_scope_through_a_link_of_a_plain_root_climbing_out_of_a_directory_agrees_with_the_scan(
         self, plain_climbing_tree: Path
@@ -3202,8 +3207,11 @@ class TestPlainRootWalksItsLinksForTheRecord:
         declared = ScopeIndex(snapshot).is_in_scope(path)
 
         #: Then
-        assert (declared, reached) == (True, RootRelativePath.parse('docs/feat/a.md')), (
-            'docs/linked leads to docs/feat, which the scan lists, so the path is in scope and reached'
+        assert declared is True, (
+            'scope query: docs/linked leads to docs/feat, which the scan lists, so the path is in scope and reached'
+        )
+        assert reached == RootRelativePath.parse('docs/feat/a.md'), (
+            'view: docs/linked leads to docs/feat, which the scan lists, so the path is in scope and reached'
         )
 
 
@@ -3237,7 +3245,8 @@ class TestIsInScopeMatchesSnapshot:
         declared = index.is_in_scope(directory / PathComponent.parse('absent.md'))
 
         #: Then
-        assert (declared, listed) == (True, True), 'docs/ is a root: declared in the scope, and listed'
+        assert declared is True, 'scope query: docs/ is a root: declared in the scope, and listed'
+        assert listed is True, 'scan listing: docs/ is a root: declared in the scope, and listed'
 
     def test_is_in_scope_with_a_corpus_directory_agrees_with_the_snapshot(self, scope_parity_tree: Path) -> None:
         #: Given
@@ -3250,9 +3259,8 @@ class TestIsInScopeMatchesSnapshot:
         declared = index.is_in_scope(directory / PathComponent.parse('absent.md'))
 
         #: Then
-        assert (declared, listed) == (True, True), (
-            'docs/feat is one level under docs/: declared in the scope, and listed'
-        )
+        assert declared is True, 'scope query: docs/feat is one level under docs/: declared in the scope, and listed'
+        assert listed is True, 'scan listing: docs/feat is one level under docs/: declared in the scope, and listed'
 
     def test_is_in_scope_beyond_the_docs_depth_agrees_with_the_snapshot(self, scope_parity_tree: Path) -> None:
         #: Given
@@ -3265,8 +3273,11 @@ class TestIsInScopeMatchesSnapshot:
         declared = index.is_in_scope(directory / PathComponent.parse('absent.md'))
 
         #: Then
-        assert (declared, listed) == (False, False), (
-            'docs/feat/deep is two levels under docs/: outside the scope, and unlisted'
+        assert declared is False, (
+            'scope query: docs/feat/deep is two levels under docs/: outside the scope, and unlisted'
+        )
+        assert listed is False, (
+            'scan listing: docs/feat/deep is two levels under docs/: outside the scope, and unlisted'
         )
 
     def test_is_in_scope_through_an_unfollowed_docs_link_out_agrees_with_the_snapshot(
@@ -3282,9 +3293,8 @@ class TestIsInScopeMatchesSnapshot:
         declared = index.is_in_scope(directory / PathComponent.parse('absent.md'))
 
         #: Then
-        assert (declared, listed) == (False, False), (
-            'docs/ does not follow its link to elsewhere/, which no root covers'
-        )
+        assert declared is False, 'scope query: docs/ does not follow its link to elsewhere/, which no root covers'
+        assert listed is False, 'scan listing: docs/ does not follow its link to elsewhere/, which no root covers'
 
     def test_is_in_scope_through_an_unfollowed_docs_link_to_a_sibling_agrees_with_the_snapshot(
         self, scope_parity_tree: Path
@@ -3299,9 +3309,10 @@ class TestIsInScopeMatchesSnapshot:
         declared = index.is_in_scope(directory / PathComponent.parse('absent.md'))
 
         #: Then
-        assert (declared, listed) == (True, True), (
-            'the link is not followed, but docs/feat, where it leads, is listed anyway'
+        assert declared is True, (
+            'scope query: the link is not followed, but docs/feat, where it leads, is listed anyway'
         )
+        assert listed is True, 'scan listing: the link is not followed, but docs/feat, where it leads, is listed anyway'
 
     def test_is_in_scope_through_a_followed_skill_link_agrees_with_the_snapshot(self, scope_parity_tree: Path) -> None:
         #: Given
@@ -3314,7 +3325,8 @@ class TestIsInScopeMatchesSnapshot:
         declared = index.is_in_scope(directory / PathComponent.parse('absent.md'))
 
         #: Then
-        assert (declared, listed) == (True, True), 'the skills root follows .agents/skills/y to skills/y and lists it'
+        assert declared is True, 'scope query: the skills root follows .agents/skills/y to skills/y and lists it'
+        assert listed is True, 'scan listing: the skills root follows .agents/skills/y to skills/y and lists it'
 
     def test_is_in_scope_at_the_resolved_path_of_a_followed_skill_link_agrees_with_the_snapshot(
         self, scope_parity_tree: Path
@@ -3329,8 +3341,11 @@ class TestIsInScopeMatchesSnapshot:
         declared = index.is_in_scope(directory / PathComponent.parse('absent.md'))
 
         #: Then
-        assert (declared, listed) == (True, True), (
-            'skills/y is listed through the link, and is in the scope by its own spelling'
+        assert declared is True, (
+            'scope query: skills/y is listed through the link, and is in the scope by its own spelling'
+        )
+        assert listed is True, (
+            'scan listing: skills/y is listed through the link, and is in the scope by its own spelling'
         )
 
     def test_is_in_scope_below_a_followed_skill_link_agrees_with_the_snapshot(self, scope_parity_tree: Path) -> None:
@@ -3344,8 +3359,11 @@ class TestIsInScopeMatchesSnapshot:
         declared = index.is_in_scope(directory / PathComponent.parse('absent.md'))
 
         #: Then
-        assert (declared, listed) == (True, True), (
-            'the skills root has no depth limit, so skills/y is listed and so is its sub/'
+        assert declared is True, (
+            'scope query: the skills root has no depth limit, so skills/y is listed and so is its sub/'
+        )
+        assert listed is True, (
+            'scan listing: the skills root has no depth limit, so skills/y is listed and so is its sub/'
         )
 
     def test_is_in_scope_through_a_linked_skills_directory_agrees_with_the_snapshot(
@@ -3361,7 +3379,8 @@ class TestIsInScopeMatchesSnapshot:
         declared = index.is_in_scope(directory / PathComponent.parse('absent.md'))
 
         #: Then
-        assert (declared, listed) == (True, True), '.claude/skills leads to .agents/skills, whose skill x is listed'
+        assert declared is True, 'scope query: .claude/skills leads to .agents/skills, whose skill x is listed'
+        assert listed is True, 'scan listing: .claude/skills leads to .agents/skills, whose skill x is listed'
 
     def test_is_in_scope_through_a_link_inside_a_skill_agrees_with_the_snapshot(self, scope_parity_tree: Path) -> None:
         #: Given
@@ -3374,8 +3393,11 @@ class TestIsInScopeMatchesSnapshot:
         declared = index.is_in_scope(directory / PathComponent.parse('absent.md'))
 
         #: Then
-        assert (declared, listed) == (True, True), (
-            'a link inside a skill is followed, so lib/ is listed through .agents/skills/x/lib'
+        assert declared is True, (
+            'scope query: a link inside a skill is followed, so lib/ is listed through .agents/skills/x/lib'
+        )
+        assert listed is True, (
+            'scan listing: a link inside a skill is followed, so lib/ is listed through .agents/skills/x/lib'
         )
 
     def test_is_in_scope_outside_every_root_agrees_with_the_snapshot(self, scope_parity_tree: Path) -> None:
@@ -3389,7 +3411,8 @@ class TestIsInScopeMatchesSnapshot:
         declared = index.is_in_scope(directory / PathComponent.parse('absent.md'))
 
         #: Then
-        assert (declared, listed) == (False, False), 'src/ is in no root: outside the scope, and unlisted'
+        assert declared is False, 'scope query: src/ is in no root: outside the scope, and unlisted'
+        assert listed is False, 'scan listing: src/ is in no root: outside the scope, and unlisted'
 
 
 @pytest.mark.it
@@ -3408,8 +3431,9 @@ class TestFindFileMatchesScan:
         reached = virtual.find_file(path)
 
         #: Then
-        assert (reached is not None, declared) == (True, True), (
-            'the skills root follows .agents/skills/y to skills/y and reads its SKILL.md'
+        assert reached is not None, 'view: the skills root follows .agents/skills/y to skills/y and reads its SKILL.md'
+        assert declared is True, (
+            'scope query: the skills root follows .agents/skills/y to skills/y and reads its SKILL.md'
         )
 
     def test_find_file_through_a_linked_skills_directory_agrees_with_the_scope(self, scope_parity_tree: Path) -> None:
@@ -3423,9 +3447,8 @@ class TestFindFileMatchesScan:
         reached = virtual.find_file(path)
 
         #: Then
-        assert (reached is not None, declared) == (True, True), (
-            '.claude/skills leads to .agents/skills, whose skill x is listed'
-        )
+        assert reached is not None, 'view: .claude/skills leads to .agents/skills, whose skill x is listed'
+        assert declared is True, 'scope query: .claude/skills leads to .agents/skills, whose skill x is listed'
 
     def test_find_file_through_an_unfollowed_docs_link_to_a_sibling_agrees_with_the_scope(
         self, scope_parity_tree: Path
@@ -3440,8 +3463,9 @@ class TestFindFileMatchesScan:
         reached = virtual.find_file(path)
 
         #: Then
-        assert (reached is not None, declared) == (True, True), (
-            'the link is not followed, but docs/feat, where it leads, is listed anyway'
+        assert reached is not None, 'view: the link is not followed, but docs/feat, where it leads, is listed anyway'
+        assert declared is True, (
+            'scope query: the link is not followed, but docs/feat, where it leads, is listed anyway'
         )
 
     def test_find_file_through_an_unfollowed_docs_link_out_agrees_with_the_scope(self, scope_parity_tree: Path) -> None:
@@ -3455,9 +3479,8 @@ class TestFindFileMatchesScan:
         reached = virtual.find_file(path)
 
         #: Then
-        assert (reached is not None, declared) == (False, False), (
-            'docs/ does not follow its link to elsewhere/, which no root covers'
-        )
+        assert reached is None, 'view: docs/ does not follow its link to elsewhere/, which no root covers'
+        assert declared is False, 'scope query: docs/ does not follow its link to elsewhere/, which no root covers'
 
     def test_find_file_through_a_link_inside_a_skill_agrees_with_the_scope(self, scope_parity_tree: Path) -> None:
         #: Given
@@ -3470,8 +3493,11 @@ class TestFindFileMatchesScan:
         reached = virtual.find_file(path)
 
         #: Then
-        assert (reached is not None, declared) == (True, True), (
-            'a link inside a skill is followed, so lib/a.md is read through .agents/skills/x/lib'
+        assert reached is not None, (
+            'view: a link inside a skill is followed, so lib/a.md is read through .agents/skills/x/lib'
+        )
+        assert declared is True, (
+            'scope query: a link inside a skill is followed, so lib/a.md is read through .agents/skills/x/lib'
         )
 
     def test_find_file_through_a_link_climbing_out_of_its_own_directory_agrees_with_the_scope(
@@ -3487,8 +3513,11 @@ class TestFindFileMatchesScan:
         reached = virtual.find_file(path)
 
         #: Then
-        assert (reached is not None, declared) == (True, True), (
-            'the target ../a/b climbs only out of skills/, where the link sits, so the scan follows it'
+        assert reached is not None, (
+            'view: the target ../a/b climbs only out of skills/, where the link sits, so the scan follows it'
+        )
+        assert declared is True, (
+            'scope query: the target ../a/b climbs only out of skills/, where the link sits, so the scan follows it'
         )
 
     def test_find_file_through_a_chain_climbing_out_of_a_directory_stepped_into_agrees_with_the_scope(
@@ -3504,8 +3533,11 @@ class TestFindFileMatchesScan:
         reached = virtual.find_file(path)
 
         #: Then
-        assert (reached, declared) == (RootRelativePath.parse('a/b/SKILL.md'), True), (
-            'the `..` after a/tmp is a, so skills/l leads to a/b and its SKILL.md is read through it'
+        assert reached == RootRelativePath.parse('a/b/SKILL.md'), (
+            'view: the `..` after a/tmp is a, so skills/l leads to a/b and its SKILL.md is read through it'
+        )
+        assert declared is True, (
+            'scope query: the `..` after a/tmp is a, so skills/l leads to a/b and its SKILL.md is read through it'
         )
 
     def test_find_file_through_a_chain_climbing_out_of_an_unlisted_directory_agrees_with_the_scope(
@@ -3521,8 +3553,11 @@ class TestFindFileMatchesScan:
         reached = virtual.find_file(path)
 
         #: Then
-        assert (reached, declared) == (RootRelativePath.parse('c/d/SKILL.md'), True), (
-            'no root lists c/tmp, but the scan records climbing out of it, so both walks reach c/d'
+        assert reached == RootRelativePath.parse('c/d/SKILL.md'), (
+            'view: no root lists c/tmp, but the scan records climbing out of it, so both walks reach c/d'
+        )
+        assert declared is True, (
+            'scope query: no root lists c/tmp, but the scan records climbing out of it, so both walks reach c/d'
         )
 
     def test_find_file_through_a_chain_climbing_out_of_a_missing_directory_agrees_with_the_scope(
@@ -3539,9 +3574,9 @@ class TestFindFileMatchesScan:
         reached = virtual.find_file(path)
 
         #: Then
-        assert (reached, declared, target_listed) == (None, False, True), (
-            'a/missing does not exist, so skills/n leads nowhere, though a/ lists the a/b its `..` would reach'
-        )
+        assert reached is None, 'the view: a/missing does not exist, so skills/n leads nowhere'
+        assert declared is False, 'the scope query: a/missing does not exist, so skills/n is not in scope'
+        assert target_listed is True, 'the scan listing: a/ lists the a/b that the `..` of skills/n would reach'
 
 
 @pytest.fixture(scope='function')

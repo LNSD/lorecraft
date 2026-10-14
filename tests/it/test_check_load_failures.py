@@ -113,7 +113,7 @@ def _codes_at(document: dict[str, object], path: str) -> list[str]:
         path: The root-relative path of the subject.
     """
     diagnostics = document['diagnostics']
-    assert isinstance(diagnostics, list)
+    assert isinstance(diagnostics, list), 'the diagnostics of the run are a list'
     return [item['code'] for item in diagnostics if item['path'] == path]
 
 
@@ -125,7 +125,7 @@ def _severities_at(document: dict[str, object], path: str) -> list[str]:
         path: The root-relative path of the subject.
     """
     diagnostics = document['diagnostics']
-    assert isinstance(diagnostics, list)
+    assert isinstance(diagnostics, list), 'the diagnostics of the run are a list'
     return [item['severity'] for item in diagnostics if item['path'] == path]
 
 
@@ -193,7 +193,7 @@ def _coverage(document: dict[str, object]) -> dict[str, dict[str, object]]:
         document: The JSON document of a run.
     """
     coverage = document['coverage']
-    assert isinstance(coverage, list)
+    assert isinstance(coverage, list), 'the coverage of the run is a list'
     return {item['path']: item for item in coverage}
 
 
