@@ -1,15 +1,19 @@
 """Reading a YAML text into a tree of values, and refusing what the subset leaves out.
 
-The events come from ruamel.yaml's pure-Python reader, scanner and parser, and the tree is built from them here, never
-by ruamel.yaml's loader or constructor, so no tag ruamel.yaml resolves and no type it constructs is ever involved. The
-text is read lazily and to its end, so a refused construct or a syntax error anywhere in it is reported, and the
-constructs the scanner recorded by the time a read fails are the ones written above the failure.
+`read_yaml` is the one way a YAML text becomes a value. The events come from ruamel.yaml's pure-Python reader, scanner
+and parser, and the tree is built from them here, never by ruamel.yaml's loader or constructor, so no tag ruamel.yaml
+resolves and no type it constructs is ever involved. The text is read lazily and to its end, so a refused construct or
+a syntax error anywhere in it is reported, and the constructs the scanner recorded by the time a read fails are the
+ones written above the failure.
+
+A read that fails raises one `YamlReadError`, which says what stopped it and the first construct the scanner or the
+reader had recorded, so the caller can decide which of the two its text is reported for.
 """
 
 from collections.abc import Iterator
 
 from ruamel.yaml import YAML
-from ruamel.yaml.error import StreamMark
+from ruamel.yaml.error import MarkedYAMLError, StreamMark
 from ruamel.yaml.events import (
     AliasEvent,
     Event,
@@ -20,15 +24,19 @@ from ruamel.yaml.events import (
     SequenceStartEvent,
     StreamEndEvent,
 )
+from ruamel.yaml.reader import ReaderError
 
+from lorecraft.core.error import Error
 from lorecraft.core.num import NonZeroUnsignedInt
 
 from .basic_yaml import (
     MERGE_KEY,
+    REFUSALS,
     BasicYamlParser,
     BasicYamlReader,
     BasicYamlScanner,
     RecordedRefusal,
+    Refusal,
     RefusedAliasError,
     RefusedAnchorError,
     RefusedCollectionKeyError,
@@ -44,11 +52,70 @@ from .scalar import resolve_plain_scalar
 from .tree import YamlKey, YamlMapping, YamlPosition, YamlScalar, YamlSequence, YamlValue
 
 
-class YamlEventStream:
-    """The events of a text, read lazily, one at a time, with one event of lookahead.
+class YamlReadError(Error):
+    """A YAML text could not be read into a tree.
 
-    It is kept by the caller, which asks it for the construct the scanner recorded when a read fails.
+    Attributes:
+        cause: What stopped the read: a character YAML does not allow, a syntax error, a construct the subset leaves
+            out, or the interpreter's recursion limit. `None` when the text was read to its end and only a recorded
+            construct is left to report.
+        refusal: The first construct the scanner or the reader recorded without stopping, by where it is written, or
+            `None`. The scanner reads ahead of the parser, so it may be written above `cause`.
     """
+
+    cause: ReaderError | MarkedYAMLError | Refusal | RecursionError | None
+    refusal: RecordedRefusal | None
+
+    def __init__(
+        self,
+        cause: ReaderError | MarkedYAMLError | Refusal | RecursionError | None,
+        refusal: RecordedRefusal | None,
+    ) -> None:
+        self.cause = cause
+        self.refusal = refusal
+        super().__init__('the YAML text could not be read')
+
+
+def read_yaml(text: str) -> YamlValue | None:
+    """Read a YAML text, which holds one document, into its tree.
+
+    Every value is read to its end, so a refused construct or a syntax error anywhere in the text is reported rather
+    than hidden behind the document's shape. Line and column positions count from the first character of `text`.
+
+    Args:
+        text: The YAML text to read, line endings kept.
+
+    Returns:
+        The document's root, or `None` when the text holds no document: it is empty, or holds only comments.
+
+    Raises:
+        YamlReadError: The text is not valid YAML, holds a character YAML does not allow, writes a construct the
+            subset leaves out, or nests collections too deeply to read.
+    """
+    stream = _EventStream(text)
+    try:
+        root = _read_document(stream)
+    except ReaderError as exc:
+        # The reader checks every character as it is built, so a control character fails before the first event.
+        raise YamlReadError(exc, None) from exc
+    except REFUSALS as exc:
+        raise YamlReadError(exc, stream.first_refusal()) from exc
+    except MarkedYAMLError as exc:
+        raise YamlReadError(exc, stream.first_refusal()) from exc
+    except RecursionError as exc:
+        # The value is read with one call per level of nesting, so only a deeply nested text reaches the
+        # interpreter's limit. By the time this clause runs the stack has unwound to this frame, so there is room
+        # to go on, and the half-read parser is dropped.
+        raise YamlReadError(exc, stream.first_refusal()) from exc
+    # The text was read to its end, so every construct the scanner recorded is written above the end.
+    refusal = stream.first_refusal()
+    if refusal is not None:
+        raise YamlReadError(None, refusal)
+    return root
+
+
+class _EventStream:
+    """The events of a text, read lazily, one at a time, with one event of lookahead."""
 
     def __init__(self, text: str) -> None:
         """Start reading `text`. No character is read until the first event is asked for.
@@ -83,7 +150,7 @@ class YamlEventStream:
         scanner = self._yaml.scanner
         reader = self._yaml.reader
         if not isinstance(scanner, BasicYamlScanner) or not isinstance(reader, BasicYamlReader):
-            # The types are declared on the parser's base class; `YamlEventStream` always installs its own.
+            # The types are declared on the parser's base class; `_EventStream` always installs its own.
             raise AssertionError("unreachable: the parser is built with `basic_yaml`'s scanner and reader")
         recorded = [*scanner.refusals[:1], *([reader.separator] if reader.separator is not None else [])]
         if not recorded:
@@ -146,7 +213,7 @@ def _position_of(event: Event) -> YamlPosition:
     return YamlPosition(NonZeroUnsignedInt(mark.line + 1), NonZeroUnsignedInt(mark.column + 1))
 
 
-def read_document(parser: YamlEventStream) -> YamlValue | None:
+def _read_document(parser: _EventStream) -> YamlValue | None:
     """Read the text's one document, if any.
 
     Args:
@@ -183,7 +250,7 @@ def read_document(parser: YamlEventStream) -> YamlValue | None:
     return root
 
 
-def _peek_node_start(parser: YamlEventStream) -> ScalarEvent | SequenceStartEvent | MappingStartEvent:
+def _peek_node_start(parser: _EventStream) -> ScalarEvent | SequenceStartEvent | MappingStartEvent:
     """The event the next value starts with, left unread, once it is known to use nothing the subset leaves out.
 
     Args:
@@ -208,7 +275,7 @@ def _peek_node_start(parser: YamlEventStream) -> ScalarEvent | SequenceStartEven
     return event
 
 
-def _read_value(parser: YamlEventStream) -> YamlValue:
+def _read_value(parser: _EventStream) -> YamlValue:
     """Read one value and everything in it.
 
     Args:
@@ -235,7 +302,7 @@ def _read_value(parser: YamlEventStream) -> YamlValue:
     return YamlScalar(_scalar_value(event), _position_of(event))
 
 
-def _read_mapping(parser: YamlEventStream, start: MappingStartEvent) -> YamlMapping:
+def _read_mapping(parser: _EventStream, start: MappingStartEvent) -> YamlMapping:
     """Read one mapping, every pair in the order it is written, a repeated key once per occurrence.
 
     Args:
@@ -262,7 +329,7 @@ def _read_mapping(parser: YamlEventStream, start: MappingStartEvent) -> YamlMapp
     return YamlMapping(tuple(entries), _position_of(start))
 
 
-def _read_sequence(parser: YamlEventStream, start: SequenceStartEvent) -> YamlSequence:
+def _read_sequence(parser: _EventStream, start: SequenceStartEvent) -> YamlSequence:
     """Read one sequence, every item in the order it is written.
 
     Args:
@@ -287,7 +354,7 @@ def _read_sequence(parser: YamlEventStream, start: SequenceStartEvent) -> YamlSe
     return YamlSequence(tuple(items), _position_of(start))
 
 
-def _read_key(parser: YamlEventStream) -> YamlKey:
+def _read_key(parser: _EventStream) -> YamlKey:
     """Read one key of a mapping, which must be a scalar that reads as a string.
 
     Args:
@@ -315,7 +382,7 @@ def _read_key(parser: YamlEventStream) -> YamlKey:
     return YamlKey(name, _position_of(event))
 
 
-def _refuse_nested_collection(parser: YamlEventStream, parent: SequenceStartEvent | MappingStartEvent) -> None:
+def _refuse_nested_collection(parser: _EventStream, parent: SequenceStartEvent | MappingStartEvent) -> None:
     """Refuse the next value when it is a collection `parent` does not hold.
 
     A flow collection holds no collection, and a block sequence holds no block sequence. A block mapping is the item
