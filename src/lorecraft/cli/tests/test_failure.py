@@ -2,7 +2,6 @@
 
 import pytest
 import typer
-from jsonschema.exceptions import SchemaError
 from pydantic import ValidationError
 
 from lorecraft.core.error import Error
@@ -17,15 +16,12 @@ from lorecraft.project.schemas.structure import (
     AdjacentAnyRunsError,
     EmptyStructureSpecError,
     ForbiddenOutlineSectionError,
-    ForeignFrontmatterDialectError,
-    FrontmatterSchemaIdError,
-    InvalidFrontmatterSchemaError,
     RepeatedForbiddenSectionError,
     RepeatedOutlineSectionError,
     StructureSpecDecodeError,
     StructureSpecProblem,
-    UntypedFrontmatterSchemaError,
 )
+from lorecraft.project.schemas.structure_file import JSON_SCHEMA_DIALECT
 from lorecraft.project.skill import (
     SkillDirListError,
     SkillEntryResolveError,
@@ -307,7 +303,7 @@ class TestReportLoadFailure:
     ) -> None:
         #: Given
         failure = LoadFailure(_PATH, InvalidFrontmatterSchema('5 is not valid'))
-        error = InvalidFrontmatterSchemaError(_PATH, '5 is not valid', source=SchemaError('5 is not valid'))
+        error = Error(f'invalid structure schema {_PATH}: frontmatter is not a valid JSON Schema: 5 is not valid')
 
         #: When
         expected, actual = _written_for(capsys, failure, error)
@@ -320,7 +316,7 @@ class TestReportLoadFailure:
     ) -> None:
         #: Given
         failure = LoadFailure(_PATH, FrontmatterSchemaId())
-        error = FrontmatterSchemaIdError(_PATH)
+        error = Error(f'invalid structure schema {_PATH}: frontmatter schema may not carry $id')
 
         #: When
         expected, actual = _written_for(capsys, failure, error)
@@ -333,7 +329,10 @@ class TestReportLoadFailure:
     ) -> None:
         #: Given
         failure = LoadFailure(_PATH, ForeignFrontmatterDialect('draft-07'))
-        error = ForeignFrontmatterDialectError(_PATH, 'draft-07')
+        error = Error(
+            f"invalid structure schema {_PATH}: frontmatter schema names 'draft-07' in $schema; only "
+            f'{JSON_SCHEMA_DIALECT} is allowed'
+        )
 
         #: When
         expected, actual = _written_for(capsys, failure, error)
@@ -346,7 +345,7 @@ class TestReportLoadFailure:
     ) -> None:
         #: Given
         failure = LoadFailure(_PATH, UntypedFrontmatterSchema())
-        error = UntypedFrontmatterSchemaError(_PATH)
+        error = Error(f'invalid structure schema {_PATH}: frontmatter schema root must state "type": "object"')
 
         #: When
         expected, actual = _written_for(capsys, failure, error)
