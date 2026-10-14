@@ -1,0 +1,91 @@
+---
+name: "python-typing-newtype"
+description: "Static distinctions with `typing.NewType` for values with the same representation and no runtime invariant. Load when same-typed domain values must not be interchanged"
+type: "core"
+scope: "global"
+---
+
+# Static Distinctions (`NewType`)
+
+**Use `typing.NewType` when two values share a runtime representation but mean different things, and neither
+needs runtime validation or behavior.** The type checker then rejects accidental substitutions while values
+remain their original primitive at runtime.
+
+How an annotation is spelled and checked is owned by [python-typing](python-typing.md). Runtime invariants and
+behavior on a wrapped primitive are owned by [pattern-value-object](pattern-value-object.md). This document is
+about the distinction only the checker sees.
+
+## 1. Give Same-Typed Values With Different Meanings Distinct Types
+
+A `NewType` lets a static checker distinguish domain roles without adding a runtime wrapper. It catches
+transposed same-typed arguments at the call site, while keeping simple values cheap to construct and easy to
+pass to APIs that accept the underlying type.
+
+Use one alias for each meaning. Do not create a `NewType` when the distinction cannot prevent a realistic
+mix-up: leave ordinary values as their primitive when there is no plausible confusion.
+
+Two pieces of report text may both be strings but occupy distinct roles in a signature. Keep those roles
+visible to the type checker:
+
+```python
+# ❌ Bad — both arguments are strings, so swapping the title and message compiles.
+def report_line(title: str, message: str) -> str:
+    return f'{title}: {message}'
+
+
+report_line('Frontmatter check', 'Missing frontmatter')
+```
+
+```python
+# ✅ Good — the arguments carry distinct static types, so a swap is a type error.
+from typing import NewType
+
+ReportTitle = NewType('ReportTitle', str)
+FindingMessage = NewType('FindingMessage', str)
+
+
+def report_line(title: ReportTitle, message: FindingMessage) -> str:
+    return f'{title}: {message}'
+
+
+title = ReportTitle('Frontmatter check')
+message = FindingMessage('Missing frontmatter')
+report_line(title, message)
+```
+
+## 2. A `NewType` Is Not a Validator
+
+`NewType` is not a wrapper or validator. Calling `ReportTitle(raw)` returns `raw` unchanged; it does not check
+the string, create a distinct runtime object, or protect against untyped callers. Its constructor is a runtime
+identity function, so malformed input remains malformed.
+
+Do not use `NewType` to claim that a value has been validated. Validate external data at the boundary. Use a
+value object when construction must establish an invariant, provide operations, or make runtime inspection
+meaningful ([pattern-value-object](pattern-value-object.md)).
+
+## 3. Create the `NewType` Where the Value Takes On Its Meaning
+
+Create the `NewType` at the boundary where a plain value takes on its domain meaning. Annotate the functions
+that consume the domain value with the new type, and pass it through without converting back to the primitive.
+
+## Checklist
+
+Before committing code, verify:
+
+- [ ] The new type distinguishes values with the same representation and genuinely different meanings
+- [ ] Any runtime validation is performed separately at the untrusted input boundary
+- [ ] A value object is used instead when the type must enforce an invariant or own behavior
+- [ ] Construction happens where the plain value takes on its domain meaning
+- [ ] Functions that consume the domain value annotate it with the `NewType`
+
+## References
+
+- [python-typing](python-typing.md) - Extends: Owns how annotations are spelled and checked, and which
+  construct carries which kind of distinction
+- [pattern-value-object](pattern-value-object.md) - Related: Runtime invariants and behavior on wrapped
+  primitives
+
+## External References
+
+- [Python docs — `typing.NewType`](https://docs.python.org/3/library/typing.html#newtype)
+- [ty — Type system](https://docs.astral.sh/ty/features/type-system/)

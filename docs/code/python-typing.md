@@ -38,7 +38,7 @@ no reader needs a branch for it.
 | One record whose fields only make sense in certain combinations, or a `kind` field that decides which other fields mean something | A union of records, one per case: `CorpusSpec \| NamespaceSpec` |
 | A `kind` field whose type admits a case no value can be | One record per outcome that can occur: `ResolvedDirectory \| ResolvedFile` |
 | A tuple read by its length | One record per shape: `CorpusSpecName \| NamespaceSpecName` |
-| A plain value carrying a distinction no runtime check can see | A `NewType` ([pattern-newtype](pattern-newtype.md)): `ResolvedPath` |
+| A plain value carrying a distinction no runtime check can see | A `NewType` ([python-typing-newtype](python-typing-newtype.md)): `ResolvedPath` |
 | A non-empty guard on a collection whose first item is always there | A required field for that item ([python-dataclasses §4](python-dataclasses.md#4-no-optional-stands-in-for-set-later)) |
 | A bare `str` naming one of several cases | An `Enum`, or a closed union when the cases carry different data |
 
@@ -365,8 +365,8 @@ Before committing code, verify:
   `assert_never` over a closed union, and the paths `ty` cannot prove dead
 - [python-typing-protocol](python-typing-protocol.md) - Related: Owns choosing between a closed union, a
   `Protocol` and an ABC, and which `collections.abc` type annotates an operation
-- [pattern-newtype](pattern-newtype.md) - Related: Owns the static distinction for a value no runtime check
-  can tell apart
+- [python-typing-newtype](python-typing-newtype.md) - Related: Owns the static distinction for a value no
+  runtime check can tell apart
 - [pattern-value-object](pattern-value-object.md) - Related: Owns the value object that validates its
   invariant on construction
 - [error-boundaries](error-boundaries.md) - Related: Owns whether a failed check raises a built-in or an
