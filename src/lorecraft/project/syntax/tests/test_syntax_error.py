@@ -272,6 +272,58 @@ class TestDescribeError:
             'text after a closing quote is named by the quote'
         )
 
+    def test_describe_error_with_an_extra_sequence_end_returns_the_bracket_kind(self) -> None:
+        #: Given
+        block = 'a: [b, c]]\n'
+        error = _error("expected <block end>, but found ']'", _mark(0, 9), context_mark=_mark(0, 0))
+
+        #: When
+        problem = describe_error(error, block)
+
+        #: Then
+        assert problem == SyntaxProblem('this `]` closes nothing', 'Remove it, or quote the value', 0), (
+            'a closing bracket with no opening bracket is named, on its line'
+        )
+
+    def test_describe_error_with_an_extra_mapping_end_returns_the_bracket_kind(self) -> None:
+        #: Given
+        block = 'a: {b: c}}\n'
+        error = _error("expected <block end>, but found '}'", _mark(0, 9), context_mark=_mark(0, 0))
+
+        #: When
+        problem = describe_error(error, block)
+
+        #: Then
+        assert problem == SyntaxProblem('this `}` closes nothing', 'Remove it, or quote the value', 0), (
+            'a closing bracket with no opening bracket is named, on its line'
+        )
+
+    def test_describe_error_with_a_lone_sequence_end_returns_the_bracket_kind(self) -> None:
+        #: Given
+        block = 'a: ]\n'
+        error = _error("expected the node content, but found ']'", _mark(0, 3), context_mark=_mark(0, 0))
+
+        #: When
+        problem = describe_error(error, block)
+
+        #: Then
+        assert problem == SyntaxProblem('this `]` closes nothing', 'Remove it, or quote the value', 0), (
+            'a closing bracket with no opening bracket is named, on its line'
+        )
+
+    def test_describe_error_with_a_lone_mapping_end_returns_the_bracket_kind(self) -> None:
+        #: Given
+        block = 'a: }\n'
+        error = _error("expected the node content, but found '}'", _mark(0, 3), context_mark=_mark(0, 0))
+
+        #: When
+        problem = describe_error(error, block)
+
+        #: Then
+        assert problem == SyntaxProblem('this `}` closes nothing', 'Remove it, or quote the value', 0), (
+            'a closing bracket with no opening bracket is named, on its line'
+        )
+
     def test_describe_error_with_a_line_below_a_block_scalar_returns_the_indentation_kind(self) -> None:
         #: Given
         error = _error("expected <block end>, but found '<scalar>'", _mark(2, 1))
@@ -314,10 +366,12 @@ class TestDescribeError:
 
     def test_describe_error_with_an_error_no_kind_matches_returns_the_fallback_on_its_line(self) -> None:
         #: Given
-        error = _error("expected the node content, but found ']'", _mark(0, 3), context='while parsing a block node')
+        error = _error(
+            "expected the node content, but found '<alias>'", _mark(0, 3), context='while parsing a block node'
+        )
 
         #: When
-        problem = describe_error(error, 'a: ]\n')
+        problem = describe_error(error, 'a: *b\n')
 
         #: Then
         assert problem == SyntaxProblem('the block cannot be read from this line on', None, 0), (

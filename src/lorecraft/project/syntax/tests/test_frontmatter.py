@@ -1961,6 +1961,88 @@ class TestDecodeFrontmatter:
             line=LineNumber.from_int(2),
         ), 'text written after a closing quote is reported on its line'
 
+    def test_decode_frontmatter_with_text_after_a_flow_collection_returns_invalid_yaml_on_its_line(self) -> None:
+        #: Given
+        block = 'a: [b, c] d\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem='the block cannot be read from this line on', line=LineNumber.from_int(2)
+        ), 'an error no kind of the table matches is reported on the parser line, with no help'
+
+    def test_decode_frontmatter_with_a_bracket_inside_a_plain_value_returns_the_value(self) -> None:
+        #: Given
+        block = 'name: a]]\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == Frontmatter(
+            data=FrozenMapping({'name': 'a]]'}),
+            keys=(FrontmatterKey(name='name', line=LineNumber.from_int(2)),),
+            repeats=(),
+        ), 'a bracket inside a plain value is text, so the value keeps both'
+
+    def test_decode_frontmatter_with_an_extra_sequence_end_returns_invalid_yaml_on_its_line(self) -> None:
+        #: Given
+        block = 'name: [a]]\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem='this `]` closes nothing',
+            help='Remove it, or quote the value',
+            line=LineNumber.from_int(2),
+        ), 'a closing bracket that closes nothing is reported on its line'
+
+    def test_decode_frontmatter_with_an_extra_mapping_end_returns_invalid_yaml_on_its_line(self) -> None:
+        #: Given
+        block = 'name: {a: b}}\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem='this `}` closes nothing',
+            help='Remove it, or quote the value',
+            line=LineNumber.from_int(2),
+        ), 'a closing brace that closes nothing is reported on its line'
+
+    def test_decode_frontmatter_with_a_lone_sequence_end_returns_invalid_yaml_on_its_line(self) -> None:
+        #: Given
+        block = 'name: ]\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem='this `]` closes nothing',
+            help='Remove it, or quote the value',
+            line=LineNumber.from_int(2),
+        ), 'a lone closing bracket is reported on its line'
+
+    def test_decode_frontmatter_with_a_lone_mapping_end_returns_invalid_yaml_on_its_line(self) -> None:
+        #: Given
+        block = 'name: }\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem='this `}` closes nothing',
+            help='Remove it, or quote the value',
+            line=LineNumber.from_int(2),
+        ), 'a lone closing brace is reported on its line'
+
     def test_decode_frontmatter_with_a_scalar_that_ends_at_a_key_below_plain_words_returns_invalid_yaml_on_its_line(
         self,
     ) -> None:
@@ -2182,30 +2264,6 @@ class TestDecodeFrontmatter:
             help='Indent it like the keys or items it belongs with',
             line=LineNumber.from_int(4),
         ), 'a comment after the scalar header does not hide the block scalar the line sits below'
-
-    def test_decode_frontmatter_with_text_after_a_flow_collection_returns_invalid_yaml_on_its_line(self) -> None:
-        #: Given
-        block = 'a: [b, c] d\n'
-
-        #: When
-        node = decode_frontmatter(block)
-
-        #: Then
-        assert node == InvalidYamlFrontmatter(
-            problem='the block cannot be read from this line on', line=LineNumber.from_int(2)
-        ), 'an error no kind of the table matches is reported on the parser line, with no help'
-
-    def test_decode_frontmatter_with_a_stray_flow_close_returns_invalid_yaml_on_its_line(self) -> None:
-        #: Given
-        block = 'a: ]\n'
-
-        #: When
-        node = decode_frontmatter(block)
-
-        #: Then
-        assert node == InvalidYamlFrontmatter(
-            problem='the block cannot be read from this line on', line=LineNumber.from_int(2)
-        ), 'an error no kind of the table matches is reported on the parser line, with no help'
 
     def test_decode_frontmatter_with_a_key_indented_under_a_list_item_returns_invalid_yaml_on_its_line(self) -> None:
         #: Given
