@@ -43,6 +43,17 @@ class TestUtf8FailureFromError:
             reason=Utf8Reason.INVALID_CONTINUATION_BYTE,
         ), 'the first invalid byte is located by line and by offset into the file'
 
+    def test_from_error_with_other_line_separators_before_the_byte_counts_only_line_feeds(self) -> None:
+        #: Given
+        # a vertical tab, a form feed, U+0085 and U+2028, none of which ends a line, then one line feed
+        error = _decode_error(b'a\x0bb\x0cc\xc2\x85d\xe2\x80\xa8e\nCaf\xe9')
+
+        #: When
+        failure = Utf8Failure.from_error(error)
+
+        #: Then
+        assert failure.line == Utf8Line(2), f'only a line feed ends a line, got line {failure.line}'
+
     def test_from_error_with_an_invalid_first_byte_returns_the_first_line(self) -> None:
         #: Given
         error = _decode_error(b'\xff# Guide\n')

@@ -36,7 +36,7 @@ from typing import Final, assert_never
 import typer
 
 from lorecraft.core.path import RootRelativePath
-from lorecraft.project.syntax import LineNumber
+from lorecraft.project.syntax import LineNumber, split_lines
 from lorecraft.rules.declaration import Severity
 from lorecraft.rules.location import EntrySubdiagnostic, Subdiagnostic
 from lorecraft.rules.report import Diagnostic, RunReport
@@ -385,9 +385,10 @@ def _child_lines(child: Subdiagnostic | EntrySubdiagnostic, lead: str, style: Te
     indent = ' ' * len(prefix)
     available = max(style.width - len(prefix), _MIN_NOTE_WIDTH)
 
-    # `splitlines` rather than `split('\n')`: it drops the empty piece after a trailing line break and the `\r` of a
-    # CRLF one. A text with no lines at all still draws its prefix.
-    text_lines = child.text.splitlines() or ['']
+    # `split_lines` rather than `split('\n')`: it drops the empty piece after a trailing line break and the `\r` of a
+    # CRLF one, and ends a line where every finding's line number does. A text with no lines at all still draws its
+    # prefix.
+    text_lines = list(split_lines(child.text)) or ['']
     wrapped: list[str] = []
     if len(text_lines) == 1:
         wrapped.extend(_wrap(text_lines[0].rstrip(), available))

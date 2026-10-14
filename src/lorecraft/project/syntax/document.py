@@ -28,6 +28,7 @@ from lorecraft.core.num import NonZeroUnsignedInt, UnsignedInt
 from .anchor import Anchor, AnchorNumber
 from .frontmatter import FrontmatterNode
 from .heading import Heading, HeadingLevel
+from .lines import split_lines
 from .link import Link
 from .markdown import ContentBlock, HeadingBlock, parse_markdown, parse_markdown_frontmatter
 from .words import WordCount, count_words
@@ -220,7 +221,7 @@ def _source_words(source: str) -> int:
         source: Markdown source with no code block in it; a line starting with `|` is skipped as a table row.
     """
     words = 0
-    for line in source.splitlines():
+    for line in split_lines(source):
         # The parser has no table extension, so a table is read as a paragraph of `|` lines. Those lines are
         # skipped here: a table is a reference, not prose.
         if line.strip().startswith('|'):

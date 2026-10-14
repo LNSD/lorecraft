@@ -84,6 +84,7 @@ class Utf8Failure:
         Args:
             error: The failure of decoding a file's bytes as UTF-8.
         """
+        # The same line a `\n` count gives in `lorecraft.project.syntax.lines`, which this layer sits below.
         return cls(
             line=Utf8Line(error.object.count(b'\n', 0, error.start) + 1),
             offset=ByteOffset(error.start),
