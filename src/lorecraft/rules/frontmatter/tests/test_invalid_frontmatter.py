@@ -3,9 +3,9 @@
 Every case is a document or a `SKILL.md` written as text, read through a fake context that holds it to its schemas as
 the real analysis does, under structure specifications decoded from JSON; no file is read from disk.
 
-No skill appears here: the Agent Skills specification places every problem it finds on a field, so a skill's
-frontmatter breaks no constraint over the whole block, and the note such an occurrence would carry is tested on its
-own below.
+No skill appears in the `check` cases: the Agent Skills specification places every problem it finds on a field, so a
+skill's frontmatter breaks no constraint over the whole block, and the note such an occurrence would carry is tested on
+its own below.
 """
 
 from textwrap import dedent
@@ -19,13 +19,11 @@ from lorecraft.project.schemas import (
     AgentSkillsSchema,
     BlockProblem,
     FieldCount,
-    FieldLimit,
-    MinFields,
     OtherBlockConstraint,
     StructureSpecSchema,
 )
 from lorecraft.project.syntax import LineNumber
-from lorecraft.rules.location import Elsewhere, Help, Here, Label, Note
+from lorecraft.rules.location import Elsewhere, Help, Note
 from lorecraft.rules.tests.fake_context import FakeDocumentContext, namespace_spec, structure_spec_path
 
 from ..invalid_frontmatter import InvalidFrontmatter
@@ -45,8 +43,8 @@ NAMESPACE_SOURCE: Final[StructureSpecSchema] = StructureSpecSchema(spec=NAMESPAC
 AGENT_SKILLS_SOURCE: Final[AgentSkillsSchema] = AgentSkillsSchema()
 """The schema the Agent Skills specification states, which governs a skill."""
 
-MIN_PROPERTIES: Final[str] = '{"frontmatter": {"type": "object", "required": ["description"], "minProperties": 2}}'
-"""A structure specification whose frontmatter schema requires `description` and at least two fields."""
+FORBID_NAME: Final[str] = '{"frontmatter": {"type": "object", "not": {"required": ["name"]}}}'
+"""A structure specification whose frontmatter schema forbids a block that holds `name`."""
 
 REQUIRE_DESCRIPTION: Final[str] = '{"frontmatter": {"type": "object", "required": ["description"]}}'
 """A structure specification whose frontmatter schema requires `description`."""
@@ -57,11 +55,11 @@ TEXT: Final[str] = dedent("""\
     ---
     # Setup
     """)
-"""A document whose frontmatter holds one field, and no `description`."""
+"""A document whose frontmatter holds one field, `name`, and no `description`."""
 
 PROBLEM: Final[BlockProblem] = BlockProblem(
-    "{'name': 'setup'} does not have enough properties",
-    MinFields(FieldLimit(UnsignedInt(2))),
+    "{'name': 'setup'} should not be valid under {'required': ['name']}",
+    OtherBlockConstraint(),
     FieldCount(UnsignedInt(1)),
 )
 """A constraint over the whole block broken: the rule's condition."""
@@ -74,7 +72,7 @@ LINE: Final[LineNumber] = LineNumber(NonZeroUnsignedInt(1))
 class TestInvalidFrontmatter:
     def test_check_with_a_block_constraint_reports_it_on_line_1_naming_the_specification(self) -> None:
         #: Given
-        subject = FakeDocumentContext(TEXT, corpus='guide', structure=MIN_PROPERTIES)
+        subject = FakeDocumentContext(TEXT, corpus='guide', structure=FORBID_NAME)
 
         #: When
         occurrences = InvalidFrontmatter.check(subject)
@@ -82,7 +80,7 @@ class TestInvalidFrontmatter:
         #: Then
         assert occurrences == (InvalidFrontmatter(source=CORPUS_SOURCE, line=LINE, problem=PROBLEM),), (
             "the block's one problem over the whole block is one occurrence, on line 1, naming the schema's "
-            'specification; the missing field the schema also finds is left to its own rule'
+            'specification'
         )
 
     def test_check_with_a_missing_field_reports_nothing(self) -> None:
@@ -94,6 +92,17 @@ class TestInvalidFrontmatter:
 
         #: Then
         assert occurrences == (), "a required field missing, which concerns that field, is another rule's condition"
+
+    def test_check_with_fewer_fields_than_min_properties_reports_nothing(self) -> None:
+        #: Given
+        structure = '{"frontmatter": {"type": "object", "minProperties": 2}}'
+        subject = FakeDocumentContext(TEXT, corpus='guide', structure=structure)
+
+        #: When
+        occurrences = InvalidFrontmatter.check(subject)
+
+        #: Then
+        assert occurrences == (), "a block short of `minProperties` is `too-few-fields`'s condition"
 
     def test_check_with_more_fields_than_max_properties_reports_nothing(self) -> None:
         #: Given
@@ -111,8 +120,8 @@ class TestInvalidFrontmatter:
         subject = FakeDocumentContext(
             TEXT,
             corpus='guide',
-            structure=MIN_PROPERTIES,
-            namespaces=(namespace_spec('guide', 'setup', MIN_PROPERTIES),),
+            structure=FORBID_NAME,
+            namespaces=(namespace_spec('guide', 'setup', FORBID_NAME),),
         )
 
         #: When
@@ -131,7 +140,7 @@ class TestInvalidFrontmatter:
             - setup
             ---
             """)
-        subject = FakeDocumentContext(text, corpus='guide', structure=MIN_PROPERTIES)
+        subject = FakeDocumentContext(text, corpus='guide', structure=FORBID_NAME)
 
         #: When
         occurrences = InvalidFrontmatter.check(subject)
@@ -141,35 +150,10 @@ class TestInvalidFrontmatter:
             'no schema is applied to a block that is not a mapping, so it has no problem to report'
         )
 
-    def test_message_with_an_occurrence_states_the_condition(self) -> None:
-        #: Given
-        occurrence = InvalidFrontmatter(source=CORPUS_SOURCE, line=LINE, problem=PROBLEM)
-
-        #: When
-        message = occurrence.message()
-
-        #: Then
-        assert message == 'frontmatter has the wrong number of fields (1; at least 2)', (
-            'the message states the condition and the number found against the limit, naming no specification'
-        )
-
-    def test_message_with_another_keyword_states_the_constraint_on_the_whole_block(self) -> None:
-        #: Given
-        problem = BlockProblem('wrong', OtherBlockConstraint(), FieldCount(UnsignedInt(1)))
-        occurrence = InvalidFrontmatter(source=CORPUS_SOURCE, line=LINE, problem=problem)
-
-        #: When
-        message = occurrence.message()
-
-        #: Then
-        assert message == 'frontmatter breaks a constraint of the schema on the whole block', (
-            'a keyword with no typed limit has no count to state'
-        )
-
     def test_check_with_a_described_schema_carries_its_description(self) -> None:
         #: Given
         structure = (
-            '{"frontmatter": {"type": "object", "minProperties": 2, '
+            '{"frontmatter": {"type": "object", "not": {"required": ["name"]}, '
             '"description": "The fields an agent lists a document by."}}'
         )
         subject = FakeDocumentContext(TEXT, corpus='guide', structure=structure)
@@ -179,16 +163,28 @@ class TestInvalidFrontmatter:
 
         #: Then
         problem = BlockProblem(
-            "{'name': 'setup'} does not have enough properties",
-            MinFields(FieldLimit(UnsignedInt(2))),
+            "{'name': 'setup'} should not be valid under {'required': ['name']}",
+            OtherBlockConstraint(),
             FieldCount(UnsignedInt(1)),
             description='The fields an agent lists a document by.',
         )
         assert occurrences == (InvalidFrontmatter(source=CORPUS_SOURCE, line=LINE, problem=problem),), (
-            "the root schema's description is carried with the limit and the number of fields"
+            "the root schema's description is carried with the problem"
         )
 
-    def test_labels_with_a_limit_on_the_fields_name_what_is_out_of_limit_on_line_1(self) -> None:
+    def test_message_with_an_occurrence_states_the_constraint_on_the_whole_block(self) -> None:
+        #: Given
+        occurrence = InvalidFrontmatter(source=CORPUS_SOURCE, line=LINE, problem=PROBLEM)
+
+        #: When
+        message = occurrence.message()
+
+        #: Then
+        assert message == 'frontmatter breaks a constraint of the schema on the whole block', (
+            'the message states the condition, naming no specification and no keyword'
+        )
+
+    def test_labels_with_an_occurrence_label_nothing(self) -> None:
         #: Given
         occurrence = InvalidFrontmatter(source=CORPUS_SOURCE, line=LINE, problem=PROBLEM)
 
@@ -196,22 +192,9 @@ class TestInvalidFrontmatter:
         labels = occurrence.labels()
 
         #: Then
-        assert labels == (Label(Here(LINE), 'number of fields'),), (
-            'the label is on line 1, the whole block, and carries no number: the message has it'
-        )
+        assert labels == (), "a constraint with no typed limit has nothing to label but the validator's prose"
 
-    def test_labels_with_another_keyword_label_nothing(self) -> None:
-        #: Given
-        problem = BlockProblem('wrong', OtherBlockConstraint(), FieldCount(UnsignedInt(1)))
-        occurrence = InvalidFrontmatter(source=CORPUS_SOURCE, line=LINE, problem=problem)
-
-        #: When
-        labels = occurrence.labels()
-
-        #: Then
-        assert labels == (), "a keyword with no typed constraint has nothing to label but the validator's prose"
-
-    def test_children_with_a_limit_on_the_number_of_fields_point_at_the_specification_only(self) -> None:
+    def test_children_with_an_occurrence_end_with_the_validator_wording(self) -> None:
         #: Given
         occurrence = InvalidFrontmatter(source=CORPUS_SOURCE, line=LINE, problem=PROBLEM)
 
@@ -219,15 +202,16 @@ class TestInvalidFrontmatter:
         children = occurrence.children()
 
         #: Then
-        assert children == (Note('the frontmatter schema is set here', at=Elsewhere(CORPUS_SPEC)),), (
-            "the message states the limit, whose prose would repeat the block's whole frontmatter"
-        )
+        assert children == (
+            Note('the frontmatter schema is set here', at=Elsewhere(CORPUS_SPEC)),
+            Note("{'name': 'setup'} should not be valid under {'required': ['name']}"),
+        ), "the validator's wording is the only statement of the constraint"
 
-    def test_children_with_a_description_give_it_as_the_help(self) -> None:
+    def test_children_with_a_description_give_it_as_the_help_before_the_validator_wording(self) -> None:
         #: Given
         problem = BlockProblem(
-            'too few',
-            MinFields(FieldLimit(UnsignedInt(2))),
+            'wrong',
+            OtherBlockConstraint(),
             FieldCount(UnsignedInt(1)),
             description='The fields an agent lists a document by.',
         )
@@ -240,9 +224,10 @@ class TestInvalidFrontmatter:
         assert children == (
             Note('the frontmatter schema is set here', at=Elsewhere(CORPUS_SPEC)),
             Help('The fields an agent lists a document by.'),
+            Note('wrong'),
         ), 'the root schema description is shown as the schema wrote it'
 
-    def test_children_with_another_keyword_end_with_the_validator_wording(self) -> None:
+    def test_children_with_the_agent_skills_specification_note_no_location(self) -> None:
         #: Given
         problem = BlockProblem('wrong', OtherBlockConstraint(), FieldCount(UnsignedInt(1)))
         occurrence = InvalidFrontmatter(source=AGENT_SKILLS_SOURCE, line=LINE, problem=problem)
@@ -254,4 +239,4 @@ class TestInvalidFrontmatter:
         assert children == (
             Note("the Agent Skills specification states a SKILL.md's frontmatter schema"),
             Note('wrong'),
-        ), "the validator's wording is the fallback, and the Agent Skills specification note has no location"
+        ), 'the Agent Skills specification note has no location'

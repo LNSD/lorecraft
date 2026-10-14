@@ -20,7 +20,7 @@ A symlink has no lines, so the base derives from `LayoutRule` rather than `Conte
 the entry itself. The package governs the skill layout, so a rule over it declares no facet either.
 
 Every rule derives from one of these bases: the length rules, `LEN001` to `LEN005`, and the outline rules, `OUT001` to
-`OUT009`, from `DocumentRule` or `SkillRule`, the frontmatter rules, `FM001` to `FM010` and `FM013`, from
+`OUT009`, from `DocumentRule` or `SkillRule`, the frontmatter rules, `FM001` to `FM010`, `FM013` and `FM014`, from
 `FrontmatterRule`, `FM011` and `FM012` from `SkillRule`, the link rules from `MarkdownRule` and `SkillFileRule`, and
 `LAY001` from `LayoutEntryRule`.
 """
