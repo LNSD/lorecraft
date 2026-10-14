@@ -33,7 +33,7 @@ import math
 import re
 import sys
 from bisect import bisect_left
-from collections.abc import Iterator
+from collections.abc import Iterator, Sequence
 from dataclasses import dataclass
 from enum import Enum
 from typing import Final, Never, assert_never
@@ -542,8 +542,11 @@ class _EventStream:
 
     def first_refusal(self) -> _RecordedRefusal | None:
         """The first construct the scanner has recorded, in the order the block writes them, or `None`."""
-        refusals: list[_RecordedRefusal] = self._yaml.scanner.refusals
-        return refusals[0] if refusals else None
+        scanner = self._yaml.scanner
+        if not isinstance(scanner, _BasicYamlScanner):
+            # The scanner's type is declared on the parser's base class; `_EventStream` always installs its own.
+            raise AssertionError("unreachable: the parser is built with this module's scanner")
+        return scanner.refusals[0] if scanner.refusals else None
 
     def get_event(self) -> Event:
         """The next event, read.
@@ -753,7 +756,11 @@ class _BasicYamlScanner(Scanner):
             if written[0] == '*':
                 raise _RefusedAliasError(name, start_mark)
             raise _RefusedAnchorError(name, start_mark)
-        return super().scan_anchor(TokenClass)
+        token = super().scan_anchor(TokenClass)
+        if not isinstance(token, Token):
+            # The base method's return type is `Any`; it builds the token class it was given.
+            raise AssertionError('unreachable: ruamel.yaml scans an anchor into a token')
+        return token
 
     def scan_tag(self) -> TagToken:
         """Scan a tag, refusing one the scanner cannot read as the tag it is.
@@ -766,9 +773,13 @@ class _BasicYamlScanner(Scanner):
         # The reader's buffer holds the whole block, ended by a NUL, and the pointer is where the tag starts.
         written = _written_token(self.reader.buffer, self.reader.pointer)
         try:
-            return super().scan_tag()
+            token = super().scan_tag()
         except ScannerError as exc:
             raise _RefusedMalformedTagError(written, start_mark, source=exc) from exc
+        if not isinstance(token, TagToken):
+            # The base method's return type is `Any`; it builds a tag token.
+            raise AssertionError('unreachable: ruamel.yaml scans a tag into a tag token')
+        return token
 
     def fetch_key(self) -> None:
         """Fetch a `?` that starts a key, and record it as an explicit key where a node may start."""
@@ -816,6 +827,11 @@ class _BasicYamlScanner(Scanner):
             start_mark: Where the scalar starts, for the scanner's own error messages.
         """
         chomping, increment = super().scan_block_scalar_indicators(start_mark)
+        # The base method's return type is `Any`; it reads `+` and `-` as a boolean and a digit as an integer.
+        if chomping is not None and not isinstance(chomping, bool):
+            raise AssertionError('unreachable: the chomping indicator is a boolean or absent')
+        if increment is not None and not isinstance(increment, int):
+            raise AssertionError('unreachable: the indentation indicator is an integer or absent')
         if increment is not None:
             self.refusals.append(_RecordedRefusal(_RecordedConstruct.INDENTATION_INDICATOR, start_mark))
         return chomping, increment
@@ -854,15 +870,23 @@ class _BasicYamlScanner(Scanner):
         # that holds spaces, which a block scalar written under an auto-indenting editor often has.
         chunks: list[str] = []
         max_indent = 0
-        end_mark = self.reader.get_mark()
+        end_mark = self._current_mark()
         while self.reader.peek() in ' \r\n\x85\u2028\u2029':
             if self.reader.peek() != ' ':
                 chunks.append(self.scan_line_break())
-                end_mark = self.reader.get_mark()
+                end_mark = self._current_mark()
             else:
                 self.reader.forward()
-                max_indent = max(max_indent, self.reader.column)
+                max_indent = max(max_indent, int(self.reader.column))
         return chunks, max_indent, end_mark
+
+    def _current_mark(self) -> StreamMark:
+        """Where the reader is."""
+        mark = self.reader.get_mark()
+        if not isinstance(mark, StreamMark):
+            # The reader's `get_mark` is typed as optional; a reader built over a string always marks its position.
+            raise AssertionError('unreachable: the reader marks every position')
+        return mark
 
     def scan_flow_scalar_non_spaces(self, double: bool, start_mark: StreamMark) -> list[str]:
         """Scan the text of a quoted scalar up to its next space.
@@ -875,7 +899,7 @@ class _BasicYamlScanner(Scanner):
             _RefusedEscapeError: An escape names no Unicode character.
         """
         try:
-            return super().scan_flow_scalar_non_spaces(double, start_mark)
+            chunks = super().scan_flow_scalar_non_spaces(double, start_mark)
         except (ValueError, OverflowError) as exc:
             # The scanner checks that an escape is written in hexadecimal, but not that the code point it names is
             # at most U+10FFFF, so `chr` raises: a ValueError for `\U00110000`, and for `\UFFFFFFFF`, which does not
@@ -883,6 +907,7 @@ class _BasicYamlScanner(Scanner):
             # this method raises either. The scanner stops on the escape's digits, so its current mark is on the
             # escape's line.
             raise _RefusedEscapeError(self.reader.get_mark(), source=exc) from exc
+        return _strings(chunks)
 
     def scan_to_next_token(self) -> None:
         r"""Skip spaces, comments and line breaks to the next token; a tab is no whitespace, in a flow collection too.
@@ -943,7 +968,9 @@ class _BasicYamlScanner(Scanner):
             chunks.append(self.reader.prefix(length))
             self.reader.forward(length)
             end_mark = self.reader.get_mark()
-            spaces = self.scan_plain_spaces(indent, start_mark)
+            # It returns nothing, rather than a list, when the spaces end at a document marker.
+            scanned = self.scan_plain_spaces(indent, start_mark)
+            spaces = [] if scanned is None else _strings(scanned)
             if not spaces or self.reader.peek() == '#' or (not self.flow_level and self.reader.column < indent):
                 break
         return ScalarToken(''.join(chunks), True, start_mark, end_mark)
@@ -968,7 +995,7 @@ def _mark_of(event: Event) -> StreamMark:
         event: An event the parser emitted.
     """
     mark = event.start_mark
-    if mark is None:
+    if not isinstance(mark, StreamMark):
         # An event's mark is optional only in its constructor's signature: the parser marks every event it emits.
         raise AssertionError('unreachable: ruamel.yaml marks every event it parses')
     return mark
@@ -1000,9 +1027,7 @@ def _read_document(parser: _EventStream) -> Frontmatter | NonMappingFrontmatter:
         entries = _read_mapping(parser, first, repeats)
         # An inner mapping ends before the one that holds it, so its repeats came first; document order is by line.
         in_document_order = tuple(sorted(repeats, key=lambda repeat: repeat.line.number))
-        node: Frontmatter | NonMappingFrontmatter = Frontmatter(
-            data=_to_mapping(entries), keys=_keys(entries), repeats=in_document_order
-        )
+        node: Frontmatter | NonMappingFrontmatter = _frontmatter(entries, in_document_order)
     else:
         _read_value(parser, repeats)
         node = NonMappingFrontmatter()
@@ -1163,7 +1188,10 @@ def _scalar_value(event: ScalarEvent) -> str | int | float | bool | None:
     Args:
         event: The scalar's event, which carries no tag.
     """
-    text: str = event.value
+    text = event.value
+    if not isinstance(text, str):
+        # An event's value is typed as optional text; a scalar event always carries its text.
+        raise AssertionError('unreachable: ruamel.yaml reads a scalar as text')
     # A quoted scalar, and a literal `|` or folded `>` block, has a style; only a plain one is resolved.
     if event.style is not None:
         return text
@@ -1192,7 +1220,7 @@ def _scalar_value(event: ScalarEvent) -> str | int | float | bool | None:
     return text
 
 
-def _to_mapping(entries: list[_Entry]) -> FrozenMapping[str, Frozen]:
+def _to_mapping(entries: Sequence[_Entry]) -> FrozenMapping[str, Frozen]:
     """The mapping the pairs decode to: a key written more than once holds the value of its last occurrence.
 
     Args:
@@ -1202,6 +1230,16 @@ def _to_mapping(entries: list[_Entry]) -> FrozenMapping[str, Frozen]:
     for key, value in entries:
         mapping[key.name] = value
     return FrozenMapping(mapping)
+
+
+def _frontmatter(entries: Sequence[_Entry], repeats: tuple[RepeatedKey, ...]) -> Frontmatter:
+    """The mapping a block's top-level pairs decode to, with `data` and `keys` built from the same pairs.
+
+    Args:
+        entries: The top-level pairs, in the order they are written, a repeated key once per occurrence.
+        repeats: The keys written again at any depth, in document order.
+    """
+    return Frontmatter(data=_to_mapping(entries), keys=tuple(key for key, _value in entries), repeats=repeats)
 
 
 def _repeats(entries: list[_Entry]) -> list[RepeatedKey]:
@@ -1224,16 +1262,22 @@ def _repeats(entries: list[_Entry]) -> list[RepeatedKey]:
     return repeats
 
 
-def _keys(entries: list[_Entry]) -> tuple[FrontmatterKey, ...]:
-    """Every key of the mapping, in the order it is written, a repeated key once per occurrence.
+def _strings(chunks: object) -> list[str]:
+    """The text pieces an untyped ruamel.yaml scanner method returned, checked to be a list of strings.
 
     Args:
-        entries: The mapping's pairs, in the order they are written.
+        chunks: What the scanner method returned.
     """
-    keys: list[FrontmatterKey] = []
-    for key, _value in entries:
-        keys.append(key)
-    return tuple(keys)
+    if not isinstance(chunks, list):
+        # The scanner method is untyped; it builds a list of the pieces it scanned.
+        raise AssertionError('unreachable: ruamel.yaml scans text into a list of strings')
+    strings: list[str] = []
+    for chunk in chunks:
+        if not isinstance(chunk, str):
+            # The scanner appends only slices of the block's text, which are strings.
+            raise AssertionError('unreachable: ruamel.yaml scans text into a list of strings')
+        strings.append(chunk)
+    return strings
 
 
 def _document_line_indexes(block: str) -> tuple[int, ...]:
