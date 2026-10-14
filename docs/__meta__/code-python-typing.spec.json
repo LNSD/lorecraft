@@ -1,0 +1,13 @@
+{
+  "$schema": "../schemas/structure.spec.json",
+  "description": "Narrows code-python.spec.json for docs/code/python-typing*.md; code.spec.json and code-python.spec.json are applied as well. The prose authority is docs/__meta__/code-python-typing.md. The group documents standard Python typing, so this file adds only that the scope is global.",
+  "frontmatter": {
+    "type": "object",
+    "properties": {
+      "scope": {
+        "const": "global",
+        "$comment": "A typing construct comes from the language or its standard library, which have no package to name."
+      }
+    }
+  }
+}
