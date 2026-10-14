@@ -248,9 +248,11 @@ class TestRuleCases:
         for locked_path in locked_paths:
             lock(root / locked_path)
         expected = case.expected()
+        app = build_app()
+        arguments = ['check', '--root', str(root), '--format', 'json']
 
         #: When
-        result = runner.invoke(build_app(), ['check', '--root', str(root), '--format', 'json'])
+        result = runner.invoke(app, arguments)
 
         #: Then
         assert result.exit_code in _RUN_EXIT_CODES, result.output

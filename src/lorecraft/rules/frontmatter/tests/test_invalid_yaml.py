@@ -166,7 +166,7 @@ class TestInvalidYaml:
         line = LineNumber(NonZeroUnsignedInt(9))
 
         #: When
-        with pytest.raises(TypeError):
+        with pytest.raises(TypeError) as exc_info:
             InvalidYaml(
                 owner=DOCUMENT_OWNER,
                 line=line,  # ty: ignore[unknown-argument]
@@ -176,6 +176,7 @@ class TestInvalidYaml:
 
         #: Then
         # the line is derived from `stopped_at`, so no caller can state one that disagrees with it
+        assert exc_info.type is TypeError, 'the occurrence takes no line of its own'
 
     def test_labels_with_no_known_line_say_the_problem_lies_in_the_block_opened_on_line_1(self) -> None:
         #: Given

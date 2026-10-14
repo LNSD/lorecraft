@@ -73,10 +73,7 @@ class TestScriptsTakeTheRepositoryFromRepo:
         _git(repo, 'format-patch', '-1', '-o', str(caller / 'patches'))
         _git(repo, 'switch', 'main')
 
-        #: When
-        result, code = _script(
-            INTEGRATE,
-            caller,
+        arguments = [
             'apply',
             '--repo',
             str(repo),
@@ -85,7 +82,10 @@ class TestScriptsTakeTheRepositoryFromRepo:
             '--base',
             'origin/main',
             'patches/0001-feat-add-b.patch',
-        )
+        ]
+
+        #: When
+        result, code = _script(INTEGRATE, caller, *arguments)
 
         #: Then
         # No `justfile` in the repository, so the first gate fails after the patch was applied.
@@ -102,10 +102,7 @@ class TestScriptsTakeTheRepositoryFromRepo:
         elsewhere = _init_repo(tmp_path / 'elsewhere')
         _git(elsewhere, 'switch', '-c', 'lnsd/x')
 
-        #: When
-        result, code = _script(
-            INTEGRATE,
-            elsewhere,
+        arguments = [
             'squash',
             '--repo',
             str(repo),
@@ -115,7 +112,10 @@ class TestScriptsTakeTheRepositoryFromRepo:
             'origin/main',
             '--message-file',
             'message.txt',
-        )
+        ]
+
+        #: When
+        result, code = _script(INTEGRATE, elsewhere, *arguments)
 
         #: Then
         assert code == EXIT_REFUSED, 'the branch checked out in --repo is not the part branch'
@@ -127,8 +127,10 @@ class TestScriptsTakeTheRepositoryFromRepo:
         (repo / 'a.txt').write_text('dirty\n')
         clean = _init_repo(tmp_path / 'clean')
 
+        arguments = ['--repo', str(repo), '1']
+
         #: When
-        result, code = _script(SYNC, clean, '--repo', str(repo), '1')
+        result, code = _script(SYNC, clean, *arguments)
 
         #: Then
         assert code == EXIT_REFUSED, 'the dirty tree of --repo is refused'

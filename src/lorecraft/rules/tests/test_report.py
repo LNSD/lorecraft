@@ -180,9 +180,10 @@ class TestDiagnosticOrder:
         )
         diagnostics = [long_line, trailing_space, empty_line, whole_subject, next_path]
         expected = sorted(diagnostics, key=diagnostic_order)
+        reversed_diagnostics = list(reversed(diagnostics))
 
         #: When
-        ordered = sorted(reversed(diagnostics), key=diagnostic_order)
+        ordered = sorted(reversed_diagnostics, key=diagnostic_order)
 
         #: Then
         assert ordered == expected, 'the order is total, so the input order never shows in the output'

@@ -571,6 +571,15 @@ class TestAliasCode:
         assert printed == 'MD040', 'an alias code prints as the upstream code a user types'
 
 
+def _spelling(levels: type[Level]) -> tuple[str, ...]:
+    """The text of each level, in declaration order.
+
+    Args:
+        levels: The level enumeration to read.
+    """
+    return tuple(level.value for level in levels)
+
+
 @pytest.mark.unit
 class TestLevel:
     def test_level_values_in_declaration_order_spell_allow_warn_deny(self) -> None:
@@ -578,7 +587,7 @@ class TestLevel:
         expected = ('allow', 'warn', 'deny')
 
         #: When
-        spelled = tuple(level.value for level in Level)
+        spelled = _spelling(Level)
 
         #: Then
         assert spelled == expected, 'the three levels, in order, are spelled allow, warn and deny'
