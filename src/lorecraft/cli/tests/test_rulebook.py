@@ -170,10 +170,10 @@ class TestRenderPage:
         page = render_page(declaration)
 
         #: Then
-        assert 'missing_field' not in page, 'the page names no declaring module'
-        assert 'src/lorecraft' not in page, 'the page links no source path'
-        assert 'Origin' not in page, 'the page states no origin'
-        assert 'Declared in' not in page, 'the page states no declaring module'
+        absent = ('missing_field', 'src/lorecraft', 'Origin', 'Declared in')
+        assert all(text not in page for text in absent), (
+            'the page names no declaring module, links no source path and states no origin'
+        )
 
     def test_render_page_with_an_alias_code_lists_it_in_the_frontmatter_with_its_linter(self) -> None:
         #: Given

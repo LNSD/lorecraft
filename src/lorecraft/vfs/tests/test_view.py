@@ -6,10 +6,11 @@ would raise.
 """
 
 import errno
+from typing import cast
 
 import pytest
 
-from ..view import OsRefusal
+from ..view import FileSystem, OsRefusal
 
 
 @pytest.mark.unit
@@ -53,3 +54,19 @@ class TestOsRefusalFromError:
 
         #: Then
         assert refusal is OsRefusal.OTHER, f'ELOOP has no value of its own, so it is OTHER, got {refusal}'
+
+
+@pytest.mark.unit
+class TestFileSystem:
+    def test_instantiate_the_abstract_view_raises_type_error(self) -> None:
+        #: Given
+        # The cast hides which class this is from the type checker, which would otherwise reject the very
+        # instantiation under test; at runtime it is still the abstract FileSystem.
+        abstract = cast(type[FileSystem], FileSystem)
+
+        #: When
+        with pytest.raises(TypeError) as exc_info:
+            abstract()
+
+        #: Then
+        assert exc_info.type is TypeError, 'the view is abstract: only its implementations instantiate'

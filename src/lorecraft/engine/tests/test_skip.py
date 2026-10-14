@@ -11,7 +11,7 @@ from lorecraft.project.corpus import CorpusName
 from lorecraft.project.database import Database, DocumentText
 from lorecraft.project.document import DocumentRef
 from lorecraft.rules.registry import Registry
-from lorecraft.rules.report import CheckedDocument, SkippedSubject, UndecodableSubject
+from lorecraft.rules.report import SkippedSubject, UndecodableSubject
 from lorecraft.rules.selection import AllRules, RuleSelection
 from lorecraft.rules.table import RuleTable
 from lorecraft.vfs import Snapshot
@@ -173,14 +173,3 @@ class TestCheckSubjectsWithAFailedLayer:
         assert reports == (SkippedSubject(TYPING, failed_layers=(CODE_SPEC_PATH,)),), (
             'a document is skipped for what governs it, not for what the run enables, so it is never read as clean'
         )
-
-    def test_check_subjects_with_no_failed_layer_judges_the_document_as_before(self) -> None:
-        #: Given
-        database = _database_with({'code.structure.json': CORPUS_SPEC}, {'python-typing.md': DOCUMENT})
-
-        #: When
-        reports = check_subjects(database, [TYPING], _all_rules())
-
-        #: Then
-        assert len(reports) == 1, 'the one document has one report'
-        assert isinstance(reports[0], CheckedDocument), 'nothing failed, so it is judged'

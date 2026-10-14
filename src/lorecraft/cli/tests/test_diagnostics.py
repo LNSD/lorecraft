@@ -157,7 +157,9 @@ class TestRenderText:
         assert ('2 | name: a\n  | ------- first written here\n3 | name: b\n  | ^^^^^^^ written again here') in text, (
             'the secondary label is underlined with dashes and the primary one with carets'
         )
-        assert '│' not in text and '─' not in text and '┄' not in text, 'no box-drawing character is left'
+        assert '│' not in text, 'no vertical box-drawing character is left'
+        assert '─' not in text, 'no horizontal box-drawing character is left'
+        assert '┄' not in text, 'no dashed box-drawing character is left'
 
     def test_render_text_with_colour_emphasises_the_severity_and_the_location(self) -> None:
         #: Given
@@ -749,18 +751,28 @@ class TestRenderLoadFailures:
         reports = _reports_of_a_failed_meta_spec()
 
         #: When
-        document = json.loads(render_json(reports))
+        text = render_json(reports)
 
         #: Then
+        document = json.loads(text)
         assert document['summary'] == {'subjects': 3, 'errors': 1, 'warnings': 0}, 'the failure is no subject'
         assert document['coverage'] == [
             {'path': 'docs/code/a.md', 'ungoverned': [], 'skipped_by': ['docs/__meta__/code.structure.json']},
             {'path': 'docs/code/b.md', 'ungoverned': [], 'skipped_by': ['docs/__meta__/code.structure.json']},
             {'path': 'docs/feat/check.md', 'ungoverned': ['budget'], 'skipped_by': []},
         ], 'a skipped document names the files that caused it, and a judged one names none'
-        diagnostics = document['diagnostics']
-        assert [item['path'] for item in diagnostics] == ['docs/__meta__/code.structure.json'], (
-            'the failure is the one diagnostic, at the structure file'
-        )
-        assert [item['code'] for item in diagnostics] == ['LC003'], 'it has the code of its condition'
-        assert [item['severity'] for item in diagnostics] == ['error'], 'and no level lowers it'
+        assert document['diagnostics'] == [
+            {
+                'path': 'docs/__meta__/code.structure.json',
+                'line': None,
+                'severity': 'error',
+                'code': 'LC003',
+                'name': 'malformed-structure-file',
+                'message': 'structure file does not follow the structure format',
+                'labels': [],
+                'children': [
+                    {'kind': 'help', 'text': 'fix each problem listed', 'path': None, 'line': None},
+                    {'kind': 'note', 'text': 'max_tokens: Extra inputs are not permitted', 'path': None, 'line': None},
+                ],
+            }
+        ], 'the failure is the one diagnostic, at the structure file, with its code, and no level lowers it'

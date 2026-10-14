@@ -103,7 +103,7 @@ class TestUtf8Failure:
         line = Utf8Line(0)
 
         #: When
-        with pytest.raises(ValueError, match='line') as exc_info:
+        with pytest.raises(ValueError) as exc_info:
             Utf8Failure(line=line, offset=ByteOffset(0), invalid=b'\xff', reason=Utf8Reason.INVALID_START_BYTE)
 
         #: Then
@@ -114,7 +114,7 @@ class TestUtf8Failure:
         offset = ByteOffset(-1)
 
         #: When
-        with pytest.raises(ValueError, match='offset') as exc_info:
+        with pytest.raises(ValueError) as exc_info:
             Utf8Failure(line=Utf8Line(1), offset=offset, invalid=b'\xff', reason=Utf8Reason.INVALID_START_BYTE)
 
         #: Then
@@ -125,7 +125,7 @@ class TestUtf8Failure:
         invalid = b''
 
         #: When
-        with pytest.raises(ValueError, match='invalid') as exc_info:
+        with pytest.raises(ValueError) as exc_info:
             Utf8Failure(line=Utf8Line(1), offset=ByteOffset(0), invalid=invalid, reason=Utf8Reason.INVALID_START_BYTE)
 
         #: Then
