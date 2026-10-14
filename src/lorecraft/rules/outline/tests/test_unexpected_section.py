@@ -137,7 +137,7 @@ class TestUnexpectedSection:
             ),
         ), 'each specification applies on its own, so the document is reported once for each, in order'
 
-    def test_message_with_an_occurrence_names_the_section(self) -> None:
+    def test_message_names_the_section(self) -> None:
         #: Given
         occurrence = UnexpectedSection(
             spec=CORPUS_SPEC, line=LineNumber(NonZeroUnsignedInt(7)), section='Tips', placement=EXPECTED_OPTIONS
@@ -214,7 +214,7 @@ class TestUnexpectedSection:
             'an outline that matched no section has no last section to mark'
         )
 
-    def test_children_with_an_occurrence_point_at_the_specification_and_say_where_the_content_goes(self) -> None:
+    def test_children_point_at_the_specification_and_say_where_the_content_goes(self) -> None:
         #: Given
         occurrence = UnexpectedSection(
             spec=CORPUS_SPEC, line=LineNumber(NonZeroUnsignedInt(7)), section='Tips', placement=EXPECTED_OPTIONS

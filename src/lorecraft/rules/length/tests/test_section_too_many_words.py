@@ -226,7 +226,7 @@ class TestSectionTooManyWords:
             ),
         ), 'each specification applies on its own, so the section is reported once for each cap, in order'
 
-    def test_message_with_an_occurrence_names_the_words_and_the_cap(self) -> None:
+    def test_message_names_the_words_and_the_cap(self) -> None:
         #: Given
         occurrence = _named_occurrence()
 
@@ -236,7 +236,7 @@ class TestSectionTooManyWords:
         #: Then
         assert message == 'too many words in the section (12 > 10)', 'the message sets the words against the cap'
 
-    def test_labels_with_an_occurrence_name_the_section_and_its_overrun_at_its_heading(self) -> None:
+    def test_labels_name_the_section_and_its_overrun_at_its_heading(self) -> None:
         #: Given
         occurrence = _named_occurrence()
 

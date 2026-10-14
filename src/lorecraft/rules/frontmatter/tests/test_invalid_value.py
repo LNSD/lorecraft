@@ -180,7 +180,7 @@ class TestInvalidValue:
             'no schema is applied to a block that is not a mapping, so it has no problem to report'
         )
 
-    def test_message_with_an_occurrence_names_the_field(self) -> None:
+    def test_message_names_the_field(self) -> None:
         #: Given
         occurrence = InvalidValue(source=CORPUS_SOURCE, line=LINE, problem=PROBLEM)
 

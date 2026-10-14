@@ -104,7 +104,7 @@ class TestTitleNotFirst:
             ),
         ), 'every specification agrees the title opens the document, so the opening heading is reported once'
 
-    def test_message_with_an_occurrence_names_the_heading_level_found(self) -> None:
+    def test_message_names_the_heading_level_found(self) -> None:
         #: Given
         occurrence = TitleNotFirst(
             line=LineNumber(NonZeroUnsignedInt(1)), level=2, title_line=LineNumber(NonZeroUnsignedInt(5))
@@ -132,7 +132,7 @@ class TestTitleNotFirst:
             'the message is formatted from the level found, so an H3 reads as H3'
         )
 
-    def test_labels_with_an_occurrence_point_at_the_title(self) -> None:
+    def test_labels_point_at_the_title(self) -> None:
         #: Given
         occurrence = TitleNotFirst(
             line=LineNumber(NonZeroUnsignedInt(1)), level=2, title_line=LineNumber(NonZeroUnsignedInt(5))
@@ -146,7 +146,7 @@ class TestTitleNotFirst:
             "a label points at the document's title, on its line"
         )
 
-    def test_children_with_an_occurrence_say_to_move_the_title_above_every_section(self) -> None:
+    def test_children_say_to_move_the_title_above_every_section(self) -> None:
         #: Given
         occurrence = TitleNotFirst(
             line=LineNumber(NonZeroUnsignedInt(1)), level=2, title_line=LineNumber(NonZeroUnsignedInt(5))

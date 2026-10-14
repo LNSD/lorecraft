@@ -53,7 +53,7 @@ class TestTooManyLines:
         #: Then
         assert occurrences == (), 'the budget is the most lines allowed, so a SKILL.md of exactly 500 lines fits it'
 
-    def test_message_with_an_occurrence_names_the_lines_and_the_budget(self) -> None:
+    def test_message_names_the_lines_and_the_budget(self) -> None:
         #: Given
         occurrence = TooManyLines(line=LineNumber(NonZeroUnsignedInt(501)), overrun=overrun(612, 500))
 
@@ -73,7 +73,7 @@ class TestTooManyLines:
         #: Then
         assert message == 'too many lines (700 > 600)', 'the message reads the cap from the overrun it holds'
 
-    def test_labels_with_an_occurrence_mark_where_the_budget_ends_and_the_lines_past_it(self) -> None:
+    def test_labels_mark_where_the_budget_ends_and_the_lines_past_it(self) -> None:
         #: Given
         occurrence = TooManyLines(line=LineNumber(NonZeroUnsignedInt(501)), overrun=overrun(612, 500))
 
@@ -85,7 +85,7 @@ class TestTooManyLines:
             Label(Here(LineNumber(NonZeroUnsignedInt(501))), 'the budget ends before this line; lines past it: 112'),
         ), 'the label sits on line 501 and gives the lines past the budget'
 
-    def test_children_with_an_occurrence_name_the_budget_and_say_where_to_move_the_lines(self) -> None:
+    def test_children_name_the_budget_and_say_where_to_move_the_lines(self) -> None:
         #: Given
         occurrence = TooManyLines(line=LineNumber(NonZeroUnsignedInt(501)), overrun=overrun(612, 500))
 

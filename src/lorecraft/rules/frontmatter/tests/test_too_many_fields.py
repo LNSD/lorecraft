@@ -130,7 +130,7 @@ class TestTooManyFields:
             ),
         ), "the root schema's description is carried with the limit and the number of fields"
 
-    def test_message_with_an_occurrence_states_the_count_against_the_limit(self) -> None:
+    def test_message_states_the_count_against_the_limit(self) -> None:
         #: Given
         occurrence = TooManyFields(
             source=CORPUS_SOURCE, line=LINE, limit=FieldLimit(UnsignedInt(2)), field_count=FieldCount(UnsignedInt(3))
@@ -144,7 +144,7 @@ class TestTooManyFields:
             'the message states the number of fields found against the most allowed'
         )
 
-    def test_labels_with_an_occurrence_name_the_number_of_fields_on_line_1(self) -> None:
+    def test_labels_name_the_number_of_fields_on_line_1(self) -> None:
         #: Given
         occurrence = TooManyFields(source=CORPUS_SOURCE, line=LINE, limit=LIMIT, field_count=FIELD_COUNT)
 

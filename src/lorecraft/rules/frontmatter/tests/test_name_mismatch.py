@@ -182,7 +182,7 @@ class TestNameMismatch:
             ),
         ), 'a skill is held to the name it is listed under, never to the name of the directory a link leads to'
 
-    def test_message_with_an_occurrence_names_the_name_against_the_expected_one(self) -> None:
+    def test_message_names_the_name_against_the_expected_one(self) -> None:
         #: Given
         occurrence = NameMismatch(owner=DOCUMENT_OWNER, line=LineNumber(NonZeroUnsignedInt(2)), name='installation')
 

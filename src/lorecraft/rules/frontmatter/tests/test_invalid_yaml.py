@@ -118,7 +118,7 @@ class TestInvalidYaml:
         #: Then
         assert occurrences == (), 'a missing block is missing-frontmatter, never invalid-yaml'
 
-    def test_message_with_an_occurrence_names_what_the_block_is_not(self) -> None:
+    def test_message_names_what_the_block_is_not(self) -> None:
         #: Given
         occurrence = _stopped_at_line_3()
 

@@ -159,7 +159,7 @@ class TestEscapingLink:
             'the message shows the destination as the author wrote it'
         )
 
-    def test_children_with_an_occurrence_say_to_link_inside_the_skill_from_its_root(self) -> None:
+    def test_children_say_to_link_inside_the_skill_from_its_root(self) -> None:
         #: Given
         occurrence = EscapingLink(line=LineNumber(NonZeroUnsignedInt(1)), url='../SKILL.md')
 

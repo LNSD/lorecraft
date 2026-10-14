@@ -153,7 +153,7 @@ class TestInvalidTitle:
             ),
         ), 'each specification applies on its own, so the title is reported once for each pattern, in order'
 
-    def test_message_with_an_occurrence_names_the_title(self) -> None:
+    def test_message_names_the_title(self) -> None:
         #: Given
         occurrence = InvalidTitle(
             spec=CORPUS_SPEC, line=LineNumber(NonZeroUnsignedInt(1)), title='setup: first steps', pattern=CAPITAL
@@ -165,7 +165,7 @@ class TestInvalidTitle:
         #: Then
         assert message == 'title `setup: first steps` does not match the pattern', 'the message names the title'
 
-    def test_labels_with_an_occurrence_mark_the_title_with_the_pattern(self) -> None:
+    def test_labels_mark_the_title_with_the_pattern(self) -> None:
         #: Given
         occurrence = InvalidTitle(
             spec=CORPUS_SPEC, line=LineNumber(NonZeroUnsignedInt(1)), title='setup: first steps', pattern=CAPITAL
@@ -179,7 +179,7 @@ class TestInvalidTitle:
             'the label marks the title and gives the pattern exactly as the specification wrote it'
         )
 
-    def test_children_with_an_occurrence_point_at_the_specification_alone(self) -> None:
+    def test_children_point_at_the_specification_alone(self) -> None:
         #: Given
         occurrence = InvalidTitle(
             spec=CORPUS_SPEC, line=LineNumber(NonZeroUnsignedInt(1)), title='setup: first steps', pattern=CAPITAL

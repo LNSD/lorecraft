@@ -145,7 +145,7 @@ class TestTitleTooManyWords:
             TitleTooManyWords(spec=NAMESPACE_SPEC, line=LineNumber(NonZeroUnsignedInt(1)), overrun=overrun(8, 5)),
         ), 'each specification applies on its own, so the title is reported once for each cap, in order'
 
-    def test_message_with_an_occurrence_names_the_words_and_the_cap(self) -> None:
+    def test_message_names_the_words_and_the_cap(self) -> None:
         #: Given
         occurrence = TitleTooManyWords(spec=CORPUS_SPEC, line=LineNumber(NonZeroUnsignedInt(1)), overrun=overrun(8, 5))
 
@@ -155,7 +155,7 @@ class TestTitleTooManyWords:
         #: Then
         assert message == 'too many words in the title (8 > 5)', 'the message sets the word count against the cap'
 
-    def test_labels_with_an_occurrence_say_how_many_words_it_runs_over_the_cap(self) -> None:
+    def test_labels_say_how_many_words_it_runs_over_the_cap(self) -> None:
         #: Given
         occurrence = TitleTooManyWords(spec=CORPUS_SPEC, line=LineNumber(NonZeroUnsignedInt(1)), overrun=overrun(8, 5))
 
@@ -167,7 +167,7 @@ class TestTitleTooManyWords:
             'the label sits on the title and gives the overrun'
         )
 
-    def test_children_with_an_occurrence_point_at_the_spec_then_say_what_a_title_holds(self) -> None:
+    def test_children_point_at_the_spec_then_say_what_a_title_holds(self) -> None:
         #: Given
         occurrence = TitleTooManyWords(spec=CORPUS_SPEC, line=LineNumber(NonZeroUnsignedInt(1)), overrun=overrun(8, 5))
 

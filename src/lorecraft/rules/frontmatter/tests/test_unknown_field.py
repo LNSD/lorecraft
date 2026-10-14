@@ -150,7 +150,7 @@ class TestUnknownField:
             'no schema is applied to a block that is not a mapping, so it has no problem to report'
         )
 
-    def test_message_with_an_occurrence_names_the_field(self) -> None:
+    def test_message_names_the_field(self) -> None:
         #: Given
         occurrence = UnknownField(source=CORPUS_SOURCE, line=LINE, problem=PROBLEM)
 
@@ -204,7 +204,7 @@ class TestUnknownField:
             Help('remove `desc`, or respell it as a field the schema defines'),
         ), 'a schema whose own properties name no field has no list to give, as when it composes others'
 
-    def test_labels_with_an_occurrence_say_the_schema_does_not_define_the_field(self) -> None:
+    def test_labels_say_the_schema_does_not_define_the_field(self) -> None:
         #: Given
         occurrence = UnknownField(source=CORPUS_SOURCE, line=LINE, problem=PROBLEM)
 

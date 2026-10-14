@@ -109,11 +109,13 @@ class TestGovernance:
         #: Given
         corpus = Database.from_snapshot(_snapshot()).model().find_corpus(CorpusName.parse('code'))
         assert corpus is not None, 'the snapshot declares corpus `code`'
-        with_other_document = replace(corpus, filenames=corpus.filenames | {AspectFilename.parse('other')})
+        other_filename = AspectFilename.parse('other')
+        with_other_document = replace(corpus, filenames=corpus.filenames | {other_filename})
+        filename = TYPING.filename
 
         #: When
-        governance = corpus.governance(TYPING.filename)
-        governance_with_other_document = with_other_document.governance(TYPING.filename)
+        governance = corpus.governance(filename)
+        governance_with_other_document = with_other_document.governance(filename)
 
         #: Then
         assert governance == governance_with_other_document, 'a document that is not governed leaves it unchanged'
@@ -124,14 +126,13 @@ class TestGovernance:
         corpus = Database.from_snapshot(_snapshot()).model().find_corpus(CorpusName.parse('code'))
         assert corpus is not None, 'the snapshot declares corpus `code`'
         namespace = AspectNamespace.parse('rust')
-        with_other_namespace = replace(
-            corpus,
-            namespaces=FrozenMapping({**corpus.namespaces, namespace: CorpusNamespace(files=(), structure=None)}),
-        )
+        other_namespaces = FrozenMapping({**corpus.namespaces, namespace: CorpusNamespace(files=(), structure=None)})
+        with_other_namespace = replace(corpus, namespaces=other_namespaces)
+        filename = TYPING.filename
 
         #: When
-        governance = corpus.governance(TYPING.filename)
-        governance_with_other_namespace = with_other_namespace.governance(TYPING.filename)
+        governance = corpus.governance(filename)
+        governance_with_other_namespace = with_other_namespace.governance(filename)
 
         #: Then
         assert governance == governance_with_other_namespace, (

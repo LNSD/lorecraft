@@ -172,7 +172,7 @@ class TestInvalidFrontmatter:
             "the root schema's description is carried with the problem"
         )
 
-    def test_message_with_an_occurrence_states_the_constraint_on_the_whole_block(self) -> None:
+    def test_message_states_the_constraint_on_the_whole_block(self) -> None:
         #: Given
         occurrence = InvalidFrontmatter(source=CORPUS_SOURCE, line=LINE, problem=PROBLEM)
 
@@ -184,7 +184,7 @@ class TestInvalidFrontmatter:
             'the message states the condition, naming no specification and no keyword'
         )
 
-    def test_labels_with_an_occurrence_label_nothing(self) -> None:
+    def test_labels_label_nothing(self) -> None:
         #: Given
         occurrence = InvalidFrontmatter(source=CORPUS_SOURCE, line=LINE, problem=PROBLEM)
 
@@ -194,7 +194,7 @@ class TestInvalidFrontmatter:
         #: Then
         assert labels == (), "a constraint with no typed limit has nothing to label but the validator's prose"
 
-    def test_children_with_an_occurrence_end_with_the_validator_wording(self) -> None:
+    def test_children_end_with_the_validator_wording(self) -> None:
         #: Given
         occurrence = InvalidFrontmatter(source=CORPUS_SOURCE, line=LINE, problem=PROBLEM)
 

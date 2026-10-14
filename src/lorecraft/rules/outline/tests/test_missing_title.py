@@ -82,7 +82,7 @@ class TestMissingTitle:
             'every specification agrees on one title, so the document is reported once'
         )
 
-    def test_message_with_an_occurrence_states_the_missing_title(self) -> None:
+    def test_message_states_the_missing_title(self) -> None:
         #: Given
         occurrence = MissingTitle(line=LineNumber(NonZeroUnsignedInt(1)))
 
@@ -92,7 +92,7 @@ class TestMissingTitle:
         #: Then
         assert message == 'missing H1 title', 'the message states that the title is missing'
 
-    def test_children_with_an_occurrence_say_how_to_write_the_title(self) -> None:
+    def test_children_say_how_to_write_the_title(self) -> None:
         #: Given
         occurrence = MissingTitle(line=LineNumber(NonZeroUnsignedInt(1)))
 

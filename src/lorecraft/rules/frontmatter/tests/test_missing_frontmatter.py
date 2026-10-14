@@ -111,7 +111,7 @@ class TestMissingFrontmatter:
         #: Then
         assert occurrences == (), 'a block that decoded to a mapping is there'
 
-    def test_message_with_an_occurrence_names_the_missing_block(self) -> None:
+    def test_message_names_the_missing_block(self) -> None:
         #: Given
         occurrence = MissingFrontmatter(owner=DOCUMENT_OWNER, line=LineNumber(NonZeroUnsignedInt(1)))
 
@@ -121,7 +121,7 @@ class TestMissingFrontmatter:
         #: Then
         assert message == 'no `---` delimited frontmatter block', 'the message names the block that is missing'
 
-    def test_labels_with_an_occurrence_say_the_file_must_open_with_a_delimiter(self) -> None:
+    def test_labels_say_the_file_must_open_with_a_delimiter(self) -> None:
         #: Given
         occurrence = MissingFrontmatter(owner=DOCUMENT_OWNER, line=LineNumber(NonZeroUnsignedInt(1)))
 
