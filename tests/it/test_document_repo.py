@@ -1,8 +1,8 @@
-"""Document repository behavior against a real ``docs/`` tree.
+"""Document repository behavior against a real `docs/` tree.
 
-The repository is wired to a real ``DiskFileSystem`` over ``tmp_path``, so entry kinds come from ``os.scandir``
+The repository is wired to a real `DiskFileSystem` over `tmp_path`, so entry kinds come from `os.scandir`
 and the error families come from the operating system refusing a read. Every path it returns is
-root-relative to ``tmp_path``.
+root-relative to `tmp_path`.
 """
 
 import os

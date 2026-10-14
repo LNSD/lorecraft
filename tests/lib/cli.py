@@ -1,4 +1,4 @@
-"""Run the installed ``lorecraft`` console script, or its ``lc`` alias, in a subprocess, as a user would."""
+"""Run the installed `lorecraft` console script, or its `lc` alias, in a subprocess, as a user would."""
 
 import re
 import subprocess

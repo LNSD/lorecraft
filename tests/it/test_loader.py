@@ -1,9 +1,9 @@
 """Workspace loader behavior over survey-shaped fixture trees.
 
-Each tree mirrors the ``docs/`` layout of one real target repository (amp, mono, tools, ampup and this one)
+Each tree mirrors the `docs/` layout of one real target repository (amp, mono, tools, ampup and this one)
 with the document bodies left empty: the loader never reads a document, so only names and kinds matter. The
 skill cases lay out the project skills directories the same way. The repositories are wired to a real
-``DiskFileSystem`` over ``tmp_path``, and every path in the model is root-relative to it.
+`DiskFileSystem` over `tmp_path`, and every path in the model is root-relative to it.
 """
 
 import os

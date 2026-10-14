@@ -14,6 +14,6 @@ CODEX: Final[Agent] = Agent(
     project_agents_md_files=CODEX_PROJECT_AGENTS_MD_FILES,
     user_agents_md_files=CODEX_USER_AGENTS_MD_FILES,
 )
-"""Codex: it reads the universal skills directory in both scopes, ``.agents/skills`` in a repository and
-``~/.agents/skills`` for the user, and loads ``AGENTS.md`` as its guide, from the repository and from
-``~/.codex`` for the user."""
+"""Codex: it reads the universal skills directory in both scopes, `.agents/skills` in a repository and
+`~/.agents/skills` for the user, and loads `AGENTS.md` as its guide, from the repository and from
+`~/.codex` for the user."""

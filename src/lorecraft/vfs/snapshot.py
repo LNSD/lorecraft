@@ -347,10 +347,10 @@ def _record_tree(directory: RootRelativePath, tree: FileTree, records: dict[Root
 
 
 class VirtualFileSystem(FileSystem):
-    """A ``FileSystem`` answering from one snapshot; never reads the disk, never changes.
+    """A `FileSystem` answering from one snapshot; never reads the disk, never changes.
 
     Anything the snapshot did not record answers like a missing path on disk: an empty listing, a
-    ``UnrecordedFileError``, or no directory. A path is walked through the recorded links by
+    `UnrecordedFileError`, or no directory. A path is walked through the recorded links by
     `find_destination`, the walk the scan itself took, so the view reaches nothing through a link chain the
     scan did not follow.
     """

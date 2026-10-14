@@ -1,8 +1,8 @@
 """Skill repository behavior against real skills directories.
 
-The repository is wired to a real ``DiskFileSystem`` over ``tmp_path``, so entry kinds come from ``os.scandir``,
+The repository is wired to a real `DiskFileSystem` over `tmp_path`, so entry kinds come from `os.scandir`,
 symlinks are followed by the operating system, and the error family comes from it refusing a read. Every path
-it returns is root-relative to ``tmp_path``. The two skills directories are the ones this repository itself
+it returns is root-relative to `tmp_path`. The two skills directories are the ones this repository itself
 carries: a universal one and an agent's own, linked to it.
 """
 

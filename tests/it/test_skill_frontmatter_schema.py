@@ -1,8 +1,8 @@
 """The committed skill frontmatter schema is a JSON Schema every skill this repository carries passes.
 
-``docs/schemas/skill-frontmatter.spec.json`` is rendered by ``just gen`` from ``SkillFrontmatter``, the pydantic model
-``SkillFrontmatterSchema`` holds each ``SKILL.md`` to, so the schema and the check cannot disagree about a shape;
-CI's ``gen-check`` job keeps the committed file current. What is left to hold is the file an editor reads: that it
+`docs/schemas/skill-frontmatter.spec.json` is rendered by `just gen` from `SkillFrontmatter`, the pydantic model
+`SkillFrontmatterSchema` holds each `SKILL.md` to, so the schema and the check cannot disagree about a shape;
+CI's `gen-check` job keeps the committed file current. What is left to hold is the file an editor reads: that it
 is a well-formed schema, and that it accepts every skill this repository writes, as the check does.
 """
 

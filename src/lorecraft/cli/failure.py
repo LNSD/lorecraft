@@ -48,10 +48,10 @@ from .output import ExitStatus
 
 
 def report_failure(failure: Error) -> None:
-    """Write ``failure`` to stderr as ``error: <message>``, then one ``  caused by: <message>`` line per cause.
+    """Write `failure` to stderr as `error: <message>`, then one `  caused by: <message>` line per cause.
 
-    The walk follows ``__cause__`` from ``failure`` down, and stops at the first cause that is not an ``Error``.
-    That one is a foreign exception, whose ``str()`` is not written to be read on its own; the variant that
+    The walk follows `__cause__` from `failure` down, and stops at the first cause that is not an `Error`.
+    That one is a foreign exception, whose `str()` is not written to be read on its own; the variant that
     translated it states what the user needs from its own fields.
 
     Args:

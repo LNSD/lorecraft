@@ -18,11 +18,11 @@ CODEX_PROJECT_AGENTS_MD_FILES: Final[ProjectAgentsMdFiles] = (
     ProjectPath(RootRelativePath.parse('AGENTS.override.md')),
     UNIVERSAL_PROJECT_AGENTS_MD_FILE,
 )
-"""Codex reads the universal ``AGENTS.md`` as it is, unless an ``AGENTS.override.md`` sits beside it."""
+"""Codex reads the universal `AGENTS.md` as it is, unless an `AGENTS.override.md` sits beside it."""
 
 CODEX_USER_AGENTS_MD_FILES: Final[UserAgentsMdFiles] = (
     UserPath(RootRelativePath.parse('.codex/AGENTS.override.md')),
     UserPath(RootRelativePath.parse('.codex/AGENTS.md')),
 )
-"""Codex reads the user's own instructions from ``~/.codex/AGENTS.md``, unless ``~/.codex/AGENTS.override.md``
+"""Codex reads the user's own instructions from `~/.codex/AGENTS.md`, unless `~/.codex/AGENTS.override.md`
 exists."""

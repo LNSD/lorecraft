@@ -14,6 +14,6 @@ CLAUDE: Final[Agent] = Agent(
     project_agents_md_files=CLAUDE_PROJECT_AGENTS_MD_FILES,
     user_agents_md_files=CLAUDE_USER_AGENTS_MD_FILES,
 )
-"""Claude Code: it reads a skills directory of its own in both scopes, ``.claude/skills`` in a repository and
-``~/.claude/skills`` for the user, and loads ``CLAUDE.md`` as its guide, from the repository and from
-``~/.claude`` for the user."""
+"""Claude Code: it reads a skills directory of its own in both scopes, `.claude/skills` in a repository and
+`~/.claude/skills` for the user, and loads `CLAUDE.md` as its guide, from the repository and from
+`~/.claude` for the user."""

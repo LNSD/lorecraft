@@ -18,4 +18,4 @@ CODEX_PROJECT_SKILLS_DIRS: Final[ProjectSkillsDirs] = (UNIVERSAL_PROJECT_SKILLS_
 """Codex reads the universal skills directory of a repository as it is."""
 
 CODEX_USER_SKILLS_DIRS: Final[UserSkillsDirs] = (UNIVERSAL_USER_SKILLS_DIR,)
-"""Codex reads the user's own skills from the universal user directory, ``~/.agents/skills``."""
+"""Codex reads the user's own skills from the universal user directory, `~/.agents/skills`."""

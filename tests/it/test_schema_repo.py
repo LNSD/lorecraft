@@ -1,6 +1,6 @@
 """Schema repository behavior against real specification files.
 
-The repository is wired to a real ``DiskFileSystem`` over ``tmp_path`` with the specification directory at the
+The repository is wired to a real `DiskFileSystem` over `tmp_path` with the specification directory at the
 root, so every path it returns is the bare filename.
 """
 

@@ -74,10 +74,10 @@ class PathComponent:
 
 
 class RootRelativePathError(Error):
-    """A path is absolute or holds a ``..`` component, so it could name something outside the root.
+    """A path is absolute or holds a `..` component, so it could name something outside the root.
 
     Attributes:
-        path: The rejected path, as ``PurePosixPath`` spelled it.
+        path: The rejected path, as `PurePosixPath` spelled it.
     """
 
     path: PurePosixPath
@@ -90,21 +90,21 @@ class RootRelativePathError(Error):
 # order=True so a collection of paths sorts by path.
 @dataclass(frozen=True, slots=True, order=True)
 class RootRelativePath:
-    """A path under the workspace root, spelled relative to it with POSIX separators, such as ``docs/code/a.md``.
+    """A path under the workspace root, spelled relative to it with POSIX separators, such as `docs/code/a.md`.
 
     A valid path:
 
     - Is not absolute.
-    - Holds no ``..`` component, so no spelling of it climbs out of the root.
+    - Holds no `..` component, so no spelling of it climbs out of the root.
 
-    ``.`` is the root itself. Parsing normalizes the way ``PurePosixPath`` does: a repeated or trailing ``/``
-    and a ``.`` component are dropped, and the empty string is ``.``. Symlinks are not the type's concern: a
+    `.` is the root itself. Parsing normalizes the way `PurePosixPath` does: a repeated or trailing `/`
+    and a `.` component are dropped, and the empty string is `.`. Symlinks are not the type's concern: a
     path that stays under the root lexically may still lead outside it through a link, which only a
     filesystem that follows the link can answer.
 
-    The type is pure: it never touches the disk and holds no ``Path``. There is deliberately no
-    ``__fspath__``: a root-relative path is not relative to the working directory, so it must never reach
-    ``open`` or ``os`` without its root, and joining it onto one is the filesystem's job.
+    The type is pure: it never touches the disk and holds no `Path`. There is deliberately no
+    `__fspath__`: a root-relative path is not relative to the working directory, so it must never reach
+    `open` or `os` without its root, and joining it onto one is the filesystem's job.
 
     Attributes:
         value: The validated path.
@@ -128,7 +128,7 @@ class RootRelativePath:
         """Keep direct construction, and every join below, from bypassing the invariant.
 
         Raises:
-            RootRelativePathError: If the path is absolute or holds a ``..`` component.
+            RootRelativePathError: If the path is absolute or holds a `..` component.
         """
         if self.value.is_absolute() or '..' in self.value.parts:
             raise RootRelativePathError(self.value)
@@ -158,7 +158,7 @@ class RootRelativePath:
 
     @property
     def parts(self) -> tuple[str, ...]:
-        """The components from the root down; ``()`` for the root."""
+        """The components from the root down; `()` for the root."""
         return self.value.parts
 
     @property
@@ -168,7 +168,7 @@ class RootRelativePath:
 
     @property
     def parents(self) -> tuple['RootRelativePath', ...]:
-        """Every ancestor, nearest first and the root last; ``()`` for the root."""
+        """Every ancestor, nearest first and the root last; `()` for the root."""
         ancestors: list[RootRelativePath] = []
         for ancestor in self.value.parents:
             ancestors.append(RootRelativePath(ancestor))
