@@ -25,8 +25,7 @@ from ruamel.yaml.tokens import ScalarToken, TagToken, Token
 
 from lorecraft.core.error import Error
 
-LINE_SEPARATORS: Final[str] = '\x85\u2028\u2029'
-"""The characters other YAML grammars end a line at, which `core/lines.py` does not: U+0085, U+2028 and U+2029."""
+from .problem import LINE_SEPARATORS
 
 MERGE_KEY: Final[str] = '<<'
 """The plain key YAML 1.1 reads as a merge: the entries of the mapping an alias names join the mapping."""

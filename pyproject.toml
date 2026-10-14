@@ -296,16 +296,29 @@ forbidden_modules = ["wenmode"]
 ignore_imports = ["lorecraft.project.syntax.markdown -> wenmode"]
 
 # The YAML library is read in `lorecraft.yaml` alone, which hands the rest of the package its own values, so a library
-# upgrade changes that package and no library type reaches another. The decoder and the error wording still read it
-# and are named here until the event decoding moves into `lorecraft.yaml`.
+# upgrade changes that package and no library type reaches another.
 [[tool.importlinter.contracts]]
 name = "The YAML library is read in one package"
 type = "forbidden"
 source_modules = ["lorecraft"]
 forbidden_modules = ["ruamel"]
-ignore_imports = [
-    "lorecraft.yaml.** -> ruamel",
-    "lorecraft.project.syntax.frontmatter -> ruamel",
-    "lorecraft.project.syntax.syntax_error -> ruamel",
-    "lorecraft.project.syntax.tests.test_syntax_error -> ruamel",
+ignore_imports = ["lorecraft.yaml.** -> ruamel"]
+
+# `lorecraft.yaml.basic_yaml` is the grammar the library is bent to, whose names carry the library's types. The other
+# packages read the package's values, problems and tree through its other modules, and never that grammar.
+[[tool.importlinter.contracts]]
+name = "The YAML grammar is read inside its package"
+type = "forbidden"
+source_modules = [
+    "lorecraft.cli",
+    "lorecraft.engine",
+    "lorecraft.rules",
+    "lorecraft.project",
+    "lorecraft.agents",
+    "lorecraft.vfs",
+    "lorecraft.core",
+    "lorecraft.metadata",
+    "lorecraft.__main__",
 ]
+forbidden_modules = ["lorecraft.yaml.basic_yaml"]
+allow_indirect_imports = true

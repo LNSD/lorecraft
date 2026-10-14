@@ -32,13 +32,17 @@ counterpart for, and JSON names every key with a string.
 from dataclasses import dataclass
 from typing import Final, assert_never
 
-from ruamel.yaml.error import MarkedYAMLError
-from ruamel.yaml.reader import ReaderError
-
 from lorecraft.core.mapping import Frozen, FrozenMapping
 from lorecraft.core.num import NonZeroUnsignedInt
-from lorecraft.yaml.basic_yaml import REFUSALS, RecordedRefusal, Refusal
-from lorecraft.yaml.reader import YamlReadError, read_yaml
+from lorecraft.yaml.problem import (
+    YAML_PROBLEMS,
+    ControlCharacterProblem,
+    NestingTooDeepProblem,
+    RefusedConstructProblem,
+    SyntaxErrorProblem,
+    YamlProblem,
+)
+from lorecraft.yaml.reader import read_yaml
 from lorecraft.yaml.tree import YamlMapping, YamlScalar, YamlSequence, YamlValue
 
 from .position import LineNumber
@@ -170,17 +174,16 @@ def decode_frontmatter(block: str) -> FrontmatterNode:
     """
     try:
         root = read_yaml(block)
-        node = _node_of(root)
-    except YamlReadError as exc:
-        return _invalid_yaml_of(exc, block)
+        if isinstance(root, YAML_PROBLEMS):
+            return _invalid_yaml_of(root, block)
+        return _node_of(root)
     except RecursionError:
-        # The value is read, and mapped, with one call per level of nesting, so only a deeply nested block reaches
-        # the interpreter's limit. The read reports its own limit with the construct recorded above it, so what is
-        # left is the mapping, once the read has finished and nothing was recorded. The stack has unwound to this
-        # frame, so there is room to go on. The line is left out, because the depth reading stops at depends on the
-        # interpreter's recursion limit and on how deep the caller's stack already was.
+        # The value is mapped with one call per level of nesting, so only a deeply nested block reaches the
+        # interpreter's limit, once the read has finished and found nothing wrong above it. By the time this clause
+        # runs the stack has unwound to this frame, so there is room to go on. The line is left out, because the
+        # depth reading stops at depends on the interpreter's recursion limit and on how deep the caller's stack
+        # already was.
         return InvalidYamlFrontmatter(problem=_TOO_DEEP, line=None)
-    return node
 
 
 def reads_back_as_string(text: str) -> bool:
@@ -300,19 +303,6 @@ def _repeats_of(mapping: YamlMapping) -> list[RepeatedKey]:
     return repeats
 
 
-def _invalid_refusal(refusal: RecordedRefusal | Refusal) -> InvalidYamlFrontmatter:
-    """The facts about a block that writes a construct frontmatter leaves out: the problem, and its line.
-
-    Args:
-        refusal: The construct, as the scanner recorded it or as the read stopped on it.
-    """
-    refusal_help = refusal.help if isinstance(refusal, RecordedRefusal) else None
-    # A mark counts its lines from 0.
-    return InvalidYamlFrontmatter(
-        problem=refusal.problem, line=_document_line(refusal.mark.line + 1), help=refusal_help
-    )
-
-
 def _invalid_yaml(problem: SyntaxProblem) -> InvalidYamlFrontmatter:
     """The node for a syntax error: its label, help and line, as the block's document lines count them.
 
@@ -323,35 +313,23 @@ def _invalid_yaml(problem: SyntaxProblem) -> InvalidYamlFrontmatter:
     return InvalidYamlFrontmatter(problem=problem.label, line=line, help=problem.help)
 
 
-def _invalid_yaml_of(failure: YamlReadError, block: str) -> InvalidYamlFrontmatter:
-    """The node for a block that could not be read, reported for the construct or error that comes first.
+def _invalid_yaml_of(problem: YamlProblem, block: str) -> InvalidYamlFrontmatter:
+    """The node for a block that could not be read, worded from the problem it wrote first.
 
     Args:
-        failure: What stopped the read, and the first construct the scanner or the reader recorded.
+        problem: What stopped the read.
         block: The block's text, which words a syntax error.
     """
-    cause = failure.cause
-    refusal = failure.refusal
-    if isinstance(cause, ReaderError):
-        return _invalid_yaml(describe_control_character(cause, block))
-    if isinstance(cause, REFUSALS):
-        # The read stopped at a construct `lorecraft.yaml` refuses. The scanner reads ahead of the parser, so it may
-        # have recorded one written above it, which is the one the block is reported for.
-        if refusal is not None and refusal.mark.index <= cause.mark.index:
-            return _invalid_refusal(refusal)
-        return _invalid_refusal(cause)
-    if isinstance(cause, MarkedYAMLError):
-        # Every other `MarkedYAMLError` is ruamel.yaml's own. The scanner reads ahead of the parser, so a construct
-        # it recorded is written above whatever the parser or the scanner failed on.
-        if refusal is not None:
-            return _invalid_refusal(refusal)
-        return _invalid_yaml(describe_error(cause, block))
-    if isinstance(cause, RecursionError):
-        # Out of depth. A construct the scanner recorded above the depth is reported instead, on its line.
-        if refusal is not None:
-            return _invalid_refusal(refusal)
-        return InvalidYamlFrontmatter(problem=_TOO_DEEP, line=None)
-    # Read to its end, with a construct the scanner recorded above it.
-    if refusal is None:
-        raise AssertionError('unreachable: a read that fails names its cause, or the construct it recorded')
-    return _invalid_refusal(refusal)
+    match problem:
+        case ControlCharacterProblem():
+            return _invalid_yaml(describe_control_character(problem, block))
+        case SyntaxErrorProblem():
+            return _invalid_yaml(describe_error(problem, block))
+        case RefusedConstructProblem():
+            return InvalidYamlFrontmatter(
+                problem=problem.message, line=_document_line(problem.position.line.value), help=problem.help
+            )
+        case NestingTooDeepProblem():
+            return InvalidYamlFrontmatter(problem=_TOO_DEEP, line=None)
+        case _:
+            assert_never(problem)

@@ -37,13 +37,10 @@ check is, so the package above it decides what a refused construct means for a d
 
 ## Invariants
 
-- The YAML library is imported in this package alone, which a contract in `pyproject.toml` enforces. Two importers
-  are named exceptions that the move of event decoding removes: `project.syntax.frontmatter` and
-  `project.syntax.syntax_error`, with its unit test. No new importer is added.
-- Every other package reads a value, a position or a refusal that this package declares, so an upgrade of the library
-  changes this package and no type of it escapes. The target is a position and a problem type of this package's own;
-  until the problem type lands, a refusal still carries the library's `StreamMark`, and a failed read carries the
-  library's error.
+- The YAML library is imported in this package alone, which a contract in `pyproject.toml` enforces.
+- Every other package reads a value, a position or a problem that this package declares, so an upgrade of the library
+  changes this package and no type of it escapes. The grammar module that holds the library's types is read inside
+  this package alone, which a second contract enforces.
 - It imports no other Lorecraft package than `lorecraft.core`, which the layers contract enforces, so every package
   that reads YAML can import it without a cycle.
 - The library's loaders and constructors are never called: no tag resolves and no type is constructed, so the text
@@ -65,22 +62,22 @@ def read_title(block: str) -> str:
 ```
 
 ```python
-# ✅ Good — the check reads what `lorecraft.yaml` declares, and the library stays behind it
-from lorecraft.yaml.basic_yaml import RecordedRefusal
+# ✅ Good — the check reads what `lorecraft.yaml` returns, and the library and its grammar stay behind it
+from lorecraft.yaml.problem import RefusedConstructProblem
+from lorecraft.yaml.reader import read_yaml
 
 
-def is_refused(found: object) -> bool:
-    return isinstance(found, RecordedRefusal)
+def is_refused(block: str) -> bool:
+    return isinstance(read_yaml(block), RefusedConstructProblem)
 ```
 
 ## Checklist
 
 Before committing code, verify:
 
-- [ ] `ruamel.yaml` is imported only in `lorecraft.yaml` or by the contract's existing named exceptions; no new
-      exception is added
+- [ ] `ruamel.yaml` is imported in `lorecraft.yaml` and nowhere else, and no other package reads its grammar module
 - [ ] Nothing in `lorecraft.yaml` reads the disk
-- [ ] No library loader or constructor is called, and no new library type becomes part of what the package returns
+- [ ] No library loader or constructor is called, and no library type is part of what the package returns
 - [ ] A construct the subset leaves out is a declared refusal that carries its position
 - [ ] Nothing added here names a document, a frontmatter key or a diagnostic code
 
