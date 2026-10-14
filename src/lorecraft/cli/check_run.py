@@ -29,7 +29,7 @@ from lorecraft.engine import UnlistableRoot, check_subjects, report_load_failure
 from lorecraft.project.database import Database
 from lorecraft.project.layout import DECLARATION, SNAPSHOT_SCOPE
 from lorecraft.project.workspace import reject_unreported_refusals
-from lorecraft.rules.declaration import Severity
+from lorecraft.rules.identity import Severity
 from lorecraft.rules.registry import Registry
 from lorecraft.rules.report import RunReport
 from lorecraft.rules.table import RuleTable, selected_rules_left_off

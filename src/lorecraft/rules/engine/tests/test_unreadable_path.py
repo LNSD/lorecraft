@@ -5,7 +5,7 @@ from typing import Final
 import pytest
 
 from lorecraft.core.path import RootRelativePath
-from lorecraft.rules.declaration import Severity
+from lorecraft.rules.identity import Severity
 from lorecraft.rules.location import EntryHelp, EntryNote, WholeSubject
 from lorecraft.vfs import OsRefusal
 

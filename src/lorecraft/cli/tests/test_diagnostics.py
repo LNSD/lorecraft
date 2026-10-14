@@ -17,9 +17,9 @@ from lorecraft.project.corpus import CorpusName
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.schemas import DocumentEnd, SectionName
 from lorecraft.project.syntax import LineNumber, SectionHeading, WordCount
-from lorecraft.rules.declaration import Severity
 from lorecraft.rules.engine.malformed_structure_file import FormatViolated, MalformedStructureFile
 from lorecraft.rules.frontmatter.duplicate_key import DuplicateKey
+from lorecraft.rules.identity import Severity
 from lorecraft.rules.layout.outside_symlink import OutsideSymlink
 from lorecraft.rules.length.too_many_tokens import TooManyTokens
 from lorecraft.rules.outline.missing_section import MissingSection

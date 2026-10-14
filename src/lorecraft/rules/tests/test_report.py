@@ -9,9 +9,9 @@ from lorecraft.project.corpus import CorpusName
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.skill import SkillRef
 from lorecraft.project.syntax import LineNumber
-from lorecraft.rules.declaration import Severity
 from lorecraft.rules.engine.invalid_utf8 import InvalidUtf8
 from lorecraft.rules.engine.malformed_structure_file import MalformedStructureFile, NoRuleStated
+from lorecraft.rules.identity import Severity
 from lorecraft.rules.tests.sample_rules.rendered_message.long_line import LongLine
 from lorecraft.rules.tests.sample_rules.token_count.sample_condition import SampleCondition
 from lorecraft.rules.tests.sample_rules.valid.outline.empty_line import EmptyLine

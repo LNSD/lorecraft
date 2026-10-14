@@ -20,7 +20,7 @@ from typing import Literal, assert_never
 from pydantic import BaseModel, ConfigDict
 
 from lorecraft.core.num import NonZeroUnsignedInt
-from lorecraft.rules.declaration import Severity
+from lorecraft.rules.identity import Severity
 from lorecraft.rules.report import (
     CheckedDocument,
     CheckedLayoutEntry,

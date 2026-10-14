@@ -1,4 +1,4 @@
-"""How a rule is declared: its identity values and the rule class that declares it.
+"""How a rule is declared: the rule classes and the engine conditions, each one class that declares and checks.
 
 A rule is one class. The class is the declaration and the check: its code, name, default level, the
 release it is stable since and its documentation, as class attributes and the docstring, and the `check`
@@ -8,32 +8,16 @@ A retired rule is a `RemovedRule`, which is not a `Rule`, so it can never be bui
 engine itself reports about a subject, such as a file that does not decode, is an `EngineCondition`: declared
 and rendered like a rule, but with an `EngineCode`, a fixed `Severity` in place of a level, and no `check`. It derives
 from `FileCondition` or `EntryCondition`, as a rule does from `ContentRule` or `LayoutRule`.
-
-A `Release`, a `RuleName`, a `RuleGroupPrefix`, a `LinterName` and an `UpstreamCode` are value objects, which
-cannot know whether their caller wrote a literal or parsed a file or a command line, so their format raises an
-`Error` variant. A `RuleGroup`, a `RuleCode` and an `AliasCode` are records built from those values. Two of their
-fields are plain values with a bound: a group's title and a code's number. No file and no command line supplies
-either, since a user names a group by its prefix and a rule by its code, so one out of bounds is a defect in the
-package, rejected with a `ValueError` rather than an `Error` that the command line would report as the user's
-fault.
 """
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from enum import StrEnum
-from typing import ClassVar, Self
+from typing import ClassVar
 
-from lorecraft.core.error import Error
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.syntax import LineNumber
 
-from .identity import (
-    EngineCode,
-    Level,
-    Release,
-    RuleCode,
-    RuleName,
-)
+from .identity import AliasCode, EngineCode, Level, Release, RuleCode, RuleName, Severity
 from .location import (
     EntryLabel,
     EntrySubdiagnostic,
@@ -43,145 +27,6 @@ from .location import (
     Subdiagnostic,
     WholeSubject,
 )
-
-
-class EmptyLinterNameError(Error):
-    """An upstream linter's name is empty."""
-
-    def __init__(self) -> None:
-        super().__init__('linter name cannot be empty')
-
-
-@dataclass(frozen=True, slots=True)
-class LinterName:
-    """The name of an upstream linter whose codes a rule answers to, such as `markdownlint`.
-
-    A valid name is not empty. Parsing preserves the spelling.
-
-    Attributes:
-        value: The name, exactly as supplied.
-    """
-
-    value: str
-
-    @classmethod
-    def parse(cls, raw: str) -> Self:
-        """Return a validated name.
-
-        Args:
-            raw: Candidate name, such as `markdownlint`.
-
-        Raises:
-            EmptyLinterNameError: If it is empty.
-        """
-        return cls(raw)
-
-    def __post_init__(self) -> None:
-        """Keep direct construction from bypassing the format.
-
-        Raises:
-            EmptyLinterNameError: If it is empty.
-        """
-        if not self.value:
-            raise EmptyLinterNameError()
-
-    def __str__(self) -> str:
-        """The name exactly as supplied."""
-        return self.value
-
-
-class EmptyUpstreamCodeError(Error):
-    """An upstream linter's code is empty."""
-
-    def __init__(self) -> None:
-        super().__init__('upstream code cannot be empty')
-
-
-class InvalidUpstreamCodeCharacterError(Error):
-    """An upstream linter's code holds whitespace, so it cannot be typed as one word.
-
-    Attributes:
-        value: The rejected code.
-        position: Zero-based position of the first whitespace character.
-        character: The whitespace character.
-    """
-
-    value: str
-    position: int
-    character: str
-
-    def __init__(self, value: str, position: int) -> None:
-        self.value = value
-        self.position = position
-        self.character = value[position]
-        super().__init__(f'invalid character {self.character!r} in upstream code {value!r}')
-
-
-@dataclass(frozen=True, slots=True)
-class UpstreamCode:
-    """An upstream linter's code, as the linter prints it, such as markdownlint's `MD040`.
-
-    A valid code:
-
-    - Is not empty.
-    - Holds no whitespace character, so a user types it as one word.
-
-    Parsing preserves the spelling.
-
-    Attributes:
-        value: The code, exactly as supplied.
-    """
-
-    value: str
-
-    @classmethod
-    def parse(cls, raw: str) -> Self:
-        """Return a validated code.
-
-        Args:
-            raw: Candidate code, such as `MD040`.
-
-        Raises:
-            EmptyUpstreamCodeError: If it is empty.
-            InvalidUpstreamCodeCharacterError: If it holds a whitespace character.
-        """
-        return cls(raw)
-
-    def __post_init__(self) -> None:
-        """Keep direct construction from bypassing the format.
-
-        Raises:
-            EmptyUpstreamCodeError: If it is empty.
-            InvalidUpstreamCodeCharacterError: If it holds a whitespace character.
-        """
-        if not self.value:
-            raise EmptyUpstreamCodeError()
-        for position, character in enumerate(self.value):
-            if character.isspace():
-                raise InvalidUpstreamCodeCharacterError(self.value, position)
-
-    def __str__(self) -> str:
-        """The code exactly as supplied."""
-        return self.value
-
-
-@dataclass(frozen=True, slots=True)
-class AliasCode:
-    """An upstream linter's code for a rule Lorecraft absorbed, such as markdownlint's `MD040`.
-
-    A rule's code is always Lorecraft's; an alias code only points to it.
-
-    Attributes:
-        linter: The upstream linter's name, such as `markdownlint`.
-        code: The upstream code, as the linter prints it.
-    """
-
-    linter: LinterName
-    code: UpstreamCode
-
-    def __str__(self) -> str:
-        """The upstream code alone, as a user types it to look the rule up."""
-        return str(self.code)
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -293,20 +138,6 @@ class RemovedRule:
     NAME: ClassVar[RuleName]
     REMOVED_IN: ClassVar[Release]
     REPLACED_BY: ClassVar[RuleCode | None]
-
-
-class Severity(StrEnum):
-    """How a diagnostic is reported; the value is the word the output spells it with.
-
-    A severity is not a `Level`: a rule at `allow` does not run, so it reports nothing, and a diagnostic carries one
-    of two severities where a level has three values. A rule's severity follows from its level; an engine
-    condition fixes its own.
-    """
-
-    ERROR = 'error'
-    """The diagnostic fails the run."""
-    WARNING = 'warning'
-    """The diagnostic is reported, and the run still passes."""
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
