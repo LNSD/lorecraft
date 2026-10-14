@@ -200,6 +200,64 @@ def _coverage(document: dict[str, object]) -> dict[str, dict[str, object]]:
     return {item['path']: item for item in coverage}
 
 
+def _paths(items: list[dict[str, str]]) -> list[str]:
+    """The `path` of each diagnostic, in the order given.
+
+    Args:
+        items: Diagnostics of a run, as the JSON document lists them.
+    """
+    return [item['path'] for item in items]
+
+
+def _codes(items: list[dict[str, str]]) -> list[str]:
+    """The `code` of each diagnostic, in the order given.
+
+    Args:
+        items: Diagnostics of a run, as the JSON document lists them.
+    """
+    return [item['code'] for item in items]
+
+
+def _lines(output: str) -> list[str]:
+    """The lines of a run's output, without their line endings.
+
+    Args:
+        output: Text a run wrote to one stream.
+    """
+    return output.splitlines()
+
+
+def _has_finding(lines: list[str], path: str, severity: str, code: str) -> bool:
+    """Whether some line of the short format reports the code, at that severity, at a line of the document.
+
+    Args:
+        lines: Lines of a run's short-format output.
+        path: Subject path the finding is reported at.
+        severity: Severity the finding is printed with, such as `error`.
+        code: Rule code the finding carries.
+    """
+    return any(line.startswith(f'{path}:') and f'{severity}[{code}]' in line for line in lines)
+
+
+def _skipped_paths(coverage: dict[str, dict[str, object]]) -> list[str]:
+    """The path of each document the run skipped, in coverage order.
+
+    Args:
+        coverage: Coverage of a run by subject path.
+    """
+    return [path for path, item in coverage.items() if item['skipped_by']]
+
+
+def _coverage_of(coverage: dict[str, dict[str, object]], paths: list[str]) -> dict[str, dict[str, object]]:
+    """The coverage entries of the given documents alone.
+
+    Args:
+        coverage: Coverage of a run by subject path.
+        paths: Subject paths whose entries are kept; each must be in the coverage.
+    """
+    return {path: coverage[path] for path in paths}
+
+
 @pytest.mark.it
 class TestCheckWithAFailedMetaSpec:
     def test_check_with_a_contradictory_structure_file_reports_it_and_checks_the_other_corpus(
@@ -307,10 +365,10 @@ class TestCheckWithAFailedMetaSpec:
 
         #: Then
         engine = _engine_diagnostics(document)
-        assert [item['path'] for item in engine] == [STRUCTURE_FILE_OF_CODE], (
+        assert _paths(engine) == [STRUCTURE_FILE_OF_CODE], (
             'one diagnostic at the structure file, though it governs two documents'
         )
-        assert [item['code'] for item in engine] == ['LC003'], 'it is the failure the file has'
+        assert _codes(engine) == ['LC003'], 'it is the failure the file has'
 
     def test_check_with_a_failed_meta_spec_prints_each_skipped_document_in_the_coverage(self, tmp_path: Path) -> None:
         #: Given
@@ -320,13 +378,11 @@ class TestCheckWithAFailedMetaSpec:
         result = runner.invoke(build_app(), ['check', '--root', str(root), '--format', 'short'])
 
         #: Then
-        lines = result.stdout.splitlines()
+        lines = _lines(result.stdout)
         assert f'{STRUCTURE_FILE_OF_PYTHON}: error[LC003]: structure file states no rule' in lines, (
             'the failure is one line at its structure file'
         )
-        assert any(line.startswith('docs/feat/check.md:') and 'error[OUT006]' in line for line in lines), (
-            'the other findings are printed with it'
-        )
+        assert _has_finding(lines, 'docs/feat/check.md', 'error', 'OUT006'), 'the other findings are printed with it'
         assert (
             'docs/code/python-typing.md: skipped, governed by a structure file that failed to load: '
             f'{STRUCTURE_FILE_OF_PYTHON}'
@@ -359,7 +415,7 @@ class TestCheckWithALoadFailureAndNothingElseWrong:
         #: Then
         assert exit_code == 0, 'nothing failed and nothing was found, so the run succeeds'
         coverage = _coverage(document)
-        assert [path for path, item in coverage.items() if item['skipped_by']] == [], 'no document was skipped'
+        assert _skipped_paths(coverage) == [], 'no document was skipped'
 
 
 @pytest.mark.it
@@ -385,9 +441,9 @@ class TestCheckLeavesWhatAFailureDoesNotTouchAsItWas:
         assert _codes_at(broken, 'docs/feat/check.md') == _codes_at(fixed, 'docs/feat/check.md'), (
             'so does a document of another corpus'
         )
-        assert {path: _coverage(broken)[path] for path in untouched} == {
-            path: fixed_coverage[path] for path in untouched
-        }, 'the coverage of the documents the failure does not touch is the coverage they have fixed'
+        assert _coverage_of(_coverage(broken), untouched) == _coverage_of(fixed_coverage, untouched), (
+            'the coverage of the documents the failure does not touch is the coverage they have fixed'
+        )
 
     def test_check_with_several_failures_reports_each_and_checks_the_rest(self, tmp_path: Path) -> None:
         #: Given

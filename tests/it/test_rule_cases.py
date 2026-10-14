@@ -217,6 +217,23 @@ def case_ids(cases: tuple[RuleCase, ...]) -> list[str]:
     return [case.id for case in cases]
 
 
+def _reported_diagnostics(document: dict[str, list[dict[str, object]]]) -> list[ExpectedDiagnostic]:
+    """The diagnostics of a JSON report, cut to the four fields a case's `expected.json` declares.
+
+    Args:
+        document: The JSON document `check --format json` printed.
+    """
+    return [
+        ExpectedDiagnostic(
+            path=diagnostic['path'],
+            line=diagnostic['line'],
+            severity=diagnostic['severity'],
+            code=diagnostic['code'],
+        )
+        for diagnostic in document['diagnostics']
+    ]
+
+
 @pytest.mark.it
 class TestRuleCases:
     @pytest.mark.parametrize('case', CASES, ids=case_ids(CASES))
@@ -237,17 +254,7 @@ class TestRuleCases:
 
         #: Then
         assert result.exit_code in _RUN_EXIT_CODES, result.output
-        reported = json.loads(result.stdout)['diagnostics']
-        actual: list[ExpectedDiagnostic] = []
-        for diagnostic in reported:
-            actual.append(
-                {
-                    'path': diagnostic['path'],
-                    'line': diagnostic['line'],
-                    'severity': diagnostic['severity'],
-                    'code': diagnostic['code'],
-                }
-            )
+        actual = _reported_diagnostics(json.loads(result.stdout))
         assert actual == expected, 'the case reports the diagnostics it declares and no others'
 
     @pytest.mark.parametrize('case', TRIGGER_CASES, ids=case_ids(TRIGGER_CASES))

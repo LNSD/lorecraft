@@ -66,6 +66,15 @@ def _snapshot() -> Snapshot:
     )
 
 
+def _spec_names(governance: Governance) -> list[CorpusSpecName | NamespaceSpecName]:
+    """The name of every structure specification that governs a document, in the governance's order.
+
+    Args:
+        governance: Governance of the document whose specifications are listed.
+    """
+    return [spec.name for spec in governance.specs()]
+
+
 @pytest.mark.it
 class TestGovernance:
     def test_governance_with_a_document_in_a_corpus_holds_the_corpus_and_matching_namespace_specs(self) -> None:
@@ -78,7 +87,7 @@ class TestGovernance:
         #: Then
         assert governance is not None, 'the corpus `code` is one the model holds'
         code = CorpusName.parse('code')
-        assert [spec.name for spec in governance.specs()] == [
+        assert _spec_names(governance) == [
             CorpusSpecName(code),
             NamespaceSpecName(code, AspectNamespace.parse('python')),
         ], 'the corpus spec and the `python` namespace spec govern the document'
