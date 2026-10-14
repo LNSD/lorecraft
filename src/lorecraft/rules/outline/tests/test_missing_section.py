@@ -10,6 +10,7 @@ from typing import Final
 
 import pytest
 
+from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.schemas import DocumentEnd, SectionName
 from lorecraft.project.syntax import LineNumber, SectionHeading
@@ -55,12 +56,12 @@ BEFORE_OPTIONS: Final[SectionHeading] = section_in(OPTIONS_ONLY, 'Options')
 """The `Options` section of `OPTIONS_ONLY`, on line 3, before which `Usage` belongs."""
 
 END_AFTER_USAGE: Final[DocumentEnd] = DocumentEnd(
-    last_line=LineNumber.from_int(5), after=section_in(USAGE_ONLY, 'Usage')
+    last_line=LineNumber(NonZeroUnsignedInt(5)), after=section_in(USAGE_ONLY, 'Usage')
 )
 """The end of `USAGE_ONLY`, on line 5, after its last section `Usage`."""
 
 END_AFTER_OPTIONS: Final[DocumentEnd] = DocumentEnd(
-    last_line=LineNumber.from_int(5), after=section_in(OPTIONS_ONLY, 'Options')
+    last_line=LineNumber(NonZeroUnsignedInt(5)), after=section_in(OPTIONS_ONLY, 'Options')
 )
 """The end of `OPTIONS_ONLY`, on line 5, after its last section `Options`."""
 
@@ -129,7 +130,7 @@ class TestMissingSection:
 
     def test_construction_with_a_line_of_its_own_is_refused(self) -> None:
         #: Given
-        line = LineNumber.from_int(9)
+        line = LineNumber(NonZeroUnsignedInt(9))
 
         #: When
         with pytest.raises(TypeError):
@@ -235,7 +236,7 @@ class TestMissingSection:
         labels = occurrence.labels()
 
         #: Then
-        assert labels == (Label(Here(LineNumber.from_int(3)), 'expected `Usage` before `Options`'),), (
+        assert labels == (Label(Here(LineNumber(NonZeroUnsignedInt(3))), 'expected `Usage` before `Options`'),), (
             'the label marks the section the missing one should come before, and names it'
         )
 
@@ -254,8 +255,8 @@ class TestMissingSection:
 
         #: Then
         assert labels == (
-            Label(Here(LineNumber.from_int(5)), 'expected `Options` before the end of the document'),
-            Label(Here(LineNumber.from_int(3)), 'expected `Options` after `Usage`'),
+            Label(Here(LineNumber(NonZeroUnsignedInt(5))), 'expected `Options` before the end of the document'),
+            Label(Here(LineNumber(NonZeroUnsignedInt(3))), 'expected `Options` after `Usage`'),
         ), 'the labels mark the last line, where the section would end, and the last section it follows'
 
     def test_labels_at_the_end_of_a_document_without_a_section_mark_its_last_line_alone(self) -> None:
@@ -263,7 +264,7 @@ class TestMissingSection:
         occurrence = MissingSection(
             spec=CORPUS_SPEC,
             section=USAGE,
-            before=DocumentEnd(last_line=LineNumber.from_int(1), after=None),
+            before=DocumentEnd(last_line=LineNumber(NonZeroUnsignedInt(1)), after=None),
             description=None,
             example=None,
         )
@@ -272,9 +273,9 @@ class TestMissingSection:
         labels = occurrence.labels()
 
         #: Then
-        assert labels == (Label(Here(LineNumber.from_int(1)), 'expected `Usage` before the end of the document'),), (
-            'a document with no section has none to follow, so only its last line is marked'
-        )
+        assert labels == (
+            Label(Here(LineNumber(NonZeroUnsignedInt(1))), 'expected `Usage` before the end of the document'),
+        ), 'a document with no section has none to follow, so only its last line is marked'
 
     def test_labels_at_the_end_of_a_document_ending_on_its_last_heading_mark_it_once(self) -> None:
         #: Given
@@ -282,7 +283,7 @@ class TestMissingSection:
         occurrence = MissingSection(
             spec=CORPUS_SPEC,
             section=SectionName.parse('Options'),
-            before=DocumentEnd(last_line=LineNumber.from_int(3), after=section_in(document, 'Usage')),
+            before=DocumentEnd(last_line=LineNumber(NonZeroUnsignedInt(3)), after=section_in(document, 'Usage')),
             description=None,
             example=None,
         )
@@ -291,7 +292,7 @@ class TestMissingSection:
         labels = occurrence.labels()
 
         #: Then
-        assert labels == (Label(Here(LineNumber.from_int(3)), 'expected `Options` after `Usage`'),), (
+        assert labels == (Label(Here(LineNumber(NonZeroUnsignedInt(3))), 'expected `Options` after `Usage`'),), (
             'when the last heading is the last line, one label says where the section follows'
         )
 

@@ -8,6 +8,7 @@ from pathlib import PurePosixPath
 
 import pytest
 
+from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.core.path import RootRelativePath
 from lorecraft.vfs import EntryRecord, FileTree, ScopeIndex, Snapshot, SnapshotRecords, SymlinkRecord, VirtualFileSystem
 
@@ -76,7 +77,7 @@ def _find(urls: tuple[str, ...], base: SkillRoot | DocumentDirectory, snapshot: 
     """
     links: list[Link] = []
     for url in urls:
-        links.append(Link(url, LineNumber.from_int(1)))
+        links.append(Link(url, LineNumber(NonZeroUnsignedInt(1))))
     targets = find_link_targets(tuple(links), base, VirtualFileSystem(snapshot), ScopeIndex(snapshot))
     found: dict[str, LinkTargetEntry] = {}
     for path, target in targets.items():

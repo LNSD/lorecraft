@@ -58,6 +58,7 @@ from ruamel.yaml.tokens import ScalarToken, TagToken, Token
 
 from lorecraft.core.error import Error
 from lorecraft.core.mapping import Frozen, FrozenMapping
+from lorecraft.core.num import NonZeroUnsignedInt
 
 from .position import LineNumber
 from .syntax_error import LINE_SEPARATORS, SyntaxProblem, describe_control_character, describe_error
@@ -547,7 +548,7 @@ class _EventStream:
             block_line: The line as the reader's mark counts it, from 0 at the block's first line.
         """
         # The block starts on document line 2, below the opening delimiter.
-        return LineNumber.from_int(block_line + _FIRST_BLOCK_LINE)
+        return LineNumber(NonZeroUnsignedInt(block_line + _FIRST_BLOCK_LINE))
 
     def first_refusal(self) -> _RecordedRefusal | None:
         """The first construct the scanner or the reader has recorded, in the order the block writes them, or `None`."""
@@ -1139,7 +1140,7 @@ def _read_document(parser: _EventStream) -> Frontmatter | NonMappingFrontmatter:
     if isinstance(first, MappingStartEvent):
         entries = _read_mapping(parser, first, repeats)
         # An inner mapping ends before the one that holds it, so its repeats came first; document order is by line.
-        in_document_order = tuple(sorted(repeats, key=lambda repeat: repeat.line.number))
+        in_document_order = tuple(sorted(repeats, key=lambda repeat: repeat.line.value))
         node: Frontmatter | NonMappingFrontmatter = _frontmatter(entries, in_document_order)
     else:
         _read_value(parser, repeats)

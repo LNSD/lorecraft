@@ -19,7 +19,7 @@ from typing import Final
 import pytest
 
 from lorecraft.core.mapping import FrozenMapping
-from lorecraft.core.num import UnsignedInt
+from lorecraft.core.num import NonZeroUnsignedInt, UnsignedInt
 from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
@@ -566,7 +566,7 @@ class TestDatabase:
 
         #: Then
         assert document.headings == (
-            Heading(level=1, text='Guide', line=LineNumber.from_int(4), empty=True, words=UnsignedInt(0)),
+            Heading(level=1, text='Guide', line=LineNumber(NonZeroUnsignedInt(4)), empty=True, words=UnsignedInt(0)),
         ), 'the parse tree holds the snapshot content'
 
     def test_source_lines_of_a_file_with_lone_carriage_returns_holds_the_line_a_heading_is_reported_on(self) -> None:
@@ -580,7 +580,7 @@ class TestDatabase:
 
         #: Then
         assert lines is not None, 'a document that decodes has lines to excerpt'
-        heading_line = document.headings[0].line.value.value
+        heading_line = document.headings[0].line.value
         assert lines[heading_line - 1] == '# Guide', (
             f'the excerpted line a heading number names is the heading, got {lines!r} for line {heading_line}'
         )
@@ -673,7 +673,7 @@ class TestDatabase:
         document = database.skill_parse(source)
 
         #: Then
-        assert document.links == (MarkdownLink(url='guide.md', line=LineNumber.from_int(6)),), (
+        assert document.links == (MarkdownLink(url='guide.md', line=LineNumber(NonZeroUnsignedInt(6))),), (
             'the SKILL.md bytes parse into a tree holding its links'
         )
 
@@ -708,7 +708,7 @@ class TestDatabase:
         document = database.skill_parse(source)
 
         #: Then
-        assert document.links == (MarkdownLink(url='guide.md', line=LineNumber.from_int(4)),), (
+        assert document.links == (MarkdownLink(url='guide.md', line=LineNumber(NonZeroUnsignedInt(4))),), (
             'the ref names the linked entry, and the tree is parsed from the SKILL.md the link leads to'
         )
 

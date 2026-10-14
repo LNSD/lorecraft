@@ -424,7 +424,7 @@ def _json_line(line: LineNumber | None) -> int | None:
     """
     if line is None:
         return None
-    return line.number
+    return line.value
 
 
 def _count(number: int, noun: str) -> str:

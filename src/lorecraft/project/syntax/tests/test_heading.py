@@ -4,7 +4,7 @@ from typing import cast
 
 import pytest
 
-from lorecraft.core.num import UnsignedInt
+from lorecraft.core.num import NonZeroUnsignedInt, UnsignedInt
 
 from ..heading import Heading, HeadingLevel, SectionHeading, find_sections, find_title
 from ..position import LineNumber
@@ -21,7 +21,11 @@ class TestHeading:
         #: When
         with pytest.raises(AssertionError) as exc_info:
             Heading(
-                level=rejected, text='Intro', line=LineNumber.from_int(1), empty=False, words=WordCount(UnsignedInt(0))
+                level=rejected,
+                text='Intro',
+                line=LineNumber(NonZeroUnsignedInt(1)),
+                empty=False,
+                words=WordCount(UnsignedInt(0)),
             )
 
         #: Then
@@ -35,7 +39,11 @@ class TestHeading:
         #: When
         with pytest.raises(AssertionError) as exc_info:
             Heading(
-                level=rejected, text='Deep', line=LineNumber.from_int(1), empty=False, words=WordCount(UnsignedInt(0))
+                level=rejected,
+                text='Deep',
+                line=LineNumber(NonZeroUnsignedInt(1)),
+                empty=False,
+                words=WordCount(UnsignedInt(0)),
             )
 
         #: Then
@@ -47,7 +55,11 @@ class TestHeading:
 
         #: When
         heading = Heading(
-            level=accepted, text='Title', line=LineNumber.from_int(1), empty=False, words=WordCount(UnsignedInt(5))
+            level=accepted,
+            text='Title',
+            line=LineNumber(NonZeroUnsignedInt(1)),
+            empty=False,
+            words=WordCount(UnsignedInt(5)),
         )
 
         #: Then
@@ -59,7 +71,11 @@ class TestHeading:
 
         #: When
         heading = Heading(
-            level=accepted, text='Section', line=LineNumber.from_int(10), empty=True, words=WordCount(UnsignedInt(0))
+            level=accepted,
+            text='Section',
+            line=LineNumber(NonZeroUnsignedInt(10)),
+            empty=True,
+            words=WordCount(UnsignedInt(0)),
         )
 
         #: Then
@@ -74,7 +90,9 @@ def _heading(level: HeadingLevel, text: str, line: int) -> Heading:
         text: The heading's text.
         line: The line it starts on.
     """
-    return Heading(level=level, text=text, line=LineNumber.from_int(line), empty=False, words=WordCount(UnsignedInt(0)))
+    return Heading(
+        level=level, text=text, line=LineNumber(NonZeroUnsignedInt(line)), empty=False, words=WordCount(UnsignedInt(0))
+    )
 
 
 @pytest.mark.unit

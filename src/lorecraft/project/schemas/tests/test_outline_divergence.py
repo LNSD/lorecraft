@@ -9,6 +9,7 @@ from typing import Final
 
 import pytest
 
+from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.project.syntax import LineNumber, SectionHeading, count_lines, find_sections, parse_document
 
@@ -166,7 +167,9 @@ class TestMatchOutlines:
             name=SectionName.parse('See Also'),
             description=None,
             example=None,
-            before=DocumentEnd(last_line=LineNumber.from_int(13), after=_section(RULE_ASIDE_CHECKLIST, 'Checklist')),
+            before=DocumentEnd(
+                last_line=LineNumber(NonZeroUnsignedInt(13)), after=_section(RULE_ASIDE_CHECKLIST, 'Checklist')
+            ),
         )
 
         #: When
@@ -184,7 +187,7 @@ class TestMatchOutlines:
             name=SectionName.parse('Rule'),
             description=None,
             example=None,
-            before=DocumentEnd(last_line=LineNumber.from_int(1), after=None),
+            before=DocumentEnd(last_line=LineNumber(NonZeroUnsignedInt(1)), after=None),
         )
 
         #: When

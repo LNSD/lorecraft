@@ -9,6 +9,7 @@ normalised relative path; where each link leads is `find_link_targets`'s, tested
 import pytest
 
 from lorecraft.core.mapping import FrozenMapping
+from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.link_target import DocumentDirectory, EscapingTarget, LinkTarget, PathLookup, SkillRoot
 from lorecraft.project.syntax import LineNumber, NormalisedLinkPath
@@ -59,7 +60,7 @@ class TestBrokenLinkInASkill:
         #: Then
         assert occurrences == (
             BrokenLink(
-                line=LineNumber.from_int(3),
+                line=LineNumber(NonZeroUnsignedInt(3)),
                 url='references/a.md',
                 base=SKILL_ROOT,
                 target=RootRelativePath.parse('.agents/skills/review/references/a.md'),
@@ -132,7 +133,7 @@ class TestBrokenLinkInASkill:
         #: Then
         assert occurrences == (
             BrokenLink(
-                line=LineNumber.from_int(3),
+                line=LineNumber(NonZeroUnsignedInt(3)),
                 url='references/./a.md',
                 base=SKILL_ROOT,
                 target=RootRelativePath.parse('.agents/skills/review/references/a.md'),
@@ -151,7 +152,7 @@ class TestBrokenLinkInASkill:
         #: Then
         assert occurrences == (
             BrokenLink(
-                line=LineNumber.from_int(3),
+                line=LineNumber(NonZeroUnsignedInt(3)),
                 url='b.md?raw=1',
                 base=SKILL_ROOT,
                 target=RootRelativePath.parse('.agents/skills/review/b.md'),
@@ -174,7 +175,7 @@ class TestBrokenLinkInADocument:
         #: Then
         assert occurrences == (
             BrokenLink(
-                line=LineNumber.from_int(3),
+                line=LineNumber(NonZeroUnsignedInt(3)),
                 url='install.md',
                 base=DOCUMENT_DIRECTORY,
                 target=RootRelativePath.parse('docs/guide/install.md'),
@@ -200,7 +201,7 @@ class TestBrokenLinkDiagnostic:
     def test_message_with_a_percent_encoded_destination_shows_it_decoded(self) -> None:
         #: Given
         occurrence = BrokenLink(
-            line=LineNumber.from_int(3),
+            line=LineNumber(NonZeroUnsignedInt(3)),
             url='a%20b.md',
             base=SKILL_ROOT,
             target=RootRelativePath.parse('.agents/skills/review/a b.md'),
@@ -215,7 +216,7 @@ class TestBrokenLinkDiagnostic:
     def test_message_with_a_link_in_a_document_is_the_same_template(self) -> None:
         #: Given
         occurrence = BrokenLink(
-            line=LineNumber.from_int(3),
+            line=LineNumber(NonZeroUnsignedInt(3)),
             url='install.md',
             base=DOCUMENT_DIRECTORY,
             target=RootRelativePath.parse('docs/guide/install.md'),
@@ -230,7 +231,7 @@ class TestBrokenLinkDiagnostic:
     def test_children_with_a_link_in_a_skill_say_where_it_was_read_from_and_what_it_names(self) -> None:
         #: Given
         occurrence = BrokenLink(
-            line=LineNumber.from_int(3),
+            line=LineNumber(NonZeroUnsignedInt(3)),
             url='a.md',
             base=SKILL_ROOT,
             target=RootRelativePath.parse('.agents/skills/review/a.md'),
@@ -249,7 +250,7 @@ class TestBrokenLinkDiagnostic:
     def test_children_with_a_link_in_a_document_say_where_it_was_read_from_and_what_it_names(self) -> None:
         #: Given
         occurrence = BrokenLink(
-            line=LineNumber.from_int(3),
+            line=LineNumber(NonZeroUnsignedInt(3)),
             url='../code/gone.md',
             base=DOCUMENT_DIRECTORY,
             target=RootRelativePath.parse('docs/code/gone.md'),

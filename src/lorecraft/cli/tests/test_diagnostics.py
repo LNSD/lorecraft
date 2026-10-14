@@ -9,7 +9,7 @@ from syrupy.assertion import SnapshotAssertion
 
 from lib.overruns import overrun
 from lib.snapshot import TextSnapshotExtension
-from lorecraft.core.num import UnsignedInt
+from lorecraft.core.num import NonZeroUnsignedInt, UnsignedInt
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.context import DocumentFrontmatterOwner
@@ -68,7 +68,7 @@ def _document(corpus: str, filename: str) -> DocumentRef:
 
 
 def _line(number: int) -> LineNumber:
-    return LineNumber.from_int(number)
+    return LineNumber(NonZeroUnsignedInt(number))
 
 
 def _latin_failure() -> Utf8Failure:

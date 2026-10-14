@@ -56,10 +56,10 @@ thought to check cannot change unnoticed.
 assert occurrences == (
     DuplicateKey(
         owner=OWNER,
-        line=LineNumber.from_int(3),
+        line=LineNumber(NonZeroUnsignedInt(3)),
         key='name',
-        first_line=LineNumber.from_int(2),
-        kept_line=LineNumber.from_int(3),
+        first_line=LineNumber(NonZeroUnsignedInt(2)),
+        kept_line=LineNumber(NonZeroUnsignedInt(3)),
     ),
 ), 'a key written twice is one occurrence, on the line that repeats it'
 assert report.diagnostics == (), 'a document that conforms to its meta specs carries no diagnostic'

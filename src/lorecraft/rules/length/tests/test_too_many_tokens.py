@@ -9,6 +9,7 @@ from typing import Final
 import pytest
 
 from lib.overruns import overrun
+from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.syntax import LineNumber, count_tokens
 from lorecraft.rules.location import Elsewhere, Help, Here, Label, Note
@@ -52,7 +53,9 @@ class TestTooManyTokens:
 
         #: Then
         assert occurrences == (
-            TooManyTokens(spec=CORPUS_SPEC, line=LineNumber.from_int(1), overrun=overrun(TOKENS, TOKENS - 1)),
+            TooManyTokens(
+                spec=CORPUS_SPEC, line=LineNumber(NonZeroUnsignedInt(1)), overrun=overrun(TOKENS, TOKENS - 1)
+            ),
         ), 'a document over its budget is one occurrence, on line 1, naming the specification that sets the budget'
 
     def test_check_with_a_document_at_the_budget_reports_nothing(self) -> None:
@@ -79,7 +82,9 @@ class TestTooManyTokens:
 
         #: Then
         assert occurrences == (
-            TooManyTokens(spec=NAMESPACE_SPEC, line=LineNumber.from_int(1), overrun=overrun(TOKENS, TOKENS - 1)),
+            TooManyTokens(
+                spec=NAMESPACE_SPEC, line=LineNumber(NonZeroUnsignedInt(1)), overrun=overrun(TOKENS, TOKENS - 1)
+            ),
         ), 'a namespace budget does not replace the corpus one, so the document is held to it on its own'
 
     def test_check_with_a_document_over_both_budgets_reports_each_in_order(self) -> None:
@@ -96,8 +101,12 @@ class TestTooManyTokens:
 
         #: Then
         assert occurrences == (
-            TooManyTokens(spec=CORPUS_SPEC, line=LineNumber.from_int(1), overrun=overrun(TOKENS, TOKENS - 1)),
-            TooManyTokens(spec=NAMESPACE_SPEC, line=LineNumber.from_int(1), overrun=overrun(TOKENS, TOKENS - 2)),
+            TooManyTokens(
+                spec=CORPUS_SPEC, line=LineNumber(NonZeroUnsignedInt(1)), overrun=overrun(TOKENS, TOKENS - 1)
+            ),
+            TooManyTokens(
+                spec=NAMESPACE_SPEC, line=LineNumber(NonZeroUnsignedInt(1)), overrun=overrun(TOKENS, TOKENS - 2)
+            ),
         ), 'a document over two budgets is one occurrence per budget, in the order the specifications apply'
 
     def test_check_with_no_specification_setting_a_budget_reports_nothing(self) -> None:
@@ -124,12 +133,14 @@ class TestTooManyTokens:
 
         #: Then
         assert occurrences == (
-            TooManyTokens(spec=NAMESPACE_SPEC, line=LineNumber.from_int(1), overrun=overrun(TOKENS, TOKENS - 1)),
+            TooManyTokens(
+                spec=NAMESPACE_SPEC, line=LineNumber(NonZeroUnsignedInt(1)), overrun=overrun(TOKENS, TOKENS - 1)
+            ),
         ), 'a specification that sets no budget holds the document to none, and the one that sets a budget still does'
 
     def test_message_with_an_occurrence_names_the_tokens_and_the_budget(self) -> None:
         #: Given
-        occurrence = TooManyTokens(spec=CORPUS_SPEC, line=LineNumber.from_int(1), overrun=overrun(7, 6))
+        occurrence = TooManyTokens(spec=CORPUS_SPEC, line=LineNumber(NonZeroUnsignedInt(1)), overrun=overrun(7, 6))
 
         #: When
         message = occurrence.message()
@@ -139,19 +150,19 @@ class TestTooManyTokens:
 
     def test_labels_with_an_occurrence_say_how_many_tokens_it_runs_over_the_budget(self) -> None:
         #: Given
-        occurrence = TooManyTokens(spec=CORPUS_SPEC, line=LineNumber.from_int(1), overrun=overrun(7, 5))
+        occurrence = TooManyTokens(spec=CORPUS_SPEC, line=LineNumber(NonZeroUnsignedInt(1)), overrun=overrun(7, 5))
 
         #: When
         labels = occurrence.labels()
 
         #: Then
-        assert labels == (Label(Here(LineNumber.from_int(1)), 'tokens over the budget: 2'),), (
+        assert labels == (Label(Here(LineNumber(NonZeroUnsignedInt(1))), 'tokens over the budget: 2'),), (
             'the label sits on the reported line and gives the overrun'
         )
 
     def test_children_with_an_occurrence_point_at_the_spec_then_help_then_say_how_tokens_are_counted(self) -> None:
         #: Given
-        occurrence = TooManyTokens(spec=CORPUS_SPEC, line=LineNumber.from_int(1), overrun=overrun(7, 5))
+        occurrence = TooManyTokens(spec=CORPUS_SPEC, line=LineNumber(NonZeroUnsignedInt(1)), overrun=overrun(7, 5))
 
         #: When
         children = occurrence.children()

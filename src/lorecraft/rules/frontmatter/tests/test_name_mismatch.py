@@ -10,6 +10,7 @@ from typing import Final
 
 import pytest
 
+from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.core.path import ROOT, PathComponent, RootRelativePath
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.context import DocumentFrontmatterOwner, SkillFrontmatterOwner
@@ -57,9 +58,9 @@ class TestNameMismatch:
         occurrences = NameMismatch.check(subject)
 
         #: Then
-        assert occurrences == (NameMismatch(owner=DOCUMENT_OWNER, line=LineNumber.from_int(3), name='installation'),), (
-            'a name other than the filename is one occurrence, on the line the `name` key is written on'
-        )
+        assert occurrences == (
+            NameMismatch(owner=DOCUMENT_OWNER, line=LineNumber(NonZeroUnsignedInt(3)), name='installation'),
+        ), 'a name other than the filename is one occurrence, on the line the `name` key is written on'
 
     def test_check_with_a_name_written_twice_reports_the_last_value_on_its_line(self) -> None:
         #: Given
@@ -78,9 +79,9 @@ class TestNameMismatch:
         occurrences = NameMismatch.check(subject)
 
         #: Then
-        assert occurrences == (NameMismatch(owner=DOCUMENT_OWNER, line=LineNumber.from_int(5), name='installation'),), (
-            'the last value of a repeated key is the one read, so it is compared, on its line; a nested key is not it'
-        )
+        assert occurrences == (
+            NameMismatch(owner=DOCUMENT_OWNER, line=LineNumber(NonZeroUnsignedInt(5)), name='installation'),
+        ), 'the last value of a repeated key is the one read, so it is compared, on its line; a nested key is not it'
 
     def test_check_with_a_document_named_for_its_filename_reports_nothing(self) -> None:
         #: Given
@@ -176,14 +177,14 @@ class TestNameMismatch:
         assert occurrences == (
             NameMismatch(
                 owner=SkillFrontmatterOwner(directory_name=PathComponent.parse('review'), link_target=SHIPPED),
-                line=LineNumber.from_int(2),
+                line=LineNumber(NonZeroUnsignedInt(2)),
                 name='code-review',
             ),
         ), 'a skill is held to the name it is listed under, never to the name of the directory a link leads to'
 
     def test_message_with_an_occurrence_names_the_name_against_the_expected_one(self) -> None:
         #: Given
-        occurrence = NameMismatch(owner=DOCUMENT_OWNER, line=LineNumber.from_int(2), name='installation')
+        occurrence = NameMismatch(owner=DOCUMENT_OWNER, line=LineNumber(NonZeroUnsignedInt(2)), name='installation')
 
         #: When
         message = occurrence.message()
@@ -195,31 +196,31 @@ class TestNameMismatch:
 
     def test_labels_with_a_document_name_the_filename_expected_on_the_name_line(self) -> None:
         #: Given
-        occurrence = NameMismatch(owner=DOCUMENT_OWNER, line=LineNumber.from_int(2), name='installation')
+        occurrence = NameMismatch(owner=DOCUMENT_OWNER, line=LineNumber(NonZeroUnsignedInt(2)), name='installation')
 
         #: When
         labels = occurrence.labels()
 
         #: Then
-        assert labels == (Label(Here(LineNumber.from_int(2)), 'expected `setup`'),), (
+        assert labels == (Label(Here(LineNumber(NonZeroUnsignedInt(2))), 'expected `setup`'),), (
             'the label sits on the `name` line and names the filename'
         )
 
     def test_labels_with_a_skill_name_the_directory_name_expected_on_the_name_line(self) -> None:
         #: Given
-        occurrence = NameMismatch(owner=SKILL_OWNER, line=LineNumber.from_int(2), name='code-review')
+        occurrence = NameMismatch(owner=SKILL_OWNER, line=LineNumber(NonZeroUnsignedInt(2)), name='code-review')
 
         #: When
         labels = occurrence.labels()
 
         #: Then
-        assert labels == (Label(Here(LineNumber.from_int(2)), 'expected `review`'),), (
+        assert labels == (Label(Here(LineNumber(NonZeroUnsignedInt(2))), 'expected `review`'),), (
             'the label sits on the `name` line and names the directory'
         )
 
     def test_children_with_a_document_name_the_filename_and_offer_the_rename(self) -> None:
         #: Given
-        occurrence = NameMismatch(owner=DOCUMENT_OWNER, line=LineNumber.from_int(2), name='installation')
+        occurrence = NameMismatch(owner=DOCUMENT_OWNER, line=LineNumber(NonZeroUnsignedInt(2)), name='installation')
 
         #: When
         children = occurrence.children()
@@ -234,7 +235,7 @@ class TestNameMismatch:
     def test_children_with_a_skill_reached_through_a_link_name_where_it_leads(self) -> None:
         #: Given
         owner = SkillFrontmatterOwner(directory_name=PathComponent.parse('review'), link_target=SHIPPED)
-        occurrence = NameMismatch(owner=owner, line=LineNumber.from_int(2), name='code-review')
+        occurrence = NameMismatch(owner=owner, line=LineNumber(NonZeroUnsignedInt(2)), name='code-review')
 
         #: When
         children = occurrence.children()
@@ -251,7 +252,7 @@ class TestNameMismatch:
         #: Given
         same_name = ResolvedPath(RootRelativePath.parse('skills/review'))
         owner = SkillFrontmatterOwner(directory_name=PathComponent.parse('review'), link_target=same_name)
-        occurrence = NameMismatch(owner=owner, line=LineNumber.from_int(2), name='code-review')
+        occurrence = NameMismatch(owner=owner, line=LineNumber(NonZeroUnsignedInt(2)), name='code-review')
 
         #: When
         children = occurrence.children()
@@ -265,7 +266,7 @@ class TestNameMismatch:
 
     def test_children_with_a_skill_name_over_the_length_cap_offer_no_directory_rename(self) -> None:
         #: Given
-        occurrence = NameMismatch(owner=SKILL_OWNER, line=LineNumber.from_int(2), name='a' * 70)
+        occurrence = NameMismatch(owner=SKILL_OWNER, line=LineNumber(NonZeroUnsignedInt(2)), name='a' * 70)
 
         #: When
         children = occurrence.children()
@@ -279,7 +280,7 @@ class TestNameMismatch:
     def test_children_with_a_skill_linked_to_the_root_name_the_repository_root(self) -> None:
         #: Given
         owner = SkillFrontmatterOwner(directory_name=PathComponent.parse('review'), link_target=ResolvedPath(ROOT))
-        occurrence = NameMismatch(owner=owner, line=LineNumber.from_int(2), name='code-review')
+        occurrence = NameMismatch(owner=owner, line=LineNumber(NonZeroUnsignedInt(2)), name='code-review')
 
         #: When
         children = occurrence.children()

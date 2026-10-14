@@ -8,6 +8,7 @@ from typing import Final
 
 import pytest
 
+from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.project.syntax import Heading, LineNumber
 from lorecraft.rules.location import Help, Here, Label
 from lorecraft.rules.tests.fake_context import FakeDocumentContext, heading_in, namespace_spec
@@ -37,7 +38,7 @@ class TestExtraTitle:
         occurrences = ExtraTitle.check(subject)
 
         #: Then
-        assert occurrences == (ExtraTitle(line=LineNumber.from_int(7), first_title=FIRST_TITLE),), (
+        assert occurrences == (ExtraTitle(line=LineNumber(NonZeroUnsignedInt(7)), first_title=FIRST_TITLE),), (
             'the second title is one occurrence, at its own heading, pointing back at the first'
         )
 
@@ -50,8 +51,8 @@ class TestExtraTitle:
 
         #: Then
         assert occurrences == (
-            ExtraTitle(line=LineNumber.from_int(7), first_title=FIRST_TITLE),
-            ExtraTitle(line=LineNumber.from_int(11), first_title=FIRST_TITLE),
+            ExtraTitle(line=LineNumber(NonZeroUnsignedInt(7)), first_title=FIRST_TITLE),
+            ExtraTitle(line=LineNumber(NonZeroUnsignedInt(11)), first_title=FIRST_TITLE),
         ), 'every title after the first is its own occurrence, in document order, each pointing back at the first'
 
     def test_check_with_one_title_reports_nothing(self) -> None:
@@ -84,13 +85,13 @@ class TestExtraTitle:
         occurrences = ExtraTitle.check(subject)
 
         #: Then
-        assert occurrences == (ExtraTitle(line=LineNumber.from_int(7), first_title=FIRST_TITLE),), (
+        assert occurrences == (ExtraTitle(line=LineNumber(NonZeroUnsignedInt(7)), first_title=FIRST_TITLE),), (
             'every specification agrees on one title, so the extra title is reported once'
         )
 
     def test_message_with_an_occurrence_states_the_extra_title(self) -> None:
         #: Given
-        occurrence = ExtraTitle(line=LineNumber.from_int(7), first_title=FIRST_TITLE)
+        occurrence = ExtraTitle(line=LineNumber(NonZeroUnsignedInt(7)), first_title=FIRST_TITLE)
 
         #: When
         message = occurrence.message()
@@ -100,19 +101,19 @@ class TestExtraTitle:
 
     def test_labels_with_an_occurrence_point_at_the_first_title(self) -> None:
         #: Given
-        occurrence = ExtraTitle(line=LineNumber.from_int(7), first_title=FIRST_TITLE)
+        occurrence = ExtraTitle(line=LineNumber(NonZeroUnsignedInt(7)), first_title=FIRST_TITLE)
 
         #: When
         labels = occurrence.labels()
 
         #: Then
-        assert labels == (Label(Here(LineNumber.from_int(1)), 'the document is titled `Setup` here'),), (
+        assert labels == (Label(Here(LineNumber(NonZeroUnsignedInt(1))), 'the document is titled `Setup` here'),), (
             "a label points at the document's own title, on its line, and names it"
         )
 
     def test_children_with_an_occurrence_say_where_the_extra_title_belongs(self) -> None:
         #: Given
-        occurrence = ExtraTitle(line=LineNumber.from_int(7), first_title=FIRST_TITLE)
+        occurrence = ExtraTitle(line=LineNumber(NonZeroUnsignedInt(7)), first_title=FIRST_TITLE)
 
         #: When
         children = occurrence.children()

@@ -10,6 +10,7 @@ from typing import Final
 
 import pytest
 
+from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.schemas import ExpectedSection, LeftOver, SectionName
 from lorecraft.project.syntax import LineNumber
@@ -58,7 +59,7 @@ class TestSectionOutOfOrder:
         #: Then
         assert occurrences == (
             SectionOutOfOrder(
-                spec=CORPUS_SPEC, line=LineNumber.from_int(3), section='Options', placement=EXPECTED_USAGE
+                spec=CORPUS_SPEC, line=LineNumber(NonZeroUnsignedInt(3)), section='Options', placement=EXPECTED_USAGE
             ),
         ), 'a section standing where the outline places a later one is one occurrence, at its heading'
 
@@ -71,7 +72,9 @@ class TestSectionOutOfOrder:
 
         #: Then
         assert occurrences == (
-            SectionOutOfOrder(spec=CORPUS_SPEC, line=LineNumber.from_int(11), section='Usage', placement=REPEATS_USAGE),
+            SectionOutOfOrder(
+                spec=CORPUS_SPEC, line=LineNumber(NonZeroUnsignedInt(11)), section='Usage', placement=REPEATS_USAGE
+            ),
         ), 'a named section left over once the outline is used up is reported at its heading, with the one it repeats'
 
     def test_check_with_an_absent_section_reports_nothing(self) -> None:
@@ -121,11 +124,11 @@ class TestSectionOutOfOrder:
         #: Then
         assert occurrences == (
             SectionOutOfOrder(
-                spec=CORPUS_SPEC, line=LineNumber.from_int(3), section='Options', placement=EXPECTED_USAGE
+                spec=CORPUS_SPEC, line=LineNumber(NonZeroUnsignedInt(3)), section='Options', placement=EXPECTED_USAGE
             ),
             SectionOutOfOrder(
                 spec=NAMESPACE_SPEC,
-                line=LineNumber.from_int(11),
+                line=LineNumber(NonZeroUnsignedInt(11)),
                 section='Options',
                 placement=LeftOver(earlier=section_in(OUT_OF_ORDER, 'Options')),
             ),
@@ -143,14 +146,17 @@ class TestSectionOutOfOrder:
         #: Then
         assert occurrences == (
             SectionOutOfOrder(
-                spec=CORPUS_SPEC, line=LineNumber.from_int(7), section='Usage', placement=LeftOver(earlier=None)
+                spec=CORPUS_SPEC,
+                line=LineNumber(NonZeroUnsignedInt(7)),
+                section='Usage',
+                placement=LeftOver(earlier=None),
             ),
         ), 'an optional section skipped and written after the outline is used up repeats no earlier heading'
 
     def test_message_with_an_occurrence_names_the_section(self) -> None:
         #: Given
         occurrence = SectionOutOfOrder(
-            spec=CORPUS_SPEC, line=LineNumber.from_int(3), section='Options', placement=EXPECTED_USAGE
+            spec=CORPUS_SPEC, line=LineNumber(NonZeroUnsignedInt(3)), section='Options', placement=EXPECTED_USAGE
         )
 
         #: When
@@ -162,7 +168,7 @@ class TestSectionOutOfOrder:
     def test_labels_with_a_section_expected_mark_it_and_where_the_expected_one_is_written(self) -> None:
         #: Given
         occurrence = SectionOutOfOrder(
-            spec=CORPUS_SPEC, line=LineNumber.from_int(3), section='Options', placement=EXPECTED_USAGE
+            spec=CORPUS_SPEC, line=LineNumber(NonZeroUnsignedInt(3)), section='Options', placement=EXPECTED_USAGE
         )
 
         #: When
@@ -170,14 +176,14 @@ class TestSectionOutOfOrder:
 
         #: Then
         assert labels == (
-            Label(Here(LineNumber.from_int(3)), 'expected `Usage` here'),
-            Label(Here(LineNumber.from_int(7)), '`Usage` is written here'),
+            Label(Here(LineNumber(NonZeroUnsignedInt(3))), 'expected `Usage` here'),
+            Label(Here(LineNumber(NonZeroUnsignedInt(7))), '`Usage` is written here'),
         ), 'the labels mark the section, name the one the outline places there, and mark where that one is written'
 
     def test_labels_with_a_section_repeated_mark_it_and_the_heading_it_repeats(self) -> None:
         #: Given
         occurrence = SectionOutOfOrder(
-            spec=CORPUS_SPEC, line=LineNumber.from_int(11), section='Usage', placement=REPEATS_USAGE
+            spec=CORPUS_SPEC, line=LineNumber(NonZeroUnsignedInt(11)), section='Usage', placement=REPEATS_USAGE
         )
 
         #: When
@@ -185,28 +191,28 @@ class TestSectionOutOfOrder:
 
         #: Then
         assert labels == (
-            Label(Here(LineNumber.from_int(11)), 'left over after every section the outline matched'),
-            Label(Here(LineNumber.from_int(3)), 'already written here'),
+            Label(Here(LineNumber(NonZeroUnsignedInt(11))), 'left over after every section the outline matched'),
+            Label(Here(LineNumber(NonZeroUnsignedInt(3))), 'already written here'),
         ), 'the labels mark the section left over, and the heading of the same text written before it'
 
     def test_labels_with_a_section_left_over_and_nothing_earlier_mark_it_alone(self) -> None:
         #: Given
         occurrence = SectionOutOfOrder(
-            spec=CORPUS_SPEC, line=LineNumber.from_int(7), section='Usage', placement=LeftOver(earlier=None)
+            spec=CORPUS_SPEC, line=LineNumber(NonZeroUnsignedInt(7)), section='Usage', placement=LeftOver(earlier=None)
         )
 
         #: When
         labels = occurrence.labels()
 
         #: Then
-        assert labels == (Label(Here(LineNumber.from_int(7)), 'left over after every section the outline matched'),), (
-            'a section with no heading of its text before it has nothing to point back at'
-        )
+        assert labels == (
+            Label(Here(LineNumber(NonZeroUnsignedInt(7))), 'left over after every section the outline matched'),
+        ), 'a section with no heading of its text before it has nothing to point back at'
 
     def test_children_with_a_section_expected_point_at_the_specification_and_say_to_move_it(self) -> None:
         #: Given
         occurrence = SectionOutOfOrder(
-            spec=CORPUS_SPEC, line=LineNumber.from_int(3), section='Options', placement=EXPECTED_USAGE
+            spec=CORPUS_SPEC, line=LineNumber(NonZeroUnsignedInt(3)), section='Options', placement=EXPECTED_USAGE
         )
 
         #: When
@@ -221,7 +227,7 @@ class TestSectionOutOfOrder:
     def test_children_with_a_section_left_over_point_at_the_specification_alone(self) -> None:
         #: Given
         occurrence = SectionOutOfOrder(
-            spec=CORPUS_SPEC, line=LineNumber.from_int(11), section='Usage', placement=REPEATS_USAGE
+            spec=CORPUS_SPEC, line=LineNumber(NonZeroUnsignedInt(11)), section='Usage', placement=REPEATS_USAGE
         )
 
         #: When

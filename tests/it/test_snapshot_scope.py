@@ -12,6 +12,7 @@ from typing import Final, assert_never
 
 import pytest
 
+from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.project.database import Database, SkillResourceText, Undecodable
 from lorecraft.project.layout import SNAPSHOT_SCOPE
@@ -384,7 +385,7 @@ class TestDatabaseSkillResources:
         document = database.skill_resource_parse(source)
 
         #: Then
-        assert document.links == (MarkdownLink(url='../../SKILL.md', line=LineNumber.from_int(3)),), (
+        assert document.links == (MarkdownLink(url='../../SKILL.md', line=LineNumber(NonZeroUnsignedInt(3))),), (
             'the ref names the resource through the symlink, and the tree is parsed from shared/guides/deeper/d.md'
         )
 

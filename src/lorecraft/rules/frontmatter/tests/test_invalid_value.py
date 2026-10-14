@@ -9,6 +9,7 @@ from typing import Final
 
 import pytest
 
+from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.schemas import (
     AgentSkillsSchema,
@@ -64,7 +65,7 @@ PROBLEM: Final[InvalidValueProblem] = InvalidValueProblem(
 )
 """A value breaking a pattern: the rule's condition."""
 
-LINE: Final[LineNumber] = LineNumber.from_int(2)
+LINE: Final[LineNumber] = LineNumber(NonZeroUnsignedInt(2))
 """The line `name` is written on."""
 
 
@@ -140,7 +141,7 @@ class TestInvalidValue:
             ),
         )
         assert occurrences == (
-            InvalidValue(source=AGENT_SKILLS_SOURCE, line=LineNumber.from_int(4), problem=problem),
+            InvalidValue(source=AGENT_SKILLS_SOURCE, line=LineNumber(NonZeroUnsignedInt(4)), problem=problem),
         ), "the package states the Agent Skills schema, so a skill's occurrence names no specification file"
 
     def test_labels_with_a_skill_name_outside_the_allowed_format_name_the_pattern(self) -> None:
@@ -158,9 +159,9 @@ class TestInvalidValue:
         labels = occurrences[0].labels()
 
         #: Then
-        assert labels == (Label(Here(LineNumber.from_int(2)), f'does not match the pattern `{SKILL_NAME_PATTERN}`'),), (
-            "a skill's malformed name is labelled as a document's pattern fault is"
-        )
+        assert labels == (
+            Label(Here(LineNumber(NonZeroUnsignedInt(2))), f'does not match the pattern `{SKILL_NAME_PATTERN}`'),
+        ), "a skill's malformed name is labelled as a document's pattern fault is"
 
     def test_check_with_a_block_that_is_not_a_mapping_reports_nothing(self) -> None:
         #: Given
@@ -345,7 +346,9 @@ class TestInvalidValue:
         problem = InvalidValueProblem(
             'description', message, OtherValueConstraint(), reason='No trailing period.', guidance=FieldGuidance()
         )
-        assert occurrences == (InvalidValue(source=CORPUS_SOURCE, line=LineNumber.from_int(2), problem=problem),), (
+        assert occurrences == (
+            InvalidValue(source=CORPUS_SOURCE, line=LineNumber(NonZeroUnsignedInt(2)), problem=problem),
+        ), (
             "the schema's `$comment` reaches the occurrence as the reason, so it is the help, ahead of the "
             "validator's prose"
         )

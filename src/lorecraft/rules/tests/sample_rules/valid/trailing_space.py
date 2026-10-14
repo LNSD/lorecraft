@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 from typing import ClassVar, Self
 
+from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.declaration import AliasCode, Level, LinterName, Release, RuleCode, RuleName, UpstreamCode, rule
 from lorecraft.rules.tests.sample_subject import SampleLines, SampleLinesRule
@@ -33,7 +34,7 @@ class TrailingSpace(SampleLinesRule):
             subject: The lines judged.
         """
         return tuple(
-            cls(spec=None, line=LineNumber.from_int(index + 1))
+            cls(spec=None, line=LineNumber(NonZeroUnsignedInt(index + 1)))
             for index, line in enumerate(subject.lines)
             if line.endswith(' ')
         )

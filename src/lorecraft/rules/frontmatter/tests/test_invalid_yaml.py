@@ -10,6 +10,7 @@ from typing import Final
 
 import pytest
 
+from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.context import DocumentFrontmatterOwner, SkillFrontmatterOwner
@@ -41,7 +42,7 @@ def _stopped_at_line_3() -> InvalidYaml:
     return InvalidYaml(
         owner=DOCUMENT_OWNER,
         problem='mapping values are not allowed here',
-        stopped_at=LineNumber.from_int(3),
+        stopped_at=LineNumber(NonZeroUnsignedInt(3)),
     )
 
 
@@ -66,7 +67,7 @@ class TestInvalidYaml:
             InvalidYaml(
                 owner=DOCUMENT_OWNER,
                 problem='this value holds `: `',
-                stopped_at=LineNumber.from_int(3),
+                stopped_at=LineNumber(NonZeroUnsignedInt(3)),
                 help='Quote the value: `description: "Setup: install the toolkit"`',
             ),
         ), 'the occurrence is on the line of the value, with the words and the help of its kind'
@@ -135,13 +136,13 @@ class TestInvalidYaml:
         labels = occurrence.labels()
 
         #: Then
-        assert labels == (Label(Here(LineNumber.from_int(3)), 'mapping values are not allowed here'),), (
+        assert labels == (Label(Here(LineNumber(NonZeroUnsignedInt(3))), 'mapping values are not allowed here'),), (
             'the label sits on the line the parser stopped on and carries its words'
         )
 
     def test_construction_with_a_stopping_line_reports_at_that_line(self) -> None:
         #: Given
-        stopped_at = LineNumber.from_int(3)
+        stopped_at = LineNumber(NonZeroUnsignedInt(3))
 
         #: When
         occurrence = InvalidYaml(owner=DOCUMENT_OWNER, problem='found a problem', stopped_at=stopped_at)
@@ -157,17 +158,17 @@ class TestInvalidYaml:
         occurrence = InvalidYaml(owner=DOCUMENT_OWNER, problem='found a problem', stopped_at=stopped_at)
 
         #: Then
-        assert occurrence.line == LineNumber.from_int(1), 'the occurrence is reported where the block opens'
+        assert occurrence.line == LineNumber(NonZeroUnsignedInt(1)), 'the occurrence is reported where the block opens'
 
     def test_construction_with_a_line_of_its_own_is_refused(self) -> None:
         #: Given
-        stopped_at = LineNumber.from_int(3)
+        stopped_at = LineNumber(NonZeroUnsignedInt(3))
 
         #: When
         with pytest.raises(TypeError):
             InvalidYaml(
                 owner=DOCUMENT_OWNER,
-                line=LineNumber.from_int(9),  # ty: ignore[unknown-argument]
+                line=LineNumber(NonZeroUnsignedInt(9)),  # ty: ignore[unknown-argument]
                 problem='bad',
                 stopped_at=stopped_at,
             )
@@ -184,7 +185,7 @@ class TestInvalidYaml:
 
         #: Then
         assert labels == (
-            Label(Here(LineNumber.from_int(1)), 'found a problem, somewhere in the block opened here'),
+            Label(Here(LineNumber(NonZeroUnsignedInt(1))), 'found a problem, somewhere in the block opened here'),
         ), 'the label is on line 1, where the block opens, and says the line is not known'
 
     def test_children_with_a_document_point_at_its_specification(self) -> None:
@@ -204,7 +205,7 @@ class TestInvalidYaml:
         occurrence = InvalidYaml(
             owner=DOCUMENT_OWNER,
             problem='this quote is never closed',
-            stopped_at=LineNumber.from_int(3),
+            stopped_at=LineNumber(NonZeroUnsignedInt(3)),
             help='Close it on the line it continues to, or remove it',
         )
 
@@ -222,7 +223,7 @@ class TestInvalidYaml:
         occurrence = InvalidYaml(
             owner=SKILL_OWNER,
             problem='mapping values are not allowed here',
-            stopped_at=LineNumber.from_int(3),
+            stopped_at=LineNumber(NonZeroUnsignedInt(3)),
         )
 
         #: When

@@ -10,6 +10,7 @@ from typing import cast
 import pytest
 
 from lorecraft.core.mapping import FrozenMapping
+from lorecraft.core.num import NonZeroUnsignedInt
 
 from ..frontmatter import Frontmatter, FrontmatterKey, MissingFrontmatter
 from ..heading import HeadingLevel
@@ -30,7 +31,7 @@ class TestParseMarkdown:
         #: Then
         assert tree == MarkdownTree(
             blocks=(
-                HeadingBlock(level=1, text='Guide', line=LineNumber.from_int(1)),
+                HeadingBlock(level=1, text='Guide', line=LineNumber(NonZeroUnsignedInt(1))),
                 ContentBlock(source_outside_code=('Some prose.\n',)),
             ),
             heading_texts=('Guide',),
@@ -45,7 +46,7 @@ class TestParseMarkdown:
         tree = parse_markdown(text)
 
         #: Then
-        assert tree.blocks == (HeadingBlock(level=1, text='Title', line=LineNumber.from_int(1)),), (
+        assert tree.blocks == (HeadingBlock(level=1, text='Title', line=LineNumber(NonZeroUnsignedInt(1))),), (
             'an underlined title is a heading as much as a `#` one'
         )
 
@@ -84,7 +85,7 @@ class TestParseMarkdown:
         #: Then
         assert tree.blocks == (
             ContentBlock(source_outside_code=('> # Quoted\n',)),
-            HeadingBlock(level=2, text='Real', line=LineNumber.from_int(3)),
+            HeadingBlock(level=2, text='Real', line=LineNumber(NonZeroUnsignedInt(3))),
         ), 'a quoted heading is part of the blockquote, not a block of its own'
 
     def test_parse_markdown_with_a_heading_in_a_blockquote_returns_its_text_among_the_heading_texts(self) -> None:
@@ -105,9 +106,9 @@ class TestParseMarkdown:
         tree = parse_markdown(text)
 
         #: Then
-        assert tree.blocks == (HeadingBlock(level=1, text='Hi \n<b>\nx\n</b>\n alt', line=LineNumber.from_int(1)),), (
-            "the heading block's plain text keeps inline HTML and an image's alt text"
-        )
+        assert tree.blocks == (
+            HeadingBlock(level=1, text='Hi \n<b>\nx\n</b>\n alt', line=LineNumber(NonZeroUnsignedInt(1))),
+        ), "the heading block's plain text keeps inline HTML and an image's alt text"
 
     def test_parse_markdown_with_html_and_an_image_in_a_heading_drops_both_from_the_rendered_text(self) -> None:
         #: Given
@@ -128,9 +129,9 @@ class TestParseMarkdown:
 
         #: Then
         assert tree.links == (
-            Link(url='a.md', line=LineNumber.from_int(1)),
-            Link(url='b.md', line=LineNumber.from_int(3)),
-            Link(url='i.png', line=LineNumber.from_int(3)),
+            Link(url='a.md', line=LineNumber(NonZeroUnsignedInt(1))),
+            Link(url='b.md', line=LineNumber(NonZeroUnsignedInt(3))),
+            Link(url='i.png', line=LineNumber(NonZeroUnsignedInt(3))),
         ), 'a link in a list item is found too, and an image inside a link comes after that link'
 
     def test_parse_markdown_with_crlf_line_endings_returns_each_heading_on_its_document_line(self) -> None:
@@ -142,8 +143,8 @@ class TestParseMarkdown:
 
         #: Then
         assert tree.blocks == (
-            HeadingBlock(level=1, text='Guide', line=LineNumber.from_int(1)),
-            HeadingBlock(level=2, text='Usage', line=LineNumber.from_int(3)),
+            HeadingBlock(level=1, text='Guide', line=LineNumber(NonZeroUnsignedInt(1))),
+            HeadingBlock(level=2, text='Usage', line=LineNumber(NonZeroUnsignedInt(3))),
         ), 'a CRLF line ending counts as one line break'
 
     def test_parse_markdown_with_crlf_line_endings_returns_each_link_and_later_heading_on_its_document_line(
@@ -157,10 +158,10 @@ class TestParseMarkdown:
 
         #: Then
         assert tree.links == (
-            Link(url='a.md', line=LineNumber.from_int(6)),
-            Link(url='b.md', line=LineNumber.from_int(8)),
+            Link(url='a.md', line=LineNumber(NonZeroUnsignedInt(6))),
+            Link(url='b.md', line=LineNumber(NonZeroUnsignedInt(8))),
         ), 'each link after a frontmatter block and CRLF line endings is on its document line'
-        assert tree.blocks[-1] == HeadingBlock(level=2, text='Usage', line=LineNumber.from_int(10)), (
+        assert tree.blocks[-1] == HeadingBlock(level=2, text='Usage', line=LineNumber(NonZeroUnsignedInt(10))), (
             'a heading past several CRLF line endings is on its document line'
         )
 
@@ -172,7 +173,7 @@ class TestParseMarkdown:
         tree = parse_markdown(text)
 
         #: Then
-        assert tree.blocks == (HeadingBlock(level=1, text='Guide', line=LineNumber.from_int(4)),), (
+        assert tree.blocks == (HeadingBlock(level=1, text='Guide', line=LineNumber(NonZeroUnsignedInt(4))),), (
             'the frontmatter block is no Markdown block, and the heading after it keeps its document line'
         )
 
@@ -189,7 +190,7 @@ class TestParseMarkdownFrontmatter:
         #: Then
         assert frontmatter == Frontmatter(
             data=FrozenMapping({'name': 'guide'}),
-            keys=(FrontmatterKey('name', LineNumber.from_int(2)),),
+            keys=(FrontmatterKey('name', LineNumber(NonZeroUnsignedInt(2))),),
         ), 'the block between the delimiters is decoded, each key on its document line'
 
     def test_parse_markdown_frontmatter_without_an_opening_delimiter_returns_missing(self) -> None:
@@ -212,7 +213,7 @@ class TestHeadingBlock:
 
         #: When
         with pytest.raises(AssertionError) as exc_info:
-            HeadingBlock(level=rejected, text='Intro', line=LineNumber.from_int(1))
+            HeadingBlock(level=rejected, text='Intro', line=LineNumber(NonZeroUnsignedInt(1)))
 
         #: Then
         assert str(rejected) in str(exc_info.value), 'the error names the rejected level'
@@ -224,7 +225,7 @@ class TestHeadingBlock:
 
         #: When
         with pytest.raises(AssertionError) as exc_info:
-            HeadingBlock(level=rejected, text='Deep', line=LineNumber.from_int(1))
+            HeadingBlock(level=rejected, text='Deep', line=LineNumber(NonZeroUnsignedInt(1)))
 
         #: Then
         assert str(rejected) in str(exc_info.value), 'the error names the rejected level'

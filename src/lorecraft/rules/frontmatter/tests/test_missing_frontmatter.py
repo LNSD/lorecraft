@@ -9,6 +9,7 @@ from typing import Final
 
 import pytest
 
+from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.context import DocumentFrontmatterOwner, SkillFrontmatterOwner
@@ -45,7 +46,7 @@ class TestMissingFrontmatter:
         occurrences = MissingFrontmatter.check(subject)
 
         #: Then
-        assert occurrences == (MissingFrontmatter(owner=DOCUMENT_OWNER, line=LineNumber.from_int(1)),), (
+        assert occurrences == (MissingFrontmatter(owner=DOCUMENT_OWNER, line=LineNumber(NonZeroUnsignedInt(1))),), (
             "a document with no block is one occurrence, on line 1, under its corpus's specification"
         )
 
@@ -62,7 +63,7 @@ class TestMissingFrontmatter:
         occurrences = MissingFrontmatter.check(subject)
 
         #: Then
-        assert occurrences == (MissingFrontmatter(owner=DOCUMENT_OWNER, line=LineNumber.from_int(1)),), (
+        assert occurrences == (MissingFrontmatter(owner=DOCUMENT_OWNER, line=LineNumber(NonZeroUnsignedInt(1))),), (
             'a block no second `---` line closes is no block at all'
         )
 
@@ -74,7 +75,7 @@ class TestMissingFrontmatter:
         occurrences = MissingFrontmatter.check(subject)
 
         #: Then
-        assert occurrences == (MissingFrontmatter(owner=SKILL_OWNER, line=LineNumber.from_int(1)),), (
+        assert occurrences == (MissingFrontmatter(owner=SKILL_OWNER, line=LineNumber(NonZeroUnsignedInt(1))),), (
             'the package states the rule for a skill, after the Agent Skills specification'
         )
 
@@ -112,7 +113,7 @@ class TestMissingFrontmatter:
 
     def test_message_with_an_occurrence_names_the_missing_block(self) -> None:
         #: Given
-        occurrence = MissingFrontmatter(owner=DOCUMENT_OWNER, line=LineNumber.from_int(1))
+        occurrence = MissingFrontmatter(owner=DOCUMENT_OWNER, line=LineNumber(NonZeroUnsignedInt(1)))
 
         #: When
         message = occurrence.message()
@@ -122,19 +123,19 @@ class TestMissingFrontmatter:
 
     def test_labels_with_an_occurrence_say_the_file_must_open_with_a_delimiter(self) -> None:
         #: Given
-        occurrence = MissingFrontmatter(owner=DOCUMENT_OWNER, line=LineNumber.from_int(1))
+        occurrence = MissingFrontmatter(owner=DOCUMENT_OWNER, line=LineNumber(NonZeroUnsignedInt(1)))
 
         #: When
         labels = occurrence.labels()
 
         #: Then
-        assert labels == (Label(Here(LineNumber.from_int(1)), 'a `---` delimited block is expected here'),), (
-            'the label is on line 1, where the delimiter is missing'
-        )
+        assert labels == (
+            Label(Here(LineNumber(NonZeroUnsignedInt(1))), 'a `---` delimited block is expected here'),
+        ), 'the label is on line 1, where the delimiter is missing'
 
     def test_children_with_a_document_point_at_its_specification_and_say_how_to_open_the_block(self) -> None:
         #: Given
-        occurrence = MissingFrontmatter(owner=DOCUMENT_OWNER, line=LineNumber.from_int(1))
+        occurrence = MissingFrontmatter(owner=DOCUMENT_OWNER, line=LineNumber(NonZeroUnsignedInt(1)))
 
         #: When
         children = occurrence.children()
@@ -147,7 +148,7 @@ class TestMissingFrontmatter:
 
     def test_children_with_a_skill_name_the_agent_skills_specification_and_show_the_skeleton(self) -> None:
         #: Given
-        occurrence = MissingFrontmatter(owner=SKILL_OWNER, line=LineNumber.from_int(1))
+        occurrence = MissingFrontmatter(owner=SKILL_OWNER, line=LineNumber(NonZeroUnsignedInt(1)))
 
         #: When
         children = occurrence.children()

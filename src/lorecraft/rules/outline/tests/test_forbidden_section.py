@@ -8,6 +8,7 @@ from typing import Final
 
 import pytest
 
+from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.location import Elsewhere, Help, Note
@@ -44,9 +45,9 @@ class TestForbiddenSection:
         occurrences = ForbiddenSection.check(subject)
 
         #: Then
-        assert occurrences == (ForbiddenSection(spec=CORPUS_SPEC, line=LineNumber.from_int(7), section='Changelog'),), (
-            'a forbidden section is one occurrence, at its heading, naming the specification that forbids it'
-        )
+        assert occurrences == (
+            ForbiddenSection(spec=CORPUS_SPEC, line=LineNumber(NonZeroUnsignedInt(7)), section='Changelog'),
+        ), 'a forbidden section is one occurrence, at its heading, naming the specification that forbids it'
 
     def test_check_with_no_forbidden_section_present_reports_nothing(self) -> None:
         #: Given
@@ -90,8 +91,8 @@ class TestForbiddenSection:
 
         #: Then
         assert occurrences == (
-            ForbiddenSection(spec=CORPUS_SPEC, line=LineNumber.from_int(7), section='Changelog'),
-            ForbiddenSection(spec=CORPUS_SPEC, line=LineNumber.from_int(11), section='Changelog'),
+            ForbiddenSection(spec=CORPUS_SPEC, line=LineNumber(NonZeroUnsignedInt(7)), section='Changelog'),
+            ForbiddenSection(spec=CORPUS_SPEC, line=LineNumber(NonZeroUnsignedInt(11)), section='Changelog'),
         ), 'every occurrence of a forbidden section is reported, not only the first, in document order'
 
     def test_check_with_two_forbidden_sections_reports_each_in_document_order(self) -> None:
@@ -104,8 +105,8 @@ class TestForbiddenSection:
 
         #: Then
         assert occurrences == (
-            ForbiddenSection(spec=CORPUS_SPEC, line=LineNumber.from_int(7), section='History'),
-            ForbiddenSection(spec=CORPUS_SPEC, line=LineNumber.from_int(11), section='Changelog'),
+            ForbiddenSection(spec=CORPUS_SPEC, line=LineNumber(NonZeroUnsignedInt(7)), section='History'),
+            ForbiddenSection(spec=CORPUS_SPEC, line=LineNumber(NonZeroUnsignedInt(11)), section='Changelog'),
         ), 'each forbidden section is reported in document order, not in the order the specification names them'
 
     def test_check_with_two_specifications_forbidding_the_section_reports_each_in_order(self) -> None:
@@ -122,8 +123,8 @@ class TestForbiddenSection:
 
         #: Then
         assert occurrences == (
-            ForbiddenSection(spec=CORPUS_SPEC, line=LineNumber.from_int(7), section='Changelog'),
-            ForbiddenSection(spec=NAMESPACE_SPEC, line=LineNumber.from_int(7), section='Changelog'),
+            ForbiddenSection(spec=CORPUS_SPEC, line=LineNumber(NonZeroUnsignedInt(7)), section='Changelog'),
+            ForbiddenSection(spec=NAMESPACE_SPEC, line=LineNumber(NonZeroUnsignedInt(7)), section='Changelog'),
         ), 'each specification applies on its own, so the section is reported once for each, in order'
 
     def test_check_with_one_of_two_specifications_forbidding_the_section_reports_under_it_alone(self) -> None:
@@ -140,12 +141,12 @@ class TestForbiddenSection:
 
         #: Then
         assert occurrences == (
-            ForbiddenSection(spec=NAMESPACE_SPEC, line=LineNumber.from_int(7), section='Changelog'),
+            ForbiddenSection(spec=NAMESPACE_SPEC, line=LineNumber(NonZeroUnsignedInt(7)), section='Changelog'),
         ), 'a section is reported only under the specification that forbids it'
 
     def test_message_with_an_occurrence_names_the_section(self) -> None:
         #: Given
-        occurrence = ForbiddenSection(spec=CORPUS_SPEC, line=LineNumber.from_int(7), section='Changelog')
+        occurrence = ForbiddenSection(spec=CORPUS_SPEC, line=LineNumber(NonZeroUnsignedInt(7)), section='Changelog')
 
         #: When
         message = occurrence.message()
@@ -155,7 +156,7 @@ class TestForbiddenSection:
 
     def test_children_with_an_occurrence_point_at_the_specification_and_say_to_remove_it(self) -> None:
         #: Given
-        occurrence = ForbiddenSection(spec=CORPUS_SPEC, line=LineNumber.from_int(7), section='Changelog')
+        occurrence = ForbiddenSection(spec=CORPUS_SPEC, line=LineNumber(NonZeroUnsignedInt(7)), section='Changelog')
 
         #: When
         children = occurrence.children()

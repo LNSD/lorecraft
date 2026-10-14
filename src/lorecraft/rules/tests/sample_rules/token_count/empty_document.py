@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 from typing import ClassVar, Self
 
+from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.project.context import DocumentContext
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.declaration import Level, Release, RuleCode, RuleName, rule
@@ -35,4 +36,4 @@ class EmptyDocument(DocumentRule):
         """
         if subject.tokens().value > 0:
             return ()
-        return (cls(spec=None, line=LineNumber.from_int(1)),)
+        return (cls(spec=None, line=LineNumber(NonZeroUnsignedInt(1))),)

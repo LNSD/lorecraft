@@ -13,7 +13,7 @@ from typing import Final
 
 import pytest
 
-from lorecraft.core.num import UnsignedInt
+from lorecraft.core.num import NonZeroUnsignedInt, UnsignedInt
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.schemas import (
     AgentSkillsSchema,
@@ -67,7 +67,7 @@ PROBLEM: Final[BlockProblem] = BlockProblem(
 )
 """A constraint over the whole block broken: the rule's condition."""
 
-LINE: Final[LineNumber] = LineNumber.from_int(1)
+LINE: Final[LineNumber] = LineNumber(NonZeroUnsignedInt(1))
 """The line a constraint over the whole block is reported on: it concerns no field."""
 
 

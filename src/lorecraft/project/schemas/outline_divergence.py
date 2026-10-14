@@ -9,6 +9,7 @@ finds says nothing.
 from dataclasses import dataclass
 from typing import assert_never
 
+from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.syntax import LineCount, LineNumber, SectionHeading
 
@@ -156,10 +157,11 @@ def match_outlines(
         if not alignment.outline:
             continue
         sections = alignment.sections
-        # An empty document has no line at all, so its end is reported on line 1. A count is never negative, so
-        # `from_int` cannot raise here.
+        # An empty document has no line at all, so its end is reported on line 1. `max(..., 1)` keeps the number at
+        # 1 or more, so `NonZeroUnsignedInt` cannot raise here.
         document_end = DocumentEnd(
-            last_line=LineNumber.from_int(max(line_count.value, 1)), after=sections[-1].section if sections else None
+            last_line=LineNumber(NonZeroUnsignedInt(max(line_count.value, 1))),
+            after=sections[-1].section if sections else None,
         )
         divergence = _first_divergence(alignment.outline, sections, document_end)
         specs.append(OutlineDivergenceSpec(spec=alignment.spec, divergence=divergence))

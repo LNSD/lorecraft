@@ -36,6 +36,7 @@ from typing import Final, assert_never
 import typer
 
 from lorecraft.core.lines import split_lines
+from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.declaration import Severity
@@ -71,7 +72,7 @@ class SourceText:
         Args:
             number: The line to look for.
         """
-        return number.number <= len(self.lines)
+        return number.value <= len(self.lines)
 
     def line(self, number: LineNumber) -> str:
         """The text of a line, which the file must run to.
@@ -82,8 +83,8 @@ class SourceText:
         Args:
             number: The line to read, which `has_line` confirmed.
         """
-        text = self.lines[number.number - 1]
-        if number.number == 1:
+        text = self.lines[number.value - 1]
+        if number.value == 1:
             return text.removeprefix('\ufeff')
         return text
 
@@ -234,7 +235,7 @@ def _line_order(mark: Mark) -> int:
         case WholeFileMark():
             return 0
         case LineMark():
-            return mark.line.number
+            return mark.line.value
         case _:
             assert_never(mark)
 
@@ -278,7 +279,7 @@ def _gutter_width(marks: list[Mark], sources: SourceLines) -> int:
     for mark in marks:
         match mark:
             case LineMark() if _has_source(mark, sources):
-                width = max(width, len(str(mark.line.number)))
+                width = max(width, len(str(mark.line.value)))
             case LineMark() | WholeFileMark():
                 pass
             case _:
@@ -306,7 +307,7 @@ def _excerpt_lines(
     """
     marks_by_line: dict[int, list[LineMark]] = {}
     for mark in marks:
-        marks_by_line.setdefault(mark.line.number, []).append(mark)
+        marks_by_line.setdefault(mark.line.value, []).append(mark)
 
     lines: list[str] = []
     previous: int | None = None
@@ -314,7 +315,7 @@ def _excerpt_lines(
         if previous is not None:
             hidden = number - previous - 1
             if hidden == 1:
-                lines.append(_source_line(LineNumber.from_int(previous + 1), source, width, style, glyphs))
+                lines.append(_source_line(LineNumber(NonZeroUnsignedInt(previous + 1)), source, width, style, glyphs))
             elif hidden > 1:
                 lines.append(_paint(style, f'{glyphs.elision:>{width}} {glyphs.gutter}', fg='blue', bold=True))
         line = line_marks[0].line
@@ -337,7 +338,7 @@ def _source_line(number: LineNumber, source: SourceText, width: int, style: Text
         style: How to draw.
         glyphs: The characters to draw with.
     """
-    gutter = _paint(style, f'{number.number:>{width}} {glyphs.gutter}', fg='blue', bold=True)
+    gutter = _paint(style, f'{number.value:>{width}} {glyphs.gutter}', fg='blue', bold=True)
     return f'{gutter} {source.line(number).expandtabs(_TAB_WIDTH)}'.rstrip()
 
 
