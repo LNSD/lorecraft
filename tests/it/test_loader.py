@@ -34,6 +34,7 @@ from lorecraft.project.workspace import (
     ForbiddenOutlineSections,
     ForeignFrontmatterDialect,
     FrontmatterSchemaId,
+    Governance,
     InvalidFrontmatterSchema,
     InvalidTitlePattern,
     LoadFailure,
@@ -288,6 +289,33 @@ def _document_paths(model: WorkspaceModel) -> tuple[str, ...]:
     return tuple(str(ref.path) for ref in model.documents())
 
 
+def _corpus_names(model: WorkspaceModel) -> tuple[CorpusName, ...]:
+    """The name of every corpus the model holds, in sorted order.
+
+    Args:
+        model: Loaded workspace model whose corpora are listed.
+    """
+    return tuple(corpus.name for corpus in model.sorted_corpora)
+
+
+def _structure_spec_paths(governance: Governance) -> tuple[RootRelativePath, ...]:
+    """The path of every structure specification that governs a document, in the governance's order.
+
+    Args:
+        governance: Governance of the document whose structure specifications are listed.
+    """
+    return tuple(structure_spec.path for structure_spec in governance.structure_specs())
+
+
+def _failure_paths(model: WorkspaceModel) -> tuple[RootRelativePath, ...]:
+    """The path of every load failure the model records, in recorded order.
+
+    Args:
+        model: Loaded workspace model whose load failures are listed.
+    """
+    return tuple(failure.path for failure in model.load_failures)
+
+
 @pytest.mark.it
 class TestLoadWorkspaceAmp:
     def test_load_workspace_with_the_amp_tree_lists_code_and_feat_only(
@@ -300,7 +328,7 @@ class TestLoadWorkspaceAmp:
         model = load_workspace(schemas, documents, skills)
 
         #: Then
-        assert tuple(corpus.name for corpus in model.sorted_corpora) == (CODE, FEAT), (
+        assert _corpus_names(model) == (CODE, FEAT), (
             'only directories with a spec at their name are corpora; blog/ and schemas/ have none'
         )
         assert _document_paths(model) == (
@@ -358,9 +386,7 @@ class TestLoadWorkspaceMono:
         model = load_workspace(schemas, documents, skills)
 
         #: Then
-        assert tuple(corpus.name for corpus in model.sorted_corpora) == (CODE,), (
-            'a corpus spec without docs/<corpus>/ creates no corpus'
-        )
+        assert _corpus_names(model) == (CODE,), 'a corpus spec without docs/<corpus>/ creates no corpus'
 
     def test_load_workspace_with_the_mono_tree_leaves_the_frontmatter_ungoverned(
         self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
@@ -392,7 +418,7 @@ class TestLoadWorkspaceTools:
         model = load_workspace(schemas, documents, skills)
 
         #: Then
-        assert tuple(corpus.name for corpus in model.sorted_corpora) == (CODE,), 'docs/schemas/ has no spec'
+        assert _corpus_names(model) == (CODE,), 'docs/schemas/ has no spec'
         assert _document_paths(model) == ('docs/code/logging.md',), 'only the code corpus is listed'
 
 
@@ -424,7 +450,7 @@ class TestLoadWorkspaceLorecraft:
         model = load_workspace(schemas, documents, skills)
 
         #: Then
-        assert tuple(corpus.name for corpus in model.sorted_corpora) == (CODE, FEAT), 'docs/assets/ has no spec'
+        assert _corpus_names(model) == (CODE, FEAT), 'docs/assets/ has no spec'
         assert _document_paths(model) == (
             'docs/code/logging.md',
             'docs/code/python-typing.md',
@@ -460,9 +486,7 @@ class TestLoadWorkspaceEdgeCases:
         model = load_workspace(schemas, documents, skills)
 
         #: Then
-        assert [corpus.name for corpus in model.sorted_corpora] == [CorpusName.parse('code')], (
-            'only the real corpus loads'
-        )
+        assert _corpus_names(model) == (CODE,), 'only the real corpus loads'
 
     def test_load_workspace_with_a_namespace_spec_alone_sorting_first_still_loads_the_later_corpora(
         self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
@@ -475,7 +499,7 @@ class TestLoadWorkspaceEdgeCases:
         model = load_workspace(schemas, documents, skills)
 
         #: Then
-        assert tuple(corpus.name for corpus in model.sorted_corpora) == (CODE,), (
+        assert _corpus_names(model) == (CODE,), (
             'skipping a corpus with no spec of its own still loads every corpus after it'
         )
 
@@ -490,9 +514,7 @@ class TestLoadWorkspaceEdgeCases:
         model = load_workspace(schemas, documents, skills)
 
         #: Then
-        assert tuple(corpus.name for corpus in model.sorted_corpora) == (CODE,), (
-            'skipping a corpus with no directory still loads every corpus after it'
-        )
+        assert _corpus_names(model) == (CODE,), 'skipping a corpus with no directory still loads every corpus after it'
 
     def test_load_workspace_with_a_nested_document_ignores_it(
         self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
@@ -572,9 +594,7 @@ class TestLoadWorkspaceEdgeCases:
         model = load_workspace(schemas, documents, skills)
 
         #: Then
-        assert tuple(corpus.name for corpus in model.sorted_corpora) == (CODE,), (
-            'the misnamed JSON file makes no corpus'
-        )
+        assert _corpus_names(model) == (CODE,), 'the misnamed JSON file makes no corpus'
 
     def test_load_workspace_with_a_header_file_leaves_it_out(
         self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
@@ -629,9 +649,9 @@ class TestLoadWorkspaceEdgeCases:
         assert ref is not None, 'the document is listed'
         governance = model.find_governance(ref)
         assert governance is not None, 'the document is in a corpus the model holds'
-        assert tuple(structure_spec.path for structure_spec in governance.structure_specs()) == (
-            SPECS_DIR / PathComponent.parse('code.structure.json'),
-        ), 'the corpus structure specification governs its document'
+        assert _structure_spec_paths(governance) == (SPECS_DIR / PathComponent.parse('code.structure.json'),), (
+            'the corpus structure specification governs its document'
+        )
 
     def test_load_workspace_with_a_spec_json_file_builds_the_structure_spec_from_it(
         self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
@@ -764,7 +784,7 @@ class TestLoadWorkspaceEdgeCases:
         model = load_workspace(schemas, documents, skills)
 
         #: Then
-        assert tuple(corpus.name for corpus in model.sorted_corpora) == (CODE,), 'the symlinked directory is no corpus'
+        assert _corpus_names(model) == (CODE,), 'the symlinked directory is no corpus'
 
     def test_load_workspace_with_no_docs_directory_builds_an_empty_model(
         self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
@@ -1132,7 +1152,7 @@ class TestLoadWorkspaceFailures:
         feat = model.find_corpus(FEAT)
         assert feat is not None, 'the other corpus loads'
         assert isinstance(feat.corpus_spec.structure, StructureSpec), 'with its structure'
-        assert tuple(str(ref.path) for ref in model.documents()) == ('docs/code/logging.md', 'docs/feat/admin.md'), (
+        assert _document_paths(model) == ('docs/code/logging.md', 'docs/feat/admin.md'), (
             'and every document of both corpora is listed'
         )
 
@@ -1522,10 +1542,10 @@ class TestLoadWorkspaceFailures:
         model = load_workspace(schemas, documents, skills)
 
         #: Then
-        assert [failure.path for failure in model.load_failures] == [
+        assert _failure_paths(model) == (
             SPECS_DIR / PathComponent.parse('code-python.structure.json'),
             SPECS_DIR / PathComponent.parse('code-python-errors.structure.json'),
-        ], 'both are recorded, the broader first, which is the one a load that raised would have named'
+        ), 'both are recorded, the broader first, which is the one a load that raised would have named'
 
     @pytest.mark.skipif(os.geteuid() == 0, reason='root ignores directory permissions')
     def test_load_workspace_with_an_unlistable_corpus_directory_records_it_and_loads_every_other_corpus(
@@ -1554,7 +1574,7 @@ class TestLoadWorkspaceFailures:
                 RootRelativePath.parse('docs/code'), UnlistableCorpusDirectory(CODE, OsRefusal.PERMISSION_DENIED)
             ),
         ), 'the directory is recorded with its path and the refusal'
-        assert tuple(str(ref.path) for ref in model.documents()) == ('docs/feat/admin.md',), (
+        assert _document_paths(model) == ('docs/feat/admin.md',), (
             'the corpus holds no document, and the other corpus lists its own'
         )
         code = model.find_corpus(CODE)
