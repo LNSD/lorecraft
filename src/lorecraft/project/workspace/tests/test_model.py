@@ -737,7 +737,8 @@ class TestWorkspaceModel:
         corpus = two_corpora_model.find_corpus(name)
 
         #: Then
-        assert corpus is not None and corpus.name == FEAT, 'the corpus is found by name'
+        assert corpus is not None, 'a listed name has a corpus'
+        assert corpus.name == FEAT, 'the corpus is found by name'
 
     def test_find_corpus_with_an_unlisted_name_returns_none(self, two_corpora_model: WorkspaceModel) -> None:
         #: Given

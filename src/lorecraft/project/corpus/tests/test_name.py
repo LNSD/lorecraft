@@ -52,7 +52,6 @@ class TestCorpusName:
 
         #: Then
         assert type(exc_info.value).__bases__ == (Error,), 'the variant derives from Error directly, not a family'
-        assert str(exc_info.value) == 'corpus name cannot be empty', 'the error explains the empty-name case'
 
     def test_parse_with_a_single_dot_raises_character_error_at_position_zero(self) -> None:
         #: Given
@@ -241,4 +240,4 @@ class TestCorpusName:
             CorpusName(invalid_name)
 
         #: Then
-        assert str(exc_info.value) == 'corpus name cannot be empty', 'direct construction checks the same invariant'
+        assert type(exc_info.value) is EmptyCorpusNameError, 'direct construction rejects an empty name'

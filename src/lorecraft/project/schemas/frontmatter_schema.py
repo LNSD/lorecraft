@@ -265,7 +265,7 @@ def _frontmatter_problems(
             for key in _additional_keys(schema, data):
                 # `jsonschema`'s wording for one unexpected key.
                 message = f'Additional properties are not allowed ({key!r} was unexpected)'
-                problems.append(UnknownFieldProblem(key, message, known_fields(schema)))
+                problems.append(UnknownFieldProblem(key, message, known_fields=known_fields(schema)))
             return problems
         case UnevaluatedPropertiesKeyword():
             return _unevaluated_problems(validator, _schema_object(error.schema), data)
@@ -450,7 +450,7 @@ def _unevaluated_problems(
         if rule is False:
             # `jsonschema`'s wording for one unexpected key.
             message = f'Unevaluated properties are not allowed ({key!r} was unexpected)'
-            problems.append(UnknownFieldProblem(key, message, known_fields(schema)))
+            problems.append(UnknownFieldProblem(key, message, known_fields=known_fields(schema)))
         elif isinstance(rule, Mapping):
             reason = best_match(validator.evolve(schema=rule).iter_errors(data[key]))
             if reason is not None:

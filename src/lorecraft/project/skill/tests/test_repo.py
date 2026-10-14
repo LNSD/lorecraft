@@ -88,7 +88,7 @@ def _outside(path: str, link: str, target: str) -> OutsideSymlink:
     return OutsideSymlink(RootRelativePath.parse(path), RootExit(RootRelativePath.parse(link), PurePosixPath(target)))
 
 
-def _resource(path: str, resolves_to: str | None = None) -> SkillResourceLocation:
+def _resource(path: str, *, resolves_to: str | None = None) -> SkillResourceLocation:
     """The location of a resource of the `review` skill.
 
     Args:
@@ -195,7 +195,7 @@ class TestRepositoryListSkillResources:
         resources = repository.list_skill_resources(REVIEW).resources
 
         #: Then
-        assert resources == (_resource('guides/deeper/d.md', 'shared/guides/deeper/d.md'),), (
+        assert resources == (_resource('guides/deeper/d.md', resolves_to='shared/guides/deeper/d.md'),), (
             'the symlinked directory is entered: its resource is named through the symlink, and located where it lives'
         )
 
@@ -210,7 +210,7 @@ class TestRepositoryListSkillResources:
         resources = repository.list_skill_resources(REVIEW).resources
 
         #: Then
-        assert resources == (_resource('notes.md', 'notes/e.md'),), (
+        assert resources == (_resource('notes.md', resolves_to='notes/e.md'),), (
             'the symlink is named where it sits in the skill, and located at the file it leads to'
         )
 
@@ -314,8 +314,8 @@ class TestRepositoryListSkillResources:
 
         #: Then
         assert resources == (
-            _resource('q/a.md', 'shared/q/a.md'),
-            _resource('q/to-s/b.md', 'shared/s/b.md'),
+            _resource('q/a.md', resolves_to='shared/q/a.md'),
+            _resource('q/to-s/b.md', resolves_to='shared/s/b.md'),
         ), 'each resolved directory is entered once, so the walk ends, and each resource is listed once'
 
     def test_list_skill_resources_with_dangling_symlinks_leaves_them_out(self) -> None:
@@ -471,7 +471,7 @@ class TestRepositoryGetSkillResource:
         #: Given
         # nothing is at the ref's own path: only the recorded resolved file can answer
         repository = _repository({'notes/e.md': b'# Notes\n'}, {})
-        location = _resource('notes.md', 'notes/e.md')
+        location = _resource('notes.md', resolves_to='notes/e.md')
 
         #: When
         resource = repository.get_skill_resource(location)

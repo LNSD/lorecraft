@@ -113,7 +113,7 @@ class TestSkillFrontmatterSchemaValidate:
             UnknownFieldProblem(
                 'model',
                 '`model` is not a field of the Agent Skills specification',
-                SPECIFIED_FIELDS,
+                known_fields=SPECIFIED_FIELDS,
             ),
         ), 'a field the specification does not define is named, with the fields it defines'
 
@@ -275,6 +275,6 @@ class TestSkillFrontmatterSchemaValidate:
             UnknownFieldProblem(
                 'allowed_tools',
                 '`allowed_tools` is not a field of the Agent Skills specification',
-                SPECIFIED_FIELDS,
+                known_fields=SPECIFIED_FIELDS,
             ),
         ), 'the field is read by its alias only, as the specification spells it'

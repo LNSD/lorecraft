@@ -285,7 +285,14 @@ class TestSkillSchemaProblems:
                         problem=UnknownFieldProblem(
                             'extra',
                             '`extra` is not a field of the Agent Skills specification',
-                            ('name', 'description', 'license', 'compatibility', 'metadata', 'allowed-tools'),
+                            known_fields=(
+                                'name',
+                                'description',
+                                'license',
+                                'compatibility',
+                                'metadata',
+                                'allowed-tools',
+                            ),
                         ),
                         line=LineNumber(NonZeroUnsignedInt(3)),
                     ),

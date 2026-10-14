@@ -131,7 +131,7 @@ def _frontmatter_problem(detail: ErrorDetails, field_count: FieldCount) -> Front
             return MissingFieldProblem(field, f'`{field}` is required', guidance=guidance)
         case 'extra_forbidden':
             message = f'`{field}` is not a field of the Agent Skills specification'
-            return UnknownFieldProblem(field, message, _SPECIFIED_FIELDS)
+            return UnknownFieldProblem(field, message, known_fields=_SPECIFIED_FIELDS)
         case 'string_type':
             found = json_type_of(detail['input'])
             return WrongTypeProblem(field, f'`{field}` must be a string', (JsonType.STRING,), found, guidance=guidance)

@@ -151,7 +151,7 @@ class SectionName:
             handler: Pydantic's schema generator; unused, because the schema is a plain validator function.
         """
         return core_schema.no_info_plain_validator_function(
-            cls._from_pydantic, serialization=core_schema.plain_serializer_function_ser_schema(cls._to_pydantic)
+            cls._from_pydantic, serialization=core_schema.plain_serializer_function_ser_schema(str)
         )
 
     @classmethod
@@ -173,10 +173,6 @@ class SectionName:
             return cls.parse(value)
         except (EmptySectionNameError, PaddedSectionNameError, MultilineSectionNameError) as exc:
             raise PydanticCustomError(_ERROR_TYPE, '{reason}', {'reason': str(exc)}) from exc
-
-    def _to_pydantic(self) -> str:
-        """The string pydantic serializes a field of this type to."""
-        return self.value
 
     @classmethod
     def __get_pydantic_json_schema__(

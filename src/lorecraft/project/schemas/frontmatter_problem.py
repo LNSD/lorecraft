@@ -153,6 +153,7 @@ class UnknownFieldProblem:
 
     field: str
     message: str
+    _: KW_ONLY
     known_fields: tuple[str, ...] = ()
 
 
