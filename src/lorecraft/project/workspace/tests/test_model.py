@@ -605,7 +605,7 @@ class TestNamespaceOrderKey:
 
 @pytest.fixture(scope='function')
 def two_corpora_model() -> WorkspaceModel:
-    """Corpora ``code`` (two documents) and ``feat`` (one document)."""
+    """Corpora `code` (two documents) and `feat` (one document)."""
     code = Corpus(
         corpus_spec=_corpus_spec('code'),
         namespaces=FrozenMapping({}),
@@ -645,7 +645,7 @@ AUDIT: Final[SkillLocation] = SkillLocation(
     resolves_to=ResolvedPath(RootRelativePath.parse('skills/audit')),
     file_resolves_to=ResolvedPath(RootRelativePath.parse('shared/audit.md')),
 )
-"""A skill linked to ``skills/audit/``, whose ``SKILL.md`` is a link to ``shared/audit.md``."""
+"""A skill linked to `skills/audit/`, whose `SKILL.md` is a link to `shared/audit.md`."""
 
 REVIEW: Final[SkillLocation] = _regular_skill('.agents/skills/review')
 """A skill in a regular directory."""
@@ -655,7 +655,7 @@ REVIEW_ALIAS: Final[SkillLocation] = SkillLocation(
     resolves_to=ResolvedPath(RootRelativePath.parse('.agents/skills/review')),
     file_resolves_to=ResolvedPath(RootRelativePath.parse('.agents/skills/review/SKILL.md')),
 )
-"""A second entry linked to the ``review`` skill's directory."""
+"""A second entry linked to the `review` skill's directory."""
 
 
 @pytest.fixture(scope='function')

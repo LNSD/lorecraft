@@ -38,7 +38,7 @@ class InvalidAspectNameCharacterError(Error):
 class AspectName:
     """A validated lowercase aspect name with hyphen or underscore separators.
 
-    A valid name matches ``[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*``:
+    A valid name matches `[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*`:
 
     - Is not empty.
     - Starts with a lowercase ASCII letter.

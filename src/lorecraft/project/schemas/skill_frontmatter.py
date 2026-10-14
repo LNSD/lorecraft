@@ -1,15 +1,15 @@
-"""The frontmatter of a skill's ``SKILL.md``, as the Agent Skills specification defines it.
+"""The frontmatter of a skill's `SKILL.md`, as the Agent Skills specification defines it.
 
 This is the one declaration of its fields.
 
-The specification is https://agentskills.io/specification. ``SkillFrontmatter`` states its six fields and the
+The specification is https://agentskills.io/specification. `SkillFrontmatter` states its six fields and the
 limits it puts on them, and nothing else: an extension some agent reads beyond them, such as Claude Code's
-``argument-hint``, is not a field here. ``SkillFrontmatterSchema`` holds a document's frontmatter to it, so a
-skill that passes has this shape exactly. And ``just gen`` renders it into
-``docs/schemas/skill-frontmatter.spec.json``, the JSON Schema an editor validates the frontmatter against while it
+`argument-hint`, is not a field here. `SkillFrontmatterSchema` holds a document's frontmatter to it, so a
+skill that passes has this shape exactly. And `just gen` renders it into
+`docs/schemas/skill-frontmatter.spec.json`, the JSON Schema an editor validates the frontmatter against while it
 is written, so the editor and the check hold a skill to the same declaration.
 
-Unlike a header specification, whose JSON Schema is written by hand and applied with the ``jsonschema`` package,
+Unlike a header specification, whose JSON Schema is written by hand and applied with the `jsonschema` package,
 this schema is fixed by the specification, so it is declared once here as a pydantic model: pydantic validates a
 skill against it, and the JSON Schema is rendered from it rather than read.
 
@@ -17,26 +17,26 @@ Each string field — the name, the description, the license, the compatibility 
 value object of its own type: constructing one proves the text satisfies the specification, so code holding one
 never checks it again. Each type stands alone, with its own errors and its own rules; none shares code with
 another, so a rule changes in one place and touches no other field. A type's rules are declared once, as a pydantic
-``TypeAdapter`` over a constrained ``str``: ``__post_init__`` runs it and turns the rule it reports broken into the
+`TypeAdapter` over a constrained `str`: `__post_init__` runs it and turns the rule it reports broken into the
 type's own error, and the type's JSON Schema is the adapter's, so the check and the schema cannot disagree. Every
 value object is also a pydantic type: a field annotated with one takes an instance as it is and parses a string
 into one, a string it refuses is a validation error carrying its own message, and serializing gives the string back.
 
 The model is strict, frozen and closed. Strict, so a YAML value is never coerced into another type: an unquoted
-``version: 1.0`` under ``metadata`` is a float, not the string the specification asks for. Frozen, so a parsed
-frontmatter cannot change after it was validated. Closed (``extra='forbid'``), so a misspelt field is an error
+`version: 1.0` under `metadata` is a float, not the string the specification asks for. Frozen, so a parsed
+frontmatter cannot change after it was validated. Closed (`extra='forbid'`), so a misspelt field is an error
 rather than a field silently ignored. An optional field written with no value decodes to YAML's null, and reads
 as absent.
 
-What the schema shows an editor is declared here too: each field's docstring is its description, ``Field`` adds
+What the schema shows an editor is declared here too: each field's docstring is its description, `Field` adds
 its examples, taken from the specification, and the model's config names it and gives the specification's two
-whole examples. What no field can state, such as ``name`` matching the skill's directory, is left to whoever
+whole examples. What no field can state, such as `name` matching the skill's directory, is left to whoever
 knows the directory.
 
 A note on the pydantic hooks every value object carries. pydantic reports only its own error types as a field's
 validation error; any other exception escapes the model's validation whole, so each type rewraps its own rejection
-as a ``PydanticCustomError``. The message goes in the error's context rather than its template, because pydantic
-formats the template and a rejected text may hold braces. The template is ``'{reason}'``, so the formatted ``msg``
+as a `PydanticCustomError`. The message goes in the error's context rather than its template, because pydantic
+formats the template and a rejected text may hold braces. The template is `'{reason}'`, so the formatted `msg`
 is the message exactly, and it is read back from there, typed, rather than from the untyped context.
 """
 
@@ -96,7 +96,7 @@ SKILL_NAME_PATTERN: Final[str] = r'^[a-z0-9]+(-[a-z0-9]+)*$'
 _SKILL_NAME_RULES: Final[TypeAdapter[str]] = TypeAdapter(
     Annotated[str, StringConstraints(min_length=1, max_length=SKILL_NAME_MAX_LENGTH, pattern=SKILL_NAME_PATTERN)]
 )
-"""A skill name's rules, declared once: ``SkillName`` checks them and renders its JSON Schema from them."""
+"""A skill name's rules, declared once: `SkillName` checks them and renders its JSON Schema from them."""
 
 
 class EmptySkillNameError(Error):
@@ -155,7 +155,7 @@ class InvalidSkillNameFormatError(Error):
 
 @dataclass(frozen=True, slots=True)
 class SkillName:
-    """The ``name`` field: at most 64 lowercase ASCII letters, digits and hyphens.
+    """The `name` field: at most 64 lowercase ASCII letters, digits and hyphens.
 
     It neither starts nor ends with a hyphen, and never holds two in a row.
 
@@ -258,7 +258,7 @@ SKILL_DESCRIPTION_MAX_LENGTH: Final[int] = 1024
 _SKILL_DESCRIPTION_RULES: Final[TypeAdapter[str]] = TypeAdapter(
     Annotated[str, StringConstraints(min_length=1, max_length=SKILL_DESCRIPTION_MAX_LENGTH, pattern=r'\S')]
 )
-"""A skill description's rules, declared once: ``SkillDescription`` checks them and renders its JSON Schema from
+"""A skill description's rules, declared once: `SkillDescription` checks them and renders its JSON Schema from
 them."""
 
 
@@ -299,7 +299,7 @@ class OverlongSkillDescriptionError(Error):
 
 @dataclass(frozen=True, slots=True)
 class SkillDescription:
-    """The ``description`` field: at least one character that is not whitespace, and at most 1024 characters.
+    """The `description` field: at least one character that is not whitespace, and at most 1024 characters.
 
     Whether it says what the skill does and when to use it, as the specification asks, is a judgment no check makes.
 
@@ -391,7 +391,7 @@ class SkillDescription:
 
 @dataclass(frozen=True, slots=True)
 class SkillLicense:
-    """The ``license`` field: a license's name, or the name of a license file bundled with the skill.
+    """The `license` field: a license's name, or the name of a license file bundled with the skill.
 
     The specification puts no rule on the text, only a recommendation to keep it short, so every string is valid.
     Whether a named license file exists is not checked here: that needs the skill's directory.
@@ -464,7 +464,7 @@ SKILL_COMPATIBILITY_MAX_LENGTH: Final[int] = 500
 _SKILL_COMPATIBILITY_RULES: Final[TypeAdapter[str]] = TypeAdapter(
     Annotated[str, StringConstraints(min_length=1, max_length=SKILL_COMPATIBILITY_MAX_LENGTH, pattern=r'\S')]
 )
-"""A skill compatibility note's rules, declared once: ``SkillCompatibility`` checks them and renders its JSON
+"""A skill compatibility note's rules, declared once: `SkillCompatibility` checks them and renders its JSON
 Schema from them."""
 
 
@@ -505,7 +505,7 @@ class OverlongSkillCompatibilityError(Error):
 
 @dataclass(frozen=True, slots=True)
 class SkillCompatibility:
-    """The ``compatibility`` field, the environment the skill needs.
+    """The `compatibility` field, the environment the skill needs.
 
     It holds at least one character that is not whitespace, and at most 500 characters.
 

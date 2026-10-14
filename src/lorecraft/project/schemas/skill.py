@@ -1,8 +1,8 @@
 """The Agent Skills specification as a frontmatter schema: what it says is wrong with a skill's frontmatter.
 
-``SkillFrontmatter`` declares the specification's fields once, and pydantic holds a decoded frontmatter to it.
-``SkillFrontmatterSchema`` is the seam where pydantic's errors are translated into ``FrontmatterProblem`` values,
-in the shape ``FrontmatterSchema`` reports a document's in, so the skill check and the frontmatter check read one
+`SkillFrontmatter` declares the specification's fields once, and pydantic holds a decoded frontmatter to it.
+`SkillFrontmatterSchema` is the seam where pydantic's errors are translated into `FrontmatterProblem` values,
+in the shape `FrontmatterSchema` reports a document's in, so the skill check and the frontmatter check read one
 shape. The messages are Lorecraft's own: the specification is fixed, so a reader is told what it requires in
 words that do not change with pydantic's version.
 """
@@ -42,7 +42,7 @@ from .skill_frontmatter import SKILL_NAME_PATTERN, SkillFrontmatter, value_objec
 class SkillFrontmatterSchema:
     """The Agent Skills specification, as the frontmatter schema every skill is held to.
 
-    ``SKILL_FRONTMATTER_SCHEMA`` is the one instance.
+    `SKILL_FRONTMATTER_SCHEMA` is the one instance.
     """
 
     def validate(self, data: FrozenMapping[str, Frozen]) -> tuple[FrontmatterProblem, ...]:

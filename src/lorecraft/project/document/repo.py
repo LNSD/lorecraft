@@ -1,12 +1,12 @@
-"""Discover and read documents in the flat ``docs/<corpus>/`` directories through the filesystem boundary.
+"""Discover and read documents in the flat `docs/<corpus>/` directories through the filesystem boundary.
 
-Every path the repository takes or returns is root-relative: ``docs/`` is joined to the workspace root only
-inside ``FileSystem``. The repository lists entries and reads text; whether a listed stem is a valid document
+Every path the repository takes or returns is root-relative: `docs/` is joined to the workspace root only
+inside `FileSystem`. The repository lists entries and reads text; whether a listed stem is a valid document
 name, and whether the text is a valid document, is decided above it. The repository decides what kind an entry
-is: a corpus is a regular directory and a document a regular file, so a symlink under ``docs/`` is never listed,
-and no ``EntryKind`` leaves the repository.
+is: a corpus is a regular directory and a document a regular file, so a symlink under `docs/` is never listed,
+and no `EntryKind` leaves the repository.
 
-Nothing here logs: the command that loads the model catches every ``Error`` that escapes it and reports it,
+Nothing here logs: the command that loads the model catches every `Error` that escapes it and reports it,
 so every handler below re-raises without logging.
 """
 
@@ -32,11 +32,11 @@ from .ref import DocumentRef
 
 @dataclass(frozen=True, slots=True)
 class DocumentFile:
-    """A regular ``.md`` file directly inside a corpus directory, before name validation.
+    """A regular `.md` file directly inside a corpus directory, before name validation.
 
     Attributes:
         path: Root-relative path.
-        stem: Filename without ``.md``; may fail ``AspectFilename.parse`` (the loader records that).
+        stem: Filename without `.md`; may fail `AspectFilename.parse` (the loader records that).
     """
 
     path: RootRelativePath
@@ -111,7 +111,7 @@ class DocumentDecodeError(Error):
 
 
 class Repository:
-    """Discover and read documents in the flat ``docs/<corpus>/`` directories."""
+    """Discover and read documents in the flat `docs/<corpus>/` directories."""
 
     def __init__(self, fs: FileSystem) -> None:
         """Remember the seam; performs no I/O.

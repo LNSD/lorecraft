@@ -52,11 +52,11 @@ from .ref import SkillLocation, SkillRef, SkillRelativePath, SkillResourceLocati
 
 @dataclass(frozen=True, slots=True)
 class Skill:
-    """A skill's ``SKILL.md`` at the moment it was read.
+    """A skill's `SKILL.md` at the moment it was read.
 
     Attributes:
         ref: The skill's identity in the workspace model.
-        text: The whole ``SKILL.md`` decoded as UTF-8, frontmatter and body.
+        text: The whole `SKILL.md` decoded as UTF-8, frontmatter and body.
     """
 
     ref: SkillRef
@@ -150,7 +150,7 @@ class SkillEntryResolveError(Error):
 
 
 class SkillDirListError(Error):
-    """A skill directory exists but cannot be listed to look for its ``SKILL.md``.
+    """A skill directory exists but cannot be listed to look for its `SKILL.md`.
 
     Attributes:
         directory: The skill directory being looked in.
@@ -168,10 +168,10 @@ class SkillDirListError(Error):
 
 
 class SkillFileResolveError(Error):
-    """A symlinked ``SKILL.md`` cannot be resolved because the operating system refused a lookup.
+    """A symlinked `SKILL.md` cannot be resolved because the operating system refused a lookup.
 
     Attributes:
-        skill_file: The ``SKILL.md`` whose link was being followed.
+        skill_file: The `SKILL.md` whose link was being followed.
         source: The failure to resolve it.
     """
 
@@ -191,10 +191,10 @@ class SkillFileResolveError(Error):
 
 
 class SkillReadError(Error):
-    """A skill listed in the model cannot be read: its ``SKILL.md`` is missing or unreadable.
+    """A skill listed in the model cannot be read: its `SKILL.md` is missing or unreadable.
 
     Attributes:
-        ref: The skill whose ``SKILL.md`` could not be read.
+        ref: The skill whose `SKILL.md` could not be read.
         source: The failure to read the file.
     """
 
@@ -209,10 +209,10 @@ class SkillReadError(Error):
 
 
 class SkillDecodeError(Error):
-    """A skill's ``SKILL.md`` is not UTF-8; the check reports this as a finding.
+    """A skill's `SKILL.md` is not UTF-8; the check reports this as a finding.
 
     Attributes:
-        ref: The skill whose ``SKILL.md`` could not be decoded.
+        ref: The skill whose `SKILL.md` could not be decoded.
         source: The failure to decode the file.
     """
 

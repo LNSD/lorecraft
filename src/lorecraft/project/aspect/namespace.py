@@ -40,7 +40,7 @@ class InvalidAspectNamespaceCharacterError(Error):
 class AspectNamespace:
     """A validated, possibly nested kebab-case namespace.
 
-    A namespace matches ``[a-z][a-z0-9]*(?:-[a-z0-9]+)*``. It may contain any number of
+    A namespace matches `[a-z][a-z0-9]*(?:-[a-z0-9]+)*`. It may contain any number of
     lowercase ASCII words, separated by single hyphens. A namespace matches a document name
     when the name is equal to it or begins with it followed by a hyphen.
 

@@ -3,7 +3,7 @@
 Where the frontmatter block is found, which headings count, how many prose words each section holds, which anchors
 its headings give, and which links the document holds.
 
-``parse_document`` and ``parse_frontmatter`` are pure, so every case here is a text literal. The Markdown parser
+`parse_document` and `parse_frontmatter` are pure, so every case here is a text literal. The Markdown parser
 behind them decides what counts as a block; these pin the rules the checks report against.
 """
 

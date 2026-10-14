@@ -181,7 +181,7 @@ class Frontmatter:
 
 @dataclass(frozen=True, slots=True)
 class MissingFrontmatter:
-    """The document does not open with a ``---`` line, or the block is never closed by one."""
+    """The document does not open with a `---` line, or the block is never closed by one."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -192,7 +192,7 @@ class InvalidYamlFrontmatter:
     by identity.
 
     Attributes:
-        problem: What is wrong, in lorecraft's words, such as `this value holds `: ``, or `found the tag '!!str',
+        problem: What is wrong, in lorecraft's words, such as `this value holds ': '`, or `found the tag '!!str',
             which frontmatter does not allow` where the block uses what basic YAML leaves out, a key that is not a
             string included.
         help: What to do about it, where a syntax error has a fix to name, and None for a construct frontmatter

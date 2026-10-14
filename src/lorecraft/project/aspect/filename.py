@@ -10,7 +10,7 @@ from .name import AspectName
 class AspectFilename:
     """A validated filename stem.
 
-    Parsing ``python-errors-handling`` keeps that entire name; which namespace governs it is decided
+    Parsing `python-errors-handling` keeps that entire name; which namespace governs it is decided
     above, by the workspace model, so the filename carries no namespace of its own.
 
     Attributes:

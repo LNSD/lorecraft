@@ -1,9 +1,9 @@
-"""A heading's anchor: the name a fragment-only link such as ``#usage`` points at.
+"""A heading's anchor: the name a fragment-only link such as `#usage` points at.
 
 An anchor is derived here as GitHub derives it, not with wenmode's own heading ids, which collapse whitespace and
 number repeats differently: a link that works where the document is read must pass the check. A link's fragment
 is a different thing, raw text the author typed, and the only way to compare one with an anchor is through
-``Anchor.from_fragment``, which applies the one normalisation GitHub applies before it looks the fragment up.
+`Anchor.from_fragment`, which applies the one normalisation GitHub applies before it looks the fragment up.
 """
 
 import unicodedata
@@ -23,9 +23,9 @@ AnchorNumber = NewType('AnchorNumber', NonZeroUnsignedInt)
 
 
 class InvalidAnchorError(ValueError):
-    """A value holding a character no anchor holds was given to ``Anchor``.
+    """A value holding a character no anchor holds was given to `Anchor`.
 
-    A ``ValueError`` rather than a ``lorecraft.core.error.Error``: no user input reaches the constructor, since a
+    A `ValueError` rather than a `lorecraft.core.error.Error`: no user input reaches the constructor, since a
     heading's text and a link's fragment both go through a named conversion that only builds valid anchors, so a
     rejected one is a defect in the code that produced it, and it must not be reported as invalid input.
 
@@ -48,16 +48,16 @@ class InvalidAnchorError(ValueError):
 
 @dataclass(frozen=True, slots=True)
 class Anchor:
-    """A heading anchor as GitHub derives it, the name a ``#fragment`` link resolves to.
+    """A heading anchor as GitHub derives it, the name a `#fragment` link resolves to.
 
     Every character of a valid anchor is lowercase and is either a hyphen-minus or one whose Unicode category is
-    a letter, a mark, a decimal or letter number, or connector punctuation such as ``_``. So a letter in any
-    script is held with its combining marks, as in ``हिन्दी`` or a decomposed ``é``, while a space, punctuation, a
-    symbol, an en dash and a number such as ``½`` are not. The value is not Unicode-normalized, and may be empty:
+    a letter, a mark, a decimal or letter number, or connector punctuation such as `_`. So a letter in any
+    script is held with its combining marks, as in `हिन्दी` or a decomposed `é`, while a space, punctuation, a
+    symbol, an en dash and a number such as `½` are not. The value is not Unicode-normalized, and may be empty:
     a heading of nothing but punctuation has the empty anchor.
 
     Attributes:
-        value: The anchor, without the leading ``#``.
+        value: The anchor, without the leading `#`.
     """
 
     value: str
@@ -66,7 +66,7 @@ class Anchor:
         """Reject a value holding a character outside the format.
 
         Raises:
-            InvalidAnchorError: If a character of ``value`` is not one an anchor holds.
+            InvalidAnchorError: If a character of `value` is not one an anchor holds.
         """
         for position, character in enumerate(self.value):
             if not _is_anchor_character(character):
@@ -90,7 +90,7 @@ class Anchor:
         return cls(''.join(kept))
 
     def numbered(self, n: AnchorNumber) -> Self:
-        """The anchor a repeat of this one's heading takes: ``foo`` numbered 1 is ``foo-1``.
+        """The anchor a repeat of this one's heading takes: `foo` numbered 1 is `foo-1`.
 
         Args:
             n: Which repeat, 1 for the first heading after the one holding the bare anchor; never 0, since the bare
@@ -100,15 +100,15 @@ class Anchor:
 
     @classmethod
     def from_fragment(cls, fragment: str) -> Self | None:
-        """The anchor a link's fragment resolves to, or ``None`` when no heading can have it.
+        """The anchor a link's fragment resolves to, or `None` when no heading can have it.
 
         GitHub resolves a fragment regardless of case, and the parser percent-encodes a link's destination, so
-        the fragment is percent-decoded and lowercased: ``Usage`` and ``Stra%C3%9Fe`` give ``usage`` and
-        ``straße``. A fragment that is still no anchor after that, such as one holding a space or a ``!``, is
-        ``None`` rather than an error, since a link naming no heading is an ordinary finding, not invalid input.
+        the fragment is percent-decoded and lowercased: `Usage` and `Stra%C3%9Fe` give `usage` and
+        `straße`. A fragment that is still no anchor after that, such as one holding a space or a `!`, is
+        `None` rather than an error, since a link naming no heading is an ordinary finding, not invalid input.
 
         Args:
-            fragment: The link's fragment, without the leading ``#``.
+            fragment: The link's fragment, without the leading `#`.
         """
         candidate = unquote(fragment).lower()
         for character in candidate:

@@ -24,7 +24,7 @@ class StructureSpecProblem:
     message: str
 
     def __str__(self) -> str:
-        """The problem as ``<field path>: <message>``, or the bare message when it has no location."""
+        """The problem as `<field path>: <message>`, or the bare message when it has no location."""
         if not self.location:
             return self.message
         return f'{".".join(str(part) for part in self.location)}: {self.message}'

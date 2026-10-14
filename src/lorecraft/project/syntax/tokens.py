@@ -1,12 +1,12 @@
-"""How many tokens a text costs an agent that reads it, counted with OpenAI's ``o200k_base`` encoding.
+"""How many tokens a text costs an agent that reads it, counted with OpenAI's `o200k_base` encoding.
 
 No vendor publishes a local tokenizer for every agent, so one fixed encoding stands in for all of them: the count
 is the same whichever agent reads the document, and a budget set in it means the same thing everywhere. The
 encoding is exact for OpenAI's current models; other vendors' tokenizers count the same text differently, by a
 factor that depends on the content, so no correction is applied.
 
-The encoding's vocabulary, ``o200k_base.tiktoken``, ships beside this module, as OpenAI publishes it. tiktoken's
-own loaders are not used: ``get_encoding`` downloads the vocabulary on first use, and ``load_tiktoken_bpe`` copies
+The encoding's vocabulary, `o200k_base.tiktoken`, ships beside this module, as OpenAI publishes it. tiktoken's
+own loaders are not used: `get_encoding` downloads the vocabulary on first use, and `load_tiktoken_bpe` copies
 even a local file into a cache directory. This module reads the file itself and builds the encoding from it, so
 counting never touches the network or writes anywhere. The encoding is built once per process.
 """
@@ -21,7 +21,7 @@ from tiktoken import Encoding
 from lorecraft.core.num import UnsignedInt
 
 _VOCABULARY_FILE: Final[str] = 'o200k_base.tiktoken'
-"""The vocabulary shipped beside this module: one ``<base64 token> <rank>`` line per token."""
+"""The vocabulary shipped beside this module: one `<base64 token> <rank>` line per token."""
 
 # Copied from `o200k_base` in tiktoken's `tiktoken_ext/openai_public.py`, which exposes it only inside the function
 # that downloads the vocabulary. It is how a text is split into words before the merges run, so it is part of the
@@ -68,7 +68,7 @@ def count_tokens(text: str) -> TokenCount:
 # base64 itself, so a SIMD base64 decoder would not help; `_read_vocabulary` cuts the per-line work instead.
 @cache
 def _encoding() -> Encoding:
-    """The ``o200k_base`` encoding, built from the vocabulary shipped beside this module."""
+    """The `o200k_base` encoding, built from the vocabulary shipped beside this module."""
     # No special tokens: `count_tokens` encodes ordinary text only, so none could ever be produced.
     return Encoding('o200k_base', pat_str=_SPLIT_PATTERN, mergeable_ranks=_read_vocabulary(), special_tokens={})
 

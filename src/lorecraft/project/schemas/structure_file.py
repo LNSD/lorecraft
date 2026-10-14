@@ -31,7 +31,7 @@ from lorecraft.core.num import NonZeroUnsignedInt
 from .section_name import SectionName
 
 JSON_SCHEMA_DIALECT: Final[str] = 'https://json-schema.org/draft/2020-12/schema'
-"""Draft 2020-12, the one dialect a frontmatter schema is written in: the only one its ``$schema`` may name."""
+"""Draft 2020-12, the one dialect a frontmatter schema is written in: the only one its `$schema` may name."""
 
 
 # Runs once per process, before mutmut swaps a mutant in, so no test can ever see a mutant of it.
