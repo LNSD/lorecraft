@@ -21,9 +21,7 @@ from ruamel.yaml.error import MarkedYAMLError, StreamMark
 from ruamel.yaml.reader import ReaderError
 
 from lorecraft.core.lines import line_at, split_lines
-
-LINE_SEPARATORS: Final[str] = '\x85\u2028\u2029'
-"""The characters other YAML grammars end a line at, which `core/lines.py` does not: U+0085, U+2028 and U+2029."""
+from lorecraft.yaml.basic_yaml import LINE_SEPARATORS
 
 _ESCAPE_HEX_DIGITS: Final[Mapping[str, int]] = MappingProxyType({'x': 2, 'u': 4, 'U': 8})
 """How many hexadecimal digits the escapes `\\x`, `\\u` and `\\U` take after their letter."""
