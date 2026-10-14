@@ -205,6 +205,53 @@ def _unused_handler() -> None:
     """Stand-in handler for a registration that must be rejected before it is ever mounted."""
 
 
+def _stripped(output: str) -> str:
+    """The text a run wrote, without the whitespace around it.
+
+    Args:
+        output: Text a run wrote to one stream.
+    """
+    return output.strip()
+
+
+def _lines(output: str) -> list[str]:
+    """The lines of the text a run wrote, without their line endings.
+
+    Args:
+        output: Text a run wrote to one stream.
+    """
+    return output.splitlines()
+
+
+def _starts_with(text: str, prefix: str) -> bool:
+    """Whether the text begins with the prefix.
+
+    Args:
+        text: Text to look at.
+        prefix: Characters the text must begin with.
+    """
+    return text.startswith(prefix)
+
+
+def _names(entries: list[dict[str, str]]) -> list[str]:
+    """The `name` of each entry of a JSON list, in the order given.
+
+    Args:
+        entries: Objects of the JSON document that each carry a `name`.
+    """
+    return [entry['name'] for entry in entries]
+
+
+def _missing_commands(commands: tuple[str, ...], lines: list[str]) -> list[str]:
+    """The commands the help output lists no row for, in the order given.
+
+    Args:
+        commands: Names of the subcommands the help must list.
+        lines: Lines of the help output.
+    """
+    return [command for command in commands if not any(line.startswith(f'│ {command} ') for line in lines)]
+
+
 def _write(root: Path, relative: str, text: str = '') -> Path:
     """Write one file under the root, creating its parents, and return its path.
 
@@ -257,7 +304,7 @@ class TestVersionOption:
 
         #: Then
         assert result.exit_code == 0, result.output
-        assert result.output.strip() == f'lorecraft {__version__}', 'the option prints the short version'
+        assert _stripped(result.output) == f'lorecraft {__version__}', 'the option prints the short version'
 
     def test_version_option_with_short_form_exits_successfully_and_prints_the_version(self) -> None:
         #: Given
@@ -268,7 +315,7 @@ class TestVersionOption:
 
         #: Then
         assert result.exit_code == 0, result.output
-        assert result.output.strip() == f'lorecraft {__version__}', '-V prints the short version'
+        assert _stripped(result.output) == f'lorecraft {__version__}', '-V prints the short version'
 
     def test_version_option_followed_by_a_command_and_its_arguments_prints_only_the_short_version(self) -> None:
         #: Given
@@ -309,7 +356,7 @@ class TestVersionCommand:
 
         #: Then
         assert result.exit_code == 0, result.output
-        assert result.output.strip() == f'lorecraft {__version__}', 'the plain command prints one line'
+        assert _stripped(result.output) == f'lorecraft {__version__}', 'the plain command prints one line'
 
 
 @pytest.mark.it
@@ -338,7 +385,7 @@ class TestInspectCommand:
 
         #: Then
         assert result.exit_code == 0, result.output
-        lines = result.output.splitlines()
+        lines = _lines(result.output)
         assert lines[0] == str(workspace.resolve()), 'the tree is headed by the resolved root'
         assert '│           └── logging.md [code]' in lines, 'a rule document sits under its corpus, with its spec'
 
@@ -354,7 +401,7 @@ class TestInspectCommand:
         assert result.exit_code == 0, result.output
         document = json.loads(result.output)
         assert document['root'] == str(workspace.resolve()), 'the root is reported resolved'
-        assert [corpus['name'] for corpus in document['corpora']] == ['code'], 'the one spec-backed corpus is found'
+        assert _names(document['corpora']) == ['code'], 'the one spec-backed corpus is found'
 
     def test_inspect_with_the_deprecated_json_flag_prints_the_model_as_json(self, workspace: Path) -> None:
         #: Given
@@ -455,7 +502,8 @@ class TestInspectCommand:
 
         #: Then
         assert result.exit_code == 0, result.output
-        assert result.output.splitlines()[0] == str(workspace.resolve()), 'the root defaults to the working directory'
+        lines = _lines(result.output)
+        assert lines[0] == str(workspace.resolve()), 'the root defaults to the working directory'
 
     def test_inspect_with_a_missing_root_exits_with_a_usage_error_message(self, tmp_path: Path) -> None:
         #: Given
@@ -467,7 +515,9 @@ class TestInspectCommand:
 
         #: Then
         assert result.exit_code == 2, 'a root that does not exist is rejected before any scan'
-        assert usage_error_message(result.stderr).startswith('Usage: lorecraft inspect'), 'the failure is a usage error'
+        assert _starts_with(usage_error_message(result.stderr), 'Usage: lorecraft inspect'), (
+            'the failure is a usage error'
+        )
         assert "'root'" in usage_error_message(result.stderr), 'the message names the argument that was refused'
 
     @pytest.mark.skipif(os.geteuid() == 0, reason='root ignores directory permissions')
@@ -527,7 +577,8 @@ class TestInspectCommand:
 
         #: Then
         assert result.exit_code == 0, result.output
-        assert result.stdout.splitlines()[1] == '├── corpora (0)', (
+        lines = _lines(result.stdout)
+        assert lines[1] == '├── corpora (0)', (
             'a root that declares no specification is a model with no corpora, not an error'
         )
 
@@ -597,7 +648,7 @@ class TestRuleCommand:
         #: Then
         assert result.exit_code == 2, f'no rule has the key, so the command fails, got exit {result.exit_code}'
         assert result.stdout == '', 'a failure prints nothing on stdout'
-        assert usage_error_message(result.stderr).startswith('Usage: lorecraft rule'), 'the failure is a usage error'
+        assert _starts_with(usage_error_message(result.stderr), 'Usage: lorecraft rule'), 'the failure is a usage error'
         assert "Invalid value for '[RULE]': no rule has the code, name or alias code 'NOPE001'" in usage_error_message(
             result.stderr
         ), 'the key is named'
@@ -984,7 +1035,7 @@ class TestCheckCommand:
         #: Then
         assert result.exit_code == 2, result.output
         message = usage_error_message(result.stderr)
-        assert message.startswith('Usage: lorecraft check'), 'the failure is a usage error'
+        assert _starts_with(message, 'Usage: lorecraft check'), 'the failure is a usage error'
         assert "'--format'" in message, 'the message names the option that was refused'
         assert "'yaml'" in message, 'the message names the value that was refused'
 
@@ -999,7 +1050,7 @@ class TestCheckCommand:
         #: Then
         assert result.exit_code == 2, result.output
         message = usage_error_message(result.stderr)
-        assert message.startswith('Usage: lorecraft check'), 'the failure is a usage error'
+        assert _starts_with(message, 'Usage: lorecraft check'), 'the failure is a usage error'
         assert "'--color'" in message, 'the message names the option that was refused'
         assert "'sometimes'" in message, 'the message names the value that was refused'
 
@@ -1192,7 +1243,7 @@ class TestCheckCommand:
         assert result.exit_code == 2, result.output
         assert result.stdout == '', 'a usage error checks nothing'
         message = usage_error_message(result.stderr)
-        assert message.startswith('Usage: lorecraft check'), 'the failure is a usage error'
+        assert _starts_with(message, 'Usage: lorecraft check'), 'the failure is a usage error'
         assert '(docs)' in message, 'the message names the extra argument'
 
     def test_check_with_a_malformed_frontmatter_schema_reports_it_and_exits_with_the_findings_status(
@@ -1750,7 +1801,9 @@ class TestCheckSelection:
         #: Then
         assert result.exit_code == 2, result.output
         assert result.stdout == '', 'no subject is checked'
-        assert usage_error_message(result.stderr).startswith('Usage: lorecraft check'), 'the failure is a usage error'
+        assert _starts_with(usage_error_message(result.stderr), 'Usage: lorecraft check'), (
+            'the failure is a usage error'
+        )
         assert "Invalid value for '--select': 'out' is no selector" in usage_error_message(result.stderr), (
             'a selector of no form is malformed, and refused while the command line is parsed'
         )
@@ -1798,8 +1851,8 @@ class TestCommandRouting:
 
         #: Then
         assert result.exit_code == 0, result.output
-        lines = result.output.splitlines()
-        missing = [command for command in commands if not any(line.startswith(f'│ {command} ') for line in lines)]
+        lines = _lines(result.output)
+        missing = _missing_commands(commands, lines)
         assert missing == [], f'discovery mounted every registered subcommand, but the help lacks {missing}'
 
     def test_register_with_a_name_already_taken_raises_duplicate_command_error(self) -> None:

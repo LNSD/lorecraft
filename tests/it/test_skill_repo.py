@@ -189,6 +189,16 @@ def locked_texts_dir(tmp_path: Path) -> Iterator[Path]:
     directory.chmod(0o700)
 
 
+def _ends_with(path: Path, suffix: str) -> bool:
+    """Whether the path, written out, ends with the suffix.
+
+    Args:
+        path: Path to look at.
+        suffix: Characters the path must end with.
+    """
+    return str(path).endswith(suffix)
+
+
 @pytest.mark.it
 class TestRepositoryFindSkillsDir:
     def test_find_skills_dir_with_a_regular_directory_returns_it(
@@ -542,7 +552,7 @@ class TestRepositoryListSkills:
             repository.list_skills(UNIVERSAL_RESOLVED)
 
         #: Then
-        assert str(exc_info.value.directory).endswith(f'skills/{locked.name}'), 'the error names the skill directory'
+        assert _ends_with(exc_info.value.directory, f'skills/{locked.name}'), 'the error names the skill directory'
         assert isinstance(exc_info.value.source, DirListError), 'its source is the failed listing'
         assert f'.agents/skills/{locked.name}' in str(exc_info.value), 'the message names the skill directory'
 
