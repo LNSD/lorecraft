@@ -3,7 +3,8 @@
 A `Snapshot` holds the scope it was taken of and one record for each path it saw: a directory, a file's bytes, a
 symlink's target, or another entry, never a handle or a stat result, so two snapshots compare and hash structurally.
 `VirtualFileSystem` answers every `FileSystem` operation from one snapshot without touching the disk. `take_snapshot`
-in `disk.py` is the producer that reads the disk; `Snapshot.from_tree` builds one by hand.
+in `disk.py` is the producer that reads the disk; `Snapshot.from_tree` builds one by hand. The snapshot and the view
+share this module because the view is built from the snapshot's records and answers only from them.
 """
 
 from collections.abc import Mapping
