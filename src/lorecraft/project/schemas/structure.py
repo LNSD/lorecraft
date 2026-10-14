@@ -51,6 +51,8 @@ finding quotes it.
   in `$schema`. The frontmatter check applies it, not the structure check: it reads the frontmatter, not the
   headings. `FrontmatterSchema.validate` translates `jsonschema`'s errors into `FrontmatterProblem` values
   here, beside the decoding, because this is the one place the package reads a `jsonschema` error.
+  `FrontmatterSchema` is its own concern and lives in this module only for now: it is built from the
+  `frontmatter` field of `StructureFile`, so it stays beside that model until it moves to a module of its own.
 - `outline` is the order of the document's sections. A `section` entry names one and is required unless
   `optional`; an `any` entry matches a run of sections the outline does not name. An entry's `words` caps
   the prose words of each section it matches, H3 subsections included: on an `any` entry that is every section
