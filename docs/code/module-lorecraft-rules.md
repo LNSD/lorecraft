@@ -115,7 +115,7 @@ A rule is named for what is wrong, as the established linters name theirs, so it
   is `too-many-<unit>`, or `<part>-too-many-<unit>` for one part; on a length in characters, `<part>-too-long`, as
   linters name `line-too-long`; a required part absent is `missing-<part>`.
 - **The class is the name in PascalCase and its module the name in snake case**, with no `Rule` or `Violation`
-  suffix: `too-many-words` is `TooManyWords` in `too_many_words.py`.
+  suffix: `section-too-many-words` is `SectionTooManyWords` in `section_too_many_words.py`.
 - **A group's title is a plural noun phrase**, read as the heading of its rules in a list: `Length limits`.
 
 ## Writing the Diagnostic
@@ -179,7 +179,7 @@ class WordCap(DocumentRule):
 
 ```python
 # ✅ Good — the name states what is wrong, and the page speaks of the user's section and meta spec
-class TooManyWords(DocumentRule):
+class SectionTooManyWords(DocumentRule):
     """A section is longer than its word cap allows.
 
     ## What it does

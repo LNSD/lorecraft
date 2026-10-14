@@ -1,11 +1,11 @@
 ---
-name: "LEN003-too-many-words"
+name: "LEN003-section-too-many-words"
 description: "A section is longer than its word cap allows"
 code: "LEN003"
 since: "0.3.0"
 ---
 
-# too-many-words (LEN003)
+# section-too-many-words (LEN003)
 
 A section is longer than its word cap allows.
 
