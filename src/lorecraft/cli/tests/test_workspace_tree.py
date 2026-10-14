@@ -2,7 +2,6 @@
 
 import json
 from pathlib import Path
-from typing import Final
 
 import pytest
 
@@ -44,36 +43,37 @@ def _code_model() -> WorkspaceModel:
     )
 
 
-# The JSON document `render_json` encodes `_code_model` as, rooted at `/work`.
-_CODE_MODEL_DOCUMENT: Final[dict[str, object]] = {
-    'root': '/work',
-    'corpora': [
-        {
-            'name': 'code',
-            'directory': 'docs/code',
-            'specs': [
-                {'stem': 'code', 'files': ['docs/__meta__/code.md']},
-                {
-                    'stem': 'code-python',
-                    'files': ['docs/__meta__/code-python.md', 'docs/__meta__/code-python.structure.json'],
-                },
-            ],
-            'documents': [
-                {'path': 'docs/code/logging.md', 'governed_by': ['docs/__meta__/code.md']},
-                {
-                    'path': 'docs/code/python-typing.md',
-                    'governed_by': [
-                        'docs/__meta__/code.md',
-                        'docs/__meta__/code-python.md',
-                        'docs/__meta__/code-python.structure.json',
-                    ],
-                },
-            ],
-        }
-    ],
-    'agent_skills_dirs': [],
-    'skills': [],
-}
+def _code_model_document() -> dict[str, object]:
+    """The JSON document `render_json` encodes `_code_model` as, rooted at `/work`."""
+    return {
+        'root': '/work',
+        'corpora': [
+            {
+                'name': 'code',
+                'directory': 'docs/code',
+                'specs': [
+                    {'stem': 'code', 'files': ['docs/__meta__/code.md']},
+                    {
+                        'stem': 'code-python',
+                        'files': ['docs/__meta__/code-python.md', 'docs/__meta__/code-python.structure.json'],
+                    },
+                ],
+                'documents': [
+                    {'path': 'docs/code/logging.md', 'governed_by': ['docs/__meta__/code.md']},
+                    {
+                        'path': 'docs/code/python-typing.md',
+                        'governed_by': [
+                            'docs/__meta__/code.md',
+                            'docs/__meta__/code-python.md',
+                            'docs/__meta__/code-python.structure.json',
+                        ],
+                    },
+                ],
+            }
+        ],
+        'agent_skills_dirs': [],
+        'skills': [],
+    }
 
 
 def _empty_model() -> WorkspaceModel:
@@ -198,7 +198,7 @@ class TestRenderJson:
         text = render_json(Path('/work'), model)
 
         #: Then
-        assert json.loads(text) == _CODE_MODEL_DOCUMENT, (
+        assert json.loads(text) == _code_model_document(), (
             'a corpus carries its specs with their files, and each document the files of its governing specs'
         )
 
@@ -211,7 +211,7 @@ class TestRenderJson:
 
         #: Then
         # Parsing the text back would hide its layout, so the text itself is compared.
-        assert text == json.dumps(_CODE_MODEL_DOCUMENT, separators=(',', ':'), ensure_ascii=False), (
+        assert text == json.dumps(_code_model_document(), separators=(',', ':'), ensure_ascii=False), (
             'the document is compact'
         )
 

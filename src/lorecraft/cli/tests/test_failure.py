@@ -1,5 +1,7 @@
 """Reporting a failure a command cannot recover from: the error, then the errors beneath it."""
 
+from typing import Final
+
 import pytest
 import typer
 
@@ -118,24 +120,28 @@ class TestReportFailure:
         ), 'the walk follows the chain past the first cause, down to the last error'
 
 
-_PATH = RootRelativePath.parse('docs/__meta__/code.structure.json')
-_DOCS = RootRelativePath.parse('docs')
-_CORPUS = CorpusName.parse('code')
-_CORPUS_DIR = RootRelativePath.parse('docs/code')
-_SPEC_NAME = CorpusSpecName(_CORPUS)
-_SKILLS_DIR = RootRelativePath.parse('.claude/skills')
+_PATH: Final[RootRelativePath] = RootRelativePath.parse('docs/__meta__/code.structure.json')
+_DOCS: Final[RootRelativePath] = RootRelativePath.parse('docs')
+_CORPUS: Final[CorpusName] = CorpusName.parse('code')
+_CORPUS_DIR: Final[RootRelativePath] = RootRelativePath.parse('docs/code')
+_SPEC_NAME: Final[CorpusSpecName] = CorpusSpecName(_CORPUS)
+_SKILLS_DIR: Final[RootRelativePath] = RootRelativePath.parse('.claude/skills')
 # The directory, entry and file a link in the skills layout leads to, as the repository's errors name them.
-_TARGET_DIR = RootRelativePath.parse('shared/skills')
-_ENTRY = RootRelativePath.parse('.claude/skills/review')
-_ENTRY_FILE = RootRelativePath.parse('.claude/skills/review/SKILL.md')
-_TARGET_FILE = RootRelativePath.parse('shared/review/SKILL.md')
-_INNER = RootRelativePath.parse('shared/review/inner')
-_PROBLEMS = (
+_TARGET_DIR: Final[RootRelativePath] = RootRelativePath.parse('shared/skills')
+_ENTRY: Final[RootRelativePath] = RootRelativePath.parse('.claude/skills/review')
+_ENTRY_FILE: Final[RootRelativePath] = RootRelativePath.parse('.claude/skills/review/SKILL.md')
+_TARGET_FILE: Final[RootRelativePath] = RootRelativePath.parse('shared/review/SKILL.md')
+_INNER: Final[RootRelativePath] = RootRelativePath.parse('shared/review/inner')
+_PROBLEMS: Final[tuple[StructureSpecProblem, StructureSpecProblem]] = (
     StructureSpecProblem(('outline',), 'Field required'),
     StructureSpecProblem(('tokens',), 'not a number'),
 )
-_REFUSAL = OsRefusal.PERMISSION_DENIED
-_OS_ERROR = OSError()
+_REFUSAL: Final[OsRefusal] = OsRefusal.PERMISSION_DENIED
+
+
+def _os_error() -> OSError:
+    """The operating system's error a failure wraps, fresh for each test so none shares its traceback."""
+    return OSError()
 
 
 def _written_for(capsys: pytest.CaptureFixture[str], failure: LoadFailure, error: Error) -> tuple[str, str]:
@@ -163,7 +169,7 @@ class TestReportLoadFailure:
     ) -> None:
         #: Given
         failure = LoadFailure(_PATH, UnreadableStructureFile(_SPEC_NAME, _REFUSAL))
-        error = StructureSchemaReadError(_SPEC_NAME, source=FileReadError(_PATH, _REFUSAL, source=_OS_ERROR))
+        error = StructureSchemaReadError(_SPEC_NAME, source=FileReadError(_PATH, _REFUSAL, source=_os_error()))
 
         #: When
         expected, actual = _written_for(capsys, failure, error)
@@ -349,7 +355,7 @@ class TestReportLoadFailure:
     ) -> None:
         #: Given
         failure = LoadFailure(_DOCS, UnlistableDirectory(_REFUSAL))
-        error = DirListError(_DOCS, _REFUSAL, source=_OS_ERROR)
+        error = DirListError(_DOCS, _REFUSAL, source=_os_error())
 
         #: When
         expected, actual = _written_for(capsys, failure, error)
@@ -362,7 +368,7 @@ class TestReportLoadFailure:
     ) -> None:
         #: Given
         failure = LoadFailure(_CORPUS_DIR, UnlistableCorpusDirectory(_CORPUS, _REFUSAL))
-        error = CorpusListError(_CORPUS, source=DirListError(_CORPUS_DIR, _REFUSAL, source=_OS_ERROR))
+        error = CorpusListError(_CORPUS, source=DirListError(_CORPUS_DIR, _REFUSAL, source=_os_error()))
 
         #: When
         expected, actual = _written_for(capsys, failure, error)
@@ -375,7 +381,7 @@ class TestReportLoadFailure:
     ) -> None:
         #: Given
         failure = LoadFailure(_SKILLS_DIR, UnresolvableSkillsDirectory(_REFUSAL))
-        error = DirResolveError(_SKILLS_DIR, _REFUSAL, source=_OS_ERROR)
+        error = DirResolveError(_SKILLS_DIR, _REFUSAL, source=_os_error())
 
         #: When
         expected, actual = _written_for(capsys, failure, error)
@@ -388,7 +394,7 @@ class TestReportLoadFailure:
     ) -> None:
         #: Given
         failure = LoadFailure(_SKILLS_DIR, UninspectableSkillsDirectory(_INNER, _REFUSAL))
-        error = EntryInspectError(_INNER, _REFUSAL, source=_OS_ERROR)
+        error = EntryInspectError(_INNER, _REFUSAL, source=_os_error())
 
         #: When
         expected, actual = _written_for(capsys, failure, error)
@@ -401,7 +407,7 @@ class TestReportLoadFailure:
     ) -> None:
         #: Given
         failure = LoadFailure(_SKILLS_DIR, UnlistableSkillsDirectory(_TARGET_DIR, _REFUSAL))
-        error = SkillsDirListError(_TARGET_DIR, source=DirListError(_TARGET_DIR, _REFUSAL, source=_OS_ERROR))
+        error = SkillsDirListError(_TARGET_DIR, source=DirListError(_TARGET_DIR, _REFUSAL, source=_os_error()))
 
         #: When
         expected, actual = _written_for(capsys, failure, error)
@@ -414,7 +420,7 @@ class TestReportLoadFailure:
     ) -> None:
         #: Given
         failure = LoadFailure(_ENTRY, UnresolvableSkillEntry(_REFUSAL))
-        error = SkillEntryResolveError(_ENTRY, source=DirResolveError(_ENTRY, _REFUSAL, source=_OS_ERROR))
+        error = SkillEntryResolveError(_ENTRY, source=DirResolveError(_ENTRY, _REFUSAL, source=_os_error()))
 
         #: When
         expected, actual = _written_for(capsys, failure, error)
@@ -427,7 +433,7 @@ class TestReportLoadFailure:
     ) -> None:
         #: Given
         failure = LoadFailure(_ENTRY, UninspectableSkillEntry(_INNER, _REFUSAL))
-        error = SkillEntryResolveError(_ENTRY, source=EntryInspectError(_INNER, _REFUSAL, source=_OS_ERROR))
+        error = SkillEntryResolveError(_ENTRY, source=EntryInspectError(_INNER, _REFUSAL, source=_os_error()))
 
         #: When
         expected, actual = _written_for(capsys, failure, error)
@@ -440,7 +446,7 @@ class TestReportLoadFailure:
     ) -> None:
         #: Given
         failure = LoadFailure(_ENTRY, UnlistableSkillDirectory(_TARGET_DIR, _REFUSAL))
-        error = SkillDirListError(_TARGET_DIR, source=DirListError(_TARGET_DIR, _REFUSAL, source=_OS_ERROR))
+        error = SkillDirListError(_TARGET_DIR, source=DirListError(_TARGET_DIR, _REFUSAL, source=_os_error()))
 
         #: When
         expected, actual = _written_for(capsys, failure, error)
@@ -453,7 +459,7 @@ class TestReportLoadFailure:
     ) -> None:
         #: Given
         failure = LoadFailure(_ENTRY_FILE, UnresolvableSkillFile(_TARGET_FILE, _REFUSAL))
-        error = SkillFileResolveError(_TARGET_FILE, source=FileResolveError(_TARGET_FILE, _REFUSAL, source=_OS_ERROR))
+        error = SkillFileResolveError(_TARGET_FILE, source=FileResolveError(_TARGET_FILE, _REFUSAL, source=_os_error()))
 
         #: When
         expected, actual = _written_for(capsys, failure, error)
@@ -466,7 +472,7 @@ class TestReportLoadFailure:
     ) -> None:
         #: Given
         failure = LoadFailure(_ENTRY_FILE, UninspectableSkillFile(_TARGET_FILE, _INNER, _REFUSAL))
-        error = SkillFileResolveError(_TARGET_FILE, source=EntryInspectError(_INNER, _REFUSAL, source=_OS_ERROR))
+        error = SkillFileResolveError(_TARGET_FILE, source=EntryInspectError(_INNER, _REFUSAL, source=_os_error()))
 
         #: When
         expected, actual = _written_for(capsys, failure, error)

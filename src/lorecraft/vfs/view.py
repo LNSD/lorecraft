@@ -398,11 +398,28 @@ type FileResolveFailure = FileResolveError | RecordedFileResolveError
 type EntryInspectFailure = EntryInspectError | RecordedEntryInspectError
 
 # The same sets as classes, for an `except`, which takes classes and not a union.
-DIR_LIST_FAILURES: Final = (DirListError, RecordedDirListError, RecordedDirListPathError)
-FILE_READ_FAILURES: Final = (FileReadError, RecordedFileReadError, RecordedFileReadPathError)
-DIR_RESOLVE_FAILURES: Final = (DirResolveError, RecordedDirResolveError)
-FILE_RESOLVE_FAILURES: Final = (FileResolveError, RecordedFileResolveError)
-ENTRY_INSPECT_FAILURES: Final = (EntryInspectError, RecordedEntryInspectError)
+DIR_LIST_FAILURES: Final[tuple[type[DirListError], type[RecordedDirListError], type[RecordedDirListPathError]]] = (
+    DirListError,
+    RecordedDirListError,
+    RecordedDirListPathError,
+)
+FILE_READ_FAILURES: Final[tuple[type[FileReadError], type[RecordedFileReadError], type[RecordedFileReadPathError]]] = (
+    FileReadError,
+    RecordedFileReadError,
+    RecordedFileReadPathError,
+)
+DIR_RESOLVE_FAILURES: Final[tuple[type[DirResolveError], type[RecordedDirResolveError]]] = (
+    DirResolveError,
+    RecordedDirResolveError,
+)
+FILE_RESOLVE_FAILURES: Final[tuple[type[FileResolveError], type[RecordedFileResolveError]]] = (
+    FileResolveError,
+    RecordedFileResolveError,
+)
+ENTRY_INSPECT_FAILURES: Final[tuple[type[EntryInspectError], type[RecordedEntryInspectError]]] = (
+    EntryInspectError,
+    RecordedEntryInspectError,
+)
 
 
 def decode_text(path: RootRelativePath, data: bytes) -> str:

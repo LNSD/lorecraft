@@ -19,8 +19,19 @@ _DISTRIBUTION_NAME: Final[str] = 'lorecraft'
 # does not know instead. PEP 440 accepts it as a version, so nothing downstream has to special-case it.
 _UNINSTALLED_VERSION: Final[str] = '0+unknown'
 
-try:
-    __version__: str = version(_DISTRIBUTION_NAME)
-except PackageNotFoundError:
-    logger.exception(f'installed metadata for {_DISTRIBUTION_NAME} was unavailable')
-    __version__ = _UNINSTALLED_VERSION
+
+def _installed_version() -> str:
+    """Read the version the installed distribution was built with.
+
+    Returns:
+        The installed distribution's version, or `_UNINSTALLED_VERSION` when no distribution is installed, after
+        logging that the metadata was unavailable.
+    """
+    try:
+        return version(_DISTRIBUTION_NAME)
+    except PackageNotFoundError:
+        logger.exception(f'installed metadata for {_DISTRIBUTION_NAME} was unavailable')
+        return _UNINSTALLED_VERSION
+
+
+__version__: Final[str] = _installed_version()
