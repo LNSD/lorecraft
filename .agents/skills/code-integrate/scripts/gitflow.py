@@ -189,6 +189,23 @@ def push(repo: Path, log: Path, branch: str, expected: str | None) -> str:
     return 'new' if expected is None else 'lease'
 
 
+def require_repository(repo: Path) -> bool:
+    """Whether the path is a git repository; when it is not, print the refusal a script ends with.
+
+    Checked before the log is created, since the log lives inside the git directory.
+
+    Args:
+        repo: The path a script was told to work in.
+    """
+    if (
+        repo.is_dir()
+        and subprocess.run(['git', 'rev-parse'], cwd=repo, capture_output=True, check=False).returncode == 0
+    ):
+        return True
+    print(json.dumps({'status': 'refused', 'reason': f'{repo} is not a git repository'}, separators=(',', ':')))
+    return False
+
+
 def emit(result: Mapping[str, object], log: Path) -> None:
     """Print the one compact JSON result a script ends with, naming the log.
 

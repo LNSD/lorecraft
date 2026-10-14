@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Integrate a Writer's patches into a part branch, then squash and push it.
 
-    integrate.py apply --branch B --base REF PATCH...
-    integrate.py squash --branch B --base REF --message-file FILE
+    integrate.py apply [--repo DIR] --branch B --base REF PATCH...
+    integrate.py squash [--repo DIR] --branch B --base REF --message-file FILE
 
 Prints one JSON result. Never resolves a conflict, never commits unsigned, never uses plain `--force`.
 Exit codes: 0 ok, 1 a gate failed, 2 the patches do not apply, 3 refused or a command failed.
@@ -135,7 +135,7 @@ def squash(repo: Path, branch: str, base: str, message_file: Path, log: Path) ->
 
 
 def main(argv: list[str]) -> int:
-    """Parse the arguments, run the subcommand in the current directory and print its result.
+    """Parse the arguments, run the subcommand in the repository and print its result.
 
     Args:
         argv: The command-line arguments, after the program name.
@@ -144,6 +144,9 @@ def main(argv: list[str]) -> int:
     commands = parser.add_subparsers(dest='command', required=True)
     for name in ('apply', 'squash'):
         sub = commands.add_parser(name)
+        sub.add_argument(
+            '--repo', type=Path, default=Path(), help='the repository to work in, default the current directory'
+        )
         sub.add_argument('--branch', required=True, help='the part branch, as named on the remote')
         sub.add_argument('--base', required=True, help='the ref the part sits on, such as origin/main')
         if name == 'apply':
@@ -152,7 +155,10 @@ def main(argv: list[str]) -> int:
             sub.add_argument('--message-file', required=True, type=Path)
     args = parser.parse_args(argv)
 
-    repo = Path.cwd()
+    # Patch and message-file paths stay relative to the caller's directory, not to `--repo`.
+    repo = args.repo.resolve()
+    if not gitflow.require_repository(repo):
+        return EXIT_REFUSED
     log = gitflow.default_log(repo, f'code-integrate-{args.command}')
     try:
         if args.command == 'apply':

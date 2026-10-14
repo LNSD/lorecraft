@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Rebase a stack of part branches onto a new base, check each one, then push them with a lease.
 
-    restack.py --onto REF --from REF BRANCH...
+    restack.py [--repo DIR] --onto REF --from REF BRANCH...
 
 The branches are listed bottom to top, as named on the remote. `--from` is the old base of the bottom branch and
 `--onto` the new one. Prints one JSON result. Never resolves a conflict, never pushes an unsigned commit, never
@@ -226,7 +226,7 @@ def _checked_out_elsewhere(repo: Path, log: Path) -> set[str]:
 
 
 def main(argv: list[str]) -> int:
-    """Parse the arguments, restack in the current directory and print the result.
+    """Parse the arguments, restack in the repository and print the result.
 
     Args:
         argv: The command-line arguments, after the program name.
@@ -235,12 +235,17 @@ def main(argv: list[str]) -> int:
         The exit code the script ends with.
     """
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument(
+        '--repo', type=Path, default=Path(), help='the repository to work in, default the current directory'
+    )
     parser.add_argument('--onto', required=True, help='the ref the bottom branch moves onto, such as origin/main')
     parser.add_argument('--from', dest='old', required=True, help='the ref the bottom branch sits on now')
     parser.add_argument('branches', nargs='+', help='the part branches, bottom to top, as named on the remote')
     args = parser.parse_args(argv)
 
-    repo = Path.cwd()
+    repo = args.repo.resolve()
+    if not gitflow.require_repository(repo):
+        return EXIT_REFUSED
     log = gitflow.default_log(repo, 'code-restack')
     try:
         result, code = restack(repo, args.onto, args.old, args.branches, log, gitflow.default_gates())

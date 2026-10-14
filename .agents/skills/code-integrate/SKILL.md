@@ -2,7 +2,7 @@
 name: code-integrate
 description: Integrate a Code Writer's patch files into a part branch, run the gates and measure the size, then squash the branch into one signed commit and push it. Use when a Writer report arrives with format-patch files, when a part branch needs its commits applied and checked, or when a checked part is ready to squash and push. Not for choosing commit messages (see /commit), for restacking branches, or for syncing open pull requests.
 compatibility: Requires python3, git with commit signing configured, and just with the repository's gate recipes. Pushing needs a remote named origin.
-allowed-tools: Bash(python3 .agents/skills/code-integrate/scripts/integrate.py *)
+allowed-tools: Bash(python3 .agents/skills/code-integrate/scripts/integrate.py *) Bash(python3 */.agents/skills/code-integrate/scripts/integrate.py *)
 ---
 
 # Code Integrate
@@ -21,15 +21,17 @@ close a pull request.
 
 ## Commands
 
-Run from the repository root, on a clean working tree.
+Run on a clean working tree. `--repo` names the repository and defaults to the current directory, so the call
+needs no `cd`; patch and message-file paths are read from the caller's directory, not from `--repo`.
 
 ```bash
-python3 .agents/skills/code-integrate/scripts/integrate.py apply --branch lnsd/<slug> --base origin/main <patch>...
-python3 .agents/skills/code-integrate/scripts/integrate.py squash --branch lnsd/<slug> --base origin/main --message-file <file>
+python3 <repo>/.agents/skills/code-integrate/scripts/integrate.py apply --repo <repo> --branch lnsd/<slug> --base origin/main <patch>...
+python3 <repo>/.agents/skills/code-integrate/scripts/integrate.py squash --repo <repo> --branch lnsd/<slug> --base origin/main --message-file <file>
 ```
 
 | Argument | Meaning |
 |---|---|
+| `--repo` | The repository to work in; default the current directory |
 | `--branch` | The part branch, as named on the remote |
 | `--base` | The ref the part sits on: `origin/main`, or the branch of the part below |
 | `<patch>...` | The `git format-patch` files, in order |
@@ -65,4 +67,4 @@ rejected; each time it puts the branch back and pushes nothing, as it does when 
 | 0 | `ok` | Continue |
 | 1 | A gate failed | Read the log, send the failure back as a FIX |
 | 2 | The patches do not apply; `git am` was aborted and the branch is untouched | Ask the Writer for a REBASE |
-| 3 | Refused (dirty tree, local branch not descending from the remote, unsigned commit, base not an ancestor, remote ahead of the branch) or a git command failed | Read `reason`; fix the setup, do not work around it |
+| 3 | Refused (`--repo` is not a git repository, dirty tree, local branch not descending from the remote, unsigned commit, base not an ancestor, remote ahead of the branch) or a git command failed | Read `reason`; fix the setup, do not work around it |
