@@ -10,6 +10,8 @@ from typing import Final
 import pytest
 
 from lorecraft.core.path import PathComponent, RootRelativePath
+from lorecraft.project.aspect import AspectFilename
+from lorecraft.project.context import DocumentFrontmatterOwner, SkillFrontmatterOwner
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.location import Elsewhere, Help, Here, Label, Note
 from lorecraft.rules.tests.fake_context import FakeDocumentContext, FakeSkillContext, structure_spec_path
@@ -22,6 +24,16 @@ STRUCTURE: Final[str] = '{"frontmatter": {"type": "object"}}'
 SPEC: Final[RootRelativePath] = structure_spec_path('guide')
 """Where the corpus structure specification lies."""
 
+DOCUMENT_OWNER: Final[DocumentFrontmatterOwner] = DocumentFrontmatterOwner(
+    filename=AspectFilename.parse('setup'), spec=SPEC
+)
+"""The fake document, which the corpus structure specification governs."""
+
+SKILL_OWNER: Final[SkillFrontmatterOwner] = SkillFrontmatterOwner(
+    directory_name=PathComponent.parse('review'), link_target=None
+)
+"""The fake skill, listed as `review` and not a link."""
+
 
 @pytest.mark.unit
 class TestMissingFrontmatter:
@@ -33,7 +45,7 @@ class TestMissingFrontmatter:
         occurrences = MissingFrontmatter.check(subject)
 
         #: Then
-        assert occurrences == (MissingFrontmatter(spec=SPEC, line=LineNumber.from_int(1), directory_name=None),), (
+        assert occurrences == (MissingFrontmatter(owner=DOCUMENT_OWNER, line=LineNumber.from_int(1)),), (
             "a document with no block is one occurrence, on line 1, under its corpus's specification"
         )
 
@@ -50,7 +62,7 @@ class TestMissingFrontmatter:
         occurrences = MissingFrontmatter.check(subject)
 
         #: Then
-        assert occurrences == (MissingFrontmatter(spec=SPEC, line=LineNumber.from_int(1), directory_name=None),), (
+        assert occurrences == (MissingFrontmatter(owner=DOCUMENT_OWNER, line=LineNumber.from_int(1)),), (
             'a block no second `---` line closes is no block at all'
         )
 
@@ -62,9 +74,9 @@ class TestMissingFrontmatter:
         occurrences = MissingFrontmatter.check(subject)
 
         #: Then
-        assert occurrences == (
-            MissingFrontmatter(spec=None, line=LineNumber.from_int(1), directory_name=PathComponent.parse('review')),
-        ), 'the package states the rule for a skill, after the Agent Skills specification'
+        assert occurrences == (MissingFrontmatter(owner=SKILL_OWNER, line=LineNumber.from_int(1)),), (
+            'the package states the rule for a skill, after the Agent Skills specification'
+        )
 
     def test_check_with_a_block_that_is_not_yaml_reports_nothing(self) -> None:
         #: Given
@@ -100,7 +112,7 @@ class TestMissingFrontmatter:
 
     def test_message_with_an_occurrence_names_the_missing_block(self) -> None:
         #: Given
-        occurrence = MissingFrontmatter(spec=SPEC, line=LineNumber.from_int(1), directory_name=None)
+        occurrence = MissingFrontmatter(owner=DOCUMENT_OWNER, line=LineNumber.from_int(1))
 
         #: When
         message = occurrence.message()
@@ -110,7 +122,7 @@ class TestMissingFrontmatter:
 
     def test_labels_with_an_occurrence_say_the_file_must_open_with_a_delimiter(self) -> None:
         #: Given
-        occurrence = MissingFrontmatter(spec=SPEC, line=LineNumber.from_int(1), directory_name=None)
+        occurrence = MissingFrontmatter(owner=DOCUMENT_OWNER, line=LineNumber.from_int(1))
 
         #: When
         labels = occurrence.labels()
@@ -122,7 +134,7 @@ class TestMissingFrontmatter:
 
     def test_children_with_a_document_point_at_its_specification_and_say_how_to_open_the_block(self) -> None:
         #: Given
-        occurrence = MissingFrontmatter(spec=SPEC, line=LineNumber.from_int(1), directory_name=None)
+        occurrence = MissingFrontmatter(owner=DOCUMENT_OWNER, line=LineNumber.from_int(1))
 
         #: When
         children = occurrence.children()
@@ -135,9 +147,7 @@ class TestMissingFrontmatter:
 
     def test_children_with_a_skill_name_the_agent_skills_specification_and_show_the_skeleton(self) -> None:
         #: Given
-        occurrence = MissingFrontmatter(
-            spec=None, line=LineNumber.from_int(1), directory_name=PathComponent.parse('review')
-        )
+        occurrence = MissingFrontmatter(owner=SKILL_OWNER, line=LineNumber.from_int(1))
 
         #: When
         children = occurrence.children()

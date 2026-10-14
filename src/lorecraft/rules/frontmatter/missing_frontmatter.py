@@ -1,9 +1,9 @@
 """`FM001`: a document or a skill does not open with a frontmatter block."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import ClassVar, Self, assert_never
 
-from lorecraft.core.path import PathComponent
+from lorecraft.core.path import RootRelativePath
 
 # The module, not its classes: this rule's own name is the syntax's `MissingFrontmatter`.
 from lorecraft.project import syntax
@@ -77,10 +77,10 @@ class MissingFrontmatter(FrontmatterRule):
     ```
 
     Attributes:
-        spec: The structure specification whose frontmatter schema governs the document, or `None` for a skill,
-            which the Agent Skills specification governs.
-        directory_name: The name of the skill's directory, as an agent lists it, which its `name` must equal; or
-            `None` for a document, whose required fields are the schema's and not this rule's input.
+        spec: The specification file that governs the owner's frontmatter, derived from `owner`, so no caller states
+            one that disagrees with it.
+        owner: The document or the skill that opens with no block. It says which specification governs the subject,
+            and for a skill the directory name its `name` must equal, which the example shows.
     """
 
     CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 1)
@@ -88,7 +88,14 @@ class MissingFrontmatter(FrontmatterRule):
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('0.3.0')
 
-    directory_name: PathComponent | None
+    # The specification file is derived from `owner`, so no caller can state one that disagrees with it.
+    spec: RootRelativePath | None = field(init=False)
+    owner: FrontmatterOwner
+
+    def __post_init__(self) -> None:
+        """Derive the specification file from the owner of the frontmatter."""
+        # The dataclass is frozen, so the field a rule derives is set the one way a frozen dataclass allows.
+        object.__setattr__(self, 'spec', owner_spec(self.owner))
 
     def message(self) -> str:
         """Name the block that is missing."""
@@ -103,12 +110,18 @@ class MissingFrontmatter(FrontmatterRule):
 
     def children(self) -> tuple[Subdiagnostic, ...]:
         """Name the specification, say how to open the block, and for a skill show the fields it opens with."""
+        owner = self.owner
         parts: list[Subdiagnostic] = [
-            spec_note(self.spec),
+            spec_note(owner),
             Help('open the file with a `---` line, the fields, and a closing `---` line'),
         ]
-        if self.directory_name is not None:
-            parts.append(Note(f'for example:\n---\nname: {self.directory_name}\ndescription: …\n---'))
+        match owner:
+            case DocumentFrontmatterOwner():
+                pass  # a document's required fields are the schema's, not this rule's input
+            case SkillFrontmatterOwner():
+                parts.append(Note(f'for example:\n---\nname: {owner.directory_name}\ndescription: …\n---'))
+            case _:
+                assert_never(owner)
         return tuple(parts)
 
     @classmethod
@@ -121,24 +134,8 @@ class MissingFrontmatter(FrontmatterRule):
         frontmatter = subject.frontmatter()
         match frontmatter:
             case syntax.MissingFrontmatter():
-                owner = subject.frontmatter_owner()
-                return (cls(spec=owner_spec(owner), line=FIRST_LINE, directory_name=_directory_name(owner)),)
+                return (cls(owner=subject.frontmatter_owner(), line=FIRST_LINE),)
             case syntax.InvalidYamlFrontmatter() | syntax.NonMappingFrontmatter() | syntax.Frontmatter():
                 return ()
             case _:
                 assert_never(frontmatter)
-
-
-def _directory_name(owner: FrontmatterOwner) -> PathComponent | None:
-    """The name of a skill's directory, which its `name` must equal; `None` for a document.
-
-    Args:
-        owner: The document or the skill whose frontmatter is missing.
-    """
-    match owner:
-        case DocumentFrontmatterOwner():
-            return None
-        case SkillFrontmatterOwner():
-            return owner.directory_name
-        case _:
-            assert_never(owner)

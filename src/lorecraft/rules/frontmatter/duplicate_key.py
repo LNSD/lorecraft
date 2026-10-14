@@ -1,9 +1,10 @@
 """`FM005`: a frontmatter key is written more than once in one mapping."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import ClassVar, Self, assert_never
 
-from lorecraft.project.context import FrontmatterContext
+from lorecraft.core.path import RootRelativePath
+from lorecraft.project.context import FrontmatterContext, FrontmatterOwner
 from lorecraft.project.syntax import (
     Frontmatter,
     InvalidYamlFrontmatter,
@@ -76,8 +77,9 @@ class DuplicateKey(FrontmatterRule):
     ```
 
     Attributes:
-        spec: The structure specification whose frontmatter schema governs the document, or `None` for a skill,
-            which the Agent Skills specification governs.
+        spec: The specification file that governs the owner's frontmatter, derived from `owner`, so no caller states
+            one that disagrees with it.
+        owner: The document or the skill whose frontmatter repeats the key, and so which specification governs it.
         key: The key written again, as decoded.
         first_line: The line the key's first occurrence in its mapping is written on.
         kept_line: The line of the key's last occurrence in its mapping, whose value the reader keeps.
@@ -88,9 +90,17 @@ class DuplicateKey(FrontmatterRule):
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('0.3.0')
 
+    # The specification file is derived from `owner`, so no caller can state one that disagrees with it.
+    spec: RootRelativePath | None = field(init=False)
+    owner: FrontmatterOwner
     key: str
     first_line: LineNumber
     kept_line: LineNumber
+
+    def __post_init__(self) -> None:
+        """Derive the specification file from the owner of the frontmatter."""
+        # The dataclass is frozen, so the field a rule derives is set the one way a frozen dataclass allows.
+        object.__setattr__(self, 'spec', owner_spec(self.owner))
 
     def message(self) -> str:
         """Name the key.
@@ -113,7 +123,7 @@ class DuplicateKey(FrontmatterRule):
     def children(self) -> tuple[Subdiagnostic, ...]:
         """Name the specification, the key to write once, and the line whose value is read, unless it is this one."""
         parts: list[Subdiagnostic] = [
-            spec_note(self.spec),
+            spec_note(self.owner),
             Help(f'write {self.key!r} once, with the value meant'),
         ]
         if self.kept_line != self.line:
@@ -139,12 +149,12 @@ class DuplicateKey(FrontmatterRule):
             case _:
                 assert_never(frontmatter)
 
-        spec = owner_spec(subject.frontmatter_owner())
+        owner = subject.frontmatter_owner()
         occurrences: list[Self] = []
         for repeat in frontmatter.repeats:
             occurrences.append(
                 cls(
-                    spec=spec,
+                    owner=owner,
                     line=repeat.line,
                     key=repeat.name,
                     first_line=repeat.first_line,

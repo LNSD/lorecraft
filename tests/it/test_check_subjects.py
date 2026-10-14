@@ -982,7 +982,7 @@ class TestCheckSubjects:
         reports = check_subjects(database, (GUIDE,), package_table)
 
         #: Then
-        occurrence = MissingFrontmatter(spec=CODE_SPEC, line=LineNumber.from_int(1), directory_name=None)
+        occurrence = MissingFrontmatter(owner=GUIDE_OWNER, line=LineNumber.from_int(1))
         assert reports == (
             CheckedDocument(
                 GUIDE,
@@ -1003,7 +1003,7 @@ class TestCheckSubjects:
 
         #: Then
         occurrence = InvalidYaml(
-            spec=CODE_SPEC,
+            owner=GUIDE_OWNER,
             problem=_invalid_yaml_problem(guide),
             stopped_at=LineNumber.from_int(2),
         )
@@ -1025,7 +1025,7 @@ class TestCheckSubjects:
         reports = check_subjects(database, (GUIDE,), package_table)
 
         #: Then
-        occurrence = NonMappingFrontmatter(spec=CODE_SPEC, line=LineNumber.from_int(1))
+        occurrence = NonMappingFrontmatter(owner=GUIDE_OWNER, line=LineNumber.from_int(1))
         assert reports == (
             CheckedDocument(
                 GUIDE,
@@ -1064,7 +1064,7 @@ class TestCheckSubjects:
 
         #: Then
         occurrence = DuplicateKey(
-            spec=CODE_SPEC,
+            owner=GUIDE_OWNER,
             line=LineNumber.from_int(3),
             key='name',
             first_line=LineNumber.from_int(2),
@@ -1088,9 +1088,7 @@ class TestCheckSubjects:
         reports = check_subjects(database, (_location(database, REVIEW),), package_table)
 
         #: Then
-        occurrence = MissingFrontmatter(
-            spec=None, line=LineNumber.from_int(1), directory_name=PathComponent.parse('review')
-        )
+        occurrence = MissingFrontmatter(owner=REVIEW_OWNER, line=LineNumber.from_int(1))
         assert reports == (
             CheckedSkillFile(REVIEW, diagnostics=(RuleDiagnostic(REVIEW_FILE, occurrence, Severity.ERROR),)),
         ), 'every skill is governed for its frontmatter, so FM001 needs no specification in the repository'
@@ -1107,7 +1105,7 @@ class TestCheckSubjects:
 
         #: Then
         occurrence = InvalidYaml(
-            spec=None,
+            owner=REVIEW_OWNER,
             problem=_invalid_yaml_problem(review),
             stopped_at=LineNumber.from_int(2),
         )
@@ -1125,7 +1123,7 @@ class TestCheckSubjects:
         reports = check_subjects(database, (_location(database, REVIEW),), package_table)
 
         #: Then
-        occurrence = NonMappingFrontmatter(spec=None, line=LineNumber.from_int(1))
+        occurrence = NonMappingFrontmatter(owner=REVIEW_OWNER, line=LineNumber.from_int(1))
         assert reports == (
             CheckedSkillFile(REVIEW, diagnostics=(RuleDiagnostic(REVIEW_FILE, occurrence, Severity.ERROR),)),
         ), 'FM003 runs at deny over a skill whose block is not a mapping'
@@ -1164,7 +1162,7 @@ class TestCheckSubjects:
 
         #: Then
         occurrence = DuplicateKey(
-            spec=None,
+            owner=REVIEW_OWNER,
             line=LineNumber.from_int(3),
             key='name',
             first_line=LineNumber.from_int(2),
@@ -1466,7 +1464,7 @@ class TestCheckSubjects:
         reports = check_subjects(database, (GUIDE,), package_table)
 
         #: Then
-        occurrence = NonMappingFrontmatter(spec=CODE_SPEC, line=LineNumber.from_int(1))
+        occurrence = NonMappingFrontmatter(owner=GUIDE_OWNER, line=LineNumber.from_int(1))
         assert reports == (
             CheckedDocument(
                 GUIDE,
@@ -2014,7 +2012,7 @@ class TestCheckSubjects:
 
         #: Then
         invalid_yaml = InvalidYaml(
-            spec=None,
+            owner=REVIEW_OWNER,
             problem=_invalid_yaml_problem(review),
             stopped_at=LineNumber.from_int(2),
         )

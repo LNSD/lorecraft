@@ -45,16 +45,19 @@ def owner_spec(owner: FrontmatterOwner) -> RootRelativePath | None:
             assert_never(owner)
 
 
-def spec_note(spec: RootRelativePath | None) -> Note:
+def spec_note(owner: FrontmatterOwner) -> Note:
     """The note naming the specification that governs the subject's frontmatter.
 
     Args:
-        spec: The structure specification whose frontmatter schema governs a document, or `None` for a skill, which
-            the Agent Skills specification governs.
+        owner: The document or the skill whose frontmatter is judged.
     """
-    if spec is None:
-        return Note("the Agent Skills specification governs a SKILL.md's frontmatter")
-    return Note('the frontmatter schema is set here', at=Elsewhere(spec))
+    match owner:
+        case DocumentFrontmatterOwner():
+            return Note('the frontmatter schema is set here', at=Elsewhere(owner.spec))
+        case SkillFrontmatterOwner():
+            return Note("the Agent Skills specification governs a SKILL.md's frontmatter")
+        case _:
+            assert_never(owner)
 
 
 def schema_spec(source: SchemaSource) -> RootRelativePath | None:

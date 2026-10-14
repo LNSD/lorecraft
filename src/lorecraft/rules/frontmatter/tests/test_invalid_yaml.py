@@ -10,7 +10,9 @@ from typing import Final
 
 import pytest
 
-from lorecraft.core.path import RootRelativePath
+from lorecraft.core.path import PathComponent, RootRelativePath
+from lorecraft.project.aspect import AspectFilename
+from lorecraft.project.context import DocumentFrontmatterOwner, SkillFrontmatterOwner
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.location import Elsewhere, Help, Here, Label, Note
 from lorecraft.rules.tests.fake_context import FakeDocumentContext, FakeSkillContext, structure_spec_path
@@ -23,11 +25,21 @@ STRUCTURE: Final[str] = '{"frontmatter": {"type": "object"}}'
 SPEC: Final[RootRelativePath] = structure_spec_path('guide')
 """Where the corpus structure specification lies."""
 
+DOCUMENT_OWNER: Final[DocumentFrontmatterOwner] = DocumentFrontmatterOwner(
+    filename=AspectFilename.parse('setup'), spec=SPEC
+)
+"""The fake document, which the corpus structure specification governs."""
+
+SKILL_OWNER: Final[SkillFrontmatterOwner] = SkillFrontmatterOwner(
+    directory_name=PathComponent.parse('review'), link_target=None
+)
+"""The fake skill, listed as `review` and not a link."""
+
 
 def _stopped_at_line_3() -> InvalidYaml:
     """A document's occurrence for a block the YAML parser stopped reading on line 3."""
     return InvalidYaml(
-        spec=SPEC,
+        owner=DOCUMENT_OWNER,
         problem='mapping values are not allowed here',
         stopped_at=LineNumber.from_int(3),
     )
@@ -52,7 +64,7 @@ class TestInvalidYaml:
         #: Then
         assert occurrences == (
             InvalidYaml(
-                spec=SPEC,
+                owner=DOCUMENT_OWNER,
                 problem='this value holds `: `',
                 stopped_at=LineNumber.from_int(3),
                 help='Quote the value: `description: "Setup: install the toolkit"`',
@@ -73,7 +85,7 @@ class TestInvalidYaml:
         #: Then
         assert occurrences == (
             InvalidYaml(
-                spec=None,
+                owner=SKILL_OWNER,
                 problem='found collections nested too deeply to parse',
                 stopped_at=None,
             ),
@@ -132,7 +144,7 @@ class TestInvalidYaml:
         stopped_at = LineNumber.from_int(3)
 
         #: When
-        occurrence = InvalidYaml(spec=SPEC, problem='found a problem', stopped_at=stopped_at)
+        occurrence = InvalidYaml(owner=DOCUMENT_OWNER, problem='found a problem', stopped_at=stopped_at)
 
         #: Then
         assert occurrence.line == stopped_at, 'the occurrence is reported on the line the reader stopped on'
@@ -142,7 +154,7 @@ class TestInvalidYaml:
         stopped_at = None
 
         #: When
-        occurrence = InvalidYaml(spec=SPEC, problem='found a problem', stopped_at=stopped_at)
+        occurrence = InvalidYaml(owner=DOCUMENT_OWNER, problem='found a problem', stopped_at=stopped_at)
 
         #: Then
         assert occurrence.line == LineNumber.from_int(1), 'the occurrence is reported where the block opens'
@@ -154,7 +166,7 @@ class TestInvalidYaml:
         #: When
         with pytest.raises(TypeError):
             InvalidYaml(
-                spec=SPEC,
+                owner=DOCUMENT_OWNER,
                 line=LineNumber.from_int(9),  # ty: ignore[unknown-argument]
                 problem='bad',
                 stopped_at=stopped_at,
@@ -165,7 +177,7 @@ class TestInvalidYaml:
 
     def test_labels_with_no_known_line_say_the_problem_lies_in_the_block_opened_on_line_1(self) -> None:
         #: Given
-        occurrence = InvalidYaml(spec=SPEC, problem='found a problem', stopped_at=None)
+        occurrence = InvalidYaml(owner=DOCUMENT_OWNER, problem='found a problem', stopped_at=None)
 
         #: When
         labels = occurrence.labels()
@@ -190,7 +202,7 @@ class TestInvalidYaml:
     def test_children_with_a_help_put_the_help_before_the_specification(self) -> None:
         #: Given
         occurrence = InvalidYaml(
-            spec=SPEC,
+            owner=DOCUMENT_OWNER,
             problem='this quote is never closed',
             stopped_at=LineNumber.from_int(3),
             help='Close it on the line it continues to, or remove it',
@@ -208,7 +220,7 @@ class TestInvalidYaml:
     def test_children_with_a_skill_name_the_agent_skills_specification(self) -> None:
         #: Given
         occurrence = InvalidYaml(
-            spec=None,
+            owner=SKILL_OWNER,
             problem='mapping values are not allowed here',
             stopped_at=LineNumber.from_int(3),
         )

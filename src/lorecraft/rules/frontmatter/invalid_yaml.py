@@ -3,7 +3,8 @@
 from dataclasses import dataclass, field
 from typing import ClassVar, Self, assert_never
 
-from lorecraft.project.context import FrontmatterContext
+from lorecraft.core.path import RootRelativePath
+from lorecraft.project.context import FrontmatterContext, FrontmatterOwner
 from lorecraft.project.schemas import FIRST_LINE
 from lorecraft.project.syntax import (
     Frontmatter,
@@ -77,8 +78,9 @@ class InvalidYaml(FrontmatterRule):
     ```
 
     Attributes:
-        spec: The structure specification whose frontmatter schema governs the document, or `None` for a skill,
-            which the Agent Skills specification governs.
+        spec: The specification file that governs the owner's frontmatter, derived from `owner`, so no caller states
+            one that disagrees with it.
+        owner: The document or the skill whose frontmatter is not YAML, and so which specification governs it.
         problem: What is wrong with the YAML, in lorecraft's words.
         stopped_at: The line the YAML reader stopped on, which the occurrence is reported at; or `None` when it
             cannot be known, and the occurrence is reported at the line that opens the block.
@@ -91,16 +93,20 @@ class InvalidYaml(FrontmatterRule):
     SINCE: ClassVar[Release] = Release('0.3.0')
 
     # Reported at the line the YAML reader stopped on, or else at the line that opens the block, so it is derived
-    # from `stopped_at` and no caller can state a line that disagrees with it.
+    # from `stopped_at` and no caller can state a line that disagrees with it. The specification file is derived
+    # from `owner` the same way.
     line: LineNumber = field(init=False)
+    spec: RootRelativePath | None = field(init=False)
+    owner: FrontmatterOwner
     problem: str
     stopped_at: LineNumber | None
     help: str | None = None
 
     def __post_init__(self) -> None:
-        """Derive the reported line from where the YAML reader stopped."""
+        """Derive the reported line from where the YAML reader stopped, and the specification from the owner."""
         # The dataclass is frozen, so the field a rule derives is set the one way a frozen dataclass allows.
         object.__setattr__(self, 'line', FIRST_LINE if self.stopped_at is None else self.stopped_at)
+        object.__setattr__(self, 'spec', owner_spec(self.owner))
 
     def message(self) -> str:
         """Name what the block is not; the problem, in lorecraft's words, is the label's."""
@@ -115,8 +121,8 @@ class InvalidYaml(FrontmatterRule):
     def children(self) -> tuple[Subdiagnostic, ...]:
         """Name what to do about the problem, where there is one, and the specification that governs the frontmatter."""
         if self.help is None:
-            return (spec_note(self.spec),)
-        return (Help(self.help), spec_note(self.spec))
+            return (spec_note(self.owner),)
+        return (Help(self.help), spec_note(self.owner))
 
     @classmethod
     def check(cls, subject: FrontmatterContext) -> tuple[Self, ...]:
@@ -128,10 +134,9 @@ class InvalidYaml(FrontmatterRule):
         frontmatter = subject.frontmatter()
         match frontmatter:
             case InvalidYamlFrontmatter():
-                spec = owner_spec(subject.frontmatter_owner())
                 return (
                     cls(
-                        spec=spec,
+                        owner=subject.frontmatter_owner(),
                         problem=frontmatter.problem,
                         stopped_at=frontmatter.line,
                         help=frontmatter.help,
