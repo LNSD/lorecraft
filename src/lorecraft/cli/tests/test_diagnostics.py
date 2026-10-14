@@ -261,6 +261,28 @@ class TestRenderText:
         #: Then
         assert '          one\x0ctwo\n          three' in text, 'a form feed ends no line, so the note has two lines'
 
+    def test_render_text_with_a_lone_carriage_return_in_a_note_draws_each_side_as_a_line(self) -> None:
+        #: Given
+        guide = _document('feat', 'guide')
+        missing_usage = MissingSection(
+            spec=_FEAT_SPEC,
+            section=SectionName.parse('Usage'),
+            before=DocumentEnd(last_line=_line(9), after=None),
+            description=None,
+            example='one\rtwo',
+        )
+        reports: tuple[RunReport, ...] = (
+            CheckedDocument(
+                guide, diagnostics=(RuleDiagnostic(guide.path, missing_usage, Severity.ERROR),), ungoverned=()
+            ),
+        )
+
+        #: When
+        text = render_text(reports, {}, _PLAIN)
+
+        #: Then
+        assert '          one\n          two' in text, 'a lone `\\r` ends a line, as CommonMark has it'
+
     def test_render_text_with_a_note_of_padded_and_blank_lines_aligns_and_strips_them(self) -> None:
         #: Given
         guide = _document('feat', 'guide')

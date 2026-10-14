@@ -85,9 +85,9 @@ class TestDecodeFrontmatter:
             FrontmatterKey('name', LineNumber.from_int(2)),
             FrontmatterKey('type', LineNumber.from_int(2)),
             FrontmatterKey('count', LineNumber.from_int(3)),
-        ), f'{separator!r} breaks a YAML line but ends no document line, which only a `\\n` does'
+        ), f'{separator!r} breaks a YAML line but ends no document line, as CommonMark has it'
 
-    def test_decode_frontmatter_with_a_lone_carriage_return_returns_each_key_on_the_same_document_line(self) -> None:
+    def test_decode_frontmatter_with_a_lone_carriage_return_returns_each_key_on_its_document_line(self) -> None:
         #: Given
         block = 'name: guide\rtype: rule\ncount: 1\n'
 
@@ -98,9 +98,42 @@ class TestDecodeFrontmatter:
         assert isinstance(node, Frontmatter), f'a YAML mapping is frontmatter, got {node!r}'
         assert node.keys == (
             FrontmatterKey('name', LineNumber.from_int(2)),
-            FrontmatterKey('type', LineNumber.from_int(2)),
-            FrontmatterKey('count', LineNumber.from_int(3)),
-        ), 'a lone `\\r` breaks a YAML line but ends no document line, which only a `\\n` does'
+            FrontmatterKey('type', LineNumber.from_int(3)),
+            FrontmatterKey('count', LineNumber.from_int(4)),
+        ), 'a lone `\\r` ends a line, as CommonMark has it, so each key is on its own document line'
+
+    def test_decode_frontmatter_with_a_control_character_after_a_lone_carriage_return_returns_invalid_yaml_on_its_line(
+        self,
+    ) -> None:
+        #: Given
+        block = 'name: guide\rtype: \x07\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert isinstance(node, InvalidYamlFrontmatter), f'a control character is invalid YAML, got {node!r}'
+        assert node.line == LineNumber.from_int(3), (
+            f'a lone `\\r` ends a line, so the byte is on line 3, got {node.line}'
+        )
+
+    def test_decode_frontmatter_with_an_unclosed_quote_after_a_lone_carriage_return_returns_invalid_yaml_on_its_line(
+        self,
+    ) -> None:
+        #: Given
+        block = 'name: guide\rtype: "open\nx: 1\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert isinstance(node, InvalidYamlFrontmatter), f'an unclosed quote is invalid YAML, got {node!r}'
+        assert node.line == LineNumber.from_int(3), (
+            f'a lone `\\r` ends a line, so the quote is on line 3, got {node.line}'
+        )
+        assert node.help == 'Close it on the line it continues to, or remove it', (
+            f'the help is read from the line the parser marked, got {node.help!r}'
+        )
 
     def test_decode_frontmatter_with_a_flow_collection_spread_over_a_next_line_returns_invalid_yaml(self) -> None:
         #: Given
@@ -214,7 +247,7 @@ class TestDecodeFrontmatter:
             FrontmatterKey('name', LineNumber.from_int(2)),
             FrontmatterKey('type', LineNumber.from_int(2)),
             FrontmatterKey('count', LineNumber.from_int(3)),
-        ), f'{separator!r} breaks a YAML line but ends no document line, which only a `\\n` does'
+        ), f'{separator!r} breaks a YAML line but ends no document line, as CommonMark has it'
 
     def test_decode_frontmatter_with_a_paragraph_separator_returns_each_key_on_its_document_line(self) -> None:
         #: Given
@@ -230,7 +263,7 @@ class TestDecodeFrontmatter:
             FrontmatterKey('name', LineNumber.from_int(2)),
             FrontmatterKey('type', LineNumber.from_int(2)),
             FrontmatterKey('count', LineNumber.from_int(3)),
-        ), f'{separator!r} breaks a YAML line but ends no document line, which only a `\\n` does'
+        ), f'{separator!r} breaks a YAML line but ends no document line, as CommonMark has it'
 
     def test_decode_frontmatter_with_quoted_keys_returns_each_key_by_its_decoded_name(self) -> None:
         #: Given

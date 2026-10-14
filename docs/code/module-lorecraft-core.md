@@ -36,9 +36,9 @@ integers and ranges. A number type tied to a domain concept lives with that doma
 
 ### `lines`
 
-`lorecraft.core.lines` is the one place that says where a line ends: at a `\n`. Any code that counts, splits or
-numbers the lines of a text, or of the bytes it decodes from, goes through it, so two packages never disagree on a
-line number.
+`lorecraft.core.lines` is the one place that says where a line ends: at a `\n`, a `\r\n` or a lone `\r`, as
+CommonMark has it. Any code that counts, splits or numbers the lines of a text, or of the bytes it decodes from,
+goes through it, so two packages never disagree on a line number.
 
 ## Belongs Elsewhere
 

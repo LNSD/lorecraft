@@ -180,7 +180,8 @@ def _find_frontmatter_block(text: str) -> str | None:
 
     The block is the one the full parser finds, so it ends lines where the parser does, which includes a form feed,
     a vertical tab, U+0085 and the Unicode line and paragraph separators. The block's text keeps its line endings,
-    and the lines after it are numbered by `\n` alone, as every finding numbers them.
+    and the lines after it are numbered by the line breaks `lorecraft.core.lines` defines, as every finding
+    numbers them.
 
     Args:
         text: The document's whole text.
@@ -201,7 +202,7 @@ def _block(text: str, newlines: tuple[int, ...], node: Node) -> HeadingBlock | C
 
     Args:
         text: The document's text, which the block's position indexes into.
-        newlines: The offset of every `\n` in `text`, as `newline_offsets` returns them.
+        newlines: The offset where each line break in `text` starts, as `newline_offsets` returns them.
         node: One of the root's children, in the tree `parse_markdown` parsed.
     """
     if isinstance(node, WenmodeHeading):
@@ -276,8 +277,8 @@ def _collect_headings_and_links(
     lists grow in document order, and an image inside a link's text comes after that link.
 
     Args:
-        newlines: The offset of every `\n` in the document's text, as `newline_offsets` returns them, which gives
-            each link its line from its position.
+        newlines: The offset where each line break in the document's text starts, as `newline_offsets` returns them,
+            which gives each link its line from its position.
         node: Root of the subtree to walk; a leaf is walked as itself.
         heading_texts: Where each heading's rendered text is appended.
         links: Where each link and image is appended.
@@ -316,10 +317,11 @@ def _line(newlines: tuple[int, ...], span: Position) -> LineNumber:
     r"""The document line a node's span starts on, a block's or an inline's alike.
 
     wenmode reports a node's position as a character offset into the text; every line before the offset ends in
-    a `\n`, a `\r\n` included, so the line is one more than the number of `\n` before the offset.
+    a line break, so the line is one more than the number of line breaks that start before the offset. A node never
+    starts between the halves of a `\r\n` pair, so this agrees with `lorecraft.core.lines.line_at`.
 
     Args:
-        newlines: The offset of every `\n` in the document's text, as `newline_offsets` returns them.
+        newlines: The offset where each line break in the document's text starts, as `newline_offsets` returns them.
         span: Where the node to locate sits, as `_position` reads it.
     """
     return LineNumber.from_int(bisect_left(newlines, span.start) + 1)

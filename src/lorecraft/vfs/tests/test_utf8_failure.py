@@ -52,7 +52,18 @@ class TestUtf8FailureFromError:
         failure = Utf8Failure.from_error(error)
 
         #: Then
-        assert failure.line == Utf8Line(2), f'only a line feed ends a line, got line {failure.line}'
+        assert failure.line == Utf8Line(2), f'a line feed ends a line and these do not, got line {failure.line}'
+
+    def test_from_error_with_carriage_returns_before_the_byte_counts_each_line_break(self) -> None:
+        #: Given
+        # a lone carriage return, a CRLF pair counted once, then a lone carriage return before the invalid byte
+        error = _decode_error(b'a\rb\r\nc\rCaf\xe9')
+
+        #: When
+        failure = Utf8Failure.from_error(error)
+
+        #: Then
+        assert failure.line == Utf8Line(4), f'a lone `\\r` and a CRLF pair each end one line, got {failure.line}'
 
     def test_from_error_with_an_invalid_first_byte_returns_the_first_line(self) -> None:
         #: Given
