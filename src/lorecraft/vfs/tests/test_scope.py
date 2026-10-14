@@ -422,9 +422,10 @@ class TestScopeIndex:
         #: Given
         snapshot = _snapshot_of_links({'.agents/skills/y': '../../skills/y'}, scope=SCOPE)
         index = ScopeIndex(snapshot)
+        path = _path('skills/y/absent.md')
 
         #: When
-        in_scope = index.is_in_scope(_path('skills/y/absent.md'))
+        in_scope = index.is_in_scope(path)
 
         #: Then
         assert in_scope is True, 'the index expands the skills root through the link it follows, to skills/y'
@@ -434,9 +435,10 @@ class TestScopeIndex:
         snapshot = _snapshot_of_links({'.agents/skills/y': '../../skills/y'}, scope=SCOPE)
         index = ScopeIndex(snapshot)
         index.is_in_scope(_path('src/tool.py'))
+        path = _path('skills/y/absent.md')
 
         #: When
-        in_scope = index.is_in_scope(_path('skills/y/absent.md'))
+        in_scope = index.is_in_scope(path)
 
         #: Then
         assert in_scope is True, 'a question answered false leaves the expanded roots as they were built'
@@ -446,9 +448,10 @@ class TestScopeIndex:
         snapshot = _snapshot_of_links({'.agents/skills/y': '../../skills/y'}, scope=DEPTH_ONE_SCOPE)
         index = ScopeIndex(snapshot)
         index.is_in_scope(_path('skills/y/absent.md'))
+        path = _path('skills/y/sub/a.md')
 
         #: When
-        in_scope = index.is_in_scope(_path('skills/y/sub/a.md'))
+        in_scope = index.is_in_scope(path)
 
         #: Then
         assert in_scope is False, 'a question answered true widens nothing: skills/y is still listed and not entered'
@@ -457,9 +460,10 @@ class TestScopeIndex:
         #: Given
         snapshot = _snapshot_of_links({'.agents/skills/y': '../../skills/y'}, scope=())
         index = ScopeIndex(snapshot)
+        path = _path('skills/y/absent.md')
 
         #: When
-        in_scope = index.is_in_scope(_path('skills/y/absent.md'))
+        in_scope = index.is_in_scope(path)
 
         #: Then
         assert in_scope is False, 'with no root declared no link is followed, so nothing is in scope'

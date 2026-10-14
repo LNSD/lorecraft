@@ -128,9 +128,10 @@ class TestRenderText:
         #: Given
         reports = _every_kind_of_report()
         expected = snapshot.use_extension(TextSnapshotExtension)
+        sources = _sources()
 
         #: When
-        text = render_text(reports, _sources(), _PLAIN)
+        text = render_text(reports, sources, _PLAIN)
 
         #: Then
         assert text == expected, 'the diagnostics of every kind of report match the reviewed snapshot'
@@ -149,9 +150,10 @@ class TestRenderText:
         #: Given
         reports = _every_kind_of_report()
         style = TextStyle(color=False, unicode=False, width=80)
+        sources = _sources()
 
         #: When
-        text = render_text(reports, _sources(), style)
+        text = render_text(reports, sources, style)
 
         #: Then
         assert ('2 | name: a\n  | ------- first written here\n3 | name: b\n  | ^^^^^^^ written again here') in text, (
@@ -165,9 +167,10 @@ class TestRenderText:
         #: Given
         reports = _every_kind_of_report()
         style = TextStyle(color=True, unicode=True, width=80)
+        sources = _sources()
 
         #: When
-        text = render_text(reports, _sources(), style)
+        text = render_text(reports, sources, style)
 
         #: Then
         assert '\x1b[31m\x1b[1merror[FM005]\x1b[0m' in text, 'an error is bold red'
@@ -207,9 +210,10 @@ class TestRenderText:
         #: Given
         reports = _every_kind_of_report()
         style = TextStyle(color=False, unicode=True, width=60)
+        sources = _sources()
 
         #: When
-        text = render_text(reports, _sources(), style)
+        text = render_text(reports, sources, style)
 
         #: Then
         assert (

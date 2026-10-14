@@ -17,15 +17,17 @@ class TestHeading:
         #: Given
         # The type rules 0 out; the cast stands in for a value that reached the field through `Any`.
         rejected = cast(HeadingLevel, 0)
+        line = LineNumber(NonZeroUnsignedInt(1))
+        words = WordCount(UnsignedInt(0))
 
         #: When
         with pytest.raises(AssertionError) as exc_info:
             Heading(
                 level=rejected,
                 text='Intro',
-                line=LineNumber(NonZeroUnsignedInt(1)),
+                line=line,
                 empty=False,
-                words=WordCount(UnsignedInt(0)),
+                words=words,
             )
 
         #: Then
@@ -35,15 +37,17 @@ class TestHeading:
         #: Given
         # The type rules 7 out; the cast stands in for a value that reached the field through `Any`.
         rejected = cast(HeadingLevel, 7)
+        line = LineNumber(NonZeroUnsignedInt(1))
+        words = WordCount(UnsignedInt(0))
 
         #: When
         with pytest.raises(AssertionError) as exc_info:
             Heading(
                 level=rejected,
                 text='Deep',
-                line=LineNumber(NonZeroUnsignedInt(1)),
+                line=line,
                 empty=False,
-                words=WordCount(UnsignedInt(0)),
+                words=words,
             )
 
         #: Then
@@ -52,14 +56,16 @@ class TestHeading:
     def test_heading_level_one_constructs(self) -> None:
         #: Given
         accepted = 1
+        line = LineNumber(NonZeroUnsignedInt(1))
+        words = WordCount(UnsignedInt(5))
 
         #: When
         heading = Heading(
             level=accepted,
             text='Title',
-            line=LineNumber(NonZeroUnsignedInt(1)),
+            line=line,
             empty=False,
-            words=WordCount(UnsignedInt(5)),
+            words=words,
         )
 
         #: Then
@@ -68,14 +74,16 @@ class TestHeading:
     def test_heading_level_six_constructs(self) -> None:
         #: Given
         accepted = 6
+        line = LineNumber(NonZeroUnsignedInt(10))
+        words = WordCount(UnsignedInt(0))
 
         #: When
         heading = Heading(
             level=accepted,
             text='Section',
-            line=LineNumber(NonZeroUnsignedInt(10)),
+            line=line,
             empty=True,
-            words=WordCount(UnsignedInt(0)),
+            words=words,
         )
 
         #: Then

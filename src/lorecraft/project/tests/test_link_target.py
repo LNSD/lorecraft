@@ -93,9 +93,10 @@ class TestFindLinkTargetsInASkill:
     def test_link_targets_of_with_a_file_and_a_directory_of_the_skill_finds_both_present(self) -> None:
         #: Given
         urls = ('references/a.md', 'references/')
+        snapshot = _snapshot()
 
         #: When
-        found = _find(urls, REVIEW_ROOT, _snapshot())
+        found = _find(urls, REVIEW_ROOT, snapshot)
 
         #: Then
         assert found == {
@@ -106,9 +107,10 @@ class TestFindLinkTargetsInASkill:
     def test_link_targets_of_with_nothing_at_the_path_finds_it_missing(self) -> None:
         #: Given
         urls = ('references/b.md',)
+        snapshot = _snapshot()
 
         #: When
-        found = _find(urls, REVIEW_ROOT, _snapshot())
+        found = _find(urls, REVIEW_ROOT, snapshot)
 
         #: Then
         assert found == {
@@ -119,9 +121,10 @@ class TestFindLinkTargetsInASkill:
         #: Given
         # `a.md` would be the resource itself, read from `references/`; from the skill root it names nothing.
         urls = ('a.md', 'references/../SKILL.md')
+        snapshot = _snapshot()
 
         #: When
-        found = _find(urls, REVIEW_ROOT, _snapshot())
+        found = _find(urls, REVIEW_ROOT, snapshot)
 
         #: Then
         assert found == {
@@ -132,9 +135,10 @@ class TestFindLinkTargetsInASkill:
     def test_link_targets_of_with_a_link_to_the_skill_root_itself_finds_it_present(self) -> None:
         #: Given
         urls = ('references/..',)
+        snapshot = _snapshot()
 
         #: When
-        found = _find(urls, REVIEW_ROOT, _snapshot())
+        found = _find(urls, REVIEW_ROOT, snapshot)
 
         #: Then
         assert found == {'.': _link_target('.agents/skills/review', PathLookup.PRESENT)}, (
@@ -144,9 +148,10 @@ class TestFindLinkTargetsInASkill:
     def test_link_targets_of_with_a_link_out_and_back_in_by_the_repository_path_finds_it_escaping(self) -> None:
         #: Given
         urls = ('../../skills/review/SKILL.md',)
+        snapshot = _snapshot()
 
         #: When
-        found = _find(urls, REVIEW_ROOT, _snapshot())
+        found = _find(urls, REVIEW_ROOT, snapshot)
 
         #: Then
         assert found == {'../../skills/review/SKILL.md': EscapingTarget()}, (
@@ -156,9 +161,10 @@ class TestFindLinkTargetsInASkill:
     def test_link_targets_of_with_a_link_climbing_above_the_skill_root_finds_it_escaping(self) -> None:
         #: Given
         urls = ('../review/SKILL.md',)
+        snapshot = _snapshot()
 
         #: When
-        found = _find(urls, REVIEW_ROOT, _snapshot())
+        found = _find(urls, REVIEW_ROOT, snapshot)
 
         #: Then
         assert found == {'../review/SKILL.md': EscapingTarget()}, (
@@ -168,9 +174,10 @@ class TestFindLinkTargetsInASkill:
     def test_link_targets_of_with_links_spelling_no_relative_path_gives_them_no_entry(self) -> None:
         #: Given
         urls = ('https://example.com/a.md', '/a.md', '#usage')
+        snapshot = _snapshot()
 
         #: When
-        found = _find(urls, REVIEW_ROOT, _snapshot())
+        found = _find(urls, REVIEW_ROOT, snapshot)
 
         #: Then
         assert found == {}, 'a URL, an absolute link and a fragment-only link name no relative path'
@@ -195,9 +202,10 @@ class TestFindLinkTargetsInADocument:
     def test_link_targets_of_reads_a_link_from_the_document_directory(self) -> None:
         #: Given
         urls = ('setup.md', 'install.md', '../code/rules.md')
+        snapshot = _snapshot()
 
         #: When
-        found = _find(urls, GUIDE_DIRECTORY, _snapshot())
+        found = _find(urls, GUIDE_DIRECTORY, snapshot)
 
         #: Then
         assert found == {
@@ -209,9 +217,10 @@ class TestFindLinkTargetsInADocument:
     def test_link_targets_of_with_a_path_the_scan_never_read_finds_it_outside_the_scope(self) -> None:
         #: Given
         urls = ('../../shared/guides/d.md',)
+        snapshot = _snapshot()
 
         #: When
-        found = _find(urls, GUIDE_DIRECTORY, _snapshot())
+        found = _find(urls, GUIDE_DIRECTORY, snapshot)
 
         #: Then
         assert found == {'../../shared/guides/d.md': _link_target('shared/guides/d.md', PathLookup.OUTSIDE_SCOPE)}, (
@@ -221,9 +230,10 @@ class TestFindLinkTargetsInADocument:
     def test_link_targets_of_with_a_link_climbing_above_the_repository_finds_it_escaping(self) -> None:
         #: Given
         urls = ('../../../x.md',)
+        snapshot = _snapshot()
 
         #: When
-        found = _find(urls, GUIDE_DIRECTORY, _snapshot())
+        found = _find(urls, GUIDE_DIRECTORY, snapshot)
 
         #: Then
         assert found == {'../../../x.md': EscapingTarget()}, (

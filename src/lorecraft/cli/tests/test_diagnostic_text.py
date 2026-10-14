@@ -17,9 +17,10 @@ class TestSourceText:
     def test_line_with_the_first_line_returns_the_first_text(self) -> None:
         #: Given
         source = SourceText(('---', 'name: a'))
+        line = _line(1)
 
         #: When
-        text = source.line(_line(1))
+        text = source.line(line)
 
         #: Then
         assert text == '---', 'line 1 is the first line, not the second'
@@ -27,10 +28,12 @@ class TestSourceText:
     def test_line_with_a_first_line_opening_with_a_byte_order_mark_returns_it_without_the_mark(self) -> None:
         #: Given
         source = SourceText(('\ufeff---', '\ufeffname: a'))
+        first_line = _line(1)
+        second_line = _line(2)
 
         #: When
-        first = source.line(_line(1))
-        second = source.line(_line(2))
+        first = source.line(first_line)
+        second = source.line(second_line)
 
         #: Then
         assert first == '---', 'the mark takes no column of the first line'
@@ -39,9 +42,10 @@ class TestSourceText:
     def test_line_with_the_last_line_returns_the_last_text(self) -> None:
         #: Given
         source = SourceText(('---', 'name: a'))
+        line = _line(2)
 
         #: When
-        text = source.line(_line(2))
+        text = source.line(line)
 
         #: Then
         assert text == 'name: a', 'the last line is read by its own number'
@@ -49,9 +53,10 @@ class TestSourceText:
     def test_has_line_with_the_last_line_returns_true(self) -> None:
         #: Given
         source = SourceText(('---', 'name: a'))
+        line = _line(2)
 
         #: When
-        has_line = source.has_line(_line(2))
+        has_line = source.has_line(line)
 
         #: Then
         assert has_line is True, 'the file runs to its last line'
@@ -59,9 +64,10 @@ class TestSourceText:
     def test_has_line_with_a_line_past_the_end_returns_false(self) -> None:
         #: Given
         source = SourceText(('---', 'name: a'))
+        line = _line(3)
 
         #: When
-        has_line = source.has_line(_line(3))
+        has_line = source.has_line(line)
 
         #: Then
         assert has_line is False, 'a line the file does not run to cannot be excerpted'

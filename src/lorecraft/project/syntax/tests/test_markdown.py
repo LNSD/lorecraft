@@ -210,10 +210,11 @@ class TestHeadingBlock:
         #: Given
         # The type rules 0 out; the cast stands in for a value that reached the field through `Any`.
         rejected = cast(HeadingLevel, 0)
+        line = LineNumber(NonZeroUnsignedInt(1))
 
         #: When
         with pytest.raises(AssertionError) as exc_info:
-            HeadingBlock(level=rejected, text='Intro', line=LineNumber(NonZeroUnsignedInt(1)))
+            HeadingBlock(level=rejected, text='Intro', line=line)
 
         #: Then
         assert str(rejected) in str(exc_info.value), 'the error names the rejected level'
@@ -222,10 +223,11 @@ class TestHeadingBlock:
         #: Given
         # The type rules 7 out; the cast stands in for a value that reached the field through `Any`.
         rejected = cast(HeadingLevel, 7)
+        line = LineNumber(NonZeroUnsignedInt(1))
 
         #: When
         with pytest.raises(AssertionError) as exc_info:
-            HeadingBlock(level=rejected, text='Deep', line=LineNumber(NonZeroUnsignedInt(1)))
+            HeadingBlock(level=rejected, text='Deep', line=line)
 
         #: Then
         assert str(rejected) in str(exc_info.value), 'the error names the rejected level'

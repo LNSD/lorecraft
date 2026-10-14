@@ -101,9 +101,10 @@ class TestReportLoadFailures:
         #: Given
         first = LoadFailure(_PATH, EmptyStructureSpec())
         second = LoadFailure(_ENTRY, UnresolvableSkillEntry(_REFUSAL))
+        model = _model(first, second)
 
         #: When
-        reports = report_load_failures(_model(first, second))
+        reports = report_load_failures(model)
 
         #: Then
         assert reports == (
@@ -121,9 +122,10 @@ class TestReportLoadFailures:
     def test_report_load_failures_with_an_unlistable_docs_directory_returns_it_as_the_unlistable_root(self) -> None:
         #: Given
         failure = LoadFailure(RootRelativePath.parse('docs'), UnlistableDirectory(_REFUSAL))
+        model = _model(failure)
 
         #: When
-        result = report_load_failures(_model(failure))
+        result = report_load_failures(model)
 
         #: Then
         assert result == UnlistableRoot(failure), 'no diagnostic stands for it: the command stops the run on it'
@@ -133,9 +135,10 @@ class TestReportLoadFailures:
         other = LoadFailure(_PATH, EmptyStructureSpec())
         first = LoadFailure(RootRelativePath.parse('docs/__meta__'), UnlistableDirectory(_REFUSAL))
         second = LoadFailure(RootRelativePath.parse('docs'), UnlistableDirectory(_REFUSAL))
+        model = _model(other, first, second)
 
         #: When
-        result = report_load_failures(_model(other, first, second))
+        result = report_load_failures(model)
 
         #: Then
         assert result == UnlistableRoot(first), 'the failure is the first the model listed, and no report is returned'
@@ -346,9 +349,10 @@ class TestReportLoadFailures:
     def test_report_load_failures_with_an_unlistable_corpus_directory_reports_the_corpus_and_the_refusal(self) -> None:
         #: Given
         condition = UnlistableCorpusDirectory(CorpusName.parse('code'), _REFUSAL)
+        path = RootRelativePath.parse('docs/code')
 
         #: When
-        occurrence = _condition_of(condition, RootRelativePath.parse('docs/code'))
+        occurrence = _condition_of(condition, path)
 
         #: Then
         assert occurrence == unreadable_path.UnreadablePath(

@@ -257,9 +257,10 @@ class TestLineAt:
     def test_line_at_with_bytes_counts_lines_as_the_text_they_decode_to(self) -> None:
         #: Given
         data = b'a\nb\r\nc\rd\xff'
+        offset = data.index(b'\xff')
 
         #: When
-        line = line_at(data, data.index(b'\xff'))
+        line = line_at(data, offset)
 
         #: Then
         assert line == 4, f'bytes break lines at the same bytes as text does, got {line}'

@@ -100,9 +100,10 @@ class TestCheckSubjectsWithAFailedLayer:
             {'code.structure.json': STATES_NO_RULE, 'code-python.structure.json': CORPUS_SPEC},
             {'python-typing.md': DOCUMENT, 'logging.md': DOCUMENT},
         )
+        table = _all_rules()
 
         #: When
-        reports = check_subjects(database, [TYPING, LOGGING], _all_rules())
+        reports = check_subjects(database, [TYPING, LOGGING], table)
 
         #: Then
         assert reports == (
@@ -136,9 +137,10 @@ class TestCheckSubjectsWithAFailedLayer:
             {'code.structure.json': STATES_NO_RULE, 'code-python.structure.json': STATES_NO_RULE},
             {'python-typing.md': DOCUMENT},
         )
+        table = _all_rules()
 
         #: When
-        reports = check_subjects(database, [TYPING], _all_rules())
+        reports = check_subjects(database, [TYPING], table)
 
         #: Then
         assert reports == (SkippedSubject(TYPING, failed_layers=(CODE_SPEC_PATH, PYTHON_SPEC_PATH)),), (
@@ -151,9 +153,10 @@ class TestCheckSubjectsWithAFailedLayer:
             {'code.structure.json': STATES_NO_RULE},
             {'python-typing.md': b'---\nname: caf\xe9\n---\n'},
         )
+        table = _all_rules()
 
         #: When
-        reports = check_subjects(database, [TYPING], _all_rules())
+        reports = check_subjects(database, [TYPING], table)
 
         #: Then
         assert len(reports) == 1, 'the one document has one report'

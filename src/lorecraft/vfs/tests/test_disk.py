@@ -56,8 +56,13 @@ class TestSnapshotRecorder:
         #: Given
         recorder = SnapshotRecorder()
 
+        path = _path('docs/a.md')
+
+        record = FileRecord(b'a')
+
         #: When
-        recorder.record(_path('docs/a.md'), FileRecord(b'a'))
+
+        recorder.record(path, record)
 
         #: Then
         assert recorder.to_records() == FrozenMapping({_path('docs/a.md'): FileRecord(b'a')}), (
@@ -69,8 +74,13 @@ class TestSnapshotRecorder:
         recorder = SnapshotRecorder()
         recorder.record(_path('skills/tmp'), DirectoryRecord(listed=True))
 
+        path = _path('skills/tmp')
+
+        record = DirectoryRecord(climbed=True)
+
         #: When
-        recorder.record(_path('skills/tmp'), DirectoryRecord(climbed=True))
+
+        recorder.record(path, record)
 
         #: Then
         assert recorder.to_records() == FrozenMapping(
@@ -83,8 +93,13 @@ class TestSnapshotRecorder:
         recorder = SnapshotRecorder()
         recorder.record(_path('docs'), DirectoryRecord(listed=True))
 
+        path = _path('docs')
+
+        record = DirectoryRecord()
+
         #: When
-        recorder.record(_path('docs'), DirectoryRecord())
+
+        recorder.record(path, record)
 
         #: Then
         assert recorder.to_records() == FrozenMapping({_path('docs'): DirectoryRecord(listed=True)}), (
@@ -96,8 +111,13 @@ class TestSnapshotRecorder:
         recorder = SnapshotRecorder()
         recorder.record(_path('docs/a.md'), FileRecord(b'first'))
 
+        path = _path('docs/a.md')
+
+        record = FileRecord(b'second')
+
         #: When
-        recorder.record(_path('docs/a.md'), FileRecord(b'second'))
+
+        recorder.record(path, record)
 
         #: Then
         assert recorder.to_records() == FrozenMapping({_path('docs/a.md'): FileRecord(b'second')}), (
@@ -109,8 +129,13 @@ class TestSnapshotRecorder:
         recorder = SnapshotRecorder()
         recorder.record(_path('skills/x'), SymlinkRecord(PurePosixPath('a')))
 
+        path = _path('skills/x')
+
+        record = SymlinkRecord(PurePosixPath('b'))
+
         #: When
-        recorder.record(_path('skills/x'), SymlinkRecord(PurePosixPath('b')))
+
+        recorder.record(path, record)
 
         #: Then
         assert recorder.to_records() == FrozenMapping({_path('skills/x'): SymlinkRecord(PurePosixPath('b'))}), (
@@ -122,10 +147,12 @@ class TestSnapshotRecorder:
         # a directory listed as an entry of its parent, then replaced by a symlink before a walk steps through it
         recorder = SnapshotRecorder()
         recorder.record(_path('docs/code'), DirectoryRecord())
+        path = _path('docs/code')
+        record = SymlinkRecord(PurePosixPath('elsewhere'))
 
         #: When
         with pytest.raises(ChangedSnapshotEntryError) as exc_info:
-            recorder.record(_path('docs/code'), SymlinkRecord(PurePosixPath('elsewhere')))
+            recorder.record(path, record)
 
         #: Then
         assert exc_info.value.path == _path('docs/code'), 'the error names the path found as two kinds'
@@ -136,10 +163,12 @@ class TestSnapshotRecorder:
         #: Given
         recorder = SnapshotRecorder()
         recorder.record(_path('docs/a'), FileRecord(b'a'))
+        path = _path('docs/a/b.md')
+        record = FileRecord(b'b')
 
         #: When
         with pytest.raises(ChangedSnapshotEntryError) as exc_info:
-            recorder.record(_path('docs/a/b.md'), FileRecord(b'b'))
+            recorder.record(path, record)
 
         #: Then
         assert exc_info.value.path == _path('docs/a'), 'the error names the file something was found below'
@@ -150,10 +179,12 @@ class TestSnapshotRecorder:
         #: Given
         recorder = SnapshotRecorder()
         recorder.record(_path('docs/a/b.md'), FileRecord(b'b'))
+        path = _path('docs/a')
+        record = FileRecord(b'a')
 
         #: When
         with pytest.raises(ChangedSnapshotEntryError) as exc_info:
-            recorder.record(_path('docs/a'), FileRecord(b'a'))
+            recorder.record(path, record)
 
         #: Then
         assert exc_info.value.path == _path('docs/a'), 'the error names the path found as a file'
@@ -165,8 +196,13 @@ class TestSnapshotRecorder:
         recorder = SnapshotRecorder()
         recorder.record(_path('docs/a/b.md'), FileRecord(b'b'))
 
+        path = _path('docs/a')
+
+        record = DirectoryRecord(listed=True)
+
         #: When
-        recorder.record(_path('docs/a'), DirectoryRecord(listed=True))
+
+        recorder.record(path, record)
 
         #: Then
         assert recorder.to_records() == FrozenMapping(

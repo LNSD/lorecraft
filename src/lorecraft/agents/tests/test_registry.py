@@ -12,9 +12,10 @@ class TestIterAgents:
     def test_iter_agents_with_the_registered_agents_yields_only_root_relative_paths(self) -> None:
         #: Given
         validated = RootRelativePath
+        registered = iter_agents()
 
         #: When
-        agents = tuple(iter_agents())
+        agents = tuple(registered)
         declared = [
             path
             for agent in agents

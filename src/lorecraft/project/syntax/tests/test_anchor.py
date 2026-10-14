@@ -215,9 +215,10 @@ class TestAnchorNumbered:
     def test_anchor_numbered_with_a_repeat_count_appends_a_hyphen_and_the_number(self) -> None:
         #: Given
         anchor = Anchor('usage')
+        number = AnchorNumber(NonZeroUnsignedInt(2))
 
         #: When
-        numbered = anchor.numbered(AnchorNumber(NonZeroUnsignedInt(2)))
+        numbered = anchor.numbered(number)
 
         #: Then
         assert numbered == Anchor('usage-2'), 'a repeated heading takes its bare anchor, a hyphen and its number'
@@ -225,9 +226,10 @@ class TestAnchorNumbered:
     def test_anchor_numbered_of_the_empty_anchor_is_the_hyphenated_number(self) -> None:
         #: Given
         anchor = Anchor('')
+        number = AnchorNumber(NonZeroUnsignedInt(1))
 
         #: When
-        numbered = anchor.numbered(AnchorNumber(NonZeroUnsignedInt(1)))
+        numbered = anchor.numbered(number)
 
         #: Then
         assert numbered == Anchor('-1'), 'a repeat of a heading with the empty anchor is numbered as any other'

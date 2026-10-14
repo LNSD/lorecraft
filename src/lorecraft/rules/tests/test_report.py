@@ -153,10 +153,11 @@ class TestDiagnosticOrder:
             Severity.ERROR,
         )
         diagnostics = [long_line, trailing_space, empty_line, whole_subject, next_path]
+        reordered = reversed(diagnostics)
 
         #: When
         forward = sorted(diagnostics, key=diagnostic_order)
-        backward = sorted(reversed(diagnostics), key=diagnostic_order)
+        backward = sorted(reordered, key=diagnostic_order)
 
         #: Then
         assert forward == [whole_subject, empty_line, trailing_space, long_line, next_path], (
