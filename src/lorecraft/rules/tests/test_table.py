@@ -5,7 +5,7 @@ from typing import Final
 import pytest
 
 from lorecraft import rules
-from lorecraft.rules.declaration import Rule, RuleCode, Severity
+from lorecraft.rules.declaration import Rule, Severity
 from lorecraft.rules.frontmatter.allowed_tools_too_long import AllowedToolsTooLong
 from lorecraft.rules.frontmatter.duplicate_key import DuplicateKey
 from lorecraft.rules.frontmatter.invalid_frontmatter import InvalidFrontmatter
@@ -20,6 +20,7 @@ from lorecraft.rules.frontmatter.too_few_fields import TooFewFields
 from lorecraft.rules.frontmatter.too_many_fields import TooManyFields
 from lorecraft.rules.frontmatter.unknown_field import UnknownField
 from lorecraft.rules.frontmatter.wrong_type import WrongType
+from lorecraft.rules.identity import RuleCode
 from lorecraft.rules.layout.outside_symlink import OutsideSymlink
 from lorecraft.rules.length.title_too_long import TitleTooLong
 from lorecraft.rules.length.title_too_many_words import TitleTooManyWords

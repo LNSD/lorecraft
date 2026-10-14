@@ -7,7 +7,7 @@ that depend on it, the ones over where a link leads, say so through `skill_note`
 
 from typing import Final
 
-from lorecraft.rules.declaration import RuleGroup, RuleGroupPrefix
+from lorecraft.rules.identity import RuleGroup, RuleGroupPrefix
 from lorecraft.rules.location import Note
 
 GROUP_ID: Final[RuleGroup] = RuleGroup(RuleGroupPrefix('LINK'), 'Links in Markdown files')

@@ -3,8 +3,8 @@
 from typing import ClassVar
 
 from lorecraft.rules.collector import rule
-from lorecraft.rules.declaration import RemovedRule, RuleCode
-from lorecraft.rules.identity import Release, RuleName
+from lorecraft.rules.declaration import RemovedRule
+from lorecraft.rules.identity import Release, RuleCode, RuleName
 
 from ..groups import SAMPLE
 

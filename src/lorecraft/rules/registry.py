@@ -29,17 +29,17 @@ from typing import Final, Self, assert_never
 
 from .collector import declared_rules
 from .declaration import (
-    ENGINE_GROUP,
     EngineCondition,
     EntryCondition,
     FileCondition,
     RemovedRule,
     Rule,
     RuleDeclaration,
-    RuleGroup,
-    RuleGroupPrefix,
 )
 from .identity import (
+    ENGINE_GROUP,
+    RuleGroup,
+    RuleGroupPrefix,
     RuleName,
 )
 from .subject import DocumentRule

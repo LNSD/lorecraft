@@ -2,7 +2,7 @@
 
 from typing import Final
 
-from lorecraft.rules.declaration import RuleGroup, RuleGroupPrefix
+from lorecraft.rules.identity import RuleGroup, RuleGroupPrefix
 
 SAMPLE: Final[RuleGroup] = RuleGroup(RuleGroupPrefix('SMP'), 'Sample rules')
 """The group of most sample rules."""

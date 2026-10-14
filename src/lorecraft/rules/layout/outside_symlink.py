@@ -5,8 +5,7 @@ from typing import ClassVar, Self
 
 from lorecraft.project.context import LayoutContext
 from lorecraft.rules.collector import rule
-from lorecraft.rules.declaration import RuleCode
-from lorecraft.rules.identity import Level, Release, RuleName
+from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import EntryHelp, EntryNote, EntrySubdiagnostic
 from lorecraft.rules.subject import LayoutEntryRule
 from lorecraft.vfs import RootExit
