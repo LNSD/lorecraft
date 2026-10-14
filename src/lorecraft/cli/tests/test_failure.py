@@ -2,7 +2,6 @@
 
 import pytest
 import typer
-from pydantic import ValidationError
 
 from lorecraft.core.error import Error
 from lorecraft.core.mapping import FrozenMapping
@@ -13,7 +12,6 @@ from lorecraft.project.schemas.name import CorpusSpecName
 from lorecraft.project.schemas.repo import StructureSchemaReadError
 from lorecraft.project.schemas.section_name import SectionName
 from lorecraft.project.schemas.structure import (
-    StructureSpecDecodeError,
     StructureSpecProblem,
 )
 from lorecraft.project.schemas.structure_file import JSON_SCHEMA_DIALECT
@@ -205,9 +203,7 @@ class TestReportLoadFailure:
     ) -> None:
         #: Given
         failure = LoadFailure(_PATH, UndecodableStructureSpec(_PROBLEMS))
-        error = StructureSpecDecodeError(
-            _PATH, _PROBLEMS, source=ValidationError.from_exception_data('StructureFile', [])
-        )
+        error = Error(f'invalid structure schema {_PATH}: outline: Field required; tokens: not a number')
 
         #: When
         expected, actual = _written_for(capsys, failure, error)

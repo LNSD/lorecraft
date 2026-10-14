@@ -131,7 +131,6 @@ def namespace_spec(corpus: str, namespace: str, structure: str) -> NamespaceSpec
         InvalidCorpusNameCharacterError: If a character of the corpus falls outside lowercase snake case.
         EmptyAspectNamespaceError: If the namespace is empty.
         InvalidAspectNamespaceCharacterError: If a character of the namespace falls outside kebab case.
-        StructureSpecDecodeError: If the structure specification is not JSON or does not have the dialect's shape.
     """
     spec_name = NamespaceSpecName(CorpusName.parse(corpus), AspectNamespace.parse(namespace))
     return NamespaceSpec(name=spec_name, files=_files(spec_name), structure=_decode_structure(spec_name, structure))
@@ -155,9 +154,6 @@ def _decode_structure(spec_name: SpecName, structure: str) -> StructureSpec:
     Args:
         spec_name: The specification name the file lies at.
         structure: The structure specification's JSON.
-
-    Raises:
-        StructureSpecDecodeError: If the text is not JSON or does not have the dialect's shape.
     """
     file = StructureSpecFile(
         path=SPECS_DIR / PathComponent.parse(spec_filename(spec_name, SpecFileType.LEGACY_STRUCTURE)), name=spec_name
@@ -206,8 +202,6 @@ class FakeDocumentContext:
             InvalidCorpusNameCharacterError: If a character of the corpus falls outside lowercase snake case.
             EmptyAspectNameError: If the filename is empty.
             InvalidAspectNameCharacterError: If a character of the filename is not lowercase with valid separators.
-            StructureSpecDecodeError: If the structure specification is not JSON or does not have the dialect's
-                shape.
         """
         spec_name = CorpusSpecName(CorpusName.parse(corpus))
         self._text = text

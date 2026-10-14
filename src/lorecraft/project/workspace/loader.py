@@ -53,10 +53,6 @@ from lorecraft.project.schemas.spec_file import (
 )
 from lorecraft.project.schemas.structure import (
     StructureSpec,
-    StructureSpecDecodeError,
-)
-from lorecraft.project.schemas.structure_failure import (
-    UndecodableStructureSpec,
 )
 from lorecraft.project.skill.outside import OutsideSymlink
 from lorecraft.project.skill.ref import SkillLocation
@@ -313,10 +309,8 @@ def _load_structure(
     for spec_file in spec_files:
         match spec_file:
             case StructureSpecFile():
-                # Building the structure specification is the check: StructureSpec.parse refuses text that is not JSON
-                # in the structure dialect, rules that are not usable, and a malformed frontmatter schema.
                 try:
-                    parsed = StructureSpec.parse(spec_file, schemas.get_structure_schema(spec_file))
+                    text = schemas.get_structure_schema(spec_file)
                 except StructureSchemaReadError as exc:
                     match exc.source:
                         case FileReadError() | RecordedFileReadError() | RecordedFileReadPathError():
@@ -328,16 +322,15 @@ def _load_structure(
                         case _:
                             assert_never(exc.source)
                     structure = _record_failed_structure(failures, spec_file.path, failure)
-                except StructureSpecDecodeError as exc:
-                    failure = UndecodableStructureSpec(exc.problems)
-                    structure = _record_failed_structure(failures, spec_file.path, failure)
+                    continue
+                # Parsing is the check, and it raises nothing: text that is not JSON in the structure dialect, a
+                # title pattern that does not compile, a frontmatter schema that cannot be held and rules that are
+                # not usable each come back as their failure record.
+                parsed = StructureSpec.parse(spec_file, text)
+                if isinstance(parsed, StructureSpec):
+                    structure = parsed
                 else:
-                    # A title pattern, a frontmatter schema or rules that are not usable come back as their
-                    # failure record.
-                    if isinstance(parsed, StructureSpec):
-                        structure = parsed
-                    else:
-                        structure = _record_failed_structure(failures, spec_file.path, parsed)
+                    structure = _record_failed_structure(failures, spec_file.path, parsed)
             case ProseSpecFile():
                 pass  # the prose is written for a reader, and no check decodes it
             case _:

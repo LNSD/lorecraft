@@ -42,7 +42,6 @@ from ..structure import (
     SectionEntry,
     StructureSchema,
     StructureSpec,
-    StructureSpecDecodeError,
     StructureSpecProblem,
     TitlePattern,
     WordCappedTitleChecks,
@@ -57,6 +56,7 @@ from ..structure_failure import (
     InvalidTitlePattern,
     RepeatedForbiddenSections,
     RepeatedOutlineSections,
+    UndecodableStructureSpec,
     UntypedFrontmatterSchema,
 )
 
@@ -184,99 +184,97 @@ class TestStructureSpecParse:
             SectionEntry(name=SectionName('Checklist'), description=None, examples=()),
         ), f'both keys are optional, and absent they state nothing, got {structure_spec.outline!r}'
 
-    def test_parse_with_an_empty_section_description_raises_structure_spec_decode_error(self) -> None:
+    def test_parse_with_an_empty_section_description_returns_undecodable_structure_spec(self) -> None:
         #: Given
         schema = StructureSchema('{"outline": [{"section": "Checklist", "description": ""}]}')
 
         #: When
-        with pytest.raises(StructureSpecDecodeError) as exc_info:
-            StructureSpec.parse(SPEC_FILE, schema)
+        failure = StructureSpec.parse(SPEC_FILE, schema)
 
         #: Then
-        assert exc_info.value.path == SPEC_PATH, 'an empty description would print empty help, so it is refused'
+        assert isinstance(failure, UndecodableStructureSpec), (
+            'an empty description would print empty help, so it is refused'
+        )
 
-    def test_parse_with_an_empty_list_of_section_examples_raises_structure_spec_decode_error(self) -> None:
+    def test_parse_with_an_empty_list_of_section_examples_returns_undecodable_structure_spec(self) -> None:
         #: Given
         schema = StructureSchema('{"outline": [{"section": "Checklist", "examples": []}]}')
 
         #: When
-        with pytest.raises(StructureSpecDecodeError) as exc_info:
-            StructureSpec.parse(SPEC_FILE, schema)
+        failure = StructureSpec.parse(SPEC_FILE, schema)
 
         #: Then
-        assert exc_info.value.path == SPEC_PATH, 'no examples are written by leaving the key out, so `[]` is refused'
+        assert isinstance(failure, UndecodableStructureSpec), (
+            'no examples are written by leaving the key out, so `[]` is refused'
+        )
 
-    def test_parse_with_an_empty_section_example_raises_structure_spec_decode_error(self) -> None:
+    def test_parse_with_an_empty_section_example_returns_undecodable_structure_spec(self) -> None:
         #: Given
         schema = StructureSchema(
             json.dumps({'outline': [{'section': 'Checklist', 'examples': [LOGGING_CHECKLIST, '']}]})
         )
 
         #: When
-        with pytest.raises(StructureSpecDecodeError) as exc_info:
-            StructureSpec.parse(SPEC_FILE, schema)
+        failure = StructureSpec.parse(SPEC_FILE, schema)
 
         #: Then
-        assert exc_info.value.path == SPEC_PATH, 'an empty example would print a heading alone, so it is refused'
+        assert isinstance(failure, UndecodableStructureSpec), (
+            'an empty example would print a heading alone, so it is refused'
+        )
 
-    def test_parse_with_a_section_description_that_is_not_a_string_raises_structure_spec_decode_error(self) -> None:
+    def test_parse_with_a_section_description_that_is_not_a_string_returns_undecodable_structure_spec(self) -> None:
         #: Given
         schema = StructureSchema(
             json.dumps({'outline': [{'section': 'Checklist', 'description': [CHECKLIST_DESCRIPTION]}]})
         )
 
         #: When
-        with pytest.raises(StructureSpecDecodeError) as exc_info:
-            StructureSpec.parse(SPEC_FILE, schema)
+        failure = StructureSpec.parse(SPEC_FILE, schema)
 
         #: Then
-        assert exc_info.value.path == SPEC_PATH, 'a description is one string of text, not a list of lines'
+        assert isinstance(failure, UndecodableStructureSpec), 'a description is one string of text, not a list of lines'
 
-    def test_parse_with_section_examples_given_as_one_string_raises_structure_spec_decode_error(self) -> None:
+    def test_parse_with_section_examples_given_as_one_string_returns_undecodable_structure_spec(self) -> None:
         #: Given
         schema = StructureSchema(json.dumps({'outline': [{'section': 'Checklist', 'examples': LOGGING_CHECKLIST}]}))
 
         #: When
-        with pytest.raises(StructureSpecDecodeError) as exc_info:
-            StructureSpec.parse(SPEC_FILE, schema)
+        failure = StructureSpec.parse(SPEC_FILE, schema)
 
         #: Then
-        assert exc_info.value.path == SPEC_PATH, 'examples are a list, so one bare string is refused'
+        assert isinstance(failure, UndecodableStructureSpec), 'examples are a list, so one bare string is refused'
 
-    def test_parse_with_a_section_example_that_is_not_a_string_raises_structure_spec_decode_error(self) -> None:
+    def test_parse_with_a_section_example_that_is_not_a_string_returns_undecodable_structure_spec(self) -> None:
         #: Given
         schema = StructureSchema('{"outline": [{"section": "Checklist", "examples": [3]}]}')
 
         #: When
-        with pytest.raises(StructureSpecDecodeError) as exc_info:
-            StructureSpec.parse(SPEC_FILE, schema)
+        failure = StructureSpec.parse(SPEC_FILE, schema)
 
         #: Then
-        assert exc_info.value.path == SPEC_PATH, 'the file is read strictly, so a number is not an example'
+        assert isinstance(failure, UndecodableStructureSpec), 'the file is read strictly, so a number is not an example'
 
-    def test_parse_with_a_description_on_an_any_run_raises_structure_spec_decode_error(self) -> None:
+    def test_parse_with_a_description_on_an_any_run_returns_undecodable_structure_spec(self) -> None:
         #: Given
         # a run can never be missing, so nothing would ever report what it holds
         schema = StructureSchema('{"outline": [{"any": true, "description": "The document\'s own sections."}]}')
 
         #: When
-        with pytest.raises(StructureSpecDecodeError) as exc_info:
-            StructureSpec.parse(SPEC_FILE, schema)
+        failure = StructureSpec.parse(SPEC_FILE, schema)
 
         #: Then
-        assert exc_info.value.path == SPEC_PATH, 'only a named section takes a description'
+        assert isinstance(failure, UndecodableStructureSpec), 'only a named section takes a description'
 
-    def test_parse_with_examples_on_an_any_run_raises_structure_spec_decode_error(self) -> None:
+    def test_parse_with_examples_on_an_any_run_returns_undecodable_structure_spec(self) -> None:
         #: Given
         # a run can never be missing, so nothing would ever report an example of it
         schema = StructureSchema(json.dumps({'outline': [{'any': True, 'examples': [LOGGING_CHECKLIST]}]}))
 
         #: When
-        with pytest.raises(StructureSpecDecodeError) as exc_info:
-            StructureSpec.parse(SPEC_FILE, schema)
+        failure = StructureSpec.parse(SPEC_FILE, schema)
 
         #: Then
-        assert exc_info.value.path == SPEC_PATH, 'only a named section takes examples'
+        assert isinstance(failure, UndecodableStructureSpec), 'only a named section takes examples'
 
     def test_parse_with_only_a_frontmatter_schema_returns_a_structure_spec_with_that_schema(self) -> None:
         #: Given
@@ -359,31 +357,29 @@ class TestStructureSpecParse:
         #: Then
         assert failure == UntypedFrontmatterSchema(), 'the object type is stated, not implied'
 
-    def test_parse_with_a_frontmatter_value_that_is_not_an_object_raises_structure_spec_decode_error(self) -> None:
+    def test_parse_with_a_frontmatter_value_that_is_not_an_object_returns_undecodable_structure_spec(self) -> None:
         #: Given
         schema = StructureSchema('{"frontmatter": true}')
 
         #: When
-        with pytest.raises(StructureSpecDecodeError) as exc_info:
-            StructureSpec.parse(SPEC_FILE, schema)
+        failure = StructureSpec.parse(SPEC_FILE, schema)
 
         #: Then
-        assert exc_info.value.path == SPEC_PATH, 'a boolean schema is refused by the shape'
+        assert isinstance(failure, UndecodableStructureSpec), 'a boolean schema is refused by the shape'
 
-    def test_parse_with_a_null_frontmatter_raises_structure_spec_decode_error(self) -> None:
+    def test_parse_with_a_null_frontmatter_returns_undecodable_structure_spec(self) -> None:
         #: Given
         schema = StructureSchema('{"tokens": 100, "frontmatter": null}')
 
         #: When
-        with pytest.raises(StructureSpecDecodeError) as exc_info:
-            StructureSpec.parse(SPEC_FILE, schema)
+        failure = StructureSpec.parse(SPEC_FILE, schema)
 
         #: Then
-        assert exc_info.value.path == SPEC_PATH, (
+        assert isinstance(failure, UndecodableStructureSpec), (
             'the editor refuses null too; no rule is written by leaving the key out'
         )
-        assert 'frontmatter' in str(exc_info.value), (
-            f'the message names the key that may not be null, got {exc_info.value}'
+        assert any('frontmatter' in str(problem) for problem in failure.problems), (
+            f'a problem names the key that may not be null, got {failure.problems}'
         )
 
     def test_parse_with_a_frontmatter_schema_carrying_an_id_returns_frontmatter_schema_id(self) -> None:
@@ -422,90 +418,87 @@ class TestStructureSpecParse:
             'a token budget is a rule, so a file stating only it is usable'
         )
 
-    def test_parse_with_a_token_budget_of_zero_raises_structure_spec_decode_error(self) -> None:
+    def test_parse_with_a_token_budget_of_zero_returns_undecodable_structure_spec(self) -> None:
         #: Given
         schema = StructureSchema('{"tokens": 0}')
 
         #: When
-        with pytest.raises(StructureSpecDecodeError) as exc_info:
-            StructureSpec.parse(SPEC_FILE, schema)
+        failure = StructureSpec.parse(SPEC_FILE, schema)
 
         #: Then
-        assert exc_info.value.path == SPEC_PATH, 'no document satisfies a budget of 0 tokens'
-        assert exc_info.value.problems == (StructureSpecProblem(('tokens',), 'must be at least 1, got 0'),), (
-            f'the problem names the field and reads with the count rejection, got {exc_info.value.problems}'
+        assert isinstance(failure, UndecodableStructureSpec), 'no document satisfies a budget of 0 tokens'
+        assert failure.problems == (StructureSpecProblem(('tokens',), 'must be at least 1, got 0'),), (
+            f'the problem names the field and reads with the count rejection, got {failure.problems}'
         )
 
-    def test_parse_with_a_document_word_cap_raises_structure_spec_decode_error(self) -> None:
+    def test_parse_with_a_document_word_cap_returns_undecodable_structure_spec(self) -> None:
         #: Given
         # words are capped per section only; the document as a whole has a token budget instead
         schema = StructureSchema('{"words": 1800}')
 
         #: When
-        with pytest.raises(StructureSpecDecodeError) as exc_info:
-            StructureSpec.parse(SPEC_FILE, schema)
+        failure = StructureSpec.parse(SPEC_FILE, schema)
 
         #: Then
-        assert exc_info.value.path == SPEC_PATH, 'a top-level `words` is not a field, so it is refused, not ignored'
+        assert isinstance(failure, UndecodableStructureSpec), (
+            'a top-level `words` is not a field, so it is refused, not ignored'
+        )
 
-    def test_parse_with_a_section_word_cap_of_zero_raises_structure_spec_decode_error(self) -> None:
+    def test_parse_with_a_section_word_cap_of_zero_returns_undecodable_structure_spec(self) -> None:
         #: Given
         schema = StructureSchema('{"outline": [{"section": "Checklist", "words": 0}]}')
 
         #: When
-        with pytest.raises(StructureSpecDecodeError) as exc_info:
-            StructureSpec.parse(SPEC_FILE, schema)
+        failure = StructureSpec.parse(SPEC_FILE, schema)
 
         #: Then
-        assert exc_info.value.path == SPEC_PATH, 'no section satisfies a cap of 0 words'
+        assert isinstance(failure, UndecodableStructureSpec), 'no section satisfies a cap of 0 words'
         assert (
             StructureSpecProblem(('outline', 0, 'StructureFileSection', 'words'), 'must be at least 1, got 0')
-            in exc_info.value.problems
-        ), f'the section shape reports the cap with the count rejection, got {exc_info.value.problems}'
+            in failure.problems
+        ), f'the section shape reports the cap with the count rejection, got {failure.problems}'
 
-    def test_parse_with_an_any_word_cap_of_zero_raises_structure_spec_decode_error(self) -> None:
+    def test_parse_with_an_any_word_cap_of_zero_returns_undecodable_structure_spec(self) -> None:
         #: Given
         schema = StructureSchema('{"outline": [{"any": true, "words": 0}]}')
 
         #: When
-        with pytest.raises(StructureSpecDecodeError) as exc_info:
-            StructureSpec.parse(SPEC_FILE, schema)
+        failure = StructureSpec.parse(SPEC_FILE, schema)
 
         #: Then
-        assert exc_info.value.path == SPEC_PATH, 'no section in a run satisfies a cap of 0 words'
+        assert isinstance(failure, UndecodableStructureSpec), 'no section in a run satisfies a cap of 0 words'
 
-    def test_parse_with_a_string_word_cap_raises_structure_spec_decode_error(self) -> None:
+    def test_parse_with_a_string_word_cap_returns_undecodable_structure_spec(self) -> None:
         #: Given
         schema = StructureSchema('{"outline": [{"section": "Checklist", "words": "250"}]}')
 
         #: When
-        with pytest.raises(StructureSpecDecodeError) as exc_info:
-            StructureSpec.parse(SPEC_FILE, schema)
+        failure = StructureSpec.parse(SPEC_FILE, schema)
 
         #: Then
-        assert exc_info.value.path == SPEC_PATH, 'the file is read strictly, so a string is not a word cap'
+        assert isinstance(failure, UndecodableStructureSpec), 'the file is read strictly, so a string is not a word cap'
 
-    def test_parse_with_a_fractional_token_budget_raises_structure_spec_decode_error(self) -> None:
+    def test_parse_with_a_fractional_token_budget_returns_undecodable_structure_spec(self) -> None:
         #: Given
         schema = StructureSchema('{"tokens": 5000.5}')
 
         #: When
-        with pytest.raises(StructureSpecDecodeError) as exc_info:
-            StructureSpec.parse(SPEC_FILE, schema)
+        failure = StructureSpec.parse(SPEC_FILE, schema)
 
         #: Then
-        assert exc_info.value.path == SPEC_PATH, 'a token budget is a whole number of tokens'
+        assert isinstance(failure, UndecodableStructureSpec), 'a token budget is a whole number of tokens'
 
-    def test_parse_with_a_boolean_section_word_cap_raises_structure_spec_decode_error(self) -> None:
+    def test_parse_with_a_boolean_section_word_cap_returns_undecodable_structure_spec(self) -> None:
         #: Given
         schema = StructureSchema('{"outline": [{"section": "Checklist", "words": true}]}')
 
         #: When
-        with pytest.raises(StructureSpecDecodeError) as exc_info:
-            StructureSpec.parse(SPEC_FILE, schema)
+        failure = StructureSpec.parse(SPEC_FILE, schema)
 
         #: Then
-        assert exc_info.value.path == SPEC_PATH, 'a JSON boolean is not a word cap, though Python treats it as one'
+        assert isinstance(failure, UndecodableStructureSpec), (
+            'a JSON boolean is not a word cap, though Python treats it as one'
+        )
 
     def test_parse_with_a_schema_reference_returns_the_rules_without_it(self) -> None:
         #: Given
@@ -534,7 +527,7 @@ class TestStructureSpecParse:
             frontmatter=None,
         ), 'the `$schema` reference is for editors and changes no rule'
 
-    def test_parse_with_a_schema_reference_that_is_not_a_string_raises_structure_spec_decode_error(self) -> None:
+    def test_parse_with_a_schema_reference_that_is_not_a_string_returns_undecodable_structure_spec(self) -> None:
         #: Given
         schema = StructureSchema(
             dedent(
@@ -548,13 +541,12 @@ class TestStructureSpecParse:
         )
 
         #: When
-        with pytest.raises(StructureSpecDecodeError) as exc_info:
-            StructureSpec.parse(SPEC_FILE, schema)
+        failure = StructureSpec.parse(SPEC_FILE, schema)
 
         #: Then
-        assert exc_info.value.path == SPEC_PATH, 'the error names the rejected file'
+        assert isinstance(failure, UndecodableStructureSpec), 'the shape refuses it with the problem it found'
 
-    def test_parse_with_text_that_is_not_json_raises_structure_spec_decode_error(self) -> None:
+    def test_parse_with_text_that_is_not_json_returns_undecodable_structure_spec(self) -> None:
         #: Given
         schema = StructureSchema(
             dedent(
@@ -565,12 +557,12 @@ class TestStructureSpecParse:
         )
 
         #: When
-        with pytest.raises(StructureSpecDecodeError) as exc_info:
-            StructureSpec.parse(SPEC_FILE, schema)
+        failure = StructureSpec.parse(SPEC_FILE, schema)
 
         #: Then
-        assert exc_info.value.path == SPEC_PATH, 'text that is not JSON is refused at the edge, naming the file'
-        assert exc_info.value.source is exc_info.value.__cause__, 'the validation error is kept as the cause'
+        assert isinstance(failure, UndecodableStructureSpec), (
+            'text that is not JSON is refused at the edge, with the problem the decoder found'
+        )
 
     def test_parse_with_only_a_title_word_cap_returns_a_structure_spec_with_that_cap(self) -> None:
         #: Given
@@ -584,48 +576,47 @@ class TestStructureSpecParse:
             'a cap on the title is a rule, so a file stating only it is usable'
         )
 
-    def test_parse_with_a_title_word_cap_of_zero_raises_structure_spec_decode_error(self) -> None:
+    def test_parse_with_a_title_word_cap_of_zero_returns_undecodable_structure_spec(self) -> None:
         #: Given
         schema = StructureSchema('{"title": {"words": 0}}')
 
         #: When
-        with pytest.raises(StructureSpecDecodeError) as exc_info:
-            StructureSpec.parse(SPEC_FILE, schema)
+        failure = StructureSpec.parse(SPEC_FILE, schema)
 
         #: Then
-        assert exc_info.value.path == SPEC_PATH, 'no title satisfies a cap of 0 words'
-        assert exc_info.value.problems == (StructureSpecProblem(('title', 'words'), 'must be at least 1, got 0'),), (
-            f'the problem names the cap and reads with the count rejection, got {exc_info.value.problems}'
+        assert isinstance(failure, UndecodableStructureSpec), 'no title satisfies a cap of 0 words'
+        assert failure.problems == (StructureSpecProblem(('title', 'words'), 'must be at least 1, got 0'),), (
+            f'the problem names the cap and reads with the count rejection, got {failure.problems}'
         )
 
-    def test_parse_with_a_negative_title_word_cap_raises_structure_spec_decode_error(self) -> None:
+    def test_parse_with_a_negative_title_word_cap_returns_undecodable_structure_spec(self) -> None:
         #: Given
         schema = StructureSchema('{"title": {"words": -3}}')
 
         #: When
-        with pytest.raises(StructureSpecDecodeError) as exc_info:
-            StructureSpec.parse(SPEC_FILE, schema)
+        failure = StructureSpec.parse(SPEC_FILE, schema)
 
         #: Then
-        assert exc_info.value.path == SPEC_PATH, 'a word cap is a count of words, never below 1'
-        assert len(exc_info.value.problems) == 1, f'one field is wrong, got {exc_info.value.problems}'
-        assert str(exc_info.value.problems[0]).startswith('title.words: '), (
-            f'the problem opens with the dotted path of the cap, got {exc_info.value.problems[0]!r}'
+        assert isinstance(failure, UndecodableStructureSpec), 'a word cap is a count of words, never below 1'
+        assert len(failure.problems) == 1, f'one field is wrong, got {failure.problems}'
+        assert str(failure.problems[0]).startswith('title.words: '), (
+            f'the problem opens with the dotted path of the cap, got {failure.problems[0]!r}'
         )
 
-    def test_parse_with_a_boolean_title_word_cap_raises_structure_spec_decode_error(self) -> None:
+    def test_parse_with_a_boolean_title_word_cap_returns_undecodable_structure_spec(self) -> None:
         #: Given
         schema = StructureSchema('{"title": {"words": true}}')
 
         #: When
-        with pytest.raises(StructureSpecDecodeError) as exc_info:
-            StructureSpec.parse(SPEC_FILE, schema)
+        failure = StructureSpec.parse(SPEC_FILE, schema)
 
         #: Then
-        assert exc_info.value.path == SPEC_PATH, 'a JSON boolean is not a word cap, though Python treats it as one'
-        assert len(exc_info.value.problems) == 1, f'one field is wrong, got {exc_info.value.problems}'
-        assert str(exc_info.value.problems[0]).startswith('title.words: '), (
-            f'the problem opens with the dotted path of the cap, got {exc_info.value.problems[0]!r}'
+        assert isinstance(failure, UndecodableStructureSpec), (
+            'a JSON boolean is not a word cap, though Python treats it as one'
+        )
+        assert len(failure.problems) == 1, f'one field is wrong, got {failure.problems}'
+        assert str(failure.problems[0]).startswith('title.words: '), (
+            f'the problem opens with the dotted path of the cap, got {failure.problems[0]!r}'
         )
 
     def test_parse_with_only_a_title_character_cap_returns_a_structure_spec_with_that_cap(self) -> None:
@@ -640,51 +631,50 @@ class TestStructureSpecParse:
             "a cap on the title's characters is a rule, so a file stating only it is usable"
         )
 
-    def test_parse_with_a_title_character_cap_of_zero_raises_structure_spec_decode_error(self) -> None:
+    def test_parse_with_a_title_character_cap_of_zero_returns_undecodable_structure_spec(self) -> None:
         #: Given
         schema = StructureSchema('{"title": {"chars": 0}}')
 
         #: When
-        with pytest.raises(StructureSpecDecodeError) as exc_info:
-            StructureSpec.parse(SPEC_FILE, schema)
+        failure = StructureSpec.parse(SPEC_FILE, schema)
 
         #: Then
-        assert exc_info.value.path == SPEC_PATH, 'no title satisfies a cap of 0 characters'
-        assert exc_info.value.problems == (StructureSpecProblem(('title', 'chars'), 'must be at least 1, got 0'),), (
-            f'the problem names the cap and reads with the count rejection, got {exc_info.value.problems}'
+        assert isinstance(failure, UndecodableStructureSpec), 'no title satisfies a cap of 0 characters'
+        assert failure.problems == (StructureSpecProblem(('title', 'chars'), 'must be at least 1, got 0'),), (
+            f'the problem names the cap and reads with the count rejection, got {failure.problems}'
         )
 
-    def test_parse_with_a_negative_title_character_cap_raises_structure_spec_decode_error(self) -> None:
+    def test_parse_with_a_negative_title_character_cap_returns_undecodable_structure_spec(self) -> None:
         #: Given
         schema = StructureSchema('{"title": {"chars": -3}}')
 
         #: When
-        with pytest.raises(StructureSpecDecodeError) as exc_info:
-            StructureSpec.parse(SPEC_FILE, schema)
+        failure = StructureSpec.parse(SPEC_FILE, schema)
 
         #: Then
-        assert exc_info.value.path == SPEC_PATH, 'a character cap is a count of characters, never below 1'
-        assert len(exc_info.value.problems) == 1, f'one field is wrong, got {exc_info.value.problems}'
-        assert str(exc_info.value.problems[0]).startswith('title.chars: '), (
-            f'the problem opens with the dotted path of the cap, got {exc_info.value.problems[0]!r}'
+        assert isinstance(failure, UndecodableStructureSpec), 'a character cap is a count of characters, never below 1'
+        assert len(failure.problems) == 1, f'one field is wrong, got {failure.problems}'
+        assert str(failure.problems[0]).startswith('title.chars: '), (
+            f'the problem opens with the dotted path of the cap, got {failure.problems[0]!r}'
         )
 
-    def test_parse_with_a_boolean_title_character_cap_raises_structure_spec_decode_error(self) -> None:
+    def test_parse_with_a_boolean_title_character_cap_returns_undecodable_structure_spec(self) -> None:
         #: Given
         schema = StructureSchema('{"title": {"chars": true}}')
 
         #: When
-        with pytest.raises(StructureSpecDecodeError) as exc_info:
-            StructureSpec.parse(SPEC_FILE, schema)
+        failure = StructureSpec.parse(SPEC_FILE, schema)
 
         #: Then
-        assert exc_info.value.path == SPEC_PATH, 'a JSON boolean is not a character cap, though Python treats it as one'
-        assert len(exc_info.value.problems) == 1, f'one field is wrong, got {exc_info.value.problems}'
-        assert str(exc_info.value.problems[0]).startswith('title.chars: '), (
-            f'the problem opens with the dotted path of the cap, got {exc_info.value.problems[0]!r}'
+        assert isinstance(failure, UndecodableStructureSpec), (
+            'a JSON boolean is not a character cap, though Python treats it as one'
+        )
+        assert len(failure.problems) == 1, f'one field is wrong, got {failure.problems}'
+        assert str(failure.problems[0]).startswith('title.chars: '), (
+            f'the problem opens with the dotted path of the cap, got {failure.problems[0]!r}'
         )
 
-    def test_parse_with_an_empty_title_raises_structure_spec_decode_error(self) -> None:
+    def test_parse_with_an_empty_title_returns_undecodable_structure_spec(self) -> None:
         #: Given
         schema = StructureSchema(
             dedent(
@@ -698,14 +688,13 @@ class TestStructureSpecParse:
         )
 
         #: When
-        with pytest.raises(StructureSpecDecodeError) as exc_info:
-            StructureSpec.parse(SPEC_FILE, schema)
+        failure = StructureSpec.parse(SPEC_FILE, schema)
 
         #: Then
-        assert exc_info.value.path == SPEC_PATH, 'a `title` stating no check would state nothing'
-        assert exc_info.value.problems == (
+        assert isinstance(failure, UndecodableStructureSpec), 'a `title` stating no check would state nothing'
+        assert failure.problems == (
             StructureSpecProblem(('title',), 'Value error, states no check; leave the key out for no title check'),
-        ), f'the problem names the key and says how to state no title check, got {exc_info.value.problems}'
+        ), f'the problem names the key and says how to state no title check, got {failure.problems}'
 
     def test_parse_with_only_a_title_pattern_returns_a_structure_spec_with_that_pattern_compiled(self) -> None:
         #: Given
@@ -743,50 +732,51 @@ class TestStructureSpecParse:
             f'the failure carries the pattern as written and what the compiler rejected, got {failure!r}'
         )
 
-    def test_parse_with_a_non_string_title_pattern_raises_structure_spec_decode_error(self) -> None:
+    def test_parse_with_a_non_string_title_pattern_returns_undecodable_structure_spec(self) -> None:
         #: Given
         schema = StructureSchema('{"title": {"pattern": 3}}')
 
         #: When
-        with pytest.raises(StructureSpecDecodeError) as exc_info:
-            StructureSpec.parse(SPEC_FILE, schema)
+        failure = StructureSpec.parse(SPEC_FILE, schema)
 
         #: Then
-        assert exc_info.value.path == SPEC_PATH, 'a JSON number is not a pattern'
-        assert exc_info.value.problems == (
-            StructureSpecProblem(('title', 'pattern'), 'Input should be a valid string'),
-        ), f'the problem names the pattern with the type rejection, got {exc_info.value.problems}'
+        assert isinstance(failure, UndecodableStructureSpec), 'a JSON number is not a pattern'
+        assert failure.problems == (StructureSpecProblem(('title', 'pattern'), 'Input should be a valid string'),), (
+            f'the problem names the pattern with the type rejection, got {failure.problems}'
+        )
 
-    def test_parse_with_an_empty_title_pattern_raises_structure_spec_decode_error(self) -> None:
+    def test_parse_with_an_empty_title_pattern_returns_undecodable_structure_spec(self) -> None:
         #: Given
         schema = StructureSchema('{"title": {"pattern": ""}}')
 
         #: When
-        with pytest.raises(StructureSpecDecodeError) as exc_info:
-            StructureSpec.parse(SPEC_FILE, schema)
+        failure = StructureSpec.parse(SPEC_FILE, schema)
 
         #: Then
-        assert exc_info.value.path == SPEC_PATH, 'an empty pattern matches every title, so it would check nothing'
-        assert exc_info.value.problems == (
+        assert isinstance(failure, UndecodableStructureSpec), (
+            'an empty pattern matches every title, so it would check nothing'
+        )
+        assert failure.problems == (
             StructureSpecProblem(('title', 'pattern'), 'String should have at least 1 character'),
-        ), f'the problem names the pattern with the length rejection, got {exc_info.value.problems}'
+        ), f'the problem names the pattern with the length rejection, got {failure.problems}'
 
-    def test_parse_with_an_unknown_key_in_the_title_raises_structure_spec_decode_error(self) -> None:
+    def test_parse_with_an_unknown_key_in_the_title_returns_undecodable_structure_spec(self) -> None:
         #: Given
         schema = StructureSchema('{"title": {"words": 8, "count": 1}}')
 
         #: When
-        with pytest.raises(StructureSpecDecodeError) as exc_info:
-            StructureSpec.parse(SPEC_FILE, schema)
+        failure = StructureSpec.parse(SPEC_FILE, schema)
 
         #: Then
-        assert exc_info.value.path == SPEC_PATH, 'a misspelt or removed title check is an error, not ignored'
-        assert len(exc_info.value.problems) == 1, f'one key is wrong, got {exc_info.value.problems}'
-        assert str(exc_info.value.problems[0]).startswith('title.count: '), (
-            f'the problem opens with the dotted path of the unknown key, got {exc_info.value.problems[0]!r}'
+        assert isinstance(failure, UndecodableStructureSpec), (
+            'a misspelt or removed title check is an error, not ignored'
+        )
+        assert len(failure.problems) == 1, f'one key is wrong, got {failure.problems}'
+        assert str(failure.problems[0]).startswith('title.count: '), (
+            f'the problem opens with the dotted path of the unknown key, got {failure.problems[0]!r}'
         )
 
-    def test_parse_with_a_string_for_a_boolean_raises_structure_spec_decode_error(self) -> None:
+    def test_parse_with_a_string_for_a_boolean_returns_undecodable_structure_spec(self) -> None:
         #: Given
         schema = StructureSchema(
             dedent(
@@ -799,13 +789,14 @@ class TestStructureSpecParse:
         )
 
         #: When
-        with pytest.raises(StructureSpecDecodeError) as exc_info:
-            StructureSpec.parse(SPEC_FILE, schema)
+        failure = StructureSpec.parse(SPEC_FILE, schema)
 
         #: Then
-        assert exc_info.value.path == SPEC_PATH, 'the file is read strictly, so no value is coerced into another type'
+        assert isinstance(failure, UndecodableStructureSpec), (
+            'the file is read strictly, so no value is coerced into another type'
+        )
 
-    def test_parse_with_an_unknown_field_raises_structure_spec_decode_error(self) -> None:
+    def test_parse_with_an_unknown_field_returns_undecodable_structure_spec(self) -> None:
         #: Given
         schema = StructureSchema(
             dedent(
@@ -819,24 +810,24 @@ class TestStructureSpecParse:
         )
 
         #: When
-        with pytest.raises(StructureSpecDecodeError) as exc_info:
-            StructureSpec.parse(SPEC_FILE, schema)
+        failure = StructureSpec.parse(SPEC_FILE, schema)
 
         #: Then
-        assert exc_info.value.path == SPEC_PATH, 'the error names the rejected file'
+        assert isinstance(failure, UndecodableStructureSpec), 'the shape refuses it with the problem it found'
 
-    def test_parse_with_a_spec_field_raises_structure_spec_decode_error(self) -> None:
+    def test_parse_with_a_spec_field_returns_undecodable_structure_spec(self) -> None:
         #: Given
         schema = StructureSchema('{"spec": "code.md", "forbidden": ["Changelog"]}')
 
         #: When
-        with pytest.raises(StructureSpecDecodeError) as exc_info:
-            StructureSpec.parse(SPEC_FILE, schema)
+        failure = StructureSpec.parse(SPEC_FILE, schema)
 
         #: Then
-        assert exc_info.value.path == SPEC_PATH, 'the prose is named by the filename, so `spec` is not a field'
+        assert isinstance(failure, UndecodableStructureSpec), (
+            'the prose is named by the filename, so `spec` is not a field'
+        )
 
-    def test_parse_with_an_empty_sections_value_other_than_forbidden_raises_structure_spec_decode_error(
+    def test_parse_with_an_empty_sections_value_other_than_forbidden_returns_undecodable_structure_spec(
         self,
     ) -> None:
         #: Given
@@ -851,33 +842,29 @@ class TestStructureSpecParse:
         )
 
         #: When
-        with pytest.raises(StructureSpecDecodeError) as exc_info:
-            StructureSpec.parse(SPEC_FILE, schema)
+        failure = StructureSpec.parse(SPEC_FILE, schema)
 
         #: Then
-        assert exc_info.value.path == SPEC_PATH, '"forbidden" is the only value `empty_sections` takes'
+        assert isinstance(failure, UndecodableStructureSpec), '"forbidden" is the only value `empty_sections` takes'
 
-    def test_parse_with_two_wrong_fields_lists_one_problem_each_in_the_message(self) -> None:
+    def test_parse_with_two_wrong_fields_returns_one_problem_each(self) -> None:
         #: Given
         schema = StructureSchema('{"tokens": 0, "empty_sections": "allowed"}')
 
         #: When
-        with pytest.raises(StructureSpecDecodeError) as exc_info:
-            StructureSpec.parse(SPEC_FILE, schema)
+        failure = StructureSpec.parse(SPEC_FILE, schema)
 
         #: Then
-        assert len(exc_info.value.problems) == 2, f'each wrong field is its own problem, got {exc_info.value.problems}'
-        assert str(exc_info.value.problems[0]).startswith('tokens: '), (
-            f'the first problem opens with the dotted path of its field, got {exc_info.value.problems[0]!r}'
+        assert isinstance(failure, UndecodableStructureSpec), f'the text does not decode, got {failure!r}'
+        assert len(failure.problems) == 2, f'each wrong field is its own problem, got {failure.problems}'
+        assert str(failure.problems[0]).startswith('tokens: '), (
+            f'the first problem opens with the dotted path of its field, got {failure.problems[0]!r}'
         )
-        assert str(exc_info.value.problems[1]).startswith('empty_sections: '), (
-            f'the second problem names its field, got {exc_info.value.problems[1]!r}'
-        )
-        assert '; '.join(str(problem) for problem in exc_info.value.problems) in str(exc_info.value), (
-            f'the message lists every problem, separated by semicolons, got {exc_info.value}'
+        assert str(failure.problems[1]).startswith('empty_sections: '), (
+            f'the second problem names its field, got {failure.problems[1]!r}'
         )
 
-    def test_parse_with_an_outline_entry_of_neither_shape_raises_structure_spec_decode_error(self) -> None:
+    def test_parse_with_an_outline_entry_of_neither_shape_returns_undecodable_structure_spec(self) -> None:
         #: Given
         schema = StructureSchema(
             dedent(
@@ -890,13 +877,14 @@ class TestStructureSpecParse:
         )
 
         #: When
-        with pytest.raises(StructureSpecDecodeError) as exc_info:
-            StructureSpec.parse(SPEC_FILE, schema)
+        failure = StructureSpec.parse(SPEC_FILE, schema)
 
         #: Then
-        assert exc_info.value.path == SPEC_PATH, 'an outline entry is a section or an `any` run, nothing else'
+        assert isinstance(failure, UndecodableStructureSpec), (
+            'an outline entry is a section or an `any` run, nothing else'
+        )
 
-    def test_parse_with_a_forbidden_entry_that_is_not_a_string_raises_structure_spec_decode_error(self) -> None:
+    def test_parse_with_a_forbidden_entry_that_is_not_a_string_returns_undecodable_structure_spec(self) -> None:
         #: Given
         schema = StructureSchema(
             dedent(
@@ -909,54 +897,53 @@ class TestStructureSpecParse:
         )
 
         #: When
-        with pytest.raises(StructureSpecDecodeError) as exc_info:
-            StructureSpec.parse(SPEC_FILE, schema)
+        failure = StructureSpec.parse(SPEC_FILE, schema)
 
         #: Then
-        assert exc_info.value.path == SPEC_PATH, '`forbidden` holds section names only'
+        assert isinstance(failure, UndecodableStructureSpec), '`forbidden` holds section names only'
 
-    def test_parse_with_a_padded_section_name_raises_structure_spec_decode_error(self) -> None:
+    def test_parse_with_a_padded_section_name_returns_undecodable_structure_spec(self) -> None:
         #: Given
         # a heading's text never has whitespace at either end, so no document could hold this section
         schema = StructureSchema('{"outline": [{"section": " Checklist"}]}')
 
         #: When
-        with pytest.raises(StructureSpecDecodeError) as exc_info:
-            StructureSpec.parse(SPEC_FILE, schema)
+        failure = StructureSpec.parse(SPEC_FILE, schema)
 
         #: Then
-        assert exc_info.value.path == SPEC_PATH, "the mistake is the specification's, so the load refuses it"
+        assert isinstance(failure, UndecodableStructureSpec), (
+            "the mistake is the specification's, so the load refuses it"
+        )
         expected = StructureSpecProblem(
             ('outline', 0, 'StructureFileSection', 'section'), str(PaddedSectionNameError(' Checklist'))
         )
-        assert expected in exc_info.value.problems, (
-            f'the section shape reports the name with its rejection, got {exc_info.value.problems}'
+        assert expected in failure.problems, (
+            f'the section shape reports the name with its rejection, got {failure.problems}'
         )
 
-    def test_parse_with_an_empty_section_name_raises_structure_spec_decode_error(self) -> None:
+    def test_parse_with_an_empty_section_name_returns_undecodable_structure_spec(self) -> None:
         #: Given
         schema = StructureSchema('{"outline": [{"section": ""}]}')
 
         #: When
-        with pytest.raises(StructureSpecDecodeError) as exc_info:
-            StructureSpec.parse(SPEC_FILE, schema)
+        failure = StructureSpec.parse(SPEC_FILE, schema)
 
         #: Then
-        assert exc_info.value.path == SPEC_PATH, 'an empty name matches only a heading with no text'
+        assert isinstance(failure, UndecodableStructureSpec), 'an empty name matches only a heading with no text'
 
-    def test_parse_with_a_padded_forbidden_entry_raises_structure_spec_decode_error(self) -> None:
+    def test_parse_with_a_padded_forbidden_entry_returns_undecodable_structure_spec(self) -> None:
         #: Given
         # a forbidden name no heading can carry would forbid nothing, silently
         schema = StructureSchema('{"forbidden": ["Changelog "]}')
 
         #: When
-        with pytest.raises(StructureSpecDecodeError) as exc_info:
-            StructureSpec.parse(SPEC_FILE, schema)
+        failure = StructureSpec.parse(SPEC_FILE, schema)
 
         #: Then
-        assert exc_info.value.problems == (
+        assert isinstance(failure, UndecodableStructureSpec), f'the text does not decode, got {failure!r}'
+        assert failure.problems == (
             StructureSpecProblem(('forbidden', 0), str(PaddedSectionNameError('Changelog '))),
-        ), f'the problem names the entry and reads with the name rejection, got {exc_info.value.problems}'
+        ), f'the problem names the entry and reads with the name rejection, got {failure.problems}'
 
     def test_parse_with_a_forbidden_entry_given_twice_returns_repeated_forbidden_sections(self) -> None:
         #: Given

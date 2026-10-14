@@ -83,7 +83,6 @@ from jsonschema.protocols import Validator
 from pydantic import ValidationError
 from referencing.jsonschema import DRAFT202012
 
-from lorecraft.core.error import Error
 from lorecraft.core.mapping import Frozen, FrozenMapping, Plain
 from lorecraft.core.num import NonZeroUnsignedInt, UnsignedInt
 from lorecraft.core.path import RootRelativePath
@@ -143,8 +142,10 @@ from .structure_failure import (
     InvalidTitlePattern,
     RepeatedForbiddenSections,
     RepeatedOutlineSections,
+    StructureSpecFailure,
     StructureSpecProblem,
     StructureSpecRuleFailure,
+    UndecodableStructureSpec,
     UntypedFrontmatterSchema,
 )
 from .structure_file import (
@@ -158,29 +159,6 @@ from .structure_file import (
 # The text of a structure specification file as read, not yet known to be JSON, the dialect's shape or usable
 # rules. A NewType only keeps it apart from other text; `StructureSpec.parse` is what proves it.
 StructureSchema = NewType('StructureSchema', str)
-
-
-class StructureSpecDecodeError(Error):
-    """A structure specification file is not JSON, or does not have the structure dialect's shape.
-
-    Attributes:
-        path: Root-relative path of the rejected file.
-        problems: Every problem found, read from the validation error.
-        source: The validation error.
-    """
-
-    path: RootRelativePath
-    problems: tuple[StructureSpecProblem, ...]
-    source: ValidationError
-
-    def __init__(
-        self, path: RootRelativePath, problems: tuple[StructureSpecProblem, ...], *, source: ValidationError
-    ) -> None:
-        self.path = path
-        self.problems = problems
-        self.source = source
-        super().__init__(f'invalid structure schema {path}: {"; ".join(str(problem) for problem in problems)}')
-        self.__cause__ = source
 
 
 @dataclass(frozen=True, slots=True)
@@ -788,9 +766,7 @@ class StructureSpec:
         return names
 
     @classmethod
-    def parse(
-        cls, file: StructureSpecFile, schema: StructureSchema
-    ) -> Self | InvalidTitlePattern | FrontmatterSchemaFailure | StructureSpecRuleFailure:
+    def parse(cls, file: StructureSpecFile, schema: StructureSchema) -> Self | StructureSpecFailure:
         """Deserialize a structure specification's text into its rules.
 
         Args:
@@ -798,18 +774,13 @@ class StructureSpec:
             schema: The file's text.
 
         Returns:
-            The rules, or the failure naming a title `pattern` that does not compile, or a frontmatter schema that
-            cannot be held: rejected by the meta-schema, carrying `$id`, naming another dialect or not stating an
-            object, or the rules that are not usable: none stated, a section named or forbidden twice, a section both
-            named and forbidden, or two `any` runs side by side.
-
-        Raises:
-            StructureSpecDecodeError: If the text is not JSON or does not have the dialect's shape.
+            The rules, or the failure naming why the text cannot be used: it is not JSON or not the dialect's shape,
+            a title `pattern` does not compile, the frontmatter schema cannot be held, or the rules are not usable.
         """
         try:
             structure_file = StructureFile.model_validate_json(schema)
         except ValidationError as exc:
-            raise StructureSpecDecodeError(file.path, _problems(exc), source=exc) from exc
+            return UndecodableStructureSpec(_problems(exc))
 
         outline: list[OutlineEntry] = []
         for entry in structure_file.outline:
