@@ -1,6 +1,6 @@
 ---
 name: "adr-019-frontmatter-format"
-description: "The frontmatter format: the closed list of YAML 1.2 constructs a frontmatter block may hold, what each reads as, and the refusal, as FM002 on its line, of every construct the list does not name, decided by lorecraft from the tokens and events it reads; a syntax error is FM002 in lorecraft's own words, classified from the parser's error; a key written twice at any depth is FM005. Load when changing what frontmatter accepts or refuses, or the diagnostics frontmatter.py reports for its syntax"
+description: "The frontmatter format: the closed list of YAML 1.2 constructs a frontmatter block may hold, what each reads as, and the refusal, as FM002 on its line, of every construct the list does not name, decided by lorecraft from the tokens and events it reads; a syntax error is FM002 in lorecraft's own words, classified from the parser's error; a key written twice at any depth is FM005. Load when changing what frontmatter accepts or refuses, or the diagnostics frontmatter.py or anything under src/lorecraft/yaml/ reports for its syntax"
 type: "adr"
 status: "proposed"
 ---
@@ -14,13 +14,14 @@ it: the constructs metadata is written with (FR-001 to FR-006), every other one 
 (FR-007 to FR-013, FR-016), a key written twice reported at any depth (FR-014), and a block that cannot be read
 reported in lorecraft's own words (FR-015).
 
-lorecraft reads a block in `src/lorecraft/project/syntax/frontmatter.py`, building the value from a YAML parser's
-token and event stream itself, and resolving plain scalars by YAML 1.2's core schema. Before this record, it refused
-only anchors, aliases, tags and keys that are not strings; everything else was refused or accepted by the parser's
-grammar. That grammar takes `%YAML` and `%TAG` directives of any 1.x version, explicit `? key` entries, the `...`
-document-end marker, block-scalar indentation indicators and flow collections nested to any depth over many lines.
-Keeping each of them meant code whose only purpose was to copy one parser's reading of a construct no frontmatter
-needs, and a parser could not be changed without proving every one again.
+lorecraft reads a block in `src/lorecraft/project/syntax/frontmatter.py`, with the reader, scanner and parser
+subclasses in `src/lorecraft/yaml/basic_yaml.py`, building the value from a YAML parser's token and event stream
+itself, and resolving plain scalars by YAML 1.2's core schema. Before this record, it refused only anchors, aliases,
+tags and keys that are not strings; everything else was refused or accepted by the parser's grammar. That grammar
+takes `%YAML` and `%TAG` directives of any 1.x version, explicit `? key` entries, the `...` document-end marker,
+block-scalar indentation indicators and flow collections nested to any depth over many lines. Keeping each of them
+meant code whose only purpose was to copy one parser's reading of a construct no frontmatter needs, and a parser
+could not be changed without proving every one again.
 
 The parser that reads the format is decided apart, in [adr-017](adr-017-yaml-parser.md).
 
@@ -196,8 +197,8 @@ parser text; every syntax-error probe is held to a kind, so the fallback stays a
   characters are rarely written on purpose, and the help says what to write instead.
 - **The parser code in `frontmatter.py` shrinks**: the directive and version handling, the YAML 1.1 line breaks, the
   scanner overrides that only copied PyYAML and the wording table go. The event walking, the core-schema resolution
-  and the refusals stay, joined by the new ones, and the scanner overrides that stay each hold one of the rules of
-  frontmatter's own.
+  and the refusals stay, joined by the new ones, and the scanner overrides that stay, in `yaml/basic_yaml.py`, each hold
+  one of the rules of frontmatter's own.
 - **Each row of the Specification has a test of its own**: an accepted row decodes to what the table says, and a
   refused row is `FM002` on its line next to a near miss the format accepts (NFR-002).
 - **What stays true**: the four outcomes of decoding a block, and the value every block inside the subset decodes
@@ -208,7 +209,8 @@ parser text; every syntax-error probe is held to a kind, so the fallback stays a
 - [ ] The docstring of `frontmatter.py` states the Specification's accepted constructs
 - [ ] Each accepted row of the Specification has a test that decodes it to what the table says
 - [ ] Plain scalars resolve by YAML 1.2's core schema, with `.inf` and `.nan` read as strings
-- [ ] The parser reads YAML 1.2, and each rule of frontmatter's own has a test; no other override bends its grammar
+- [ ] The parser, in `yaml/basic_yaml.py`, reads YAML 1.2, and each rule of frontmatter's own has a test; no other
+  override bends its grammar
 - [ ] `FM002` line numbers count a line end only at `\n`, `\r\n` or a lone `\r`
 - [ ] Each refused row of the Specification is `FM002` on its line, worded `found <what>, which frontmatter does not
   allow`, with a test that triggers it and a near miss that does not

@@ -1,10 +1,10 @@
 """The frontmatter node of a document's parse tree: the decoded YAML mapping and where each key sits.
 
 A document's frontmatter is a `---` delimited block on its first lines. Finding the block is the Markdown
-parser's job (see `document`); decoding it is this module's. Parsing has exactly four outcomes, one type each:
-no block, a block that is not YAML, a block that is YAML but not a mapping, and a mapping. Every outcome is a
-value, never an exception, because a broken block is a fact about the document that a check reports, not a
-failure of the parse.
+parser's job (`markdown.parse_markdown_frontmatter`); decoding it is this module's. Parsing has exactly four
+outcomes, one type each: no block, a block that is not YAML, a block that is YAML but not a mapping, and a mapping.
+Every outcome is a value, never an exception, because a broken block is a fact about the document that a check
+reports, not a failure of the parse.
 
 The block is read as basic YAML, which decodes to exactly what JSON can hold, and accepts only these constructs:
 
@@ -34,10 +34,9 @@ import re
 import sys
 from collections.abc import Iterator, Sequence
 from dataclasses import dataclass
-from typing import Final, Never, assert_never
+from typing import Final, assert_never
 
 from ruamel.yaml import YAML
-from ruamel.yaml.compat import check_anchorname_char
 from ruamel.yaml.error import MarkedYAMLError, StreamMark
 from ruamel.yaml.events import (
     AliasEvent,
@@ -50,31 +49,22 @@ from ruamel.yaml.events import (
     StreamEndEvent,
 )
 from ruamel.yaml.reader import ReaderError
-from ruamel.yaml.scanner import Scanner, ScannerError
-from ruamel.yaml.tokens import ScalarToken, TagToken, Token
 
 from lorecraft.core.mapping import Frozen, FrozenMapping
 from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.yaml.basic_yaml import (
-    LINE_END_CHARACTERS,
-    LINE_SEPARATORS,
     MERGE_KEY,
     REFUSALS,
-    SPACE_CHARACTERS,
     BasicYamlParser,
     BasicYamlReader,
-    RecordedConstruct,
+    BasicYamlScanner,
     RecordedRefusal,
     Refusal,
     RefusedAliasError,
     RefusedAnchorError,
     RefusedCollectionKeyError,
-    RefusedDirectiveError,
-    RefusedDocumentMarkerError,
-    RefusedEscapeError,
     RefusedFlowBlockError,
     RefusedFlowNestedCollectionError,
-    RefusedMalformedTagError,
     RefusedMergeKeyError,
     RefusedNestedBlockSequenceError,
     RefusedNonStringKeyError,
@@ -109,13 +99,6 @@ _HEX_INT: Final[re.Pattern[str]] = re.compile(r'0x[0-9a-fA-F]+')
 _FLOAT: Final[re.Pattern[str]] = re.compile(r'[-+]?(\.[0-9]+|[0-9]+(\.[0-9]*)?)([eE][-+]?[0-9]+)?')
 """A plain scalar YAML 1.2's core schema reads as a float. It matches every decimal integer too, so the integer
 patterns are tried first. The core schema's `.inf` and `.nan` are left out: JSON has no number for either."""
-
-_QUOTED_TEXT_END_CHARACTERS: Final[str] = ' \n\'"\\\0\t\r'
-"""The characters the text of a quoted scalar stops at: ruamel.yaml's set without U+0085, U+2028 and U+2029, which
-are text inside quotes."""
-
-_DIRECTIVE_NAME_END_CHARACTERS: Final[str] = SPACE_CHARACTERS + ',[]{}:'
-"""The characters that end the name a refused directive is reported by: whitespace, a flow indicator or a `:`."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -313,7 +296,7 @@ class _EventStream:
         # change in how ruamel.yaml chooses its parser cannot bring the C one, which has no reader of ours, in.
         yaml = YAML(typ='safe', pure=True)
         yaml.Reader = BasicYamlReader
-        yaml.Scanner = _BasicYamlScanner
+        yaml.Scanner = BasicYamlScanner
         yaml.Parser = BasicYamlParser
         self._block = block
         self._events: Iterator[Event] = iter(yaml.parse(block))
@@ -347,11 +330,9 @@ class _EventStream:
         """The first construct the scanner or the reader has recorded, in the order the block writes them, or `None`."""
         scanner = self._yaml.scanner
         reader = self._yaml.reader
-        if not isinstance(scanner, _BasicYamlScanner) or not isinstance(reader, BasicYamlReader):
+        if not isinstance(scanner, BasicYamlScanner) or not isinstance(reader, BasicYamlReader):
             # The types are declared on the parser's base class; `_EventStream` always installs its own.
-            raise AssertionError(
-                "unreachable: the parser is built with this module's scanner and `lorecraft.yaml`'s reader"
-            )
+            raise AssertionError("unreachable: the parser is built with `lorecraft.yaml`'s scanner and reader")
         recorded = [*scanner.refusals[:1], *([reader.separator] if reader.separator is not None else [])]
         if not recorded:
             return None
@@ -392,412 +373,6 @@ class _EventStream:
             kinds: The event classes to test for.
         """
         return isinstance(self.peek_event(), kinds)
-
-
-class _BasicYamlScanner(Scanner):
-    r"""ruamel.yaml's scanner, reading the YAML 1.2 grammar and failing with a `ScannerError`.
-
-    A block is accepted or refused by the YAML 1.2 grammar with two rules of frontmatter's own, and a refusal names
-    the problem and the line the scanner found it on. A blank line before a block scalar's text may hold fewer
-    spaces than the text, and a tab is never whitespace between tokens, in a flow collection too. The scanner also
-    ends a plain scalar inside a flow collection at a `:` followed by a flow indicator, which YAML 1.2 does and
-    ruamel.yaml does not.
-
-    U+0085, U+2028 and U+2029 are text inside a quoted scalar, and a refusal anywhere else, which the reader records
-    where it moves over one; `scan_flow_scalar` tells it where a quoted scalar is.
-
-    A directive and a document marker are refused at their indicator, before anything after it is read, so the
-    block's own text never reaches ruamel.yaml's directive scanner, whose version number conversion raises a plain
-    `ValueError` for more digits than Python converts to an `int`, 4300 by default. Those refusals are
-    errors of lorecraft's own, not a `ScannerError`: `decode_frontmatter` reports them as they are worded, where
-    it rewords the scanner's problems.
-
-    An explicit key, an empty key, a flow collection spread over lines and a block scalar's indentation indicator
-    are not refused where the scanner meets them. It records each in `refusals`, in the order the block writes them,
-    for `decode_frontmatter` to report once the read ends or fails. The scanner reads ahead of the parser, so
-    raising at once would report a construct written below a tag or an anchor before the tag or the anchor. It
-    holds `_flow_start`, where the outermost open flow collection begins, to tell a collection spread over lines.
-
-    An anchor or an alias with no name, and a tag the scanner cannot read, are refused here too, as the anchor, alias
-    or tag they are. The tag's refusal is chained from the scanner's error.
-
-    A double-quoted `\U` escape above `U+10FFFF` is the one other place a plain Python exception escapes: `chr`
-    raises a `ValueError`, or an `OverflowError` for one too large for a C `int`. It is refused here, on the
-    escape's line, as `decode_frontmatter` refuses every construct frontmatter does not allow.
-    """
-
-    def __init__(self, loader: object = None) -> None:
-        """Start scanning outside any flow collection, with nothing recorded.
-
-        Args:
-            loader: The object ruamel.yaml's entry point passes in, which holds the reader.
-        """
-        super().__init__(loader)
-        self._flow_start: StreamMark | None = None
-        self.refusals: list[RecordedRefusal] = []
-
-    def fetch_directive(self) -> Never:
-        """Refuse a directive, a `%` line, naming it by the `%` and the name that follows it.
-
-        Raises:
-            RefusedDirectiveError: Always: frontmatter holds no directive.
-        """
-        start_mark = self.reader.get_mark()
-        length = 1
-        while self.reader.peek(length) not in _DIRECTIVE_NAME_END_CHARACTERS:
-            length += 1
-        raise RefusedDirectiveError(self.reader.prefix(length), start_mark)
-
-    def fetch_document_start(self) -> Never:
-        """Refuse a `---` marker written inside the block.
-
-        Raises:
-            RefusedDocumentMarkerError: Always: the block is the body of one document, whose delimiters are not part of
-                it.
-        """
-        self._refuse_document_marker()
-
-    def fetch_document_end(self) -> Never:
-        """Refuse a `...` marker written inside the block.
-
-        Raises:
-            RefusedDocumentMarkerError: Always: the block is the body of one document, whose delimiters are not part of
-                it.
-        """
-        self._refuse_document_marker()
-
-    def _refuse_document_marker(self) -> Never:
-        """Refuse the three-character marker the reader is on.
-
-        Raises:
-            RefusedDocumentMarkerError: Always: the marker is not allowed inside the block.
-        """
-        raise RefusedDocumentMarkerError(self.reader.prefix(3), self.reader.get_mark())
-
-    def scan_anchor(self, TokenClass: type[Token]) -> Token:
-        """Scan an anchor or an alias, refusing one with no name as the anchor or alias it is.
-
-        Args:
-            TokenClass: The token to build, an anchor's or an alias's.
-
-        Raises:
-            RefusedAnchorError: An anchor has no name, or a name with a character the scanner rejects.
-            RefusedAliasError: An alias has no name, or a name with a character the scanner rejects.
-        """
-        # The scanner ends a name at the first character `check_anchorname_char` rejects, such as U+FEFF, and fails
-        # when that character is not one that may follow a name. The block's own spelling runs to the next token
-        # end, so a character it rejects anywhere in it is the case the scanner would fail on.
-        written = written_token(self.reader.buffer, self.reader.pointer)
-        name = written[1:]
-        if not name or not all(check_anchorname_char(character) for character in name):
-            start_mark = self.reader.get_mark()
-            if written[0] == '*':
-                raise RefusedAliasError(name, start_mark)
-            raise RefusedAnchorError(name, start_mark)
-        token = super().scan_anchor(TokenClass)
-        if not isinstance(token, Token):
-            # The base method's return type is `Any`; it builds the token class it was given.
-            raise AssertionError('unreachable: ruamel.yaml scans an anchor into a token')
-        return token
-
-    def scan_tag(self) -> TagToken:
-        """Scan a tag, refusing one the scanner cannot read as the tag it is.
-
-        Raises:
-            RefusedMalformedTagError: The scanner cannot read the tag, such as a verbatim tag left open or empty, a
-                bad `%` escape, or a tag with no space after it.
-        """
-        start_mark = self.reader.get_mark()
-        # The reader's buffer holds the whole block, ended by a NUL, and the pointer is where the tag starts.
-        written = written_token(self.reader.buffer, self.reader.pointer)
-        try:
-            token = super().scan_tag()
-        except ScannerError as exc:
-            raise RefusedMalformedTagError(written, start_mark, source=exc) from exc
-        if not isinstance(token, TagToken):
-            # The base method's return type is `Any`; it builds a tag token.
-            raise AssertionError('unreachable: ruamel.yaml scans a tag into a tag token')
-        return token
-
-    def fetch_key(self) -> None:
-        """Fetch a `?` that starts a key, and record it as an explicit key where a node may start."""
-        # The scanner's flow context takes every `?` for a key. A `?` that follows a scalar, as in `[what?]` and
-        # `[what ? x]`, is part of a plain scalar in YAML 1.2, and the scanner has stopped allowing a node by then,
-        # so it is left to the parser. After `[`, `{`, `,` or the start of a block line, a node may start.
-        if self.allow_simple_key:
-            self.refusals.append(RecordedRefusal(RecordedConstruct.EXPLICIT_KEY, self.reader.get_mark()))
-        super().fetch_key()
-
-    def fetch_value(self) -> None:
-        """Fetch a `:`, and record it as an empty key when no key was written before it."""
-        # The scanner saves the start of every scalar that may be a simple key, and `:` finds it. With none saved,
-        # and a key allowed here, the key is written as nothing. Where a key is not allowed, as after `a: b`, the
-        # scanner fails with its own problem, which is a syntax error of the value, not an empty key.
-        if self.flow_level not in self.possible_simple_keys and (self.flow_level or self.allow_simple_key):
-            self.refusals.append(RecordedRefusal(RecordedConstruct.EMPTY_KEY, self.reader.get_mark()))
-        super().fetch_value()
-
-    def fetch_flow_collection_start(self, TokenClass: type[Token], to_push: str) -> None:
-        """Fetch a `[` or a `{`, remembering where the outermost flow collection opens.
-
-        Args:
-            TokenClass: The token to build, a sequence's or a mapping's start.
-            to_push: The character the flow context records.
-        """
-        if self._flow_start is None:
-            self._flow_start = self.reader.get_mark()
-        super().fetch_flow_collection_start(TokenClass, to_push)
-
-    def fetch_flow_collection_end(self, TokenClass: type[Token]) -> None:
-        """Fetch a `]` or a `}`, forgetting where the outermost flow collection opened once it closes.
-
-        Args:
-            TokenClass: The token to build, a sequence's or a mapping's end.
-        """
-        super().fetch_flow_collection_end(TokenClass)
-        if not self.flow_level:
-            self._flow_start = None
-
-    def scan_block_scalar_indicators(self, start_mark: StreamMark) -> tuple[bool | None, int | None]:
-        """Scan a block scalar's chomping and indentation indicators, recording an indentation indicator.
-
-        Args:
-            start_mark: Where the scalar starts, for the scanner's own error messages.
-        """
-        chomping, increment = super().scan_block_scalar_indicators(start_mark)
-        # The base method's return type is `Any`; it reads `+` and `-` as a boolean and a digit as an integer.
-        if chomping is not None and not isinstance(chomping, bool):
-            raise AssertionError('unreachable: the chomping indicator is a boolean or absent')
-        if increment is not None and not isinstance(increment, int):
-            raise AssertionError('unreachable: the indentation indicator is an integer or absent')
-        if increment is not None:
-            self.refusals.append(RecordedRefusal(RecordedConstruct.INDENTATION_INDICATOR, start_mark))
-        return chomping, increment
-
-    def scan_flow_scalar_breaks(self, double: bool, start_mark: StreamMark) -> list[str]:
-        """Scan the line breaks and blank lines inside a quoted scalar, refusing a marker that starts a line.
-
-        Args:
-            double: True for a double-quoted scalar; False for a single-quoted one.
-            start_mark: Where the scalar starts, for the scanner's own error messages.
-
-        Raises:
-            RefusedDocumentMarkerError: A line of the scalar starts with a `---` or `...` marker.
-        """
-        # ruamel.yaml refuses a marker on a continuation line itself, in its own words, and the format refuses
-        # every marker the same way, so the loop is its own with that one check changed.
-        chunks: list[str] = []
-        while True:
-            if self.reader.prefix(3) in ('---', '...') and self.reader.peek(3) in SPACE_CHARACTERS:
-                self._refuse_document_marker()
-            while self.reader.peek() in ' \t':
-                self.reader.forward()
-            if self.reader.peek() not in '\r\n':
-                return chunks
-            chunks.append(self.scan_line_break())
-
-    def scan_flow_scalar(self, style: str) -> Token:
-        """Scan a single- or double-quoted scalar, inside which a line separator is text.
-
-        Args:
-            style: The quote the scalar is written with.
-        """
-        self.reader.quoted = True
-        try:
-            return super().scan_flow_scalar(style)
-        finally:
-            self.reader.quoted = False
-
-    def scan_flow_scalar_spaces(self, double: bool, start_mark: StreamMark) -> list[str]:
-        """Scan the spaces of a quoted scalar, which stay text before a line separator, as the separator does.
-
-        Args:
-            double: True for a double-quoted scalar; False for a single-quoted one.
-            start_mark: Where the scalar starts, for the scanner's own error messages.
-        """
-        length = 0
-        while self.reader.peek(length) in ' \t':
-            length += 1
-        if self.reader.peek(length) in LINE_SEPARATORS:
-            # ruamel.yaml folds the spaces and the separator into one line break. Here the separator is text.
-            whitespaces = self.reader.prefix(length)
-            self.reader.forward(length)
-            return [whitespaces]
-        return _strings(super().scan_flow_scalar_spaces(double, start_mark))
-
-    # The two methods below are rules of frontmatter's own, not ruamel.yaml's reading of YAML 1.2.
-
-    def scan_block_scalar_indentation(self) -> tuple[list[str], int, StreamMark]:
-        """Scan the blank lines before a block scalar's text, and the widest indent among them.
-
-        A blank line holding fewer spaces than the text's indent is accepted.
-        """
-        # ruamel.yaml raises "more indented follow up line than first in a block scalar" for a leading blank line
-        # that holds spaces, which a block scalar written under an auto-indenting editor often has.
-        chunks: list[str] = []
-        max_indent = 0
-        end_mark = self._current_mark()
-        while self.reader.peek() in ' \r\n':
-            if self.reader.peek() != ' ':
-                chunks.append(self.scan_line_break())
-                end_mark = self._current_mark()
-            else:
-                self.reader.forward()
-                max_indent = max(max_indent, int(self.reader.column))
-        return chunks, max_indent, end_mark
-
-    def _current_mark(self) -> StreamMark:
-        """Where the reader is."""
-        mark = self.reader.get_mark()
-        if not isinstance(mark, StreamMark):
-            # The reader's `get_mark` is typed as optional; a reader built over a string always marks its position.
-            raise AssertionError('unreachable: the reader marks every position')
-        return mark
-
-    def scan_flow_scalar_non_spaces(self, double: bool, start_mark: StreamMark) -> list[str]:
-        """Scan the text of a quoted scalar up to its next space, a line separator taken as text.
-
-        Args:
-            double: True for a double-quoted scalar, whose backslash escapes are decoded; False for a single-quoted one.
-            start_mark: Where the scalar starts, for the scanner's own error messages.
-
-        Raises:
-            ScannerError: An escape is not one YAML knows, or is written with a digit that is not hexadecimal.
-            RefusedEscapeError: An escape names no Unicode character.
-        """
-        # This is ruamel.yaml's method as of 0.19.1 with two changes: a line separator is not a character the text
-        # stops at, and a backslash before one is an unknown escape, not an escaped line break.
-        chunks: list[str] = []
-        while True:
-            length = 0
-            while self.reader.peek(length) not in _QUOTED_TEXT_END_CHARACTERS:
-                length += 1
-            if length != 0:
-                chunks.append(self.reader.prefix(length))
-                self.reader.forward(length)
-            character = self.reader.peek()
-            if not double and character == "'" and self.reader.peek(1) == "'":
-                chunks.append("'")
-                self.reader.forward(2)
-            elif (double and character == "'") or (not double and character in '"\\'):
-                chunks.append(character)
-                self.reader.forward()
-            elif double and character == '\\':
-                self.reader.forward()
-                character = self.reader.peek()
-                if character in self.ESCAPE_REPLACEMENTS:
-                    chunks.append(self.ESCAPE_REPLACEMENTS[character])
-                    self.reader.forward()
-                elif character in self.ESCAPE_CODES:
-                    digits = self.ESCAPE_CODES[character]
-                    self.reader.forward()
-                    for offset in range(digits):
-                        if self.reader.peek(offset) not in '0123456789ABCDEFabcdef':
-                            raise ScannerError(
-                                'while scanning a double-quoted scalar',
-                                start_mark,
-                                f'expected escape sequence of {digits:d} '
-                                f'hexdecimal numbers, but found {self.reader.peek(offset)!r}',
-                                self.reader.get_mark(),
-                            )
-                    try:
-                        chunks.append(chr(int(self.reader.prefix(digits), 16)))
-                    except (ValueError, OverflowError) as exc:
-                        # The digits are checked to be hexadecimal, but not that the code point they name is at most
-                        # U+10FFFF, so `chr` raises: a ValueError for `\U00110000`, and for `\UFFFFFFFF`, which does
-                        # not fit a C int, an OverflowError on the interpreters that convert the argument first. The
-                        # reader is on the escape's digits, so its mark is on the escape's line.
-                        raise RefusedEscapeError(self.reader.get_mark(), source=exc) from exc
-                    self.reader.forward(digits)
-                elif character in '\n\r':
-                    self.scan_line_break()
-                    chunks.extend(_strings(self.scan_flow_scalar_breaks(double, start_mark)))
-                else:
-                    raise ScannerError(
-                        'while scanning a double-quoted scalar',
-                        start_mark,
-                        f'found unknown escape character {character!r}',
-                        self.reader.get_mark(),
-                    )
-            else:
-                return chunks
-
-    def scan_to_next_token(self) -> None:
-        r"""Skip spaces, comments and line breaks to the next token; a tab is no whitespace, in a flow collection too.
-
-        A tab is a character that cannot start a token, so `[a,\tb]` is refused. Where the next token is on a later
-        line than the one the flow collection it is in opened on, the collection is recorded as a refusal.
-        """
-        # ruamel.yaml skips a tab inside a flow collection, as YAML 1.2 allows; frontmatter refuses it, so that a tab
-        # is never whitespace between tokens.
-        if self.reader.index == 0 and self.reader.peek() == '\ufeff':
-            self.reader.forward()
-        found = False
-        while not found:
-            while self.reader.peek() == ' ':
-                self.reader.forward()
-            if self.reader.peek() == '#':
-                while self.reader.peek() not in LINE_END_CHARACTERS:
-                    self.reader.forward()
-            if self.scan_line_break():
-                if not self.flow_level:
-                    self.allow_simple_key = True
-            else:
-                found = True
-        # The next token is the first thing the collection holds on a line below the one it opened on, or the end of
-        # the block, where an unclosed one stops. A construct written between the opening and the line break, such as
-        # the tag of `a: [b, !x c,` / `  d]`, was recorded or met before this point, so it is reported first, on the
-        # same line.
-        if self._flow_start is not None and self.reader.line != self._flow_start.line:
-            # This runs for every token below the opening line, and the collection is refused once.
-            if not any(refusal.mark is self._flow_start for refusal in self.refusals):
-                self.refusals.append(RecordedRefusal(RecordedConstruct.SPREAD_FLOW_COLLECTION, self._flow_start))
-
-    def check_value(self) -> bool:
-        """Whether the `:` the reader is on is a value indicator, which includes one before a flow indicator."""
-        # YAML 1.2 reads a `:` followed by `,`, `[`, `]`, `{` or `}` inside a flow collection as a value indicator,
-        # which ruamel.yaml reads only as YAML 1.1. Without it, `scan_plain` below ends the scalar at that `:` and no
-        # token starts there.
-        if self.flow_level and self.reader.peek(1) in ',[]{}':
-            return True
-        return bool(super().check_value())
-
-    def scan_plain(self) -> ScalarToken:
-        """Scan a plain scalar, which ends at a `:` before a flow indicator inside a flow collection."""
-        # YAML 1.2 ends a plain scalar inside a flow collection at a `:` followed by `,`, `[`, `]`, `{` or `}`, which
-        # ruamel.yaml misses: it keeps the `:` in the scalar, so `{c:[d]}` and `[a:, b]` would read `c` and `a` as
-        # part of their values instead of as keys.
-        chunks: list[str] = []
-        start_mark = self.reader.get_mark()
-        end_mark = start_mark
-        indent = self.indent + 1
-        spaces: list[str] = []
-        while True:
-            length = 0
-            if self.reader.peek() == '#':
-                break
-            while True:
-                ch = self.reader.peek(length)
-                colon_ends_scalar = ch == ':' and self.reader.peek(length + 1) in (
-                    SPACE_CHARACTERS + (',[]{}' if self.flow_level else '')
-                )
-                flow_indicator = self.flow_level and ch in ',[]{}'
-                if ch in SPACE_CHARACTERS or colon_ends_scalar or flow_indicator:
-                    break
-                length += 1
-            if length == 0:
-                break
-            self.allow_simple_key = False
-            chunks.extend(spaces)
-            chunks.append(self.reader.prefix(length))
-            self.reader.forward(length)
-            end_mark = self.reader.get_mark()
-            # It returns nothing, rather than a list, when the spaces end at a document marker.
-            scanned = self.scan_plain_spaces(indent, start_mark)
-            spaces = [] if scanned is None else _strings(scanned)
-            if not spaces or self.reader.peek() == '#' or (not self.flow_level and self.reader.column < indent):
-                break
-        return ScalarToken(''.join(chunks), True, start_mark, end_mark)
 
 
 def _invalid_refusal(
@@ -1120,24 +695,6 @@ def _repeats(entries: list[_Entry]) -> list[RepeatedKey]:
             repeats.append(RepeatedKey(key.name, key.line, first_lines[key.name], last_lines[key.name]))
         seen.add(key.name)
     return repeats
-
-
-def _strings(chunks: object) -> list[str]:
-    """The text pieces an untyped ruamel.yaml scanner method returned, checked to be a list of strings.
-
-    Args:
-        chunks: What the scanner method returned.
-    """
-    if not isinstance(chunks, list):
-        # The scanner method is untyped; it builds a list of the pieces it scanned.
-        raise AssertionError('unreachable: ruamel.yaml scans text into a list of strings')
-    strings: list[str] = []
-    for chunk in chunks:
-        if not isinstance(chunk, str):
-            # The scanner appends only slices of the block's text, which are strings.
-            raise AssertionError('unreachable: ruamel.yaml scans text into a list of strings')
-        strings.append(chunk)
-    return strings
 
 
 def _invalid_yaml(problem: SyntaxProblem, stream: _EventStream) -> InvalidYamlFrontmatter:
