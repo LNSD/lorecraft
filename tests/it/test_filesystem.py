@@ -397,9 +397,10 @@ class TestDiskFileSystemListDir:
         (tmp_path / 'a.md').write_text('a', encoding='utf-8')
         (tmp_path / 'c').mkdir()
         filesystem = DiskFileSystem(tmp_path)
+        path = RootRelativePath.parse('.')
 
         #: When
-        entries = filesystem.list_dir(RootRelativePath.parse('.'))
+        entries = filesystem.list_dir(path)
 
         #: Then
         assert entries == (
@@ -415,9 +416,10 @@ class TestDiskFileSystemListDir:
         target = 'file.md'
         (tmp_path / 'link').symlink_to(tmp_path / target)
         filesystem = DiskFileSystem(tmp_path)
+        path = RootRelativePath.parse('.')
 
         #: When
-        entries = filesystem.list_dir(RootRelativePath.parse('.'))
+        entries = filesystem.list_dir(path)
 
         #: Then
         assert DirEntry(PathComponent.parse('link'), EntryKind.SYMLINK) in entries, (
@@ -431,9 +433,10 @@ class TestDiskFileSystemListDir:
         target = 'subdir'
         (tmp_path / 'link').symlink_to(tmp_path / target)
         filesystem = DiskFileSystem(tmp_path)
+        path = RootRelativePath.parse('.')
 
         #: When
-        entries = filesystem.list_dir(RootRelativePath.parse('.'))
+        entries = filesystem.list_dir(path)
 
         #: Then
         assert DirEntry(PathComponent.parse('link'), EntryKind.SYMLINK) in entries, (
@@ -447,9 +450,10 @@ class TestDiskFileSystemListDir:
         target = 'missing'
         (tmp_path / 'link').symlink_to(tmp_path / target)
         filesystem = DiskFileSystem(tmp_path)
+        path = RootRelativePath.parse('.')
 
         #: When
-        entries = filesystem.list_dir(RootRelativePath.parse('.'))
+        entries = filesystem.list_dir(path)
 
         #: Then
         assert DirEntry(PathComponent.parse('link'), EntryKind.SYMLINK) in entries, (
@@ -460,9 +464,10 @@ class TestDiskFileSystemListDir:
         #: Given
         os.mkfifo(tmp_path / 'pipe')
         filesystem = DiskFileSystem(tmp_path)
+        path = RootRelativePath.parse('.')
 
         #: When
-        entries = filesystem.list_dir(RootRelativePath.parse('.'))
+        entries = filesystem.list_dir(path)
 
         #: Then
         assert entries == (DirEntry(PathComponent.parse('pipe'), EntryKind.OTHER),), (
@@ -496,9 +501,10 @@ class TestDiskFileSystemListDir:
         #: Given
         (tmp_path / 'loop').symlink_to('loop')
         filesystem = DiskFileSystem(tmp_path)
+        path = RootRelativePath.parse('loop')
 
         #: When
-        entries = filesystem.list_dir(RootRelativePath.parse('loop'))
+        entries = filesystem.list_dir(path)
 
         #: Then
         assert entries == (), 'a looping link leads to no directory, so it lists as nothing, like a dangling one'
@@ -528,9 +534,10 @@ class TestDiskFileSystemReadText:
         #: Given
         (tmp_path / 'guide.md').write_text('# Guía\n', encoding='utf-8')
         filesystem = DiskFileSystem(tmp_path)
+        path = RootRelativePath.parse('guide.md')
 
         #: When
-        text = filesystem.read_text(RootRelativePath.parse('guide.md'))
+        text = filesystem.read_text(path)
 
         #: Then
         assert text == '# Guía\n', 'the file is decoded as UTF-8'
@@ -573,9 +580,10 @@ class TestDiskFileSystemFindEntryKind:
         #: Given
         (tmp_path / 'notes.md').write_text('', encoding='utf-8')
         filesystem = DiskFileSystem(tmp_path)
+        path = RootRelativePath.parse('notes.md')
 
         #: When
-        kind = filesystem.find_entry_kind(RootRelativePath.parse('notes.md'))
+        kind = filesystem.find_entry_kind(path)
 
         #: Then
         assert kind is EntryKind.FILE, 'a regular file is FILE'
@@ -584,9 +592,10 @@ class TestDiskFileSystemFindEntryKind:
         #: Given
         (tmp_path / 'docs').mkdir()
         filesystem = DiskFileSystem(tmp_path)
+        path = RootRelativePath.parse('docs')
 
         #: When
-        kind = filesystem.find_entry_kind(RootRelativePath.parse('docs'))
+        kind = filesystem.find_entry_kind(path)
 
         #: Then
         assert kind is EntryKind.DIRECTORY, 'a regular directory is DIRECTORY'
@@ -594,9 +603,10 @@ class TestDiskFileSystemFindEntryKind:
     def test_find_entry_kind_with_the_root_returns_directory(self, tmp_path: Path) -> None:
         #: Given
         filesystem = DiskFileSystem(tmp_path)
+        path = RootRelativePath.parse('.')
 
         #: When
-        kind = filesystem.find_entry_kind(RootRelativePath.parse('.'))
+        kind = filesystem.find_entry_kind(path)
 
         #: Then
         assert kind is EntryKind.DIRECTORY, 'the root is a directory'
@@ -606,9 +616,10 @@ class TestDiskFileSystemFindEntryKind:
         (tmp_path / 'real-docs').mkdir()
         (tmp_path / 'docs').symlink_to('real-docs')
         filesystem = DiskFileSystem(tmp_path)
+        path = RootRelativePath.parse('docs')
 
         #: When
-        kind = filesystem.find_entry_kind(RootRelativePath.parse('docs'))
+        kind = filesystem.find_entry_kind(path)
 
         #: Then
         assert kind is EntryKind.SYMLINK, 'a link at the path is SYMLINK, never the directory it leads to'
@@ -617,9 +628,10 @@ class TestDiskFileSystemFindEntryKind:
         #: Given
         (tmp_path / 'link').symlink_to('missing')
         filesystem = DiskFileSystem(tmp_path)
+        path = RootRelativePath.parse('link')
 
         #: When
-        kind = filesystem.find_entry_kind(RootRelativePath.parse('link'))
+        kind = filesystem.find_entry_kind(path)
 
         #: Then
         assert kind is EntryKind.SYMLINK, 'a link to nothing is still an entry, and a SYMLINK'
@@ -628,9 +640,10 @@ class TestDiskFileSystemFindEntryKind:
         #: Given
         os.mkfifo(tmp_path / 'pipe')
         filesystem = DiskFileSystem(tmp_path)
+        path = RootRelativePath.parse('pipe')
 
         #: When
-        kind = filesystem.find_entry_kind(RootRelativePath.parse('pipe'))
+        kind = filesystem.find_entry_kind(path)
 
         #: Then
         assert kind is EntryKind.OTHER, 'neither a file nor a directory is OTHER'
@@ -643,9 +656,10 @@ class TestDiskFileSystemFindEntryKind:
         (tmp_path / 'real' / 'SKILL.md').write_text('', encoding='utf-8')
         (tmp_path / 'link').symlink_to('real')
         filesystem = DiskFileSystem(tmp_path)
+        path = RootRelativePath.parse('link/SKILL.md')
 
         #: When
-        kind = filesystem.find_entry_kind(RootRelativePath.parse('link/SKILL.md'))
+        kind = filesystem.find_entry_kind(path)
 
         #: Then
         assert kind is EntryKind.FILE, 'a link on the way is followed, so link/SKILL.md is the file in real/'
@@ -653,9 +667,10 @@ class TestDiskFileSystemFindEntryKind:
     def test_find_entry_kind_with_a_missing_path_returns_none(self, tmp_path: Path) -> None:
         #: Given
         filesystem = DiskFileSystem(tmp_path)
+        path = RootRelativePath.parse('missing.md')
 
         #: When
-        kind = filesystem.find_entry_kind(RootRelativePath.parse('missing.md'))
+        kind = filesystem.find_entry_kind(path)
 
         #: Then
         assert kind is None, 'a missing path has no kind rather than failing'
@@ -664,9 +679,10 @@ class TestDiskFileSystemFindEntryKind:
         #: Given
         (tmp_path / 'notes.md').write_text('', encoding='utf-8')
         filesystem = DiskFileSystem(tmp_path)
+        path = RootRelativePath.parse('notes.md/inner')
 
         #: When
-        kind = filesystem.find_entry_kind(RootRelativePath.parse('notes.md/inner'))
+        kind = filesystem.find_entry_kind(path)
 
         #: Then
         assert kind is None, 'nothing sits inside a file, so the path has no kind'
@@ -675,9 +691,10 @@ class TestDiskFileSystemFindEntryKind:
         #: Given
         (tmp_path / 'loop').symlink_to('loop')
         filesystem = DiskFileSystem(tmp_path)
+        path = RootRelativePath.parse('loop/inner')
 
         #: When
-        kind = filesystem.find_entry_kind(RootRelativePath.parse('loop/inner'))
+        kind = filesystem.find_entry_kind(path)
 
         #: Then
         assert kind is None, 'a looping parent leads to no directory, so nothing is inside it, like a dangling one'
@@ -718,9 +735,10 @@ class TestDiskFileSystemFindDir:
     def test_find_dir_with_the_root_returns_dot(self, tmp_path: Path) -> None:
         #: Given
         filesystem = DiskFileSystem(tmp_path)
+        path = RootRelativePath.parse('.')
 
         #: When
-        resolved = filesystem.find_dir(RootRelativePath.parse('.'))
+        resolved = filesystem.find_dir(path)
 
         #: Then
         assert resolved == RootRelativePath.parse('.'), 'the root resolves to the empty root-relative path'
@@ -730,9 +748,10 @@ class TestDiskFileSystemFindDir:
         (tmp_path / 'target').mkdir()
         (tmp_path / 'link').symlink_to(tmp_path / 'target')
         filesystem = DiskFileSystem(tmp_path)
+        path = RootRelativePath.parse('link')
 
         #: When
-        resolved = filesystem.find_dir(RootRelativePath.parse('link'))
+        resolved = filesystem.find_dir(path)
 
         #: Then
         assert resolved == RootRelativePath.parse('target'), 'a link to a directory resolves to the directory it names'
@@ -742,9 +761,10 @@ class TestDiskFileSystemFindDir:
         (tmp_path / '.agents' / 'skills').mkdir(parents=True)
         (tmp_path / '.claude').symlink_to('.agents')
         filesystem = DiskFileSystem(tmp_path)
+        path = RootRelativePath.parse('.claude/skills')
 
         #: When
-        resolved = filesystem.find_dir(RootRelativePath.parse('.claude/skills'))
+        resolved = filesystem.find_dir(path)
 
         #: Then
         assert resolved == RootRelativePath.parse('.agents/skills'), 'a link on a parent component is followed too'
@@ -755,9 +775,10 @@ class TestDiskFileSystemFindDir:
         (tmp_path / '.claude').mkdir()
         (tmp_path / '.claude' / 'skills').symlink_to('../.agents/skills')
         filesystem = DiskFileSystem(tmp_path)
+        path = RootRelativePath.parse('.claude/skills')
 
         #: When
-        resolved = filesystem.find_dir(RootRelativePath.parse('.claude/skills'))
+        resolved = filesystem.find_dir(path)
 
         #: Then
         assert resolved == RootRelativePath.parse('.agents/skills'), 'a relative target is read from the link directory'
@@ -766,9 +787,10 @@ class TestDiskFileSystemFindDir:
         #: Given
         (tmp_path / 'link').symlink_to('missing')
         filesystem = DiskFileSystem(tmp_path)
+        path = RootRelativePath.parse('link')
 
         #: When
-        resolved = filesystem.find_dir(RootRelativePath.parse('link'))
+        resolved = filesystem.find_dir(path)
 
         #: Then
         assert resolved is None, 'a link to nothing leads to no directory'
@@ -778,9 +800,10 @@ class TestDiskFileSystemFindDir:
         (tmp_path / 'first').symlink_to('second')
         (tmp_path / 'second').symlink_to('first')
         filesystem = DiskFileSystem(tmp_path)
+        path = RootRelativePath.parse('first')
 
         #: When
-        resolved = filesystem.find_dir(RootRelativePath.parse('first'))
+        resolved = filesystem.find_dir(path)
 
         #: Then
         assert resolved is None, 'a looping link leads nowhere, like a dangling one'
@@ -790,9 +813,10 @@ class TestDiskFileSystemFindDir:
     ) -> None:
         #: Given
         filesystem = DiskFileSystem(tmp_path)
+        path = RootRelativePath.parse(chain_of_41_links)
 
         #: When
-        resolved = filesystem.find_dir(RootRelativePath.parse(chain_of_41_links))
+        resolved = filesystem.find_dir(path)
 
         #: Then
         assert resolved is None, 'nothing opens a directory through a chain the operating system gives up on'
@@ -802,9 +826,10 @@ class TestDiskFileSystemFindDir:
         (tmp_path / 'notes.md').write_text('', encoding='utf-8')
         (tmp_path / 'link').symlink_to('notes.md')
         filesystem = DiskFileSystem(tmp_path)
+        path = RootRelativePath.parse('link')
 
         #: When
-        resolved = filesystem.find_dir(RootRelativePath.parse('link'))
+        resolved = filesystem.find_dir(path)
 
         #: Then
         assert resolved is None, 'a link whose target is a file is not a directory'
@@ -812,9 +837,10 @@ class TestDiskFileSystemFindDir:
     def test_find_dir_with_a_missing_path_returns_none(self, tmp_path: Path) -> None:
         #: Given
         filesystem = DiskFileSystem(tmp_path)
+        path = RootRelativePath.parse('.agents/skills')
 
         #: When
-        resolved = filesystem.find_dir(RootRelativePath.parse('.agents/skills'))
+        resolved = filesystem.find_dir(path)
 
         #: Then
         assert resolved is None, 'a missing path resolves to nothing rather than failing'
@@ -823,9 +849,10 @@ class TestDiskFileSystemFindDir:
         #: Given
         (tmp_path / 'notes.md').write_text('', encoding='utf-8')
         filesystem = DiskFileSystem(tmp_path)
+        path = RootRelativePath.parse('notes.md/skills')
 
         #: When
-        resolved = filesystem.find_dir(RootRelativePath.parse('notes.md/skills'))
+        resolved = filesystem.find_dir(path)
 
         #: Then
         assert resolved is None, 'a path through a file resolves to nothing rather than failing'
@@ -837,9 +864,10 @@ class TestDiskFileSystemFindDir:
         outside = tmp_path_factory.mktemp('outside')
         (tmp_path / 'link').symlink_to(outside)
         filesystem = DiskFileSystem(tmp_path)
+        path = RootRelativePath.parse('link')
 
         #: When
-        resolved = filesystem.find_dir(RootRelativePath.parse('link'))
+        resolved = filesystem.find_dir(path)
 
         #: Then
         assert resolved is None, 'a directory outside the root has no root-relative spelling'
@@ -868,9 +896,10 @@ class TestDiskFileSystemFindDir:
         #: Given
         (tmp_path / 'link').symlink_to(unreadable_outside_dir / 'skills')
         filesystem = DiskFileSystem(tmp_path)
+        path = RootRelativePath.parse('link')
 
         #: When
-        resolved = filesystem.find_dir(RootRelativePath.parse('link'))
+        resolved = filesystem.find_dir(path)
 
         #: Then
         assert resolved is None, 'a chain leading outside the root never fails, even where the lookup is refused'
@@ -882,9 +911,10 @@ class TestDiskFileSystemFindFile:
         #: Given
         (tmp_path / 'notes.md').write_text('', encoding='utf-8')
         filesystem = DiskFileSystem(tmp_path)
+        path = RootRelativePath.parse('notes.md')
 
         #: When
-        resolved = filesystem.find_file(RootRelativePath.parse('notes.md'))
+        resolved = filesystem.find_file(path)
 
         #: Then
         assert resolved == RootRelativePath.parse('notes.md'), 'a file with no link in its path resolves to itself'
@@ -896,9 +926,10 @@ class TestDiskFileSystemFindFile:
         (tmp_path / 'review').mkdir()
         (tmp_path / 'review' / 'SKILL.md').symlink_to('../shared/REVIEW.md')
         filesystem = DiskFileSystem(tmp_path)
+        path = RootRelativePath.parse('review/SKILL.md')
 
         #: When
-        resolved = filesystem.find_file(RootRelativePath.parse('review/SKILL.md'))
+        resolved = filesystem.find_file(path)
 
         #: Then
         assert resolved == RootRelativePath.parse('shared/REVIEW.md'), (
@@ -911,9 +942,10 @@ class TestDiskFileSystemFindFile:
         (tmp_path / '.agents' / 'skills' / 'review' / 'SKILL.md').write_text('', encoding='utf-8')
         (tmp_path / '.claude').symlink_to('.agents')
         filesystem = DiskFileSystem(tmp_path)
+        path = RootRelativePath.parse('.claude/skills/review/SKILL.md')
 
         #: When
-        resolved = filesystem.find_file(RootRelativePath.parse('.claude/skills/review/SKILL.md'))
+        resolved = filesystem.find_file(path)
 
         #: Then
         assert resolved == RootRelativePath.parse('.agents/skills/review/SKILL.md'), (
@@ -924,9 +956,10 @@ class TestDiskFileSystemFindFile:
         #: Given
         (tmp_path / 'docs').mkdir()
         filesystem = DiskFileSystem(tmp_path)
+        path = RootRelativePath.parse('docs')
 
         #: When
-        resolved = filesystem.find_file(RootRelativePath.parse('docs'))
+        resolved = filesystem.find_file(path)
 
         #: Then
         assert resolved is None, 'a directory is not a file'
@@ -935,9 +968,10 @@ class TestDiskFileSystemFindFile:
         #: Given
         (tmp_path / 'link').symlink_to('missing.md')
         filesystem = DiskFileSystem(tmp_path)
+        path = RootRelativePath.parse('link')
 
         #: When
-        resolved = filesystem.find_file(RootRelativePath.parse('link'))
+        resolved = filesystem.find_file(path)
 
         #: Then
         assert resolved is None, 'a link to nothing leads to no file'
@@ -947,9 +981,10 @@ class TestDiskFileSystemFindFile:
         (tmp_path / 'first').symlink_to('second')
         (tmp_path / 'second').symlink_to('first')
         filesystem = DiskFileSystem(tmp_path)
+        path = RootRelativePath.parse('first')
 
         #: When
-        resolved = filesystem.find_file(RootRelativePath.parse('first'))
+        resolved = filesystem.find_file(path)
 
         #: Then
         assert resolved is None, 'a looping link leads nowhere, like a dangling one'
@@ -957,9 +992,10 @@ class TestDiskFileSystemFindFile:
     def test_find_file_with_a_missing_path_returns_none(self, tmp_path: Path) -> None:
         #: Given
         filesystem = DiskFileSystem(tmp_path)
+        path = RootRelativePath.parse('missing.md')
 
         #: When
-        resolved = filesystem.find_file(RootRelativePath.parse('missing.md'))
+        resolved = filesystem.find_file(path)
 
         #: Then
         assert resolved is None, 'a missing path resolves to nothing rather than failing'
@@ -972,9 +1008,10 @@ class TestDiskFileSystemFindFile:
         outside.write_text('', encoding='utf-8')
         (tmp_path / 'link').symlink_to(outside)
         filesystem = DiskFileSystem(tmp_path)
+        path = RootRelativePath.parse('link')
 
         #: When
-        resolved = filesystem.find_file(RootRelativePath.parse('link'))
+        resolved = filesystem.find_file(path)
 
         #: Then
         assert resolved is None, 'a file outside the root has no root-relative spelling'
@@ -1004,9 +1041,10 @@ class TestDiskFileSystemFindFile:
         #: Given
         (tmp_path / 'link').symlink_to(unreadable_outside_dir / 'SKILL.md')
         filesystem = DiskFileSystem(tmp_path)
+        path = RootRelativePath.parse('link')
 
         #: When
-        resolved = filesystem.find_file(RootRelativePath.parse('link'))
+        resolved = filesystem.find_file(path)
 
         #: Then
         assert resolved is None, 'a chain leading outside the root never fails, even where the lookup is refused'
@@ -3328,9 +3366,10 @@ class TestIsInScopeMatchesSnapshot:
         directory = RootRelativePath.parse('docs')
         listed = _is_listed(snapshot, directory)
         index = ScopeIndex(snapshot)
+        candidate = directory / PathComponent.parse('absent.md')
 
         #: When
-        declared = index.is_in_scope(directory / PathComponent.parse('absent.md'))
+        declared = index.is_in_scope(candidate)
 
         #: Then
         assert declared is True, 'scope query: docs/ is a root: declared in the scope, and listed'
@@ -3342,9 +3381,10 @@ class TestIsInScopeMatchesSnapshot:
         directory = RootRelativePath.parse('docs/feat')
         listed = _is_listed(snapshot, directory)
         index = ScopeIndex(snapshot)
+        candidate = directory / PathComponent.parse('absent.md')
 
         #: When
-        declared = index.is_in_scope(directory / PathComponent.parse('absent.md'))
+        declared = index.is_in_scope(candidate)
 
         #: Then
         assert declared is True, 'scope query: docs/feat is one level under docs/: declared in the scope, and listed'
@@ -3356,9 +3396,10 @@ class TestIsInScopeMatchesSnapshot:
         directory = RootRelativePath.parse('docs/feat/deep')
         listed = _is_listed(snapshot, directory)
         index = ScopeIndex(snapshot)
+        candidate = directory / PathComponent.parse('absent.md')
 
         #: When
-        declared = index.is_in_scope(directory / PathComponent.parse('absent.md'))
+        declared = index.is_in_scope(candidate)
 
         #: Then
         assert declared is False, (
@@ -3376,9 +3417,10 @@ class TestIsInScopeMatchesSnapshot:
         directory = RootRelativePath.parse('docs/linked')
         listed = _is_listed(snapshot, directory)
         index = ScopeIndex(snapshot)
+        candidate = directory / PathComponent.parse('absent.md')
 
         #: When
-        declared = index.is_in_scope(directory / PathComponent.parse('absent.md'))
+        declared = index.is_in_scope(candidate)
 
         #: Then
         assert declared is False, 'scope query: docs/ does not follow its link to elsewhere/, which no root covers'
@@ -3392,9 +3434,10 @@ class TestIsInScopeMatchesSnapshot:
         directory = RootRelativePath.parse('docs/alias')
         listed = _is_listed(snapshot, directory)
         index = ScopeIndex(snapshot)
+        candidate = directory / PathComponent.parse('absent.md')
 
         #: When
-        declared = index.is_in_scope(directory / PathComponent.parse('absent.md'))
+        declared = index.is_in_scope(candidate)
 
         #: Then
         assert declared is True, (
@@ -3408,9 +3451,10 @@ class TestIsInScopeMatchesSnapshot:
         directory = RootRelativePath.parse('.agents/skills/y')
         listed = _is_listed(snapshot, directory)
         index = ScopeIndex(snapshot)
+        candidate = directory / PathComponent.parse('absent.md')
 
         #: When
-        declared = index.is_in_scope(directory / PathComponent.parse('absent.md'))
+        declared = index.is_in_scope(candidate)
 
         #: Then
         assert declared is True, 'scope query: the skills root follows .agents/skills/y to skills/y and lists it'
@@ -3424,9 +3468,10 @@ class TestIsInScopeMatchesSnapshot:
         directory = RootRelativePath.parse('skills/y')
         listed = _is_listed(snapshot, directory)
         index = ScopeIndex(snapshot)
+        candidate = directory / PathComponent.parse('absent.md')
 
         #: When
-        declared = index.is_in_scope(directory / PathComponent.parse('absent.md'))
+        declared = index.is_in_scope(candidate)
 
         #: Then
         assert declared is True, (
@@ -3442,9 +3487,10 @@ class TestIsInScopeMatchesSnapshot:
         directory = RootRelativePath.parse('skills/y/sub')
         listed = _is_listed(snapshot, directory)
         index = ScopeIndex(snapshot)
+        candidate = directory / PathComponent.parse('absent.md')
 
         #: When
-        declared = index.is_in_scope(directory / PathComponent.parse('absent.md'))
+        declared = index.is_in_scope(candidate)
 
         #: Then
         assert declared is True, (
@@ -3462,9 +3508,10 @@ class TestIsInScopeMatchesSnapshot:
         directory = RootRelativePath.parse('.claude/skills/x')
         listed = _is_listed(snapshot, directory)
         index = ScopeIndex(snapshot)
+        candidate = directory / PathComponent.parse('absent.md')
 
         #: When
-        declared = index.is_in_scope(directory / PathComponent.parse('absent.md'))
+        declared = index.is_in_scope(candidate)
 
         #: Then
         assert declared is True, 'scope query: .claude/skills leads to .agents/skills, whose skill x is listed'
@@ -3476,9 +3523,10 @@ class TestIsInScopeMatchesSnapshot:
         directory = RootRelativePath.parse('.agents/skills/x/lib')
         listed = _is_listed(snapshot, directory)
         index = ScopeIndex(snapshot)
+        candidate = directory / PathComponent.parse('absent.md')
 
         #: When
-        declared = index.is_in_scope(directory / PathComponent.parse('absent.md'))
+        declared = index.is_in_scope(candidate)
 
         #: Then
         assert declared is True, (
@@ -3494,9 +3542,10 @@ class TestIsInScopeMatchesSnapshot:
         directory = RootRelativePath.parse('src')
         listed = _is_listed(snapshot, directory)
         index = ScopeIndex(snapshot)
+        candidate = directory / PathComponent.parse('absent.md')
 
         #: When
-        declared = index.is_in_scope(directory / PathComponent.parse('absent.md'))
+        declared = index.is_in_scope(candidate)
 
         #: Then
         assert declared is False, 'scope query: src/ is in no root: outside the scope, and unlisted'
