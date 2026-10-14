@@ -1,8 +1,9 @@
 """`FM010`: a frontmatter breaks a constraint its schema sets on the whole block."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import ClassVar, Self, assert_never
 
+from lorecraft.core.path import RootRelativePath
 from lorecraft.project.context import FrontmatterContext
 from lorecraft.project.schemas import (
     BlockProblem,
@@ -12,6 +13,7 @@ from lorecraft.project.schemas import (
     MinFields,
     MissingFieldProblem,
     OtherBlockConstraint,
+    SchemaSource,
     UnknownFieldProblem,
     WrongTypeProblem,
 )
@@ -83,8 +85,9 @@ class BlockConstraint(FrontmatterRule):
     ```
 
     Attributes:
-        spec: The structure specification whose frontmatter schema found the problem, or `None` for a skill, which
-            the Agent Skills specification governs.
+        spec: The specification file that states the schema, derived from `source`, so no caller states one that
+            disagrees with it; `None` for the Agent Skills specification.
+        source: The schema that found the problem: a structure specification's, or the Agent Skills specification's.
         problem: The constraint over the whole block that the frontmatter breaks, with the number of fields it holds.
     """
 
@@ -93,7 +96,15 @@ class BlockConstraint(FrontmatterRule):
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('0.3.0')
 
+    # The specification file is derived from `source`, so no caller can state one that disagrees with it.
+    spec: RootRelativePath | None = field(init=False)
+    source: SchemaSource
     problem: BlockProblem
+
+    def __post_init__(self) -> None:
+        """Derive the specification file from the schema that found the problem."""
+        # The dataclass is frozen, so the field a rule derives is set the one way a frozen dataclass allows.
+        object.__setattr__(self, 'spec', schema_spec(self.source))
 
     def message(self) -> str:
         """Say the block breaks a constraint on the whole of it; for a limit on fields, the number found against it."""
@@ -122,7 +133,7 @@ class BlockConstraint(FrontmatterRule):
     def children(self) -> tuple[Subdiagnostic, ...]:
         """Say where the schema is stated and what it describes, then for another keyword its own wording."""
         problem = self.problem
-        parts: list[Subdiagnostic] = [schema_note(self.spec)]
+        parts: list[Subdiagnostic] = [schema_note(self.source)]
         if problem.description is not None:
             parts.append(Help(problem.description))
         constraint = problem.constraint
@@ -148,7 +159,7 @@ class BlockConstraint(FrontmatterRule):
                 problem = located.problem
                 match problem:
                     case BlockProblem():
-                        occurrences.append(cls(spec=schema_spec(schema.source), line=located.line, problem=problem))
+                        occurrences.append(cls(source=schema.source, line=located.line, problem=problem))
                     case MissingFieldProblem() | UnknownFieldProblem() | WrongTypeProblem() | InvalidValueProblem():
                         pass  # another rule's condition
                     case _:

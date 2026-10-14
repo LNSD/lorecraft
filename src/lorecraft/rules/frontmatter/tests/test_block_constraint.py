@@ -16,12 +16,14 @@ import pytest
 from lorecraft.core.num import UnsignedInt
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.schemas import (
+    AgentSkillsSchema,
     BlockProblem,
     FieldCount,
     FieldLimit,
     MaxFields,
     MinFields,
     OtherBlockConstraint,
+    StructureSpecSchema,
 )
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.location import Elsewhere, Help, Here, Label, Note
@@ -34,6 +36,15 @@ CORPUS_SPEC: Final[RootRelativePath] = structure_spec_path('guide')
 
 NAMESPACE_SPEC: Final[RootRelativePath] = structure_spec_path('guide-setup')
 """Where a namespace structure specification under the same corpus lies."""
+
+CORPUS_SOURCE: Final[StructureSpecSchema] = StructureSpecSchema(spec=CORPUS_SPEC)
+"""The schema the corpus specification states."""
+
+NAMESPACE_SOURCE: Final[StructureSpecSchema] = StructureSpecSchema(spec=NAMESPACE_SPEC)
+"""The schema the namespace specification states."""
+
+AGENT_SKILLS_SOURCE: Final[AgentSkillsSchema] = AgentSkillsSchema()
+"""The schema the Agent Skills specification states, which governs a skill."""
 
 MIN_PROPERTIES: Final[str] = '{"frontmatter": {"type": "object", "required": ["description"], "minProperties": 2}}'
 """A structure specification whose frontmatter schema requires `description` and at least two fields."""
@@ -70,7 +81,7 @@ class TestBlockConstraint:
         occurrences = BlockConstraint.check(subject)
 
         #: Then
-        assert occurrences == (BlockConstraint(spec=CORPUS_SPEC, line=LINE, problem=PROBLEM),), (
+        assert occurrences == (BlockConstraint(source=CORPUS_SOURCE, line=LINE, problem=PROBLEM),), (
             "the block's one problem over the whole block is one occurrence, on line 1, naming the schema's "
             'specification; the missing field the schema also finds is left to its own rule'
         )
@@ -99,8 +110,8 @@ class TestBlockConstraint:
 
         #: Then
         assert occurrences == (
-            BlockConstraint(spec=CORPUS_SPEC, line=LINE, problem=PROBLEM),
-            BlockConstraint(spec=NAMESPACE_SPEC, line=LINE, problem=PROBLEM),
+            BlockConstraint(source=CORPUS_SOURCE, line=LINE, problem=PROBLEM),
+            BlockConstraint(source=NAMESPACE_SOURCE, line=LINE, problem=PROBLEM),
         ), 'each schema is applied on its own, so each reports the problem under its own specification, in order'
 
     def test_check_with_a_block_that_is_not_a_mapping_reports_nothing(self) -> None:
@@ -122,7 +133,7 @@ class TestBlockConstraint:
 
     def test_message_with_an_occurrence_states_the_condition(self) -> None:
         #: Given
-        occurrence = BlockConstraint(spec=CORPUS_SPEC, line=LINE, problem=PROBLEM)
+        occurrence = BlockConstraint(source=CORPUS_SOURCE, line=LINE, problem=PROBLEM)
 
         #: When
         message = occurrence.message()
@@ -135,7 +146,7 @@ class TestBlockConstraint:
     def test_message_with_too_many_fields_says_the_most_allowed(self) -> None:
         #: Given
         problem = BlockProblem('too many', MaxFields(FieldLimit(UnsignedInt(1))), FieldCount(UnsignedInt(3)))
-        occurrence = BlockConstraint(spec=CORPUS_SPEC, line=LINE, problem=problem)
+        occurrence = BlockConstraint(source=CORPUS_SOURCE, line=LINE, problem=problem)
 
         #: When
         message = occurrence.message()
@@ -148,7 +159,7 @@ class TestBlockConstraint:
     def test_message_with_another_keyword_states_the_constraint_on_the_whole_block(self) -> None:
         #: Given
         problem = BlockProblem('wrong', OtherBlockConstraint(), FieldCount(UnsignedInt(1)))
-        occurrence = BlockConstraint(spec=CORPUS_SPEC, line=LINE, problem=problem)
+        occurrence = BlockConstraint(source=CORPUS_SOURCE, line=LINE, problem=problem)
 
         #: When
         message = occurrence.message()
@@ -176,13 +187,13 @@ class TestBlockConstraint:
             FieldCount(UnsignedInt(1)),
             description='The fields an agent lists a document by.',
         )
-        assert occurrences == (BlockConstraint(spec=CORPUS_SPEC, line=LINE, problem=problem),), (
+        assert occurrences == (BlockConstraint(source=CORPUS_SOURCE, line=LINE, problem=problem),), (
             "the root schema's description is carried with the limit and the number of fields"
         )
 
     def test_labels_with_a_limit_on_the_fields_name_what_is_out_of_limit_on_line_1(self) -> None:
         #: Given
-        occurrence = BlockConstraint(spec=CORPUS_SPEC, line=LINE, problem=PROBLEM)
+        occurrence = BlockConstraint(source=CORPUS_SOURCE, line=LINE, problem=PROBLEM)
 
         #: When
         labels = occurrence.labels()
@@ -195,7 +206,7 @@ class TestBlockConstraint:
     def test_labels_with_another_keyword_label_nothing(self) -> None:
         #: Given
         problem = BlockProblem('wrong', OtherBlockConstraint(), FieldCount(UnsignedInt(1)))
-        occurrence = BlockConstraint(spec=CORPUS_SPEC, line=LINE, problem=problem)
+        occurrence = BlockConstraint(source=CORPUS_SOURCE, line=LINE, problem=problem)
 
         #: When
         labels = occurrence.labels()
@@ -205,7 +216,7 @@ class TestBlockConstraint:
 
     def test_children_with_a_limit_on_the_number_of_fields_point_at_the_specification_only(self) -> None:
         #: Given
-        occurrence = BlockConstraint(spec=CORPUS_SPEC, line=LINE, problem=PROBLEM)
+        occurrence = BlockConstraint(source=CORPUS_SOURCE, line=LINE, problem=PROBLEM)
 
         #: When
         children = occurrence.children()
@@ -223,7 +234,7 @@ class TestBlockConstraint:
             FieldCount(UnsignedInt(1)),
             description='The fields an agent lists a document by.',
         )
-        occurrence = BlockConstraint(spec=CORPUS_SPEC, line=LINE, problem=problem)
+        occurrence = BlockConstraint(source=CORPUS_SOURCE, line=LINE, problem=problem)
 
         #: When
         children = occurrence.children()
@@ -237,7 +248,7 @@ class TestBlockConstraint:
     def test_children_with_another_keyword_end_with_the_validator_wording(self) -> None:
         #: Given
         problem = BlockProblem('wrong', OtherBlockConstraint(), FieldCount(UnsignedInt(1)))
-        occurrence = BlockConstraint(spec=None, line=LINE, problem=problem)
+        occurrence = BlockConstraint(source=AGENT_SKILLS_SOURCE, line=LINE, problem=problem)
 
         #: When
         children = occurrence.children()

@@ -10,7 +10,7 @@ from typing import Final
 import pytest
 
 from lorecraft.core.path import RootRelativePath
-from lorecraft.project.schemas import UnknownFieldProblem
+from lorecraft.project.schemas import AgentSkillsSchema, StructureSpecSchema, UnknownFieldProblem
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.location import Elsewhere, Help, Here, Label, Note
 from lorecraft.rules.tests.fake_context import (
@@ -27,6 +27,15 @@ CORPUS_SPEC: Final[RootRelativePath] = structure_spec_path('guide')
 
 NAMESPACE_SPEC: Final[RootRelativePath] = structure_spec_path('guide-setup')
 """Where a namespace structure specification under the same corpus lies."""
+
+CORPUS_SOURCE: Final[StructureSpecSchema] = StructureSpecSchema(spec=CORPUS_SPEC)
+"""The schema the corpus specification states."""
+
+NAMESPACE_SOURCE: Final[StructureSpecSchema] = StructureSpecSchema(spec=NAMESPACE_SPEC)
+"""The schema the namespace specification states."""
+
+AGENT_SKILLS_SOURCE: Final[AgentSkillsSchema] = AgentSkillsSchema()
+"""The schema the Agent Skills specification states, which governs a skill."""
 
 CLOSED: Final[str] = (
     '{"frontmatter": {"type": "object", "properties": {"name": {}, "description": {}}, "additionalProperties": false}}'
@@ -65,7 +74,7 @@ class TestUnknownField:
         occurrences = UnknownField.check(subject)
 
         #: Then
-        assert occurrences == (UnknownField(spec=CORPUS_SPEC, line=LINE, problem=PROBLEM),), (
+        assert occurrences == (UnknownField(source=CORPUS_SOURCE, line=LINE, problem=PROBLEM),), (
             "one problem is one occurrence, on the line its field is written on, naming the schema's specification"
         )
 
@@ -95,8 +104,8 @@ class TestUnknownField:
 
         #: Then
         assert occurrences == (
-            UnknownField(spec=CORPUS_SPEC, line=LINE, problem=PROBLEM),
-            UnknownField(spec=NAMESPACE_SPEC, line=LINE, problem=PROBLEM),
+            UnknownField(source=CORPUS_SOURCE, line=LINE, problem=PROBLEM),
+            UnknownField(source=NAMESPACE_SOURCE, line=LINE, problem=PROBLEM),
         ), 'each schema is applied on its own, so each reports the problem under its own specification, in order'
 
     def test_check_with_a_skill_reports_it_with_no_specification_file(self) -> None:
@@ -119,7 +128,7 @@ class TestUnknownField:
             '`desc` is not a field of the Agent Skills specification',
             ('name', 'description', 'license', 'compatibility', 'metadata', 'allowed-tools'),
         )
-        assert occurrences == (UnknownField(spec=None, line=LINE, problem=problem),), (
+        assert occurrences == (UnknownField(source=AGENT_SKILLS_SOURCE, line=LINE, problem=problem),), (
             "the package states the Agent Skills schema, so a skill's occurrence names no specification file"
         )
 
@@ -142,7 +151,7 @@ class TestUnknownField:
 
     def test_message_with_an_occurrence_names_the_field(self) -> None:
         #: Given
-        occurrence = UnknownField(spec=CORPUS_SPEC, line=LINE, problem=PROBLEM)
+        occurrence = UnknownField(source=CORPUS_SOURCE, line=LINE, problem=PROBLEM)
 
         #: When
         message = occurrence.message()
@@ -154,7 +163,7 @@ class TestUnknownField:
 
     def test_children_with_a_document_occurrence_point_at_the_specification(self) -> None:
         #: Given
-        occurrence = UnknownField(spec=CORPUS_SPEC, line=LINE, problem=PROBLEM)
+        occurrence = UnknownField(source=CORPUS_SOURCE, line=LINE, problem=PROBLEM)
 
         #: When
         children = occurrence.children()
@@ -168,7 +177,7 @@ class TestUnknownField:
 
     def test_children_with_a_skill_occurrence_name_the_agent_skills_specification(self) -> None:
         #: Given
-        occurrence = UnknownField(spec=None, line=LINE, problem=PROBLEM)
+        occurrence = UnknownField(source=AGENT_SKILLS_SOURCE, line=LINE, problem=PROBLEM)
 
         #: When
         children = occurrence.children()
@@ -183,7 +192,7 @@ class TestUnknownField:
     def test_children_with_a_schema_that_names_no_field_list_none(self) -> None:
         #: Given
         problem = UnknownFieldProblem('desc', 'Unevaluated properties are not allowed', ())
-        occurrence = UnknownField(spec=CORPUS_SPEC, line=LINE, problem=problem)
+        occurrence = UnknownField(source=CORPUS_SOURCE, line=LINE, problem=problem)
 
         #: When
         children = occurrence.children()
@@ -196,7 +205,7 @@ class TestUnknownField:
 
     def test_labels_with_an_occurrence_say_the_schema_does_not_define_the_field(self) -> None:
         #: Given
-        occurrence = UnknownField(spec=CORPUS_SPEC, line=LINE, problem=PROBLEM)
+        occurrence = UnknownField(source=CORPUS_SOURCE, line=LINE, problem=PROBLEM)
 
         #: When
         labels = occurrence.labels()
