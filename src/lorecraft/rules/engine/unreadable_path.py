@@ -109,17 +109,17 @@ class UnreadablePath(EntryCondition):
         return 'path cannot be read'
 
     def children(self) -> tuple[EntrySubdiagnostic, ...]:
-        """Say which operation was refused where, and why, then say how to fix it."""
+        """Say how to fix it, then which operation was refused where, and why."""
         match self.cause:
             case Refused(operation=operation, refusal=refusal):
                 return (
-                    EntryNote(f'cannot {operation} {self.failed_at}: {refusal}'),
                     EntryHelp('make the path, and what it links to, accessible to the process that runs the check'),
+                    EntryNote(f'cannot {operation} {self.failed_at}: {refusal}'),
                 )
             case NotARegularFile():
                 return (
-                    EntryNote(f'cannot read {self.failed_at}: no regular file the check can find'),
                     EntryHelp('restore the file as a regular file inside the repository'),
+                    EntryNote(f'cannot read {self.failed_at}: no regular file the check can find'),
                 )
             case _:
                 assert_never(self.cause)

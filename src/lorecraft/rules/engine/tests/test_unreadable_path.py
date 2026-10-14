@@ -79,9 +79,9 @@ class TestUnreadablePath:
 
         #: Then
         assert children == (
-            EntryNote('cannot read docs/__meta__/code.structure.json: permission denied'),
             _ACCESS_HELP,
-        ), 'the operation, the path and the refusal are said as a note, and the fix as a help'
+            EntryNote('cannot read docs/__meta__/code.structure.json: permission denied'),
+        ), 'the operation, the path and the refusal are said as a note after the help'
 
     def test_children_of_a_refused_listing_name_the_directory_and_the_reason(self) -> None:
         #: Given
@@ -94,7 +94,7 @@ class TestUnreadablePath:
         children = occurrence.children()
 
         #: Then
-        assert children == (EntryNote('cannot list docs/code: permission denied'), _ACCESS_HELP), (
+        assert children == (_ACCESS_HELP, EntryNote('cannot list docs/code: permission denied')), (
             'a corpus directory is named by its path, as every other directory'
         )
 
@@ -109,7 +109,7 @@ class TestUnreadablePath:
         children = occurrence.children()
 
         #: Then
-        assert children == (EntryNote('cannot resolve texts: permission denied'), _ACCESS_HELP), (
+        assert children == (_ACCESS_HELP, EntryNote('cannot resolve texts: permission denied')), (
             'the path on the way is named, not the one that was being reached'
         )
 
@@ -124,7 +124,7 @@ class TestUnreadablePath:
         children = occurrence.children()
 
         #: Then
-        assert children == (EntryNote('cannot inspect .agents/skills/audit: permission denied'), _ACCESS_HELP), (
+        assert children == (_ACCESS_HELP, EntryNote('cannot inspect .agents/skills/audit: permission denied')), (
             'the operation is named with the verb of what the operating system refused'
         )
 
@@ -140,6 +140,6 @@ class TestUnreadablePath:
 
         #: Then
         assert children == (
-            EntryNote('cannot read docs/__meta__/code.structure.json: no regular file the check can find'),
             EntryHelp('restore the file as a regular file inside the repository'),
+            EntryNote('cannot read docs/__meta__/code.structure.json: no regular file the check can find'),
         ), 'with no refusal to name, the note says what stands where the file should be'

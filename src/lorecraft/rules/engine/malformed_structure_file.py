@@ -113,12 +113,10 @@ class MalformedStructureFile(FileCondition):
         return WholeSubject()
 
     def children(self) -> tuple[Subdiagnostic, ...]:
-        """List every problem found and say to fix them, or say to state a rule or delete the file."""
+        """Say to fix the problems and list every one found, or say to state a rule or delete the file."""
         match self.cause:
             case FormatViolated(problems=problems):
-                notes: list[Subdiagnostic] = [Note(problem) for problem in problems]
-                notes.append(Help('fix each problem listed'))
-                return tuple(notes)
+                return (Help('fix each problem listed'), *(Note(problem) for problem in problems))
             case NoRuleStated():
                 return (Help('state a rule, or delete the file'),)
             case _:

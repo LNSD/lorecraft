@@ -150,8 +150,8 @@ class TestTooFewFields:
         labels = occurrence.labels()
 
         #: Then
-        assert labels == (Label(Here(LINE), 'number of fields'),), (
-            'the label is on line 1, the whole block, and carries no number: the message has it'
+        assert labels == (Label(Here(LINE), 'fields under the limit: 1'),), (
+            'the label is on line 1, the whole block, and says how many fields lack to the limit: 2 is 1 under 3'
         )
 
     def test_children_without_a_description_point_at_the_specification_only(self) -> None:

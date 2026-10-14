@@ -73,10 +73,10 @@ class TestMalformedStructureFile:
 
         #: Then
         assert children == (
+            Help('fix each problem listed'),
             Note('max_tokens: Extra inputs are not permitted'),
             Note('tokens: Input should be 1'),
-            Help('fix each problem listed'),
-        ), 'the facts the occurrence holds are said as notes, and the fix as a help'
+        ), 'the fix is said as a help, then the facts the occurrence holds as notes'
 
     def test_children_of_a_file_that_states_no_rule_say_to_state_one_or_delete_it(self) -> None:
         #: Given

@@ -416,16 +416,16 @@ class UnusableStructureFile(FileCondition):
         return WholeSubject()
 
     def children(self) -> tuple[Subdiagnostic, ...]:
-        """Say what was found in the case, then how to fix it."""
+        """Say how to fix the case, then what was found in it."""
         match self.cause:
             case RepeatedOutlineSection(sections=sections):
-                return (Note(f'repeated: {_join(sections)}'), Help('name each section once'))
+                return (Help('name each section once'), Note(f'repeated: {_join(sections)}'))
             case RepeatedForbiddenSection(sections=sections):
-                return (Note(f'repeated: {_join(sections)}'), Help('forbid each section once'))
+                return (Help('forbid each section once'), Note(f'repeated: {_join(sections)}'))
             case ForbiddenOutlineSection(sections=sections):
                 return (
-                    Note(f'named and forbidden: {_join(sections)}'),
                     Help('keep each section in the outline or in the forbidden list, not both'),
+                    Note(f'named and forbidden: {_join(sections)}'),
                 )
             case AdjacentAnyRuns():
                 return (Help('state one any run in their place'),)
@@ -437,13 +437,13 @@ class UnusableStructureFile(FileCondition):
                 return (Help('remove $id from every schema in the frontmatter schema'),)
             case ForeignFrontmatterDialect(dialect=dialect):
                 return (
-                    Note(f'$schema holds {dialect}'),
                     Help(f'name {JSON_SCHEMA_DIALECT}, or leave $schema out'),
+                    Note(f'$schema holds {dialect}'),
                 )
             case UnresolvableFrontmatterSchemaRef(ref=ref):
                 return (
-                    Note(f'$ref holds {ref}'),
                     Help('point every $ref at a location inside the frontmatter schema, such as #/$defs/name'),
+                    Note(f'$ref holds {ref}'),
                 )
             case UntypedFrontmatterSchema():
                 return (Help('add "type": "object" to the root of the frontmatter schema'),)

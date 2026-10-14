@@ -740,9 +740,9 @@ class TestRenderLoadFailures:
         assert text == (
             'error[LC003]: structure file does not follow the structure format\n'
             ' --> docs/__meta__/code.structure.json\n'
-            '  = note: max_tokens: Extra inputs are not permitted\n'
-            '  = help: fix each problem listed'
-        ), 'the failure is drawn like any diagnostic of a whole file, with each problem as a note'
+            '  = help: fix each problem listed\n'
+            '  = note: max_tokens: Extra inputs are not permitted'
+        ), 'the failure is drawn like any diagnostic of a whole file, with each problem as a note after the help'
 
     def test_render_json_with_skipped_subjects_lists_each_with_its_failed_structure_files(self) -> None:
         #: Given
