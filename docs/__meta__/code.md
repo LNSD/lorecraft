@@ -143,7 +143,7 @@ This corpus meta spec ensures:
 
 Keep code specs focused and concise. Agent entrypoint docs should NOT hardcode lists of code specs - use dynamic discovery instead.
 
-[code.structure.json](code.structure.json) makes "focused and concise" decidable with two measures:
+[code.spec.json](code.spec.json) makes "focused and concise" decidable with two measures:
 
 - **Word caps keep each section concise**, enforced by `lorecraft check` as `LEN003`. One caps an optional `Rule` section, one every other section of the
   document's own, and one the `Checklist`. A word is a whitespace-delimited token of prose; fenced code and table
@@ -157,7 +157,7 @@ Keep code specs focused and concise. Agent entrypoint docs should NOT hardcode l
 
 ## 2. Frontmatter Requirements
 
-This section is the operative rule, and the `frontmatter` key of [code.structure.json](code.structure.json)
+This section is the operative rule, and the `frontmatter` key of [code.spec.json](code.spec.json)
 beside it is the same rule in a form a checker applies — `lorecraft check` validates every document's
 frontmatter against it with the `FM` rules, and `just check-docs` runs that over this corpus. A document is additionally
 narrowed by every `code-<namespace>.md` meta spec whose namespace matches its name
@@ -399,7 +399,7 @@ Code specs may reference other code specs to establish relationships. Cross-refe
 
 ### Required Sections
 
-[code.structure.json](code.structure.json) beside this file holds the outline below in machine-checkable
+[code.spec.json](code.spec.json) beside this file holds the outline below in machine-checkable
 form, together with the word caps and token budget of [§1](#1-core-principles). `lorecraft check` applies the
 outline with the `OUT` rules, and the caps and the budget with the `LEN` rules. A
 document that a namespace meta spec matches takes its section outline from the narrowest

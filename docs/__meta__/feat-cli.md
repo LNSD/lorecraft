@@ -34,7 +34,7 @@ A command's options, output and exit status belong to the command's document. A 
 command — a meta spec dialect, the workspace model, a corpus — is not documented in this namespace, even
 when a command is how a reader meets it; it takes a document in its own domain, and the command links to it.
 
-The machine-checkable half of this layer is [feat-cli.structure.json](feat-cli.structure.json), its
+The machine-checkable half of this layer is [feat-cli.spec.json](feat-cli.spec.json), its
 `frontmatter` key included. It is applied on its own, after the `feat` file.
 
 ---
@@ -66,7 +66,7 @@ and it cannot go stale.
 
 `components` names `module:lorecraft.cli`, the package that declares every command, beside the other packages
 the command composes. That entry is what makes a command's document findable from the code that a change to
-the command touches. The `frontmatter` key of [feat-cli.structure.json](feat-cli.structure.json) requires it.
+the command touches. The `frontmatter` key of [feat-cli.spec.json](feat-cli.spec.json) requires it.
 
 ---
 
@@ -78,7 +78,7 @@ what three others hold: Usage, Findings and Code References.
 ### Configuration Is Required
 
 Every command takes an argument or an option, so every document in the namespace carries a **Configuration**
-section, which [feat-cli.structure.json](feat-cli.structure.json) enforces. It holds the command's arguments
+section, which [feat-cli.spec.json](feat-cli.spec.json) enforces. It holds the command's arguments
 and options as one table, in the order `lorecraft <command> --help` prints them:
 
 ```markdown

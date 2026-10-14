@@ -8,7 +8,7 @@ scope: "global"
 # Architecture Documentation Format
 
 **Applies to every document in `docs/arch/`.** Its machine-checkable half is
-[arch.structure.json](arch.structure.json). Each kind of document in the corpus has a namespace meta spec of
+[arch.spec.json](arch.spec.json). Each kind of document in the corpus has a namespace meta spec of
 its own, named after the kind, which adds its sections and vocabulary on top of this one.
 
 ## 1. What the Corpus Holds

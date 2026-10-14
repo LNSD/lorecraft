@@ -98,10 +98,10 @@ files in `docs/__meta__/`:
 | File | Governs | Read by |
 |---|---|---|
 | `feat.md` | Everything. This document is the authority | A person, and an agent before it writes |
-| `feat.structure.json` | The frontmatter fields under its `frontmatter` key; the section outline, its order, the caps, the token budget | `lorecraft check` |
+| `feat.spec.json` | The frontmatter fields under its `frontmatter` key; the section outline, its order, the caps, the token budget | `lorecraft check` |
 
 A **namespace layer** adds to that base for a group of documents: `feat-<namespace>.md` states its rules in
-prose, and `feat-<namespace>.structure.json` beside it holds the parts a check
+prose, and `feat-<namespace>.spec.json` beside it holds the parts a check
 can decide. A layer applies when the namespace equals the document's name or is a hyphen-delimited prefix of
 it, and may span several segments: `feat-<a>-<b>` governs `<a>-<b>.md` and `<a>-<b>-*.md`. Every layer is
 applied on its own, broad to narrow, so a layer states only what it adds: it can require a section the base
@@ -110,7 +110,7 @@ says. Add a layer when a naming group genuinely shares rules the rest of the cor
 holds for one group stays out of this file rather than becoming a condition inside it.
 
 The per-type section rules in [§4](#4-document-structure) have no machine-checkable form: a meta spec
-file is selected by the document's path, never by its `type`, and `feat.structure.json` asks no questions
+file is selected by the document's path, never by its `type`, and `feat.spec.json` asks no questions
 about the document it is applied to. They are checked by review against the [checklist](#8-checklist).
 
 The rules run together as `just check-docs`. Read the relationship in either direction from the shell:
@@ -139,7 +139,7 @@ is what [§6](#6-word-caps-and-token-budget) puts a number on.
 ## 2. Frontmatter Requirements
 
 The rules in this section are held in machine-checkable form under the `frontmatter` key of
-[feat.structure.json](feat.structure.json), which `just check-docs` runs against every document in the corpus.
+[feat.spec.json](feat.spec.json), which `just check-docs` runs against every document in the corpus.
 
 **CRITICAL**: Every feat spec MUST begin with valid YAML frontmatter:
 
@@ -329,7 +329,7 @@ document in such a domain.
 
 ## 4. Document Structure
 
-The section order below is held in machine-checkable form in [feat.structure.json](feat.structure.json)
+The section order below is held in machine-checkable form in [feat.spec.json](feat.spec.json)
 ([§1](#1-core-principles)). Which sections each type requires or forbids is not: review checks it against
 the [checklist](#8-checklist).
 
@@ -478,7 +478,7 @@ Direction is a judgment the checker does not make. It is on the author, and on r
 ## 6. Word Caps and Token Budget
 
 A feat spec is loaded into an agent's context on demand, and read by people too. Two measures in
-[feat.structure.json](feat.structure.json) keep it fit for both, and `lorecraft check`, run by `just check-docs`,
+[feat.spec.json](feat.spec.json) keep it fit for both, and `lorecraft check`, run by `just check-docs`,
 reports what is over. A namespace layer can only tighten them.
 
 **Word caps keep each section concise**, for the person reading it. A word is whitespace-delimited text outside fenced code blocks and outside table rows. Code and tables cost no
