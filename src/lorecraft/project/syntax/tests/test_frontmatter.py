@@ -102,6 +102,85 @@ class TestDecodeFrontmatter:
             FrontmatterKey('count', LineNumber.from_int(3)),
         ), 'a lone `\\r` breaks a YAML line but ends no document line, which only a `\\n` does'
 
+    def test_decode_frontmatter_with_a_flow_collection_spread_over_a_next_line_returns_invalid_yaml(self) -> None:
+        #: Given
+        block = 'name: g\ntags: [a,\x85b]\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem='found a flow collection spread over lines, which frontmatter does not allow',
+            line=LineNumber.from_int(3),
+        ), 'U+0085 breaks a YAML line, so a flow collection across it is spread over lines'
+
+    def test_decode_frontmatter_with_a_flow_collection_spread_over_a_lone_carriage_return_returns_invalid_yaml(
+        self,
+    ) -> None:
+        #: Given
+        block = 'name: g\ntags: [a,\rb]\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem='found a flow collection spread over lines, which frontmatter does not allow',
+            line=LineNumber.from_int(3),
+        ), 'a lone `\\r` breaks a YAML line, so a flow collection across it is spread over lines'
+
+    def test_decode_frontmatter_with_a_second_colon_after_a_next_line_returns_the_help_for_its_own_line(self) -> None:
+        #: Given
+        block = 'name: g\x85title: a: b\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert isinstance(node, InvalidYamlFrontmatter), f'a second colon is invalid YAML, got {node!r}'
+        assert node.help == 'Quote the value: `title: "a: b"`', (
+            f'the help quotes the value on the YAML line the mark names, got {node.help!r}'
+        )
+        assert node.line == LineNumber.from_int(2), f'U+0085 ends no document line, got {node.line}'
+
+    def test_decode_frontmatter_with_a_second_colon_after_a_lone_carriage_return_returns_the_help_for_its_own_line(
+        self,
+    ) -> None:
+        #: Given
+        block = 'name: g\rtitle: a: b\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert isinstance(node, InvalidYamlFrontmatter), f'a second colon is invalid YAML, got {node!r}'
+        assert node.help == 'Quote the value: `title: "a: b"`', (
+            f'the help quotes the value on the YAML line the mark names, got {node.help!r}'
+        )
+
+    def test_decode_frontmatter_with_a_bad_escape_after_a_next_line_returns_the_escape_kind(self) -> None:
+        #: Given
+        block = 'name: g\x85title: "a\\qb"\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert isinstance(node, InvalidYamlFrontmatter), f'a bad escape is invalid YAML, got {node!r}'
+        assert 'is not an escape' in node.problem, f'the escape kind is kept, got {node.problem!r}'
+
+    def test_decode_frontmatter_with_text_after_a_closing_quote_after_a_next_line_returns_its_kind(self) -> None:
+        #: Given
+        block = 'name: g\x85title: "a" b\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert isinstance(node, InvalidYamlFrontmatter), f'text after a quote is invalid YAML, got {node!r}'
+        assert node.problem == 'text follows the closing quote', f'the kind is kept, got {node.problem!r}'
+
     def test_decode_frontmatter_with_an_unclosed_quote_after_a_next_line_returns_invalid_yaml_on_its_line(self) -> None:
         #: Given
         block = 'name: guide\x85type: "open\nx: 1\n'
