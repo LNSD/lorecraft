@@ -160,8 +160,8 @@ __all__: list[str] = ['OutlineParser', 'OutlineReport']
 
 `__all__` is a list of string literals, one name per entry, in the order a reader would want to meet them —
 not a computed expression. It is annotated `list[str]` rather than `Final`, because
-[python-constants](python-constants.md#3-a-final-name-holds-an-immutable-value) holds a `Final` name to an
-immutable value and a list is not one.
+[python-typing-constants](python-typing-constants.md#3-a-final-name-holds-an-immutable-value) holds a `Final`
+name to an immutable value and a list is not one.
 
 In `__init__.py`, place `__all__` immediately after the imports, at the top-level package declaration area.
 This keeps the package's public surface visible before any other declarations. Python does not prescribe this
@@ -313,7 +313,7 @@ Before committing code, verify:
 - [python-typing](python-typing.md) - Related: The `TYPE_CHECKING` import block and its quoted annotations
 - [python-naming](python-naming.md) - Related: Casing and the leading-underscore privacy marker for the
   symbols a package exports
-- [python-constants](python-constants.md) - Related: Why `__all__` is `list[str]` and not `Final`
+- [python-typing-constants](python-typing-constants.md) - Related: Why `__all__` is `list[str]` and not `Final`
 - [error-types](error-types.md) - Related: Owns how an error type is declared
 - [pattern-registry](pattern-registry.md) - Related: The discovery mechanism that import-time registration
   serves
