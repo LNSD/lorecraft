@@ -6,6 +6,8 @@ the snapshot holds at each link's target is a cross-file state, so the test stat
 normalised relative path; where each link leads is `find_link_targets`'s, tested beside it.
 """
 
+from typing import Final
+
 import pytest
 
 from lorecraft.core.mapping import FrozenMapping
@@ -23,10 +25,10 @@ from lorecraft.rules.tests.fake_context import (
 
 from ..broken_link import BrokenLink
 
-SKILL_ROOT: SkillRoot = SkillRoot(DEFAULT_SKILL_DIRECTORY)
+SKILL_ROOT: Final[SkillRoot] = SkillRoot(DEFAULT_SKILL_DIRECTORY)
 """Where a fake resource's relative links are read from."""
 
-DOCUMENT_DIRECTORY: DocumentDirectory = DocumentDirectory(DEFAULT_DOCUMENT_DIRECTORY)
+DOCUMENT_DIRECTORY: Final[DocumentDirectory] = DocumentDirectory(DEFAULT_DOCUMENT_DIRECTORY)
 """Where a fake document's relative links are read from."""
 
 

@@ -5,6 +5,7 @@ Each view answers from a hand-built snapshot that declares the scope a scan of t
 """
 
 from pathlib import PurePosixPath
+from typing import Final
 
 import pytest
 
@@ -24,34 +25,36 @@ from ..link_target import (
 )
 from ..syntax import LineNumber, Link
 
-REVIEW_ROOT: SkillRoot = SkillRoot(RootRelativePath.parse('.agents/skills/review'))
+REVIEW_ROOT: Final[SkillRoot] = SkillRoot(RootRelativePath.parse('.agents/skills/review'))
 """Where the links of every file of the skill `review` are read from."""
 
-GUIDE_DIRECTORY: DocumentDirectory = DocumentDirectory(RootRelativePath.parse('docs/guide'))
+GUIDE_DIRECTORY: Final[DocumentDirectory] = DocumentDirectory(RootRelativePath.parse('docs/guide'))
 """Where the links of a document of corpus `guide` are read from."""
 
-TREE: FileTree = {
-    '.agents': {
-        'skills': {
-            'review': {
-                'SKILL.md': b'# Review\n',
-                'references': {'a.md': b'# A\n'},
+
+def _tree() -> FileTree:
+    """A skill with one resource, two corpora with one document each, and a directory outside every skill."""
+    return {
+        '.agents': {
+            'skills': {
+                'review': {
+                    'SKILL.md': b'# Review\n',
+                    'references': {'a.md': b'# A\n'},
+                }
             }
-        }
-    },
-    'docs': {'guide': {'setup.md': b'# Setup\n'}, 'code': {'rules.md': b'# Rules\n'}},
-    'shared': {'guides': {'d.md': b'# D\n'}},
-}
-"""A skill with one resource, two corpora with one document each, and a directory outside every skill."""
+        },
+        'docs': {'guide': {'setup.md': b'# Setup\n'}, 'code': {'rules.md': b'# Rules\n'}},
+        'shared': {'guides': {'d.md': b'# D\n'}},
+    }
 
 
 def _snapshot(*links: tuple[str, str]) -> Snapshot:
-    """`TREE`, with each symlink given, recorded as a scan of the repository's scope would declare it.
+    """`_tree()`, with each symlink given, recorded as a scan of the repository's scope would declare it.
 
     Args:
         links: Each symlink, as its root-relative path and its target as written.
     """
-    records: dict[RootRelativePath, EntryRecord] = dict(Snapshot.from_tree(TREE).records)
+    records: dict[RootRelativePath, EntryRecord] = dict(Snapshot.from_tree(_tree()).records)
     for path, target in links:
         records[RootRelativePath.parse(path)] = SymlinkRecord(PurePosixPath(target))
     return Snapshot(SnapshotRecords(records), scope=SNAPSHOT_SCOPE)

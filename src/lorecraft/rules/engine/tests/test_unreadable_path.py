@@ -1,5 +1,7 @@
 """`LC002`, `unreadable-path`: the engine's diagnostic for every path the operating system refuses to read."""
 
+from typing import Final
+
 import pytest
 
 from lorecraft.core.path import RootRelativePath
@@ -10,7 +12,9 @@ from lorecraft.vfs import OsRefusal
 from ..__ruleset__ import RefusedOperation
 from ..unreadable_path import NotARegularFile, Refused, UnreadablePath
 
-_ACCESS_HELP = EntryHelp('make the path, and what it links to, accessible to the process that runs the check')
+_ACCESS_HELP: Final[EntryHelp] = EntryHelp(
+    'make the path, and what it links to, accessible to the process that runs the check'
+)
 
 
 def _occurrence() -> UnreadablePath:
