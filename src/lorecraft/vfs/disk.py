@@ -767,7 +767,13 @@ def _follow_listed_link(
             if linked_root is not None:
                 pending.append(linked_root)
         case ResolvedFile(path=file):
-            data = _find_file_bytes(root, file)
+            try:
+                data = _find_file_bytes(root, file)
+            except SnapshotFileReadError as exc:
+                if declaration is None or not declaration.is_file(file):
+                    raise
+                recorder.record(file, RefusedRead(exc.refusal))
+                return
             if data is not None:  # None when it vanished after the walk; the link then stays recorded alone
                 recorder.record(file, FileRecord(data))
         case RootExit() | None:
