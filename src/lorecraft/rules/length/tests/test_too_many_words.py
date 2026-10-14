@@ -9,6 +9,7 @@ from typing import Final
 import pytest
 
 from lib.overruns import overrun
+from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.location import Elsewhere, Help, Here, Label, Note
@@ -65,7 +66,7 @@ class TestTooManyWords:
         assert occurrences == (
             TooManyWords(
                 spec=CORPUS_SPEC,
-                line=LineNumber.from_int(7),
+                line=LineNumber(NonZeroUnsignedInt(7)),
                 section='Configuration',
                 overrun=overrun(12, 10),
                 cap_source=NamedSectionCap(),
@@ -103,14 +104,14 @@ class TestTooManyWords:
         assert occurrences == (
             TooManyWords(
                 spec=CORPUS_SPEC,
-                line=LineNumber.from_int(3),
+                line=LineNumber(NonZeroUnsignedInt(3)),
                 section='Run',
                 overrun=overrun(6, 5),
                 cap_source=NamedSectionCap(),
             ),
             TooManyWords(
                 spec=CORPUS_SPEC,
-                line=LineNumber.from_int(7),
+                line=LineNumber(NonZeroUnsignedInt(7)),
                 section='Configuration',
                 overrun=overrun(12, 10),
                 cap_source=NamedSectionCap(),
@@ -145,14 +146,14 @@ class TestTooManyWords:
         assert occurrences == (
             TooManyWords(
                 spec=CORPUS_SPEC,
-                line=LineNumber.from_int(3),
+                line=LineNumber(NonZeroUnsignedInt(3)),
                 section='Rule',
                 overrun=overrun(3, 2),
                 cap_source=NamedSectionCap(),
             ),
             TooManyWords(
                 spec=CORPUS_SPEC,
-                line=LineNumber.from_int(7),
+                line=LineNumber(NonZeroUnsignedInt(7)),
                 section='Aside',
                 overrun=overrun(4, 2),
                 cap_source=AnyRunCap(),
@@ -188,7 +189,7 @@ class TestTooManyWords:
         assert occurrences == (
             TooManyWords(
                 spec=NAMESPACE_SPEC,
-                line=LineNumber.from_int(7),
+                line=LineNumber(NonZeroUnsignedInt(7)),
                 section='Configuration',
                 overrun=overrun(12, 10),
                 cap_source=NamedSectionCap(),
@@ -211,14 +212,14 @@ class TestTooManyWords:
         assert occurrences == (
             TooManyWords(
                 spec=CORPUS_SPEC,
-                line=LineNumber.from_int(7),
+                line=LineNumber(NonZeroUnsignedInt(7)),
                 section='Configuration',
                 overrun=overrun(12, 10),
                 cap_source=NamedSectionCap(),
             ),
             TooManyWords(
                 spec=NAMESPACE_SPEC,
-                line=LineNumber.from_int(7),
+                line=LineNumber(NonZeroUnsignedInt(7)),
                 section='Configuration',
                 overrun=overrun(12, 8),
                 cap_source=NamedSectionCap(),
@@ -244,7 +245,7 @@ class TestTooManyWords:
 
         #: Then
         assert labels == (
-            Label(Here(LineNumber.from_int(7)), '`Configuration` holds 12 prose words, 2 over its cap'),
+            Label(Here(LineNumber(NonZeroUnsignedInt(7))), '`Configuration` holds 12 prose words, 2 over its cap'),
         ), 'the label sits on the section heading and says how far past its cap the section runs'
 
     def test_children_with_a_cap_of_the_sections_entry_point_at_the_spec_then_help_then_the_entry(self) -> None:
@@ -268,7 +269,7 @@ class TestTooManyWords:
         #: Given
         occurrence = TooManyWords(
             spec=CORPUS_SPEC,
-            line=LineNumber.from_int(7),
+            line=LineNumber(NonZeroUnsignedInt(7)),
             section='Aside',
             overrun=overrun(4, 2),
             cap_source=AnyRunCap(),
@@ -292,7 +293,7 @@ def _named_occurrence() -> TooManyWords:
     """The `Configuration` section of `TEXT` over a cap of 10 its own outline entry sets."""
     return TooManyWords(
         spec=CORPUS_SPEC,
-        line=LineNumber.from_int(7),
+        line=LineNumber(NonZeroUnsignedInt(7)),
         section='Configuration',
         overrun=overrun(12, 10),
         cap_source=NamedSectionCap(),

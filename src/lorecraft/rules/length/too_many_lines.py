@@ -21,7 +21,7 @@ The specification says "Keep your main `SKILL.md` under 500 lines"
 its line 501 is the first past the budget.
 """
 
-_FIRST_LINE_PAST_BUDGET: Final[LineNumber] = LineNumber.from_int(_LINE_BUDGET.value + 1)
+_FIRST_LINE_PAST_BUDGET: Final[LineNumber] = LineNumber(NonZeroUnsignedInt(_LINE_BUDGET.value + 1))
 """Where an occurrence is reported: the first line the budget does not allow."""
 
 

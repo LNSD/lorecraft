@@ -5,7 +5,7 @@ from typing import Final
 import pytest
 from pydantic import TypeAdapter, ValidationError
 
-from lorecraft.core.num import UnsignedInt
+from lorecraft.core.num import NonZeroUnsignedInt, UnsignedInt
 from lorecraft.project.syntax import LineNumber, SectionHeading, WordCount
 
 from ..section_name import EmptySectionNameError, MultilineSectionNameError, PaddedSectionNameError, SectionName
@@ -29,7 +29,7 @@ class TestSectionName:
         #: Given
         name = SectionName.parse('Usage')
         heading = SectionHeading(
-            level=2, text='Usage', line=LineNumber.from_int(1), empty=False, words=WordCount(UnsignedInt(0))
+            level=2, text='Usage', line=LineNumber(NonZeroUnsignedInt(1)), empty=False, words=WordCount(UnsignedInt(0))
         )
 
         #: When
@@ -42,7 +42,7 @@ class TestSectionName:
         #: Given
         name = SectionName.parse('Usage')
         heading = SectionHeading(
-            level=2, text='usage', line=LineNumber.from_int(1), empty=False, words=WordCount(UnsignedInt(0))
+            level=2, text='usage', line=LineNumber(NonZeroUnsignedInt(1)), empty=False, words=WordCount(UnsignedInt(0))
         )
 
         #: When
@@ -55,7 +55,11 @@ class TestSectionName:
         #: Given
         name = SectionName.parse('Usage')
         heading = SectionHeading(
-            level=2, text='Usage notes', line=LineNumber.from_int(1), empty=False, words=WordCount(UnsignedInt(0))
+            level=2,
+            text='Usage notes',
+            line=LineNumber(NonZeroUnsignedInt(1)),
+            empty=False,
+            words=WordCount(UnsignedInt(0)),
         )
 
         #: When

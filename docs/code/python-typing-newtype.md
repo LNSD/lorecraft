@@ -53,6 +53,11 @@ message = FindingMessage('Missing frontmatter')
 report_line(title, message)
 ```
 
+The same shape applies over a value object: `LineNumber = NewType('LineNumber', NonZeroUnsignedInt)` keeps a
+line number from being taken for another count, while `NonZeroUnsignedInt` still checks the bound
+([pattern-value-object](pattern-value-object.md) for a type that adds an invariant of its own, such as
+`LineSpan`).
+
 ## 2. A `NewType` Is Not a Validator
 
 `NewType` is not a wrapper or validator. Calling `ReportTitle(raw)` returns `raw` unchanged; it does not check

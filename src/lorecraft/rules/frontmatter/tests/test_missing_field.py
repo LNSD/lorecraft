@@ -9,6 +9,7 @@ from typing import Final
 
 import pytest
 
+from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.schemas import AgentSkillsSchema, FieldGuidance, MissingFieldProblem, StructureSpecSchema
 from lorecraft.project.syntax import LineNumber
@@ -63,7 +64,7 @@ SKILL_DESCRIPTION: Final[FieldGuidance] = FieldGuidance(
 )
 """What the Agent Skills specification states about a skill's `description`."""
 
-LINE: Final[LineNumber] = LineNumber.from_int(1)
+LINE: Final[LineNumber] = LineNumber(NonZeroUnsignedInt(1))
 """The line a missing field is reported on: it is written on none."""
 
 

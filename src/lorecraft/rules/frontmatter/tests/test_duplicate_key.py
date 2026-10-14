@@ -10,6 +10,7 @@ from typing import Final
 
 import pytest
 
+from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.context import DocumentFrontmatterOwner, SkillFrontmatterOwner
@@ -44,10 +45,10 @@ def _duplicate(*, key: str) -> DuplicateKey:
     """
     return DuplicateKey(
         owner=DOCUMENT_OWNER,
-        line=LineNumber.from_int(4),
+        line=LineNumber(NonZeroUnsignedInt(4)),
         key=key,
-        first_line=LineNumber.from_int(3),
-        kept_line=LineNumber.from_int(4),
+        first_line=LineNumber(NonZeroUnsignedInt(3)),
+        kept_line=LineNumber(NonZeroUnsignedInt(4)),
     )
 
 
@@ -70,11 +71,15 @@ class TestDuplicateKey:
         occurrences = DuplicateKey.check(subject)
 
         #: Then
-        first = LineNumber.from_int(2)
-        last = LineNumber.from_int(5)
+        first = LineNumber(NonZeroUnsignedInt(2))
+        last = LineNumber(NonZeroUnsignedInt(5))
         assert occurrences == (
             DuplicateKey(
-                owner=DOCUMENT_OWNER, line=LineNumber.from_int(3), key='name', first_line=first, kept_line=last
+                owner=DOCUMENT_OWNER,
+                line=LineNumber(NonZeroUnsignedInt(3)),
+                key='name',
+                first_line=first,
+                kept_line=last,
             ),
             DuplicateKey(owner=DOCUMENT_OWNER, line=last, key='name', first_line=first, kept_line=last),
         ), (
@@ -119,10 +124,10 @@ class TestDuplicateKey:
         assert occurrences == (
             DuplicateKey(
                 owner=DOCUMENT_OWNER,
-                line=LineNumber.from_int(5),
+                line=LineNumber(NonZeroUnsignedInt(5)),
                 key='author',
-                first_line=LineNumber.from_int(4),
-                kept_line=LineNumber.from_int(5),
+                first_line=LineNumber(NonZeroUnsignedInt(4)),
+                kept_line=LineNumber(NonZeroUnsignedInt(5)),
             ),
         ), 'a nested key written again is reported on its own line, pointing back at its first'
 
@@ -143,10 +148,10 @@ class TestDuplicateKey:
         assert occurrences == (
             DuplicateKey(
                 owner=SKILL_OWNER,
-                line=LineNumber.from_int(3),
+                line=LineNumber(NonZeroUnsignedInt(3)),
                 key='name',
-                first_line=LineNumber.from_int(2),
-                kept_line=LineNumber.from_int(3),
+                first_line=LineNumber(NonZeroUnsignedInt(2)),
+                kept_line=LineNumber(NonZeroUnsignedInt(3)),
             ),
         ), 'the package states the rule for a skill'
 
@@ -222,8 +227,8 @@ class TestDuplicateKey:
 
         #: Then
         assert labels == (
-            Label(Here(LineNumber.from_int(4)), 'written again here'),
-            Label(Here(LineNumber.from_int(3)), 'first written here'),
+            Label(Here(LineNumber(NonZeroUnsignedInt(4))), 'written again here'),
+            Label(Here(LineNumber(NonZeroUnsignedInt(3))), 'first written here'),
         ), 'a label marks the repeated line, and another the line the key was first written on'
 
     def test_labels_with_a_repeat_on_one_line_mark_it_once(self) -> None:
@@ -241,7 +246,9 @@ class TestDuplicateKey:
         labels = occurrence.labels()
 
         #: Then
-        assert labels == (Label(Here(LineNumber.from_int(3)), 'written again here'),), 'one line, so one label'
+        assert labels == (Label(Here(LineNumber(NonZeroUnsignedInt(3))), 'written again here'),), (
+            'one line, so one label'
+        )
 
     def test_children_with_the_last_occurrence_do_not_point_at_the_value_kept(self) -> None:
         #: Given
@@ -260,10 +267,10 @@ class TestDuplicateKey:
         #: Given
         occurrence = DuplicateKey(
             owner=DOCUMENT_OWNER,
-            line=LineNumber.from_int(4),
+            line=LineNumber(NonZeroUnsignedInt(4)),
             key='description',
-            first_line=LineNumber.from_int(3),
-            kept_line=LineNumber.from_int(6),
+            first_line=LineNumber(NonZeroUnsignedInt(3)),
+            kept_line=LineNumber(NonZeroUnsignedInt(6)),
         )
 
         #: When
@@ -273,17 +280,17 @@ class TestDuplicateKey:
         assert children == (
             Note('the frontmatter schema is set here', at=Elsewhere(SPEC)),
             Help("write 'description' once, with the value meant"),
-            Note('the value written last is the one read', at=Here(LineNumber.from_int(6))),
+            Note('the value written last is the one read', at=Here(LineNumber(NonZeroUnsignedInt(6)))),
         ), 'a note on the last line says that value is the one read, since this one is not it'
 
     def test_children_with_a_skill_name_the_agent_skills_specification(self) -> None:
         #: Given
         occurrence = DuplicateKey(
             owner=SKILL_OWNER,
-            line=LineNumber.from_int(3),
+            line=LineNumber(NonZeroUnsignedInt(3)),
             key='name',
-            first_line=LineNumber.from_int(2),
-            kept_line=LineNumber.from_int(3),
+            first_line=LineNumber(NonZeroUnsignedInt(2)),
+            kept_line=LineNumber(NonZeroUnsignedInt(3)),
         )
 
         #: When

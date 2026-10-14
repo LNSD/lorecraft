@@ -8,6 +8,7 @@ from typing import Final
 
 import pytest
 
+from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.location import Help, Here, Label
 from lorecraft.rules.tests.fake_context import FakeDocumentContext, namespace_spec
@@ -32,7 +33,9 @@ class TestTitleNotFirst:
 
         #: Then
         assert occurrences == (
-            TitleNotFirst(line=LineNumber.from_int(1), level=2, title_line=LineNumber.from_int(5)),
+            TitleNotFirst(
+                line=LineNumber(NonZeroUnsignedInt(1)), level=2, title_line=LineNumber(NonZeroUnsignedInt(5))
+            ),
         ), 'the heading opening the document in place of the title is one occurrence, at that heading'
 
     def test_check_with_sections_and_no_title_reports_nothing(self) -> None:
@@ -58,7 +61,9 @@ class TestTitleNotFirst:
 
         #: Then
         assert occurrences == (
-            TitleNotFirst(line=LineNumber.from_int(1), level=3, title_line=LineNumber.from_int(5)),
+            TitleNotFirst(
+                line=LineNumber(NonZeroUnsignedInt(1)), level=3, title_line=LineNumber(NonZeroUnsignedInt(5))
+            ),
         ), 'the occurrence carries the level of the heading the document opens with, not a fixed one'
 
     def test_check_with_the_title_first_reports_nothing(self) -> None:
@@ -94,12 +99,16 @@ class TestTitleNotFirst:
 
         #: Then
         assert occurrences == (
-            TitleNotFirst(line=LineNumber.from_int(1), level=2, title_line=LineNumber.from_int(5)),
+            TitleNotFirst(
+                line=LineNumber(NonZeroUnsignedInt(1)), level=2, title_line=LineNumber(NonZeroUnsignedInt(5))
+            ),
         ), 'every specification agrees the title opens the document, so the opening heading is reported once'
 
     def test_message_with_an_occurrence_names_the_heading_level_found(self) -> None:
         #: Given
-        occurrence = TitleNotFirst(line=LineNumber.from_int(1), level=2, title_line=LineNumber.from_int(5))
+        occurrence = TitleNotFirst(
+            line=LineNumber(NonZeroUnsignedInt(1)), level=2, title_line=LineNumber(NonZeroUnsignedInt(5))
+        )
 
         #: When
         message = occurrence.message()
@@ -111,7 +120,9 @@ class TestTitleNotFirst:
 
     def test_message_with_a_subsection_occurrence_names_h3(self) -> None:
         #: Given
-        occurrence = TitleNotFirst(line=LineNumber.from_int(1), level=3, title_line=LineNumber.from_int(5))
+        occurrence = TitleNotFirst(
+            line=LineNumber(NonZeroUnsignedInt(1)), level=3, title_line=LineNumber(NonZeroUnsignedInt(5))
+        )
 
         #: When
         message = occurrence.message()
@@ -123,19 +134,23 @@ class TestTitleNotFirst:
 
     def test_labels_with_an_occurrence_point_at_the_title(self) -> None:
         #: Given
-        occurrence = TitleNotFirst(line=LineNumber.from_int(1), level=2, title_line=LineNumber.from_int(5))
+        occurrence = TitleNotFirst(
+            line=LineNumber(NonZeroUnsignedInt(1)), level=2, title_line=LineNumber(NonZeroUnsignedInt(5))
+        )
 
         #: When
         labels = occurrence.labels()
 
         #: Then
-        assert labels == (Label(Here(LineNumber.from_int(5)), 'the title is written here'),), (
+        assert labels == (Label(Here(LineNumber(NonZeroUnsignedInt(5))), 'the title is written here'),), (
             "a label points at the document's title, on its line"
         )
 
     def test_children_with_an_occurrence_say_to_move_the_title_above_every_section(self) -> None:
         #: Given
-        occurrence = TitleNotFirst(line=LineNumber.from_int(1), level=2, title_line=LineNumber.from_int(5))
+        occurrence = TitleNotFirst(
+            line=LineNumber(NonZeroUnsignedInt(1)), level=2, title_line=LineNumber(NonZeroUnsignedInt(5))
+        )
 
         #: When
         children = occurrence.children()

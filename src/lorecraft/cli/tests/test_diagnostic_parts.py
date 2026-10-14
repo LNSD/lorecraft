@@ -4,6 +4,7 @@ from typing import Final
 
 import pytest
 
+from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.context import DocumentFrontmatterOwner
@@ -30,7 +31,7 @@ _OTHER: Final[RootRelativePath] = RootRelativePath.parse('docs/feat/check.md')
 
 
 def _line(number: int) -> LineNumber:
-    return LineNumber.from_int(number)
+    return LineNumber(NonZeroUnsignedInt(number))
 
 
 @pytest.mark.unit

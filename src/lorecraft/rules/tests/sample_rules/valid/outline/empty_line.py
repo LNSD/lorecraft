@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 from typing import ClassVar, Self
 
+from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.declaration import Level, Release, RuleCode, RuleName, rule
 from lorecraft.rules.tests.sample_rules.groups import SAMPLE
@@ -31,5 +32,7 @@ class EmptyLine(SampleLinesRule):
             subject: The lines judged.
         """
         return tuple(
-            cls(spec=None, line=LineNumber.from_int(index + 1)) for index, line in enumerate(subject.lines) if not line
+            cls(spec=None, line=LineNumber(NonZeroUnsignedInt(index + 1)))
+            for index, line in enumerate(subject.lines)
+            if not line
         )

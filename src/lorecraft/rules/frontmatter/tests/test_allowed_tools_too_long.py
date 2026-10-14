@@ -6,6 +6,7 @@ from typing import Final
 import pytest
 
 from lib.overruns import overrun
+from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.location import Help, Here, Label, Note
 from lorecraft.rules.tests.fake_context import FakeSkillContext
@@ -95,9 +96,9 @@ class TestAllowedToolsTooLong:
         occurrences = AllowedToolsTooLong.check(subject)
 
         #: Then
-        assert occurrences == (AllowedToolsTooLong(line=LineNumber.from_int(4), overrun=overrun(501, 500)),), (
-            'all characters count, including whitespace, and Unicode characters count once rather than by bytes'
-        )
+        assert occurrences == (
+            AllowedToolsTooLong(line=LineNumber(NonZeroUnsignedInt(4)), overrun=overrun(501, 500)),
+        ), 'all characters count, including whitespace, and Unicode characters count once rather than by bytes'
 
     @pytest.mark.parametrize(
         'text',
@@ -123,7 +124,7 @@ class TestAllowedToolsTooLong:
 
     def test_message_names_the_length_and_recommendation(self) -> None:
         #: Given
-        occurrence = AllowedToolsTooLong(line=LineNumber.from_int(4), overrun=overrun(501, 500))
+        occurrence = AllowedToolsTooLong(line=LineNumber(NonZeroUnsignedInt(4)), overrun=overrun(501, 500))
 
         #: When
         message = occurrence.message()
@@ -133,19 +134,19 @@ class TestAllowedToolsTooLong:
 
     def test_labels_name_what_is_over_the_recommendation_on_the_field_line(self) -> None:
         #: Given
-        occurrence = AllowedToolsTooLong(line=LineNumber.from_int(4), overrun=overrun(520, 500))
+        occurrence = AllowedToolsTooLong(line=LineNumber(NonZeroUnsignedInt(4)), overrun=overrun(520, 500))
 
         #: When
         labels = occurrence.labels()
 
         #: Then
-        assert labels == (Label(Here(LineNumber.from_int(4)), 'characters over the recommended length'),), (
+        assert labels == (Label(Here(LineNumber(NonZeroUnsignedInt(4))), 'characters over the recommended length'),), (
             'the label names what overruns and carries no number: the message has it'
         )
 
     def test_children_say_how_to_shorten_the_value_and_where_the_limit_comes_from(self) -> None:
         #: Given
-        occurrence = AllowedToolsTooLong(line=LineNumber.from_int(4), overrun=overrun(501, 500))
+        occurrence = AllowedToolsTooLong(line=LineNumber(NonZeroUnsignedInt(4)), overrun=overrun(501, 500))
 
         #: When
         children = occurrence.children()

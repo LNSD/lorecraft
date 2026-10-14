@@ -70,7 +70,7 @@ ordinary constructor can still uphold the invariant: when direct construction mu
 Two further rules this pattern absorbs:
 
 - **A conversion is a named classmethod, not a second `__init__`.** `DocumentRef.from_parts(corpus, name)` and
-  `LineNumber.from_int(raw)` are named for what they convert
+  `Anchor.from_heading(text)` are named for what they convert
   ([python-fn-conv](python-fn-conv.md#2-construction-says-its-source-from_-parse_-load_)). An `__init__` that
   accepts several shapes and sniffs which one it got hides the conversion inside the constructor and makes the
   invariant untraceable.
@@ -206,24 +206,8 @@ body = section_lines(section.start, section.end - 1)
 ```python
 # ✅ Good — the convention is the type, and the single conversion between the two readings
 # lives in one method. A missing conversion is now a missing call, not an absent `- 1`.
-@dataclass(frozen=True, slots=True)
-class LineNumber:
-    """A 1-based line number. Distinct from a section index, which is also an int."""
-
-    value: NonZeroUnsignedInt
-
-    @classmethod
-    def from_int(cls, raw: int) -> 'LineNumber':
-        return cls(NonZeroUnsignedInt(raw))
-
-    @property
-    def number(self) -> int:
-        return self.value.value
-
-    def __str__(self) -> str:
-        return str(self.value)
-
-
+# `LineNumber` is a `NewType` over `NonZeroUnsignedInt` ([python-typing-newtype](python-typing-newtype.md)): it has no
+# invariant of its own, so only `LineSpan` is a value object.
 @dataclass(frozen=True, slots=True)
 class LineSpan:
     """A half-open span of lines: `first` included, `end` excluded."""
@@ -232,14 +216,14 @@ class LineSpan:
     end: LineNumber
 
     def __post_init__(self) -> None:
-        if self.end.number < self.first.number:
+        if self.end.value < self.first.value:
             raise InvalidLineSpanError(self.first, self.end)
 
     def last(self) -> LineNumber | None:
         """Return the inclusive last line, or None when the span is empty."""
         if self.first == self.end:
             return None
-        return LineNumber.from_int(self.end.number - 1)
+        return LineNumber(NonZeroUnsignedInt(self.end.value - 1))
 
 
 def section_lines(span: LineSpan) -> Iterator[str]:

@@ -9,6 +9,7 @@ from typing import Final
 
 import pytest
 
+from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.context import DocumentFrontmatterOwner, SkillFrontmatterOwner
@@ -51,7 +52,7 @@ class TestNonMappingFrontmatter:
         occurrences = NonMappingFrontmatter.check(subject)
 
         #: Then
-        assert occurrences == (NonMappingFrontmatter(owner=DOCUMENT_OWNER, line=LineNumber.from_int(1)),), (
+        assert occurrences == (NonMappingFrontmatter(owner=DOCUMENT_OWNER, line=LineNumber(NonZeroUnsignedInt(1))),), (
             'a block that is not a mapping is one occurrence, on line 1'
         )
 
@@ -68,7 +69,7 @@ class TestNonMappingFrontmatter:
         occurrences = NonMappingFrontmatter.check(subject)
 
         #: Then
-        assert occurrences == (NonMappingFrontmatter(owner=DOCUMENT_OWNER, line=LineNumber.from_int(1)),), (
+        assert occurrences == (NonMappingFrontmatter(owner=DOCUMENT_OWNER, line=LineNumber(NonZeroUnsignedInt(1))),), (
             'an empty block holds no mapping, so it is not a mapping either'
         )
 
@@ -85,7 +86,7 @@ class TestNonMappingFrontmatter:
         occurrences = NonMappingFrontmatter.check(subject)
 
         #: Then
-        assert occurrences == (NonMappingFrontmatter(owner=SKILL_OWNER, line=LineNumber.from_int(1)),), (
+        assert occurrences == (NonMappingFrontmatter(owner=SKILL_OWNER, line=LineNumber(NonZeroUnsignedInt(1))),), (
             'the package states the rule for a skill'
         )
 
@@ -117,7 +118,7 @@ class TestNonMappingFrontmatter:
 
     def test_message_with_an_occurrence_names_what_the_block_is_not(self) -> None:
         #: Given
-        occurrence = NonMappingFrontmatter(owner=DOCUMENT_OWNER, line=LineNumber.from_int(1))
+        occurrence = NonMappingFrontmatter(owner=DOCUMENT_OWNER, line=LineNumber(NonZeroUnsignedInt(1)))
 
         #: When
         message = occurrence.message()
@@ -127,7 +128,7 @@ class TestNonMappingFrontmatter:
 
     def test_children_with_a_document_point_at_its_specification_and_say_what_a_mapping_is(self) -> None:
         #: Given
-        occurrence = NonMappingFrontmatter(owner=DOCUMENT_OWNER, line=LineNumber.from_int(1))
+        occurrence = NonMappingFrontmatter(owner=DOCUMENT_OWNER, line=LineNumber(NonZeroUnsignedInt(1)))
 
         #: When
         children = occurrence.children()
@@ -140,7 +141,7 @@ class TestNonMappingFrontmatter:
 
     def test_children_with_a_skill_name_the_agent_skills_specification(self) -> None:
         #: Given
-        occurrence = NonMappingFrontmatter(owner=SKILL_OWNER, line=LineNumber.from_int(1))
+        occurrence = NonMappingFrontmatter(owner=SKILL_OWNER, line=LineNumber(NonZeroUnsignedInt(1)))
 
         #: When
         children = occurrence.children()

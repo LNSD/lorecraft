@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 from typing import ClassVar, Self
 
+from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.project.context import DocumentContext
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.declaration import Level, Release, RuleCode, RuleName, rule
@@ -39,4 +40,4 @@ class AnyTokens(DocumentRule):
         Args:
             subject: The document, governed by a budget.
         """
-        return (cls(spec=None, line=LineNumber.from_int(1), token_count=subject.tokens().value),)
+        return (cls(spec=None, line=LineNumber(NonZeroUnsignedInt(1)), token_count=subject.tokens().value),)

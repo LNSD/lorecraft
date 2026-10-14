@@ -5,6 +5,7 @@ from typing import Final
 
 import pytest
 
+from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.location import Help, Here, Label, Note
 from lorecraft.rules.tests.fake_context import FakeSkillContext
@@ -54,7 +55,9 @@ class TestMalformedAllowedTools:
 
         #: Then
         assert occurrences == (
-            MalformedAllowedTools(line=LineNumber.from_int(4), problem=CommaSeparated(entry='Read,', suggested='Read')),
+            MalformedAllowedTools(
+                line=LineNumber(NonZeroUnsignedInt(4)), problem=CommaSeparated(entry='Read,', suggested='Read')
+            ),
         ), 'a comma between tools is invalid, while commas inside the pattern stay inside the entry'
 
     def test_check_with_an_unbalanced_pattern_reports_the_whole_entry(self) -> None:
@@ -73,7 +76,9 @@ class TestMalformedAllowedTools:
 
         #: Then
         assert occurrences == (
-            MalformedAllowedTools(line=LineNumber.from_int(4), problem=UnbalancedParentheses('Bash(git diff *')),
+            MalformedAllowedTools(
+                line=LineNumber(NonZeroUnsignedInt(4)), problem=UnbalancedParentheses('Bash(git diff *')
+            ),
         ), 'an unclosed pattern consumes the rest of the value as one malformed entry'
 
     def test_check_with_text_after_a_pattern_reports_the_entry(self) -> None:
@@ -92,7 +97,7 @@ class TestMalformedAllowedTools:
 
         #: Then
         assert occurrences == (
-            MalformedAllowedTools(line=LineNumber.from_int(4), problem=NotATool('Bash(git *)tail')),
+            MalformedAllowedTools(line=LineNumber(NonZeroUnsignedInt(4)), problem=NotATool('Bash(git *)tail')),
         ), 'text after the closing parenthesis is not another tool entry'
 
     def test_check_with_empty_value_reports_it(self) -> None:
@@ -103,7 +108,7 @@ class TestMalformedAllowedTools:
         occurrences = MalformedAllowedTools.check(subject)
 
         #: Then
-        assert occurrences == (MalformedAllowedTools(line=LineNumber.from_int(4), problem=EmptyValue()),), (
+        assert occurrences == (MalformedAllowedTools(line=LineNumber(NonZeroUnsignedInt(4)), problem=EmptyValue()),), (
             'a whitespace-only value has no tool entries'
         )
 
@@ -152,7 +157,7 @@ class TestMalformedAllowedTools:
         #: Then
         assert occurrences == (
             MalformedAllowedTools(
-                line=LineNumber.from_int(4), problem=CommaSeparated(entry='Read,Grep', suggested='Read Grep')
+                line=LineNumber(NonZeroUnsignedInt(4)), problem=CommaSeparated(entry='Read,Grep', suggested='Read Grep')
             ),
         ), 'a comma between tools becomes a space in the suggestion'
 
@@ -166,7 +171,7 @@ class TestMalformedAllowedTools:
         #: Then
         assert occurrences == (
             MalformedAllowedTools(
-                line=LineNumber.from_int(4),
+                line=LineNumber(NonZeroUnsignedInt(4)),
                 problem=CommaSeparated(entry='Read,Bash(a,b)', suggested='Read Bash(a,b)'),
             ),
         ), 'a comma inside parentheses belongs to the pattern, so only the one between the tools is replaced'
@@ -181,7 +186,7 @@ class TestMalformedAllowedTools:
         #: Then
         assert occurrences == (
             MalformedAllowedTools(
-                line=LineNumber.from_int(4),
+                line=LineNumber(NonZeroUnsignedInt(4)),
                 problem=CommaSeparated(entry='Bash(git diff),Read', suggested='Bash(git diff) Read'),
             ),
         ), 'a comma after the closing parenthesis separates tools, so the suggestion differs from the entry'
@@ -194,9 +199,9 @@ class TestMalformedAllowedTools:
         occurrences = MalformedAllowedTools.check(subject)
 
         #: Then
-        assert occurrences == (MalformedAllowedTools(line=LineNumber.from_int(4), problem=NotATool(entry=',')),), (
-            'a comma alone leaves nothing to suggest'
-        )
+        assert occurrences == (
+            MalformedAllowedTools(line=LineNumber(NonZeroUnsignedInt(4)), problem=NotATool(entry=',')),
+        ), 'a comma alone leaves nothing to suggest'
 
     def test_check_with_only_a_comma_inside_parentheses_reports_it_as_not_a_tool(self) -> None:
         #: Given
@@ -206,9 +211,9 @@ class TestMalformedAllowedTools:
         occurrences = MalformedAllowedTools.check(subject)
 
         #: Then
-        assert occurrences == (MalformedAllowedTools(line=LineNumber.from_int(4), problem=NotATool(entry='(a,b)')),), (
-            'the comma belongs to the pattern, so spacing the commas would suggest the entry unchanged'
-        )
+        assert occurrences == (
+            MalformedAllowedTools(line=LineNumber(NonZeroUnsignedInt(4)), problem=NotATool(entry='(a,b)')),
+        ), 'the comma belongs to the pattern, so spacing the commas would suggest the entry unchanged'
 
     def test_check_with_a_tool_glued_to_a_pattern_reports_it_as_not_a_tool(self) -> None:
         #: Given
@@ -219,7 +224,7 @@ class TestMalformedAllowedTools:
 
         #: Then
         assert occurrences == (
-            MalformedAllowedTools(line=LineNumber.from_int(4), problem=NotATool(entry='Bash(a)Read')),
+            MalformedAllowedTools(line=LineNumber(NonZeroUnsignedInt(4)), problem=NotATool(entry='Bash(a)Read')),
         ), 'a balanced suffix with no comma between tools has no correction to suggest'
 
     def test_check_with_an_unclosed_parenthesis_reports_it_as_unbalanced(self) -> None:
@@ -231,13 +236,13 @@ class TestMalformedAllowedTools:
 
         #: Then
         assert occurrences == (
-            MalformedAllowedTools(line=LineNumber.from_int(4), problem=UnbalancedParentheses(entry='(a')),
+            MalformedAllowedTools(line=LineNumber(NonZeroUnsignedInt(4)), problem=UnbalancedParentheses(entry='(a')),
         ), 'an entry that opens a pattern without closing it is unbalanced'
 
     def test_message_says_the_field_is_not_a_list_of_tool_entries(self) -> None:
         #: Given
         occurrence = MalformedAllowedTools(
-            line=LineNumber.from_int(4), problem=CommaSeparated(entry='Read,', suggested='Read')
+            line=LineNumber(NonZeroUnsignedInt(4)), problem=CommaSeparated(entry='Read,', suggested='Read')
         )
 
         #: When
@@ -251,56 +256,58 @@ class TestMalformedAllowedTools:
     def test_labels_with_a_comma_separated_entry_name_it_on_the_field_line(self) -> None:
         #: Given
         occurrence = MalformedAllowedTools(
-            line=LineNumber.from_int(4), problem=CommaSeparated(entry='Read,', suggested='Read')
+            line=LineNumber(NonZeroUnsignedInt(4)), problem=CommaSeparated(entry='Read,', suggested='Read')
         )
 
         #: When
         labels = occurrence.labels()
 
         #: Then
-        assert labels == (Label(Here(LineNumber.from_int(4)), '`Read,` is not `Tool` or `Tool(pattern)`'),), (
-            'the label names the entry as read from the field'
-        )
+        assert labels == (
+            Label(Here(LineNumber(NonZeroUnsignedInt(4))), '`Read,` is not `Tool` or `Tool(pattern)`'),
+        ), 'the label names the entry as read from the field'
 
     def test_labels_with_an_unbalanced_entry_name_it_on_the_field_line(self) -> None:
         #: Given
-        occurrence = MalformedAllowedTools(line=LineNumber.from_int(4), problem=UnbalancedParentheses(entry='Bash(a'))
+        occurrence = MalformedAllowedTools(
+            line=LineNumber(NonZeroUnsignedInt(4)), problem=UnbalancedParentheses(entry='Bash(a')
+        )
 
         #: When
         labels = occurrence.labels()
 
         #: Then
-        assert labels == (Label(Here(LineNumber.from_int(4)), '`Bash(a` is not `Tool` or `Tool(pattern)`'),), (
-            'the label names the entry as read from the field'
-        )
+        assert labels == (
+            Label(Here(LineNumber(NonZeroUnsignedInt(4))), '`Bash(a` is not `Tool` or `Tool(pattern)`'),
+        ), 'the label names the entry as read from the field'
 
     def test_labels_with_a_non_tool_entry_name_it_on_the_field_line(self) -> None:
         #: Given
-        occurrence = MalformedAllowedTools(line=LineNumber.from_int(4), problem=NotATool(entry='Bash(a)b'))
+        occurrence = MalformedAllowedTools(line=LineNumber(NonZeroUnsignedInt(4)), problem=NotATool(entry='Bash(a)b'))
 
         #: When
         labels = occurrence.labels()
 
         #: Then
-        assert labels == (Label(Here(LineNumber.from_int(4)), '`Bash(a)b` is not `Tool` or `Tool(pattern)`'),), (
-            'the label names the entry as read from the field'
-        )
+        assert labels == (
+            Label(Here(LineNumber(NonZeroUnsignedInt(4))), '`Bash(a)b` is not `Tool` or `Tool(pattern)`'),
+        ), 'the label names the entry as read from the field'
 
     def test_labels_with_an_empty_value_say_no_tool_is_written(self) -> None:
         #: Given
-        occurrence = MalformedAllowedTools(line=LineNumber.from_int(4), problem=EmptyValue())
+        occurrence = MalformedAllowedTools(line=LineNumber(NonZeroUnsignedInt(4)), problem=EmptyValue())
 
         #: When
         labels = occurrence.labels()
 
         #: Then
-        assert labels == (Label(Here(LineNumber.from_int(4)), 'no tool is written here'),), (
+        assert labels == (Label(Here(LineNumber(NonZeroUnsignedInt(4))), 'no tool is written here'),), (
             'an empty value has no entry to name'
         )
 
     def test_children_with_an_empty_value_say_to_write_tools_or_remove_the_field(self) -> None:
         #: Given
-        occurrence = MalformedAllowedTools(line=LineNumber.from_int(4), problem=EmptyValue())
+        occurrence = MalformedAllowedTools(line=LineNumber(NonZeroUnsignedInt(4)), problem=EmptyValue())
 
         #: When
         children = occurrence.children()
@@ -314,7 +321,7 @@ class TestMalformedAllowedTools:
     def test_children_with_a_comma_separated_entry_give_the_corrected_value(self) -> None:
         #: Given
         problem = CommaSeparated(entry='Read,Grep', suggested='Read Grep')
-        occurrence = MalformedAllowedTools(line=LineNumber.from_int(4), problem=problem)
+        occurrence = MalformedAllowedTools(line=LineNumber(NonZeroUnsignedInt(4)), problem=problem)
 
         #: When
         children = occurrence.children()
@@ -326,7 +333,9 @@ class TestMalformedAllowedTools:
 
     def test_children_with_an_unbalanced_entry_say_to_balance_the_parentheses(self) -> None:
         #: Given
-        occurrence = MalformedAllowedTools(line=LineNumber.from_int(4), problem=UnbalancedParentheses(entry='Bash(a'))
+        occurrence = MalformedAllowedTools(
+            line=LineNumber(NonZeroUnsignedInt(4)), problem=UnbalancedParentheses(entry='Bash(a')
+        )
 
         #: When
         children = occurrence.children()
@@ -338,7 +347,7 @@ class TestMalformedAllowedTools:
 
     def test_children_with_a_non_tool_entry_say_to_write_a_tool_or_a_tool_with_a_pattern(self) -> None:
         #: Given
-        occurrence = MalformedAllowedTools(line=LineNumber.from_int(4), problem=NotATool(entry='Bash(a)b'))
+        occurrence = MalformedAllowedTools(line=LineNumber(NonZeroUnsignedInt(4)), problem=NotATool(entry='Bash(a)b'))
 
         #: When
         children = occurrence.children()

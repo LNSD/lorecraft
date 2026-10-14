@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 from typing import ClassVar, Final, Self
 
+from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.context import DocumentContext
 from lorecraft.project.syntax import LineNumber
@@ -15,7 +16,7 @@ from .__ruleset__ import GROUP_ID, spec_note
 
 # A budget concerns the whole file, not one of its lines, but an occurrence under `ContentRule` carries a line, so
 # it is reported at the first line.
-_FIRST_LINE: Final[LineNumber] = LineNumber.from_int(1)
+_FIRST_LINE: Final[LineNumber] = LineNumber(NonZeroUnsignedInt(1))
 """Where an occurrence is reported: the subject's first line."""
 
 

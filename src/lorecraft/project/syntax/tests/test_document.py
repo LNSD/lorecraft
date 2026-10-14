@@ -12,7 +12,7 @@ from textwrap import dedent
 import pytest
 
 from lorecraft.core.mapping import FrozenMapping
-from lorecraft.core.num import UnsignedInt
+from lorecraft.core.num import NonZeroUnsignedInt, UnsignedInt
 
 from ..anchor import Anchor
 from ..document import parse_document, parse_frontmatter
@@ -42,7 +42,13 @@ class TestParseDocument:
 
         #: Then
         assert document.headings == (
-            Heading(level=1, text='Guide', line=LineNumber.from_int(5), empty=True, words=WordCount(UnsignedInt(0))),
+            Heading(
+                level=1,
+                text='Guide',
+                line=LineNumber(NonZeroUnsignedInt(5)),
+                empty=True,
+                words=WordCount(UnsignedInt(0)),
+            ),
         ), 'the block is skipped whether its YAML decodes or not, so a `#` line in it is no heading'
 
 
@@ -58,7 +64,10 @@ class TestParseFrontmatter:
         #: Then
         assert frontmatter == Frontmatter(
             data=FrozenMapping({'name': 'guide', 'type': 'rule'}),
-            keys=(FrontmatterKey('name', LineNumber.from_int(2)), FrontmatterKey('type', LineNumber.from_int(3))),
+            keys=(
+                FrontmatterKey('name', LineNumber(NonZeroUnsignedInt(2))),
+                FrontmatterKey('type', LineNumber(NonZeroUnsignedInt(3))),
+            ),
         ), 'the block between the delimiters is decoded, each key on its document line'
 
     def test_parse_frontmatter_with_trailing_whitespace_on_the_delimiters_returns_its_frontmatter(self) -> None:
@@ -81,8 +90,8 @@ class TestParseFrontmatter:
         #: Then
         assert isinstance(frontmatter, Frontmatter), f'a CRLF block is found, got {frontmatter!r}'
         assert frontmatter.keys == (
-            FrontmatterKey('name', LineNumber.from_int(2)),
-            FrontmatterKey('type', LineNumber.from_int(3)),
+            FrontmatterKey('name', LineNumber(NonZeroUnsignedInt(2))),
+            FrontmatterKey('type', LineNumber(NonZeroUnsignedInt(3))),
         ), 'a CRLF line ending counts as one line break'
 
     def test_parse_frontmatter_with_invalid_yaml_returns_invalid_yaml_frontmatter(self) -> None:
@@ -149,9 +158,19 @@ class TestParseDocumentHeadings:
 
         #: Then
         assert document.headings == (
-            Heading(level=1, text='Guide', line=LineNumber.from_int(4), empty=False, words=WordCount(UnsignedInt(5))),
             Heading(
-                level=2, text='Checklist', line=LineNumber.from_int(8), empty=False, words=WordCount(UnsignedInt(4))
+                level=1,
+                text='Guide',
+                line=LineNumber(NonZeroUnsignedInt(4)),
+                empty=False,
+                words=WordCount(UnsignedInt(5)),
+            ),
+            Heading(
+                level=2,
+                text='Checklist',
+                line=LineNumber(NonZeroUnsignedInt(8)),
+                empty=False,
+                words=WordCount(UnsignedInt(4)),
             ),
         ), 'each heading carries its level, its text, the document line it starts on and its prose words'
 
@@ -243,9 +262,10 @@ class TestParseDocumentHeadings:
         document = parse_document(text)
 
         #: Then
-        assert [heading.line for heading in document.headings] == [LineNumber.from_int(1), LineNumber.from_int(3)], (
-            'a CRLF line ending counts as one line break'
-        )
+        assert [heading.line for heading in document.headings] == [
+            LineNumber(NonZeroUnsignedInt(1)),
+            LineNumber(NonZeroUnsignedInt(3)),
+        ], 'a CRLF line ending counts as one line break'
 
     def test_parse_document_with_a_vertical_tab_returns_each_heading_on_its_document_line(self) -> None:
         #: Given
@@ -256,9 +276,10 @@ class TestParseDocumentHeadings:
         document = parse_document(text)
 
         #: Then
-        assert [heading.line for heading in document.headings] == [LineNumber.from_int(1), LineNumber.from_int(5)], (
-            f'{separator!r} ends no line, so the heading after it is on the line the line breaks give'
-        )
+        assert [heading.line for heading in document.headings] == [
+            LineNumber(NonZeroUnsignedInt(1)),
+            LineNumber(NonZeroUnsignedInt(5)),
+        ], f'{separator!r} ends no line, so the heading after it is on the line the line breaks give'
 
     def test_parse_document_with_a_form_feed_returns_each_heading_on_its_document_line(self) -> None:
         #: Given
@@ -269,9 +290,10 @@ class TestParseDocumentHeadings:
         document = parse_document(text)
 
         #: Then
-        assert [heading.line for heading in document.headings] == [LineNumber.from_int(1), LineNumber.from_int(5)], (
-            f'{separator!r} ends no line, so the heading after it is on the line the line breaks give'
-        )
+        assert [heading.line for heading in document.headings] == [
+            LineNumber(NonZeroUnsignedInt(1)),
+            LineNumber(NonZeroUnsignedInt(5)),
+        ], f'{separator!r} ends no line, so the heading after it is on the line the line breaks give'
 
     def test_parse_document_with_a_next_line_returns_each_heading_on_its_document_line(self) -> None:
         #: Given
@@ -282,9 +304,10 @@ class TestParseDocumentHeadings:
         document = parse_document(text)
 
         #: Then
-        assert [heading.line for heading in document.headings] == [LineNumber.from_int(1), LineNumber.from_int(5)], (
-            f'{separator!r} ends no line, so the heading after it is on the line the line breaks give'
-        )
+        assert [heading.line for heading in document.headings] == [
+            LineNumber(NonZeroUnsignedInt(1)),
+            LineNumber(NonZeroUnsignedInt(5)),
+        ], f'{separator!r} ends no line, so the heading after it is on the line the line breaks give'
 
     def test_parse_document_with_a_line_separator_returns_each_heading_on_its_document_line(self) -> None:
         #: Given
@@ -295,9 +318,10 @@ class TestParseDocumentHeadings:
         document = parse_document(text)
 
         #: Then
-        assert [heading.line for heading in document.headings] == [LineNumber.from_int(1), LineNumber.from_int(5)], (
-            f'{separator!r} ends no line, so the heading after it is on the line the line breaks give'
-        )
+        assert [heading.line for heading in document.headings] == [
+            LineNumber(NonZeroUnsignedInt(1)),
+            LineNumber(NonZeroUnsignedInt(5)),
+        ], f'{separator!r} ends no line, so the heading after it is on the line the line breaks give'
 
     def test_parse_document_with_lone_carriage_returns_returns_each_heading_on_its_document_line(self) -> None:
         #: Given
@@ -307,9 +331,10 @@ class TestParseDocumentHeadings:
         document = parse_document(text)
 
         #: Then
-        assert [heading.line for heading in document.headings] == [LineNumber.from_int(1), LineNumber.from_int(3)], (
-            'a lone `\\r` ends a line, as CommonMark has it'
-        )
+        assert [heading.line for heading in document.headings] == [
+            LineNumber(NonZeroUnsignedInt(1)),
+            LineNumber(NonZeroUnsignedInt(3)),
+        ], 'a lone `\\r` ends a line, as CommonMark has it'
 
     def test_parse_document_with_a_leading_blank_line_returns_the_heading_on_line_two(self) -> None:
         #: Given
@@ -319,7 +344,7 @@ class TestParseDocumentHeadings:
         document = parse_document(text)
 
         #: Then
-        assert [heading.line for heading in document.headings] == [LineNumber.from_int(2)], (
+        assert [heading.line for heading in document.headings] == [LineNumber(NonZeroUnsignedInt(2))], (
             'the line break opening the document counts, so the heading after it is on line 2'
         )
 
@@ -507,7 +532,7 @@ class TestParseDocumentLinks:
         document = parse_document(text)
 
         #: Then
-        assert document.links == (Link(url='docs/rules.md', line=LineNumber.from_int(3)),), (
+        assert document.links == (Link(url='docs/rules.md', line=LineNumber(NonZeroUnsignedInt(3))),), (
             'an inline link carries its destination and the document line it is on'
         )
 
@@ -519,7 +544,7 @@ class TestParseDocumentLinks:
         document = parse_document(text)
 
         #: Then
-        assert document.links == (Link(url='rules.md', line=LineNumber.from_int(5)),), (
+        assert document.links == (Link(url='rules.md', line=LineNumber(NonZeroUnsignedInt(5))),), (
             'the frontmatter block is YAML, not Markdown, so link syntax inside it is not a link'
         )
 
@@ -541,7 +566,7 @@ class TestParseDocumentLinks:
         document = parse_document(text)
 
         #: Then
-        assert document.links == (Link(url='assets/flow.png', line=LineNumber.from_int(1)),), (
+        assert document.links == (Link(url='assets/flow.png', line=LineNumber(NonZeroUnsignedInt(1))),), (
             'an image points at a file as a link does, so its source is a link'
         )
 
@@ -553,7 +578,7 @@ class TestParseDocumentLinks:
         document = parse_document(text)
 
         #: Then
-        assert document.links == (Link(url='docs/rules.md', line=LineNumber.from_int(1)),), (
+        assert document.links == (Link(url='docs/rules.md', line=LineNumber(NonZeroUnsignedInt(1))),), (
             'a reference-style link is reported where it is used, with the destination its definition gives'
         )
 
@@ -565,9 +590,9 @@ class TestParseDocumentLinks:
         document = parse_document(text)
 
         #: Then
-        assert document.links == (Link(url='https://agentskills.io/specification', line=LineNumber.from_int(1)),), (
-            'an autolink is a link to its own text'
-        )
+        assert document.links == (
+            Link(url='https://agentskills.io/specification', line=LineNumber(NonZeroUnsignedInt(1))),
+        ), 'an autolink is a link to its own text'
 
     def test_parse_document_with_a_link_in_inline_code_returns_no_link(self) -> None:
         #: Given
@@ -598,8 +623,8 @@ class TestParseDocumentLinks:
 
         #: Then
         assert document.links == (
-            Link(url='a.md', line=LineNumber.from_int(3)),
-            Link(url='b.md', line=LineNumber.from_int(5)),
+            Link(url='a.md', line=LineNumber(NonZeroUnsignedInt(3))),
+            Link(url='b.md', line=LineNumber(NonZeroUnsignedInt(5))),
         ), 'a link in a list item or a blockquote is found, each on its own document line'
 
     def test_parse_document_with_crlf_line_endings_returns_each_link_on_its_document_line(self) -> None:
@@ -610,9 +635,10 @@ class TestParseDocumentLinks:
         document = parse_document(text)
 
         #: Then
-        assert [link.line for link in document.links] == [LineNumber.from_int(3), LineNumber.from_int(5)], (
-            'a CRLF line ending counts as one line break'
-        )
+        assert [link.line for link in document.links] == [
+            LineNumber(NonZeroUnsignedInt(3)),
+            LineNumber(NonZeroUnsignedInt(5)),
+        ], 'a CRLF line ending counts as one line break'
 
     def test_parse_document_with_a_vertical_tab_returns_each_link_on_its_document_line(self) -> None:
         #: Given
@@ -623,7 +649,7 @@ class TestParseDocumentLinks:
         document = parse_document(text)
 
         #: Then
-        assert [link.line for link in document.links] == [LineNumber.from_int(5)], (
+        assert [link.line for link in document.links] == [LineNumber(NonZeroUnsignedInt(5))], (
             f'{separator!r} ends no line, so the link after it is on the line the line breaks give'
         )
 
@@ -636,7 +662,7 @@ class TestParseDocumentLinks:
         document = parse_document(text)
 
         #: Then
-        assert [link.line for link in document.links] == [LineNumber.from_int(5)], (
+        assert [link.line for link in document.links] == [LineNumber(NonZeroUnsignedInt(5))], (
             f'{separator!r} ends no line, so the link after it is on the line the line breaks give'
         )
 
@@ -649,7 +675,7 @@ class TestParseDocumentLinks:
         document = parse_document(text)
 
         #: Then
-        assert [link.line for link in document.links] == [LineNumber.from_int(5)], (
+        assert [link.line for link in document.links] == [LineNumber(NonZeroUnsignedInt(5))], (
             f'{separator!r} ends no line, so the link after it is on the line the line breaks give'
         )
 
@@ -662,7 +688,7 @@ class TestParseDocumentLinks:
         document = parse_document(text)
 
         #: Then
-        assert [link.line for link in document.links] == [LineNumber.from_int(5)], (
+        assert [link.line for link in document.links] == [LineNumber(NonZeroUnsignedInt(5))], (
             f'{separator!r} ends no line, so the link after it is on the line the line breaks give'
         )
 
@@ -674,9 +700,10 @@ class TestParseDocumentLinks:
         document = parse_document(text)
 
         #: Then
-        assert [link.line for link in document.links] == [LineNumber.from_int(3), LineNumber.from_int(5)], (
-            'a lone `\\r` ends a line, as CommonMark has it'
-        )
+        assert [link.line for link in document.links] == [
+            LineNumber(NonZeroUnsignedInt(3)),
+            LineNumber(NonZeroUnsignedInt(5)),
+        ], 'a lone `\\r` ends a line, as CommonMark has it'
 
 
 @pytest.mark.unit

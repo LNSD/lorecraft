@@ -10,6 +10,7 @@ from typing import Final
 
 import pytest
 
+from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.schemas import ExpectedSection, OutlineEnd, SectionName
 from lorecraft.project.syntax import LineNumber
@@ -57,7 +58,7 @@ class TestUnexpectedSection:
         #: Then
         assert occurrences == (
             UnexpectedSection(
-                spec=CORPUS_SPEC, line=LineNumber.from_int(7), section='Tips', placement=EXPECTED_OPTIONS
+                spec=CORPUS_SPEC, line=LineNumber(NonZeroUnsignedInt(7)), section='Tips', placement=EXPECTED_OPTIONS
             ),
         ), 'a section the outline does not name, where it places a later one, is one occurrence, at its heading'
 
@@ -71,7 +72,10 @@ class TestUnexpectedSection:
         #: Then
         assert occurrences == (
             UnexpectedSection(
-                spec=CORPUS_SPEC, line=LineNumber.from_int(11), section='Afterword', placement=ENDS_AFTER_OPTIONS
+                spec=CORPUS_SPEC,
+                line=LineNumber(NonZeroUnsignedInt(11)),
+                section='Afterword',
+                placement=ENDS_AFTER_OPTIONS,
             ),
         ), 'a section the outline does not name, after its end, is reported at its heading, with the last one matched'
 
@@ -123,11 +127,11 @@ class TestUnexpectedSection:
         #: Then
         assert occurrences == (
             UnexpectedSection(
-                spec=CORPUS_SPEC, line=LineNumber.from_int(7), section='Tips', placement=EXPECTED_OPTIONS
+                spec=CORPUS_SPEC, line=LineNumber(NonZeroUnsignedInt(7)), section='Tips', placement=EXPECTED_OPTIONS
             ),
             UnexpectedSection(
                 spec=NAMESPACE_SPEC,
-                line=LineNumber.from_int(15),
+                line=LineNumber(NonZeroUnsignedInt(15)),
                 section='Afterword',
                 placement=OutlineEnd(last_matched=section_in(TIPS_BETWEEN, 'Options')),
             ),
@@ -136,7 +140,7 @@ class TestUnexpectedSection:
     def test_message_with_an_occurrence_names_the_section(self) -> None:
         #: Given
         occurrence = UnexpectedSection(
-            spec=CORPUS_SPEC, line=LineNumber.from_int(7), section='Tips', placement=EXPECTED_OPTIONS
+            spec=CORPUS_SPEC, line=LineNumber(NonZeroUnsignedInt(7)), section='Tips', placement=EXPECTED_OPTIONS
         )
 
         #: When
@@ -156,14 +160,17 @@ class TestUnexpectedSection:
         #: Then
         assert occurrences == (
             UnexpectedSection(
-                spec=CORPUS_SPEC, line=LineNumber.from_int(3), section='Tips', placement=OutlineEnd(last_matched=None)
+                spec=CORPUS_SPEC,
+                line=LineNumber(NonZeroUnsignedInt(3)),
+                section='Tips',
+                placement=OutlineEnd(last_matched=None),
             ),
         ), 'an outline that matched no section ends before the first, so the end marks no section'
 
     def test_labels_with_a_section_expected_mark_it_and_where_the_expected_one_is_written(self) -> None:
         #: Given
         occurrence = UnexpectedSection(
-            spec=CORPUS_SPEC, line=LineNumber.from_int(7), section='Tips', placement=EXPECTED_OPTIONS
+            spec=CORPUS_SPEC, line=LineNumber(NonZeroUnsignedInt(7)), section='Tips', placement=EXPECTED_OPTIONS
         )
 
         #: When
@@ -171,14 +178,14 @@ class TestUnexpectedSection:
 
         #: Then
         assert labels == (
-            Label(Here(LineNumber.from_int(7)), 'expected `Options` here'),
-            Label(Here(LineNumber.from_int(11)), '`Options` is written here'),
+            Label(Here(LineNumber(NonZeroUnsignedInt(7))), 'expected `Options` here'),
+            Label(Here(LineNumber(NonZeroUnsignedInt(11))), '`Options` is written here'),
         ), 'the labels mark the section, name the one the outline places there, and mark where that one is written'
 
     def test_labels_with_the_outline_ended_mark_the_section_and_the_last_one_matched(self) -> None:
         #: Given
         occurrence = UnexpectedSection(
-            spec=CORPUS_SPEC, line=LineNumber.from_int(11), section='Afterword', placement=ENDS_AFTER_OPTIONS
+            spec=CORPUS_SPEC, line=LineNumber(NonZeroUnsignedInt(11)), section='Afterword', placement=ENDS_AFTER_OPTIONS
         )
 
         #: When
@@ -186,28 +193,31 @@ class TestUnexpectedSection:
 
         #: Then
         assert labels == (
-            Label(Here(LineNumber.from_int(11)), 'the outline ends before it'),
-            Label(Here(LineNumber.from_int(7)), 'the outline ends here'),
+            Label(Here(LineNumber(NonZeroUnsignedInt(11))), 'the outline ends before it'),
+            Label(Here(LineNumber(NonZeroUnsignedInt(7))), 'the outline ends here'),
         ), 'the labels mark the section, and the last section the outline matched, where it ends'
 
     def test_labels_with_the_outline_ended_before_any_section_mark_the_section_alone(self) -> None:
         #: Given
         occurrence = UnexpectedSection(
-            spec=CORPUS_SPEC, line=LineNumber.from_int(3), section='Tips', placement=OutlineEnd(last_matched=None)
+            spec=CORPUS_SPEC,
+            line=LineNumber(NonZeroUnsignedInt(3)),
+            section='Tips',
+            placement=OutlineEnd(last_matched=None),
         )
 
         #: When
         labels = occurrence.labels()
 
         #: Then
-        assert labels == (Label(Here(LineNumber.from_int(3)), 'the outline ends before it'),), (
+        assert labels == (Label(Here(LineNumber(NonZeroUnsignedInt(3))), 'the outline ends before it'),), (
             'an outline that matched no section has no last section to mark'
         )
 
     def test_children_with_an_occurrence_point_at_the_specification_and_say_where_the_content_goes(self) -> None:
         #: Given
         occurrence = UnexpectedSection(
-            spec=CORPUS_SPEC, line=LineNumber.from_int(7), section='Tips', placement=EXPECTED_OPTIONS
+            spec=CORPUS_SPEC, line=LineNumber(NonZeroUnsignedInt(7)), section='Tips', placement=EXPECTED_OPTIONS
         )
 
         #: When

@@ -30,6 +30,7 @@ from wenmode.nodes import Link as WenmodeLink
 from wenmode.plugins import frontmatter
 
 from lorecraft.core.lines import newline_offsets
+from lorecraft.core.num import NonZeroUnsignedInt
 
 from .frontmatter import FrontmatterNode, MissingFrontmatter, decode_frontmatter
 from .heading import HeadingLevel
@@ -324,7 +325,7 @@ def _line(newlines: tuple[int, ...], span: Position) -> LineNumber:
         newlines: The offset where each line break in the document's text starts, as `newline_offsets` returns them.
         span: Where the node to locate sits, as `_position` reads it.
     """
-    return LineNumber.from_int(bisect_left(newlines, span.start) + 1)
+    return LineNumber(NonZeroUnsignedInt(bisect_left(newlines, span.start) + 1))
 
 
 def _position(node: Node) -> Position:

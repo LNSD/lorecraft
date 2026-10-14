@@ -9,6 +9,7 @@ from typing import Final
 
 import pytest
 
+from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.schemas import AgentSkillsSchema, FieldGuidance, JsonType, StructureSpecSchema, WrongTypeProblem
 from lorecraft.project.syntax import LineNumber
@@ -56,7 +57,7 @@ PROBLEM: Final[WrongTypeProblem] = WrongTypeProblem(
 )
 """A value of a type the schema does not accept: the rule's condition."""
 
-LINE: Final[LineNumber] = LineNumber.from_int(3)
+LINE: Final[LineNumber] = LineNumber(NonZeroUnsignedInt(3))
 """The line `description` is written on."""
 
 

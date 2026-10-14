@@ -2,6 +2,7 @@
 
 import pytest
 
+from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.declaration import Severity
 from lorecraft.rules.location import Help, Here, Label
@@ -61,7 +62,9 @@ class TestInvalidUtf8:
         primary = occurrence.primary()
 
         #: Then
-        assert primary == Here(LineNumber.from_int(4)), 'the file is pointed at where its bytes stop being UTF-8'
+        assert primary == Here(LineNumber(NonZeroUnsignedInt(4))), (
+            'the file is pointed at where its bytes stop being UTF-8'
+        )
 
     def test_labels_of_an_occurrence_name_the_bytes_their_offset_and_the_reason_at_that_line(self) -> None:
         #: Given
@@ -73,7 +76,7 @@ class TestInvalidUtf8:
         #: Then
         assert labels == (
             Label(
-                Here(LineNumber.from_int(4)),
+                Here(LineNumber(NonZeroUnsignedInt(4))),
                 '0xE9 at byte offset 31 starts a character the next byte does not continue',
             ),
         ), 'the one label sits on the primary line and says what the decoder rejected'
@@ -93,7 +96,10 @@ class TestInvalidUtf8:
 
         #: Then
         assert labels == (
-            Label(Here(LineNumber.from_int(1)), '0xE2 0x82 at byte offset 0 starts a character the file ends inside'),
+            Label(
+                Here(LineNumber(NonZeroUnsignedInt(1))),
+                '0xE2 0x82 at byte offset 0 starts a character the file ends inside',
+            ),
         ), 'every rejected byte is named, in file order'
 
     def test_labels_of_an_occurrence_with_another_reason_say_only_that_the_bytes_do_not_decode(self) -> None:
@@ -105,7 +111,7 @@ class TestInvalidUtf8:
         labels = occurrence.labels()
 
         #: Then
-        assert labels == (Label(Here(LineNumber.from_int(1)), '0xED at byte offset 2 does not decode'),), (
+        assert labels == (Label(Here(LineNumber(NonZeroUnsignedInt(1))), '0xED at byte offset 2 does not decode'),), (
             'a reason the package has no wording for is not worded after the decoder'
         )
 

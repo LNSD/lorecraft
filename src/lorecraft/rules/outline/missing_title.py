@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 from typing import ClassVar, Final, Self
 
+from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.project.context import DocumentContext
 from lorecraft.project.syntax import LineNumber, find_title
 from lorecraft.rules.declaration import Level, Release, RuleCode, RuleName, rule
@@ -11,7 +12,7 @@ from lorecraft.rules.subject import DocumentRule, Facet
 
 from .__ruleset__ import GROUP_ID
 
-_FIRST_LINE: Final[LineNumber] = LineNumber.from_int(1)
+_FIRST_LINE: Final[LineNumber] = LineNumber(NonZeroUnsignedInt(1))
 """Where an occurrence is reported: the document's first line, since a missing title has no heading of its own."""
 
 

@@ -20,7 +20,7 @@ import pytest
 
 from lib.overruns import overrun
 from lorecraft import rules
-from lorecraft.core.num import UnsignedInt
+from lorecraft.core.num import NonZeroUnsignedInt, UnsignedInt
 from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.engine import check_subjects
 from lorecraft.project.aspect import AspectFilename
@@ -244,7 +244,7 @@ class OverHalfBudget(DocumentRule):
                 occurrences.append(
                     cls(
                         spec=structure_spec.path,
-                        line=LineNumber.from_int(1),
+                        line=LineNumber(NonZeroUnsignedInt(1)),
                         token_count=token_count,
                         budget=budget.value,
                     )
@@ -275,7 +275,7 @@ class EmptyDocument(DocumentRule):
         """
         if subject.tokens().value > 0:
             return ()
-        return (cls(spec=None, line=LineNumber.from_int(1)),)
+        return (cls(spec=None, line=LineNumber(NonZeroUnsignedInt(1))),)
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -305,7 +305,7 @@ class AnyTokens(DocumentRule):
         Args:
             subject: The document, governed by a budget.
         """
-        return (cls(spec=None, line=LineNumber.from_int(1), token_count=subject.tokens().value),)
+        return (cls(spec=None, line=LineNumber(NonZeroUnsignedInt(1)), token_count=subject.tokens().value),)
 
 
 class CountingDatabase(Database):
@@ -540,14 +540,14 @@ class TestCheckSubjects:
                     RuleDiagnostic(
                         skill_file,
                         MalformedAllowedTools(
-                            line=LineNumber.from_int(4),
+                            line=LineNumber(NonZeroUnsignedInt(4)),
                             problem=CommaSeparated(entry=value, suggested='A' * 500),
                         ),
                         Severity.WARNING,
                     ),
                     RuleDiagnostic(
                         skill_file,
-                        AllowedToolsTooLong(line=LineNumber.from_int(4), overrun=overrun(501, 500)),
+                        AllowedToolsTooLong(line=LineNumber(NonZeroUnsignedInt(4)), overrun=overrun(501, 500)),
                         Severity.WARNING,
                     ),
                 ),
@@ -570,7 +570,7 @@ class TestCheckSubjects:
 
         #: Then
         occurrence = MalformedAllowedTools(
-            line=LineNumber.from_int(4), problem=CommaSeparated(entry='Read,', suggested='Read')
+            line=LineNumber(NonZeroUnsignedInt(4)), problem=CommaSeparated(entry='Read,', suggested='Read')
         )
         skill_file = RootRelativePath.parse('.agents/skills/review/SKILL.md')
         assert reports == (
@@ -591,7 +591,7 @@ class TestCheckSubjects:
 
         #: Then
         occurrence = TooManyTokens(
-            spec=CODE_SPEC, line=LineNumber.from_int(1), overrun=overrun(count_tokens(GUIDE_TEXT).value, 5)
+            spec=CODE_SPEC, line=LineNumber(NonZeroUnsignedInt(1)), overrun=overrun(count_tokens(GUIDE_TEXT).value, 5)
         )
         assert reports == (
             CheckedDocument(
@@ -627,9 +627,11 @@ class TestCheckSubjects:
 
         #: Then
         token_count = count_tokens(typing_text).value
-        corpus_budget = TooManyTokens(spec=CODE_SPEC, line=LineNumber.from_int(1), overrun=overrun(token_count, 5))
+        corpus_budget = TooManyTokens(
+            spec=CODE_SPEC, line=LineNumber(NonZeroUnsignedInt(1)), overrun=overrun(token_count, 5)
+        )
         namespace_budget = TooManyTokens(
-            spec=namespace_spec, line=LineNumber.from_int(1), overrun=overrun(token_count, 3)
+            spec=namespace_spec, line=LineNumber(NonZeroUnsignedInt(1)), overrun=overrun(token_count, 3)
         )
         assert reports == (
             CheckedDocument(
@@ -842,11 +844,11 @@ class TestCheckSubjects:
         #: Then
         over_half = OverHalfBudget(
             spec=CODE_SPEC,
-            line=LineNumber.from_int(1),
+            line=LineNumber(NonZeroUnsignedInt(1)),
             token_count=token_count_of_guide,
             budget=token_count_of_guide + 1,
         )
-        any_tokens = AnyTokens(spec=None, line=LineNumber.from_int(1), token_count=token_count_of_guide)
+        any_tokens = AnyTokens(spec=None, line=LineNumber(NonZeroUnsignedInt(1)), token_count=token_count_of_guide)
         assert reports == (
             CheckedDocument(
                 GUIDE,
@@ -867,7 +869,7 @@ class TestCheckSubjects:
         reports = check_subjects(database, (GUIDE,), sample_table)
 
         #: Then
-        any_tokens = AnyTokens(spec=None, line=LineNumber.from_int(1), token_count=0)
+        any_tokens = AnyTokens(spec=None, line=LineNumber(NonZeroUnsignedInt(1)), token_count=0)
         assert reports == (
             CheckedDocument(
                 GUIDE, diagnostics=(RuleDiagnostic(GUIDE.path, any_tokens, Severity.ERROR),), ungoverned=()
@@ -884,7 +886,7 @@ class TestCheckSubjects:
         reports = check_subjects(database, (_location(database, REVIEW),), package_table)
 
         #: Then
-        occurrence = TooManyLines(line=LineNumber.from_int(501), overrun=overrun(501, 500))
+        occurrence = TooManyLines(line=LineNumber(NonZeroUnsignedInt(501)), overrun=overrun(501, 500))
         skill_file = RootRelativePath.parse('.agents/skills/review/SKILL.md')
         assert reports == (
             CheckedSkillFile(REVIEW, diagnostics=(RuleDiagnostic(skill_file, occurrence, Severity.ERROR),)),
@@ -905,7 +907,7 @@ class TestCheckSubjects:
         reports = check_subjects(database, (_location(database, REVIEW),), package_table)
 
         #: Then
-        occurrence = TooManyLines(line=LineNumber.from_int(501), overrun=overrun(501, 500))
+        occurrence = TooManyLines(line=LineNumber(NonZeroUnsignedInt(501)), overrun=overrun(501, 500))
         skill_file = RootRelativePath.parse('.agents/skills/review/SKILL.md')
         assert reports == (
             CheckedSkillFile(REVIEW, diagnostics=(RuleDiagnostic(skill_file, occurrence, Severity.ERROR),)),
@@ -984,7 +986,7 @@ class TestCheckSubjects:
         reports = check_subjects(database, (GUIDE,), package_table)
 
         #: Then
-        occurrence = MissingFrontmatter(owner=GUIDE_OWNER, line=LineNumber.from_int(1))
+        occurrence = MissingFrontmatter(owner=GUIDE_OWNER, line=LineNumber(NonZeroUnsignedInt(1)))
         assert reports == (
             CheckedDocument(
                 GUIDE,
@@ -1007,7 +1009,7 @@ class TestCheckSubjects:
         occurrence = InvalidYaml(
             owner=GUIDE_OWNER,
             problem=_invalid_yaml_problem(guide),
-            stopped_at=LineNumber.from_int(2),
+            stopped_at=LineNumber(NonZeroUnsignedInt(2)),
         )
         assert reports == (
             CheckedDocument(
@@ -1027,7 +1029,7 @@ class TestCheckSubjects:
         reports = check_subjects(database, (GUIDE,), package_table)
 
         #: Then
-        occurrence = NonMappingFrontmatter(owner=GUIDE_OWNER, line=LineNumber.from_int(1))
+        occurrence = NonMappingFrontmatter(owner=GUIDE_OWNER, line=LineNumber(NonZeroUnsignedInt(1)))
         assert reports == (
             CheckedDocument(
                 GUIDE,
@@ -1046,7 +1048,7 @@ class TestCheckSubjects:
         reports = check_subjects(database, (GUIDE,), package_table)
 
         #: Then
-        occurrence = NameMismatch(owner=GUIDE_OWNER, line=LineNumber.from_int(2), name='setup')
+        occurrence = NameMismatch(owner=GUIDE_OWNER, line=LineNumber(NonZeroUnsignedInt(2)), name='setup')
         assert reports == (
             CheckedDocument(
                 GUIDE,
@@ -1067,10 +1069,10 @@ class TestCheckSubjects:
         #: Then
         occurrence = DuplicateKey(
             owner=GUIDE_OWNER,
-            line=LineNumber.from_int(3),
+            line=LineNumber(NonZeroUnsignedInt(3)),
             key='name',
-            first_line=LineNumber.from_int(2),
-            kept_line=LineNumber.from_int(3),
+            first_line=LineNumber(NonZeroUnsignedInt(2)),
+            kept_line=LineNumber(NonZeroUnsignedInt(3)),
         )
         assert reports == (
             CheckedDocument(
@@ -1090,7 +1092,7 @@ class TestCheckSubjects:
         reports = check_subjects(database, (_location(database, REVIEW),), package_table)
 
         #: Then
-        occurrence = MissingFrontmatter(owner=REVIEW_OWNER, line=LineNumber.from_int(1))
+        occurrence = MissingFrontmatter(owner=REVIEW_OWNER, line=LineNumber(NonZeroUnsignedInt(1)))
         assert reports == (
             CheckedSkillFile(REVIEW, diagnostics=(RuleDiagnostic(REVIEW_FILE, occurrence, Severity.ERROR),)),
         ), 'every skill is governed for its frontmatter, so FM001 needs no specification in the repository'
@@ -1109,7 +1111,7 @@ class TestCheckSubjects:
         occurrence = InvalidYaml(
             owner=REVIEW_OWNER,
             problem=_invalid_yaml_problem(review),
-            stopped_at=LineNumber.from_int(2),
+            stopped_at=LineNumber(NonZeroUnsignedInt(2)),
         )
         assert reports == (
             CheckedSkillFile(REVIEW, diagnostics=(RuleDiagnostic(REVIEW_FILE, occurrence, Severity.ERROR),)),
@@ -1125,7 +1127,7 @@ class TestCheckSubjects:
         reports = check_subjects(database, (_location(database, REVIEW),), package_table)
 
         #: Then
-        occurrence = NonMappingFrontmatter(owner=REVIEW_OWNER, line=LineNumber.from_int(1))
+        occurrence = NonMappingFrontmatter(owner=REVIEW_OWNER, line=LineNumber(NonZeroUnsignedInt(1)))
         assert reports == (
             CheckedSkillFile(REVIEW, diagnostics=(RuleDiagnostic(REVIEW_FILE, occurrence, Severity.ERROR),)),
         ), 'FM003 runs at deny over a skill whose block is not a mapping'
@@ -1144,7 +1146,7 @@ class TestCheckSubjects:
         reports = check_subjects(database, (_location(database, REVIEW),), package_table)
 
         #: Then
-        occurrence = NameMismatch(owner=REVIEW_OWNER, line=LineNumber.from_int(2), name='code-review')
+        occurrence = NameMismatch(owner=REVIEW_OWNER, line=LineNumber(NonZeroUnsignedInt(2)), name='code-review')
         assert reports == (
             CheckedSkillFile(REVIEW, diagnostics=(RuleDiagnostic(REVIEW_FILE, occurrence, Severity.ERROR),)),
         ), 'FM004 runs at deny over a skill whose `name` is not its directory name'
@@ -1165,10 +1167,10 @@ class TestCheckSubjects:
         #: Then
         occurrence = DuplicateKey(
             owner=REVIEW_OWNER,
-            line=LineNumber.from_int(3),
+            line=LineNumber(NonZeroUnsignedInt(3)),
             key='name',
-            first_line=LineNumber.from_int(2),
-            kept_line=LineNumber.from_int(3),
+            first_line=LineNumber(NonZeroUnsignedInt(2)),
+            kept_line=LineNumber(NonZeroUnsignedInt(3)),
         )
         assert reports == (
             CheckedSkillFile(REVIEW, diagnostics=(RuleDiagnostic(REVIEW_FILE, occurrence, Severity.ERROR),)),
@@ -1201,7 +1203,7 @@ class TestCheckSubjects:
             directory_name=PathComponent.parse('review'),
             link_target=ResolvedPath(RootRelativePath.parse('skills/code-review')),
         )
-        occurrence = NameMismatch(owner=owner, line=LineNumber.from_int(2), name='code-review')
+        occurrence = NameMismatch(owner=owner, line=LineNumber(NonZeroUnsignedInt(2)), name='code-review')
         assert reports == (
             CheckedSkillFile(REVIEW, diagnostics=(RuleDiagnostic(REVIEW_FILE, occurrence, Severity.ERROR),)),
         ), 'a skill is held to the name it is listed under, and its occurrence carries where the link leads'
@@ -1281,7 +1283,7 @@ class TestCheckSubjects:
         reports = check_subjects(database, (GUIDE,), package_table)
 
         #: Then
-        line_1 = LineNumber.from_int(1)
+        line_1 = LineNumber(NonZeroUnsignedInt(1))
         missing_field = MissingField(
             source=StructureSpecSchema(spec=CODE_SPEC),
             line=line_1,
@@ -1289,7 +1291,7 @@ class TestCheckSubjects:
         )
         unknown_field = UnknownField(
             source=StructureSpecSchema(spec=CODE_SPEC),
-            line=LineNumber.from_int(4),
+            line=LineNumber(NonZeroUnsignedInt(4)),
             problem=UnknownFieldProblem(
                 'extra',
                 "Additional properties are not allowed ('extra' was unexpected)",
@@ -1298,14 +1300,14 @@ class TestCheckSubjects:
         )
         wrong_type = WrongType(
             source=StructureSpecSchema(spec=CODE_SPEC),
-            line=LineNumber.from_int(3),
+            line=LineNumber(NonZeroUnsignedInt(3)),
             problem=WrongTypeProblem(
                 'description', "['a'] is not of type 'string'", (JsonType.STRING,), JsonType.ARRAY
             ),
         )
         invalid_value = InvalidValue(
             source=StructureSpecSchema(spec=CODE_SPEC),
-            line=LineNumber.from_int(5),
+            line=LineNumber(NonZeroUnsignedInt(5)),
             problem=InvalidValueProblem(
                 'status', "'Final' does not match '^(draft|stable)$'", PatternMismatch('^(draft|stable)$')
             ),
@@ -1349,7 +1351,7 @@ class TestCheckSubjects:
         reports = check_subjects(database, (_location(database, REVIEW),), package_table)
 
         #: Then
-        line_1 = LineNumber.from_int(1)
+        line_1 = LineNumber(NonZeroUnsignedInt(1))
         missing_field = MissingField(
             source=AgentSkillsSchema(),
             line=line_1,
@@ -1357,7 +1359,7 @@ class TestCheckSubjects:
         )
         unknown_field = UnknownField(
             source=AgentSkillsSchema(),
-            line=LineNumber.from_int(5),
+            line=LineNumber(NonZeroUnsignedInt(5)),
             problem=UnknownFieldProblem(
                 'extra',
                 '`extra` is not a field of the Agent Skills specification',
@@ -1366,7 +1368,7 @@ class TestCheckSubjects:
         )
         wrong_type = WrongType(
             source=AgentSkillsSchema(),
-            line=LineNumber.from_int(4),
+            line=LineNumber(NonZeroUnsignedInt(4)),
             problem=WrongTypeProblem(
                 'metadata',
                 '`metadata` must be a mapping of strings to strings',
@@ -1377,7 +1379,7 @@ class TestCheckSubjects:
         )
         invalid_value = InvalidValue(
             source=AgentSkillsSchema(),
-            line=LineNumber.from_int(3),
+            line=LineNumber(NonZeroUnsignedInt(3)),
             problem=InvalidValueProblem(
                 'compatibility',
                 'skill compatibility cannot be empty; leave the field out instead',
@@ -1422,7 +1424,7 @@ class TestCheckSubjects:
         reports = check_subjects(database, (typing,), package_table)
 
         #: Then
-        line_1 = LineNumber.from_int(1)
+        line_1 = LineNumber(NonZeroUnsignedInt(1))
         status = MissingField(
             source=StructureSpecSchema(spec=CODE_SPEC),
             line=line_1,
@@ -1472,7 +1474,7 @@ class TestCheckSubjects:
         reports = check_subjects(database, (GUIDE,), package_table)
 
         #: Then
-        occurrence = NonMappingFrontmatter(owner=GUIDE_OWNER, line=LineNumber.from_int(1))
+        occurrence = NonMappingFrontmatter(owner=GUIDE_OWNER, line=LineNumber(NonZeroUnsignedInt(1)))
         assert reports == (
             CheckedDocument(
                 GUIDE,
@@ -1515,7 +1517,7 @@ class TestCheckSubjects:
         reports = check_subjects(database, (GUIDE,), package_table)
 
         #: Then
-        missing = MissingTitle(line=LineNumber.from_int(1))
+        missing = MissingTitle(line=LineNumber(NonZeroUnsignedInt(1)))
         assert reports == (
             CheckedDocument(
                 GUIDE,
@@ -1544,7 +1546,7 @@ class TestCheckSubjects:
 
         #: Then
         first_title = _heading(guide, 'Guide')
-        occurrence = ExtraTitle(line=LineNumber.from_int(5), first_title=first_title)
+        occurrence = ExtraTitle(line=LineNumber(NonZeroUnsignedInt(5)), first_title=first_title)
         assert reports == (
             CheckedDocument(
                 GUIDE,
@@ -1569,7 +1571,9 @@ class TestCheckSubjects:
         reports = check_subjects(database, (GUIDE,), package_table)
 
         #: Then
-        occurrence = TitleNotFirst(line=LineNumber.from_int(1), level=2, title_line=LineNumber.from_int(5))
+        occurrence = TitleNotFirst(
+            line=LineNumber(NonZeroUnsignedInt(1)), level=2, title_line=LineNumber(NonZeroUnsignedInt(5))
+        )
         assert reports == (
             CheckedDocument(
                 GUIDE,
@@ -1612,7 +1616,9 @@ class TestCheckSubjects:
         reports = check_subjects(database, (GUIDE,), package_table)
 
         #: Then
-        occurrence = EmptySection(spec=CODE_SPEC, line=LineNumber.from_int(3), section='Install', role=OtherSection())
+        occurrence = EmptySection(
+            spec=CODE_SPEC, line=LineNumber(NonZeroUnsignedInt(3)), section='Install', role=OtherSection()
+        )
         assert reports == (
             CheckedDocument(
                 GUIDE,
@@ -1634,7 +1640,7 @@ class TestCheckSubjects:
         reports = check_subjects(database, (GUIDE,), package_table)
 
         #: Then
-        occurrence = ForbiddenSection(spec=CODE_SPEC, line=LineNumber.from_int(7), section='Changelog')
+        occurrence = ForbiddenSection(spec=CODE_SPEC, line=LineNumber(NonZeroUnsignedInt(7)), section='Changelog')
         assert reports == (
             CheckedDocument(
                 GUIDE,
@@ -1660,7 +1666,7 @@ class TestCheckSubjects:
         #: Then
         occurrence = TooManyWords(
             spec=CODE_SPEC,
-            line=LineNumber.from_int(3),
+            line=LineNumber(NonZeroUnsignedInt(3)),
             section='Run',
             overrun=overrun(5, 3),
             cap_source=NamedSectionCap(),
@@ -1684,7 +1690,7 @@ class TestCheckSubjects:
         reports = check_subjects(database, (GUIDE,), package_table)
 
         #: Then
-        occurrence = TitleTooManyWords(spec=CODE_SPEC, line=LineNumber.from_int(1), overrun=overrun(4, 3))
+        occurrence = TitleTooManyWords(spec=CODE_SPEC, line=LineNumber(NonZeroUnsignedInt(1)), overrun=overrun(4, 3))
         assert reports == (
             CheckedDocument(
                 GUIDE,
@@ -1708,7 +1714,7 @@ class TestCheckSubjects:
         reports = check_subjects(database, (GUIDE,), package_table)
 
         #: Then
-        occurrence = TitleTooLong(spec=CODE_SPEC, line=LineNumber.from_int(1), overrun=overrun(20, 12))
+        occurrence = TitleTooLong(spec=CODE_SPEC, line=LineNumber(NonZeroUnsignedInt(1)), overrun=overrun(20, 12))
         assert reports == (
             CheckedDocument(
                 GUIDE,
@@ -1734,7 +1740,7 @@ class TestCheckSubjects:
         #: Then
         occurrence = InvalidTitle(
             spec=CODE_SPEC,
-            line=LineNumber.from_int(1),
+            line=LineNumber(NonZeroUnsignedInt(1)),
             title='setting up the guide',
             pattern=TitlePattern(re.compile('^[A-Z]')),
         )
@@ -1777,7 +1783,7 @@ class TestCheckSubjects:
         occurrence = MissingSection(
             spec=CODE_SPEC,
             section=SectionName.parse('Usage'),
-            before=DocumentEnd(last_line=LineNumber.from_int(5), after=_section(guide, 'Install')),
+            before=DocumentEnd(last_line=LineNumber(NonZeroUnsignedInt(5)), after=_section(guide, 'Install')),
             description='How to run it.',
             example=None,
         )
@@ -1802,7 +1808,9 @@ class TestCheckSubjects:
 
         #: Then
         expected = ExpectedSection(name=SectionName.parse('Install'), written_at=_section(guide, 'Install'))
-        occurrence = SectionOutOfOrder(spec=CODE_SPEC, line=LineNumber.from_int(3), section='Usage', placement=expected)
+        occurrence = SectionOutOfOrder(
+            spec=CODE_SPEC, line=LineNumber(NonZeroUnsignedInt(3)), section='Usage', placement=expected
+        )
         assert reports == (
             CheckedDocument(
                 GUIDE,
@@ -1824,7 +1832,9 @@ class TestCheckSubjects:
 
         #: Then
         expected = ExpectedSection(name=SectionName.parse('Usage'), written_at=_section(guide, 'Usage'))
-        occurrence = UnexpectedSection(spec=CODE_SPEC, line=LineNumber.from_int(7), section='Tips', placement=expected)
+        occurrence = UnexpectedSection(
+            spec=CODE_SPEC, line=LineNumber(NonZeroUnsignedInt(7)), section='Tips', placement=expected
+        )
         assert reports == (
             CheckedDocument(
                 GUIDE,
@@ -1875,7 +1885,7 @@ class TestCheckSubjects:
         reports = check_subjects(database, (GUIDE,), package_table)
 
         #: Then
-        occurrence = AbsoluteLink(line=LineNumber.from_int(3), url='/docs/code/setup.md')
+        occurrence = AbsoluteLink(line=LineNumber(NonZeroUnsignedInt(3)), url='/docs/code/setup.md')
         assert reports == (
             CheckedDocument(
                 GUIDE,
@@ -1895,7 +1905,7 @@ class TestCheckSubjects:
         reports = check_subjects(database, (_location(database, REVIEW),), package_table)
 
         #: Then
-        occurrence = AbsoluteLink(line=LineNumber.from_int(7), url='/tmp/diff.md')
+        occurrence = AbsoluteLink(line=LineNumber(NonZeroUnsignedInt(7)), url='/tmp/diff.md')
         assert reports == (
             CheckedSkillFile(REVIEW, diagnostics=(RuleDiagnostic(REVIEW_FILE, occurrence, Severity.ERROR),)),
         ), "LINK001 runs at deny over a skill's SKILL.md, on the line of the link, counted from the file's first line"
@@ -1924,7 +1934,7 @@ class TestCheckSubjects:
         reports = check_subjects(database, _resources(database, REVIEW), package_table)
 
         #: Then
-        occurrence = AbsoluteLink(line=LineNumber.from_int(3), url='/assets/flow.png')
+        occurrence = AbsoluteLink(line=LineNumber(NonZeroUnsignedInt(3)), url='/assets/flow.png')
         resource_path = RootRelativePath.parse('.agents/skills/review/references/deep/guide.md')
         assert reports == (
             CheckedSkillFile(guide, diagnostics=(RuleDiagnostic(resource_path, occurrence, Severity.ERROR),)),
@@ -1954,7 +1964,7 @@ class TestCheckSubjects:
         reports = check_subjects(database, (_location(database, REVIEW), *_resources(database, REVIEW)), package_table)
 
         #: Then
-        occurrence = AbsoluteLink(line=LineNumber.from_int(1), url='/x.md')
+        occurrence = AbsoluteLink(line=LineNumber(NonZeroUnsignedInt(1)), url='/x.md')
         first_path = RootRelativePath.parse('.agents/skills/review/references/a.md')
         assert reports == (
             CheckedSkillFile(REVIEW, diagnostics=()),
@@ -2002,7 +2012,7 @@ class TestCheckSubjects:
         reports = check_subjects(database, (_location(database, REVIEW), *_resources(database, REVIEW)), package_table)
 
         #: Then
-        occurrence = AbsoluteLink(line=LineNumber.from_int(1), url='/x.md')
+        occurrence = AbsoluteLink(line=LineNumber(NonZeroUnsignedInt(1)), url='/x.md')
         assert reports == (
             UndecodableSubject(REVIEW, _CAFE_NAME_FAILURE),
             CheckedSkillFile(resource, diagnostics=(RuleDiagnostic(resource.path, occurrence, Severity.ERROR),)),
@@ -2022,9 +2032,9 @@ class TestCheckSubjects:
         invalid_yaml = InvalidYaml(
             owner=REVIEW_OWNER,
             problem=_invalid_yaml_problem(review),
-            stopped_at=LineNumber.from_int(2),
+            stopped_at=LineNumber(NonZeroUnsignedInt(2)),
         )
-        absolute_link = AbsoluteLink(line=LineNumber.from_int(4), url='/x.md')
+        absolute_link = AbsoluteLink(line=LineNumber(NonZeroUnsignedInt(4)), url='/x.md')
         assert reports == (
             CheckedSkillFile(
                 REVIEW,
@@ -2071,7 +2081,7 @@ class TestCheckSubjects:
         reports = check_subjects(database, (GUIDE,), package_table)
 
         #: Then
-        occurrence = MissingFragment(line=LineNumber.from_int(3), url='#install', has_headings=True)
+        occurrence = MissingFragment(line=LineNumber(NonZeroUnsignedInt(3)), url='#install', has_headings=True)
         assert reports == (
             CheckedDocument(
                 GUIDE,
@@ -2091,7 +2101,7 @@ class TestCheckSubjects:
         reports = check_subjects(database, (_location(database, REVIEW),), package_table)
 
         #: Then
-        occurrence = MissingFragment(line=LineNumber.from_int(7), url='#steps', has_headings=True)
+        occurrence = MissingFragment(line=LineNumber(NonZeroUnsignedInt(7)), url='#steps', has_headings=True)
         assert reports == (
             CheckedSkillFile(REVIEW, diagnostics=(RuleDiagnostic(REVIEW_FILE, occurrence, Severity.ERROR),)),
         ), "LINK002 runs at deny over a skill's SKILL.md, on the line of the link"
@@ -2113,7 +2123,7 @@ class TestCheckSubjects:
         reports = check_subjects(database, (_location(database, REVIEW), *_resources(database, REVIEW)), package_table)
 
         #: Then
-        occurrence = MissingFragment(line=LineNumber.from_int(3), url='#usage', has_headings=True)
+        occurrence = MissingFragment(line=LineNumber(NonZeroUnsignedInt(3)), url='#usage', has_headings=True)
         checklist_path = RootRelativePath.parse('.agents/skills/review/references/checklist.md')
         assert reports == (
             CheckedSkillFile(REVIEW, diagnostics=()),
@@ -2154,7 +2164,7 @@ class TestCheckSubjects:
                 diagnostics=(
                     RuleDiagnostic(
                         REVIEW_FILE,
-                        EscapingLink(line=LineNumber.from_int(7), url='../../docs/guide.md'),
+                        EscapingLink(line=LineNumber(NonZeroUnsignedInt(7)), url='../../docs/guide.md'),
                         Severity.ERROR,
                     ),
                 ),
@@ -2162,9 +2172,13 @@ class TestCheckSubjects:
             CheckedSkillFile(
                 a,
                 diagnostics=(
-                    RuleDiagnostic(a.path, EscapingLink(line=LineNumber.from_int(1), url='../a.md'), Severity.ERROR),
                     RuleDiagnostic(
-                        a.path, EscapingLink(line=LineNumber.from_int(3), url='../../flow.png'), Severity.ERROR
+                        a.path, EscapingLink(line=LineNumber(NonZeroUnsignedInt(1)), url='../a.md'), Severity.ERROR
+                    ),
+                    RuleDiagnostic(
+                        a.path,
+                        EscapingLink(line=LineNumber(NonZeroUnsignedInt(3)), url='../../flow.png'),
+                        Severity.ERROR,
                     ),
                 ),
             ),
@@ -2172,7 +2186,9 @@ class TestCheckSubjects:
                 guide,
                 diagnostics=(
                     RuleDiagnostic(
-                        guide.path, EscapingLink(line=LineNumber.from_int(3), url='../SKILL.md'), Severity.ERROR
+                        guide.path,
+                        EscapingLink(line=LineNumber(NonZeroUnsignedInt(3)), url='../SKILL.md'),
+                        Severity.ERROR,
                     ),
                 ),
             ),
@@ -2204,7 +2220,7 @@ class TestCheckSubjects:
         reports = check_subjects(database, _resources(database, REVIEW), package_table)
 
         #: Then
-        occurrence = EscapingLink(line=LineNumber.from_int(1), url='../SKILL.md')
+        occurrence = EscapingLink(line=LineNumber(NonZeroUnsignedInt(1)), url='../SKILL.md')
         resource_path = RootRelativePath.parse('.agents/skills/review/references/a.md')
         assert reports == (
             CheckedSkillFile(a, diagnostics=(RuleDiagnostic(resource_path, occurrence, Severity.ERROR),)),
@@ -2221,7 +2237,7 @@ class TestCheckSubjects:
         reports = check_subjects(database, (_location(database, REVIEW),), package_table)
 
         #: Then
-        occurrence = EscapingLink(line=LineNumber.from_int(5), url='../../skills/review/SKILL.md')
+        occurrence = EscapingLink(line=LineNumber(NonZeroUnsignedInt(5)), url='../../skills/review/SKILL.md')
         assert reports == (
             CheckedSkillFile(REVIEW, diagnostics=(RuleDiagnostic(REVIEW_FILE, occurrence, Severity.ERROR),)),
         ), 'the path alone decides, so a link out of the skill and back in by the repository path escapes'
@@ -2282,7 +2298,7 @@ def _broken_in_skill(path: str, line: int, url: str) -> RuleDiagnostic:
         url: The link's destination, as the parser encodes it.
     """
     occurrence = BrokenLink(
-        line=LineNumber.from_int(line),
+        line=LineNumber(NonZeroUnsignedInt(line)),
         url=url,
         base=SkillRoot(REVIEW.directory),
         target=REVIEW.directory / RootRelativePath.parse(url),
@@ -2436,7 +2452,7 @@ class TestCheckSubjectsBrokenLink:
 
         #: Then
         occurrence = BrokenLink(
-            line=LineNumber.from_int(3),
+            line=LineNumber(NonZeroUnsignedInt(3)),
             url='setup.md',
             base=DocumentDirectory(RootRelativePath.parse('docs/code')),
             target=RootRelativePath.parse('docs/code/setup.md'),

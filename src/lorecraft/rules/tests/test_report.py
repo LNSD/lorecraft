@@ -2,6 +2,7 @@
 
 import pytest
 
+from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
@@ -44,7 +45,7 @@ def _failure(line: int) -> Utf8Failure:
 class TestDiagnosticOrder:
     def test_diagnostic_order_with_paths_differing_compares_them_as_posix_strings(self) -> None:
         #: Given
-        occurrence = TrailingSpace(spec=None, line=LineNumber.from_int(1))
+        occurrence = TrailingSpace(spec=None, line=LineNumber(NonZeroUnsignedInt(1)))
         nested = RuleDiagnostic(RootRelativePath.parse('a/b.md'), occurrence, Severity.ERROR)
         hyphenated = RuleDiagnostic(RootRelativePath.parse('a-b/c.md'), occurrence, Severity.ERROR)
 
@@ -58,7 +59,7 @@ class TestDiagnosticOrder:
 
     def test_diagnostic_order_with_paths_differing_in_case_puts_uppercase_first(self) -> None:
         #: Given
-        occurrence = TrailingSpace(spec=None, line=LineNumber.from_int(1))
+        occurrence = TrailingSpace(spec=None, line=LineNumber(NonZeroUnsignedInt(1)))
         lowercase = RuleDiagnostic(RootRelativePath.parse('docs/a.md'), occurrence, Severity.ERROR)
         uppercase = RuleDiagnostic(RootRelativePath.parse('docs/B.md'), occurrence, Severity.ERROR)
 
@@ -71,8 +72,8 @@ class TestDiagnosticOrder:
     def test_diagnostic_order_with_lines_differing_puts_the_earlier_line_first(self) -> None:
         #: Given
         path = RootRelativePath.parse('docs/a.md')
-        later = RuleDiagnostic(path, TrailingSpace(spec=None, line=LineNumber.from_int(10)), Severity.ERROR)
-        earlier = RuleDiagnostic(path, TrailingSpace(spec=None, line=LineNumber.from_int(2)), Severity.ERROR)
+        later = RuleDiagnostic(path, TrailingSpace(spec=None, line=LineNumber(NonZeroUnsignedInt(10))), Severity.ERROR)
+        earlier = RuleDiagnostic(path, TrailingSpace(spec=None, line=LineNumber(NonZeroUnsignedInt(2))), Severity.ERROR)
 
         #: When
         ordered = sorted([later, earlier], key=diagnostic_order)
@@ -83,7 +84,7 @@ class TestDiagnosticOrder:
     def test_diagnostic_order_with_the_whole_subject_and_a_line_puts_the_whole_subject_first(self) -> None:
         #: Given
         path = RootRelativePath.parse('skills/a')
-        at_line = RuleDiagnostic(path, TrailingSpace(spec=None, line=LineNumber.from_int(1)), Severity.ERROR)
+        at_line = RuleDiagnostic(path, TrailingSpace(spec=None, line=LineNumber(NonZeroUnsignedInt(1))), Severity.ERROR)
         whole_subject = RuleDiagnostic(path, UppercaseEntry(spec=None), Severity.WARNING)
 
         #: When
@@ -97,7 +98,7 @@ class TestDiagnosticOrder:
     def test_diagnostic_order_with_severities_differing_puts_the_error_first(self) -> None:
         #: Given
         path = RootRelativePath.parse('docs/a.md')
-        occurrence = TrailingSpace(spec=None, line=LineNumber.from_int(1))
+        occurrence = TrailingSpace(spec=None, line=LineNumber(NonZeroUnsignedInt(1)))
         warning = RuleDiagnostic(path, occurrence, Severity.WARNING)
         error = RuleDiagnostic(path, occurrence, Severity.ERROR)
 
@@ -110,8 +111,8 @@ class TestDiagnosticOrder:
     def test_diagnostic_order_with_codes_differing_compares_them_as_printed(self) -> None:
         #: Given
         path = RootRelativePath.parse('docs/a.md')
-        second = RuleDiagnostic(path, TrailingSpace(spec=None, line=LineNumber.from_int(1)), Severity.ERROR)
-        first = RuleDiagnostic(path, EmptyLine(spec=None, line=LineNumber.from_int(1)), Severity.ERROR)
+        second = RuleDiagnostic(path, TrailingSpace(spec=None, line=LineNumber(NonZeroUnsignedInt(1))), Severity.ERROR)
+        first = RuleDiagnostic(path, EmptyLine(spec=None, line=LineNumber(NonZeroUnsignedInt(1))), Severity.ERROR)
 
         #: When
         ordered = sorted([second, first], key=diagnostic_order)
@@ -122,8 +123,12 @@ class TestDiagnosticOrder:
     def test_diagnostic_order_with_messages_differing_compares_the_message_text(self) -> None:
         #: Given
         path = RootRelativePath.parse('docs/a.md')
-        ninety = RuleDiagnostic(path, LongLine(spec=None, line=LineNumber.from_int(1), length=90), Severity.WARNING)
-        eighty_one = RuleDiagnostic(path, LongLine(spec=None, line=LineNumber.from_int(1), length=81), Severity.WARNING)
+        ninety = RuleDiagnostic(
+            path, LongLine(spec=None, line=LineNumber(NonZeroUnsignedInt(1)), length=90), Severity.WARNING
+        )
+        eighty_one = RuleDiagnostic(
+            path, LongLine(spec=None, line=LineNumber(NonZeroUnsignedInt(1)), length=81), Severity.WARNING
+        )
 
         #: When
         ordered = sorted([ninety, eighty_one], key=diagnostic_order)
@@ -134,12 +139,18 @@ class TestDiagnosticOrder:
     def test_diagnostic_order_with_any_input_order_sorts_to_the_same_output(self) -> None:
         #: Given
         path = RootRelativePath.parse('docs/a.md')
-        long_line = RuleDiagnostic(path, LongLine(spec=None, line=LineNumber.from_int(3), length=81), Severity.WARNING)
-        trailing_space = RuleDiagnostic(path, TrailingSpace(spec=None, line=LineNumber.from_int(3)), Severity.ERROR)
-        empty_line = RuleDiagnostic(path, EmptyLine(spec=None, line=LineNumber.from_int(3)), Severity.ERROR)
+        long_line = RuleDiagnostic(
+            path, LongLine(spec=None, line=LineNumber(NonZeroUnsignedInt(3)), length=81), Severity.WARNING
+        )
+        trailing_space = RuleDiagnostic(
+            path, TrailingSpace(spec=None, line=LineNumber(NonZeroUnsignedInt(3))), Severity.ERROR
+        )
+        empty_line = RuleDiagnostic(path, EmptyLine(spec=None, line=LineNumber(NonZeroUnsignedInt(3))), Severity.ERROR)
         whole_subject = RuleDiagnostic(path, UppercaseEntry(spec=None), Severity.ERROR)
         next_path = RuleDiagnostic(
-            RootRelativePath.parse('docs/b.md'), EmptyLine(spec=None, line=LineNumber.from_int(1)), Severity.ERROR
+            RootRelativePath.parse('docs/b.md'),
+            EmptyLine(spec=None, line=LineNumber(NonZeroUnsignedInt(1))),
+            Severity.ERROR,
         )
         diagnostics = [long_line, trailing_space, empty_line, whole_subject, next_path]
 
@@ -156,7 +167,7 @@ class TestDiagnosticOrder:
     def test_diagnostic_order_with_an_engine_condition_and_a_rule_sorts_them_by_line(self) -> None:
         #: Given
         path = RootRelativePath.parse('docs/code/a.md')
-        at_line = RuleDiagnostic(path, TrailingSpace(spec=None, line=LineNumber.from_int(2)), Severity.ERROR)
+        at_line = RuleDiagnostic(path, TrailingSpace(spec=None, line=LineNumber(NonZeroUnsignedInt(2))), Severity.ERROR)
         condition = EngineDiagnostic(path, InvalidUtf8(failure=_failure(1)))
 
         #: When
@@ -185,8 +196,12 @@ class TestCheckedSkillFile:
     def test_checked_skill_file_with_diagnostics_out_of_order_holds_them_in_diagnostic_order(self) -> None:
         #: Given
         ref = SkillRef(ResolvedPath(RootRelativePath.parse('.agents/skills')), PathComponent.parse('review'))
-        later = RuleDiagnostic(ref.path, TrailingSpace(spec=None, line=LineNumber.from_int(10)), Severity.ERROR)
-        earlier = RuleDiagnostic(ref.path, TrailingSpace(spec=None, line=LineNumber.from_int(2)), Severity.ERROR)
+        later = RuleDiagnostic(
+            ref.path, TrailingSpace(spec=None, line=LineNumber(NonZeroUnsignedInt(10))), Severity.ERROR
+        )
+        earlier = RuleDiagnostic(
+            ref.path, TrailingSpace(spec=None, line=LineNumber(NonZeroUnsignedInt(2))), Severity.ERROR
+        )
 
         #: When
         subject = CheckedSkillFile(ref, diagnostics=(later, earlier))
@@ -200,8 +215,12 @@ class TestCheckedDocument:
     def test_checked_document_with_diagnostics_out_of_order_holds_them_in_diagnostic_order(self) -> None:
         #: Given
         ref = DocumentRef(CorpusName.parse('code'), AspectFilename.parse('a'))
-        later = RuleDiagnostic(ref.path, TrailingSpace(spec=None, line=LineNumber.from_int(10)), Severity.ERROR)
-        earlier = RuleDiagnostic(ref.path, TrailingSpace(spec=None, line=LineNumber.from_int(2)), Severity.ERROR)
+        later = RuleDiagnostic(
+            ref.path, TrailingSpace(spec=None, line=LineNumber(NonZeroUnsignedInt(10))), Severity.ERROR
+        )
+        earlier = RuleDiagnostic(
+            ref.path, TrailingSpace(spec=None, line=LineNumber(NonZeroUnsignedInt(2))), Severity.ERROR
+        )
 
         #: When
         subject = CheckedDocument(ref, diagnostics=(later, earlier), ungoverned=())

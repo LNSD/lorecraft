@@ -8,6 +8,7 @@ from typing import Final
 
 import pytest
 
+from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.location import Help
 from lorecraft.rules.tests.fake_context import FakeDocumentContext, namespace_spec
@@ -31,7 +32,7 @@ class TestMissingTitle:
         occurrences = MissingTitle.check(subject)
 
         #: Then
-        assert occurrences == (MissingTitle(line=LineNumber.from_int(1)),), (
+        assert occurrences == (MissingTitle(line=LineNumber(NonZeroUnsignedInt(1))),), (
             'a document with no H1 is one occurrence, on line 1'
         )
 
@@ -63,7 +64,7 @@ class TestMissingTitle:
         occurrences = MissingTitle.check(subject)
 
         #: Then
-        assert occurrences == (MissingTitle(line=LineNumber.from_int(1)),), (
+        assert occurrences == (MissingTitle(line=LineNumber(NonZeroUnsignedInt(1))),), (
             'only a heading at the top level of the document counts, so an H1 in a blockquote is no title'
         )
 
@@ -77,13 +78,13 @@ class TestMissingTitle:
         occurrences = MissingTitle.check(subject)
 
         #: Then
-        assert occurrences == (MissingTitle(line=LineNumber.from_int(1)),), (
+        assert occurrences == (MissingTitle(line=LineNumber(NonZeroUnsignedInt(1))),), (
             'every specification agrees on one title, so the document is reported once'
         )
 
     def test_message_with_an_occurrence_states_the_missing_title(self) -> None:
         #: Given
-        occurrence = MissingTitle(line=LineNumber.from_int(1))
+        occurrence = MissingTitle(line=LineNumber(NonZeroUnsignedInt(1)))
 
         #: When
         message = occurrence.message()
@@ -93,7 +94,7 @@ class TestMissingTitle:
 
     def test_children_with_an_occurrence_say_how_to_write_the_title(self) -> None:
         #: Given
-        occurrence = MissingTitle(line=LineNumber.from_int(1))
+        occurrence = MissingTitle(line=LineNumber(NonZeroUnsignedInt(1)))
 
         #: When
         children = occurrence.children()

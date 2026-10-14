@@ -10,6 +10,7 @@ from typing import Final
 
 import pytest
 
+from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
@@ -151,7 +152,7 @@ class TestSchemaProblems:
                 problems=(
                     LocatedProblem(
                         problem=MissingFieldProblem('status', "'status' is a required property"),
-                        line=LineNumber.from_int(1),
+                        line=LineNumber(NonZeroUnsignedInt(1)),
                     ),
                 ),
             ),
@@ -162,7 +163,7 @@ class TestSchemaProblems:
                         problem=WrongTypeProblem(
                             'description', "3 is not of type 'string'", (JsonType.STRING,), JsonType.INTEGER
                         ),
-                        line=LineNumber.from_int(3),
+                        line=LineNumber(NonZeroUnsignedInt(3)),
                     ),
                 ),
             ),
@@ -276,7 +277,7 @@ class TestSkillSchemaProblems:
                                 ),
                             ),
                         ),
-                        line=LineNumber.from_int(1),
+                        line=LineNumber(NonZeroUnsignedInt(1)),
                     ),
                     LocatedProblem(
                         problem=UnknownFieldProblem(
@@ -284,7 +285,7 @@ class TestSkillSchemaProblems:
                             '`extra` is not a field of the Agent Skills specification',
                             ('name', 'description', 'license', 'compatibility', 'metadata', 'allowed-tools'),
                         ),
-                        line=LineNumber.from_int(3),
+                        line=LineNumber(NonZeroUnsignedInt(3)),
                     ),
                 ),
             ),

@@ -9,6 +9,7 @@ from typing import Final
 
 import pytest
 
+from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.schemas import AgentSkillsSchema, StructureSpecSchema, UnknownFieldProblem
 from lorecraft.project.syntax import LineNumber
@@ -60,7 +61,7 @@ PROBLEM: Final[UnknownFieldProblem] = UnknownFieldProblem(
 )
 """A field the schema does not define: the rule's condition."""
 
-LINE: Final[LineNumber] = LineNumber.from_int(4)
+LINE: Final[LineNumber] = LineNumber(NonZeroUnsignedInt(4))
 """The line `desc` is written on."""
 
 

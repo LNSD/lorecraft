@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 from typing import ClassVar, Self
 
+from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.declaration import Level, Release, RuleCode, RuleName, rule
 from lorecraft.rules.tests.sample_subject import SampleLines, SampleLinesRule
@@ -38,7 +39,7 @@ class LongLine(SampleLinesRule):
             subject: The lines judged.
         """
         return tuple(
-            cls(spec=None, line=LineNumber.from_int(index + 1), length=len(line))
+            cls(spec=None, line=LineNumber(NonZeroUnsignedInt(index + 1)), length=len(line))
             for index, line in enumerate(subject.lines)
             if len(line) > 80
         )

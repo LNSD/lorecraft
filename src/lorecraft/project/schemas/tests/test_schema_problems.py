@@ -8,6 +8,7 @@ from typing import Final
 
 import pytest
 
+from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.project.syntax import Frontmatter, LineNumber, parse_frontmatter
 
@@ -84,7 +85,7 @@ class TestFieldLine:
         line = field_line(frontmatter, 'status')
 
         #: Then
-        assert line == LineNumber.from_int(3), 'a field is on the line its key is written on'
+        assert line == LineNumber(NonZeroUnsignedInt(3)), 'a field is on the line its key is written on'
 
     def test_field_line_of_a_field_not_written_returns_line_1(self) -> None:
         #: Given
@@ -94,7 +95,9 @@ class TestFieldLine:
         line = field_line(frontmatter, 'status')
 
         #: Then
-        assert line == LineNumber.from_int(1), 'a field the mapping does not hold is placed on the first line'
+        assert line == LineNumber(NonZeroUnsignedInt(1)), (
+            'a field the mapping does not hold is placed on the first line'
+        )
 
 
 @pytest.mark.unit
@@ -115,7 +118,7 @@ class TestLocateSchemaProblems:
                 problems=(
                     LocatedProblem(
                         problem=MissingFieldProblem('status', "'status' is a required property"),
-                        line=LineNumber.from_int(1),
+                        line=LineNumber(NonZeroUnsignedInt(1)),
                     ),
                 ),
             ),
@@ -124,7 +127,7 @@ class TestLocateSchemaProblems:
                 problems=(
                     LocatedProblem(
                         problem=MissingFieldProblem('owner', "'owner' is a required property"),
-                        line=LineNumber.from_int(1),
+                        line=LineNumber(NonZeroUnsignedInt(1)),
                     ),
                 ),
             ),
@@ -149,7 +152,7 @@ class TestLocateSchemaProblems:
                 problems=(
                     LocatedProblem(
                         problem=MissingFieldProblem('status', "'status' is a required property"),
-                        line=LineNumber.from_int(1),
+                        line=LineNumber(NonZeroUnsignedInt(1)),
                     ),
                 ),
             ),
@@ -160,7 +163,7 @@ class TestLocateSchemaProblems:
                         problem=WrongTypeProblem(
                             'description', "3 is not of type 'string'", (JsonType.STRING,), JsonType.INTEGER
                         ),
-                        line=LineNumber.from_int(3),
+                        line=LineNumber(NonZeroUnsignedInt(3)),
                     ),
                 ),
             ),
@@ -246,7 +249,7 @@ class TestLocateSkillSchemaProblems:
                                 ),
                             ),
                         ),
-                        line=LineNumber.from_int(3),
+                        line=LineNumber(NonZeroUnsignedInt(3)),
                     ),
                     LocatedProblem(
                         problem=UnknownFieldProblem(
@@ -254,7 +257,7 @@ class TestLocateSkillSchemaProblems:
                             '`extra` is not a field of the Agent Skills specification',
                             ('name', 'description', 'license', 'compatibility', 'metadata', 'allowed-tools'),
                         ),
-                        line=LineNumber.from_int(4),
+                        line=LineNumber(NonZeroUnsignedInt(4)),
                     ),
                 ),
             ),

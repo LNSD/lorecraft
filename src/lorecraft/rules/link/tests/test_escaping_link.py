@@ -7,6 +7,7 @@ reads what any of a skill's files has, so a `SKILL.md` is judged the same way.
 import pytest
 
 from lorecraft.core.mapping import FrozenMapping
+from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.link_target import EscapingTarget, LinkTarget, PathLookup
 from lorecraft.project.syntax import LineNumber, NormalisedLinkPath
@@ -48,7 +49,7 @@ class TestEscapingLink:
         occurrences = EscapingLink.check(subject)
 
         #: Then
-        assert occurrences == (EscapingLink(line=LineNumber.from_int(3), url='../SKILL.md'),), (
+        assert occurrences == (EscapingLink(line=LineNumber(NonZeroUnsignedInt(3)), url='../SKILL.md'),), (
             'a path read from the skill root that climbs above it is one occurrence, on the line of the link'
         )
 
@@ -62,9 +63,9 @@ class TestEscapingLink:
         occurrences = EscapingLink.check(subject)
 
         #: Then
-        assert occurrences == (EscapingLink(line=LineNumber.from_int(1), url='../../skills/review/SKILL.md'),), (
-            'the path alone decides, so a link out and back in by where the skill lies in the repository escapes'
-        )
+        assert occurrences == (
+            EscapingLink(line=LineNumber(NonZeroUnsignedInt(1)), url='../../skills/review/SKILL.md'),
+        ), 'the path alone decides, so a link out and back in by where the skill lies in the repository escapes'
 
     def test_check_with_an_image_climbing_above_the_skill_root_reports_it(self) -> None:
         #: Given
@@ -74,7 +75,7 @@ class TestEscapingLink:
         occurrences = EscapingLink.check(subject)
 
         #: Then
-        assert occurrences == (EscapingLink(line=LineNumber.from_int(1), url='../../flow.png'),), (
+        assert occurrences == (EscapingLink(line=LineNumber(NonZeroUnsignedInt(1)), url='../../flow.png'),), (
             "an image's source is read from the skill root like a link's"
         )
 
@@ -86,7 +87,7 @@ class TestEscapingLink:
         occurrences = EscapingLink.check(subject)
 
         #: Then
-        assert occurrences == (EscapingLink(line=LineNumber.from_int(1), url='%2E%2E/a%20b.md'),), (
+        assert occurrences == (EscapingLink(line=LineNumber(NonZeroUnsignedInt(1)), url='%2E%2E/a%20b.md'),), (
             'the path is percent-decoded before it is read, so encoded dots climb above the skill root as `..` does'
         )
 
@@ -148,7 +149,7 @@ class TestEscapingLink:
     def test_message_with_a_percent_encoded_destination_shows_it_decoded(self) -> None:
         #: Given
         # The destination of `[x](<../a b.md>)`, as the parser percent-encodes it.
-        occurrence = EscapingLink(line=LineNumber.from_int(1), url='../a%20b.md')
+        occurrence = EscapingLink(line=LineNumber(NonZeroUnsignedInt(1)), url='../a%20b.md')
 
         #: When
         message = occurrence.message()
@@ -160,7 +161,7 @@ class TestEscapingLink:
 
     def test_children_with_an_occurrence_say_to_link_inside_the_skill_from_its_root(self) -> None:
         #: Given
-        occurrence = EscapingLink(line=LineNumber.from_int(1), url='../SKILL.md')
+        occurrence = EscapingLink(line=LineNumber(NonZeroUnsignedInt(1)), url='../SKILL.md')
 
         #: When
         children = occurrence.children()

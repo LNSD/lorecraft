@@ -10,6 +10,7 @@ from typing import Final
 
 import pytest
 
+from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
@@ -128,7 +129,7 @@ class TestOutlineDivergences:
             name=SectionName.parse('See Also'),
             description=None,
             example=None,
-            before=DocumentEnd(last_line=LineNumber.from_int(13), after=_checklist_heading()),
+            before=DocumentEnd(last_line=LineNumber(NonZeroUnsignedInt(13)), after=_checklist_heading()),
         )
         assert divergences == (OutlineDivergenceSpec(spec=CORPUS_SPEC, divergence=absent),), (
             "the sections come from the parse and the end from the line count, the document's last line"

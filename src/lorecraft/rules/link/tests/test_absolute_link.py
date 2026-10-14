@@ -6,6 +6,7 @@ reads what any Markdown file has, so a document and a `SKILL.md` are judged the 
 
 import pytest
 
+from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.location import Help
 from lorecraft.rules.tests.fake_context import FakeSkillResourceContext
@@ -23,7 +24,7 @@ class TestAbsoluteLink:
         occurrences = AbsoluteLink.check(subject)
 
         #: Then
-        assert occurrences == (AbsoluteLink(line=LineNumber.from_int(3), url='/docs/guide/setup.md'),), (
+        assert occurrences == (AbsoluteLink(line=LineNumber(NonZeroUnsignedInt(3)), url='/docs/guide/setup.md'),), (
             'a link whose destination starts with / is one occurrence, on the line the link is on'
         )
 
@@ -35,7 +36,7 @@ class TestAbsoluteLink:
         occurrences = AbsoluteLink.check(subject)
 
         #: Then
-        assert occurrences == (AbsoluteLink(line=LineNumber.from_int(3), url='/assets/flow.png'),), (
+        assert occurrences == (AbsoluteLink(line=LineNumber(NonZeroUnsignedInt(3)), url='/assets/flow.png'),), (
             "an image's source is a destination like a link's, so one starting with / is reported too"
         )
 
@@ -67,7 +68,7 @@ class TestAbsoluteLink:
         occurrences = AbsoluteLink.check(subject)
 
         #: Then
-        assert occurrences == (AbsoluteLink(line=LineNumber.from_int(3), url='%2Fetc/x.md'),), (
+        assert occurrences == (AbsoluteLink(line=LineNumber(NonZeroUnsignedInt(3)), url='%2Fetc/x.md'),), (
             'a destination is percent-decoded before it is classified, so an encoded leading / is absolute'
         )
 
@@ -90,14 +91,14 @@ class TestAbsoluteLink:
 
         #: Then
         assert occurrences == (
-            AbsoluteLink(line=LineNumber.from_int(3), url='/b.md'),
-            AbsoluteLink(line=LineNumber.from_int(5), url='/a.md'),
+            AbsoluteLink(line=LineNumber(NonZeroUnsignedInt(3)), url='/b.md'),
+            AbsoluteLink(line=LineNumber(NonZeroUnsignedInt(5)), url='/a.md'),
         ), 'each absolute link is its own occurrence, in the order the file holds them, and the relative one none'
 
     def test_message_with_a_percent_encoded_destination_shows_it_decoded(self) -> None:
         #: Given
         # The destination of `[x](</a b.md>)`, as the parser percent-encodes it.
-        occurrence = AbsoluteLink(line=LineNumber.from_int(1), url='/a%20b.md')
+        occurrence = AbsoluteLink(line=LineNumber(NonZeroUnsignedInt(1)), url='/a%20b.md')
 
         #: When
         message = occurrence.message()
@@ -107,7 +108,7 @@ class TestAbsoluteLink:
 
     def test_children_with_an_occurrence_say_to_link_by_a_relative_path(self) -> None:
         #: Given
-        occurrence = AbsoluteLink(line=LineNumber.from_int(3), url='/docs/guide/setup.md')
+        occurrence = AbsoluteLink(line=LineNumber(NonZeroUnsignedInt(3)), url='/docs/guide/setup.md')
 
         #: When
         children = occurrence.children()

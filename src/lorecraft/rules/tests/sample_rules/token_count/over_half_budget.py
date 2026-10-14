@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 from typing import ClassVar, Final, Self
 
+from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.context import DocumentContext
 from lorecraft.project.syntax import LineNumber
@@ -11,7 +12,7 @@ from lorecraft.rules.subject import DocumentRule, Facet
 
 from ..groups import SAMPLE
 
-_FIRST_LINE: Final[LineNumber] = LineNumber.from_int(1)
+_FIRST_LINE: Final[LineNumber] = LineNumber(NonZeroUnsignedInt(1))
 """Where an occurrence is reported: a budget concerns the whole file."""
 
 

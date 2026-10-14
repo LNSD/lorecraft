@@ -2,13 +2,14 @@
 
 import pytest
 
+from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.project.syntax import LineNumber
 
 from ..diagnostic_text import SourceText
 
 
 def _line(number: int) -> LineNumber:
-    return LineNumber.from_int(number)
+    return LineNumber(NonZeroUnsignedInt(number))
 
 
 @pytest.mark.unit
