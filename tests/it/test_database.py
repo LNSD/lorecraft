@@ -287,9 +287,10 @@ class TestDatabase:
         database = Database.from_snapshot(
             _snapshot_of({}, scope=(ScanRoot(RootRelativePath.parse('src'), depth=UnsignedInt(0)),))
         )
+        path = RootRelativePath.parse('src/tool.py')
 
         #: When
-        in_scope = database.is_in_scope(RootRelativePath.parse('src/tool.py'))
+        in_scope = database.is_in_scope(path)
 
         #: Then
         assert in_scope is True, (
@@ -301,9 +302,10 @@ class TestDatabase:
         database = Database.from_snapshot(
             _snapshot_of({}, scope=(ScanRoot(RootRelativePath.parse('src'), depth=UnsignedInt(0)),))
         )
+        path = RootRelativePath.parse('docs/code/guide.md')
 
         #: When
-        in_scope = database.is_in_scope(RootRelativePath.parse('docs/code/guide.md'))
+        in_scope = database.is_in_scope(path)
 
         #: Then
         assert in_scope is False, 'the snapshot was not taken of docs/, so the layout reading it plays no part'
@@ -311,9 +313,10 @@ class TestDatabase:
     def test_is_in_scope_over_a_snapshot_from_a_tree_returns_false(self) -> None:
         #: Given
         database = Database.from_snapshot(_snapshot(b'---\nname: "guide"\n---\n'))
+        path = RootRelativePath.parse('docs/code/guide.md')
 
         #: When
-        in_scope = database.is_in_scope(RootRelativePath.parse('docs/code/guide.md'))
+        in_scope = database.is_in_scope(path)
 
         #: Then
         assert in_scope is False, (
@@ -330,9 +333,10 @@ class TestDatabase:
         )
         database = Database.from_snapshot(snapshot)
         database.is_in_scope(RootRelativePath.parse('src/tool.py'))
+        path = RootRelativePath.parse('skills/review/absent.md')
 
         #: When
-        in_scope = database.is_in_scope(RootRelativePath.parse('skills/review/absent.md'))
+        in_scope = database.is_in_scope(path)
 
         #: Then
         assert in_scope is True, 'every question after the first is answered from the same expanded scan roots'
@@ -492,9 +496,10 @@ class TestDatabase:
     def test_source_lines_of_a_specification_returns_its_lines(self) -> None:
         #: Given
         database = Database.from_snapshot(_snapshot(b'# Guide\n'))
+        path = RootRelativePath.parse('docs/__meta__/code.md')
 
         #: When
-        lines = database.source_lines(RootRelativePath.parse('docs/__meta__/code.md'))
+        lines = database.source_lines(path)
 
         #: Then
         assert lines == ('# Code',), f'a file that is no document can be excerpted too, got {lines}'
@@ -512,9 +517,10 @@ class TestDatabase:
     def test_source_lines_of_a_path_no_decode_query_owns_returns_none(self) -> None:
         #: Given
         database = Database.from_snapshot(_snapshot(b'# Guide\n'))
+        path = RootRelativePath.parse('docs/code/missing.md')
 
         #: When
-        lines = database.source_lines(RootRelativePath.parse('docs/code/missing.md'))
+        lines = database.source_lines(path)
 
         #: Then
         assert lines is None, f'a path that is no listed file has nothing to excerpt, got {lines}'
@@ -522,9 +528,10 @@ class TestDatabase:
     def test_source_lines_of_a_specification_the_snapshot_does_not_hold_returns_none(self) -> None:
         #: Given
         database = Database.from_snapshot(_snapshot(b'# Guide\n'))
+        path = RootRelativePath.parse('docs/__meta__/missing.structure.json')
 
         #: When
-        lines = database.source_lines(RootRelativePath.parse('docs/__meta__/missing.structure.json'))
+        lines = database.source_lines(path)
 
         #: Then
         assert lines is None, f'a missing specification has nothing to excerpt, got {lines}'
@@ -544,9 +551,10 @@ class TestDatabase:
         database = Database.from_snapshot(
             take_snapshot(tmp_path, scope, declaration=Declaration(is_file=lambda _: False))
         )
+        path = RootRelativePath.parse('.agents/skills/review/guide.md')
 
         #: When
-        lines = database.source_lines(RootRelativePath.parse('.agents/skills/review/guide.md'))
+        lines = database.source_lines(path)
 
         #: Then
         assert lines is None, f'a skill whose resources cannot be listed has nothing to excerpt, got {lines}'
@@ -653,9 +661,10 @@ class TestDatabase:
     def test_skill_text_of_a_utf8_skill_returns_its_witness(self) -> None:
         #: Given
         database = Database.from_snapshot(_skill_snapshot(b'---\nname: review\n---\n'))
+        location = _location(database, REVIEW)
 
         #: When
-        source = database.skill_text(_location(database, REVIEW))
+        source = database.skill_text(location)
 
         #: Then
         assert source == SkillText(_location(database, REVIEW), '---\nname: review\n---\n'), (
@@ -665,9 +674,10 @@ class TestDatabase:
     def test_skill_text_of_a_skill_that_is_not_utf8_returns_undecodable(self) -> None:
         #: Given
         database = Database.from_snapshot(_skill_snapshot(b'---\nname: caf\xe9\n---\n'))
+        location = _location(database, REVIEW)
 
         #: When
-        source = database.skill_text(_location(database, REVIEW))
+        source = database.skill_text(location)
 
         #: Then
         failure = Utf8Failure(
@@ -684,9 +694,10 @@ class TestDatabase:
         #: Given
         database = Database.from_snapshot(_skill_snapshot(b'---\nname: caf\xe9\n---\n'))
         first = database.skill_text(_location(database, REVIEW))
+        location = _location(database, REVIEW)
 
         #: When
-        second = database.skill_text(_location(database, REVIEW))
+        second = database.skill_text(location)
 
         #: Then
         assert second is first, 'an undecodable skill is cached like any answer, so it is decoded once'
