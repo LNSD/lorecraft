@@ -57,6 +57,7 @@ from ..structure_failure import (
     RepeatedForbiddenSections,
     RepeatedOutlineSections,
     UndecodableStructureSpec,
+    UnresolvableFrontmatterSchemaRef,
     UntypedFrontmatterSchema,
 )
 
@@ -1192,6 +1193,112 @@ class TestFrontmatterSchema:
 
         #: Then
         assert failure == UntypedFrontmatterSchema(), 'the type is exactly "object"'
+
+    def test_parse_with_a_dangling_local_ref_returns_unresolvable_frontmatter_schema_ref(self) -> None:
+        #: Given
+        schema: dict[str, Plain] = {'type': 'object', 'properties': {'name': {'$ref': '#/$defs/missing'}}}
+
+        #: When
+        failure = FrontmatterSchema.parse(FrozenMapping.from_plain(schema))
+
+        #: Then
+        assert failure == UnresolvableFrontmatterSchemaRef('#/$defs/missing'), (
+            'a reference to a location the schema lacks is refused at load, not when a document is validated'
+        )
+
+    def test_parse_with_a_ref_to_another_resource_returns_unresolvable_frontmatter_schema_ref(self) -> None:
+        #: Given
+        schema: dict[str, Plain] = {
+            'type': 'object',
+            'properties': {'name': {'$ref': 'https://example.com/name.json'}},
+        }
+
+        #: When
+        failure = FrontmatterSchema.parse(FrozenMapping.from_plain(schema))
+
+        #: Then
+        assert failure == UnresolvableFrontmatterSchemaRef('https://example.com/name.json'), (
+            'a remote reference is refused, never fetched'
+        )
+
+    def test_parse_with_a_local_ref_to_a_definition_returns_the_schema(self) -> None:
+        #: Given
+        schema: dict[str, Plain] = {
+            'type': 'object',
+            'properties': {'name': {'$ref': '#/$defs/name'}},
+            '$defs': {'name': {'type': 'string'}},
+        }
+
+        #: When
+        parsed = FrontmatterSchema.parse(FrozenMapping.from_plain(schema))
+
+        #: Then
+        assert isinstance(parsed, FrontmatterSchema), 'a reference that resolves inside the schema is accepted'
+
+    def test_parse_with_a_ref_to_an_anchor_returns_the_schema(self) -> None:
+        #: Given
+        schema: dict[str, Plain] = {
+            'type': 'object',
+            'properties': {'name': {'$ref': '#label'}},
+            '$defs': {'name': {'$anchor': 'label', 'type': 'string'}},
+        }
+
+        #: When
+        parsed = FrontmatterSchema.parse(FrozenMapping.from_plain(schema))
+
+        #: Then
+        assert isinstance(parsed, FrontmatterSchema), 'a reference to an `$anchor` of the schema is accepted'
+
+    def test_parse_with_an_empty_ref_returns_the_schema(self) -> None:
+        #: Given
+        schema: dict[str, Plain] = {'type': 'object', 'properties': {'child': {'$ref': ''}}}
+
+        #: When
+        parsed = FrontmatterSchema.parse(FrozenMapping.from_plain(schema))
+
+        #: Then
+        assert isinstance(parsed, FrontmatterSchema), 'the empty reference is the schema itself, as `#` is'
+
+    def test_parse_with_a_ref_to_a_non_schema_returns_unresolvable_frontmatter_schema_ref(self) -> None:
+        #: Given
+        schema: dict[str, Plain] = {
+            'type': 'object',
+            'required': ['name'],
+            'properties': {'name': {'$ref': '#/required/0'}},
+        }
+
+        #: When
+        failure = FrontmatterSchema.parse(FrozenMapping.from_plain(schema))
+
+        #: Then
+        assert failure == UnresolvableFrontmatterSchemaRef('#/required/0'), (
+            'a reference that finds a value that is not a schema is refused'
+        )
+
+    def test_parse_with_a_dangling_dynamic_ref_returns_unresolvable_frontmatter_schema_ref(self) -> None:
+        #: Given
+        schema: dict[str, Plain] = {'type': 'object', 'properties': {'name': {'$dynamicRef': '#/$defs/missing'}}}
+
+        #: When
+        failure = FrontmatterSchema.parse(FrozenMapping.from_plain(schema))
+
+        #: Then
+        assert failure == UnresolvableFrontmatterSchemaRef('#/$defs/missing'), 'a dynamic reference is held to the same'
+
+    def test_parse_with_a_remote_dynamic_ref_returns_unresolvable_frontmatter_schema_ref(self) -> None:
+        #: Given
+        schema: dict[str, Plain] = {
+            'type': 'object',
+            'properties': {'name': {'$dynamicRef': 'https://example.com/name.json'}},
+        }
+
+        #: When
+        failure = FrontmatterSchema.parse(FrozenMapping.from_plain(schema))
+
+        #: Then
+        assert failure == UnresolvableFrontmatterSchemaRef('https://example.com/name.json'), (
+            'a remote dynamic reference is refused, never fetched'
+        )
 
     def test_parse_with_an_id_returns_frontmatter_schema_id(self) -> None:
         #: Given

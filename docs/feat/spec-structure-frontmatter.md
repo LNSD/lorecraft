@@ -73,9 +73,12 @@ in `components`, for `cli.md` and `cli-*.md` only:
 
 The generated `docs/schemas/structure.spec.json` lets an editor check the key as it is written. When the
 repository is loaded, each frontmatter schema is checked against the Draft 2020-12 meta-schema, and refused
-when its root does not state `"type": "object"`, when any schema in it carries `$id`, which would change how
-a relative `$ref` resolves, or names another dialect in `$schema`. A value under `enum` or `const` is data, not
-a schema, so it is not searched. `description` and `$comment` are allowed
+when its root does not state `"type": "object"`, or when any schema in it carries `$id`, which would change how
+a relative `$ref` resolves, names another dialect in `$schema`, or holds a `$ref` or `$dynamicRef` that does
+not resolve to a schema inside the frontmatter schema: `#/$defs/name` with no `name` under `$defs`, or
+`#/required/0`, which names a string. A reference to another file or URL is never fetched, so it is refused
+too; an empty reference, a `#/...` pointer or a `#anchor` that finds a schema is accepted. A value under
+`enum` or `const` is data, not a schema, so it is not searched. `description` and `$comment` are allowed
 anywhere. For a refused schema, `lorecraft check` reports an error diagnostic at the structure file,
 skips the documents it governs, and exits `1`. `lorecraft inspect` still stops with exit `2`.
 

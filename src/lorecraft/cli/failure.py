@@ -36,6 +36,7 @@ from lorecraft.project.workspace import (
     UnlistableSkillsDirectory,
     UnreadableStructureFile,
     UnrecordedStructureFile,
+    UnresolvableFrontmatterSchemaRef,
     UnresolvableSkillEntry,
     UnresolvableSkillFile,
     UnresolvableSkillsDirectory,
@@ -155,6 +156,11 @@ def _failure_text(failure: LoadFailure) -> FailureText:
             return FailureText(
                 f'invalid structure schema {path}: frontmatter schema names {dialect!r} in $schema; only '
                 f'{JSON_SCHEMA_DIALECT} is allowed'
+            )
+        case UnresolvableFrontmatterSchemaRef(ref=ref):
+            return FailureText(
+                f'invalid structure schema {path}: frontmatter schema holds a $ref {ref!r} that does not resolve '
+                'inside it'
             )
         case UntypedFrontmatterSchema():
             return FailureText(f'invalid structure schema {path}: frontmatter schema root must state "type": "object"')

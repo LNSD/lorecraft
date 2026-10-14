@@ -115,6 +115,10 @@ def _find_occurrence(failure: workspace.LoadFailure) -> EngineCondition | Unlist
             return unusable_structure_file.UnusableStructureFile(
                 cause=unusable_structure_file.ForeignFrontmatterDialect(dialect=repr(dialect))
             )
+        case workspace.UnresolvableFrontmatterSchemaRef(ref=ref):
+            return unusable_structure_file.UnusableStructureFile(
+                cause=unusable_structure_file.UnresolvableFrontmatterSchemaRef(ref=repr(ref))
+            )
         case workspace.UntypedFrontmatterSchema():
             return unusable_structure_file.UnusableStructureFile(
                 cause=unusable_structure_file.UntypedFrontmatterSchema()

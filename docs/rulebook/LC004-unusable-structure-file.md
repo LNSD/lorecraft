@@ -14,10 +14,10 @@ A structure file follows the structure format and states rules that cannot be ap
 Checks for structure files that follow the structure format and still cannot be used, because a rule they state
 contradicts another, repeats itself, or cannot be applied: an outline or a forbidden list that names a section
 twice, a forbidden section the outline names, two `any` runs side by side, a title pattern that does not compile,
-or a frontmatter schema that is invalid, carries `$id`, names another dialect or states no object type.
-Such a file is reported once, at the file, and every document its meta spec governs is listed as skipped in
-coverage, with no rule run over it: a document that was not checked is never reported as clean. Every document
-the file does not govern is checked as if the file were fixed.
+or a frontmatter schema that is invalid, carries `$id`, names another dialect, holds a `$ref` that does not
+resolve inside it or states no object type. Such a file is reported once, at the file, and every document its
+meta spec governs is listed as skipped in coverage, with no rule run over it: a document that was not checked is
+never reported as clean. Every document the file does not govern is checked as if the file were fixed.
 
 The message says which case it is, and the note under it names what is wrong: the sections, the pattern or the
 problem the JSON Schema meta-schema found. Each case is explained below, with its fix.
@@ -196,6 +196,32 @@ Name the 2020-12 dialect, or leave `$schema` out:
   "frontmatter": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "type": "object"
+  }
+}
+```
+
+## A frontmatter schema with a `$ref` that does not resolve
+
+`docs/__meta__/guide.spec.json`, with a `$ref` to a definition the schema does not hold. A `$ref` must point
+at a location inside the schema: a reference to another file or URL is never fetched:
+
+```json
+{
+  "frontmatter": {
+    "type": "object",
+    "properties": {"name": {"$ref": "#/$defs/name"}}
+  }
+}
+```
+
+Define what the reference names:
+
+```json
+{
+  "frontmatter": {
+    "type": "object",
+    "properties": {"name": {"$ref": "#/$defs/name"}},
+    "$defs": {"name": {"type": "string"}}
   }
 }
 ```

@@ -46,6 +46,7 @@ from lorecraft.project.workspace import (
     UnlistableSkillDirectory,
     UnlistableSkillsDirectory,
     UnreadableStructureFile,
+    UnresolvableFrontmatterSchemaRef,
     UnresolvableSkillEntry,
     UnresolvableSkillFile,
     UnresolvableSkillsDirectory,
@@ -1383,6 +1384,44 @@ class TestLoadWorkspaceFailures:
         )
         feat = model.find_corpus(FEAT)
         assert feat is not None and isinstance(feat.corpus_spec.structure, StructureSpec), 'the other corpus loads'
+
+    def test_load_workspace_with_a_structure_file_stating_a_dangling_ref_records_it_as_failed(
+        self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
+    ) -> None:
+        #: Given
+        self._write_structure_file_tree(
+            tmp_path, '{"frontmatter": {"type": "object", "properties": {"name": {"$ref": "#/$defs/missing"}}}}'
+        )
+
+        #: When
+        model = load_workspace(schemas, documents, skills)
+
+        #: Then
+        failed = _failed_structure(model, CODE)
+        assert failed.failure == UnresolvableFrontmatterSchemaRef('#/$defs/missing'), (
+            'a dangling reference is a load failure, not a crash when a document is validated'
+        )
+        assert model.load_failures == (LoadFailure(failed.path, failed.failure),), (
+            'listed once, with its path and condition'
+        )
+
+    def test_load_workspace_with_a_structure_file_stating_a_remote_ref_records_it_as_failed(
+        self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
+    ) -> None:
+        #: Given
+        self._write_structure_file_tree(
+            tmp_path,
+            '{"frontmatter": {"type": "object", "properties": {"name": {"$ref": "https://example.com/name.json"}}}}',
+        )
+
+        #: When
+        model = load_workspace(schemas, documents, skills)
+
+        #: Then
+        failed = _failed_structure(model, CODE)
+        assert failed.failure == UnresolvableFrontmatterSchemaRef('https://example.com/name.json'), (
+            'a remote reference is a load failure'
+        )
 
     def test_load_workspace_with_a_structure_file_stating_an_untyped_frontmatter_schema_records_it_as_failed(
         self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository

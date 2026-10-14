@@ -129,6 +129,19 @@ class UntypedFrontmatterSchema:
     """The structure file's frontmatter schema root does not state `"type": "object"`."""
 
 
+@dataclass(frozen=True, slots=True)
+class UnresolvableFrontmatterSchemaRef:
+    """A schema inside the structure file's frontmatter schema holds a `$ref` that does not resolve inside it.
+
+    The reference names a location the schema does not hold, or another resource, which is never fetched.
+
+    Attributes:
+        ref: What the `$ref` holds, as written.
+    """
+
+    ref: str
+
+
 # The conditions a structure specification's rules fail with when they are not usable.
 type StructureSpecRuleFailure = (
     EmptyStructureSpec
@@ -150,5 +163,6 @@ type StructureSpecFailure = (
     | InvalidFrontmatterSchema
     | FrontmatterSchemaId
     | ForeignFrontmatterDialect
+    | UnresolvableFrontmatterSchemaRef
     | UntypedFrontmatterSchema
 )
