@@ -2331,6 +2331,34 @@ class TestDecodeFrontmatter:
             problem='found the anchor &, which frontmatter does not allow', line=LineNumber.from_int(2)
         ), 'a malformed anchor, alias or tag is refused as the construct it is, on its line'
 
+    def test_decode_frontmatter_with_an_anchor_name_holding_a_byte_order_mark_refuses_the_anchor_as_written(
+        self,
+    ) -> None:
+        #: Given
+        block = 'a: &a﻿ b\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem='found the anchor &a﻿, which frontmatter does not allow', line=LineNumber.from_int(2)
+        ), 'a name the scanner cannot read is refused as the anchor it is, not as a generic syntax error'
+
+    def test_decode_frontmatter_with_an_alias_name_holding_a_byte_order_mark_refuses_the_alias_as_written(
+        self,
+    ) -> None:
+        #: Given
+        block = 'a: *a﻿b\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem='found the alias *a﻿b, which frontmatter does not allow', line=LineNumber.from_int(2)
+        ), 'a name the scanner cannot read is refused as the alias it is, not as a generic syntax error'
+
     def test_decode_frontmatter_with_a_tag_with_an_undefined_handle_returns_invalid_yaml_on_its_line(self) -> None:
         #: Given
         block = 'a: !e!foo\n'
@@ -2343,6 +2371,57 @@ class TestDecodeFrontmatter:
             problem="found the tag '!e!foo', which frontmatter does not allow", line=LineNumber.from_int(2)
         ), 'a malformed anchor, alias or tag is refused as the construct it is, on its line'
 
+    def test_decode_frontmatter_with_an_undefined_handle_in_a_flow_block_refuses_the_flow_block_first(self) -> None:
+        #: Given
+        block = '[!e!x a]\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem='found a flow collection as the block, which frontmatter does not allow',
+            line=LineNumber.from_int(2),
+        ), 'a tag is refused in the order the parser meets it, so the flow block above it comes first'
+
+    def test_decode_frontmatter_with_an_undefined_handle_below_a_tag_refuses_the_first_tag(self) -> None:
+        #: Given
+        block = 'k: !!str\n  !e!x\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem="found the tag '!!str', which frontmatter does not allow", line=LineNumber.from_int(2)
+        ), 'the first tag in the block is the one reported, whatever handle the second one names'
+
+    def test_decode_frontmatter_with_an_undefined_handle_after_an_anchor_refuses_the_anchor(self) -> None:
+        #: Given
+        block = 'a: &x !e!y b\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem='found the anchor &x, which frontmatter does not allow', line=LineNumber.from_int(2)
+        ), 'an anchor written before a tag with an undefined handle is reported, as it is before a `!!str` tag'
+
+    def test_decode_frontmatter_with_a_verbatim_tag_never_closed_on_a_line_with_more_below_quotes_the_line(
+        self,
+    ) -> None:
+        #: Given
+        block = 'a: !<x\nb: 1\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem="found the tag '!<x', which frontmatter does not allow", line=LineNumber.from_int(2)
+        ), 'a verbatim tag that never closes is quoted to the end of its line, not to the end of the block'
+
     def test_decode_frontmatter_with_a_verbatim_tag_never_closed_returns_invalid_yaml_on_its_line(self) -> None:
         #: Given
         block = 'a: !<x\n'
@@ -2354,6 +2433,18 @@ class TestDecodeFrontmatter:
         assert node == InvalidYamlFrontmatter(
             problem="found the tag '!<x', which frontmatter does not allow", line=LineNumber.from_int(2)
         ), 'a malformed anchor, alias or tag is refused as the construct it is, on its line'
+
+    def test_decode_frontmatter_with_an_anchor_with_no_name_below_a_key_returns_invalid_yaml_on_its_line(self) -> None:
+        #: Given
+        block = 'a: b\nc: &\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem='found the anchor &, which frontmatter does not allow', line=LineNumber.from_int(3)
+        ), 'a malformed anchor is refused on the line it is written on, not on the first line of the block'
 
     def test_decode_frontmatter_with_a_tag_with_a_bad_escape_returns_invalid_yaml_on_its_line(self) -> None:
         #: Given

@@ -39,6 +39,7 @@ from enum import Enum
 from typing import Final, Never, assert_never
 
 from ruamel.yaml import YAML
+from ruamel.yaml.compat import check_anchorname_char
 from ruamel.yaml.error import MarkedYAMLError, StreamMark
 from ruamel.yaml.events import (
     AliasEvent,
@@ -50,10 +51,12 @@ from ruamel.yaml.events import (
     SequenceStartEvent,
     StreamEndEvent,
 )
+from ruamel.yaml.parser import Parser
 from ruamel.yaml.reader import Reader, ReaderError
 from ruamel.yaml.resolver import VersionedResolver
-from ruamel.yaml.scanner import Scanner
-from ruamel.yaml.tokens import ScalarToken, Token
+from ruamel.yaml.scanner import Scanner, ScannerError
+from ruamel.yaml.tag import Tag
+from ruamel.yaml.tokens import ScalarToken, TagToken, Token
 
 from lorecraft.core.error import Error
 from lorecraft.core.lines import newline_offsets
@@ -99,8 +102,8 @@ _SPACE_CHARACTERS: Final[str] = '\0 \t\r\n\x85\u2028\u2029'
 _LINE_END_CHARACTERS: Final[str] = '\0\r\n\x85\u2028\u2029'
 """The characters that end a line: the end of the text, or a line break."""
 
-_TAG_END_CHARACTERS: Final[str] = _SPACE_CHARACTERS + ',[]{}'
-"""The characters that end a tag as a block writes it: whitespace or a flow indicator."""
+_TOKEN_END_CHARACTERS: Final[str] = _SPACE_CHARACTERS + ',[]{}'
+"""The characters that end an anchor, an alias or a tag as a block writes it: whitespace or a flow indicator."""
 
 _DIRECTIVE_NAME_END_CHARACTERS: Final[str] = _SPACE_CHARACTERS + ',[]{}:'
 """The characters that end the name a refused directive is reported by: whitespace, a flow indicator or a `:`."""
@@ -331,6 +334,26 @@ class _RefusedTagError(_RefusedConstructError):
         super().__init__(mark, f'found the tag {tag!r}, {_NOT_ALLOWED}')
 
 
+class _RefusedMalformedTagError(_RefusedConstructError):
+    """A tag the scanner cannot read.
+
+    That is a tag such as a verbatim tag left open or empty, a bad `%` escape, or a tag with no space after it.
+
+    Attributes:
+        tag: The tag as the block writes it.
+        source: The scanner's error.
+    """
+
+    tag: str
+    source: ScannerError
+
+    def __init__(self, tag: str, mark: StreamMark, *, source: ScannerError) -> None:
+        self.tag = tag
+        self.source = source
+        super().__init__(mark, f'found the tag {tag!r}, {_NOT_ALLOWED}')
+        self.__cause__ = source
+
+
 class _RefusedMergeKeyError(_RefusedConstructError):
     """A mapping writes the plain key `<<`, which YAML 1.1 reads as a merge."""
 
@@ -487,6 +510,7 @@ class _EventStream:
         # when the loader says so.
         yaml.top_level_block_style_scalar_no_indent_error_1_1 = True
         yaml.Scanner = _BasicYamlScanner
+        yaml.Parser = _BasicYamlParser
         self._block = block
         self._document_lines = _document_line_indexes(block)
         self._events: Iterator[Event] = iter(yaml.parse(block))
@@ -547,16 +571,7 @@ class _EventStream:
         if mark is None:
             # An event's mark is optional only in its constructor's signature: the parser marks every event it emits.
             raise AssertionError('unreachable: ruamel.yaml marks every event it parses')
-        end = mark.index
-        if self._block.startswith('!<', end):
-            # A verbatim tag is a URI, which may hold a `,` or a `]`, so it runs to its closing `>`. One that is
-            # never closed runs to the end of the block.
-            closing = self._block.find('>', end)
-            end = closing + 1 if closing != -1 else len(self._block)
-        else:
-            while end < len(self._block) and self._block[end] not in _TAG_END_CHARACTERS:
-                end += 1
-        return self._block[mark.index : end]
+        return _written_token(self._block, mark.index)
 
     def check_event(self, *kinds: type[Event]) -> bool:
         """Whether the next event is of one of `kinds`, leaving it unread.
@@ -565,6 +580,56 @@ class _EventStream:
             kinds: The event classes to test for.
         """
         return isinstance(self.peek_event(), kinds)
+
+
+def _written_token(text: str, start: int) -> str:
+    """The anchor, alias or tag that starts at `start` in `text`, spelled as the block writes it.
+
+    Args:
+        text: The block, or the reader's buffer, which ends with a NUL.
+        start: The index of the `&`, the `*` or the `!` the token starts with.
+    """
+    end = start
+    if text.startswith('!<', start):
+        # A verbatim tag is a URI, which may hold a `,` or a `]`, so it runs to its closing `>`, or to the end of the
+        # line when it is never closed.
+        while end < len(text) and text[end] not in _LINE_END_CHARACTERS and text[end] != '>':
+            end += 1
+        if end < len(text) and text[end] == '>':
+            end += 1
+    else:
+        while end < len(text) and text[end] not in _TOKEN_END_CHARACTERS:
+            end += 1
+    return text[start:end]
+
+
+class _AnyHandleMapping(dict[str, str]):
+    """The tag handles a parser resolves a tag against, with every handle defined: an unknown one stands for itself."""
+
+    def __contains__(self, handle: object) -> bool:
+        return True
+
+    def __missing__(self, handle: str) -> str:
+        return handle
+
+
+class _BasicYamlParser(Parser):
+    """ruamel.yaml's parser, taking a tag whose handle no directive defines as it takes `!` and `!!`.
+
+    A directive is the only way to define a handle, and a directive is refused, so the parser would otherwise fail
+    on `!e!x` with an error of its own, before `_peek_node_start` reaches the node, and report the tag ahead of a
+    construct written above it. Taking every handle lets the tag reach that function as an event, refused in the
+    order the block writes it, like `!!str`.
+    """
+
+    def select_tag_transform(self, tag: Tag) -> None:
+        """Make the tag resolve against every handle.
+
+        Args:
+            tag: The tag of the node the parser is on.
+        """
+        super().select_tag_transform(tag)
+        tag.handles = _AnyHandleMapping(tag.handles)
 
 
 class _BasicYamlReader(Reader):
@@ -611,6 +676,9 @@ class _BasicYamlScanner(Scanner):
     for `decode_frontmatter` to report once the read ends or fails. The scanner reads ahead of the parser, so
     raising at once would report a construct written below a tag or an anchor before the tag or the anchor. It
     holds `_flow_start`, where the outermost open flow collection begins, to tell a collection spread over lines.
+
+    An anchor or an alias with no name, and a tag the scanner cannot read, are refused here too, as the anchor, alias
+    or tag they are. The tag's refusal is chained from the scanner's error.
 
     A double-quoted `\U` escape above `U+10FFFF` is the one other place a plain Python exception escapes: `chr`
     raises a `ValueError`, or an `OverflowError` for one too large for a C `int`. It is refused here, on the
@@ -664,6 +732,43 @@ class _BasicYamlScanner(Scanner):
             _RefusedDocumentMarkerError: Always: the marker is not allowed inside the block.
         """
         raise _RefusedDocumentMarkerError(self.reader.prefix(3), self.reader.get_mark())
+
+    def scan_anchor(self, TokenClass: type[Token]) -> Token:
+        """Scan an anchor or an alias, refusing one with no name as the anchor or alias it is.
+
+        Args:
+            TokenClass: The token to build, an anchor's or an alias's.
+
+        Raises:
+            _RefusedAnchorError: An anchor has no name, or a name with a character the scanner rejects.
+            _RefusedAliasError: An alias has no name, or a name with a character the scanner rejects.
+        """
+        # The scanner ends a name at the first character `check_anchorname_char` rejects, such as U+FEFF, and fails
+        # when that character is not one that may follow a name. The block's own spelling runs to the next token
+        # end, so a character it rejects anywhere in it is the case the scanner would fail on.
+        written = _written_token(self.reader.buffer, self.reader.pointer)
+        name = written[1:]
+        if not name or not all(check_anchorname_char(character) for character in name):
+            start_mark = self.reader.get_mark()
+            if written[0] == '*':
+                raise _RefusedAliasError(name, start_mark)
+            raise _RefusedAnchorError(name, start_mark)
+        return super().scan_anchor(TokenClass)
+
+    def scan_tag(self) -> TagToken:
+        """Scan a tag, refusing one the scanner cannot read as the tag it is.
+
+        Raises:
+            _RefusedMalformedTagError: The scanner cannot read the tag, such as a verbatim tag left open or empty, a
+                bad `%` escape, or a tag with no space after it.
+        """
+        start_mark = self.reader.get_mark()
+        # The reader's buffer holds the whole block, ended by a NUL, and the pointer is where the tag starts.
+        written = _written_token(self.reader.buffer, self.reader.pointer)
+        try:
+            return super().scan_tag()
+        except ScannerError as exc:
+            raise _RefusedMalformedTagError(written, start_mark, source=exc) from exc
 
     def fetch_key(self) -> None:
         """Fetch a `?` that starts a key, and record it as an explicit key where a node may start."""
