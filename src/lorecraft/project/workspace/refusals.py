@@ -4,14 +4,17 @@ A scan given a declaration keeps every directory it cannot list, every entry on 
 and every structure file it cannot read, instead of stopping at it. The loader turns the ones it meets into load
 failures. A directory no meta spec names, or one inside a skill that nothing lists, is never met: left alone, its
 refusal would pass unreported where the scan used to stop. This module finds those, and raises the first as the
-scan raised it, so that the command stops as it did.
+scan raised it, so that the command stops as it did. One refusal is accepted without a failure: a refused read of a
+legacy `<name>.structure.json` that a `<name>.spec.json` shadows, since that file governs nothing.
 """
 
 from collections.abc import Mapping
 from typing import assert_never
 
 from lorecraft.core.error import Error
-from lorecraft.core.path import RootRelativePath
+from lorecraft.core.path import PathComponent, RootRelativePath
+from lorecraft.project.layout import SPECS_DIR
+from lorecraft.project.schemas.spec_file import SpecFileType, spec_filename
 from lorecraft.vfs import OsRefusal, RefusedInspect, RefusedListing, RefusedRead, RefusedRecord
 
 from .failure import (
@@ -24,7 +27,7 @@ from .failure import (
     UnlistableSkillsDirectory,
     UnreadableStructureFile,
 )
-from .model import WorkspaceModel
+from .model import CorpusSpec, NamespaceSpec, WorkspaceModel
 
 
 class UnreportedDirListError(Error):
@@ -78,6 +81,26 @@ class UnreportedEntryInspectError(Error):
         super().__init__(f'cannot snapshot entry {path}: {refusal.value}')
 
 
+def _shadowed_legacy_files(model: WorkspaceModel) -> set[RootRelativePath]:
+    """The legacy `<name>.structure.json` paths a `<name>.spec.json` of the model shadows.
+
+    The loader neither lists nor reads such a file, so it can be refused without any load failure reporting it; the
+    refusal is of a file that governs nothing.
+
+    Args:
+        model: The workspace model, whose specification files are listed without the shadowed ones.
+    """
+    shadowed: set[RootRelativePath] = set()
+    for corpus in model.sorted_corpora:
+        specs: list[CorpusSpec | NamespaceSpec] = [corpus.corpus_spec, *corpus.namespace_specs]
+        for spec in specs:
+            spec_json = SPECS_DIR / PathComponent.parse(spec_filename(spec.name, SpecFileType.SPEC))
+            if spec_json in spec.files:
+                legacy_name = spec_filename(spec.name, SpecFileType.LEGACY_STRUCTURE)
+                shadowed.add(SPECS_DIR / PathComponent.parse(legacy_name))
+    return shadowed
+
+
 def find_unreported_refusals(
     refusals: Mapping[RootRelativePath, RefusedRecord], model: WorkspaceModel
 ) -> dict[RootRelativePath, RefusedRecord]:
@@ -85,7 +108,8 @@ def find_unreported_refusals(
 
     A refused listing is reported by the failure of the directory that could not be listed, a refused read by the
     failure of the structure file, and a refused inspection by the failure of the skills directory, skill entry or
-    `SKILL.md` that names the entry it stopped at.
+    `SKILL.md` that names the entry it stopped at. A refused read of a legacy `<name>.structure.json` that a
+    `<name>.spec.json` shadows is accepted as reported, because that file governs nothing.
 
     Args:
         refusals: Every refusal the snapshot kept, as the database answers them.
@@ -112,13 +136,14 @@ def find_unreported_refusals(
             case _:
                 pass  # a structure file's content failed, or a lookup the disk refused: no snapshot refusal
 
+    shadowed_legacy_files = _shadowed_legacy_files(model)
     unreported: dict[RootRelativePath, RefusedRecord] = {}
     for path, refused in refusals.items():
         match refused:
             case RefusedListing():
                 is_reported = path in listings
             case RefusedRead():
-                is_reported = path in reads
+                is_reported = path in reads or path in shadowed_legacy_files
             case RefusedInspect():
                 is_reported = path in inspections
             case _:

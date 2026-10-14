@@ -54,7 +54,7 @@ def _frontmatter_schema(spec_name: str, text: str) -> FrontmatterSchema:
     """
     name = parse_spec_name(spec_name)
     file = StructureSpecFile(
-        path=SPECS_DIR / PathComponent.parse(spec_filename(name, SpecFileType.STRUCTURE)), name=name
+        path=SPECS_DIR / PathComponent.parse(spec_filename(name, SpecFileType.LEGACY_STRUCTURE)), name=name
     )
     frontmatter = StructureSpec.parse(file, StructureSchema(text)).frontmatter
     assert frontmatter is not None, f'{file.path} states a frontmatter schema'

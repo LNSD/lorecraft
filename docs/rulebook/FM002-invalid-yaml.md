@@ -26,7 +26,7 @@ An agent that cannot read the block cannot read any field of it, so a single mis
 
 ## Example
 
-`docs/__meta__/guide.structure.json`:
+`docs/__meta__/guide.spec.json`:
 
 ```json
 {

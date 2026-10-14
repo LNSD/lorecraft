@@ -633,6 +633,63 @@ class TestLoadWorkspaceEdgeCases:
             SPECS_DIR / PathComponent.parse('code.structure.json'),
         ), 'the corpus structure specification governs its document'
 
+    def test_load_workspace_with_a_spec_json_file_builds_the_structure_spec_from_it(
+        self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
+    ) -> None:
+        #: Given
+        _write_tree(tmp_path, prose=('code',), schemas=('code.spec.json',), documents=('code/logging.md',))
+
+        #: When
+        model = load_workspace(schemas, documents, skills)
+
+        #: Then
+        corpus = model.find_corpus(CODE)
+        assert corpus is not None, 'the corpus loads'
+        structure = corpus.corpus_spec.structure
+        assert isinstance(structure, StructureSpec), 'code.spec.json is decoded as the structure specification'
+        assert structure.file.path == SPECS_DIR / PathComponent.parse('code.spec.json'), 'and it is named by its file'
+
+    def test_load_workspace_with_a_legacy_structure_file_alone_falls_back_to_it(
+        self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
+    ) -> None:
+        #: Given
+        _write_tree(tmp_path, prose=('code',), schemas=('code.structure.json',), documents=('code/logging.md',))
+
+        #: When
+        model = load_workspace(schemas, documents, skills)
+
+        #: Then
+        corpus = model.find_corpus(CODE)
+        assert corpus is not None, 'the corpus loads'
+        structure = corpus.corpus_spec.structure
+        assert isinstance(structure, StructureSpec), 'with no code.spec.json, code.structure.json is decoded'
+        assert structure.file.path == SPECS_DIR / PathComponent.parse('code.structure.json'), (
+            'and it is named by its own file'
+        )
+
+    def test_load_workspace_with_both_files_uses_the_spec_json_and_ignores_the_legacy_one(
+        self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
+    ) -> None:
+        #: Given
+        _write_tree(tmp_path, prose=('code',), schemas=('code.spec.json',), documents=('code/logging.md',))
+        # Malformed, so a read of it would be a load failure.
+        _write(tmp_path, 'docs/__meta__/code.structure.json', '{"frontmatter": {"type": "nonsense"}}')
+
+        #: When
+        model = load_workspace(schemas, documents, skills)
+
+        #: Then
+        corpus = model.find_corpus(CODE)
+        assert corpus is not None, 'the corpus loads'
+        structure = corpus.corpus_spec.structure
+        assert isinstance(structure, StructureSpec), 'the structure comes from code.spec.json'
+        assert structure.file.path == SPECS_DIR / PathComponent.parse('code.spec.json'), 'and names that file'
+        assert model.load_failures == (), 'the legacy file is not read, so it fails nothing'
+        assert corpus.corpus_spec.files == (
+            SPECS_DIR / PathComponent.parse('code.md'),
+            SPECS_DIR / PathComponent.parse('code.spec.json'),
+        ), 'and it is not listed among the files of the specification either'
+
     def test_load_workspace_with_nested_namespaces_sorts_them_by_segment_count_then_value(
         self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
     ) -> None:

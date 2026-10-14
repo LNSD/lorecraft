@@ -64,7 +64,7 @@ def _structure_spec(spec_name: str, text: str) -> StructureSpec:
     """
     name = parse_spec_name(spec_name)
     file = StructureSpecFile(
-        path=SPECS_DIR / PathComponent.parse(spec_filename(name, SpecFileType.STRUCTURE)), name=name
+        path=SPECS_DIR / PathComponent.parse(spec_filename(name, SpecFileType.LEGACY_STRUCTURE)), name=name
     )
     return StructureSpec.parse(file, StructureSchema(text))
 

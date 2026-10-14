@@ -52,6 +52,29 @@ class TestParseSpecFile:
             'code.structure.json parses into the code corpus spec name and the structure file type'
         )
 
+    def test_parse_spec_file_with_a_corpus_spec_json_file_returns_a_spec_typed_structure_spec_file(self) -> None:
+        #: Given
+        path = META / PathComponent.parse('code.spec.json')
+
+        #: When
+        spec_file = parse_spec_file(path)
+
+        #: Then
+        assert spec_file == StructureSpecFile(path=path, name=CorpusSpecName(CODE)), (
+            'code.spec.json parses into the code corpus spec name and the structure file type'
+        )
+        assert spec_file.type is SpecFileType.SPEC, 'and its type is the primary name, not the legacy one'
+
+    def test_parse_spec_file_with_a_legacy_structure_file_returns_the_legacy_file_type(self) -> None:
+        #: Given
+        path = META / PathComponent.parse('code.structure.json')
+
+        #: When
+        spec_file = parse_spec_file(path)
+
+        #: Then
+        assert spec_file.type is SpecFileType.LEGACY_STRUCTURE, 'code.structure.json is the legacy name'
+
     def test_parse_spec_file_with_a_header_file_raises_unknown_spec_file_type_error(self) -> None:
         #: Given
         # the frontmatter schema moved into the structure specification, so no file type claims *.header.json
@@ -272,7 +295,7 @@ class TestSpecFilenames:
         name = NamespaceSpecName(CODE, AspectNamespace.parse('python'))
 
         #: When
-        filename = spec_filename(name, SpecFileType.STRUCTURE)
+        filename = spec_filename(name, SpecFileType.LEGACY_STRUCTURE)
 
         #: Then
         assert filename == 'code-python.structure.json', 'the name is followed by what *.structure.json claims'

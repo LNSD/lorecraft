@@ -1,6 +1,6 @@
 r"""The structure specification: its file's decoded JSON, and the rules it is decoded into.
 
-The repository reads a `<name>.structure.json` file's text, a `StructureSchema`, which proves nothing about
+The repository reads a `<name>.spec.json` file's text, a `StructureSchema`, which proves nothing about
 it. `StructureSpec.parse` is the check, in two steps at the edge. It deserializes the text straight into the
 strict, frozen `StructureFile` model, so JSON that is malformed or not the dialect's shape is refused before
 any rule is read. Then it maps the model to typed rules, and building the specification refuses a set of rules that
@@ -848,7 +848,7 @@ class StructureSpec:
     checks them again.
 
     Attributes:
-        file: The JSON file, `<name>.structure.json`, at its parsed specification filename; the prose it is the
+        file: The JSON file, `<name>.spec.json`, at its parsed specification filename; the prose it is the
             machine-checkable half of is `<name>.md` beside it, which `authority` names.
         title: The checks the document's title is held to, or None when the specification states none.
         forbid_empty_sections: True when every section must hold content.
@@ -918,7 +918,7 @@ class StructureSpec:
 
     @property
     def path(self) -> RootRelativePath:
-        """Root-relative path of the JSON file, `<name>.structure.json`."""
+        """Root-relative path of the JSON file, `<name>.spec.json`."""
         return self.file.path
 
     @property

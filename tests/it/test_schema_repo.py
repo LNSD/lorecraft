@@ -19,6 +19,7 @@ from lorecraft.project.schemas import (
     NamespaceSpecName,
     Repository,
     StructureSchemaReadError,
+    StructureSpecFile,
 )
 from lorecraft.vfs import DirListError, DiskFileSystem, FileReadError, OsRefusal
 
@@ -113,10 +114,10 @@ class TestRepository:
     ) -> None:
         #: Given
         (tmp_path / 'code-python.structure.json').write_text('{"title": "Python"}', encoding='utf-8')
-        name = CODE_PYTHON
+        file = StructureSpecFile(path=RootRelativePath.parse('code-python.structure.json'), name=CODE_PYTHON)
 
         #: When
-        schema = repository.get_structure_schema(name)
+        schema = repository.get_structure_schema(file)
 
         #: Then
         assert schema == '{"title": "Python"}', (
@@ -128,10 +129,11 @@ class TestRepository:
     ) -> None:
         #: Given
         name = CorpusSpecName(CODE)
+        file = StructureSpecFile(path=RootRelativePath.parse('code.spec.json'), name=name)
 
         #: When
         with pytest.raises(StructureSchemaReadError) as exc_info:
-            repository.get_structure_schema(name)
+            repository.get_structure_schema(file)
 
         #: Then
         assert exc_info.value.name == name, (
