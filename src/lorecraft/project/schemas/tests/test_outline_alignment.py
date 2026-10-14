@@ -115,6 +115,27 @@ def _forbidden_flags(aligned: tuple[AlignedSection, ...]) -> list[bool]:
     return flags
 
 
+def _word_caps(aligned: tuple[AlignedSection, ...]) -> list[int | None]:
+    """The word cap of the entry each aligned section falls in, in document order; `None` where it has none.
+
+    Args:
+        aligned: The aligned sections.
+    """
+    caps: list[int | None] = []
+    for section in aligned:
+        match section:
+            case NamedAlignment():
+                cap = section.entry.words
+            case AnyRunAlignment():
+                cap = section.run.words
+            case UnalignedSection():
+                cap = None
+            case _:
+                assert_never(section)
+        caps.append(cap.value if cap is not None else None)
+    return caps
+
+
 @pytest.mark.unit
 class TestAlignOutlines:
     def test_align_outlines_with_a_document_following_its_outline_aligns_each_section_to_its_entry(self) -> None:
@@ -173,21 +194,9 @@ class TestAlignOutlines:
 
         #: When
         aligned = _align_corpus(spec_json, RULE_ASIDE_CHECKLIST)
-        caps: list[int | None] = []
-        for section in aligned:
-            match section:
-                case NamedAlignment():
-                    cap = section.entry.words
-                case AnyRunAlignment():
-                    cap = section.run.words
-                case UnalignedSection():
-                    cap = None
-                case _:
-                    assert_never(section)
-            caps.append(cap.value if cap is not None else None)
 
         #: Then
-        assert caps == [30, 5, 5], (
+        assert _word_caps(aligned) == [30, 5, 5], (
             'the section carries the entry itself, so its cap is the one of the entry it falls in'
         )
 
@@ -236,16 +245,14 @@ class TestAlignOutlines:
 
         #: When
         alignments = align_outlines((corpus, namespace), headings)
-        specs = [alignment.spec for alignment in alignments]
-        corpus_summary = _entry_summary(alignments[0].sections)
-        namespace_summary = _entry_summary(alignments[1].sections)
 
         #: Then
+        specs = [alignment.spec for alignment in alignments]
         assert specs == [CORPUS_SPEC, NAMESPACE_SPEC], 'one entry per specification, in the order given'
-        assert corpus_summary == ['Rule', 'any', 'any'], (
+        assert _entry_summary(alignments[0].sections) == ['Rule', 'any', 'any'], (
             'the corpus outline names `Rule`, then an `any` run covers the rest'
         )
-        assert namespace_summary == ['-', '-', 'Checklist'], (
+        assert _entry_summary(alignments[1].sections) == ['-', '-', 'Checklist'], (
             'the namespace outline names only `Checklist`, so the sections before it fall in no `any` run of it'
         )
 
@@ -260,11 +267,13 @@ class TestAlignOutlines:
         aligned = _align_corpus(spec_json, text)
 
         #: Then
-        named = [section for section in aligned if isinstance(section, NamedAlignment)]
-        assert [section.section.text for section in named] == ['Rule', 'Checklist'], 'two sections are named'
-        assert all(section.entry.names(section.section) for section in named), (
-            'a named alignment holds the entry that names its section, whichever sections surround it'
-        )
+        assert [section.section.text for section in aligned if isinstance(section, NamedAlignment)] == [
+            'Rule',
+            'Checklist',
+        ], 'two sections are named'
+        assert all(
+            section.entry.names(section.section) for section in aligned if isinstance(section, NamedAlignment)
+        ), 'a named alignment holds the entry that names its section, whichever sections surround it'
 
 
 @pytest.mark.unit

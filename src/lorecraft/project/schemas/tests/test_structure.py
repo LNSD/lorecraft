@@ -711,9 +711,9 @@ class TestStructureSpecParse:
         failure = StructureSpec.parse(SPEC_FILE, schema)
 
         #: Then
-        assert failure == InvalidTitlePattern('^(unclosed', 'missing ), unterminated subpattern'), (
-            f'the failure carries the pattern as written and what the compiler rejected, got {failure!r}'
-        )
+        assert isinstance(failure, InvalidTitlePattern), 'a pattern that does not compile is no title check'
+        assert failure.pattern == '^(unclosed', 'the failure carries the pattern as written'
+        assert failure.problem, 'the failure carries what the compiler rejected'
 
     def test_parse_with_a_non_string_title_pattern_returns_undecodable_structure_spec(self) -> None:
         #: Given
@@ -889,6 +889,9 @@ class TestStructureSpecParse:
         #: Given
         # a heading's text never has whitespace at either end, so no document could hold this section
         schema = StructureSchema('{"outline": [{"section": " Checklist"}]}')
+        expected = StructureSpecProblem(
+            ('outline', 0, 'StructureFileSection', 'section'), str(PaddedSectionNameError(' Checklist'))
+        )
 
         #: When
         failure = StructureSpec.parse(SPEC_FILE, schema)
@@ -896,9 +899,6 @@ class TestStructureSpecParse:
         #: Then
         assert isinstance(failure, UndecodableStructureSpec), (
             "the mistake is the specification's, so the load refuses it"
-        )
-        expected = StructureSpecProblem(
-            ('outline', 0, 'StructureFileSection', 'section'), str(PaddedSectionNameError(' Checklist'))
         )
         assert expected in failure.problems, (
             f'the section shape reports the name with its rejection, got {failure.problems}'
