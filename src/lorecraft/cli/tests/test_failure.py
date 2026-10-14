@@ -9,14 +9,14 @@ from lorecraft.core.error import Error
 from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.corpus import CorpusName
-from lorecraft.project.document.repo import CorpusListError
-from lorecraft.project.schemas.name import CorpusSpecName
-from lorecraft.project.schemas.repo import StructureSchemaReadError
-from lorecraft.project.schemas.section_name import SectionName
-from lorecraft.project.schemas.structure import (
+from lorecraft.project.document import CorpusListError
+from lorecraft.project.schemas import (
+    JSON_SCHEMA_DIALECT,
+    CorpusSpecName,
+    SectionName,
+    StructureSchemaReadError,
     StructureSpecProblem,
 )
-from lorecraft.project.schemas.structure_file import JSON_SCHEMA_DIALECT
 from lorecraft.project.skill import (
     SkillDirListError,
     SkillEntryResolveError,

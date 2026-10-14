@@ -14,13 +14,13 @@ import pytest
 from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
-from lorecraft.project.document.ref import DocumentRef
-from lorecraft.project.document.repo import (
+from lorecraft.project.document import (
     CorpusListError,
     Document,
     DocumentDecodeError,
     DocumentFile,
     DocumentReadError,
+    DocumentRef,
     Repository,
 )
 from lorecraft.vfs import DirListError, DiskFileSystem, FileReadError, TextDecodeError

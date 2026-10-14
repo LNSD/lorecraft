@@ -12,6 +12,7 @@ import pytest
 from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.schemas import (
+    SKILL_NAME_PATTERN,
     AgentSkillsSchema,
     FieldGuidance,
     InvalidValueProblem,
@@ -20,7 +21,6 @@ from lorecraft.project.schemas import (
     PatternMismatch,
     StructureSpecSchema,
 )
-from lorecraft.project.schemas.skill_frontmatter import SKILL_NAME_PATTERN
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.location import Elsewhere, Help, Here, Label, Note
 from lorecraft.rules.tests.fake_context import (

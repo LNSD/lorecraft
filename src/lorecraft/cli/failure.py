@@ -13,7 +13,7 @@ import typer
 from lorecraft.agents import SKILL_ENTRY_FILENAME
 from lorecraft.core.error import Error
 from lorecraft.core.path import RootRelativePath
-from lorecraft.project.schemas.structure_file import JSON_SCHEMA_DIALECT
+from lorecraft.project.schemas import JSON_SCHEMA_DIALECT
 from lorecraft.project.workspace import (
     AdjacentAnyRuns,
     EmptyStructureSpec,

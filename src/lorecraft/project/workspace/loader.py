@@ -33,37 +33,36 @@ from lorecraft.project.aspect import (
     InvalidAspectNameCharacterError,
 )
 from lorecraft.project.corpus import CorpusName
-from lorecraft.project.document.repo import CorpusListError
-from lorecraft.project.document.repo import Repository as DocumentRepository
+from lorecraft.project.document import CorpusListError
+from lorecraft.project.document import Repository as DocumentRepository
 from lorecraft.project.layout import SPECS_DIR
-from lorecraft.project.schemas.name import CorpusSpecName, NamespaceSpecName
-from lorecraft.project.schemas.repo import Repository as SchemaRepository
-from lorecraft.project.schemas.repo import StructureSchemaReadError
-from lorecraft.project.schemas.spec_file import (
+from lorecraft.project.schemas import (
+    CorpusSpecName,
     DottedSpecStemError,
     InvalidSpecStemError,
+    NamespaceSpecName,
     NotASpecFileError,
     NotASpecStemError,
     ProseSpecFile,
     SpecFile,
     SpecFileType,
+    StructureSchemaReadError,
+    StructureSpec,
     StructureSpecFile,
     UnknownSpecFileTypeError,
     parse_spec_file,
 )
-from lorecraft.project.schemas.structure import (
-    StructureSpec,
-)
-from lorecraft.project.skill.outside import OutsideSymlink
-from lorecraft.project.skill.ref import SkillLocation
-from lorecraft.project.skill.repo import Repository as SkillRepository
-from lorecraft.project.skill.repo import (
+from lorecraft.project.schemas import Repository as SchemaRepository
+from lorecraft.project.skill import (
+    OutsideSymlink,
     SkillDirListError,
     SkillEntryResolveError,
     SkillFileResolveError,
+    SkillLocation,
+    SkillsDir,
     SkillsDirListError,
 )
-from lorecraft.project.skill.skills_dir import SkillsDir
+from lorecraft.project.skill import Repository as SkillRepository
 from lorecraft.vfs import (
     DIR_LIST_FAILURES,
     ENTRY_INSPECT_FAILURES,
