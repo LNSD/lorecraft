@@ -29,7 +29,7 @@ from lorecraft.project.schemas import (
     SkillFields,
     StructureSpec,
 )
-from lorecraft.project.skill import OutsideSymlink, SkillLocation
+from lorecraft.project.skill import OutsideSymlink
 from lorecraft.project.syntax import FrontmatterNode, LineCount, NormalisedLinkPath, ParsedDocument, TokenCount
 from lorecraft.project.workspace import Governance
 from lorecraft.vfs import ResolvedPath, RootExit
@@ -120,18 +120,19 @@ class DatabaseDocumentContext:
 class DatabaseSkillContext:
     """One skill whose `SKILL.md` decoded, as the database answers for it; a `SkillContext`."""
 
-    def __init__(self, database: Database, source: SkillText, location: SkillLocation) -> None:
-        """Bind the context to one decoded skill and where the model locates it.
+    def __init__(self, database: Database, source: SkillText) -> None:
+        """Bind the context to one decoded skill.
+
+        The skill's location is the one the witness carries, so the text and the location cannot name different
+        skills.
 
         Args:
             database: The revision the skill is read from.
             source: The skill's `SKILL.md` text, as `Database.skill_text` returns it: the witness every per-file
                 query takes.
-            location: The skill, and where its files live, as the model hands it out.
         """
         self._database = database
         self._source = source
-        self._location = location
 
     def directory_name(self) -> PathComponent:
         """The name of the skill's directory as an agent lists it, read from its ref."""
@@ -142,9 +143,10 @@ class DatabaseSkillContext:
 
         Read from the location the model hands out, never from the disk.
         """
-        if self._location.resolves_to == self._location.ref.directory:
+        location = self._source.location
+        if location.resolves_to == location.ref.directory:
             return None
-        return self._location.resolves_to
+        return location.resolves_to
 
     def frontmatter(self) -> FrontmatterNode:
         """The skill's frontmatter block, from the `skill_frontmatter` query."""

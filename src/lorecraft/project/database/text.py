@@ -13,7 +13,7 @@ database that built it, which no type records, so it never leaves the run that a
 from dataclasses import dataclass
 
 from lorecraft.project.document import DocumentRef
-from lorecraft.project.skill import SkillRef, SkillResourceRef
+from lorecraft.project.skill import SkillLocation, SkillRef, SkillResourceRef
 from lorecraft.vfs import Utf8Failure
 
 
@@ -35,12 +35,17 @@ class SkillText:
     """One skill's `SKILL.md` bytes, decoded; built only by `Database.skill_text`.
 
     Attributes:
-        ref: The skill whose `SKILL.md` the text was read from.
+        location: Where the skill's files live, as the database's model located the skill the text was read from.
         text: The whole `SKILL.md`, frontmatter included.
     """
 
-    ref: SkillRef
+    location: SkillLocation
     text: str
+
+    @property
+    def ref(self) -> SkillRef:
+        """The skill whose `SKILL.md` the text was read from, the key of every per-file query."""
+        return self.location.ref
 
 
 @dataclass(frozen=True, slots=True)

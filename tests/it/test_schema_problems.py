@@ -125,7 +125,9 @@ def _skill_text(database: Database, ref: SkillRef) -> SkillText:
         database: The database the `SKILL.md` is decoded by.
         ref: A skill whose `SKILL.md` bytes are UTF-8.
     """
-    source = database.skill_text(ref)
+    location = database.model().find_skill_location(ref.directory)
+    assert location is not None, f'the model lists the skill {ref.directory}'
+    source = database.skill_text(location)
     assert isinstance(source, SkillText), f'{ref.path} was written as UTF-8, so it decodes'
     return source
 

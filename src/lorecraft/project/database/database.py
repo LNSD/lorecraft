@@ -16,7 +16,7 @@ input query builds a witness or fails to read, and each states its own carry-ove
 - `text(ref)`: one document's bytes decoded as UTF-8, like the IDE's document text for a file: a `DocumentText`
   witness, or an `Undecodable` marker when the bytes are not UTF-8. It is the one place a document's bytes become
   text for a rule, and it reads that document's bytes and nothing else.
-- `skill_text(ref)`: one skill's `SKILL.md` decoded, the same document text: a `SkillText` witness, or an
+- `skill_text(location)`: one skill's `SKILL.md` decoded, the same document text: a `SkillText` witness, or an
   `Undecodable` marker. It reads that skill's bytes and nothing else.
 - `skill_resources(skill)`: one skill's resources, the Markdown files inside it other than its top-level `SKILL.md`,
   like the IDE's listing of a content root's children, and the symlinks inside it whose chain leaves the
@@ -67,7 +67,7 @@ it read does, `governance(ref)` excepted, as its bullet states:
   same kind of shared analysis, derived from the alignment. It reads `outline_alignment(source)` and
   `document_lines(source)`, and nothing else.
 - `skill_frontmatter(source)`: one skill's frontmatter node, the same stub for a `SKILL.md`. It reads the text of
-  the witness `skill_text(ref)` returned and nothing else.
+  the witness `skill_text(location)` returned and nothing else.
 - `skill_parse(source)`: one skill's parse tree, the same syntax tree for a `SKILL.md`. It reads the text of the
   witness and nothing else.
 - `skill_lines(source)`: how many lines one skill's `SKILL.md` holds, like `tokens(source)` for a document: counted
@@ -146,11 +146,12 @@ skill entry changes at the path the link leads to, not at the ref's. A snapshot 
 and not back, so the model records each skill's `SkillLocation`, the resolved `SKILL.md` its ref leads to, and
 `advance` would look that path up in the change set. A link retargeted to another skill leaves every file's bytes as
 they were and the ref as it was, like a file's identity in the IDE, while its location changes. So a skill's
-decoded text, its frontmatter, its parse and its line count carry over only when the two models locate its ref at the
-same resolved file and that file's bytes did not change. A resource is named the same way, through the symlinks on
-the way to it, and its `SkillResourceLocation` records the resolved file: its decoded text and its parse carry over
-only when the two databases' `skill_resources` locate its ref at the same resolved file and that file's bytes did not
-change.
+decoded text, its frontmatter, its parse and its line count carry over only when the two models hand out an equal
+location for its ref (its resolved directory and its resolved `SKILL.md`) and that file's bytes did not change; the
+link target a skill's context reads is the one in the location its witness carries. A resource is named the same
+way, through the symlinks on the way to it, and its `SkillResourceLocation` records the resolved file: its decoded
+text and its parse carry over only when the two databases' `skill_resources` locate its ref at the same resolved file
+and that file's bytes did not change.
 """
 
 from collections.abc import Mapping
@@ -410,7 +411,7 @@ class Database:
 
         for location in self._model.skill_locations.values():
             if path == location.ref.path:
-                return _witness_text(self.skill_text(location.ref))
+                return _witness_text(self.skill_text(location))
             if path.is_relative_to(location.ref.directory):
                 for resource in self.skill_resources(location).resources:
                     if path == resource.ref.path:
@@ -423,20 +424,22 @@ class Database:
                 return None
         return None
 
-    def skill_text(self, ref: SkillRef) -> SkillText | Undecodable[SkillRef]:
+    def skill_text(self, location: SkillLocation) -> SkillText | Undecodable[SkillRef]:
         """One skill's `SKILL.md` decoded as UTF-8, read from the snapshot on the first call for its ref.
 
         The one place a `SKILL.md`'s bytes become text for a rule: every other query about it takes the witness this
-        returns.
+        returns, and the witness carries the location it was given. The location must be one `model()` hands out; any
+        other is a caller defect, and the witness built from it is cached under `location.ref` all the same.
         A `SKILL.md` that is not UTF-8 is cached as `Undecodable` like any answer, so it is decoded once.
 
-        Carry-over: kept for the next revision only when the next model locates the ref at the same resolved `SKILL.md`
-        and that file's bytes did not change.
+        Carry-over: kept for the next revision only when the next model hands out an equal location and that file's
+        bytes did not change.
 
         A skill that cannot be read is not cached, so each call raises the same error again.
 
         Args:
-            ref: The skill whose `SKILL.md` is decoded; the cache key, so one ref is decoded once.
+            location: The skill whose `SKILL.md` is decoded, as this database's model locates it; its ref is the
+                cache key, so one skill is decoded once.
 
         Returns:
             The witness, or `Undecodable` when the `SKILL.md` is present but not UTF-8: such bytes are a finding
@@ -446,10 +449,11 @@ class Database:
         Raises:
             SkillReadError: If the snapshot holds no regular file at the skill's path.
         """
+        ref = location.ref
         source = self._skill_texts.get(ref)
         if source is None:
             try:
-                source = SkillText(ref, self._skills.get_skill(ref).text)
+                source = SkillText(location, self._skills.get_skill(ref).text)
             except SkillDecodeError as exc:
                 source = Undecodable(ref, exc.source.failure)
             self._skill_texts[ref] = source
@@ -492,8 +496,9 @@ class Database:
             self._skill_resources[skill.ref] = resources
         return resources
 
-    # Takes the location its listing issued where `text` and `skill_text` take a ref: the model locates a document
-    # or a `SKILL.md` by its ref, but only the skill's resource listing locates a resource's file.
+    # Takes the location its listing issued where `text` takes a ref: the model locates a document by its ref, but
+    # only the skill's resource listing locates a resource's file. `skill_text` takes the model's location too, for
+    # the witness to carry it.
     def skill_resource_text(self, resource: SkillResourceLocation) -> SkillResourceText | Undecodable[SkillResourceRef]:
         """One resource of a skill decoded as UTF-8, read from the snapshot on the first call for its ref.
 
@@ -793,11 +798,11 @@ class Database:
     def skill_frontmatter(self, source: SkillText) -> FrontmatterNode:
         """The frontmatter of one skill's `SKILL.md`, parsed on the first call for its ref. Raises nothing.
 
-        Carry-over: kept for the next revision whenever `skill_text(source.ref)` is.
+        Carry-over: kept for the next revision whenever `skill_text(source.location)` is.
 
         Args:
-            source: The skill's `SKILL.md` text, as `skill_text(ref)` returns it; its ref is the cache key, so one ref
-                is parsed once.
+            source: The skill's `SKILL.md` text, as `skill_text(location)` returns it; its ref is the cache key, so one
+                skill is parsed once.
         """
         decoded = self._skill_frontmatters.get(source.ref)
         if decoded is None:
@@ -810,11 +815,11 @@ class Database:
 
         Cached apart from `skill_frontmatter(source)`, and holds no frontmatter, as a document's parse holds none.
 
-        Carry-over: kept for the next revision whenever `skill_text(source.ref)` is.
+        Carry-over: kept for the next revision whenever `skill_text(source.location)` is.
 
         Args:
-            source: The skill's `SKILL.md` text, as `skill_text(ref)` returns it; its ref is the cache key, so one ref
-                is parsed once.
+            source: The skill's `SKILL.md` text, as `skill_text(location)` returns it; its ref is the cache key, so one
+                skill is parsed once.
         """
         parsed = self._skill_parses.get(source.ref)
         if parsed is None:
@@ -828,11 +833,11 @@ class Database:
         Cached apart from `skill_parse(source)` and never read from it, as a document's token count is from its
         parse: the count needs the raw text, frontmatter included, not the tree.
 
-        Carry-over: kept for the next revision whenever `skill_text(source.ref)` is.
+        Carry-over: kept for the next revision whenever `skill_text(source.location)` is.
 
         Args:
-            source: The skill's `SKILL.md` text, as `skill_text(ref)` returns it; its ref is the cache key, so one ref
-                is counted once.
+            source: The skill's `SKILL.md` text, as `skill_text(location)` returns it; its ref is the cache key, so one
+                skill is counted once.
         """
         count = self._skill_line_counts.get(source.ref)
         if count is None:
@@ -849,8 +854,8 @@ class Database:
         Carry-over: kept for the next revision whenever `skill_frontmatter(source)` is.
 
         Args:
-            source: The skill's `SKILL.md` text, as `skill_text(ref)` returns it; its ref is the cache key, so one ref
-                is validated once.
+            source: The skill's `SKILL.md` text, as `skill_text(location)` returns it; its ref is the cache key, so one
+                skill is validated once.
 
         Returns:
             One entry, for the Agent Skills specification; none when the block is missing, not YAML or not a
@@ -871,8 +876,8 @@ class Database:
         Carry-over: kept for the next revision whenever `skill_frontmatter(source)` is.
 
         Args:
-            source: The skill's `SKILL.md` text, as `skill_text(ref)` returns it; its ref is the cache key, so one ref
-                is parsed once.
+            source: The skill's `SKILL.md` text, as `skill_text(location)` returns it; its ref is the cache key, so one
+                skill is parsed once.
         """
         found = self._skill_fields.get(source.ref)
         if found is None:
