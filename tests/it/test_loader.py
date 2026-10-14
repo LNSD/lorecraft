@@ -342,9 +342,6 @@ class TestLoadWorkspaceAmp:
         )
         assert crate.structure is not None, 'the structure specification is decoded'
         assert crate.structure.frontmatter is not None, 'the frontmatter schema is decoded with it'
-        assert crate.structure.frontmatter.path == SPECS_DIR / PathComponent.parse('code-crate.structure.json'), (
-            'the frontmatter schema carries the path of the specification it is written in'
-        )
 
 
 @pytest.mark.it

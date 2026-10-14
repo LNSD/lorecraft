@@ -38,6 +38,10 @@ class JsonType(Enum):
     STRING = 'string'
 
 
+type JsonTypes = tuple[JsonType, *tuple[JsonType, ...]]
+"""One or more JSON types: a `type` keyword names at least one, so a list of them is never empty."""
+
+
 @dataclass(frozen=True, slots=True)
 class FieldGuidance:
     """What a schema states about one field, to tell a reader how to write it.
@@ -169,7 +173,7 @@ class WrongTypeProblem:
 
     field: str
     message: str
-    expected: tuple[JsonType, ...]
+    expected: JsonTypes
     found: JsonType
     _: KW_ONLY
     guidance: FieldGuidance = FieldGuidance()

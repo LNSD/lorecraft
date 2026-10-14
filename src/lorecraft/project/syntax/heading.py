@@ -14,7 +14,7 @@ from .words import WordCount
 type HeadingLevel = Literal[1, 2, 3, 4, 5, 6]
 """A heading's depth: 1 for a title through 6, the deepest Markdown has."""
 
-SECTION_LEVEL: Final[int] = 2
+SECTION_LEVEL: Final[HeadingLevel] = 2
 """The heading level of a section: H1 is the title, and anything deeper is a subsection."""
 
 

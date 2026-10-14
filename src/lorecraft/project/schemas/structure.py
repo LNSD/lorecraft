@@ -97,7 +97,6 @@ from .frontmatter_problem import (
     FieldLimit,
     FrontmatterProblem,
     InvalidValueProblem,
-    JsonType,
     MaxFields,
     MinFields,
     MissingFieldProblem,
@@ -502,25 +501,28 @@ type OutlineEntry = SectionEntry | AnySections
 class FrontmatterSchema:
     """A structure specification's `frontmatter` key: a Draft 2020-12 JSON Schema describing an object.
 
-    Construction checks the schema, so an instance is proof of it: no code holding a `FrontmatterSchema` checks
-    it again. A malformed schema is refused with an error naming the specification file,
-    like every other rule of that file.
+    `parse` checks the schema, so an instance is proof of it: no code holding a `FrontmatterSchema` checks it
+    again. A malformed schema is refused with an error naming the specification file, like every other rule of
+    that file. The file's path is the structure specification's own (`StructureSpec.path`), not kept here.
 
     Attributes:
-        path: Root-relative path of the structure specification the schema is written in, quoted verbatim in
-            every violation it yields.
         schema: The decoded schema, frozen all the way down: every object in it is a `FrozenMapping` and every
-            array a tuple, so no holder can write to the schema the construction checked, at any depth.
+            array a tuple, so no holder can write to the schema `parse` checked, at any depth.
     """
 
-    path: RootRelativePath
     schema: FrozenMapping[str, Frozen]
 
-    def __post_init__(self) -> None:
+    @classmethod
+    def parse(cls, schema: FrozenMapping[str, Frozen], *, path: RootRelativePath) -> Self:
         """Refuse a schema a structure specification cannot hold a document's frontmatter to.
 
         That is a schema that is not a well-formed Draft 2020-12 schema, that leaves it for another resource or
         dialect anywhere inside it, or that does not describe an object.
+
+        Args:
+            schema: The file's `frontmatter` JSON Schema, as read.
+            path: Root-relative path of the structure specification the schema is written in, quoted verbatim in
+                every error it raises.
 
         Raises:
             InvalidFrontmatterSchemaError: If the schema is rejected by the Draft 2020-12 meta-schema.
@@ -532,23 +534,24 @@ class FrontmatterSchema:
         # `jsonschema` takes a JSON object only as a `dict` and an array only as a `list`, so every schema and
         # frontmatter it reads is handed to it as plain data, copied from the frozen value.
         try:
-            Draft202012Validator.check_schema(self.schema.to_plain())
+            Draft202012Validator.check_schema(schema.to_plain())
         except SchemaError as exc:
-            raise InvalidFrontmatterSchemaError(self.path, exc.message, source=exc) from exc
-        for subschema in _schemas_within(self.schema):
+            raise InvalidFrontmatterSchemaError(path, exc.message, source=exc) from exc
+        for subschema in _schemas_within(schema):
             if '$id' in subschema:
                 # An `$id` would make that schema a resource of its own, with its own base URI, and so change what
                 # every relative `$ref` beneath it resolves to.
-                raise FrontmatterSchemaIdError(self.path)
+                raise FrontmatterSchemaIdError(path)
             dialect = subschema.get('$schema', JSON_SCHEMA_DIALECT)
             if dialect != JSON_SCHEMA_DIALECT:
                 # The check applies every schema under Draft 2020-12, so a schema written for another dialect would
                 # be read by rules it was not written for.
-                raise ForeignFrontmatterDialectError(self.path, dialect)
+                raise ForeignFrontmatterDialectError(path, dialect)
         # A frontmatter is a mapping, so the schema must say so itself: a schema that left `type` out would accept
         # a list or a string where the frontmatter should be.
-        if self.schema.get('type') != 'object':
-            raise UntypedFrontmatterSchemaError(self.path)
+        if schema.get('type') != 'object':
+            raise UntypedFrontmatterSchemaError(path)
+        return cls(schema=schema)
 
     def validate(self, data: FrozenMapping[str, Frozen]) -> tuple[FrontmatterProblem, ...]:
         """Hold one decoded frontmatter to the schema. Pure: raises nothing.
@@ -586,6 +589,20 @@ class FrontmatterSchema:
         return tuple(problems)
 
 
+@dataclass(frozen=True, slots=True)
+class StatedFrontmatterSchema:
+    """A frontmatter schema with the structure specification that states it.
+
+    Attributes:
+        spec: Root-relative path of the structure specification the schema is written in, quoted verbatim in
+            every problem it reports.
+        schema: The frontmatter schema that specification states.
+    """
+
+    spec: RootRelativePath
+    schema: FrontmatterSchema
+
+
 def _frontmatter_problems(
     validator: Validator, error: SchemaValidationError, data: Mapping[str, Plain]
 ) -> list[FrontmatterProblem]:
@@ -609,7 +626,7 @@ def _frontmatter_problems(
                 WrongTypeProblem(
                     field,
                     error.message,
-                    tuple(JsonType(name) for name in keyword.names),
+                    keyword.names,
                     json_type_of(error.instance),
                     guidance=property_guidance(validator.schema, field),
                 )
@@ -1062,7 +1079,7 @@ def _frontmatter_schema(path: RootRelativePath, schema: FrozenMapping[str, Froze
     """The frontmatter schema a file's `frontmatter` key states, or None when the file states none.
 
     Args:
-        path: Root-relative path of the structure file, carried into the schema and any error it raises.
+        path: Root-relative path of the structure file, carried into any error it raises.
         schema: The file's `frontmatter` JSON Schema, as read; `None` when the file leaves it out.
 
     Raises:
@@ -1073,7 +1090,7 @@ def _frontmatter_schema(path: RootRelativePath, schema: FrozenMapping[str, Froze
     """
     if schema is None:
         return None
-    return FrontmatterSchema(path=path, schema=schema)
+    return FrontmatterSchema.parse(schema, path=path)
 
 
 def _problems(error: ValidationError) -> tuple[str, ...]:
