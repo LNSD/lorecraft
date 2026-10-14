@@ -29,9 +29,6 @@ needed to write a document's metadata, an alias can make a collection hold itsel
 counterpart for, and JSON names every key with a string.
 """
 
-import math
-import re
-import sys
 from collections.abc import Iterator, Sequence
 from dataclasses import dataclass
 from typing import Final, assert_never
@@ -71,34 +68,13 @@ from lorecraft.yaml.basic_yaml import (
     RefusedTagError,
     written_token,
 )
+from lorecraft.yaml.scalar import resolve_plain_scalar
 
 from .position import LineNumber
 from .syntax_error import SyntaxProblem, describe_control_character, describe_error
 
 _FIRST_BLOCK_LINE: Final[int] = 2
 """The document line the block's first YAML line sits on: the opening delimiter is always line 1."""
-
-_NULL_WORDS: Final[frozenset[str]] = frozenset({'', '~', 'null', 'Null', 'NULL'})
-"""The plain scalars YAML 1.2's core schema reads as null; the empty one is a key or an item written with no value."""
-
-_TRUE_WORDS: Final[frozenset[str]] = frozenset({'true', 'True', 'TRUE'})
-"""The plain scalars YAML 1.2's core schema reads as true."""
-
-_FALSE_WORDS: Final[frozenset[str]] = frozenset({'false', 'False', 'FALSE'})
-"""The plain scalars YAML 1.2's core schema reads as false."""
-
-_DECIMAL_INT: Final[re.Pattern[str]] = re.compile(r'[-+]?[0-9]+')
-"""A plain scalar YAML 1.2's core schema reads as a decimal integer. A leading zero does not make it octal."""
-
-_OCTAL_INT: Final[re.Pattern[str]] = re.compile(r'0o[0-7]+')
-"""A plain scalar YAML 1.2's core schema reads as an octal integer."""
-
-_HEX_INT: Final[re.Pattern[str]] = re.compile(r'0x[0-9a-fA-F]+')
-"""A plain scalar YAML 1.2's core schema reads as a hexadecimal integer."""
-
-_FLOAT: Final[re.Pattern[str]] = re.compile(r'[-+]?(\.[0-9]+|[0-9]+(\.[0-9]*)?)([eE][-+]?[0-9]+)?')
-"""A plain scalar YAML 1.2's core schema reads as a float. It matches every decimal integer too, so the integer
-patterns are tried first. The core schema's `.inf` and `.nan` are left out: JSON has no number for either."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -630,29 +606,7 @@ def _scalar_value(event: ScalarEvent) -> str | int | float | bool | None:
     # A quoted scalar, and a literal `|` or folded `>` block, has a style; only a plain one is resolved.
     if event.style is not None:
         return text
-    if text in _NULL_WORDS:
-        return None
-    if text in _TRUE_WORDS:
-        return True
-    if text in _FALSE_WORDS:
-        return False
-    if _OCTAL_INT.fullmatch(text):
-        return int(text.removeprefix('0o'), 8)
-    if _HEX_INT.fullmatch(text):
-        return int(text.removeprefix('0x'), 16)
-    # `int` refuses more decimal digits than the interpreter's integer string conversion limit, 4300 by default,
-    # so a longer integer stays the text it is written as. The octal and hexadecimal conversions have no limit.
-    if _DECIMAL_INT.fullmatch(text):
-        if len(text.lstrip('+-')) > sys.get_int_max_str_digits():
-            return text
-        return int(text)
-    if _FLOAT.fullmatch(text):
-        number = float(text)
-        # An exponent past what a float holds converts to infinity, which JSON has no number for, so the scalar
-        # stays the text it is written as, like `.inf`.
-        if not math.isinf(number):
-            return number
-    return text
+    return resolve_plain_scalar(text)
 
 
 def _to_mapping(entries: Sequence[_Entry]) -> FrozenMapping[str, Frozen]:
