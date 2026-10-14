@@ -358,13 +358,14 @@ Before committing code, verify:
 - [python-fn-names](python-fn-names.md) - Related: The return type a function's name promises
 - [python-docstrings](python-docstrings.md) - Related: The `Args:`/`Returns:` prose that accompanies a
   signature
-- [python-constants](python-constants.md) - Related: When a module-level name is annotated `Final[...]`
 - [python-modules](python-modules.md) - Related: Import placement and ordering, including the
   `TYPE_CHECKING` block
 - [python-typing-unreachable](python-typing-unreachable.md) - Related: Owns `Never`, the `match` closed by
   `assert_never` over a closed union, and the paths `ty` cannot prove dead
 - [python-typing-protocol](python-typing-protocol.md) - Related: Owns choosing between a closed union, a
   `Protocol` and an ABC, and which `collections.abc` type annotates an operation
+- [python-typing-constants](python-typing-constants.md) - Related: Owns when a module-level name is annotated
+  `Final[...]`, and the immutable value it holds
 - [python-typing-newtype](python-typing-newtype.md) - Related: Owns the static distinction for a value no
   runtime check can tell apart
 - [pattern-value-object](pattern-value-object.md) - Related: Owns the value object that validates its

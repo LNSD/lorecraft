@@ -1,5 +1,5 @@
 ---
-name: "python-constants"
+name: "python-typing-constants"
 description: "Module-level constants: the `Final[T]` annotation, the explicit type inside it, and immutable values behind a `Final` name. Load when declaring or reviewing a module-level constant, a lookup table, or a value computed once at import"
 type: "core"
 scope: "global"
@@ -97,9 +97,9 @@ Before committing code, verify:
 
 ## References
 
+- [python-typing](python-typing.md) - Extends: Owns the spelling of the type written inside `Final[...]`
 - [python-frozenset](python-frozenset.md) - Related: Owns when a set, or a collection only tested with `in`, is a
   `frozenset`
-- [python-typing](python-typing.md) - Related: The spelling of the type written inside `Final[...]`
 - [python-naming](python-naming.md) - Related: `SCREAMING_SNAKE` casing, and class-level `ClassVar` constants
 - [python-docstrings](python-docstrings.md) - Related: The comment that states why a constant has its value
 - [pattern-registry](pattern-registry.md) - Related: The mutable module-level registry that is not a constant

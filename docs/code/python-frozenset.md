@@ -12,7 +12,7 @@ grows or shrinks", `tuple` says "the order is read", and a reader takes each at 
 one that says the values are a fixed group with no order.
 
 The `Final` annotation that goes with a module constant is owned by
-[python-constants](python-constants.md). The record fields that hold a set are declared as
+[python-typing-constants](python-typing-constants.md). The record fields that hold a set are declared as
 [python-dataclasses](python-dataclasses.md) owns. This document is about when a set is a `frozenset`.
 
 ## 1. A Set Built Once Is a `frozenset`
@@ -118,8 +118,8 @@ Before committing code, verify:
 
 ## References
 
-- [python-constants](python-constants.md) - Related: Owns the `Final[T]` annotation and the immutable value
-  behind a constant name
+- [python-typing-constants](python-typing-constants.md) - Related: Owns the `Final[T]` annotation and the
+  immutable value behind a constant name
 - [python-dataclasses](python-dataclasses.md) - Related: Owns how a frozen record declares its fields
 - [python-typing](python-typing.md) - Related: Owns the spelling of builtin generics in an annotation
 
