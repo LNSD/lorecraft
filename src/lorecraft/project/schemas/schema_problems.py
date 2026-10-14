@@ -7,11 +7,11 @@ specification's, so each set of problems names the schema it was found against.
 """
 
 from dataclasses import dataclass
-from typing import Final, assert_never
+from typing import assert_never
 
-from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.syntax import (
+    FIRST_LINE,
     Frontmatter,
     FrontmatterNode,
     InvalidYamlFrontmatter,
@@ -30,9 +30,6 @@ from .frontmatter_problem import (
 )
 from .frontmatter_schema import StatedFrontmatterSchema
 from .skill import SKILL_FRONTMATTER_SCHEMA
-
-FIRST_LINE: Final[LineNumber] = LineNumber(NonZeroUnsignedInt(1))
-"""Where an occurrence with no more precise line is reported: the subject's first line, which opens the block."""
 
 
 @dataclass(frozen=True, slots=True)

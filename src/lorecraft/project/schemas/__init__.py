@@ -47,7 +47,6 @@ from .outline_divergence import (
 )
 from .repo import Repository, StructureSchemaReadError
 from .schema_problems import (
-    FIRST_LINE,
     AgentSkillsSchema,
     LocatedProblem,
     SchemaProblems,
@@ -195,7 +194,6 @@ __all__: list[str] = [
     'MinFields',
     'MaxFields',
     'OtherBlockConstraint',
-    'FIRST_LINE',
     'field_line',
     'SchemaSource',
     'StructureSpecSchema',

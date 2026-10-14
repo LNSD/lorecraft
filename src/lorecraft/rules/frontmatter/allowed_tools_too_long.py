@@ -13,7 +13,7 @@ from lorecraft.rules.location import Help, Here, Label, Note, Subdiagnostic
 from lorecraft.rules.overrun import Overrun, find_overrun
 from lorecraft.rules.subject import SkillRule
 
-from .__ruleset__ import GROUP_ID, allowed_tools_note
+from .__ruleset__ import ALLOWED_TOOLS_NOTE, GROUP_ID
 
 _CHARACTER_LIMIT: Final[NonZeroUnsignedInt] = NonZeroUnsignedInt(500)
 """Lorecraft's recommended length, matching the compatibility field's maximum."""
@@ -86,7 +86,7 @@ class AllowedToolsTooLong(SkillRule):
     def children(self) -> tuple[Subdiagnostic, ...]:
         """Say where the field is specified, how to shorten the value, and whose limit this is."""
         return (
-            allowed_tools_note(),
+            ALLOWED_TOOLS_NOTE,
             Help(
                 'keep only the tools the skill needs, and merge patterns such as '
                 '`Bash(git diff *) Bash(git log *)` into `Bash(git *)`'

@@ -15,7 +15,7 @@ from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.location import Elsewhere, Help, Note
 from lorecraft.rules.tests.fake_context import FakeDocumentContext, namespace_spec, structure_spec_path
 
-from ..empty_section import EmptySection, EmptyTitle, OtherSection
+from ..empty_section import EmptySection, EmptyTitle, OtherSection, SectionRole
 
 CORPUS_SPEC: Final[RootRelativePath] = structure_spec_path('guide')
 """The corpus structure file."""
@@ -232,7 +232,7 @@ class TestEmptySection:
             EmptySection(spec=CORPUS_SPEC, line=LineNumber(NonZeroUnsignedInt(3)), section='Install', role=entry),
         ), 'the entry is looked up across every specification, not only the one that forbids empty sections'
 
-    def _occurrence(self, role: EmptyTitle | SectionEntry | OtherSection) -> EmptySection:
+    def _occurrence(self, role: SectionRole) -> EmptySection:
         return EmptySection(spec=CORPUS_SPEC, line=LineNumber(NonZeroUnsignedInt(3)), section='Install', role=role)
 
     def test_children_with_a_section_the_outline_does_not_require_say_to_omit_it(self) -> None:

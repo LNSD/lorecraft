@@ -1,20 +1,16 @@
 """`OUT001`: a document a structure file governs carries no H1 title."""
 
 from dataclasses import dataclass
-from typing import ClassVar, Final, Self
+from typing import ClassVar, Self
 
-from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.project.context import DocumentContext
-from lorecraft.project.syntax import LineNumber, find_title
+from lorecraft.project.syntax import FIRST_LINE, find_title
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Subdiagnostic
 from lorecraft.rules.subject import DocumentRule, Facet
 
 from .__ruleset__ import GROUP_ID
-
-_FIRST_LINE: Final[LineNumber] = LineNumber(NonZeroUnsignedInt(1))
-"""Where an occurrence is reported: the document's first line, since a missing title has no heading of its own."""
 
 
 @rule
@@ -94,4 +90,4 @@ class MissingTitle(DocumentRule):
         """
         if find_title(subject.parse().headings) is not None:
             return ()
-        return (cls(line=_FIRST_LINE),)
+        return (cls(line=FIRST_LINE),)

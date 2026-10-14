@@ -8,7 +8,6 @@ from lorecraft.core.path import RootRelativePath
 # The module, not its classes: this rule's own name is the syntax's `NonMappingFrontmatter`.
 from lorecraft.project import syntax
 from lorecraft.project.context import FrontmatterContext, FrontmatterOwner
-from lorecraft.project.schemas import FIRST_LINE
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Subdiagnostic
@@ -110,7 +109,7 @@ class NonMappingFrontmatter(FrontmatterRule):
         frontmatter = subject.frontmatter()
         match frontmatter:
             case syntax.NonMappingFrontmatter():
-                return (cls(owner=subject.frontmatter_owner(), line=FIRST_LINE),)
+                return (cls(owner=subject.frontmatter_owner(), line=syntax.FIRST_LINE),)
             case syntax.MissingFrontmatter() | syntax.InvalidYamlFrontmatter() | syntax.Frontmatter():
                 return ()
             case _:

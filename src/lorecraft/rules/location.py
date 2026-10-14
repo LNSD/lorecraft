@@ -52,6 +52,7 @@ type Primary = Here | WholeSubject
 type Location = Here | Elsewhere
 
 
+# `at` leads here because a label always has one, and the others trail `text` because theirs is optional.
 @dataclass(frozen=True, slots=True)
 class Label:
     """Text attached to a location of a subject with lines: what is wrong there, or how it relates.
@@ -95,6 +96,7 @@ class Note:
 type Subdiagnostic = Help | Note
 
 
+# `at` leads, as in `Label`: a label always has one.
 @dataclass(frozen=True, slots=True)
 class EntryLabel:
     """Text attached to a place in another file, for a layout entry, which has no lines of its own.
