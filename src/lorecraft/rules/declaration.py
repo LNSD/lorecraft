@@ -1,4 +1,4 @@
-"""How a rule is declared: its identity values, the rule class that declares it, and `@rule`.
+"""How a rule is declared: its identity values and the rule class that declares it.
 
 A rule is one class. The class is the declaration and the check: its code, name, default level, the
 release it is stable since and its documentation, as class attributes and the docstring, and the `check`
@@ -8,10 +8,6 @@ A retired rule is a `RemovedRule`, which is not a `Rule`, so it can never be bui
 engine itself reports about a subject, such as a file that does not decode, is an `EngineCondition`: declared
 and rendered like a rule, but with an `EngineCode`, a fixed `Severity` in place of a level, and no `check`. It derives
 from `FileCondition` or `EntryCondition`, as a rule does from `ContentRule` or `LayoutRule`.
-
-`@rule` records each declaration as its module is imported. The registry walks a rules package, imports every
-module in it but its unit tests, and keeps the declarations whose module lies in that package outside its unit
-tests, so the rules a test declares never reach the package's own registry.
 
 A `Release`, a `RuleName`, a `RuleGroupPrefix`, a `LinterName` and an `UpstreamCode` are value objects, which
 cannot know whether their caller wrote a literal or parsed a file or a command line, so their format raises an
@@ -851,29 +847,3 @@ class EntryCondition(EngineCondition):
 # What `@rule` registers: a rule in service, as its class, a retired one, or an engine condition of a file or of an
 # entry. `EngineCondition` itself is left out, so a condition of neither base is a type error where it is declared.
 type RuleDeclaration = type[Rule | RemovedRule | FileCondition | EntryCondition]
-
-# Every declaration `@rule` has seen in this process, in the order their modules were imported. A rules
-# package's registry keeps those whose module lies in it.
-_declared: list[RuleDeclaration] = []
-
-
-# The type parameter only carries the decorated class's own type through, so a rule's name still names its class
-# for the type checker; it ranges over no subject kind, and the registry takes none, as adr-009 states. Without the
-# parameter, every decorated name would be retyped as `RuleDeclaration`, and a rule's own fields and `check` would
-# no longer type-check at its call sites.
-def rule[T: Rule | RemovedRule | FileCondition | EntryCondition](declaration: type[T]) -> type[T]:
-    """Register a rule's class, a removed rule or an engine condition, as its module is imported.
-
-    Args:
-        declaration: The class that declares the rule.
-
-    Returns:
-        The class unchanged.
-    """
-    _declared.append(declaration)
-    return declaration
-
-
-def declared_rules() -> tuple[RuleDeclaration, ...]:
-    """Every declaration `@rule` has registered in this process, from every package, in the order seen."""
-    return tuple(_declared)

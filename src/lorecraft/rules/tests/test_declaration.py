@@ -6,6 +6,7 @@ from lorecraft.core.error import Error
 from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.project.syntax import LineNumber
 
+from ..collector import declared_rules
 from ..declaration import (
     ENGINE_GROUP,
     AliasCode,
@@ -35,7 +36,6 @@ from ..declaration import (
     Severity,
     TrailingHyphenRuleNameError,
     UpstreamCode,
-    declared_rules,
 )
 from ..location import Here, WholeSubject
 from .sample_rules.groups import SAMPLE

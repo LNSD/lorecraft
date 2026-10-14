@@ -4,7 +4,8 @@ from dataclasses import dataclass
 from typing import ClassVar, Self
 
 from lorecraft.project.context import DocumentContext
-from lorecraft.rules.declaration import Level, Release, RuleCode, RuleName, rule
+from lorecraft.rules.collector import rule
+from lorecraft.rules.declaration import Level, Release, RuleCode, RuleName
 from lorecraft.rules.subject import DocumentRule
 
 from ..groups import SAMPLE

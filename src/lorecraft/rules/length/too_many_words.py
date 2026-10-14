@@ -6,7 +6,8 @@ from typing import ClassVar, Final, Self, assert_never
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.context import DocumentContext
 from lorecraft.project.schemas import AnyRunAlignment, NamedAlignment, UnalignedSection
-from lorecraft.rules.declaration import Level, Release, RuleCode, RuleName, rule
+from lorecraft.rules.collector import rule
+from lorecraft.rules.declaration import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Here, Label, Note, Subdiagnostic
 from lorecraft.rules.overrun import Overrun, find_overrun
 from lorecraft.rules.subject import DocumentRule, Facet

@@ -15,7 +15,8 @@ from lorecraft.project.link_target import (
     SkillRoot,
 )
 from lorecraft.project.syntax import AbsoluteDestination, ExternalDestination, FragmentDestination, RelativeDestination
-from lorecraft.rules.declaration import Level, Release, RuleCode, RuleName, rule
+from lorecraft.rules.collector import rule
+from lorecraft.rules.declaration import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Note, Subdiagnostic
 from lorecraft.rules.subject import MarkdownRule
 

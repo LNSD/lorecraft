@@ -6,7 +6,8 @@ from typing import ClassVar, Final, Self
 from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.project.context import SkillContext
 from lorecraft.project.syntax import LineNumber
-from lorecraft.rules.declaration import Level, Release, RuleCode, RuleName, rule
+from lorecraft.rules.collector import rule
+from lorecraft.rules.declaration import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Here, Label, Note, Subdiagnostic
 from lorecraft.rules.overrun import Overrun, find_overrun
 from lorecraft.rules.subject import SkillRule

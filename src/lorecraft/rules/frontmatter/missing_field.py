@@ -13,7 +13,8 @@ from lorecraft.project.schemas import (
     UnknownFieldProblem,
     WrongTypeProblem,
 )
-from lorecraft.rules.declaration import Level, Release, RuleCode, RuleName, rule
+from lorecraft.rules.collector import rule
+from lorecraft.rules.declaration import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Subdiagnostic
 from lorecraft.rules.subject import FrontmatterRule
 

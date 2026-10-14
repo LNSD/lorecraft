@@ -6,7 +6,8 @@ from typing import ClassVar, Self
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.context import DocumentContext
 from lorecraft.project.syntax import count_words, find_title
-from lorecraft.rules.declaration import Level, Release, RuleCode, RuleName, rule
+from lorecraft.rules.collector import rule
+from lorecraft.rules.declaration import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Here, Label, Subdiagnostic
 from lorecraft.rules.overrun import Overrun, find_overrun
 from lorecraft.rules.subject import DocumentRule, Facet
