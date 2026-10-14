@@ -111,7 +111,8 @@ def _ref(directory: str) -> SkillRef:
     Args:
         directory: Root-relative path of the skill directory.
     """
-    return SkillRef(RootRelativePath.parse(directory))
+    path = RootRelativePath.parse(directory)
+    return SkillRef(ResolvedPath(path.parent), PathComponent.parse(path.value.name))
 
 
 def _location(directory: str) -> SkillLocation:
@@ -123,7 +124,7 @@ def _location(directory: str) -> SkillLocation:
     path = RootRelativePath.parse(directory)
     # No link on the way, so the directory and its `SKILL.md` are their own resolved paths.
     return SkillLocation(
-        SkillRef(path),
+        SkillRef(ResolvedPath(path.parent), PathComponent.parse(path.value.name)),
         resolves_to=ResolvedPath(path),
         file_resolves_to=ResolvedPath(path / PathComponent.parse('SKILL.md')),
     )
@@ -137,8 +138,9 @@ def _linked_location(directory: str, resolves_to: str, file_resolves_to: str) ->
         resolves_to: Root-relative path the skill directory resolves to.
         file_resolves_to: Root-relative path the skill's `SKILL.md` resolves to.
     """
+    path = RootRelativePath.parse(directory)
     return SkillLocation(
-        SkillRef(RootRelativePath.parse(directory)),
+        SkillRef(ResolvedPath(path.parent), PathComponent.parse(path.value.name)),
         resolves_to=ResolvedPath(RootRelativePath.parse(resolves_to)),
         file_resolves_to=ResolvedPath(RootRelativePath.parse(file_resolves_to)),
     )

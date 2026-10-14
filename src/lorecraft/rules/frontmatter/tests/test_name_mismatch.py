@@ -10,7 +10,7 @@ from typing import Final
 
 import pytest
 
-from lorecraft.core.path import ROOT, RootRelativePath
+from lorecraft.core.path import ROOT, PathComponent, RootRelativePath
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.location import Help, Here, Label, Note
 from lorecraft.rules.tests.fake_context import FakeDocumentContext, FakeSkillContext, structure_spec_path
@@ -170,7 +170,7 @@ class TestNameMismatch:
                 spec=None,
                 line=LineNumber.from_int(2),
                 name='code-review',
-                expectation=DirectoryNameExpected(directory_name='review', link_target=SHIPPED),
+                expectation=DirectoryNameExpected(directory_name=PathComponent.parse('review'), link_target=SHIPPED),
             ),
         ), 'a skill is held to the name it is listed under, never to the name of the directory a link leads to'
 
@@ -204,7 +204,7 @@ class TestNameMismatch:
 
     def test_labels_with_a_skill_name_the_directory_name_expected_on_the_name_line(self) -> None:
         #: Given
-        expectation = DirectoryNameExpected(directory_name='review', link_target=None)
+        expectation = DirectoryNameExpected(directory_name=PathComponent.parse('review'), link_target=None)
         occurrence = NameMismatch(spec=None, line=LineNumber.from_int(2), name='code-review', expectation=expectation)
 
         #: When
@@ -233,7 +233,7 @@ class TestNameMismatch:
 
     def test_children_with_a_skill_reached_through_a_link_name_where_it_leads(self) -> None:
         #: Given
-        expectation = DirectoryNameExpected(directory_name='review', link_target=SHIPPED)
+        expectation = DirectoryNameExpected(directory_name=PathComponent.parse('review'), link_target=SHIPPED)
         occurrence = NameMismatch(spec=None, line=LineNumber.from_int(2), name='code-review', expectation=expectation)
 
         #: When
@@ -250,7 +250,7 @@ class TestNameMismatch:
     def test_children_with_a_skill_linked_to_a_directory_of_the_same_name_carry_no_link_note(self) -> None:
         #: Given
         same_name = ResolvedPath(RootRelativePath.parse('skills/review'))
-        expectation = DirectoryNameExpected(directory_name='review', link_target=same_name)
+        expectation = DirectoryNameExpected(directory_name=PathComponent.parse('review'), link_target=same_name)
         occurrence = NameMismatch(spec=None, line=LineNumber.from_int(2), name='code-review', expectation=expectation)
 
         #: When
@@ -265,7 +265,7 @@ class TestNameMismatch:
 
     def test_children_with_a_skill_name_over_the_length_cap_offer_no_directory_rename(self) -> None:
         #: Given
-        expectation = DirectoryNameExpected(directory_name='review', link_target=None)
+        expectation = DirectoryNameExpected(directory_name=PathComponent.parse('review'), link_target=None)
         occurrence = NameMismatch(spec=None, line=LineNumber.from_int(2), name='a' * 70, expectation=expectation)
 
         #: When
@@ -279,7 +279,9 @@ class TestNameMismatch:
 
     def test_children_with_a_skill_linked_to_the_root_name_the_repository_root(self) -> None:
         #: Given
-        expectation = DirectoryNameExpected(directory_name='review', link_target=ResolvedPath(ROOT))
+        expectation = DirectoryNameExpected(
+            directory_name=PathComponent.parse('review'), link_target=ResolvedPath(ROOT)
+        )
         occurrence = NameMismatch(spec=None, line=LineNumber.from_int(2), name='code-review', expectation=expectation)
 
         #: When

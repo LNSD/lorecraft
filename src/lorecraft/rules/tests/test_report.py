@@ -2,7 +2,7 @@
 
 import pytest
 
-from lorecraft.core.path import RootRelativePath
+from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.document import DocumentRef
@@ -16,7 +16,7 @@ from lorecraft.rules.tests.sample_rules.token_count.sample_condition import Samp
 from lorecraft.rules.tests.sample_rules.valid.outline.empty_line import EmptyLine
 from lorecraft.rules.tests.sample_rules.valid.trailing_space import TrailingSpace
 from lorecraft.rules.tests.sample_rules.valid.uppercase_entry import UppercaseEntry
-from lorecraft.vfs import ByteOffset, Utf8Failure, Utf8Line, Utf8Reason
+from lorecraft.vfs import ByteOffset, ResolvedPath, Utf8Failure, Utf8Line, Utf8Reason
 
 from ..report import (
     CheckedDocument,
@@ -184,7 +184,7 @@ class TestEngineDiagnostic:
 class TestCheckedSkillFile:
     def test_checked_skill_file_with_diagnostics_out_of_order_holds_them_in_diagnostic_order(self) -> None:
         #: Given
-        ref = SkillRef(RootRelativePath.parse('.agents/skills/review'))
+        ref = SkillRef(ResolvedPath(RootRelativePath.parse('.agents/skills')), PathComponent.parse('review'))
         later = RuleDiagnostic(ref.path, TrailingSpace(spec=None, line=LineNumber.from_int(10)), Severity.ERROR)
         earlier = RuleDiagnostic(ref.path, TrailingSpace(spec=None, line=LineNumber.from_int(2)), Severity.ERROR)
 
@@ -241,7 +241,9 @@ class TestUndecodableSubject:
 
     def test_diagnostics_of_an_undecodable_skill_are_invalid_utf8_at_its_skill_file(self) -> None:
         #: Given
-        subject = UndecodableSubject(SkillRef(RootRelativePath.parse('.agents/skills/review')), _failure(4))
+        subject = UndecodableSubject(
+            SkillRef(ResolvedPath(RootRelativePath.parse('.agents/skills')), PathComponent.parse('review')), _failure(4)
+        )
 
         #: When
         diagnostics = subject.diagnostics

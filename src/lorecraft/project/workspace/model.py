@@ -355,7 +355,10 @@ class WorkspaceModel:
             directory: Skill directory to look up, `<resolved skills directory>/<entry>`, compared whole and
                 lexically: an entry that is a link is found by its own name, never by the directory it leads to.
         """
-        return self.skill_locations.get(SkillRef(directory))
+        name = directory.name
+        if name is None:
+            return None  # the root is no skill's directory
+        return self.skill_locations.get(SkillRef(ResolvedPath(directory.parent), name))
 
     def has_skills_dir(self, resolved_path: ResolvedPath) -> bool:
         """True when a skills directory the model lists leads to this resolved path.
@@ -373,14 +376,14 @@ class WorkspaceModel:
         """The locations of the skills listed directly inside this resolved directory.
 
         Args:
-            resolved_path: A resolved directory, root-relative, matched against each skill directory's parent.
+            resolved_path: A resolved directory, root-relative, matched against each skill's skills directory.
 
         Returns:
             Every such skill's location, in the model's order, or `()` when the directory holds none.
         """
         locations: list[SkillLocation] = []
         for location in self.sorted_skill_locations:
-            if location.ref.directory.parent == resolved_path:
+            if location.ref.skills_dir == resolved_path:
                 locations.append(location)
         return tuple(locations)
 
@@ -413,14 +416,14 @@ class WorkspaceModel:
         """The agents that read a skill: those with a skills directory that leads to the one holding it.
 
         Args:
-            ref: Skill whose directory's parent is matched against each skills directory's resolved directory.
+            ref: Skill whose skills directory is matched against each skills directory's resolved directory.
 
         Returns:
             The agents in name order, each once, or ``()`` when no skills directory leads there.
         """
         agents: list[AgentName] = []
         for skills_dir in self.sorted_skills_dirs:
-            if skills_dir.resolves_to == ref.directory.parent and skills_dir.agent not in agents:
+            if skills_dir.resolves_to == ref.skills_dir and skills_dir.agent not in agents:
                 agents.append(skills_dir.agent)
         return tuple(agents)
 

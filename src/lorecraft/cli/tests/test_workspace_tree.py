@@ -114,7 +114,7 @@ def _regular_skill(directory: str) -> SkillLocation:
     path = _path(directory)
     # No link on the way, so the directory and its `SKILL.md` are their own resolved paths.
     return SkillLocation(
-        SkillRef(path),
+        SkillRef(ResolvedPath(path.parent), PathComponent.parse(path.value.name)),
         resolves_to=ResolvedPath(path),
         file_resolves_to=ResolvedPath(path / PathComponent.parse('SKILL.md')),
     )

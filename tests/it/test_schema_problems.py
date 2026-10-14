@@ -10,7 +10,7 @@ from typing import Final
 
 import pytest
 
-from lorecraft.core.path import RootRelativePath
+from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.database import Database, DocumentText, SkillText
@@ -29,12 +29,14 @@ from lorecraft.project.schemas import (
 from lorecraft.project.skill import SkillRef
 from lorecraft.project.syntax import FrontmatterNode, LineNumber
 from lorecraft.project.workspace import WorkspaceModel
-from lorecraft.vfs import Snapshot, VirtualFileSystem
+from lorecraft.vfs import ResolvedPath, Snapshot, VirtualFileSystem
 
 TYPING: Final[DocumentRef] = DocumentRef(CorpusName.parse('code'), AspectFilename.parse('python-typing'))
 """A document of corpus `code` its `python` namespace governs too."""
 
-REVIEW: Final[SkillRef] = SkillRef(RootRelativePath.parse('.agents/skills/review'))
+REVIEW: Final[SkillRef] = SkillRef(
+    ResolvedPath(RootRelativePath.parse('.agents/skills')), PathComponent.parse('review')
+)
 """A skill an agent reaches under `.agents/skills`."""
 
 CORPUS_SPEC: Final[RootRelativePath] = RootRelativePath.parse('docs/__meta__/code.structure.json')

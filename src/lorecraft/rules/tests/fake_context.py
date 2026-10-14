@@ -297,7 +297,7 @@ class FakeSkillContext:
     """A skill whose `SKILL.md` a test writes as text, listed where the test names; a `SkillContext`."""
 
     _text: str
-    _directory_name: str
+    _directory_name: PathComponent
     _link_target: ResolvedPath | None
 
     def __init__(
@@ -311,10 +311,10 @@ class FakeSkillContext:
             link_target: The resolved directory the listed directory leads to when it is a link, or `None`.
         """
         self._text = text
-        self._directory_name = directory_name
+        self._directory_name = PathComponent.parse(directory_name)
         self._link_target = link_target
 
-    def directory_name(self) -> str:
+    def directory_name(self) -> PathComponent:
         """The name of the skill's directory, as the test named it."""
         return self._directory_name
 
@@ -340,7 +340,7 @@ class FakeSkillContext:
 
     def link_base(self) -> SkillRoot:
         """The skill directory, under the skills directory, at the name the test listed it under."""
-        return SkillRoot(_SKILLS_DIRECTORY / PathComponent.parse(self._directory_name))
+        return SkillRoot(_SKILLS_DIRECTORY / self._directory_name)
 
     def link_targets(self) -> Mapping[NormalisedLinkPath, LinkTargetEntry]:
         """None: a fake skill holds no link target."""

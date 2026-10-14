@@ -9,7 +9,7 @@ from typing import Final
 
 import pytest
 
-from lorecraft.core.path import RootRelativePath
+from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.location import Elsewhere, Help, Here, Label, Note
 from lorecraft.rules.tests.fake_context import FakeDocumentContext, FakeSkillContext, structure_spec_path
@@ -62,9 +62,9 @@ class TestMissingFrontmatter:
         occurrences = MissingFrontmatter.check(subject)
 
         #: Then
-        assert occurrences == (MissingFrontmatter(spec=None, line=LineNumber.from_int(1), directory_name='review'),), (
-            'the package states the rule for a skill, after the Agent Skills specification'
-        )
+        assert occurrences == (
+            MissingFrontmatter(spec=None, line=LineNumber.from_int(1), directory_name=PathComponent.parse('review')),
+        ), 'the package states the rule for a skill, after the Agent Skills specification'
 
     def test_check_with_a_block_that_is_not_yaml_reports_nothing(self) -> None:
         #: Given
@@ -135,7 +135,9 @@ class TestMissingFrontmatter:
 
     def test_children_with_a_skill_name_the_agent_skills_specification_and_show_the_skeleton(self) -> None:
         #: Given
-        occurrence = MissingFrontmatter(spec=None, line=LineNumber.from_int(1), directory_name='review')
+        occurrence = MissingFrontmatter(
+            spec=None, line=LineNumber.from_int(1), directory_name=PathComponent.parse('review')
+        )
 
         #: When
         children = occurrence.children()
