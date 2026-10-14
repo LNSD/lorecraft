@@ -22,6 +22,8 @@ A malformed entry may be read as a different set of pre-approved tools than the 
 
 ## Example
 
+`.agents/skills/review/SKILL.md`:
+
 ```markdown
 ---
 name: review

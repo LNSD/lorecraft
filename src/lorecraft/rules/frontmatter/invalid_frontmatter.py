@@ -39,7 +39,7 @@ class InvalidFrontmatter(FrontmatterRule):
     A constraint that names a key is not the block's: a key `propertyNames` rejects, and a field whose
     `dependentRequired` fields are missing, are reported by `invalid-value` on that key's line.
 
-    The help is the description the schema states for the block, when it states one, and the validator's own wording
+    The help is the description the schema states for the block, when it states one, and the schema's own wording
     is shown as a note.
 
     ## Why is this bad?

@@ -22,7 +22,7 @@ rejects, or whose `dependentRequired` fields are not all written, is reported he
 The label says which constraint the value broke, for an `enum`, a `const` or a `pattern`. The help is the reason
 the failing subschema gives in its `$comment`, which this repository's schemas use to say why a branch is there,
 or else the property's `description`; the allowed values and the property's first example follow. The
-validator's own wording is shown as a note only for another keyword.
+schema's own wording is shown as a note only for another keyword.
 
 ## Why is this bad?
 

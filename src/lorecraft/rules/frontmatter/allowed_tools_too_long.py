@@ -33,13 +33,14 @@ class AllowedToolsTooLong(SkillRule):
 
     ## Why is this bad?
 
-    A long list of pre-approved tools is harder to review for unnecessary permissions and overlapping patterns.
+    A long list of pre-approved tools hides which permissions the skill really needs: an agent running the skill holds
+    every tool the list approves, so each unnecessary or overlapping entry widens what it may do without asking.
 
     ## Example
 
     `.agents/skills/review/SKILL.md`, with more than 500 characters in `allowed-tools`:
 
-    ```yaml
+    ```markdown
     ---
     name: review
     description: Review a change.
@@ -53,7 +54,7 @@ class AllowedToolsTooLong(SkillRule):
 
     Keep only the permissions the skill needs:
 
-    ```yaml
+    ```markdown
     ---
     name: review
     description: Review a change.
