@@ -43,7 +43,15 @@ def _duplicate(*, key: str) -> DuplicateKey:
 class TestDuplicateKey:
     def test_check_with_a_key_written_three_times_reports_each_later_occurrence_against_the_first(self) -> None:
         #: Given
-        text = '---\nname: setup\nname: setup\ndescription: Install.\nname: other\n---\n# Setup\n'
+        text = dedent("""\
+            ---
+            name: setup
+            name: setup
+            description: Install.
+            name: other
+            ---
+            # Setup
+            """)
         subject = FakeDocumentContext(text, corpus='guide', structure=STRUCTURE)
 
         #: When
@@ -62,7 +70,14 @@ class TestDuplicateKey:
 
     def test_check_with_a_nested_key_of_a_top_level_name_reports_nothing(self) -> None:
         #: Given
-        text = '---\nname: setup\nmetadata:\n  name: inner\n---\n# Setup\n'
+        text = dedent("""\
+            ---
+            name: setup
+            metadata:
+              name: inner
+            ---
+            # Setup
+            """)
         subject = FakeDocumentContext(text, corpus='guide', structure=STRUCTURE)
 
         #: When
@@ -99,7 +114,13 @@ class TestDuplicateKey:
 
     def test_check_with_a_skill_repeating_a_key_reports_it_under_no_specification_file(self) -> None:
         #: Given
-        subject = FakeSkillContext('---\nname: review\nname: review\n---\n')
+        text = dedent("""\
+            ---
+            name: review
+            name: review
+            ---
+            """)
+        subject = FakeSkillContext(text)
 
         #: When
         occurrences = DuplicateKey.check(subject)
@@ -117,7 +138,13 @@ class TestDuplicateKey:
 
     def test_check_with_no_key_repeated_reports_nothing(self) -> None:
         #: Given
-        text = '---\nname: setup\ndescription: Install.\n---\n# Setup\n'
+        text = dedent("""\
+            ---
+            name: setup
+            description: Install.
+            ---
+            # Setup
+            """)
         subject = FakeDocumentContext(text, corpus='guide', structure=STRUCTURE)
 
         #: When

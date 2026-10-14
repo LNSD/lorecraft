@@ -5,6 +5,7 @@ the real parser does; no file is read from disk.
 """
 
 import sys
+from textwrap import dedent
 from typing import Final
 
 import pytest
@@ -36,7 +37,13 @@ def _stopped_at_line_3() -> InvalidYaml:
 class TestInvalidYaml:
     def test_check_with_a_block_that_is_not_yaml_reports_it_at_the_line_of_the_value(self) -> None:
         #: Given
-        text = '---\nname: setup\ndescription: Setup: install the toolkit\n---\n# Setup\n'
+        text = dedent("""\
+            ---
+            name: setup
+            description: Setup: install the toolkit
+            ---
+            # Setup
+            """)
         subject = FakeDocumentContext(text, corpus='guide', structure=STRUCTURE)
 
         #: When
@@ -74,7 +81,13 @@ class TestInvalidYaml:
 
     def test_check_with_a_mapping_reports_nothing(self) -> None:
         #: Given
-        subject = FakeDocumentContext('---\nname: setup\n---\n# Setup\n', corpus='guide', structure=STRUCTURE)
+        text = dedent("""\
+            ---
+            name: setup
+            ---
+            # Setup
+            """)
+        subject = FakeDocumentContext(text, corpus='guide', structure=STRUCTURE)
 
         #: When
         occurrences = InvalidYaml.check(subject)

@@ -4,6 +4,7 @@ Every case is a document or a `SKILL.md` written as text, read through a fake co
 the real parser does; no file is read from disk.
 """
 
+from textwrap import dedent
 from typing import Final
 
 import pytest
@@ -26,7 +27,13 @@ SPEC: Final[RootRelativePath] = structure_spec_path('guide')
 class TestNonMappingFrontmatter:
     def test_check_with_a_document_whose_block_is_a_list_reports_it_on_line_1(self) -> None:
         #: Given
-        subject = FakeDocumentContext('---\n- setup\n---\n# Setup\n', corpus='guide', structure=STRUCTURE)
+        text = dedent("""\
+            ---
+            - setup
+            ---
+            # Setup
+            """)
+        subject = FakeDocumentContext(text, corpus='guide', structure=STRUCTURE)
 
         #: When
         occurrences = NonMappingFrontmatter.check(subject)
@@ -38,7 +45,12 @@ class TestNonMappingFrontmatter:
 
     def test_check_with_an_empty_block_reports_it_on_line_1(self) -> None:
         #: Given
-        subject = FakeDocumentContext('---\n---\n# Setup\n', corpus='guide', structure=STRUCTURE)
+        text = dedent("""\
+            ---
+            ---
+            # Setup
+            """)
+        subject = FakeDocumentContext(text, corpus='guide', structure=STRUCTURE)
 
         #: When
         occurrences = NonMappingFrontmatter.check(subject)
@@ -50,7 +62,12 @@ class TestNonMappingFrontmatter:
 
     def test_check_with_a_skill_whose_block_is_not_a_mapping_reports_it_under_no_specification_file(self) -> None:
         #: Given
-        subject = FakeSkillContext('---\n- review\n---\n')
+        text = dedent("""\
+            ---
+            - review
+            ---
+            """)
+        subject = FakeSkillContext(text)
 
         #: When
         occurrences = NonMappingFrontmatter.check(subject)
@@ -62,7 +79,13 @@ class TestNonMappingFrontmatter:
 
     def test_check_with_a_mapping_reports_nothing(self) -> None:
         #: Given
-        subject = FakeDocumentContext('---\nname: setup\n---\n# Setup\n', corpus='guide', structure=STRUCTURE)
+        text = dedent("""\
+            ---
+            name: setup
+            ---
+            # Setup
+            """)
+        subject = FakeDocumentContext(text, corpus='guide', structure=STRUCTURE)
 
         #: When
         occurrences = NonMappingFrontmatter.check(subject)
