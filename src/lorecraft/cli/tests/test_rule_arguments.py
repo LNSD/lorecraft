@@ -4,7 +4,6 @@ from typing import Final, Literal
 
 import pytest
 
-from lorecraft.rules import index
 from lorecraft.rules.registry import Registry
 from lorecraft.rules.tests.sample_rules import valid as valid_rules
 
@@ -27,24 +26,29 @@ from ..rule_arguments import (
     UnknownSelectorError,
 )
 
-GROUPS: Final[tuple[tuple[str, str], ...]] = (('LC', 'Engine conditions'), ('OUT', 'Outline checks'))
-RULES: Final[tuple[tuple[str, str, Literal['rule', 'removed', 'condition'], str, tuple[str, ...]], ...]] = (
-    ('LC001', 'invalid-utf8', 'condition', 'error', ()),
-    ('OUT004', 'empty-section', 'rule', 'deny', ('MD040',)),
-    ('OUT006', 'missing-section', 'rule', 'deny', ()),
-    ('OUT010', 'retired-rule', 'removed', '', ()),
-)
+type Row = tuple[str, str, Literal['rule', 'removed', 'condition'], str, tuple[str, ...]]
 
 
-@pytest.fixture(autouse=True, scope='function')
-def rule_index(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Replace the generated index with a small one: two groups, and a rule with an alias code and a removed rule.
+class SampleIndex:
+    """A small rule index: two groups, and a rule with an alias code and a removed rule."""
 
-    Args:
-        monkeypatch: Swaps the index's `GROUPS` and `RULES` for the test and restores them after.
-    """
-    monkeypatch.setattr(index, 'GROUPS', GROUPS)
-    monkeypatch.setattr(index, 'RULES', RULES)
+    CODE_DIGITS: Final[int] = 3
+    GROUPS: Final[tuple[tuple[str, str], ...]] = (('LC', 'Engine conditions'), ('OUT', 'Outline checks'))
+    RULES: Final[tuple[Row, ...]] = (
+        ('LC001', 'invalid-utf8', 'condition', 'error', ()),
+        ('OUT004', 'empty-section', 'rule', 'deny', ('MD040',)),
+        ('OUT006', 'missing-section', 'rule', 'deny', ()),
+        ('OUT010', 'retired-rule', 'removed', '', ()),
+    )
+
+    def find(self, key: str, /) -> Row | None:
+        return next((row for row in self.RULES if key in (row[0], row[1], *row[4])), None)
+
+    def find_group_title(self, prefix: str, /) -> str | None:
+        return next((title for group_prefix, title in self.GROUPS if group_prefix == prefix), None)
+
+
+SAMPLE_INDEX: Final[SampleIndex] = SampleIndex()
 
 
 @pytest.mark.unit
@@ -54,7 +58,7 @@ class TestSelectorValueParse:
         raw = 'ALL,OUT,OUT0,OUT00,OUT004,MD040'
 
         #: When
-        parsed = SelectorValue.parse(raw)
+        parsed = SelectorValue.parse(raw, SAMPLE_INDEX)
 
         #: Then
         assert parsed == SelectorValue(
@@ -73,7 +77,7 @@ class TestSelectorValueParse:
         raw = ' OUT004 , OUT006'
 
         #: When
-        parsed = SelectorValue.parse(raw)
+        parsed = SelectorValue.parse(raw, SAMPLE_INDEX)
 
         #: Then
         assert parsed == SelectorValue((CodeSelector('OUT', 4), CodeSelector('OUT', 6))), (
@@ -86,7 +90,7 @@ class TestSelectorValueParse:
 
         #: When
         with pytest.raises(EmptySelectorError) as exc_info:
-            SelectorValue.parse(raw)
+            SelectorValue.parse(raw, SAMPLE_INDEX)
 
         #: Then
         assert exc_info.value.value == 'OUT004,', 'the error names the value as typed'
@@ -97,7 +101,7 @@ class TestSelectorValueParse:
 
         #: When
         with pytest.raises(EmptySelectorError) as exc_info:
-            SelectorValue.parse(raw)
+            SelectorValue.parse(raw, SAMPLE_INDEX)
 
         #: Then
         assert exc_info.value.value == '', 'an empty value holds one empty selector, named as typed'
@@ -108,7 +112,7 @@ class TestSelectorValueParse:
 
         #: When
         with pytest.raises(MalformedSelectorError) as exc_info:
-            SelectorValue.parse(raw)
+            SelectorValue.parse(raw, SAMPLE_INDEX)
 
         #: Then
         assert exc_info.value.text == 'out', 'a group prefix is matched as spelled'
@@ -119,7 +123,7 @@ class TestSelectorValueParse:
 
         #: When
         with pytest.raises(MalformedSelectorError) as exc_info:
-            SelectorValue.parse(raw)
+            SelectorValue.parse(raw, SAMPLE_INDEX)
 
         #: Then
         assert exc_info.value.text == 'OUT-1', 'a group is followed by digits only'
@@ -130,7 +134,7 @@ class TestSelectorValueParse:
 
         #: When
         with pytest.raises(MalformedSelectorError) as exc_info:
-            SelectorValue.parse(raw)
+            SelectorValue.parse(raw, SAMPLE_INDEX)
 
         #: Then
         assert exc_info.value.text == 'OUT1234', 'more digits than a code holds is no code nor prefix'
@@ -141,7 +145,7 @@ class TestSelectorValueParse:
 
         #: When
         with pytest.raises(MalformedSelectorError) as exc_info:
-            SelectorValue.parse(raw)
+            SelectorValue.parse(raw, SAMPLE_INDEX)
 
         #: Then
         assert exc_info.value.text == 'OUT000', 'a code is numbered from 001'
@@ -152,7 +156,7 @@ class TestSelectorValueParse:
 
         #: When
         with pytest.raises(MalformedSelectorError) as exc_info:
-            SelectorValue.parse(raw)
+            SelectorValue.parse(raw, SAMPLE_INDEX)
 
         #: Then
         assert exc_info.value.text == 'ALL1', 'ALL is no group prefix, so it takes no digits'
@@ -163,7 +167,7 @@ class TestSelectorValueParse:
 
         #: When
         with pytest.raises(MalformedSelectorError) as exc_info:
-            SelectorValue.parse(raw)
+            SelectorValue.parse(raw, SAMPLE_INDEX)
 
         #: Then
         assert exc_info.value.text == 'Empty_Section', 'a selector of no form is malformed'
@@ -174,7 +178,7 @@ class TestSelectorValueParse:
 
         #: When
         with pytest.raises(MalformedSelectorError) as exc_info:
-            SelectorValue.parse(raw)
+            SelectorValue.parse(raw, SAMPLE_INDEX)
 
         #: Then
         assert exc_info.value.text == '123', 'digits with no group before them are no selector'
@@ -185,7 +189,7 @@ class TestSelectorValueParse:
 
         #: When
         with pytest.raises(MalformedSelectorError) as exc_info:
-            SelectorValue.parse(raw)
+            SelectorValue.parse(raw, SAMPLE_INDEX)
 
         #: Then
         assert exc_info.value.text == 'OUT 004', 'only the whitespace around a selector is stripped'
@@ -196,7 +200,7 @@ class TestSelectorValueParse:
 
         #: When
         with pytest.raises(MalformedSelectorError) as exc_info:
-            SelectorValue.parse(raw)
+            SelectorValue.parse(raw, SAMPLE_INDEX)
 
         #: Then
         assert exc_info.value.text == 'all', 'ALL is matched as spelled'
@@ -207,7 +211,7 @@ class TestSelectorValueParse:
 
         #: When
         with pytest.raises(MalformedSelectorError) as exc_info:
-            SelectorValue.parse(raw)
+            SelectorValue.parse(raw, SAMPLE_INDEX)
 
         #: Then
         assert exc_info.value.text == 'OUTx', 'a group prefix is uppercase letters only'
@@ -218,7 +222,7 @@ class TestSelectorValueParse:
 
         #: When
         with pytest.raises(MalformedSelectorError) as exc_info:
-            SelectorValue.parse(raw)
+            SelectorValue.parse(raw, SAMPLE_INDEX)
 
         #: Then
         assert exc_info.value.text == 'empty--section', 'a text of no form is malformed, whatever it resembles'
@@ -229,7 +233,7 @@ class TestSelectorValueParse:
 
         #: When
         with pytest.raises(UnknownSelectorError) as exc_info:
-            SelectorValue.parse(raw)
+            SelectorValue.parse(raw, SAMPLE_INDEX)
 
         #: Then
         assert exc_info.value.text == 'ZZZ004', 'a well-formed code in no group is unknown'
@@ -240,7 +244,7 @@ class TestSelectorValueParse:
 
         #: When
         with pytest.raises(UnknownSelectorError) as exc_info:
-            SelectorValue.parse(raw)
+            SelectorValue.parse(raw, SAMPLE_INDEX)
 
         #: Then
         assert exc_info.value.text == 'ZZZ0', 'a well-formed code prefix of no group is unknown'
@@ -251,7 +255,7 @@ class TestSelectorValueParse:
 
         #: When
         with pytest.raises(UnknownSelectorError) as exc_info:
-            SelectorValue.parse(raw)
+            SelectorValue.parse(raw, SAMPLE_INDEX)
 
         #: Then
         assert exc_info.value.text == 'OUT007', 'a well-formed code of a group that has no such number is unknown'
@@ -262,7 +266,7 @@ class TestSelectorValueParse:
 
         #: When
         with pytest.raises(UnknownSelectorError) as exc_info:
-            SelectorValue.parse(raw)
+            SelectorValue.parse(raw, SAMPLE_INDEX)
 
         #: Then
         assert exc_info.value.text == 'OUT999', 'a well-formed code no rule has is unknown'
@@ -273,7 +277,7 @@ class TestSelectorValueParse:
 
         #: When
         with pytest.raises(UnknownSelectorError) as exc_info:
-            SelectorValue.parse(raw)
+            SelectorValue.parse(raw, SAMPLE_INDEX)
 
         #: Then
         assert exc_info.value.text == 'ZZZ', 'a well-formed prefix no group has is unknown'
@@ -284,7 +288,7 @@ class TestSelectorValueParse:
 
         #: When
         with pytest.raises(UnknownSelectorError) as exc_info:
-            SelectorValue.parse(raw)
+            SelectorValue.parse(raw, SAMPLE_INDEX)
 
         #: Then
         assert exc_info.value.text == 'OUT9', 'a code prefix no rule starts is unknown'
@@ -295,7 +299,7 @@ class TestSelectorValueParse:
 
         #: When
         with pytest.raises(UnknownSelectorError) as exc_info:
-            SelectorValue.parse(raw)
+            SelectorValue.parse(raw, SAMPLE_INDEX)
 
         #: Then
         assert exc_info.value.text == 'OUT01', 'a code prefix only a removed rule starts is unknown'
@@ -306,7 +310,7 @@ class TestSelectorValueParse:
 
         #: When
         with pytest.raises(UnknownSelectorError) as exc_info:
-            SelectorValue.parse(raw)
+            SelectorValue.parse(raw, SAMPLE_INDEX)
 
         #: Then
         assert exc_info.value.text == 'MD999', 'an alias code is one exactly when a rule declares it'
@@ -317,7 +321,7 @@ class TestSelectorValueParse:
 
         #: When
         with pytest.raises(RuleNameSelectorError) as exc_info:
-            SelectorValue.parse(raw)
+            SelectorValue.parse(raw, SAMPLE_INDEX)
 
         #: Then
         assert exc_info.value.code == 'OUT004', 'the error carries the code to write instead'
@@ -329,7 +333,7 @@ class TestSelectorValueParse:
 
         #: When
         with pytest.raises(EngineSelectorError) as exc_info:
-            SelectorValue.parse(raw)
+            SelectorValue.parse(raw, SAMPLE_INDEX)
 
         #: Then
         assert exc_info.value.text == 'LC', "the engine group's prefix cannot be selected"
@@ -340,7 +344,7 @@ class TestSelectorValueParse:
 
         #: When
         with pytest.raises(EngineSelectorError) as exc_info:
-            SelectorValue.parse(raw)
+            SelectorValue.parse(raw, SAMPLE_INDEX)
 
         #: Then
         assert exc_info.value.text == 'LC9', 'a prefix of engine condition codes cannot be selected'
@@ -351,7 +355,7 @@ class TestSelectorValueParse:
 
         #: When
         with pytest.raises(EngineSelectorError) as exc_info:
-            SelectorValue.parse(raw)
+            SelectorValue.parse(raw, SAMPLE_INDEX)
 
         #: Then
         assert exc_info.value.text == 'LC001', "an engine condition's code cannot be selected"
@@ -362,7 +366,7 @@ class TestSelectorValueParse:
 
         #: When
         with pytest.raises(EngineSelectorError) as exc_info:
-            SelectorValue.parse(raw)
+            SelectorValue.parse(raw, SAMPLE_INDEX)
 
         #: Then
         assert exc_info.value.text == 'invalid-utf8', "an engine condition's name cannot be selected"
@@ -373,7 +377,7 @@ class TestSelectorValueParse:
 
         #: When
         with pytest.raises(RemovedRuleSelectorError) as exc_info:
-            SelectorValue.parse(raw)
+            SelectorValue.parse(raw, SAMPLE_INDEX)
 
         #: Then
         assert exc_info.value.code == 'OUT010', 'the error carries the removed rule code'
@@ -385,7 +389,7 @@ class TestSelectorValueParse:
 
         #: When
         with pytest.raises(RemovedRuleSelectorError) as exc_info:
-            SelectorValue.parse(raw)
+            SelectorValue.parse(raw, SAMPLE_INDEX)
 
         #: Then
         assert exc_info.value.code == 'OUT010', 'a removed rule is refused by its name too, naming its code'
@@ -419,7 +423,7 @@ class TestRuleKeyParse:
         raw = 'OUT004'
 
         #: When
-        parsed = RuleKey.parse(raw)
+        parsed = RuleKey.parse(raw, SAMPLE_INDEX)
 
         #: Then
         assert parsed == RuleKey('OUT004'), 'a code the index has is a key'
@@ -429,7 +433,7 @@ class TestRuleKeyParse:
         raw = 'empty-section'
 
         #: When
-        parsed = RuleKey.parse(raw)
+        parsed = RuleKey.parse(raw, SAMPLE_INDEX)
 
         #: Then
         assert parsed == RuleKey('empty-section'), 'a name the index has is a key'
@@ -439,7 +443,7 @@ class TestRuleKeyParse:
         raw = 'MD040'
 
         #: When
-        parsed = RuleKey.parse(raw)
+        parsed = RuleKey.parse(raw, SAMPLE_INDEX)
 
         #: Then
         assert parsed == RuleKey('MD040'), 'an alias code is a key exactly when a rule declares it'
@@ -449,7 +453,7 @@ class TestRuleKeyParse:
         raw = 'OUT010'
 
         #: When
-        parsed = RuleKey.parse(raw)
+        parsed = RuleKey.parse(raw, SAMPLE_INDEX)
 
         #: Then
         assert parsed == RuleKey('OUT010'), 'a removed rule has a page, so its code is a key'
@@ -459,7 +463,7 @@ class TestRuleKeyParse:
         raw = 'LC001'
 
         #: When
-        parsed = RuleKey.parse(raw)
+        parsed = RuleKey.parse(raw, SAMPLE_INDEX)
 
         #: Then
         assert parsed == RuleKey('LC001'), 'an engine condition has a page, so its code is a key'
@@ -470,7 +474,7 @@ class TestRuleKeyParse:
 
         #: When
         with pytest.raises(MalformedRuleKeyError) as exc_info:
-            RuleKey.parse(raw)
+            RuleKey.parse(raw, SAMPLE_INDEX)
 
         #: Then
         assert exc_info.value.text == 'OUT-1', 'the error names the key that has no form, as typed'
@@ -481,7 +485,7 @@ class TestRuleKeyParse:
 
         #: When
         with pytest.raises(MalformedRuleKeyError) as exc_info:
-            RuleKey.parse(raw)
+            RuleKey.parse(raw, SAMPLE_INDEX)
 
         #: Then
         assert exc_info.value.text == 'OUT', 'a group prefix names no page'
@@ -492,7 +496,7 @@ class TestRuleKeyParse:
 
         #: When
         with pytest.raises(MalformedRuleKeyError) as exc_info:
-            RuleKey.parse(raw)
+            RuleKey.parse(raw, SAMPLE_INDEX)
 
         #: Then
         assert exc_info.value.text == 'Empty_Section', 'a name is kebab-case'
@@ -503,7 +507,7 @@ class TestRuleKeyParse:
 
         #: When
         with pytest.raises(MalformedRuleKeyError) as exc_info:
-            RuleKey.parse(raw)
+            RuleKey.parse(raw, SAMPLE_INDEX)
 
         #: Then
         assert exc_info.value.text == '', 'an empty argument has no form'
@@ -514,7 +518,7 @@ class TestRuleKeyParse:
 
         #: When
         with pytest.raises(MalformedRuleKeyError) as exc_info:
-            RuleKey.parse(raw)
+            RuleKey.parse(raw, SAMPLE_INDEX)
 
         #: Then
         assert exc_info.value.text == 'empty--section', 'a name has no doubled hyphen'
@@ -525,7 +529,7 @@ class TestRuleKeyParse:
 
         #: When
         with pytest.raises(MalformedRuleKeyError) as exc_info:
-            RuleKey.parse(raw)
+            RuleKey.parse(raw, SAMPLE_INDEX)
 
         #: Then
         assert exc_info.value.text == 'OUT1234', 'a code ends in three digits'
@@ -536,7 +540,7 @@ class TestRuleKeyParse:
 
         #: When
         with pytest.raises(MalformedRuleKeyError) as exc_info:
-            RuleKey.parse(raw)
+            RuleKey.parse(raw, SAMPLE_INDEX)
 
         #: Then
         assert exc_info.value.text == ' OUT004', 'the argument is matched as typed, with no whitespace stripped'
@@ -547,7 +551,7 @@ class TestRuleKeyParse:
 
         #: When
         with pytest.raises(UnknownRuleKeyError) as exc_info:
-            RuleKey.parse(raw)
+            RuleKey.parse(raw, SAMPLE_INDEX)
 
         #: Then
         assert exc_info.value.text == 'ZZZ001', 'a well-formed code in no group is unknown'
@@ -558,7 +562,7 @@ class TestRuleKeyParse:
 
         #: When
         with pytest.raises(UnknownRuleKeyError) as exc_info:
-            RuleKey.parse(raw)
+            RuleKey.parse(raw, SAMPLE_INDEX)
 
         #: Then
         assert exc_info.value.text == 'OUT999', 'a well-formed code no rule has is unknown'
@@ -569,7 +573,7 @@ class TestRuleKeyParse:
 
         #: When
         with pytest.raises(UnknownRuleKeyError) as exc_info:
-            RuleKey.parse(raw)
+            RuleKey.parse(raw, SAMPLE_INDEX)
 
         #: Then
         assert exc_info.value.text == 'no-such-rule', 'a well-formed name no rule has is unknown'
@@ -580,7 +584,7 @@ class TestRuleKeyParse:
 
         #: When
         with pytest.raises(UnknownRuleKeyError) as exc_info:
-            RuleKey.parse(raw)
+            RuleKey.parse(raw, SAMPLE_INDEX)
 
         #: Then
         assert exc_info.value.text == 'MD999', 'an alias code is one exactly when a rule declares it'
