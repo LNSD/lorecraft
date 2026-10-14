@@ -135,14 +135,15 @@ class TestOutlineAlignment:
 
         #: When
         alignment = database.outline_alignment(source)
-        specs = [spec.spec for spec in alignment]
-        kinds = [type(aligned) for aligned in alignment[0].sections]
 
         #: Then
-        assert specs == [CORPUS_SPEC], 'the one governing specification is aligned'
-        assert kinds == [NamedAlignment, AnyRunAlignment, NamedAlignment], (
-            'the sections are read from the parse: `Rule` and `Checklist` by name, `Aside` by the `any` run'
-        )
+        assert len(alignment) == 1, 'the one governing specification is aligned'
+        assert alignment[0].spec == CORPUS_SPEC, 'it is the corpus specification'
+        assert [type(aligned) for aligned in alignment[0].sections] == [
+            NamedAlignment,
+            AnyRunAlignment,
+            NamedAlignment,
+        ], 'the sections are read from the parse: `Rule` and `Checklist` by name, `Aside` by the `any` run'
 
     def test_outline_alignment_called_twice_returns_the_first_answer(self) -> None:
         #: Given
@@ -167,17 +168,19 @@ class TestOutlineAlignment:
 
         #: When
         alignment = database.outline_alignment(source)
-        specs = [spec.spec for spec in alignment]
-        corpus_sections = alignment[0].sections
-        kinds = [type(aligned) for aligned in corpus_sections]
-        forbidden = [aligned.forbidden for aligned in corpus_sections if isinstance(aligned, UnalignedSection)]
 
         #: Then
-        assert specs == [CORPUS_SPEC, NAMESPACE_SPEC], (
+        assert len(alignment) == 2, 'both specifications are aligned'
+        assert [aligned.spec for aligned in alignment] == [CORPUS_SPEC, NAMESPACE_SPEC], (
             'a specification that states no outline is aligned too, for the sections it forbids'
         )
-        assert kinds == [UnalignedSection] * 3, 'it has no entry to align to'
-        assert forbidden == [False, True, False], 'it still marks the section it forbids'
+        corpus_sections = alignment[0].sections
+        assert [type(aligned) for aligned in corpus_sections] == [UnalignedSection] * 3, 'it has no entry to align to'
+        assert [aligned.forbidden for aligned in corpus_sections if isinstance(aligned, UnalignedSection)] == [
+            False,
+            True,
+            False,
+        ], 'it still marks the section it forbids'
 
     def test_outline_alignment_with_no_structure_specification_holds_none(self) -> None:
         #: Given
@@ -220,9 +223,9 @@ class TestOutlineAlignment:
         source = _document_text(database, TYPING)
         aligned: list[int] = []
         monkeypatch.setattr(database_module, 'align_outlines', _counting(aligned))
+        database.outline_alignment(source)
 
         #: When
-        database.outline_alignment(source)
         database.outline_divergences(source)
 
         #: Then
@@ -237,9 +240,9 @@ class TestOutlineAlignment:
         source = _document_text(database, TYPING)
         aligned: list[int] = []
         monkeypatch.setattr(database_module, 'align_outlines', _counting(aligned))
+        database.outline_divergences(source)
 
         #: When
-        database.outline_divergences(source)
         database.outline_alignment(source)
 
         #: Then

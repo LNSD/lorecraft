@@ -11,6 +11,7 @@ run has none to report. Those conditions are in `test_load_failure_conditions`.
 
 import json
 import os
+from collections.abc import Iterator
 from pathlib import Path
 from typing import Final
 
@@ -123,6 +124,63 @@ def _severities_at(document: dict[str, object], path: str) -> list[str]:
     diagnostics = document['diagnostics']
     assert isinstance(diagnostics, list)
     return [item['severity'] for item in diagnostics if item['path'] == path]
+
+
+def _engine_diagnostics(document: dict[str, object]) -> list[dict[str, str]]:
+    """The diagnostics of a run that the engine raised, those under an `LC` code, in output order.
+
+    Args:
+        document: The JSON document of a run.
+    """
+    diagnostics = document['diagnostics']
+    assert isinstance(diagnostics, list), 'the diagnostics of the run are a list'
+    return [item for item in diagnostics if item['code'].startswith('LC')]
+
+
+@pytest.fixture(scope='function')
+def workspace_with_unlistable_meta_directory(tmp_path: Path) -> Iterator[Path]:
+    """The workspace with `docs/__meta__` refusing listing, restored afterwards so pytest can clean it up.
+
+    Args:
+        tmp_path: Directory the workspace is written into, as its root.
+    """
+    root = _write_workspace(tmp_path)
+    meta = root / 'docs' / '__meta__'
+    meta.chmod(0o000)
+    yield root
+    meta.chmod(0o755)
+
+
+@pytest.fixture(scope='function')
+def workspace_with_unreadable_shadowed_code_structure_file(tmp_path: Path) -> Iterator[Path]:
+    """The workspace whose `code.structure.json` is unreadable and shadowed by `code.spec.json`, restored afterwards.
+
+    Args:
+        tmp_path: Directory the workspace is written into, as its root.
+    """
+    root = _write_workspace(tmp_path)
+    (root / 'docs/__meta__/code.spec.json').write_text(CODE_SPEC, encoding='utf-8')
+    legacy = root / STRUCTURE_FILE_OF_CODE
+    legacy.chmod(0o000)
+    yield root
+    legacy.chmod(0o644)
+
+
+@pytest.fixture(scope='function')
+def workspace_with_unreadable_shadowed_python_structure_file(tmp_path: Path) -> Iterator[Path]:
+    """The workspace whose `code-python.structure.json` is unreadable and shadowed by `code-python.spec.json`.
+
+    The file is restored afterwards.
+
+    Args:
+        tmp_path: Directory the workspace is written into, as its root.
+    """
+    root = _write_workspace(tmp_path)
+    (root / 'docs/__meta__/code-python.spec.json').write_text(PYTHON_SPEC, encoding='utf-8')
+    legacy = root / STRUCTURE_FILE_OF_PYTHON
+    legacy.chmod(0o000)
+    yield root
+    legacy.chmod(0o644)
 
 
 def _coverage(document: dict[str, object]) -> dict[str, dict[str, object]]:
@@ -240,11 +298,9 @@ class TestCheckWithAFailedMetaSpec:
 
         #: When
         _exit_code, document = _check_json(root)
-        diagnostics = document['diagnostics']
-        assert isinstance(diagnostics, list)
-        engine = [item for item in diagnostics if item['code'].startswith('LC')]
 
         #: Then
+        engine = _engine_diagnostics(document)
         assert [item['path'] for item in engine] == [STRUCTURE_FILE_OF_CODE], (
             'one diagnostic at the structure file, though it governs two documents'
         )
@@ -308,13 +364,13 @@ class TestCheckLeavesWhatAFailureDoesNotTouchAsItWas:
         #: Given
         fixed_root = _write_workspace(tmp_path / 'fixed', logging=LOGGING_WITHOUT_RULE)
         broken_root = _write_workspace(tmp_path / 'broken', python_spec=STATES_NO_RULE, logging=LOGGING_WITHOUT_RULE)
+        _fixed_code, fixed = _check_json(fixed_root)
+        fixed_coverage = _coverage(fixed)
+        # The only document the failed namespace spec governs is the Python typing rule
+        untouched = [path for path in fixed_coverage if path != 'docs/code/python-typing.md']
 
         #: When
-        _fixed_code, fixed = _check_json(fixed_root)
         _broken_code, broken = _check_json(broken_root)
-        fixed_coverage = _coverage(fixed)
-        broken_coverage = _coverage(broken)
-        untouched = [path for path, item in broken_coverage.items() if not item['skipped_by']]
 
         #: Then
         assert _codes_at(broken, 'docs/code/logging.md') == _codes_at(fixed, 'docs/code/logging.md'), (
@@ -323,7 +379,7 @@ class TestCheckLeavesWhatAFailureDoesNotTouchAsItWas:
         assert _codes_at(broken, 'docs/feat/check.md') == _codes_at(fixed, 'docs/feat/check.md'), (
             'so does a document of another corpus'
         )
-        assert {path: broken_coverage[path] for path in untouched} == {
+        assert {path: _coverage(broken)[path] for path in untouched} == {
             path: fixed_coverage[path] for path in untouched
         }, 'the coverage of the documents the failure does not touch is the coverage they have fixed'
 
@@ -402,18 +458,13 @@ class TestCheckLeavesWhatAFailureDoesNotTouchAsItWas:
 @pytest.mark.skipif(os.geteuid() == 0, reason='root ignores directory permissions')
 class TestCheckWithAnUnlistableMetaDirectory:
     def test_check_with_a_meta_directory_that_cannot_be_listed_stops_before_checking_anything(
-        self, tmp_path: Path
+        self, workspace_with_unlistable_meta_directory: Path
     ) -> None:
         #: Given
-        root = _write_workspace(tmp_path)
-        meta = root / 'docs' / '__meta__'
-        meta.chmod(0o000)
+        root = workspace_with_unlistable_meta_directory
 
         #: When
-        try:
-            result = runner.invoke(build_app(), ['check', '--root', str(root), '--format', 'json'])
-        finally:
-            meta.chmod(0o755)
+        result = runner.invoke(build_app(), ['check', '--root', str(root), '--format', 'json'])
 
         #: Then
         assert result.exit_code == 2, 'with no meta spec known nothing can be checked, so the run is an error'
@@ -427,41 +478,29 @@ class TestCheckWithAnUnlistableMetaDirectory:
 @pytest.mark.skipif(os.geteuid() == 0, reason='root ignores file permissions')
 class TestCheckWithAShadowedLegacyStructureFile:
     def test_check_with_an_unreadable_legacy_file_beside_a_spec_json_ignores_it_and_checks(
-        self, tmp_path: Path
+        self, workspace_with_unreadable_shadowed_code_structure_file: Path
     ) -> None:
         #: Given
-        root = _write_workspace(tmp_path)
         # `code.spec.json` takes over from `code.structure.json`, which is then ignored, even unreadable.
-        spec_json = root / 'docs/__meta__/code.spec.json'
-        spec_json.write_text(CODE_SPEC, encoding='utf-8')
-        legacy = root / STRUCTURE_FILE_OF_CODE
-        legacy.chmod(0o000)
+        root = workspace_with_unreadable_shadowed_code_structure_file
 
         #: When
-        try:
-            exit_code, document = _check_json(root)
-        finally:
-            legacy.chmod(0o644)
+        exit_code, document = _check_json(root)
 
         #: Then
         assert exit_code == 1, 'the run is a normal check run, with the finding of the feat document'
         assert _codes_at(document, STRUCTURE_FILE_OF_CODE) == [], 'the shadowed legacy file reports nothing'
         assert _codes_at(document, 'docs/feat/check.md') == ['OUT006'], 'and the documents are checked as usual'
 
-    def test_check_with_an_unreadable_legacy_namespace_file_beside_a_spec_json_ignores_it(self, tmp_path: Path) -> None:
+    def test_check_with_an_unreadable_legacy_namespace_file_beside_a_spec_json_ignores_it(
+        self, workspace_with_unreadable_shadowed_python_structure_file: Path
+    ) -> None:
         #: Given
-        root = _write_workspace(tmp_path)
         # The namespace spec `code-python` has `.spec.json` too; its legacy file is unreadable and ignored.
-        spec_json = root / 'docs/__meta__/code-python.spec.json'
-        spec_json.write_text(PYTHON_SPEC, encoding='utf-8')
-        legacy = root / STRUCTURE_FILE_OF_PYTHON
-        legacy.chmod(0o000)
+        root = workspace_with_unreadable_shadowed_python_structure_file
 
         #: When
-        try:
-            exit_code, document = _check_json(root)
-        finally:
-            legacy.chmod(0o644)
+        exit_code, document = _check_json(root)
 
         #: Then
         assert exit_code == 1, 'the run is a normal check run, with the finding of the feat document'
