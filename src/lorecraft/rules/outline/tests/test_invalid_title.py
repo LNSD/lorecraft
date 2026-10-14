@@ -1,7 +1,7 @@
 """`OUT009`, `invalid-title`, over the pattern a document's title must match.
 
 Every case is a document written as text, read through a fake context that parses it as the real parser does, under
-structure specifications decoded from JSON; no document is read from disk.
+structure files decoded from JSON; no document is read from disk.
 """
 
 import re
@@ -19,19 +19,19 @@ from lorecraft.rules.tests.fake_context import FakeDocumentContext, namespace_sp
 from ..invalid_title import InvalidTitle
 
 CORPUS_SPEC: Final[RootRelativePath] = structure_spec_path('guide')
-"""The corpus structure specification."""
+"""The corpus structure file."""
 
 NAMESPACE_SPEC: Final[RootRelativePath] = structure_spec_path('guide-cli')
-"""A namespace structure specification under the same corpus, which sets a title pattern of its own."""
+"""A namespace structure file under the same corpus, which sets a title pattern of its own."""
 
 TEXT: Final[str] = '# setup: first steps\n\n## Install\n\nInstall the toolkit once.\n'
 """A document whose H1 title, on line 1, is in lowercase and holds a colon, followed by one section."""
 
 CAPITALIZED: Final[str] = '{"title": {"pattern": "^[A-Z]"}}'
-"""A structure specification holding the title to open with a capital letter."""
+"""A structure file holding the title to open with a capital letter."""
 
 NO_COLON: Final[str] = '{"title": {"pattern": "^[^:]+$"}}'
-"""A structure specification holding the title to hold no colon."""
+"""A structure file holding the title to hold no colon."""
 
 CAPITAL: Final[TitlePattern] = TitlePattern(re.compile('^[A-Z]'))
 """The pattern `CAPITALIZED` sets."""
@@ -40,7 +40,7 @@ COLONLESS: Final[TitlePattern] = TitlePattern(re.compile('^[^:]+$'))
 """The pattern `NO_COLON` sets."""
 
 NO_PATTERN: Final[str] = '{"empty_sections": "forbidden"}'
-"""A structure specification that sets no pattern on the title."""
+"""A structure file that sets no pattern on the title."""
 
 
 @pytest.mark.unit

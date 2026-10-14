@@ -1,7 +1,7 @@
 """`OUT005`, `forbidden-section`, over a document's headings.
 
 Every case is a document written as text, read through a fake context that parses it as the real parser does, under
-structure specifications decoded from JSON; no document is read from disk.
+structure files decoded from JSON; no document is read from disk.
 """
 
 from typing import Final
@@ -17,16 +17,16 @@ from lorecraft.rules.tests.fake_context import FakeDocumentContext, namespace_sp
 from ..forbidden_section import ForbiddenSection
 
 CORPUS_SPEC: Final[RootRelativePath] = structure_spec_path('guide')
-"""The corpus structure specification."""
+"""The corpus structure file."""
 
 NAMESPACE_SPEC: Final[RootRelativePath] = structure_spec_path('guide-cli')
-"""A namespace structure specification under the same corpus."""
+"""A namespace structure file under the same corpus."""
 
 FORBIDS_CHANGELOG: Final[str] = '{"forbidden": ["Changelog"]}'
-"""A structure specification that forbids the section `Changelog`."""
+"""A structure file that forbids the section `Changelog`."""
 
 FORBIDS_NOTHING: Final[str] = '{"empty_sections": "forbidden"}'
-"""A structure specification that states another rule, and forbids no section."""
+"""A structure file that states another rule, and forbids no section."""
 
 RUN: Final[str] = '# Setup\n\n## Run\n\nRun the toolkit once over the repository.\n'
 """A document of five lines: its title, then the section `Run` on line 3."""

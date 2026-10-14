@@ -1,7 +1,7 @@
 """`LEN001`, `too-many-tokens`, over a document's whole-file token count.
 
 Every case is a document written as text, read through a fake context that counts its tokens as the real tokenizer
-does, under structure specifications decoded from JSON; no document is read from disk.
+does, under structure files decoded from JSON; no document is read from disk.
 """
 
 from typing import Final
@@ -24,20 +24,20 @@ TOKENS: Final[int] = count_tokens(TEXT).value
 """The tokens in `TEXT`, as the real tokenizer counts them."""
 
 CORPUS_SPEC: Final[RootRelativePath] = structure_spec_path('code')
-"""The corpus structure specification, which sets one budget."""
+"""The corpus structure file, which sets one budget."""
 
 NAMESPACE_SPEC: Final[RootRelativePath] = structure_spec_path('code-python')
-"""A namespace structure specification under the same corpus, which sets a budget of its own."""
+"""A namespace structure file under the same corpus, which sets a budget of its own."""
 
 NO_BUDGET: Final[str] = '{"empty_sections": "forbidden"}'
-"""A structure specification that states a rule other than a budget."""
+"""A structure file that states a rule other than a budget."""
 
 
 def _budget(tokens: int) -> str:
-    """A structure specification that sets a token budget and nothing else.
+    """A structure file that sets a token budget and nothing else.
 
     Args:
-        tokens: The most tokens the specification lets a document it governs hold; at least 1.
+        tokens: The most tokens the meta spec lets a document it governs hold; at least 1.
     """
     return f'{{"tokens": {tokens}}}'
 

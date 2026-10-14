@@ -4,7 +4,7 @@ A diagnostic locates an occurrence at the path of the subject it was found in, w
 at, and it comes in one of two kinds. A `RuleDiagnostic` holds a rule's occurrence at the severity the rule table
 enables the rule at. An `EngineDiagnostic` holds an engine condition's occurrence, and reads its severity from the
 condition's class rather than holding one, so it can never carry another. Either holds its occurrence and copies
-none of its fields, so its code, message, labels, help and notes, and specification reach any output through the
+none of its fields, so its code, message, labels, help and notes, and meta spec reach any output through the
 occurrence alone.
 
 The order is an output contract, total over one revision, so one revision always prints the same diagnostics in
@@ -13,11 +13,11 @@ that order as the fields it compares, and `diagnostic_order` builds it as the so
 
 Each subject the runner checks, a document, a skill or a skill's resource, gets one report, and either kind of
 report gives its diagnostics as `diagnostics`. A `CheckedDocument` decoded, and holds its diagnostics, in their output
-order however it is built, and the facets no specification governs it for. A `CheckedSkillFile`, a skill or one of its
+order however it is built, and the facets no meta spec governs it for. A `CheckedSkillFile`, a skill or one of its
 resources, holds its diagnostics alone, because the package governs every skill file for every facet. An
 `UndecodableSubject` did not decode, so no rule judged it: it holds its ref and where the bytes stopped being UTF-8,
 and its one diagnostic, the engine's, is built from them, at the subject's path. A layout entry, one symlink of the
-skill layout whose chain leaves the repository, has no text to decode and no specification to be ungoverned by, so it
+skill layout whose chain leaves the repository, has no text to decode and no meta spec to be ungoverned by, so it
 gets a report of its own, a `CheckedLayoutEntry`: its path and its diagnostics, in their output order.
 
 Two reports come from what failed to load, never from a rule. A `SkippedSubject` is a document decoded and not judged,
@@ -148,7 +148,7 @@ class CheckedDocument:
         ref: The document the rules judged.
         diagnostics: Every occurrence the rules found in it, in the order `diagnostic_order` sorts them into,
             whatever order they are given in; empty when it holds to every rule.
-        ungoverned: The facets an enabled rule reads that no specification governs the document for, in the order the
+        ungoverned: The facets an enabled rule reads that no meta spec governs the document for, in the order the
             runner reads them; no rule that reads one judged the document.
     """
 

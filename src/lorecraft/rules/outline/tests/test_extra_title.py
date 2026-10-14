@@ -1,7 +1,7 @@
 """`OUT002`, `extra-title`, over a document's headings.
 
 Every case is a document written as text, read through a fake context that parses it as the real parser does, under
-structure specifications decoded from JSON; no document is read from disk.
+structure files decoded from JSON; no document is read from disk.
 """
 
 from typing import Final
@@ -16,7 +16,7 @@ from lorecraft.rules.tests.fake_context import FakeDocumentContext, heading_in, 
 from ..extra_title import ExtraTitle
 
 STRUCTURE: Final[str] = '{"forbidden": ["Changelog"]}'
-"""A structure specification that states a rule other than the title, which no key states."""
+"""A structure file that states a rule other than the title, which no key states."""
 
 ONE_TITLE: Final[str] = '# Setup\n\n## Install\n\nInstall the toolkit, then run it once over the repository.\n'
 """A document of five lines: its H1 title on line 1, then one section."""

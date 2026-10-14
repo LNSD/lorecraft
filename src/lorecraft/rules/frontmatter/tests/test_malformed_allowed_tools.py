@@ -22,7 +22,7 @@ SPECIFICATION_NOTE: Final[Note] = Note(
     "the Agent Skills specification's experimental `allowed-tools` field: "
     'https://agentskills.io/specification#allowed-tools-field'
 )
-"""The note naming where the specification states the field, which both skill rules of the group carry."""
+"""The note naming where the meta spec states the field, which both skill rules of the group carry."""
 
 
 def _skill_allowing(value: str) -> FakeSkillContext:

@@ -8,8 +8,8 @@ with, which both kinds share, derives from `FrontmatterRule`. The base's abstrac
 context, declared in `lorecraft.project`, and the rule asks it for the facts it reads and nothing else. The context
 is answered by the database in `lorecraft.project.database`, so a rule never learns that a database exists.
 
-A document is judged only for what a specification governs, so a rule over a document declares the facet it reads in
-`GOVERNED_BY`, and the runner hands it the document only when the specifications govern that facet. A rule over the
+A document is judged only for what a meta spec governs, so a rule over a document declares the facet it reads in
+`GOVERNED_BY`, and the runner hands it the document only when the meta specs govern that facet. A rule over the
 frontmatter inherits `Facet.FRONTMATTER` from its base, which the runner gates it on over a document. A rule over a
 Markdown file declares none: the base fixes the one facet it judges a document under, as its docstring states. The
 package governs every skill and every resource, so a rule over a skill or one of its files declares none either, and
@@ -43,20 +43,20 @@ from .declaration import ContentRule, LayoutRule
 
 
 class Facet(StrEnum):
-    """What part of a document a specification governs, which a rule over a document or the frontmatter is gated on.
+    """What part of a document a meta spec governs, which a rule over a document or the frontmatter is gated on.
 
-    Each member is one condition on the specifications that govern a document, read before any rule over that facet
-    runs. A document in no corpus, or in a corpus that states no structure specification, is governed for none.
+    Each member is one condition on the meta specs that govern a document, read before any rule over that facet
+    runs. A document in no corpus, or in a corpus that states no structure file, is governed for none.
     """
 
     FRONTMATTER = 'frontmatter'
-    """The document's frontmatter: a structure specification that governs it states a frontmatter schema."""
+    """The document's frontmatter: a structure file that governs it states a frontmatter schema."""
     STRUCTURE = 'structure'
-    """The document's structure: its corpus states a structure specification."""
+    """The document's structure: its corpus states a structure file."""
     OUTLINE = 'outline'
-    """The document's sections: a structure specification that governs it states an outline."""
+    """The document's sections: a structure file that governs it states an outline."""
     BUDGET = 'budget'
-    """The document's length in tokens: a structure specification that governs it sets a token budget."""
+    """The document's length in tokens: a structure file that governs it sets a token budget."""
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -99,7 +99,7 @@ class MarkdownRule(ContentRule):
     """The base of every rule over one Markdown file: a document, a skill's `SKILL.md` or a skill's resource.
 
     The rule judges a document only when the document is governed for `Facet.STRUCTURE`, the facet under which its
-    corpus states a structure specification, since a document is otherwise governed for no facet at all. The base
+    corpus states a structure file, since a document is otherwise governed for no facet at all. The base
     fixes that facet rather than letting the rule declare one in `GOVERNED_BY`: a facet only gates a document, and a
     rule that declared a narrower one, such as `Facet.BUDGET`, would still judge every skill and resource, so the
     declaration would say less than the rule does. The package governs every skill and every resource.

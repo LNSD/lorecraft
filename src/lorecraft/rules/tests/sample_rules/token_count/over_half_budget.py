@@ -23,7 +23,7 @@ class OverHalfBudget(DocumentRule):
     """A document holds more than half the tokens a budget allows.
 
     Attributes:
-        spec: The structure specification that sets the budget.
+        spec: The structure file that sets the budget.
         token_count: The tokens in the document's whole file.
         budget: The budget, in tokens.
     """

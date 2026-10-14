@@ -1,7 +1,7 @@
 """`FM010`, `invalid-frontmatter`, over the problems the frontmatter schemas find in a subject's frontmatter.
 
 Every case is a document or a `SKILL.md` written as text, read through a fake context that holds it to its schemas as
-the real analysis does, under structure specifications decoded from JSON; no file is read from disk.
+the real analysis does, under structure files decoded from JSON; no file is read from disk.
 
 No skill appears in the `check` cases: the Agent Skills specification places every problem it finds on a field, so a
 skill's frontmatter breaks no constraint over the whole block, and the note such an occurrence would carry is tested on
@@ -29,25 +29,25 @@ from lorecraft.rules.tests.fake_context import FakeDocumentContext, namespace_sp
 from ..invalid_frontmatter import InvalidFrontmatter
 
 CORPUS_SPEC: Final[RootRelativePath] = structure_spec_path('guide')
-"""Where the corpus structure specification lies."""
+"""Where the corpus structure file lies."""
 
 NAMESPACE_SPEC: Final[RootRelativePath] = structure_spec_path('guide-setup')
-"""Where a namespace structure specification under the same corpus lies."""
+"""Where a namespace structure file under the same corpus lies."""
 
 CORPUS_SOURCE: Final[StructureSpecSchema] = StructureSpecSchema(spec=CORPUS_SPEC)
-"""The schema the corpus specification states."""
+"""The schema the corpus meta spec states."""
 
 NAMESPACE_SOURCE: Final[StructureSpecSchema] = StructureSpecSchema(spec=NAMESPACE_SPEC)
-"""The schema the namespace specification states."""
+"""The schema the namespace meta spec states."""
 
 AGENT_SKILLS_SOURCE: Final[AgentSkillsSchema] = AgentSkillsSchema()
 """The schema the Agent Skills specification states, which governs a skill."""
 
 FORBID_NAME: Final[str] = '{"frontmatter": {"type": "object", "not": {"required": ["name"]}}}'
-"""A structure specification whose frontmatter schema forbids a block that holds `name`."""
+"""A structure file whose frontmatter schema forbids a block that holds `name`."""
 
 REQUIRE_DESCRIPTION: Final[str] = '{"frontmatter": {"type": "object", "required": ["description"]}}'
-"""A structure specification whose frontmatter schema requires `description`."""
+"""A structure file whose frontmatter schema requires `description`."""
 
 TEXT: Final[str] = dedent("""\
     ---

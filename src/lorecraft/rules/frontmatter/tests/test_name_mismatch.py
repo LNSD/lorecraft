@@ -22,15 +22,15 @@ from lorecraft.vfs import ResolvedPath
 from ..name_mismatch import NameMismatch
 
 STRUCTURE: Final[str] = '{"frontmatter": {"type": "object"}}'
-"""A corpus structure specification whose frontmatter schema accepts any mapping."""
+"""A corpus structure file whose frontmatter schema accepts any mapping."""
 
 SPEC: Final[RootRelativePath] = structure_spec_path('guide')
-"""Where the corpus structure specification lies."""
+"""Where the corpus structure file lies."""
 
 DOCUMENT_OWNER: Final[DocumentFrontmatterOwner] = DocumentFrontmatterOwner(
     filename=AspectFilename.parse('setup'), spec=SPEC
 )
-"""The fake document, which the corpus structure specification governs."""
+"""The fake document, which the corpus structure file governs."""
 
 SKILL_OWNER: Final[SkillFrontmatterOwner] = SkillFrontmatterOwner(
     directory_name=PathComponent.parse('review'), link_target=None

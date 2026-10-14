@@ -1,7 +1,7 @@
 """`LEN003`, `section-too-many-words`, over the word caps of a document's sections.
 
 Every case is a document written as text, read through a fake context that parses it as the real parser does, under
-structure specifications decoded from JSON; no document is read from disk.
+structure files decoded from JSON; no document is read from disk.
 """
 
 from typing import Final
@@ -18,10 +18,10 @@ from lorecraft.rules.tests.fake_context import FakeDocumentContext, namespace_sp
 from ..section_too_many_words import AnyRunCap, NamedSectionCap, SectionTooManyWords
 
 CORPUS_SPEC: Final[RootRelativePath] = structure_spec_path('guide')
-"""The corpus structure specification."""
+"""The corpus structure file."""
 
 NAMESPACE_SPEC: Final[RootRelativePath] = structure_spec_path('guide-cli')
-"""A namespace structure specification under the same corpus, which sets caps of its own."""
+"""A namespace structure file under the same corpus, which sets caps of its own."""
 
 TEXT: Final[str] = (
     '# Setup\n'
@@ -38,7 +38,7 @@ TEXT: Final[str] = (
 
 
 def _outline(*, run: int | None, configuration: int | None) -> str:
-    """A structure specification whose outline names both sections of `TEXT`, each with the cap given.
+    """A structure file whose outline names both sections of `TEXT`, each with the cap given.
 
     Args:
         run: The most prose words `Run` may hold, or `None` for no cap.

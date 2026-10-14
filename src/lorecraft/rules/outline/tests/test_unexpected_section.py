@@ -1,7 +1,7 @@
 """`OUT008`, `unexpected-section`, over where a document's sections first stop matching their outlines.
 
 Every case is a document written as text, read through a fake context that parses it and matches it against its
-outlines as the real parser and matcher do, under structure specifications decoded from JSON; no document is read from
+outlines as the real parser and matcher do, under structure files decoded from JSON; no document is read from
 disk. Where each divergence falls is the matcher's, tested beside it, so a case here only shows which one the rule
 reports.
 """
@@ -20,10 +20,10 @@ from lorecraft.rules.tests.fake_context import FakeDocumentContext, namespace_sp
 from ..unexpected_section import UnexpectedSection
 
 CORPUS_SPEC: Final[RootRelativePath] = structure_spec_path('guide')
-"""The corpus structure specification."""
+"""The corpus structure file."""
 
 NAMESPACE_SPEC: Final[RootRelativePath] = structure_spec_path('guide-cli')
-"""A namespace structure specification under the same corpus."""
+"""A namespace structure file under the same corpus."""
 
 OUTLINE: Final[str] = '{"outline": [{"section": "Usage"}, {"section": "Options"}]}'
 """An outline requiring `Usage`, then `Options`."""
