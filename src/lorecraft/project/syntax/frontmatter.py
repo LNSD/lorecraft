@@ -6,8 +6,20 @@ no block, a block that is not YAML, a block that is YAML but not a mapping, and 
 value, never an exception, because a broken block is a fact about the document that a check reports, not a
 failure of the parse.
 
-The block is read as basic YAML, which decodes to exactly what JSON can hold: block and flow mappings whose keys
-are strings, block and flow sequences, and scalars. A quoted or block scalar is a string. A plain scalar is null,
+The block is read as basic YAML, which decodes to exactly what JSON can hold, and accepts only these constructs:
+
+- the block itself is one block mapping, one key to a line, whose keys are plain, single-quoted or double-quoted
+  scalars that read as strings;
+- a value is any accepted node, or nothing, which is null; a block mapping nested as a value is indented by spaces;
+- a block sequence is a value, indented or not, and its items are scalars, flow collections or block mappings;
+- a flow sequence or a flow mapping is written on one line and holds only scalars, or nothing;
+- a plain scalar is written on one line or continued on more indented lines; a single-quoted scalar writes `''`
+  for a quote and a double-quoted one takes YAML's escapes, both on one or more lines;
+- a literal (`|`) or folded (`>`) block scalar takes an optional `-` or `+` chomping indicator;
+- a comment, on its own line or after a node, blank lines, CRLF line breaks and a BOM before the first line are
+  nothing.
+
+A quoted or block scalar is a string. A plain scalar is null,
 a boolean, an integer or a float when its whole text is one in YAML 1.2's core schema, such as `~`, `true`, `12` or
 `1.5`, and a string otherwise, so `yes`, `2026-10-05` and `1:30` are strings. A directive, a document marker, an
 anchor, an alias, a merge key, a tag, an explicit or empty key, a key that is not a string, a flow collection
