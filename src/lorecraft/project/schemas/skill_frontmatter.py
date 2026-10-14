@@ -57,6 +57,7 @@ from pydantic.json_schema import JsonSchemaValue
 from pydantic_core import ErrorDetails, PydanticCustomError, core_schema
 
 from lorecraft.core.error import Error
+from lorecraft.core.mapping import FrozenMapping
 
 # The pydantic error types the value objects raise their rejections under, typed as literals because
 # `PydanticCustomError` takes only a literal string. `value_object_error_type` reads them back. `SkillName` raises a
@@ -715,7 +716,9 @@ class SkillFrontmatter(BaseModel):
     )
     """The environment the skill needs: the product it is meant for, the system packages it runs, or network
     access. Most skills need none, and leave it out."""
-    metadata: dict[str, str] | None = Field(default=None, examples=[{'author': 'example-org', 'version': '1.0'}])
+    metadata: FrozenMapping[str, str] | None = Field(
+        default=None, examples=[{'author': 'example-org', 'version': '1.0'}]
+    )
     """Properties the specification does not define, for clients to read: string keys to string values, so a
     number is quoted. Keys are best made unique enough not to collide with another client's."""
     # `allowed-tools` is no Python name, so the field is declared under another and read by its alias.

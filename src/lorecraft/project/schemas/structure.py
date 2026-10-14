@@ -81,7 +81,7 @@ from jsonschema._utils import find_evaluated_property_keys_by_schema
 from jsonschema.exceptions import SchemaError, best_match
 from jsonschema.exceptions import ValidationError as SchemaValidationError
 from jsonschema.protocols import Validator
-from pydantic import JsonValue, ValidationError
+from pydantic import ValidationError
 from referencing.jsonschema import DRAFT202012
 
 from lorecraft.core.error import Error
@@ -1058,7 +1058,7 @@ def _title_checks(path: RootRelativePath, title: StructureFileTitle | None) -> T
     raise AssertionError('unreachable: `StructureFileTitle` refuses a `title` that states no check')
 
 
-def _frontmatter_schema(path: RootRelativePath, schema: dict[str, JsonValue] | None) -> FrontmatterSchema | None:
+def _frontmatter_schema(path: RootRelativePath, schema: FrozenMapping[str, Frozen] | None) -> FrontmatterSchema | None:
     """The frontmatter schema a file's `frontmatter` key states, or None when the file states none.
 
     Args:
@@ -1073,7 +1073,7 @@ def _frontmatter_schema(path: RootRelativePath, schema: dict[str, JsonValue] | N
     """
     if schema is None:
         return None
-    return FrontmatterSchema(path=path, schema=FrozenMapping.from_plain(schema))
+    return FrontmatterSchema(path=path, schema=schema)
 
 
 def _problems(error: ValidationError) -> tuple[str, ...]:

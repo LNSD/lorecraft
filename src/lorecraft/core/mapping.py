@@ -4,10 +4,18 @@ A decoder such as `json.loads` builds its value from `dict` and `list`, both mut
 object holding one is neither safe to share nor hashable. `Plain` is the type of that decoded data.
 `FrozenMapping.from_plain` copies a string-keyed mapping of it into `FrozenMapping` and `tuple`, and
 `FrozenMapping.to_plain` copies it back, for a library that reads only the plain containers.
+
+`FrozenMapping` is also a pydantic type. A model field declared `FrozenMapping[str, str]` is read from a JSON object
+as the `dict[str, str]` it would be, with the same errors and the same JSON Schema, and then held as a mapping. A
+field declared `FrozenMapping[str, Frozen]` reads any JSON value and holds every object in it as a `FrozenMapping` and
+every array as a tuple, so the model is hashable. It is written back as the object it was read from.
 """
 
 from collections.abc import Iterator, Mapping, Sequence
-from typing import assert_never
+from typing import Any, assert_never, get_args
+
+from pydantic import GetCoreSchemaHandler, JsonValue, SerializerFunctionWrapHandler, ValidatorFunctionWrapHandler
+from pydantic_core import core_schema
 
 from lorecraft.core.error import Error
 
@@ -105,6 +113,83 @@ class FrozenMapping[K, V](Mapping[K, V]):
     def __repr__(self) -> str:
         """The class and the items it was built from, such as `FrozenMapping({'a': 1})`; a subclass names itself."""
         return f'{type(self).__name__}({self._items!r})'
+
+    @classmethod
+    def __get_pydantic_core_schema__(
+        cls, source: type[object], handler: GetCoreSchemaHandler
+    ) -> core_schema.CoreSchema:
+        """How pydantic validates and serializes a field of this type: see the module's note.
+
+        Args:
+            source: The annotated type, `FrozenMapping[str, V]`: `V` is the value type the field's JSON object is
+                validated with. A bare `FrozenMapping` holds any value.
+            handler: Pydantic's schema generator, which builds the `dict` schema the field is read and written as.
+        """
+        # A field is a JSON object, whose keys are strings, so only the value type is read from the annotation.
+        value_type = get_args(source)[1] if get_args(source) else Any
+        if value_type is Frozen:
+            # A model is validated from a JSON document or from the `dict` and `list` a caller builds, and strict
+            # mode refuses a `list` where a tuple is declared. So the value is read as the JSON value it is, then
+            # frozen.
+            dict_schema = handler.generate_schema(dict[str, JsonValue])
+            # Read as strict `dict[str, JsonValue]` first, so every key is a string and every value a JSON value,
+            # and `from_plain` cannot refuse it: a domain error here would escape pydantic's validation.
+            freeze = cls.from_plain
+            read_held = FrozenMapping._read_held_tree
+        else:
+            dict_schema = handler.generate_schema(dict[str, value_type])
+            freeze = cls
+            read_held = FrozenMapping._read_held_items
+        from_dict = core_schema.no_info_after_validator_function(freeze, dict_schema)
+        return core_schema.json_or_python_schema(
+            json_schema=from_dict,
+            # In Python the field also takes the mapping it is declared as, which strict mode would refuse as a
+            # `dict_type` error since the `dict` schema alone reads only a `dict`. A wrap rather than a union, so
+            # that a value that is not one is reported by the `dict` schema alone, as it was.
+            python_schema=core_schema.no_info_wrap_validator_function(read_held, from_dict),
+            serialization=core_schema.wrap_serializer_function_ser_schema(
+                FrozenMapping._to_dict_for_pydantic, schema=dict_schema
+            ),
+        )
+
+    @staticmethod
+    def _read_held_items(value: object, validate_dict: ValidatorFunctionWrapHandler) -> object:
+        """A `FrozenMapping` given for the field, read as the `dict` of its items; anything else, as it is.
+
+        Held items are validated like a `dict`'s, so a mapping built elsewhere is held to the field's value type.
+
+        Args:
+            value: What a model was given for the field.
+            validate_dict: Pydantic's validator for the `dict` schema followed by the freezing step.
+        """
+        if isinstance(value, FrozenMapping):
+            return validate_dict(dict(value))
+        return validate_dict(value)
+
+    @staticmethod
+    def _read_held_tree(value: object, validate_dict: ValidatorFunctionWrapHandler) -> object:
+        """A `FrozenMapping` given for a `Frozen` field, read as the JSON object it holds; anything else, as it is.
+
+        A held value that is not a JSON value, such as a list kept inside a mapping or a set, reaches the `dict`
+        schema as it is and is refused there, so no held mapping skips the check a decoded one passes.
+
+        Args:
+            value: What a model was given for the field.
+            validate_dict: Pydantic's validator for the `dict` schema followed by the freezing step.
+        """
+        if isinstance(value, FrozenMapping):
+            return validate_dict(_thaw(value))
+        return validate_dict(value)
+
+    def _to_dict_for_pydantic(
+        self: 'FrozenMapping[str, Frozen]', serialize_dict: SerializerFunctionWrapHandler
+    ) -> object:
+        """The mapping written as the `dict` it was read as, by the `dict` schema's own serializer.
+
+        Args:
+            serialize_dict: Pydantic's serializer for the `dict` schema, which writes each value.
+        """
+        return serialize_dict(self.to_plain())
 
     @classmethod
     def from_plain(cls, mapping: 'Mapping[str, Plain]') -> 'FrozenMapping[str, Frozen]':
@@ -206,3 +291,19 @@ def _to_frozen(value: object) -> Frozen:
             frozen.append(_to_frozen(item))
         return tuple(frozen)
     raise NonPlainValueError(type(value))
+
+
+def _thaw(value: object) -> object:
+    """A copy of a held value with every `FrozenMapping` a `dict` and every tuple a `list`, and anything else as it is.
+
+    Unlike `_to_plain_value` it never raises: a value that is not frozen data stays as it is, for the schema the
+    copy is validated by to refuse.
+
+    Args:
+        value: A value a model was given for a `Frozen` field.
+    """
+    if isinstance(value, FrozenMapping):
+        return {key: _thaw(item) for key, item in value.items()}
+    if isinstance(value, tuple):
+        return [_thaw(item) for item in value]
+    return value
