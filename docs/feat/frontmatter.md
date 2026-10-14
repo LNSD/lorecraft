@@ -122,6 +122,7 @@ help for the recognized kinds are:
 | Line that is neither key nor item | ``this line is not `key: value` or `- item` `` | Add `: ` after the key, or quote a value that runs on |
 | Unclosed quote | `this quote is never closed` | Close it on the line it continues to, or remove it |
 | Text after a closing quote | `text follows the closing quote` | Put the whole value inside the quotes |
+| Closing bracket that closes nothing, as in `a: ]` | `` this `]` closes nothing `` (`}` likewise) | Remove it, or quote the value |
 | Tab used to indent | `a tab indents this line` | Indent with spaces |
 | Invalid `\q` escape in double quotes | `` `\q` is not an escape `` | Write `\\` for a backslash, or use single quotes |
 | Character that cannot start a plain value | `` a plain value cannot start with `@` `` (for `@`) | Quote the value |

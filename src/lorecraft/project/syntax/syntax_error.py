@@ -1,7 +1,7 @@
 """What is wrong with a frontmatter block that does not parse, in lorecraft's words.
 
 The YAML parser fails with an error that names its own internals: `<block end>`, `simple key`, a tuple of tokens.
-adr-019 states ten kinds of syntax error a writer meets, each with a label, a help and the line the writer fixes, and
+adr-019 states the kinds of syntax error a writer meets, each with a label, a help and the line the writer fixes, and
 this module classifies the parser's error into one of them. It reads what the error carries, its class, the problem
 and the context it names and its two marks, and the block's own text at them; no parser text reaches the result.
 
@@ -94,6 +94,11 @@ def describe_error(error: MarkedYAMLError, block: str) -> SyntaxProblem:
         return _misplaced_colon(mark, lines)
     if problem == 'mapping keys are not allowed here':
         return _cannot_start_value('?', mark)
+    if problem.startswith(("expected <block end>, but found ']'", "expected <block end>, but found '}'")) or (
+        problem.startswith(("expected the node content, but found ']'", "expected the node content, but found '}'"))
+    ):
+        bracket = ']' if "found ']'" in problem else '}'
+        return _closes_nothing(bracket, mark)
     if problem.startswith(
         (
             "expected <block end>, but found '<block",
@@ -319,6 +324,16 @@ def _text_after_quote(mark: StreamMark | None, lines: list[str]) -> SyntaxProble
         if _below_block_scalar(mark.line, lines):
             return _bad_indent(mark, lines)
     return _unreadable(_line_of(mark))
+
+
+def _closes_nothing(bracket: str, mark: StreamMark | None) -> SyntaxProblem:
+    """The kind for a closing bracket that closes no flow collection.
+
+    Args:
+        bracket: The `]` or `}` as written.
+        mark: Where the parser found it.
+    """
+    return SyntaxProblem(f'this `{bracket}` closes nothing', 'Remove it, or quote the value', _line_of(mark))
 
 
 def _below_block_scalar(line: int, lines: list[str]) -> bool:
