@@ -1805,169 +1805,183 @@ class TestVirtualFileSystemMatchesDisk:
         #: Given
         disk = DiskFileSystem(parity_tree)
         virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
-        path = '.agents/skills'
+        path = RootRelativePath.parse('.agents/skills')
+        expected = _answer(disk.list_dir, path)
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.list_dir, virtual.list_dir, path)
+        actual = _answer(virtual.list_dir, path)
 
         #: Then
-        assert virtual_answer == disk_answer, '.agents/skills lists the same alpha and beta over the snapshot'
+        assert actual == expected, '.agents/skills lists the same alpha and beta over the snapshot'
 
     def test_list_dir_over_a_snapshot_with_a_skill_listing_agrees_with_disk(self, parity_tree: Path) -> None:
         #: Given
         disk = DiskFileSystem(parity_tree)
         virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
-        path = '.agents/skills/alpha'
+        path = RootRelativePath.parse('.agents/skills/alpha')
+        expected = _answer(disk.list_dir, path)
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.list_dir, virtual.list_dir, path)
+        actual = _answer(virtual.list_dir, path)
 
         #: Then
-        assert virtual_answer == disk_answer, '.agents/skills/alpha lists the same SKILL.md over the snapshot'
+        assert actual == expected, '.agents/skills/alpha lists the same SKILL.md over the snapshot'
 
     def test_list_dir_over_a_snapshot_with_the_claude_listing_agrees_with_disk(self, parity_tree: Path) -> None:
         #: Given
         disk = DiskFileSystem(parity_tree)
         virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
-        path = '.claude'
+        path = RootRelativePath.parse('.claude')
+        expected = _answer(disk.list_dir, path)
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.list_dir, virtual.list_dir, path)
+        actual = _answer(virtual.list_dir, path)
 
         #: Then
-        assert virtual_answer == disk_answer, '.claude lists the same skills link over the snapshot'
+        assert actual == expected, '.claude lists the same skills link over the snapshot'
 
     def test_list_dir_over_a_snapshot_with_the_docs_listing_agrees_with_disk(self, parity_tree: Path) -> None:
         #: Given
         disk = DiskFileSystem(parity_tree)
         virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
-        path = 'docs'
+        path = RootRelativePath.parse('docs')
+        expected = _answer(disk.list_dir, path)
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.list_dir, virtual.list_dir, path)
+        actual = _answer(virtual.list_dir, path)
 
         #: Then
-        assert virtual_answer == disk_answer, 'docs lists the same files, directories and links over the snapshot'
+        assert actual == expected, 'docs lists the same files, directories and links over the snapshot'
 
     def test_list_dir_over_a_snapshot_with_the_meta_listing_agrees_with_disk(self, parity_tree: Path) -> None:
         #: Given
         disk = DiskFileSystem(parity_tree)
         virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
-        path = 'docs/__meta__'
+        path = RootRelativePath.parse('docs/__meta__')
+        expected = _answer(disk.list_dir, path)
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.list_dir, virtual.list_dir, path)
+        actual = _answer(virtual.list_dir, path)
 
         #: Then
-        assert virtual_answer == disk_answer, 'docs/__meta__ lists the same code.md over the snapshot'
+        assert actual == expected, 'docs/__meta__ lists the same code.md over the snapshot'
 
     def test_list_dir_over_a_snapshot_with_the_code_listing_agrees_with_disk(self, parity_tree: Path) -> None:
         #: Given
         disk = DiskFileSystem(parity_tree)
         virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
-        path = 'docs/code'
+        path = RootRelativePath.parse('docs/code')
+        expected = _answer(disk.list_dir, path)
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.list_dir, virtual.list_dir, path)
+        actual = _answer(virtual.list_dir, path)
 
         #: Then
-        assert virtual_answer == disk_answer, 'docs/code lists the same file, link, fifo and sub over the snapshot'
+        assert actual == expected, 'docs/code lists the same file, link, fifo and sub over the snapshot'
 
     def test_list_dir_over_a_snapshot_with_a_skill_file_agrees_with_disk(self, parity_tree: Path) -> None:
         #: Given
         disk = DiskFileSystem(parity_tree)
         virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
-        path = '.agents/skills/alpha/SKILL.md'
+        path = RootRelativePath.parse('.agents/skills/alpha/SKILL.md')
+        expected = _answer(disk.list_dir, path)
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.list_dir, virtual.list_dir, path)
+        actual = _answer(virtual.list_dir, path)
 
         #: Then
-        assert virtual_answer == disk_answer, 'the file SKILL.md lists as nothing over the snapshot too'
+        assert actual == expected, 'the file SKILL.md lists as nothing over the snapshot too'
 
     def test_list_dir_over_a_snapshot_with_a_meta_file_agrees_with_disk(self, parity_tree: Path) -> None:
         #: Given
         disk = DiskFileSystem(parity_tree)
         virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
-        path = 'docs/__meta__/code.md'
+        path = RootRelativePath.parse('docs/__meta__/code.md')
+        expected = _answer(disk.list_dir, path)
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.list_dir, virtual.list_dir, path)
+        actual = _answer(virtual.list_dir, path)
 
         #: Then
-        assert virtual_answer == disk_answer, 'the file docs/__meta__/code.md lists as nothing over the snapshot too'
+        assert actual == expected, 'the file docs/__meta__/code.md lists as nothing over the snapshot too'
 
     def test_list_dir_over_a_snapshot_with_a_code_file_agrees_with_disk(self, parity_tree: Path) -> None:
         #: Given
         disk = DiskFileSystem(parity_tree)
         virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
-        path = 'docs/code/a.md'
+        path = RootRelativePath.parse('docs/code/a.md')
+        expected = _answer(disk.list_dir, path)
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.list_dir, virtual.list_dir, path)
+        actual = _answer(virtual.list_dir, path)
 
         #: Then
-        assert virtual_answer == disk_answer, 'the file docs/code/a.md lists as nothing over the snapshot too'
+        assert actual == expected, 'the file docs/code/a.md lists as nothing over the snapshot too'
 
     def test_list_dir_over_a_snapshot_with_a_fifo_agrees_with_disk(self, parity_tree: Path) -> None:
         #: Given
         disk = DiskFileSystem(parity_tree)
         virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
-        path = 'docs/code/pipe'
+        path = RootRelativePath.parse('docs/code/pipe')
+        expected = _answer(disk.list_dir, path)
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.list_dir, virtual.list_dir, path)
+        actual = _answer(virtual.list_dir, path)
 
         #: Then
-        assert virtual_answer == disk_answer, 'the fifo docs/code/pipe lists as nothing over the snapshot too'
+        assert actual == expected, 'the fifo docs/code/pipe lists as nothing over the snapshot too'
 
     def test_list_dir_over_a_snapshot_with_a_docs_file_agrees_with_disk(self, parity_tree: Path) -> None:
         #: Given
         disk = DiskFileSystem(parity_tree)
         virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
-        path = 'docs/glossary.md'
+        path = RootRelativePath.parse('docs/glossary.md')
+        expected = _answer(disk.list_dir, path)
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.list_dir, virtual.list_dir, path)
+        actual = _answer(virtual.list_dir, path)
 
         #: Then
-        assert virtual_answer == disk_answer, 'the file docs/glossary.md lists as nothing over the snapshot too'
+        assert actual == expected, 'the file docs/glossary.md lists as nothing over the snapshot too'
 
     def test_list_dir_over_a_snapshot_with_a_non_utf8_file_agrees_with_disk(self, parity_tree: Path) -> None:
         #: Given
         disk = DiskFileSystem(parity_tree)
         virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
-        path = 'docs/latin.md'
+        path = RootRelativePath.parse('docs/latin.md')
+        expected = _answer(disk.list_dir, path)
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.list_dir, virtual.list_dir, path)
+        actual = _answer(virtual.list_dir, path)
 
         #: Then
-        assert virtual_answer == disk_answer, 'the file docs/latin.md lists as nothing over the snapshot too'
+        assert actual == expected, 'the file docs/latin.md lists as nothing over the snapshot too'
 
     def test_list_dir_over_a_snapshot_with_a_missing_directory_agrees_with_disk(self, parity_tree: Path) -> None:
         #: Given
         disk = DiskFileSystem(parity_tree)
         virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
-        path = 'docs/missing'
+        path = RootRelativePath.parse('docs/missing')
+        expected = _answer(disk.list_dir, path)
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.list_dir, virtual.list_dir, path)
+        actual = _answer(virtual.list_dir, path)
 
         #: Then
-        assert virtual_answer == disk_answer, 'the missing docs/missing lists as nothing over the snapshot too'
+        assert actual == expected, 'the missing docs/missing lists as nothing over the snapshot too'
 
     def test_list_dir_over_a_snapshot_with_the_linked_scope_root_agrees_with_disk(self, parity_tree: Path) -> None:
         #: Given
         disk = DiskFileSystem(parity_tree)
         virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
-        path = '.claude/skills'
+        path = RootRelativePath.parse('.claude/skills')
+        expected = _answer(disk.list_dir, path)
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.list_dir, virtual.list_dir, path)
+        actual = _answer(virtual.list_dir, path)
 
         #: Then
-        assert virtual_answer == disk_answer, '.claude/skills lists as .agents/skills, where it leads, on both'
+        assert actual == expected, '.claude/skills lists as .agents/skills, where it leads, on both'
 
     def test_list_dir_over_a_snapshot_with_a_link_to_a_listed_directory_agrees_with_disk(
         self, parity_tree: Path
@@ -1975,13 +1989,14 @@ class TestVirtualFileSystemMatchesDisk:
         #: Given
         disk = DiskFileSystem(parity_tree)
         virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
-        path = 'docs/code-link'
+        path = RootRelativePath.parse('docs/code-link')
+        expected = _answer(disk.list_dir, path)
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.list_dir, virtual.list_dir, path)
+        actual = _answer(virtual.list_dir, path)
 
         #: Then
-        assert virtual_answer == disk_answer, 'docs/code-link lists as docs/code, where it leads, on both'
+        assert actual == expected, 'docs/code-link lists as docs/code, where it leads, on both'
 
     # read_text: every file and directory entry, a file behind a linked directory, and a link to a recorded file.
     # The fifo is left out (reading it on disk would block).
@@ -1990,39 +2005,40 @@ class TestVirtualFileSystemMatchesDisk:
         #: Given
         disk = DiskFileSystem(parity_tree)
         virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
-        path = 'docs/code/linked.md'
+        path = RootRelativePath.parse('docs/code/linked.md')
+        expected = _answer(disk.read_text, path)
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.read_text, virtual.read_text, path)
+        actual = _answer(virtual.read_text, path)
 
         #: Then
-        assert virtual_answer == disk_answer, 'linked.md leads to a.md, whose bytes are recorded, so it reads the same'
+        assert actual == expected, 'linked.md leads to a.md, whose bytes are recorded, so it reads the same'
 
     def test_read_text_over_a_snapshot_with_a_skill_directory_agrees_with_disk(self, parity_tree: Path) -> None:
         #: Given
         disk = DiskFileSystem(parity_tree)
         virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
-        path = '.agents/skills/alpha'
+        path = RootRelativePath.parse('.agents/skills/alpha')
+        expected = _answer(disk.read_text, path)
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.read_text, virtual.read_text, path)
+        actual = _answer(virtual.read_text, path)
 
         #: Then
-        assert virtual_answer == disk_answer, (
-            'reading the directory .agents/skills/alpha fails the same over the snapshot'
-        )
+        assert actual == expected, 'reading the directory .agents/skills/alpha fails the same over the snapshot'
 
     def test_read_text_over_a_snapshot_with_a_skill_file_agrees_with_disk(self, parity_tree: Path) -> None:
         #: Given
         disk = DiskFileSystem(parity_tree)
         virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
-        path = '.agents/skills/alpha/SKILL.md'
+        path = RootRelativePath.parse('.agents/skills/alpha/SKILL.md')
+        expected = _answer(disk.read_text, path)
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.read_text, virtual.read_text, path)
+        actual = _answer(virtual.read_text, path)
 
         #: Then
-        assert virtual_answer == disk_answer, 'SKILL.md reads as the same text over the snapshot'
+        assert actual == expected, 'SKILL.md reads as the same text over the snapshot'
 
     def test_read_text_over_a_snapshot_with_a_file_behind_a_linked_directory_agrees_with_disk(
         self, parity_tree: Path
@@ -2030,109 +2046,118 @@ class TestVirtualFileSystemMatchesDisk:
         #: Given
         disk = DiskFileSystem(parity_tree)
         virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
-        path = '.claude/skills/alpha/SKILL.md'
+        path = RootRelativePath.parse('.claude/skills/alpha/SKILL.md')
+        expected = _answer(disk.read_text, path)
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.read_text, virtual.read_text, path)
+        actual = _answer(virtual.read_text, path)
 
         #: Then
-        assert virtual_answer == disk_answer, 'SKILL.md behind the linked .claude/skills reads as the same text'
+        assert actual == expected, 'SKILL.md behind the linked .claude/skills reads as the same text'
 
     def test_read_text_over_a_snapshot_with_the_meta_directory_agrees_with_disk(self, parity_tree: Path) -> None:
         #: Given
         disk = DiskFileSystem(parity_tree)
         virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
-        path = 'docs/__meta__'
+        path = RootRelativePath.parse('docs/__meta__')
+        expected = _answer(disk.read_text, path)
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.read_text, virtual.read_text, path)
+        actual = _answer(virtual.read_text, path)
 
         #: Then
-        assert virtual_answer == disk_answer, 'reading the directory docs/__meta__ fails the same over the snapshot'
+        assert actual == expected, 'reading the directory docs/__meta__ fails the same over the snapshot'
 
     def test_read_text_over_a_snapshot_with_a_meta_file_agrees_with_disk(self, parity_tree: Path) -> None:
         #: Given
         disk = DiskFileSystem(parity_tree)
         virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
-        path = 'docs/__meta__/code.md'
+        path = RootRelativePath.parse('docs/__meta__/code.md')
+        expected = _answer(disk.read_text, path)
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.read_text, virtual.read_text, path)
+        actual = _answer(virtual.read_text, path)
 
         #: Then
-        assert virtual_answer == disk_answer, 'docs/__meta__/code.md reads as the same text over the snapshot'
+        assert actual == expected, 'docs/__meta__/code.md reads as the same text over the snapshot'
 
     def test_read_text_over_a_snapshot_with_the_code_directory_agrees_with_disk(self, parity_tree: Path) -> None:
         #: Given
         disk = DiskFileSystem(parity_tree)
         virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
-        path = 'docs/code'
+        path = RootRelativePath.parse('docs/code')
+        expected = _answer(disk.read_text, path)
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.read_text, virtual.read_text, path)
+        actual = _answer(virtual.read_text, path)
 
         #: Then
-        assert virtual_answer == disk_answer, 'reading the directory docs/code fails the same over the snapshot'
+        assert actual == expected, 'reading the directory docs/code fails the same over the snapshot'
 
     def test_read_text_over_a_snapshot_with_a_code_file_agrees_with_disk(self, parity_tree: Path) -> None:
         #: Given
         disk = DiskFileSystem(parity_tree)
         virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
-        path = 'docs/code/a.md'
+        path = RootRelativePath.parse('docs/code/a.md')
+        expected = _answer(disk.read_text, path)
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.read_text, virtual.read_text, path)
+        actual = _answer(virtual.read_text, path)
 
         #: Then
-        assert virtual_answer == disk_answer, 'docs/code/a.md reads as the same text over the snapshot'
+        assert actual == expected, 'docs/code/a.md reads as the same text over the snapshot'
 
     def test_read_text_over_a_snapshot_with_an_unentered_directory_agrees_with_disk(self, parity_tree: Path) -> None:
         #: Given
         disk = DiskFileSystem(parity_tree)
         virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
-        path = 'docs/code/sub'
+        path = RootRelativePath.parse('docs/code/sub')
+        expected = _answer(disk.read_text, path)
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.read_text, virtual.read_text, path)
+        actual = _answer(virtual.read_text, path)
 
         #: Then
-        assert virtual_answer == disk_answer, 'reading the unentered docs/code/sub fails the same over the snapshot'
+        assert actual == expected, 'reading the unentered docs/code/sub fails the same over the snapshot'
 
     def test_read_text_over_a_snapshot_with_a_docs_file_agrees_with_disk(self, parity_tree: Path) -> None:
         #: Given
         disk = DiskFileSystem(parity_tree)
         virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
-        path = 'docs/glossary.md'
+        path = RootRelativePath.parse('docs/glossary.md')
+        expected = _answer(disk.read_text, path)
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.read_text, virtual.read_text, path)
+        actual = _answer(virtual.read_text, path)
 
         #: Then
-        assert virtual_answer == disk_answer, 'docs/glossary.md reads as the same text over the snapshot'
+        assert actual == expected, 'docs/glossary.md reads as the same text over the snapshot'
 
     def test_read_text_over_a_snapshot_with_a_non_utf8_file_agrees_with_disk(self, parity_tree: Path) -> None:
         #: Given
         disk = DiskFileSystem(parity_tree)
         virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
-        path = 'docs/latin.md'
+        path = RootRelativePath.parse('docs/latin.md')
+        expected = _answer(disk.read_text, path)
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.read_text, virtual.read_text, path)
+        actual = _answer(virtual.read_text, path)
 
         #: Then
-        assert virtual_answer == disk_answer, 'docs/latin.md fails to decode the same way over the snapshot'
+        assert actual == expected, 'docs/latin.md fails to decode the same way over the snapshot'
 
     def test_read_text_over_a_snapshot_with_a_missing_file_agrees_with_disk(self, parity_tree: Path) -> None:
         #: Given
         disk = DiskFileSystem(parity_tree)
         virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
-        path = 'docs/missing.md'
+        path = RootRelativePath.parse('docs/missing.md')
+        expected = _answer(disk.read_text, path)
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.read_text, virtual.read_text, path)
+        actual = _answer(virtual.read_text, path)
 
         #: Then
-        assert virtual_answer == disk_answer, 'reading the missing docs/missing.md fails the same over the snapshot'
+        assert actual == expected, 'reading the missing docs/missing.md fails the same over the snapshot'
 
     # find_entry_kind: a listed entry of every kind, entries recorded outside a listing of their parent, entries behind
     # the linked scope root, and paths neither view holds anything at. An entry inside an unentered directory is
@@ -2142,13 +2167,14 @@ class TestVirtualFileSystemMatchesDisk:
         #: Given
         disk = DiskFileSystem(parity_tree)
         virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
-        path = 'docs'
+        path = RootRelativePath.parse('docs')
+        expected = _answer(disk.find_entry_kind, path)
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.find_entry_kind, virtual.find_entry_kind, path)
+        actual = _answer(virtual.find_entry_kind, path)
 
         #: Then
-        assert virtual_answer == disk_answer, 'docs is a directory on both, though the snapshot never listed the root'
+        assert actual == expected, 'docs is a directory on both, though the snapshot never listed the root'
 
     def test_find_entry_kind_over_a_snapshot_with_the_meta_directory_entry_agrees_with_disk(
         self, parity_tree: Path
@@ -2156,49 +2182,53 @@ class TestVirtualFileSystemMatchesDisk:
         #: Given
         disk = DiskFileSystem(parity_tree)
         virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
-        path = 'docs/__meta__'
+        path = RootRelativePath.parse('docs/__meta__')
+        expected = _answer(disk.find_entry_kind, path)
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.find_entry_kind, virtual.find_entry_kind, path)
+        actual = _answer(virtual.find_entry_kind, path)
 
         #: Then
-        assert virtual_answer == disk_answer, 'docs/__meta__ is a directory on both'
+        assert actual == expected, 'docs/__meta__ is a directory on both'
 
     def test_find_entry_kind_over_a_snapshot_with_a_code_file_agrees_with_disk(self, parity_tree: Path) -> None:
         #: Given
         disk = DiskFileSystem(parity_tree)
         virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
-        path = 'docs/code/a.md'
+        path = RootRelativePath.parse('docs/code/a.md')
+        expected = _answer(disk.find_entry_kind, path)
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.find_entry_kind, virtual.find_entry_kind, path)
+        actual = _answer(virtual.find_entry_kind, path)
 
         #: Then
-        assert virtual_answer == disk_answer, 'docs/code/a.md is a file on both'
+        assert actual == expected, 'docs/code/a.md is a file on both'
 
     def test_find_entry_kind_over_a_snapshot_with_a_link_to_a_file_agrees_with_disk(self, parity_tree: Path) -> None:
         #: Given
         disk = DiskFileSystem(parity_tree)
         virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
-        path = 'docs/code/linked.md'
+        path = RootRelativePath.parse('docs/code/linked.md')
+        expected = _answer(disk.find_entry_kind, path)
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.find_entry_kind, virtual.find_entry_kind, path)
+        actual = _answer(virtual.find_entry_kind, path)
 
         #: Then
-        assert virtual_answer == disk_answer, 'docs/code/linked.md is a link on both, never the file it leads to'
+        assert actual == expected, 'docs/code/linked.md is a link on both, never the file it leads to'
 
     def test_find_entry_kind_over_a_snapshot_with_a_fifo_agrees_with_disk(self, parity_tree: Path) -> None:
         #: Given
         disk = DiskFileSystem(parity_tree)
         virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
-        path = PARITY_FIFO
+        path = RootRelativePath.parse(PARITY_FIFO)
+        expected = _answer(disk.find_entry_kind, path)
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.find_entry_kind, virtual.find_entry_kind, path)
+        actual = _answer(virtual.find_entry_kind, path)
 
         #: Then
-        assert virtual_answer == disk_answer, 'the fifo is OTHER on both'
+        assert actual == expected, 'the fifo is OTHER on both'
 
     def test_find_entry_kind_over_a_snapshot_with_an_unentered_directory_agrees_with_disk(
         self, parity_tree: Path
@@ -2206,13 +2236,14 @@ class TestVirtualFileSystemMatchesDisk:
         #: Given
         disk = DiskFileSystem(parity_tree)
         virtual = VirtualFileSystem(take_snapshot(parity_tree, SNAPSHOT_SCOPE))
-        path = 'docs/code/sub'
+        path = RootRelativePath.parse('docs/code/sub')
+        expected = _answer(disk.find_entry_kind, path)
 
         #: When
-        disk_answer, virtual_answer = _answers(disk.find_entry_kind, virtual.find_entry_kind, path)
+        actual = _answer(virtual.find_entry_kind, path)
 
         #: Then
-        assert virtual_answer == disk_answer, 'docs/code/sub is a directory on both, though the scan never entered it'
+        assert actual == expected, 'docs/code/sub is a directory on both, though the scan never entered it'
 
     def test_find_entry_kind_over_a_snapshot_with_the_linked_scope_root_agrees_with_disk(
         self, parity_tree: Path
