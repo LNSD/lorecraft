@@ -15,7 +15,7 @@ root, and `VirtualFileSystem` answers from a `Snapshot`.
 import errno
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 from pathlib import PurePosixPath
 from typing import Final, NewType
 
@@ -35,7 +35,7 @@ again, and says why where it does.
 """
 
 
-class EntryKind(Enum):
+class EntryKind(StrEnum):
     """What a directory entry itself is; symlinks are never followed."""
 
     FILE = 'file'
@@ -77,7 +77,7 @@ class RootExit:
     target: PurePosixPath
 
 
-class OsRefusal(Enum):
+class OsRefusal(StrEnum):
     """Why the operating system refused a call on a path, classified once from its `errno`.
 
     The set comes from outside the package, so it is an enum a handler can `match` over, and each value is
@@ -128,7 +128,7 @@ class DirListError(Error):
         self.path = path
         self.refusal = refusal
         self.source = source
-        super().__init__(f'cannot list directory {path}: {refusal.value}')
+        super().__init__(f'cannot list directory {path}: {refusal}')
         self.__cause__ = source
 
 
@@ -149,7 +149,7 @@ class FileReadError(Error):
         self.path = path
         self.refusal = refusal
         self.source = source
-        super().__init__(f'cannot read file {path}: {refusal.value}')
+        super().__init__(f'cannot read file {path}: {refusal}')
         self.__cause__ = source
 
 
@@ -205,7 +205,7 @@ class EntryInspectError(Error):
         self.path = path
         self.refusal = refusal
         self.source = source
-        super().__init__(f'cannot inspect entry {path}: {refusal.value}')
+        super().__init__(f'cannot inspect entry {path}: {refusal}')
         self.__cause__ = source
 
 
@@ -226,7 +226,7 @@ class DirResolveError(Error):
         self.path = path
         self.refusal = refusal
         self.source = source
-        super().__init__(f'cannot resolve directory {path}: {refusal.value}')
+        super().__init__(f'cannot resolve directory {path}: {refusal}')
         self.__cause__ = source
 
 
@@ -247,7 +247,7 @@ class FileResolveError(Error):
         self.path = path
         self.refusal = refusal
         self.source = source
-        super().__init__(f'cannot resolve file {path}: {refusal.value}')
+        super().__init__(f'cannot resolve file {path}: {refusal}')
         self.__cause__ = source
 
 
@@ -269,7 +269,7 @@ class RecordedDirListError(Error):
     def __init__(self, path: RootRelativePath, refusal: OsRefusal) -> None:
         self.path = path
         self.refusal = refusal
-        super().__init__(f'cannot list directory {path}: {refusal.value}')
+        super().__init__(f'cannot list directory {path}: {refusal}')
 
 
 class RecordedFileReadError(Error):
@@ -286,7 +286,7 @@ class RecordedFileReadError(Error):
     def __init__(self, path: RootRelativePath, refusal: OsRefusal) -> None:
         self.path = path
         self.refusal = refusal
-        super().__init__(f'cannot read file {path}: {refusal.value}')
+        super().__init__(f'cannot read file {path}: {refusal}')
 
 
 class RecordedEntryInspectError(Error):
@@ -303,7 +303,7 @@ class RecordedEntryInspectError(Error):
     def __init__(self, path: RootRelativePath, refusal: OsRefusal) -> None:
         self.path = path
         self.refusal = refusal
-        super().__init__(f'cannot inspect entry {path}: {refusal.value}')
+        super().__init__(f'cannot inspect entry {path}: {refusal}')
 
 
 class RecordedDirListPathError(Error):
@@ -323,7 +323,7 @@ class RecordedDirListPathError(Error):
         self.path = path
         self.refusal = refusal
         self.source = source
-        super().__init__(f'cannot list directory {path}: {refusal.value}')
+        super().__init__(f'cannot list directory {path}: {refusal}')
         self.__cause__ = source
 
 
@@ -344,7 +344,7 @@ class RecordedFileReadPathError(Error):
         self.path = path
         self.refusal = refusal
         self.source = source
-        super().__init__(f'cannot read file {path}: {refusal.value}')
+        super().__init__(f'cannot read file {path}: {refusal}')
         self.__cause__ = source
 
 
@@ -365,7 +365,7 @@ class RecordedDirResolveError(Error):
         self.path = path
         self.refusal = refusal
         self.source = source
-        super().__init__(f'cannot resolve directory {path}: {refusal.value}')
+        super().__init__(f'cannot resolve directory {path}: {refusal}')
         self.__cause__ = source
 
 
@@ -386,7 +386,7 @@ class RecordedFileResolveError(Error):
         self.path = path
         self.refusal = refusal
         self.source = source
-        super().__init__(f'cannot resolve file {path}: {refusal.value}')
+        super().__init__(f'cannot resolve file {path}: {refusal}')
         self.__cause__ = source
 
 

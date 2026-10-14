@@ -14,7 +14,7 @@ Every other module takes the parsed records: a `ProseSpecFile` or a `StructureSp
 """
 
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 from typing import Final, assert_never
 
 from lorecraft.core.error import Error
@@ -32,7 +32,7 @@ from .name import SpecName, parse_spec_name
 _JSON_SUFFIX: Final[str] = '.json'
 
 
-class SpecFileType(Enum):
+class SpecFileType(StrEnum):
     """What a specification file is; the value is the file name pattern that claims it."""
 
     PROSE = '*.md'
@@ -90,7 +90,7 @@ class StructureSpecFile:
     def type(self) -> SpecFileType:
         """The file type whose pattern claims the filename: `SpecFileType.SPEC`, or the legacy structure type."""
         # Read from the filename rather than stored, so the record cannot disagree with the path it carries.
-        if self.path.name is not None and self.path.name.value.endswith(SpecFileType.LEGACY_STRUCTURE.suffix):
+        if self.path.name is not None and self.path.name.has_suffix(SpecFileType.LEGACY_STRUCTURE.suffix):
             return SpecFileType.LEGACY_STRUCTURE
         return SpecFileType.SPEC
 
@@ -285,7 +285,7 @@ def _split_filename(path: RootRelativePath) -> tuple[str, SpecFileType]:
     name = path.name
     if name is None:
         raise NotASpecFileError(path)  # the root has no filename
-    filename = name.value
+    filename = str(name)
 
     # The first type whose pattern matches claims the file, so no pattern's suffix may end another's: a `*.json`
     # declared before `*.spec.json` would claim every structure specification at a dotted stem.
@@ -308,4 +308,4 @@ def _split_filename(path: RootRelativePath) -> tuple[str, SpecFileType]:
 
 def _pattern_list() -> str:
     """Every file type's pattern, in declaration order, for an error message: `*.md, *.spec.json, *.structure.json`."""
-    return ', '.join(file_type.value for file_type in SpecFileType)
+    return ', '.join(SpecFileType)

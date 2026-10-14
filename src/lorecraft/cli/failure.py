@@ -119,9 +119,7 @@ def _failure_text(failure: LoadFailure) -> FailureText:
     condition = failure.condition
     match condition:
         case UnreadableStructureFile(name=name, refusal=refusal):
-            return FailureText(
-                f'cannot read the structure schema {name}', (f'cannot read file {path}: {refusal.value}',)
-            )
+            return FailureText(f'cannot read the structure schema {name}', (f'cannot read file {path}: {refusal}',))
         case UnrecordedStructureFile(name=name):
             return FailureText(
                 f'cannot read the structure schema {name}', (f'cannot read file {path}: not in the snapshot',)
@@ -165,27 +163,23 @@ def _failure_text(failure: LoadFailure) -> FailureText:
         case UnlistableCorpusDirectory(corpus=corpus, refusal=refusal):
             return FailureText(f'cannot list the documents of corpus {corpus}', (_cannot_list(path, refusal),))
         case UnresolvableSkillsDirectory(refusal=refusal):
-            return FailureText(f'cannot resolve directory {path}: {refusal.value}')
+            return FailureText(f'cannot resolve directory {path}: {refusal}')
         case UninspectableSkillsDirectory(failed_at=failed_at, refusal=refusal):
-            return FailureText(f'cannot inspect entry {failed_at}: {refusal.value}')
+            return FailureText(f'cannot inspect entry {failed_at}: {refusal}')
         case UnlistableSkillsDirectory(failed_at=failed_at, refusal=refusal):
             return FailureText(f'cannot list the skills in {failed_at}', (_cannot_list(failed_at, refusal),))
         case UnresolvableSkillEntry(refusal=refusal):
-            return FailureText(
-                f'cannot resolve skill entry {path}', (f'cannot resolve directory {path}: {refusal.value}',)
-            )
+            return FailureText(f'cannot resolve skill entry {path}', (f'cannot resolve directory {path}: {refusal}',))
         case UninspectableSkillEntry(failed_at=failed_at, refusal=refusal):
-            return FailureText(
-                f'cannot resolve skill entry {path}', (f'cannot inspect entry {failed_at}: {refusal.value}',)
-            )
+            return FailureText(f'cannot resolve skill entry {path}', (f'cannot inspect entry {failed_at}: {refusal}',))
         case UnlistableSkillDirectory(failed_at=failed_at, refusal=refusal):
             return FailureText(
                 f'cannot look for {SKILL_ENTRY_FILENAME} in {failed_at}', (_cannot_list(failed_at, refusal),)
             )
         case UnresolvableSkillFile(failed_at=failed_at, refusal=refusal):
-            return FailureText(f'cannot resolve {failed_at}', (f'cannot resolve file {failed_at}: {refusal.value}',))
+            return FailureText(f'cannot resolve {failed_at}', (f'cannot resolve file {failed_at}: {refusal}',))
         case UninspectableSkillFile(skill_file=skill_file, failed_at=failed_at, refusal=refusal):
-            return FailureText(f'cannot resolve {skill_file}', (f'cannot inspect entry {failed_at}: {refusal.value}',))
+            return FailureText(f'cannot resolve {skill_file}', (f'cannot inspect entry {failed_at}: {refusal}',))
         case _:
             assert_never(condition)
 
@@ -197,4 +191,4 @@ def _cannot_list(path: RootRelativePath, refusal: OsRefusal) -> str:
         path: The directory that could not be listed.
         refusal: Why the operating system refused the listing.
     """
-    return f'cannot list directory {path}: {refusal.value}'
+    return f'cannot list directory {path}: {refusal}'

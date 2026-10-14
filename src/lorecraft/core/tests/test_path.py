@@ -286,6 +286,26 @@ class TestRootRelativePath:
 
 @pytest.mark.unit
 class TestPathComponent:
+    def test_has_suffix_with_a_matching_suffix_returns_true(self) -> None:
+        #: Given
+        name = PathComponent.parse('feat.spec.json')
+
+        #: When
+        matches = name.has_suffix('.md', '.spec.json')
+
+        #: Then
+        assert matches, 'a name ending in any of the suffixes has the suffix'
+
+    def test_has_suffix_with_no_matching_suffix_returns_false(self) -> None:
+        #: Given
+        name = PathComponent.parse('feat.md')
+
+        #: When
+        matches = name.has_suffix('.json')
+
+        #: Then
+        assert not matches, 'a name ending in none of the suffixes does not have the suffix'
+
     def test_parse_with_a_filename_returns_it_unchanged(self) -> None:
         #: Given
         valid_name = 'SKILL.md'

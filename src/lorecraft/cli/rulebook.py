@@ -152,11 +152,11 @@ def _level_column(declaration: RuleDeclaration) -> str:
     # A `match` class pattern tests an instance, not a class, so the branch on a declaration's kind is an
     # `issubclass` chain, closed by `assert_never` as the registry's own is.
     if issubclass(declaration, Rule):
-        return declaration.LEVEL.value
+        return str(declaration.LEVEL)
     elif issubclass(declaration, RemovedRule):
         return 'removed'
     elif issubclass(declaration, EngineCondition):
-        return declaration.SEVERITY.value
+        return str(declaration.SEVERITY)
     else:
         assert_never(declaration)
 

@@ -30,6 +30,7 @@ other diagnostic.
 from dataclasses import dataclass
 from typing import assert_never
 
+from lorecraft.core.num import UnsignedInt
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.skill import SkillRef, SkillResourceRef
@@ -94,7 +95,7 @@ class DiagnosticOrder:
     """
 
     path: str
-    location: int
+    location: UnsignedInt
     severity: int
     code: str
     message: str
@@ -110,9 +111,9 @@ def diagnostic_order(diagnostic: Diagnostic) -> DiagnosticOrder:
     match primary:
         case WholeSubject():
             # Line numbers start at 1, so 0 places the whole subject before every line.
-            location = 0
+            location = UnsignedInt(0)
         case Here():
-            location = primary.line.value
+            location = primary.line.as_unsigned()
         case _:
             assert_never(primary)
 

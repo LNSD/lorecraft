@@ -18,23 +18,13 @@ class NotOverCapError(Error):
         cap: The cap it does not exceed.
     """
 
-    count: int
-    cap: int
+    count: UnsignedInt
+    cap: NonZeroUnsignedInt
 
-    def __init__(self, count: int, cap: int) -> None:
+    def __init__(self, count: UnsignedInt, cap: NonZeroUnsignedInt) -> None:
         self.count = count
         self.cap = cap
         super().__init__(f'a count must exceed its cap, got {count} <= {cap}')
-
-
-def _is_past_cap(count: UnsignedInt, cap: NonZeroUnsignedInt) -> bool:
-    """Whether a count is past its cap; a count equal to the cap is within it.
-
-    Args:
-        count: The measured count.
-        cap: The most the count may reach.
-    """
-    return count.value > cap.value
 
 
 @dataclass(frozen=True, slots=True)
@@ -58,13 +48,13 @@ class Overrun:
         Raises:
             NotOverCapError: If the count is at most the cap.
         """
-        if not _is_past_cap(self.count, self.cap):
-            raise NotOverCapError(self.count.value, self.cap.value)
+        if not self.count.exceeds(self.cap):
+            raise NotOverCapError(self.count, self.cap)
 
     @property
     def excess(self) -> NonZeroUnsignedInt:
         """How far the count runs past its cap; at least 1."""
-        return NonZeroUnsignedInt(self.count.value - self.cap.value)
+        return self.count.excess_over(self.cap)
 
 
 def find_overrun(count: UnsignedInt, cap: NonZeroUnsignedInt) -> Overrun | None:
@@ -74,6 +64,6 @@ def find_overrun(count: UnsignedInt, cap: NonZeroUnsignedInt) -> Overrun | None:
         count: The measured count.
         cap: The most the count may reach; a count equal to it is within it.
     """
-    if not _is_past_cap(count, cap):
+    if not count.exceeds(cap):
         return None
     return Overrun(count, cap)

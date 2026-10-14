@@ -19,7 +19,7 @@ from typing import Literal, assert_never
 
 from pydantic import BaseModel, ConfigDict
 
-from lorecraft.project.syntax import LineNumber
+from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.rules.declaration import Severity
 from lorecraft.rules.report import (
     CheckedDocument,
@@ -59,7 +59,7 @@ class _LabelJson(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     path: str
-    line: int | None
+    line: NonZeroUnsignedInt | None
     text: str
 
 
@@ -78,7 +78,7 @@ class _ChildJson(BaseModel):
     kind: Literal['help', 'note']
     text: str
     path: str | None
-    line: int | None
+    line: NonZeroUnsignedInt | None
 
 
 class _DiagnosticJson(BaseModel):
@@ -99,7 +99,7 @@ class _DiagnosticJson(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     path: str
-    line: int | None
+    line: NonZeroUnsignedInt | None
     severity: Literal['error', 'warning']
     code: str
     name: str
@@ -175,7 +175,7 @@ def render_short(reports: tuple[RunReport, ...]) -> str:
     for diagnostic in ordered_diagnostics(reports):
         occurrence = diagnostic.occurrence
         line = primary_line(diagnostic)
-        head = f'{diagnostic.severity.value}[{occurrence.CODE}]: {occurrence.message()}'
+        head = f'{diagnostic.severity}[{occurrence.CODE}]: {occurrence.message()}'
         lines.append(f'{format_place(FilePlace(diagnostic.path, line))}: {head}')
     return '\n'.join(lines)
 
@@ -199,7 +199,7 @@ def render_coverage(reports: tuple[RunReport, ...]) -> str:
     for subject in _coverage_subjects(reports):
         match subject:
             case CheckedDocument():
-                facets = ', '.join(facet.value for facet in subject.ungoverned)
+                facets = ', '.join(subject.ungoverned)
                 lines.append(f'{subject.ref.path}: ungoverned for {facets}')
             case SkippedSubject():
                 files = ', '.join(str(path) for path in subject.failed_layers)
@@ -271,7 +271,7 @@ def render_json(reports: tuple[RunReport, ...]) -> str:
             case CheckedDocument():
                 facets: list[str] = []
                 for facet in subject.ungoverned:
-                    facets.append(facet.value)
+                    facets.append(facet)
                 coverage.append(_CoverageJson(path=str(subject.ref.path), ungoverned=facets, skipped_by=[]))
             case SkippedSubject():
                 failed_layers: list[str] = []
@@ -374,7 +374,7 @@ def _json_diagnostic(diagnostic: Diagnostic) -> _DiagnosticJson:
     labels: list[_LabelJson] = []
     for label in occurrence.labels():
         at = place(diagnostic.path, label.at)
-        labels.append(_LabelJson(path=str(at.path), line=_json_line(at.line), text=label.text))
+        labels.append(_LabelJson(path=str(at.path), line=at.line, text=label.text))
     children: list[_ChildJson] = []
     for child in occurrence.children():
         child_at = child_place(diagnostic.path, child)
@@ -386,12 +386,12 @@ def _json_diagnostic(diagnostic: Diagnostic) -> _DiagnosticJson:
                     kind=child_kind(child),
                     text=child.text,
                     path=str(child_at.path),
-                    line=_json_line(child_at.line),
+                    line=child_at.line,
                 )
             )
     return _DiagnosticJson(
         path=str(diagnostic.path),
-        line=_json_line(primary_line(diagnostic)),
+        line=primary_line(diagnostic),
         severity=_severity_word(diagnostic.severity),
         code=str(occurrence.CODE),
         name=str(occurrence.NAME),
@@ -414,17 +414,6 @@ def _severity_word(severity: Severity) -> Literal['error', 'warning']:
             return 'warning'
         case _:
             assert_never(severity)
-
-
-def _json_line(line: LineNumber | None) -> int | None:
-    """A line as JSON writes it: its number, or null when there is none.
-
-    Args:
-        line: The line a diagnostic, label, help or note points at, or None when it points at no line.
-    """
-    if line is None:
-        return None
-    return line.value
 
 
 def _count(number: int, noun: str) -> str:

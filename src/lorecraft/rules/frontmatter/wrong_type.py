@@ -114,8 +114,8 @@ class WrongType(FrontmatterRule):
 
     def labels(self) -> tuple[Label, ...]:
         """Say the types the schema expects and the type found, on the field's line."""
-        expected = ' or '.join(expected.value for expected in self.problem.expected)
-        return (Label(Here(self.line), f'expected {expected}, found {self.problem.found.value}'),)
+        expected = ' or '.join(self.problem.expected)
+        return (Label(Here(self.line), f'expected {expected}, found {self.problem.found}'),)
 
     def children(self) -> tuple[Subdiagnostic, ...]:
         """Say where the schema is stated, how to quote a string YAML misread, then what the field is and looks like."""

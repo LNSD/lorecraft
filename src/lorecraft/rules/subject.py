@@ -27,7 +27,7 @@ Every rule derives from one of these bases: the length rules, `LEN001` to `LEN00
 
 from abc import abstractmethod
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 from typing import ClassVar, Self
 
 from lorecraft.project.context import (
@@ -42,7 +42,7 @@ from lorecraft.project.context import (
 from .declaration import ContentRule, LayoutRule
 
 
-class Facet(Enum):
+class Facet(StrEnum):
     """What part of a document a specification governs, which a rule over a document or the frontmatter is gated on.
 
     Each member is one condition on the specifications that govern a document, read before any rule over that facet

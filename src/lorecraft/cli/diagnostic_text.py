@@ -36,9 +36,9 @@ from typing import Final, assert_never
 import typer
 
 from lorecraft.core.lines import split_lines
-from lorecraft.core.num import NonZeroUnsignedInt
+from lorecraft.core.num import NonZeroUnsignedInt, UnsignedInt
 from lorecraft.core.path import RootRelativePath
-from lorecraft.project.syntax import LineNumber
+from lorecraft.project.syntax import FIRST_LINE, LineNumber
 from lorecraft.rules.declaration import Severity
 from lorecraft.rules.location import EntrySubdiagnostic, Subdiagnostic
 from lorecraft.rules.report import Diagnostic, RunReport
@@ -72,7 +72,10 @@ class SourceText:
         Args:
             number: The line to look for.
         """
-        return number.value <= len(self.lines)
+        if not self.lines:
+            return False
+        last_line = LineNumber(NonZeroUnsignedInt(len(self.lines)))
+        return number <= last_line
 
     def line(self, number: LineNumber) -> str:
         """The text of a line, which the file must run to.
@@ -83,8 +86,8 @@ class SourceText:
         Args:
             number: The line to read, which `has_line` confirmed.
         """
-        text = self.lines[number.value - 1]
-        if number.value == 1:
+        text = self.lines[number.position()]
+        if number == FIRST_LINE:
             return text.removeprefix('\ufeff')
         return text
 
@@ -161,8 +164,9 @@ def _diagnostic_lines(diagnostic: Diagnostic, sources: SourceLines, style: TextS
         style: How to draw.
     """
     occurrence = diagnostic.occurrence
-    severity = diagnostic.severity.value
-    header = _paint(style, f'{severity}[{occurrence.CODE}]', fg=_severity_color(diagnostic.severity), bold=True)
+    header = _paint(
+        style, f'{diagnostic.severity}[{occurrence.CODE}]', fg=_severity_color(diagnostic.severity), bold=True
+    )
     lines = [header + _paint(style, f': {occurrence.message()}', bold=True)]
 
     marks = diagnostic_marks(diagnostic)
@@ -225,7 +229,7 @@ def _group_by_file(subject: RootRelativePath, marks: list[Mark]) -> list[tuple[R
     return [(path, sorted(group, key=_line_order)) for path, group in groups.items()]
 
 
-def _line_order(mark: Mark) -> int:
+def _line_order(mark: Mark) -> UnsignedInt:
     """Where a mark sorts in its file: the whole file, which has no line, before every line.
 
     Args:
@@ -233,9 +237,9 @@ def _line_order(mark: Mark) -> int:
     """
     match mark:
         case WholeFileMark():
-            return 0
+            return UnsignedInt(0)
         case LineMark():
-            return mark.line.value
+            return mark.line.as_unsigned()
         case _:
             assert_never(mark)
 
@@ -279,7 +283,7 @@ def _gutter_width(marks: list[Mark], sources: SourceLines) -> int:
     for mark in marks:
         match mark:
             case LineMark() if _has_source(mark, sources):
-                width = max(width, len(str(mark.line.value)))
+                width = max(width, len(f'{mark.line}'))
             case LineMark() | WholeFileMark():
                 pass
             case _:
@@ -305,18 +309,18 @@ def _excerpt_lines(
         style: How to draw.
         glyphs: The characters to draw with.
     """
-    marks_by_line: dict[int, list[LineMark]] = {}
+    marks_by_line: dict[LineNumber, list[LineMark]] = {}
     for mark in marks:
-        marks_by_line.setdefault(mark.line.value, []).append(mark)
+        marks_by_line.setdefault(mark.line, []).append(mark)
 
     lines: list[str] = []
-    previous: int | None = None
+    previous: LineNumber | None = None
     for number, line_marks in marks_by_line.items():
         if previous is not None:
-            hidden = number - previous - 1
-            if hidden == 1:
-                lines.append(_source_line(LineNumber(NonZeroUnsignedInt(previous + 1)), source, width, style, glyphs))
-            elif hidden > 1:
+            hidden = number.between(previous)
+            if hidden == UnsignedInt(1):
+                lines.append(_source_line(LineNumber(previous.successor()), source, width, style, glyphs))
+            elif hidden > UnsignedInt(1):
                 lines.append(_paint(style, f'{glyphs.elision:>{width}} {glyphs.gutter}', fg='blue', bold=True))
         line = line_marks[0].line
         lines.append(_source_line(line, source, width, style, glyphs))
@@ -338,7 +342,7 @@ def _source_line(number: LineNumber, source: SourceText, width: int, style: Text
         style: How to draw.
         glyphs: The characters to draw with.
     """
-    gutter = _paint(style, f'{number.value:>{width}} {glyphs.gutter}', fg='blue', bold=True)
+    gutter = _paint(style, f'{number:>{width}} {glyphs.gutter}', fg='blue', bold=True)
     return f'{gutter} {source.line(number).expandtabs(_TAB_WIDTH)}'.rstrip()
 
 

@@ -52,8 +52,8 @@ class TestOverrun:
             Overrun(count, cap)
 
         #: Then
-        assert exc_info.value.count == 500, 'the error keeps the rejected count'
-        assert exc_info.value.cap == 500, 'the error keeps the cap'
+        assert exc_info.value.count == count, 'the error keeps the rejected count'
+        assert exc_info.value.cap == cap, 'the error keeps the cap'
 
     def test_excess_is_the_count_past_the_cap(self) -> None:
         #: Given

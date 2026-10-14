@@ -20,7 +20,7 @@ fault.
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 from string import ascii_lowercase, ascii_uppercase, digits
 from typing import ClassVar, Final, Self
 
@@ -624,7 +624,7 @@ class AliasCode:
         return str(self.code)
 
 
-class Level(Enum):
+class Level(StrEnum):
     """How a rule is configured; the value is the word a configuration spells it with."""
 
     ALLOW = 'allow'
@@ -746,7 +746,7 @@ class RemovedRule:
     REPLACED_BY: ClassVar[RuleCode | None]
 
 
-class Severity(Enum):
+class Severity(StrEnum):
     """How a diagnostic is reported; the value is the word the output spells it with.
 
     A severity is not a `Level`: a rule at `allow` does not run, so it reports nothing, and a diagnostic carries one

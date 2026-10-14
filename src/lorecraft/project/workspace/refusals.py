@@ -44,7 +44,7 @@ class UnreportedDirListError(Error):
     def __init__(self, path: RootRelativePath, refusal: OsRefusal) -> None:
         self.path = path
         self.refusal = refusal
-        super().__init__(f'cannot snapshot directory {path}: {refusal.value}')
+        super().__init__(f'cannot snapshot directory {path}: {refusal}')
 
 
 class UnreportedFileReadError(Error):
@@ -61,7 +61,7 @@ class UnreportedFileReadError(Error):
     def __init__(self, path: RootRelativePath, refusal: OsRefusal) -> None:
         self.path = path
         self.refusal = refusal
-        super().__init__(f'cannot snapshot file {path}: {refusal.value}')
+        super().__init__(f'cannot snapshot file {path}: {refusal}')
 
 
 class UnreportedEntryInspectError(Error):
@@ -78,7 +78,7 @@ class UnreportedEntryInspectError(Error):
     def __init__(self, path: RootRelativePath, refusal: OsRefusal) -> None:
         self.path = path
         self.refusal = refusal
-        super().__init__(f'cannot snapshot entry {path}: {refusal.value}')
+        super().__init__(f'cannot snapshot entry {path}: {refusal}')
 
 
 def _shadowed_legacy_files(model: WorkspaceModel) -> set[RootRelativePath]:

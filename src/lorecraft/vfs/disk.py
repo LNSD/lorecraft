@@ -299,7 +299,7 @@ class SnapshotDirListError(Error):
         self.path = path
         self.refusal = refusal
         self.source = source
-        super().__init__(f'cannot snapshot directory {path}: {refusal.value}')
+        super().__init__(f'cannot snapshot directory {path}: {refusal}')
         self.__cause__ = source
 
 
@@ -320,7 +320,7 @@ class SnapshotEntryInspectError(Error):
         self.path = path
         self.refusal = refusal
         self.source = source
-        super().__init__(f'cannot snapshot entry {path}: {refusal.value}')
+        super().__init__(f'cannot snapshot entry {path}: {refusal}')
         self.__cause__ = source
 
 
@@ -341,7 +341,7 @@ class SnapshotFileReadError(Error):
         self.path = path
         self.refusal = refusal
         self.source = source
-        super().__init__(f'cannot snapshot file {path}: {refusal.value}')
+        super().__init__(f'cannot snapshot file {path}: {refusal}')
         self.__cause__ = source
 
 
@@ -362,7 +362,7 @@ class SnapshotLinkReadError(Error):
         self.path = path
         self.refusal = refusal
         self.source = source
-        super().__init__(f'cannot snapshot link {path}: {refusal.value}')
+        super().__init__(f'cannot snapshot link {path}: {refusal}')
         self.__cause__ = source
 
 
@@ -395,8 +395,7 @@ class ChangedSnapshotEntryError(Error):
         self.recorded = recorded
         self.found = found
         super().__init__(
-            f'cannot snapshot entry {path}: recorded as {recorded.value}, then found as {found.value}; '
-            f'it changed during the scan'
+            f'cannot snapshot entry {path}: recorded as {recorded}, then found as {found}; it changed during the scan'
         )
 
 

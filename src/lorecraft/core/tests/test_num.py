@@ -70,6 +70,91 @@ class TestNonZeroUnsignedInt:
         #: Then
         assert text == '250', f'a number interpolates as its digits, got {text!r}'
 
+    def test_format_with_a_width_pads_the_digits(self) -> None:
+        #: Given
+        number = NonZeroUnsignedInt(7)
+
+        #: When
+        text = f'{number:>3}'
+
+        #: Then
+        assert text == '  7', f'a number is padded as its integer is, got {text!r}'
+
+    def test_as_unsigned_returns_the_same_number_as_an_unsigned_int(self) -> None:
+        #: Given
+        number = NonZeroUnsignedInt(7)
+
+        #: When
+        unsigned = number.as_unsigned()
+
+        #: Then
+        assert unsigned == UnsignedInt(7), f'the number keeps its value, got {unsigned}'
+
+    def test_between_with_adjacent_numbers_returns_zero(self) -> None:
+        #: Given
+        earlier = NonZeroUnsignedInt(4)
+        later = NonZeroUnsignedInt(5)
+
+        #: When
+        between = later.between(earlier)
+
+        #: Then
+        assert between == UnsignedInt(0), f'no number lies between adjacent ones, got {between}'
+
+    def test_between_with_a_gap_returns_the_numbers_inside_it(self) -> None:
+        #: Given
+        earlier = NonZeroUnsignedInt(4)
+        later = NonZeroUnsignedInt(9)
+
+        #: When
+        between = later.between(earlier)
+
+        #: Then
+        assert between == UnsignedInt(4), f'5, 6, 7 and 8 lie between 4 and 9, got {between}'
+
+    def test_between_with_a_number_not_above_the_earlier_raises_negative_int(self) -> None:
+        #: Given
+        earlier = NonZeroUnsignedInt(4)
+        same = NonZeroUnsignedInt(4)
+
+        #: When
+        with pytest.raises(NegativeIntError) as exc_info:
+            same.between(earlier)
+
+        #: Then
+        assert exc_info.value.value == -1, 'the error keeps the rejected count, one below zero for equal numbers'
+
+    def test_position_returns_the_zero_based_place(self) -> None:
+        #: Given
+        number = NonZeroUnsignedInt(1)
+
+        #: When
+        position = number.position()
+
+        #: Then
+        assert position == 0, f'the first of a one-based sequence sits at 0, got {position}'
+
+    def test_comparison_with_a_greater_number_orders_it_after(self) -> None:
+        #: Given
+        smaller = NonZeroUnsignedInt(1)
+        greater = NonZeroUnsignedInt(2)
+
+        #: When
+        ordered = sorted([greater, smaller])
+
+        #: Then
+        assert ordered == [smaller, greater], f'numbers order by their integers, got {ordered}'
+
+    def test_successor_returns_the_number_one_above(self) -> None:
+        #: Given
+        number = NonZeroUnsignedInt(500)
+
+        #: When
+        above = number.successor()
+
+        #: Then
+        assert above == NonZeroUnsignedInt(501), f'the successor of 500 is 501, got {above}'
+
 
 @pytest.mark.unit
 class TestNonZeroUnsignedIntAsPydanticType:
@@ -215,3 +300,130 @@ class TestUnsignedInt:
 
         #: Then
         assert text == '250', f'a number interpolates as its digits, got {text!r}'
+
+    def test_format_with_a_width_pads_the_digits(self) -> None:
+        #: Given
+        number = UnsignedInt(7)
+
+        #: When
+        text = f'{number:>3}'
+
+        #: Then
+        assert text == '  7', f'a number is padded as its integer is, got {text!r}'
+
+    def test_or_one_with_zero_returns_one(self) -> None:
+        #: Given
+        number = UnsignedInt(0)
+
+        #: When
+        result = number.or_one()
+
+        #: Then
+        assert result == NonZeroUnsignedInt(1), f'0 is raised to the smallest number the other type holds, got {result}'
+
+    def test_or_one_with_a_positive_number_returns_it(self) -> None:
+        #: Given
+        number = UnsignedInt(12)
+
+        #: When
+        result = number.or_one()
+
+        #: Then
+        assert result == NonZeroUnsignedInt(12), f'a number of at least 1 is kept, got {result}'
+
+    def test_comparison_orders_numbers_by_their_integers(self) -> None:
+        #: Given
+        smaller = UnsignedInt(0)
+        greater = UnsignedInt(1)
+
+        #: When
+        is_less = smaller < greater
+
+        #: Then
+        assert is_less, 'a number compares below a greater one'
+
+    def test_add_returns_the_sum_as_one_number(self) -> None:
+        #: Given
+        left = UnsignedInt(2)
+        right = UnsignedInt(3)
+
+        #: When
+        total = left + right
+
+        #: Then
+        assert total == UnsignedInt(5), f'the sum is a number of the same type, got {total!r}'
+
+    def test_exceeds_with_a_cap_below_the_number_returns_true(self) -> None:
+        #: Given
+        count = UnsignedInt(501)
+        cap = NonZeroUnsignedInt(500)
+
+        #: When
+        exceeds = count.exceeds(cap)
+
+        #: Then
+        assert exceeds, 'a number past the cap exceeds it'
+
+    def test_exceeds_with_a_number_equal_to_the_cap_returns_false(self) -> None:
+        #: Given
+        count = UnsignedInt(500)
+        cap = NonZeroUnsignedInt(500)
+
+        #: When
+        exceeds = count.exceeds(cap)
+
+        #: Then
+        assert not exceeds, 'a number equal to the cap is within it'
+
+    def test_excess_over_with_a_cap_below_the_number_returns_the_difference(self) -> None:
+        #: Given
+        count = UnsignedInt(503)
+        cap = NonZeroUnsignedInt(500)
+
+        #: When
+        excess = count.excess_over(cap)
+
+        #: Then
+        assert excess == NonZeroUnsignedInt(3), f'the excess is how far the number runs past the cap, got {excess}'
+
+    def test_excess_over_with_a_number_equal_to_the_cap_raises_non_positive_int(self) -> None:
+        #: Given
+        count = UnsignedInt(500)
+        cap = NonZeroUnsignedInt(500)
+
+        #: When
+        with pytest.raises(NonPositiveIntError) as exc_info:
+            count.excess_over(cap)
+
+        #: Then
+        assert exc_info.value.value == 0, 'the error keeps the rejected excess, which is 0 for a number at the cap'
+
+    def test_minus_with_an_amount_within_the_number_returns_what_is_left(self) -> None:
+        #: Given
+        number = UnsignedInt(3)
+
+        #: When
+        left = number.minus(NonZeroUnsignedInt(3))
+
+        #: Then
+        assert left == UnsignedInt(0), f'taking away the whole number leaves 0, got {left}'
+
+    def test_minus_with_an_amount_past_the_number_returns_none(self) -> None:
+        #: Given
+        number = UnsignedInt(2)
+
+        #: When
+        left = number.minus(NonZeroUnsignedInt(3))
+
+        #: Then
+        assert left is None, f'there is no number below 0, got {left}'
+
+    def test_successor_returns_the_number_one_above(self) -> None:
+        #: Given
+        number = UnsignedInt(0)
+
+        #: When
+        above = number.successor()
+
+        #: Then
+        assert above == NonZeroUnsignedInt(1), f'the successor of 0 is 1, got {above}'
