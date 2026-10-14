@@ -15,7 +15,7 @@ from lorecraft.project.syntax import reads_back_as_string
 from .frontmatter_problem import FieldGuidance, JsonType
 
 
-def value_text(value: object) -> str:
+def value_text(value: Plain) -> str:
     """A schema value as the text a reader writes it as in YAML: a string as it is, any other value as JSON.
 
     A string that the frontmatter reader would decode as another value, such as `1.0`, `true`, `0o17` or `1e3`,

@@ -120,8 +120,14 @@ from .schema_guidance import (
 )
 from .schema_keyword import (
     AdditionalPropertiesKeyword,
+    ConstKeyword,
     DependentRequiredKeyword,
+    EnumKeyword,
+    Keyword,
+    MaxPropertiesKeyword,
+    MinPropertiesKeyword,
     OtherKeyword,
+    PatternKeyword,
     RequiredKeyword,
     TypeKeyword,
     UnevaluatedPropertiesKeyword,
@@ -608,11 +614,11 @@ def _frontmatter_problems(
                     guidance=property_guidance(validator.schema, field),
                 )
             ]
-        return [_invalid_value(validator, error, field)]
+        return [_invalid_value(validator, error, keyword, field)]
     # `jsonschema` reports a key `propertyNames` rejects as the error of the keyword inside it, with the key as the
     # instance and no path, so it is told apart by the schema path. The key is written, so it has a line.
     if 'propertyNames' in error.relative_schema_path:
-        return [_invalid_value(validator, error, str(error.instance))]
+        return [_invalid_value(validator, error, keyword, str(error.instance))]
     # Past this point the error has no path, so the value it is about is `data` itself: read that rather than
     # `error.instance`, which `jsonschema` types as `Any`.
     match keyword:
@@ -640,12 +646,20 @@ def _frontmatter_problems(
             return problems
         case UnevaluatedPropertiesKeyword():
             return _unevaluated_problems(validator, _schema_object(error.schema), data)
-        case TypeKeyword() | OtherKeyword():
+        case (
+            TypeKeyword()
+            | EnumKeyword()
+            | ConstKeyword()
+            | PatternKeyword()
+            | MinPropertiesKeyword()
+            | MaxPropertiesKeyword()
+            | OtherKeyword()
+        ):
             # A rule over the whole block, such as `minProperties`, concerns no field.
             return [
                 BlockProblem(
                     error.message,
-                    _block_constraint(error),
+                    _block_constraint(keyword),
                     # A length is never negative, so building the `UnsignedInt` cannot raise `NegativeIntError` here.
                     FieldCount(UnsignedInt(len(data))),
                     description=schema_guidance(validator.schema).description,
@@ -655,18 +669,21 @@ def _frontmatter_problems(
             assert_never(keyword)
 
 
-def _invalid_value(validator: Validator, error: SchemaValidationError, field: str) -> InvalidValueProblem:
+def _invalid_value(
+    validator: Validator, error: SchemaValidationError, keyword: Keyword, field: str
+) -> InvalidValueProblem:
     """The problem of a value breaking a constraint, on the field it is written at.
 
     Args:
         validator: The validator that reported the error, holding the whole schema the field's property is read from.
         error: The error the value's constraint reported; its schema is the subschema that states the constraint.
+        keyword: The keyword that reported the error.
         field: The top-level field at fault.
     """
     return InvalidValueProblem(
         field,
         error.message,
-        _value_constraint(error, nested=len(error.path) > 1),
+        _value_constraint(keyword, nested=len(error.path) > 1),
         reason=schema_reason(error.schema),
         guidance=property_guidance(validator.schema, field),
     )
@@ -705,39 +722,63 @@ def _dependency_problems(
     return problems
 
 
-def _value_constraint(error: SchemaValidationError, *, nested: bool) -> ValueConstraint:
+def _value_constraint(keyword: Keyword, *, nested: bool) -> ValueConstraint:
     """The constraint a value broke, as far as a typed one describes the keyword that reported it.
 
     Args:
-        error: The error the value's constraint reported.
+        keyword: The keyword that reported the value's constraint.
         nested: Whether the constraint sits below the field's own value, such as on the items of a list. The allowed
             values and the pattern then are not the field's, so no typed constraint names them.
     """
     if nested:
         return OtherValueConstraint()
-    limit = error.validator_value
-    if error.validator == 'enum' and isinstance(limit, list):
-        return OneOfValues(tuple(value_text(allowed) for allowed in limit))
-    if error.validator == 'const':
-        return OneOfValues((value_text(limit),))
-    if error.validator == 'pattern' and isinstance(limit, str):
-        return PatternMismatch(limit)
-    return OtherValueConstraint()
+    match keyword:
+        case EnumKeyword(allowed):
+            return OneOfValues(tuple(value_text(value) for value in allowed))
+        case ConstKeyword(allowed):
+            return OneOfValues((value_text(allowed),))
+        case PatternKeyword(pattern):
+            return PatternMismatch(pattern)
+        case (
+            TypeKeyword()
+            | RequiredKeyword()
+            | DependentRequiredKeyword()
+            | AdditionalPropertiesKeyword()
+            | UnevaluatedPropertiesKeyword()
+            | MinPropertiesKeyword()
+            | MaxPropertiesKeyword()
+            | OtherKeyword()
+        ):
+            return OtherValueConstraint()
+        case _:
+            assert_never(keyword)
 
 
-def _block_constraint(error: SchemaValidationError) -> BlockLimit:
+def _block_constraint(keyword: Keyword) -> BlockLimit:
     """The constraint over the whole block, as far as a typed one describes the keyword that reported it.
 
     Args:
-        error: The error the block's constraint reported.
+        keyword: The keyword that reported the block's constraint.
     """
-    limit = error.validator_value
-    # A negative limit is no schema a validator accepts, so it falls to the untyped constraint rather than raising.
-    if error.validator == 'minProperties' and isinstance(limit, int) and limit >= 0:
-        return MinFields(FieldLimit(UnsignedInt(limit)))
-    if error.validator == 'maxProperties' and isinstance(limit, int) and limit >= 0:
-        return MaxFields(FieldLimit(UnsignedInt(limit)))
-    return OtherBlockConstraint()
+    match keyword:
+        case MinPropertiesKeyword(limit):
+            return MinFields(FieldLimit(UnsignedInt(limit)))
+        case MaxPropertiesKeyword(limit):
+            return MaxFields(FieldLimit(UnsignedInt(limit)))
+        case (
+            TypeKeyword()
+            | RequiredKeyword()
+            | DependentRequiredKeyword()
+            | AdditionalPropertiesKeyword()
+            | UnevaluatedPropertiesKeyword()
+            | EnumKeyword()
+            | ConstKeyword()
+            | PatternKeyword()
+            | OtherKeyword()
+        ):
+            return OtherBlockConstraint()
+        case _:
+            assert_never(keyword)
 
 
 def _additional_keys(schema: Mapping[str, Plain], instance: Mapping[str, Plain]) -> list[str]:
@@ -796,7 +837,7 @@ def _unevaluated_problems(
                         key,
                         reason.message,
                         # The error is about the key's value itself, so a path in it leads inside that value.
-                        _value_constraint(reason, nested=len(reason.path) > 0),
+                        _value_constraint(keyword_of(reason), nested=len(reason.path) > 0),
                         reason=schema_reason(reason.schema),
                         guidance=schema_guidance(rule),
                     )
