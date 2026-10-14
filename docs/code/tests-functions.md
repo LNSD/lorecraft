@@ -237,8 +237,9 @@ def draft_document(tmp_path: Path) -> Iterator[Path]:
 
 ## 5. One Test Per Case
 
-Each case is its own test function, named for its condition. Neither a `for` loop over cases nor
-`@pytest.mark.parametrize` is written.
+Each case is its own test function, named for its condition. Neither a `for` loop over cases,
+`@pytest.mark.parametrize`, nor a fixture with `params=` is written; a fixture that varies by case is one
+fixture per case.
 
 A loop collapses N cases into one test. It stops at the first failing case, so a run reports one failure when
 five are broken, and the CI line names the test, not the case. Parametrization fixes the counting but not the
@@ -368,8 +369,8 @@ Before committing code, verify:
 - [ ] No test exercises a second behaviour it also asserts on — those are two tests
 - [ ] Every `@pytest.fixture` states `scope=` explicitly, including `scope='function'`
 - [ ] No session- or module-scoped fixture yields mutable per-test state
-- [ ] No `for` loop over test cases and no `@pytest.mark.parametrize`; each case is its own named test, except in the
-      parametrized tests of `tests/it/test_rule_cases.py`
+- [ ] No `for` loop over test cases, no `@pytest.mark.parametrize` and no fixture `params=`; each case is its own
+      named test, except in the parametrized tests of `tests/it/test_rule_cases.py`
 - [ ] No `time.sleep` is used to wait for anything
 - [ ] No test calls a network service it did not start, or that a fixture did not provision
 - [ ] Every test creates the documents, fixture directories, and registry entries it needs and cleans them up

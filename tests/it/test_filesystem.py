@@ -207,41 +207,63 @@ def parity_tree(tmp_path: Path) -> Path:
     return tmp_path
 
 
-@pytest.fixture(scope='function', params=['through-the-alias', 'through-the-real-root'])
-def aliased_root_with_an_absolute_link(tmp_path: Path, request: pytest.FixtureRequest) -> Path:
+@pytest.fixture(scope='function')
+def alias_root_with_a_link_through_the_alias(tmp_path: Path) -> Path:
     """A root reached through an alias link, returned as the alias.
 
-    It holds `docs/code/` and `docs/absolute`, a link to `docs/code` by an absolute target spelled
-    either through the alias or through the real root.
+    It holds `docs/code/` and `docs/absolute`, a link to `docs/code` by an absolute target spelled through
+    the alias.
 
     Args:
         tmp_path: Directory the real root and the alias link are created in.
-        request: Carries the parametrised spelling of the absolute target, through the alias or the real root.
     """
     real_root = tmp_path / 'real'
     (real_root / 'docs' / 'code').mkdir(parents=True)
     alias = tmp_path / 'alias'
     alias.symlink_to(real_root)
-    if request.param == 'through-the-alias':
-        (real_root / 'docs' / 'absolute').symlink_to(alias / 'docs' / 'code')
-    else:
-        (real_root / 'docs' / 'absolute').symlink_to(real_root / 'docs' / 'code')
+    (real_root / 'docs' / 'absolute').symlink_to(alias / 'docs' / 'code')
     return alias
 
 
-@pytest.fixture(scope='function', params=['dangling-link', 'regular-file'])
-def unresolved_claude_skills_tree(tmp_path: Path, request: pytest.FixtureRequest) -> Path:
-    """A root whose `.claude/skills` exists but leads to no directory: a dangling link or a regular file.
+@pytest.fixture(scope='function')
+def alias_root_with_a_link_through_the_real_root(tmp_path: Path) -> Path:
+    """A root reached through an alias link, returned as the alias.
+
+    It holds `docs/code/` and `docs/absolute`, a link to `docs/code` by an absolute target spelled through
+    the real root.
+
+    Args:
+        tmp_path: Directory the real root and the alias link are created in.
+    """
+    real_root = tmp_path / 'real'
+    (real_root / 'docs' / 'code').mkdir(parents=True)
+    alias = tmp_path / 'alias'
+    alias.symlink_to(real_root)
+    (real_root / 'docs' / 'absolute').symlink_to(real_root / 'docs' / 'code')
+    return alias
+
+
+@pytest.fixture(scope='function')
+def dangling_claude_skills_tree(tmp_path: Path) -> Path:
+    """A root whose `.claude/skills` is a link to a path that does not exist.
 
     Args:
         tmp_path: Directory `.claude/` is created under, as the filesystem root.
-        request: Carries the parametrised form of the unresolved entry, a dangling link or a regular file.
     """
     (tmp_path / '.claude').mkdir()
-    if request.param == 'dangling-link':
-        (tmp_path / '.claude' / 'skills').symlink_to('missing')
-    else:
-        (tmp_path / '.claude' / 'skills').write_bytes(b'not a directory\n')
+    (tmp_path / '.claude' / 'skills').symlink_to('missing')
+    return tmp_path
+
+
+@pytest.fixture(scope='function')
+def file_claude_skills_tree(tmp_path: Path) -> Path:
+    """A root whose `.claude/skills` is a regular file, not a directory.
+
+    Args:
+        tmp_path: Directory `.claude/` is created under, as the filesystem root.
+    """
+    (tmp_path / '.claude').mkdir()
+    (tmp_path / '.claude' / 'skills').write_bytes(b'not a directory\n')
     return tmp_path
 
 
@@ -1113,18 +1135,32 @@ class TestTakeSnapshot:
             scope=SNAPSHOT_SCOPE,
         ), 'the linked agent directory is one link, its chain walked for the record; its skills are listed once'
 
-    def test_take_snapshot_with_an_absolute_link_under_the_root_records_it_relative_to_the_link(
-        self, aliased_root_with_an_absolute_link: Path
+    def test_take_snapshot_with_an_absolute_link_through_the_alias_records_it_relative_to_the_link(
+        self, alias_root_with_a_link_through_the_alias: Path
     ) -> None:
         #: Given
-        root = aliased_root_with_an_absolute_link
+        root = alias_root_with_a_link_through_the_alias
 
         #: When
         snapshot = take_snapshot(root, SNAPSHOT_SCOPE)
 
         #: Then
         assert snapshot.symlink_targets() == {RootRelativePath.parse('docs/absolute'): PurePosixPath('../docs/code')}, (
-            'an absolute target under the root, through either spelling of it, is recorded from the link'
+            'an absolute target spelled through the alias is recorded from the link'
+        )
+
+    def test_take_snapshot_with_an_absolute_link_through_the_real_root_records_it_relative_to_the_link(
+        self, alias_root_with_a_link_through_the_real_root: Path
+    ) -> None:
+        #: Given
+        root = alias_root_with_a_link_through_the_real_root
+
+        #: When
+        snapshot = take_snapshot(root, SNAPSHOT_SCOPE)
+
+        #: Then
+        assert snapshot.symlink_targets() == {RootRelativePath.parse('docs/absolute'): PurePosixPath('../docs/code')}, (
+            'an absolute target spelled through the real root is recorded from the link'
         )
 
     def test_take_snapshot_with_an_absolute_link_outside_the_root_records_it_unchanged(
@@ -2695,12 +2731,13 @@ class TestVirtualFileSystemMatchesDisk:
         #: Then
         assert virtual_answer == disk_answer, 'the missing docs/missing leads to no directory on either'
 
-    def test_find_dir_over_a_snapshot_with_an_absolute_link_under_an_aliased_root_agrees_with_disk(
-        self, aliased_root_with_an_absolute_link: Path
+    def test_find_dir_over_a_snapshot_with_an_absolute_link_through_the_alias_agrees_with_disk(
+        self, alias_root_with_a_link_through_the_alias: Path
     ) -> None:
         #: Given
-        disk = DiskFileSystem(aliased_root_with_an_absolute_link)
-        virtual = VirtualFileSystem(take_snapshot(aliased_root_with_an_absolute_link, SNAPSHOT_SCOPE))
+        root = alias_root_with_a_link_through_the_alias
+        disk = DiskFileSystem(root)
+        virtual = VirtualFileSystem(take_snapshot(root, SNAPSHOT_SCOPE))
 
         #: When
         disk_answer, virtual_answer = _answers(disk.find_dir, virtual.find_dir, 'docs/absolute')
@@ -2708,12 +2745,26 @@ class TestVirtualFileSystemMatchesDisk:
         #: Then
         assert virtual_answer == disk_answer, 'the absolute link leads to the same directory over the snapshot'
 
-    def test_list_dir_over_a_snapshot_with_an_unresolved_claude_skills_agrees_with_disk(
-        self, unresolved_claude_skills_tree: Path
+    def test_find_dir_over_a_snapshot_with_an_absolute_link_through_the_real_root_agrees_with_disk(
+        self, alias_root_with_a_link_through_the_real_root: Path
     ) -> None:
         #: Given
-        disk = DiskFileSystem(unresolved_claude_skills_tree)
-        virtual = VirtualFileSystem(take_snapshot(unresolved_claude_skills_tree, SNAPSHOT_SCOPE))
+        root = alias_root_with_a_link_through_the_real_root
+        disk = DiskFileSystem(root)
+        virtual = VirtualFileSystem(take_snapshot(root, SNAPSHOT_SCOPE))
+
+        #: When
+        disk_answer, virtual_answer = _answers(disk.find_dir, virtual.find_dir, 'docs/absolute')
+
+        #: Then
+        assert virtual_answer == disk_answer, 'the absolute link leads to the same directory over the snapshot'
+
+    def test_list_dir_over_a_snapshot_with_a_dangling_claude_skills_link_agrees_with_disk(
+        self, dangling_claude_skills_tree: Path
+    ) -> None:
+        #: Given
+        disk = DiskFileSystem(dangling_claude_skills_tree)
+        virtual = VirtualFileSystem(take_snapshot(dangling_claude_skills_tree, SNAPSHOT_SCOPE))
 
         #: When
         disk_answer, virtual_answer = _answers(disk.list_dir, virtual.list_dir, '.claude')
@@ -2721,12 +2772,38 @@ class TestVirtualFileSystemMatchesDisk:
         #: Then
         assert virtual_answer == disk_answer, 'the parent listing shows .claude/skills over the snapshot too'
 
-    def test_find_dir_over_a_snapshot_with_an_unresolved_claude_skills_agrees_with_disk(
-        self, unresolved_claude_skills_tree: Path
+    def test_list_dir_over_a_snapshot_with_a_claude_skills_file_agrees_with_disk(
+        self, file_claude_skills_tree: Path
     ) -> None:
         #: Given
-        disk = DiskFileSystem(unresolved_claude_skills_tree)
-        virtual = VirtualFileSystem(take_snapshot(unresolved_claude_skills_tree, SNAPSHOT_SCOPE))
+        disk = DiskFileSystem(file_claude_skills_tree)
+        virtual = VirtualFileSystem(take_snapshot(file_claude_skills_tree, SNAPSHOT_SCOPE))
+
+        #: When
+        disk_answer, virtual_answer = _answers(disk.list_dir, virtual.list_dir, '.claude')
+
+        #: Then
+        assert virtual_answer == disk_answer, 'the parent listing shows .claude/skills over the snapshot too'
+
+    def test_find_dir_over_a_snapshot_with_a_dangling_claude_skills_link_agrees_with_disk(
+        self, dangling_claude_skills_tree: Path
+    ) -> None:
+        #: Given
+        disk = DiskFileSystem(dangling_claude_skills_tree)
+        virtual = VirtualFileSystem(take_snapshot(dangling_claude_skills_tree, SNAPSHOT_SCOPE))
+
+        #: When
+        disk_answer, virtual_answer = _answers(disk.find_dir, virtual.find_dir, '.claude/skills')
+
+        #: Then
+        assert virtual_answer == disk_answer, '.claude/skills leads to no directory over the snapshot either'
+
+    def test_find_dir_over_a_snapshot_with_a_claude_skills_file_agrees_with_disk(
+        self, file_claude_skills_tree: Path
+    ) -> None:
+        #: Given
+        disk = DiskFileSystem(file_claude_skills_tree)
+        virtual = VirtualFileSystem(take_snapshot(file_claude_skills_tree, SNAPSHOT_SCOPE))
 
         #: When
         disk_answer, virtual_answer = _answers(disk.find_dir, virtual.find_dir, '.claude/skills')

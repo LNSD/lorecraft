@@ -368,13 +368,23 @@ class TestInspectCommand:
         assert result.exit_code == 0, result.output
         assert json.loads(result.output)['root'] == str(workspace.resolve()), '`--json` still prints the JSON model'
 
-    @pytest.mark.parametrize('output_format', ['json', 'text'])
-    def test_inspect_with_both_format_and_json_exits_with_ausage_error_message(
-        self, workspace: Path, output_format: str
-    ) -> None:
+    def test_inspect_with_json_format_and_the_json_flag_exits_with_a_usage_error_message(self, workspace: Path) -> None:
         #: Given
         app = build_app()
-        arguments = ['inspect', str(workspace), '--format', output_format, '--json']
+        arguments = ['inspect', str(workspace), '--format', 'json', '--json']
+
+        #: When
+        result = runner.invoke(app, arguments)
+
+        #: Then
+        assert result.exit_code == 2, result.output
+        assert result.stdout == '', 'no model is printed when both options are given'
+        assert "'--json'" in usage_error_message(result.stderr), 'the usage error names the alias that was refused'
+
+    def test_inspect_with_text_format_and_the_json_flag_exits_with_a_usage_error_message(self, workspace: Path) -> None:
+        #: Given
+        app = build_app()
+        arguments = ['inspect', str(workspace), '--format', 'text', '--json']
 
         #: When
         result = runner.invoke(app, arguments)
