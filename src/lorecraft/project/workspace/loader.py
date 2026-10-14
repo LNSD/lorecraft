@@ -52,20 +52,10 @@ from lorecraft.project.schemas.spec_file import (
     parse_spec_file,
 )
 from lorecraft.project.schemas.structure import (
-    AdjacentAnyRunsError,
-    EmptyStructureSpecError,
-    ForbiddenOutlineSectionError,
-    RepeatedForbiddenSectionError,
-    RepeatedOutlineSectionError,
     StructureSpec,
     StructureSpecDecodeError,
 )
 from lorecraft.project.schemas.structure_failure import (
-    AdjacentAnyRuns,
-    EmptyStructureSpec,
-    ForbiddenOutlineSections,
-    RepeatedForbiddenSections,
-    RepeatedOutlineSections,
     UndecodableStructureSpec,
 )
 from lorecraft.project.skill.outside import OutsideSymlink
@@ -341,21 +331,9 @@ def _load_structure(
                 except StructureSpecDecodeError as exc:
                     failure = UndecodableStructureSpec(exc.problems)
                     structure = _record_failed_structure(failures, spec_file.path, failure)
-                except EmptyStructureSpecError:
-                    structure = _record_failed_structure(failures, spec_file.path, EmptyStructureSpec())
-                except RepeatedOutlineSectionError as exc:
-                    failure = RepeatedOutlineSections(exc.sections)
-                    structure = _record_failed_structure(failures, spec_file.path, failure)
-                except RepeatedForbiddenSectionError as exc:
-                    failure = RepeatedForbiddenSections(exc.sections)
-                    structure = _record_failed_structure(failures, spec_file.path, failure)
-                except ForbiddenOutlineSectionError as exc:
-                    failure = ForbiddenOutlineSections(exc.sections)
-                    structure = _record_failed_structure(failures, spec_file.path, failure)
-                except AdjacentAnyRunsError:
-                    structure = _record_failed_structure(failures, spec_file.path, AdjacentAnyRuns())
                 else:
-                    # A title pattern or a frontmatter schema that cannot be held comes back as its failure record.
+                    # A title pattern, a frontmatter schema or rules that are not usable come back as their
+                    # failure record.
                     if isinstance(parsed, StructureSpec):
                         structure = parsed
                     else:

@@ -3,9 +3,8 @@ r"""The structure specification: its file's decoded JSON, and the rules it is de
 The repository reads a `<name>.spec.json` file's text, a `StructureSchema`, which proves nothing about
 it. `StructureSpec.parse` is the check, in two steps at the edge. It deserializes the text straight into the
 strict, frozen `StructureFile` model, so JSON that is malformed or not the dialect's shape is refused before
-any rule is read. Then it maps the model to typed rules, and building the specification refuses a set of rules that
-checks nothing or contradicts itself, which no shape can state. So every `StructureSpec` that exists states
-usable rules, however it was built.
+any rule is read. Then it maps the model to typed rules, and refuses a set of rules that checks nothing or
+contradicts itself, which no shape can state. So every `StructureSpec` that `parse` returns states usable rules.
 
 A document's outline is a sequence whose length varies, and JSON Schema cannot state an order over one, so a
 structure specification is not JSON Schema. It is this small dialect, whose fields `structure_file` declares:
@@ -135,11 +134,17 @@ from .schema_keyword import (
 from .section_name import SectionName
 from .spec_file import SpecFileType, StructureSpecFile, spec_filename
 from .structure_failure import (
+    AdjacentAnyRuns,
+    EmptyStructureSpec,
+    ForbiddenOutlineSections,
     ForeignFrontmatterDialect,
     FrontmatterSchemaId,
     InvalidFrontmatterSchema,
     InvalidTitlePattern,
+    RepeatedForbiddenSections,
+    RepeatedOutlineSections,
     StructureSpecProblem,
+    StructureSpecRuleFailure,
     UntypedFrontmatterSchema,
 )
 from .structure_file import (
@@ -176,93 +181,6 @@ class StructureSpecDecodeError(Error):
         self.source = source
         super().__init__(f'invalid structure schema {path}: {"; ".join(str(problem) for problem in problems)}')
         self.__cause__ = source
-
-
-class EmptyStructureSpecError(Error):
-    """A structure specification states no rule, so it would check nothing.
-
-    Attributes:
-        path: Root-relative path of the rejected file.
-    """
-
-    path: RootRelativePath
-
-    def __init__(self, path: RootRelativePath) -> None:
-        self.path = path
-        super().__init__(f'invalid structure schema {path}: states no rule, so it would check nothing')
-
-
-class RepeatedOutlineSectionError(Error):
-    """An outline names one section more than once.
-
-    Attributes:
-        path: Root-relative path of the rejected file.
-        sections: The repeated section names, sorted.
-    """
-
-    path: RootRelativePath
-    sections: tuple[SectionName, ...]
-
-    def __init__(self, path: RootRelativePath, sections: tuple[SectionName, ...]) -> None:
-        self.path = path
-        self.sections = sections
-        super().__init__(
-            f'invalid structure schema {path}: names sections more than once in the outline: '
-            f'{[str(name) for name in sections]}'
-        )
-
-
-class RepeatedForbiddenSectionError(Error):
-    """A structure specification forbids one section more than once.
-
-    Attributes:
-        path: Root-relative path of the rejected file.
-        sections: The repeated section names, sorted.
-    """
-
-    path: RootRelativePath
-    sections: tuple[SectionName, ...]
-
-    def __init__(self, path: RootRelativePath, sections: tuple[SectionName, ...]) -> None:
-        self.path = path
-        self.sections = sections
-        super().__init__(
-            f'invalid structure schema {path}: forbids sections more than once: {[str(name) for name in sections]}'
-        )
-
-
-class ForbiddenOutlineSectionError(Error):
-    """A structure specification forbids a section its own outline names.
-
-    Attributes:
-        path: Root-relative path of the rejected file.
-        sections: The sections both named and forbidden, sorted.
-    """
-
-    path: RootRelativePath
-    sections: tuple[SectionName, ...]
-
-    def __init__(self, path: RootRelativePath, sections: tuple[SectionName, ...]) -> None:
-        self.path = path
-        self.sections = sections
-        super().__init__(
-            f'invalid structure schema {path}: forbids sections its own outline names: '
-            f'{[str(name) for name in sections]}'
-        )
-
-
-class AdjacentAnyRunsError(Error):
-    """An outline places two ``any`` runs side by side, which match exactly what one run matches.
-
-    Attributes:
-        path: Root-relative path of the rejected file.
-    """
-
-    path: RootRelativePath
-
-    def __init__(self, path: RootRelativePath) -> None:
-        self.path = path
-        super().__init__(f'invalid structure schema {path}: places two `any` runs side by side')
 
 
 @dataclass(frozen=True, slots=True)
@@ -818,8 +736,9 @@ def _schemas_within(schema: Mapping[str, Plain]) -> Iterator[Mapping[str, Plain]
 class StructureSpec:
     """One structure specification's rules, proved usable.
 
-    Construction checks the rules, so an instance is proof of them: no code holding a `StructureSpec`
-    checks them again.
+    `parse` is the one way in for rules not yet known to be usable: it checks them and returns the failure it finds
+    instead of an instance, so an instance it returns is proof of them and no code holding a `StructureSpec` checks
+    them again. Calling `StructureSpec(...)` directly is unchecked, and is only for a specification already checked.
 
     Attributes:
         file: The JSON file, `<name>.spec.json`, at its parsed specification filename; the prose it is the
@@ -841,54 +760,6 @@ class StructureSpec:
     forbidden: tuple[SectionName, ...]
     tokens: NonZeroUnsignedInt | None
     frontmatter: FrontmatterSchema | None
-
-    def __post_init__(self) -> None:
-        """Refuse rules that are not usable.
-
-        A rule is not usable when it checks nothing, or when it contradicts itself.
-
-        A frontmatter schema is checked when it is built, before the structure specification is, and so is a
-        cap or a budget: each is a `NonZeroUnsignedInt`, at least 1. So is a section name: each is a
-        `SectionName`, one line with no whitespace at either end.
-
-        Raises:
-            EmptyStructureSpecError: If the specification states no rule.
-            RepeatedOutlineSectionError: If its outline names a section twice.
-            RepeatedForbiddenSectionError: If it forbids a section twice.
-            ForbiddenOutlineSectionError: If it forbids a section its own outline names.
-            AdjacentAnyRunsError: If its outline places two `any` runs side by side.
-        """
-        # The title is held to one H1 opening the document whatever the specification states. A `title` always holds
-        # a check (every `TitleChecks` record sets one), so a `title` alone states a rule.
-        states_no_rule = (
-            self.title is None
-            and not self.forbid_empty_sections
-            and self.tokens is None
-            and self.frontmatter is None
-            and not self.outline
-            and not self.forbidden
-        )
-        if states_no_rule:
-            raise EmptyStructureSpecError(self.path)
-
-        named = self.section_names()
-        repeated = sorted({name for name in named if named.count(name) > 1}, key=str)
-        if repeated:
-            raise RepeatedOutlineSectionError(self.path, tuple(repeated))
-
-        repeated_forbidden = sorted({name for name in self.forbidden if self.forbidden.count(name) > 1}, key=str)
-        if repeated_forbidden:
-            raise RepeatedForbiddenSectionError(self.path, tuple(repeated_forbidden))
-
-        contradicted = sorted(set(named) & set(self.forbidden), key=str)
-        if contradicted:
-            raise ForbiddenOutlineSectionError(self.path, tuple(contradicted))
-
-        for earlier, later in pairwise(self.outline):
-            # Two runs side by side match exactly what one run matches, so an outline written this way means
-            # something other than what it says.
-            if isinstance(earlier, AnySections) and isinstance(later, AnySections):
-                raise AdjacentAnyRunsError(self.path)
 
     @property
     def path(self) -> RootRelativePath:
@@ -919,7 +790,7 @@ class StructureSpec:
     @classmethod
     def parse(
         cls, file: StructureSpecFile, schema: StructureSchema
-    ) -> Self | InvalidTitlePattern | FrontmatterSchemaFailure:
+    ) -> Self | InvalidTitlePattern | FrontmatterSchemaFailure | StructureSpecRuleFailure:
         """Deserialize a structure specification's text into its rules.
 
         Args:
@@ -929,15 +800,11 @@ class StructureSpec:
         Returns:
             The rules, or the failure naming a title `pattern` that does not compile, or a frontmatter schema that
             cannot be held: rejected by the meta-schema, carrying `$id`, naming another dialect or not stating an
-            object.
+            object, or the rules that are not usable: none stated, a section named or forbidden twice, a section both
+            named and forbidden, or two `any` runs side by side.
 
         Raises:
             StructureSpecDecodeError: If the text is not JSON or does not have the dialect's shape.
-            EmptyStructureSpecError: If it states no rule.
-            RepeatedOutlineSectionError: If its outline names a section twice.
-            RepeatedForbiddenSectionError: If it forbids a section twice.
-            ForbiddenOutlineSectionError: If it forbids a section its own outline names.
-            AdjacentAnyRunsError: If its outline places two ``any`` runs side by side.
         """
         try:
             structure_file = StructureFile.model_validate_json(schema)
@@ -969,7 +836,7 @@ class StructureSpec:
         if frontmatter is not None and not isinstance(frontmatter, FrontmatterSchema):
             return frontmatter
 
-        return cls(
+        spec = cls(
             file=file,
             title=title,
             forbid_empty_sections=structure_file.empty_sections == 'forbidden',
@@ -978,6 +845,56 @@ class StructureSpec:
             tokens=structure_file.tokens,
             frontmatter=frontmatter,
         )
+        rule_failure = _rule_failure(spec)
+        if rule_failure is not None:
+            return rule_failure
+        return spec
+
+
+def _rule_failure(spec: StructureSpec) -> StructureSpecRuleFailure | None:
+    """The way a specification's rules are not usable, or None when they are.
+
+    A rule is not usable when it checks nothing, or when it contradicts itself.
+
+    A frontmatter schema is checked when it is parsed, before the structure specification is, and so is a
+    cap or a budget: each is a `NonZeroUnsignedInt`, at least 1. So is a section name: each is a
+    `SectionName`, one line with no whitespace at either end.
+
+    Args:
+        spec: The specification whose rules are checked.
+    """
+    # The title is held to one H1 opening the document whatever the specification states. A `title` always holds
+    # a check (every `TitleChecks` record sets one), so a `title` alone states a rule.
+    states_no_rule = (
+        spec.title is None
+        and not spec.forbid_empty_sections
+        and spec.tokens is None
+        and spec.frontmatter is None
+        and not spec.outline
+        and not spec.forbidden
+    )
+    if states_no_rule:
+        return EmptyStructureSpec()
+
+    named = spec.section_names()
+    repeated = sorted({name for name in named if named.count(name) > 1}, key=str)
+    if repeated:
+        return RepeatedOutlineSections(tuple(repeated))
+
+    repeated_forbidden = sorted({name for name in spec.forbidden if spec.forbidden.count(name) > 1}, key=str)
+    if repeated_forbidden:
+        return RepeatedForbiddenSections(tuple(repeated_forbidden))
+
+    contradicted = sorted(set(named) & set(spec.forbidden), key=str)
+    if contradicted:
+        return ForbiddenOutlineSections(tuple(contradicted))
+
+    for earlier, later in pairwise(spec.outline):
+        # Two runs side by side match exactly what one run matches, so an outline written this way means
+        # something other than what it says.
+        if isinstance(earlier, AnySections) and isinstance(later, AnySections):
+            return AdjacentAnyRuns()
+    return None
 
 
 def _title_checks(title: StructureFileTitle | None) -> TitleChecks | InvalidTitlePattern | None:

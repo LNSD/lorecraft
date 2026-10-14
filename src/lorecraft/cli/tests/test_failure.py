@@ -13,11 +13,6 @@ from lorecraft.project.schemas.name import CorpusSpecName
 from lorecraft.project.schemas.repo import StructureSchemaReadError
 from lorecraft.project.schemas.section_name import SectionName
 from lorecraft.project.schemas.structure import (
-    AdjacentAnyRunsError,
-    EmptyStructureSpecError,
-    ForbiddenOutlineSectionError,
-    RepeatedForbiddenSectionError,
-    RepeatedOutlineSectionError,
     StructureSpecDecodeError,
     StructureSpecProblem,
 )
@@ -225,7 +220,7 @@ class TestReportLoadFailure:
     ) -> None:
         #: Given
         failure = LoadFailure(_PATH, EmptyStructureSpec())
-        error = EmptyStructureSpecError(_PATH)
+        error = Error(f'invalid structure schema {_PATH}: states no rule, so it would check nothing')
 
         #: When
         expected, actual = _written_for(capsys, failure, error)
@@ -238,7 +233,7 @@ class TestReportLoadFailure:
     ) -> None:
         #: Given
         failure = LoadFailure(_PATH, RepeatedOutlineSections((SectionName('Usage'),)))
-        error = RepeatedOutlineSectionError(_PATH, (SectionName('Usage'),))
+        error = Error(f"invalid structure schema {_PATH}: names sections more than once in the outline: ['Usage']")
 
         #: When
         expected, actual = _written_for(capsys, failure, error)
@@ -251,7 +246,7 @@ class TestReportLoadFailure:
     ) -> None:
         #: Given
         failure = LoadFailure(_PATH, RepeatedForbiddenSections((SectionName('Changelog'),)))
-        error = RepeatedForbiddenSectionError(_PATH, (SectionName('Changelog'),))
+        error = Error(f"invalid structure schema {_PATH}: forbids sections more than once: ['Changelog']")
 
         #: When
         expected, actual = _written_for(capsys, failure, error)
@@ -264,7 +259,7 @@ class TestReportLoadFailure:
     ) -> None:
         #: Given
         failure = LoadFailure(_PATH, ForbiddenOutlineSections((SectionName('Usage'),)))
-        error = ForbiddenOutlineSectionError(_PATH, (SectionName('Usage'),))
+        error = Error(f"invalid structure schema {_PATH}: forbids sections its own outline names: ['Usage']")
 
         #: When
         expected, actual = _written_for(capsys, failure, error)
@@ -277,7 +272,7 @@ class TestReportLoadFailure:
     ) -> None:
         #: Given
         failure = LoadFailure(_PATH, AdjacentAnyRuns())
-        error = AdjacentAnyRunsError(_PATH)
+        error = Error(f'invalid structure schema {_PATH}: places two `any` runs side by side')
 
         #: When
         expected, actual = _written_for(capsys, failure, error)
