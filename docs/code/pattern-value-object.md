@@ -1,6 +1,6 @@
 ---
 name: "pattern-value-object"
-description: "Runtime-validated value objects with documented invariants: text enters through parse(), another type through the constructor or a from_<source> classmethod. Load when a domain value needs validation, a runtime invariant, or behavior of its own"
+description: "Runtime-validated value objects with documented invariants: text enters through parse(), another type through the constructor or a from_<source> classmethod, and operations in place of reads of .value. Load when a domain value needs validation, a runtime invariant, or behavior of its own, or when code reads a value object's .value"
 type: "core"
 scope: "global"
 ---
@@ -286,55 +286,34 @@ def load_frontmatter(raw: dict[str, str]) -> Frontmatter:
     )
 ```
 
-4. **A conversion is a named classmethod, not a second `__init__`**
-   A document reference can be built from a joined string or from its two parts. Handling both inside
-   `__init__` makes the constructor a type switch and hides which path validated what.
+4. **A count compared with its cap**
+   A section's word count and its cap are both wrapped ints, of different kinds.
 
 ```python
-# ❌ Bad — one constructor, two meanings, decided by sniffing the arguments. A caller passing
-# a corpus object where a joined reference was expected silently takes the other branch, and
-# the resulting reference names a document nobody asked for.
-class DocumentRef:
-    def __init__(self, first: str | CorpusName, second: str | None = None) -> None:
-        if second is None:
-            self.corpus, self.name = first.split('/', 1)
-        else:
-            self.corpus, self.name = str(first), second
+# ❌ Bad — both sides are unwrapped, so the comparison is between two bare ints. The call that
+# compared the count with the section's line total instead ran cleanly and passed every section.
+if count.value > cap.value:
+    report_overrun(section, count.value - cap.value)
 ```
 
 ```python
-# ✅ Good — one validator named `parse`, one conversion named for what it converts. Each has
-# one meaning and one failure mode, and neither can be reached by accident.
-@dataclass(frozen=True, slots=True)
-class DocumentRef:
-    """A fully qualified document reference: `<corpus>/<document>`."""
+# ✅ Good — a comparison across types is a named method, and the int leaves the type only
+# where the number is written out.
+@dataclass(frozen=True, slots=True, order=True)
+class WordCount:
+    """A number of prose words: zero or more."""
 
-    corpus: CorpusName
-    name: DocumentName
+    value: int
 
-    @classmethod
-    def parse(cls, raw: str) -> 'DocumentRef':
-        """Parse a slashed reference such as `code/python-naming`.
+    def __int__(self) -> int:
+        return self.value
 
-        Raises:
-            InvalidDocumentRefError: If the reference has no slash.
-            EmptyCorpusNameError: If the corpus segment is empty.
-            InvalidCorpusNameCharacterError: If a character of the corpus segment falls outside
-                lowercase snake case.
-            EmptyDocumentNameError: If the document segment is empty.
-        """
-        corpus, separator, name = raw.partition('/')
-        if not separator:
-            raise InvalidDocumentRefError(raw)
-        return cls(CorpusName.parse(corpus), DocumentName.parse(name))
+    def exceeds(self, cap: WordCap) -> bool:
+        return self.value > int(cap)
 
-    @classmethod
-    def from_parts(cls, corpus: CorpusName, name: DocumentName) -> 'DocumentRef':
-        """Build a reference from two values that are already validated."""
-        return cls(corpus, name)
 
-    def __str__(self) -> str:
-        return f'{self.corpus}/{self.name}'
+if count.exceeds(cap):
+    report_overrun(section, count, cap)
 ```
 
 ## Why It Matters
@@ -376,11 +355,37 @@ and nothing to check is ceremony, and ceremony is what makes the next reader sto
 - **Keep validation off hot paths.** Validation runs on every construction: right once per document loaded, wrong
   per line inside a section scan. Wrap the document's identity, not each line of its prose.
 - **If wrapping forces callers to unwrap immediately**, the boundary is in the wrong place. Move `parse` to the
-  edge the value actually enters through, and give the type the method the caller was reaching for.
+  edge the value actually enters through, and give the type the operation the caller was reaching for
+  ([Operations in Place of `.value`](#operations-in-place-of-value)).
 
 Deviating from this pattern is legitimate when one of the cases above applies and the reason is written down at
 the spot. **An undocumented deviation is always wrong** — a bare `str` where a checked value was expected is
 indistinguishable from an oversight, and the next reader will treat it as one.
+
+## Operations in Place of `.value`
+
+Give the type the operation a caller reaches for, so `.value` is read inside the class and, outside it, only
+where the value leaves the domain and no protocol carries it, such as joining a root-relative path onto its root.
+Nothing in Python lets a wrapper lend its primitive's methods and stay a distinct type, and both shortcuts that try
+are wrong:
+
+- **Subclassing the primitive**, `class CorpusName(str)`, makes it accepted wherever a `str` is. It compares and
+  hashes equal to a `DocumentName` of the same spelling, so the two collide as dict keys; every inherited
+  operation returns a bare, unchecked `str`; and it cannot be a `frozen`, `slots` dataclass.
+- **Forwarding with `__getattr__`** hides the forwarded attributes from `ty`, and operators bypass it.
+
+Write instead:
+
+- `order=True` for ordering within one type.
+- An operator dunder only where the result has the operands' type and a meaning in the domain,
+  `WordCount + WordCount`; a named method across types, `count.exceeds(cap)`.
+- `__int__` for a number written out, `__index__` only for a genuine index, and `__fspath__` only on a path
+  that names a place on disk as it stands.
+- A domain method, `name.has_suffix(suffix)`, in place of `name.value.endswith(suffix)`.
+- `StrEnum` for an enum whose value is printed, so `f'{severity}'` replaces `severity.value`.
+
+**Keep `value` public and frozen.** Do not rename it `_value` behind a read-only property, which is the same exit
+spelled twice, and do not seal it with no getter: an exit no protocol fits would then have no way out.
 
 ## Checklist
 
@@ -390,15 +395,16 @@ indistinguishable from an oversight, and the next reader will treat it as one.
 - [ ] The class docstring states the complete value format and whether parsing normalizes the input
 - [ ] Text enters through a classmethod named `parse`, which shares any `__post_init__` guard's check; another
       type is checked by the constructor or converted by a `from_<source>` classmethod
-- [ ] Rejection raises a value-specific domain error declared beside the value object; the error owns the
-      rejected value, useful context and message
+- [ ] Rejection raises a value-specific domain error declared beside the value object, owning the rejected
+      value, context and message
 - [ ] The value object is constructed at the boundary the value enters through, and nowhere else
-- [ ] A conversion is a named classmethod (`from_parts`), never a second branch inside `__init__`
 - [ ] Deserialization runs the same check as construction, rather than storing the bare primitive
-- [ ] `__str__` is defined, so interpolation and logging never reach for the inner field
+- [ ] Callers use `__str__`, `order=True`, domain operators and methods, protocol dunders and `StrEnum`, not `.value`
+- [ ] No value object subclasses a primitive or forwards through `__getattr__`
+- [ ] `value` stays public and frozen, and is read outside the class only where no protocol fits
 - [ ] A composite range validates its bound ordering, and element access represents an empty range explicitly
-- [ ] A conversion between two value objects (half-open to inclusive, parts to reference) exists in exactly one place
-- [ ] No wrapper was added to a value with nothing to confuse it with and no invariant to carry
+- [ ] A conversion between two value objects exists in exactly one place
+- [ ] No wrapper carries a value with no sibling to confuse and no invariant
 
 ## References
 
