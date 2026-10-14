@@ -11,10 +11,10 @@ A document is longer than its token budget allows.
 
 ## What it does
 
-Checks for documents longer than the token budget their structure specification sets with its `tokens` key.
+Checks for documents longer than the token budget their structure file sets with its `tokens` key.
 The whole file counts: frontmatter, code blocks and tables as much as prose.
 
-A document that more than one specification governs, such as a corpus and a namespace, must fit every budget
+A document that more than one meta spec governs, such as a corpus and a namespace, must fit every budget
 they set, and is reported once for each budget it exceeds.
 
 ## Why is this bad?

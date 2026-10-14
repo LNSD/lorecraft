@@ -11,12 +11,12 @@ A document's title is longer than its character cap allows.
 
 ## What it does
 
-Checks for an H1 title longer than the `chars` cap its structure specification sets on `title`. The characters
+Checks for an H1 title longer than the `chars` cap its structure file sets on `title`. The characters
 are those of the title's own text, without its `#` marker or inline markup, counted as Unicode code points: a
 space is one, and so is each code point of an emoji built of several. Only the document's first H1 is its title,
 and a document with no title is not reported here.
 
-A document that more than one specification governs, such as a corpus and a namespace, must keep its title
+A document that more than one meta spec governs, such as a corpus and a namespace, must keep its title
 within every cap they set, and is reported once for each cap the title exceeds.
 
 ## Why is this bad?

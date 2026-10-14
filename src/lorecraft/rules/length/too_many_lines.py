@@ -35,7 +35,7 @@ class TooManyLines(SkillRule):
 
     Checks for skills whose `SKILL.md` holds more than 500 lines, the budget the Agent Skills specification sets.
     The whole file counts: frontmatter, blank lines and code blocks as much as prose. A file of exactly 500 lines
-    is within the budget. No specification in the repository sets or changes it.
+    is within the budget. No meta spec in the repository sets or changes it.
 
     ## Why is this bad?
 

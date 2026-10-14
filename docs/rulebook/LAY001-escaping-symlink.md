@@ -16,7 +16,7 @@ directory, an entry in a skills directory, an entry's `SKILL.md`, or a file or d
 chain leaves when any link on it does, the symlink itself or one it leads through, by an absolute target or by
 a `..` that climbs above the repository's root. A symlink that leads elsewhere inside the repository does not
 count, nor does one that dangles inside it. Nothing behind a symlink that leaves is read, so no other rule
-judges what it leads to. The package states the rule; no specification sets or changes it.
+judges what it leads to. The package states the rule; no meta spec sets or changes it.
 
 ## Why is this bad?
 

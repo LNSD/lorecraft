@@ -23,12 +23,12 @@ class TitleTooLong(DocumentRule):
 
     ## What it does
 
-    Checks for an H1 title longer than the `chars` cap its structure specification sets on `title`. The characters
+    Checks for an H1 title longer than the `chars` cap its structure file sets on `title`. The characters
     are those of the title's own text, without its `#` marker or inline markup, counted as Unicode code points: a
     space is one, and so is each code point of an emoji built of several. Only the document's first H1 is its title,
     and a document with no title is not reported here.
 
-    A document that more than one specification governs, such as a corpus and a namespace, must keep its title
+    A document that more than one meta spec governs, such as a corpus and a namespace, must keep its title
     within every cap they set, and is reported once for each cap the title exceeds.
 
     ## Why is this bad?
@@ -61,7 +61,7 @@ class TitleTooLong(DocumentRule):
     ```
 
     Attributes:
-        spec: The structure specification that sets the exceeded cap.
+        spec: The structure file that sets the exceeded cap.
         overrun: The characters of the title's text against the cap they exceed.
     """
 
@@ -83,7 +83,7 @@ class TitleTooLong(DocumentRule):
         return (Label(Here(self.line), f'characters over the cap: {self.overrun.excess}'),)
 
     def children(self) -> tuple[Subdiagnostic, ...]:
-        """Point at the specification that sets the cap, say what a title holds, and how its characters are counted."""
+        """Point at the meta spec that sets the cap, say what a title holds, and how its characters are counted."""
         return (
             spec_note(self.spec),
             TITLE_HELP,
@@ -96,10 +96,10 @@ class TitleTooLong(DocumentRule):
     def check(cls, subject: DocumentContext) -> tuple[Self, ...]:
         """One occurrence, at the title's heading, for each cap on the title's characters that it exceeds.
 
-        The caps are taken in the order their specifications apply; a document with no title is held to none.
+        The caps are taken in the order their meta specs apply; a document with no title is held to none.
 
         Args:
-            subject: The document, governed by a structure specification.
+            subject: The document, governed by a structure file.
         """
         title = find_title(subject.parse().headings)
         if title is None:
