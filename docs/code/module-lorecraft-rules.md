@@ -24,8 +24,8 @@ the database there, so a rule reads nothing but what it is handed.
 
 ## Belongs Here
 
-- A value that identifies a rule: a release, a group's prefix and title, a code, a name, an alias code, a level,
-  and the severity an engine condition fixes.
+- A value that identifies a rule: a release, a group's prefix and title, a code, a name, an alias code, a level, and
+  the severity an engine condition fixes.
 - A rule class, the base class its subject kind gives it, and the places its occurrences may point at. A subject
   kind's base takes the subject's context; a document's also requires the rule to declare the facet it reads, from
   the facets this package states. A rule over what any Markdown file has takes the context they share, and
@@ -33,14 +33,13 @@ the database there, so a rule reads nothing but what it is handed.
   takes the context a `SKILL.md` and a resource share, and never judges a document. A base over what both a
   document and a skill share, such as the frontmatter, declares, for every rule on it, the facet a document is
   gated on.
-- A removed rule, the decorator that registers a declaration, and the registry, with the checks it makes as the
-  package loads.
+- A removed rule, the decorator that registers a declaration, and the registry with its load checks.
 - The rule index, `lorecraft.rules.index`: identity as plain tuples and strings, with the lookups the command
   line's edge needs, importing nothing but `typing`; generated from the registry, never a source of rules.
 - An engine condition: what the engine reports before any rule runs, such as a file that does not decode.
   Declared and rendered like a rule, with an `EngineCode` in group `LC`, a fixed severity and no `check`; it
   derives from `FileCondition` or `EntryCondition`.
-- The one-run selection, the rule table and the report of a run; their module docstrings state each.
+- The one-run selection, the rule table and the report of a run, each stated in its module docstring.
 - A rule group, as a subpackage: its `__ruleset__.py` declares the group as `GROUP_ID` and whatever else its rules
   share, its `__init__.py` holds only the docstring, and each rule is one module. The `LC` group is declared in
   `declaration.py` as `ENGINE_GROUP`, for `EngineCode`, and re-exported as its `GROUP_ID`.
@@ -59,17 +58,16 @@ the database there, so a rule reads nothing but what it is handed.
 
 - Nothing here imports `lorecraft.engine` or `lorecraft.project.database`. The layers contract puts this package
   below the first and a forbidden contract refuses the second, so the database, a query and the run are out of
-  reach by import, not by review.
+  reach by import.
 - A rule reads the one context its base fixes and nothing else, and performs no I/O.
-- An occurrence names no subject. It points at a line of the subject or at the subject itself; the run
+- An occurrence names no subject: it points at a line of the subject or at the subject itself, and the run
   supplies the path.
-- The registry is package data: it reads no workspace, is not a query, and holds this package's rules, never
-  a rule its unit tests declare.
-- The registry is built once, with `Registry.load`, where a command starts, and passed down to what reads it;
-  nothing below imports an instance or memoizes one.
+- The registry is package data: it reads no workspace, is not a query, and holds this package's rules, never a
+  test's.
+- The registry is built once, with `Registry.load`, where a command starts, and passed down; nothing below imports
+  an instance or memoizes one.
 - A code bound twice, a declaration left incomplete, a group with no title, a code numbered out of range, or a
-  code in a group its kind may not use is a defect in this package, raised when it loads, never reported as the
-  user's fault.
+  code in a group its kind may not use is a defect in this package, raised when it loads, never the user's fault.
 - The `LC` group holds engine conditions alone, each coded with an `EngineCode`, which names no other group.
 - A release, a rule name, a group's prefix, an alias code's linter and upstream code, and a code prefix are
   value objects a user's input will also build, so a malformed one raises an `Error`, whoever wrote it.
@@ -110,11 +108,12 @@ class EmptySection(DocumentRule):
 
 ## Naming a Rule
 
-A rule is named for what is wrong, as the established linters name theirs, so that its name reads as a setting:
+A rule is named for what is wrong, as the established linters name theirs, so its name reads as a setting:
 `too-many-tokens = "warn"` says which way the rule fires, where `token-budget = "warn"` does not.
 
-- **The name states the condition the rule reports**, never the limit, the subject or the fix. A limit exceeded is
-  `too-many-<unit>`, and a required part absent is `missing-<part>`.
+- **The name states the condition the rule reports**, never the limit, the subject or the fix. A limit on a count
+  is `too-many-<unit>`, or `<part>-too-many-<unit>` for one part; on a length in characters, `<part>-too-long`, as
+  linters name `line-too-long`; a required part absent is `missing-<part>`.
 - **The class is the name in PascalCase and its module the name in snake case**, with no `Rule` or `Violation`
   suffix: `too-many-words` is `TooManyWords` in `too_many_words.py`.
 - **A group's title is a plural noun phrase**, read as the heading of its rules in a list: `Length limits`.
@@ -129,31 +128,29 @@ A rule is named for what is wrong, as the established linters name theirs, so th
   it, points its `Note` at the corpus's structure file that governs the document, unless no schema in
   that file states the rule either, as for a document's `name` held to its filename: that rule carries no
   `Note` pointing at a schema, and says in its own words what it requires. A title rule, held to by every governed
-  document, has `spec` `None` and carries no meta spec `Note`: no meta spec states it. A rule the package
+  document, has `spec` `None` and carries no meta spec `Note`. A rule the package
   itself states has `spec` `None`: its `Note` names the external specification that sets the limit in its text,
   with no `at`. A link rule that depends on the Agent Skills specification names it in a group-level `Note`,
   written once in the group's `__ruleset__.py` and placed first in `children()`. A rule the package states that no
-  external specification sets carries no meta spec `Note`: nothing outside the diagnostic states the rule.
+  external specification sets carries no meta spec `Note`.
 - **A `Help` gives the fix for this occurrence** when its fields make it concrete, such as the description an
-  outline gives a section the document lacks. A limit's message already names the value found against the limit,
-  so a `Help` restating the difference adds nothing; a `Label` places the overrun at a line, and may name what it
+  outline gives a section the document lacks. A limit's message already names the value found against it, so a
+  `Help` restating the difference adds nothing; a `Label` places the overrun at a line, and may name what it
   overruns, with no number. The general fix is the docstring's, but a rule may give it as a
-  fixed `Help` too, such as "move the title above every section", and a rule the package states may add a `Help`
+  fixed `Help`, such as "move the title above every section", and a rule the package states may add a `Help`
   with the fix the external specification itself prescribes. `children()` orders the meta spec `Note` first,
   then the `Help`, then the other `Note`s.
 
 ## Documenting a Rule
 
 The docstring is the rule's rulebook page, which a user opens when a diagnostic prints its code. `just gen`
-renders it into `docs/rulebook/`. The pages are generated, kept current by `gen-check`, and no meta spec governs
-them. Write it as Ruff and Clippy write theirs, for a user who knows their documents, skills and
+renders it into `docs/rulebook/`. The pages are generated, kept current by `gen-check`, and no meta spec governs them. Write it as Ruff and Clippy write theirs, for a user who knows their documents, skills and
 meta specs, and nothing of this package.
 
 - **The summary line states the condition**, about the user's subject.
 - **What it does** opens with "Checks for" and the subjects the rule reports, then names the meta spec key
   that sets the limit or states the rule; a rule every governed document is held to says that no key states it,
-  and a rule the package states names the external specification and its figure instead. It adds each case a user would not guess: what counts, what does not, how several
-  meta specs combine.
+  and a rule the package states names the external specification and its figure instead. It adds each case a user would not guess: what counts, what does not, how several meta specs combine.
 - **Why is this bad?** is one or two sentences on what the condition costs the agent that loads the subject, never
   only that a meta spec forbids it.
 - **Example** is the input that breaks the rule, under invented paths, in fenced blocks in each file's language:
