@@ -22,14 +22,14 @@ class MissingSection(DocumentRule):
 
     ## What it does
 
-    Checks for documents that leave out a section their structure specification lists under its `outline` key
+    Checks for documents that leave out a section their structure file lists under its `outline` key
     without `"optional": true`. The section is expected before the section written where it belongs, or at the
     end of the document when no section follows. The entry's `description` is shown as help, and its first
     `examples` sample as a note, written under the section's heading.
 
     Only the first place a document stops following its outline is reported, since every section after it is
     compared with an entry it was never meant to match; a section that is only written further down is out of
-    order, not missing. A document that more than one specification governs, such as a corpus and a namespace,
+    order, not missing. A document that more than one meta spec governs, such as a corpus and a namespace,
     must follow each outline, and is reported once for each it breaks.
 
     ## Why is this bad?
@@ -77,7 +77,7 @@ class MissingSection(DocumentRule):
     ```
 
     Attributes:
-        spec: The structure specification whose outline requires the section.
+        spec: The structure file whose outline requires the section.
         section: The name the outline entry gives the section the document lacks.
         before: The heading of the section it should come before, which the occurrence is reported at; or the end
             of the document, when it belongs there, and the occurrence is reported at the document's last line.
@@ -143,9 +143,9 @@ class MissingSection(DocumentRule):
                 assert_never(before)
 
     def children(self) -> tuple[Subdiagnostic, ...]:
-        """Point at the specification, then give the entry's description and its first example, when it states them.
+        """Point at the meta spec, then give the entry's description and its first example, when it states them.
 
-        Any further examples are for a reader of the specification, not repeated on every occurrence.
+        Any further examples are for a reader of the meta spec, not repeated on every occurrence.
         """
         parts: list[Subdiagnostic] = [spec_note(self.spec)]
         if self.description is not None:

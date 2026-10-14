@@ -1,4 +1,4 @@
-"""`OUT009`: a document's title does not match the pattern its structure specification holds it to."""
+"""`OUT009`: a document's title does not match the pattern its structure file holds it to."""
 
 from dataclasses import dataclass
 from typing import ClassVar, Self
@@ -18,16 +18,16 @@ from .__ruleset__ import GROUP_ID, spec_note
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
 class InvalidTitle(DocumentRule):
-    """A document's title does not match the pattern its structure specification sets on `title`.
+    """A document's title does not match the pattern its structure file sets on `title`.
 
     ## What it does
 
-    Checks for an H1 title whose text does not match the `pattern` its structure specification sets on `title`. The
+    Checks for an H1 title whose text does not match the `pattern` its structure file sets on `title`. The
     pattern is matched as JSON Schema's `pattern` is: it is searched for anywhere in the title's text, so a pattern
     that must hold the whole title anchors itself with `^` and `$`. Only the document's first H1 is its title, and a
     document with no title is not reported here.
 
-    A document that more than one specification governs, such as a corpus and a namespace, must keep its title to
+    A document that more than one meta spec governs, such as a corpus and a namespace, must keep its title to
     every pattern they set, and is reported once for each pattern the title does not match.
 
     ## Why is this bad?
@@ -60,7 +60,7 @@ class InvalidTitle(DocumentRule):
     ```
 
     Attributes:
-        spec: The structure specification that sets the pattern.
+        spec: The structure file that sets the pattern.
         title: The text of the title's heading.
         pattern: The pattern the title does not match, which prints exactly as written.
     """
@@ -84,17 +84,17 @@ class InvalidTitle(DocumentRule):
         return (Label(Here(self.line), f'does not match `{self.pattern}`'),)
 
     def children(self) -> tuple[Subdiagnostic, ...]:
-        """Point at the specification that sets the pattern."""
+        """Point at the meta spec that sets the pattern."""
         return (spec_note(self.spec),)
 
     @classmethod
     def check(cls, subject: DocumentContext) -> tuple[Self, ...]:
         """One occurrence, at the title's heading, for each pattern on the title that it does not match.
 
-        The patterns are taken in the order their specifications apply; a document with no title is held to none.
+        The patterns are taken in the order their meta specs apply; a document with no title is held to none.
 
         Args:
-            subject: The document, governed by a structure specification.
+            subject: The document, governed by a structure file.
         """
         title = find_title(subject.parse().headings)
         if title is None:

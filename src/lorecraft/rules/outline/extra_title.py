@@ -1,4 +1,4 @@
-"""`OUT002`: a document a structure specification governs carries more than one H1 title."""
+"""`OUT002`: a document a structure file governs carries more than one H1 title."""
 
 from dataclasses import dataclass
 from typing import ClassVar, Self
@@ -16,17 +16,17 @@ from .__ruleset__ import GROUP_ID
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
 class ExtraTitle(DocumentRule):
-    """A document a structure specification governs carries more than one H1 title.
+    """A document a structure file governs carries more than one H1 title.
 
     ## What it does
 
     Checks for documents with more than one `#` H1 heading, and reports each H1 after the first at its own heading,
     pointing back at the first: the first is the document's title, and every one after it is extra. Every document
-    a structure specification governs is held to it, with no key to state it: the specification need not mention
+    a structure file governs is held to it, with no key to state it: the meta spec need not mention
     the title at all. Only a heading at the top level of the document counts: one inside a list or a blockquote does
     not.
 
-    A document that more than one specification governs, such as a corpus and a namespace, has each extra title
+    A document that more than one meta spec governs, such as a corpus and a namespace, has each extra title
     reported once.
 
     ## Why is this bad?
@@ -105,7 +105,7 @@ class ExtraTitle(DocumentRule):
         """One occurrence per H1 title after the first, at its heading.
 
         Args:
-            subject: The document, governed by a structure specification.
+            subject: The document, governed by a structure file.
         """
         titles: list[Heading] = []
         for heading in subject.parse().headings:

@@ -1,4 +1,4 @@
-"""`OUT004`: a section holds no content, under a structure specification that forbids empty sections."""
+"""`OUT004`: a section holds no content, under a structure file that forbids empty sections."""
 
 from dataclasses import dataclass
 from typing import ClassVar, Self, assert_never
@@ -22,14 +22,14 @@ from .__ruleset__ import GROUP_ID, example_note, spec_note
 
 
 def _find_required_entry(alignments: tuple[OutlineAlignmentSpec, ...], section: SectionHeading) -> SectionEntry | None:
-    """The first outline entry, across the specifications, that requires a section.
+    """The first outline entry, across the meta specs, that requires a section.
 
-    The entry may come from a specification other than the one that forbids empty sections: a namespace can require
-    what its corpus leaves out. `None` comes back when no specification aligns the section to an entry that
+    The entry may come from a meta spec other than the one that forbids empty sections: a namespace can require
+    what its corpus leaves out. `None` comes back when no meta spec aligns the section to an entry that
     requires it.
 
     Args:
-        alignments: The document's sections aligned to the outline of every structure specification that governs
+        alignments: The document's sections aligned to the outline of every structure file that governs
             it, in the order they apply.
         section: The heading of the empty section.
     """
@@ -65,7 +65,7 @@ def _role_of(
     """What an empty heading is: the title, a section the outline requires, or any other section.
 
     Args:
-        alignments: The document's sections aligned to the outline of every structure specification that governs
+        alignments: The document's sections aligned to the outline of every structure file that governs
             it, in the order they apply.
         heading: The heading of the empty section.
         title: The document's title, or `None` when it has none.
@@ -85,17 +85,17 @@ def _role_of(
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
 class EmptySection(DocumentRule):
-    """A section holds no content, under a structure specification that forbids empty sections.
+    """A section holds no content, under a structure file that forbids empty sections.
 
     ## What it does
 
-    Checks for headings whose section holds nothing, in documents whose structure specification sets
+    Checks for headings whose section holds nothing, in documents whose structure file sets
     `empty_sections` to `"forbidden"`. A section ends at the next heading of the same or a higher level, or at the
     end of the document; a deeper heading opens a subsection, which is content. Every heading counts, whatever its
     level: an empty title and an empty subsection are reported like any other section.
 
-    A document that more than one specification governs, such as a corpus and a namespace, is reported once for
-    each specification that forbids empty sections.
+    A document that more than one meta spec governs, such as a corpus and a namespace, is reported once for
+    each meta spec that forbids empty sections.
 
     The help follows the section: under the title it asks for the document's content, under a section the outline
     requires it asks for what the entry describes, with the entry's first example, and under any other it asks to
@@ -141,10 +141,10 @@ class EmptySection(DocumentRule):
     ```
 
     Attributes:
-        spec: The structure specification that forbids empty sections.
+        spec: The structure file that forbids empty sections.
         section: The text of the heading whose section is empty.
         role: What the empty heading is: `EmptyTitle` for the document's title, its first H1, as a later H1 is not;
-            the outline entry that requires it, for an H2 that an outline of a specification governing the document
+            the outline entry that requires it, for an H2 that an outline of a meta spec governing the document
             names without `"optional": true`; or `OtherSection` for any other section.
     """
 
@@ -163,7 +163,7 @@ class EmptySection(DocumentRule):
         return f'section `{self.section}` is empty'
 
     def children(self) -> tuple[Subdiagnostic, ...]:
-        """Point at the specification that forbids empty sections, then give the help that fits the section.
+        """Point at the meta spec that forbids empty sections, then give the help that fits the section.
 
         The title is told to hold the document's content, and a required section to hold what its entry
         describes, followed by the entry's first example when it gives one; any other section may be omitted.
@@ -188,13 +188,13 @@ class EmptySection(DocumentRule):
 
     @classmethod
     def check(cls, subject: DocumentContext) -> tuple[Self, ...]:
-        """One occurrence, at its heading, for each empty section under each specification that forbids them.
+        """One occurrence, at its heading, for each empty section under each meta spec that forbids them.
 
-        The specifications are taken in the order they apply, and the headings of each in document order. An H2 the
-        specification's outline requires carries its entry, for the help to describe.
+        The meta specs are taken in the order they apply, and the headings of each in document order. An H2 the
+        meta spec's outline requires carries its entry, for the help to describe.
 
         Args:
-            subject: The document, governed by a structure specification.
+            subject: The document, governed by a structure file.
         """
         headings = subject.parse().headings
         title = find_title(headings)
