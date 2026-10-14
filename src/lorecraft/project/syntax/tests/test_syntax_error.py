@@ -370,6 +370,32 @@ class TestDescribeError:
             'a character no plain value starts with names itself in the label'
         )
 
+    def test_describe_error_with_a_backtick_that_starts_a_value_names_it_in_words(self) -> None:
+        #: Given
+        error = _error(
+            "found character '`' that cannot start any token", _mark(0, 3), context='while scanning for the next token'
+        )
+
+        #: When
+        problem = describe_error(error, 'a: `b`\n')
+
+        #: Then
+        assert problem == SyntaxProblem('a plain value cannot start with a backtick', 'Quote the value', 0), (
+            'a backtick is not written between backticks in the label'
+        )
+
+    def test_describe_error_with_a_character_the_problem_does_not_quote_returns_the_fallback(self) -> None:
+        #: Given
+        error = _error('found character that cannot start any token', _mark(0, 3))
+
+        #: When
+        problem = describe_error(error, 'a: @b\n')
+
+        #: Then
+        assert problem == SyntaxProblem('the block cannot be read from this line on', None, 0), (
+            'a character the problem does not name is left as the fallback, not a made-up one'
+        )
+
     def test_describe_error_with_an_unknown_escape_returns_the_escape_kind(self) -> None:
         #: Given
         error = _error(
@@ -387,7 +413,7 @@ class TestDescribeError:
             '`\\q` is not an escape', 'Write `\\\\` for a backslash, or use single quotes', 0
         ), 'the escape is named as the block writes it'
 
-    def test_describe_error_with_an_escape_that_lacks_its_digits_returns_the_escape_with_them(self) -> None:
+    def test_describe_error_with_an_escape_that_lacks_its_digits_returns_the_escape_with_the_digits_given(self) -> None:
         #: Given
         error = _error(
             "expected escape sequence of 2 hexdecimal numbers, but found 'Z'",
@@ -401,8 +427,25 @@ class TestDescribeError:
 
         #: Then
         assert problem == SyntaxProblem(
-            '`\\xZZ` is not an escape', 'Write `\\\\` for a backslash, or use single quotes', 0
-        ), 'a hexadecimal escape is named with the digits it was given'
+            '`\\x` is not an escape', 'Write `\\\\` for a backslash, or use single quotes', 0
+        ), 'a hexadecimal escape is named with the digits it was given, none here'
+
+    def test_describe_error_with_an_escape_cut_short_by_the_closing_quote_returns_the_escape_without_it(self) -> None:
+        #: Given
+        error = _error(
+            "expected escape sequence of 4 hexdecimal numbers, but found '\"'",
+            _mark(0, 8),
+            context='while scanning a double-quoted scalar',
+            context_mark=_mark(0, 3),
+        )
+
+        #: When
+        problem = describe_error(error, 'a: "\\u12"\n')
+
+        #: Then
+        assert problem == SyntaxProblem(
+            '`\\u12` is not an escape', 'Write `\\\\` for a backslash, or use single quotes', 0
+        ), 'the closing quote is not taken as a digit of the escape'
 
     def test_describe_error_with_an_escape_and_no_backslash_before_it_returns_the_fallback(self) -> None:
         #: Given
