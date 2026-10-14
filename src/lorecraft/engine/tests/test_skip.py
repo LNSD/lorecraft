@@ -49,7 +49,7 @@ def _database_with(files: dict[str, bytes], documents: dict[str, bytes]) -> Data
         documents: The files of `docs/code/`, by name.
     """
     snapshot = Snapshot.from_tree({'docs': {'__meta__': files, 'code': documents}})
-    return Database.open(snapshot)
+    return Database.from_snapshot(snapshot)
 
 
 def _all_rules() -> RuleTable:
@@ -69,7 +69,7 @@ def _database() -> Database:
             }
         }
     )
-    return Database.open(snapshot)
+    return Database.from_snapshot(snapshot)
 
 
 @pytest.mark.unit

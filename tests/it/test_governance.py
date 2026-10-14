@@ -69,7 +69,7 @@ def _snapshot() -> Snapshot:
 class TestGovernance:
     def test_governance_with_a_document_in_a_corpus_holds_the_corpus_and_matching_namespace_specs(self) -> None:
         #: Given
-        database = Database.open(_snapshot())
+        database = Database.from_snapshot(_snapshot())
 
         #: When
         governance = database.governance(TYPING)
@@ -83,7 +83,7 @@ class TestGovernance:
 
     def test_governance_with_a_document_in_a_corpus_the_model_lacks_holds_none(self) -> None:
         #: Given
-        database = Database.open(_snapshot())
+        database = Database.from_snapshot(_snapshot())
 
         #: When
         governance = database.governance(UNLISTED)
@@ -93,7 +93,7 @@ class TestGovernance:
 
     def test_governance_called_twice_returns_the_first_answer(self) -> None:
         #: Given
-        database = Database.open(_snapshot())
+        database = Database.from_snapshot(_snapshot())
         first = database.governance(TYPING)
 
         #: When
@@ -104,7 +104,7 @@ class TestGovernance:
 
     def test_governance_across_corpora_differing_only_in_an_unrelated_filename_is_equal(self) -> None:
         #: Given
-        corpus = Database.open(_snapshot()).model().find_corpus(CorpusName.parse('code'))
+        corpus = Database.from_snapshot(_snapshot()).model().find_corpus(CorpusName.parse('code'))
         assert corpus is not None, 'the snapshot declares corpus `code`'
         with_other_document = replace(corpus, filenames=corpus.filenames | {AspectFilename.parse('other')})
 
@@ -118,7 +118,7 @@ class TestGovernance:
 
     def test_governance_across_corpora_differing_only_in_a_non_matching_namespace_is_equal(self) -> None:
         #: Given
-        corpus = Database.open(_snapshot()).model().find_corpus(CorpusName.parse('code'))
+        corpus = Database.from_snapshot(_snapshot()).model().find_corpus(CorpusName.parse('code'))
         assert corpus is not None, 'the snapshot declares corpus `code`'
         namespace = AspectNamespace.parse('rust')
         with_other_namespace = replace(
@@ -145,7 +145,7 @@ class TestRunComputesGovernanceOnce:
         table = RuleTable.from_registry(
             Registry.load(rules), RuleSelection(select=frozenset({AllRules()}), ignore=frozenset())
         )
-        database = Database.open(_snapshot())
+        database = Database.from_snapshot(_snapshot())
         computed: list[AspectFilename] = []
         original = Corpus.governance
 

@@ -105,7 +105,7 @@ class TestCheckSubjectsLayout:
         elsewhere = root.parent / 'elsewhere'
         (root / '.claude').mkdir()
         (root / '.claude' / 'skills').symlink_to(elsewhere)
-        database = Database.open(take_snapshot(root, SNAPSHOT_SCOPE))
+        database = Database.from_snapshot(take_snapshot(root, SNAPSHOT_SCOPE))
 
         #: When
         reports = check_subjects(database, _layout_subjects(database), package_table)
@@ -123,7 +123,7 @@ class TestCheckSubjectsLayout:
         target = root.parent / 'elsewhere' / 'x'
         (root / '.agents' / 'skills').mkdir(parents=True)
         (root / '.agents' / 'skills' / 'x').symlink_to(target)
-        database = Database.open(take_snapshot(root, SNAPSHOT_SCOPE))
+        database = Database.from_snapshot(take_snapshot(root, SNAPSHOT_SCOPE))
 
         #: When
         reports = check_subjects(database, _layout_subjects(database), package_table)
@@ -141,7 +141,7 @@ class TestCheckSubjectsLayout:
         target = root.parent / 'elsewhere' / 'x.md'
         (root / '.agents' / 'skills' / 'review').mkdir(parents=True)
         (root / '.agents' / 'skills' / 'review' / 'SKILL.md').symlink_to(target)
-        database = Database.open(take_snapshot(root, SNAPSHOT_SCOPE))
+        database = Database.from_snapshot(take_snapshot(root, SNAPSHOT_SCOPE))
 
         #: When
         reports = check_subjects(database, _layout_subjects(database), package_table)
@@ -159,7 +159,7 @@ class TestCheckSubjectsLayout:
         target = root.parent / 'elsewhere' / 'x'
         _write(root, '.agents/skills/review/SKILL.md', CLEAN_SKILL_MD)
         (root / '.agents' / 'skills' / 'review' / 'references').symlink_to(target)
-        database = Database.open(take_snapshot(root, SNAPSHOT_SCOPE))
+        database = Database.from_snapshot(take_snapshot(root, SNAPSHOT_SCOPE))
 
         #: When
         reports = check_subjects(database, _layout_subjects(database), package_table)
@@ -178,7 +178,7 @@ class TestCheckSubjectsLayout:
         (root / '.agents' / 'skills').mkdir(parents=True)
         (root / '.agents' / 'skills' / 'x').symlink_to('../../hop/x')
         (root / 'hop').symlink_to(elsewhere)
-        database = Database.open(take_snapshot(root, SNAPSHOT_SCOPE))
+        database = Database.from_snapshot(take_snapshot(root, SNAPSHOT_SCOPE))
 
         #: When
         reports = check_subjects(database, _layout_subjects(database), package_table)
@@ -195,7 +195,7 @@ class TestCheckSubjectsLayout:
         root = repository_beside_elsewhere
         _write(root, '.agents/skills/review/SKILL.md', CLEAN_SKILL_MD)
         (root / '.agents' / 'skills' / 'review' / 'shared').symlink_to('../../../../elsewhere/x')
-        database = Database.open(take_snapshot(root, SNAPSHOT_SCOPE))
+        database = Database.from_snapshot(take_snapshot(root, SNAPSHOT_SCOPE))
 
         #: When
         reports = check_subjects(database, _layout_subjects(database), package_table)
@@ -213,7 +213,7 @@ class TestCheckSubjectsLayout:
         _write(root, '.agents/skills/review/SKILL.md', CLEAN_SKILL_MD)
         (root / '.agents' / 'skills' / 'gone').symlink_to('../../skills/gone')
         (root / '.agents' / 'skills' / 'review' / 'references').symlink_to('../../../missing')
-        database = Database.open(take_snapshot(root, SNAPSHOT_SCOPE))
+        database = Database.from_snapshot(take_snapshot(root, SNAPSHOT_SCOPE))
 
         #: When
         reports = check_subjects(database, _layout_subjects(database), package_table)
@@ -229,7 +229,7 @@ class TestCheckSubjectsLayout:
         _write(root, '.agents/skills/review/SKILL.md', CLEAN_SKILL_MD)
         (root / '.claude').mkdir()
         (root / '.claude' / 'skills').symlink_to('../.agents/skills')
-        database = Database.open(take_snapshot(root, SNAPSHOT_SCOPE))
+        database = Database.from_snapshot(take_snapshot(root, SNAPSHOT_SCOPE))
 
         #: When
         reports = check_subjects(database, _layout_subjects(database), package_table)
@@ -245,7 +245,7 @@ class TestCheckSubjectsLayout:
         target = root.parent / 'elsewhere' / 'x'
         _write(root, '.agents/skills/review/SKILL.md', CLEAN_SKILL_MD)
         (root / '.agents' / 'skills' / 'review' / 'references').symlink_to(target)
-        database = Database.open(take_snapshot(root, SNAPSHOT_SCOPE))
+        database = Database.from_snapshot(take_snapshot(root, SNAPSHOT_SCOPE))
         location = database.model().find_skill_location(RootRelativePath.parse('.agents/skills/review'))
         assert location is not None, 'the model lists the skill .agents/skills/review'
         subjects: tuple[Subject, ...] = (*_layout_subjects(database), location)

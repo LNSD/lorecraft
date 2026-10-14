@@ -14,53 +14,53 @@ _BOTH_SET: Final[ColorEnvironment] = ColorEnvironment(force_color=True, no_color
 
 
 @pytest.mark.unit
-class TestColorEnvironmentParse:
-    def test_parse_with_a_non_empty_force_color_sets_force_color(self) -> None:
+class TestColorEnvironmentFromEnviron:
+    def test_from_environ_with_a_non_empty_force_color_sets_force_color(self) -> None:
         #: Given
         environ = {'FORCE_COLOR': '1'}
 
         #: When
-        environment = ColorEnvironment.parse(environ)
+        environment = ColorEnvironment.from_environ(environ)
 
         #: Then
         assert environment == _FORCE_SET, 'a non-empty FORCE_COLOR asks for colour'
 
-    def test_parse_with_a_non_empty_no_color_sets_no_color(self) -> None:
+    def test_from_environ_with_a_non_empty_no_color_sets_no_color(self) -> None:
         #: Given
         environ = {'NO_COLOR': '1'}
 
         #: When
-        environment = ColorEnvironment.parse(environ)
+        environment = ColorEnvironment.from_environ(environ)
 
         #: Then
         assert environment == _NO_SET, 'a non-empty NO_COLOR asks for no colour'
 
-    def test_parse_with_a_value_of_zero_counts_as_set(self) -> None:
+    def test_from_environ_with_a_value_of_zero_counts_as_set(self) -> None:
         #: Given
         environ = {'FORCE_COLOR': '0', 'NO_COLOR': '0'}
 
         #: When
-        environment = ColorEnvironment.parse(environ)
+        environment = ColorEnvironment.from_environ(environ)
 
         #: Then
         assert environment == _BOTH_SET, 'both conventions read any non-empty value as a request, `0` included'
 
-    def test_parse_with_empty_values_counts_both_as_unset(self) -> None:
+    def test_from_environ_with_empty_values_counts_both_as_unset(self) -> None:
         #: Given
         environ = {'FORCE_COLOR': '', 'NO_COLOR': ''}
 
         #: When
-        environment = ColorEnvironment.parse(environ)
+        environment = ColorEnvironment.from_environ(environ)
 
         #: Then
         assert environment == _NOTHING_SET, 'an empty value gives neither convention a request'
 
-    def test_parse_with_neither_variable_sets_nothing(self) -> None:
+    def test_from_environ_with_neither_variable_sets_nothing(self) -> None:
         #: Given
         environ = {'TERM': 'xterm', 'COLORTERM': 'truecolor'}
 
         #: When
-        environment = ColorEnvironment.parse(environ)
+        environment = ColorEnvironment.from_environ(environ)
 
         #: Then
         assert environment == _NOTHING_SET, 'other variables, even colour-related ones, are ignored'
@@ -141,7 +141,7 @@ class TestDecideColor:
     def test_decide_color_with_auto_and_empty_variables_colours_a_terminal(self) -> None:
         #: Given
         choice = ColorChoice.AUTO
-        environment = ColorEnvironment.parse({'FORCE_COLOR': '', 'NO_COLOR': ''})
+        environment = ColorEnvironment.from_environ({'FORCE_COLOR': '', 'NO_COLOR': ''})
 
         #: When
         color = decide_color(choice, environment, is_terminal=True)
@@ -152,7 +152,7 @@ class TestDecideColor:
     def test_decide_color_with_auto_and_empty_variables_does_not_colour_a_pipe(self) -> None:
         #: Given
         choice = ColorChoice.AUTO
-        environment = ColorEnvironment.parse({'FORCE_COLOR': '', 'NO_COLOR': ''})
+        environment = ColorEnvironment.from_environ({'FORCE_COLOR': '', 'NO_COLOR': ''})
 
         #: When
         color = decide_color(choice, environment, is_terminal=False)

@@ -526,7 +526,7 @@ class TestCheckSubjects:
             '.agents/skills/review/SKILL.md',
             f'---\nname: review\ndescription: Review a change.\nallowed-tools: {value}\n---\n'.encode(),
         )
-        database = Database.open(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
+        database = Database.from_snapshot(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
 
         #: When
         reports = check_subjects(database, (_location(database, REVIEW),), package_table)
@@ -563,7 +563,7 @@ class TestCheckSubjects:
             '.agents/skills/review/SKILL.md',
             b'---\nname: review\ndescription: Review a change.\nallowed-tools: Read, Grep\n---\n',
         )
-        database = Database.open(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
+        database = Database.from_snapshot(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
 
         #: When
         reports = check_subjects(database, (_location(database, REVIEW),), package_table)
@@ -584,7 +584,7 @@ class TestCheckSubjects:
         self, package_table: RuleTable
     ) -> None:
         #: Given
-        database = Database.open(_snapshot(_budget(5), guide=GUIDE_TEXT.encode()))
+        database = Database.from_snapshot(_snapshot(_budget(5), guide=GUIDE_TEXT.encode()))
 
         #: When
         reports = check_subjects(database, (GUIDE,), package_table)
@@ -623,7 +623,7 @@ class TestCheckSubjects:
         table = RuleTable(severities)
 
         #: When
-        reports = check_subjects(Database.open(snapshot), (typing,), table)
+        reports = check_subjects(Database.from_snapshot(snapshot), (typing,), table)
 
         #: Then
         token_count = count_tokens(typing_text).value
@@ -646,7 +646,7 @@ class TestCheckSubjects:
 
     def test_check_subjects_with_a_document_within_its_budget_reports_it_clean(self, package_table: RuleTable) -> None:
         #: Given
-        database = Database.open(_snapshot(_budget(1000), guide=GUIDE_TEXT.encode()))
+        database = Database.from_snapshot(_snapshot(_budget(1000), guide=GUIDE_TEXT.encode()))
 
         #: When
         reports = check_subjects(database, (GUIDE,), package_table)
@@ -662,7 +662,7 @@ class TestCheckSubjects:
 
     def test_check_subjects_with_no_budget_set_reports_the_budget_as_ungoverned(self, package_table: RuleTable) -> None:
         #: Given
-        database = Database.open(_snapshot(b'{"empty_sections": "forbidden"}', guide=GUIDE_TEXT.encode()))
+        database = Database.from_snapshot(_snapshot(b'{"empty_sections": "forbidden"}', guide=GUIDE_TEXT.encode()))
 
         #: When
         reports = check_subjects(database, (GUIDE,), package_table)
@@ -693,7 +693,7 @@ class TestCheckSubjects:
                 }
             }
         )
-        database = Database.open(snapshot)
+        database = Database.from_snapshot(snapshot)
         launch = DocumentRef(CorpusName.parse('blog'), AspectFilename.parse('launch'))
 
         #: When
@@ -721,7 +721,7 @@ class TestCheckSubjects:
         snapshot = Snapshot.from_tree(
             {'docs': {'__meta__': {'code.md': b'# Code\n'}, 'code': {'guide.md': GUIDE_TEXT.encode()}}}
         )
-        database = Database.open(snapshot)
+        database = Database.from_snapshot(snapshot)
         severities: dict[type[Rule], Severity] = {TooManyTokens: Severity.ERROR}
         table = RuleTable(severities)
 
@@ -739,7 +739,7 @@ class TestCheckSubjects:
         snapshot = Snapshot.from_tree(
             {'docs': {'__meta__': {'code.md': b'# Code\n'}, 'code': {'guide.md': GUIDE_TEXT.encode()}}}
         )
-        database = CountingDatabase.open(snapshot)
+        database = CountingDatabase.from_snapshot(snapshot)
         severities: dict[type[Rule], Severity] = {TooManyTokens: Severity.ERROR}
         table = RuleTable(severities)
 
@@ -757,7 +757,7 @@ class TestCheckSubjects:
         snapshot = Snapshot.from_tree(
             {'docs': {'__meta__': {'code.md': b'# Code\n'}, 'code': {'guide.md': GUIDE_TEXT.encode()}}}
         )
-        database = CountingDatabase.open(snapshot)
+        database = CountingDatabase.from_snapshot(snapshot)
         severities: dict[type[Rule], Severity] = {TooManyWords: Severity.ERROR, TitleTooLong: Severity.ERROR}
         table = RuleTable(severities)
 
@@ -772,7 +772,7 @@ class TestCheckSubjects:
 
     def test_check_subjects_with_an_undecodable_document_reports_it_undecodable(self, package_table: RuleTable) -> None:
         #: Given
-        database = Database.open(_snapshot(_budget(1000), guide=b'# Caf\xe9\n'))
+        database = Database.from_snapshot(_snapshot(_budget(1000), guide=b'# Caf\xe9\n'))
 
         #: When
         reports = check_subjects(database, (GUIDE,), package_table)
@@ -786,7 +786,7 @@ class TestCheckSubjects:
         self, package_table: RuleTable
     ) -> None:
         #: Given
-        database = Database.open(_snapshot(b'{"empty_sections": "forbidden"}', guide=b'# Caf\xe9\n'))
+        database = Database.from_snapshot(_snapshot(b'{"empty_sections": "forbidden"}', guide=b'# Caf\xe9\n'))
 
         #: When
         reports = check_subjects(database, (GUIDE,), package_table)
@@ -800,7 +800,7 @@ class TestCheckSubjects:
         self, package_table: RuleTable
     ) -> None:
         #: Given
-        database = Database.open(_snapshot(_budget(1000), guide=GUIDE_TEXT.encode()))
+        database = Database.from_snapshot(_snapshot(_budget(1000), guide=GUIDE_TEXT.encode()))
 
         #: When
         reports = check_subjects(database, (INTRO, GUIDE), package_table)
@@ -810,7 +810,7 @@ class TestCheckSubjects:
 
     def test_check_subjects_with_no_enabled_rule_over_the_token_count_never_counts_the_tokens(self) -> None:
         #: Given
-        database = CountingDatabase.open(_snapshot(_budget(5), guide=GUIDE_TEXT.encode()))
+        database = CountingDatabase.from_snapshot(_snapshot(_budget(5), guide=GUIDE_TEXT.encode()))
         severities: dict[type[Rule], Severity] = {}
         table = RuleTable(severities)
 
@@ -822,7 +822,9 @@ class TestCheckSubjects:
 
     def test_check_subjects_with_no_budget_set_never_counts_the_tokens(self, package_table: RuleTable) -> None:
         #: Given
-        database = CountingDatabase.open(_snapshot(b'{"empty_sections": "forbidden"}', guide=GUIDE_TEXT.encode()))
+        database = CountingDatabase.from_snapshot(
+            _snapshot(b'{"empty_sections": "forbidden"}', guide=GUIDE_TEXT.encode())
+        )
 
         #: When
         check_subjects(database, (GUIDE,), package_table)
@@ -836,7 +838,7 @@ class TestCheckSubjects:
         #: Given
         # a budget the document holds more than half of, and less than all of
         token_count_of_guide = count_tokens(GUIDE_TEXT).value
-        database = Database.open(_snapshot(_budget(token_count_of_guide + 1), guide=GUIDE_TEXT.encode()))
+        database = Database.from_snapshot(_snapshot(_budget(token_count_of_guide + 1), guide=GUIDE_TEXT.encode()))
 
         #: When
         reports = check_subjects(database, (GUIDE,), sample_table)
@@ -863,7 +865,7 @@ class TestCheckSubjects:
     def test_check_subjects_with_a_sample_rule_at_allow_never_runs_it(self, sample_table: RuleTable) -> None:
         #: Given
         # an empty document, which the sample rule at allow, empty-document, would report
-        database = Database.open(_snapshot(_budget(10), guide=b''))
+        database = Database.from_snapshot(_snapshot(_budget(10), guide=b''))
 
         #: When
         reports = check_subjects(database, (GUIDE,), sample_table)
@@ -880,7 +882,7 @@ class TestCheckSubjects:
         self, package_table: RuleTable
     ) -> None:
         #: Given
-        database = Database.open(_snapshot(_budget(1000), guide=GUIDE_TEXT.encode(), review=_skill_of(501)))
+        database = Database.from_snapshot(_snapshot(_budget(1000), guide=GUIDE_TEXT.encode(), review=_skill_of(501)))
 
         #: When
         reports = check_subjects(database, (_location(database, REVIEW),), package_table)
@@ -901,7 +903,7 @@ class TestCheckSubjects:
         shipped = Snapshot.from_tree({'.agents': {'skills': {}}, 'skills': {'review': {'SKILL.md': _skill_of(501)}}})
         records: dict[RootRelativePath, EntryRecord] = dict(shipped.records)
         records[RootRelativePath.parse('.agents/skills/review')] = SymlinkRecord(PurePosixPath('../../skills/review'))
-        database = Database.open(Snapshot(SnapshotRecords(records)))
+        database = Database.from_snapshot(Snapshot(SnapshotRecords(records)))
 
         #: When
         reports = check_subjects(database, (_location(database, REVIEW),), package_table)
@@ -915,7 +917,7 @@ class TestCheckSubjects:
 
     def test_check_subjects_with_a_skill_at_the_line_budget_reports_it_clean(self, package_table: RuleTable) -> None:
         #: Given
-        database = Database.open(_snapshot(_budget(1000), guide=GUIDE_TEXT.encode(), review=_skill_of(500)))
+        database = Database.from_snapshot(_snapshot(_budget(1000), guide=GUIDE_TEXT.encode(), review=_skill_of(500)))
 
         #: When
         reports = check_subjects(database, (_location(database, REVIEW),), package_table)
@@ -927,7 +929,7 @@ class TestCheckSubjects:
 
     def test_check_subjects_with_an_undecodable_skill_reports_it_undecodable(self, package_table: RuleTable) -> None:
         #: Given
-        database = Database.open(
+        database = Database.from_snapshot(
             _snapshot(_budget(1000), guide=GUIDE_TEXT.encode(), review=b'---\nname: caf\xe9\n---\n')
         )
 
@@ -943,7 +945,7 @@ class TestCheckSubjects:
         self, package_table: RuleTable
     ) -> None:
         #: Given
-        database = Database.open(_snapshot(_budget(1000), guide=GUIDE_TEXT.encode()))
+        database = Database.from_snapshot(_snapshot(_budget(1000), guide=GUIDE_TEXT.encode()))
 
         #: When
         reports = check_subjects(database, (GUIDE, _location(database, REVIEW), INTRO), package_table)
@@ -966,7 +968,9 @@ class TestCheckSubjects:
     def test_check_subjects_with_no_enabled_rule_over_the_line_count_never_counts_the_lines(self) -> None:
         #: Given
         # only the token budget is enabled, and the skill is over the line budget
-        database = CountingDatabase.open(_snapshot(_budget(1000), guide=GUIDE_TEXT.encode(), review=_skill_of(501)))
+        database = CountingDatabase.from_snapshot(
+            _snapshot(_budget(1000), guide=GUIDE_TEXT.encode(), review=_skill_of(501))
+        )
         severities: dict[type[Rule], Severity] = {TooManyTokens: Severity.ERROR}
         table = RuleTable(severities)
 
@@ -980,7 +984,7 @@ class TestCheckSubjects:
         self, package_table: RuleTable
     ) -> None:
         #: Given
-        database = Database.open(_snapshot(OBJECT_SCHEMA, guide=GUIDE_TEXT.encode()))
+        database = Database.from_snapshot(_snapshot(OBJECT_SCHEMA, guide=GUIDE_TEXT.encode()))
 
         #: When
         reports = check_subjects(database, (GUIDE,), package_table)
@@ -1000,7 +1004,7 @@ class TestCheckSubjects:
     ) -> None:
         #: Given
         guide = '---\nname: [guide\n---\n# Guide\n'
-        database = Database.open(_snapshot(OBJECT_SCHEMA, guide=guide.encode()))
+        database = Database.from_snapshot(_snapshot(OBJECT_SCHEMA, guide=guide.encode()))
 
         #: When
         reports = check_subjects(database, (GUIDE,), package_table)
@@ -1023,7 +1027,7 @@ class TestCheckSubjects:
         self, package_table: RuleTable
     ) -> None:
         #: Given
-        database = Database.open(_snapshot(OBJECT_SCHEMA, guide=b'---\n- guide\n---\n# Guide\n'))
+        database = Database.from_snapshot(_snapshot(OBJECT_SCHEMA, guide=b'---\n- guide\n---\n# Guide\n'))
 
         #: When
         reports = check_subjects(database, (GUIDE,), package_table)
@@ -1042,7 +1046,7 @@ class TestCheckSubjects:
         self, package_table: RuleTable
     ) -> None:
         #: Given
-        database = Database.open(_snapshot(OBJECT_SCHEMA, guide=b'---\nname: setup\n---\n# Guide\n'))
+        database = Database.from_snapshot(_snapshot(OBJECT_SCHEMA, guide=b'---\nname: setup\n---\n# Guide\n'))
 
         #: When
         reports = check_subjects(database, (GUIDE,), package_table)
@@ -1061,7 +1065,9 @@ class TestCheckSubjects:
         self, package_table: RuleTable
     ) -> None:
         #: Given
-        database = Database.open(_snapshot(OBJECT_SCHEMA, guide=b'---\nname: guide\nname: guide\n---\n# Guide\n'))
+        database = Database.from_snapshot(
+            _snapshot(OBJECT_SCHEMA, guide=b'---\nname: guide\nname: guide\n---\n# Guide\n')
+        )
 
         #: When
         reports = check_subjects(database, (GUIDE,), package_table)
@@ -1086,7 +1092,7 @@ class TestCheckSubjects:
         self, package_table: RuleTable
     ) -> None:
         #: Given
-        database = Database.open(_snapshot(_budget(1000), guide=GUIDE_TEXT.encode(), review=b'# Review\n'))
+        database = Database.from_snapshot(_snapshot(_budget(1000), guide=GUIDE_TEXT.encode(), review=b'# Review\n'))
 
         #: When
         reports = check_subjects(database, (_location(database, REVIEW),), package_table)
@@ -1102,7 +1108,7 @@ class TestCheckSubjects:
     ) -> None:
         #: Given
         review = '---\nname: [review\n---\n'
-        database = Database.open(_snapshot(_budget(1000), guide=GUIDE_TEXT.encode(), review=review.encode()))
+        database = Database.from_snapshot(_snapshot(_budget(1000), guide=GUIDE_TEXT.encode(), review=review.encode()))
 
         #: When
         reports = check_subjects(database, (_location(database, REVIEW),), package_table)
@@ -1121,7 +1127,9 @@ class TestCheckSubjects:
         self, package_table: RuleTable
     ) -> None:
         #: Given
-        database = Database.open(_snapshot(_budget(1000), guide=GUIDE_TEXT.encode(), review=b'---\n- review\n---\n'))
+        database = Database.from_snapshot(
+            _snapshot(_budget(1000), guide=GUIDE_TEXT.encode(), review=b'---\n- review\n---\n')
+        )
 
         #: When
         reports = check_subjects(database, (_location(database, REVIEW),), package_table)
@@ -1134,7 +1142,7 @@ class TestCheckSubjects:
 
     def test_check_subjects_with_a_skill_named_otherwise_reports_name_mismatch(self, package_table: RuleTable) -> None:
         #: Given
-        database = Database.open(
+        database = Database.from_snapshot(
             _snapshot(
                 _budget(1000),
                 guide=GUIDE_TEXT.encode(),
@@ -1153,7 +1161,7 @@ class TestCheckSubjects:
 
     def test_check_subjects_with_a_skill_repeating_a_key_reports_duplicate_key(self, package_table: RuleTable) -> None:
         #: Given
-        database = Database.open(
+        database = Database.from_snapshot(
             _snapshot(
                 _budget(1000),
                 guide=GUIDE_TEXT.encode(),
@@ -1193,7 +1201,7 @@ class TestCheckSubjects:
         records[RootRelativePath.parse('.agents/skills/review')] = SymlinkRecord(
             PurePosixPath('../../skills/code-review')
         )
-        database = Database.open(Snapshot(SnapshotRecords(records)))
+        database = Database.from_snapshot(Snapshot(SnapshotRecords(records)))
 
         #: When
         reports = check_subjects(database, (_location(database, REVIEW),), package_table)
@@ -1213,7 +1221,9 @@ class TestCheckSubjects:
     ) -> None:
         #: Given
         # a frontmatter schema governs the document, which has no block, and the skill has none either
-        database = CountingDatabase.open(_snapshot(OBJECT_SCHEMA, guide=GUIDE_TEXT.encode(), review=b'# Review\n'))
+        database = CountingDatabase.from_snapshot(
+            _snapshot(OBJECT_SCHEMA, guide=GUIDE_TEXT.encode(), review=b'# Review\n')
+        )
         severities: dict[type[Rule], Severity] = {TooManyTokens: Severity.ERROR, TooManyLines: Severity.ERROR}
         table = RuleTable(severities)
 
@@ -1231,7 +1241,7 @@ class TestCheckSubjects:
     ) -> None:
         #: Given
         # no specification states a frontmatter schema, but the package governs every skill's frontmatter
-        database = CountingDatabase.open(_snapshot(_budget(1000), guide=GUIDE_TEXT.encode()))
+        database = CountingDatabase.from_snapshot(_snapshot(_budget(1000), guide=GUIDE_TEXT.encode()))
 
         #: When
         check_subjects(database, (GUIDE, _location(database, REVIEW), INTRO), package_table)
@@ -1265,7 +1275,7 @@ class TestCheckSubjects:
         typing = DocumentRef(CorpusName.parse('code'), AspectFilename.parse('python-typing'))
 
         #: When
-        reports = check_subjects(Database.open(snapshot), (typing,), package_table)
+        reports = check_subjects(Database.from_snapshot(snapshot), (typing,), package_table)
 
         #: Then
         assert reports == (CheckedDocument(typing, diagnostics=(), ungoverned=(Facet.FRONTMATTER, Facet.OUTLINE)),), (
@@ -1277,7 +1287,7 @@ class TestCheckSubjects:
     ) -> None:
         #: Given
         guide = b'---\nname: guide\ndescription: [a]\nextra: y\nstatus: Final\n---\n# Guide\n'
-        database = Database.open(_snapshot(GUIDE_SCHEMA, guide=guide))
+        database = Database.from_snapshot(_snapshot(GUIDE_SCHEMA, guide=guide))
 
         #: When
         reports = check_subjects(database, (GUIDE,), package_table)
@@ -1345,7 +1355,7 @@ class TestCheckSubjects:
         #: Given
         # no description, an empty compatibility, a metadata that is not a mapping, and a key it does not define
         review = b'---\nname: review\ncompatibility: ""\nmetadata: z\nextra: y\n---\n# Review\n'
-        database = Database.open(_snapshot(_budget(1000), guide=GUIDE_TEXT.encode(), review=review))
+        database = Database.from_snapshot(_snapshot(_budget(1000), guide=GUIDE_TEXT.encode(), review=review))
 
         #: When
         reports = check_subjects(database, (_location(database, REVIEW),), package_table)
@@ -1417,7 +1427,7 @@ class TestCheckSubjects:
                 }
             }
         )
-        database = Database.open(snapshot)
+        database = Database.from_snapshot(snapshot)
         typing = DocumentRef(CorpusName.parse('code'), AspectFilename.parse('python-typing'))
 
         #: When
@@ -1450,7 +1460,7 @@ class TestCheckSubjects:
         self, package_table: RuleTable
     ) -> None:
         #: Given
-        database = Database.open(_snapshot(_budget(1000), guide=b'---\nname: [1]\n---\n# Guide\n'))
+        database = Database.from_snapshot(_snapshot(_budget(1000), guide=b'---\nname: [1]\n---\n# Guide\n'))
 
         #: When
         reports = check_subjects(database, (GUIDE,), package_table)
@@ -1468,7 +1478,7 @@ class TestCheckSubjects:
         self, package_table: RuleTable
     ) -> None:
         #: Given
-        database = Database.open(_snapshot(GUIDE_SCHEMA, guide=b'---\n- status\n---\n# Guide\n'))
+        database = Database.from_snapshot(_snapshot(GUIDE_SCHEMA, guide=b'---\n- status\n---\n# Guide\n'))
 
         #: When
         reports = check_subjects(database, (GUIDE,), package_table)
@@ -1486,7 +1496,7 @@ class TestCheckSubjects:
     def test_check_subjects_with_only_the_block_rules_enabled_never_holds_the_frontmatter_to_a_schema(self) -> None:
         #: Given
         # both subjects break their schema, but only the frontmatter block rules are enabled
-        database = CountingDatabase.open(
+        database = CountingDatabase.from_snapshot(
             _snapshot(GUIDE_SCHEMA, guide=b'---\nname: guide\n---\n', review=b'---\nname: review\n---\n')
         )
         severities: dict[type[Rule], Severity] = {
@@ -1511,7 +1521,7 @@ class TestCheckSubjects:
     ) -> None:
         #: Given
         structure_spec = b'{"empty_sections": "forbidden"}'
-        database = Database.open(_snapshot(structure_spec, guide=b'## Install\n\nRun it once.\n'))
+        database = Database.from_snapshot(_snapshot(structure_spec, guide=b'## Install\n\nRun it once.\n'))
 
         #: When
         reports = check_subjects(database, (GUIDE,), package_table)
@@ -1539,7 +1549,7 @@ class TestCheckSubjects:
         #: Given
         structure_spec = b'{"empty_sections": "forbidden"}'
         guide = b'# Guide\n\nRun it once.\n\n# Again\n\nRun it twice.\n'
-        database = Database.open(_snapshot(structure_spec, guide=guide))
+        database = Database.from_snapshot(_snapshot(structure_spec, guide=guide))
 
         #: When
         reports = check_subjects(database, (GUIDE,), package_table)
@@ -1565,7 +1575,7 @@ class TestCheckSubjects:
         #: Given
         structure_spec = b'{"empty_sections": "forbidden"}'
         guide = b'## Install\n\nRun it once.\n\n# Guide\n\nWhat the guide covers.\n'
-        database = Database.open(_snapshot(structure_spec, guide=guide))
+        database = Database.from_snapshot(_snapshot(structure_spec, guide=guide))
 
         #: When
         reports = check_subjects(database, (GUIDE,), package_table)
@@ -1589,7 +1599,7 @@ class TestCheckSubjects:
     def test_check_subjects_with_a_document_carrying_its_title_reports_it_clean(self, package_table: RuleTable) -> None:
         #: Given
         structure_spec = b'{"empty_sections": "forbidden"}'
-        database = Database.open(_snapshot(structure_spec, guide=GUIDE_TEXT.encode()))
+        database = Database.from_snapshot(_snapshot(structure_spec, guide=GUIDE_TEXT.encode()))
 
         #: When
         reports = check_subjects(database, (GUIDE,), package_table)
@@ -1610,7 +1620,7 @@ class TestCheckSubjects:
     def test_check_subjects_with_an_empty_section_reports_empty_section(self, package_table: RuleTable) -> None:
         #: Given
         guide = b'# Guide\n\n## Install\n\n## Run\n\nRun it once.\n'
-        database = Database.open(_snapshot(b'{"empty_sections": "forbidden"}', guide=guide))
+        database = Database.from_snapshot(_snapshot(b'{"empty_sections": "forbidden"}', guide=guide))
 
         #: When
         reports = check_subjects(database, (GUIDE,), package_table)
@@ -1634,7 +1644,7 @@ class TestCheckSubjects:
     def test_check_subjects_with_a_forbidden_section_reports_forbidden_section(self, package_table: RuleTable) -> None:
         #: Given
         guide = b'# Guide\n\n## Run\n\nRun it once.\n\n## Changelog\n\nAdded the run step.\n'
-        database = Database.open(_snapshot(b'{"forbidden": ["Changelog"]}', guide=guide))
+        database = Database.from_snapshot(_snapshot(b'{"forbidden": ["Changelog"]}', guide=guide))
 
         #: When
         reports = check_subjects(database, (GUIDE,), package_table)
@@ -1658,7 +1668,7 @@ class TestCheckSubjects:
     ) -> None:
         #: Given
         guide = b'# Guide\n\n## Run\n\nRun it once, then again.\n'
-        database = Database.open(_snapshot(b'{"outline": [{"section": "Run", "words": 3}]}', guide=guide))
+        database = Database.from_snapshot(_snapshot(b'{"outline": [{"section": "Run", "words": 3}]}', guide=guide))
 
         #: When
         reports = check_subjects(database, (GUIDE,), package_table)
@@ -1684,7 +1694,7 @@ class TestCheckSubjects:
     ) -> None:
         #: Given
         guide = b'# Setting up the guide\n\nRun it once, then again.\n'
-        database = Database.open(_snapshot(b'{"title": {"words": 3}}', guide=guide))
+        database = Database.from_snapshot(_snapshot(b'{"title": {"words": 3}}', guide=guide))
 
         #: When
         reports = check_subjects(database, (GUIDE,), package_table)
@@ -1708,7 +1718,7 @@ class TestCheckSubjects:
     ) -> None:
         #: Given
         guide = b'# Setting up the guide\n\nRun it once, then again.\n'
-        database = Database.open(_snapshot(b'{"title": {"chars": 12}}', guide=guide))
+        database = Database.from_snapshot(_snapshot(b'{"title": {"chars": 12}}', guide=guide))
 
         #: When
         reports = check_subjects(database, (GUIDE,), package_table)
@@ -1732,7 +1742,7 @@ class TestCheckSubjects:
     ) -> None:
         #: Given
         guide = b'# setting up the guide\n\nRun it once, then again.\n'
-        database = Database.open(_snapshot(b'{"title": {"pattern": "^[A-Z]"}}', guide=guide))
+        database = Database.from_snapshot(_snapshot(b'{"title": {"pattern": "^[A-Z]"}}', guide=guide))
 
         #: When
         reports = check_subjects(database, (GUIDE,), package_table)
@@ -1758,7 +1768,9 @@ class TestCheckSubjects:
 
     def test_check_subjects_with_no_enabled_rule_over_the_headings_never_parses_the_document(self) -> None:
         #: Given
-        database = CountingDatabase.open(_snapshot(b'{"empty_sections": "forbidden"}', guide=GUIDE_TEXT.encode()))
+        database = CountingDatabase.from_snapshot(
+            _snapshot(b'{"empty_sections": "forbidden"}', guide=GUIDE_TEXT.encode())
+        )
         severities: dict[type[Rule], Severity] = {TooManyTokens: Severity.ERROR}
         table = RuleTable(severities)
 
@@ -1774,7 +1786,7 @@ class TestCheckSubjects:
         #: Given
         outline = b'{"outline": [{"section": "Install"}, {"section": "Usage", "description": "How to run it."}]}'
         guide = b'# Guide\n\n## Install\n\nRun it once.\n'
-        database = Database.open(_snapshot(outline, guide=guide))
+        database = Database.from_snapshot(_snapshot(outline, guide=guide))
 
         #: When
         reports = check_subjects(database, (GUIDE,), package_table)
@@ -1801,7 +1813,7 @@ class TestCheckSubjects:
         #: Given
         outline = b'{"outline": [{"section": "Install"}, {"section": "Usage"}]}'
         guide = b'# Guide\n\n## Usage\n\nRun it.\n\n## Install\n\nRun it once.\n'
-        database = Database.open(_snapshot(outline, guide=guide))
+        database = Database.from_snapshot(_snapshot(outline, guide=guide))
 
         #: When
         reports = check_subjects(database, (GUIDE,), package_table)
@@ -1825,7 +1837,7 @@ class TestCheckSubjects:
         #: Given
         outline = b'{"outline": [{"section": "Install"}, {"section": "Usage"}]}'
         guide = b'# Guide\n\n## Install\n\nRun it once.\n\n## Tips\n\nRun it often.\n\n## Usage\n\nRun it.\n'
-        database = Database.open(_snapshot(outline, guide=guide))
+        database = Database.from_snapshot(_snapshot(outline, guide=guide))
 
         #: When
         reports = check_subjects(database, (GUIDE,), package_table)
@@ -1848,7 +1860,7 @@ class TestCheckSubjects:
     ) -> None:
         #: Given
         outline = b'{"outline": [{"section": "Install"}]}'
-        database = Database.open(_snapshot(outline, guide=b'# Guide\n\n## Install\n\nRun it once.\n'))
+        database = Database.from_snapshot(_snapshot(outline, guide=b'# Guide\n\n## Install\n\nRun it once.\n'))
 
         #: When
         reports = check_subjects(database, (GUIDE,), package_table)
@@ -1864,7 +1876,9 @@ class TestCheckSubjects:
 
     def test_check_subjects_with_no_enabled_rule_over_the_outline_never_parses_the_document(self) -> None:
         #: Given
-        database = CountingDatabase.open(_snapshot(b'{"outline": [{"section": "Install"}]}', guide=GUIDE_TEXT.encode()))
+        database = CountingDatabase.from_snapshot(
+            _snapshot(b'{"outline": [{"section": "Install"}]}', guide=GUIDE_TEXT.encode())
+        )
         severities: dict[type[Rule], Severity] = {TooManyTokens: Severity.ERROR}
         table = RuleTable(severities)
 
@@ -1879,7 +1893,7 @@ class TestCheckSubjects:
     ) -> None:
         #: Given
         guide = b'# Guide\n\nRead [the setup](/docs/code/setup.md).\n'
-        database = Database.open(_snapshot(_budget(1000), guide=guide))
+        database = Database.from_snapshot(_snapshot(_budget(1000), guide=guide))
 
         #: When
         reports = check_subjects(database, (GUIDE,), package_table)
@@ -1899,7 +1913,7 @@ class TestCheckSubjects:
     ) -> None:
         #: Given
         review = REVIEW_FRONTMATTER + b'# Review\n\nRead [the diff](/tmp/diff.md).\n'
-        database = Database.open(_snapshot(_budget(1000), guide=GUIDE_TEXT.encode(), review=review))
+        database = Database.from_snapshot(_snapshot(_budget(1000), guide=GUIDE_TEXT.encode(), review=review))
 
         #: When
         reports = check_subjects(database, (_location(database, REVIEW),), package_table)
@@ -1927,7 +1941,7 @@ class TestCheckSubjects:
                 }
             }
         )
-        database = Database.open(snapshot)
+        database = Database.from_snapshot(snapshot)
         guide = SkillResourceRef(REVIEW, SkillRelativePath.parse('references/deep/guide.md'))
 
         #: When
@@ -1956,7 +1970,7 @@ class TestCheckSubjects:
                 }
             }
         )
-        database = Database.open(snapshot)
+        database = Database.from_snapshot(snapshot)
         first = SkillResourceRef(REVIEW, SkillRelativePath.parse('references/a.md'))
         second = SkillResourceRef(REVIEW, SkillRelativePath.parse('references/b.md'))
 
@@ -1981,7 +1995,7 @@ class TestCheckSubjects:
                 }
             }
         )
-        database = Database.open(snapshot)
+        database = Database.from_snapshot(snapshot)
         cafe = SkillResourceRef(REVIEW, SkillRelativePath.parse('references/cafe.md'))
 
         #: When
@@ -2005,7 +2019,7 @@ class TestCheckSubjects:
                 }
             }
         )
-        database = Database.open(snapshot)
+        database = Database.from_snapshot(snapshot)
         resource = SkillResourceRef(REVIEW, SkillRelativePath.parse('references/a.md'))
 
         #: When
@@ -2023,7 +2037,7 @@ class TestCheckSubjects:
     ) -> None:
         #: Given
         review = '---\nname: [review\n---\nRead [x](/x.md).\n'
-        database = Database.open(_snapshot(_budget(1000), guide=GUIDE_TEXT.encode(), review=review.encode()))
+        database = Database.from_snapshot(_snapshot(_budget(1000), guide=GUIDE_TEXT.encode(), review=review.encode()))
 
         #: When
         reports = check_subjects(database, (_location(database, REVIEW),), package_table)
@@ -2058,7 +2072,7 @@ class TestCheckSubjects:
                 }
             }
         )
-        database = Database.open(snapshot)
+        database = Database.from_snapshot(snapshot)
         severities: dict[type[Rule], Severity] = {AbsoluteLink: Severity.ERROR}
         table = RuleTable(severities)
 
@@ -2075,7 +2089,7 @@ class TestCheckSubjects:
     ) -> None:
         #: Given
         guide = b'# Guide\n\nSee [the title](#guide), then [install](#install).\n'
-        database = Database.open(_snapshot(_budget(1000), guide=guide))
+        database = Database.from_snapshot(_snapshot(_budget(1000), guide=guide))
 
         #: When
         reports = check_subjects(database, (GUIDE,), package_table)
@@ -2095,7 +2109,7 @@ class TestCheckSubjects:
     ) -> None:
         #: Given
         review = REVIEW_FRONTMATTER + b'# Review\n\nFollow [the steps](#steps).\n'
-        database = Database.open(_snapshot(_budget(1000), guide=GUIDE_TEXT.encode(), review=review))
+        database = Database.from_snapshot(_snapshot(_budget(1000), guide=GUIDE_TEXT.encode(), review=review))
 
         #: When
         reports = check_subjects(database, (_location(database, REVIEW),), package_table)
@@ -2116,7 +2130,7 @@ class TestCheckSubjects:
         snapshot = Snapshot.from_tree(
             {'.agents': {'skills': {'review': {'SKILL.md': review, 'references': {'checklist.md': resource}}}}}
         )
-        database = Database.open(snapshot)
+        database = Database.from_snapshot(snapshot)
         checklist = SkillResourceRef(REVIEW, SkillRelativePath.parse('references/checklist.md'))
 
         #: When
@@ -2150,7 +2164,7 @@ class TestCheckSubjects:
                 }
             }
         )
-        database = Database.open(snapshot)
+        database = Database.from_snapshot(snapshot)
         a = SkillResourceRef(REVIEW, SkillRelativePath.parse('references/a.md'))
         guide = SkillResourceRef(REVIEW, SkillRelativePath.parse('references/deep/guide.md'))
 
@@ -2213,7 +2227,7 @@ class TestCheckSubjects:
         )
         records: dict[RootRelativePath, EntryRecord] = dict(shipped.records)
         records[RootRelativePath.parse('.agents/skills/review')] = SymlinkRecord(PurePosixPath('../../skills/review'))
-        database = Database.open(Snapshot(SnapshotRecords(records)))
+        database = Database.from_snapshot(Snapshot(SnapshotRecords(records)))
         a = SkillResourceRef(REVIEW, SkillRelativePath.parse('references/a.md'))
 
         #: When
@@ -2231,7 +2245,7 @@ class TestCheckSubjects:
     ) -> None:
         #: Given
         review = REVIEW_FRONTMATTER + b'See [the skill](../../skills/review/SKILL.md).\n'
-        database = Database.open(_snapshot(_budget(1000), guide=GUIDE_TEXT.encode(), review=review))
+        database = Database.from_snapshot(_snapshot(_budget(1000), guide=GUIDE_TEXT.encode(), review=review))
 
         #: When
         reports = check_subjects(database, (_location(database, REVIEW),), package_table)
@@ -2247,7 +2261,7 @@ class TestCheckSubjects:
     ) -> None:
         #: Given
         guide = b'# Guide\n\nRead [the intro](../code/intro.md).\n'
-        database = Database.open(_snapshot(_budget(1000), guide=guide))
+        database = Database.from_snapshot(_snapshot(_budget(1000), guide=guide))
 
         #: When
         reports = check_subjects(database, (GUIDE,), package_table)
@@ -2326,7 +2340,7 @@ class TestCheckSubjectsBrokenLink:
             b'Read [the steps](references/steps.md).\n',
         )
         _write(tmp_path, '.agents/skills/review/scripts/run.py')
-        database = Database.open(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
+        database = Database.from_snapshot(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
 
         #: When
         reports = check_subjects(database, (_location(database, REVIEW),), broken_link_table)
@@ -2350,7 +2364,7 @@ class TestCheckSubjectsBrokenLink:
             '.agents/skills/review/references/deep/guide.md',
             b'# Guide\n\nSee [a](references/a.md), not [a](a.md) or [itself](guide.md).\n',
         )
-        database = Database.open(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
+        database = Database.from_snapshot(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
         resources = _resources(database, REVIEW)
 
         #: When
@@ -2377,7 +2391,7 @@ class TestCheckSubjectsBrokenLink:
         )
         _write(tmp_path, 'shared/guides/d.md', b'# D\n')
         (tmp_path / '.agents' / 'skills' / 'review' / 'guides').symlink_to('../../../shared/guides')
-        database = Database.open(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
+        database = Database.from_snapshot(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
 
         #: When
         reports = check_subjects(database, (_location(database, REVIEW),), broken_link_table)
@@ -2402,7 +2416,7 @@ class TestCheckSubjectsBrokenLink:
         _write(tmp_path, 'skills/review/references/a.md', b'# A\n\nBack to [the skill](SKILL.md), on to [c](c.md).\n')
         (tmp_path / '.agents' / 'skills').mkdir(parents=True)
         (tmp_path / '.agents' / 'skills' / 'review').symlink_to('../../skills/review')
-        database = Database.open(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
+        database = Database.from_snapshot(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
         resources = _resources(database, REVIEW)
 
         #: When
@@ -2430,7 +2444,7 @@ class TestCheckSubjectsBrokenLink:
             REVIEW_FRONTMATTER + b'# Review\n\nSee [back in](../review/references/a.md) and [out](../gone.md).\n',
         )
         _write(tmp_path, '.agents/skills/review/references/a.md', b'# A\n')
-        database = Database.open(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
+        database = Database.from_snapshot(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
 
         #: When
         reports = check_subjects(database, (_location(database, REVIEW),), broken_link_table)
@@ -2445,7 +2459,7 @@ class TestCheckSubjectsBrokenLink:
     ) -> None:
         #: Given
         _write_code_corpus(tmp_path, b'# Guide\n\nRead [the setup](setup.md) first.\n')
-        database = Database.open(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
+        database = Database.from_snapshot(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
 
         #: When
         reports = check_subjects(database, (GUIDE,), broken_link_table)
@@ -2469,7 +2483,7 @@ class TestCheckSubjectsBrokenLink:
         #: Given
         _write_code_corpus(tmp_path, b'# Guide\n\nRead [the setup](setup.md), then [the specs](../__meta__/).\n')
         _write(tmp_path, 'docs/code/setup.md', b'# Setup\n')
-        database = Database.open(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
+        database = Database.from_snapshot(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
 
         #: When
         reports = check_subjects(database, (GUIDE,), broken_link_table)
@@ -2485,7 +2499,7 @@ class TestCheckSubjectsBrokenLink:
         #: Given
         # `src/` is not read by the scan, so whether `src/main.py` exists cannot be told from the snapshot.
         _write_code_corpus(tmp_path, b'# Guide\n\nSee [the entry point](../../src/main.py).\n')
-        database = Database.open(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
+        database = Database.from_snapshot(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
 
         #: When
         reports = check_subjects(database, (GUIDE,), broken_link_table)
@@ -2500,7 +2514,7 @@ class TestCheckSubjectsBrokenLink:
     ) -> None:
         #: Given
         _write_code_corpus(tmp_path, b'# Guide\n\nSee [elsewhere](../../../elsewhere.md).\n')
-        database = Database.open(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
+        database = Database.from_snapshot(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
 
         #: When
         reports = check_subjects(database, (GUIDE,), broken_link_table)

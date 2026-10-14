@@ -71,9 +71,9 @@ def run_check(
         parsed = build_rule_selection(registry, select=select, ignore=ignore)
         print_selection_warnings(parsed, selected_rules_left_off(registry, parsed.selection))
         # Root discovery follows symlinks and the snapshot, under `docs/`, does not, so a linked `docs/__meta__/`
-        # passes the first and is empty in the second. `open` refuses it, before a run over no documents can report
-        # success.
-        database = Database.open(take_snapshot(establish_root(root), SNAPSHOT_SCOPE, declaration=DECLARATION))
+        # passes the first and is empty in the second. `from_snapshot` refuses it, before a run over no documents can
+        # report success.
+        database = Database.from_snapshot(take_snapshot(establish_root(root), SNAPSHOT_SCOPE, declaration=DECLARATION))
         # With no corpus and no meta spec known, nothing can be checked, so this stops before any subject is selected.
         # Every other failure the model recorded is reported below, as a diagnostic.
         model = database.model()

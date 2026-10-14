@@ -31,9 +31,9 @@ def run_inspect(root: Path, output_format: OutputFormat) -> None:
     """
     try:
         # Under `docs/` the snapshot never reads through a symlink, so a linked `docs/` or `docs/__meta__/`
-        # would draw a model with no corpora. `open` refuses it instead of printing it as if the root declared
+        # would draw a model with no corpora. `from_snapshot` refuses it instead of printing it as if the root declared
         # nothing.
-        model = Database.open(take_snapshot(root, SNAPSHOT_SCOPE)).model()
+        model = Database.from_snapshot(take_snapshot(root, SNAPSHOT_SCOPE)).model()
         # Until a load failure is reported as one, a model that recorded one is no model to print.
         exit_on_load_failure(model)
     except Error as exc:

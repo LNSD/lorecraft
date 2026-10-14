@@ -48,20 +48,20 @@ cache that is safe to fill concurrently, added in the change that first runs que
 
 ### A Database Is Opened with Its Model
 
-1. **`Database.open(snapshot)` is the only way to get a database for a snapshot**, and the reserved
-   `advance(snapshot)` the only way to get the next one. `open` builds the view, refuses a linked layout, loads the
-   model through the view, and constructs the database from the view and the model; the view carries its snapshot,
-   so the snapshot is not passed beside it. `advance` will do the same for the next revision, carrying the model
-   over or loading it again by its carry-over rule.
+1. **`Database.from_snapshot(snapshot)` is the only way to get a database for a snapshot**, and the reserved
+   `advance(snapshot)` the only way to get the next one. `from_snapshot` builds the view, refuses a linked layout, loads
+   the model through the view, and constructs the database from the view and the model; the view carries its snapshot,
+   so the snapshot is not passed beside it. `advance` will do the same for the next revision, carrying the model over or
+   loading it again by its carry-over rule.
 2. **A database always holds its model.** The model is not optional on the database, and `model()` returns it and
    raises nothing. A database whose model has not loaded cannot be represented. The model is the one structure value
    loaded at open; every other query is still computed on first use.
-3. **What `open` raises is limited to what makes a model impossible**: a linked `docs/` or `docs/__meta__/`, as
+3. **What `from_snapshot` raises is limited to what makes a model impossible**: a linked `docs/` or `docs/__meta__/`, as
    today. A failure inside the declaration is never raised (see below).
 
 Python has no private constructor, so code could call the constructor with a model loaded through another view. The
 design states the gap rather than guard it, as [adr-011](adr-011-rules-engine.md) does for a decode witness: only
-`open` and `advance` construct a database, and a test or a command that needs one calls `open`.
+`from_snapshot` and `advance` construct a database, and a test or a command that needs one calls `from_snapshot`.
 
 ### Load Failures Are Values the Model Records
 
@@ -201,7 +201,7 @@ their analyses without being looked at again.
 
 - **The per-document `Raises:` blocks shrink.** The model's load errors leave every query that reads the model or
   a document's governance, the runner and the subject selection. `model()` and `load_model` raise
-  nothing for the declaration. `Database.open` raises only the linked-layout refusal.
+  nothing for the declaration. `Database.from_snapshot` raises only the linked-layout refusal.
 - **A broken meta spec no longer stops a check run.** It is an error diagnostic on its structure file, and the
   documents it governs are skipped and listed in coverage.
 - **Two other records change with this one, so no two accepted records contradict each other.**
@@ -209,8 +209,8 @@ their analyses without being looked at again.
   restated in [adr-016](adr-016-specifications.md), which supersedes it and was accepted together with this record.
   [adr-010](adr-010-diagnostics.md) keeps its decision; its example of a failure that exits 2 is now a `docs/` that
   cannot be listed instead of a meta spec that cannot be loaded.
-- **Every caller opens the database.** The two commands and the tests that build a database call `Database.open`, and
-  nothing reads the model before it.
+- **Every caller opens the database.** The two commands and the tests that build a database call
+  `Database.from_snapshot`, and nothing reads the model before it.
 - **The loader catches what it reads, unit by unit.** Each repository still raises its own error variant. The loader
   catches the variants of one unit, records the facts, and goes on: a handler that degrades, which
   [error-handling](../code/error-handling.md) allows.
@@ -245,7 +245,7 @@ their analyses without being looked at again.
 
 Before committing code, verify:
 
-- [ ] A database is obtained only from `Database.open` or `advance`, and its model is never optional
+- [ ] A database is obtained only from `Database.from_snapshot` or `advance`, and its model is never optional
 - [ ] `model()`, `load_model` and every query raise no model-load error; a failure inside the declaration is a
   record in the model
 - [ ] A load failure is recorded per meta spec layer, and listed once on the model with its path and condition

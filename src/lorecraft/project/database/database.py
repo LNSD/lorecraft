@@ -1,7 +1,7 @@
 """One frozen state of a workspace: its snapshot, and the cached data every check, and every command, reads through.
 
 The layering follows an IDE's. The `Snapshot` plays the virtual file system: every byte a
-check can see, and never changed once built. `Database.open` builds the database from a snapshot and loads the
+check can see, and never changed once built. `Database.from_snapshot` builds the database from a snapshot and loads the
 model; every other query sits above it, computed on first use and kept for as long as the database lives
 (pattern-memoization). Queries come in two kinds, and the kind decides how a query carries over to the next revision.
 
@@ -233,11 +233,11 @@ def _witness_text(
 
 
 class Database:
-    """What the checks read from one snapshot: its model, loaded on `open`, and every other value computed once.
+    """What the checks read from one snapshot: its model, built by `from_snapshot`, and every other value computed once.
 
-    `open` loads the workspace model; every other value is computed on first use and cached for the snapshot's
-    lifetime. Those are the decoded text, the frontmatter, the parse trees, the token counts, the line counts,
-    the governance, the schema problems, the outline alignment and the outline divergences of the documents, the decoded
+    `from_snapshot` loads the workspace model; every other value is computed on first use and cached for the snapshot's
+    lifetime. Those are the decoded text, the frontmatter, the parse trees, the token counts, the line counts, the
+    governance, the schema problems, the outline alignment and the outline divergences of the documents, the decoded
     text, the frontmatter, the parse trees, the line counts and the schema problems of the skills, the resources of each
     skill with their decoded text and their parse trees, the link targets of every one of those Markdown files, and the
     scope index `is_in_scope` answers from.
@@ -246,8 +246,8 @@ class Database:
     def __init__(self, fs: VirtualFileSystem, model: WorkspaceModel) -> None:
         """Index the view's snapshot for reading; performs no I/O and computes nothing yet.
 
-        Only `open` calls this; `docs/arch/adr-015-database.md` states why. A caller that builds a database from a
-        model loaded through another snapshot's view answers for the mismatch.
+        Only `from_snapshot` calls this; `docs/arch/adr-015-database.md` states why. A caller that builds a database
+        from a model loaded through another snapshot's view answers for the mismatch.
 
         Args:
             fs: The view of the snapshot every query reads; the snapshot is kept for the database's lifetime and
@@ -287,8 +287,8 @@ class Database:
         self._skill_resource_parses: dict[SkillResourceRef, ParsedDocument] = {}
 
     @classmethod
-    def open(cls, snapshot: Snapshot) -> Self:
-        """Open the database of one snapshot: build its view, refuse a linked layout and load its model.
+    def from_snapshot(cls, snapshot: Snapshot) -> Self:
+        """Build the database of one snapshot: build its view, refuse a linked layout and load its model.
 
         The one way to get a database. The model is the one structure value loaded here; every other query is still
         computed on first use.
@@ -296,7 +296,7 @@ class Database:
         Behind a linked `docs/` or `docs/__meta__/` the snapshot holds no specification, so the model would have
         no corpus, and a run over its documents would report success over nothing; the layout is refused instead.
 
-        A unit of the declaration that cannot be read or used does not stop the open: the model records it, in
+        A unit of the declaration that cannot be read or used does not stop the build: the model records it, in
         `load_failures` and in the layer it stands in.
 
         Args:
