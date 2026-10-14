@@ -353,16 +353,16 @@ class TestReportLoadFailure:
     ) -> None:
         #: Given
         failure = LoadFailure(_PATH, CyclicFrontmatterSchemaRef('#'))
-        error = Error(
-            f"invalid structure schema {_PATH}: frontmatter schema holds a $ref '#' that leads back to itself "
-            'with no keyword in between'
+        expected = (
+            'error: invalid structure schema docs/__meta__/code.structure.json: '
+            "frontmatter schema holds a $ref '#' that leads back to itself with no keyword in between\n"
         )
 
         #: When
-        expected, actual = _written_for(capsys, failure, error)
+        report_load_failure(failure)
 
         #: Then
-        assert actual == expected, 'the interim report names the reference'
+        assert capsys.readouterr().err == expected, 'the interim report names the reference'
 
     def test_report_load_failure_with_untyped_frontmatter_schema_writes_what_the_replaced_error_wrote(
         self, capsys: pytest.CaptureFixture[str]

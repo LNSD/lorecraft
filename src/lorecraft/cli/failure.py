@@ -164,7 +164,7 @@ def _failure_text(failure: LoadFailure) -> _FailureText:
                 'inside it'
             )
         case CyclicFrontmatterSchemaRef(ref=ref):
-            return FailureText(
+            return _FailureText(
                 f'invalid structure schema {path}: frontmatter schema holds a $ref {ref!r} that leads back to '
                 'itself with no keyword in between'
             )
