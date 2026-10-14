@@ -9,8 +9,9 @@ A resource, here, is a Markdown file inside a skill other than its own top-level
 files the Agent Skills specification places beside `SKILL.md`, as far as they are Markdown. A resource is named
 the same way as its skill: a `SkillResourceRef` names it where an agent reaches it, by a `SkillRelativePath`
 spelled from the skill's directory, so no ref can name a file outside its skill, and a `SkillResourceLocation`
-records the resolved file that path leads to. `SkillRef.find_resource` is where a ref is built: it decides from
-the name alone which files are resources.
+records the resolved file that path leads to. The record refuses a path that is no resource, so no ref names the
+skill's own `SKILL.md`, its directory or a file that is not Markdown. `SkillRef.find_resource` is where a ref is
+built from a listing: it decides from the name alone which files are resources.
 
 Each pair keeps a path as an agent names it, its identity, apart from the resolved path it leads to: a link
 retargeted to another directory leaves the skill the same skill, named by the same ref, and changes only its
@@ -21,6 +22,7 @@ from dataclasses import dataclass
 from typing import Final, Self
 
 from lorecraft.agents import SKILL_ENTRY, SKILL_ENTRY_FILENAME
+from lorecraft.core.error import Error
 from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.project.layout import DOCUMENT_SUFFIX
 from lorecraft.vfs import ResolvedPath
@@ -87,6 +89,19 @@ _SKILL_ENTRY_PATH: Final[SkillRelativePath] = SkillRelativePath.parse(SKILL_ENTR
 """The skill's own top-level `SKILL.md`, spelled from the skill's directory."""
 
 
+def _is_resource_path(path: SkillRelativePath) -> bool:
+    """Whether a file at `path` in a skill is a resource, decided from the name alone.
+
+    A file is a resource when its name ends in the document suffix, `.md`, unless it is the skill's own top-level
+    `SKILL.md`. A `SKILL.md` deeper in the skill, such as `examples/SKILL.md`, is a resource. `.`, the skill's
+    directory, has no name, so it is none.
+    """
+    name = path.name
+    if name is None or not name.value.endswith(DOCUMENT_SUFFIX):
+        return False
+    return path != _SKILL_ENTRY_PATH
+
+
 # order=True so a tuple of refs sorts by directory, the order the model lists them in.
 @dataclass(frozen=True, slots=True, order=True)
 class SkillRef:
@@ -112,18 +127,13 @@ class SkillRef:
     def find_resource(self, path: SkillRelativePath) -> 'SkillResourceRef | None':
         """The resource of this skill an agent reaches at `path`, or `None` when a file there is no resource.
 
-        Decided from the name alone, so it asks nothing of the snapshot: a file is a resource when its name ends
-        in the document suffix, `.md`, unless it is the skill's own top-level `SKILL.md`. A `SKILL.md` deeper in
-        the skill, such as `examples/SKILL.md`, is a resource. `.`, the skill's directory, has no name, so it is
-        none.
+        Decided from the name alone, so it asks nothing of the snapshot; see `SkillResourceRef` for which files are
+        resources.
 
         Args:
             path: Where an agent reaches the file, spelled from the skill's directory.
         """
-        name = path.name
-        if name is None or not name.value.endswith(DOCUMENT_SUFFIX):
-            return None
-        if path == _SKILL_ENTRY_PATH:
+        if not _is_resource_path(path):
             return None
         return SkillResourceRef(self, path)
 
@@ -148,13 +158,34 @@ class SkillLocation:
     file_resolves_to: ResolvedPath
 
 
+class NotASkillResourceError(Error):
+    """A path inside a skill names no resource: it is the skill's own `SKILL.md`, its directory or not Markdown.
+
+    Attributes:
+        path: The rejected path, spelled from the skill's directory.
+    """
+
+    path: SkillRelativePath
+
+    def __init__(self, path: SkillRelativePath) -> None:
+        self.path = path
+        super().__init__(
+            f"{str(path)!r} is not a skill resource: it must name a `{DOCUMENT_SUFFIX}` file other than the skill's "
+            f'own top-level {SKILL_ENTRY_FILENAME}'
+        )
+
+
 # order=True so a tuple of refs sorts by skill, then by path.
 @dataclass(frozen=True, slots=True, order=True)
 class SkillResourceRef:
     """A resource's identity: one Markdown file inside a skill; carries no content.
 
-    Build one through `SkillRef.find_resource`, which keeps the skill's own top-level `SKILL.md` out; nothing in
-    the record itself does.
+    A valid ref names a file whose name ends in `.md`, and not the skill's own top-level `SKILL.md`.
+    `SkillRef.find_resource` asks whether a listed file qualifies.
+
+    Raises:
+        NotASkillResourceError: On construction, if `relative_path` is `.`, is not named as a document, or is the
+            skill's own top-level `SKILL.md`.
 
     Attributes:
         skill: The skill the resource belongs to.
@@ -165,6 +196,11 @@ class SkillResourceRef:
 
     skill: SkillRef
     relative_path: SkillRelativePath
+
+    def __post_init__(self) -> None:
+        """Keep direct construction from naming a path that is no resource."""
+        if not _is_resource_path(self.relative_path):
+            raise NotASkillResourceError(self.relative_path)
 
     @property
     def path(self) -> RootRelativePath:

@@ -76,6 +76,10 @@ class SkillResource:
     text: str
 
 
+type SkillEntry = SkillLocation | OutsideSymlink | None
+"""What one entry of a skills directory is: a skill, a link leaving the repository, or neither."""
+
+
 @dataclass(frozen=True, slots=True)
 class SkillsListing:
     """What one resolved skills directory holds, as `Repository.list_skills` finds it.
@@ -356,7 +360,7 @@ class Repository:
 
         The whole directory at once: the first entry that cannot be resolved raises, and no other is listed. A
         caller that must go on past a failed entry lists the entries with `list_skill_entries` and asks for each
-        one with `list_skill_entry`.
+        one with `find_skill_entry`.
 
         Args:
             skills_dir: A resolved skills directory, as `find_skills_dir` returns it: a link is not followed
@@ -371,9 +375,16 @@ class Repository:
         locations: list[SkillLocation] = []
         outside_symlinks: list[OutsideSymlink] = []
         for entry in self.list_skill_entries(skills_dir):
-            listing = self.list_skill_entry(skills_dir, entry)
-            locations.extend(listing.skills)
-            outside_symlinks.extend(listing.outside_symlinks)
+            found = self.find_skill_entry(skills_dir, entry)
+            match found:
+                case SkillLocation():
+                    locations.append(found)
+                case OutsideSymlink():
+                    outside_symlinks.append(found)
+                case None:
+                    pass
+                case _:
+                    assert_never(found)
         return SkillsListing(skills=tuple(locations), outside_symlinks=tuple(outside_symlinks))
 
     def list_skill_entries(self, skills_dir: ResolvedPath) -> tuple[DirEntry, ...]:
@@ -394,8 +405,8 @@ class Repository:
         except DIR_LIST_FAILURES as exc:
             raise SkillsDirListError(skills_dir, source=exc) from exc
 
-    def list_skill_entry(self, skills_dir: ResolvedPath, entry: DirEntry) -> SkillsListing:
-        """The skill one entry of a skills directory is, or the outside link it is; empty when it is neither.
+    def find_skill_entry(self, skills_dir: ResolvedPath, entry: DirEntry) -> SkillEntry:
+        """The skill one entry of a skills directory is, or the outside link it is; `None` when it is neither.
 
         A skill is an entry that is, or leads to, a directory under the root holding a `SKILL.md` that is,
         or leads to, a regular file under the root. The ref names the entry, `<skills_dir>/<entry name>`,
@@ -426,27 +437,25 @@ class Repository:
                 if resolved_entry is None:
                     leaves_at = self._find_entry_exit(directory)
                     if leaves_at is not None:
-                        return SkillsListing(skills=(), outside_symlinks=(OutsideSymlink(directory, leaves_at),))
-                    return SkillsListing(skills=(), outside_symlinks=())  # a symlink to no directory is no skill
+                        return OutsideSymlink(directory, leaves_at)
+                    return None  # a symlink to no directory is no skill
                 files_directory = resolved_entry
             case EntryKind.FILE:
-                return SkillsListing(skills=(), outside_symlinks=())  # a skill is a directory, not a file beside them
+                return None  # a skill is a directory, not a file beside them
             case EntryKind.OTHER:
-                return SkillsListing(skills=(), outside_symlinks=())  # a socket, a device or a pipe is no skill either
+                return None  # a socket, a device or a pipe is no skill either
             case _:
                 assert_never(entry.kind)
 
         skill_file = self._find_skill_file(files_directory)
         match skill_file:
             case RootRelativePath():
-                location = SkillLocation(SkillRef(directory), resolves_to=files_directory, file_resolves_to=skill_file)
-                return SkillsListing(skills=(location,), outside_symlinks=())
+                return SkillLocation(SkillRef(directory), resolves_to=files_directory, file_resolves_to=skill_file)
             case RootExit():
                 # Named under the entry, as the skill would have been, not under the directory it leads to.
-                outside = OutsideSymlink(directory / SKILL_ENTRY, skill_file)
-                return SkillsListing(skills=(), outside_symlinks=(outside,))
+                return OutsideSymlink(directory / SKILL_ENTRY, skill_file)
             case None:
-                return SkillsListing(skills=(), outside_symlinks=())
+                return None
             case _:
                 assert_never(skill_file)
 
@@ -609,6 +618,19 @@ class _PendingDirectory:
     resolved: ResolvedPath
 
 
+@dataclass(frozen=True, slots=True)
+class _PendingSymlink:
+    """A symlink the walk over a skill's resources has yet to follow.
+
+    Attributes:
+        named: Where an agent reaches the symlink, spelled from the skill's ref directory.
+        link: The symlink's own path in a resolved directory; not resolved, since it is a link.
+    """
+
+    named: SkillRelativePath
+    link: RootRelativePath
+
+
 class _SkillResourcesWalk:
     """One walk over the resources of a skill, the steps `Repository.list_skill_resources` carries out.
 
@@ -630,10 +652,9 @@ class _SkillResourcesWalk:
         self._entered: set[ResolvedPath] = set()
         self._resources: list[SkillResourceLocation] = []
         self._outside_symlinks: list[OutsideSymlink] = []
-        # Each queue holds its entries in the order the walk met them. A symlink waits as (path an agent reaches
-        # it at, its own path in a resolved directory); that second path is not resolved, since it is a link.
+        # Each queue holds its entries in the order the walk met them.
         self._directories: deque[_PendingDirectory] = deque()
-        self._symlinks: deque[tuple[SkillRelativePath, RootRelativePath]] = deque()
+        self._symlinks: deque[_PendingSymlink] = deque()
         # The walk starts at the skill's directory itself, which is `.` spelled from that directory.
         self._directories.append(_PendingDirectory(SkillRelativePath(ROOT), location.resolves_to))
 
@@ -651,8 +672,8 @@ class _SkillResourcesWalk:
                 pending = self._directories.popleft()
                 self._enter(pending.named, pending.resolved)
             else:
-                named, symlink = self._symlinks.popleft()
-                self._follow(named, symlink)
+                pending_symlink = self._symlinks.popleft()
+                self._follow(pending_symlink.named, pending_symlink.link)
         outside_symlinks = sorted(self._outside_symlinks, key=lambda outside: outside.path)
         return SkillResourceListing(resources=tuple(sorted(self._resources)), outside_symlinks=tuple(outside_symlinks))
 
@@ -691,7 +712,7 @@ class _SkillResourcesWalk:
                 case EntryKind.DIRECTORY:
                     self._directories.append(_PendingDirectory(entry_named, ResolvedPath(entry_resolved)))
                 case EntryKind.SYMLINK:
-                    self._symlinks.append((entry_named, entry_resolved))
+                    self._symlinks.append(_PendingSymlink(entry_named, entry_resolved))
                 case EntryKind.FILE:
                     # A file not named as a document, or the skill's own `SKILL.md`, is no resource and is skipped.
                     resource = self._location.ref.find_resource(entry_named)

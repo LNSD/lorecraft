@@ -8,12 +8,20 @@ A symlink the layout reaches whose chain leaves the repository is recorded too, 
 """
 
 from .outside import OutsideSymlink
-from .ref import SkillLocation, SkillRef, SkillRelativePath, SkillResourceLocation, SkillResourceRef
+from .ref import (
+    NotASkillResourceError,
+    SkillLocation,
+    SkillRef,
+    SkillRelativePath,
+    SkillResourceLocation,
+    SkillResourceRef,
+)
 from .repo import (
     Repository,
     Skill,
     SkillDecodeError,
     SkillDirListError,
+    SkillEntry,
     SkillEntryResolveError,
     SkillFileResolveError,
     SkillReadError,
@@ -37,6 +45,8 @@ __all__: list[str] = [
     'SkillsDir',
     'OutsideSymlink',
     'SkillsListing',
+    'SkillEntry',
+    'NotASkillResourceError',
     'SkillResourceListing',
     'Skill',
     'SkillResource',

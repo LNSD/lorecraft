@@ -4,7 +4,7 @@ import pytest
 
 from lorecraft.core.path import PathComponent, RootRelativePath, RootRelativePathError
 
-from ..ref import SkillRef, SkillRelativePath, SkillResourceRef
+from ..ref import NotASkillResourceError, SkillRef, SkillRelativePath, SkillResourceRef
 
 
 @pytest.mark.unit
@@ -165,4 +165,18 @@ class TestSkillResourceRef:
         #: Then
         assert path == RootRelativePath.parse('.agents/skills/review/guides/d.md'), (
             'the report path is the path inside the skill, spelled from the root through the skill directory'
+        )
+
+    @pytest.mark.parametrize('path', ['SKILL.md', '.', 'scripts/run.py'])
+    def test_init_with_a_path_that_is_no_resource_raises_not_a_skill_resource_error(self, path: str) -> None:
+        #: Given
+        skill = SkillRef(RootRelativePath.parse('.agents/skills/review'))
+
+        #: When
+        with pytest.raises(NotASkillResourceError) as exc_info:
+            SkillResourceRef(skill, SkillRelativePath.parse(path))
+
+        #: Then
+        assert exc_info.value.path == SkillRelativePath.parse(path), (
+            'the record refuses the skill file, the skill directory and a file not named as a document'
         )
