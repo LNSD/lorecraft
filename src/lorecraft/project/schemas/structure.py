@@ -85,7 +85,7 @@ from pydantic import JsonValue, ValidationError
 from referencing.jsonschema import DRAFT202012
 
 from lorecraft.core.error import Error
-from lorecraft.core.mapping import Frozen, FrozenMapping
+from lorecraft.core.mapping import Frozen, FrozenMapping, Plain
 from lorecraft.core.num import NonZeroUnsignedInt, UnsignedInt
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.syntax import SectionHeading
@@ -110,6 +110,7 @@ from .frontmatter_problem import (
     WrongTypeProblem,
 )
 from .schema_guidance import (
+    find_object,
     json_type_of,
     known_fields,
     property_guidance,
@@ -571,7 +572,7 @@ class FrontmatterSchema:
 
 
 def _frontmatter_problems(
-    validator: Validator, error: SchemaValidationError, data: Mapping[str, object]
+    validator: Validator, error: SchemaValidationError, data: Mapping[str, Plain]
 ) -> list[FrontmatterProblem]:
     """The problems one `jsonschema` error in `data` reports, each on the top-level field it concerns.
 
@@ -659,7 +660,7 @@ def _invalid_value(validator: Validator, error: SchemaValidationError, field: st
 
 
 def _dependency_problems(
-    validator: Validator, error: SchemaValidationError, data: Mapping[str, object]
+    validator: Validator, error: SchemaValidationError, data: Mapping[str, Plain]
 ) -> list[FrontmatterProblem]:
     """One problem per written field whose `dependentRequired` fields are not all written, on the written field.
 
@@ -743,7 +744,7 @@ def _block_constraint(error: SchemaValidationError) -> BlockLimit:
     return OtherBlockConstraint()
 
 
-def _additional_keys(schema: Mapping[str, object], instance: Mapping[str, object]) -> list[str]:
+def _additional_keys(schema: Mapping[str, Plain], instance: Mapping[str, Plain]) -> list[str]:
     """The keys of `instance` that neither `properties` nor `patternProperties` of `schema` names.
 
     Args:
@@ -764,7 +765,7 @@ def _additional_keys(schema: Mapping[str, object], instance: Mapping[str, object
 
 
 def _unevaluated_problems(
-    validator: Validator, schema: Mapping[str, object], data: Mapping[str, object]
+    validator: Validator, schema: Mapping[str, Plain], data: Mapping[str, Plain]
 ) -> list[FrontmatterProblem]:
     """One problem per field the `unevaluatedProperties` rule of `schema` rejects.
 
@@ -808,7 +809,7 @@ def _unevaluated_problems(
     return problems
 
 
-def _schema_object(value: object) -> Mapping[str, object]:
+def _schema_object(value: Plain) -> Mapping[str, Plain]:
     """A schema value the meta-schema proved is a JSON object.
 
     Such a value is a subschema a keyword fired in, or the value of a keyword the meta-schema requires to be an
@@ -818,13 +819,14 @@ def _schema_object(value: object) -> Mapping[str, object]:
     Args:
         value: A value read from a schema a `FrontmatterSchema` holds, or from an error validating against one.
     """
-    if not isinstance(value, Mapping):
+    schema = find_object(value)
+    if schema is None:
         # Every caller passes a value the meta-schema, checked when the schema was loaded, requires to be an object.
         raise AssertionError('unreachable: the meta-schema proved this schema value is an object')
-    return value
+    return schema
 
 
-def _schemas_within(schema: Mapping[str, object]) -> Iterator[Mapping[str, object]]:
+def _schemas_within(schema: Mapping[str, Plain]) -> Iterator[Mapping[str, Plain]]:
     """The schema itself, then every object subschema inside it, at any depth.
 
     Only the places Draft 2020-12 reads a schema from are walked, such as `properties` or `items`, so a value

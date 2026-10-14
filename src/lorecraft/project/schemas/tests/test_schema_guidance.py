@@ -2,6 +2,8 @@
 
 import pytest
 
+from lorecraft.core.mapping import Plain
+
 from ..frontmatter_problem import FieldGuidance, JsonType
 from ..schema_guidance import json_type_of, known_fields, property_guidance, schema_guidance, schema_reason, value_text
 
@@ -207,7 +209,7 @@ class TestSchemaGuidance:
 
     def test_schema_guidance_with_a_schema_without_keywords_states_nothing(self) -> None:
         #: Given
-        schema: dict[str, object] = {}
+        schema: dict[str, Plain] = {}
 
         #: When
         guidance = schema_guidance(schema)
@@ -269,7 +271,7 @@ class TestSchemaGuidance:
 
     def test_schema_guidance_with_empty_examples_gives_no_example(self) -> None:
         #: Given
-        schema: dict[str, object] = {'examples': []}
+        schema: dict[str, Plain] = {'examples': []}
 
         #: When
         guidance = schema_guidance(schema)
@@ -292,7 +294,7 @@ class TestPropertyGuidance:
 
     def test_property_guidance_with_a_missing_property_states_nothing(self) -> None:
         #: Given
-        schema: dict[str, object] = {'properties': {}}
+        schema: dict[str, Plain] = {'properties': {}}
 
         #: When
         guidance = property_guidance(schema, 'name')
@@ -378,7 +380,7 @@ class TestSchemaReason:
 
     def test_schema_reason_with_a_schema_without_a_comment_states_none(self) -> None:
         #: Given
-        schema: dict[str, object] = {}
+        schema: dict[str, Plain] = {}
 
         #: When
         reason = schema_reason(schema)
