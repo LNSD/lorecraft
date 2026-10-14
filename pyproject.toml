@@ -66,6 +66,11 @@ lc = "lorecraft.cli:main"
 requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
 
+# The one place the uv version is stated: `astral-sh/setup-uv` in CI and a local `uv` both read it,
+# and Renovate bumps it (see .github/renovate.json5).
+[tool.uv]
+required-version = "==0.13.0"
+
 # The version's home is the git tag: hatch-vcs derives it at build time, so CI needs full history.
 [tool.hatch.version]
 source = "vcs"
