@@ -24,7 +24,7 @@ from lorecraft.core.num import UnsignedInt
 from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.engine import check_subjects
 from lorecraft.project.aspect import AspectFilename
-from lorecraft.project.context import DocumentContext
+from lorecraft.project.context import DocumentContext, DocumentFrontmatterOwner, SkillFrontmatterOwner
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.database import Database, DocumentText, SkillText
 from lorecraft.project.document import DocumentRef
@@ -78,7 +78,7 @@ from lorecraft.rules.frontmatter.invalid_yaml import InvalidYaml
 from lorecraft.rules.frontmatter.malformed_allowed_tools import CommaSeparated, MalformedAllowedTools
 from lorecraft.rules.frontmatter.missing_field import MissingField
 from lorecraft.rules.frontmatter.missing_frontmatter import MissingFrontmatter
-from lorecraft.rules.frontmatter.name_mismatch import DirectoryNameExpected, FilenameExpected, NameMismatch
+from lorecraft.rules.frontmatter.name_mismatch import NameMismatch
 from lorecraft.rules.frontmatter.non_mapping_frontmatter import NonMappingFrontmatter
 from lorecraft.rules.frontmatter.unknown_field import UnknownField
 from lorecraft.rules.frontmatter.wrong_type import WrongType
@@ -135,6 +135,16 @@ GUIDE_TEXT: Final[str] = '# Guide\n\nInstall the toolkit, then run it once over 
 
 CODE_SPEC: Final[RootRelativePath] = RootRelativePath.parse('docs/__meta__/code.structure.json')
 """The corpus structure specification."""
+
+GUIDE_OWNER: Final[DocumentFrontmatterOwner] = DocumentFrontmatterOwner(
+    filename=AspectFilename.parse('guide'), spec=CODE_SPEC
+)
+"""The frontmatter owner of `GUIDE`, which the corpus structure specification governs."""
+
+REVIEW_OWNER: Final[SkillFrontmatterOwner] = SkillFrontmatterOwner(
+    directory_name=PathComponent.parse('review'), link_target=None
+)
+"""The frontmatter owner of `REVIEW`, listed under its own name and not a link."""
 
 _CAFE_TITLE_FAILURE: Final[Utf8Failure] = Utf8Failure(
     line=Utf8Line(1), offset=ByteOffset(5), invalid=b'\xe9', reason=Utf8Reason.INVALID_CONTINUATION_BYTE
@@ -1034,9 +1044,7 @@ class TestCheckSubjects:
         reports = check_subjects(database, (GUIDE,), package_table)
 
         #: Then
-        occurrence = NameMismatch(
-            spec=CODE_SPEC, line=LineNumber.from_int(2), name='setup', expectation=FilenameExpected('guide')
-        )
+        occurrence = NameMismatch(owner=GUIDE_OWNER, line=LineNumber.from_int(2), name='setup')
         assert reports == (
             CheckedDocument(
                 GUIDE,
@@ -1136,12 +1144,7 @@ class TestCheckSubjects:
         reports = check_subjects(database, (_location(database, REVIEW),), package_table)
 
         #: Then
-        occurrence = NameMismatch(
-            spec=None,
-            line=LineNumber.from_int(2),
-            name='code-review',
-            expectation=DirectoryNameExpected(directory_name=PathComponent.parse('review'), link_target=None),
-        )
+        occurrence = NameMismatch(owner=REVIEW_OWNER, line=LineNumber.from_int(2), name='code-review')
         assert reports == (
             CheckedSkillFile(REVIEW, diagnostics=(RuleDiagnostic(REVIEW_FILE, occurrence, Severity.ERROR),)),
         ), 'FM004 runs at deny over a skill whose `name` is not its directory name'
@@ -1194,15 +1197,11 @@ class TestCheckSubjects:
         reports = check_subjects(database, (_location(database, REVIEW),), package_table)
 
         #: Then
-        occurrence = NameMismatch(
-            spec=None,
-            line=LineNumber.from_int(2),
-            name='code-review',
-            expectation=DirectoryNameExpected(
-                directory_name=PathComponent.parse('review'),
-                link_target=ResolvedPath(RootRelativePath.parse('skills/code-review')),
-            ),
+        owner = SkillFrontmatterOwner(
+            directory_name=PathComponent.parse('review'),
+            link_target=ResolvedPath(RootRelativePath.parse('skills/code-review')),
         )
+        occurrence = NameMismatch(owner=owner, line=LineNumber.from_int(2), name='code-review')
         assert reports == (
             CheckedSkillFile(REVIEW, diagnostics=(RuleDiagnostic(REVIEW_FILE, occurrence, Severity.ERROR),)),
         ), 'a skill is held to the name it is listed under, and its occurrence carries where the link leads'
