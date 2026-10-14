@@ -12,6 +12,7 @@ from lib.snapshot import TextSnapshotExtension
 from lorecraft.core.num import UnsignedInt
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectFilename
+from lorecraft.project.context import DocumentFrontmatterOwner
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.schemas import DocumentEnd, SectionName
@@ -39,6 +40,9 @@ from ..diagnostics import render_coverage, render_json, render_prefix_summary, r
 
 _CODE_SPEC: Final[RootRelativePath] = RootRelativePath.parse('docs/__meta__/code.structure.json')
 _FEAT_SPEC: Final[RootRelativePath] = RootRelativePath.parse('docs/__meta__/feat.structure.json')
+_CODE_OWNER: Final[DocumentFrontmatterOwner] = DocumentFrontmatterOwner(
+    filename=AspectFilename.parse('guide'), spec=_CODE_SPEC
+)
 
 
 _PLAIN: Final[TextStyle] = TextStyle(color=False, unicode=True, width=80)
@@ -96,7 +100,7 @@ def _every_kind_of_report() -> tuple[RunReport, ...]:
     review = RootRelativePath.parse('.agents/skills/review')
     outside = OutsideSymlink(leaves_at=RootExit(review, PurePosixPath('/home/alex/review')))
     a = _document('code', 'a')
-    duplicate_name = DuplicateKey(spec=_CODE_SPEC, line=_line(3), key='name', first_line=_line(2), kept_line=_line(3))
+    duplicate_name = DuplicateKey(owner=_CODE_OWNER, line=_line(3), key='name', first_line=_line(2), kept_line=_line(3))
     over_budget = TooManyTokens(spec=_CODE_SPEC, line=_line(1), overrun=overrun(2400, 2000))
     return (
         CheckedDocument(
@@ -470,7 +474,7 @@ class TestRenderJson:
         #: Given
         a = _document('code', 'a')
         duplicate_key = DuplicateKey(
-            spec=_CODE_SPEC, line=_line(3), key='nom é', first_line=_line(2), kept_line=_line(3)
+            owner=_CODE_OWNER, line=_line(3), key='nom é', first_line=_line(2), kept_line=_line(3)
         )
         reports: tuple[RunReport, ...] = (
             CheckedDocument(a, diagnostics=(RuleDiagnostic(a.path, duplicate_key, Severity.ERROR),), ungoverned=()),

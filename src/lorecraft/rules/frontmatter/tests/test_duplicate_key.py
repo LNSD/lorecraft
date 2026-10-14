@@ -10,7 +10,9 @@ from typing import Final
 
 import pytest
 
-from lorecraft.core.path import RootRelativePath
+from lorecraft.core.path import PathComponent, RootRelativePath
+from lorecraft.project.aspect import AspectFilename
+from lorecraft.project.context import DocumentFrontmatterOwner, SkillFrontmatterOwner
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.location import Elsewhere, Help, Here, Label, Note
 from lorecraft.rules.tests.fake_context import FakeDocumentContext, FakeSkillContext, structure_spec_path
@@ -23,6 +25,16 @@ STRUCTURE: Final[str] = '{"frontmatter": {"type": "object"}}'
 SPEC: Final[RootRelativePath] = structure_spec_path('guide')
 """Where the corpus structure specification lies."""
 
+DOCUMENT_OWNER: Final[DocumentFrontmatterOwner] = DocumentFrontmatterOwner(
+    filename=AspectFilename.parse('setup'), spec=SPEC
+)
+"""The fake document, which the corpus structure specification governs."""
+
+SKILL_OWNER: Final[SkillFrontmatterOwner] = SkillFrontmatterOwner(
+    directory_name=PathComponent.parse('review'), link_target=None
+)
+"""The fake skill, listed as `review` and not a link."""
+
 
 def _duplicate(*, key: str) -> DuplicateKey:
     """A document's occurrence of `key` on line 4, first written on line 3, the last write.
@@ -31,7 +43,7 @@ def _duplicate(*, key: str) -> DuplicateKey:
         key: The key written again.
     """
     return DuplicateKey(
-        spec=SPEC,
+        owner=DOCUMENT_OWNER,
         line=LineNumber.from_int(4),
         key=key,
         first_line=LineNumber.from_int(3),
@@ -61,8 +73,10 @@ class TestDuplicateKey:
         first = LineNumber.from_int(2)
         last = LineNumber.from_int(5)
         assert occurrences == (
-            DuplicateKey(spec=SPEC, line=LineNumber.from_int(3), key='name', first_line=first, kept_line=last),
-            DuplicateKey(spec=SPEC, line=last, key='name', first_line=first, kept_line=last),
+            DuplicateKey(
+                owner=DOCUMENT_OWNER, line=LineNumber.from_int(3), key='name', first_line=first, kept_line=last
+            ),
+            DuplicateKey(owner=DOCUMENT_OWNER, line=last, key='name', first_line=first, kept_line=last),
         ), (
             'each later occurrence is reported on its own line, pointing back at the first, not at the one before, '
             'and at the last, whose value is the one read'
@@ -104,7 +118,7 @@ class TestDuplicateKey:
         #: Then
         assert occurrences == (
             DuplicateKey(
-                spec=SPEC,
+                owner=DOCUMENT_OWNER,
                 line=LineNumber.from_int(5),
                 key='author',
                 first_line=LineNumber.from_int(4),
@@ -128,7 +142,7 @@ class TestDuplicateKey:
         #: Then
         assert occurrences == (
             DuplicateKey(
-                spec=None,
+                owner=SKILL_OWNER,
                 line=LineNumber.from_int(3),
                 key='name',
                 first_line=LineNumber.from_int(2),
@@ -245,7 +259,7 @@ class TestDuplicateKey:
     def test_children_with_an_occurrence_before_the_last_point_at_the_value_kept(self) -> None:
         #: Given
         occurrence = DuplicateKey(
-            spec=SPEC,
+            owner=DOCUMENT_OWNER,
             line=LineNumber.from_int(4),
             key='description',
             first_line=LineNumber.from_int(3),
@@ -265,7 +279,7 @@ class TestDuplicateKey:
     def test_children_with_a_skill_name_the_agent_skills_specification(self) -> None:
         #: Given
         occurrence = DuplicateKey(
-            spec=None,
+            owner=SKILL_OWNER,
             line=LineNumber.from_int(3),
             key='name',
             first_line=LineNumber.from_int(2),

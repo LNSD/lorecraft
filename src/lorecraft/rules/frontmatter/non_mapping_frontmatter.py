@@ -1,11 +1,13 @@
 """`FM003`: a frontmatter block is valid YAML, but not a mapping."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import ClassVar, Self, assert_never
+
+from lorecraft.core.path import RootRelativePath
 
 # The module, not its classes: this rule's own name is the syntax's `NonMappingFrontmatter`.
 from lorecraft.project import syntax
-from lorecraft.project.context import FrontmatterContext
+from lorecraft.project.context import FrontmatterContext, FrontmatterOwner
 from lorecraft.project.schemas import FIRST_LINE
 from lorecraft.rules.declaration import Level, Release, RuleCode, RuleName, rule
 from lorecraft.rules.location import Help, Subdiagnostic
@@ -70,8 +72,9 @@ class NonMappingFrontmatter(FrontmatterRule):
     ```
 
     Attributes:
-        spec: The structure specification whose frontmatter schema governs the document, or `None` for a skill,
-            which the Agent Skills specification governs.
+        spec: The specification file that governs the owner's frontmatter, derived from `owner`, so no caller states
+            one that disagrees with it.
+        owner: The document or the skill whose frontmatter is not a mapping, and so which specification governs it.
     """
 
     CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 3)
@@ -79,13 +82,22 @@ class NonMappingFrontmatter(FrontmatterRule):
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('0.3.0')
 
+    # The specification file is derived from `owner`, so no caller can state one that disagrees with it.
+    spec: RootRelativePath | None = field(init=False)
+    owner: FrontmatterOwner
+
+    def __post_init__(self) -> None:
+        """Derive the specification file from the owner of the frontmatter."""
+        # The dataclass is frozen, so the field a rule derives is set the one way a frozen dataclass allows.
+        object.__setattr__(self, 'spec', owner_spec(self.owner))
+
     def message(self) -> str:
         """Name what the block is not."""
         return 'frontmatter is not a YAML mapping'
 
     def children(self) -> tuple[Subdiagnostic, ...]:
         """Name the specification that governs the frontmatter, and say what a mapping looks like."""
-        return (spec_note(self.spec), Help('write the block as `key: value` lines'))
+        return (spec_note(self.owner), Help('write the block as `key: value` lines'))
 
     @classmethod
     def check(cls, subject: FrontmatterContext) -> tuple[Self, ...]:
@@ -97,7 +109,7 @@ class NonMappingFrontmatter(FrontmatterRule):
         frontmatter = subject.frontmatter()
         match frontmatter:
             case syntax.NonMappingFrontmatter():
-                return (cls(spec=owner_spec(subject.frontmatter_owner()), line=FIRST_LINE),)
+                return (cls(owner=subject.frontmatter_owner(), line=FIRST_LINE),)
             case syntax.MissingFrontmatter() | syntax.InvalidYamlFrontmatter() | syntax.Frontmatter():
                 return ()
             case _:

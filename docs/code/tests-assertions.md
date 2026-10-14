@@ -54,7 +54,13 @@ thought to check cannot change unnoticed.
 ```python
 # ✅ Good — the expected occurrences read like the output, and a mismatch is diffed field by field
 assert occurrences == (
-    DuplicateKey(spec=SPEC, line=LineNumber.from_int(3), key='name', first_line=LineNumber.from_int(2)),
+    DuplicateKey(
+        owner=OWNER,
+        line=LineNumber.from_int(3),
+        key='name',
+        first_line=LineNumber.from_int(2),
+        kept_line=LineNumber.from_int(3),
+    ),
 ), 'a key written twice is one occurrence, on the line that repeats it'
 assert report.diagnostics == (), 'a document that conforms to its meta specs carries no diagnostic'
 ```

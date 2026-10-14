@@ -5,6 +5,8 @@ from typing import Final
 import pytest
 
 from lorecraft.core.path import RootRelativePath
+from lorecraft.project.aspect import AspectFilename
+from lorecraft.project.context import DocumentFrontmatterOwner
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.declaration import Severity
 from lorecraft.rules.frontmatter.duplicate_key import DuplicateKey
@@ -23,6 +25,7 @@ from ..diagnostic_parts import (
 
 _SUBJECT: Final[RootRelativePath] = RootRelativePath.parse('docs/code/a.md')
 _SPEC: Final[RootRelativePath] = RootRelativePath.parse('docs/__meta__/code.structure.json')
+_OWNER: Final[DocumentFrontmatterOwner] = DocumentFrontmatterOwner(filename=AspectFilename.parse('guide'), spec=_SPEC)
 _OTHER: Final[RootRelativePath] = RootRelativePath.parse('docs/feat/check.md')
 
 
@@ -103,7 +106,7 @@ class TestFormatPlace:
 class TestDiagnosticMarks:
     def test_diagnostic_marks_with_labels_and_children_marks_lines_and_whole_files_apart(self) -> None:
         #: Given
-        occurrence = DuplicateKey(spec=_SPEC, line=_line(3), key='name', first_line=_line(2), kept_line=_line(1))
+        occurrence = DuplicateKey(owner=_OWNER, line=_line(3), key='name', first_line=_line(2), kept_line=_line(1))
         diagnostic = RuleDiagnostic(_SUBJECT, occurrence, Severity.ERROR)
 
         #: When
@@ -119,7 +122,7 @@ class TestDiagnosticMarks:
 
     def test_diagnostic_marks_with_a_note_at_a_line_already_marked_adds_nothing(self) -> None:
         #: Given
-        occurrence = DuplicateKey(spec=_SPEC, line=_line(3), key='name', first_line=_line(2), kept_line=_line(2))
+        occurrence = DuplicateKey(owner=_OWNER, line=_line(3), key='name', first_line=_line(2), kept_line=_line(2))
         diagnostic = RuleDiagnostic(_SUBJECT, occurrence, Severity.ERROR)
 
         #: When
