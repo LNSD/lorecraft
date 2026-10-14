@@ -213,7 +213,8 @@ def _check_document(database: Database, ref: DocumentRef, table: RuleTable) -> S
     diagnostics: list[Diagnostic] = []
     ungoverned: list[Facet] = []
 
-    context = _find_document_context(database, source)  # None when its corpus states no structure file
+    governed = GovernedDocument.find(database, source)  # None when its corpus states no structure file
+    context = DatabaseDocumentContext(database, governed) if governed is not None else None
     for facet in Facet:
         rules = table.document_rules_governed_by(facet)
         if not rules:  # a facet no enabled rule reads is never looked at

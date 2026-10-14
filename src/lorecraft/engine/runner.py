@@ -50,6 +50,7 @@ from lorecraft.project.database import (
     DatabaseSkillContext,
     DatabaseSkillResourceContext,
     DocumentText,
+    GovernedDocument,
     SkillResourceText,
     SkillText,
     Undecodable,
@@ -95,7 +96,8 @@ def judge_document(database: Database, source: DocumentText, table: RuleTable) -
     # Governance is never read when no rule over a document, over the frontmatter or over a Markdown file is enabled.
     # The ungoverned facets are recorded in the order the runner reaches them.
     if table.frontmatter_rules or table.document_rules or table.markdown_rules:
-        context = _find_document_context(database, source)
+        governed = GovernedDocument.find(database, source)
+        context = DatabaseDocumentContext(database, governed) if governed is not None else None
         for facet in Facet:
             frontmatter_rules = table.frontmatter_rules_governed_by(facet)
             facet_rules = table.document_rules_governed_by(facet)
@@ -244,26 +246,6 @@ def check_layout_entry(outside: OutsideSymlink, table: RuleTable) -> CheckedLayo
             diagnostics.append(RuleDiagnostic(outside.path, occurrence, enabled.severity))
 
     return CheckedLayoutEntry(outside.path, diagnostics=tuple(diagnostics))
-
-
-def _find_document_context(database: Database, source: DocumentText) -> DatabaseDocumentContext | None:
-    """The context of a decoded document, or `None` when no facet can govern it.
-
-    No facet governs a document in no corpus the database's model holds, nor one whose corpus has no structure
-    specification that loaded: without the corpus's, a namespace's governs nothing, as `structure_specs` states.
-    Both are read from `Database.governance`, so the specifications are looked up once for the document, not once
-    per reader.
-
-    Args:
-        database: The revision the document is read from; its model decides which specifications govern it.
-        source: The document's text, the witness every per-file query takes.
-    """
-    governance = database.governance(source.ref)
-    if governance is None:
-        return None
-    if governance.corpus_structure() is None:
-        return None
-    return DatabaseDocumentContext(database, source)
 
 
 def _is_governed_for(governance: Governance, facet: Facet) -> bool:
