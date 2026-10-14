@@ -39,7 +39,7 @@ class TestStructureSpecSchema:
 
     def test_every_repository_structure_spec_passes_the_schema(self, validator: Draft202012Validator) -> None:
         #: Given
-        spec_files = sorted(SPECS_DIR.glob('*.structure.json'))
+        spec_files = sorted([*SPECS_DIR.glob('*.spec.json'), *SPECS_DIR.glob('*.structure.json')])
 
         #: When
         schema_errors = {

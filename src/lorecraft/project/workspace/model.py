@@ -40,7 +40,7 @@ class CorpusSpec:
         name: The specification name, the corpus alone.
         files: Every root-relative file at this specification name (prose and JSON), sorted; may be prose only.
         structure: The structure specification, the `FailedStructure` standing in its place when
-            `<name>.structure.json` could not be read or used, or None when that file does not exist.
+            `<name>.spec.json` could not be read or used, or None when that file does not exist.
     """
 
     name: CorpusSpecName
@@ -56,7 +56,7 @@ class NamespaceSpec:
         name: The specification name, the corpus and the namespace.
         files: Every root-relative file at this specification name (prose and JSON), sorted; may be prose only.
         structure: The structure specification, the `FailedStructure` standing in its place when
-            `<name>.structure.json` could not be read or used, or None when that file does not exist.
+            `<name>.spec.json` could not be read or used, or None when that file does not exist.
     """
 
     name: NamespaceSpecName
@@ -177,7 +177,7 @@ class CorpusNamespace:
     Attributes:
         files: Every root-relative file at the spec's specification name (prose and JSON), sorted; may be prose only.
         structure: The structure specification, the `FailedStructure` standing in its place when the spec's
-            `.structure.json` could not be read or used, or None when the spec has no such file.
+            `.spec.json` could not be read or used, or None when the spec has no such file.
     """
 
     files: tuple[RootRelativePath, ...]

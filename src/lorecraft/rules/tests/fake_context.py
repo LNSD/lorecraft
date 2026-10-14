@@ -79,7 +79,7 @@ def structure_spec_path(name: str) -> RootRelativePath:
         EmptyAspectNamespaceError: If a hyphen is followed by no namespace.
         InvalidAspectNamespaceCharacterError: If a character of the namespace token falls outside kebab case.
     """
-    return SPECS_DIR / PathComponent.parse(spec_filename(parse_spec_name(name), SpecFileType.STRUCTURE))
+    return SPECS_DIR / PathComponent.parse(spec_filename(parse_spec_name(name), SpecFileType.LEGACY_STRUCTURE))
 
 
 def heading_in(text: str, heading_text: str) -> Heading:
@@ -154,7 +154,7 @@ def _files(spec_name: SpecName) -> tuple[RootRelativePath, ...]:
     """
     return (
         SPECS_DIR / PathComponent.parse(spec_filename(spec_name, SpecFileType.PROSE)),
-        SPECS_DIR / PathComponent.parse(spec_filename(spec_name, SpecFileType.STRUCTURE)),
+        SPECS_DIR / PathComponent.parse(spec_filename(spec_name, SpecFileType.LEGACY_STRUCTURE)),
     )
 
 
@@ -179,7 +179,7 @@ def _decode_structure(spec_name: SpecName, structure: str) -> StructureSpec:
         AdjacentAnyRunsError: If its outline places two `any` runs side by side.
     """
     file = StructureSpecFile(
-        path=SPECS_DIR / PathComponent.parse(spec_filename(spec_name, SpecFileType.STRUCTURE)), name=spec_name
+        path=SPECS_DIR / PathComponent.parse(spec_filename(spec_name, SpecFileType.LEGACY_STRUCTURE)), name=spec_name
     )
     return StructureSpec.parse(file, StructureSchema(structure))
 

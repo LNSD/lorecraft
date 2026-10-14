@@ -10,7 +10,7 @@ so every handler below re-raises without logging.
 """
 
 from lorecraft.core.error import Error
-from lorecraft.core.path import PathComponent, RootRelativePath
+from lorecraft.core.path import RootRelativePath
 from lorecraft.vfs import (
     FILE_READ_FAILURES,
     EntryKind,
@@ -21,7 +21,7 @@ from lorecraft.vfs import (
 )
 
 from .name import SpecName
-from .spec_file import SpecFileType, spec_filename
+from .spec_file import StructureSpecFile
 from .structure import StructureSchema
 
 
@@ -70,21 +70,20 @@ class Repository:
         entries = self._fs.list_dir(self._specs_dir)
         return [self._specs_dir / entry.name for entry in entries if entry.kind is EntryKind.FILE]
 
-    def get_structure_schema(self, name: SpecName) -> StructureSchema:
+    def get_structure_schema(self, file: StructureSpecFile) -> StructureSchema:
         """Read one structure schema's text, undecoded.
 
         `StructureSpec.parse` deserializes and validates it in one step, so the JSON is read once, by the
         model that states its shape.
 
         Args:
-            name: Specification name whose `<name>.structure.json` file is read from the specification directory.
+            file: The structure file to read, `<name>.spec.json` or the legacy `<name>.structure.json`; the caller
+                decides which of the two a specification name is read from.
 
         Raises:
             StructureSchemaReadError: If the file cannot be read, or its bytes are not UTF-8.
         """
-        # A specification name is a validated `<corpus>[-<namespace>]`, so its filename is a valid component.
-        path = self._specs_dir / PathComponent.parse(spec_filename(name, SpecFileType.STRUCTURE))
         try:
-            return StructureSchema(self._fs.read_text(path))
+            return StructureSchema(self._fs.read_text(file.path))
         except (*FILE_READ_FAILURES, UnrecordedFileError, TextDecodeError) as exc:
-            raise StructureSchemaReadError(name, source=exc) from exc
+            raise StructureSchemaReadError(file.name, source=exc) from exc

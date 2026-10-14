@@ -421,3 +421,49 @@ class TestCheckWithAnUnlistableMetaDirectory:
         assert 'error: cannot list directory docs/__meta__: permission denied' in result.stderr, (
             'the directory is printed as a failure, as it is when the root cannot be found'
         )
+
+
+@pytest.mark.it
+@pytest.mark.skipif(os.geteuid() == 0, reason='root ignores file permissions')
+class TestCheckWithAShadowedLegacyStructureFile:
+    def test_check_with_an_unreadable_legacy_file_beside_a_spec_json_ignores_it_and_checks(
+        self, tmp_path: Path
+    ) -> None:
+        #: Given
+        root = _write_workspace(tmp_path)
+        # `code.spec.json` takes over from `code.structure.json`, which is then ignored, even unreadable.
+        spec_json = root / 'docs/__meta__/code.spec.json'
+        spec_json.write_text(CODE_SPEC, encoding='utf-8')
+        legacy = root / STRUCTURE_FILE_OF_CODE
+        legacy.chmod(0o000)
+
+        #: When
+        try:
+            exit_code, document = _check_json(root)
+        finally:
+            legacy.chmod(0o644)
+
+        #: Then
+        assert exit_code == 1, 'the run is a normal check run, with the finding of the feat document'
+        assert _codes_at(document, STRUCTURE_FILE_OF_CODE) == [], 'the shadowed legacy file reports nothing'
+        assert _codes_at(document, 'docs/feat/check.md') == ['OUT006'], 'and the documents are checked as usual'
+
+    def test_check_with_an_unreadable_legacy_namespace_file_beside_a_spec_json_ignores_it(self, tmp_path: Path) -> None:
+        #: Given
+        root = _write_workspace(tmp_path)
+        # The namespace spec `code-python` has `.spec.json` too; its legacy file is unreadable and ignored.
+        spec_json = root / 'docs/__meta__/code-python.spec.json'
+        spec_json.write_text(PYTHON_SPEC, encoding='utf-8')
+        legacy = root / STRUCTURE_FILE_OF_PYTHON
+        legacy.chmod(0o000)
+
+        #: When
+        try:
+            exit_code, document = _check_json(root)
+        finally:
+            legacy.chmod(0o644)
+
+        #: Then
+        assert exit_code == 1, 'the run is a normal check run, with the finding of the feat document'
+        assert _codes_at(document, STRUCTURE_FILE_OF_PYTHON) == [], 'the shadowed legacy file reports nothing'
+        assert _codes_at(document, 'docs/feat/check.md') == ['OUT006'], 'and the documents are checked as usual'

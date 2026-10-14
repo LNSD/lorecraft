@@ -1,10 +1,11 @@
 """The shape of a structure specification file, as it is written: the one declaration of its fields.
 
-These models describe the JSON a `<name>.structure.json` file holds, field for field, where `StructureSpec`
-holds the rules decoded from it. They are the edge: `StructureSpec.parse` deserializes a file's text straight
-into `StructureFile` and nothing else reads the JSON, so a file that gets past them has this shape exactly. And
-`just gen` renders them into `docs/schemas/structure.spec.json`, the JSON Schema an editor validates the file
-against while it is written, so the editor and the check hold a file to the same declaration.
+These models describe the JSON a `<name>.spec.json` file, or the legacy `<name>.structure.json`, holds, field for
+field, where `StructureSpec` holds the rules decoded from it. They are the edge: `StructureSpec.parse`
+deserializes a file's text straight into `StructureFile` and nothing else reads the JSON, so a file that gets past
+them has this shape exactly. And `just gen` renders them into `docs/schemas/structure.spec.json`, the JSON Schema
+an editor validates the file against while it is written, so the editor and the check hold a file to the same
+declaration.
 
 Every model is strict, frozen and closed. Strict, so a JSON value is never coerced into another type: `true` is
 not a count and `"yes"` is not a boolean. Frozen, so a parsed file cannot change after it was validated. Closed

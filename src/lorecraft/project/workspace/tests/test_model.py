@@ -100,7 +100,7 @@ def _spec_files(
     files = [SPECS_DIR / PathComponent.parse(spec_filename(spec_name, SpecFileType.PROSE))]
     structure_spec: StructureSpec | None = None
     if frontmatter or structure:
-        path = SPECS_DIR / PathComponent.parse(spec_filename(spec_name, SpecFileType.STRUCTURE))
+        path = SPECS_DIR / PathComponent.parse(spec_filename(spec_name, SpecFileType.LEGACY_STRUCTURE))
         frontmatter_schema: FrontmatterSchema | None = None
         if frontmatter:
             frontmatter_schema = FrontmatterSchema(path=path, schema=FrozenMapping({'type': 'object'}))

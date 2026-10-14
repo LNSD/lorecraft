@@ -1,12 +1,13 @@
 """The specification filename grammar: the specification name a file sits at, and the file type that claims it.
 
 A file's extension is what follows its last dot. What a specification file is comes from its file type, which a
-file name pattern claims: `*.md` claims the prose of a specification, and `*.structure.json` its structure
-specification, the machine-checkable rules, which also hold the frontmatter schema. A `<name>.<token>.json` that
-no pattern claims, such as a `header` file where that schema was once kept, is of no file type and is left out.
-The specification name is what is left of the filename once the pattern's suffix is stripped: one of the two forms
-`name.py` describes, and it holds no dot. Until it parses, that text is only the filename's stem, which is what
-the errors below carry.
+file name pattern claims: `*.md` claims the prose of a specification, and `*.spec.json` its structure
+specification, the machine-checkable rules, which also hold the frontmatter schema. `*.structure.json` is the legacy
+name of the same file, read only when `<name>.spec.json` does not exist, and dropped in v0.4.0. A
+`<name>.<token>.json` that no pattern claims, such as a `header` file where that schema was once kept, is of no
+file type and is left out. The specification name is what is left of the filename once the pattern's suffix is
+stripped: one of the two forms `name.py` describes, and it holds no dot. Until it parses, that text is only the
+filename's stem, which is what the errors below carry.
 
 `parse_spec_file` is the one place this grammar is read, and `spec_filename` the only place it is written.
 Every other module takes the parsed records: a `ProseSpecFile` or a `StructureSpecFile`, together a `SpecFile`.
@@ -36,8 +37,11 @@ class SpecFileType(Enum):
 
     PROSE = '*.md'
     """The specification in prose, written for a reader."""
-    STRUCTURE = '*.structure.json'
+    SPEC = '*.spec.json'
     """The structure specification: the rules a check can decide, the frontmatter schema among them."""
+    LEGACY_STRUCTURE = '*.structure.json'
+    """The legacy name of the structure specification: read only when `<name>.spec.json` is missing, and dropped
+    in v0.4.0."""
 
     @property
     def suffix(self) -> str:
@@ -70,7 +74,9 @@ class ProseSpecFile:
 
 @dataclass(frozen=True, slots=True)
 class StructureSpecFile:
-    """The structure specification `<name>.structure.json` at a `<corpus>` or `<corpus>-<namespace>` specification name.
+    """The structure specification `<name>.spec.json`, or the legacy `<name>.structure.json`, at a specification name.
+
+    The name is a `<corpus>` or `<corpus>-<namespace>`.
 
     Attributes:
         path: Root-relative path of the file.
@@ -82,8 +88,11 @@ class StructureSpecFile:
 
     @property
     def type(self) -> SpecFileType:
-        """The file type whose pattern claims the filename: always `SpecFileType.STRUCTURE`."""
-        return SpecFileType.STRUCTURE
+        """The file type whose pattern claims the filename: `SpecFileType.SPEC`, or the legacy structure type."""
+        # Read from the filename rather than stored, so the record cannot disagree with the path it carries.
+        if self.path.name is not None and self.path.name.value.endswith(SpecFileType.LEGACY_STRUCTURE.suffix):
+            return SpecFileType.LEGACY_STRUCTURE
+        return SpecFileType.SPEC
 
     @property
     def corpus(self) -> CorpusName:
@@ -223,7 +232,7 @@ def parse_spec_file(path: RootRelativePath) -> SpecFile:
     stem, file_type = _split_filename(path)
 
     if '.' in stem:
-        # `feat.component.structure.json` is not a name with a type in it: a specification name is `<corpus>` or
+        # `feat.component.spec.json` is not a name with a type in it: a specification name is `<corpus>` or
         # `<corpus>-<namespace>`, and the only dots in a specification filename are its pattern's.
         raise DottedSpecStemError(path, stem)
 
@@ -236,7 +245,7 @@ def parse_spec_file(path: RootRelativePath) -> SpecFile:
         match file_type:
             case SpecFileType.PROSE:
                 raise NotASpecStemError(path, source=exc) from exc
-            case SpecFileType.STRUCTURE:
+            case SpecFileType.SPEC | SpecFileType.LEGACY_STRUCTURE:
                 raise InvalidSpecStemError(path, source=exc) from exc
             case _:
                 assert_never(file_type)
@@ -246,7 +255,7 @@ def parse_spec_file(path: RootRelativePath) -> SpecFile:
     match file_type:
         case SpecFileType.PROSE:
             return ProseSpecFile(path=path, name=name)
-        case SpecFileType.STRUCTURE:
+        case SpecFileType.SPEC | SpecFileType.LEGACY_STRUCTURE:
             return StructureSpecFile(path=path, name=name)
         case _:
             assert_never(file_type)
@@ -257,7 +266,7 @@ def spec_filename(name: SpecName, file_type: SpecFileType) -> str:
 
     Args:
         name: Specification name the filename starts with.
-        file_type: Type whose pattern the filename matches, such as `*.structure.json`.
+        file_type: Type whose pattern the filename matches, such as `*.spec.json`.
     """
     return f'{name}{file_type.suffix}'
 
@@ -279,7 +288,7 @@ def _split_filename(path: RootRelativePath) -> tuple[str, SpecFileType]:
     filename = name.value
 
     # The first type whose pattern matches claims the file, so no pattern's suffix may end another's: a `*.json`
-    # declared before `*.structure.json` would claim every structure specification at a dotted stem.
+    # declared before `*.spec.json` would claim every structure specification at a dotted stem.
     for file_type in SpecFileType:
         if filename.endswith(file_type.suffix):
             stem = filename.removesuffix(file_type.suffix)
@@ -298,5 +307,5 @@ def _split_filename(path: RootRelativePath) -> tuple[str, SpecFileType]:
 
 
 def _pattern_list() -> str:
-    """Every file type's pattern, in declaration order, for an error message: `*.md, *.structure.json`."""
+    """Every file type's pattern, in declaration order, for an error message: `*.md, *.spec.json, *.structure.json`."""
     return ', '.join(file_type.value for file_type in SpecFileType)

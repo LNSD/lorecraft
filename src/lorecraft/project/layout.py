@@ -16,7 +16,9 @@ DOCS_DIR: Final[RootRelativePath] = RootRelativePath.parse('docs')
 # The reserved corpus name is a fixed, valid component.
 SPECS_DIR: Final[RootRelativePath] = DOCS_DIR / PathComponent.parse(RESERVED_CORPUS_NAME)
 DOCUMENT_SUFFIX: Final[str] = '.md'
-STRUCTURE_FILE_SUFFIX: Final[str] = '.structure.json'
+SPEC_FILE_SUFFIX: Final[str] = '.spec.json'
+# The legacy name of the structure specification, read only when `<name>.spec.json` is missing; dropped in v0.4.0.
+LEGACY_STRUCTURE_FILE_SUFFIX: Final[str] = '.structure.json'
 
 
 # Runs once per process, before mutmut swaps a mutant in, so no test can ever see a mutant of it.
@@ -66,19 +68,22 @@ def _is_declared_file(path: RootRelativePath) -> bool:
         path: The root-relative, resolved path of a regular file the scan reads.
     """
     name = path.name
-    return path.parent == SPECS_DIR and name is not None and name.value.endswith(STRUCTURE_FILE_SUFFIX)
+    if path.parent != SPECS_DIR or name is None:
+        return False
+    return name.value.endswith((SPEC_FILE_SUFFIX, LEGACY_STRUCTURE_FILE_SUFFIX))
 
 
 DECLARATION: Final[Declaration] = Declaration(is_file=_is_declared_file)
 """What a snapshot keeps a refusal of instead of stopping the scan, for a model loaded from it to report.
 
 The scan keeps every directory it cannot list, every entry it cannot inspect on the chain of a link under a skills
-directory, and each `*.structure.json` in `docs/__meta__/` it cannot read. It is the loader that decides what of
-that is a unit of the declaration: it reports the listing of `docs/`, of `docs/__meta__/`, of a corpus directory,
-of a skills directory and of a skill entry, the chain of a skills directory, of a skill entry and of a `SKILL.md`,
-and a structure file. A refusal kept that the loader never meets, such as a directory no meta spec names, is
-raised by the command, which scans again with no declaration. A refusal on a document or on any other file is not
-kept at all: the scan stops there, and reporting it is the owner's to decide."""
+directory, and each `*.spec.json`, or legacy `*.structure.json`, in `docs/__meta__/` it cannot read. It is the
+loader that decides what of that is a unit of the declaration: it reports the listing of `docs/`, of
+`docs/__meta__/`, of a corpus directory, of a skills directory and of a skill entry, the chain of a skills
+directory, of a skill entry and of a `SKILL.md`, and a structure file. A refusal kept that the loader never meets,
+such as a directory no meta spec names, is raised by the command, which scans again with no declaration. A refusal
+on a document or on any other file is not kept at all: the scan stops there, and reporting it is the owner's to
+decide."""
 
 
 class LinkedLayoutError(Error):

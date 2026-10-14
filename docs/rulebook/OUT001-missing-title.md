@@ -24,7 +24,7 @@ guess from the first section, and a link or a listing that shows the title shows
 
 ## Example
 
-`docs/__meta__/guide.structure.json`:
+`docs/__meta__/guide.spec.json`:
 
 ```json
 {

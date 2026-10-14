@@ -39,7 +39,7 @@ class TooManyTokens(DocumentRule):
 
     ## Example
 
-    `docs/__meta__/guide.structure.json`:
+    `docs/__meta__/guide.spec.json`:
 
     ```json
     {
