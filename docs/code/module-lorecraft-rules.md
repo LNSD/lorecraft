@@ -35,9 +35,8 @@ the database there, so a rule reads nothing but what it is handed.
   gated on.
 - A removed rule, the decorator that registers a declaration, and the registry, with the checks it makes as the
   package loads.
-- The rule index, `lorecraft.rules.index`: each declaration's identity as plain data, generated from the
-  registry by `lorecraft_gen`, for a reader that must know which codes exist without the engine; derived
-  output, never a source of rules.
+- The rule index, `lorecraft.rules.index`: identity as plain tuples and strings, with the lookups the command
+  line's edge needs, importing nothing but `typing`; generated from the registry, never a source of rules.
 - An engine condition: what the engine reports before any rule runs, such as a file that does not decode.
   Declared and rendered like a rule, with an `EngineCode` in group `LC`, a fixed severity and no `check`; it
   derives from `FileCondition` or `EntryCondition`.

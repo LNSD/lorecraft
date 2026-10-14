@@ -432,6 +432,9 @@ class RuleCode:
         number: The rule's number in its group, from 1 to 999.
     """
 
+    DIGITS: ClassVar[int] = 3
+    """How many digits end a printed code, after its group's prefix."""
+
     group: RuleGroup
     number: int
 
@@ -446,7 +449,7 @@ class RuleCode:
 
     def __str__(self) -> str:
         """The code as output prints it: the group's prefix, then the number zero-padded to three digits."""
-        return f'{self.group.prefix}{self.number:03d}'
+        return f'{self.group.prefix}{self.number:0{self.DIGITS}d}'
 
 
 ENGINE_GROUP: Final[RuleGroup] = RuleGroup(RuleGroupPrefix('LC'), 'Engine conditions')
