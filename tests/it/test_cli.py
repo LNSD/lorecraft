@@ -298,9 +298,10 @@ class TestVersionOption:
     def test_version_option_long_form_prints_the_short_version(self) -> None:
         #: Given
         app = build_app()
+        arguments = ['--version']
 
         #: When
-        result = runner.invoke(app, ['--version'])
+        result = runner.invoke(app, arguments)
 
         #: Then
         assert result.exit_code == 0, result.output
@@ -309,9 +310,10 @@ class TestVersionOption:
     def test_version_option_with_short_form_exits_successfully_and_prints_the_version(self) -> None:
         #: Given
         app = build_app()
+        arguments = ['-V']
 
         #: When
-        result = runner.invoke(app, ['-V'])
+        result = runner.invoke(app, arguments)
 
         #: Then
         assert result.exit_code == 0, result.output
@@ -350,9 +352,10 @@ class TestVersionCommand:
     def test_version_command_without_verbose_prints_one_line(self) -> None:
         #: Given
         app = build_app()
+        arguments = ['version']
 
         #: When
-        result = runner.invoke(app, ['version'])
+        result = runner.invoke(app, arguments)
 
         #: Then
         assert result.exit_code == 0, result.output
@@ -706,9 +709,10 @@ class TestCheckCommand:
         #: Given
         app = build_app()
         expected_text = snapshot.use_extension(TextSnapshotExtension)
+        arguments = ['check', '--root', str(overlong_allowed_tools_root)]
 
         #: When
-        result = runner.invoke(app, ['check', '--root', str(overlong_allowed_tools_root)])
+        result = runner.invoke(app, arguments)
 
         #: Then
         assert result.exit_code == 0, 'the recommendation does not fail the run'
@@ -722,9 +726,10 @@ class TestCheckCommand:
     ) -> None:
         #: Given
         app = build_app()
+        arguments = ['check', '--root', str(overlong_allowed_tools_root), '--format', 'json']
 
         #: When
-        result = runner.invoke(app, ['check', '--root', str(overlong_allowed_tools_root), '--format', 'json'])
+        result = runner.invoke(app, arguments)
 
         #: Then
         assert result.exit_code == 0, 'the recommendation does not fail the run'
@@ -779,9 +784,10 @@ class TestCheckCommand:
         #: Given
         app = build_app()
         expected_text = snapshot.use_extension(TextSnapshotExtension)
+        arguments = ['check', '--root', str(malformed_allowed_tools_root)]
 
         #: When
-        result = runner.invoke(app, ['check', '--root', str(malformed_allowed_tools_root)])
+        result = runner.invoke(app, arguments)
 
         #: Then
         assert result.exit_code == 0, result.output
@@ -795,9 +801,10 @@ class TestCheckCommand:
     ) -> None:
         #: Given
         app = build_app()
+        arguments = ['check', '--root', str(malformed_allowed_tools_root), '--format', 'json']
 
         #: When
-        result = runner.invoke(app, ['check', '--root', str(malformed_allowed_tools_root), '--format', 'json'])
+        result = runner.invoke(app, arguments)
 
         #: Then
         assert result.exit_code == 0, result.output
@@ -855,9 +862,10 @@ class TestCheckCommand:
         _write(tmp_path, 'docs/__meta__/code.structure.json', CHECKLIST_AND_FRONTMATTER_SPEC)
         _write(tmp_path, 'docs/code/guide.md', '---\nname: "guide"\n---\n# Guide\n\n## Checklist\n\n- [ ] item\n')
         app = build_app()
+        arguments = ['check', '--root', str(tmp_path)]
 
         #: When
-        result = runner.invoke(app, ['check', '--root', str(tmp_path)])
+        result = runner.invoke(app, arguments)
 
         #: Then
         assert result.exit_code == 0, result.output
@@ -872,9 +880,10 @@ class TestCheckCommand:
         _write(tmp_path, 'docs/code/guide.md', '# No frontmatter\n')
         app = build_app()
         expected = snapshot.use_extension(TextSnapshotExtension)
+        arguments = ['check', '--root', str(tmp_path)]
 
         #: When
-        result = runner.invoke(app, ['check', '--root', str(tmp_path)])
+        result = runner.invoke(app, arguments)
 
         #: Then
         assert result.exit_code == 1, result.output
@@ -891,9 +900,10 @@ class TestCheckCommand:
         _write(tmp_path, '.agents/skills/review/SKILL.md', UNKNOWN_FIELD_SKILL_MD)
         app = build_app()
         expected = snapshot.use_extension(TextSnapshotExtension)
+        arguments = ['check', '--root', str(tmp_path)]
 
         #: When
-        result = runner.invoke(app, ['check', '--root', str(tmp_path)])
+        result = runner.invoke(app, arguments)
 
         #: Then
         assert result.exit_code == 0, result.output
@@ -907,9 +917,10 @@ class TestCheckCommand:
         _write(tmp_path, 'docs/__meta__/code.structure.json', ACCEPT_ANY_FRONTMATTER_SPEC)
         _write(tmp_path, 'docs/code/guide.md', '---\nname: "guide"\n---\n# Guide\n')
         app = build_app()
+        arguments = ['check', '--root', str(tmp_path)]
 
         #: When
-        result = runner.invoke(app, ['check', '--root', str(tmp_path)])
+        result = runner.invoke(app, arguments)
 
         #: Then
         assert result.exit_code == 0, result.output
@@ -924,9 +935,10 @@ class TestCheckCommand:
         (tmp_path / 'docs' / 'code').mkdir()
         (tmp_path / 'docs' / 'code' / 'guide.md').write_bytes(b'\xff\xfe\n')
         app = build_app()
+        arguments = ['check', '--root', str(tmp_path)]
 
         #: When
-        result = runner.invoke(app, ['check', '--root', str(tmp_path)])
+        result = runner.invoke(app, arguments)
 
         #: Then
         assert result.exit_code == 1, result.output
@@ -945,9 +957,10 @@ class TestCheckCommand:
         _write(tmp_path, 'docs/__meta__/code.structure.json', CHECKLIST_AND_FRONTMATTER_SPEC)
         _write(tmp_path, 'docs/code/guide.md', '# No frontmatter\n')
         app = build_app()
+        arguments = ['check', '--root', str(tmp_path), '--format', 'short', '--color', 'always']
 
         #: When
-        result = runner.invoke(app, ['check', '--root', str(tmp_path), '--format', 'short', '--color', 'always'])
+        result = runner.invoke(app, arguments)
 
         #: Then
         assert result.exit_code == 1, result.output
@@ -964,9 +977,10 @@ class TestCheckCommand:
         _write(tmp_path, 'docs/__meta__/code.structure.json', CHECKLIST_AND_FRONTMATTER_SPEC)
         _write(tmp_path, 'docs/code/guide.md', '# No frontmatter\n')
         app = build_app()
+        arguments = ['check', '--root', str(tmp_path), '--color', 'always']
 
         #: When
-        result = runner.invoke(app, ['check', '--root', str(tmp_path), '--color', 'always'])
+        result = runner.invoke(app, arguments)
 
         #: Then
         assert result.exit_code == 1, result.output
@@ -977,9 +991,10 @@ class TestCheckCommand:
         _write(tmp_path, 'docs/__meta__/code.structure.json', CHECKLIST_AND_FRONTMATTER_SPEC)
         _write(tmp_path, 'docs/code/guide.md', '# No frontmatter\n')
         app = build_app()
+        arguments = ['check', '--root', str(tmp_path), '--color', 'auto']
 
         #: When
-        result = runner.invoke(app, ['check', '--root', str(tmp_path), '--color', 'auto'])
+        result = runner.invoke(app, arguments)
 
         #: Then
         assert result.exit_code == 1, result.output
@@ -990,9 +1005,10 @@ class TestCheckCommand:
         _write(tmp_path, 'docs/__meta__/code.structure.json', CHECKLIST_AND_FRONTMATTER_SPEC)
         _write(tmp_path, 'docs/code/guide.md', '# No frontmatter\n')
         app = build_app()
+        arguments = ['check', '--root', str(tmp_path), '--color', 'never']
 
         #: When
-        result = runner.invoke(app, ['check', '--root', str(tmp_path), '--color', 'never'])
+        result = runner.invoke(app, arguments)
 
         #: Then
         assert result.exit_code == 1, result.output
@@ -1003,9 +1019,10 @@ class TestCheckCommand:
         _write(tmp_path, 'docs/__meta__/code.structure.json', CHECKLIST_AND_FRONTMATTER_SPEC)
         _write(tmp_path, 'docs/code/guide.md', '# No frontmatter\n')
         app = build_app()
+        arguments = ['check', '--root', str(tmp_path)]
 
         #: When
-        result = runner.invoke(app, ['check', '--root', str(tmp_path)], env={'FORCE_COLOR': '1', 'NO_COLOR': '1'})
+        result = runner.invoke(app, arguments, env={'FORCE_COLOR': '1', 'NO_COLOR': '1'})
 
         #: Then
         assert result.exit_code == 1, result.output
@@ -1016,9 +1033,10 @@ class TestCheckCommand:
         _write(tmp_path, 'docs/__meta__/code.structure.json', CHECKLIST_AND_FRONTMATTER_SPEC)
         _write(tmp_path, 'docs/code/guide.md', '# No frontmatter\n')
         app = build_app()
+        arguments = ['check', '--root', str(tmp_path), '--color', 'never']
 
         #: When
-        result = runner.invoke(app, ['check', '--root', str(tmp_path), '--color', 'never'], env={'FORCE_COLOR': '1'})
+        result = runner.invoke(app, arguments, env={'FORCE_COLOR': '1'})
 
         #: Then
         assert result.exit_code == 1, result.output
@@ -1028,9 +1046,10 @@ class TestCheckCommand:
         #: Given
         _write(tmp_path, 'docs/__meta__/code.structure.json', ACCEPT_ANY_FRONTMATTER_SPEC)
         app = build_app()
+        arguments = ['check', '--root', str(tmp_path), '--format', 'yaml']
 
         #: When
-        result = runner.invoke(app, ['check', '--root', str(tmp_path), '--format', 'yaml'])
+        result = runner.invoke(app, arguments)
 
         #: Then
         assert result.exit_code == 2, result.output
@@ -1043,9 +1062,10 @@ class TestCheckCommand:
         #: Given
         _write(tmp_path, 'docs/__meta__/code.structure.json', ACCEPT_ANY_FRONTMATTER_SPEC)
         app = build_app()
+        arguments = ['check', '--root', str(tmp_path), '--color', 'sometimes']
 
         #: When
-        result = runner.invoke(app, ['check', '--root', str(tmp_path), '--color', 'sometimes'])
+        result = runner.invoke(app, arguments)
 
         #: Then
         assert result.exit_code == 2, result.output
@@ -1061,9 +1081,10 @@ class TestCheckCommand:
         (tmp_path / 'docs' / 'code' / 'broken.md').write_bytes(b'\xff\xfe\n')
         _write(tmp_path, '.agents/skills/review/SKILL.md', UNKNOWN_FIELD_SKILL_MD)
         app = build_app()
+        arguments = ['check', '--root', str(tmp_path), '--format', 'json']
 
         #: When
-        result = runner.invoke(app, ['check', '--root', str(tmp_path), '--format', 'json'])
+        result = runner.invoke(app, arguments)
 
         #: Then
         assert result.exit_code == 1, result.output
@@ -1131,9 +1152,10 @@ class TestCheckCommand:
         _write(tmp_path, 'docs/__meta__/code.structure.json', CHECKLIST_AND_FRONTMATTER_SPEC)
         _write(tmp_path, 'docs/code/guide.md', '# No frontmatter\n')
         app = build_app()
+        arguments = ['check', '--root', str(tmp_path), '--format', 'json']
 
         #: When
-        result = runner.invoke(app, ['check', '--root', str(tmp_path), '--format', 'json'])
+        result = runner.invoke(app, arguments)
 
         #: Then
         assert result.exit_code == 1, result.output
@@ -1203,9 +1225,10 @@ class TestCheckCommand:
         elsewhere.mkdir()
         monkeypatch.chdir(elsewhere)
         app = build_app()
+        arguments = ['check', '--root', str(root)]
 
         #: When
-        result = runner.invoke(app, ['check', '--root', str(root)])
+        result = runner.invoke(app, arguments)
 
         #: Then
         assert result.exit_code == 0, result.output
@@ -1221,9 +1244,10 @@ class TestCheckCommand:
         _write(tmp_path, 'docs/code/guide.md', '# No frontmatter\n')
         monkeypatch.chdir(tmp_path / 'docs' / 'code')
         app = build_app()
+        arguments = ['check']
 
         #: When
-        result = runner.invoke(app, ['check'])
+        result = runner.invoke(app, arguments)
 
         #: Then
         assert result.exit_code == 1, result.output
@@ -1235,9 +1259,10 @@ class TestCheckCommand:
         #: Given
         _write(tmp_path, 'docs/__meta__/code.structure.json', ACCEPT_ANY_FRONTMATTER_SPEC)
         app = build_app()
+        arguments = ['check', '--root', str(tmp_path), 'docs']
 
         #: When
-        result = runner.invoke(app, ['check', '--root', str(tmp_path), 'docs'])
+        result = runner.invoke(app, arguments)
 
         #: Then
         assert result.exit_code == 2, result.output
@@ -1251,9 +1276,10 @@ class TestCheckCommand:
     ) -> None:
         #: Given
         app = build_app()
+        arguments = ['check', '--root', str(malformed_schema_workspace)]
 
         #: When
-        result = runner.invoke(app, ['check', '--root', str(malformed_schema_workspace)])
+        result = runner.invoke(app, arguments)
 
         #: Then
         assert result.exit_code == 1, result.output
@@ -1394,9 +1420,10 @@ class TestCheckCommand:
         monkeypatch.chdir(deleted)
         deleted.rmdir()
         app = build_app()
+        arguments = ['check']
 
         #: When
-        result = runner.invoke(app, ['check'])
+        result = runner.invoke(app, arguments)
 
         #: Then
         assert result.exit_code == 2, result.output
@@ -1472,9 +1499,10 @@ class TestCheckSelection:
         #: Given
         app = build_app()
         expected = snapshot.use_extension(TextSnapshotExtension)
+        arguments = ['check', '--root', str(two_group_root), '--select', 'FM']
 
         #: When
-        result = runner.invoke(app, ['check', '--root', str(two_group_root), '--select', 'FM'])
+        result = runner.invoke(app, arguments)
 
         #: Then
         assert result.exit_code == 1, result.output
@@ -1489,9 +1517,10 @@ class TestCheckSelection:
         #: Given
         app = build_app()
         expected = snapshot.use_extension(TextSnapshotExtension)
+        arguments = ['check', '--root', str(two_group_root), '--select', 'OUT006']
 
         #: When
-        result = runner.invoke(app, ['check', '--root', str(two_group_root), '--select', 'OUT006'])
+        result = runner.invoke(app, arguments)
 
         #: Then
         assert result.exit_code == 1, result.output
@@ -1504,9 +1533,10 @@ class TestCheckSelection:
         #: Given
         app = build_app()
         expected = snapshot.use_extension(TextSnapshotExtension)
+        arguments = ['check', '--root', str(two_group_root), '--ignore', 'FM']
 
         #: When
-        result = runner.invoke(app, ['check', '--root', str(two_group_root), '--ignore', 'FM'])
+        result = runner.invoke(app, arguments)
 
         #: Then
         assert result.exit_code == 1, result.output
@@ -1554,9 +1584,10 @@ class TestCheckSelection:
     def test_check_with_a_prefix_selected_and_ignored_runs_no_rule_of_it(self, two_group_root: Path) -> None:
         #: Given
         app = build_app()
+        arguments = ['check', '--root', str(two_group_root), '--select', 'FM', '--ignore', 'FM']
 
         #: When
-        result = runner.invoke(app, ['check', '--root', str(two_group_root), '--select', 'FM', '--ignore', 'FM'])
+        result = runner.invoke(app, arguments)
 
         #: Then
         assert result.exit_code == 0, result.output
@@ -1586,9 +1617,10 @@ class TestCheckSelection:
     ) -> None:
         #: Given
         app = build_app()
+        arguments = ['check', '--root', str(two_group_root), '--select', 'OUT0', '--format', 'json']
 
         #: When
-        result = runner.invoke(app, ['check', '--root', str(two_group_root), '--select', 'OUT0', '--format', 'json'])
+        result = runner.invoke(app, arguments)
 
         #: Then
         assert result.exit_code == 1, result.output
@@ -1627,9 +1659,10 @@ class TestCheckSelection:
         #: Given
         app = build_app()
         selection = ['--select', 'OUT9']
+        arguments = ['check', '--root', str(two_group_root), *selection]
 
         #: When
-        result = runner.invoke(app, ['check', '--root', str(two_group_root), *selection])
+        result = runner.invoke(app, arguments)
 
         #: Then
         assert result.exit_code == 2, result.output
@@ -1655,9 +1688,10 @@ class TestCheckSelection:
     def test_check_with_a_selection_and_json_format_prints_one_document(self, two_group_root: Path) -> None:
         #: Given
         app = build_app()
+        arguments = ['check', '--root', str(two_group_root), '--select', 'FM', '--format', 'json']
 
         #: When
-        result = runner.invoke(app, ['check', '--root', str(two_group_root), '--select', 'FM', '--format', 'json'])
+        result = runner.invoke(app, arguments)
 
         #: Then
         assert result.exit_code == 1, result.output
@@ -1698,9 +1732,10 @@ class TestCheckSelection:
         #: Given
         app = build_app()
         selection = ['--select', 'XYZ']
+        arguments = ['check', '--root', str(two_group_root), *selection]
 
         #: When
-        result = runner.invoke(app, ['check', '--root', str(two_group_root), *selection])
+        result = runner.invoke(app, arguments)
 
         #: Then
         assert result.exit_code == 2, result.output
@@ -1713,9 +1748,10 @@ class TestCheckSelection:
         #: Given
         app = build_app()
         selection = ['--ignore', 'FM999']
+        arguments = ['check', '--root', str(two_group_root), *selection]
 
         #: When
-        result = runner.invoke(app, ['check', '--root', str(two_group_root), *selection])
+        result = runner.invoke(app, arguments)
 
         #: Then
         assert result.exit_code == 2, result.output
@@ -1728,9 +1764,10 @@ class TestCheckSelection:
         #: Given
         app = build_app()
         selection = ['--select', 'missing-frontmatter']
+        arguments = ['check', '--root', str(two_group_root), *selection]
 
         #: When
-        result = runner.invoke(app, ['check', '--root', str(two_group_root), *selection])
+        result = runner.invoke(app, arguments)
 
         #: Then
         assert result.exit_code == 2, result.output
@@ -1744,9 +1781,10 @@ class TestCheckSelection:
         #: Given
         app = build_app()
         selection = ['--ignore', 'LC001']
+        arguments = ['check', '--root', str(two_group_root), *selection]
 
         #: When
-        result = runner.invoke(app, ['check', '--root', str(two_group_root), *selection])
+        result = runner.invoke(app, arguments)
 
         #: Then
         assert result.exit_code == 2, result.output
@@ -1762,9 +1800,10 @@ class TestCheckSelection:
         #: Given
         app = build_app()
         selection = ['--select', 'LC']
+        arguments = ['check', '--root', str(two_group_root), *selection]
 
         #: When
-        result = runner.invoke(app, ['check', '--root', str(two_group_root), *selection])
+        result = runner.invoke(app, arguments)
 
         #: Then
         assert result.exit_code == 2, result.output
@@ -1778,9 +1817,10 @@ class TestCheckSelection:
         #: Given
         app = build_app()
         selection = ['--select', 'FM,']
+        arguments = ['check', '--root', str(two_group_root), *selection]
 
         #: When
-        result = runner.invoke(app, ['check', '--root', str(two_group_root), *selection])
+        result = runner.invoke(app, arguments)
 
         #: Then
         assert result.exit_code == 2, result.output
@@ -1814,9 +1854,10 @@ class TestCheckSelection:
         #: Given
         app = build_app()
         selection = ['--ignore', 'OUT-1']
+        arguments = ['check', '--root', str(two_group_root), *selection]
 
         #: When
-        result = runner.invoke(app, ['check', '--root', str(two_group_root), *selection])
+        result = runner.invoke(app, arguments)
 
         #: Then
         assert result.exit_code == 2, result.output
@@ -1828,9 +1869,10 @@ class TestCheckSelection:
         #: Given
         app = build_app()
         selection = ['--select', 'MD999']
+        arguments = ['check', '--root', str(two_group_root), *selection]
 
         #: When
-        result = runner.invoke(app, ['check', '--root', str(two_group_root), *selection])
+        result = runner.invoke(app, arguments)
 
         #: Then
         assert result.exit_code == 2, result.output
