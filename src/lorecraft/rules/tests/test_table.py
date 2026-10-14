@@ -16,6 +16,7 @@ from lorecraft.rules.frontmatter.missing_field import MissingField
 from lorecraft.rules.frontmatter.missing_frontmatter import MissingFrontmatter
 from lorecraft.rules.frontmatter.name_mismatch import NameMismatch
 from lorecraft.rules.frontmatter.non_mapping_frontmatter import NonMappingFrontmatter
+from lorecraft.rules.frontmatter.too_many_fields import TooManyFields
 from lorecraft.rules.frontmatter.unknown_field import UnknownField
 from lorecraft.rules.frontmatter.wrong_type import WrongType
 from lorecraft.rules.layout.outside_symlink import OutsideSymlink
@@ -207,6 +208,7 @@ class TestRuleTableFromRegistry:
             EnabledRule(WrongType, Severity.ERROR),
             EnabledRule(InvalidValue, Severity.ERROR),
             EnabledRule(InvalidFrontmatter, Severity.ERROR),
+            EnabledRule(TooManyFields, Severity.ERROR),
         ), "the package's frontmatter rules are enabled by default at their own level, in code order"
 
     def test_from_registry_with_the_package_registry_runs_the_rules_over_the_headings_under_the_structure_facet(

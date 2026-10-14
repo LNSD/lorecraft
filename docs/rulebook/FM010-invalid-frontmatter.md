@@ -12,14 +12,14 @@ A frontmatter breaks a constraint its schema sets on the whole block.
 ## What it does
 
 Checks for documents whose frontmatter breaks a constraint their structure specification's `frontmatter`
-schema sets on the block rather than on one field, such as `minProperties` or `maxProperties`. It is reported
-on line 1, since it concerns no one field. A skill's frontmatter is reported here only when the Agent Skills
-specification rejects it without naming a field.
+schema sets on the block rather than on one field, such as `minProperties`. It is reported on line 1, since it
+concerns no one field. A block with more fields than `maxProperties` allows is reported by `too-many-fields`. A
+skill's frontmatter is reported here only when the Agent Skills specification rejects it without naming a field.
 
 A constraint that names a key is not the block's: a key `propertyNames` rejects, and a field whose
 `dependentRequired` fields are missing, are reported by `invalid-value` on that key's line.
 
-For `minProperties` and `maxProperties` the message says how many fields the block holds against the limit, and
+For `minProperties` the message says how many fields the block holds against the limit, and
 the help is the description the schema states for the block, when it states one. The validator's own wording
 is shown as a note only for another keyword.
 

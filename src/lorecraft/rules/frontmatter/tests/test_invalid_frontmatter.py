@@ -20,7 +20,6 @@ from lorecraft.project.schemas import (
     BlockProblem,
     FieldCount,
     FieldLimit,
-    MaxFields,
     MinFields,
     OtherBlockConstraint,
     StructureSpecSchema,
@@ -96,6 +95,17 @@ class TestInvalidFrontmatter:
         #: Then
         assert occurrences == (), "a required field missing, which concerns that field, is another rule's condition"
 
+    def test_check_with_more_fields_than_max_properties_reports_nothing(self) -> None:
+        #: Given
+        structure = '{"frontmatter": {"type": "object", "maxProperties": 0}}'
+        subject = FakeDocumentContext(TEXT, corpus='guide', structure=structure)
+
+        #: When
+        occurrences = InvalidFrontmatter.check(subject)
+
+        #: Then
+        assert occurrences == (), "a block past `maxProperties` is `too-many-fields`'s condition"
+
     def test_check_with_two_schemas_reports_each_problem_with_its_own_specification(self) -> None:
         #: Given
         subject = FakeDocumentContext(
@@ -141,19 +151,6 @@ class TestInvalidFrontmatter:
         #: Then
         assert message == 'frontmatter has the wrong number of fields (1; at least 2)', (
             'the message states the condition and the number found against the limit, naming no specification'
-        )
-
-    def test_message_with_too_many_fields_says_the_most_allowed(self) -> None:
-        #: Given
-        problem = BlockProblem('too many', MaxFields(FieldLimit(UnsignedInt(1))), FieldCount(UnsignedInt(3)))
-        occurrence = InvalidFrontmatter(source=CORPUS_SOURCE, line=LINE, problem=problem)
-
-        #: When
-        message = occurrence.message()
-
-        #: Then
-        assert message == 'frontmatter has the wrong number of fields (3; at most 1)', (
-            'the same template is filled with the maximum'
         )
 
     def test_message_with_another_keyword_states_the_constraint_on_the_whole_block(self) -> None:

@@ -24,6 +24,11 @@ from lorecraft.rules.subject import FrontmatterRule
 
 from .__ruleset__ import GROUP_ID, schema_note, schema_spec
 
+_MAX_FIELDS_ELSEWHERE = (
+    'unreachable: `maxProperties` is the condition of `too-many-fields`, which `check` leaves out of this rule'
+)
+"""Why an occurrence holding a `maxProperties` problem cannot be described here."""
+
 
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -33,14 +38,14 @@ class InvalidFrontmatter(FrontmatterRule):
     ## What it does
 
     Checks for documents whose frontmatter breaks a constraint their structure specification's `frontmatter`
-    schema sets on the block rather than on one field, such as `minProperties` or `maxProperties`. It is reported
-    on line 1, since it concerns no one field. A skill's frontmatter is reported here only when the Agent Skills
-    specification rejects it without naming a field.
+    schema sets on the block rather than on one field, such as `minProperties`. It is reported on line 1, since it
+    concerns no one field. A block with more fields than `maxProperties` allows is reported by `too-many-fields`. A
+    skill's frontmatter is reported here only when the Agent Skills specification rejects it without naming a field.
 
     A constraint that names a key is not the block's: a key `propertyNames` rejects, and a field whose
     `dependentRequired` fields are missing, are reported by `invalid-value` on that key's line.
 
-    For `minProperties` and `maxProperties` the message says how many fields the block holds against the limit, and
+    For `minProperties` the message says how many fields the block holds against the limit, and
     the help is the description the schema states for the block, when it states one. The validator's own wording
     is shown as a note only for another keyword.
 
@@ -114,7 +119,7 @@ class InvalidFrontmatter(FrontmatterRule):
             case MinFields():
                 return _wrong_number_of_fields(self.problem.field_count, f'at least {constraint.limit}')
             case MaxFields():
-                return _wrong_number_of_fields(self.problem.field_count, f'at most {constraint.limit}')
+                raise AssertionError(_MAX_FIELDS_ELSEWHERE)
             case OtherBlockConstraint():
                 return 'frontmatter breaks a constraint of the schema on the whole block'
             case _:
@@ -124,8 +129,10 @@ class InvalidFrontmatter(FrontmatterRule):
         """Name what is out of limit on line 1, for a limit on the number of fields; else none."""
         constraint = self.problem.constraint
         match constraint:
-            case MinFields() | MaxFields():
+            case MinFields():
                 return (Label(Here(self.line), 'number of fields'),)
+            case MaxFields():
+                raise AssertionError(_MAX_FIELDS_ELSEWHERE)
             case OtherBlockConstraint():
                 return ()
             case _:
@@ -141,8 +148,10 @@ class InvalidFrontmatter(FrontmatterRule):
         match constraint:
             case OtherBlockConstraint():
                 parts.append(Note(problem.message))
-            case MinFields() | MaxFields():
+            case MinFields():
                 pass  # the message says it
+            case MaxFields():
+                raise AssertionError(_MAX_FIELDS_ELSEWHERE)
             case _:
                 assert_never(constraint)
         return tuple(parts)
@@ -159,6 +168,8 @@ class InvalidFrontmatter(FrontmatterRule):
             for located in schema.problems:
                 problem = located.problem
                 match problem:
+                    case BlockProblem(constraint=MaxFields()):
+                        pass  # `too-many-fields`'s condition
                     case BlockProblem():
                         occurrences.append(cls(source=schema.source, line=located.line, problem=problem))
                     case MissingFieldProblem() | UnknownFieldProblem() | WrongTypeProblem() | InvalidValueProblem():
