@@ -4,6 +4,7 @@ Every case is a document or a `SKILL.md` written as text, read through a fake co
 the real analysis does, under structure specifications decoded from JSON; no file is read from disk.
 """
 
+from textwrap import dedent
 from typing import Final
 
 import pytest
@@ -32,7 +33,13 @@ STRING_DESCRIPTION: Final[str] = (
 )
 """A structure specification whose frontmatter schema holds `description` to a string of at least 20 characters."""
 
-TEXT: Final[str] = '---\nname: setup\ndescription: [Install.]\n---\n# Setup\n'
+TEXT: Final[str] = dedent("""\
+    ---
+    name: setup
+    description: [Install.]
+    ---
+    # Setup
+    """)
 """A document whose `description`, on line 3, is a list."""
 
 PROBLEM: Final[WrongTypeProblem] = WrongTypeProblem(
@@ -60,7 +67,12 @@ class TestWrongType:
 
     def test_check_with_a_value_breaking_a_length_limit_reports_nothing(self) -> None:
         #: Given
-        text = '---\nname: setup\ndescription: Install.\n---\n'
+        text = dedent("""\
+            ---
+            name: setup
+            description: Install.
+            ---
+            """)
         subject = FakeDocumentContext(text, corpus='guide', structure=STRING_DESCRIPTION)
 
         #: When
@@ -89,7 +101,13 @@ class TestWrongType:
 
     def test_check_with_a_skill_reports_it_with_no_specification_file(self) -> None:
         #: Given
-        subject = FakeSkillContext('---\nname: review\ndescription: [Review a change.]\n---\n')
+        text = dedent("""\
+            ---
+            name: review
+            description: [Review a change.]
+            ---
+            """)
+        subject = FakeSkillContext(text)
 
         #: When
         occurrences = WrongType.check(subject)
@@ -116,7 +134,12 @@ class TestWrongType:
 
     def test_check_with_a_block_that_is_not_a_mapping_reports_nothing(self) -> None:
         #: Given
-        subject = FakeDocumentContext('---\n- description\n---\n', corpus='guide', structure=STRING_DESCRIPTION)
+        text = dedent("""\
+            ---
+            - description
+            ---
+            """)
+        subject = FakeDocumentContext(text, corpus='guide', structure=STRING_DESCRIPTION)
 
         #: When
         occurrences = WrongType.check(subject)
@@ -266,9 +289,12 @@ class TestWrongType:
         children = occurrence.children()
 
         #: Then
+        example = dedent("""\
+            for example:
+            version: 1.0.0""")
         assert children == (
             Note('the frontmatter schema is set here', at=Elsewhere(CORPUS_SPEC)),
             Help('quote the value, so YAML reads it as a string'),
             Help('What the field is for.'),
-            Note('for example:\nversion: 1.0.0'),
+            Note(example),
         ), 'the example follows the description, as for the other field rules'

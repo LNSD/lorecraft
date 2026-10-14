@@ -8,6 +8,7 @@ frontmatter breaks no constraint over the whole block, and the note such an occu
 own below.
 """
 
+from textwrap import dedent
 from typing import Final
 
 import pytest
@@ -40,7 +41,12 @@ MIN_PROPERTIES: Final[str] = '{"frontmatter": {"type": "object", "required": ["d
 REQUIRE_DESCRIPTION: Final[str] = '{"frontmatter": {"type": "object", "required": ["description"]}}'
 """A structure specification whose frontmatter schema requires `description`."""
 
-TEXT: Final[str] = '---\nname: setup\n---\n# Setup\n'
+TEXT: Final[str] = dedent("""\
+    ---
+    name: setup
+    ---
+    # Setup
+    """)
 """A document whose frontmatter holds one field, and no `description`."""
 
 PROBLEM: Final[BlockProblem] = BlockProblem(
@@ -99,7 +105,12 @@ class TestBlockConstraint:
 
     def test_check_with_a_block_that_is_not_a_mapping_reports_nothing(self) -> None:
         #: Given
-        subject = FakeDocumentContext('---\n- setup\n---\n', corpus='guide', structure=MIN_PROPERTIES)
+        text = dedent("""\
+            ---
+            - setup
+            ---
+            """)
+        subject = FakeDocumentContext(text, corpus='guide', structure=MIN_PROPERTIES)
 
         #: When
         occurrences = BlockConstraint.check(subject)

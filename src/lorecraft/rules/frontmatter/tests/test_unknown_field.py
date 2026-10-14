@@ -4,6 +4,7 @@ Every case is a document or a `SKILL.md` written as text, read through a fake co
 the real analysis does, under structure specifications decoded from JSON; no file is read from disk.
 """
 
+from textwrap import dedent
 from typing import Final
 
 import pytest
@@ -35,7 +36,14 @@ CLOSED: Final[str] = (
 REQUIRE_DESCRIPTION: Final[str] = '{"frontmatter": {"type": "object", "required": ["description"]}}'
 """A structure specification whose frontmatter schema requires `description`."""
 
-TEXT: Final[str] = '---\nname: setup\ndescription: Install.\ndesc: Install it.\n---\n# Setup\n'
+TEXT: Final[str] = dedent("""\
+    ---
+    name: setup
+    description: Install.
+    desc: Install it.
+    ---
+    # Setup
+    """)
 """A document whose frontmatter writes `desc`, on line 4."""
 
 PROBLEM: Final[UnknownFieldProblem] = UnknownFieldProblem(
@@ -63,7 +71,12 @@ class TestUnknownField:
 
     def test_check_with_a_missing_field_reports_nothing(self) -> None:
         #: Given
-        subject = FakeDocumentContext('---\nname: setup\n---\n', corpus='guide', structure=REQUIRE_DESCRIPTION)
+        text = dedent("""\
+            ---
+            name: setup
+            ---
+            """)
+        subject = FakeDocumentContext(text, corpus='guide', structure=REQUIRE_DESCRIPTION)
 
         #: When
         occurrences = UnknownField.check(subject)
@@ -88,7 +101,14 @@ class TestUnknownField:
 
     def test_check_with_a_skill_reports_it_with_no_specification_file(self) -> None:
         #: Given
-        subject = FakeSkillContext('---\nname: review\ndescription: Review a change.\ndesc: Review it.\n---\n')
+        text = dedent("""\
+            ---
+            name: review
+            description: Review a change.
+            desc: Review it.
+            ---
+            """)
+        subject = FakeSkillContext(text)
 
         #: When
         occurrences = UnknownField.check(subject)
@@ -105,7 +125,12 @@ class TestUnknownField:
 
     def test_check_with_a_block_that_is_not_a_mapping_reports_nothing(self) -> None:
         #: Given
-        subject = FakeDocumentContext('---\n- desc\n---\n', corpus='guide', structure=CLOSED)
+        text = dedent("""\
+            ---
+            - desc
+            ---
+            """)
+        subject = FakeDocumentContext(text, corpus='guide', structure=CLOSED)
 
         #: When
         occurrences = UnknownField.check(subject)

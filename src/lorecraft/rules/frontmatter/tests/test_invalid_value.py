@@ -4,6 +4,7 @@ Every case is a document or a `SKILL.md` written as text, read through a fake co
 the real analysis does, under structure specifications decoded from JSON; no file is read from disk.
 """
 
+from textwrap import dedent
 from typing import Final
 
 import pytest
@@ -39,7 +40,12 @@ NAME_PATTERN: Final[str] = (
 )
 """A structure specification whose frontmatter schema holds `name` to a string of lowercase letters and hyphens."""
 
-TEXT: Final[str] = '---\nname: Setup Guide\n---\n# Setup\n'
+TEXT: Final[str] = dedent("""\
+    ---
+    name: Setup Guide
+    ---
+    # Setup
+    """)
 """A document whose `name`, on line 2, breaks the pattern."""
 
 PROBLEM: Final[InvalidValueProblem] = InvalidValueProblem(
@@ -67,7 +73,12 @@ class TestInvalidValue:
 
     def test_check_with_a_wrong_type_reports_nothing(self) -> None:
         #: Given
-        subject = FakeDocumentContext('---\nname: 3\n---\n', corpus='guide', structure=NAME_PATTERN)
+        text = dedent("""\
+            ---
+            name: 3
+            ---
+            """)
+        subject = FakeDocumentContext(text, corpus='guide', structure=NAME_PATTERN)
 
         #: When
         occurrences = InvalidValue.check(subject)
@@ -92,7 +103,14 @@ class TestInvalidValue:
 
     def test_check_with_a_skill_reports_it_with_no_specification_file(self) -> None:
         #: Given
-        subject = FakeSkillContext('---\nname: review\ndescription: Review a change.\ncompatibility: ""\n---\n')
+        text = dedent("""\
+            ---
+            name: review
+            description: Review a change.
+            compatibility: ""
+            ---
+            """)
+        subject = FakeSkillContext(text)
 
         #: When
         occurrences = InvalidValue.check(subject)
@@ -116,7 +134,13 @@ class TestInvalidValue:
 
     def test_labels_with_a_skill_name_outside_the_allowed_format_name_the_pattern(self) -> None:
         #: Given
-        subject = FakeSkillContext('---\nname: Review\ndescription: Review a change.\n---\n')
+        text = dedent("""\
+            ---
+            name: Review
+            description: Review a change.
+            ---
+            """)
+        subject = FakeSkillContext(text)
         occurrences = InvalidValue.check(subject)
 
         #: When
@@ -129,7 +153,12 @@ class TestInvalidValue:
 
     def test_check_with_a_block_that_is_not_a_mapping_reports_nothing(self) -> None:
         #: Given
-        subject = FakeDocumentContext('---\n- Setup Guide\n---\n', corpus='guide', structure=NAME_PATTERN)
+        text = dedent("""\
+            ---
+            - Setup Guide
+            ---
+            """)
+        subject = FakeDocumentContext(text, corpus='guide', structure=NAME_PATTERN)
 
         #: When
         occurrences = InvalidValue.check(subject)
@@ -221,10 +250,13 @@ class TestInvalidValue:
         children = occurrence.children()
 
         #: Then
+        example = dedent("""\
+            for example:
+            name: setup-guide""")
         assert children == (
             Note('the frontmatter schema is set here', at=Elsewhere(CORPUS_SPEC)),
             Help('Lowercase words only.'),
-            Note('for example:\nname: setup-guide'),
+            Note(example),
         ), "the failing subschema's own reason is the help, as written, and the example follows verbatim"
 
     def test_children_with_a_description_and_no_reason_give_the_description(self) -> None:
@@ -271,10 +303,13 @@ class TestInvalidValue:
         children = occurrence.children()
 
         #: Then
+        example = dedent("""\
+            for example:
+            description: Load when x""")
         assert children == (
             Note('the frontmatter schema is set here', at=Elsewhere(CORPUS_SPEC)),
             Help('No trailing period.'),
-            Note('for example:\ndescription: Load when x'),
+            Note(example),
             Note(problem.message),
         ), "the validator's prose is the fallback for a keyword with no typed constraint, and comes last"
 
@@ -284,7 +319,12 @@ class TestInvalidValue:
             '{"frontmatter": {"type": "object", "properties": {"description": {"type": "string", "allOf": '
             '[{"not": {"pattern": "\\\\.\\\\s*$"}, "$comment": "No trailing period."}]}}}}'
         )
-        subject = FakeDocumentContext('---\ndescription: Load when x.\n---\n', corpus='guide', structure=structure)
+        text = dedent("""\
+            ---
+            description: Load when x.
+            ---
+            """)
+        subject = FakeDocumentContext(text, corpus='guide', structure=structure)
 
         #: When
         occurrences = InvalidValue.check(subject)

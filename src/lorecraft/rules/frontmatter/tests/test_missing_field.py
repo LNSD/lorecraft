@@ -4,6 +4,7 @@ Every case is a document or a `SKILL.md` written as text, read through a fake co
 the real analysis does, under structure specifications decoded from JSON; no file is read from disk.
 """
 
+from textwrap import dedent
 from typing import Final
 
 import pytest
@@ -33,7 +34,12 @@ REQUIRE_DESCRIPTION: Final[str] = '{"frontmatter": {"type": "object", "required"
 CLOSED: Final[str] = '{"frontmatter": {"type": "object", "properties": {"name": {}}, "additionalProperties": false}}'
 """A structure specification whose frontmatter schema defines `name` and no other field."""
 
-TEXT: Final[str] = '---\nname: setup\n---\n# Setup\n'
+TEXT: Final[str] = dedent("""\
+    ---
+    name: setup
+    ---
+    # Setup
+    """)
 """A document whose frontmatter lacks `description`."""
 
 PROBLEM: Final[MissingFieldProblem] = MissingFieldProblem('description', "'description' is a required property")
@@ -69,7 +75,13 @@ class TestMissingField:
 
     def test_check_with_an_unknown_field_reports_nothing(self) -> None:
         #: Given
-        subject = FakeDocumentContext('---\nname: setup\ndesc: Install.\n---\n', corpus='guide', structure=CLOSED)
+        text = dedent("""\
+            ---
+            name: setup
+            desc: Install.
+            ---
+            """)
+        subject = FakeDocumentContext(text, corpus='guide', structure=CLOSED)
 
         #: When
         occurrences = MissingField.check(subject)
@@ -97,7 +109,12 @@ class TestMissingField:
 
     def test_check_with_a_skill_reports_it_with_no_specification_file(self) -> None:
         #: Given
-        subject = FakeSkillContext('---\nname: review\n---\n')
+        text = dedent("""\
+            ---
+            name: review
+            ---
+            """)
+        subject = FakeSkillContext(text)
 
         #: When
         occurrences = MissingField.check(subject)
@@ -113,7 +130,12 @@ class TestMissingField:
 
     def test_check_with_a_block_that_is_not_a_mapping_reports_nothing(self) -> None:
         #: Given
-        subject = FakeDocumentContext('---\n- setup\n---\n', corpus='guide', structure=REQUIRE_DESCRIPTION)
+        text = dedent("""\
+            ---
+            - setup
+            ---
+            """)
+        subject = FakeDocumentContext(text, corpus='guide', structure=REQUIRE_DESCRIPTION)
 
         #: When
         occurrences = MissingField.check(subject)
@@ -167,7 +189,12 @@ class TestMissingField:
             '{"frontmatter": {"type": "object", "required": ["type"], "properties": {"type": '
             '{"enum": ["rule", "pattern"], "description": "The kind of document.", "examples": ["rule"]}}}}'
         )
-        subject = FakeDocumentContext('---\nname: setup\n---\n', corpus='guide', structure=structure)
+        text = dedent("""\
+            ---
+            name: setup
+            ---
+            """)
+        subject = FakeDocumentContext(text, corpus='guide', structure=structure)
 
         #: When
         occurrences = MissingField.check(subject)
@@ -192,12 +219,15 @@ class TestMissingField:
         children = occurrence.children()
 
         #: Then
+        example = dedent("""\
+            for example:
+            type: rule""")
         assert children == (
             Note('the frontmatter schema is set here', at=Elsewhere(CORPUS_SPEC)),
             Help('add `type` to the frontmatter'),
             Help('The kind of document.'),
             Help('write one of: rule, pattern'),
-            Note('for example:\ntype: rule'),
+            Note(example),
         ), 'the description is shown as the schema wrote it, then the values allowed, then the example verbatim'
 
     def test_children_with_a_single_value_allowed_name_it_alone(self) -> None:
