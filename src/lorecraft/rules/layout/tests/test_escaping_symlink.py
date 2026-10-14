@@ -58,7 +58,7 @@ class TestEscapingSymlink:
             'a `..` climbing above the root leaves the repository as an absolute target does'
         )
 
-    def test_primary_with_an_occurrence_points_at_the_whole_entry(self) -> None:
+    def test_primary_points_at_the_whole_entry(self) -> None:
         #: Given
         occurrence = EscapingSymlink(leaves_at=RootExit(RootRelativePath.parse('hop'), PurePosixPath('/home/alex')))
 
@@ -68,7 +68,7 @@ class TestEscapingSymlink:
         #: Then
         assert primary == WholeSubject(), 'a symlink has no lines, so the occurrence points at the entry itself'
 
-    def test_message_with_an_occurrence_names_the_condition(self) -> None:
+    def test_message_names_the_condition(self) -> None:
         #: Given
         occurrence = EscapingSymlink(leaves_at=RootExit(RootRelativePath.parse('hop'), PurePosixPath('/home/alex')))
 

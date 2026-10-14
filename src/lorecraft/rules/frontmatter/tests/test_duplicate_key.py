@@ -182,7 +182,7 @@ class TestDuplicateKey:
         #: Then
         assert occurrences == (), 'a subject with no block has no key to repeat'
 
-    def test_message_with_an_occurrence_names_the_key(self) -> None:
+    def test_message_names_the_key(self) -> None:
         #: Given
         occurrence = _duplicate(key='description')
 
@@ -218,7 +218,7 @@ class TestDuplicateKey:
             'a key no terminal can print is named by its escape, so the message can be written out'
         )
 
-    def test_labels_with_an_occurrence_mark_it_and_point_at_the_first_occurrence(self) -> None:
+    def test_labels_mark_it_and_point_at_the_first_occurrence(self) -> None:
         #: Given
         occurrence = _duplicate(key='description')
 
@@ -263,7 +263,7 @@ class TestDuplicateKey:
             Help("write 'description' once, with the value meant"),
         ), 'a note points at the specification, a help names the key to write once; this line is the one kept'
 
-    def test_children_with_an_occurrence_before_the_last_point_at_the_value_kept(self) -> None:
+    def test_children_before_the_last_point_at_the_value_kept(self) -> None:
         #: Given
         occurrence = DuplicateKey(
             owner=DOCUMENT_OWNER,

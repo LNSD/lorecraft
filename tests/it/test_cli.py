@@ -1805,10 +1805,12 @@ class TestCommandRouting:
     def test_register_with_a_name_already_taken_raises_duplicate_command_error(self) -> None:
         #: Given
         name = 'version'
+        # `register` raises when its decorator is applied, not when it is called
+        decorator = register(name)
 
         #: When
         with pytest.raises(DuplicateCommandError) as exc_info:
-            register(name)(_unused_handler)
+            decorator(_unused_handler)
 
         #: Then
         assert exc_info.value.name == name, 'the error names the subcommand that was already registered'
@@ -1817,9 +1819,10 @@ class TestCommandRouting:
     def test_register_with_the_registered_handler_again_returns_it_unchanged(self) -> None:
         #: Given
         name = 'version'
+        decorator = register(name)
 
         #: When
-        returned = register(name)(version_handler)
+        returned = decorator(version_handler)
 
         #: Then
         assert returned is version_handler, 'registering the same handler again is a no-op, not a duplicate'

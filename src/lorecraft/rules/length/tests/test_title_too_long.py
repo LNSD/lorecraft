@@ -158,7 +158,7 @@ class TestTitleTooLong:
             TitleTooLong(spec=CORPUS_SPEC, line=LineNumber(NonZeroUnsignedInt(1)), overrun=overrun(18, 17)),
         ), "the title's characters are the code points of its text, its inline markup stripped"
 
-    def test_message_with_an_occurrence_names_the_characters_and_the_cap(self) -> None:
+    def test_message_names_the_characters_and_the_cap(self) -> None:
         #: Given
         occurrence = TitleTooLong(spec=CORPUS_SPEC, line=LineNumber(NonZeroUnsignedInt(1)), overrun=overrun(39, 30))
 
@@ -170,7 +170,7 @@ class TestTitleTooLong:
             'the message sets the character count against the cap'
         )
 
-    def test_labels_with_an_occurrence_say_how_many_characters_it_runs_over_the_cap(self) -> None:
+    def test_labels_say_how_many_characters_it_runs_over_the_cap(self) -> None:
         #: Given
         occurrence = TitleTooLong(spec=CORPUS_SPEC, line=LineNumber(NonZeroUnsignedInt(1)), overrun=overrun(39, 30))
 
@@ -182,7 +182,7 @@ class TestTitleTooLong:
             'the label sits on the title and gives the overrun'
         )
 
-    def test_children_with_an_occurrence_point_at_the_spec_then_help_then_say_how_characters_are_counted(self) -> None:
+    def test_children_point_at_the_spec_then_help_then_say_how_characters_are_counted(self) -> None:
         #: Given
         occurrence = TitleTooLong(spec=CORPUS_SPEC, line=LineNumber(NonZeroUnsignedInt(1)), overrun=overrun(39, 30))
 

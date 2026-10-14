@@ -206,7 +206,7 @@ class TestMissingSection:
             ),
         ), 'each specification applies on its own, so the document is reported once for each, in order'
 
-    def test_message_with_an_occurrence_names_the_missing_section(self) -> None:
+    def test_message_names_the_missing_section(self) -> None:
         #: Given
         occurrence = MissingSection(
             spec=CORPUS_SPEC,

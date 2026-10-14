@@ -153,7 +153,7 @@ class TestSectionOutOfOrder:
             ),
         ), 'an optional section skipped and written after the outline is used up repeats no earlier heading'
 
-    def test_message_with_an_occurrence_names_the_section(self) -> None:
+    def test_message_names_the_section(self) -> None:
         #: Given
         occurrence = SectionOutOfOrder(
             spec=CORPUS_SPEC, line=LineNumber(NonZeroUnsignedInt(3)), section='Options', placement=EXPECTED_USAGE

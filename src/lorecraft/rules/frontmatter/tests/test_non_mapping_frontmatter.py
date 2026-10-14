@@ -116,7 +116,7 @@ class TestNonMappingFrontmatter:
         #: Then
         assert occurrences == (), 'a missing block is missing-frontmatter, never non-mapping-frontmatter'
 
-    def test_message_with_an_occurrence_names_what_the_block_is_not(self) -> None:
+    def test_message_names_what_the_block_is_not(self) -> None:
         #: Given
         occurrence = NonMappingFrontmatter(owner=DOCUMENT_OWNER, line=LineNumber(NonZeroUnsignedInt(1)))
 

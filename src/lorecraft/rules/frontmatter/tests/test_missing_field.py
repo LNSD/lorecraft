@@ -155,7 +155,7 @@ class TestMissingField:
             'no schema is applied to a block that is not a mapping, so it has no problem to report'
         )
 
-    def test_message_with_an_occurrence_names_the_field(self) -> None:
+    def test_message_names_the_field(self) -> None:
         #: Given
         occurrence = MissingField(source=CORPUS_SOURCE, line=LINE, problem=PROBLEM)
 
@@ -257,7 +257,7 @@ class TestMissingField:
             Help('write rule'),
         ), 'a const allows one value, so the help names it rather than offering a choice'
 
-    def test_labels_with_an_occurrence_label_nothing(self) -> None:
+    def test_labels_label_nothing(self) -> None:
         #: Given
         occurrence = MissingField(source=CORPUS_SOURCE, line=LINE, problem=PROBLEM)
 

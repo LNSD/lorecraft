@@ -144,7 +144,7 @@ class TestForbiddenSection:
             ForbiddenSection(spec=NAMESPACE_SPEC, line=LineNumber(NonZeroUnsignedInt(7)), section='Changelog'),
         ), 'a section is reported only under the specification that forbids it'
 
-    def test_message_with_an_occurrence_names_the_section(self) -> None:
+    def test_message_names_the_section(self) -> None:
         #: Given
         occurrence = ForbiddenSection(spec=CORPUS_SPEC, line=LineNumber(NonZeroUnsignedInt(7)), section='Changelog')
 
@@ -154,7 +154,7 @@ class TestForbiddenSection:
         #: Then
         assert message == 'section `Changelog` is forbidden', 'the message names the forbidden section'
 
-    def test_children_with_an_occurrence_point_at_the_specification_and_say_to_remove_it(self) -> None:
+    def test_children_point_at_the_specification_and_say_to_remove_it(self) -> None:
         #: Given
         occurrence = ForbiddenSection(spec=CORPUS_SPEC, line=LineNumber(NonZeroUnsignedInt(7)), section='Changelog')
 

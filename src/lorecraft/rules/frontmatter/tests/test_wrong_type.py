@@ -159,7 +159,7 @@ class TestWrongType:
             'no schema is applied to a block that is not a mapping, so it has no problem to report'
         )
 
-    def test_message_with_an_occurrence_names_the_field(self) -> None:
+    def test_message_names_the_field(self) -> None:
         #: Given
         occurrence = WrongType(source=CORPUS_SOURCE, line=LINE, problem=PROBLEM)
 
@@ -171,7 +171,7 @@ class TestWrongType:
             'the message names the field, in lowercase, naming no specification'
         )
 
-    def test_labels_with_an_occurrence_say_the_type_expected_and_the_type_found(self) -> None:
+    def test_labels_say_the_type_expected_and_the_type_found(self) -> None:
         #: Given
         occurrence = WrongType(source=CORPUS_SOURCE, line=LINE, problem=PROBLEM)
 

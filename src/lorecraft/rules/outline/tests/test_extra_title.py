@@ -89,7 +89,7 @@ class TestExtraTitle:
             'every specification agrees on one title, so the extra title is reported once'
         )
 
-    def test_message_with_an_occurrence_states_the_extra_title(self) -> None:
+    def test_message_states_the_extra_title(self) -> None:
         #: Given
         occurrence = ExtraTitle(line=LineNumber(NonZeroUnsignedInt(7)), first_title=FIRST_TITLE)
 
@@ -99,7 +99,7 @@ class TestExtraTitle:
         #: Then
         assert message == 'extra H1 title', 'the message is one template; the label shows the title already written'
 
-    def test_labels_with_an_occurrence_point_at_the_first_title(self) -> None:
+    def test_labels_point_at_the_first_title(self) -> None:
         #: Given
         occurrence = ExtraTitle(line=LineNumber(NonZeroUnsignedInt(7)), first_title=FIRST_TITLE)
 
@@ -111,7 +111,7 @@ class TestExtraTitle:
             "a label points at the document's own title, on its line, and names it"
         )
 
-    def test_children_with_an_occurrence_say_where_the_extra_title_belongs(self) -> None:
+    def test_children_say_where_the_extra_title_belongs(self) -> None:
         #: Given
         occurrence = ExtraTitle(line=LineNumber(NonZeroUnsignedInt(7)), first_title=FIRST_TITLE)
 

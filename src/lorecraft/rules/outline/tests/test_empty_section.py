@@ -141,7 +141,7 @@ class TestEmptySection:
             ),
         ), 'a section is reported only under the specification that forbids empty sections'
 
-    def test_message_with_an_occurrence_names_the_section(self) -> None:
+    def test_message_names_the_section(self) -> None:
         #: Given
         occurrence = EmptySection(
             spec=CORPUS_SPEC, line=LineNumber(NonZeroUnsignedInt(3)), section='Install', role=OtherSection()

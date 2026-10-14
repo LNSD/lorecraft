@@ -138,7 +138,7 @@ class TestTooManyTokens:
             ),
         ), 'a specification that sets no budget holds the document to none, and the one that sets a budget still does'
 
-    def test_message_with_an_occurrence_names_the_tokens_and_the_budget(self) -> None:
+    def test_message_names_the_tokens_and_the_budget(self) -> None:
         #: Given
         occurrence = TooManyTokens(spec=CORPUS_SPEC, line=LineNumber(NonZeroUnsignedInt(1)), overrun=overrun(7, 6))
 
@@ -148,7 +148,7 @@ class TestTooManyTokens:
         #: Then
         assert message == 'too many tokens (7 > 6)', 'the message sets the token count against the budget'
 
-    def test_labels_with_an_occurrence_say_how_many_tokens_it_runs_over_the_budget(self) -> None:
+    def test_labels_say_how_many_tokens_it_runs_over_the_budget(self) -> None:
         #: Given
         occurrence = TooManyTokens(spec=CORPUS_SPEC, line=LineNumber(NonZeroUnsignedInt(1)), overrun=overrun(7, 5))
 
@@ -160,7 +160,7 @@ class TestTooManyTokens:
             'the label sits on the reported line and gives the overrun'
         )
 
-    def test_children_with_an_occurrence_point_at_the_spec_then_help_then_say_how_tokens_are_counted(self) -> None:
+    def test_children_point_at_the_spec_then_help_then_say_how_tokens_are_counted(self) -> None:
         #: Given
         occurrence = TooManyTokens(spec=CORPUS_SPEC, line=LineNumber(NonZeroUnsignedInt(1)), overrun=overrun(7, 5))
 

@@ -106,7 +106,7 @@ class TestAbsoluteLink:
         #: Then
         assert message == 'link `/a b.md` is absolute', 'the message shows the destination as the author wrote it'
 
-    def test_children_with_an_occurrence_say_to_link_by_a_relative_path(self) -> None:
+    def test_children_say_to_link_by_a_relative_path(self) -> None:
         #: Given
         occurrence = AbsoluteLink(line=LineNumber(NonZeroUnsignedInt(3)), url='/docs/guide/setup.md')
 
