@@ -15,7 +15,7 @@ import subprocess
 from pathlib import Path
 from typing import Final
 
-from .. import __version__
+from lorecraft import __version__
 
 logger: logging.Logger = logging.getLogger(__name__)
 

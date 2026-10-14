@@ -42,16 +42,16 @@ from lorecraft.rules.outline.title_not_first import TitleNotFirst
 from lorecraft.rules.outline.unexpected_section import UnexpectedSection
 from lorecraft.rules.registry import Registry
 from lorecraft.rules.subject import Facet
-from lorecraft.rules.tests.sample_rules import token_count
-from lorecraft.rules.tests.sample_rules import valid as valid_rules
-from lorecraft.rules.tests.sample_rules.groups import SAMPLE
-from lorecraft.rules.tests.sample_rules.token_count.any_tokens import AnyTokens
-from lorecraft.rules.tests.sample_rules.token_count.empty_document import EmptyDocument
-from lorecraft.rules.tests.sample_rules.token_count.over_half_budget import OverHalfBudget
-from lorecraft.rules.tests.sample_rules.valid.uppercase_entry import UppercaseEntry
 
 from ..selection import AllRules, RuleSelection
 from ..table import EnabledRule, RuleTable, UnknownRuleBaseError, selected_rules_left_off
+from .sample_rules import token_count
+from .sample_rules import valid as valid_rules
+from .sample_rules.groups import SAMPLE
+from .sample_rules.token_count.any_tokens import AnyTokens
+from .sample_rules.token_count.empty_document import EmptyDocument
+from .sample_rules.token_count.over_half_budget import OverHalfBudget
+from .sample_rules.valid.uppercase_entry import UppercaseEntry
 
 EVERY_RULE: Final[RuleSelection] = RuleSelection(select=frozenset({AllRules()}), ignore=frozenset())
 """The selection of a run given neither `--select` nor `--ignore`: every rule is kept."""

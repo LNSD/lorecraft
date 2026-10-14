@@ -5,9 +5,9 @@ from typing import Final
 import pytest
 
 from lorecraft.rules.identity import RuleCode
-from lorecraft.rules.tests.sample_rules.groups import LAYOUT, SAMPLE
 
 from ..selection import AllRules, InvalidRuleCodePrefixError, RuleCodePrefix, RuleSelection
+from .sample_rules.groups import LAYOUT, SAMPLE
 
 SMP001: Final[RuleCode] = RuleCode(SAMPLE, 1)
 SMP002: Final[RuleCode] = RuleCode(SAMPLE, 2)

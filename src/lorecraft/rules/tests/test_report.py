@@ -12,11 +12,6 @@ from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.engine.invalid_utf8 import InvalidUtf8
 from lorecraft.rules.engine.malformed_structure_file import MalformedStructureFile, NoRuleStated
 from lorecraft.rules.identity import Severity
-from lorecraft.rules.tests.sample_rules.rendered_message.long_line import LongLine
-from lorecraft.rules.tests.sample_rules.token_count.sample_condition import SampleCondition
-from lorecraft.rules.tests.sample_rules.valid.outline.empty_line import EmptyLine
-from lorecraft.rules.tests.sample_rules.valid.trailing_space import TrailingSpace
-from lorecraft.rules.tests.sample_rules.valid.uppercase_entry import UppercaseEntry
 from lorecraft.vfs import ByteOffset, ResolvedPath, Utf8Failure, Utf8Line, Utf8Reason
 
 from ..report import (
@@ -30,6 +25,11 @@ from ..report import (
     UndecodableSubject,
     diagnostic_order,
 )
+from .sample_rules.rendered_message.long_line import LongLine
+from .sample_rules.token_count.sample_condition import SampleCondition
+from .sample_rules.valid.outline.empty_line import EmptyLine
+from .sample_rules.valid.trailing_space import TrailingSpace
+from .sample_rules.valid.uppercase_entry import UppercaseEntry
 
 
 def _failure(line: int) -> Utf8Failure:
