@@ -19,6 +19,10 @@ directory: when that directory is a link to a directory named otherwise, the lis
 Only a `name` written as a string is compared. A `name` that is missing or of another type is the schema's to
 report, so a document whose schema does not require `name` may leave it out.
 
+No schema key states the rule: the package holds a document's `name` to its filename, and the Agent Skills
+specification holds a skill's to its directory name. The rename of a skill's directory is offered only for a
+`name` that specification accepts.
+
 ## Why is this bad?
 
 An agent knows a document or a skill by the name it finds it under, and by the `name` it reads; when the two
@@ -58,5 +62,3 @@ name: setup
 
 # Setup
 ```
-
-A skill's directory rename is offered only for a `name` the Agent Skills specification accepts.

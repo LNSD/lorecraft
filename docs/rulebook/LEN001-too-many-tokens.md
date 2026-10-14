@@ -43,7 +43,7 @@ Install the toolkit, then run it once over the repository.
 
 Every option the configuration file accepts, with its default and an example:
 
-<!-- ... 1800 more tokens, one subsection per option -->
+<!-- ... 5150 more tokens, one subsection per option -->
 ```
 
 ## Use instead

@@ -50,6 +50,8 @@ class MalformedAllowedTools(SkillRule):
 
     ## Example
 
+    `.agents/skills/review/SKILL.md`:
+
     ```markdown
     ---
     name: review
