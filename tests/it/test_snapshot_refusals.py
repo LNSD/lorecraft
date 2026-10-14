@@ -7,7 +7,7 @@ it. The command tests at the end hold what `lorecraft check` does with a refusal
 """
 
 import os
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterator, Sequence
 from pathlib import Path
 from typing import Final
 
@@ -20,6 +20,7 @@ from lorecraft.core.path import RootRelativePath
 from lorecraft.vfs import (
     Declaration,
     DirectoryRecord,
+    DirEntry,
     DirListError,
     DirResolveError,
     DiskFileSystem,
@@ -74,6 +75,11 @@ def _path(text: str) -> RootRelativePath:
         text: A root-relative path, such as `docs/code`.
     """
     return RootRelativePath.parse(text)
+
+
+def _names(entries: Sequence[DirEntry]) -> list[str]:
+    """The names of `entries`, in listing order, which is all the listing tests compare."""
+    return [str(entry.name) for entry in entries]
 
 
 @pytest.fixture(scope='function')
@@ -417,10 +423,11 @@ class TestVirtualFileSystemOverARefusal:
         #: Given
         lock(tree / 'docs' / 'code')
         disk = DiskFileSystem(tree)
+        path = _path('docs/code')
 
         #: When
         with pytest.raises(DirListError) as exc_info:
-            disk.list_dir(_path('docs/code'))
+            disk.list_dir(path)
 
         #: Then
         assert exc_info.value.refusal is OsRefusal.PERMISSION_DENIED, 'the disk view refuses as the recorded one does'
@@ -431,12 +438,15 @@ class TestVirtualFileSystemOverARefusal:
         #: Given
         lock(tree / 'docs' / 'code')
         virtual = VirtualFileSystem(take_snapshot(tree, SCOPE, declaration=DECLARATION))
+        path = _path('docs')
 
         #: When
-        names = [str(entry.name) for entry in virtual.list_dir(_path('docs'))]
+        entries = virtual.list_dir(path)
 
         #: Then
-        assert names == ['__meta__', 'code'], 'the directory it could not list is still an entry of its parent'
+        assert _names(entries) == ['__meta__', 'code'], (
+            'the directory it could not list is still an entry of its parent'
+        )
 
     def test_read_text_with_a_structure_file_the_scan_could_not_read_raises_a_recorded_error(
         self, tree: Path, lock: Callable[[Path], None]
@@ -460,10 +470,11 @@ class TestVirtualFileSystemOverARefusal:
         #: Given
         lock(tree / 'docs' / '__meta__' / 'code.structure.json')
         disk = DiskFileSystem(tree)
+        path = _path('docs/__meta__/code.structure.json')
 
         #: When
         with pytest.raises(FileReadError) as exc_info:
-            disk.read_text(_path('docs/__meta__/code.structure.json'))
+            disk.read_text(path)
 
         #: Then
         assert exc_info.value.refusal is OsRefusal.PERMISSION_DENIED, 'the disk view refuses as the recorded one does'
@@ -474,12 +485,15 @@ class TestVirtualFileSystemOverARefusal:
         #: Given
         lock(tree / 'docs' / '__meta__' / 'code.structure.json')
         virtual = VirtualFileSystem(take_snapshot(tree, SCOPE, declaration=DECLARATION))
+        path = _path('docs/__meta__')
 
         #: When
-        names = [str(entry.name) for entry in virtual.list_dir(_path('docs/__meta__'))]
+        entries = virtual.list_dir(path)
 
         #: Then
-        assert names == ['code.structure.json'], 'the file it could not read is still an entry of its directory'
+        assert _names(entries) == ['code.structure.json'], (
+            'the file it could not read is still an entry of its directory'
+        )
 
     def test_find_file_with_a_link_whose_chain_the_scan_could_not_inspect_raises_a_recorded_error(
         self, tree: Path, lock: Callable[[Path], None]
@@ -504,10 +518,11 @@ class TestVirtualFileSystemOverARefusal:
         #: Given
         lock(tree / 'texts')
         disk = DiskFileSystem(tree)
+        path = _path('.agents/skills/review/SKILL.md')
 
         #: When
         with pytest.raises(FileResolveError) as exc_info:
-            disk.find_file(_path('.agents/skills/review/SKILL.md'))
+            disk.find_file(path)
 
         #: Then
         assert exc_info.value.refusal is OsRefusal.PERMISSION_DENIED, 'the disk view refuses as the recorded one does'
@@ -519,10 +534,11 @@ class TestVirtualFileSystemOverARefusal:
         (tree / '.agents' / 'skills' / 'texts').symlink_to('../../texts')
         lock(tree / 'texts')
         virtual = VirtualFileSystem(take_snapshot(tree, SCOPE, declaration=DECLARATION))
+        path = _path('.agents/skills/texts/REVIEW.md')
 
         #: When
         with pytest.raises(RecordedDirListPathError) as exc_info:
-            virtual.list_dir(_path('.agents/skills/texts/REVIEW.md'))
+            virtual.list_dir(path)
 
         #: Then
         assert exc_info.value.source.path == _path('texts/REVIEW.md'), 'the cause names the entry it stopped at'
@@ -534,10 +550,11 @@ class TestVirtualFileSystemOverARefusal:
         (tree / '.agents' / 'skills' / 'texts').symlink_to('../../texts')
         lock(tree / 'texts')
         virtual = VirtualFileSystem(take_snapshot(tree, SCOPE, declaration=DECLARATION))
+        path = _path('.agents/skills/texts/REVIEW.md')
 
         #: When
         with pytest.raises(RecordedFileReadPathError) as exc_info:
-            virtual.read_text(_path('.agents/skills/texts/REVIEW.md'))
+            virtual.read_text(path)
 
         #: Then
         assert exc_info.value.source.path == _path('texts/REVIEW.md'), 'the cause names the entry it stopped at'
@@ -565,10 +582,11 @@ class TestVirtualFileSystemOverARefusal:
         (tree / '.agents' / 'skills' / 'texts').symlink_to('../../texts')
         lock(tree / 'texts')
         disk = DiskFileSystem(tree)
+        path = _path('.agents/skills/texts/REVIEW.md')
 
         #: When
         with pytest.raises(DirResolveError) as exc_info:
-            disk.find_dir(_path('.agents/skills/texts/REVIEW.md'))
+            disk.find_dir(path)
 
         #: Then
         assert exc_info.value.refusal is OsRefusal.PERMISSION_DENIED, 'the disk view refuses as the recorded one does'
@@ -576,9 +594,10 @@ class TestVirtualFileSystemOverARefusal:
     def test_find_dir_with_a_directory_that_can_be_reached_resolves_it(self, tree: Path) -> None:
         #: Given
         virtual = VirtualFileSystem(take_snapshot(tree, SCOPE, declaration=DECLARATION))
+        path = _path('docs/code')
 
         #: When
-        resolved = virtual.find_dir(_path('docs/code'))
+        resolved = virtual.find_dir(path)
 
         #: Then
         assert resolved == _path('docs/code'), 'a snapshot that kept no refusal answers as it always did'
@@ -594,9 +613,11 @@ class TestCheckOverARefusalNoLoadFailureReports:
         (tree / 'docs' / 'notes').mkdir()
         (tree / 'docs' / 'notes' / 'a.md').write_text('# A\n', encoding='utf-8')
         lock(tree / 'docs' / 'notes')
+        app = build_app()
+        root = str(tree)
 
         #: When
-        result = runner.invoke(build_app(), ['check', '--root', str(tree)])
+        result = runner.invoke(app, ['check', '--root', root])
 
         #: Then
         assert result.exit_code == 2, result.output
@@ -609,9 +630,11 @@ class TestCheckOverARefusalNoLoadFailureReports:
     ) -> None:
         #: Given
         lock(tree / '.agents' / 'skills' / 'commit' / 'references')
+        app = build_app()
+        root = str(tree)
 
         #: When
-        result = runner.invoke(build_app(), ['check', '--root', str(tree)])
+        result = runner.invoke(app, ['check', '--root', root])
 
         #: Then
         assert result.exit_code == 2, result.output
@@ -624,9 +647,11 @@ class TestCheckOverARefusalNoLoadFailureReports:
     ) -> None:
         #: Given
         lock(tree / 'docs' / 'code')
+        app = build_app()
+        root = str(tree)
 
         #: When
-        result = runner.invoke(build_app(), ['check', '--root', str(tree), '--format', 'short'])
+        result = runner.invoke(app, ['check', '--root', root, '--format', 'short'])
 
         #: Then
         assert result.exit_code == 1, result.output
@@ -640,9 +665,11 @@ class TestCheckOverARefusalNoLoadFailureReports:
         (tree / 'docs' / 'aaa' / 'a.md').write_text('# A\n', encoding='utf-8')
         lock(tree / 'docs' / 'aaa')
         lock(tree / 'docs' / 'code')
+        app = build_app()
+        root = str(tree)
 
         #: When
-        result = runner.invoke(build_app(), ['check', '--root', str(tree)])
+        result = runner.invoke(app, ['check', '--root', root])
 
         #: Then
         assert result.exit_code == 2, result.output
@@ -658,9 +685,11 @@ class TestCheckOverARefusalNoLoadFailureReports:
         (tree / '.agents' / 'skills' / 'commit' / 'references' / 'up.md').symlink_to('../../../../locked/x.md')
         lock(tree / 'texts')
         lock(tree / 'locked')
+        app = build_app()
+        root = str(tree)
 
         #: When
-        result = runner.invoke(build_app(), ['check', '--root', str(tree)])
+        result = runner.invoke(app, ['check', '--root', root])
 
         #: Then
         assert result.exit_code == 2, result.output
