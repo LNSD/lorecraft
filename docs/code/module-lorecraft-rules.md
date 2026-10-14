@@ -136,7 +136,7 @@ A rule is named for what is wrong, as the established linters name theirs, so it
 - **A `Help` gives the fix for this occurrence** when its fields make it concrete, such as the description an
   outline gives a section the document lacks. A limit's message already names the value found against it, so a
   `Help` restating the difference adds nothing; a `Label` places the overrun at a line, and may state the amount
-  over the limit. The general fix is the docstring's, but a rule may give it as a
+  past the limit. The general fix is the docstring's, but a rule may give it as a
   fixed `Help`, such as "move the title above every section", and a rule the package states may add a `Help`
   with the fix the external specification itself prescribes. `children()` orders the meta spec `Note` first,
   then the `Help`, then the other `Note`s.
@@ -201,8 +201,8 @@ Before committing:
 - [ ] A new rule's name states its condition; its class and module spell it
 - [ ] A new rule's `message()` is lowercase with the value found against the limit; `children()` puts a
       `Note` at the meta spec that states the rule (the corpus's structure file when no key does; the external
-      one, without `at`, when the package states it, or the group's `Note` for a link rule on the Agent
-      Skills specification; none for title rules and rules no meta spec states), then the `Help` and other
+      one, without `at`, when the package states it, or the group's `Note` for a rule over an Agent
+      Skills field; none for title rules and rules no meta spec states), then the `Help` and other
       `Note`s
 - [ ] A new rule's docstring opens *What it does* with "Checks for", shows the broken and the fixed input under
       *Example* and *Use instead*, and names nothing of the implementation; a rule no key states says so, and its

@@ -108,8 +108,8 @@ class TooFewFields(FrontmatterRule):
         return f'too few fields ({self.field_count} < {self.limit})'
 
     def labels(self) -> tuple[Label, ...]:
-        """Say how many fields the block lacks to reach the limit, on line 1."""
-        return (Label(Here(self.line), f'fields under the limit: {self.limit.value - self.field_count.value}'),)
+        """Say how many fields the block falls short of the limit, on line 1."""
+        return (Label(Here(self.line), f'fields short of the limit: {self.limit.value - self.field_count.value}'),)
 
     def children(self) -> tuple[Subdiagnostic, ...]:
         """Say where the schema is stated, then what it describes, when it says."""
