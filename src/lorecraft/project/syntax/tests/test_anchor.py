@@ -22,9 +22,9 @@ class TestAnchor:
             Anchor(rejected)
 
         #: Then
-        assert (exc_info.value.value, exc_info.value.position, exc_info.value.character) == (rejected, 0, 'U'), (
-            'the error carries the rejected value and its first character outside the format'
-        )
+        assert exc_info.value.value == rejected, 'the error carries the rejected value'
+        assert exc_info.value.position == 0, 'the error carries the position of the first character outside the format'
+        assert exc_info.value.character == 'U', 'the error carries the first character outside the format'
 
     def test_anchor_with_a_space_raises_invalid_anchor(self) -> None:
         #: Given
@@ -35,7 +35,8 @@ class TestAnchor:
             Anchor(rejected)
 
         #: Then
-        assert (exc_info.value.position, exc_info.value.character) == (7, ' '), (
+        assert exc_info.value.position == 7, 'the error carries the position of the space'
+        assert exc_info.value.character == ' ', (
             'a space is no anchor character, since a heading turns each of its spaces into a hyphen'
         )
 
@@ -48,7 +49,8 @@ class TestAnchor:
             Anchor(rejected)
 
         #: Then
-        assert (exc_info.value.position, exc_info.value.character) == (3, '!'), (
+        assert exc_info.value.position == 3, 'the error carries the position of the punctuation'
+        assert exc_info.value.character == '!', (
             'punctuation other than a hyphen-minus or a connector is no anchor character'
         )
 
