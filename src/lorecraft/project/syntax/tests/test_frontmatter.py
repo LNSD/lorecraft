@@ -2056,10 +2056,10 @@ class TestDecodeFrontmatter:
 
         #: Then
         assert node == InvalidYamlFrontmatter(
-            problem='`\\xZZ` is not an escape',
+            problem='`\\x` is not an escape',
             help='Write `\\\\` for a backslash, or use single quotes',
             line=LineNumber.from_int(2),
-        ), 'an escape with the wrong digits is named with them'
+        ), 'an escape with the wrong digits is named with the digits it was given'
 
     def test_decode_frontmatter_with_a_character_that_cannot_start_a_plain_value_returns_invalid_yaml_on_its_line(
         self,

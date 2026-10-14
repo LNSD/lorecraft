@@ -10,7 +10,10 @@ with no help, so a parser upgrade that rewords an error moves it there rather th
 """
 
 import re
+import string
+from collections.abc import Mapping
 from dataclasses import dataclass
+from types import MappingProxyType
 from typing import Final
 
 from ruamel.yaml.error import MarkedYAMLError, StreamMark
@@ -19,7 +22,7 @@ from ruamel.yaml.reader import ReaderError
 _TOKEN_END_CHARACTERS: Final[str] = ' \t\r\n\x85  ,[]{}'
 """The characters that end an anchor, an alias or a tag as the block writes it: whitespace or a flow indicator."""
 
-_ESCAPE_HEX_DIGITS: Final[dict[str, int]] = {'x': 2, 'u': 4, 'U': 8}
+_ESCAPE_HEX_DIGITS: Final[Mapping[str, int]] = MappingProxyType({'x': 2, 'u': 4, 'U': 8})
 """How many hexadecimal digits the escapes `\\x`, `\\u` and `\\U` take after their letter."""
 
 _BLOCK_SCALAR_HEADER: Final[re.Pattern[str]] = re.compile(r'(?:^|\s)[|>][+-]?[0-9]?\s*(?:#.*)?$')
@@ -343,7 +346,9 @@ def _cannot_start_value(character: str, mark: StreamMark | None) -> SyntaxProble
         character: The character, shown in the label.
         mark: Where the scanner found it.
     """
-    return SyntaxProblem(f'a plain value cannot start with `{character}`', 'Quote the value', _line_of(mark))
+    # A backtick is named in words: written between backticks it would close its own quoting.
+    named = 'a backtick' if character == '`' else f'`{character}`'
+    return SyntaxProblem(f'a plain value cannot start with {named}', 'Quote the value', _line_of(mark))
 
 
 def _unstartable_character(problem: str, mark: StreamMark | None, lines: list[str]) -> SyntaxProblem:
@@ -356,11 +361,12 @@ def _unstartable_character(problem: str, mark: StreamMark | None, lines: list[st
     """
     if "'\\t'" in problem:
         text = _text(lines, mark.line) if mark is not None else ''
-        if text.startswith('\t') or text.lstrip(' ').startswith('\t'):
+        if text.lstrip(' ').startswith('\t'):
             return SyntaxProblem('a tab indents this line', 'Indent with spaces', _line_of(mark))
         return SyntaxProblem('a tab is not whitespace here', 'Use spaces', _line_of(mark))
-    character = problem.split("'")[1] if "'" in problem else '?'
-    return _cannot_start_value(character, mark)
+    if "'" not in problem:
+        return _unreadable(_line_of(mark))
+    return _cannot_start_value(problem.split("'")[1], mark)
 
 
 def _unknown_escape(mark: StreamMark | None, lines: list[str]) -> SyntaxProblem:
@@ -377,7 +383,13 @@ def _unknown_escape(mark: StreamMark | None, lines: list[str]) -> SyntaxProblem:
     if start == -1:
         return _unreadable(mark.line)
     letter = text[start + 1 : start + 2]
-    escape = text[start : start + 2 + _ESCAPE_HEX_DIGITS.get(letter, 0)]
+    escape_end = start + 2
+    for _ in range(_ESCAPE_HEX_DIGITS.get(letter, 0)):
+        # The digits the writer gave: a closing quote or any other character is not part of the escape.
+        if escape_end >= len(text) or text[escape_end] not in string.hexdigits:
+            break
+        escape_end += 1
+    escape = text[start:escape_end]
     return SyntaxProblem(
         f'`{escape}` is not an escape', 'Write `\\\\` for a backslash, or use single quotes', mark.line
     )
