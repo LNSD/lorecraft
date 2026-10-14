@@ -49,18 +49,20 @@ from ruamel.yaml.events import (
     SequenceStartEvent,
     StreamEndEvent,
 )
-from ruamel.yaml.parser import Parser
-from ruamel.yaml.reader import Reader, ReaderError
+from ruamel.yaml.reader import ReaderError
 from ruamel.yaml.scanner import Scanner, ScannerError
-from ruamel.yaml.tag import Tag
 from ruamel.yaml.tokens import ScalarToken, TagToken, Token
 
 from lorecraft.core.mapping import Frozen, FrozenMapping
 from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.yaml.basic_yaml import (
+    LINE_END_CHARACTERS,
     LINE_SEPARATORS,
     MERGE_KEY,
     REFUSALS,
+    SPACE_CHARACTERS,
+    BasicYamlParser,
+    BasicYamlReader,
     RecordedConstruct,
     RecordedRefusal,
     Refusal,
@@ -77,6 +79,7 @@ from lorecraft.yaml.basic_yaml import (
     RefusedNestedBlockSequenceError,
     RefusedNonStringKeyError,
     RefusedTagError,
+    written_token,
 )
 
 from .position import LineNumber
@@ -107,20 +110,11 @@ _FLOAT: Final[re.Pattern[str]] = re.compile(r'[-+]?(\.[0-9]+|[0-9]+(\.[0-9]*)?)(
 """A plain scalar YAML 1.2's core schema reads as a float. It matches every decimal integer too, so the integer
 patterns are tried first. The core schema's `.inf` and `.nan` are left out: JSON has no number for either."""
 
-_SPACE_CHARACTERS: Final[str] = '\0 \t\r\n'
-"""The characters that end a plain scalar: the end of the text, a space or tab, or a line break."""
-
-_LINE_END_CHARACTERS: Final[str] = '\0\r\n'
-"""The characters that end a line: the end of the text, or a line break."""
-
-_TOKEN_END_CHARACTERS: Final[str] = _SPACE_CHARACTERS + ',[]{}'
-"""The characters that end an anchor, an alias or a tag as a block writes it: whitespace or a flow indicator."""
-
 _QUOTED_TEXT_END_CHARACTERS: Final[str] = ' \n\'"\\\0\t\r'
 """The characters the text of a quoted scalar stops at: ruamel.yaml's set without U+0085, U+2028 and U+2029, which
 are text inside quotes."""
 
-_DIRECTIVE_NAME_END_CHARACTERS: Final[str] = _SPACE_CHARACTERS + ',[]{}:'
+_DIRECTIVE_NAME_END_CHARACTERS: Final[str] = SPACE_CHARACTERS + ',[]{}:'
 """The characters that end the name a refused directive is reported by: whitespace, a flow indicator or a `:`."""
 
 
@@ -318,9 +312,9 @@ class _EventStream:
         # Setting the reader and the scanner already selects the pure parser; `pure` states the intent, so a
         # change in how ruamel.yaml chooses its parser cannot bring the C one, which has no reader of ours, in.
         yaml = YAML(typ='safe', pure=True)
-        yaml.Reader = _BasicYamlReader
+        yaml.Reader = BasicYamlReader
         yaml.Scanner = _BasicYamlScanner
-        yaml.Parser = _BasicYamlParser
+        yaml.Parser = BasicYamlParser
         self._block = block
         self._events: Iterator[Event] = iter(yaml.parse(block))
         self._peeked: Event | None = None
@@ -353,9 +347,11 @@ class _EventStream:
         """The first construct the scanner or the reader has recorded, in the order the block writes them, or `None`."""
         scanner = self._yaml.scanner
         reader = self._yaml.reader
-        if not isinstance(scanner, _BasicYamlScanner) or not isinstance(reader, _BasicYamlReader):
+        if not isinstance(scanner, _BasicYamlScanner) or not isinstance(reader, BasicYamlReader):
             # The types are declared on the parser's base class; `_EventStream` always installs its own.
-            raise AssertionError("unreachable: the parser is built with this module's scanner and reader")
+            raise AssertionError(
+                "unreachable: the parser is built with this module's scanner and `lorecraft.yaml`'s reader"
+            )
         recorded = [*scanner.refusals[:1], *([reader.separator] if reader.separator is not None else [])]
         if not recorded:
             return None
@@ -387,7 +383,7 @@ class _EventStream:
         if mark is None:
             # An event's mark is optional only in its constructor's signature: the parser marks every event it emits.
             raise AssertionError('unreachable: ruamel.yaml marks every event it parses')
-        return _written_token(self._block, mark.index)
+        return written_token(self._block, mark.index)
 
     def check_event(self, *kinds: type[Event]) -> bool:
         """Whether the next event is of one of `kinds`, leaving it unread.
@@ -396,88 +392,6 @@ class _EventStream:
             kinds: The event classes to test for.
         """
         return isinstance(self.peek_event(), kinds)
-
-
-def _written_token(text: str, start: int) -> str:
-    """The anchor, alias or tag that starts at `start` in `text`, spelled as the block writes it.
-
-    Args:
-        text: The block, or the reader's buffer, which ends with a NUL.
-        start: The index of the `&`, the `*` or the `!` the token starts with.
-    """
-    end = start
-    if text.startswith('!<', start):
-        # A verbatim tag is a URI, which may hold a `,` or a `]`, so it runs to its closing `>`, or to the end of the
-        # line when it is never closed.
-        while end < len(text) and text[end] not in _LINE_END_CHARACTERS and text[end] != '>':
-            end += 1
-        if end < len(text) and text[end] == '>':
-            end += 1
-    else:
-        while end < len(text) and text[end] not in _TOKEN_END_CHARACTERS:
-            end += 1
-    return text[start:end]
-
-
-class _AnyHandleMapping(dict[str, str]):
-    """The tag handles a parser resolves a tag against, with every handle defined: an unknown one stands for itself."""
-
-    def __contains__(self, handle: object) -> bool:
-        return True
-
-    def __missing__(self, handle: str) -> str:
-        return handle
-
-
-class _BasicYamlParser(Parser):
-    """ruamel.yaml's parser, taking a tag whose handle no directive defines as it takes `!` and `!!`.
-
-    A directive is the only way to define a handle, and a directive is refused, so the parser would otherwise fail
-    on `!e!x` with an error of its own, before `_peek_node_start` reaches the node, and report the tag ahead of a
-    construct written above it. Taking every handle lets the tag reach that function as an event, refused in the
-    order the block writes it, like `!!str`.
-    """
-
-    def select_tag_transform(self, tag: Tag) -> None:
-        """Make the tag resolve against every handle.
-
-        Args:
-            tag: The tag of the node the parser is on.
-        """
-        super().select_tag_transform(tag)
-        tag.handles = _AnyHandleMapping(tag.handles)
-
-
-class _BasicYamlReader(Reader):
-    """ruamel.yaml's reader, recording the first U+0085, U+2028 or U+2029 it moves over outside a quoted scalar.
-
-    Attributes:
-        quoted: Whether the scanner is inside a single- or double-quoted scalar, where those characters are text.
-        separator: The first separator written outside a quoted scalar, or `None`.
-    """
-
-    quoted = False
-    separator: RecordedRefusal | None = None
-
-    def forward(self, length: int = 1) -> None:
-        """Advance `length` characters, recording a line separator written outside a quoted scalar.
-
-        Args:
-            length: The number of characters to advance by.
-        """
-        # The reader ends a line at a `\n` or a lone `\r` only, as `core/lines.py` does, so the separators are not
-        # breaks to it. The scanner still ends a line at them, which would read `a: 1<U+0085>b: 2` as two pairs, so
-        # one is recorded here and the block is reported for it, like for any construct the scanner records.
-        if not self.quoted and self.separator is None:
-            for offset, character in enumerate(self.prefix(length)):
-                if character in LINE_SEPARATORS:
-                    super().forward(offset)
-                    self.separator = RecordedRefusal(
-                        RecordedConstruct.LINE_SEPARATOR, self.get_mark(), character=character
-                    )
-                    super().forward(length - offset)
-                    return
-        super().forward(length)
 
 
 class _BasicYamlScanner(Scanner):
@@ -573,7 +487,7 @@ class _BasicYamlScanner(Scanner):
         # The scanner ends a name at the first character `check_anchorname_char` rejects, such as U+FEFF, and fails
         # when that character is not one that may follow a name. The block's own spelling runs to the next token
         # end, so a character it rejects anywhere in it is the case the scanner would fail on.
-        written = _written_token(self.reader.buffer, self.reader.pointer)
+        written = written_token(self.reader.buffer, self.reader.pointer)
         name = written[1:]
         if not name or not all(check_anchorname_char(character) for character in name):
             start_mark = self.reader.get_mark()
@@ -595,7 +509,7 @@ class _BasicYamlScanner(Scanner):
         """
         start_mark = self.reader.get_mark()
         # The reader's buffer holds the whole block, ended by a NUL, and the pointer is where the tag starts.
-        written = _written_token(self.reader.buffer, self.reader.pointer)
+        written = written_token(self.reader.buffer, self.reader.pointer)
         try:
             token = super().scan_tag()
         except ScannerError as exc:
@@ -674,7 +588,7 @@ class _BasicYamlScanner(Scanner):
         # every marker the same way, so the loop is its own with that one check changed.
         chunks: list[str] = []
         while True:
-            if self.reader.prefix(3) in ('---', '...') and self.reader.peek(3) in _SPACE_CHARACTERS:
+            if self.reader.prefix(3) in ('---', '...') and self.reader.peek(3) in SPACE_CHARACTERS:
                 self._refuse_document_marker()
             while self.reader.peek() in ' \t':
                 self.reader.forward()
@@ -823,7 +737,7 @@ class _BasicYamlScanner(Scanner):
             while self.reader.peek() == ' ':
                 self.reader.forward()
             if self.reader.peek() == '#':
-                while self.reader.peek() not in _LINE_END_CHARACTERS:
+                while self.reader.peek() not in LINE_END_CHARACTERS:
                     self.reader.forward()
             if self.scan_line_break():
                 if not self.flow_level:
@@ -865,10 +779,10 @@ class _BasicYamlScanner(Scanner):
             while True:
                 ch = self.reader.peek(length)
                 colon_ends_scalar = ch == ':' and self.reader.peek(length + 1) in (
-                    _SPACE_CHARACTERS + (',[]{}' if self.flow_level else '')
+                    SPACE_CHARACTERS + (',[]{}' if self.flow_level else '')
                 )
                 flow_indicator = self.flow_level and ch in ',[]{}'
-                if ch in _SPACE_CHARACTERS or colon_ends_scalar or flow_indicator:
+                if ch in SPACE_CHARACTERS or colon_ends_scalar or flow_indicator:
                     break
                 length += 1
             if length == 0:
