@@ -116,24 +116,45 @@ class TestMalformedAllowedTools:
             'a whitespace-only value has no tool entries'
         )
 
-    @pytest.mark.parametrize(
-        'value',
-        (
-            'Read Bash(git log --format=%h,%s)',
-            'Bash(git *) Read',
-            'Bash() Read',
-            'Read Grep',
-        ),
-    )
-    def test_check_with_a_well_formed_list_reports_nothing(self, value: str) -> None:
+    def test_check_with_a_pattern_holding_commas_and_percent_signs_reports_nothing(self) -> None:
         #: Given
-        subject = _skill_allowing(value)
+        subject = _skill_allowing('Read Bash(git log --format=%h,%s)')
 
         #: When
         occurrences = MalformedAllowedTools.check(subject)
 
         #: Then
-        assert occurrences == (), 'tool names and one balanced parenthesised pattern form a list'
+        assert occurrences == (), 'a balanced pattern keeps its commas and percent signs'
+
+    def test_check_with_a_pattern_followed_by_a_tool_reports_nothing(self) -> None:
+        #: Given
+        subject = _skill_allowing('Bash(git *) Read')
+
+        #: When
+        occurrences = MalformedAllowedTools.check(subject)
+
+        #: Then
+        assert occurrences == (), 'a tool name may follow a balanced parenthesised pattern'
+
+    def test_check_with_an_empty_pattern_reports_nothing(self) -> None:
+        #: Given
+        subject = _skill_allowing('Bash() Read')
+
+        #: When
+        occurrences = MalformedAllowedTools.check(subject)
+
+        #: Then
+        assert occurrences == (), 'an empty parenthesised pattern is balanced'
+
+    def test_check_with_two_plain_tool_names_reports_nothing(self) -> None:
+        #: Given
+        subject = _skill_allowing('Read Grep')
+
+        #: When
+        occurrences = MalformedAllowedTools.check(subject)
+
+        #: Then
+        assert occurrences == (), 'tool names separated by a space form a list'
 
     def test_check_with_no_field_reports_nothing(self) -> None:
         #: Given
