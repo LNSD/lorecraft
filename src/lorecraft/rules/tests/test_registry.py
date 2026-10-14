@@ -249,6 +249,18 @@ class TestRegistryLoad:
         assert exc_info.value.first is Titled, 'the rule earlier in code order bound the prefix first'
         assert exc_info.value.second is Retitled, 'the later rule gave it another title'
 
+    def test_registry_with_a_duplicate_code_and_a_conflicting_group_raises_duplicate_rule_code_error(self) -> None:
+        #: Given
+        # Titled and FirstRule share SMP001, and Retitled gives the prefix SMP another title
+        declarations = (Titled, Retitled, FirstRule)
+
+        #: When
+        with pytest.raises(DuplicateRuleCodeError) as exc_info:
+            Registry(declarations)
+
+        #: Then
+        assert exc_info.value.code == 'SMP001', 'a code bound twice is reported before a group given two titles'
+
     def test_load_with_an_engine_condition_holds_it_in_code_order(self) -> None:
         #: Given
         package = token_count
