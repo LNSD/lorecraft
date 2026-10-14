@@ -49,6 +49,7 @@ from a snapshot, and one that never outlives its snapshot. The layout it derives
 |---|---|
 | Declares a fixed directory or suffix, or the scope a snapshot reads | `lorecraft.layout` |
 | Reads the disk, or follows a symlink by asking the operating system | `lorecraft.vfs` |
+| Scans, parses or refuses YAML text | `lorecraft.yaml` |
 | States an agent's skills directories or guide files | `lorecraft.agents` |
 | Decides whether a document or a skill breaks a rule | `lorecraft.rules` |
 | Runs the rules over the query results | `lorecraft.engine` |
