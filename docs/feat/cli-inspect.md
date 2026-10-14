@@ -31,7 +31,8 @@ it. It answers why a document is or is not checked, and which agents see a skill
 - **Meta spec name**: A filename in `docs/__meta__/` with its file type's pattern suffix stripped, such as
   `feat-cli`, with the files that share it.
 - **Governed by**: The meta specs whose rules apply to a document, broad to narrow: their names in the
-  tree, and every file at those names in the JSON.
+  tree, and every selected file at those names in the JSON. Files appear under their actual names. When
+  `.spec.json` and the legacy `.structure.json` both exist at a name, only `.spec.json` is listed.
 - **Agent skills directory**: A directory an agent reads skills from, such as `.claude/skills`, shown only when
   the root has it, with the resolved directory it leads to when it is a symlink.
 - **Skill**: A directory directly inside an agent skills directory that holds a `SKILL.md`.
@@ -64,8 +65,8 @@ in brackets. An excerpt, from a repository with two feat specs and two skills:
 ```text
 └── feat (docs/feat)
     ├── specs (2)
-    │   ├── feat: feat.md, feat.structure.json
-    │   └── feat-cli: feat-cli.md, feat-cli.structure.json
+    │   ├── feat: feat.md, feat.spec.json
+    │   └── feat-cli: feat-cli.md, feat-cli.spec.json
     └── documents (2)
         ├── cli.md [feat, feat-cli]
         └── cli-check.md [feat, feat-cli]
@@ -84,7 +85,7 @@ instead of `\uXXXX` escapes. For `--format json`, every path, including the work
 For example, a document entry within that one-line object reads:
 
 ```json
-{"path":"docs/feat/cli-check.md","governed_by":["docs/__meta__/feat.md","docs/__meta__/feat.structure.json","docs/__meta__/feat-cli.md","docs/__meta__/feat-cli.structure.json"]}
+{"path":"docs/feat/cli-check.md","governed_by":["docs/__meta__/feat.md","docs/__meta__/feat.spec.json","docs/__meta__/feat-cli.md","docs/__meta__/feat-cli.spec.json"]}
 ```
 
 The skills follow the corpora. An agent skills directory that is a symlink names where it leads, and a
@@ -114,7 +115,7 @@ skills, and both exit `0`.
 | `2`  | The command could not run: the model could not be loaded (an entry that cannot be read, or that changed kind while read, under `docs/` or a skills directory, a `docs/` or `docs/__meta__/` that is a [symlink](workspace.md#one-snapshot), or a meta spec file that cannot be decoded or states no usable rules), or a usage error, including a `ROOT` that is not an existing directory, or both `--format` and `--json`. A load error goes to stderr, prefixed `error:` and followed by its causes ([cli](cli.md)) |
 
 ```text
-error: invalid structure schema docs/__meta__/feat.structure.json: Invalid JSON: key must be a string at line 2 column 3
+error: invalid structure schema docs/__meta__/feat.spec.json: Invalid JSON: key must be a string at line 2 column 3
 ```
 
 ## Limitations

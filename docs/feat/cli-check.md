@@ -57,8 +57,10 @@ outside the repository. Shared skills are checked once. Subjects and diagnostics
 Every rule reads one [snapshot](workspace.md#one-snapshot), through one database, so a file is read and
 parsed once however many rules read it. Meta specs are loaded before subjects are checked. A structure file
 that fails to load gets an error diagnostic at its path; documents it governs are skipped, while other
-documents are checked. A file that is not UTF-8 is reported as `LC001`, and no rule judges it.
-The same code reports an undecodable structure file and skips what it governs.
+documents are checked. A file that is not UTF-8, a structure file included, is reported as `LC001` and skips
+what it governs; no rule judges it.
+A structure file's diagnostic and coverage path use its actual name, `.spec.json` or the legacy
+`.structure.json`.
 
 ### Selecting Rules
 
@@ -85,7 +87,7 @@ selecting an `allow` rule also warns.
 | `--select <selectors>` | `ALL` | — | Run only these rules, as [Selecting Rules](#selecting-rules) describes |
 | `--ignore <selectors>` | none | — | Skip these rules |
 
-The command takes no paths. An unlisted `--format` or `--color` value exits `2`.
+An unlisted `--format` or `--color` value exits `2`.
 For colour, an explicit `--color always` or `--color never` wins over both variables. Under `auto`, a non-empty
 `FORCE_COLOR` enables colour, even when piped; otherwise a non-empty `NO_COLOR` disables it; otherwise colour
 follows whether stdout is an interactive terminal. An empty variable counts as unset; any non-empty value,
@@ -126,7 +128,7 @@ error[OUT006]: missing required section `Usage`
 5 │ ## Options
   │ ────────── expected `Usage` before `Options`
   │
- ::: docs/__meta__/feat.structure.json
+ ::: docs/__meta__/feat.spec.json
   │
   = note: the document structure is set here
   = help: How to invoke the command.
@@ -145,7 +147,7 @@ checked 1 subject(s): 2 error(s), 0 warning(s)
 A skipped document is listed as coverage, with no rule diagnostic:
 
 ```text
-docs/code/python-typing.md: skipped, governed by a structure file that failed to load: docs/__meta__/code-python.structure.json
+docs/code/python-typing.md: skipped, governed by a structure file that failed to load: docs/__meta__/code-python.spec.json
 ```
 
 In `short` format, stdout has one uncoloured line per diagnostic:

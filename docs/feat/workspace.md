@@ -39,7 +39,7 @@ repository works from.
 ```text
 <root>/
 └── docs/
-    ├── __meta__/            meta specs: <corpus>.md, <corpus>-<namespace>.md, their .structure.json files
+    ├── __meta__/            meta specs: <name>.md and <name>.spec.json files
     ├── feat/                a corpus, governed by docs/__meta__/feat.*
     │   ├── cli.md           a document
     │   └── cli-check.md     a document

@@ -1,6 +1,6 @@
 ---
 name: "spec-structure"
-description: "The structure file: <name>.structure.json as the machine-checkable half of a meta spec, its $schema and description keys, the rule that a file states at least one rule, how a namespace file adds to the corpus file, what is refused on load, and editor validation with the generated docs/schemas/structure.spec.json. Load when creating a structure file, pointing an editor at the dialect's schema, or one is reported invalid"
+description: "The structure file: <name>.spec.json as the machine-checkable half of a meta spec, the legacy .structure.json fallback, its $schema and description keys, how a namespace file adds to the corpus file, what is refused on load, and editor validation with docs/schemas/structure.spec.json. Load when creating a structure file, migrating its name, or one is reported invalid"
 type: "feature"
 status: "experimental"
 components: "module:lorecraft.project,spec:feat,spec:code"
@@ -10,7 +10,7 @@ components: "module:lorecraft.project,spec:feat,spec:code"
 
 ## Summary
 
-A `<name>.structure.json` file holds the rules of a meta spec that a check can decide, for the documents
+A `<name>.spec.json` file holds the rules of a meta spec that a check can decide, for the documents
 its name governs. It is a small JSON dialect: each key states one kind of rule, every key is optional, and a
 check reads only the keys it applies. A generated JSON Schema of the dialect lets an editor validate a file as
 it is written.
@@ -26,7 +26,7 @@ it is written.
 
 ## Key Concepts
 
-- **Structure file**: A `<name>.structure.json` file in `docs/__meta__/`, the machine-checkable half
+- **Structure file**: A `<name>.spec.json` file in `docs/__meta__/`, the machine-checkable half
   of the prose `<name>.md` beside it.
 - **Rule key**: A top-level key that states one kind of rule. A file holds any subset of them.
 - **Layer**: Each structure file that applies to a document: the corpus file, then every namespace
@@ -67,7 +67,7 @@ rule above for the documents its name matches:
 ```json
 {
   "$schema": "../schemas/structure.spec.json",
-  "description": "Narrows code.structure.json for docs/code/python-*.md.",
+  "description": "Narrows code.spec.json for docs/code/python-*.md.",
   "tokens": 3000
 }
 ```
@@ -88,8 +88,15 @@ repository, generated from the same model the checks read a file with. Keep a co
 repository, where the `$schema` value above points from `docs/__meta__/`, and an editor validates a structure
 file as it is written. It states the shape only; a rule that no shape can state is checked on load.
 
+The `$schema` key works in either filename; the file's own value points the editor at the same schema.
+
 ## Limitations
 
+- `<name>.structure.json` is a legacy fallback. It is read only when `<name>.spec.json` is absent and will
+  be removed in v0.4.0. When both exist, `.spec.json` is used and `.structure.json` is absent from the
+  specification's listed files and a document's `governed_by`. `lorecraft check` reports nothing for the legacy
+  file, even if it is invalid or unreadable. An unreadable legacy file still stops `lorecraft inspect`, as any
+  unreadable file under `docs/` does.
 - A file is selected by a document's path, never by its `type` or any other frontmatter value: its rules apply
   to every document its name governs.
 - A layer only adds rules. No key lets a namespace file release a document from the corpus file.

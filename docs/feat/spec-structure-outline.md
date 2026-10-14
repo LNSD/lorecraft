@@ -10,7 +10,7 @@ components: "module:lorecraft.project,module:lorecraft.engine,spec:feat,spec:cod
 
 ## Summary
 
-The `outline`, `empty_sections` and `forbidden` keys of a `<name>.structure.json` file state which H2 sections
+The `outline`, `empty_sections` and `forbidden` keys of a `<name>.spec.json` file state which H2 sections
 the documents its name governs hold, in which order, and which must hold content or not appear. Every governed
 document carries exactly one H1 title that opens it; `title` caps its length or sets its pattern. An order over a
 sequence of any length is no JSON Schema, so the file is a dialect of its own. `lorecraft check` applies them.

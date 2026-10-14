@@ -10,7 +10,7 @@ components: "module:lorecraft.project,module:lorecraft.engine,spec:feat,spec:cod
 
 ## Summary
 
-A `<name>.structure.json` file limits the length of the documents its name governs in two ways. A `words` cap
+A `<name>.spec.json` file limits the length of the documents its name governs in two ways. A `words` cap
 on an outline entry keeps a section's prose concise for the person reading it, and the `tokens` key budgets the
 whole file, which is what loading the document costs an agent. `lorecraft check` applies the caps as `LEN003` and
 the budget as `LEN001`.

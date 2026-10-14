@@ -66,11 +66,11 @@ A meta spec selected by a spec's filename, when a namespace equals the name or i
 
 ### Meta spec name
 
-What a meta spec file's name says it governs: the filename with its [file type](#file-type)'s pattern suffix stripped, so `code.md` and `code.structure.json` are both at the name `code`. It is `<corpus>`, the name of a corpus meta spec, or `<corpus>-<namespace>`, the name of a [namespace meta spec](#namespace-meta-spec), such as `code-python`. Formerly *specification name*.
+What a meta spec file's name says it governs: the filename with its [file type](#file-type)'s pattern suffix stripped, so `code.md` and `code.spec.json` are both at the name `code`. It is `<corpus>`, the name of a corpus meta spec, or `<corpus>-<namespace>`, the name of a [namespace meta spec](#namespace-meta-spec), such as `code-python`. Formerly *specification name*.
 
 ### Aspect
 
-The part of a name after its corpus: in `docs/code/python-fn.md`, or the [meta spec name](#meta-spec-name) `code-python-fn`, the corpus is `code` and the aspect is `python-fn`. An aspect splits into a namespace and a [facet](#facet): `python-fn` is the namespace `python` plus the facet `fn`. The middle of a meta spec filename, `structure` in `code.structure.json`, is not an aspect: what that file is comes from its [file type](#file-type).
+The part of a name after its corpus: in `docs/code/python-fn.md`, or the [meta spec name](#meta-spec-name) `code-python-fn`, the corpus is `code` and the aspect is `python-fn`. An aspect splits into a namespace and a [facet](#facet): `python-fn` is the namespace `python` plus the facet `fn`. The `spec` part of `code.spec.json` is not an aspect: what that file is comes from its [file type](#file-type).
 
 ### Facet
 
@@ -88,11 +88,11 @@ A feat doc's maturity label: `development`, `unstable`, `experimental`, or `stab
 
 ### Machine-checkable companion
 
-A JSON file of a meta spec, beside its prose, that holds the rules a checker can decide: the structure file, `<name>.structure.json`, holding the section structure with its word caps, the token budget and the frontmatter schema. Formerly *structure specification*.
+A JSON file of a meta spec, beside its prose, that holds the rules a checker can decide: the structure file, `<name>.spec.json`, holding the section structure with its word caps, the token budget and the frontmatter schema. `<name>.structure.json` is a legacy fallback, read only when `.spec.json` is absent; support for it will be removed in v0.4.0. Formerly *structure specification*.
 
 ### File type
 
-What a file in `docs/__meta__/` is, claimed by a file name pattern: `*.md` claims a meta spec's prose and `*.structure.json` its structure file. A file's extension is only what follows its last dot, so `code.structure.json` is a JSON file the structure file type claims; a file no pattern claims is not part of a meta spec.
+What a file in `docs/__meta__/` is, claimed by a file name pattern: `*.md` claims a meta spec's prose and `*.spec.json` its structure file; `*.structure.json` claims the legacy fallback. A file's extension is only what follows its last dot, so `code.spec.json` is a JSON file the structure file type claims; a file no pattern claims is not part of a meta spec.
 
 ### Rule
 

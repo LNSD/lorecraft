@@ -10,7 +10,7 @@ components: "module:lorecraft.project,module:lorecraft.engine,spec:feat,spec:cod
 
 ## Summary
 
-The `frontmatter` key of a `<name>.structure.json` file states the frontmatter rules of the documents its name
+The `frontmatter` key of a `<name>.spec.json` file states the frontmatter rules of the documents its name
 governs, as a JSON Schema the frontmatter mapping must satisfy. Unlike the rest of the structure dialect, its
 value is JSON Schema Draft 2020-12 itself, so any editor and any JSON Schema tool reads it.
 `lorecraft check` applies it with the `FM` rules, as it applies the `tokens` key of the same file.
@@ -55,7 +55,7 @@ value is JSON Schema Draft 2020-12 itself, so any editor and any JSON Schema too
 ### A Namespace Schema
 
 A namespace schema leaves out `required` and `additionalProperties`, which the corpus schema already states,
-and narrows a field the corpus schema allows. `feat-cli.structure.json` requires a `module:lorecraft.cli` entry
+and narrows a field the corpus schema allows. `feat-cli.spec.json` requires a `module:lorecraft.cli` entry
 in `components`, for `cli.md` and `cli-*.md` only:
 
 ```json
