@@ -99,8 +99,9 @@ mapping at the top, such as a block sequence, a single scalar or an empty block,
 
 A block written only with accepted constructs can still be broken: a bad indent, an unclosed quote, a tab. Each is
 `FM002`, worded by lorecraft, never by the parser. lorecraft classifies the parser's error into one of the kinds
-below, from what the error carries: its class, the problem and the context it names, the two marks, and the block's
-own text at them. The line reported is the one the writer fixes, which for an unclosed construct is where it opened.
+below, from what its `SyntaxErrorProblem` carries: the problem and the context it names, the two positions, and the
+block's own text at them. The line reported is the one the writer fixes, which for an unclosed construct is where it
+opened.
 
 | Kind | Example | Reported on | Label | Help |
 |---|---|---|---|---|
@@ -140,8 +141,9 @@ parser text; every syntax-error probe is held to a kind, so the fallback stays a
    on the later key's line and pointing back at the first. The block still decodes, the later value standing, so
    its other fields are still read and checked.
 6. **A syntax error inside the subset is `FM002`, worded by lorecraft, never by the parser** (FR-015). Each error
-   is classified into a kind of the Specification's Syntax errors table, from the error's class, texts and marks,
-   and reported with that kind's label and help, on the line the writer fixes. No parser text reaches a diagnostic.
+   is classified into a kind of the Specification's Syntax errors table, from the texts and positions of its
+   `SyntaxErrorProblem`, and reported with that kind's label and help, on the line the writer fixes. No parser text
+   reaches a diagnostic.
 7. **The block is read by YAML 1.2's grammar, with the four rules of frontmatter's own the Specification states.**
    No other rule bends the parser's grammar, and none is kept only to copy how another parser reads YAML.
 
