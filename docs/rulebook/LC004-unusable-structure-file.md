@@ -15,9 +15,10 @@ Checks for structure files that follow the structure format and still cannot be 
 contradicts another, repeats itself, or cannot be applied: an outline or a forbidden list that names a section
 twice, a forbidden section the outline names, two `any` runs side by side, a title pattern that does not compile,
 or a frontmatter schema that is invalid, carries `$id`, names another dialect, holds a `$ref` that does not
-resolve inside it or states no object type. Such a file is reported once, at the file, and every document its
-meta spec governs is listed as skipped in coverage, with no rule run over it: a document that was not checked is
-never reported as clean. Every document the file does not govern is checked as if the file were fixed.
+resolve inside it or that leads back to itself with no keyword in between, or states no object type. Such a file
+is reported once, at the file, and every document its meta spec governs is listed as skipped in coverage, with no
+rule run over it: a document that was not checked is never reported as clean. Every document the file does not
+govern is checked as if the file were fixed.
 
 The message says which case it is, and the note under it names what is wrong: the sections, the pattern or the
 problem the JSON Schema meta-schema found. Each case is explained below, with its fix.
@@ -222,6 +223,33 @@ Define what the reference names:
     "type": "object",
     "properties": {"name": {"$ref": "#/$defs/name"}},
     "$defs": {"name": {"type": "string"}}
+  }
+}
+```
+
+## A frontmatter schema with a `$ref` cycle
+
+`docs/__meta__/guide.spec.json`, with a `$ref` that leads back to the schema it sits in without any keyword that
+reads the document in between. Applying such a schema would recurse without end, so it is refused whether or not
+anything refers to it, an unreferenced `$defs` entry included:
+
+```json
+{
+  "frontmatter": {
+    "type": "object",
+    "$ref": "#"
+  }
+}
+```
+
+State a keyword before the schema refers back. A `$ref` below `properties` or `items` is fine, since it applies
+to a smaller value:
+
+```json
+{
+  "frontmatter": {
+    "type": "object",
+    "properties": {"parent": {"$ref": "#"}}
   }
 }
 ```

@@ -27,6 +27,7 @@ from ..frontmatter_problem import (
 )
 from ..frontmatter_schema import FrontmatterSchema
 from ..structure_failure import (
+    CyclicFrontmatterSchemaRef,
     ForeignFrontmatterDialect,
     FrontmatterSchemaId,
     InvalidFrontmatterSchema,
@@ -157,6 +158,63 @@ class TestFrontmatterSchema:
         assert failure == UnresolvableFrontmatterSchemaRef('https://example.com/name.json'), (
             'a remote reference is refused, never fetched'
         )
+
+    def test_parse_with_a_ref_to_its_own_schema_returns_cyclic_frontmatter_schema_ref(self) -> None:
+        #: Given
+        schema: dict[str, Plain] = {'type': 'object', '$ref': '#'}
+
+        #: When
+        failure = FrontmatterSchema.parse(FrozenMapping.from_plain(schema))
+
+        #: Then
+        assert failure == CyclicFrontmatterSchemaRef('#'), 'a reference that only leads back to itself is refused'
+
+    def test_parse_with_a_ref_cycle_through_definitions_returns_cyclic_frontmatter_schema_ref(self) -> None:
+        #: Given
+        schema: dict[str, Plain] = {
+            'type': 'object',
+            'allOf': [{'$ref': '#/$defs/a'}],
+            '$defs': {'a': {'anyOf': [{'$ref': '#/$defs/b'}]}, 'b': {'$ref': '#/$defs/a'}},
+        }
+
+        #: When
+        failure = FrontmatterSchema.parse(FrozenMapping.from_plain(schema))
+
+        #: Then
+        assert failure == CyclicFrontmatterSchemaRef('#/$defs/a'), 'a cycle through applicators is refused'
+
+    def test_parse_with_a_ref_cycle_through_dependent_schemas_returns_cyclic_frontmatter_schema_ref(self) -> None:
+        #: Given
+        schema: dict[str, Plain] = {'type': 'object', 'dependentSchemas': {'a': {'$ref': '#'}}}
+
+        #: When
+        failure = FrontmatterSchema.parse(FrozenMapping.from_plain(schema))
+
+        #: Then
+        assert failure == CyclicFrontmatterSchemaRef('#'), 'a dependent schema applies to the same value'
+
+    def test_parse_with_an_unused_ref_cycle_in_defs_returns_cyclic_frontmatter_schema_ref(self) -> None:
+        #: Given
+        schema: dict[str, Plain] = {
+            'type': 'object',
+            '$defs': {'a': {'$ref': '#/$defs/b'}, 'b': {'$ref': '#/$defs/a'}},
+        }
+
+        #: When
+        failure = FrontmatterSchema.parse(FrozenMapping.from_plain(schema))
+
+        #: Then
+        assert isinstance(failure, CyclicFrontmatterSchemaRef), 'a cycle nothing refers to is still refused'
+
+    def test_parse_with_a_recursive_ref_below_properties_returns_the_schema(self) -> None:
+        #: Given
+        schema: dict[str, Plain] = {'type': 'object', 'properties': {'child': {'$ref': '#'}}}
+
+        #: When
+        parsed = FrontmatterSchema.parse(FrozenMapping.from_plain(schema))
+
+        #: Then
+        assert isinstance(parsed, FrontmatterSchema), 'a reference applied to a smaller value is not a cycle'
 
     def test_parse_with_a_local_ref_to_a_definition_returns_the_schema(self) -> None:
         #: Given

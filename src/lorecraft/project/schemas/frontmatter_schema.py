@@ -14,7 +14,7 @@ Nothing here logs: `validate` raises nothing, and `parse` returns the failure it
 import re
 from collections.abc import Iterator, Mapping
 from dataclasses import dataclass
-from typing import Self, assert_never
+from typing import Final, Self, assert_never
 
 from jsonschema import Draft202012Validator
 from jsonschema._utils import find_evaluated_property_keys_by_schema
@@ -72,6 +72,7 @@ from .schema_keyword import (
     keyword_of,
 )
 from .structure_failure import (
+    CyclicFrontmatterSchemaRef,
     ForeignFrontmatterDialect,
     FrontmatterSchemaId,
     InvalidFrontmatterSchema,
@@ -85,6 +86,7 @@ type FrontmatterSchemaFailure = (
     | FrontmatterSchemaId
     | ForeignFrontmatterDialect
     | UnresolvableFrontmatterSchemaRef
+    | CyclicFrontmatterSchemaRef
     | UntypedFrontmatterSchema
 )
 """A reason a structure specification's `frontmatter` schema cannot be held."""
@@ -111,15 +113,15 @@ class FrontmatterSchema:
         """Check a schema a structure specification can hold a document's frontmatter to.
 
         That is a schema that is a well-formed Draft 2020-12 schema, that does not leave it for another resource or
-        dialect anywhere inside it, whose every `$ref` resolves inside it, and that describes an object.
+        dialect anywhere inside it, whose every `$ref` resolves inside it without a cycle, and that describes an object.
 
         Args:
             schema: The file's `frontmatter` JSON Schema, as read.
 
         Returns:
             The checked schema, or the failure naming what is wrong with it: the meta-schema's rejection, an `$id`, a
-            dialect other than Draft 2020-12 in `$schema`, a `$ref` that does not resolve inside the schema, or a
-            root that does not say `"type": "object"`.
+            dialect other than Draft 2020-12 in `$schema`, a `$ref` that does not resolve inside the schema, a `$ref`
+            cycle that reaches no keyword, or a root that does not say `"type": "object"`.
         """
         # `jsonschema` takes a JSON object only as a `dict` and an array only as a `list`, so every schema and
         # frontmatter it reads is handed to it as plain data, copied from the frozen value.
@@ -153,6 +155,10 @@ class FrontmatterSchema:
                     # `validate` raises nothing, and `jsonschema` raises when it meets a reference that does not
                     # resolve to a schema, so it is refused here, where the schema is loaded.
                     return UnresolvableFrontmatterSchemaRef(ref)
+        # Every `$ref` resolves, so a cycle among them can be followed.
+        cycle = _same_instance_ref_cycle(registry, plain)
+        if cycle is not None:
+            return CyclicFrontmatterSchemaRef(cycle)
         # A frontmatter is a mapping, so the schema must say so itself: a schema that left `type` out would accept
         # a list or a string where the frontmatter should be.
         if schema.get('type') != 'object':
@@ -504,6 +510,88 @@ def _resolves_inside(registry: Registry, ref: str) -> bool:
     except Unresolvable:
         return False
     return isinstance(target, Mapping | bool)
+
+
+# The keywords that apply a subschema to the same instance their schema applies to, so a schema reached through one
+# is read against the very value the first was. `dependentSchemas` is one: it applies its subschema to the whole
+# object when the property it is keyed by is present.
+_SAME_INSTANCE_SINGLE: Final[tuple[str, ...]] = ('not', 'if', 'then', 'else')
+_SAME_INSTANCE_LISTS: Final[tuple[str, ...]] = ('allOf', 'anyOf', 'oneOf')
+_SAME_INSTANCE_MAPS: Final[tuple[str, ...]] = ('dependentSchemas',)
+
+
+def _same_instance_ref_cycle(registry: Registry, schema: Mapping[str, Plain]) -> str | None:
+    """The `$ref` that closes a cycle of schemas all applied to one instance, or None when there is none.
+
+    A reference moves to its target without reading any of the instance, as do `allOf`, `anyOf`, `oneOf`, `not`,
+    `if`, `then`, `else` and `dependentSchemas`. Following only those from every schema, a path that returns to a
+    schema it left never reaches a keyword that reads the value, so validating would recurse without end if the
+    path were applied. Every schema is walked, used or not: a cycle nothing refers to is still a defect in the
+    schema. A reference below `properties` or `items` is not followed: it applies to a smaller value, so a
+    recursive schema such as a tree is fine.
+
+    Args:
+        registry: A registry holding the schema alone, under the empty base URI, every reference of which resolves.
+        schema: The whole schema, as plain data.
+    """
+    # A schema is identified by the object itself: a lookup returns the very object inside `schema`.
+    settled: set[int] = set()
+
+    def visit(node: Mapping[str, Plain], on_path: set[int], last_ref: str) -> str | None:
+        key = id(node)
+        if key in settled:
+            return None
+        on_path.add(key)
+        for target, ref in _same_instance_schemas(registry, node):
+            # A target reached through a keyword is named by the last `$ref` on the way, the one a reader can find.
+            via = ref if ref is not None else last_ref
+            if id(target) in on_path:
+                return via
+            closing = visit(target, on_path, via)
+            if closing is not None:
+                return closing
+        on_path.discard(key)
+        settled.add(key)
+        return None
+
+    for subschema in _iter_schemas_within(schema):
+        closing = visit(subschema, set(), '#')
+        if closing is not None:
+            return closing
+    return None
+
+
+def _same_instance_schemas(
+    registry: Registry, node: Mapping[str, Plain]
+) -> Iterator[tuple[Mapping[str, Plain], str | None]]:
+    """The object schemas `node` applies to the instance it is itself applied to, each with the `$ref` that led to it.
+
+    Args:
+        registry: A registry holding the schema `node` is inside, under the empty base URI.
+        node: One object schema.
+    """
+    for keyword in ('$ref', '$dynamicRef'):
+        ref = node.get(keyword)
+        if isinstance(ref, str):
+            target = registry.resolver().lookup(ref).contents
+            if isinstance(target, Mapping):
+                yield target, ref
+    for keyword in _SAME_INSTANCE_SINGLE:
+        sub = node.get(keyword)
+        if isinstance(sub, Mapping):
+            yield sub, None
+    for keyword in _SAME_INSTANCE_LISTS:
+        subs = node.get(keyword)
+        if isinstance(subs, list):
+            for sub in subs:
+                if isinstance(sub, Mapping):
+                    yield sub, None
+    for keyword in _SAME_INSTANCE_MAPS:
+        named = node.get(keyword)
+        if isinstance(named, Mapping):
+            for sub in named.values():
+                if isinstance(sub, Mapping):
+                    yield sub, None
 
 
 def _iter_schemas_within(schema: Mapping[str, Plain]) -> Iterator[Mapping[str, Plain]]:
