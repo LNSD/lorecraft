@@ -76,7 +76,9 @@ def _check_document(database: Database, ref: DocumentRef, table: RuleTable) -> S
             if governance is not None:
                 failed_layers = governance.failed_layers()
                 if failed_layers:
-                    return SkippedSubject(ref, tuple(layer.path for layer in failed_layers))
+                    # `SkippedSubject` requires a first path, so the first failed layer is split from the rest.
+                    first, *others = failed_layers
+                    return SkippedSubject(ref, (first.path, *(layer.path for layer in others)))
             return judge_document(database, source, table)
         case _:
             assert_never(source)
