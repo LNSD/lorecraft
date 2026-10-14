@@ -316,6 +316,9 @@ invent significance the diff does not support.
 Anything that made a decision gets a body. If you had to choose between two shapes, the discarded one
 is the body.
 
+A summary alone, without bullets, is correct when the change has one reason and one consequence, and a
+bullet would only repeat the summary.
+
 ## Before and After
 
 Whole messages, titles and bullets, each before and after the gates, drawn from this repository's own

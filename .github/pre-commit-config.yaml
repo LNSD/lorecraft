@@ -3,7 +3,7 @@
 # This config lives outside the default root path, so every pre-commit command
 # needs `--config .github/pre-commit-config.yaml`, installation included.
 # `just install-git-hooks` wraps exactly this:
-#   pre-commit install --config .github/pre-commit-config.yaml --hook-type pre-commit --hook-type pre-push
+#   pre-commit install --config .github/pre-commit-config.yaml --hook-type pre-commit --hook-type commit-msg --hook-type pre-push
 repos:
 - repo: local
   hooks:
@@ -48,3 +48,9 @@ repos:
     files: ^(docs/|(\.agents/)?skills/)
     stages: [pre-push, manual]
     pass_filenames: false
+  ## Commit hooks
+  - id: check-commit-msg
+    name: Check the commit message
+    language: system
+    entry: gitlint --config .github/gitlint --staged --msg-filename
+    stages: [commit-msg]

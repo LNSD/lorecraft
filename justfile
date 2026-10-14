@@ -290,10 +290,35 @@ snapshot-review:
     @git diff -- ':(glob)**/__snapshots__/**'
 
 
+## Commits
+
+GITLINT_CONFIG := ".github/gitlint"
+
+# Lint the messages of the commits in a range against the commit format (gitlint)
+[group: 'commits']
+check-commit-msg RANGE="origin/main..HEAD" *EXTRA_FLAGS:
+    #!/usr/bin/env bash
+    set -e # Exit on error
+
+    # Check if gitlint is installed
+    if ! command -v "gitlint" &> /dev/null; then
+        >&2 echo "=============================================================="
+        >&2 echo "Required command 'gitlint' not available ❌"
+        >&2 echo ""
+        >&2 echo "Please install gitlint using the install recipe"
+        >&2 echo "  just install-gitlint"
+        >&2 echo "=============================================================="
+        exit 1
+    fi
+
+    echo "📝 Checking commit messages..."
+    gitlint --config {{GITLINT_CONFIG}} --commits {{RANGE}} {{EXTRA_FLAGS}}
+
+
 ## Misc
 
 PRECOMMIT_CONFIG := ".github/pre-commit-config.yaml"
-PRECOMMIT_DEFAULT_HOOKS := "pre-commit pre-push"
+PRECOMMIT_DEFAULT_HOOKS := "pre-commit commit-msg pre-push"
 
 # Install Git hooks
 [group: 'misc']
@@ -340,6 +365,12 @@ run-git-hooks *EXTRA_FLAGS:
 
     # Every hook, including the pre-push ones, over the whole tree
     pre-commit run --config {{PRECOMMIT_CONFIG}} --all-files --hook-stage manual {{EXTRA_FLAGS}}
+
+# Install gitlint, which the commit-msg hook and `check-commit-msg` run (uv tool install)
+[group: 'misc']
+install-gitlint:
+    @echo "📦 Installing gitlint..."
+    uv tool install gitlint-core
 
 # Remove Git hooks
 [group: 'misc']

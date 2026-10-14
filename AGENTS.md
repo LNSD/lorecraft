@@ -194,6 +194,7 @@ list, and `check-docs` is in the `docs` group rather than `check`, so a group-ba
 | Types | `just check-types`; clean, with no finding silenced by widening an annotation to `Any` |
 | Tests | `just test-unit` after lint is clean, then the tier the change touches — `just test-it`, `just test-e2e` — and `just test` when it earns the whole suite |
 | Documents and skills | `just check-docs`; `lorecraft check` reports no error over any document under `docs/` or any skill: the frontmatter, outline, length, link and layout rules |
+| Commits | `just check-commit-msg`; every commit on the branch passes `gitlint` with `.github/gitlint`, the mechanical half of the `commit` skill's format. `just install-gitlint` installs it as a `uv` tool. CI checks a pull request's own commits |
 | Codegen | `just gen` after changing a generator or what it models; it must leave the tree unchanged in CI |
 
 Do not run tests before lint is clean, do not treat a type error as a lint preference — it is a failed gate —
