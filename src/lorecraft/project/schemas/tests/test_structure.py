@@ -52,6 +52,7 @@ from ..structure import (
     StructureSchema,
     StructureSpec,
     StructureSpecDecodeError,
+    StructureSpecProblem,
     TitlePattern,
     UntypedFrontmatterSchemaError,
     WordCappedTitleChecks,
@@ -404,7 +405,7 @@ class TestStructureSpecParse:
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'no document satisfies a budget of 0 tokens'
-        assert exc_info.value.problems == ('tokens: must be at least 1, got 0',), (
+        assert exc_info.value.problems == (StructureSpecProblem(('tokens',), 'must be at least 1, got 0'),), (
             f'the problem names the field and reads with the count rejection, got {exc_info.value.problems}'
         )
 
@@ -430,9 +431,10 @@ class TestStructureSpecParse:
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'no section satisfies a cap of 0 words'
-        assert 'outline.0.StructureFileSection.words: must be at least 1, got 0' in exc_info.value.problems, (
-            f'the section shape reports the cap with the count rejection, got {exc_info.value.problems}'
-        )
+        assert (
+            StructureSpecProblem(('outline', 0, 'StructureFileSection', 'words'), 'must be at least 1, got 0')
+            in exc_info.value.problems
+        ), f'the section shape reports the cap with the count rejection, got {exc_info.value.problems}'
 
     def test_parse_with_an_any_word_cap_of_zero_raises_structure_spec_decode_error(self) -> None:
         #: Given
@@ -565,7 +567,7 @@ class TestStructureSpecParse:
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'no title satisfies a cap of 0 words'
-        assert exc_info.value.problems == ('title.words: must be at least 1, got 0',), (
+        assert exc_info.value.problems == (StructureSpecProblem(('title', 'words'), 'must be at least 1, got 0'),), (
             f'the problem names the cap and reads with the count rejection, got {exc_info.value.problems}'
         )
 
@@ -580,7 +582,7 @@ class TestStructureSpecParse:
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'a word cap is a count of words, never below 1'
         assert len(exc_info.value.problems) == 1, f'one field is wrong, got {exc_info.value.problems}'
-        assert exc_info.value.problems[0].startswith('title.words: '), (
+        assert str(exc_info.value.problems[0]).startswith('title.words: '), (
             f'the problem opens with the dotted path of the cap, got {exc_info.value.problems[0]!r}'
         )
 
@@ -595,7 +597,7 @@ class TestStructureSpecParse:
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'a JSON boolean is not a word cap, though Python treats it as one'
         assert len(exc_info.value.problems) == 1, f'one field is wrong, got {exc_info.value.problems}'
-        assert exc_info.value.problems[0].startswith('title.words: '), (
+        assert str(exc_info.value.problems[0]).startswith('title.words: '), (
             f'the problem opens with the dotted path of the cap, got {exc_info.value.problems[0]!r}'
         )
 
@@ -621,7 +623,7 @@ class TestStructureSpecParse:
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'no title satisfies a cap of 0 characters'
-        assert exc_info.value.problems == ('title.chars: must be at least 1, got 0',), (
+        assert exc_info.value.problems == (StructureSpecProblem(('title', 'chars'), 'must be at least 1, got 0'),), (
             f'the problem names the cap and reads with the count rejection, got {exc_info.value.problems}'
         )
 
@@ -636,7 +638,7 @@ class TestStructureSpecParse:
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'a character cap is a count of characters, never below 1'
         assert len(exc_info.value.problems) == 1, f'one field is wrong, got {exc_info.value.problems}'
-        assert exc_info.value.problems[0].startswith('title.chars: '), (
+        assert str(exc_info.value.problems[0]).startswith('title.chars: '), (
             f'the problem opens with the dotted path of the cap, got {exc_info.value.problems[0]!r}'
         )
 
@@ -651,7 +653,7 @@ class TestStructureSpecParse:
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'a JSON boolean is not a character cap, though Python treats it as one'
         assert len(exc_info.value.problems) == 1, f'one field is wrong, got {exc_info.value.problems}'
-        assert exc_info.value.problems[0].startswith('title.chars: '), (
+        assert str(exc_info.value.problems[0]).startswith('title.chars: '), (
             f'the problem opens with the dotted path of the cap, got {exc_info.value.problems[0]!r}'
         )
 
@@ -675,7 +677,7 @@ class TestStructureSpecParse:
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'a `title` stating no check would state nothing'
         assert exc_info.value.problems == (
-            'title: Value error, states no check; leave the key out for no title check',
+            StructureSpecProblem(('title',), 'Value error, states no check; leave the key out for no title check'),
         ), f'the problem names the key and says how to state no title check, got {exc_info.value.problems}'
 
     def test_parse_with_only_a_title_pattern_returns_a_structure_spec_with_that_pattern_compiled(self) -> None:
@@ -730,9 +732,9 @@ class TestStructureSpecParse:
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'a JSON number is not a pattern'
-        assert exc_info.value.problems == ('title.pattern: Input should be a valid string',), (
-            f'the problem names the pattern with the type rejection, got {exc_info.value.problems}'
-        )
+        assert exc_info.value.problems == (
+            StructureSpecProblem(('title', 'pattern'), 'Input should be a valid string'),
+        ), f'the problem names the pattern with the type rejection, got {exc_info.value.problems}'
 
     def test_parse_with_an_empty_title_pattern_raises_structure_spec_decode_error(self) -> None:
         #: Given
@@ -744,9 +746,9 @@ class TestStructureSpecParse:
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'an empty pattern matches every title, so it would check nothing'
-        assert exc_info.value.problems == ('title.pattern: String should have at least 1 character',), (
-            f'the problem names the pattern with the length rejection, got {exc_info.value.problems}'
-        )
+        assert exc_info.value.problems == (
+            StructureSpecProblem(('title', 'pattern'), 'String should have at least 1 character'),
+        ), f'the problem names the pattern with the length rejection, got {exc_info.value.problems}'
 
     def test_parse_with_an_unknown_key_in_the_title_raises_structure_spec_decode_error(self) -> None:
         #: Given
@@ -759,7 +761,7 @@ class TestStructureSpecParse:
         #: Then
         assert exc_info.value.path == SPEC_PATH, 'a misspelt or removed title check is an error, not ignored'
         assert len(exc_info.value.problems) == 1, f'one key is wrong, got {exc_info.value.problems}'
-        assert exc_info.value.problems[0].startswith('title.count: '), (
+        assert str(exc_info.value.problems[0]).startswith('title.count: '), (
             f'the problem opens with the dotted path of the unknown key, got {exc_info.value.problems[0]!r}'
         )
 
@@ -844,13 +846,13 @@ class TestStructureSpecParse:
 
         #: Then
         assert len(exc_info.value.problems) == 2, f'each wrong field is its own problem, got {exc_info.value.problems}'
-        assert exc_info.value.problems[0].startswith('tokens: '), (
+        assert str(exc_info.value.problems[0]).startswith('tokens: '), (
             f'the first problem opens with the dotted path of its field, got {exc_info.value.problems[0]!r}'
         )
-        assert exc_info.value.problems[1].startswith('empty_sections: '), (
+        assert str(exc_info.value.problems[1]).startswith('empty_sections: '), (
             f'the second problem names its field, got {exc_info.value.problems[1]!r}'
         )
-        assert '; '.join(exc_info.value.problems) in str(exc_info.value), (
+        assert '; '.join(str(problem) for problem in exc_info.value.problems) in str(exc_info.value), (
             f'the message lists every problem, separated by semicolons, got {exc_info.value}'
         )
 
@@ -903,7 +905,9 @@ class TestStructureSpecParse:
 
         #: Then
         assert exc_info.value.path == SPEC_PATH, "the mistake is the specification's, so the load refuses it"
-        expected = f'outline.0.StructureFileSection.section: {PaddedSectionNameError(" Checklist")}'
+        expected = StructureSpecProblem(
+            ('outline', 0, 'StructureFileSection', 'section'), str(PaddedSectionNameError(' Checklist'))
+        )
         assert expected in exc_info.value.problems, (
             f'the section shape reports the name with its rejection, got {exc_info.value.problems}'
         )
@@ -929,9 +933,9 @@ class TestStructureSpecParse:
             StructureSpec.parse(SPEC_FILE, schema)
 
         #: Then
-        assert exc_info.value.problems == (f'forbidden.0: {PaddedSectionNameError("Changelog ")}',), (
-            f'the problem names the entry and reads with the name rejection, got {exc_info.value.problems}'
-        )
+        assert exc_info.value.problems == (
+            StructureSpecProblem(('forbidden', 0), str(PaddedSectionNameError('Changelog '))),
+        ), f'the problem names the entry and reads with the name rejection, got {exc_info.value.problems}'
 
     def test_parse_with_a_forbidden_entry_given_twice_raises_repeated_forbidden_section_error(self) -> None:
         #: Given
@@ -1798,3 +1802,27 @@ class TestFrontmatterSchema:
                 guidance=FieldGuidance(description='The version.'),
             ),
         ), 'a fraction is a number, and the description is carried with the type'
+
+
+class TestStructureSpecProblem:
+    def test_str_with_a_location_joins_its_parts_with_dots_before_the_message(self) -> None:
+        #: Given
+        problem = StructureSpecProblem(('outline', 0, 'StructureFileSection', 'words'), 'must be at least 1, got 0')
+
+        #: When
+        text = str(problem)
+
+        #: Then
+        assert text == 'outline.0.StructureFileSection.words: must be at least 1, got 0', (
+            'the location reads as a dotted path, indexes included'
+        )
+
+    def test_str_without_a_location_is_the_bare_message(self) -> None:
+        #: Given
+        problem = StructureSpecProblem((), 'Invalid JSON: EOF while parsing a value')
+
+        #: When
+        text = str(problem)
+
+        #: Then
+        assert text == 'Invalid JSON: EOF while parsing a value', 'a problem about the whole file has no path to show'

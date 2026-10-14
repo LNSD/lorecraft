@@ -83,7 +83,7 @@ def _find_occurrence(failure: workspace.LoadFailure) -> EngineCondition | Unlist
             return invalid_utf8.InvalidUtf8(failure=utf8_failure)
         case workspace.UndecodableStructureSpec(problems=problems):
             return malformed_structure_file.MalformedStructureFile(
-                cause=malformed_structure_file.FormatViolated(problems=problems)
+                cause=malformed_structure_file.FormatViolated(problems=tuple(str(problem) for problem in problems))
             )
         case workspace.EmptyStructureSpec():
             return malformed_structure_file.MalformedStructureFile(cause=malformed_structure_file.NoRuleStated())
@@ -113,7 +113,7 @@ def _find_occurrence(failure: workspace.LoadFailure) -> EngineCondition | Unlist
             return unusable_structure_file.UnusableStructureFile(cause=unusable_structure_file.FrontmatterSchemaId())
         case workspace.ForeignFrontmatterDialect(dialect=dialect):
             return unusable_structure_file.UnusableStructureFile(
-                cause=unusable_structure_file.ForeignFrontmatterDialect(dialect=dialect)
+                cause=unusable_structure_file.ForeignFrontmatterDialect(dialect=repr(dialect))
             )
         case workspace.UntypedFrontmatterSchema():
             return unusable_structure_file.UnusableStructureFile(

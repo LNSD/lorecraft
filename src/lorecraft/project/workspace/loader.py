@@ -371,8 +371,7 @@ def _load_structure(
                 except FrontmatterSchemaIdError:
                     structure = _record_failed_structure(failures, spec_file.path, FrontmatterSchemaId())
                 except ForeignFrontmatterDialectError as exc:
-                    # The dialect is whatever JSON value `$schema` held, so the record keeps it as its `repr` text.
-                    failure = ForeignFrontmatterDialect(repr(exc.dialect))
+                    failure = ForeignFrontmatterDialect(exc.dialect)
                     structure = _record_failed_structure(failures, spec_file.path, failure)
                 except UntypedFrontmatterSchemaError:
                     structure = _record_failed_structure(failures, spec_file.path, UntypedFrontmatterSchema())
