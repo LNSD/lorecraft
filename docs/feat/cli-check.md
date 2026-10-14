@@ -36,8 +36,8 @@ and exits `1` when any diagnostic is an error.
 - **Governed**: A document's `structure` is governed when its corpus has a structure file, its `frontmatter` when
   that file states a schema, its `outline` or `budget` when an applying file states an outline or `tokens`. A rule
   over an ungoverned part does not run; the part is reported as coverage, not a diagnostic.
-- **Basic YAML**: The YAML a frontmatter is read as, decoding to JSON's values; an anchor, an alias, a tag, a
-  second document or a key that is not a string makes the block invalid.
+- **Frontmatter format**: The [accepted YAML subset](frontmatter.md), decoded to JSON values; `FM002` names
+  refused constructs and syntax errors, while `FM005` reports repeated keys.
 
 ## Architecture
 
@@ -195,7 +195,6 @@ With multiple unreported refusals, exit `2` names the first path in path order.
   A UTF-8 byte order mark is omitted from excerpted line 1, so its underline spans only the visible text.
   The gutter and underlines use `| ^ - .` when UTF-8 output is unavailable.
 - A repository with skills and no `docs/__meta__/` needs `--root`.
-- A key repeated inside a nested frontmatter mapping is not reported as repeated.
 - A fragment after a path, such as `guide.md#usage`, is not checked against the file it names.
 - A check covers what a machine can decide. Whether a section says what it should stays with review.
 
@@ -228,6 +227,7 @@ their pattern. `FM010` and `FM012` carry counts in messages only.
 - [cli](cli.md) - Base: the command line and the options every command shares
 - [workspace](workspace.md) - Dependency: the documents, skills and snapshot the command reads
 - [spec](spec.md) - Dependency: the meta spec files the rules read
+- [frontmatter](frontmatter.md) - Related: the values the block accepts and the `FM002` and `FM005` findings
 - [cli-inspect](cli-inspect.md) - Related: shows the subjects this command checks
 - [cli-rule](cli-rule.md) - Related: prints the page of a rule by the code a diagnostic prints
 
