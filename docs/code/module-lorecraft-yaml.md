@@ -15,7 +15,7 @@ YAML subset Lorecraft reads changes, or when the YAML library behind it does.
 ## Role
 
 **Derivation.** It turns the text of a YAML block into what that text says, a pure function of the text: no
-disk, no cache across calls. It knows YAML and, as its target, nothing about what a document, a frontmatter key or a
+disk, no cache across calls. It knows YAML and nothing about what a document, a frontmatter key or a
 check is, so the package above it decides what a refused construct means for a document.
 
 ## Belongs Here
@@ -75,11 +75,11 @@ def is_refused(block: str) -> bool:
 
 Before committing code, verify:
 
-- [ ] `ruamel.yaml` is imported in `lorecraft.yaml` and nowhere else, and no other package reads its grammar module
+- [ ] No package other than `lorecraft.yaml` imports `lorecraft.yaml.basic_yaml` or `ruamel`
 - [ ] Nothing in `lorecraft.yaml` reads the disk
 - [ ] No library loader or constructor is called, and no library type is part of what the package returns
-- [ ] A construct the subset leaves out is a declared refusal that carries its position
-- [ ] Nothing added here names a document, a frontmatter key or a diagnostic code
+- [ ] A construct the subset leaves out is returned as a `RefusedConstructProblem` that carries its position
+- [ ] Nothing here names a document, a frontmatter key or a diagnostic code
 
 ## References
 

@@ -39,13 +39,16 @@ every option.
 
 ## Decision
 
-1. **ruamel.yaml's pure-Python event API is the parser** in `frontmatter.py`, with its reader, scanner and parser
-   subclasses in `src/lorecraft/yaml/basic_yaml.py`. The module reads ruamel.yaml's tokens and events, with their
-   start marks: the value is built from the events by lorecraft, never by a ruamel.yaml loader or constructor.
+1. **ruamel.yaml's pure-Python event API is the parser**, in `lorecraft.yaml` behind `read_yaml`, with its reader,
+   scanner and parser subclasses in `src/lorecraft/yaml/basic_yaml.py`. `read_yaml`, in `src/lorecraft/yaml/reader.py`,
+   reads ruamel.yaml's tokens and events, with their start marks: the value is built from the events by lorecraft,
+   never by a ruamel.yaml loader or constructor, and is a tree of `lorecraft.yaml` values, or the first `YamlProblem`
+   the block writes. `frontmatter.py` maps that tree onto frontmatter.
 2. **The parser reads the format adr-019 defines, and does not define it.** What is accepted, what is refused and how
    a refusal is worded are adr-019's; this record adds no rule about the format.
-3. **Every exception the parser raises on a block is `FM002`, never a crash.** ruamel.yaml's error, with its class,
-   texts and marks, is handed to adr-019's classification, which words it; the parser's text is never shown. Where
+3. **Every problem the parser meets in a block is `FM002`, never a crash.** `read_yaml` returns it as a `YamlProblem`,
+   and a syntax error's texts and positions, a `SyntaxErrorProblem`, are handed to adr-019's classification, which
+   words it; the parser's text is never shown. No ruamel.yaml type leaves `lorecraft.yaml`. Where
    its scanner lets a plain `ValueError` escape, a `\U` escape above `U+10FFFF` or a directive version number too
    long to convert, it is raised as a scanner error on its line first.
 4. **`ruamel.yaml` is a runtime dependency, pinned `>=0.19,<0.20`**, and its C extension is never installed:
