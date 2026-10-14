@@ -34,7 +34,7 @@ lorecraft inspect --format json   # the same model; each document's governed_by 
 
 In the tree, each document is followed by the names of the meta specs governing it, broad to narrow:
 `pattern-state.md [code, code-pattern]` answers to `docs/__meta__/code.md`, then `docs/__meta__/code-pattern.md`. The
-file at the same meta spec name that the pattern `*.structure.json` claims, the structure file, is the
+file at the same meta spec name that the pattern `*.spec.json` claims, the structure file, is the
 machine-checkable half the checks run: the frontmatter under its `frontmatter` key, the sections, the word caps and
 the token budget. [cli-inspect](https://github.com/LNSD/lorecraft/blob/main/docs/feat/cli-inspect.md) describes the
 output. The tree ends with the agent skills and the agents that read them, which writing a document does not need.
@@ -64,7 +64,7 @@ If it needs a corpus that does not exist yet, that is a new meta spec: use `/doc
 2. **Read a neighbour.** Open the closest existing document in the corpus. The meta spec states the conventions;
    a neighbour shows the register and depth the corpus settled on.
 3. **Write the frontmatter first.** Deciding it forces you to decide what the document is. The
-   `frontmatter` key of each `<name>.structure.json` states the fields exactly, and `name`, where a schema governs, matches the
+   `frontmatter` key of each `<name>.spec.json` states the fields exactly, and `name`, where a schema governs, matches the
    filename without `.md`.
 4. **Write the body** from the meta spec's template or outline, keeping its sections in order.
 5. **Run the checks** as soon as the frontmatter exists, and again before handing the change over:

@@ -25,7 +25,7 @@ agent reads whichever was written last, and one of the two lines says nothing th
 
 ## Example
 
-`docs/__meta__/guide.structure.json`:
+`docs/__meta__/guide.spec.json`:
 
 ```json
 {

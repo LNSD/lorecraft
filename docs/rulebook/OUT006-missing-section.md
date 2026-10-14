@@ -28,7 +28,7 @@ sections; a section left out is a question the agent cannot tell is unanswered f
 
 ## Example
 
-`docs/__meta__/guide.structure.json`:
+`docs/__meta__/guide.spec.json`:
 
 ```json
 {

@@ -29,12 +29,12 @@ Every command below calls `lorecraft` directly. Where it is not on `PATH`, run `
 
 ```text
 docs/__meta__/<name>.md               the prose: the authority, written for a reader
-docs/__meta__/<name>.structure.json   the section outline, word caps, tokens budget and frontmatter
+docs/__meta__/<name>.spec.json        the section outline, word caps, tokens budget and frontmatter
                                       schema, read by lorecraft check
 ```
 
 What a file is comes from its **file type**, which a file name **pattern** claims: `*.md` claims the prose and
-`*.structure.json` the structure file. A file's extension is only what follows its last dot, and a
+`*.spec.json` the structure file, with the legacy `*.structure.json` read only when no `.spec.json` stands beside it, until v0.4.0. A file's extension is only what follows its last dot, and a
 `<name>.<token>.json` that no pattern claims is not a meta spec file: it is left out, not read.
 
 A **meta spec name**, the filename with its pattern's suffix stripped, is `<corpus>` or `<corpus>-<namespace>`.
@@ -78,7 +78,7 @@ A namespace meta spec states only what it adds to its base, and links to it.
 
 ## 3. The frontmatter schema
 
-The `frontmatter` key of `<name>.structure.json` is a JSON Schema, Draft 2020-12, for the parsed frontmatter mapping.
+The `frontmatter` key of `<name>.spec.json` is a JSON Schema, Draft 2020-12, for the parsed frontmatter mapping.
 Its root states `"type": "object"` outright, and no schema in it carries `$id`; a `$schema` inside it, if any, names
 Draft 2020-12. The corpus schema states the whole field set, with `required` and `"additionalProperties": false` so an
 undeclared field is a finding. A namespace schema leaves both out and narrows a field the corpus allows. The schema
@@ -88,7 +88,7 @@ schema's. Copy the shapes in
 
 ## 4. The structure file
 
-`<name>.structure.json` states `empty_sections`, an `outline` of H2 sections — each `{"section": …}`, optionally
+`<name>.spec.json` states `empty_sections`, an `outline` of H2 sections — each `{"section": …}`, optionally
 `"optional": true`, a `description` of what it holds and a non-empty list of `examples` of its body, each trimmed from
 a real document of the corpus (the description and the first example are shown as notes when the section is missing),
 or an `{"any": true}` run — with a `words` cap on any entry, `forbidden` sections, a whole-file `tokens` budget, and
@@ -112,7 +112,7 @@ say in the prose why each number is what it is. Never raise one to silence a fin
 ## 5. Recipes
 
 **Adopt Lorecraft, or add a corpus.** Create `docs/<corpus>/`, then `docs/__meta__/<corpus>.md`, then
-`<corpus>.structure.json` with a key for each requirement you want checked. A requirement without its key there is unchecked
+`<corpus>.spec.json` with a key for each requirement you want checked. A requirement without its key there is unchecked
 for the whole corpus, unless a namespace file states it; the `frontmatter` key is unchecked without it there.
 Write the first spec only after the files exist, then follow `/docs-rules` for it. If the repository has an agent
 guide, name the corpus there, and whether its documents are binding.

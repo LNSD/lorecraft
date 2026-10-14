@@ -52,7 +52,7 @@ class MalformedStructureFile(FileCondition):
 
     ## A file that does not follow the format
 
-    `docs/__meta__/guide.structure.json`, with a key the format does not define:
+    `docs/__meta__/guide.spec.json`, with a key the format does not define:
 
     ```json
     {
@@ -70,7 +70,7 @@ class MalformedStructureFile(FileCondition):
 
     ## A file that states no rule
 
-    `docs/__meta__/guide.structure.json`, stating nothing. The file would check no title, no empty section, no
+    `docs/__meta__/guide.spec.json`, stating nothing. The file would check no title, no empty section, no
     outline, no forbidden section, no token budget and no frontmatter schema:
 
     ```json

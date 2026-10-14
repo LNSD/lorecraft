@@ -29,7 +29,7 @@ no other document states the same way, often a misspelling of a field the schema
 
 ## Example
 
-`docs/__meta__/guide.structure.json`:
+`docs/__meta__/guide.spec.json`:
 
 ```json
 {

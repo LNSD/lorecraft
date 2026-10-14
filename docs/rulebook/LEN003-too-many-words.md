@@ -26,7 +26,7 @@ and buries the rule it came for.
 
 ## Example
 
-`docs/__meta__/guide.structure.json`:
+`docs/__meta__/guide.spec.json`:
 
 ```json
 {

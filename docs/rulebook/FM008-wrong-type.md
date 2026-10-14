@@ -28,7 +28,7 @@ such as a list where a string belongs, is misread or dropped.
 
 ## Example
 
-`docs/__meta__/guide.structure.json`:
+`docs/__meta__/guide.spec.json`:
 
 ```json
 {

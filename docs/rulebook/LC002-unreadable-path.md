@@ -12,10 +12,10 @@ A path cannot be read.
 ## What it does
 
 Checks for paths the operating system refuses to let the check read, list or look up: a structure file, one of
-the `<name>.structure.json` files of `docs/__meta__/`, that it cannot read; a corpus directory, a skills
-directory or a skill entry that it cannot list; and a link on the way to a skill, a skill entry or a skill's
-`SKILL.md` that it cannot follow. A structure file the check expected, with no regular file standing in its
-place, is reported the same way, with nothing refused to name.
+the `<name>.spec.json` files of `docs/__meta__/`, or the legacy `<name>.structure.json`, that it cannot read; a
+corpus directory, a skills directory or a skill entry that it cannot list; and a link on the way to a skill, a
+skill entry or a skill's `SKILL.md` that it cannot follow. A structure file the check expected, with no regular
+file standing in its place, is reported the same way, with nothing refused to name.
 It is reported once, at its path, and nothing under it is loaded. The message names the operation that was
 refused, the path it was refused at, which may be one on the way, and the reason the operating system gave.
 
@@ -40,11 +40,11 @@ loads it unreviewed.
 
 ## Example
 
-`docs/__meta__/guide.structure.json`, with its permissions removed:
+`docs/__meta__/guide.spec.json`, with its permissions removed:
 
 ```console
-$ ls -l docs/__meta__/guide.structure.json
----------- 1 dev dev 24 Oct 12 10:02 docs/__meta__/guide.structure.json
+$ ls -l docs/__meta__/guide.spec.json
+---------- 1 dev dev 24 Oct 12 10:02 docs/__meta__/guide.spec.json
 ```
 
 ## Use instead
@@ -52,9 +52,9 @@ $ ls -l docs/__meta__/guide.structure.json
 Give the path back its permissions:
 
 ```console
-$ chmod 644 docs/__meta__/guide.structure.json
-$ ls -l docs/__meta__/guide.structure.json
--rw-r--r-- 1 dev dev 24 Oct 12 10:02 docs/__meta__/guide.structure.json
+$ chmod 644 docs/__meta__/guide.spec.json
+$ ls -l docs/__meta__/guide.spec.json
+-rw-r--r-- 1 dev dev 24 Oct 12 10:02 docs/__meta__/guide.spec.json
 ```
 
 A directory needs its listing permission back instead, such as `chmod 755 docs/guide`. Where no regular file

@@ -31,7 +31,7 @@ outside it, such as a description too long to list or a name a tool cannot match
 
 ## Example
 
-`docs/__meta__/guide.structure.json`:
+`docs/__meta__/guide.spec.json`:
 
 ```json
 {

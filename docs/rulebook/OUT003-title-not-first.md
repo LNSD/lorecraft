@@ -28,7 +28,7 @@ is read before the agent knows what it belongs to.
 
 ## Example
 
-`docs/__meta__/guide.structure.json`:
+`docs/__meta__/guide.spec.json`:
 
 ```json
 {

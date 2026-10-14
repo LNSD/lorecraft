@@ -27,7 +27,7 @@ agent cannot tell which one the document is, nor that the sections under the sec
 
 ## Example
 
-`docs/__meta__/guide.structure.json`:
+`docs/__meta__/guide.spec.json`:
 
 ```json
 {
