@@ -10,6 +10,8 @@ from dataclasses import dataclass
 
 from jsonschema.exceptions import ValidationError as SchemaValidationError
 
+from lorecraft.core.mapping import Plain
+
 
 @dataclass(frozen=True, slots=True)
 class TypeKeyword:
@@ -55,6 +57,61 @@ class UnevaluatedPropertiesKeyword:
 
 
 @dataclass(frozen=True, slots=True)
+class EnumKeyword:
+    """`enum`: the value must be one of these.
+
+    Attributes:
+        allowed: The values the keyword allows.
+    """
+
+    allowed: tuple[Plain, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class ConstKeyword:
+    """`const`: the value must be this one.
+
+    Attributes:
+        allowed: The one value the keyword allows.
+    """
+
+    allowed: Plain
+
+
+@dataclass(frozen=True, slots=True)
+class PatternKeyword:
+    """`pattern`: the string must match this regular expression.
+
+    Attributes:
+        pattern: The expression, as the schema writes it.
+    """
+
+    pattern: str
+
+
+@dataclass(frozen=True, slots=True)
+class MinPropertiesKeyword:
+    """`minProperties`: the mapping must hold at least this many fields.
+
+    Attributes:
+        limit: The fewest fields allowed; never negative.
+    """
+
+    limit: int
+
+
+@dataclass(frozen=True, slots=True)
+class MaxPropertiesKeyword:
+    """`maxProperties`: the mapping must hold at most this many fields.
+
+    Attributes:
+        limit: The most fields allowed; never negative.
+    """
+
+    limit: int
+
+
+@dataclass(frozen=True, slots=True)
 class OtherKeyword:
     """Any other keyword, or one of the above whose value is not the shape the meta-schema requires."""
 
@@ -65,6 +122,11 @@ type Keyword = (
     | DependentRequiredKeyword
     | AdditionalPropertiesKeyword
     | UnevaluatedPropertiesKeyword
+    | EnumKeyword
+    | ConstKeyword
+    | PatternKeyword
+    | MinPropertiesKeyword
+    | MaxPropertiesKeyword
     | OtherKeyword
 )
 
@@ -79,8 +141,8 @@ def keyword_of(error: SchemaValidationError) -> Keyword:
         error: One error from validating against a schema; its `validator` names the keyword.
     """
     # The error's schema came from `FrozenMapping.to_plain()` and was checked against the meta-schema, but
-    # `jsonschema` types the value as `Any`, so it is read here as the `object` it may be.
-    value: object = error.validator_value
+    # `jsonschema` types the value as `Any`, so it is read here as the `Plain` value it is.
+    value: Plain = error.validator_value
     match error.validator:
         case 'type':
             if isinstance(value, str):
@@ -100,6 +162,21 @@ def keyword_of(error: SchemaValidationError) -> Keyword:
             return AdditionalPropertiesKeyword()
         case 'unevaluatedProperties':
             return UnevaluatedPropertiesKeyword()
+        case 'enum':
+            if isinstance(value, list):
+                return EnumKeyword(tuple(value))
+        case 'const':
+            return ConstKeyword(value)
+        case 'pattern':
+            if isinstance(value, str):
+                return PatternKeyword(value)
+        case 'minProperties':
+            # A negative limit is no schema a validator accepts, so it is no typed keyword rather than an error.
+            if isinstance(value, int) and value >= 0:
+                return MinPropertiesKeyword(value)
+        case 'maxProperties':
+            if isinstance(value, int) and value >= 0:
+                return MaxPropertiesKeyword(value)
     return OtherKeyword()
 
 

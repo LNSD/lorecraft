@@ -8,9 +8,14 @@ from lorecraft.core.mapping import Plain
 
 from ..schema_keyword import (
     AdditionalPropertiesKeyword,
+    ConstKeyword,
     DependentRequiredKeyword,
+    EnumKeyword,
     Keyword,
+    MaxPropertiesKeyword,
+    MinPropertiesKeyword,
     OtherKeyword,
+    PatternKeyword,
     RequiredKeyword,
     TypeKeyword,
     UnevaluatedPropertiesKeyword,
@@ -95,6 +100,61 @@ class TestKeywordOf:
 
         #: Then
         assert keyword == UnevaluatedPropertiesKeyword(), 'unevaluatedProperties is its own variant'
+
+    def test_keyword_of_with_enum_returns_the_allowed_values(self) -> None:
+        #: Given
+        schema: dict[str, Plain] = {'enum': ['a', 1]}
+        instance: Plain = 'z'
+
+        #: When
+        keyword = _keyword(schema, instance)
+
+        #: Then
+        assert keyword == EnumKeyword(('a', 1)), 'enum holds the values it allows'
+
+    def test_keyword_of_with_const_returns_the_allowed_value(self) -> None:
+        #: Given
+        schema: dict[str, Plain] = {'const': 'a'}
+        instance: Plain = 'z'
+
+        #: When
+        keyword = _keyword(schema, instance)
+
+        #: Then
+        assert keyword == ConstKeyword('a'), 'const holds the one value it allows'
+
+    def test_keyword_of_with_pattern_returns_the_expression(self) -> None:
+        #: Given
+        schema: dict[str, Plain] = {'pattern': '^a'}
+        instance: Plain = 'z'
+
+        #: When
+        keyword = _keyword(schema, instance)
+
+        #: Then
+        assert keyword == PatternKeyword('^a'), 'pattern holds its expression'
+
+    def test_keyword_of_with_min_properties_returns_the_limit(self) -> None:
+        #: Given
+        schema: dict[str, Plain] = {'minProperties': 2}
+        instance: Plain = {}
+
+        #: When
+        keyword = _keyword(schema, instance)
+
+        #: Then
+        assert keyword == MinPropertiesKeyword(2), 'minProperties holds its limit'
+
+    def test_keyword_of_with_max_properties_returns_the_limit(self) -> None:
+        #: Given
+        schema: dict[str, Plain] = {'maxProperties': 0}
+        instance: Plain = {'a': 1}
+
+        #: When
+        keyword = _keyword(schema, instance)
+
+        #: Then
+        assert keyword == MaxPropertiesKeyword(0), 'maxProperties holds its limit'
 
     def test_keyword_of_with_any_other_keyword_returns_other(self) -> None:
         #: Given
