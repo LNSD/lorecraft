@@ -182,7 +182,8 @@ class TestParseDocumentHeadings:
         document = parse_document(text)
 
         #: Then
-        assert [heading.text for heading in document.headings] == ['Check list'], (
+        assert len(document.headings) == 1, 'one heading is returned'
+        assert document.headings[0].text == 'Check list', (
             'inline markup is stripped, so a spec can name the section by its words'
         )
 
@@ -194,7 +195,8 @@ class TestParseDocumentHeadings:
         document = parse_document(text)
 
         #: Then
-        assert [heading.text for heading in document.headings] == ['Example'], 'a `#` line in a code block is code'
+        assert len(document.headings) == 1, 'one heading is returned'
+        assert document.headings[0].text == 'Example', 'a `#` line in a code block is code'
 
     def test_parse_document_with_a_heading_in_a_blockquote_leaves_it_out(self) -> None:
         #: Given
@@ -204,7 +206,8 @@ class TestParseDocumentHeadings:
         document = parse_document(text)
 
         #: Then
-        assert [heading.text for heading in document.headings] == ['Example'], (
+        assert len(document.headings) == 1, 'one heading is returned'
+        assert document.headings[0].text == 'Example', (
             'a quoted heading illustrates a document, it does not section this one'
         )
 
@@ -216,9 +219,8 @@ class TestParseDocumentHeadings:
         document = parse_document(text)
 
         #: Then
-        assert [heading.text for heading in document.headings] == ['Example'], (
-            'a heading nested in a list item does not section the document'
-        )
+        assert len(document.headings) == 1, 'one heading is returned'
+        assert document.headings[0].text == 'Example', 'a heading nested in a list item does not section the document'
 
     def test_parse_document_with_a_heading_followed_by_a_sibling_marks_it_empty(self) -> None:
         #: Given
@@ -344,7 +346,8 @@ class TestParseDocumentHeadings:
         document = parse_document(text)
 
         #: Then
-        assert [heading.line for heading in document.headings] == [LineNumber(NonZeroUnsignedInt(2))], (
+        assert len(document.headings) == 1, 'one heading is returned'
+        assert document.headings[0].line == LineNumber(NonZeroUnsignedInt(2)), (
             'the line break opening the document counts, so the heading after it is on line 2'
         )
 
