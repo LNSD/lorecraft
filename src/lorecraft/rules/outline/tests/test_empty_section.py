@@ -12,7 +12,7 @@ from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.schemas import SectionEntry, SectionName
 from lorecraft.project.syntax import LineNumber
-from lorecraft.rules.location import Elsewhere, Help, Note, Subdiagnostic
+from lorecraft.rules.location import Elsewhere, Help, Note
 from lorecraft.rules.tests.fake_context import FakeDocumentContext, namespace_spec, structure_spec_path
 
 from ..empty_section import EmptySection, EmptyTitle, OtherSection
@@ -232,18 +232,17 @@ class TestEmptySection:
             EmptySection(spec=CORPUS_SPEC, line=LineNumber(NonZeroUnsignedInt(3)), section='Install', role=entry),
         ), 'the entry is looked up across every specification, not only the one that forbids empty sections'
 
-    def _children(self, role: EmptyTitle | SectionEntry | OtherSection) -> tuple[Subdiagnostic, ...]:
-        occurrence = EmptySection(
-            spec=CORPUS_SPEC, line=LineNumber(NonZeroUnsignedInt(3)), section='Install', role=role
-        )
-        return occurrence.children()
+    def _occurrence(self, role: EmptyTitle | SectionEntry | OtherSection) -> EmptySection:
+        return EmptySection(spec=CORPUS_SPEC, line=LineNumber(NonZeroUnsignedInt(3)), section='Install', role=role)
 
     def test_children_with_a_section_the_outline_does_not_require_say_to_omit_it(self) -> None:
         #: Given
         role = OtherSection()
 
+        occurrence = self._occurrence(role)
+
         #: When
-        children = self._children(role)
+        children = occurrence.children()
 
         #: Then
         assert children == (
@@ -255,8 +254,10 @@ class TestEmptySection:
         #: Given
         role = EmptyTitle()
 
+        occurrence = self._occurrence(role)
+
         #: When
-        children = self._children(role)
+        children = occurrence.children()
 
         #: Then
         assert children == (
@@ -272,8 +273,10 @@ class TestEmptySection:
             examples=('Run `pip install`.', 'Run `uv add`.'),
         )
 
+        occurrence = self._occurrence(entry)
+
         #: When
-        children = self._children(entry)
+        children = occurrence.children()
 
         #: Then
         assert children == (
@@ -286,8 +289,10 @@ class TestEmptySection:
         #: Given
         entry = SectionEntry(name=SectionName.parse('Install'))
 
+        occurrence = self._occurrence(entry)
+
         #: When
-        children = self._children(entry)
+        children = occurrence.children()
 
         #: Then
         assert children == (

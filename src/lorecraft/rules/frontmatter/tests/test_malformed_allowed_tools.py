@@ -239,7 +239,7 @@ class TestMalformedAllowedTools:
             MalformedAllowedTools(line=LineNumber(NonZeroUnsignedInt(4)), problem=UnbalancedParentheses(entry='(a')),
         ), 'an entry that opens a pattern without closing it is unbalanced'
 
-    def test_message_says_the_field_is_not_a_list_of_tool_entries(self) -> None:
+    def test_message_with_an_occurrence_says_the_field_is_not_a_list_of_tool_entries(self) -> None:
         #: Given
         occurrence = MalformedAllowedTools(
             line=LineNumber(NonZeroUnsignedInt(4)), problem=CommaSeparated(entry='Read,', suggested='Read')

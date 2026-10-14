@@ -122,7 +122,7 @@ class TestAllowedToolsTooLong:
         #: Then
         assert occurrences == (), 'missing, invalid and non-string frontmatter is left to its own rules'
 
-    def test_message_names_the_length_and_recommendation(self) -> None:
+    def test_message_with_an_occurrence_names_the_length_and_recommendation(self) -> None:
         #: Given
         occurrence = AllowedToolsTooLong(line=LineNumber(NonZeroUnsignedInt(4)), overrun=overrun(501, 500))
 
@@ -132,7 +132,7 @@ class TestAllowedToolsTooLong:
         #: Then
         assert message == '`allowed-tools` value too long (501 > 500)', 'the value and recommendation are explicit'
 
-    def test_labels_name_what_is_over_the_recommendation_on_the_field_line(self) -> None:
+    def test_labels_with_an_occurrence_name_what_is_over_the_recommendation_on_the_field_line(self) -> None:
         #: Given
         occurrence = AllowedToolsTooLong(line=LineNumber(NonZeroUnsignedInt(4)), overrun=overrun(520, 500))
 
@@ -144,7 +144,9 @@ class TestAllowedToolsTooLong:
             'the label names what overruns and carries no number: the message has it'
         )
 
-    def test_children_say_how_to_shorten_the_value_and_where_the_limit_comes_from(self) -> None:
+    def test_children_with_an_occurrence_say_how_to_shorten_the_value_and_where_the_limit_comes_from(
+        self,
+    ) -> None:
         #: Given
         occurrence = AllowedToolsTooLong(line=LineNumber(NonZeroUnsignedInt(4)), overrun=overrun(501, 500))
 
