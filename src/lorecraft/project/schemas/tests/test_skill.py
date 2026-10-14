@@ -7,7 +7,7 @@ from typing import Final
 
 import pytest
 
-from lorecraft.core.mapping import FrozenMapping
+from lorecraft.core.mapping import FrozenMapping, Plain
 
 from ..frontmatter_problem import (
     FieldGuidance,
@@ -73,7 +73,7 @@ SPECIFIED_FIELDS: Final[tuple[str, ...]] = (
 class TestSkillFrontmatterSchemaValidate:
     def test_validate_with_every_field_returns_no_problems(self) -> None:
         #: Given
-        data: dict[str, object] = {
+        data: dict[str, Plain] = {
             'name': 'pdf-processing',
             'description': 'Extract PDF text, fill forms, merge files. Use when handling PDFs.',
             'license': 'Apache-2.0',
@@ -90,7 +90,7 @@ class TestSkillFrontmatterSchemaValidate:
 
     def test_validate_without_the_required_fields_returns_one_missing_problem_each(self) -> None:
         #: Given
-        data: dict[str, object] = {}
+        data: dict[str, Plain] = {}
 
         #: When
         problems = SKILL_FRONTMATTER_SCHEMA.validate(FrozenMapping.from_plain(data))
@@ -103,7 +103,7 @@ class TestSkillFrontmatterSchemaValidate:
 
     def test_validate_with_a_field_outside_the_specification_returns_an_unknown_field_problem(self) -> None:
         #: Given
-        data: dict[str, object] = {'name': 'review', 'description': 'Review code.', 'model': 'opus'}
+        data: dict[str, Plain] = {'name': 'review', 'description': 'Review code.', 'model': 'opus'}
 
         #: When
         problems = SKILL_FRONTMATTER_SCHEMA.validate(FrozenMapping.from_plain(data))
@@ -119,7 +119,7 @@ class TestSkillFrontmatterSchemaValidate:
 
     def test_validate_with_a_name_that_is_not_a_string_returns_a_wrong_type_problem(self) -> None:
         #: Given
-        data: dict[str, object] = {'name': None, 'description': 'Review code.'}
+        data: dict[str, Plain] = {'name': None, 'description': 'Review code.'}
 
         #: When
         problems = SKILL_FRONTMATTER_SCHEMA.validate(FrozenMapping.from_plain(data))
@@ -133,7 +133,7 @@ class TestSkillFrontmatterSchemaValidate:
 
     def test_validate_with_metadata_that_is_not_a_mapping_returns_a_wrong_type_problem(self) -> None:
         #: Given
-        data: dict[str, object] = {'name': 'review', 'description': 'Review code.', 'metadata': 'author'}
+        data: dict[str, Plain] = {'name': 'review', 'description': 'Review code.', 'metadata': 'author'}
 
         #: When
         problems = SKILL_FRONTMATTER_SCHEMA.validate(FrozenMapping.from_plain(data))
@@ -151,7 +151,7 @@ class TestSkillFrontmatterSchemaValidate:
 
     def test_validate_with_an_unquoted_metadata_number_returns_an_invalid_value_problem(self) -> None:
         #: Given
-        data: dict[str, object] = {'name': 'review', 'description': 'Review code.', 'metadata': {'version': 1.0}}
+        data: dict[str, Plain] = {'name': 'review', 'description': 'Review code.', 'metadata': {'version': 1.0}}
 
         #: When
         problems = SKILL_FRONTMATTER_SCHEMA.validate(FrozenMapping.from_plain(data))
@@ -165,7 +165,7 @@ class TestSkillFrontmatterSchemaValidate:
 
     def test_validate_with_an_empty_name_returns_the_value_objects_own_message(self) -> None:
         #: Given
-        data: dict[str, object] = {'name': '', 'description': 'Review code.'}
+        data: dict[str, Plain] = {'name': '', 'description': 'Review code.'}
 
         #: When
         problems = SKILL_FRONTMATTER_SCHEMA.validate(FrozenMapping.from_plain(data))
@@ -178,7 +178,7 @@ class TestSkillFrontmatterSchemaValidate:
     def test_validate_with_a_name_over_64_characters_returns_the_value_objects_own_message(self) -> None:
         #: Given
         name = 'a' * 65
-        data: dict[str, object] = {'name': name, 'description': 'Review code.'}
+        data: dict[str, Plain] = {'name': name, 'description': 'Review code.'}
 
         #: When
         problems = SKILL_FRONTMATTER_SCHEMA.validate(FrozenMapping.from_plain(data))
@@ -195,7 +195,7 @@ class TestSkillFrontmatterSchemaValidate:
 
     def test_validate_with_an_uppercase_name_returns_the_value_objects_own_message(self) -> None:
         #: Given
-        data: dict[str, object] = {'name': 'PDF', 'description': 'Review code.'}
+        data: dict[str, Plain] = {'name': 'PDF', 'description': 'Review code.'}
 
         #: When
         problems = SKILL_FRONTMATTER_SCHEMA.validate(FrozenMapping.from_plain(data))
@@ -213,7 +213,7 @@ class TestSkillFrontmatterSchemaValidate:
 
     def test_validate_with_braces_in_a_rejected_name_returns_the_braces_unformatted(self) -> None:
         #: Given
-        data: dict[str, object] = {'name': '{reason}', 'description': 'Review code.'}
+        data: dict[str, Plain] = {'name': '{reason}', 'description': 'Review code.'}
 
         #: When
         problems = SKILL_FRONTMATTER_SCHEMA.validate(FrozenMapping.from_plain(data))
@@ -231,7 +231,7 @@ class TestSkillFrontmatterSchemaValidate:
 
     def test_validate_with_a_description_over_the_limit_returns_an_invalid_value_problem(self) -> None:
         #: Given
-        data: dict[str, object] = {'name': 'review', 'description': 'x' * 1025}
+        data: dict[str, Plain] = {'name': 'review', 'description': 'x' * 1025}
 
         #: When
         problems = SKILL_FRONTMATTER_SCHEMA.validate(FrozenMapping.from_plain(data))
@@ -248,7 +248,7 @@ class TestSkillFrontmatterSchemaValidate:
 
     def test_validate_with_a_blank_compatibility_returns_an_invalid_value_problem(self) -> None:
         #: Given
-        data: dict[str, object] = {'name': 'review', 'description': 'Review code.', 'compatibility': ' '}
+        data: dict[str, Plain] = {'name': 'review', 'description': 'Review code.', 'compatibility': ' '}
 
         #: When
         problems = SKILL_FRONTMATTER_SCHEMA.validate(FrozenMapping.from_plain(data))
@@ -265,7 +265,7 @@ class TestSkillFrontmatterSchemaValidate:
 
     def test_validate_with_allowed_tools_spelt_with_an_underscore_returns_an_unknown_field_problem(self) -> None:
         #: Given
-        data: dict[str, object] = {'name': 'review', 'description': 'Review code.', 'allowed_tools': 'Read'}
+        data: dict[str, Plain] = {'name': 'review', 'description': 'Review code.', 'allowed_tools': 'Read'}
 
         #: When
         problems = SKILL_FRONTMATTER_SCHEMA.validate(FrozenMapping.from_plain(data))

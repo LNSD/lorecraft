@@ -6,7 +6,7 @@ down, and turned back into plain data.
 
 import pytest
 
-from ..mapping import Frozen, FrozenMapping
+from ..mapping import Frozen, FrozenMapping, NonPlainValueError, NonStringKeyError, Plain
 
 
 @pytest.mark.unit
@@ -181,7 +181,7 @@ class TestFrozenMappingFromPlain:
 
     def test_from_plain_with_every_kind_of_scalar_keeps_each_one(self) -> None:
         #: Given
-        mapping: dict[str, object] = {
+        mapping: dict[str, Plain] = {
             'name': 'guide',
             'count': 3,
             'weight': 1.5,
@@ -194,6 +194,28 @@ class TestFrozenMappingFromPlain:
 
         #: Then
         assert frozen == FrozenMapping(mapping), 'a string, a number, a bool and null are kept as they are'
+
+    def test_from_plain_with_a_non_string_key_raises_non_string_key_error(self) -> None:
+        #: Given
+        mapping: dict[str, object] = {'nested': {1: 'v'}}
+
+        #: When
+        with pytest.raises(NonStringKeyError) as exc_info:
+            FrozenMapping.from_plain(mapping)  # ty: ignore[invalid-argument-type]
+
+        #: Then
+        assert exc_info.value.key == 1, 'the key that is not a string is reported, at any depth'
+
+    def test_from_plain_with_a_set_value_raises_non_plain_value_error(self) -> None:
+        #: Given
+        mapping: dict[str, object] = {'tags': {'a', 'b'}}
+
+        #: When
+        with pytest.raises(NonPlainValueError) as exc_info:
+            FrozenMapping.from_plain(mapping)  # ty: ignore[invalid-argument-type]
+
+        #: Then
+        assert exc_info.value.value_type is set, 'a value that is not a mapping, a list or a scalar is refused'
 
 
 @pytest.mark.unit

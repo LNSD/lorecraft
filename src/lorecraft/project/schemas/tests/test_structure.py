@@ -10,7 +10,7 @@ from typing import Final
 
 import pytest
 
-from lorecraft.core.mapping import FrozenMapping
+from lorecraft.core.mapping import FrozenMapping, Plain
 from lorecraft.core.num import NonZeroUnsignedInt, UnsignedInt
 from lorecraft.core.path import PathComponent, RootRelativePath
 
@@ -1150,7 +1150,7 @@ class TestStructureSpecAuthority:
 class TestFrontmatterSchema:
     def test_construction_with_an_object_schema_keeps_it(self) -> None:
         #: Given
-        schema: dict[str, object] = {'type': 'object', 'required': ['name'], 'description': 'read by people'}
+        schema: dict[str, Plain] = {'type': 'object', 'required': ['name'], 'description': 'read by people'}
 
         #: When
         frontmatter = FrontmatterSchema(path=SPEC_PATH, schema=FrozenMapping.from_plain(schema))
@@ -1160,7 +1160,7 @@ class TestFrontmatterSchema:
 
     def test_construction_with_the_draft_2020_12_dialect_in_schema_keeps_it(self) -> None:
         #: Given
-        schema: dict[str, object] = {'$schema': 'https://json-schema.org/draft/2020-12/schema', 'type': 'object'}
+        schema: dict[str, Plain] = {'$schema': 'https://json-schema.org/draft/2020-12/schema', 'type': 'object'}
 
         #: When
         frontmatter = FrontmatterSchema(path=SPEC_PATH, schema=FrozenMapping.from_plain(schema))
@@ -1170,7 +1170,7 @@ class TestFrontmatterSchema:
 
     def test_construction_with_root_combinators_beside_the_type_keeps_it(self) -> None:
         #: Given
-        schema: dict[str, object] = {
+        schema: dict[str, Plain] = {
             'type': 'object',
             'if': {'properties': {'type': {'const': 'pattern'}}},
             'then': {'required': ['scope']},
@@ -1186,7 +1186,7 @@ class TestFrontmatterSchema:
 
     def test_construction_with_an_id_inside_an_enum_value_keeps_it(self) -> None:
         #: Given
-        schema: dict[str, object] = {'type': 'object', 'properties': {'ref': {'enum': [{'$id': 'data'}]}}}
+        schema: dict[str, Plain] = {'type': 'object', 'properties': {'ref': {'enum': [{'$id': 'data'}]}}}
 
         #: When
         frontmatter = FrontmatterSchema(path=SPEC_PATH, schema=FrozenMapping.from_plain(schema))
@@ -1198,7 +1198,7 @@ class TestFrontmatterSchema:
 
     def test_construction_with_a_malformed_schema_raises_invalid_frontmatter_schema_error(self) -> None:
         #: Given
-        schema: dict[str, object] = {'type': 'object', 'required': 'name'}
+        schema: dict[str, Plain] = {'type': 'object', 'required': 'name'}
 
         #: When
         with pytest.raises(InvalidFrontmatterSchemaError) as exc_info:
@@ -1213,7 +1213,7 @@ class TestFrontmatterSchema:
 
     def test_construction_without_a_type_raises_untyped_frontmatter_schema_error(self) -> None:
         #: Given
-        schema: dict[str, object] = {'required': ['name']}
+        schema: dict[str, Plain] = {'required': ['name']}
 
         #: When
         with pytest.raises(UntypedFrontmatterSchemaError) as exc_info:
@@ -1225,7 +1225,7 @@ class TestFrontmatterSchema:
 
     def test_construction_with_a_non_object_type_raises_untyped_frontmatter_schema_error(self) -> None:
         #: Given
-        schema: dict[str, object] = {'type': 'array'}
+        schema: dict[str, Plain] = {'type': 'array'}
 
         #: When
         with pytest.raises(UntypedFrontmatterSchemaError) as exc_info:
@@ -1236,7 +1236,7 @@ class TestFrontmatterSchema:
 
     def test_construction_with_a_type_list_raises_untyped_frontmatter_schema_error(self) -> None:
         #: Given
-        schema: dict[str, object] = {'type': ['object', 'null']}
+        schema: dict[str, Plain] = {'type': ['object', 'null']}
 
         #: When
         with pytest.raises(UntypedFrontmatterSchemaError) as exc_info:
@@ -1247,7 +1247,7 @@ class TestFrontmatterSchema:
 
     def test_construction_with_an_id_raises_frontmatter_schema_id_error(self) -> None:
         #: Given
-        schema: dict[str, object] = {'$id': 'https://example.com/code', 'type': 'object'}
+        schema: dict[str, Plain] = {'$id': 'https://example.com/code', 'type': 'object'}
 
         #: When
         with pytest.raises(FrontmatterSchemaIdError) as exc_info:
@@ -1259,7 +1259,7 @@ class TestFrontmatterSchema:
 
     def test_construction_with_an_id_in_a_nested_schema_raises_frontmatter_schema_id_error(self) -> None:
         #: Given
-        schema: dict[str, object] = {'type': 'object', 'properties': {'name': {'$id': 'https://example.com/name'}}}
+        schema: dict[str, Plain] = {'type': 'object', 'properties': {'name': {'$id': 'https://example.com/name'}}}
 
         #: When
         with pytest.raises(FrontmatterSchemaIdError) as exc_info:
@@ -1270,7 +1270,7 @@ class TestFrontmatterSchema:
 
     def test_construction_with_a_foreign_dialect_raises_foreign_frontmatter_dialect_error(self) -> None:
         #: Given
-        schema: dict[str, object] = {'$schema': 'http://json-schema.org/draft-07/schema#', 'type': 'object'}
+        schema: dict[str, Plain] = {'$schema': 'http://json-schema.org/draft-07/schema#', 'type': 'object'}
 
         #: When
         with pytest.raises(ForeignFrontmatterDialectError) as exc_info:
@@ -1289,7 +1289,7 @@ class TestFrontmatterSchema:
         self,
     ) -> None:
         #: Given
-        schema: dict[str, object] = {
+        schema: dict[str, Plain] = {
             'type': 'object',
             '$defs': {'scope': {'$schema': 'http://json-schema.org/draft-07/schema#', 'type': 'string'}},
         }
@@ -1306,7 +1306,7 @@ class TestFrontmatterSchema:
         frontmatter = FrontmatterSchema(
             path=SPEC_PATH, schema=FrozenMapping.from_plain({'type': 'object', 'required': ['name']})
         )
-        data: dict[str, object] = {'name': 'guide'}
+        data: dict[str, Plain] = {'name': 'guide'}
 
         #: When
         problems = frontmatter.validate(FrozenMapping.from_plain(data))
@@ -1319,7 +1319,7 @@ class TestFrontmatterSchema:
         frontmatter = FrontmatterSchema(
             path=SPEC_PATH, schema=FrozenMapping.from_plain({'type': 'object', 'required': ['name', 'type']})
         )
-        data: dict[str, object] = {}
+        data: dict[str, Plain] = {}
 
         #: When
         problems = frontmatter.validate(FrozenMapping.from_plain(data))
@@ -1335,7 +1335,7 @@ class TestFrontmatterSchema:
         frontmatter = FrontmatterSchema(
             path=SPEC_PATH, schema=FrozenMapping.from_plain({'type': 'object', 'required': ['name', 'type']})
         )
-        data: dict[str, object] = {'name': 'guide'}
+        data: dict[str, Plain] = {'name': 'guide'}
 
         #: When
         problems = frontmatter.validate(FrozenMapping.from_plain(data))
@@ -1348,12 +1348,12 @@ class TestFrontmatterSchema:
     def test_validate_with_two_fields_at_fault_orders_the_problems_by_field_before_message(self) -> None:
         #: Given
         # `name` sorts before `type`, while their messages sort the other way round
-        schema: dict[str, object] = {
+        schema: dict[str, Plain] = {
             'type': 'object',
             'properties': {'name': {'type': 'string'}, 'type': {'enum': ['rule', 'pattern']}},
         }
         frontmatter = FrontmatterSchema(path=SPEC_PATH, schema=FrozenMapping.from_plain(schema))
-        data: dict[str, object] = {'name': 3, 'type': 'guide'}
+        data: dict[str, Plain] = {'name': 3, 'type': 'guide'}
 
         #: When
         problems = frontmatter.validate(FrozenMapping.from_plain(data))
@@ -1371,14 +1371,14 @@ class TestFrontmatterSchema:
 
     def test_validate_with_fields_the_schema_does_not_allow_returns_one_unknown_field_problem_each(self) -> None:
         #: Given
-        schema: dict[str, object] = {
+        schema: dict[str, Plain] = {
             'type': 'object',
             'properties': {'name': {}},
             'patternProperties': {'^x-': {}},
             'additionalProperties': False,
         }
         frontmatter = FrontmatterSchema(path=SPEC_PATH, schema=FrozenMapping.from_plain(schema))
-        data: dict[str, object] = {'name': 'guide', 'x-owner': 'me', 'model': 'opus', 'tier': 1}
+        data: dict[str, Plain] = {'name': 'guide', 'x-owner': 'me', 'model': 'opus', 'tier': 1}
 
         #: When
         problems = frontmatter.validate(FrozenMapping.from_plain(data))
@@ -1400,7 +1400,7 @@ class TestFrontmatterSchema:
     def test_validate_with_fields_no_keyword_evaluates_returns_one_unknown_field_problem_each(self) -> None:
         #: Given
         # `name` and `description` are evaluated only through `allOf`, which `additionalProperties` would not see
-        schema: dict[str, object] = {
+        schema: dict[str, Plain] = {
             'type': 'object',
             'allOf': [{'$ref': '#/$defs/base'}],
             'properties': {'status': {}},
@@ -1408,7 +1408,7 @@ class TestFrontmatterSchema:
             '$defs': {'base': {'properties': {'name': {}, 'description': {}}}},
         }
         frontmatter = FrontmatterSchema(path=SPEC_PATH, schema=FrozenMapping.from_plain(schema))
-        data: dict[str, object] = {
+        data: dict[str, Plain] = {
             'name': 'guide',
             'description': 'A guide.',
             'status': 'draft',
@@ -1432,13 +1432,13 @@ class TestFrontmatterSchema:
         self,
     ) -> None:
         #: Given
-        schema: dict[str, object] = {
+        schema: dict[str, Plain] = {
             'type': 'object',
             'allOf': [{'properties': {'name': {}}}],
             'unevaluatedProperties': {'type': 'string'},
         }
         frontmatter = FrontmatterSchema(path=SPEC_PATH, schema=FrozenMapping.from_plain(schema))
-        data: dict[str, object] = {'name': 3, 'owner': 'me', 'tier': 1}
+        data: dict[str, Plain] = {'name': 3, 'owner': 'me', 'tier': 1}
 
         #: When
         problems = frontmatter.validate(FrozenMapping.from_plain(data))
@@ -1450,9 +1450,9 @@ class TestFrontmatterSchema:
 
     def test_validate_with_a_value_of_the_wrong_type_returns_a_wrong_type_problem(self) -> None:
         #: Given
-        schema: dict[str, object] = {'type': 'object', 'properties': {'name': {'type': 'string'}}}
+        schema: dict[str, Plain] = {'type': 'object', 'properties': {'name': {'type': 'string'}}}
         frontmatter = FrontmatterSchema(path=SPEC_PATH, schema=FrozenMapping.from_plain(schema))
-        data: dict[str, object] = {'name': 3}
+        data: dict[str, Plain] = {'name': 3}
 
         #: When
         problems = frontmatter.validate(FrozenMapping.from_plain(data))
@@ -1464,9 +1464,9 @@ class TestFrontmatterSchema:
 
     def test_validate_with_a_value_outside_an_enum_returns_an_invalid_value_problem(self) -> None:
         #: Given
-        schema: dict[str, object] = {'type': 'object', 'properties': {'type': {'enum': ['rule', 'pattern']}}}
+        schema: dict[str, Plain] = {'type': 'object', 'properties': {'type': {'enum': ['rule', 'pattern']}}}
         frontmatter = FrontmatterSchema(path=SPEC_PATH, schema=FrozenMapping.from_plain(schema))
-        data: dict[str, object] = {'type': 'guide'}
+        data: dict[str, Plain] = {'type': 'guide'}
 
         #: When
         problems = frontmatter.validate(FrozenMapping.from_plain(data))
@@ -1483,13 +1483,13 @@ class TestFrontmatterSchema:
 
     def test_validate_with_a_value_breaking_a_pattern_returns_the_pattern_and_the_comment(self) -> None:
         #: Given
-        schema: dict[str, object] = {
+        schema: dict[str, Plain] = {
             'type': 'object',
             'properties': {'name': {'type': 'string', 'description': 'Kebab-case.', 'examples': ['setup-guide']}},
             'allOf': [{'properties': {'name': {'pattern': '^[a-z-]+$'}}, '$comment': 'Lowercase words only.'}],
         }
         frontmatter = FrontmatterSchema(path=SPEC_PATH, schema=FrozenMapping.from_plain(schema))
-        data: dict[str, object] = {'name': 'Setup'}
+        data: dict[str, Plain] = {'name': 'Setup'}
 
         #: When
         problems = frontmatter.validate(FrozenMapping.from_plain(data))
@@ -1507,7 +1507,7 @@ class TestFrontmatterSchema:
 
     def test_validate_with_a_failing_subschema_that_has_a_comment_returns_it_as_the_reason(self) -> None:
         #: Given
-        schema: dict[str, object] = {
+        schema: dict[str, Plain] = {
             'type': 'object',
             'properties': {
                 'description': {
@@ -1517,7 +1517,7 @@ class TestFrontmatterSchema:
             },
         }
         frontmatter = FrontmatterSchema(path=SPEC_PATH, schema=FrozenMapping.from_plain(schema))
-        data: dict[str, object] = {'description': 'Load when x.'}
+        data: dict[str, Plain] = {'description': 'Load when x.'}
 
         #: When
         problems = frontmatter.validate(FrozenMapping.from_plain(data))
@@ -1534,9 +1534,9 @@ class TestFrontmatterSchema:
 
     def test_validate_with_a_value_other_than_a_const_returns_the_value_allowed(self) -> None:
         #: Given
-        schema: dict[str, object] = {'type': 'object', 'properties': {'type': {'const': 'rule'}}}
+        schema: dict[str, Plain] = {'type': 'object', 'properties': {'type': {'const': 'rule'}}}
         frontmatter = FrontmatterSchema(path=SPEC_PATH, schema=FrozenMapping.from_plain(schema))
-        data: dict[str, object] = {'type': 'guide'}
+        data: dict[str, Plain] = {'type': 'guide'}
 
         #: When
         problems = frontmatter.validate(FrozenMapping.from_plain(data))
@@ -1553,12 +1553,12 @@ class TestFrontmatterSchema:
 
     def test_validate_with_an_item_outside_an_enum_returns_an_untyped_constraint(self) -> None:
         #: Given
-        schema: dict[str, object] = {
+        schema: dict[str, Plain] = {
             'type': 'object',
             'properties': {'tags': {'type': 'array', 'items': {'enum': ['a', 'b']}}},
         }
         frontmatter = FrontmatterSchema(path=SPEC_PATH, schema=FrozenMapping.from_plain(schema))
-        data: dict[str, object] = {'tags': ['c']}
+        data: dict[str, Plain] = {'tags': ['c']}
 
         #: When
         problems = frontmatter.validate(FrozenMapping.from_plain(data))
@@ -1570,12 +1570,12 @@ class TestFrontmatterSchema:
 
     def test_validate_with_an_item_breaking_a_pattern_returns_an_untyped_constraint(self) -> None:
         #: Given
-        schema: dict[str, object] = {
+        schema: dict[str, Plain] = {
             'type': 'object',
             'properties': {'tags': {'type': 'array', 'items': {'pattern': '^[a-z]+$'}}},
         }
         frontmatter = FrontmatterSchema(path=SPEC_PATH, schema=FrozenMapping.from_plain(schema))
-        data: dict[str, object] = {'tags': ['A']}
+        data: dict[str, Plain] = {'tags': ['A']}
 
         #: When
         problems = frontmatter.validate(FrozenMapping.from_plain(data))
@@ -1587,12 +1587,12 @@ class TestFrontmatterSchema:
 
     def test_validate_with_an_unknown_key_inside_a_field_returns_an_invalid_value_problem_on_the_field(self) -> None:
         #: Given
-        schema: dict[str, object] = {
+        schema: dict[str, Plain] = {
             'type': 'object',
             'properties': {'metadata': {'type': 'object', 'properties': {'author': {}}, 'additionalProperties': False}},
         }
         frontmatter = FrontmatterSchema(path=SPEC_PATH, schema=FrozenMapping.from_plain(schema))
-        data: dict[str, object] = {'metadata': {'owner': 'me'}}
+        data: dict[str, Plain] = {'metadata': {'owner': 'me'}}
 
         #: When
         problems = frontmatter.validate(FrozenMapping.from_plain(data))
@@ -1608,12 +1608,12 @@ class TestFrontmatterSchema:
 
     def test_validate_with_a_list_value_matches_it_as_a_json_array(self) -> None:
         #: Given
-        schema: dict[str, object] = {
+        schema: dict[str, Plain] = {
             'type': 'object',
             'properties': {'tags': {'type': 'array', 'items': {'type': 'string'}}, 'meta': {'type': 'object'}},
         }
         frontmatter = FrontmatterSchema(path=SPEC_PATH, schema=FrozenMapping.from_plain(schema))
-        data: dict[str, object] = {'tags': ['a', 'b'], 'meta': {'owner': 'me'}}
+        data: dict[str, Plain] = {'tags': ['a', 'b'], 'meta': {'owner': 'me'}}
 
         #: When
         problems = frontmatter.validate(FrozenMapping.from_plain(data))
@@ -1623,9 +1623,9 @@ class TestFrontmatterSchema:
 
     def test_validate_with_a_list_where_a_string_belongs_quotes_it_as_a_list(self) -> None:
         #: Given
-        schema: dict[str, object] = {'type': 'object', 'properties': {'name': {'type': 'string'}}}
+        schema: dict[str, Plain] = {'type': 'object', 'properties': {'name': {'type': 'string'}}}
         frontmatter = FrontmatterSchema(path=SPEC_PATH, schema=FrozenMapping.from_plain(schema))
-        data: dict[str, object] = {'name': ['a']}
+        data: dict[str, Plain] = {'name': ['a']}
 
         #: When
         problems = frontmatter.validate(FrozenMapping.from_plain(data))
@@ -1640,7 +1640,7 @@ class TestFrontmatterSchema:
         frontmatter = FrontmatterSchema(
             path=SPEC_PATH, schema=FrozenMapping.from_plain({'type': 'object', 'minProperties': 1})
         )
-        data: dict[str, object] = {}
+        data: dict[str, Plain] = {}
 
         #: When
         problems = frontmatter.validate(FrozenMapping.from_plain(data))
@@ -1652,9 +1652,9 @@ class TestFrontmatterSchema:
 
     def test_validate_with_too_many_fields_returns_a_block_problem_with_the_limit_and_the_description(self) -> None:
         #: Given
-        schema: dict[str, object] = {'type': 'object', 'description': 'A guide.', 'maxProperties': 1}
+        schema: dict[str, Plain] = {'type': 'object', 'description': 'A guide.', 'maxProperties': 1}
         frontmatter = FrontmatterSchema(path=SPEC_PATH, schema=FrozenMapping.from_plain(schema))
-        data: dict[str, object] = {'name': 'guide', 'type': 'rule'}
+        data: dict[str, Plain] = {'name': 'guide', 'type': 'rule'}
 
         #: When
         problems = frontmatter.validate(FrozenMapping.from_plain(data))
@@ -1671,9 +1671,9 @@ class TestFrontmatterSchema:
 
     def test_validate_with_another_rule_over_the_block_returns_a_block_problem_without_a_typed_limit(self) -> None:
         #: Given
-        schema: dict[str, object] = {'type': 'object', 'not': {'required': ['name']}}
+        schema: dict[str, Plain] = {'type': 'object', 'not': {'required': ['name']}}
         frontmatter = FrontmatterSchema(path=SPEC_PATH, schema=FrozenMapping.from_plain(schema))
-        data: dict[str, object] = {'name': 'guide'}
+        data: dict[str, Plain] = {'name': 'guide'}
 
         #: When
         problems = frontmatter.validate(FrozenMapping.from_plain(data))
@@ -1689,9 +1689,9 @@ class TestFrontmatterSchema:
 
     def test_validate_with_a_key_propertynames_rejects_returns_an_invalid_value_problem_on_the_key(self) -> None:
         #: Given
-        schema: dict[str, object] = {'type': 'object', 'propertyNames': {'pattern': '^[a-z]+$'}}
+        schema: dict[str, Plain] = {'type': 'object', 'propertyNames': {'pattern': '^[a-z]+$'}}
         frontmatter = FrontmatterSchema(path=SPEC_PATH, schema=FrozenMapping.from_plain(schema))
-        data: dict[str, object] = {'name': 'guide', 'B_': 2}
+        data: dict[str, Plain] = {'name': 'guide', 'B_': 2}
 
         #: When
         problems = frontmatter.validate(FrozenMapping.from_plain(data))
@@ -1703,9 +1703,9 @@ class TestFrontmatterSchema:
 
     def test_validate_with_a_missing_dependency_returns_an_invalid_value_problem_on_the_field(self) -> None:
         #: Given
-        schema: dict[str, object] = {'type': 'object', 'dependentRequired': {'status': ['owner', 'date']}}
+        schema: dict[str, Plain] = {'type': 'object', 'dependentRequired': {'status': ['owner', 'date']}}
         frontmatter = FrontmatterSchema(path=SPEC_PATH, schema=FrozenMapping.from_plain(schema))
-        data: dict[str, object] = {'status': 'draft', 'owner': 'me'}
+        data: dict[str, Plain] = {'status': 'draft', 'owner': 'me'}
 
         #: When
         problems = frontmatter.validate(FrozenMapping.from_plain(data))
@@ -1717,7 +1717,7 @@ class TestFrontmatterSchema:
 
     def test_validate_with_a_missing_field_the_schema_describes_returns_its_guidance(self) -> None:
         #: Given
-        schema: dict[str, object] = {
+        schema: dict[str, Plain] = {
             'type': 'object',
             'required': ['type', 'name'],
             'properties': {
@@ -1726,7 +1726,7 @@ class TestFrontmatterSchema:
             },
         }
         frontmatter = FrontmatterSchema(path=SPEC_PATH, schema=FrozenMapping.from_plain(schema))
-        data: dict[str, object] = {}
+        data: dict[str, Plain] = {}
 
         #: When
         problems = frontmatter.validate(FrozenMapping.from_plain(data))
@@ -1743,14 +1743,14 @@ class TestFrontmatterSchema:
 
     def test_validate_with_a_required_field_in_a_branch_returns_it_without_guidance(self) -> None:
         #: Given
-        schema: dict[str, object] = {
+        schema: dict[str, Plain] = {
             'type': 'object',
             'properties': {'status': {'type': 'string'}, 'owner': {'description': 'Who maintains it.'}},
             'if': {'properties': {'status': {'const': 'stable'}}, 'required': ['status']},
             'then': {'required': ['owner']},
         }
         frontmatter = FrontmatterSchema(path=SPEC_PATH, schema=FrozenMapping.from_plain(schema))
-        data: dict[str, object] = {'status': 'stable'}
+        data: dict[str, Plain] = {'status': 'stable'}
 
         #: When
         problems = frontmatter.validate(FrozenMapping.from_plain(data))
@@ -1762,9 +1762,9 @@ class TestFrontmatterSchema:
 
     def test_validate_with_a_value_of_one_of_several_types_returns_every_type_expected(self) -> None:
         #: Given
-        schema: dict[str, object] = {'type': 'object', 'properties': {'tags': {'type': ['string', 'null']}}}
+        schema: dict[str, Plain] = {'type': 'object', 'properties': {'tags': {'type': ['string', 'null']}}}
         frontmatter = FrontmatterSchema(path=SPEC_PATH, schema=FrozenMapping.from_plain(schema))
-        data: dict[str, object] = {'tags': True}
+        data: dict[str, Plain] = {'tags': True}
 
         #: When
         problems = frontmatter.validate(FrozenMapping.from_plain(data))
@@ -1778,12 +1778,12 @@ class TestFrontmatterSchema:
 
     def test_validate_with_a_number_found_returns_the_number_type(self) -> None:
         #: Given
-        schema: dict[str, object] = {
+        schema: dict[str, Plain] = {
             'type': 'object',
             'properties': {'version': {'type': 'string', 'description': 'The version.'}},
         }
         frontmatter = FrontmatterSchema(path=SPEC_PATH, schema=FrozenMapping.from_plain(schema))
-        data: dict[str, object] = {'version': 1.5}
+        data: dict[str, Plain] = {'version': 1.5}
 
         #: When
         problems = frontmatter.validate(FrozenMapping.from_plain(data))
