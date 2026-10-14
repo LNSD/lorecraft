@@ -142,6 +142,19 @@ class UnresolvableFrontmatterSchemaRef:
     ref: str
 
 
+@dataclass(frozen=True, slots=True)
+class CyclicFrontmatterSchemaRef:
+    """A `$ref` in the structure file's frontmatter schema leads back to its own schema with no keyword in between.
+
+    Such a schema never reaches a keyword that reads the document, so validating one would recurse without end.
+
+    Attributes:
+        ref: What the `$ref` that closes the cycle holds, as written.
+    """
+
+    ref: str
+
+
 # The conditions a structure specification's rules fail with when they are not usable.
 type StructureSpecRuleFailure = (
     EmptyStructureSpec
@@ -164,5 +177,6 @@ type StructureSpecFailure = (
     | FrontmatterSchemaId
     | ForeignFrontmatterDialect
     | UnresolvableFrontmatterSchemaRef
+    | CyclicFrontmatterSchemaRef
     | UntypedFrontmatterSchema
 )

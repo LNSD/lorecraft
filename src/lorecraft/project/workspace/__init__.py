@@ -2,6 +2,7 @@
 
 from lorecraft.project.schemas.structure_failure import (
     AdjacentAnyRuns,
+    CyclicFrontmatterSchemaRef,
     EmptyStructureSpec,
     ForbiddenOutlineSections,
     ForeignFrontmatterDialect,
@@ -68,6 +69,7 @@ __all__: list[str] = [
     'FrontmatterSchemaId',
     'ForeignFrontmatterDialect',
     'UnresolvableFrontmatterSchemaRef',
+    'CyclicFrontmatterSchemaRef',
     'UntypedFrontmatterSchema',
     'UnlistableDirectory',
     'UnlistableCorpusDirectory',

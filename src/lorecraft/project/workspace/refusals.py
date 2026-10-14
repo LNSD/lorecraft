@@ -17,6 +17,7 @@ from lorecraft.project.layout import SPECS_DIR
 from lorecraft.project.schemas import SpecFileType, spec_filename
 from lorecraft.project.schemas.structure_failure import (
     AdjacentAnyRuns,
+    CyclicFrontmatterSchemaRef,
     EmptyStructureSpec,
     ForbiddenOutlineSections,
     ForeignFrontmatterDialect,
@@ -166,6 +167,7 @@ def unreported_refusals(
                 | FrontmatterSchemaId()
                 | ForeignFrontmatterDialect()
                 | UnresolvableFrontmatterSchemaRef()
+                | CyclicFrontmatterSchemaRef()
                 | UntypedFrontmatterSchema()
                 | UnresolvableSkillsDirectory()
                 | UnresolvableSkillEntry()

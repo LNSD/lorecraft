@@ -119,6 +119,10 @@ def _occurrence_of(failure: workspace.LoadFailure) -> EngineCondition | Unlistab
             return unusable_structure_file.UnusableStructureFile(
                 cause=unusable_structure_file.UnresolvableFrontmatterSchemaRef(ref=repr(ref))
             )
+        case workspace.CyclicFrontmatterSchemaRef(ref=ref):
+            return unusable_structure_file.UnusableStructureFile(
+                cause=unusable_structure_file.CyclicFrontmatterSchemaRef(ref=repr(ref))
+            )
         case workspace.UntypedFrontmatterSchema():
             return unusable_structure_file.UnusableStructureFile(
                 cause=unusable_structure_file.UntypedFrontmatterSchema()

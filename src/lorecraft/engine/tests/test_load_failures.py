@@ -10,6 +10,7 @@ from lorecraft.project.corpus import CorpusName
 from lorecraft.project.schemas import CorpusSpecName, SectionName, StructureSpecProblem
 from lorecraft.project.workspace import (
     AdjacentAnyRuns,
+    CyclicFrontmatterSchemaRef,
     EmptyStructureSpec,
     ForbiddenOutlineSections,
     ForeignFrontmatterDialect,
@@ -316,6 +317,18 @@ class TestReportLoadFailures:
         #: Then
         assert occurrence == unusable_structure_file.UnusableStructureFile(
             cause=unusable_structure_file.UnresolvableFrontmatterSchemaRef(ref="'#/$defs/missing'")
+        ), 'the condition holds what `$ref` named'
+
+    def test_report_load_failures_with_a_cyclic_frontmatter_schema_ref_reports_the_reference(self) -> None:
+        #: Given
+        condition = CyclicFrontmatterSchemaRef('#')
+
+        #: When
+        occurrence = _condition_of(condition)
+
+        #: Then
+        assert occurrence == unusable_structure_file.UnusableStructureFile(
+            cause=unusable_structure_file.CyclicFrontmatterSchemaRef(ref="'#'")
         ), 'the condition holds what `$ref` named'
 
     def test_report_load_failures_with_an_untyped_frontmatter_schema_reports_it(self) -> None:

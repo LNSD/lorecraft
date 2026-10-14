@@ -8,6 +8,7 @@ from lorecraft.rules.location import Help, Note, WholeSubject
 
 from ..unusable_structure_file import (
     AdjacentAnyRuns,
+    CyclicFrontmatterSchemaRef,
     ForbiddenOutlineSection,
     ForeignFrontmatterDialect,
     FrontmatterSchemaId,
@@ -276,6 +277,31 @@ class TestUnusableStructureFile:
         assert children == (
             Help('point every $ref at a location inside the frontmatter schema, such as #/$defs/name'),
             Note("$ref holds '#/$defs/missing'"),
+        ), 'the facts the case holds are said as notes, and the fix as a help'
+
+    def test_message_of_cyclic_frontmatter_schema_ref_names_the_case(self) -> None:
+        #: Given
+        occurrence = UnusableStructureFile(cause=CyclicFrontmatterSchemaRef(ref="'#'"))
+
+        #: When
+        message = occurrence.message()
+
+        #: Then
+        assert message == 'frontmatter schema holds a $ref that leads back to itself with no keyword in between', (
+            'the message states the case, lowercase, no period'
+        )
+
+    def test_children_of_cyclic_frontmatter_schema_ref_say_how_to_fix_it_and_what_was_found(self) -> None:
+        #: Given
+        occurrence = UnusableStructureFile(cause=CyclicFrontmatterSchemaRef(ref="'#'"))
+
+        #: When
+        children = occurrence.children()
+
+        #: Then
+        assert children == (
+            Help('point the $ref at a schema that states a keyword before it refers back'),
+            Note("$ref holds '#'"),
         ), 'the facts the case holds are said as notes, and the fix as a help'
 
     def test_message_of_untyped_frontmatter_schema_names_the_case(self) -> None:

@@ -25,6 +25,7 @@ from lorecraft.project.skill import (
 )
 from lorecraft.project.workspace import (
     AdjacentAnyRuns,
+    CyclicFrontmatterSchemaRef,
     EmptyStructureSpec,
     ForbiddenOutlineSections,
     ForeignFrontmatterDialect,
@@ -346,6 +347,22 @@ class TestReportLoadFailure:
         error = Error(
             f"invalid structure schema {_PATH}: frontmatter schema holds a $ref '#/$defs/missing' that does not "
             'resolve inside it'
+        )
+
+        #: When
+        expected, actual = _written_for(capsys, failure, error)
+
+        #: Then
+        assert actual == expected, 'the interim report names the reference'
+
+    def test_report_load_failure_with_cyclic_frontmatter_schema_ref_writes_what_the_replaced_error_wrote(
+        self, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        #: Given
+        failure = LoadFailure(_PATH, CyclicFrontmatterSchemaRef('#'))
+        error = Error(
+            f"invalid structure schema {_PATH}: frontmatter schema holds a $ref '#' that leads back to itself "
+            'with no keyword in between'
         )
 
         #: When

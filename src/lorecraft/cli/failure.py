@@ -16,6 +16,7 @@ from lorecraft.core.path import RootRelativePath
 from lorecraft.project.schemas import JSON_SCHEMA_DIALECT
 from lorecraft.project.workspace import (
     AdjacentAnyRuns,
+    CyclicFrontmatterSchemaRef,
     EmptyStructureSpec,
     ForbiddenOutlineSections,
     ForeignFrontmatterDialect,
@@ -161,6 +162,11 @@ def _failure_text(failure: LoadFailure) -> FailureText:
             return FailureText(
                 f'invalid structure schema {path}: frontmatter schema holds a $ref {ref!r} that does not resolve '
                 'inside it'
+            )
+        case CyclicFrontmatterSchemaRef(ref=ref):
+            return FailureText(
+                f'invalid structure schema {path}: frontmatter schema holds a $ref {ref!r} that leads back to '
+                'itself with no keyword in between'
             )
         case UntypedFrontmatterSchema():
             return FailureText(f'invalid structure schema {path}: frontmatter schema root must state "type": "object"')

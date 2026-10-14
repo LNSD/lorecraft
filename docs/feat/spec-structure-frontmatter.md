@@ -78,7 +78,12 @@ a relative `$ref` resolves, names another dialect in `$schema`, or holds a `$ref
 not resolve to a schema inside the frontmatter schema: `#/$defs/name` with no `name` under `$defs`, or
 `#/required/0`, which names a string. A reference to another file or URL is never fetched, so it is refused
 too; an empty reference, a `#/...` pointer or a `#anchor` that finds a schema is accepted. A value under
-`enum` or `const` is data, not a schema, so it is not searched. `description` and `$comment` are allowed
+`enum` or `const` is data, not a schema, so it is not searched. A `$ref` or `$dynamicRef` that leads back to a
+schema it started from while staying on the same value, through only `$ref`, `$dynamicRef`, `allOf`, `anyOf`,
+`oneOf`, `not`, `if`, `then`, `else` or `dependentSchemas`, is refused as a cycle: `{"type": "object", "$ref": "#"}`.
+A cycle is refused even where nothing applies it, such as two `$defs` entries that refer to each other and
+nothing else refers to. A reference back to an enclosing schema from below `properties` or `items` applies to a
+smaller value, so a recursive schema such as a tree is accepted. `description` and `$comment` are allowed
 anywhere. For a refused schema, `lorecraft check` reports an error diagnostic at the structure file,
 skips the documents it governs, and exits `1`. `lorecraft inspect` still stops with exit `2`.
 

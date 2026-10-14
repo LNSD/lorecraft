@@ -104,6 +104,17 @@ class UnresolvableFrontmatterSchemaRef:
     ref: str
 
 
+@dataclass(frozen=True, slots=True)
+class CyclicFrontmatterSchemaRef:
+    """A `$ref` in the frontmatter schema leads back to its own schema with no keyword in between.
+
+    Attributes:
+        ref: What the `$ref` that closes the cycle holds, as Python spells the value.
+    """
+
+    ref: str
+
+
 type Cause = (
     RepeatedOutlineSection
     | RepeatedForbiddenSection
@@ -114,6 +125,7 @@ type Cause = (
     | FrontmatterSchemaId
     | ForeignFrontmatterDialect
     | UnresolvableFrontmatterSchemaRef
+    | CyclicFrontmatterSchemaRef
     | UntypedFrontmatterSchema
 )
 """Why the structure file cannot be applied."""
@@ -139,9 +151,10 @@ class UnusableStructureFile(FileCondition):
     contradicts another, repeats itself, or cannot be applied: an outline or a forbidden list that names a section
     twice, a forbidden section the outline names, two `any` runs side by side, a title pattern that does not compile,
     or a frontmatter schema that is invalid, carries `$id`, names another dialect, holds a `$ref` that does not
-    resolve inside it or states no object type. Such a file is reported once, at the file, and every document its
-    meta spec governs is listed as skipped in coverage, with no rule run over it: a document that was not checked is
-    never reported as clean. Every document the file does not govern is checked as if the file were fixed.
+    resolve inside it or that leads back to itself with no keyword in between, or states no object type. Such a file
+    is reported once, at the file, and every document its meta spec governs is listed as skipped in coverage, with no
+    rule run over it: a document that was not checked is never reported as clean. Every document the file does not
+    govern is checked as if the file were fixed.
 
     The message says which case it is, and the note under it names what is wrong: the sections, the pattern or the
     problem the JSON Schema meta-schema found. Each case is explained below, with its fix.
@@ -350,6 +363,33 @@ class UnusableStructureFile(FileCondition):
     }
     ```
 
+    ## A frontmatter schema with a `$ref` cycle
+
+    `docs/__meta__/guide.spec.json`, with a `$ref` that leads back to the schema it sits in without any keyword that
+    reads the document in between. Applying such a schema would recurse without end, so it is refused whether or not
+    anything refers to it, an unreferenced `$defs` entry included:
+
+    ```json
+    {
+      "frontmatter": {
+        "type": "object",
+        "$ref": "#"
+      }
+    }
+    ```
+
+    State a keyword before the schema refers back. A `$ref` below `properties` or `items` is fine, since it applies
+    to a smaller value:
+
+    ```json
+    {
+      "frontmatter": {
+        "type": "object",
+        "properties": {"parent": {"$ref": "#"}}
+      }
+    }
+    ```
+
     ## A frontmatter schema that states no object type
 
     `docs/__meta__/guide.spec.json`, with a root that states properties but no type. A document's frontmatter is
@@ -406,6 +446,8 @@ class UnusableStructureFile(FileCondition):
                 return 'frontmatter schema names another JSON Schema dialect'
             case UnresolvableFrontmatterSchemaRef():
                 return 'frontmatter schema holds a $ref that does not resolve inside it'
+            case CyclicFrontmatterSchemaRef():
+                return 'frontmatter schema holds a $ref that leads back to itself with no keyword in between'
             case UntypedFrontmatterSchema():
                 return 'frontmatter schema does not state "type": "object" at its root'
             case _:
@@ -443,6 +485,11 @@ class UnusableStructureFile(FileCondition):
             case UnresolvableFrontmatterSchemaRef(ref=ref):
                 return (
                     Help('point every $ref at a location inside the frontmatter schema, such as #/$defs/name'),
+                    Note(f'$ref holds {ref}'),
+                )
+            case CyclicFrontmatterSchemaRef(ref=ref):
+                return (
+                    Help('point the $ref at a schema that states a keyword before it refers back'),
                     Note(f'$ref holds {ref}'),
                 )
             case UntypedFrontmatterSchema():
