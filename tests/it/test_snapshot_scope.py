@@ -12,7 +12,7 @@ from typing import Final, assert_never
 
 import pytest
 
-from lorecraft.core.path import RootRelativePath
+from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.project.database import Database, SkillResourceText, Undecodable
 from lorecraft.project.layout import SNAPSHOT_SCOPE
 from lorecraft.project.skill import (
@@ -38,8 +38,9 @@ from lorecraft.vfs import (
     take_snapshot,
 )
 
-SKILL: Final[str] = '.agents/skills/review'
-REVIEW: Final[SkillRef] = SkillRef(RootRelativePath.parse(SKILL))
+SKILLS_DIR: Final[str] = '.agents/skills'
+SKILL: Final[str] = f'{SKILLS_DIR}/review'
+REVIEW: Final[SkillRef] = SkillRef(ResolvedPath(RootRelativePath.parse(SKILLS_DIR)), PathComponent.parse('review'))
 
 
 def _write(root: Path, relative: str, data: bytes = b'') -> None:

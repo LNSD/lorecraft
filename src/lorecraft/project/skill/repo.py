@@ -450,7 +450,9 @@ class Repository:
         skill_file = self._find_skill_file(files_directory)
         match skill_file:
             case RootRelativePath():
-                return SkillLocation(SkillRef(directory), resolves_to=files_directory, file_resolves_to=skill_file)
+                return SkillLocation(
+                    SkillRef(skills_dir, entry.name), resolves_to=files_directory, file_resolves_to=skill_file
+                )
             case RootExit():
                 # Named under the entry, as the skill would have been, not under the directory it leads to.
                 return OutsideSymlink(directory / SKILL_ENTRY, skill_file)

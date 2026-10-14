@@ -26,7 +26,9 @@ from lorecraft.project.skill import (
 )
 from lorecraft.vfs import ResolvedPath, RootExit, take_snapshot
 
-REVIEW: Final[SkillRef] = SkillRef(RootRelativePath.parse('.agents/skills/review'))
+REVIEW: Final[SkillRef] = SkillRef(
+    ResolvedPath(RootRelativePath.parse('.agents/skills')), PathComponent.parse('review')
+)
 
 
 def _write(root: Path, relative: str, text: str = '') -> Path:

@@ -19,6 +19,7 @@ location.
 """
 
 from dataclasses import dataclass
+from functools import total_ordering
 from typing import Final, Self
 
 from lorecraft.agents import SKILL_ENTRY, SKILL_ENTRY_FILENAME
@@ -102,22 +103,40 @@ def _is_resource_path(path: SkillRelativePath) -> bool:
     return path != _SKILL_ENTRY_PATH
 
 
-# order=True so a tuple of refs sorts by directory, the order the model lists them in.
-@dataclass(frozen=True, slots=True, order=True)
+@total_ordering
+@dataclass(frozen=True, slots=True)
 class SkillRef:
     """A skill's identity in the workspace model; carries no content.
 
     Attributes:
-        directory: The skill's directory, `<skills directory>/<skill name>`, root-relative. For an agent's
-            skill the skills directory is the resolved one, so a skill two agents reach, one of them through a
-            linked skills directory such as `.claude/skills`, has one ref. The last component is the entry as
-            listed: it may itself be a link to where the skill's files live, and the ref still names it here,
-            under the skills directory, which is what makes it a skill. For a skill in a directory a command
-            names, the directory is spelled as the command spelled it, links and all: `skills/review`, or
-            `skills` itself when that directory is the skill. So a skill named both ways has two refs.
+        skills_dir: The resolved skills directory the skill is listed in. For an agent's skill it is the resolved
+            one, so a skill two agents reach, one of them through a linked skills directory such as
+            `.claude/skills`, has one ref.
+        entry: The name of the entry in the skills directory, as listed: it may itself be a link to where the
+            skill's files live, and the ref still names it here, under the skills directory, which is what makes
+            it a skill.
     """
 
-    directory: RootRelativePath
+    skills_dir: ResolvedPath
+    entry: PathComponent
+
+    @property
+    def directory(self) -> RootRelativePath:
+        """The skill's directory, `<skills_dir>/<entry>`, root-relative, where an agent reaches it."""
+        return self.skills_dir / self.entry
+
+    def __lt__(self, other: object) -> bool:
+        """Order refs by directory, the order the model lists them in.
+
+        Ordered by `directory` as a whole, not by skills directory and then entry: a skills directory inside
+        another sorts its skills among those of the one holding it, as their paths do.
+
+        Args:
+            other: The ref to compare with; anything that is no `SkillRef` is left to Python's reflected comparison.
+        """
+        if not isinstance(other, SkillRef):
+            return NotImplemented
+        return self.directory < other.directory
 
     @property
     def path(self) -> RootRelativePath:

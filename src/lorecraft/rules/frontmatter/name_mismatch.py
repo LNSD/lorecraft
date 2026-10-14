@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from typing import ClassVar, Self, assert_never
 
-from lorecraft.core.path import ROOT
+from lorecraft.core.path import ROOT, PathComponent
 from lorecraft.project.context import DocumentFrontmatterOwner, FrontmatterContext, SkillFrontmatterOwner
 from lorecraft.project.layout import DOCUMENT_SUFFIX
 from lorecraft.project.schemas import (
@@ -43,7 +43,7 @@ class DirectoryNameExpected:
             not; it only words a note.
     """
 
-    directory_name: str
+    directory_name: PathComponent
     link_target: ResolvedPath | None
 
 
@@ -156,7 +156,7 @@ class NameMismatch(FrontmatterRule):
             case DirectoryNameExpected():
                 parts = [
                     Note('the Agent Skills specification requires `name` to match the skill directory name'),
-                    Help(f'set `name` to {expectation.directory_name!r}'),
+                    Help(f'set `name` to {str(expectation.directory_name)!r}'),
                 ]
                 # Renaming the directory to a `name` the specification rejects would trade this finding for another.
                 if _is_skill_name(self.name):
@@ -214,7 +214,7 @@ def _expected_name(expectation: NameExpectation) -> str:
         case FilenameExpected():
             return expectation.filename
         case DirectoryNameExpected():
-            return expectation.directory_name
+            return str(expectation.directory_name)
         case _:
             assert_never(expectation)
 
@@ -244,8 +244,8 @@ def _link_notes(expectation: DirectoryNameExpected) -> tuple[Note, ...]:
     if link_target is None:
         return ()
     name = link_target.name
-    if name is not None and name.value == expectation.directory_name:
+    if name == expectation.directory_name:
         return ()
     if link_target == ROOT:
-        return (Note(f'{expectation.directory_name!r} is a link to the repository root'),)
-    return (Note(f'{expectation.directory_name!r} is a link to {str(link_target)!r}'),)
+        return (Note(f'{str(expectation.directory_name)!r} is a link to the repository root'),)
+    return (Note(f'{str(expectation.directory_name)!r} is a link to {str(link_target)!r}'),)

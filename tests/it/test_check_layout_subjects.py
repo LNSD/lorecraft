@@ -13,7 +13,7 @@ from typing import Final
 import pytest
 
 from lorecraft import rules
-from lorecraft.core.path import RootRelativePath
+from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.engine import Subject, check_subjects
 from lorecraft.project.database import Database
 from lorecraft.project.layout import SNAPSHOT_SCOPE
@@ -24,7 +24,7 @@ from lorecraft.rules.registry import Registry
 from lorecraft.rules.report import CheckedLayoutEntry, CheckedSkillFile, RuleDiagnostic
 from lorecraft.rules.selection import AllRules, RuleSelection
 from lorecraft.rules.table import RuleTable
-from lorecraft.vfs import RootExit, take_snapshot
+from lorecraft.vfs import ResolvedPath, RootExit, take_snapshot
 
 CLEAN_SKILL_MD: Final[bytes] = b'---\nname: review\ndescription: Review a change\n---\n'
 """A `SKILL.md` the skill `review` passes every other rule with."""
@@ -256,5 +256,8 @@ class TestCheckSubjectsLayout:
         #: Then
         assert reports == (
             _outside_report('.agents/skills/review/references', '.agents/skills/review/references', target),
-            CheckedSkillFile(SkillRef(RootRelativePath.parse('.agents/skills/review')), diagnostics=()),
+            CheckedSkillFile(
+                SkillRef(ResolvedPath(RootRelativePath.parse('.agents/skills')), PathComponent.parse('review')),
+                diagnostics=(),
+            ),
         ), 'a layout entry and a skill share one run, each reported in the order given'

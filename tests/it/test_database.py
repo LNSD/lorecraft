@@ -20,7 +20,7 @@ import pytest
 
 from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.num import UnsignedInt
-from lorecraft.core.path import RootRelativePath
+from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.database import Database, DocumentText, SkillResourceText, SkillText, Undecodable
@@ -36,6 +36,7 @@ from lorecraft.vfs import (
     DirectoryRecord,
     EntryRecord,
     FileRecord,
+    ResolvedPath,
     ScanRoot,
     Snapshot,
     SnapshotRecords,
@@ -47,7 +48,9 @@ from lorecraft.vfs import (
 )
 
 GUIDE: Final[DocumentRef] = DocumentRef(CorpusName.parse('code'), AspectFilename.parse('guide'))
-REVIEW: Final[SkillRef] = SkillRef(RootRelativePath.parse('.agents/skills/review'))
+REVIEW: Final[SkillRef] = SkillRef(
+    ResolvedPath(RootRelativePath.parse('.agents/skills')), PathComponent.parse('review')
+)
 
 
 def _snapshot(guide: bytes) -> Snapshot:

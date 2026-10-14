@@ -18,6 +18,7 @@ listing returned, the memoized query value itself, and reads every fact from it.
 
 from collections.abc import Mapping
 
+from lorecraft.core.path import PathComponent
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.context import DocumentFrontmatterOwner, SkillFrontmatterOwner
 from lorecraft.project.link_target import DocumentDirectory, LinkTargetEntry, SkillRoot
@@ -126,15 +127,9 @@ class DatabaseSkillContext:
         self._source = source
         self._location = location
 
-    def directory_name(self) -> str:
+    def directory_name(self) -> PathComponent:
         """The name of the skill's directory as an agent lists it, read from its ref."""
-        name = self._source.ref.directory.name
-        # A skill's directory is built as `<skills directory>/<entry name>`, so it always has a name.
-        if name is None:
-            raise AssertionError(
-                'unreachable: a skill directory is an entry listed in a skills directory, never the root'
-            )
-        return str(name)
+        return self._source.ref.entry
 
     def link_target(self) -> ResolvedPath | None:
         """The resolved directory the listed directory leads to when it is a link, or `None` when it is not.

@@ -28,7 +28,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Protocol
 
-from lorecraft.core.path import RootRelativePath
+from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.vfs import ResolvedPath, RootExit
 
 from .aspect import AspectFilename
@@ -65,7 +65,7 @@ class SkillFrontmatterOwner:
             not; it only words a note, so a reader sees why the name they know is not the one expected.
     """
 
-    directory_name: str
+    directory_name: PathComponent
     link_target: ResolvedPath | None
 
 
@@ -182,7 +182,7 @@ class SkillContext(FrontmatterContext, SkillFileContext, Protocol):
     its own.
     """
 
-    def directory_name(self) -> str:
+    def directory_name(self) -> PathComponent:
         """The name of the skill's directory as an agent lists it, whatever a link there leads to."""
         ...
 

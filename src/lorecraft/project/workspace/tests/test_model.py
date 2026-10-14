@@ -634,14 +634,14 @@ def _regular_skill(directory: str) -> SkillLocation:
     path = RootRelativePath.parse(directory)
     # No link on the way, so the directory and its `SKILL.md` are their own resolved paths.
     return SkillLocation(
-        SkillRef(path),
+        SkillRef(ResolvedPath(path.parent), PathComponent.parse(path.value.name)),
         resolves_to=ResolvedPath(path),
         file_resolves_to=ResolvedPath(path / PathComponent.parse('SKILL.md')),
     )
 
 
 AUDIT: Final[SkillLocation] = SkillLocation(
-    SkillRef(RootRelativePath.parse('.agents/skills/audit')),
+    SkillRef(ResolvedPath(RootRelativePath.parse('.agents/skills')), PathComponent.parse('audit')),
     resolves_to=ResolvedPath(RootRelativePath.parse('skills/audit')),
     file_resolves_to=ResolvedPath(RootRelativePath.parse('shared/audit.md')),
 )
@@ -651,7 +651,7 @@ REVIEW: Final[SkillLocation] = _regular_skill('.agents/skills/review')
 """A skill in a regular directory."""
 
 REVIEW_ALIAS: Final[SkillLocation] = SkillLocation(
-    SkillRef(RootRelativePath.parse('.agents/skills/reviewer')),
+    SkillRef(ResolvedPath(RootRelativePath.parse('.agents/skills')), PathComponent.parse('reviewer')),
     resolves_to=ResolvedPath(RootRelativePath.parse('.agents/skills/review')),
     file_resolves_to=ResolvedPath(RootRelativePath.parse('.agents/skills/review/SKILL.md')),
 )
@@ -1033,7 +1033,7 @@ class TestWorkspaceModel:
         self, skills_model: WorkspaceModel
     ) -> None:
         #: Given
-        ref = SkillRef(RootRelativePath.parse('skills/review'))
+        ref = SkillRef(ResolvedPath(RootRelativePath.parse('skills')), PathComponent.parse('review'))
 
         #: When
         agents = skills_model.skill_agents(ref)

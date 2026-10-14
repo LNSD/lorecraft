@@ -12,7 +12,7 @@ from typing import Final
 
 import pytest
 
-from lorecraft.core.path import RootRelativePath
+from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.context import (
     DocumentContext,
@@ -38,7 +38,16 @@ from lorecraft.project.layout import SNAPSHOT_SCOPE
 from lorecraft.project.link_target import DocumentDirectory, EscapingTarget, LinkTarget, PathLookup, SkillRoot
 from lorecraft.project.skill import OutsideSymlink, SkillLocation, SkillRef
 from lorecraft.project.syntax import NormalisedLinkPath, count_lines, count_tokens
-from lorecraft.vfs import EntryRecord, FileTree, RootExit, Snapshot, SnapshotRecords, SymlinkRecord, take_snapshot
+from lorecraft.vfs import (
+    EntryRecord,
+    FileTree,
+    ResolvedPath,
+    RootExit,
+    Snapshot,
+    SnapshotRecords,
+    SymlinkRecord,
+    take_snapshot,
+)
 
 TYPING: Final[DocumentRef] = DocumentRef(CorpusName.parse('code'), AspectFilename.parse('python-typing'))
 """A document of corpus `code` its `python` namespace governs too."""
@@ -58,7 +67,9 @@ CORPUS_STRUCTURE: Final[bytes] = (
 CORPUS_SPEC: Final[RootRelativePath] = RootRelativePath.parse('docs/__meta__/code.structure.json')
 """Where the corpus structure specification lies."""
 
-REVIEW: Final[SkillRef] = SkillRef(RootRelativePath.parse('.agents/skills/review'))
+REVIEW: Final[SkillRef] = SkillRef(
+    ResolvedPath(RootRelativePath.parse('.agents/skills')), PathComponent.parse('review')
+)
 """A skill an agent reaches under `.agents/skills`."""
 
 REVIEW_TEXT: Final[str] = (
@@ -387,7 +398,9 @@ class TestDatabaseSkillContext:
         directory_name = context.directory_name()
 
         #: Then
-        assert directory_name == 'review', 'the name is the listed directory, not the name the frontmatter gives'
+        assert directory_name == PathComponent.parse('review'), (
+            'the name is the listed directory, not the name the frontmatter gives'
+        )
 
     def test_link_target_with_a_listed_directory_returns_none(self) -> None:
         #: Given
@@ -454,7 +467,7 @@ class TestDatabaseSkillContext:
         owner = context.frontmatter_owner()
 
         #: Then
-        assert owner == SkillFrontmatterOwner(directory_name='review', link_target=None), (
+        assert owner == SkillFrontmatterOwner(directory_name=PathComponent.parse('review'), link_target=None), (
             'the owner names the directory the skill is listed under, and that it leads nowhere else'
         )
 

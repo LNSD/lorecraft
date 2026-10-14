@@ -3,6 +3,8 @@
 from dataclasses import dataclass
 from typing import ClassVar, Self, assert_never
 
+from lorecraft.core.path import PathComponent
+
 # The module, not its classes: this rule's own name is the syntax's `MissingFrontmatter`.
 from lorecraft.project import syntax
 from lorecraft.project.context import (
@@ -86,7 +88,7 @@ class MissingFrontmatter(FrontmatterRule):
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('0.3.0')
 
-    directory_name: str | None
+    directory_name: PathComponent | None
 
     def message(self) -> str:
         """Name the block that is missing."""
@@ -127,7 +129,7 @@ class MissingFrontmatter(FrontmatterRule):
                 assert_never(frontmatter)
 
 
-def _directory_name(owner: FrontmatterOwner) -> str | None:
+def _directory_name(owner: FrontmatterOwner) -> PathComponent | None:
     """The name of a skill's directory, which its `name` must equal; `None` for a document.
 
     Args:

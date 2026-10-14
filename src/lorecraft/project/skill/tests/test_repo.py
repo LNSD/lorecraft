@@ -11,7 +11,7 @@ from typing import Final
 
 import pytest
 
-from lorecraft.core.path import RootRelativePath
+from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.vfs import (
     EntryRecord,
     FileTree,
@@ -34,9 +34,10 @@ from ..repo import (
     SkillResourceReadError,
 )
 
-SKILL: Final[str] = '.agents/skills/review'
+SKILLS_DIR: Final[str] = '.agents/skills'
+SKILL: Final[str] = f'{SKILLS_DIR}/review'
 REVIEW: Final[SkillLocation] = SkillLocation(
-    SkillRef(RootRelativePath.parse(SKILL)),
+    SkillRef(ResolvedPath(RootRelativePath.parse(SKILLS_DIR)), PathComponent.parse('review')),
     resolves_to=ResolvedPath(RootRelativePath.parse(SKILL)),
     file_resolves_to=ResolvedPath(RootRelativePath.parse(f'{SKILL}/SKILL.md')),
 )
@@ -388,7 +389,7 @@ class TestRepositoryListSkillResources:
             {'.agents/skills/audit': '../../skills/audit'},
         )
         audit = SkillLocation(
-            SkillRef(RootRelativePath.parse('.agents/skills/audit')),
+            SkillRef(ResolvedPath(RootRelativePath.parse('.agents/skills')), PathComponent.parse('audit')),
             resolves_to=ResolvedPath(RootRelativePath.parse('skills/audit')),
             file_resolves_to=ResolvedPath(RootRelativePath.parse('skills/audit/SKILL.md')),
         )
@@ -420,7 +421,7 @@ class TestRepositoryListSkillResources:
             {'.agents/skills/audit': '../../skills/audit', 'skills/audit/agents': '../../.agents/skills'},
         )
         audit = SkillLocation(
-            SkillRef(RootRelativePath.parse('.agents/skills/audit')),
+            SkillRef(ResolvedPath(RootRelativePath.parse('.agents/skills')), PathComponent.parse('audit')),
             resolves_to=ResolvedPath(RootRelativePath.parse('skills/audit')),
             file_resolves_to=ResolvedPath(RootRelativePath.parse('skills/audit/SKILL.md')),
         )

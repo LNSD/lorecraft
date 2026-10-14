@@ -3,6 +3,7 @@
 import pytest
 
 from lorecraft.core.path import PathComponent, RootRelativePath, RootRelativePathError
+from lorecraft.vfs import ResolvedPath
 
 from ..ref import NotASkillResourceError, SkillRef, SkillRelativePath, SkillResourceRef
 
@@ -87,7 +88,7 @@ class TestSkillRelativePath:
 class TestSkillRef:
     def test_path_with_a_skill_directory_returns_the_skill_file_inside_it(self) -> None:
         #: Given
-        ref = SkillRef(RootRelativePath.parse('.agents/skills/review'))
+        ref = SkillRef(ResolvedPath(RootRelativePath.parse('.agents/skills')), PathComponent.parse('review'))
 
         #: When
         path = ref.path
@@ -99,8 +100,8 @@ class TestSkillRef:
 
     def test_sorted_with_refs_in_two_skills_directories_returns_them_in_directory_order(self) -> None:
         #: Given
-        review = SkillRef(RootRelativePath.parse('skills/review'))
-        commit = SkillRef(RootRelativePath.parse('.agents/skills/commit'))
+        review = SkillRef(ResolvedPath(RootRelativePath.parse('skills')), PathComponent.parse('review'))
+        commit = SkillRef(ResolvedPath(RootRelativePath.parse('.agents/skills')), PathComponent.parse('commit'))
 
         #: When
         ordered = sorted([review, commit])
@@ -110,7 +111,7 @@ class TestSkillRef:
 
     def test_find_resource_with_the_top_level_skill_file_returns_none(self) -> None:
         #: Given
-        ref = SkillRef(RootRelativePath.parse('.agents/skills/review'))
+        ref = SkillRef(ResolvedPath(RootRelativePath.parse('.agents/skills')), PathComponent.parse('review'))
 
         #: When
         resource = ref.find_resource(SkillRelativePath.parse('SKILL.md'))
@@ -120,7 +121,7 @@ class TestSkillRef:
 
     def test_find_resource_with_a_name_not_ending_in_md_returns_none(self) -> None:
         #: Given
-        ref = SkillRef(RootRelativePath.parse('.agents/skills/review'))
+        ref = SkillRef(ResolvedPath(RootRelativePath.parse('.agents/skills')), PathComponent.parse('review'))
 
         #: When
         resource = ref.find_resource(SkillRelativePath.parse('scripts/run.py'))
@@ -130,7 +131,7 @@ class TestSkillRef:
 
     def test_find_resource_with_the_skill_directory_itself_returns_none(self) -> None:
         #: Given
-        ref = SkillRef(RootRelativePath.parse('.agents/skills/review'))
+        ref = SkillRef(ResolvedPath(RootRelativePath.parse('.agents/skills')), PathComponent.parse('review'))
 
         #: When
         resource = ref.find_resource(SkillRelativePath.parse('.'))
@@ -140,7 +141,7 @@ class TestSkillRef:
 
     def test_find_resource_with_a_nested_skill_file_returns_its_ref(self) -> None:
         #: Given
-        ref = SkillRef(RootRelativePath.parse('.agents/skills/review'))
+        ref = SkillRef(ResolvedPath(RootRelativePath.parse('.agents/skills')), PathComponent.parse('review'))
 
         #: When
         resource = ref.find_resource(SkillRelativePath.parse('examples/SKILL.md'))
@@ -156,7 +157,8 @@ class TestSkillResourceRef:
     def test_path_with_a_path_inside_the_skill_returns_it_under_the_skill_directory(self) -> None:
         #: Given
         ref = SkillResourceRef(
-            SkillRef(RootRelativePath.parse('.agents/skills/review')), SkillRelativePath.parse('guides/d.md')
+            SkillRef(ResolvedPath(RootRelativePath.parse('.agents/skills')), PathComponent.parse('review')),
+            SkillRelativePath.parse('guides/d.md'),
         )
 
         #: When
@@ -170,7 +172,7 @@ class TestSkillResourceRef:
     @pytest.mark.parametrize('path', ['SKILL.md', '.', 'scripts/run.py'])
     def test_init_with_a_path_that_is_no_resource_raises_not_a_skill_resource_error(self, path: str) -> None:
         #: Given
-        skill = SkillRef(RootRelativePath.parse('.agents/skills/review'))
+        skill = SkillRef(ResolvedPath(RootRelativePath.parse('.agents/skills')), PathComponent.parse('review'))
 
         #: When
         with pytest.raises(NotASkillResourceError) as exc_info:

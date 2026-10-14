@@ -21,7 +21,7 @@ import pytest
 from lib.overruns import overrun
 from lorecraft import rules
 from lorecraft.core.num import UnsignedInt
-from lorecraft.core.path import RootRelativePath
+from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.engine import check_subjects
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.context import DocumentContext
@@ -125,7 +125,9 @@ GUIDE: Final[DocumentRef] = DocumentRef(CorpusName.parse('code'), AspectFilename
 INTRO: Final[DocumentRef] = DocumentRef(CorpusName.parse('code'), AspectFilename.parse('intro'))
 """A second document of corpus `code`."""
 
-REVIEW: Final[SkillRef] = SkillRef(RootRelativePath.parse('.agents/skills/review'))
+REVIEW: Final[SkillRef] = SkillRef(
+    ResolvedPath(RootRelativePath.parse('.agents/skills')), PathComponent.parse('review')
+)
 """A skill an agent reaches under `.agents/skills`."""
 
 GUIDE_TEXT: Final[str] = '# Guide\n\nInstall the toolkit, then run it once over the repository.\n'
@@ -1078,7 +1080,9 @@ class TestCheckSubjects:
         reports = check_subjects(database, (_location(database, REVIEW),), package_table)
 
         #: Then
-        occurrence = MissingFrontmatter(spec=None, line=LineNumber.from_int(1), directory_name='review')
+        occurrence = MissingFrontmatter(
+            spec=None, line=LineNumber.from_int(1), directory_name=PathComponent.parse('review')
+        )
         assert reports == (
             CheckedSkillFile(REVIEW, diagnostics=(RuleDiagnostic(REVIEW_FILE, occurrence, Severity.ERROR),)),
         ), 'every skill is governed for its frontmatter, so FM001 needs no specification in the repository'
@@ -1136,7 +1140,7 @@ class TestCheckSubjects:
             spec=None,
             line=LineNumber.from_int(2),
             name='code-review',
-            expectation=DirectoryNameExpected(directory_name='review', link_target=None),
+            expectation=DirectoryNameExpected(directory_name=PathComponent.parse('review'), link_target=None),
         )
         assert reports == (
             CheckedSkillFile(REVIEW, diagnostics=(RuleDiagnostic(REVIEW_FILE, occurrence, Severity.ERROR),)),
@@ -1195,7 +1199,8 @@ class TestCheckSubjects:
             line=LineNumber.from_int(2),
             name='code-review',
             expectation=DirectoryNameExpected(
-                directory_name='review', link_target=ResolvedPath(RootRelativePath.parse('skills/code-review'))
+                directory_name=PathComponent.parse('review'),
+                link_target=ResolvedPath(RootRelativePath.parse('skills/code-review')),
             ),
         )
         assert reports == (
