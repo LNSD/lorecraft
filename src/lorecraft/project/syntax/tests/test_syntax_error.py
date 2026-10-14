@@ -9,8 +9,9 @@ from typing import Final
 
 import pytest
 from ruamel.yaml.error import MarkedYAMLError, StreamMark
+from ruamel.yaml.reader import ReaderError
 
-from ..syntax_error import SyntaxProblem, describe_error
+from ..syntax_error import SyntaxProblem, describe_control_character, describe_error
 
 
 def _mark(line: int, column: int) -> StreamMark:
@@ -321,4 +322,137 @@ class TestDescribeError:
         #: Then
         assert problem == SyntaxProblem('the block cannot be read from this line on', None, 0), (
             'an error no kind matches is reported on the parser line, with no parser text'
+        )
+
+    def test_describe_error_with_a_tab_that_starts_a_line_returns_the_tab_kind(self) -> None:
+        #: Given
+        error = _error(
+            "found character '\\t' that cannot start any token",
+            _mark(1, 0),
+            context='while scanning for the next token',
+        )
+
+        #: When
+        problem = describe_error(error, 'a:\n\tb: 1\n')
+
+        #: Then
+        assert problem == SyntaxProblem('a tab indents this line', 'Indent with spaces', 1), (
+            'a tab that starts a line is the indentation kind'
+        )
+
+    def test_describe_error_with_a_tab_inside_a_line_returns_the_tab_not_whitespace_kind(self) -> None:
+        #: Given
+        error = _error(
+            "found character '\\t' that cannot start any token",
+            _mark(0, 6),
+            context='while scanning for the next token',
+        )
+
+        #: When
+        problem = describe_error(error, 'a: [b,\tc]\n')
+
+        #: Then
+        assert problem == SyntaxProblem('a tab is not whitespace here', 'Use spaces', 0), (
+            'a tab that does not start the line is not whitespace in a flow collection'
+        )
+
+    def test_describe_error_with_a_character_no_value_starts_with_returns_the_value_start_kind(self) -> None:
+        #: Given
+        error = _error(
+            "found character '@' that cannot start any token", _mark(0, 3), context='while scanning for the next token'
+        )
+
+        #: When
+        problem = describe_error(error, 'a: @b\n')
+
+        #: Then
+        assert problem == SyntaxProblem('a plain value cannot start with `@`', 'Quote the value', 0), (
+            'a character no plain value starts with names itself in the label'
+        )
+
+    def test_describe_error_with_an_unknown_escape_returns_the_escape_kind(self) -> None:
+        #: Given
+        error = _error(
+            "found unknown escape character 'q'",
+            _mark(0, 5),
+            context='while scanning a double-quoted scalar',
+            context_mark=_mark(0, 3),
+        )
+
+        #: When
+        problem = describe_error(error, 'a: "\\q"\n')
+
+        #: Then
+        assert problem == SyntaxProblem(
+            '`\\q` is not an escape', 'Write `\\\\` for a backslash, or use single quotes', 0
+        ), 'the escape is named as the block writes it'
+
+    def test_describe_error_with_an_escape_that_lacks_its_digits_returns_the_escape_with_them(self) -> None:
+        #: Given
+        error = _error(
+            "expected escape sequence of 2 hexdecimal numbers, but found 'Z'",
+            _mark(0, 6),
+            context='while scanning a double-quoted scalar',
+            context_mark=_mark(0, 3),
+        )
+
+        #: When
+        problem = describe_error(error, 'a: "\\xZZ"\n')
+
+        #: Then
+        assert problem == SyntaxProblem(
+            '`\\xZZ` is not an escape', 'Write `\\\\` for a backslash, or use single quotes', 0
+        ), 'a hexadecimal escape is named with the digits it was given'
+
+    def test_describe_error_with_an_escape_and_no_backslash_before_it_returns_the_fallback(self) -> None:
+        #: Given
+        error = _error(
+            "found unknown escape character 'q'",
+            _mark(0, 2),
+            context='while scanning a double-quoted scalar',
+            context_mark=_mark(0, 0),
+        )
+
+        #: When
+        problem = describe_error(error, 'aq\n')
+
+        #: Then
+        assert problem == SyntaxProblem('the block cannot be read from this line on', None, 0), (
+            'an escape the text does not show is left as the fallback, on its line'
+        )
+
+    def test_describe_error_with_a_colon_that_starts_a_value_returns_the_value_start_kind(self) -> None:
+        #: Given
+        error = _error('mapping values are not allowed here', _mark(0, 3))
+
+        #: When
+        problem = describe_error(error, 'a: :\n')
+
+        #: Then
+        assert problem == SyntaxProblem('a plain value cannot start with `:`', 'Quote the value', 0), (
+            'a `:` where a value starts cannot start it'
+        )
+
+    def test_describe_error_with_a_key_marker_where_a_key_is_not_allowed_returns_the_value_start_kind(self) -> None:
+        #: Given
+        error = _error('mapping keys are not allowed here', _mark(0, 3))
+
+        #: When
+        problem = describe_error(error, 'a: ? b\n')
+
+        #: Then
+        assert problem == SyntaxProblem('a plain value cannot start with `?`', 'Quote the value', 0), (
+            'a `?` where a value starts cannot start it'
+        )
+
+    def test_describe_control_character_with_a_bell_after_a_line_returns_its_code_point_and_line(self) -> None:
+        #: Given
+        error = ReaderError('<unicode string>', 9, ord('\x07'), 'utf-8', 'special characters are not allowed')
+
+        #: When
+        problem = describe_control_character(error, 'a: b\nc: d\x07\n')
+
+        #: Then
+        assert problem == SyntaxProblem('the block holds the control character U+0007', 'Remove it', 1), (
+            'a control character is named by its code point, on the line it is on'
         )
