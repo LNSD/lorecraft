@@ -35,15 +35,10 @@ from ..name import SpecName, parse_spec_name
 from ..section_name import PaddedSectionNameError, SectionName
 from ..spec_file import SpecFileType, StructureSpecFile, spec_filename
 from ..structure import (
-    AdjacentAnyRunsError,
     AnySections,
     CharCappedTitleChecks,
-    EmptyStructureSpecError,
-    ForbiddenOutlineSectionError,
     FrontmatterSchema,
     PatternedTitleChecks,
-    RepeatedForbiddenSectionError,
-    RepeatedOutlineSectionError,
     SectionEntry,
     StructureSchema,
     StructureSpec,
@@ -53,10 +48,15 @@ from ..structure import (
     WordCappedTitleChecks,
 )
 from ..structure_failure import (
+    AdjacentAnyRuns,
+    EmptyStructureSpec,
+    ForbiddenOutlineSections,
     ForeignFrontmatterDialect,
     FrontmatterSchemaId,
     InvalidFrontmatterSchema,
     InvalidTitlePattern,
+    RepeatedForbiddenSections,
+    RepeatedOutlineSections,
     UntypedFrontmatterSchema,
 )
 
@@ -958,137 +958,77 @@ class TestStructureSpecParse:
             StructureSpecProblem(('forbidden', 0), str(PaddedSectionNameError('Changelog '))),
         ), f'the problem names the entry and reads with the name rejection, got {exc_info.value.problems}'
 
-    def test_parse_with_a_forbidden_entry_given_twice_raises_repeated_forbidden_section_error(self) -> None:
+    def test_parse_with_a_forbidden_entry_given_twice_returns_repeated_forbidden_sections(self) -> None:
         #: Given
         schema = StructureSchema('{"forbidden": ["Changelog", "Changelog"]}')
 
         #: When
-        with pytest.raises(RepeatedForbiddenSectionError) as exc_info:
-            StructureSpec.parse(SPEC_FILE, schema)
+        failure = StructureSpec.parse(SPEC_FILE, schema)
 
         #: Then
-        assert exc_info.value.path == SPEC_PATH, 'the shape lets a repeated entry through, the rules refuse it'
-        assert exc_info.value.sections == (SectionName('Changelog'),), (
-            f'the error carries the repeated name once, got {exc_info.value.sections}'
+        assert failure == RepeatedForbiddenSections((SectionName('Changelog'),)), (
+            f'the shape lets a repeated entry through, the rules refuse it naming it once, got {failure!r}'
         )
 
-
-@pytest.mark.unit
-class TestStructureSpecConstruction:
-    def test_construction_without_any_rule_raises_empty_structure_spec_error(self) -> None:
+    def test_parse_without_any_rule_returns_empty_structure_spec(self) -> None:
         #: Given
-        file = SPEC_FILE
+        schema = StructureSchema('{}')
 
         #: When
-        with pytest.raises(EmptyStructureSpecError) as exc_info:
-            StructureSpec(
-                file=file,
-                title=None,
-                forbid_empty_sections=False,
-                outline=(),
-                forbidden=(),
-                tokens=None,
-                frontmatter=None,
-            )
+        failure = StructureSpec.parse(SPEC_FILE, schema)
 
         #: Then
-        assert exc_info.value.path == file.path, 'a specification stating no rule would check nothing'
+        assert failure == EmptyStructureSpec(), 'a specification stating no rule would check nothing'
 
-    def test_construction_with_a_section_named_twice_raises_repeated_outline_section_error(self) -> None:
+    def test_parse_with_a_section_named_twice_returns_repeated_outline_sections(self) -> None:
         #: Given
-        outline = (
-            SectionEntry(name=SectionName('Checklist')),
-            SectionEntry(name=SectionName('Checklist'), optional=True),
-        )
+        schema = StructureSchema('{"outline": [{"section": "Checklist"}, {"section": "Checklist", "optional": true}]}')
 
         #: When
-        with pytest.raises(RepeatedOutlineSectionError) as exc_info:
-            StructureSpec(
-                file=SPEC_FILE,
-                title=None,
-                forbid_empty_sections=False,
-                outline=outline,
-                forbidden=(),
-                tokens=None,
-                frontmatter=None,
-            )
+        failure = StructureSpec.parse(SPEC_FILE, schema)
 
         #: Then
-        assert exc_info.value.path == SPEC_PATH, 'a name fixes one position, so it cannot be given two'
-        assert exc_info.value.sections == (SectionName('Checklist'),), (
-            f'the error carries the repeated name once, got {exc_info.value.sections}'
+        assert failure == RepeatedOutlineSections((SectionName('Checklist'),)), (
+            f'a name fixes one position, so it cannot be given two, got {failure!r}'
         )
-        assert 'Checklist' in str(exc_info.value), f'the message names the repeated section, got {exc_info.value}'
 
-    def test_construction_forbidding_a_section_twice_raises_repeated_forbidden_section_error(self) -> None:
+    def test_parse_forbidding_a_section_twice_among_others_returns_only_the_repeated_name(self) -> None:
         #: Given
-        forbidden = (SectionName('Changelog'), SectionName('History'), SectionName('Changelog'))
+        schema = StructureSchema('{"forbidden": ["Changelog", "History", "Changelog"]}')
 
         #: When
-        with pytest.raises(RepeatedForbiddenSectionError) as exc_info:
-            StructureSpec(
-                file=SPEC_FILE,
-                title=None,
-                forbid_empty_sections=False,
-                outline=(),
-                forbidden=forbidden,
-                tokens=None,
-                frontmatter=None,
-            )
+        failure = StructureSpec.parse(SPEC_FILE, schema)
 
         #: Then
-        assert exc_info.value.path == SPEC_PATH, 'a second entry would report every forbidden section twice'
-        assert exc_info.value.sections == (SectionName('Changelog'),), (
-            f'the error carries only the repeated name, once, got {exc_info.value.sections}'
+        assert failure == RepeatedForbiddenSections((SectionName('Changelog'),)), (
+            f'a second entry would report every forbidden section twice, got {failure!r}'
         )
-        assert 'Changelog' in str(exc_info.value), f'the message names the repeated section, got {exc_info.value}'
 
-    def test_construction_forbidding_a_section_its_outline_names_raises_forbidden_outline_section_error(self) -> None:
+    def test_parse_forbidding_a_section_its_outline_names_returns_forbidden_outline_sections(self) -> None:
         #: Given
-        outline = (SectionEntry(name=SectionName('Checklist'), optional=True),)
-
-        #: When
-        with pytest.raises(ForbiddenOutlineSectionError) as exc_info:
-            StructureSpec(
-                file=SPEC_FILE,
-                title=None,
-                forbid_empty_sections=False,
-                outline=outline,
-                forbidden=(SectionName('Checklist'),),
-                tokens=None,
-                frontmatter=None,
-            )
-
-        #: Then
-        assert exc_info.value.path == SPEC_PATH, 'a section cannot be both placed and forbidden'
-        assert exc_info.value.sections == (SectionName('Checklist'),), (
-            f'the error carries the contradicted name, got {exc_info.value.sections}'
-        )
-        assert 'Checklist' in str(exc_info.value), f'the message names the contradicted section, got {exc_info.value}'
-
-    def test_construction_with_two_adjacent_any_runs_raises_adjacent_any_runs_error(self) -> None:
-        #: Given
-        outline = (
-            AnySections(),
-            AnySections(),
-            SectionEntry(name=SectionName('Checklist')),
+        schema = StructureSchema(
+            '{"outline": [{"section": "Checklist", "optional": true}], "forbidden": ["Checklist"]}'
         )
 
         #: When
-        with pytest.raises(AdjacentAnyRunsError) as exc_info:
-            StructureSpec(
-                file=SPEC_FILE,
-                title=None,
-                forbid_empty_sections=False,
-                outline=outline,
-                forbidden=(),
-                tokens=None,
-                frontmatter=None,
-            )
+        failure = StructureSpec.parse(SPEC_FILE, schema)
 
         #: Then
-        assert exc_info.value.path == SPEC_PATH, 'two runs side by side match as one, so the outline misleads'
-        assert str(SPEC_PATH) in str(exc_info.value), f'the message names the file, got {exc_info.value}'
+        assert failure == ForbiddenOutlineSections((SectionName('Checklist'),)), (
+            f'a section cannot be both placed and forbidden, got {failure!r}'
+        )
+
+    def test_parse_with_two_adjacent_any_runs_returns_adjacent_any_runs(self) -> None:
+        #: Given
+        schema = StructureSchema('{"outline": [{"any": true}, {"any": true}, {"section": "Checklist"}]}')
+
+        #: When
+        failure = StructureSpec.parse(SPEC_FILE, schema)
+
+        #: Then
+        assert failure == AdjacentAnyRuns(), (
+            f'two runs side by side match as one, so the outline misleads, got {failure!r}'
+        )
 
 
 @pytest.mark.unit

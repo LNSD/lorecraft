@@ -132,11 +132,6 @@ def namespace_spec(corpus: str, namespace: str, structure: str) -> NamespaceSpec
         EmptyAspectNamespaceError: If the namespace is empty.
         InvalidAspectNamespaceCharacterError: If a character of the namespace falls outside kebab case.
         StructureSpecDecodeError: If the structure specification is not JSON or does not have the dialect's shape.
-        EmptyStructureSpecError: If it states no rule.
-        RepeatedOutlineSectionError: If its outline names a section twice.
-        RepeatedForbiddenSectionError: If it forbids a section twice.
-        ForbiddenOutlineSectionError: If it forbids a section its own outline names.
-        AdjacentAnyRunsError: If its outline places two `any` runs side by side.
     """
     spec_name = NamespaceSpecName(CorpusName.parse(corpus), AspectNamespace.parse(namespace))
     return NamespaceSpec(name=spec_name, files=_files(spec_name), structure=_decode_structure(spec_name, structure))
@@ -163,11 +158,6 @@ def _decode_structure(spec_name: SpecName, structure: str) -> StructureSpec:
 
     Raises:
         StructureSpecDecodeError: If the text is not JSON or does not have the dialect's shape.
-        EmptyStructureSpecError: If it states no rule.
-        RepeatedOutlineSectionError: If its outline names a section twice.
-        RepeatedForbiddenSectionError: If it forbids a section twice.
-        ForbiddenOutlineSectionError: If it forbids a section its own outline names.
-        AdjacentAnyRunsError: If its outline places two `any` runs side by side.
     """
     file = StructureSpecFile(
         path=SPECS_DIR / PathComponent.parse(spec_filename(spec_name, SpecFileType.LEGACY_STRUCTURE)), name=spec_name
@@ -218,11 +208,6 @@ class FakeDocumentContext:
             InvalidAspectNameCharacterError: If a character of the filename is not lowercase with valid separators.
             StructureSpecDecodeError: If the structure specification is not JSON or does not have the dialect's
                 shape.
-            EmptyStructureSpecError: If it states no rule.
-            RepeatedOutlineSectionError: If its outline names a section twice.
-            RepeatedForbiddenSectionError: If it forbids a section twice.
-            ForbiddenOutlineSectionError: If it forbids a section its own outline names.
-            AdjacentAnyRunsError: If its outline places two `any` runs side by side.
         """
         spec_name = CorpusSpecName(CorpusName.parse(corpus))
         self._text = text

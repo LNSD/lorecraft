@@ -129,6 +129,15 @@ class UntypedFrontmatterSchema:
     """The structure file's frontmatter schema root does not state `"type": "object"`."""
 
 
+# The conditions a structure specification's rules fail with when they are not usable.
+type StructureSpecRuleFailure = (
+    EmptyStructureSpec
+    | RepeatedOutlineSections
+    | RepeatedForbiddenSections
+    | ForbiddenOutlineSections
+    | AdjacentAnyRuns
+)
+
 # Every condition a structure specification fails with once its text is read.
 type StructureSpecFailure = (
     UndecodableStructureSpec
