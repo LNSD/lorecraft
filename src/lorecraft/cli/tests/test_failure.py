@@ -9,19 +9,10 @@ from lorecraft.core.error import Error
 from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.corpus import CorpusName
-from lorecraft.project.document import CorpusListError
 from lorecraft.project.schemas import (
-    JSON_SCHEMA_DIALECT,
     CorpusSpecName,
     SectionName,
-    StructureSchemaReadError,
     StructureSpecProblem,
-)
-from lorecraft.project.skill import (
-    SkillDirListError,
-    SkillEntryResolveError,
-    SkillFileResolveError,
-    SkillsDirListError,
 )
 from lorecraft.project.workspace import (
     AdjacentAnyRuns,
@@ -53,14 +44,7 @@ from lorecraft.project.workspace import (
     WorkspaceModel,
 )
 from lorecraft.vfs import (
-    DirListError,
-    DirResolveError,
-    EntryInspectError,
-    FileReadError,
-    FileResolveError,
     OsRefusal,
-    TextDecodeError,
-    UnrecordedFileError,
     Utf8Failure,
 )
 
@@ -140,29 +124,6 @@ _PROBLEMS: Final[tuple[StructureSpecProblem, StructureSpecProblem]] = (
 _REFUSAL: Final[OsRefusal] = OsRefusal.PERMISSION_DENIED
 
 
-def _os_error() -> OSError:
-    """The operating system's error a failure wraps, fresh for each test so none shares its traceback."""
-    return OSError()
-
-
-def _written_for(capsys: pytest.CaptureFixture[str], failure: LoadFailure, error: Error) -> tuple[str, str]:
-    """What `report_failure` wrote for the replaced error, and what `report_load_failure` wrote for the failure.
-
-    Args:
-        capsys: Captures what each report writes to stderr.
-        failure: The recorded failure.
-        error: The error the loader raised for it before failures were recorded.
-
-    Returns:
-        The report of the error, then the report of the recorded failure.
-    """
-    report_failure(error)
-    expected = capsys.readouterr().err
-
-    report_load_failure(failure)
-    return expected, capsys.readouterr().err
-
-
 @pytest.mark.unit
 class TestReportLoadFailure:
     def test_report_load_failure_with_unreadable_structure_file_writes_what_the_replaced_error_wrote(
@@ -170,26 +131,32 @@ class TestReportLoadFailure:
     ) -> None:
         #: Given
         failure = LoadFailure(_PATH, UnreadableStructureFile(_SPEC_NAME, _REFUSAL))
-        error = StructureSchemaReadError(_SPEC_NAME, source=FileReadError(_PATH, _REFUSAL, source=_os_error()))
+        expected = (
+            'error: cannot read the structure schema code\n'
+            '  caused by: cannot read file docs/__meta__/code.structure.json: permission denied\n'
+        )
 
         #: When
-        expected, actual = _written_for(capsys, failure, error)
+        report_load_failure(failure)
 
         #: Then
-        assert actual == expected, 'the interim report is the one the raised error gave'
+        assert capsys.readouterr().err == expected, 'the interim report is what the raised error wrote'
 
     def test_report_load_failure_with_unrecorded_structure_file_writes_what_the_replaced_error_wrote(
         self, capsys: pytest.CaptureFixture[str]
     ) -> None:
         #: Given
         failure = LoadFailure(_PATH, UnrecordedStructureFile(_SPEC_NAME))
-        error = StructureSchemaReadError(_SPEC_NAME, source=UnrecordedFileError(_PATH))
+        expected = (
+            'error: cannot read the structure schema code\n'
+            '  caused by: cannot read file docs/__meta__/code.structure.json: not in the snapshot\n'
+        )
 
         #: When
-        expected, actual = _written_for(capsys, failure, error)
+        report_load_failure(failure)
 
         #: Then
-        assert actual == expected, 'the interim report is the one the raised error gave'
+        assert capsys.readouterr().err == expected, 'the interim report is what the raised error wrote'
 
     def test_report_load_failure_with_non_utf8_structure_file_writes_what_the_replaced_error_wrote(
         self, capsys: pytest.CaptureFixture[str]
@@ -197,305 +164,355 @@ class TestReportLoadFailure:
         #: Given
         decode_error = UnicodeDecodeError('utf-8', b'\xe9', 0, 1, 'invalid continuation byte')
         failure = LoadFailure(_PATH, NonUtf8StructureFile(Utf8Failure.from_error(decode_error)))
-        error = TextDecodeError(_PATH, source=decode_error)
+        expected = 'error: file docs/__meta__/code.structure.json is not UTF-8\n'
 
         #: When
-        expected, actual = _written_for(capsys, failure, error)
+        report_load_failure(failure)
 
         #: Then
-        assert actual == expected, 'the interim report is the one the raised error gave'
+        assert capsys.readouterr().err == expected, 'the interim report is what the raised error wrote'
 
     def test_report_load_failure_with_undecodable_structure_spec_writes_what_the_replaced_error_wrote(
         self, capsys: pytest.CaptureFixture[str]
     ) -> None:
         #: Given
         failure = LoadFailure(_PATH, UndecodableStructureSpec(_PROBLEMS))
-        error = Error(f'invalid structure schema {_PATH}: outline: Field required; tokens: not a number')
+        expected = (
+            'error: invalid structure schema docs/__meta__/code.structure.json: '
+            'outline: Field required; tokens: not a number\n'
+        )
 
         #: When
-        expected, actual = _written_for(capsys, failure, error)
+        report_load_failure(failure)
 
         #: Then
-        assert actual == expected, 'the interim report is the one the raised error gave'
+        assert capsys.readouterr().err == expected, 'the interim report is what the raised error wrote'
 
     def test_report_load_failure_with_empty_structure_spec_writes_what_the_replaced_error_wrote(
         self, capsys: pytest.CaptureFixture[str]
     ) -> None:
         #: Given
         failure = LoadFailure(_PATH, EmptyStructureSpec())
-        error = Error(f'invalid structure schema {_PATH}: states no rule, so it would check nothing')
+        expected = (
+            'error: invalid structure schema docs/__meta__/code.structure.json: '
+            'states no rule, so it would check nothing\n'
+        )
 
         #: When
-        expected, actual = _written_for(capsys, failure, error)
+        report_load_failure(failure)
 
         #: Then
-        assert actual == expected, 'the interim report is the one the raised error gave'
+        assert capsys.readouterr().err == expected, 'the interim report is what the raised error wrote'
 
     def test_report_load_failure_with_repeated_outline_sections_writes_what_the_replaced_error_wrote(
         self, capsys: pytest.CaptureFixture[str]
     ) -> None:
         #: Given
         failure = LoadFailure(_PATH, RepeatedOutlineSections((SectionName('Usage'),)))
-        error = Error(f"invalid structure schema {_PATH}: names sections more than once in the outline: ['Usage']")
+        expected = (
+            'error: invalid structure schema docs/__meta__/code.structure.json: '
+            "names sections more than once in the outline: ['Usage']\n"
+        )
 
         #: When
-        expected, actual = _written_for(capsys, failure, error)
+        report_load_failure(failure)
 
         #: Then
-        assert actual == expected, 'the interim report is the one the raised error gave'
+        assert capsys.readouterr().err == expected, 'the interim report is what the raised error wrote'
 
     def test_report_load_failure_with_repeated_forbidden_sections_writes_what_the_replaced_error_wrote(
         self, capsys: pytest.CaptureFixture[str]
     ) -> None:
         #: Given
         failure = LoadFailure(_PATH, RepeatedForbiddenSections((SectionName('Changelog'),)))
-        error = Error(f"invalid structure schema {_PATH}: forbids sections more than once: ['Changelog']")
+        expected = (
+            'error: invalid structure schema docs/__meta__/code.structure.json: '
+            "forbids sections more than once: ['Changelog']\n"
+        )
 
         #: When
-        expected, actual = _written_for(capsys, failure, error)
+        report_load_failure(failure)
 
         #: Then
-        assert actual == expected, 'the interim report is the one the raised error gave'
+        assert capsys.readouterr().err == expected, 'the interim report is what the raised error wrote'
 
     def test_report_load_failure_with_forbidden_outline_sections_writes_what_the_replaced_error_wrote(
         self, capsys: pytest.CaptureFixture[str]
     ) -> None:
         #: Given
         failure = LoadFailure(_PATH, ForbiddenOutlineSections((SectionName('Usage'),)))
-        error = Error(f"invalid structure schema {_PATH}: forbids sections its own outline names: ['Usage']")
+        expected = (
+            'error: invalid structure schema docs/__meta__/code.structure.json: '
+            "forbids sections its own outline names: ['Usage']\n"
+        )
 
         #: When
-        expected, actual = _written_for(capsys, failure, error)
+        report_load_failure(failure)
 
         #: Then
-        assert actual == expected, 'the interim report is the one the raised error gave'
+        assert capsys.readouterr().err == expected, 'the interim report is what the raised error wrote'
 
     def test_report_load_failure_with_adjacent_any_runs_writes_what_the_replaced_error_wrote(
         self, capsys: pytest.CaptureFixture[str]
     ) -> None:
         #: Given
         failure = LoadFailure(_PATH, AdjacentAnyRuns())
-        error = Error(f'invalid structure schema {_PATH}: places two `any` runs side by side')
+        expected = (
+            'error: invalid structure schema docs/__meta__/code.structure.json: places two `any` runs side by side\n'
+        )
 
         #: When
-        expected, actual = _written_for(capsys, failure, error)
+        report_load_failure(failure)
 
         #: Then
-        assert actual == expected, 'the interim report is the one the raised error gave'
+        assert capsys.readouterr().err == expected, 'the interim report is what the raised error wrote'
 
     def test_report_load_failure_with_invalid_title_pattern_writes_what_the_replaced_error_wrote(
         self, capsys: pytest.CaptureFixture[str]
     ) -> None:
         #: Given
         failure = LoadFailure(_PATH, InvalidTitlePattern('(', 'missing )'))
-        error = Error(f"invalid structure schema {_PATH}: title pattern '(' is not a valid regular expression")
+        expected = (
+            'error: invalid structure schema docs/__meta__/code.structure.json: '
+            "title pattern '(' is not a valid regular expression\n"
+        )
 
         #: When
-        expected, actual = _written_for(capsys, failure, error)
+        report_load_failure(failure)
 
         #: Then
-        assert actual == expected, 'the interim report is the one the raised error gave'
+        assert capsys.readouterr().err == expected, 'the interim report is what the raised error wrote'
 
     def test_report_load_failure_with_invalid_frontmatter_schema_writes_what_the_replaced_error_wrote(
         self, capsys: pytest.CaptureFixture[str]
     ) -> None:
         #: Given
         failure = LoadFailure(_PATH, InvalidFrontmatterSchema('5 is not valid'))
-        error = Error(f'invalid structure schema {_PATH}: frontmatter is not a valid JSON Schema: 5 is not valid')
+        expected = (
+            'error: invalid structure schema docs/__meta__/code.structure.json: '
+            'frontmatter is not a valid JSON Schema: 5 is not valid\n'
+        )
 
         #: When
-        expected, actual = _written_for(capsys, failure, error)
+        report_load_failure(failure)
 
         #: Then
-        assert actual == expected, 'the interim report is the one the raised error gave'
+        assert capsys.readouterr().err == expected, 'the interim report is what the raised error wrote'
 
     def test_report_load_failure_with_frontmatter_schema_id_writes_what_the_replaced_error_wrote(
         self, capsys: pytest.CaptureFixture[str]
     ) -> None:
         #: Given
         failure = LoadFailure(_PATH, FrontmatterSchemaId())
-        error = Error(f'invalid structure schema {_PATH}: frontmatter schema may not carry $id')
+        expected = (
+            'error: invalid structure schema docs/__meta__/code.structure.json: frontmatter schema may not carry $id\n'
+        )
 
         #: When
-        expected, actual = _written_for(capsys, failure, error)
+        report_load_failure(failure)
 
         #: Then
-        assert actual == expected, 'the interim report is the one the raised error gave'
+        assert capsys.readouterr().err == expected, 'the interim report is what the raised error wrote'
 
     def test_report_load_failure_with_foreign_frontmatter_dialect_writes_what_the_replaced_error_wrote(
         self, capsys: pytest.CaptureFixture[str]
     ) -> None:
         #: Given
         failure = LoadFailure(_PATH, ForeignFrontmatterDialect('draft-07'))
-        error = Error(
-            f"invalid structure schema {_PATH}: frontmatter schema names 'draft-07' in $schema; only "
-            f'{JSON_SCHEMA_DIALECT} is allowed'
+        expected = (
+            'error: invalid structure schema docs/__meta__/code.structure.json: '
+            "frontmatter schema names 'draft-07' in $schema; "
+            'only https://json-schema.org/draft/2020-12/schema is allowed\n'
         )
 
         #: When
-        expected, actual = _written_for(capsys, failure, error)
+        report_load_failure(failure)
 
         #: Then
-        assert actual == expected, 'the interim report is the one the raised error gave'
+        assert capsys.readouterr().err == expected, 'the interim report is what the raised error wrote'
 
     def test_report_load_failure_with_unresolvable_frontmatter_schema_ref_writes_what_the_replaced_error_wrote(
         self, capsys: pytest.CaptureFixture[str]
     ) -> None:
         #: Given
         failure = LoadFailure(_PATH, UnresolvableFrontmatterSchemaRef('#/$defs/missing'))
-        error = Error(
-            f"invalid structure schema {_PATH}: frontmatter schema holds a $ref '#/$defs/missing' that does not "
-            'resolve inside it'
+        expected = (
+            'error: invalid structure schema docs/__meta__/code.structure.json: '
+            "frontmatter schema holds a $ref '#/$defs/missing' that does not resolve inside it\n"
         )
 
         #: When
-        expected, actual = _written_for(capsys, failure, error)
+        report_load_failure(failure)
 
         #: Then
-        assert actual == expected, 'the interim report names the reference'
+        assert capsys.readouterr().err == expected, 'the interim report names the reference'
 
     def test_report_load_failure_with_untyped_frontmatter_schema_writes_what_the_replaced_error_wrote(
         self, capsys: pytest.CaptureFixture[str]
     ) -> None:
         #: Given
         failure = LoadFailure(_PATH, UntypedFrontmatterSchema())
-        error = Error(f'invalid structure schema {_PATH}: frontmatter schema root must state "type": "object"')
+        expected = (
+            'error: invalid structure schema docs/__meta__/code.structure.json: '
+            'frontmatter schema root must state "type": "object"\n'
+        )
 
         #: When
-        expected, actual = _written_for(capsys, failure, error)
+        report_load_failure(failure)
 
         #: Then
-        assert actual == expected, 'the interim report is the one the raised error gave'
+        assert capsys.readouterr().err == expected, 'the interim report is what the raised error wrote'
 
     def test_report_load_failure_with_unlistable_directory_writes_what_the_replaced_error_wrote(
         self, capsys: pytest.CaptureFixture[str]
     ) -> None:
         #: Given
         failure = LoadFailure(_DOCS, UnlistableDirectory(_REFUSAL))
-        error = DirListError(_DOCS, _REFUSAL, source=_os_error())
+        expected = 'error: cannot list directory docs: permission denied\n'
 
         #: When
-        expected, actual = _written_for(capsys, failure, error)
+        report_load_failure(failure)
 
         #: Then
-        assert actual == expected, 'the interim report is the one the raised error gave'
+        assert capsys.readouterr().err == expected, 'the interim report is what the raised error wrote'
 
     def test_report_load_failure_with_unlistable_corpus_directory_writes_what_the_replaced_error_wrote(
         self, capsys: pytest.CaptureFixture[str]
     ) -> None:
         #: Given
         failure = LoadFailure(_CORPUS_DIR, UnlistableCorpusDirectory(_CORPUS, _REFUSAL))
-        error = CorpusListError(_CORPUS, source=DirListError(_CORPUS_DIR, _REFUSAL, source=_os_error()))
+        expected = (
+            'error: cannot list the documents of corpus code\n'
+            '  caused by: cannot list directory docs/code: permission denied\n'
+        )
 
         #: When
-        expected, actual = _written_for(capsys, failure, error)
+        report_load_failure(failure)
 
         #: Then
-        assert actual == expected, 'the interim report is the one the raised error gave'
+        assert capsys.readouterr().err == expected, 'the interim report is what the raised error wrote'
 
     def test_report_load_failure_with_unresolvable_skills_directory_writes_what_the_replaced_error_wrote(
         self, capsys: pytest.CaptureFixture[str]
     ) -> None:
         #: Given
         failure = LoadFailure(_SKILLS_DIR, UnresolvableSkillsDirectory(_REFUSAL))
-        error = DirResolveError(_SKILLS_DIR, _REFUSAL, source=_os_error())
+        expected = 'error: cannot resolve directory .claude/skills: permission denied\n'
 
         #: When
-        expected, actual = _written_for(capsys, failure, error)
+        report_load_failure(failure)
 
         #: Then
-        assert actual == expected, 'the interim report is the one the raised error gave'
+        assert capsys.readouterr().err == expected, 'the interim report is what the raised error wrote'
 
     def test_report_load_failure_with_uninspectable_skills_directory_writes_what_the_replaced_error_wrote(
         self, capsys: pytest.CaptureFixture[str]
     ) -> None:
         #: Given
         failure = LoadFailure(_SKILLS_DIR, UninspectableSkillsDirectory(_INNER, _REFUSAL))
-        error = EntryInspectError(_INNER, _REFUSAL, source=_os_error())
+        expected = 'error: cannot inspect entry shared/review/inner: permission denied\n'
 
         #: When
-        expected, actual = _written_for(capsys, failure, error)
+        report_load_failure(failure)
 
         #: Then
-        assert actual == expected, 'the interim report is the one the raised error gave'
+        assert capsys.readouterr().err == expected, 'the interim report is what the raised error wrote'
 
     def test_report_load_failure_with_unlistable_skills_directory_writes_what_the_replaced_error_wrote(
         self, capsys: pytest.CaptureFixture[str]
     ) -> None:
         #: Given
         failure = LoadFailure(_SKILLS_DIR, UnlistableSkillsDirectory(_TARGET_DIR, _REFUSAL))
-        error = SkillsDirListError(_TARGET_DIR, source=DirListError(_TARGET_DIR, _REFUSAL, source=_os_error()))
+        expected = (
+            'error: cannot list the skills in shared/skills\n'
+            '  caused by: cannot list directory shared/skills: permission denied\n'
+        )
 
         #: When
-        expected, actual = _written_for(capsys, failure, error)
+        report_load_failure(failure)
 
         #: Then
-        assert actual == expected, 'the interim report is the one the raised error gave'
+        assert capsys.readouterr().err == expected, 'the interim report is what the raised error wrote'
 
     def test_report_load_failure_with_unresolvable_skill_entry_writes_what_the_replaced_error_wrote(
         self, capsys: pytest.CaptureFixture[str]
     ) -> None:
         #: Given
         failure = LoadFailure(_ENTRY, UnresolvableSkillEntry(_REFUSAL))
-        error = SkillEntryResolveError(_ENTRY, source=DirResolveError(_ENTRY, _REFUSAL, source=_os_error()))
+        expected = (
+            'error: cannot resolve skill entry .claude/skills/review\n'
+            '  caused by: cannot resolve directory .claude/skills/review: permission denied\n'
+        )
 
         #: When
-        expected, actual = _written_for(capsys, failure, error)
+        report_load_failure(failure)
 
         #: Then
-        assert actual == expected, 'the interim report is the one the raised error gave'
+        assert capsys.readouterr().err == expected, 'the interim report is what the raised error wrote'
 
     def test_report_load_failure_with_uninspectable_skill_entry_writes_what_the_replaced_error_wrote(
         self, capsys: pytest.CaptureFixture[str]
     ) -> None:
         #: Given
         failure = LoadFailure(_ENTRY, UninspectableSkillEntry(_INNER, _REFUSAL))
-        error = SkillEntryResolveError(_ENTRY, source=EntryInspectError(_INNER, _REFUSAL, source=_os_error()))
+        expected = (
+            'error: cannot resolve skill entry .claude/skills/review\n'
+            '  caused by: cannot inspect entry shared/review/inner: permission denied\n'
+        )
 
         #: When
-        expected, actual = _written_for(capsys, failure, error)
+        report_load_failure(failure)
 
         #: Then
-        assert actual == expected, 'the interim report is the one the raised error gave'
+        assert capsys.readouterr().err == expected, 'the interim report is what the raised error wrote'
 
     def test_report_load_failure_with_unlistable_skill_directory_writes_what_the_replaced_error_wrote(
         self, capsys: pytest.CaptureFixture[str]
     ) -> None:
         #: Given
         failure = LoadFailure(_ENTRY, UnlistableSkillDirectory(_TARGET_DIR, _REFUSAL))
-        error = SkillDirListError(_TARGET_DIR, source=DirListError(_TARGET_DIR, _REFUSAL, source=_os_error()))
+        expected = (
+            'error: cannot look for SKILL.md in shared/skills\n'
+            '  caused by: cannot list directory shared/skills: permission denied\n'
+        )
 
         #: When
-        expected, actual = _written_for(capsys, failure, error)
+        report_load_failure(failure)
 
         #: Then
-        assert actual == expected, 'the interim report is the one the raised error gave'
+        assert capsys.readouterr().err == expected, 'the interim report is what the raised error wrote'
 
     def test_report_load_failure_with_unresolvable_skill_file_writes_what_the_replaced_error_wrote(
         self, capsys: pytest.CaptureFixture[str]
     ) -> None:
         #: Given
         failure = LoadFailure(_ENTRY_FILE, UnresolvableSkillFile(_TARGET_FILE, _REFUSAL))
-        error = SkillFileResolveError(_TARGET_FILE, source=FileResolveError(_TARGET_FILE, _REFUSAL, source=_os_error()))
+        expected = (
+            'error: cannot resolve shared/review/SKILL.md\n'
+            '  caused by: cannot resolve file shared/review/SKILL.md: permission denied\n'
+        )
 
         #: When
-        expected, actual = _written_for(capsys, failure, error)
+        report_load_failure(failure)
 
         #: Then
-        assert actual == expected, 'the interim report is the one the raised error gave'
+        assert capsys.readouterr().err == expected, 'the interim report is what the raised error wrote'
 
     def test_report_load_failure_with_uninspectable_skill_file_writes_what_the_replaced_error_wrote(
         self, capsys: pytest.CaptureFixture[str]
     ) -> None:
         #: Given
         failure = LoadFailure(_ENTRY_FILE, UninspectableSkillFile(_TARGET_FILE, _INNER, _REFUSAL))
-        error = SkillFileResolveError(_TARGET_FILE, source=EntryInspectError(_INNER, _REFUSAL, source=_os_error()))
+        expected = (
+            'error: cannot resolve shared/review/SKILL.md\n'
+            '  caused by: cannot inspect entry shared/review/inner: permission denied\n'
+        )
 
         #: When
-        expected, actual = _written_for(capsys, failure, error)
+        report_load_failure(failure)
 
         #: Then
-        assert actual == expected, 'the interim report is the one the raised error gave'
+        assert capsys.readouterr().err == expected, 'the interim report is what the raised error wrote'
 
 
 @pytest.mark.unit
@@ -511,10 +528,10 @@ class TestExitOnLoadFailure:
         )
 
         #: When
-        exit_on_load_failure(model)
+        result = exit_on_load_failure(model)
 
         #: Then
-        # reaching here is the assertion: a model that recorded nothing is no reason to stop
+        assert result is None, 'a model that recorded nothing is no reason to stop'
 
     def test_exit_on_load_failure_with_failures_reports_the_first_and_exits_two(
         self, capsys: pytest.CaptureFixture[str]
