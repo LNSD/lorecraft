@@ -162,7 +162,7 @@ def _is_forbidden(forbidden: tuple[SectionName, ...], section: SectionHeading) -
         forbidden: The names the specification forbids.
         section: An H2 heading of the document.
     """
-    return any(name.names(section) for name in forbidden)
+    return any(name.is_name_of(section) for name in forbidden)
 
 
 def _find_named_alignment(
@@ -179,7 +179,7 @@ def _find_named_alignment(
     for index, entry in enumerate(outline):
         match entry:
             case SectionEntry():
-                if entry.names(section):
+                if entry.is_name_of(section):
                     return index, NamedAlignment(section=section, entry=entry)
             case AnySections():
                 pass  # an `any` run names no section

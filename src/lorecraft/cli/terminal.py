@@ -2,7 +2,7 @@
 
 This is the one place that asks the process about its terminal and its environment, so the renderers stay pure
 functions of the style they are handed. The colour variables are read once, by `read_color_environment`, into a
-`ColorEnvironment`; the colour decision, `decide_color`, is a pure function of that value, `--color` and whether
+`ColorEnvironment`; the colour decision, `is_color_wanted`, is a pure function of that value, `--color` and whether
 stdout is a terminal. The width comes from `shutil.get_terminal_size`, which honours `COLUMNS` on a terminal; no
 other code of ours reads `os.environ`.
 """
@@ -51,7 +51,7 @@ def read_color_environment() -> ColorEnvironment:
     return ColorEnvironment.from_environ(os.environ)
 
 
-def decide_color(choice: ColorChoice, environment: ColorEnvironment, *, is_terminal: bool) -> bool:
+def is_color_wanted(choice: ColorChoice, environment: ColorEnvironment, *, is_terminal: bool) -> bool:
     """Whether to colour the text, by the first of these that applies.
 
     1. An explicit `--color always` or `--color never`.
@@ -80,14 +80,14 @@ def decide_color(choice: ColorChoice, environment: ColorEnvironment, *, is_termi
 
 
 def detect_text_style(choice: ColorChoice, environment: ColorEnvironment) -> TextStyle:
-    """The style for stdout: the colour `decide_color` gives, Unicode when stdout encodes it, and its width.
+    """The style for stdout: the colour `is_color_wanted` gives, Unicode when stdout encodes it, and its width.
 
     Args:
         choice: What `--color` said.
         environment: What the environment says about colour, read once at the command line's edge.
     """
     is_terminal = sys.stdout.isatty()
-    color = decide_color(choice, environment, is_terminal=is_terminal)
+    color = is_color_wanted(choice, environment, is_terminal=is_terminal)
 
     encoding = (sys.stdout.encoding or '').lower().replace('-', '').replace('_', '')
     # A pipe or a file is not asked: the environment's `COLUMNS` describes some other terminal, and the same run would

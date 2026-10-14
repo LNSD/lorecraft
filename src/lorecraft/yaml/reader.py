@@ -149,7 +149,11 @@ def _refused(refusal: RecordedRefusal | Refusal) -> RefusedConstructProblem:
 
 
 class _EventStream:
-    """The events of a text, read lazily, one at a time, with one event of lookahead."""
+    """The events of a text, read lazily, one at a time, with one event of lookahead.
+
+    `check_event` and its sibling `peek_event` keep ruamel.yaml's names: they mirror its `Parser` protocol, which
+    the composer calls.
+    """
 
     def __init__(self, text: str) -> None:
         """Start reading `text`. No character is read until the first event is asked for.

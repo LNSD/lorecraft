@@ -21,7 +21,7 @@ from .frontmatter import (
     MissingFrontmatter,
     NonMappingFrontmatter,
     RepeatedKey,
-    reads_back_as_string,
+    is_string_when_read_back,
 )
 from .heading import Heading, HeadingLevel, SectionHeading, find_title, section_headings
 from .link import (
@@ -48,7 +48,7 @@ __all__: list[str] = [
     'MissingFrontmatter',
     'InvalidYamlFrontmatter',
     'NonMappingFrontmatter',
-    'reads_back_as_string',
+    'is_string_when_read_back',
     'Heading',
     'HeadingLevel',
     'SectionHeading',

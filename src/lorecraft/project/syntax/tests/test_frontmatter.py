@@ -19,7 +19,7 @@ from ..frontmatter import (
     NonMappingFrontmatter,
     RepeatedKey,
     decode_frontmatter,
-    reads_back_as_string,
+    is_string_when_read_back,
 )
 from ..position import LineNumber
 
@@ -3106,73 +3106,73 @@ class TestFrontmatterFindKeyLine:
 
 
 @pytest.mark.unit
-class TestReadsBackAsString:
-    def test_reads_back_as_string_with_a_decimal_returns_false(self) -> None:
+class TestIsStringWhenReadBack:
+    def test_is_string_when_read_back_with_a_decimal_returns_false(self) -> None:
         #: Given
         text = '1.0'
 
         #: When
-        result = reads_back_as_string(text)
+        result = is_string_when_read_back(text)
 
         #: Then
         assert result is False, '`1.0` unquoted decodes to a number, not to itself'
 
-    def test_reads_back_as_string_with_a_boolean_returns_false(self) -> None:
+    def test_is_string_when_read_back_with_a_boolean_returns_false(self) -> None:
         #: Given
         text = 'true'
 
         #: When
-        result = reads_back_as_string(text)
+        result = is_string_when_read_back(text)
 
         #: Then
         assert result is False, '`true` unquoted decodes to a boolean, not to itself'
 
-    def test_reads_back_as_string_with_an_octal_integer_returns_false(self) -> None:
+    def test_is_string_when_read_back_with_an_octal_integer_returns_false(self) -> None:
         #: Given
         text = '0o17'
 
         #: When
-        result = reads_back_as_string(text)
+        result = is_string_when_read_back(text)
 
         #: Then
         assert result is False, '`0o17` unquoted decodes to an integer, not to itself'
 
-    def test_reads_back_as_string_with_an_exponent_returns_false(self) -> None:
+    def test_is_string_when_read_back_with_an_exponent_returns_false(self) -> None:
         #: Given
         text = '1e3'
 
         #: When
-        result = reads_back_as_string(text)
+        result = is_string_when_read_back(text)
 
         #: Then
         assert result is False, '`1e3` unquoted decodes to a number, not to itself'
 
-    def test_reads_back_as_string_with_empty_text_returns_false(self) -> None:
+    def test_is_string_when_read_back_with_empty_text_returns_false(self) -> None:
         #: Given
         text = ''
 
         #: When
-        result = reads_back_as_string(text)
+        result = is_string_when_read_back(text)
 
         #: Then
         assert result is False, 'an empty value decodes to null'
 
-    def test_reads_back_as_string_with_text_that_is_not_yaml_returns_false(self) -> None:
+    def test_is_string_when_read_back_with_text_that_is_not_yaml_returns_false(self) -> None:
         #: Given
         text = '[unclosed'
 
         #: When
-        result = reads_back_as_string(text)
+        result = is_string_when_read_back(text)
 
         #: Then
         assert result is False, 'text the frontmatter reader rejects does not read back'
 
-    def test_reads_back_as_string_with_a_plain_string_returns_true(self) -> None:
+    def test_is_string_when_read_back_with_a_plain_string_returns_true(self) -> None:
         #: Given
         text = 'guide'
 
         #: When
-        result = reads_back_as_string(text)
+        result = is_string_when_read_back(text)
 
         #: Then
         assert result is True, 'a plain word decodes to itself'

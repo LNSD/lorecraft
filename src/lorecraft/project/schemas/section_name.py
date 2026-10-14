@@ -125,7 +125,7 @@ class SectionName:
         if len(self.value.splitlines()) > 1:
             raise MultilineSectionNameError(self.value)
 
-    def names(self, heading: SectionHeading) -> bool:
+    def is_name_of(self, heading: SectionHeading) -> bool:
         """Whether the heading is the section this name stands for: its text is exactly the name.
 
         Every comparison of a name with a document's heading goes through here, so a change to what makes them

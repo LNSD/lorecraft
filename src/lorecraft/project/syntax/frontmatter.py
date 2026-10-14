@@ -186,7 +186,7 @@ def decode_frontmatter(block: str) -> FrontmatterNode:
         return InvalidYamlFrontmatter(problem=_TOO_DEEP, line=None)
 
 
-def reads_back_as_string(text: str) -> bool:
+def is_string_when_read_back(text: str) -> bool:
     """Whether a frontmatter field written as `text` without quotes decodes to that same string.
 
     It goes through `decode_frontmatter`, so the answer is the one the frontmatter reader gives: `1.0`, `true`,

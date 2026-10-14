@@ -226,13 +226,13 @@ class SectionEntry:
     description: str | None = None
     examples: tuple[str, ...] = ()
 
-    def names(self, heading: SectionHeading) -> bool:
+    def is_name_of(self, heading: SectionHeading) -> bool:
         """Whether the heading is the section this entry names.
 
         Args:
             heading: The heading of an H2 section of the document.
         """
-        return self.name.names(heading)
+        return self.name.is_name_of(heading)
 
 
 @dataclass(frozen=True, slots=True)

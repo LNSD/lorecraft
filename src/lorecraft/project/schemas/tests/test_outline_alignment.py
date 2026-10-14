@@ -272,7 +272,7 @@ class TestAlignOutlines:
             'Checklist',
         ], 'two sections are named'
         assert all(
-            section.entry.names(section.section) for section in aligned if isinstance(section, NamedAlignment)
+            section.entry.is_name_of(section.section) for section in aligned if isinstance(section, NamedAlignment)
         ), 'a named alignment holds the entry that names its section, whichever sections surround it'
 
 
