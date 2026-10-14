@@ -2,7 +2,7 @@
 name: "adr-017-yaml-parser"
 description: "Frontmatter is parsed with a pure-Python YAML parser, ruamel.yaml's event API in place of PyYAML's, reading the format adr-019 defines, so no runtime dependency carries a C extension. Load when changing how frontmatter is parsed, touching src/lorecraft/project/syntax/frontmatter.py, or adding or upgrading a YAML dependency"
 type: "adr"
-status: "proposed"
+status: "accepted"
 ---
 
 # A Pure-Python YAML Parser for Frontmatter
