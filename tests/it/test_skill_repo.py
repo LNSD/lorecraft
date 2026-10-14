@@ -36,6 +36,7 @@ from lorecraft.vfs import (
     DiskFileSystem,
     FileReadError,
     FileResolveError,
+    OsRefusal,
     ResolvedPath,
     RootExit,
     TextDecodeError,
@@ -252,7 +253,10 @@ class TestRepositoryFindSkillsDir:
             repository.find_skills_dir(UNIVERSAL_DIR)
 
         #: Then
-        assert f'{locked.name}/skills' in str(exc_info.value), 'the error names the directory it could not resolve'
+        assert exc_info.value.path == RootRelativePath.parse(f'{locked.name}/skills'), (
+            'the error carries the directory it could not resolve'
+        )
+        assert exc_info.value.refusal is OsRefusal.PERMISSION_DENIED, 'the lookup was refused for want of permission'
 
 
 @pytest.mark.it

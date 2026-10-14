@@ -67,18 +67,25 @@ def _redact(output: str) -> str:
 
 @pytest.mark.e2e
 class TestInstalledCommandLine:
-    def test_no_arguments_prints_the_help_and_exits_nonzero(self) -> None:
+    def test_cli_with_no_arguments_prints_the_help_and_exits_with_the_usage_status(
+        self, snapshot: SnapshotAssertion
+    ) -> None:
         #: Given
+        expected = snapshot.use_extension(TextSnapshotExtension)
         arguments: tuple[str, ...] = ()
+        # What makes Typer force a coloured terminal is removed, so the box is the same wherever the suite runs.
+        forcing_colour = ('FORCE_COLOR', 'GITHUB_ACTIONS', 'PY_COLORS')
+        environment = {key: value for key, value in os.environ.items() if key not in forcing_colour}
+        environment |= {'TERM': 'dumb', 'COLUMNS': '80'}
 
         #: When
-        result = run_cli(*arguments)
+        result = run_cli(*arguments, env=environment)
 
         #: Then
-        assert result.returncode != 0, 'a bare invocation is a usage error, not a success'
-        assert 'Usage:' in result.stdout, 'no_args_is_help prints the help rather than nothing'
+        assert result.returncode == 2, 'a bare invocation is a usage error, not a success'
+        assert result.stdout == expected, 'no_args_is_help prints the help rather than nothing'
 
-    def test_lc_alias_runs_the_same_command_line(self) -> None:
+    def test_lc_alias_with_the_version_option_prints_what_lorecraft_prints(self) -> None:
         #: Given
         expected = run_cli('--version')
 

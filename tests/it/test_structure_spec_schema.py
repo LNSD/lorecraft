@@ -27,7 +27,7 @@ def validator() -> Draft202012Validator:
 
 @pytest.mark.it
 class TestStructureSpecSchema:
-    def test_structure_schema_is_a_well_formed_json_schema(self) -> None:
+    def test_structure_schema_when_checked_against_the_metaschema_is_well_formed(self) -> None:
         #: Given
         schema = json.loads(SCHEMA_FILE.read_text(encoding='utf-8'))
 
@@ -37,7 +37,9 @@ class TestStructureSpecSchema:
         #: Then
         assert schema['$schema'] == 'https://json-schema.org/draft/2020-12/schema', 'the schema names its dialect'
 
-    def test_every_repository_structure_spec_passes_the_schema(self, validator: Draft202012Validator) -> None:
+    def test_structure_schema_with_every_repository_structure_spec_accepts_it(
+        self, validator: Draft202012Validator
+    ) -> None:
         #: Given
         spec_files = sorted([*SPECS_DIR.glob('*.spec.json'), *SPECS_DIR.glob('*.structure.json')])
 

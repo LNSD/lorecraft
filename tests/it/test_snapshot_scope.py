@@ -157,7 +157,7 @@ def skill_tree(tmp_path: Path) -> Path:
 
 @pytest.mark.it
 class TestSnapshotScopeInsideASkill:
-    def test_take_snapshot_reads_every_file_of_a_skill_at_any_depth(self, skill_tree: Path) -> None:
+    def test_take_snapshot_with_a_skill_reads_every_file_at_any_depth(self, skill_tree: Path) -> None:
         #: Given
         expected = {
             RootRelativePath.parse(f'{SKILL}/SKILL.md'),
@@ -175,7 +175,9 @@ class TestSnapshotScopeInsideASkill:
             'every file of the skill is read, nested ones and those its links lead to, at their resolved paths'
         )
 
-    def test_take_snapshot_records_a_link_leading_outside_the_root_without_following_it(self, skill_tree: Path) -> None:
+    def test_take_snapshot_with_a_link_leading_outside_the_root_records_it_without_following_it(
+        self, skill_tree: Path
+    ) -> None:
         #: Given
         outside = skill_tree.parent / 'outside'
 
@@ -187,7 +189,7 @@ class TestSnapshotScopeInsideASkill:
             'the link outside the repository is recorded as it is, absolute, and nothing behind it is read'
         )
 
-    def test_take_snapshot_records_a_link_to_an_ancestor_inside_a_skill(self, skill_tree: Path) -> None:
+    def test_take_snapshot_with_a_link_to_an_ancestor_inside_a_skill_records_it(self, skill_tree: Path) -> None:
         #: Given
         link = RootRelativePath.parse(f'{SKILL}/references/up')
 

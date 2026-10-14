@@ -457,7 +457,7 @@ class TestInspectCommand:
         assert result.exit_code == 0, result.output
         assert result.output.splitlines()[0] == str(workspace.resolve()), 'the root defaults to the working directory'
 
-    def test_inspect_with_a_missing_root_exits_with_ausage_error_message(self, tmp_path: Path) -> None:
+    def test_inspect_with_a_missing_root_exits_with_a_usage_error_message(self, tmp_path: Path) -> None:
         #: Given
         app = build_app()
         arguments = ['inspect', str(tmp_path / 'missing')]
@@ -467,6 +467,8 @@ class TestInspectCommand:
 
         #: Then
         assert result.exit_code == 2, 'a root that does not exist is rejected before any scan'
+        assert usage_error_message(result.stderr).startswith('Usage: lorecraft inspect'), 'the failure is a usage error'
+        assert "'root'" in usage_error_message(result.stderr), 'the message names the argument that was refused'
 
     @pytest.mark.skipif(os.geteuid() == 0, reason='root ignores directory permissions')
     def test_inspect_with_an_unreadable_directory_exits_two_and_names_it(self, unreadable_workspace: Path) -> None:
@@ -971,7 +973,7 @@ class TestCheckCommand:
         assert result.exit_code == 1, result.output
         assert '\x1b[' not in result.stdout, 'an explicit `--color never` beats FORCE_COLOR'
 
-    def test_check_with_an_unknown_format_exits_with_ausage_error_message(self, tmp_path: Path) -> None:
+    def test_check_with_an_unknown_format_exits_with_a_usage_error_message(self, tmp_path: Path) -> None:
         #: Given
         _write(tmp_path, 'docs/__meta__/code.structure.json', ACCEPT_ANY_FRONTMATTER_SPEC)
         app = build_app()
@@ -981,8 +983,12 @@ class TestCheckCommand:
 
         #: Then
         assert result.exit_code == 2, result.output
+        message = usage_error_message(result.stderr)
+        assert message.startswith('Usage: lorecraft check'), 'the failure is a usage error'
+        assert "'--format'" in message, 'the message names the option that was refused'
+        assert "'yaml'" in message, 'the message names the value that was refused'
 
-    def test_check_with_an_unknown_color_exits_with_ausage_error_message(self, tmp_path: Path) -> None:
+    def test_check_with_an_unknown_color_exits_with_a_usage_error_message(self, tmp_path: Path) -> None:
         #: Given
         _write(tmp_path, 'docs/__meta__/code.structure.json', ACCEPT_ANY_FRONTMATTER_SPEC)
         app = build_app()
@@ -992,6 +998,10 @@ class TestCheckCommand:
 
         #: Then
         assert result.exit_code == 2, result.output
+        message = usage_error_message(result.stderr)
+        assert message.startswith('Usage: lorecraft check'), 'the failure is a usage error'
+        assert "'--color'" in message, 'the message names the option that was refused'
+        assert "'sometimes'" in message, 'the message names the value that was refused'
 
     def test_check_with_json_format_prints_one_document_and_nothing_on_stderr(self, tmp_path: Path) -> None:
         #: Given
@@ -1170,7 +1180,7 @@ class TestCheckCommand:
             'the root found above the working directory is checked whole'
         )
 
-    def test_check_with_a_path_argument_exits_with_ausage_error_message(self, tmp_path: Path) -> None:
+    def test_check_with_a_path_argument_exits_with_a_usage_error_message(self, tmp_path: Path) -> None:
         #: Given
         _write(tmp_path, 'docs/__meta__/code.structure.json', ACCEPT_ANY_FRONTMATTER_SPEC)
         app = build_app()
@@ -1181,6 +1191,9 @@ class TestCheckCommand:
         #: Then
         assert result.exit_code == 2, result.output
         assert result.stdout == '', 'a usage error checks nothing'
+        message = usage_error_message(result.stderr)
+        assert message.startswith('Usage: lorecraft check'), 'the failure is a usage error'
+        assert '(docs)' in message, 'the message names the extra argument'
 
     def test_check_with_a_malformed_frontmatter_schema_reports_it_and_exits_with_the_findings_status(
         self, malformed_schema_workspace: Path
@@ -1742,7 +1755,7 @@ class TestCheckSelection:
             'a selector of no form is malformed, and refused while the command line is parsed'
         )
 
-    def test_check_with_a_malformed_ignored_code_exits_two_with_ausage_error_message(
+    def test_check_with_a_malformed_ignored_code_exits_two_with_a_usage_error_message(
         self, two_group_root: Path
     ) -> None:
         #: Given
@@ -1758,7 +1771,7 @@ class TestCheckSelection:
             'a malformed ignored value is named, under its option'
         )
 
-    def test_check_with_an_unknown_alias_code_exits_two_with_ausage_error_message(self, two_group_root: Path) -> None:
+    def test_check_with_an_unknown_alias_code_exits_two_with_a_usage_error_message(self, two_group_root: Path) -> None:
         #: Given
         app = build_app()
         selection = ['--select', 'MD999']
@@ -1778,13 +1791,16 @@ class TestCommandRouting:
     def test_build_app_when_called_mounts_every_discovered_subcommand(self) -> None:
         #: Given
         app = build_app()
+        commands = ('check', 'inspect', 'rule', 'version')
 
         #: When
-        result = runner.invoke(app, ['--help'])
+        result = runner.invoke(app, ['--help'], env=PLAIN_TERMINAL)
 
         #: Then
         assert result.exit_code == 0, result.output
-        assert 'version' in result.output, 'discovery mounted the one registered subcommand'
+        lines = result.output.splitlines()
+        missing = [command for command in commands if not any(line.startswith(f'│ {command} ') for line in lines)]
+        assert missing == [], f'discovery mounted every registered subcommand, but the help lacks {missing}'
 
     def test_register_with_a_name_already_taken_raises_duplicate_command_error(self) -> None:
         #: Given

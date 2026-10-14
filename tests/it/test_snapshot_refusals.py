@@ -293,7 +293,9 @@ class TestSnapshotWithADeclaration:
         snapshot = take_snapshot(tree, SCOPE, declaration=DECLARATION)
 
         #: Then
-        assert snapshot.records[_path('docs/__meta__/code.structure.json')] == RefusedRead(OsRefusal.PERMISSION_DENIED)
+        assert snapshot.records[_path('docs/__meta__/code.structure.json')] == RefusedRead(
+            OsRefusal.PERMISSION_DENIED
+        ), 'the structure file the scan could not read keeps its refusal'
         assert _path('docs/code/logging.md') in snapshot.records, 'the scan went on past the file'
 
     def test_take_snapshot_with_a_link_whose_chain_cannot_be_inspected_keeps_the_refusal(

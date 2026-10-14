@@ -338,6 +338,7 @@ class TestLoadWorkspaceAmp:
         code = model.find_corpus(CODE)
         assert code is not None, 'the model lists the code corpus'
         crate = code.namespace_specs[0]
+        assert crate.name == NamespaceSpecName(CODE, AspectNamespace.parse('crate')), 'the crate spec is the first'
         assert crate.files == (SPECS_DIR / PathComponent.parse('code-crate.structure.json'),), (
             'a namespace spec with JSON files and no prose still loads'
         )
@@ -720,6 +721,7 @@ class TestLoadWorkspaceEdgeCases:
         #: Then
         code = model.find_corpus(CODE)
         assert code is not None, 'the model lists the code corpus'
+        assert len(code.namespace_specs) == 1, 'the one namespace spec on disk is the one the corpus holds'
         assert code.namespace_specs[0].name == NamespaceSpecName(CODE, AspectNamespace.parse('python')), (
             'the specification name is parsed into corpus and namespace'
         )
@@ -1174,7 +1176,7 @@ class TestLoadWorkspaceFailures:
         )
         _write(tmp_path, 'docs/__meta__/code.structure.json', content)
 
-    def test_load_workspace_with_a_structure_file_stating_states_no_rule_records_it_as_failed(
+    def test_load_workspace_with_a_structure_file_stating_no_rule_records_it_as_failed(
         self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
     ) -> None:
         #: Given
@@ -1499,6 +1501,7 @@ class TestLoadWorkspaceFailures:
         governance = model.find_governance(ref)
         assert governance is not None, 'its corpus is in the model'
         assert isinstance(governance.corpus_spec.structure, StructureSpec), 'the corpus layer loaded'
+        assert len(governance.namespace_specs) == 1, 'the one namespace spec on disk governs the document'
         namespace = governance.namespace_specs[0]
         assert isinstance(namespace.structure, FailedStructure), 'the namespace layer failed'
         assert namespace.structure.path == path, 'and names its file'
