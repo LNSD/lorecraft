@@ -15,9 +15,24 @@ from lorecraft.core.error import Error
 from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.project.layout import SPECS_DIR
 from lorecraft.project.schemas import SpecFileType, spec_filename
+from lorecraft.project.schemas.structure_failure import (
+    AdjacentAnyRuns,
+    EmptyStructureSpec,
+    ForbiddenOutlineSections,
+    ForeignFrontmatterDialect,
+    FrontmatterSchemaId,
+    InvalidFrontmatterSchema,
+    InvalidTitlePattern,
+    RepeatedForbiddenSections,
+    RepeatedOutlineSections,
+    UndecodableStructureSpec,
+    UnresolvableFrontmatterSchemaRef,
+    UntypedFrontmatterSchema,
+)
 from lorecraft.vfs import OsRefusal, RefusedInspect, RefusedListing, RefusedRead, RefusedRecord
 
 from .failure import (
+    NonUtf8StructureFile,
     UninspectableSkillEntry,
     UninspectableSkillFile,
     UninspectableSkillsDirectory,
@@ -26,6 +41,10 @@ from .failure import (
     UnlistableSkillDirectory,
     UnlistableSkillsDirectory,
     UnreadableStructureFile,
+    UnrecordedStructureFile,
+    UnresolvableSkillEntry,
+    UnresolvableSkillFile,
+    UnresolvableSkillsDirectory,
 )
 from .model import CorpusSpec, NamespaceSpec, WorkspaceModel
 
@@ -133,8 +152,28 @@ def unreported_refusals(
                 | UninspectableSkillFile(failed_at=failed_at)
             ):
                 inspections.add(failed_at)
-            case _:
+            case (
+                UnrecordedStructureFile()
+                | NonUtf8StructureFile()
+                | UndecodableStructureSpec()
+                | EmptyStructureSpec()
+                | RepeatedOutlineSections()
+                | RepeatedForbiddenSections()
+                | ForbiddenOutlineSections()
+                | AdjacentAnyRuns()
+                | InvalidTitlePattern()
+                | InvalidFrontmatterSchema()
+                | FrontmatterSchemaId()
+                | ForeignFrontmatterDialect()
+                | UnresolvableFrontmatterSchemaRef()
+                | UntypedFrontmatterSchema()
+                | UnresolvableSkillsDirectory()
+                | UnresolvableSkillEntry()
+                | UnresolvableSkillFile()
+            ):
                 pass  # a structure file's content failed, or a lookup the disk refused: no snapshot refusal
+            case _:
+                assert_never(condition)
 
     shadowed_legacy_files = _shadowed_legacy_files(model)
     unreported: dict[RootRelativePath, RefusedRecord] = {}

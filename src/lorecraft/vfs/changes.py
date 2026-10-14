@@ -78,11 +78,35 @@ def diff(old: Snapshot, new: Snapshot) -> ChangeSet:
             case DirectoryRecord():
                 # A directory's flags are not compared; see the docstring. One the scan could not list before is
                 # another thing: its entries are known now.
-                if isinstance(old_record, RefusedListing):
-                    changes[path] = ChangeKind.MODIFIED
+                match old_record:
+                    case RefusedListing():
+                        changes[path] = ChangeKind.MODIFIED
+                    case (
+                        DirectoryRecord()
+                        | FileRecord()
+                        | SymlinkRecord()
+                        | OtherRecord()
+                        | RefusedRead()
+                        | RefusedInspect()
+                    ):
+                        pass
+                    case _:
+                        assert_never(old_record)
             case RefusedListing():
-                if not isinstance(old_record, RefusedListing):
-                    changes[path] = ChangeKind.MODIFIED
+                match old_record:
+                    case RefusedListing():
+                        pass
+                    case (
+                        DirectoryRecord()
+                        | FileRecord()
+                        | SymlinkRecord()
+                        | OtherRecord()
+                        | RefusedRead()
+                        | RefusedInspect()
+                    ):
+                        changes[path] = ChangeKind.MODIFIED
+                    case _:
+                        assert_never(old_record)
             case FileRecord() | SymlinkRecord() | OtherRecord() | RefusedRead() | RefusedInspect():
                 # A file's bytes or a link's target; what was refused, or that it was read or refused at all;
                 # an other entry records nothing.

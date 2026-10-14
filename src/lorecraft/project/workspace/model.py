@@ -12,6 +12,7 @@ frontmatter schema, leaves the document ungoverned for that kind whatever the na
 """
 
 from dataclasses import InitVar, dataclass, field
+from typing import assert_never
 
 from lorecraft.agents import AgentName
 from lorecraft.core.mapping import FrozenMapping
@@ -117,16 +118,25 @@ class Governance:
         """The structure files of the layers that failed to load, in layer order, corpus spec first."""
         failed: list[FailedStructure] = []
         for spec in self.specs():
-            if isinstance(spec.structure, FailedStructure):
-                failed.append(spec.structure)
+            match spec.structure:
+                case FailedStructure():
+                    failed.append(spec.structure)
+                case StructureSpec() | None:
+                    pass  # loaded, or none stated: no failed layer
+                case _:
+                    assert_never(spec.structure)
         return tuple(failed)
 
     def corpus_structure(self) -> StructureSpec | None:
         """The corpus spec's structure specification, or None when it states none or its layer failed to load."""
         structure = self.corpus_spec.structure
-        if isinstance(structure, StructureSpec):
-            return structure
-        return None
+        match structure:
+            case StructureSpec():
+                return structure
+            case FailedStructure() | None:
+                return None
+            case _:
+                assert_never(structure)
 
     def structure_specs(self) -> tuple[StructureSpec, ...]:
         """Structure specifications to apply in order, the layers that loaded; `()` means ungoverned for structure.
@@ -139,8 +149,13 @@ class Governance:
             return ()
         structure_specs: list[StructureSpec] = []
         for spec in self.specs():
-            if isinstance(spec.structure, StructureSpec):
-                structure_specs.append(spec.structure)
+            match spec.structure:
+                case StructureSpec():
+                    structure_specs.append(spec.structure)
+                case FailedStructure() | None:
+                    pass  # no structure specification loaded in this layer
+                case _:
+                    assert_never(spec.structure)
         return tuple(structure_specs)
 
     def frontmatter_schemas(self) -> tuple[StatedFrontmatterSchema, ...]:

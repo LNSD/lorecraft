@@ -300,10 +300,13 @@ class Workspace:
             for relative_path, content in part._render(faker).items():
                 path = root / relative_path
                 path.parent.mkdir(parents=True, exist_ok=True)
-                if isinstance(content, str):
-                    data = content.encode('utf-8')
-                else:
-                    data = content
+                match content:
+                    case str():
+                        data = content.encode('utf-8')
+                    case bytes():
+                        data = content
+                    case _:
+                        assert_never(content)
                 # Mode `x` refuses a file that is already there, so two parts rendering one path fail the test
                 # instead of the later one silently replacing the earlier.
                 with path.open('xb') as file:

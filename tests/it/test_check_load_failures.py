@@ -13,7 +13,7 @@ import json
 import os
 from collections.abc import Iterator
 from pathlib import Path
-from typing import Final
+from typing import Final, assert_never
 
 import pytest
 from typer.testing import CliRunner
@@ -82,10 +82,13 @@ def _write_workspace(
     for relative, content in files.items():
         path = root / relative
         path.parent.mkdir(parents=True, exist_ok=True)
-        if isinstance(content, bytes):
-            path.write_bytes(content)
-        else:
-            path.write_text(content, encoding='utf-8')
+        match content:
+            case bytes():
+                path.write_bytes(content)
+            case str():
+                path.write_text(content, encoding='utf-8')
+            case _:
+                assert_never(content)
     return root
 
 

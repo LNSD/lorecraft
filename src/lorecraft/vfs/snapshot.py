@@ -414,9 +414,13 @@ class VirtualFileSystem(FileSystem):
         if directory is None:
             return ()
         refused = self._refusals.get(directory)
-        if isinstance(refused, RefusedListing):
-            raise RecordedDirListError(path, refused.refusal)
-        return self._listings.get(directory, ())
+        match refused:
+            case RefusedListing():
+                raise RecordedDirListError(path, refused.refusal)
+            case RefusedRead() | RefusedInspect() | None:
+                return self._listings.get(directory, ())
+            case _:
+                assert_never(refused)
 
     def read_text(self, path: RootRelativePath) -> str:
         """Decode the recorded bytes of the file `path` leads to; see `FileSystem.read_text`.
@@ -442,9 +446,13 @@ class VirtualFileSystem(FileSystem):
         if resolved_path is None:
             raise UnrecordedFileError(path)
         refused = self._refusals.get(resolved_path)
-        if isinstance(refused, RefusedRead):
-            raise RecordedFileReadError(path, refused.refusal)
-        return decode_text(path, self._files[resolved_path])
+        match refused:
+            case RefusedRead():
+                raise RecordedFileReadError(path, refused.refusal)
+            case RefusedListing() | RefusedInspect() | None:
+                return decode_text(path, self._files[resolved_path])
+            case _:
+                assert_never(refused)
 
     def find_entry_kind(self, path: RootRelativePath) -> EntryKind | None:
         """What the recorded entry at `path` itself is; see `FileSystem.find_entry_kind`.
@@ -651,8 +659,20 @@ class _SnapshotEntries:
         self._uninspectable: dict[RootRelativePath, OsRefusal] = {}
         for path, record in snapshot.records.items():
             self._kinds[path] = record.kind
-            if isinstance(record, RefusedInspect):
-                self._uninspectable[path] = record.refusal
+            match record:
+                case RefusedInspect():
+                    self._uninspectable[path] = record.refusal
+                case (
+                    DirectoryRecord()
+                    | FileRecord()
+                    | SymlinkRecord()
+                    | OtherRecord()
+                    | RefusedListing()
+                    | RefusedRead()
+                ):
+                    pass  # an inspected entry, or one refused after its inspection: it has a kind
+                case _:
+                    assert_never(record)
         # Every record sits at a resolved path, so each ancestor of one is a directory, recorded or not, and so is
         # the root.
         for path in snapshot.records:

@@ -11,6 +11,7 @@ What a selection cannot do is warned of on stderr, and the run goes on.
 from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import StrEnum
+from typing import assert_never
 
 import typer
 
@@ -19,7 +20,14 @@ from lorecraft.rules.identity import RuleCode
 from lorecraft.rules.registry import Registry
 from lorecraft.rules.selection import AllRules, RuleSelection, RuleSelector
 
-from .rule_arguments import AliasSelector, SelectorValue
+from .rule_arguments import (
+    AliasSelector,
+    AllSelector,
+    CodePrefixSelector,
+    CodeSelector,
+    GroupSelector,
+    SelectorValue,
+)
 
 
 class SelectionOption(StrEnum):
@@ -102,8 +110,13 @@ def _convert_values(
     aliases: list[AliasCodeSelected] = []
     for value in values:
         for selector in value.selectors:
-            if isinstance(selector, AliasSelector):
-                aliases.append(AliasCodeSelected(option, selector.alias, selector.code.to_rule_code(registry)))
+            match selector:
+                case AliasSelector():
+                    aliases.append(AliasCodeSelected(option, selector.alias, selector.code.to_rule_code(registry)))
+                case AllSelector() | GroupSelector() | CodePrefixSelector() | CodeSelector():
+                    pass  # no alias code to warn of
+                case _:
+                    assert_never(selector)
             selectors.append(selector.to_rule_selector(registry))
     return tuple(selectors), tuple(aliases)
 
