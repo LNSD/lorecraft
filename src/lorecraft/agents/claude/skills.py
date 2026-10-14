@@ -9,4 +9,4 @@ CLAUDE_PROJECT_SKILLS_DIRS: Final[ProjectSkillsDirs] = (ProjectPath(RootRelative
 """Claude Code reads a directory of its own and not the universal one, so a repository links that one into it."""
 
 CLAUDE_USER_SKILLS_DIRS: Final[UserSkillsDirs] = (UserPath(RootRelativePath.parse('.claude/skills')),)
-"""Claude Code reads the user's skills from ``~/.claude/skills``."""
+"""Claude Code reads the user's skills from `~/.claude/skills`."""

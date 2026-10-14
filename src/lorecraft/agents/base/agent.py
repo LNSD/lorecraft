@@ -12,7 +12,7 @@ class Agent:
     """One agent, as data: one field per aspect, each declared in its own module beside this one.
 
     Attributes:
-        name: The agent's id, such as ``claude-code``.
+        name: The agent's id, such as `claude-code`.
         project_skills_dirs: The project skills directories the agent reads, relative to the repository root, in
             order of preference: the universal directory first when the agent reads it.
         user_skills_dirs: The user skills directories the agent reads, relative to the user's home

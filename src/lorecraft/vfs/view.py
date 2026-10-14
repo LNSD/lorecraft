@@ -78,11 +78,11 @@ class RootExit:
 
 
 class OsRefusal(Enum):
-    """Why the operating system refused a call on a path, classified once from its ``errno``.
+    """Why the operating system refused a call on a path, classified once from its `errno`.
 
-    The set comes from outside the package, so it is an enum a handler can ``match`` over, and each value is
-    the reason as a message states it. A variant translating an ``OSError`` holds one, so nothing above it
-    reads the ``OSError`` itself.
+    The set comes from outside the package, so it is an enum a handler can `match` over, and each value is
+    the reason as a message states it. A variant translating an `OSError` holds one, so nothing above it
+    reads the `OSError` itself.
     """
 
     NOT_FOUND = 'no such file or directory'
@@ -424,13 +424,13 @@ def decode_text(path: RootRelativePath, data: bytes) -> str:
 class FileSystem(ABC):
     """Read-only, root-relative view of the files under one workspace root.
 
-    Every ``path`` argument and every returned path is a ``RootRelativePath``, so an implementation joins an
-    argument onto its root without checking it: an absolute path or a ``..`` component was rejected when the
+    Every `path` argument and every returned path is a `RootRelativePath`, so an implementation joins an
+    argument onto its root without checking it: an absolute path or a `..` component was rejected when the
     value was built.
 
     An ABC rather than a Protocol because every implementation is this package's own and must be complete,
     so a missing method fails at instantiation instead of at its first call (error-boundaries §1). With
-    ``DiskFileSystem`` and ``VirtualFileSystem``, pattern-repository's second real implementation exists.
+    `DiskFileSystem` and `VirtualFileSystem`, pattern-repository's second real implementation exists.
     """
 
     @abstractmethod

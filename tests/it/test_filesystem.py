@@ -1,9 +1,9 @@
 """The filesystem boundary against a real temporary directory.
 
-These wire ``DiskFileSystem`` and ``take_snapshot`` to the disk they read: entry kinds come from
-``os.scandir``, link chains are followed by ``os.path.realpath`` and read by ``os.readlink``, and the error
-families come from the operating system refusing a read, so they need a real tree under ``tmp_path`` rather
-than an in-memory stand-in. The parity tests hold ``VirtualFileSystem`` over a snapshot to the disk view's
+These wire `DiskFileSystem` and `take_snapshot` to the disk they read: entry kinds come from
+`os.scandir`, link chains are followed by `os.path.realpath` and read by `os.readlink`, and the error
+families come from the operating system refusing a read, so they need a real tree under `tmp_path` rather
+than an in-memory stand-in. The parity tests hold `VirtualFileSystem` over a snapshot to the disk view's
 answers for the same tree.
 """
 
@@ -68,7 +68,7 @@ FOLLOWING_SCOPE: Final[tuple[ScanRoot, ...]] = (
 )
 
 # The parity tree: every kind of entry the scan records, inside SNAPSHOT_SCOPE. Links stay inside the scope,
-# since a chain that leaves it is unknown to a snapshot by design. ``docs/code/sub`` sits beyond the depth.
+# since a chain that leaves it is unknown to a snapshot by design. `docs/code/sub` sits beyond the depth.
 PARITY_FILES: Final[Mapping[str, bytes]] = MappingProxyType(
     {
         'docs/glossary.md': b'# Glossary\n',
@@ -345,9 +345,9 @@ def _recorded_kinds(snapshot: Snapshot) -> dict[RootRelativePath, EntryKind]:
     return kinds
 
 
-# What a failed read answers in a parity comparison. ``FileSystem.read_text`` lists two read failures: the disk
-# raises ``FileReadError`` with the operating system's refusal as its source, and a snapshot, which has no
-# operating system to refuse, raises ``UnrecordedFileError``. A caller catches both alike, so parity counts them
+# What a failed read answers in a parity comparison. `FileSystem.read_text` lists two read failures: the disk
+# raises `FileReadError` with the operating system's refusal as its source, and a snapshot, which has no
+# operating system to refuse, raises `UnrecordedFileError`. A caller catches both alike, so parity counts them
 # as one answer.
 UNREADABLE_FILE: Final[str] = 'the path leads to no file that can be read'
 

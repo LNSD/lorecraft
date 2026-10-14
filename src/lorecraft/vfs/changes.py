@@ -2,7 +2,7 @@
 
 A change set is derived from state, never from an event stream: whatever an editor did between two scans (a
 write-then-rename, a touch, a three-event save), only the difference between what the two scans saw is
-reported. ``diff`` is its only producer.
+reported. `diff` is its only producer.
 """
 
 from enum import Enum

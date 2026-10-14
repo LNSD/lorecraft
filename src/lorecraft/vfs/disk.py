@@ -1,6 +1,6 @@
 """The filesystem view that reads the disk, and the scan that captures the disk as a snapshot.
 
-The workspace root is joined to a root-relative path only inside this module, through ``disk_location``;
+The workspace root is joined to a root-relative path only inside this module, through `disk_location`;
 every answer leaves it root-relative again.
 """
 
@@ -160,7 +160,7 @@ class DiskFileSystem(FileSystem):
             if not leads_to.is_relative_to(self._root):
                 return None
             raise DirResolveError(path, OsRefusal.from_error(exc), source=exc) from exc
-        # Asked of the path as given, not of ``resolved``: ``realpath`` follows a chain of any length, while the
+        # Asked of the path as given, not of `resolved`: `realpath` follows a chain of any length, while the
         # operating system gives up past its own limit, and then nothing opens the directory through it.
         if not os.path.isdir(disk_location(self._root, path)):
             return None
@@ -188,13 +188,13 @@ class DiskFileSystem(FileSystem):
         except OSError as exc:
             if exc.errno == errno.ELOOP:  # a looping link leads nowhere, exactly like a dangling one
                 return None
-            # As in ``find_dir``: a target outside the root is never a file under it, so a refused search
+            # As in `find_dir`: a target outside the root is never a file under it, so a refused search
             # there is not a failure.
             leads_to = Path(os.path.realpath(disk_location(self._root, path)))
             if not leads_to.is_relative_to(self._root):
                 return None
             raise FileResolveError(path, OsRefusal.from_error(exc), source=exc) from exc
-        # Asked of the path as given, as in ``find_dir``: nothing opens the file through a chain longer than
+        # Asked of the path as given, as in `find_dir`: nothing opens the file through a chain longer than
         # the operating system follows.
         if not os.path.isfile(disk_location(self._root, path)):
             return None
@@ -859,8 +859,8 @@ def _spell_relative_if_under_root(root: Path, link: RootRelativePath, target: Pu
     resolved, since the disk view compares resolved paths.
 
     The link's directory is a resolved path (every listing is, and a walk to a directory steps from one resolved
-    directory to the next), so one ``..`` per component of it climbs exactly to the root. The rest of the
-    target is kept as written, ``..`` included, for the view to walk the way the kernel does. A relative
+    directory to the next), so one `..` per component of it climbs exactly to the root. The rest of the
+    target is kept as written, `..` included, for the view to walk the way the kernel does. A relative
     target, or an absolute one outside the root, is returned unchanged.
 
     Args:
@@ -886,11 +886,11 @@ def _find_listing(root: Path, path: RootRelativePath) -> tuple[DirEntry, ...] | 
         path: The root-relative directory to list; a link on the way, or at it, is followed by the OS.
 
     Returns:
-        The entries in name order, or ``None`` when the path is missing, is not a directory, or is a link
+        The entries in name order, or `None` when the path is missing, is not a directory, or is a link
         that loops.
 
     Raises:
-        OSError: If the directory exists but cannot be read. ``list_dir`` and ``take_snapshot`` each translate it
+        OSError: If the directory exists but cannot be read. `list_dir` and `take_snapshot` each translate it
             into a variant of their own, since each is a different operation failing.
     """
     try:

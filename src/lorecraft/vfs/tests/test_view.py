@@ -1,7 +1,7 @@
-"""The classification of an operating system refusal by its ``errno``.
+"""The classification of an operating system refusal by its `errno`.
 
 The integration tier raises the refusals a permission bit or a missing path produces on a real tree; the
-rest of the ``errno`` values ``OsRefusal.from_error`` names are built here as the ``OSError`` the operating system
+rest of the `errno` values `OsRefusal.from_error` names are built here as the `OSError` the operating system
 would raise.
 """
 
