@@ -11,6 +11,7 @@ scanner recorded above the one the read stopped on comes first, whichever the li
 """
 
 from collections.abc import Iterator
+from typing import assert_never
 
 from ruamel.yaml import YAML
 from ruamel.yaml.error import MarkedYAMLError, StreamMark
@@ -331,12 +332,16 @@ def _read_value(parser: _EventStream) -> YamlValue:
         RefusedMalformedTagError, RefusedEscapeError: The scanner cannot read a tag or an escape in the value.
     """
     event = _peek_node_start(parser)
-    if isinstance(event, MappingStartEvent):
-        return _read_mapping(parser, event)
-    if isinstance(event, SequenceStartEvent):
-        return _read_sequence(parser, event)
-    parser.get_event()
-    return YamlScalar(_scalar_value(event), _position_of(event))
+    match event:
+        case MappingStartEvent():
+            return _read_mapping(parser, event)
+        case SequenceStartEvent():
+            return _read_sequence(parser, event)
+        case ScalarEvent():
+            parser.get_event()
+            return YamlScalar(_scalar_value(event), _position_of(event))
+        case _:
+            assert_never(event)
 
 
 def _read_mapping(parser: _EventStream, start: MappingStartEvent) -> YamlMapping:
@@ -437,8 +442,13 @@ def _refuse_nested_collection(parser: _EventStream, parent: SequenceStartEvent |
         RefusedNestedBlockSequenceError: The value is a block sequence that is an item of a block sequence.
     """
     event = _peek_node_start(parser)
-    if not isinstance(event, SequenceStartEvent | MappingStartEvent):
-        return
+    match event:
+        case ScalarEvent():
+            return
+        case SequenceStartEvent() | MappingStartEvent():
+            pass  # a collection, which the checks below place
+        case _:
+            assert_never(event)
     if parent.flow_style:
         raise RefusedFlowNestedCollectionError(_mark_of(event))
     if isinstance(parent, SequenceStartEvent) and isinstance(event, SequenceStartEvent) and not event.flow_style:

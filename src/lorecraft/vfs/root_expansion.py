@@ -141,7 +141,9 @@ def find_destination(
         if part == '..':
             if resolved == ROOT:
                 if last_link is None:
-                    raise AssertionError('a root-relative path holds no `..`, so this one came from a link target')
+                    raise AssertionError(
+                        'unreachable: a root-relative path holds no `..`, so this one came from a link target'
+                    )
                 return last_link
             # Records the climb in the scan; only the scope query ever answers no, for a directory it only guessed.
             if not entries.may_climb_out_of(resolved):

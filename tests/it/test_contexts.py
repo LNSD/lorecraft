@@ -7,8 +7,9 @@ memoizes is the very value the query keeps, so a context computes nothing of its
 to its protocol is in `lorecraft.project.database.tests.test_context`, where the type-checking gate reaches it.
 """
 
+from collections.abc import Mapping
 from pathlib import Path, PurePosixPath
-from typing import Final
+from typing import Final, assert_never
 
 import pytest
 
@@ -217,10 +218,13 @@ def _write_tree(directory: Path, tree: FileTree) -> None:
     """
     directory.mkdir(parents=True, exist_ok=True)
     for name, entry in tree.items():
-        if isinstance(entry, bytes):
-            (directory / name).write_bytes(entry)
-        else:
-            _write_tree(directory / name, entry)
+        match entry:
+            case bytes():
+                (directory / name).write_bytes(entry)
+            case Mapping():
+                _write_tree(directory / name, entry)
+            case _:
+                assert_never(entry)
 
 
 @pytest.mark.it

@@ -10,7 +10,7 @@ def _decode_error(data: bytes) -> UnicodeDecodeError:
         data.decode('utf-8')
     except UnicodeDecodeError as exc:
         return exc
-    raise AssertionError('the bytes decode as UTF-8')
+    raise AssertionError('unreachable: the bytes decode as UTF-8')
 
 
 @pytest.mark.unit
