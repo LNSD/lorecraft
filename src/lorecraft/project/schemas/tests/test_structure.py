@@ -44,7 +44,6 @@ from ..structure import (
     FrontmatterSchema,
     FrontmatterSchemaIdError,
     InvalidFrontmatterSchemaError,
-    InvalidTitlePatternError,
     PatternedTitleChecks,
     RepeatedForbiddenSectionError,
     RepeatedOutlineSectionError,
@@ -57,6 +56,7 @@ from ..structure import (
     UntypedFrontmatterSchemaError,
     WordCappedTitleChecks,
 )
+from ..structure_failure import InvalidTitlePattern
 
 SPECS_DIR: Final[RootRelativePath] = RootRelativePath.parse('docs/__meta__')
 SPEC_NAME: Final[SpecName] = parse_spec_name('code')
@@ -89,6 +89,17 @@ DOCSTRINGS_CHECKLIST: Final[str] = (
 )
 
 
+def _parse_usable(schema: StructureSchema) -> StructureSpec:
+    """The structure specification a test's text states, which must be usable.
+
+    Args:
+        schema: The text of a structure specification a test states as usable.
+    """
+    parsed = StructureSpec.parse(SPEC_FILE, schema)
+    assert isinstance(parsed, StructureSpec), f'the test states a usable specification, got {parsed!r}'
+    return parsed
+
+
 @pytest.mark.unit
 class TestStructureSpecParse:
     def test_parse_with_every_field_returns_the_rules_it_states(self) -> None:
@@ -114,7 +125,7 @@ class TestStructureSpecParse:
         )
 
         #: When
-        structure_spec = StructureSpec.parse(SPEC_FILE, schema)
+        structure_spec = _parse_usable(schema)
 
         #: Then
         assert structure_spec == StructureSpec(
@@ -150,7 +161,7 @@ class TestStructureSpecParse:
         )
 
         #: When
-        structure_spec = StructureSpec.parse(SPEC_FILE, schema)
+        structure_spec = _parse_usable(schema)
 
         #: Then
         assert structure_spec.outline == (
@@ -166,7 +177,7 @@ class TestStructureSpecParse:
         schema = StructureSchema('{"outline": [{"section": "Checklist"}]}')
 
         #: When
-        structure_spec = StructureSpec.parse(SPEC_FILE, schema)
+        structure_spec = _parse_usable(schema)
 
         #: Then
         assert structure_spec.outline == (
@@ -272,7 +283,7 @@ class TestStructureSpecParse:
         schema = StructureSchema('{"frontmatter": {"type": "object"}}')
 
         #: When
-        structure_spec = StructureSpec.parse(SPEC_FILE, schema)
+        structure_spec = _parse_usable(schema)
 
         #: Then
         assert structure_spec.frontmatter == FrontmatterSchema.parse(
@@ -284,7 +295,7 @@ class TestStructureSpecParse:
         schema = StructureSchema('{"frontmatter": {"type": "object", "properties": {"tags": {"enum": [["a"]]}}}}')
 
         #: When
-        structure_spec = StructureSpec.parse(SPEC_FILE, schema)
+        structure_spec = _parse_usable(schema)
 
         #: Then
         assert structure_spec.frontmatter is not None, 'the file states a frontmatter schema'
@@ -297,7 +308,7 @@ class TestStructureSpecParse:
         schema = StructureSchema('{"frontmatter": {"type": "object", "required": ["name"]}}')
 
         #: When
-        structure_spec = StructureSpec.parse(SPEC_FILE, schema)
+        structure_spec = _parse_usable(schema)
 
         #: Then
         assert isinstance(hash(structure_spec), int), 'a structure specification holding a frontmatter schema hashes'
@@ -388,7 +399,7 @@ class TestStructureSpecParse:
         schema = StructureSchema('{"tokens": 4000}')
 
         #: When
-        structure_spec = StructureSpec.parse(SPEC_FILE, schema)
+        structure_spec = _parse_usable(schema)
 
         #: Then
         assert structure_spec.tokens == NonZeroUnsignedInt(4000), (
@@ -494,7 +505,7 @@ class TestStructureSpecParse:
         )
 
         #: When
-        structure_spec = StructureSpec.parse(SPEC_FILE, schema)
+        structure_spec = _parse_usable(schema)
 
         #: Then
         assert structure_spec == StructureSpec(
@@ -550,7 +561,7 @@ class TestStructureSpecParse:
         schema = StructureSchema('{"title": {"words": 8}}')
 
         #: When
-        structure_spec = StructureSpec.parse(SPEC_FILE, schema)
+        structure_spec = _parse_usable(schema)
 
         #: Then
         assert structure_spec.title == WordCappedTitleChecks(words=NonZeroUnsignedInt(8)), (
@@ -606,7 +617,7 @@ class TestStructureSpecParse:
         schema = StructureSchema('{"title": {"chars": 60}}')
 
         #: When
-        structure_spec = StructureSpec.parse(SPEC_FILE, schema)
+        structure_spec = _parse_usable(schema)
 
         #: Then
         assert structure_spec.title == CharCappedTitleChecks(chars=NonZeroUnsignedInt(60)), (
@@ -685,7 +696,7 @@ class TestStructureSpecParse:
         schema = StructureSchema('{"title": {"pattern": "^[A-Z]"}}')
 
         #: When
-        structure_spec = StructureSpec.parse(SPEC_FILE, schema)
+        structure_spec = _parse_usable(schema)
 
         #: Then
         assert structure_spec.title == PatternedTitleChecks(pattern=TitlePattern(re.compile('^[A-Z]'))), (
@@ -697,30 +708,24 @@ class TestStructureSpecParse:
         schema = StructureSchema('{"title": {"words": 8, "pattern": "^[A-Z]"}}')
 
         #: When
-        structure_spec = StructureSpec.parse(SPEC_FILE, schema)
+        structure_spec = _parse_usable(schema)
 
         #: Then
         assert structure_spec.title == PatternedTitleChecks(
             pattern=TitlePattern(re.compile('^[A-Z]')), words=NonZeroUnsignedInt(8)
         ), 'a cap and a pattern are independent, and the title carries both'
 
-    def test_parse_with_a_title_pattern_that_does_not_compile_raises_invalid_title_pattern_error(self) -> None:
+    def test_parse_with_a_title_pattern_that_does_not_compile_returns_invalid_title_pattern(self) -> None:
         #: Given
         schema = StructureSchema('{"title": {"pattern": "^(unclosed"}}')
 
         #: When
-        with pytest.raises(InvalidTitlePatternError) as exc_info:
-            StructureSpec.parse(SPEC_FILE, schema)
+        failure = StructureSpec.parse(SPEC_FILE, schema)
 
         #: Then
-        assert exc_info.value.path == SPEC_PATH, 'a pattern that does not compile is refused, naming the file'
-        assert exc_info.value.pattern == '^(unclosed', 'the error carries the pattern exactly as written'
-        assert exc_info.value.problem == 'missing ), unterminated subpattern', (
-            f'the error carries what the compiler rejected as a field, got {exc_info.value.problem!r}'
+        assert failure == InvalidTitlePattern('^(unclosed', 'missing ), unterminated subpattern'), (
+            f'the failure carries the pattern as written and what the compiler rejected, got {failure!r}'
         )
-        assert str(exc_info.value) == (
-            f"invalid structure schema {SPEC_PATH}: title pattern '^(unclosed' is not a valid regular expression"
-        ), f'the message names the file and the pattern, and leaves the reason to its cause, got {exc_info.value}'
 
     def test_parse_with_a_non_string_title_pattern_raises_structure_spec_decode_error(self) -> None:
         #: Given
@@ -1077,23 +1082,22 @@ class TestTitlePattern:
         text = '^[A-Z]'
 
         #: When
-        pattern = TitlePattern.parse(text, path=SPEC_PATH)
+        pattern = TitlePattern.parse(text)
 
         #: Then
         assert pattern == TitlePattern(re.compile(text)), f'the pattern is held compiled, got {pattern!r}'
 
-    def test_parse_with_a_pattern_that_does_not_compile_raises_invalid_title_pattern_error(self) -> None:
+    def test_parse_with_a_pattern_that_does_not_compile_returns_invalid_title_pattern(self) -> None:
         #: Given
         text = '^(unclosed'
 
         #: When
-        with pytest.raises(InvalidTitlePatternError) as exc_info:
-            TitlePattern.parse(text, path=SPEC_PATH)
+        failure = TitlePattern.parse(text)
 
         #: Then
-        assert exc_info.value.path == SPEC_PATH, 'a pattern that does not compile is refused, naming the file'
-        assert exc_info.value.pattern == text, 'the error carries the pattern exactly as written'
-        assert isinstance(exc_info.value.__cause__, re.error), "the compiler's error is kept as the cause"
+        assert failure == InvalidTitlePattern(text, 'missing ), unterminated subpattern'), (
+            f'the failure carries the pattern exactly as written and what the compiler rejected, got {failure!r}'
+        )
 
     def test_is_found_in_with_text_holding_the_pattern_inside_it_returns_true(self) -> None:
         #: Given

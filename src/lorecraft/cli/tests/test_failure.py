@@ -1,7 +1,5 @@
 """Reporting a failure a command cannot recover from: the error, then the errors beneath it."""
 
-import re
-
 import pytest
 import typer
 from jsonschema.exceptions import SchemaError
@@ -22,7 +20,6 @@ from lorecraft.project.schemas.structure import (
     ForeignFrontmatterDialectError,
     FrontmatterSchemaIdError,
     InvalidFrontmatterSchemaError,
-    InvalidTitlePatternError,
     RepeatedForbiddenSectionError,
     RepeatedOutlineSectionError,
     StructureSpecDecodeError,
@@ -297,7 +294,7 @@ class TestReportLoadFailure:
     ) -> None:
         #: Given
         failure = LoadFailure(_PATH, InvalidTitlePattern('(', 'missing )'))
-        error = InvalidTitlePatternError(_PATH, '(', 'missing )', source=re.error('missing )'))
+        error = Error(f"invalid structure schema {_PATH}: title pattern '(' is not a valid regular expression")
 
         #: When
         expected, actual = _written_for(capsys, failure, error)

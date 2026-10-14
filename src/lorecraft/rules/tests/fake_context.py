@@ -133,7 +133,6 @@ def namespace_spec(corpus: str, namespace: str, structure: str) -> NamespaceSpec
         EmptyAspectNamespaceError: If the namespace is empty.
         InvalidAspectNamespaceCharacterError: If a character of the namespace falls outside kebab case.
         StructureSpecDecodeError: If the structure specification is not JSON or does not have the dialect's shape.
-        InvalidTitlePatternError: If its title's pattern does not compile.
         InvalidFrontmatterSchemaError: If its frontmatter schema is rejected by the meta-schema.
         FrontmatterSchemaIdError: If a schema in its frontmatter schema carries `$id`.
         ForeignFrontmatterDialectError: If a schema in its frontmatter schema names another dialect.
@@ -169,7 +168,6 @@ def _decode_structure(spec_name: SpecName, structure: str) -> StructureSpec:
 
     Raises:
         StructureSpecDecodeError: If the text is not JSON or does not have the dialect's shape.
-        InvalidTitlePatternError: If its title's pattern does not compile.
         InvalidFrontmatterSchemaError: If its frontmatter schema is rejected by the meta-schema.
         FrontmatterSchemaIdError: If a schema in its frontmatter schema carries `$id`.
         ForeignFrontmatterDialectError: If a schema in its frontmatter schema names another dialect.
@@ -183,7 +181,9 @@ def _decode_structure(spec_name: SpecName, structure: str) -> StructureSpec:
     file = StructureSpecFile(
         path=SPECS_DIR / PathComponent.parse(spec_filename(spec_name, SpecFileType.LEGACY_STRUCTURE)), name=spec_name
     )
-    return StructureSpec.parse(file, StructureSchema(structure))
+    spec = StructureSpec.parse(file, StructureSchema(structure))
+    assert isinstance(spec, StructureSpec), f'a test states a usable structure specification, got {spec!r}'
+    return spec
 
 
 class FakeDocumentContext:
@@ -224,7 +224,6 @@ class FakeDocumentContext:
             InvalidAspectNameCharacterError: If a character of the filename is not lowercase with valid separators.
             StructureSpecDecodeError: If the structure specification is not JSON or does not have the dialect's
                 shape.
-            InvalidTitlePatternError: If its title's pattern does not compile.
             InvalidFrontmatterSchemaError: If its frontmatter schema is rejected by the meta-schema.
             FrontmatterSchemaIdError: If a schema in its frontmatter schema carries `$id`.
             ForeignFrontmatterDialectError: If a schema in its frontmatter schema names another dialect.

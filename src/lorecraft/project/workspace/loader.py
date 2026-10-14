@@ -58,7 +58,6 @@ from lorecraft.project.schemas.structure import (
     ForeignFrontmatterDialectError,
     FrontmatterSchemaIdError,
     InvalidFrontmatterSchemaError,
-    InvalidTitlePatternError,
     RepeatedForbiddenSectionError,
     RepeatedOutlineSectionError,
     StructureSpec,
@@ -72,7 +71,6 @@ from lorecraft.project.schemas.structure_failure import (
     ForeignFrontmatterDialect,
     FrontmatterSchemaId,
     InvalidFrontmatterSchema,
-    InvalidTitlePattern,
     RepeatedForbiddenSections,
     RepeatedOutlineSections,
     UndecodableStructureSpec,
@@ -336,7 +334,7 @@ def _load_structure(
                 # Building the structure specification is the check: StructureSpec.parse rejects text that is not JSON
                 # in the structure dialect, rules that are not usable, and a malformed frontmatter schema.
                 try:
-                    structure = StructureSpec.parse(spec_file, schemas.get_structure_schema(spec_file))
+                    parsed = StructureSpec.parse(spec_file, schemas.get_structure_schema(spec_file))
                 except StructureSchemaReadError as exc:
                     match exc.source:
                         case FileReadError() | RecordedFileReadError() | RecordedFileReadPathError():
@@ -364,9 +362,6 @@ def _load_structure(
                     structure = _record_failed_structure(failures, spec_file.path, failure)
                 except AdjacentAnyRunsError:
                     structure = _record_failed_structure(failures, spec_file.path, AdjacentAnyRuns())
-                except InvalidTitlePatternError as exc:
-                    failure = InvalidTitlePattern(exc.pattern, exc.problem)
-                    structure = _record_failed_structure(failures, spec_file.path, failure)
                 except InvalidFrontmatterSchemaError as exc:
                     failure = InvalidFrontmatterSchema(exc.problem)
                     structure = _record_failed_structure(failures, spec_file.path, failure)
@@ -377,6 +372,12 @@ def _load_structure(
                     structure = _record_failed_structure(failures, spec_file.path, failure)
                 except UntypedFrontmatterSchemaError:
                     structure = _record_failed_structure(failures, spec_file.path, UntypedFrontmatterSchema())
+                else:
+                    # A title pattern that does not compile comes back as its failure record.
+                    if isinstance(parsed, StructureSpec):
+                        structure = parsed
+                    else:
+                        structure = _record_failed_structure(failures, spec_file.path, parsed)
             case ProseSpecFile():
                 pass  # the prose is written for a reader, and no check decodes it
             case _:

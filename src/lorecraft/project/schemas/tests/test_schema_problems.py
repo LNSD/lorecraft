@@ -56,7 +56,9 @@ def _frontmatter_schema(spec_name: str, text: str) -> StatedFrontmatterSchema:
     file = StructureSpecFile(
         path=SPECS_DIR / PathComponent.parse(spec_filename(name, SpecFileType.LEGACY_STRUCTURE)), name=name
     )
-    frontmatter = StructureSpec.parse(file, StructureSchema(text)).frontmatter
+    spec = StructureSpec.parse(file, StructureSchema(text))
+    assert isinstance(spec, StructureSpec), f'the test states a usable specification, got {spec!r}'
+    frontmatter = spec.frontmatter
     assert frontmatter is not None, f'{file.path} states a frontmatter schema'
     return StatedFrontmatterSchema(spec=file.path, schema=frontmatter)
 
