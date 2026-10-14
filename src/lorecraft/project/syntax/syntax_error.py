@@ -16,6 +16,9 @@ from typing import Final
 from ruamel.yaml.error import MarkedYAMLError, StreamMark
 from ruamel.yaml.reader import ReaderError
 
+_TOKEN_END_CHARACTERS: Final[str] = ' \t\r\n\x85  ,[]{}'
+"""The characters that end an anchor, an alias or a tag as the block writes it: whitespace or a flow indicator."""
+
 _ESCAPE_HEX_DIGITS: Final[dict[str, int]] = {'x': 2, 'u': 4, 'U': 8}
 """How many hexadecimal digits the escapes `\\x`, `\\u` and `\\U` take after their letter."""
 
@@ -51,6 +54,10 @@ def describe_error(error: MarkedYAMLError, block: str) -> SyntaxProblem:
     mark = error.problem_mark
     context_mark = error.context_mark
 
+    if context.startswith('while scanning an anchor') or context.startswith('while scanning an alias'):
+        return _malformed_token('anchor' if 'anchor' in context else 'alias', context_mark, lines)
+    if 'tag' in context or problem.startswith('found undefined tag handle'):
+        return _malformed_token('tag', context_mark or mark, lines)
     if problem == "could not find expected ':'":
         return _not_key_or_item(_line_of(context_mark or mark))
     if context.startswith('while scanning a quoted scalar') and problem.startswith('found unexpected end'):
@@ -374,3 +381,25 @@ def _unknown_escape(mark: StreamMark | None, lines: list[str]) -> SyntaxProblem:
     return SyntaxProblem(
         f'`{escape}` is not an escape', 'Write `\\\\` for a backslash, or use single quotes', mark.line
     )
+
+
+def _malformed_token(kind: str, mark: StreamMark | None, lines: list[str]) -> SyntaxProblem:
+    """Refuse a malformed anchor, alias or tag as the anchor, alias or tag frontmatter does not allow.
+
+    Args:
+        kind: `anchor`, `alias` or `tag`.
+        mark: Where the anchor, alias or tag starts.
+        lines: The block's lines.
+    """
+    if mark is None:
+        article = 'an' if kind in ('anchor', 'alias') else 'a'
+        return SyntaxProblem(f'found {article} {kind}, which frontmatter does not allow', None, None)
+    text = _text(lines, mark.line)[mark.column :]
+    if text.startswith('!<'):
+        closing = text.find('>')
+        written = text if closing == -1 else text[: closing + 1]
+    else:
+        end = next((index for index, character in enumerate(text) if character in _TOKEN_END_CHARACTERS), len(text))
+        written = text[:end]
+    named = repr(written) if kind == 'tag' else written
+    return SyntaxProblem(f'found the {kind} {named}, which frontmatter does not allow', None, mark.line)

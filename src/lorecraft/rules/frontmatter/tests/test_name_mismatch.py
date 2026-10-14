@@ -57,7 +57,7 @@ class TestNameMismatch:
             NameMismatch(
                 spec=SPEC, line=LineNumber.from_int(5), name='installation', expectation=FilenameExpected('setup')
             ),
-        ), 'YAML keeps the last value of a repeated key, so that value is compared, on its line; a nested key is not it'
+        ), 'the last value of a repeated key is the one read, so it is compared, on its line; a nested key is not it'
 
     def test_check_with_a_document_named_for_its_filename_reports_nothing(self) -> None:
         #: Given
