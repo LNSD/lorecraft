@@ -12,7 +12,8 @@ from lorecraft.project.syntax import (
     RelativeDestination,
 )
 from lorecraft.rules.collector import rule
-from lorecraft.rules.declaration import Level, Release, RuleCode, RuleName
+from lorecraft.rules.declaration import RuleCode
+from lorecraft.rules.identity import Level, Release, RuleName
 from lorecraft.rules.location import Help, Subdiagnostic
 from lorecraft.rules.subject import MarkdownRule
 

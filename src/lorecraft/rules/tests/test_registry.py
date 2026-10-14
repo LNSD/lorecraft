@@ -44,7 +44,8 @@ from lorecraft.rules.outline.section_out_of_order import SectionOutOfOrder
 from lorecraft.rules.outline.title_not_first import TitleNotFirst
 from lorecraft.rules.outline.unexpected_section import UnexpectedSection
 
-from ..declaration import RuleGroupPrefix, RuleName
+from ..declaration import RuleGroupPrefix
+from ..identity import RuleName
 from ..registry import (
     AbstractRuleError,
     ConflictingRuleGroupError,

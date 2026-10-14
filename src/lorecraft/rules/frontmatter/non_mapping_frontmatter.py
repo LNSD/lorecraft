@@ -10,7 +10,8 @@ from lorecraft.project import syntax
 from lorecraft.project.context import FrontmatterContext, FrontmatterOwner
 from lorecraft.project.schemas import FIRST_LINE
 from lorecraft.rules.collector import rule
-from lorecraft.rules.declaration import Level, Release, RuleCode, RuleName
+from lorecraft.rules.declaration import RuleCode
+from lorecraft.rules.identity import Level, Release, RuleName
 from lorecraft.rules.location import Help, Subdiagnostic
 from lorecraft.rules.subject import FrontmatterRule
 

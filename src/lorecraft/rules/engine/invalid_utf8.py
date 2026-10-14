@@ -6,7 +6,8 @@ from typing import ClassVar, assert_never
 from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.collector import rule
-from lorecraft.rules.declaration import EngineCode, FileCondition, Release, RuleName, Severity
+from lorecraft.rules.declaration import EngineCode, FileCondition, Severity
+from lorecraft.rules.identity import Release, RuleName
 from lorecraft.rules.location import Help, Here, Label, Subdiagnostic
 from lorecraft.vfs import Utf8Failure, Utf8Reason
 

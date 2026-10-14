@@ -38,6 +38,8 @@ from .declaration import (
     RuleDeclaration,
     RuleGroup,
     RuleGroupPrefix,
+)
+from .identity import (
     RuleName,
 )
 from .subject import DocumentRule
