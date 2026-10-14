@@ -132,10 +132,6 @@ def namespace_spec(corpus: str, namespace: str, structure: str) -> NamespaceSpec
         EmptyAspectNamespaceError: If the namespace is empty.
         InvalidAspectNamespaceCharacterError: If a character of the namespace falls outside kebab case.
         StructureSpecDecodeError: If the structure specification is not JSON or does not have the dialect's shape.
-        InvalidFrontmatterSchemaError: If its frontmatter schema is rejected by the meta-schema.
-        FrontmatterSchemaIdError: If a schema in its frontmatter schema carries `$id`.
-        ForeignFrontmatterDialectError: If a schema in its frontmatter schema names another dialect.
-        UntypedFrontmatterSchemaError: If its frontmatter schema's root does not state an object.
         EmptyStructureSpecError: If it states no rule.
         RepeatedOutlineSectionError: If its outline names a section twice.
         RepeatedForbiddenSectionError: If it forbids a section twice.
@@ -167,10 +163,6 @@ def _decode_structure(spec_name: SpecName, structure: str) -> StructureSpec:
 
     Raises:
         StructureSpecDecodeError: If the text is not JSON or does not have the dialect's shape.
-        InvalidFrontmatterSchemaError: If its frontmatter schema is rejected by the meta-schema.
-        FrontmatterSchemaIdError: If a schema in its frontmatter schema carries `$id`.
-        ForeignFrontmatterDialectError: If a schema in its frontmatter schema names another dialect.
-        UntypedFrontmatterSchemaError: If its frontmatter schema's root does not state an object.
         EmptyStructureSpecError: If it states no rule.
         RepeatedOutlineSectionError: If its outline names a section twice.
         RepeatedForbiddenSectionError: If it forbids a section twice.
@@ -226,10 +218,6 @@ class FakeDocumentContext:
             InvalidAspectNameCharacterError: If a character of the filename is not lowercase with valid separators.
             StructureSpecDecodeError: If the structure specification is not JSON or does not have the dialect's
                 shape.
-            InvalidFrontmatterSchemaError: If its frontmatter schema is rejected by the meta-schema.
-            FrontmatterSchemaIdError: If a schema in its frontmatter schema carries `$id`.
-            ForeignFrontmatterDialectError: If a schema in its frontmatter schema names another dialect.
-            UntypedFrontmatterSchemaError: If its frontmatter schema's root does not state an object.
             EmptyStructureSpecError: If it states no rule.
             RepeatedOutlineSectionError: If its outline names a section twice.
             RepeatedForbiddenSectionError: If it forbids a section twice.

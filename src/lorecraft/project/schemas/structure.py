@@ -134,7 +134,14 @@ from .schema_keyword import (
 )
 from .section_name import SectionName
 from .spec_file import SpecFileType, StructureSpecFile, spec_filename
-from .structure_failure import InvalidTitlePattern, StructureSpecProblem
+from .structure_failure import (
+    ForeignFrontmatterDialect,
+    FrontmatterSchemaId,
+    InvalidFrontmatterSchema,
+    InvalidTitlePattern,
+    StructureSpecProblem,
+    UntypedFrontmatterSchema,
+)
 from .structure_file import (
     JSON_SCHEMA_DIALECT,
     StructureFile,
@@ -256,75 +263,6 @@ class AdjacentAnyRunsError(Error):
     def __init__(self, path: RootRelativePath) -> None:
         self.path = path
         super().__init__(f'invalid structure schema {path}: places two `any` runs side by side')
-
-
-class InvalidFrontmatterSchemaError(Error):
-    """A frontmatter schema is rejected by the Draft 2020-12 meta-schema.
-
-    Attributes:
-        path: Root-relative path of the structure specification the schema is written in.
-        problem: What the meta-schema rejected, read from the schema error.
-        source: The schema error.
-    """
-
-    path: RootRelativePath
-    problem: str
-    source: SchemaError
-
-    def __init__(self, path: RootRelativePath, problem: str, *, source: SchemaError) -> None:
-        self.path = path
-        self.problem = problem
-        self.source = source
-        super().__init__(f'invalid structure schema {path}: frontmatter is not a valid JSON Schema: {problem}')
-        self.__cause__ = source
-
-
-class FrontmatterSchemaIdError(Error):
-    """A schema inside a frontmatter schema carries ``$id``, which would make it a resource of its own.
-
-    Attributes:
-        path: Root-relative path of the structure specification the schema is written in.
-    """
-
-    path: RootRelativePath
-
-    def __init__(self, path: RootRelativePath) -> None:
-        self.path = path
-        super().__init__(f'invalid structure schema {path}: frontmatter schema may not carry $id')
-
-
-class ForeignFrontmatterDialectError(Error):
-    """A schema inside a frontmatter schema names a dialect other than Draft 2020-12 in ``$schema``.
-
-    Attributes:
-        path: Root-relative path of the structure specification the schema is written in.
-        dialect: The dialect it names, as `$schema` spells it.
-    """
-
-    path: RootRelativePath
-    dialect: str
-
-    def __init__(self, path: RootRelativePath, dialect: str) -> None:
-        self.path = path
-        self.dialect = dialect
-        super().__init__(
-            f'invalid structure schema {path}: frontmatter schema names {dialect!r} in $schema; only '
-            f'{JSON_SCHEMA_DIALECT} is allowed'
-        )
-
-
-class UntypedFrontmatterSchemaError(Error):
-    """A frontmatter schema's root does not state ``"type": "object"``.
-
-    Attributes:
-        path: Root-relative path of the structure specification the schema is written in.
-    """
-
-    path: RootRelativePath
-
-    def __init__(self, path: RootRelativePath) -> None:
-        self.path = path
-        super().__init__(f'invalid structure schema {path}: frontmatter schema root must state "type": "object"')
 
 
 @dataclass(frozen=True, slots=True)
@@ -473,13 +411,20 @@ type OutlineEntry = SectionEntry | AnySections
 """One entry of a structure specification's outline."""
 
 
+type FrontmatterSchemaFailure = (
+    InvalidFrontmatterSchema | FrontmatterSchemaId | ForeignFrontmatterDialect | UntypedFrontmatterSchema
+)
+"""A reason a structure specification's `frontmatter` schema cannot be held."""
+
+
 @dataclass(frozen=True, slots=True)
 class FrontmatterSchema:
     """A structure specification's `frontmatter` key: a Draft 2020-12 JSON Schema describing an object.
 
-    `parse` checks the schema, so an instance is proof of it: no code holding a `FrontmatterSchema` checks it
-    again. A malformed schema is refused with an error naming the specification file, like every other rule of
-    that file. The file's path is the structure specification's own (`StructureSpec.path`), not kept here.
+    `parse` is the one way in for a schema that is not yet known to be usable: it checks the schema and returns the
+    failure it finds instead of an instance, so an instance it returns is proof of the check and no code holding one
+    checks it again. Calling `FrontmatterSchema(...)` directly is unchecked, and is only for a schema already checked.
+    The file's path is the structure specification's own (`StructureSpec.path`), not kept here.
 
     Attributes:
         schema: The decoded schema, frozen all the way down: every object in it is a `FrozenMapping` and every
@@ -489,46 +434,41 @@ class FrontmatterSchema:
     schema: FrozenMapping[str, Frozen]
 
     @classmethod
-    def parse(cls, schema: FrozenMapping[str, Frozen], *, path: RootRelativePath) -> Self:
-        """Refuse a schema a structure specification cannot hold a document's frontmatter to.
+    def parse(cls, schema: FrozenMapping[str, Frozen]) -> Self | FrontmatterSchemaFailure:
+        """Check a schema a structure specification can hold a document's frontmatter to.
 
-        That is a schema that is not a well-formed Draft 2020-12 schema, that leaves it for another resource or
-        dialect anywhere inside it, or that does not describe an object.
+        That is a schema that is a well-formed Draft 2020-12 schema, that does not leave it for another resource or
+        dialect anywhere inside it, and that describes an object.
 
         Args:
             schema: The file's `frontmatter` JSON Schema, as read.
-            path: Root-relative path of the structure specification the schema is written in, quoted verbatim in
-                every error it raises.
 
-        Raises:
-            InvalidFrontmatterSchemaError: If the schema is rejected by the Draft 2020-12 meta-schema.
-            FrontmatterSchemaIdError: If any schema in it carries `$id`.
-            ForeignFrontmatterDialectError: If any schema in it names a dialect other than Draft 2020-12 in
-                `$schema`.
-            UntypedFrontmatterSchemaError: If its root does not say `"type": "object"`.
+        Returns:
+            The checked schema, or the failure naming what is wrong with it: the meta-schema's rejection, an `$id`, a
+            dialect other than Draft 2020-12 in `$schema`, or a root that does not say `"type": "object"`.
         """
         # `jsonschema` takes a JSON object only as a `dict` and an array only as a `list`, so every schema and
         # frontmatter it reads is handed to it as plain data, copied from the frozen value.
         try:
             Draft202012Validator.check_schema(schema.to_plain())
         except SchemaError as exc:
-            raise InvalidFrontmatterSchemaError(path, exc.message, source=exc) from exc
+            return InvalidFrontmatterSchema(exc.message)
         for subschema in _schemas_within(schema):
             if '$id' in subschema:
                 # An `$id` would make that schema a resource of its own, with its own base URI, and so change what
                 # every relative `$ref` beneath it resolves to.
-                raise FrontmatterSchemaIdError(path)
+                return FrontmatterSchemaId()
             dialect = subschema.get('$schema', JSON_SCHEMA_DIALECT)
             # The meta-schema check above has refused a `$schema` that is not a string.
             assert isinstance(dialect, str), 'unreachable: the meta-schema proved `$schema` is a string'
             if dialect != JSON_SCHEMA_DIALECT:
                 # The check applies every schema under Draft 2020-12, so a schema written for another dialect would
                 # be read by rules it was not written for.
-                raise ForeignFrontmatterDialectError(path, dialect)
+                return ForeignFrontmatterDialect(dialect)
         # A frontmatter is a mapping, so the schema must say so itself: a schema that left `type` out would accept
         # a list or a string where the frontmatter should be.
         if schema.get('type') != 'object':
-            raise UntypedFrontmatterSchemaError(path)
+            return UntypedFrontmatterSchema()
         return cls(schema=schema)
 
     def validate(self, data: FrozenMapping[str, Frozen]) -> tuple[FrontmatterProblem, ...]:
@@ -977,7 +917,9 @@ class StructureSpec:
         return names
 
     @classmethod
-    def parse(cls, file: StructureSpecFile, schema: StructureSchema) -> Self | InvalidTitlePattern:
+    def parse(
+        cls, file: StructureSpecFile, schema: StructureSchema
+    ) -> Self | InvalidTitlePattern | FrontmatterSchemaFailure:
         """Deserialize a structure specification's text into its rules.
 
         Args:
@@ -985,14 +927,12 @@ class StructureSpec:
             schema: The file's text.
 
         Returns:
-            The rules, or the failure naming a title `pattern` that does not compile.
+            The rules, or the failure naming a title `pattern` that does not compile, or a frontmatter schema that
+            cannot be held: rejected by the meta-schema, carrying `$id`, naming another dialect or not stating an
+            object.
 
         Raises:
             StructureSpecDecodeError: If the text is not JSON or does not have the dialect's shape.
-            InvalidFrontmatterSchemaError: If its frontmatter schema is rejected by the meta-schema.
-            FrontmatterSchemaIdError: If a schema in its frontmatter schema carries ``$id``.
-            ForeignFrontmatterDialectError: If a schema in its frontmatter schema names another dialect.
-            UntypedFrontmatterSchemaError: If its frontmatter schema's root does not state an object.
             EmptyStructureSpecError: If it states no rule.
             RepeatedOutlineSectionError: If its outline names a section twice.
             RepeatedForbiddenSectionError: If it forbids a section twice.
@@ -1025,6 +965,9 @@ class StructureSpec:
         title = _title_checks(structure_file.title)
         if isinstance(title, InvalidTitlePattern):
             return title
+        frontmatter = _frontmatter_schema(structure_file.frontmatter)
+        if frontmatter is not None and not isinstance(frontmatter, FrontmatterSchema):
+            return frontmatter
 
         return cls(
             file=file,
@@ -1033,7 +976,7 @@ class StructureSpec:
             outline=tuple(outline),
             forbidden=structure_file.forbidden,
             tokens=structure_file.tokens,
-            frontmatter=_frontmatter_schema(file.path, structure_file.frontmatter),
+            frontmatter=frontmatter,
         )
 
 
@@ -1060,22 +1003,20 @@ def _title_checks(title: StructureFileTitle | None) -> TitleChecks | InvalidTitl
     raise AssertionError('unreachable: `StructureFileTitle` refuses a `title` that states no check')
 
 
-def _frontmatter_schema(path: RootRelativePath, schema: FrozenMapping[str, Frozen] | None) -> FrontmatterSchema | None:
+def _frontmatter_schema(
+    schema: FrozenMapping[str, Frozen] | None,
+) -> FrontmatterSchema | FrontmatterSchemaFailure | None:
     """The frontmatter schema a file's `frontmatter` key states, or None when the file states none.
 
     Args:
-        path: Root-relative path of the structure file, carried into any error it raises.
         schema: The file's `frontmatter` JSON Schema, as read; `None` when the file leaves it out.
 
-    Raises:
-        InvalidFrontmatterSchemaError: If the schema is rejected by the meta-schema.
-        FrontmatterSchemaIdError: If a schema in it carries ``$id``.
-        ForeignFrontmatterDialectError: If a schema in it names another dialect.
-        UntypedFrontmatterSchemaError: If its root does not state an object.
+    Returns:
+        The checked schema, None, or the failure naming what is wrong with the schema.
     """
     if schema is None:
         return None
-    return FrontmatterSchema.parse(schema, path=path)
+    return FrontmatterSchema.parse(schema)
 
 
 def _problems(error: ValidationError) -> tuple[StructureSpecProblem, ...]:

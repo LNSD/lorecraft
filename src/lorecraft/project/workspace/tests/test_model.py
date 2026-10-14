@@ -103,7 +103,7 @@ def _spec_files(
         path = SPECS_DIR / PathComponent.parse(spec_filename(spec_name, SpecFileType.LEGACY_STRUCTURE))
         frontmatter_schema: FrontmatterSchema | None = None
         if frontmatter:
-            frontmatter_schema = FrontmatterSchema.parse(FrozenMapping({'type': 'object'}), path=path)
+            frontmatter_schema = FrontmatterSchema(schema=FrozenMapping({'type': 'object'}))
         structure_spec = StructureSpec(
             file=StructureSpecFile(path=path, name=spec_name),
             title=None,

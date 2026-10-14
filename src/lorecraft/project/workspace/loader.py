@@ -55,26 +55,18 @@ from lorecraft.project.schemas.structure import (
     AdjacentAnyRunsError,
     EmptyStructureSpecError,
     ForbiddenOutlineSectionError,
-    ForeignFrontmatterDialectError,
-    FrontmatterSchemaIdError,
-    InvalidFrontmatterSchemaError,
     RepeatedForbiddenSectionError,
     RepeatedOutlineSectionError,
     StructureSpec,
     StructureSpecDecodeError,
-    UntypedFrontmatterSchemaError,
 )
 from lorecraft.project.schemas.structure_failure import (
     AdjacentAnyRuns,
     EmptyStructureSpec,
     ForbiddenOutlineSections,
-    ForeignFrontmatterDialect,
-    FrontmatterSchemaId,
-    InvalidFrontmatterSchema,
     RepeatedForbiddenSections,
     RepeatedOutlineSections,
     UndecodableStructureSpec,
-    UntypedFrontmatterSchema,
 )
 from lorecraft.project.skill.outside import OutsideSymlink
 from lorecraft.project.skill.ref import SkillLocation
@@ -331,7 +323,7 @@ def _load_structure(
     for spec_file in spec_files:
         match spec_file:
             case StructureSpecFile():
-                # Building the structure specification is the check: StructureSpec.parse rejects text that is not JSON
+                # Building the structure specification is the check: StructureSpec.parse refuses text that is not JSON
                 # in the structure dialect, rules that are not usable, and a malformed frontmatter schema.
                 try:
                     parsed = StructureSpec.parse(spec_file, schemas.get_structure_schema(spec_file))
@@ -362,18 +354,8 @@ def _load_structure(
                     structure = _record_failed_structure(failures, spec_file.path, failure)
                 except AdjacentAnyRunsError:
                     structure = _record_failed_structure(failures, spec_file.path, AdjacentAnyRuns())
-                except InvalidFrontmatterSchemaError as exc:
-                    failure = InvalidFrontmatterSchema(exc.problem)
-                    structure = _record_failed_structure(failures, spec_file.path, failure)
-                except FrontmatterSchemaIdError:
-                    structure = _record_failed_structure(failures, spec_file.path, FrontmatterSchemaId())
-                except ForeignFrontmatterDialectError as exc:
-                    failure = ForeignFrontmatterDialect(exc.dialect)
-                    structure = _record_failed_structure(failures, spec_file.path, failure)
-                except UntypedFrontmatterSchemaError:
-                    structure = _record_failed_structure(failures, spec_file.path, UntypedFrontmatterSchema())
                 else:
-                    # A title pattern that does not compile comes back as its failure record.
+                    # A title pattern or a frontmatter schema that cannot be held comes back as its failure record.
                     if isinstance(parsed, StructureSpec):
                         structure = parsed
                     else:
