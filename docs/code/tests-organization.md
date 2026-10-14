@@ -269,7 +269,7 @@ dangles or leaves the repository. A code that reports what the operating system 
 after; the case is skipped for the superuser, who ignores permissions.
 
 The parametrized tests of `tests/it/test_rule_cases.py`, the one suite exempt from
-[tests-functions](tests-functions.md#5-one-test-per-case)'s one test per case, run the checker over every case and
+[tests-functions](tests-functions.md#6-one-test-per-case)'s one test per case, run the checker over every case and
 compare the diagnostics with `expected.json`, whole, so a second code on a line fails the case unless the case lists
 it: an overlap of two codes is allowed where the case that holds it declares it, and nowhere else. Another test
 reads the registry and the directory tree, runs nothing, and fails naming every code that lacks either kind, and
