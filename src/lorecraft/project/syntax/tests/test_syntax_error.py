@@ -41,6 +41,10 @@ def _error(
     return MarkedYAMLError(context, context_mark, problem, mark)
 
 
+_NOT_KEY_OR_ITEM: Final[tuple[str, str]] = (
+    'this line is not `key: value` or `- item`',
+    'Add `: ` after the key, or quote a value that runs on',
+)
 _NO_MATCH: Final[tuple[str, str]] = (
     "this line's indentation matches no key or item above it",
     'Indent it like the keys or items it belongs with',
@@ -80,6 +84,58 @@ class TestDescribeError:
             1,
         ), 'a key indented under a key whose value is text names both'
 
+    def test_describe_error_with_a_colon_ending_a_scalar_with_nothing_above_returns_the_line_kind(self) -> None:
+        #: Given
+        error = _error('mapping values are not allowed here', _mark(0, 4))
+
+        block = dedent("""\
+            ab c: d
+            x
+            """)
+
+        #: When
+        problem = describe_error(error, block)
+
+        #: Then
+        assert problem == SyntaxProblem(*_NOT_KEY_OR_ITEM, 0), (
+            'with no key line above, the scalar starts on its own line, which is the one to fix'
+        )
+
+    def test_describe_error_with_a_colon_ending_a_list_item_value_returns_the_indentation_kind(self) -> None:
+        #: Given
+        error = _error('mapping values are not allowed here', _mark(3, 3))
+        block = dedent("""\
+            l:
+            - a
+              more
+              k: v
+            """)
+
+        #: When
+        problem = describe_error(error, block)
+
+        #: Then
+        assert problem == SyntaxProblem(*_NO_MATCH, 3), (
+            'the value of a list item is text, so the key that ends it matches no level, on its own line'
+        )
+
+    def test_describe_error_with_a_colon_that_ends_plain_words_below_returns_the_line_of_the_words(self) -> None:
+        #: Given
+        error = _error('mapping values are not allowed here', _mark(1, 4))
+
+        block = dedent("""\
+            just words
+            name: a
+            """)
+
+        #: When
+        problem = describe_error(error, block)
+
+        #: Then
+        assert problem == SyntaxProblem(*_NOT_KEY_OR_ITEM, 0), (
+            'the plain words are the line to fix, not the key that ends them'
+        )
+
     def test_describe_error_with_a_colon_and_no_mark_returns_the_fallback_with_no_line(self) -> None:
         #: Given
         error = _error('mapping values are not allowed here', None)
@@ -107,6 +163,39 @@ class TestDescribeError:
 
         #: Then
         assert problem == SyntaxProblem(*_NO_MATCH, 2), 'a line indented to no level is the indentation kind'
+
+    def test_describe_error_with_a_line_that_is_no_key_returns_the_key_or_item_kind(self) -> None:
+        #: Given
+        error = _error(
+            "could not find expected ':'", _mark(2, 0), context='while scanning a simple key', context_mark=_mark(1, 0)
+        )
+
+        block = dedent("""\
+            name: a
+            just words
+            b: c
+            """)
+
+        #: When
+        problem = describe_error(error, block)
+
+        #: Then
+        assert problem == SyntaxProblem(*_NOT_KEY_OR_ITEM, 1), 'the line is where the key began, not the next'
+
+    def test_describe_error_with_a_top_level_scalar_returns_the_key_or_item_kind(self) -> None:
+        #: Given
+        error = _error("expected '<document start>', but found '<scalar>'", _mark(1, 0))
+
+        block = dedent("""\
+            >
+            text
+            """)
+
+        #: When
+        problem = describe_error(error, block)
+
+        #: Then
+        assert problem == SyntaxProblem(*_NOT_KEY_OR_ITEM, 1), 'text under a top-level scalar is no key or item'
 
     def test_describe_error_with_an_unclosed_quote_returns_the_line_it_opens_on(self) -> None:
         #: Given
