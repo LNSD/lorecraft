@@ -10,14 +10,13 @@ from typing import Final, assert_never
 import pytest
 
 from lorecraft.core.path import PathComponent, RootRelativePath
-from lorecraft.project.syntax import parse_document
+from lorecraft.project.syntax import parse_document, section_headings
 
 from ..name import parse_spec_name
 from ..outline_alignment import (
     AlignedSection,
     AnyRunAlignment,
     NamedAlignment,
-    OutlineAlignmentSpec,
     UnalignedSection,
     align_outlines,
 )
@@ -269,30 +268,27 @@ class TestAlignOutlines:
 
 
 @pytest.mark.unit
-class TestOutlineAlignmentSpecFind:
-    def test_find_with_the_heading_of_a_section_returns_its_aligned_section(self) -> None:
+class TestOutlineAlignmentSpecAlignedSection:
+    def test_aligned_section_with_a_section_of_the_document_returns_its_aligned_section(self) -> None:
         #: Given
         document = parse_document(RULE_ASIDE_CHECKLIST)
         structure_spec = _structure_spec('code', '{"outline": [{"section": "Rule"}, {"any": true}]}')
         alignment = align_outlines((structure_spec,), document.headings)[0]
-        aside = next(heading for heading in document.headings if heading.text == 'Aside')
+        aside = next(section for section in section_headings(document.headings) if section.text == 'Aside')
 
         #: When
-        aligned = alignment.find(aside)
+        aligned = alignment.aligned_section(aside)
 
         #: Then
-        assert aligned is not None, 'the section is one of the document'
         assert aligned.section.line == aside.line, 'the aligned section holds the heading it was found by'
 
-    def test_find_with_the_title_returns_none(self) -> None:
+    def test_aligned_section_with_a_section_of_another_document_raises(self) -> None:
         #: Given
         document = parse_document(RULE_ASIDE_CHECKLIST)
         structure_spec = _structure_spec('code', '{"outline": [{"section": "Rule"}, {"any": true}]}')
-        alignment: OutlineAlignmentSpec = align_outlines((structure_spec,), document.headings)[0]
-        title = document.headings[0]
+        alignment = align_outlines((structure_spec,), document.headings)[0]
+        stray = section_headings(parse_document('\n' * 99 + '## Stray\n').headings)[0]
 
-        #: When
-        aligned = alignment.find(title)
-
-        #: Then
-        assert aligned is None, 'the title is no H2, so no outline aligns it'
+        #: When / Then
+        with pytest.raises(ValueError, match='no section of the aligned document'):
+            alignment.aligned_section(stray)

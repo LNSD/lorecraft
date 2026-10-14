@@ -39,8 +39,8 @@ from .refusals import (
     UnreportedDirListError,
     UnreportedEntryInspectError,
     UnreportedFileReadError,
-    find_unreported_refusals,
     reject_unreported_refusals,
+    unreported_refusals,
 )
 
 __all__: list[str] = [
@@ -81,7 +81,7 @@ __all__: list[str] = [
     'UninspectableSkillFile',
     'load_workspace',
     'load_model',
-    'find_unreported_refusals',
+    'unreported_refusals',
     'reject_unreported_refusals',
     'UnreportedDirListError',
     'UnreportedFileReadError',

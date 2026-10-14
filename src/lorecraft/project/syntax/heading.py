@@ -60,7 +60,7 @@ class SectionHeading:
     """The heading of one section of a document.
 
     It is told apart from a title or a subsection heading by its type, so a reader of an alignment cannot be handed
-    a heading that opens no section. Only `find_sections` builds one, and for now only from H2 headings; the level
+    a heading that opens no section. Only `section_headings` builds one, and for now only from H2 headings; the level
     is kept so that nested sections can follow.
 
     Attributes:
@@ -79,7 +79,7 @@ class SectionHeading:
     words: WordCount
 
 
-def find_sections(headings: tuple[Heading, ...]) -> tuple[SectionHeading, ...]:
+def section_headings(headings: tuple[Heading, ...]) -> tuple[SectionHeading, ...]:
     """A document's sections, in document order, which are its H2 headings for now. Raises nothing.
 
     Args:

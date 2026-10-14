@@ -6,7 +6,7 @@ import pytest
 
 from lorecraft.core.num import NonZeroUnsignedInt, UnsignedInt
 
-from ..heading import Heading, HeadingLevel, SectionHeading, find_sections, find_title
+from ..heading import Heading, HeadingLevel, SectionHeading, find_title, section_headings
 from ..position import LineNumber
 from ..words import WordCount
 
@@ -121,14 +121,14 @@ class TestFindTitle:
 
 @pytest.mark.unit
 class TestFindSections:
-    def test_find_sections_with_headings_of_every_level_returns_only_the_h2_headings_in_order(self) -> None:
+    def test_section_headings_with_headings_of_every_level_returns_only_the_h2_headings_in_order(self) -> None:
         #: Given
         first = _heading(2, 'Rule', 3)
         second = _heading(2, 'Checklist', 9)
         headings = (_heading(1, 'Title', 1), first, _heading(3, 'Detail', 5), second, _heading(1, 'Again', 12))
 
         #: When
-        sections = find_sections(headings)
+        sections = section_headings(headings)
 
         #: Then
         assert sections == (

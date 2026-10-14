@@ -12,7 +12,7 @@ from lorecraft.project.schemas import (
     SectionEntry,
     UnalignedSection,
 )
-from lorecraft.project.syntax import Heading, find_title
+from lorecraft.project.syntax import Heading, SectionHeading, find_title, section_headings
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Subdiagnostic
@@ -21,22 +21,20 @@ from lorecraft.rules.subject import DocumentRule, Facet
 from .__ruleset__ import GROUP_ID, example_note, spec_note
 
 
-def _find_required_entry(alignments: tuple[OutlineAlignmentSpec, ...], heading: Heading) -> SectionEntry | None:
-    """The first outline entry, across the specifications, that requires the section a heading opens.
+def _find_required_entry(alignments: tuple[OutlineAlignmentSpec, ...], section: SectionHeading) -> SectionEntry | None:
+    """The first outline entry, across the specifications, that requires a section.
 
-    Only an H2 is a section an outline aligns. The entry may come from a specification other than the one that
-    forbids empty sections: a namespace can require what its corpus leaves out. `None` comes back when the heading
-    is no H2, or no specification aligns it to an entry that requires it.
+    The entry may come from a specification other than the one that forbids empty sections: a namespace can require
+    what its corpus leaves out. `None` comes back when no specification aligns the section to an entry that
+    requires it.
 
     Args:
         alignments: The document's sections aligned to the outline of every structure specification that governs
             it, in the order they apply.
-        heading: The heading of the empty section.
+        section: The heading of the empty section.
     """
     for alignment in alignments:
-        aligned = alignment.find(heading)
-        if aligned is None:
-            continue
+        aligned = alignment.aligned_section(section)
         match aligned:
             case NamedAlignment():
                 if not aligned.entry.optional:
@@ -59,7 +57,10 @@ class OtherSection:
 
 
 def _role_of(
-    alignments: tuple[OutlineAlignmentSpec, ...], heading: Heading, title: Heading | None
+    alignments: tuple[OutlineAlignmentSpec, ...],
+    heading: Heading,
+    title: Heading | None,
+    section: SectionHeading | None,
 ) -> EmptyTitle | SectionEntry | OtherSection:
     """What an empty heading is: the title, a section the outline requires, or any other section.
 
@@ -68,11 +69,14 @@ def _role_of(
             it, in the order they apply.
         heading: The heading of the empty section.
         title: The document's title, or `None` when it has none.
+        section: The heading as a section, or `None` when it opens no section: only an H2 does.
     """
     # Compared by line, as two headings never start on the same one.
     if title is not None and heading.line == title.line:
         return EmptyTitle()
-    required = _find_required_entry(alignments, heading)
+    if section is None:
+        return OtherSection()
+    required = _find_required_entry(alignments, section)
     if required is None:
         return OtherSection()
     return required
@@ -194,6 +198,7 @@ class EmptySection(DocumentRule):
         """
         headings = subject.parse().headings
         title = find_title(headings)
+        sections = {section.line: section for section in section_headings(headings)}
         alignments = subject.outline_alignment()
         occurrences: list[Self] = []
         for structure_spec in subject.specifications().structure_specs():
@@ -205,7 +210,7 @@ class EmptySection(DocumentRule):
                                 spec=structure_spec.path,
                                 line=heading.line,
                                 section=heading.text,
-                                role=_role_of(alignments, heading, title),
+                                role=_role_of(alignments, heading, title, sections.get(heading.line)),
                             )
                         )
         return tuple(occurrences)

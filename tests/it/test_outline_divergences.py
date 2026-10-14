@@ -17,7 +17,7 @@ from lorecraft.project.corpus import CorpusName
 from lorecraft.project.database import Database, DocumentText
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.schemas import AbsentSection, DocumentEnd, OutlineDivergenceSpec, SectionName
-from lorecraft.project.syntax import LineNumber, ParsedDocument, SectionHeading, find_sections, parse_document
+from lorecraft.project.syntax import LineNumber, ParsedDocument, SectionHeading, parse_document, section_headings
 from lorecraft.project.workspace import WorkspaceModel
 from lorecraft.vfs import Snapshot, VirtualFileSystem
 
@@ -93,7 +93,7 @@ def _checklist_heading() -> SectionHeading:
     Raises:
         AssertionError: If the document holds no such heading.
     """
-    for section in find_sections(parse_document(RULE_ASIDE_CHECKLIST).headings):
+    for section in section_headings(parse_document(RULE_ASIDE_CHECKLIST).headings):
         if section.text == 'Checklist':
             return section
     raise AssertionError('the document holds a `Checklist` section')

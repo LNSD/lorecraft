@@ -64,9 +64,9 @@ from lorecraft.project.syntax import (
     ParsedDocument,
     SectionHeading,
     count_tokens,
-    find_sections,
     parse_document,
     parse_frontmatter,
+    section_headings,
 )
 from lorecraft.project.workspace import WorkspaceModel
 from lorecraft.rules.declaration import Rule
@@ -478,7 +478,7 @@ def _section(text: bytes, heading_text: str) -> SectionHeading:
     Raises:
         AssertionError: If the document holds no such section.
     """
-    for section in find_sections(parse_document(text.decode()).headings):
+    for section in section_headings(parse_document(text.decode()).headings):
         if section.text == heading_text:
             return section
     raise AssertionError(f'the document holds a section `{heading_text}`')
