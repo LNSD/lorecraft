@@ -30,7 +30,8 @@ def _installed_version() -> str:
     try:
         return version(_DISTRIBUTION_NAME)
     except PackageNotFoundError:
-        logger.exception(f'installed metadata for {_DISTRIBUTION_NAME} was unavailable')
+        # A designed fallback, not a failure anyone must act on: `debug` keeps stderr quiet on a normal run.
+        logger.debug(f'installed metadata for {_DISTRIBUTION_NAME} was unavailable', exc_info=True)
         return _UNINSTALLED_VERSION
 
 
