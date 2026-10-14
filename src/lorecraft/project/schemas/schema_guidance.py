@@ -9,6 +9,7 @@ defensively, never asserted: a schema owes a reader none of it, and a keyword le
 import json
 from collections.abc import Mapping
 
+from lorecraft.core.mapping import Plain
 from lorecraft.project.syntax import reads_back_as_string
 
 from .frontmatter_problem import FieldGuidance, JsonType
@@ -53,7 +54,7 @@ def json_type_of(value: object) -> JsonType:
     raise AssertionError(f'unreachable: a frontmatter decodes to JSON values, got {type(value)!r}')
 
 
-def schema_guidance(schema: object) -> FieldGuidance:
+def schema_guidance(schema: Plain) -> FieldGuidance:
     """What one property's schema states about the field: its description, an example, the values it allows.
 
     The example is the first of `examples`, or else the `const`; the allowed values are those of `enum` or `const`.
@@ -84,7 +85,7 @@ def schema_guidance(schema: object) -> FieldGuidance:
     )
 
 
-def property_guidance(schema: object, field: str) -> FieldGuidance:
+def property_guidance(schema: Plain, field: str) -> FieldGuidance:
     """What the schema states about one of its properties, or nothing when it has no property of that name.
 
     Args:
@@ -94,7 +95,7 @@ def property_guidance(schema: object, field: str) -> FieldGuidance:
     return schema_guidance(_properties(schema).get(field))
 
 
-def known_fields(schema: object) -> tuple[str, ...]:
+def known_fields(schema: Plain) -> tuple[str, ...]:
     """The fields an object schema names in its `properties`, in the order it states them.
 
     Args:
@@ -103,7 +104,7 @@ def known_fields(schema: object) -> tuple[str, ...]:
     return tuple(_properties(schema))
 
 
-def schema_reason(schema: object) -> str | None:
+def schema_reason(schema: Plain) -> str | None:
     """The reason a subschema states in `$comment`, which this repository's schemas use to say why a branch exists.
 
     Args:
@@ -117,15 +118,35 @@ def schema_reason(schema: object) -> str | None:
     return None
 
 
-def _properties(schema: object) -> Mapping[str, object]:
+def find_object(value: Plain) -> Mapping[str, Plain] | None:
+    """A schema value as a mapping of its keywords, or nothing when it is not an object.
+
+    Args:
+        value: A schema or a keyword's value; a boolean schema, a list or a scalar is not an object.
+    """
+    if not isinstance(value, Mapping):
+        return None
+    # Copied entry by entry: the mapping `isinstance` narrows to is read by the type checker as `Mapping[Unknown,
+    # Unknown]`, and only the keys and values of an entry are checked and typed.
+    entries: dict[str, Plain] = {}
+    for key, item in value.items():
+        if not isinstance(key, str):
+            # The schema was loaded from a document whose keys the reader proved are strings.
+            raise AssertionError('unreachable: the loader refuses non-string keys')
+        entries[key] = item
+    return entries
+
+
+def _properties(schema: Plain) -> Mapping[str, Plain]:
     """The `properties` of an object schema, or nothing when it has none.
 
     Args:
         schema: The schema read; anything but an object has none.
     """
-    if not isinstance(schema, Mapping):
-        return {}
-    properties = schema.get('properties')
-    if not isinstance(properties, Mapping):
-        return {}
+    keywords = find_object(schema)
+    if keywords is None:
+        return dict[str, Plain]()
+    properties = find_object(keywords.get('properties'))
+    if properties is None:
+        return dict[str, Plain]()
     return properties
