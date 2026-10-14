@@ -12,12 +12,13 @@ the same order: by path, then primary location, then severity, then code, then m
 that order as the fields it compares, and `diagnostic_order` builds it as the sort key.
 
 Each subject the runner checks, a document, a skill or a skill's resource, gets one report, and either kind of
-report gives its diagnostics as `diagnostics`. A `CheckedSubject` decoded, and holds its diagnostics, in their output
-order however it is built, and the facets no specification governs it for. An `UndecodableSubject` did
-not, so no rule judged it: it holds its ref and where the bytes stopped being UTF-8, and its one diagnostic, the
-engine's, is built from them, at the subject's path. A layout entry, one symlink of the skill layout whose chain
-leaves the repository, has no text to decode and no specification to be ungoverned by, so it gets a report of its
-own, a `CheckedLayoutEntry`: its path and its diagnostics, in their output order.
+report gives its diagnostics as `diagnostics`. A `CheckedDocument` decoded, and holds its diagnostics, in their output
+order however it is built, and the facets no specification governs it for. A `CheckedSkillFile`, a skill or one of its
+resources, holds its diagnostics alone, because the package governs every skill file for every facet. An
+`UndecodableSubject` did not decode, so no rule judged it: it holds its ref and where the bytes stopped being UTF-8,
+and its one diagnostic, the engine's, is built from them, at the subject's path. A layout entry, one symlink of the
+skill layout whose chain leaves the repository, has no text to decode and no specification to be ungoverned by, so it
+gets a report of its own, a `CheckedLayoutEntry`: its path and its diagnostics, in their output order.
 
 Two reports come from what failed to load, never from a rule. A `SkippedSubject` is a document decoded and not judged,
 because a structure file that governs it failed to load: it holds no diagnostic and is listed in coverage with the
@@ -138,19 +139,18 @@ type SubjectRef = DocumentRef | SkillRef | SkillResourceRef
 
 
 @dataclass(frozen=True, slots=True)
-class CheckedSubject:
-    """A subject that decoded, so the enabled rules judged everything it is governed for.
+class CheckedDocument:
+    """A document that decoded, so the enabled rules judged everything it is governed for.
 
     Attributes:
-        ref: The document, skill or resource the rules judged; a skill's diagnostics are reported at its `SKILL.md`,
-            and a resource's where an agent reaches it.
+        ref: The document the rules judged.
         diagnostics: Every occurrence the rules found in it, in the order `diagnostic_order` sorts them into,
             whatever order they are given in; empty when it holds to every rule.
-        ungoverned: The facets an enabled rule reads that no specification governs the subject for, in the order the
-            runner reads them; no rule that reads one judged the subject.
+        ungoverned: The facets an enabled rule reads that no specification governs the document for, in the order the
+            runner reads them; no rule that reads one judged the document.
     """
 
-    ref: SubjectRef
+    ref: DocumentRef
     diagnostics: tuple[Diagnostic, ...]
     ungoverned: tuple[Facet, ...]
 
@@ -158,6 +158,28 @@ class CheckedSubject:
         """Sort the diagnostics into their output order, so a report holds them in it however it is built."""
         # The record is frozen, and `object.__setattr__` is how a frozen dataclass sets its own field while it is
         # being constructed; nothing can set it after.
+        object.__setattr__(self, 'diagnostics', tuple(sorted(self.diagnostics, key=diagnostic_order)))
+
+
+@dataclass(frozen=True, slots=True)
+class CheckedSkillFile:
+    """A skill's `SKILL.md` or one of its resources that decoded, so the enabled rules judged it in full.
+
+    The package governs every skill file for every facet, so a skill file has no ungoverned facets to hold.
+
+    Attributes:
+        ref: The skill or resource the rules judged; a skill's diagnostics are reported at its `SKILL.md`, and a
+            resource's where an agent reaches it.
+        diagnostics: Every occurrence the rules found in it, in the order `diagnostic_order` sorts them into,
+            whatever order they are given in; empty when it holds to every rule.
+    """
+
+    ref: SkillRef | SkillResourceRef
+    diagnostics: tuple[Diagnostic, ...]
+
+    def __post_init__(self) -> None:
+        """Sort the diagnostics into their output order, so a report holds them in it however it is built."""
+        # See `CheckedDocument.__post_init__` for why the frozen record is set through `object.__setattr__`.
         object.__setattr__(self, 'diagnostics', tuple(sorted(self.diagnostics, key=diagnostic_order)))
 
 
@@ -252,7 +274,7 @@ class LoadFailureReport:
 
 # What the runner reports for one subject: what the rules found in it, that it did not decode, what they found at a
 # layout entry, or that a failed layer of a meta spec kept them from judging a document.
-type SubjectReport = CheckedSubject | UndecodableSubject | CheckedLayoutEntry | SkippedSubject
+type SubjectReport = CheckedDocument | CheckedSkillFile | UndecodableSubject | CheckedLayoutEntry | SkippedSubject
 
 # What a run hands its output: a report per subject, and one per unit of the declaration that failed to load, which is
 # no subject and is filed at its own path.

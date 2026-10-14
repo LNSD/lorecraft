@@ -19,8 +19,9 @@ from lorecraft.rules.tests.sample_rules.valid.uppercase_entry import UppercaseEn
 from lorecraft.vfs import ByteOffset, Utf8Failure, Utf8Line, Utf8Reason
 
 from ..report import (
+    CheckedDocument,
     CheckedLayoutEntry,
-    CheckedSubject,
+    CheckedSkillFile,
     EngineDiagnostic,
     LoadFailureReport,
     RuleDiagnostic,
@@ -180,15 +181,30 @@ class TestEngineDiagnostic:
 
 
 @pytest.mark.unit
-class TestCheckedSubject:
-    def test_checked_subject_with_diagnostics_out_of_order_holds_them_in_diagnostic_order(self) -> None:
+class TestCheckedSkillFile:
+    def test_checked_skill_file_with_diagnostics_out_of_order_holds_them_in_diagnostic_order(self) -> None:
+        #: Given
+        ref = SkillRef(RootRelativePath.parse('.agents/skills/review'))
+        later = RuleDiagnostic(ref.path, TrailingSpace(spec=None, line=LineNumber.from_int(10)), Severity.ERROR)
+        earlier = RuleDiagnostic(ref.path, TrailingSpace(spec=None, line=LineNumber.from_int(2)), Severity.ERROR)
+
+        #: When
+        subject = CheckedSkillFile(ref, diagnostics=(later, earlier))
+
+        #: Then
+        assert subject.diagnostics == (earlier, later), 'a report holds its diagnostics in output order, however built'
+
+
+@pytest.mark.unit
+class TestCheckedDocument:
+    def test_checked_document_with_diagnostics_out_of_order_holds_them_in_diagnostic_order(self) -> None:
         #: Given
         ref = DocumentRef(CorpusName.parse('code'), AspectFilename.parse('a'))
         later = RuleDiagnostic(ref.path, TrailingSpace(spec=None, line=LineNumber.from_int(10)), Severity.ERROR)
         earlier = RuleDiagnostic(ref.path, TrailingSpace(spec=None, line=LineNumber.from_int(2)), Severity.ERROR)
 
         #: When
-        subject = CheckedSubject(ref, diagnostics=(later, earlier), ungoverned=())
+        subject = CheckedDocument(ref, diagnostics=(later, earlier), ungoverned=())
 
         #: Then
         assert subject.diagnostics == (earlier, later), 'a report holds its diagnostics in output order, however built'

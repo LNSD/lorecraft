@@ -225,7 +225,7 @@ def _check_document(database: Database, ref: DocumentRef, table: RuleTable) -> S
             for occurrence in enabled.rule.check(context):  # the context asks only for what the rule reads
                 diagnostics.append(RuleDiagnostic(ref.path, occurrence, enabled.severity))
     ...
-    return CheckedSubject(ref, diagnostics=tuple(diagnostics), ungoverned=tuple(ungoverned))
+    return CheckedDocument(ref, diagnostics=tuple(diagnostics), ungoverned=tuple(ungoverned))
 ```
 
 - **Adding a rule never touches the runner.** The rule joins its base's partition through the registry
