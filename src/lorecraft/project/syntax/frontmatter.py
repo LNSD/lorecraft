@@ -32,6 +32,7 @@ counterpart for, and JSON names every key with a string.
 import math
 import re
 import sys
+from bisect import bisect_left
 from collections.abc import Iterator
 from dataclasses import dataclass
 from enum import Enum
@@ -57,8 +58,9 @@ from ruamel.yaml.tokens import ScalarToken, Token
 from lorecraft.core.error import Error
 from lorecraft.core.mapping import Frozen, FrozenMapping
 
+from .lines import newline_offsets
 from .position import LineNumber
-from .syntax_error import SyntaxProblem, describe_control_character, describe_error
+from .syntax_error import SyntaxProblem, describe_control_character, describe_error, yaml_line_starts
 
 _FIRST_BLOCK_LINE: Final[int] = 2
 """The document line the block's first YAML line sits on: the opening delimiter is always line 1."""
@@ -410,21 +412,21 @@ def decode_frontmatter(block: str) -> FrontmatterNode:
         node = _read_document(stream)
     except ReaderError as exc:
         # The reader checks every character as it is built, so a control character fails before the first event.
-        return _invalid_yaml(describe_control_character(exc, block))
+        return _invalid_yaml(describe_control_character(exc, block), stream)
     except _RefusedConstructError as exc:
         # The read stopped at a construct this module refuses. The scanner reads ahead of the parser, so it may
         # have recorded one written above it, which is the one the block is reported for.
         refusal = stream.first_refusal()
         if refusal is not None and refusal.mark.index <= exc.mark.index:
-            return _invalid_refusal(refusal)
-        return _invalid_refusal(exc)
+            return _invalid_refusal(refusal, stream)
+        return _invalid_refusal(exc, stream)
     except MarkedYAMLError as exc:
         # Every other `MarkedYAMLError` is ruamel.yaml's own. The scanner reads ahead of the parser, so a construct
         # it recorded is written above whatever the parser or the scanner failed on.
         refusal = stream.first_refusal()
         if refusal is not None:
-            return _invalid_refusal(refusal)
-        return _invalid_yaml(describe_error(exc, block))
+            return _invalid_refusal(refusal, stream)
+        return _invalid_yaml(describe_error(exc, block), stream)
     except RecursionError:
         # The value is read with one call per level of nesting, so only a deeply nested block reaches the
         # interpreter's limit. By the time this clause runs the stack has unwound to this frame, so there is room
@@ -433,12 +435,12 @@ def decode_frontmatter(block: str) -> FrontmatterNode:
         # the scanner recorded above the depth is reported instead, on its line.
         refusal = stream.first_refusal()
         if refusal is not None:
-            return _invalid_refusal(refusal)
+            return _invalid_refusal(refusal, stream)
         return InvalidYamlFrontmatter(problem='found collections nested too deeply to parse', line=None)
     # The block was read to its end, so every construct the scanner recorded is written above the end.
     refusal = stream.first_refusal()
     if refusal is not None:
-        return _invalid_refusal(refusal)
+        return _invalid_refusal(refusal, stream)
     return node
 
 
@@ -486,6 +488,7 @@ class _EventStream:
         yaml.top_level_block_style_scalar_no_indent_error_1_1 = True
         yaml.Scanner = _BasicYamlScanner
         self._block = block
+        self._document_lines = _document_line_indexes(block)
         self._events: Iterator[Event] = iter(yaml.parse(block))
         self._peeked: Event | None = None
         self._yaml = yaml
@@ -500,6 +503,18 @@ class _EventStream:
         if self._peeked is None:
             self._peeked = next(self._events)
         return self._peeked
+
+    def document_line(self, block_line: int) -> LineNumber:
+        r"""The document line a line of the block is.
+
+        The reader counts a line at every YAML 1.1 break, which keeps its columns and marks agreeing with the text
+        the parser reads. A finding is numbered by `\n`, as every other one is, so a line leaves the YAML layer here.
+
+        Args:
+            block_line: The line as the reader's mark counts it, from 0 at the block's first line.
+        """
+        # The block starts on document line 2, below the opening delimiter.
+        return LineNumber.from_int(self._document_lines[block_line] + _FIRST_BLOCK_LINE)
 
     def first_refusal(self) -> _RecordedRefusal | None:
         """The first construct the scanner has recorded, in the order the block writes them, or `None`."""
@@ -553,33 +568,18 @@ class _EventStream:
 
 
 class _BasicYamlReader(Reader):
-    r"""ruamel.yaml's reader, counting a line at every `\n` and nowhere else, as every finding numbers lines."""
+    """ruamel.yaml's reader, counting a next line character and a Unicode line or paragraph separator as a line."""
 
     def forward(self, length: int = 1) -> None:
-        r"""Advance `length` characters, counting a line at each `\n`.
+        """Advance `length` characters, counting every YAML 1.1 line break as one line.
 
         Args:
             length: The number of characters to advance by.
         """
-        # ruamel.yaml's own counters end a line at other characters too: `forward` at a lone `\r`, `forward_1_1` at
-        # U+0085, U+2028 and U+2029 as well. A line count that follows them puts every later key off the line the
-        # document numbers it on. The column still restarts at every YAML 1.1 line break, which the scanner reads
-        # indentation from, so only the line is counted differently. This is `forward_1_1` with the line counted by
-        # `\n` alone.
-        if self.pointer + length + 1 >= len(self.buffer):
-            self.update(length + 1)
-        while length != 0:
-            character = self.buffer[self.pointer]
-            self.pointer += 1
-            self.index += 1
-            if character == '\n':
-                self.line += 1
-                self.column = 0
-            elif character in '\x85\u2028\u2029' or (character == '\r' and self.buffer[self.pointer] != '\n'):
-                self.column = 0
-            elif character != '\ufeff':
-                self.column += 1
-            length -= 1
+        # The column restarts at every YAML 1.1 break, which the scanner reads indentation from, so the line is
+        # counted at each of them too: a mark's line and column then name one place in the block.
+        # `_EventStream.document_line` turns that line into the document line a finding reports.
+        self.forward_1_1(length)
 
 
 class _BasicYamlResolver(VersionedResolver):
@@ -844,13 +844,16 @@ class _BasicYamlScanner(Scanner):
         return ScalarToken(''.join(chunks), True, start_mark, end_mark)
 
 
-def _invalid_refusal(refusal: _RecordedRefusal | _RefusedConstructError) -> InvalidYamlFrontmatter:
+def _invalid_refusal(
+    refusal: _RecordedRefusal | _RefusedConstructError, stream: _EventStream
+) -> InvalidYamlFrontmatter:
     """The facts about a block that writes a construct frontmatter leaves out: the problem, and its line.
 
     Args:
         refusal: The construct, as the scanner recorded it or as the read stopped on it.
+        stream: The block's events, which turns the construct's line into a document line.
     """
-    return InvalidYamlFrontmatter(problem=refusal.problem, line=_document_line(refusal.mark.line))
+    return InvalidYamlFrontmatter(problem=refusal.problem, line=stream.document_line(refusal.mark.line))
 
 
 def _mark_of(event: Event) -> StreamMark:
@@ -1023,7 +1026,7 @@ def _read_key(parser: _EventStream) -> FrontmatterKey:
     if event.style is None and name == _MERGE_KEY:
         # A plain `<<` is YAML 1.1's merge key, which pulls in the entries of the mapping an alias names.
         raise _RefusedMergeKeyError(mark)
-    return FrontmatterKey(name=name, line=_document_line(mark.line))
+    return FrontmatterKey(name=name, line=parser.document_line(mark.line))
 
 
 def _refuse_nested_collection(parser: _EventStream, parent: SequenceStartEvent | MappingStartEvent) -> None:
@@ -1128,21 +1131,25 @@ def _keys(entries: list[_Entry]) -> tuple[FrontmatterKey, ...]:
     return tuple(keys)
 
 
-def _document_line(block_line: int) -> LineNumber:
-    """The document line a line of the block is.
+def _document_line_indexes(block: str) -> tuple[int, ...]:
+    r"""For each YAML line of the block, how many `\n` the block holds before the line starts.
+
+    That is the line's index among the block's document lines, from 0. Two YAML lines share one when a break between
+    them, such as U+0085, is no `\n`.
 
     Args:
-        block_line: The line as a parser's mark counts it, from 0 at the block's first line.
+        block: The lines between the delimiters, line endings kept.
     """
-    # The block starts on document line 2, below the opening delimiter.
-    return LineNumber.from_int(block_line + _FIRST_BLOCK_LINE)
+    newlines = newline_offsets(block)
+    return tuple(bisect_left(newlines, start) for start in yaml_line_starts(block))
 
 
-def _invalid_yaml(problem: SyntaxProblem) -> InvalidYamlFrontmatter:
+def _invalid_yaml(problem: SyntaxProblem, stream: _EventStream) -> InvalidYamlFrontmatter:
     """The node for a syntax error: its label, help and line, as the block's document lines count them.
 
     Args:
-        problem: The syntax error as lorecraft words it.
+        problem: The syntax error as lorecraft words it, on the line the reader counted.
+        stream: The block's events, which turns that line into a document line.
     """
-    line = None if problem.line is None else _document_line(problem.line)
+    line = None if problem.line is None else stream.document_line(problem.line)
     return InvalidYamlFrontmatter(problem=problem.label, line=line, help=problem.help)
