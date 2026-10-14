@@ -337,7 +337,7 @@ def _snapshot(records: Mapping[str, EntryRecord], *, scope: tuple[ScanRoot, ...]
     return Snapshot(SnapshotRecords(parsed), scope=scope)
 
 
-def _listed_directories(snapshot: Snapshot) -> set[RootRelativePath]:
+def _listed_directories(snapshot: Snapshot) -> frozenset[RootRelativePath]:
     """Every directory the scan of `snapshot` listed.
 
     Args:
@@ -352,7 +352,7 @@ def _listed_directories(snapshot: Snapshot) -> set[RootRelativePath]:
                 pass  # no listing
             case _:
                 assert_never(record)
-    return listed
+    return frozenset(listed)
 
 
 def _recorded_kinds(snapshot: Snapshot) -> dict[RootRelativePath, EntryKind]:

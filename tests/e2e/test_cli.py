@@ -35,7 +35,7 @@ from lib.workspace import Document, File, Link, RawDocument, RawFrontmatter, Ski
 from lorecraft import __version__
 
 # The labelled lines of `version --verbose` whose values differ per checkout, interpreter, machine and install.
-_VARYING_FIELDS: Final[tuple[str, ...]] = ('Commit', 'Python', 'Platform', 'Install')
+_VARYING_FIELDS: Final[frozenset[str]] = frozenset({'Commit', 'Python', 'Platform', 'Install'})
 
 # A checked-in workspace root holding each part of the model `inspect` draws: a corpus with a structure
 # specification that states a frontmatter schema, a namespace spec with a structure layer, a document each governs,
