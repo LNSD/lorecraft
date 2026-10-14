@@ -99,6 +99,9 @@ def describe_error(error: MarkedYAMLError, block: str) -> SyntaxProblem:
     ):
         bracket = ']' if "found ']'" in problem else '}'
         return _closes_nothing(bracket, mark)
+    if problem.startswith('expected <block end>, but found') and _ends_a_flow_collection(mark, lines):
+        # Whatever the text is, a scalar, a bracket, a comma or a property, it follows a closed flow collection.
+        return _text_after_value(mark, lines)
     if problem.startswith(
         (
             "expected <block end>, but found '<block",
@@ -108,9 +111,11 @@ def describe_error(error: MarkedYAMLError, block: str) -> SyntaxProblem:
     ):
         return _bad_indent(mark, lines)
     if problem == 'sequence entries are not allowed here':
+        if _ends_a_flow_collection(mark, lines):
+            return _text_after_value(mark, lines)
         return _not_key_or_item(_line_of(mark))
     if problem.startswith("expected <block end>, but found '<scalar>'"):
-        return _text_after_quote(mark, lines)
+        return _text_after_value(mark, lines)
     if problem.startswith("expected '<document start>'"):
         return _not_key_or_item(_line_of(mark))
     return _unreadable(_line_of(mark or context_mark))
@@ -310,8 +315,20 @@ def _scalar_start(lines: list[str], line: int) -> int:
     return start
 
 
-def _text_after_quote(mark: StreamMark | None, lines: list[str]) -> SyntaxProblem:
-    """Classify text where an entry ended: after a closing quote, below a block scalar's text, or something else.
+def _ends_a_flow_collection(mark: StreamMark | None, lines: list[str]) -> bool:
+    """Whether the text on the mark's line before the mark ends in a `]` or a `}`.
+
+    Args:
+        mark: Where the parser found the text.
+        lines: The block's lines.
+    """
+    if mark is None:
+        return False
+    return _text(lines, mark.line)[: mark.column].rstrip().endswith((']', '}'))
+
+
+def _text_after_value(mark: StreamMark | None, lines: list[str]) -> SyntaxProblem:
+    """Classify text where an entry ended: after a closing quote, after a flow collection, or below a block scalar.
 
     Args:
         mark: Where the parser found the text.
@@ -321,6 +338,12 @@ def _text_after_quote(mark: StreamMark | None, lines: list[str]) -> SyntaxProble
         before = _text(lines, mark.line)[: mark.column].rstrip()
         if before.endswith(('"', "'")):
             return SyntaxProblem('text follows the closing quote', 'Put the whole value inside the quotes', mark.line)
+        if before.endswith((']', '}')):
+            return SyntaxProblem(
+                f'text follows the closing `{before[-1]}`',
+                'Move the text inside the brackets, or quote the whole value',
+                mark.line,
+            )
         if _below_block_scalar(mark.line, lines):
             return _bad_indent(mark, lines)
     return _unreadable(_line_of(mark))

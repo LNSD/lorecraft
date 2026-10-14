@@ -1961,17 +1961,161 @@ class TestDecodeFrontmatter:
             line=LineNumber.from_int(2),
         ), 'text written after a closing quote is reported on its line'
 
-    def test_decode_frontmatter_with_text_after_a_flow_collection_returns_invalid_yaml_on_its_line(self) -> None:
+    def test_decode_frontmatter_with_text_after_a_flow_sequence_returns_invalid_yaml_on_its_line(self) -> None:
         #: Given
-        block = 'a: [b, c] d\n'
+        block = 'name: [a, b] c\n'
 
         #: When
         node = decode_frontmatter(block)
 
         #: Then
         assert node == InvalidYamlFrontmatter(
-            problem='the block cannot be read from this line on', line=LineNumber.from_int(2)
-        ), 'an error no kind of the table matches is reported on the parser line, with no help'
+            problem='text follows the closing `]`',
+            help='Move the text inside the brackets, or quote the whole value',
+            line=LineNumber.from_int(2),
+        ), 'text written after a flow sequence is reported on its line'
+
+    def test_decode_frontmatter_with_text_after_a_flow_mapping_returns_invalid_yaml_on_its_line(self) -> None:
+        #: Given
+        block = 'name: {a: b} c\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem='text follows the closing `}`',
+            help='Move the text inside the brackets, or quote the whole value',
+            line=LineNumber.from_int(2),
+        ), 'text written after a flow mapping is reported on its line'
+
+    def test_decode_frontmatter_with_a_bracket_after_a_flow_sequence_returns_invalid_yaml_on_its_line(self) -> None:
+        #: Given
+        block = 'a: [b] [c]\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem='text follows the closing `]`',
+            help='Move the text inside the brackets, or quote the whole value',
+            line=LineNumber.from_int(2),
+        ), 'a second collection after the first is text after it'
+
+    def test_decode_frontmatter_with_a_comma_after_a_flow_sequence_returns_invalid_yaml_on_its_line(self) -> None:
+        #: Given
+        block = 'a: [b],c\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem='text follows the closing `]`',
+            help='Move the text inside the brackets, or quote the whole value',
+            line=LineNumber.from_int(2),
+        ), 'a comma after the closing bracket is text after it'
+
+    def test_decode_frontmatter_with_an_anchor_after_a_flow_sequence_returns_invalid_yaml_on_its_line(self) -> None:
+        #: Given
+        block = 'a: [b] &x c\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem='text follows the closing `]`',
+            help='Move the text inside the brackets, or quote the whole value',
+            line=LineNumber.from_int(2),
+        ), 'an anchor after the closing bracket is text after it'
+
+    def test_decode_frontmatter_with_a_brace_after_a_flow_sequence_returns_invalid_yaml_on_its_line(self) -> None:
+        #: Given
+        block = 'a: [b] {c}\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem='text follows the closing `]`',
+            help='Move the text inside the brackets, or quote the whole value',
+            line=LineNumber.from_int(2),
+        ), 'a flow mapping after the closing bracket is text after it'
+
+    def test_decode_frontmatter_with_an_alias_after_a_flow_sequence_returns_invalid_yaml_on_its_line(self) -> None:
+        #: Given
+        block = 'a: [b] *x\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem='text follows the closing `]`',
+            help='Move the text inside the brackets, or quote the whole value',
+            line=LineNumber.from_int(2),
+        ), 'an alias after the closing bracket is text after it'
+
+    def test_decode_frontmatter_with_a_tag_after_a_flow_sequence_returns_invalid_yaml_on_its_line(self) -> None:
+        #: Given
+        block = 'a: [b] !x c\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem='text follows the closing `]`',
+            help='Move the text inside the brackets, or quote the whole value',
+            line=LineNumber.from_int(2),
+        ), 'a tag after the closing bracket is text after it'
+
+    def test_decode_frontmatter_with_a_block_entry_after_a_flow_sequence_returns_invalid_yaml_on_its_line(self) -> None:
+        #: Given
+        block = 'a: [b] - c\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem='text follows the closing `]`',
+            help='Move the text inside the brackets, or quote the whole value',
+            line=LineNumber.from_int(2),
+        ), 'a `- ` after the closing bracket is text after it'
+
+    def test_decode_frontmatter_with_a_block_entry_after_a_flow_sequence_item_returns_invalid_yaml_on_its_line(
+        self,
+    ) -> None:
+        #: Given
+        block = '- [b] - c\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem='text follows the closing `]`',
+            help='Move the text inside the brackets, or quote the whole value',
+            line=LineNumber.from_int(2),
+        ), 'a `- ` after an item that is a flow sequence is text after it'
+
+    def test_decode_frontmatter_with_a_flow_collection_continued_on_an_indented_line_returns_the_unreadable_kind(
+        self,
+    ) -> None:
+        #: Given
+        block = 'a: [b]\n  d\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem='the block cannot be read from this line on', line=LineNumber.from_int(3)
+        ), 'text on the next line is no text after the collection, so it stays the unreadable kind'
 
     def test_decode_frontmatter_with_a_bracket_inside_a_plain_value_returns_the_value(self) -> None:
         #: Given

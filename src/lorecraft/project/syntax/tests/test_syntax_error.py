@@ -272,6 +272,36 @@ class TestDescribeError:
             'text after a closing quote is named by the quote'
         )
 
+    def test_describe_error_with_text_after_a_flow_sequence_returns_the_bracket_kind(self) -> None:
+        #: Given
+        block = 'a: [b, c] d\n'
+        error = _error("expected <block end>, but found '<scalar>'", _mark(0, 10), context_mark=_mark(0, 0))
+
+        #: When
+        problem = describe_error(error, block)
+
+        #: Then
+        assert problem == SyntaxProblem(
+            'text follows the closing `]`',
+            'Move the text inside the brackets, or quote the whole value',
+            0,
+        ), 'text after a flow collection is named by the bracket that closed it'
+
+    def test_describe_error_with_text_after_a_flow_mapping_returns_the_bracket_kind(self) -> None:
+        #: Given
+        block = 'a: {b: c} d\n'
+        error = _error("expected <block end>, but found '<scalar>'", _mark(0, 10), context_mark=_mark(0, 0))
+
+        #: When
+        problem = describe_error(error, block)
+
+        #: Then
+        assert problem == SyntaxProblem(
+            'text follows the closing `}`',
+            'Move the text inside the brackets, or quote the whole value',
+            0,
+        ), 'text after a flow collection is named by the bracket that closed it'
+
     def test_describe_error_with_an_extra_sequence_end_returns_the_bracket_kind(self) -> None:
         #: Given
         block = 'a: [b, c]]\n'
@@ -339,18 +369,6 @@ class TestDescribeError:
 
         #: Then
         assert problem == SyntaxProblem(*_NO_MATCH, 2), 'a line less indented than the scalar text matches no level'
-
-    def test_describe_error_with_text_after_a_flow_collection_returns_the_fallback(self) -> None:
-        #: Given
-        error = _error("expected <block end>, but found '<scalar>'", _mark(0, 10))
-
-        #: When
-        problem = describe_error(error, 'a: [b, c] d\n')
-
-        #: Then
-        assert problem == SyntaxProblem('the block cannot be read from this line on', None, 0), (
-            'text after a flow collection is no kind of the table, so it is the fallback'
-        )
 
     def test_describe_error_with_text_and_no_mark_returns_the_fallback_with_no_line(self) -> None:
         #: Given
