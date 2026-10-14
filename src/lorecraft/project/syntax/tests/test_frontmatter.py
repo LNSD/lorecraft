@@ -18,7 +18,6 @@ from ..frontmatter import (
     InvalidYamlFrontmatter,
     NonMappingFrontmatter,
     RepeatedKey,
-    _frontmatter,
     decode_frontmatter,
     reads_back_as_string,
 )
@@ -3043,16 +3042,17 @@ class TestDecodeFrontmatter:
 class TestFrontmatterFromPairs:
     def test_frontmatter_with_a_repeated_key_keeps_every_key_and_the_last_value(self) -> None:
         #: Given
-        entries = [
-            (FrontmatterKey('name', LineNumber(NonZeroUnsignedInt(2))), 'first'),
-            (FrontmatterKey('type', LineNumber(NonZeroUnsignedInt(3))), 'rule'),
-            (FrontmatterKey('name', LineNumber(NonZeroUnsignedInt(4))), 'last'),
-        ]
+        block = dedent("""\
+            name: first
+            type: rule
+            name: last
+            """)
 
         #: When
-        frontmatter = _frontmatter(entries, ())
+        frontmatter = decode_frontmatter(block)
 
         #: Then
+        assert isinstance(frontmatter, Frontmatter), f'a YAML mapping is frontmatter, got {frontmatter!r}'
         assert frontmatter.data == FrozenMapping({'name': 'last', 'type': 'rule'}), (
             f'the data holds the last value of a repeated key, got {frontmatter.data!r}'
         )

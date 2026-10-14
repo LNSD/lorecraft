@@ -42,8 +42,8 @@ check is, so the package above it decides what a refused construct means for a d
   `project.syntax.syntax_error`, with its unit test. No new importer is added.
 - Every other package reads a value, a position or a refusal that this package declares, so an upgrade of the library
   changes this package and no type of it escapes. The target is a position and a problem type of this package's own;
-  until the event decoding moves, a refusal still carries the library's `StreamMark`, and the grammar subclasses
-  are handed to the decoder.
+  until the problem type lands, a refusal still carries the library's `StreamMark`, and a failed read carries the
+  library's error.
 - It imports no other Lorecraft package than `lorecraft.core`, which the layers contract enforces, so every package
   that reads YAML can import it without a cycle.
 - The library's loaders and constructors are never called: no tag resolves and no type is constructed, so the text
