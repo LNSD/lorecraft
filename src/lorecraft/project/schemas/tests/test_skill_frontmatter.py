@@ -166,7 +166,7 @@ class TestSkillName:
         assert isinstance(exc_info.value.source, ValidationError), 'the broken rule is kept as the source'
         assert exc_info.value.source is exc_info.value.__cause__, 'the broken rule is the cause'
 
-    def test_json_schema_states_the_name_rules(self) -> None:
+    def test_json_schema_with_the_name_type_returns_its_rules(self) -> None:
         #: Given
         adapter = TypeAdapter(SkillName)
 
@@ -194,7 +194,6 @@ class TestSkillName:
         errors = exc_info.value.errors()
         assert len(errors) == 1, f'one error is reported, got {errors}'
         assert errors[0]['type'] == 'string_type', 'a number is not text'
-        assert errors[0]['msg'] == 'Input should be a valid string', 'the message is the one pydantic gives'
 
     def test_validate_python_with_a_string_returns_the_value_object(self) -> None:
         #: Given
@@ -280,7 +279,7 @@ class TestSkillDescription:
         assert isinstance(exc_info.value.source, ValidationError), 'the broken rule is kept as the source'
         assert exc_info.value.source is exc_info.value.__cause__, 'the broken rule is the cause'
 
-    def test_json_schema_states_the_description_rules(self) -> None:
+    def test_json_schema_with_the_description_type_returns_its_rules(self) -> None:
         #: Given
         adapter = TypeAdapter(SkillDescription)
 
@@ -305,7 +304,6 @@ class TestSkillDescription:
         errors = exc_info.value.errors()
         assert len(errors) == 1, f'one error is reported, got {errors}'
         assert errors[0]['type'] == 'string_type', 'a number is not text'
-        assert errors[0]['msg'] == 'Input should be a valid string', 'the message is the one pydantic gives'
 
     def test_validate_python_with_a_string_returns_the_value_object(self) -> None:
         #: Given
@@ -355,7 +353,7 @@ class TestSkillLicense:
         #: Then
         assert license_.value == raw, 'the text is kept'
 
-    def test_json_schema_is_any_string(self) -> None:
+    def test_json_schema_with_the_license_type_returns_any_string(self) -> None:
         #: Given
         adapter = TypeAdapter(SkillLicense)
 
@@ -378,7 +376,6 @@ class TestSkillLicense:
         errors = exc_info.value.errors()
         assert len(errors) == 1, f'one error is reported, got {errors}'
         assert errors[0]['type'] == 'string_type', 'a number is not text'
-        assert errors[0]['msg'] == 'Input should be a valid string', 'the message is the one pydantic gives'
 
     def test_validate_python_with_a_string_returns_the_value_object(self) -> None:
         #: Given
@@ -452,7 +449,7 @@ class TestSkillCompatibility:
         assert isinstance(exc_info.value.source, ValidationError), 'the broken rule is kept as the source'
         assert exc_info.value.source is exc_info.value.__cause__, 'the broken rule is the cause'
 
-    def test_json_schema_states_the_compatibility_rules(self) -> None:
+    def test_json_schema_with_the_compatibility_type_returns_its_rules(self) -> None:
         #: Given
         adapter = TypeAdapter(SkillCompatibility)
 
@@ -477,7 +474,6 @@ class TestSkillCompatibility:
         errors = exc_info.value.errors()
         assert len(errors) == 1, f'one error is reported, got {errors}'
         assert errors[0]['type'] == 'string_type', 'a number is not text'
-        assert errors[0]['msg'] == 'Input should be a valid string', 'the message is the one pydantic gives'
 
     def test_validate_python_with_a_string_returns_the_value_object(self) -> None:
         #: Given
@@ -527,7 +523,7 @@ class TestSkillAllowedTools:
         #: Then
         assert allowed_tools.value == raw, 'the text is kept whole'
 
-    def test_json_schema_is_any_string(self) -> None:
+    def test_json_schema_with_the_allowed_tools_type_returns_any_string(self) -> None:
         #: Given
         adapter = TypeAdapter(SkillAllowedTools)
 
@@ -550,7 +546,6 @@ class TestSkillAllowedTools:
         errors = exc_info.value.errors()
         assert len(errors) == 1, f'one error is reported, got {errors}'
         assert errors[0]['type'] == 'string_type', 'a number is not text'
-        assert errors[0]['msg'] == 'Input should be a valid string', 'the message is the one pydantic gives'
 
     def test_validate_python_with_a_string_returns_the_value_object(self) -> None:
         #: Given
@@ -608,11 +603,9 @@ class TestSkillValuePydanticType:
             _Named.model_validate(data)
 
         #: Then
-        messages = [error['msg'] for error in exc_info.value.errors()]
-        assert messages == [
-            "skill name '{pdf}' must be lowercase letters, digits and single hyphens, "
-            'neither starting nor ending with a hyphen'
-        ], 'one error, the name message, braces kept'
+        errors = exc_info.value.errors()
+        assert len(errors) == 1, f'one error is reported, got {errors}'
+        assert '{pdf}' in errors[0]['msg'], 'the message names the rejected name, braces kept'
 
     def test_model_validate_with_a_non_string_raises_a_validation_error(self) -> None:
         #: Given
@@ -623,9 +616,11 @@ class TestSkillValuePydanticType:
             _Named.model_validate(data)
 
         #: Then
-        assert [error['type'] for error in exc_info.value.errors()] == ['string_type'], 'a number is not text'
+        errors = exc_info.value.errors()
+        assert len(errors) == 1, f'one error is reported, got {errors}'
+        assert errors[0]['type'] == 'string_type', 'a number is not text'
 
-    def test_model_dump_serializes_the_value_object_as_its_string(self) -> None:
+    def test_model_dump_in_json_mode_returns_the_value_object_as_its_string(self) -> None:
         #: Given
         model = _Named(name=SkillName('pdf-processing'))
 

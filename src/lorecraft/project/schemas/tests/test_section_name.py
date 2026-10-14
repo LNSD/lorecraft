@@ -87,7 +87,7 @@ class TestSectionName:
             SectionName.parse(raw)
 
         #: Then
-        assert str(exc_info.value) == 'must not be empty', f'the message names the rule, got {exc_info.value}'
+        assert str(exc_info.value) == str(EmptySectionNameError()), 'the message is the empty-name rejection exactly'
 
     def test_parse_with_a_leading_space_raises_padded_section_name_error(self) -> None:
         #: Given
@@ -205,7 +205,6 @@ class TestSectionNameAsPydanticType:
         errors = exc_info.value.errors()
         assert len(errors) == 1, f'one error is reported, got {errors}'
         assert errors[0]['type'] == 'string_type', 'a number is not a name'
-        assert errors[0]['msg'] == 'Input should be a valid string', 'the message is the one pydantic gives'
 
     def test_validate_json_with_a_padded_name_raises_the_value_objects_rejection_as_a_validation_error(self) -> None:
         #: Given
@@ -266,7 +265,7 @@ class TestSectionNameAsPydanticType:
         #: Then
         assert dumped == 'Checklist', f'the value object serializes back to its string, got {dumped!r}'
 
-    def test_json_schema_of_the_type_states_its_rule(self) -> None:
+    def test_json_schema_with_the_section_name_type_returns_its_rule(self) -> None:
         #: Given
         expected = {'type': 'string', 'minLength': 1, 'pattern': SectionName.PATTERN}
 

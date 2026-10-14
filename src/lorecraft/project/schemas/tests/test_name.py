@@ -30,7 +30,7 @@ class TestSpecName:
         #: Then
         assert name == CorpusSpecName(CorpusName.parse('code')), 'a name with no hyphen names a corpus spec'
 
-    def test_parse_treats_everything_after_corpus_as_namespace(self) -> None:
+    def test_parse_with_a_hyphenated_suffix_returns_it_as_one_namespace(self) -> None:
         #: Given
         raw = 'code-python-errors'
 

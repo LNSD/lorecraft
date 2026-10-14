@@ -144,17 +144,17 @@ class TestMatchOutlines:
             '{"outline": [{"section": "Rule"}, {"section": "Example", "description": "A worked case.",'
             ' "examples": ["The first.", "The second."]}, {"any": true}, {"section": "Checklist"}]}'
         )
-
-        #: When
-        found = _match_corpus_outline(outline, RULE_ASIDE_CHECKLIST)
-
-        #: Then
         absent = AbsentSection(
             name=SectionName.parse('Example'),
             description='A worked case.',
             example='The first.',
             before=_section(RULE_ASIDE_CHECKLIST, 'Aside'),
         )
+
+        #: When
+        found = _match_corpus_outline(outline, RULE_ASIDE_CHECKLIST)
+
+        #: Then
         assert found == (OutlineDivergenceSpec(spec=CORPUS_SPEC, divergence=absent),), (
             'a required section held nowhere is absent before the section found in its place, with what its entry '
             'states and only its first example'
@@ -303,6 +303,7 @@ class TestMatchOutlines:
             _structure_spec('code-python', '{"outline": [{"section": "Rule"}]}'),
         )
         headings = parse_document(RULE_ASIDE_CHECKLIST).headings
+        alignments = align_outlines(structure_specs, headings)
         line_count = count_lines(RULE_ASIDE_CHECKLIST)
         unlisted = UnlistedSection(
             section=_section(RULE_ASIDE_CHECKLIST, 'Aside'),
@@ -310,7 +311,7 @@ class TestMatchOutlines:
         )
 
         #: When
-        found = match_outlines(align_outlines(structure_specs, headings), line_count)
+        found = match_outlines(alignments, line_count)
 
         #: Then
         assert found == (
@@ -325,9 +326,11 @@ class TestMatchOutlines:
             _structure_spec('code-python', '{"outline": [{"section": "Rule"}, {"any": true}]}'),
         )
         headings = parse_document(RULE_ASIDE_CHECKLIST).headings
+        alignments = align_outlines(structure_specs, headings)
+        line_count = count_lines(RULE_ASIDE_CHECKLIST)
 
         #: When
-        found = match_outlines(align_outlines(structure_specs, headings), count_lines(RULE_ASIDE_CHECKLIST))
+        found = match_outlines(alignments, line_count)
 
         #: Then
         assert found == (OutlineDivergenceSpec(spec=NAMESPACE_SPEC, divergence=None),), (
