@@ -11,7 +11,7 @@ This document has two concerns. The first is types that make an invalid state un
 cannot be built instead of being checked for at runtime ([§1](#1-make-an-invalid-state-unrepresentable)). The
 second is annotations that are spelled in one form and verified honestly against the code they describe.
 
-Annotations are **required**, and `just typecheck` runs `ty` over the package. The checker is a floor, not a
+Annotations are **required**, and `just check-types` runs `ty` over the package. The checker is a floor, not a
 ceiling: it catches a contradiction between an annotation and the body, and it cannot tell you that a
 signature annotated `dict[str, Any]` promised almost nothing. So an annotation is still a **claim made to a
 human reader**, and the reviewer still judges whether the claim is worth making. The sections after §1 follow
@@ -296,7 +296,7 @@ class CorpusLabel:
 
 ## 8. Review the Claims That `ty` Cannot Prove
 
-`just typecheck` runs `ty` over the package. A clean check catches many mismatches, but it cannot prove that
+`just check-types` runs `ty` over the package. A clean check catches many mismatches, but it cannot prove that
 an annotation expresses the intended contract: `Any` can hide a mismatch, and `str` can admit values whose
 domain meaning has not been checked. A reviewer checks the claim against the body and its callers even when
 `ty` passes.
@@ -348,7 +348,7 @@ Before committing code, verify:
       object as that expression
 - [ ] An alternative constructor that constructs `cls` returns `Self`, preserving the subclass result
 - [ ] Every changed signature was read against its body: no path returns `None` under a non-optional return
-      type, no `Any` hides a mismatch, and no annotation was left behind by the edit; `just typecheck` passes
+      type, no `Any` hides a mismatch, and no annotation was left behind by the edit; `just check-types` passes
 
 ## References
 

@@ -32,10 +32,10 @@ repos:
     stages: [pre-push, manual]
     pass_filenames: false
     require_serial: true
-  - id: typecheck
+  - id: check-types
     name: Type-check the package
     language: system
-    entry: just typecheck
+    entry: just check-types
     types_or: [python]
     stages: [pre-push, manual]
     pass_filenames: false
