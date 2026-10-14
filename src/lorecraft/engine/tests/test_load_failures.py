@@ -57,7 +57,11 @@ _UTF8: Final[Utf8Failure] = Utf8Failure(
 
 
 def _model(*failures: LoadFailure) -> WorkspaceModel:
-    """A model that holds nothing but the failures it listed."""
+    """A model that holds nothing but the failures it listed.
+
+    Args:
+        failures: The load failures the model lists, in order.
+    """
     return WorkspaceModel(
         corpora=FrozenMapping({}),
         skills_dirs=frozenset(),

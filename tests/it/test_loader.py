@@ -1099,8 +1099,6 @@ def _failed_structure(model: WorkspaceModel, corpus: CorpusName) -> FailedStruct
 
 @pytest.mark.it
 class TestLoadWorkspaceFailures:
-    """Each unit of the declaration that fails is recorded, and every other unit loads as if it had not failed."""
-
     @pytest.mark.skipif(os.geteuid() == 0, reason='root ignores file permissions')
     def test_load_workspace_with_an_unreadable_structure_file_records_it_and_loads_every_other_unit(
         self,

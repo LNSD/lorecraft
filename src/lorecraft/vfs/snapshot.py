@@ -213,6 +213,11 @@ class SnapshotRecords(FrozenMapping[RootRelativePath, EntryRecord]):
                 ancestor = ancestor.parent
 
 
+# Reserved, not implemented: `with_file(path, data) -> Snapshot`, a copy with one file's record replaced or added, for
+# a server pushing unsaved buffers. It is a rebuild of `records` with one record replaced, the parent's listing
+# following from it; keep the representation such that it stays so. A partial rescan, by contrast, cannot drop one
+# record alone: like the links met along a chain, a climbed directory records no provenance, so a partial rescan
+# must walk every recorded link again to drop a climb no chain takes any more.
 @dataclass(frozen=True, slots=True)
 class Snapshot:
     """What one scan saw: its scope, and one record for every path it recorded. Never mutated.
@@ -230,12 +235,6 @@ class Snapshot:
 
     Every record sits at a resolved path, with no symlink on the way to it. So when the virtual view follows a chain,
     it treats as a directory every directory record and every ancestor of a record, whether recorded or not.
-
-    Reserved, not implemented: `with_file(path, data) -> Snapshot`, a copy with one file's record replaced or added,
-    for a server pushing unsaved buffers. It is a rebuild of `records` with one record replaced, the parent's
-    listing following from it; keep the representation such that it stays so. A partial rescan, by contrast, cannot
-    drop one record alone: like the links met along a chain, a climbed directory records no provenance, so a partial
-    rescan must walk every recorded link again to drop a climb no chain takes any more.
 
     Attributes:
         records: One record for each path the scan recorded, keyed by path: every directory it listed and every

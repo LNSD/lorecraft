@@ -65,6 +65,8 @@ class Repository:
         Raises:
             DirListError: If the directory exists but cannot be listed, on disk.
             RecordedDirListError: If a snapshot recorded that the directory could not be listed.
+            RecordedDirListPathError: If a snapshot recorded that the scan could not inspect an entry on the way
+                to the directory.
         """
         # A failure to list is the listing's own, with the directory as its path: this layer adds nothing to it.
         entries = self._fs.list_dir(self._specs_dir)

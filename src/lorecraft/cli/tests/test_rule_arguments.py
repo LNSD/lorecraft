@@ -38,7 +38,11 @@ RULES: Final[tuple[tuple[str, str, Literal['rule', 'removed', 'condition'], str,
 
 @pytest.fixture(autouse=True, scope='function')
 def rule_index(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Replace the generated index with a small one: two groups, and a rule with an alias code and a removed rule."""
+    """Replace the generated index with a small one: two groups, and a rule with an alias code and a removed rule.
+
+    Args:
+        monkeypatch: Swaps the index's `GROUPS` and `RULES` for the test and restores them after.
+    """
     monkeypatch.setattr(index, 'GROUPS', GROUPS)
     monkeypatch.setattr(index, 'RULES', RULES)
 

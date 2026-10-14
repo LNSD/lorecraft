@@ -25,7 +25,11 @@ class SampleLines:
 
 @dataclass(frozen=True, slots=True)
 class SampleEntry:
-    """A sample layout entry: a name and nothing else."""
+    """A sample layout entry: a name and nothing else.
+
+    Attributes:
+        name: The entry's name, which a sample rule reads and reports.
+    """
 
     name: str
 

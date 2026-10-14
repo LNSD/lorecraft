@@ -492,5 +492,9 @@ def _require_attributes(declaration: RuleDeclaration, attributes: tuple[str, ...
 
 
 def _printed_code(declaration: RuleDeclaration) -> str:
-    """The declaration's code as output prints it, the key that orders the registry."""
+    """The declaration's code as output prints it, the key that orders the registry.
+
+    Args:
+        declaration: The rule or engine condition to order.
+    """
     return str(declaration.CODE)

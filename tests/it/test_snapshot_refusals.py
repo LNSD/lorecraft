@@ -78,7 +78,11 @@ def _path(text: str) -> RootRelativePath:
 
 @pytest.fixture(scope='function')
 def tree(tmp_path: Path) -> Path:
-    """A repository with a structure file, a document, a skill, and a skill that links its `SKILL.md`."""
+    """A repository with a structure file, a document, a skill, and a skill that links its `SKILL.md`.
+
+    Args:
+        tmp_path: The directory the repository is written under, and the repository's root.
+    """
     files = {
         'docs/__meta__/code.structure.json': '{"tokens": 4000}',
         'docs/code/logging.md': '# Logging\n',

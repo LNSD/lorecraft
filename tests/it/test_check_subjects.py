@@ -1,4 +1,4 @@
-"""The rules engine's runner over a database opened on an in-memory snapshot.
+"""The rules engine's runner over a database opened on a snapshot, built in memory or scanned from a real tree.
 
 The runner decodes each document, skill and resource, hands each rule over a document, a skill, the frontmatter or a
 Markdown file the subject's context, and runs the rules of a table built from a registry. The package's own registry
@@ -7,8 +7,9 @@ rules over documents, the line budget over skills, and the link rules over every
 a registry of sample rules over a document's token count, declared in this module, runs through the same runner, with
 no edit to it.
 
-A snapshot built in memory scans nothing, so no path is in its scope and no link is looked up in it. The tests of
-`LINK003`, which judges what a link names, open the database on a scan of a real tree instead.
+A snapshot built in memory scans nothing, so no path is in its scope and no link is looked up in it. A test that
+needs a path in scope, such as those of `LINK003`, which judges what a link names, writes a tree under `tmp_path`
+and opens the database on a scan of it instead.
 """
 
 import re
@@ -308,7 +309,15 @@ class AnyTokens(DocumentRule):
 
 
 class CountingDatabase(Database):
-    """A database that records each subject whose counts, frontmatter, schema problems or parse it is asked for."""
+    """A database that records each subject whose counts, frontmatter, schema problems or parse it is asked for.
+
+    Attributes:
+        counted_tokens: The documents whose tokens were counted, in the order asked, a repeat listed again.
+        counted_lines: The skills whose lines were counted, in the order asked.
+        parsed_frontmatters: The documents and skills whose frontmatter was parsed, in the order asked.
+        validated_frontmatters: The documents and skills whose frontmatter was checked against its schema.
+        parsed_documents: The documents whose Markdown was parsed, in the order asked.
+    """
 
     def __init__(self, fs: VirtualFileSystem, model: WorkspaceModel) -> None:
         """Build the database on the view, with nothing counted yet.

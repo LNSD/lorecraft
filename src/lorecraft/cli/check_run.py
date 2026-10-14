@@ -65,6 +65,8 @@ def run_check(
 
     Raises:
         typer.Exit: With the documented status code for an error diagnostic or invalid input.
+        RuntimeError: If the rules cannot be registered, or a selector names a group or a code the registry does not
+            hold, which means the generated index is stale.
     """
     try:
         registry = Registry.load(rules)

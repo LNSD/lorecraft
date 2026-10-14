@@ -26,7 +26,11 @@ SPECIFICATION_NOTE: Final[Note] = Note(
 
 
 def _skill_allowing(value: str) -> FakeSkillContext:
-    """A skill whose `allowed-tools`, on line 4, holds the value."""
+    """A skill whose `allowed-tools`, on line 4, holds the value.
+
+    Args:
+        value: The text written after `allowed-tools:`.
+    """
     text = dedent(f"""\
         ---
         name: review

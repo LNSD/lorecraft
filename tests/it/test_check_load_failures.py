@@ -6,7 +6,7 @@ checked as if nothing had failed. Each test writes a small workspace of two corp
 namespace meta spec in `code`, breaks one structure file, and runs the command through Typer's `CliRunner`.
 
 Failures the operating system refuses are not here: a refusal while the snapshot is taken stops the run, so a check
-run has none to report. Those conditions are in `test_load_failure_conditions`.
+run has none to report. Those refusals are in `test_snapshot_refusals`.
 """
 
 import json
