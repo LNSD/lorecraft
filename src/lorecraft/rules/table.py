@@ -19,8 +19,8 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Self, assert_never
 
-from .declaration import Rule, Severity
-from .identity import Level
+from .declaration import Rule
+from .identity import Level, Severity
 from .registry import Registry
 from .selection import RuleSelection
 from .subject import (

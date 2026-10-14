@@ -4,7 +4,7 @@ import pytest
 
 from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.project.syntax import LineNumber
-from lorecraft.rules.declaration import Severity
+from lorecraft.rules.identity import Severity
 from lorecraft.rules.location import Help, Here, Label
 from lorecraft.vfs import ByteOffset, Utf8Failure, Utf8Line, Utf8Reason
 

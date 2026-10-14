@@ -8,27 +8,25 @@ from lorecraft.project.syntax import LineNumber
 
 from ..collector import declared_rules
 from ..declaration import (
-    AliasCode,
-    EmptyLinterNameError,
-    EmptyUpstreamCodeError,
-    InvalidUpstreamCodeCharacterError,
-    LinterName,
     Rule,
-    Severity,
-    UpstreamCode,
 )
 from ..identity import (
     ENGINE_GROUP,
+    AliasCode,
     DoubledHyphenRuleNameError,
+    EmptyLinterNameError,
     EmptyRuleGroupPrefixError,
     EmptyRuleGroupTitleError,
     EmptyRuleNameError,
+    EmptyUpstreamCodeError,
     EngineCode,
     InvalidRuleGroupPrefixCharacterError,
     InvalidRuleNameCharacterError,
+    InvalidUpstreamCodeCharacterError,
     LeadingHyphenRuleNameError,
     LeadingZeroReleaseError,
     Level,
+    LinterName,
     MalformedReleaseError,
     Release,
     ReservedRuleGroupPrefixError,
@@ -37,7 +35,9 @@ from ..identity import (
     RuleGroupPrefix,
     RuleName,
     RuleNumberOutOfRangeError,
+    Severity,
     TrailingHyphenRuleNameError,
+    UpstreamCode,
 )
 from ..location import Here, WholeSubject
 from .sample_rules.groups import SAMPLE

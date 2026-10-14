@@ -2,7 +2,7 @@
 
 import pytest
 
-from lorecraft.rules.declaration import Severity
+from lorecraft.rules.identity import Severity
 from lorecraft.rules.location import Help, Note, WholeSubject
 
 from ..malformed_structure_file import FormatViolated, MalformedStructureFile, NoRuleStated

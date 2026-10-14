@@ -4,7 +4,7 @@ import pytest
 
 from lorecraft.project.schemas.section_name import SectionName
 from lorecraft.project.schemas.structure_file import JSON_SCHEMA_DIALECT
-from lorecraft.rules.declaration import Severity
+from lorecraft.rules.identity import Severity
 from lorecraft.rules.location import Help, Note, Subdiagnostic, WholeSubject
 
 from ..unusable_structure_file import (

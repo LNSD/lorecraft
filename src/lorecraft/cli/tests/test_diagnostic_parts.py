@@ -9,8 +9,8 @@ from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.context import DocumentFrontmatterOwner
 from lorecraft.project.syntax import LineNumber
-from lorecraft.rules.declaration import Severity
 from lorecraft.rules.frontmatter.duplicate_key import DuplicateKey
+from lorecraft.rules.identity import Severity
 from lorecraft.rules.location import Elsewhere, Help, Here
 from lorecraft.rules.report import RuleDiagnostic
 

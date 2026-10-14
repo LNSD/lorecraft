@@ -4,8 +4,8 @@ from dataclasses import dataclass
 from typing import ClassVar
 
 from lorecraft.rules.collector import rule
-from lorecraft.rules.declaration import EntryCondition, Severity
-from lorecraft.rules.identity import EngineCode, Release, RuleName
+from lorecraft.rules.declaration import EntryCondition
+from lorecraft.rules.identity import EngineCode, Release, RuleName, Severity
 from lorecraft.rules.location import WholeSubject
 
 

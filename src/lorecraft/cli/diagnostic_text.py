@@ -39,7 +39,7 @@ from lorecraft.core.lines import split_lines
 from lorecraft.core.num import NonZeroUnsignedInt, UnsignedInt
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.syntax import FIRST_LINE, LineNumber
-from lorecraft.rules.declaration import Severity
+from lorecraft.rules.identity import Severity
 from lorecraft.rules.location import EntrySubdiagnostic, Subdiagnostic
 from lorecraft.rules.report import Diagnostic, RunReport
 

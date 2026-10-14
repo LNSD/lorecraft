@@ -6,8 +6,7 @@ from typing import ClassVar, Self
 from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.collector import rule
-from lorecraft.rules.declaration import AliasCode, LinterName, UpstreamCode
-from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
+from lorecraft.rules.identity import AliasCode, Level, LinterName, Release, RuleCode, RuleName, UpstreamCode
 from lorecraft.rules.tests.sample_subject import SampleLines, SampleLinesRule
 
 from ..groups import SAMPLE

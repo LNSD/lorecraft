@@ -18,7 +18,7 @@ from lorecraft.engine import Subject, check_subjects
 from lorecraft.project.database import Database
 from lorecraft.project.layout import SNAPSHOT_SCOPE
 from lorecraft.project.skill import SkillRef
-from lorecraft.rules.declaration import Severity
+from lorecraft.rules.identity import Severity
 from lorecraft.rules.layout.outside_symlink import OutsideSymlink
 from lorecraft.rules.registry import Registry
 from lorecraft.rules.report import CheckedLayoutEntry, CheckedSkillFile, RuleDiagnostic
