@@ -83,11 +83,11 @@ from lorecraft.rules.frontmatter.too_few_fields import TooFewFields
 from lorecraft.rules.frontmatter.unknown_field import UnknownField
 from lorecraft.rules.frontmatter.wrong_type import WrongType
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleGroup, RuleGroupPrefix, RuleName, Severity
+from lorecraft.rules.length.section_too_many_words import NamedSectionCap, SectionTooManyWords
 from lorecraft.rules.length.title_too_long import TitleTooLong
 from lorecraft.rules.length.title_too_many_words import TitleTooManyWords
 from lorecraft.rules.length.too_many_lines import TooManyLines
 from lorecraft.rules.length.too_many_tokens import TooManyTokens
-from lorecraft.rules.length.too_many_words import NamedSectionCap, TooManyWords
 from lorecraft.rules.link.absolute_link import AbsoluteLink
 from lorecraft.rules.link.broken_link import BrokenLink
 from lorecraft.rules.link.escaping_link import EscapingLink
@@ -757,7 +757,7 @@ class TestCheckSubjects:
             {'docs': {'__meta__': {'code.md': b'# Code\n'}, 'code': {'guide.md': GUIDE_TEXT.encode()}}}
         )
         database = CountingDatabase.from_snapshot(snapshot)
-        severities: dict[type[Rule], Severity] = {TooManyWords: Severity.ERROR, TitleTooLong: Severity.ERROR}
+        severities: dict[type[Rule], Severity] = {SectionTooManyWords: Severity.ERROR, TitleTooLong: Severity.ERROR}
         table = RuleTable(severities)
 
         #: When
@@ -1658,7 +1658,7 @@ class TestCheckSubjects:
             ),
         ), 'OUT005 runs at deny over a document whose specification forbids a section, at the forbidden heading'
 
-    def test_check_subjects_with_a_section_over_its_word_cap_reports_too_many_words(
+    def test_check_subjects_with_a_section_over_its_word_cap_reports_section_too_many_words(
         self, package_table: RuleTable
     ) -> None:
         #: Given
@@ -1669,7 +1669,7 @@ class TestCheckSubjects:
         reports = check_subjects(database, (GUIDE,), package_table)
 
         #: Then
-        occurrence = TooManyWords(
+        occurrence = SectionTooManyWords(
             spec=CODE_SPEC,
             line=LineNumber(NonZeroUnsignedInt(3)),
             section='Run',

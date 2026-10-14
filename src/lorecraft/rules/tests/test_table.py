@@ -22,11 +22,11 @@ from lorecraft.rules.frontmatter.unknown_field import UnknownField
 from lorecraft.rules.frontmatter.wrong_type import WrongType
 from lorecraft.rules.identity import RuleCode, Severity
 from lorecraft.rules.layout.outside_symlink import OutsideSymlink
+from lorecraft.rules.length.section_too_many_words import SectionTooManyWords
 from lorecraft.rules.length.title_too_long import TitleTooLong
 from lorecraft.rules.length.title_too_many_words import TitleTooManyWords
 from lorecraft.rules.length.too_many_lines import TooManyLines
 from lorecraft.rules.length.too_many_tokens import TooManyTokens
-from lorecraft.rules.length.too_many_words import TooManyWords
 from lorecraft.rules.link.absolute_link import AbsoluteLink
 from lorecraft.rules.link.broken_link import BrokenLink
 from lorecraft.rules.link.escaping_link import EscapingLink
@@ -134,7 +134,7 @@ class TestRuleTableFromRegistry:
         #: Then
         assert table.document_rules == (
             EnabledRule(TooManyTokens, Severity.ERROR),
-            EnabledRule(TooManyWords, Severity.ERROR),
+            EnabledRule(SectionTooManyWords, Severity.ERROR),
             EnabledRule(TitleTooManyWords, Severity.ERROR),
             EnabledRule(TitleTooLong, Severity.ERROR),
             EnabledRule(MissingTitle, Severity.ERROR),
@@ -225,7 +225,7 @@ class TestRuleTableFromRegistry:
 
         #: Then
         assert table.document_rules_governed_by(Facet.STRUCTURE) == (
-            EnabledRule(TooManyWords, Severity.ERROR),
+            EnabledRule(SectionTooManyWords, Severity.ERROR),
             EnabledRule(TitleTooManyWords, Severity.ERROR),
             EnabledRule(TitleTooLong, Severity.ERROR),
             EnabledRule(MissingTitle, Severity.ERROR),

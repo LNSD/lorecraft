@@ -1,4 +1,4 @@
-"""`LEN003`, `too-many-words`, over the word caps of a document's sections.
+"""`LEN003`, `section-too-many-words`, over the word caps of a document's sections.
 
 Every case is a document written as text, read through a fake context that parses it as the real parser does, under
 structure specifications decoded from JSON; no document is read from disk.
@@ -15,7 +15,7 @@ from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.location import Elsewhere, Help, Here, Label, Note
 from lorecraft.rules.tests.fake_context import FakeDocumentContext, namespace_spec, structure_spec_path
 
-from ..too_many_words import AnyRunCap, NamedSectionCap, TooManyWords
+from ..section_too_many_words import AnyRunCap, NamedSectionCap, SectionTooManyWords
 
 CORPUS_SPEC: Final[RootRelativePath] = structure_spec_path('guide')
 """The corpus structure specification."""
@@ -54,17 +54,17 @@ def _outline(*, run: int | None, configuration: int | None) -> str:
 
 
 @pytest.mark.unit
-class TestTooManyWords:
+class TestSectionTooManyWords:
     def test_check_with_a_section_over_its_cap_reports_it_at_its_heading(self) -> None:
         #: Given
         subject = FakeDocumentContext(TEXT, corpus='guide', structure=_outline(run=None, configuration=10))
 
         #: When
-        occurrences = TooManyWords.check(subject)
+        occurrences = SectionTooManyWords.check(subject)
 
         #: Then
         assert occurrences == (
-            TooManyWords(
+            SectionTooManyWords(
                 spec=CORPUS_SPEC,
                 line=LineNumber(NonZeroUnsignedInt(7)),
                 section='Configuration',
@@ -78,7 +78,7 @@ class TestTooManyWords:
         subject = FakeDocumentContext(TEXT, corpus='guide', structure=_outline(run=None, configuration=12))
 
         #: When
-        occurrences = TooManyWords.check(subject)
+        occurrences = SectionTooManyWords.check(subject)
 
         #: Then
         assert occurrences == (), 'the cap is the most words allowed, so a section at its cap fits it'
@@ -88,7 +88,7 @@ class TestTooManyWords:
         subject = FakeDocumentContext(TEXT, corpus='guide', structure=_outline(run=None, configuration=None))
 
         #: When
-        occurrences = TooManyWords.check(subject)
+        occurrences = SectionTooManyWords.check(subject)
 
         #: Then
         assert occurrences == (), 'a section no cap applies to may hold any number of words'
@@ -98,18 +98,18 @@ class TestTooManyWords:
         subject = FakeDocumentContext(TEXT, corpus='guide', structure=_outline(run=5, configuration=10))
 
         #: When
-        occurrences = TooManyWords.check(subject)
+        occurrences = SectionTooManyWords.check(subject)
 
         #: Then
         assert occurrences == (
-            TooManyWords(
+            SectionTooManyWords(
                 spec=CORPUS_SPEC,
                 line=LineNumber(NonZeroUnsignedInt(3)),
                 section='Run',
                 overrun=overrun(6, 5),
                 cap_source=NamedSectionCap(),
             ),
-            TooManyWords(
+            SectionTooManyWords(
                 spec=CORPUS_SPEC,
                 line=LineNumber(NonZeroUnsignedInt(7)),
                 section='Configuration',
@@ -140,18 +140,18 @@ class TestTooManyWords:
         subject = FakeDocumentContext(text, corpus='guide', structure=outline)
 
         #: When
-        occurrences = TooManyWords.check(subject)
+        occurrences = SectionTooManyWords.check(subject)
 
         #: Then
         assert occurrences == (
-            TooManyWords(
+            SectionTooManyWords(
                 spec=CORPUS_SPEC,
                 line=LineNumber(NonZeroUnsignedInt(3)),
                 section='Rule',
                 overrun=overrun(3, 2),
                 cap_source=NamedSectionCap(),
             ),
-            TooManyWords(
+            SectionTooManyWords(
                 spec=CORPUS_SPEC,
                 line=LineNumber(NonZeroUnsignedInt(7)),
                 section='Aside',
@@ -168,7 +168,7 @@ class TestTooManyWords:
         subject = FakeDocumentContext(text, corpus='guide', structure=outline)
 
         #: When
-        occurrences = TooManyWords.check(subject)
+        occurrences = SectionTooManyWords.check(subject)
 
         #: Then
         assert occurrences == (), 'a section after `Middle` falls in the second run, capped at 5 words, not 1'
@@ -183,11 +183,11 @@ class TestTooManyWords:
         )
 
         #: When
-        occurrences = TooManyWords.check(subject)
+        occurrences = SectionTooManyWords.check(subject)
 
         #: Then
         assert occurrences == (
-            TooManyWords(
+            SectionTooManyWords(
                 spec=NAMESPACE_SPEC,
                 line=LineNumber(NonZeroUnsignedInt(7)),
                 section='Configuration',
@@ -206,18 +206,18 @@ class TestTooManyWords:
         )
 
         #: When
-        occurrences = TooManyWords.check(subject)
+        occurrences = SectionTooManyWords.check(subject)
 
         #: Then
         assert occurrences == (
-            TooManyWords(
+            SectionTooManyWords(
                 spec=CORPUS_SPEC,
                 line=LineNumber(NonZeroUnsignedInt(7)),
                 section='Configuration',
                 overrun=overrun(12, 10),
                 cap_source=NamedSectionCap(),
             ),
-            TooManyWords(
+            SectionTooManyWords(
                 spec=NAMESPACE_SPEC,
                 line=LineNumber(NonZeroUnsignedInt(7)),
                 section='Configuration',
@@ -267,7 +267,7 @@ class TestTooManyWords:
 
     def test_children_with_a_cap_of_an_any_run_say_it_caps_each_section_the_outline_does_not_name(self) -> None:
         #: Given
-        occurrence = TooManyWords(
+        occurrence = SectionTooManyWords(
             spec=CORPUS_SPEC,
             line=LineNumber(NonZeroUnsignedInt(7)),
             section='Aside',
@@ -289,9 +289,9 @@ class TestTooManyWords:
         ), 'a section the outline does not name is held to the run it falls in, and the note says so'
 
 
-def _named_occurrence() -> TooManyWords:
+def _named_occurrence() -> SectionTooManyWords:
     """The `Configuration` section of `TEXT` over a cap of 10 its own outline entry sets."""
-    return TooManyWords(
+    return SectionTooManyWords(
         spec=CORPUS_SPEC,
         line=LineNumber(NonZeroUnsignedInt(7)),
         section='Configuration',

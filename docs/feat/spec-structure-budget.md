@@ -105,5 +105,5 @@ value below `1` is refused.
 - `src/lorecraft/project/schemas/structure_file.py` - The shape of the `words` and `tokens` keys
 - `src/lorecraft/core/num.py` - The non-zero unsigned integer each key holds, which refuses a value below `1`
 - `src/lorecraft/project/schemas/structure.py` - Turns the keys into rules
-- `src/lorecraft/rules/length/too_many_words.py` - Reports a section over its word cap as `LEN003`
+- `src/lorecraft/rules/length/section_too_many_words.py` - Reports a section over its word cap as `LEN003`
 - `src/lorecraft/rules/length/too_many_tokens.py` - Reports a document over its token budget as `LEN001`

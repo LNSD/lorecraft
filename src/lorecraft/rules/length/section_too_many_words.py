@@ -38,7 +38,7 @@ _SPLIT_HELP: Final[Help] = Help(
 
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
-class TooManyWords(DocumentRule):
+class SectionTooManyWords(DocumentRule):
     """A section is longer than its word cap allows.
 
     ## What it does
@@ -100,7 +100,7 @@ class TooManyWords(DocumentRule):
     """
 
     CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 3)
-    NAME: ClassVar[RuleName] = RuleName('too-many-words')
+    NAME: ClassVar[RuleName] = RuleName('section-too-many-words')
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('0.3.0')
     # STRUCTURE, not OUTLINE, though only the outline is read: it judges the same documents as the rules over the
