@@ -528,7 +528,7 @@ def _list_skill_locations(
             # Where an agent reaches the entry, which may be a link: a failure is filed here, not where it leads.
             entry_path = resolved_directory / entry.name
             try:
-                listing = skills.list_skill_entry(resolved_directory, entry)
+                found = skills.find_skill_entry(resolved_directory, entry)
             except SkillEntryResolveError as exc:
                 match exc.source:
                     case DirResolveError():
@@ -558,6 +558,13 @@ def _list_skill_locations(
                         assert_never(exc.source)
                 failures.append(LoadFailure(skill_file_path, condition))
                 continue
-            locations.extend(listing.skills)
-            outside_symlinks.extend(listing.outside_symlinks)
+            match found:
+                case SkillLocation():
+                    locations.append(found)
+                case OutsideSymlink():
+                    outside_symlinks.append(found)
+                case None:
+                    pass
+                case _:
+                    assert_never(found)
     return tuple(sorted(locations)), tuple(sorted(outside_symlinks, key=lambda outside: outside.path))
