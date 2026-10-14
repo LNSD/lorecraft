@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-"""Integrate a Writer's patches into a part branch.
+"""Integrate a Writer's patches into a part branch, then squash and push it.
 
     integrate.py apply --branch B --base REF PATCH...
+    integrate.py squash --branch B --base REF --message-file FILE
 
-Prints one JSON result. Never resolves a conflict. Exit codes: 0 ok, 1 a gate failed, 2 the patches do not apply,
-3 refused or a command failed.
+Prints one JSON result. Never resolves a conflict, never commits unsigned, never uses plain `--force`.
+Exit codes: 0 ok, 1 a gate failed, 2 the patches do not apply, 3 refused or a command failed.
 """
 
 import argparse
@@ -77,6 +78,62 @@ def apply(
     return result, EXIT_OK
 
 
+def squash(repo: Path, branch: str, base: str, message_file: Path, log: Path) -> tuple[dict[str, object], int]:
+    """Squash the branch into one signed commit on the base and push it.
+
+    Reads `origin/<branch>` as the last `apply` fetched it, and refuses when the branch does not contain it.
+
+    Args:
+        repo: The repository to work in, with the branch checked out.
+        branch: The part branch, as named on the remote.
+        base: The ref the part sits on, an ancestor of the branch.
+        message_file: The commit message.
+        log: The file raw git output goes to.
+
+    Raises:
+        GitError: A git command that must succeed failed.
+    """
+    if gitflow.git(repo, log, 'branch', '--show-current') != branch:
+        return {'status': 'refused', 'reason': f'{branch} is not checked out'}, EXIT_REFUSED
+    reason = gitflow.require_clean(repo, log)
+    if reason:
+        return {'status': 'refused', 'reason': reason}, EXIT_REFUSED
+    base_sha = gitflow.git(repo, log, 'rev-parse', base)
+    old_head = gitflow.git(repo, log, 'rev-parse', 'HEAD')
+    if not gitflow.is_ancestor(repo, log, base_sha, old_head):
+        return {'status': 'refused', 'reason': f'{base} is not an ancestor of {branch}'}, EXIT_REFUSED
+    expected = gitflow.rev_parse(repo, log, f'origin/{branch}')
+    if expected is not None and not gitflow.is_ancestor(repo, log, expected, old_head):
+        return {'status': 'refused', 'reason': f'origin/{branch} at {expected} is not in {branch}'}, EXIT_REFUSED
+
+    gitflow.git(repo, log, 'reset', '--soft', base_sha)
+    committed = gitflow.run(repo, log, ['git', 'commit', '-s', '-S', '-F', str(message_file.resolve())])
+    if committed.returncode != 0:
+        reason = 'git commit failed'
+        signature = None
+    else:
+        signature = gitflow.signature_status(repo, log, 'HEAD')
+        reason = f'the commit is not signed (%G? = {signature})'
+    if signature != 'G':
+        # Put the branch back as it was: an unsigned or missing commit is never pushed.
+        gitflow.git(repo, log, 'reset', '--soft', old_head)
+        return {'status': 'refused', 'reason': reason, 'head_sha': old_head}, EXIT_REFUSED
+
+    try:
+        pushed = gitflow.push(repo, log, branch, expected)
+    except GitError as error:
+        gitflow.git(repo, log, 'reset', '--soft', old_head)
+        return {'status': 'refused', 'reason': str(error), 'head_sha': old_head}, EXIT_REFUSED
+    return {
+        'status': 'ok',
+        'branch': branch,
+        'base_sha': base_sha,
+        'head_sha': gitflow.git(repo, log, 'rev-parse', 'HEAD'),
+        'signature': signature,
+        'push': pushed,
+    }, EXIT_OK
+
+
 def main(argv: list[str]) -> int:
     """Parse the arguments, run the subcommand in the current directory and print its result.
 
@@ -85,16 +142,23 @@ def main(argv: list[str]) -> int:
     """
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     commands = parser.add_subparsers(dest='command', required=True)
-    apply_parser = commands.add_parser('apply')
-    apply_parser.add_argument('--branch', required=True, help='the part branch, as named on the remote')
-    apply_parser.add_argument('--base', required=True, help='the ref the part sits on, such as origin/main')
-    apply_parser.add_argument('patches', nargs='+', type=Path)
+    for name in ('apply', 'squash'):
+        sub = commands.add_parser(name)
+        sub.add_argument('--branch', required=True, help='the part branch, as named on the remote')
+        sub.add_argument('--base', required=True, help='the ref the part sits on, such as origin/main')
+        if name == 'apply':
+            sub.add_argument('patches', nargs='+', type=Path)
+        else:
+            sub.add_argument('--message-file', required=True, type=Path)
     args = parser.parse_args(argv)
 
     repo = Path.cwd()
     log = gitflow.default_log(repo, f'code-integrate-{args.command}')
     try:
-        result, code = apply(repo, args.branch, args.base, args.patches, log, gitflow.default_gates())
+        if args.command == 'apply':
+            result, code = apply(repo, args.branch, args.base, args.patches, log, gitflow.default_gates())
+        else:
+            result, code = squash(repo, args.branch, args.base, args.message_file, log)
     except GitError as error:
         result, code = {'status': 'error', 'reason': str(error)}, EXIT_REFUSED
     gitflow.emit(result, log)

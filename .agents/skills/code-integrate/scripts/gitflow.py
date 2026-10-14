@@ -157,6 +157,38 @@ def measure_size(repo: Path, log: Path, base: str) -> int:
     return total
 
 
+def signature_status(repo: Path, log: Path, rev: str) -> str:
+    """The `%G?` code of a commit; `G` is a good signature.
+
+    Args:
+        repo: The repository to look in.
+        log: The file the command and its output are appended to.
+        rev: The commit to read.
+    """
+    return git(repo, log, 'log', '-1', '--format=%G?', rev)
+
+
+def push(repo: Path, log: Path, branch: str, expected: str | None) -> str:
+    """Push a branch with `-u` and a lease pinned to the remote SHA the caller last fetched.
+
+    The push fails when the remote branch is no longer at `expected`, so work pushed since the caller's fetch is
+    never overwritten. Plain `--force` is never used.
+
+    Args:
+        repo: The repository to push from.
+        log: The file the command and its output are appended to.
+        branch: The branch, named the same locally and on the remote.
+        expected: The commit `origin/<branch>` was at when the caller fetched, or None when the branch is new.
+
+    Raises:
+        GitError: The push was rejected.
+    """
+    # An empty expected value tells git the remote branch must not exist yet.
+    lease = f'--force-with-lease=refs/heads/{branch}:{expected or ""}'
+    git(repo, log, 'push', '-u', lease, 'origin', f'{branch}:refs/heads/{branch}')
+    return 'new' if expected is None else 'lease'
+
+
 def emit(result: Mapping[str, object], log: Path) -> None:
     """Print the one compact JSON result a script ends with, naming the log.
 
