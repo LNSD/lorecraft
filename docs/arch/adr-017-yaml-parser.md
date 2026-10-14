@@ -1,6 +1,6 @@
 ---
 name: "adr-017-yaml-parser"
-description: "Frontmatter is parsed with a pure-Python YAML parser, ruamel.yaml's event API in place of PyYAML's, reading the format adr-019 defines, so no runtime dependency carries a C extension. Load when changing how frontmatter is parsed, touching src/lorecraft/project/syntax/frontmatter.py, or adding or upgrading a YAML dependency"
+description: "Frontmatter is parsed with a pure-Python YAML parser, ruamel.yaml's event API in place of PyYAML's, reading the format adr-019 defines, so no runtime dependency carries a C extension. Load when changing how frontmatter is parsed, touching src/lorecraft/project/syntax/frontmatter.py or anything under src/lorecraft/yaml/, or adding or upgrading a YAML dependency"
 type: "adr"
 status: "accepted"
 ---
@@ -39,9 +39,9 @@ every option.
 
 ## Decision
 
-1. **ruamel.yaml's pure-Python event API is the parser** in `frontmatter.py`. The module reads ruamel.yaml's tokens
-   and events, with their start marks: the value is built from the events by lorecraft, never by a ruamel.yaml
-   loader or constructor.
+1. **ruamel.yaml's pure-Python event API is the parser** in `frontmatter.py`, with its reader, scanner and parser
+   subclasses in `src/lorecraft/yaml/basic_yaml.py`. The module reads ruamel.yaml's tokens and events, with their
+   start marks: the value is built from the events by lorecraft, never by a ruamel.yaml loader or constructor.
 2. **The parser reads the format adr-019 defines, and does not define it.** What is accepted, what is refused and how
    a refusal is worded are adr-019's; this record adds no rule about the format.
 3. **Every exception the parser raises on a block is `FM002`, never a crash.** ruamel.yaml's error, with its class,
@@ -73,9 +73,9 @@ every option.
 
 - **Parsing is about 1.3× slower**: 25.8 to 33.7 ms on lorecraft's corpus, about 1% of a `check` run. It is
   accepted because frontmatter is small, so the difference is not noticeable.
-- **The parser glue in `frontmatter.py` is rebuilt.** ruamel.yaml wires its reader, scanner and parser through a
-  loader object instead of PyYAML's mixin classes, and raises a reader error during the parse rather than at
-  construction. The event walking, the core-schema resolution and adr-019's refusals sit on top of it.
+- **The parser glue in `frontmatter.py` and `yaml/basic_yaml.py` is rebuilt.** ruamel.yaml wires its reader, scanner
+  and parser through a loader object instead of PyYAML's mixin classes, and raises a reader error during the parse
+  rather than at construction. The event walking, the core-schema resolution and adr-019's refusals sit on top of it.
 - **Parity is proved once, not kept**: on the switch, the events inside adr-019's format match PyYAML's on the
   corpus. After that nothing compares with PyYAML; adr-019 defines the format, and its per-construct tests and the
   corpus check hold it. What a syntax error says, and on which line, is adr-019's.
@@ -93,7 +93,7 @@ every option.
 - [ ] `pyproject.toml` declares `pyyaml` in no dependency group or extra, and lists `ruamel.yaml>=0.19,<0.20`
 - [ ] `ruamel.yaml.clib` is not installed by lorecraft's runtime dependencies, and the `clib` extra is not requested
 - [ ] `frontmatter.py` builds the value from ruamel.yaml's events and never calls a ruamel.yaml loader or constructor
-- [ ] `frontmatter.py` states no format rule of its own beyond adr-019's
+- [ ] `frontmatter.py` and `yaml/basic_yaml.py` state no format rule of their own beyond adr-019's
 - [ ] The switch's pull request records that, inside adr-019's format, the events on the corpus match PyYAML's in
   type, value, style and line
 - [ ] A `\U` escape above `U+10FFFF` and a directive with an over-long version number are `FM002` on their line, not
