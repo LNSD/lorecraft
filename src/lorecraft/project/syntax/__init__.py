@@ -9,6 +9,8 @@ Beside it, `count_tokens`: what a document's raw text costs an agent, counted wi
 stretch of text, the one word rule the tree's section word counts are made of.
 """
 
+from lorecraft.core.lines import LineCount, count_lines, split_lines
+
 from .anchor import Anchor, AnchorNumber, InvalidAnchorError
 from .document import ParsedDocument, parse_document, parse_frontmatter
 from .frontmatter import (
@@ -22,7 +24,6 @@ from .frontmatter import (
     reads_back_as_string,
 )
 from .heading import Heading, HeadingLevel, SectionHeading, find_sections, find_title
-from .lines import LineCount, count_lines, split_lines
 from .link import (
     AbsoluteDestination,
     ExternalDestination,

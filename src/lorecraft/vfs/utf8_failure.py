@@ -1,17 +1,21 @@
 """Where a file's bytes first stop being UTF-8, and why, kept from the decoder's failure.
 
 The decoder's `UnicodeDecodeError` locates the first byte that does not decode, as an offset into the bytes. This
-module keeps that as plain data: the line the byte is on, counted by line feeds, its offset, the bytes the decoder
-rejected and the reason as a closed type rather than the decoder's wording. Being plain data, a persisted result
-keeps it.
+module keeps that as plain data: the line the byte is on, counted as `lorecraft.core.lines` counts a line, its
+offset, the bytes the decoder rejected and the reason as a closed type rather than the decoder's wording. Being
+plain data, a persisted result keeps it.
 """
 
 from dataclasses import dataclass
 from enum import Enum
 from typing import NewType, Self
 
+from lorecraft.core.lines import line_at
+
 Utf8Line = NewType('Utf8Line', int)
-"""A line number in a file's bytes, counted by line feeds, at least 1; `Utf8Failure` enforces it at construction.
+"""A line number in a file's bytes, counted as `lorecraft.core.lines` counts a line, at least 1.
+
+`Utf8Failure` enforces the minimum at construction.
 
 Only keeps the line apart from a `ByteOffset`: `Utf8Line(0)` constructs, and `Utf8Failure` refuses it.
 """
@@ -56,8 +60,8 @@ class Utf8Failure:
         ValueError: If `line` is below 1, `offset` is negative or `invalid` is empty.
 
     Attributes:
-        line: The line the first invalid byte is on, at least 1, counted by line feeds, so a file that breaks lines
-            with bare carriage returns reports line 1.
+        line: The line the first invalid byte is on, at least 1, counted as `lorecraft.core.lines` counts a line,
+            so a file that breaks lines with bare carriage returns reports line 1.
         offset: The zero-based offset of the first invalid byte in the file; never negative.
         invalid: The bytes the decoder rejected, starting at `offset`; never empty.
         reason: Why the decoder rejected them.
@@ -84,9 +88,8 @@ class Utf8Failure:
         Args:
             error: The failure of decoding a file's bytes as UTF-8.
         """
-        # The same line a `\n` count gives in `lorecraft.project.syntax.lines`, which this layer sits below.
         return cls(
-            line=Utf8Line(error.object.count(b'\n', 0, error.start) + 1),
+            line=Utf8Line(line_at(error.object, error.start)),
             offset=ByteOffset(error.start),
             invalid=error.object[error.start : error.end],
             reason=Utf8Reason(error.reason),

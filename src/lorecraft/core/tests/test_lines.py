@@ -4,7 +4,7 @@ import pytest
 
 from lorecraft.core.num import UnsignedInt
 
-from ..lines import count_lines, newline_offsets, split_lines
+from ..lines import count_lines, line_at, newline_offsets, split_lines
 
 
 @pytest.mark.unit
@@ -220,3 +220,36 @@ class TestNewlineOffsets:
 
         #: Then
         assert offsets == (7,), f'only a `\\n` is a line break, {separator!r} is not, got {offsets}'
+
+
+@pytest.mark.unit
+class TestLineAt:
+    def test_line_at_with_text_after_line_feeds_returns_the_line_it_is_on(self) -> None:
+        #: Given
+        text = 'a\nb\r\nc'
+
+        #: When
+        lines = [line_at(text, offset) for offset in (0, 2, 6)]
+
+        #: Then
+        assert lines == [1, 2, 3], f'each `\\n` before an offset ends one line, a CRLF pair included, got {lines}'
+
+    def test_line_at_with_bytes_counts_lines_as_the_text_they_decode_to(self) -> None:
+        #: Given
+        data = b'a\nb\nc\xff'
+
+        #: When
+        line = line_at(data, data.index(b'\xff'))
+
+        #: Then
+        assert line == 3, f'bytes break lines at the same bytes as text does, got {line}'
+
+    def test_line_at_with_other_line_separators_before_the_offset_counts_only_line_feeds(self) -> None:
+        #: Given
+        text = 'a\x0bb\x0cc\x85d\u2028e\nf'
+
+        #: When
+        line = line_at(text, len(text))
+
+        #: Then
+        assert line == 2, f'only a `\\n` ends a line, got {line}'

@@ -56,9 +56,9 @@ from ruamel.yaml.scanner import Scanner
 from ruamel.yaml.tokens import ScalarToken, Token
 
 from lorecraft.core.error import Error
+from lorecraft.core.lines import newline_offsets
 from lorecraft.core.mapping import Frozen, FrozenMapping
 
-from .lines import newline_offsets
 from .position import LineNumber
 from .syntax_error import SyntaxProblem, describe_control_character, describe_error, yaml_line_starts
 

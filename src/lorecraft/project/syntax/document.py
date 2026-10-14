@@ -23,12 +23,12 @@ or both, and each block is decoded once.
 from dataclasses import dataclass
 from typing import assert_never
 
+from lorecraft.core.lines import split_lines
 from lorecraft.core.num import NonZeroUnsignedInt, UnsignedInt
 
 from .anchor import Anchor, AnchorNumber
 from .frontmatter import FrontmatterNode
 from .heading import Heading, HeadingLevel
-from .lines import split_lines
 from .link import Link
 from .markdown import ContentBlock, HeadingBlock, parse_markdown, parse_markdown_frontmatter
 from .words import WordCount, count_words
