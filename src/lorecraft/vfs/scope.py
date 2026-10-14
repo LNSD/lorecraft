@@ -73,7 +73,7 @@ class ScopeIndex:
             True when the scan lists the directory the path leads into, whether or not that directory exists.
             False when it does not, and when the walk leaves what the snapshot can follow: a link with an
             absolute target, one climbing above the root, a `..` out of a directory the snapshot does not show to
-            exist, or a chain longer than `MAX_LINKS`.
+            exist, or a chain longer than `_MAX_LINKS`.
         """
         walked = find_destination(path.parent, self._recorded, follow_links=True)
         match walked:

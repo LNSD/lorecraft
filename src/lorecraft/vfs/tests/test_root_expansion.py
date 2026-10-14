@@ -14,7 +14,6 @@ from lorecraft.core.num import UnsignedInt
 from lorecraft.core.path import RootRelativePath
 
 from ..root_expansion import (
-    MAX_LINKS,
     ResolvedDirectory,
     ResolvedFile,
     find_destination,
@@ -351,7 +350,7 @@ class TestFindDestination:
         leads_to = find_destination(path, tree, follow_links=True)
 
         #: Then
-        assert leads_to is None, f'a chain longer than {MAX_LINKS} links counts as a loop'
+        assert leads_to is None, 'a chain that never ends counts as a loop'
 
 
 @pytest.mark.unit

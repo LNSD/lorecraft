@@ -333,7 +333,7 @@ def _count_subjects(reports: tuple[RunReport, ...]) -> int:
 
 
 @dataclass(frozen=True, slots=True)
-class SeverityCounts:
+class _SeverityCounts:
     """How many diagnostics a run reported at each severity.
 
     Attributes:
@@ -345,7 +345,7 @@ class SeverityCounts:
     warnings: int
 
 
-def _count_severities(diagnostics: list[Diagnostic]) -> SeverityCounts:
+def _count_severities(diagnostics: list[Diagnostic]) -> _SeverityCounts:
     """How many of the diagnostics are errors, and how many warnings.
 
     Args:
@@ -361,7 +361,7 @@ def _count_severities(diagnostics: list[Diagnostic]) -> SeverityCounts:
                 warnings += 1
             case _:
                 assert_never(diagnostic.severity)
-    return SeverityCounts(errors=errors, warnings=warnings)
+    return _SeverityCounts(errors=errors, warnings=warnings)
 
 
 def _json_diagnostic(diagnostic: Diagnostic) -> _DiagnosticJson:

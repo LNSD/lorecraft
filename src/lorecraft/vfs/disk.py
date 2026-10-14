@@ -465,7 +465,7 @@ def take_snapshot(root: Path, scope: tuple[ScanRoot, ...], *, declaration: Decla
         SnapshotLinkReadError: If a symlink's target cannot be read for a reason other than having vanished.
         ChangedSnapshotEntryError: If the tree changes under the scan so that it finds one path as two kinds.
     """
-    recorder = _SnapshotRecorder()
+    recorder = SnapshotRecorder()
     on_disk = _DiskEntries(root, recorder)
     # The root each directory was last listed as, without following links and with, so overlapping scope roots
     # list a directory again only when a later root asks for more under it: more depth, or its links followed.
@@ -561,7 +561,7 @@ def _is_listed_as_deep(listed: dict[RootRelativePath, ScanRoot], scan_root: Scan
     return previous.is_at_least_as_deep_as(scan_root)
 
 
-class _SnapshotRecorder:
+class SnapshotRecorder:
     """The records one scan has taken so far, one per path, each merged with the one before as it is taken.
 
     The scan reaches some paths more than once: as an entry of a listing and again as a listed directory, a
@@ -576,6 +576,9 @@ class _SnapshotRecorder:
       the same path into that record: the entry was reached another way, and only the walk through it was refused.
     - Two records of different kinds mean the tree changed under the scan, and so does a record below a path
       recorded as no directory, since every record sits at a resolved path. Recording either raises.
+
+    It is public for `tests/test_disk.py` alone: the merges are reachable through a scan only by a tree changing
+    under it, so the tests drive the recorder directly instead.
     """
 
     def __init__(self) -> None:
@@ -666,7 +669,7 @@ class _DiskEntries:
     to the same place and `ScopeIndex` follow it.
     """
 
-    def __init__(self, root: Path, recorder: _SnapshotRecorder) -> None:
+    def __init__(self, root: Path, recorder: SnapshotRecorder) -> None:
         """Read under `root`, recording into `recorder`.
 
         Args:
@@ -745,7 +748,7 @@ def _follow_listed_link(
     listed_root: ScanRoot,
     link: RootRelativePath,
     on_disk: _DiskEntries,
-    recorder: _SnapshotRecorder,
+    recorder: SnapshotRecorder,
     pending: list[ScanRoot],
     declaration: Declaration | None,
 ) -> None:

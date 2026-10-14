@@ -11,7 +11,7 @@ from lorecraft.rules.tests.sample_rules import valid as valid_rules
 from lorecraft.rules.tests.sample_rules.valid.retired import TabIndent
 from lorecraft.rules.tests.sample_rules.valid.trailing_space import TrailingSpace
 
-from ..rulebook import _DocSection, _parse_docstring, _RuleDoc, page_name, render_listing, render_page
+from ..rulebook import page_name, render_listing, render_page
 
 
 @pytest.fixture(scope='module')
@@ -26,9 +26,19 @@ def sample_registry() -> Registry:
     return Registry.load(valid_rules)
 
 
+def _body_of_page_documented_as(docstring: str | None) -> str:
+    """The page of a rule whose docstring is `docstring`, from below its title: the summary, then the sections."""
+
+    class Documented(EmptySection):
+        __doc__ = docstring
+
+    page = render_page(Documented)
+    return page.split(f'# {Documented.NAME} ({Documented.CODE})\n\n', maxsplit=1)[1]
+
+
 @pytest.mark.unit
-class TestParseDocstring:
-    def test_parse_docstring_with_two_sections_returns_the_summary_and_each_section_in_order(self) -> None:
+class TestDocstringSections:
+    def test_render_page_with_two_sections_returns_the_summary_and_each_section_in_order(self) -> None:
         #: Given
         docstring = """A line is long.
 
@@ -42,30 +52,28 @@ class TestParseDocstring:
         """
 
         #: When
-        doc = _parse_docstring(docstring)
+        body = _body_of_page_documented_as(docstring)
 
         #: Then
-        assert doc == _RuleDoc(
-            'A line is long.',
-            (
-                _DocSection('What it does', 'Checks for long lines.'),
-                _DocSection('Why is this bad?', 'A long line is hard to read.'),
-            ),
+        assert body == (
+            'A line is long.\n\n'
+            '## What it does\n\nChecks for long lines.\n\n'
+            '## Why is this bad?\n\nA long line is hard to read.\n'
         ), 'the summary is the first paragraph, and each section keeps its heading and its text, in the order written'
 
-    def test_parse_docstring_with_a_wrapped_summary_joins_its_lines(self) -> None:
+    def test_render_page_with_a_wrapped_summary_joins_its_lines(self) -> None:
         #: Given
         docstring = 'A section holds no content, under a\n    specification that forbids it.\n'
 
         #: When
-        doc = _parse_docstring(docstring)
+        body = _body_of_page_documented_as(docstring)
 
         #: Then
-        assert doc == _RuleDoc('A section holds no content, under a specification that forbids it.', ()), (
+        assert body == 'A section holds no content, under a specification that forbids it.\n', (
             'the summary reads as one line'
         )
 
-    def test_parse_docstring_with_a_heading_inside_a_fence_keeps_it_in_the_section(self) -> None:
+    def test_render_page_with_a_heading_inside_a_fence_keeps_it_in_the_section(self) -> None:
         #: Given
         docstring = """A section is empty.
 
@@ -77,14 +85,14 @@ class TestParseDocstring:
         """
 
         #: When
-        doc = _parse_docstring(docstring)
+        body = _body_of_page_documented_as(docstring)
 
         #: Then
-        assert doc == _RuleDoc('A section is empty.', (_DocSection('Example', '```markdown\n## Install\n```'),)), (
+        assert body == 'A section is empty.\n\n## Example\n\n```markdown\n## Install\n```\n', (
             'a heading in an example is text of the example, not a section'
         )
 
-    def test_parse_docstring_with_an_attributes_block_leaves_it_out(self) -> None:
+    def test_render_page_with_an_attributes_block_leaves_it_out(self) -> None:
         #: Given
         docstring = """A line is long.
 
@@ -97,22 +105,22 @@ class TestParseDocstring:
         """
 
         #: When
-        doc = _parse_docstring(docstring)
+        body = _body_of_page_documented_as(docstring)
 
         #: Then
-        assert doc == _RuleDoc('A line is long.', (_DocSection('Use instead', 'Shorten it.'),)), (
+        assert body == 'A line is long.\n\n## Use instead\n\nShorten it.\n', (
             'the fields are for the maintainer, so the last section ends where they start'
         )
 
-    def test_parse_docstring_with_no_docstring_returns_an_empty_summary_and_no_section(self) -> None:
+    def test_render_page_with_no_docstring_returns_an_empty_summary_and_no_section(self) -> None:
         #: Given
         docstring = None
 
         #: When
-        doc = _parse_docstring(docstring)
+        body = _body_of_page_documented_as(docstring)
 
         #: Then
-        assert doc == _RuleDoc('', ()), 'there is no summary and no section to render'
+        assert body == '\n', 'there is no summary and no section to render'
 
 
 @pytest.mark.unit

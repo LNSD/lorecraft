@@ -14,7 +14,7 @@ from .words import WordCount
 type HeadingLevel = Literal[1, 2, 3, 4, 5, 6]
 """A heading's depth: 1 for a title through 6, the deepest Markdown has."""
 
-SECTION_LEVEL: Final[HeadingLevel] = 2
+_SECTION_LEVEL: Final[HeadingLevel] = 2
 """The heading level of a section: H1 is the title, and anything deeper is a subsection."""
 
 
@@ -90,7 +90,7 @@ def section_headings(headings: tuple[Heading, ...]) -> tuple[SectionHeading, ...
             level=heading.level, text=heading.text, line=heading.line, empty=heading.empty, words=heading.words
         )
         for heading in headings
-        if heading.level == SECTION_LEVEL
+        if heading.level == _SECTION_LEVEL
     )
 
 

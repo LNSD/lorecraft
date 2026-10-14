@@ -16,6 +16,8 @@ from . import commands
 
 # A handler is a Typer command function: Typer reads its signature for the options and its
 # docstring for the help text, so the parameters are its own business and `...` is honest here.
+# It is public because it is the type `register()` takes and returns: a command module that annotates
+# its handlers names it.
 type CommandHandler = Callable[..., None]
 
 _HANDLERS: dict[str, CommandHandler] = {}
