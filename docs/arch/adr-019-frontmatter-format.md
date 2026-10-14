@@ -26,7 +26,8 @@ The parser that reads the format is decided apart, in [adr-017](adr-017-yaml-par
 
 ## Specification
 
-The block is the text between the opening `---` line and the closing `---` line. Terms are YAML 1.2's.
+The block is the text between the opening `---` line and the closing `---` line. It is read by YAML 1.2's grammar,
+with the rules of frontmatter's own below, and terms are YAML 1.2's.
 
 ### Accepted
 
@@ -51,6 +52,24 @@ A plain scalar resolves by YAML 1.2's core schema: `~`, `null`, `Null`, `NULL` a
 `true`/`True`/`TRUE` and `false`/`False`/`FALSE` are booleans; a decimal, `0o` octal or `0x` hexadecimal integer is
 an integer; a decimal float is a float, unless it overflows to infinity. Anything else is a string: `yes`, `on`,
 `2026-10-05`, `1:30`, `.inf` and `.nan` are strings.
+
+### Rules of frontmatter's own
+
+Four rules settle what YAML 1.2 leaves open, or where the parser reads YAML differently from lorecraft. Each holds
+whichever parser reads the block.
+
+1. **A line ends only at `\n`, `\r\n` or a lone `\r`**, as lorecraft's line rule says for every document. U+0085,
+   U+2028 and U+2029 are not line ends: outside a quoted scalar each is `FM002` on its line (see Syntax errors), and
+   inside a single- or double-quoted scalar each is text, with the spaces around it kept, so a `---` or `...` after
+   one stays in the value. The line numbers `FM002` reports count only these line ends.
+2. **A tab is never whitespace between tokens, in a flow collection too.** A tab that indents a line and a tab
+   between tokens, as in `a: b⇥# c` or `[b,⇥c]`, are each a syntax error. A tab inside a quoted scalar or a block
+   scalar's text is text.
+3. **A blank line before a block scalar's text may hold fewer spaces than the text**, as an auto-indenting editor
+   writes it: `d: |`, then a line holding one space, then `  text`, is accepted.
+4. **Inside a flow collection, a plain scalar ends at a `:` followed by `,`, `[`, `]`, `{` or `}`**, as YAML 1.2
+   states. `{a:, b: c}` reads as `{a: null, b: c}`, and `[a:, b]` holds a mapping, refused as a collection inside a
+   flow collection.
 
 ### Refused
 
@@ -90,11 +109,18 @@ own text at them. The line reported is the one the writer fixes, which for an un
 | A line that is neither `key: value` nor `- item` | `just words` between two keys | The line | `` this line is not `key: value` or `- item` `` | Add `: ` after the key, or quote a value that runs on |
 | An unclosed quote | `name: "abc` | The line the quote opens on | `this quote is never closed` | Close it on the line it continues to, or remove it |
 | Text after a closing quote | `name: "a" b` | The line | `text follows the closing quote` | Put the whole value inside the quotes |
+| Text after a flow collection | `a: [b, c] d`, `a: {b: c} d` | The line | `` text follows the closing `]` ``, or `}` | Move the text inside the brackets, or quote the whole value |
+| A closing bracket that closes nothing | `a: ]`, `a: [b]]` | The line | `` this `]` closes nothing ``, or `}` | Remove it, or quote the value |
 | A tab used for indentation | `⇥b: c` | The line | `a tab indents this line` | Indent with spaces |
+| A tab between tokens | `a: b⇥c`, `[b,⇥c]` | The line | `a tab is not whitespace here` | Use spaces |
+| U+0085, U+2028 or U+2029 outside a quoted scalar | `name: guide␅type: rule` (`␅` is U+0085) | The line | `the block holds U+0085, which is not a line break here`, naming its code point | Use a line feed, or remove it |
 | An escape double quotes do not know | `a: "\q"`, `a: "\xZZ"` | The line | `` `\q` is not an escape `` | Write `\\` for a backslash, or use single quotes |
+| A backslash before U+0085, U+2028 or U+2029 in double quotes | `a: "b\␅c"` | The line | `` `\` before U+0085 is not an escape ``, naming its code point | Write `\\` for a backslash, or use single quotes |
 | A character that cannot start a plain value | `` a: `b` ``, `a: @b` | The line | `` a plain value cannot start with `@` `` | Quote the value |
 | A control character | `b` followed by U+0007 | The line | `the block holds the control character U+0007` | Remove it |
 
+U+0085, U+2028 and U+2029 are the one kind the parser does not report, since it reads them as line breaks: lorecraft
+finds them in the token stream, as it finds a refused construct, and reports them with this kind's label and help.
 An unclosed flow collection is spread over lines, so it is the refusal of FR-011, not a syntax error. An error no
 kind matches is reported on the parser's problem line as `the block cannot be read from this line on`, with no
 parser text; every syntax-error probe is held to a kind, so the fallback stays a safety net.
@@ -115,6 +141,8 @@ parser text; every syntax-error probe is held to a kind, so the fallback stays a
 6. **A syntax error inside the subset is `FM002`, worded by lorecraft, never by the parser** (FR-015). Each error
    is classified into a kind of the Specification's Syntax errors table, from the error's class, texts and marks,
    and reported with that kind's label and help, on the line the writer fixes. No parser text reaches a diagnostic.
+7. **The block is read by YAML 1.2's grammar, with the four rules of frontmatter's own the Specification states.**
+   No other rule bends the parser's grammar, and none is kept only to copy how another parser reads YAML.
 
 ## Alternatives Considered
 
@@ -143,6 +171,16 @@ parser text; every syntax-error probe is held to a kind, so the fallback stays a
 - **Report every duplicate as `FM002`**, refused by the format like any other construct. Not chosen: it retires
   `FM005`, a published code; every duplicate would hide the whole block; and its level could no longer be set apart
   from a syntax error's.
+- **Keep the YAML 1.1 reading PyYAML was matched with**: the version pin, U+0085, U+2028 and U+2029 as line breaks,
+  and the block-scalar and tab rules, all written into this record. No output changes. Not chosen: it keeps a
+  grammar this record does not state, and a line split that disagrees with lorecraft's line rule.
+- **Drop every rule the parser's YAML 1.2 does not have.** The least code. Not chosen: a short blank line before a
+  block scalar's text would fall to the fallback message, `[b,⇥c]` would be accepted while `a: b⇥c` stays refused,
+  and `{a:, b: c}` would silently read the key `a:`.
+- **Read U+0085, U+2028 and U+2029 as text outside quotes**, as lorecraft's line rule implies. Not chosen: the
+  parser hard-codes them as line breaks at many sites, and overriding each is large and breaks with a parser
+  upgrade. Leaving them to the parser while numbering lines by lorecraft's rule makes them line breaks with the
+  wrong line number, which folds `x␅y` into `x y` and lets a comment swallow the key after it.
 
 ## Consequences
 
@@ -154,8 +192,12 @@ parser text; every syntax-error probe is held to a kind, so the fallback stays a
   fixes it.
 - **lorecraft owns the classification**: it reads the parser's error texts to pick a kind, so a parser upgrade that
   rewords an error can move it to the fallback. The pinned parser and a test per kind catch that before release.
-- **The parser code in `frontmatter.py` shrinks**: the directive and version handling, the scanner overrides and the
-  wording table go. The event walking, the core-schema resolution and the refusals stay, joined by the new ones.
+- **A U+0085, U+2028 or U+2029 outside quotes is now `FM002`**, where the block used to split its line there. These
+  characters are rarely written on purpose, and the help says what to write instead.
+- **The parser code in `frontmatter.py` shrinks**: the directive and version handling, the YAML 1.1 line breaks, the
+  scanner overrides that only copied PyYAML and the wording table go. The event walking, the core-schema resolution
+  and the refusals stay, joined by the new ones, and the scanner overrides that stay each hold one of the rules of
+  frontmatter's own.
 - **Each row of the Specification has a test of its own**: an accepted row decodes to what the table says, and a
   refused row is `FM002` on its line next to a near miss the format accepts (NFR-002).
 - **What stays true**: the four outcomes of decoding a block, and the value every block inside the subset decodes
@@ -166,6 +208,8 @@ parser text; every syntax-error probe is held to a kind, so the fallback stays a
 - [ ] The docstring of `frontmatter.py` states the Specification's accepted constructs
 - [ ] Each accepted row of the Specification has a test that decodes it to what the table says
 - [ ] Plain scalars resolve by YAML 1.2's core schema, with `.inf` and `.nan` read as strings
+- [ ] The parser reads YAML 1.2, and each rule of frontmatter's own has a test; no other override bends its grammar
+- [ ] `FM002` line numbers count a line end only at `\n`, `\r\n` or a lone `\r`
 - [ ] Each refused row of the Specification is `FM002` on its line, worded `found <what>, which frontmatter does not
   allow`, with a test that triggers it and a near miss that does not
 - [ ] Each refusal is decided from the token or event stream, not from a parser error
