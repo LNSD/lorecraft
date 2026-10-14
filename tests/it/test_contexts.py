@@ -30,6 +30,7 @@ from lorecraft.project.database import (
     DatabaseSkillContext,
     DatabaseSkillResourceContext,
     DocumentText,
+    GovernedDocument,
     SkillResourceText,
     SkillText,
 )
@@ -137,7 +138,9 @@ def _document_context(database: Database) -> DocumentContext:
     Args:
         database: The database `TYPING` is read from.
     """
-    return DatabaseDocumentContext(database, _document_text(database))
+    governed = GovernedDocument.find(database, _document_text(database))
+    assert governed is not None, f'{TYPING.path} is in a corpus that states a structure specification'
+    return DatabaseDocumentContext(database, governed)
 
 
 def _skill_text(database: Database) -> SkillText:
@@ -218,6 +221,35 @@ def _write_tree(directory: Path, tree: FileTree) -> None:
             (directory / name).write_bytes(entry)
         else:
             _write_tree(directory / name, entry)
+
+
+@pytest.mark.it
+class TestGovernedDocument:
+    def test_find_with_a_document_of_a_corpus_that_states_a_structure_returns_it_governed(self) -> None:
+        #: Given
+        database = Database.open(_snapshot())
+        text = _document_text(database)
+
+        #: When
+        governed = GovernedDocument.find(database, text)
+
+        #: Then
+        assert governed is not None, 'the corpus states a structure specification'
+        assert governed.text is text, 'the witness is the decoded text'
+        assert governed.governance is database.governance(TYPING), 'the governance is the memoized query value'
+        assert governed.corpus_structure.path == CORPUS_SPEC, "the structure is the corpus's"
+
+    def test_find_with_a_document_of_a_corpus_the_model_does_not_hold_returns_none(self) -> None:
+        #: Given
+        database = Database.open(_snapshot())
+        ref = DocumentRef(CorpusName.parse('docs'), AspectFilename.parse('python-typing'))
+        text = DocumentText(ref=ref, text=TYPING_TEXT)
+
+        #: When
+        governed = GovernedDocument.find(database, text)
+
+        #: Then
+        assert governed is None, 'no corpus governs the document'
 
 
 @pytest.mark.it

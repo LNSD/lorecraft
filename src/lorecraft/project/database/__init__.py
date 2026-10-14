@@ -9,7 +9,13 @@ decoded subject, and `DatabaseLayoutContext` from the record of one symlink of t
 the repository.
 """
 
-from .context import DatabaseDocumentContext, DatabaseLayoutContext, DatabaseSkillContext, DatabaseSkillResourceContext
+from .context import (
+    DatabaseDocumentContext,
+    DatabaseLayoutContext,
+    DatabaseSkillContext,
+    DatabaseSkillResourceContext,
+    GovernedDocument,
+)
 from .database import Database
 from .text import DocumentText, SkillResourceText, SkillText, Undecodable
 
@@ -19,6 +25,7 @@ __all__: list[str] = [
     'SkillText',
     'SkillResourceText',
     'Undecodable',
+    'GovernedDocument',
     'DatabaseDocumentContext',
     'DatabaseSkillContext',
     'DatabaseSkillResourceContext',

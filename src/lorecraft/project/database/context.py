@@ -8,8 +8,8 @@ once. An identity value, such as a document's filename or a skill's directory na
 its location.
 
 A context is built only from a witness, so no fact of a file that does not decode can be asked for, and a document's
-context only for a document whose corpus states a structure specification: no facet governs a document whose corpus
-states none. The model is loaded by then, so no method raises.
+context only from a `GovernedDocument`, the decoded text with the governance of a corpus that states a structure
+specification: no facet governs a document whose corpus states none. The governance is held, so no method raises.
 
 `DatabaseLayoutContext` implements `LayoutContext`. A layout entry has no text, so it has no witness and no per-file
 query: the context holds the `OutsideSymlink` record the model's `outside_symlinks` or a skill's `skill_resources`
@@ -17,6 +17,7 @@ listing returned, the memoized query value itself, and reads every fact from it.
 """
 
 from collections.abc import Mapping
+from dataclasses import dataclass
 
 from lorecraft.core.path import PathComponent
 from lorecraft.project.aspect import AspectFilename
@@ -38,21 +39,57 @@ from .database import Database
 from .text import DocumentText, SkillResourceText, SkillText
 
 
+@dataclass(frozen=True, slots=True)
+class GovernedDocument:
+    """A decoded document whose corpus states a structure specification: the witness of a document's context.
+
+    Without a structure specification of its corpus no facet governs a document, so no value of this type holds one.
+    Built only by `GovernedDocument.find`, which pairs the text with the governance and structure it asked the database
+    for.
+
+    Attributes:
+        text: The document's text, as `Database.text` returns it: the witness every per-file query takes.
+        governance: The specifications that govern the document, as `Database.governance` returns them.
+        corpus_structure: The structure specification of the document's corpus, which `governance` states.
+    """
+
+    text: DocumentText
+    governance: Governance
+    corpus_structure: StructureSpec
+
+    @classmethod
+    def find(cls, database: Database, text: DocumentText) -> 'GovernedDocument | None':
+        """The governed document, or `None` when no facet can govern it. Raises nothing.
+
+        No facet governs a document in no corpus the database's model holds, nor one whose corpus has no structure
+        specification that loaded: without the corpus's, a namespace's governs nothing.
+
+        Args:
+            database: The revision the document is read from; its model decides which specifications govern it.
+            text: The document's text, the witness every per-file query takes.
+        """
+        governance = database.governance(text.ref)
+        if governance is None:
+            return None
+        corpus_structure = governance.corpus_structure()
+        if corpus_structure is None:
+            return None
+        return cls(text, governance, corpus_structure)
+
+
 class DatabaseDocumentContext:
     """One decoded document of a corpus, as the database answers for it; a `DocumentContext`."""
 
-    def __init__(self, database: Database, source: DocumentText) -> None:
+    def __init__(self, database: Database, governed: GovernedDocument) -> None:
         """Bind the context to one decoded document of a corpus that states a structure specification.
-
-        The caller has found, through `Database.governance`, that the document's corpus states one: without it no
-        facet governs the document, and no context is built.
 
         Args:
             database: The revision the document is read from.
-            source: The document's text, as `Database.text` returns it: the witness every per-file query takes.
+            governed: The document's text and the specifications that govern it.
         """
         self._database = database
-        self._source = source
+        self._governed = governed
+        self._source = governed.text
 
     def filename(self) -> AspectFilename:
         """The document's filename, without its extension, read from its ref."""
@@ -93,20 +130,12 @@ class DatabaseDocumentContext:
         return self._database.document_lines(self._source)
 
     def specifications(self) -> Governance:
-        """The specifications that govern the document, from the `governance` query."""
-        governance = self._database.governance(self._source.ref)
-        # The runner builds a context only after `governance` found the document's corpus, so it is never `None` here.
-        if governance is None:
-            raise AssertionError('unreachable: a context is built only for a document in a corpus the model holds')
-        return governance
+        """The specifications that govern the document, as `Database.governance` returned them."""
+        return self._governed.governance
 
     def corpus_structure(self) -> StructureSpec:
-        """The structure specification of the document's corpus, from the `governance` query."""
-        corpus_structure = self.specifications().corpus_structure()
-        # The runner builds a context only for a corpus whose structure specification loaded, so it is never `None`.
-        if corpus_structure is None:
-            raise AssertionError('unreachable: a context is built only for a corpus that states a structure')
-        return corpus_structure
+        """The structure specification of the document's corpus, which the specifications state."""
+        return self._governed.corpus_structure
 
     def outline_alignment(self) -> tuple[OutlineAlignmentSpec, ...]:
         """Which outline entry each of the document's sections falls in, from the `outline_alignment` query."""
