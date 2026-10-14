@@ -6,17 +6,19 @@ counted at the one place it is computed, `Corpus.governance`, while every reader
 the context's `specifications()` and `corpus_structure()`, `schema_problems` and `outline_divergences`.
 """
 
+from dataclasses import replace
 from typing import Final
 
 import pytest
 
 from lorecraft import rules
+from lorecraft.core.mapping import FrozenMapping
 from lorecraft.engine import check_subjects
-from lorecraft.project.aspect import AspectFilename
+from lorecraft.project.aspect import AspectFilename, AspectNamespace
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.database import Database
 from lorecraft.project.document import DocumentRef
-from lorecraft.project.workspace import Corpus, Governance
+from lorecraft.project.workspace import Corpus, CorpusNamespace, Governance
 from lorecraft.rules.registry import Registry
 from lorecraft.rules.selection import AllRules, RuleSelection
 from lorecraft.rules.table import RuleTable
@@ -99,6 +101,39 @@ class TestGovernance:
 
         #: Then
         assert second is first, 'the governance is found once per database, then shared by every reader'
+
+    def test_governance_across_corpora_differing_only_in_an_unrelated_filename_is_equal(self) -> None:
+        #: Given
+        corpus = Database.open(_snapshot()).model().find_corpus(CorpusName.parse('code'))
+        assert corpus is not None, 'the snapshot declares corpus `code`'
+        with_other_document = replace(corpus, filenames=corpus.filenames | {AspectFilename.parse('other')})
+
+        #: When
+        governance = corpus.governance(TYPING.filename)
+        governance_with_other_document = with_other_document.governance(TYPING.filename)
+
+        #: Then
+        assert governance == governance_with_other_document, 'a document that is not governed leaves it unchanged'
+        assert hash(governance) == hash(governance_with_other_document), 'equal governances hash alike'
+
+    def test_governance_across_corpora_differing_only_in_a_non_matching_namespace_is_equal(self) -> None:
+        #: Given
+        corpus = Database.open(_snapshot()).model().find_corpus(CorpusName.parse('code'))
+        assert corpus is not None, 'the snapshot declares corpus `code`'
+        namespace = AspectNamespace.parse('rust')
+        with_other_namespace = replace(
+            corpus,
+            namespaces=FrozenMapping({**corpus.namespaces, namespace: CorpusNamespace(files=(), structure=None)}),
+        )
+
+        #: When
+        governance = corpus.governance(TYPING.filename)
+        governance_with_other_namespace = with_other_namespace.governance(TYPING.filename)
+
+        #: Then
+        assert governance == governance_with_other_namespace, (
+            'a spec that does not govern the document is no part of it'
+        )
 
 
 @pytest.mark.it

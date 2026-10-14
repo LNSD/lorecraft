@@ -19,7 +19,6 @@ from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.project.aspect import AspectFilename, AspectNamespace
 from lorecraft.project.context import DocumentFrontmatterOwner, SkillFrontmatterOwner
 from lorecraft.project.corpus import CorpusName
-from lorecraft.project.document import DocumentRef
 from lorecraft.project.layout import SPECS_DIR
 from lorecraft.project.link_target import DocumentDirectory, LinkTargetEntry, SkillRoot
 from lorecraft.project.schemas import (
@@ -56,7 +55,7 @@ from lorecraft.project.syntax import (
     parse_document,
     parse_frontmatter,
 )
-from lorecraft.project.workspace import CorpusSpec, Governance, NamespaceSpec
+from lorecraft.project.workspace import Corpus, CorpusNamespace, CorpusSpec, Governance, NamespaceSpec
 from lorecraft.vfs import ResolvedPath, RootExit
 
 _DEFAULT_FILENAME: Final[str] = 'setup'
@@ -190,7 +189,8 @@ class FakeDocumentContext:
     """A document a test writes as text, governed by the specifications the test states; a `DocumentContext`.
 
     The governance is set by hand, as the model would find it: the corpus's specification first, then each
-    namespace's the test lists, broad to narrow. Nothing checks that a listed namespace matches the filename.
+    namespace's the test lists, broad to narrow. The specifications are built through a `Corpus`, as the model builds
+    them, so a namespace the filename does not match is refused rather than dropped.
     """
 
     _text: str
@@ -204,7 +204,7 @@ class FakeDocumentContext:
         corpus: str,
         structure: str,
         namespaces: tuple[NamespaceSpec, ...] = (),
-        filename: str = _DEFAULT_FILENAME,
+        filename: str | None = None,
     ) -> None:
         """Hold the document's text and the specifications that govern it.
 
@@ -215,9 +215,11 @@ class FakeDocumentContext:
                 corpus that states one.
             namespaces: The namespace specifications that govern the document, broad to narrow, as `namespace_spec`
                 builds them.
-            filename: The document's filename, without its extension.
+            filename: The document's filename, without its extension; `setup`, or `<namespace>-setup` for the
+                narrowest namespace listed, which every namespace listed then governs.
 
         Raises:
+            ValueError: If a listed namespace does not govern the filename, or is of another corpus.
             EmptyCorpusNameError: If the corpus is empty.
             InvalidCorpusNameCharacterError: If a character of the corpus falls outside lowercase snake case.
             EmptyAspectNameError: If the filename is empty.
@@ -238,8 +240,16 @@ class FakeDocumentContext:
         self._text = text
         self._corpus_structure = _decode_structure(spec_name, structure)
         corpus_spec = CorpusSpec(name=spec_name, files=_files(spec_name), structure=self._corpus_structure)
-        ref = DocumentRef(spec_name.corpus, AspectFilename.parse(filename))
-        self._governance = Governance(ref, corpus_spec, namespaces)
+        if filename is None:
+            filename = f'{namespaces[-1].name.namespace}-{_DEFAULT_FILENAME}' if namespaces else _DEFAULT_FILENAME
+        document = AspectFilename.parse(filename)
+        corpus_namespaces: dict[AspectNamespace, CorpusNamespace] = {}
+        for namespace in namespaces:
+            if namespace.name.corpus != spec_name.corpus or not namespace.is_governing(document):
+                raise ValueError(f'the namespace spec {namespace.name} does not govern {spec_name.corpus}/{document}')
+            corpus_namespaces[namespace.name.namespace] = CorpusNamespace(namespace.files, namespace.structure)
+        held_corpus = Corpus(corpus_spec, FrozenMapping(corpus_namespaces), frozenset())
+        self._governance = Governance(held_corpus, document)
 
     def filename(self) -> AspectFilename:
         """The document's filename, without its extension."""

@@ -11,7 +11,7 @@ base; it never supplies one, so a corpus spec that states no rule of one kind, a
 frontmatter schema, leaves the document ungoverned for that kind whatever the namespace specs carry.
 """
 
-from dataclasses import dataclass
+from dataclasses import InitVar, dataclass, field
 
 from lorecraft.agents import AgentName
 from lorecraft.core.mapping import FrozenMapping
@@ -82,15 +82,34 @@ class Governance:
     A layer whose structure file failed to load is held as it is, with its `FailedStructure`. The queries below read
     only the layers that loaded; `failed_layers` names the others, so a consumer decides what a failed layer means.
 
+    The governance is built from a corpus and a filename and keeps only the specs they yield, so it cannot hold a spec
+    of another corpus, one whose namespace does not match the filename, or one twice. Two governances are equal when
+    they govern the same document with the same specs, whatever else their corpora hold.
+
     Attributes:
         ref: The governed document.
         corpus_spec: The spec of the document's corpus, which governs every document in it.
         namespace_specs: Every namespace spec whose namespace matches the document, broad to narrow.
     """
 
-    ref: DocumentRef
-    corpus_spec: CorpusSpec
-    namespace_specs: tuple[NamespaceSpec, ...]
+    # Construction arguments, not fields: neither is kept, so neither takes part in equality or hashing.
+    corpus: InitVar['Corpus']  # defined below: a corpus builds its governance, and the governance reads it
+    filename: InitVar[AspectFilename]  # matched by hyphen-delimited prefix; the document is the corpus's
+    ref: DocumentRef = field(init=False)
+    corpus_spec: CorpusSpec = field(init=False)
+    namespace_specs: tuple[NamespaceSpec, ...] = field(init=False)
+
+    def __post_init__(self, corpus: 'Corpus', filename: AspectFilename) -> None:
+        """Derive the governing specs once, from the corpus and the filename."""
+        matching: list[NamespaceSpec] = []
+        for namespace_spec in corpus.namespace_specs:
+            if namespace_spec.is_governing(filename):
+                matching.append(namespace_spec)
+        # The class is frozen, so the derived values are set through `object`; deriving them here means they cannot
+        # disagree with the corpus and filename.
+        object.__setattr__(self, 'ref', DocumentRef(corpus=corpus.name, filename=filename))
+        object.__setattr__(self, 'corpus_spec', corpus.corpus_spec)
+        object.__setattr__(self, 'namespace_specs', tuple(matching))
 
     def specs(self) -> tuple[Spec, ...]:
         """Every governing spec, corpus spec first."""
@@ -239,12 +258,7 @@ class Corpus:
             filename: Stem of the document whose governing specs are wanted; it names no corpus, so the governed
                 document is this corpus's.
         """
-        matching: list[NamespaceSpec] = []
-        for namespace_spec in self.namespace_specs:
-            if namespace_spec.is_governing(filename):
-                matching.append(namespace_spec)
-        ref = DocumentRef(corpus=self.name, filename=filename)
-        return Governance(ref, self.corpus_spec, tuple(matching))
+        return Governance(self, filename)
 
 
 @dataclass(frozen=True, slots=True)

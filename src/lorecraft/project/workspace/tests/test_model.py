@@ -33,7 +33,7 @@ from lorecraft.project.skill import OutsideSymlink, SkillLocation, SkillRef, Ski
 from lorecraft.vfs import ResolvedPath, RootExit
 
 from ..failure import FailedStructure
-from ..model import Corpus, CorpusNamespace, CorpusSpec, Governance, NamespaceSpec, WorkspaceModel, namespace_order_key
+from ..model import Corpus, CorpusNamespace, CorpusSpec, NamespaceSpec, WorkspaceModel, namespace_order_key
 
 CODE: Final[CorpusName] = CorpusName.parse('code')
 FEAT: Final[CorpusName] = CorpusName.parse('feat')
@@ -759,9 +759,10 @@ class TestWorkspaceModel:
         governance = two_corpora_model.find_governance(ref)
 
         #: Then
-        assert governance == Governance(ref, _corpus_spec('feat'), ()), (
-            'the feat corpus spec governs a document of the feat corpus'
-        )
+        assert governance is not None, 'the model lists the feat corpus'
+        assert governance.ref == ref, 'the governance is of the document asked'
+        assert governance.corpus_spec == _corpus_spec('feat'), 'the feat corpus spec governs it'
+        assert governance.namespace_specs == (), 'no namespace of the feat corpus matches `cli-check`'
 
     def test_find_governance_with_a_ref_of_a_corpus_the_model_lacks_returns_none(
         self, two_corpora_model: WorkspaceModel
