@@ -61,7 +61,7 @@ class Utf8Failure:
 
     Attributes:
         line: The line the first invalid byte is on, at least 1, counted as `lorecraft.core.lines` counts a line,
-            so a file that breaks lines with bare carriage returns reports line 1.
+            so a file that breaks lines with bare carriage returns reports the line it is on.
         offset: The zero-based offset of the first invalid byte in the file; never negative.
         invalid: The bytes the decoder rejected, starting at `offset`; never empty.
         reason: Why the decoder rejected them.

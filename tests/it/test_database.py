@@ -554,6 +554,22 @@ class TestDatabase:
             Heading(level=1, text='Guide', line=LineNumber.from_int(4), empty=True, words=UnsignedInt(0)),
         ), 'the parse tree holds the snapshot content'
 
+    def test_source_lines_of_a_file_with_lone_carriage_returns_holds_the_line_a_heading_is_reported_on(self) -> None:
+        #: Given
+        database = Database.open(_snapshot(b'one\r\r# Guide\r\rtwo\r'))
+        source = _document_text(database, GUIDE)
+
+        #: When
+        lines = database.source_lines(GUIDE.path)
+        document = database.parse(source)
+
+        #: Then
+        assert lines is not None, 'a document that decodes has lines to excerpt'
+        heading_line = document.headings[0].line.value.value
+        assert lines[heading_line - 1] == '# Guide', (
+            f'the excerpted line a heading number names is the heading, got {lines!r} for line {heading_line}'
+        )
+
     def test_parse_called_twice_returns_the_first_answer(self) -> None:
         #: Given
         database = Database.open(_snapshot(b'---\nname: "guide"\n---\n'))

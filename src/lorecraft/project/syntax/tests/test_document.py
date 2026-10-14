@@ -257,7 +257,7 @@ class TestParseDocumentHeadings:
 
         #: Then
         assert [heading.line for heading in document.headings] == [LineNumber.from_int(1), LineNumber.from_int(5)], (
-            f'{separator!r} ends no line, so the heading after it is on the line a `\\n` count gives'
+            f'{separator!r} ends no line, so the heading after it is on the line the line breaks give'
         )
 
     def test_parse_document_with_a_form_feed_returns_each_heading_on_its_document_line(self) -> None:
@@ -270,7 +270,7 @@ class TestParseDocumentHeadings:
 
         #: Then
         assert [heading.line for heading in document.headings] == [LineNumber.from_int(1), LineNumber.from_int(5)], (
-            f'{separator!r} ends no line, so the heading after it is on the line a `\\n` count gives'
+            f'{separator!r} ends no line, so the heading after it is on the line the line breaks give'
         )
 
     def test_parse_document_with_a_next_line_returns_each_heading_on_its_document_line(self) -> None:
@@ -283,7 +283,7 @@ class TestParseDocumentHeadings:
 
         #: Then
         assert [heading.line for heading in document.headings] == [LineNumber.from_int(1), LineNumber.from_int(5)], (
-            f'{separator!r} ends no line, so the heading after it is on the line a `\\n` count gives'
+            f'{separator!r} ends no line, so the heading after it is on the line the line breaks give'
         )
 
     def test_parse_document_with_a_line_separator_returns_each_heading_on_its_document_line(self) -> None:
@@ -296,7 +296,19 @@ class TestParseDocumentHeadings:
 
         #: Then
         assert [heading.line for heading in document.headings] == [LineNumber.from_int(1), LineNumber.from_int(5)], (
-            f'{separator!r} ends no line, so the heading after it is on the line a `\\n` count gives'
+            f'{separator!r} ends no line, so the heading after it is on the line the line breaks give'
+        )
+
+    def test_parse_document_with_lone_carriage_returns_returns_each_heading_on_its_document_line(self) -> None:
+        #: Given
+        text = '# Guide\r\r## Checklist\r'
+
+        #: When
+        document = parse_document(text)
+
+        #: Then
+        assert [heading.line for heading in document.headings] == [LineNumber.from_int(1), LineNumber.from_int(3)], (
+            'a lone `\\r` ends a line, as CommonMark has it'
         )
 
     def test_parse_document_with_a_leading_blank_line_returns_the_heading_on_line_two(self) -> None:
@@ -612,7 +624,7 @@ class TestParseDocumentLinks:
 
         #: Then
         assert [link.line for link in document.links] == [LineNumber.from_int(5)], (
-            f'{separator!r} ends no line, so the link after it is on the line a `\\n` count gives'
+            f'{separator!r} ends no line, so the link after it is on the line the line breaks give'
         )
 
     def test_parse_document_with_a_form_feed_returns_each_link_on_its_document_line(self) -> None:
@@ -625,7 +637,7 @@ class TestParseDocumentLinks:
 
         #: Then
         assert [link.line for link in document.links] == [LineNumber.from_int(5)], (
-            f'{separator!r} ends no line, so the link after it is on the line a `\\n` count gives'
+            f'{separator!r} ends no line, so the link after it is on the line the line breaks give'
         )
 
     def test_parse_document_with_a_next_line_returns_each_link_on_its_document_line(self) -> None:
@@ -638,7 +650,7 @@ class TestParseDocumentLinks:
 
         #: Then
         assert [link.line for link in document.links] == [LineNumber.from_int(5)], (
-            f'{separator!r} ends no line, so the link after it is on the line a `\\n` count gives'
+            f'{separator!r} ends no line, so the link after it is on the line the line breaks give'
         )
 
     def test_parse_document_with_a_line_separator_returns_each_link_on_its_document_line(self) -> None:
@@ -651,7 +663,19 @@ class TestParseDocumentLinks:
 
         #: Then
         assert [link.line for link in document.links] == [LineNumber.from_int(5)], (
-            f'{separator!r} ends no line, so the link after it is on the line a `\\n` count gives'
+            f'{separator!r} ends no line, so the link after it is on the line the line breaks give'
+        )
+
+    def test_parse_document_with_lone_carriage_returns_returns_each_link_on_its_document_line(self) -> None:
+        #: Given
+        text = '# Guide\r\r[one](a.md)\r\r[two](b.md)\r'
+
+        #: When
+        document = parse_document(text)
+
+        #: Then
+        assert [link.line for link in document.links] == [LineNumber.from_int(3), LineNumber.from_int(5)], (
+            'a lone `\\r` ends a line, as CommonMark has it'
         )
 
 
