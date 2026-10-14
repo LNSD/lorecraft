@@ -81,9 +81,10 @@ class TestSkillFrontmatterSchemaValidate:
             'metadata': {'author': 'example-org', 'version': '1.0'},
             'allowed-tools': 'Bash(git add *) Read',
         }
+        mapping = FrozenMapping.from_plain(data)
 
         #: When
-        problems = SKILL_FRONTMATTER_SCHEMA.validate(FrozenMapping.from_plain(data))
+        problems = SKILL_FRONTMATTER_SCHEMA.validate(mapping)
 
         #: Then
         assert problems == (), 'a frontmatter with every field, each valid, conforms'
@@ -91,9 +92,10 @@ class TestSkillFrontmatterSchemaValidate:
     def test_validate_without_the_required_fields_returns_one_missing_problem_each(self) -> None:
         #: Given
         data: dict[str, Plain] = {}
+        mapping = FrozenMapping.from_plain(data)
 
         #: When
-        problems = SKILL_FRONTMATTER_SCHEMA.validate(FrozenMapping.from_plain(data))
+        problems = SKILL_FRONTMATTER_SCHEMA.validate(mapping)
 
         #: Then
         assert problems == (
@@ -104,9 +106,10 @@ class TestSkillFrontmatterSchemaValidate:
     def test_validate_with_a_field_outside_the_specification_returns_an_unknown_field_problem(self) -> None:
         #: Given
         data: dict[str, Plain] = {'name': 'review', 'description': 'Review code.', 'model': 'opus'}
+        mapping = FrozenMapping.from_plain(data)
 
         #: When
-        problems = SKILL_FRONTMATTER_SCHEMA.validate(FrozenMapping.from_plain(data))
+        problems = SKILL_FRONTMATTER_SCHEMA.validate(mapping)
 
         #: Then
         assert problems == (
@@ -120,9 +123,10 @@ class TestSkillFrontmatterSchemaValidate:
     def test_validate_with_a_name_that_is_not_a_string_returns_a_wrong_type_problem(self) -> None:
         #: Given
         data: dict[str, Plain] = {'name': None, 'description': 'Review code.'}
+        mapping = FrozenMapping.from_plain(data)
 
         #: When
-        problems = SKILL_FRONTMATTER_SCHEMA.validate(FrozenMapping.from_plain(data))
+        problems = SKILL_FRONTMATTER_SCHEMA.validate(mapping)
 
         #: Then
         assert problems == (
@@ -134,9 +138,10 @@ class TestSkillFrontmatterSchemaValidate:
     def test_validate_with_metadata_that_is_not_a_mapping_returns_a_wrong_type_problem(self) -> None:
         #: Given
         data: dict[str, Plain] = {'name': 'review', 'description': 'Review code.', 'metadata': 'author'}
+        mapping = FrozenMapping.from_plain(data)
 
         #: When
-        problems = SKILL_FRONTMATTER_SCHEMA.validate(FrozenMapping.from_plain(data))
+        problems = SKILL_FRONTMATTER_SCHEMA.validate(mapping)
 
         #: Then
         assert problems == (
@@ -152,9 +157,10 @@ class TestSkillFrontmatterSchemaValidate:
     def test_validate_with_an_unquoted_metadata_number_returns_an_invalid_value_problem(self) -> None:
         #: Given
         data: dict[str, Plain] = {'name': 'review', 'description': 'Review code.', 'metadata': {'version': 1.0}}
+        mapping = FrozenMapping.from_plain(data)
 
         #: When
-        problems = SKILL_FRONTMATTER_SCHEMA.validate(FrozenMapping.from_plain(data))
+        problems = SKILL_FRONTMATTER_SCHEMA.validate(mapping)
 
         #: Then
         assert problems == (
@@ -166,9 +172,10 @@ class TestSkillFrontmatterSchemaValidate:
     def test_validate_with_an_empty_name_returns_the_value_objects_own_message(self) -> None:
         #: Given
         data: dict[str, Plain] = {'name': '', 'description': 'Review code.'}
+        mapping = FrozenMapping.from_plain(data)
 
         #: When
-        problems = SKILL_FRONTMATTER_SCHEMA.validate(FrozenMapping.from_plain(data))
+        problems = SKILL_FRONTMATTER_SCHEMA.validate(mapping)
 
         #: Then
         assert problems == (
@@ -179,9 +186,10 @@ class TestSkillFrontmatterSchemaValidate:
         #: Given
         name = 'a' * 65
         data: dict[str, Plain] = {'name': name, 'description': 'Review code.'}
+        mapping = FrozenMapping.from_plain(data)
 
         #: When
-        problems = SKILL_FRONTMATTER_SCHEMA.validate(FrozenMapping.from_plain(data))
+        problems = SKILL_FRONTMATTER_SCHEMA.validate(mapping)
 
         #: Then
         assert problems == (
@@ -196,9 +204,10 @@ class TestSkillFrontmatterSchemaValidate:
     def test_validate_with_an_uppercase_name_returns_the_value_objects_own_message(self) -> None:
         #: Given
         data: dict[str, Plain] = {'name': 'PDF', 'description': 'Review code.'}
+        mapping = FrozenMapping.from_plain(data)
 
         #: When
-        problems = SKILL_FRONTMATTER_SCHEMA.validate(FrozenMapping.from_plain(data))
+        problems = SKILL_FRONTMATTER_SCHEMA.validate(mapping)
 
         #: Then
         assert problems == (
@@ -214,9 +223,10 @@ class TestSkillFrontmatterSchemaValidate:
     def test_validate_with_braces_in_a_rejected_name_returns_the_braces_unformatted(self) -> None:
         #: Given
         data: dict[str, Plain] = {'name': '{reason}', 'description': 'Review code.'}
+        mapping = FrozenMapping.from_plain(data)
 
         #: When
-        problems = SKILL_FRONTMATTER_SCHEMA.validate(FrozenMapping.from_plain(data))
+        problems = SKILL_FRONTMATTER_SCHEMA.validate(mapping)
 
         #: Then
         assert problems == (
@@ -232,9 +242,10 @@ class TestSkillFrontmatterSchemaValidate:
     def test_validate_with_a_description_over_the_limit_returns_an_invalid_value_problem(self) -> None:
         #: Given
         data: dict[str, Plain] = {'name': 'review', 'description': 'x' * 1025}
+        mapping = FrozenMapping.from_plain(data)
 
         #: When
-        problems = SKILL_FRONTMATTER_SCHEMA.validate(FrozenMapping.from_plain(data))
+        problems = SKILL_FRONTMATTER_SCHEMA.validate(mapping)
 
         #: Then
         assert problems == (
@@ -249,9 +260,10 @@ class TestSkillFrontmatterSchemaValidate:
     def test_validate_with_a_blank_compatibility_returns_an_invalid_value_problem(self) -> None:
         #: Given
         data: dict[str, Plain] = {'name': 'review', 'description': 'Review code.', 'compatibility': ' '}
+        mapping = FrozenMapping.from_plain(data)
 
         #: When
-        problems = SKILL_FRONTMATTER_SCHEMA.validate(FrozenMapping.from_plain(data))
+        problems = SKILL_FRONTMATTER_SCHEMA.validate(mapping)
 
         #: Then
         assert problems == (
@@ -266,9 +278,10 @@ class TestSkillFrontmatterSchemaValidate:
     def test_validate_with_allowed_tools_spelt_with_an_underscore_returns_an_unknown_field_problem(self) -> None:
         #: Given
         data: dict[str, Plain] = {'name': 'review', 'description': 'Review code.', 'allowed_tools': 'Read'}
+        mapping = FrozenMapping.from_plain(data)
 
         #: When
-        problems = SKILL_FRONTMATTER_SCHEMA.validate(FrozenMapping.from_plain(data))
+        problems = SKILL_FRONTMATTER_SCHEMA.validate(mapping)
 
         #: Then
         assert problems == (
