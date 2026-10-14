@@ -11,8 +11,8 @@ from lorecraft.rules.engine.malformed_structure_file import MalformedStructureFi
 from lorecraft.rules.engine.unreadable_path import UnreadablePath
 from lorecraft.rules.engine.unusable_structure_file import UnusableStructureFile
 from lorecraft.rules.frontmatter.allowed_tools_too_long import AllowedToolsTooLong
-from lorecraft.rules.frontmatter.block_constraint import BlockConstraint
 from lorecraft.rules.frontmatter.duplicate_key import DuplicateKey
+from lorecraft.rules.frontmatter.invalid_frontmatter import InvalidFrontmatter
 from lorecraft.rules.frontmatter.invalid_value import InvalidValue
 from lorecraft.rules.frontmatter.invalid_yaml import InvalidYaml
 from lorecraft.rules.frontmatter.malformed_allowed_tools import MalformedAllowedTools
@@ -505,7 +505,7 @@ class TestPackageRegistry:
             UnknownField,
             WrongType,
             InvalidValue,
-            BlockConstraint,
+            InvalidFrontmatter,
             MalformedAllowedTools,
             AllowedToolsTooLong,
             OutsideSymlink,

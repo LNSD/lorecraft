@@ -73,8 +73,8 @@ from lorecraft.project.syntax import (
 from lorecraft.project.workspace import WorkspaceModel
 from lorecraft.rules.declaration import Level, Release, Rule, RuleCode, RuleGroup, RuleGroupPrefix, RuleName, Severity
 from lorecraft.rules.frontmatter.allowed_tools_too_long import AllowedToolsTooLong
-from lorecraft.rules.frontmatter.block_constraint import BlockConstraint
 from lorecraft.rules.frontmatter.duplicate_key import DuplicateKey
+from lorecraft.rules.frontmatter.invalid_frontmatter import InvalidFrontmatter
 from lorecraft.rules.frontmatter.invalid_value import InvalidValue
 from lorecraft.rules.frontmatter.invalid_yaml import InvalidYaml
 from lorecraft.rules.frontmatter.malformed_allowed_tools import CommaSeparated, MalformedAllowedTools
@@ -1322,7 +1322,7 @@ class TestCheckSubjects:
                 'status', "'Final' does not match '^(draft|stable)$'", PatternMismatch('^(draft|stable)$')
             ),
         )
-        block_constraint = BlockConstraint(
+        invalid_frontmatter = InvalidFrontmatter(
             source=StructureSpecSchema(spec=CODE_SPEC),
             line=line_1,
             problem=BlockProblem(
@@ -1340,7 +1340,7 @@ class TestCheckSubjects:
                     RuleDiagnostic(GUIDE.path, unknown_field, Severity.WARNING),
                     RuleDiagnostic(GUIDE.path, wrong_type, Severity.ERROR),
                     RuleDiagnostic(GUIDE.path, invalid_value, Severity.ERROR),
-                    RuleDiagnostic(GUIDE.path, block_constraint, Severity.ERROR),
+                    RuleDiagnostic(GUIDE.path, invalid_frontmatter, Severity.ERROR),
                 ),
                 ungoverned=(Facet.OUTLINE, Facet.BUDGET),
             ),

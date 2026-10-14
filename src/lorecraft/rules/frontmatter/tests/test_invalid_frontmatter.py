@@ -1,4 +1,4 @@
-"""`FM010`, `block-constraint`, over the problems the frontmatter schemas find in a subject's frontmatter.
+"""`FM010`, `invalid-frontmatter`, over the problems the frontmatter schemas find in a subject's frontmatter.
 
 Every case is a document or a `SKILL.md` written as text, read through a fake context that holds it to its schemas as
 the real analysis does, under structure specifications decoded from JSON; no file is read from disk.
@@ -29,7 +29,7 @@ from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.location import Elsewhere, Help, Here, Label, Note
 from lorecraft.rules.tests.fake_context import FakeDocumentContext, namespace_spec, structure_spec_path
 
-from ..block_constraint import BlockConstraint
+from ..invalid_frontmatter import InvalidFrontmatter
 
 CORPUS_SPEC: Final[RootRelativePath] = structure_spec_path('guide')
 """Where the corpus structure specification lies."""
@@ -72,16 +72,16 @@ LINE: Final[LineNumber] = LineNumber(NonZeroUnsignedInt(1))
 
 
 @pytest.mark.unit
-class TestBlockConstraint:
+class TestInvalidFrontmatter:
     def test_check_with_a_block_constraint_reports_it_on_line_1_naming_the_specification(self) -> None:
         #: Given
         subject = FakeDocumentContext(TEXT, corpus='guide', structure=MIN_PROPERTIES)
 
         #: When
-        occurrences = BlockConstraint.check(subject)
+        occurrences = InvalidFrontmatter.check(subject)
 
         #: Then
-        assert occurrences == (BlockConstraint(source=CORPUS_SOURCE, line=LINE, problem=PROBLEM),), (
+        assert occurrences == (InvalidFrontmatter(source=CORPUS_SOURCE, line=LINE, problem=PROBLEM),), (
             "the block's one problem over the whole block is one occurrence, on line 1, naming the schema's "
             'specification; the missing field the schema also finds is left to its own rule'
         )
@@ -91,7 +91,7 @@ class TestBlockConstraint:
         subject = FakeDocumentContext(TEXT, corpus='guide', structure=REQUIRE_DESCRIPTION)
 
         #: When
-        occurrences = BlockConstraint.check(subject)
+        occurrences = InvalidFrontmatter.check(subject)
 
         #: Then
         assert occurrences == (), "a required field missing, which concerns that field, is another rule's condition"
@@ -106,12 +106,12 @@ class TestBlockConstraint:
         )
 
         #: When
-        occurrences = BlockConstraint.check(subject)
+        occurrences = InvalidFrontmatter.check(subject)
 
         #: Then
         assert occurrences == (
-            BlockConstraint(source=CORPUS_SOURCE, line=LINE, problem=PROBLEM),
-            BlockConstraint(source=NAMESPACE_SOURCE, line=LINE, problem=PROBLEM),
+            InvalidFrontmatter(source=CORPUS_SOURCE, line=LINE, problem=PROBLEM),
+            InvalidFrontmatter(source=NAMESPACE_SOURCE, line=LINE, problem=PROBLEM),
         ), 'each schema is applied on its own, so each reports the problem under its own specification, in order'
 
     def test_check_with_a_block_that_is_not_a_mapping_reports_nothing(self) -> None:
@@ -124,7 +124,7 @@ class TestBlockConstraint:
         subject = FakeDocumentContext(text, corpus='guide', structure=MIN_PROPERTIES)
 
         #: When
-        occurrences = BlockConstraint.check(subject)
+        occurrences = InvalidFrontmatter.check(subject)
 
         #: Then
         assert occurrences == (), (
@@ -133,7 +133,7 @@ class TestBlockConstraint:
 
     def test_message_with_an_occurrence_states_the_condition(self) -> None:
         #: Given
-        occurrence = BlockConstraint(source=CORPUS_SOURCE, line=LINE, problem=PROBLEM)
+        occurrence = InvalidFrontmatter(source=CORPUS_SOURCE, line=LINE, problem=PROBLEM)
 
         #: When
         message = occurrence.message()
@@ -146,7 +146,7 @@ class TestBlockConstraint:
     def test_message_with_too_many_fields_says_the_most_allowed(self) -> None:
         #: Given
         problem = BlockProblem('too many', MaxFields(FieldLimit(UnsignedInt(1))), FieldCount(UnsignedInt(3)))
-        occurrence = BlockConstraint(source=CORPUS_SOURCE, line=LINE, problem=problem)
+        occurrence = InvalidFrontmatter(source=CORPUS_SOURCE, line=LINE, problem=problem)
 
         #: When
         message = occurrence.message()
@@ -159,7 +159,7 @@ class TestBlockConstraint:
     def test_message_with_another_keyword_states_the_constraint_on_the_whole_block(self) -> None:
         #: Given
         problem = BlockProblem('wrong', OtherBlockConstraint(), FieldCount(UnsignedInt(1)))
-        occurrence = BlockConstraint(source=CORPUS_SOURCE, line=LINE, problem=problem)
+        occurrence = InvalidFrontmatter(source=CORPUS_SOURCE, line=LINE, problem=problem)
 
         #: When
         message = occurrence.message()
@@ -178,7 +178,7 @@ class TestBlockConstraint:
         subject = FakeDocumentContext(TEXT, corpus='guide', structure=structure)
 
         #: When
-        occurrences = BlockConstraint.check(subject)
+        occurrences = InvalidFrontmatter.check(subject)
 
         #: Then
         problem = BlockProblem(
@@ -187,13 +187,13 @@ class TestBlockConstraint:
             FieldCount(UnsignedInt(1)),
             description='The fields an agent lists a document by.',
         )
-        assert occurrences == (BlockConstraint(source=CORPUS_SOURCE, line=LINE, problem=problem),), (
+        assert occurrences == (InvalidFrontmatter(source=CORPUS_SOURCE, line=LINE, problem=problem),), (
             "the root schema's description is carried with the limit and the number of fields"
         )
 
     def test_labels_with_a_limit_on_the_fields_name_what_is_out_of_limit_on_line_1(self) -> None:
         #: Given
-        occurrence = BlockConstraint(source=CORPUS_SOURCE, line=LINE, problem=PROBLEM)
+        occurrence = InvalidFrontmatter(source=CORPUS_SOURCE, line=LINE, problem=PROBLEM)
 
         #: When
         labels = occurrence.labels()
@@ -206,7 +206,7 @@ class TestBlockConstraint:
     def test_labels_with_another_keyword_label_nothing(self) -> None:
         #: Given
         problem = BlockProblem('wrong', OtherBlockConstraint(), FieldCount(UnsignedInt(1)))
-        occurrence = BlockConstraint(source=CORPUS_SOURCE, line=LINE, problem=problem)
+        occurrence = InvalidFrontmatter(source=CORPUS_SOURCE, line=LINE, problem=problem)
 
         #: When
         labels = occurrence.labels()
@@ -216,7 +216,7 @@ class TestBlockConstraint:
 
     def test_children_with_a_limit_on_the_number_of_fields_point_at_the_specification_only(self) -> None:
         #: Given
-        occurrence = BlockConstraint(source=CORPUS_SOURCE, line=LINE, problem=PROBLEM)
+        occurrence = InvalidFrontmatter(source=CORPUS_SOURCE, line=LINE, problem=PROBLEM)
 
         #: When
         children = occurrence.children()
@@ -234,7 +234,7 @@ class TestBlockConstraint:
             FieldCount(UnsignedInt(1)),
             description='The fields an agent lists a document by.',
         )
-        occurrence = BlockConstraint(source=CORPUS_SOURCE, line=LINE, problem=problem)
+        occurrence = InvalidFrontmatter(source=CORPUS_SOURCE, line=LINE, problem=problem)
 
         #: When
         children = occurrence.children()
@@ -248,7 +248,7 @@ class TestBlockConstraint:
     def test_children_with_another_keyword_end_with_the_validator_wording(self) -> None:
         #: Given
         problem = BlockProblem('wrong', OtherBlockConstraint(), FieldCount(UnsignedInt(1)))
-        occurrence = BlockConstraint(source=AGENT_SKILLS_SOURCE, line=LINE, problem=problem)
+        occurrence = InvalidFrontmatter(source=AGENT_SKILLS_SOURCE, line=LINE, problem=problem)
 
         #: When
         children = occurrence.children()
