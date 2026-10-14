@@ -1,10 +1,15 @@
 """`FM004`: a frontmatter `name` differs from the name its document or skill is found under."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import ClassVar, Self, assert_never
 
-from lorecraft.core.path import ROOT, PathComponent
-from lorecraft.project.context import DocumentFrontmatterOwner, FrontmatterContext, SkillFrontmatterOwner
+from lorecraft.core.path import ROOT, RootRelativePath
+from lorecraft.project.context import (
+    DocumentFrontmatterOwner,
+    FrontmatterContext,
+    FrontmatterOwner,
+    SkillFrontmatterOwner,
+)
 from lorecraft.project.layout import DOCUMENT_SUFFIX
 from lorecraft.project.schemas import (
     EmptySkillNameError,
@@ -17,41 +22,8 @@ from lorecraft.project.syntax import Frontmatter, InvalidYamlFrontmatter, Missin
 from lorecraft.rules.declaration import Level, Release, RuleCode, RuleName, rule
 from lorecraft.rules.location import Help, Here, Label, Note, Subdiagnostic
 from lorecraft.rules.subject import FrontmatterRule
-from lorecraft.vfs import ResolvedPath
 
 from .__ruleset__ import GROUP_ID, owner_spec
-
-
-@dataclass(frozen=True, slots=True)
-class FilenameExpected:
-    """A document's `name` is held to its filename.
-
-    Attributes:
-        filename: The document's filename, without its extension.
-    """
-
-    filename: str
-
-
-@dataclass(frozen=True, slots=True)
-class DirectoryNameExpected:
-    """A skill's `name` is held to the name of its directory, as an agent lists it.
-
-    Attributes:
-        directory_name: The name of the skill directory as an agent lists it in its skills directory.
-        link_target: The resolved directory the listed directory leads to when it is a link, or `None` when it is
-            not; it only words a note.
-    """
-
-    directory_name: PathComponent
-    link_target: ResolvedPath | None
-
-
-type NameExpectation = FilenameExpected | DirectoryNameExpected
-"""What a `name` is held to: a document's filename, or a skill's listed directory name.
-
-A union of two records, so a document's occurrence can never carry a link target.
-"""
 
 
 @rule
@@ -112,12 +84,12 @@ class NameMismatch(FrontmatterRule):
     A skill's directory rename is offered only for a `name` the Agent Skills specification accepts.
 
     Attributes:
-        spec: The structure specification whose frontmatter schema governs the document, or `None` for a skill,
-            whose frontmatter the package governs after the Agent Skills specification. It tells which kind of
-            subject is governed; no note renders it, since no schema states this rule.
+        spec: The specification file that governs the owner's frontmatter, derived from `owner`, so no caller states
+            one that disagrees with it.
+        owner: The document or the skill whose `name` is compared. It says what the name is held to, the document's
+            filename or the skill's directory name with where a linked directory leads, and which kind of subject
+            is governed; no note renders the specification, since no schema states this rule.
         name: The `name` the frontmatter writes.
-        expectation: What the name is held to: the document's filename, or the skill's directory name with where
-            a linked directory leads.
     """
 
     CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 4)
@@ -125,8 +97,15 @@ class NameMismatch(FrontmatterRule):
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('0.3.0')
 
+    # The specification file is derived from `owner`, so no caller can state one that disagrees with it.
+    spec: RootRelativePath | None = field(init=False)
+    owner: FrontmatterOwner
     name: str
-    expectation: NameExpectation
+
+    def __post_init__(self) -> None:
+        """Derive the specification file from the owner of the frontmatter."""
+        # The dataclass is frozen, so the field a rule derives is set the one way a frozen dataclass allows.
+        object.__setattr__(self, 'spec', owner_spec(self.owner))
 
     def message(self) -> str:
         """Name the `name` written; the name expected is the label's."""
@@ -134,7 +113,7 @@ class NameMismatch(FrontmatterRule):
 
     def labels(self) -> tuple[Label, ...]:
         """Say the name expected, on the `name` line."""
-        return (Label(Here(self.line), f'expected `{_expected_name(self.expectation)}`'),)
+        return (Label(Here(self.line), f'expected `{_expected_name(self.owner)}`'),)
 
     def children(self) -> tuple[Subdiagnostic, ...]:
         """Say which name is expected and why, the two ways to make the names agree, and where a link leads.
@@ -142,29 +121,29 @@ class NameMismatch(FrontmatterRule):
         No schema states this rule, so no note points at the specification file: the document's `name` is held to its
         filename by the package, and a skill's to its directory by the Agent Skills specification.
         """
-        expectation = self.expectation
-        match expectation:
-            case FilenameExpected():
+        owner = self.owner
+        match owner:
+            case DocumentFrontmatterOwner():
                 parts: list[Subdiagnostic] = [
                     Note("a document's `name` must be its filename"),
-                    Help(f'set `name` to {expectation.filename!r}'),
+                    Help(f'set `name` to {str(owner.filename)!r}'),
                 ]
                 # A `name` with a path separator cannot be a filename.
                 if '/' not in self.name:
                     parts.append(Help(f'or rename the file to {self.name + DOCUMENT_SUFFIX!r}'))
                 return tuple(parts)
-            case DirectoryNameExpected():
+            case SkillFrontmatterOwner():
                 parts = [
                     Note('the Agent Skills specification requires `name` to match the skill directory name'),
-                    Help(f'set `name` to {str(expectation.directory_name)!r}'),
+                    Help(f'set `name` to {str(owner.directory_name)!r}'),
                 ]
                 # Renaming the directory to a `name` the specification rejects would trade this finding for another.
                 if _is_skill_name(self.name):
                     parts.append(Help(f'or rename the skill directory to {self.name!r}'))
-                parts.extend(_link_notes(expectation))
+                parts.extend(_link_notes(owner))
                 return tuple(parts)
             case _:
-                assert_never(expectation)
+                assert_never(owner)
 
     @classmethod
     def check(cls, subject: FrontmatterContext) -> tuple[Self, ...]:
@@ -190,33 +169,24 @@ class NameMismatch(FrontmatterRule):
             return ()
 
         owner = subject.frontmatter_owner()
-        expectation: NameExpectation
-        match owner:
-            case DocumentFrontmatterOwner():
-                expectation = FilenameExpected(filename=str(owner.filename))
-            case SkillFrontmatterOwner():
-                expectation = DirectoryNameExpected(directory_name=owner.directory_name, link_target=owner.link_target)
-            case _:
-                assert_never(owner)
-
-        if name == _expected_name(expectation):
+        if name == _expected_name(owner):
             return ()
-        return (cls(spec=owner_spec(owner), line=field_line(frontmatter, 'name'), name=name, expectation=expectation),)
+        return (cls(owner=owner, line=field_line(frontmatter, 'name'), name=name),)
 
 
-def _expected_name(expectation: NameExpectation) -> str:
+def _expected_name(owner: FrontmatterOwner) -> str:
     """The name a `name` must equal: the document's filename, or the skill's listed directory name.
 
     Args:
-        expectation: What the `name` is held to.
+        owner: The document or the skill whose `name` is compared.
     """
-    match expectation:
-        case FilenameExpected():
-            return expectation.filename
-        case DirectoryNameExpected():
-            return str(expectation.directory_name)
+    match owner:
+        case DocumentFrontmatterOwner():
+            return str(owner.filename)
+        case SkillFrontmatterOwner():
+            return str(owner.directory_name)
         case _:
-            assert_never(expectation)
+            assert_never(owner)
 
 
 def _is_skill_name(name: str) -> bool:
@@ -232,20 +202,20 @@ def _is_skill_name(name: str) -> bool:
     return True
 
 
-def _link_notes(expectation: DirectoryNameExpected) -> tuple[Note, ...]:
+def _link_notes(owner: SkillFrontmatterOwner) -> tuple[Note, ...]:
     """The note naming where a listed skill directory leads, when it is a link to a directory named otherwise.
 
     The target is named by its root-relative path, so the root, which has no name, reads as such.
 
     Args:
-        expectation: The skill's listed directory name, and where it leads when it is a link.
+        owner: The skill, with its listed directory name and where it leads when it is a link.
     """
-    link_target = expectation.link_target
+    link_target = owner.link_target
     if link_target is None:
         return ()
     name = link_target.name
-    if name == expectation.directory_name:
+    if name == owner.directory_name:
         return ()
     if link_target == ROOT:
-        return (Note(f'{str(expectation.directory_name)!r} is a link to the repository root'),)
-    return (Note(f'{str(expectation.directory_name)!r} is a link to {str(link_target)!r}'),)
+        return (Note(f'{str(owner.directory_name)!r} is a link to the repository root'),)
+    return (Note(f'{str(owner.directory_name)!r} is a link to {str(link_target)!r}'),)
