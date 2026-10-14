@@ -1,0 +1,21 @@
+# gitlint configuration: the mechanical half of the `commit` skill's format.
+# See https://jorisroovers.com/gitlint/latest/configuration/
+# This config lives outside the default root path, so every gitlint command needs
+# `--config .github/gitlint`; `just check-commit-msg` and the commit-msg hook pass it.
+[general]
+contrib = contrib-title-conventional-commits,contrib-body-requires-signed-off-by
+# The repository's own rules: UC1 rejects AI attribution, UC2 a body off the summary-and-bullets template.
+extra-path = .github/gitlint_rules
+# A title-only commit is correct for a mechanical change, and the summary and each bullet
+# are one physical line, never hard-wrapped.
+ignore = body-is-missing,body-min-length,body-max-line-length
+
+[title-max-length]
+line-length = 72
+
+# The squash merge appends the PR number; a hand-written one duplicates or misnames it.
+[title-match-regex]
+regex = ^(?!.*\(#\d+\)).*$
+
+[contrib-title-conventional-commits]
+types = feat,refactor,fix,docs,chore,test

@@ -252,3 +252,28 @@ jobs:
 
       - name: Check documents and skills
         run: just check-docs
+
+  ## Commits
+  # Only a pull request's own commits: the squash merge rewrites the message that lands on main,
+  # and appends the `(#N)` the hook forbids writing by hand.
+  commits:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The base commit must be present for the range to resolve.
+          fetch-depth: 0
+
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          enable-cache: true
+
+      - uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4.0.0
+
+      - name: Install gitlint
+        run: just install-gitlint
+
+      - name: Check commit messages
+        run: just check-commit-msg "${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}"
