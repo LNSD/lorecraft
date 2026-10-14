@@ -7,7 +7,8 @@ from urllib.parse import unquote
 from lorecraft.project.context import SkillFileContext
 from lorecraft.project.link_target import EscapingTarget, LinkTarget
 from lorecraft.project.syntax import AbsoluteDestination, ExternalDestination, FragmentDestination, RelativeDestination
-from lorecraft.rules.declaration import Level, Release, RuleCode, RuleName, rule
+from lorecraft.rules.collector import rule
+from lorecraft.rules.declaration import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Subdiagnostic
 from lorecraft.rules.subject import SkillFileRule
 

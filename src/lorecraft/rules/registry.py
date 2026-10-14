@@ -27,6 +27,7 @@ from collections.abc import Iterable
 from types import ModuleType
 from typing import Final, Self, assert_never
 
+from .collector import declared_rules
 from .declaration import (
     ENGINE_GROUP,
     EngineCondition,
@@ -38,7 +39,6 @@ from .declaration import (
     RuleGroup,
     RuleGroupPrefix,
     RuleName,
-    declared_rules,
 )
 from .subject import DocumentRule
 

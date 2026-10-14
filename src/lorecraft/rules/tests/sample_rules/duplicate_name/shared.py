@@ -3,7 +3,8 @@
 from dataclasses import dataclass
 from typing import ClassVar, Self
 
-from lorecraft.rules.declaration import Level, Release, RemovedRule, RuleCode, RuleName, rule
+from lorecraft.rules.collector import rule
+from lorecraft.rules.declaration import Level, Release, RemovedRule, RuleCode, RuleName
 from lorecraft.rules.tests.sample_subject import SampleLines, SampleLinesRule
 
 from ..groups import SAMPLE

@@ -7,7 +7,8 @@ from lorecraft.core.num import NonZeroUnsignedInt, UnsignedInt
 from lorecraft.project.context import SkillContext
 from lorecraft.project.schemas import AllowedTools, SkillField, field_line
 from lorecraft.project.syntax import Frontmatter, InvalidYamlFrontmatter, MissingFrontmatter, NonMappingFrontmatter
-from lorecraft.rules.declaration import Level, Release, RuleCode, RuleName, rule
+from lorecraft.rules.collector import rule
+from lorecraft.rules.declaration import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Here, Label, Note, Subdiagnostic
 from lorecraft.rules.overrun import Overrun, find_overrun
 from lorecraft.rules.subject import SkillRule

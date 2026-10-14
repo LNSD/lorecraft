@@ -12,7 +12,8 @@ from lorecraft.project.syntax import (
     MissingFrontmatter,
     NonMappingFrontmatter,
 )
-from lorecraft.rules.declaration import Level, Release, RuleCode, RuleName, rule
+from lorecraft.rules.collector import rule
+from lorecraft.rules.declaration import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Here, Label, Note, Subdiagnostic
 from lorecraft.rules.subject import FrontmatterRule
 

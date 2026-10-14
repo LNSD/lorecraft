@@ -3,7 +3,8 @@
 from dataclasses import dataclass
 from typing import ClassVar, assert_never
 
-from lorecraft.rules.declaration import EngineCode, FileCondition, Release, RuleName, Severity, rule
+from lorecraft.rules.collector import rule
+from lorecraft.rules.declaration import EngineCode, FileCondition, Release, RuleName, Severity
 from lorecraft.rules.location import Help, Note, Subdiagnostic, WholeSubject
 
 
