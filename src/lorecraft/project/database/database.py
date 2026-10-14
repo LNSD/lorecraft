@@ -213,7 +213,14 @@ from lorecraft.vfs import (
 from .text import DocumentText, SkillResourceText, SkillText, Undecodable
 
 
-def _witness_text(source: DocumentText | SkillText | SkillResourceText | Undecodable) -> str | None:
+def _witness_text(
+    source: DocumentText
+    | SkillText
+    | SkillResourceText
+    | Undecodable[DocumentRef]
+    | Undecodable[SkillRef]
+    | Undecodable[SkillResourceRef],
+) -> str | None:
     """The text a decode query returned, or None when its file is not UTF-8.
 
     Args:
@@ -254,10 +261,10 @@ class Database:
         # `None` until the first `is_in_scope()` call, so the index is built only for a run that asks.
         self._scope_index: ScopeIndex | None = None
         # The input queries' caches.
-        self._texts: dict[DocumentRef, DocumentText | Undecodable] = {}
-        self._skill_texts: dict[SkillRef, SkillText | Undecodable] = {}
+        self._texts: dict[DocumentRef, DocumentText | Undecodable[DocumentRef]] = {}
+        self._skill_texts: dict[SkillRef, SkillText | Undecodable[SkillRef]] = {}
         self._skill_resources: dict[SkillRef, SkillResourceListing] = {}
-        self._skill_resource_texts: dict[SkillResourceRef, SkillResourceText | Undecodable] = {}
+        self._skill_resource_texts: dict[SkillResourceRef, SkillResourceText | Undecodable[SkillResourceRef]] = {}
         self._link_targets: dict[DocumentRef, Mapping[NormalisedLinkPath, LinkTargetEntry]] = {}
         self._skill_link_targets: dict[SkillRef, Mapping[NormalisedLinkPath, LinkTargetEntry]] = {}
         self._skill_resource_link_targets: dict[SkillResourceRef, Mapping[NormalisedLinkPath, LinkTargetEntry]] = {}
@@ -317,7 +324,7 @@ class Database:
         """
         return self._model
 
-    def text(self, ref: DocumentRef) -> DocumentText | Undecodable:
+    def text(self, ref: DocumentRef) -> DocumentText | Undecodable[DocumentRef]:
         """One document's bytes decoded as UTF-8, read from the snapshot on the first call for its ref.
 
         The one place a document's bytes become text for a rule: every other query about the document takes the
@@ -416,7 +423,7 @@ class Database:
                 return None
         return None
 
-    def skill_text(self, ref: SkillRef) -> SkillText | Undecodable:
+    def skill_text(self, ref: SkillRef) -> SkillText | Undecodable[SkillRef]:
         """One skill's `SKILL.md` decoded as UTF-8, read from the snapshot on the first call for its ref.
 
         The one place a `SKILL.md`'s bytes become text for a rule: every other query about it takes the witness this
@@ -487,7 +494,7 @@ class Database:
 
     # Takes the location its listing issued where `text` and `skill_text` take a ref: the model locates a document
     # or a `SKILL.md` by its ref, but only the skill's resource listing locates a resource's file.
-    def skill_resource_text(self, resource: SkillResourceLocation) -> SkillResourceText | Undecodable:
+    def skill_resource_text(self, resource: SkillResourceLocation) -> SkillResourceText | Undecodable[SkillResourceRef]:
         """One resource of a skill decoded as UTF-8, read from the snapshot on the first call for its ref.
 
         The resource is read at the resolved file its location records, as `skill_resources` lists it, never at
