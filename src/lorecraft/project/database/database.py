@@ -31,7 +31,7 @@ input query builds a witness or fails to read, and each states its own carry-ove
 - `link_targets(source)`, `skill_link_targets(source)` and `skill_resource_link_targets(source)`: what the snapshot
   holds at the target of each relative link of one document, `SKILL.md` or resource, like the IDE's index of a file's
   references resolved against the virtual file system. Each hands the file's parse, where its links are read from,
-  the snapshot's view and the scope index to `find_link_targets`, which reads, for each path a link names, the
+  the snapshot's view and the scope index to `link_targets_of`, which reads, for each path a link names, the
   snapshot's records on the way to it, so each is an input query: it is kept only when its parse is kept and every
   path it looked up, an absent target included, still resolves to the same place and is in the same scope state.
 
@@ -162,7 +162,7 @@ from lorecraft.core.path import RootRelativePath
 from lorecraft.project.document import DocumentDecodeError, DocumentReadError, DocumentRef
 from lorecraft.project.document import Repository as DocumentRepository
 from lorecraft.project.layout import SPECS_DIR, reject_linked_layout
-from lorecraft.project.link_target import DocumentDirectory, LinkTargetEntry, SkillRoot, find_link_targets
+from lorecraft.project.link_target import DocumentDirectory, LinkTargetEntry, SkillRoot, link_targets_of
 from lorecraft.project.schemas import (
     OutlineAlignmentSpec,
     OutlineDivergenceSpec,
@@ -547,7 +547,7 @@ class Database:
     def link_targets(self, source: DocumentText) -> Mapping[NormalisedLinkPath, LinkTargetEntry]:
         """Where each relative link of one document leads and what the snapshot holds there, found on the first call.
 
-        Each link is read from the document's own directory, as `find_link_targets` states, and looked up through the
+        Each link is read from the document's own directory, as `link_targets_of` states, and looked up through the
         snapshot's view and scope. Raises nothing.
 
         Carry-over: kept for the next revision only when `parse(source)` is kept and every path the query looked up,
@@ -561,14 +561,14 @@ class Database:
         targets = self._link_targets.get(source.ref)
         if targets is None:
             base = DocumentDirectory(source.ref.path.parent)
-            targets = find_link_targets(self.parse(source).links, base, self._fs, self._built_scope_index())
+            targets = link_targets_of(self.parse(source).links, base, self._fs, self._built_scope_index())
             self._link_targets[source.ref] = targets
         return targets
 
     def skill_link_targets(self, source: SkillText) -> Mapping[NormalisedLinkPath, LinkTargetEntry]:
         """Where each relative link in a skill's `SKILL.md` leads and what the snapshot holds there, on the first call.
 
-        Each link is read from the skill root, the skill directory where an agent reaches it, as `find_link_targets`
+        Each link is read from the skill root, the skill directory where an agent reaches it, as `link_targets_of`
         states, and looked up through the snapshot's view and scope. Raises nothing.
 
         Carry-over: kept for the next revision only when `skill_parse(source)` is kept and every path the query
@@ -583,14 +583,14 @@ class Database:
         targets = self._skill_link_targets.get(source.ref)
         if targets is None:
             base = SkillRoot(source.ref.directory)
-            targets = find_link_targets(self.skill_parse(source).links, base, self._fs, self._built_scope_index())
+            targets = link_targets_of(self.skill_parse(source).links, base, self._fs, self._built_scope_index())
             self._skill_link_targets[source.ref] = targets
         return targets
 
     def skill_resource_link_targets(self, source: SkillResourceText) -> Mapping[NormalisedLinkPath, LinkTargetEntry]:
         """Where each relative link in a resource of a skill leads and what the snapshot holds there, on the first call.
 
-        Each link is read from the root of the resource's skill, where an agent reaches it, as `find_link_targets`
+        Each link is read from the root of the resource's skill, where an agent reaches it, as `link_targets_of`
         states, and looked up through the snapshot's view and scope. Raises nothing.
 
         Carry-over: kept for the next revision only when `skill_resource_parse(source)` is kept and every path the query
@@ -605,7 +605,7 @@ class Database:
         targets = self._skill_resource_link_targets.get(source.ref)
         if targets is None:
             base = SkillRoot(source.ref.skill.directory)
-            targets = find_link_targets(
+            targets = link_targets_of(
                 self.skill_resource_parse(source).links, base, self._fs, self._built_scope_index()
             )
             self._skill_resource_link_targets[source.ref] = targets

@@ -101,7 +101,7 @@ def _shadowed_legacy_files(model: WorkspaceModel) -> set[RootRelativePath]:
     return shadowed
 
 
-def find_unreported_refusals(
+def unreported_refusals(
     refusals: Mapping[RootRelativePath, RefusedRecord], model: WorkspaceModel
 ) -> dict[RootRelativePath, RefusedRecord]:
     """The refusals no load failure of the model reports, keyed by path, in the order `refusals` is given.
@@ -165,7 +165,7 @@ def reject_unreported_refusals(refusals: Mapping[RootRelativePath, RefusedRecord
         UnreportedFileReadError: If the first such refusal is of a file read.
         UnreportedEntryInspectError: If the first such refusal is of an entry inspection.
     """
-    for path, refused in find_unreported_refusals(refusals, model).items():
+    for path, refused in unreported_refusals(refusals, model).items():
         match refused:
             case RefusedListing():
                 raise UnreportedDirListError(path, refused.refusal)

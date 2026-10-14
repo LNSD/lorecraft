@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from typing import assert_never
 
 from lorecraft.core.path import RootRelativePath
-from lorecraft.project.syntax import Heading, SectionHeading, find_sections
+from lorecraft.project.syntax import Heading, SectionHeading, section_headings
 
 from .section_name import SectionName
 from .structure import AnySections, OutlineEntry, SectionEntry, StructureSpec
@@ -84,17 +84,20 @@ class OutlineAlignmentSpec:
     outline: tuple[OutlineEntry, ...]
     sections: tuple[AlignedSection, ...]
 
-    def find(self, heading: Heading) -> AlignedSection | None:
-        """The aligned section a heading opens, or `None` when the heading is no H2 section of the document.
+    def aligned_section(self, section: SectionHeading) -> AlignedSection:
+        """The aligned section a section heading opens.
 
         Args:
-            heading: Any heading of the document.
+            section: An H2 section of the document these sections were aligned for.
+
+        Raises:
+            ValueError: If `section` is no section of that document.
         """
         for aligned in self.sections:
             # Compared by line, as two headings never start on the same one.
-            if aligned.section.line == heading.line:
+            if aligned.section.line == section.line:
                 return aligned
-        return None
+        raise ValueError(f'the heading at line {section.line} is no section of the aligned document')
 
 
 def align_outlines(
@@ -114,7 +117,7 @@ def align_outlines(
     Returns:
         One entry per specification, in the order given.
     """
-    sections = find_sections(headings)
+    sections = section_headings(headings)
     return tuple(
         OutlineAlignmentSpec(
             spec=structure_spec.path,

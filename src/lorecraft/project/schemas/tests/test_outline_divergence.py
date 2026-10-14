@@ -11,7 +11,7 @@ import pytest
 
 from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.core.path import PathComponent, RootRelativePath
-from lorecraft.project.syntax import LineNumber, SectionHeading, count_lines, find_sections, parse_document
+from lorecraft.project.syntax import LineNumber, SectionHeading, count_lines, parse_document, section_headings
 
 from ..name import parse_spec_name
 from ..outline_alignment import align_outlines
@@ -90,7 +90,7 @@ def _section(text: str, name: str) -> SectionHeading:
         text: The document's text.
         name: The section's heading text.
     """
-    for section in find_sections(parse_document(text).headings):
+    for section in section_headings(parse_document(text).headings):
         if section.text == name:
             return section
     raise AssertionError(f'the document holds a section `{name}`')
@@ -253,7 +253,7 @@ class TestMatchOutlines:
         outline = '{"outline": [{"section": "Rule"}]}'
         first = _section(text, 'Rule')
         second = next(
-            s for s in find_sections(parse_document(text).headings) if s.text == 'Rule' and s.line != first.line
+            s for s in section_headings(parse_document(text).headings) if s.text == 'Rule' and s.line != first.line
         )
         misplaced = MisplacedSection(section=second, placement=LeftOver(earlier=first))
 

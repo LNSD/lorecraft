@@ -52,7 +52,7 @@ def report_load_failures(model: workspace.WorkspaceModel) -> UnlistableRoot | Lo
     """
     reports: list[LoadFailureReport] = []
     for failure in model.load_failures:
-        occurrence = _find_occurrence(failure)
+        occurrence = _occurrence_of(failure)
         match occurrence:
             case UnlistableRoot():
                 return occurrence
@@ -64,7 +64,7 @@ def report_load_failures(model: workspace.WorkspaceModel) -> UnlistableRoot | Lo
     return tuple(reports)
 
 
-def _find_occurrence(failure: workspace.LoadFailure) -> EngineCondition | UnlistableRoot:
+def _occurrence_of(failure: workspace.LoadFailure) -> EngineCondition | UnlistableRoot:
     """The engine condition a load failure is, or `UnlistableRoot` for the one the command stops the run for.
 
     Args:

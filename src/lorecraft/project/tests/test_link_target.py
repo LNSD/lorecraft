@@ -21,7 +21,7 @@ from ..link_target import (
     LinkTargetEntry,
     PathLookup,
     SkillRoot,
-    find_link_targets,
+    link_targets_of,
 )
 from ..syntax import LineNumber, Link
 
@@ -81,7 +81,7 @@ def _find(urls: tuple[str, ...], base: SkillRoot | DocumentDirectory, snapshot: 
     links: list[Link] = []
     for url in urls:
         links.append(Link(url, LineNumber(NonZeroUnsignedInt(1))))
-    targets = find_link_targets(tuple(links), base, VirtualFileSystem(snapshot), ScopeIndex(snapshot))
+    targets = link_targets_of(tuple(links), base, VirtualFileSystem(snapshot), ScopeIndex(snapshot))
     found: dict[str, LinkTargetEntry] = {}
     for path, target in targets.items():
         found[str(path)] = target
@@ -90,7 +90,7 @@ def _find(urls: tuple[str, ...], base: SkillRoot | DocumentDirectory, snapshot: 
 
 @pytest.mark.unit
 class TestFindLinkTargetsInASkill:
-    def test_find_link_targets_with_a_file_and_a_directory_of_the_skill_finds_both_present(self) -> None:
+    def test_link_targets_of_with_a_file_and_a_directory_of_the_skill_finds_both_present(self) -> None:
         #: Given
         urls = ('references/a.md', 'references/')
 
@@ -103,7 +103,7 @@ class TestFindLinkTargetsInASkill:
             'references': _link_target('.agents/skills/review/references', PathLookup.PRESENT),
         }, 'a file and a directory the skill holds are both present, keyed by the normalised path'
 
-    def test_find_link_targets_with_nothing_at_the_path_finds_it_missing(self) -> None:
+    def test_link_targets_of_with_nothing_at_the_path_finds_it_missing(self) -> None:
         #: Given
         urls = ('references/b.md',)
 
@@ -115,7 +115,7 @@ class TestFindLinkTargetsInASkill:
             'references/b.md': _link_target('.agents/skills/review/references/b.md', PathLookup.MISSING)
         }, 'nothing in a directory of the skill is missing, and the entry keeps the path it was looked up at'
 
-    def test_find_link_targets_reads_a_link_from_the_skill_root_whichever_file_holds_it(self) -> None:
+    def test_link_targets_of_reads_a_link_from_the_skill_root_whichever_file_holds_it(self) -> None:
         #: Given
         # `a.md` would be the resource itself, read from `references/`; from the skill root it names nothing.
         urls = ('a.md', 'references/../SKILL.md')
@@ -129,7 +129,7 @@ class TestFindLinkTargetsInASkill:
             'SKILL.md': _link_target('.agents/skills/review/SKILL.md', PathLookup.PRESENT),
         }, 'every link is read from the skill root, and a `..` cancels the directory written before it'
 
-    def test_find_link_targets_with_a_link_to_the_skill_root_itself_finds_it_present(self) -> None:
+    def test_link_targets_of_with_a_link_to_the_skill_root_itself_finds_it_present(self) -> None:
         #: Given
         urls = ('references/..',)
 
@@ -141,7 +141,7 @@ class TestFindLinkTargetsInASkill:
             'references/.. normalises to the skill root itself, which is not above it'
         )
 
-    def test_find_link_targets_with_a_link_out_and_back_in_by_the_repository_path_finds_it_escaping(self) -> None:
+    def test_link_targets_of_with_a_link_out_and_back_in_by_the_repository_path_finds_it_escaping(self) -> None:
         #: Given
         urls = ('../../skills/review/SKILL.md',)
 
@@ -153,7 +153,7 @@ class TestFindLinkTargetsInASkill:
             'the path alone decides, so a link out and back in by where the skill lies in the repository escapes'
         )
 
-    def test_find_link_targets_with_a_link_climbing_above_the_skill_root_finds_it_escaping(self) -> None:
+    def test_link_targets_of_with_a_link_climbing_above_the_skill_root_finds_it_escaping(self) -> None:
         #: Given
         urls = ('../review/SKILL.md',)
 
@@ -165,7 +165,7 @@ class TestFindLinkTargetsInASkill:
             'a link climbing above the skill root names nothing the skill carries, so it is an escaping target'
         )
 
-    def test_find_link_targets_with_links_spelling_no_relative_path_gives_them_no_entry(self) -> None:
+    def test_link_targets_of_with_links_spelling_no_relative_path_gives_them_no_entry(self) -> None:
         #: Given
         urls = ('https://example.com/a.md', '/a.md', '#usage')
 
@@ -175,7 +175,7 @@ class TestFindLinkTargetsInASkill:
         #: Then
         assert found == {}, 'a URL, an absolute link and a fragment-only link name no relative path'
 
-    def test_find_link_targets_through_a_symlinked_directory_in_the_skill_follows_it(self) -> None:
+    def test_link_targets_of_through_a_symlinked_directory_in_the_skill_follows_it(self) -> None:
         #: Given
         snapshot = _snapshot(('.agents/skills/review/guides', '../../../shared/guides'))
         urls = ('guides/d.md', 'guides/e.md')
@@ -192,7 +192,7 @@ class TestFindLinkTargetsInASkill:
 
 @pytest.mark.unit
 class TestFindLinkTargetsInADocument:
-    def test_find_link_targets_reads_a_link_from_the_document_directory(self) -> None:
+    def test_link_targets_of_reads_a_link_from_the_document_directory(self) -> None:
         #: Given
         urls = ('setup.md', 'install.md', '../code/rules.md')
 
@@ -206,7 +206,7 @@ class TestFindLinkTargetsInADocument:
             '../code/rules.md': _link_target('docs/code/rules.md', PathLookup.PRESENT),
         }, "a document's links are read from its own directory, and a `..` may climb out of it"
 
-    def test_find_link_targets_with_a_path_the_scan_never_read_finds_it_outside_the_scope(self) -> None:
+    def test_link_targets_of_with_a_path_the_scan_never_read_finds_it_outside_the_scope(self) -> None:
         #: Given
         urls = ('../../shared/guides/d.md',)
 
@@ -218,7 +218,7 @@ class TestFindLinkTargetsInADocument:
             'a path in a directory the scan never read is outside the scope, whatever the snapshot holds there'
         )
 
-    def test_find_link_targets_with_a_link_climbing_above_the_repository_finds_it_escaping(self) -> None:
+    def test_link_targets_of_with_a_link_climbing_above_the_repository_finds_it_escaping(self) -> None:
         #: Given
         urls = ('../../../x.md',)
 

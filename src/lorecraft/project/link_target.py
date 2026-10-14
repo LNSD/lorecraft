@@ -4,7 +4,7 @@ A relative link is read from a directory that depends on the file. In a file of 
 specification reads it from the skill root, the skill directory where an agent reaches it, whichever file holds it. In
 a document, it is read from the document's own directory, as Markdown renders it. `LinkBase` states which.
 
-`find_link_targets` joins each link's relative path to that directory and looks the result up through a view: present,
+`link_targets_of` joins each link's relative path to that directory and looks the result up through a view: present,
 missing, or in a directory the scan never read, so the snapshot cannot tell. Each entry keeps the root-relative path
 it joined beside the lookup, so a reader says where a link really leads. It is a fact of the revision, never a
 judgment: whether a missing target makes a link broken is a rule's to decide. A link spelling no relative path has no
@@ -104,7 +104,7 @@ class EscapingTarget:
 type LinkTargetEntry = LinkTarget | EscapingTarget
 
 
-def find_link_targets(
+def link_targets_of(
     links: tuple[Link, ...], base: LinkBase, view: VirtualFileSystem, scope: ScopeIndex
 ) -> Mapping[NormalisedLinkPath, LinkTargetEntry]:
     """Where each relative link leads and what the snapshot holds there, keyed by its normalised path. Raises nothing.

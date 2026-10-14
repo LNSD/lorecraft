@@ -51,9 +51,9 @@ from lorecraft.project.syntax import (
     TokenCount,
     count_lines,
     count_tokens,
-    find_sections,
     parse_document,
     parse_frontmatter,
+    section_headings,
 )
 from lorecraft.project.workspace import Corpus, CorpusNamespace, CorpusSpec, Governance, NamespaceSpec
 from lorecraft.vfs import ResolvedPath, RootExit
@@ -112,7 +112,7 @@ def section_in(text: str, heading_text: str) -> SectionHeading:
     Raises:
         AssertionError: If the document holds no such section.
     """
-    for section in find_sections(parse_document(text).headings):
+    for section in section_headings(parse_document(text).headings):
         if section.text == heading_text:
             return section
     raise AssertionError(f'the document holds a section `{heading_text}`')

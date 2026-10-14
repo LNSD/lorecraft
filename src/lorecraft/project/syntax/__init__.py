@@ -1,7 +1,7 @@
 """A document's parse tree.
 
 It holds the frontmatter node, the headings and their anchors, the links, and the line positions every check
-reports against. `find_title` finds a document's title among its headings, and `find_sections` its H2 sections as
+reports against. `find_title` finds a document's title among its headings, and `section_headings` its H2 sections as
 `SectionHeading` values.
 
 Beside it, `count_tokens`: what a document's raw text costs an agent, counted without parsing it,
@@ -23,7 +23,7 @@ from .frontmatter import (
     RepeatedKey,
     reads_back_as_string,
 )
-from .heading import Heading, HeadingLevel, SectionHeading, find_sections, find_title
+from .heading import Heading, HeadingLevel, SectionHeading, find_title, section_headings
 from .link import (
     AbsoluteDestination,
     ExternalDestination,
@@ -52,7 +52,7 @@ __all__: list[str] = [
     'Heading',
     'HeadingLevel',
     'SectionHeading',
-    'find_sections',
+    'section_headings',
     'find_title',
     'Link',
     'LinkDestination',

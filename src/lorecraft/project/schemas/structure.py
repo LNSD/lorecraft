@@ -362,7 +362,7 @@ class FrontmatterSchema:
             return InvalidFrontmatterSchema(exc.message)
         # No `$id` is allowed below, so the whole schema is one resource, and every `$ref` is read against it.
         registry = Registry().with_resource('', DRAFT202012.create_resource(plain))
-        for subschema in _schemas_within(schema):
+        for subschema in _iter_schemas_within(schema):
             if '$id' in subschema:
                 # An `$id` would make that schema a resource of its own, with its own base URI, and so change what
                 # every relative `$ref` beneath it resolves to.
@@ -738,7 +738,7 @@ def _resolves_inside(registry: Registry, ref: str) -> bool:
     return isinstance(target, Mapping | bool)
 
 
-def _schemas_within(schema: Mapping[str, Plain]) -> Iterator[Mapping[str, Plain]]:
+def _iter_schemas_within(schema: Mapping[str, Plain]) -> Iterator[Mapping[str, Plain]]:
     """The schema itself, then every object subschema inside it, at any depth.
 
     Only the places Draft 2020-12 reads a schema from are walked, such as `properties` or `items`, so a value
@@ -751,7 +751,7 @@ def _schemas_within(schema: Mapping[str, Plain]) -> Iterator[Mapping[str, Plain]
     yield schema
     for subschema in DRAFT202012.subresources_of(schema):
         if isinstance(subschema, Mapping):
-            yield from _schemas_within(subschema)
+            yield from _iter_schemas_within(subschema)
 
 
 @dataclass(frozen=True, slots=True)
