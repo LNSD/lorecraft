@@ -535,9 +535,10 @@ class TestCheckSubjects:
             f'---\nname: review\ndescription: Review a change.\nallowed-tools: {value}\n---\n'.encode(),
         )
         database = Database.from_snapshot(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
+        subjects = (_location(database, REVIEW),)
 
         #: When
-        reports = check_subjects(database, (_location(database, REVIEW),), package_table)
+        reports = check_subjects(database, subjects, package_table)
 
         #: Then
         skill_file = RootRelativePath.parse('.agents/skills/review/SKILL.md')
@@ -572,9 +573,10 @@ class TestCheckSubjects:
             b'---\nname: review\ndescription: Review a change.\nallowed-tools: Read, Grep\n---\n',
         )
         database = Database.from_snapshot(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
+        subjects = (_location(database, REVIEW),)
 
         #: When
-        reports = check_subjects(database, (_location(database, REVIEW),), package_table)
+        reports = check_subjects(database, subjects, package_table)
 
         #: Then
         occurrence = MalformedAllowedTools(
@@ -629,9 +631,10 @@ class TestCheckSubjects:
         typing = DocumentRef(CorpusName.parse('code'), AspectFilename.parse('python-typing'))
         severities: dict[type[Rule], Severity] = {TooManyTokens: Severity.ERROR}
         table = RuleTable(severities)
+        database = Database.from_snapshot(snapshot)
 
         #: When
-        reports = check_subjects(Database.from_snapshot(snapshot), (typing,), table)
+        reports = check_subjects(database, (typing,), table)
 
         #: Then
         token_count = count_tokens(typing_text).value
@@ -891,9 +894,10 @@ class TestCheckSubjects:
     ) -> None:
         #: Given
         database = Database.from_snapshot(_snapshot(_budget(1000), guide=GUIDE_TEXT.encode(), review=_skill_of(501)))
+        subjects = (_location(database, REVIEW),)
 
         #: When
-        reports = check_subjects(database, (_location(database, REVIEW),), package_table)
+        reports = check_subjects(database, subjects, package_table)
 
         #: Then
         occurrence = TooManyLines(line=LineNumber(NonZeroUnsignedInt(501)), overrun=overrun(501, 500))
@@ -912,9 +916,10 @@ class TestCheckSubjects:
         records: dict[RootRelativePath, EntryRecord] = dict(shipped.records)
         records[RootRelativePath.parse('.agents/skills/review')] = SymlinkRecord(PurePosixPath('../../skills/review'))
         database = Database.from_snapshot(Snapshot(SnapshotRecords(records)))
+        subjects = (_location(database, REVIEW),)
 
         #: When
-        reports = check_subjects(database, (_location(database, REVIEW),), package_table)
+        reports = check_subjects(database, subjects, package_table)
 
         #: Then
         occurrence = TooManyLines(line=LineNumber(NonZeroUnsignedInt(501)), overrun=overrun(501, 500))
@@ -926,9 +931,10 @@ class TestCheckSubjects:
     def test_check_subjects_with_a_skill_at_the_line_budget_reports_it_clean(self, package_table: RuleTable) -> None:
         #: Given
         database = Database.from_snapshot(_snapshot(_budget(1000), guide=GUIDE_TEXT.encode(), review=_skill_of(500)))
+        subjects = (_location(database, REVIEW),)
 
         #: When
-        reports = check_subjects(database, (_location(database, REVIEW),), package_table)
+        reports = check_subjects(database, subjects, package_table)
 
         #: Then
         assert reports == (CheckedSkillFile(REVIEW, diagnostics=()),), (
@@ -940,9 +946,10 @@ class TestCheckSubjects:
         database = Database.from_snapshot(
             _snapshot(_budget(1000), guide=GUIDE_TEXT.encode(), review=b'---\nname: caf\xe9\n---\n')
         )
+        subjects = (_location(database, REVIEW),)
 
         #: When
-        reports = check_subjects(database, (_location(database, REVIEW),), package_table)
+        reports = check_subjects(database, subjects, package_table)
 
         #: Then
         assert reports == (UndecodableSubject(REVIEW, _CAFE_NAME_FAILURE),), (
@@ -954,9 +961,10 @@ class TestCheckSubjects:
     ) -> None:
         #: Given
         database = Database.from_snapshot(_snapshot(_budget(1000), guide=GUIDE_TEXT.encode()))
+        subjects = (GUIDE, _location(database, REVIEW), INTRO)
 
         #: When
-        reports = check_subjects(database, (GUIDE, _location(database, REVIEW), INTRO), package_table)
+        reports = check_subjects(database, subjects, package_table)
 
         #: Then
         assert reports == (
@@ -981,9 +989,10 @@ class TestCheckSubjects:
         )
         severities: dict[type[Rule], Severity] = {TooManyTokens: Severity.ERROR}
         table = RuleTable(severities)
+        subjects = (_location(database, REVIEW),)
 
         #: When
-        check_subjects(database, (_location(database, REVIEW),), table)
+        check_subjects(database, subjects, table)
 
         #: Then
         assert database.counted_lines == [], 'no enabled rule reads the line count, so its query is never asked'
@@ -1101,9 +1110,10 @@ class TestCheckSubjects:
     ) -> None:
         #: Given
         database = Database.from_snapshot(_snapshot(_budget(1000), guide=GUIDE_TEXT.encode(), review=b'# Review\n'))
+        subjects = (_location(database, REVIEW),)
 
         #: When
-        reports = check_subjects(database, (_location(database, REVIEW),), package_table)
+        reports = check_subjects(database, subjects, package_table)
 
         #: Then
         occurrence = MissingFrontmatter(owner=REVIEW_OWNER, line=LineNumber(NonZeroUnsignedInt(1)))
@@ -1117,9 +1127,10 @@ class TestCheckSubjects:
         #: Given
         review = '---\nname: [review\n---\n'
         database = Database.from_snapshot(_snapshot(_budget(1000), guide=GUIDE_TEXT.encode(), review=review.encode()))
+        subjects = (_location(database, REVIEW),)
 
         #: When
-        reports = check_subjects(database, (_location(database, REVIEW),), package_table)
+        reports = check_subjects(database, subjects, package_table)
 
         #: Then
         occurrence = InvalidYaml(
@@ -1138,9 +1149,10 @@ class TestCheckSubjects:
         database = Database.from_snapshot(
             _snapshot(_budget(1000), guide=GUIDE_TEXT.encode(), review=b'---\n- review\n---\n')
         )
+        subjects = (_location(database, REVIEW),)
 
         #: When
-        reports = check_subjects(database, (_location(database, REVIEW),), package_table)
+        reports = check_subjects(database, subjects, package_table)
 
         #: Then
         occurrence = NonMappingFrontmatter(owner=REVIEW_OWNER, line=LineNumber(NonZeroUnsignedInt(1)))
@@ -1157,9 +1169,10 @@ class TestCheckSubjects:
                 review=b'---\nname: code-review\ndescription: Review a change.\n---\n',
             )
         )
+        subjects = (_location(database, REVIEW),)
 
         #: When
-        reports = check_subjects(database, (_location(database, REVIEW),), package_table)
+        reports = check_subjects(database, subjects, package_table)
 
         #: Then
         occurrence = NameMismatch(owner=REVIEW_OWNER, line=LineNumber(NonZeroUnsignedInt(2)), name='code-review')
@@ -1176,9 +1189,10 @@ class TestCheckSubjects:
                 review=b'---\nname: review\nname: review\ndescription: Review a change.\n---\n',
             )
         )
+        subjects = (_location(database, REVIEW),)
 
         #: When
-        reports = check_subjects(database, (_location(database, REVIEW),), package_table)
+        reports = check_subjects(database, subjects, package_table)
 
         #: Then
         occurrence = DuplicateKey(
@@ -1210,9 +1224,10 @@ class TestCheckSubjects:
             PurePosixPath('../../skills/code-review')
         )
         database = Database.from_snapshot(Snapshot(SnapshotRecords(records)))
+        subjects = (_location(database, REVIEW),)
 
         #: When
-        reports = check_subjects(database, (_location(database, REVIEW),), package_table)
+        reports = check_subjects(database, subjects, package_table)
 
         #: Then
         owner = SkillFrontmatterOwner(
@@ -1234,9 +1249,10 @@ class TestCheckSubjects:
         )
         severities: dict[type[Rule], Severity] = {TooManyTokens: Severity.ERROR, TooManyLines: Severity.ERROR}
         table = RuleTable(severities)
+        subjects = (GUIDE, _location(database, REVIEW))
 
         #: When
-        check_subjects(database, (GUIDE, _location(database, REVIEW)), table)
+        check_subjects(database, subjects, table)
 
         #: Then
         assert database.parsed_frontmatters == [], 'no enabled rule reads the frontmatter, so it is never parsed'
@@ -1250,9 +1266,10 @@ class TestCheckSubjects:
         #: Given
         # no specification states a frontmatter schema, but the package governs every skill's frontmatter
         database = CountingDatabase.from_snapshot(_snapshot(_budget(1000), guide=GUIDE_TEXT.encode()))
+        subjects = (GUIDE, _location(database, REVIEW), INTRO)
 
         #: When
-        check_subjects(database, (GUIDE, _location(database, REVIEW), INTRO), package_table)
+        check_subjects(database, subjects, package_table)
 
         #: Then
         assert GUIDE not in database.parsed_frontmatters, (
@@ -1281,9 +1298,10 @@ class TestCheckSubjects:
             }
         )
         typing = DocumentRef(CorpusName.parse('code'), AspectFilename.parse('python-typing'))
+        database = Database.from_snapshot(snapshot)
 
         #: When
-        reports = check_subjects(Database.from_snapshot(snapshot), (typing,), package_table)
+        reports = check_subjects(database, (typing,), package_table)
 
         #: Then
         assert reports == (CheckedDocument(typing, diagnostics=(), ungoverned=(Facet.FRONTMATTER, Facet.OUTLINE)),), (
@@ -1360,9 +1378,10 @@ class TestCheckSubjects:
         # no description, an empty compatibility, a metadata that is not a mapping, and a key it does not define
         review = b'---\nname: review\ncompatibility: ""\nmetadata: z\nextra: y\n---\n# Review\n'
         database = Database.from_snapshot(_snapshot(_budget(1000), guide=GUIDE_TEXT.encode(), review=review))
+        subjects = (_location(database, REVIEW),)
 
         #: When
-        reports = check_subjects(database, (_location(database, REVIEW),), package_table)
+        reports = check_subjects(database, subjects, package_table)
 
         #: Then
         line_1 = LineNumber(NonZeroUnsignedInt(1))
@@ -1511,9 +1530,10 @@ class TestCheckSubjects:
             DuplicateKey: Severity.ERROR,
         }
         table = RuleTable(severities)
+        subjects = (GUIDE, _location(database, REVIEW))
 
         #: When
-        check_subjects(database, (GUIDE, _location(database, REVIEW)), table)
+        check_subjects(database, subjects, table)
 
         #: Then
         assert database.validated_frontmatters == [], (
@@ -1918,9 +1938,10 @@ class TestCheckSubjects:
         #: Given
         review = REVIEW_FRONTMATTER + b'# Review\n\nRead [the diff](/tmp/diff.md).\n'
         database = Database.from_snapshot(_snapshot(_budget(1000), guide=GUIDE_TEXT.encode(), review=review))
+        subjects = (_location(database, REVIEW),)
 
         #: When
-        reports = check_subjects(database, (_location(database, REVIEW),), package_table)
+        reports = check_subjects(database, subjects, package_table)
 
         #: Then
         occurrence = AbsoluteLink(line=LineNumber(NonZeroUnsignedInt(7)), url='/tmp/diff.md')
@@ -1947,9 +1968,10 @@ class TestCheckSubjects:
         )
         database = Database.from_snapshot(snapshot)
         guide = SkillResourceRef(REVIEW, SkillRelativePath.parse('references/deep/guide.md'))
+        subjects = _resources(database, REVIEW)
 
         #: When
-        reports = check_subjects(database, _resources(database, REVIEW), package_table)
+        reports = check_subjects(database, subjects, package_table)
 
         #: Then
         occurrence = AbsoluteLink(line=LineNumber(NonZeroUnsignedInt(3)), url='/assets/flow.png')
@@ -1977,9 +1999,10 @@ class TestCheckSubjects:
         database = Database.from_snapshot(snapshot)
         first = SkillResourceRef(REVIEW, SkillRelativePath.parse('references/a.md'))
         second = SkillResourceRef(REVIEW, SkillRelativePath.parse('references/b.md'))
+        subjects = (_location(database, REVIEW), *_resources(database, REVIEW))
 
         #: When
-        reports = check_subjects(database, (_location(database, REVIEW), *_resources(database, REVIEW)), package_table)
+        reports = check_subjects(database, subjects, package_table)
 
         #: Then
         occurrence = AbsoluteLink(line=LineNumber(NonZeroUnsignedInt(1)), url='/x.md')
@@ -2001,9 +2024,10 @@ class TestCheckSubjects:
         )
         database = Database.from_snapshot(snapshot)
         cafe = SkillResourceRef(REVIEW, SkillRelativePath.parse('references/cafe.md'))
+        subjects = _resources(database, REVIEW)
 
         #: When
-        reports = check_subjects(database, _resources(database, REVIEW), package_table)
+        reports = check_subjects(database, subjects, package_table)
 
         #: Then
         assert reports == (UndecodableSubject(cafe, _CAFE_TITLE_FAILURE),), (
@@ -2025,9 +2049,10 @@ class TestCheckSubjects:
         )
         database = Database.from_snapshot(snapshot)
         resource = SkillResourceRef(REVIEW, SkillRelativePath.parse('references/a.md'))
+        subjects = (_location(database, REVIEW), *_resources(database, REVIEW))
 
         #: When
-        reports = check_subjects(database, (_location(database, REVIEW), *_resources(database, REVIEW)), package_table)
+        reports = check_subjects(database, subjects, package_table)
 
         #: Then
         occurrence = AbsoluteLink(line=LineNumber(NonZeroUnsignedInt(1)), url='/x.md')
@@ -2042,9 +2067,10 @@ class TestCheckSubjects:
         #: Given
         review = '---\nname: [review\n---\nRead [x](/x.md).\n'
         database = Database.from_snapshot(_snapshot(_budget(1000), guide=GUIDE_TEXT.encode(), review=review.encode()))
+        subjects = (_location(database, REVIEW),)
 
         #: When
-        reports = check_subjects(database, (_location(database, REVIEW),), package_table)
+        reports = check_subjects(database, subjects, package_table)
 
         #: Then
         invalid_yaml = InvalidYaml(
@@ -2114,9 +2140,10 @@ class TestCheckSubjects:
         #: Given
         review = REVIEW_FRONTMATTER + b'# Review\n\nFollow [the steps](#steps).\n'
         database = Database.from_snapshot(_snapshot(_budget(1000), guide=GUIDE_TEXT.encode(), review=review))
+        subjects = (_location(database, REVIEW),)
 
         #: When
-        reports = check_subjects(database, (_location(database, REVIEW),), package_table)
+        reports = check_subjects(database, subjects, package_table)
 
         #: Then
         occurrence = BrokenFragment(line=LineNumber(NonZeroUnsignedInt(7)), url='#steps', has_headings=True)
@@ -2136,9 +2163,10 @@ class TestCheckSubjects:
         )
         database = Database.from_snapshot(snapshot)
         checklist = SkillResourceRef(REVIEW, SkillRelativePath.parse('references/checklist.md'))
+        subjects = (_location(database, REVIEW), *_resources(database, REVIEW))
 
         #: When
-        reports = check_subjects(database, (_location(database, REVIEW), *_resources(database, REVIEW)), package_table)
+        reports = check_subjects(database, subjects, package_table)
 
         #: Then
         occurrence = BrokenFragment(line=LineNumber(NonZeroUnsignedInt(3)), url='#usage', has_headings=True)
@@ -2171,9 +2199,10 @@ class TestCheckSubjects:
         database = Database.from_snapshot(snapshot)
         a = SkillResourceRef(REVIEW, SkillRelativePath.parse('references/a.md'))
         guide = SkillResourceRef(REVIEW, SkillRelativePath.parse('references/deep/guide.md'))
+        subjects = (_location(database, REVIEW), *_resources(database, REVIEW))
 
         #: When
-        reports = check_subjects(database, (_location(database, REVIEW), *_resources(database, REVIEW)), package_table)
+        reports = check_subjects(database, subjects, package_table)
 
         #: Then
         assert reports == (
@@ -2233,9 +2262,10 @@ class TestCheckSubjects:
         records[RootRelativePath.parse('.agents/skills/review')] = SymlinkRecord(PurePosixPath('../../skills/review'))
         database = Database.from_snapshot(Snapshot(SnapshotRecords(records)))
         a = SkillResourceRef(REVIEW, SkillRelativePath.parse('references/a.md'))
+        subjects = _resources(database, REVIEW)
 
         #: When
-        reports = check_subjects(database, _resources(database, REVIEW), package_table)
+        reports = check_subjects(database, subjects, package_table)
 
         #: Then
         occurrence = EscapingLink(line=LineNumber(NonZeroUnsignedInt(1)), url='../SKILL.md')
@@ -2250,9 +2280,10 @@ class TestCheckSubjects:
         #: Given
         review = REVIEW_FRONTMATTER + b'See [the skill](../../skills/review/SKILL.md).\n'
         database = Database.from_snapshot(_snapshot(_budget(1000), guide=GUIDE_TEXT.encode(), review=review))
+        subjects = (_location(database, REVIEW),)
 
         #: When
-        reports = check_subjects(database, (_location(database, REVIEW),), package_table)
+        reports = check_subjects(database, subjects, package_table)
 
         #: Then
         occurrence = EscapingLink(line=LineNumber(NonZeroUnsignedInt(5)), url='../../skills/review/SKILL.md')
@@ -2345,9 +2376,10 @@ class TestCheckSubjectsBrokenLink:
         )
         _write(tmp_path, '.agents/skills/review/scripts/run.py')
         database = Database.from_snapshot(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
+        subjects = (_location(database, REVIEW),)
 
         #: When
-        reports = check_subjects(database, (_location(database, REVIEW),), broken_link_table)
+        reports = check_subjects(database, subjects, broken_link_table)
 
         #: Then
         assert reports == (
@@ -2396,9 +2428,10 @@ class TestCheckSubjectsBrokenLink:
         _write(tmp_path, 'shared/guides/d.md', b'# D\n')
         (tmp_path / '.agents' / 'skills' / 'review' / 'guides').symlink_to('../../../shared/guides')
         database = Database.from_snapshot(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
+        subjects = (_location(database, REVIEW),)
 
         #: When
-        reports = check_subjects(database, (_location(database, REVIEW),), broken_link_table)
+        reports = check_subjects(database, subjects, broken_link_table)
 
         #: Then
         assert reports == (
@@ -2422,9 +2455,10 @@ class TestCheckSubjectsBrokenLink:
         (tmp_path / '.agents' / 'skills' / 'review').symlink_to('../../skills/review')
         database = Database.from_snapshot(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
         resources = _resources(database, REVIEW)
+        subjects = (_location(database, REVIEW), *resources)
 
         #: When
-        reports = check_subjects(database, (_location(database, REVIEW), *resources), broken_link_table)
+        reports = check_subjects(database, subjects, broken_link_table)
 
         #: Then
         assert reports == (
@@ -2449,9 +2483,10 @@ class TestCheckSubjectsBrokenLink:
         )
         _write(tmp_path, '.agents/skills/review/references/a.md', b'# A\n')
         database = Database.from_snapshot(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
+        subjects = (_location(database, REVIEW),)
 
         #: When
-        reports = check_subjects(database, (_location(database, REVIEW),), broken_link_table)
+        reports = check_subjects(database, subjects, broken_link_table)
 
         #: Then
         assert reports == (CheckedSkillFile(REVIEW, diagnostics=()),), (
