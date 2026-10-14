@@ -1,11 +1,11 @@
 ---
-name: "FM010-block-constraint"
+name: "FM010-invalid-frontmatter"
 description: "A frontmatter breaks a constraint its schema sets on the whole block"
 code: "FM010"
 since: "0.3.0"
 ---
 
-# block-constraint (FM010)
+# invalid-frontmatter (FM010)
 
 A frontmatter breaks a constraint its schema sets on the whole block.
 

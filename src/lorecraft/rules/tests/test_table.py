@@ -7,8 +7,8 @@ import pytest
 from lorecraft import rules
 from lorecraft.rules.declaration import Rule, RuleCode, Severity
 from lorecraft.rules.frontmatter.allowed_tools_too_long import AllowedToolsTooLong
-from lorecraft.rules.frontmatter.block_constraint import BlockConstraint
 from lorecraft.rules.frontmatter.duplicate_key import DuplicateKey
+from lorecraft.rules.frontmatter.invalid_frontmatter import InvalidFrontmatter
 from lorecraft.rules.frontmatter.invalid_value import InvalidValue
 from lorecraft.rules.frontmatter.invalid_yaml import InvalidYaml
 from lorecraft.rules.frontmatter.malformed_allowed_tools import MalformedAllowedTools
@@ -206,7 +206,7 @@ class TestRuleTableFromRegistry:
             EnabledRule(UnknownField, Severity.WARNING),
             EnabledRule(WrongType, Severity.ERROR),
             EnabledRule(InvalidValue, Severity.ERROR),
-            EnabledRule(BlockConstraint, Severity.ERROR),
+            EnabledRule(InvalidFrontmatter, Severity.ERROR),
         ), "the package's frontmatter rules are enabled by default at their own level, in code order"
 
     def test_from_registry_with_the_package_registry_runs_the_rules_over_the_headings_under_the_structure_facet(

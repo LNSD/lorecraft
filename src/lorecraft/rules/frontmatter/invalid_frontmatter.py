@@ -27,7 +27,7 @@ from .__ruleset__ import GROUP_ID, schema_note, schema_spec
 
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
-class BlockConstraint(FrontmatterRule):
+class InvalidFrontmatter(FrontmatterRule):
     """A frontmatter breaks a constraint its schema sets on the whole block.
 
     ## What it does
@@ -93,7 +93,7 @@ class BlockConstraint(FrontmatterRule):
     """
 
     CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 10)
-    NAME: ClassVar[RuleName] = RuleName('block-constraint')
+    NAME: ClassVar[RuleName] = RuleName('invalid-frontmatter')
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('0.3.0')
 
