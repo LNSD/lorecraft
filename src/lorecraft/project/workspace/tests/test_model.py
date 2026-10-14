@@ -690,10 +690,11 @@ class TestWorkspaceModel:
     ) -> None:
         #: Given
         code = two_corpora_model.corpora[CODE]
+        corpora = FrozenMapping({FEAT: code})
 
         #: When
         with pytest.raises(ValueError) as exc_info:
-            replace(two_corpora_model, corpora=FrozenMapping({FEAT: code}))
+            replace(two_corpora_model, corpora=corpora)
 
         #: Then
         assert str(FEAT) in str(exc_info.value), 'the error names the key the corpus was filed under'
@@ -720,10 +721,11 @@ class TestWorkspaceModel:
         entry = RootRelativePath.parse('.agents/skills/x')
         other = RootRelativePath.parse('.agents/skills/y')
         outside = OutsideSymlink(entry, RootExit(entry, PurePosixPath('/opt/team-skills/x')))
+        outside_symlinks = FrozenMapping({other: outside})
 
         #: When
         with pytest.raises(ValueError) as exc_info:
-            replace(skills_model, outside_symlinks=FrozenMapping({other: outside}))
+            replace(skills_model, outside_symlinks=outside_symlinks)
 
         #: Then
         assert str(other) in str(exc_info.value), 'the error names the key the symlink was filed under'
@@ -974,9 +976,10 @@ class TestWorkspaceModel:
         entry = RootRelativePath.parse('.agents/skills/x')
         outside = OutsideSymlink(entry, RootExit(entry, PurePosixPath('/opt/team-skills/x')))
         model = replace(skills_model, outside_symlinks=FrozenMapping({outside.path: outside}))
+        below = entry / PathComponent.parse('SKILL.md')
 
         #: When
-        found = model.has_outside_symlink(entry / PathComponent.parse('SKILL.md'))
+        found = model.has_outside_symlink(below)
 
         #: Then
         assert not found, 'a path is compared whole: one below a symlink leading outside is not that symlink'

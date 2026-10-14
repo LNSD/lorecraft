@@ -235,9 +235,10 @@ class TestScanRootFindRootBelow:
         #: Given
         scan_root = ScanRoot(DOCS, depth=UnsignedInt(3))
         directory = _path('docs/feat/deep')
+        levels = NonZeroUnsignedInt(2)
 
         #: When
-        lowered = scan_root.find_root_below(directory, levels=NonZeroUnsignedInt(2))
+        lowered = scan_root.find_root_below(directory, levels=levels)
 
         #: Then
         assert lowered == ScanRoot(directory, depth=UnsignedInt(1)), 'two levels down from depth 3, one level is left'
@@ -246,9 +247,10 @@ class TestScanRootFindRootBelow:
         #: Given
         scan_root = ScanRoot(DOCS, depth=UnsignedInt(1))
         directory = _path('docs/feat')
+        levels = NonZeroUnsignedInt(1)
 
         #: When
-        lowered = scan_root.find_root_below(directory, levels=NonZeroUnsignedInt(1))
+        lowered = scan_root.find_root_below(directory, levels=levels)
 
         #: Then
         assert lowered == ScanRoot(directory, depth=UnsignedInt(0)), (
@@ -259,9 +261,10 @@ class TestScanRootFindRootBelow:
         #: Given
         scan_root = ScanRoot(DOCS, depth=UnsignedInt(0))
         directory = _path('docs/feat')
+        levels = NonZeroUnsignedInt(1)
 
         #: When
-        lowered = scan_root.find_root_below(directory, levels=NonZeroUnsignedInt(1))
+        lowered = scan_root.find_root_below(directory, levels=levels)
 
         #: Then
         assert lowered is None, 'depth 0 names docs/feat and never enters it'
@@ -270,9 +273,10 @@ class TestScanRootFindRootBelow:
         #: Given
         scan_root = ScanRoot(DOCS, depth=None)
         directory = _path('docs/feat/deep/deeper')
+        levels = NonZeroUnsignedInt(3)
 
         #: When
-        lowered = scan_root.find_root_below(directory, levels=NonZeroUnsignedInt(3))
+        lowered = scan_root.find_root_below(directory, levels=levels)
 
         #: Then
         assert lowered == ScanRoot(directory, depth=None), 'no depth limit stays no limit however far down'
@@ -281,9 +285,10 @@ class TestScanRootFindRootBelow:
         #: Given
         scan_root = ScanRoot(DOCS, depth=None, follow_links=True)
         directory = _path('shared/feat')
+        levels = NonZeroUnsignedInt(1)
 
         #: When
-        lowered = scan_root.find_root_below(directory, levels=NonZeroUnsignedInt(1))
+        lowered = scan_root.find_root_below(directory, levels=levels)
 
         #: Then
         assert lowered == ScanRoot(directory, depth=None, follow_links=True), 'the link policy is kept'

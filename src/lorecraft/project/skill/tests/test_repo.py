@@ -443,9 +443,10 @@ class TestRepositoryFindSkillsDirExit:
     def test_find_skills_dir_exit_with_a_skills_directory_linked_outside_records_it(self) -> None:
         #: Given
         repository = _repository({'.claude/README.md': b''}, {'.claude/skills': '/srv/skills'})
+        path = RootRelativePath.parse('.claude/skills')
 
         #: When
-        outside = repository.find_skills_dir_exit(RootRelativePath.parse('.claude/skills'))
+        outside = repository.find_skills_dir_exit(path)
 
         #: Then
         assert outside == _outside('.claude/skills', '.claude/skills', '/srv/skills'), (
@@ -457,9 +458,10 @@ class TestRepositoryFindSkillsDirExit:
         repository = _repository(
             {'.claude/README.md': b'', f'{SKILL}/SKILL.md': b''}, {'.claude/skills': '../.agents/skills'}
         )
+        path = RootRelativePath.parse('.claude/skills')
 
         #: When
-        outside = repository.find_skills_dir_exit(RootRelativePath.parse('.claude/skills'))
+        outside = repository.find_skills_dir_exit(path)
 
         #: Then
         assert outside is None, 'a skills directory linked to another in the repository does not lead outside'

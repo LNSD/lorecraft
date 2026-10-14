@@ -141,9 +141,10 @@ class TestRenderText:
                 '└── skills (0)',
             ]
         )
+        root = Path('/work')
 
         #: When
-        text = render_text(Path('/work'), model)
+        text = render_text(root, model)
 
         #: Then
         assert text == expected, (
@@ -154,9 +155,10 @@ class TestRenderText:
         #: Given
         model = _empty_model()
         expected = '\n'.join(['/work', '├── corpora (0)', '├── agent skills directories (0)', '└── skills (0)'])
+        root = Path('/work')
 
         #: When
-        text = render_text(Path('/work'), model)
+        text = render_text(root, model)
 
         #: Then
         assert text == expected, 'an empty section is still drawn, so the reader sees it was looked for'
@@ -178,9 +180,10 @@ class TestRenderText:
                 '    └── .agents/skills/review [claude-code, codex]',
             ]
         )
+        root = Path('/work')
 
         #: When
-        text = render_text(Path('/work'), model)
+        text = render_text(root, model)
 
         #: Then
         assert text == expected, (
@@ -194,9 +197,10 @@ class TestRenderJson:
     def test_render_json_with_a_code_model_carries_each_spec_and_each_document_with_its_governance(self) -> None:
         #: Given
         model = _code_model()
+        root = Path('/work')
 
         #: When
-        text = render_json(Path('/work'), model)
+        text = render_json(root, model)
 
         #: Then
         assert json.loads(text) == _code_model_document(), (
@@ -206,9 +210,10 @@ class TestRenderJson:
     def test_render_json_with_a_code_model_prints_one_compact_line(self) -> None:
         #: Given
         model = _code_model()
+        root = Path('/work')
 
         #: When
-        text = render_json(Path('/work'), model)
+        text = render_json(root, model)
 
         #: Then
         # Parsing the text back would hide its layout, so the text itself is compared.
@@ -219,9 +224,10 @@ class TestRenderJson:
     def test_render_json_with_a_skills_model_carries_each_directory_and_each_skill_with_its_agents(self) -> None:
         #: Given
         model = _skills_model()
+        root = Path('/work')
 
         #: When
-        text = render_json(Path('/work'), model)
+        text = render_json(root, model)
 
         #: Then
         assert json.loads(text) == {

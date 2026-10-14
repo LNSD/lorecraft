@@ -50,9 +50,10 @@ class TestYamlTree:
         #: Given
         first = (YamlKey('name', _at(1)), YamlScalar('one', _at(1, 7)))
         second = (YamlKey('name', _at(2)), YamlScalar('two', _at(2, 7)))
+        at = _at(1)
 
         #: When
-        mapping = YamlMapping((first, second), _at(1))
+        mapping = YamlMapping((first, second), at)
 
         #: Then
         assert mapping.entries == (first, second), f'a key written twice appears once per occurrence, got {mapping}'

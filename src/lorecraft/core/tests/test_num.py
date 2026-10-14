@@ -401,9 +401,10 @@ class TestUnsignedInt:
     def test_minus_with_an_amount_within_the_number_returns_what_is_left(self) -> None:
         #: Given
         number = UnsignedInt(3)
+        count = NonZeroUnsignedInt(3)
 
         #: When
-        left = number.minus(NonZeroUnsignedInt(3))
+        left = number.minus(count)
 
         #: Then
         assert left == UnsignedInt(0), f'taking away the whole number leaves 0, got {left}'
@@ -411,9 +412,10 @@ class TestUnsignedInt:
     def test_minus_with_an_amount_past_the_number_returns_none(self) -> None:
         #: Given
         number = UnsignedInt(2)
+        count = NonZeroUnsignedInt(3)
 
         #: When
-        left = number.minus(NonZeroUnsignedInt(3))
+        left = number.minus(count)
 
         #: Then
         assert left is None, f'there is no number below 0, got {left}'

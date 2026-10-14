@@ -163,12 +163,13 @@ class TestInvalidYaml:
     def test_construction_with_a_line_of_its_own_is_refused(self) -> None:
         #: Given
         stopped_at = LineNumber(NonZeroUnsignedInt(3))
+        line = LineNumber(NonZeroUnsignedInt(9))
 
         #: When
         with pytest.raises(TypeError):
             InvalidYaml(
                 owner=DOCUMENT_OWNER,
-                line=LineNumber(NonZeroUnsignedInt(9)),  # ty: ignore[unknown-argument]
+                line=line,  # ty: ignore[unknown-argument]
                 problem='bad',
                 stopped_at=stopped_at,
             )

@@ -56,9 +56,10 @@ class TestSkillRelativePath:
     def test_under_with_a_skill_directory_returns_the_root_relative_path(self) -> None:
         #: Given
         path = SkillRelativePath.parse('guides/d.md')
+        directory = RootRelativePath.parse('.agents/skills/review')
 
         #: When
-        root_relative = path.under(RootRelativePath.parse('.agents/skills/review'))
+        root_relative = path.under(directory)
 
         #: Then
         assert root_relative == RootRelativePath.parse('.agents/skills/review/guides/d.md'), (
@@ -68,9 +69,10 @@ class TestSkillRelativePath:
     def test_under_with_the_skill_directory_itself_returns_that_directory(self) -> None:
         #: Given
         path = SkillRelativePath.parse('.')
+        directory = RootRelativePath.parse('.agents/skills/review')
 
         #: When
-        root_relative = path.under(RootRelativePath.parse('.agents/skills/review'))
+        root_relative = path.under(directory)
 
         #: Then
         assert root_relative == RootRelativePath.parse('.agents/skills/review'), '`.` is the skill directory'
@@ -115,9 +117,10 @@ class TestSkillRef:
     def test_find_resource_with_the_top_level_skill_file_returns_none(self) -> None:
         #: Given
         ref = SkillRef(ResolvedPath(RootRelativePath.parse('.agents/skills')), PathComponent.parse('review'))
+        path = SkillRelativePath.parse('SKILL.md')
 
         #: When
-        resource = ref.find_resource(SkillRelativePath.parse('SKILL.md'))
+        resource = ref.find_resource(path)
 
         #: Then
         assert resource is None, "the skill's own SKILL.md is the skill, never one of its resources"
@@ -125,9 +128,10 @@ class TestSkillRef:
     def test_find_resource_with_a_name_not_ending_in_md_returns_none(self) -> None:
         #: Given
         ref = SkillRef(ResolvedPath(RootRelativePath.parse('.agents/skills')), PathComponent.parse('review'))
+        path = SkillRelativePath.parse('scripts/run.py')
 
         #: When
-        resource = ref.find_resource(SkillRelativePath.parse('scripts/run.py'))
+        resource = ref.find_resource(path)
 
         #: Then
         assert resource is None, 'only a file named as a Markdown document is a resource'
@@ -135,9 +139,10 @@ class TestSkillRef:
     def test_find_resource_with_the_skill_directory_itself_returns_none(self) -> None:
         #: Given
         ref = SkillRef(ResolvedPath(RootRelativePath.parse('.agents/skills')), PathComponent.parse('review'))
+        path = SkillRelativePath.parse('.')
 
         #: When
-        resource = ref.find_resource(SkillRelativePath.parse('.'))
+        resource = ref.find_resource(path)
 
         #: Then
         assert resource is None, 'the skill directory has no name, so it names no resource'
@@ -145,9 +150,10 @@ class TestSkillRef:
     def test_find_resource_with_a_nested_skill_file_returns_its_ref(self) -> None:
         #: Given
         ref = SkillRef(ResolvedPath(RootRelativePath.parse('.agents/skills')), PathComponent.parse('review'))
+        path = SkillRelativePath.parse('examples/SKILL.md')
 
         #: When
-        resource = ref.find_resource(SkillRelativePath.parse('examples/SKILL.md'))
+        resource = ref.find_resource(path)
 
         #: Then
         assert resource == SkillResourceRef(ref, SkillRelativePath.parse('examples/SKILL.md')), (

@@ -486,9 +486,10 @@ class TestVirtualFileSystemListDir:
     def test_list_dir_with_a_listed_directory_returns_its_entries_sorted_by_name(self) -> None:
         #: Given
         virtual = VirtualFileSystem(Snapshot.from_tree({'docs': {'b.md': b'', 'a.md': b''}}))
+        path = RootRelativePath.parse('docs')
 
         #: When
-        entries = virtual.list_dir(RootRelativePath.parse('docs'))
+        entries = virtual.list_dir(path)
 
         #: Then
         assert entries == (
@@ -580,9 +581,10 @@ class TestVirtualFileSystemListDir:
         #: Given
         virtual = VirtualFileSystem(_skills_snapshot())
         entry = DirEntry(PathComponent.parse('linked.md'), EntryKind.SYMLINK)
+        path = RootRelativePath.parse('docs/code')
 
         #: When
-        entries = virtual.list_dir(RootRelativePath.parse('docs/code'))
+        entries = virtual.list_dir(path)
 
         #: Then
         assert entry in entries, 'linked.md is listed as a symlink, never followed to the file it names'
@@ -591,9 +593,10 @@ class TestVirtualFileSystemListDir:
         #: Given
         virtual = VirtualFileSystem(_skills_snapshot())
         entry = DirEntry(PathComponent.parse('pipe'), EntryKind.OTHER)
+        path = RootRelativePath.parse('docs/code')
 
         #: When
-        entries = virtual.list_dir(RootRelativePath.parse('docs/code'))
+        entries = virtual.list_dir(path)
 
         #: Then
         assert entry in entries, 'the fifo pipe is listed as other, neither a file nor a directory'
@@ -613,9 +616,10 @@ class TestVirtualFileSystemListDir:
     def test_list_dir_with_a_listed_directory_holding_a_climbed_directory_returns_it_once(self) -> None:
         #: Given
         virtual = VirtualFileSystem(_climbing_chain_snapshot())
+        path = RootRelativePath.parse('a')
 
         #: When
-        entries = virtual.list_dir(RootRelativePath.parse('a'))
+        entries = virtual.list_dir(path)
 
         #: Then
         assert entries == (
@@ -642,9 +646,10 @@ class TestVirtualFileSystemReadText:
     def test_read_text_with_a_utf8_file_returns_its_text(self) -> None:
         #: Given
         virtual = VirtualFileSystem(Snapshot.from_tree({'docs': {'guide.md': '# Guía\n'.encode()}}))
+        path = RootRelativePath.parse('docs/guide.md')
 
         #: When
-        text = virtual.read_text(RootRelativePath.parse('docs/guide.md'))
+        text = virtual.read_text(path)
 
         #: Then
         assert text == '# Guía\n', 'the recorded bytes are decoded as UTF-8'

@@ -101,10 +101,11 @@ class TestUtf8Failure:
     def test_init_with_a_line_below_one_raises_value_error(self) -> None:
         #: Given
         line = Utf8Line(0)
+        offset = ByteOffset(0)
 
         #: When
         with pytest.raises(ValueError) as exc_info:
-            Utf8Failure(line=line, offset=ByteOffset(0), invalid=b'\xff', reason=Utf8Reason.INVALID_START_BYTE)
+            Utf8Failure(line=line, offset=offset, invalid=b'\xff', reason=Utf8Reason.INVALID_START_BYTE)
 
         #: Then
         assert '0' in str(exc_info.value), 'the message names the value received'
@@ -112,10 +113,11 @@ class TestUtf8Failure:
     def test_init_with_a_negative_offset_raises_value_error(self) -> None:
         #: Given
         offset = ByteOffset(-1)
+        line = Utf8Line(1)
 
         #: When
         with pytest.raises(ValueError) as exc_info:
-            Utf8Failure(line=Utf8Line(1), offset=offset, invalid=b'\xff', reason=Utf8Reason.INVALID_START_BYTE)
+            Utf8Failure(line=line, offset=offset, invalid=b'\xff', reason=Utf8Reason.INVALID_START_BYTE)
 
         #: Then
         assert '-1' in str(exc_info.value), 'the message names the value received'
@@ -123,10 +125,12 @@ class TestUtf8Failure:
     def test_init_with_no_invalid_bytes_raises_value_error(self) -> None:
         #: Given
         invalid = b''
+        line = Utf8Line(1)
+        offset = ByteOffset(0)
 
         #: When
         with pytest.raises(ValueError) as exc_info:
-            Utf8Failure(line=Utf8Line(1), offset=ByteOffset(0), invalid=invalid, reason=Utf8Reason.INVALID_START_BYTE)
+            Utf8Failure(line=line, offset=offset, invalid=invalid, reason=Utf8Reason.INVALID_START_BYTE)
 
         #: Then
         assert "b''" in str(exc_info.value), 'the message names the value received'
