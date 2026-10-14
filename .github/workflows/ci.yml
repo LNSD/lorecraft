@@ -160,12 +160,11 @@ jobs:
           path: report.md
 
   # Report only: mutation testing scores the tests, so it never fails the build.
+  # It runs on main alone, to track the score over time, and never holds up a pull request.
   test-mut:
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 45
-    permissions:
-      contents: read
-      pull-requests: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -185,15 +184,7 @@ jobs:
         run: just test-mut
 
       - name: Render the report
-        run: just test-mut-report | tee report.md >> "$GITHUB_STEP_SUMMARY"
-
-      # A pull request from a fork gets a read-only token, so it has the step summary and no comment.
-      - name: Comment on the pull request
-        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
-        uses: marocchino/sticky-pull-request-comment@5770ad5eb8f42dd2c4f34da00c94c5381e49af88 # v3.0.5
-        with:
-          header: test-mut
-          path: report.md
+        run: just test-mut-report >> "$GITHUB_STEP_SUMMARY"
 
   ## Codegen
   gen-check:
