@@ -11,7 +11,7 @@ A frontmatter key is written more than once in one mapping.
 
 ## What it does
 
-Checks for documents whose structure specification sets a `frontmatter` schema, and for skills, whose
+Checks for documents whose structure file sets a `frontmatter` schema, and for skills, whose
 frontmatter writes a key again in the same mapping, at any depth, block or flow. Each later occurrence is
 reported on its own line, pointing back at the first, whether the values are equal or differ. The same key
 under two different mappings is not a repeat.

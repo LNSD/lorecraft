@@ -35,7 +35,7 @@ class WrongType(FrontmatterRule):
     ## What it does
 
     Checks for documents whose frontmatter gives a field a value of a type other than the one the `type` keyword of
-    its property states in their structure specification's `frontmatter` schema, and for skills whose frontmatter
+    its property states in their structure file's `frontmatter` schema, and for skills whose frontmatter
     gives a field a value other than the string, or the mapping of strings to strings for `metadata`, the Agent
     Skills specification requires. A value of the right type that breaks another constraint, such as a length
     limit, is not this rule's.
@@ -87,9 +87,9 @@ class WrongType(FrontmatterRule):
     ```
 
     Attributes:
-        spec: The specification file that states the schema, derived from `source`, so no caller states one that
+        spec: The structure file that states the schema, derived from `source`, so no caller states one that
             disagrees with it; `None` for the Agent Skills specification.
-        source: The schema that found the problem: a structure specification's, or the Agent Skills specification's.
+        source: The schema that found the problem: a structure file's, or the Agent Skills specification's.
         problem: The field whose value is of the wrong type, with the types the schema expects and the type found.
     """
 
@@ -104,7 +104,7 @@ class WrongType(FrontmatterRule):
     problem: WrongTypeProblem
 
     def __post_init__(self) -> None:
-        """Derive the specification file from the schema that found the problem."""
+        """Derive the structure file from the schema that found the problem."""
         # The dataclass is frozen, so the field a rule derives is set the one way a frozen dataclass allows.
         object.__setattr__(self, 'spec', schema_spec(self.source))
 

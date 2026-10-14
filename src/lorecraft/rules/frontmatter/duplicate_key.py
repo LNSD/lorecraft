@@ -27,7 +27,7 @@ class DuplicateKey(FrontmatterRule):
 
     ## What it does
 
-    Checks for documents whose structure specification sets a `frontmatter` schema, and for skills, whose
+    Checks for documents whose structure file sets a `frontmatter` schema, and for skills, whose
     frontmatter writes a key again in the same mapping, at any depth, block or flow. Each later occurrence is
     reported on its own line, pointing back at the first, whether the values are equal or differ. The same key
     under two different mappings is not a repeat.
@@ -78,9 +78,9 @@ class DuplicateKey(FrontmatterRule):
     ```
 
     Attributes:
-        spec: The specification file that governs the owner's frontmatter, derived from `owner`, so no caller states
+        spec: The structure file that governs the owner's frontmatter, derived from `owner`, so no caller states
             one that disagrees with it.
-        owner: The document or the skill whose frontmatter repeats the key, and so which specification governs it.
+        owner: The document or the skill whose frontmatter repeats the key, and so which meta spec governs it.
         key: The key written again, as decoded.
         first_line: The line the key's first occurrence in its mapping is written on.
         kept_line: The line of the key's last occurrence in its mapping, whose value the reader keeps.
@@ -99,7 +99,7 @@ class DuplicateKey(FrontmatterRule):
     kept_line: LineNumber
 
     def __post_init__(self) -> None:
-        """Derive the specification file from the owner of the frontmatter."""
+        """Derive the structure file from the owner of the frontmatter."""
         # The dataclass is frozen, so the field a rule derives is set the one way a frozen dataclass allows.
         object.__setattr__(self, 'spec', owner_spec(self.owner))
 
@@ -122,7 +122,7 @@ class DuplicateKey(FrontmatterRule):
         )
 
     def children(self) -> tuple[Subdiagnostic, ...]:
-        """Name the specification, the key to write once, and the line whose value is read, unless it is this one."""
+        """Name the meta spec, the key to write once, and the line whose value is read, unless it is this one."""
         parts: list[Subdiagnostic] = [
             spec_note(self.owner),
             Help(f'write {self.key!r} once, with the value meant'),

@@ -11,7 +11,7 @@ A document or a skill does not open with a frontmatter block.
 
 ## What it does
 
-Checks for documents whose structure specification sets a `frontmatter` schema, and for skills, whose
+Checks for documents whose structure file sets a `frontmatter` schema, and for skills, whose
 `SKILL.md` the Agent Skills specification requires to open with frontmatter, that do not open with a block
 between two `---` lines. A file whose first line is not `---`, or whose block is never closed by a second
 `---` line, has none.

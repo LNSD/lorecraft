@@ -12,7 +12,7 @@ A frontmatter field's value is of a type its schema does not accept.
 ## What it does
 
 Checks for documents whose frontmatter gives a field a value of a type other than the one the `type` keyword of
-its property states in their structure specification's `frontmatter` schema, and for skills whose frontmatter
+its property states in their structure file's `frontmatter` schema, and for skills whose frontmatter
 gives a field a value other than the string, or the mapping of strings to strings for `metadata`, the Agent
 Skills specification requires. A value of the right type that breaks another constraint, such as a length
 limit, is not this rule's.

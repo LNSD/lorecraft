@@ -29,7 +29,7 @@ class AllowedToolsTooLong(SkillRule):
     Checks for skills whose whole `allowed-tools` value exceeds 500 characters, including whitespace and
     parenthesised patterns. Exactly 500 characters is within the recommendation. Characters count, not bytes.
     This is Lorecraft's recommendation, matching the Agent Skills specification's limit for `compatibility`;
-    that specification sets no length limit for `allowed-tools`. No repository specification changes it.
+    that specification sets no length limit for `allowed-tools`. No repository meta spec changes it.
 
     ## Why is this bad?
 

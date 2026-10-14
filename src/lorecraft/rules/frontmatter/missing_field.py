@@ -28,9 +28,9 @@ class MissingField(FrontmatterRule):
 
     ## What it does
 
-    Checks for documents whose frontmatter lacks a field the `required` list of their structure specification's
+    Checks for documents whose frontmatter lacks a field the `required` list of their structure file's
     `frontmatter` schema names, and for skills whose frontmatter lacks a field the Agent Skills specification
-    requires, `name` or `description`. A document that several specifications govern, such as a corpus and a
+    requires, `name` or `description`. A document that several meta specs govern, such as a corpus and a
     namespace, is held to each schema they state, and is reported once for each schema that requires the field.
 
     What the schema states about the field is shown as the help to write it: its `description`, the values its
@@ -79,9 +79,9 @@ class MissingField(FrontmatterRule):
     ```
 
     Attributes:
-        spec: The specification file that states the schema, derived from `source`, so no caller states one that
+        spec: The structure file that states the schema, derived from `source`, so no caller states one that
             disagrees with it; `None` for the Agent Skills specification.
-        source: The schema that found the problem: a structure specification's, or the Agent Skills specification's.
+        source: The schema that found the problem: a structure file's, or the Agent Skills specification's.
         problem: The field the schema requires and the frontmatter lacks, with what the schema states about it.
     """
 
@@ -96,7 +96,7 @@ class MissingField(FrontmatterRule):
     problem: MissingFieldProblem
 
     def __post_init__(self) -> None:
-        """Derive the specification file from the schema that found the problem."""
+        """Derive the structure file from the schema that found the problem."""
         # The dataclass is frozen, so the field a rule derives is set the one way a frozen dataclass allows.
         object.__setattr__(self, 'spec', schema_spec(self.source))
 

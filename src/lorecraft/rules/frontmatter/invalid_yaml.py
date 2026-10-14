@@ -28,7 +28,7 @@ class InvalidYaml(FrontmatterRule):
 
     ## What it does
 
-    Checks for documents whose structure specification sets a `frontmatter` schema, and for skills, whose
+    Checks for documents whose structure file sets a `frontmatter` schema, and for skills, whose
     frontmatter block cannot be read as YAML, or uses a construct frontmatter does not allow, such as a tag, an
     anchor or a key that is not a string. It is reported on the line the writer fixes, with what is wrong and, for
     a syntax error, what to do, or on the first line, the one that opens the block, when that line cannot be
@@ -79,9 +79,9 @@ class InvalidYaml(FrontmatterRule):
     ```
 
     Attributes:
-        spec: The specification file that governs the owner's frontmatter, derived from `owner`, so no caller states
+        spec: The structure file that governs the owner's frontmatter, derived from `owner`, so no caller states
             one that disagrees with it.
-        owner: The document or the skill whose frontmatter is not YAML, and so which specification governs it.
+        owner: The document or the skill whose frontmatter is not YAML, and so which meta spec governs it.
         problem: What is wrong with the YAML, in lorecraft's words.
         stopped_at: The line the YAML reader stopped on, which the occurrence is reported at; or `None` when it
             cannot be known, and the occurrence is reported at the line that opens the block.
@@ -104,7 +104,7 @@ class InvalidYaml(FrontmatterRule):
     help: str | None = None
 
     def __post_init__(self) -> None:
-        """Derive the reported line from where the YAML reader stopped, and the specification from the owner."""
+        """Derive the reported line from where the YAML reader stopped, and the meta spec from the owner."""
         # The dataclass is frozen, so the field a rule derives is set the one way a frozen dataclass allows.
         object.__setattr__(self, 'line', FIRST_LINE if self.stopped_at is None else self.stopped_at)
         object.__setattr__(self, 'spec', owner_spec(self.owner))
@@ -120,7 +120,7 @@ class InvalidYaml(FrontmatterRule):
         return (Label(Here(self.line), self.problem),)
 
     def children(self) -> tuple[Subdiagnostic, ...]:
-        """Name what to do about the problem, where there is one, and the specification that governs the frontmatter."""
+        """Name what to do about the problem, where there is one, and the meta spec that governs the frontmatter."""
         if self.help is None:
             return (spec_note(self.owner),)
         return (Help(self.help), spec_note(self.owner))

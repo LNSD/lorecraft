@@ -34,7 +34,7 @@ class NameMismatch(FrontmatterRule):
 
     ## What it does
 
-    Checks for documents whose structure specification sets a `frontmatter` schema and whose `name` differs from
+    Checks for documents whose structure file sets a `frontmatter` schema and whose `name` differs from
     their filename without its extension, and for skills whose `name` differs from the name of their directory,
     as the Agent Skills specification requires. A skill's directory is named as an agent lists it in its skills
     directory: when that directory is a link to a directory named otherwise, the listed name is the one expected.
@@ -87,11 +87,11 @@ class NameMismatch(FrontmatterRule):
     ```
 
     Attributes:
-        spec: The specification file that governs the owner's frontmatter, derived from `owner`, so no caller states
+        spec: The structure file that governs the owner's frontmatter, derived from `owner`, so no caller states
             one that disagrees with it.
         owner: The document or the skill whose `name` is compared. It says what the name is held to, the document's
             filename or the skill's directory name with where a linked directory leads, and which kind of subject
-            is governed; no note renders the specification, since no schema states this rule.
+            is governed; no note renders the meta spec, since no schema states this rule.
         name: The `name` the frontmatter writes.
     """
 
@@ -106,7 +106,7 @@ class NameMismatch(FrontmatterRule):
     name: str
 
     def __post_init__(self) -> None:
-        """Derive the specification file from the owner of the frontmatter."""
+        """Derive the structure file from the owner of the frontmatter."""
         # The dataclass is frozen, so the field a rule derives is set the one way a frozen dataclass allows.
         object.__setattr__(self, 'spec', owner_spec(self.owner))
 
@@ -121,7 +121,7 @@ class NameMismatch(FrontmatterRule):
     def children(self) -> tuple[Subdiagnostic, ...]:
         """Say which name is expected and why, the two ways to make the names agree, and where a link leads.
 
-        No schema states this rule, so no note points at the specification file: the document's `name` is held to its
+        No schema states this rule, so no note points at the structure file: the document's `name` is held to its
         filename by the package, and a skill's to its directory by the Agent Skills specification.
         """
         owner = self.owner

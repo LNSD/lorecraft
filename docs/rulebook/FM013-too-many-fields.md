@@ -11,7 +11,7 @@ A frontmatter holds more fields than its schema allows.
 
 ## What it does
 
-Checks for documents whose frontmatter holds more fields than their structure specification's `frontmatter`
+Checks for documents whose frontmatter holds more fields than their structure file's `frontmatter`
 schema allows with `maxProperties`. It is reported on line 1, since it concerns no one field. The message says
 how many fields the block holds against the most the schema allows, and the help is the description the schema
 states for the block, when it states one.

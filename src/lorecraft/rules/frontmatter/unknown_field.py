@@ -28,11 +28,11 @@ class UnknownField(FrontmatterRule):
 
     ## What it does
 
-    Checks for documents whose frontmatter holds a field their structure specification's `frontmatter` schema
+    Checks for documents whose frontmatter holds a field their structure file's `frontmatter` schema
     neither names in `properties` nor matches in `patternProperties`, when the schema sets `additionalProperties`
     to `false`, or that no keyword of the schema evaluates, when it sets `unevaluatedProperties` to `false`; and
     for skills whose frontmatter holds a field the Agent Skills specification does not define. A document that
-    several specifications govern is reported once for each schema that does not define the field.
+    several meta specs govern is reported once for each schema that does not define the field.
 
     The fields the schema defines are listed as a note: the `properties` of the schema that holds the keyword, or
     the fields of the Agent Skills specification. A schema that composes others with `allOf` or `$ref` may
@@ -83,9 +83,9 @@ class UnknownField(FrontmatterRule):
     ```
 
     Attributes:
-        spec: The specification file that states the schema, derived from `source`, so no caller states one that
+        spec: The structure file that states the schema, derived from `source`, so no caller states one that
             disagrees with it; `None` for the Agent Skills specification.
-        source: The schema that found the problem: a structure specification's, or the Agent Skills specification's.
+        source: The schema that found the problem: a structure file's, or the Agent Skills specification's.
         problem: The field the schema does not define, with the fields it does.
     """
 
@@ -100,7 +100,7 @@ class UnknownField(FrontmatterRule):
     problem: UnknownFieldProblem
 
     def __post_init__(self) -> None:
-        """Derive the specification file from the schema that found the problem."""
+        """Derive the structure file from the schema that found the problem."""
         # The dataclass is frozen, so the field a rule derives is set the one way a frozen dataclass allows.
         object.__setattr__(self, 'spec', schema_spec(self.source))
 
