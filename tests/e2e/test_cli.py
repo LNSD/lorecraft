@@ -334,57 +334,18 @@ class TestInspectSnapshots:
 
 
 @pytest.fixture(scope='function')
-def duplicate_key_root(tmp_path: Path, faker: Faker) -> Path:
-    """A root holding one document and one skill, each of whose frontmatter writes a key twice.
+def invalid_spec_root(tmp_path: Path, faker: Faker) -> Path:
+    """A root holding one document under a specification whose frontmatter schema cannot be used.
 
     Args:
-        tmp_path: Directory the document, its specification and the skill are written into, as the repository root.
-        faker: The test's seeded generator, which fills what each part leaves unset.
+        tmp_path: Directory the specification and the document are written into, as the repository root.
+        faker: The test's seeded generator, which fills what the document leaves unset.
     """
-    # The frontmatter check governs a document only when its corpus specification states a frontmatter schema; this
-    # one accepts any mapping, so the repeated key is all it reports.
-    spec = Spec('code', structure={'frontmatter': {'type': 'object'}})
-    document = Document('code', 'guide', frontmatter=RawFrontmatter('name: guide\ntype: rule\ntype: pattern\n'))
-    skill = Skill(
-        'review',
-        frontmatter=RawFrontmatter('name: review\ndescription: Review a change\ndescription: Audit a change\n'),
+    # The model validates a specification when it loads, but only for a corpus whose directory exists, so the corpus
+    # holds a document.
+    workspace = Workspace(
+        specs=[Spec('code', structure={'frontmatter': {'type': 5}})], documents=[Document('code', 'guide')]
     )
-    workspace = Workspace(specs=[spec], documents=[document], skills=[skill])
-    return workspace.write(tmp_path, faker)
-
-
-@pytest.fixture(scope='function')
-def non_string_key_root(tmp_path: Path, faker: Faker) -> Path:
-    """A root holding one document whose frontmatter writes a key that decodes to a date, under `patternProperties`.
-
-    Args:
-        tmp_path: Directory the document and its specification are written into, as the repository root.
-        faker: The test's seeded generator, which fills what each part leaves unset.
-    """
-    # `jsonschema` matches a `patternProperties` pattern against every key, so a key that is not a string would
-    # crash the run if the frontmatter decoded with it.
-    spec = Spec('code', structure={'frontmatter': {'type': 'object', 'patternProperties': {'^x-': {}}}})
-    document = Document('code', 'guide', frontmatter=RawFrontmatter('name: guide\n2026: launch\n'))
-    workspace = Workspace(specs=[spec], documents=[document])
-    return workspace.write(tmp_path, faker)
-
-
-@pytest.fixture(scope='function')
-def skill_and_resource_absolute_link_root(tmp_path: Path, faker: Faker) -> Path:
-    """A root holding one skill whose `SKILL.md` and whose resource each link to a file from the filesystem root.
-
-    A run prints two `LINK001` diagnostics, one in the `SKILL.md` and one in the resource.
-
-    Args:
-        tmp_path: Directory the skill is written into, as the repository root.
-        faker: The test's seeded generator, which fills what the skill leaves unset.
-    """
-    skill = Skill(
-        'review',
-        body='# Review\n\nRead [the steps](/steps.md).\n',
-        references={'guide.md': '# Guide\n\nRead [the docs](/docs/guide.md).\n'},
-    )
-    workspace = Workspace(skills=[skill])
     return workspace.write(tmp_path, faker)
 
 
@@ -418,7 +379,7 @@ def mixed_root(tmp_path: Path, faker: Faker) -> Path:
 
 
 @pytest.mark.e2e
-class TestCheckSnapshots:
+class TestCheckCommand:
     # Every diagnostic prints root-relative, so the output is the same in every checkout and nothing is redacted.
     # The fixture's documents carry no frontmatter and its `beta` skill is a link to `alpha` named `alpha`, so a run
     # over it reports errors and exits 1.
@@ -577,8 +538,11 @@ class TestCheckSnapshots:
             'no rule over a document runs, so no part of one is reported ungoverned'
         )
 
-    def test_check_with_an_unknown_selector_prints_a_usage_error_and_exits_two(self, mixed_root: Path) -> None:
+    def test_check_with_an_unknown_selector_prints_a_usage_error_and_exits_two(
+        self, snapshot: SnapshotAssertion, mixed_root: Path
+    ) -> None:
         #: Given
+        expected = snapshot.use_extension(TextSnapshotExtension)
         arguments = ('check', '--root', str(mixed_root), '--select', 'NOPE', '--format', 'json')
 
         #: When
@@ -587,16 +551,24 @@ class TestCheckSnapshots:
         #: Then
         assert result.returncode == 2, result.stderr
         assert result.stdout == '', 'a run refused before checking prints no document'
-        assert "Invalid value for '--select': 'NOPE' is no rule code or prefix" in usage_error_message(result.stderr), (
-            "the selector is named in Typer's usage error"
-        )
+        assert usage_error_message(result.stderr) == expected, "the selector is named in Typer's usage error"
 
     def test_check_with_a_key_written_twice_prints_the_duplicate_key_diagnostics(
-        self, snapshot: SnapshotAssertion, duplicate_key_root: Path
+        self, snapshot: SnapshotAssertion, tmp_path: Path, faker: Faker
     ) -> None:
         #: Given
         expected = snapshot.use_extension(TextSnapshotExtension)
-        arguments = ('check', '--root', str(duplicate_key_root))
+        # The frontmatter check governs a document only when its corpus specification states a frontmatter schema; this
+        # one accepts any mapping, so the repeated key is all it reports.
+        spec = Spec('code', structure={'frontmatter': {'type': 'object'}})
+        document = Document('code', 'guide', frontmatter=RawFrontmatter('name: guide\ntype: rule\ntype: pattern\n'))
+        skill = Skill(
+            'review',
+            frontmatter=RawFrontmatter('name: review\ndescription: Review a change\ndescription: Audit a change\n'),
+        )
+        workspace = Workspace(specs=[spec], documents=[document], skills=[skill])
+        root = workspace.write(tmp_path, faker)
+        arguments = ('check', '--root', str(root))
 
         #: When
         result = run_cli(*arguments)
@@ -606,11 +578,17 @@ class TestCheckSnapshots:
         assert result.stdout == expected, "the document's and the skill's duplicate key match the reviewed snapshot"
 
     def test_check_with_a_non_string_key_prints_the_diagnostic_on_its_line(
-        self, snapshot: SnapshotAssertion, non_string_key_root: Path
+        self, snapshot: SnapshotAssertion, tmp_path: Path, faker: Faker
     ) -> None:
         #: Given
         expected = snapshot.use_extension(TextSnapshotExtension)
-        arguments = ('check', '--root', str(non_string_key_root))
+        # `jsonschema` matches a `patternProperties` pattern against every key, so a key that is not a string would
+        # crash the run if the frontmatter decoded with it.
+        spec = Spec('code', structure={'frontmatter': {'type': 'object', 'patternProperties': {'^x-': {}}}})
+        document = Document('code', 'guide', frontmatter=RawFrontmatter('name: guide\n2026: launch\n'))
+        workspace = Workspace(specs=[spec], documents=[document])
+        root = workspace.write(tmp_path, faker)
+        arguments = ('check', '--root', str(root))
 
         #: When
         result = run_cli(*arguments)
@@ -620,11 +598,18 @@ class TestCheckSnapshots:
         assert result.stdout == expected, "the diagnostic on the key's line matches the reviewed snapshot"
 
     def test_check_with_absolute_links_in_a_skill_and_its_resource_prints_each_in_its_file(
-        self, snapshot: SnapshotAssertion, skill_and_resource_absolute_link_root: Path
+        self, snapshot: SnapshotAssertion, tmp_path: Path, faker: Faker
     ) -> None:
         #: Given
         expected = snapshot.use_extension(TextSnapshotExtension)
-        arguments = ('check', '--root', str(skill_and_resource_absolute_link_root))
+        skill = Skill(
+            'review',
+            body='# Review\n\nRead [the steps](/steps.md).\n',
+            references={'guide.md': '# Guide\n\nRead [the docs](/docs/guide.md).\n'},
+        )
+        workspace = Workspace(skills=[skill])
+        root = workspace.write(tmp_path, faker)
+        arguments = ('check', '--root', str(root))
 
         #: When
         result = run_cli(*arguments)
@@ -634,17 +619,11 @@ class TestCheckSnapshots:
         assert result.stdout == expected, 'the absolute link in the SKILL.md and in the resource match the snapshot'
 
     def test_check_with_an_invalid_specification_prints_it_as_a_diagnostic_on_stdout(
-        self, snapshot: SnapshotAssertion, tmp_path: Path, faker: Faker
+        self, snapshot: SnapshotAssertion, invalid_spec_root: Path
     ) -> None:
         #: Given
         expected = snapshot.use_extension(TextSnapshotExtension)
-        # The model validates a specification when it loads, but only for a corpus whose directory exists, so the
-        # corpus holds a document.
-        workspace = Workspace(
-            specs=[Spec('code', structure={'frontmatter': {'type': 5}})], documents=[Document('code', 'guide')]
-        )
-        root = workspace.write(tmp_path, faker)
-        arguments = ('check', '--root', str(root))
+        arguments = ('check', '--root', str(invalid_spec_root))
 
         #: When
         result = run_cli(*arguments)
@@ -654,15 +633,11 @@ class TestCheckSnapshots:
         assert result.stdout == expected, 'the specification that cannot be used is a diagnostic at it'
 
     def test_check_with_an_invalid_specification_lists_what_it_governs_as_skipped_on_stderr(
-        self, snapshot: SnapshotAssertion, tmp_path: Path, faker: Faker
+        self, snapshot: SnapshotAssertion, invalid_spec_root: Path
     ) -> None:
         #: Given
         expected = snapshot.use_extension(TextSnapshotExtension)
-        workspace = Workspace(
-            specs=[Spec('code', structure={'frontmatter': {'type': 5}})], documents=[Document('code', 'guide')]
-        )
-        root = workspace.write(tmp_path, faker)
-        arguments = ('check', '--root', str(root))
+        arguments = ('check', '--root', str(invalid_spec_root))
 
         #: When
         result = run_cli(*arguments)
@@ -720,10 +695,7 @@ def linked_specs_root(tmp_path: Path, faker: Faker) -> Path:
         tmp_path: Directory the link and the document are written into, as the repository root.
         faker: The test's seeded generator, which fills what the document leaves unset.
     """
-    workspace = Workspace(
-        documents=[Document('code', 'logging')],
-        links=[Link('docs/__meta__', str(WORKSPACE_FIXTURE / 'docs' / '__meta__'))],
-    )
+    workspace = Workspace(links=[Link('docs/__meta__', str(WORKSPACE_FIXTURE / 'docs' / '__meta__'))])
     return workspace.write(tmp_path, faker)
 
 

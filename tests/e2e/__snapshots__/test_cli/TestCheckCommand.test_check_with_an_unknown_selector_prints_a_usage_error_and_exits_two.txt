@@ -1,0 +1,1 @@
+Usage: lorecraft check [OPTIONS] Try 'lorecraft check --help' for help. Error Invalid value for '--select': 'NOPE' is no rule code or prefix
