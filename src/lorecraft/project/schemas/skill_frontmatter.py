@@ -226,6 +226,10 @@ class SkillName:
 
         Args:
             value: The input pydantic holds for the field: an instance, a string, or anything else.
+
+        Raises:
+            PydanticCustomError: If `value` is not a string, or is a string that is not a valid name; the error
+                type tells which.
         """
         if isinstance(value, cls):
             return value
@@ -366,6 +370,9 @@ class SkillDescription:
 
         Args:
             value: The input pydantic holds for the field: an instance, a string, or anything else.
+
+        Raises:
+            PydanticCustomError: If `value` is not a string, or is a string that is empty or over the length limit.
         """
         if isinstance(value, cls):
             return value
@@ -437,6 +444,9 @@ class SkillLicense:
 
         Args:
             value: The input pydantic holds for the field: an instance, a string, or anything else.
+
+        Raises:
+            PydanticCustomError: If `value` is not a string.
         """
         if isinstance(value, cls):
             return value
@@ -572,6 +582,9 @@ class SkillCompatibility:
 
         Args:
             value: The input pydantic holds for the field: an instance, a string, or anything else.
+
+        Raises:
+            PydanticCustomError: If `value` is not a string, or is a string that is empty or over the length limit.
         """
         if isinstance(value, cls):
             return value
@@ -647,6 +660,9 @@ class SkillAllowedTools:
 
         Args:
             value: The input pydantic holds for the field: an instance, a string, or anything else.
+
+        Raises:
+            PydanticCustomError: If `value` is not a string.
         """
         if isinstance(value, cls):
             return value

@@ -219,6 +219,10 @@ class _EventStream:
 
         Args:
             kinds: The event classes to test for.
+
+        Raises:
+            MarkedYAMLError: The text is not valid YAML.
+            ReaderError: The text holds a character YAML does not allow, such as a control character.
         """
         return isinstance(self.peek_event(), kinds)
 

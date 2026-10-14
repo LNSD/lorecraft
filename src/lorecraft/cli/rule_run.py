@@ -18,6 +18,10 @@ def run_rule(key: RuleKey | None) -> None:
 
     Args:
         key: The argument, already parsed and confirmed against the rule index.
+
+    Raises:
+        RuntimeError: If the rules cannot be registered, or the index names a rule the registry does not hold, which
+            means the generated index is stale.
     """
     registry = Registry.load(rules)
     if key is None:

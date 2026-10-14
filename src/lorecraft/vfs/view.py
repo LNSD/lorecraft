@@ -444,11 +444,11 @@ class FileSystem(ABC):
     Every `path` argument and every returned path is a `RootRelativePath`, so an implementation joins an
     argument onto its root without checking it: an absolute path or a `..` component was rejected when the
     value was built.
-
-    An ABC rather than a Protocol because every implementation is this package's own and must be complete,
-    so a missing method fails at instantiation instead of at its first call (error-boundaries §1). With
-    `DiskFileSystem` and `VirtualFileSystem`, pattern-repository's second real implementation exists.
     """
+
+    # An ABC rather than a Protocol because every implementation is this package's own and must be complete, so a
+    # missing method fails at instantiation instead of at its first call (error-boundaries §1). With `DiskFileSystem`
+    # and `VirtualFileSystem`, pattern-repository's second real implementation exists.
 
     @abstractmethod
     def list_dir(self, path: RootRelativePath) -> tuple[DirEntry, ...]:

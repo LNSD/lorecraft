@@ -152,7 +152,11 @@ def discover_cases() -> tuple[RuleCase, ...]:
 
 
 def directories_under(directory: Path) -> list[Path]:
-    """The subdirectories of `directory` in name order; none when it does not exist."""
+    """The subdirectories of `directory` in name order; none when it does not exist.
+
+    Args:
+        directory: The directory to list.
+    """
     if not directory.is_dir():
         return []
     return sorted(entry for entry in directory.iterdir() if entry.is_dir())
@@ -192,7 +196,11 @@ NEAR_MISS_CASES: Final[tuple[RuleCase, ...]] = tuple(case for case in CASES if c
 
 
 def case_ids(cases: tuple[RuleCase, ...]) -> list[str]:
-    """The test ids of `cases`, one per case."""
+    """The test ids of `cases`, one per case.
+
+    Args:
+        cases: The cases to name.
+    """
     return [case.id for case in cases]
 
 

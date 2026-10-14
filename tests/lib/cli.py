@@ -30,6 +30,9 @@ def run_cli(
         arguments: Command-line arguments passed to `lorecraft`, after the program name.
         cwd: Directory the process starts in. The test's own working directory when omitted.
         env: The whole environment the process starts with, replacing the test's own. The test's own when omitted.
+
+    Raises:
+        subprocess.TimeoutExpired: If the process runs longer than 30 seconds.
     """
     return subprocess.run([*_COMMAND, *arguments], capture_output=True, text=True, timeout=30, cwd=cwd, env=env)
 
@@ -40,6 +43,9 @@ def run_alias(*arguments: str, cwd: Path | None = None) -> subprocess.CompletedP
     Args:
         arguments: Command-line arguments passed to `lc`, after the program name.
         cwd: Directory the process starts in. The test's own working directory when omitted.
+
+    Raises:
+        subprocess.TimeoutExpired: If the process runs longer than 30 seconds.
     """
     return subprocess.run([*_ALIAS_COMMAND, *arguments], capture_output=True, text=True, timeout=30, cwd=cwd)
 

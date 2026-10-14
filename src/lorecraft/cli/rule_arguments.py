@@ -530,7 +530,7 @@ def _is_group_prefix(text: str) -> bool:
     """Whether the text has the shape of a group's prefix: uppercase ASCII letters, and not `ALL`.
 
     Args:
-        text: Any text.
+        text: The word of a selector or rule argument to classify.
     """
     return bool(text) and text != _ALL and all(character in ascii_uppercase for character in text)
 
@@ -558,7 +558,7 @@ def _has_code_shape(text: str) -> bool:
     """Whether the text has the shape of a rule's code: a group's prefix and three digits, 001 to 999.
 
     Args:
-        text: Any text.
+        text: The word of a selector or rule argument to classify.
     """
     group_prefix = text.rstrip(digits)
     number_digits = text[len(group_prefix) :]
@@ -569,7 +569,7 @@ def _has_name_shape(text: str) -> bool:
     """Whether the text has the shape of a rule's name: kebab-case, with no leading, trailing or doubled hyphen.
 
     Args:
-        text: Any text.
+        text: The word of a rule argument to classify.
     """
     if not text or any(character not in _NAME_CHARACTERS for character in text):
         return False

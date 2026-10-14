@@ -77,12 +77,11 @@ class DiskFileSystem(FileSystem):
     def __init__(self, root: Path) -> None:
         """Remember the root, resolved once: the constructor's only I/O.
 
-        `find_dir` compares resolved paths against this root, so it must be resolved itself; a caller's
-        root, such as a test's raw `tmp_path`, is resolved here rather than at every call.
-
         Args:
             root: The workspace root directory; may be spelled through symlinks, and is kept in its resolved form.
         """
+        # `find_dir` compares resolved paths against this root, so it must be resolved itself; a caller's root, such
+        # as a test's raw `tmp_path`, is resolved here rather than at every call.
         self._root = Path(os.path.realpath(root))
 
     def list_dir(self, path: RootRelativePath) -> tuple[DirEntry, ...]:

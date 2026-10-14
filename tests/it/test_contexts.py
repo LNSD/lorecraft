@@ -1,10 +1,10 @@
 """The database-backed contexts, held to the protocols of `lorecraft.project` they implement.
 
 Each method of `DocumentContext`, `SkillContext`, `SkillResourceContext` and `LayoutContext` is asked through a
-value typed as the protocol, over a database opened on an in-memory snapshot, and compared with what the database's
-matching query returns; a fact the database memoizes is the very value the query keeps, so a context computes nothing
-of its own. The static hold of each class to its protocol is in `lorecraft.project.database.tests.test_context`,
-where the type-checking gate reaches it.
+value typed as the protocol, over a database opened on an in-memory snapshot, or on a scan of a real tree where the
+query needs a path in scope, and compared with what the database's matching query returns; a fact the database
+memoizes is the very value the query keeps, so a context computes nothing of its own. The static hold of each class
+to its protocol is in `lorecraft.project.database.tests.test_context`, where the type-checking gate reaches it.
 """
 
 from pathlib import Path, PurePosixPath

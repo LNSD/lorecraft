@@ -156,7 +156,14 @@ def parse_allowed_tools(text: str) -> AllowedTools:
 def _keep(
     fields: dict[SkillField, SkillFieldValue], field: SkillField, parse: Callable[[str], SkillFieldValue], text: str
 ) -> None:
-    """Record the value object `text` parses into, or nothing when its type rejects it."""
+    """Record the value object `text` parses into, or nothing when its type rejects it.
+
+    Args:
+        fields: The parsed fields so far; gains `field` when `text` parses.
+        field: The field `text` is the value of.
+        parse: The value type's parser, which raises its error type for a value it rejects.
+        text: The field's value as the frontmatter spells it.
+    """
     try:
         fields[field] = parse(text)
     except Error:
@@ -164,7 +171,11 @@ def _keep(
 
 
 def _string_mapping(value: Frozen) -> FrozenMapping[str, str] | None:
-    """The mapping when every key and value is a string, as the specification asks of `metadata`; else `None`."""
+    """The mapping when every key and value is a string, as the specification asks of `metadata`; else `None`.
+
+    Args:
+        value: The frozen frontmatter value of the field.
+    """
     if not isinstance(value, FrozenMapping):
         return None
     strings: dict[str, str] = {}
@@ -176,7 +187,11 @@ def _string_mapping(value: Frozen) -> FrozenMapping[str, str] | None:
 
 
 def _split_entries(value: str) -> tuple[str, ...]:
-    """Split at whitespace outside balanced parentheses, keeping each entry's spelling."""
+    """Split at whitespace outside balanced parentheses, keeping each entry's spelling.
+
+    Args:
+        value: The `allowed-tools` text, entries separated by blanks.
+    """
     entries: list[str] = []
     start: int | None = None
     depth = 0
