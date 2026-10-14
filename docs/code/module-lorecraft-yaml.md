@@ -23,6 +23,7 @@ check is, so the package above it decides what a refused construct means for a d
 - Code that scans, parses or refuses YAML text, or builds a value from what a YAML parser reports.
 - The subclasses of the YAML library's reader, scanner and parser that make it read the subset Lorecraft accepts.
 - The types that name a construct the subset leaves out, and where in the text it is written.
+- The tree a YAML text reads into, and the position of each of its nodes, as frozen values of this package's own.
 - A fact about YAML's grammar, such as which characters end a line or a token.
 
 ## Belongs Elsewhere
