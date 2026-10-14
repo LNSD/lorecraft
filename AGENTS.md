@@ -191,7 +191,7 @@ list, and `check-docs` is in the `docs` group rather than `check`, so a group-ba
 |---|---|
 | Format | `just fmt` after edits and before linting; `just fmt-check` verifies without writing |
 | Lint | `just check`, which also runs the import-layering contract; every finding fixed, none silenced with a bare `# noqa`. `just check-fix` first |
-| Types | `just typecheck`; clean, with no finding silenced by widening an annotation to `Any` |
+| Types | `just check-types`; clean, with no finding silenced by widening an annotation to `Any` |
 | Tests | `just test-unit` after lint is clean, then the tier the change touches — `just test-it`, `just test-e2e` — and `just test` when it earns the whole suite |
 | Documents and skills | `just check-docs`; `lorecraft check` reports no error over any document under `docs/` or any skill: the frontmatter, outline, length, link and layout rules |
 | Codegen | `just gen` after changing a generator or what it models; it must leave the tree unchanged in CI |
@@ -205,7 +205,7 @@ and do not broaden scope for convenience.
   the obvious construct; shorter but harder to explain is a regression.
 - **Type annotations are a requirement, not a preference.** Every signature, dataclass field and module-level
   constant carries one: an unannotated signature is an incomplete contract and a wrong annotation is a defect,
-  not a stale comment. `just typecheck` must be clean before a change is done, `Any` needs a reason at the spot
+  not a stale comment. `just check-types` must be clean before a change is done, `Any` needs a reason at the spot
   it appears, and [docs/code/python-typing.md](docs/code/python-typing.md) owns the spelling.
 - Do not add an abstraction, a generic, or a callback parameter to save a few lines.
 - Prefer types that prevent invalid states over defensive checks for states that "shouldn't happen", and

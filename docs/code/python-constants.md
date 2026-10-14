@@ -23,7 +23,7 @@ a literal, and the annotation says so.
 
 A plain annotation lets any module rebind the name, and a test that patches it, or an assignment that meant to
 shadow it locally, changes the value for every caller in the process. `Final` turns that rebinding into a
-`just typecheck` failure.
+`just check-types` failure.
 
 ```python
 # ❌ Bad — nothing stops a later `MAX_HEADING_DEPTH = 6` in a helper from changing the

@@ -35,7 +35,7 @@ reviewed the change and stand behind it.
 ## Making the Change
 
 Follow [`AGENTS.md`](AGENTS.md): it names the code rules a change must follow, and the gates it must pass
-before you push — `just fmt`, `just check`, `just typecheck` and the test tiers the change reaches. A pull
+before you push — `just fmt`, `just check`, `just check-types` and the test tiers the change reaches. A pull
 request that fails CI is not reviewed until it passes.
 
 ## One Commit per Pull Request

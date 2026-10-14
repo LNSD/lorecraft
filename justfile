@@ -60,11 +60,11 @@ check-fix *EXTRA_FLAGS:
     @echo "🔍 Linting code (with fixes)..."
     uv run ruff check . --fix {{EXTRA_FLAGS}}
 
-alias check-types := typecheck
+alias typecheck := check-types
 
 # Type-check the package source and the generators (ty check)
 [group: 'check']
-typecheck *EXTRA_FLAGS:
+check-types *EXTRA_FLAGS:
     @echo "🔍 Type-checking code..."
     uv run ty check src gen/src {{EXTRA_FLAGS}}
 

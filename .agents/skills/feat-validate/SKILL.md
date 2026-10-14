@@ -2,7 +2,7 @@
 name: feat-validate
 description: Verify that a feat doc aligns with the implementation. Use when asking about feature implementation status, or to check that documented functionality exists in code and has test coverage
 compatibility: Requires the feat doc corpus in docs/feat/ and the checker sources in src/lorecraft/. Reads code and tests; runs only the repository's own gates through just.
-allowed-tools: Read Grep Glob Bash(just typecheck *) Bash(just test-unit *) Bash(just test *)
+allowed-tools: Read Grep Glob Bash(just check-types *) Bash(just test-unit *) Bash(just test *)
 ---
 
 # Feature Validate Skill
@@ -139,7 +139,7 @@ expect is absent: a `meta` spec has no Usage section by design, and its concrete
 - Is validation implemented as described?
 
 **Use the repository's own gates as evidence, not as a substitute for reading:**
-- `just typecheck` — a documented symbol that does not resolve, or resolves with a different signature, shows
+- `just check-types` — a documented symbol that does not resolve, or resolves with a different signature, shows
   up here rather than at runtime.
 - `just test-unit` — run it when you have found the tests that cover the documented behaviour, so the report
   says the tests *pass*, not merely that they exist.
@@ -290,7 +290,7 @@ coverage gap for that tier even when it exists. Note it as one.
    - Verify each listed code is declared with `@rule` in its group's subpackage under `src/lorecraft/rules/`
    - Verify each rule's default level matches the severity the doc states
    - Verify the command chooses the exit status the doc states
-   - Run `just typecheck` to catch a documented name the code no longer has
+   - Run `just check-types` to catch a documented name the code no longer has
 
 3. **Search for tests** - Check coverage:
    - Grep the unit `tests/` subpackages under `src/lorecraft/rules/` for each rule class
