@@ -33,6 +33,8 @@ and exits `1` when any diagnostic is an error.
   level is `deny` for an error or `warn` for a warning.
 - **Diagnostic**: One occurrence: a path, optional line, severity, code, message, labels, help and notes.
   Diagnostics sort by path, location, severity, code and message.
+- **Line**: A line ends only at `\n`, at `\r\n` as one break, or at a lone `\r`. Vertical tab, form feed, U+0085,
+  U+2028 and U+2029 stay within a line. Findings and source excerpts use these lines.
 - **Governed**: A document's `structure` is governed when its corpus has a structure file, its `frontmatter` when
   that file states a schema, its `outline` or `budget` when an applying file states an outline or `tokens`. A rule
   over an ungoverned part does not run; the part is reported as coverage, not a diagnostic.
@@ -54,11 +56,9 @@ outside the repository. Shared skills are checked once. Subjects and diagnostics
 
 ### One Run, One Snapshot
 
-Every rule reads one [snapshot](workspace.md#one-snapshot), through one database, so a file is read and
-parsed once however many rules read it. Meta specs are loaded before subjects are checked. A structure file
-that fails to load gets an error diagnostic at its path; documents it governs are skipped, while other
-documents are checked. A file that is not UTF-8, a structure file included, is reported as `LC001` and skips
-what it governs; no rule judges it.
+Every rule reads one [snapshot](workspace.md#one-snapshot). Meta specs load before subjects. A failed structure
+file gets a diagnostic; documents it governs are skipped while others are checked. Invalid UTF-8 is `LC001`;
+no rule judges that file.
 A structure file's diagnostic and coverage path use its actual name, `.spec.json` or the legacy
 `.structure.json`.
 
@@ -73,9 +73,7 @@ For each rule, the most specific matching selector decides, with `--ignore` winn
 turn on a rule at `allow`.
 
 Selectors are checked before the workspace loads. Empty, malformed, unknown, name, engine condition (`LC`
-included) and removed-rule selectors exit `2` as usage errors. Name errors give the rule's code; removed-rule
-errors point to `lorecraft rule <code>`. Declared aliases are accepted with a warning naming the rule's code;
-selecting an `allow` rule also warns.
+included) and removed-rule selectors exit `2`. Aliases and `allow` rules warn.
 
 ## Configuration
 
@@ -117,7 +115,7 @@ code and message; numbered source lines and labels follow. The reported line has
 labelled line has a dotted one. Nearby lines are grouped, with an ellipsis between distant lines. `:::`
 points to another file. Help and notes follow as `= help:` and `= note:`. Single-line help and notes wrap
 to terminal width, or 100 columns when piped; piped output ignores `COLUMNS`. Multi-line text keeps its
-line breaks.
+line breaks. A note with a lone `\r` is drawn on separate lines under this policy.
 
 This excerpt is from a check run (stdout):
 
