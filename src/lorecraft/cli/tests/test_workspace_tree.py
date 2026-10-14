@@ -203,7 +203,8 @@ class TestRenderJson:
         text = render_json(root, model)
 
         #: Then
-        assert json.loads(text) == _code_model_document(), (
+        document = json.loads(text)
+        assert document == _code_model_document(), (
             'a corpus carries its specs with their files, and each document the files of its governing specs'
         )
 
@@ -230,7 +231,8 @@ class TestRenderJson:
         text = render_json(root, model)
 
         #: Then
-        assert json.loads(text) == {
+        document = json.loads(text)
+        assert document == {
             'root': '/work',
             'corpora': [],
             'agent_skills_dirs': [
