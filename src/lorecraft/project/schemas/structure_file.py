@@ -25,6 +25,7 @@ from typing import Annotated, Final, Literal, Self
 
 from pydantic import BaseModel, ConfigDict, Field, JsonValue, WithJsonSchema, field_validator, model_validator
 
+from lorecraft.core.mapping import Frozen, FrozenMapping
 from lorecraft.core.num import NonZeroUnsignedInt
 
 from .section_name import SectionName
@@ -226,8 +227,9 @@ class StructureFile(_StructureFileModel):
     tables included; no budget when absent. Counted with OpenAI's `o200k_base` encoding, the same whichever agent
     reads the document."""
     # The field's JSON Schema is written out rather than rendered: pydantic would render a dict of JSON values as any
-    # object, where an editor should check that the value is a JSON Schema describing an object.
-    frontmatter: Annotated[dict[str, JsonValue] | None, WithJsonSchema(_frontmatter_json_schema())] = Field(
+    # object, where an editor should check that the value is a JSON Schema describing an object. The value is held
+    # frozen all the way down, so the model is hashable.
+    frontmatter: Annotated[FrozenMapping[str, Frozen] | None, WithJsonSchema(_frontmatter_json_schema())] = Field(
         default=None, examples=[_code_frontmatter_example()]
     )
     """The Draft 2020-12 JSON Schema a document's frontmatter must satisfy; no frontmatter rule when absent. Its root

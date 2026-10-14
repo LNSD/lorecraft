@@ -5,6 +5,7 @@ down, and turned back into plain data.
 """
 
 import pytest
+from pydantic import BaseModel, ConfigDict, ValidationError
 
 from ..mapping import Frozen, FrozenMapping, NonPlainValueError, NonStringKeyError, Plain
 
@@ -261,3 +262,120 @@ class TestFrozenMappingToPlain:
 
         #: Then
         assert plain['name'] is value, 'a scalar holds no container, so it is kept as it is'
+
+
+class _Model(BaseModel):
+    model_config = ConfigDict(frozen=True, strict=True)
+
+    labels: FrozenMapping[str, str] | None = None
+    tree: FrozenMapping[str, Frozen] | None = None
+
+
+@pytest.mark.unit
+class TestFrozenMappingAsPydanticType:
+    def test_model_validate_json_with_an_object_holds_a_frozen_mapping(self) -> None:
+        #: Given
+        document = '{"labels": {"author": "example-org"}}'
+
+        #: When
+        model = _Model.model_validate_json(document)
+
+        #: Then
+        assert model.labels == FrozenMapping({'author': 'example-org'}), 'the object is held as a mapping'
+        assert isinstance(model.labels, FrozenMapping), 'the held value is a FrozenMapping, not a dict'
+
+    def test_model_validate_json_with_a_nested_value_freezes_it_all_the_way_down(self) -> None:
+        #: Given
+        document = '{"tree": {"see": [{"tags": ["a"]}, "rule"]}}'
+
+        #: When
+        model = _Model.model_validate_json(document)
+
+        #: Then
+        expected: FrozenMapping[str, Frozen] = FrozenMapping({'see': (FrozenMapping({'tags': ('a',)}), 'rule')})
+        assert model.tree == expected, 'objects become mappings and arrays become tuples'
+        assert hash(model) == hash(_Model.model_validate_json(document)), 'a model holding frozen data is hashable'
+
+    def test_model_validate_json_with_a_wrong_value_type_reports_the_dict_error(self) -> None:
+        #: Given
+        document = '{"labels": {"version": 1}}'
+
+        #: When
+        with pytest.raises(ValidationError) as exc_info:
+            _Model.model_validate_json(document)
+
+        #: Then
+        errors = exc_info.value.errors(include_url=False)
+        assert [(error['loc'], error['type']) for error in errors] == [(('labels', 'version'), 'string_type')], (
+            'the value is refused as the same field of a dict would be'
+        )
+
+    def test_model_dump_json_writes_the_object_it_was_read_from(self) -> None:
+        #: Given
+        document = '{"labels":null,"tree":{"see":[{"tags":["a"]},"rule"]}}'
+        model = _Model.model_validate_json(document)
+
+        #: When
+        written = model.model_dump_json()
+
+        #: Then
+        assert written == document, 'mappings are written as objects and tuples as arrays'
+
+    def test_model_with_a_frozen_mapping_holds_it_unchanged(self) -> None:
+        #: Given
+        labels = FrozenMapping({'author': 'example-org'})
+        tree = FrozenMapping.from_plain({'see': [{'tags': ['a']}]})
+
+        #: When
+        model = _Model(labels=labels, tree=tree)
+
+        #: Then
+        assert model.labels == labels, 'a strict model takes the mapping its field is declared as'
+        assert model.tree == tree, 'a frozen mapping of frozen values is taken as it is'
+
+    def test_model_with_a_held_mapping_of_the_wrong_value_type_reports_the_dict_error(self) -> None:
+        #: Given
+        labels = FrozenMapping({'a': 1})
+
+        #: When
+        with pytest.raises(ValidationError) as exc_info:
+            _Model(labels=labels)  # ty: ignore[invalid-argument-type]
+
+        #: Then
+        errors = exc_info.value.errors()
+        assert [(error['type'], error['loc'][-2:]) for error in errors] == [('string_type', ('labels', 'a'))], (
+            'a held mapping is held to the field value type like a dict'
+        )
+
+    def test_model_with_a_held_mapping_holding_a_list_refuses_or_freezes_it(self) -> None:
+        #: Given
+        tree = FrozenMapping({'see': ['x']})
+
+        #: When
+        model = _Model(tree=tree)  # ty: ignore[invalid-argument-type]
+
+        #: Then
+        assert model.tree == FrozenMapping({'see': ('x',)}), 'a list kept in a held mapping is frozen as a tuple'
+        assert model.tree is not None
+        assert isinstance(hash(model), int), 'the model holding it is hashable'
+
+    def test_model_with_a_held_mapping_holding_a_set_refuses_it(self) -> None:
+        #: Given
+        tree = FrozenMapping({'see': {'x'}})
+
+        #: When
+        with pytest.raises(ValidationError):
+            _Model(tree=tree)  # ty: ignore[invalid-argument-type]
+
+    def test_model_json_schema_states_the_object_of_the_dict(self) -> None:
+        #: Given
+        model = _Model
+        expected = {'type': 'object', 'additionalProperties': {'type': 'string'}}
+
+        #: When
+        schema = model.model_json_schema()
+
+        #: Then
+        assert schema['properties']['labels']['anyOf'][0] == expected, (
+            'the schema is the one of the dict the field is read as'
+        )
