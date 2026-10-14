@@ -472,7 +472,8 @@ class TestRenderJson:
         text = render_json(reports)
 
         #: Then
-        assert text == json.dumps(json.loads(text), separators=(',', ':'), ensure_ascii=False), (
+        document = json.loads(text)
+        assert text == json.dumps(document, separators=(',', ':'), ensure_ascii=False), (
             'the document holds no indentation, no line break and no blank after a separator'
         )
 
@@ -634,7 +635,8 @@ class TestRenderJson:
         text = render_json(reports)
 
         #: Then
-        assert json.loads(text) == expected, (
+        document = json.loads(text)
+        assert document == expected, (
             'the document holds every diagnostic in output order, the summary, and the coverage in path order'
         )
 
@@ -646,7 +648,8 @@ class TestRenderJson:
         text = render_json(reports)
 
         #: Then
-        assert json.loads(text) == {
+        document = json.loads(text)
+        assert document == {
             'diagnostics': [],
             'summary': {'subjects': 0, 'errors': 0, 'warnings': 0},
             'coverage': [],
