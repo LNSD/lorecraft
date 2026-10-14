@@ -109,7 +109,7 @@ def _headings(blocks: tuple[CountedBlock, ...]) -> tuple[Heading, ...]:
                 following = blocks[index + 1] if index + 1 < len(blocks) else None
                 # A section is empty when the next block closes it: the end of the document, or a heading of the
                 # same or a higher level. A deeper heading opens a subsection, whose content is this section's own.
-                empty = following is None or _closes_section(following.block, block.level)
+                empty = following is None or _is_section_end(following.block, block.level)
                 headings.append(
                     Heading(
                         level=block.level,
@@ -165,13 +165,13 @@ def _section_words(blocks: tuple[CountedBlock, ...], heading_index: int, level: 
     """
     words = UnsignedInt(0)
     for index in range(heading_index + 1, len(blocks)):
-        if _closes_section(blocks[index].block, level):
+        if _is_section_end(blocks[index].block, level):
             break
         words += blocks[index].words
     return WordCount(words)
 
 
-def _closes_section(block: HeadingBlock | ContentBlock, level: HeadingLevel) -> bool:
+def _is_section_end(block: HeadingBlock | ContentBlock, level: HeadingLevel) -> bool:
     """Whether a block ends the section a heading of the given level opens.
 
     A heading of the same or a higher level ends it. A deeper heading opens a subsection, which is the section's

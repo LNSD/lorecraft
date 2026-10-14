@@ -33,7 +33,7 @@ class TestSectionName:
         )
 
         #: When
-        names = name.names(heading)
+        names = name.is_name_of(heading)
 
         #: Then
         assert names is True, 'a heading whose text is exactly the name is the section it names'
@@ -46,7 +46,7 @@ class TestSectionName:
         )
 
         #: When
-        names = name.names(heading)
+        names = name.is_name_of(heading)
 
         #: Then
         assert names is False, 'the match is exact, so a heading in another case is another section'
@@ -63,7 +63,7 @@ class TestSectionName:
         )
 
         #: When
-        names = name.names(heading)
+        names = name.is_name_of(heading)
 
         #: Then
         assert names is False, 'a heading that only starts with the name is not the section it names'

@@ -10,7 +10,7 @@ import json
 from collections.abc import Mapping
 
 from lorecraft.core.mapping import Plain
-from lorecraft.project.syntax import reads_back_as_string
+from lorecraft.project.syntax import is_string_when_read_back
 
 from .frontmatter_problem import FieldGuidance, JsonType
 
@@ -24,7 +24,7 @@ def value_text(value: Plain) -> str:
     Args:
         value: An example, or one of the values an `enum` or a `const` allows.
     """
-    if isinstance(value, str) and reads_back_as_string(value):
+    if isinstance(value, str) and is_string_when_read_back(value):
         return value
     return json.dumps(value, ensure_ascii=False)
 
