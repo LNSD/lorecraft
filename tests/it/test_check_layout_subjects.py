@@ -19,7 +19,7 @@ from lorecraft.project.database import Database
 from lorecraft.project.layout import SNAPSHOT_SCOPE
 from lorecraft.project.skill import SkillRef
 from lorecraft.rules.identity import Severity
-from lorecraft.rules.layout.outside_symlink import OutsideSymlink
+from lorecraft.rules.layout.escaping_symlink import EscapingSymlink
 from lorecraft.rules.registry import Registry
 from lorecraft.rules.report import CheckedLayoutEntry, CheckedSkillFile, RuleDiagnostic
 from lorecraft.rules.selection import AllRules, RuleSelection
@@ -64,7 +64,7 @@ def _outside_report(path: str, link: str, target: Path | str) -> CheckedLayoutEn
         target: That link's target, as the scan read it.
     """
     entry = RootRelativePath.parse(path)
-    occurrence = OutsideSymlink(leaves_at=RootExit(RootRelativePath.parse(link), PurePosixPath(target)))
+    occurrence = EscapingSymlink(leaves_at=RootExit(RootRelativePath.parse(link), PurePosixPath(target)))
     return CheckedLayoutEntry(entry, diagnostics=(RuleDiagnostic(entry, occurrence, Severity.ERROR),))
 
 

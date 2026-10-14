@@ -1,11 +1,11 @@
 ---
-name: "LAY001-outside-symlink"
+name: "LAY001-escaping-symlink"
 description: "A symlink an agent follows in the skill layout leads outside the repository"
 code: "LAY001"
 since: "0.3.0"
 ---
 
-# outside-symlink (LAY001)
+# escaping-symlink (LAY001)
 
 A symlink an agent follows in the skill layout leads outside the repository.
 

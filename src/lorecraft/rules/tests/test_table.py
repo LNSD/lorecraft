@@ -21,7 +21,7 @@ from lorecraft.rules.frontmatter.too_many_fields import TooManyFields
 from lorecraft.rules.frontmatter.unknown_field import UnknownField
 from lorecraft.rules.frontmatter.wrong_type import WrongType
 from lorecraft.rules.identity import RuleCode, Severity
-from lorecraft.rules.layout.outside_symlink import OutsideSymlink
+from lorecraft.rules.layout.escaping_symlink import EscapingSymlink
 from lorecraft.rules.length.section_too_many_words import SectionTooManyWords
 from lorecraft.rules.length.title_too_long import TitleTooLong
 from lorecraft.rules.length.title_too_many_words import TitleTooManyWords
@@ -260,7 +260,7 @@ class TestRuleTableFromRegistry:
         table = RuleTable.from_registry(registry, EVERY_RULE)
 
         #: Then
-        assert table.layout_rules == (EnabledRule(OutsideSymlink, Severity.ERROR),), (
+        assert table.layout_rules == (EnabledRule(EscapingSymlink, Severity.ERROR),), (
             "the package's layout rules are enabled by default as errors"
         )
 
@@ -547,12 +547,12 @@ class TestRuleTable:
 
     def test_rule_table_with_a_rule_over_a_layout_entry_partitions_it_by_its_base(self) -> None:
         #: Given
-        severities: dict[type[Rule], Severity] = {OutsideSymlink: Severity.WARNING, TooManyLines: Severity.ERROR}
+        severities: dict[type[Rule], Severity] = {EscapingSymlink: Severity.WARNING, TooManyLines: Severity.ERROR}
 
         #: When
         table = RuleTable(severities)
 
         #: Then
-        assert table.layout_rules == (EnabledRule(OutsideSymlink, Severity.WARNING),), (
+        assert table.layout_rules == (EnabledRule(EscapingSymlink, Severity.WARNING),), (
             'a rule over a layout entry joins the layout partition, and no other'
         )
