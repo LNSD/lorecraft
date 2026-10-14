@@ -138,6 +138,35 @@ class TestSnapshotWithADeclaration:
             'the entry the chain stopped at is what was refused'
         )
 
+    def test_take_snapshot_with_a_link_to_a_declared_file_that_cannot_be_read_keeps_the_refusal(
+        self, tree: Path, lock: Callable[[Path], None]
+    ) -> None:
+        #: Given
+        lock(tree / 'texts' / 'REVIEW.md')
+        declaration = Declaration(is_file=lambda path: path == _path('texts/REVIEW.md'))
+
+        #: When
+        snapshot = take_snapshot(tree, SCOPE, declaration=declaration)
+
+        #: Then
+        assert snapshot.records[_path('texts/REVIEW.md')] == RefusedRead(OsRefusal.PERMISSION_DENIED), (
+            'the file the link leads to is what was refused'
+        )
+        assert _path('.agents/skills/commit/SKILL.md') in snapshot.records, 'the scan went on past the file'
+
+    def test_take_snapshot_with_a_link_to_an_undeclared_file_that_cannot_be_read_still_stops(
+        self, tree: Path, lock: Callable[[Path], None]
+    ) -> None:
+        #: Given
+        lock(tree / 'texts' / 'REVIEW.md')
+
+        #: When
+        with pytest.raises(SnapshotFileReadError) as exc_info:
+            take_snapshot(tree, SCOPE, declaration=DECLARATION)
+
+        #: Then
+        assert exc_info.value.path == _path('texts/REVIEW.md'), 'a file the declaration does not name stops it'
+
     def test_take_snapshot_with_a_document_that_cannot_be_read_still_stops(
         self, tree: Path, lock: Callable[[Path], None]
     ) -> None:
