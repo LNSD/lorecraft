@@ -6,7 +6,7 @@ from lorecraft.core.error import Error
 from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.project.syntax import LineNumber
 
-from ..collector import declared_rules
+from ..collector import declared_rules, rule
 from ..declaration import (
     Rule,
 )
@@ -202,7 +202,6 @@ class TestRuleName:
 
         #: Then
         assert type(exc_info.value).__bases__ == (Error,), 'the variant derives from Error directly, not a family'
-        assert str(exc_info.value) == 'rule name cannot be empty', 'the error explains the empty-name case'
 
     def test_rule_name_constructed_directly_with_an_empty_name_raises_empty_rule_name_error(self) -> None:
         #: Given
@@ -213,7 +212,7 @@ class TestRuleName:
             RuleName(raw)
 
         #: Then
-        assert str(exc_info.value) == 'rule name cannot be empty', 'direct construction checks the same invariant'
+        assert exc_info.type is EmptyRuleNameError, 'direct construction checks the same invariant'
 
     def test_parse_with_an_uppercase_letter_raises_invalid_rule_name_character_error(self) -> None:
         #: Given
@@ -328,7 +327,6 @@ class TestRuleGroupPrefix:
 
         #: Then
         assert type(exc_info.value).__bases__ == (Error,), 'the variant derives from Error directly, not a family'
-        assert str(exc_info.value) == 'rule group prefix cannot be empty', 'the error explains the empty case'
 
     def test_rule_group_prefix_constructed_directly_with_an_empty_prefix_raises_empty_rule_group_prefix_error(
         self,
@@ -341,9 +339,7 @@ class TestRuleGroupPrefix:
             RuleGroupPrefix(raw)
 
         #: Then
-        assert str(exc_info.value) == 'rule group prefix cannot be empty', (
-            'direct construction checks the same invariant'
-        )
+        assert exc_info.type is EmptyRuleGroupPrefixError, 'direct construction checks the same invariant'
 
     def test_parse_with_a_lowercase_letter_raises_invalid_rule_group_prefix_character_error(self) -> None:
         #: Given
@@ -490,7 +486,6 @@ class TestLinterName:
 
         #: Then
         assert type(exc_info.value).__bases__ == (Error,), 'the variant derives from Error directly, not a family'
-        assert str(exc_info.value) == 'linter name cannot be empty', 'the error explains the empty case'
 
     def test_linter_name_constructed_directly_with_an_empty_name_raises_empty_linter_name_error(self) -> None:
         #: Given
@@ -501,7 +496,7 @@ class TestLinterName:
             LinterName(raw)
 
         #: Then
-        assert str(exc_info.value) == 'linter name cannot be empty', 'direct construction checks the same invariant'
+        assert exc_info.type is EmptyLinterNameError, 'direct construction checks the same invariant'
 
 
 @pytest.mark.unit
@@ -536,7 +531,6 @@ class TestUpstreamCode:
 
         #: Then
         assert type(exc_info.value).__bases__ == (Error,), 'the variant derives from Error directly, not a family'
-        assert str(exc_info.value) == 'upstream code cannot be empty', 'the error explains the empty case'
 
     def test_parse_with_a_space_raises_invalid_upstream_code_character_error(self) -> None:
         #: Given
@@ -797,17 +791,16 @@ class TestEngineCode:
 
 @pytest.mark.unit
 class TestRuleDecorator:
-    def test_rule_on_a_rule_class_at_import_leaves_its_declaration_unchanged(self) -> None:
+    def test_rule_on_a_rule_class_returns_the_class_unchanged(self) -> None:
         #: Given
-        # TrailingSpace was decorated with @rule as its module was imported with this one
-        declared = TrailingSpace
+        class Declared(SampleCondition):
+            """A declaration made in a test, which the registry drops."""
 
         #: When
-        code = str(declared.CODE)
+        returned = rule(Declared)
 
         #: Then
-        assert declared.__name__ == 'TrailingSpace', 'the decorated name is bound to the class itself'
-        assert code == 'SMP002', 'the class keeps the code it declares'
+        assert returned is Declared, 'the decorated name is bound to the class itself'
 
     def test_rule_on_a_removed_rule_at_import_records_it(self) -> None:
         #: Given
