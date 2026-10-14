@@ -31,9 +31,9 @@ from lorecraft.rules.length.too_many_lines import TooManyLines
 from lorecraft.rules.length.too_many_tokens import TooManyTokens
 from lorecraft.rules.length.too_many_words import TooManyWords
 from lorecraft.rules.link.absolute_link import AbsoluteLink
+from lorecraft.rules.link.broken_fragment import BrokenFragment
 from lorecraft.rules.link.broken_link import BrokenLink
 from lorecraft.rules.link.escaping_link import EscapingLink
-from lorecraft.rules.link.missing_fragment import MissingFragment
 from lorecraft.rules.outline.empty_section import EmptySection
 from lorecraft.rules.outline.extra_title import ExtraTitle
 from lorecraft.rules.outline.forbidden_section import ForbiddenSection
@@ -523,7 +523,7 @@ class TestPackageRegistry:
             TitleTooManyWords,
             TitleTooLong,
             AbsoluteLink,
-            MissingFragment,
+            BrokenFragment,
             BrokenLink,
             EscapingLink,
             MissingTitle,

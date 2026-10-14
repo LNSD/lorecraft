@@ -89,9 +89,9 @@ from lorecraft.rules.length.too_many_lines import TooManyLines
 from lorecraft.rules.length.too_many_tokens import TooManyTokens
 from lorecraft.rules.length.too_many_words import NamedSectionCap, TooManyWords
 from lorecraft.rules.link.absolute_link import AbsoluteLink
+from lorecraft.rules.link.broken_fragment import BrokenFragment
 from lorecraft.rules.link.broken_link import BrokenLink
 from lorecraft.rules.link.escaping_link import EscapingLink
-from lorecraft.rules.link.missing_fragment import MissingFragment
 from lorecraft.rules.outline.empty_section import EmptySection, OtherSection
 from lorecraft.rules.outline.extra_title import ExtraTitle
 from lorecraft.rules.outline.forbidden_section import ForbiddenSection
@@ -2079,7 +2079,7 @@ class TestCheckSubjects:
             'a rule over a Markdown file judges a document only under its structure, which is coverage when ungoverned'
         )
 
-    def test_check_subjects_with_a_fragment_missing_from_a_document_reports_missing_fragment_on_its_line(
+    def test_check_subjects_with_a_fragment_missing_from_a_document_reports_broken_fragment_on_its_line(
         self, package_table: RuleTable
     ) -> None:
         #: Given
@@ -2090,7 +2090,7 @@ class TestCheckSubjects:
         reports = check_subjects(database, (GUIDE,), package_table)
 
         #: Then
-        occurrence = MissingFragment(line=LineNumber(NonZeroUnsignedInt(3)), url='#install', has_headings=True)
+        occurrence = BrokenFragment(line=LineNumber(NonZeroUnsignedInt(3)), url='#install', has_headings=True)
         assert reports == (
             CheckedDocument(
                 GUIDE,
@@ -2099,7 +2099,7 @@ class TestCheckSubjects:
             ),
         ), "LINK002 runs at deny over a document, reporting the fragment its own headings lack and not the title's"
 
-    def test_check_subjects_with_a_fragment_missing_from_a_skill_file_reports_missing_fragment_at_its_skill_file(
+    def test_check_subjects_with_a_fragment_missing_from_a_skill_file_reports_broken_fragment_at_its_skill_file(
         self, package_table: RuleTable
     ) -> None:
         #: Given
@@ -2110,7 +2110,7 @@ class TestCheckSubjects:
         reports = check_subjects(database, (_location(database, REVIEW),), package_table)
 
         #: Then
-        occurrence = MissingFragment(line=LineNumber(NonZeroUnsignedInt(7)), url='#steps', has_headings=True)
+        occurrence = BrokenFragment(line=LineNumber(NonZeroUnsignedInt(7)), url='#steps', has_headings=True)
         assert reports == (
             CheckedSkillFile(REVIEW, diagnostics=(RuleDiagnostic(REVIEW_FILE, occurrence, Severity.ERROR),)),
         ), "LINK002 runs at deny over a skill's SKILL.md, on the line of the link"
@@ -2132,7 +2132,7 @@ class TestCheckSubjects:
         reports = check_subjects(database, (_location(database, REVIEW), *_resources(database, REVIEW)), package_table)
 
         #: Then
-        occurrence = MissingFragment(line=LineNumber(NonZeroUnsignedInt(3)), url='#usage', has_headings=True)
+        occurrence = BrokenFragment(line=LineNumber(NonZeroUnsignedInt(3)), url='#usage', has_headings=True)
         checklist_path = RootRelativePath.parse('.agents/skills/review/references/checklist.md')
         assert reports == (
             CheckedSkillFile(REVIEW, diagnostics=()),

@@ -22,7 +22,7 @@ from .__ruleset__ import GROUP_ID
 
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
-class MissingFragment(MarkdownRule):
+class BrokenFragment(MarkdownRule):
     """A link to a heading of the same Markdown file names a heading the file does not have.
 
     ## What it does
@@ -73,7 +73,7 @@ class MissingFragment(MarkdownRule):
     """
 
     CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 2)
-    NAME: ClassVar[RuleName] = RuleName('missing-fragment')
+    NAME: ClassVar[RuleName] = RuleName('broken-fragment')
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('0.3.0')
 

@@ -1,11 +1,11 @@
 ---
-name: "LINK002-missing-fragment"
+name: "LINK002-broken-fragment"
 description: "A link to a heading of the same Markdown file names a heading the file does not have"
 code: "LINK002"
 since: "0.3.0"
 ---
 
-# missing-fragment (LINK002)
+# broken-fragment (LINK002)
 
 A link to a heading of the same Markdown file names a heading the file does not have.
 
