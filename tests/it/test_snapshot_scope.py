@@ -201,7 +201,7 @@ class TestSnapshotScopeInsideASkill:
 
     def test_is_in_scope_with_a_file_two_levels_inside_a_skill_returns_true(self, skill_tree: Path) -> None:
         #: Given
-        database = Database.open(take_snapshot(skill_tree, SNAPSHOT_SCOPE))
+        database = Database.from_snapshot(take_snapshot(skill_tree, SNAPSHOT_SCOPE))
         path = RootRelativePath.parse(f'{SKILL}/references/deep/absent.md')
 
         #: When
@@ -212,7 +212,7 @@ class TestSnapshotScopeInsideASkill:
 
     def test_is_in_scope_in_a_directory_inside_a_skill_the_disk_lacks_returns_true(self, skill_tree: Path) -> None:
         #: Given
-        database = Database.open(take_snapshot(skill_tree, SNAPSHOT_SCOPE))
+        database = Database.from_snapshot(take_snapshot(skill_tree, SNAPSHOT_SCOPE))
         path = RootRelativePath.parse(f'{SKILL}/scripts/nested/run.py')
 
         #: When
@@ -223,7 +223,7 @@ class TestSnapshotScopeInsideASkill:
 
     def test_is_in_scope_below_a_linked_directory_inside_a_skill_returns_true(self, skill_tree: Path) -> None:
         #: Given
-        database = Database.open(take_snapshot(skill_tree, SNAPSHOT_SCOPE))
+        database = Database.from_snapshot(take_snapshot(skill_tree, SNAPSHOT_SCOPE))
         path = RootRelativePath.parse(f'{SKILL}/guides/deeper/absent.md')
 
         #: When
@@ -234,7 +234,7 @@ class TestSnapshotScopeInsideASkill:
 
     def test_is_in_scope_through_a_link_to_an_ancestor_inside_a_skill_returns_true(self, skill_tree: Path) -> None:
         #: Given
-        database = Database.open(take_snapshot(skill_tree, SNAPSHOT_SCOPE))
+        database = Database.from_snapshot(take_snapshot(skill_tree, SNAPSHOT_SCOPE))
         path = RootRelativePath.parse(f'{SKILL}/references/up/references/deep/b.md')
 
         #: When
@@ -245,7 +245,7 @@ class TestSnapshotScopeInsideASkill:
 
     def test_is_in_scope_through_a_link_leading_outside_the_root_returns_false(self, skill_tree: Path) -> None:
         #: Given
-        database = Database.open(take_snapshot(skill_tree, SNAPSHOT_SCOPE))
+        database = Database.from_snapshot(take_snapshot(skill_tree, SNAPSHOT_SCOPE))
         path = RootRelativePath.parse(f'{SKILL}/outside/f.md')
 
         #: When
@@ -256,7 +256,7 @@ class TestSnapshotScopeInsideASkill:
 
     def test_is_in_scope_outside_every_root_returns_false(self, skill_tree: Path) -> None:
         #: Given
-        database = Database.open(take_snapshot(skill_tree, SNAPSHOT_SCOPE))
+        database = Database.from_snapshot(take_snapshot(skill_tree, SNAPSHOT_SCOPE))
         path = RootRelativePath.parse('src/tool.py')
 
         #: When
@@ -267,7 +267,7 @@ class TestSnapshotScopeInsideASkill:
 
     def test_is_in_scope_beyond_the_docs_depth_returns_false(self, skill_tree: Path) -> None:
         #: Given
-        database = Database.open(take_snapshot(skill_tree, SNAPSHOT_SCOPE))
+        database = Database.from_snapshot(take_snapshot(skill_tree, SNAPSHOT_SCOPE))
         path = RootRelativePath.parse('docs/feat/deep/a.md')
 
         #: When
@@ -280,7 +280,7 @@ class TestSnapshotScopeInsideASkill:
         self, skill_tree: Path
     ) -> None:
         #: Given
-        database = Database.open(take_snapshot(skill_tree, SNAPSHOT_SCOPE))
+        database = Database.from_snapshot(take_snapshot(skill_tree, SNAPSHOT_SCOPE))
         path = RootRelativePath.parse(f'{SKILL}/guides/deeper/d.md')
 
         #: When
@@ -293,7 +293,7 @@ class TestSnapshotScopeInsideASkill:
 
     def test_find_file_with_a_link_to_a_file_inside_a_skill_returns_its_resolved_target(self, skill_tree: Path) -> None:
         #: Given
-        database = Database.open(take_snapshot(skill_tree, SNAPSHOT_SCOPE))
+        database = Database.from_snapshot(take_snapshot(skill_tree, SNAPSHOT_SCOPE))
         path = RootRelativePath.parse(f'{SKILL}/notes.md')
 
         #: When
@@ -306,7 +306,7 @@ class TestSnapshotScopeInsideASkill:
 
     def test_find_file_through_a_link_leading_outside_the_root_returns_none(self, skill_tree: Path) -> None:
         #: Given
-        database = Database.open(take_snapshot(skill_tree, SNAPSHOT_SCOPE))
+        database = Database.from_snapshot(take_snapshot(skill_tree, SNAPSHOT_SCOPE))
         path = RootRelativePath.parse(f'{SKILL}/outside/f.md')
 
         #: When
@@ -322,7 +322,7 @@ class TestDatabaseSkillResources:
         self, skill_tree: Path
     ) -> None:
         #: Given
-        database = Database.open(take_snapshot(skill_tree, SNAPSHOT_SCOPE))
+        database = Database.from_snapshot(take_snapshot(skill_tree, SNAPSHOT_SCOPE))
         review = _located_skill(database, SKILL)
 
         #: When
@@ -347,7 +347,7 @@ class TestDatabaseSkillResources:
         _write(tmp_path, 'skills/audit/references/a.md', b'# A\n')
         (tmp_path / '.agents' / 'skills').mkdir(parents=True)
         (tmp_path / '.agents' / 'skills' / 'audit').symlink_to('../../skills/audit')
-        database = Database.open(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
+        database = Database.from_snapshot(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
         audit = _located_skill(database, '.agents/skills/audit')
 
         #: When
@@ -363,7 +363,7 @@ class TestDatabaseSkillResources:
 
     def test_skill_resources_called_twice_returns_the_first_answer(self, skill_tree: Path) -> None:
         #: Given
-        database = Database.open(take_snapshot(skill_tree, SNAPSHOT_SCOPE))
+        database = Database.from_snapshot(take_snapshot(skill_tree, SNAPSHOT_SCOPE))
         review = _located_skill(database, SKILL)
         first = database.skill_resources(review)
 
@@ -377,7 +377,7 @@ class TestDatabaseSkillResources:
         self, skill_tree: Path
     ) -> None:
         #: Given
-        database = Database.open(take_snapshot(skill_tree, SNAPSHOT_SCOPE))
+        database = Database.from_snapshot(take_snapshot(skill_tree, SNAPSHOT_SCOPE))
         ref = SkillResourceRef(REVIEW, SkillRelativePath.parse('guides/deeper/d.md'))
         source = _skill_resource_text(database, ref)
 
@@ -391,7 +391,7 @@ class TestDatabaseSkillResources:
 
     def test_skill_resource_parse_called_twice_returns_the_first_answer(self, skill_tree: Path) -> None:
         #: Given
-        database = Database.open(take_snapshot(skill_tree, SNAPSHOT_SCOPE))
+        database = Database.from_snapshot(take_snapshot(skill_tree, SNAPSHOT_SCOPE))
         ref = SkillResourceRef(REVIEW, SkillRelativePath.parse('references/a.md'))
         source = _skill_resource_text(database, ref)
         first = database.skill_resource_parse(source)
@@ -406,7 +406,7 @@ class TestDatabaseSkillResources:
         #: Given
         _write(tmp_path, f'{SKILL}/SKILL.md', b'---\nname: review\n---\n')
         _write(tmp_path, f'{SKILL}/references/a.md', b'caf\xe9\n')
-        database = Database.open(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
+        database = Database.from_snapshot(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
         ref = SkillResourceRef(REVIEW, SkillRelativePath.parse('references/a.md'))
         location = _listed_resource(database, ref)
 
@@ -430,7 +430,7 @@ class TestDatabaseSkillResources:
         #: Given
         _write(tmp_path, f'{SKILL}/SKILL.md', b'---\nname: review\n---\n')
         _write(tmp_path, f'{SKILL}/references/a.md', b'caf\xe9\n')
-        database = Database.open(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
+        database = Database.from_snapshot(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
         ref = SkillResourceRef(REVIEW, SkillRelativePath.parse('references/a.md'))
         location = _listed_resource(database, ref)
         first = database.skill_resource_text(location)

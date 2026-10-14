@@ -184,7 +184,7 @@ def _climbing_chain_snapshot() -> Snapshot:
 class TestDatabase:
     def test_model_from_a_snapshot_lists_the_documents_the_snapshot_holds(self) -> None:
         #: Given
-        database = Database.open(_snapshot(b'---\nname: "guide"\n---\n'))
+        database = Database.from_snapshot(_snapshot(b'---\nname: "guide"\n---\n'))
 
         #: When
         model = database.model()
@@ -194,7 +194,7 @@ class TestDatabase:
 
     def test_model_called_twice_returns_the_model_the_database_was_opened_with(self) -> None:
         #: Given
-        database = Database.open(_snapshot(b'---\nname: "guide"\n---\n'))
+        database = Database.from_snapshot(_snapshot(b'---\nname: "guide"\n---\n'))
         first = database.model()
 
         #: When
@@ -211,7 +211,7 @@ class TestDatabase:
 
         #: When
         with pytest.raises(LinkedLayoutError) as exc_info:
-            Database.open(snapshot)
+            Database.from_snapshot(snapshot)
 
         #: Then
         assert exc_info.value.path == RootRelativePath.parse('docs'), 'the layout is refused before a model is loaded'
@@ -221,7 +221,7 @@ class TestDatabase:
         snapshot = _snapshot(b'---\nname: "guide"\n---\n')
 
         #: When
-        database = Database.open(snapshot)
+        database = Database.from_snapshot(snapshot)
 
         #: Then
         assert database.model().documents() == (GUIDE,), 'a snapshot of real directories is accepted'
@@ -236,7 +236,7 @@ class TestDatabase:
         path = RootRelativePath.parse('docs/__meta__/code.structure.json')
 
         #: When
-        database = Database.open(snapshot)
+        database = Database.from_snapshot(snapshot)
 
         #: Then
         assert database.model().load_failures == (LoadFailure(path, EmptyStructureSpec()),), (
@@ -250,7 +250,7 @@ class TestDatabase:
 
     def test_schema_problems_with_a_failed_namespace_layer_reads_only_the_layers_that_loaded(self) -> None:
         #: Given
-        database = Database.open(_failed_namespace_layer_snapshot())
+        database = Database.from_snapshot(_failed_namespace_layer_snapshot())
         source = _document_text(database, PYTHON_GUIDE)
 
         #: When
@@ -262,7 +262,7 @@ class TestDatabase:
 
     def test_outline_alignment_with_a_failed_namespace_layer_aligns_only_the_layers_that_loaded(self) -> None:
         #: Given
-        database = Database.open(_failed_namespace_layer_snapshot())
+        database = Database.from_snapshot(_failed_namespace_layer_snapshot())
         source = _document_text(database, PYTHON_GUIDE)
 
         #: When
@@ -273,7 +273,7 @@ class TestDatabase:
 
     def test_outline_divergences_with_a_failed_namespace_layer_finds_none_without_an_outline(self) -> None:
         #: Given
-        database = Database.open(_failed_namespace_layer_snapshot())
+        database = Database.from_snapshot(_failed_namespace_layer_snapshot())
         source = _document_text(database, PYTHON_GUIDE)
 
         #: When
@@ -284,7 +284,7 @@ class TestDatabase:
 
     def test_is_in_scope_with_a_path_the_snapshot_scope_covers_returns_true(self) -> None:
         #: Given
-        database = Database.open(
+        database = Database.from_snapshot(
             _snapshot_of({}, scope=(ScanRoot(RootRelativePath.parse('src'), depth=UnsignedInt(0)),))
         )
 
@@ -298,7 +298,7 @@ class TestDatabase:
 
     def test_is_in_scope_with_a_path_only_the_layout_scope_covers_returns_false(self) -> None:
         #: Given
-        database = Database.open(
+        database = Database.from_snapshot(
             _snapshot_of({}, scope=(ScanRoot(RootRelativePath.parse('src'), depth=UnsignedInt(0)),))
         )
 
@@ -310,7 +310,7 @@ class TestDatabase:
 
     def test_is_in_scope_over_a_snapshot_from_a_tree_returns_false(self) -> None:
         #: Given
-        database = Database.open(_snapshot(b'---\nname: "guide"\n---\n'))
+        database = Database.from_snapshot(_snapshot(b'---\nname: "guide"\n---\n'))
 
         #: When
         in_scope = database.is_in_scope(RootRelativePath.parse('docs/code/guide.md'))
@@ -328,7 +328,7 @@ class TestDatabase:
             {'.agents/skills/review': SymlinkRecord(PurePosixPath('../../skills/review'))},
             scope=(ScanRoot(RootRelativePath.parse('.agents/skills'), depth=UnsignedInt(1), follow_links=True),),
         )
-        database = Database.open(snapshot)
+        database = Database.from_snapshot(snapshot)
         database.is_in_scope(RootRelativePath.parse('src/tool.py'))
 
         #: When
@@ -341,7 +341,7 @@ class TestDatabase:
         self,
     ) -> None:
         #: Given
-        database = Database.open(_climbing_chain_snapshot())
+        database = Database.from_snapshot(_climbing_chain_snapshot())
         path = RootRelativePath.parse('skills/l/SKILL.md')
 
         #: When
@@ -354,7 +354,7 @@ class TestDatabase:
         self,
     ) -> None:
         #: Given
-        database = Database.open(_climbing_chain_snapshot())
+        database = Database.from_snapshot(_climbing_chain_snapshot())
         path = RootRelativePath.parse('skills/far/SKILL.md')
 
         #: When
@@ -367,7 +367,7 @@ class TestDatabase:
 
     def test_find_file_through_a_link_climbing_out_of_a_missing_directory_returns_none(self) -> None:
         #: Given
-        database = Database.open(_climbing_chain_snapshot())
+        database = Database.from_snapshot(_climbing_chain_snapshot())
         path = RootRelativePath.parse('skills/n/SKILL.md')
 
         #: When
@@ -378,7 +378,7 @@ class TestDatabase:
 
     def test_is_in_scope_through_a_link_climbing_out_of_a_missing_directory_returns_false(self) -> None:
         #: Given
-        database = Database.open(_climbing_chain_snapshot())
+        database = Database.from_snapshot(_climbing_chain_snapshot())
         path = RootRelativePath.parse('skills/n/SKILL.md')
 
         #: When
@@ -389,7 +389,7 @@ class TestDatabase:
 
     def test_find_file_through_a_followed_link_returns_the_resolved_file(self) -> None:
         #: Given
-        database = Database.open(_climbing_chain_snapshot())
+        database = Database.from_snapshot(_climbing_chain_snapshot())
         path = RootRelativePath.parse('skills/m/SKILL.md')
 
         #: When
@@ -400,7 +400,7 @@ class TestDatabase:
 
     def test_text_of_a_utf8_document_returns_its_witness(self) -> None:
         #: Given
-        database = Database.open(_snapshot(b'---\nname: "guide"\n---\n'))
+        database = Database.from_snapshot(_snapshot(b'---\nname: "guide"\n---\n'))
 
         #: When
         source = database.text(GUIDE)
@@ -410,7 +410,7 @@ class TestDatabase:
 
     def test_text_of_a_document_that_is_not_utf8_returns_undecodable(self) -> None:
         #: Given
-        database = Database.open(_snapshot(b'---\nname: "gu\xffide"\n---\n'))
+        database = Database.from_snapshot(_snapshot(b'---\nname: "gu\xffide"\n---\n'))
 
         #: When
         source = database.text(GUIDE)
@@ -428,7 +428,7 @@ class TestDatabase:
 
     def test_text_of_a_document_that_is_not_utf8_called_twice_returns_the_first_answer(self) -> None:
         #: Given
-        database = Database.open(_snapshot(b'---\nname: "gu\xffide"\n---\n'))
+        database = Database.from_snapshot(_snapshot(b'---\nname: "gu\xffide"\n---\n'))
         first = database.text(GUIDE)
 
         #: When
@@ -439,7 +439,7 @@ class TestDatabase:
 
     def test_source_lines_of_a_listed_document_returns_its_lines_numbered_as_the_rules_number_them(self) -> None:
         #: Given
-        database = Database.open(_snapshot(b'one\r\ntwo\x0cstill two\n'))
+        database = Database.from_snapshot(_snapshot(b'one\r\ntwo\x0cstill two\n'))
 
         #: When
         lines = database.source_lines(GUIDE.path)
@@ -451,7 +451,7 @@ class TestDatabase:
         self,
     ) -> None:
         #: Given
-        database = Database.open(_snapshot(b'\xef\xbb\xbf# Guide\nBody\n'))
+        database = Database.from_snapshot(_snapshot(b'\xef\xbb\xbf# Guide\nBody\n'))
         decoded = _document_text(database, GUIDE)
 
         #: When
@@ -463,7 +463,7 @@ class TestDatabase:
 
     def test_source_lines_of_a_skill_returns_the_lines_of_its_decoded_text(self) -> None:
         #: Given
-        database = Database.open(_skill_snapshot(b'\xef\xbb\xbf---\nname: review\n---\nBody\n'))
+        database = Database.from_snapshot(_skill_snapshot(b'\xef\xbb\xbf---\nname: review\n---\nBody\n'))
         decoded = _skill_text(database, REVIEW)
 
         #: When
@@ -477,7 +477,7 @@ class TestDatabase:
         snapshot = Snapshot.from_tree(
             {'.agents': {'skills': {'review': {'SKILL.md': b'# Review\n', 'guide.md': b'\xef\xbb\xbfone\ntwo\n'}}}}
         )
-        database = Database.open(snapshot)
+        database = Database.from_snapshot(snapshot)
         location = database.model().skill_locations[REVIEW]
         resource = database.skill_resources(location).resources[0]
         decoded = database.skill_resource_text(resource)
@@ -491,7 +491,7 @@ class TestDatabase:
 
     def test_source_lines_of_a_specification_returns_its_lines(self) -> None:
         #: Given
-        database = Database.open(_snapshot(b'# Guide\n'))
+        database = Database.from_snapshot(_snapshot(b'# Guide\n'))
 
         #: When
         lines = database.source_lines(RootRelativePath.parse('docs/__meta__/code.md'))
@@ -501,7 +501,7 @@ class TestDatabase:
 
     def test_source_lines_of_a_file_that_is_not_utf8_returns_none(self) -> None:
         #: Given
-        database = Database.open(_snapshot(b'\xff\xfe\n'))
+        database = Database.from_snapshot(_snapshot(b'\xff\xfe\n'))
 
         #: When
         lines = database.source_lines(GUIDE.path)
@@ -511,7 +511,7 @@ class TestDatabase:
 
     def test_source_lines_of_a_path_no_decode_query_owns_returns_none(self) -> None:
         #: Given
-        database = Database.open(_snapshot(b'# Guide\n'))
+        database = Database.from_snapshot(_snapshot(b'# Guide\n'))
 
         #: When
         lines = database.source_lines(RootRelativePath.parse('docs/code/missing.md'))
@@ -521,7 +521,7 @@ class TestDatabase:
 
     def test_source_lines_of_a_specification_the_snapshot_does_not_hold_returns_none(self) -> None:
         #: Given
-        database = Database.open(_snapshot(b'# Guide\n'))
+        database = Database.from_snapshot(_snapshot(b'# Guide\n'))
 
         #: When
         lines = database.source_lines(RootRelativePath.parse('docs/__meta__/missing.structure.json'))
@@ -541,7 +541,9 @@ class TestDatabase:
         # The walk over the skill's resources enters `references`, which the scan then records as refused.
         lock(skill / 'references')
         scope = (ScanRoot(RootRelativePath.parse('.agents/skills'), depth=None, follow_links=True),)
-        database = Database.open(take_snapshot(tmp_path, scope, declaration=Declaration(is_file=lambda _: False)))
+        database = Database.from_snapshot(
+            take_snapshot(tmp_path, scope, declaration=Declaration(is_file=lambda _: False))
+        )
 
         #: When
         lines = database.source_lines(RootRelativePath.parse('.agents/skills/review/guide.md'))
@@ -551,7 +553,7 @@ class TestDatabase:
 
     def test_frontmatter_of_a_listed_document_returns_its_decoded_block(self) -> None:
         #: Given
-        database = Database.open(_snapshot(b'---\nname: "guide"\n---\n'))
+        database = Database.from_snapshot(_snapshot(b'---\nname: "guide"\n---\n'))
         source = _document_text(database, GUIDE)
 
         #: When
@@ -563,7 +565,7 @@ class TestDatabase:
 
     def test_frontmatter_called_twice_returns_the_first_answer(self) -> None:
         #: Given
-        database = Database.open(_snapshot(b'---\nname: "guide"\n---\n'))
+        database = Database.from_snapshot(_snapshot(b'---\nname: "guide"\n---\n'))
         source = _document_text(database, GUIDE)
         first = database.frontmatter(source)
 
@@ -583,7 +585,7 @@ class TestDatabase:
             # Guide
             """
         )
-        database = Database.open(_snapshot(text.encode()))
+        database = Database.from_snapshot(_snapshot(text.encode()))
         source = _document_text(database, GUIDE)
 
         #: When
@@ -596,7 +598,7 @@ class TestDatabase:
 
     def test_source_lines_of_a_file_with_lone_carriage_returns_holds_the_line_a_heading_is_reported_on(self) -> None:
         #: Given
-        database = Database.open(_snapshot(b'one\r\r# Guide\r\rtwo\r'))
+        database = Database.from_snapshot(_snapshot(b'one\r\r# Guide\r\rtwo\r'))
         source = _document_text(database, GUIDE)
 
         #: When
@@ -612,7 +614,7 @@ class TestDatabase:
 
     def test_parse_called_twice_returns_the_first_answer(self) -> None:
         #: Given
-        database = Database.open(_snapshot(b'---\nname: "guide"\n---\n'))
+        database = Database.from_snapshot(_snapshot(b'---\nname: "guide"\n---\n'))
         source = _document_text(database, GUIDE)
         first = database.parse(source)
 
@@ -626,7 +628,7 @@ class TestDatabase:
         #: Given
         # no prose words at all, but an agent loading the file still pays for every character of it
         guide = '---\nname: "guide"\n---\n```python\nx = 1\n```\n'
-        database = Database.open(_snapshot(guide.encode()))
+        database = Database.from_snapshot(_snapshot(guide.encode()))
         source = _document_text(database, GUIDE)
         expected = count_tokens(guide)
 
@@ -639,7 +641,7 @@ class TestDatabase:
     def test_document_lines_of_a_listed_document_counts_its_whole_file(self) -> None:
         #: Given
         # three lines of frontmatter and two of body, the last one ending in a newline
-        database = Database.open(_snapshot(b'---\nname: "guide"\n---\n# Guide\n\n'))
+        database = Database.from_snapshot(_snapshot(b'---\nname: "guide"\n---\n# Guide\n\n'))
         source = _document_text(database, GUIDE)
 
         #: When
@@ -650,7 +652,7 @@ class TestDatabase:
 
     def test_skill_text_of_a_utf8_skill_returns_its_witness(self) -> None:
         #: Given
-        database = Database.open(_skill_snapshot(b'---\nname: review\n---\n'))
+        database = Database.from_snapshot(_skill_snapshot(b'---\nname: review\n---\n'))
 
         #: When
         source = database.skill_text(_location(database, REVIEW))
@@ -662,7 +664,7 @@ class TestDatabase:
 
     def test_skill_text_of_a_skill_that_is_not_utf8_returns_undecodable(self) -> None:
         #: Given
-        database = Database.open(_skill_snapshot(b'---\nname: caf\xe9\n---\n'))
+        database = Database.from_snapshot(_skill_snapshot(b'---\nname: caf\xe9\n---\n'))
 
         #: When
         source = database.skill_text(_location(database, REVIEW))
@@ -680,7 +682,7 @@ class TestDatabase:
 
     def test_skill_text_of_a_skill_that_is_not_utf8_called_twice_returns_the_first_answer(self) -> None:
         #: Given
-        database = Database.open(_skill_snapshot(b'---\nname: caf\xe9\n---\n'))
+        database = Database.from_snapshot(_skill_snapshot(b'---\nname: caf\xe9\n---\n'))
         first = database.skill_text(_location(database, REVIEW))
 
         #: When
@@ -691,7 +693,9 @@ class TestDatabase:
 
     def test_skill_parse_of_a_skill_returns_its_links(self) -> None:
         #: Given
-        database = Database.open(_skill_snapshot(b'---\nname: review\n---\n# Review\n\nSee [the guide](guide.md).\n'))
+        database = Database.from_snapshot(
+            _skill_snapshot(b'---\nname: review\n---\n# Review\n\nSee [the guide](guide.md).\n')
+        )
         source = _skill_text(database, REVIEW)
 
         #: When
@@ -704,7 +708,7 @@ class TestDatabase:
 
     def test_skill_parse_called_twice_returns_the_first_answer(self) -> None:
         #: Given
-        database = Database.open(_skill_snapshot(b'---\nname: review\n---\n# Review\n'))
+        database = Database.from_snapshot(_skill_snapshot(b'---\nname: review\n---\n# Review\n'))
         source = _skill_text(database, REVIEW)
         first = database.skill_parse(source)
 
@@ -726,7 +730,7 @@ class TestDatabase:
         records[RootRelativePath.parse('.agents')] = DirectoryRecord(listed=True, climbed=True)
         records[RootRelativePath.parse('.agents/skills')] = DirectoryRecord(listed=True, climbed=True)
         records[RootRelativePath.parse('.agents/skills/review')] = SymlinkRecord(PurePosixPath('../../skills/review'))
-        database = Database.open(Snapshot(SnapshotRecords(records)))
+        database = Database.from_snapshot(Snapshot(SnapshotRecords(records)))
         source = _skill_text(database, REVIEW)
 
         #: When
@@ -740,7 +744,9 @@ class TestDatabase:
     def test_skill_lines_of_a_skill_counts_its_whole_file(self) -> None:
         #: Given
         # three lines of frontmatter and three of body, the last one ending in a newline
-        database = Database.open(_skill_snapshot(b'---\nname: review\n---\n# Review\n\nSee [the guide](guide.md).\n'))
+        database = Database.from_snapshot(
+            _skill_snapshot(b'---\nname: review\n---\n# Review\n\nSee [the guide](guide.md).\n')
+        )
         source = _skill_text(database, REVIEW)
 
         #: When
@@ -751,7 +757,7 @@ class TestDatabase:
 
     def test_skill_frontmatter_called_twice_returns_the_first_answer(self) -> None:
         #: Given
-        database = Database.open(_skill_snapshot(b'---\nname: review\n---\n'))
+        database = Database.from_snapshot(_skill_snapshot(b'---\nname: review\n---\n'))
         source = _skill_text(database, REVIEW)
         first = database.skill_frontmatter(source)
 

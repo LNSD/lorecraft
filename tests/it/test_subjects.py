@@ -104,7 +104,7 @@ class TestSelectWorkspace:
         _write(tmp_path, '.agents/skills/review/SKILL.md')
         _write(tmp_path, '.agents/skills/review/references/guide.md')
         _write(tmp_path, '.agents/skills/review/LINT.md')
-        database = Database.open(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
+        database = Database.from_snapshot(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
 
         #: When
         subjects = select_workspace(database)
@@ -128,7 +128,7 @@ class TestSelectWorkspace:
         _write(root, '.agents/skills/review/SKILL.md')
         (root / '.agents' / 'skills' / 'outside').symlink_to(elsewhere / 'x')
         (root / '.agents' / 'skills' / 'review' / 'shared').symlink_to(elsewhere / 'shared')
-        database = Database.open(take_snapshot(root, SNAPSHOT_SCOPE))
+        database = Database.from_snapshot(take_snapshot(root, SNAPSHOT_SCOPE))
 
         #: When
         subjects = select_workspace(database)
@@ -147,7 +147,7 @@ class TestSelectWorkspace:
         _write(tmp_path, '.agents/skills/review/SKILL.md')
         (tmp_path / '.claude').mkdir()
         (tmp_path / '.claude' / 'skills').symlink_to('../.agents/skills')
-        database = Database.open(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
+        database = Database.from_snapshot(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
 
         #: When
         subjects = select_workspace(database)
@@ -157,7 +157,7 @@ class TestSelectWorkspace:
 
     def test_select_workspace_with_an_empty_root_selects_nothing(self, tmp_path: Path) -> None:
         #: Given
-        database = Database.open(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
+        database = Database.from_snapshot(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
 
         #: When
         subjects = select_workspace(database)

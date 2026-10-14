@@ -118,7 +118,7 @@ class TestOutlineDivergences:
         outline = (
             b'{"outline": [{"section": "Rule"}, {"any": true}, {"section": "Checklist"}, {"section": "See Also"}]}'
         )
-        database = Database.open(_snapshot(outline, None, RULE_ASIDE_CHECKLIST))
+        database = Database.from_snapshot(_snapshot(outline, None, RULE_ASIDE_CHECKLIST))
         source = _document_text(database, TYPING)
 
         #: When
@@ -138,7 +138,7 @@ class TestOutlineDivergences:
     def test_outline_divergences_called_twice_returns_the_first_answer(self) -> None:
         #: Given
         outline = b'{"outline": [{"section": "Rule"}, {"any": true}, {"section": "Checklist"}]}'
-        database = ParsingDatabase.open(_snapshot(outline, None, RULE_ASIDE_CHECKLIST))
+        database = ParsingDatabase.from_snapshot(_snapshot(outline, None, RULE_ASIDE_CHECKLIST))
         source = _document_text(database, TYPING)
         first = database.outline_divergences(source)
 
@@ -153,7 +153,7 @@ class TestOutlineDivergences:
         #: Given
         corpus_spec = b'{"empty_sections": "forbidden"}'
         namespace_spec = b'{"outline": [{"section": "Rule"}, {"any": true}]}'
-        database = Database.open(_snapshot(corpus_spec, namespace_spec, RULE_ASIDE_CHECKLIST))
+        database = Database.from_snapshot(_snapshot(corpus_spec, namespace_spec, RULE_ASIDE_CHECKLIST))
         source = _document_text(database, TYPING)
 
         #: When
@@ -166,7 +166,7 @@ class TestOutlineDivergences:
 
     def test_outline_divergences_with_no_outline_holds_none(self) -> None:
         #: Given
-        database = Database.open(_snapshot(b'{"empty_sections": "forbidden"}', None, RULE_ASIDE_CHECKLIST))
+        database = Database.from_snapshot(_snapshot(b'{"empty_sections": "forbidden"}', None, RULE_ASIDE_CHECKLIST))
         source = _document_text(database, TYPING)
 
         #: When
@@ -177,7 +177,7 @@ class TestOutlineDivergences:
 
     def test_outline_divergences_with_no_structure_specification_never_parses_the_document(self) -> None:
         #: Given
-        database = ParsingDatabase.open(_snapshot(None, None, RULE_ASIDE_CHECKLIST))
+        database = ParsingDatabase.from_snapshot(_snapshot(None, None, RULE_ASIDE_CHECKLIST))
         source = _document_text(database, TYPING)
 
         #: When
@@ -197,7 +197,7 @@ class TestOutlineDivergences:
                 }
             }
         )
-        database = Database.open(snapshot)
+        database = Database.from_snapshot(snapshot)
         source = _document_text(database, DocumentRef(CorpusName.parse('blog'), AspectFilename.parse('launch')))
 
         #: When

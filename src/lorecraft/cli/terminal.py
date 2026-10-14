@@ -35,7 +35,7 @@ class ColorEnvironment:
     no_color: bool
 
     @classmethod
-    def parse(cls, environ: Mapping[str, str]) -> Self:
+    def from_environ(cls, environ: Mapping[str, str]) -> Self:
         """Read the two variables from an environment; a variable that is unset or empty counts as not set.
 
         Both conventions give an empty value no meaning, so only a non-empty value is a request.
@@ -48,7 +48,7 @@ class ColorEnvironment:
 
 def read_color_environment() -> ColorEnvironment:
     """The colour variables of this process's environment, the one read of it."""
-    return ColorEnvironment.parse(os.environ)
+    return ColorEnvironment.from_environ(os.environ)
 
 
 def decide_color(choice: ColorChoice, environment: ColorEnvironment, *, is_terminal: bool) -> bool:
