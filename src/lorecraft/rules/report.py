@@ -216,11 +216,12 @@ class SkippedSubject:
     Attributes:
         ref: The document that was decoded and not judged.
         failed_layers: The path of each structure file that governs the document and failed to load, in layer order,
-            corpus spec first; never empty.
+            corpus spec first. The type requires a first path, so a skipped document always names the failure that
+            skipped it.
     """
 
     ref: DocumentRef
-    failed_layers: tuple[RootRelativePath, ...]
+    failed_layers: tuple[RootRelativePath, *tuple[RootRelativePath, ...]]
 
     @property
     def diagnostics(self) -> tuple[()]:
