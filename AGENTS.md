@@ -69,8 +69,9 @@ a finding, fix the document or fix the check — never loosen a schema, raise a 
 scope to make it green.
 
 A check lives in the library, and a skill that runs one calls the `lorecraft` command rather than carrying the
-code. The one standalone script left is `.agents/skills/feat-status/report.py`, at its skill's root, and the
-library is to replace it too.
+code. The standalone scripts left are `.agents/skills/feat-status/report.py`, at its skill's root, which the library
+is to replace, and the git workflow scripts under `.agents/skills/code-*/scripts/`, plain standard-library
+`python3` that drives `git`, `just` and `gh` and does no check of its own.
 
 ## Canonical Resources
 
