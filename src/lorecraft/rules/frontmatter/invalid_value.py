@@ -32,7 +32,7 @@ class InvalidValue(FrontmatterRule):
     ## What it does
 
     Checks for documents whose frontmatter gives a field a value that breaks a constraint of its property in their
-    structure specification's `frontmatter` schema other than its type, such as `maxLength`, `pattern` or `enum`,
+    structure file's `frontmatter` schema other than its type, such as `maxLength`, `pattern` or `enum`,
     and for skills whose frontmatter breaks such a constraint of the Agent Skills specification, such as a `name`
     longer than 64 characters or not in lowercase. Anything wrong inside a field's value, such as a key a mapping
     lacks or an item of the wrong type, is that field's value at fault, and is reported here on the field's line,
@@ -85,9 +85,9 @@ class InvalidValue(FrontmatterRule):
     ```
 
     Attributes:
-        spec: The specification file that states the schema, derived from `source`, so no caller states one that
+        spec: The structure file that states the schema, derived from `source`, so no caller states one that
             disagrees with it; `None` for the Agent Skills specification.
-        source: The schema that found the problem: a structure specification's, or the Agent Skills specification's.
+        source: The schema that found the problem: a structure file's, or the Agent Skills specification's.
         problem: The field whose value breaks the constraint, with what the schema states about it.
     """
 
@@ -102,7 +102,7 @@ class InvalidValue(FrontmatterRule):
     problem: InvalidValueProblem
 
     def __post_init__(self) -> None:
-        """Derive the specification file from the schema that found the problem."""
+        """Derive the structure file from the schema that found the problem."""
         # The dataclass is frozen, so the field a rule derives is set the one way a frozen dataclass allows.
         object.__setattr__(self, 'spec', schema_spec(self.source))
 

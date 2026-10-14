@@ -11,7 +11,7 @@ A frontmatter block is valid YAML, but not a mapping of fields.
 
 ## What it does
 
-Checks for documents whose structure specification sets a `frontmatter` schema, and for skills, whose
+Checks for documents whose structure file sets a `frontmatter` schema, and for skills, whose
 frontmatter block reads as YAML but holds something other than `key: value` fields: a list, a single value,
 or nothing at all.
 

@@ -30,11 +30,11 @@ class InvalidFrontmatter(FrontmatterRule):
 
     ## What it does
 
-    Checks for documents whose frontmatter breaks a constraint their structure specification's `frontmatter`
+    Checks for documents whose frontmatter breaks a constraint their structure file's `frontmatter`
     schema sets on the block rather than on one field. It is reported on line 1, since it concerns no one field. A
     block with fewer fields than `minProperties` requires is reported by `too-few-fields`, and one with more than
     `maxProperties` allows by `too-many-fields`. A skill's frontmatter is reported here only when the Agent Skills
-    specification rejects it without naming a field.
+    meta spec rejects it without naming a field.
 
     A constraint that names a key is not the block's: a key `propertyNames` rejects, and a field whose
     `dependentRequired` fields are missing, are reported by `invalid-value` on that key's line.
@@ -86,9 +86,9 @@ class InvalidFrontmatter(FrontmatterRule):
     ```
 
     Attributes:
-        spec: The specification file that states the schema, derived from `source`, so no caller states one that
+        spec: The structure file that states the schema, derived from `source`, so no caller states one that
             disagrees with it; `None` for the Agent Skills specification.
-        source: The schema that found the problem: a structure specification's, or the Agent Skills specification's.
+        source: The schema that found the problem: a structure file's, or the Agent Skills specification's.
         problem: The constraint over the whole block that the frontmatter breaks, with the number of fields it holds.
     """
 
@@ -103,7 +103,7 @@ class InvalidFrontmatter(FrontmatterRule):
     problem: BlockProblem
 
     def __post_init__(self) -> None:
-        """Derive the specification file from the schema that found the problem."""
+        """Derive the structure file from the schema that found the problem."""
         # The dataclass is frozen, so the field a rule derives is set the one way a frozen dataclass allows.
         object.__setattr__(self, 'spec', schema_spec(self.source))
 

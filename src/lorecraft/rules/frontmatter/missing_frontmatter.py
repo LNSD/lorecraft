@@ -29,7 +29,7 @@ class MissingFrontmatter(FrontmatterRule):
 
     ## What it does
 
-    Checks for documents whose structure specification sets a `frontmatter` schema, and for skills, whose
+    Checks for documents whose structure file sets a `frontmatter` schema, and for skills, whose
     `SKILL.md` the Agent Skills specification requires to open with frontmatter, that do not open with a block
     between two `---` lines. A file whose first line is not `---`, or whose block is never closed by a second
     `---` line, has none.
@@ -78,9 +78,9 @@ class MissingFrontmatter(FrontmatterRule):
     ```
 
     Attributes:
-        spec: The specification file that governs the owner's frontmatter, derived from `owner`, so no caller states
+        spec: The structure file that governs the owner's frontmatter, derived from `owner`, so no caller states
             one that disagrees with it.
-        owner: The document or the skill that opens with no block. It says which specification governs the subject,
+        owner: The document or the skill that opens with no block. It says which meta spec governs the subject,
             and for a skill the directory name its `name` must equal, which the example shows.
     """
 
@@ -94,7 +94,7 @@ class MissingFrontmatter(FrontmatterRule):
     owner: FrontmatterOwner
 
     def __post_init__(self) -> None:
-        """Derive the specification file from the owner of the frontmatter."""
+        """Derive the structure file from the owner of the frontmatter."""
         # The dataclass is frozen, so the field a rule derives is set the one way a frozen dataclass allows.
         object.__setattr__(self, 'spec', owner_spec(self.owner))
 
@@ -110,7 +110,7 @@ class MissingFrontmatter(FrontmatterRule):
         return (Label(Here(self.line), 'a `---` delimited block is expected here'),)
 
     def children(self) -> tuple[Subdiagnostic, ...]:
-        """Name the specification, say how to open the block, and for a skill show the fields it opens with."""
+        """Name the meta spec, say how to open the block, and for a skill show the fields it opens with."""
         owner = self.owner
         parts: list[Subdiagnostic] = [
             spec_note(owner),

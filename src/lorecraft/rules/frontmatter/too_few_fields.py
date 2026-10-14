@@ -31,7 +31,7 @@ class TooFewFields(FrontmatterRule):
 
     ## What it does
 
-    Checks for documents whose frontmatter holds fewer fields than their structure specification's `frontmatter`
+    Checks for documents whose frontmatter holds fewer fields than their structure file's `frontmatter`
     schema requires with `minProperties`. It is reported on line 1, since it concerns no one field. The message says
     how many fields the block holds against the least the schema requires, and the help is the description the
     schema states for the block, when it states one.
@@ -78,9 +78,9 @@ class TooFewFields(FrontmatterRule):
     ```
 
     Attributes:
-        spec: The specification file that states the schema, derived from `source`, so no caller states one that
+        spec: The structure file that states the schema, derived from `source`, so no caller states one that
             disagrees with it; `None` for the Agent Skills specification.
-        source: The schema that found the problem: a structure specification's, or the Agent Skills specification's.
+        source: The schema that found the problem: a structure file's, or the Agent Skills specification's.
         limit: The least fields the schema requires.
         field_count: The number of fields the frontmatter holds.
         description: What the schema says the block describes, as it wrote it, or `None` when it states none.
@@ -99,7 +99,7 @@ class TooFewFields(FrontmatterRule):
     description: str | None = None
 
     def __post_init__(self) -> None:
-        """Derive the specification file from the schema that found the problem."""
+        """Derive the structure file from the schema that found the problem."""
         # The dataclass is frozen, so the field a rule derives is set the one way a frozen dataclass allows.
         object.__setattr__(self, 'spec', schema_spec(self.source))
 

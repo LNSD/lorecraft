@@ -11,7 +11,7 @@ A frontmatter `name` differs from the name its document or skill is found under.
 
 ## What it does
 
-Checks for documents whose structure specification sets a `frontmatter` schema and whose `name` differs from
+Checks for documents whose structure file sets a `frontmatter` schema and whose `name` differs from
 their filename without its extension, and for skills whose `name` differs from the name of their directory,
 as the Agent Skills specification requires. A skill's directory is named as an agent lists it in its skills
 directory: when that directory is a link to a directory named otherwise, the listed name is the one expected.

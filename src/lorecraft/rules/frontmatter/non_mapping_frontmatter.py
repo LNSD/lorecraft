@@ -24,7 +24,7 @@ class NonMappingFrontmatter(FrontmatterRule):
 
     ## What it does
 
-    Checks for documents whose structure specification sets a `frontmatter` schema, and for skills, whose
+    Checks for documents whose structure file sets a `frontmatter` schema, and for skills, whose
     frontmatter block reads as YAML but holds something other than `key: value` fields: a list, a single value,
     or nothing at all.
 
@@ -73,9 +73,9 @@ class NonMappingFrontmatter(FrontmatterRule):
     ```
 
     Attributes:
-        spec: The specification file that governs the owner's frontmatter, derived from `owner`, so no caller states
+        spec: The structure file that governs the owner's frontmatter, derived from `owner`, so no caller states
             one that disagrees with it.
-        owner: The document or the skill whose frontmatter is not a mapping, and so which specification governs it.
+        owner: The document or the skill whose frontmatter is not a mapping, and so which meta spec governs it.
     """
 
     CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 3)
@@ -88,7 +88,7 @@ class NonMappingFrontmatter(FrontmatterRule):
     owner: FrontmatterOwner
 
     def __post_init__(self) -> None:
-        """Derive the specification file from the owner of the frontmatter."""
+        """Derive the structure file from the owner of the frontmatter."""
         # The dataclass is frozen, so the field a rule derives is set the one way a frozen dataclass allows.
         object.__setattr__(self, 'spec', owner_spec(self.owner))
 
@@ -97,7 +97,7 @@ class NonMappingFrontmatter(FrontmatterRule):
         return 'frontmatter is not a YAML mapping'
 
     def children(self) -> tuple[Subdiagnostic, ...]:
-        """Name the specification that governs the frontmatter, and say what a mapping looks like."""
+        """Name the meta spec that governs the frontmatter, and say what a mapping looks like."""
         return (spec_note(self.owner), Help('write the block as `key: value` lines'))
 
     @classmethod

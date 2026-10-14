@@ -12,7 +12,7 @@ A frontmatter field's value breaks a constraint its schema sets.
 ## What it does
 
 Checks for documents whose frontmatter gives a field a value that breaks a constraint of its property in their
-structure specification's `frontmatter` schema other than its type, such as `maxLength`, `pattern` or `enum`,
+structure file's `frontmatter` schema other than its type, such as `maxLength`, `pattern` or `enum`,
 and for skills whose frontmatter breaks such a constraint of the Agent Skills specification, such as a `name`
 longer than 64 characters or not in lowercase. Anything wrong inside a field's value, such as a key a mapping
 lacks or an item of the wrong type, is that field's value at fault, and is reported here on the field's line,

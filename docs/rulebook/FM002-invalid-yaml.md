@@ -11,7 +11,7 @@ A frontmatter block is not valid YAML.
 
 ## What it does
 
-Checks for documents whose structure specification sets a `frontmatter` schema, and for skills, whose
+Checks for documents whose structure file sets a `frontmatter` schema, and for skills, whose
 frontmatter block cannot be read as YAML, or uses a construct frontmatter does not allow, such as a tag, an
 anchor or a key that is not a string. It is reported on the line the writer fixes, with what is wrong and, for
 a syntax error, what to do, or on the first line, the one that opens the block, when that line cannot be
