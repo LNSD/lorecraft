@@ -20,7 +20,7 @@ of paths.
 """
 
 from pathlib import PurePosixPath
-from typing import assert_never
+from typing import Literal, assert_never
 
 from lorecraft.core.path import RootRelativePath
 
@@ -127,11 +127,11 @@ class _RecordedLinks:
         """Every recorded link's root-relative path."""
         return tuple(self._targets)
 
-    def find_kind(self, path: RootRelativePath) -> EntryKind:
+    def find_kind(self, path: RootRelativePath) -> Literal[EntryKind.SYMLINK, EntryKind.DIRECTORY]:
         """SYMLINK where a link is recorded at `path`, DIRECTORY anywhere else; see `EntryLookup.find_kind`.
 
-        Never FILE: `ScopeIndex.is_in_scope` and `_listed_scan_roots` raise on a walk that ends at a file, relying on
-        this.
+        Never FILE and never `None`, which the return type states: `ScopeIndex.is_in_scope` and `_listed_scan_roots`
+        raise on a walk that ends at a file, relying on this.
 
         Args:
             path: The root-relative entry the walk reached.

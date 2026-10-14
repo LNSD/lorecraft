@@ -19,8 +19,9 @@ from lorecraft.core.num import UnsignedInt
 from lorecraft.core.path import RootRelativePath
 
 from ..scan_root import ScanRoot
-from ..scope import ScopeIndex
+from ..scope import ScopeIndex, _RecordedLinks
 from ..snapshot import DirectoryRecord, EntryRecord, Snapshot, SnapshotRecords, SymlinkRecord
+from ..view import EntryKind
 
 DOCS: Final[RootRelativePath] = RootRelativePath.parse('docs')
 AGENTS_SKILLS: Final[RootRelativePath] = RootRelativePath.parse('.agents/skills')
@@ -462,3 +463,39 @@ class TestScopeIndex:
 
         #: Then
         assert in_scope is False, 'with no root declared no link is followed, so nothing is in scope'
+
+
+@pytest.mark.unit
+class TestRecordedLinksFindKind:
+    def test_find_kind_with_a_recorded_link_returns_symlink(self) -> None:
+        #: Given
+        recorded = _RecordedLinks({_path('.agents/skills/linked'): PurePosixPath('../../docs')}, ())
+        path = _path('.agents/skills/linked')
+
+        #: When
+        kind = recorded.find_kind(path)
+
+        #: Then
+        assert kind is EntryKind.SYMLINK, 'a path where a link is recorded is a SYMLINK'
+
+    def test_find_kind_with_a_path_below_a_recorded_link_returns_directory(self) -> None:
+        #: Given
+        recorded = _RecordedLinks({_path('.agents/skills/linked'): PurePosixPath('../../docs')}, ())
+        path = _path('.agents/skills/linked/inner')
+
+        #: When
+        kind = recorded.find_kind(path)
+
+        #: Then
+        assert kind is EntryKind.DIRECTORY, 'a component with no link recorded is taken for a DIRECTORY, never a FILE'
+
+    def test_find_kind_with_a_path_nothing_recorded_returns_directory(self) -> None:
+        #: Given
+        recorded = _RecordedLinks({_path('.agents/skills/linked'): PurePosixPath('../../docs')}, ())
+        path = _path('docs/nope')
+
+        #: When
+        kind = recorded.find_kind(path)
+
+        #: Then
+        assert kind is EntryKind.DIRECTORY, 'a component with no link recorded is taken for a DIRECTORY, never a FILE'
