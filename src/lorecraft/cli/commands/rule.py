@@ -10,10 +10,8 @@ from typing import Annotated
 
 import typer
 
-from lorecraft.core.error import Error
-
 from ..registry import register
-from ..rule_arguments import RuleKey
+from ..rule_arguments import MalformedRuleKeyError, RuleKey, UnknownRuleKeyError
 
 
 class _RuleKeyParser:
@@ -36,7 +34,7 @@ class _RuleKeyParser:
         """
         try:
             return RuleKey.parse(text)
-        except Error as exc:
+        except (MalformedRuleKeyError, UnknownRuleKeyError) as exc:
             raise typer.BadParameter(str(exc)) from exc
 
 

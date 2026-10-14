@@ -154,6 +154,7 @@ text and its parse carry over only when the two databases' `skill_resources` loc
 and that file's bytes did not change.
 """
 
+import logging
 from collections.abc import Mapping
 from typing import Self
 
@@ -212,6 +213,8 @@ from lorecraft.vfs import (
 )
 
 from .text import DocumentText, SkillResourceText, SkillText, Undecodable
+
+logger: logging.Logger = logging.getLogger(__name__)
 
 
 def _witness_text(
@@ -386,6 +389,8 @@ class Database:
             SkillResourcesListError,
             SkillResourcesSymlinkResolveError,
         ):
+            # The failure is the read query's own finding; the excerpt only goes without, so it is logged, not raised.
+            logger.debug('excerpt skipped', exc_info=True, extra={'fields': {'path': str(path)}})
             return None
         if text is None:
             return None

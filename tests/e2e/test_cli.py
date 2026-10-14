@@ -296,6 +296,55 @@ class TestVersionSnapshots:
 
 
 @pytest.mark.e2e
+class TestDegradedVersionIsQuiet:
+    # The version and the git description each fall back by design, so a normal run reports nothing on stderr.
+
+    def test_version_option_from_an_uninstalled_tree_prints_the_unknown_version_and_nothing_on_stderr(
+        self, tmp_path: Path
+    ) -> None:
+        #: Given
+        # A `sitecustomize` module runs at interpreter start, before `lorecraft` is imported, and hides the
+        # distribution's metadata the way a source tree that was never installed has none.
+        hiding = tmp_path / 'hiding'
+        hiding.mkdir()
+        (hiding / 'sitecustomize.py').write_text(
+            dedent(
+                """\
+                import importlib.metadata
+
+                def _not_installed(name):
+                    raise importlib.metadata.PackageNotFoundError(name)
+
+                importlib.metadata.version = _not_installed
+                """
+            ),
+            encoding='utf-8',
+        )
+        environment = {**os.environ, 'PYTHONPATH': str(hiding)}
+
+        #: When
+        result = run_cli('--version', env=environment)
+
+        #: Then
+        assert result.returncode == 0, result.stderr
+        assert result.stdout == 'lorecraft 0+unknown\n', 'the fallback version is printed'
+        assert result.stderr == '', 'a designed fallback prints no traceback'
+
+    def test_version_command_with_verbose_when_git_fails_prints_nothing_on_stderr(
+        self, directory_with_a_failing_git: Path
+    ) -> None:
+        #: Given
+        environment = _environment_searching(directory_with_a_failing_git)
+
+        #: When
+        result = run_cli('version', '--verbose', env=environment)
+
+        #: Then
+        assert result.returncode == 0, result.stderr
+        assert result.stderr == '', 'a git that cannot describe the checkout prints no traceback'
+
+
+@pytest.mark.e2e
 class TestInspectSnapshots:
     # The CLI prints the resolved root, which differs per checkout, so each test swaps it for a placeholder
     # before comparing, the way an insta filter would; everything else is compared byte for byte.

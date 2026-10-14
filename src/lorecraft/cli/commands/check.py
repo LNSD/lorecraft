@@ -10,11 +10,17 @@ from typing import Annotated
 
 import typer
 
-from lorecraft.core.error import Error
-
 from ..output import ColorChoice, DiagnosticFormat
 from ..registry import register
-from ..rule_arguments import SelectorValue
+from ..rule_arguments import (
+    EmptySelectorError,
+    EngineSelectorError,
+    MalformedSelectorError,
+    RemovedRuleSelectorError,
+    RuleNameSelectorError,
+    SelectorValue,
+    UnknownSelectorError,
+)
 
 
 def _parse_selectors(value: str) -> SelectorValue:
@@ -29,7 +35,14 @@ def _parse_selectors(value: str) -> SelectorValue:
     """
     try:
         return SelectorValue.parse(value)
-    except Error as exc:
+    except (
+        EmptySelectorError,
+        MalformedSelectorError,
+        UnknownSelectorError,
+        RuleNameSelectorError,
+        EngineSelectorError,
+        RemovedRuleSelectorError,
+    ) as exc:
         raise typer.BadParameter(str(exc)) from exc
 
 

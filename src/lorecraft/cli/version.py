@@ -85,7 +85,8 @@ def find_git_description() -> str | None:
             timeout=_GIT_TIMEOUT_SECONDS,
         )
     except (OSError, subprocess.SubprocessError):
-        logger.exception(f'git description was unavailable for {checkout_root}')
+        # A designed degrade, not a failure anyone must act on: `debug` keeps stderr quiet on a normal run.
+        logger.debug(f'git description was unavailable for {checkout_root}', exc_info=True)
         return None
 
     return completed.stdout.strip() or None
