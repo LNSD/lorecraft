@@ -12,7 +12,7 @@ scope: "global"
 A domain value carried as a bare `str` or `int` makes every reader remember an invariant the code could have
 remembered for them. When a value needs **runtime validation**, a **unit**, or behavior of its own, declare it
 as a value object — a small frozen class wrapping one field — so that the constraint lives in one place. For a
-pure static distinction between values with no runtime invariant, use [`typing.NewType`](pattern-newtype.md).
+pure static distinction between values with no runtime invariant, use [`typing.NewType`](python-typing-newtype.md).
 
 The mechanism that actually holds at runtime:
 
@@ -385,7 +385,7 @@ indistinguishable from an oversight, and the next reader will treat it as one.
 ## Checklist
 
 - [ ] Every domain value with a runtime invariant, a unit or base, or behavior of its own is a value object
-- [ ] A pure static distinction without a runtime invariant uses `typing.NewType` ([pattern-newtype](pattern-newtype.md))
+- [ ] A pure static distinction without a runtime invariant uses `typing.NewType` ([python-typing-newtype](python-typing-newtype.md))
 - [ ] The wrapper is `@dataclass(frozen=True, slots=True)` with exactly one meaningful field
 - [ ] The class docstring states the complete value format and whether parsing normalizes the input
 - [ ] Text enters through a classmethod named `parse`, which shares any `__post_init__` guard's check; another
@@ -403,7 +403,7 @@ indistinguishable from an oversight, and the next reader will treat it as one.
 ## References
 
 - [principle-least-surprise](principle-least-surprise.md) - Foundation: A signature saying `str` twice surprises the caller who transposes them
-- [pattern-newtype](pattern-newtype.md) - Related: Static-only distinctions for values without runtime invariants
+- [python-typing-newtype](python-typing-newtype.md) - Related: Static-only distinctions for values without runtime invariants
 - [error-types](error-types.md) - Related: Owns the error variants a failed parse
   raises, and the context they carry
 - [pattern-registry](pattern-registry.md) - Related: Registry keys are exactly the kind of identity that earns a value object
