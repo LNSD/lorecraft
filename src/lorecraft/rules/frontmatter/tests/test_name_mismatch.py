@@ -5,6 +5,7 @@ the real parser does; no file is read from disk. The name a document is held to 
 the name a skill is held to the directory the fake lists it under, `review`.
 """
 
+from textwrap import dedent
 from typing import Final
 
 import pytest
@@ -31,7 +32,13 @@ SHIPPED: Final[ResolvedPath] = ResolvedPath(RootRelativePath.parse('skills/code-
 class TestNameMismatch:
     def test_check_with_a_document_named_otherwise_reports_it_on_the_name_line(self) -> None:
         #: Given
-        text = '---\ndescription: Install the toolkit.\nname: installation\n---\n# Setup\n'
+        text = dedent("""\
+            ---
+            description: Install the toolkit.
+            name: installation
+            ---
+            # Setup
+            """)
         subject = FakeDocumentContext(text, corpus='guide', structure=STRUCTURE)
 
         #: When
@@ -46,7 +53,15 @@ class TestNameMismatch:
 
     def test_check_with_a_name_written_twice_reports_the_last_value_on_its_line(self) -> None:
         #: Given
-        text = '---\nname: setup\nmetadata:\n  name: inner\nname: installation\n---\n# Setup\n'
+        text = dedent("""\
+            ---
+            name: setup
+            metadata:
+              name: inner
+            name: installation
+            ---
+            # Setup
+            """)
         subject = FakeDocumentContext(text, corpus='guide', structure=STRUCTURE)
 
         #: When
@@ -61,7 +76,13 @@ class TestNameMismatch:
 
     def test_check_with_a_document_named_for_its_filename_reports_nothing(self) -> None:
         #: Given
-        subject = FakeDocumentContext('---\nname: setup\n---\n# Setup\n', corpus='guide', structure=STRUCTURE)
+        text = dedent("""\
+            ---
+            name: setup
+            ---
+            # Setup
+            """)
+        subject = FakeDocumentContext(text, corpus='guide', structure=STRUCTURE)
 
         #: When
         occurrences = NameMismatch.check(subject)
@@ -71,7 +92,13 @@ class TestNameMismatch:
 
     def test_check_with_a_document_without_a_name_reports_nothing(self) -> None:
         #: Given
-        subject = FakeDocumentContext('---\ntitle: Setup\n---\n# Setup\n', corpus='guide', structure=STRUCTURE)
+        text = dedent("""\
+            ---
+            title: Setup
+            ---
+            # Setup
+            """)
+        subject = FakeDocumentContext(text, corpus='guide', structure=STRUCTURE)
 
         #: When
         occurrences = NameMismatch.check(subject)
@@ -81,7 +108,12 @@ class TestNameMismatch:
 
     def test_check_with_a_name_that_is_not_a_string_reports_nothing(self) -> None:
         #: Given
-        subject = FakeSkillContext('---\nname: 42\n---\n')
+        text = dedent("""\
+            ---
+            name: 42
+            ---
+            """)
+        subject = FakeSkillContext(text)
 
         #: When
         occurrences = NameMismatch.check(subject)
@@ -91,7 +123,13 @@ class TestNameMismatch:
 
     def test_check_with_a_block_that_is_not_a_mapping_reports_nothing(self) -> None:
         #: Given
-        subject = FakeDocumentContext('---\n- installation\n---\n# Setup\n', corpus='guide', structure=STRUCTURE)
+        text = dedent("""\
+            ---
+            - installation
+            ---
+            # Setup
+            """)
+        subject = FakeDocumentContext(text, corpus='guide', structure=STRUCTURE)
 
         #: When
         occurrences = NameMismatch.check(subject)
@@ -101,7 +139,12 @@ class TestNameMismatch:
 
     def test_check_with_a_skill_named_for_its_directory_reports_nothing(self) -> None:
         #: Given
-        subject = FakeSkillContext('---\nname: review\n---\n')
+        text = dedent("""\
+            ---
+            name: review
+            ---
+            """)
+        subject = FakeSkillContext(text)
 
         #: When
         occurrences = NameMismatch.check(subject)
@@ -111,7 +154,12 @@ class TestNameMismatch:
 
     def test_check_with_a_skill_named_otherwise_reports_it_with_its_link_target(self) -> None:
         #: Given
-        subject = FakeSkillContext('---\nname: code-review\n---\n', link_target=SHIPPED)
+        text = dedent("""\
+            ---
+            name: code-review
+            ---
+            """)
+        subject = FakeSkillContext(text, link_target=SHIPPED)
 
         #: When
         occurrences = NameMismatch.check(subject)

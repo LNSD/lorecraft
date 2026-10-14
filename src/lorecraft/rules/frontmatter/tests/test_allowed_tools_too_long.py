@@ -1,5 +1,8 @@
 """`FM012`, `allowed-tools-too-long`, over a skill's whole allowed-tools value."""
 
+from textwrap import dedent
+from typing import Final
+
 import pytest
 
 from lib.overruns import overrun
@@ -10,6 +13,49 @@ from lorecraft.rules.tests.fake_context import FakeSkillContext
 from ..allowed_tools_too_long import AllowedToolsTooLong
 from .test_malformed_allowed_tools import SPECIFICATION_NOTE
 
+UNCLOSED_SEQUENCE: Final[str] = dedent("""\
+    ---
+    [
+    ---
+    """)
+"""A frontmatter block that is not valid YAML."""
+
+SEQUENCE: Final[str] = dedent("""\
+    ---
+    - review
+    ---
+    """)
+"""A frontmatter block that is a sequence, not a mapping."""
+
+NO_ALLOWED_TOOLS: Final[str] = dedent("""\
+    ---
+    name: review
+    description: Review a change.
+    ---
+    """)
+"""A skill whose frontmatter has no `allowed-tools`."""
+
+NULL_ALLOWED_TOOLS: Final[str] = dedent("""\
+    ---
+    allowed-tools: null
+    ---
+    """)
+"""A skill whose `allowed-tools` is null."""
+
+NUMBER_ALLOWED_TOOLS: Final[str] = dedent("""\
+    ---
+    allowed-tools: 501
+    ---
+    """)
+"""A skill whose `allowed-tools` is a number."""
+
+LIST_ALLOWED_TOOLS: Final[str] = dedent("""\
+    ---
+    allowed-tools: [Read, Grep]
+    ---
+    """)
+"""A skill whose `allowed-tools` is a list."""
+
 
 @pytest.mark.unit
 class TestAllowedToolsTooLong:
@@ -17,7 +63,14 @@ class TestAllowedToolsTooLong:
     def test_check_with_a_value_within_the_recommendation_reports_nothing(self, length: int) -> None:
         #: Given
         value = 'A' * length
-        subject = FakeSkillContext(f'---\nname: review\ndescription: Review a change.\nallowed-tools: "{value}"\n---\n')
+        text = dedent(f"""\
+            ---
+            name: review
+            description: Review a change.
+            allowed-tools: "{value}"
+            ---
+            """)
+        subject = FakeSkillContext(text)
 
         #: When
         occurrences = AllowedToolsTooLong.check(subject)
@@ -29,7 +82,14 @@ class TestAllowedToolsTooLong:
     def test_check_with_501_characters_reports_the_whole_value_length(self, character: str) -> None:
         #: Given
         value = character * 501
-        subject = FakeSkillContext(f'---\nname: review\ndescription: Review a change.\nallowed-tools: "{value}"\n---\n')
+        text = dedent(f"""\
+            ---
+            name: review
+            description: Review a change.
+            allowed-tools: "{value}"
+            ---
+            """)
+        subject = FakeSkillContext(text)
 
         #: When
         occurrences = AllowedToolsTooLong.check(subject)
@@ -43,12 +103,12 @@ class TestAllowedToolsTooLong:
         'text',
         (
             '# Review\n',
-            '---\n[\n---\n',
-            '---\n- review\n---\n',
-            '---\nname: review\ndescription: Review a change.\n---\n',
-            '---\nallowed-tools: null\n---\n',
-            '---\nallowed-tools: 501\n---\n',
-            '---\nallowed-tools: [Read, Grep]\n---\n',
+            UNCLOSED_SEQUENCE,
+            SEQUENCE,
+            NO_ALLOWED_TOOLS,
+            NULL_ALLOWED_TOOLS,
+            NUMBER_ALLOWED_TOOLS,
+            LIST_ALLOWED_TOOLS,
         ),
     )
     def test_check_without_a_string_value_reports_nothing(self, text: str) -> None:

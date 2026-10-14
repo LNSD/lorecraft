@@ -649,7 +649,11 @@ class TestDecodeFrontmatter:
     ) -> None:
         #: Given
         # the quoted scalar starts on line 3 and its escape, above U+10FFFF, sits on line 4
-        block = 'name: guide\ndescription: "a guide\n  \\UFFFFFFFF"\n'
+        block = dedent("""\
+            name: guide
+            description: "a guide
+              \\UFFFFFFFF"
+            """)
 
         #: When
         node = decode_frontmatter(block)
@@ -663,7 +667,10 @@ class TestDecodeFrontmatter:
     def test_decode_frontmatter_with_an_escape_just_beyond_unicode_returns_invalid_yaml_on_its_line(self) -> None:
         #: Given
         # the first code point above U+10FFFF, which fits a C int, unlike `\UFFFFFFFF`
-        block = 'name: guide\ndescription: "\\U00110000"\n'
+        block = dedent("""\
+            name: guide
+            description: "\\U00110000"
+            """)
 
         #: When
         node = decode_frontmatter(block)
@@ -723,11 +730,10 @@ class TestDecodeFrontmatter:
         #: Given
         # one digit more than the interpreter converts to an int, read from it rather than assumed to be 4300
         digits = '1' * (sys.get_int_max_str_digits() + 1)
-        directive = f'%YAML 1.{digits}\n'
-        document = dedent("""\
+        block = dedent(f"""\
+            %YAML 1.{digits}
             name: guide
             """)
-        block = directive + document
 
         #: When
         node = decode_frontmatter(block)
@@ -834,9 +840,10 @@ class TestDecodeFrontmatter:
         #: Given
         # the second `[` is refused where it stands, so no depth of flow collections can reach the stack's limit
         depth = sys.getrecursionlimit()
-        name_line = 'name: guide\n'
-        description_line = f'description: {"[" * depth}{"]" * depth}\n'
-        block = name_line + description_line
+        block = dedent(f"""\
+            name: guide
+            description: {'[' * depth}{']' * depth}
+            """)
 
         #: When
         node = decode_frontmatter(block)
@@ -854,7 +861,8 @@ class TestDecodeFrontmatter:
         # reading spends at least one frame per level, so as many levels as the recursion limit always
         # exhaust the stack, whatever the limit is
         depth = sys.getrecursionlimit()
-        block = 'name: guide\n' + ''.join(f'{" " * level}nested:\n' for level in range(depth)) + f'{" " * depth}a: b\n'
+        nested = ''.join(f'{" " * level}nested:\n' for level in range(depth))
+        block = f'name: guide\n{nested}{" " * depth}a: b\n'
 
         #: When
         node = decode_frontmatter(block)
@@ -870,8 +878,12 @@ class TestDecodeFrontmatter:
         #: Given
         # the scanner recorded the `?` before the stack ran out, and it is written above the depth
         depth = sys.getrecursionlimit()
+        header = dedent("""\
+            name: guide
+            ? a
+            """)
         nested = ''.join(f'{" " * level}nested:\n' for level in range(depth))
-        block = f'name: guide\n? a\n{nested}{" " * depth}a: b\n'
+        block = f'{header}{nested}{" " * depth}a: b\n'
 
         #: When
         node = decode_frontmatter(block)
@@ -885,9 +897,10 @@ class TestDecodeFrontmatter:
         #: Given
         # one digit more than the interpreter converts to an int, read from it rather than assumed to be 4300
         digits = '1' * (sys.get_int_max_str_digits() + 1)
-        name_line = 'name: guide\n'
-        count_line = f'count: {digits}\n'
-        block = name_line + count_line
+        block = dedent(f"""\
+            name: guide
+            count: {digits}
+            """)
 
         #: When
         node = decode_frontmatter(block)
@@ -1265,6 +1278,7 @@ class TestDecodeFrontmatter:
 
     def test_decode_frontmatter_with_a_nested_block_scalar_after_a_short_blank_line_returns_its_text(self) -> None:
         #: Given
+        # the line of two spaces is the fixture, and `dedent` would empty it
         block = 'name: guide\nnotes:\n  summary: |\n  \n    First paragraph.\n'
 
         #: When
@@ -1278,6 +1292,7 @@ class TestDecodeFrontmatter:
 
     def test_decode_frontmatter_with_a_literal_scalar_after_a_one_space_line_returns_its_text(self) -> None:
         #: Given
+        # the line of one space is the fixture, and `dedent` would empty it
         block = 'a: |\n \n  x\n'
 
         #: When
@@ -1289,6 +1304,7 @@ class TestDecodeFrontmatter:
 
     def test_decode_frontmatter_with_a_folded_scalar_after_a_one_space_line_returns_its_text(self) -> None:
         #: Given
+        # the line of one space is the fixture, and `dedent` would empty it
         block = 'a: >\n \n  x\n'
 
         #: When
@@ -1300,6 +1316,7 @@ class TestDecodeFrontmatter:
 
     def test_decode_frontmatter_with_a_literal_scalar_after_a_line_of_the_parent_indent_returns_its_text(self) -> None:
         #: Given
+        # the line of two spaces is the fixture, and `dedent` would empty it
         block = 'a: |\n  \n   x\n'
 
         #: When

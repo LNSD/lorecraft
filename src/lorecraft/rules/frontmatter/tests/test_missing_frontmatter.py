@@ -4,6 +4,7 @@ Every case is a document or a `SKILL.md` written as text, read through a fake co
 the real parser does; no file is read from disk.
 """
 
+from textwrap import dedent
 from typing import Final
 
 import pytest
@@ -38,7 +39,12 @@ class TestMissingFrontmatter:
 
     def test_check_with_a_block_never_closed_reports_it_on_line_1(self) -> None:
         #: Given
-        subject = FakeDocumentContext('---\nname: setup\n# Setup\n', corpus='guide', structure=STRUCTURE)
+        text = dedent("""\
+            ---
+            name: setup
+            # Setup
+            """)
+        subject = FakeDocumentContext(text, corpus='guide', structure=STRUCTURE)
 
         #: When
         occurrences = MissingFrontmatter.check(subject)
@@ -62,7 +68,13 @@ class TestMissingFrontmatter:
 
     def test_check_with_a_block_that_is_not_yaml_reports_nothing(self) -> None:
         #: Given
-        subject = FakeDocumentContext('---\nname: [setup\n---\n# Setup\n', corpus='guide', structure=STRUCTURE)
+        text = dedent("""\
+            ---
+            name: [setup
+            ---
+            # Setup
+            """)
+        subject = FakeDocumentContext(text, corpus='guide', structure=STRUCTURE)
 
         #: When
         occurrences = MissingFrontmatter.check(subject)
@@ -72,7 +84,13 @@ class TestMissingFrontmatter:
 
     def test_check_with_a_mapping_reports_nothing(self) -> None:
         #: Given
-        subject = FakeDocumentContext('---\nname: setup\n---\n# Setup\n', corpus='guide', structure=STRUCTURE)
+        text = dedent("""\
+            ---
+            name: setup
+            ---
+            # Setup
+            """)
+        subject = FakeDocumentContext(text, corpus='guide', structure=STRUCTURE)
 
         #: When
         occurrences = MissingFrontmatter.check(subject)
@@ -123,8 +141,14 @@ class TestMissingFrontmatter:
         children = occurrence.children()
 
         #: Then
+        skeleton = dedent("""\
+            for example:
+            ---
+            name: review
+            description: …
+            ---""")
         assert children == (
             Note("the Agent Skills specification governs a SKILL.md's frontmatter"),
             Help('open the file with a `---` line, the fields, and a closing `---` line'),
-            Note('for example:\n---\nname: review\ndescription: …\n---'),
+            Note(skeleton),
         ), 'the specification note has no location, since no file holds it, and the skeleton names the directory'
