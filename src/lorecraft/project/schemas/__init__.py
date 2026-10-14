@@ -58,6 +58,15 @@ from .schema_problems import (
 )
 from .section_name import EmptySectionNameError, MultilineSectionNameError, PaddedSectionNameError, SectionName
 from .skill import SKILL_FRONTMATTER_SCHEMA, SkillFrontmatterSchema
+from .skill_fields import (
+    AllowedTool,
+    AllowedTools,
+    CommaSeparated,
+    MalformedEntry,
+    NotATool,
+    UnbalancedParentheses,
+    parse_allowed_tools,
+)
 from .skill_frontmatter import (
     EmptySkillCompatibilityError,
     EmptySkillDescriptionError,
@@ -172,6 +181,13 @@ __all__: list[str] = [
     'SkillAllowedTools',
     'SkillFrontmatterSchema',
     'SKILL_FRONTMATTER_SCHEMA',
+    'AllowedTools',
+    'AllowedTool',
+    'MalformedEntry',
+    'CommaSeparated',
+    'UnbalancedParentheses',
+    'NotATool',
+    'parse_allowed_tools',
     'FrontmatterProblem',
     'MissingFieldProblem',
     'UnknownFieldProblem',
