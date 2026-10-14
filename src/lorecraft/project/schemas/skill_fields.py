@@ -1,11 +1,34 @@
-"""The entries an `allowed-tools` value lists, each judged on its own.
+"""What each field of a skill's frontmatter holds once it is parsed, keyed by the field it was read from.
 
-The text is split at the whitespace outside balanced parentheses into the entries it lists, each one a well-formed
-``AllowedTool`` or a ``MalformedEntry`` saying what is wrong with it, so a rule reads what the field holds instead of
-splitting the raw text.
+``SkillFrontmatterSchema`` says what is wrong with a frontmatter; this module says what is right with it. Each field
+is parsed on its own, so a field that conforms is available even when another one is rejected: a rule over the
+``allowed-tools`` field has no reason to go silent because the ``name`` is misspelt. A field that is not written, is
+null, is not of the type the specification asks for, or is rejected by its value object, has no entry.
+
+The ``allowed-tools`` text is split into the entries it lists, each one a well-formed ``AllowedTool`` or a
+``MalformedEntry`` saying what is wrong with it, so a rule reads what the field holds instead of the raw text.
 """
 
+from collections.abc import Callable
 from dataclasses import dataclass
+from enum import StrEnum
+
+from lorecraft.core.error import Error
+from lorecraft.core.mapping import Frozen, FrozenMapping
+from lorecraft.project.syntax import Frontmatter, FrontmatterNode
+
+from .skill_frontmatter import SkillCompatibility, SkillDescription, SkillLicense, SkillName
+
+
+class SkillField(StrEnum):
+    """The fields of a skill's frontmatter, valued by the key each is written under."""
+
+    NAME = 'name'
+    DESCRIPTION = 'description'
+    LICENSE = 'license'
+    COMPATIBILITY = 'compatibility'
+    METADATA = 'metadata'
+    ALLOWED_TOOLS = 'allowed-tools'
 
 
 @dataclass(frozen=True, slots=True)
@@ -72,6 +95,48 @@ class AllowedTools:
     entries: tuple[AllowedTool | MalformedEntry, ...]
 
 
+type SkillFieldValue = (
+    SkillName | SkillDescription | SkillLicense | SkillCompatibility | FrozenMapping[str, str] | AllowedTools
+)
+"""What one field holds once parsed; each field has its own type."""
+
+type SkillFields = FrozenMapping[SkillField, SkillFieldValue]
+"""The fields of one frontmatter that parsed, by the field; one that is absent or rejected has no entry."""
+
+
+def parse_skill_fields(frontmatter: FrontmatterNode) -> SkillFields:
+    """The fields of a skill's frontmatter that parse, each on its own. Raises nothing.
+
+    Args:
+        frontmatter: The frontmatter of the skill's `SKILL.md`, as parsed; a block that is missing, not YAML or not a
+            mapping holds no field.
+    """
+    if not isinstance(frontmatter, Frontmatter):
+        return FrozenMapping({})
+    data = frontmatter.data
+    fields: dict[SkillField, SkillFieldValue] = {}
+
+    name = data.get(SkillField.NAME)
+    if isinstance(name, str):
+        _keep(fields, SkillField.NAME, SkillName.parse, name)
+    description = data.get(SkillField.DESCRIPTION)
+    if isinstance(description, str):
+        _keep(fields, SkillField.DESCRIPTION, SkillDescription.parse, description)
+    license_text = data.get(SkillField.LICENSE)
+    if isinstance(license_text, str):
+        fields[SkillField.LICENSE] = SkillLicense.parse(license_text)
+    compatibility = data.get(SkillField.COMPATIBILITY)
+    if isinstance(compatibility, str):
+        _keep(fields, SkillField.COMPATIBILITY, SkillCompatibility.parse, compatibility)
+    metadata = _string_mapping(data.get(SkillField.METADATA))
+    if metadata is not None:
+        fields[SkillField.METADATA] = metadata
+    allowed_tools = data.get(SkillField.ALLOWED_TOOLS)
+    if isinstance(allowed_tools, str):
+        fields[SkillField.ALLOWED_TOOLS] = parse_allowed_tools(allowed_tools)
+    return FrozenMapping(fields)
+
+
 def parse_allowed_tools(text: str) -> AllowedTools:
     """Split an `allowed-tools` value at the whitespace outside balanced parentheses, and judge each entry.
 
@@ -86,6 +151,28 @@ def parse_allowed_tools(text: str) -> AllowedTools:
         else:
             entries.append(problem)
     return AllowedTools(text, tuple(entries))
+
+
+def _keep(
+    fields: dict[SkillField, SkillFieldValue], field: SkillField, parse: Callable[[str], SkillFieldValue], text: str
+) -> None:
+    """Record the value object `text` parses into, or nothing when its type rejects it."""
+    try:
+        fields[field] = parse(text)
+    except Error:
+        return
+
+
+def _string_mapping(value: Frozen) -> FrozenMapping[str, str] | None:
+    """The mapping when every key and value is a string, as the specification asks of `metadata`; else `None`."""
+    if not isinstance(value, FrozenMapping):
+        return None
+    strings: dict[str, str] = {}
+    for key, item in value.items():
+        if not isinstance(item, str):
+            return None
+        strings[key] = item
+    return FrozenMapping(strings)
 
 
 def _split_entries(value: str) -> tuple[str, ...]:

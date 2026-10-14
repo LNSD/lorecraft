@@ -75,6 +75,8 @@ it read does, `governance(ref)` excepted, as its bullet states:
 - `skill_schema_problems(source)`: what the Agent Skills specification rejects in one skill's frontmatter, the same
   analysis as `schema_problems(source)` for a document. It reads `skill_frontmatter(source)` and nothing else: the
   package states the specification, so no specification in the repository plays a part.
+- `skill_fields(source)`: the fields of one skill's frontmatter that parse, each on its own, keyed by field. It reads
+  `skill_frontmatter(source)` and nothing else.
 - `skill_resource_parse(source)`: one resource's parse tree, the same syntax tree again. It reads the text of the
   witness `skill_resource_text(resource)` returned and nothing else.
 
@@ -163,10 +165,12 @@ from lorecraft.project.schemas import (
     OutlineAlignmentSpec,
     OutlineDivergenceSpec,
     SchemaProblems,
+    SkillFields,
     align_outlines,
     locate_schema_problems,
     locate_skill_schema_problems,
     match_outlines,
+    parse_skill_fields,
 )
 from lorecraft.project.skill import Repository as SkillRepository
 from lorecraft.project.skill import (
@@ -271,6 +275,7 @@ class Database:
         self._skill_parses: dict[SkillRef, ParsedDocument] = {}
         self._skill_line_counts: dict[SkillRef, LineCount] = {}
         self._skill_schema_problems: dict[SkillRef, tuple[SchemaProblems, ...]] = {}
+        self._skill_fields: dict[SkillRef, SkillFields] = {}
         self._skill_resource_parses: dict[SkillResourceRef, ParsedDocument] = {}
 
     @classmethod
@@ -848,6 +853,24 @@ class Database:
         if found is None:
             found = locate_skill_schema_problems(self.skill_frontmatter(source))
             self._skill_schema_problems[source.ref] = found
+        return found
+
+    def skill_fields(self, source: SkillText) -> SkillFields:
+        """The fields of one skill's frontmatter that parse, parsed once. Raises nothing.
+
+        A field that is not written or is rejected has no entry, so a rule over one field reads it whatever the
+        others hold.
+
+        Carry-over: kept for the next revision whenever `skill_frontmatter(source)` is.
+
+        Args:
+            source: The skill's `SKILL.md` text, as `skill_text(ref)` returns it; its ref is the cache key, so one ref
+                is parsed once.
+        """
+        found = self._skill_fields.get(source.ref)
+        if found is None:
+            found = parse_skill_fields(self.skill_frontmatter(source))
+            self._skill_fields[source.ref] = found
         return found
 
     def skill_resource_parse(self, source: SkillResourceText) -> ParsedDocument:

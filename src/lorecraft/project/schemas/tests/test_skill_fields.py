@@ -1,16 +1,63 @@
-"""The entries an `allowed-tools` value lists, each judged on its own.
+"""The fields of a skill's frontmatter that parse, each on its own, keyed by the field.
 
-Each shape of a malformed entry is one judgement of it.
+The `allowed-tools` entries are tested through `parse_allowed_tools`, since each shape of a malformed entry is one
+judgement of it.
 """
+
+import pytest
+
+from lorecraft.project.syntax import parse_frontmatter
 
 from ..skill_fields import (
     AllowedTool,
     AllowedTools,
     CommaSeparated,
     NotATool,
+    SkillField,
     UnbalancedParentheses,
     parse_allowed_tools,
+    parse_skill_fields,
 )
+from ..skill_frontmatter import SkillName
+
+
+def _fields(*lines: str) -> dict[SkillField, object]:
+    """The fields parsed from a frontmatter block holding the lines."""
+    text = '---\n' + '\n'.join(lines) + '\n---\n# Body\n'
+    return dict(parse_skill_fields(parse_frontmatter(text)))
+
+
+class TestParseSkillFields:
+    def test_parse_with_a_conforming_name_keys_the_value_object_by_the_field(self) -> None:
+        #: When
+        fields = _fields('name: review')
+
+        #: Then
+        assert fields == {SkillField.NAME: SkillName('review')}, 'a written, conforming field is parsed'
+
+    def test_parse_with_a_rejected_name_still_parses_the_other_fields(self) -> None:
+        #: When
+        fields = _fields('name: Not A Name', 'allowed-tools: Read')
+
+        #: Then
+        assert fields == {SkillField.ALLOWED_TOOLS: parse_allowed_tools('Read')}, (
+            'a field the specification rejects has no entry, and does not hold back its neighbours'
+        )
+
+    @pytest.mark.parametrize('line', ['allowed-tools:', 'allowed-tools: 12', 'allowed-tools: [Read]'])
+    def test_parse_with_a_null_or_non_string_allowed_tools_holds_no_entry(self, line: str) -> None:
+        #: When
+        fields = _fields(line)
+
+        #: Then
+        assert fields == {}, 'only a string is an `allowed-tools` value'
+
+    def test_parse_without_a_mapping_block_holds_no_field(self) -> None:
+        #: When
+        fields = parse_skill_fields(parse_frontmatter('# Review\n'))
+
+        #: Then
+        assert fields == {}, 'a missing block holds no field'
 
 
 class TestParseAllowedTools:

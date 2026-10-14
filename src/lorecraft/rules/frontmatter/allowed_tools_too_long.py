@@ -5,7 +5,7 @@ from typing import ClassVar, Final, Self, assert_never
 
 from lorecraft.core.num import NonZeroUnsignedInt, UnsignedInt
 from lorecraft.project.context import SkillContext
-from lorecraft.project.schemas import field_line
+from lorecraft.project.schemas import AllowedTools, SkillField, field_line
 from lorecraft.project.syntax import Frontmatter, InvalidYamlFrontmatter, MissingFrontmatter, NonMappingFrontmatter
 from lorecraft.rules.declaration import Level, Release, RuleCode, RuleName, rule
 from lorecraft.rules.location import Help, Here, Label, Note, Subdiagnostic
@@ -111,10 +111,10 @@ class AllowedToolsTooLong(SkillRule):
             case _:
                 assert_never(frontmatter)
 
-        value = frontmatter.data.get('allowed-tools')
-        if not isinstance(value, str):
+        allowed_tools = subject.skill_fields().get(SkillField.ALLOWED_TOOLS)
+        if not isinstance(allowed_tools, AllowedTools):
             return ()
-        overrun = find_overrun(UnsignedInt(len(value)), _CHARACTER_LIMIT)
+        overrun = find_overrun(UnsignedInt(len(allowed_tools.text)), _CHARACTER_LIMIT)
         if overrun is None:
             return ()
-        return (cls(line=field_line(frontmatter, 'allowed-tools'), overrun=overrun),)
+        return (cls(line=field_line(frontmatter, SkillField.ALLOWED_TOOLS), overrun=overrun),)
