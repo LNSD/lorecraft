@@ -115,8 +115,8 @@ testpaths = [
     "tests/e2e",
 ]
 # The helpers in tests/lib/ import as `lib`: the end-to-end tier's, and `lib.snapshot`, which every tier's
-# snapshot tests read.
-pythonpath = ["tests"]
+# snapshot tests read. The check in scripts/ imports by its module name, so its tests reach it the same way.
+pythonpath = ["tests", "scripts"]
 addopts = [
     "-v",
     "--tb=short",
@@ -158,8 +158,9 @@ do_not_mutate_patterns = [
 ]
 pytest_add_cli_args_test_selection = ["src", "tests/it"]
 # mutmut runs the tests from a copy under mutants/; the integration tests read the generated schemas, the
-# specifications and every skill from the repository itself.
-also_copy = ["docs/schemas", "docs/__meta__", ".agents/skills", "skills"]
+# specifications and every skill from the repository itself, and the docstring literal check's tests import the
+# script from scripts/ through `pythonpath`.
+also_copy = ["docs/schemas", "docs/__meta__", ".agents/skills", "skills", "scripts"]
 
 [tool.ruff]
 line-length = 120

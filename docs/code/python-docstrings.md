@@ -136,7 +136,7 @@ converted when touched.
 
 All prose inside is Markdown: single backticks for code, `**bold**` for the one fact a reader must not skim
 past, `-` lists, fenced blocks. No reST inline markup — double-backtick literals, `:class:` roles, `.. note::`
-directives — which is converted when the docstring is touched.
+directives.
 
 Mixed styles make a reader parse the format before the content. Google sections with Markdown prose is the
 pair `mkdocstrings` renders as is; no documentation site is built today, but the docstrings are ready for one.
@@ -155,8 +155,8 @@ def render_report(self, findings, corpus_name):
 
 The two examples above are the Good side of this pair.
 
-**Enforcement:** ruff `D` with `convention = "google"` holds the layout. Nothing checks the Markdown; review
-does.
+**Enforcement:** ruff `D` with `convention = "google"` holds the layout. `just check` fails on a
+double-backtick literal outside a fence; review holds the rest.
 
 ## 2. Every Module, Class, and Public Function Carries a Docstring
 
@@ -387,7 +387,7 @@ Before committing code, verify:
 
 - [ ] Every docstring touched is Google style: no `:param:`, `@param` or NumPy underlines
 - [ ] Its sections run `Note:`/`Warning:`, `Args:`, `Returns:`/`Yields:`, `Raises:`, `Attributes:`, `Example:`
-- [ ] Its prose is Markdown: single backticks, no double-backtick literals, reST roles or directives
+- [ ] Its prose is Markdown: single backticks, no reST roles or directives
 - [ ] Every module touched has a docstring saying why it exists, not restating its name
 - [ ] Every new class and public function has a docstring opening with a one-line summary
 - [ ] Every docstring of a function taking a parameter has `Args:`, a line per parameter

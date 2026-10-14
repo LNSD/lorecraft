@@ -93,6 +93,7 @@ library is to replace it too.
 | `.github/` | `workflows/ci.yml`, `workflows/release.yml` (publishes a GitHub release to PyPI), the pre-commit config, and `renovate.json5` |
 | `src/lorecraft/` | The package, the one thing released |
 | `gen/src/lorecraft_gen/` | The generators of the committed generated files, a private package that is never released and has no tests: `just gen` leaving the tree clean is its check |
+| `scripts/` | Repository tooling that `just check` runs, never built or shipped; its tests live in `tests/it/` |
 | `src/**/tests/` | The unit tier: a `tests/` subpackage beside the module it tests, never shipped |
 | `tests/it/` | The integration tier, flat, and `rule_cases/`, the fixtures every rule code's trigger and near-miss test runs over |
 | `tests/e2e/`, `tests/lib/` | The end-to-end tier, driving the installed console script in a subprocess, and its helpers |
@@ -193,7 +194,7 @@ list, and `check-docs` is in the `docs` group rather than `check`, so a group-ba
 | Gate | Requirement |
 |---|---|
 | Format | `just fmt` after edits and before linting; `just fmt-check` verifies without writing |
-| Lint | `just check`, which also runs the import-layering contract; every finding fixed, none silenced with a bare `# noqa`. `just check-fix` first |
+| Lint | `just check`, which also runs the import-layering contract and fails on a double-backtick literal in a docstring; every finding fixed, none silenced with a bare `# noqa`. `just check-fix` first |
 | Types | `just check-types`; clean, with no finding silenced by widening an annotation to `Any` |
 | Tests | `just test-unit` after lint is clean, then the tier the change touches — `just test-it`, `just test-e2e` — and `just test` when it earns the whole suite |
 | Documents and skills | `just check-docs`; `lorecraft check` reports no error over any document under `docs/` or any skill: the frontmatter, outline, length, link and layout rules |

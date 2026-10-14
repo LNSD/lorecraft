@@ -45,12 +45,13 @@ fmt-check *EXTRA_FLAGS:
 
 alias lint := check
 
-# Check Python code (ruff check), then the import layering (lint-imports)
+# Check Python code (ruff check), the import layering (lint-imports), then the docstrings' literals
 [group: 'check']
 check *EXTRA_FLAGS:
     @echo "🔍 Linting code..."
     uv run ruff check . {{EXTRA_FLAGS}}
     uv run lint-imports
+    uv run python scripts/check_docstring_literals.py
 
 alias lint-fix := check-fix
 
