@@ -170,6 +170,37 @@ def two_group_root(tmp_path: Path) -> Path:
     return tmp_path
 
 
+@pytest.fixture(scope='function')
+def overlong_allowed_tools_root(tmp_path: Path) -> Path:
+    """A workspace root holding one skill whose `allowed-tools` value is one character over the recommended length.
+
+    Args:
+        tmp_path: Directory the skill is written into, as the workspace root.
+    """
+    value = 'A' * 501
+    _write(
+        tmp_path,
+        '.agents/skills/review/SKILL.md',
+        f'---\nname: review\ndescription: Review a change.\nallowed-tools: {value}\n---\n',
+    )
+    return tmp_path
+
+
+@pytest.fixture(scope='function')
+def malformed_allowed_tools_root(tmp_path: Path) -> Path:
+    """A workspace root holding one skill whose `allowed-tools` value is a comma-separated string.
+
+    Args:
+        tmp_path: Directory the skill is written into, as the workspace root.
+    """
+    _write(
+        tmp_path,
+        '.agents/skills/review/SKILL.md',
+        '---\nname: review\ndescription: Review a change.\nallowed-tools: Read, Grep\n---\n',
+    )
+    return tmp_path
+
+
 def _unused_handler() -> None:
     """Stand-in handler for a registration that must be rejected before it is ever mounted."""
 
@@ -607,31 +638,34 @@ class TestRuleCommand:
 @pytest.mark.it
 class TestCheckCommand:
     def test_check_with_overlong_allowed_tools_warns_and_exits_zero(
-        self, tmp_path: Path, snapshot: SnapshotAssertion
+        self, overlong_allowed_tools_root: Path, snapshot: SnapshotAssertion
     ) -> None:
         #: Given
-        value = 'A' * 501
-        _write(
-            tmp_path,
-            '.agents/skills/review/SKILL.md',
-            f'---\nname: review\ndescription: Review a change.\nallowed-tools: {value}\n---\n',
-        )
         app = build_app()
         expected_text = snapshot.use_extension(TextSnapshotExtension)
 
         #: When
-        text_result = runner.invoke(app, ['check', '--root', str(tmp_path)])
-        json_result = runner.invoke(app, ['check', '--root', str(tmp_path), '--format', 'json'])
+        result = runner.invoke(app, ['check', '--root', str(overlong_allowed_tools_root)])
 
         #: Then
-        assert (text_result.exit_code, json_result.exit_code) == (0, 0), (
-            'the recommendation does not fail either format'
-        )
-        assert text_result.stdout == expected_text, 'the warning text matches the reviewed snapshot'
-        assert text_result.stderr == 'FM  1 warning\nchecked 1 subject(s): 0 error(s), 1 warning(s)\n', (
+        assert result.exit_code == 0, 'the recommendation does not fail the run'
+        assert result.stdout == expected_text, 'the warning text matches the reviewed snapshot'
+        assert result.stderr == 'FM  1 warning\nchecked 1 subject(s): 0 error(s), 1 warning(s)\n', (
             'the warning is counted, under its code prefix'
         )
-        assert json.loads(json_result.stdout) == {
+
+    def test_check_with_overlong_allowed_tools_and_json_format_reports_the_warning_and_exits_zero(
+        self, overlong_allowed_tools_root: Path
+    ) -> None:
+        #: Given
+        app = build_app()
+
+        #: When
+        result = runner.invoke(app, ['check', '--root', str(overlong_allowed_tools_root), '--format', 'json'])
+
+        #: Then
+        assert result.exit_code == 0, 'the recommendation does not fail the run'
+        assert json.loads(result.stdout) == {
             'diagnostics': [
                 {
                     'path': '.agents/skills/review/SKILL.md',
@@ -677,29 +711,34 @@ class TestCheckCommand:
         }, 'JSON labels the excess, notes where the specification states the field, and where the limit comes from'
 
     def test_check_with_malformed_allowed_tools_warns_and_exits_zero(
-        self, tmp_path: Path, snapshot: SnapshotAssertion
+        self, malformed_allowed_tools_root: Path, snapshot: SnapshotAssertion
     ) -> None:
         #: Given
-        _write(
-            tmp_path,
-            '.agents/skills/review/SKILL.md',
-            '---\nname: review\ndescription: Review a change.\nallowed-tools: Read, Grep\n---\n',
-        )
         app = build_app()
         expected_text = snapshot.use_extension(TextSnapshotExtension)
 
         #: When
-        text_result = runner.invoke(app, ['check', '--root', str(tmp_path)])
-        json_result = runner.invoke(app, ['check', '--root', str(tmp_path), '--format', 'json'])
+        result = runner.invoke(app, ['check', '--root', str(malformed_allowed_tools_root)])
 
         #: Then
-        assert text_result.exit_code == 0, text_result.output
-        assert text_result.stdout == expected_text, 'the warning text matches the reviewed snapshot'
-        assert text_result.stderr == 'FM  1 warning\nchecked 1 subject(s): 0 error(s), 1 warning(s)\n', (
+        assert result.exit_code == 0, result.output
+        assert result.stdout == expected_text, 'the warning text matches the reviewed snapshot'
+        assert result.stderr == 'FM  1 warning\nchecked 1 subject(s): 0 error(s), 1 warning(s)\n', (
             'the warning is counted under its code prefix and does not fail the run'
         )
-        assert json_result.exit_code == 0, json_result.output
-        assert json.loads(json_result.stdout) == {
+
+    def test_check_with_malformed_allowed_tools_and_json_format_reports_the_warning_and_exits_zero(
+        self, malformed_allowed_tools_root: Path
+    ) -> None:
+        #: Given
+        app = build_app()
+
+        #: When
+        result = runner.invoke(app, ['check', '--root', str(malformed_allowed_tools_root), '--format', 'json'])
+
+        #: Then
+        assert result.exit_code == 0, result.output
+        assert json.loads(result.stdout) == {
             'diagnostics': [
                 {
                     'path': '.agents/skills/review/SKILL.md',

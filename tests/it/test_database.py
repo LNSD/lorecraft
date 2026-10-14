@@ -48,6 +48,7 @@ from lorecraft.vfs import (
 )
 
 GUIDE: Final[DocumentRef] = DocumentRef(CorpusName.parse('code'), AspectFilename.parse('guide'))
+PYTHON_GUIDE: Final[DocumentRef] = DocumentRef(CorpusName.parse('code'), AspectFilename.parse('python-guide'))
 REVIEW: Final[SkillRef] = SkillRef(
     ResolvedPath(RootRelativePath.parse('.agents/skills')), PathComponent.parse('review')
 )
@@ -64,6 +65,26 @@ def _snapshot(guide: bytes) -> Snapshot:
             'docs': {
                 '__meta__': {'code.md': b'# Code\n', 'code.structure.json': b'{"frontmatter": {"type": "object"}}'},
                 'code': {'guide.md': guide},
+            }
+        }
+    )
+
+
+def _failed_namespace_layer_snapshot() -> Snapshot:
+    """A snapshot whose `code` corpus loads and whose `code-python` namespace layer holds a structure that is not JSON.
+
+    The one document, `docs/code/python-guide.md`, lacks the `name` the corpus's schema requires.
+    """
+    return Snapshot.from_tree(
+        {
+            'docs': {
+                '__meta__': {
+                    'code.md': b'# Code\n',
+                    'code.structure.json': b'{"frontmatter": {"type": "object", "required": ["name"]}}',
+                    'code-python.md': b'# Python\n',
+                    'code-python.structure.json': b'not json',
+                },
+                'code': {'python-guide.md': b'---\ndescription: x\n---\n# Guide\n'},
             }
         }
     )
@@ -229,33 +250,37 @@ class TestDatabase:
 
     def test_schema_problems_with_a_failed_namespace_layer_reads_only_the_layers_that_loaded(self) -> None:
         #: Given
-        snapshot = Snapshot.from_tree(
-            {
-                'docs': {
-                    '__meta__': {
-                        'code.md': b'# Code\n',
-                        'code.structure.json': b'{"frontmatter": {"type": "object", "required": ["name"]}}',
-                        'code-python.md': b'# Python\n',
-                        'code-python.structure.json': b'not json',
-                    },
-                    'code': {'python-guide.md': b'---\ndescription: x\n---\n# Guide\n'},
-                }
-            }
-        )
-        ref = DocumentRef(CorpusName.parse('code'), AspectFilename.parse('python-guide'))
-        database = Database.open(snapshot)
-        source = _document_text(database, ref)
+        database = Database.open(_failed_namespace_layer_snapshot())
+        source = _document_text(database, PYTHON_GUIDE)
 
         #: When
         problems = database.schema_problems(source)
-        alignments = database.outline_alignment(source)
-        divergences = database.outline_divergences(source)
 
         #: Then
         assert len(problems) == 1, 'one frontmatter schema judges the document: the failed layer states none'
         assert len(problems[0].problems) == 1, 'the corpus layer that loaded finds the required `name` missing'
+
+    def test_outline_alignment_with_a_failed_namespace_layer_aligns_only_the_layers_that_loaded(self) -> None:
+        #: Given
+        database = Database.open(_failed_namespace_layer_snapshot())
+        source = _document_text(database, PYTHON_GUIDE)
+
+        #: When
+        alignments = database.outline_alignment(source)
+
+        #: Then
         assert len(alignments) == 1, 'only the layer that loaded is aligned'
-        assert divergences == (), 'and no outline governs the document, so nothing diverges'
+
+    def test_outline_divergences_with_a_failed_namespace_layer_finds_none_without_an_outline(self) -> None:
+        #: Given
+        database = Database.open(_failed_namespace_layer_snapshot())
+        source = _document_text(database, PYTHON_GUIDE)
+
+        #: When
+        divergences = database.outline_divergences(source)
+
+        #: Then
+        assert divergences == (), 'no outline governs the document, so nothing diverges'
 
     def test_is_in_scope_with_a_path_the_snapshot_scope_covers_returns_true(self) -> None:
         #: Given
