@@ -21,14 +21,19 @@ fault.
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import StrEnum
-from string import ascii_uppercase
-from typing import ClassVar, Final, Self
+from typing import ClassVar, Self
 
 from lorecraft.core.error import Error
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.syntax import LineNumber
 
-from .identity import ALL_RULES_SELECTOR, Level, Release, RuleName
+from .identity import (
+    EngineCode,
+    Level,
+    Release,
+    RuleCode,
+    RuleName,
+)
 from .location import (
     EntryLabel,
     EntrySubdiagnostic,
@@ -38,225 +43,6 @@ from .location import (
     Subdiagnostic,
     WholeSubject,
 )
-
-
-class EmptyRuleGroupPrefixError(Error):
-    """A rule group's prefix is empty."""
-
-    def __init__(self) -> None:
-        super().__init__('rule group prefix cannot be empty')
-
-
-class InvalidRuleGroupPrefixCharacterError(Error):
-    """A rule group's prefix holds a character other than an uppercase ASCII letter.
-
-    Attributes:
-        value: The rejected prefix.
-        position: Zero-based position of the first invalid character.
-        character: The invalid character.
-    """
-
-    value: str
-    position: int
-    character: str
-
-    def __init__(self, value: str, position: int) -> None:
-        self.value = value
-        self.position = position
-        self.character = value[position]
-        super().__init__(f'invalid character {self.character!r} in rule group prefix {value!r}')
-
-
-class ReservedRuleGroupPrefixError(Error):
-    """A rule group's prefix is `ALL`, the selector for every rule, so selecting the group would select them all.
-
-    Attributes:
-        value: The rejected prefix.
-    """
-
-    value: str
-
-    def __init__(self, value: str) -> None:
-        self.value = value
-        super().__init__(f'rule group prefix {value!r} is reserved: it selects every rule')
-
-
-@dataclass(frozen=True, slots=True)
-class RuleGroupPrefix:
-    """A rule group's prefix, which starts the code of every rule in the group, such as `OUT`.
-
-    A valid prefix:
-
-    - Is not empty.
-    - Holds only uppercase ASCII letters.
-    - Is not `ALL`, the selector for every rule.
-
-    Parsing preserves the spelling.
-
-    Attributes:
-        value: The prefix, exactly as supplied.
-    """
-
-    value: str
-
-    @classmethod
-    def parse(cls, raw: str) -> Self:
-        """Return a validated prefix.
-
-        Args:
-            raw: Candidate prefix, such as `OUT`.
-
-        Raises:
-            EmptyRuleGroupPrefixError: If it is empty.
-            InvalidRuleGroupPrefixCharacterError: If it holds a character other than an uppercase ASCII letter.
-            ReservedRuleGroupPrefixError: If it is `ALL`, the selector for every rule.
-        """
-        return cls(raw)
-
-    def __post_init__(self) -> None:
-        """Keep direct construction from bypassing the format.
-
-        Raises:
-            EmptyRuleGroupPrefixError: If it is empty.
-            InvalidRuleGroupPrefixCharacterError: If it holds a character other than an uppercase ASCII letter.
-            ReservedRuleGroupPrefixError: If it is `ALL`, the selector for every rule.
-        """
-        if not self.value:
-            raise EmptyRuleGroupPrefixError()
-        for position, character in enumerate(self.value):
-            if character not in ascii_uppercase:
-                raise InvalidRuleGroupPrefixCharacterError(self.value, position)
-        if self.value == ALL_RULES_SELECTOR:
-            raise ReservedRuleGroupPrefixError(self.value)
-
-    def __str__(self) -> str:
-        """The prefix exactly as supplied."""
-        return self.value
-
-
-class EmptyRuleGroupTitleError(ValueError):
-    """A rule group's title is empty.
-
-    Attributes:
-        prefix: The prefix of the group with no title.
-    """
-
-    prefix: RuleGroupPrefix
-
-    def __init__(self, prefix: RuleGroupPrefix) -> None:
-        self.prefix = prefix
-        super().__init__(f'rule group {str(prefix)!r} has an empty title')
-
-
-@dataclass(frozen=True, slots=True)
-class RuleGroup:
-    """The rules one mechanism states, under one prefix and title, such as `OUT` for a structure's outline.
-
-    Attributes:
-        prefix: The prefix that starts the code of every rule in the group.
-        title: What the group covers, for a reader; not empty.
-    """
-
-    prefix: RuleGroupPrefix
-    title: str
-
-    def __post_init__(self) -> None:
-        """Reject an empty title.
-
-        A title is text only the package writes, never input: no file or command line supplies one, so an empty
-        title is a defect in the package that declares the group. A value object would raise an `Error`, which the
-        command line reports as the user's fault, so the guard stays a `ValueError` (error-boundaries §1).
-
-        Raises:
-            EmptyRuleGroupTitleError: If the title is empty.
-        """
-        if not self.title:
-            raise EmptyRuleGroupTitleError(self.prefix)
-
-
-class RuleNumberOutOfRangeError(ValueError):
-    """A rule's number is outside 1 to 999, so it would not print as three digits.
-
-    Attributes:
-        group: The group of the code.
-        number: The rejected number.
-    """
-
-    group: RuleGroup
-    number: int
-
-    def __init__(self, group: RuleGroup, number: int) -> None:
-        self.group = group
-        self.number = number
-        super().__init__(f'rule number {number} in group {str(group.prefix)!r} is outside 1 to 999')
-
-
-@dataclass(frozen=True, slots=True)
-class RuleCode:
-    """A rule's code: its group and its number, printed as the prefix and three digits, such as `OUT002`.
-
-    The prefix is the group's, so a code whose prefix disagrees with its group cannot be written.
-
-    Attributes:
-        group: The group the rule belongs to.
-        number: The rule's number in its group, from 1 to 999.
-    """
-
-    DIGITS: ClassVar[int] = 3
-    """How many digits end a printed code, after its group's prefix."""
-
-    group: RuleGroup
-    number: int
-
-    def __post_init__(self) -> None:
-        """Reject a number that would not print as three digits.
-
-        Raises:
-            RuleNumberOutOfRangeError: If the number is outside 1 to 999.
-        """
-        if not 1 <= self.number <= 999:
-            raise RuleNumberOutOfRangeError(self.group, self.number)
-
-    def __str__(self) -> str:
-        """The code as output prints it: the group's prefix, then the number zero-padded to three digits."""
-        return f'{self.group.prefix}{self.number:0{self.DIGITS}d}'
-
-
-ENGINE_GROUP: Final[RuleGroup] = RuleGroup(RuleGroupPrefix('LC'), 'Engine conditions')
-"""The group reserved for engine conditions: only an `EngineCode` is in it, and the registry rejects, as the package
-loads, a rule or a removed rule with a code in it."""
-
-
-@dataclass(frozen=True, slots=True)
-class EngineCode:
-    """An engine condition's code: a number in the engine's group, printed as `LC` and three digits, such as `LC001`.
-
-    It has no group to choose, so a condition's code can only be in the engine's group, and a code of any other
-    group is a type error where a condition declares it.
-
-    Attributes:
-        number: The condition's number in the engine's group, from 1 to 999.
-    """
-
-    number: int
-
-    def __post_init__(self) -> None:
-        """Reject a number that would not print as three digits.
-
-        Raises:
-            RuleNumberOutOfRangeError: If the number is outside 1 to 999.
-        """
-        if not 1 <= self.number <= 999:
-            raise RuleNumberOutOfRangeError(ENGINE_GROUP, self.number)
-
-    @property
-    def group(self) -> RuleGroup:
-        """The engine's group, always."""
-        return ENGINE_GROUP
-
-    def __str__(self) -> str:
-        """The code as output prints it: the engine's prefix, then the number zero-padded to three digits."""
-        return f'{ENGINE_GROUP.prefix}{self.number:03d}'
 
 
 class EmptyLinterNameError(Error):

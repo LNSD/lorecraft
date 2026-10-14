@@ -14,7 +14,8 @@ from enum import StrEnum
 
 import typer
 
-from lorecraft.rules.declaration import Rule, RuleCode
+from lorecraft.rules.declaration import Rule
+from lorecraft.rules.identity import RuleCode
 from lorecraft.rules.registry import Registry
 from lorecraft.rules.selection import AllRules, RuleSelection, RuleSelector
 

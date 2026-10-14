@@ -19,7 +19,7 @@ from typing import Final
 
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.schemas import SectionName
-from lorecraft.rules.declaration import RuleGroup, RuleGroupPrefix
+from lorecraft.rules.identity import RuleGroup, RuleGroupPrefix
 from lorecraft.rules.location import Elsewhere, Note
 
 GROUP_ID: Final[RuleGroup] = RuleGroup(RuleGroupPrefix('OUT'), 'Outline checks')

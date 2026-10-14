@@ -22,7 +22,7 @@ from typing import Final, assert_never
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.context import DocumentFrontmatterOwner, FrontmatterOwner, SkillFrontmatterOwner
 from lorecraft.project.schemas import AgentSkillsSchema, SchemaSource, StructureSpecSchema
-from lorecraft.rules.declaration import RuleGroup, RuleGroupPrefix
+from lorecraft.rules.identity import RuleGroup, RuleGroupPrefix
 from lorecraft.rules.location import Elsewhere, Help, Note
 
 GROUP_ID: Final[RuleGroup] = RuleGroup(RuleGroupPrefix('FM'), 'Frontmatter checks')

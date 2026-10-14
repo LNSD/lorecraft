@@ -15,7 +15,8 @@ from pathlib import Path
 from typing import Final, assert_never
 
 from lorecraft import rules
-from lorecraft.rules.declaration import EngineCondition, RemovedRule, Rule, RuleCode, RuleDeclaration
+from lorecraft.rules.declaration import EngineCondition, RemovedRule, Rule, RuleDeclaration
+from lorecraft.rules.identity import RuleCode
 from lorecraft.rules.registry import Registry
 
 _DEFAULT_OUTDIR: Final[Path] = Path('src/lorecraft/rules')

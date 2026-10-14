@@ -8,8 +8,7 @@ from lorecraft.project.context import DocumentContext
 from lorecraft.project.schemas import TitlePattern
 from lorecraft.project.syntax import find_title
 from lorecraft.rules.collector import rule
-from lorecraft.rules.declaration import RuleCode
-from lorecraft.rules.identity import Level, Release, RuleName
+from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Here, Label, Subdiagnostic
 from lorecraft.rules.subject import DocumentRule, Facet
 

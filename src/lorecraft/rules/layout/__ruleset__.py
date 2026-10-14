@@ -2,7 +2,7 @@
 
 from typing import Final
 
-from lorecraft.rules.declaration import RuleGroup, RuleGroupPrefix
+from lorecraft.rules.identity import RuleGroup, RuleGroupPrefix
 
 GROUP_ID: Final[RuleGroup] = RuleGroup(RuleGroupPrefix('LAY'), 'Skill layout checks')
 """The group of the rules over the skill layout: the skills directories, the entries in them and the files of each

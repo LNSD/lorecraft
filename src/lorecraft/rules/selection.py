@@ -16,7 +16,7 @@ from typing import assert_never
 
 from lorecraft.core.error import Error
 
-from .declaration import RuleCode, RuleGroup
+from .identity import RuleCode, RuleGroup
 
 
 @dataclass(frozen=True, slots=True)

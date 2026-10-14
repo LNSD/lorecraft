@@ -3,7 +3,7 @@
 from enum import StrEnum
 from typing import Final
 
-from lorecraft.rules.declaration import ENGINE_GROUP, RuleGroup
+from lorecraft.rules.identity import ENGINE_GROUP, RuleGroup
 
 GROUP_ID: Final[RuleGroup] = ENGINE_GROUP
 """The group reserved for engine conditions: a condition's `EngineCode` is always in it, and the registry rejects, as

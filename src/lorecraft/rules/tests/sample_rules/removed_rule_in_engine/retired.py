@@ -3,9 +3,9 @@
 from typing import ClassVar
 
 from lorecraft.rules.collector import rule
-from lorecraft.rules.declaration import RemovedRule, RuleCode
+from lorecraft.rules.declaration import RemovedRule
 from lorecraft.rules.engine.__ruleset__ import GROUP_ID
-from lorecraft.rules.identity import Release, RuleName
+from lorecraft.rules.identity import Release, RuleCode, RuleName
 
 
 @rule

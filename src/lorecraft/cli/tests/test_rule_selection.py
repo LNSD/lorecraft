@@ -4,7 +4,7 @@ from typing import Final
 
 import pytest
 
-from lorecraft.rules.declaration import RuleCode
+from lorecraft.rules.identity import RuleCode
 from lorecraft.rules.registry import Registry
 from lorecraft.rules.selection import AllRules, RuleCodePrefix, RuleSelection
 from lorecraft.rules.tests.sample_rules import valid as valid_rules

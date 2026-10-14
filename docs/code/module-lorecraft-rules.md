@@ -42,7 +42,7 @@ the database there, so a rule reads nothing but what it is handed.
 - The one-run selection, the rule table and the report of a run, each stated in its module docstring.
 - A rule group, as a subpackage: its `__ruleset__.py` declares the group as `GROUP_ID` and whatever else its rules
   share, its `__init__.py` holds only the docstring, and each rule is one module. The `LC` group is declared in
-  `declaration.py` as `ENGINE_GROUP`, for `EngineCode`, and re-exported as its `GROUP_ID`.
+  `identity.py` as `ENGINE_GROUP`, for `EngineCode`, and re-exported as its `GROUP_ID`.
 
 ## Belongs Elsewhere
 

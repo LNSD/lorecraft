@@ -33,7 +33,8 @@ from lorecraft.rules import index
 
 if TYPE_CHECKING:
     # Type-only: importing the rule side here would load the rules engine when the command line starts.
-    from lorecraft.rules.declaration import RuleCode, RuleDeclaration, RuleGroup
+    from lorecraft.rules.declaration import RuleDeclaration
+    from lorecraft.rules.identity import RuleCode, RuleGroup
     from lorecraft.rules.registry import Registry
     from lorecraft.rules.selection import RuleSelector
 
@@ -299,7 +300,7 @@ class CodeSelector:
         Args:
             registry: Every rule, which holds the group.
         """
-        from lorecraft.rules.declaration import RuleCode
+        from lorecraft.rules.identity import RuleCode
 
         return RuleCode(_require_group(registry, self.group_prefix), self.number)
 

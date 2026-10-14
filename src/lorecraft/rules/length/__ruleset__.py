@@ -10,7 +10,7 @@ Skills specification states, which no file in the repository holds, so it words 
 from typing import Final
 
 from lorecraft.core.path import RootRelativePath
-from lorecraft.rules.declaration import RuleGroup, RuleGroupPrefix
+from lorecraft.rules.identity import RuleGroup, RuleGroupPrefix
 from lorecraft.rules.location import Elsewhere, Help, Note
 
 GROUP_ID: Final[RuleGroup] = RuleGroup(RuleGroupPrefix('LEN'), 'Length limits')
