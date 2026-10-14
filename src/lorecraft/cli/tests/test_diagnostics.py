@@ -20,7 +20,7 @@ from lorecraft.project.syntax import LineNumber, SectionHeading, WordCount
 from lorecraft.rules.engine.malformed_structure_file import FormatViolated, MalformedStructureFile
 from lorecraft.rules.frontmatter.duplicate_key import DuplicateKey
 from lorecraft.rules.identity import Severity
-from lorecraft.rules.layout.outside_symlink import OutsideSymlink
+from lorecraft.rules.layout.escaping_symlink import EscapingSymlink
 from lorecraft.rules.length.too_many_tokens import TooManyTokens
 from lorecraft.rules.outline.missing_section import MissingSection
 from lorecraft.rules.report import (
@@ -98,7 +98,7 @@ def _every_kind_of_report() -> tuple[RunReport, ...]:
         example='Run `lorecraft check` from the repository root:\n\n```console\n$ lorecraft check\n```',
     )
     review = RootRelativePath.parse('.agents/skills/review')
-    outside = OutsideSymlink(leaves_at=RootExit(review, PurePosixPath('/home/alex/review')))
+    outside = EscapingSymlink(leaves_at=RootExit(review, PurePosixPath('/home/alex/review')))
     a = _document('code', 'a')
     duplicate_name = DuplicateKey(owner=_CODE_OWNER, line=_line(3), key='name', first_line=_line(2), kept_line=_line(3))
     over_budget = TooManyTokens(spec=_CODE_SPEC, line=_line(1), overrun=overrun(2400, 2000))
@@ -496,7 +496,7 @@ class TestRenderJson:
                     'line': None,
                     'severity': 'error',
                     'code': 'LAY001',
-                    'name': 'outside-symlink',
+                    'name': 'escaping-symlink',
                     'message': 'symlink leads outside the repository',
                     'labels': [],
                     'children': [

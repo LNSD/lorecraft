@@ -24,7 +24,7 @@ from lorecraft.rules.frontmatter.too_few_fields import TooFewFields
 from lorecraft.rules.frontmatter.too_many_fields import TooManyFields
 from lorecraft.rules.frontmatter.unknown_field import UnknownField
 from lorecraft.rules.frontmatter.wrong_type import WrongType
-from lorecraft.rules.layout.outside_symlink import OutsideSymlink
+from lorecraft.rules.layout.escaping_symlink import EscapingSymlink
 from lorecraft.rules.length.section_too_many_words import SectionTooManyWords
 from lorecraft.rules.length.title_too_long import TitleTooLong
 from lorecraft.rules.length.title_too_many_words import TitleTooManyWords
@@ -512,7 +512,7 @@ class TestPackageRegistry:
             AllowedToolsTooLong,
             TooManyFields,
             TooFewFields,
-            OutsideSymlink,
+            EscapingSymlink,
             InvalidUtf8,
             UnreadablePath,
             MalformedStructureFile,

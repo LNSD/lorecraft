@@ -15,7 +15,7 @@ from .__ruleset__ import GROUP_ID
 
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
-class OutsideSymlink(LayoutEntryRule):
+class EscapingSymlink(LayoutEntryRule):
     """A symlink an agent follows in the skill layout leads outside the repository.
 
     ## What it does
@@ -57,7 +57,7 @@ class OutsideSymlink(LayoutEntryRule):
     """
 
     CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 1)
-    NAME: ClassVar[RuleName] = RuleName('outside-symlink')
+    NAME: ClassVar[RuleName] = RuleName('escaping-symlink')
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('0.3.0')
 

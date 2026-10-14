@@ -528,7 +528,7 @@ class TestCheckCommand:
                     'line': None,
                     'severity': 'error',
                     'code': 'LAY001',
-                    'name': 'outside-symlink',
+                    'name': 'escaping-symlink',
                     'message': 'symlink leads outside the repository',
                     'labels': [],
                     'children': [
