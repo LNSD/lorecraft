@@ -553,17 +553,33 @@ class _EventStream:
 
 
 class _BasicYamlReader(Reader):
-    """ruamel.yaml's reader, counting a next line character and a Unicode line or paragraph separator as a line."""
+    r"""ruamel.yaml's reader, counting a line at every `\n` and nowhere else, as every finding numbers lines."""
 
     def forward(self, length: int = 1) -> None:
-        """Advance `length` characters, counting every YAML 1.1 line break as one line.
+        r"""Advance `length` characters, counting a line at each `\n`.
 
         Args:
             length: The number of characters to advance by.
         """
-        # `str.splitlines` finds the block and breaks at those characters, so a line count that ignores them puts
-        # every later key one line short. ruamel.yaml has a counter that does not, `forward_1_1`, and never selects it.
-        self.forward_1_1(length)
+        # ruamel.yaml's own counters end a line at other characters too: `forward` at a lone `\r`, `forward_1_1` at
+        # U+0085, U+2028 and U+2029 as well. A line count that follows them puts every later key off the line the
+        # document numbers it on. The column still restarts at every YAML 1.1 line break, which the scanner reads
+        # indentation from, so only the line is counted differently. This is `forward_1_1` with the line counted by
+        # `\n` alone.
+        if self.pointer + length + 1 >= len(self.buffer):
+            self.update(length + 1)
+        while length != 0:
+            character = self.buffer[self.pointer]
+            self.pointer += 1
+            self.index += 1
+            if character == '\n':
+                self.line += 1
+                self.column = 0
+            elif character in '\x85\u2028\u2029' or (character == '\r' and self.buffer[self.pointer] != '\n'):
+                self.column = 0
+            elif character != '\ufeff':
+                self.column += 1
+            length -= 1
 
 
 class _BasicYamlResolver(VersionedResolver):

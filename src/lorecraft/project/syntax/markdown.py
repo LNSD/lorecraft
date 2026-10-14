@@ -31,6 +31,7 @@ from wenmode.plugins import frontmatter
 
 from .frontmatter import FrontmatterNode, MissingFrontmatter, decode_frontmatter
 from .heading import HeadingLevel
+from .lines import newline_offsets
 from .link import Link
 from .position import LineNumber
 
@@ -139,7 +140,9 @@ def parse_markdown(text: str) -> MarkdownTree:
         text: The document's whole text, frontmatter block included; empty parses to a tree with no block.
     """
     root = _FULL_PARSER.parse(text)
-    newlines = _newline_offsets(text)
+    # Built once per document, so that a node's line is a binary search rather than a count from the start of the
+    # text, which would make a parse cost every node times the document's size.
+    newlines = newline_offsets(text)
     heading_texts: list[str] = []
     links: list[Link] = []
     _collect_headings_and_links(newlines, root, heading_texts, links)
@@ -172,15 +175,17 @@ def parse_markdown_frontmatter(text: str) -> FrontmatterNode:
 
 
 def _find_frontmatter_block(text: str) -> str | None:
-    """The lines between the document's two `---` delimiters, line endings kept, or None when it has no block.
+    r"""The lines between the document's two `---` delimiters, line endings kept, or None when it has no block.
 
-    Lines are split as wenmode splits them, with `str.splitlines`, which also breaks at a form feed, a vertical
-    tab, U+0085 and the Unicode line and paragraph separators. So a block, and the document line each of its
-    lines is on, is the one the full parser finds.
+    The block is the one the full parser finds, so it ends lines where the parser does, which includes a form feed,
+    a vertical tab, U+0085 and the Unicode line and paragraph separators. The block's text keeps its line endings,
+    and the lines after it are numbered by `\n` alone, as every finding numbers them.
 
     Args:
         text: The document's whole text.
     """
+    # wenmode's parser splits lines with `str.splitlines`, so another split would find another block than the
+    # full parse does.
     lines = text.splitlines(keepends=True)
     if not lines or _DELIMITER.fullmatch(lines[0]) is None:
         return None
@@ -195,7 +200,7 @@ def _block(text: str, newlines: tuple[int, ...], node: Node) -> HeadingBlock | C
 
     Args:
         text: The document's text, which the block's position indexes into.
-        newlines: The offset of every `\n` in `text`, as `_newline_offsets` returns them.
+        newlines: The offset of every `\n` in `text`, as `newline_offsets` returns them.
         node: One of the root's children, in the tree `parse_markdown` parsed.
     """
     if isinstance(node, WenmodeHeading):
@@ -270,7 +275,7 @@ def _collect_headings_and_links(
     lists grow in document order, and an image inside a link's text comes after that link.
 
     Args:
-        newlines: The offset of every `\n` in the document's text, as `_newline_offsets` returns them, which gives
+        newlines: The offset of every `\n` in the document's text, as `newline_offsets` returns them, which gives
             each link its line from its position.
         node: Root of the subtree to walk; a leaf is walked as itself.
         heading_texts: Where each heading's rendered text is appended.
@@ -306,18 +311,6 @@ def _rendered_text(nodes: list[Node]) -> str:
     return ''.join(parts)
 
 
-def _newline_offsets(text: str) -> tuple[int, ...]:
-    r"""The offset of every `\n` in the text, in ascending order.
-
-    Built once per document, so that a node's line is a binary search rather than a count from the start of the
-    text, which would make a parse cost every node times the document's size.
-
-    Args:
-        text: The document's whole text.
-    """
-    return tuple(match.start() for match in re.finditer('\n', text))
-
-
 def _line(newlines: tuple[int, ...], span: Position) -> LineNumber:
     r"""The document line a node's span starts on, a block's or an inline's alike.
 
@@ -325,7 +318,7 @@ def _line(newlines: tuple[int, ...], span: Position) -> LineNumber:
     a `\n`, a `\r\n` included, so the line is one more than the number of `\n` before the offset.
 
     Args:
-        newlines: The offset of every `\n` in the document's text, as `_newline_offsets` returns them.
+        newlines: The offset of every `\n` in the document's text, as `newline_offsets` returns them.
         span: Where the node to locate sits, as `_position` reads it.
     """
     return LineNumber.from_int(bisect_left(newlines, span.start) + 1)
