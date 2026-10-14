@@ -1159,13 +1159,12 @@ class TestLoadWorkspaceFailures:
         feat = model.find_corpus(FEAT)
         assert feat is not None and isinstance(feat.corpus_spec.structure, StructureSpec), 'the other corpus loads'
 
-    def _assert_structure_failure_recorded(self, tmp_path: Path, content: str, condition: type[object]) -> None:
-        """Assert a corpus structure file holding `content` fails with `condition`, the other corpus loading.
+    def _write_structure_file_tree(self, tmp_path: Path, content: str) -> None:
+        """Lay out two corpora, the `code` one with a structure file holding `content`.
 
         Args:
             tmp_path: Directory the workspace is written under, as the repository root.
             content: Text of the `code` corpus's structure file.
-            condition: The record type the failure must be.
         """
         _write_tree(
             tmp_path,
@@ -1174,107 +1173,238 @@ class TestLoadWorkspaceFailures:
             documents=('code/logging.md', 'feat/admin.md'),
         )
         _write(tmp_path, 'docs/__meta__/code.structure.json', content)
-        path = SPECS_DIR / PathComponent.parse('code.structure.json')
-        fs = DiskFileSystem(tmp_path)
 
-        model = load_workspace(SchemaRepository(fs, SPECS_DIR), DocumentRepository(fs), SkillRepository(fs))
+    def test_load_workspace_with_a_structure_file_stating_states_no_rule_records_it_as_failed(
+        self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
+    ) -> None:
+        #: Given
+        self._write_structure_file_tree(tmp_path, '{}')
 
+        #: When
+        model = load_workspace(schemas, documents, skills)
+
+        #: Then
         failed = _failed_structure(model, CODE)
-        assert failed.path == path, 'the failure names the structure file'
-        assert isinstance(failed.failure, condition), 'the failure is the record of the condition the file fails with'
-        assert model.load_failures == (LoadFailure(path, failed.failure),), 'listed once, with its path and condition'
+        assert failed.path == SPECS_DIR / PathComponent.parse('code.structure.json'), (
+            'the failure names the structure file'
+        )
+        assert isinstance(failed.failure, EmptyStructureSpec), (
+            'a structure file stating no rule fails as an empty structure'
+        )
+        assert model.load_failures == (LoadFailure(failed.path, failed.failure),), (
+            'listed once, with its path and condition'
+        )
         feat = model.find_corpus(FEAT)
         assert feat is not None and isinstance(feat.corpus_spec.structure, StructureSpec), 'the other corpus loads'
 
-    def test_load_workspace_with_a_structure_file_stating_states_no_rule_records_it_as_failed(
-        self, tmp_path: Path
-    ) -> None:
-        #: Given
-        content = '{}'
-
-        #: When / Then
-        self._assert_structure_failure_recorded(tmp_path, content, EmptyStructureSpec)
-
     def test_load_workspace_with_a_structure_file_stating_a_repeated_outline_section_records_it_as_failed(
-        self, tmp_path: Path
+        self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
     ) -> None:
         #: Given
-        content = '{"outline": [{"section": "Usage"}, {"section": "Usage"}]}'
+        self._write_structure_file_tree(tmp_path, '{"outline": [{"section": "Usage"}, {"section": "Usage"}]}')
 
-        #: When / Then
-        self._assert_structure_failure_recorded(tmp_path, content, RepeatedOutlineSections)
+        #: When
+        model = load_workspace(schemas, documents, skills)
+
+        #: Then
+        failed = _failed_structure(model, CODE)
+        assert failed.path == SPECS_DIR / PathComponent.parse('code.structure.json'), (
+            'the failure names the structure file'
+        )
+        assert isinstance(failed.failure, RepeatedOutlineSections), (
+            'a repeated outline section fails as repeated outline sections'
+        )
+        assert model.load_failures == (LoadFailure(failed.path, failed.failure),), (
+            'listed once, with its path and condition'
+        )
+        feat = model.find_corpus(FEAT)
+        assert feat is not None and isinstance(feat.corpus_spec.structure, StructureSpec), 'the other corpus loads'
 
     def test_load_workspace_with_a_structure_file_stating_a_repeated_forbidden_section_records_it_as_failed(
-        self, tmp_path: Path
+        self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
     ) -> None:
         #: Given
-        content = '{"forbidden": ["Changelog", "Changelog"]}'
+        self._write_structure_file_tree(tmp_path, '{"forbidden": ["Changelog", "Changelog"]}')
 
-        #: When / Then
-        self._assert_structure_failure_recorded(tmp_path, content, RepeatedForbiddenSections)
+        #: When
+        model = load_workspace(schemas, documents, skills)
+
+        #: Then
+        failed = _failed_structure(model, CODE)
+        assert failed.path == SPECS_DIR / PathComponent.parse('code.structure.json'), (
+            'the failure names the structure file'
+        )
+        assert isinstance(failed.failure, RepeatedForbiddenSections), (
+            'a repeated forbidden section fails as repeated forbidden sections'
+        )
+        assert model.load_failures == (LoadFailure(failed.path, failed.failure),), (
+            'listed once, with its path and condition'
+        )
+        feat = model.find_corpus(FEAT)
+        assert feat is not None and isinstance(feat.corpus_spec.structure, StructureSpec), 'the other corpus loads'
 
     def test_load_workspace_with_a_structure_file_stating_a_forbidden_outline_section_records_it_as_failed(
-        self, tmp_path: Path
+        self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
     ) -> None:
         #: Given
-        content = '{"outline": [{"section": "Usage"}], "forbidden": ["Usage"]}'
+        self._write_structure_file_tree(tmp_path, '{"outline": [{"section": "Usage"}], "forbidden": ["Usage"]}')
 
-        #: When / Then
-        self._assert_structure_failure_recorded(tmp_path, content, ForbiddenOutlineSections)
+        #: When
+        model = load_workspace(schemas, documents, skills)
+
+        #: Then
+        failed = _failed_structure(model, CODE)
+        assert failed.path == SPECS_DIR / PathComponent.parse('code.structure.json'), (
+            'the failure names the structure file'
+        )
+        assert isinstance(failed.failure, ForbiddenOutlineSections), (
+            'a forbidden outline section fails as forbidden outline sections'
+        )
+        assert model.load_failures == (LoadFailure(failed.path, failed.failure),), (
+            'listed once, with its path and condition'
+        )
+        feat = model.find_corpus(FEAT)
+        assert feat is not None and isinstance(feat.corpus_spec.structure, StructureSpec), 'the other corpus loads'
 
     def test_load_workspace_with_a_structure_file_stating_adjacent_any_runs_records_it_as_failed(
-        self, tmp_path: Path
+        self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
     ) -> None:
         #: Given
-        content = '{"outline": [{"any": true}, {"any": true}]}'
+        self._write_structure_file_tree(tmp_path, '{"outline": [{"any": true}, {"any": true}]}')
 
-        #: When / Then
-        self._assert_structure_failure_recorded(tmp_path, content, AdjacentAnyRuns)
+        #: When
+        model = load_workspace(schemas, documents, skills)
+
+        #: Then
+        failed = _failed_structure(model, CODE)
+        assert failed.path == SPECS_DIR / PathComponent.parse('code.structure.json'), (
+            'the failure names the structure file'
+        )
+        assert isinstance(failed.failure, AdjacentAnyRuns), 'adjacent any runs fail as adjacent any runs'
+        assert model.load_failures == (LoadFailure(failed.path, failed.failure),), (
+            'listed once, with its path and condition'
+        )
+        feat = model.find_corpus(FEAT)
+        assert feat is not None and isinstance(feat.corpus_spec.structure, StructureSpec), 'the other corpus loads'
 
     def test_load_workspace_with_a_structure_file_stating_an_invalid_title_pattern_records_it_as_failed(
-        self, tmp_path: Path
+        self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
     ) -> None:
         #: Given
-        content = '{"title": {"pattern": "("}}'
+        self._write_structure_file_tree(tmp_path, '{"title": {"pattern": "("}}')
 
-        #: When / Then
-        self._assert_structure_failure_recorded(tmp_path, content, InvalidTitlePattern)
+        #: When
+        model = load_workspace(schemas, documents, skills)
+
+        #: Then
+        failed = _failed_structure(model, CODE)
+        assert failed.path == SPECS_DIR / PathComponent.parse('code.structure.json'), (
+            'the failure names the structure file'
+        )
+        assert isinstance(failed.failure, InvalidTitlePattern), (
+            'an invalid title pattern fails as an invalid title pattern'
+        )
+        assert model.load_failures == (LoadFailure(failed.path, failed.failure),), (
+            'listed once, with its path and condition'
+        )
+        feat = model.find_corpus(FEAT)
+        assert feat is not None and isinstance(feat.corpus_spec.structure, StructureSpec), 'the other corpus loads'
 
     def test_load_workspace_with_a_structure_file_stating_an_invalid_frontmatter_schema_records_it_as_failed(
-        self, tmp_path: Path
+        self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
     ) -> None:
         #: Given
-        content = '{"frontmatter": {"type": "nonsense"}}'
+        self._write_structure_file_tree(tmp_path, '{"frontmatter": {"type": "nonsense"}}')
 
-        #: When / Then
-        self._assert_structure_failure_recorded(tmp_path, content, InvalidFrontmatterSchema)
+        #: When
+        model = load_workspace(schemas, documents, skills)
+
+        #: Then
+        failed = _failed_structure(model, CODE)
+        assert failed.path == SPECS_DIR / PathComponent.parse('code.structure.json'), (
+            'the failure names the structure file'
+        )
+        assert isinstance(failed.failure, InvalidFrontmatterSchema), (
+            'an invalid frontmatter schema fails as an invalid frontmatter schema'
+        )
+        assert model.load_failures == (LoadFailure(failed.path, failed.failure),), (
+            'listed once, with its path and condition'
+        )
+        feat = model.find_corpus(FEAT)
+        assert feat is not None and isinstance(feat.corpus_spec.structure, StructureSpec), 'the other corpus loads'
 
     def test_load_workspace_with_a_structure_file_stating_an_id_in_the_frontmatter_schema_records_it_as_failed(
-        self, tmp_path: Path
+        self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
     ) -> None:
         #: Given
-        content = '{"frontmatter": {"type": "object", "properties": {"a": {"$id": "https://example.com/a"}}}}'
+        self._write_structure_file_tree(
+            tmp_path, '{"frontmatter": {"type": "object", "properties": {"a": {"$id": "https://example.com/a"}}}}'
+        )
 
-        #: When / Then
-        self._assert_structure_failure_recorded(tmp_path, content, FrontmatterSchemaId)
+        #: When
+        model = load_workspace(schemas, documents, skills)
+
+        #: Then
+        failed = _failed_structure(model, CODE)
+        assert failed.path == SPECS_DIR / PathComponent.parse('code.structure.json'), (
+            'the failure names the structure file'
+        )
+        assert isinstance(failed.failure, FrontmatterSchemaId), (
+            'an id in the frontmatter schema fails as a frontmatter schema id'
+        )
+        assert model.load_failures == (LoadFailure(failed.path, failed.failure),), (
+            'listed once, with its path and condition'
+        )
+        feat = model.find_corpus(FEAT)
+        assert feat is not None and isinstance(feat.corpus_spec.structure, StructureSpec), 'the other corpus loads'
 
     def test_load_workspace_with_a_structure_file_stating_a_foreign_frontmatter_dialect_records_it_as_failed(
-        self, tmp_path: Path
+        self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
     ) -> None:
         #: Given
-        content = '{"frontmatter": {"type": "object", "$schema": "http://json-schema.org/draft-07/schema#"}}'
+        self._write_structure_file_tree(
+            tmp_path, '{"frontmatter": {"type": "object", "$schema": "http://json-schema.org/draft-07/schema#"}}'
+        )
 
-        #: When / Then
-        self._assert_structure_failure_recorded(tmp_path, content, ForeignFrontmatterDialect)
+        #: When
+        model = load_workspace(schemas, documents, skills)
+
+        #: Then
+        failed = _failed_structure(model, CODE)
+        assert failed.path == SPECS_DIR / PathComponent.parse('code.structure.json'), (
+            'the failure names the structure file'
+        )
+        assert isinstance(failed.failure, ForeignFrontmatterDialect), (
+            'a foreign dialect fails as a foreign frontmatter dialect'
+        )
+        assert model.load_failures == (LoadFailure(failed.path, failed.failure),), (
+            'listed once, with its path and condition'
+        )
+        feat = model.find_corpus(FEAT)
+        assert feat is not None and isinstance(feat.corpus_spec.structure, StructureSpec), 'the other corpus loads'
 
     def test_load_workspace_with_a_structure_file_stating_an_untyped_frontmatter_schema_records_it_as_failed(
-        self, tmp_path: Path
+        self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
     ) -> None:
         #: Given
-        content = '{"frontmatter": {"properties": {}}}'
+        self._write_structure_file_tree(tmp_path, '{"frontmatter": {"properties": {}}}')
 
-        #: When / Then
-        self._assert_structure_failure_recorded(tmp_path, content, UntypedFrontmatterSchema)
+        #: When
+        model = load_workspace(schemas, documents, skills)
+
+        #: Then
+        failed = _failed_structure(model, CODE)
+        assert failed.path == SPECS_DIR / PathComponent.parse('code.structure.json'), (
+            'the failure names the structure file'
+        )
+        assert isinstance(failed.failure, UntypedFrontmatterSchema), (
+            'an untyped frontmatter schema fails as an untyped frontmatter schema'
+        )
+        assert model.load_failures == (LoadFailure(failed.path, failed.failure),), (
+            'listed once, with its path and condition'
+        )
+        feat = model.find_corpus(FEAT)
+        assert feat is not None and isinstance(feat.corpus_spec.structure, StructureSpec), 'the other corpus loads'
 
     def test_load_workspace_with_a_repeated_outline_section_records_the_sections(
         self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
@@ -1636,9 +1766,9 @@ class TestLoadWorkspaceFailures:
             _write_tree(root, prose=('code',), schemas=(), documents=('code/logging.md',))
             _write(root, 'docs/__meta__/code.structure.json', 'not json')
         ref = DocumentRef(CODE, AspectFilename.parse('logging'))
+        first = load_model(DiskFileSystem(tmp_path)).find_governance(ref)
 
         #: When
-        first = load_model(DiskFileSystem(tmp_path)).find_governance(ref)
         second = load_model(DiskFileSystem(other)).find_governance(ref)
 
         #: Then
@@ -1654,9 +1784,9 @@ class TestLoadWorkspaceFailures:
             _write_tree(root, prose=('code',), schemas=(), documents=('code/logging.md',))
             _write(root, 'docs/__meta__/code.structure.json', content)
         ref = DocumentRef(CODE, AspectFilename.parse('logging'))
+        first = load_model(DiskFileSystem(tmp_path)).find_governance(ref)
 
         #: When
-        first = load_model(DiskFileSystem(tmp_path)).find_governance(ref)
         second = load_model(DiskFileSystem(other)).find_governance(ref)
 
         #: Then
