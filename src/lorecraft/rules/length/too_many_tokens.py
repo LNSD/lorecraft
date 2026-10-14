@@ -28,10 +28,10 @@ class TooManyTokens(DocumentRule):
 
     ## What it does
 
-    Checks for documents longer than the token budget their structure specification sets with its `tokens` key.
+    Checks for documents longer than the token budget their structure file sets with its `tokens` key.
     The whole file counts: frontmatter, code blocks and tables as much as prose.
 
-    A document that more than one specification governs, such as a corpus and a namespace, must fit every budget
+    A document that more than one meta spec governs, such as a corpus and a namespace, must fit every budget
     they set, and is reported once for each budget it exceeds.
 
     ## Why is this bad?
@@ -78,7 +78,7 @@ class TooManyTokens(DocumentRule):
     ```
 
     Attributes:
-        spec: The structure specification that sets the exceeded budget; never `None`, since a specification sets
+        spec: The structure file that sets the exceeded budget; never `None`, since a meta spec sets
             every budget.
         overrun: The tokens in the document's whole file against the budget they exceed.
     """
@@ -101,7 +101,7 @@ class TooManyTokens(DocumentRule):
         return (Label(Here(self.line), f'tokens over the budget: {self.overrun.excess}'),)
 
     def children(self) -> tuple[Subdiagnostic, ...]:
-        """Point at the specification that sets the budget, say how to cut tokens, and how they are counted."""
+        """Point at the meta spec that sets the budget, say how to cut tokens, and how they are counted."""
         return (
             spec_note(self.spec),
             Help(
@@ -113,9 +113,9 @@ class TooManyTokens(DocumentRule):
 
     @classmethod
     def check(cls, subject: DocumentContext) -> tuple[Self, ...]:
-        """One occurrence for each budget the document exceeds, in the order the specifications apply.
+        """One occurrence for each budget the document exceeds, in the order the meta specs apply.
 
-        A specification that sets no budget holds the document to none.
+        A meta spec that sets no budget holds the document to none.
 
         Args:
             subject: The document, governed by at least one budget.

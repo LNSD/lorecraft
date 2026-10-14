@@ -43,12 +43,12 @@ class SectionTooManyWords(DocumentRule):
 
     ## What it does
 
-    Checks for H2 sections longer than the `words` cap their structure specification sets in its `outline`: the
+    Checks for H2 sections longer than the `words` cap their structure file sets in its `outline`: the
     cap of the entry naming the section, or, for a section the outline does not name, the cap of the `any` run it
     falls in. The cap covers the section's subsections too. Only prose counts: fenced code blocks, table rows and
     headings do not.
 
-    A document that more than one specification governs, such as a corpus and a namespace, must keep each section
+    A document that more than one meta spec governs, such as a corpus and a namespace, must keep each section
     within every cap they set, and is reported once for each cap a section exceeds.
 
     ## Why is this bad?
@@ -93,7 +93,7 @@ class SectionTooManyWords(DocumentRule):
     ```
 
     Attributes:
-        spec: The structure specification that sets the exceeded cap.
+        spec: The structure file that sets the exceeded cap.
         section: The heading text of the section, which the occurrence is reported at.
         overrun: The prose words in the section, its subsections included, against the cap they exceed.
         cap_source: Whether the cap is the section's own entry's or that of the `any` run it falls in.
@@ -127,7 +127,7 @@ class SectionTooManyWords(DocumentRule):
         )
 
     def children(self) -> tuple[Subdiagnostic, ...]:
-        """Point at the specification that sets the cap, say how to shorten the section, and whose cap it is."""
+        """Point at the meta spec that sets the cap, say how to shorten the section, and whose cap it is."""
         return (spec_note(self.spec), _SPLIT_HELP, self._cap_source_note())
 
     def _cap_source_note(self) -> Note:
@@ -144,11 +144,11 @@ class SectionTooManyWords(DocumentRule):
     def check(cls, subject: DocumentContext) -> tuple[Self, ...]:
         """One occurrence, at its heading, for each section over each cap that applies to it.
 
-        The specifications are taken in the order they apply, and the sections of each in document order. A section
+        The meta specs are taken in the order they apply, and the sections of each in document order. A section
         takes the cap of the outline entry it is aligned to, which may be none; one aligned to nothing has no cap.
 
         Args:
-            subject: The document, governed by a structure specification.
+            subject: The document, governed by a structure file.
         """
         occurrences: list[Self] = []
         for alignment in subject.outline_alignment():

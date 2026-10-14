@@ -25,7 +25,7 @@ class EscapingLink(SkillFileRule):
     Checks for relative links and images in a skill's `SKILL.md` and in each Markdown file inside the skill whose
     path, read from the skill root, leads above it. The Agent Skills specification has every file of a skill name
     another by its path from the skill root, wherever the file lies: in `references/guide.md`, `SKILL.md` names the
-    skill's own `SKILL.md`, and `../SKILL.md` leads out of the skill. No specification key states the rule: every
+    skill's own `SKILL.md`, and `../SKILL.md` leads out of the skill. No meta spec key states the rule: every
     skill is held to it.
 
     The path alone decides, never where the skill lies in the repository: `../../skills/review/SKILL.md` leaves the
@@ -80,7 +80,7 @@ class EscapingLink(SkillFileRule):
         return f'`{unquote(self.url)}` leaves the skill root'
 
     def children(self) -> tuple[Subdiagnostic, ...]:
-        """Point at the specification that reads the link from the skill root, then say how to name the file."""
+        """Point at the meta spec that reads the link from the skill root, then say how to name the file."""
         return (skill_note(), Help('link a file inside the skill, relative to the skill root'))
 
     @classmethod

@@ -20,7 +20,7 @@ It has no level, so no configuration turns it off, and it is always reported as 
 ## Why is this bad?
 
 An agent that loads the file reads replacement characters, or nothing, where the bytes do not decode, and no
-check can tell whether the rest of the file holds to its specification.
+check can tell whether the rest of the file holds to its meta spec.
 
 ## Example
 
