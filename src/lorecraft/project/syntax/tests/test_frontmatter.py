@@ -17,6 +17,7 @@ from ..frontmatter import (
     InvalidYamlFrontmatter,
     NonMappingFrontmatter,
     RepeatedKey,
+    _frontmatter,
     decode_frontmatter,
     reads_back_as_string,
 )
@@ -2778,6 +2779,28 @@ class TestDecodeFrontmatter:
         #: Then
         assert first == second, 'one block decodes to equal frontmatter each time'
         assert hashed_alike, 'equal frontmatter, nested collections included, hashes alike'
+
+
+@pytest.mark.unit
+class TestFrontmatterFromPairs:
+    def test_frontmatter_with_a_repeated_key_keeps_every_key_and_the_last_value(self) -> None:
+        #: Given
+        entries = [
+            (FrontmatterKey('name', LineNumber.from_int(2)), 'first'),
+            (FrontmatterKey('type', LineNumber.from_int(3)), 'rule'),
+            (FrontmatterKey('name', LineNumber.from_int(4)), 'last'),
+        ]
+
+        #: When
+        frontmatter = _frontmatter(entries, ())
+
+        #: Then
+        assert frontmatter.data == FrozenMapping({'name': 'last', 'type': 'rule'}), (
+            f'the data holds the last value of a repeated key, got {frontmatter.data!r}'
+        )
+        assert [key.line.number for key in frontmatter.keys] == [2, 3, 4], (
+            f'the keys hold every occurrence in written order, got {frontmatter.keys!r}'
+        )
 
 
 @pytest.mark.unit
