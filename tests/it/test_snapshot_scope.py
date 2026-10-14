@@ -95,7 +95,7 @@ def _skill_resource_text(database: Database, ref: SkillResourceRef) -> SkillReso
     return source
 
 
-def _skill_resource(path: str, resolves_to: str | None = None) -> SkillResourceLocation:
+def _skill_resource(path: str, *, resolves_to: str | None = None) -> SkillResourceLocation:
     """The location of a resource of the `review` skill.
 
     Args:
@@ -109,7 +109,7 @@ def _skill_resource(path: str, resolves_to: str | None = None) -> SkillResourceL
     )
 
 
-def _file_paths(snapshot: Snapshot) -> set[RootRelativePath]:
+def _file_paths(snapshot: Snapshot) -> frozenset[RootRelativePath]:
     """Every path the snapshot holds a file's bytes at.
 
     Args:
@@ -124,7 +124,7 @@ def _file_paths(snapshot: Snapshot) -> set[RootRelativePath]:
                 pass  # no bytes
             case _:
                 assert_never(record)
-    return paths
+    return frozenset(paths)
 
 
 @pytest.fixture(scope='function')
@@ -332,8 +332,8 @@ class TestDatabaseSkillResources:
 
         #: Then
         assert resources == (
-            _skill_resource('guides/deeper/d.md', 'shared/guides/deeper/d.md'),
-            _skill_resource('notes.md', 'notes/e.md'),
+            _skill_resource('guides/deeper/d.md', resolves_to='shared/guides/deeper/d.md'),
+            _skill_resource('notes.md', resolves_to='notes/e.md'),
             _skill_resource('references/a.md'),
             _skill_resource('references/deep/b.md'),
         ), (

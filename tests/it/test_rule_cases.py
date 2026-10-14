@@ -38,13 +38,23 @@ from lorecraft.rules.registry import Registry
 RULE_CASES_DIRECTORY: Final[Path] = Path(__file__).parent / 'rule_cases'
 """Where the cases live, one directory per rule code."""
 
-TRIGGER: Final[str] = 'trigger'
+CaseKind = Literal['trigger', 'near_miss']
+"""The kinds a case directory is named after."""
+
+TRIGGER: Final[CaseKind] = 'trigger'
 """The kind of case whose repository the code fires on."""
 
-NEAR_MISS: Final[str] = 'near_miss'
+NEAR_MISS: Final[CaseKind] = 'near_miss'
 """The kind of case whose repository looks like the code could fire on it, and it does not."""
 
-KINDS: Final[tuple[str, ...]] = (TRIGGER, NEAR_MISS)
+KINDS: Final[tuple[CaseKind, ...]] = (TRIGGER, NEAR_MISS)
+"""The case kinds, in the order they are listed."""
+
+KIND_NAMES: Final[frozenset[str]] = frozenset(KINDS)
+"""The case kinds as directory names, for checking what is on disk."""
+
+# A run that finishes exits 0 when it found nothing and 1 when it found something; 2 is a refused command line.
+_RUN_EXIT_CODES: Final[frozenset[int]] = frozenset({0, 1})
 
 runner = CliRunner()
 
@@ -77,7 +87,7 @@ class RuleCase:
     """
 
     code: str
-    kind: str
+    kind: CaseKind
     name: str
     directory: Path
 
@@ -89,7 +99,9 @@ class RuleCase:
     def expected(self) -> list[ExpectedDiagnostic]:
         """The diagnostics the case declares, in the order the checker prints them."""
         text = (self.directory / 'expected.json').read_text(encoding='utf-8')
-        return json.loads(text)
+        # The suite's own checked-in fixture, so it is read as written rather than validated.
+        expected: list[ExpectedDiagnostic] = json.loads(text)
+        return expected
 
     def write_repository(self, destination: Path) -> Path:
         """Write the case's repository under `destination` and return its root.
@@ -118,7 +130,8 @@ class RuleCase:
         locked_file = self.directory / 'locked.json'
         if not locked_file.exists():
             return []
-        return json.loads(locked_file.read_text(encoding='utf-8'))
+        locked: list[str] = json.loads(locked_file.read_text(encoding='utf-8'))
+        return locked
 
 
 @pytest.fixture(scope='function')
@@ -170,14 +183,14 @@ def unexpected_entries() -> list[str]:
             unexpected.append(entry.name)
             continue
         for child in sorted(entry.iterdir()):
-            if not child.is_dir() or child.name not in KINDS:
+            if not child.is_dir() or child.name not in KIND_NAMES:
                 unexpected.append(f'{entry.name}/{child.name}')
     return unexpected
 
 
-def directory_codes() -> set[str]:
+def directory_codes() -> frozenset[str]:
     """The code of every directory directly under the rule cases directory, whatever it holds."""
-    return {directory.name for directory in directories_under(RULE_CASES_DIRECTORY)}
+    return frozenset(directory.name for directory in directories_under(RULE_CASES_DIRECTORY))
 
 
 def reported_codes() -> list[str]:
@@ -223,7 +236,7 @@ class TestRuleCases:
         result = runner.invoke(build_app(), ['check', '--root', str(root), '--format', 'json'])
 
         #: Then
-        assert result.exit_code in (0, 1), result.output
+        assert result.exit_code in _RUN_EXIT_CODES, result.output
         reported = json.loads(result.stdout)['diagnostics']
         actual: list[ExpectedDiagnostic] = []
         for diagnostic in reported:

@@ -53,8 +53,11 @@ STRUCTURE_FILE_OF_CODE: Final[str] = 'docs/__meta__/code.structure.json'
 STRUCTURE_FILE_OF_PYTHON: Final[str] = 'docs/__meta__/code-python.structure.json'
 STRUCTURE_FILE_OF_FEAT: Final[str] = 'docs/__meta__/feat.structure.json'
 
+# A run that finishes exits 0 when it found nothing and 1 when it found something; 2 is a refused command line.
+_RUN_EXIT_CODES: Final[frozenset[int]] = frozenset({0, 1})
 
-def _write_workspace(
+
+def _build_workspace(
     root: Path,
     *,
     code_spec: str | bytes = CODE_SPEC,
@@ -100,7 +103,7 @@ def _check_json(root: Path, *arguments: str) -> tuple[int, dict[str, object]]:
         arguments: More command-line arguments, such as `--select`.
     """
     result = runner.invoke(build_app(), ['check', '--root', str(root), '--format', 'json', *arguments])
-    assert result.exit_code in (0, 1), result.output
+    assert result.exit_code in _RUN_EXIT_CODES, result.output
     document: dict[str, object] = json.loads(result.stdout)
     return result.exit_code, document
 
@@ -147,7 +150,7 @@ def workspace_with_unlistable_meta_directory(tmp_path: Path) -> Iterator[Path]:
     Args:
         tmp_path: Directory the workspace is written into, as its root.
     """
-    root = _write_workspace(tmp_path)
+    root = _build_workspace(tmp_path)
     meta = root / 'docs' / '__meta__'
     meta.chmod(0o000)
     yield root
@@ -161,7 +164,7 @@ def workspace_with_unreadable_shadowed_code_structure_file(tmp_path: Path) -> It
     Args:
         tmp_path: Directory the workspace is written into, as its root.
     """
-    root = _write_workspace(tmp_path)
+    root = _build_workspace(tmp_path)
     (root / 'docs/__meta__/code.spec.json').write_text(CODE_SPEC, encoding='utf-8')
     legacy = root / STRUCTURE_FILE_OF_CODE
     legacy.chmod(0o000)
@@ -178,7 +181,7 @@ def workspace_with_unreadable_shadowed_python_structure_file(tmp_path: Path) -> 
     Args:
         tmp_path: Directory the workspace is written into, as its root.
     """
-    root = _write_workspace(tmp_path)
+    root = _build_workspace(tmp_path)
     (root / 'docs/__meta__/code-python.spec.json').write_text(PYTHON_SPEC, encoding='utf-8')
     legacy = root / STRUCTURE_FILE_OF_PYTHON
     legacy.chmod(0o000)
@@ -203,7 +206,7 @@ class TestCheckWithAFailedMetaSpec:
         self, tmp_path: Path
     ) -> None:
         #: Given
-        root = _write_workspace(tmp_path, code_spec=CONTRADICTORY_SPEC)
+        root = _build_workspace(tmp_path, code_spec=CONTRADICTORY_SPEC)
 
         #: When
         exit_code, document = _check_json(root)
@@ -223,7 +226,7 @@ class TestCheckWithAFailedMetaSpec:
         self, tmp_path: Path
     ) -> None:
         #: Given
-        root = _write_workspace(tmp_path, code_spec=b'{"tokens": 4000, "title": {"pattern": "caf\xe9"}}')
+        root = _build_workspace(tmp_path, code_spec=b'{"tokens": 4000, "title": {"pattern": "caf\xe9"}}')
 
         #: When
         exit_code, document = _check_json(root)
@@ -241,7 +244,7 @@ class TestCheckWithAFailedMetaSpec:
 
     def test_check_with_a_failed_namespace_spec_lists_each_document_it_governs_as_skipped(self, tmp_path: Path) -> None:
         #: Given
-        root = _write_workspace(tmp_path, python_spec=STATES_NO_RULE, logging=LOGGING_WITHOUT_RULE)
+        root = _build_workspace(tmp_path, python_spec=STATES_NO_RULE, logging=LOGGING_WITHOUT_RULE)
 
         #: When
         exit_code, document = _check_json(root)
@@ -269,7 +272,7 @@ class TestCheckWithAFailedMetaSpec:
         self, tmp_path: Path
     ) -> None:
         #: Given
-        root = _write_workspace(tmp_path, code_spec=STATES_NO_RULE, logging=LOGGING_WITHOUT_RULE)
+        root = _build_workspace(tmp_path, code_spec=STATES_NO_RULE, logging=LOGGING_WITHOUT_RULE)
 
         #: When
         _exit_code, document = _check_json(root)
@@ -284,7 +287,7 @@ class TestCheckWithAFailedMetaSpec:
 
     def test_check_with_two_failed_layers_names_both_for_the_document_they_govern(self, tmp_path: Path) -> None:
         #: Given
-        root = _write_workspace(tmp_path, code_spec=STATES_NO_RULE, python_spec=STATES_NO_RULE)
+        root = _build_workspace(tmp_path, code_spec=STATES_NO_RULE, python_spec=STATES_NO_RULE)
 
         #: When
         _exit_code, document = _check_json(root)
@@ -297,7 +300,7 @@ class TestCheckWithAFailedMetaSpec:
 
     def test_check_with_a_failed_meta_spec_reports_each_failure_once_whatever_it_governs(self, tmp_path: Path) -> None:
         #: Given
-        root = _write_workspace(tmp_path, code_spec=STATES_NO_RULE)
+        root = _build_workspace(tmp_path, code_spec=STATES_NO_RULE)
 
         #: When
         _exit_code, document = _check_json(root)
@@ -311,7 +314,7 @@ class TestCheckWithAFailedMetaSpec:
 
     def test_check_with_a_failed_meta_spec_prints_each_skipped_document_in_the_coverage(self, tmp_path: Path) -> None:
         #: Given
-        root = _write_workspace(tmp_path, python_spec=STATES_NO_RULE)
+        root = _build_workspace(tmp_path, python_spec=STATES_NO_RULE)
 
         #: When
         result = runner.invoke(build_app(), ['check', '--root', str(root), '--format', 'short'])
@@ -335,7 +338,7 @@ class TestCheckWithAFailedMetaSpec:
 class TestCheckWithALoadFailureAndNothingElseWrong:
     def test_check_with_a_failed_meta_spec_and_clean_documents_never_exits_successfully(self, tmp_path: Path) -> None:
         #: Given
-        root = _write_workspace(tmp_path, python_spec=STATES_NO_RULE, feat_spec='{"tokens": 4000}')
+        root = _build_workspace(tmp_path, python_spec=STATES_NO_RULE, feat_spec='{"tokens": 4000}')
 
         #: When
         exit_code, document = _check_json(root)
@@ -348,7 +351,7 @@ class TestCheckWithALoadFailureAndNothingElseWrong:
 
     def test_check_with_every_meta_spec_loading_and_clean_documents_exits_successfully(self, tmp_path: Path) -> None:
         #: Given
-        root = _write_workspace(tmp_path, feat_spec='{"tokens": 4000}')
+        root = _build_workspace(tmp_path, feat_spec='{"tokens": 4000}')
 
         #: When
         exit_code, document = _check_json(root)
@@ -365,8 +368,8 @@ class TestCheckLeavesWhatAFailureDoesNotTouchAsItWas:
         self, tmp_path: Path
     ) -> None:
         #: Given
-        fixed_root = _write_workspace(tmp_path / 'fixed', logging=LOGGING_WITHOUT_RULE)
-        broken_root = _write_workspace(tmp_path / 'broken', python_spec=STATES_NO_RULE, logging=LOGGING_WITHOUT_RULE)
+        fixed_root = _build_workspace(tmp_path / 'fixed', logging=LOGGING_WITHOUT_RULE)
+        broken_root = _build_workspace(tmp_path / 'broken', python_spec=STATES_NO_RULE, logging=LOGGING_WITHOUT_RULE)
         _fixed_code, fixed = _check_json(fixed_root)
         fixed_coverage = _coverage(fixed)
         # The only document the failed namespace spec governs is the Python typing rule
@@ -388,7 +391,7 @@ class TestCheckLeavesWhatAFailureDoesNotTouchAsItWas:
 
     def test_check_with_several_failures_reports_each_and_checks_the_rest(self, tmp_path: Path) -> None:
         #: Given
-        root = _write_workspace(
+        root = _build_workspace(
             tmp_path,
             python_spec=STATES_NO_RULE,
             feat_spec=b'{"tokens": 4000, "title": {"pattern": "caf\xe9"}}',
@@ -416,7 +419,7 @@ class TestCheckLeavesWhatAFailureDoesNotTouchAsItWas:
 
     def test_check_with_the_outline_group_selected_still_reports_a_load_failure(self, tmp_path: Path) -> None:
         #: Given
-        root = _write_workspace(tmp_path, python_spec=STATES_NO_RULE)
+        root = _build_workspace(tmp_path, python_spec=STATES_NO_RULE)
 
         #: When
         exit_code, document = _check_json(root, '--select', 'OUT')
@@ -430,7 +433,7 @@ class TestCheckLeavesWhatAFailureDoesNotTouchAsItWas:
 
     def test_check_with_the_frontmatter_group_selected_still_reports_a_load_failure(self, tmp_path: Path) -> None:
         #: Given
-        root = _write_workspace(tmp_path, python_spec=STATES_NO_RULE)
+        root = _build_workspace(tmp_path, python_spec=STATES_NO_RULE)
 
         #: When
         exit_code, document = _check_json(root, '--select', 'FM')
@@ -444,7 +447,7 @@ class TestCheckLeavesWhatAFailureDoesNotTouchAsItWas:
 
     def test_check_with_one_length_rule_selected_still_reports_a_load_failure(self, tmp_path: Path) -> None:
         #: Given
-        root = _write_workspace(tmp_path, python_spec=STATES_NO_RULE)
+        root = _build_workspace(tmp_path, python_spec=STATES_NO_RULE)
 
         #: When
         exit_code, document = _check_json(root, '--select', 'LEN001')
