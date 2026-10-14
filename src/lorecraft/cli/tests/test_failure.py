@@ -26,6 +26,7 @@ from lorecraft.project.schemas.structure import (
     RepeatedForbiddenSectionError,
     RepeatedOutlineSectionError,
     StructureSpecDecodeError,
+    StructureSpecProblem,
     UntypedFrontmatterSchemaError,
 )
 from lorecraft.project.skill import (
@@ -143,7 +144,10 @@ _ENTRY = RootRelativePath.parse('.claude/skills/review')
 _ENTRY_FILE = RootRelativePath.parse('.claude/skills/review/SKILL.md')
 _TARGET_FILE = RootRelativePath.parse('shared/review/SKILL.md')
 _INNER = RootRelativePath.parse('shared/review/inner')
-_PROBLEMS = ('outline: Field required', 'tokens: not a number')
+_PROBLEMS = (
+    StructureSpecProblem(('outline',), 'Field required'),
+    StructureSpecProblem(('tokens',), 'not a number'),
+)
 _REFUSAL = OsRefusal.PERMISSION_DENIED
 _OS_ERROR = OSError()
 
@@ -331,7 +335,7 @@ class TestReportLoadFailure:
         self, capsys: pytest.CaptureFixture[str]
     ) -> None:
         #: Given
-        failure = LoadFailure(_PATH, ForeignFrontmatterDialect("'draft-07'"))
+        failure = LoadFailure(_PATH, ForeignFrontmatterDialect('draft-07'))
         error = ForeignFrontmatterDialectError(_PATH, 'draft-07')
 
         #: When

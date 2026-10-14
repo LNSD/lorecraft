@@ -147,24 +147,46 @@ from .structure_file import (
 StructureSchema = NewType('StructureSchema', str)
 
 
+@dataclass(frozen=True, slots=True)
+class StructureSpecProblem:
+    """One problem found in a structure specification file, read from the validation error.
+
+    Attributes:
+        location: The field the problem concerns, as the keys and indexes that lead to it from the file's root; empty
+            when the problem is about the file as a whole.
+        message: What is wrong there.
+    """
+
+    location: tuple[str | int, ...]
+    message: str
+
+    def __str__(self) -> str:
+        """The problem as ``<field path>: <message>``, or the bare message when it has no location."""
+        if not self.location:
+            return self.message
+        return f'{".".join(str(part) for part in self.location)}: {self.message}'
+
+
 class StructureSpecDecodeError(Error):
     """A structure specification file is not JSON, or does not have the structure dialect's shape.
 
     Attributes:
         path: Root-relative path of the rejected file.
-        problems: Every problem found, as ``<field path>: <message>``, read from the validation error.
+        problems: Every problem found, read from the validation error.
         source: The validation error.
     """
 
     path: RootRelativePath
-    problems: tuple[str, ...]
+    problems: tuple[StructureSpecProblem, ...]
     source: ValidationError
 
-    def __init__(self, path: RootRelativePath, problems: tuple[str, ...], *, source: ValidationError) -> None:
+    def __init__(
+        self, path: RootRelativePath, problems: tuple[StructureSpecProblem, ...], *, source: ValidationError
+    ) -> None:
         self.path = path
         self.problems = problems
         self.source = source
-        super().__init__(f'invalid structure schema {path}: {"; ".join(problems)}')
+        super().__init__(f'invalid structure schema {path}: {"; ".join(str(problem) for problem in problems)}')
         self.__cause__ = source
 
 
@@ -295,13 +317,13 @@ class ForeignFrontmatterDialectError(Error):
 
     Attributes:
         path: Root-relative path of the structure specification the schema is written in.
-        dialect: The dialect it names.
+        dialect: The dialect it names, as `$schema` spells it.
     """
 
     path: RootRelativePath
-    dialect: object
+    dialect: str
 
-    def __init__(self, path: RootRelativePath, dialect: object) -> None:
+    def __init__(self, path: RootRelativePath, dialect: str) -> None:
         self.path = path
         self.dialect = dialect
         super().__init__(
@@ -543,6 +565,8 @@ class FrontmatterSchema:
                 # every relative `$ref` beneath it resolves to.
                 raise FrontmatterSchemaIdError(path)
             dialect = subschema.get('$schema', JSON_SCHEMA_DIALECT)
+            # The meta-schema check above has refused a `$schema` that is not a string.
+            assert isinstance(dialect, str), 'unreachable: the meta-schema proved `$schema` is a string'
             if dialect != JSON_SCHEMA_DIALECT:
                 # The check applies every schema under Draft 2020-12, so a schema written for another dialect would
                 # be read by rules it was not written for.
@@ -1093,17 +1117,13 @@ def _frontmatter_schema(path: RootRelativePath, schema: FrozenMapping[str, Froze
     return FrontmatterSchema.parse(schema, path=path)
 
 
-def _problems(error: ValidationError) -> tuple[str, ...]:
-    """Every problem pydantic found in one file, each as `<field path>: <message>`.
+def _problems(error: ValidationError) -> tuple[StructureSpecProblem, ...]:
+    """Every problem pydantic found in one file.
 
     Args:
-        error: The validation error raised for one structure file; a problem with no location is the bare message.
+        error: The validation error raised for one structure file.
     """
-    problems: list[str] = []
-    for detail in error.errors(include_url=False):
-        location = '.'.join(str(part) for part in detail['loc'])
-        if location:
-            problems.append(f'{location}: {detail["msg"]}')
-        else:
-            problems.append(detail['msg'])
-    return tuple(problems)
+    return tuple(
+        StructureSpecProblem(location=detail['loc'], message=detail['msg'])
+        for detail in error.errors(include_url=False)
+    )

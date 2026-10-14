@@ -9,6 +9,7 @@ from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.schemas.name import CorpusSpecName
 from lorecraft.project.schemas.section_name import SectionName
+from lorecraft.project.schemas.structure import StructureSpecProblem
 from lorecraft.project.workspace import (
     AdjacentAnyRuns,
     EmptyStructureSpec,
@@ -175,7 +176,12 @@ class TestReportLoadFailures:
 
     def test_report_load_failures_with_an_undecodable_structure_spec_reports_every_problem(self) -> None:
         #: Given
-        condition = UndecodableStructureSpec(('max_tokens: Extra inputs are not permitted', 'tokens: Field required'))
+        condition = UndecodableStructureSpec(
+            (
+                StructureSpecProblem(('max_tokens',), 'Extra inputs are not permitted'),
+                StructureSpecProblem(('tokens',), 'Field required'),
+            )
+        )
 
         #: When
         occurrence = _condition_of(condition)
@@ -287,7 +293,7 @@ class TestReportLoadFailures:
 
     def test_report_load_failures_with_a_foreign_frontmatter_dialect_reports_the_dialect(self) -> None:
         #: Given
-        condition = ForeignFrontmatterDialect("'http://json-schema.org/draft-07/schema#'")
+        condition = ForeignFrontmatterDialect('http://json-schema.org/draft-07/schema#')
 
         #: When
         occurrence = _condition_of(condition)

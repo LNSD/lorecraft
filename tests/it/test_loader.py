@@ -1311,8 +1311,8 @@ class TestLoadWorkspaceFailures:
 
         #: Then
         assert _failed_structure(model, CODE).failure == ForeignFrontmatterDialect(
-            "'http://json-schema.org/draft-07/schema#'"
-        ), 'the record keeps the dialect as the error spelled it, so it is plain data'
+            'http://json-schema.org/draft-07/schema#'
+        ), 'the record keeps the JSON value `$schema` held, so it is plain data'
 
     def test_load_workspace_with_a_failed_namespace_structure_file_keeps_the_corpus_layer_loaded(
         self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository

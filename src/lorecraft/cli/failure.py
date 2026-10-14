@@ -129,7 +129,7 @@ def _failure_text(failure: LoadFailure) -> FailureText:
         case NonUtf8StructureFile():
             return FailureText(f'file {path} is not UTF-8')
         case UndecodableStructureSpec(problems=problems):
-            return FailureText(f'invalid structure schema {path}: {"; ".join(problems)}')
+            return FailureText(f'invalid structure schema {path}: {"; ".join(str(problem) for problem in problems)}')
         case EmptyStructureSpec():
             return FailureText(f'invalid structure schema {path}: states no rule, so it would check nothing')
         case RepeatedOutlineSections(sections=sections):
@@ -155,7 +155,7 @@ def _failure_text(failure: LoadFailure) -> FailureText:
             return FailureText(f'invalid structure schema {path}: frontmatter schema may not carry $id')
         case ForeignFrontmatterDialect(dialect=dialect):
             return FailureText(
-                f'invalid structure schema {path}: frontmatter schema names {dialect} in $schema; only '
+                f'invalid structure schema {path}: frontmatter schema names {dialect!r} in $schema; only '
                 f'{JSON_SCHEMA_DIALECT} is allowed'
             )
         case UntypedFrontmatterSchema():

@@ -19,6 +19,7 @@ from lorecraft.core.path import RootRelativePath
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.schemas.name import SpecName
 from lorecraft.project.schemas.section_name import SectionName
+from lorecraft.project.schemas.structure import StructureSpecProblem
 from lorecraft.vfs import OsRefusal, Utf8Failure
 
 # The conditions of a structure file, which stands in its meta spec layer as a `FailedStructure`.
@@ -64,10 +65,10 @@ class UndecodableStructureSpec:
     """The structure file is not JSON, or does not have the structure dialect's shape.
 
     Attributes:
-        problems: Every problem found, as `<field path>: <message>`.
+        problems: Every problem found.
     """
 
-    problems: tuple[str, ...]
+    problems: tuple[StructureSpecProblem, ...]
 
 
 @dataclass(frozen=True, slots=True)
@@ -147,7 +148,7 @@ class ForeignFrontmatterDialect:
     """A schema inside the structure file's frontmatter schema names another dialect than Draft 2020-12.
 
     Attributes:
-        dialect: What the schema's `$schema` holds, as Python's `repr` spells it; a JSON value of any type.
+        dialect: What the schema's `$schema` holds, as it spells it.
     """
 
     dialect: str
