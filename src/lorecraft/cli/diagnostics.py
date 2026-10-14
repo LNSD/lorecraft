@@ -22,8 +22,9 @@ from pydantic import BaseModel, ConfigDict
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.declaration import Severity
 from lorecraft.rules.report import (
+    CheckedDocument,
     CheckedLayoutEntry,
-    CheckedSubject,
+    CheckedSkillFile,
     Diagnostic,
     LoadFailureReport,
     RunReport,
@@ -182,7 +183,7 @@ def render_short(reports: tuple[RunReport, ...]) -> str:
 def render_coverage(reports: tuple[RunReport, ...]) -> str:
     """One line per subject no rule judged for some facet or at all, in path order.
 
-    A checked subject with a facet no specification governs reads `{path}: ungoverned for {facets}`, the facets
+    A checked document with a facet no specification governs reads `{path}: ungoverned for {facets}`, the facets
     comma-separated in the order the report holds them. A document skipped because a structure file that governs it
     failed to load reads `{path}: skipped, governed by a structure file that failed to load: {files}`, the files
     comma-separated in layer order. A subject that did not decode and a layout entry are never ungoverned or skipped,
@@ -197,7 +198,7 @@ def render_coverage(reports: tuple[RunReport, ...]) -> str:
     lines: list[str] = []
     for subject in _coverage_subjects(reports):
         match subject:
-            case CheckedSubject():
+            case CheckedDocument():
                 facets = ', '.join(facet.value for facet in subject.ungoverned)
                 lines.append(f'{subject.ref.path}: ungoverned for {facets}')
             case SkippedSubject():
@@ -267,7 +268,7 @@ def render_json(reports: tuple[RunReport, ...]) -> str:
     coverage: list[_CoverageJson] = []
     for subject in _coverage_subjects(reports):
         match subject:
-            case CheckedSubject():
+            case CheckedDocument():
                 facets: list[str] = []
                 for facet in subject.ungoverned:
                     facets.append(facet.value)
@@ -287,22 +288,24 @@ def render_json(reports: tuple[RunReport, ...]) -> str:
     return document.model_dump_json()
 
 
-def _coverage_subjects(reports: tuple[RunReport, ...]) -> list[CheckedSubject | SkippedSubject]:
-    """The checked subjects with at least one ungoverned facet and the skipped ones, by path compared by code point.
+def _coverage_subjects(reports: tuple[RunReport, ...]) -> list[CheckedDocument | SkippedSubject]:
+    """The checked documents with at least one ungoverned facet and the skipped ones, by path compared by code point.
 
     Args:
         reports: One report per subject the run checked, in any order.
     """
-    subjects: list[CheckedSubject | SkippedSubject] = []
+    subjects: list[CheckedDocument | SkippedSubject] = []
     for report in reports:
         match report:
-            case CheckedSubject():
+            case CheckedDocument():
                 if report.ungoverned:
                     subjects.append(report)
             case SkippedSubject():
                 subjects.append(report)
-            case UndecodableSubject() | CheckedLayoutEntry() | LoadFailureReport():
-                pass  # none was judged in part: one never decoded, one has no specification, one is no subject
+            case CheckedSkillFile() | UndecodableSubject() | CheckedLayoutEntry() | LoadFailureReport():
+                # None was judged in part: a skill file is governed in full, one never decoded, a layout entry has no
+                # specification, and a load failure is no subject.
+                pass
             case _:
                 assert_never(report)
     # A path compares as its string, the way `DiagnosticOrder.path` does, so both outputs share one path order.
@@ -318,7 +321,9 @@ def _count_subjects(reports: tuple[RunReport, ...]) -> int:
     count = 0
     for report in reports:
         match report:
-            case CheckedSubject() | UndecodableSubject() | CheckedLayoutEntry() | SkippedSubject():
+            case (
+                CheckedDocument() | CheckedSkillFile() | UndecodableSubject() | CheckedLayoutEntry() | SkippedSubject()
+            ):
                 count += 1
             case LoadFailureReport():
                 pass  # filed at a unit of the declaration, not at a subject

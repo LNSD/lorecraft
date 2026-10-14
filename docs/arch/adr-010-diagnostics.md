@@ -257,7 +257,7 @@ class EngineDiagnostic:
 
 
 type Diagnostic = RuleDiagnostic | EngineDiagnostic
-type SubjectReport = CheckedSubject | UndecodableSubject | CheckedLayoutEntry
+type SubjectReport = CheckedDocument | CheckedSkillFile | UndecodableSubject | CheckedLayoutEntry | SkippedSubject
 ```
 
 - **A diagnostic holds its occurrence** and copies none of its fields. The code, the message, the labels, the
@@ -268,6 +268,8 @@ type SubjectReport = CheckedSubject | UndecodableSubject | CheckedLayoutEntry
 - **`Severity` is not `Level`.** A level has three values, and a diagnostic at `allow` does not exist, so a
   diagnostic carries one of two severities.
 - **An undecodable subject has no diagnostics and no coverage**, which the union states.
+- **A skill file has no coverage either.** The package governs every skill and resource for every facet, so a
+  `CheckedSkillFile` holds no ungoverned facets; only a `CheckedDocument` does.
 - **A layout entry is reported by its path, and has no coverage.** It is not a document, a skill or a resource, so
   it has no subject reference, and no meta spec governs it, so it can never be ungoverned. Its diagnostics take the
   same shape as every other subject's.

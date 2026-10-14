@@ -21,7 +21,7 @@ from lorecraft.project.skill import SkillRef
 from lorecraft.rules.declaration import Severity
 from lorecraft.rules.layout.outside_symlink import OutsideSymlink
 from lorecraft.rules.registry import Registry
-from lorecraft.rules.report import CheckedLayoutEntry, CheckedSubject, RuleDiagnostic
+from lorecraft.rules.report import CheckedLayoutEntry, CheckedSkillFile, RuleDiagnostic
 from lorecraft.rules.selection import AllRules, RuleSelection
 from lorecraft.rules.table import RuleTable
 from lorecraft.vfs import RootExit, take_snapshot
@@ -256,5 +256,5 @@ class TestCheckSubjectsLayout:
         #: Then
         assert reports == (
             _outside_report('.agents/skills/review/references', '.agents/skills/review/references', target),
-            CheckedSubject(SkillRef(RootRelativePath.parse('.agents/skills/review')), diagnostics=(), ungoverned=()),
+            CheckedSkillFile(SkillRef(RootRelativePath.parse('.agents/skills/review')), diagnostics=()),
         ), 'a layout entry and a skill share one run, each reported in the order given'

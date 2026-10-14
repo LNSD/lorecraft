@@ -11,7 +11,7 @@ from lorecraft.project.corpus import CorpusName
 from lorecraft.project.database import Database, DocumentText
 from lorecraft.project.document import DocumentRef
 from lorecraft.rules.registry import Registry
-from lorecraft.rules.report import CheckedSubject, SkippedSubject, UndecodableSubject
+from lorecraft.rules.report import CheckedDocument, SkippedSubject, UndecodableSubject
 from lorecraft.rules.selection import AllRules, RuleSelection
 from lorecraft.rules.table import RuleTable
 from lorecraft.vfs import Snapshot
@@ -183,4 +183,4 @@ class TestCheckSubjectsWithAFailedLayer:
 
         #: Then
         assert len(reports) == 1, 'the one document has one report'
-        assert isinstance(reports[0], CheckedSubject), 'nothing failed, so it is judged'
+        assert isinstance(reports[0], CheckedDocument), 'nothing failed, so it is judged'

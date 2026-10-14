@@ -58,8 +58,9 @@ from lorecraft.project.document import DocumentRef
 from lorecraft.project.skill import OutsideSymlink, SkillLocation, SkillResourceLocation
 from lorecraft.project.workspace import Governance
 from lorecraft.rules.report import (
+    CheckedDocument,
     CheckedLayoutEntry,
-    CheckedSubject,
+    CheckedSkillFile,
     Diagnostic,
     RuleDiagnostic,
     SubjectReport,
@@ -75,7 +76,7 @@ from lorecraft.rules.table import EnabledRule, RuleTable
 type Subject = DocumentRef | SkillLocation | SkillResourceLocation | OutsideSymlink
 
 
-def judge_document(database: Database, source: DocumentText, table: RuleTable) -> CheckedSubject:
+def judge_document(database: Database, source: DocumentText, table: RuleTable) -> CheckedDocument:
     """Run the enabled rules over a decoded document, each over what the specifications govern it for.
 
     A mode decodes the document and decides what a layer that failed to load means for it; this judges it by the
@@ -118,7 +119,7 @@ def judge_document(database: Database, source: DocumentText, table: RuleTable) -
                 for occurrence in enabled.rule.check(context):
                     diagnostics.append(RuleDiagnostic(source.ref.path, occurrence, enabled.severity))
 
-    return CheckedSubject(source.ref, diagnostics=tuple(diagnostics), ungoverned=tuple(ungoverned))
+    return CheckedDocument(source.ref, diagnostics=tuple(diagnostics), ungoverned=tuple(ungoverned))
 
 
 def check_skill(database: Database, location: SkillLocation, table: RuleTable) -> SubjectReport:
@@ -145,7 +146,7 @@ def check_skill(database: Database, location: SkillLocation, table: RuleTable) -
 
 def _check_skill_text(
     database: Database, source: SkillText, location: SkillLocation, table: RuleTable
-) -> CheckedSubject:
+) -> CheckedSkillFile:
     """Run the enabled rules over a decoded `SKILL.md`. Raises nothing.
 
     Args:
@@ -178,8 +179,8 @@ def _check_skill_text(
         for occurrence in enabled.rule.check(context):
             diagnostics.append(RuleDiagnostic(source.ref.path, occurrence, enabled.severity))
 
-    # The package governs a skill for every facet, so it is never ungoverned.
-    return CheckedSubject(source.ref, diagnostics=tuple(diagnostics), ungoverned=())
+    # The package governs a skill for every facet, so the report holds no ungoverned facets.
+    return CheckedSkillFile(source.ref, diagnostics=tuple(diagnostics))
 
 
 def check_skill_resource(database: Database, location: SkillResourceLocation, table: RuleTable) -> SubjectReport:
@@ -203,7 +204,7 @@ def check_skill_resource(database: Database, location: SkillResourceLocation, ta
             assert_never(source)
 
 
-def _check_skill_resource_text(database: Database, source: SkillResourceText, table: RuleTable) -> CheckedSubject:
+def _check_skill_resource_text(database: Database, source: SkillResourceText, table: RuleTable) -> CheckedSkillFile:
     """Run the enabled rules over a decoded resource of a skill. Raises nothing.
 
     Only a rule over a Markdown file or over a skill's file judges a resource: no rule over a document, over a skill or
@@ -225,8 +226,8 @@ def _check_skill_resource_text(database: Database, source: SkillResourceText, ta
         for occurrence in enabled.rule.check(context):
             diagnostics.append(RuleDiagnostic(source.ref.path, occurrence, enabled.severity))
 
-    # The package governs every resource, after the Agent Skills specification, so it is never ungoverned.
-    return CheckedSubject(source.ref, diagnostics=tuple(diagnostics), ungoverned=())
+    # The package governs every resource, after the Agent Skills specification, so the report holds no ungoverned facet.
+    return CheckedSkillFile(source.ref, diagnostics=tuple(diagnostics))
 
 
 def check_layout_entry(outside: OutsideSymlink, table: RuleTable) -> CheckedLayoutEntry:

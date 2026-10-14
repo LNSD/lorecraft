@@ -27,7 +27,9 @@ returns at its subject, as a diagnostic of `lorecraft.rules.report`.
   point, so its policy comes after decoding. A rule over a document or over the frontmatter runs only when
   the document is governed for the facet the rule declares, each facet it is not governed for is recorded as
   coverage, and a rule over a Markdown file runs over a document governed for its structure, a skill's `SKILL.md` and
-  each resource handed over as a subject of its own.
+  each resource handed over as a subject of its own. A document's report is a `CheckedDocument`, which holds its
+  coverage; a skill's or a resource's is a `CheckedSkillFile`, which holds none, because the package governs every
+  skill file in full.
 - One entry point per mode, each carrying that mode's policy for a document a failed layer governs: `skip.py` for the
   check run, which gives such a document no rule and reports it as skipped, `partial.py` for the LSP-style mode later.
 - The report of each load failure the model lists (`load_failures.py`): the engine condition of its kind, filed

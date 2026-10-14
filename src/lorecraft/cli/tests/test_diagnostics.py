@@ -23,8 +23,8 @@ from lorecraft.rules.layout.outside_symlink import OutsideSymlink
 from lorecraft.rules.length.too_many_tokens import TooManyTokens
 from lorecraft.rules.outline.missing_section import MissingSection
 from lorecraft.rules.report import (
+    CheckedDocument,
     CheckedLayoutEntry,
-    CheckedSubject,
     LoadFailureReport,
     RuleDiagnostic,
     RunReport,
@@ -99,14 +99,14 @@ def _every_kind_of_report() -> tuple[RunReport, ...]:
     duplicate_name = DuplicateKey(spec=_CODE_SPEC, line=_line(3), key='name', first_line=_line(2), kept_line=_line(3))
     over_budget = TooManyTokens(spec=_CODE_SPEC, line=_line(1), overrun=overrun(2400, 2000))
     return (
-        CheckedSubject(
+        CheckedDocument(
             check,
             diagnostics=(RuleDiagnostic(check.path, missing_usage, Severity.ERROR),),
             ungoverned=(Facet.FRONTMATTER, Facet.BUDGET),
         ),
         CheckedLayoutEntry(review, diagnostics=(RuleDiagnostic(review, outside, Severity.ERROR),)),
         UndecodableSubject(_document('code', 'latin'), _latin_failure()),
-        CheckedSubject(
+        CheckedDocument(
             a,
             diagnostics=(
                 RuleDiagnostic(a.path, duplicate_name, Severity.ERROR),
@@ -114,7 +114,7 @@ def _every_kind_of_report() -> tuple[RunReport, ...]:
             ),
             ungoverned=(),
         ),
-        CheckedSubject(_document('arch', 'adr'), diagnostics=(), ungoverned=(Facet.STRUCTURE,)),
+        CheckedDocument(_document('arch', 'adr'), diagnostics=(), ungoverned=(Facet.STRUCTURE,)),
     )
 
 
@@ -226,7 +226,7 @@ class TestRenderText:
             example=f'{sample_line}\n  - and a nested one',
         )
         reports: tuple[RunReport, ...] = (
-            CheckedSubject(
+            CheckedDocument(
                 guide, diagnostics=(RuleDiagnostic(guide.path, missing_usage, Severity.ERROR),), ungoverned=()
             ),
         )
@@ -251,7 +251,7 @@ class TestRenderText:
             example='Run it:  \n   \n    lorecraft check\n',
         )
         reports: tuple[RunReport, ...] = (
-            CheckedSubject(
+            CheckedDocument(
                 guide, diagnostics=(RuleDiagnostic(guide.path, missing_usage, Severity.ERROR),), ungoverned=()
             ),
         )
@@ -286,7 +286,7 @@ class TestRenderText:
             example='Run it:\r\n    lorecraft check',
         )
         reports: tuple[RunReport, ...] = (
-            CheckedSubject(
+            CheckedDocument(
                 guide, diagnostics=(RuleDiagnostic(guide.path, missing_usage, Severity.ERROR),), ungoverned=()
             ),
         )
@@ -347,7 +347,7 @@ class TestRenderCoverage:
         #: Given
         a = _document('code', 'a')
         reports: tuple[RunReport, ...] = (
-            CheckedSubject(a, diagnostics=(), ungoverned=()),
+            CheckedDocument(a, diagnostics=(), ungoverned=()),
             UndecodableSubject(_document('code', 'latin'), _latin_failure()),
         )
 
@@ -429,7 +429,7 @@ class TestRenderJson:
             spec=_CODE_SPEC, line=_line(3), key='nom é', first_line=_line(2), kept_line=_line(3)
         )
         reports: tuple[RunReport, ...] = (
-            CheckedSubject(a, diagnostics=(RuleDiagnostic(a.path, duplicate_key, Severity.ERROR),), ungoverned=()),
+            CheckedDocument(a, diagnostics=(RuleDiagnostic(a.path, duplicate_key, Severity.ERROR),), ungoverned=()),
         )
 
         #: When
@@ -610,7 +610,7 @@ def _reports_of_a_failed_meta_spec() -> tuple[RunReport, ...]:
     return (
         SkippedSubject(_document('code', 'b'), failed_layers=(_CODE_SPEC,)),
         LoadFailureReport(_CODE_SPEC, malformed),
-        CheckedSubject(_document('feat', 'check'), diagnostics=(), ungoverned=(Facet.BUDGET,)),
+        CheckedDocument(_document('feat', 'check'), diagnostics=(), ungoverned=(Facet.BUDGET,)),
         SkippedSubject(_document('code', 'a'), failed_layers=(_CODE_SPEC,)),
     )
 
