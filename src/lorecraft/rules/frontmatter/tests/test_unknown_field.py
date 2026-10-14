@@ -57,7 +57,7 @@ TEXT: Final[str] = dedent("""\
 """A document whose frontmatter writes `desc`, on line 4."""
 
 PROBLEM: Final[UnknownFieldProblem] = UnknownFieldProblem(
-    'desc', "Additional properties are not allowed ('desc' was unexpected)", ('name', 'description')
+    'desc', "Additional properties are not allowed ('desc' was unexpected)", known_fields=('name', 'description')
 )
 """A field the schema does not define: the rule's condition."""
 
@@ -127,7 +127,7 @@ class TestUnknownField:
         problem = UnknownFieldProblem(
             'desc',
             '`desc` is not a field of the Agent Skills specification',
-            ('name', 'description', 'license', 'compatibility', 'metadata', 'allowed-tools'),
+            known_fields=('name', 'description', 'license', 'compatibility', 'metadata', 'allowed-tools'),
         )
         assert occurrences == (UnknownField(source=AGENT_SKILLS_SOURCE, line=LINE, problem=problem),), (
             "the package states the Agent Skills schema, so a skill's occurrence names no specification file"
@@ -192,7 +192,7 @@ class TestUnknownField:
 
     def test_children_with_a_schema_that_names_no_field_list_none(self) -> None:
         #: Given
-        problem = UnknownFieldProblem('desc', 'Unevaluated properties are not allowed', ())
+        problem = UnknownFieldProblem('desc', 'Unevaluated properties are not allowed', known_fields=())
         occurrence = UnknownField(source=CORPUS_SOURCE, line=LINE, problem=problem)
 
         #: When

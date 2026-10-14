@@ -1313,7 +1313,7 @@ class TestCheckSubjects:
             problem=UnknownFieldProblem(
                 'extra',
                 "Additional properties are not allowed ('extra' was unexpected)",
-                ('name', 'description', 'status'),
+                known_fields=('name', 'description', 'status'),
             ),
         )
         wrong_type = WrongType(
@@ -1377,7 +1377,7 @@ class TestCheckSubjects:
             problem=UnknownFieldProblem(
                 'extra',
                 '`extra` is not a field of the Agent Skills specification',
-                ('name', 'description', 'license', 'compatibility', 'metadata', 'allowed-tools'),
+                known_fields=('name', 'description', 'license', 'compatibility', 'metadata', 'allowed-tools'),
             ),
         )
         wrong_type = WrongType(

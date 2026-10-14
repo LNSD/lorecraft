@@ -22,7 +22,7 @@ from typing import assert_never
 
 from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.path import RootRelativePath
-from lorecraft.vfs import ScopeIndex, VirtualFileSystem
+from lorecraft.vfs import FileSystem, ScopeIndex
 
 from .syntax import (
     AbsoluteDestination,
@@ -105,7 +105,7 @@ type LinkTargetEntry = LinkTarget | EscapingTarget
 
 
 def link_targets_of(
-    links: tuple[Link, ...], base: LinkBase, view: VirtualFileSystem, scope: ScopeIndex
+    links: tuple[Link, ...], base: LinkBase, view: FileSystem, scope: ScopeIndex
 ) -> Mapping[NormalisedLinkPath, LinkTargetEntry]:
     """Where each relative link leads and what the snapshot holds there, keyed by its normalised path. Raises nothing.
 
@@ -180,7 +180,7 @@ def _climbs_above(normalised: PurePosixPath) -> bool:
     return normalised.parts[:1] == ('..',)
 
 
-def _look_up(path: RootRelativePath, view: VirtualFileSystem, scope: ScopeIndex) -> PathLookup:
+def _look_up(path: RootRelativePath, view: FileSystem, scope: ScopeIndex) -> PathLookup:
     """What the snapshot holds at a path, or that the scan never read the directory it sits in.
 
     Args:

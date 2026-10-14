@@ -33,8 +33,11 @@ class TestSkillRelativePath:
         assert invalid_path in str(exc_info.value), 'an absolute path is refused'
 
     def test_parse_with_a_dot_returns_the_skill_directory(self) -> None:
+        #: Given
+        directory = '.'
+
         #: When
-        path = SkillRelativePath.parse('.')
+        path = SkillRelativePath.parse(directory)
 
         #: Then
         assert path.name is None, 'the skill directory has no name'

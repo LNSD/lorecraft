@@ -371,12 +371,12 @@ class TestFrontmatterSchema:
             UnknownFieldProblem(
                 'model',
                 "Additional properties are not allowed ('model' was unexpected)",
-                ('name',),
+                known_fields=('name',),
             ),
             UnknownFieldProblem(
                 'tier',
                 "Additional properties are not allowed ('tier' was unexpected)",
-                ('name',),
+                known_fields=('name',),
             ),
         ), 'each field neither properties nor patternProperties names is its own problem, naming the properties'
 
@@ -404,8 +404,12 @@ class TestFrontmatterSchema:
 
         #: Then
         assert problems == (
-            UnknownFieldProblem('desc', "Unevaluated properties are not allowed ('desc' was unexpected)", ('status',)),
-            UnknownFieldProblem('tier', "Unevaluated properties are not allowed ('tier' was unexpected)", ('status',)),
+            UnknownFieldProblem(
+                'desc', "Unevaluated properties are not allowed ('desc' was unexpected)", known_fields=('status',)
+            ),
+            UnknownFieldProblem(
+                'tier', "Unevaluated properties are not allowed ('tier' was unexpected)", known_fields=('status',)
+            ),
         ), (
             'each field no keyword of the composed schema evaluates is its own problem, on that field, and the fields '
             'named are the properties of the schema holding the keyword, not those it evaluates through `allOf`'
