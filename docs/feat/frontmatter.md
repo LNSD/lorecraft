@@ -65,6 +65,9 @@ authors:
 | Block scalar | Literal `|` or folded `>`, optionally with `-` or `+` chomping | String |
 | Comment, blank line, CRLF or initial BOM | Outside values | No value |
 
+Inside single- or double-quoted values, U+0085, U+2028 and U+2029 stay as text, with surrounding spaces kept.
+They start no new line, so `---` or `...` after one stays in the value.
+
 Plain `~`, `null` (in any of its three case forms) and an empty scalar read as null. `true` and `false` in
 lower, title or upper case read as booleans. Decimal, `0o` octal and `0x` hexadecimal integers read as numbers;
 decimal floats also read as numbers unless they overflow to infinity. Other plain text stays text, including
@@ -127,6 +130,7 @@ help for the recognized kinds are:
 | Tab used to indent | `a tab indents this line` | Indent with spaces |
 | U+0085, U+2028 or U+2029 outside quotes; `name: guide␅type: rule` (`␅` = U+0085) | `the block holds U+0085, which is not a line break here` (with its code point) | Use a line feed, or remove it |
 | Invalid `\q` escape in double quotes | `` `\q` is not an escape `` | Write `\\` for a backslash, or use single quotes |
+| Backslash before U+0085, U+2028 or U+2029 in double quotes | `` `\` before U+0085 is not an escape `` (with its code point) | Write `\\` for a backslash, or use single quotes |
 | Character that cannot start a plain value | `` a plain value cannot start with `@` `` (for `@`) | Quote the value |
 | Control character | `the block holds the control character U+0007` (with its code point) | Remove it |
 

@@ -9,6 +9,7 @@ An error no kind matches is reported on the line the parser marked as `the block
 with no help, so a parser upgrade that rewords an error moves it there rather than to a wrong kind.
 """
 
+import ast
 import re
 import string
 from collections.abc import Mapping
@@ -21,6 +22,9 @@ from ruamel.yaml.reader import ReaderError
 
 _YAML_BREAK: Final[re.Pattern[str]] = re.compile(r'\r\n|[\n\r\x85\u2028\u2029]')
 """A YAML 1.1 line break, which the reader counts a line at: a CRLF pair as one, or any of the other five."""
+
+LINE_SEPARATORS: Final[str] = '\x85\u2028\u2029'
+"""The characters other YAML grammars end a line at, which `core/lines.py` does not: U+0085, U+2028 and U+2029."""
 
 _ESCAPE_HEX_DIGITS: Final[Mapping[str, int]] = MappingProxyType({'x': 2, 'u': 4, 'U': 8})
 """How many hexadecimal digits the escapes `\\x`, `\\u` and `\\U` take after their letter."""
@@ -87,6 +91,9 @@ def describe_error(error: MarkedYAMLError, block: str) -> SyntaxProblem:
             _line_of(context_mark or mark),
         )
     if 'quoted scalar' in context and problem.startswith(('found unknown escape', 'expected escape sequence')):
+        separator = _escaped_separator(problem)
+        if separator is not None:
+            return _separator_escape(separator, mark)
         return _unknown_escape(mark, lines)
     if problem.startswith('found character') and 'cannot start any token' in problem:
         return _unstartable_character(problem, mark, lines)
@@ -424,6 +431,37 @@ def _unstartable_character(problem: str, mark: StreamMark | None, lines: list[st
     if "'" not in problem:
         return _unreadable(_line_of(mark))
     return _cannot_start_value(problem.split("'")[1], mark)
+
+
+def _escaped_separator(problem: str) -> str | None:
+    r"""The line separator a scanner's unknown escape problem names, or `None` for any other character.
+
+    Args:
+        problem: The scanner's problem, `found unknown escape character '\x85'` for U+0085, whose repr it ends with.
+    """
+    prefix = 'found unknown escape character '
+    if not problem.startswith(prefix):
+        return None
+    try:
+        character = ast.literal_eval(problem[len(prefix) :])
+    except (ValueError, SyntaxError):
+        return None
+    return character if isinstance(character, str) and character in LINE_SEPARATORS else None
+
+
+def _separator_escape(separator: str, mark: StreamMark | None) -> SyntaxProblem:
+    """The kind for a backslash before a line separator, which is no line break to escape.
+
+    Args:
+        separator: The separator the backslash is written before.
+        mark: Where the scanner found it.
+    """
+    # The separator is invisible between backticks, so the label names its code point.
+    return SyntaxProblem(
+        f'`\\` before U+{ord(separator):04X} is not an escape',
+        'Write `\\\\` for a backslash, or use single quotes',
+        _line_of(mark),
+    )
 
 
 def _unknown_escape(mark: StreamMark | None, lines: list[str]) -> SyntaxProblem:

@@ -63,7 +63,7 @@ from lorecraft.core.lines import newline_offsets
 from lorecraft.core.mapping import Frozen, FrozenMapping
 
 from .position import LineNumber
-from .syntax_error import SyntaxProblem, describe_control_character, describe_error, yaml_line_starts
+from .syntax_error import LINE_SEPARATORS, SyntaxProblem, describe_control_character, describe_error, yaml_line_starts
 
 _FIRST_BLOCK_LINE: Final[int] = 2
 """The document line the block's first YAML line sits on: the opening delimiter is always line 1."""
@@ -105,8 +105,9 @@ _LINE_END_CHARACTERS: Final[str] = '\0\r\n\x85\u2028\u2029'
 _TOKEN_END_CHARACTERS: Final[str] = _SPACE_CHARACTERS + ',[]{}'
 """The characters that end an anchor, an alias or a tag as a block writes it: whitespace or a flow indicator."""
 
-_LINE_SEPARATORS: Final[str] = '\x85\u2028\u2029'
-"""The characters other YAML grammars end a line at, which `core/lines.py` does not: U+0085, U+2028 and U+2029."""
+_QUOTED_TEXT_END_CHARACTERS: Final[str] = ' \n\'"\\\0\t\r'
+"""The characters the text of a quoted scalar stops at: ruamel.yaml's set without U+0085, U+2028 and U+2029, which
+are text inside quotes."""
 
 _DIRECTIVE_NAME_END_CHARACTERS: Final[str] = _SPACE_CHARACTERS + ',[]{}:'
 """The characters that end the name a refused directive is reported by: whitespace, a flow indicator or a `:`."""
@@ -679,7 +680,7 @@ class _BasicYamlReader(Reader):
         # scanner records, so the line count below is only ever asked about one inside a quoted scalar.
         if not self.quoted and self.separator is None:
             for offset, character in enumerate(self.prefix(length)):
-                if character in _LINE_SEPARATORS:
+                if character in LINE_SEPARATORS:
                     self.forward_1_1(offset)
                     self.separator = _RecordedRefusal(
                         _RecordedConstruct.LINE_SEPARATOR, self.get_mark(), character=character
@@ -896,7 +897,7 @@ class _BasicYamlScanner(Scanner):
                 self._refuse_document_marker()
             while self.reader.peek() in ' \t':
                 self.reader.forward()
-            if self.reader.peek() not in '\r\n\x85\u2028\u2029':
+            if self.reader.peek() not in '\r\n':
                 return chunks
             chunks.append(self.scan_line_break())
 
@@ -912,14 +913,22 @@ class _BasicYamlScanner(Scanner):
         finally:
             self.reader.quoted = False
 
-    def scan_line_break(self) -> str:
-        """Scan a line break, which for ruamel.yaml includes U+0085, here kept as the text it is inside quotes."""
-        # ruamel.yaml folds a U+0085 into a line feed and keeps U+2028 and U+2029 as they are. Frontmatter refuses all
-        # three outside a quoted scalar, so one met here is quoted text, and it stays.
-        if self.reader.peek() == '\x85':
-            self.reader.forward()
-            return '\x85'
-        return str(super().scan_line_break())
+    def scan_flow_scalar_spaces(self, double: bool, start_mark: StreamMark) -> list[str]:
+        """Scan the spaces of a quoted scalar, which stay text before a line separator, as the separator does.
+
+        Args:
+            double: True for a double-quoted scalar; False for a single-quoted one.
+            start_mark: Where the scalar starts, for the scanner's own error messages.
+        """
+        length = 0
+        while self.reader.peek(length) in ' \t':
+            length += 1
+        if self.reader.peek(length) in LINE_SEPARATORS:
+            # ruamel.yaml folds the spaces and the separator into one line break. Here the separator is text.
+            whitespaces = self.reader.prefix(length)
+            self.reader.forward(length)
+            return [whitespaces]
+        return _strings(super().scan_flow_scalar_spaces(double, start_mark))
 
     # Where ruamel.yaml's scanner differs from PyYAML's, each method below is PyYAML's reading, because `FM002` has
     # always reported what PyYAML's scanner found: the same blocks refused, with the same problem on the same line.
@@ -952,25 +961,72 @@ class _BasicYamlScanner(Scanner):
         return mark
 
     def scan_flow_scalar_non_spaces(self, double: bool, start_mark: StreamMark) -> list[str]:
-        """Scan the text of a quoted scalar up to its next space.
+        """Scan the text of a quoted scalar up to its next space, a line separator taken as text.
 
         Args:
             double: True for a double-quoted scalar, whose backslash escapes are decoded; False for a single-quoted one.
             start_mark: Where the scalar starts, for the scanner's own error messages.
 
         Raises:
+            ScannerError: An escape is not one YAML knows, or is written with a digit that is not hexadecimal.
             _RefusedEscapeError: An escape names no Unicode character.
         """
-        try:
-            chunks = super().scan_flow_scalar_non_spaces(double, start_mark)
-        except (ValueError, OverflowError) as exc:
-            # The scanner checks that an escape is written in hexadecimal, but not that the code point it names is
-            # at most U+10FFFF, so `chr` raises: a ValueError for `\U00110000`, and for `\UFFFFFFFF`, which does not
-            # fit a C int, an OverflowError on the interpreters that convert the argument first. Nothing else in
-            # this method raises either. The scanner stops on the escape's digits, so its current mark is on the
-            # escape's line.
-            raise _RefusedEscapeError(self.reader.get_mark(), source=exc) from exc
-        return _strings(chunks)
+        # This is ruamel.yaml's method as of 0.19.1 with two changes: a line separator is not a character the text
+        # stops at, and a backslash before one is an unknown escape, not an escaped line break.
+        chunks: list[str] = []
+        while True:
+            length = 0
+            while self.reader.peek(length) not in _QUOTED_TEXT_END_CHARACTERS:
+                length += 1
+            if length != 0:
+                chunks.append(self.reader.prefix(length))
+                self.reader.forward(length)
+            character = self.reader.peek()
+            if not double and character == "'" and self.reader.peek(1) == "'":
+                chunks.append("'")
+                self.reader.forward(2)
+            elif (double and character == "'") or (not double and character in '"\\'):
+                chunks.append(character)
+                self.reader.forward()
+            elif double and character == '\\':
+                self.reader.forward()
+                character = self.reader.peek()
+                if character in self.ESCAPE_REPLACEMENTS:
+                    chunks.append(self.ESCAPE_REPLACEMENTS[character])
+                    self.reader.forward()
+                elif character in self.ESCAPE_CODES:
+                    digits = self.ESCAPE_CODES[character]
+                    self.reader.forward()
+                    for offset in range(digits):
+                        if self.reader.peek(offset) not in '0123456789ABCDEFabcdef':
+                            raise ScannerError(
+                                'while scanning a double-quoted scalar',
+                                start_mark,
+                                f'expected escape sequence of {digits:d} '
+                                f'hexdecimal numbers, but found {self.reader.peek(offset)!r}',
+                                self.reader.get_mark(),
+                            )
+                    try:
+                        chunks.append(chr(int(self.reader.prefix(digits), 16)))
+                    except (ValueError, OverflowError) as exc:
+                        # The digits are checked to be hexadecimal, but not that the code point they name is at most
+                        # U+10FFFF, so `chr` raises: a ValueError for `\U00110000`, and for `\UFFFFFFFF`, which does
+                        # not fit a C int, an OverflowError on the interpreters that convert the argument first. The
+                        # reader is on the escape's digits, so its mark is on the escape's line.
+                        raise _RefusedEscapeError(self.reader.get_mark(), source=exc) from exc
+                    self.reader.forward(digits)
+                elif character in '\n\r':
+                    self.scan_line_break()
+                    chunks.extend(_strings(self.scan_flow_scalar_breaks(double, start_mark)))
+                else:
+                    raise ScannerError(
+                        'while scanning a double-quoted scalar',
+                        start_mark,
+                        f'found unknown escape character {character!r}',
+                        self.reader.get_mark(),
+                    )
+            else:
+                return chunks
 
     def scan_to_next_token(self) -> None:
         r"""Skip spaces, comments and line breaks to the next token; a tab is no whitespace, in a flow collection too.

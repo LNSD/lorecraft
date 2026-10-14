@@ -184,6 +184,103 @@ class TestDecodeFrontmatter:
             repeats=(),
         ), 'a separator inside a quoted scalar is text, and ends no line'
 
+    def test_decode_frontmatter_with_a_next_line_between_spaces_inside_double_quotes_returns_it_with_the_text_around_it(
+        self,
+    ) -> None:
+        #: Given
+        separator = '\x85'
+        block = f'a: "x {separator} y"\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert isinstance(node, Frontmatter), f'a separator inside quotes is text, got {node!r}'
+        assert node.data == FrozenMapping({'a': f'x {separator} y'}), (
+            'the spaces around a separator stay, as it ends no line'
+        )
+
+    def test_decode_frontmatter_with_a_next_line_between_spaces_inside_single_quotes_returns_it_with_the_text_around_it(
+        self,
+    ) -> None:
+        #: Given
+        separator = '\x85'
+        block = f"a: 'x {separator} y'\n"
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert isinstance(node, Frontmatter), f'a separator inside quotes is text, got {node!r}'
+        assert node.data == FrozenMapping({'a': f'x {separator} y'}), (
+            'the spaces around a separator stay, as it ends no line'
+        )
+
+    def test_decode_frontmatter_with_a_next_line_before_dashes_inside_double_quotes_returns_it_with_the_text_around_it(
+        self,
+    ) -> None:
+        #: Given
+        separator = '\x85'
+        block = f'a: "x{separator}--- y"\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert isinstance(node, Frontmatter), f'a separator inside quotes is text, got {node!r}'
+        assert node.data == FrozenMapping({'a': f'x{separator}--- y'}), (
+            'a marker is written at the start of a line, and a separator starts none'
+        )
+
+    def test_decode_frontmatter_with_a_next_line_before_dots_inside_single_quotes_returns_it_with_the_text_around_it(
+        self,
+    ) -> None:
+        #: Given
+        separator = '\x85'
+        block = f"a: 'x{separator}... y'\n"
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert isinstance(node, Frontmatter), f'a separator inside quotes is text, got {node!r}'
+        assert node.data == FrozenMapping({'a': f'x{separator}... y'}), (
+            'a marker is written at the start of a line, and a separator starts none'
+        )
+
+    def test_decode_frontmatter_with_a_next_line_before_a_line_break_in_double_quotes_returns_it_with_the_text(
+        self,
+    ) -> None:
+        #: Given
+        separator = '\x85'
+        block = f'a: "x{separator}\n  y"\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert isinstance(node, Frontmatter), f'a separator inside quotes is text, got {node!r}'
+        assert node.data == FrozenMapping({'a': f'x{separator} y'}), (
+            'the line break folds as usual and the separator stays'
+        )
+
+    def test_decode_frontmatter_with_a_backslash_before_a_next_line_inside_double_quotes_returns_invalid_yaml(
+        self,
+    ) -> None:
+        #: Given
+        separator = '\x85'
+        block = f'a: "x\\{separator}y"\n'
+
+        #: When
+        node = decode_frontmatter(block)
+
+        #: Then
+        assert node == InvalidYamlFrontmatter(
+            problem='`\\` before U+0085 is not an escape',
+            help='Write `\\\\` for a backslash, or use single quotes',
+            line=LineNumber.from_int(2),
+        ), 'a separator is no line break to escape, so it is named by its code point'
+
     def test_decode_frontmatter_with_a_line_separator_in_a_plain_value_returns_invalid_yaml_on_its_line(self) -> None:
         #: Given
         separator = '\u2028'
