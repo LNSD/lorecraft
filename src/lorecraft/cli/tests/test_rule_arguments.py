@@ -1,6 +1,6 @@
 """Parsing the values of `--select`, `--ignore` and `rule [RULE]`, and confirming them against the rule index."""
 
-from typing import Final
+from typing import Final, Literal
 
 import pytest
 
@@ -28,7 +28,7 @@ from ..rule_arguments import (
 )
 
 GROUPS: Final[tuple[tuple[str, str], ...]] = (('LC', 'Engine conditions'), ('OUT', 'Outline checks'))
-RULES: Final[tuple[index.RuleRow, ...]] = (
+RULES: Final[tuple[tuple[str, str, Literal['rule', 'removed', 'condition'], str, tuple[str, ...]], ...]] = (
     ('LC001', 'invalid-utf8', 'condition', 'error', ()),
     ('OUT004', 'empty-section', 'rule', 'deny', ('MD040',)),
     ('OUT006', 'missing-section', 'rule', 'deny', ()),

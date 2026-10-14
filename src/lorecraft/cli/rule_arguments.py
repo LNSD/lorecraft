@@ -40,9 +40,6 @@ if TYPE_CHECKING:
 _ALL: Final[str] = 'ALL'
 """The selector for every rule; no group may take it as its prefix."""
 
-_CODE_DIGITS: Final[int] = 3
-"""How many digits end a code, after its group's prefix."""
-
 _RULE_KIND: Final[str] = 'rule'
 _REMOVED_KIND: Final[str] = 'removed'
 _CONDITION_KIND: Final[str] = 'condition'
@@ -316,7 +313,7 @@ class CodeSelector:
 
     def __str__(self) -> str:
         """The selector as typed: the group's prefix, then the number zero-padded to three digits."""
-        return f'{self.group_prefix}{self.number:0{_CODE_DIGITS}d}'
+        return f'{self.group_prefix}{self.number:0{index.CODE_DIGITS}d}'
 
 
 @dataclass(frozen=True, slots=True)
@@ -487,18 +484,18 @@ def _parse_prefix(text: str) -> GroupSelector | CodePrefixSelector:
     """
     group_prefix = text.rstrip(digits)
     number_digits = text[len(group_prefix) :]
-    if not _is_group_prefix(group_prefix) or len(number_digits) > _CODE_DIGITS:
+    if not _is_group_prefix(group_prefix) or len(number_digits) > index.CODE_DIGITS:
         raise MalformedSelectorError(text)
-    if len(number_digits) == _CODE_DIGITS and int(number_digits) == 0:
+    if len(number_digits) == index.CODE_DIGITS and int(number_digits) == 0:
         raise MalformedSelectorError(text)
 
-    if index.group_title(group_prefix) is None:
+    if index.find_group_title(group_prefix) is None:
         raise UnknownSelectorError(text)
     if _is_engine_group(group_prefix):
         raise EngineSelectorError(text)
     if not number_digits:
         return GroupSelector(group_prefix)
-    if len(number_digits) == _CODE_DIGITS or not _starts_a_rule_in_service(text):
+    if len(number_digits) == index.CODE_DIGITS or not _starts_a_rule_in_service(text):
         raise UnknownSelectorError(text)
     return CodePrefixSelector(group_prefix, number_digits)
 
@@ -509,7 +506,7 @@ def _split_code(code: str) -> CodeSelector:
     Args:
         code: A rule's code, such as `OUT006`.
     """
-    return CodeSelector(code[:-_CODE_DIGITS], int(code[-_CODE_DIGITS:]))
+    return CodeSelector(code[: -index.CODE_DIGITS], int(code[-index.CODE_DIGITS :]))
 
 
 def _require_group(registry: 'Registry', prefix: str) -> 'RuleGroup':
@@ -543,7 +540,7 @@ def _is_engine_group(prefix: str) -> bool:
     Args:
         prefix: The prefix of a group the index has.
     """
-    kinds = {kind for code, _name, kind, _level, _aliases in index.RULES if code[:-_CODE_DIGITS] == prefix}
+    kinds = {kind for code, _name, kind, _level, _aliases in index.RULES if code[: -index.CODE_DIGITS] == prefix}
     return kinds == {_CONDITION_KIND}
 
 
@@ -564,7 +561,7 @@ def _has_code_shape(text: str) -> bool:
     """
     group_prefix = text.rstrip(digits)
     number_digits = text[len(group_prefix) :]
-    return _is_group_prefix(group_prefix) and len(number_digits) == _CODE_DIGITS and int(number_digits) != 0
+    return _is_group_prefix(group_prefix) and len(number_digits) == index.CODE_DIGITS and int(number_digits) != 0
 
 
 def _has_name_shape(text: str) -> bool:
