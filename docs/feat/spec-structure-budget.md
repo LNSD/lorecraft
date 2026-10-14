@@ -29,7 +29,8 @@ the budget as `LEN001`.
 - **Word cap**: The most prose words a section may hold, its H3 subsections included.
 - **Prose word**: Whitespace-delimited text outside code blocks, fenced or indented, table rows and headings, so
   an example, a reference table or a heading costs no words toward its section's cap. The title's own text is what
-  a `title` cap counts, as [spec-structure-outline](spec-structure-outline.md) describes.
+  a `title` cap counts, as [spec-structure-outline](spec-structure-outline.md) describes. Table rows are separated
+  by the [document's line endings](cli-check.md#key-concepts), so a form feed inside a row does not start a new row.
 - **Token budget**: The most `o200k_base` tokens the whole file may hold, frontmatter, code and tables
   included. The count is the same whichever agent reads the document.
 

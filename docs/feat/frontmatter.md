@@ -77,10 +77,12 @@ text must be kept.
 - A flow collection at the top level is `FM002`, even when it contains a mapping.
 - The format excludes YAML constructs used to share nodes or choose custom types; write the value directly.
 - Schema rules apply after the block decodes. A valid value can still fail its frontmatter schema.
+- `---` delimiters ending in a lone `\r` are not recognized as a frontmatter block.
 
 ## Refused Constructs
 
-Each of these is `FM002` on its line. The label is `found <what>, which frontmatter does not allow`;
+Each of these is `FM002` on its [document line](cli-check.md#key-concepts). The label is
+`found <what>, which frontmatter does not allow`;
 `<what>` is as shown below. The first refused construct in the block is reported.
 
 | Written construct | Example | `<what>` |
@@ -109,7 +111,7 @@ A question mark within a plain scalar in a flow sequence, such as `[what?]`, is 
 ## Syntax Errors
 
 Malformed syntax is also `FM002`. Its main message is `frontmatter is not valid YAML`. Lorecraft labels the
-line to fix and gives help for a recognized error. An unclosed quote is reported where it opens. Labels and
+document line to fix and gives help for a recognized error. An unclosed quote is reported where it opens. Labels and
 help for the recognized kinds are:
 
 | Error | Label | Help |
@@ -131,7 +133,7 @@ A malformed anchor, alias or tag is named as a refusal without help. An error no
 ## Repeated Keys
 
 `FM005 duplicate-key` reports each later occurrence of a key in one mapping, at any depth. It covers block
-and flow mappings, including mappings in list items. The finding is on the later key's line, labelled
+and flow mappings, including mappings in list items. The finding is on the later key's document line, labelled
 `written again here`, and points to the first occurrence with `first written here` when it is on another
 line. On a single-line flow mapping, only `written again here` appears.
 
