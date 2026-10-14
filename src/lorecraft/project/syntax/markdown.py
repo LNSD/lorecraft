@@ -29,9 +29,10 @@ from wenmode.nodes import Heading as WenmodeHeading
 from wenmode.nodes import Link as WenmodeLink
 from wenmode.plugins import frontmatter
 
+from lorecraft.core.lines import newline_offsets
+
 from .frontmatter import FrontmatterNode, MissingFrontmatter, decode_frontmatter
 from .heading import HeadingLevel
-from .lines import newline_offsets
 from .link import Link
 from .position import LineNumber
 

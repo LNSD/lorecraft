@@ -35,8 +35,9 @@ from typing import Final, assert_never
 
 import typer
 
+from lorecraft.core.lines import split_lines
 from lorecraft.core.path import RootRelativePath
-from lorecraft.project.syntax import LineNumber, split_lines
+from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.declaration import Severity
 from lorecraft.rules.location import EntrySubdiagnostic, Subdiagnostic
 from lorecraft.rules.report import Diagnostic, RunReport

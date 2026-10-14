@@ -34,6 +34,12 @@ for. The rest of the project specializes it. It never specializes the rest of th
 `lorecraft.core.num` holds only the numbers that are generic over the domain, the way a standard library holds
 integers and ranges. A number type tied to a domain concept lives with that domain, built from the generic ones.
 
+### `lines`
+
+`lorecraft.core.lines` is the one place that says where a line ends: at a `\n`. Any code that counts, splits or
+numbers the lines of a text, or of the bytes it decodes from, goes through it, so two packages never disagree on a
+line number.
+
 ## Belongs Elsewhere
 
 A standard library is specialized by the code that uses it, never the other way round. Code that specializes a
