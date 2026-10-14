@@ -24,32 +24,73 @@ EVERY_RULE: Final[RuleSelection] = RuleSelection(select=frozenset({AllRules()}),
 
 @pytest.mark.unit
 class TestRuleCodePrefix:
-    def test_rule_code_prefix_with_one_digit_is_prefix_of_the_codes_whose_number_starts_with_it(self) -> None:
+    def test_is_prefix_of_with_a_code_whose_number_starts_with_the_digit_returns_true(self) -> None:
         #: Given
         prefix = SMP0
+        code = SMP001
 
         #: When
-        is_prefix = (
-            prefix.is_prefix_of(SMP001),
-            prefix.is_prefix_of(SMP010),
-            prefix.is_prefix_of(SMP100),
-            prefix.is_prefix_of(LAYS001),
-        )
+        is_prefix = prefix.is_prefix_of(code)
 
         #: Then
-        assert is_prefix == (True, True, False, False), (
-            "a prefix starts its group's codes whose zero-padded number does"
-        )
+        assert is_prefix, 'a prefix starts the codes of its group whose zero-padded number starts with it'
 
-    def test_rule_code_prefix_with_two_digits_is_prefix_of_fewer_codes(self) -> None:
+    def test_is_prefix_of_with_a_code_whose_number_starts_with_the_digit_and_has_another_second_digit_returns_true(
+        self,
+    ) -> None:
+        #: Given
+        prefix = SMP0
+        code = SMP010
+
+        #: When
+        is_prefix = prefix.is_prefix_of(code)
+
+        #: Then
+        assert is_prefix, 'a prefix starts the codes of its group whose zero-padded number starts with it'
+
+    def test_is_prefix_of_with_a_code_whose_number_does_not_start_with_the_digit_returns_false(self) -> None:
+        #: Given
+        prefix = SMP0
+        code = SMP100
+
+        #: When
+        is_prefix = prefix.is_prefix_of(code)
+
+        #: Then
+        assert not is_prefix, 'a prefix does not start a code whose zero-padded number starts with another digit'
+
+    def test_is_prefix_of_with_a_code_of_another_group_returns_false(self) -> None:
+        #: Given
+        prefix = SMP0
+        code = LAYS001
+
+        #: When
+        is_prefix = prefix.is_prefix_of(code)
+
+        #: Then
+        assert not is_prefix, 'a prefix starts the codes of its own group alone'
+
+    def test_is_prefix_of_with_two_digits_and_a_code_starting_with_both_returns_true(self) -> None:
         #: Given
         prefix = SMP00
+        code = SMP001
 
         #: When
-        is_prefix = (prefix.is_prefix_of(SMP001), prefix.is_prefix_of(SMP010))
+        is_prefix = prefix.is_prefix_of(code)
 
         #: Then
-        assert is_prefix == (True, False), 'a second digit narrows the codes a prefix starts'
+        assert is_prefix, 'a second digit narrows the codes a prefix starts, and this one still starts it'
+
+    def test_is_prefix_of_with_two_digits_and_a_code_starting_with_the_first_only_returns_false(self) -> None:
+        #: Given
+        prefix = SMP00
+        code = SMP010
+
+        #: When
+        is_prefix = prefix.is_prefix_of(code)
+
+        #: Then
+        assert not is_prefix, 'a second digit narrows the codes a prefix starts, and this one no longer does'
 
     def test_rule_code_prefix_with_two_digits_prints_as_the_group_prefix_then_the_digits(self) -> None:
         #: Given
@@ -97,55 +138,126 @@ class TestRuleCodePrefix:
 
 @pytest.mark.unit
 class TestRuleSelectionIsKept:
-    def test_is_kept_with_every_rule_keeps_any_code(self) -> None:
+    def test_is_kept_with_every_rule_selected_keeps_any_code(self) -> None:
         #: Given
         selection = EVERY_RULE
+        code = LAYS001
 
         #: When
-        kept = selection.is_kept(LAYS001)
+        kept = selection.is_kept(code)
 
         #: Then
         assert kept, 'no --select keeps every rule'
 
-    def test_is_kept_with_a_selected_code_keeps_that_rule_alone(self) -> None:
+    def test_is_kept_with_a_selected_code_keeps_that_rule(self) -> None:
         #: Given
         selection = RuleSelection(select=frozenset({SMP001}), ignore=frozenset())
+        code = SMP001
 
         #: When
-        kept = (selection.is_kept(SMP001), selection.is_kept(SMP002))
+        kept = selection.is_kept(code)
 
         #: Then
-        assert kept == (True, False), 'a code selects its rule, and no other rule of its group'
+        assert kept, 'a code selects its rule'
 
-    def test_is_kept_with_a_selected_group_keeps_each_of_its_rules_and_no_other(self) -> None:
+    def test_is_kept_with_a_selected_code_leaves_out_another_rule_of_its_group(self) -> None:
+        #: Given
+        selection = RuleSelection(select=frozenset({SMP001}), ignore=frozenset())
+        code = SMP002
+
+        #: When
+        kept = selection.is_kept(code)
+
+        #: Then
+        assert not kept, 'a code selects no other rule of its group'
+
+    def test_is_kept_with_a_selected_group_keeps_a_rule_of_the_group(self) -> None:
         #: Given
         selection = RuleSelection(select=frozenset({SAMPLE}), ignore=frozenset())
+        code = SMP001
 
         #: When
-        kept = (selection.is_kept(SMP001), selection.is_kept(SMP002), selection.is_kept(LAYS001))
+        kept = selection.is_kept(code)
 
         #: Then
-        assert kept == (True, True, False), "a prefix selects every rule of its group, and no other group's"
+        assert kept, 'a group selects every rule it holds'
 
-    def test_is_kept_with_a_selected_code_prefix_keeps_the_rules_it_starts(self) -> None:
+    def test_is_kept_with_a_selected_group_keeps_another_rule_of_the_group(self) -> None:
+        #: Given
+        selection = RuleSelection(select=frozenset({SAMPLE}), ignore=frozenset())
+        code = SMP002
+
+        #: When
+        kept = selection.is_kept(code)
+
+        #: Then
+        assert kept, 'a group selects every rule it holds'
+
+    def test_is_kept_with_a_selected_group_leaves_out_a_rule_of_another_group(self) -> None:
+        #: Given
+        selection = RuleSelection(select=frozenset({SAMPLE}), ignore=frozenset())
+        code = LAYS001
+
+        #: When
+        kept = selection.is_kept(code)
+
+        #: Then
+        assert not kept, "a group selects no other group's rule"
+
+    def test_is_kept_with_a_selected_code_prefix_keeps_a_rule_it_starts(self) -> None:
         #: Given
         selection = RuleSelection(select=frozenset({SMP0}), ignore=frozenset())
+        code = SMP001
 
         #: When
-        kept = (selection.is_kept(SMP001), selection.is_kept(SMP010), selection.is_kept(SMP100))
+        kept = selection.is_kept(code)
 
         #: Then
-        assert kept == (True, True, False), 'a code prefix selects the rules whose code it starts'
+        assert kept, 'a code prefix selects the rules whose code it starts'
 
-    def test_is_kept_with_an_ignored_code_and_every_rule_selected_leaves_that_rule_out(self) -> None:
+    def test_is_kept_with_a_selected_code_prefix_keeps_another_rule_it_starts(self) -> None:
+        #: Given
+        selection = RuleSelection(select=frozenset({SMP0}), ignore=frozenset())
+        code = SMP010
+
+        #: When
+        kept = selection.is_kept(code)
+
+        #: Then
+        assert kept, 'a code prefix selects the rules whose code it starts'
+
+    def test_is_kept_with_a_selected_code_prefix_leaves_out_a_rule_it_does_not_start(self) -> None:
+        #: Given
+        selection = RuleSelection(select=frozenset({SMP0}), ignore=frozenset())
+        code = SMP100
+
+        #: When
+        kept = selection.is_kept(code)
+
+        #: Then
+        assert not kept, 'a code prefix selects no rule whose code it does not start'
+
+    def test_is_kept_with_every_rule_selected_and_a_code_ignored_leaves_that_rule_out(self) -> None:
         #: Given
         selection = RuleSelection(select=frozenset({AllRules()}), ignore=frozenset({SMP001}))
+        code = SMP001
 
         #: When
-        kept = (selection.is_kept(SMP001), selection.is_kept(SMP002))
+        kept = selection.is_kept(code)
 
         #: Then
-        assert kept == (False, True), 'an ignored code leaves its rule out, and only it'
+        assert not kept, 'an ignored code leaves its rule out'
+
+    def test_is_kept_with_every_rule_selected_and_a_code_ignored_keeps_another_rule(self) -> None:
+        #: Given
+        selection = RuleSelection(select=frozenset({AllRules()}), ignore=frozenset({SMP001}))
+        code = SMP002
+
+        #: When
+        kept = selection.is_kept(code)
+
+        #: Then
+        assert kept, 'an ignored code leaves out its rule alone'
 
 
 @pytest.mark.unit
