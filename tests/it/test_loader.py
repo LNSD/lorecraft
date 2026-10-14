@@ -21,11 +21,10 @@ from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.project.aspect import AspectFilename, AspectNamespace
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.document import DocumentRef
-from lorecraft.project.document.repo import Repository as DocumentRepository
+from lorecraft.project.document import Repository as DocumentRepository
 from lorecraft.project.layout import SNAPSHOT_SCOPE, SPECS_DIR
-from lorecraft.project.schemas import CorpusSpecName, NamespaceSpecName, SectionName
+from lorecraft.project.schemas import CorpusSpecName, NamespaceSpecName, SectionName, StructureSpec
 from lorecraft.project.schemas import Repository as SchemaRepository
-from lorecraft.project.schemas.structure import StructureSpec
 from lorecraft.project.skill import OutsideSymlink, SkillLocation, SkillRef, SkillsDir
 from lorecraft.project.skill import Repository as SkillRepository
 from lorecraft.project.workspace import (
@@ -51,9 +50,10 @@ from lorecraft.project.workspace import (
     UnresolvableSkillFile,
     UnresolvableSkillsDirectory,
     UntypedFrontmatterSchema,
+    WorkspaceModel,
+    load_model,
+    load_workspace,
 )
-from lorecraft.project.workspace.loader import load_model, load_workspace
-from lorecraft.project.workspace.model import WorkspaceModel
 from lorecraft.vfs import DiskFileSystem, OsRefusal, ResolvedPath, RootExit, VirtualFileSystem, take_snapshot
 
 CLAUDE: Final[AgentName] = AgentName('claude-code')

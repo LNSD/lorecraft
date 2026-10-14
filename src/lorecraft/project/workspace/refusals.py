@@ -14,7 +14,7 @@ from typing import assert_never
 from lorecraft.core.error import Error
 from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.project.layout import SPECS_DIR
-from lorecraft.project.schemas.spec_file import SpecFileType, spec_filename
+from lorecraft.project.schemas import SpecFileType, spec_filename
 from lorecraft.vfs import OsRefusal, RefusedInspect, RefusedListing, RefusedRead, RefusedRecord
 
 from .failure import (

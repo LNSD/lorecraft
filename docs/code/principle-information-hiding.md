@@ -20,7 +20,10 @@ Operationally, in Python:
    outside the module genuinely needs the name.
 2. **A package's `__all__` is its surface.** The `__all__` in a package's `__init__.py` is the list of names the
    package supports, and adding to it is the only widening that counts. Everything reachable by a longer import
-   path is reachable the way a screwdriver reaches the inside of a radio.
+   path is reachable the way a screwdriver reaches the inside of a radio, so a name the package exports is
+   imported from the package, never through the submodule that defines it. A package whose `__init__.py`
+   re-exports nothing has no surface to list and needs no `__all__`; `python-modules.md` §5 decides when one is
+   declared.
 3. **Reaching into another subpackage's underscored name is the violation.** Nothing raises, nothing warns,
    the import simply succeeds — which is exactly why the convention has to carry the weight. An underscore is a
    request, and a request that is honoured only when enforced is not a convention at all.
@@ -158,16 +161,20 @@ subclasses, not to hide anything, and using it for privacy mostly annoys the deb
 
 When you deliberately expose more than a caller strictly needs — a type a downstream consumer must name in its
 own annotations, a helper published so a repository can write a check of its own — say why in the docstring at
-the declaration and list it in `__all__` on purpose. An undocumented public name on something the package does
-not intend to support is indistinguishable from an oversight, and will be depended on as though it were
-supported.
+the declaration and list it in `__all__` on purpose. A type that is public only because it types a public
+field is part of the surface a caller needs, and needs no such note. An undocumented public name on something
+the package does not intend to support is indistinguishable from an oversight, and will be depended on as
+though it were supported.
 
 ## Checklist
 
 Before committing code, verify:
 
-- [ ] Every new name starts with an underscore unless a caller outside its module needs it
-- [ ] Each package's `__init__.py` declares an explicit `__all__`; no `import *` builds the surface
+- [ ] Every new name starts with an underscore unless a caller outside its module needs it (test modules
+      are exempt, `python-naming.md` §2)
+- [ ] An `__init__.py` that re-exports names declares an explicit `__all__` (`python-modules.md` §5); no
+      `import *` builds the surface
+- [ ] A name a package exports is imported from the package, not through the submodule that defines it
 - [ ] Every name added to `__all__` has a caller that needs it and an owner willing to support it
 - [ ] No module imports an underscored name from another subpackage
 - [ ] A module is kept internal by leaving its names out of its package's `__all__`, not by an underscore on

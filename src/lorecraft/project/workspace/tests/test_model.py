@@ -15,7 +15,7 @@ from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.project.aspect import AspectFilename, AspectNamespace
 from lorecraft.project.corpus import CorpusName
-from lorecraft.project.document.ref import DocumentRef
+from lorecraft.project.document import DocumentRef
 from lorecraft.project.layout import SPECS_DIR
 from lorecraft.project.schemas import (
     CorpusSpecName,

@@ -17,7 +17,7 @@ from dataclasses import dataclass
 
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.corpus import CorpusName
-from lorecraft.project.schemas.name import SpecName
+from lorecraft.project.schemas import SpecName
 from lorecraft.project.schemas.structure_failure import StructureSpecFailure
 from lorecraft.vfs import OsRefusal, Utf8Failure
 

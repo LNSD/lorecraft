@@ -44,6 +44,9 @@ Python does not enforce this, which is exactly why it must be applied without ex
 outside code reaches into becomes part of the interface whether or not anyone intended it, and the next person
 to rename it discovers the dependency at runtime in someone else's module.
 
+Test modules are exempt: they are not part of any package's surface, so the constants and helpers in a
+`test_*.py` file need no leading underscore.
+
 ```python
 # ❌ Bad — the finding buffer and the section counter read as public API, so a caller that
 # pokes `checker.pending.append(finding)` bypasses the severity filter and a warnings-only

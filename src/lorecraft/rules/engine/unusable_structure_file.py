@@ -3,8 +3,7 @@
 from dataclasses import dataclass
 from typing import ClassVar, assert_never
 
-from lorecraft.project.schemas.section_name import SectionName
-from lorecraft.project.schemas.structure_file import JSON_SCHEMA_DIALECT
+from lorecraft.project.schemas import JSON_SCHEMA_DIALECT, SectionName
 from lorecraft.rules.collector import rule
 from lorecraft.rules.declaration import FileCondition
 from lorecraft.rules.identity import EngineCode, Release, RuleName, Severity

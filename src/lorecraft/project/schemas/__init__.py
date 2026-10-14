@@ -71,6 +71,7 @@ from .skill_fields import (
     parse_skill_fields,
 )
 from .skill_frontmatter import (
+    SKILL_NAME_PATTERN,
     EmptySkillCompatibilityError,
     EmptySkillDescriptionError,
     EmptySkillNameError,
@@ -113,7 +114,7 @@ from .structure import (
     WordCappedTitleChecks,
 )
 from .structure_failure import StructureSpecProblem
-from .structure_file import StructureFile
+from .structure_file import JSON_SCHEMA_DIALECT, StructureFile
 
 __all__: list[str] = [
     'CorpusSpecName',
@@ -135,6 +136,7 @@ __all__: list[str] = [
     'StructureSpec',
     'FrontmatterSchema',
     'StructureFile',
+    'JSON_SCHEMA_DIALECT',
     'TitleChecks',
     'PatternedTitleChecks',
     'WordCappedTitleChecks',
@@ -153,6 +155,7 @@ __all__: list[str] = [
     'Repository',
     'SkillFrontmatter',
     'SkillName',
+    'SKILL_NAME_PATTERN',
     'EmptySkillNameError',
     'OverlongSkillNameError',
     'InvalidSkillNameFormatError',

@@ -7,9 +7,7 @@ import pytest
 from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.project.corpus import CorpusName
-from lorecraft.project.schemas.name import CorpusSpecName
-from lorecraft.project.schemas.section_name import SectionName
-from lorecraft.project.schemas.structure import StructureSpecProblem
+from lorecraft.project.schemas import CorpusSpecName, SectionName, StructureSpecProblem
 from lorecraft.project.workspace import (
     AdjacentAnyRuns,
     EmptyStructureSpec,

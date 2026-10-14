@@ -18,13 +18,11 @@ from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.project.aspect import AspectFilename, AspectNamespace
 from lorecraft.project.corpus import CorpusName
-from lorecraft.project.document.ref import DocumentRef
+from lorecraft.project.document import DocumentRef
 from lorecraft.project.layout import DOCS_DIR
-from lorecraft.project.schemas.name import CorpusSpecName, NamespaceSpecName
-from lorecraft.project.schemas.structure import StatedFrontmatterSchema, StructureSpec
-from lorecraft.project.skill.outside import OutsideSymlink
-from lorecraft.project.skill.ref import SkillLocation, SkillRef
-from lorecraft.project.skill.skills_dir import SkillsDir
+from lorecraft.project.schemas import CorpusSpecName, NamespaceSpecName, StructureSpec
+from lorecraft.project.schemas.structure import StatedFrontmatterSchema
+from lorecraft.project.skill import OutsideSymlink, SkillLocation, SkillRef, SkillsDir
 from lorecraft.vfs import ResolvedPath
 
 from .failure import FailedStructure, LoadFailure

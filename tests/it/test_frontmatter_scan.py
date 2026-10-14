@@ -14,7 +14,8 @@ import pytest
 from wenmode import Wenmode
 from wenmode.plugins import frontmatter
 
-from lorecraft.project.syntax.frontmatter import FrontmatterNode, MissingFrontmatter, decode_frontmatter
+from lorecraft.project.syntax import FrontmatterNode, MissingFrontmatter
+from lorecraft.project.syntax.frontmatter import decode_frontmatter
 from lorecraft.project.syntax.markdown import parse_markdown_frontmatter
 
 BYTE_ORDER_MARK: Final[str] = '\ufeff'
