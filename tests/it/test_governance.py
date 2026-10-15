@@ -11,6 +11,7 @@ from typing import Final
 
 import pytest
 
+from lib.tree import from_tree
 from lorecraft import rules
 from lorecraft.core.mapping import FrozenMapping
 from lorecraft.engine import check_subjects
@@ -51,7 +52,7 @@ DOCUMENT: Final[bytes] = b'---\nname: python-typing\n---\n\n# Typing\n\n## Rule\
 
 def _snapshot() -> Snapshot:
     """A snapshot of corpus `code`, with a `python` namespace, holding the documents `TYPING` and `ASYNC`."""
-    return Snapshot.from_tree(
+    return from_tree(
         {
             'docs': {
                 '__meta__': {

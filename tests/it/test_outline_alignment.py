@@ -12,6 +12,7 @@ from typing import Final
 import pytest
 
 import lorecraft.project.database.database as database_module
+from lib.tree import from_tree
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
@@ -93,7 +94,7 @@ def _snapshot(corpus_spec: bytes | None, namespace_spec: bytes | None, text: str
         meta['code.structure.json'] = corpus_spec
     if namespace_spec is not None:
         meta['code-python.structure.json'] = namespace_spec
-    return Snapshot.from_tree({'docs': {'__meta__': meta, 'code': {'python-typing.md': text.encode()}}})
+    return from_tree({'docs': {'__meta__': meta, 'code': {'python-typing.md': text.encode()}}})
 
 
 def _document_text(database: Database, ref: DocumentRef) -> DocumentText:
@@ -226,7 +227,7 @@ class TestOutlineAlignment:
     def test_outline_alignment_with_a_document_in_no_corpus_holds_none(self) -> None:
         #: Given
         # the code corpus has an outline, but `docs/blog/` has no corpus spec, so the model holds no `blog` corpus
-        snapshot = Snapshot.from_tree(
+        snapshot = from_tree(
             {
                 'docs': {
                     '__meta__': {'code.md': b'# Code\n', 'code.structure.json': b'{"outline": [{"section": "Rule"}]}'},

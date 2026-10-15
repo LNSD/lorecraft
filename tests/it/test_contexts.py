@@ -13,6 +13,7 @@ from typing import Final, assert_never
 
 import pytest
 
+from lib.tree import FileTree, from_tree
 from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.context import (
@@ -42,7 +43,6 @@ from lorecraft.project.skill import OutsideSymlink, SkillLocation, SkillRef
 from lorecraft.project.syntax import NormalisedLinkPath, count_lines, count_tokens
 from lorecraft.vfs import (
     EntryRecord,
-    FileTree,
     ResolvedPath,
     RootExit,
     Snapshot,
@@ -109,7 +109,7 @@ def _tree() -> FileTree:
 
 def _snapshot() -> Snapshot:
     """A snapshot of `_tree`, built in memory, so no path is in its scope."""
-    return Snapshot.from_tree(_tree())
+    return from_tree(_tree())
 
 
 def _document_text(database: Database) -> DocumentText:
@@ -452,9 +452,7 @@ class TestDatabaseSkillContext:
         #: Given
         # What a scan records for `.agents/skills/review -> ../../skills/review`: the link in the skills directory,
         # and the SKILL.md at the resolved path it leads to.
-        shipped = Snapshot.from_tree(
-            {'.agents': {'skills': {}}, 'skills': {'review': {'SKILL.md': REVIEW_TEXT.encode()}}}
-        )
+        shipped = from_tree({'.agents': {'skills': {}}, 'skills': {'review': {'SKILL.md': REVIEW_TEXT.encode()}}})
         records: dict[RootRelativePath, EntryRecord] = dict(shipped.records)
         records[RootRelativePath.parse('.agents/skills/review')] = SymlinkRecord(PurePosixPath('../../skills/review'))
         database = Database.from_snapshot(Snapshot(SnapshotRecords(records)))
