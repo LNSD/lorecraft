@@ -10,6 +10,9 @@ from dataclasses import dataclass
 
 from lorecraft.core.num import NonZeroUnsignedInt
 
+type YamlScalarValue = str | int | float | bool | None
+"""The values a YAML scalar can read as under YAML 1.2's core schema."""
+
 
 @dataclass(frozen=True, slots=True)
 class YamlPosition:
@@ -48,7 +51,7 @@ class YamlScalar:
         position: Where the scalar starts.
     """
 
-    value: str | int | float | bool | None
+    value: YamlScalarValue
     position: YamlPosition
 
 

@@ -32,12 +32,10 @@ from lorecraft.core.num import NonZeroUnsignedInt
 
 from .basic_yaml import (
     MERGE_KEY,
-    REFUSALS,
     BasicYamlParser,
     BasicYamlReader,
     BasicYamlScanner,
     RecordedRefusal,
-    Refusal,
     RefusedAliasError,
     RefusedAnchorError,
     RefusedCollectionKeyError,
@@ -47,6 +45,7 @@ from .basic_yaml import (
     RefusedNestedBlockSequenceError,
     RefusedNonStringKeyError,
     RefusedTagError,
+    _RefusalError,
     written_token,
 )
 from .problem import (
@@ -57,7 +56,7 @@ from .problem import (
     YamlProblem,
 )
 from .scalar import resolve_plain_scalar
-from .tree import YamlKey, YamlMapping, YamlPosition, YamlScalar, YamlSequence, YamlValue
+from .tree import YamlKey, YamlMapping, YamlPosition, YamlScalar, YamlScalarValue, YamlSequence, YamlValue
 
 
 def read_yaml(text: str) -> YamlValue | None | YamlProblem:
@@ -79,7 +78,7 @@ def read_yaml(text: str) -> YamlValue | None | YamlProblem:
     except ReaderError as exc:
         # The reader checks every character as it is built, so a control character fails before the first event.
         return ControlCharacterProblem(code=_code_point(exc), index=exc.position)
-    except REFUSALS as exc:
+    except _RefusalError as exc:
         # The read stopped at a construct the subset leaves out. The scanner reads ahead of the parser, so it may
         # have recorded one written above it, which is the one the text is reported for.
         recorded = stream.first_refusal()
@@ -135,7 +134,7 @@ def _position_of_mark(mark: StreamMark | None) -> YamlPosition | None:
     return YamlPosition(NonZeroUnsignedInt(mark.line + 1), NonZeroUnsignedInt(mark.column + 1))
 
 
-def _refused(refusal: RecordedRefusal | Refusal) -> RefusedConstructProblem:
+def _refused(refusal: RecordedRefusal | _RefusalError) -> RefusedConstructProblem:
     """The problem of a construct the subset leaves out.
 
     Args:
@@ -460,7 +459,7 @@ def _refuse_nested_collection(parser: _EventStream, parent: SequenceStartEvent |
         raise RefusedNestedBlockSequenceError(_mark_of(event))
 
 
-def _scalar_value(event: ScalarEvent) -> str | int | float | bool | None:
+def _scalar_value(event: ScalarEvent) -> YamlScalarValue:
     """What a scalar reads as: its text, unless it is plain and its whole text is a core schema null, bool or number.
 
     Args:

@@ -10,6 +10,8 @@ import re
 import sys
 from typing import Final
 
+from .tree import YamlScalarValue
+
 _NULL_WORDS: Final[frozenset[str]] = frozenset({'', '~', 'null', 'Null', 'NULL'})
 """The plain scalars YAML 1.2's core schema reads as null; the empty one is a key or an item written with no value."""
 
@@ -33,7 +35,7 @@ _FLOAT: Final[re.Pattern[str]] = re.compile(r'[-+]?(\.[0-9]+|[0-9]+(\.[0-9]*)?)(
 patterns are tried first."""
 
 
-def resolve_plain_scalar(text: str) -> str | int | float | bool | None:
+def resolve_plain_scalar(text: str) -> YamlScalarValue:
     """What a plain scalar reads as: its text, unless the whole text is a core schema null, boolean or number.
 
     Args:
