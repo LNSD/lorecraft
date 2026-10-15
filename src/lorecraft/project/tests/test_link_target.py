@@ -11,6 +11,7 @@ import pytest
 
 from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.core.path import RootRelativePath
+from lorecraft.project.syntax import LineNumber, Link
 from lorecraft.vfs import EntryRecord, FileTree, ScopeIndex, Snapshot, SnapshotRecords, SymlinkRecord, VirtualFileSystem
 
 from ..layout import SNAPSHOT_SCOPE
@@ -23,7 +24,6 @@ from ..link_target import (
     SkillRoot,
     link_targets_of,
 )
-from ..syntax import LineNumber, Link
 
 REVIEW_ROOT: Final[SkillRoot] = SkillRoot(RootRelativePath.parse('.agents/skills/review'))
 """Where the links of every file of the skill `review` are read from."""

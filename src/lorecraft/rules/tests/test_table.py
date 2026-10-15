@@ -5,7 +5,6 @@ from typing import Final
 import pytest
 
 from lorecraft import rules
-from lorecraft.rules.declaration import Rule
 from lorecraft.rules.frontmatter.allowed_tools_too_long import AllowedToolsTooLong
 from lorecraft.rules.frontmatter.duplicate_key import DuplicateKey
 from lorecraft.rules.frontmatter.invalid_frontmatter import InvalidFrontmatter
@@ -20,7 +19,6 @@ from lorecraft.rules.frontmatter.too_few_fields import TooFewFields
 from lorecraft.rules.frontmatter.too_many_fields import TooManyFields
 from lorecraft.rules.frontmatter.unknown_field import UnknownField
 from lorecraft.rules.frontmatter.wrong_type import WrongType
-from lorecraft.rules.identity import RuleCode, Severity
 from lorecraft.rules.layout.escaping_symlink import EscapingSymlink
 from lorecraft.rules.length.section_too_many_words import SectionTooManyWords
 from lorecraft.rules.length.title_too_long import TitleTooLong
@@ -40,10 +38,12 @@ from lorecraft.rules.outline.missing_title import MissingTitle
 from lorecraft.rules.outline.section_out_of_order import SectionOutOfOrder
 from lorecraft.rules.outline.title_not_first import TitleNotFirst
 from lorecraft.rules.outline.unexpected_section import UnexpectedSection
-from lorecraft.rules.registry import Registry
-from lorecraft.rules.subject import Facet
 
+from ..declaration import Rule
+from ..identity import RuleCode, Severity
+from ..registry import Registry
 from ..selection import AllRules, RuleSelection
+from ..subject import Facet
 from ..table import EnabledRule, RuleTable, UnknownRuleBaseError, selected_rules_left_off
 from .sample_rules import token_count
 from .sample_rules import valid as valid_rules

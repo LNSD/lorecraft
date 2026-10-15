@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from pathlib import PurePosixPath
 from typing import Final, Self
 
-from lorecraft.core.error import Error
+from .error import Error
 
 _RESERVED_NAMES: Final[frozenset[str]] = frozenset({'', '.', '..'})
 """The names that are not one entry of a directory: nothing, the directory itself and its parent."""

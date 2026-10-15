@@ -11,9 +11,9 @@ from lorecraft.project.skill import SkillRef
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.engine.invalid_utf8 import InvalidUtf8
 from lorecraft.rules.engine.malformed_structure_file import MalformedStructureFile, NoRuleStated
-from lorecraft.rules.identity import Severity
 from lorecraft.vfs import ByteOffset, ResolvedPath, Utf8Failure, Utf8Line, Utf8Reason
 
+from ..identity import Severity
 from ..report import (
     CheckedDocument,
     CheckedLayoutEntry,

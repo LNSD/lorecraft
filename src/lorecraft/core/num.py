@@ -17,7 +17,7 @@ from pydantic import GetCoreSchemaHandler, GetJsonSchemaHandler
 from pydantic.json_schema import JsonSchemaValue
 from pydantic_core import PydanticCustomError, core_schema
 
-from lorecraft.core.error import Error
+from .error import Error
 
 # The pydantic error type the value object raises its rejection under, typed as a literal because
 # `PydanticCustomError` takes only a literal string.

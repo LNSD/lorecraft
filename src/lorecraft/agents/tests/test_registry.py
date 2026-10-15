@@ -2,9 +2,9 @@
 
 import pytest
 
+from lorecraft.agents.base import Agent
 from lorecraft.core.path import RootRelativePath
 
-from ..base import Agent
 from ..registry import iter_agents
 
 

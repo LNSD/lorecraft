@@ -22,9 +22,7 @@ from typing import assert_never
 
 from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.path import RootRelativePath
-from lorecraft.vfs import FileSystem, ScopeIndex
-
-from .syntax import (
+from lorecraft.project.syntax import (
     AbsoluteDestination,
     ExternalDestination,
     FragmentDestination,
@@ -32,6 +30,7 @@ from .syntax import (
     NormalisedLinkPath,
     RelativeDestination,
 )
+from lorecraft.vfs import FileSystem, ScopeIndex
 
 
 @dataclass(frozen=True, slots=True)
