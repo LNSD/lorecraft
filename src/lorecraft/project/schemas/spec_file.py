@@ -26,6 +26,7 @@ from lorecraft.project.corpus import (
     InvalidCorpusNameCharacterError,
     ReservedCorpusNameError,
 )
+from lorecraft.project.layout import DOCUMENT_SUFFIX, LEGACY_STRUCTURE_FILE_SUFFIX, SPEC_FILE_SUFFIX
 
 from .name import SpecName, parse_spec_name
 
@@ -35,11 +36,11 @@ _JSON_SUFFIX: Final[str] = '.json'
 class SpecFileType(StrEnum):
     """What a specification file is; the value is the file name pattern that claims it."""
 
-    PROSE = '*.md'
+    PROSE = f'*{DOCUMENT_SUFFIX}'
     """The specification in prose, written for a reader."""
-    SPEC = '*.spec.json'
+    SPEC = f'*{SPEC_FILE_SUFFIX}'
     """The structure specification: the rules a check can decide, the frontmatter schema among them."""
-    LEGACY_STRUCTURE = '*.structure.json'
+    LEGACY_STRUCTURE = f'*{LEGACY_STRUCTURE_FILE_SUFFIX}'
     """The legacy name of the structure specification: read only when `<name>.spec.json` is missing, and dropped
     in v0.4.0."""
 
