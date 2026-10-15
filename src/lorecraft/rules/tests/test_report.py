@@ -304,7 +304,7 @@ class TestSkippedSubject:
     def test_diagnostics_of_a_skipped_subject_are_none(self) -> None:
         #: Given
         ref = DocumentRef(CorpusName.parse('code'), AspectFilename.parse('a'))
-        structure_file = RootRelativePath.parse('docs/__meta__/code.structure.json')
+        structure_file = RootRelativePath.parse('docs/__meta__/code.spec.json')
         subject = SkippedSubject(ref, failed_layers=(structure_file,))
 
         #: When
@@ -318,7 +318,7 @@ class TestSkippedSubject:
 class TestLoadFailureReport:
     def test_diagnostics_of_a_load_failure_report_are_its_condition_at_its_path(self) -> None:
         #: Given
-        path = RootRelativePath.parse('docs/__meta__/code.structure.json')
+        path = RootRelativePath.parse('docs/__meta__/code.spec.json')
         report = LoadFailureReport(path, MalformedStructureFile(cause=NoRuleStated()))
 
         #: When
@@ -332,7 +332,7 @@ class TestLoadFailureReport:
     def test_severity_of_a_load_failure_diagnostic_is_error(self) -> None:
         #: Given
         report = LoadFailureReport(
-            RootRelativePath.parse('docs/__meta__/code.structure.json'), MalformedStructureFile(cause=NoRuleStated())
+            RootRelativePath.parse('docs/__meta__/code.spec.json'), MalformedStructureFile(cause=NoRuleStated())
         )
 
         #: When

@@ -25,10 +25,10 @@ from ..structure import StructureSchema, StructureSpec
 
 SPECS_DIR: Final[RootRelativePath] = RootRelativePath.parse('docs/__meta__')
 
-CORPUS_SPEC: Final[RootRelativePath] = RootRelativePath.parse('docs/__meta__/code.structure.json')
+CORPUS_SPEC: Final[RootRelativePath] = RootRelativePath.parse('docs/__meta__/code.spec.json')
 """The corpus structure specification."""
 
-NAMESPACE_SPEC: Final[RootRelativePath] = RootRelativePath.parse('docs/__meta__/code-python.structure.json')
+NAMESPACE_SPEC: Final[RootRelativePath] = RootRelativePath.parse('docs/__meta__/code-python.spec.json')
 """The `python` namespace structure specification."""
 
 RULE_ASIDE_CHECKLIST: Final[str] = (
@@ -57,9 +57,7 @@ def _structure_spec(spec_name: str, text: str) -> StructureSpec:
         text: The structure specification's JSON.
     """
     name = parse_spec_name(spec_name)
-    file = StructureSpecFile(
-        path=SPECS_DIR / PathComponent.parse(spec_filename(name, SpecFileType.LEGACY_STRUCTURE)), name=name
-    )
+    file = StructureSpecFile(path=SPECS_DIR / PathComponent.parse(spec_filename(name, SpecFileType.SPEC)), name=name)
     spec = StructureSpec.parse(file, StructureSchema(text))
     assert isinstance(spec, StructureSpec), f'the test states a usable specification, got {spec!r}'
     return spec

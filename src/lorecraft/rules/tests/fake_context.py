@@ -69,7 +69,7 @@ _SKILLS_DIRECTORY: Final[RootRelativePath] = RootRelativePath.parse('.agents/ski
 
 
 def structure_spec_path(name: str) -> RootRelativePath:
-    """Where the structure file at a meta spec name lies, such as `docs/__meta__/guide.structure.json`.
+    """Where the structure file at a meta spec name lies, such as `docs/__meta__/guide.spec.json`.
 
     Args:
         name: The meta spec name, such as `guide` or `guide-cli`.
@@ -80,7 +80,7 @@ def structure_spec_path(name: str) -> RootRelativePath:
         EmptyAspectNamespaceError: If a hyphen is followed by no namespace.
         InvalidAspectNamespaceCharacterError: If a character of the namespace token falls outside kebab case.
     """
-    return SPECS_DIR / PathComponent.parse(spec_filename(parse_spec_name(name), SpecFileType.LEGACY_STRUCTURE))
+    return SPECS_DIR / PathComponent.parse(spec_filename(parse_spec_name(name), SpecFileType.SPEC))
 
 
 def heading_in(text: str, heading_text: str) -> Heading:
@@ -144,7 +144,7 @@ def _files(spec_name: SpecName) -> tuple[RootRelativePath, ...]:
     """
     return (
         SPECS_DIR / PathComponent.parse(spec_filename(spec_name, SpecFileType.PROSE)),
-        SPECS_DIR / PathComponent.parse(spec_filename(spec_name, SpecFileType.LEGACY_STRUCTURE)),
+        SPECS_DIR / PathComponent.parse(spec_filename(spec_name, SpecFileType.SPEC)),
     )
 
 
@@ -156,7 +156,7 @@ def _decode_structure(spec_name: SpecName, structure: str) -> StructureSpec:
         structure: The structure file's JSON.
     """
     file = StructureSpecFile(
-        path=SPECS_DIR / PathComponent.parse(spec_filename(spec_name, SpecFileType.LEGACY_STRUCTURE)), name=spec_name
+        path=SPECS_DIR / PathComponent.parse(spec_filename(spec_name, SpecFileType.SPEC)), name=spec_name
     )
     spec = StructureSpec.parse(file, StructureSchema(structure))
     assert isinstance(spec, StructureSpec), f'a test states a usable structure specification, got {spec!r}'

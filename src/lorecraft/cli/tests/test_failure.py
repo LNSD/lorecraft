@@ -106,7 +106,7 @@ class TestReportFailure:
         ), 'the walk follows the chain past the first cause, down to the last error'
 
 
-_PATH: Final[RootRelativePath] = RootRelativePath.parse('docs/__meta__/code.structure.json')
+_PATH: Final[RootRelativePath] = RootRelativePath.parse('docs/__meta__/code.spec.json')
 _DOCS: Final[RootRelativePath] = RootRelativePath.parse('docs')
 _CORPUS: Final[CorpusName] = CorpusName.parse('code')
 _CORPUS_DIR: Final[RootRelativePath] = RootRelativePath.parse('docs/code')
@@ -134,7 +134,7 @@ class TestReportLoadFailure:
         failure = LoadFailure(_PATH, UnreadableStructureFile(_SPEC_NAME, _REFUSAL))
         expected = (
             'error: cannot read the structure schema code\n'
-            '  caused by: cannot read file docs/__meta__/code.structure.json: permission denied\n'
+            '  caused by: cannot read file docs/__meta__/code.spec.json: permission denied\n'
         )
 
         #: When
@@ -150,7 +150,7 @@ class TestReportLoadFailure:
         failure = LoadFailure(_PATH, UnrecordedStructureFile(_SPEC_NAME))
         expected = (
             'error: cannot read the structure schema code\n'
-            '  caused by: cannot read file docs/__meta__/code.structure.json: not in the snapshot\n'
+            '  caused by: cannot read file docs/__meta__/code.spec.json: not in the snapshot\n'
         )
 
         #: When
@@ -165,7 +165,7 @@ class TestReportLoadFailure:
         #: Given
         decode_error = UnicodeDecodeError('utf-8', b'\xe9', 0, 1, 'invalid continuation byte')
         failure = LoadFailure(_PATH, NonUtf8StructureFile(Utf8Failure.from_error(decode_error)))
-        expected = 'error: file docs/__meta__/code.structure.json is not UTF-8\n'
+        expected = 'error: file docs/__meta__/code.spec.json is not UTF-8\n'
 
         #: When
         report_load_failure(failure)
@@ -179,7 +179,7 @@ class TestReportLoadFailure:
         #: Given
         failure = LoadFailure(_PATH, UndecodableStructureSpec(_PROBLEMS))
         expected = (
-            'error: invalid structure schema docs/__meta__/code.structure.json: '
+            'error: invalid structure schema docs/__meta__/code.spec.json: '
             'outline: Field required; tokens: not a number\n'
         )
 
@@ -195,8 +195,7 @@ class TestReportLoadFailure:
         #: Given
         failure = LoadFailure(_PATH, EmptyStructureSpec())
         expected = (
-            'error: invalid structure schema docs/__meta__/code.structure.json: '
-            'states no rule, so it would check nothing\n'
+            'error: invalid structure schema docs/__meta__/code.spec.json: states no rule, so it would check nothing\n'
         )
 
         #: When
@@ -211,7 +210,7 @@ class TestReportLoadFailure:
         #: Given
         failure = LoadFailure(_PATH, RepeatedOutlineSections((SectionName('Usage'),)))
         expected = (
-            'error: invalid structure schema docs/__meta__/code.structure.json: '
+            'error: invalid structure schema docs/__meta__/code.spec.json: '
             "names sections more than once in the outline: ['Usage']\n"
         )
 
@@ -227,7 +226,7 @@ class TestReportLoadFailure:
         #: Given
         failure = LoadFailure(_PATH, RepeatedForbiddenSections((SectionName('Changelog'),)))
         expected = (
-            'error: invalid structure schema docs/__meta__/code.structure.json: '
+            'error: invalid structure schema docs/__meta__/code.spec.json: '
             "forbids sections more than once: ['Changelog']\n"
         )
 
@@ -243,7 +242,7 @@ class TestReportLoadFailure:
         #: Given
         failure = LoadFailure(_PATH, ForbiddenOutlineSections((SectionName('Usage'),)))
         expected = (
-            'error: invalid structure schema docs/__meta__/code.structure.json: '
+            'error: invalid structure schema docs/__meta__/code.spec.json: '
             "forbids sections its own outline names: ['Usage']\n"
         )
 
@@ -258,9 +257,7 @@ class TestReportLoadFailure:
     ) -> None:
         #: Given
         failure = LoadFailure(_PATH, AdjacentAnyRuns())
-        expected = (
-            'error: invalid structure schema docs/__meta__/code.structure.json: places two `any` runs side by side\n'
-        )
+        expected = 'error: invalid structure schema docs/__meta__/code.spec.json: places two `any` runs side by side\n'
 
         #: When
         report_load_failure(failure)
@@ -274,7 +271,7 @@ class TestReportLoadFailure:
         #: Given
         failure = LoadFailure(_PATH, InvalidTitlePattern('(', 'missing )'))
         expected = (
-            'error: invalid structure schema docs/__meta__/code.structure.json: '
+            'error: invalid structure schema docs/__meta__/code.spec.json: '
             "title pattern '(' is not a valid regular expression\n"
         )
 
@@ -290,7 +287,7 @@ class TestReportLoadFailure:
         #: Given
         failure = LoadFailure(_PATH, InvalidFrontmatterSchema('5 is not valid'))
         expected = (
-            'error: invalid structure schema docs/__meta__/code.structure.json: '
+            'error: invalid structure schema docs/__meta__/code.spec.json: '
             'frontmatter is not a valid JSON Schema: 5 is not valid\n'
         )
 
@@ -306,7 +303,7 @@ class TestReportLoadFailure:
         #: Given
         failure = LoadFailure(_PATH, IdentifiedFrontmatterSchema())
         expected = (
-            'error: invalid structure schema docs/__meta__/code.structure.json: frontmatter schema may not carry $id\n'
+            'error: invalid structure schema docs/__meta__/code.spec.json: frontmatter schema may not carry $id\n'
         )
 
         #: When
@@ -321,7 +318,7 @@ class TestReportLoadFailure:
         #: Given
         failure = LoadFailure(_PATH, ForeignFrontmatterDialect('draft-07'))
         expected = (
-            'error: invalid structure schema docs/__meta__/code.structure.json: '
+            'error: invalid structure schema docs/__meta__/code.spec.json: '
             "frontmatter schema names 'draft-07' in $schema; "
             'only https://json-schema.org/draft/2020-12/schema is allowed\n'
         )
@@ -338,7 +335,7 @@ class TestReportLoadFailure:
         #: Given
         failure = LoadFailure(_PATH, UnresolvableFrontmatterSchemaRef('#/$defs/missing'))
         expected = (
-            'error: invalid structure schema docs/__meta__/code.structure.json: '
+            'error: invalid structure schema docs/__meta__/code.spec.json: '
             "frontmatter schema holds a $ref '#/$defs/missing' that does not resolve inside it\n"
         )
 
@@ -354,7 +351,7 @@ class TestReportLoadFailure:
         #: Given
         failure = LoadFailure(_PATH, CyclicFrontmatterSchemaRef('#'))
         expected = (
-            'error: invalid structure schema docs/__meta__/code.structure.json: '
+            'error: invalid structure schema docs/__meta__/code.spec.json: '
             "frontmatter schema holds a $ref '#' that leads back to itself with no keyword in between\n"
         )
 
@@ -370,7 +367,7 @@ class TestReportLoadFailure:
         #: Given
         failure = LoadFailure(_PATH, UntypedFrontmatterSchema())
         expected = (
-            'error: invalid structure schema docs/__meta__/code.structure.json: '
+            'error: invalid structure schema docs/__meta__/code.spec.json: '
             'frontmatter schema root must state "type": "object"\n'
         )
 

@@ -45,9 +45,7 @@ from ..structure_failure import (
 
 SPECS_DIR: Final[RootRelativePath] = RootRelativePath.parse('docs/__meta__')
 SPEC_NAME: Final[SpecName] = parse_spec_name('code')
-SPEC_PATH: Final[RootRelativePath] = SPECS_DIR / PathComponent.parse(
-    spec_filename(SPEC_NAME, SpecFileType.LEGACY_STRUCTURE)
-)
+SPEC_PATH: Final[RootRelativePath] = SPECS_DIR / PathComponent.parse(spec_filename(SPEC_NAME, SpecFileType.SPEC))
 SPEC_FILE: Final[StructureSpecFile] = StructureSpecFile(path=SPEC_PATH, name=SPEC_NAME)
 
 # What a rule document's Checklist holds, as the outline entry naming it states it.
@@ -1062,7 +1060,7 @@ class TestStructureSpecAuthority:
         #: Given
         name = parse_spec_name('code-python')
         file = StructureSpecFile(
-            path=SPECS_DIR / PathComponent.parse(spec_filename(name, SpecFileType.LEGACY_STRUCTURE)), name=name
+            path=SPECS_DIR / PathComponent.parse(spec_filename(name, SpecFileType.SPEC)), name=name
         )
         forbidden = (SectionName('Changelog'),)
 

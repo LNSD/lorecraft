@@ -53,7 +53,7 @@ from lorecraft.vfs import ByteOffset, OsRefusal, Utf8Failure, Utf8Line, Utf8Reas
 
 from ..load_failures import UnlistableRoot, report_load_failures
 
-_PATH: Final[RootRelativePath] = RootRelativePath.parse('docs/__meta__/code.structure.json')
+_PATH: Final[RootRelativePath] = RootRelativePath.parse('docs/__meta__/code.spec.json')
 _ENTRY: Final[RootRelativePath] = RootRelativePath.parse('.claude/skills/review')
 _ON_THE_WAY: Final[RootRelativePath] = RootRelativePath.parse('shared/skills')
 _REFUSAL: Final[OsRefusal] = OsRefusal.PERMISSION_DENIED

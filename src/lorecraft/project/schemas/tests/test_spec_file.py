@@ -42,14 +42,14 @@ class TestParseSpecFile:
 
     def test_parse_spec_file_with_a_corpus_structure_file_returns_a_structure_spec_file(self) -> None:
         #: Given
-        path = META / PathComponent.parse('code.structure.json')
+        path = META / PathComponent.parse('code.spec.json')
 
         #: When
         spec_file = parse_spec_file(path)
 
         #: Then
         assert spec_file == StructureSpecFile(path=path, name=CorpusSpecName(CODE)), (
-            'code.structure.json parses into the code corpus spec name and the structure file type'
+            'code.spec.json parses into the code corpus spec name and the structure file type'
         )
 
     def test_parse_spec_file_with_a_corpus_spec_json_file_returns_a_spec_typed_structure_spec_file(self) -> None:
@@ -89,7 +89,7 @@ class TestParseSpecFile:
 
     def test_parse_spec_file_with_a_nested_namespace_structure_file_returns_a_structure_spec_file(self) -> None:
         #: Given
-        path = META / PathComponent.parse('code-python-errors.structure.json')
+        path = META / PathComponent.parse('code-python-errors.spec.json')
 
         #: When
         spec_file = parse_spec_file(path)
@@ -97,11 +97,11 @@ class TestParseSpecFile:
         #: Then
         assert spec_file == StructureSpecFile(
             path=path, name=NamespaceSpecName(CODE, AspectNamespace.parse('python-errors'))
-        ), 'code-python-errors.structure.json parses into the code corpus, one python-errors namespace and structure'
+        ), 'code-python-errors.spec.json parses into the code corpus, one python-errors namespace and structure'
 
     def test_parse_spec_file_with_a_dotted_structure_stem_raises_dotted_spec_stem_error(self) -> None:
         #: Given
-        path = META / PathComponent.parse('feat.component.structure.json')
+        path = META / PathComponent.parse('feat.component.spec.json')
 
         #: When
         with pytest.raises(DottedSpecStemError) as exc_info:
@@ -150,7 +150,7 @@ class TestParseSpecFile:
 
     def test_parse_spec_file_with_json_without_a_stem_raises_not_a_spec_file_error(self) -> None:
         #: Given
-        path = META / PathComponent.parse('.structure.json')
+        path = META / PathComponent.parse('.spec.json')
 
         #: When
         with pytest.raises(NotASpecFileError) as exc_info:
@@ -158,7 +158,7 @@ class TestParseSpecFile:
 
         #: Then
         assert exc_info.value.path == path, (
-            'a bare .structure.json has no stem, so it is not a specification file; the error names it'
+            'a bare .spec.json has no stem, so it is not a specification file; the error names it'
         )
 
     def test_parse_spec_file_with_json_with_an_empty_token_raises_not_a_spec_file_error(self) -> None:
@@ -243,7 +243,7 @@ class TestParseSpecFile:
 
     def test_parse_spec_file_with_json_at_the_reserved_name_raises_invalid_spec_stem_error(self) -> None:
         #: Given
-        path = META / PathComponent.parse('__meta__-python.structure.json')
+        path = META / PathComponent.parse('__meta__-python.spec.json')
 
         #: When
         with pytest.raises(InvalidSpecStemError) as exc_info:
@@ -256,7 +256,7 @@ class TestParseSpecFile:
 
     def test_parse_spec_file_with_json_at_a_non_stem_raises_invalid_spec_stem_error(self) -> None:
         #: Given
-        path = META / PathComponent.parse('README.structure.json')
+        path = META / PathComponent.parse('README.spec.json')
 
         #: When
         with pytest.raises(InvalidSpecStemError) as exc_info:
@@ -264,7 +264,7 @@ class TestParseSpecFile:
 
         #: Then
         assert exc_info.value.path == path, (
-            'a structure file must be at a valid specification name; the error names README.structure.json'
+            'a structure file must be at a valid specification name; the error names README.spec.json'
         )
         assert isinstance(exc_info.value.source, InvalidCorpusNameCharacterError), (
             f'README is not a corpus name for its uppercase letters, got {type(exc_info.value.source).__name__}'
@@ -295,10 +295,10 @@ class TestSpecFilenames:
         name = NamespaceSpecName(CODE, AspectNamespace.parse('python'))
 
         #: When
-        filename = spec_filename(name, SpecFileType.LEGACY_STRUCTURE)
+        filename = spec_filename(name, SpecFileType.SPEC)
 
         #: Then
-        assert filename == 'code-python.structure.json', 'the name is followed by what *.structure.json claims'
+        assert filename == 'code-python.spec.json', 'the name is followed by what *.spec.json claims'
 
     def test_spec_filename_with_the_prose_type_writes_the_markdown_file_at_the_name(self) -> None:
         #: Given
@@ -322,12 +322,12 @@ class TestSpecFilenames:
 
     def test_spec_filename_with_a_parsed_structure_file_writes_the_filename_it_was_parsed_from(self) -> None:
         #: Given
-        spec_file = parse_spec_file(META / PathComponent.parse('code-python.structure.json'))
+        spec_file = parse_spec_file(META / PathComponent.parse('code-python.spec.json'))
 
         #: When
         filename = spec_filename(spec_file.name, spec_file.type)
 
         #: Then
-        assert filename == 'code-python.structure.json', (
+        assert filename == 'code-python.spec.json', (
             'a structure file knows its own file type, the one whose pattern claimed it'
         )

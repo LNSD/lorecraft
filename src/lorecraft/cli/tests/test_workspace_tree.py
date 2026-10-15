@@ -27,7 +27,7 @@ def _code_model() -> WorkspaceModel:
     code = CorpusName.parse('code')
     corpus_spec = CorpusSpec(name=CorpusSpecName(code), files=(_path('docs/__meta__/code.md'),), structure=None)
     python = CorpusNamespace(
-        files=(_path('docs/__meta__/code-python.md'), _path('docs/__meta__/code-python.structure.json')),
+        files=(_path('docs/__meta__/code-python.md'), _path('docs/__meta__/code-python.spec.json')),
         structure=None,
     )
     corpus = Corpus(
@@ -56,7 +56,7 @@ def _code_model_document() -> dict[str, object]:
                     {'stem': 'code', 'files': ['docs/__meta__/code.md']},
                     {
                         'stem': 'code-python',
-                        'files': ['docs/__meta__/code-python.md', 'docs/__meta__/code-python.structure.json'],
+                        'files': ['docs/__meta__/code-python.md', 'docs/__meta__/code-python.spec.json'],
                     },
                 ],
                 'documents': [
@@ -66,7 +66,7 @@ def _code_model_document() -> dict[str, object]:
                         'governed_by': [
                             'docs/__meta__/code.md',
                             'docs/__meta__/code-python.md',
-                            'docs/__meta__/code-python.structure.json',
+                            'docs/__meta__/code-python.spec.json',
                         ],
                     },
                 ],
@@ -133,7 +133,7 @@ class TestRenderText:
                 '│   └── code (docs/code)',
                 '│       ├── specs (2)',
                 '│       │   ├── code: code.md',
-                '│       │   └── code-python: code-python.md, code-python.structure.json',
+                '│       │   └── code-python: code-python.md, code-python.spec.json',
                 '│       └── documents (2)',
                 '│           ├── logging.md [code]',
                 '│           └── python-typing.md [code, code-python]',

@@ -34,8 +34,8 @@ DOCUMENT: Final[bytes] = b'---\nname: python-typing\n---\n\n# Typing\n\n## Rule\
 LOGGING: Final[DocumentRef] = DocumentRef(CorpusName.parse('code'), AspectFilename.parse('logging'))
 """A document of corpus `code` no namespace spec of the corpus governs."""
 
-CODE_SPEC_PATH: Final[RootRelativePath] = RootRelativePath.parse('docs/__meta__/code.structure.json')
-PYTHON_SPEC_PATH: Final[RootRelativePath] = RootRelativePath.parse('docs/__meta__/code-python.structure.json')
+CODE_SPEC_PATH: Final[RootRelativePath] = RootRelativePath.parse('docs/__meta__/code.spec.json')
+PYTHON_SPEC_PATH: Final[RootRelativePath] = RootRelativePath.parse('docs/__meta__/code-python.spec.json')
 
 STATES_NO_RULE: Final[bytes] = b'{}'
 """A structure specification that follows the format and states no rule, so its layer fails to load."""
@@ -64,7 +64,7 @@ def _database() -> Database:
     snapshot = from_tree(
         {
             'docs': {
-                '__meta__': {'code.md': b'# Code\n', 'code.structure.json': CORPUS_SPEC},
+                '__meta__': {'code.md': b'# Code\n', 'code.spec.json': CORPUS_SPEC},
                 'code': {'python-typing.md': DOCUMENT},
             }
         }
@@ -97,7 +97,7 @@ class TestCheckSubjectsWithAFailedLayer:
     def test_check_subjects_with_a_failed_corpus_spec_skips_each_document_of_the_corpus(self) -> None:
         #: Given
         database = _database_with(
-            {'code.structure.json': STATES_NO_RULE, 'code-python.structure.json': CORPUS_SPEC},
+            {'code.spec.json': STATES_NO_RULE, 'code-python.spec.json': CORPUS_SPEC},
             {'python-typing.md': DOCUMENT, 'logging.md': DOCUMENT},
         )
         table = _all_rules()
@@ -114,7 +114,7 @@ class TestCheckSubjectsWithAFailedLayer:
     def test_check_subjects_with_a_failed_namespace_spec_skips_only_the_documents_it_governs(self) -> None:
         #: Given
         database = _database_with(
-            {'code.structure.json': CORPUS_SPEC, 'code-python.structure.json': STATES_NO_RULE},
+            {'code.spec.json': CORPUS_SPEC, 'code-python.spec.json': STATES_NO_RULE},
             {'python-typing.md': DOCUMENT, 'logging.md': DOCUMENT},
         )
         table = _all_rules()
@@ -134,7 +134,7 @@ class TestCheckSubjectsWithAFailedLayer:
     def test_check_subjects_with_two_failed_layers_names_both_in_layer_order(self) -> None:
         #: Given
         database = _database_with(
-            {'code.structure.json': STATES_NO_RULE, 'code-python.structure.json': STATES_NO_RULE},
+            {'code.spec.json': STATES_NO_RULE, 'code-python.spec.json': STATES_NO_RULE},
             {'python-typing.md': DOCUMENT},
         )
         table = _all_rules()
@@ -150,7 +150,7 @@ class TestCheckSubjectsWithAFailedLayer:
     def test_check_subjects_with_a_failed_layer_still_reports_a_document_that_does_not_decode(self) -> None:
         #: Given
         database = _database_with(
-            {'code.structure.json': STATES_NO_RULE},
+            {'code.spec.json': STATES_NO_RULE},
             {'python-typing.md': b'---\nname: caf\xe9\n---\n'},
         )
         table = _all_rules()
@@ -166,7 +166,7 @@ class TestCheckSubjectsWithAFailedLayer:
 
     def test_check_subjects_with_a_failed_layer_skips_the_document_whatever_rules_the_table_enables(self) -> None:
         #: Given
-        database = _database_with({'code.structure.json': STATES_NO_RULE}, {'python-typing.md': DOCUMENT})
+        database = _database_with({'code.spec.json': STATES_NO_RULE}, {'python-typing.md': DOCUMENT})
         no_rules = RuleTable.from_registry(Registry.load(rules), RuleSelection(select=frozenset(), ignore=frozenset()))
 
         #: When
