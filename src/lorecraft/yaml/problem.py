@@ -7,7 +7,7 @@ past.
 """
 
 from dataclasses import dataclass
-from typing import Final, get_args
+from typing import Final
 
 from .tree import YamlPosition
 
@@ -67,6 +67,3 @@ class NestingTooDeepProblem:
 
 type YamlProblem = ControlCharacterProblem | SyntaxErrorProblem | RefusedConstructProblem | NestingTooDeepProblem
 """Why a text could not be read: the first problem it writes."""
-
-YAML_PROBLEMS: Final = get_args(YamlProblem.__value__)
-"""The classes of `YamlProblem`, for a caller that tells a problem from a value."""

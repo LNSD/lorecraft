@@ -25,6 +25,8 @@ check is, so the package above it decides what a refused construct means for a d
 - The types that name a construct the subset leaves out, and where in the text it is written.
 - The tree a YAML text reads into, and the position of each of its nodes, as frozen values of this package's own.
 - A fact about YAML's grammar, such as which characters end a line or a token.
+- `reader.read_yaml(text)` and the values it returns, declared in `tree` and `problem`.
+- Dispatch over problems exhaustively with `match` and `assert_never`, never through runtime tuples of problem classes.
 
 ## Belongs Elsewhere
 
@@ -78,6 +80,7 @@ Before committing code, verify:
 - [ ] No package other than `lorecraft.yaml` imports `lorecraft.yaml.basic_yaml` or `ruamel`
 - [ ] Nothing in `lorecraft.yaml` reads the disk
 - [ ] No library loader or constructor is called, and no library type is part of what the package returns
+- [ ] Problems are dispatched exhaustively with `match` and `assert_never`, never through runtime tuples
 - [ ] A construct the subset leaves out is returned as a `RefusedConstructProblem` that carries its position
 - [ ] Nothing here names a document, a frontmatter key or a diagnostic code
 

@@ -13,7 +13,7 @@ Each carries the `mark` where it is written and the `problem` as `FM002` words i
 
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import Final, Never, get_args
+from typing import Final, Never
 
 from ruamel.yaml.compat import check_anchorname_char
 from ruamel.yaml.error import StreamMark
@@ -32,6 +32,17 @@ MERGE_KEY: Final[str] = '<<'
 
 _NOT_ALLOWED: Final[str] = 'which frontmatter does not allow'
 """How the problem of a refused construct ends: `found <construct>, which frontmatter does not allow`."""
+
+
+class _RefusalError(Error):
+    """A construct frontmatter leaves out that stops parsing, located where it is written.
+
+    Every such construct carries the `mark` where it is written and the `problem` as `FM002` words it.
+    """
+
+    mark: StreamMark
+    problem: str
+
 
 _SPACE_CHARACTERS: Final[str] = '\0 \t\r\n'
 """The characters that end a plain scalar: the end of the text, a space or tab, or a line break."""
@@ -90,7 +101,7 @@ class RecordedRefusal:
         return None
 
 
-class RefusedDirectiveError(Error):
+class RefusedDirectiveError(_RefusalError):
     """A directive, a `%` line, is written.
 
     Attributes:
@@ -110,7 +121,7 @@ class RefusedDirectiveError(Error):
         super().__init__(self.problem)
 
 
-class RefusedDocumentMarkerError(Error):
+class RefusedDocumentMarkerError(_RefusalError):
     """A `---` or `...` marker is written, though the block is the body of one document.
 
     Attributes:
@@ -130,7 +141,7 @@ class RefusedDocumentMarkerError(Error):
         super().__init__(self.problem)
 
 
-class RefusedAliasError(Error):
+class RefusedAliasError(_RefusalError):
     """A value is an alias.
 
     Attributes:
@@ -150,7 +161,7 @@ class RefusedAliasError(Error):
         super().__init__(self.problem)
 
 
-class RefusedAnchorError(Error):
+class RefusedAnchorError(_RefusalError):
     """A value carries an anchor.
 
     Attributes:
@@ -170,7 +181,7 @@ class RefusedAnchorError(Error):
         super().__init__(self.problem)
 
 
-class RefusedTagError(Error):
+class RefusedTagError(_RefusalError):
     """A value carries a tag, the non-specific `!` included.
 
     Attributes:
@@ -190,7 +201,7 @@ class RefusedTagError(Error):
         super().__init__(self.problem)
 
 
-class RefusedMergeKeyError(Error):
+class RefusedMergeKeyError(_RefusalError):
     """A mapping writes the plain key `<<`, which YAML 1.1 reads as a merge.
 
     Attributes:
@@ -207,7 +218,7 @@ class RefusedMergeKeyError(Error):
         super().__init__(self.problem)
 
 
-class RefusedCollectionKeyError(Error):
+class RefusedCollectionKeyError(_RefusalError):
     """A mapping's key is a collection, not a string.
 
     Attributes:
@@ -224,7 +235,7 @@ class RefusedCollectionKeyError(Error):
         super().__init__(self.problem)
 
 
-class RefusedNonStringKeyError(Error):
+class RefusedNonStringKeyError(_RefusalError):
     """A mapping's key is a scalar that decodes to null, a boolean or a number, not a string.
 
     Attributes:
@@ -244,7 +255,7 @@ class RefusedNonStringKeyError(Error):
         super().__init__(self.problem)
 
 
-class RefusedFlowBlockError(Error):
+class RefusedFlowBlockError(_RefusalError):
     """The whole block is a flow collection, not a block mapping.
 
     Attributes:
@@ -261,7 +272,7 @@ class RefusedFlowBlockError(Error):
         super().__init__(self.problem)
 
 
-class RefusedFlowNestedCollectionError(Error):
+class RefusedFlowNestedCollectionError(_RefusalError):
     """A flow collection holds a collection.
 
     Attributes:
@@ -278,7 +289,7 @@ class RefusedFlowNestedCollectionError(Error):
         super().__init__(self.problem)
 
 
-class RefusedNestedBlockSequenceError(Error):
+class RefusedNestedBlockSequenceError(_RefusalError):
     """A block sequence holds a block sequence as an item.
 
     Attributes:
@@ -295,7 +306,7 @@ class RefusedNestedBlockSequenceError(Error):
         super().__init__(self.problem)
 
 
-class RefusedMalformedTagError(Error):
+class RefusedMalformedTagError(_RefusalError):
     """A tag the scanner cannot read.
 
     That is a tag such as a verbatim tag left open or empty, a bad `%` escape, or a tag with no space after it.
@@ -321,7 +332,7 @@ class RefusedMalformedTagError(Error):
         self.__cause__ = source
 
 
-class RefusedEscapeError(Error):
+class RefusedEscapeError(_RefusalError):
     """A double-quoted escape names a code point above `U+10FFFF`, which `chr` cannot build.
 
     Attributes:
@@ -340,28 +351,6 @@ class RefusedEscapeError(Error):
         self.source = source
         super().__init__(self.problem)
         self.__cause__ = source
-
-
-type Refusal = (
-    RefusedDirectiveError
-    | RefusedDocumentMarkerError
-    | RefusedAliasError
-    | RefusedAnchorError
-    | RefusedTagError
-    | RefusedMalformedTagError
-    | RefusedMergeKeyError
-    | RefusedCollectionKeyError
-    | RefusedNonStringKeyError
-    | RefusedFlowBlockError
-    | RefusedFlowNestedCollectionError
-    | RefusedNestedBlockSequenceError
-    | RefusedEscapeError
-)
-"""Every construct frontmatter leaves out that stops the read where it is met. Each carries the `mark` where it is
-written and the `problem` as `FM002` words it, so the decoder reads them alike."""
-
-REFUSALS: Final = get_args(Refusal.__value__)
-"""The classes of `Refusal`, for the `except` that catches them."""
 
 
 def written_token(text: str, start: int) -> str:

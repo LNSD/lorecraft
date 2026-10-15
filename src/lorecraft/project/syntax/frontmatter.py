@@ -20,7 +20,7 @@ The block is read as basic YAML, which decodes to exactly what JSON can hold, an
   nothing.
 
 A quoted or block scalar is a string. A plain scalar is null, a boolean, an integer or a float when its whole text
-is one in YAML 1.2's core schema, such as `~`, `true`, `12`, `1.5`, `.inf` or `.nan`, and a string otherwise, so
+is one in YAML 1.2's core schema, such as `~`, `true`, `12` or `1.5`, and a string otherwise, so `.inf` and `.nan`,
 `yes`, `on`, `2026-10-05` and `1:30` are strings. A directive, a document marker, an anchor, an alias, a merge key, a
 tag, an explicit or empty key, a key that is not a string, a flow collection that spreads over lines, holds a
 collection or is the whole block, a block scalar's indentation indicator and a block sequence as an item of a block
@@ -35,7 +35,6 @@ from typing import Final, assert_never
 from lorecraft.core.mapping import Frozen, FrozenMapping
 from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.yaml.problem import (
-    YAML_PROBLEMS,
     ControlCharacterProblem,
     NestingTooDeepProblem,
     RefusedConstructProblem,
@@ -164,7 +163,7 @@ def decode_frontmatter(block: str) -> FrontmatterNode:
     """Decode the YAML between a document's `---` delimiters into its node. Pure: raises nothing.
 
     Never `MissingFrontmatter`: whether a block exists is decided before this is called. Every block the YAML
-    parser cannot parse is `InvalidYamlFrontmatter`, including the few it fails on with a plain Python exception
+    parser cannot parse is `InvalidYamlFrontmatter`, including the few it fails on with a built-in Python exception
     rather than its own error, and so is every block that uses a directive, a document marker, an anchor, an
     alias, a merge key or a tag, writes a key, at any depth, that is not a string, such as `1:`, `true:` or `null:`,
     or nests collections too deeply to read.
@@ -174,9 +173,13 @@ def decode_frontmatter(block: str) -> FrontmatterNode:
     """
     try:
         root = read_yaml(block)
-        if isinstance(root, YAML_PROBLEMS):
-            return _invalid_yaml_of(root, block)
-        return _node_of(root)
+        match root:
+            case ControlCharacterProblem() | SyntaxErrorProblem() | RefusedConstructProblem() | NestingTooDeepProblem():
+                return _invalid_yaml_of(root, block)
+            case YamlMapping() | YamlSequence() | YamlScalar() | None:
+                return _node_of(root)
+            case _:
+                assert_never(root)
     except RecursionError:
         # The value is mapped with one call per level of nesting, so only a deeply nested block reaches the
         # interpreter's limit, once the read has finished and found nothing wrong above it. By the time this clause
