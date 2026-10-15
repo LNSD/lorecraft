@@ -165,6 +165,7 @@ Before committing code, verify:
 - [ ] A returned value is compared whole to an expected value wherever the test is about all of it
 - [ ] A projection appears only where the projected sequence across several items is the fact
 - [ ] No `assert` compares a tuple of fields projected from one item; each fact has its own `assert`
+- [ ] No `assert` joins facts with `and`, and a `pytest.raises` block holds only the statement that raises; ruff's `PT018` and `PT012` check both
 - [ ] Unfolded asserts are ordered so a count is checked before the item it indexes
 - [ ] More than three items sharing one fact are asserted once with `all()` or `any()`, the items interpolated
 - [ ] Identity, enum members and `None` are compared with `is`
