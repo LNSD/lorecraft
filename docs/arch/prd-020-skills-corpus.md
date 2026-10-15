@@ -285,3 +285,5 @@ Scenario: The overlap is configured as an error
 
 - [adr-016-specifications](adr-016-specifications.md) - Source: Meta specs layer by conjunction, which the skills
   namespaces follow
+- [adr-022](adr-022-skills-governance.md) - Leads to: Reserved-corpus governance for skills and bounded
+  contradiction detection
