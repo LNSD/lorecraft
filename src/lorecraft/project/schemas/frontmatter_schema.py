@@ -12,18 +12,15 @@ Nothing here logs: `validate` raises nothing, and `parse` returns the failure it
 """
 
 import re
-from collections.abc import Iterator, Mapping
+from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Final, Self, assert_never
+from typing import Self, assert_never
 
 from jsonschema import Draft202012Validator
 from jsonschema._utils import find_evaluated_property_keys_by_schema
 from jsonschema.exceptions import SchemaError, best_match
 from jsonschema.exceptions import ValidationError as SchemaValidationError
 from jsonschema.protocols import Validator
-from referencing import Registry
-from referencing.exceptions import Unresolvable
-from referencing.jsonschema import DRAFT202012
 
 from lorecraft.core.error import Unreachable
 from lorecraft.core.mapping import Frozen, FrozenMapping, Plain
@@ -43,6 +40,9 @@ from lorecraft.jsonschema import (
     RequiredKeyword,
     TypeKeyword,
     UnevaluatedPropertiesKeyword,
+    find_same_instance_ref_cycle,
+    is_resolved_inside,
+    iter_schemas,
     keyword_of,
 )
 
@@ -132,8 +132,7 @@ class FrontmatterSchema:
         except SchemaError as exc:
             return InvalidFrontmatterSchema(exc.message)
         # No `$id` is allowed below, so the whole schema is one resource, and every `$ref` is read against it.
-        registry = Registry().with_resource('', DRAFT202012.create_resource(plain))
-        for subschema in _iter_schemas_within(schema):
+        for subschema in iter_schemas(plain):
             if '$id' in subschema:
                 # An `$id` would make that schema a resource of its own, with its own base URI, and so change what
                 # every relative `$ref` beneath it resolves to.
@@ -153,12 +152,12 @@ class FrontmatterSchema:
                 if not isinstance(ref, str):
                     # SAFETY: the meta-schema check above has refused a reference that is not a string
                     raise Unreachable(f'the meta-schema proved `{keyword}` is a string')
-                if not _resolves_inside(registry, ref):
+                if not is_resolved_inside(plain, ref):
                     # `validate` raises nothing, and `jsonschema` raises when it meets a reference that does not
                     # resolve to a schema, so it is refused here, where the schema is loaded.
                     return UnresolvableFrontmatterSchemaRef(ref)
         # Every `$ref` resolves, so a cycle among them can be followed.
-        cycle = _same_instance_ref_cycle(registry, plain)
+        cycle = find_same_instance_ref_cycle(plain)
         if cycle is not None:
             return CyclicFrontmatterSchemaRef(cycle)
         # A frontmatter is a mapping, so the schema must say so itself: a schema that left `type` out would accept
@@ -492,121 +491,3 @@ def _schema_object(value: Plain) -> Mapping[str, Plain]:
         # SAFETY: every caller passes a value the meta-schema, checked when the schema was loaded, requires an object.
         raise Unreachable('the meta-schema proved this schema value is an object')
     return schema
-
-
-def _resolves_inside(registry: Registry, ref: str) -> bool:
-    """Whether a `$ref` or `$dynamicRef` names a schema inside the one schema the registry holds.
-
-    Only a reference that is empty or opens with `#` can: any other names another resource, which is never fetched,
-    so it is refused without being looked up. What it names must be a schema, an object or a boolean, as `jsonschema`
-    raises when it reads anything else, such as `#/required/0`, as one.
-
-    Args:
-        registry: A registry holding the schema alone, under the empty base URI.
-        ref: What the reference holds, as written; the empty reference is the schema itself, as `#` is.
-    """
-    if ref and not ref.startswith('#'):
-        return False
-    try:
-        target = registry.resolver().lookup(ref).contents
-    except Unresolvable:
-        return False
-    return isinstance(target, Mapping | bool)
-
-
-# The keywords that apply a subschema to the same instance their schema applies to, so a schema reached through one
-# is read against the very value the first was. `dependentSchemas` is one: it applies its subschema to the whole
-# object when the property it is keyed by is present.
-_SAME_INSTANCE_SINGLE: Final[tuple[str, ...]] = ('not', 'if', 'then', 'else')
-_SAME_INSTANCE_LISTS: Final[tuple[str, ...]] = ('allOf', 'anyOf', 'oneOf')
-_SAME_INSTANCE_MAPS: Final[tuple[str, ...]] = ('dependentSchemas',)
-
-
-def _same_instance_ref_cycle(registry: Registry, schema: Mapping[str, Plain]) -> str | None:
-    """The `$ref` that closes a cycle of schemas all applied to one instance, or None when there is none.
-
-    A reference moves to its target without reading any of the instance, as do `allOf`, `anyOf`, `oneOf`, `not`,
-    `if`, `then`, `else` and `dependentSchemas`. Following only those from every schema, a path that returns to a
-    schema it left never reaches a keyword that reads the value, so validating would recurse without end if the
-    path were applied. Every schema is walked, used or not: a cycle nothing refers to is still a defect in the
-    schema. A reference below `properties` or `items` is not followed: it applies to a smaller value, so a
-    recursive schema such as a tree is fine.
-
-    Args:
-        registry: A registry holding the schema alone, under the empty base URI, every reference of which resolves.
-        schema: The whole schema, as plain data.
-    """
-    # A schema is identified by the object itself: a lookup returns the very object inside `schema`.
-    settled: set[int] = set()
-
-    def visit(node: Mapping[str, Plain], on_path: set[int], last_ref: str) -> str | None:
-        key = id(node)
-        if key in settled:
-            return None
-        on_path.add(key)
-        for target, ref in _same_instance_schemas(registry, node):
-            # A target reached through a keyword is named by the last `$ref` on the way, the one a reader can find.
-            via = ref if ref is not None else last_ref
-            if id(target) in on_path:
-                return via
-            closing = visit(target, on_path, via)
-            if closing is not None:
-                return closing
-        on_path.discard(key)
-        settled.add(key)
-        return None
-
-    for subschema in _iter_schemas_within(schema):
-        closing = visit(subschema, set(), '#')
-        if closing is not None:
-            return closing
-    return None
-
-
-def _same_instance_schemas(
-    registry: Registry, node: Mapping[str, Plain]
-) -> Iterator[tuple[Mapping[str, Plain], str | None]]:
-    """The object schemas `node` applies to the instance it is itself applied to, each with the `$ref` that led to it.
-
-    Args:
-        registry: A registry holding the schema `node` is inside, under the empty base URI.
-        node: One object schema.
-    """
-    for keyword in ('$ref', '$dynamicRef'):
-        ref = node.get(keyword)
-        if isinstance(ref, str):
-            target = registry.resolver().lookup(ref).contents
-            if isinstance(target, Mapping):
-                yield target, ref
-    for keyword in _SAME_INSTANCE_SINGLE:
-        sub = node.get(keyword)
-        if isinstance(sub, Mapping):
-            yield sub, None
-    for keyword in _SAME_INSTANCE_LISTS:
-        subs = node.get(keyword)
-        if isinstance(subs, list):
-            for sub in subs:
-                if isinstance(sub, Mapping):
-                    yield sub, None
-    for keyword in _SAME_INSTANCE_MAPS:
-        named = node.get(keyword)
-        if isinstance(named, Mapping):
-            for sub in named.values():
-                if isinstance(sub, Mapping):
-                    yield sub, None
-
-
-def _iter_schemas_within(schema: Mapping[str, Plain]) -> Iterator[Mapping[str, Plain]]:
-    """The schema itself, then every object subschema inside it, at any depth.
-
-    Only the places Draft 2020-12 reads a schema from are walked, such as `properties` or `items`, so a value
-    under `enum` or `const` that happens to hold `$id` is data, not a schema, and is not visited. A boolean
-    subschema holds no keyword, so it is skipped.
-
-    Args:
-        schema: The schema to walk; it is yielded first, unchanged.
-    """
-    yield schema
-    for subschema in DRAFT202012.subresources_of(schema):
-        if isinstance(subschema, Mapping):
-            yield from _iter_schemas_within(subschema)
