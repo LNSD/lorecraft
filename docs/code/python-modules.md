@@ -61,11 +61,14 @@ package's own module rule, such as the `__ruleset__.py` of a rule group, which d
 share. A module exists to be imported by the modules beside it, so an underscored file name makes each of those
 imports read as reaching past a privacy boundary, and a reader can no longer tell the legitimate import from the
 breach. What a package offers is its `__all__` ([§5](#5-__all__-declares-a-packages-surface)): a module whose
-names it does not re-export is internal whatever the file is called.
+names it does not re-export is internal whatever the file is called. A role module is therefore imported only
+by its own package; code outside it imports what the package re-exports.
 
 Declare each concrete exception, and any `type` union naming an operation's failures, beside the code that
 raises them: the variants a value object's `parse` raises sit in the value object's module, and a repository method's
-variants sit in the repository's module. The package's base exceptions, `Error`, which is never raised directly, and
+variants sit in the repository's module. The variants of an abstract operation are the contract's, not one
+implementation's ([error-types](error-types.md)): they sit beside the abstract class that declares them, where
+a caller holding the interface looks, and an implementation imports them from there. The package's base exceptions, `Error`, which is never raised directly, and
 `Unreachable`, may use a module named for that exact type, `error.py`. How an error type is declared is owned by
 [error-types](error-types.md).
 
