@@ -10,9 +10,10 @@ import pytest
 
 from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.core.path import PathComponent, RootRelativePath
+from lorecraft.jsonschema import JsonType
 from lorecraft.project.syntax import Frontmatter, LineNumber, parse_frontmatter
 
-from ..frontmatter_problem import FieldGuidance, JsonType, MissingFieldProblem, UnknownFieldProblem, WrongTypeProblem
+from ..frontmatter_problem import FieldGuidance, MissingFieldProblem, UnknownFieldProblem, WrongTypeProblem
 from ..frontmatter_schema import StatedFrontmatterSchema
 from ..name import parse_spec_name
 from ..schema_problems import (

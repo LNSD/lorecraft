@@ -12,7 +12,6 @@ from .frontmatter_problem import (
     FieldGuidance,
     FieldLimit,
     InvalidValueProblem,
-    JsonType,
     MaxFields,
     MinFields,
     MissingFieldProblem,
@@ -96,7 +95,7 @@ from .structure import (
     TitlePattern,
 )
 from .structure_failure import StructureSpecProblem
-from .structure_file import JSON_SCHEMA_DIALECT, StructureFile
+from .structure_file import StructureFile
 
 __all__: list[str] = [
     'CorpusSpecName',
@@ -119,7 +118,6 @@ __all__: list[str] = [
     'FrontmatterSchema',
     'StatedFrontmatterSchema',
     'StructureFile',
-    'JSON_SCHEMA_DIALECT',
     'TitlePattern',
     'SectionEntry',
     'SectionName',
@@ -151,7 +149,6 @@ __all__: list[str] = [
     'BlockProblem',
     'FieldCount',
     'FieldLimit',
-    'JsonType',
     'FieldGuidance',
     'OneOfValues',
     'PatternMismatch',

@@ -14,32 +14,16 @@ for the one cause no typed constraint describes.
 """
 
 from dataclasses import KW_ONLY, dataclass
-from enum import StrEnum
 from typing import NewType
 
 from lorecraft.core.num import UnsignedInt
+from lorecraft.jsonschema import JsonType, JsonTypes
 
 FieldCount = NewType('FieldCount', UnsignedInt)
 """How many top-level fields a frontmatter block holds."""
 
 FieldLimit = NewType('FieldLimit', UnsignedInt)
 """The number of top-level fields a schema's `minProperties` or `maxProperties` sets as a bound; 0 is a valid one."""
-
-
-class JsonType(StrEnum):
-    """A type JSON Schema names; the value is the name its `type` keyword spells it with."""
-
-    ARRAY = 'array'
-    BOOLEAN = 'boolean'
-    INTEGER = 'integer'
-    NULL = 'null'
-    NUMBER = 'number'
-    OBJECT = 'object'
-    STRING = 'string'
-
-
-type JsonTypes = tuple[JsonType, *tuple[JsonType, ...]]
-"""One or more JSON types: a `type` keyword names at least one, so a list of them is never empty."""
 
 
 @dataclass(frozen=True, slots=True)

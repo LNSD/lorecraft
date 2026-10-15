@@ -13,6 +13,7 @@ import pytest
 from lib.tree import from_tree
 from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.core.path import PathComponent, RootRelativePath
+from lorecraft.jsonschema import JsonType
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.database import Database, DocumentText, SkillText
@@ -20,7 +21,6 @@ from lorecraft.project.document import DocumentRef
 from lorecraft.project.schemas import (
     AgentSkillsSchema,
     FieldGuidance,
-    JsonType,
     LocatedProblem,
     MissingFieldProblem,
     SchemaProblems,

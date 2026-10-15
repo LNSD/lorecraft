@@ -13,7 +13,7 @@ import typer
 from lorecraft.agents import SKILL_ENTRY_FILENAME
 from lorecraft.core.error import Error
 from lorecraft.core.path import RootRelativePath
-from lorecraft.project.schemas import JSON_SCHEMA_DIALECT
+from lorecraft.jsonschema import DIALECT
 from lorecraft.project.workspace import (
     AdjacentAnyRuns,
     CyclicFrontmatterSchemaRef,
@@ -157,7 +157,7 @@ def _failure_text(failure: LoadFailure) -> _FailureText:
         case ForeignFrontmatterDialect(dialect=dialect):
             return _FailureText(
                 f'invalid structure schema {path}: frontmatter schema names {dialect!r} in $schema; only '
-                f'{JSON_SCHEMA_DIALECT} is allowed'
+                f'{DIALECT} is allowed'
             )
         case UnresolvableFrontmatterSchemaRef(ref=ref):
             return _FailureText(

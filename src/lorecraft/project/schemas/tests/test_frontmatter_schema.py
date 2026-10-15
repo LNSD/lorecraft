@@ -7,6 +7,7 @@ import pytest
 
 from lorecraft.core.mapping import FrozenMapping, Plain
 from lorecraft.core.num import UnsignedInt
+from lorecraft.jsonschema import JsonType
 
 from ..frontmatter_problem import (
     BlockProblem,
@@ -14,7 +15,6 @@ from ..frontmatter_problem import (
     FieldGuidance,
     FieldLimit,
     InvalidValueProblem,
-    JsonType,
     MaxFields,
     MinFields,
     MissingFieldProblem,
