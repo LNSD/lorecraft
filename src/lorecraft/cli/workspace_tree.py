@@ -11,6 +11,7 @@ from typing import Final
 
 from pydantic import BaseModel, ConfigDict
 
+from lorecraft.core.error import Unreachable
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.skill import SkillsDir
 from lorecraft.project.workspace import Corpus, Spec, WorkspaceModel
@@ -330,9 +331,9 @@ def _file_names(files: tuple[RootRelativePath, ...]) -> str:
     names: list[str] = []
     for file in files:
         name = file.name
-        # Every spec file is listed under the specification directory, so no file here is the root.
+        # SAFETY: every spec file is listed under the specification directory, so no file here is the root.
         if name is None:
-            raise AssertionError('unreachable: a spec file sits in the specification directory, never at the root')
+            raise Unreachable('a spec file sits in the specification directory, never at the root')
         names.append(str(name))
     return ', '.join(names)
 
