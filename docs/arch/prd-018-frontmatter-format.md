@@ -78,7 +78,7 @@ to remove without reading a parser's grammar.
 Scenario: A reference to another value
   Given a document whose frontmatter defines a value once and refers to it from another key
   When the writer checks the workspace
-  Then an invalid-frontmatter diagnostic is reported on the line of the first reference construct
+  Then an invalid-YAML diagnostic is reported on the line of the first reference construct
   And its message names the construct found and says frontmatter does not allow it
 ```
 
@@ -86,7 +86,7 @@ Scenario: A reference to another value
 Scenario: A directive before the metadata
   Given a document whose frontmatter opens with a directive line
   When the writer checks the workspace
-  Then an invalid-frontmatter diagnostic is reported on the directive's line
+  Then an invalid-YAML diagnostic is reported on the directive's line
 ```
 
 ### US-3: Catch a key written twice (P2)
@@ -118,27 +118,27 @@ Scenario: A duplicate in a nested mapping
 - **FR-006:** THE SYSTEM SHALL accept comments, blank lines, Windows line endings and a byte-order mark in a
   frontmatter block.
 - **FR-007:** IF a frontmatter block holds a directive, or a document start or end marker inside it, THEN THE SYSTEM
-  SHALL report an invalid-frontmatter diagnostic on that line.
+  SHALL report an invalid-YAML diagnostic on that line.
 - **FR-008:** IF a frontmatter block holds a reference construct (an anchor, an alias or a merge key), THEN THE
-  SYSTEM SHALL report an invalid-frontmatter diagnostic on that line.
+  SYSTEM SHALL report an invalid-YAML diagnostic on that line.
 - **FR-009:** IF a frontmatter block holds a type annotation (a tag), THEN THE SYSTEM SHALL report an
-  invalid-frontmatter diagnostic on that line.
+  invalid-YAML diagnostic on that line.
 - **FR-010:** IF a frontmatter block holds an explicit key entry (`? key`), an empty key or a key that is not text,
-  THEN THE SYSTEM SHALL report an invalid-frontmatter diagnostic on that line.
+  THEN THE SYSTEM SHALL report an invalid-YAML diagnostic on that line.
 - **FR-011:** IF a frontmatter block holds an inline list or mapping that spans lines, holds another list or
-  mapping, or is the block's top level, THEN THE SYSTEM SHALL report an invalid-frontmatter diagnostic on the line
+  mapping, or is the block's top level, THEN THE SYSTEM SHALL report an invalid-YAML diagnostic on the line
   it starts.
 - **FR-012:** IF a frontmatter block holds a block value with an indentation indicator (`|2`), THEN THE SYSTEM SHALL
-  report an invalid-frontmatter diagnostic on that line.
+  report an invalid-YAML diagnostic on that line.
 - **FR-013:** THE SYSTEM SHALL word each diagnostic of FR-007 to FR-012 and FR-016 as `found <what>, which
   frontmatter does not allow`, naming the construct.
 - **FR-014:** IF a mapping at any depth writes a key twice, THEN THE SYSTEM SHALL report a duplicate-key diagnostic
   on the later key's line, pointing back at the first, and still check the block's other fields.
 - **FR-015:** IF a frontmatter block cannot be read inside the format, THEN THE SYSTEM SHALL report an
-  invalid-frontmatter diagnostic on the line the writer fixes, in its own words naming what is wrong and how to fix
+  invalid-YAML diagnostic on the line the writer fixes, in its own words naming what is wrong and how to fix
   it, never in the parser's.
 - **FR-016:** IF a list written one item per line holds, as an item, another list written one item per line, THEN
-  THE SYSTEM SHALL report an invalid-frontmatter diagnostic on that item's line.
+  THE SYSTEM SHALL report an invalid-YAML diagnostic on that item's line.
 - **NFR-001:** THE SYSTEM SHALL read every block inside the format to the value it reads to today.
 - **NFR-002:** THE SYSTEM SHALL carry, for every construct FR-007 to FR-012 and FR-016 refuse, a block that
   triggers its diagnostic and an accepted block that differs from it by the least.
@@ -161,7 +161,7 @@ Scenario: A duplicate in a nested mapping
 
 - **Plain frontmatter:** The format of FR-001 to FR-006: what a frontmatter block may hold.
 - **Refused construct:** A construct outside the format, reported on its line by name (FR-007 to FR-013, FR-016).
-- **Invalid-frontmatter diagnostic:** The `FM002 invalid-yaml` diagnostic, reported for a block that is outside the
+- **Invalid-YAML diagnostic:** The `FM002 invalid-yaml` diagnostic, reported for a block that is outside the
   format or cannot be read.
 - **Duplicate-key diagnostic:** The `FM005 duplicate-key` diagnostic, reported for a key written twice at any
   depth (FR-014).

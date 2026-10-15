@@ -90,6 +90,7 @@ Each is `FM002` on its line, worded `found <what>, which frontmatter does not al
 | A block-scalar indentation indicator | `d: \|2` | FR-012 |
 | A flow collection as the block itself | `{name: a}`, `[a, b]` | FR-011 |
 | A block sequence as an item of a block sequence | `- - a`, `-` then `  - a` | FR-016 |
+| A double-quoted escape naming no Unicode character, above `U+10FFFF` | `t: "\U00110000"` | — |
 
 Everything the Accepted table does not list is refused the same way. A block that is in block style but not a
 mapping at the top, such as a block sequence, a single scalar or an empty block, stays
