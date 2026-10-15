@@ -85,6 +85,26 @@ def _parse_usable(schema: StructureSchema) -> StructureSpec:
 
 @pytest.mark.unit
 class TestStructureSpecParse:
+    def test_equal_structure_specs_compare_and_hash_by_rules(self) -> None:
+        #: Given
+        schema = StructureSchema(
+            dedent(
+                """
+                {
+                  "frontmatter": {"type": "object"},
+                  "outline": [{"section": "Checklist"}]
+                }
+                """
+            )
+        )
+        first = _parse_usable(schema)
+        second = _parse_usable(schema)
+
+        #: When
+        #: Then
+        assert first == second, 'compiled frontmatter validators do not change structure-spec equality'
+        assert hash(first) == hash(second), 'compiled frontmatter validators do not change structure-spec hashing'
+
     def test_parse_with_every_field_returns_the_rules_it_states(self) -> None:
         #: Given
         schema = StructureSchema(
