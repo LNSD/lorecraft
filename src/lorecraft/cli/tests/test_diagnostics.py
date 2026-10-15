@@ -38,8 +38,8 @@ from lorecraft.vfs import ByteOffset, RootExit, Utf8Failure, Utf8Line, Utf8Reaso
 from ..diagnostic_text import SourceLines, SourceText, TextStyle, render_text
 from ..diagnostics import render_coverage, render_json, render_prefix_summary, render_short, render_summary
 
-_CODE_SPEC: Final[RootRelativePath] = RootRelativePath.parse('docs/__meta__/code.structure.json')
-_FEAT_SPEC: Final[RootRelativePath] = RootRelativePath.parse('docs/__meta__/feat.structure.json')
+_CODE_SPEC: Final[RootRelativePath] = RootRelativePath.parse('docs/__meta__/code.spec.json')
+_FEAT_SPEC: Final[RootRelativePath] = RootRelativePath.parse('docs/__meta__/feat.spec.json')
 _CODE_OWNER: Final[DocumentFrontmatterOwner] = DocumentFrontmatterOwner(
     filename=AspectFilename.parse('guide'), spec=_CODE_SPEC
 )
@@ -318,7 +318,7 @@ class TestRenderText:
             'error[OUT006]: missing required section `Usage`\n'
             ' --> docs/feat/guide.md:9\n'
             '  = at docs/feat/guide.md:9: expected `Usage` before the end of the document\n'
-            ' ::: docs/__meta__/feat.structure.json\n'
+            ' ::: docs/__meta__/feat.spec.json\n'
             '  │\n'
             '  = note: the document structure is set here\n'
             '  = note: for example:\n'
@@ -536,7 +536,7 @@ class TestRenderJson:
                         {
                             'kind': 'note',
                             'text': 'the limit is set here',
-                            'path': 'docs/__meta__/code.structure.json',
+                            'path': 'docs/__meta__/code.spec.json',
                             'line': None,
                         },
                         {
@@ -574,7 +574,7 @@ class TestRenderJson:
                         {
                             'kind': 'note',
                             'text': 'the frontmatter schema is set here',
-                            'path': 'docs/__meta__/code.structure.json',
+                            'path': 'docs/__meta__/code.spec.json',
                             'line': None,
                         },
                         {'kind': 'help', 'text': "write 'name' once, with the value meant", 'path': None, 'line': None},
@@ -608,7 +608,7 @@ class TestRenderJson:
                         {
                             'kind': 'note',
                             'text': 'the document structure is set here',
-                            'path': 'docs/__meta__/feat.structure.json',
+                            'path': 'docs/__meta__/feat.spec.json',
                             'line': None,
                         },
                         {'kind': 'help', 'text': 'How to invoke the command.', 'path': None, 'line': None},
@@ -684,15 +684,15 @@ class TestRenderLoadFailures:
         #: Then
         assert text == (
             'docs/code/a.md: skipped, governed by a structure file that failed to load: '
-            'docs/__meta__/code.structure.json\n'
+            'docs/__meta__/code.spec.json\n'
             'docs/code/b.md: skipped, governed by a structure file that failed to load: '
-            'docs/__meta__/code.structure.json\n'
+            'docs/__meta__/code.spec.json\n'
             'docs/feat/check.md: ungoverned for budget'
         ), 'a skipped document is a coverage line beside the ungoverned ones, with the file that caused it'
 
     def test_render_coverage_with_a_document_skipped_for_two_layers_names_both_files(self) -> None:
         #: Given
-        both = (_CODE_SPEC, RootRelativePath.parse('docs/__meta__/code-python.structure.json'))
+        both = (_CODE_SPEC, RootRelativePath.parse('docs/__meta__/code-python.spec.json'))
         reports: tuple[RunReport, ...] = (SkippedSubject(_document('code', 'python-typing'), both),)
 
         #: When
@@ -701,7 +701,7 @@ class TestRenderLoadFailures:
         #: Then
         assert text == (
             'docs/code/python-typing.md: skipped, governed by a structure file that failed to load: '
-            'docs/__meta__/code.structure.json, docs/__meta__/code-python.structure.json'
+            'docs/__meta__/code.spec.json, docs/__meta__/code-python.spec.json'
         ), 'each failed layer is named, corpus spec first'
 
     def test_render_summary_with_a_load_failure_counts_its_error_and_no_subject_for_it(self) -> None:
@@ -725,7 +725,7 @@ class TestRenderLoadFailures:
 
         #: Then
         assert text == (
-            'docs/__meta__/code.structure.json: error[LC003]: structure file does not follow the structure format'
+            'docs/__meta__/code.spec.json: error[LC003]: structure file does not follow the structure format'
         ), 'the failure is one line at the structure file, and the skipped documents hold no diagnostic'
 
     def test_render_prefix_summary_with_a_load_failure_counts_it_under_the_engine_group(self) -> None:
@@ -748,7 +748,7 @@ class TestRenderLoadFailures:
         #: Then
         assert text == (
             'error[LC003]: structure file does not follow the structure format\n'
-            ' --> docs/__meta__/code.structure.json\n'
+            ' --> docs/__meta__/code.spec.json\n'
             '  = help: fix each problem listed\n'
             '  = note: max_tokens: Extra inputs are not permitted'
         ), 'the failure is drawn like any diagnostic of a whole file, with each problem as a note after the help'
@@ -764,13 +764,13 @@ class TestRenderLoadFailures:
         document = json.loads(text)
         assert document['summary'] == {'subjects': 3, 'errors': 1, 'warnings': 0}, 'the failure is no subject'
         assert document['coverage'] == [
-            {'path': 'docs/code/a.md', 'ungoverned': [], 'skipped_by': ['docs/__meta__/code.structure.json']},
-            {'path': 'docs/code/b.md', 'ungoverned': [], 'skipped_by': ['docs/__meta__/code.structure.json']},
+            {'path': 'docs/code/a.md', 'ungoverned': [], 'skipped_by': ['docs/__meta__/code.spec.json']},
+            {'path': 'docs/code/b.md', 'ungoverned': [], 'skipped_by': ['docs/__meta__/code.spec.json']},
             {'path': 'docs/feat/check.md', 'ungoverned': ['budget'], 'skipped_by': []},
         ], 'a skipped document names the files that caused it, and a judged one names none'
         assert document['diagnostics'] == [
             {
-                'path': 'docs/__meta__/code.structure.json',
+                'path': 'docs/__meta__/code.spec.json',
                 'line': None,
                 'severity': 'error',
                 'code': 'LC003',

@@ -25,7 +25,7 @@ from ..diagnostic_parts import (
 )
 
 _SUBJECT: Final[RootRelativePath] = RootRelativePath.parse('docs/code/a.md')
-_SPEC: Final[RootRelativePath] = RootRelativePath.parse('docs/__meta__/code.structure.json')
+_SPEC: Final[RootRelativePath] = RootRelativePath.parse('docs/__meta__/code.spec.json')
 _OWNER: Final[DocumentFrontmatterOwner] = DocumentFrontmatterOwner(filename=AspectFilename.parse('guide'), spec=_SPEC)
 _OTHER: Final[RootRelativePath] = RootRelativePath.parse('docs/feat/check.md')
 
@@ -100,7 +100,7 @@ class TestFormatPlace:
         text = format_place(whole_file)
 
         #: Then
-        assert text == 'docs/__meta__/code.structure.json', 'a whole file is printed as its path alone'
+        assert text == 'docs/__meta__/code.spec.json', 'a whole file is printed as its path alone'
 
 
 @pytest.mark.unit

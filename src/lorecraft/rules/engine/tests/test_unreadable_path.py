@@ -70,7 +70,7 @@ class TestUnreadablePath:
     def test_children_of_a_refused_read_name_the_file_and_the_reason(self) -> None:
         #: Given
         occurrence = UnreadablePath(
-            failed_at=RootRelativePath.parse('docs/__meta__/code.structure.json'),
+            failed_at=RootRelativePath.parse('docs/__meta__/code.spec.json'),
             cause=Refused(operation=RefusedOperation.READ, refusal=OsRefusal.PERMISSION_DENIED),
         )
 
@@ -80,7 +80,7 @@ class TestUnreadablePath:
         #: Then
         assert children == (
             _ACCESS_HELP,
-            EntryNote('cannot read docs/__meta__/code.structure.json: permission denied'),
+            EntryNote('cannot read docs/__meta__/code.spec.json: permission denied'),
         ), 'the operation, the path and the refusal are said as a note after the help'
 
     def test_children_of_a_refused_listing_name_the_directory_and_the_reason(self) -> None:
@@ -131,7 +131,7 @@ class TestUnreadablePath:
     def test_children_of_an_occurrence_with_no_regular_file_say_so_and_how_to_restore_it(self) -> None:
         #: Given
         occurrence = UnreadablePath(
-            failed_at=RootRelativePath.parse('docs/__meta__/code.structure.json'),
+            failed_at=RootRelativePath.parse('docs/__meta__/code.spec.json'),
             cause=NotARegularFile(),
         )
 
@@ -141,5 +141,5 @@ class TestUnreadablePath:
         #: Then
         assert children == (
             EntryHelp('restore the file as a regular file inside the repository'),
-            EntryNote('cannot read docs/__meta__/code.structure.json: no regular file the check can find'),
+            EntryNote('cannot read docs/__meta__/code.spec.json: no regular file the check can find'),
         ), 'with no refusal to name, the note says what stands where the file should be'

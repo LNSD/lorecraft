@@ -10,7 +10,7 @@ warning[LEN001]: too many tokens (2400 > 2000)
 1 │ ---
   │ ─── tokens over the budget: 400
   │
- ::: docs/__meta__/code.structure.json
+ ::: docs/__meta__/code.spec.json
   │
   = note: the limit is set here
   = help: split the document, or move what an agent needs only some of the time
@@ -26,7 +26,7 @@ error[FM005]: duplicate key 'name'
 3 │ name: b
   │ ─────── written again here
   │
- ::: docs/__meta__/code.structure.json
+ ::: docs/__meta__/code.spec.json
   │
   = note: the frontmatter schema is set here
   = help: write 'name' once, with the value meant
@@ -42,7 +42,7 @@ error[OUT006]: missing required section `Usage`
 5 │ ## Options
   │ ────────── expected `Usage` before `Options`
   │
- ::: docs/__meta__/feat.structure.json
+ ::: docs/__meta__/feat.spec.json
   │
   = note: the document structure is set here
   = help: How to invoke the command.
