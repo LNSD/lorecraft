@@ -2,7 +2,7 @@
 name: "prd-018-frontmatter-format"
 description: "Frontmatter is plain frontmatter: lorecraft accepts the small set of constructs document metadata is written with, and reports every other construct, and every key written twice, on its line, so what a block means no longer depends on a parser's grammar"
 type: "prd"
-status: "draft"
+status: "approved"
 ---
 
 # Plain Frontmatter

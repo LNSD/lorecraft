@@ -2,7 +2,7 @@
 name: "adr-019-frontmatter-format"
 description: "The frontmatter format: the closed list of YAML 1.2 constructs a frontmatter block may hold, what each reads as, and the refusal, as FM002 on its line, of every construct the list does not name, decided by lorecraft from the tokens and events it reads; a syntax error is FM002 in lorecraft's own words, classified from the parser's error; a key written twice at any depth is FM005. Load when changing what frontmatter accepts or refuses, or the diagnostics frontmatter.py or anything under src/lorecraft/yaml/ reports for its syntax"
 type: "adr"
-status: "proposed"
+status: "accepted"
 ---
 
 # Frontmatter Format
