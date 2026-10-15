@@ -10,8 +10,8 @@ scope: "pkg:lorecraft.engine"
 ## Responsibility
 
 Run the rules over one revision's subjects, and report what failed to load. It changes when the way a subject is
-judged changes, when a mode's policy for a document governed by a failed layer changes, or when a load failure is
-reported differently.
+judged changes, when check mode skips a subject whose docs target was refused, when a mode's policy for a document
+governed by a failed layer changes, or when a load failure is reported differently.
 
 ## Role
 
@@ -30,8 +30,8 @@ returns at its subject, as a diagnostic of `lorecraft.rules.report`.
   each resource handed over as a subject of its own. A document's report is a `CheckedDocument`, which holds its
   coverage; a skill's or a resource's is a `CheckedSkillFile`, which holds none, because the package governs every
   skill file in full.
-- One entry point per mode, each carrying that mode's policy for a document a failed layer governs: `skip.py` for the
-  check run, which gives such a document no rule and reports it as skipped, `partial.py` for the LSP-style mode later.
+- One entry point per mode: `skip.py` gives documents governed by a failed layer no rule, and skips skill files whose
+  docs target was refused; `partial.py` is for the LSP-style mode later.
 - The report of each load failure the model lists (`load_failures.py`): the engine condition of its kind, filed
   once at the failure's path, whatever the configuration and the selection. A `docs/` or `docs/__meta__/` that
   cannot be listed comes back as `UnlistableRoot` instead of a report. Which failure stops a run is the command's
@@ -59,6 +59,7 @@ returns at its subject, as a diagnostic of `lorecraft.rules.report`.
 - A rule returns occurrences that name no subject. The run attaches the subject's path, as a diagnostic.
 - A load failure is reported once, at its own path, and never once per subject it touches; a document a failed layer
   governs is coverage, never a diagnostic.
+- A skill file whose docs target was refused is coverage at its own path; the refusal is reported at the target.
 - A run's results are not cached. Every rule runs again every time, and never sees the store of persisted results.
 - The shared runner holds no mode's policy. A new mode is a new entry point that edits neither `runner.py` nor
   another mode's entry point.
