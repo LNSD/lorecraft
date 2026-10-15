@@ -4,7 +4,7 @@ error[FM001]: no `---` delimited frontmatter block
 1 │ # No frontmatter
   │ ──────────────── a `---` delimited block is expected here
   │
- ::: docs/__meta__/code.structure.json
+ ::: docs/__meta__/code.spec.json
   │
   = note: the frontmatter schema is set here
   = help: open the file with a `---` line, the fields, and a closing `---` line

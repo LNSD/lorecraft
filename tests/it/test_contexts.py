@@ -66,7 +66,7 @@ CORPUS_STRUCTURE: Final[bytes] = (
 )
 """The corpus structure specification: a budget, an outline `TYPING` lacks a section of, and a frontmatter schema."""
 
-CORPUS_SPEC: Final[RootRelativePath] = RootRelativePath.parse('docs/__meta__/code.structure.json')
+CORPUS_SPEC: Final[RootRelativePath] = RootRelativePath.parse('docs/__meta__/code.spec.json')
 """Where the corpus structure specification lies."""
 
 REVIEW: Final[SkillRef] = SkillRef(
@@ -98,9 +98,9 @@ def _tree() -> FileTree:
         'docs': {
             '__meta__': {
                 'code.md': b'# Code\n',
-                'code.structure.json': CORPUS_STRUCTURE,
+                'code.spec.json': CORPUS_STRUCTURE,
                 'code-python.md': b'# Code Python\n',
-                'code-python.structure.json': b'{"tokens": 200}',
+                'code-python.spec.json': b'{"tokens": 200}',
             },
             'code': {'python-typing.md': TYPING_TEXT.encode()},
         },

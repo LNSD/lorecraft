@@ -25,10 +25,10 @@ from lorecraft.vfs import Snapshot, VirtualFileSystem
 TYPING: Final[DocumentRef] = DocumentRef(CorpusName.parse('code'), AspectFilename.parse('python-typing'))
 """A document of corpus `code` its `python` namespace governs too."""
 
-CORPUS_SPEC: Final[RootRelativePath] = RootRelativePath.parse('docs/__meta__/code.structure.json')
+CORPUS_SPEC: Final[RootRelativePath] = RootRelativePath.parse('docs/__meta__/code.spec.json')
 """The corpus structure specification."""
 
-NAMESPACE_SPEC: Final[RootRelativePath] = RootRelativePath.parse('docs/__meta__/code-python.structure.json')
+NAMESPACE_SPEC: Final[RootRelativePath] = RootRelativePath.parse('docs/__meta__/code-python.spec.json')
 """The `python` namespace structure specification."""
 
 RULE_ASIDE_CHECKLIST: Final[str] = (
@@ -82,9 +82,9 @@ def _snapshot(corpus_spec: bytes | None, namespace_spec: bytes | None, text: str
     """
     meta: dict[str, bytes] = {'code.md': b'# Code\n', 'code-python.md': b'# Code Python\n'}
     if corpus_spec is not None:
-        meta['code.structure.json'] = corpus_spec
+        meta['code.spec.json'] = corpus_spec
     if namespace_spec is not None:
-        meta['code-python.structure.json'] = namespace_spec
+        meta['code-python.spec.json'] = namespace_spec
     return from_tree({'docs': {'__meta__': meta, 'code': {'python-typing.md': text.encode()}}})
 
 
@@ -193,7 +193,7 @@ class TestOutlineDivergences:
         snapshot = from_tree(
             {
                 'docs': {
-                    '__meta__': {'code.md': b'# Code\n', 'code.structure.json': b'{"outline": [{"section": "Rule"}]}'},
+                    '__meta__': {'code.md': b'# Code\n', 'code.spec.json': b'{"outline": [{"section": "Rule"}]}'},
                     'blog': {'launch.md': b'# Launch\n'},
                 }
             }

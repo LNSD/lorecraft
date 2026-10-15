@@ -61,7 +61,7 @@ def _is_structure_file(path: RootRelativePath) -> bool:
         path: The root-relative path to test; only its final filename is checked, and the root is excluded.
     """
     name = path.name
-    return name is not None and name.value.endswith('.structure.json')
+    return name is not None and name.value.endswith('.spec.json')
 
 
 DECLARATION: Final[Declaration] = Declaration(is_file=_is_structure_file)
@@ -92,7 +92,7 @@ def tree(tmp_path: Path) -> Path:
         tmp_path: The directory the repository is written under, and the repository's root.
     """
     files = {
-        'docs/__meta__/code.structure.json': '{"tokens": 4000}',
+        'docs/__meta__/code.spec.json': '{"tokens": 4000}',
         'docs/code/logging.md': '# Logging\n',
         '.agents/skills/commit/SKILL.md': '---\nname: commit\ndescription: Write a commit message\n---\n\n# Commit\n',
         '.agents/skills/commit/references/guide.md': '# Guide\n',
@@ -128,7 +128,7 @@ def unsearchable_links_directory(tree: Path) -> Iterator[Path]:
 def unsearchable_shelf(tree: Path) -> Iterator[Path]:
     """A `shelf` directory of the tree, readable and not searchable, next to a `links` directory that leads into it.
 
-    `shelf` holds a directory `inner`, a structure file `note.structure.json` and a fifo `pipe`. Its listing names
+    `shelf` holds a directory `inner`, a structure file `note.spec.json` and a fifo `pipe`. Its listing names
     all three, no entry in it can be read or inspected, and so each link of `links` is refused where it leads.
 
     Args:
@@ -136,12 +136,12 @@ def unsearchable_shelf(tree: Path) -> Iterator[Path]:
     """
     shelf = tree / 'shelf'
     (shelf / 'inner').mkdir(parents=True)
-    (shelf / 'note.structure.json').write_text('{}', encoding='utf-8')
+    (shelf / 'note.spec.json').write_text('{}', encoding='utf-8')
     os.mkfifo(shelf / 'pipe')
     links = tree / 'links'
     links.mkdir()
     (links / 'to_inner').symlink_to('../shelf/inner')
-    (links / 'to_note').symlink_to('../shelf/note.structure.json')
+    (links / 'to_note').symlink_to('../shelf/note.spec.json')
     (links / 'to_pipe').symlink_to('../shelf/pipe')
     shelf.chmod(0o444)
     yield shelf
@@ -198,7 +198,7 @@ class TestSnapshotOfAnUnsearchableDirectory:
         snapshot = take_snapshot(tree, scope, declaration=DECLARATION)
 
         #: Then
-        assert snapshot.records[_path('shelf/note.structure.json')] == RefusedRead(OsRefusal.PERMISSION_DENIED), (
+        assert snapshot.records[_path('shelf/note.spec.json')] == RefusedRead(OsRefusal.PERMISSION_DENIED), (
             'the read is what was refused of the file itself, so the refused inspection is dropped'
         )
 
@@ -212,7 +212,7 @@ class TestSnapshotOfAnUnsearchableDirectory:
         snapshot = take_snapshot(tree, scope, declaration=DECLARATION)
 
         #: Then
-        assert snapshot.records[_path('shelf/note.structure.json')] == RefusedRead(OsRefusal.PERMISSION_DENIED), (
+        assert snapshot.records[_path('shelf/note.spec.json')] == RefusedRead(OsRefusal.PERMISSION_DENIED), (
             'the read is what was refused of the file itself, so the refused inspection is dropped'
         )
 
@@ -295,15 +295,15 @@ class TestSnapshotWithADeclaration:
         self, tree: Path, lock: Callable[[Path], None]
     ) -> None:
         #: Given
-        lock(tree / 'docs' / '__meta__' / 'code.structure.json')
+        lock(tree / 'docs' / '__meta__' / 'code.spec.json')
 
         #: When
         snapshot = take_snapshot(tree, SCOPE, declaration=DECLARATION)
 
         #: Then
-        assert snapshot.records[_path('docs/__meta__/code.structure.json')] == RefusedRead(
-            OsRefusal.PERMISSION_DENIED
-        ), 'the structure file the scan could not read keeps its refusal'
+        assert snapshot.records[_path('docs/__meta__/code.spec.json')] == RefusedRead(OsRefusal.PERMISSION_DENIED), (
+            'the structure file the scan could not read keeps its refusal'
+        )
         assert _path('docs/code/logging.md') in snapshot.records, 'the scan went on past the file'
 
     def test_take_snapshot_with_a_link_whose_chain_cannot_be_inspected_keeps_the_refusal(
@@ -454,8 +454,8 @@ class TestVirtualFileSystemOverARefusal:
         self, tree: Path, lock: Callable[[Path], None]
     ) -> None:
         #: Given
-        lock(tree / 'docs' / '__meta__' / 'code.structure.json')
-        file = _path('docs/__meta__/code.structure.json')
+        lock(tree / 'docs' / '__meta__' / 'code.spec.json')
+        file = _path('docs/__meta__/code.spec.json')
         virtual = VirtualFileSystem(take_snapshot(tree, SCOPE, declaration=DECLARATION))
 
         #: When
@@ -470,9 +470,9 @@ class TestVirtualFileSystemOverARefusal:
         self, tree: Path, lock: Callable[[Path], None]
     ) -> None:
         #: Given
-        lock(tree / 'docs' / '__meta__' / 'code.structure.json')
+        lock(tree / 'docs' / '__meta__' / 'code.spec.json')
         disk = DiskFileSystem(tree)
-        path = _path('docs/__meta__/code.structure.json')
+        path = _path('docs/__meta__/code.spec.json')
 
         #: When
         with pytest.raises(FileReadError) as exc_info:
@@ -485,7 +485,7 @@ class TestVirtualFileSystemOverARefusal:
         self, tree: Path, lock: Callable[[Path], None]
     ) -> None:
         #: Given
-        lock(tree / 'docs' / '__meta__' / 'code.structure.json')
+        lock(tree / 'docs' / '__meta__' / 'code.spec.json')
         virtual = VirtualFileSystem(take_snapshot(tree, SCOPE, declaration=DECLARATION))
         path = _path('docs/__meta__')
 
@@ -493,9 +493,7 @@ class TestVirtualFileSystemOverARefusal:
         entries = virtual.list_dir(path)
 
         #: Then
-        assert _names(entries) == ['code.structure.json'], (
-            'the file it could not read is still an entry of its directory'
-        )
+        assert _names(entries) == ['code.spec.json'], 'the file it could not read is still an entry of its directory'
 
     def test_find_file_with_a_link_whose_chain_the_scan_could_not_inspect_raises_a_recorded_error(
         self, tree: Path, lock: Callable[[Path], None]

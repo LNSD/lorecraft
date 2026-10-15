@@ -49,9 +49,9 @@ LOGGING: Final[str] = '# Logging\n\n## Rule\n\nLog at the edge.\n'
 CHECK_WITHOUT_USAGE: Final[str] = '# Check\n\n## Overview\n\nRun it.\n'
 """A document of corpus `feat` that lacks the `Usage` section its corpus asks for."""
 
-STRUCTURE_FILE_OF_CODE: Final[str] = 'docs/__meta__/code.structure.json'
-STRUCTURE_FILE_OF_PYTHON: Final[str] = 'docs/__meta__/code-python.structure.json'
-STRUCTURE_FILE_OF_FEAT: Final[str] = 'docs/__meta__/feat.structure.json'
+STRUCTURE_FILE_OF_CODE: Final[str] = 'docs/__meta__/code.spec.json'
+STRUCTURE_FILE_OF_PYTHON: Final[str] = 'docs/__meta__/code-python.spec.json'
+STRUCTURE_FILE_OF_FEAT: Final[str] = 'docs/__meta__/feat.spec.json'
 
 # A run that finishes exits 0 when it found nothing and 1 when it found something; 2 is a refused command line.
 _RUN_EXIT_CODES: Final[frozenset[int]] = frozenset({0, 1})
@@ -165,8 +165,8 @@ def workspace_with_unreadable_shadowed_code_structure_file(tmp_path: Path) -> It
         tmp_path: Directory the workspace is written into, as its root.
     """
     root = _build_workspace(tmp_path)
-    (root / 'docs/__meta__/code.spec.json').write_text(CODE_SPEC, encoding='utf-8')
-    legacy = root / STRUCTURE_FILE_OF_CODE
+    legacy = root / 'docs/__meta__/code.structure.json'
+    legacy.write_text(CODE_SPEC, encoding='utf-8')
     legacy.chmod(0o000)
     yield root
     legacy.chmod(0o644)
@@ -182,8 +182,8 @@ def workspace_with_unreadable_shadowed_python_structure_file(tmp_path: Path) -> 
         tmp_path: Directory the workspace is written into, as its root.
     """
     root = _build_workspace(tmp_path)
-    (root / 'docs/__meta__/code-python.spec.json').write_text(PYTHON_SPEC, encoding='utf-8')
-    legacy = root / STRUCTURE_FILE_OF_PYTHON
+    legacy = root / 'docs/__meta__/code-python.structure.json'
+    legacy.write_text(PYTHON_SPEC, encoding='utf-8')
     legacy.chmod(0o000)
     yield root
     legacy.chmod(0o644)
@@ -555,7 +555,9 @@ class TestCheckWithAShadowedLegacyStructureFile:
 
         #: Then
         assert exit_code == 1, 'the run is a normal check run, with the finding of the feat document'
-        assert _codes_at(document, STRUCTURE_FILE_OF_CODE) == [], 'the shadowed legacy file reports nothing'
+        assert _codes_at(document, 'docs/__meta__/code.structure.json') == [], (
+            'the shadowed legacy file reports nothing'
+        )
         assert _codes_at(document, 'docs/feat/check.md') == ['OUT006'], 'and the documents are checked as usual'
 
     def test_check_with_an_unreadable_legacy_namespace_file_beside_a_spec_json_ignores_it(
@@ -570,5 +572,7 @@ class TestCheckWithAShadowedLegacyStructureFile:
 
         #: Then
         assert exit_code == 1, 'the run is a normal check run, with the finding of the feat document'
-        assert _codes_at(document, STRUCTURE_FILE_OF_PYTHON) == [], 'the shadowed legacy file reports nothing'
+        assert _codes_at(document, 'docs/__meta__/code-python.structure.json') == [], (
+            'the shadowed legacy file reports nothing'
+        )
         assert _codes_at(document, 'docs/feat/check.md') == ['OUT006'], 'and the documents are checked as usual'

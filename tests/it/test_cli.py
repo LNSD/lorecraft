@@ -79,7 +79,7 @@ def malformed_schema_workspace(workspace: Path) -> Path:
     Args:
         workspace: Workspace root the malformed schema file is added to.
     """
-    (workspace / 'docs' / '__meta__' / 'code.structure.json').write_text('{"frontmatter": {"type": 5}}\n')
+    (workspace / 'docs' / '__meta__' / 'code.spec.json').write_text('{"frontmatter": {"type": 5}}\n')
     return workspace
 
 
@@ -139,7 +139,7 @@ def linked_specs_workspace(tmp_path: Path) -> Path:
         tmp_path: Directory the specifications, the document and the link are written into, as the workspace root.
     """
     _write(tmp_path, 'specs/code.md', '# Code\n')
-    _write(tmp_path, 'specs/code.structure.json', TIGHT_BUDGET_STRUCTURE_SPEC)
+    _write(tmp_path, 'specs/code.spec.json', TIGHT_BUDGET_STRUCTURE_SPEC)
     _write(tmp_path, 'docs/code/guide.md', '## First\n\none two three\n\n## Second\n\nfour five six\n')
     (tmp_path / 'docs' / '__meta__').symlink_to(Path('..') / 'specs')
     return tmp_path
@@ -153,7 +153,7 @@ def linked_docs_workspace(tmp_path: Path) -> Path:
         tmp_path: Directory the real layout and the link are written into, as the workspace root.
     """
     _write(tmp_path, 'documentation/__meta__/code.md', '# Code\n')
-    _write(tmp_path, 'documentation/__meta__/code.structure.json', TIGHT_BUDGET_STRUCTURE_SPEC)
+    _write(tmp_path, 'documentation/__meta__/code.spec.json', TIGHT_BUDGET_STRUCTURE_SPEC)
     _write(tmp_path, 'documentation/code/guide.md', '## First\n\none two three\n\n## Second\n\nfour five six\n')
     (tmp_path / 'docs').symlink_to('documentation')
     return tmp_path
@@ -166,7 +166,7 @@ def two_group_root(tmp_path: Path) -> Path:
     Args:
         tmp_path: Directory the specification and the document are written into, as the workspace root.
     """
-    _write(tmp_path, 'docs/__meta__/code.structure.json', CHECKLIST_AND_FRONTMATTER_SPEC)
+    _write(tmp_path, 'docs/__meta__/code.spec.json', CHECKLIST_AND_FRONTMATTER_SPEC)
     _write(tmp_path, 'docs/code/guide.md', '# No frontmatter\n')
     return tmp_path
 
@@ -489,7 +489,7 @@ class TestInspectCommand:
 
         #: Then
         assert result.exit_code == 2, result.output
-        assert 'error: invalid structure schema docs/__meta__/code.structure.json' in result.output, (
+        assert 'error: invalid structure schema docs/__meta__/code.spec.json' in result.output, (
             'the failure names the specification the load rejected'
         )
 
@@ -860,7 +860,7 @@ class TestCheckCommand:
 
     def test_check_with_a_clean_corpus_exits_zero_and_prints_only_the_summary(self, tmp_path: Path) -> None:
         #: Given
-        _write(tmp_path, 'docs/__meta__/code.structure.json', CHECKLIST_AND_FRONTMATTER_SPEC)
+        _write(tmp_path, 'docs/__meta__/code.spec.json', CHECKLIST_AND_FRONTMATTER_SPEC)
         _write(tmp_path, 'docs/code/guide.md', '---\nname: "guide"\n---\n# Guide\n\n## Checklist\n\n- [ ] item\n')
         app = build_app()
         arguments = ['check', '--root', str(tmp_path)]
@@ -877,7 +877,7 @@ class TestCheckCommand:
         self, tmp_path: Path, snapshot: SnapshotAssertion
     ) -> None:
         #: Given
-        _write(tmp_path, 'docs/__meta__/code.structure.json', CHECKLIST_AND_FRONTMATTER_SPEC)
+        _write(tmp_path, 'docs/__meta__/code.spec.json', CHECKLIST_AND_FRONTMATTER_SPEC)
         _write(tmp_path, 'docs/code/guide.md', '# No frontmatter\n')
         app = build_app()
         expected = snapshot.use_extension(TextSnapshotExtension)
@@ -915,7 +915,7 @@ class TestCheckCommand:
 
     def test_check_with_an_ungoverned_document_prints_its_coverage_on_stderr(self, tmp_path: Path) -> None:
         #: Given
-        _write(tmp_path, 'docs/__meta__/code.structure.json', ACCEPT_ANY_FRONTMATTER_SPEC)
+        _write(tmp_path, 'docs/__meta__/code.spec.json', ACCEPT_ANY_FRONTMATTER_SPEC)
         _write(tmp_path, 'docs/code/guide.md', '---\nname: "guide"\n---\n# Guide\n')
         app = build_app()
         arguments = ['check', '--root', str(tmp_path)]
@@ -932,7 +932,7 @@ class TestCheckCommand:
 
     def test_check_with_an_undecodable_document_exits_one_and_prints_the_engine_error(self, tmp_path: Path) -> None:
         #: Given
-        _write(tmp_path, 'docs/__meta__/code.structure.json', ACCEPT_ANY_FRONTMATTER_SPEC)
+        _write(tmp_path, 'docs/__meta__/code.spec.json', ACCEPT_ANY_FRONTMATTER_SPEC)
         (tmp_path / 'docs' / 'code').mkdir()
         (tmp_path / 'docs' / 'code' / 'guide.md').write_bytes(b'\xff\xfe\n')
         app = build_app()
@@ -955,7 +955,7 @@ class TestCheckCommand:
 
     def test_check_with_short_format_prints_one_line_per_diagnostic_and_the_overall_count(self, tmp_path: Path) -> None:
         #: Given
-        _write(tmp_path, 'docs/__meta__/code.structure.json', CHECKLIST_AND_FRONTMATTER_SPEC)
+        _write(tmp_path, 'docs/__meta__/code.spec.json', CHECKLIST_AND_FRONTMATTER_SPEC)
         _write(tmp_path, 'docs/code/guide.md', '# No frontmatter\n')
         app = build_app()
         arguments = ['check', '--root', str(tmp_path), '--format', 'short', '--color', 'always']
@@ -975,7 +975,7 @@ class TestCheckCommand:
 
     def test_check_with_color_always_colours_the_text_even_when_it_is_not_a_terminal(self, tmp_path: Path) -> None:
         #: Given
-        _write(tmp_path, 'docs/__meta__/code.structure.json', CHECKLIST_AND_FRONTMATTER_SPEC)
+        _write(tmp_path, 'docs/__meta__/code.spec.json', CHECKLIST_AND_FRONTMATTER_SPEC)
         _write(tmp_path, 'docs/code/guide.md', '# No frontmatter\n')
         app = build_app()
         arguments = ['check', '--root', str(tmp_path), '--color', 'always']
@@ -989,7 +989,7 @@ class TestCheckCommand:
 
     def test_check_with_color_auto_over_a_pipe_prints_no_escape_sequence(self, tmp_path: Path) -> None:
         #: Given
-        _write(tmp_path, 'docs/__meta__/code.structure.json', CHECKLIST_AND_FRONTMATTER_SPEC)
+        _write(tmp_path, 'docs/__meta__/code.spec.json', CHECKLIST_AND_FRONTMATTER_SPEC)
         _write(tmp_path, 'docs/code/guide.md', '# No frontmatter\n')
         app = build_app()
         arguments = ['check', '--root', str(tmp_path), '--color', 'auto']
@@ -1003,7 +1003,7 @@ class TestCheckCommand:
 
     def test_check_with_color_never_over_a_pipe_prints_no_escape_sequence(self, tmp_path: Path) -> None:
         #: Given
-        _write(tmp_path, 'docs/__meta__/code.structure.json', CHECKLIST_AND_FRONTMATTER_SPEC)
+        _write(tmp_path, 'docs/__meta__/code.spec.json', CHECKLIST_AND_FRONTMATTER_SPEC)
         _write(tmp_path, 'docs/code/guide.md', '# No frontmatter\n')
         app = build_app()
         arguments = ['check', '--root', str(tmp_path), '--color', 'never']
@@ -1017,7 +1017,7 @@ class TestCheckCommand:
 
     def test_check_with_force_color_set_colours_the_text_over_a_pipe(self, tmp_path: Path) -> None:
         #: Given
-        _write(tmp_path, 'docs/__meta__/code.structure.json', CHECKLIST_AND_FRONTMATTER_SPEC)
+        _write(tmp_path, 'docs/__meta__/code.spec.json', CHECKLIST_AND_FRONTMATTER_SPEC)
         _write(tmp_path, 'docs/code/guide.md', '# No frontmatter\n')
         app = build_app()
         arguments = ['check', '--root', str(tmp_path)]
@@ -1031,7 +1031,7 @@ class TestCheckCommand:
 
     def test_check_with_force_color_set_and_color_never_prints_no_escape_sequence(self, tmp_path: Path) -> None:
         #: Given
-        _write(tmp_path, 'docs/__meta__/code.structure.json', CHECKLIST_AND_FRONTMATTER_SPEC)
+        _write(tmp_path, 'docs/__meta__/code.spec.json', CHECKLIST_AND_FRONTMATTER_SPEC)
         _write(tmp_path, 'docs/code/guide.md', '# No frontmatter\n')
         app = build_app()
         arguments = ['check', '--root', str(tmp_path), '--color', 'never']
@@ -1045,7 +1045,7 @@ class TestCheckCommand:
 
     def test_check_with_an_unknown_format_exits_with_a_usage_error_message(self, tmp_path: Path) -> None:
         #: Given
-        _write(tmp_path, 'docs/__meta__/code.structure.json', ACCEPT_ANY_FRONTMATTER_SPEC)
+        _write(tmp_path, 'docs/__meta__/code.spec.json', ACCEPT_ANY_FRONTMATTER_SPEC)
         app = build_app()
         arguments = ['check', '--root', str(tmp_path), '--format', 'yaml']
 
@@ -1061,7 +1061,7 @@ class TestCheckCommand:
 
     def test_check_with_an_unknown_color_exits_with_a_usage_error_message(self, tmp_path: Path) -> None:
         #: Given
-        _write(tmp_path, 'docs/__meta__/code.structure.json', ACCEPT_ANY_FRONTMATTER_SPEC)
+        _write(tmp_path, 'docs/__meta__/code.spec.json', ACCEPT_ANY_FRONTMATTER_SPEC)
         app = build_app()
         arguments = ['check', '--root', str(tmp_path), '--color', 'sometimes']
 
@@ -1077,7 +1077,7 @@ class TestCheckCommand:
 
     def test_check_with_json_format_prints_one_document_and_nothing_on_stderr(self, tmp_path: Path) -> None:
         #: Given
-        _write(tmp_path, 'docs/__meta__/code.structure.json', ACCEPT_ANY_FRONTMATTER_SPEC)
+        _write(tmp_path, 'docs/__meta__/code.spec.json', ACCEPT_ANY_FRONTMATTER_SPEC)
         _write(tmp_path, 'docs/code/guide.md', '---\nname: "guide"\n---\n# Guide\n')
         (tmp_path / 'docs' / 'code' / 'broken.md').write_bytes(b'\xff\xfe\n')
         _write(tmp_path, '.agents/skills/review/SKILL.md', UNKNOWN_FIELD_SKILL_MD)
@@ -1150,7 +1150,7 @@ class TestCheckCommand:
         self, tmp_path: Path
     ) -> None:
         #: Given
-        _write(tmp_path, 'docs/__meta__/code.structure.json', CHECKLIST_AND_FRONTMATTER_SPEC)
+        _write(tmp_path, 'docs/__meta__/code.spec.json', CHECKLIST_AND_FRONTMATTER_SPEC)
         _write(tmp_path, 'docs/code/guide.md', '# No frontmatter\n')
         app = build_app()
         arguments = ['check', '--root', str(tmp_path), '--format', 'json']
@@ -1176,7 +1176,7 @@ class TestCheckCommand:
                         {
                             'kind': 'note',
                             'text': 'the frontmatter schema is set here',
-                            'path': 'docs/__meta__/code.structure.json',
+                            'path': 'docs/__meta__/code.spec.json',
                             'line': None,
                         },
                         {
@@ -1205,7 +1205,7 @@ class TestCheckCommand:
                         {
                             'kind': 'note',
                             'text': 'the document structure is set here',
-                            'path': 'docs/__meta__/code.structure.json',
+                            'path': 'docs/__meta__/code.spec.json',
                             'line': None,
                         }
                     ],
@@ -1220,7 +1220,7 @@ class TestCheckCommand:
     ) -> None:
         #: Given
         root = tmp_path / 'repository'
-        _write(root, 'docs/__meta__/code.structure.json', CHECKLIST_AND_FRONTMATTER_SPEC)
+        _write(root, 'docs/__meta__/code.spec.json', CHECKLIST_AND_FRONTMATTER_SPEC)
         _write(root, 'docs/code/guide.md', '---\nname: "guide"\n---\n# Guide\n\n## Checklist\n\n- [ ] item\n')
         elsewhere = tmp_path / 'elsewhere'
         elsewhere.mkdir()
@@ -1241,7 +1241,7 @@ class TestCheckCommand:
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         #: Given
-        _write(tmp_path, 'docs/__meta__/code.structure.json', CHECKLIST_AND_FRONTMATTER_SPEC)
+        _write(tmp_path, 'docs/__meta__/code.spec.json', CHECKLIST_AND_FRONTMATTER_SPEC)
         _write(tmp_path, 'docs/code/guide.md', '# No frontmatter\n')
         monkeypatch.chdir(tmp_path / 'docs' / 'code')
         app = build_app()
@@ -1258,7 +1258,7 @@ class TestCheckCommand:
 
     def test_check_with_a_path_argument_exits_with_a_usage_error_message(self, tmp_path: Path) -> None:
         #: Given
-        _write(tmp_path, 'docs/__meta__/code.structure.json', ACCEPT_ANY_FRONTMATTER_SPEC)
+        _write(tmp_path, 'docs/__meta__/code.spec.json', ACCEPT_ANY_FRONTMATTER_SPEC)
         app = build_app()
         arguments = ['check', '--root', str(tmp_path), 'docs']
 
@@ -1286,12 +1286,12 @@ class TestCheckCommand:
         assert result.exit_code == 1, result.output
         assert result.stdout == (
             'error[LC004]: frontmatter schema is not a valid JSON Schema\n'
-            ' --> docs/__meta__/code.structure.json\n'
+            ' --> docs/__meta__/code.spec.json\n'
             '  = note: 5 is not valid under any of the given schemas\n'
         ), 'the specification that cannot be used is a diagnostic at it, under its code'
         assert result.stderr == (
             'docs/code/logging.md: skipped, governed by a structure file that failed to load: '
-            'docs/__meta__/code.structure.json\n'
+            'docs/__meta__/code.spec.json\n'
             'LC  1 error\n'
             'checked 1 subject(s): 1 error(s), 0 warning(s)\n'
         ), 'the document it governs is listed as skipped, and the run is not clean'
@@ -1653,7 +1653,7 @@ class TestCheckSelection:
                         {
                             'kind': 'note',
                             'text': 'the document structure is set here',
-                            'path': 'docs/__meta__/code.structure.json',
+                            'path': 'docs/__meta__/code.spec.json',
                             'line': None,
                         }
                     ],
@@ -1720,7 +1720,7 @@ class TestCheckSelection:
                         {
                             'kind': 'note',
                             'text': 'the frontmatter schema is set here',
-                            'path': 'docs/__meta__/code.structure.json',
+                            'path': 'docs/__meta__/code.spec.json',
                             'line': None,
                         },
                         {

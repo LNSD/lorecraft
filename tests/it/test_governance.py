@@ -57,9 +57,9 @@ def _snapshot() -> Snapshot:
             'docs': {
                 '__meta__': {
                     'code.md': b'# Code\n',
-                    'code.structure.json': CORPUS_SPEC,
+                    'code.spec.json': CORPUS_SPEC,
                     'code-python.md': b'# Code Python\n',
-                    'code-python.structure.json': NAMESPACE_SPEC,
+                    'code-python.spec.json': NAMESPACE_SPEC,
                 },
                 'code': {'python-typing.md': DOCUMENT, 'python-async.md': DOCUMENT},
             }
