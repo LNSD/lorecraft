@@ -31,8 +31,7 @@ it. It answers why a document is or is not checked, and which agents see a skill
 - **Meta spec name**: A filename in `docs/__meta__/` with its file type's pattern suffix stripped, such as
   `feat-cli`, with the files that share it.
 - **Governed by**: The meta specs whose rules apply to a document, broad to narrow: their names in the
-  tree, and every selected file at those names in the JSON. Files appear under their actual names. When
-  `.spec.json` and the legacy `.structure.json` both exist at a name, only `.spec.json` is listed.
+  tree, and every selected file at those names in the JSON. Files appear under their actual names.
 - **Agent skills directory**: A directory an agent reads skills from, such as `.claude/skills`, shown only when
   the root has it, with the resolved directory it leads to when it is a symlink.
 - **Skill**: A directory directly inside an agent skills directory that holds a `SKILL.md`.

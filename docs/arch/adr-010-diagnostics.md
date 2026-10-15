@@ -58,7 +58,7 @@ error[OUT006]: missing required section `Usage`
 12 │ ## Options
    │ ────────── expected `Usage` before `Options`
    │
-  ::: docs/__meta__/feat.structure.json
+  ::: docs/__meta__/feat.spec.json
    │
    = note: the document structure is set here
    = help: describe how to invoke the command

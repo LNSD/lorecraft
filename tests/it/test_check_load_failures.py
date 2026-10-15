@@ -157,38 +157,6 @@ def workspace_with_unlistable_meta_directory(tmp_path: Path) -> Iterator[Path]:
     meta.chmod(0o755)
 
 
-@pytest.fixture(scope='function')
-def workspace_with_unreadable_shadowed_code_structure_file(tmp_path: Path) -> Iterator[Path]:
-    """The workspace whose `code.structure.json` is unreadable and shadowed by `code.spec.json`, restored afterwards.
-
-    Args:
-        tmp_path: Directory the workspace is written into, as its root.
-    """
-    root = _build_workspace(tmp_path)
-    legacy = root / 'docs/__meta__/code.structure.json'
-    legacy.write_text(CODE_SPEC, encoding='utf-8')
-    legacy.chmod(0o000)
-    yield root
-    legacy.chmod(0o644)
-
-
-@pytest.fixture(scope='function')
-def workspace_with_unreadable_shadowed_python_structure_file(tmp_path: Path) -> Iterator[Path]:
-    """The workspace whose `code-python.structure.json` is unreadable and shadowed by `code-python.spec.json`.
-
-    The file is restored afterwards.
-
-    Args:
-        tmp_path: Directory the workspace is written into, as its root.
-    """
-    root = _build_workspace(tmp_path)
-    legacy = root / 'docs/__meta__/code-python.structure.json'
-    legacy.write_text(PYTHON_SPEC, encoding='utf-8')
-    legacy.chmod(0o000)
-    yield root
-    legacy.chmod(0o644)
-
-
 def _coverage(document: dict[str, object]) -> dict[str, dict[str, object]]:
     """The coverage of a run by subject path.
 
@@ -538,41 +506,3 @@ class TestCheckWithAnUnlistableMetaDirectory:
         assert 'error: cannot list directory docs/__meta__: permission denied' in result.stderr, (
             'the directory is printed as a failure, as it is when the root cannot be found'
         )
-
-
-@pytest.mark.it
-@pytest.mark.skipif(os.geteuid() == 0, reason='root ignores file permissions')
-class TestCheckWithAShadowedLegacyStructureFile:
-    def test_check_with_an_unreadable_legacy_file_beside_a_spec_json_ignores_it_and_checks(
-        self, workspace_with_unreadable_shadowed_code_structure_file: Path
-    ) -> None:
-        #: Given
-        # `code.spec.json` takes over from `code.structure.json`, which is then ignored, even unreadable.
-        root = workspace_with_unreadable_shadowed_code_structure_file
-
-        #: When
-        exit_code, document = _check_json(root)
-
-        #: Then
-        assert exit_code == 1, 'the run is a normal check run, with the finding of the feat document'
-        assert _codes_at(document, 'docs/__meta__/code.structure.json') == [], (
-            'the shadowed legacy file reports nothing'
-        )
-        assert _codes_at(document, 'docs/feat/check.md') == ['OUT006'], 'and the documents are checked as usual'
-
-    def test_check_with_an_unreadable_legacy_namespace_file_beside_a_spec_json_ignores_it(
-        self, workspace_with_unreadable_shadowed_python_structure_file: Path
-    ) -> None:
-        #: Given
-        # The namespace spec `code-python` has `.spec.json` too; its legacy file is unreadable and ignored.
-        root = workspace_with_unreadable_shadowed_python_structure_file
-
-        #: When
-        exit_code, document = _check_json(root)
-
-        #: Then
-        assert exit_code == 1, 'the run is a normal check run, with the finding of the feat document'
-        assert _codes_at(document, 'docs/__meta__/code-python.structure.json') == [], (
-            'the shadowed legacy file reports nothing'
-        )
-        assert _codes_at(document, 'docs/feat/check.md') == ['OUT006'], 'and the documents are checked as usual'

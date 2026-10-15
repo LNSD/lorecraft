@@ -22,7 +22,7 @@ project model, and every check applies what the model hands it.
 ### A Meta Spec Is Configuration
 
 Each machine-checkable file of a meta spec is one JSON file beside its prose, of a file type its file name
-pattern claims, such as the structure file that `*.structure.json` claims. It is read in a dialect
+pattern claims, such as the structure file that `*.spec.json` claims. It is read in a dialect
 declared once, at the edge, as a strict and closed model. Decoding a file proves its rules usable, so every
 decoded structure file can be applied without checking it again. The prose is written for a reader,
 and no check reads it.
@@ -76,7 +76,7 @@ read from a meta spec directory. A skill is never ungoverned.
 # is never applied, and a malformed file surfaces as a crash halfway through the run
 @classmethod
 def check(cls, subject: DocumentContext) -> tuple[Self, ...]:
-    structure = json.loads(Path('docs/__meta__/code.structure.json').read_text(encoding='utf-8'))
+    structure = json.loads(Path('docs/__meta__/code.spec.json').read_text(encoding='utf-8'))
     return cls._over_budget(subject.tokens().value, structure['tokens'])
 ```
 

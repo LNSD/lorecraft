@@ -88,11 +88,11 @@ A feat doc's maturity label: `development`, `unstable`, `experimental`, or `stab
 
 ### Machine-checkable companion
 
-A JSON file of a meta spec, beside its prose, that holds the rules a checker can decide: the structure file, `<name>.spec.json`, holding the section structure with its word caps, the token budget and the frontmatter schema. `<name>.structure.json` is a legacy fallback, read only when `.spec.json` is absent; support for it will be removed in v0.4.0. Formerly *structure specification*.
+A JSON file of a meta spec, beside its prose, that holds the rules a checker can decide: the structure file, `<name>.spec.json`, holding the section structure with its word caps, the token budget and the frontmatter schema. Formerly *structure specification*.
 
 ### File type
 
-What a file in `docs/__meta__/` is, claimed by a file name pattern: `*.md` claims a meta spec's prose and `*.spec.json` its structure file; `*.structure.json` claims the legacy fallback. A file's extension is only what follows its last dot, so `code.spec.json` is a JSON file the structure file type claims; a file no pattern claims is not part of a meta spec.
+What a file in `docs/__meta__/` is, claimed by a file name pattern: `*.md` claims a meta spec's prose and `*.spec.json` its structure file. A file's extension is only what follows its last dot, so `code.spec.json` is a JSON file the structure file type claims; a file no pattern claims is not part of a meta spec.
 
 ### Rule
 

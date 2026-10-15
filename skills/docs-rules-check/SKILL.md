@@ -153,7 +153,7 @@ Findings, per document or meta spec, most severe first, one per line, with the f
 > `docs/code/python-typing.md:3` — **code.md, Frontmatter**: `description` has no trigger clause. Name the
 > situations the document should be read in.
 >
-> `docs/__meta__/code.structure.json` — **drift**: its `frontmatter` schema allows `status`, which `code.md`'s
+> `docs/__meta__/code.spec.json` — **drift**: its `frontmatter` schema allows `status`, which `code.md`'s
 > frontmatter section does not describe. Describe it in the prose, or remove it from the schema.
 
 - **Every document finding cites the meta spec and section that states the requirement.** A finding with no

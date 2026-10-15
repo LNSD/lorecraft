@@ -1,6 +1,6 @@
 ---
 name: "spec-structure"
-description: "The structure file: <name>.spec.json as the machine-checkable half of a meta spec, the legacy .structure.json fallback, its $schema and description keys, how a namespace file adds to the corpus file, what is refused on load, and editor validation with docs/schemas/structure.spec.json. Load when creating a structure file, migrating its name, or one is reported invalid"
+description: "The structure file: <name>.spec.json as the machine-checkable half of a meta spec, its $schema and description keys, how a namespace file adds to the corpus file, what is refused on load, and editor validation with docs/schemas/structure.spec.json. Load when creating a structure file or one is reported invalid"
 type: "feature"
 status: "experimental"
 components: "module:lorecraft.project,spec:feat,spec:code"
@@ -88,15 +88,13 @@ repository, generated from the same model the checks read a file with. Keep a co
 repository, where the `$schema` value above points from `docs/__meta__/`, and an editor validates a structure
 file as it is written. It states the shape only; a rule that no shape can state is checked on load.
 
-The `$schema` key works in either filename; the file's own value points the editor at the same schema.
+The `$schema` key works in the structure file; its value points the editor at the schema.
 
 ## Limitations
 
-- `<name>.structure.json` is a legacy fallback. It is read only when `<name>.spec.json` is absent and will
-  be removed in v0.4.0. When both exist, `.spec.json` is used and `.structure.json` is absent from the
-  specification's listed files and a document's `governed_by`. `lorecraft check` reports nothing for the legacy
-  file, even if it is invalid or unreadable. An unreadable legacy file still stops `lorecraft inspect`, as any
-  unreadable file under `docs/` does.
+- A structure file is selected only when its filename matches `<name>.spec.json`.
+- If an unselected file under `docs/` cannot be read, `lorecraft check` reports `LC002`, continues with unaffected
+  subjects and exits `1`; `lorecraft inspect` exits `2` when it cannot load the workspace model.
 - A file is selected by a document's path, never by its `type` or any other frontmatter value: its rules apply
   to every document its name governs.
 - A layer only adds rules. No key lets a namespace file release a document from the corpus file.

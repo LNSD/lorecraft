@@ -1,6 +1,6 @@
 ---
 name: "spec"
-description: "The meta spec files under docs/__meta__/: the file types claimed by *.md and *.spec.json, the legacy *.structure.json fallback, how names select corpora and layers, and what absent or malformed files mean. Load when adding a corpus or namespace meta spec, or asking why a document is governed, ungoverned or not checked at all"
+description: "The meta spec files under docs/__meta__/: the file types claimed by *.md and *.spec.json, how names select corpora and layers, and what absent or malformed files mean. Load when adding a corpus or namespace meta spec, or asking why a document is governed, ungoverned or not checked at all"
 type: "meta"
 status: "experimental"
 components: "module:lorecraft.project"
@@ -27,8 +27,7 @@ path says which files govern it. Every command that reads a repository loads the
 - **Corpus**: A directory under `docs/` whose documents meta specs govern, as
   [workspace](workspace.md) lays out.
 - **File type**: What a meta spec file is, claimed by a file name pattern: `*.md` claims the prose and
-  `*.spec.json` the structure file; `*.structure.json` is its legacy fallback. A file's extension is only
-  what follows its last dot.
+  `*.spec.json` the structure file. A file's extension is only what follows its last dot.
 - **Meta spec name**: A meta spec filename with its pattern's suffix stripped: `<corpus>` or
   `<corpus>-<namespace>`.
 - **Structure file**: `<name>.spec.json`, the part of a meta spec a check can decide: the
@@ -44,7 +43,7 @@ path says which files govern it. Every command that reads a repository loads the
 ### Filenames
 
 A file in `docs/__meta__/` is a meta spec file when a file type's pattern claims its name: `<name>.md` or
-`<name>.spec.json`, or the legacy `<name>.structure.json`. The meta spec name opens with a corpus name:
+`<name>.spec.json`. The meta spec name opens with a corpus name:
 lowercase letters, digits and underscores starting with a letter or an underscore. A corpus name holds no
 hyphen, so the corpus ends at the first hyphen: a corpus of several words is spelled with underscores, so `docs/cli_specs/` is governed by
 `cli_specs.md` and narrowed by `cli_specs-<namespace>.md`. What follows is the namespace: lowercase letters and
@@ -56,15 +55,14 @@ claimed by no pattern, like any other unknown JSON file, so it is left out and n
 
 ### Loading
 
-At a meta spec name, `<name>.spec.json` is used when present. The legacy `<name>.structure.json` is read
-only if `.spec.json` is absent; when both exist, the legacy file is ignored without a diagnostic, even if
-it is invalid. The legacy name will be removed in v0.4.0.
+At a meta spec name, `<name>.spec.json` is the structure file. Other files whose names are not claimed by a
+file type are ignored without a diagnostic when they are readable; unreadable files follow the rules below.
 
-Every selected structure file is read and validated before any document, from one snapshot. A prose file's name
-alone counts; an excluded name is not read. Invalid JSON or unusable rules are load failures. `check` reports
+Every selected structure file is read and validated before any document, from one snapshot. Only selected files
+are read as meta specs. Invalid JSON or unusable rules are load failures. `check` reports
 these and unreadable structure files (`LC002`) as errors at the file, skips governed documents, checks the rest
-and exits `1`. `inspect` exits `2` on a load failure. A snapshot refusal on another file also exits `2` under
-`check`.
+and exits `1`. `inspect` exits `2` on a load failure. `check` reports unreadable files under `docs/` as `LC002`;
+unlistable `docs/` or `docs/__meta__/`, and unreported refusals outside `docs/`, exit `2`.
 
 ### Governed or Not
 

@@ -670,7 +670,7 @@ class TestLoadWorkspaceEdgeCases:
         assert isinstance(structure, StructureSpec), 'code.spec.json is decoded as the structure specification'
         assert structure.file.path == SPECS_DIR / PathComponent.parse('code.spec.json'), 'and it is named by its file'
 
-    def test_load_workspace_with_a_legacy_structure_file_alone_falls_back_to_it(
+    def test_load_workspace_with_a_structure_json_alone_leaves_the_corpus_without_a_structure_spec(
         self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
     ) -> None:
         #: Given
@@ -681,14 +681,13 @@ class TestLoadWorkspaceEdgeCases:
 
         #: Then
         corpus = model.find_corpus(CODE)
-        assert corpus is not None, 'the corpus loads'
-        structure = corpus.corpus_spec.structure
-        assert isinstance(structure, StructureSpec), 'with no code.spec.json, code.structure.json is decoded'
-        assert structure.file.path == SPECS_DIR / PathComponent.parse('code.structure.json'), (
-            'and it is named by its own file'
+        assert corpus is not None, 'the corpus loads from its prose specification'
+        assert corpus.corpus_spec.structure is None, 'the leftover file does not provide a structure specification'
+        assert corpus.corpus_spec.files == (SPECS_DIR / PathComponent.parse('code.md'),), (
+            'the leftover file is not listed as a specification file'
         )
 
-    def test_load_workspace_with_both_files_uses_the_spec_json_and_ignores_the_legacy_one(
+    def test_load_workspace_with_a_structure_json_beside_the_spec_json_ignores_it(
         self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
     ) -> None:
         #: Given
@@ -705,7 +704,7 @@ class TestLoadWorkspaceEdgeCases:
         structure = corpus.corpus_spec.structure
         assert isinstance(structure, StructureSpec), 'the structure comes from code.spec.json'
         assert structure.file.path == SPECS_DIR / PathComponent.parse('code.spec.json'), 'and names that file'
-        assert model.load_failures == (), 'the legacy file is not read, so it fails nothing'
+        assert model.load_failures == (), 'the `.structure.json` file is not read, so it fails nothing'
         assert corpus.corpus_spec.files == (
             SPECS_DIR / PathComponent.parse('code.md'),
             SPECS_DIR / PathComponent.parse('code.spec.json'),

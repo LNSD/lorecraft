@@ -2,8 +2,7 @@
 
 A file's extension is what follows its last dot. What a specification file is comes from its file type, which a
 file name pattern claims: `*.md` claims the prose of a specification, and `*.spec.json` its structure
-specification, the machine-checkable rules, which also hold the frontmatter schema. `*.structure.json` is the legacy
-name of the same file, read only when `<name>.spec.json` does not exist, and dropped in v0.4.0. A
+specification, the machine-checkable rules, which also hold the frontmatter schema. A
 `<name>.<token>.json` that no pattern claims, such as a `header` file where that schema was once kept, is of no
 file type and is left out. The specification name is what is left of the filename once the pattern's suffix is
 stripped: one of the two forms `name.py` describes, and it holds no dot. Until it parses, that text is only the
@@ -26,7 +25,7 @@ from lorecraft.project.corpus import (
     InvalidCorpusNameCharacterError,
     ReservedCorpusNameError,
 )
-from lorecraft.project.layout import DOCUMENT_SUFFIX, LEGACY_STRUCTURE_FILE_SUFFIX, SPEC_FILE_SUFFIX
+from lorecraft.project.layout import DOCUMENT_SUFFIX, SPEC_FILE_SUFFIX
 
 from .name import SpecName, parse_spec_name
 
@@ -40,9 +39,6 @@ class SpecFileType(StrEnum):
     """The specification in prose, written for a reader."""
     SPEC = f'*{SPEC_FILE_SUFFIX}'
     """The structure specification: the rules a check can decide, the frontmatter schema among them."""
-    LEGACY_STRUCTURE = f'*{LEGACY_STRUCTURE_FILE_SUFFIX}'
-    """The legacy name of the structure specification: read only when `<name>.spec.json` is missing, and dropped
-    in v0.4.0."""
 
     @property
     def suffix(self) -> str:
@@ -75,7 +71,7 @@ class ProseSpecFile:
 
 @dataclass(frozen=True, slots=True)
 class StructureSpecFile:
-    """The structure specification `<name>.spec.json`, or the legacy `<name>.structure.json`, at a specification name.
+    """The structure specification `<name>.spec.json`, at a specification name.
 
     The name is a `<corpus>` or `<corpus>-<namespace>`.
 
@@ -89,10 +85,7 @@ class StructureSpecFile:
 
     @property
     def type(self) -> SpecFileType:
-        """The file type whose pattern claims the filename: `SpecFileType.SPEC`, or the legacy structure type."""
-        # Read from the filename rather than stored, so the record cannot disagree with the path it carries.
-        if self.path.name is not None and self.path.name.has_suffix(SpecFileType.LEGACY_STRUCTURE.suffix):
-            return SpecFileType.LEGACY_STRUCTURE
+        """The file type whose pattern claims the filename: always `SpecFileType.SPEC`."""
         return SpecFileType.SPEC
 
     @property
@@ -246,7 +239,7 @@ def parse_spec_file(path: RootRelativePath) -> SpecFile:
         match file_type:
             case SpecFileType.PROSE:
                 raise NotASpecStemError(path, source=exc) from exc
-            case SpecFileType.SPEC | SpecFileType.LEGACY_STRUCTURE:
+            case SpecFileType.SPEC:
                 raise InvalidSpecStemError(path, source=exc) from exc
             case _:
                 assert_never(file_type)
@@ -256,7 +249,7 @@ def parse_spec_file(path: RootRelativePath) -> SpecFile:
     match file_type:
         case SpecFileType.PROSE:
             return ProseSpecFile(path=path, name=name)
-        case SpecFileType.SPEC | SpecFileType.LEGACY_STRUCTURE:
+        case SpecFileType.SPEC:
             return StructureSpecFile(path=path, name=name)
         case _:
             assert_never(file_type)
@@ -308,5 +301,5 @@ def _split_filename(path: RootRelativePath) -> tuple[str, SpecFileType]:
 
 
 def _pattern_list() -> str:
-    """Every file type's pattern, in declaration order, for an error message: `*.md, *.spec.json, *.structure.json`."""
+    """Every file type's pattern, in declaration order, for an error message: `*.md, *.spec.json`."""
     return ', '.join(SpecFileType)

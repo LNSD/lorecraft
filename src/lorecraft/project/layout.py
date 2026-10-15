@@ -17,8 +17,6 @@ DOCS_DIR: Final[RootRelativePath] = RootRelativePath.parse('docs')
 SPECS_DIR: Final[RootRelativePath] = DOCS_DIR / PathComponent.parse(RESERVED_CORPUS_NAME)
 DOCUMENT_SUFFIX: Final[str] = '.md'
 SPEC_FILE_SUFFIX: Final[str] = '.spec.json'
-# The legacy name of the structure specification, read only when `<name>.spec.json` is missing; dropped in v0.4.0.
-LEGACY_STRUCTURE_FILE_SUFFIX: Final[str] = '.structure.json'
 
 
 # Runs once per process, before mutmut swaps a mutant in, so no test can ever see a mutant of it.

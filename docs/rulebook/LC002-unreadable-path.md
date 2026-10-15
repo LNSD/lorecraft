@@ -12,7 +12,7 @@ A path cannot be read.
 ## What it does
 
 Checks for paths the operating system refuses to let the check read, list or look up: a structure file, one of
-the `<name>.spec.json` files of `docs/__meta__/`, or the legacy `<name>.structure.json`, that it cannot read; a
+the `<name>.spec.json` files of `docs/__meta__/` that it cannot read; a
 corpus directory, a skills directory or a skill entry that it cannot list; and a link on the way to a skill, a
 skill entry or a skill's `SKILL.md` that it cannot follow. A structure file the check expected, with no regular
 file standing in its place, is reported the same way, with nothing refused to name.

@@ -45,7 +45,6 @@ from lorecraft.project.schemas import (
     NotASpecStemError,
     ProseSpecFile,
     SpecFile,
-    SpecFileType,
     StructureSchemaReadError,
     StructureSpec,
     StructureSpecFile,
@@ -106,10 +105,6 @@ from .model import Corpus, CorpusNamespace, CorpusSpec, WorkspaceModel, namespac
 class _NameFiles:
     """The specification files at one specification name.
 
-    A name has at most one structure file: where `<name>.spec.json` and the legacy `<name>.structure.json` both
-    exist, the legacy one is a shadowed fallback that is neither listed nor read, so it can fail to load, or be
-    unreadable, without a diagnostic. `refusals.py` accepts a refused read of such a file.
-
     Attributes:
         structure: The structure file, or None when the name has none.
         prose: The prose files, in listing order.
@@ -119,7 +114,7 @@ class _NameFiles:
     prose: list[ProseSpecFile] = field(default_factory=list)
 
     def add(self, spec_file: SpecFile) -> None:
-        """File one specification file under the name, keeping `<name>.spec.json` over a legacy structure file.
+        """File one specification file under the name.
 
         Args:
             spec_file: A file at this specification name.
@@ -128,9 +123,7 @@ class _NameFiles:
             case ProseSpecFile():
                 self.prose.append(spec_file)
             case StructureSpecFile():
-                shadowed = self.structure is not None and self.structure.type is SpecFileType.SPEC
-                if not shadowed or spec_file.type is SpecFileType.SPEC:
-                    self.structure = spec_file
+                self.structure = spec_file
             case _:
                 assert_never(spec_file)
 
