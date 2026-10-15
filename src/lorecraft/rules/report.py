@@ -16,9 +16,11 @@ report gives its diagnostics as `diagnostics`. A `CheckedDocument` decoded, and 
 order however it is built, and the facets no meta spec governs it for. A `CheckedSkillFile`, a skill or one of its
 resources, holds its diagnostics alone, because the package governs every skill file for every facet. An
 `UndecodableSubject` did not decode, so no rule judged it: it holds its ref and where the bytes stopped being UTF-8,
-and its one diagnostic, the engine's, is built from them, at the subject's path. A layout entry, one symlink of the
-skill layout whose chain leaves the repository, has no text to decode and no meta spec to be ungoverned by, so it
-gets a report of its own, a `CheckedLayoutEntry`: its path and its diagnostics, in their output order.
+and its one diagnostic, the engine's, is built from them, at the subject's path. An `UnreadableDocument` could not be
+read at all, so it holds its document ref and the engine's unreadable-path condition, and counts as a subject. A layout
+entry, one symlink of the skill layout whose chain leaves the repository, has no text to decode and no meta spec to be
+ungoverned by, so it gets a report of its own, a `CheckedLayoutEntry`: its path and its diagnostics, in their output
+order.
 
 Two reports come from what failed to load, never from a rule. A `SkippedSubject` is a document decoded and not judged,
 because a structure file that governs it failed to load: it holds no diagnostic and is listed in coverage with the
@@ -206,6 +208,24 @@ class UndecodableSubject:
 
 
 @dataclass(frozen=True, slots=True)
+class UnreadableDocument:
+    """A governed document that could not be read, still counted as a subject with its `LC002` diagnostic.
+
+    Attributes:
+        ref: The document whose bytes the snapshot could not read.
+        occurrence: The engine condition explaining the unreadable path.
+    """
+
+    ref: DocumentRef
+    occurrence: EngineCondition
+
+    @property
+    def diagnostics(self) -> tuple[EngineDiagnostic]:
+        """The unreadable-path diagnostic at the document's path."""
+        return (EngineDiagnostic(self.ref.path, self.occurrence),)
+
+
+@dataclass(frozen=True, slots=True)
 class CheckedLayoutEntry:
     """A layout entry the enabled rules judged: one symlink of the skill layout whose chain leaves the repository.
 
@@ -276,7 +296,9 @@ class LoadFailureReport:
 
 # What the runner reports for one subject: what the rules found in it, that it did not decode, what they found at a
 # layout entry, or that a failed layer of a meta spec kept them from judging a document.
-type SubjectReport = CheckedDocument | CheckedSkillFile | UndecodableSubject | CheckedLayoutEntry | SkippedSubject
+type SubjectReport = (
+    CheckedDocument | CheckedSkillFile | UndecodableSubject | UnreadableDocument | CheckedLayoutEntry | SkippedSubject
+)
 
 # What a run hands its output: a report per subject, and one per unit of the declaration that failed to load, which is
 # no subject and is filed at its own path.

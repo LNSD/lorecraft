@@ -176,15 +176,15 @@ class ChangedSnapshotEntryError(Error):
 
 @dataclass(frozen=True, slots=True)
 class Declaration:
-    """What the scan is told the caller reads for its own sake, so that a refusal there is kept, not raised.
+    """What the scan is told the caller needs to inspect later, so a refusal is kept for the caller to report.
 
     A scan reads more than the caller asks of it: a directory below a skill, a document, a file a link leads to.
-    A refusal on any of that stops the scan. A caller that loads a model from the snapshot reports a refusal on
-    what it declares, and it names that here, by what only it knows: which regular files it reads.
+    A refusal outside the declaration stops the scan. The declaration names regular files by the caller's need for
+    the bytes to be available in the snapshot, even when a later query, rather than the model loader, reads them.
 
     Attributes:
-        is_file: Whether the regular file at a resolved path is one the declaration names, such as a structure
-            file. Not asked for a directory or a link, which no name decides.
+        is_file: Whether the regular file at a resolved path must be retained if unreadable. Not asked for a directory
+            or a link, which no file name decides.
     """
 
     is_file: Callable[[RootRelativePath], bool]
