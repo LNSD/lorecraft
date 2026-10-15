@@ -123,8 +123,11 @@ A corpus detected under docs/ with a reserved name is recorded as a layout overl
 document corpus. Its documents receive no skills rules and are not checked (FR-015, FR-016).
 The overlap rule reports the directory once, at warning severity by default.
 
-The overlap can be configured as an error, making check fail (FR-017). The configuration surface remains an
-open question below; this decision does not silently turn every warning into an error.
+The overlap is promoted to an error, making check fail (FR-017), with a general check option
+`--error <selectors>`. It reuses the existing rule code and prefix selectors and their validation, and promotes
+only the matching rules that are already enabled: it never enables an ignored rule, and unrelated warnings keep
+their severity. A dedicated overlap option and a global `--warnings-as-errors` switch are rejected: the first adds
+a bespoke surface for one rule, the second makes every warning fatal.
 The reserved name remains reserved when the built-in schema is disabled.
 
 ### Inspection Reads the Same Governance
@@ -163,11 +166,6 @@ It does not create a second matching algorithm or require a docs/skills/ directo
   commands but add hidden process state or a new configuration location and precedence rules. A CLI-only flag
   makes the choice explicit and is sufficient for this change.
 
-## Open Questions
-
-- [NEEDS CLARIFICATION: Which CLI configuration mechanism promotes the reserved-corpus overlap warning to an
-  error without introducing a general repository configuration system?]
-
 ## Checklist
 
 - [ ] Skills governance uses the listed skill name and existing namespace matching, never the resolved target name
@@ -177,7 +175,7 @@ It does not create a second matching algorithm or require a docs/skills/ directo
 - [ ] The opt-out affects check and inspect alike and allows ungoverned skills without an error
 - [ ] Compatibility analysis covers only the stated direct required-field constraints and is disabled by opt-out
 - [ ] A detected contradiction names the faulty specification and fails check even when no skill exists
-- [ ] A reserved docs corpus is excluded and reported once, warning by default and configurable as error
+- [ ] A reserved docs corpus is excluded and reported once, warning by default and promoted to error by `--error <selectors>`
 - [ ] Inspection reports the same governing layers the checker uses, with honest built-in provenance
 
 ## References
