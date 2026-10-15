@@ -14,6 +14,7 @@ Nothing here logs: `validate` raises nothing, and `parse` returns the failure it
 import re
 from collections.abc import Iterator, Mapping
 from dataclasses import dataclass
+from dataclasses import field as dataclass_field
 from typing import Final, Self, assert_never
 
 from jsonschema import Draft202012Validator
@@ -108,6 +109,11 @@ class FrontmatterSchema:
     """
 
     schema: FrozenMapping[str, Frozen]
+    _validator: Validator = dataclass_field(init=False, repr=False, compare=False, hash=False)
+
+    def __post_init__(self) -> None:
+        """Compile the schema once for validation."""
+        object.__setattr__(self, '_validator', Draft202012Validator(self.schema.to_plain()))
 
     @classmethod
     def parse(cls, schema: FrozenMapping[str, Frozen]) -> Self | FrontmatterSchemaFailure:
@@ -184,8 +190,7 @@ class FrontmatterSchema:
             One problem per field at fault, ordered by the field and then the message, or `()` when the
             frontmatter conforms.
         """
-        # Plain data, as `parse` hands `jsonschema` the schema: it reads only a `dict` as a JSON object.
-        validator = Draft202012Validator(self.schema.to_plain())
+        validator = self._validator
         plain = data.to_plain()
         # Sorted, unlike the skill schema's problems: `jsonschema` reports errors in the order it walks the
         # schema's keywords, which says nothing about the fields.

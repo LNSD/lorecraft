@@ -38,6 +38,30 @@ from ..structure_failure import (
 
 @pytest.mark.unit
 class TestFrontmatterSchema:
+    def test_equal_schemas_compare_and_hash_by_schema(self) -> None:
+        #: Given
+        schema = FrozenMapping.from_plain({'type': 'object', 'required': ['name']})
+        first = FrontmatterSchema(schema=schema)
+        second = FrontmatterSchema(schema=schema)
+
+        #: When
+        #: Then
+        assert first == second, 'compiled validators do not change schema equality'
+        assert hash(first) == hash(second), 'compiled validators do not change schema hashing'
+
+    def test_validate_reuses_the_compiled_validator(self) -> None:
+        #: Given
+        schema = FrontmatterSchema(schema=FrozenMapping.from_plain({'type': 'object', 'required': ['name']}))
+        validator = schema._validator
+
+        #: When
+        first = schema.validate(FrozenMapping.from_plain({}))
+        second = schema.validate(FrozenMapping.from_plain({}))
+
+        #: Then
+        assert first == second, 'reusing the validator keeps validation problems unchanged'
+        assert schema._validator is validator, 'the checked schema retains its compiled validator'
+
     def test_parse_with_an_object_schema_keeps_it(self) -> None:
         #: Given
         schema: dict[str, Plain] = {'type': 'object', 'required': ['name'], 'description': 'read by people'}
