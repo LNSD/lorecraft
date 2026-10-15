@@ -45,7 +45,11 @@ def as_tuple(self) -> tuple[Heading, ...]:
 ## 2. Construction Says Its Source: `from_`, `parse_`, `load_`
 
 An alternate constructor is a `@classmethod` named `from_<source>` returning `Self`, one source shape each:
-`from_heading`, `from_bytes`. A module function turning text into a value with no I/O is `parse_<thing>`; one
+`from_heading`, `from_bytes`. When an input that yields no value is an ordinary outcome rather than invalid
+input, `from_<source>` returns `Self | None`, and its docstring says when it is `None`, as
+`Anchor.from_fragment` does for a fragment no heading can have. A classmethod that imports modules or reads
+storage to build `Self` is `load`, or `load_<source>` when the class has more than one, as `Registry.load`
+imports the rules of a package. A module function turning text into a value with no I/O is `parse_<thing>`; one
 that reads storage first is `load_<thing>`. `build_` assembles a composite from parts. `of_`, `make_`,
 `new_`, and `create_` without a side effect are not used, because `__init__` already is the primary
 constructor and a second vocabulary for the same act tells the reader nothing.
@@ -72,8 +76,11 @@ Before committing code, verify:
 
 - [ ] Every `as_` name is constant-cost, does no I/O, and cannot fail; every `to_` result shares nothing
       mutable with its receiver; no name starts with `into_`
-- [ ] Alternate constructors are `from_<source>` classmethods returning `Self`; text-to-value functions are
-      `parse_`, I/O-backed ones `load_`; no `of_`, `make_`, or `new_` constructor is added
+- [ ] Alternate constructors are `from_<source>` classmethods returning `Self`, or `Self | None` when no value
+      is an ordinary outcome and the docstring says when; one that imports or reads storage is `load` or
+      `load_<source>`
+- [ ] Text-to-value functions are `parse_`, I/O-backed ones `load_`; no `of_`, `make_`, or `new_` constructor
+      is added
 - [ ] Frozen types change through `with_<field>` or `dataclasses.replace`, never `set_<field>`, and a `with_`
       method revalidates
 

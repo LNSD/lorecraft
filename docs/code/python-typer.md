@@ -136,6 +136,10 @@ def outline(document: Path) -> None:
 app.command(name='headings', hidden=True)(outline)
 ```
 
+An option kept under a former spelling is a second parameter declared with `hidden=True` and a help text
+naming it a deprecated alias of the current option. The command maps it onto the current option before using either
+and raises `typer.BadParameter` when both are given, so one value reaches the rest of the body.
+
 ## 5. A Global Flag Is an Eager Option on the Root Callback
 
 An option true of every invocation is declared on the root application's callback, with `is_eager=True` and a
@@ -224,6 +228,8 @@ Before committing code, verify:
 - [ ] A root or group application states its help in `typer.Typer(help=...)`
 - [ ] A group's own options default to `None`, and are refused with `typer.BadParameter` before a subcommand
 - [ ] A former name is the same function registered with `hidden=True`, never a wrapper
+- [ ] A former option spelling is a `hidden=True` parameter mapped onto the current one, refused when both are
+      given
 - [ ] A global flag is an eager option on the root callback, whose callback raises `typer.Exit()`
 - [ ] A handler writes with `typer.echo`, a summary or an error with `err=True`, and returns when clean or
       raises `typer.Exit(code=...)`

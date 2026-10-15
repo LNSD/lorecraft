@@ -78,9 +78,6 @@ class LineSpan:
     Note:
         Spans order by `start`, then `end`, so sorting findings by span gives reading order.
 
-    Raises:
-        InvalidSpanError: On construction, if `start` is below 1 or `end` is below `start`.
-
     Attributes:
         start: First line in the span, inclusive.
         end: Line after the last one, exclusive. Equal to `start` for an empty span, the position
@@ -95,6 +92,11 @@ class LineSpan:
     end: int
 
     def __post_init__(self) -> None:
+        """Refuse a bad span.
+
+        Raises:
+            InvalidSpanError: If `start` is below 1 or `end` is below `start`.
+        """
         if self.start < 1 or self.end < self.start:
             raise InvalidSpanError(self.start, self.end)
 
@@ -127,8 +129,8 @@ class LineSpan:
         return self.start <= line < self.end
 ```
 
-`__post_init__` has no docstring: what it refuses is the class's `Raises:`. `contains` has no `Returns:`:
-its name and `-> bool` already say what it answers.
+`contains` has no `Returns:`: its name and `-> bool`
+already say what it answers.
 
 A section a docstring does not need is left out; the rest keep the table's order. A summary-only docstring is
 one line, quotes included. reST field lists (`:param x:`), NumPy underlines and Epytext (`@param`) are
@@ -340,8 +342,9 @@ def overlong_spans(lines: list[int]) -> list[tuple[int, int]]:
 ## 7. `Attributes:` Documents a Record's Contract
 
 A dataclass, config object, error variant ([error-types](error-types.md)) or other class with public fields
-lists **every** one under `Attributes:`. Only a field with a leading underscore, a pydantic model's field
-(its docstring sits under it) and a base's class constants are left out. As in `Args:`, a line says
+lists **every** one under `Attributes:`. Only a field with a leading underscore, a base's class constants,
+and a field of a `use_attribute_docstrings` pydantic model (documented under itself) are left out; an
+inherited field only where re-declared. As in `Args:`, a line says
 the field's role and, where they apply, its unit, bound, default's meaning and tie to another field. An
 echo of the name or type fails review: a record's reader has no call site to learn from.
 
@@ -397,9 +400,9 @@ Before committing code, verify:
 - [ ] Every reachable `raise` in the diff, direct or propagated by contract, is in `Raises:` with its condition;
       a propagated built-in failing `error-boundaries` §2 is fixed at its source
 - [ ] An unreachable `raise` has a `#` comment saying why, and no `Raises:` entry
-- [ ] Every `Example:` block is `>>>` doctest lines, never the sole statement of an untested contract
+- [ ] Every `Example:` block is `>>>` doctest lines, never an untested contract's sole statement
 - [ ] No `Example:` block needs a checked-out corpus, a network fetch, or a fixture tree to run
-- [ ] `Attributes:` has a line for every field, saying what its annotation cannot, never its name echoed
+- [ ] `Attributes:` lines every field (inherited if re-declared) with what its annotation cannot say
 
 ## References
 
