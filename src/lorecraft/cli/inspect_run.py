@@ -14,20 +14,21 @@ from lorecraft.project.database import Database
 from lorecraft.project.layout import SNAPSHOT_SCOPE
 from lorecraft.vfs import take_snapshot
 
-from .failure import exit_on_load_failure, report_failure
+from .failure import report_failure, report_first_load_failure
 from .output import ExitStatus, OutputFormat
 from .workspace_tree import render_json, render_text
 
 
-def run_inspect(root: Path, output_format: OutputFormat) -> None:
+def run_inspect(root: Path, output_format: OutputFormat) -> ExitStatus | None:
     """Print the workspace model of `root`; the body of `lorecraft inspect`.
 
     Args:
         root: The workspace root, already resolved by the command's argument.
         output_format: How to print the model, already resolved from `--format` and the `--json` alias.
 
-    Raises:
-        typer.Exit: With code 2 when the scan or the load fails.
+    Returns:
+        `ExitStatus.FAILURE` when the scan or the load fails, which the command handler exits with; `None` when the
+        model is printed.
     """
     try:
         # Under `docs/` the snapshot never reads through a symlink, so a linked `docs/` or `docs/__meta__/`
@@ -35,10 +36,12 @@ def run_inspect(root: Path, output_format: OutputFormat) -> None:
         # nothing.
         model = Database.from_snapshot(take_snapshot(root, SNAPSHOT_SCOPE)).model()
         # Until a load failure is reported as one, a model that recorded one is no model to print.
-        exit_on_load_failure(model)
+        status = report_first_load_failure(model)
     except Error as exc:
         report_failure(exc)
-        raise typer.Exit(code=ExitStatus.FAILURE) from exc
+        return ExitStatus.FAILURE
+    if status is not None:
+        return status
 
     match output_format:
         case OutputFormat.TEXT:
@@ -47,3 +50,4 @@ def run_inspect(root: Path, output_format: OutputFormat) -> None:
             typer.echo(render_json(root, model))
         case _:
             assert_never(output_format)
+    return None

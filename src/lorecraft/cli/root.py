@@ -29,7 +29,7 @@ class WorkingDirectoryReadError(Error):
     def __init__(self, refusal: OsRefusal, *, source: OSError) -> None:
         self.refusal = refusal
         self.source = source
-        super().__init__(f'cannot read the current directory: {refusal}')
+        super().__init__('cannot read the current directory')
         self.__cause__ = source
 
 
@@ -64,7 +64,7 @@ class RootCandidateInspectError(Error):
         self.candidate = candidate
         self.refusal = refusal
         self.source = source
-        super().__init__(f'cannot find repository root: cannot inspect {candidate}: {refusal}')
+        super().__init__(f'cannot find repository root: cannot inspect {candidate}')
         self.__cause__ = source
 
 
@@ -99,7 +99,7 @@ class RootInspectError(Error):
         self.path = path
         self.refusal = refusal
         self.source = source
-        super().__init__(f'cannot inspect root {path}: {refusal}')
+        super().__init__(f'cannot inspect root {path}')
         self.__cause__ = source
 
 

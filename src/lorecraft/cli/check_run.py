@@ -54,7 +54,7 @@ def run_check(
     color: ColorChoice,
     select: list[SelectorValue] | None,
     ignore: list[SelectorValue] | None,
-) -> None:
+) -> ExitStatus | None:
     """Run the rules over the workspace and write the report; the body of `lorecraft check`.
 
     Args:
@@ -64,8 +64,11 @@ def run_check(
         select: The `--select` values, already parsed and confirmed against the rule index.
         ignore: The `--ignore` values, already parsed and confirmed against the rule index.
 
+    Returns:
+        `ExitStatus.FINDINGS` when any diagnostic is an error, `ExitStatus.FAILURE` for invalid input or
+        specifications, which the command handler exits with; `None` otherwise.
+
     Raises:
-        typer.Exit: With the documented status code for an error diagnostic or invalid input.
         RuntimeError: If the rules cannot be registered, or a selector names a group or a code the registry does not
             hold, which means the generated index is stale.
     """
@@ -80,7 +83,9 @@ def run_check(
         # With no corpus and no meta spec known, nothing can be checked, so this stops before any subject is selected.
         # Every other failure the model recorded is reported below, as a diagnostic.
         model = database.model()
-        load_failure_reports = _reports_or_exit(model)
+        load_failure_reports = _reports_or_status(model)
+        if isinstance(load_failure_reports, ExitStatus):
+            return load_failure_reports
         # The snapshot kept what the scan could not list, read or inspect, and the model reports the ones it loads.
         # One that nothing reports would pass unseen where the scan used to stop, so the first of them stops the run.
         reject_unreported_refusals(database.refusals(), model)
@@ -89,7 +94,7 @@ def run_check(
         reports = (*load_failure_reports, *check_subjects(database, subjects, table))
     except Error as exc:
         report_failure(exc)
-        raise typer.Exit(code=ExitStatus.FAILURE) from exc
+        return ExitStatus.FAILURE
 
     match output_format:
         case DiagnosticFormat.TEXT:
@@ -101,23 +106,24 @@ def run_check(
         case _:
             assert_never(output_format)
     if _has_error(reports):
-        raise typer.Exit(code=ExitStatus.FINDINGS)
+        return ExitStatus.FINDINGS
+    return None
 
 
-def _reports_or_exit(model: WorkspaceModel) -> tuple[RunReport, ...]:
-    """The report of each unit of the declaration that failed to load, or the exit when the root cannot be listed.
+def _reports_or_status(model: WorkspaceModel) -> tuple[RunReport, ...] | ExitStatus:
+    """The report of each unit that failed to load, or the failure status when the root cannot be listed.
 
     Args:
         model: The workspace model the run loaded.
 
-    Raises:
-        typer.Exit: With the failure status when `docs/` or `docs/__meta__/` could not be listed.
+    Returns:
+        The reports, or `ExitStatus.FAILURE` when `docs/` or `docs/__meta__/` could not be listed.
     """
     load_failures = report_load_failures(model)
     match load_failures:
         case UnlistableRoot(failure=failure):
             report_load_failure(failure)
-            raise typer.Exit(code=ExitStatus.FAILURE)
+            return ExitStatus.FAILURE
         case tuple() as load_failure_reports:
             return load_failure_reports
         case _:

@@ -52,22 +52,20 @@ from .output import ExitStatus
 def report_failure(failure: Error) -> None:
     """Write `failure` to stderr as `error: <message>`, then one `  caused by: <message>` line per cause.
 
-    The walk follows `__cause__` from `failure` down, and stops at the first cause that is not an `Error`.
-    That one is a foreign exception, whose `str()` is not written to be read on its own; the variant that
-    translated it states what the user needs from its own fields.
+    The walk follows `__cause__` from `failure` down to the last link, foreign causes included.
 
     Args:
         failure: The error a command caught at its top level.
     """
     typer.echo(f'error: {failure}', err=True)
     cause = failure.__cause__
-    while isinstance(cause, Error):
+    while cause is not None:
         typer.echo(f'  caused by: {cause}', err=True)
         cause = cause.__cause__
 
 
-def exit_on_load_failure(model: WorkspaceModel) -> None:
-    """Report the first load failure the model recorded and exit with the failure status; do nothing without one.
+def report_first_load_failure(model: WorkspaceModel) -> ExitStatus | None:
+    """Report the first load failure the model recorded and return the failure status; `None` without one.
 
     `lorecraft inspect` prints the model, which holds nothing of a unit that failed, so it treats a model that recorded
     one as it treated the error the loader raised for it: the same message, the same causes, exit 2. The first
@@ -77,13 +75,14 @@ def exit_on_load_failure(model: WorkspaceModel) -> None:
     Args:
         model: The workspace model the command opened.
 
-    Raises:
-        typer.Exit: With the failure status, when the model recorded a load failure.
+    Returns:
+        `ExitStatus.FAILURE` when the model recorded a load failure, which the command handler exits with; `None`
+        otherwise.
     """
     if not model.load_failures:
-        return
+        return None
     report_load_failure(model.load_failures[0])
-    raise typer.Exit(code=ExitStatus.FAILURE)
+    return ExitStatus.FAILURE
 
 
 @dataclass(frozen=True, slots=True)
@@ -100,7 +99,9 @@ class _FailureText:
 
 
 def report_load_failure(failure: LoadFailure) -> None:
-    """Write a recorded load failure to stderr as `report_failure` writes the error it stands for.
+    """Write a recorded load failure to stderr: its message, then one `  caused by:` line per cause.
+
+    The chain stops at the last package variant: a load failure keeps no foreign cause.
 
     Args:
         failure: A load failure the model recorded.

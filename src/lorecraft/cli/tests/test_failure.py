@@ -3,7 +3,6 @@
 from typing import Final
 
 import pytest
-import typer
 
 from lorecraft.core.error import Error
 from lorecraft.core.mapping import FrozenMapping
@@ -49,7 +48,7 @@ from lorecraft.vfs import (
     Utf8Failure,
 )
 
-from ..failure import exit_on_load_failure, report_failure, report_load_failure
+from ..failure import report_failure, report_first_load_failure, report_load_failure
 from ..output import ExitStatus
 
 
@@ -83,7 +82,8 @@ class TestReportFailure:
         assert capsys.readouterr().err == (
             'error: cannot load the outline of corpus code\n'
             '  caused by: cannot read specification docs/__meta__/code.json\n'
-        ), 'each error on the chain is a line, and the foreign exception beneath them is not'
+            '  caused by: [Errno 13] Permission denied\n'
+        ), 'each link is a line, the foreign exception at the bottom included'
 
     def test_report_failure_with_two_errors_beneath_writes_a_line_for_each(
         self, capsys: pytest.CaptureFixture[str]
@@ -534,7 +534,7 @@ class TestReportLoadFailure:
 
 @pytest.mark.unit
 class TestExitOnLoadFailure:
-    def test_exit_on_load_failure_with_no_failure_returns(self) -> None:
+    def test_report_first_load_failure_with_no_failure_returns_none(self) -> None:
         #: Given
         model = WorkspaceModel(
             corpora=FrozenMapping({}),
@@ -545,12 +545,12 @@ class TestExitOnLoadFailure:
         )
 
         #: When
-        result = exit_on_load_failure(model)
+        result = report_first_load_failure(model)
 
         #: Then
         assert result is None, 'a model that recorded nothing is no reason to stop'
 
-    def test_exit_on_load_failure_with_failures_reports_the_first_and_exits_two(
+    def test_report_first_load_failure_with_failures_reports_the_first_and_returns_failure(
         self, capsys: pytest.CaptureFixture[str]
     ) -> None:
         #: Given
@@ -565,11 +565,10 @@ class TestExitOnLoadFailure:
         )
 
         #: When
-        with pytest.raises(typer.Exit) as exc_info:
-            exit_on_load_failure(model)
+        status = report_first_load_failure(model)
 
         #: Then
-        assert exc_info.value.exit_code == ExitStatus.FAILURE, 'the run exits as an error did'
+        assert status is ExitStatus.FAILURE, 'the run exits as an error did'
         assert capsys.readouterr().err == 'error: cannot list directory docs/__meta__: permission denied\n', (
             'only the first failure is reported, as only the first error was raised'
         )
