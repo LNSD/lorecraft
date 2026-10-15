@@ -251,6 +251,30 @@ class FileResolveError(Error):
         self.__cause__ = source
 
 
+class RootExitWalkError(Error):
+    """The walk of a symlink chain under the root cannot go on because the operating system refused a step.
+
+    Attributes:
+        path: The root-relative path whose symlink chain was being walked.
+        entry: The root-relative entry that could not be inspected, or the link whose target could not be read.
+        refusal: Why the operating system refused the step.
+        source: The operating system's failure.
+    """
+
+    path: RootRelativePath
+    entry: RootRelativePath
+    refusal: OsRefusal
+    source: OSError
+
+    def __init__(self, path: RootRelativePath, entry: RootRelativePath, refusal: OsRefusal, *, source: OSError) -> None:
+        self.path = path
+        self.entry = entry
+        self.refusal = refusal
+        self.source = source
+        super().__init__(f'cannot walk the symlink chain at {path}: {refusal}')
+        self.__cause__ = source
+
+
 # The snapshot's own answers. A snapshot keeps the refusal the scan classified and never the operating system's
 # failure, so each answer is a variant of its own beside the disk's, and a handler of the view names both.
 
@@ -390,12 +414,37 @@ class RecordedFileResolveError(Error):
         self.__cause__ = source
 
 
+class RecordedRootExitWalkError(Error):
+    """The walk of a symlink chain cannot go on because the scan could not inspect an entry on the way.
+
+    Attributes:
+        path: The root-relative path whose symlink chain was being walked.
+        entry: The root-relative entry the scan could not inspect, as `source` names it.
+        refusal: Why the operating system refused the inspection.
+        source: The recorded inspection that was refused.
+    """
+
+    path: RootRelativePath
+    entry: RootRelativePath
+    refusal: OsRefusal
+    source: RecordedEntryInspectError
+
+    def __init__(self, path: RootRelativePath, refusal: OsRefusal, *, source: RecordedEntryInspectError) -> None:
+        self.path = path
+        self.entry = source.path
+        self.refusal = refusal
+        self.source = source
+        super().__init__(f'cannot walk the symlink chain at {path}: {refusal}')
+        self.__cause__ = source
+
+
 # Every way each operation of the view fails, on disk or from a snapshot, for a `source` that wraps the operation.
 type DirListFailure = DirListError | RecordedDirListError | RecordedDirListPathError
 type FileReadFailure = FileReadError | RecordedFileReadError | RecordedFileReadPathError
 type DirResolveFailure = DirResolveError | RecordedDirResolveError
 type FileResolveFailure = FileResolveError | RecordedFileResolveError
 type EntryInspectFailure = EntryInspectError | RecordedEntryInspectError
+type RootExitWalkFailure = RootExitWalkError | RecordedRootExitWalkError
 
 # The same sets as classes, for an `except`, which takes classes and not a union.
 DIR_LIST_FAILURES: Final[tuple[type[DirListError], type[RecordedDirListError], type[RecordedDirListPathError]]] = (
@@ -419,6 +468,10 @@ FILE_RESOLVE_FAILURES: Final[tuple[type[FileResolveError], type[RecordedFileReso
 ENTRY_INSPECT_FAILURES: Final[tuple[type[EntryInspectError], type[RecordedEntryInspectError]]] = (
     EntryInspectError,
     RecordedEntryInspectError,
+)
+ROOT_EXIT_WALK_FAILURES: Final[tuple[type[RootExitWalkError], type[RecordedRootExitWalkError]]] = (
+    RootExitWalkError,
+    RecordedRootExitWalkError,
 )
 
 
@@ -571,7 +624,7 @@ class FileSystem(ABC):
             does not leave the root.
 
         Raises:
-            EntryInspectError: If the operating system refuses to inspect an entry on the way or read a link's
+            RootExitWalkError: If the operating system refuses to inspect an entry on the way or read a link's
                 target, on disk.
-            RecordedEntryInspectError: If a snapshot recorded that the scan could not inspect an entry on the way.
+            RecordedRootExitWalkError: If a snapshot recorded that the scan could not inspect an entry on the way.
         """

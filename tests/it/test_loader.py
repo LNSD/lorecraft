@@ -33,8 +33,8 @@ from lorecraft.project.workspace import (
     FailedStructure,
     ForbiddenOutlineSections,
     ForeignFrontmatterDialect,
-    FrontmatterSchemaId,
     Governance,
+    IdentifiedFrontmatterSchema,
     InvalidFrontmatterSchema,
     InvalidTitlePattern,
     LoadFailure,
@@ -1383,8 +1383,8 @@ class TestLoadWorkspaceFailures:
         assert failed.path == SPECS_DIR / PathComponent.parse('code.structure.json'), (
             'the failure names the structure file'
         )
-        assert isinstance(failed.failure, FrontmatterSchemaId), (
-            'an id in the frontmatter schema fails as a frontmatter schema id'
+        assert isinstance(failed.failure, IdentifiedFrontmatterSchema), (
+            'an id in the frontmatter schema fails as an identified frontmatter schema'
         )
         assert model.load_failures == (LoadFailure(failed.path, failed.failure),), (
             'listed once, with its path and condition'

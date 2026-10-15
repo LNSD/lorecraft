@@ -29,7 +29,7 @@ from ..frontmatter_schema import FrontmatterSchema
 from ..structure_failure import (
     CyclicFrontmatterSchemaRef,
     ForeignFrontmatterDialect,
-    FrontmatterSchemaId,
+    IdentifiedFrontmatterSchema,
     InvalidFrontmatterSchema,
     UnresolvableFrontmatterSchemaRef,
     UntypedFrontmatterSchema,
@@ -325,7 +325,7 @@ class TestFrontmatterSchema:
         failure = FrontmatterSchema.parse(mapping)
 
         #: Then
-        assert failure == FrontmatterSchemaId(), 'an $id would change how relative $refs resolve'
+        assert failure == IdentifiedFrontmatterSchema(), 'an $id would change how relative $refs resolve'
 
     def test_parse_with_an_id_in_a_nested_schema_returns_frontmatter_schema_id(self) -> None:
         #: Given
@@ -336,7 +336,7 @@ class TestFrontmatterSchema:
         failure = FrontmatterSchema.parse(mapping)
 
         #: Then
-        assert failure == FrontmatterSchemaId(), 'an $id at any depth makes a resource of its own'
+        assert failure == IdentifiedFrontmatterSchema(), 'an $id at any depth makes a resource of its own'
 
     def test_parse_with_a_foreign_dialect_returns_foreign_frontmatter_dialect(self) -> None:
         #: Given

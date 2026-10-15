@@ -21,7 +21,7 @@ from lorecraft.project.schemas.structure_failure import (
     EmptyStructureSpec,
     ForbiddenOutlineSections,
     ForeignFrontmatterDialect,
-    FrontmatterSchemaId,
+    IdentifiedFrontmatterSchema,
     InvalidFrontmatterSchema,
     InvalidTitlePattern,
     RepeatedForbiddenSections,
@@ -164,7 +164,7 @@ def unreported_refusals(
                 | AdjacentAnyRuns()
                 | InvalidTitlePattern()
                 | InvalidFrontmatterSchema()
-                | FrontmatterSchemaId()
+                | IdentifiedFrontmatterSchema()
                 | ForeignFrontmatterDialect()
                 | UnresolvableFrontmatterSchemaRef()
                 | CyclicFrontmatterSchemaRef()

@@ -34,7 +34,7 @@ from ..structure_failure import (
     EmptyStructureSpec,
     ForbiddenOutlineSections,
     ForeignFrontmatterDialect,
-    FrontmatterSchemaId,
+    IdentifiedFrontmatterSchema,
     InvalidFrontmatterSchema,
     InvalidTitlePattern,
     RepeatedForbiddenSections,
@@ -326,7 +326,7 @@ class TestStructureSpecParse:
         failure = StructureSpec.parse(SPEC_FILE, schema)
 
         #: Then
-        assert failure == FrontmatterSchemaId(), (
+        assert failure == IdentifiedFrontmatterSchema(), (
             f'the frontmatter schema is checked before the outline rules, got {failure!r}'
         )
 
@@ -373,7 +373,7 @@ class TestStructureSpecParse:
         failure = StructureSpec.parse(SPEC_FILE, schema)
 
         #: Then
-        assert failure == FrontmatterSchemaId(), 'the editor lets an $id through, the load refuses it'
+        assert failure == IdentifiedFrontmatterSchema(), 'the editor lets an $id through, the load refuses it'
 
     def test_parse_with_a_frontmatter_schema_in_a_foreign_dialect_returns_foreign_frontmatter_dialect(self) -> None:
         #: Given

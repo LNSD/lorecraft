@@ -73,7 +73,7 @@ class InvalidFrontmatterSchema:
 
 
 @dataclass(frozen=True, slots=True)
-class FrontmatterSchemaId:
+class IdentifiedFrontmatterSchema:
     """The frontmatter schema, or a schema inside it, carries `$id`."""
 
 
@@ -122,7 +122,7 @@ type Cause = (
     | AdjacentAnyRuns
     | InvalidTitlePattern
     | InvalidFrontmatterSchema
-    | FrontmatterSchemaId
+    | IdentifiedFrontmatterSchema
     | ForeignFrontmatterDialect
     | UnresolvableFrontmatterSchemaRef
     | CyclicFrontmatterSchemaRef
@@ -440,7 +440,7 @@ class UnusableStructureFile(FileCondition):
                 return 'title pattern is not a valid regular expression'
             case InvalidFrontmatterSchema():
                 return 'frontmatter schema is not a valid JSON Schema'
-            case FrontmatterSchemaId():
+            case IdentifiedFrontmatterSchema():
                 return 'frontmatter schema carries $id'
             case ForeignFrontmatterDialect():
                 return 'frontmatter schema names another JSON Schema dialect'
@@ -475,7 +475,7 @@ class UnusableStructureFile(FileCondition):
                 return (Note(f'pattern {pattern!r}: {problem}'),)
             case InvalidFrontmatterSchema(problem=problem):
                 return (Note(problem),)
-            case FrontmatterSchemaId():
+            case IdentifiedFrontmatterSchema():
                 return (Help('remove $id from every schema in the frontmatter schema'),)
             case ForeignFrontmatterDialect(dialect=dialect):
                 return (

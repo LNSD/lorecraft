@@ -74,7 +74,7 @@ from .schema_keyword import (
 from .structure_failure import (
     CyclicFrontmatterSchemaRef,
     ForeignFrontmatterDialect,
-    FrontmatterSchemaId,
+    IdentifiedFrontmatterSchema,
     InvalidFrontmatterSchema,
     UnresolvableFrontmatterSchemaRef,
     UntypedFrontmatterSchema,
@@ -83,7 +83,7 @@ from .structure_file import JSON_SCHEMA_DIALECT
 
 type FrontmatterSchemaFailure = (
     InvalidFrontmatterSchema
-    | FrontmatterSchemaId
+    | IdentifiedFrontmatterSchema
     | ForeignFrontmatterDialect
     | UnresolvableFrontmatterSchemaRef
     | CyclicFrontmatterSchemaRef
@@ -136,7 +136,7 @@ class FrontmatterSchema:
             if '$id' in subschema:
                 # An `$id` would make that schema a resource of its own, with its own base URI, and so change what
                 # every relative `$ref` beneath it resolves to.
-                return FrontmatterSchemaId()
+                return IdentifiedFrontmatterSchema()
             dialect = subschema.get('$schema', JSON_SCHEMA_DIALECT)
             # The meta-schema check above has refused a `$schema` that is not a string.
             assert isinstance(dialect, str), 'unreachable: the meta-schema proved `$schema` is a string'

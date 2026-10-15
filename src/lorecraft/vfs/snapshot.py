@@ -29,6 +29,7 @@ from .view import (
     RecordedFileReadError,
     RecordedFileReadPathError,
     RecordedFileResolveError,
+    RecordedRootExitWalkError,
     ResolvedPath,
     RootExit,
     UnrecordedFileError,
@@ -529,10 +530,13 @@ class VirtualFileSystem(FileSystem):
                 outside the root is read, since the snapshot holds nothing there.
 
         Raises:
-            RecordedEntryInspectError: If the snapshot recorded that the scan could not inspect an entry on the
+            RecordedRootExitWalkError: If the snapshot recorded that the scan could not inspect an entry on the
                 way to `path`.
         """
-        leads_to = self._find_destination(path)
+        try:
+            leads_to = self._find_destination(path)
+        except RecordedEntryInspectError as exc:
+            raise RecordedRootExitWalkError(path, exc.refusal, source=exc) from exc
         match leads_to:
             case RootExit():
                 return leads_to

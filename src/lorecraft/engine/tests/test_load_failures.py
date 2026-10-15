@@ -14,7 +14,7 @@ from lorecraft.project.workspace import (
     EmptyStructureSpec,
     ForbiddenOutlineSections,
     ForeignFrontmatterDialect,
-    FrontmatterSchemaId,
+    IdentifiedFrontmatterSchema,
     InvalidFrontmatterSchema,
     InvalidTitlePattern,
     LoadFailure,
@@ -288,14 +288,14 @@ class TestReportLoadFailures:
 
     def test_report_load_failures_with_a_frontmatter_schema_id_reports_it(self) -> None:
         #: Given
-        condition = FrontmatterSchemaId()
+        condition = IdentifiedFrontmatterSchema()
 
         #: When
         occurrence = _condition_of(condition)
 
         #: Then
         assert occurrence == unusable_structure_file.UnusableStructureFile(
-            cause=unusable_structure_file.FrontmatterSchemaId()
+            cause=unusable_structure_file.IdentifiedFrontmatterSchema()
         ), 'a schema carries `$id`'
 
     def test_report_load_failures_with_a_foreign_frontmatter_dialect_reports_the_dialect(self) -> None:

@@ -11,7 +11,7 @@ from ..unusable_structure_file import (
     CyclicFrontmatterSchemaRef,
     ForbiddenOutlineSection,
     ForeignFrontmatterDialect,
-    FrontmatterSchemaId,
+    IdentifiedFrontmatterSchema,
     InvalidFrontmatterSchema,
     InvalidTitlePattern,
     RepeatedForbiddenSection,
@@ -205,7 +205,7 @@ class TestUnusableStructureFile:
 
     def test_message_of_frontmatter_schema_id_names_the_case(self) -> None:
         #: Given
-        occurrence = UnusableStructureFile(cause=FrontmatterSchemaId())
+        occurrence = UnusableStructureFile(cause=IdentifiedFrontmatterSchema())
 
         #: When
         message = occurrence.message()
@@ -215,7 +215,7 @@ class TestUnusableStructureFile:
 
     def test_children_of_frontmatter_schema_id_say_how_to_fix_it_and_what_was_found(self) -> None:
         #: Given
-        occurrence = UnusableStructureFile(cause=FrontmatterSchemaId())
+        occurrence = UnusableStructureFile(cause=IdentifiedFrontmatterSchema())
 
         #: When
         children = occurrence.children()

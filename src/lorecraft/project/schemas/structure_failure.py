@@ -109,7 +109,7 @@ class InvalidFrontmatterSchema:
 
 
 @dataclass(frozen=True, slots=True)
-class FrontmatterSchemaId:
+class IdentifiedFrontmatterSchema:
     """A schema inside the structure file's frontmatter schema carries `$id`, which would make it a resource."""
 
 
@@ -174,7 +174,7 @@ type StructureSpecFailure = (
     | AdjacentAnyRuns
     | InvalidTitlePattern
     | InvalidFrontmatterSchema
-    | FrontmatterSchemaId
+    | IdentifiedFrontmatterSchema
     | ForeignFrontmatterDialect
     | UnresolvableFrontmatterSchemaRef
     | CyclicFrontmatterSchemaRef

@@ -34,9 +34,11 @@ from lorecraft.vfs import (
     RecordedFileReadError,
     RecordedFileReadPathError,
     RecordedFileResolveError,
+    RecordedRootExitWalkError,
     RefusedInspect,
     RefusedListing,
     RefusedRead,
+    RootExitWalkError,
     ScanRoot,
     SnapshotDirListError,
     SnapshotFileReadError,
@@ -589,6 +591,42 @@ class TestVirtualFileSystemOverARefusal:
             disk.find_dir(path)
 
         #: Then
+        assert exc_info.value.refusal is OsRefusal.PERMISSION_DENIED, 'the disk view refuses as the recorded one does'
+
+    def test_find_root_exit_with_a_chain_the_scan_could_not_inspect_raises_recorded_root_exit_walk_error(
+        self, tree: Path, lock: Callable[[Path], None]
+    ) -> None:
+        #: Given
+        (tree / '.agents' / 'skills' / 'texts').symlink_to('../../texts')
+        lock(tree / 'texts')
+        virtual = VirtualFileSystem(take_snapshot(tree, SCOPE, declaration=DECLARATION))
+        path = _path('.agents/skills/texts/REVIEW.md')
+
+        #: When
+        with pytest.raises(RecordedRootExitWalkError) as exc_info:
+            virtual.find_root_exit(path)
+
+        #: Then
+        assert exc_info.value.path == path, 'the error names the path that was being walked'
+        assert exc_info.value.entry == _path('texts/REVIEW.md'), 'the error names the entry it stopped at'
+        assert exc_info.value.refusal is OsRefusal.PERMISSION_DENIED, 'the walk is refused with the reason given'
+
+    def test_find_root_exit_with_a_chain_the_operating_system_refuses_to_search_raises_root_exit_walk_error(
+        self, tree: Path, lock: Callable[[Path], None]
+    ) -> None:
+        #: Given
+        (tree / '.agents' / 'skills' / 'texts').symlink_to('../../texts')
+        lock(tree / 'texts')
+        disk = DiskFileSystem(tree)
+        path = _path('.agents/skills/texts/REVIEW.md')
+
+        #: When
+        with pytest.raises(RootExitWalkError) as exc_info:
+            disk.find_root_exit(path)
+
+        #: Then
+        assert exc_info.value.path == path, 'the error names the path that was being walked'
+        assert exc_info.value.entry == _path('texts/REVIEW.md'), 'the error names the entry the walk stopped at'
         assert exc_info.value.refusal is OsRefusal.PERMISSION_DENIED, 'the disk view refuses as the recorded one does'
 
     def test_find_dir_with_a_directory_that_can_be_reached_resolves_it(self, tree: Path) -> None:

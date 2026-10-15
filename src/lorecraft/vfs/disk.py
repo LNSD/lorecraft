@@ -48,6 +48,7 @@ from .view import (
     OsRefusal,
     ResolvedPath,
     RootExit,
+    RootExitWalkError,
     decode_text,
 )
 
@@ -215,9 +216,13 @@ class DiskFileSystem(FileSystem):
             path: The root-relative path to walk; every link in it is followed until the chain leaves the root.
 
         Raises:
-            EntryInspectError: If an entry on the way cannot be inspected, or a link's target cannot be read.
+            RootExitWalkError: If an entry on the way cannot be inspected, or a link's target cannot be read.
         """
-        leads_to = find_destination(path, _ViewDiskEntries(self._root), follow_links=True)
+        try:
+            leads_to = find_destination(path, _ViewDiskEntries(self._root), follow_links=True)
+        except (SnapshotEntryInspectError, SnapshotLinkReadError) as exc:
+            # The cause is the `OSError` the refusal carries, the same one `source` names, not the wrapper caught here.
+            raise RootExitWalkError(path, exc.path, exc.refusal, source=exc.source) from exc.source
         match leads_to:
             case RootExit():
                 return leads_to
@@ -231,7 +236,7 @@ class _ViewDiskEntries:
     """What the disk view's walk sees: each entry by `lstat`, each link by `readlink`, recorded nowhere.
 
     The `EntryLookup` `DiskFileSystem.find_root_exit` hands to `find_destination`. It reads as the scan's
-    `_DiskEntries` does, and fails as a view operation does, with `EntryInspectError`.
+    `_DiskEntries` does, and fails as the scan's does, with `SnapshotEntryInspectError` and `SnapshotLinkReadError`.
     """
 
     def __init__(self, root: Path) -> None:
@@ -249,13 +254,9 @@ class _ViewDiskEntries:
             path: The root-relative entry to inspect, every link on the way to it already followed.
 
         Raises:
-            EntryInspectError: If the path exists but cannot be inspected.
+            SnapshotEntryInspectError: If the path exists but cannot be inspected.
         """
-        try:
-            return _find_lstat_kind(self._root, path)
-        except SnapshotEntryInspectError as exc:
-            # The cause is the `OSError` the refusal carries, the same one `source` names, not the wrapper caught here.
-            raise EntryInspectError(path, exc.refusal, source=exc.source) from exc.source
+        return _find_lstat_kind(self._root, path)
 
     def find_link_target(self, path: RootRelativePath) -> PurePosixPath | None:
         """Read the target of the symlink at `path`; `None` when it vanished.
@@ -264,13 +265,9 @@ class _ViewDiskEntries:
             path: The root-relative symlink whose target is read.
 
         Raises:
-            EntryInspectError: If the symlink exists but its target cannot be read.
+            SnapshotLinkReadError: If the symlink exists but its target cannot be read.
         """
-        try:
-            return _find_symlink_target(self._root, path)
-        except SnapshotLinkReadError as exc:
-            # The cause is the `OSError` the refusal carries, the same one `source` names, not the wrapper caught here.
-            raise EntryInspectError(path, exc.refusal, source=exc.source) from exc.source
+        return _find_symlink_target(self._root, path)
 
     def may_climb_out_of(self, directory: RootRelativePath) -> bool:
         """Always true: the walk stepped into `directory` only where `lstat` found one; see `EntryLookup`.
