@@ -323,6 +323,10 @@ without anyone writing a comparison. `slots=True` keeps the wrapper cheap and bl
 **`__str__` keeps it as convenient as the primitive.** `f'checking {document}'` and `str(document)` read exactly
 as they did before the wrapper, so nobody reaches past the type for the inner field.
 
+**A value object's `__str__` is its canonical form.** It is the text `parse` accepts back, not a sentence, so
+code may compare it, match it and key a mapping by it, as a registry keys rules by their printed code. Changing
+it is changing the value's format.
+
 ## Pragmatism Caveat
 
 Wrap a value that has an invariant, a unit, or a confusable sibling. A value object with nothing to distinguish
@@ -338,6 +342,8 @@ and nothing to check is ceremony, and ceremony is what makes the next reader sto
   in the domain.
 - **Keep validation off hot paths.** Validation runs on every construction: right once per document loaded, wrong
   per line inside a section scan. Wrap the document's identity, not each line of its prose.
+- **A fixed literal in package data calls the constructor directly**, such as `Release('0.3.0')` in a rule's
+  declaration: `__post_init__` validates it on import, so a bad literal fails at once.
 - **If wrapping forces callers to unwrap immediately**, the boundary is in the wrong place. Move `parse` to the
   edge the value actually enters through, and give the type the operation the caller was reaching for
   ([Operations in Place of `.value`](#operations-in-place-of-value)).
@@ -381,7 +387,7 @@ spelled twice, and do not seal it with no getter: an exit no protocol fits would
       type is checked by the constructor or converted by a `from_<source>` classmethod
 - [ ] Rejection raises a value-specific domain error declared beside the value object, owning the rejected
       value, context and message
-- [ ] The value object is constructed at the boundary the value enters through, and nowhere else
+- [ ] Construction happens at the value's entry boundary or from a package-data literal
 - [ ] Deserialization runs the same check as construction, rather than storing the bare primitive
 - [ ] Callers use `__str__`, `order=True`, domain operators and methods, protocol dunders and `StrEnum`, not `.value`
 - [ ] No value object subclasses a primitive or forwards through `__getattr__`

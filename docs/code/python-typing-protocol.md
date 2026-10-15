@@ -29,6 +29,11 @@ implementation arrive without editing it? Write a `Protocol`.
 | `typing.Protocol` | Open: any type with the members | Each value has the members with compatible types; nothing about which type it is | The implementations are independent and the consumer only calls the shared members |
 | ABC | Open, but nominal: any subclass | Instantiating a subclass that misses an `@abstractmethod` is rejected; a `match` over the subclasses is not exhaustive | Every implementation is the package's own and must be complete |
 
+When both the `Protocol` and the ABC rows fit, because every implementation is the package's own and the
+consumer only calls the shared members, write the `Protocol`: no implementation has to inherit from it, and
+`ty` checks each one where it is passed. Write the ABC only when the implementations share behavior the base
+provides.
+
 Wherever a reader branches on the kind, a closed union is the only choice `ty` checks exhaustively. A kind
 added to it is a type error at every `assert_never` until that reader handles it. The goal it serves is owned
 by [python-typing](python-typing.md), and the exhaustive `match` by

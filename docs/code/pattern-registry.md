@@ -56,6 +56,12 @@ A central branch or import list makes every new command edit the same file. Regi
 
 ## Pragmatism Caveat
 
+A registration decorator fills a module-level collector as each module is imported. That collector is process
+state, which [pattern-dependency-injection](pattern-dependency-injection.md) otherwise forbids looking up. Read it
+in one place only: the composition root that builds the registry, once, right after discovery. Everything past
+that point receives the built registry as an argument. The root may filter what it reads, such as declarations
+made by test modules that the same process imported.
+
 Use a direct call or a small fixed mapping for a closed set of choices. Package discovery is useful when commands live in separate modules and can grow independently. It adds indirection, so keep the registration path simple and let failures from built-in modules surface immediately.
 
 ## Checklist
@@ -66,11 +72,13 @@ Use a direct call or a small fixed mapping for a closed set of choices. Package 
 - [ ] Registering a different handler under an occupied name raises an error
 - [ ] A registration decorator preserves the original callable
 - [ ] Commands mount in a stable order
+- [ ] The module-level collector a decorator fills is read once, by the composition root, and passed onward
 
 ## References
 
 - [principle-information-hiding](principle-information-hiding.md) - Foundation: The router exposes commands without exposing its registration storage
 - [pattern-decorator](pattern-decorator.md) - Related: A registration decorator records a callable without wrapping its behavior
+- [pattern-dependency-injection](pattern-dependency-injection.md) - Related: The composition root is the one reader of a registration collector
 
 ## External References
 

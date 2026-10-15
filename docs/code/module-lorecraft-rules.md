@@ -144,30 +144,29 @@ A rule is named for what is wrong, as the established linters name theirs, so it
 ## Documenting a Rule
 
 The docstring is the rule's rulebook page, which a user opens when a diagnostic prints its code. `just gen`
-renders it into `docs/rulebook/`. The pages are generated, kept current by `gen-check`, and no meta spec governs them. Write it as Ruff and Clippy write theirs, for a user who knows their documents, skills and
-meta specs, and nothing of this package.
+renders it into `docs/rulebook/`. `gen-check` keeps the pages current; no meta spec governs them. Write it as Ruff and Clippy do, for a user who knows their documents, skills and
+meta specs, not this package.
 
 - **The summary line states the condition**, about the user's subject.
 - **What it does** opens with "Checks for" and the subjects the rule reports, then names the meta spec key
   that sets the limit or states the rule; a rule every governed document is held to says that no key states it,
   and a rule the package states names the external specification and its figure instead. It adds each case a user would not guess: what counts, what does not, how several meta specs combine.
-- **Why is this bad?** is one or two sentences on what the condition costs the agent that loads the subject, never
+- **Why is this bad?** is a sentence or two on what the condition costs the agent that loads the subject, never
   only that a meta spec forbids it.
 - **Example** is the input that breaks the rule, under invented paths, in fenced blocks in each file's language:
   the meta spec excerpt, then the subject. For a rule every governed document is held to, the excerpt is of a
-  governing meta spec that states some other rule; for a rule the package states, the subject alone. A subject whose
-  length is the point is cut short with a comment, such as `<!-- ... 1800 more tokens -->`.
-- **Use instead** is the same subject fixed, in a fenced block, after at most one sentence naming the change. It
-  never shows raising the limit.
-- *Known problems* follows only when the rule misfires on a case a user meets, and *Deviations from upstream* only
+  governing meta spec that states some other rule; for a rule the package states, the subject alone. A long subject
+  is cut short with a comment, such as `<!-- ... 1800 more tokens -->`.
+- **Use instead** is the same subject fixed, in a fenced block, after at most one sentence naming the change. It never
+  raises the limit.
+- **An engine condition with several causes** has a section per cause in their place.
+- *Known problems* follows only when the rule misfires on a case users meet, and *Deviations from upstream* only
   on a rule with alias codes.
-- **Nothing of the implementation.** No section names a tokenizer, a parser, a query, an input, a class or a
-  field: a user acts only on what they can see or configure. The `Attributes:` block after the sections documents
+- **Nothing of the implementation.** No section names a tokenizer, a parser, a query, a class or a field: a user acts only on what they can see or configure. The `Attributes:` block after the sections documents
   the fields, for the maintainer.
 
 ```python
-# ❌ Bad — the page describes the machinery: a user over the cap learns which parser counts and which input the
-# rule reads, but not whether a code block counts, and `word-cap = "warn"` does not say which way the rule fires
+# ❌ Bad — the page describes the machinery: which parser counts, not whether a code block counts
 class WordCap(DocumentRule):
     """Compares each section's word count from the Markdown parser with its outline entry's cap.
 
@@ -205,7 +204,7 @@ Before committing:
       Skills field; none for title rules and rules no meta spec states), then the `Help` and other
       `Note`s
 - [ ] A new rule's docstring opens *What it does* with "Checks for", shows the broken and the fixed input under
-      *Example* and *Use instead*, and names nothing of the implementation; a rule no key states says so, and its
+      *Example* and *Use instead*, or per cause, and names nothing of the implementation; a rule no key states says so, and its
       *Example* shows a governing meta spec's excerpt, then the subject; a rule the package states names the
       external specification and its figure, its *Example* the subject alone
 

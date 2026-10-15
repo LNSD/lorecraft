@@ -88,7 +88,11 @@ collection protocols avoid a project-specific interface for behavior Python alre
 
 ## Pragmatism Caveat
 
-Use the concrete type while there is one implementation. Do not create a protocol solely to
+Use the concrete type while there is one implementation. A layer-boundary contract is the exception: a
+`Protocol` a lower layer exposes so a higher one depends only on it, as each context in `lorecraft.project` is
+for the rules, may have one production implementation; the test fake the higher layer's tests pass counts as
+the second. Its static conformance check lives with the implementation's unit tests
+([tests-organization](tests-organization.md) §2). Do not create a protocol solely to
 inject a dependency or replace a simple function. If implementations need shared behavior or
 state, an ordinary base class may fit better. A structural contract does not promise semantic
 equivalence: tests still need to check that implementations behave as the consumer expects.
@@ -96,7 +100,8 @@ equivalence: tests still need to check that implementations behave as the consum
 ## Checklist
 
 - [ ] An existing `collections.abc` protocol is used when it expresses the required behavior
-- [ ] A custom protocol has multiple real implementations and declares only consumed members
+- [ ] A custom protocol has multiple real implementations, or is a layer-boundary contract, and declares only
+      consumed members
 - [ ] Implementations are not forced to inherit from the protocol
 - [ ] Runtime input validation does not rely on a protocol annotation or member-presence check
 - [ ] Tests cover the behavior each implementation promises to the consumer
@@ -105,6 +110,7 @@ equivalence: tests still need to check that implementations behave as the consum
 
 - [pattern-dependency-injection](pattern-dependency-injection.md) - Related: Supply collaborators explicitly without inventing an interface for one implementation
 - [pattern-composite](pattern-composite.md) - Related: Give leaves and groups a shared operation when processing a tree
+- [tests-organization](tests-organization.md) - Related: Where a static conformance check lives
 
 ## External References
 
