@@ -13,9 +13,10 @@ imports none of `lorecraft.rules.declaration`, `lorecraft.rules.subject`, `lorec
 types are named for the checker under `TYPE_CHECKING`, and a conversion imports what it builds where it runs.
 
 Text enters through `SelectorValue.parse` and `RuleKey.parse`, which confirm it against the rule index. The selector
-records have no `__post_init__` guard: what makes one valid is the index's membership, which a guard would have to
-read at every construction, and a unit test of a conversion builds one for a registry of sample rules the index does
-not hold. Code builds them from `parse` alone.
+records have no `__post_init__` guard on membership: what makes one valid is the index's membership, which a guard
+would have to read at every construction, and a unit test of a conversion builds one for a registry of sample rules
+the index does not hold. Code builds them from `parse` alone. `CodeSelector` alone guards its number's range, which
+needs no index.
 
 A selector is, as in ruff, `ALL`, a group's prefix such as `OUT`, a prefix of a code with one or two of its digits
 such as `OUT0`, a rule's code such as `OUT006`, or an alias code, which a rule declares: it is one exactly when the
@@ -40,6 +41,9 @@ if TYPE_CHECKING:
 
 _ALL: Final[str] = 'ALL'
 """The selector for every rule; no group may take it as its prefix."""
+
+_MAX_CODE_NUMBER: Final[int] = 10**index.CODE_DIGITS - 1
+"""The largest number a code holds: the one with every digit a 9."""
 
 _RULE_KIND: Final[str] = 'rule'
 _REMOVED_KIND: Final[str] = 'removed'
@@ -79,6 +83,23 @@ class MalformedSelectorError(Error):
             f'{text!r} is no selector: write ALL, a group prefix such as OUT, a code prefix such as OUT0, or a rule '
             'code such as OUT004'
         )
+
+
+class CodeNumberOutOfRangeError(ValueError):
+    """A code selector was built with a number outside 1 to 999, so it would not print as three digits.
+
+    A number comes from the rule index, never from what a user types, so one outside the range is a defect in the
+    code that built the selector, not a failure of the command line (error-boundaries §1).
+
+    Attributes:
+        number: The rejected number.
+    """
+
+    number: int
+
+    def __init__(self, number: int) -> None:
+        self.number = number
+        super().__init__(f'number must be from 1 to {_MAX_CODE_NUMBER}, got {number}')
 
 
 class UnknownSelectorError(Error):
@@ -293,6 +314,15 @@ class CodeSelector:
 
     group_prefix: str
     number: int
+
+    def __post_init__(self) -> None:
+        """Reject a number that would not print as three digits.
+
+        Raises:
+            CodeNumberOutOfRangeError: If the number is outside 1 to 999.
+        """
+        if not 1 <= self.number <= _MAX_CODE_NUMBER:
+            raise CodeNumberOutOfRangeError(self.number)
 
     def to_rule_code(self, registry: 'Registry') -> 'RuleCode':
         """The rule-side code.

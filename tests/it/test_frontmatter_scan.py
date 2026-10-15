@@ -25,6 +25,20 @@ SAMPLE_SIZE: Final[int] = 500
 """Texts generated for each test."""
 
 
+class ClosingProbabilityOutOfRangeError(ValueError):
+    """A variation's closing probability is outside 0 to 1.
+
+    Attributes:
+        closing_probability: The rejected probability.
+    """
+
+    closing_probability: float
+
+    def __init__(self, closing_probability: float) -> None:
+        self.closing_probability = closing_probability
+        super().__init__(f'closing_probability must be from 0 to 1, got {closing_probability}')
+
+
 @dataclass(frozen=True, slots=True)
 class Variation:
     """What a generated text may vary in: each field holds the choices one text draws from.
@@ -47,6 +61,15 @@ class Variation:
     block_sizes: tuple[int, ...] = (1, 2, 3)
     closing_probability: float = 1.0
     later_delimiters: bool = False
+
+    def __post_init__(self) -> None:
+        """Reject a closing probability outside 0 to 1.
+
+        Raises:
+            ClosingProbabilityOutOfRangeError: If `closing_probability` is not in 0..1.
+        """
+        if not 0.0 <= self.closing_probability <= 1.0:
+            raise ClosingProbabilityOutOfRangeError(self.closing_probability)
 
 
 def generate_texts(variation: Variation) -> list[str]:
@@ -94,6 +117,33 @@ def disagreements(texts: list[str]) -> list[str]:
         texts: The documents' whole texts.
     """
     return [text for text in texts if parse_markdown_frontmatter(text) != wenmode_frontmatter(text)]
+
+
+@pytest.mark.it
+class TestVariation:
+    def test_init_with_a_negative_closing_probability_raises_closing_probability_out_of_range_error(self) -> None:
+        #: Given
+        closing_probability = -0.1
+
+        #: When
+        with pytest.raises(ClosingProbabilityOutOfRangeError) as exc_info:
+            Variation(closing_probability=closing_probability)
+
+        #: Then
+        assert 'closing_probability' in str(exc_info.value), 'the error names the field'
+        assert '-0.1' in str(exc_info.value), 'the error names the rejected value'
+
+    def test_init_with_a_closing_probability_above_one_raises_closing_probability_out_of_range_error(self) -> None:
+        #: Given
+        closing_probability = 1.1
+
+        #: When
+        with pytest.raises(ClosingProbabilityOutOfRangeError) as exc_info:
+            Variation(closing_probability=closing_probability)
+
+        #: Then
+        assert 'closing_probability' in str(exc_info.value), 'the error names the field'
+        assert '1.1' in str(exc_info.value), 'the error names the rejected value'
 
 
 @pytest.mark.it
