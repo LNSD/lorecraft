@@ -2,8 +2,8 @@
 
 The command line has already parsed each value into its selectors and confirmed them against the rule index
 (`rule_arguments`), so this module only converts: each selector turns itself into the rule-side `AllRules`,
-`RuleGroup`, `RuleCodePrefix` or `RuleCode`, and the registry holds each group and code, since `just gen-check` holds
-the index equal to it. An alias code resolves to its rule's code with a warning naming the code to write.
+`RuleGroup`, `RuleCodePrefix` or `RuleCode`, and the registry holds each group and code, since the CI `gen-check`
+job holds the index equal to it. An alias code resolves to its rule's code with a warning naming the code to write.
 
 What a selection cannot do is warned of on stderr, and the run goes on.
 """

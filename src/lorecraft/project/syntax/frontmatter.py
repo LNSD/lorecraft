@@ -19,12 +19,12 @@ The block is read as basic YAML, which decodes to exactly what JSON can hold, an
 - a comment, on its own line or after a node, blank lines, CRLF line breaks and a BOM before the first line are
   nothing.
 
-A quoted or block scalar is a string. A plain scalar is null,
-a boolean, an integer or a float when its whole text is one in YAML 1.2's core schema, such as `~`, `true`, `12` or
-`1.5`, and a string otherwise, so `yes`, `2026-10-05` and `1:30` are strings. A directive, a document marker, an
-anchor, an alias, a merge key, a tag, an explicit or empty key, a key that is not a string, a flow collection
-that spreads over lines, holds a collection or is the whole block, a block scalar's indentation indicator and a
-block sequence as an item of a block sequence are refused, on their line, as a block that is not YAML: none is
+A quoted or block scalar is a string. A plain scalar is null, a boolean, an integer or a float when its whole text
+is one in YAML 1.2's core schema, such as `~`, `true`, `12`, `1.5`, `.inf` or `.nan`, and a string otherwise, so
+`yes`, `on`, `2026-10-05` and `1:30` are strings. A directive, a document marker, an anchor, an alias, a merge key, a
+tag, an explicit or empty key, a key that is not a string, a flow collection that spreads over lines, holds a
+collection or is the whole block, a block scalar's indentation indicator and a block sequence as an item of a block
+sequence are refused, on their line, as a block that is not YAML: none is
 needed to write a document's metadata, an alias can make a collection hold itself, a tag builds values JSON has no
 counterpart for, and JSON names every key with a string.
 """

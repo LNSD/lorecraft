@@ -175,7 +175,7 @@ class RemovedRuleSelectorError(Error):
 class IndexGroupNotInRegistryError(RuntimeError):
     """The rule index lists a group the registry does not hold, so the generated index is out of date.
 
-    It is a defect of the repository, not the user's input: `just gen-check` holds the two equal.
+    It is a defect of the repository, not the user's input: the CI `gen-check` job holds the two equal.
 
     Attributes:
         prefix: The group's prefix, which the index lists.
@@ -191,7 +191,7 @@ class IndexGroupNotInRegistryError(RuntimeError):
 class IndexRuleNotInRegistryError(RuntimeError):
     """The rule index lists a rule the registry does not hold, so the generated index is out of date.
 
-    It is a defect of the repository, not the user's input: `just gen-check` holds the two equal.
+    It is a defect of the repository, not the user's input: the CI `gen-check` job holds the two equal.
 
     Attributes:
         key: The code, name or alias code the index found.
