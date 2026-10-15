@@ -37,7 +37,8 @@ document owns the line around the package as a whole.
   package: `tests/lib` is put on the import path by pytest's `pythonpath`. A unit test in a `tests/` subpackage
   may import it, and no gate enforces the rest, so review does.
 - Code whose only caller is a recipe, a test or a workflow is not part of `lorecraft`: it belongs to a private
-  package.
+  package. A module's doc may name a surface reserved for a stated planned caller, as `lorecraft.vfs` does for
+  the difference between two snapshots; that surface stays, and nothing else is kept for later.
 - A module is part of `lorecraft` because a command or a layer below it uses it, never because it holds the types
   a private package renders.
 - The configuration of ruff, ty, pytest, coverage, import-linter and mutmut is the root `pyproject.toml`'s, and

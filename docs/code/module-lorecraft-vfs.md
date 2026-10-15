@@ -1,6 +1,6 @@
 ---
 name: "module-lorecraft-vfs"
-description: "The lorecraft.vfs package's responsibility, role, boundary and invariants: the one boundary with the disk, the snapshot as a value, views that answer from it, and change sets between two of them. Load when adding or moving code in lorecraft.vfs, reading a file or listing a directory anywhere, or adding a question about paths, symlinks or scan roots"
+description: "The lorecraft.vfs package's responsibility, role, boundary and invariants: the one boundary with the disk, the snapshot as a value, views that answer from it, and the change set between two of them, reserved for incremental checks. Load when adding or moving code in lorecraft.vfs, reading a file or listing a directory anywhere, or adding a question about paths, symlinks or scan roots"
 type: "pkg"
 scope: "pkg:lorecraft.vfs"
 ---
@@ -21,19 +21,20 @@ and the package never knows why those directories matter or what the files in th
 ## Belongs Here
 
 - Code that lists a directory, reads a file's bytes or reads a symlink's target under the workspace root.
-- The snapshot, its parts, and the code that builds one, from the disk or by hand.
-- The view contract, and each view that answers it, from the disk or from a snapshot.
+- The snapshot, its parts, and the code that builds one from the disk.
+- The view contract, and each view that answers it from a snapshot.
 - Following a chain of symlinks to where it leads, and refusing the ones that leave the root.
 - The shape of a scan root, and questions answered from a scope plus the symlink chains a snapshot recorded.
-- The difference between two snapshots.
+- The difference between two snapshots: a reserved surface, kept for incremental checks before they call it.
 - Decoding a file's bytes as UTF-8, and the record of where that fails.
 
 ## Belongs Elsewhere
 
 | Code that… | Belongs in |
 |---|---|
-| Names `docs/`, a skills directory or any other fixed directory | `lorecraft.layout` |
-| Decides which directories a snapshot reads | `lorecraft.layout`, as the scope it declares |
+| Names `docs/`, a skills directory or any other fixed directory | `lorecraft.project.layout` |
+| Decides which directories a snapshot reads | `lorecraft.project.layout`, as the scope it declares |
+| Builds a snapshot or a view by hand, for a test only | `tests/lib` |
 | Decides what an entry is to Lorecraft: a document, a meta spec, a skill | `lorecraft.project` |
 | Parses the text of a file | `lorecraft.project` |
 | Keeps a value derived from a file for the snapshot's lifetime | `lorecraft.project` |
@@ -45,7 +46,8 @@ and the package never knows why those directories matter or what the files in th
   symlink's target or another entry, and never a handle, a stat result or an mtime, so two snapshots compare and
   hash structurally. A listing is derived from the records, never stored beside them, so no path has two kinds.
 - Every path crossing the boundary is root-relative. The root is joined to a path only inside this package, and
-  every answer leaves root-relative again.
+  every answer leaves root-relative again. A symlink's target is the one exception: it is kept as written, an
+  unresolved `PurePosixPath`, because it may point outside the root.
 - Code above reads through the view contract and never names a concrete view, except the code that builds one.
   For every operation of the contract, and every path whose symlinks stay under the root, the snapshot view
   answers as the disk view does. A question only one view can answer stays off the contract, on that view, and
@@ -73,7 +75,8 @@ Before committing code, verify:
 - [ ] Nothing added to `lorecraft.vfs` names a directory of the layout or a kind of document
 - [ ] A new snapshot field is immutable and holds no handle, stat result or mtime
 - [ ] What a scan sees at a path is one record of `EntryRecord`; no listing or index is stored beside the records
-- [ ] Every new argument and answer is root-relative, and no `Path` crosses the boundary
+- [ ] Every new argument and answer is root-relative, and no `Path` crosses the boundary; a symlink's target
+      stays an unresolved `PurePosixPath`
 - [ ] A new contract operation answers alike on both views for paths under the root; one only a single view can
       answer lives on that view, off the contract
 

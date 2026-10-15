@@ -14,8 +14,9 @@ named any other way does not, and no amount of correct level choice or message w
 logger sits under `lorecraft`, so one call reaches the whole package and a call on a layer, such as
 `lorecraft.project`, reaches that layer alone. Sections 2 through 6 are downstream of section 1.
 
-**Events carry named fields; spans carry duration and parentage.** The library emits them, and the CLI's
-opt-in `--trace` configures independent JSON event and span output layers on stderr, on every logger root.
+**Events carry named fields.** The library emits them; how they are written out is the entry point's. Tracing
+is planned, not built: no `--trace` option, JSON formatter or span exists yet, and sections 7 and 8 describe the
+shape new code takes so that it fits them when they land.
 Errors and their types are owned by
 [error-types](error-types.md); what to do with a caught exception beyond logging it is
 owned by [error-handling](error-handling.md).
@@ -230,7 +231,7 @@ logger = logging.getLogger(__name__)
 ## 7. Keep Event Names Stable and Put Values in Fields
 
 New log calls use a brief, stable message for the event and put variable values in `extra={'fields': {...}}`.
-The CLI JSON formatter preserves these fields and attaches the active trace and span IDs. Stable messages can
+A planned CLI JSON formatter is to preserve these fields and attach the active trace and span IDs. Stable messages can
 be grouped across documents; named fields can be filtered without parsing prose. Keep field values JSON
 serializable so the stderr formatter can encode every event. Existing interpolated messages can be migrated
 when their call sites change.
@@ -242,7 +243,8 @@ logger.debug('document checked', extra={'fields': {'document': path, 'findings':
 
 ## 8. Nest Spans Around Operations With Meaningful Duration
 
-Use OpenTelemetry spans for a check run and its per-document work. Give spans stable operation names and add
+Planned, not built: `lorecraft` does not depend on OpenTelemetry yet, and no code opens a span. Once it does, use
+OpenTelemetry spans for a check run and its per-document work. Give spans stable operation names and add
 small scalar attributes such as the document path and finding count. A nested span gives the work a parent,
 duration, and trace identity without coupling library code to an exporter. The application owns span export
 and log handlers, so an importing process remains free to configure its own output layers.
@@ -272,7 +274,7 @@ Before committing code, verify:
       package root excepted
 - [ ] No log call sits in a per-line loop, whatever its level
 - [ ] New events use stable messages and JSON-serializable values under `extra={'fields': {...}}`
-- [ ] Operation spans have stable names, scalar attributes, and a parent where the operation is nested
+- [ ] Once spans exist, operation spans have stable names, scalar attributes, and a parent where the operation is nested
 - [ ] Library modules do not configure a tracer provider, exporter, or log handler
 
 ## References

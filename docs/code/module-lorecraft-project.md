@@ -16,8 +16,8 @@ derived from it, changes: the meta spec dialect, the shape of a document and its
 
 **Derivation.** Every value here is a function of what a view holds, and the same view always gives the same
 value. That is what lets the database here memoize it as a query for one revision, the only cache of values derived
-from a snapshot, and one that never outlives its snapshot. The layout it derives against is a declaration, read from
-`lorecraft.layout` and never stated here.
+from a snapshot, and one that never outlives its snapshot. The layout it derives against is a declaration, stated
+once in `lorecraft.project.layout` and read from there by every other module.
 
 ## Belongs Here
 
@@ -47,7 +47,6 @@ from a snapshot, and one that never outlives its snapshot. The layout it derives
 
 | Code that… | Belongs in |
 |---|---|
-| Declares a fixed directory or suffix, or the scope a snapshot reads | `lorecraft.layout` |
 | Reads the disk, or follows a symlink by asking the operating system | `lorecraft.vfs` |
 | Scans, parses or refuses YAML text | `lorecraft.yaml` |
 | States an agent's skills directories or guide files | `lorecraft.agents` |
@@ -111,7 +110,8 @@ Before committing code, verify:
 - [ ] A unit the loader cannot read or use is recorded as a frozen value of facts in a closed union, never raised
       and never held as an exception
 - [ ] A new parse or count reads one document's text, returns an immutable value, and leaks no parser type
-- [ ] Nothing added declares a fixed directory, a suffix or the scope; the layout is read, never stated here
+- [ ] Nothing added outside `lorecraft.project.layout` declares a fixed directory, a suffix or the scope; it
+      reads them from there
 - [ ] Nothing added decides whether a document passes a rule
 
 ## References
