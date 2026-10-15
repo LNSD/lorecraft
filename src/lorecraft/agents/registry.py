@@ -8,9 +8,9 @@ adding its package beside `claude` and `codex`, and its record to `_AGENTS`.
 from collections.abc import Iterator
 from typing import Final
 
-from .base import Agent
-from .claude import CLAUDE
-from .codex import CODEX
+from lorecraft.agents.base import Agent
+from lorecraft.agents.claude import CLAUDE
+from lorecraft.agents.codex import CODEX
 
 _AGENTS: Final[tuple[Agent, ...]] = (CLAUDE, CODEX)
 """Every agent Lorecraft knows. The order carries no meaning."""

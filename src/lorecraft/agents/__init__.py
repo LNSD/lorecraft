@@ -14,7 +14,8 @@ component, are the exception that is not one: the specification fixes it, so no 
 no record to read it from.
 """
 
-from .base import SKILL_ENTRY, SKILL_ENTRY_FILENAME, Agent, AgentName
+from lorecraft.agents.base import SKILL_ENTRY, SKILL_ENTRY_FILENAME, Agent, AgentName
+
 from .registry import iter_agents
 
 __all__: list[str] = [

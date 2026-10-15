@@ -29,13 +29,19 @@ from dataclasses import dataclass
 from typing import Protocol
 
 from lorecraft.core.path import PathComponent, RootRelativePath
+from lorecraft.project.aspect import AspectFilename
+from lorecraft.project.schemas import (
+    OutlineAlignmentSpec,
+    OutlineDivergenceSpec,
+    SchemaProblems,
+    SkillFields,
+    StructureSpec,
+)
+from lorecraft.project.syntax import FrontmatterNode, LineCount, NormalisedLinkPath, ParsedDocument, TokenCount
+from lorecraft.project.workspace import Governance
 from lorecraft.vfs import ResolvedPath, RootExit
 
-from .aspect import AspectFilename
 from .link_target import LinkBase, LinkTargetEntry
-from .schemas import OutlineAlignmentSpec, OutlineDivergenceSpec, SchemaProblems, SkillFields, StructureSpec
-from .syntax import FrontmatterNode, LineCount, NormalisedLinkPath, ParsedDocument, TokenCount
-from .workspace import Governance
 
 
 @dataclass(frozen=True, slots=True)

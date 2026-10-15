@@ -34,10 +34,10 @@ from lorecraft.core.num import UnsignedInt
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.skill import SkillRef, SkillResourceRef
+from lorecraft.rules.engine.invalid_utf8 import InvalidUtf8
 from lorecraft.vfs import Utf8Failure
 
 from .declaration import EngineCondition, Rule
-from .engine.invalid_utf8 import InvalidUtf8
 from .identity import Severity
 from .location import Here, WholeSubject
 from .subject import Facet

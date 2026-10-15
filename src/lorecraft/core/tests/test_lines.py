@@ -2,9 +2,8 @@
 
 import pytest
 
-from lorecraft.core.num import UnsignedInt
-
 from ..lines import count_lines, line_at, newline_offsets, split_lines
+from ..num import UnsignedInt
 
 
 @pytest.mark.unit
