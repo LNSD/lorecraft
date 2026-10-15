@@ -90,10 +90,11 @@ beneath ([error-boundaries](error-boundaries.md)), and never raises it itself. A
 hides which one failed from a caller holding both, as surely as one class covering two steps does.
 
 An abstract method is one operation. Its variants are the union of what its implementations can raise, and a
-caller holding the interface handles all of them. Each implementation's `Raises:` lists only what that
-implementation raises; a variant it cannot raise is left out, never listed as "Never". Every variant in a
-`source` union can come out of the call it wraps: a member nothing raises makes every exhaustive handler carry a
-case that cannot happen.
+caller holding the interface handles all of them; the variants and their union are declared in the module of the
+abstract class ([python-modules](python-modules.md)), even a variant only one implementation raises. Each
+implementation's `Raises:` lists only what that implementation raises; a variant it cannot raise is left out,
+never listed as "Never". Every variant in a `source` union can come out of the call it wraps: a member nothing
+raises makes every exhaustive handler carry a case that cannot happen.
 
 ```python
 # ❌ Bad — two readers raise one class, so the loader that calls both reported a failed outline read as a
