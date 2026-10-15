@@ -214,7 +214,7 @@ from lorecraft.vfs import (
 
 from .text import DocumentText, SkillResourceText, SkillText, Undecodable
 
-logger: logging.Logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 def _witness_text(
