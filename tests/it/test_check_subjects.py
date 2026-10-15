@@ -243,7 +243,7 @@ class OverHalfBudget(DocumentRule):
         Args:
             subject: The document, governed by a budget.
         """
-        token_count = subject.tokens().value
+        token_count = subject.token_count().value
         occurrences: list[Self] = []
         for structure_spec in subject.specifications().structure_specs():
             budget = structure_spec.tokens
@@ -280,7 +280,7 @@ class EmptyDocument(DocumentRule):
         Args:
             subject: The document, governed by a budget.
         """
-        if subject.tokens().value > 0:
+        if subject.token_count().value > 0:
             return ()
         return (cls(spec=None, line=LineNumber(NonZeroUnsignedInt(1))),)
 
@@ -312,7 +312,7 @@ class AnyTokens(DocumentRule):
         Args:
             subject: The document, governed by a budget.
         """
-        return (cls(spec=None, line=LineNumber(NonZeroUnsignedInt(1)), token_count=subject.tokens().value),)
+        return (cls(spec=None, line=LineNumber(NonZeroUnsignedInt(1)), token_count=subject.token_count().value),)
 
 
 class CountingDatabase(Database):
@@ -340,23 +340,23 @@ class CountingDatabase(Database):
         self.validated_frontmatters: list[DocumentRef | SkillRef] = []
         self.parsed_documents: list[DocumentRef] = []
 
-    def tokens(self, source: DocumentText) -> UnsignedInt:
+    def token_count(self, source: DocumentText) -> UnsignedInt:
         """Record the document, then count its tokens.
 
         Args:
             source: The decoded document whose tokens are counted, recorded by its ref first.
         """
         self.counted_tokens.append(source.ref)
-        return super().tokens(source)
+        return super().token_count(source)
 
-    def skill_lines(self, source: SkillText) -> UnsignedInt:
+    def skill_line_count(self, source: SkillText) -> UnsignedInt:
         """Record the skill, then count the lines of its `SKILL.md`.
 
         Args:
             source: The decoded `SKILL.md` whose lines are counted, recorded by its skill's ref first.
         """
         self.counted_lines.append(source.ref)
-        return super().skill_lines(source)
+        return super().skill_line_count(source)
 
     def frontmatter(self, source: DocumentText) -> FrontmatterNode:
         """Record the document, then parse its frontmatter.

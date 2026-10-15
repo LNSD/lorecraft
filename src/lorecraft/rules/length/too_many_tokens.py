@@ -122,7 +122,7 @@ class TooManyTokens(DocumentRule):
         if not budgets:
             # Counting tokens is the costly step, so a document no budget governs is never counted.
             return ()
-        token_count = subject.tokens()
+        token_count = subject.token_count()
         occurrences: list[Self] = []
         for spec_path, budget in budgets:
             overrun = find_overrun(token_count, budget)

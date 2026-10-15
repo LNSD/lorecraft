@@ -280,6 +280,13 @@ class _ViewDiskEntries:
         """
         return True
 
+    def record_climb(self, directory: RootRelativePath) -> None:
+        """Record nothing: this lookup keeps no record of a climb; see `EntryLookup`.
+
+        Args:
+            directory: The resolved directory the walk climbed out of.
+        """
+
 
 class SnapshotDirListError(Error):
     """A directory inside the scan scope exists but cannot be listed.
@@ -707,20 +714,26 @@ class _DiskEntries:
         return target
 
     def may_climb_out_of(self, directory: RootRelativePath) -> bool:
-        """Record `directory` as climbed out of and allow the climb; see `EntryLookup`.
-
-        The walk stepped into `directory` only where `lstat` found one, so the climb is the kernel's. The record
-        is what tells a snapshot's walks that it is a directory, where nothing the scan listed shows it.
+        """Always true: the walk stepped into `directory` only where `lstat` found one; see `EntryLookup`.
 
         Args:
             directory: The resolved directory the walk climbs out of.
+        """
+        return True
+
+    def record_climb(self, directory: RootRelativePath) -> None:
+        """Record `directory` as climbed out of; see `EntryLookup`.
+
+        The record is what tells a snapshot's walks that it is a directory, where nothing the scan listed shows it.
+
+        Args:
+            directory: The resolved directory the walk climbed out of.
 
         Raises:
             ChangedSnapshotEntryError: If the scan recorded `directory` as another kind, or recorded a path above
                 it as no directory.
         """
         self._recorder.record(directory, DirectoryRecord(climbed=True))
-        return True
 
 
 def _record_chain(path: RootRelativePath, on_disk: _DiskEntries) -> None:

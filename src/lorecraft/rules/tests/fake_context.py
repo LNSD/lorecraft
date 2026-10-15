@@ -246,11 +246,11 @@ class FakeDocumentContext:
         """None: a fake document holds no link target."""
         return FrozenMapping({})
 
-    def tokens(self) -> TokenCount:
+    def token_count(self) -> TokenCount:
         """The tokens in the document's whole text, as the real tokenizer counts them."""
         return count_tokens(self._text)
 
-    def lines(self) -> LineCount:
+    def line_count(self) -> LineCount:
         """The lines in the document's whole text, as the real counter counts them."""
         return count_lines(self._text)
 
@@ -328,7 +328,7 @@ class FakeSkillContext:
         """None: a fake skill holds no link target."""
         return FrozenMapping({})
 
-    def lines(self) -> LineCount:
+    def line_count(self) -> LineCount:
         """The lines in the whole `SKILL.md`, as the real counter counts them."""
         return count_lines(self._text)
 

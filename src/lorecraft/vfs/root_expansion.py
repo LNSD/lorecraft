@@ -60,15 +60,26 @@ class EntryLookup(Protocol):
     def may_climb_out_of(self, directory: RootRelativePath) -> bool:
         """Whether a `..` may climb from `directory` to its parent, because a directory is there.
 
-        Not free of effect, as `find_link_target` is not: the scan's implementation records `directory` among the
-        directories it climbed out of, as it records each link target it reads, so the snapshot knows it even
-        where the scan lists nothing in it. The disk and the snapshot view answer true: the walk stepped into
-        `directory` only where they found a directory. Only the scope query can answer false: it takes a component
-        it knows nothing of for a directory, and `..` makes that guess matter (see `ScopeIndex`).
+        The disk and the snapshot view answer true: the walk stepped into `directory` only where they found a
+        directory. Only the scope query can answer false: it takes a component it knows nothing of for a
+        directory, and `..` makes that guess matter (see `ScopeIndex`). Asking records nothing; the walk calls
+        `record_climb` for a climb it makes.
 
         Args:
             directory: The directory the walk is in, not the root; reached by stepping into it or as the
                 directory of a link it followed.
+        """
+        ...
+
+    def record_climb(self, directory: RootRelativePath) -> None:
+        """Note that the walk climbed from `directory` to its parent, after `may_climb_out_of` allowed it.
+
+        Not free of effect, as `find_link_target` is not: the scan's implementation records `directory` among the
+        directories it climbed out of, as it records each link target it reads, so the snapshot knows it even
+        where the scan lists nothing in it. Only the scan's implementation records; every other lookup records nothing.
+
+        Args:
+            directory: The directory the walk climbed out of; one `may_climb_out_of` answered true for.
         """
         ...
 
@@ -145,9 +156,10 @@ def find_destination(
                         'unreachable: a root-relative path holds no `..`, so this one came from a link target'
                     )
                 return last_link
-            # Records the climb in the scan; only the scope query ever answers no, for a directory it only guessed.
+            # Only the scope query ever answers no, for a directory it only guessed.
             if not entries.may_climb_out_of(resolved):
                 return None
+            entries.record_climb(resolved)  # the scan's record, so a snapshot's walks know `resolved` is a directory
             # The parent of a directory with no symlink on the way to it has none either.
             resolved = ResolvedPath(resolved.parent)
             continue

@@ -140,11 +140,11 @@ class DocumentContext(FrontmatterContext, MarkdownContext, Protocol):
         """The document's filename, without its extension."""
         ...
 
-    def tokens(self) -> TokenCount:
+    def token_count(self) -> TokenCount:
         """The `o200k_base` tokens in the document's whole file, frontmatter, code and tables included."""
         ...
 
-    def lines(self) -> LineCount:
+    def line_count(self) -> LineCount:
         """The lines in the document's whole file, frontmatter included."""
         ...
 
@@ -204,7 +204,7 @@ class SkillContext(FrontmatterContext, SkillFileContext, Protocol):
         """The resolved directory the listed directory leads to when it is a link, or `None` when it is not."""
         ...
 
-    def lines(self) -> LineCount:
+    def line_count(self) -> LineCount:
         """The lines in the skill's whole `SKILL.md`, frontmatter, code and blank lines included."""
         ...
 

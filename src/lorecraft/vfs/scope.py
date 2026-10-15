@@ -160,6 +160,13 @@ class _RecordedLinks:
         """
         return directory in self._known_directories
 
+    def record_climb(self, directory: RootRelativePath) -> None:
+        """Record nothing: the scope query only looks at the snapshot; see `EntryLookup`.
+
+        Args:
+            directory: The directory the walk climbed out of.
+        """
+
 
 def _listed_scan_roots(scope: tuple[ScanRoot, ...], recorded: _RecordedLinks) -> tuple[ScanRoot, ...]:
     """Every root the scan of `scope` lists from, each at a resolved directory, links it follows included.

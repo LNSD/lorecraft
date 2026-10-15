@@ -35,6 +35,6 @@ class EmptyDocument(DocumentRule):
         Args:
             subject: The document, governed by a budget.
         """
-        if subject.tokens().value > 0:
+        if subject.token_count().value > 0:
             return ()
         return (cls(spec=None, line=LineNumber(NonZeroUnsignedInt(1))),)

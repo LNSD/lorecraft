@@ -123,7 +123,7 @@ class TooManyLines(SkillRule):
         Args:
             subject: The skill, whose whole `SKILL.md` is counted.
         """
-        overrun = find_overrun(subject.lines(), _LINE_BUDGET)
+        overrun = find_overrun(subject.line_count(), _LINE_BUDGET)
         if overrun is None:
             return ()
         return (cls(line=_FIRST_LINE_PAST_BUDGET, overrun=overrun),)

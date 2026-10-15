@@ -320,22 +320,22 @@ class TestDatabaseDocumentContext:
             'the parse is the one the database memoizes, not one the context parsed again'
         )
 
-    def test_tokens_with_a_document_returns_the_tokens_of_its_whole_file(self) -> None:
+    def test_token_count_with_a_document_returns_the_tokens_of_its_whole_file(self) -> None:
         #: Given
         context = _document_context(Database.from_snapshot(_snapshot()))
 
         #: When
-        tokens = context.tokens()
+        tokens = context.token_count()
 
         #: Then
-        assert tokens == count_tokens(TYPING_TEXT), 'the tokens are those the tokens query counts'
+        assert tokens == count_tokens(TYPING_TEXT), 'the tokens are those the token_count query counts'
 
-    def test_lines_with_a_document_returns_the_lines_of_its_whole_file(self) -> None:
+    def test_line_count_with_a_document_returns_the_lines_of_its_whole_file(self) -> None:
         #: Given
         context = _document_context(Database.from_snapshot(_snapshot()))
 
         #: When
-        lines = context.lines()
+        lines = context.line_count()
 
         #: Then
         assert lines == count_lines(TYPING_TEXT), 'the lines are those the document-lines query counts'
@@ -520,12 +520,12 @@ class TestDatabaseSkillContext:
             'the parse is the one the database memoizes, not one the context parsed again'
         )
 
-    def test_lines_with_a_skill_returns_the_lines_of_its_whole_skill_file(self) -> None:
+    def test_line_count_with_a_skill_returns_the_lines_of_its_whole_skill_file(self) -> None:
         #: Given
         context = _skill_context(Database.from_snapshot(_snapshot()))
 
         #: When
-        lines = context.lines()
+        lines = context.line_count()
 
         #: Then
         assert lines == count_lines(REVIEW_TEXT), 'the lines are those the skill-lines query counts'

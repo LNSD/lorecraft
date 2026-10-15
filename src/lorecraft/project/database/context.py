@@ -121,13 +121,13 @@ class DatabaseDocumentContext:
         """Where each relative link leads and what the snapshot holds there, from the `link_targets` query."""
         return self._database.link_targets(self._source)
 
-    def tokens(self) -> TokenCount:
-        """The tokens in the document's whole file, from the `tokens` query."""
-        return self._database.tokens(self._source)
+    def token_count(self) -> TokenCount:
+        """The tokens in the document's whole file, from the `token_count` query."""
+        return self._database.token_count(self._source)
 
-    def lines(self) -> LineCount:
-        """The lines in the document's whole file, from the `document_lines` query."""
-        return self._database.document_lines(self._source)
+    def line_count(self) -> LineCount:
+        """The lines in the document's whole file, from the `document_line_count` query."""
+        return self._database.document_line_count(self._source)
 
     def specifications(self) -> Governance:
         """The specifications that govern the document, as `Database.governance` returned them."""
@@ -205,9 +205,9 @@ class DatabaseSkillContext:
         """Where each relative link leads and what the snapshot holds there, from the `skill_link_targets` query."""
         return self._database.skill_link_targets(self._source)
 
-    def lines(self) -> LineCount:
-        """The lines in the skill's whole `SKILL.md`, from the `skill_lines` query."""
-        return self._database.skill_lines(self._source)
+    def line_count(self) -> LineCount:
+        """The lines in the skill's whole `SKILL.md`, from the `skill_line_count` query."""
+        return self._database.skill_line_count(self._source)
 
 
 class DatabaseSkillResourceContext:

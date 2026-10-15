@@ -45,7 +45,7 @@ class OverHalfBudget(DocumentRule):
         Args:
             subject: The document, governed by a budget.
         """
-        token_count = subject.tokens().value
+        token_count = subject.token_count().value
         occurrences: list[Self] = []
         for structure_spec in subject.specifications().structure_specs():
             budget = structure_spec.tokens

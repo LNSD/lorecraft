@@ -43,12 +43,12 @@ it read does, `governance(ref)` excepted, as its bullet states:
   building its full syntax tree. It reads the text of the witness `text(ref)` returned and nothing else.
 - `parse(source)`: one document's parse tree, like the IDE's syntax tree of a file or a per-file index entry. It
   reads the text of the witness and nothing else.
-- `tokens(source)`: what one document's whole file costs an agent that loads it, like another per-file index
+- `token_count(source)`: what one document's whole file costs an agent that loads it, like another per-file index
   entry: counted from the raw text, frontmatter and code included, without a parse. It reads the text of the
   witness `text(ref)` returned and nothing else.
-- `document_lines(source)`: how many lines one document's whole file holds, like `tokens(source)`: counted from the
-  raw text, frontmatter included, without a parse. It reads the text of the witness `text(ref)` returned and nothing
-  else.
+- `document_line_count(source)`: how many lines one document's whole file holds, like `token_count(source)`: counted
+  from the raw text, frontmatter included, without a parse. It reads the text of the witness `text(ref)` returned and
+  nothing else.
 - `governance(ref)`: the specifications that govern one document, its corpus's first and then each namespace's that
   matches it, like the IDE's resolution of which inspection profile a file falls under. It reads `model()` and
   nothing else, and it is the one place a document's governance is computed: the runner and every query that needs
@@ -65,13 +65,13 @@ it read does, `governance(ref)` excepted, as its bullet states:
   `governance(source.ref)`, and nothing else.
 - `outline_divergences(source)`: where one document's sections first stop matching each outline that governs it, the
   same kind of shared analysis, derived from the alignment. It reads `outline_alignment(source)` and
-  `document_lines(source)`, and nothing else.
+  `document_line_count(source)`, and nothing else.
 - `skill_frontmatter(source)`: one skill's frontmatter node, the same stub for a `SKILL.md`. It reads the text of
   the witness `skill_text(location)` returned and nothing else.
 - `skill_parse(source)`: one skill's parse tree, the same syntax tree for a `SKILL.md`. It reads the text of the
   witness and nothing else.
-- `skill_lines(source)`: how many lines one skill's `SKILL.md` holds, like `tokens(source)` for a document: counted
-  from the raw text, frontmatter included, without a parse. It reads the text of the witness and nothing else.
+- `skill_line_count(source)`: how many lines one skill's `SKILL.md` holds, like `token_count(source)` for a document:
+  counted from the raw text, frontmatter included, without a parse. It reads the text of the witness and nothing else.
 - `skill_schema_problems(source)`: what the Agent Skills specification rejects in one skill's frontmatter, the same
   analysis as `schema_problems(source)` for a document. It reads `skill_frontmatter(source)` and nothing else: the
   package states the specification, so no specification in the repository plays a part.
@@ -645,7 +645,7 @@ class Database:
             self._parses[source.ref] = parsed
         return parsed
 
-    def tokens(self, source: DocumentText) -> TokenCount:
+    def token_count(self, source: DocumentText) -> TokenCount:
         """The tokens in one document's whole file, counted on the first call for its ref. Raises nothing.
 
         Cached apart from `parse(source)` and never read from it: the count needs the raw text, not the tree, so
@@ -663,10 +663,10 @@ class Database:
             self._token_counts[source.ref] = count
         return count
 
-    def document_lines(self, source: DocumentText) -> LineCount:
+    def document_line_count(self, source: DocumentText) -> LineCount:
         """The lines in one document's whole file, counted on the first call for its ref. Raises nothing.
 
-        Cached apart from `parse(source)` and never read from it, as `tokens(source)` is: the count needs the raw
+        Cached apart from `parse(source)` and never read from it, as `token_count(source)` is: the count needs the raw
         text, frontmatter included, not the tree.
 
         Carry-over: kept for the next revision whenever `text(source.ref)` is.
@@ -778,7 +778,7 @@ class Database:
         counted only when a structure specification that governs it states an outline. Only the layers that loaded
         are matched, as `outline_alignment(source)` aligns only those.
 
-        Carry-over: kept for the next revision whenever `outline_alignment(source)` and `document_lines(source)`
+        Carry-over: kept for the next revision whenever `outline_alignment(source)` and `document_line_count(source)`
         are.
 
         Args:
@@ -794,7 +794,7 @@ class Database:
             alignments = self.outline_alignment(source)
             # Only a document some outline governs has its lines counted.
             if any(alignment.outline for alignment in alignments):
-                divergences = match_outlines(alignments, self.document_lines(source))
+                divergences = match_outlines(alignments, self.document_line_count(source))
             else:
                 divergences = ()
             self._outline_divergences[source.ref] = divergences
@@ -832,7 +832,7 @@ class Database:
             self._skill_parses[source.ref] = parsed
         return parsed
 
-    def skill_lines(self, source: SkillText) -> LineCount:
+    def skill_line_count(self, source: SkillText) -> LineCount:
         """The lines in one skill's whole `SKILL.md`, counted on the first call for its ref. Raises nothing.
 
         Cached apart from `skill_parse(source)` and never read from it, as a document's token count is from its
