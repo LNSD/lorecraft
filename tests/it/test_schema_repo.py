@@ -11,6 +11,7 @@ from typing import Final
 
 import pytest
 
+from lib.disk import DiskFileSystem
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectNamespace
 from lorecraft.project.corpus import CorpusName
@@ -21,7 +22,7 @@ from lorecraft.project.schemas import (
     StructureSchemaReadError,
     StructureSpecFile,
 )
-from lorecraft.vfs import DirListError, DiskFileSystem, FileReadError, OsRefusal
+from lorecraft.vfs import DirListError, FileReadError, OsRefusal
 
 CODE: Final[CorpusName] = CorpusName.parse('code')
 CODE_PYTHON: Final[NamespaceSpecName] = NamespaceSpecName(CODE, AspectNamespace.parse('python'))

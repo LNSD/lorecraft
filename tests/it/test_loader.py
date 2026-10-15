@@ -15,6 +15,7 @@ from typing import Final
 
 import pytest
 
+from lib.disk import DiskFileSystem
 from lorecraft.agents import AgentName
 from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.path import PathComponent, RootRelativePath
@@ -55,7 +56,7 @@ from lorecraft.project.workspace import (
     load_model,
     load_workspace,
 )
-from lorecraft.vfs import DiskFileSystem, OsRefusal, ResolvedPath, RootExit, VirtualFileSystem, take_snapshot
+from lorecraft.vfs import OsRefusal, ResolvedPath, RootExit, VirtualFileSystem, take_snapshot
 
 CLAUDE: Final[AgentName] = AgentName('claude-code')
 CODEX: Final[AgentName] = AgentName('codex')

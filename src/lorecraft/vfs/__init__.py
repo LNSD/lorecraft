@@ -12,7 +12,6 @@ from .changes import ChangeKind, ChangeSet, diff
 from .disk import (
     ChangedSnapshotEntryError,
     Declaration,
-    DiskFileSystem,
     SnapshotDirListError,
     SnapshotEntryInspectError,
     SnapshotFileReadError,
@@ -78,7 +77,6 @@ from .view import (
 __all__: list[str] = [
     'FileSystem',
     'ResolvedPath',
-    'DiskFileSystem',
     'disk_location',
     'VirtualFileSystem',
     'Snapshot',

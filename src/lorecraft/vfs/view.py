@@ -7,9 +7,9 @@ result or an mtime. Three operations report where a symlink chain goes: `find_di
 leads, as a resolved directory or file, and `find_root_exit` where it leaves the root.
 `list_dir` and `read_text` reach through a link on the way to the path they are given, or at it, and never
 report or classify a link's target. `find_entry_kind` reaches
-through a link on the way and reports one at the path as a link, as a listing of its parent would. Every
-implementation of the view is this package's own: `DiskFileSystem` reads the disk under the workspace
-root, and `VirtualFileSystem` answers from a `Snapshot`.
+through a link on the way and reports one at the path as a link, as a listing of its parent would. The
+view this package ships is `VirtualFileSystem`, which answers from a `Snapshot`; the tests keep a view of the
+disk to compare it with.
 """
 
 import errno
@@ -499,9 +499,9 @@ class FileSystem(ABC):
     value was built.
     """
 
-    # An ABC rather than a Protocol because every implementation is this package's own and must be complete, so a
-    # missing method fails at instantiation instead of at its first call (error-boundaries §1). With `DiskFileSystem`
-    # and `VirtualFileSystem`, pattern-repository's second real implementation exists.
+    # An ABC rather than a Protocol because every implementation must be complete, so a missing method fails at
+    # instantiation instead of at its first call (error-boundaries §1). With the tests' disk view and
+    # `VirtualFileSystem`, pattern-repository's second real implementation exists.
 
     @abstractmethod
     def list_dir(self, path: RootRelativePath) -> tuple[DirEntry, ...]:
