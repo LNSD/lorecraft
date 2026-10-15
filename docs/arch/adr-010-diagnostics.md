@@ -267,7 +267,8 @@ type SubjectReport = CheckedDocument | CheckedSkillFile | UndecodableSubject | C
   name `Diagnostic`, and read the same attributes on both kinds.
 - **`Severity` is not `Level`.** A level has three values, and a diagnostic at `allow` does not exist, so a
   diagnostic carries one of two severities.
-- **An undecodable subject has no diagnostics and no coverage**, which the union states.
+- **An undecodable subject has one diagnostic and no coverage**, which the union states: the engine's
+  `InvalidUtf8` (`LC001`) at its path, since no rule judged it.
 - **A skill file has no coverage either.** The package governs every skill and resource for every facet, so a
   `CheckedSkillFile` holds no ungoverned facets; only a `CheckedDocument` does.
 - **A layout entry is reported by its path, and has no coverage.** It is not a document, a skill or a resource, so
@@ -355,8 +356,7 @@ Before committing code, verify:
 - [adr-009-rules](adr-009-rules.md) - Foundation: The rule class that renders a diagnostic, and the glossary
 - [adr-011-rules-engine](adr-011-rules-engine.md) - Related: The run that locates occurrences into diagnostics
 - [adr-001-snapshot-model](adr-001-snapshot-model.md) - Related: The model and the package roles
-- [adr-006-specifications](adr-006-specifications.md) - Related: Where the rules a diagnostic cites come from
 - [adr-007-findings](adr-007-findings.md) - Supersedes: Violations, findings and failures
 - [error-boundaries](../code/error-boundaries.md) - Foundation: Where a failure is raised and where it is reported
 - [adr-015-database](adr-015-database.md) - Related: Load failures reported as engine diagnostics that exit 1
-- [adr-016-specifications](adr-016-specifications.md) - Related: Meta specs and governance restated, which supersedes adr-006
+- [adr-016-specifications](adr-016-specifications.md) - Related: Where the rules a diagnostic cites come from

@@ -78,6 +78,8 @@ about every function.
 
 ## Checklist
 
+Before committing code, verify:
+
 - [ ] A code spec or feat spec adds to or narrows what its base states, and neither restates nor contradicts it
 - [ ] An extension names its base under References, and a base names none of its extensions
 - [ ] A name's base is the longest existing name it continues with a hyphen; a name whose base has no file continues
