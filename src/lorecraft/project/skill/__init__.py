@@ -10,6 +10,7 @@ A symlink the layout reaches whose chain leaves the repository is recorded too, 
 from .outside import OutsideSymlink
 from .ref import (
     NotASkillResourceError,
+    SkillAliasRef,
     SkillLocation,
     SkillRef,
     SkillRelativePath,
@@ -17,6 +18,7 @@ from .ref import (
     SkillResourceRef,
 )
 from .repo import (
+    RefusedSkillAlias,
     Repository,
     Skill,
     SkillDecodeError,
@@ -41,6 +43,7 @@ __all__: list[str] = [
     'SkillLocation',
     'SkillRelativePath',
     'SkillResourceRef',
+    'SkillAliasRef',
     'SkillResourceLocation',
     'SkillsDir',
     'OutsideSymlink',
@@ -48,6 +51,7 @@ __all__: list[str] = [
     'SkillEntry',
     'NotASkillResourceError',
     'SkillResourceListing',
+    'RefusedSkillAlias',
     'Skill',
     'SkillResource',
     'Repository',

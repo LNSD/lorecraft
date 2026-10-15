@@ -23,7 +23,7 @@ ungoverned by, so it gets a report of its own, a `CheckedLayoutEntry`: its path 
 order.
 
 Two reports come from what failed to load, never from a rule. A `SkippedSubject` is a document decoded and not judged,
-because a structure file that governs it failed to load, or a skill file whose docs target was refused: it holds no
+because a structure file that governs it failed to load, or a skill alias whose docs target was refused: it holds no
 diagnostic and is listed in coverage with the paths that caused it. A `LoadFailureReport` is the failure itself,
 filed at its own path with the one diagnostic of its engine condition, whatever the configuration and the selection,
 in the same total order as every other diagnostic.
@@ -35,7 +35,7 @@ from typing import assert_never
 from lorecraft.core.num import UnsignedInt
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.document import DocumentRef
-from lorecraft.project.skill import SkillRef, SkillResourceRef
+from lorecraft.project.skill import SkillAliasRef, SkillRef, SkillResourceRef
 from lorecraft.rules.engine.invalid_utf8 import InvalidUtf8
 from lorecraft.vfs import Utf8Failure
 
@@ -139,7 +139,7 @@ def diagnostic_order(diagnostic: Diagnostic) -> DiagnosticOrder:
 
 # A subject the runner checks: a document, a skill, whose report path is its `SKILL.md`, or a skill's resource, whose
 # report path is where an agent reaches it.
-type SubjectRef = DocumentRef | SkillRef | SkillResourceRef
+type SubjectRef = DocumentRef | SkillRef | SkillResourceRef | SkillAliasRef
 
 
 @dataclass(frozen=True, slots=True)
@@ -251,14 +251,15 @@ class CheckedLayoutEntry:
 
 @dataclass(frozen=True, slots=True)
 class SkippedSubject:
-    """A document or skill file no rule judged because a path it depends on could not be read.
+    """A document or skill alias no rule judged because a path it depends on could not be read.
 
     A document governed by a failed structure layer cannot be called clean from the layers that loaded. A skill file
-    whose resolved target was refused cannot be judged either. It is coverage, never a diagnostic: it holds none, and
+    whose resolved target was refused cannot be judged either. A refused directory alias is reported at its alias
+    path, while its owning skill remains a separate subject. It is coverage, never a diagnostic: it holds none, and
     the failure that caused it is reported once, at its own path, as a `LoadFailureReport`.
 
     Attributes:
-        ref: The document, skill or resource that was not judged.
+        ref: The document, skill or alias path that was not judged.
         failed_layers: Paths of failed structure layers or refused docs targets that prevented checking.
     """
 

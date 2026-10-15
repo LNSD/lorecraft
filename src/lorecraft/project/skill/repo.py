@@ -14,6 +14,8 @@ resolved skills directory of an agent: the place a link leads to is not a skill 
 leads is recorded beside the ref, in its location, so what a skill is named by and where its files live are both
 known. A link whose chain leaves the repository is not followed out of it, and is recorded instead as an
 `OutsideSymlink`, where an agent reaches it: the snapshot holds nothing outside the root to follow it into.
+When a resource link reaches a refused path under `docs/`, the listing records the alias and keeps walking; a refusal
+elsewhere still raises to the command.
 
 Nothing here logs: the command that loads the model catches every `Error` that escapes it and reports it,
 so every handler below re-raises without logging.
@@ -26,6 +28,7 @@ from typing import assert_never
 from lorecraft.agents import SKILL_ENTRY, SKILL_ENTRY_FILENAME
 from lorecraft.core.error import Error
 from lorecraft.core.path import ROOT, RootRelativePath
+from lorecraft.project.layout import DOCS_DIR
 from lorecraft.vfs import (
     DIR_LIST_FAILURES,
     DIR_RESOLVE_FAILURES,
@@ -39,6 +42,12 @@ from lorecraft.vfs import (
     FileReadFailure,
     FileResolveFailure,
     FileSystem,
+    RecordedDirListError,
+    RecordedDirListPathError,
+    RecordedDirResolveError,
+    RecordedEntryInspectError,
+    RecordedFileResolveError,
+    RecordedRootExitWalkError,
     ResolvedPath,
     RootExit,
     RootExitWalkFailure,
@@ -47,7 +56,7 @@ from lorecraft.vfs import (
 )
 
 from .outside import OutsideSymlink
-from .ref import SkillLocation, SkillRef, SkillRelativePath, SkillResourceLocation, SkillResourceRef
+from .ref import SkillAliasRef, SkillLocation, SkillRef, SkillRelativePath, SkillResourceLocation, SkillResourceRef
 
 
 @dataclass(frozen=True, slots=True)
@@ -102,10 +111,25 @@ class SkillResourceListing:
         resources: The location of every resource of the skill, sorted by ref.
         outside_symlinks: Every symlink the walk met whose chain leaves the repository, named where an agent
             reaches it under the skill's entry, sorted by path. The walk does not follow one.
+        refused_aliases: Symlink paths whose chain reached a refused docs path, paired with that target.
     """
 
     resources: tuple[SkillResourceLocation, ...]
     outside_symlinks: tuple[OutsideSymlink, ...]
+    refused_aliases: tuple['RefusedSkillAlias', ...] = ()
+
+
+@dataclass(frozen=True, slots=True, order=True)
+class RefusedSkillAlias:
+    """A symlink in a skill whose chain reached a refused docs path.
+
+    Attributes:
+        ref: The alias path as an agent reaches it.
+        refused_at: The docs path whose refusal stopped resolution.
+    """
+
+    ref: SkillAliasRef
+    refused_at: RootRelativePath
 
 
 class SkillsDirListError(Error):
@@ -253,22 +277,26 @@ class SkillResourcesSymlinkResolveError(Error):
     Attributes:
         skill: The skill whose resources were being listed.
         symlink: The symlink being followed, at its resolved path.
+        resource: The resource the symlink names, or `None` when it names a directory or a non-resource.
         source: The failure to resolve it, as a directory, as a file, or to where it leaves the repository.
     """
 
     skill: SkillRef
     symlink: RootRelativePath
+    resource: SkillResourceRef | None
     source: DirResolveFailure | FileResolveFailure | RootExitWalkFailure
 
     def __init__(
         self,
         skill: SkillRef,
         symlink: RootRelativePath,
+        resource: SkillResourceRef | None,
         *,
         source: DirResolveFailure | FileResolveFailure | RootExitWalkFailure,
     ) -> None:
         self.skill = skill
         self.symlink = symlink
+        self.resource = resource
         self.source = source
         super().__init__(f'cannot resolve symlink {symlink} for the resources of skill {skill.directory}')
         self.__cause__ = source
@@ -510,8 +538,9 @@ class Repository:
                 `location.resolves_to`.
 
         Raises:
-            SkillResourcesListError: If a directory the walk enters cannot be listed.
-            SkillResourcesSymlinkResolveError: If a symlink the walk meets cannot be resolved.
+            SkillResourcesListError: If a directory cannot be listed, unless the snapshot refused it under `docs/`.
+            SkillResourcesSymlinkResolveError: If a symlink cannot be resolved, unless its chain reached a refused
+                path under `docs/`.
         """
         return _SkillResourcesWalk(self._fs, location).run()
 
@@ -654,6 +683,7 @@ class _SkillResourcesWalk:
         self._entered: set[ResolvedPath] = set()
         self._resources: list[SkillResourceLocation] = []
         self._outside_symlinks: list[OutsideSymlink] = []
+        self._refused_aliases: list[RefusedSkillAlias] = []
         # Each queue holds its entries in the order the walk met them.
         self._directories: deque[_PendingDirectory] = deque()
         self._symlinks: deque[_PendingSymlink] = deque()
@@ -664,8 +694,9 @@ class _SkillResourcesWalk:
         """Walk the skill to the end, and return every resource and outside symlink found, each sorted; call once.
 
         Raises:
-            SkillResourcesListError: If a directory the walk enters cannot be listed.
-            SkillResourcesSymlinkResolveError: If a symlink the walk meets cannot be resolved.
+            SkillResourcesListError: If a directory cannot be listed, unless the snapshot refused it under `docs/`.
+            SkillResourcesSymlinkResolveError: If a symlink cannot be resolved, unless its chain reached a refused
+                path under `docs/`.
         """
         while self._directories or self._symlinks:
             # Symlinks wait until no directory is left: every resolved directory inside the skill is then entered first
@@ -677,7 +708,11 @@ class _SkillResourcesWalk:
                 pending_symlink = self._symlinks.popleft()
                 self._follow(pending_symlink.named, pending_symlink.link)
         outside_symlinks = sorted(self._outside_symlinks, key=lambda outside: outside.path)
-        return SkillResourceListing(resources=tuple(sorted(self._resources)), outside_symlinks=tuple(outside_symlinks))
+        return SkillResourceListing(
+            resources=tuple(sorted(self._resources)),
+            outside_symlinks=tuple(outside_symlinks),
+            refused_aliases=tuple(sorted(self._refused_aliases)),
+        )
 
     def _enter(self, named: SkillRelativePath, resolved: ResolvedPath) -> None:
         """List one resolved directory, unless it was entered already or holds the skill's own directory.
@@ -689,7 +724,7 @@ class _SkillResourcesWalk:
             resolved: The resolved directory, the one listed.
 
         Raises:
-            SkillResourcesListError: If the directory cannot be listed.
+            SkillResourcesListError: If the directory cannot be listed for a reason other than a refusal under `docs/`.
         """
         # Keeps out a directory entered already, which ends symlink loops, and one holding the skill's own
         # directory, resolved or as named in its skills directory, which would count other skills' files as its own.
@@ -703,6 +738,10 @@ class _SkillResourcesWalk:
         try:
             entries = self._fs.list_dir(resolved)
         except DIR_LIST_FAILURES as exc:
+            refused_at = _find_docs_refusal_path(exc)
+            if refused_at is not None:
+                self._refused_aliases.append(RefusedSkillAlias(SkillAliasRef(self._location.ref, named), refused_at))
+                return
             raise SkillResourcesListError(self._location.ref, resolved, source=exc) from exc
 
         for entry in entries:
@@ -733,12 +772,16 @@ class _SkillResourcesWalk:
             symlink: The symlink at its resolved path, in a resolved directory, so it is the one symlink on the way.
 
         Raises:
-            SkillResourcesSymlinkResolveError: If the operating system refuses the lookup.
+            SkillResourcesSymlinkResolveError: If the lookup fails for a reason other than a refusal under `docs/`.
         """
         try:
             directory = self._fs.find_dir(symlink)
         except DIR_RESOLVE_FAILURES as exc:
-            raise SkillResourcesSymlinkResolveError(self._location.ref, symlink, source=exc) from exc
+            if self._record_refused_alias(named, exc):
+                return
+            raise SkillResourcesSymlinkResolveError(
+                self._location.ref, symlink, self._location.ref.find_resource(named), source=exc
+            ) from exc
         if directory is not None:
             self._directories.append(_PendingDirectory(named, directory))
             return
@@ -747,7 +790,11 @@ class _SkillResourcesWalk:
         try:
             leaves_at = self._fs.find_root_exit(symlink)
         except ROOT_EXIT_WALK_FAILURES as exc:
-            raise SkillResourcesSymlinkResolveError(self._location.ref, symlink, source=exc) from exc
+            if self._record_refused_alias(named, exc):
+                return
+            raise SkillResourcesSymlinkResolveError(
+                self._location.ref, symlink, self._location.ref.find_resource(named), source=exc
+            ) from exc
         if leaves_at is not None:
             # `OutsideSymlink` names every symlink of the skill layout root-relative, one inside a skill too.
             self._outside_symlinks.append(OutsideSymlink(named.under(self._location.ref.directory), leaves_at))
@@ -760,6 +807,52 @@ class _SkillResourcesWalk:
         try:
             file = self._fs.find_file(symlink)
         except FILE_RESOLVE_FAILURES as exc:
-            raise SkillResourcesSymlinkResolveError(self._location.ref, symlink, source=exc) from exc
+            if self._record_refused_alias(named, exc):
+                return
+            raise SkillResourcesSymlinkResolveError(self._location.ref, symlink, resource, source=exc) from exc
         if file is not None:
             self._resources.append(SkillResourceLocation(resource, file))
+
+    def _record_refused_alias(
+        self,
+        named: SkillRelativePath,
+        failure: DirResolveFailure | FileResolveFailure | RootExitWalkFailure,
+    ) -> bool:
+        """Record a refused docs alias and let the walk continue, or return false for other failures.
+
+        Args:
+            named: The alias path as an agent reaches it from the skill's directory.
+            failure: The typed filesystem failure from resolving its symlink chain.
+        """
+        refused_at = _find_docs_refusal_path(failure)
+        if refused_at is None:
+            return False
+        self._refused_aliases.append(RefusedSkillAlias(SkillAliasRef(self._location.ref, named), refused_at))
+        return True
+
+
+def _find_docs_refusal_path(
+    failure: DirListFailure | DirResolveFailure | FileResolveFailure | RootExitWalkFailure,
+) -> RootRelativePath | None:
+    """Find a retained docs refusal path in a snapshot failure, if the concrete failure carries one.
+
+    Args:
+        failure: The typed listing or link-resolution failure from the snapshot view.
+
+    Returns:
+        The path the snapshot refused under `docs/`, or `None` for another refusal.
+    """
+    match failure:
+        case RecordedDirListError(path=path):
+            refused_at = path
+        case RecordedDirListPathError(source=RecordedEntryInspectError(path=path)):
+            refused_at = path
+        case RecordedDirResolveError(source=RecordedEntryInspectError(path=path)):
+            refused_at = path
+        case RecordedFileResolveError(source=RecordedEntryInspectError(path=path)):
+            refused_at = path
+        case RecordedRootExitWalkError(entry=path):
+            refused_at = path
+        case _:
+            return None
+    return refused_at if refused_at.is_relative_to(DOCS_DIR) else None

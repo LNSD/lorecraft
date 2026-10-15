@@ -79,6 +79,7 @@ once in `lorecraft.project.layout` and read from there by every other module.
   database alone reads and writes the store of persisted results, through the store the Composition package hands it.
 - A broken document is a value the parse returns, not an exception. A unit the loader cannot load is a recorded
   value, never raised.
+- A refused `docs/` alias does not stop a skill resource walk.
 
 ## Examples
 

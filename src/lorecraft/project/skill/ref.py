@@ -231,6 +231,24 @@ class SkillResourceRef:
         return self.relative_path.under(self.skill.directory)
 
 
+@dataclass(frozen=True, slots=True, order=True)
+class SkillAliasRef:
+    """A path inside a skill reached through a symlink, including a directory alias.
+
+    Attributes:
+        skill: The skill whose resource walk found the alias.
+        relative_path: Where an agent reaches the alias, spelled from the skill's directory.
+    """
+
+    skill: SkillRef
+    relative_path: SkillRelativePath
+
+    @property
+    def path(self) -> RootRelativePath:
+        """Root-relative path at which the alias is reported."""
+        return self.relative_path.under(self.skill.directory)
+
+
 # order=True so a tuple of locations sorts by ref, the order a skill's resources are listed in.
 @dataclass(frozen=True, slots=True, order=True)
 class SkillResourceLocation:

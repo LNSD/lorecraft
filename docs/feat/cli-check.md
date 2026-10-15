@@ -209,11 +209,11 @@ messages, labels and notes is written as UTF-8 characters instead of `\uXXXX` es
 Each reported structure-file failure appears once at that file.
 `LC001` points to the first invalid byte; `LC002`, `LC003` and `LC004` are whole-file diagnostics that give
 their help before their notes.
-`LC002` covers unreadable structure files and governed documents, unreadable unknown files, and unlistable nested
-directories under `docs/`. It appears at the refused path; other readable documents continue to be checked. An
-unreadable governed document remains a subject and adds one to the summary count. An unknown file or directory gets
-a diagnostic but is not a subject. Unlistable `docs/` or `docs/__meta__/`, and scan-blocking refusals outside
-`docs/` (including skill-directory and skill-link refusals), exit 2.
+`LC002` covers unreadable meta specs and documents, unknown files, and unlistable nested `docs/` directories.
+Unreadable documents count as subjects; unknown paths do not. Coverage skips and counts resource or `SKILL.md`
+aliases at their paths, naming the refused target; `LC002` stays at target. Sibling resources and unaffected subjects
+continue; all formats exit 1. A directory alias is reported at its path, never at the skill's `SKILL.md`.
+Refusals outside `docs/` (including skill-directory and skill-link refusals) exit 2.
 
 `FM008` ends with the field's example when the schema gives one. `FM009` labels malformed skill names with
 their pattern. `FM010` reports other whole-block constraints with one message and no label; its note gives the
