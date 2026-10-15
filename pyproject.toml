@@ -185,6 +185,8 @@ select = [
     "PGH003", # a blanket `# type: ignore` names no rule
     "UP",   # pyupgrade
     "PYI055", # one `type[...]` over a union, not a union of `type[...]`
+    "PT012", # a `pytest.raises` block holds the one statement that raises
+    "PT018", # one fact per `assert`, not a compound one
 ]
 ignore = [
     "D107", # the class docstring states what constructing it takes

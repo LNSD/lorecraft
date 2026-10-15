@@ -1183,7 +1183,8 @@ class TestLoadWorkspaceFailures:
         assert failed.failure.problems, 'and it carries the decoder problems'
         assert model.load_failures == (LoadFailure(path, failed.failure),), 'listed once'
         feat = model.find_corpus(FEAT)
-        assert feat is not None and isinstance(feat.corpus_spec.structure, StructureSpec), 'the other corpus loads'
+        assert feat is not None, 'the other corpus is loaded'
+        assert isinstance(feat.corpus_spec.structure, StructureSpec), 'the other corpus loads with its structure'
 
     def _write_structure_file_tree(self, tmp_path: Path, content: str) -> None:
         """Lay out two corpora, the `code` one with a structure file holding `content`.
@@ -1221,7 +1222,8 @@ class TestLoadWorkspaceFailures:
             'listed once, with its path and condition'
         )
         feat = model.find_corpus(FEAT)
-        assert feat is not None and isinstance(feat.corpus_spec.structure, StructureSpec), 'the other corpus loads'
+        assert feat is not None, 'the other corpus is loaded'
+        assert isinstance(feat.corpus_spec.structure, StructureSpec), 'the other corpus loads with its structure'
 
     def test_load_workspace_with_a_structure_file_stating_a_repeated_outline_section_records_it_as_failed(
         self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
@@ -1244,7 +1246,8 @@ class TestLoadWorkspaceFailures:
             'listed once, with its path and condition'
         )
         feat = model.find_corpus(FEAT)
-        assert feat is not None and isinstance(feat.corpus_spec.structure, StructureSpec), 'the other corpus loads'
+        assert feat is not None, 'the other corpus is loaded'
+        assert isinstance(feat.corpus_spec.structure, StructureSpec), 'the other corpus loads with its structure'
 
     def test_load_workspace_with_a_structure_file_stating_a_repeated_forbidden_section_records_it_as_failed(
         self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
@@ -1267,7 +1270,8 @@ class TestLoadWorkspaceFailures:
             'listed once, with its path and condition'
         )
         feat = model.find_corpus(FEAT)
-        assert feat is not None and isinstance(feat.corpus_spec.structure, StructureSpec), 'the other corpus loads'
+        assert feat is not None, 'the other corpus is loaded'
+        assert isinstance(feat.corpus_spec.structure, StructureSpec), 'the other corpus loads with its structure'
 
     def test_load_workspace_with_a_structure_file_stating_a_forbidden_outline_section_records_it_as_failed(
         self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
@@ -1290,7 +1294,8 @@ class TestLoadWorkspaceFailures:
             'listed once, with its path and condition'
         )
         feat = model.find_corpus(FEAT)
-        assert feat is not None and isinstance(feat.corpus_spec.structure, StructureSpec), 'the other corpus loads'
+        assert feat is not None, 'the other corpus is loaded'
+        assert isinstance(feat.corpus_spec.structure, StructureSpec), 'the other corpus loads with its structure'
 
     def test_load_workspace_with_a_structure_file_stating_adjacent_any_runs_records_it_as_failed(
         self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
@@ -1311,7 +1316,8 @@ class TestLoadWorkspaceFailures:
             'listed once, with its path and condition'
         )
         feat = model.find_corpus(FEAT)
-        assert feat is not None and isinstance(feat.corpus_spec.structure, StructureSpec), 'the other corpus loads'
+        assert feat is not None, 'the other corpus is loaded'
+        assert isinstance(feat.corpus_spec.structure, StructureSpec), 'the other corpus loads with its structure'
 
     def test_load_workspace_with_a_structure_file_stating_an_invalid_title_pattern_records_it_as_failed(
         self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
@@ -1334,7 +1340,8 @@ class TestLoadWorkspaceFailures:
             'listed once, with its path and condition'
         )
         feat = model.find_corpus(FEAT)
-        assert feat is not None and isinstance(feat.corpus_spec.structure, StructureSpec), 'the other corpus loads'
+        assert feat is not None, 'the other corpus is loaded'
+        assert isinstance(feat.corpus_spec.structure, StructureSpec), 'the other corpus loads with its structure'
 
     def test_load_workspace_with_a_structure_file_stating_an_invalid_frontmatter_schema_records_it_as_failed(
         self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
@@ -1357,7 +1364,8 @@ class TestLoadWorkspaceFailures:
             'listed once, with its path and condition'
         )
         feat = model.find_corpus(FEAT)
-        assert feat is not None and isinstance(feat.corpus_spec.structure, StructureSpec), 'the other corpus loads'
+        assert feat is not None, 'the other corpus is loaded'
+        assert isinstance(feat.corpus_spec.structure, StructureSpec), 'the other corpus loads with its structure'
 
     def test_load_workspace_with_a_structure_file_stating_an_id_in_the_frontmatter_schema_records_it_as_failed(
         self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
@@ -1382,7 +1390,8 @@ class TestLoadWorkspaceFailures:
             'listed once, with its path and condition'
         )
         feat = model.find_corpus(FEAT)
-        assert feat is not None and isinstance(feat.corpus_spec.structure, StructureSpec), 'the other corpus loads'
+        assert feat is not None, 'the other corpus is loaded'
+        assert isinstance(feat.corpus_spec.structure, StructureSpec), 'the other corpus loads with its structure'
 
     def test_load_workspace_with_a_structure_file_stating_a_foreign_frontmatter_dialect_records_it_as_failed(
         self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
@@ -1407,7 +1416,8 @@ class TestLoadWorkspaceFailures:
             'listed once, with its path and condition'
         )
         feat = model.find_corpus(FEAT)
-        assert feat is not None and isinstance(feat.corpus_spec.structure, StructureSpec), 'the other corpus loads'
+        assert feat is not None, 'the other corpus is loaded'
+        assert isinstance(feat.corpus_spec.structure, StructureSpec), 'the other corpus loads with its structure'
 
     def test_load_workspace_with_a_structure_file_stating_a_dangling_ref_records_it_as_failed(
         self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
@@ -1468,7 +1478,8 @@ class TestLoadWorkspaceFailures:
             'listed once, with its path and condition'
         )
         feat = model.find_corpus(FEAT)
-        assert feat is not None and isinstance(feat.corpus_spec.structure, StructureSpec), 'the other corpus loads'
+        assert feat is not None, 'the other corpus is loaded'
+        assert isinstance(feat.corpus_spec.structure, StructureSpec), 'the other corpus loads with its structure'
 
     def test_load_workspace_with_a_repeated_outline_section_records_the_sections(
         self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
