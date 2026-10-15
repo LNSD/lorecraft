@@ -173,9 +173,11 @@ class OutlineSpec:
 ## 4. A Framework's Exception Is Raised Only at Its Seam
 
 Some exceptions are a framework's protocol rather than the package's errors: pydantic turns only its own
-`PydanticCustomError`, or a validator's `ValueError`, into a validation error, and Typer renders a usage error or
-an exit status only from `typer.BadParameter` or `typer.Exit`. Such an exception is raised only at the seam
-where the framework demands it — the hook pydantic calls, the command handler Typer runs — and nowhere else.
+`PydanticCustomError`, or a validator's `ValueError`, into a validation error, and Typer renders a usage error
+or an exit status only from `typer.BadParameter` or `typer.Exit`. Such an exception is raised only at the seam
+where the framework demands it — the hook pydantic calls, the command handler Typer runs — and nowhere else. A
+flow a handler calls returns the exit status, and the handler raises `typer.Exit` with it, so each command exits
+in one place and its flow is tested without catching the framework's exception.
 
 It is not a variant, so the rules for variants do not bind it, and its message may carry the caught variant's
 text, since that text is all the framework shows. Beneath the seam the code raises and catches variants as
@@ -238,11 +240,14 @@ except OSError as exc:
 
 ## 6. Wrap Only Where the Layer Adds a Step or an Identity
 
-A function wraps a lower failure in a variant of its own when it adds something the lower error cannot know:
-the step it was taking, or the identity of what it was working on. When it adds neither, the lower variants
+A function wraps a lower failure in a variant of its own when it adds something the lower error cannot know: the
+step it was taking, or the identity of what it was working on. When it adds neither, the lower variants
 propagate unchanged, and the function's `Raises:` lists them beside its own. A wrapper that only renames the
 failure is a new class that carries no new fact, and a caller who could have matched the lower variants now has
-to unwrap first.
+to unwrap first. At a repository this rule wins over translating every storage failure
+([pattern-repository](pattern-repository.md)): a lower variant that already names the step and the path passes
+through, and only a foreign exception is translated
+([§5](#5-a-foreign-failure-is-translated-into-typed-facts-keeping-its-source)).
 
 ```python
 # ❌ Bad — the wrapper knows nothing the source does not, so a handler written for SpecDecodeError stopped
