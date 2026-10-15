@@ -182,12 +182,12 @@ def _amp_tree(root: Path) -> None:
         root,
         prose=('README', 'code', 'code-pattern', 'code-principle', 'code-rust', 'feat'),
         schemas=(
-            'code.structure.json',
-            'code-crate.structure.json',
-            'code-pattern.structure.json',
-            'code-principle.structure.json',
-            'code-rust.structure.json',
-            'feat.structure.json',
+            'code.spec.json',
+            'code-crate.spec.json',
+            'code-pattern.spec.json',
+            'code-principle.spec.json',
+            'code-rust.spec.json',
+            'feat.spec.json',
         ),
         documents=(
             'code/crates.md',
@@ -255,12 +255,12 @@ def _lorecraft_tree(root: Path) -> None:
         root,
         prose=('README', 'code', 'code-pattern', 'code-principle', 'code-python', 'feat', 'feat-cli'),
         schemas=(
-            'code.structure.json',
-            'code-pattern.structure.json',
-            'code-principle.structure.json',
-            'code-python.structure.json',
-            'feat.structure.json',
-            'feat-cli.structure.json',
+            'code.spec.json',
+            'code-pattern.spec.json',
+            'code-principle.spec.json',
+            'code-python.spec.json',
+            'feat.spec.json',
+            'feat-cli.spec.json',
         ),
         documents=('code/logging.md', 'code/python-typing.md', 'feat/cli-check.md', 'feat/cli-check-frontmatter.md'),
     )
@@ -368,7 +368,7 @@ class TestLoadWorkspaceAmp:
         assert code is not None, 'the model lists the code corpus'
         crate = code.namespace_specs[0]
         assert crate.name == NamespaceSpecName(CODE, AspectNamespace.parse('crate')), 'the crate spec is the first'
-        assert crate.files == (SPECS_DIR / PathComponent.parse('code-crate.structure.json'),), (
+        assert crate.files == (SPECS_DIR / PathComponent.parse('code-crate.spec.json'),), (
             'a namespace spec with JSON files and no prose still loads'
         )
         assert crate.structure is not None, 'the structure specification is decoded'
@@ -480,7 +480,7 @@ class TestLoadWorkspaceEdgeCases:
     ) -> None:
         #: Given
         _write_tree(
-            tmp_path, prose=('code', '__meta__'), schemas=('__meta__.structure.json',), documents=('code/logging.md',)
+            tmp_path, prose=('code', '__meta__'), schemas=('__meta__.spec.json',), documents=('code/logging.md',)
         )
 
         #: When
@@ -549,7 +549,7 @@ class TestLoadWorkspaceEdgeCases:
         self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
     ) -> None:
         #: Given
-        _write_tree(tmp_path, prose=('feat',), schemas=('feat.feature.structure.json',), documents=('feat/admin.md',))
+        _write_tree(tmp_path, prose=('feat',), schemas=('feat.feature.spec.json',), documents=('feat/admin.md',))
 
         #: When
         model = load_workspace(schemas, documents, skills)
@@ -565,7 +565,7 @@ class TestLoadWorkspaceEdgeCases:
         self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
     ) -> None:
         #: Given
-        _write_tree(tmp_path, prose=(), schemas=('feat.feature.structure.json',), documents=('feat/admin.md',))
+        _write_tree(tmp_path, prose=(), schemas=('feat.feature.spec.json',), documents=('feat/admin.md',))
 
         #: When
         model = load_workspace(schemas, documents, skills)
@@ -589,7 +589,7 @@ class TestLoadWorkspaceEdgeCases:
         self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
     ) -> None:
         #: Given
-        _write_tree(tmp_path, prose=('code',), schemas=('README.structure.json',), documents=('code/logging.md',))
+        _write_tree(tmp_path, prose=('code',), schemas=('README.spec.json',), documents=('code/logging.md',))
 
         #: When
         model = load_workspace(schemas, documents, skills)
@@ -621,8 +621,8 @@ class TestLoadWorkspaceEdgeCases:
         #: Given
         _write_tree(tmp_path, prose=('code',), schemas=(), documents=())
         (tmp_path / 'docs' / 'code').mkdir()
-        _write(tmp_path, 'docs/__meta__/code.structure.json', '{"frontmatter": {"type": "nonsense"}}')
-        path = SPECS_DIR / PathComponent.parse('code.structure.json')
+        _write(tmp_path, 'docs/__meta__/code.spec.json', '{"frontmatter": {"type": "nonsense"}}')
+        path = SPECS_DIR / PathComponent.parse('code.spec.json')
 
         #: When
         model = load_workspace(schemas, documents, skills)
@@ -640,7 +640,7 @@ class TestLoadWorkspaceEdgeCases:
         self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
     ) -> None:
         #: Given
-        _write_tree(tmp_path, prose=('code',), schemas=('code.structure.json',), documents=('code/logging.md',))
+        _write_tree(tmp_path, prose=('code',), schemas=('code.spec.json',), documents=('code/logging.md',))
 
         #: When
         model = load_workspace(schemas, documents, skills)
@@ -650,7 +650,7 @@ class TestLoadWorkspaceEdgeCases:
         assert ref is not None, 'the document is listed'
         governance = model.find_governance(ref)
         assert governance is not None, 'the document is in a corpus the model holds'
-        assert _structure_spec_paths(governance) == (SPECS_DIR / PathComponent.parse('code.structure.json'),), (
+        assert _structure_spec_paths(governance) == (SPECS_DIR / PathComponent.parse('code.spec.json'),), (
             'the corpus structure specification governs its document'
         )
 
@@ -776,9 +776,7 @@ class TestLoadWorkspaceEdgeCases:
         self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
     ) -> None:
         #: Given
-        _write_tree(
-            tmp_path, prose=('code', 'rules'), schemas=('rules.structure.json',), documents=('code/logging.md',)
-        )
+        _write_tree(tmp_path, prose=('code', 'rules'), schemas=('rules.spec.json',), documents=('code/logging.md',))
         (tmp_path / 'docs' / 'rules').symlink_to(tmp_path / 'docs' / 'code')
 
         #: When
@@ -1139,11 +1137,11 @@ class TestLoadWorkspaceFailures:
         _write_tree(
             tmp_path,
             prose=('code', 'feat'),
-            schemas=('code.structure.json', 'feat.structure.json'),
+            schemas=('code.spec.json', 'feat.spec.json'),
             documents=('code/logging.md', 'feat/admin.md'),
         )
-        lock(tmp_path / 'docs' / '__meta__' / 'code.structure.json')
-        path = SPECS_DIR / PathComponent.parse('code.structure.json')
+        lock(tmp_path / 'docs' / '__meta__' / 'code.spec.json')
+        path = SPECS_DIR / PathComponent.parse('code.spec.json')
 
         #: When
         model = load_workspace(schemas, documents, skills)
@@ -1168,11 +1166,11 @@ class TestLoadWorkspaceFailures:
         _write_tree(
             tmp_path,
             prose=('code', 'feat'),
-            schemas=('feat.structure.json',),
+            schemas=('feat.spec.json',),
             documents=('code/logging.md', 'feat/admin.md'),
         )
-        _write(tmp_path, 'docs/__meta__/code.structure.json', 'not json')
-        path = SPECS_DIR / PathComponent.parse('code.structure.json')
+        _write(tmp_path, 'docs/__meta__/code.spec.json', 'not json')
+        path = SPECS_DIR / PathComponent.parse('code.spec.json')
 
         #: When
         model = load_workspace(schemas, documents, skills)
@@ -1197,10 +1195,10 @@ class TestLoadWorkspaceFailures:
         _write_tree(
             tmp_path,
             prose=('code', 'feat'),
-            schemas=('feat.structure.json',),
+            schemas=('feat.spec.json',),
             documents=('code/logging.md', 'feat/admin.md'),
         )
-        _write(tmp_path, 'docs/__meta__/code.structure.json', content)
+        _write(tmp_path, 'docs/__meta__/code.spec.json', content)
 
     def test_load_workspace_with_a_structure_file_stating_no_rule_records_it_as_failed(
         self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
@@ -1213,9 +1211,7 @@ class TestLoadWorkspaceFailures:
 
         #: Then
         failed = _failed_structure(model, CODE)
-        assert failed.path == SPECS_DIR / PathComponent.parse('code.structure.json'), (
-            'the failure names the structure file'
-        )
+        assert failed.path == SPECS_DIR / PathComponent.parse('code.spec.json'), 'the failure names the structure file'
         assert isinstance(failed.failure, EmptyStructureSpec), (
             'a structure file stating no rule fails as an empty structure'
         )
@@ -1237,9 +1233,7 @@ class TestLoadWorkspaceFailures:
 
         #: Then
         failed = _failed_structure(model, CODE)
-        assert failed.path == SPECS_DIR / PathComponent.parse('code.structure.json'), (
-            'the failure names the structure file'
-        )
+        assert failed.path == SPECS_DIR / PathComponent.parse('code.spec.json'), 'the failure names the structure file'
         assert isinstance(failed.failure, RepeatedOutlineSections), (
             'a repeated outline section fails as repeated outline sections'
         )
@@ -1261,9 +1255,7 @@ class TestLoadWorkspaceFailures:
 
         #: Then
         failed = _failed_structure(model, CODE)
-        assert failed.path == SPECS_DIR / PathComponent.parse('code.structure.json'), (
-            'the failure names the structure file'
-        )
+        assert failed.path == SPECS_DIR / PathComponent.parse('code.spec.json'), 'the failure names the structure file'
         assert isinstance(failed.failure, RepeatedForbiddenSections), (
             'a repeated forbidden section fails as repeated forbidden sections'
         )
@@ -1285,9 +1277,7 @@ class TestLoadWorkspaceFailures:
 
         #: Then
         failed = _failed_structure(model, CODE)
-        assert failed.path == SPECS_DIR / PathComponent.parse('code.structure.json'), (
-            'the failure names the structure file'
-        )
+        assert failed.path == SPECS_DIR / PathComponent.parse('code.spec.json'), 'the failure names the structure file'
         assert isinstance(failed.failure, ForbiddenOutlineSections), (
             'a forbidden outline section fails as forbidden outline sections'
         )
@@ -1309,9 +1299,7 @@ class TestLoadWorkspaceFailures:
 
         #: Then
         failed = _failed_structure(model, CODE)
-        assert failed.path == SPECS_DIR / PathComponent.parse('code.structure.json'), (
-            'the failure names the structure file'
-        )
+        assert failed.path == SPECS_DIR / PathComponent.parse('code.spec.json'), 'the failure names the structure file'
         assert isinstance(failed.failure, AdjacentAnyRuns), 'adjacent any runs fail as adjacent any runs'
         assert model.load_failures == (LoadFailure(failed.path, failed.failure),), (
             'listed once, with its path and condition'
@@ -1331,9 +1319,7 @@ class TestLoadWorkspaceFailures:
 
         #: Then
         failed = _failed_structure(model, CODE)
-        assert failed.path == SPECS_DIR / PathComponent.parse('code.structure.json'), (
-            'the failure names the structure file'
-        )
+        assert failed.path == SPECS_DIR / PathComponent.parse('code.spec.json'), 'the failure names the structure file'
         assert isinstance(failed.failure, InvalidTitlePattern), (
             'an invalid title pattern fails as an invalid title pattern'
         )
@@ -1355,9 +1341,7 @@ class TestLoadWorkspaceFailures:
 
         #: Then
         failed = _failed_structure(model, CODE)
-        assert failed.path == SPECS_DIR / PathComponent.parse('code.structure.json'), (
-            'the failure names the structure file'
-        )
+        assert failed.path == SPECS_DIR / PathComponent.parse('code.spec.json'), 'the failure names the structure file'
         assert isinstance(failed.failure, InvalidFrontmatterSchema), (
             'an invalid frontmatter schema fails as an invalid frontmatter schema'
         )
@@ -1381,9 +1365,7 @@ class TestLoadWorkspaceFailures:
 
         #: Then
         failed = _failed_structure(model, CODE)
-        assert failed.path == SPECS_DIR / PathComponent.parse('code.structure.json'), (
-            'the failure names the structure file'
-        )
+        assert failed.path == SPECS_DIR / PathComponent.parse('code.spec.json'), 'the failure names the structure file'
         assert isinstance(failed.failure, IdentifiedFrontmatterSchema), (
             'an id in the frontmatter schema fails as an identified frontmatter schema'
         )
@@ -1407,9 +1389,7 @@ class TestLoadWorkspaceFailures:
 
         #: Then
         failed = _failed_structure(model, CODE)
-        assert failed.path == SPECS_DIR / PathComponent.parse('code.structure.json'), (
-            'the failure names the structure file'
-        )
+        assert failed.path == SPECS_DIR / PathComponent.parse('code.spec.json'), 'the failure names the structure file'
         assert isinstance(failed.failure, ForeignFrontmatterDialect), (
             'a foreign dialect fails as a foreign frontmatter dialect'
         )
@@ -1469,9 +1449,7 @@ class TestLoadWorkspaceFailures:
 
         #: Then
         failed = _failed_structure(model, CODE)
-        assert failed.path == SPECS_DIR / PathComponent.parse('code.structure.json'), (
-            'the failure names the structure file'
-        )
+        assert failed.path == SPECS_DIR / PathComponent.parse('code.spec.json'), 'the failure names the structure file'
         assert isinstance(failed.failure, UntypedFrontmatterSchema), (
             'an untyped frontmatter schema fails as an untyped frontmatter schema'
         )
@@ -1489,7 +1467,7 @@ class TestLoadWorkspaceFailures:
         _write_tree(tmp_path, prose=('code',), schemas=(), documents=('code/logging.md',))
         _write(
             tmp_path,
-            'docs/__meta__/code.structure.json',
+            'docs/__meta__/code.spec.json',
             '{"outline": [{"section": "Usage"}, {"section": "Usage"}, {"section": "Notes"}, {"section": "Notes"}]}',
         )
 
@@ -1508,7 +1486,7 @@ class TestLoadWorkspaceFailures:
         _write_tree(tmp_path, prose=('code',), schemas=(), documents=('code/logging.md',))
         _write(
             tmp_path,
-            'docs/__meta__/code.structure.json',
+            'docs/__meta__/code.spec.json',
             '{"frontmatter": {"type": "object", "$schema": "http://json-schema.org/draft-07/schema#"}}',
         )
 
@@ -1524,9 +1502,9 @@ class TestLoadWorkspaceFailures:
         self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
     ) -> None:
         #: Given
-        _write_tree(tmp_path, prose=('code',), schemas=('code.structure.json',), documents=('code/python-typing.md',))
-        _write(tmp_path, 'docs/__meta__/code-python.structure.json', 'not json')
-        path = SPECS_DIR / PathComponent.parse('code-python.structure.json')
+        _write_tree(tmp_path, prose=('code',), schemas=('code.spec.json',), documents=('code/python-typing.md',))
+        _write(tmp_path, 'docs/__meta__/code-python.spec.json', 'not json')
+        path = SPECS_DIR / PathComponent.parse('code-python.spec.json')
 
         #: When
         model = load_workspace(schemas, documents, skills)
@@ -1549,18 +1527,18 @@ class TestLoadWorkspaceFailures:
         self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
     ) -> None:
         #: Given
-        # code-python-errors.structure.json sorts before code-python.structure.json by name, narrower first
-        _write_tree(tmp_path, prose=('code',), schemas=('code.structure.json',), documents=('code/logging.md',))
-        _write(tmp_path, 'docs/__meta__/code-python.structure.json', 'not json')
-        _write(tmp_path, 'docs/__meta__/code-python-errors.structure.json', 'not json')
+        # code-python-errors.spec.json sorts before code-python.spec.json by name, narrower first
+        _write_tree(tmp_path, prose=('code',), schemas=('code.spec.json',), documents=('code/logging.md',))
+        _write(tmp_path, 'docs/__meta__/code-python.spec.json', 'not json')
+        _write(tmp_path, 'docs/__meta__/code-python-errors.spec.json', 'not json')
 
         #: When
         model = load_workspace(schemas, documents, skills)
 
         #: Then
         assert _failure_paths(model) == (
-            SPECS_DIR / PathComponent.parse('code-python.structure.json'),
-            SPECS_DIR / PathComponent.parse('code-python-errors.structure.json'),
+            SPECS_DIR / PathComponent.parse('code-python.spec.json'),
+            SPECS_DIR / PathComponent.parse('code-python-errors.spec.json'),
         ), 'both are recorded, the broader first, which is the one a load that raised would have named'
 
     @pytest.mark.skipif(os.geteuid() == 0, reason='root ignores directory permissions')
@@ -1576,7 +1554,7 @@ class TestLoadWorkspaceFailures:
         _write_tree(
             tmp_path,
             prose=('code', 'feat'),
-            schemas=('code.structure.json', 'feat.structure.json'),
+            schemas=('code.spec.json', 'feat.spec.json'),
             documents=('code/logging.md', 'feat/admin.md'),
         )
         lock(tmp_path / 'docs' / 'code')
@@ -1607,7 +1585,7 @@ class TestLoadWorkspaceFailures:
         lock: Callable[[Path], None],
     ) -> None:
         #: Given
-        _write_tree(tmp_path, prose=('code',), schemas=('code.structure.json',), documents=('code/logging.md',))
+        _write_tree(tmp_path, prose=('code',), schemas=('code.spec.json',), documents=('code/logging.md',))
         lock(tmp_path / 'docs')
 
         #: When
@@ -1631,7 +1609,7 @@ class TestLoadWorkspaceFailures:
         lock: Callable[[Path], None],
     ) -> None:
         #: Given
-        _write_tree(tmp_path, prose=('code',), schemas=('code.structure.json',), documents=('code/logging.md',))
+        _write_tree(tmp_path, prose=('code',), schemas=('code.spec.json',), documents=('code/logging.md',))
         lock(tmp_path / 'docs' / '__meta__')
 
         #: When
@@ -1841,7 +1819,7 @@ class TestLoadWorkspaceFailures:
         other = tmp_path_factory.mktemp('other')
         for root in (tmp_path, other):
             _write_tree(root, prose=('code',), schemas=(), documents=('code/logging.md',))
-            _write(root, 'docs/__meta__/code.structure.json', 'not json')
+            _write(root, 'docs/__meta__/code.spec.json', 'not json')
         ref = DocumentRef(CODE, AspectFilename.parse('logging'))
         first = load_model(DiskFileSystem(tmp_path)).find_governance(ref)
         filesystem = DiskFileSystem(other)
@@ -1861,7 +1839,7 @@ class TestLoadWorkspaceFailures:
         other = tmp_path_factory.mktemp('other')
         for root, content in ((tmp_path, 'not json'), (other, '{}')):
             _write_tree(root, prose=('code',), schemas=(), documents=('code/logging.md',))
-            _write(root, 'docs/__meta__/code.structure.json', content)
+            _write(root, 'docs/__meta__/code.spec.json', content)
         ref = DocumentRef(CODE, AspectFilename.parse('logging'))
         first = load_model(DiskFileSystem(tmp_path)).find_governance(ref)
         filesystem = DiskFileSystem(other)

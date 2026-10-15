@@ -15,7 +15,7 @@ error[FM001]: no `---` delimited frontmatter block
 1 │ # Logging
   │ ───────── a `---` delimited block is expected here
   │
- ::: docs/__meta__/code.structure.json
+ ::: docs/__meta__/code.spec.json
   │
   = note: the frontmatter schema is set here
   = help: open the file with a `---` line, the fields, and a closing `---` line
@@ -26,7 +26,7 @@ error[OUT004]: section `Logging` is empty
 1 │ # Logging
   │ ─────────
   │
- ::: docs/__meta__/code.structure.json
+ ::: docs/__meta__/code.spec.json
   │
   = note: the document structure is set here
   = help: write the document's content under its title
@@ -37,7 +37,7 @@ error[OUT006]: missing required section `Checklist`
 1 │ # Logging
   │ ───────── expected `Checklist` before the end of the document
   │
- ::: docs/__meta__/code.structure.json
+ ::: docs/__meta__/code.spec.json
   │
   = note: the document structure is set here
   = help: The items a reviewer verifies before committing a change the rule document governs.
@@ -56,7 +56,7 @@ error[FM001]: no `---` delimited frontmatter block
 1 │ # Python typing
   │ ─────────────── a `---` delimited block is expected here
   │
- ::: docs/__meta__/code.structure.json
+ ::: docs/__meta__/code.spec.json
   │
   = note: the frontmatter schema is set here
   = help: open the file with a `---` line, the fields, and a closing `---` line
@@ -67,7 +67,7 @@ error[LEN001]: too many tokens (4 > 3)
 1 │ # Python typing
   │ ─────────────── tokens over the budget: 1
   │
- ::: docs/__meta__/code-python.structure.json
+ ::: docs/__meta__/code-python.spec.json
   │
   = note: the limit is set here
   = help: split the document, or move what an agent needs only some of the time into a document of
@@ -81,7 +81,7 @@ error[OUT004]: section `Python typing` is empty
 1 │ # Python typing
   │ ───────────────
   │
- ::: docs/__meta__/code.structure.json
+ ::: docs/__meta__/code.spec.json
   │
   = note: the document structure is set here
   = help: write the document's content under its title
@@ -92,7 +92,7 @@ error[OUT006]: missing required section `Checklist`
 1 │ # Python typing
   │ ─────────────── expected `Checklist` before the end of the document
   │
- ::: docs/__meta__/code.structure.json
+ ::: docs/__meta__/code.spec.json
   │
   = note: the document structure is set here
   = help: The items a reviewer verifies before committing a change the rule document governs.
@@ -111,7 +111,7 @@ error[OUT006]: missing required section `References`
 1 │ # Python typing
   │ ─────────────── expected `References` before the end of the document
   │
- ::: docs/__meta__/code-python.structure.json
+ ::: docs/__meta__/code-python.spec.json
   │
   = note: the document structure is set here
   = help: Links to the documents this one builds on.

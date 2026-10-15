@@ -74,7 +74,7 @@ class TestStructureSpecSchema:
         self, validator: Draft202012Validator
     ) -> None:
         #: Given
-        spec_files = sorted([*SPECS_DIR.glob('*.spec.json'), *SPECS_DIR.glob('*.structure.json')])
+        spec_files = sorted([*SPECS_DIR.glob('*.spec.json'), *SPECS_DIR.glob('*.spec.json')])
 
         #: When
         schema_errors = _messages_by_file(validator, spec_files)

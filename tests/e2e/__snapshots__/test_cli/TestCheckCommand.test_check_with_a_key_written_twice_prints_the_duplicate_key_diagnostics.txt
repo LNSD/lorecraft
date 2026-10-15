@@ -17,7 +17,7 @@ error[FM005]: duplicate key 'type'
 4 │ type: pattern
   │ ───────────── written again here
   │
- ::: docs/__meta__/code.structure.json
+ ::: docs/__meta__/code.spec.json
   │
   = note: the frontmatter schema is set here
   = help: write 'type' once, with the value meant

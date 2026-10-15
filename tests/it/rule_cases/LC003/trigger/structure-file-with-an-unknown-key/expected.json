@@ -1,6 +1,6 @@
 [
   {
-    "path": "docs/__meta__/guide.structure.json",
+    "path": "docs/__meta__/guide.spec.json",
     "line": null,
     "severity": "error",
     "code": "LC003"
