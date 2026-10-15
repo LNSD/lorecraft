@@ -21,17 +21,15 @@ carrying its own message.
 A section name, in an outline entry or in `forbidden`, is a `SectionName` the same way, which states its own rule.
 """
 
-from typing import Annotated, Final, Literal, Self
+from typing import Annotated, Literal, Self
 
 from pydantic import BaseModel, ConfigDict, Field, JsonValue, WithJsonSchema, field_validator, model_validator
 
 from lorecraft.core.mapping import Frozen, FrozenMapping
 from lorecraft.core.num import NonZeroUnsignedInt
+from lorecraft.jsonschema import DIALECT
 
 from .section_name import SectionName
-
-JSON_SCHEMA_DIALECT: Final[str] = 'https://json-schema.org/draft/2020-12/schema'
-"""Draft 2020-12, the one dialect a frontmatter schema is written in: the only one its `$schema` may name."""
 
 
 # Runs once per process, before mutmut swaps a mutant in, so no test can ever see a mutant of it.
@@ -45,7 +43,7 @@ def _frontmatter_json_schema() -> dict[str, JsonValue]:  # pragma: no mutate blo
     """
     return {
         'allOf': [
-            {'$ref': JSON_SCHEMA_DIALECT},
+            {'$ref': DIALECT},
             {'type': 'object', 'required': ['type'], 'properties': {'type': {'const': 'object'}}},
         ]
     }

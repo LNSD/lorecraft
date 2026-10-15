@@ -8,11 +8,11 @@ from typing import Final
 import pytest
 
 from lorecraft.core.mapping import FrozenMapping, Plain
+from lorecraft.jsonschema import JsonType
 
 from ..frontmatter_problem import (
     FieldGuidance,
     InvalidValueProblem,
-    JsonType,
     MissingFieldProblem,
     OtherValueConstraint,
     PatternMismatch,

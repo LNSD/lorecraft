@@ -3,8 +3,9 @@
 import pytest
 
 from lorecraft.core.mapping import Plain
+from lorecraft.jsonschema import JsonType
 
-from ..frontmatter_problem import FieldGuidance, JsonType
+from ..frontmatter_problem import FieldGuidance
 from ..schema_guidance import json_type_of, known_fields, property_guidance, schema_guidance, schema_reason, value_text
 
 

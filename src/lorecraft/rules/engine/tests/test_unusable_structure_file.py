@@ -2,7 +2,8 @@
 
 import pytest
 
-from lorecraft.project.schemas import JSON_SCHEMA_DIALECT, SectionName
+from lorecraft.jsonschema import DIALECT
+from lorecraft.project.schemas import SectionName
 from lorecraft.rules.identity import Severity
 from lorecraft.rules.location import Help, Note, WholeSubject
 
@@ -250,7 +251,7 @@ class TestUnusableStructureFile:
 
         #: Then
         assert children == (
-            Help(f'name {JSON_SCHEMA_DIALECT}, or leave $schema out'),
+            Help(f'name {DIALECT}, or leave $schema out'),
             Note("$schema holds 'http://json-schema.org/draft-07/schema#'"),
         ), 'the facts the case holds are said as notes, and the fix as a help'
 

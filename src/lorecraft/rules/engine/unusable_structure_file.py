@@ -3,7 +3,8 @@
 from dataclasses import dataclass
 from typing import ClassVar, assert_never
 
-from lorecraft.project.schemas import JSON_SCHEMA_DIALECT, SectionName
+from lorecraft.jsonschema import DIALECT
+from lorecraft.project.schemas import SectionName
 from lorecraft.rules.collector import rule
 from lorecraft.rules.declaration import FileCondition
 from lorecraft.rules.identity import EngineCode, Release, RuleName, Severity
@@ -479,7 +480,7 @@ class UnusableStructureFile(FileCondition):
                 return (Help('remove $id from every schema in the frontmatter schema'),)
             case ForeignFrontmatterDialect(dialect=dialect):
                 return (
-                    Help(f'name {JSON_SCHEMA_DIALECT}, or leave $schema out'),
+                    Help(f'name {DIALECT}, or leave $schema out'),
                     Note(f'$schema holds {dialect}'),
                 )
             case UnresolvableFrontmatterSchemaRef(ref=ref):

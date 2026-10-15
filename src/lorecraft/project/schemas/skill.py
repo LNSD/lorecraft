@@ -17,6 +17,7 @@ from pydantic_core import ErrorDetails
 
 from lorecraft.core.mapping import Frozen, FrozenMapping
 from lorecraft.core.num import UnsignedInt
+from lorecraft.jsonschema import JsonType
 
 from .frontmatter_problem import (
     BlockProblem,
@@ -24,7 +25,6 @@ from .frontmatter_problem import (
     FieldGuidance,
     FrontmatterProblem,
     InvalidValueProblem,
-    JsonType,
     MissingFieldProblem,
     OtherBlockConstraint,
     OtherValueConstraint,

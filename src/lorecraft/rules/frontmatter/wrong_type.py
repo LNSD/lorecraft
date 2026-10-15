@@ -4,11 +4,11 @@ from dataclasses import dataclass, field
 from typing import ClassVar, Final, Self, assert_never
 
 from lorecraft.core.path import RootRelativePath
+from lorecraft.jsonschema import JsonType
 from lorecraft.project.context import FrontmatterContext
 from lorecraft.project.schemas import (
     BlockProblem,
     InvalidValueProblem,
-    JsonType,
     MissingFieldProblem,
     SchemaSource,
     UnknownFieldProblem,

@@ -12,7 +12,7 @@ from jsonschema.exceptions import ValidationError as SchemaValidationError
 
 from lorecraft.core.mapping import Plain
 
-from .frontmatter_problem import JsonType, JsonTypes
+from .json_type import JsonType, JsonTypes
 
 
 @dataclass(frozen=True, slots=True)

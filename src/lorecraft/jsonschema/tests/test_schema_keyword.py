@@ -6,7 +6,7 @@ from jsonschema.exceptions import ValidationError as SchemaValidationError
 
 from lorecraft.core.mapping import Plain
 
-from ..frontmatter_problem import JsonType
+from ..json_type import JsonType
 from ..schema_keyword import (
     AdditionalPropertiesKeyword,
     ConstKeyword,

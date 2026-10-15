@@ -29,6 +29,22 @@ from lorecraft.core.error import Unreachable
 from lorecraft.core.mapping import Frozen, FrozenMapping, Plain
 from lorecraft.core.num import UnsignedInt
 from lorecraft.core.path import RootRelativePath
+from lorecraft.jsonschema import (
+    DIALECT,
+    AdditionalPropertiesKeyword,
+    ConstKeyword,
+    DependentRequiredKeyword,
+    EnumKeyword,
+    Keyword,
+    MaxPropertiesKeyword,
+    MinPropertiesKeyword,
+    OtherKeyword,
+    PatternKeyword,
+    RequiredKeyword,
+    TypeKeyword,
+    UnevaluatedPropertiesKeyword,
+    keyword_of,
+)
 
 from .frontmatter_problem import (
     BlockLimit,
@@ -57,21 +73,6 @@ from .schema_guidance import (
     schema_reason,
     value_text,
 )
-from .schema_keyword import (
-    AdditionalPropertiesKeyword,
-    ConstKeyword,
-    DependentRequiredKeyword,
-    EnumKeyword,
-    Keyword,
-    MaxPropertiesKeyword,
-    MinPropertiesKeyword,
-    OtherKeyword,
-    PatternKeyword,
-    RequiredKeyword,
-    TypeKeyword,
-    UnevaluatedPropertiesKeyword,
-    keyword_of,
-)
 from .structure_failure import (
     CyclicFrontmatterSchemaRef,
     ForeignFrontmatterDialect,
@@ -80,7 +81,6 @@ from .structure_failure import (
     UnresolvableFrontmatterSchemaRef,
     UntypedFrontmatterSchema,
 )
-from .structure_file import JSON_SCHEMA_DIALECT
 
 type FrontmatterSchemaFailure = (
     InvalidFrontmatterSchema
@@ -138,11 +138,11 @@ class FrontmatterSchema:
                 # An `$id` would make that schema a resource of its own, with its own base URI, and so change what
                 # every relative `$ref` beneath it resolves to.
                 return IdentifiedFrontmatterSchema()
-            dialect = subschema.get('$schema', JSON_SCHEMA_DIALECT)
+            dialect = subschema.get('$schema', DIALECT)
             if not isinstance(dialect, str):
                 # SAFETY: the meta-schema check above has refused a `$schema` that is not a string
                 raise Unreachable('the meta-schema proved `$schema` is a string')
-            if dialect != JSON_SCHEMA_DIALECT:
+            if dialect != DIALECT:
                 # The check applies every schema under Draft 2020-12, so a schema written for another dialect would
                 # be read by rules it was not written for.
                 return ForeignFrontmatterDialect(dialect)

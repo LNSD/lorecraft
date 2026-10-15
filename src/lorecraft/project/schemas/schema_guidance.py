@@ -11,9 +11,10 @@ from collections.abc import Mapping
 
 from lorecraft.core.error import Unreachable
 from lorecraft.core.mapping import Plain
+from lorecraft.jsonschema import JsonType
 from lorecraft.project.syntax import is_string_when_read_back
 
-from .frontmatter_problem import FieldGuidance, JsonType
+from .frontmatter_problem import FieldGuidance
 
 
 def value_text(value: Plain) -> str:

@@ -6,7 +6,7 @@
 #   lorecraft.project  the workspace model and the parse trees, on the filesystem boundary
 #   lorecraft.agents   the model of the coding agents: the aspects an agent has, and each agent's values
 #   lorecraft.vfs      the filesystem boundary: paths, views, scan, snapshot
-#   lorecraft.yaml     the YAML syntax: ruamel.yaml wrapped, and what the subset leaves out refused
+#   lorecraft.jsonschema and lorecraft.yaml  peers directly above core: JSON Schema vocabulary; YAML syntax/refusals
 #   lorecraft.core     the base: the shared error class
 #
 # Unit tests sit beside their module under src/; tests/ holds the integration and end-to-end tiers.
@@ -242,9 +242,25 @@ layers = [
     "project",
     "agents",
     "vfs",
-    "yaml",
+    "jsonschema|yaml",
     "core",
 ]
+
+# The JSON Schema libraries are read in one package, with the existing validator seam migrated separately. The
+# `referencing` allowance is prospective, so silence alerts for unmatched ignore expressions in this contract.
+[[tool.importlinter.contracts]]
+name = "The JSON Schema libraries are read in one package"
+type = "forbidden"
+source_modules = ["lorecraft"]
+forbidden_modules = ["jsonschema", "referencing"]
+ignore_imports = [
+    "lorecraft.jsonschema.** -> jsonschema",
+    "lorecraft.jsonschema.** -> referencing",
+    "lorecraft.project.schemas.frontmatter_schema -> jsonschema",
+    "lorecraft.project.schemas.frontmatter_schema -> referencing",
+]
+allow_indirect_imports = true
+unmatched_ignore_imports_alerting = "none"
 
 # Each frontmatter schema translates its validator's errors into `FrontmatterProblem` values at its own seam in
 # `project.schemas`, so a check or a rule reads one shape whichever validator is behind it and never an error record.
@@ -318,6 +334,7 @@ source_modules = [
     "lorecraft.project",
     "lorecraft.agents",
     "lorecraft.vfs",
+    "lorecraft.jsonschema",
     "lorecraft.core",
     "lorecraft.metadata",
     "lorecraft.__main__",
