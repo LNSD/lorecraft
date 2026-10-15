@@ -65,18 +65,18 @@ from lorecraft.project.skill import (
 from lorecraft.project.skill import Repository as SkillRepository
 from lorecraft.vfs import (
     DIR_LIST_FAILURES,
-    ENTRY_INSPECT_FAILURES,
+    ROOT_EXIT_WALK_FAILURES,
     DirResolveError,
-    EntryInspectError,
     FileReadError,
     FileResolveError,
     FileSystem,
     RecordedDirResolveError,
-    RecordedEntryInspectError,
     RecordedFileReadError,
     RecordedFileReadPathError,
     RecordedFileResolveError,
+    RecordedRootExitWalkError,
     ResolvedPath,
+    RootExitWalkError,
     TextDecodeError,
     UnrecordedFileError,
 )
@@ -446,8 +446,8 @@ def _load_skills_dirs(
                 # The snapshot kept which entry on the way was refused, which the disk's lookup does not say.
                 failures.append(LoadFailure(path, UninspectableSkillsDirectory(exc.source.path, exc.refusal)))
                 continue
-            except ENTRY_INSPECT_FAILURES as exc:
-                failures.append(LoadFailure(path, UninspectableSkillsDirectory(exc.path, exc.refusal)))
+            except ROOT_EXIT_WALK_FAILURES as exc:
+                failures.append(LoadFailure(path, UninspectableSkillsDirectory(exc.entry, exc.refusal)))
                 continue
             skills_dirs.append(SkillsDir(agent=agent.name, path=path, resolves_to=resolves_to))
     skills_dirs.sort(key=lambda skills_dir: (str(skills_dir.agent), skills_dir.path))
@@ -503,8 +503,8 @@ def _list_skill_locations(
                         condition = UnresolvableSkillEntry(exc.source.refusal)
                     case RecordedDirResolveError():
                         condition = UninspectableSkillEntry(exc.source.source.path, exc.source.refusal)
-                    case EntryInspectError() | RecordedEntryInspectError():
-                        condition = UninspectableSkillEntry(exc.source.path, exc.source.refusal)
+                    case RootExitWalkError() | RecordedRootExitWalkError():
+                        condition = UninspectableSkillEntry(exc.source.entry, exc.source.refusal)
                     case _:
                         assert_never(exc.source)
                 failures.append(LoadFailure(entry_path, condition))
@@ -520,8 +520,8 @@ def _list_skill_locations(
                         condition = UnresolvableSkillFile(exc.skill_file, exc.source.refusal)
                     case RecordedFileResolveError():
                         condition = UninspectableSkillFile(exc.skill_file, exc.source.source.path, exc.source.refusal)
-                    case EntryInspectError() | RecordedEntryInspectError():
-                        condition = UninspectableSkillFile(exc.skill_file, exc.source.path, exc.source.refusal)
+                    case RootExitWalkError() | RecordedRootExitWalkError():
+                        condition = UninspectableSkillFile(exc.skill_file, exc.source.entry, exc.source.refusal)
                     case _:
                         assert_never(exc.source)
                 failures.append(LoadFailure(skill_file_path, condition))

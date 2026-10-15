@@ -20,7 +20,7 @@ from lorecraft.project.workspace import (
     EmptyStructureSpec,
     ForbiddenOutlineSections,
     ForeignFrontmatterDialect,
-    FrontmatterSchemaId,
+    IdentifiedFrontmatterSchema,
     InvalidFrontmatterSchema,
     InvalidTitlePattern,
     LoadFailure,
@@ -151,7 +151,7 @@ def _failure_text(failure: LoadFailure) -> _FailureText:
             )
         case InvalidFrontmatterSchema(problem=problem):
             return _FailureText(f'invalid structure schema {path}: frontmatter is not a valid JSON Schema: {problem}')
-        case FrontmatterSchemaId():
+        case IdentifiedFrontmatterSchema():
             return _FailureText(f'invalid structure schema {path}: frontmatter schema may not carry $id')
         case ForeignFrontmatterDialect(dialect=dialect):
             return _FailureText(

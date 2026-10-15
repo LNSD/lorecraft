@@ -29,19 +29,19 @@ from lorecraft.core.path import ROOT, RootRelativePath
 from lorecraft.vfs import (
     DIR_LIST_FAILURES,
     DIR_RESOLVE_FAILURES,
-    ENTRY_INSPECT_FAILURES,
     FILE_READ_FAILURES,
     FILE_RESOLVE_FAILURES,
+    ROOT_EXIT_WALK_FAILURES,
     DirEntry,
     DirListFailure,
     DirResolveFailure,
-    EntryInspectFailure,
     EntryKind,
     FileReadFailure,
     FileResolveFailure,
     FileSystem,
     ResolvedPath,
     RootExit,
+    RootExitWalkFailure,
     TextDecodeError,
     UnrecordedFileError,
 )
@@ -135,13 +135,13 @@ class SkillEntryResolveError(Error):
     """
 
     entry: RootRelativePath
-    source: DirResolveFailure | EntryInspectFailure
+    source: DirResolveFailure | RootExitWalkFailure
 
     def __init__(
         self,
         entry: RootRelativePath,
         *,
-        source: DirResolveFailure | EntryInspectFailure,
+        source: DirResolveFailure | RootExitWalkFailure,
     ) -> None:
         self.entry = entry
         self.source = source
@@ -176,13 +176,13 @@ class SkillFileResolveError(Error):
     """
 
     skill_file: RootRelativePath
-    source: FileResolveFailure | EntryInspectFailure
+    source: FileResolveFailure | RootExitWalkFailure
 
     def __init__(
         self,
         skill_file: RootRelativePath,
         *,
-        source: FileResolveFailure | EntryInspectFailure,
+        source: FileResolveFailure | RootExitWalkFailure,
     ) -> None:
         self.skill_file = skill_file
         self.source = source
@@ -258,14 +258,14 @@ class SkillResourcesSymlinkResolveError(Error):
 
     skill: SkillRef
     symlink: RootRelativePath
-    source: DirResolveFailure | FileResolveFailure | EntryInspectFailure
+    source: DirResolveFailure | FileResolveFailure | RootExitWalkFailure
 
     def __init__(
         self,
         skill: SkillRef,
         symlink: RootRelativePath,
         *,
-        source: DirResolveFailure | FileResolveFailure | EntryInspectFailure,
+        source: DirResolveFailure | FileResolveFailure | RootExitWalkFailure,
     ) -> None:
         self.skill = skill
         self.symlink = symlink
@@ -346,8 +346,8 @@ class Repository:
             skills_dir: Skills directory as the layout names it; asked when `find_skills_dir` found no directory.
 
         Raises:
-            EntryInspectError: If an entry on the way cannot be inspected, or a link's target cannot be read.
-            RecordedEntryInspectError: If a snapshot recorded that the scan could not inspect an entry on the way.
+            RootExitWalkError: If an entry on the way cannot be inspected, or a link's target cannot be read.
+            RecordedRootExitWalkError: If a snapshot recorded that the scan could not inspect an entry on the way.
         """
         # A refused lookup is the view's own, with the path it stopped at: nothing to add here.
         leaves_at = self._fs.find_root_exit(skills_dir)
@@ -560,7 +560,7 @@ class Repository:
         """
         try:
             return self._fs.find_root_exit(entry)
-        except ENTRY_INSPECT_FAILURES as exc:
+        except ROOT_EXIT_WALK_FAILURES as exc:
             raise SkillEntryResolveError(entry, source=exc) from exc
 
     def _find_skill_file(self, directory: ResolvedPath) -> ResolvedPath | RootExit | None:
@@ -596,7 +596,7 @@ class Repository:
                         if resolved_file is not None:
                             return resolved_file
                         return self._fs.find_root_exit(skill_file)
-                    except (*FILE_RESOLVE_FAILURES, *ENTRY_INSPECT_FAILURES) as exc:
+                    except (*FILE_RESOLVE_FAILURES, *ROOT_EXIT_WALK_FAILURES) as exc:
                         raise SkillFileResolveError(skill_file, source=exc) from exc
                 case EntryKind.DIRECTORY:
                     continue  # a directory named `SKILL.md` is no file an agent reads
@@ -746,7 +746,7 @@ class _SkillResourcesWalk:
         # Asked of every symlink, whatever its name: one leading outside the root is reported, not just skipped.
         try:
             leaves_at = self._fs.find_root_exit(symlink)
-        except ENTRY_INSPECT_FAILURES as exc:
+        except ROOT_EXIT_WALK_FAILURES as exc:
             raise SkillResourcesSymlinkResolveError(self._location.ref, symlink, source=exc) from exc
         if leaves_at is not None:
             # `OutsideSymlink` names every symlink of the skill layout root-relative, one inside a skill too.

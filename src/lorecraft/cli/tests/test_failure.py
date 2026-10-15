@@ -20,7 +20,7 @@ from lorecraft.project.workspace import (
     EmptyStructureSpec,
     ForbiddenOutlineSections,
     ForeignFrontmatterDialect,
-    FrontmatterSchemaId,
+    IdentifiedFrontmatterSchema,
     InvalidFrontmatterSchema,
     InvalidTitlePattern,
     LoadFailure,
@@ -304,7 +304,7 @@ class TestReportLoadFailure:
         self, capsys: pytest.CaptureFixture[str]
     ) -> None:
         #: Given
-        failure = LoadFailure(_PATH, FrontmatterSchemaId())
+        failure = LoadFailure(_PATH, IdentifiedFrontmatterSchema())
         expected = (
             'error: invalid structure schema docs/__meta__/code.structure.json: frontmatter schema may not carry $id\n'
         )
