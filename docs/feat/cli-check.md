@@ -177,10 +177,8 @@ messages, labels and notes is written as UTF-8 characters instead of `\uXXXX` es
 | Code | Meaning |
 |------|---------|
 | `0`  | No diagnostic is an error; warnings and ungoverned parts do not count |
-| `1`  | At least one error diagnostic, including a meta spec that failed to load |
-| `2`  | No root; unreadable non-structure file or symlink target; unlistable or linked `docs/` or `docs/__meta__/`; unlistable directory or uninspectable entry on a followed chain that no load failure reports; changed snapshot entry; invalid selection or usage. Errors print `error: ...` on stderr; selector usage errors follow [cli](cli.md) |
-
-With multiple unreported refusals, exit `2` names the first path in path order.
+| `1`  | At least one error diagnostic, including a failed meta spec or unreadable `docs/` path (`LC002`) |
+| `2`  | No root; unlistable `docs/` or `docs/__meta__/`; scan-blocking refusals outside `docs/` (including skill-directory and skill-link refusals); changed snapshot entry; invalid selection or usage. Errors print `error: ...` on stderr; selector usage errors follow [cli](cli.md) |
 
 ## Limitations
 
@@ -211,10 +209,11 @@ With multiple unreported refusals, exit `2` names the first path in path order.
 Each reported structure-file failure appears once at that file.
 `LC001` points to the first invalid byte; `LC002`, `LC003` and `LC004` are whole-file diagnostics that give
 their help before their notes.
-`LC002` covers unreadable structure files, unlistable corpus or skills directories, unlistable or unresolved
-skill entries, and `SKILL.md` links that cannot be followed. For a failed link lookup, the note names the entry
-the operating system refused to inspect, not the link. Only an unreadable structure file lists its governed
-documents as skipped; the other cases have a diagnostic alone.
+`LC002` covers unreadable structure files and governed documents, unreadable unknown files, and unlistable nested
+directories under `docs/`. It appears at the refused path; other readable documents continue to be checked. An
+unreadable governed document remains a subject and adds one to the summary count. An unknown file or directory gets
+a diagnostic but is not a subject. Unlistable `docs/` or `docs/__meta__/`, and scan-blocking refusals outside
+`docs/` (including skill-directory and skill-link refusals), exit 2.
 
 `FM008` ends with the field's example when the schema gives one. `FM009` labels malformed skill names with
 their pattern. `FM010` reports other whole-block constraints with one message and no label; its note gives the

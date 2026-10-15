@@ -306,6 +306,23 @@ class TestSnapshotWithADeclaration:
         )
         assert _path('docs/code/logging.md') in snapshot.records, 'the scan went on past the file'
 
+    def test_take_snapshot_with_an_unknown_docs_file_that_cannot_be_read_keeps_the_refusal(
+        self, tree: Path, lock: Callable[[Path], None]
+    ) -> None:
+        #: Given
+        unknown = tree / 'docs' / 'code' / 'notes.json'
+        unknown.write_text('{}', encoding='utf-8')
+        lock(unknown)
+        declaration = Declaration(is_file=lambda path: str(path).startswith('docs/'))
+
+        #: When
+        snapshot = take_snapshot(tree, SCOPE, declaration=declaration)
+
+        #: Then
+        assert snapshot.records[_path('docs/code/notes.json')] == RefusedRead(OsRefusal.PERMISSION_DENIED), (
+            'the snapshot keeps unreadable files in docs so check can report them'
+        )
+
     def test_take_snapshot_with_a_link_whose_chain_cannot_be_inspected_keeps_the_refusal(
         self, tree: Path, lock: Callable[[Path], None]
     ) -> None:
@@ -642,7 +659,28 @@ class TestVirtualFileSystemOverARefusal:
 @pytest.mark.it
 @pytest.mark.skipif(os.geteuid() == 0, reason='root ignores file and directory permissions')
 class TestCheckOverARefusalNoLoadFailureReports:
-    def test_check_with_a_directory_under_docs_no_meta_spec_names_exits_two_and_names_it(
+    def test_check_with_an_unreadable_unknown_docs_file_reports_lc002_and_exits_one(
+        self, tree: Path, lock: Callable[[Path], None]
+    ) -> None:
+        #: Given
+        unknown = tree / 'docs' / 'code' / 'notes.json'
+        unknown.write_text('{}', encoding='utf-8')
+        lock(unknown)
+        (tree / 'docs' / 'code' / 'broken.md').write_bytes(b'\xff')
+        app = build_app()
+        root = str(tree)
+
+        #: When
+        result = runner.invoke(app, ['check', '--root', root, '--format', 'short'])
+
+        #: Then
+        assert result.exit_code == 1, result.output
+        assert 'docs/code/notes.json: error[LC002]: path cannot be read' in result.stdout
+        assert 'docs/code/broken.md:1: error[LC001]' in result.stdout, (
+            'the run also checks readable documents after the refusal'
+        )
+
+    def test_check_with_a_directory_under_docs_no_meta_spec_names_reports_lc002(
         self, tree: Path, lock: Callable[[Path], None]
     ) -> None:
         #: Given
@@ -656,12 +694,11 @@ class TestCheckOverARefusalNoLoadFailureReports:
         result = runner.invoke(app, ['check', '--root', root])
 
         #: Then
-        assert result.exit_code == 2, result.output
-        assert result.stderr == 'error: cannot snapshot directory docs/notes: permission denied\n', (
-            'a directory nothing governs stops the run as it did before the snapshot kept refusals'
-        )
+        assert result.exit_code == 1, result.output
+        assert '--> docs/notes' in result.stdout
+        assert 'error[LC002]' in result.stdout
 
-    def test_check_with_a_directory_inside_a_skill_that_cannot_be_listed_exits_two_and_names_it(
+    def test_check_with_a_directory_inside_a_skill_that_cannot_be_listed_reports_lc002(
         self, tree: Path, lock: Callable[[Path], None]
     ) -> None:
         #: Given
@@ -674,9 +711,7 @@ class TestCheckOverARefusalNoLoadFailureReports:
 
         #: Then
         assert result.exit_code == 2, result.output
-        assert result.stderr == (
-            'error: cannot snapshot directory .agents/skills/commit/references: permission denied\n'
-        ), 'a directory inside a skill that nothing reports stops the run as it did before'
+        assert result.stderr == 'error: cannot snapshot directory .agents/skills/commit/references: permission denied\n'
 
     def test_check_with_a_corpus_directory_that_cannot_be_listed_exits_one(
         self, tree: Path, lock: Callable[[Path], None]
@@ -693,7 +728,7 @@ class TestCheckOverARefusalNoLoadFailureReports:
         assert result.exit_code == 1, result.output
         assert result.stdout == 'docs/code: error[LC002]: path cannot be read\n', 'the corpus directory is reported'
 
-    def test_check_with_a_reported_and_an_unreported_directory_both_locked_exits_two_naming_the_unreported(
+    def test_check_with_a_reported_and_an_unreported_directory_both_locked_reports_both(
         self, tree: Path, lock: Callable[[Path], None]
     ) -> None:
         #: Given
@@ -708,12 +743,11 @@ class TestCheckOverARefusalNoLoadFailureReports:
         result = runner.invoke(app, ['check', '--root', root])
 
         #: Then
-        assert result.exit_code == 2, result.output
-        assert result.stderr == 'error: cannot snapshot directory docs/aaa: permission denied\n', (
-            'the directory the model reports is not the one the run stops at'
-        )
+        assert result.exit_code == 1, result.output
+        assert '--> docs/aaa' in result.stdout
+        assert '--> docs/code' in result.stdout
 
-    def test_check_with_a_reported_link_and_an_unreported_link_into_locked_directories_exits_two_naming_the_second(
+    def test_check_with_a_reported_link_and_an_unreported_link_into_locked_directories_reports_both(
         self, tree: Path, lock: Callable[[Path], None]
     ) -> None:
         #: Given
@@ -729,6 +763,4 @@ class TestCheckOverARefusalNoLoadFailureReports:
 
         #: Then
         assert result.exit_code == 2, result.output
-        assert result.stderr == 'error: cannot snapshot entry locked/x.md: permission denied\n', (
-            'the link of a SKILL.md is reported, and the link inside a skill that nothing loads stops the run'
-        )
+        assert result.stderr == 'error: cannot snapshot entry locked/x.md: permission denied\n'

@@ -65,10 +65,12 @@ design states the gap rather than guard it, as [adr-011](adr-011-rules-engine.md
 
 ### Load Failures Are Values the Model Records
 
-1. **The loader is total over the declaration.** Each unit it reads is loaded on its own: a structure file, a corpus
-   directory, a skills directory, a skill entry, a skill's `SKILL.md`. A unit that fails is recorded in the model as
-   a load failure, and the loader goes on with the next unit. Neither `load_model` nor any query raises a model-load
-   error (FR-009).
+1. **The loader is total over the model's structural declaration.** Each structural unit it reads is loaded on its
+   own: a structure file, a corpus directory, a skills directory, a skill entry, a skill's `SKILL.md`. A unit that
+   fails is recorded in the model as a load failure, and the loader goes on with the next unit. The snapshot
+   declaration also retains unreadable regular files under `docs/`; the database exposes refusals not represented
+   by model load failures as a query result, so check and future workspace consumers can report them without a
+   second scan. Neither `load_model` nor any query raises a model-load error (FR-009).
 2. **A failure is recorded per meta spec layer.** A corpus meta spec or a namespace meta spec whose structure file
    fails holds the failure where it would hold its structure: `structure: StructureSpec | FailedStructure | None`. So
    a document's governance holds each layer as loaded or failed, in the layer order
@@ -110,12 +112,13 @@ Names in the sketches are illustrative; the shapes are the decision.
 2. **It is reported once, at its own path.** The run turns each failure the model lists into an engine diagnostic in
    a report of its own, filed at the failure's path: the structure file, the directory or the skill entry. The report
    joins the subject reports in the one total order of [adr-010](adr-010-diagnostics.md) (FR-001 to FR-004, FR-006).
-3. **The exit code follows from the severity.** A load failure is an error diagnostic, so a check run that reports
-   one exits 1 (FR-014). What stops the run before any report, such as root discovery, a path outside the
-   declaration the snapshot cannot read, an invalid selection or a linked layout, still exits 2 (FR-015). A
-   refusal the snapshot meets on a unit of the declaration is recorded by the snapshot and becomes that unit's load
-   failure, so it is reported like any other. A refusal on a link the snapshot follows to reach such a unit still
-   exits 2, since no load failure stands for it yet (prd-014 Edge Cases).
+3. **The exit code follows from the severity.** A load failure or a retained refusal reported as an error diagnostic
+   makes a check run exit 1 (FR-014). What stops the run before any report, such as root discovery, an invalid
+   selection, a linked layout or a refusal outside the declaration the snapshot cannot retain, still exits 2
+   (FR-015). An unreadable document under `docs/` is retained by the snapshot, exposed by the database and reported
+   as `LC002`; it remains a subject even though no rule can read it. A refusal on a skill link the snapshot follows
+   to reach a skill unit still exits 2, since no model load failure or declared-document refusal stands for it yet
+   (prd-014 Edge Cases).
 4. **A documentation root or meta spec directory that cannot be listed stops the run** (FR-005). The model still
    records it as a value, a load failure like any other, so the database is opened and nothing raises. The command
    reads it before selecting any subject, prints it as a failure and exits 2, as it does when the root cannot be

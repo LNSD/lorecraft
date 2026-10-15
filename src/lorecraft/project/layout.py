@@ -59,18 +59,15 @@ ancestors has the scan read that ancestor's whole subtree once, and ends there.
 
 
 def _is_declared_file(path: RootRelativePath) -> bool:
-    """Whether `path` is a structure file, the one kind of regular file the model reads for its own sake.
+    """Whether `path` is under `docs/`, whose unreadability must be retained for the command to report.
 
-    A document is read by a check, and a skill's `SKILL.md` by the rules over it; neither is a unit of the
-    declaration the loader reads and can report, so neither is named here.
+    The loader reads meta specs. Other documentation files are read by later checks, but retaining their refusals
+    lets the command report them without aborting the scan.
 
     Args:
         path: The root-relative, resolved path of a regular file the scan reads.
     """
-    name = path.name
-    if path.parent != SPECS_DIR or name is None:
-        return False
-    return name.has_suffix(SPEC_FILE_SUFFIX, LEGACY_STRUCTURE_FILE_SUFFIX)
+    return path.is_relative_to(DOCS_DIR) and path != DOCS_DIR
 
 
 DECLARATION: Final[Declaration] = Declaration(is_file=_is_declared_file)

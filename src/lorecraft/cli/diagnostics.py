@@ -30,6 +30,7 @@ from lorecraft.rules.report import (
     RunReport,
     SkippedSubject,
     UndecodableSubject,
+    UnreadableDocument,
 )
 
 from .diagnostic_parts import (
@@ -302,7 +303,13 @@ def _coverage_subjects(reports: tuple[RunReport, ...]) -> list[CheckedDocument |
                     subjects.append(report)
             case SkippedSubject():
                 subjects.append(report)
-            case CheckedSkillFile() | UndecodableSubject() | CheckedLayoutEntry() | LoadFailureReport():
+            case (
+                CheckedSkillFile()
+                | UndecodableSubject()
+                | UnreadableDocument()
+                | CheckedLayoutEntry()
+                | LoadFailureReport()
+            ):
                 # None was judged in part: a skill file is governed in full, one never decoded, a layout entry has no
                 # specification, and a load failure is no subject.
                 pass
@@ -322,7 +329,12 @@ def _count_subjects(reports: tuple[RunReport, ...]) -> int:
     for report in reports:
         match report:
             case (
-                CheckedDocument() | CheckedSkillFile() | UndecodableSubject() | CheckedLayoutEntry() | SkippedSubject()
+                CheckedDocument()
+                | CheckedSkillFile()
+                | UndecodableSubject()
+                | UnreadableDocument()
+                | CheckedLayoutEntry()
+                | SkippedSubject()
             ):
                 count += 1
             case LoadFailureReport():

@@ -158,10 +158,11 @@ import logging
 from collections.abc import Mapping
 from typing import Self
 
+from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.document import DocumentDecodeError, DocumentReadError, DocumentRef
 from lorecraft.project.document import Repository as DocumentRepository
-from lorecraft.project.layout import SPECS_DIR, reject_linked_layout
+from lorecraft.project.layout import DOCS_DIR, SPECS_DIR, reject_linked_layout
 from lorecraft.project.link_target import DocumentDirectory, LinkTargetEntry, SkillRoot, link_targets_of
 from lorecraft.project.schemas import (
     OutlineAlignmentSpec,
@@ -200,7 +201,7 @@ from lorecraft.project.syntax import (
     parse_frontmatter,
     split_lines,
 )
-from lorecraft.project.workspace import Governance, WorkspaceModel, load_model
+from lorecraft.project.workspace import Governance, WorkspaceModel, load_model, unreported_refusals
 from lorecraft.vfs import (
     FILE_READ_FAILURES,
     RefusedRecord,
@@ -264,6 +265,7 @@ class Database:
         self._model = model
         # `None` until the first `is_in_scope()` call, so the index is built only for a run that asks.
         self._scope_index: ScopeIndex | None = None
+        self._unreported_docs_refusals: FrozenMapping[RootRelativePath, RefusedRecord] | None = None
         # The input queries' caches.
         self._texts: dict[DocumentRef, DocumentText | Undecodable[DocumentRef]] = {}
         self._skill_texts: dict[SkillRef, SkillText | Undecodable[SkillRef]] = {}
@@ -910,6 +912,21 @@ class Database:
     def refusals(self) -> dict[RootRelativePath, RefusedRecord]:
         """Every access the operating system refused the scan and the snapshot kept, keyed by path in path order."""
         return self._snapshot.refusals()
+
+    def unreported_docs_refusals(self) -> Mapping[RootRelativePath, RefusedRecord]:
+        """Snapshot refusals under `docs/` that no workspace load failure already reports.
+
+        The result is derived from the snapshot and model, and cached for this database's lifetime. It is recomputed
+        for the next revision from that revision's refusals and model failures.
+        """
+        if self._unreported_docs_refusals is None:
+            refusals = {
+                path: refusal
+                for path, refusal in unreported_refusals(self.refusals(), self._model).items()
+                if path.is_relative_to(DOCS_DIR)
+            }
+            self._unreported_docs_refusals = FrozenMapping(refusals)
+        return self._unreported_docs_refusals
 
     def find_file(self, path: RootRelativePath) -> ResolvedPath | None:
         """The file `path` leads to in the snapshot, every recorded link on the way followed; never cached.

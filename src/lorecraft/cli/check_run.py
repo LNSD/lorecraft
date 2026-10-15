@@ -18,6 +18,7 @@ It lives apart from `commands/check.py` so that importing the command, which `--
 import the rules engine: the command imports this module only when it runs.
 """
 
+from collections.abc import Mapping
 from pathlib import Path
 from typing import assert_never
 
@@ -25,15 +26,19 @@ import typer
 
 from lorecraft import rules
 from lorecraft.core.error import Error
+from lorecraft.core.path import RootRelativePath
 from lorecraft.engine import UnlistableRoot, check_subjects, report_load_failures
 from lorecraft.project.database import Database
-from lorecraft.project.layout import DECLARATION, SNAPSHOT_SCOPE
+from lorecraft.project.document import DocumentRef
+from lorecraft.project.layout import DECLARATION, DOCS_DIR, SNAPSHOT_SCOPE
 from lorecraft.project.workspace import WorkspaceModel, reject_unreported_refusals
+from lorecraft.rules.engine import RefusedOperation
+from lorecraft.rules.engine.unreadable_path import Refused, UnreadablePath
 from lorecraft.rules.identity import Severity
 from lorecraft.rules.registry import Registry
-from lorecraft.rules.report import RunReport
+from lorecraft.rules.report import LoadFailureReport, RunReport, UnreadableDocument
 from lorecraft.rules.table import RuleTable, selected_rules_left_off
-from lorecraft.vfs import take_snapshot
+from lorecraft.vfs import RefusedInspect, RefusedListing, RefusedRead, RefusedRecord, take_snapshot
 
 from .diagnostic_text import render_text
 from .diagnostics import render_coverage, render_json, render_prefix_summary, render_short, render_summary
@@ -86,12 +91,19 @@ def run_check(
         load_failure_reports = _reports_or_status(model)
         if isinstance(load_failure_reports, ExitStatus):
             return load_failure_reports
-        # The snapshot kept what the scan could not list, read or inspect, and the model reports the ones it loads.
-        # One that nothing reports would pass unseen where the scan used to stop, so the first of them stops the run.
-        reject_unreported_refusals(database.refusals(), model)
-        subjects = select_workspace(database)
+        refusals = database.refusals()
+        docs_refusals = database.unreported_docs_refusals()
+        non_docs_refusals = {path: refusal for path, refusal in refusals.items() if not path.is_relative_to(DOCS_DIR)}
+        reject_unreported_refusals(non_docs_refusals, model)
+        documents = {ref.path: ref for ref in model.documents()}
+        refusal_reports = _refusal_reports(docs_refusals, documents)
+        subjects = tuple(
+            subject
+            for subject in select_workspace(database)
+            if not isinstance(subject, DocumentRef) or not isinstance(refusals.get(subject.path), RefusedRead)
+        )
         table = RuleTable.from_registry(registry, parsed.selection)
-        reports = (*load_failure_reports, *check_subjects(database, subjects, table))
+        reports = (*load_failure_reports, *refusal_reports, *check_subjects(database, subjects, table))
     except Error as exc:
         report_failure(exc)
         return ExitStatus.FAILURE
@@ -128,6 +140,30 @@ def _reports_or_status(model: WorkspaceModel) -> tuple[RunReport, ...] | ExitSta
             return load_failure_reports
         case _:
             assert_never(load_failures)
+
+
+def _refusal_reports(
+    refusals: Mapping[RootRelativePath, RefusedRecord], documents: Mapping[RootRelativePath, DocumentRef]
+) -> tuple[RunReport, ...]:
+    """Report retained refusals under `docs/`, keeping unreadable governed documents as subjects."""
+    reports: list[RunReport] = []
+    for path, refusal in refusals.items():
+        match refusal:
+            case RefusedRead(refusal=reason):
+                operation = RefusedOperation.READ
+            case RefusedListing(refusal=reason):
+                operation = RefusedOperation.LIST
+            case RefusedInspect(refusal=reason):
+                operation = RefusedOperation.INSPECT
+            case _:
+                assert_never(refusal)
+        occurrence = UnreadablePath(failed_at=path, cause=Refused(operation, reason))
+        document = documents.get(path)
+        if isinstance(refusal, RefusedRead) and document is not None:
+            reports.append(UnreadableDocument(document, occurrence))
+        else:
+            reports.append(LoadFailureReport(path, occurrence))
+    return tuple(reports)
 
 
 def _print_text(reports: tuple[RunReport, ...], database: Database, color: ColorChoice) -> None:
