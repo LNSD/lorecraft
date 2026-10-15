@@ -99,10 +99,13 @@ mapping at the top, such as a block sequence, a single scalar or an empty block,
 ### Syntax errors
 
 A block written only with accepted constructs can still be broken: a bad indent, an unclosed quote, a tab. Each is
-`FM002`, worded by lorecraft, never by the parser. lorecraft classifies the parser's error into one of the kinds
-below, from what its `SyntaxErrorProblem` carries: the problem and the context it names, the two positions, and the
-block's own text at them. The line reported is the one the writer fixes, which for an unclosed construct is where it
-opened.
+`FM002`, worded by `lorecraft.project`, never by the parser. `lorecraft.yaml` classifies the parser's error into
+one of the typed kinds below before returning it. Parser problem and context texts, their positions and the block's
+text may be used inside that package to classify the error; none of the parser's message text crosses its public
+boundary. `SyntaxErrorProblem` carries a `YamlSyntaxError` typed sum, with one frozen dataclass per kind and a
+fallback for an unclassified error. Each kind carries the line to fix and the structured facts its wording needs.
+`lorecraft.project` chooses the label and help from that kind, without classifying again or reading parser messages.
+The line reported is the one the writer fixes, which for an unclosed construct is where it opened.
 
 | Kind | Example | Reported on | Label | Help |
 |---|---|---|---|---|
@@ -121,6 +124,14 @@ opened.
 | A backslash before U+0085, U+2028 or U+2029 in double quotes | `a: "b\␅c"` | The line | `` `\` before U+0085 is not an escape ``, naming its code point | Write `\\` for a backslash, or use single quotes |
 | A character that cannot start a plain value | `` a: `b` ``, `a: @b` | The line | `` a plain value cannot start with `@` `` | Quote the value |
 | A control character | `b` followed by U+0007 | The line | `the block holds the control character U+0007` | Remove it |
+
+The typed facts preserve the table's wording without making the caller recover facts from parser prose: the
+indented-key kind carries both key names, bracket kinds carry the closing bracket, escape kinds carry the written
+escape or separator code point, and character kinds carry the character or code point. The plain-value-colon kind
+carries the facts needed for the quoted-value help example. Kinds whose wording is fixed need only their position.
+The position is the table's reported line, including the opening line for an unclosed quote; the caller only maps
+that block position to the document. The fallback carries the parser's problem position when known, with no parser
+message, and keeps the existing label and absence of help.
 
 U+0085, U+2028 and U+2029 are the one kind the parser does not report, since it reads them as line breaks: lorecraft
 finds them in the token stream, as it finds a refused construct, and reports them with this kind's label and help.
@@ -142,9 +153,11 @@ parser text; every syntax-error probe is held to a kind, so the fallback stays a
    on the later key's line and pointing back at the first. The block still decodes, the later value standing, so
    its other fields are still read and checked.
 6. **A syntax error inside the subset is `FM002`, worded by lorecraft, never by the parser** (FR-015). Each error
-   is classified into a kind of the Specification's Syntax errors table, from the texts and positions of its
-   `SyntaxErrorProblem`, and reported with that kind's label and help, on the line the writer fixes. No parser text
-   reaches a diagnostic.
+   is classified inside `lorecraft.yaml` into a typed kind of the Specification's Syntax errors table. Its
+   `SyntaxErrorProblem` returns that kind, the line to fix and the facts the label and help quote, never parser
+   problem or context text. `lorecraft.project` maps the kind to that label and help and the block position to the
+   document line; it neither interprets parser messages nor repeats classification. Labels, help and reported lines,
+   including the fallback, stay the same across this boundary change.
 7. **The block is read by YAML 1.2's grammar, with the four rules of frontmatter's own the Specification states.**
    No other rule bends the parser's grammar, and none is kept only to copy how another parser reads YAML.
 
@@ -194,8 +207,10 @@ parser text; every syntax-error probe is held to a kind, so the fallback stays a
 - **Every `FM002` syntax-error message changes**, to lorecraft's label and a help line. For an unclosed quote the
   line moves to where the quote opens, and for a line that is not `key: value` to that line, both where the writer
   fixes it.
-- **lorecraft owns the classification**: it reads the parser's error texts to pick a kind, so a parser upgrade that
-  rewords an error can move it to the fallback. The pinned parser and a test per kind catch that before release.
+- **`lorecraft.yaml` owns the classification**: it alone interprets parser error texts to pick a typed kind, so a
+  parser upgrade that rewords an error can move it to the fallback. The pinned parser and a test per kind catch
+  that before release. Parser-specific changes stay inside that package; `lorecraft.project` owns the diagnostic
+  wording and consumes structured facts without learning the parser's vocabulary.
 - **A U+0085, U+2028 or U+2029 outside quotes is now `FM002`**, where the block used to split its line there. These
   characters are rarely written on purpose, and the help says what to write instead.
 - **The parser code in `frontmatter.py` shrinks**: the directive and version handling, the YAML 1.1 line breaks, the
@@ -221,6 +236,12 @@ parser text; every syntax-error probe is held to a kind, so the fallback stays a
 - [ ] A key written twice in a mapping at any depth is `FM005` on the later key's line, pointing back at the first
 - [ ] Each kind of the Syntax errors table has a test: its example is `FM002` with that kind's label and help, on
   the line the table names
+- [ ] Each Syntax errors kind has a frozen typed value in `lorecraft.yaml`, carrying its position and the facts
+  its label and help need; the fallback carries a position when known and no parser message
+- [ ] Syntax errors are classified inside `lorecraft.yaml`; no caller reads parser problem or context text or
+  repeats classification from the block text
+- [ ] `lorecraft.project` maps typed kinds and facts to the table's labels and help, preserving the reported lines
+  and fallback wording
 - [ ] No diagnostic quotes a parser's message text
 - [ ] No syntax-error probe falls back to `the block cannot be read from this line on`
 - [ ] Every frontmatter block in lorecraft's own repository decodes to the same value as before

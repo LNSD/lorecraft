@@ -47,9 +47,11 @@ every option.
 2. **The parser reads the format adr-019 defines, and does not define it.** What is accepted, what is refused and how
    a refusal is worded are adr-019's; this record adds no rule about the format.
 3. **Every problem the parser meets in a block is `FM002`, never a crash.** `read_yaml` returns it as a `YamlProblem`,
-   and a syntax error's texts and positions, a `SyntaxErrorProblem`, are handed to adr-019's classification, which
-   words it; the parser's text is never shown. No ruamel.yaml type leaves `lorecraft.yaml`. Where
-   its scanner would let a plain `ValueError` escape, it is never reached that way: a `\U` escape above `U+10FFFF`
+   and classifies a syntax error inside `lorecraft.yaml` into a typed kind defined by adr-019.
+   `SyntaxErrorProblem` carries that kind and the facts needed to word it, including the position of the line to
+   fix; it exposes no parser problem or context text. `lorecraft.project` maps the kind to adr-019's `FM002` label
+   and help without interpreting parser messages or repeating classification. No ruamel.yaml type leaves
+   `lorecraft.yaml`. Where its scanner would let a plain `ValueError` escape, it is never reached that way: a `\U` escape above `U+10FFFF`
    is a refused construct, as adr-019's Refused table words it, and a directive is refused at its `%` before its
    version number is read.
 4. **`ruamel.yaml` is a runtime dependency, pinned `>=0.19.1,<0.20`**, and its C extension is never installed:
@@ -96,7 +98,11 @@ every option.
 - [ ] No module under `src/` or `tests/` imports `yaml`
 - [ ] `pyproject.toml` declares `pyyaml` in no dependency group or extra, and lists `ruamel.yaml>=0.19.1,<0.20`
 - [ ] `ruamel.yaml.clib` is not installed by lorecraft's runtime dependencies, and the `clib` extra is not requested
-- [ ] `frontmatter.py` builds the value from ruamel.yaml's events and never calls a ruamel.yaml loader or constructor
+- [ ] `yaml/reader.py` builds the value tree from events; `frontmatter.py` maps that tree onto frontmatter, and
+  neither calls a ruamel.yaml loader or constructor
+- [ ] Syntax-error classification stays inside `lorecraft.yaml`; callers consume typed kinds and facts, never
+  parser problem or context text
+- [ ] `lorecraft.project` words each syntax-error kind as adr-019 specifies, without reclassifying it
 - [ ] `frontmatter.py` and `yaml/basic_yaml.py` state no format rule of their own beyond adr-019's
 - [ ] The switch's pull request records that, inside adr-019's format, the events on the corpus match PyYAML's in
   type, value, style and line
