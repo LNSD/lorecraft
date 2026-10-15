@@ -147,3 +147,5 @@ Before committing code, verify:
 - [adr-011-rules-engine](adr-011-rules-engine.md) - Related: The runner that applies governance to each document
 - [prd-020-skills-corpus](prd-020-skills-corpus.md) - Related: The skills corpus, whose namespaces layer the same
   way
+- [adr-022](adr-022-skills-governance.md) - Related: Proposed replacement of fixed-only skills governance
+  with a reserved corpus and bounded contradiction detection
