@@ -10,6 +10,7 @@ from lorecraft.rules.tests.sample_rules import valid as valid_rules
 from ..rule_arguments import (
     AliasSelector,
     AllSelector,
+    CodeNumberOutOfRangeError,
     CodePrefixSelector,
     CodeSelector,
     EmptySelectorError,
@@ -49,6 +50,45 @@ class SampleIndex:
 
 
 SAMPLE_INDEX: Final[SampleIndex] = SampleIndex()
+
+
+@pytest.mark.unit
+class TestCodeSelector:
+    def test_init_with_a_zero_number_raises_code_number_out_of_range_error(self) -> None:
+        #: Given
+        number = 0
+
+        #: When
+        with pytest.raises(CodeNumberOutOfRangeError) as exc_info:
+            CodeSelector('OUT', number)
+
+        #: Then
+        assert 'number' in str(exc_info.value), 'the error names the field'
+        assert '0' in str(exc_info.value), 'the error names the rejected value'
+
+    def test_init_with_a_number_above_999_raises_code_number_out_of_range_error(self) -> None:
+        #: Given
+        number = 1000
+
+        #: When
+        with pytest.raises(CodeNumberOutOfRangeError) as exc_info:
+            CodeSelector('OUT', number)
+
+        #: Then
+        assert 'number' in str(exc_info.value), 'the error names the field'
+        assert '1000' in str(exc_info.value), 'the error names the rejected value'
+
+    def test_init_with_a_negative_number_raises_code_number_out_of_range_error(self) -> None:
+        #: Given
+        number = -1
+
+        #: When
+        with pytest.raises(CodeNumberOutOfRangeError) as exc_info:
+            CodeSelector('OUT', number)
+
+        #: Then
+        assert 'number' in str(exc_info.value), 'the error names the field'
+        assert '-1' in str(exc_info.value), 'the error names the rejected value'
 
 
 @pytest.mark.unit
