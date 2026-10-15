@@ -66,3 +66,5 @@ Before committing code, verify:
 - [adr-001-snapshot-model](adr-001-snapshot-model.md) - Related: The model and the package roles
 - [adr-005-incremental](adr-005-incremental.md) - Related: Why location decides whether a result carries over
 - [adr-016-specifications](adr-016-specifications.md) - Related: Meta specs and governance restated, which supersedes adr-006
+- [adr-023](adr-023-governed-items.md) - Related: Proposed replacement of origin-specific references with one
+  governed-item reference and model-resolved descriptor

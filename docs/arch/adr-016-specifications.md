@@ -149,3 +149,5 @@ Before committing code, verify:
   way
 - [adr-022](adr-022-skills-governance.md) - Related: Proposed replacement of fixed-only skills governance
   with a reserved corpus and bounded contradiction detection
+- [adr-023](adr-023-governed-items.md) - Related: Unified governed-item reference and model-resolved governance
+  descriptor
