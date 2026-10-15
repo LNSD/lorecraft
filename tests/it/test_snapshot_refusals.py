@@ -14,6 +14,7 @@ from typing import Final
 import pytest
 from typer.testing import CliRunner
 
+from lib.disk import DiskFileSystem
 from lorecraft.cli import build_app
 from lorecraft.core.num import UnsignedInt
 from lorecraft.core.path import RootRelativePath
@@ -23,7 +24,6 @@ from lorecraft.vfs import (
     DirEntry,
     DirListError,
     DirResolveError,
-    DiskFileSystem,
     FileReadError,
     FileResolveError,
     OsRefusal,

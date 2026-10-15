@@ -207,7 +207,7 @@ def load_workspace(
 def load_model(fs: FileSystem) -> WorkspaceModel:
     """Wire one filesystem view into the three repositories and load the workspace model through them.
 
-    The view decides where the model comes from: a `DiskFileSystem` reads the disk as it is at each call,
+    The view decides where the model comes from: a view of the disk reads it as it is at each call,
     and a `VirtualFileSystem` answers from one snapshot, so the model reflects a single moment. Nothing the
     declaration holds raises: a unit that fails is recorded in the model.
 

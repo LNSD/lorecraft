@@ -15,6 +15,7 @@ from typing import Final, assert_never
 
 import pytest
 
+from lib.disk import DiskFileSystem
 from lorecraft.core.error import Error
 from lorecraft.core.num import UnsignedInt
 from lorecraft.core.path import PathComponent, RootRelativePath
@@ -24,7 +25,6 @@ from lorecraft.vfs import (
     DirEntry,
     DirListError,
     DirResolveError,
-    DiskFileSystem,
     EntryInspectError,
     EntryKind,
     EntryRecord,

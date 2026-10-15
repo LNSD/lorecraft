@@ -13,6 +13,7 @@ from typing import Final
 
 import pytest
 
+from lib.disk import DiskFileSystem
 from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.project.skill import (
     OutsideSymlink,
@@ -33,7 +34,6 @@ from lorecraft.project.skill import (
 from lorecraft.vfs import (
     DirListError,
     DirResolveError,
-    DiskFileSystem,
     FileReadError,
     FileResolveError,
     OsRefusal,
