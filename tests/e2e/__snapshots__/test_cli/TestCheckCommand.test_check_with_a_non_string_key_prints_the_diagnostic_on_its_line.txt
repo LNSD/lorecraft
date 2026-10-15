@@ -4,6 +4,6 @@ error[FM002]: frontmatter is not valid YAML
 3 │ 2026: launch
   │ ──────────── found the non-string key 2026, which frontmatter does not allow
   │
- ::: docs/__meta__/code.structure.json
+ ::: docs/__meta__/code.spec.json
   │
   = note: the frontmatter schema is set here

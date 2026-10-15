@@ -125,7 +125,7 @@ class Spec:
     Attributes:
         name: The specification name, `<corpus>` or `<corpus>-<namespace>`. Always set by the test, since a
             document names its corpus by it.
-        structure: The structure specification, written as JSON to `<name>.structure.json`. Generated when unset:
+        structure: The structure specification, written as JSON to `<name>.spec.json`. Generated when unset:
             a rule from each check, as `lib.generated` states, which a default `Document` follows.
         prose: The prose specification, written as given to `<name>.md`. Unlike every other field, nothing is
             written when it is unset rather than a generated value: no check reads the prose, so a specification
@@ -147,7 +147,7 @@ class Spec:
         if structure is None:
             structure = generated.spec_structure(faker)
 
-        files = {_SPECS_DIRECTORY / f'{self.name}.structure.json': json.dumps(structure, indent=2) + '\n'}
+        files = {_SPECS_DIRECTORY / f'{self.name}.spec.json': json.dumps(structure, indent=2) + '\n'}
         if self.prose is not None:
             files[_SPECS_DIRECTORY / f'{self.name}.md'] = self.prose
         return files
