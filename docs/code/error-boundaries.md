@@ -20,9 +20,11 @@ owned by [error-handling](error-handling.md).
 
 A function whose caller broke its contract, such as a check registered twice, raises a built-in: `ValueError`
 for a value the parameter does not allow, `TypeError` for an unsupported type, `RuntimeError` for an operation
-the object's state forbids, and `NotImplementedError` for an operation a subclass must provide. The list is
-closed. A `KeyError` in particular is not raised for a broken contract: every handler written around a mapping
-lookup catches it by accident, and its name says nothing about a caller's mistake.
+the object's state forbids, and `NotImplementedError` for an operation a subclass must provide. A path the
+code's invariants make dead raises `Unreachable` ([python-typing-unreachable](python-typing-unreachable.md)).
+The list is closed, but for the three cases of [§2](#2-three-defects-raise-outside-the-list). A `KeyError` in
+particular is not raised for a broken contract: every handler written around a mapping lookup catches it by
+accident, and its name says nothing about a caller's mistake.
 
 The test is who fixes it. A change to the code is a defect and raises a built-in; a change to the files a
 command read is an `Error`. The command line turns an `Error` into a message and an exit status, which is right
@@ -33,7 +35,7 @@ A value object's invariant raises its variant, whoever constructs the value
 ([pattern-value-object](pattern-value-object.md)), since it cannot know whether its caller parsed input or
 joined a literal. A record only code builds, from values already parsed, is the other case: no file supplies
 its fields, so a value breaking its invariant is a broken contract, and its guard may raise `ValueError`, but
-only once the questions of [§2](#2-a-built-in-in-raises-is-a-smell) leave no other answer. Where that guard
+only once the questions of [§3](#3-a-built-in-in-raises-is-a-smell) leave no other answer. Where that guard
 sits is owned by [python-dataclasses](python-dataclasses.md).
 
 A defect a test must single out subclasses the one built-in it already is, never `BaseException` and never two
@@ -55,7 +57,25 @@ def register_check(check: Check) -> None:
         raise RuntimeError(f'check {check.name!r} is registered twice')
 ```
 
-## 2. A Built-in in `Raises:` Is a Smell
+## 2. Three Defects Raise Outside the List
+
+Three defects raise outside the list, because something other than the caller decides their exception. A dunder method implementing a
+language protocol raises the exception the protocol names, `KeyError` from a mapping's `__getitem__` or
+`StopIteration` from `__next__`, since `get`, `in` and `for` depend on it. A test helper that cannot find what
+its test asked for raises `AssertionError`, which pytest reports as a failed test rather than an error.
+
+A value object input reaches only through a named conversion that cannot fail is the third case. The conversion
+owns the variant, so a value the constructor rejects is a defect, and the constructor raises a `ValueError`
+subclass rather than the variant [§1](#1-a-broken-contract-raises-a-built-in-never-an-error) asks of a value
+object.
+
+```python
+# ✅ Good — the language's mapping protocol, which `get` and `in` rely on, requires the KeyError
+def __getitem__(self, key: K) -> V:
+    return self._items[key]
+```
+
+## 3. A Built-in in `Raises:` Is a Smell
 
 A built-in exception listed in a `Raises:` section often points to a design that could exclude the case, or to
 a failure of input raised as a defect. A reviewer who meets one asks, in order:
@@ -150,7 +170,7 @@ class OutlineSpec:
     source: OutlineFile
 ```
 
-## 3. A Framework's Exception Is Raised Only at Its Seam
+## 4. A Framework's Exception Is Raised Only at Its Seam
 
 Some exceptions are a framework's protocol rather than the package's errors: pydantic turns only its own
 `PydanticCustomError`, or a validator's `ValueError`, into a validation error, and Typer renders a usage error or
@@ -181,7 +201,7 @@ def _from_pydantic(cls, value: str) -> Self:
         raise PydanticCustomError('section_name', '{reason}', {'reason': str(exc)}) from exc
 ```
 
-## 4. A Foreign Failure Is Translated Into Typed Facts, Keeping Its Source
+## 5. A Foreign Failure Is Translated Into Typed Facts, Keeping Its Source
 
 The variant that catches a foreign exception — the operating system's, the standard library's, a dependency's —
 is where that failure enters the package. It keeps the exception as its `source`, so the chain, the traceback and
@@ -216,7 +236,7 @@ except OSError as exc:
     raise SpecReadError(path, ReadRefusal.from_error(exc), source=exc) from exc
 ```
 
-## 5. Wrap Only Where the Layer Adds a Step or an Identity
+## 6. Wrap Only Where the Layer Adds a Step or an Identity
 
 A function wraps a lower failure in a variant of its own when it adds something the lower error cannot know:
 the step it was taking, or the identity of what it was working on. When it adds neither, the lower variants
@@ -242,7 +262,7 @@ def parse_outline(path: Path) -> Outline:
     """
 ```
 
-## 6. The Layers Form One Chain
+## 7. The Layers Form One Chain
 
 Put together, each layer contributes one link, carrying its own facts: the foreign failure enters with its
 facts classified, a layer with nothing to add lets the variants through, and a layer that knows what it was
@@ -275,9 +295,9 @@ OutlineLoadError   corpus='code'   "cannot load the outline of corpus code"
 
 Before committing code, verify:
 
-- [ ] A broken contract raises `ValueError`, `TypeError`, `RuntimeError`, or `NotImplementedError` for an
-      operation a subclass must provide; never an `Error`, a `KeyError` or another built-in
-- [ ] A value object's invariant raises its variant, whoever constructs the value
+- [ ] A broken contract raises `ValueError`, `TypeError`, `RuntimeError` or `NotImplementedError`, and a dead
+      path `Unreachable`; never an `Error`, a `KeyError` or another built-in, outside the cases of §2
+- [ ] A value object's invariant raises its variant, whoever constructs the value, outside the case of §2
 - [ ] Among invariants, only the guard of a record only code builds may raise `ValueError`
 - [ ] Every built-in in a `Raises:` section, direct or propagated, has passed the questions of §2 at its
       source: no type can exclude the case, and no file a command read can cause it

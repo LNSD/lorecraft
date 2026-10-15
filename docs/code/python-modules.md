@@ -65,8 +65,8 @@ names it does not re-export is internal whatever the file is called.
 
 Declare each concrete exception, and any `type` union naming an operation's failures, beside the code that
 raises them: the variants a value object's `parse` raises sit in the value object's module, and a repository method's
-variants sit in the repository's module. The package's `Error` base, which is never raised directly,
-may use a module named for that exact type, `error.py`. How an error type is declared is owned by
+variants sit in the repository's module. The package's base exceptions, `Error`, which is never raised directly, and
+`Unreachable`, may use a module named for that exact type, `error.py`. How an error type is declared is owned by
 [error-types](error-types.md).
 
 ## 3. Relative Inside a Top-Level Package, Absolute Across Them

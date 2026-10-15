@@ -1,6 +1,6 @@
 ---
 name: "python-typing-unreachable"
-description: "Unreachable code: the `Never` bottom type, `-> Never` on a function that always raises, `match` closed by `assert_never` over a closed union or enum, `case _` only over an open domain, and `raise AssertionError` where ty cannot prove a branch dead. Load when writing a function that never returns, branching on which member of a union or enum a value holds, writing a `case _` or final `else`, or ending a path the checker cannot see is dead"
+description: "Unreachable code: the `Never` bottom type, `-> Never` on a function that always raises, `match` closed by `assert_never` over a closed union or enum, `case _` only over an open domain, and `raise Unreachable` under a `# SAFETY:` comment where ty cannot prove a branch dead. Load when writing a function that never returns, branching on which member of a union or enum a value holds, writing a `case _` or final `else`, or ending a path the checker cannot see is dead"
 type: "core"
 scope: "global"
 ---
@@ -148,17 +148,22 @@ def classify(error: OSError) -> Refusal:
             return Refusal.OTHER
 ```
 
-## 4. A Branch `ty` Cannot Prove Dead Raises `AssertionError`
+## 4. A Branch `ty` Cannot Prove Dead Raises `Unreachable`
 
 Some paths are dead for a reason the type system cannot express: an infinite iterator, an invariant a
-validator established upstream. The path ends with `raise AssertionError('unreachable: <why>')`, the message
-naming the invariant that makes it dead.
+validator established upstream. The path ends with `raise Unreachable('<expectation>')`, the package's
+`AssertionError` subclass from `lorecraft.core.error`, under a `# SAFETY: <invariant>` comment. The two say
+different things to different readers, as Rust's `.expect()` does: the comment justifies the code to a reviewer
+by naming the invariant that makes the path dead, and the message tells whoever reads the traceback which
+expectation broke. A helper that ends such a path for its caller raises `Unreachable` and is annotated `-> Never`
+([§1](#1-spell-the-bottom-type-never-never-noreturn)).
 
-The two neighbouring forms are wrong for opposite reasons. `assert_never` there is a type error, because the
+The neighbouring forms are wrong for opposite reasons. `assert_never` there is a type error, because the
 checker cannot prove the value `Never`, and silencing that error defeats every other `assert_never` the reader
 trusts. `assert False` is removed under `python -O`, so the dead path returns `None` after all, and Ruff's
-`B011` reports it. The converse also holds: where `ty` can prove the path dead, write `assert_never`, because
-an `AssertionError` there gives up the check.
+`B011` reports it. A bare `AssertionError` cannot be told apart from a failed test assertion. The converse also
+holds: where `ty` can prove the path dead, write `assert_never`, because an `Unreachable` there gives up the
+check.
 
 ```python
 # ❌ Bad — `-> int` is broken on a path ty sees, and the `return 0` added to satisfy it would name a slot
@@ -176,7 +181,8 @@ def first_free_slot(taken: set[int]) -> int:
     for slot in itertools.count(1):
         if slot not in taken:
             return slot
-    raise AssertionError('unreachable: itertools.count() never stops')
+    # SAFETY: itertools.count() is infinite, so the loop only exits by returning
+    raise Unreachable('a free slot is always found')
 ```
 
 ## Checklist
@@ -192,8 +198,9 @@ Before committing code, verify:
       `else: assert_never(...)`, with a comment saying why
 - [ ] Every `case _:` or final `else` with behaviour matches a value from an open domain; over a union, an
       `Enum`, or a `Literal`, each member has an arm and the catch-all is `assert_never`
-- [ ] Every path dead for a reason `ty` cannot see ends in `raise AssertionError('unreachable: ...')` naming
-      the reason, never `assert False`, a dummy `return`, or an `assert_never` with a silenced diagnostic
+- [ ] Every path dead for a reason `ty` cannot see ends in `raise Unreachable('<expectation>')` under a
+      `# SAFETY: <invariant>` comment, never `assert False`, a bare `AssertionError`, a dummy `return`, or an
+      `assert_never` with a silenced diagnostic
 
 ## References
 
