@@ -114,3 +114,4 @@ every option.
 - [adr-019](adr-019-frontmatter-format.md) - Foundation: The frontmatter format this parser reads
 - [module-lorecraft-project](../code/module-lorecraft-project.md) - Related: The package whose frontmatter parser
   this decision changes
+- [adr-021-dependency-wrappers](adr-021-dependency-wrappers.md) - Related: The wrapper boundary that contains the YAML library

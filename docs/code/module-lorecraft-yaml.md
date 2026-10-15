@@ -88,5 +88,6 @@ Before committing code, verify:
 
 - [adr-001-snapshot-model](../arch/adr-001-snapshot-model.md) - Foundation: The Derivation role
 - [adr-017-yaml-parser](../arch/adr-017-yaml-parser.md) - Foundation: The parser is ruamel.yaml's event API
+- [adr-021-dependency-wrappers](../arch/adr-021-dependency-wrappers.md) - Foundation: Large dependencies stay behind owned wrapper layers
 - [principle-single-responsibility](principle-single-responsibility.md) - Foundation: One reason to change
 - [principle-information-hiding](principle-information-hiding.md) - Foundation: The library's types stay behind the wrapper
