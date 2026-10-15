@@ -535,8 +535,8 @@ class TestInspectCommand:
 
         #: Then
         assert result.exit_code == 2, result.output
-        assert 'error: cannot snapshot directory docs: permission denied' in result.output, (
-            'the failure names the step, the path the scan stopped at, and the refusal'
+        assert result.output.startswith('error: cannot snapshot directory docs\n  caused by: [Errno 13]'), (
+            'the failure names the step and the path the scan stopped at; the operating system states the refusal'
         )
 
     def test_inspect_with_a_linked_specs_directory_exits_two_and_names_it(self, linked_specs_workspace: Path) -> None:
@@ -1309,9 +1309,12 @@ class TestCheckCommand:
         #: Then
         assert result.exit_code == 2, result.output
         assert result.stdout == '', 'after an error nothing is printed but the error'
-        assert result.stderr == 'error: cannot snapshot file docs/code/logging.md: permission denied\n', (
-            'a document the run cannot read stops it, naming the document and the refusal'
+        lines = result.stderr.splitlines()
+        assert lines[0] == 'error: cannot snapshot file docs/code/logging.md', (
+            'a document the run cannot read stops it, naming the document'
         )
+        assert len(lines) == 2, 'the operating system is the last link of the chain'
+        assert lines[1].startswith('  caused by: [Errno 13] Permission denied'), 'the last link is its own text'
 
     def test_check_with_a_linked_specs_directory_exits_as_invalid_input(self, linked_specs_workspace: Path) -> None:
         #: Given
@@ -1428,9 +1431,9 @@ class TestCheckCommand:
 
         #: Then
         assert result.exit_code == 2, result.output
-        assert result.stderr == 'error: cannot read the current directory: no such file or directory\n', (
-            'a working directory the operating system cannot report has no root to search from'
-        )
+        assert result.stderr == (
+            'error: cannot read the current directory\n  caused by: [Errno 2] No such file or directory\n'
+        ), 'a working directory the operating system cannot report has no root to search from'
 
     @pytest.mark.skipif(os.geteuid() == 0, reason='root ignores directory permissions')
     @pytest.mark.skipif(sys.version_info >= (3, 14), reason="Python 3.14's is_dir answers False for every failure")
@@ -1448,9 +1451,11 @@ class TestCheckCommand:
         #: Then
         assert result.exit_code == 2, result.output
         assert result.stdout == '', 'after an error nothing is printed but the error'
-        assert (
-            result.stderr == f'error: cannot find repository root: cannot inspect {candidate}: permission denied\n'
-        ), 'a directory the search cannot inspect stops discovery, naming the directory and the refusal'
+        lines = result.stderr.splitlines()
+        assert lines[0] == f'error: cannot find repository root: cannot inspect {candidate}', (
+            'a directory the search cannot inspect stops discovery, naming the directory'
+        )
+        assert lines[1].startswith('  caused by: [Errno 13] Permission denied'), 'the operating system is the last link'
 
     @pytest.mark.skipif(os.geteuid() == 0, reason='root ignores directory permissions')
     @pytest.mark.skipif(sys.version_info >= (3, 14), reason="Python 3.14's is_dir answers False for every failure")
@@ -1468,9 +1473,11 @@ class TestCheckCommand:
         #: Then
         assert result.exit_code == 2, result.output
         assert result.stdout == '', 'after an error nothing is printed but the error'
-        assert result.stderr == f'error: cannot inspect root {root}: permission denied\n', (
-            'a root that cannot be inspected is refused, naming the root and the refusal'
+        lines = result.stderr.splitlines()
+        assert lines[0] == f'error: cannot inspect root {root}', (
+            'a root that cannot be inspected is refused, naming the root'
         )
+        assert lines[1].startswith('  caused by: [Errno 13] Permission denied'), 'the operating system is the last link'
 
     def test_check_with_a_missing_root_exits_as_invalid_input_and_names_the_root(self, tmp_path: Path) -> None:
         #: Given

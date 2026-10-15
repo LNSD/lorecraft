@@ -114,4 +114,6 @@ def check(
     # Imported here, not at the top: `check_run` imports the rules engine, which `--help` and `--version` never use.
     from ..check_run import run_check
 
-    run_check(root, output_format=output_format, color=color, select=select, ignore=ignore)
+    status = run_check(root, output_format=output_format, color=color, select=select, ignore=ignore)
+    if status is not None:
+        raise typer.Exit(code=status)

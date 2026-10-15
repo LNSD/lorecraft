@@ -54,9 +54,10 @@ one is added.
   [check](cli-check.md) does, and `2` when it could not run: a usage error, or a failure that stopped it.
 - A command that can print JSON takes `--format text|json`: `text` for a person to read, `json` for a script.
 - Output a reader can script against goes to stdout; summaries and errors go to stderr.
-- A failure that stops a command is printed as `error: <message>`, then one indented `caused by: <message>` line
-  for each failure beneath it: what the command was doing first, then each step inside it that failed, down to
-  the one where the failure began.
+- A failure that stops a command is printed as `error: <message>`. When it has causes, each follows on an indented
+  `caused by: <message>` line down to where the failure began; an operating-system or parser message appears there
+  when present. Some refusals have no OS line: for example, `check` reports an unlistable directory under `docs/`
+  as `cannot snapshot directory <path>: permission denied`.
 
 ## Configuration
 

@@ -51,7 +51,9 @@ def inspect(
     # Imported here, not at the top: `inspect_run` imports the workspace model, which `--help` never uses.
     from ..inspect_run import run_inspect
 
-    run_inspect(root, _resolve_format(output_format, as_json=as_json))
+    status = run_inspect(root, _resolve_format(output_format, as_json=as_json))
+    if status is not None:
+        raise typer.Exit(code=status)
 
 
 def _resolve_format(output_format: OutputFormat | None, *, as_json: bool) -> OutputFormat:

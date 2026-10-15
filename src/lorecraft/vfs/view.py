@@ -128,7 +128,7 @@ class DirListError(Error):
         self.path = path
         self.refusal = refusal
         self.source = source
-        super().__init__(f'cannot list directory {path}: {refusal}')
+        super().__init__(f'cannot list directory {path}')
         self.__cause__ = source
 
 
@@ -149,7 +149,7 @@ class FileReadError(Error):
         self.path = path
         self.refusal = refusal
         self.source = source
-        super().__init__(f'cannot read file {path}: {refusal}')
+        super().__init__(f'cannot read file {path}')
         self.__cause__ = source
 
 
@@ -205,7 +205,7 @@ class EntryInspectError(Error):
         self.path = path
         self.refusal = refusal
         self.source = source
-        super().__init__(f'cannot inspect entry {path}: {refusal}')
+        super().__init__(f'cannot inspect entry {path}')
         self.__cause__ = source
 
 
@@ -226,7 +226,7 @@ class DirResolveError(Error):
         self.path = path
         self.refusal = refusal
         self.source = source
-        super().__init__(f'cannot resolve directory {path}: {refusal}')
+        super().__init__(f'cannot resolve directory {path}')
         self.__cause__ = source
 
 
@@ -247,7 +247,7 @@ class FileResolveError(Error):
         self.path = path
         self.refusal = refusal
         self.source = source
-        super().__init__(f'cannot resolve file {path}: {refusal}')
+        super().__init__(f'cannot resolve file {path}')
         self.__cause__ = source
 
 
@@ -271,7 +271,7 @@ class RootExitWalkError(Error):
         self.entry = entry
         self.refusal = refusal
         self.source = source
-        super().__init__(f'cannot walk the symlink chain at {path}: {refusal}')
+        super().__init__(f'cannot walk the symlink chain at {path}')
         self.__cause__ = source
 
 
@@ -347,7 +347,7 @@ class RecordedDirListPathError(Error):
         self.path = path
         self.refusal = refusal
         self.source = source
-        super().__init__(f'cannot list directory {path}: {refusal}')
+        super().__init__(f'cannot list directory {path}')
         self.__cause__ = source
 
 
@@ -368,7 +368,7 @@ class RecordedFileReadPathError(Error):
         self.path = path
         self.refusal = refusal
         self.source = source
-        super().__init__(f'cannot read file {path}: {refusal}')
+        super().__init__(f'cannot read file {path}')
         self.__cause__ = source
 
 
@@ -389,7 +389,7 @@ class RecordedDirResolveError(Error):
         self.path = path
         self.refusal = refusal
         self.source = source
-        super().__init__(f'cannot resolve directory {path}: {refusal}')
+        super().__init__(f'cannot resolve directory {path}')
         self.__cause__ = source
 
 
@@ -410,7 +410,7 @@ class RecordedFileResolveError(Error):
         self.path = path
         self.refusal = refusal
         self.source = source
-        super().__init__(f'cannot resolve file {path}: {refusal}')
+        super().__init__(f'cannot resolve file {path}')
         self.__cause__ = source
 
 
@@ -434,7 +434,7 @@ class RecordedRootExitWalkError(Error):
         self.entry = source.path
         self.refusal = refusal
         self.source = source
-        super().__init__(f'cannot walk the symlink chain at {path}: {refusal}')
+        super().__init__(f'cannot walk the symlink chain at {path}')
         self.__cause__ = source
 
 

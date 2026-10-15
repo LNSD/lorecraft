@@ -74,7 +74,7 @@ class SnapshotDirListError(Error):
         self.path = path
         self.refusal = refusal
         self.source = source
-        super().__init__(f'cannot snapshot directory {path}: {refusal}')
+        super().__init__(f'cannot snapshot directory {path}')
         self.__cause__ = source
 
 
@@ -95,7 +95,7 @@ class SnapshotEntryInspectError(Error):
         self.path = path
         self.refusal = refusal
         self.source = source
-        super().__init__(f'cannot snapshot entry {path}: {refusal}')
+        super().__init__(f'cannot snapshot entry {path}')
         self.__cause__ = source
 
 
@@ -116,7 +116,7 @@ class SnapshotFileReadError(Error):
         self.path = path
         self.refusal = refusal
         self.source = source
-        super().__init__(f'cannot snapshot file {path}: {refusal}')
+        super().__init__(f'cannot snapshot file {path}')
         self.__cause__ = source
 
 
@@ -137,7 +137,7 @@ class SnapshotLinkReadError(Error):
         self.path = path
         self.refusal = refusal
         self.source = source
-        super().__init__(f'cannot snapshot link {path}: {refusal}')
+        super().__init__(f'cannot snapshot link {path}')
         self.__cause__ = source
 
 
