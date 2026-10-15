@@ -22,6 +22,41 @@ clean:
     find . -type f -name "*.pyc" -delete
 
 
+## Performance
+
+# Fail when `lorecraft check` on this repository takes longer than the budget, the best of RUNS runs, in seconds
+[group: 'check']
+check-perf BUDGET='1.2' RUNS='3':
+    #!/usr/bin/env -S uv run python
+    # The budget is the one LNSD accepted for prd-008 NFR-002 (v0.2 took 0.4 s; the structured checks parse every
+    # governed document). The best run is kept so a busy machine does not fail the recipe. Not part of the
+    # default gates: wall time depends on the machine, so it is run on demand. A run counts only when `check`
+    # completed: exit 0 (clean) or 1 (error diagnostics); exit 2 (usage error or refusal) or a crash would be a
+    # short run that is not the work being timed.
+    import subprocess
+    import sys
+    import time
+
+    BUDGET = float('{{BUDGET}}')
+    RUNS = int('{{RUNS}}')
+
+    timings: list[float] = []
+    for _ in range(RUNS):
+        start = time.perf_counter()
+        completed = subprocess.run(['uv', 'run', 'lorecraft', 'check'], capture_output=True, text=True, check=False)
+        if completed.returncode not in (0, 1):
+            print(f'lorecraft check exited {completed.returncode}, not timed:', file=sys.stderr)
+            print(completed.stderr, file=sys.stderr)
+            raise SystemExit(1)
+        timings.append(time.perf_counter() - start)
+
+    best = min(timings)
+    print(f'lorecraft check: best of {RUNS} runs {best:.2f} s (budget {BUDGET:.2f} s)')
+    if best > BUDGET:
+        print('over budget', file=sys.stderr)
+        raise SystemExit(1)
+
+
 ## Code formatting and linting
 
 alias format := fmt
