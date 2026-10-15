@@ -17,7 +17,7 @@ from lorecraft.rules.report import SkippedSubject, SubjectReport, UndecodableSub
 from lorecraft.rules.table import RuleTable
 from lorecraft.vfs import RefusedRead, RefusedRecord
 
-from .runner import Subject, check_layout_entry, check_skill, check_skill_resource, judge_document
+from .runner import RefusedSkillSubject, Subject, check_layout_entry, check_skill, check_skill_resource, judge_document
 
 
 def check_subjects(
@@ -53,6 +53,8 @@ def check_subjects(
                 reports.append(SkippedSubject(location.ref, (location.file_resolves_to,)))
             case SkillResourceLocation() as location if _is_refused_docs_path(location.resolves_to, refusals):
                 reports.append(SkippedSubject(location.ref, (location.resolves_to,)))
+            case RefusedSkillSubject(ref=ref, refused_at=path):
+                reports.append(SkippedSubject(ref, (path,)))
             case DocumentRef():
                 reports.append(_check_document(database, subject, table))
             case SkillLocation():

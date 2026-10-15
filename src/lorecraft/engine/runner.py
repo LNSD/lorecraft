@@ -41,8 +41,10 @@ package governs the skill layout, so it is never ungoverned: every rule over a l
 context.
 """
 
+from dataclasses import dataclass
 from typing import assert_never
 
+from lorecraft.core.path import RootRelativePath
 from lorecraft.project.database import (
     Database,
     DatabaseDocumentContext,
@@ -56,7 +58,7 @@ from lorecraft.project.database import (
     Undecodable,
 )
 from lorecraft.project.document import DocumentRef
-from lorecraft.project.skill import OutsideSymlink, SkillLocation, SkillResourceLocation
+from lorecraft.project.skill import OutsideSymlink, SkillAliasRef, SkillLocation, SkillResourceLocation
 from lorecraft.project.workspace import Governance
 from lorecraft.rules.report import (
     CheckedDocument,
@@ -70,11 +72,23 @@ from lorecraft.rules.report import (
 from lorecraft.rules.subject import Facet, MarkdownRule
 from lorecraft.rules.table import EnabledRule, RuleTable
 
-# A subject an entry point checks: a document, by its ref, a skill, by the location the model hands out for it, a
-# skill's resource, by the location its skill's resource listing gives, or a layout entry, by the record of a symlink
-# whose chain leaves the repository. A document's, a skill's and a resource's report holds its ref, which each
-# location carries; a layout entry's holds the path an agent reaches the symlink by.
-type Subject = DocumentRef | SkillLocation | SkillResourceLocation | OutsideSymlink
+
+# A subject an entry point checks: a document, a skill, a resource, a refused skill alias, or a layout entry. Each
+# report holds its ref or the path an agent reaches the symlink by.
+@dataclass(frozen=True, slots=True)
+class RefusedSkillSubject:
+    """A skill alias whose resource listing reached a refused docs path.
+
+    Attributes:
+        ref: The symlink path where an agent reaches the refused alias, including a directory alias.
+        refused_at: The docs path the skill listing could not inspect.
+    """
+
+    ref: SkillAliasRef
+    refused_at: RootRelativePath
+
+
+type Subject = DocumentRef | SkillLocation | SkillResourceLocation | OutsideSymlink | RefusedSkillSubject
 
 
 def judge_document(database: Database, source: DocumentText, table: RuleTable) -> CheckedDocument:

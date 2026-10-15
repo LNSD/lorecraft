@@ -59,10 +59,10 @@ ancestors has the scan read that ancestor's whole subtree once, and ends there.
 
 
 def _is_declared_file(path: RootRelativePath) -> bool:
-    """Whether `path` is under `docs/`, whose unreadability must be retained for the command to report.
+    """Whether `path` is under `docs/`, whose unreadability the database exposes for the command to report.
 
-    The loader reads meta specs. Other documentation files are read by later checks, but retaining their refusals
-    lets the command report them without aborting the scan.
+    The loader reads meta specs and governed documents; later checks also read unknown files and files reached through
+    skill links. Retaining every docs refusal lets the model or database report it without aborting the scan.
 
     Args:
         path: The root-relative, resolved path of a regular file the scan reads.
@@ -71,16 +71,13 @@ def _is_declared_file(path: RootRelativePath) -> bool:
 
 
 DECLARATION: Final[Declaration] = Declaration(is_file=_is_declared_file)
-"""What a snapshot keeps a refusal of instead of stopping the scan, for a model loaded from it to report.
+"""Which regular files a snapshot keeps unreadable instead of stopping the scan.
 
-The scan keeps every directory it cannot list, every entry it cannot inspect on the chain of a link under a skills
-directory, and each `*.spec.json`, or legacy `*.structure.json`, in `docs/__meta__/` it cannot read. It is the
-loader that decides what of that is a unit of the declaration: it reports the listing of `docs/`, of
-`docs/__meta__/`, of a corpus directory, of a skills directory and of a skill entry, the chain of a skills
-directory, of a skill entry and of a `SKILL.md`, and a structure file. A refusal kept that the loader never meets,
-such as a directory no meta spec names, is raised by the command, which scans again with no declaration. A refusal
-on a document or on any other file is not kept at all: the scan stops there, and reporting it is the owner's to
-decide."""
+Every file under `docs/` is retained, including user-provided schemas, spec documents, governed documents and files
+no corpus names. The model records refusals it encounters while loading; the database exposes other docs refusals to
+the command as diagnostics. Directory refusals and refused entries on followed skill-link chains are retained by the
+snapshot as well. A refusal outside `docs/` that the model does not report remains a scan-blocking error.
+"""
 
 
 class LinkedLayoutError(Error):

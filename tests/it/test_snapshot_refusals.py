@@ -157,6 +157,44 @@ def tree_with_refused_skill_file_alias(tree: Path, lock: Callable[[Path], None])
 
 
 @pytest.fixture(scope='function')
+def tree_with_refused_inspect_resource_alias(tree: Path, lock: Callable[[Path], None]) -> Path:
+    """A skill resource link whose docs target cannot be inspected, beside an invalid UTF-8 document.
+
+    Args:
+        tree: The base repository to extend.
+        lock: Fixture that makes a directory inaccessible to the scan.
+    """
+    target_dir = tree / 'docs' / 'code' / 'sub'
+    target_dir.mkdir()
+    (target_dir / 'x.md').write_text('# Hidden\n', encoding='utf-8')
+    lock(target_dir)
+    (tree / 'docs' / 'code' / 'broken.md').write_bytes(b'\xff')
+    (tree / '.agents' / 'skills' / 'commit' / 'guide.md').symlink_to('../../../docs/code/sub/x.md')
+    (tree / '.agents' / 'skills' / 'commit' / 'references' / 'guide.md').write_text('[y](/missing.md)\n')
+    return tree
+
+
+@pytest.fixture(scope='function')
+def tree_with_refused_inspect_directory_alias(tree: Path, lock: Callable[[Path], None]) -> Path:
+    """A skill directory alias into an uninspectable docs directory, beside an invalid UTF-8 document.
+
+    Args:
+        tree: The base repository to extend.
+        lock: Fixture that makes a directory inaccessible to the scan.
+    """
+    target_dir = tree / 'docs' / 'code' / 'sub'
+    (target_dir / 'inner').mkdir(parents=True)
+    lock(target_dir)
+    (tree / 'docs' / 'code' / 'broken.md').write_bytes(b'\xff')
+    (tree / '.agents' / 'skills' / 'commit' / 'shared').symlink_to('../../../docs/code/sub/inner')
+    (tree / '.agents' / 'skills' / 'commit' / 'SKILL.md').write_text(
+        '---\nname: commit\ndescription: Write a commit message\n---\n\n# Commit\n\n[y](/missing.md)\n',
+        encoding='utf-8',
+    )
+    return tree
+
+
+@pytest.fixture(scope='function')
 def unsearchable_links_directory(tree: Path) -> Iterator[Path]:
     """A `links` directory of the tree holding a link, readable and not searchable; restored afterwards.
 
@@ -838,6 +876,54 @@ class TestCheckOverARefusalNoLoadFailureReports:
             item['path'] == '.agents/skills/commit/SKILL.md' and item['skipped_by'] == ['docs/code/locked.json']
             for item in report['coverage']
         ), 'JSON coverage names the skill and the refused target'
+
+    def test_check_with_a_resource_alias_through_an_uninspectable_docs_directory_reports_and_counts_it(
+        self, tree_with_refused_inspect_resource_alias: Path
+    ) -> None:
+        #: Given
+        app = build_app()
+
+        #: When
+        result = runner.invoke(
+            app, ['check', '--root', str(tree_with_refused_inspect_resource_alias), '--format', 'json']
+        )
+
+        #: Then
+        assert result.exit_code == 1, result.output
+        report = json.loads(result.stdout)
+        assert {(item['path'], item['code']) for item in report['diagnostics']} == {
+            ('docs/code/sub/x.md', 'LC002'),
+            ('docs/code/broken.md', 'LC001'),
+            ('.agents/skills/commit/references/guide.md', 'LINK001'),
+        }, 'the refusal, invalid document and unaffected sibling resource remain diagnosed'
+        assert report['summary']['subjects'] == 6, 'the skipped resource and its unaffected sibling remain counted'
+        assert any(
+            item['path'] == '.agents/skills/commit/guide.md' and item['skipped_by'] == ['docs/code/sub/x.md']
+            for item in report['coverage']
+        ), 'JSON coverage names the alias and the inspected target that stopped its link chain'
+
+    def test_check_with_a_directory_alias_through_an_uninspectable_docs_directory_reports_the_alias_path(
+        self, tree_with_refused_inspect_directory_alias: Path
+    ) -> None:
+        #: Given
+        app = build_app()
+
+        #: When
+        result = runner.invoke(
+            app, ['check', '--root', str(tree_with_refused_inspect_directory_alias), '--format', 'json']
+        )
+
+        #: Then
+        assert result.exit_code == 1, result.output
+        report = json.loads(result.stdout)
+        assert any(item['code'] == 'LC002' for item in report['diagnostics'])
+        assert ('.agents/skills/commit/SKILL.md', 'LINK001') in {
+            (item['path'], item['code']) for item in report['diagnostics']
+        }, 'the skill itself is still checked'
+        assert report['summary']['subjects'] == 6, 'the refused directory alias is one subject beside the skill'
+        assert any(
+            item['path'] == '.agents/skills/commit/shared' and item['skipped_by'] for item in report['coverage']
+        ), 'coverage reports the refused directory alias at the path an agent reaches it'
 
     def test_check_with_an_unreadable_unknown_docs_file_reports_lc002_and_exits_one(
         self, tree: Path, lock: Callable[[Path], None]
