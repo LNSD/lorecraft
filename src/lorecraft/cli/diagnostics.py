@@ -20,6 +20,7 @@ from typing import Literal, assert_never
 from pydantic import BaseModel, ConfigDict
 
 from lorecraft.core.num import NonZeroUnsignedInt
+from lorecraft.project.document import DocumentRef
 from lorecraft.rules.identity import Severity
 from lorecraft.rules.report import (
     CheckedDocument,
@@ -204,7 +205,12 @@ def render_coverage(reports: tuple[RunReport, ...]) -> str:
                 lines.append(f'{subject.ref.path}: ungoverned for {facets}')
             case SkippedSubject():
                 files = ', '.join(str(path) for path in subject.failed_layers)
-                lines.append(f'{subject.ref.path}: skipped, governed by a structure file that failed to load: {files}')
+                if isinstance(subject.ref, DocumentRef):
+                    lines.append(
+                        f'{subject.ref.path}: skipped, governed by a structure file that failed to load: {files}'
+                    )
+                else:
+                    lines.append(f'{subject.ref.path}: skipped, depends on a refused docs path: {files}')
             case _:
                 assert_never(subject)
     return '\n'.join(lines)

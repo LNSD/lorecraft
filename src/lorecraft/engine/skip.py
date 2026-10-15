@@ -1,29 +1,31 @@
-"""The check run's entry point: the rules over each subject, as `lorecraft check` runs them.
+"""Run checks over workspace subjects, skipping files whose required input was refused.
 
-The check run is one mode of the engine. This module is that mode's own entry point over the shared runner: it matches
-on each subject kind and calls the function of `lorecraft.engine.runner` that judges it, so the policy of the run is
-here and never in the runner. A mode that treats a document a failed layer governs differently is an entry point of its
-own beside this one, not a parameter of this function.
-
-The check run's policy for a document a failed layer governs is to skip it: the layers of a meta spec apply by
-conjunction, so a document cannot be called clean from the layers that loaded. The document is decoded first, so a file
-that does not decode is reported as it always is; a decoded one that a failed layer governs gets no rule and is
-reported as skipped, with the structure file of each failed layer.
+A document governed by a meta spec that failed to load cannot be called clean from only the layers that loaded. It is
+decoded first, and a decoded document is skipped with the failed structure paths. A skill or resource whose resolved
+docs target was refused is also skipped; the refusal itself is reported at its target.
 """
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from typing import assert_never
 
+from lorecraft.core.path import RootRelativePath
 from lorecraft.project.database import Database, DocumentText, Undecodable
 from lorecraft.project.document import DocumentRef
+from lorecraft.project.layout import DOCS_DIR
 from lorecraft.project.skill import OutsideSymlink, SkillLocation, SkillResourceLocation
 from lorecraft.rules.report import SkippedSubject, SubjectReport, UndecodableSubject
 from lorecraft.rules.table import RuleTable
+from lorecraft.vfs import RefusedRead, RefusedRecord
 
 from .runner import Subject, check_layout_entry, check_skill, check_skill_resource, judge_document
 
 
-def check_subjects(database: Database, subjects: Iterable[Subject], table: RuleTable) -> tuple[SubjectReport, ...]:
+def check_subjects(
+    database: Database,
+    subjects: Iterable[Subject],
+    table: RuleTable,
+    refusals: Mapping[RootRelativePath, RefusedRecord] | None = None,
+) -> tuple[SubjectReport, ...]:
     """Run the table's rules over each document, skill, resource and layout entry, and report each in the order given.
 
     Args:
@@ -33,15 +35,24 @@ def check_subjects(database: Database, subjects: Iterable[Subject], table: RuleT
             entry is a symlink whose chain leaves the repository, as the database's model or a skill's resource
             listing records it.
         table: The rules the run enables, each with its severity.
+        refusals: Docs paths the snapshot refused, whose diagnostics the caller reports; empty by default.
 
     Raises:
         DocumentReadError: If a document is missing from the snapshot; a decode failure is a diagnostic.
         SkillReadError: If a skill's `SKILL.md` is missing from the snapshot; a decode failure is a diagnostic.
         SkillResourceReadError: If a resource is missing from the snapshot; a decode failure is a diagnostic.
     """
+    if refusals is None:
+        refusals = {}
     reports: list[SubjectReport] = []
     for subject in subjects:
         match subject:
+            case DocumentRef() as ref if isinstance(refusals.get(ref.path), RefusedRead):
+                continue  # the unreadable-document report is already in the caller's reports
+            case SkillLocation() as location if _is_refused_docs_path(location.file_resolves_to, refusals):
+                reports.append(SkippedSubject(location.ref, (location.file_resolves_to,)))
+            case SkillResourceLocation() as location if _is_refused_docs_path(location.resolves_to, refusals):
+                reports.append(SkippedSubject(location.ref, (location.resolves_to,)))
             case DocumentRef():
                 reports.append(_check_document(database, subject, table))
             case SkillLocation():
@@ -53,6 +64,16 @@ def check_subjects(database: Database, subjects: Iterable[Subject], table: RuleT
             case _:
                 assert_never(subject)
     return tuple(reports)
+
+
+def _is_refused_docs_path(path: RootRelativePath, refusals: Mapping[RootRelativePath, RefusedRecord]) -> bool:
+    """Whether a subject resolves to a refused path under `docs/`.
+
+    Args:
+        path: The resolved file path the subject depends on.
+        refusals: Snapshot refusals keyed by their root-relative path.
+    """
+    return path.is_relative_to(DOCS_DIR) and refusals.get(path) is not None
 
 
 def _check_document(database: Database, ref: DocumentRef, table: RuleTable) -> SubjectReport:

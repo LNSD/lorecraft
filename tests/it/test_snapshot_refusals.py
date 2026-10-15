@@ -6,6 +6,7 @@ error where the disk view raises its own. Each test locks one path of a real tre
 it. The command tests at the end hold what `lorecraft check` does with a refusal the model does not report.
 """
 
+import json
 import os
 from collections.abc import Callable, Iterator, Sequence
 from pathlib import Path
@@ -105,6 +106,54 @@ def tree(tmp_path: Path) -> Path:
     (tmp_path / '.agents' / 'skills' / 'review').mkdir()
     (tmp_path / '.agents' / 'skills' / 'review' / 'SKILL.md').symlink_to('../../../texts/REVIEW.md')
     return tmp_path
+
+
+@pytest.fixture(scope='function')
+def tree_with_refused_resource_alias(tree: Path, lock: Callable[[Path], None]) -> Path:
+    """A workspace whose skill resource links to an unreadable docs file, beside an invalid UTF-8 document.
+
+    Args:
+        tree: The base repository to extend.
+        lock: Fixture that makes a file unreadable for the scan.
+    """
+    locked = tree / 'docs' / 'code' / 'locked.json'
+    locked.write_text('{}', encoding='utf-8')
+    lock(locked)
+    (tree / 'docs' / 'code' / 'broken.md').write_bytes(b'\xff')
+    (tree / '.agents' / 'skills' / 'commit' / 'guide.md').symlink_to('../../../docs/code/locked.json')
+    return tree
+
+
+@pytest.fixture(scope='function')
+def tree_with_refused_meta_spec_alias(tree: Path, lock: Callable[[Path], None]) -> Path:
+    """A skill resource linked to an unreadable meta spec.
+
+    Args:
+        tree: The base repository to extend.
+        lock: Fixture that makes the meta spec unreadable for the scan.
+    """
+    meta_spec = tree / 'docs' / '__meta__' / 'code.spec.json'
+    lock(meta_spec)
+    (tree / '.agents' / 'skills' / 'commit' / 'guide.md').symlink_to('../../../docs/__meta__/code.spec.json')
+    return tree
+
+
+@pytest.fixture(scope='function')
+def tree_with_refused_skill_file_alias(tree: Path, lock: Callable[[Path], None]) -> Path:
+    """A workspace whose linked `SKILL.md` targets an unreadable docs file, beside an invalid UTF-8 document.
+
+    Args:
+        tree: The base repository to extend.
+        lock: Fixture that makes a file unreadable for the scan.
+    """
+    locked = tree / 'docs' / 'code' / 'locked.json'
+    locked.write_text('{}', encoding='utf-8')
+    lock(locked)
+    (tree / 'docs' / 'code' / 'broken.md').write_bytes(b'\xff')
+    skill_file = tree / '.agents' / 'skills' / 'commit' / 'SKILL.md'
+    skill_file.unlink()
+    skill_file.symlink_to('../../../docs/code/locked.json')
+    return tree
 
 
 @pytest.fixture(scope='function')
@@ -659,6 +708,137 @@ class TestVirtualFileSystemOverARefusal:
 @pytest.mark.it
 @pytest.mark.skipif(os.geteuid() == 0, reason='root ignores file and directory permissions')
 class TestCheckOverARefusalNoLoadFailureReports:
+    def test_check_with_a_resource_alias_to_an_unreadable_meta_spec_reports_once_and_exits_one(
+        self, tree_with_refused_meta_spec_alias: Path
+    ) -> None:
+        #: Given
+        app = build_app()
+
+        #: When
+        result = runner.invoke(app, ['check', '--root', str(tree_with_refused_meta_spec_alias), '--format', 'json'])
+
+        #: Then
+        assert result.exit_code == 1, result.output
+        report = json.loads(result.stdout)
+        assert {(item['path'], item['code']) for item in report['diagnostics']} == {
+            ('docs/__meta__/code.spec.json', 'LC002'),
+        }, 'the load failure reports the unreadable meta spec once'
+        assert report['summary']['subjects'] == 5, 'the refused resource remains in the subject count'
+        assert any(
+            item['path'] == '.agents/skills/commit/guide.md' and item['skipped_by'] == ['docs/__meta__/code.spec.json']
+            for item in report['coverage']
+        ), 'the resource alias remains visible as skipped coverage'
+
+    def test_check_with_a_resource_alias_and_text_format_preserves_both_diagnostics(
+        self, tree_with_refused_resource_alias: Path
+    ) -> None:
+        #: Given
+        app = build_app()
+        root = str(tree_with_refused_resource_alias)
+
+        #: When
+        result = runner.invoke(app, ['check', '--root', root, '--format', 'text'])
+
+        #: Then
+        assert result.exit_code == 1, result.output
+        assert all(
+            value in result.stdout for value in ('docs/code/locked.json', 'LC002', 'docs/code/broken.md', 'LC001')
+        ), 'text output keeps both diagnostics when a skill resource aliases the refused docs file'
+
+    def test_check_with_a_resource_alias_and_short_format_preserves_both_diagnostics(
+        self, tree_with_refused_resource_alias: Path
+    ) -> None:
+        #: Given
+        app = build_app()
+        root = str(tree_with_refused_resource_alias)
+
+        #: When
+        result = runner.invoke(app, ['check', '--root', root, '--format', 'short'])
+
+        #: Then
+        assert result.exit_code == 1, result.output
+        assert all(
+            value in result.stdout for value in ('docs/code/locked.json', 'LC002', 'docs/code/broken.md', 'LC001')
+        ), 'short output keeps both diagnostics when a skill resource aliases the refused docs file'
+
+    def test_check_with_a_resource_alias_and_json_format_preserves_both_diagnostics(
+        self, tree_with_refused_resource_alias: Path
+    ) -> None:
+        #: Given
+        app = build_app()
+        root = str(tree_with_refused_resource_alias)
+
+        #: When
+        result = runner.invoke(app, ['check', '--root', root, '--format', 'json'])
+
+        #: Then
+        assert result.exit_code == 1, result.output
+        report = json.loads(result.stdout)
+        assert {(item['path'], item['code']) for item in report['diagnostics']} == {
+            ('docs/code/locked.json', 'LC002'),
+            ('docs/code/broken.md', 'LC001'),
+        }, 'JSON output reports each failure exactly at its refused or invalid document path'
+        assert report['summary']['subjects'] == 6, 'the skipped resource remains a counted subject'
+        assert any(
+            item['path'] == '.agents/skills/commit/guide.md' and item['skipped_by'] == ['docs/code/locked.json']
+            for item in report['coverage']
+        ), 'JSON coverage names the resource and the refused target'
+
+    def test_check_with_a_skill_file_alias_and_text_format_preserves_both_diagnostics(
+        self, tree_with_refused_skill_file_alias: Path
+    ) -> None:
+        #: Given
+        app = build_app()
+        root = str(tree_with_refused_skill_file_alias)
+
+        #: When
+        result = runner.invoke(app, ['check', '--root', root, '--format', 'text'])
+
+        #: Then
+        assert result.exit_code == 1, result.output
+        assert all(
+            value in result.stdout for value in ('docs/code/locked.json', 'LC002', 'docs/code/broken.md', 'LC001')
+        ), 'text output keeps both diagnostics when a skill SKILL.md aliases the refused docs file'
+
+    def test_check_with_a_skill_file_alias_and_short_format_preserves_both_diagnostics(
+        self, tree_with_refused_skill_file_alias: Path
+    ) -> None:
+        #: Given
+        app = build_app()
+        root = str(tree_with_refused_skill_file_alias)
+
+        #: When
+        result = runner.invoke(app, ['check', '--root', root, '--format', 'short'])
+
+        #: Then
+        assert result.exit_code == 1, result.output
+        assert all(
+            value in result.stdout for value in ('docs/code/locked.json', 'LC002', 'docs/code/broken.md', 'LC001')
+        ), 'short output keeps both diagnostics when a skill SKILL.md aliases the refused docs file'
+
+    def test_check_with_a_skill_file_alias_and_json_format_preserves_both_diagnostics(
+        self, tree_with_refused_skill_file_alias: Path
+    ) -> None:
+        #: Given
+        app = build_app()
+        root = str(tree_with_refused_skill_file_alias)
+
+        #: When
+        result = runner.invoke(app, ['check', '--root', root, '--format', 'json'])
+
+        #: Then
+        assert result.exit_code == 1, result.output
+        report = json.loads(result.stdout)
+        assert {(item['path'], item['code']) for item in report['diagnostics']} == {
+            ('docs/code/locked.json', 'LC002'),
+            ('docs/code/broken.md', 'LC001'),
+        }, 'JSON output reports each failure exactly at its refused or invalid document path'
+        assert report['summary']['subjects'] == 5, 'the skipped skill remains a counted subject'
+        assert any(
+            item['path'] == '.agents/skills/commit/SKILL.md' and item['skipped_by'] == ['docs/code/locked.json']
+            for item in report['coverage']
+        ), 'JSON coverage names the skill and the refused target'
+
     def test_check_with_an_unreadable_unknown_docs_file_reports_lc002_and_exits_one(
         self, tree: Path, lock: Callable[[Path], None]
     ) -> None:

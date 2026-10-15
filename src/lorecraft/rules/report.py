@@ -23,10 +23,10 @@ ungoverned by, so it gets a report of its own, a `CheckedLayoutEntry`: its path 
 order.
 
 Two reports come from what failed to load, never from a rule. A `SkippedSubject` is a document decoded and not judged,
-because a structure file that governs it failed to load: it holds no diagnostic and is listed in coverage with the
-structure files that caused it. A `LoadFailureReport` is the failure itself, filed at its own path with the one
-diagnostic of its engine condition, whatever the configuration and the selection, in the same total order as every
-other diagnostic.
+because a structure file that governs it failed to load, or a skill file whose docs target was refused: it holds no
+diagnostic and is listed in coverage with the paths that caused it. A `LoadFailureReport` is the failure itself,
+filed at its own path with the one diagnostic of its engine condition, whatever the configuration and the selection,
+in the same total order as every other diagnostic.
 """
 
 from dataclasses import dataclass
@@ -251,25 +251,23 @@ class CheckedLayoutEntry:
 
 @dataclass(frozen=True, slots=True)
 class SkippedSubject:
-    """A document no rule judged, because a structure file that governs it failed to load.
+    """A document or skill file no rule judged because a path it depends on could not be read.
 
-    The layers of a meta spec apply by conjunction, so a document cannot be called clean from the layers that loaded.
-    It is coverage, never a diagnostic: it holds none, and the failure that caused it is reported once, at its own
-    path, as a `LoadFailureReport`.
+    A document governed by a failed structure layer cannot be called clean from the layers that loaded. A skill file
+    whose resolved target was refused cannot be judged either. It is coverage, never a diagnostic: it holds none, and
+    the failure that caused it is reported once, at its own path, as a `LoadFailureReport`.
 
     Attributes:
-        ref: The document that was decoded and not judged.
-        failed_layers: The path of each structure file that governs the document and failed to load, in layer order,
-            corpus spec first. The type requires a first path, so a skipped document always names the failure that
-            skipped it.
+        ref: The document, skill or resource that was not judged.
+        failed_layers: Paths of failed structure layers or refused docs targets that prevented checking.
     """
 
-    ref: DocumentRef
+    ref: SubjectRef
     failed_layers: tuple[RootRelativePath, *tuple[RootRelativePath, ...]]
 
     @property
     def diagnostics(self) -> tuple[()]:
-        """None: the document was not judged, and the failure is reported at the structure file."""
+        """None: the subject was not judged, and the failure is reported at its own path."""
         return ()
 
 

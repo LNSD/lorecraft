@@ -4,14 +4,12 @@ This is the composition root of the rules engine. `--select` and `--ignore` arri
 index; it loads the package's rules and builds the selection from them, establishes the root, takes one snapshot,
 opens the database over it, stops when `docs/` or `docs/__meta__/` could not be listed, selects every subject of the
 workspace, builds the rule table from the rules and the selection, and hands the database, the subjects and the
-table to the runner, beside the report of each unit of the declaration that failed to load; what comes back is
-rendered by `diagnostics` and decides the exit code. Every `Error` escaping that flow is reported here and exits 2; a
-file that does not decode and a unit that failed to load are diagnostics, not errors, and a run that reports one exits
-1. A unit the operating system refuses while the snapshot is taken is one of them: the snapshot keeps each directory
-it cannot list, each entry on a followed chain it cannot inspect and each structure file it cannot read, and the
-model records the ones it loads as load failures. The run stops, as the scan always did, at a refusal the snapshot
-does not keep, such as a document, and at one it keeps that no load failure reports, such as a directory no meta
-spec names. A selection that holds an alias code, or names a rule its level leaves off, is warned
+table to the runner, beside the reports for retained refusals and units that failed to load; what comes back is
+rendered by `diagnostics` and decides the exit code. A file that does not decode, a load failure, or a retained
+refusal under `docs/` is a diagnostic, and a run that reports one exits 1. Subjects whose resolved files have a
+retained docs refusal are skipped because that path already has a diagnostic. A refusal outside `docs/` that the
+model does not report, or an `Error` escaping the flow, is reported here and exits 2; unlistable `docs/` and
+`docs/__meta__/` also exit 2. A selection that holds an alias code, or names a rule its level leaves off, is warned
 of on stderr, and the run goes on.
 
 It lives apart from `commands/check.py` so that importing the command, which `--help` and `--version` do, does not
@@ -70,8 +68,9 @@ def run_check(
         ignore: The `--ignore` values, already parsed and confirmed against the rule index.
 
     Returns:
-        `ExitStatus.FINDINGS` when any diagnostic is an error, `ExitStatus.FAILURE` for invalid input or
-        when `docs/` or `docs/__meta__/` cannot be listed, which the command handler exits with; `None` otherwise.
+        `ExitStatus.FINDINGS` when any diagnostic is an error, `ExitStatus.FAILURE` for invalid input, an
+        unreported refusal outside `docs/`, or when `docs/` or `docs/__meta__/` cannot be listed, which the
+        command handler exits with; `None` otherwise.
 
     Raises:
         RuntimeError: If the rules cannot be registered, or a selector names a group or a code the registry does not
@@ -93,17 +92,18 @@ def run_check(
             return load_failure_reports
         refusals = database.refusals()
         docs_refusals = database.unreported_docs_refusals()
+        all_docs_refusals = {path: refusal for path, refusal in refusals.items() if path.is_relative_to(DOCS_DIR)}
         non_docs_refusals = {path: refusal for path, refusal in refusals.items() if not path.is_relative_to(DOCS_DIR)}
         reject_unreported_refusals(non_docs_refusals, model)
         documents = {ref.path: ref for ref in model.documents()}
         refusal_reports = _refusal_reports(docs_refusals, documents)
-        subjects = tuple(
-            subject
-            for subject in select_workspace(database)
-            if not isinstance(subject, DocumentRef) or not isinstance(refusals.get(subject.path), RefusedRead)
-        )
+        subjects = select_workspace(database)
         table = RuleTable.from_registry(registry, parsed.selection)
-        reports = (*load_failure_reports, *refusal_reports, *check_subjects(database, subjects, table))
+        reports = (
+            *load_failure_reports,
+            *refusal_reports,
+            *check_subjects(database, subjects, table, all_docs_refusals),
+        )
     except Error as exc:
         report_failure(exc)
         return ExitStatus.FAILURE
@@ -145,7 +145,12 @@ def _reports_or_status(model: WorkspaceModel) -> tuple[RunReport, ...] | ExitSta
 def _refusal_reports(
     refusals: Mapping[RootRelativePath, RefusedRecord], documents: Mapping[RootRelativePath, DocumentRef]
 ) -> tuple[RunReport, ...]:
-    """Report retained refusals under `docs/`, keeping unreadable governed documents as subjects."""
+    """Report retained refusals under `docs/`, keeping unreadable governed documents as subjects.
+
+    Args:
+        refusals: Docs refusals the model has not already reported as load failures.
+        documents: Governed documents keyed by path, used to preserve their subject counts.
+    """
     reports: list[RunReport] = []
     for path, refusal in refusals.items():
         match refusal:
