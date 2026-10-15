@@ -12,15 +12,15 @@ from typing import Final
 
 import pytest
 
+from lib.tree import from_tree
 from lorecraft.core.num import UnsignedInt
-from lorecraft.core.path import PathComponent, PathComponentError, RootRelativePath
+from lorecraft.core.path import PathComponent, RootRelativePath
 
 from ..scan_root import ScanRoot
 from ..snapshot import (
     DirectoryRecord,
     EntryRecord,
     FileRecord,
-    FileTree,
     OtherRecord,
     Snapshot,
     SnapshotRecords,
@@ -124,101 +124,11 @@ FILE_BEHIND_A_LINK: Final[Mapping[str, EntryRecord]] = MappingProxyType(
 
 
 @pytest.mark.unit
-class TestSnapshotFromTree:
-    def test_from_tree_with_nested_directories_records_every_directory_listed_and_every_file(self) -> None:
-        #: Given
-        tree: FileTree = {'docs': {'code': {'b.md': b'b', 'a.md': b'a'}, 'glossary.md': b'g'}}
-
-        #: When
-        snapshot = Snapshot.from_tree(tree)
-
-        #: Then
-        assert snapshot == _snapshot(
-            {
-                '.': DirectoryRecord(listed=True),
-                'docs': DirectoryRecord(listed=True),
-                'docs/code': DirectoryRecord(listed=True),
-                'docs/code/a.md': FileRecord(b'a'),
-                'docs/code/b.md': FileRecord(b'b'),
-                'docs/glossary.md': FileRecord(b'g'),
-            }
-        ), 'every mapping is a listed directory, root included, and every bytes value a file'
-
-    def test_from_tree_with_names_in_another_order_returns_an_equal_snapshot(self) -> None:
-        #: Given
-        tree: FileTree = {'docs': {'b.md': b'b', 'a.md': b'a'}}
-
-        #: When
-        snapshot = Snapshot.from_tree(tree)
-
-        #: Then
-        assert snapshot == Snapshot.from_tree({'docs': {'a.md': b'a', 'b.md': b'b'}}), (
-            'the order the tree names its entries in is not part of the snapshot'
-        )
-
-    def test_from_tree_with_an_empty_tree_lists_the_root_with_no_entries(self) -> None:
-        #: Given
-        tree: FileTree = {}
-
-        #: When
-        snapshot = Snapshot.from_tree(tree)
-
-        #: Then
-        assert snapshot == _snapshot({'.': DirectoryRecord(listed=True)}), (
-            'the empty tree is the root listed with no entries, no bytes and no link'
-        )
-
-    def test_from_tree_with_an_empty_directory_lists_it_with_no_entries(self) -> None:
-        #: Given
-        tree: FileTree = {'docs': {}}
-
-        #: When
-        snapshot = Snapshot.from_tree(tree)
-
-        #: Then
-        assert snapshot == _snapshot({'.': DirectoryRecord(listed=True), 'docs': DirectoryRecord(listed=True)}), (
-            'an empty mapping is a directory listed with no entries'
-        )
-
-    def test_from_tree_with_files_records_an_empty_scope(self) -> None:
-        #: Given
-        tree: FileTree = {'docs': {'a.md': b'a'}}
-
-        #: When
-        snapshot = Snapshot.from_tree(tree)
-
-        #: Then
-        assert snapshot.scope == (), 'nothing was scanned, so no scan root is recorded, not even one for docs/'
-
-    def test_from_tree_with_a_name_holding_a_slash_raises_path_component_error(self) -> None:
-        #: Given
-        tree: FileTree = {'docs/a.md': b'a'}
-
-        #: When
-        with pytest.raises(PathComponentError) as exc_info:
-            Snapshot.from_tree(tree)
-
-        #: Then
-        assert exc_info.value.name == 'docs/a.md', 'a key names one entry, so a nested path is rejected'
-
-    def test_from_tree_with_the_parent_name_raises_path_component_error(self) -> None:
-        #: Given
-        tree: FileTree = {'docs': {'..': b'a'}}
-
-        #: When
-        with pytest.raises(PathComponentError) as exc_info:
-            Snapshot.from_tree(tree)
-
-        #: Then
-        assert exc_info.value.name == '..', "'..' names no entry of the directory, so it is rejected"
-
-
-@pytest.mark.unit
 class TestSnapshotEquality:
     def test_equal_snapshots_built_twice_compare_equal(self) -> None:
         #: Given
-        first = Snapshot.from_tree({'docs': {'a.md': b'a'}})
-        second = Snapshot.from_tree({'docs': {'a.md': b'a'}})
+        first = from_tree({'docs': {'a.md': b'a'}})
+        second = from_tree({'docs': {'a.md': b'a'}})
 
         #: When
         equal = first == second
@@ -228,8 +138,8 @@ class TestSnapshotEquality:
 
     def test_equal_snapshots_built_twice_hash_equal(self) -> None:
         #: Given
-        first = Snapshot.from_tree({'docs': {'a.md': b'a'}})
-        second = Snapshot.from_tree({'docs': {'a.md': b'a'}})
+        first = from_tree({'docs': {'a.md': b'a'}})
+        second = from_tree({'docs': {'a.md': b'a'}})
 
         #: When
         distinct = {first, second}
@@ -264,8 +174,8 @@ class TestSnapshotEquality:
 
     def test_snapshots_with_different_bytes_compare_unequal(self) -> None:
         #: Given
-        before = Snapshot.from_tree({'docs': {'a.md': b'a'}})
-        after = Snapshot.from_tree({'docs': {'a.md': b'b'}})
+        before = from_tree({'docs': {'a.md': b'a'}})
+        after = from_tree({'docs': {'a.md': b'b'}})
 
         #: When
         equal = before == after
@@ -332,7 +242,7 @@ class TestSnapshotSymlinkTargets:
 
     def test_symlink_targets_of_a_snapshot_built_from_a_tree_returns_empty(self) -> None:
         #: Given
-        snapshot = Snapshot.from_tree({'docs': {'a.md': b'a'}})
+        snapshot = from_tree({'docs': {'a.md': b'a'}})
 
         #: When
         targets = snapshot.symlink_targets()
@@ -361,7 +271,7 @@ class TestSnapshotClimbedDirectories:
 
     def test_climbed_directories_of_a_snapshot_built_from_a_tree_returns_empty(self) -> None:
         #: Given
-        snapshot = Snapshot.from_tree({'docs': {'a.md': b'a'}})
+        snapshot = from_tree({'docs': {'a.md': b'a'}})
 
         #: When
         climbed = snapshot.climbed_directories()
@@ -471,7 +381,7 @@ class TestSnapshotRecords:
 class TestVirtualFileSystemSnapshot:
     def test_snapshot_returns_the_snapshot_the_view_was_built_from(self) -> None:
         #: Given
-        snapshot = Snapshot.from_tree({'docs': {'a.md': b''}})
+        snapshot = from_tree({'docs': {'a.md': b''}})
         virtual = VirtualFileSystem(snapshot)
 
         #: When
@@ -485,7 +395,7 @@ class TestVirtualFileSystemSnapshot:
 class TestVirtualFileSystemListDir:
     def test_list_dir_with_a_listed_directory_returns_its_entries_sorted_by_name(self) -> None:
         #: Given
-        virtual = VirtualFileSystem(Snapshot.from_tree({'docs': {'b.md': b'', 'a.md': b''}}))
+        virtual = VirtualFileSystem(from_tree({'docs': {'b.md': b'', 'a.md': b''}}))
         path = RootRelativePath.parse('docs')
 
         #: When
@@ -603,7 +513,7 @@ class TestVirtualFileSystemListDir:
 
     def test_list_dir_with_the_listed_root_returns_its_entries_without_the_root(self) -> None:
         #: Given
-        virtual = VirtualFileSystem(Snapshot.from_tree({'a.md': b'a'}))
+        virtual = VirtualFileSystem(from_tree({'a.md': b'a'}))
 
         #: When
         entries = virtual.list_dir(ROOT)
@@ -645,7 +555,7 @@ class TestVirtualFileSystemListDir:
 class TestVirtualFileSystemReadText:
     def test_read_text_with_a_utf8_file_returns_its_text(self) -> None:
         #: Given
-        virtual = VirtualFileSystem(Snapshot.from_tree({'docs': {'guide.md': '# Guía\n'.encode()}}))
+        virtual = VirtualFileSystem(from_tree({'docs': {'guide.md': '# Guía\n'.encode()}}))
         path = RootRelativePath.parse('docs/guide.md')
 
         #: When
@@ -657,7 +567,7 @@ class TestVirtualFileSystemReadText:
     def test_read_text_with_non_utf8_bytes_raises_text_decode_error(self) -> None:
         #: Given
         latin = RootRelativePath.parse('docs/latin.md')
-        virtual = VirtualFileSystem(Snapshot.from_tree({'docs': {'latin.md': b'caf\xe9\n'}}))
+        virtual = VirtualFileSystem(from_tree({'docs': {'latin.md': b'caf\xe9\n'}}))
 
         #: When
         with pytest.raises(TextDecodeError) as exc_info:

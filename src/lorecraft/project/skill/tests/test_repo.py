@@ -11,10 +11,10 @@ from typing import Final
 
 import pytest
 
+from lib.tree import FileTree, from_tree
 from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.vfs import (
     EntryRecord,
-    FileTree,
     ResolvedPath,
     RootExit,
     Snapshot,
@@ -71,7 +71,7 @@ def _repository(files: Mapping[str, bytes], symlinks: Mapping[str, str]) -> Repo
         symlinks: Symlink targets keyed by root-relative path, each spelled from the symlink's own directory. The
             directory a symlink sits in must hold a file too, so the snapshot lists it.
     """
-    records: dict[RootRelativePath, EntryRecord] = dict(Snapshot.from_tree(_file_tree(files)).records)
+    records: dict[RootRelativePath, EntryRecord] = dict(from_tree(_file_tree(files)).records)
     for path, target in symlinks.items():
         records[RootRelativePath.parse(path)] = SymlinkRecord(PurePosixPath(target))
     return Repository(VirtualFileSystem(Snapshot(SnapshotRecords(records))))

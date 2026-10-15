@@ -9,6 +9,7 @@ from pathlib import PurePosixPath
 
 import pytest
 
+from lib.tree import from_tree
 from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.num import UnsignedInt
 from lorecraft.core.path import RootRelativePath
@@ -92,8 +93,8 @@ def _linked_skill_file(data: bytes) -> Snapshot:
 class TestDiff:
     def test_diff_with_equal_file_snapshots_returns_empty(self) -> None:
         #: Given
-        old = Snapshot.from_tree({'docs': {'a.md': b'a'}})
-        new = Snapshot.from_tree({'docs': {'a.md': b'a'}})
+        old = from_tree({'docs': {'a.md': b'a'}})
+        new = from_tree({'docs': {'a.md': b'a'}})
         expected: ChangeSet = FrozenMapping({})
 
         #: When
@@ -104,9 +105,9 @@ class TestDiff:
 
     def test_diff_with_the_same_bytes_in_a_new_object_returns_empty(self) -> None:
         #: Given
-        old = Snapshot.from_tree({'docs': {'a.md': b'a'}})
+        old = from_tree({'docs': {'a.md': b'a'}})
         # A distinct bytes object with the same content: a touch, or a save that wrote the same text.
-        new = Snapshot.from_tree({'docs': {'a.md': bytes(bytearray(b'a'))}})
+        new = from_tree({'docs': {'a.md': bytes(bytearray(b'a'))}})
         expected: ChangeSet = FrozenMapping({})
 
         #: When
@@ -224,8 +225,8 @@ class TestDiff:
 
     def test_diff_with_a_new_file_returns_it_added(self) -> None:
         #: Given
-        old = Snapshot.from_tree({'docs': {'a.md': b'a'}})
-        new = Snapshot.from_tree({'docs': {'a.md': b'a', 'b.md': b'b'}})
+        old = from_tree({'docs': {'a.md': b'a'}})
+        new = from_tree({'docs': {'a.md': b'a', 'b.md': b'b'}})
         expected = {RootRelativePath.parse('docs/b.md'): ChangeKind.ADDED}
 
         #: When
@@ -236,8 +237,8 @@ class TestDiff:
 
     def test_diff_with_a_removed_file_returns_it_deleted(self) -> None:
         #: Given
-        old = Snapshot.from_tree({'docs': {'a.md': b'a', 'b.md': b'b'}})
-        new = Snapshot.from_tree({'docs': {'a.md': b'a'}})
+        old = from_tree({'docs': {'a.md': b'a', 'b.md': b'b'}})
+        new = from_tree({'docs': {'a.md': b'a'}})
         expected = {RootRelativePath.parse('docs/b.md'): ChangeKind.DELETED}
 
         #: When
@@ -248,8 +249,8 @@ class TestDiff:
 
     def test_diff_with_changed_bytes_returns_the_file_modified(self) -> None:
         #: Given
-        old = Snapshot.from_tree({'docs': {'a.md': b'a'}})
-        new = Snapshot.from_tree({'docs': {'a.md': b'changed'}})
+        old = from_tree({'docs': {'a.md': b'a'}})
+        new = from_tree({'docs': {'a.md': b'changed'}})
         expected = {RootRelativePath.parse('docs/a.md'): ChangeKind.MODIFIED}
 
         #: When
@@ -260,7 +261,7 @@ class TestDiff:
 
     def test_diff_with_a_file_replaced_by_a_symlink_returns_it_deleted(self) -> None:
         #: Given
-        old = Snapshot.from_tree({'docs': {'a.md': b'a'}})
+        old = from_tree({'docs': {'a.md': b'a'}})
         new = _docs_link('a.md', 'b.md')
         expected = {RootRelativePath.parse('docs/a.md'): ChangeKind.DELETED}
 
@@ -272,7 +273,7 @@ class TestDiff:
 
     def test_diff_with_a_directory_replaced_by_a_symlink_returns_it_and_its_files_deleted(self) -> None:
         #: Given
-        old = Snapshot.from_tree({'docs': {'code': {'a.md': b'a'}}})
+        old = from_tree({'docs': {'code': {'a.md': b'a'}}})
         new = _docs_link('code', '../elsewhere')
         expected = {
             RootRelativePath.parse('docs/code'): ChangeKind.DELETED,
@@ -287,8 +288,8 @@ class TestDiff:
 
     def test_diff_with_a_new_directory_returns_it_and_its_files_added(self) -> None:
         #: Given
-        old = Snapshot.from_tree({'docs': {'a.md': b'a'}})
-        new = Snapshot.from_tree({'docs': {'a.md': b'a', 'code': {'b.md': b'b', 'c.md': b'c'}}})
+        old = from_tree({'docs': {'a.md': b'a'}})
+        new = from_tree({'docs': {'a.md': b'a', 'code': {'b.md': b'b', 'c.md': b'c'}}})
         expected = {
             RootRelativePath.parse('docs/code'): ChangeKind.ADDED,
             RootRelativePath.parse('docs/code/b.md'): ChangeKind.ADDED,
@@ -303,8 +304,8 @@ class TestDiff:
 
     def test_diff_with_a_renamed_file_returns_the_old_path_deleted_and_the_new_path_added(self) -> None:
         #: Given
-        old = Snapshot.from_tree({'docs': {'a.md': b'same'}})
-        new = Snapshot.from_tree({'docs': {'b.md': b'same'}})
+        old = from_tree({'docs': {'a.md': b'same'}})
+        new = from_tree({'docs': {'b.md': b'same'}})
         expected = {
             RootRelativePath.parse('docs/a.md'): ChangeKind.DELETED,
             RootRelativePath.parse('docs/b.md'): ChangeKind.ADDED,

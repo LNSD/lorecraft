@@ -8,6 +8,7 @@ from pathlib import PurePosixPath
 
 import pytest
 
+from lib.tree import from_tree
 from lorecraft.core.error import Error
 from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.vfs import Snapshot, SnapshotRecords, SymlinkRecord, VirtualFileSystem
@@ -64,9 +65,7 @@ class TestRejectLinkedLayout:
 
     def test_reject_linked_layout_with_real_directories_returns_without_raising(self) -> None:
         #: Given
-        fs = VirtualFileSystem(
-            Snapshot.from_tree({'docs': {'__meta__': {'code.md': b'# Code\n'}, 'code': {'logging.md': b''}}})
-        )
+        fs = VirtualFileSystem(from_tree({'docs': {'__meta__': {'code.md': b'# Code\n'}, 'code': {'logging.md': b''}}}))
 
         #: When
         outcome = reject_linked_layout(fs)

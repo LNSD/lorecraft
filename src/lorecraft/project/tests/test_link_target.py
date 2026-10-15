@@ -9,10 +9,11 @@ from typing import Final
 
 import pytest
 
+from lib.tree import FileTree, from_tree
 from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.syntax import LineNumber, Link
-from lorecraft.vfs import EntryRecord, FileTree, ScopeIndex, Snapshot, SnapshotRecords, SymlinkRecord, VirtualFileSystem
+from lorecraft.vfs import EntryRecord, ScopeIndex, Snapshot, SnapshotRecords, SymlinkRecord, VirtualFileSystem
 
 from ..layout import SNAPSHOT_SCOPE
 from ..link_target import (
@@ -54,7 +55,7 @@ def _snapshot(*links: tuple[str, str]) -> Snapshot:
     Args:
         links: Each symlink, as its root-relative path and its target as written.
     """
-    records: dict[RootRelativePath, EntryRecord] = dict(Snapshot.from_tree(_tree()).records)
+    records: dict[RootRelativePath, EntryRecord] = dict(from_tree(_tree()).records)
     for path, target in links:
         records[RootRelativePath.parse(path)] = SymlinkRecord(PurePosixPath(target))
     return Snapshot(SnapshotRecords(records), scope=SNAPSHOT_SCOPE)

@@ -18,6 +18,7 @@ from typing import Final
 
 import pytest
 
+from lib.tree import from_tree
 from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.num import NonZeroUnsignedInt, UnsignedInt
 from lorecraft.core.path import PathComponent, RootRelativePath
@@ -60,7 +61,7 @@ def _snapshot(guide: bytes) -> Snapshot:
     Args:
         guide: Bytes of `docs/code/guide.md`, the one document in the snapshot.
     """
-    return Snapshot.from_tree(
+    return from_tree(
         {
             'docs': {
                 '__meta__': {'code.md': b'# Code\n', 'code.structure.json': b'{"frontmatter": {"type": "object"}}'},
@@ -75,7 +76,7 @@ def _failed_namespace_layer_snapshot() -> Snapshot:
 
     The one document, `docs/code/python-guide.md`, lacks the `name` the corpus's schema requires.
     """
-    return Snapshot.from_tree(
+    return from_tree(
         {
             'docs': {
                 '__meta__': {
@@ -96,7 +97,7 @@ def _skill_snapshot(skill: bytes) -> Snapshot:
     Args:
         skill: Bytes of the skill's `SKILL.md`.
     """
-    return Snapshot.from_tree({'.agents': {'skills': {'review': {'SKILL.md': skill}}}})
+    return from_tree({'.agents': {'skills': {'review': {'SKILL.md': skill}}}})
 
 
 def _document_text(database: Database, ref: DocumentRef) -> DocumentText:
@@ -230,7 +231,7 @@ class TestDatabase:
         self,
     ) -> None:
         #: Given
-        snapshot = Snapshot.from_tree(
+        snapshot = from_tree(
             {'docs': {'__meta__': {'code.md': b'# Code\n', 'code.structure.json': b'{}'}, 'code': {'guide.md': b''}}}
         )
         path = RootRelativePath.parse('docs/__meta__/code.structure.json')
@@ -478,7 +479,7 @@ class TestDatabase:
 
     def test_source_lines_of_a_skill_resource_returns_the_lines_of_its_decoded_text(self) -> None:
         #: Given
-        snapshot = Snapshot.from_tree(
+        snapshot = from_tree(
             {'.agents': {'skills': {'review': {'SKILL.md': b'# Review\n', 'guide.md': b'\xef\xbb\xbfone\ntwo\n'}}}}
         )
         database = Database.from_snapshot(snapshot)
@@ -734,9 +735,7 @@ class TestDatabase:
         # What a scan records for `.agents/skills/review -> ../../skills/review`: the link in the skills directory,
         # and the SKILL.md at the resolved path it leads to, and the directories on the way, listed so the model
         # lists the skill and climbed by the link's `..`.
-        shipped = Snapshot.from_tree(
-            {'skills': {'review': {'SKILL.md': b'---\nname: review\n---\n[the guide](guide.md)\n'}}}
-        )
+        shipped = from_tree({'skills': {'review': {'SKILL.md': b'---\nname: review\n---\n[the guide](guide.md)\n'}}})
         records: dict[RootRelativePath, EntryRecord] = dict(shipped.records)
         records[RootRelativePath.parse('.agents')] = DirectoryRecord(listed=True, climbed=True)
         records[RootRelativePath.parse('.agents/skills')] = DirectoryRecord(listed=True, climbed=True)

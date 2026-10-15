@@ -20,6 +20,7 @@ from typing import ClassVar, Final, Self
 import pytest
 
 from lib.overruns import overrun
+from lib.tree import from_tree
 from lorecraft import rules
 from lorecraft.core.num import NonZeroUnsignedInt, UnsignedInt
 from lorecraft.core.path import PathComponent, RootRelativePath
@@ -415,7 +416,7 @@ def _snapshot(
         intro: Bytes of `INTRO`.
         review: Bytes of `REVIEW`'s `SKILL.md`; by default `REVIEW_FRONTMATTER` and nothing else.
     """
-    return Snapshot.from_tree(
+    return from_tree(
         {
             '.agents': {'skills': {'review': {'SKILL.md': review}}},
             'docs': {
@@ -631,7 +632,7 @@ class TestCheckSubjects:
         #: Given
         namespace_spec = RootRelativePath.parse('docs/__meta__/code-python.structure.json')
         typing_text = '# Typing\n\nAnnotate every signature, and keep the checker clean before a change is done.\n'
-        snapshot = Snapshot.from_tree(
+        snapshot = from_tree(
             {
                 'docs': {
                     '__meta__': {
@@ -712,7 +713,7 @@ class TestCheckSubjects:
     ) -> None:
         #: Given
         # the code corpus sets a budget, but `docs/blog/` has no corpus spec, so the model holds no `blog` corpus
-        snapshot = Snapshot.from_tree(
+        snapshot = from_tree(
             {
                 'docs': {
                     '__meta__': {'code.md': b'# Code\n', 'code.structure.json': _budget(5)},
@@ -745,7 +746,7 @@ class TestCheckSubjects:
     ) -> None:
         #: Given
         # the code corpus states only its prose specification, so no structure specification governs its documents
-        snapshot = Snapshot.from_tree(
+        snapshot = from_tree(
             {'docs': {'__meta__': {'code.md': b'# Code\n'}, 'code': {'guide.md': GUIDE_TEXT.encode()}}}
         )
         database = Database.from_snapshot(snapshot)
@@ -763,7 +764,7 @@ class TestCheckSubjects:
     def test_check_subjects_with_a_corpus_stating_no_structure_specification_never_counts_the_tokens(self) -> None:
         #: Given
         # the code corpus states only its prose specification, so no structure specification governs its documents
-        snapshot = Snapshot.from_tree(
+        snapshot = from_tree(
             {'docs': {'__meta__': {'code.md': b'# Code\n'}, 'code': {'guide.md': GUIDE_TEXT.encode()}}}
         )
         database = CountingDatabase.from_snapshot(snapshot)
@@ -781,7 +782,7 @@ class TestCheckSubjects:
     ) -> None:
         #: Given
         # the code corpus states only its prose specification, so no structure specification governs its documents
-        snapshot = Snapshot.from_tree(
+        snapshot = from_tree(
             {'docs': {'__meta__': {'code.md': b'# Code\n'}, 'code': {'guide.md': GUIDE_TEXT.encode()}}}
         )
         database = CountingDatabase.from_snapshot(snapshot)
@@ -928,7 +929,7 @@ class TestCheckSubjects:
         #: Given
         # What a scan records for `.agents/skills/review -> ../../skills/review`: the link in the skills directory,
         # and the SKILL.md at the resolved path it leads to.
-        shipped = Snapshot.from_tree({'.agents': {'skills': {}}, 'skills': {'review': {'SKILL.md': _skill_of(501)}}})
+        shipped = from_tree({'.agents': {'skills': {}}, 'skills': {'review': {'SKILL.md': _skill_of(501)}}})
         records: dict[RootRelativePath, EntryRecord] = dict(shipped.records)
         records[RootRelativePath.parse('.agents/skills/review')] = SymlinkRecord(PurePosixPath('../../skills/review'))
         database = Database.from_snapshot(Snapshot(SnapshotRecords(records)))
@@ -1227,7 +1228,7 @@ class TestCheckSubjects:
     ) -> None:
         #: Given
         # What a scan records for `.agents/skills/review -> ../../skills/code-review`, whose `name` is the target's.
-        shipped = Snapshot.from_tree(
+        shipped = from_tree(
             {
                 '.agents': {'skills': {}},
                 'skills': {
@@ -1300,7 +1301,7 @@ class TestCheckSubjects:
     ) -> None:
         #: Given
         # a namespace narrows its corpus's frontmatter schema, and the corpus states none
-        snapshot = Snapshot.from_tree(
+        snapshot = from_tree(
             {
                 'docs': {
                     '__meta__': {
@@ -1453,7 +1454,7 @@ class TestCheckSubjects:
     ) -> None:
         #: Given
         namespace_spec = RootRelativePath.parse('docs/__meta__/code-python.structure.json')
-        snapshot = Snapshot.from_tree(
+        snapshot = from_tree(
             {
                 'docs': {
                     '__meta__': {
@@ -1970,7 +1971,7 @@ class TestCheckSubjects:
     ) -> None:
         #: Given
         resource = b'# Deep\n\nSee [the diagram](/assets/flow.png).\n'
-        snapshot = Snapshot.from_tree(
+        snapshot = from_tree(
             {
                 '.agents': {
                     'skills': {
@@ -2000,7 +2001,7 @@ class TestCheckSubjects:
         self, package_table: RuleTable
     ) -> None:
         #: Given
-        snapshot = Snapshot.from_tree(
+        snapshot = from_tree(
             {
                 '.agents': {
                     'skills': {
@@ -2031,7 +2032,7 @@ class TestCheckSubjects:
 
     def test_check_subjects_with_an_undecodable_resource_reports_it_undecodable(self, package_table: RuleTable) -> None:
         #: Given
-        snapshot = Snapshot.from_tree(
+        snapshot = from_tree(
             {
                 '.agents': {
                     'skills': {'review': {'SKILL.md': REVIEW_FRONTMATTER, 'references': {'cafe.md': b'# Caf\xe9\n'}}}
@@ -2054,7 +2055,7 @@ class TestCheckSubjects:
         self, package_table: RuleTable
     ) -> None:
         #: Given
-        snapshot = Snapshot.from_tree(
+        snapshot = from_tree(
             {
                 '.agents': {
                     'skills': {
@@ -2110,7 +2111,7 @@ class TestCheckSubjects:
     ) -> None:
         #: Given
         # the corpus states no structure specification, so no facet governs its documents
-        snapshot = Snapshot.from_tree(
+        snapshot = from_tree(
             {
                 'docs': {
                     '__meta__': {'code.md': b'# Code\n'},
@@ -2174,7 +2175,7 @@ class TestCheckSubjects:
         # SKILL.md has the heading `Usage`, and both files link `#usage`: each is read against its own headings.
         review = REVIEW_FRONTMATTER + b'# Review\n\nSee [usage](#usage).\n\n## Usage\n'
         resource = b'# Checklist\n\nSee [usage](#usage).\n'
-        snapshot = Snapshot.from_tree(
+        snapshot = from_tree(
             {'.agents': {'skills': {'review': {'SKILL.md': review, 'references': {'checklist.md': resource}}}}}
         )
         database = Database.from_snapshot(snapshot)
@@ -2197,7 +2198,7 @@ class TestCheckSubjects:
     ) -> None:
         #: Given
         review = REVIEW_FRONTMATTER + b'# Review\n\nRead [the guide](../../docs/guide.md).\n'
-        snapshot = Snapshot.from_tree(
+        snapshot = from_tree(
             {
                 '.agents': {
                     'skills': {
@@ -2263,7 +2264,7 @@ class TestCheckSubjects:
         #: Given
         # What a scan records for `.agents/skills/review -> ../../skills/review`: the link in the skills directory,
         # and the skill's files at the resolved path it leads to.
-        shipped = Snapshot.from_tree(
+        shipped = from_tree(
             {
                 '.agents': {'skills': {}},
                 'skills': {

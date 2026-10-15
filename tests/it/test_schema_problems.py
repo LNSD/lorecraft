@@ -10,6 +10,7 @@ from typing import Final
 
 import pytest
 
+from lib.tree import from_tree
 from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.project.aspect import AspectFilename
@@ -91,7 +92,7 @@ def _snapshot(corpus_spec: bytes, namespace_spec: bytes, *, typing: bytes, revie
         typing: Bytes of `TYPING`.
         review: Bytes of `REVIEW`'s `SKILL.md`.
     """
-    return Snapshot.from_tree(
+    return from_tree(
         {
             '.agents': {'skills': {'review': {'SKILL.md': review}}},
             'docs': {
@@ -229,7 +230,7 @@ class TestSchemaProblems:
     def test_schema_problems_with_a_document_in_no_corpus_holds_none(self) -> None:
         #: Given
         # the code corpus states a schema, but `docs/blog/` has no corpus spec, so the model holds no `blog` corpus
-        snapshot = Snapshot.from_tree(
+        snapshot = from_tree(
             {
                 'docs': {
                     '__meta__': {'code.md': b'# Code\n', 'code.structure.json': REQUIRE_STATUS},

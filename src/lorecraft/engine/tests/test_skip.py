@@ -4,6 +4,7 @@ from typing import Final
 
 import pytest
 
+from lib.tree import from_tree
 from lorecraft import rules
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectFilename
@@ -14,7 +15,6 @@ from lorecraft.rules.registry import Registry
 from lorecraft.rules.report import SkippedSubject, UndecodableSubject
 from lorecraft.rules.selection import AllRules, RuleSelection
 from lorecraft.rules.table import RuleTable
-from lorecraft.vfs import Snapshot
 
 from ..runner import judge_document
 from ..skip import check_subjects
@@ -48,7 +48,7 @@ def _database_with(files: dict[str, bytes], documents: dict[str, bytes]) -> Data
         files: The files of `docs/__meta__/`, by name.
         documents: The files of `docs/code/`, by name.
     """
-    snapshot = Snapshot.from_tree({'docs': {'__meta__': files, 'code': documents}})
+    snapshot = from_tree({'docs': {'__meta__': files, 'code': documents}})
     return Database.from_snapshot(snapshot)
 
 
@@ -61,7 +61,7 @@ def _all_rules() -> RuleTable:
 
 def _database() -> Database:
     """A database over a snapshot of corpus `code`, with its structure file, holding the document `TYPING`."""
-    snapshot = Snapshot.from_tree(
+    snapshot = from_tree(
         {
             'docs': {
                 '__meta__': {'code.md': b'# Code\n', 'code.structure.json': CORPUS_SPEC},
