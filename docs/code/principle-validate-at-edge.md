@@ -209,9 +209,11 @@ The signal for where a check belongs is what it depends on:
   have it.
 
 Do not push state-dependent checks into the boundary, and do not let shape checks leak past it. Do not
-re-validate in the soft core: a function taking a parsed type does not check its fields again. When a
-re-check is deliberate, say why in a comment at that spot; an undocumented re-validation is always wrong — dead
-code that hides where the real contract lives.
+re-validate in the soft core: a function taking a parsed type does not check its fields again, and a value its
+type already excludes, such as a `Literal` field outside its members, is never checked at run time: the type
+is the contract, and a value smuggled past it through `Any` or a `cast` is the smuggler's defect. A deliberate
+re-check covers only what a type cannot express, with a comment at that spot saying why; any other
+re-validation is dead code that hides where the real contract lives.
 
 ## Checklist
 

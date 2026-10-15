@@ -273,7 +273,7 @@ Every function that can raise documents each exception type a caller can reach, 
 produces it. That includes exceptions raised directly and exceptions raised by a callee and allowed to
 propagate as part of this function's contract. An error union is not an exception type: the section lists
 each of its variants, since a variant is what a caller names in an `except`. Whether a built-in belongs there
-at all is owned by [error-boundaries](error-boundaries.md): a propagated one `error-boundaries` §2 has not
+at all is owned by [error-boundaries](error-boundaries.md): a propagated one `error-boundaries` §3 has not
 cleared is a finding against its source, not a line to add.
 
 This is the strongest rule here, because Python gives a caller **no other way to find out**: no
@@ -281,8 +281,8 @@ checked exceptions, no `Result` in the return type. A caller who does not know t
 raises `MalformedSpecError` guards the wrong call, and a whole-corpus check dies on the first drifted document.
 
 An exception the code's invariants make unreachable is not documented — documenting a raise a caller
-cannot trigger sends them writing needless handlers. Such a spot carries a `#` comment saying why it cannot
-happen, at the line.
+cannot trigger sends them writing needless handlers. Such a spot carries a `# SAFETY:` comment naming the
+invariant, above the raise.
 
 ```python
 # ❌ Bad — three reachable exception types, none documented; the caller learns them from a failed run
@@ -398,8 +398,8 @@ Before committing code, verify:
 - [ ] No `Returns:` section restates the return annotation
 - [ ] A generator documents `Yields:`, never `Returns:`; a function returning an iterator documents `Returns:`
 - [ ] Every reachable `raise` in the diff, direct or propagated by contract, is in `Raises:` with its condition;
-      a propagated built-in failing `error-boundaries` §2 is fixed at its source
-- [ ] An unreachable `raise` has a `#` comment saying why, and no `Raises:` entry
+      a propagated built-in failing `error-boundaries` §3 is fixed at its source
+- [ ] An unreachable `raise` has a `# SAFETY:` comment and no `Raises:` entry
 - [ ] Every `Example:` block is `>>>` doctest lines, never an untested contract's sole statement
 - [ ] No `Example:` block needs a checked-out corpus, a network fetch, or a fixture tree to run
 - [ ] `Attributes:` lines every field (inherited if re-declared) with what its annotation cannot say
