@@ -365,7 +365,7 @@ A more elaborate engine waits for a profile that asks for one.
   and directories it is given once selection by path lands.
 - **Specs change in the same change**, since each states something this design makes untrue:
   [module-lorecraft-engine](../code/module-lorecraft-engine.md) (the runner) and
-  [adr-004-database](adr-004-database.md) (decoding as a value, cross-file queries).
+  [adr-015-database](adr-015-database.md) (decoding as a value, cross-file queries).
 - **A projecting rule is thin.** A schema rule is a few lines over a problem type, and the validation it
   projects lives in a query.
 - **The runner is hand-written per subject kind.** That is the price of typed dispatch with no generic machinery.
@@ -420,4 +420,3 @@ Before committing code, verify:
 - [adr-016-specifications](adr-016-specifications.md) - Foundation: Governance, computed once by the model
 - [adr-012-database-derivation](adr-012-database-derivation.md) - Foundation: The database in the Derivation package
 - [module-lorecraft-engine](../code/module-lorecraft-engine.md) - Foundation: The package the runner lives in
-- [adr-004-database](adr-004-database.md) - Related: The record adr-015 supersedes

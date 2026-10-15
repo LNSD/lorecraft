@@ -40,7 +40,7 @@ identified, configured and documented the same way, and cheap to add.
 - Selection by path in this release: the command checks the whole workspace (FR-002), and checking a file or a
   directory, FR-003 to FR-007, is deferred.
 - Setting a rule's level in this release: every rule runs at its default level (FR-023). A repository's
-  configuration, FR-015's configuration half, FR-024 and FR-025, is deferred until its location and format are
+  configuration, FR-015, FR-024 and FR-025, is deferred until its location and format are
   designed, together with level options on the command line and failing a run on warnings.
 
 ## User Stories
@@ -157,7 +157,7 @@ Scenario: A sample rule
   the field and the governing meta spec travelling as data of the diagnostic.
 - **FR-012:** THE SYSTEM SHALL give one code to each condition a rule reports.
 - **FR-013:** THE SYSTEM SHALL name each prefix after the mechanism that states its rules, never after a
-  subject kind.
+  document, a skill or a resource.
 - **FR-014:** THE SYSTEM SHALL never give a retired rule's code to another rule.
 - **FR-015:** WHEN a configuration names a retired code, THE SYSTEM SHALL report the release that retired it
   and the code that replaces it.
@@ -173,7 +173,8 @@ Scenario: A sample rule
   diagnostics, a summary and the coverage.
 - **FR-022:** THE SYSTEM SHALL report one condition under one code, two rules firing on one line only where
   they are declared to.
-- **FR-023:** THE SYSTEM SHALL give every rule a default level: `allow`, `warn` or `deny`.
+- **FR-023:** THE SYSTEM SHALL give every rule a default level: `allow`, `warn` or `deny`, and report a
+  condition of the engine itself, such as an undecodable file, as an `error` that no level changes.
 - **FR-024:** WHERE a configuration sets a level by code or by prefix, THE SYSTEM SHALL apply it, a code's own
   setting winning over its prefix's.
 - **FR-025:** IF a configuration names an unknown code, prefix or level, THEN THE SYSTEM SHALL fail with an
