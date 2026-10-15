@@ -1,9 +1,9 @@
 """A heading's anchor: the name a fragment-only link such as `#usage` points at.
 
-An anchor is derived here as GitHub derives it, not with wenmode's own heading ids, which collapse whitespace and
-number repeats differently: a link that works where the document is read must pass the check. A link's fragment
-is a different thing, raw text the author typed, and the only way to compare one with an anchor is through
-`Anchor.from_fragment`, which applies the one normalisation GitHub applies before it looks the fragment up.
+An anchor is derived here as GitHub derives it, not with the Markdown reader's heading ids, which collapse
+whitespace and number repeats differently: a link that works where the document is read must pass the check. A
+link's fragment is raw text the author typed, and the only way to compare one with an anchor is through
+`Anchor.from_fragment`, which applies the one normalisation GitHub applies before looking it up.
 """
 
 import unicodedata

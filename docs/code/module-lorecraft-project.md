@@ -24,7 +24,8 @@ once in `lorecraft.project.layout` and read from there by every other module.
 - The project model and the loader that builds it from listings and meta specs.
 - A repository that lists entries or reads text through a view, and decides what an entry is to Lorecraft.
 - The decoding of a meta spec into rules that are proved usable when they are built.
-- The parse tree, the token count and the line count: pure functions of one document's text.
+- The parse tree, token count and line count: pure functions of document text. The Markdown wrapper reads wenmode
+  and core only; `document` maps its line and link values into the project model and decodes raw frontmatter.
 - A shared analysis of one document's parsed values against the meta specs handed to it, such as the problems
   each frontmatter schema finds, each placed on its field's line, or where the sections first stop matching an
   outline. It finds the facts several rules read; whether one is reported, and how, is a rule's.
@@ -36,12 +37,12 @@ once in `lorecraft.project.layout` and read from there by every other module.
   resource, or of one layout entry, the ones several kinds share, and the owner types they return.
 - The database of one revision, opened with its model: each query over it, such as a decoded text, a parse tree or a
   shared analysis, memoized on first use, and each question answered fresh, such as where a symlink leads.
-- The witness a decode query returns, a file's ref and its decoded text, and the undecodable marker, which keeps where
-  the bytes first stop being UTF-8: its line, offset, bytes and reason.
+- The witness a decode query returns: a file's ref and decoded text, or the undecodable marker with its first
+  invalid byte's line, offset, bytes and reason.
 - The carry-over rule: which change to a revision's inputs invalidates which query; and what a persisted result is
   keyed by, and its validation before the database keeps it.
-- A context implemented over the database: each fact of one decoded subject answered by its memoized query, each
-  identity value read from the subject's ref or location, and a layout entry's facts read from its record.
+- A context over the database: decoded facts answered by memoized queries, identity read from the subject's ref or
+  location, and layout facts read from its record.
 
 ## Belongs Elsewhere
 

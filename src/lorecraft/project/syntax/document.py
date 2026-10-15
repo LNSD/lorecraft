@@ -27,10 +27,11 @@ from lorecraft.core.lines import split_lines
 from lorecraft.core.num import NonZeroUnsignedInt, UnsignedInt
 
 from .anchor import Anchor, AnchorNumber
-from .frontmatter import FrontmatterNode
+from .frontmatter import FrontmatterNode, MissingFrontmatter, decode_frontmatter
 from .heading import Heading, HeadingLevel
 from .link import Link
 from .markdown import ContentBlock, HeadingBlock, parse_markdown, parse_markdown_frontmatter
+from .position import LineNumber
 from .words import WordCount, count_words
 
 
@@ -76,7 +77,7 @@ def parse_document(text: str) -> ParsedDocument:
     return ParsedDocument(
         headings=_headings(counted),
         anchors=_anchors(tree.heading_texts),
-        links=tree.links,
+        links=tuple(Link(link.url, LineNumber(NonZeroUnsignedInt(link.line))) for link in tree.links),
     )
 
 
@@ -89,7 +90,8 @@ def parse_frontmatter(text: str) -> FrontmatterNode:
     Args:
         text: The document's whole text, frontmatter block included.
     """
-    return parse_markdown_frontmatter(text)
+    block = parse_markdown_frontmatter(text)
+    return MissingFrontmatter() if block is None else decode_frontmatter(block)
 
 
 def _headings(blocks: tuple[CountedBlock, ...]) -> tuple[Heading, ...]:
@@ -114,7 +116,7 @@ def _headings(blocks: tuple[CountedBlock, ...]) -> tuple[Heading, ...]:
                     Heading(
                         level=block.level,
                         text=block.text,
-                        line=block.line,
+                        line=LineNumber(NonZeroUnsignedInt(block.line)),
                         empty=empty,
                         words=_section_words(blocks, index, block.level),
                     )

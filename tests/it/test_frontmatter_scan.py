@@ -14,8 +14,6 @@ import pytest
 from wenmode import Wenmode
 from wenmode.plugins import frontmatter
 
-from lorecraft.project.syntax import FrontmatterNode, MissingFrontmatter
-from lorecraft.project.syntax.frontmatter import decode_frontmatter
 from lorecraft.project.syntax.markdown import parse_markdown_frontmatter
 
 BYTE_ORDER_MARK: Final[str] = '\ufeff'
@@ -93,8 +91,8 @@ def generate_texts(variation: Variation) -> list[str]:
     return texts
 
 
-def wenmode_frontmatter(text: str) -> FrontmatterNode:
-    """What wenmode's frontmatter plugin finds in the text, decoded as `parse_markdown_frontmatter` decodes it.
+def wenmode_frontmatter(text: str) -> str | None:
+    """What wenmode's frontmatter plugin finds in the text, as raw block text.
 
     Args:
         text: The document's whole text.
@@ -105,9 +103,7 @@ def wenmode_frontmatter(text: str) -> FrontmatterNode:
         found.append(block)
 
     Wenmode(rules=(), plugins=[frontmatter.configure(load=record)]).parse(text)
-    if not found:
-        return MissingFrontmatter()
-    return decode_frontmatter(found[0])
+    return found[0] if found else None
 
 
 def disagreements(texts: list[str]) -> list[str]:

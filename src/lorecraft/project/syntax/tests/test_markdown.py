@@ -7,17 +7,37 @@ what is counted or numbered from these values is pinned in `test_document`.
 
 import pytest
 
-from lorecraft.core.mapping import FrozenMapping
-from lorecraft.core.num import NonZeroUnsignedInt
-
-from ..frontmatter import Frontmatter, FrontmatterKey, MissingFrontmatter
-from ..link import Link
-from ..markdown import ContentBlock, HeadingBlock, MarkdownTree, parse_markdown, parse_markdown_frontmatter
-from ..position import LineNumber
+from ..markdown import (
+    ContentBlock,
+    HeadingBlock,
+    MarkdownLine,
+    MarkdownLink,
+    MarkdownTree,
+    parse_markdown,
+    parse_markdown_frontmatter,
+)
 
 
 @pytest.mark.unit
 class TestParseMarkdown:
+    @pytest.mark.parametrize(
+        ('text', 'expected'),
+        [
+            ('# `code` and *em* and **strong** [link](a.md) ~~del~~\n', 'code and em and strong link ~~del~~'),
+            ('# a [ref][lbl] b\n\n[lbl]: x.md\n', 'a ref b'),
+        ],
+    )
+    def test_parse_markdown_with_inline_markup_in_a_heading_returns_its_plain_text(
+        self, text: str, expected: str
+    ) -> None:
+        #: When
+        tree = parse_markdown(text)
+
+        #: Then
+        heading = tree.blocks[0]
+        assert isinstance(heading, HeadingBlock)
+        assert heading.text == expected, 'inline markup is stripped while its text is preserved'
+
     def test_parse_markdown_with_a_heading_and_a_paragraph_returns_both_as_blocks(self) -> None:
         #: Given
         text = '# Guide\n\nSome prose.\n'
@@ -28,7 +48,7 @@ class TestParseMarkdown:
         #: Then
         assert tree == MarkdownTree(
             blocks=(
-                HeadingBlock(level=1, text='Guide', line=LineNumber(NonZeroUnsignedInt(1))),
+                HeadingBlock(level=1, text='Guide', line=MarkdownLine(1)),
                 ContentBlock(source_outside_code=('Some prose.\n',)),
             ),
             heading_texts=('Guide',),
@@ -43,7 +63,7 @@ class TestParseMarkdown:
         tree = parse_markdown(text)
 
         #: Then
-        assert tree.blocks == (HeadingBlock(level=1, text='Title', line=LineNumber(NonZeroUnsignedInt(1))),), (
+        assert tree.blocks == (HeadingBlock(level=1, text='Title', line=MarkdownLine(1)),), (
             'an underlined title is a heading as much as a `#` one'
         )
 
@@ -82,7 +102,7 @@ class TestParseMarkdown:
         #: Then
         assert tree.blocks == (
             ContentBlock(source_outside_code=('> # Quoted\n',)),
-            HeadingBlock(level=2, text='Real', line=LineNumber(NonZeroUnsignedInt(3))),
+            HeadingBlock(level=2, text='Real', line=MarkdownLine(3)),
         ), 'a quoted heading is part of the blockquote, not a block of its own'
 
     def test_parse_markdown_with_a_heading_in_a_blockquote_returns_its_text_among_the_heading_texts(self) -> None:
@@ -103,9 +123,9 @@ class TestParseMarkdown:
         tree = parse_markdown(text)
 
         #: Then
-        assert tree.blocks == (
-            HeadingBlock(level=1, text='Hi \n<b>\nx\n</b>\n alt', line=LineNumber(NonZeroUnsignedInt(1))),
-        ), "the heading block's plain text keeps inline HTML and an image's alt text"
+        assert tree.blocks == (HeadingBlock(level=1, text='Hi \n<b>\nx\n</b>\n alt', line=MarkdownLine(1)),), (
+            "the heading block's plain text keeps inline HTML and an image's alt text"
+        )
 
     def test_parse_markdown_with_html_and_an_image_in_a_heading_drops_both_from_the_rendered_text(self) -> None:
         #: Given
@@ -126,9 +146,9 @@ class TestParseMarkdown:
 
         #: Then
         assert tree.links == (
-            Link(url='a.md', line=LineNumber(NonZeroUnsignedInt(1))),
-            Link(url='b.md', line=LineNumber(NonZeroUnsignedInt(3))),
-            Link(url='i.png', line=LineNumber(NonZeroUnsignedInt(3))),
+            MarkdownLink(url='a.md', line=MarkdownLine(1)),
+            MarkdownLink(url='b.md', line=MarkdownLine(3)),
+            MarkdownLink(url='i.png', line=MarkdownLine(3)),
         ), 'a link in a list item is found too, and an image inside a link comes after that link'
 
     def test_parse_markdown_with_crlf_line_endings_returns_each_heading_on_its_document_line(self) -> None:
@@ -140,8 +160,8 @@ class TestParseMarkdown:
 
         #: Then
         assert tree.blocks == (
-            HeadingBlock(level=1, text='Guide', line=LineNumber(NonZeroUnsignedInt(1))),
-            HeadingBlock(level=2, text='Usage', line=LineNumber(NonZeroUnsignedInt(3))),
+            HeadingBlock(level=1, text='Guide', line=MarkdownLine(1)),
+            HeadingBlock(level=2, text='Usage', line=MarkdownLine(3)),
         ), 'a CRLF line ending counts as one line break'
 
     def test_parse_markdown_with_crlf_line_endings_returns_each_link_and_later_heading_on_its_document_line(
@@ -155,10 +175,10 @@ class TestParseMarkdown:
 
         #: Then
         assert tree.links == (
-            Link(url='a.md', line=LineNumber(NonZeroUnsignedInt(6))),
-            Link(url='b.md', line=LineNumber(NonZeroUnsignedInt(8))),
+            MarkdownLink(url='a.md', line=MarkdownLine(6)),
+            MarkdownLink(url='b.md', line=MarkdownLine(8)),
         ), 'each link after a frontmatter block and CRLF line endings is on its document line'
-        assert tree.blocks[-1] == HeadingBlock(level=2, text='Usage', line=LineNumber(NonZeroUnsignedInt(10))), (
+        assert tree.blocks[-1] == HeadingBlock(level=2, text='Usage', line=MarkdownLine(10)), (
             'a heading past several CRLF line endings is on its document line'
         )
 
@@ -170,7 +190,7 @@ class TestParseMarkdown:
         tree = parse_markdown(text)
 
         #: Then
-        assert tree.blocks == (HeadingBlock(level=1, text='Guide', line=LineNumber(NonZeroUnsignedInt(4))),), (
+        assert tree.blocks == (HeadingBlock(level=1, text='Guide', line=MarkdownLine(4)),), (
             'the frontmatter block is no Markdown block, and the heading after it keeps its document line'
         )
 
@@ -185,10 +205,7 @@ class TestParseMarkdownFrontmatter:
         frontmatter = parse_markdown_frontmatter(text)
 
         #: Then
-        assert frontmatter == Frontmatter(
-            data=FrozenMapping({'name': 'guide'}),
-            keys=(FrontmatterKey('name', LineNumber(NonZeroUnsignedInt(2))),),
-        ), 'the block between the delimiters is decoded, each key on its document line'
+        assert frontmatter == 'name: guide\n', 'the raw block between delimiters retains its line ending'
 
     def test_parse_markdown_frontmatter_without_an_opening_delimiter_returns_missing(self) -> None:
         #: Given
@@ -198,4 +215,4 @@ class TestParseMarkdownFrontmatter:
         frontmatter = parse_markdown_frontmatter(text)
 
         #: Then
-        assert frontmatter == MissingFrontmatter(), 'a document not opening with `---` has no frontmatter'
+        assert frontmatter is None, 'a document not opening with `---` has no frontmatter'

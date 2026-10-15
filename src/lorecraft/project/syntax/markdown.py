@@ -8,9 +8,8 @@ What is read here is what the parser decides: where the frontmatter block is, wh
 or a link, where each sits, and the text a heading's inline nodes render as. What a section holds, how many prose
 words it counts and how a repeated anchor is numbered are derived in `document`, from the values handed over here.
 
-The frontmatter block is decoded by `parse_markdown_frontmatter` alone. The full parse finds the same block, so it is
-not read as Markdown, but leaves it undecoded: a check that reads the frontmatter asks for it apart from the tree,
-so decoding it in the full parse as well would decode every block twice.
+The frontmatter block is found by `parse_markdown_frontmatter` as raw text and decoded by `document`. The full parse
+finds the same block, so it is not read as Markdown.
 
 The one place the parser does not decide is where that block is, for `parse_markdown_frontmatter`: it finds the block
 with a scan of its own that mirrors wenmode's frontmatter plugin, held to it by `tests/it/test_frontmatter_scan.py`.
@@ -20,23 +19,36 @@ A wenmode upgrade that changes the plugin is caught there, not here.
 import re
 from bisect import bisect_left
 from dataclasses import dataclass
-from typing import Final
+from typing import Final, Literal, NewType
 
 from wenmode import Wenmode
-from wenmode.ast import plain_text
-from wenmode.nodes import Code, Html, Image, Literal, Node, Parent, Position
+from wenmode.nodes import Code, Html, Image, Node, Parent, Position
 from wenmode.nodes import Heading as WenmodeHeading
 from wenmode.nodes import Link as WenmodeLink
+from wenmode.nodes import Literal as LiteralNode
 from wenmode.plugins import frontmatter
 
 from lorecraft.core.error import Unreachable
 from lorecraft.core.lines import newline_offsets
-from lorecraft.core.num import NonZeroUnsignedInt
 
-from .frontmatter import FrontmatterNode, MissingFrontmatter, decode_frontmatter
-from .heading import HeadingLevel
-from .link import Link
-from .position import LineNumber
+MarkdownLine = NewType('MarkdownLine', int)
+"""A one-based document line, counted by the line breaks `lorecraft.core.lines` defines."""
+
+type HeadingLevel = Literal[1, 2, 3, 4, 5, 6]
+"""A heading's depth: 1 for a title through 6, the deepest Markdown has."""
+
+
+@dataclass(frozen=True, slots=True)
+class MarkdownLink:
+    """A Markdown destination and its one-based line, before any path resolution.
+
+    The URL is CommonMark-normalised: escapes and character references are decoded, then the value is
+    percent-encoded. For example, `[x](</a b>)` yields `/a%20b`.
+    """
+
+    url: str
+    line: MarkdownLine
+
 
 _FRONTMATTER_KEY: Final[str] = 'frontmatter'
 """Where wenmode's frontmatter plugin stores the decoded block on the root node's `data`."""
@@ -47,7 +59,7 @@ def _skip_frontmatter(block: str) -> None:
 
     The full parser loads the frontmatter plugin only so the block is not read as Markdown. The plugin always hands
     the block to a loader, and falls back to its own `key: value` splitter when given none, so this one is passed
-    to leave the block undecoded: `parse_markdown_frontmatter` decodes it.
+    to leave the block undecoded: `document.parse_frontmatter` decodes it.
 
     Args:
         block: The lines between the delimiters, which are not read.
@@ -84,7 +96,7 @@ class HeadingBlock:
 
     level: HeadingLevel
     text: str
-    line: LineNumber
+    line: MarkdownLine
 
 
 @dataclass(frozen=True, slots=True)
@@ -115,7 +127,7 @@ class MarkdownTree:
 
     blocks: tuple[HeadingBlock | ContentBlock, ...]
     heading_texts: tuple[str, ...]
-    links: tuple[Link, ...]
+    links: tuple[MarkdownLink, ...]
 
 
 def parse_markdown(text: str) -> MarkdownTree:
@@ -132,7 +144,7 @@ def parse_markdown(text: str) -> MarkdownTree:
     # text, which would make a parse cost every node times the document's size.
     newlines = newline_offsets(text)
     heading_texts: list[str] = []
-    links: list[Link] = []
+    links: list[MarkdownLink] = []
     _collect_headings_and_links(newlines, root, heading_texts, links)
     return MarkdownTree(
         blocks=tuple(_block(text, newlines, block) for block in root.children),
@@ -141,12 +153,12 @@ def parse_markdown(text: str) -> MarkdownTree:
     )
 
 
-def parse_markdown_frontmatter(text: str) -> FrontmatterNode:
-    """Parse only the frontmatter block of one document's text. Pure: raises nothing.
+def parse_markdown_frontmatter(text: str) -> str | None:
+    """Find the raw frontmatter block in one document's text, or return None. Pure: raises nothing.
 
     The block is a `---` line as the document's first line, closed by the next `---` line, each allowing trailing
-    whitespace only. The lines between them go to `decode_frontmatter`, which never raises, so a broken block cannot
-    fail the parse. A document with no such block, or one never closed, has `MissingFrontmatter`.
+    whitespace only. The lines between them are returned as raw text, line endings kept; `document.parse_frontmatter`
+    decodes them. A document with no such block, or one never closed, gives None.
 
     `parse_markdown` finds the same block, with wenmode's frontmatter plugin. The plugin only ever claims the
     document's first line, where it is tried before every Markdown rule, so what it finds does not depend on the
@@ -156,10 +168,7 @@ def parse_markdown_frontmatter(text: str) -> FrontmatterNode:
     Args:
         text: The document's whole text, frontmatter block included.
     """
-    block = _find_frontmatter_block(text)
-    if block is None:
-        return MissingFrontmatter()
-    return decode_frontmatter(block)
+    return _find_frontmatter_block(text)
 
 
 def _find_frontmatter_block(text: str) -> str | None:
@@ -195,7 +204,7 @@ def _block(text: str, newlines: tuple[int, ...], node: Node) -> HeadingBlock | C
     if isinstance(node, WenmodeHeading):
         return HeadingBlock(
             level=_heading_level(node.depth),
-            text=plain_text(node.children),
+            text=_plain_text(node.children),
             line=_line(newlines, _position(node)),
         )
     return ContentBlock(source_outside_code=_source_outside_code(text, node))
@@ -255,7 +264,7 @@ def _code_spans(node: Node) -> list[Position]:
 
 
 def _collect_headings_and_links(
-    newlines: tuple[int, ...], node: Node, heading_texts: list[str], links: list[Link]
+    newlines: tuple[int, ...], node: Node, heading_texts: list[str], links: list[MarkdownLink]
 ) -> None:
     r"""Append the rendered text of every heading, and every link and image, in the node and below it.
 
@@ -273,7 +282,7 @@ def _collect_headings_and_links(
     if isinstance(node, WenmodeHeading):
         heading_texts.append(_rendered_text(node.children))
     if isinstance(node, WenmodeLink | Image):
-        links.append(Link(url=node.url, line=_line(newlines, _position(node))))
+        links.append(MarkdownLink(url=node.url, line=_line(newlines, _position(node))))
     if isinstance(node, Parent):
         for child in node.children:
             _collect_headings_and_links(newlines, child, heading_texts, links)
@@ -284,7 +293,8 @@ def _rendered_text(nodes: list[Node]) -> str:
 
     Text and inline code give their text, and emphasis, a link and any other container give their children's.
     Inline HTML gives nothing, since GitHub renders it as markup rather than text, and neither does an image: the
-    rendered `<img>` holds no text. That is where this differs from wenmode's `plain_text`, which keeps both.
+    rendered `<img>` holds no text. Unlike `_plain_text` (the text kept in `HeadingBlock.text`), anchor text drops
+    inline HTML and images.
 
     Args:
         nodes: Inline children of a heading, in order; nested containers are read recursively.
@@ -293,14 +303,48 @@ def _rendered_text(nodes: list[Node]) -> str:
     for node in nodes:
         if isinstance(node, Html | Image):
             continue
-        if isinstance(node, Literal):
+        if isinstance(node, LiteralNode):
             parts.append(node.value)
         elif isinstance(node, Parent):
             parts.append(_rendered_text(node.children))
     return ''.join(parts)
 
 
-def _line(newlines: tuple[int, ...], span: Position) -> LineNumber:
+def _plain_text(nodes: list[Node]) -> str:
+    """The heading's plain text: inline markup stripped, HTML and image alt text kept, with block separators.
+
+    This mirrors wenmode 0.15's `plain_text` behavior.
+    """
+    parts: list[str] = []
+    previous_separated = False
+    for node in nodes:
+        text = _plain_text_node(node)
+        if not text:
+            continue
+        separated = node.block
+        if parts and (previous_separated or separated):
+            parts.append('\n')
+        parts.append(text)
+        previous_separated = separated
+    return ''.join(parts)
+
+
+def _plain_text_node(node: Node) -> str:
+    """A node's contribution to the plain text kept in `HeadingBlock.text`."""
+    if isinstance(node, Image):
+        return node.alt
+    if isinstance(node, LiteralNode):
+        return node.value
+    if isinstance(node, Parent):
+        return _plain_text(node.children)
+    label = getattr(node, 'label', None)
+    if isinstance(label, str):
+        return label
+    identifier = getattr(node, 'identifier', None)
+    return identifier if isinstance(identifier, str) else ''
+
+
+def _line(newlines: tuple[int, ...], span: Position) -> MarkdownLine:
     r"""The document line a node's span starts on, a block's or an inline's alike.
 
     wenmode reports a node's position as a character offset into the text; every line before the offset ends in
@@ -311,7 +355,7 @@ def _line(newlines: tuple[int, ...], span: Position) -> LineNumber:
         newlines: The offset where each line break in the document's text starts, as `newline_offsets` returns them.
         span: Where the node to locate sits, as `_position` reads it.
     """
-    return LineNumber(NonZeroUnsignedInt(bisect_left(newlines, span.start) + 1))
+    return MarkdownLine(bisect_left(newlines, span.start) + 1)
 
 
 def _position(node: Node) -> Position:
@@ -323,8 +367,7 @@ def _position(node: Node) -> Position:
     needs a node's span reads it here.
 
     Args:
-        node: Node of the tree `parse_markdown` parsed. A tree from any other parser, such as
-            `parse_markdown_frontmatter`'s, may lack positions.
+        node: Node of the full parse tree, which always carries a position.
     """
     if node.position is None:
         # SAFETY: the full parser is built with positions=True, so every node carries its position
