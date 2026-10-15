@@ -41,6 +41,9 @@ lets a repository write rules for its skills the way it writes them for its docu
   agents read them, and no directory under `docs/` is created or read for it; one that exists is reported and
   ignored.
 - **Changes to the Agent Skills specification.** The built-in schema states it as it is.
+- **Complete compatibility analysis.** Contradiction detection covers the explicit required-field constraints
+  listed in FR-008; arbitrary combinations of rules are still enforced against skills, without a promise to
+  identify every impossible meta spec in advance.
 - **New kinds of check.** A skills meta spec carries the same keys any meta spec does; a check a document cannot
   have, a skill cannot have either.
 - **How corpora under `docs/` are matched.** They match as they do today.
@@ -100,14 +103,24 @@ Scenario: Namespaces layer
 As a maintainer, I want my skills rules to add to the Agent Skills specification and never weaken it, so that a
 skill that passes the check still loads in every agent.
 
-**Independent test:** Write a skills meta spec whose frontmatter schema allows what the specification forbids,
-and check the workspace.
+**Independent test:** Write a skills meta spec that requires a non-text description, and check the workspace
+without any skills.
 
 ```gherkin
 Scenario: A skills meta spec contradicts the specification
-  Given a skills meta spec whose frontmatter schema lets a skill omit its description
+  Given a skills meta spec that requires a non-text description
+  And a workspace with no skills
   When the maintainer checks the workspace
   Then the check fails with a finding that names the skills meta spec and the contradicted rule
+```
+
+```gherkin
+Scenario: An extension does not repeat a built-in requirement
+  Given a skills meta spec that adds a description constraint without repeating that description is required
+  And a skill that omits its description
+  When the maintainer checks the workspace
+  Then a finding names the skill for its missing description
+  And no contradiction finding names the meta spec for the omitted requirement
 ```
 
 ### US-4: Opting out of the built-in schema (P3)
@@ -201,8 +214,11 @@ Scenario: The overlap is configured as an error
   specification's rules.
 - **FR-007:** WHILE the built-in skills schema is in force, THE SYSTEM SHALL apply the `skills` meta spec as an
   extension of it.
-- **FR-008:** IF a skills meta spec's frontmatter schema contradicts the built-in skills schema, THEN THE SYSTEM
-  SHALL report a finding that names the meta spec and the contradicted rule, and fail the check.
+- **FR-008:** WHILE the built-in skills schema is in force, THE SYSTEM SHALL report a finding naming a skills
+  meta spec and the contradicted built-in rule when that meta spec directly forbids either required field
+  (`name` or `description`), excludes text for it, gives it an impossible length range against the built-in
+  bounds, or limits it to finite values none of which meets the built-in field rules and the direct type and
+  length constraints.
 - **FR-009:** WHERE a workspace opts out of the built-in skills schema, THE SYSTEM SHALL hold its skills to its
   skills meta specs alone.
 - **FR-010:** WHEN a user checks a workspace, THE SYSTEM SHALL check its skills and its documents in the same run.
@@ -219,6 +235,9 @@ Scenario: The overlap is configured as an error
   corpus under `docs/` overlaps a reserved corpus.
 - **FR-018:** WHERE a workspace opts out of the built-in skills schema and has no skills meta spec, THE SYSTEM
   SHALL report its skills as ungoverned, as it reports a document no meta spec governs, and report no error.
+- **FR-019:** IF a contradiction described by FR-008 is found, THEN THE SYSTEM SHALL fail the check.
+- **FR-020:** THE SYSTEM SHALL allow a skills meta spec to omit constraints that the built-in schema enforces
+  independently.
 - **NFR-001:** THE SYSTEM SHALL name each skills meta spec, and each finding against a skill, with the same
   vocabulary of corpus, namespace and facet it uses for documents.
 
@@ -230,6 +249,8 @@ Scenario: The overlap is configured as an error
   that matches no document.
 - A skill's name and a longer namespace both match, as `code-rules-check` under `skills-code` and
   `skills-code-rules`. Both govern it, the shorter first.
+- Contradictions expressed through indirect or conditional rules, patterns, optional fields, or interactions
+  between repository layers are outside FR-008's detection boundary. They still apply when checking skills.
 - A workspace opts out of the built-in schema and has no `skills` meta spec. Its skills are ungoverned, with no
   error: that is how a workspace opts out of skills governance (FR-018).
 
