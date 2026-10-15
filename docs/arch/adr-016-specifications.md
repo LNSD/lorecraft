@@ -145,3 +145,5 @@ Before committing code, verify:
 - [principle-validate-at-edge](../code/principle-validate-at-edge.md) - Foundation: A dialect is decoded and proved at
   the edge
 - [adr-011-rules-engine](adr-011-rules-engine.md) - Related: The runner that applies governance to each document
+- [prd-020-skills-corpus](prd-020-skills-corpus.md) - Related: The skills corpus, whose namespaces layer the same
+  way
