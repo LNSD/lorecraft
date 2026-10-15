@@ -76,6 +76,16 @@ LC004    unusable-structure-file   error  A structure file follows the structure
 OUT004   empty-section             deny   A section holds no content, under a structure specification that forbids empty sections.
 ```
 
+### Default Levels
+
+Every rule in the listing has the default level shown here. `allow` rules do not appear because they are not
+run. `LC001`–`LC004` are engine conditions, not rules; they are always reported as errors and have no level.
+
+| Default level | Rule codes |
+|---------------|------------|
+| `deny` | `FM001`, `FM002`, `FM003`, `FM004`, `FM005`, `FM006`, `FM008`, `FM009`, `FM010`, `FM013`, `FM014`, `LAY001`, `LEN001`, `LEN002`, `LEN003`, `LEN004`, `LEN005`, `LINK001`, `LINK002`, `LINK003`, `LINK004`, `OUT001`, `OUT002`, `OUT003`, `OUT004`, `OUT005`, `OUT006`, `OUT007`, `OUT008`, `OUT009` |
+| `warn` | `FM007`, `FM011`, `FM012` |
+
 The `LC002` page covers unreadable structure files, unlistable corpus and skills directories, skill entries
 that cannot be listed or resolved, and `SKILL.md` links that cannot be followed. A regular `SKILL.md` whose
 contents cannot be read still stops `check` with exit `2`.
