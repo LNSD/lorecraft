@@ -2,6 +2,8 @@
 
 import pytest
 
+from lorecraft.core.error import Unreachable
+
 from ..utf8_failure import ByteOffset, Utf8Failure, Utf8Line, Utf8Reason
 
 
@@ -10,7 +12,8 @@ def _decode_error(data: bytes) -> UnicodeDecodeError:
         data.decode('utf-8')
     except UnicodeDecodeError as exc:
         return exc
-    raise AssertionError('unreachable: the bytes decode as UTF-8')
+    # SAFETY: the caller passes bytes that are not UTF-8
+    raise Unreachable('the test bytes are invalid UTF-8')
 
 
 @pytest.mark.unit

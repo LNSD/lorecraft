@@ -22,6 +22,7 @@ of paths.
 from pathlib import PurePosixPath
 from typing import Literal, assert_never
 
+from lorecraft.core.error import Unreachable
 from lorecraft.core.path import RootRelativePath
 
 from .root_expansion import (
@@ -82,7 +83,8 @@ class ScopeIndex:
                 # The root has no name and is its own parent, so its entry is the directory itself.
                 entry = directory if name is None else directory / name
             case ResolvedFile():
-                raise AssertionError('unreachable: the recorded lookup never answers FILE')
+                # SAFETY: the recorded view holds no file at a path the scope query asks about as a directory
+                raise Unreachable('the recorded lookup never answers FILE')
             case RootExit() | None:
                 return False
             case _:
@@ -196,7 +198,8 @@ def _listed_scan_roots(scope: tuple[ScanRoot, ...], recorded: _RecordedLinks) ->
             case ResolvedDirectory(path=directory):
                 linked_directories[link] = directory
             case ResolvedFile():
-                raise AssertionError('unreachable: the recorded lookup never answers FILE')
+                # SAFETY: the recorded view holds no file at a path the scope query asks about as a directory
+                raise Unreachable('the recorded lookup never answers FILE')
             case RootExit() | None:
                 pass  # the scan follows no link that leads nowhere or out of the root
             case _:

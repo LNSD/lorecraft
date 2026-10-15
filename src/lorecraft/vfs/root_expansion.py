@@ -19,6 +19,7 @@ from dataclasses import dataclass
 from pathlib import PurePosixPath
 from typing import Final, Protocol, assert_never
 
+from lorecraft.core.error import Unreachable
 from lorecraft.core.path import ROOT, PathComponent, RootRelativePath
 
 from .scan_root import ScanRoot
@@ -152,9 +153,8 @@ def find_destination(
         if part == '..':
             if resolved == ROOT:
                 if last_link is None:
-                    raise AssertionError(
-                        'unreachable: a root-relative path holds no `..`, so this one came from a link target'
-                    )
+                    # SAFETY: a root-relative path holds no `..` at the root, so this one came from a link target
+                    raise Unreachable('a `..` at the root has a link it came from')
                 return last_link
             # Only the scope query ever answers no, for a directory it only guessed.
             if not entries.may_climb_out_of(resolved):

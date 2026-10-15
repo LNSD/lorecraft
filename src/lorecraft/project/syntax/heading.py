@@ -6,7 +6,7 @@ not a heading; the Markdown parser decides both (see `markdown`).
 """
 
 from dataclasses import dataclass
-from typing import Final, Literal, assert_never
+from typing import Final, Literal
 
 from .position import LineNumber
 from .words import WordCount
@@ -38,21 +38,6 @@ class Heading:
     line: LineNumber
     empty: bool
     words: WordCount
-
-    def __post_init__(self) -> None:
-        """Fail on a level outside 1 to 6, which the type rules out but cannot stop at run time.
-
-        The type is checked only before the code runs, so a value that reached `level` through `Any` or a `cast`
-        is caught here instead.
-
-        Raises:
-            AssertionError: If `level` is not in 1..6.
-        """
-        match self.level:
-            case 1 | 2 | 3 | 4 | 5 | 6:
-                pass
-            case _:
-                assert_never(self.level)
 
 
 @dataclass(frozen=True, slots=True)

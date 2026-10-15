@@ -27,6 +27,7 @@ from ruamel.yaml.events import (
 )
 from ruamel.yaml.reader import ReaderError
 
+from lorecraft.core.error import Unreachable
 from lorecraft.core.num import NonZeroUnsignedInt
 
 from .basic_yaml import (
@@ -143,8 +144,8 @@ def _refused(refusal: RecordedRefusal | Refusal) -> RefusedConstructProblem:
     refusal_help = refusal.help if isinstance(refusal, RecordedRefusal) else None
     position = _position_of_mark(refusal.mark)
     if position is None:
-        # A refusal is marked where it is written.
-        raise AssertionError('unreachable: a refused construct has a mark')
+        # SAFETY: a refusal is marked where it is written.
+        raise Unreachable('a refused construct has a mark')
     return RefusedConstructProblem(message=refusal.problem, help=refusal_help, position=position)
 
 
@@ -188,8 +189,8 @@ class _EventStream:
         scanner = self._yaml.scanner
         reader = self._yaml.reader
         if not isinstance(scanner, BasicYamlScanner) or not isinstance(reader, BasicYamlReader):
-            # The types are declared on the parser's base class; `_EventStream` always installs its own.
-            raise AssertionError("unreachable: the parser is built with `basic_yaml`'s scanner and reader")
+            # SAFETY: the types are declared on the parser's base class; `_EventStream` always installs its own.
+            raise Unreachable("the parser is built with `basic_yaml`'s scanner and reader")
         recorded = [*scanner.refusals[:1], *([reader.separator] if reader.separator is not None else [])]
         if not recorded:
             return None
@@ -240,8 +241,8 @@ def _mark_of(event: Event) -> StreamMark:
     """
     mark = event.start_mark
     if not isinstance(mark, StreamMark):
-        # An event's mark is optional only in its constructor's signature: the parser marks every event it emits.
-        raise AssertionError('unreachable: ruamel.yaml marks every event it parses')
+        # SAFETY: an event's mark is optional only in its constructor's signature; the parser marks every event.
+        raise Unreachable('ruamel.yaml marks every event it parses')
     return mark
 
 
@@ -287,8 +288,8 @@ def _read_document(parser: _EventStream) -> YamlValue | None:
     root = _read_value(parser)
     parser.get_event()  # The document's end.
     if not parser.check_event(StreamEndEvent):
-        # A second document starts with a `---` or a `...` marker, which the scanner refuses where it stands.
-        raise AssertionError('unreachable: the scanner refuses every document marker')
+        # SAFETY: a second document starts with a `---` or a `...` marker, which the scanner refuses where it stands.
+        raise Unreachable('the scanner refuses every document marker')
     return root
 
 
@@ -307,8 +308,8 @@ def _peek_node_start(parser: _EventStream) -> ScalarEvent | SequenceStartEvent |
     if isinstance(event, AliasEvent):
         raise RefusedAliasError(event.anchor, _mark_of(event))
     if not isinstance(event, ScalarEvent | SequenceStartEvent | MappingStartEvent):
-        # Only an end event or a document event is left, and the parser never gives one where a value starts.
-        raise AssertionError(f'unreachable: {type(event).__name__} where a value starts')
+        # SAFETY: only an end event or a document event is left, and the parser never gives one where a value starts.
+        raise Unreachable(f'{type(event).__name__} where a value starts')
     if event.anchor is not None:
         raise RefusedAnchorError(event.anchor, _mark_of(event))
     # The parser gives an event a tag only when one is written in the text, the non-specific `!` included.
@@ -467,8 +468,8 @@ def _scalar_value(event: ScalarEvent) -> str | int | float | bool | None:
     """
     text = event.value
     if not isinstance(text, str):
-        # An event's value is typed as optional text; a scalar event always carries its text.
-        raise AssertionError('unreachable: ruamel.yaml reads a scalar as text')
+        # SAFETY: an event's value is typed as optional text; a scalar event always carries its text.
+        raise Unreachable('ruamel.yaml reads a scalar as text')
     # A quoted scalar, and a literal `|` or folded `>` block, has a style; only a plain one is resolved.
     if event.style is not None:
         return text
