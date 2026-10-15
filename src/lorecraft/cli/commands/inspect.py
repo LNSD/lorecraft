@@ -51,10 +51,10 @@ def inspect(
     # Imported here, not at the top: `inspect_run` imports the workspace model, which `--help` never uses.
     from ..inspect_run import run_inspect
 
-    run_inspect(root, _resolve_format(output_format, as_json))
+    run_inspect(root, _resolve_format(output_format, as_json=as_json))
 
 
-def _resolve_format(output_format: OutputFormat | None, as_json: bool) -> OutputFormat:
+def _resolve_format(output_format: OutputFormat | None, *, as_json: bool) -> OutputFormat:
     """The format the model is printed in, once the deprecated `--json` alias is read as `--format json`.
 
     `--json` is kept so scripts written before `--format` keep working. `--format` defaults to `None` so a given one

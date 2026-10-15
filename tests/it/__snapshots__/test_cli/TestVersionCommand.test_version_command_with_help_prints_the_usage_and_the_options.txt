@@ -3,6 +3,8 @@
                                                                                 
  Show the installed version.                                                    
                                                                                 
+ Exit 0 once the version is printed, and 2 for invalid input.                   
+                                                                                
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --verbose  -v        Include the commit, the interpreter, the platform and   │
 │                      the install path.                                       │

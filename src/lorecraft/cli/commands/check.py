@@ -114,4 +114,4 @@ def check(
     # Imported here, not at the top: `check_run` imports the rules engine, which `--help` and `--version` never use.
     from ..check_run import run_check
 
-    run_check(root, output_format, color, select, ignore)
+    run_check(root, output_format=output_format, color=color, select=select, ignore=ignore)

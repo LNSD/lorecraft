@@ -15,7 +15,10 @@ def version(
         typer.Option('--verbose', '-v', help='Include the commit, the interpreter, the platform and the install path.'),
     ] = False,
 ) -> None:
-    """Show the installed version."""
+    """Show the installed version.
+
+    Exit 0 once the version is printed, and 2 for invalid input.
+    """
     if not verbose:
         typer.echo(short_version())
         return
