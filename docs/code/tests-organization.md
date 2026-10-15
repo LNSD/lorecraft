@@ -52,7 +52,9 @@ HTTP endpoint is not, and the fix is the seam, not the tier.
 
 The unit tests for `<pkg>/<module>.py` live in `<pkg>/tests/test_<module>.py`. That is a `tests/`
 subpackage, with its own `__init__.py`, in the same directory as the module. The test belongs to the package
-it tests, moves with it, and changes in the same diff.
+it tests, moves with it, and changes in the same diff. A test that only checks that a module's classes satisfy a
+`Protocol` statically is a unit test of that module, and lives in the same file
+([pattern-protocol](pattern-protocol.md)).
 
 **Belonging to the package is what gives the test its reach.** A co-located test imports its subject from
 the module itself, by the rule the package's own code follows ([python-modules](python-modules.md) §3):
@@ -282,6 +284,7 @@ Before committing code, verify:
 - [logging](logging.md) - Related: Owns the log lines a failing test is read through
 - [python-modules](python-modules.md) - Related: Owns the import form a co-located unit test uses and the ban on underscored package names
 - [principle-single-responsibility](principle-single-responsibility.md) - Foundation: One tier per test, because one test answers one kind of question
+- [pattern-protocol](pattern-protocol.md) - Related: The layer-boundary contract a static conformance check covers
 
 ## External References
 

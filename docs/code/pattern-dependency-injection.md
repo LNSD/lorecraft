@@ -65,7 +65,8 @@ setup policy to isolate, direct construction may be simpler.
 
 - [ ] A required collaborator appears in the constructor or the operation signature
 - [ ] Concrete collaborators are constructed at the application boundary
-- [ ] The consumer does not look up a global service or build a fallback collaborator
+- [ ] The consumer does not look up a global service or build a fallback collaborator; a registration collector
+      is read only by the composition root ([pattern-registry](pattern-registry.md))
 - [ ] An interface is introduced only for a real shared contract, not just to enable injection
 - [ ] A container is not added merely to pass a few concrete collaborators
 
@@ -75,6 +76,7 @@ setup policy to isolate, direct construction may be simpler.
 - [pattern-repository](pattern-repository.md) - Related: Inject a concrete repository into its callers
 - [pattern-facade](pattern-facade.md) - Related: Supply the collaborators a workflow facade coordinates
 - [pattern-callable-factory](pattern-callable-factory.md) - Related: Inject a callable when the consumer must build instances later
+- [pattern-registry](pattern-registry.md) - Related: The registration collector only the composition root reads
 
 ## External References
 

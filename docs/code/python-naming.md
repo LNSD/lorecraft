@@ -106,7 +106,8 @@ when `__repr__` already reads well enough.
 **Nothing ever parses `__str__` output.** A status line, a progress summary, a report footer: these are built
 for a human's eye and are free to change wording at any time. Code that extracts a number or a state from one
 of them is depending on a sentence, and it breaks the first time someone improves the phrasing — silently,
-with a parse that still succeeds against the wrong field.
+with a parse that still succeeds against the wrong field. A value object's `__str__` is not such a sentence:
+it is its canonical form, which code may compare ([pattern-value-object](pattern-value-object.md)).
 
 ```python
 # ❌ Bad — repr hides the identity, so a list of these in a traceback is a wall of
@@ -148,7 +149,7 @@ Before committing code, verify:
 - [ ] Capability declarations are `SCREAMING_SNAKE` `ClassVar` class attributes, not instance attributes set
       in `__init__`
 - [ ] Every class with a `__str__` also has a `__repr__` that names its type and identity, and no code in the
-      diff parses, splits, or matches against a `__str__` result
+      diff parses, splits, or matches against a `__str__` result other than a value object's canonical form
 
 ## References
 
@@ -160,6 +161,7 @@ Before committing code, verify:
 - [python-modules](python-modules.md) - Related: Where a module of a given name may be placed
 - [error-types](error-types.md) - Related: Owns what an error class and its union are named
 - [python-docstrings](python-docstrings.md) - Related: The docstring that follows the name
+- [pattern-value-object](pattern-value-object.md) - Related: A value object's `__str__` is its canonical form, not a sentence
 
 ## External References
 

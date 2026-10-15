@@ -18,7 +18,8 @@ Use an unchecked constructor only when the call site already has a concrete reas
 the invariant, such as a fixed literal or a value read from a store that validated it on write. Values arriving
 from CLI arguments, configuration, files, or other external boundaries go through the validating constructor.
 Skipping validation without an independent proof moves the failure away from the boundary and makes malformed
-values harder to trace.
+values harder to trace. A fixed literal in package data needs no unchecked constructor: call the validating one,
+such as `RuleGroupPrefix('LC')`, since its check runs once, on import.
 
 ## 2. Name the Bypass and Reference the Type's Invariant
 
