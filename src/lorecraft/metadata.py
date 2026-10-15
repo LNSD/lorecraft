@@ -9,7 +9,7 @@ import logging
 from importlib.metadata import PackageNotFoundError, version
 from typing import Final
 
-logger: logging.Logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 # Distribution name as declared in pyproject.toml, which is what importlib.metadata keys on.
 _DISTRIBUTION_NAME: Final[str] = 'lorecraft'

@@ -9,9 +9,10 @@ read a real tree under `tmp_path`.
 import json
 import os
 import sys
-from collections.abc import Iterator
+from collections.abc import Iterator, Mapping
 from pathlib import Path
 from textwrap import dedent
+from types import MappingProxyType
 from typing import Final
 
 import pytest
@@ -48,7 +49,7 @@ CHECKLIST_AND_FRONTMATTER_SPEC: Final[str] = dedent(
 
 # The help is drawn by Rich, which reads the terminal it draws for: under GitHub Actions it emits colour codes, and
 # it wraps at the width it finds. A dumb terminal 80 columns wide draws the same plain text on every machine.
-PLAIN_TERMINAL: Final[dict[str, str | None]] = {'TERM': 'dumb', 'COLUMNS': '80'}
+PLAIN_TERMINAL: Final[Mapping[str, str | None]] = MappingProxyType({'TERM': 'dumb', 'COLUMNS': '80'})
 
 # A `SKILL.md` holding a field the Agent Skills specification does not define, which is a warning and nothing else.
 UNKNOWN_FIELD_SKILL_MD: Final[str] = '---\nname: review\ndescription: Review a change\nversion: 2\n---\n# Review\n'
