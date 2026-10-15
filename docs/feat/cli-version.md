@@ -49,17 +49,17 @@ lorecraft version --verbose
 The short form is one line on stdout, the same line `lorecraft --version` prints:
 
 ```text
-lorecraft 0.1.dev14+g376abe87a.d20260928
+lorecraft 0.1.1.dev521+g03c756b3f
 ```
 
 The verbose form adds one labelled line each:
 
 ```text
-lorecraft 0.1.dev14+g376abe87a.d20260928
-Commit:   0425125-dirty
+lorecraft 0.1.1.dev521+g03c756b3f
+Commit:   v0.1.0-521-g03c756b3
 Python:   3.13.14 (CPython)
 Platform: Linux-6.18.49-1-MANJARO-x86_64-with-glibc2.44
-Install:  /home/user/lorecraft/src/lorecraft
+Install:  .../lorecraft/src/lorecraft
 ```
 
 `Commit` is `git describe --tags --always --dirty` run in the checkout, so uncommitted work shows as `-dirty`.
