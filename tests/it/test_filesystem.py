@@ -33,7 +33,16 @@ from lorecraft.vfs import (
     FileResolveError,
     OsRefusal,
     OtherRecord,
+    RecordedDirListError,
+    RecordedDirListPathError,
+    RecordedDirResolveError,
+    RecordedEntryInspectError,
+    RecordedFileReadError,
+    RecordedFileReadPathError,
+    RecordedFileResolveError,
+    RecordedRootExitWalkError,
     RootExit,
+    RootExitWalkError,
     ScanRoot,
     ScopeIndex,
     Snapshot,
@@ -48,6 +57,14 @@ from lorecraft.vfs import (
     VirtualFileSystem,
     diff,
     take_snapshot,
+)
+from lorecraft.vfs.view import (
+    DirListFailure,
+    DirResolveFailure,
+    EntryInspectFailure,
+    FileReadFailure,
+    FileResolveFailure,
+    RootExitWalkFailure,
 )
 
 DOCS_DIR: Final[RootRelativePath] = RootRelativePath.parse('docs')
@@ -373,6 +390,26 @@ def _recorded_kinds(snapshot: Snapshot) -> dict[RootRelativePath, EntryKind]:
 # as one answer.
 UNREADABLE_FILE: Final[str] = 'the path leads to no file that can be read'
 
+# The failures the operations of a view declare, which `FileSystem` binds to the `*Failure` union aliases; an
+# `except` clause takes classes, so each alias is spelled out as the classes it names. Any other error is a
+# defect the test must not swallow.
+_DECLARED_FAILURES: Final[tuple[type[Error], ...]] = (
+    DirListError,
+    RecordedDirListError,
+    RecordedDirListPathError,
+    RecordedFileReadError,
+    RecordedFileReadPathError,
+    TextDecodeError,
+    EntryInspectError,
+    RecordedEntryInspectError,
+    DirResolveError,
+    RecordedDirResolveError,
+    FileResolveError,
+    RecordedFileResolveError,
+    RootExitWalkError,
+    RecordedRootExitWalkError,
+)
+
 
 def _answer(call: Callable[[RootRelativePath], object], path: RootRelativePath) -> object:
     """What one view answers for `path`: the return value, `UNREADABLE_FILE`, or the class of the `Error`.
@@ -385,8 +422,17 @@ def _answer(call: Callable[[RootRelativePath], object], path: RootRelativePath) 
         return call(path)
     except (FileReadError, UnrecordedFileError):
         return UNREADABLE_FILE
-    except Error as exc:
-        return type(exc)
+    except _DECLARED_FAILURES as exc:
+        failure: (
+            DirListFailure
+            | FileReadFailure
+            | DirResolveFailure
+            | FileResolveFailure
+            | EntryInspectFailure
+            | RootExitWalkFailure
+            | TextDecodeError
+        ) = exc
+        return type(failure)
 
 
 @pytest.mark.it

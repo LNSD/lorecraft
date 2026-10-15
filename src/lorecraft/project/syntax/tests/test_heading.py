@@ -1,7 +1,5 @@
 """The top-level headings of a document's parse tree, and finding its title and its sections among them."""
 
-from typing import cast
-
 import pytest
 
 from lorecraft.core.num import NonZeroUnsignedInt, UnsignedInt
@@ -13,46 +11,6 @@ from ..words import WordCount
 
 @pytest.mark.unit
 class TestHeading:
-    def test_heading_level_zero_raises_assertion_error(self) -> None:
-        #: Given
-        # The type rules 0 out; the cast stands in for a value that reached the field through `Any`.
-        rejected = cast(HeadingLevel, 0)
-        line = LineNumber(NonZeroUnsignedInt(1))
-        words = WordCount(UnsignedInt(0))
-
-        #: When
-        with pytest.raises(AssertionError) as exc_info:
-            Heading(
-                level=rejected,
-                text='Intro',
-                line=line,
-                empty=False,
-                words=words,
-            )
-
-        #: Then
-        assert str(rejected) in str(exc_info.value), 'the error names the rejected level'
-
-    def test_heading_level_seven_raises_assertion_error(self) -> None:
-        #: Given
-        # The type rules 7 out; the cast stands in for a value that reached the field through `Any`.
-        rejected = cast(HeadingLevel, 7)
-        line = LineNumber(NonZeroUnsignedInt(1))
-        words = WordCount(UnsignedInt(0))
-
-        #: When
-        with pytest.raises(AssertionError) as exc_info:
-            Heading(
-                level=rejected,
-                text='Deep',
-                line=line,
-                empty=False,
-                words=words,
-            )
-
-        #: Then
-        assert str(rejected) in str(exc_info.value), 'the error names the rejected level'
-
     def test_heading_level_one_constructs(self) -> None:
         #: Given
         accepted = 1

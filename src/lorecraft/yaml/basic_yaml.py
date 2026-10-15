@@ -23,7 +23,7 @@ from ruamel.yaml.scanner import Scanner, ScannerError
 from ruamel.yaml.tag import Tag
 from ruamel.yaml.tokens import ScalarToken, TagToken, Token
 
-from lorecraft.core.error import Error
+from lorecraft.core.error import Error, Unreachable
 
 from .problem import LINE_SEPARATORS
 
@@ -548,8 +548,8 @@ class BasicYamlScanner(Scanner):
             raise RefusedAnchorError(name, start_mark)
         token = super().scan_anchor(TokenClass)
         if not isinstance(token, Token):
-            # The base method's return type is `Any`; it builds the token class it was given.
-            raise AssertionError('unreachable: ruamel.yaml scans an anchor into a token')
+            # SAFETY: the base method's return type is `Any`; it builds the token class it was given.
+            raise Unreachable('ruamel.yaml scans an anchor into a token')
         return token
 
     def scan_tag(self) -> TagToken:
@@ -567,8 +567,8 @@ class BasicYamlScanner(Scanner):
         except ScannerError as exc:
             raise RefusedMalformedTagError(written, start_mark, source=exc) from exc
         if not isinstance(token, TagToken):
-            # The base method's return type is `Any`; it builds a tag token.
-            raise AssertionError('unreachable: ruamel.yaml scans a tag into a tag token')
+            # SAFETY: the base method's return type is `Any`; it builds a tag token.
+            raise Unreachable('ruamel.yaml scans a tag into a tag token')
         return token
 
     def fetch_key(self) -> None:
@@ -617,11 +617,12 @@ class BasicYamlScanner(Scanner):
             start_mark: Where the scalar starts, for the scanner's own error messages.
         """
         chomping, increment = super().scan_block_scalar_indicators(start_mark)
-        # The base method's return type is `Any`; it reads `+` and `-` as a boolean and a digit as an integer.
         if chomping is not None and not isinstance(chomping, bool):
-            raise AssertionError('unreachable: the chomping indicator is a boolean or absent')
+            # SAFETY: the base method's return type is `Any`; it reads `+` and `-` as a boolean
+            raise Unreachable('the chomping indicator is a boolean or absent')
         if increment is not None and not isinstance(increment, int):
-            raise AssertionError('unreachable: the indentation indicator is an integer or absent')
+            # SAFETY: the base method's return type is `Any`; it reads a digit as an integer
+            raise Unreachable('the indentation indicator is an integer or absent')
         if increment is not None:
             self.refusals.append(RecordedRefusal(_RecordedConstruct.INDENTATION_INDICATOR, start_mark))
         return chomping, increment
@@ -702,8 +703,8 @@ class BasicYamlScanner(Scanner):
         """Where the reader is."""
         mark = self.reader.get_mark()
         if not isinstance(mark, StreamMark):
-            # The reader's `get_mark` is typed as optional; a reader built over a string always marks its position.
-            raise AssertionError('unreachable: the reader marks every position')
+            # SAFETY: the reader's `get_mark` is typed as optional; a reader over a string always marks its position.
+            raise Unreachable('the reader marks every position')
         return mark
 
     def scan_flow_scalar_non_spaces(self, double: bool, start_mark: StreamMark) -> list[str]:
@@ -859,12 +860,12 @@ def _strings(chunks: object) -> list[str]:
         chunks: What the scanner method returned.
     """
     if not isinstance(chunks, list):
-        # The scanner method is untyped; it builds a list of the pieces it scanned.
-        raise AssertionError('unreachable: ruamel.yaml scans text into a list of strings')
+        # SAFETY: the scanner method is untyped; it builds a list of the pieces it scanned.
+        raise Unreachable('ruamel.yaml scans text into a list of strings')
     strings: list[str] = []
     for chunk in chunks:
         if not isinstance(chunk, str):
-            # The scanner appends only slices of the block's text, which are strings.
-            raise AssertionError('unreachable: ruamel.yaml scans text into a list of strings')
+            # SAFETY: the scanner appends only slices of the block's text, which are strings.
+            raise Unreachable('ruamel.yaml scans text into a list of strings')
         strings.append(chunk)
     return strings

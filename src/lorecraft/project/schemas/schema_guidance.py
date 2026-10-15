@@ -9,6 +9,7 @@ defensively, never asserted: a schema owes a reader none of it, and a keyword le
 import json
 from collections.abc import Mapping
 
+from lorecraft.core.error import Unreachable
 from lorecraft.core.mapping import Plain
 from lorecraft.project.syntax import is_string_when_read_back
 
@@ -50,8 +51,8 @@ def json_type_of(value: object) -> JsonType:
         return JsonType.ARRAY
     if isinstance(value, Mapping):
         return JsonType.OBJECT
-    # The YAML decoder only yields mappings, lists and JSON scalars, and each is handled above.
-    raise AssertionError(f'unreachable: a frontmatter decodes to JSON values, got {type(value)!r}')
+    # SAFETY: the YAML decoder only yields mappings, lists and JSON scalars, and each is handled above.
+    raise Unreachable(f'a frontmatter decodes to JSON values, got {type(value)!r}')
 
 
 def schema_guidance(schema: Plain) -> FieldGuidance:
@@ -131,8 +132,8 @@ def find_object(value: Plain) -> Mapping[str, Plain] | None:
     entries: dict[str, Plain] = {}
     for key, item in value.items():
         if not isinstance(key, str):
-            # The schema was loaded from a document whose keys the reader proved are strings.
-            raise AssertionError('unreachable: the loader refuses non-string keys')
+            # SAFETY: the schema was loaded from a document whose keys the reader proved are strings.
+            raise Unreachable('the loader refuses non-string keys')
         entries[key] = item
     return entries
 

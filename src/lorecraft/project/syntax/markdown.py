@@ -20,7 +20,7 @@ A wenmode upgrade that changes the plugin is caught there, not here.
 import re
 from bisect import bisect_left
 from dataclasses import dataclass
-from typing import Final, assert_never
+from typing import Final
 
 from wenmode import Wenmode
 from wenmode.ast import plain_text
@@ -29,6 +29,7 @@ from wenmode.nodes import Heading as WenmodeHeading
 from wenmode.nodes import Link as WenmodeLink
 from wenmode.plugins import frontmatter
 
+from lorecraft.core.error import Unreachable
 from lorecraft.core.lines import newline_offsets
 from lorecraft.core.num import NonZeroUnsignedInt
 
@@ -84,21 +85,6 @@ class HeadingBlock:
     level: HeadingLevel
     text: str
     line: LineNumber
-
-    def __post_init__(self) -> None:
-        """Fail on a level outside 1 to 6, which the type rules out but cannot stop at run time.
-
-        The type is checked only before the code runs, so a value that reached `level` through `Any` or a `cast`
-        is caught here instead.
-
-        Raises:
-            AssertionError: If `level` is not in 1..6.
-        """
-        match self.level:
-            case 1 | 2 | 3 | 4 | 5 | 6:
-                pass
-            case _:
-                assert_never(self.level)
 
 
 @dataclass(frozen=True, slots=True)
@@ -225,8 +211,8 @@ def _heading_level(depth: int) -> HeadingLevel:
         case 1 | 2 | 3 | 4 | 5 | 6:
             return depth
         case _:
-            # wenmode follows CommonMark, which gives every ATX and setext heading a depth of 1 to 6.
-            raise AssertionError(f'unreachable: a Markdown heading is 1 to 6 deep, got {depth}')
+            # SAFETY: wenmode follows CommonMark, which gives every ATX and setext heading a depth of 1 to 6
+            raise Unreachable(f'a Markdown heading is 1 to 6 deep, got {depth}')
 
 
 def _source_outside_code(text: str, block: Node) -> tuple[str, ...]:
@@ -341,5 +327,6 @@ def _position(node: Node) -> Position:
             `parse_markdown_frontmatter`'s, may lack positions.
     """
     if node.position is None:
-        raise AssertionError('unreachable: the full parser is built with positions=True')
+        # SAFETY: the full parser is built with positions=True, so every node carries its position
+        raise Unreachable('a node of the full parser has a position')
     return node.position

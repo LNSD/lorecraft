@@ -40,8 +40,13 @@ from lorecraft.project.workspace import (
     WorkspaceModel,
 )
 from lorecraft.rules.declaration import EngineCondition
-from lorecraft.rules.engine import invalid_utf8, malformed_structure_file, unreadable_path, unusable_structure_file
-from lorecraft.rules.engine.__ruleset__ import RefusedOperation
+from lorecraft.rules.engine import (
+    RefusedOperation,
+    invalid_utf8,
+    malformed_structure_file,
+    unreadable_path,
+    unusable_structure_file,
+)
 from lorecraft.rules.engine.unreadable_path import NotARegularFile, Refused
 from lorecraft.rules.report import LoadFailureReport
 from lorecraft.vfs import ByteOffset, OsRefusal, Utf8Failure, Utf8Line, Utf8Reason

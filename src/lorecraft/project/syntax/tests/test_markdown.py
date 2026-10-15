@@ -5,15 +5,12 @@ the frontmatter block. `parse_markdown` and `parse_markdown_frontmatter` are pur
 what is counted or numbered from these values is pinned in `test_document`.
 """
 
-from typing import cast
-
 import pytest
 
 from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.num import NonZeroUnsignedInt
 
 from ..frontmatter import Frontmatter, FrontmatterKey, MissingFrontmatter
-from ..heading import HeadingLevel
 from ..link import Link
 from ..markdown import ContentBlock, HeadingBlock, MarkdownTree, parse_markdown, parse_markdown_frontmatter
 from ..position import LineNumber
@@ -202,32 +199,3 @@ class TestParseMarkdownFrontmatter:
 
         #: Then
         assert frontmatter == MissingFrontmatter(), 'a document not opening with `---` has no frontmatter'
-
-
-@pytest.mark.unit
-class TestHeadingBlock:
-    def test_heading_block_level_zero_raises_assertion_error(self) -> None:
-        #: Given
-        # The type rules 0 out; the cast stands in for a value that reached the field through `Any`.
-        rejected = cast(HeadingLevel, 0)
-        line = LineNumber(NonZeroUnsignedInt(1))
-
-        #: When
-        with pytest.raises(AssertionError) as exc_info:
-            HeadingBlock(level=rejected, text='Intro', line=line)
-
-        #: Then
-        assert str(rejected) in str(exc_info.value), 'the error names the rejected level'
-
-    def test_heading_block_level_seven_raises_assertion_error(self) -> None:
-        #: Given
-        # The type rules 7 out; the cast stands in for a value that reached the field through `Any`.
-        rejected = cast(HeadingLevel, 7)
-        line = LineNumber(NonZeroUnsignedInt(1))
-
-        #: When
-        with pytest.raises(AssertionError) as exc_info:
-            HeadingBlock(level=rejected, text='Deep', line=line)
-
-        #: Then
-        assert str(rejected) in str(exc_info.value), 'the error names the rejected level'

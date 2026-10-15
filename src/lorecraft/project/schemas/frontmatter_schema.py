@@ -25,6 +25,7 @@ from referencing import Registry
 from referencing.exceptions import Unresolvable
 from referencing.jsonschema import DRAFT202012
 
+from lorecraft.core.error import Unreachable
 from lorecraft.core.mapping import Frozen, FrozenMapping, Plain
 from lorecraft.core.num import UnsignedInt
 from lorecraft.core.path import RootRelativePath
@@ -138,8 +139,9 @@ class FrontmatterSchema:
                 # every relative `$ref` beneath it resolves to.
                 return IdentifiedFrontmatterSchema()
             dialect = subschema.get('$schema', JSON_SCHEMA_DIALECT)
-            # The meta-schema check above has refused a `$schema` that is not a string.
-            assert isinstance(dialect, str), 'unreachable: the meta-schema proved `$schema` is a string'
+            if not isinstance(dialect, str):
+                # SAFETY: the meta-schema check above has refused a `$schema` that is not a string
+                raise Unreachable('the meta-schema proved `$schema` is a string')
             if dialect != JSON_SCHEMA_DIALECT:
                 # The check applies every schema under Draft 2020-12, so a schema written for another dialect would
                 # be read by rules it was not written for.
@@ -148,9 +150,9 @@ class FrontmatterSchema:
                 ref = subschema.get(keyword)
                 if ref is None:
                     continue
-                # The meta-schema check above has refused a reference that is not a string.
                 if not isinstance(ref, str):
-                    raise AssertionError(f'unreachable: the meta-schema proved `{keyword}` is a string')
+                    # SAFETY: the meta-schema check above has refused a reference that is not a string
+                    raise Unreachable(f'the meta-schema proved `{keyword}` is a string')
                 if not _resolves_inside(registry, ref):
                     # `validate` raises nothing, and `jsonschema` raises when it meets a reference that does not
                     # resolve to a schema, so it is refused here, where the schema is loaded.
@@ -487,8 +489,8 @@ def _schema_object(value: Plain) -> Mapping[str, Plain]:
     """
     schema = find_object(value)
     if schema is None:
-        # Every caller passes a value the meta-schema, checked when the schema was loaded, requires to be an object.
-        raise AssertionError('unreachable: the meta-schema proved this schema value is an object')
+        # SAFETY: every caller passes a value the meta-schema, checked when the schema was loaded, requires an object.
+        raise Unreachable('the meta-schema proved this schema value is an object')
     return schema
 
 

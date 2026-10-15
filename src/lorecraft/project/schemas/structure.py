@@ -75,6 +75,7 @@ from typing import NewType, Self, assert_never
 
 from pydantic import ValidationError
 
+from lorecraft.core.error import Unreachable
 from lorecraft.core.mapping import Frozen, FrozenMapping
 from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.core.path import RootRelativePath
@@ -432,7 +433,8 @@ def _title_checks(title: StructureFileTitle | None) -> TitleChecks | InvalidTitl
         return WordCappedTitleChecks(words=title.words, chars=title.chars)
     if title.chars is not None:
         return CharCappedTitleChecks(chars=title.chars)
-    raise AssertionError('unreachable: `StructureFileTitle` refuses a `title` that states no check')
+    # SAFETY: `StructureFileTitle` refuses a `title` that states no check
+    raise Unreachable('a `title` states a check')
 
 
 def _frontmatter_schema(
