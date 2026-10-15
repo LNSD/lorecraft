@@ -23,6 +23,8 @@ and output, letting one import contract contain both third-party libraries.
 - The accepted JSON Schema dialect and the JSON types named by its `type` keyword.
 - Typed values for keywords Lorecraft reads from validation errors.
 - The adapter that reads `jsonschema` or `referencing` values and turns them into Lorecraft-owned facts.
+- `Violation` values with the verbatim message, typed keyword, paths and evaluated-property facts needed by callers.
+- Validation results exposed through the public vocabulary, without validator records.
 - The public vocabulary imported by callers from `lorecraft.jsonschema`.
 
 ## Belongs Elsewhere

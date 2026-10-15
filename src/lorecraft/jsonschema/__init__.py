@@ -17,6 +17,8 @@ from .schema_keyword import (
     UnevaluatedPropertiesKeyword,
     keyword_of,
 )
+from .validation import best_violation, validate
+from .violation import Violation
 
 __all__: list[str] = [
     'DIALECT',
@@ -35,4 +37,7 @@ __all__: list[str] = [
     'TypeKeyword',
     'UnevaluatedPropertiesKeyword',
     'keyword_of',
+    'Violation',
+    'validate',
+    'best_violation',
 ]
