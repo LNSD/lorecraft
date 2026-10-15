@@ -22,7 +22,6 @@ process: the arguments, the working directory, standard output and the exit code
 
 - Finding the workspace root, from an option or from the working directory.
 - Taking each snapshot, and building the revision every check of a report reads.
-- Choosing where the store of persisted results lives, and handing it to the database.
 - Selecting the subjects a run checks from the model, and building the rule table it runs.
 - Typing `--select`, `--ignore` and `rule [RULE]` as the command line's own value objects, parsed and confirmed
   against the rule index while the line is read, so a malformed or unknown value is a usage error. They import the

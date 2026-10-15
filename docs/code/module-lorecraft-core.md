@@ -47,7 +47,7 @@ generic building block for one domain belongs in the package that owns that doma
 
 | Code that… | Belongs in |
 |---|---|
-| Specializes it for a fixed directory or suffix of the layout | `lorecraft.layout` |
+| Specializes it for a fixed directory or suffix of the layout | `lorecraft.project.layout` |
 | Specializes it for documents, corpora, meta specs or skills | `lorecraft.project` |
 | Specializes it for an agent or a directory an agent reads | `lorecraft.agents` |
 | Specializes it for the disk, even only to check that a path exists | `lorecraft.vfs` |

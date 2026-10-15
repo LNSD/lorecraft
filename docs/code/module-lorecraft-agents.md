@@ -34,7 +34,7 @@ directory.
 | Checks whether an agent's directory exists in a repository, or lists it | `lorecraft.project`, through a view |
 | Resolves a project-scope path against a workspace root | `lorecraft.project`, through a view |
 | Judges a skill against the Agent Skills specification | `lorecraft.rules` |
-| Turns an agent's directories into scan roots | `lorecraft.layout` |
+| Turns an agent's directories into scan roots | `lorecraft.project.layout` |
 
 ## Invariants
 
@@ -44,7 +44,7 @@ directory.
   the root of its scope: the repository for the project scope, the home directory for the user scope. The two
   scopes have distinct types, `ProjectPath` and `UserPath`, so one cannot stand in for the other.
 - Every record is immutable data.
-- Another layer reaches an agent only by iterating the registry and reading the agent's record. It never names
+- Another layer reaches an agent only by iterating the closed constant tuple of agents and reading the agent's record. It never names
   one agent or one agent's constant, so adding an agent edits only this package.
 
 ## Examples
@@ -69,8 +69,8 @@ skills_dirs = CODEX_SKILL_DIRS
 ```
 
 ```python
-# ✅ Good — in lorecraft.project: every agent, through the registry, each directory tied to its agent
-skills_dirs = [(agent, skills_dir) for agent in all_agents() for skills_dir in agent.skill_dirs]
+# ✅ Good — in lorecraft.project: every agent, through `iter_agents()`, each directory tied to its agent
+skills_dirs = [(agent, skills_dir) for agent in iter_agents() for skills_dir in agent.skill_dirs]
 ```
 
 ## Checklist
@@ -80,11 +80,10 @@ Before committing code, verify:
 - [ ] Nothing added to `lorecraft.agents` imports a Lorecraft package other than `lorecraft.core`, or reads the disk or the environment
 - [ ] Every path stated is a `ProjectPath` or a `UserPath` over a `RootRelativePath`, relative to the root of its scope
 - [ ] No code outside `lorecraft.agents` names an individual agent or one agent's constant
-- [ ] A new agent is one package beside the others and one record in the registry
+- [ ] A new agent is one package beside the others and one record in the constant tuple `_AGENTS`
 
 ## References
 
 - [adr-001-snapshot-model](../arch/adr-001-snapshot-model.md) - Foundation: The Declaration role
 - [adr-003-project-model](../arch/adr-003-project-model.md) - Foundation: Why the scope is declared, never discovered
 - [principle-single-responsibility](principle-single-responsibility.md) - Foundation: One reason to change
-- [pattern-registry](pattern-registry.md) - Foundation: The closed set another layer iterates
