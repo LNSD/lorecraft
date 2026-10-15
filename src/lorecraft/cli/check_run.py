@@ -66,7 +66,7 @@ def run_check(
 
     Returns:
         `ExitStatus.FINDINGS` when any diagnostic is an error, `ExitStatus.FAILURE` for invalid input or
-        specifications, which the command handler exits with; `None` otherwise.
+        when `docs/` or `docs/__meta__/` cannot be listed, which the command handler exits with; `None` otherwise.
 
     Raises:
         RuntimeError: If the rules cannot be registered, or a selector names a group or a code the registry does not

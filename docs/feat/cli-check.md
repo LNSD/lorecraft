@@ -177,7 +177,7 @@ messages, labels and notes is written as UTF-8 characters instead of `\uXXXX` es
 | Code | Meaning |
 |------|---------|
 | `0`  | No diagnostic is an error; warnings and ungoverned parts do not count |
-| `1`  | At least one error diagnostic, including `LC002` for a path needed to load the workspace |
+| `1`  | At least one error diagnostic, including a meta spec that failed to load |
 | `2`  | No root; unreadable non-structure file or symlink target; unlistable or linked `docs/` or `docs/__meta__/`; unlistable directory or uninspectable entry on a followed chain that no load failure reports; changed snapshot entry; invalid selection or usage. Errors print `error: ...` on stderr; selector usage errors follow [cli](cli.md) |
 
 With multiple unreported refusals, exit `2` names the first path in path order.

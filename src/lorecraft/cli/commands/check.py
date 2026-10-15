@@ -105,7 +105,8 @@ def check(
 
     --select never enables a rule its level leaves off; each such rule, and each alias code, is warned of on stderr.
 
-    Exit 0 when no diagnostic is an error, 1 when any is, and 2 for invalid input, specifications or selectors.
+    Exit 0 when no diagnostic is an error, 1 when any is, such as a meta spec that failed to load, and 2 for invalid
+    input or selectors, or when the root or `docs/__meta__/` cannot be listed.
 
     \f
     Raises:
