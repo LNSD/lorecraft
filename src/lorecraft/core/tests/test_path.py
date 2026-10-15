@@ -4,8 +4,7 @@ from pathlib import PurePosixPath
 
 import pytest
 
-from lorecraft.core.error import Error
-
+from ..error import Error
 from ..path import PathComponent, PathComponentError, RootRelativePath, RootRelativePathError
 
 

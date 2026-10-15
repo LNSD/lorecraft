@@ -10,7 +10,7 @@ import re
 from bisect import bisect_right
 from typing import Final, NewType
 
-from lorecraft.core.num import UnsignedInt
+from .num import UnsignedInt
 
 LineCount = NewType('LineCount', UnsignedInt)
 """How many lines a text holds: a count of lines, never taken for a count of tokens or of words."""

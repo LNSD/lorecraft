@@ -17,7 +17,7 @@ from typing import Final
 
 from lorecraft import __version__
 
-logger: logging.Logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 # The name the CLI is invoked by, and the name under which the package is distributed. They are
 # the same string today; keeping one constant means a rename touches one line.

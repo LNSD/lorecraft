@@ -17,7 +17,7 @@ from typing import Any, assert_never, get_args
 from pydantic import GetCoreSchemaHandler, JsonValue, SerializerFunctionWrapHandler, ValidatorFunctionWrapHandler
 from pydantic_core import core_schema
 
-from lorecraft.core.error import Error
+from .error import Error
 
 
 class NonStringKeyError(Error):
