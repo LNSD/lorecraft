@@ -98,6 +98,13 @@ class _FakeTree:
         """
         return directory not in self._unclimbable
 
+    def record_climb(self, directory: RootRelativePath) -> None:
+        """Record nothing: the tests look at where the walk ends.
+
+        Args:
+            directory: The directory the walk climbed out of.
+        """
+
 
 @pytest.mark.unit
 class TestFindDestination:

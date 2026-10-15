@@ -41,4 +41,4 @@ class AnyTokens(DocumentRule):
         Args:
             subject: The document, governed by a budget.
         """
-        return (cls(spec=None, line=LineNumber(NonZeroUnsignedInt(1)), token_count=subject.tokens().value),)
+        return (cls(spec=None, line=LineNumber(NonZeroUnsignedInt(1)), token_count=subject.token_count().value),)

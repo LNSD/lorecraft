@@ -717,3 +717,10 @@ class _SnapshotEntries:
             directory: The resolved directory the walk climbs out of.
         """
         return True
+
+    def record_climb(self, directory: RootRelativePath) -> None:
+        """Record nothing: a snapshot is already taken; see `EntryLookup`.
+
+        Args:
+            directory: The resolved directory the walk climbed out of.
+        """

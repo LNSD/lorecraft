@@ -632,7 +632,7 @@ class TestDatabase:
         #: Then
         assert second is first, 'a document is parsed once per database, then shared by every check'
 
-    def test_tokens_of_a_listed_document_counts_its_whole_file(self) -> None:
+    def test_token_count_of_a_listed_document_counts_its_whole_file(self) -> None:
         #: Given
         # no prose words at all, but an agent loading the file still pays for every character of it
         guide = '---\nname: "guide"\n---\n```python\nx = 1\n```\n'
@@ -641,19 +641,19 @@ class TestDatabase:
         expected = count_tokens(guide)
 
         #: When
-        tokens = database.tokens(source)
+        tokens = database.token_count(source)
 
         #: Then
         assert tokens == expected, f'frontmatter and code count too, got {tokens}'
 
-    def test_document_lines_of_a_listed_document_counts_its_whole_file(self) -> None:
+    def test_document_line_count_of_a_listed_document_counts_its_whole_file(self) -> None:
         #: Given
         # three lines of frontmatter and two of body, the last one ending in a newline
         database = Database.from_snapshot(_snapshot(b'---\nname: "guide"\n---\n# Guide\n\n'))
         source = _document_text(database, GUIDE)
 
         #: When
-        lines = database.document_lines(source)
+        lines = database.document_line_count(source)
 
         #: Then
         assert lines == UnsignedInt(5), f'the frontmatter counts too, and the final newline adds no line, got {lines}'
@@ -752,7 +752,7 @@ class TestDatabase:
             'the ref names the linked entry, and the tree is parsed from the SKILL.md the link leads to'
         )
 
-    def test_skill_lines_of_a_skill_counts_its_whole_file(self) -> None:
+    def test_skill_line_count_of_a_skill_counts_its_whole_file(self) -> None:
         #: Given
         # three lines of frontmatter and three of body, the last one ending in a newline
         database = Database.from_snapshot(
@@ -761,7 +761,7 @@ class TestDatabase:
         source = _skill_text(database, REVIEW)
 
         #: When
-        lines = database.skill_lines(source)
+        lines = database.skill_line_count(source)
 
         #: Then
         assert lines == UnsignedInt(6), f'the frontmatter counts too, and the final newline adds no line, got {lines}'
