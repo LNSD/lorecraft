@@ -174,7 +174,8 @@ tar tzf dist/*.tar.gz | sed 's|^[^/]*/||' | cut -d/ -f1 | sort -u
 ```
 
 The sdist carries only what is needed to build the package from source: `src/lorecraft/`,
-`pyproject.toml`, `README.md` and the two licence files. Everything else, `tests/`, `docs/`, `.agents/`,
+`pyproject.toml`, `README.md` and the two licence files, plus the top-level `.gitignore` that Hatchling always
+adds. Everything else, `tests/`, `docs/`, `.agents/`,
 `.github/`, `justfile` and `uv.lock`, is repository material rather than package material, and is
 excluded by the `include` list in `[tool.hatch.build.targets.sdist]`.
 
