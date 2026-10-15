@@ -120,16 +120,16 @@ line breaks. A note with a lone `\r` is drawn on separate lines under this polic
 This excerpt is from a check run (stdout):
 
 ```text
-error[OUT006]: missing required section `Usage`
- --> docs/feat/check.md:5
+error[OUT006]: missing required section `Checklist`
+ --> docs/code/logging.md:1
   │
-5 │ ## Options
-  │ ────────── expected `Usage` before `Options`
+1 │ # Logging
+  │ ───────── expected `Checklist` before the end of the document
   │
- ::: docs/__meta__/feat.spec.json
+ ::: docs/__meta__/code.structure.json
   │
   = note: the document structure is set here
-  = help: How to invoke the command.
+  = help: The items a reviewer verifies before committing a change the rule document governs.
 ```
 
 On stderr, `text` prints ungoverned and skipped coverage in path order, then counts per code prefix and an
@@ -154,8 +154,7 @@ labels, help and notes, and keeps `text` order and exit status. Stderr has cover
 without prefix counts. For example:
 
 ```text
-docs/code/guide.md:1: error[FM001]: no `---` delimited frontmatter block
-docs/code/guide.md:1: error[OUT006]: missing required section `Checklist`
+docs/code/logging.md:1: error[OUT006]: missing required section `Checklist`
 ```
 
 In `json` format stdout is one compact JSON object on one line, without indentation or spaces after
