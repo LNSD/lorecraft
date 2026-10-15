@@ -65,7 +65,8 @@ process: the arguments, the working directory, standard output and the exit code
   outside the set, and no command compares a raw string. JSON is one compact document. A command that does not
   succeed exits with an `ExitStatus`, `FINDINGS` when it ran and found something and `FAILURE` when it could not
   run.
-- Every failure that escapes the packages below is written out here, as a chain.
+- Every failure that escapes the packages below is written out here, as the whole chain, foreign causes
+  included. Only a command handler raises `typer.Exit`; the flow it calls returns the `ExitStatus`.
 - A command whose flow imports the rules engine, the rules or the workspace model imports it inside the handler, so
   `--help`, `--version` and `version` import none of them.
 

@@ -223,13 +223,24 @@ A reviewer classifies each `except` block:
 | Cleans up and re-raises with a bare `raise` | **Sanctioned** |
 | Recovers: retries, or takes another path, for the classes it names ([§1](#1-catch-the-narrowest-exception-you-can-name)) | **Sanctioned** |
 | Degrades: returns the value its `Returns:` documents ([§8](#8-a-degraded-return-value-is-part-of-the-documented-contract)) | **Sanctioned** for a narrow catch, and for a broad one at a degrade boundary ([§5](#5-except-exception-requires-a-declared-degrade-boundary)). It logs only when the value drops the failure; a value that carries it on is reported by its reader |
-| Reports and exits: catches `Error`, writes the failure and its chain to stderr, and exits through the framework's exception | **Sanctioned** only at the command line's top level, where the user is the handler — the one place `except Error` is written |
+| Reports and exits: catches `Error`, writes the failure and its chain to stderr, and exits through the framework's exception | **Sanctioned** only at the command line's top level, where the user is the handler — the one place `except Error` is written, tests included |
 | Logs and re-raises | **Not used** — every layer that does it logs the same failure again |
 | Does none of these | **The violation** — the failure left no trace and no signal |
 
 The last case is worse than an unhandled exception. An unhandled failure is loud and gets fixed; a swallowed
 one turns a corpus full of broken documents into a clean-looking report, and the defect is found weeks later
 when an agent follows a code spec that was never actually checked.
+
+A test is held to the same table. A harness that turns an outcome into a value it can compare catches the
+operation's declared variants ([§2](#2-catch-a-union-by-its-variants)) and binds them to the operation's union,
+so ty refuses a class the contract does not declare and a variant the clause misses fails the test loudly.
+
+```python
+# ✅ Good — the clause names the declared variants, and the annotation holds them to the union
+except (FileReadError, RecordedFileReadError) as exc:
+    failure: FileReadFailure = exc
+    return type(failure)
+```
 
 ```python
 # ❌ Bad — a skipped document leaves the report short and the caller is told the corpus

@@ -13,7 +13,7 @@ A repository owns access to one kind of stored entity. Callers ask for entities 
 
 Keep the repository concrete. Construct it with its storage location and inject it into callers that need it. A protocol or abstract base class earns its place only when a second real implementation exists. Its public methods should name useful operations, such as `list_schemas` and `get_frontmatter_schema`. Retrieval returns domain values; discovery may return a small record with the schema name and path so callers can identify files to inspect. Do not expose file handles, parser records, or filesystem exceptions.
 
-Give each public method its own variants, one per way it fails ([error-types](error-types.md)). Translate I/O, decoding, and missing data at the repository boundary into variants that carry the original exception as their typed `source`. Declare the variants beside the method that raises them. Callers can then handle one operation's failures without catching failures from another operation.
+Give each public method its own variants, one per way it fails ([error-types](error-types.md)). Translate a foreign failure, I/O, decoding or missing data, at the repository boundary into a variant that carries the original exception as its typed `source`. A lower variant of the package that already names the step and the path passes through and is listed in `Raises:` ([error-boundaries](error-boundaries.md)). Declare the variants beside the method that raises them. Callers can then handle one operation's failures without catching failures from another operation.
 
 Keep validation of what the retrieved entity *means* above the repository. It reads and decodes; a checker decides whether a decoded schema accepts a document. Do not log in the repository: the caller has the context needed to report the failure.
 
@@ -48,7 +48,7 @@ Do not add a repository for one read in one place, or wrap an existing domain-fa
 
 - [ ] One concrete repository owns one entity family and its storage location
 - [ ] Public methods express domain operations; retrieval returns domain values and discovery records include name and path
-- [ ] No storage handle, parser record, or storage exception crosses its public boundary
+- [ ] No storage handle, parser record, or foreign storage exception crosses its public boundary
 - [ ] Each public method raises its own documented variants, and each carries its underlying cause as a
       typed `source`
 - [ ] The repository reads and decodes; callers apply the entity's business or validation rules

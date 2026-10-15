@@ -255,9 +255,10 @@ It does not interpolate the source, and does not copy the source's fields or att
 whether the source is an `Error` or foreign: an `OSError`, a `UnicodeDecodeError`, a parser's exception.
 
 The cause is read where it lives. A handler reads the variant's own typed fields, and `exc.source` as its
-declared type. Whatever reports the failure walks the chain from `__cause__`, one message per link. A message
-that embeds its source repeats the same reason once per layer, and one that paraphrases a source's attributes
-turns typed values back into prose a handler would have to parse.
+declared type. Whatever reports the failure walks the whole chain from `__cause__`, one message per link,
+foreign causes included: the operating system's or the parser's own text is the last link, stated once. A
+message that embeds its source repeats the same reason once per layer, and one that paraphrases a source's
+attributes turns typed values back into prose a handler would have to parse.
 
 ```python
 # ❌ Bad — the cause is copied into the text, so every report of an unreadable outline carried the operating
