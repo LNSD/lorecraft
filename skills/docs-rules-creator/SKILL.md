@@ -130,7 +130,7 @@ still loads, and governs nothing.
 
 ```bash
 lorecraft inspect   # loads every meta spec; exit 2 names a file that cannot be loaded
-lorecraft check     # applies them to every document; exit 2 names a meta spec that cannot be loaded
+lorecraft check     # applies them to every document; exit 1 reports a meta spec that cannot be loaded; exit 2 is invalid input or an unlistable root
 ```
 
 Check in the tree that each spec shows the meta spec names you meant, then run `/docs-rules-check` for

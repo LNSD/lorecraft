@@ -1,6 +1,6 @@
 ---
 name: docs-rules-check
-description: Review documents under docs/ and the Lorecraft meta specs in docs/__meta__/ that govern them - run lorecraft check for frontmatter, section outline, word caps and token budget, walk each meta spec's checklist for what a machine cannot decide, and check that each changed meta spec loads, that its prose and JSON agree, and that it governs the documents intended. Use after editing anything under docs/, when reviewing a pull request that touches docs/, before committing, when lorecraft check exits 2 or a document is unexpectedly ungoverned, or when setting the checks up in CI. Not for writing documents or meta specs; see /docs-rules and /docs-rules-creator
+description: Review documents under docs/ and the Lorecraft meta specs in docs/__meta__/ that govern them - run lorecraft check for frontmatter, section outline, word caps and token budget, walk each meta spec's checklist for what a machine cannot decide, and check that each changed meta spec loads, that its prose and JSON agree, and that it governs the documents intended. Use after editing anything under docs/, when reviewing a pull request that touches docs/, before committing, when lorecraft check exits 1 or 2, or a document is unexpectedly ungoverned, or when setting the checks up in CI. Not for writing documents or meta specs; see /docs-rules and /docs-rules-creator
 compatibility: Requires the lorecraft command, on PATH or run through uvx lorecraft, or uv run lorecraft in a uv project that declares Lorecraft as a dependency, and a git checkout
 allowed-tools: Bash(lorecraft check*) Bash(lorecraft inspect*) Bash(uvx lorecraft *) Bash(uv run lorecraft *) Bash(git diff *) Bash(git status *) Bash(git merge-base *) Bash(grep *) Bash(ls docs/*)
 ---
@@ -63,8 +63,8 @@ lorecraft check --select OUT                 # one group's rules, by prefix, whi
 The run covers the whole workspace; read the diagnostics for the documents the change touches. A diagnostic prints as
 `path:line: severity[CODE]: message`, and may be followed by `-->`, `= help:` and `= note:` lines, or `labels` and
 `children` in JSON; for a missing section they say what it holds and show a sample, so read them before fixing it.
-Exit `0` means no error, warnings included, `1` at least one error, and `2` that the run could not happen: a
-meta spec that cannot be loaded — §6 covers that one. A `<path>: ungoverned for <parts>` line on stderr is not a
+Exit `0` means no error, warnings included, `1` at least one error, a meta spec that cannot be loaded included — §6 covers that one — and `2` invalid input or
+selectors, or that the root or `docs/__meta__/` cannot be listed. A `<path>: ungoverned for <parts>` line on stderr is not a
 failure; report the document as unvalidated for those parts. The rule groups and their codes, `FM` frontmatter, `OUT`
 outline, `LEN` length, `LINK` links, are listed in
 [check](https://github.com/LNSD/lorecraft/blob/main/docs/feat/cli-check.md#findings).
@@ -105,7 +105,7 @@ meta spec for both.
 must use only the dialect's keys and state usable values, and its `frontmatter` key must satisfy the JSON Schema Draft
 2020-12 meta-schema, state `"type": "object"` at its root, and carry no `$id` at any depth. A leftover
 `<name>.header.json` is not read: its schema belongs in that key now. A file that fails stops the run with an error
-naming it: `inspect` and `lorecraft check` both exit `2`. That error is the finding;
+naming it: `inspect` exits `2`, and `lorecraft check` reports it as an error diagnostic and exits `1`. That error is the finding;
 [spec-structure](https://github.com/LNSD/lorecraft/blob/main/docs/feat/spec-structure.md) says what is refused for any
 file, and [spec-structure-outline](https://github.com/LNSD/lorecraft/blob/main/docs/feat/spec-structure-outline.md),
 [spec-structure-budget](https://github.com/LNSD/lorecraft/blob/main/docs/feat/spec-structure-budget.md) and
