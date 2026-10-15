@@ -42,10 +42,10 @@ REVIEW: Final[SkillRef] = SkillRef(
 )
 """A skill an agent reaches under `.agents/skills`."""
 
-CORPUS_SPEC: Final[RootRelativePath] = RootRelativePath.parse('docs/__meta__/code.structure.json')
+CORPUS_SPEC: Final[RootRelativePath] = RootRelativePath.parse('docs/__meta__/code.spec.json')
 """The corpus structure specification."""
 
-NAMESPACE_SPEC: Final[RootRelativePath] = RootRelativePath.parse('docs/__meta__/code-python.structure.json')
+NAMESPACE_SPEC: Final[RootRelativePath] = RootRelativePath.parse('docs/__meta__/code-python.spec.json')
 """The `python` namespace structure specification."""
 
 REQUIRE_STATUS: Final[bytes] = b'{"frontmatter": {"type": "object", "required": ["status"]}}'
@@ -98,9 +98,9 @@ def _snapshot(corpus_spec: bytes, namespace_spec: bytes, *, typing: bytes, revie
             'docs': {
                 '__meta__': {
                     'code.md': b'# Code\n',
-                    'code.structure.json': corpus_spec,
+                    'code.spec.json': corpus_spec,
                     'code-python.md': b'# Code Python\n',
-                    'code-python.structure.json': namespace_spec,
+                    'code-python.spec.json': namespace_spec,
                 },
                 'code': {'python-typing.md': typing},
             },
@@ -233,7 +233,7 @@ class TestSchemaProblems:
         snapshot = from_tree(
             {
                 'docs': {
-                    '__meta__': {'code.md': b'# Code\n', 'code.structure.json': REQUIRE_STATUS},
+                    '__meta__': {'code.md': b'# Code\n', 'code.spec.json': REQUIRE_STATUS},
                     'blog': {'launch.md': b'---\nname: launch\n---\n# Launch\n'},
                 }
             }

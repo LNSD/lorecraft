@@ -64,7 +64,7 @@ def _snapshot(guide: bytes) -> Snapshot:
     return from_tree(
         {
             'docs': {
-                '__meta__': {'code.md': b'# Code\n', 'code.structure.json': b'{"frontmatter": {"type": "object"}}'},
+                '__meta__': {'code.md': b'# Code\n', 'code.spec.json': b'{"frontmatter": {"type": "object"}}'},
                 'code': {'guide.md': guide},
             }
         }
@@ -81,9 +81,9 @@ def _failed_namespace_layer_snapshot() -> Snapshot:
             'docs': {
                 '__meta__': {
                     'code.md': b'# Code\n',
-                    'code.structure.json': b'{"frontmatter": {"type": "object", "required": ["name"]}}',
+                    'code.spec.json': b'{"frontmatter": {"type": "object", "required": ["name"]}}',
                     'code-python.md': b'# Python\n',
-                    'code-python.structure.json': b'not json',
+                    'code-python.spec.json': b'not json',
                 },
                 'code': {'python-guide.md': b'---\ndescription: x\n---\n# Guide\n'},
             }
@@ -232,9 +232,9 @@ class TestDatabase:
     ) -> None:
         #: Given
         snapshot = from_tree(
-            {'docs': {'__meta__': {'code.md': b'# Code\n', 'code.structure.json': b'{}'}, 'code': {'guide.md': b''}}}
+            {'docs': {'__meta__': {'code.md': b'# Code\n', 'code.spec.json': b'{}'}, 'code': {'guide.md': b''}}}
         )
-        path = RootRelativePath.parse('docs/__meta__/code.structure.json')
+        path = RootRelativePath.parse('docs/__meta__/code.spec.json')
 
         #: When
         database = Database.from_snapshot(snapshot)
@@ -529,7 +529,7 @@ class TestDatabase:
     def test_source_lines_of_a_specification_the_snapshot_does_not_hold_returns_none(self) -> None:
         #: Given
         database = Database.from_snapshot(_snapshot(b'# Guide\n'))
-        path = RootRelativePath.parse('docs/__meta__/missing.structure.json')
+        path = RootRelativePath.parse('docs/__meta__/missing.spec.json')
 
         #: When
         lines = database.source_lines(path)

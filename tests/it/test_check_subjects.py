@@ -143,7 +143,7 @@ REVIEW: Final[SkillRef] = SkillRef(
 GUIDE_TEXT: Final[str] = '# Guide\n\nInstall the toolkit, then run it once over the repository.\n'
 """The text of `GUIDE`."""
 
-CODE_SPEC: Final[RootRelativePath] = RootRelativePath.parse('docs/__meta__/code.structure.json')
+CODE_SPEC: Final[RootRelativePath] = RootRelativePath.parse('docs/__meta__/code.spec.json')
 """The corpus structure specification."""
 
 GUIDE_OWNER: Final[DocumentFrontmatterOwner] = DocumentFrontmatterOwner(
@@ -420,7 +420,7 @@ def _snapshot(
         {
             '.agents': {'skills': {'review': {'SKILL.md': review}}},
             'docs': {
-                '__meta__': {'code.md': b'# Code\n', 'code.structure.json': structure_spec},
+                '__meta__': {'code.md': b'# Code\n', 'code.spec.json': structure_spec},
                 'code': {'guide.md': guide, 'intro.md': intro},
             },
         }
@@ -630,16 +630,16 @@ class TestCheckSubjects:
 
     def test_check_subjects_with_a_document_over_a_corpus_and_a_namespace_budget_reports_both(self) -> None:
         #: Given
-        namespace_spec = RootRelativePath.parse('docs/__meta__/code-python.structure.json')
+        namespace_spec = RootRelativePath.parse('docs/__meta__/code-python.spec.json')
         typing_text = '# Typing\n\nAnnotate every signature, and keep the checker clean before a change is done.\n'
         snapshot = from_tree(
             {
                 'docs': {
                     '__meta__': {
                         'code.md': b'# Code\n',
-                        'code.structure.json': _budget(5),
+                        'code.spec.json': _budget(5),
                         'code-python.md': b'# Code Python\n',
-                        'code-python.structure.json': _budget(3),
+                        'code-python.spec.json': _budget(3),
                     },
                     'code': {'python-typing.md': typing_text.encode()},
                 }
@@ -716,7 +716,7 @@ class TestCheckSubjects:
         snapshot = from_tree(
             {
                 'docs': {
-                    '__meta__': {'code.md': b'# Code\n', 'code.structure.json': _budget(5)},
+                    '__meta__': {'code.md': b'# Code\n', 'code.spec.json': _budget(5)},
                     'blog': {'launch.md': GUIDE_TEXT.encode()},
                 }
             }
@@ -1306,9 +1306,9 @@ class TestCheckSubjects:
                 'docs': {
                     '__meta__': {
                         'code.md': b'# Code\n',
-                        'code.structure.json': _budget(1000),
+                        'code.spec.json': _budget(1000),
                         'code-python.md': b'# Code Python\n',
-                        'code-python.structure.json': OBJECT_SCHEMA,
+                        'code-python.spec.json': OBJECT_SCHEMA,
                     },
                     'code': {'python-typing.md': b'# Typing\n'},
                 }
@@ -1453,15 +1453,15 @@ class TestCheckSubjects:
         self, package_table: RuleTable
     ) -> None:
         #: Given
-        namespace_spec = RootRelativePath.parse('docs/__meta__/code-python.structure.json')
+        namespace_spec = RootRelativePath.parse('docs/__meta__/code-python.spec.json')
         snapshot = from_tree(
             {
                 'docs': {
                     '__meta__': {
                         'code.md': b'# Code\n',
-                        'code.structure.json': b'{"frontmatter": {"type": "object", "required": ["status"]}}',
+                        'code.spec.json': b'{"frontmatter": {"type": "object", "required": ["status"]}}',
                         'code-python.md': b'# Code Python\n',
-                        'code-python.structure.json': b'{"frontmatter": {"type": "object", "required": ["owner"]}}',
+                        'code-python.spec.json': b'{"frontmatter": {"type": "object", "required": ["owner"]}}',
                     },
                     'code': {'python-typing.md': b'---\nname: python-typing\n---\n# Typing\n'},
                 }
@@ -2349,7 +2349,7 @@ def _write_code_corpus(root: Path, guide: bytes) -> None:
         guide: Bytes of `GUIDE`, at `docs/code/guide.md`.
     """
     _write(root, 'docs/__meta__/code.md', b'# Code\n')
-    _write(root, 'docs/__meta__/code.structure.json', _budget(1000))
+    _write(root, 'docs/__meta__/code.spec.json', _budget(1000))
     _write(root, 'docs/code/guide.md', guide)
 
 

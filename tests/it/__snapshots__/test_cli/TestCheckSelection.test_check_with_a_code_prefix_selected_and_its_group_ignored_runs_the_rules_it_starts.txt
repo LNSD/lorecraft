@@ -4,6 +4,6 @@ error[OUT006]: missing required section `Checklist`
 1 │ # No frontmatter
   │ ──────────────── expected `Checklist` before the end of the document
   │
- ::: docs/__meta__/code.structure.json
+ ::: docs/__meta__/code.spec.json
   │
   = note: the document structure is set here

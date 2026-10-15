@@ -114,15 +114,15 @@ class TestRepository:
         self, tmp_path: Path, repository: Repository
     ) -> None:
         #: Given
-        (tmp_path / 'code-python.structure.json').write_text('{"title": "Python"}', encoding='utf-8')
-        file = StructureSpecFile(path=RootRelativePath.parse('code-python.structure.json'), name=CODE_PYTHON)
+        (tmp_path / 'code-python.spec.json').write_text('{"title": "Python"}', encoding='utf-8')
+        file = StructureSpecFile(path=RootRelativePath.parse('code-python.spec.json'), name=CODE_PYTHON)
 
         #: When
         schema = repository.get_structure_schema(file)
 
         #: Then
         assert schema == '{"title": "Python"}', (
-            'get_structure_schema reads code-python.structure.json, leaving the parse to StructureSpec'
+            'get_structure_schema reads code-python.spec.json, leaving the parse to StructureSpec'
         )
 
     def test_get_structure_schema_with_missing_file_raises_structure_schema_read_error(
