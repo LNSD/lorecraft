@@ -2,17 +2,15 @@
 
 Only headings that section the document itself are kept. One quoted in a blockquote or nested in a list item
 illustrates a document rather than sectioning this one, and a `#` line inside a fenced code block is code,
-not a heading; the Markdown parser decides both (see `markdown`).
+not a heading; the Markdown reader decides both (see `markdown`).
 """
 
 from dataclasses import dataclass
-from typing import Final, Literal
+from typing import Final
 
+from .markdown import HeadingLevel
 from .position import LineNumber
 from .words import WordCount
-
-type HeadingLevel = Literal[1, 2, 3, 4, 5, 6]
-"""A heading's depth: 1 for a title through 6, the deepest Markdown has."""
 
 _SECTION_LEVEL: Final[HeadingLevel] = 2
 """The heading level of a section: H1 is the title, and anything deeper is a subsection."""

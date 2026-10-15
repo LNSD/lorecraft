@@ -1,7 +1,7 @@
 """The frontmatter node of a document's parse tree: the decoded YAML mapping and where each key sits.
 
 A document's frontmatter is a `---` delimited block on its first lines. Finding the block is the Markdown
-parser's job (`markdown.parse_markdown_frontmatter`); decoding it is this module's. Parsing has exactly four
+reader's job (`markdown.parse_markdown_frontmatter`); decoding its raw block is this module's. Parsing has exactly four
 outcomes, one type each: no block, a block that is not YAML, a block that is YAML but not a mapping, and a mapping.
 Every outcome is a value, never an exception, because a broken block is a fact about the document that a check
 reports, not a failure of the parse.
