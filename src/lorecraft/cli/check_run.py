@@ -28,7 +28,7 @@ from lorecraft.core.error import Error
 from lorecraft.engine import UnlistableRoot, check_subjects, report_load_failures
 from lorecraft.project.database import Database
 from lorecraft.project.layout import DECLARATION, SNAPSHOT_SCOPE
-from lorecraft.project.workspace import reject_unreported_refusals
+from lorecraft.project.workspace import WorkspaceModel, reject_unreported_refusals
 from lorecraft.rules.identity import Severity
 from lorecraft.rules.registry import Registry
 from lorecraft.rules.report import RunReport
@@ -49,6 +49,7 @@ from .terminal import detect_text_style, read_color_environment
 
 def run_check(
     root: Path | None,
+    *,
     output_format: DiagnosticFormat,
     color: ColorChoice,
     select: list[SelectorValue] | None,
@@ -79,16 +80,7 @@ def run_check(
         # With no corpus and no meta spec known, nothing can be checked, so this stops before any subject is selected.
         # Every other failure the model recorded is reported below, as a diagnostic.
         model = database.model()
-        load_failures = report_load_failures(model)
-        match load_failures:
-            case UnlistableRoot(failure=failure):
-                report_load_failure(failure)
-                raise typer.Exit(code=ExitStatus.FAILURE)
-            case tuple() as load_failure_reports:
-                # This arm only binds the reports the run goes on with.
-                pass
-            case _:
-                assert_never(load_failures)
+        load_failure_reports = _reports_or_exit(model)
         # The snapshot kept what the scan could not list, read or inspect, and the model reports the ones it loads.
         # One that nothing reports would pass unseen where the scan used to stop, so the first of them stops the run.
         reject_unreported_refusals(database.refusals(), model)
@@ -110,6 +102,26 @@ def run_check(
             assert_never(output_format)
     if _has_error(reports):
         raise typer.Exit(code=ExitStatus.FINDINGS)
+
+
+def _reports_or_exit(model: WorkspaceModel) -> tuple[RunReport, ...]:
+    """The report of each unit of the declaration that failed to load, or the exit when the root cannot be listed.
+
+    Args:
+        model: The workspace model the run loaded.
+
+    Raises:
+        typer.Exit: With the failure status when `docs/` or `docs/__meta__/` could not be listed.
+    """
+    load_failures = report_load_failures(model)
+    match load_failures:
+        case UnlistableRoot(failure=failure):
+            report_load_failure(failure)
+            raise typer.Exit(code=ExitStatus.FAILURE)
+        case tuple() as load_failure_reports:
+            return load_failure_reports
+        case _:
+            assert_never(load_failures)
 
 
 def _print_text(reports: tuple[RunReport, ...], database: Database, color: ColorChoice) -> None:

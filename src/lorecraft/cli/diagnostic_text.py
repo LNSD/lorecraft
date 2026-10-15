@@ -137,6 +137,23 @@ _UNICODE_GLYPHS: Final[_Glyphs] = _Glyphs(gutter='│', primary='─', secondary
 _ASCII_GLYPHS: Final[_Glyphs] = _Glyphs(gutter='|', primary='^', secondary='-', elision='.')
 
 
+@dataclass(frozen=True, slots=True)
+class _Drawing:
+    """What the excerpt of one diagnostic is drawn with, which every function drawing a part of it takes.
+
+    Attributes:
+        gutter_width: The columns the line numbers take.
+        severity: The severity of the diagnostic, which colours the underline of the line it is reported at.
+        style: How to draw.
+        glyphs: The characters to draw with.
+    """
+
+    gutter_width: int
+    severity: Severity
+    style: TextStyle
+    glyphs: _Glyphs
+
+
 def render_text(reports: tuple[RunReport, ...], sources: SourceLines, style: TextStyle) -> str:
     """Every diagnostic of the run as text, in the order `diagnostic_order` sorts them into.
 
@@ -174,6 +191,7 @@ def _diagnostic_lines(diagnostic: Diagnostic, sources: SourceLines, style: TextS
     # The unlabelled lines the gutter and the `=` lines are drawn under.
     lead = ' ' * (width + 1)
     glyphs = _UNICODE_GLYPHS if style.unicode else _ASCII_GLYPHS
+    drawing = _Drawing(gutter_width=width, severity=diagnostic.severity, style=style, glyphs=glyphs)
     blank_gutter = lead + _paint(style, glyphs.gutter, fg='blue', bold=True)
 
     for index, (path, group) in enumerate(_group_by_file(diagnostic.path, marks)):
@@ -199,7 +217,7 @@ def _diagnostic_lines(diagnostic: Diagnostic, sources: SourceLines, style: TextS
                     assert_never(mark)
         if excerpted:
             lines.append(blank_gutter)
-            lines.extend(_excerpt_lines(excerpted, sources[path], width, diagnostic.severity, style, glyphs))
+            lines.extend(_excerpt_lines(excerpted, sources[path], drawing))
             lines.append(blank_gutter)
         elif index > 0:
             # A pointer to another file is set apart from what follows it by the gutter, as the excerpt would be.
@@ -294,20 +312,14 @@ def _gutter_width(marks: list[Mark], sources: SourceLines) -> int:
 def _excerpt_lines(
     marks: list[LineMark],
     source: SourceText,
-    width: int,
-    severity: Severity,
-    style: TextStyle,
-    glyphs: _Glyphs,
+    drawing: _Drawing,
 ) -> list[str]:
     """The numbered source lines of one file that carry a mark, each followed by an underline per mark.
 
     Args:
         marks: The marks to draw, in line order, each on a line of the source.
         source: The lines of the file.
-        width: The columns the line numbers take.
-        severity: The severity of the diagnostic, which colours the underline of the line it is reported at.
-        style: How to draw.
-        glyphs: The characters to draw with.
+        drawing: What the excerpt is drawn with.
     """
     marks_by_line: dict[LineNumber, list[LineMark]] = {}
     for mark in marks:
@@ -319,34 +331,39 @@ def _excerpt_lines(
         if previous is not None:
             hidden = number.between(previous)
             if hidden == UnsignedInt(1):
-                lines.append(_source_line(LineNumber(previous.successor()), source, width, style, glyphs))
+                lines.append(_source_line(LineNumber(previous.successor()), source, drawing))
             elif hidden > UnsignedInt(1):
-                lines.append(_paint(style, f'{glyphs.elision:>{width}} {glyphs.gutter}', fg='blue', bold=True))
+                lines.append(
+                    _paint(
+                        drawing.style,
+                        f'{drawing.glyphs.elision:>{drawing.gutter_width}} {drawing.glyphs.gutter}',
+                        fg='blue',
+                        bold=True,
+                    )
+                )
         line = line_marks[0].line
-        lines.append(_source_line(line, source, width, style, glyphs))
+        lines.append(_source_line(line, source, drawing))
         text = source.line(line).expandtabs(_TAB_WIDTH).rstrip()
         # The line the diagnostic is reported at is underlined before any other line's label.
         for mark in sorted(line_marks, key=lambda mark: not mark.primary):
-            lines.append(_underline(mark, text, width, severity, style, glyphs))
+            lines.append(_underline(mark, text, drawing))
         previous = number
     return lines
 
 
-def _source_line(number: LineNumber, source: SourceText, width: int, style: TextStyle, glyphs: _Glyphs) -> str:
+def _source_line(number: LineNumber, source: SourceText, drawing: _Drawing) -> str:
     """One numbered line of the source, in the gutter.
 
     Args:
         number: The line to draw.
         source: The text of the file.
-        width: The columns the line numbers take.
-        style: How to draw.
-        glyphs: The characters to draw with.
+        drawing: What the excerpt is drawn with.
     """
-    gutter = _paint(style, f'{number:>{width}} {glyphs.gutter}', fg='blue', bold=True)
+    gutter = _paint(drawing.style, f'{number:>{drawing.gutter_width}} {drawing.glyphs.gutter}', fg='blue', bold=True)
     return f'{gutter} {source.line(number).expandtabs(_TAB_WIDTH)}'.rstrip()
 
 
-def _underline(mark: LineMark, text: str, width: int, severity: Severity, style: TextStyle, glyphs: _Glyphs) -> str:
+def _underline(mark: LineMark, text: str, drawing: _Drawing) -> str:
     """The line under a source line that underlines the text of it and says what the mark labels.
 
     The underline spans the line's text, from its first character that is not a blank to its last; a blank line is
@@ -355,21 +372,19 @@ def _underline(mark: LineMark, text: str, width: int, severity: Severity, style:
     Args:
         mark: The mark to draw.
         text: The source line the mark is on, with its tabs expanded and its trailing blanks gone.
-        width: The columns the line numbers take.
-        severity: The severity of the diagnostic.
-        style: How to draw.
-        glyphs: The characters to draw with.
+        drawing: What the excerpt is drawn with.
     """
+    style, glyphs = drawing.style, drawing.glyphs
     start = len(text) - len(text.lstrip())
     end = len(text)
     if end <= start:
         start, end = 0, 1
     if mark.primary:
-        glyph, color = glyphs.primary, _severity_color(severity)
+        glyph, color = glyphs.primary, _severity_color(drawing.severity)
     else:
         glyph, color = glyphs.secondary, 'blue'
 
-    gutter = _paint(style, f'{" " * (width + 1)}{glyphs.gutter}', fg='blue', bold=True)
+    gutter = _paint(style, f'{" " * (drawing.gutter_width + 1)}{glyphs.gutter}', fg='blue', bold=True)
     underline = _paint(style, glyph * (end - start), fg=color, bold=True)
     label = ''
     if mark.text:
