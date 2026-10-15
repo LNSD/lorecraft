@@ -26,6 +26,8 @@ Its own agent skills cover the rest, guiding an agent as it writes and reviews t
 
 ## Installation
 
+lorecraft requires Python 3.12 or later.
+
 With [uv](https://docs.astral.sh/uv/), install the `lorecraft` command as a tool, or run it on demand without
 installing it:
 
