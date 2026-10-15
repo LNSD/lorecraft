@@ -34,7 +34,7 @@ docs/__meta__/<name>.spec.json        the section outline, word caps, tokens bud
 ```
 
 What a file is comes from its **file type**, which a file name **pattern** claims: `*.md` claims the prose and
-`*.spec.json` the structure file, with the legacy `*.structure.json` read only when no `.spec.json` stands beside it, until v0.4.0. A file's extension is only what follows its last dot, and a
+`*.spec.json` the structure file. A file's extension is only what follows its last dot, and a
 `<name>.<token>.json` that no pattern claims is not a meta spec file: it is left out, not read.
 
 A **meta spec name**, the filename with its pattern's suffix stripped, is `<corpus>` or `<corpus>-<namespace>`.

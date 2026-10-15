@@ -59,8 +59,7 @@ outside the repository. Shared skills are checked once. Subjects and diagnostics
 Every rule reads one [snapshot](workspace.md#one-snapshot). Meta specs load before subjects. A failed structure
 file gets a diagnostic; documents it governs are skipped while others are checked. Invalid UTF-8 is `LC001`;
 no rule judges that file.
-A structure file's diagnostic and coverage path use its actual name, `.spec.json` or the legacy
-`.structure.json`.
+A structure file's diagnostic and coverage path use its actual name, `.spec.json`.
 
 ### Selecting Rules
 
@@ -126,7 +125,7 @@ error[OUT006]: missing required section `Checklist`
 1 │ # Logging
   │ ───────── expected `Checklist` before the end of the document
   │
- ::: docs/__meta__/code.structure.json
+ ::: docs/__meta__/code.spec.json
   │
   = note: the document structure is set here
   = help: The items a reviewer verifies before committing a change the rule document governs.

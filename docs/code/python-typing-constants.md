@@ -42,7 +42,7 @@ MAX_HEADING_DEPTH: int = 4
 from typing import Final
 
 MAX_HEADING_DEPTH: Final[int] = 4
-_SPEC_SUFFIX: Final[str] = '.structure.json'
+_SPEC_SUFFIX: Final[str] = '.spec.json'
 CHECKERS_BY_NAME: Final[Mapping[str, Checker]] = index_checkers(CHECKERS)
 ```
 

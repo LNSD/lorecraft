@@ -79,8 +79,8 @@ class Repository:
         model that states its shape.
 
         Args:
-            file: The structure file to read, `<name>.spec.json` or the legacy `<name>.structure.json`; the caller
-                decides which of the two a specification name is read from.
+            file: The structure file to read, `<name>.spec.json`; the caller
+                passes the file named by the specification.
 
         Raises:
             StructureSchemaReadError: If the file cannot be read, or its bytes are not UTF-8.
