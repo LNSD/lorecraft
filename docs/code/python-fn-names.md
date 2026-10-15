@@ -22,7 +22,9 @@ owned by [python-naming](python-naming.md). Conversion and constructor names are
 A function or attribute that answers a yes/no question is named for the question and returns `bool`:
 `is_connected`, `has_pending_findings`, `supports_autofix`, `section_exists`. Asking never changes state.
 `supports_` is reserved for a capability of the implementation itself, as opposed to `is_`/`has_` about the
-current state of an instance.
+current state of an instance. A `bool` field or property is covered as well: `is_empty`, `is_optional`, never
+a bare `empty` that reads as a value. A field of a model that mirrors a key of a published format, such as a
+structure file's `optional`, keeps the key's name.
 
 The prefix is a cost signal as much as a grammar rule. A reader who meets `is_stale` in an `if` assumes a
 cheap inspection; a predicate that writes hides an effect inside a condition.
@@ -116,6 +118,12 @@ the built-in [error-boundaries](error-boundaries.md#1-a-broken-contract-raises-a
 assigns, never a `KeyError` from indexing. Before writing one, prefer handing the caller a value the source
 issued, so it needs no lookup.
 
+**A lookup the user's input can fail is `get_`.** Where the thing is searched for outside the program, such
+as a workspace root found by walking up from a directory, and its absence is the user's to fix, the lookup is
+`get_<thing>`, returns `X`, and raises a named `Error`
+([error-boundaries](error-boundaries.md)) whose message tells the user what to change. Its `Raises:` names that
+`Error`. `require_` stays for a defect, `get_` for a user's mistake.
+
 ```python
 # ❌ Bad — `find_` promises a None the caller checks for, and raises instead
 def find_section(self, heading: str) -> Section:
@@ -147,8 +155,10 @@ def require_section(self, heading: str) -> Section:
 ## 5. `iter_` Is Lazy, `list_` and Plurals Are Materialized
 
 `iter_<things>()` returns an `Iterator` and produces items on demand, like `re.finditer`, `Path.iterdir`, and
-`ast.iter_child_nodes`. `list_<things>()` and a plural noun return a finished `tuple` or `list`, like
-`re.findall` and `os.listdir`. A caller who iterates twice, takes `len()`, or holds the result past a change
+`ast.iter_child_nodes`. `list_<things>()` and a plural noun return a finished collection — a `tuple`, a
+`list`, a `frozenset` ([python-frozenset](python-frozenset.md) §3) or a `Mapping` — like `re.findall` and
+`os.listdir`, or a record whose type is named `<Thing>Listing` and carries one. A count is never a plural:
+it is `<thing>_count`, so `line_count` is a number and `lines` are the lines. A caller who iterates twice, takes `len()`, or holds the result past a change
 to the source needs to know which one they have, and the annotation is read only by those who look.
 
 ## 6. `ensure_` Is Idempotent, Tolerance Is a Keyword
@@ -213,20 +223,21 @@ raise. The context-manager protocol that wraps the pair is owned by
 
 Before committing code, verify:
 
-- [ ] Every `bool`-returning function reads as a question (`is_`/`has_`/`supports_`/`_exists`) and performs
-      no mutation
+- [ ] A `bool` function, field or property reads as a question (`is_`/`has_`/`supports_`/`_exists`);
+      none mutates
 - [ ] Every function that mutates opens with a verb and returns `None`; no mutator returns `self`, and no
       function takes an `inplace=` flag
-- [ ] No `get_` prefix on an accessor that only returns stored state; those are properties or bare attributes
-- [ ] Every `find_` returns `X | None`; no name starts with `try_`
-- [ ] A lookup whose absence a caller must handle is a `find_` returning `X | None`, not a raise
+- [ ] No `get_` prefix on an accessor returning stored state; those are properties or bare attributes
+- [ ] A lookup whose absence a caller handles is a `find_` returning `X | None`; no name starts with `try_`
 - [ ] No lookup raises one exception for two conditions; a wrong-kind argument is excluded by its parameter's
       type
 - [ ] A strict lookup is `require_`, built on its `find_` sibling, raising a named subclass of a built-in,
       never a `KeyError` from indexing
+- [ ] A lookup whose absence the user fixes is `get_` and raises an `Error`
 - [ ] A lookup named for the thing, with no `find_` or `require_` prefix, cannot fail: its parameter's type
       admits only keys the source has
-- [ ] Every `iter_` returns an `Iterator`; every `list_` or plural name returns a `tuple` or `list`
+- [ ] `iter_` returns an `Iterator`; `list_` or a plural, a finished collection or `*Listing`; a count is
+      `<thing>_count`
 - [ ] Every `ensure_` is idempotent create-if-absent; tolerant effects take a keyword such as `missing_ok=`
 - [ ] Every function that returns `None` and raises on unacceptable input is `reject_<the rejected case>`,
       never `require_` or `validate_`

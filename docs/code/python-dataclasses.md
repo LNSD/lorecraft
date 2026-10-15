@@ -266,7 +266,8 @@ field checks.
 ## 7. `Attributes:` in the Class Docstring Is the Record's Contract
 
 A record's docstring opens with a one-line summary and lists every public field under `Attributes:`, each with
-its meaning, its unit, and any constraint `__post_init__` enforces.
+its meaning, its unit, and any constraint `__post_init__` enforces. Which fields are listed, inherited ones and
+pydantic models included, is owned by [python-docstrings](python-docstrings.md) §7.
 
 The annotation gives the type; the docstring gives everything the type cannot. `budget: int` does not say
 lines or words, and `max_depth: int` does not say whether the H1 counts as level one. That information is
