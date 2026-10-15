@@ -49,9 +49,10 @@ every option.
 3. **Every problem the parser meets in a block is `FM002`, never a crash.** `read_yaml` returns it as a `YamlProblem`,
    and a syntax error's texts and positions, a `SyntaxErrorProblem`, are handed to adr-019's classification, which
    words it; the parser's text is never shown. No ruamel.yaml type leaves `lorecraft.yaml`. Where
-   its scanner lets a plain `ValueError` escape, a `\U` escape above `U+10FFFF` or a directive version number too
-   long to convert, it is raised as a scanner error on its line first.
-4. **`ruamel.yaml` is a runtime dependency, pinned `>=0.19,<0.20`**, and its C extension is never installed:
+   its scanner would let a plain `ValueError` escape, it is never reached that way: a `\U` escape above `U+10FFFF`
+   is a refused construct, as adr-019's Refused table words it, and a directive is refused at its `%` before its
+   version number is read.
+4. **`ruamel.yaml` is a runtime dependency, pinned `>=0.19.1,<0.20`**, and its C extension is never installed:
    `ruamel.yaml.clib` is not a dependency of lorecraft, and the `clib` extra is not requested.
 5. **`pyyaml` is not a dependency of lorecraft**, at runtime or in development: `pyproject.toml` declares it in no
    dependency group or extra, and no module under `src/` or `tests/` imports `yaml`.
@@ -93,7 +94,7 @@ every option.
 ## Checklist
 
 - [ ] No module under `src/` or `tests/` imports `yaml`
-- [ ] `pyproject.toml` declares `pyyaml` in no dependency group or extra, and lists `ruamel.yaml>=0.19,<0.20`
+- [ ] `pyproject.toml` declares `pyyaml` in no dependency group or extra, and lists `ruamel.yaml>=0.19.1,<0.20`
 - [ ] `ruamel.yaml.clib` is not installed by lorecraft's runtime dependencies, and the `clib` extra is not requested
 - [ ] `frontmatter.py` builds the value from ruamel.yaml's events and never calls a ruamel.yaml loader or constructor
 - [ ] `frontmatter.py` and `yaml/basic_yaml.py` state no format rule of their own beyond adr-019's
