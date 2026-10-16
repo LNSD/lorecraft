@@ -20,6 +20,13 @@ from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.project.aspect import AspectFilename, AspectNamespace
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.document import DocumentRef
+from lorecraft.project.item import (
+    DocumentOrigin,
+    ItemFacet,
+    MarkdownItemDescriptor,
+    MarkdownItemRef,
+    SkillEntryOrigin,
+)
 from lorecraft.project.layout import DOCS_DIR
 from lorecraft.project.schemas import CorpusSpecName, NamespaceSpecName, StatedFrontmatterSchema, StructureSpec
 from lorecraft.project.skill import OutsideSymlink, SkillLocation, SkillRef, SkillsDir
@@ -465,3 +472,50 @@ class WorkspaceModel:
         if corpus is None:
             return None
         return corpus.governance(ref.filename)
+
+    def describe_item(self, ref: DocumentRef | SkillRef) -> MarkdownItemDescriptor:
+        """Resolve the shared location and origin facts for a document or skill entry.
+
+        The existing references remain accepted by repositories and database queries. This descriptor is the
+        common model contract for callers that need to handle either kind without classifying its origin.
+        """
+        match ref:
+            case DocumentRef():
+                governance = self.find_governance(ref)
+                schemas = governance.frontmatter_schemas() if governance is not None else ()
+                facets = {ItemFacet.MARKDOWN}
+                if schemas:
+                    facets.add(ItemFacet.FRONTMATTER)
+                if governance is not None and governance.corpus_structure() is not None:
+                    facets.add(ItemFacet.STRUCTURE)
+                if governance is not None and governance.outline_specs():
+                    facets.add(ItemFacet.OUTLINE)
+                if governance is not None and any(spec.tokens is not None for spec in governance.structure_specs()):
+                    facets.add(ItemFacet.BUDGET)
+                return MarkdownItemDescriptor(
+                    ref=MarkdownItemRef(ref.path),
+                    read_location=ResolvedPath(ref.path),
+                    link_base=RootRelativePath(ref.path.value.parent),
+                    origin=DocumentOrigin(
+                        expected_name=str(ref.filename),
+                        corpus=str(ref.corpus),
+                        schema_paths=tuple(schema.spec for schema in schemas),
+                    ),
+                    governance_corpus=str(ref.corpus),
+                    aspect_name=str(ref.filename),
+                    active_facets=frozenset(facets),
+                )
+            case SkillRef():
+                location = self.skill_locations[ref]
+                link_target = location.resolves_to if location.resolves_to != ref.directory else None
+                return MarkdownItemDescriptor(
+                    ref=MarkdownItemRef(ref.path),
+                    read_location=location.file_resolves_to,
+                    link_base=ref.directory,
+                    origin=SkillEntryOrigin(expected_name=str(ref.entry), link_target=link_target),
+                    governance_corpus='skills',
+                    aspect_name=str(ref.entry),
+                    active_facets=frozenset({ItemFacet.FRONTMATTER, ItemFacet.MARKDOWN}),
+                )
+            case _:
+                assert_never(ref)

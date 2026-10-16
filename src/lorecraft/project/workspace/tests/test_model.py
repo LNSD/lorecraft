@@ -16,6 +16,7 @@ from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.project.aspect import AspectFilename, AspectNamespace
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.document import DocumentRef
+from lorecraft.project.item import DocumentOrigin, ItemFacet, MarkdownItemRef, SkillEntryOrigin
 from lorecraft.project.layout import SPECS_DIR
 from lorecraft.project.schemas import (
     CorpusSpecName,
@@ -816,6 +817,78 @@ class TestWorkspaceModel:
 
         #: Then
         assert ref is None, 'a filename listed under another corpus does not match'
+
+    def test_describe_item_for_a_document_separates_report_and_read_paths(
+        self, two_corpora_model: WorkspaceModel
+    ) -> None:
+        #: Given
+        ref = _ref('code', 'logging')
+
+        #: When
+        descriptor = two_corpora_model.describe_item(ref)
+
+        #: Then
+        assert descriptor.ref == MarkdownItemRef(ref.path), 'the logical ref is also the report path'
+        assert descriptor.read_location == ResolvedPath(ref.path), 'regular corpus documents read from their path'
+        assert descriptor.link_base == RootRelativePath.parse('docs/code'), 'document links use their directory'
+        assert descriptor.governance_corpus == 'code', 'the model derives governance from the corpus path'
+        assert descriptor.aspect_name == 'logging', 'the model derives the aspect from the filename'
+        assert isinstance(descriptor.origin, DocumentOrigin), 'the descriptor retains document provenance'
+        assert descriptor.origin.expected_name == 'logging', 'frontmatter expects the filename stem'
+        assert descriptor.origin.schema_paths == (SPECS_DIR / PathComponent.parse('code.spec.json'),), (
+            'the corpus schema is the one that governs frontmatter findings'
+        )
+        assert descriptor.active_facets == frozenset(
+            {ItemFacet.MARKDOWN, ItemFacet.FRONTMATTER, ItemFacet.STRUCTURE}
+        ), 'a corpus structure specification activates structure and its frontmatter alongside Markdown checks'
+
+    def test_describe_item_for_a_layered_document_keeps_every_schema_in_order(self) -> None:
+        #: Given
+        code = _code_corpus(_corpus_spec('code'), (_code_namespace('python'),))
+        code = replace(code, filenames=frozenset({AspectFilename.parse('python-typing')}))
+        model = WorkspaceModel(
+            corpora=FrozenMapping({code.name: code}),
+            skills_dirs=frozenset(),
+            skill_locations=FrozenMapping({}),
+            outside_symlinks=FrozenMapping({}),
+            load_failures=(),
+        )
+
+        #: When
+        descriptor = model.describe_item(_ref('code', 'python-typing'))
+
+        #: Then
+        assert isinstance(descriptor.origin, DocumentOrigin), 'the descriptor retains document provenance'
+        assert descriptor.origin.schema_paths == (
+            SPECS_DIR / PathComponent.parse('code.spec.json'),
+            SPECS_DIR / PathComponent.parse('code-python.spec.json'),
+        ), 'the corpus and namespace schemas are both carried, broad to narrow'
+
+    def test_describe_item_for_a_linked_skill_keeps_logical_identity_when_read_target_changes(
+        self, skills_model: WorkspaceModel
+    ) -> None:
+        #: Given
+        moved = SkillLocation(
+            AUDIT.ref,
+            resolves_to=ResolvedPath(RootRelativePath.parse('skills/new-audit')),
+            file_resolves_to=ResolvedPath(RootRelativePath.parse('skills/new-audit/entry.md')),
+        )
+        retargeted = replace(
+            skills_model,
+            skill_locations=FrozenMapping({location.ref: location for location in (moved, REVIEW, REVIEW_ALIAS)}),
+        )
+
+        #: When
+        before = skills_model.describe_item(AUDIT.ref)
+        after = retargeted.describe_item(AUDIT.ref)
+
+        #: Then
+        assert before.ref == after.ref == MarkdownItemRef(AUDIT.ref.path), 'the listed path owns stable identity'
+        assert before.read_location != after.read_location, 'the descriptor records the changed read target'
+        assert before.link_base == after.link_base == AUDIT.ref.directory, 'skill links use the listed skill root'
+        assert isinstance(after.origin, SkillEntryOrigin), 'the descriptor retains skill-specific origin facts'
+        assert after.origin.expected_name == 'audit', 'frontmatter expects the listed directory name'
+        assert after.origin.link_target == moved.resolves_to, 'the retargeted directory remains available for notes'
 
     def test_skills_with_three_skills_returns_their_refs_in_directory_order(self, skills_model: WorkspaceModel) -> None:
         #: Given
