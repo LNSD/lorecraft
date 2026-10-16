@@ -9,6 +9,58 @@ from .schema_keyword import Keyword
 
 
 @dataclass(frozen=True, slots=True)
+class MissingRequiredProperties:
+    """The required property names absent from the object that failed validation."""
+
+    fields: tuple[str, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class DependentProperty:
+    """One written property and one required property missing because of it."""
+
+    field: str
+    missing: str
+
+
+@dataclass(frozen=True, slots=True)
+class MissingDependentProperties:
+    """The missing dependencies for the dependent properties written in the instance."""
+
+    dependencies: tuple[DependentProperty, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class AdditionalProperties:
+    """The instance properties refused by `additionalProperties`."""
+
+    fields: tuple[str, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class UnevaluatedProperties:
+    """The instance properties refused by `unevaluatedProperties`."""
+
+    fields: tuple[str, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class InvalidPropertyName:
+    """A property name rejected by the schema's `propertyNames` subschema."""
+
+    name: str
+
+
+type ViolationFact = (
+    MissingRequiredProperties
+    | MissingDependentProperties
+    | AdditionalProperties
+    | UnevaluatedProperties
+    | InvalidPropertyName
+)
+
+
+@dataclass(frozen=True, slots=True)
 class Violation:
     """A validator failure without any validator-library records.
 
@@ -21,6 +73,7 @@ class Violation:
         schema: The schema object containing the failed keyword.
         evaluated_properties: Properties evaluated by this schema, needed to interpret
             `unevaluatedProperties` failures.
+        facts: Typed, keyword-specific details about the object or property name that failed validation.
     """
 
     message: str
@@ -30,6 +83,7 @@ class Violation:
     instance: Frozen
     schema: Frozen
     evaluated_properties: frozenset[str]
+    facts: tuple[ViolationFact, ...] = ()
 
     def __post_init__(self) -> None:
         """Copy plain containers into deeply immutable values."""

@@ -28,7 +28,16 @@ from .schema_keyword import (
     UnevaluatedPropertiesKeyword,
 )
 from .validation import CheckedSchema, best_violation, validate
-from .violation import Violation
+from .violation import (
+    AdditionalProperties,
+    DependentProperty,
+    InvalidPropertyName,
+    MissingDependentProperties,
+    MissingRequiredProperties,
+    UnevaluatedProperties,
+    Violation,
+    ViolationFact,
+)
 
 __all__: list[str] = [
     'DIALECT',
@@ -53,6 +62,13 @@ __all__: list[str] = [
     'SchemaMetaError',
     'SchemaUsesForeignDialect',
     'Violation',
+    'ViolationFact',
+    'MissingRequiredProperties',
+    'DependentProperty',
+    'MissingDependentProperties',
+    'AdditionalProperties',
+    'UnevaluatedProperties',
+    'InvalidPropertyName',
     'CheckedSchema',
     'check_schema',
     'required_message',

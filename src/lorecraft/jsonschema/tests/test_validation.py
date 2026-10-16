@@ -8,14 +8,21 @@ from jsonschema import Draft202012Validator
 from lorecraft.core.mapping import FrozenMapping, Plain
 
 from .. import (
+    AdditionalProperties,
     CheckedSchema,
+    DependentProperty,
+    InvalidPropertyName,
     JsonType,
+    MissingDependentProperties,
+    MissingRequiredProperties,
     RequiredKeyword,
     SchemaHasUnresolvableReference,
     SchemaMetaError,
     TypeKeyword,
+    UnevaluatedProperties,
     UnevaluatedPropertiesKeyword,
     Violation,
+    ViolationFact,
     additional_message,
     best_violation,
     dependency_message,
@@ -42,6 +49,11 @@ def _library_message(schema: Mapping[str, Plain], instance: Plain) -> str:
 def _messages(violations: tuple[Violation, ...]) -> tuple[str, ...]:
     """Return each violation's message, the part of the order the test is about."""
     return tuple(violation.message for violation in violations)
+
+
+def _facts(violations: tuple[Violation, ...]) -> tuple[tuple[ViolationFact, ...], ...]:
+    """Return each violation's facts, the part a narrowing test is about."""
+    return tuple(violation.facts for violation in violations)
 
 
 def _paths(violations: tuple[Violation, ...]) -> tuple[tuple[str | int, ...], ...]:
@@ -373,6 +385,254 @@ class TestCheckedSchema:
         assert library_message == expected, "the pinned wording is the installed library's"
         assert len(violations) == 1, f'one failure is reported, got {violations}'
         assert violations[0].message == expected, 'the violation keeps the library wording verbatim'
+
+    def test_validate_with_composed_all_of_ref_and_if_schema_returns_the_unevaluated_key(self) -> None:
+        #: Given
+        schema: dict[str, Plain] = {
+            '$defs': {'known': {'properties': {'known': True}}},
+            'allOf': [{'$ref': '#/$defs/known'}],
+            'if': {'properties': {'kind': {'const': 'special'}}},
+            'then': {'properties': {'special': True}},
+            'unevaluatedProperties': False,
+        }
+        instance: Plain = {'known': 1, 'kind': 'special', 'special': 2, 'extra': 3}
+        expected = (UnevaluatedProperties(('extra',)),)
+        checked = _checked(schema)
+
+        #: When
+        violations = checked.validate(instance)
+
+        #: Then
+        assert len(violations) == 1, f'one failure is reported, got {violations}'
+        assert violations[0].facts == expected, 'allOf, ref and if evaluate their keys, so only extra is refused'
+
+    def test_validate_with_a_nested_object_missing_a_field_returns_the_nested_required_fact(self) -> None:
+        #: Given
+        schema: dict[str, Plain] = {'properties': {'child': {'required': ['x']}}}
+        instance: Plain = {'child': {}, 'x': 1}
+        expected = (MissingRequiredProperties(('x',)),)
+        checked = _checked(schema)
+
+        #: When
+        violations = checked.validate(instance)
+
+        #: Then
+        assert len(violations) == 1, f'one failure is reported, got {violations}'
+        assert violations[0].facts == expected, 'the fact reads the nested object, not the root'
+
+    def test_validate_with_a_nested_object_missing_a_dependency_returns_the_nested_dependent_fact(self) -> None:
+        #: Given
+        schema: dict[str, Plain] = {
+            'properties': {'child': {'dependentRequired': {'x': ['y']}}},
+        }
+        instance: Plain = {'child': {'x': 1}, 'x': 1, 'y': 1}
+        expected = (MissingDependentProperties((DependentProperty('x', 'y'),)),)
+        checked = _checked(schema)
+
+        #: When
+        violations = checked.validate(instance)
+
+        #: Then
+        assert len(violations) == 1, f'one failure is reported, got {violations}'
+        assert violations[0].facts == expected, 'the fact reads the nested object'
+
+    def test_validate_with_a_nested_object_with_an_additional_key_returns_the_nested_additional_fact(self) -> None:
+        #: Given
+        schema: dict[str, Plain] = {
+            'properties': {'child': {'properties': {'known': True}, 'additionalProperties': False}},
+        }
+        instance: Plain = {'child': {'bad': 1}, 'bad': 2}
+        expected = (AdditionalProperties(('bad',)),)
+        checked = _checked(schema)
+
+        #: When
+        violations = checked.validate(instance)
+
+        #: Then
+        assert len(violations) == 1, f'one failure is reported, got {violations}'
+        assert violations[0].facts == expected, 'the fact names the nested key'
+
+    def test_validate_with_a_nested_object_with_an_unevaluated_key_returns_the_nested_unevaluated_fact(self) -> None:
+        #: Given
+        schema: dict[str, Plain] = {
+            'properties': {'child': {'properties': {'known': True}, 'unevaluatedProperties': False}},
+        }
+        instance: Plain = {'child': {'bad': 1}, 'bad': 2}
+        expected = (UnevaluatedProperties(('bad',)),)
+        checked = _checked(schema)
+
+        #: When
+        violations = checked.validate(instance)
+
+        #: Then
+        assert len(violations) == 1, f'one failure is reported, got {violations}'
+        assert violations[0].facts == expected, 'the fact names the nested key'
+
+    def test_validate_with_an_array_item_missing_a_field_returns_the_required_fact(self) -> None:
+        #: Given
+        schema: dict[str, Plain] = {'items': {'required': ['x']}}
+        instance: Plain = [{}, {'x': 1}]
+        expected = (MissingRequiredProperties(('x',)),)
+        checked = _checked(schema)
+
+        #: When
+        violations = checked.validate(instance)
+
+        #: Then
+        assert len(violations) == 1, f'one failure is reported, got {violations}'
+        assert violations[0].facts == expected, 'the array item object supplies the fact'
+
+    def test_validate_with_an_array_item_missing_a_dependency_returns_the_dependent_fact(self) -> None:
+        #: Given
+        schema: dict[str, Plain] = {'items': {'dependentRequired': {'x': ['y']}}}
+        instance: Plain = [{'x': 1}, {'x': 1, 'y': 1}]
+        expected = (MissingDependentProperties((DependentProperty('x', 'y'),)),)
+        checked = _checked(schema)
+
+        #: When
+        violations = checked.validate(instance)
+
+        #: Then
+        assert len(violations) == 1, f'one failure is reported, got {violations}'
+        assert violations[0].facts == expected, 'the array item object supplies the fact'
+
+    def test_validate_with_an_array_item_with_an_additional_key_returns_the_additional_fact(self) -> None:
+        #: Given
+        schema: dict[str, Plain] = {
+            'items': {'properties': {'known': True}, 'additionalProperties': False},
+        }
+        instance: Plain = [{'bad': 1}]
+        expected = (AdditionalProperties(('bad',)),)
+        checked = _checked(schema)
+
+        #: When
+        violations = checked.validate(instance)
+
+        #: Then
+        assert len(violations) == 1, f'one failure is reported, got {violations}'
+        assert violations[0].facts == expected, 'the array item object supplies the fact'
+
+    def test_validate_with_an_array_item_with_an_unevaluated_key_returns_the_unevaluated_fact(self) -> None:
+        #: Given
+        schema: dict[str, Plain] = {
+            'items': {'properties': {'known': True}, 'unevaluatedProperties': False},
+        }
+        instance: Plain = [{'bad': 1}]
+        expected = (UnevaluatedProperties(('bad',)),)
+        checked = _checked(schema)
+
+        #: When
+        violations = checked.validate(instance)
+
+        #: Then
+        assert len(violations) == 1, f'one failure is reported, got {violations}'
+        assert violations[0].facts == expected, 'the array item object supplies the fact'
+
+    def test_validate_with_a_property_named_property_names_missing_a_field_returns_the_required_fact(self) -> None:
+        #: Given
+        schema: dict[str, Plain] = {'properties': {'propertyNames': {'required': ['x']}}}
+        instance: Plain = {'propertyNames': {}}
+        expected = (MissingRequiredProperties(('x',)),)
+        checked = _checked(schema)
+
+        #: When
+        violations = checked.validate(instance)
+
+        #: Then
+        assert len(violations) == 1, f'one failure is reported, got {violations}'
+        assert violations[0].facts == expected, 'a property name is not the propertyNames keyword'
+
+    def test_validate_with_a_definition_named_property_names_missing_a_field_returns_the_required_fact(self) -> None:
+        #: Given
+        schema: dict[str, Plain] = {
+            '$defs': {'propertyNames': {'required': ['x']}},
+            'properties': {'child': {'$ref': '#/$defs/propertyNames'}},
+        }
+        instance: Plain = {'child': {}}
+        expected = (MissingRequiredProperties(('x',)),)
+        checked = _checked(schema)
+
+        #: When
+        violations = checked.validate(instance)
+
+        #: Then
+        assert len(violations) == 1, f'one failure is reported, got {violations}'
+        assert violations[0].facts == expected, 'a definition name is not the propertyNames keyword'
+
+    def test_validate_with_a_rejected_property_name_returns_the_invalid_name_fact(self) -> None:
+        #: Given
+        schema: dict[str, Plain] = {'propertyNames': {'pattern': '^a'}}
+        instance: Plain = {'bad': 1}
+        expected = (InvalidPropertyName('bad'),)
+        checked = _checked(schema)
+
+        #: When
+        violations = checked.validate(instance)
+
+        #: Then
+        assert len(violations) == 1, f'one failure is reported, got {violations}'
+        assert violations[0].facts == expected, 'the propertyNames keyword identifies its bad name'
+
+    def test_validate_with_a_rejected_property_name_behind_a_reference_returns_the_invalid_name_fact(self) -> None:
+        #: Given
+        schema: dict[str, Plain] = {
+            'properties': {'a': {'$ref': '#/$defs/n'}},
+            '$defs': {'n': {'propertyNames': {'pattern': '^a'}}},
+        }
+        instance: Plain = {'a': {'bad': 1}}
+        expected = (InvalidPropertyName('bad'),)
+        checked = _checked(schema)
+
+        #: When
+        violations = checked.validate(instance)
+
+        #: Then
+        assert len(violations) == 1, f'one failure is reported, got {violations}'
+        assert violations[0].facts == expected, 'a $ref hop does not hide propertyNames'
+
+    def test_validate_with_a_rejected_property_name_inside_prefix_items_returns_the_invalid_name_fact(self) -> None:
+        #: Given
+        schema: dict[str, Plain] = {'prefixItems': [{'propertyNames': {'pattern': '^a'}}]}
+        instance: Plain = [{'bad': 1}]
+        expected = (InvalidPropertyName('bad'),)
+        checked = _checked(schema)
+
+        #: When
+        violations = checked.validate(instance)
+
+        #: Then
+        assert len(violations) == 1, f'one failure is reported, got {violations}'
+        assert violations[0].facts == expected, 'a prefixItems hop does not hide propertyNames'
+
+    def test_validate_with_two_missing_required_fields_narrows_each_fact_to_its_own_field(self) -> None:
+        #: Given
+        schema: dict[str, Plain] = {'required': ['x', 'y']}
+        instance: Plain = {}
+        checked = _checked(schema)
+
+        #: When
+        violations = checked.validate(instance)
+
+        #: Then
+        assert _facts(violations) == (
+            (MissingRequiredProperties(('x',)),),
+            (MissingRequiredProperties(('y',)),),
+        ), 'each violation names only its own missing field'
+
+    def test_validate_with_two_missing_dependencies_narrows_each_fact_to_its_own_pair(self) -> None:
+        #: Given
+        schema: dict[str, Plain] = {'dependentRequired': {'x': ['y', 'z']}}
+        instance: Plain = {'x': 1}
+        checked = _checked(schema)
+
+        #: When
+        violations = checked.validate(instance)
+
+        #: Then
+        assert _facts(violations) == (
+            (MissingDependentProperties((DependentProperty('x', 'y'),)),),
+            (MissingDependentProperties((DependentProperty('x', 'z'),)),),
+        ), 'each violation names only its own missing pair'
 
 
 @pytest.mark.unit
