@@ -1,6 +1,6 @@
 ---
 name: "cli-inspect"
-description: "lorecraft inspect: printing the workspace model a repository root declares, its corpora, their meta spec names and files, the meta specs governing each document, and the agent skills with the agents that read them, as a tree or as JSON. Load when asking which meta specs govern a document, why a document is not checked, which agents read a skill, or scripting against the workspace model"
+description: "lorecraft inspect: printing the workspace model a repository root declares, its corpora, their meta spec names and files, the meta specs governing each document or skill, and the agents that read each skill, as a tree or as JSON. Load when asking which meta specs govern a document or skill, why a document is not checked, which agents read a skill, or scripting against the workspace model"
 type: "feature"
 status: "experimental"
 components: "module:lorecraft.cli,module:lorecraft.project"
@@ -10,10 +10,10 @@ components: "module:lorecraft.cli,module:lorecraft.project"
 
 ## Summary
 
-`lorecraft inspect` shows what a repository declares, as the checks see it: each corpus under `docs/`, the
-meta spec names in `docs/__meta__/` that belong to it with their files, and every document with the names of
-the meta specs that govern it; then each agent's skills directory and every skill with the agents that read
-it. It answers why a document is or is not checked, and which agents see a skill, without running a check.
+`lorecraft inspect` shows what a repository declares: each corpus under `docs/`, its meta specs and
+documents, then agent skills directories and the skills each agent reads. It shows governing specs for
+documents and, when the reserved `skills` corpus exists, for each governed skill. It answers why a document
+is or is not checked and which agents see a skill, without running a check.
 
 ## Table of Contents
 
@@ -35,6 +35,8 @@ it. It answers why a document is or is not checked, and which agents see a skill
 - **Agent skills directory**: A directory an agent reads skills from, such as `.claude/skills`, shown only when
   the root has it, with the resolved directory it leads to when it is a symlink.
 - **Skill**: A directory directly inside an agent skills directory that holds a `SKILL.md`.
+- **Skill governance**: The reserved `skills` corpus specs that match a skill's listed directory name,
+  broad to narrow, as [workspace](workspace.md#corpora) describes.
 
 ## Configuration
 
@@ -59,7 +61,7 @@ lorecraft inspect ../other-repo --format json
 ### Output
 
 The text form is a tree on stdout, rooted at the absolute root path. A document's meta spec names follow it
-in brackets. An excerpt, from a repository with two feat specs and two skills:
+in brackets. An excerpt, from a repository with two feat specs:
 
 ```text
 └── feat (docs/feat)
@@ -71,11 +73,22 @@ in brackets. An excerpt, from a repository with two feat specs and two skills:
         └── cli-check.md [feat, feat-cli]
 ```
 
+When a `skills` corpus spec governs skills, the skills section includes their governing stems, broad to narrow:
+
+```text
+└── skills (2)
+    ├── .agents/skills/code-rules [codex]
+    │   └── governed by: skills, skills-code
+    └── .agents/skills/review [codex]
+        └── governed by: skills
+```
+
 With `--format json`, stdout is one compact object on a single line, without indentation or spaces after
 commas or colons. It holds `root`, and `corpora`, each with `name`, `directory`, `specs`
 (each a `stem`, which is the meta spec name, and its `files`), and `documents` as `path` and `governed_by`.
-`governed_by` lists the files of each governing meta spec, broad to narrow, so a reader opens a document's
-meta specs without mapping a name to its files. `root` is absolute, and every other path is root-relative.
+For a skill, `governed_by` lists the files of each governing meta spec, broad to narrow, so a reader opens
+its specs without mapping a name to its files. The field is omitted when no spec governs that skill.
+`root` is absolute, and every other path is root-relative.
 
 The compact form is intentional for tools that consume JSON. Pipe `lorecraft inspect --format json | jq .`
 for an indented view. Non-ASCII text, including paths and the workspace root, is written as UTF-8 characters
@@ -101,7 +114,11 @@ or to a directory elsewhere in the repository, is listed where the agent finds i
 ```
 
 In the JSON these are `agent_skills_dirs`, each with `agent`, `path` and `resolves_to`, and `skills`, each with
-the `path` of its `SKILL.md` and its `agents`.
+the `path` of its `SKILL.md` and its `agents`. A governed skill also has a `governed_by` array, for example:
+
+```json
+{"path":".agents/skills/code-rules/SKILL.md","governed_by":["docs/__meta__/skills.md","docs/__meta__/skills-code.md"],"agents":["codex"]}
+```
 
 A root with no `docs/__meta__/` prints a model with no corpora, a root with no skills directory one with no
 skills, and both exit `0`.
@@ -122,6 +139,9 @@ error: invalid structure schema docs/__meta__/feat.spec.json: Invalid JSON: key 
 - A skill is shown as found, not as valid: `inspect` does not read a `SKILL.md`;
   [check](cli-check.md) does.
 - A skill entry that is a symlink does not show where it leads.
+- Skill governance is shown for inspection only: it does not yet apply the `skills` specs to `SKILL.md` checks.
+- A `docs/skills/` directory is ignored; its overlap with the reserved `skills` corpus is recorded but has no
+  diagnostic yet.
 - A skills directory, a skill entry or a `SKILL.md` whose symlink leads outside the repository is left out of
   the tree; [check](cli-check.md) reports it.
 - A file the model [leaves out](workspace.md#left-out-not-reported), such as a Markdown file in a

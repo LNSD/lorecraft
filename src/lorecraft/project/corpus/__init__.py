@@ -2,6 +2,7 @@
 
 from .name import (
     RESERVED_CORPUS_NAME,
+    SKILLS_CORPUS_NAME,
     CorpusName,
     EmptyCorpusNameError,
     InvalidCorpusNameCharacterError,
@@ -10,6 +11,7 @@ from .name import (
 
 __all__: list[str] = [
     'RESERVED_CORPUS_NAME',
+    'SKILLS_CORPUS_NAME',
     'CorpusName',
     'EmptyCorpusNameError',
     'InvalidCorpusNameCharacterError',

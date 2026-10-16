@@ -1849,3 +1849,84 @@ class TestLoadWorkspaceFailures:
         #: Then
         second = model.find_governance(ref)
         assert first != second, 'a changed condition changes the governance, so what it governs is judged again'
+
+
+@pytest.mark.it
+class TestLoadWorkspaceSkillsCorpus:
+    def test_load_workspace_with_a_skills_spec_and_no_docs_directory_loads_the_skills_corpus(
+        self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
+    ) -> None:
+        #: Given
+        _write_tree(tmp_path, prose=('skills',), schemas=('skills.spec.json',), documents=())
+        _write(tmp_path, '.agents/skills/code-rules/SKILL.md')
+
+        #: When
+        model = load_workspace(schemas, documents, skills)
+
+        #: Then
+        assert model.skills_corpus is not None, 'the skills corpus needs no directory under docs/'
+        assert _corpus_names(model) == (), 'it is no corpus of documents'
+        assert model.overlapping_corpora == frozenset(), 'nothing overlaps it'
+
+    def test_find_skill_governance_with_global_namespaced_and_aspect_files_layers_the_stems_broad_to_narrow(
+        self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
+    ) -> None:
+        #: Given
+        _write_tree(
+            tmp_path,
+            prose=('skills', 'skills-code', 'skills-code-rules', 'skills-feat'),
+            schemas=('skills.spec.json', 'skills-code.spec.json'),
+            documents=(),
+        )
+        for name in ('code-rules-check', 'code-format', 'feat-status', 'commit', 'coder'):
+            _write(tmp_path, f'.agents/skills/{name}/SKILL.md')
+
+        #: When
+        model = load_workspace(schemas, documents, skills)
+
+        #: Then
+        governing = {
+            ref.entry.value: tuple(str(spec.name) for spec in governance.specs())
+            for ref in model.skills()
+            if (governance := model.find_skill_governance(ref)) is not None
+        }
+        assert governing == {
+            'code-rules-check': ('skills', 'skills-code', 'skills-code-rules'),
+            'code-format': ('skills', 'skills-code'),
+            'feat-status': ('skills', 'skills-feat'),
+            'commit': ('skills',),
+            'coder': ('skills',),
+        }, 'a namespace governs the skills it equals or continues with a hyphen, shorter first'
+        code = model.find_skill_governance(next(ref for ref in model.skills() if ref.entry.value == 'code-format'))
+        assert code is not None
+        assert [str(path) for path in code.specs()[1].files] == [
+            'docs/__meta__/skills-code.md',
+            'docs/__meta__/skills-code.spec.json',
+        ], 'the aspect files of a stem travel with it'
+
+    def test_find_skill_governance_with_no_skills_spec_returns_none(
+        self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
+    ) -> None:
+        #: Given
+        _write_tree(tmp_path, prose=('skills-code',), schemas=(), documents=())
+        _write(tmp_path, '.agents/skills/code-rules/SKILL.md')
+
+        #: When
+        model = load_workspace(schemas, documents, skills)
+
+        #: Then
+        assert model.skills_corpus is None, 'a namespace spec narrows a corpus spec and cannot stand alone'
+        assert model.find_skill_governance(model.skills()[0]) is None, 'the skill is ungoverned'
+
+    def test_load_workspace_with_a_docs_skills_directory_ignores_its_documents_and_records_the_overlap(
+        self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
+    ) -> None:
+        #: Given
+        _write_tree(tmp_path, prose=('skills',), schemas=(), documents=('skills/notes.md',))
+
+        #: When
+        model = load_workspace(schemas, documents, skills)
+
+        #: Then
+        assert model.overlapping_corpora == frozenset({CorpusName.parse('skills')}), 'the overlap is recorded'
+        assert model.documents() == (), 'none of the documents in docs/skills/ is listed'

@@ -17,7 +17,12 @@ from typing import assert_never
 from lorecraft.agents import AgentName
 from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.path import PathComponent, RootRelativePath
-from lorecraft.project.aspect import AspectFilename, AspectNamespace
+from lorecraft.project.aspect import (
+    AspectFilename,
+    AspectNamespace,
+    EmptyAspectNameError,
+    InvalidAspectNameCharacterError,
+)
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.item import (
@@ -312,6 +317,11 @@ class WorkspaceModel:
             agents read one. A skill belongs to no corpus, so no spec governs it and `documents()` does not
             list it. The locations, not the refs, record where each link leads, so two models differ when a
             link is retargeted even though every ref is the same.
+        skills_corpus: The reserved `skills` corpus, whose specs govern the skills by their listed directory name, or
+            None when no `skills` spec exists. It lists no document: its documents are the skills, which
+            `find_skill_governance` resolves, and no directory under `docs/` backs it.
+        overlapping_corpora: The reserved corpora a directory under `docs/` shares the name of, which the model
+            ignores: none of its documents is listed.
         outside_symlinks: Every skills directory an agent declares, entry in a resolved skills directory, and
             `SKILL.md` of such an entry, whose symlink chain leaves the repository, by path.
             None of them is a skills directory or a skill of the model; a symlink inside a skill is in its
@@ -327,6 +337,8 @@ class WorkspaceModel:
     skill_locations: FrozenMapping[SkillRef, SkillLocation]
     outside_symlinks: FrozenMapping[RootRelativePath, OutsideSymlink]
     load_failures: tuple[LoadFailure, ...]
+    skills_corpus: Corpus | None = None
+    overlapping_corpora: frozenset[CorpusName] = frozenset()
 
     def __post_init__(self) -> None:
         """Keep a key from naming something other than its value, which the lookups read the key alone to answer.
@@ -487,6 +499,23 @@ class WorkspaceModel:
             return None
         return corpus.governance(ref.filename)
 
+    def find_skill_governance(self, ref: SkillRef) -> Governance | None:
+        """The specs governing a skill by its listed directory name, or None when the model has no `skills` spec.
+
+        A skill whose listed name is no valid aspect name is matched by no namespace and so is governed by nothing.
+        The governance names the skill as a document of the `skills` corpus, which its path does not locate.
+
+        Args:
+            ref: Skill to look up, whether or not the model lists it; only its listed directory name is read.
+        """
+        if self.skills_corpus is None:
+            return None
+        try:
+            filename = AspectFilename.parse(str(ref.entry))
+        except (EmptyAspectNameError, InvalidAspectNameCharacterError):
+            return None
+        return self.skills_corpus.governance(filename)
+
     def find_item(self, ref: MarkdownItemRef) -> ResolvedItem | None:
         """The facts of the document or skill entry the model lists at this reference, or None.
 
@@ -515,8 +544,9 @@ class WorkspaceModel:
     def resolve_item(self, ref: DocumentRef | SkillRef) -> ResolvedItem:
         """Resolve an item's descriptor together with the specs governing it, finding the governance once.
 
-        A corpus document is governed by the specs of its corpus and matching namespaces. A skill entry has no
-        repository layers yet, as the reserved `skills` corpus is not loaded, so none governs it.
+        A corpus document is governed by the specs of its corpus and matching namespaces. A skill entry resolves with no
+        governance until the checks of a skill's `SKILL.md` read the `skills` corpus; `find_skill_governance` answers
+        it for inspection.
 
         Args:
             ref: Document or skill entry to resolve, whether or not the model lists a document's corpus.
