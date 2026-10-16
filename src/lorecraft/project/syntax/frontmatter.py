@@ -45,6 +45,7 @@ from lorecraft.yaml.reader import read_yaml
 from lorecraft.yaml.tree import YamlMapping, YamlScalar, YamlSequence, YamlValue
 
 from .position import LineNumber
+from .refusal import describe_refusal, refusal_help
 from .syntax_error import SyntaxProblem, describe_control_character, describe_error
 
 _FIRST_BLOCK_LINE: Final[int] = 2
@@ -330,7 +331,9 @@ def _invalid_yaml_of(problem: YamlProblem, block: str) -> InvalidYamlFrontmatter
             return _invalid_yaml(describe_error(problem, block))
         case RefusedConstructProblem():
             return InvalidYamlFrontmatter(
-                problem=problem.message, line=_document_line(problem.position.line.value), help=problem.help
+                problem=describe_refusal(problem.construct),
+                line=_document_line(problem.position.line.value),
+                help=refusal_help(problem.construct),
             )
         case NestingTooDeepProblem():
             return InvalidYamlFrontmatter(problem=_TOO_DEEP, line=None)
