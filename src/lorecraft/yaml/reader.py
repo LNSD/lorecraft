@@ -16,7 +16,6 @@ from ruamel.yaml.error import MarkedYAMLError, StreamMark
 from ruamel.yaml.reader import ReaderError
 
 from lorecraft.core.error import Unreachable
-from lorecraft.core.num import NonZeroUnsignedInt
 
 from ._events import (
     Alias,
@@ -44,6 +43,7 @@ from .basic_yaml import (
     RefusedTagError,
     _RefusalError,
 )
+from .position import LineIndex
 from .problem import (
     ControlCharacterProblem,
     NestingTooDeepProblem,
@@ -73,23 +73,23 @@ def read_yaml(text: str) -> YamlValue | None | YamlProblem:
         root = _read_document(stream)
     except ReaderError as exc:
         # The reader checks every character as it is built, so a control character fails before the first event.
-        return ControlCharacterProblem(code=code_point(exc), index=exc.position)
+        return ControlCharacterProblem(code=code_point(exc), position=stream.lines.position_at(exc.position))
     except _RefusalError as exc:
         # The read stopped at a construct the subset leaves out. The scanner reads ahead of the parser, so it may
         # have recorded one written above it, which is the one the text is reported for.
-        return _refused(_first_refusal(stream, stopped=exc))
+        return _refused(stream.lines, _first_refusal(stream, stopped=exc))
     except MarkedYAMLError as exc:
         # Every other `MarkedYAMLError` is ruamel.yaml's own. The scanner reads ahead of the parser, so a construct
         # it recorded is written above whatever the parser or the scanner failed on.
         recorded = _first_refusal(stream)
         if recorded is not None:
-            return _refused(recorded)
+            return _refused(stream.lines, recorded)
         failure = parse_failure(exc)
         return SyntaxErrorProblem(
             problem=failure.problem,
             context=failure.context,
-            position=_position_of_mark(failure.problem_mark),
-            context_position=_position_of_mark(failure.context_mark),
+            position=_position_of_mark(stream.lines, failure.problem_mark),
+            context_position=_position_of_mark(stream.lines, failure.context_mark),
         )
     except RecursionError:
         # The value is read with one call per level of nesting, so only a deeply nested text reaches the
@@ -98,12 +98,12 @@ def read_yaml(text: str) -> YamlValue | None | YamlProblem:
         # reported instead, on its position.
         recorded = _first_refusal(stream)
         if recorded is not None:
-            return _refused(recorded)
+            return _refused(stream.lines, recorded)
         return NestingTooDeepProblem()
     # The text was read to its end, so every construct the scanner recorded is written above the end.
     recorded = _first_refusal(stream)
     if recorded is not None:
-        return _refused(recorded)
+        return _refused(stream.lines, recorded)
     return root
 
 
@@ -129,38 +129,40 @@ def _first_refusal(
     return stopped
 
 
-def _position_of_mark(mark: StreamMark | None) -> YamlPosition | None:
+def _position_of_mark(lines: LineIndex, mark: StreamMark | None) -> YamlPosition | None:
     """A mark of the parser's error as a position, or `None` where it gave none.
 
     Args:
-        mark: The mark, which counts its line and column from 0.
+        lines: The line index of the text that was read.
+        mark: The mark, whose index is where the position is computed from.
     """
     if mark is None:
         return None
-    return YamlPosition(NonZeroUnsignedInt(mark.line + 1), NonZeroUnsignedInt(mark.column + 1))
+    return lines.position_at(mark.index)
 
 
-def _refused(refusal: RecordedRefusal | _RefusalError) -> RefusedConstructProblem:
+def _refused(lines: LineIndex, refusal: RecordedRefusal | _RefusalError) -> RefusedConstructProblem:
     """The problem of a construct the subset leaves out.
 
     Args:
+        lines: The line index of the text that was read.
         refusal: The construct, as the scanner recorded it or as the read stopped on it.
     """
-    position = _position_of_mark(refusal.mark)
+    position = _position_of_mark(lines, refusal.mark)
     if position is None:
         # SAFETY: a refusal is marked where it is written.
         raise Unreachable('a refused construct has a mark')
     return RefusedConstructProblem(construct=refusal.construct, position=position)
 
 
-def _position_of(node: NodeStart) -> YamlPosition:
+def _position_of(parser: _EventStream, node: NodeStart) -> YamlPosition:
     """Where a node starts, as the tree states it: one-based.
 
     Args:
+        parser: The text's parser.
         node: The event that starts the node.
     """
-    mark = node.mark
-    return YamlPosition(NonZeroUnsignedInt(mark.line + 1), NonZeroUnsignedInt(mark.column + 1))
+    return parser.lines.position_at(node.mark.index)
 
 
 def _read_document(parser: _EventStream) -> YamlValue | None:
@@ -250,7 +252,7 @@ def _read_value(parser: _EventStream) -> YamlValue:
             return _read_sequence(parser, event)
         case ScalarStart():
             parser.get_event()
-            return YamlScalar(_scalar_value(event), _position_of(event))
+            return YamlScalar(_scalar_value(event), _position_of(parser, event))
         case _:
             assert_never(event)
 
@@ -279,7 +281,7 @@ def _read_mapping(parser: _EventStream, start: MappingStart) -> YamlMapping:
         _refuse_nested_collection(parser, start)
         entries.append((key, _read_value(parser)))
     parser.get_event()  # The mapping's end.
-    return YamlMapping(tuple(entries), _position_of(start))
+    return YamlMapping(tuple(entries), _position_of(parser, start))
 
 
 def _read_sequence(parser: _EventStream, start: SequenceStart) -> YamlSequence:
@@ -304,7 +306,7 @@ def _read_sequence(parser: _EventStream, start: SequenceStart) -> YamlSequence:
         _refuse_nested_collection(parser, start)
         items.append(_read_value(parser))
     parser.get_event()  # The sequence's end.
-    return YamlSequence(tuple(items), _position_of(start))
+    return YamlSequence(tuple(items), _position_of(parser, start))
 
 
 def _read_key(parser: _EventStream) -> YamlKey:
@@ -332,7 +334,7 @@ def _read_key(parser: _EventStream) -> YamlKey:
     if event.plain and name == MERGE_KEY:
         # A plain `<<` is YAML 1.1's merge key, which pulls in the entries of the mapping an alias names.
         raise RefusedMergeKeyError(mark)
-    return YamlKey(name, _position_of(event))
+    return YamlKey(name, _position_of(parser, event))
 
 
 def _refuse_nested_collection(parser: _EventStream, parent: CollectionStart) -> None:

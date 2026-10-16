@@ -326,7 +326,7 @@ def _invalid_yaml_of(problem: YamlProblem, block: str) -> InvalidYamlFrontmatter
     """
     match problem:
         case ControlCharacterProblem():
-            return _invalid_yaml(describe_control_character(problem, block))
+            return _invalid_yaml(describe_control_character(problem))
         case SyntaxErrorProblem():
             return _invalid_yaml(describe_error(problem, block))
         case RefusedConstructProblem():

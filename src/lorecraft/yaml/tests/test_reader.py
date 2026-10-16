@@ -233,7 +233,30 @@ class TestReadYaml:
         problem = read_yaml(text)
 
         #: Then
-        assert problem == ControlCharacterProblem(code=7, index=3), f'a control character is refused, got {problem!r}'
+        assert problem == ControlCharacterProblem(code=7, position=_at(1, 4)), (
+            f'a control character is refused, got {problem!r}'
+        )
+
+    def test_read_yaml_with_byte_order_marks_counts_them_in_the_columns(self) -> None:
+        #: Given
+        text = 'a: "\ufeff\ufeff\\q"\n'
+
+        #: When
+        problem = read_yaml(text)
+
+        #: Then
+        assert isinstance(problem, SyntaxErrorProblem), f'an unknown escape is a syntax error, got {problem!r}'
+        assert problem.position == _at(1, 8), f'the marks take a column each, got {problem.position!r}'
+
+    def test_read_yaml_with_a_control_character_after_byte_order_marks_returns_its_character_column(self) -> None:
+        #: Given
+        text = '\ufeff\ufeffa: \x07\n'
+
+        #: When
+        problem = read_yaml(text)
+
+        #: Then
+        assert problem == ControlCharacterProblem(code=7, position=_at(1, 6)), f'got {problem!r}'
 
     def test_read_yaml_with_a_syntax_error_returns_the_parser_facts_and_the_position(self) -> None:
         #: Given

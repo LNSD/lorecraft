@@ -11,6 +11,7 @@ import pytest
 
 from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.yaml.problem import ControlCharacterProblem, SyntaxErrorProblem
+from lorecraft.yaml.reader import read_yaml
 from lorecraft.yaml.tree import YamlPosition
 
 from ..syntax_error import SyntaxProblem, describe_control_character, describe_error
@@ -24,6 +25,13 @@ def _mark(line: int, column: int) -> YamlPosition:
         column: The column.
     """
     return YamlPosition(NonZeroUnsignedInt(line + 1), NonZeroUnsignedInt(column + 1))
+
+
+def _problem(text: str) -> SyntaxErrorProblem:
+    """The syntax error the reader reports for a text that holds one."""
+    problem = read_yaml(text)
+    assert isinstance(problem, SyntaxErrorProblem), f'{text!r} is a syntax error, got {problem!r}'
+    return problem
 
 
 def _error(
@@ -564,12 +572,26 @@ class TestDescribeError:
 
     def test_describe_control_character_with_a_bell_after_a_line_returns_its_code_point_and_line(self) -> None:
         #: Given
-        error = ControlCharacterProblem(code=ord('\x07'), index=9)
+        error = ControlCharacterProblem(code=ord('\x07'), position=_mark(1, 4))
 
         #: When
-        problem = describe_control_character(error, 'a: b\nc: d\x07\n')
+        problem = describe_control_character(error)
 
         #: Then
         assert problem == SyntaxProblem('the block holds the control character U+0007', 'Remove it', 1), (
             'a control character is named by its code point, on the line it is on'
         )
+
+    @pytest.mark.parametrize('mark', ['', '\ufeff\ufeff'])
+    def test_describe_error_with_byte_order_marks_in_the_text_returns_the_label_it_has_without(self, mark: str) -> None:
+        #: Given
+        quoted = f'a: "{mark}\\q"\n'
+        flow = f'a: [{mark}b] c\n'
+
+        #: When
+        escape = describe_error(_problem(quoted), quoted)
+        trailing = describe_error(_problem(flow), flow)
+
+        #: Then
+        assert escape.label == '`\\q` is not an escape', f'a U+FEFF does not move the escape, got {escape!r}'
+        assert trailing.label == 'text follows the closing `]`', f'a U+FEFF does not move the text, got {trailing!r}'
