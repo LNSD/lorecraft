@@ -94,3 +94,5 @@ Before committing code, verify:
 - [adr-006-specifications](adr-006-specifications.md) - Related: The record adr-016 supersedes
 - [prd-024-shared-name-hierarchy](prd-024-shared-name-hierarchy.md) - Related: The requirements for one shared name
   hierarchy across meta specs and corpus documents
+- [adr-025](adr-025-name-chain-model.md) - Leads to: The shared name-chain derivation in the project model and
+  workspace inspection rendering

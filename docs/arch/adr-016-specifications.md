@@ -153,3 +153,5 @@ Before committing code, verify:
   descriptor
 - [prd-024-shared-name-hierarchy](prd-024-shared-name-hierarchy.md) - Related: The requirements for one shared name
   hierarchy across meta specs and corpus documents
+- [adr-025](adr-025-name-chain-model.md) - Related: The shared name-chain derivation for meta specs and corpus
+  documents
