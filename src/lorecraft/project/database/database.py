@@ -10,9 +10,10 @@ file at the descriptor's read location into one `ItemText` witness or an `Undeco
 `item_parse`, `item_token_count`, `item_line_count`, `item_link_targets`, `item_governance`, `item_schema_problems`,
 `item_outline_alignment` and `item_outline_divergences` take that witness and are computed on first demand. Link targets
 read the descriptor's link base, so no query tells a document from a skill entry; the analyses read
-`item_governance(ref)`, never the whole model. The document and skill-entry queries below (`text`, `skill_text`,
-`parse`, `skill_parse`, ...) remain as compatibility entry points that delegate to this family and keep no cache of
-their own beyond the witness they wrap, until the callers migrate; their carry-over rules are the family's.
+`item_governance(ref)`, never the whole model. The skill-entry queries below (`skill_text`, `skill_parse`, ...) remain
+as compatibility entry points that delegate to this family and keep no cache of their own beyond the witness they wrap,
+until the callers migrate; their carry-over rules are the family's. A document the model does not list is answered for
+by the corpus and filename its path names.
 
 Input queries read the snapshot. Each is the one place its part of the snapshot becomes a value for a rule, so only an
 input query builds a witness or fails to read, and each states its own carry-over rule against the change set:
@@ -22,9 +23,9 @@ input query builds a witness or fails to read, and each states its own carry-ove
   specifications, the corpus directories, the skills directories and the listing of each skill's directory, nothing
   deeper inside a skill, and no document's contents. Among that structure it records each skills directory, skill
   entry and `SKILL.md` whose symlink chain leaves the repository.
-- `text(ref)`: one document's bytes decoded as UTF-8, like the IDE's document text for a file: a `DocumentText`
-  witness, or an `Undecodable` marker when the bytes are not UTF-8. It is the one place a document's bytes become
-  text for a rule, and it reads that document's bytes and nothing else.
+- `item_text(ref)`: one document's or skill entry's bytes decoded as UTF-8, like the IDE's document text for a file: an
+  `ItemText` witness, or an `Undecodable` marker when the bytes are not UTF-8. It is the one place their bytes become
+  text for a rule, and it reads that file's bytes and nothing else.
 - `skill_text(location)`: one skill's `SKILL.md` decoded, the same document text: a `SkillText` witness, or an
   `Undecodable` marker. It reads that skill's bytes and nothing else.
 - `skill_resources(skill)`: one skill's resources, the Markdown files inside it other than its top-level `SKILL.md`,
@@ -37,10 +38,10 @@ input query builds a witness or fails to read, and each states its own carry-ove
   through the links it recorded, like the IDE's index of a project's content roots. It reads the snapshot's
   scope, links and climbed directories and nothing else, and no caller reaches it but `is_in_scope` and the
   link-target queries.
-- `link_targets(source)`, `skill_link_targets(source)` and `skill_resource_link_targets(source)`: what the snapshot
-  holds at the target of each relative link of one document, `SKILL.md` or resource, like the IDE's index of a file's
-  references resolved against the virtual file system. Each hands the file's parse, where its links are read from,
-  the snapshot's view and the scope index to `link_targets_of`, which reads, for each path a link names, the
+- `item_link_targets(source)`, `skill_link_targets(source)` and `skill_resource_link_targets(source)`: what the
+  snapshot holds at the target of each relative link of one item, `SKILL.md` or resource, like the IDE's index of a
+  file's references resolved against the virtual file system. Each hands the file's parse, where its links are read
+  from, the snapshot's view and the scope index to `link_targets_of`, which reads, for each path a link names, the
   snapshot's records on the way to it, so each is an input query: it is kept only when its parse is kept and every
   path it looked up, an absent target included, still resolves to the same place and is in the same scope state.
 
@@ -48,16 +49,12 @@ Derived queries read the results of other queries and never the snapshot. Each h
 of this package that computes the value, so its arguments are its read set, and it carries over whenever every query
 it read does, `item_governance(ref)` excepted, as its bullet states:
 
-- `frontmatter(source)`: one document's frontmatter node, like a stub: the part of a file the IDE reads without
-  building its full syntax tree. It reads the text of the witness `text(ref)` returned and nothing else.
-- `parse(source)`: one document's parse tree, like the IDE's syntax tree of a file or a per-file index entry. It
-  reads the text of the witness and nothing else.
-- `token_count(source)`: what one document's whole file costs an agent that loads it, like another per-file index
-  entry: counted from the raw text, frontmatter and code included, without a parse. It reads the text of the
-  witness `text(ref)` returned and nothing else.
-- `document_line_count(source)`: how many lines one document's whole file holds, like `token_count(source)`: counted
-  from the raw text, frontmatter included, without a parse. It reads the text of the witness `text(ref)` returned and
-  nothing else.
+- `item_frontmatter(source)`: one item's frontmatter node, like a stub: the part of a file the IDE reads without
+  building its full syntax tree. It reads the text of the witness and nothing else.
+- `item_parse(source)`: one item's parse tree, like the IDE's syntax tree of a file. It reads the text of the witness
+  and nothing else.
+- `item_token_count(source)` and `item_line_count(source)`: what one item's whole file costs an agent that loads it,
+  and how many lines it holds, counted from the raw text, frontmatter included, without a parse.
 - `item_governance(ref)`: the specifications that govern one item, its corpus's first and then each namespace's that
   matches it, like the IDE's resolution of which inspection profile a file falls under. It reads `model()` and
   nothing else, and it is the one place an item's governance is computed, so the model's corpus is searched once per
@@ -169,7 +166,7 @@ from lorecraft.project.corpus import (
     InvalidCorpusNameCharacterError,
     ReservedCorpusNameError,
 )
-from lorecraft.project.document import DocumentReadError, DocumentRef
+from lorecraft.project.document import DocumentRef
 from lorecraft.project.item import ItemReadError, MarkdownItemDescriptor, MarkdownItemRef, UnlistedItemError
 from lorecraft.project.layout import DOCS_DIR, DOCUMENT_SUFFIX, SPECS_DIR, reject_linked_layout
 from lorecraft.project.link_target import LinkTargetEntry, SkillRoot, link_targets_of
@@ -221,7 +218,7 @@ from lorecraft.vfs import (
     VirtualFileSystem,
 )
 
-from .text import DocumentText, ItemText, SkillResourceText, SkillText, Undecodable
+from .text import ItemText, SkillResourceText, SkillText, Undecodable
 
 logger = logging.getLogger(__name__)
 
@@ -248,10 +245,10 @@ def _document_at(ref: MarkdownItemRef) -> DocumentRef | None:
 
 
 def _witness_text(
-    source: DocumentText
+    source: ItemText
     | SkillText
     | SkillResourceText
-    | Undecodable[DocumentRef]
+    | Undecodable[MarkdownItemRef]
     | Undecodable[SkillRef]
     | Undecodable[SkillResourceRef],
 ) -> str | None:
@@ -311,7 +308,6 @@ class Database:
         self._item_outline_alignments: dict[MarkdownItemRef, tuple[OutlineAlignmentSpec, ...]] = {}
         self._item_outline_divergences: dict[MarkdownItemRef, tuple[OutlineDivergenceSpec, ...]] = {}
         # The compatibility entry points' witnesses, wrapped from the unified decode; they decode nothing themselves.
-        self._texts: dict[DocumentRef, DocumentText | Undecodable[DocumentRef]] = {}
         self._skill_texts: dict[SkillRef, SkillText | Undecodable[SkillRef]] = {}
         self._skill_resources: dict[SkillRef, SkillResourceListing] = {}
         self._skill_resource_texts: dict[SkillResourceRef, SkillResourceText | Undecodable[SkillResourceRef]] = {}
@@ -359,38 +355,6 @@ class Database:
         """
         return self._model
 
-    def text(self, ref: DocumentRef) -> DocumentText | Undecodable[DocumentRef]:
-        """One document's bytes decoded as UTF-8, read from the snapshot on the first call for its ref.
-
-        The one place a document's bytes become text for a rule: every other query about the document takes the
-        witness this returns. A document that is not UTF-8 is cached as `Undecodable` like any answer, so it is decoded
-        once.
-
-        Carry-over: kept for the next revision only when the document's bytes did not change.
-
-        A document that cannot be read is not cached, so each call raises the same error again.
-
-        Args:
-            ref: The document to decode; the cache key, so one ref is decoded once.
-
-        Returns:
-            The witness, or `Undecodable` when the document is present but not UTF-8: such bytes are a finding
-            about the file, on the same side of the line as invalid YAML, not the failure to read it a missing file
-            is.
-
-        Raises:
-            DocumentReadError: If the snapshot holds no regular file at the document's path.
-        """
-        source = self._texts.get(ref)
-        if source is None:
-            try:
-                item = self._decode(self._document_item(ref))
-            except ItemReadError as exc:
-                raise DocumentReadError(ref, source=exc.source) from exc
-            source = Undecodable(ref, item.failure) if isinstance(item, Undecodable) else DocumentText(ref, item.text)
-            self._texts[ref] = source
-        return source
-
     def source_lines(self, path: RootRelativePath) -> tuple[str, ...] | None:
         """The lines of one file under the root, for a diagnostic to excerpt, numbered as the rules number them.
 
@@ -415,7 +379,7 @@ class Database:
         try:
             text = self._source_text(path)
         except (
-            DocumentReadError,
+            ItemReadError,
             SkillReadError,
             SkillResourceReadError,
             SkillResourcesListError,
@@ -435,7 +399,7 @@ class Database:
             path: The root-relative file, as `source_lines` is asked for it.
 
         Raises:
-            DocumentReadError: If the snapshot holds no regular file at the document's path.
+            ItemReadError: If the snapshot holds no regular file at the document's path.
             SkillReadError: If the snapshot holds no regular file at the skill's `SKILL.md`.
             SkillResourceReadError: If the snapshot holds no regular file at the resource's resolved file.
             SkillResourcesListError: If a directory the walk over the skill's resources enters cannot be listed.
@@ -444,7 +408,7 @@ class Database:
         """
         document = self._model.find_document(path)
         if document is not None:
-            return _witness_text(self.text(document))
+            return _witness_text(self.item_text(MarkdownItemRef(document.path)))
 
         for location in self._model.skill_locations.values():
             if path == location.ref.path:
@@ -578,22 +542,6 @@ class Database:
         if self._scope_index is None:
             self._scope_index = ScopeIndex(self._snapshot)
         return self._scope_index
-
-    def link_targets(self, source: DocumentText) -> Mapping[NormalisedLinkPath, LinkTargetEntry]:
-        """Where each relative link of one document leads and what the snapshot holds there, found on the first call.
-
-        Each link is read from the document's own directory, as `link_targets_of` states, and looked up through the
-        snapshot's view and scope. Raises nothing.
-
-        Carry-over: kept for the next revision only when `parse(source)` is kept and every path the query looked up,
-        an absent target included, still resolves to the same place and is in the same scope state: creating a
-        missing target, deleting a present one or retargeting a symlink on the way to one must change its entry.
-
-        Args:
-            source: The file's text, the witness every per-file query takes; its ref is the cache key, so one ref is
-                looked up once.
-        """
-        return self.item_link_targets(self._decoded(source.ref.path))
 
     def skill_link_targets(self, source: SkillText) -> Mapping[NormalisedLinkPath, LinkTargetEntry]:
         """Where each relative link in a skill's `SKILL.md` leads and what the snapshot holds there, on the first call.
@@ -913,58 +861,6 @@ class Database:
         return divergences
 
     # Derived queries: each reads only other queries and carries over whenever they do.
-
-    def frontmatter(self, source: DocumentText) -> FrontmatterNode:
-        """The frontmatter of one document, parsed from its decoded text on the first call for its ref. Raises nothing.
-
-        Cached apart from `parse(source)`, which does not hold the frontmatter: the block is decoded here alone.
-
-        Carry-over: kept for the next revision whenever `text(source.ref)` is.
-
-        Args:
-            source: The document's text, as `text(ref)` returns it; its ref is the cache key, so one ref is parsed
-                once.
-        """
-        return self.item_frontmatter(self._decoded(source.ref.path))
-
-    def parse(self, source: DocumentText) -> ParsedDocument:
-        """The parse tree of one document, parsed from its decoded text on the first call for its ref. Raises nothing.
-
-        Carry-over: kept for the next revision whenever `text(source.ref)` is.
-
-        Args:
-            source: The document's text, as `text(ref)` returns it; its ref is the cache key, so one ref is parsed
-                once.
-        """
-        return self.item_parse(self._decoded(source.ref.path))
-
-    def token_count(self, source: DocumentText) -> TokenCount:
-        """The tokens in one document's whole file, counted on the first call for its ref. Raises nothing.
-
-        Cached apart from `parse(source)` and never read from it: the count needs the raw text, not the tree, so
-        a check that needs only one of the two never pays for the other.
-
-        Carry-over: kept for the next revision whenever `text(source.ref)` is.
-
-        Args:
-            source: The document's text, as `text(ref)` returns it; its ref is the cache key, so one ref is counted
-                once.
-        """
-        return self.item_token_count(self._decoded(source.ref.path))
-
-    def document_line_count(self, source: DocumentText) -> LineCount:
-        """The lines in one document's whole file, counted on the first call for its ref. Raises nothing.
-
-        Cached apart from `parse(source)` and never read from it, as `token_count(source)` is: the count needs the raw
-        text, frontmatter included, not the tree.
-
-        Carry-over: kept for the next revision whenever `text(source.ref)` is.
-
-        Args:
-            source: The document's text, as `text(ref)` returns it; its ref is the cache key, so one ref is counted
-                once.
-        """
-        return self.item_line_count(self._decoded(source.ref.path))
 
     def skill_frontmatter(self, source: SkillText) -> FrontmatterNode:
         """The frontmatter of one skill's `SKILL.md`, parsed on the first call for its ref. Raises nothing.

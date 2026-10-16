@@ -30,7 +30,6 @@ from lorecraft.project.database import (
     DatabaseItemContext,
     DatabaseLayoutContext,
     DatabaseSkillResourceContext,
-    DocumentText,
     ItemText,
     SkillResourceText,
     SkillText,
@@ -111,17 +110,6 @@ def _tree() -> FileTree:
 def _snapshot() -> Snapshot:
     """A snapshot of `_tree`, built in memory, so no path is in its scope."""
     return from_tree(_tree())
-
-
-def _document_text(database: Database) -> DocumentText:
-    """The witness of `TYPING`, as the database decodes it.
-
-    Args:
-        database: The database `TYPING` is decoded by.
-    """
-    source = database.text(TYPING)
-    assert isinstance(source, DocumentText), f'{TYPING.path} was written as UTF-8, so it decodes'
-    return source
 
 
 def _link_target(path: str, lookup: PathLookup) -> LinkTarget:
@@ -269,7 +257,7 @@ class TestDatabaseItemContextOverADocument:
         frontmatter = context.frontmatter()
 
         #: Then
-        assert frontmatter is database.frontmatter(_document_text(database)), (
+        assert frontmatter is database.item_frontmatter(_document_item(database)), (
             'the frontmatter is the value the database memoizes, not one the context parsed again'
         )
 
@@ -308,7 +296,7 @@ class TestDatabaseItemContextOverADocument:
         parsed = context.parse()
 
         #: Then
-        assert parsed is database.parse(_document_text(database)), (
+        assert parsed is database.item_parse(_document_item(database)), (
             'the parse is the one the database memoizes, not one the context parsed again'
         )
 
@@ -407,7 +395,7 @@ class TestDatabaseItemContextOverADocument:
         targets = context.link_targets()
 
         #: Then
-        assert targets is database.link_targets(_document_text(database)), (
+        assert targets is database.item_link_targets(_document_item(database)), (
             'the targets are the ones the database memoizes, not ones the context looked up again'
         )
         assert dict(targets) == {

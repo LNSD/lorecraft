@@ -29,7 +29,7 @@ from lorecraft.jsonschema import JsonType
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.context import DocumentContext, DocumentFrontmatterOwner, SkillFrontmatterOwner
 from lorecraft.project.corpus import CorpusName
-from lorecraft.project.database import Database, DocumentText, ItemText, SkillText
+from lorecraft.project.database import Database, ItemText, SkillText
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.item import MarkdownItemRef
 from lorecraft.project.layout import SNAPSHOT_SCOPE
@@ -336,20 +336,20 @@ class CountingDatabase(Database):
             model: The workspace model loaded through the view.
         """
         super().__init__(fs, model)
-        self.counted_tokens: list[DocumentRef] = []
+        self.counted_tokens: list[MarkdownItemRef] = []
         self.counted_lines: list[SkillRef] = []
-        self.parsed_frontmatters: list[DocumentRef | SkillRef] = []
+        self.parsed_frontmatters: list[MarkdownItemRef] = []
         self.validated_frontmatters: list[MarkdownItemRef] = []
-        self.parsed_documents: list[DocumentRef] = []
+        self.parsed_documents: list[MarkdownItemRef] = []
 
-    def token_count(self, source: DocumentText) -> UnsignedInt:
+    def item_token_count(self, source: ItemText) -> UnsignedInt:
         """Record the document, then count its tokens.
 
         Args:
             source: The decoded document whose tokens are counted, recorded by its ref first.
         """
         self.counted_tokens.append(source.ref)
-        return super().token_count(source)
+        return super().item_token_count(source)
 
     def skill_line_count(self, source: SkillText) -> UnsignedInt:
         """Record the skill, then count the lines of its `SKILL.md`.
@@ -360,23 +360,23 @@ class CountingDatabase(Database):
         self.counted_lines.append(source.ref)
         return super().skill_line_count(source)
 
-    def frontmatter(self, source: DocumentText) -> FrontmatterNode:
+    def item_frontmatter(self, source: ItemText) -> FrontmatterNode:
         """Record the document, then parse its frontmatter.
 
         Args:
             source: The decoded document whose frontmatter is parsed, recorded by its ref first.
         """
         self.parsed_frontmatters.append(source.ref)
-        return super().frontmatter(source)
+        return super().item_frontmatter(source)
 
-    def parse(self, source: DocumentText) -> ParsedDocument:
+    def item_parse(self, source: ItemText) -> ParsedDocument:
         """Record the document, then parse it.
 
         Args:
             source: The decoded document that is parsed, recorded by its ref first.
         """
         self.parsed_documents.append(source.ref)
-        return super().parse(source)
+        return super().item_parse(source)
 
     def skill_frontmatter(self, source: SkillText) -> FrontmatterNode:
         """Record the skill, then parse the frontmatter of its `SKILL.md`.
@@ -384,7 +384,7 @@ class CountingDatabase(Database):
         Args:
             source: The decoded `SKILL.md` whose frontmatter is parsed, recorded by its skill's ref first.
         """
-        self.parsed_frontmatters.append(source.ref)
+        self.parsed_frontmatters.append(MarkdownItemRef(source.ref.path))
         return super().skill_frontmatter(source)
 
     def item_schema_problems(self, source: ItemText) -> tuple[SchemaProblems, ...]:
@@ -1290,10 +1290,10 @@ class TestCheckSubjects:
         check_subjects(database, subjects, package_table)
 
         #: Then
-        assert GUIDE not in database.parsed_frontmatters, (
+        assert MarkdownItemRef(GUIDE.path) not in database.parsed_frontmatters, (
             'no schema governs the guide, so governance stops the rules over the frontmatter before they parse it'
         )
-        assert INTRO not in database.parsed_frontmatters, (
+        assert MarkdownItemRef(INTRO.path) not in database.parsed_frontmatters, (
             'no schema governs the intro, so governance stops the rules over the frontmatter before they parse it'
         )
 
