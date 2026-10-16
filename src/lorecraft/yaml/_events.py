@@ -35,6 +35,7 @@ from .basic_yaml import (
     RecordedRefusal,
     written_token,
 )
+from .position import LineIndex
 
 
 class Boundary(Enum):
@@ -189,9 +190,15 @@ class _EventStream:
         yaml.Scanner = BasicYamlScanner
         yaml.Parser = BasicYamlParser
         self._text = text
+        self._lines = LineIndex(text)
         self._events: Iterator[Event] = iter(yaml.parse(text))
         self._peeked: StreamEvent | None = None
         self._yaml = yaml
+
+    @property
+    def lines(self) -> LineIndex:
+        """Where the lines of the text being read start."""
+        return self._lines
 
     def peek_event(self) -> StreamEvent:
         """The next event, left unread.

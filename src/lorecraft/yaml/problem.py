@@ -21,11 +21,11 @@ class ControlCharacterProblem:
 
     Attributes:
         code: The character's code point.
-        index: Where it is in the text, counted in characters from 0.
+        position: Where it is in the text.
     """
 
     code: int
-    index: int
+    position: YamlPosition
 
 
 @dataclass(frozen=True, slots=True)

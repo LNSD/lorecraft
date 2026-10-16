@@ -23,7 +23,8 @@ check is, so the package above it decides what a refused construct means for a d
 - Code that scans, parses or refuses YAML text, or builds a value from what a YAML parser reports.
 - The subclasses of the YAML library's reader, scanner and parser that make it read the subset Lorecraft accepts.
 - The types that name a construct the subset leaves out, as the facts a caller words it from, and where in the text it is written.
-- The tree a YAML text reads into, and the position of each of its nodes, as frozen values of this package's own.
+- The tree a YAML text reads into, and the position of each of its nodes, as frozen values of this package's own. A position is one-based, in lines and columns counted in the characters of
+  the text, U+FEFF included, and is computed from the index of the library's mark and the text, never from its column.
 - A fact about YAML's grammar, such as which characters end a line or a token.
 - `reader.read_yaml(text)` and the values it returns, declared in `tree` and `problem`.
 - Dispatch over problems exhaustively with `match` and `assert_never`, never through runtime tuples of problem classes.
@@ -86,6 +87,7 @@ Before committing code, verify:
 - [ ] The tree builder reads the values `_events` declares, never an event or an error of the library
 - [ ] Problems are dispatched exhaustively with `match` and `assert_never`, never through runtime tuples
 - [ ] A construct the subset leaves out is returned as a `RefusedConstructProblem` that carries a `RefusedConstruct` type and its position, never a message
+- [ ] A position is computed from a mark's index and the text, never read from the mark's column
 - [ ] Nothing here names a document, a frontmatter key or a diagnostic code, in code, docstrings or tests
 
 ## References

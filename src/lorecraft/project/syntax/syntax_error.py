@@ -17,7 +17,7 @@ from dataclasses import dataclass
 from types import MappingProxyType
 from typing import Final
 
-from lorecraft.core.lines import line_at, split_lines
+from lorecraft.core.lines import split_lines
 from lorecraft.yaml.problem import LINE_SEPARATORS, ControlCharacterProblem, SyntaxErrorProblem
 from lorecraft.yaml.tree import YamlPosition
 
@@ -385,17 +385,16 @@ def _below_block_scalar(line: int, lines: list[str]) -> bool:
     return False
 
 
-def describe_control_character(error: ControlCharacterProblem, block: str) -> SyntaxProblem:
+def describe_control_character(error: ControlCharacterProblem) -> SyntaxProblem:
     """Name a character the reader refuses, and the line it is on.
 
     Args:
-        error: The refused character, with its index in the block.
-        block: The text the reader read.
+        error: The refused character, with its position in the block.
     """
     return SyntaxProblem(
         f'the block holds the control character U+{error.code:04X}',
         'Remove it',
-        line_at(block, error.index) - 1,
+        error.position.line.value - 1,
     )
 
 
