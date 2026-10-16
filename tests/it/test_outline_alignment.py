@@ -16,8 +16,9 @@ from lib.tree import from_tree
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
-from lorecraft.project.database import Database, DocumentText
+from lorecraft.project.database import Database, DocumentText, ItemText
 from lorecraft.project.document import DocumentRef
+from lorecraft.project.item import MarkdownItemRef
 from lorecraft.project.schemas import (
     AnyRunAlignment,
     NamedAlignment,
@@ -69,16 +70,16 @@ class ParsingDatabase(Database):
             model: The workspace model loaded through the view.
         """
         super().__init__(fs, model)
-        self.parsed: list[DocumentRef] = []
+        self.parsed: list[MarkdownItemRef] = []
 
-    def parse(self, source: DocumentText) -> ParsedDocument:
+    def item_parse(self, source: ItemText) -> ParsedDocument:
         """Record the document, then parse it.
 
         Args:
             source: The decoded document that is parsed, recorded by its ref first.
         """
         self.parsed.append(source.ref)
-        return super().parse(source)
+        return super().item_parse(source)
 
 
 def _snapshot(corpus_spec: bytes | None, namespace_spec: bytes | None, text: str) -> Snapshot:
@@ -187,7 +188,7 @@ class TestOutlineAlignment:
 
         #: Then
         assert second is first, 'the sections are aligned once per database, then shared by every rule'
-        assert database.parsed == [TYPING], 'the document is parsed once, for the first call'
+        assert database.parsed == [MarkdownItemRef(TYPING.path)], 'the document is parsed once, for the first call'
 
     def test_outline_alignment_with_a_specification_stating_no_outline_aligns_it_to_nothing(self) -> None:
         #: Given

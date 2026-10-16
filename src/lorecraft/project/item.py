@@ -9,6 +9,7 @@ from enum import Enum
 
 from lorecraft.core.error import Error
 from lorecraft.core.path import RootRelativePath
+from lorecraft.project.link_target import LinkBase
 from lorecraft.vfs import FileReadFailure, ResolvedPath, UnrecordedFileError
 
 
@@ -71,7 +72,7 @@ class MarkdownItemDescriptor:
     Attributes:
         ref: Common logical identity and report path.
         read_location: Snapshot path from which the item's text is read.
-        link_base: Root-relative directory for resolving relative Markdown links.
+        link_base: Where the item's relative Markdown links are read from, with the climb bound of that base.
         origin: Expected-name and provenance facts specific to the item's origin.
         governance_corpus: Corpus whose specifications govern the item.
         aspect_name: Listed name matched against namespace specifications.
@@ -80,7 +81,7 @@ class MarkdownItemDescriptor:
 
     ref: MarkdownItemRef
     read_location: ResolvedPath
-    link_base: RootRelativePath
+    link_base: LinkBase
     origin: ItemOrigin
     governance_corpus: str
     aspect_name: str
