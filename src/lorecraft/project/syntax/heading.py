@@ -2,13 +2,14 @@
 
 Only headings that section the document itself are kept. One quoted in a blockquote or nested in a list item
 illustrates a document rather than sectioning this one, and a `#` line inside a fenced code block is code,
-not a heading; the Markdown reader decides both (see `markdown`).
+not a heading; the Markdown reader decides both (see `lorecraft.markdown`).
 """
 
 from dataclasses import dataclass
 from typing import Final
 
-from .markdown import HeadingLevel
+from lorecraft.markdown import HeadingLevel
+
 from .position import LineNumber
 from .words import WordCount
 

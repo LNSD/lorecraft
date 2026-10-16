@@ -3,7 +3,7 @@
 The scan finds the frontmatter block without a Markdown pass, so nothing but these tests holds it to the plugin that
 `parse_markdown` finds the block with. Each test draws a fixed sample of generated texts, the same on every run, and
 lists the texts on which the two find different blocks, or one finds a block and the other none. This tier alone may
-import wenmode: the package reads it in `project.syntax.markdown` only.
+import wenmode: the package reads it in `lorecraft.markdown` only.
 """
 
 import random
@@ -14,7 +14,7 @@ import pytest
 from wenmode import Wenmode
 from wenmode.plugins import frontmatter
 
-from lorecraft.project.syntax.markdown import parse_markdown_frontmatter
+from lorecraft.markdown import parse_markdown_frontmatter
 
 BYTE_ORDER_MARK: Final[str] = '\ufeff'
 """The Unicode byte order mark, which a file saved by some editors opens with."""

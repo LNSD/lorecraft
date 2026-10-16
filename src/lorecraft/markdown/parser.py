@@ -1,15 +1,16 @@
 """The Markdown parser, read into the values a document's parse tree is derived from.
 
-The parser is wenmode, and this module is the only place it is used: its nodes are mutable and its API is pre-1.0,
+The parser is wenmode, and this package is the only place it is used: its nodes are mutable and its API is pre-1.0,
 so what leaves here is always this package's own frozen values, never a wenmode type. A wenmode upgrade changes
-this module alone, and what `document` derives from these values does not move with it.
+this package alone, and what `lorecraft.project.syntax.document` derives from these values does not move with it.
 
 What is read here is what the parser decides: where the frontmatter block is, which text is a heading, a code block
 or a link, where each sits, and the text a heading's inline nodes render as. What a section holds, how many prose
-words it counts and how a repeated anchor is numbered are derived in `document`, from the values handed over here.
+words it counts and how a repeated anchor is numbered are derived in `lorecraft.project.syntax.document`, from the
+values handed over here.
 
-The frontmatter block is found by `parse_markdown_frontmatter` as raw text and decoded by `document`. The full parse
-finds the same block, so it is not read as Markdown.
+The frontmatter block is found by `parse_markdown_frontmatter` as raw text and decoded by its caller in
+`lorecraft.project`. The full parse finds the same block, so it is not read as Markdown.
 
 The one place the parser does not decide is where that block is, for `parse_markdown_frontmatter`: it finds the block
 with a scan of its own that mirrors wenmode's frontmatter plugin, held to it by `tests/it/test_frontmatter_scan.py`.
@@ -59,7 +60,7 @@ def _skip_frontmatter(block: str) -> None:
 
     The full parser loads the frontmatter plugin only so the block is not read as Markdown. The plugin always hands
     the block to a loader, and falls back to its own `key: value` splitter when given none, so this one is passed
-    to leave the block undecoded: `document.parse_frontmatter` decodes it.
+    to leave the block undecoded: `lorecraft.project.syntax.document.parse_frontmatter` decodes it.
 
     Args:
         block: The lines between the delimiters, which are not read.
@@ -157,8 +158,8 @@ def parse_markdown_frontmatter(text: str) -> str | None:
     """Find the raw frontmatter block in one document's text, or return None. Pure: raises nothing.
 
     The block is a `---` line as the document's first line, closed by the next `---` line, each allowing trailing
-    whitespace only. The lines between them are returned as raw text, line endings kept; `document.parse_frontmatter`
-    decodes them. A document with no such block, or one never closed, gives None.
+    whitespace only. The lines between them are returned as raw text, line endings kept; the caller in
+    `lorecraft.project` decodes them. A document with no such block, or one never closed, gives None.
 
     `parse_markdown` finds the same block, with wenmode's frontmatter plugin. The plugin only ever claims the
     document's first line, where it is tried before every Markdown rule, so what it finds does not depend on the
