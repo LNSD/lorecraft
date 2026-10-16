@@ -42,8 +42,7 @@ and output, letting one import contract contain both third-party libraries.
 - The layers contract places this package beside `lorecraft.yaml`, above `lorecraft.core`; neither package imports the other.
 - This package imports only `lorecraft.core` from Lorecraft, so it can be used below `lorecraft.project` without a cycle.
 - `project`, `rules` and `cli` may import this package's public vocabulary; this inbound use is separate from third-party library containment.
-- `jsonschema` and `referencing` are imported only here. A temporary exception remains for
-  `lorecraft.project.schemas.frontmatter_schema` while its validator seam is moved.
+- `jsonschema` and `referencing` are imported only here.
 - No library type escapes the package boundary; callers receive Lorecraft-owned vocabulary and facts.
 - Validation returns problems as values and raises nothing for an invalid instance.
 - `format` remains annotation-only; validation does not assert format semantics.
@@ -70,7 +69,7 @@ match violation.keyword:
 
 Before committing code, verify:
 
-- [ ] Only `lorecraft.jsonschema` imports `jsonschema` or `referencing`, apart from the temporary frontmatter schema seam
+- [ ] Only `lorecraft.jsonschema` imports `jsonschema` or `referencing`
 - [ ] This package imports no Lorecraft package above `lorecraft.core`
 - [ ] No third-party validator or reference-library type escapes through the public API
 - [ ] Invalid instances produce problem values and validation raises nothing

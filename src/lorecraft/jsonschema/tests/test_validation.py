@@ -6,10 +6,15 @@ import pytest
 
 from lorecraft.core.mapping import FrozenMapping, Plain
 
-from ..json_type import JsonType
-from ..schema_keyword import RequiredKeyword, TypeKeyword, UnevaluatedPropertiesKeyword
-from ..validation import best_violation, validate
-from ..violation import Violation
+from .. import (
+    JsonType,
+    RequiredKeyword,
+    TypeKeyword,
+    UnevaluatedPropertiesKeyword,
+    Violation,
+    best_violation,
+    validate,
+)
 
 Validation = Callable[[Mapping[str, Plain], Plain], tuple[Violation, ...] | Violation | None]
 
