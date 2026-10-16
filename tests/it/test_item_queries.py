@@ -15,7 +15,7 @@ from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.database import Database, ItemText, Undecodable
 from lorecraft.project.document import DocumentRef
-from lorecraft.project.item import MarkdownItemRef, UnlistedItemError
+from lorecraft.project.item import ItemReadError, MarkdownItemRef, UnlistedItemError
 from lorecraft.project.layout import SNAPSHOT_SCOPE
 from lorecraft.project.link_target import EscapingTarget, LinkTarget, PathLookup
 from lorecraft.project.syntax import FrontmatterNode, NormalisedLinkPath, ParsedDocument
@@ -200,16 +200,44 @@ class TestItemQueries:
         unlisted = DocumentRef(CorpusName.parse('other'), AspectFilename.parse('x'))
         assert database.governance(unlisted) is None, 'no corpus governs it'
 
-        #: Then
-        with pytest.raises(UnlistedItemError):
+        #: When
+        with pytest.raises(UnlistedItemError) as raised:
             database.item(MarkdownItemRef(unlisted.path))
-        with pytest.raises(UnlistedItemError):
-            database.item_governance(MarkdownItemRef(unlisted.path))
 
-    def test_item_with_a_ref_the_model_does_not_list_raises_unlisted_item_error(self) -> None:
+        #: Then
+        assert raised.value.ref == MarkdownItemRef(unlisted.path), 'the item stays refused'
+
+    def test_item_governance_with_a_document_in_a_corpus_the_model_lacks_answers_none(self) -> None:
         #: Given
         database = Database.from_snapshot(_snapshot())
+        unlisted = DocumentRef(CorpusName.parse('other'), AspectFilename.parse('x'))
+
+        #: When
+        governance = database.item_governance(MarkdownItemRef(unlisted.path))
 
         #: Then
-        with pytest.raises(UnlistedItemError):
-            database.item_text(MarkdownItemRef(RootRelativePath.parse('docs/code/missing.md')))
+        assert governance is None, 'no corpus governs it, and it is no error'
+
+    def test_item_text_with_a_document_the_model_does_not_list_reads_it_from_its_path(self) -> None:
+        #: Given
+        database = Database.from_snapshot(_snapshot())
+        unlisted = MarkdownItemRef(RootRelativePath.parse('docs/code/missing.md'))
+
+        #: When
+        with pytest.raises(ItemReadError) as raised:
+            database.item_text(unlisted)
+
+        #: Then
+        assert raised.value.ref == unlisted, 'the file is read from its path, and a missing one is a read error'
+
+    def test_item_text_with_a_path_naming_neither_a_document_nor_a_skill_raises_unlisted_item_error(self) -> None:
+        #: Given
+        database = Database.from_snapshot(_snapshot())
+        elsewhere = MarkdownItemRef(RootRelativePath.parse('src/readme.md'))
+
+        #: When
+        with pytest.raises(UnlistedItemError) as raised:
+            database.item_text(elsewhere)
+
+        #: Then
+        assert raised.value.ref == elsewhere, 'a path outside the corpora names no item'

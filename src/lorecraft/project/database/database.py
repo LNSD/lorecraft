@@ -169,9 +169,16 @@ from typing import Self
 
 from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.path import RootRelativePath
+from lorecraft.project.aspect import AspectFilename, EmptyAspectNameError, InvalidAspectNameCharacterError
+from lorecraft.project.corpus import (
+    CorpusName,
+    EmptyCorpusNameError,
+    InvalidCorpusNameCharacterError,
+    ReservedCorpusNameError,
+)
 from lorecraft.project.document import DocumentReadError, DocumentRef
 from lorecraft.project.item import ItemReadError, MarkdownItemDescriptor, MarkdownItemRef, UnlistedItemError
-from lorecraft.project.layout import DOCS_DIR, SPECS_DIR, reject_linked_layout
+from lorecraft.project.layout import DOCS_DIR, DOCUMENT_SUFFIX, SPECS_DIR, reject_linked_layout
 from lorecraft.project.link_target import LinkTargetEntry, SkillRoot, link_targets_of
 from lorecraft.project.schemas import (
     OutlineAlignmentSpec,
@@ -224,6 +231,27 @@ from lorecraft.vfs import (
 from .text import DocumentText, ItemText, SkillResourceText, SkillText, Undecodable
 
 logger = logging.getLogger(__name__)
+
+
+def _document_at(ref: MarkdownItemRef) -> DocumentRef | None:
+    """The document whose path an item reference is, or None when it is no `docs/<corpus>/<name>.md` path.
+
+    Args:
+        ref: The reference to read the corpus and filename from.
+    """
+    parts = ref.path.value.parts
+    if len(parts) != 3 or parts[0] != DOCS_DIR.value.name or not parts[2].endswith(DOCUMENT_SUFFIX):
+        return None
+    try:
+        return DocumentRef(CorpusName.parse(parts[1]), AspectFilename.parse(parts[2].removesuffix(DOCUMENT_SUFFIX)))
+    except (
+        EmptyCorpusNameError,
+        InvalidCorpusNameCharacterError,
+        ReservedCorpusNameError,
+        EmptyAspectNameError,
+        InvalidAspectNameCharacterError,
+    ):
+        return None
 
 
 def _witness_text(
@@ -296,8 +324,8 @@ class Database:
         self._skill_resource_texts: dict[SkillResourceRef, SkillResourceText | Undecodable[SkillResourceRef]] = {}
         self._skill_resource_link_targets: dict[SkillResourceRef, Mapping[NormalisedLinkPath, LinkTargetEntry]] = {}
         self._skill_resource_parses: dict[SkillResourceRef, ParsedDocument] = {}
-        self._skill_schema_problems: dict[SkillRef, tuple[SchemaProblems, ...]] = {}
-        self._skill_fields: dict[SkillRef, SkillFields] = {}
+        self._item_skill_schema_problems: dict[MarkdownItemRef, tuple[SchemaProblems, ...]] = {}
+        self._item_skill_fields: dict[MarkdownItemRef, SkillFields] = {}
 
     @classmethod
     def from_snapshot(cls, snapshot: Snapshot) -> Self:
@@ -658,8 +686,31 @@ class Database:
             UnlistedItemError: If the model lists no document or skill entry there.
             ItemReadError: If the snapshot holds no regular file at the read location.
         """
-        self._resolved(ref)
+        self._answerable(ref)
         return self._decode(ref)
+
+    def _answerable(self, ref: MarkdownItemRef) -> ResolvedItem:
+        """What the database resolves for an item a query answers for: a listed one, or a document by its path.
+
+        A document in a corpus the model lacks, or beyond its corpus's listing, is not an item `item(ref)` hands out,
+        but it is read and judged like any other: it is resolved by the corpus and filename its path names, and kept
+        apart from the listed items.
+
+        Args:
+            ref: The item to look up: a listed document or skill entry, or a `docs/<corpus>/<name>.md` path whose
+                corpus and filename are valid names.
+
+        Raises:
+            UnlistedItemError: If the model lists no skill entry there and the path names no document.
+        """
+        try:
+            return self._resolved(ref)
+        except UnlistedItemError:
+            document = _document_at(ref)
+            if document is None:
+                raise
+            self._document_item(document)
+            return self._known(ref)
 
     def _decode(self, ref: MarkdownItemRef) -> ItemText | Undecodable[MarkdownItemRef]:
         """Decode an item the database already resolved, listed or not, once."""
@@ -800,7 +851,7 @@ class Database:
         Raises:
             UnlistedItemError: If the model lists no document or skill entry there.
         """
-        self._resolved(ref)
+        self._answerable(ref)
         return self._governance_of(ref)
 
     def _governance_of(self, ref: MarkdownItemRef) -> Governance | None:
@@ -1053,41 +1104,59 @@ class Database:
     def skill_schema_problems(self, source: SkillText) -> tuple[SchemaProblems, ...]:
         """What the Agent Skills specification rejects in a skill's frontmatter, found once. Raises nothing.
 
+        Answers as `item_skill_schema_problems` does for the skill's item.
+
+        Args:
+            source: The skill's `SKILL.md` text, as `skill_text(location)` returns it.
+        """
+        return self.item_skill_schema_problems(self._decoded(source.ref.path))
+
+    def skill_fields(self, source: SkillText) -> SkillFields:
+        """The fields of one skill's frontmatter that parse, parsed once. Raises nothing.
+
+        Answers as `item_skill_fields` does for the skill's item.
+
+        Args:
+            source: The skill's `SKILL.md` text, as `skill_text(location)` returns it.
+        """
+        return self.item_skill_fields(self._decoded(source.ref.path))
+
+    def item_skill_schema_problems(self, source: ItemText) -> tuple[SchemaProblems, ...]:
+        """What the Agent Skills specification rejects in a skill entry's frontmatter, found once. Raises nothing.
+
         Each problem is placed on the line its field is written on, or line 1 when it has none. The package states
         the specification, so every skill is held to it and no specification in the repository plays a part.
 
-        Carry-over: kept for the next revision whenever `skill_frontmatter(source)` is.
+        Carry-over: kept for the next revision whenever `item_frontmatter(source)` is.
 
         Args:
-            source: The skill's `SKILL.md` text, as `skill_text(location)` returns it; its ref is the cache key, so one
-                skill is validated once.
+            source: The skill entry's text; its ref is the cache key.
 
         Returns:
             One entry, for the Agent Skills specification; none when the block is missing, not YAML or not a
             mapping, which no schema can hold.
         """
-        found = self._skill_schema_problems.get(source.ref)
+        found = self._item_skill_schema_problems.get(source.ref)
         if found is None:
-            found = locate_skill_schema_problems(self.skill_frontmatter(source))
-            self._skill_schema_problems[source.ref] = found
+            found = locate_skill_schema_problems(self.item_frontmatter(source))
+            self._item_skill_schema_problems[source.ref] = found
         return found
 
-    def skill_fields(self, source: SkillText) -> SkillFields:
-        """The fields of one skill's frontmatter that parse, parsed once. Raises nothing.
+    def item_skill_fields(self, source: ItemText) -> SkillFields:
+        """The fields of one skill entry's frontmatter that parse, parsed once. Raises nothing.
 
         A field that is not written or is rejected has no entry, so a rule over one field reads it whatever the
         others hold.
 
-        Carry-over: kept for the next revision whenever `skill_frontmatter(source)` is.
+        Carry-over: kept for the next revision whenever `item_frontmatter(source)` is.
 
         Args:
-            source: The skill's `SKILL.md` text, as `skill_text(location)` returns it; its ref is the cache key, so one
-                skill is parsed once.
+            source: The skill entry's text; its ref is the cache key.
         """
-        found = self._skill_fields.get(source.ref)
+        found = self._item_skill_fields.get(source.ref)
         if found is None:
-            found = parse_skill_fields(self.skill_frontmatter(source))
-            self._skill_fields[source.ref] = found
+            found = parse_skill_fields(self.item_frontmatter(source))
+            self._item_skill_fields[source.ref] = found
         return found
 
     def skill_resource_parse(self, source: SkillResourceText) -> ParsedDocument:
