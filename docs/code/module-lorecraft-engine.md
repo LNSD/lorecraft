@@ -24,10 +24,11 @@ returns at its subject, as a diagnostic of `lorecraft.rules.report`.
 
 - The shared runner (`runner.py`): decoding a resource, the governance lookup, facet gating, running the
   table's rules over a subject's context, and building its report. A document or skill entry is decoded by each
-  mode's entry point, so its policy comes after decoding, and `judge_item` judges either through one entry. A rule
-  over a document or over the frontmatter runs only when the document is governed for the facet the rule declares,
-  each facet it is not governed for is recorded as coverage, and a rule over a Markdown file runs over a document
-  governed for its structure, a skill's `SKILL.md` and each resource handed over as a subject of its own. A
+  mode's entry point, so its policy comes after decoding, and `judge_item` judges either through one facet loop over
+  the descriptor's active facets. A rule runs over an item of a kind it applies to, and only when the item is governed
+  for the facet the rule reads; each facet an applicable rule reads that the item is not governed for is recorded as
+  coverage. A rule over a Markdown file runs over a document governed for its structure, a skill's `SKILL.md` and
+  each resource handed over as a subject of its own. A
   document's report is a `CheckedDocument`, which holds its coverage; a skill's or a resource's is a
   `CheckedSkillFile`, which holds none, because the package governs every skill file in full.
 - One entry point per mode: `skip.py` gives documents and skill entries governed by a failed layer no rule, and
@@ -78,9 +79,8 @@ for enabled in table.document_rules_governed_by(Facet.OUTLINE):
 
 ```python
 # ✅ Good — the run hands a rule its subject's context; a unit test hands it a fake context over a literal
-governed = GovernedDocument.find(database, source)
-if governed is not None:
-    context = DatabaseDocumentContext(database, governed)
+context = DatabaseItemContext(database, source)
+if ItemFacet.OUTLINE in source.descriptor.active_facets:
     for enabled in table.document_rules_governed_by(Facet.OUTLINE):
         for occurrence in enabled.rule.check(context):
             diagnostics.append(RuleDiagnostic(source.ref.path, occurrence, enabled.severity))
@@ -124,9 +124,9 @@ Before committing code, verify:
 - [ ] A mode's policy sits in that mode's own entry point; `runner.py` takes no policy parameter and no callback
 - [ ] A new load-failure condition is reported by `load_failures.py`, whose match stays exhaustive, and a skipped
   document names each failed layer's structure file
-- [ ] A document or skill entry is decoded by each mode's entry point, so its policy comes after decoding; the skip
-  decision reads the item's governance, not its kind, though the governance lookup stays per kind until the
-  database answers for both through one query; `runner.py` decodes a resource only
+- [ ] A document or skill entry is decoded by each mode's entry point, so its policy comes after decoding; the item
+  is asked for by its common reference, and the skip decision reads its governance; `runner.py` decodes a resource only
+- [ ] `judge_item` asks a rule its kinds and facet, never its base; only building the report matches on the kind
 - [ ] Nothing here imports `lorecraft.cli` or `typer`
 
 ## References

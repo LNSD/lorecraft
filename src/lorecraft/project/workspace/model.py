@@ -558,7 +558,7 @@ class WorkspaceModel:
                     origin=SkillEntryOrigin(expected_name=str(ref.entry), link_target=link_target),
                     governance_corpus='skills',
                     aspect_name=str(ref.entry),
-                    active_facets=frozenset({ItemFacet.FRONTMATTER, ItemFacet.MARKDOWN}),
+                    active_facets=frozenset({ItemFacet.FRONTMATTER, ItemFacet.STRUCTURE, ItemFacet.MARKDOWN}),
                 )
                 return ResolvedItem(descriptor, None)
             case _:

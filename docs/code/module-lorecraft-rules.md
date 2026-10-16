@@ -30,7 +30,8 @@ the database there, so a rule reads nothing but what it is handed.
   kind's base takes the subject's context; a document's also requires the rule to declare the facet it reads, from
   the facets this package states. A rule over what any Markdown file has takes the context they share, and
   judges a document, a skill's `SKILL.md` and a skill's resource alike; a rule over one of a skill's files
-  takes the context a `SKILL.md` and a resource share, and never judges a document. A base over what both a
+  takes the context a `SKILL.md` and a resource share, and never judges a document. A base over an item binds the kinds it applies to, and `governing_facet`
+  states the facet a rule reads. A base over what both a
   document and a skill share, such as the frontmatter, declares, for every rule on it, the facet a document is
   gated on.
 - A removed rule, the decorator that registers a declaration, and the registry with its load checks.

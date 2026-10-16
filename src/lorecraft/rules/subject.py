@@ -37,6 +37,7 @@ from lorecraft.project.context import (
     SkillContext,
     SkillFileContext,
 )
+from lorecraft.project.item import ItemKind
 
 from .declaration import ContentRule, LayoutRule
 
@@ -59,7 +60,21 @@ class Facet(StrEnum):
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
-class DocumentRule(ContentRule):
+class ItemRule(ContentRule):
+    """The base of every rule over a governed Markdown item, which binds the kinds of item the rule applies to.
+
+    A run asks `applies_to` and `governing_facet` of a rule and never which base it derives from, so a rule of a new
+    base needs no branch on where an item came from.
+
+    Attributes:
+        APPLIES_TO: The kinds of item the rule judges; a rule judges no item of another kind.
+    """
+
+    APPLIES_TO: ClassVar[frozenset[ItemKind]]
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class DocumentRule(ItemRule):
     """The base of every rule over a document.
 
     Attributes:
@@ -68,6 +83,7 @@ class DocumentRule(ContentRule):
     """
 
     GOVERNED_BY: ClassVar[Facet]
+    APPLIES_TO: ClassVar[frozenset[ItemKind]] = frozenset({ItemKind.DOCUMENT})
 
     @classmethod
     @abstractmethod
@@ -80,8 +96,10 @@ class DocumentRule(ContentRule):
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
-class SkillRule(ContentRule):
+class SkillRule(ItemRule):
     """The base of every rule over a skill; the package governs every skill, so the rule declares no facet."""
+
+    APPLIES_TO: ClassVar[frozenset[ItemKind]] = frozenset({ItemKind.SKILL_ENTRY})
 
     @classmethod
     @abstractmethod
@@ -94,7 +112,7 @@ class SkillRule(ContentRule):
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
-class MarkdownRule(ContentRule):
+class MarkdownRule(ItemRule):
     """The base of every rule over one Markdown file: a document, a skill's `SKILL.md` or a skill's resource.
 
     The rule judges a document only when the document is governed for `Facet.STRUCTURE`, the facet under which its
@@ -103,6 +121,8 @@ class MarkdownRule(ContentRule):
     rule that declared a narrower one, such as `Facet.BUDGET`, would still judge every skill and resource, so the
     declaration would say less than the rule does. The package governs every skill and every resource.
     """
+
+    APPLIES_TO: ClassVar[frozenset[ItemKind]] = frozenset(ItemKind)
 
     @classmethod
     @abstractmethod
@@ -115,13 +135,15 @@ class MarkdownRule(ContentRule):
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
-class SkillFileRule(ContentRule):
+class SkillFileRule(ItemRule):
     """The base of every rule over one of a skill's Markdown files: its `SKILL.md` or one of its resources.
 
     The rule judges what holds of a skill's files and not of a document, such as a relative link read from the skill
     root: a document's links are read from its own directory. The package governs every skill and every resource, so
     the rule declares no facet.
     """
+
+    APPLIES_TO: ClassVar[frozenset[ItemKind]] = frozenset({ItemKind.SKILL_ENTRY})
 
     @classmethod
     @abstractmethod
@@ -148,7 +170,7 @@ class LayoutEntryRule(LayoutRule):
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
-class FrontmatterRule(ContentRule):
+class FrontmatterRule(ItemRule):
     """The base of every rule over the frontmatter a document or a skill opens with.
 
     One rule judges both kinds through what their contexts share, so its check is written once.
@@ -159,6 +181,7 @@ class FrontmatterRule(ContentRule):
     """
 
     GOVERNED_BY: ClassVar[Facet] = Facet.FRONTMATTER
+    APPLIES_TO: ClassVar[frozenset[ItemKind]] = frozenset(ItemKind)
 
     @classmethod
     @abstractmethod
@@ -168,3 +191,19 @@ class FrontmatterRule(ContentRule):
         Args:
             subject: The document or the skill judged; a document is governed for its frontmatter.
         """
+
+
+def governing_facet(rule: type[ItemRule]) -> Facet | None:
+    """The facet an item must be governed for before the rule judges it, or `None` when every item it applies to is.
+
+    A rule over a document or the frontmatter declares it in `GOVERNED_BY`, and a rule over a Markdown file judges
+    under `Facet.STRUCTURE`, as its base states. A rule over a skill or a skill's file reads no facet.
+
+    Args:
+        rule: The rule class.
+    """
+    if issubclass(rule, DocumentRule | FrontmatterRule):
+        return rule.GOVERNED_BY
+    if issubclass(rule, MarkdownRule):
+        return Facet.STRUCTURE
+    return None

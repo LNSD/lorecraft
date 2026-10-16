@@ -9,11 +9,17 @@ from collections.abc import Iterable, Mapping
 from typing import assert_never
 
 from lorecraft.core.path import RootRelativePath
-from lorecraft.project.database import Database, DocumentText, SkillText, Undecodable
-from lorecraft.project.document import DocumentRef
-from lorecraft.project.item import MarkdownItemRef
+from lorecraft.project.database import Database, ItemText, Undecodable
+from lorecraft.project.document import DocumentReadError, DocumentRef
+from lorecraft.project.item import ItemReadError, MarkdownItemRef
 from lorecraft.project.layout import DOCS_DIR
-from lorecraft.project.skill import OutsideSymlink, SkillLocation, SkillResourceLocation
+from lorecraft.project.skill import (
+    OutsideSymlink,
+    SkillLocation,
+    SkillReadError,
+    SkillRef,
+    SkillResourceLocation,
+)
 from lorecraft.rules.report import SkippedSubject, SubjectReport, UndecodableSubject
 from lorecraft.rules.table import RuleTable
 from lorecraft.vfs import RefusedRead, RefusedRecord
@@ -80,7 +86,8 @@ def _is_refused_docs_path(path: RootRelativePath, refusals: Mapping[RootRelative
 def _check_item(database: Database, subject: DocumentRef | SkillLocation, table: RuleTable) -> SubjectReport:
     """Decode one document or skill entry, then judge it if it decoded and no failed layer governs it.
 
-    The skip policy is the same for both kinds: it reads the item's governance and never which kind it is.
+    The decode and the skip decision are the same for both kinds: the item is asked for by its common reference, and
+    the policy reads its governance.
 
     Args:
         database: The revision the item is read from.
@@ -93,24 +100,35 @@ def _check_item(database: Database, subject: DocumentRef | SkillLocation, table:
     """
     match subject:
         case DocumentRef():
-            source = database.text(subject)
-            governance = database.governance(subject)
+            ref: DocumentRef | SkillRef = subject
         case SkillLocation():
-            source = database.skill_text(subject)
-            governance = database.item_governance(MarkdownItemRef(subject.ref.path))
+            ref = subject.ref
         case _:
             assert_never(subject)
+    item = MarkdownItemRef(ref.path)
+    try:
+        source = database.item_text(item)
+    except ItemReadError as exc:
+        # The command reports a missing file by the error of its kind.
+        match ref:
+            case DocumentRef():
+                raise DocumentReadError(ref, source=exc.source) from exc
+            case SkillRef():
+                raise SkillReadError(ref, source=exc.source) from exc
+            case _:
+                assert_never(ref)
     match source:
         case Undecodable():
-            return UndecodableSubject(source.ref, source.failure)
-        case DocumentText() | SkillText():
+            return UndecodableSubject(ref, source.failure)
+        case ItemText():
             # Governance is a lookup in the model, never a rule, so a skipped item reads nothing else.
+            governance = database.item_governance(item)
             if governance is not None:
                 failed_layers = governance.failed_layers()
                 if failed_layers:
                     # `SkippedSubject` requires a first path, so the first failed layer is split from the rest.
                     first, *others = failed_layers
-                    return SkippedSubject(source.ref, (first.path, *(layer.path for layer in others)))
-            return judge_item(database, source, table)
+                    return SkippedSubject(ref, (first.path, *(layer.path for layer in others)))
+            return judge_item(database, source, ref, table)
         case _:
             assert_never(source)
