@@ -11,7 +11,7 @@ scanner recorded above the one the read stopped on comes first, whichever the li
 """
 
 from collections.abc import Iterator
-from typing import assert_never
+from typing import assert_never, overload
 
 from ruamel.yaml import YAML
 from ruamel.yaml.error import MarkedYAMLError, StreamMark
@@ -30,6 +30,7 @@ from ruamel.yaml.reader import ReaderError
 from lorecraft.core.error import Unreachable
 from lorecraft.core.num import NonZeroUnsignedInt
 
+from ._events import code_point, parse_failure
 from .basic_yaml import (
     MERGE_KEY,
     BasicYamlParser,
@@ -77,50 +78,38 @@ def read_yaml(text: str) -> YamlValue | None | YamlProblem:
         root = _read_document(stream)
     except ReaderError as exc:
         # The reader checks every character as it is built, so a control character fails before the first event.
-        return ControlCharacterProblem(code=_code_point(exc), index=exc.position)
+        return ControlCharacterProblem(code=code_point(exc), index=exc.position)
     except _RefusalError as exc:
         # The read stopped at a construct the subset leaves out. The scanner reads ahead of the parser, so it may
         # have recorded one written above it, which is the one the text is reported for.
-        recorded = stream.first_refusal()
-        if recorded is not None and recorded.mark.index <= exc.mark.index:
-            return _refused(recorded)
-        return _refused(exc)
+        return _refused(_first_refusal(stream, stopped=exc))
     except MarkedYAMLError as exc:
         # Every other `MarkedYAMLError` is ruamel.yaml's own. The scanner reads ahead of the parser, so a construct
         # it recorded is written above whatever the parser or the scanner failed on.
-        recorded = stream.first_refusal()
+        recorded = _first_refusal(stream)
         if recorded is not None:
             return _refused(recorded)
+        failure = parse_failure(exc)
         return SyntaxErrorProblem(
-            problem=exc.problem or '',
-            context=exc.context or '',
-            position=_position_of_mark(exc.problem_mark),
-            context_position=_position_of_mark(exc.context_mark),
+            problem=failure.problem,
+            context=failure.context,
+            position=_position_of_mark(failure.problem_mark),
+            context_position=_position_of_mark(failure.context_mark),
         )
     except RecursionError:
         # The value is read with one call per level of nesting, so only a deeply nested text reaches the
         # interpreter's limit. By the time this clause runs the stack has unwound to this frame, so there is room
         # to go on, and the half-read parser is dropped. A construct the scanner recorded above the depth is
         # reported instead, on its position.
-        recorded = stream.first_refusal()
+        recorded = _first_refusal(stream)
         if recorded is not None:
             return _refused(recorded)
         return NestingTooDeepProblem()
     # The text was read to its end, so every construct the scanner recorded is written above the end.
-    recorded = stream.first_refusal()
+    recorded = _first_refusal(stream)
     if recorded is not None:
         return _refused(recorded)
     return root
-
-
-def _code_point(error: ReaderError) -> int:
-    """The code point of the character the reader refused.
-
-    Args:
-        error: The reader's error, whose character is a code point, or a one-character text.
-    """
-    character = error.character
-    return character if isinstance(character, int) else ord(character)
 
 
 def _position_of_mark(mark: StreamMark | None) -> YamlPosition | None:
@@ -186,14 +175,10 @@ class _EventStream:
     def first_refusal(self) -> RecordedRefusal | None:
         """The first construct the scanner or the reader has recorded, in the order the text writes them, or `None`."""
         scanner = self._yaml.scanner
-        reader = self._yaml.reader
-        if not isinstance(scanner, BasicYamlScanner) or not isinstance(reader, BasicYamlReader):
+        if not isinstance(scanner, BasicYamlScanner):
             # SAFETY: the types are declared on the parser's base class; `_EventStream` always installs its own.
-            raise Unreachable("the parser is built with `basic_yaml`'s scanner and reader")
-        recorded = [*scanner.refusals[:1], *([reader.separator] if reader.separator is not None else [])]
-        if not recorded:
-            return None
-        return min(recorded, key=lambda refusal: refusal.mark.index)
+            raise Unreachable("the parser is built with `basic_yaml`'s scanner")
+        return scanner.first_refusal()
 
     def get_event(self) -> Event:
         """The next event, read.
@@ -230,6 +215,28 @@ class _EventStream:
             ReaderError: The text holds a character YAML does not allow, such as a control character.
         """
         return isinstance(self.peek_event(), kinds)
+
+
+@overload
+def _first_refusal(stream: _EventStream, *, stopped: _RefusalError) -> RecordedRefusal | _RefusalError: ...
+@overload
+def _first_refusal(stream: _EventStream, *, stopped: None = None) -> RecordedRefusal | None: ...
+def _first_refusal(
+    stream: _EventStream, *, stopped: _RefusalError | None = None
+) -> RecordedRefusal | _RefusalError | None:
+    """The refusal a failed or finished read is reported for: the first construct the text writes.
+
+    The scanner reads ahead of the parser, so a construct it recorded may be written above the one the read stopped
+    on; the recorded one wins unless it is written below.
+
+    Args:
+        stream: The text's events, read as far as the read went.
+        stopped: The refusal the read stopped on, if it did.
+    """
+    recorded = stream.first_refusal()
+    if recorded is not None and (stopped is None or recorded.mark.index <= stopped.mark.index):
+        return recorded
+    return stopped
 
 
 def _mark_of(event: Event) -> StreamMark:
