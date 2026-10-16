@@ -31,12 +31,13 @@ once in `lorecraft.project.layout` and read from there by every other module.
   facts several rules read; whether one is reported, and how, is a rule's.
 - A document's, a skill's or a skill resource's identity, kept apart from its content and from where its symlinks
   lead.
+- The common reference and model-resolved descriptor for corpus documents and skill entries, including their
+  report path, read location, link base, origin metadata, governance target and active check facets.
 - Turning a Markdown link's destination into a root-relative path, from its document's directory or its skill's
   root, and what the snapshot holds there.
-- The contexts: a `Protocol` per subject kind stating what can be asked of one decoded document, skill or skill
-  resource, or of one layout entry, the ones several kinds share, and the owner types they return.
-- The database of one revision, opened with its model: each query over it, such as a decoded text, a parse tree or a
-  shared analysis, memoized on first use, and each question answered fresh, such as where a symlink leads.
+- Contexts: protocols for decoded documents, skills, resources and layout entries, with shared questions and
+  project-owned return types.
+- The one-revision database, with memoized derived queries and fresh snapshot questions such as symlink targets.
 - The witness a decode query returns: a file's ref and decoded text, or the undecodable marker with its first
   invalid byte's line, offset, bytes and reason.
 - The carry-over rule: which change to a revision's inputs invalidates which query; and what a persisted result is
@@ -61,8 +62,9 @@ once in `lorecraft.project.layout` and read from there by every other module.
 
 - Every read goes through a view: the one a function is handed, or the one the database builds over its snapshot.
   Nothing here reads a workspace file, lists a directory or resolves a symlink by itself.
-- The model holds structure and configuration: corpora, meta specs, document and skill refs, and where each
-  skill's symlinks lead. It never holds a document's content, and the loader never reads one.
+- The model holds structure and configuration: corpora, meta specs, document and skill refs, common Markdown item
+  descriptors, and where each skill's symlinks lead. It never holds a document's content, and the loader never
+  reads one.
 - A parse tree, a token count and a line count read one document's text and nothing else, and return immutable
   values. No third-party parser type leaves the package.
 - A shared analysis reads the parsed values and the meta specs it is handed, never a view, and returns
