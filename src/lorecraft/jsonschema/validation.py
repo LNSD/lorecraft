@@ -1,6 +1,7 @@
 """The one adapter from JSON Schema validator records to Lorecraft values."""
 
 from collections.abc import Mapping
+from dataclasses import dataclass
 
 from jsonschema import Draft202012Validator
 from jsonschema._utils import find_evaluated_property_keys_by_schema
@@ -9,6 +10,7 @@ from jsonschema.protocols import Validator as SchemaValidator
 
 from lorecraft.core.mapping import Plain
 
+from .schema_inspection import SchemaCheckFailure, check_schema
 from .schema_keyword import keyword_of
 from .violation import Violation, _freeze
 
@@ -66,3 +68,44 @@ def _violation(validator: SchemaValidator, error: ValidationError) -> Violation:
         _freeze(schema),
         evaluated,
     )
+
+
+@dataclass(frozen=True, slots=True, init=False)
+class CheckedSchema:
+    """A schema that passed `check_schema`, ready to validate plain JSON instances.
+
+    Build one with `CheckedSchema.check`; validating against a schema that failed the check could raise library
+    exceptions, so there is no other constructor.
+    """
+
+    schema: Mapping[str, Plain]
+
+    def __init__(self, *_args: object, **_kwargs: object) -> None:
+        """Refuse direct construction, which would skip the schema check."""
+        raise TypeError('build a CheckedSchema with CheckedSchema.check(schema)')
+
+    @classmethod
+    def check(cls, schema: Mapping[str, Plain]) -> 'CheckedSchema | SchemaCheckFailure':
+        """Return the schema ready to validate, or the first reason `check_schema` refuses it."""
+        failure = check_schema(schema)
+        if failure is not None:
+            return failure
+        checked = object.__new__(cls)
+        object.__setattr__(checked, 'schema', schema)
+        return checked
+
+    def validate(self, instance: Plain) -> tuple[Violation, ...]:
+        """Return every failure ordered by instance path and message, without raising for invalid data.
+
+        Paths compare segment by segment as text, so array index 10 sorts before 2. Failures with the same path and
+        message are reported once.
+        """
+        violations = validate(self.schema, instance)
+        ordered: list[Violation] = []
+        seen: set[tuple[tuple[str | int, ...], str]] = set()
+        for violation in violations:
+            identity = (violation.path, violation.message)
+            if identity not in seen:
+                seen.add(identity)
+                ordered.append(violation)
+        return tuple(ordered)
