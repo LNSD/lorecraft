@@ -23,9 +23,8 @@ from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.project.document import DocumentRef
 from lorecraft.rules.identity import Severity
 from lorecraft.rules.report import (
-    CheckedDocument,
+    CheckedItem,
     CheckedLayoutEntry,
-    CheckedSkillFile,
     Diagnostic,
     LoadFailureReport,
     RunReport,
@@ -200,7 +199,7 @@ def render_coverage(reports: tuple[RunReport, ...]) -> str:
     lines: list[str] = []
     for subject in _coverage_subjects(reports):
         match subject:
-            case CheckedDocument():
+            case CheckedItem():
                 facets = ', '.join(subject.ungoverned)
                 lines.append(f'{subject.ref.path}: ungoverned for {facets}')
             case SkippedSubject():
@@ -275,7 +274,7 @@ def render_json(reports: tuple[RunReport, ...]) -> str:
     coverage: list[_CoverageJson] = []
     for subject in _coverage_subjects(reports):
         match subject:
-            case CheckedDocument():
+            case CheckedItem():
                 facets: list[str] = []
                 for facet in subject.ungoverned:
                     facets.append(facet)
@@ -295,28 +294,22 @@ def render_json(reports: tuple[RunReport, ...]) -> str:
     return document.model_dump_json()
 
 
-def _coverage_subjects(reports: tuple[RunReport, ...]) -> list[CheckedDocument | SkippedSubject]:
+def _coverage_subjects(reports: tuple[RunReport, ...]) -> list[CheckedItem | SkippedSubject]:
     """The checked documents with at least one ungoverned facet and the skipped ones, by path compared by code point.
 
     Args:
         reports: One report per subject the run checked, in any order.
     """
-    subjects: list[CheckedDocument | SkippedSubject] = []
+    subjects: list[CheckedItem | SkippedSubject] = []
     for report in reports:
         match report:
-            case CheckedDocument():
+            case CheckedItem():
                 if report.ungoverned:
                     subjects.append(report)
             case SkippedSubject():
                 subjects.append(report)
-            case (
-                CheckedSkillFile()
-                | UndecodableSubject()
-                | UnreadableDocument()
-                | CheckedLayoutEntry()
-                | LoadFailureReport()
-            ):
-                # None was judged in part: a skill file is governed in full, one never decoded, a layout entry has no
+            case UndecodableSubject() | UnreadableDocument() | CheckedLayoutEntry() | LoadFailureReport():
+                # None was judged in part: one never decoded, a layout entry has no
                 # specification, and a load failure is no subject.
                 pass
             case _:
@@ -334,14 +327,7 @@ def _count_subjects(reports: tuple[RunReport, ...]) -> int:
     count = 0
     for report in reports:
         match report:
-            case (
-                CheckedDocument()
-                | CheckedSkillFile()
-                | UndecodableSubject()
-                | UnreadableDocument()
-                | CheckedLayoutEntry()
-                | SkippedSubject()
-            ):
+            case CheckedItem() | UndecodableSubject() | UnreadableDocument() | CheckedLayoutEntry() | SkippedSubject():
                 count += 1
             case LoadFailureReport():
                 pass  # filed at a unit of the declaration, not at a subject

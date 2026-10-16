@@ -7,6 +7,7 @@ from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.document import DocumentRef
+from lorecraft.project.item import MarkdownItemRef
 from lorecraft.project.skill import SkillRef
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.engine.invalid_utf8 import InvalidUtf8
@@ -15,9 +16,8 @@ from lorecraft.vfs import ByteOffset, ResolvedPath, Utf8Failure, Utf8Line, Utf8R
 
 from ..identity import Severity
 from ..report import (
-    CheckedDocument,
+    CheckedItem,
     CheckedLayoutEntry,
-    CheckedSkillFile,
     EngineDiagnostic,
     LoadFailureReport,
     RuleDiagnostic,
@@ -216,7 +216,7 @@ class TestEngineDiagnostic:
 
 
 @pytest.mark.unit
-class TestCheckedSkillFile:
+class TestCheckedItemOfSkillFile:
     def test_checked_skill_file_with_diagnostics_out_of_order_holds_them_in_diagnostic_order(self) -> None:
         #: Given
         ref = SkillRef(ResolvedPath(RootRelativePath.parse('.agents/skills')), PathComponent.parse('review'))
@@ -228,14 +228,14 @@ class TestCheckedSkillFile:
         )
 
         #: When
-        subject = CheckedSkillFile(ref, diagnostics=(later, earlier))
+        subject = CheckedItem(MarkdownItemRef(ref.path), diagnostics=(later, earlier))
 
         #: Then
         assert subject.diagnostics == (earlier, later), 'a report holds its diagnostics in output order, however built'
 
 
 @pytest.mark.unit
-class TestCheckedDocument:
+class TestCheckedItemOfDocument:
     def test_checked_document_with_diagnostics_out_of_order_holds_them_in_diagnostic_order(self) -> None:
         #: Given
         ref = DocumentRef(CorpusName.parse('code'), AspectFilename.parse('a'))
@@ -247,7 +247,7 @@ class TestCheckedDocument:
         )
 
         #: When
-        subject = CheckedDocument(ref, diagnostics=(later, earlier), ungoverned=())
+        subject = CheckedItem(MarkdownItemRef(ref.path), diagnostics=(later, earlier), ungoverned=())
 
         #: Then
         assert subject.diagnostics == (earlier, later), 'a report holds its diagnostics in output order, however built'

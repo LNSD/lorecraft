@@ -57,13 +57,12 @@ from lorecraft.project.database import (
     Undecodable,
 )
 from lorecraft.project.document import DocumentRef
-from lorecraft.project.item import ItemFacet, MarkdownItemDescriptor
-from lorecraft.project.skill import OutsideSymlink, SkillAliasRef, SkillLocation, SkillRef, SkillResourceLocation
+from lorecraft.project.item import ItemFacet, MarkdownItemDescriptor, MarkdownItemRef
+from lorecraft.project.skill import OutsideSymlink, SkillAliasRef, SkillLocation, SkillResourceLocation
 from lorecraft.rules.declaration import Rule
 from lorecraft.rules.report import (
-    CheckedDocument,
+    CheckedItem,
     CheckedLayoutEntry,
-    CheckedSkillFile,
     Diagnostic,
     RuleDiagnostic,
     SubjectReport,
@@ -91,9 +90,7 @@ class RefusedSkillSubject:
 type Subject = DocumentRef | SkillLocation | SkillResourceLocation | OutsideSymlink | RefusedSkillSubject
 
 
-def judge_item(
-    database: Database, source: ItemText, ref: DocumentRef | SkillRef, table: RuleTable
-) -> CheckedDocument | CheckedSkillFile:
+def judge_item(database: Database, source: ItemText, table: RuleTable) -> CheckedItem:
     """Run the enabled rules over a decoded document or skill entry, each over what the specifications govern it for.
 
     A mode decodes the item and decides what a layer that failed to load means for it; this judges it by the facets
@@ -104,7 +101,6 @@ def judge_item(
     Args:
         database: The revision the item is read from.
         source: The item's text, the witness every per-file query takes.
-        ref: The document or skill the report is filed under; the report keeps the public ref of its kind.
         table: The rules the run enables.
     """
     descriptor = source.descriptor
@@ -125,14 +121,14 @@ def judge_item(
         if facet is not None and ItemFacet(facet.value) not in descriptor.active_facets:
             ungoverned.append(facet)
             continue
-        path = ref.path
+        path = descriptor.ref.path
         diagnostics.extend(_located(path, frontmatter_rules, lambda rule: rule.check(context)))
         diagnostics.extend(_located(path, document_rules, lambda rule: rule.check(context)))
         diagnostics.extend(_located(path, markdown_rules, lambda rule: rule.check(context)))
         diagnostics.extend(_located(path, skill_rules, lambda rule: rule.check(context)))
         diagnostics.extend(_located(path, skill_file_rules, lambda rule: rule.check(context)))
 
-    return _report(ref, tuple(diagnostics), tuple(ungoverned))
+    return CheckedItem(descriptor.ref, diagnostics=tuple(diagnostics), ungoverned=tuple(ungoverned))
 
 
 def _reading[R: ItemRule](
@@ -150,25 +146,6 @@ def _reading[R: ItemRule](
         for enabled in partition
         if descriptor.kind in enabled.rule.APPLIES_TO and governing_facet(enabled.rule) is facet
     )
-
-
-def _report(
-    ref: DocumentRef | SkillRef, diagnostics: tuple[Diagnostic, ...], ungoverned: tuple[Facet, ...]
-) -> CheckedDocument | CheckedSkillFile:
-    """The report of one judged item, in the shape its public ref has: a document holds coverage, a skill none.
-
-    Args:
-        ref: The document or skill judged.
-        diagnostics: What the rules found.
-        ungoverned: The facets the item is not governed for.
-    """
-    match ref:
-        case DocumentRef():
-            return CheckedDocument(ref, diagnostics=diagnostics, ungoverned=ungoverned)
-        case SkillRef():
-            return CheckedSkillFile(ref, diagnostics=diagnostics)
-        case _:
-            assert_never(ref)
 
 
 def _located[R: Rule](
@@ -209,7 +186,7 @@ def check_skill_resource(database: Database, location: SkillResourceLocation, ta
             assert_never(source)
 
 
-def _check_skill_resource_text(database: Database, source: SkillResourceText, table: RuleTable) -> CheckedSkillFile:
+def _check_skill_resource_text(database: Database, source: SkillResourceText, table: RuleTable) -> CheckedItem:
     """Run the enabled rules over a decoded resource of a skill. Raises nothing.
 
     Only a rule over a Markdown file or over a skill's file judges a resource: no rule over a document, over a skill or
@@ -229,7 +206,7 @@ def _check_skill_resource_text(database: Database, source: SkillResourceText, ta
     ]
 
     # The package governs every resource, after the Agent Skills specification, so the report holds no ungoverned facet.
-    return CheckedSkillFile(source.ref, diagnostics=tuple(diagnostics))
+    return CheckedItem(MarkdownItemRef(path), diagnostics=tuple(diagnostics))
 
 
 def check_layout_entry(outside: OutsideSymlink, table: RuleTable) -> CheckedLayoutEntry:

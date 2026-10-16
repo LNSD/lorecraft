@@ -441,8 +441,7 @@ class Database:
         return resources
 
     # Takes the location its listing issued where `text` takes a ref: the model locates a document by its ref, but
-    # only the skill's resource listing locates a resource's file. `skill_text` takes the model's location too, for
-    # the witness to carry it.
+    # only the skill's resource listing locates a resource's file.
     def skill_resource_text(self, resource: SkillResourceLocation) -> SkillResourceText | Undecodable[SkillResourceRef]:
         """One resource of a skill decoded as UTF-8, read from the snapshot on the first call for its ref.
 

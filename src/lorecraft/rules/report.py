@@ -12,12 +12,12 @@ the same order: by path, then primary location, then severity, then code, then m
 that order as the fields it compares, and `diagnostic_order` builds it as the sort key.
 
 Each subject the runner checks, a document, a skill or a skill's resource, gets one report, and either kind of
-report gives its diagnostics as `diagnostics`. A `CheckedDocument` decoded, and holds its diagnostics, in their output
-order however it is built, and the facets no meta spec governs it for. A `CheckedSkillFile`, a skill or one of its
-resources, holds its diagnostics alone, because the package governs every skill file for every facet. An
-`UndecodableSubject` did not decode, so no rule judged it: it holds its ref and where the bytes stopped being UTF-8,
-and its one diagnostic, the engine's, is built from them, at the subject's path. An `UnreadableDocument` could not be
-read at all, so it holds its document ref and the engine's unreadable-path condition, and counts as a subject. A layout
+report gives its diagnostics as `diagnostics`. A `CheckedItem` decoded, and holds its diagnostics, in their output
+order however it is built, and the facets no meta spec governs it for; a skill file, a skill or one of its resources,
+is governed for every facet, so it holds none. An `UndecodableSubject` did not decode, so no rule judged it: it
+holds its ref and where the bytes stopped being UTF-8, and its one diagnostic, the engine's, is built from them, at
+the subject's path. An `UnreadableDocument` could not be read at all, so it holds its document ref and the engine's
+unreadable-path condition, and counts as a subject. A layout
 entry, one symlink of the skill layout whose chain leaves the repository, has no text to decode and no meta spec to be
 ungoverned by, so it gets a report of its own, a `CheckedLayoutEntry`: its path and its diagnostics, in their output
 order.
@@ -35,6 +35,7 @@ from typing import assert_never
 from lorecraft.core.num import UnsignedInt
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.document import DocumentRef
+from lorecraft.project.item import MarkdownItemRef
 from lorecraft.project.skill import SkillAliasRef, SkillRef, SkillResourceRef
 from lorecraft.rules.engine.invalid_utf8 import InvalidUtf8
 from lorecraft.vfs import Utf8Failure
@@ -143,47 +144,29 @@ type SubjectRef = DocumentRef | SkillRef | SkillResourceRef | SkillAliasRef
 
 
 @dataclass(frozen=True, slots=True)
-class CheckedDocument:
-    """A document that decoded, so the enabled rules judged everything it is governed for.
+class CheckedItem:
+    """A Markdown item that decoded, so the enabled rules judged everything it is governed for.
+
+    A document, a skill's `SKILL.md` and a skill's resource are reported alike. Only a rule over a document is gated
+    on a facet beyond the ones the package always activates for a skill file, so a skill file's report holds no
+    ungoverned facet by construction, and only a document's can.
 
     Attributes:
-        ref: The document the rules judged.
+        ref: The item the rules judged, at the path its diagnostics are reported at.
         diagnostics: Every occurrence the rules found in it, in the order `diagnostic_order` sorts them into,
             whatever order they are given in; empty when it holds to every rule.
-        ungoverned: The facets an enabled rule reads that no meta spec governs the document for, in the order the
-            runner reads them; no rule that reads one judged the document.
+        ungoverned: The facets an enabled rule reads that no meta spec governs the item for, in the order the
+            runner reads them; no rule that reads one judged the item.
     """
 
-    ref: DocumentRef
+    ref: MarkdownItemRef
     diagnostics: tuple[Diagnostic, ...]
-    ungoverned: tuple[Facet, ...]
+    ungoverned: tuple[Facet, ...] = ()
 
     def __post_init__(self) -> None:
         """Sort the diagnostics into their output order, so a report holds them in it however it is built."""
         # The record is frozen, and `object.__setattr__` is how a frozen dataclass sets its own field while it is
         # being constructed; nothing can set it after.
-        object.__setattr__(self, 'diagnostics', tuple(sorted(self.diagnostics, key=diagnostic_order)))
-
-
-@dataclass(frozen=True, slots=True)
-class CheckedSkillFile:
-    """A skill's `SKILL.md` or one of its resources that decoded, so the enabled rules judged it in full.
-
-    The package governs every skill file for every facet, so a skill file has no ungoverned facets to hold.
-
-    Attributes:
-        ref: The skill or resource the rules judged; a skill's diagnostics are reported at its `SKILL.md`, and a
-            resource's where an agent reaches it.
-        diagnostics: Every occurrence the rules found in it, in the order `diagnostic_order` sorts them into,
-            whatever order they are given in; empty when it holds to every rule.
-    """
-
-    ref: SkillRef | SkillResourceRef
-    diagnostics: tuple[Diagnostic, ...]
-
-    def __post_init__(self) -> None:
-        """Sort the diagnostics into their output order, so a report holds them in it however it is built."""
-        # See `CheckedDocument.__post_init__` for why the frozen record is set through `object.__setattr__`.
         object.__setattr__(self, 'diagnostics', tuple(sorted(self.diagnostics, key=diagnostic_order)))
 
 
@@ -295,9 +278,7 @@ class LoadFailureReport:
 
 # What the runner reports for one subject: what the rules found in it, that it did not decode, what they found at a
 # layout entry, or that a failed layer of a meta spec kept them from judging a document.
-type SubjectReport = (
-    CheckedDocument | CheckedSkillFile | UndecodableSubject | UnreadableDocument | CheckedLayoutEntry | SkippedSubject
-)
+type SubjectReport = CheckedItem | UndecodableSubject | UnreadableDocument | CheckedLayoutEntry | SkippedSubject
 
 # What a run hands its output: a report per subject, and one per unit of the declaration that failed to load, which is
 # no subject and is filed at its own path.
