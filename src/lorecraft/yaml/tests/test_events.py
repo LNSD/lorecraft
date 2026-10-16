@@ -2,8 +2,36 @@
 
 import pytest
 from ruamel.yaml.error import MarkedYAMLError
+from ruamel.yaml.events import StreamEndEvent
 
-from .._events import ParseFailure, parse_failure
+from .._events import ParseFailure, _EventStream, parse_failure
+
+
+@pytest.mark.unit
+class TestEventStream:
+    def test_first_refusal_with_a_recorded_construct_returns_it(self) -> None:
+        #: Given
+        stream = _EventStream('? a\n: 1\n')
+        while not stream.check_event(StreamEndEvent):
+            stream.get_event()
+
+        #: When
+        recorded = stream.first_refusal()
+
+        #: Then
+        assert recorded is not None, 'an explicit key is recorded by the scanner'
+
+    def test_first_refusal_with_no_recorded_construct_returns_none(self) -> None:
+        #: Given
+        stream = _EventStream('a: 1\n')
+        while not stream.check_event(StreamEndEvent):
+            stream.get_event()
+
+        #: When
+        recorded = stream.first_refusal()
+
+        #: Then
+        assert recorded is None, f'a plain mapping records nothing, got {recorded!r}'
 
 
 @pytest.mark.unit
