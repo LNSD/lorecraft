@@ -43,6 +43,8 @@ check is, so the package above it decides what a refused construct means for a d
 - Every other package reads a value, a position or a problem that this package declares, so an upgrade of the library
   changes this package and no type of it escapes. The grammar module that holds the library's types is read inside
   this package alone, which a second contract enforces.
+- Every value the library hands over, an event's fields and an error's texts, is checked once, in `_events`, and read
+  as a frozen value of this package's own, so nothing past that seam reads an `Any`.
 - It imports no other Lorecraft package than `lorecraft.core`, which the layers contract enforces, so every package
   that reads YAML can import it without a cycle.
 - The library's loaders and constructors are never called: no tag resolves and no type is constructed, so the text
@@ -80,6 +82,7 @@ Before committing code, verify:
 - [ ] No package other than `lorecraft.yaml` imports `lorecraft.yaml.basic_yaml` or `ruamel`
 - [ ] Nothing in `lorecraft.yaml` reads the disk
 - [ ] No library loader or constructor is called, and no library type is part of what the package returns
+- [ ] The tree builder reads the values `_events` declares, never an event or an error of the library
 - [ ] Problems are dispatched exhaustively with `match` and `assert_never`, never through runtime tuples
 - [ ] A construct the subset leaves out is returned as a `RefusedConstructProblem` that carries its position
 - [ ] Nothing here names a document, a frontmatter key or a diagnostic code
