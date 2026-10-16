@@ -26,6 +26,8 @@ third-party libraries.
 - Schema walking, local-reference resolution and same-instance reference-cycle analysis within JSON Schemas.
 - The adapter that reads `jsonschema` or `referencing` values and turns them into Lorecraft-owned facts.
 - `Violation` values with the verbatim message, typed keyword, paths and evaluated-property facts needed by callers.
+- A closed `ViolationFact` union for missing required fields, dependent fields, rejected additional or unevaluated
+  properties, and invalid property names; each fact carries only its case's typed payload.
 - Validation results exposed through the public vocabulary, without validator records.
 - `CheckedSchema.check(schema)`, the only way to build a `CheckedSchema`: it returns the schema ready to validate or the
   `check_schema` refusal; calling `CheckedSchema(...)` directly raises `TypeError`. `CheckedSchema.validate(instance)`
@@ -53,6 +55,8 @@ third-party libraries.
   reference-cycle analysis stay behind the JSON Schema package boundary; reference-library types do not cross it.
 - No library type escapes the package boundary; callers receive Lorecraft-owned vocabulary and facts.
 - Validation returns problems as values and raises nothing for an invalid instance.
+- `Violation` carries the typed instance path, keyword, opaque message, frozen offending value and firing subschema,
+  plus keyword-specific facts, each narrowed to the key its violation is about.
 - Validation order is `(path, message)` and duplicate pairs occur once.
 - `format` remains annotation-only; validation does not assert format semantics.
 - The per-key wording of `required`, `dependentRequired`, `additionalProperties` and `unevaluatedProperties` is built
@@ -86,6 +90,7 @@ Before committing code, verify:
 - [ ] Schema checks and reference inspection return owned facts without library records
 - [ ] Invalid instances produce problem values and validation raises nothing
 - [ ] `CheckedSchema.validate` returns `Violation` values in `(path, message)` order, path segments compared as text, with duplicates removed
+- [ ] A violation owns its instance path, keyword, message, offending value, firing subschema and per-key facts
 - [ ] Subschema validation can resolve references against its containing root schema
 - [ ] `format` does not assert semantics during validation
 - [ ] Unclassified validator prose is preserved verbatim as an opaque message
