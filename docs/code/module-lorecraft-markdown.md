@@ -21,7 +21,7 @@ above it decides what a heading, a link or a frontmatter block means for a docum
 ## Belongs Here
 
 - Code that parses Markdown text, or builds a value from what the parser reports.
-- The tree a document reads into: its top-level blocks, the text every heading renders as, and its links with their
+- The tree a document reads into: its top-level blocks, its headings with the text each reads and renders as, and its links with their
   lines, as frozen values of this package's own.
 - The scan that finds the raw frontmatter block, which mirrors the parser's frontmatter plugin.
 - A fact about Markdown's grammar, such as which text is a heading, a code block or a link destination.
@@ -51,8 +51,9 @@ above it decides what a heading, a link or a frontmatter block means for a docum
 - The dialect is CommonMark with wenmode's frontmatter plugin and no GFM extension: a pipe table, strikethrough and a bare URL are not nodes.
 - A link's URL is CommonMark-normalised: escapes and character references are decoded, then the value is
   percent-encoded.
-- A heading's text is kept two ways: `HeadingBlock.text` keeps inline HTML and an image's alt text, and
-  `heading_texts` drops both, as GitHub renders an anchor.
+- A heading is read once, in one walk, into one `MarkdownHeading` that carries both its texts and whether it is
+  top-level: `text` keeps inline HTML and an image's alt text, and `rendered_text` drops both, as GitHub renders an
+  anchor. The heading blocks of the tree are the same values as its `headings`.
 - The frontmatter scan finds the block wenmode's plugin finds, which `tests/it/test_frontmatter_scan.py` pins.
 
 ## Examples
@@ -69,11 +70,11 @@ def titles(text: str) -> list[str]:
 
 ```python
 # ✅ Good — the module reads the frozen values `lorecraft.markdown` returns, and the parser stays behind it
-from lorecraft.markdown import HeadingBlock, parse_markdown
+from lorecraft.markdown import MarkdownHeading, parse_markdown
 
 
 def titles(text: str) -> list[str]:
-    return [block.text for block in parse_markdown(text).blocks if isinstance(block, HeadingBlock)]
+    return [block.text for block in parse_markdown(text).blocks if isinstance(block, MarkdownHeading)]
 ```
 
 ## Checklist

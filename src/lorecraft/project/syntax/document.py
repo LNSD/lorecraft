@@ -25,7 +25,7 @@ from typing import assert_never
 
 from lorecraft.core.lines import split_lines
 from lorecraft.core.num import NonZeroUnsignedInt, UnsignedInt
-from lorecraft.markdown import ContentBlock, HeadingBlock, parse_markdown, parse_markdown_frontmatter
+from lorecraft.markdown import ContentBlock, MarkdownHeading, parse_markdown, parse_markdown_frontmatter
 
 from .anchor import Anchor, AnchorNumber
 from .frontmatter import FrontmatterNode, MissingFrontmatter, decode_frontmatter
@@ -44,7 +44,7 @@ class CountedBlock:
         words: The prose words the block holds; 0 for a heading and a code block.
     """
 
-    block: HeadingBlock | ContentBlock
+    block: MarkdownHeading | ContentBlock
     words: WordCount
 
 
@@ -76,7 +76,7 @@ def parse_document(text: str) -> ParsedDocument:
     counted = tuple(CountedBlock(block, _prose_words(block)) for block in tree.blocks)
     return ParsedDocument(
         headings=_headings(counted),
-        anchors=_anchors(tree.heading_texts),
+        anchors=_anchors(tree.headings),
         links=tuple(Link(link.url, LineNumber(NonZeroUnsignedInt(link.line))) for link in tree.links),
     )
 
@@ -107,7 +107,7 @@ def _headings(blocks: tuple[CountedBlock, ...]) -> tuple[Heading, ...]:
     for index, counted in enumerate(blocks):
         block = counted.block
         match block:
-            case HeadingBlock():
+            case MarkdownHeading():
                 following = blocks[index + 1] if index + 1 < len(blocks) else None
                 # A section is empty when the next block closes it: the end of the document, or a heading of the
                 # same or a higher level. A deeper heading opens a subsection, whose content is this section's own.
@@ -129,7 +129,7 @@ def _headings(blocks: tuple[CountedBlock, ...]) -> tuple[Heading, ...]:
     return tuple(headings)
 
 
-def _anchors(heading_texts: tuple[str, ...]) -> frozenset[Anchor]:
+def _anchors(headings: tuple[MarkdownHeading, ...]) -> frozenset[Anchor]:
     """The anchor GitHub gives each heading in the document, a repeated one numbered as GitHub numbers it.
 
     Every heading takes one, unlike for `_headings`: a heading in a list item or a blockquote still renders with
@@ -139,12 +139,12 @@ def _anchors(heading_texts: tuple[str, ...]) -> frozenset[Anchor]:
     `foo` and `foo-2`: no two headings share an anchor.
 
     Args:
-        heading_texts: The rendered text of every heading anywhere in the document, in document order.
+        headings: Every heading anywhere in the document, in document order.
     """
     # Every anchor taken so far, each mapped to how many times it has been numbered as a bare anchor.
     occurrences: dict[Anchor, int] = {}
-    for heading_text in heading_texts:
-        bare = Anchor.from_heading(heading_text)
+    for heading in headings:
+        bare = Anchor.from_heading(heading.rendered_text)
         anchor = bare
         while anchor in occurrences:
             occurrences[bare] += 1
@@ -173,7 +173,7 @@ def _section_words(blocks: tuple[CountedBlock, ...], heading_index: int, level: 
     return WordCount(words)
 
 
-def _is_section_end(block: HeadingBlock | ContentBlock, level: HeadingLevel) -> bool:
+def _is_section_end(block: MarkdownHeading | ContentBlock, level: HeadingLevel) -> bool:
     """Whether a block ends the section a heading of the given level opens.
 
     A heading of the same or a higher level ends it. A deeper heading opens a subsection, which is the section's
@@ -184,7 +184,7 @@ def _is_section_end(block: HeadingBlock | ContentBlock, level: HeadingLevel) -> 
         level: The depth of the heading that opened the section.
     """
     match block:
-        case HeadingBlock():
+        case MarkdownHeading():
             return block.level <= level
         case ContentBlock():
             return False
@@ -192,7 +192,7 @@ def _is_section_end(block: HeadingBlock | ContentBlock, level: HeadingLevel) -> 
             assert_never(block)
 
 
-def _prose_words(block: HeadingBlock | ContentBlock) -> WordCount:
+def _prose_words(block: MarkdownHeading | ContentBlock) -> WordCount:
     """The prose words one of the root's blocks holds: whitespace-delimited tokens of its source text.
 
     A heading and a code block, fenced or indented, hold none, and neither does a code block nested in the block,
@@ -203,7 +203,7 @@ def _prose_words(block: HeadingBlock | ContentBlock) -> WordCount:
         block: One of the root's own blocks.
     """
     match block:
-        case HeadingBlock():
+        case MarkdownHeading():
             return WordCount(UnsignedInt(0))
         case ContentBlock():
             words = UnsignedInt(0)

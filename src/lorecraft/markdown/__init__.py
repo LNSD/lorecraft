@@ -7,8 +7,8 @@ in `lorecraft.project`.
 
 from .parser import (
     ContentBlock,
-    HeadingBlock,
     HeadingLevel,
+    MarkdownHeading,
     MarkdownLine,
     MarkdownLink,
     MarkdownTree,
@@ -18,8 +18,8 @@ from .parser import (
 
 __all__ = [
     'ContentBlock',
-    'HeadingBlock',
     'HeadingLevel',
+    'MarkdownHeading',
     'MarkdownLine',
     'MarkdownLink',
     'MarkdownTree',
