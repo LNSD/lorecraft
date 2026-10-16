@@ -129,6 +129,6 @@ def _check_item(database: Database, subject: DocumentRef | SkillLocation, table:
                     # `SkippedSubject` requires a first path, so the first failed layer is split from the rest.
                     first, *others = failed_layers
                     return SkippedSubject(ref, (first.path, *(layer.path for layer in others)))
-            return judge_item(database, source, ref, table)
+            return judge_item(database, source, table)
         case _:
             assert_never(source)

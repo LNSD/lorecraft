@@ -53,7 +53,8 @@ class Undecodable[R: (SkillResourceRef, MarkdownItemRef)]:
     """A file whose bytes are not UTF-8: what a decode query returns instead of a witness.
 
     The type parameter is the kind of ref the file is named by, so each decode query returns the marker of its own
-    kind: `Database.text` an `Undecodable[DocumentRef]`, `Database.skill_text` an `Undecodable[SkillRef]`.
+    kind: `Database.item_text` an `Undecodable[MarkdownItemRef]`, `Database.skill_resource_text` an
+    `Undecodable[SkillResourceRef]`.
 
     Attributes:
         ref: The document, skill or resource whose file did not decode.

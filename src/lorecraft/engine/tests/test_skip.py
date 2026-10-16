@@ -88,7 +88,7 @@ class TestCheckSubjects:
         reports = check_subjects(database, [TYPING], table)
 
         #: Then
-        assert reports == (judge_item(database, source, TYPING, table),), (
+        assert reports == (judge_item(database, source, table),), (
             'the entry point decodes the document and hands it to the runner every mode shares, and adds no judgment'
         )
 
@@ -108,7 +108,7 @@ class TestCheckSubjectsOverASkillEntry:
         reports = check_subjects(database, [location], table)
 
         #: Then
-        assert reports == (judge_item(database, source, location.ref, table),), (
+        assert reports == (judge_item(database, source, table),), (
             'a skill entry goes through the same decode, skip policy and runner entry as a document'
         )
 
@@ -179,7 +179,7 @@ class TestCheckSubjectsWithAFailedLayer:
         table = _all_rules()
         logging_text = database.item_text(MarkdownItemRef(LOGGING.path))
         assert isinstance(logging_text, ItemText), 'the document is UTF-8, so it decodes'
-        judged = judge_item(database, logging_text, LOGGING, table)
+        judged = judge_item(database, logging_text, table)
 
         #: When
         reports = check_subjects(database, [TYPING, LOGGING], table)
