@@ -17,12 +17,13 @@ from .context import (
     GovernedDocument,
 )
 from .database import Database
-from .text import DocumentText, SkillResourceText, SkillText, Undecodable
+from .text import DocumentText, ItemText, SkillResourceText, SkillText, Undecodable
 
 __all__: list[str] = [
     'Database',
     'DocumentText',
     'SkillText',
+    'ItemText',
     'SkillResourceText',
     'Undecodable',
     'GovernedDocument',
