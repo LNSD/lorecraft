@@ -46,21 +46,8 @@ class TestFrontmatterSchema:
 
         #: When
         #: Then
-        assert first == second, 'compiled validators do not change schema equality'
-        assert hash(first) == hash(second), 'compiled validators do not change schema hashing'
-
-    def test_validate_reuses_the_compiled_validator(self) -> None:
-        #: Given
-        schema = FrontmatterSchema(schema=FrozenMapping.from_plain({'type': 'object', 'required': ['name']}))
-        validator = schema._validator
-
-        #: When
-        first = schema.validate(FrozenMapping.from_plain({}))
-        second = schema.validate(FrozenMapping.from_plain({}))
-
-        #: Then
-        assert first == second, 'reusing the validator keeps validation problems unchanged'
-        assert schema._validator is validator, 'the checked schema retains its compiled validator'
+        assert first == second, 'schemas with the same contents compare equal'
+        assert hash(first) == hash(second), 'schemas with the same contents hash equally'
 
     def test_parse_with_an_object_schema_keeps_it(self) -> None:
         #: Given
@@ -549,6 +536,47 @@ class TestFrontmatterSchema:
             'an unevaluated field is held to the rule schema, and only one breaking it is a problem, on that field'
         )
 
+    def test_validate_with_a_referenced_unevaluated_rule_resolves_against_the_root_schema(self) -> None:
+        #: Given
+        rule: dict[str, Plain] = {'$ref': '#/$defs/s'}
+        schema: dict[str, Plain] = {
+            'type': 'object',
+            '$defs': {'s': {'type': 'string'}},
+            'unevaluatedProperties': rule,
+        }
+        frontmatter = FrontmatterSchema(schema=FrozenMapping.from_plain(schema))
+        mapping = FrozenMapping.from_plain({'x': 1})
+
+        #: When
+        problems = frontmatter.validate(mapping)
+
+        #: Then
+        assert problems == (InvalidValueProblem('x', "1 is not of type 'string'", OtherValueConstraint()),), (
+            'a referenced unevaluated rule resolves in the complete frontmatter schema'
+        )
+
+    def test_validate_with_an_enum_unevaluated_rule_keeps_its_message_and_typed_constraint(self) -> None:
+        #: Given
+        schema: dict[str, Plain] = {
+            'type': 'object',
+            'unevaluatedProperties': {'enum': ['yes', 'no']},
+        }
+        frontmatter = FrontmatterSchema(schema=FrozenMapping.from_plain(schema))
+        mapping = FrozenMapping.from_plain({'x': 'bad'})
+
+        #: When
+        problems = frontmatter.validate(mapping)
+
+        #: Then
+        assert problems == (
+            InvalidValueProblem(
+                'x',
+                "'bad' is not one of ['yes', 'no']",
+                OneOfValues(('yes', 'no')),
+                guidance=FieldGuidance(allowed=('yes', 'no')),
+            ),
+        ), 'the plain enum retains its message punctuation and typed allowed values'
+
     def test_validate_with_a_value_of_the_wrong_type_returns_a_wrong_type_problem(self) -> None:
         #: Given
         schema: dict[str, Plain] = {'type': 'object', 'properties': {'name': {'type': 'string'}}}
@@ -855,6 +883,70 @@ class TestFrontmatterSchema:
             ),
             MissingFieldProblem('name', "'name' is a required property", guidance=FieldGuidance(example='setup')),
         ), 'the description, the values allowed and the first example come from the property'
+
+    @pytest.mark.parametrize(
+        ('property_schema', 'guidance'),
+        [
+            ({'examples': [{'k': 'v'}]}, FieldGuidance(example='{"k": "v"}')),
+            ({'const': {'k': 'v'}}, FieldGuidance(example='{"k": "v"}', allowed=('{"k": "v"}',))),
+        ],
+    )
+    def test_validate_with_a_missing_field_and_an_object_example_or_const_returns_guidance(
+        self, property_schema: Plain, guidance: FieldGuidance
+    ) -> None:
+        #: Given
+        schema: dict[str, Plain] = {
+            'type': 'object',
+            'required': ['value'],
+            'properties': {'value': property_schema},
+        }
+        frontmatter = FrontmatterSchema(schema=FrozenMapping.from_plain(schema))
+        mapping = FrozenMapping.from_plain({})
+
+        #: When
+        problems = frontmatter.validate(mapping)
+
+        #: Then
+        assert problems == (MissingFieldProblem('value', "'value' is a required property", guidance=guidance),), (
+            'object examples and constants are serialized as plain JSON guidance'
+        )
+
+    @pytest.mark.parametrize(
+        ('rule', 'expected'),
+        [
+            (
+                {'type': 'string', 'examples': [{'k': 'v'}]},
+                InvalidValueProblem(
+                    'x',
+                    "1 is not of type 'string'",
+                    OtherValueConstraint(),
+                    guidance=FieldGuidance(example='{"k": "v"}'),
+                ),
+            ),
+            (
+                {'const': {'k': 'v'}},
+                InvalidValueProblem(
+                    'x',
+                    "{'k': 'v'} was expected",
+                    OneOfValues(('{"k": "v"}',)),
+                    guidance=FieldGuidance(example='{"k": "v"}', allowed=('{"k": "v"}',)),
+                ),
+            ),
+        ],
+    )
+    def test_validate_with_an_unevaluated_rule_and_object_example_or_const_returns_guidance(
+        self, rule: Plain, expected: InvalidValueProblem
+    ) -> None:
+        #: Given
+        schema: dict[str, Plain] = {'type': 'object', 'unevaluatedProperties': rule}
+        frontmatter = FrontmatterSchema(schema=FrozenMapping.from_plain(schema))
+        mapping = FrozenMapping.from_plain({'x': 1})
+
+        #: When
+        problems = frontmatter.validate(mapping)
+
+        #: Then
+        assert problems == (expected,), 'schema-valued unevaluated guidance serializes object values as JSON'
 
     def test_validate_with_a_required_field_in_a_branch_returns_it_without_guidance(self) -> None:
         #: Given

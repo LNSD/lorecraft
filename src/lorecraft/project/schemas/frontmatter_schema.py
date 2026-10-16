@@ -2,8 +2,8 @@
 
 `FrontmatterSchema` is the `frontmatter` key of a structure specification: a Draft 2020-12 JSON Schema a document's
 frontmatter must satisfy. `parse` checks the schema once, where the specification loads, and returns the failure it
-finds; `validate` then holds one decoded frontmatter to it. `validate` translates `jsonschema`'s errors into
-`FrontmatterProblem` values here, because this is the one place the package reads a `jsonschema` error.
+finds; `validate` then holds one decoded frontmatter to it. It maps the library-independent violations returned by
+`lorecraft.jsonschema` into project-owned `FrontmatterProblem` values.
 
 `StatedFrontmatterSchema` pairs a checked schema with the structure specification that states it, so a problem can
 quote the file it comes from.
@@ -14,14 +14,10 @@ Nothing here logs: `validate` raises nothing, and `parse` returns the failure it
 import re
 from collections.abc import Iterator, Mapping
 from dataclasses import dataclass
-from dataclasses import field as dataclass_field
 from typing import Final, Self, assert_never
 
 from jsonschema import Draft202012Validator
-from jsonschema._utils import find_evaluated_property_keys_by_schema
-from jsonschema.exceptions import SchemaError, best_match
-from jsonschema.exceptions import ValidationError as SchemaValidationError
-from jsonschema.protocols import Validator
+from jsonschema.exceptions import SchemaError
 from referencing import Registry
 from referencing.exceptions import Unresolvable
 from referencing.jsonschema import DRAFT202012
@@ -44,7 +40,9 @@ from lorecraft.jsonschema import (
     RequiredKeyword,
     TypeKeyword,
     UnevaluatedPropertiesKeyword,
-    keyword_of,
+    Violation,
+    best_violation,
+    validate,
 )
 
 from .frontmatter_problem import (
@@ -109,11 +107,6 @@ class FrontmatterSchema:
     """
 
     schema: FrozenMapping[str, Frozen]
-    _validator: Validator = dataclass_field(init=False, repr=False, compare=False, hash=False)
-
-    def __post_init__(self) -> None:
-        """Compile the schema once for validation."""
-        object.__setattr__(self, '_validator', Draft202012Validator(self.schema.to_plain()))
 
     @classmethod
     def parse(cls, schema: FrozenMapping[str, Frozen]) -> Self | FrontmatterSchemaFailure:
@@ -190,17 +183,12 @@ class FrontmatterSchema:
             One problem per field at fault, ordered by the field and then the message, or `()` when the
             frontmatter conforms.
         """
-        validator = self._validator
+        # Plain data, as `parse` hands `jsonschema` the schema: it reads only a `dict` as a JSON object.
         plain = data.to_plain()
-        # Sorted, unlike the skill schema's problems: `jsonschema` reports errors in the order it walks the
-        # schema's keywords, which says nothing about the fields.
-        errors = sorted(
-            validator.iter_errors(plain),
-            key=lambda error: (tuple(str(part) for part in error.path), error.message),
-        )
+        root_schema = self.schema.to_plain()
         problems: list[FrontmatterProblem] = []
-        for error in errors:
-            for problem in _frontmatter_problems(validator, error, plain):
+        for violation in validate(root_schema, plain):
+            for problem in _frontmatter_problems(violation, root_schema, plain):
                 # One `required` error names one absent field, but its record lists all the schema requires, so
                 # every such error below would report every absent field again.
                 if problem not in problems:
@@ -223,7 +211,7 @@ class StatedFrontmatterSchema:
 
 
 def _frontmatter_problems(
-    validator: Validator, error: SchemaValidationError, data: Mapping[str, Plain]
+    violation: Violation, root_schema: Mapping[str, Plain], data: Mapping[str, Plain]
 ) -> list[FrontmatterProblem]:
     """The problems one `jsonschema` error in `data` reports, each on the top-level field it concerns.
 
@@ -232,29 +220,30 @@ def _frontmatter_problems(
     gives in its `$comment`.
 
     Args:
-        validator: The validator that reported the error, holding the whole schema.
-        error: One error from validating `data` against the schema; its path and validator pick the problems.
+        root_schema: The complete schema, read by project-owned schema guidance.
+        violation: The validator facts that select and describe the problem.
         data: The frontmatter that was validated, as plain data, read to tell which fields are at fault.
     """
-    keyword = keyword_of(error)
-    if error.path:
+    keyword = violation.keyword
+    schema = _thaw(violation.schema)
+    if violation.path:
         # Anything wrong below the top-level field, such as a key its value lacks, is that field's value at fault.
-        field = str(error.path[0])
-        if len(error.path) == 1 and isinstance(keyword, TypeKeyword):
+        field = str(violation.path[0])
+        if len(violation.path) == 1 and isinstance(keyword, TypeKeyword):
             return [
                 WrongTypeProblem(
                     field,
-                    error.message,
+                    violation.message,
                     keyword.names,
-                    json_type_of(error.instance),
-                    guidance=property_guidance(validator.schema, field),
+                    json_type_of(violation.instance),
+                    guidance=property_guidance(root_schema, field),
                 )
             ]
-        return [_invalid_value(validator, error, keyword, field)]
+        return [_invalid_value(violation, root_schema, keyword, field)]
     # `jsonschema` reports a key `propertyNames` rejects as the error of the keyword inside it, with the key as the
     # instance and no path, so it is told apart by the schema path. The key is written, so it has a line.
-    if 'propertyNames' in error.relative_schema_path:
-        return [_invalid_value(validator, error, keyword, str(error.instance))]
+    if 'propertyNames' in violation.schema_path:
+        return [_invalid_value(violation, root_schema, keyword, str(violation.instance))]
     # Past this point the error has no path, so the value it is about is `data` itself: read that rather than
     # `error.instance`, which `jsonschema` types as `Any`.
     match keyword:
@@ -264,24 +253,22 @@ def _frontmatter_problems(
                 if field not in data:
                     message = f'{field!r} is a required property'
                     # The schema the keyword sits in, which holds no `properties` when `required` is a branch's.
-                    problems.append(
-                        MissingFieldProblem(field, message, guidance=property_guidance(error.schema, field))
-                    )
+                    problems.append(MissingFieldProblem(field, message, guidance=property_guidance(schema, field)))
             return problems
         case DependentRequiredKeyword():
-            return _dependency_problems(validator, error, keyword, data)
+            return _dependency_problems(violation, root_schema, keyword, data)
         case AdditionalPropertiesKeyword():
             # `jsonschema` types `error.schema` to allow a boolean schema, but a keyword only fires inside an object
             # one.
-            schema = _schema_object(error.schema)
+            object_schema = _schema_object(schema)
             problems = []
-            for key in _additional_keys(schema, data):
+            for key in _additional_keys(object_schema, data):
                 # `jsonschema`'s wording for one unexpected key.
                 message = f'Additional properties are not allowed ({key!r} was unexpected)'
-                problems.append(UnknownFieldProblem(key, message, known_fields=known_fields(schema)))
+                problems.append(UnknownFieldProblem(key, message, known_fields=known_fields(object_schema)))
             return problems
         case UnevaluatedPropertiesKeyword():
-            return _unevaluated_problems(validator, _schema_object(error.schema), data)
+            return _unevaluated_problems(violation, _schema_object(schema), root_schema, data)
         case (
             TypeKeyword()
             | EnumKeyword()
@@ -294,11 +281,11 @@ def _frontmatter_problems(
             # A rule over the whole block, such as `minProperties`, concerns no field.
             return [
                 BlockProblem(
-                    error.message,
+                    violation.message,
                     _block_constraint(keyword),
                     # A length is never negative, so building the `UnsignedInt` cannot raise `NegativeIntError` here.
                     FieldCount(UnsignedInt(len(data))),
-                    description=schema_guidance(validator.schema).description,
+                    description=schema_guidance(root_schema).description,
                 )
             ]
         case _:
@@ -306,27 +293,27 @@ def _frontmatter_problems(
 
 
 def _invalid_value(
-    validator: Validator, error: SchemaValidationError, keyword: Keyword, field: str
+    violation: Violation, root_schema: Mapping[str, Plain], keyword: Keyword, field: str
 ) -> InvalidValueProblem:
     """The problem of a value breaking a constraint, on the field it is written at.
 
     Args:
-        validator: The validator that reported the error, holding the whole schema the field's property is read from.
-        error: The error the value's constraint reported; its schema is the subschema that states the constraint.
+        violation: The validator facts for the value's failed constraint.
+        root_schema: The complete schema, read by project-owned schema guidance.
         keyword: The keyword that reported the error.
         field: The top-level field at fault.
     """
     return InvalidValueProblem(
         field,
-        error.message,
-        _value_constraint(keyword, nested=len(error.path) > 1),
-        reason=schema_reason(error.schema),
-        guidance=property_guidance(validator.schema, field),
+        violation.message,
+        _value_constraint(keyword, nested=len(violation.path) > 1),
+        reason=schema_reason(_thaw(violation.schema)),
+        guidance=property_guidance(root_schema, field),
     )
 
 
 def _dependency_problems(
-    validator: Validator, error: SchemaValidationError, keyword: DependentRequiredKeyword, data: Mapping[str, Plain]
+    violation: Violation, root_schema: Mapping[str, Plain], keyword: DependentRequiredKeyword, data: Mapping[str, Plain]
 ) -> list[FrontmatterProblem]:
     """One problem per written field whose `dependentRequired` fields are not all written, on the written field.
 
@@ -334,8 +321,8 @@ def _dependency_problems(
     pairs are found the way the keyword finds them, and a pair two errors report is reported once.
 
     Args:
-        validator: The validator that reported the error, holding the whole schema.
-        error: The `dependentRequired` error, which reports one missing dependency of one field.
+        violation: The validator facts, whose schema states the dependencies.
+        root_schema: The complete schema, read by project-owned schema guidance.
         keyword: The error's keyword, which maps each field to the fields it requires.
         data: The frontmatter that was validated, as plain data.
     """
@@ -351,8 +338,8 @@ def _dependency_problems(
                         field,
                         message,
                         OtherValueConstraint(),
-                        reason=schema_reason(error.schema),
-                        guidance=property_guidance(validator.schema, field),
+                        reason=schema_reason(_thaw(violation.schema)),
+                        guidance=property_guidance(root_schema, field),
                     )
                 )
     return problems
@@ -438,7 +425,10 @@ def _additional_keys(schema: Mapping[str, Plain], instance: Mapping[str, Plain])
 
 
 def _unevaluated_problems(
-    validator: Validator, schema: Mapping[str, Plain], data: Mapping[str, Plain]
+    violation: Violation,
+    schema: Mapping[str, Plain],
+    root_schema: Mapping[str, Plain],
+    data: Mapping[str, Plain],
 ) -> list[FrontmatterProblem]:
     """One problem per field the `unevaluatedProperties` rule of `schema` rejects.
 
@@ -446,15 +436,16 @@ def _unevaluated_problems(
     schema the value breaks.
 
     Args:
-        validator: The validator that reported the rule's error, holding the whole schema.
+        violation: The validator facts, including properties evaluated by this schema.
         schema: The object schema whose `unevaluatedProperties` rule fired.
+        root_schema: The complete schema that supplies local reference targets.
         data: The frontmatter that was validated, as plain data.
     """
     # `jsonschema` names the rejected fields only in its message, and which fields are evaluated depends on every
     # `allOf`, `$ref` and `if` the schema composes, so they are found the way the keyword itself finds them, with
     # a helper `jsonschema` keeps private. Its major version is pinned, and the tests over a composed schema
     # fail if the helper changes.
-    evaluated = find_evaluated_property_keys_by_schema(validator, data, schema)
+    evaluated = violation.evaluated_properties
     rule = schema['unevaluatedProperties']
     problems: list[FrontmatterProblem] = []
     for key in data:
@@ -465,7 +456,7 @@ def _unevaluated_problems(
             message = f'Unevaluated properties are not allowed ({key!r} was unexpected)'
             problems.append(UnknownFieldProblem(key, message, known_fields=known_fields(schema)))
         elif isinstance(rule, Mapping):
-            reason = best_match(validator.evolve(schema=rule).iter_errors(data[key]))
+            reason = best_violation(rule, data[key], root_schema=root_schema)
             if reason is not None:
                 # The rule describes every field it evaluates, so its description is the key's.
                 problems.append(
@@ -473,13 +464,26 @@ def _unevaluated_problems(
                         key,
                         reason.message,
                         # The error is about the key's value itself, so a path in it leads inside that value.
-                        _value_constraint(keyword_of(reason), nested=len(reason.path) > 0),
-                        reason=schema_reason(reason.schema),
+                        _value_constraint(reason.keyword, nested=len(reason.path) > 0),
+                        reason=schema_reason(_thaw(reason.schema)),
                         guidance=schema_guidance(rule),
                     )
                 )
         # A rule of `true` accepts every value, so it never fires.
     return problems
+
+
+def _thaw(value: Frozen) -> Plain:
+    """Copy an owned frozen JSON value into the plain containers project guidance reads.
+
+    Args:
+        value: A frozen scalar, tuple, or `FrozenMapping` read from a `Violation`.
+    """
+    if isinstance(value, FrozenMapping):
+        return value.to_plain()
+    if isinstance(value, tuple):
+        return [_thaw(item) for item in value]
+    return value
 
 
 def _schema_object(value: Plain) -> Mapping[str, Plain]:

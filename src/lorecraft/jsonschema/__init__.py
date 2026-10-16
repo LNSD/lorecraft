@@ -15,7 +15,6 @@ from .schema_keyword import (
     RequiredKeyword,
     TypeKeyword,
     UnevaluatedPropertiesKeyword,
-    keyword_of,
 )
 from .validation import best_violation, validate
 from .violation import Violation
@@ -36,7 +35,6 @@ __all__: list[str] = [
     'RequiredKeyword',
     'TypeKeyword',
     'UnevaluatedPropertiesKeyword',
-    'keyword_of',
     'Violation',
     'validate',
     'best_violation',

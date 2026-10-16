@@ -9,7 +9,7 @@ skill that passes has this shape exactly. And `just gen` renders it into
 `docs/schemas/skill-frontmatter.spec.json`, the JSON Schema an editor validates the frontmatter against while it
 is written, so the editor and the check hold a skill to the same declaration.
 
-Unlike a header specification, whose JSON Schema is written by hand and applied with the `jsonschema` package,
+Unlike a header specification, whose JSON Schema is written by hand and applied through `lorecraft.jsonschema`,
 this schema is fixed by the specification, so it is declared once here as a pydantic model: pydantic validates a
 skill against it, and the JSON Schema is rendered from it rather than read.
 

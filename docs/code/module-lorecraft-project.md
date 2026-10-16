@@ -26,9 +26,9 @@ once in `lorecraft.project.layout` and read from there by every other module.
 - The decoding of a meta spec into rules that are proved usable when they are built.
 - The parse tree, token count and line count: pure functions of document text. The Markdown wrapper reads wenmode
   and core only; `document` maps its line and link values into the project model and decodes raw frontmatter.
-- A shared analysis of one document's parsed values against the meta specs handed to it, such as the problems
-  each frontmatter schema finds, each placed on its field's line, or where the sections first stop matching an
-  outline. It finds the facts several rules read; whether one is reported, and how, is a rule's.
+- A shared analysis of one document's parsed values against its meta specs: frontmatter violations mapped to
+  project-owned problems and placed on field lines, or where sections first stop matching an outline. It finds
+  facts several rules read; whether one is reported, and how, is a rule's.
 - A document's, a skill's or a skill resource's identity, kept apart from its content and from where its symlinks
   lead.
 - Turning a Markdown link's destination into a root-relative path, from its document's directory or its skill's
@@ -50,6 +50,7 @@ once in `lorecraft.project.layout` and read from there by every other module.
 |---|---|
 | Reads the disk, or follows a symlink by asking the operating system | `lorecraft.vfs` |
 | Scans, parses or refuses YAML text | `lorecraft.yaml` |
+| Supplies JSON Schema vocabulary and library-independent validation facts | `lorecraft.jsonschema` |
 | States an agent's skills directories or guide files | `lorecraft.agents` |
 | Decides whether a document or a skill breaks a rule | `lorecraft.rules` |
 | Runs the rules over the query results | `lorecraft.engine` |
@@ -66,15 +67,15 @@ once in `lorecraft.project.layout` and read from there by every other module.
   values. No third-party parser type leaves the package.
 - A shared analysis reads the parsed values and the meta specs it is handed, never a view, and returns
   immutable values.
+- A frontmatter schema maps JSON Schema violations to `FrontmatterProblem` values with project guidance; it
+  never reads validator records.
 - A memoized query is an input query or a derived one. An input query reads one input from the snapshot, one
-  file's bytes or the structure, and states its own carry-over rule. A derived query reads only other queries,
-  never the snapshot, and hands them to one function of the package, so its arguments are its read set and it
-  carries over whenever they do. A shared analysis is derived: it reads one file's per-file queries and the
-  meta specs the model says govern that file. A value drawn from several files is a query of its own, with its
-  own carry-over rule, which its docstring states.
+  file's bytes or the structure, and states its carry-over rule. A derived query reads only other queries and
+  hands them to one package function; its arguments are its read set, so it carries over when they do. A shared
+  analysis reads one file's queries and its governing meta specs. A value drawn from several files is its own
+  query, with its carry-over rule in its docstring.
 - A per-file query takes its decode query's witness, never a bare ref, is keyed by the ref, and carries over only
-  when the next revision locates the ref at the same resolved file and its bytes are unchanged. Only the database
-  builds a witness.
+  when the next revision locates the ref at the same file with unchanged bytes. Only the database builds a witness.
 - Nothing derived from a snapshot is cached outside a database, or across revisions but by a carry-over rule. The
   database alone reads and writes the store of persisted results, through the store the Composition package hands it.
 - A broken document is a value the parse returns, not an exception. A unit the loader cannot load is a recorded
