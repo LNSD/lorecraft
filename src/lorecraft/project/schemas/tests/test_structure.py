@@ -102,8 +102,8 @@ class TestStructureSpecParse:
 
         #: When
         #: Then
-        assert first == second, 'compiled frontmatter validators do not change structure-spec equality'
-        assert hash(first) == hash(second), 'compiled frontmatter validators do not change structure-spec hashing'
+        assert first == second, 'structure specs with the same rules compare equal'
+        assert hash(first) == hash(second), 'structure specs with the same rules hash equally'
 
     def test_parse_with_every_field_returns_the_rules_it_states(self) -> None:
         #: Given

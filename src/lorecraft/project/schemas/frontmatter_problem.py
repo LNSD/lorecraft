@@ -1,7 +1,7 @@
 """What a frontmatter schema says is wrong with one frontmatter, in the one shape every schema reports in.
 
 Two kinds of schema govern a frontmatter: the JSON Schema a structure specification states for a corpus, which
-`FrontmatterSchema` applies with `jsonschema`, and the Agent Skills specification, which
+`FrontmatterSchema` applies through `lorecraft.jsonschema`, and the Agent Skills specification, which
 `SkillFrontmatterSchema` applies with pydantic. Each translates its validator's errors into
 `FrontmatterProblem` values at its own seam, so a check reads the same shape from either and never reads a
 validator's error record.
@@ -131,7 +131,7 @@ class UnknownFieldProblem:
         field: The field as written in the frontmatter.
         message: What a reader is told, naming the field.
         known_fields: The fields the schema defines, in the order it states them; empty when it states none. A
-            `jsonschema` schema that composes others with `allOf` or `$ref` may evaluate fields its own
+            JSON Schema that composes others with `allOf` or `$ref` may evaluate fields its own
             `properties` do not name, so the list holds only the properties of the schema the keyword sits in.
     """
 

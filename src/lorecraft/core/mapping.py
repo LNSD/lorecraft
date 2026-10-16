@@ -222,9 +222,9 @@ class FrozenMapping[K, V](Mapping[K, V]):
     def to_plain(self: 'FrozenMapping[str, Frozen]') -> 'dict[str, Plain]':
         """A `dict` copy of a frozen mapping with every value turned back into plain data, as `_to_plain_value` does.
 
-        The one way frozen data leaves for code that reads only plain containers: `jsonschema`, which takes a JSON
-        object only as a `dict` and an array only as a `list`, the strict pydantic models, which do the same, and a
-        finding that quotes a value as its author wrote it rather than as the tuple it is frozen into.
+        The one way frozen data leaves for code that reads only plain containers: `lorecraft.jsonschema` and strict
+        pydantic models, which take objects only as `dict` and arrays only as `list`, and findings that quote a value
+        as its author wrote it rather than as the tuple it is frozen into.
         """
         # The annotated `self` limits the method to a string-keyed mapping of frozen values, the only kind
         # `from_plain` builds and the only kind whose values `_to_plain_value` can turn back.
