@@ -246,8 +246,7 @@ layers = [
     "core",
 ]
 
-# The JSON Schema libraries are read in one package, with the existing validator seam migrated separately. The
-# `referencing` allowance is prospective, so silence alerts for unmatched ignore expressions in this contract.
+# The JSON Schema libraries are read in `lorecraft.jsonschema`, which gives callers owned schema and validation facts.
 [[tool.importlinter.contracts]]
 name = "The JSON Schema libraries are read in one package"
 type = "forbidden"
@@ -256,11 +255,8 @@ forbidden_modules = ["jsonschema", "referencing"]
 ignore_imports = [
     "lorecraft.jsonschema.** -> jsonschema",
     "lorecraft.jsonschema.** -> referencing",
-    "lorecraft.project.schemas.frontmatter_schema -> jsonschema",
-    "lorecraft.project.schemas.frontmatter_schema -> referencing",
 ]
 allow_indirect_imports = true
-unmatched_ignore_imports_alerting = "none"
 
 # Each frontmatter schema translates its validator's errors into `FrontmatterProblem` values at its own seam in
 # `project.schemas`, so a check or a rule reads one shape whichever validator is behind it and never an error record.
