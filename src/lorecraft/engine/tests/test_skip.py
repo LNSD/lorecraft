@@ -132,7 +132,7 @@ class TestCheckSubjectsOverASkillEntry:
         failed = _database_with(
             {'code.spec.json': STATES_NO_RULE, 'code-python.spec.json': CORPUS_SPEC}, {'python-typing.md': DOCUMENT}
         )
-        governance = failed.governance(TYPING)
+        governance = failed.item_governance(MarkdownItemRef(TYPING.path))
         assert governance is not None, 'the corpus is in the model, so its governance is found'
         assert governance.failed_layers(), 'the corpus spec states no rule, so its layer failed'
         snapshot = from_tree({'.agents': {'skills': {'review': {'SKILL.md': b'---\nname: review\n---\n\n# Review\n'}}}})

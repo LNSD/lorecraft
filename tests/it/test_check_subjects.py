@@ -29,8 +29,9 @@ from lorecraft.jsonschema import JsonType
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.context import DocumentContext, DocumentFrontmatterOwner, SkillFrontmatterOwner
 from lorecraft.project.corpus import CorpusName
-from lorecraft.project.database import Database, DocumentText, SkillText
+from lorecraft.project.database import Database, DocumentText, ItemText, SkillText
 from lorecraft.project.document import DocumentRef
+from lorecraft.project.item import MarkdownItemRef
 from lorecraft.project.layout import SNAPSHOT_SCOPE
 from lorecraft.project.link_target import DocumentDirectory, SkillRoot
 from lorecraft.project.schemas import (
@@ -338,7 +339,7 @@ class CountingDatabase(Database):
         self.counted_tokens: list[DocumentRef] = []
         self.counted_lines: list[SkillRef] = []
         self.parsed_frontmatters: list[DocumentRef | SkillRef] = []
-        self.validated_frontmatters: list[DocumentRef | SkillRef] = []
+        self.validated_frontmatters: list[MarkdownItemRef] = []
         self.parsed_documents: list[DocumentRef] = []
 
     def token_count(self, source: DocumentText) -> UnsignedInt:
@@ -386,14 +387,14 @@ class CountingDatabase(Database):
         self.parsed_frontmatters.append(source.ref)
         return super().skill_frontmatter(source)
 
-    def schema_problems(self, source: DocumentText) -> tuple[SchemaProblems, ...]:
+    def item_schema_problems(self, source: ItemText) -> tuple[SchemaProblems, ...]:
         """Record the document, then hold its frontmatter to the schemas that govern it.
 
         Args:
             source: The decoded document whose frontmatter is validated, recorded by its ref first.
         """
         self.validated_frontmatters.append(source.ref)
-        return super().schema_problems(source)
+        return super().item_schema_problems(source)
 
     def skill_schema_problems(self, source: SkillText) -> tuple[SchemaProblems, ...]:
         """Record the skill, then hold the frontmatter of its `SKILL.md` to the Agent Skills specification.
@@ -401,7 +402,7 @@ class CountingDatabase(Database):
         Args:
             source: The decoded `SKILL.md` whose frontmatter is validated, recorded by its skill's ref first.
         """
-        self.validated_frontmatters.append(source.ref)
+        self.validated_frontmatters.append(MarkdownItemRef(source.ref.path))
         return super().skill_schema_problems(source)
 
 

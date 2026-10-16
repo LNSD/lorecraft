@@ -16,7 +16,7 @@ from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.jsonschema import JsonType
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
-from lorecraft.project.database import Database, DocumentText, ItemText, SkillText
+from lorecraft.project.database import Database, ItemText, SkillText
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.item import MarkdownItemRef
 from lorecraft.project.schemas import (
@@ -109,15 +109,15 @@ def _snapshot(corpus_spec: bytes, namespace_spec: bytes, *, typing: bytes, revie
     )
 
 
-def _document_text(database: Database, ref: DocumentRef) -> DocumentText:
+def _document_text(database: Database, ref: DocumentRef) -> ItemText:
     """The witness of a document the test wrote as UTF-8, as the database decodes it.
 
     Args:
         database: The database the document is decoded by.
         ref: A document whose bytes are UTF-8.
     """
-    source = database.text(ref)
-    assert isinstance(source, DocumentText), f'{ref.path} was written as UTF-8, so it decodes'
+    source = database.item_text(MarkdownItemRef(ref.path))
+    assert isinstance(source, ItemText), f'{ref.path} was written as UTF-8, so it decodes'
     return source
 
 
@@ -145,7 +145,7 @@ class TestSchemaProblems:
         source = _document_text(database, TYPING)
 
         #: When
-        found = database.schema_problems(source)
+        found = database.item_schema_problems(source)
 
         #: Then
         assert found == (
@@ -176,10 +176,10 @@ class TestSchemaProblems:
         typing = b'---\nname: python-typing\n---\n# Typing\n'
         database = FrontmatterReadingDatabase.from_snapshot(_snapshot(REQUIRE_STATUS, REQUIRE_OWNER, typing=typing))
         source = _document_text(database, TYPING)
-        first = database.schema_problems(source)
+        first = database.item_schema_problems(source)
 
         #: When
-        second = database.schema_problems(source)
+        second = database.item_schema_problems(source)
 
         #: Then
         assert second is first, 'the schemas are applied once per database, then shared by every rule'
@@ -194,7 +194,7 @@ class TestSchemaProblems:
         source = _document_text(database, TYPING)
 
         #: When
-        found = database.schema_problems(source)
+        found = database.item_schema_problems(source)
 
         #: Then
         assert found == (), 'no corpus schema states a frontmatter schema, so no schema is applied'
@@ -208,7 +208,7 @@ class TestSchemaProblems:
         source = _document_text(database, TYPING)
 
         #: When
-        database.schema_problems(source)
+        database.item_schema_problems(source)
 
         #: Then
         assert database.read == [], (
@@ -221,7 +221,7 @@ class TestSchemaProblems:
         source = _document_text(database, TYPING)
 
         #: When
-        found = database.schema_problems(source)
+        found = database.item_schema_problems(source)
 
         #: Then
         assert found == (), (
@@ -243,7 +243,7 @@ class TestSchemaProblems:
         source = _document_text(database, DocumentRef(CorpusName.parse('blog'), AspectFilename.parse('launch')))
 
         #: When
-        found = database.schema_problems(source)
+        found = database.item_schema_problems(source)
 
         #: Then
         assert found == (), 'no specification governs a document in no corpus the model holds'

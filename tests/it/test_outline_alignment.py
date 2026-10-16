@@ -16,7 +16,7 @@ from lib.tree import from_tree
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
-from lorecraft.project.database import Database, DocumentText, ItemText
+from lorecraft.project.database import Database, ItemText
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.item import MarkdownItemRef
 from lorecraft.project.schemas import (
@@ -98,15 +98,15 @@ def _snapshot(corpus_spec: bytes | None, namespace_spec: bytes | None, text: str
     return from_tree({'docs': {'__meta__': meta, 'code': {'python-typing.md': text.encode()}}})
 
 
-def _document_text(database: Database, ref: DocumentRef) -> DocumentText:
+def _document_text(database: Database, ref: DocumentRef) -> ItemText:
     """The witness of a document the test wrote as UTF-8, as the database decodes it.
 
     Args:
         database: The database the document is decoded by.
         ref: A document whose bytes are UTF-8.
     """
-    source = database.text(ref)
-    assert isinstance(source, DocumentText), f'{ref.path} was written as UTF-8, so it decodes'
+    source = database.item_text(MarkdownItemRef(ref.path))
+    assert isinstance(source, ItemText), f'{ref.path} was written as UTF-8, so it decodes'
     return source
 
 
@@ -164,7 +164,7 @@ class TestOutlineAlignment:
         source = _document_text(database, TYPING)
 
         #: When
-        alignment = database.outline_alignment(source)
+        alignment = database.item_outline_alignment(source)
 
         #: Then
         assert len(alignment) == 1, 'the one governing specification is aligned'
@@ -181,10 +181,10 @@ class TestOutlineAlignment:
         outline = b'{"outline": [{"section": "Rule"}, {"any": true}, {"section": "Checklist"}]}'
         database = ParsingDatabase.from_snapshot(_snapshot(outline, None, RULE_ASIDE_CHECKLIST))
         source = _document_text(database, TYPING)
-        first = database.outline_alignment(source)
+        first = database.item_outline_alignment(source)
 
         #: When
-        second = database.outline_alignment(source)
+        second = database.item_outline_alignment(source)
 
         #: Then
         assert second is first, 'the sections are aligned once per database, then shared by every rule'
@@ -198,7 +198,7 @@ class TestOutlineAlignment:
         source = _document_text(database, TYPING)
 
         #: When
-        alignment = database.outline_alignment(source)
+        alignment = database.item_outline_alignment(source)
 
         #: Then
         assert len(alignment) == 2, 'both specifications are aligned'
@@ -219,7 +219,7 @@ class TestOutlineAlignment:
         source = _document_text(database, TYPING)
 
         #: When
-        alignment = database.outline_alignment(source)
+        alignment = database.item_outline_alignment(source)
 
         #: Then
         assert alignment == (), 'no structure specification governs the document, so nothing is aligned'
@@ -240,7 +240,7 @@ class TestOutlineAlignment:
         source = _document_text(database, DocumentRef(CorpusName.parse('blog'), AspectFilename.parse('launch')))
 
         #: When
-        alignment = database.outline_alignment(source)
+        alignment = database.item_outline_alignment(source)
 
         #: Then
         assert alignment == (), 'no specification governs a document in no corpus the model holds'
@@ -254,10 +254,10 @@ class TestOutlineAlignment:
         source = _document_text(database, TYPING)
         aligned: list[int] = []
         monkeypatch.setattr(database_module, 'align_outlines', _counting(aligned))
-        database.outline_alignment(source)
+        database.item_outline_alignment(source)
 
         #: When
-        database.outline_divergences(source)
+        database.item_outline_divergences(source)
 
         #: Then
         assert aligned == [1], 'the divergences are derived from the alignment already held, so it is computed once'
@@ -271,10 +271,10 @@ class TestOutlineAlignment:
         source = _document_text(database, TYPING)
         aligned: list[int] = []
         monkeypatch.setattr(database_module, 'align_outlines', _counting(aligned))
-        database.outline_divergences(source)
+        database.item_outline_divergences(source)
 
         #: When
-        database.outline_alignment(source)
+        database.item_outline_alignment(source)
 
         #: Then
         assert aligned == [1], 'the divergences ask for the alignment, which the later query then finds held'

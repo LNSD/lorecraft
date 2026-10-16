@@ -46,7 +46,7 @@ input query builds a witness or fails to read, and each states its own carry-ove
 
 Derived queries read the results of other queries and never the snapshot. Each hands what it read to one function
 of this package that computes the value, so its arguments are its read set, and it carries over whenever every query
-it read does, `governance(ref)` excepted, as its bullet states:
+it read does, `item_governance(ref)` excepted, as its bullet states:
 
 - `frontmatter(source)`: one document's frontmatter node, like a stub: the part of a file the IDE reads without
   building its full syntax tree. It reads the text of the witness `text(ref)` returned and nothing else.
@@ -58,23 +58,16 @@ it read does, `governance(ref)` excepted, as its bullet states:
 - `document_line_count(source)`: how many lines one document's whole file holds, like `token_count(source)`: counted
   from the raw text, frontmatter included, without a parse. It reads the text of the witness `text(ref)` returned and
   nothing else.
-- `governance(ref)`: the specifications that govern one document, its corpus's first and then each namespace's that
+- `item_governance(ref)`: the specifications that govern one item, its corpus's first and then each namespace's that
   matches it, like the IDE's resolution of which inspection profile a file falls under. It reads `model()` and
-  nothing else, and it is the one place a document's governance is computed: the runner and every query that needs
-  a document's specifications ask it, so the model's corpus is searched, and the namespace specifications sorted and
-  matched, once per document for the revision. It is the exception to the rule above: the model is dropped by any
-  entry added or deleted under `docs/`, so `governance(ref)` is recomputed from the next model and kept when it
-  compares equal to the one it replaces. It can carry over when `model()` does not, and so can every analysis that
-  reads it.
-- `schema_problems(source)`: what each frontmatter schema that governs one document rejects in its frontmatter, each
-  problem placed on its line, like an analysis the IDE runs once over a file and every inspection then reads. It reads
-  `frontmatter(source)` and `governance(source.ref)`, and nothing else.
-- `outline_alignment(source)`: which outline entry each of one document's sections falls in, for each structure
-  specification that governs it, the same kind of shared analysis. It reads `parse(source)` and
-  `governance(source.ref)`, and nothing else.
-- `outline_divergences(source)`: where one document's sections first stop matching each outline that governs it, the
-  same kind of shared analysis, derived from the alignment. It reads `outline_alignment(source)` and
-  `document_line_count(source)`, and nothing else.
+  nothing else, and it is the one place an item's governance is computed, so the model's corpus is searched once per
+  item for the revision. It is the exception to the rule above: the model is dropped by any entry added or deleted
+  under `docs/`, so it is recomputed from the next model and kept when it compares equal to the one it replaces. It
+  can carry over when `model()` does not, and so can every analysis that reads it.
+- `item_schema_problems(source)`, `item_outline_alignment(source)` and `item_outline_divergences(source)`: what each
+  frontmatter schema that governs one document rejects, which outline entry each section falls in, and where the
+  sections first stop matching each outline, the shared analyses every inspection reads. They read the item's
+  frontmatter or parse, its governance and, for the divergences, its alignment and line count, and nothing else.
 - `skill_frontmatter(source)`: one skill's frontmatter node, the same stub for a `SKILL.md`. It reads the text of
   the witness `skill_text(location)` returned and nothing else.
 - `skill_parse(source)`: one skill's parse tree, the same syntax tree for a `SKILL.md`. It reads the text of the
@@ -82,7 +75,7 @@ it read does, `governance(ref)` excepted, as its bullet states:
 - `skill_line_count(source)`: how many lines one skill's `SKILL.md` holds, like `token_count(source)` for a document:
   counted from the raw text, frontmatter included, without a parse. It reads the text of the witness and nothing else.
 - `skill_schema_problems(source)`: what the Agent Skills specification rejects in one skill's frontmatter, the same
-  analysis as `schema_problems(source)` for a document. It reads `skill_frontmatter(source)` and nothing else: the
+  analysis as `item_schema_problems(source)` for a document. It reads `skill_frontmatter(source)` and nothing else: the
   package states the specification, so no specification in the repository plays a part.
 - `skill_fields(source)`: the fields of one skill's frontmatter that parse, each on its own, keyed by field. It reads
   `skill_frontmatter(source)` and nothing else.
@@ -972,96 +965,6 @@ class Database:
                 once.
         """
         return self.item_line_count(self._decoded(source.ref.path))
-
-    def governance(self, ref: DocumentRef) -> Governance | None:
-        """The specifications that govern one document, found in the model on the first call for its ref.
-
-        The corpus spec first, then each namespace spec whose namespace matches the document's filename, broad to
-        narrow. The one place a document's governance is computed: the runner and the queries that read it ask
-        this, so it is computed once per document for the revision.
-
-        A layer whose structure file failed to load is held as the failed structure the model recorded, so the
-        governance hands out what loaded and what failed and decides nothing about the document.
-
-        Carry-over: kept for the next revision whenever the next model's governance of the ref is equal to it, as
-        compared by value: the corpus spec and every matching namespace spec, each with its files and its structure
-        specification, a failed one compared by its recorded failure. The model is dropped by any entry added or
-        deleted under `docs/`, but a document added or deleted in a corpus, or a specification that does not govern
-        this document, leaves its governance equal.
-
-        Args:
-            ref: The document to look up, whether or not the model lists it; only its corpus and filename are read,
-                and it is the cache key, so one ref is looked up once.
-
-        Returns:
-            The specifications, or `None` when the model holds no corpus named `ref.corpus`: no specification governs
-            such a document, and the answer is cached like any other.
-        """
-        return self._governance_of(self._document_item(ref))
-
-    def schema_problems(self, source: DocumentText) -> tuple[SchemaProblems, ...]:
-        """What each frontmatter schema that governs one document rejects in its frontmatter, found on the first call.
-
-        Each problem is placed on the line its field is written on, or line 1 when it has none. The frontmatter is
-        read only when a schema governs the document. Only the layers that loaded state a schema; a layer that
-        failed to load contributes none.
-
-        Carry-over: kept for the next revision whenever `frontmatter(source)` and `governance(source.ref)` are. A
-        change to the model that leaves the document's governance as it was, such as a document added to another
-        corpus, leaves it valid.
-
-        Args:
-            source: The document's text, as `text(ref)` returns it; its ref is the cache key, so one ref is
-                validated once.
-
-        Returns:
-            One entry per frontmatter schema that governs the document, in the order the schemas apply, each naming
-            the structure specification that states it; none when no schema governs it, or when its block is
-            missing, not YAML or not a mapping, which no schema can hold.
-        """
-        return self.item_schema_problems(self._decoded(source.ref.path))
-
-    def outline_alignment(self, source: DocumentText) -> tuple[OutlineAlignmentSpec, ...]:
-        """Which outline entry each of one document's sections falls in, for each specification that governs it.
-
-        A section is aligned to the entry that names it, or to the `any` run it falls in, or to nothing. A
-        specification that states no outline is aligned too, each section to nothing, so a rule over what a
-        specification forbids reads the same alignment as a rule over its outline. Only the layers that loaded are
-        aligned; a layer that failed to load contributes none.
-
-        Carry-over: kept for the next revision whenever `parse(source)` and `governance(source.ref)` are. A change to
-        the model that leaves the document's governance as it was, such as a document added to another corpus, leaves
-        it valid.
-
-        Args:
-            source: The document's text, as `text(ref)` returns it; its ref is the cache key, so one ref is aligned
-                once.
-
-        Returns:
-            One entry per structure specification that governs the document, in the order the specifications apply;
-            none when none governs it.
-        """
-        return self.item_outline_alignment(self._decoded(source.ref.path))
-
-    def outline_divergences(self, source: DocumentText) -> tuple[OutlineDivergenceSpec, ...]:
-        """Where one document's sections first stop matching each outline that governs it, found on the first call.
-
-        Derived from `outline_alignment(source)`, so the document is aligned once for both queries. Its lines are
-        counted only when a structure specification that governs it states an outline. Only the layers that loaded
-        are matched, as `outline_alignment(source)` aligns only those.
-
-        Carry-over: kept for the next revision whenever `outline_alignment(source)` and `document_line_count(source)`
-        are.
-
-        Args:
-            source: The document's text, as `text(ref)` returns it; its ref is the cache key, so one ref is matched
-                once.
-
-        Returns:
-            One entry per structure specification that governs the document and states an outline, in the order the
-            specifications apply; none when no outline governs it.
-        """
-        return self.item_outline_divergences(self._decoded(source.ref.path))
 
     def skill_frontmatter(self, source: SkillText) -> FrontmatterNode:
         """The frontmatter of one skill's `SKILL.md`, parsed on the first call for its ref. Raises nothing.
