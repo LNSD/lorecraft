@@ -479,11 +479,23 @@ def _thaw(value: Frozen) -> Plain:
     Args:
         value: A frozen scalar, tuple, or `FrozenMapping` read from a `Violation`.
     """
-    if isinstance(value, FrozenMapping):
-        return value.to_plain()
-    if isinstance(value, tuple):
-        return [_thaw(item) for item in value]
-    return value
+    match value:
+        case FrozenMapping():
+            return value.to_plain()
+        case tuple():
+            return [_thaw(item) for item in value]
+        case str():
+            return value
+        case bool():
+            return value
+        case int():
+            return value
+        case float():
+            return value
+        case None:
+            return None
+        case _:
+            assert_never(value)
 
 
 def _schema_object(value: Plain) -> Mapping[str, Plain]:

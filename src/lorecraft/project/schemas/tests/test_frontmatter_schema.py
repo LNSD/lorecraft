@@ -884,69 +884,83 @@ class TestFrontmatterSchema:
             MissingFieldProblem('name', "'name' is a required property", guidance=FieldGuidance(example='setup')),
         ), 'the description, the values allowed and the first example come from the property'
 
-    @pytest.mark.parametrize(
-        ('property_schema', 'guidance'),
-        [
-            ({'examples': [{'k': 'v'}]}, FieldGuidance(example='{"k": "v"}')),
-            ({'const': {'k': 'v'}}, FieldGuidance(example='{"k": "v"}', allowed=('{"k": "v"}',))),
-        ],
-    )
-    def test_validate_with_a_missing_field_and_an_object_example_or_const_returns_guidance(
-        self, property_schema: Plain, guidance: FieldGuidance
-    ) -> None:
+    def test_validate_with_a_missing_field_and_an_object_example_returns_guidance(self) -> None:
         #: Given
         schema: dict[str, Plain] = {
             'type': 'object',
             'required': ['value'],
-            'properties': {'value': property_schema},
+            'properties': {'value': {'examples': [{'k': 'v'}]}},
         }
         frontmatter = FrontmatterSchema(schema=FrozenMapping.from_plain(schema))
         mapping = FrozenMapping.from_plain({})
+        expected = MissingFieldProblem(
+            'value', "'value' is a required property", guidance=FieldGuidance(example='{"k": "v"}')
+        )
 
         #: When
         problems = frontmatter.validate(mapping)
 
         #: Then
-        assert problems == (MissingFieldProblem('value', "'value' is a required property", guidance=guidance),), (
-            'object examples and constants are serialized as plain JSON guidance'
+        assert problems == (expected,), 'an object example is serialized as plain JSON guidance'
+
+    def test_validate_with_a_missing_field_and_an_object_const_returns_guidance(self) -> None:
+        #: Given
+        schema: dict[str, Plain] = {
+            'type': 'object',
+            'required': ['value'],
+            'properties': {'value': {'const': {'k': 'v'}}},
+        }
+        frontmatter = FrontmatterSchema(schema=FrozenMapping.from_plain(schema))
+        mapping = FrozenMapping.from_plain({})
+        expected = MissingFieldProblem(
+            'value',
+            "'value' is a required property",
+            guidance=FieldGuidance(example='{"k": "v"}', allowed=('{"k": "v"}',)),
         )
 
-    @pytest.mark.parametrize(
-        ('rule', 'expected'),
-        [
-            (
-                {'type': 'string', 'examples': [{'k': 'v'}]},
-                InvalidValueProblem(
-                    'x',
-                    "1 is not of type 'string'",
-                    OtherValueConstraint(),
-                    guidance=FieldGuidance(example='{"k": "v"}'),
-                ),
-            ),
-            (
-                {'const': {'k': 'v'}},
-                InvalidValueProblem(
-                    'x',
-                    "{'k': 'v'} was expected",
-                    OneOfValues(('{"k": "v"}',)),
-                    guidance=FieldGuidance(example='{"k": "v"}', allowed=('{"k": "v"}',)),
-                ),
-            ),
-        ],
-    )
-    def test_validate_with_an_unevaluated_rule_and_object_example_or_const_returns_guidance(
-        self, rule: Plain, expected: InvalidValueProblem
-    ) -> None:
+        #: When
+        problems = frontmatter.validate(mapping)
+
+        #: Then
+        assert problems == (expected,), 'an object constant is serialized as plain JSON guidance'
+
+    def test_validate_with_an_unevaluated_rule_and_an_object_example_returns_guidance(self) -> None:
         #: Given
+        rule: dict[str, Plain] = {'type': 'string', 'examples': [{'k': 'v'}]}
         schema: dict[str, Plain] = {'type': 'object', 'unevaluatedProperties': rule}
         frontmatter = FrontmatterSchema(schema=FrozenMapping.from_plain(schema))
         mapping = FrozenMapping.from_plain({'x': 1})
+        expected = InvalidValueProblem(
+            'x',
+            "1 is not of type 'string'",
+            OtherValueConstraint(),
+            guidance=FieldGuidance(example='{"k": "v"}'),
+        )
 
         #: When
         problems = frontmatter.validate(mapping)
 
         #: Then
-        assert problems == (expected,), 'schema-valued unevaluated guidance serializes object values as JSON'
+        assert problems == (expected,), 'a schema-valued object example is serialized as plain JSON guidance'
+
+    def test_validate_with_an_unevaluated_rule_and_an_object_const_returns_guidance(self) -> None:
+        #: Given
+        rule: dict[str, Plain] = {'const': {'k': 'v'}}
+        schema: dict[str, Plain] = {'type': 'object', 'unevaluatedProperties': rule}
+        frontmatter = FrontmatterSchema(schema=FrozenMapping.from_plain(schema))
+        mapping = FrozenMapping.from_plain({'x': 1})
+        expected = InvalidValueProblem(
+            'x',
+            "{'k': 'v'} was expected",
+            OneOfValues(('{"k": "v"}',)),
+            guidance=FieldGuidance(example='{"k": "v"}', allowed=('{"k": "v"}',)),
+        )
+
+        #: When
+        problems = frontmatter.validate(mapping)
+
+        #: Then
+        assert problems == (expected,), 'a schema-valued object constant is serialized as plain JSON guidance'
 
     def test_validate_with_a_required_field_in_a_branch_returns_it_without_guidance(self) -> None:
         #: Given
