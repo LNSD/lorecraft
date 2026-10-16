@@ -22,7 +22,7 @@ check is, so the package above it decides what a refused construct means for a d
 
 - Code that scans, parses or refuses YAML text, or builds a value from what a YAML parser reports.
 - The subclasses of the YAML library's reader, scanner and parser that make it read the subset Lorecraft accepts.
-- The types that name a construct the subset leaves out, and where in the text it is written.
+- The types that name a construct the subset leaves out, as the facts a caller words it from, and where in the text it is written.
 - The tree a YAML text reads into, and the position of each of its nodes, as frozen values of this package's own.
 - A fact about YAML's grammar, such as which characters end a line or a token.
 - `reader.read_yaml(text)` and the values it returns, declared in `tree` and `problem`.
@@ -34,7 +34,7 @@ check is, so the package above it decides what a refused construct means for a d
 |---|---|
 | Reads a file, or any bytes from the disk | `lorecraft.vfs` |
 | Names a frontmatter key, a document, a diagnostic code or a line of a document | `lorecraft.project` |
-| Words a problem for the people who read a check's report | `lorecraft.project` |
+| Words a problem for the people who read a check's report, such as a refused construct's message and help | `lorecraft.project` |
 | Is generic over text and knows nothing of YAML, such as where a line ends | `lorecraft.core` |
 
 ## Invariants
@@ -50,8 +50,9 @@ check is, so the package above it decides what a refused construct means for a d
 - The library's loaders and constructors are never called: no tag resolves and no type is constructed, so the text
   can never build a value beyond what JSON holds.
 - It is a pure function of its input. It performs no I/O and holds no state between calls.
-- What the subset leaves out is refused as a typed value carrying where it is written, never as a bare library error
-  or a bare string.
+- What the subset leaves out is refused as a typed construct carrying where it is written, never as a bare library error
+  or a string. The package names constructs as types and never words them, and no docstring or code names frontmatter or a
+  diagnostic code.
 
 ## Examples
 
@@ -84,8 +85,8 @@ Before committing code, verify:
 - [ ] No library loader or constructor is called, and no library type is part of what the package returns
 - [ ] The tree builder reads the values `_events` declares, never an event or an error of the library
 - [ ] Problems are dispatched exhaustively with `match` and `assert_never`, never through runtime tuples
-- [ ] A construct the subset leaves out is returned as a `RefusedConstructProblem` that carries its position
-- [ ] Nothing here names a document, a frontmatter key or a diagnostic code
+- [ ] A construct the subset leaves out is returned as a `RefusedConstructProblem` that carries a `RefusedConstruct` type and its position, never a message
+- [ ] Nothing here names a document, a frontmatter key or a diagnostic code, in code, docstrings or tests
 
 ## References
 

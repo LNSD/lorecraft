@@ -1,18 +1,17 @@
-"""The YAML grammar frontmatter is read with: ruamel.yaml's reader, scanner and parser, bent to its format.
+"""The YAML grammar Lorecraft reads: ruamel.yaml's reader, scanner and parser, bent to its format.
 
-ruamel.yaml reads YAML 1.2 with a few YAML 1.1 habits and a stricter reading of some constructs than frontmatter
+ruamel.yaml reads YAML 1.2 with a few YAML 1.1 habits and a stricter reading of some constructs than the subset
 takes. This module holds the subclasses that make it read exactly the format adr-019 states: a scanner that
 refuses what the format leaves out, a reader that records the line separators it does not treat as breaks, and a
-parser that takes every tag handle. `project.syntax.frontmatter` decodes the events they produce; it never reaches
+parser that takes every tag handle. `lorecraft.yaml.reader` reads the events they produce; it never reaches
 ruamel.yaml another way, so no tag ruamel.yaml resolves and no type it constructs is ever involved.
 
 A construct the format leaves out is either an error raised where the scanner or the parser meets it, a
 `Refused...Error`, or a `RecordedRefusal` the scanner notes and reads on from, because it reads ahead of the parser.
-Each carries the `mark` where it is written and the `problem` as `FM002` words it.
+Each carries the `mark` where it is written and the `construct` it is, which a package above words.
 """
 
 from dataclasses import dataclass
-from enum import StrEnum
 from typing import Final, Never
 
 from ruamel.yaml.compat import check_anchorname_char
@@ -20,28 +19,45 @@ from ruamel.yaml.error import StreamMark
 from ruamel.yaml.parser import Parser
 from ruamel.yaml.reader import Reader
 from ruamel.yaml.scanner import Scanner, ScannerError
-from ruamel.yaml.tag import Tag
+from ruamel.yaml.tag import Tag as RuamelTag
 from ruamel.yaml.tokens import ScalarToken, TagToken, Token
 
 from lorecraft.core.error import Error, Unreachable
 
-from .problem import LINE_SEPARATORS
+from .problem import (
+    LINE_SEPARATORS,
+    Alias,
+    Anchor,
+    CollectionInFlow,
+    CollectionKey,
+    Directive,
+    DocumentMarker,
+    EmptyKey,
+    EscapeBeyondUnicode,
+    ExplicitKey,
+    FlowCollectionRoot,
+    IndentationIndicator,
+    LineSeparator,
+    MergeKey,
+    NestedBlockSequence,
+    NonStringKey,
+    RefusedConstruct,
+    SpreadFlowCollection,
+    Tag,
+)
 
 MERGE_KEY: Final[str] = '<<'
 """The plain key YAML 1.1 reads as a merge: the entries of the mapping an alias names join the mapping."""
 
-_NOT_ALLOWED: Final[str] = 'which frontmatter does not allow'
-"""How the problem of a refused construct ends: `found <construct>, which frontmatter does not allow`."""
-
 
 class _RefusalError(Error):
-    """A construct frontmatter leaves out that stops parsing, located where it is written.
+    """A construct the subset leaves out that stops parsing, located where it is written.
 
-    Every such construct carries the `mark` where it is written and the `problem` as `FM002` words it.
+    Every such construct carries the `mark` where it is written and the `construct` it is.
     """
 
     mark: StreamMark
-    problem: str
+    construct: RefusedConstruct
 
 
 _SPACE_CHARACTERS: Final[str] = '\0 \t\r\n'
@@ -61,44 +77,17 @@ _DIRECTIVE_NAME_END_CHARACTERS: Final[str] = _SPACE_CHARACTERS + ',[]{}:'
 """The characters that end the name a refused directive is reported by: whitespace, a flow indicator or a `:`."""
 
 
-class _RecordedConstruct(StrEnum):
-    """The constructs the scanner records without stopping, each with how the problem names it."""
-
-    EXPLICIT_KEY = 'an explicit key'
-    EMPTY_KEY = 'an empty key'
-    INDENTATION_INDICATOR = 'a block scalar indentation indicator'
-    SPREAD_FLOW_COLLECTION = 'a flow collection spread over lines'
-    # Its problem is not worded from this value: `RecordedRefusal.problem` names the character.
-    LINE_SEPARATOR = 'a line separator outside a quoted scalar'
-
-
 @dataclass(frozen=True, slots=True)
 class RecordedRefusal:
-    """A construct frontmatter leaves out, which the scanner met and recorded without stopping.
+    """A construct the subset leaves out, which the scanner met and recorded without stopping.
 
     Attributes:
         construct: Which construct it is.
         mark: Where it is written.
-        character: The line separator, for a `LINE_SEPARATOR`, and `None` for any other construct.
     """
 
-    construct: _RecordedConstruct
+    construct: RefusedConstruct
     mark: StreamMark
-    character: str | None = None
-
-    @property
-    def problem(self) -> str:
-        """The problem as `FM002` words it, `found <construct>, which frontmatter does not allow` by default."""
-        if self.character is not None:
-            return f'the block holds U+{ord(self.character):04X}, which is not a line break here'
-        return f'found {self.construct}, {_NOT_ALLOWED}'
-
-    @property
-    def help(self) -> str | None:
-        """What to do about it, or `None` where there is no more to say."""
-        if self.character is not None:
-            return 'Use a line feed, or remove it'
-        return None
 
 
 class RefusedDirectiveError(_RefusalError):
@@ -107,18 +96,18 @@ class RefusedDirectiveError(_RefusalError):
     Attributes:
         name: The `%` and the name that follows it.
         mark: Where the directive is written.
-        problem: The problem as `FM002` words it.
+        construct: The construct, as a value a package above words.
     """
 
     name: str
     mark: StreamMark
-    problem: str
+    construct: RefusedConstruct
 
     def __init__(self, name: str, mark: StreamMark) -> None:
         self.name = name
         self.mark = mark
-        self.problem = f'found the directive {name}, {_NOT_ALLOWED}'
-        super().__init__(self.problem)
+        self.construct = Directive(name)
+        super().__init__(self.construct)
 
 
 class RefusedDocumentMarkerError(_RefusalError):
@@ -127,18 +116,18 @@ class RefusedDocumentMarkerError(_RefusalError):
     Attributes:
         marker: The three characters of the marker.
         mark: Where the marker is written.
-        problem: The problem as `FM002` words it.
+        construct: The construct, as a value a package above words.
     """
 
     marker: str
     mark: StreamMark
-    problem: str
+    construct: RefusedConstruct
 
     def __init__(self, marker: str, mark: StreamMark) -> None:
         self.marker = marker
         self.mark = mark
-        self.problem = f'found the document marker {marker}, {_NOT_ALLOWED}'
-        super().__init__(self.problem)
+        self.construct = DocumentMarker(marker)
+        super().__init__(self.construct)
 
 
 class RefusedAliasError(_RefusalError):
@@ -147,18 +136,18 @@ class RefusedAliasError(_RefusalError):
     Attributes:
         anchor: The anchor's name, without the `*`.
         mark: Where the alias is written.
-        problem: The problem as `FM002` words it.
+        construct: The construct, as a value a package above words.
     """
 
     anchor: str
     mark: StreamMark
-    problem: str
+    construct: RefusedConstruct
 
     def __init__(self, anchor: str, mark: StreamMark) -> None:
         self.anchor = anchor
         self.mark = mark
-        self.problem = f'found the alias *{anchor}, {_NOT_ALLOWED}'
-        super().__init__(self.problem)
+        self.construct = Alias(anchor)
+        super().__init__(self.construct)
 
 
 class RefusedAnchorError(_RefusalError):
@@ -167,18 +156,18 @@ class RefusedAnchorError(_RefusalError):
     Attributes:
         anchor: The anchor's name, without the `&`.
         mark: Where the anchor is written.
-        problem: The problem as `FM002` words it.
+        construct: The construct, as a value a package above words.
     """
 
     anchor: str
     mark: StreamMark
-    problem: str
+    construct: RefusedConstruct
 
     def __init__(self, anchor: str, mark: StreamMark) -> None:
         self.anchor = anchor
         self.mark = mark
-        self.problem = f'found the anchor &{anchor}, {_NOT_ALLOWED}'
-        super().__init__(self.problem)
+        self.construct = Anchor(anchor)
+        super().__init__(self.construct)
 
 
 class RefusedTagError(_RefusalError):
@@ -187,18 +176,18 @@ class RefusedTagError(_RefusalError):
     Attributes:
         tag: The tag as the block writes it.
         mark: Where the tag is written.
-        problem: The problem as `FM002` words it.
+        construct: The construct, as a value a package above words.
     """
 
     tag: str
     mark: StreamMark
-    problem: str
+    construct: RefusedConstruct
 
     def __init__(self, tag: str, mark: StreamMark) -> None:
         self.tag = tag
         self.mark = mark
-        self.problem = f'found the tag {tag!r}, {_NOT_ALLOWED}'
-        super().__init__(self.problem)
+        self.construct = Tag(tag)
+        super().__init__(self.construct)
 
 
 class RefusedMergeKeyError(_RefusalError):
@@ -206,16 +195,16 @@ class RefusedMergeKeyError(_RefusalError):
 
     Attributes:
         mark: Where the key is written.
-        problem: The problem as `FM002` words it.
+        construct: The construct, as a value a package above words.
     """
 
     mark: StreamMark
-    problem: str
+    construct: RefusedConstruct
 
     def __init__(self, mark: StreamMark) -> None:
         self.mark = mark
-        self.problem = f'found the merge key {MERGE_KEY}, {_NOT_ALLOWED}'
-        super().__init__(self.problem)
+        self.construct = MergeKey()
+        super().__init__(self.construct)
 
 
 class RefusedCollectionKeyError(_RefusalError):
@@ -223,16 +212,16 @@ class RefusedCollectionKeyError(_RefusalError):
 
     Attributes:
         mark: Where the key is written.
-        problem: The problem as `FM002` words it.
+        construct: The construct, as a value a package above words.
     """
 
     mark: StreamMark
-    problem: str
+    construct: RefusedConstruct
 
     def __init__(self, mark: StreamMark) -> None:
         self.mark = mark
-        self.problem = f'found a collection as a key, {_NOT_ALLOWED}'
-        super().__init__(self.problem)
+        self.construct = CollectionKey()
+        super().__init__(self.construct)
 
 
 class RefusedNonStringKeyError(_RefusalError):
@@ -241,18 +230,18 @@ class RefusedNonStringKeyError(_RefusalError):
     Attributes:
         key: The key as written, which is empty for a key written as nothing at all.
         mark: Where the key is written.
-        problem: The problem as `FM002` words it.
+        construct: The construct, as a value a package above words.
     """
 
     key: str
     mark: StreamMark
-    problem: str
+    construct: RefusedConstruct
 
     def __init__(self, key: str, mark: StreamMark) -> None:
         self.key = key
         self.mark = mark
-        self.problem = f'found the non-string key {key}, {_NOT_ALLOWED}'
-        super().__init__(self.problem)
+        self.construct = NonStringKey(key)
+        super().__init__(self.construct)
 
 
 class RefusedFlowBlockError(_RefusalError):
@@ -260,16 +249,16 @@ class RefusedFlowBlockError(_RefusalError):
 
     Attributes:
         mark: Where the flow collection starts.
-        problem: The problem as `FM002` words it.
+        construct: The construct, as a value a package above words.
     """
 
     mark: StreamMark
-    problem: str
+    construct: RefusedConstruct
 
     def __init__(self, mark: StreamMark) -> None:
         self.mark = mark
-        self.problem = f'found a flow collection as the block, {_NOT_ALLOWED}'
-        super().__init__(self.problem)
+        self.construct = FlowCollectionRoot()
+        super().__init__(self.construct)
 
 
 class RefusedFlowNestedCollectionError(_RefusalError):
@@ -277,16 +266,16 @@ class RefusedFlowNestedCollectionError(_RefusalError):
 
     Attributes:
         mark: Where the inner collection starts.
-        problem: The problem as `FM002` words it.
+        construct: The construct, as a value a package above words.
     """
 
     mark: StreamMark
-    problem: str
+    construct: RefusedConstruct
 
     def __init__(self, mark: StreamMark) -> None:
         self.mark = mark
-        self.problem = f'found a collection inside a flow collection, {_NOT_ALLOWED}'
-        super().__init__(self.problem)
+        self.construct = CollectionInFlow()
+        super().__init__(self.construct)
 
 
 class RefusedNestedBlockSequenceError(_RefusalError):
@@ -294,16 +283,16 @@ class RefusedNestedBlockSequenceError(_RefusalError):
 
     Attributes:
         mark: Where the inner sequence starts.
-        problem: The problem as `FM002` words it.
+        construct: The construct, as a value a package above words.
     """
 
     mark: StreamMark
-    problem: str
+    construct: RefusedConstruct
 
     def __init__(self, mark: StreamMark) -> None:
         self.mark = mark
-        self.problem = f'found a block sequence as an item of a block sequence, {_NOT_ALLOWED}'
-        super().__init__(self.problem)
+        self.construct = NestedBlockSequence()
+        super().__init__(self.construct)
 
 
 class RefusedMalformedTagError(_RefusalError):
@@ -314,21 +303,21 @@ class RefusedMalformedTagError(_RefusalError):
     Attributes:
         tag: The tag as the block writes it.
         mark: Where the tag is written.
-        problem: The problem as `FM002` words it.
+        construct: The construct, as a value a package above words.
         source: The scanner's error.
     """
 
     tag: str
     mark: StreamMark
-    problem: str
+    construct: RefusedConstruct
     source: ScannerError
 
     def __init__(self, tag: str, mark: StreamMark, *, source: ScannerError) -> None:
         self.tag = tag
         self.mark = mark
-        self.problem = f'found the tag {tag!r}, {_NOT_ALLOWED}'
+        self.construct = Tag(tag)
         self.source = source
-        super().__init__(self.problem)
+        super().__init__(self.construct)
         self.__cause__ = source
 
 
@@ -337,19 +326,19 @@ class RefusedEscapeError(_RefusalError):
 
     Attributes:
         mark: Where the escape is written.
-        problem: The problem as `FM002` words it.
+        construct: The construct, as a value a package above words.
         source: The failure `chr` raised.
     """
 
     mark: StreamMark
-    problem: str
+    construct: RefusedConstruct
     source: ValueError | OverflowError
 
     def __init__(self, mark: StreamMark, *, source: ValueError | OverflowError) -> None:
         self.mark = mark
-        self.problem = f'found an escape that names no Unicode character, {_NOT_ALLOWED}'
+        self.construct = EscapeBeyondUnicode()
         self.source = source
-        super().__init__(self.problem)
+        super().__init__(self.construct)
         self.__cause__ = source
 
 
@@ -388,12 +377,12 @@ class BasicYamlParser(Parser):
     """ruamel.yaml's parser, taking a tag whose handle no directive defines as it takes `!` and `!!`.
 
     A directive is the only way to define a handle, and a directive is refused, so the parser would otherwise fail
-    on `!e!x` with an error of its own, before `project.syntax.frontmatter._peek_node_start` reaches the node, and
+    on `!e!x` with an error of its own, before `reader._peek_node_start` reaches the node, and
     report the tag ahead of a construct written above it. Taking every handle lets the tag reach that function as an
     event, refused in the order the block writes it, like `!!str`.
     """
 
-    def select_tag_transform(self, tag: Tag) -> None:
+    def select_tag_transform(self, tag: RuamelTag) -> None:
         """Make the tag resolve against every handle.
 
         Args:
@@ -427,9 +416,7 @@ class BasicYamlReader(Reader):
             for offset, character in enumerate(self.prefix(length)):
                 if character in LINE_SEPARATORS:
                     super().forward(offset)
-                    self.separator = RecordedRefusal(
-                        _RecordedConstruct.LINE_SEPARATOR, self.get_mark(), character=character
-                    )
+                    self.separator = RecordedRefusal(LineSeparator(character), self.get_mark())
                     super().forward(length - offset)
                     return
         super().forward(length)
@@ -438,8 +425,8 @@ class BasicYamlReader(Reader):
 class BasicYamlScanner(Scanner):
     r"""ruamel.yaml's scanner, reading the YAML 1.2 grammar and failing with a `ScannerError`.
 
-    A block is accepted or refused by the YAML 1.2 grammar with two rules of frontmatter's own, and a refusal names
-    the problem and the line the scanner found it on. A blank line before a block scalar's text may hold fewer
+    A block is accepted or refused by the YAML 1.2 grammar with two rules of the subset's own, and a refusal names
+    the construct and where the scanner found it. A blank line before a block scalar's text may hold fewer
     spaces than the text, and a tab is never whitespace between tokens, in a flow collection too. The scanner also
     ends a plain scalar inside a flow collection at a `:` followed by a flow indicator, which YAML 1.2 does and
     ruamel.yaml does not.
@@ -450,12 +437,12 @@ class BasicYamlScanner(Scanner):
     A directive and a document marker are refused at their indicator, before anything after it is read, so the
     block's own text never reaches ruamel.yaml's directive scanner, whose version number conversion raises a plain
     `ValueError` for more digits than Python converts to an `int`, 4300 by default. Those refusals are
-    errors of lorecraft's own, not a `ScannerError`: `decode_frontmatter` reports them as they are worded, where
-    it rewords the scanner's problems.
+    errors of lorecraft's own, not a `ScannerError`, which `read_yaml` returns as the construct they carry, where
+    it returns the scanner's problems as the facts they hold.
 
     An explicit key, an empty key, a flow collection spread over lines and a block scalar's indentation indicator
     are not refused where the scanner meets them. It records each in `refusals`, in the order the block writes them,
-    for `decode_frontmatter` to report once the read ends or fails. The scanner reads ahead of the parser, so
+    for `read_yaml` to report once the read ends or fails. The scanner reads ahead of the parser, so
     raising at once would report a construct written below a tag or an anchor before the tag or the anchor. It
     holds `_flow_start`, where the outermost open flow collection begins, to tell a collection spread over lines.
 
@@ -463,8 +450,8 @@ class BasicYamlScanner(Scanner):
     or tag they are. The tag's refusal is chained from the scanner's error.
 
     A double-quoted `\U` escape above `U+10FFFF` is the one other place a plain Python exception escapes: `chr`
-    raises a `ValueError`, or an `OverflowError` for one too large for a C `int`. It is refused here, on the
-    escape's line, as `decode_frontmatter` refuses every construct frontmatter does not allow.
+    raises a `ValueError`, or an `OverflowError` for one too large for a C `int`. It is refused here, at
+    the escape, as `read_yaml` refuses every construct the subset leaves out.
     """
 
     def __init__(self, loader: object = None) -> None:
@@ -492,7 +479,7 @@ class BasicYamlScanner(Scanner):
         """Refuse a directive, a `%` line, naming it by the `%` and the name that follows it.
 
         Raises:
-            RefusedDirectiveError: Always: frontmatter holds no directive.
+            RefusedDirectiveError: Always: the subset holds no directive.
         """
         start_mark = self.reader.get_mark()
         length = 1
@@ -577,7 +564,7 @@ class BasicYamlScanner(Scanner):
         # `[what ? x]`, is part of a plain scalar in YAML 1.2, and the scanner has stopped allowing a node by then,
         # so it is left to the parser. After `[`, `{`, `,` or the start of a block line, a node may start.
         if self.allow_simple_key:
-            self.refusals.append(RecordedRefusal(_RecordedConstruct.EXPLICIT_KEY, self.reader.get_mark()))
+            self.refusals.append(RecordedRefusal(ExplicitKey(), self.reader.get_mark()))
         super().fetch_key()
 
     def fetch_value(self) -> None:
@@ -586,7 +573,7 @@ class BasicYamlScanner(Scanner):
         # and a key allowed here, the key is written as nothing. Where a key is not allowed, as after `a: b`, the
         # scanner fails with its own problem, which is a syntax error of the value, not an empty key.
         if self.flow_level not in self.possible_simple_keys and (self.flow_level or self.allow_simple_key):
-            self.refusals.append(RecordedRefusal(_RecordedConstruct.EMPTY_KEY, self.reader.get_mark()))
+            self.refusals.append(RecordedRefusal(EmptyKey(), self.reader.get_mark()))
         super().fetch_value()
 
     def fetch_flow_collection_start(self, TokenClass: type[Token], to_push: str) -> None:
@@ -624,7 +611,7 @@ class BasicYamlScanner(Scanner):
             # SAFETY: the base method's return type is `Any`; it reads a digit as an integer
             raise Unreachable('the indentation indicator is an integer or absent')
         if increment is not None:
-            self.refusals.append(RecordedRefusal(_RecordedConstruct.INDENTATION_INDICATOR, start_mark))
+            self.refusals.append(RecordedRefusal(IndentationIndicator(), start_mark))
         return chomping, increment
 
     def scan_flow_scalar_breaks(self, double: bool, start_mark: StreamMark) -> list[str]:
@@ -678,7 +665,7 @@ class BasicYamlScanner(Scanner):
             return [whitespaces]
         return _strings(super().scan_flow_scalar_spaces(double, start_mark))
 
-    # The two methods below are rules of frontmatter's own, not ruamel.yaml's reading of YAML 1.2.
+    # The two methods below are rules of the subset's own, not ruamel.yaml's reading of YAML 1.2.
 
     def scan_block_scalar_indentation(self) -> tuple[list[str], int, StreamMark]:
         """Scan the blank lines before a block scalar's text, and the widest indent among them.
@@ -781,7 +768,7 @@ class BasicYamlScanner(Scanner):
         A tab is a character that cannot start a token, so `[a,\tb]` is refused. Where the next token is on a later
         line than the one the flow collection it is in opened on, the collection is recorded as a refusal.
         """
-        # ruamel.yaml skips a tab inside a flow collection, as YAML 1.2 allows; frontmatter refuses it, so that a tab
+        # ruamel.yaml skips a tab inside a flow collection, as YAML 1.2 allows; the subset refuses it, so that a tab
         # is never whitespace between tokens.
         if self.reader.index == 0 and self.reader.peek() == '\ufeff':
             self.reader.forward()
@@ -804,7 +791,7 @@ class BasicYamlScanner(Scanner):
         if self._flow_start is not None and self.reader.line != self._flow_start.line:
             # This runs for every token below the opening line, and the collection is refused once.
             if not any(refusal.mark is self._flow_start for refusal in self.refusals):
-                self.refusals.append(RecordedRefusal(_RecordedConstruct.SPREAD_FLOW_COLLECTION, self._flow_start))
+                self.refusals.append(RecordedRefusal(SpreadFlowCollection(), self._flow_start))
 
     def check_value(self) -> bool:
         """Whether the `:` the reader is on is a value indicator, which includes one before a flow indicator."""

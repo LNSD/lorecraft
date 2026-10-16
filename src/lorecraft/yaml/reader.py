@@ -146,12 +146,11 @@ def _refused(refusal: RecordedRefusal | _RefusalError) -> RefusedConstructProble
     Args:
         refusal: The construct, as the scanner recorded it or as the read stopped on it.
     """
-    refusal_help = refusal.help if isinstance(refusal, RecordedRefusal) else None
     position = _position_of_mark(refusal.mark)
     if position is None:
         # SAFETY: a refusal is marked where it is written.
         raise Unreachable('a refused construct has a mark')
-    return RefusedConstructProblem(message=refusal.problem, help=refusal_help, position=position)
+    return RefusedConstructProblem(construct=refusal.construct, position=position)
 
 
 def _position_of(node: NodeStart) -> YamlPosition:

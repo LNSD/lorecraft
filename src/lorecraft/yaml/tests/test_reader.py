@@ -6,7 +6,15 @@ import pytest
 
 from lorecraft.core.num import NonZeroUnsignedInt
 
-from ..problem import ControlCharacterProblem, NestingTooDeepProblem, RefusedConstructProblem, SyntaxErrorProblem
+from ..problem import (
+    Alias,
+    ControlCharacterProblem,
+    ExplicitKey,
+    FlowCollectionRoot,
+    NestingTooDeepProblem,
+    RefusedConstructProblem,
+    SyntaxErrorProblem,
+)
 from ..reader import read_yaml
 from ..tree import YamlMapping, YamlPosition, YamlScalar, YamlSequence
 
@@ -201,9 +209,9 @@ class TestReadYaml:
         problem = read_yaml(text)
 
         #: Then
-        assert problem == RefusedConstructProblem(
-            message='found the alias *x, which frontmatter does not allow', help=None, position=_at(1, 4)
-        ), f'an alias is refused where it is written, got {problem!r}'
+        assert problem == RefusedConstructProblem(Alias('x'), _at(1, 4)), (
+            f'an alias is refused where it is written, got {problem!r}'
+        )
 
     def test_read_yaml_with_a_flow_collection_as_the_whole_text_returns_the_refused_construct(self) -> None:
         #: Given
@@ -213,11 +221,9 @@ class TestReadYaml:
         problem = read_yaml(text)
 
         #: Then
-        assert problem == RefusedConstructProblem(
-            message='found a flow collection as the block, which frontmatter does not allow',
-            help=None,
-            position=_at(1, 1),
-        ), f'a flow collection is not a block, got {problem!r}'
+        assert problem == RefusedConstructProblem(FlowCollectionRoot(), _at(1, 1)), (
+            f'a flow collection is not a block, got {problem!r}'
+        )
 
     def test_read_yaml_with_a_control_character_returns_its_code_and_index(self) -> None:
         #: Given
@@ -249,9 +255,9 @@ class TestReadYaml:
         problem = read_yaml(text)
 
         #: Then
-        assert problem == RefusedConstructProblem(
-            message='found an explicit key, which frontmatter does not allow', help=None, position=_at(1, 1)
-        ), f'an explicit key is recorded where it is written, got {problem!r}'
+        assert problem == RefusedConstructProblem(ExplicitKey(), _at(1, 1)), (
+            f'an explicit key is recorded where it is written, got {problem!r}'
+        )
 
     def test_read_yaml_with_a_construct_below_an_error_returns_the_construct_written_first(self) -> None:
         #: Given
