@@ -9,13 +9,18 @@ import pytest
 
 from ..parser import (
     ContentBlock,
-    HeadingBlock,
+    HeadingLevel,
+    MarkdownHeading,
     MarkdownLine,
     MarkdownLink,
     MarkdownTree,
     parse_markdown,
     parse_markdown_frontmatter,
 )
+
+
+def _heading(level: HeadingLevel, text: str, line: int, *, top_level: bool = True) -> MarkdownHeading:
+    return MarkdownHeading(level=level, text=text, rendered_text=text, line=MarkdownLine(line), top_level=top_level)
 
 
 @pytest.mark.unit
@@ -35,7 +40,7 @@ class TestParseMarkdown:
 
         #: Then
         heading = tree.blocks[0]
-        assert isinstance(heading, HeadingBlock)
+        assert isinstance(heading, MarkdownHeading)
         assert heading.text == expected, 'inline markup is stripped while its text is preserved'
 
     def test_parse_markdown_with_a_heading_and_a_paragraph_returns_both_as_blocks(self) -> None:
@@ -48,10 +53,10 @@ class TestParseMarkdown:
         #: Then
         assert tree == MarkdownTree(
             blocks=(
-                HeadingBlock(level=1, text='Guide', line=MarkdownLine(1)),
+                _heading(1, 'Guide', 1),
                 ContentBlock(source_outside_code=('Some prose.\n',)),
             ),
-            heading_texts=('Guide',),
+            headings=(_heading(1, 'Guide', 1),),
             links=(),
         ), 'a heading is a block with its level, text and line, and a paragraph a block of its source'
 
@@ -63,9 +68,7 @@ class TestParseMarkdown:
         tree = parse_markdown(text)
 
         #: Then
-        assert tree.blocks == (HeadingBlock(level=1, text='Title', line=MarkdownLine(1)),), (
-            'an underlined title is a heading as much as a `#` one'
-        )
+        assert tree.blocks == (_heading(1, 'Title', 1),), 'an underlined title is a heading as much as a `#` one'
 
     def test_parse_markdown_with_a_fenced_code_block_returns_no_source_for_it(self) -> None:
         #: Given
@@ -102,10 +105,10 @@ class TestParseMarkdown:
         #: Then
         assert tree.blocks == (
             ContentBlock(source_outside_code=('> # Quoted\n',)),
-            HeadingBlock(level=2, text='Real', line=MarkdownLine(3)),
+            _heading(2, 'Real', 3),
         ), 'a quoted heading is part of the blockquote, not a block of its own'
 
-    def test_parse_markdown_with_a_heading_in_a_blockquote_returns_its_text_among_the_heading_texts(self) -> None:
+    def test_parse_markdown_with_a_heading_in_a_blockquote_returns_it_among_the_headings_as_not_top_level(self) -> None:
         #: Given
         text = '> # Quoted\n\n## Real\n'
 
@@ -113,7 +116,9 @@ class TestParseMarkdown:
         tree = parse_markdown(text)
 
         #: Then
-        assert tree.heading_texts == ('Quoted', 'Real'), 'every heading at any depth has its text, in document order'
+        assert tree.headings == (_heading(1, 'Quoted', 1, top_level=False), _heading(2, 'Real', 3)), (
+            'every heading at any depth is read, in document order, and only the real one is top-level'
+        )
 
     def test_parse_markdown_with_html_and_an_image_in_a_heading_keeps_both_in_the_block_text(self) -> None:
         #: Given
@@ -123,9 +128,11 @@ class TestParseMarkdown:
         tree = parse_markdown(text)
 
         #: Then
-        assert tree.blocks == (HeadingBlock(level=1, text='Hi \n<b>\nx\n</b>\n alt', line=MarkdownLine(1)),), (
-            "the heading block's plain text keeps inline HTML and an image's alt text"
-        )
+        assert tree.blocks == (
+            MarkdownHeading(
+                level=1, text='Hi \n<b>\nx\n</b>\n alt', rendered_text='Hi x ', line=MarkdownLine(1), top_level=True
+            ),
+        ), "the heading block's plain text keeps inline HTML and an image's alt text"
 
     def test_parse_markdown_with_html_and_an_image_in_a_heading_drops_both_from_the_rendered_text(self) -> None:
         #: Given
@@ -135,7 +142,9 @@ class TestParseMarkdown:
         tree = parse_markdown(text)
 
         #: Then
-        assert tree.heading_texts == ('Hi x ',), 'the rendered text drops inline HTML and an image, as GitHub does'
+        assert [heading.rendered_text for heading in tree.headings] == ['Hi x '], (
+            'the rendered text drops inline HTML and an image, as GitHub does'
+        )
 
     def test_parse_markdown_with_links_at_any_depth_returns_each_on_its_line_in_document_order(self) -> None:
         #: Given
@@ -160,8 +169,8 @@ class TestParseMarkdown:
 
         #: Then
         assert tree.blocks == (
-            HeadingBlock(level=1, text='Guide', line=MarkdownLine(1)),
-            HeadingBlock(level=2, text='Usage', line=MarkdownLine(3)),
+            _heading(1, 'Guide', 1),
+            _heading(2, 'Usage', 3),
         ), 'a CRLF line ending counts as one line break'
 
     def test_parse_markdown_with_crlf_line_endings_returns_each_link_and_later_heading_on_its_document_line(
@@ -178,7 +187,7 @@ class TestParseMarkdown:
             MarkdownLink(url='a.md', line=MarkdownLine(6)),
             MarkdownLink(url='b.md', line=MarkdownLine(8)),
         ), 'each link after a frontmatter block and CRLF line endings is on its document line'
-        assert tree.blocks[-1] == HeadingBlock(level=2, text='Usage', line=MarkdownLine(10)), (
+        assert tree.blocks[-1] == _heading(2, 'Usage', 10), (
             'a heading past several CRLF line endings is on its document line'
         )
 
@@ -190,7 +199,7 @@ class TestParseMarkdown:
         tree = parse_markdown(text)
 
         #: Then
-        assert tree.blocks == (HeadingBlock(level=1, text='Guide', line=MarkdownLine(4)),), (
+        assert tree.blocks == (_heading(1, 'Guide', 4),), (
             'the frontmatter block is no Markdown block, and the heading after it keeps its document line'
         )
 
@@ -235,7 +244,7 @@ class TestCommonMarkOnly:
                 ContentBlock(source_outside_code=('| a | b |\n|---|---|\n| 1 | 2 |\n',)),
                 ContentBlock(source_outside_code=('~~gone~~ and https://example.com\n',)),
             ),
-            heading_texts=(),
+            headings=(),
             links=(),
         ), 'the table is one paragraph, and neither the strikethrough nor the bare URL is a node'
 

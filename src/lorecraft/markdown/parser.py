@@ -86,18 +86,24 @@ _FULL_PARSER: Final[Wenmode] = Wenmode(
 
 
 @dataclass(frozen=True, slots=True)
-class HeadingBlock:
-    """One of the document's own top-level blocks that is a heading.
+class MarkdownHeading:
+    """A heading anywhere in the document, with both texts it is read as.
 
     Attributes:
         level: The heading depth, 1 for a title through 6.
         text: The heading's plain text, inline markup stripped, inline HTML and an image's text kept.
+        rendered_text: The text the heading renders as, which GitHub derives its anchor from: inline HTML and an
+            image give no text here, unlike in `text`.
         line: The document line the heading starts on.
+        top_level: Whether the heading is one of the document's own top-level blocks, rather than inside a
+            blockquote or a list item.
     """
 
     level: HeadingLevel
     text: str
+    rendered_text: str
     line: MarkdownLine
+    top_level: bool
 
 
 @dataclass(frozen=True, slots=True)
@@ -120,14 +126,13 @@ class MarkdownTree:
     Attributes:
         blocks: The document's own top-level blocks, in document order. A heading inside a blockquote or a list
             item is part of that block, not a block of its own.
-        heading_texts: The text every heading anywhere in the document renders as, nested ones included, in
-            document order: what GitHub derives a heading's anchor from. Unlike `HeadingBlock.text`, inline HTML
-            and an image give no text here.
+        headings: Every heading anywhere in the document, nested ones included, in document order. The top-level
+            ones are the same values as the heading blocks.
         links: Every link and image anywhere in the document, nested ones included, in document order.
     """
 
-    blocks: tuple[HeadingBlock | ContentBlock, ...]
-    heading_texts: tuple[str, ...]
+    blocks: tuple[MarkdownHeading | ContentBlock, ...]
+    headings: tuple[MarkdownHeading, ...]
     links: tuple[MarkdownLink, ...]
 
 
@@ -144,12 +149,13 @@ def parse_markdown(text: str) -> MarkdownTree:
     # Built once per document, so that a node's line is a binary search rather than a count from the start of the
     # text, which would make a parse cost every node times the document's size.
     newlines = newline_offsets(text)
-    heading_texts: list[str] = []
+    top_level = {id(block) for block in root.children}
+    headings: dict[int, MarkdownHeading] = {}
     links: list[MarkdownLink] = []
-    _collect_headings_and_links(newlines, root, heading_texts, links)
+    _collect_headings_and_links(newlines, top_level, root, headings, links)
     return MarkdownTree(
-        blocks=tuple(_block(text, newlines, block) for block in root.children),
-        heading_texts=tuple(heading_texts),
+        blocks=tuple(headings.get(id(block)) or _content(text, block) for block in root.children),
+        headings=tuple(headings.values()),
         links=tuple(links),
     )
 
@@ -194,20 +200,13 @@ def _find_frontmatter_block(text: str) -> str | None:
     return None
 
 
-def _block(text: str, newlines: tuple[int, ...], node: Node) -> HeadingBlock | ContentBlock:
-    r"""One of the root's own blocks, as a heading with its level, text and line, or as the source of any other.
+def _content(text: str, node: Node) -> ContentBlock:
+    """One of the root's own blocks that is not a heading, as its source outside any code block.
 
     Args:
         text: The document's text, which the block's position indexes into.
-        newlines: The offset where each line break in `text` starts, as `newline_offsets` returns them.
         node: One of the root's children, in the tree `parse_markdown` parsed.
     """
-    if isinstance(node, WenmodeHeading):
-        return HeadingBlock(
-            level=_heading_level(node.depth),
-            text=_plain_text(node.children),
-            line=_line(newlines, _position(node)),
-        )
     return ContentBlock(source_outside_code=_source_outside_code(text, node))
 
 
@@ -265,28 +264,39 @@ def _code_spans(node: Node) -> list[Position]:
 
 
 def _collect_headings_and_links(
-    newlines: tuple[int, ...], node: Node, heading_texts: list[str], links: list[MarkdownLink]
+    newlines: tuple[int, ...],
+    top_level: set[int],
+    node: Node,
+    headings: dict[int, MarkdownHeading],
+    links: list[MarkdownLink],
 ) -> None:
-    r"""Append the rendered text of every heading, and every link and image, in the node and below it.
+    r"""Add every heading, and append every link and image, in the node and below it, in one walk.
 
-    The whole tree is walked, unlike for the blocks: a heading in a list item or a blockquote still renders with
-    an anchor a link can name, and a link there is as much the document's as one in a top-level paragraph. Both
-    lists grow in document order, and an image inside a link's text comes after that link.
+    The whole tree is walked: a heading in a list item or a blockquote still renders with an anchor a link can
+    name, and a link there is as much the document's as one in a top-level paragraph. Both collections grow in
+    document order, and an image inside a link's text comes after that link.
 
     Args:
         newlines: The offset where each line break in the document's text starts, as `newline_offsets` returns them,
-            which gives each link its line from its position.
+            which gives each heading and link its line from its position.
+        top_level: The identity of each of the root's own children, which marks a heading as top-level.
         node: Root of the subtree to walk; a leaf is walked as itself.
-        heading_texts: Where each heading's rendered text is appended.
+        headings: Where each heading is added, keyed by its node's identity so the blocks reuse the same values.
         links: Where each link and image is appended.
     """
     if isinstance(node, WenmodeHeading):
-        heading_texts.append(_rendered_text(node.children))
+        headings[id(node)] = MarkdownHeading(
+            level=_heading_level(node.depth),
+            text=_plain_text(node.children),
+            rendered_text=_rendered_text(node.children),
+            line=_line(newlines, _position(node)),
+            top_level=id(node) in top_level,
+        )
     if isinstance(node, WenmodeLink | Image):
         links.append(MarkdownLink(url=node.url, line=_line(newlines, _position(node))))
     if isinstance(node, Parent):
         for child in node.children:
-            _collect_headings_and_links(newlines, child, heading_texts, links)
+            _collect_headings_and_links(newlines, top_level, child, headings, links)
 
 
 def _rendered_text(nodes: list[Node]) -> str:
@@ -294,7 +304,7 @@ def _rendered_text(nodes: list[Node]) -> str:
 
     Text and inline code give their text, and emphasis, a link and any other container give their children's.
     Inline HTML gives nothing, since GitHub renders it as markup rather than text, and neither does an image: the
-    rendered `<img>` holds no text. Unlike `_plain_text` (the text kept in `HeadingBlock.text`), anchor text drops
+    rendered `<img>` holds no text. Unlike `_plain_text` (the text kept in `MarkdownHeading.text`), anchor text drops
     inline HTML and images.
 
     Args:
@@ -331,7 +341,7 @@ def _plain_text(nodes: list[Node]) -> str:
 
 
 def _plain_text_node(node: Node) -> str:
-    """A node's contribution to the plain text kept in `HeadingBlock.text`."""
+    """A node's contribution to the plain text kept in `MarkdownHeading.text`."""
     if isinstance(node, Image):
         return node.alt
     if isinstance(node, LiteralNode):
