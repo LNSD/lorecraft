@@ -257,7 +257,7 @@ class EngineDiagnostic:
 
 
 type Diagnostic = RuleDiagnostic | EngineDiagnostic
-type SubjectReport = CheckedDocument | CheckedSkillFile | UndecodableSubject | CheckedLayoutEntry | SkippedSubject
+type SubjectReport = CheckedItem | UndecodableSubject | CheckedLayoutEntry | SkippedSubject
 ```
 
 - **A diagnostic holds its occurrence** and copies none of its fields. The code, the message, the labels, the
@@ -270,7 +270,7 @@ type SubjectReport = CheckedDocument | CheckedSkillFile | UndecodableSubject | C
 - **An undecodable subject has one diagnostic and no coverage**, which the union states: the engine's
   `InvalidUtf8` (`LC001`) at its path, since no rule judged it.
 - **A skill file has no coverage either.** The package governs every skill and resource for every facet, so a
-  `CheckedSkillFile` holds no ungoverned facets; only a `CheckedDocument` does.
+  `CheckedItem` for a skill holds no ungoverned facets; a `CheckedItem` for a document may hold them.
 - **A layout entry is reported by its path, and has no coverage.** It is not a document, a skill or a resource, so
   it has no subject reference, and no meta spec governs it, so it can never be ungoverned. Its diagnostics take the
   same shape as every other subject's.
