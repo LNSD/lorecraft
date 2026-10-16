@@ -26,7 +26,7 @@ third-party libraries.
 - The adapter that reads `jsonschema` or `referencing` values and turns them into Lorecraft-owned facts.
 - `Violation` values with the verbatim message, typed keyword, paths and evaluated-property facts needed by callers.
 - Validation results exposed through the public vocabulary, without validator records.
-- Schema inspection results exposed through owned failures, without validator or reference-library records.
+- Code that checks schema structure and references belongs here.
 - Code that resolves references for a subschema belongs here.
 - The public vocabulary imported by callers from `lorecraft.jsonschema`.
 
