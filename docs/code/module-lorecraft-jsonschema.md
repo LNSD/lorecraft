@@ -23,6 +23,7 @@ third-party libraries.
 
 - The accepted JSON Schema dialect and the JSON types named by its `type` keyword.
 - Typed values for keywords Lorecraft reads from validation errors.
+- Schema walking, local-reference resolution and same-instance reference-cycle analysis within JSON Schemas.
 - The adapter that reads `jsonschema` or `referencing` values and turns them into Lorecraft-owned facts.
 - `Violation` values with the verbatim message, typed keyword, paths and evaluated-property facts needed by callers.
 - Validation results exposed through the public vocabulary, without validator records.
@@ -44,7 +45,8 @@ third-party libraries.
 - The layers contract places this package beside `lorecraft.yaml`, above `lorecraft.core`; neither package imports the other.
 - This package imports only `lorecraft.core` from Lorecraft, so it can be used below `lorecraft.project` without a cycle.
 - `project`, `rules` and `cli` may import this package's public vocabulary; this inbound use is separate from third-party library containment.
-- `jsonschema` and `referencing` are imported only here.
+- `jsonschema` and `referencing` are imported only here. Schema walking, local-reference resolution and same-instance
+  reference-cycle analysis stay behind the JSON Schema package boundary; reference-library types do not cross it.
 - No library type escapes the package boundary; callers receive Lorecraft-owned vocabulary and facts.
 - Validation returns problems as values and raises nothing for an invalid instance.
 - `format` remains annotation-only; validation does not assert format semantics.

@@ -2,6 +2,7 @@
 
 from .dialect import DIALECT
 from .json_type import JsonType, JsonTypes
+from .schema_check import find_same_instance_ref_cycle, is_resolved_inside, iter_schemas
 from .schema_inspection import (
     SchemaCheckFailure,
     SchemaHasIdentifier,
@@ -54,4 +55,7 @@ __all__: list[str] = [
     'check_schema',
     'validate',
     'best_violation',
+    'find_same_instance_ref_cycle',
+    'is_resolved_inside',
+    'iter_schemas',
 ]
