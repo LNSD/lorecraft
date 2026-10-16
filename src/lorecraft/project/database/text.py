@@ -1,9 +1,9 @@
 """The decoded text of a file, as the database's decode queries return it: a witness, or an undecodable marker.
 
-A witness holds a ref and that ref's bytes decoded as UTF-8, one type per kind of file, so a document's text cannot
-be passed where a skill's is asked for. Every per-file query of the `Database` takes a witness rather than a bare
-ref, so asking for a fact of a file that does not decode cannot be written: a caller matches the decode query's
-answer once, and no later reader carries a branch for an undecodable file.
+A witness holds a ref and that ref's bytes decoded as UTF-8, one type for a governed item and one for a skill's
+resource, so an item's text cannot be passed where a resource's is asked for. Every per-file query of the `Database`
+takes a witness rather than a bare ref, so asking for a fact of a file that does not decode cannot be written: a
+caller matches the decode query's answer once, and no later reader carries a branch for an undecodable file.
 
 Only the database builds a witness. Python has no private constructor, so nothing stops another caller from
 building one; forged text would still be text, but no longer that ref's bytes. A witness also belongs to the
@@ -13,7 +13,7 @@ database that built it, which no type records, so it never leaves the run that a
 from dataclasses import dataclass
 
 from lorecraft.project.item import MarkdownItemDescriptor, MarkdownItemRef
-from lorecraft.project.skill import SkillLocation, SkillRef, SkillResourceRef
+from lorecraft.project.skill import SkillResourceRef
 from lorecraft.vfs import Utf8Failure
 
 
@@ -36,24 +36,6 @@ class ItemText:
 
 
 @dataclass(frozen=True, slots=True)
-class SkillText:
-    """One skill's `SKILL.md` bytes, decoded; built only by `Database.skill_text`.
-
-    Attributes:
-        location: Where the skill's files live, as the database's model located the skill the text was read from.
-        text: The whole `SKILL.md`, frontmatter included.
-    """
-
-    location: SkillLocation
-    text: str
-
-    @property
-    def ref(self) -> SkillRef:
-        """The skill whose `SKILL.md` the text was read from, the key of every per-file query."""
-        return self.location.ref
-
-
-@dataclass(frozen=True, slots=True)
 class SkillResourceText:
     """One resource's bytes, decoded; built only by `Database.skill_resource_text`.
 
@@ -67,7 +49,7 @@ class SkillResourceText:
 
 
 @dataclass(frozen=True, slots=True)
-class Undecodable[R: (SkillRef, SkillResourceRef, MarkdownItemRef)]:
+class Undecodable[R: (SkillResourceRef, MarkdownItemRef)]:
     """A file whose bytes are not UTF-8: what a decode query returns instead of a witness.
 
     The type parameter is the kind of ref the file is named by, so each decode query returns the marker of its own

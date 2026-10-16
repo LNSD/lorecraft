@@ -24,7 +24,7 @@ from lorecraft.core.num import NonZeroUnsignedInt, UnsignedInt
 from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
-from lorecraft.project.database import Database, ItemText, SkillResourceText, SkillText, Undecodable
+from lorecraft.project.database import Database, ItemText, SkillResourceText, Undecodable
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.item import MarkdownItemRef
 from lorecraft.project.layout import LinkedLayoutError
@@ -102,7 +102,7 @@ def _skill_snapshot(skill: bytes) -> Snapshot:
 
 
 def _document_text(database: Database, ref: DocumentRef) -> ItemText:
-    """The witness of a document the test wrote as UTF-8, as the database decodes it by its common reference.
+    """The witness of a document the test wrote as UTF-8, as the database decodes it.
 
     Args:
         database: The database the document is decoded by.
@@ -662,26 +662,25 @@ class TestDatabase:
         #: Then
         assert lines == UnsignedInt(5), f'the frontmatter counts too, and the final newline adds no line, got {lines}'
 
-    def test_skill_text_of_a_utf8_skill_returns_its_witness(self) -> None:
+    def test_item_text_of_a_utf8_skill_returns_its_witness(self) -> None:
         #: Given
         database = Database.from_snapshot(_skill_snapshot(b'---\nname: review\n---\n'))
-        location = _location(database, REVIEW)
-
         #: When
-        source = database.skill_text(location)
+        source = database.item_text(MarkdownItemRef(REVIEW.path))
 
         #: Then
-        assert source == SkillText(_location(database, REVIEW), '---\nname: review\n---\n'), (
-            'the witness holds the model-issued location and the text'
+        assert isinstance(source, ItemText), 'the skill is UTF-8, so it decodes'
+        assert source.ref == MarkdownItemRef(REVIEW.path), 'the witness holds the common ref of the skill'
+        assert source.text == '---\nname: review\n---\n', 'the witness holds the skill text'
+        assert source.descriptor.read_location == _location(database, REVIEW).file_resolves_to, (
+            'the text is read from the location the model issued'
         )
 
-    def test_skill_text_of_a_skill_that_is_not_utf8_returns_undecodable(self) -> None:
+    def test_item_text_of_a_skill_that_is_not_utf8_returns_undecodable(self) -> None:
         #: Given
         database = Database.from_snapshot(_skill_snapshot(b'---\nname: caf\xe9\n---\n'))
-        location = _location(database, REVIEW)
-
         #: When
-        source = database.skill_text(location)
+        source = database.item_text(MarkdownItemRef(REVIEW.path))
 
         #: Then
         failure = Utf8Failure(
@@ -690,18 +689,17 @@ class TestDatabase:
             invalid=b'\xe9',
             reason=Utf8Reason.INVALID_CONTINUATION_BYTE,
         )
-        assert source == Undecodable(REVIEW, failure), (
+        assert source == Undecodable(MarkdownItemRef(REVIEW.path), failure), (
             'a decode failure is an answer naming the skill and where its bytes stop being UTF-8, not an error'
         )
 
-    def test_skill_text_of_a_skill_that_is_not_utf8_called_twice_returns_the_first_answer(self) -> None:
+    def test_item_text_of_a_skill_that_is_not_utf8_called_twice_returns_the_first_answer(self) -> None:
         #: Given
         database = Database.from_snapshot(_skill_snapshot(b'---\nname: caf\xe9\n---\n'))
-        first = database.skill_text(_location(database, REVIEW))
-        location = _location(database, REVIEW)
+        first = database.item_text(MarkdownItemRef(REVIEW.path))
 
         #: When
-        second = database.skill_text(location)
+        second = database.item_text(MarkdownItemRef(REVIEW.path))
 
         #: Then
         assert second is first, 'an undecodable skill is cached like any answer, so it is decoded once'

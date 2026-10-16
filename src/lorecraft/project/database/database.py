@@ -10,10 +10,8 @@ file at the descriptor's read location into one `ItemText` witness or an `Undeco
 `item_parse`, `item_token_count`, `item_line_count`, `item_link_targets`, `item_governance`, `item_schema_problems`,
 `item_outline_alignment` and `item_outline_divergences` take that witness and are computed on first demand. Link targets
 read the descriptor's link base, so no query tells a document from a skill entry; the analyses read
-`item_governance(ref)`, never the whole model. `skill_text(location)` remains as a compatibility entry point that
-delegates to this family and keeps no cache of its own beyond the witness it wraps, until the callers migrate; its
-carry-over rules are the family's. A document the model does not list is answered for by the corpus and filename its
-path names.
+`item_governance(ref)`, never the whole model. A document the model does not list is answered for by the corpus and
+filename its path names. A skill's resources are the one kind of file still queried apart.
 
 Input queries read the snapshot. Each is the one place its part of the snapshot becomes a value for a rule, so only an
 input query builds a witness or fails to read, and each states its own carry-over rule against the change set:
@@ -26,8 +24,6 @@ input query builds a witness or fails to read, and each states its own carry-ove
 - `item_text(ref)`: one document's or skill entry's bytes decoded as UTF-8, like the IDE's document text for a file: an
   `ItemText` witness, or an `Undecodable` marker when the bytes are not UTF-8. It is the one place their bytes become
   text for a rule, and it reads that file's bytes and nothing else.
-- `skill_text(location)`: one skill's `SKILL.md` decoded, the same document text: a `SkillText` witness, or an
-  `Undecodable` marker. It reads that skill's bytes and nothing else.
 - `skill_resources(skill)`: one skill's resources, the Markdown files inside it other than its top-level `SKILL.md`,
   like the IDE's listing of a content root's children, and the symlinks inside it whose chain leaves the
   repository. It reads the listings and the symlink targets reached from that skill, and where the model locates
@@ -38,12 +34,12 @@ input query builds a witness or fails to read, and each states its own carry-ove
   through the links it recorded, like the IDE's index of a project's content roots. It reads the snapshot's
   scope, links and climbed directories and nothing else, and no caller reaches it but `is_in_scope` and the
   link-target queries.
-- `item_link_targets(source)` and `skill_resource_link_targets(source)`: what the
-  snapshot holds at the target of each relative link of one item, `SKILL.md` or resource, like the IDE's index of a
-  file's references resolved against the virtual file system. Each hands the file's parse, where its links are read
-  from, the snapshot's view and the scope index to `link_targets_of`, which reads, for each path a link names, the
-  snapshot's records on the way to it, so each is an input query: it is kept only when its parse is kept and every
-  path it looked up, an absent target included, still resolves to the same place and is in the same scope state.
+- `item_link_targets(source)` and `skill_resource_link_targets(source)`: what the snapshot holds at the target of each
+  relative link of one item or resource, like the IDE's index of a file's references resolved against the virtual file
+  system. Each hands the file's parse, where its links are read from, the snapshot's view and the scope index to
+  `link_targets_of`, which reads, for each path a link names, the snapshot's records on the way to it, so each is an
+  input query: it is kept only when its parse is kept and every path it looked up, an absent target included, still
+  resolves to the same place and is in the same scope state.
 
 Derived queries read the results of other queries and never the snapshot. Each hands what it read to one function
 of this package that computes the value, so its arguments are its read set, and it carries over whenever every query
@@ -103,10 +99,9 @@ Nothing here records what a cached value read, so no dependency is tracked. Inva
 way the IDE drops per-file index entries on a file change event and resets structural caches on a project model change.
 Reserved, not implemented: `advance(snapshot) -> Database`, the next state. It would `diff` the two snapshots and carry
 over each cached value the change set leaves valid: the decoded text, the frontmatter, the parse, the token count and
-the line count of every document whose bytes did not change, and its schema problems, outline alignment and outline
-divergences too when its governance carries over, the governance of every document the next model governs by equal
-specifications, the decoded text, the frontmatter, the parse, the line count and the schema problems of every skill
-whose bytes did not, the resources of every skill and the decoded text and the parse of every resource as their own
+the line count of every item whose bytes did not change, and its schema problems, outline alignment and outline
+divergences too when its governance carries over, the governance of every item the next model governs by equal
+specifications, the resources of every skill and the decoded text and the parse of every resource as their own
 docstrings state, and the model unless one of these changes invalidates it. An entry added or deleted under `docs/`
 invalidates it. So does an entry added or deleted in a skills directory, or in a skill's directory, both where the
 skill's entry names it and where a link leads it. So does an entry added or deleted at the resolved path a skill's
@@ -176,7 +171,6 @@ from lorecraft.project.schemas import (
 from lorecraft.project.skill import Repository as SkillRepository
 from lorecraft.project.skill import (
     SkillLocation,
-    SkillReadError,
     SkillRef,
     SkillResourceDecodeError,
     SkillResourceListing,
@@ -210,7 +204,7 @@ from lorecraft.vfs import (
     VirtualFileSystem,
 )
 
-from .text import ItemText, SkillResourceText, SkillText, Undecodable
+from .text import ItemText, SkillResourceText, Undecodable
 
 logger = logging.getLogger(__name__)
 
@@ -237,12 +231,7 @@ def _document_at(ref: MarkdownItemRef) -> DocumentRef | None:
 
 
 def _witness_text(
-    source: ItemText
-    | SkillText
-    | SkillResourceText
-    | Undecodable[MarkdownItemRef]
-    | Undecodable[SkillRef]
-    | Undecodable[SkillResourceRef],
+    source: ItemText | SkillResourceText | Undecodable[MarkdownItemRef] | Undecodable[SkillResourceRef],
 ) -> str | None:
     """The text a decode query returned, or None when its file is not UTF-8.
 
@@ -300,7 +289,6 @@ class Database:
         self._item_outline_alignments: dict[MarkdownItemRef, tuple[OutlineAlignmentSpec, ...]] = {}
         self._item_outline_divergences: dict[MarkdownItemRef, tuple[OutlineDivergenceSpec, ...]] = {}
         # The compatibility entry points' witnesses, wrapped from the unified decode; they decode nothing themselves.
-        self._skill_texts: dict[SkillRef, SkillText | Undecodable[SkillRef]] = {}
         self._skill_resources: dict[SkillRef, SkillResourceListing] = {}
         self._skill_resource_texts: dict[SkillResourceRef, SkillResourceText | Undecodable[SkillResourceRef]] = {}
         self._skill_resource_link_targets: dict[SkillResourceRef, Mapping[NormalisedLinkPath, LinkTargetEntry]] = {}
@@ -372,7 +360,6 @@ class Database:
             text = self._source_text(path)
         except (
             ItemReadError,
-            SkillReadError,
             SkillResourceReadError,
             SkillResourcesListError,
             SkillResourcesSymlinkResolveError,
@@ -391,8 +378,7 @@ class Database:
             path: The root-relative file, as `source_lines` is asked for it.
 
         Raises:
-            ItemReadError: If the snapshot holds no regular file at the document's path.
-            SkillReadError: If the snapshot holds no regular file at the skill's `SKILL.md`.
+            ItemReadError: If the snapshot holds no regular file at the document's or the skill's `SKILL.md`.
             SkillResourceReadError: If the snapshot holds no regular file at the resource's resolved file.
             SkillResourcesListError: If a directory the walk over the skill's resources enters cannot be listed.
             SkillResourcesSymlinkResolveError: If a symlink the walk over the skill's resources meets cannot be
@@ -404,7 +390,7 @@ class Database:
 
         for location in self._model.skill_locations.values():
             if path == location.ref.path:
-                return _witness_text(self.skill_text(location))
+                return _witness_text(self.item_text(MarkdownItemRef(location.ref.path)))
             if path.is_relative_to(location.ref.directory):
                 for resource in self.skill_resources(location).resources:
                     if path == resource.ref.path:
@@ -416,44 +402,6 @@ class Database:
             except (TextDecodeError, *FILE_READ_FAILURES, UnrecordedFileError):
                 return None
         return None
-
-    def skill_text(self, location: SkillLocation) -> SkillText | Undecodable[SkillRef]:
-        """One skill's `SKILL.md` decoded as UTF-8, read from the snapshot on the first call for its ref.
-
-        The one place a `SKILL.md`'s bytes become text for a rule: every other query about it takes the witness this
-        returns, and the witness carries the location it was given. The location must be one `model()` hands out; any
-        other is a caller defect, and the witness built from it is cached under `location.ref` all the same.
-        A `SKILL.md` that is not UTF-8 is cached as `Undecodable` like any answer, so it is decoded once.
-
-        Carry-over: kept for the next revision only when the next model hands out an equal location and that file's
-        bytes did not change.
-
-        A skill that cannot be read is not cached, so each call raises the same error again.
-
-        Args:
-            location: The skill whose `SKILL.md` is decoded, as this database's model locates it; its ref is the
-                cache key, so one skill is decoded once.
-
-        Returns:
-            The witness, or `Undecodable` when the `SKILL.md` is present but not UTF-8: such bytes are a finding
-            about the file, on the same side of the line as invalid YAML, not the failure to read it a missing file
-            is.
-
-        Raises:
-            SkillReadError: If the snapshot holds no regular file at the skill's path.
-        """
-        source = self._skill_texts.get(location.ref)
-        if source is None:
-            try:
-                item = self._decode(self._skill_item(location.ref))
-            except ItemReadError as exc:
-                raise SkillReadError(location.ref, source=exc.source) from exc
-            if isinstance(item, Undecodable):
-                source = Undecodable(location.ref, item.failure)
-            else:
-                source = SkillText(location, item.text)
-            self._skill_texts[location.ref] = source
-        return source
 
     def skill_resources(self, skill: SkillLocation) -> SkillResourceListing:
         """The resources of one skill and its symlinks leading outside the repository, listed on the first call.
@@ -658,13 +606,6 @@ class Database:
             corpus = self._model.find_corpus(ref.corpus)
             listed = corpus is not None and ref.filename in corpus.filenames
             (self._items if listed else self._unlisted_items)[item] = self._model.resolve_item(ref)
-        return item
-
-    def _skill_item(self, ref: SkillRef) -> MarkdownItemRef:
-        """The common reference of a listed skill ref, resolved by ref without scanning the model's items."""
-        item = MarkdownItemRef(ref.path)
-        if item not in self._items:
-            self._items[item] = self._model.resolve_item(ref)
         return item
 
     def item_link_targets(self, source: ItemText) -> Mapping[NormalisedLinkPath, LinkTargetEntry]:

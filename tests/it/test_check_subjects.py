@@ -318,14 +318,14 @@ class AnyTokens(DocumentRule):
 
 
 class CountingDatabase(Database):
-    """A database that records each subject whose counts, frontmatter, schema problems or parse it is asked for.
+    """A database that records each item whose counts, frontmatter, schema problems or parse it is asked for.
 
     Attributes:
-        counted_tokens: The documents whose tokens were counted, in the order asked, a repeat listed again.
+        counted_tokens: The items whose tokens were counted, in the order asked, a repeat listed again.
         counted_lines: The items whose lines were counted, in the order asked.
-        parsed_frontmatters: The documents and skills whose frontmatter was parsed, in the order asked.
-        validated_frontmatters: The documents and skills whose frontmatter was checked against its schema.
-        parsed_documents: The documents whose Markdown was parsed, in the order asked.
+        parsed_frontmatters: The items whose frontmatter was parsed, in the order asked.
+        validated_frontmatters: The items whose frontmatter was checked against its schema.
+        parsed_documents: The items whose Markdown was parsed, in the order asked.
     """
 
     def __init__(self, fs: VirtualFileSystem, model: WorkspaceModel) -> None:
@@ -343,10 +343,10 @@ class CountingDatabase(Database):
         self.parsed_documents: list[MarkdownItemRef] = []
 
     def item_token_count(self, source: ItemText) -> UnsignedInt:
-        """Record the document, then count its tokens.
+        """Record the item, then count its tokens.
 
         Args:
-            source: The decoded document whose tokens are counted, recorded by its ref first.
+            source: The decoded item whose tokens are counted, recorded by its ref first.
         """
         self.counted_tokens.append(source.ref)
         return super().item_token_count(source)
@@ -361,19 +361,19 @@ class CountingDatabase(Database):
         return super().item_line_count(source)
 
     def item_frontmatter(self, source: ItemText) -> FrontmatterNode:
-        """Record the document, then parse its frontmatter.
+        """Record the item, then parse its frontmatter.
 
         Args:
-            source: The decoded document whose frontmatter is parsed, recorded by its ref first.
+            source: The decoded item whose frontmatter is parsed, recorded by its ref first.
         """
         self.parsed_frontmatters.append(source.ref)
         return super().item_frontmatter(source)
 
     def item_parse(self, source: ItemText) -> ParsedDocument:
-        """Record the document, then parse it.
+        """Record the item, then parse it.
 
         Args:
-            source: The decoded document that is parsed, recorded by its ref first.
+            source: The decoded item that is parsed, recorded by its ref first.
         """
         self.parsed_documents.append(source.ref)
         return super().item_parse(source)
@@ -388,7 +388,7 @@ class CountingDatabase(Database):
         return super().item_schema_problems(source)
 
     def item_skill_schema_problems(self, source: ItemText) -> tuple[SchemaProblems, ...]:
-        """Record the skill, then hold the frontmatter of its `SKILL.md` to the Agent Skills specification.
+        """Record the skill entry, then hold its frontmatter to the Agent Skills specification.
 
         Args:
             source: The decoded `SKILL.md` whose frontmatter is validated, recorded by its ref first.
