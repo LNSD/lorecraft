@@ -243,3 +243,5 @@ Scenario: The catch-22 of contradictory layers is documented
   is evaluated on its own
 - [adr-013](adr-013-namespace-extension.md) - Foundation: Conjunction across meta specs, code rules and feature
   documents, separate document base chains, and base-first loading
+- [adr-025](adr-025-name-chain-model.md) - Leads to: The shared name-chain derivation in the project model and
+  workspace inspection rendering

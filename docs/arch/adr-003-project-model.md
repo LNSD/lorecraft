@@ -68,3 +68,5 @@ Before committing code, verify:
 - [adr-016-specifications](adr-016-specifications.md) - Related: Meta specs and governance restated, which supersedes adr-006
 - [adr-023](adr-023-governed-items.md) - Related: Proposed replacement of origin-specific references with one
   governed-item reference and model-resolved descriptor
+- [adr-025](adr-025-name-chain-model.md) - Related: Meta spec and document name chains derived from declared names
+  and listings
