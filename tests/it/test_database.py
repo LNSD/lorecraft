@@ -24,7 +24,7 @@ from lorecraft.core.num import NonZeroUnsignedInt, UnsignedInt
 from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
-from lorecraft.project.database import Database, DocumentText, ItemText, SkillResourceText, SkillText, Undecodable
+from lorecraft.project.database import Database, ItemText, SkillResourceText, SkillText, Undecodable
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.item import MarkdownItemRef
 from lorecraft.project.layout import LinkedLayoutError
@@ -101,19 +101,7 @@ def _skill_snapshot(skill: bytes) -> Snapshot:
     return from_tree({'.agents': {'skills': {'review': {'SKILL.md': skill}}}})
 
 
-def _document_text(database: Database, ref: DocumentRef) -> DocumentText:
-    """The witness of a document the test wrote as UTF-8, as the database decodes it.
-
-    Args:
-        database: The database the document is decoded by.
-        ref: A document whose bytes are UTF-8.
-    """
-    source = database.text(ref)
-    assert isinstance(source, DocumentText), f'{ref.path} was written as UTF-8, so it decodes'
-    return source
-
-
-def _item_text(database: Database, ref: DocumentRef) -> ItemText:
+def _document_text(database: Database, ref: DocumentRef) -> ItemText:
     """The witness of a document the test wrote as UTF-8, as the database decodes it by its common reference.
 
     Args:
@@ -265,7 +253,7 @@ class TestDatabase:
     def test_schema_problems_with_a_failed_namespace_layer_reads_only_the_layers_that_loaded(self) -> None:
         #: Given
         database = Database.from_snapshot(_failed_namespace_layer_snapshot())
-        source = _item_text(database, PYTHON_GUIDE)
+        source = _document_text(database, PYTHON_GUIDE)
 
         #: When
         problems = database.item_schema_problems(source)
@@ -277,7 +265,7 @@ class TestDatabase:
     def test_outline_alignment_with_a_failed_namespace_layer_aligns_only_the_layers_that_loaded(self) -> None:
         #: Given
         database = Database.from_snapshot(_failed_namespace_layer_snapshot())
-        source = _item_text(database, PYTHON_GUIDE)
+        source = _document_text(database, PYTHON_GUIDE)
 
         #: When
         alignments = database.item_outline_alignment(source)
@@ -288,7 +276,7 @@ class TestDatabase:
     def test_outline_divergences_with_a_failed_namespace_layer_finds_none_without_an_outline(self) -> None:
         #: Given
         database = Database.from_snapshot(_failed_namespace_layer_snapshot())
-        source = _item_text(database, PYTHON_GUIDE)
+        source = _document_text(database, PYTHON_GUIDE)
 
         #: When
         divergences = database.item_outline_divergences(source)
@@ -416,22 +404,24 @@ class TestDatabase:
         #: Then
         assert resolved == RootRelativePath.parse('a/b/SKILL.md'), 'the scan follows skills/m to a/b'
 
-    def test_text_of_a_utf8_document_returns_its_witness(self) -> None:
+    def test_item_text_of_a_utf8_document_returns_its_witness(self) -> None:
         #: Given
         database = Database.from_snapshot(_snapshot(b'---\nname: "guide"\n---\n'))
 
         #: When
-        source = database.text(GUIDE)
+        source = database.item_text(MarkdownItemRef(GUIDE.path))
 
         #: Then
-        assert source == DocumentText(GUIDE, '---\nname: "guide"\n---\n'), 'the witness holds the ref and its text'
+        assert isinstance(source, ItemText), 'the document is UTF-8, so it decodes'
+        assert source.ref == MarkdownItemRef(GUIDE.path), 'the witness holds the common ref of the document'
+        assert source.text == '---\nname: "guide"\n---\n', 'the witness holds the document text'
 
-    def test_text_of_a_document_that_is_not_utf8_returns_undecodable(self) -> None:
+    def test_item_text_of_a_document_that_is_not_utf8_returns_undecodable(self) -> None:
         #: Given
         database = Database.from_snapshot(_snapshot(b'---\nname: "gu\xffide"\n---\n'))
 
         #: When
-        source = database.text(GUIDE)
+        source = database.item_text(MarkdownItemRef(GUIDE.path))
 
         #: Then
         failure = Utf8Failure(
@@ -440,17 +430,17 @@ class TestDatabase:
             invalid=b'\xff',
             reason=Utf8Reason.INVALID_START_BYTE,
         )
-        assert source == Undecodable(GUIDE, failure), (
+        assert source == Undecodable(MarkdownItemRef(GUIDE.path), failure), (
             'a decode failure is an answer naming the document and where its bytes stop being UTF-8, not an error'
         )
 
-    def test_text_of_a_document_that_is_not_utf8_called_twice_returns_the_first_answer(self) -> None:
+    def test_item_text_of_a_document_that_is_not_utf8_called_twice_returns_the_first_answer(self) -> None:
         #: Given
         database = Database.from_snapshot(_snapshot(b'---\nname: "gu\xffide"\n---\n'))
-        first = database.text(GUIDE)
+        first = database.item_text(MarkdownItemRef(GUIDE.path))
 
         #: When
-        second = database.text(GUIDE)
+        second = database.item_text(MarkdownItemRef(GUIDE.path))
 
         #: Then
         assert second is first, 'an undecodable document is cached like any answer, so it is decoded once'
@@ -579,7 +569,7 @@ class TestDatabase:
         source = _document_text(database, GUIDE)
 
         #: When
-        frontmatter = database.frontmatter(source)
+        frontmatter = database.item_frontmatter(source)
 
         #: Then
         assert isinstance(frontmatter, Frontmatter), 'the snapshot bytes decode into a frontmatter node'
@@ -589,10 +579,10 @@ class TestDatabase:
         #: Given
         database = Database.from_snapshot(_snapshot(b'---\nname: "guide"\n---\n'))
         source = _document_text(database, GUIDE)
-        first = database.frontmatter(source)
+        first = database.item_frontmatter(source)
 
         #: When
-        second = database.frontmatter(source)
+        second = database.item_frontmatter(source)
 
         #: Then
         assert second is first, 'a document frontmatter is decoded once per database, then shared by every check'
@@ -611,7 +601,7 @@ class TestDatabase:
         source = _document_text(database, GUIDE)
 
         #: When
-        document = database.parse(source)
+        document = database.item_parse(source)
 
         #: Then
         assert document.headings == (
@@ -625,7 +615,7 @@ class TestDatabase:
 
         #: When
         lines = database.source_lines(GUIDE.path)
-        document = database.parse(source)
+        document = database.item_parse(source)
 
         #: Then
         assert lines is not None, 'a document that decodes has lines to excerpt'
@@ -638,10 +628,10 @@ class TestDatabase:
         #: Given
         database = Database.from_snapshot(_snapshot(b'---\nname: "guide"\n---\n'))
         source = _document_text(database, GUIDE)
-        first = database.parse(source)
+        first = database.item_parse(source)
 
         #: When
-        second = database.parse(source)
+        second = database.item_parse(source)
 
         #: Then
         assert second is first, 'a document is parsed once per database, then shared by every check'
@@ -655,7 +645,7 @@ class TestDatabase:
         expected = count_tokens(guide)
 
         #: When
-        tokens = database.token_count(source)
+        tokens = database.item_token_count(source)
 
         #: Then
         assert tokens == expected, f'frontmatter and code count too, got {tokens}'
@@ -667,7 +657,7 @@ class TestDatabase:
         source = _document_text(database, GUIDE)
 
         #: When
-        lines = database.document_line_count(source)
+        lines = database.item_line_count(source)
 
         #: Then
         assert lines == UnsignedInt(5), f'the frontmatter counts too, and the final newline adds no line, got {lines}'

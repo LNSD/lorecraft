@@ -12,7 +12,6 @@ database that built it, which no type records, so it never leaves the run that a
 
 from dataclasses import dataclass
 
-from lorecraft.project.document import DocumentRef
 from lorecraft.project.item import MarkdownItemDescriptor, MarkdownItemRef
 from lorecraft.project.skill import SkillLocation, SkillRef, SkillResourceRef
 from lorecraft.vfs import Utf8Failure
@@ -34,19 +33,6 @@ class ItemText:
     def ref(self) -> MarkdownItemRef:
         """The item whose file the text was read from, the key of every per-file query."""
         return self.descriptor.ref
-
-
-@dataclass(frozen=True, slots=True)
-class DocumentText:
-    """One document's bytes, decoded; built only by `Database.text`.
-
-    Attributes:
-        ref: The document the text was read from.
-        text: The document's whole file, frontmatter included.
-    """
-
-    ref: DocumentRef
-    text: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -81,7 +67,7 @@ class SkillResourceText:
 
 
 @dataclass(frozen=True, slots=True)
-class Undecodable[R: (DocumentRef, SkillRef, SkillResourceRef, MarkdownItemRef)]:
+class Undecodable[R: (SkillRef, SkillResourceRef, MarkdownItemRef)]:
     """A file whose bytes are not UTF-8: what a decode query returns instead of a witness.
 
     The type parameter is the kind of ref the file is named by, so each decode query returns the marker of its own
