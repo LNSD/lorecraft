@@ -32,7 +32,6 @@ from lorecraft.project.database import (
     DatabaseSkillResourceContext,
     ItemText,
     SkillResourceText,
-    SkillText,
 )
 from lorecraft.project.database.context import WrongItemKindError
 from lorecraft.project.document import DocumentRef
@@ -150,17 +149,6 @@ def _skill_item(database: Database) -> ItemText:
     """
     source = database.item_text(MarkdownItemRef(REVIEW.path))
     assert isinstance(source, ItemText), f'{REVIEW.path} was written as UTF-8, so it decodes'
-    return source
-
-
-def _skill_text(database: Database) -> SkillText:
-    """The witness of `REVIEW`'s `SKILL.md`, as the database decodes it.
-
-    Args:
-        database: The database the `SKILL.md` is decoded by.
-    """
-    source = database.skill_text(_location(database))
-    assert isinstance(source, SkillText), f'{REVIEW.path} was written as UTF-8, so it decodes'
     return source
 
 
@@ -457,7 +445,7 @@ class TestDatabaseItemContextOverASkillEntry:
         frontmatter = context.frontmatter()
 
         #: Then
-        assert frontmatter is database.skill_frontmatter(_skill_text(database)), (
+        assert frontmatter is database.item_frontmatter(_skill_item(database)), (
             'the frontmatter is the value the database memoizes, not one the context parsed again'
         )
 
@@ -470,7 +458,7 @@ class TestDatabaseItemContextOverASkillEntry:
         schema_problems = context.schema_problems()
 
         #: Then
-        assert schema_problems is database.skill_schema_problems(_skill_text(database)), (
+        assert schema_problems is database.item_skill_schema_problems(_skill_item(database)), (
             'the problems are the ones the database memoizes, not ones the context validated again'
         )
         assert schema_problems != (), 'the Agent Skills specification requires the description the skill lacks'
@@ -496,7 +484,7 @@ class TestDatabaseItemContextOverASkillEntry:
         parsed = context.parse()
 
         #: Then
-        assert parsed is database.skill_parse(_skill_text(database)), (
+        assert parsed is database.item_parse(_skill_item(database)), (
             'the parse is the one the database memoizes, not one the context parsed again'
         )
 
@@ -529,7 +517,7 @@ class TestDatabaseItemContextOverASkillEntry:
         targets = context.link_targets()
 
         #: Then
-        assert targets is database.skill_link_targets(_skill_text(database)), (
+        assert targets is database.item_link_targets(_skill_item(database)), (
             'the targets are the ones the database memoizes, not ones the context looked up again'
         )
         assert dict(targets) == {
