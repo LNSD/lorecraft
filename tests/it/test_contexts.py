@@ -282,7 +282,7 @@ class TestDatabaseItemContextOverADocument:
         schema_problems = context.schema_problems()
 
         #: Then
-        assert schema_problems is database.schema_problems(_document_text(database)), (
+        assert schema_problems is database.item_schema_problems(_document_item(database)), (
             'the problems are the ones the database memoizes, not ones the context validated again'
         )
         assert schema_problems != (), 'the corpus schema rejects the `owner` the document writes as a number'
@@ -341,7 +341,9 @@ class TestDatabaseItemContextOverADocument:
         governance = context.specifications()
 
         #: Then
-        assert governance is database.governance(TYPING), 'the specifications are the governance query'
+        assert governance is database.item_governance(MarkdownItemRef(TYPING.path)), (
+            'the specifications are the governance query'
+        )
         assert len(governance.structure_specs()) == 2, 'the corpus and the python namespace both govern the document'
 
     def test_corpus_structure_with_a_document_returns_its_corpus_structure_specification(self) -> None:
@@ -365,7 +367,7 @@ class TestDatabaseItemContextOverADocument:
         alignment = context.outline_alignment()
 
         #: Then
-        assert alignment is database.outline_alignment(_document_text(database)), (
+        assert alignment is database.item_outline_alignment(_document_item(database)), (
             'the alignment is the one the database memoizes, not one the context computed again'
         )
         assert len(alignment) == 2, 'the corpus and the python namespace both govern the document'
@@ -379,7 +381,7 @@ class TestDatabaseItemContextOverADocument:
         divergences = context.outline_divergences()
 
         #: Then
-        assert divergences is database.outline_divergences(_document_text(database)), (
+        assert divergences is database.item_outline_divergences(_document_item(database)), (
             'the divergences are the ones the database memoizes, not ones the context matched again'
         )
         assert divergences != (), 'the corpus outline states a section the document lacks'

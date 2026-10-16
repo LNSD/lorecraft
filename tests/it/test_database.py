@@ -24,8 +24,9 @@ from lorecraft.core.num import NonZeroUnsignedInt, UnsignedInt
 from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
-from lorecraft.project.database import Database, DocumentText, SkillResourceText, SkillText, Undecodable
+from lorecraft.project.database import Database, DocumentText, ItemText, SkillResourceText, SkillText, Undecodable
 from lorecraft.project.document import DocumentRef
+from lorecraft.project.item import MarkdownItemRef
 from lorecraft.project.layout import LinkedLayoutError
 from lorecraft.project.skill import SkillLocation, SkillRef
 from lorecraft.project.syntax import Frontmatter, Heading, LineNumber, count_tokens, split_lines
@@ -109,6 +110,18 @@ def _document_text(database: Database, ref: DocumentRef) -> DocumentText:
     """
     source = database.text(ref)
     assert isinstance(source, DocumentText), f'{ref.path} was written as UTF-8, so it decodes'
+    return source
+
+
+def _item_text(database: Database, ref: DocumentRef) -> ItemText:
+    """The witness of a document the test wrote as UTF-8, as the database decodes it by its common reference.
+
+    Args:
+        database: The database the document is decoded by.
+        ref: A document whose bytes are UTF-8.
+    """
+    source = database.item_text(MarkdownItemRef(ref.path))
+    assert isinstance(source, ItemText), f'{ref.path} was written as UTF-8, so it decodes'
     return source
 
 
@@ -243,7 +256,7 @@ class TestDatabase:
         assert database.model().load_failures == (LoadFailure(path, EmptyStructureSpec()),), (
             'the failure is a value the model records, so opening raises nothing and the database has its model'
         )
-        governance = database.governance(GUIDE)
+        governance = database.item_governance(MarkdownItemRef(GUIDE.path))
         assert governance is not None, 'the document is in a corpus the model holds'
         assert governance.failed_layers() == (FailedStructure(path, EmptyStructureSpec()),), (
             'the failed layer is held where its structure would be'
@@ -252,10 +265,10 @@ class TestDatabase:
     def test_schema_problems_with_a_failed_namespace_layer_reads_only_the_layers_that_loaded(self) -> None:
         #: Given
         database = Database.from_snapshot(_failed_namespace_layer_snapshot())
-        source = _document_text(database, PYTHON_GUIDE)
+        source = _item_text(database, PYTHON_GUIDE)
 
         #: When
-        problems = database.schema_problems(source)
+        problems = database.item_schema_problems(source)
 
         #: Then
         assert len(problems) == 1, 'one frontmatter schema judges the document: the failed layer states none'
@@ -264,10 +277,10 @@ class TestDatabase:
     def test_outline_alignment_with_a_failed_namespace_layer_aligns_only_the_layers_that_loaded(self) -> None:
         #: Given
         database = Database.from_snapshot(_failed_namespace_layer_snapshot())
-        source = _document_text(database, PYTHON_GUIDE)
+        source = _item_text(database, PYTHON_GUIDE)
 
         #: When
-        alignments = database.outline_alignment(source)
+        alignments = database.item_outline_alignment(source)
 
         #: Then
         assert len(alignments) == 1, 'only the layer that loaded is aligned'
@@ -275,10 +288,10 @@ class TestDatabase:
     def test_outline_divergences_with_a_failed_namespace_layer_finds_none_without_an_outline(self) -> None:
         #: Given
         database = Database.from_snapshot(_failed_namespace_layer_snapshot())
-        source = _document_text(database, PYTHON_GUIDE)
+        source = _item_text(database, PYTHON_GUIDE)
 
         #: When
-        divergences = database.outline_divergences(source)
+        divergences = database.item_outline_divergences(source)
 
         #: Then
         assert divergences == (), 'no outline governs the document, so nothing diverges'

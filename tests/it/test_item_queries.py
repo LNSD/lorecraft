@@ -198,7 +198,7 @@ class TestItemQueries:
         #: Given
         database = Database.from_snapshot(_snapshot())
         unlisted = DocumentRef(CorpusName.parse('other'), AspectFilename.parse('x'))
-        assert database.governance(unlisted) is None, 'no corpus governs it'
+        assert database.item_governance(MarkdownItemRef(unlisted.path)) is None, 'no corpus governs it'
 
         #: When
         with pytest.raises(UnlistedItemError) as raised:

@@ -15,7 +15,7 @@ from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
-from lorecraft.project.database import Database, DocumentText, ItemText
+from lorecraft.project.database import Database, ItemText
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.item import MarkdownItemRef
 from lorecraft.project.schemas import AbsentSection, DocumentEnd, OutlineDivergenceSpec, SectionName
@@ -101,15 +101,15 @@ def _checklist_heading() -> SectionHeading:
     raise AssertionError('the document holds a `Checklist` section')
 
 
-def _document_text(database: Database, ref: DocumentRef) -> DocumentText:
+def _document_text(database: Database, ref: DocumentRef) -> ItemText:
     """The witness of a document the test wrote as UTF-8, as the database decodes it.
 
     Args:
         database: The database the document is decoded by.
         ref: A document whose bytes are UTF-8.
     """
-    source = database.text(ref)
-    assert isinstance(source, DocumentText), f'{ref.path} was written as UTF-8, so it decodes'
+    source = database.item_text(MarkdownItemRef(ref.path))
+    assert isinstance(source, ItemText), f'{ref.path} was written as UTF-8, so it decodes'
     return source
 
 
@@ -124,7 +124,7 @@ class TestOutlineDivergences:
         source = _document_text(database, TYPING)
 
         #: When
-        divergences = database.outline_divergences(source)
+        divergences = database.item_outline_divergences(source)
 
         #: Then
         absent = AbsentSection(
@@ -142,10 +142,10 @@ class TestOutlineDivergences:
         outline = b'{"outline": [{"section": "Rule"}, {"any": true}, {"section": "Checklist"}]}'
         database = ParsingDatabase.from_snapshot(_snapshot(outline, None, RULE_ASIDE_CHECKLIST))
         source = _document_text(database, TYPING)
-        first = database.outline_divergences(source)
+        first = database.item_outline_divergences(source)
 
         #: When
-        second = database.outline_divergences(source)
+        second = database.item_outline_divergences(source)
 
         #: Then
         assert second is first, 'the outlines are matched once per database, then shared by every rule'
@@ -159,7 +159,7 @@ class TestOutlineDivergences:
         source = _document_text(database, TYPING)
 
         #: When
-        divergences = database.outline_divergences(source)
+        divergences = database.item_outline_divergences(source)
 
         #: Then
         assert divergences == (OutlineDivergenceSpec(spec=NAMESPACE_SPEC, divergence=None),), (
@@ -172,7 +172,7 @@ class TestOutlineDivergences:
         source = _document_text(database, TYPING)
 
         #: When
-        divergences = database.outline_divergences(source)
+        divergences = database.item_outline_divergences(source)
 
         #: Then
         assert divergences == (), 'no structure specification states an outline, so no outline is matched'
@@ -183,7 +183,7 @@ class TestOutlineDivergences:
         source = _document_text(database, TYPING)
 
         #: When
-        database.outline_divergences(source)
+        database.item_outline_divergences(source)
 
         #: Then
         assert database.parsed == [], 'the governance is read first, so a document nothing governs is never parsed'
@@ -203,7 +203,7 @@ class TestOutlineDivergences:
         source = _document_text(database, DocumentRef(CorpusName.parse('blog'), AspectFilename.parse('launch')))
 
         #: When
-        divergences = database.outline_divergences(source)
+        divergences = database.item_outline_divergences(source)
 
         #: Then
         assert divergences == (), 'no specification governs a document in no corpus the model holds'
