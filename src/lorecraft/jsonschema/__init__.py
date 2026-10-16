@@ -2,6 +2,15 @@
 
 from .dialect import DIALECT
 from .json_type import JsonType, JsonTypes
+from .schema_inspection import (
+    SchemaCheckFailure,
+    SchemaHasIdentifier,
+    SchemaHasSameInstanceReferenceCycle,
+    SchemaHasUnresolvableReference,
+    SchemaMetaError,
+    SchemaUsesForeignDialect,
+    check_schema,
+)
 from .schema_keyword import (
     AdditionalPropertiesKeyword,
     ConstKeyword,
@@ -35,7 +44,14 @@ __all__: list[str] = [
     'RequiredKeyword',
     'TypeKeyword',
     'UnevaluatedPropertiesKeyword',
+    'SchemaCheckFailure',
+    'SchemaHasIdentifier',
+    'SchemaHasSameInstanceReferenceCycle',
+    'SchemaHasUnresolvableReference',
+    'SchemaMetaError',
+    'SchemaUsesForeignDialect',
     'Violation',
+    'check_schema',
     'validate',
     'best_violation',
 ]
