@@ -213,8 +213,8 @@ def _check_document(database: Database, ref: DocumentRef, table: RuleTable) -> S
     diagnostics: list[Diagnostic] = []
     ungoverned: list[Facet] = []
 
-    governed = GovernedDocument.find(database, source)  # None when its corpus states no structure file
-    context = DatabaseDocumentContext(database, governed) if governed is not None else None
+    governance = database.item_governance(source.ref)  # None when no specification governs the item
+    context = DatabaseItemContext(database, source) if governance is not None else None
     for facet in Facet:
         rules = table.document_rules_governed_by(facet)
         if not rules:  # a facet no enabled rule reads is never looked at
@@ -226,7 +226,7 @@ def _check_document(database: Database, ref: DocumentRef, table: RuleTable) -> S
             for occurrence in enabled.rule.check(context):  # the context asks only for what the rule reads
                 diagnostics.append(RuleDiagnostic(ref.path, occurrence, enabled.severity))
     ...
-    return CheckedDocument(ref, diagnostics=tuple(diagnostics), ungoverned=tuple(ungoverned))
+    return CheckedItem(ref, diagnostics=tuple(diagnostics), ungoverned=tuple(ungoverned))
 ```
 
 - **Adding a rule never touches the runner.** The rule joins its base's partition through the registry
