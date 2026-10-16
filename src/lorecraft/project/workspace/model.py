@@ -69,11 +69,12 @@ class NamespaceSpec:
     files: tuple[RootRelativePath, ...]
     structure: StructureSpec | FailedStructure | None
 
-    def is_governing(self, filename: AspectFilename) -> bool:
+    def is_governing(self, filename: AspectFilename | str) -> bool:
         """True when the spec's namespace matches the filename.
 
         Args:
-            filename: Document filename stem whose governance is asked; matched by hyphen-delimited prefix.
+            filename: Document filename stem, or a skill's listed name, whose governance is asked; matched by
+                hyphen-delimited prefix.
         """
         return self.name.namespace.is_prefix_of(filename)
 
@@ -93,19 +94,20 @@ class Governance:
     they govern the same document with the same specs, whatever else their corpora hold.
 
     Attributes:
-        ref: The governed document.
+        ref: The governed document, or None when a listed name that is no valid filename stem, such as a skill's
+            directory name, was matched.
         corpus_spec: The spec of the document's corpus, which governs every document in it.
         namespace_specs: Every namespace spec whose namespace matches the document, broad to narrow.
     """
 
     # Construction arguments, not fields: neither is kept, so neither takes part in equality or hashing.
     corpus: InitVar['Corpus']  # defined below: a corpus builds its governance, and the governance reads it
-    filename: InitVar[AspectFilename]  # matched by hyphen-delimited prefix; the document is the corpus's
-    ref: DocumentRef = field(init=False)
+    filename: InitVar[AspectFilename | str]  # matched by hyphen-delimited prefix; the item is the corpus's
+    ref: DocumentRef | None = field(init=False)
     corpus_spec: CorpusSpec = field(init=False)
     namespace_specs: tuple[NamespaceSpec, ...] = field(init=False)
 
-    def __post_init__(self, corpus: 'Corpus', filename: AspectFilename) -> None:
+    def __post_init__(self, corpus: 'Corpus', filename: AspectFilename | str) -> None:
         """Derive the governing specs once, from the corpus and the filename."""
         matching: list[NamespaceSpec] = []
         for namespace_spec in corpus.namespace_specs:
@@ -113,7 +115,8 @@ class Governance:
                 matching.append(namespace_spec)
         # The class is frozen, so the derived values are set through `object`; deriving them here means they cannot
         # disagree with the corpus and filename.
-        object.__setattr__(self, 'ref', DocumentRef(corpus=corpus.name, filename=filename))
+        ref = DocumentRef(corpus=corpus.name, filename=filename) if isinstance(filename, AspectFilename) else None
+        object.__setattr__(self, 'ref', ref)
         object.__setattr__(self, 'corpus_spec', corpus.corpus_spec)
         object.__setattr__(self, 'namespace_specs', tuple(matching))
 
@@ -271,12 +274,12 @@ class Corpus:
         # A corpus name is validated snake case, so it is a valid component.
         return DOCS_DIR / PathComponent.parse(str(self.name))
 
-    def governance(self, filename: AspectFilename) -> Governance:
+    def governance(self, filename: AspectFilename | str) -> Governance:
         """Corpus spec, then every namespace spec that matches, broad to narrow. Pure.
 
         Args:
-            filename: Stem of the document whose governing specs are wanted; it names no corpus, so the governed
-                document is this corpus's.
+            filename: Stem of the document, or listed name of the skill, whose governing specs are wanted; it names
+                no corpus, so the governed item is this corpus's.
         """
         return Governance(self, filename)
 
@@ -312,6 +315,11 @@ class WorkspaceModel:
             agents read one. A skill belongs to no corpus, so no spec governs it and `documents()` does not
             list it. The locations, not the refs, record where each link leads, so two models differ when a
             link is retargeted even though every ref is the same.
+        skills_corpus: The reserved `skills` corpus, whose specs govern the skills by their listed directory name, or
+            None when no `skills` spec exists. It lists no document: its documents are the skills, which
+            `find_skill_governance` resolves, and no directory under `docs/` backs it.
+        overlapping_corpora: The reserved corpora a directory under `docs/` shares the name of, which the model
+            ignores: none of its documents is listed.
         outside_symlinks: Every skills directory an agent declares, entry in a resolved skills directory, and
             `SKILL.md` of such an entry, whose symlink chain leaves the repository, by path.
             None of them is a skills directory or a skill of the model; a symlink inside a skill is in its
@@ -327,6 +335,8 @@ class WorkspaceModel:
     skill_locations: FrozenMapping[SkillRef, SkillLocation]
     outside_symlinks: FrozenMapping[RootRelativePath, OutsideSymlink]
     load_failures: tuple[LoadFailure, ...]
+    skills_corpus: Corpus | None = None
+    overlapping_corpora: frozenset[CorpusName] = frozenset()
 
     def __post_init__(self) -> None:
         """Keep a key from naming something other than its value, which the lookups read the key alone to answer.
@@ -487,6 +497,20 @@ class WorkspaceModel:
             return None
         return corpus.governance(ref.filename)
 
+    def find_skill_governance(self, ref: SkillRef) -> Governance | None:
+        """The specs governing a skill by its listed directory name, or None when the model has no `skills` spec.
+
+        Every skill the model lists has the global `skills` layer, whatever its name, and a namespace matches the
+        listed name as it is: a name no document could take, such as `3d-tools`, is still governed. The governance
+        names no document, so its `ref` is None for such a name.
+
+        Args:
+            ref: Skill to look up, whether or not the model lists it; only its listed directory name is read.
+        """
+        if self.skills_corpus is None:
+            return None
+        return self.skills_corpus.governance(str(ref.entry))
+
     def find_item(self, ref: MarkdownItemRef) -> ResolvedItem | None:
         """The facts of the document or skill entry the model lists at this reference, or None.
 
@@ -515,8 +539,9 @@ class WorkspaceModel:
     def resolve_item(self, ref: DocumentRef | SkillRef) -> ResolvedItem:
         """Resolve an item's descriptor together with the specs governing it, finding the governance once.
 
-        A corpus document is governed by the specs of its corpus and matching namespaces. A skill entry has no
-        repository layers yet, as the reserved `skills` corpus is not loaded, so none governs it.
+        A corpus document is governed by the specs of its corpus and matching namespaces. A skill entry resolves with no
+        governance until the checks of a skill's `SKILL.md` read the `skills` corpus; `find_skill_governance` answers
+        it for inspection.
 
         Args:
             ref: Document or skill entry to resolve, whether or not the model lists a document's corpus.

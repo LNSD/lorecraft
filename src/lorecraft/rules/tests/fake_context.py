@@ -19,6 +19,7 @@ from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.project.aspect import AspectFilename, AspectNamespace
 from lorecraft.project.context import DocumentFrontmatterOwner, SkillFrontmatterOwner
 from lorecraft.project.corpus import CorpusName
+from lorecraft.project.document import DocumentRef
 from lorecraft.project.layout import SPECS_DIR
 from lorecraft.project.link_target import DocumentDirectory, LinkTargetEntry, SkillRoot
 from lorecraft.project.schemas import (
@@ -217,10 +218,11 @@ class FakeDocumentContext:
             corpus_namespaces[namespace.name.namespace] = CorpusNamespace(namespace.files, namespace.structure)
         held_corpus = Corpus(corpus_spec, FrozenMapping(corpus_namespaces), frozenset())
         self._governance = Governance(held_corpus, document)
+        self._ref = DocumentRef(corpus=spec_name.corpus, filename=document)
 
     def filename(self) -> AspectFilename:
         """The document's filename, without its extension."""
-        return self._governance.ref.filename
+        return self._ref.filename
 
     def frontmatter(self) -> FrontmatterNode:
         """The document's frontmatter block, as the real parser reads it."""
@@ -240,7 +242,7 @@ class FakeDocumentContext:
 
     def link_base(self) -> DocumentDirectory:
         """The directory holding the document, read from its ref."""
-        return DocumentDirectory(self._governance.ref.path.parent)
+        return DocumentDirectory(self._ref.path.parent)
 
     def link_targets(self) -> Mapping[NormalisedLinkPath, LinkTargetEntry]:
         """None: a fake document holds no link target."""

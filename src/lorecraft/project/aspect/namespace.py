@@ -72,11 +72,12 @@ class AspectNamespace:
         """
         _reject_invalid_namespace(self.value)
 
-    def is_prefix_of(self, filename: AspectFilename) -> bool:
+    def is_prefix_of(self, filename: AspectFilename | str) -> bool:
         """Return whether this namespace is the whole name or its hyphen-delimited prefix.
 
         Args:
-            filename: Document filename stem to test.
+            filename: Document filename stem to test, or a listed name that need not be a valid aspect name, such as
+                a skill's directory name.
         """
         name = str(filename)
         return name == self.value or name.startswith(f'{self.value}-')
