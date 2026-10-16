@@ -1,7 +1,7 @@
 """The root of a document's parse tree: what every check reads instead of the document's text.
 
 A parse tree is a pure function of the text, so a document is parsed once and every check shares the result.
-The Markdown itself is read by `markdown`, which hands this module the package's own frozen values; what is
+The Markdown itself is read by `lorecraft.markdown`, which hands this module the package's own frozen values; what is
 derived from them here is Lorecraft's. The tree keeps the document's top-level headings, how many prose words each
 heading's section holds, the anchor of every heading at any depth, and every link's destination and line. The rest
 of the content is not kept: no check reads it yet.
@@ -25,12 +25,12 @@ from typing import assert_never
 
 from lorecraft.core.lines import split_lines
 from lorecraft.core.num import NonZeroUnsignedInt, UnsignedInt
+from lorecraft.markdown import ContentBlock, HeadingBlock, parse_markdown, parse_markdown_frontmatter
 
 from .anchor import Anchor, AnchorNumber
 from .frontmatter import FrontmatterNode, MissingFrontmatter, decode_frontmatter
 from .heading import Heading, HeadingLevel
 from .link import Link
-from .markdown import ContentBlock, HeadingBlock, parse_markdown, parse_markdown_frontmatter
 from .position import LineNumber
 from .words import WordCount, count_words
 
@@ -222,8 +222,8 @@ def _source_words(source: str) -> UnsignedInt:
     """
     words = UnsignedInt(0)
     for line in split_lines(source):
-        # The parser has no table extension, so a table is read as a paragraph of `|` lines. Those lines are
-        # skipped here: a table is a reference, not prose.
+        # `lorecraft.markdown` reads CommonMark with no table extension, so a table is a paragraph of `|` lines.
+        # Those lines are skipped here: a table is a reference, not prose.
         if line.strip().startswith('|'):
             continue
         words += count_words(line)

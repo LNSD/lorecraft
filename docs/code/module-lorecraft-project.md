@@ -24,8 +24,9 @@ once in `lorecraft.project.layout` and read from there by every other module.
 - The project model and the loader that builds it from listings and meta specs.
 - A repository that lists entries or reads text through a view, and decides what an entry is to Lorecraft.
 - The decoding of a meta spec into rules that are proved usable when they are built.
-- The parse tree, token count and line count: pure functions of document text. The Markdown wrapper reads wenmode
-  and core only; `document` maps its line and link values into the project model and decodes raw frontmatter.
+- The parse tree, token count and line count: pure functions of document text. The tree derives from the values
+  `lorecraft.markdown` returns; `document` maps its line and link values into the project model and decodes raw
+  frontmatter.
 - A shared analysis of one document's parsed values against its meta specs: frontmatter violations mapped to
   project-owned problems and placed on field lines, or where sections first stop matching an outline. It finds
   facts several rules read; whether one is reported, and how, is a rule's.
@@ -51,6 +52,7 @@ once in `lorecraft.project.layout` and read from there by every other module.
 |---|---|
 | Reads the disk, or follows a symlink by asking the operating system | `lorecraft.vfs` |
 | Scans, parses or refuses YAML text | `lorecraft.yaml` |
+| Parses Markdown text, or reads a parser's nodes | `lorecraft.markdown` |
 | Supplies JSON Schema vocabulary and library-independent validation facts | `lorecraft.jsonschema` |
 | States an agent's skills directories or guide files | `lorecraft.agents` |
 | Decides whether a document or a skill breaks a rule | `lorecraft.rules` |

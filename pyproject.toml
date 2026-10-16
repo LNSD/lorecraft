@@ -6,7 +6,8 @@
 #   lorecraft.project  the workspace model and the parse trees, on the filesystem boundary
 #   lorecraft.agents   the model of the coding agents: the aspects an agent has, and each agent's values
 #   lorecraft.vfs      the filesystem boundary: paths, views, scan, snapshot
-#   lorecraft.jsonschema and lorecraft.yaml  peers directly above core: JSON Schema vocabulary; YAML syntax/refusals
+#   lorecraft.jsonschema, lorecraft.yaml and lorecraft.markdown  peers directly above core: JSON Schema vocabulary;
+#                      YAML syntax/refusals; the Markdown parse values
 #   lorecraft.core     the base: the shared error class
 #
 # Unit tests sit beside their module under src/; tests/ holds the integration and end-to-end tiers.
@@ -242,7 +243,7 @@ layers = [
     "project",
     "agents",
     "vfs",
-    "jsonschema|yaml",
+    "jsonschema|yaml|markdown",
     "core",
 ]
 
@@ -300,14 +301,14 @@ type = "forbidden"
 source_modules = ["lorecraft"]
 forbidden_modules = ["lorecraft_gen"]
 
-# The Markdown parser is read in `project.syntax.markdown` alone, which hands the rest of the package its own frozen
-# values, so a parser upgrade changes that one module and no parser type reaches anything else.
+# The Markdown parser is read in `lorecraft.markdown` alone, which hands the rest of the package its own frozen
+# values, so a parser upgrade changes that one package and no parser type reaches anything else.
 [[tool.importlinter.contracts]]
-name = "The Markdown parser is read in one module"
+name = "The Markdown parser is read in one package"
 type = "forbidden"
 source_modules = ["lorecraft"]
 forbidden_modules = ["wenmode"]
-ignore_imports = ["lorecraft.project.syntax.markdown -> wenmode"]
+ignore_imports = ["lorecraft.markdown.** -> wenmode"]
 
 # The YAML library is read in `lorecraft.yaml` alone, which hands the rest of the package its own values, so a library
 # upgrade changes that package and no library type reaches another.
@@ -331,6 +332,7 @@ source_modules = [
     "lorecraft.agents",
     "lorecraft.vfs",
     "lorecraft.jsonschema",
+    "lorecraft.markdown",
     "lorecraft.core",
     "lorecraft.metadata",
     "lorecraft.__main__",

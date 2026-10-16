@@ -7,7 +7,7 @@ what is counted or numbered from these values is pinned in `test_document`.
 
 import pytest
 
-from ..markdown import (
+from ..parser import (
     ContentBlock,
     HeadingBlock,
     MarkdownLine,
@@ -216,3 +216,64 @@ class TestParseMarkdownFrontmatter:
 
         #: Then
         assert frontmatter is None, 'a document not opening with `---` has no frontmatter'
+
+
+@pytest.mark.unit
+class TestCommonMarkOnly:
+    def test_parse_markdown_with_a_pipe_table_strikethrough_and_an_autolink_reads_them_as_plain_commonmark(
+        self,
+    ) -> None:
+        #: Given
+        text = '| a | b |\n|---|---|\n| 1 | 2 |\n\n~~gone~~ and https://example.com\n'
+
+        #: When
+        tree = parse_markdown(text)
+
+        #: Then
+        assert tree == MarkdownTree(
+            blocks=(
+                ContentBlock(source_outside_code=('| a | b |\n|---|---|\n| 1 | 2 |\n',)),
+                ContentBlock(source_outside_code=('~~gone~~ and https://example.com\n',)),
+            ),
+            heading_texts=(),
+            links=(),
+        ), 'the table is one paragraph, and neither the strikethrough nor the bare URL is a node'
+
+
+@pytest.mark.unit
+class TestLinkUrlNormalisation:
+    def test_parse_markdown_with_space_in_destination_returns_percent_encoded(self) -> None:
+        #: Given
+        text = '[x](</a b>)\n'
+
+        #: When
+        tree = parse_markdown(text)
+
+        #: Then
+        assert tree.links == (MarkdownLink(url='/a%20b', line=MarkdownLine(1)),), (
+            'a space in the destination is percent-encoded'
+        )
+
+    def test_parse_markdown_with_unicode_character_in_destination_returns_utf8_percent_encoded(self) -> None:
+        #: Given
+        text = '[x](<ü>)\n'
+
+        #: When
+        tree = parse_markdown(text)
+
+        #: Then
+        assert tree.links == (MarkdownLink(url='%C3%BC', line=MarkdownLine(1)),), (
+            'a non-ASCII character is percent-encoded as UTF-8'
+        )
+
+    def test_parse_markdown_with_character_reference_in_destination_returns_decoded_and_normalised(self) -> None:
+        #: Given
+        text = '[x](a&amp;b%zz)\n'
+
+        #: When
+        tree = parse_markdown(text)
+
+        #: Then
+        assert tree.links == (MarkdownLink(url='a&b%zz', line=MarkdownLine(1)),), (
+            'a character reference is decoded, and a malformed escape is kept'
+        )
