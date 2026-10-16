@@ -1,23 +1,24 @@
 """Run checks over workspace subjects, skipping files whose required input was refused.
 
-A document governed by a meta spec that failed to load cannot be called clean from only the layers that loaded. It is
-decoded first, and a decoded document is skipped with the failed structure paths. A skill or resource whose resolved
-docs target was refused is also skipped; the refusal itself is reported at its target.
+A document or skill entry governed by a meta spec that failed to load cannot be called clean from only the layers that
+loaded. It is decoded first, and a decoded item is skipped with the failed structure paths. A skill or resource whose
+resolved docs target was refused is also skipped; the refusal itself is reported at its target.
 """
 
 from collections.abc import Iterable, Mapping
 from typing import assert_never
 
 from lorecraft.core.path import RootRelativePath
-from lorecraft.project.database import Database, DocumentText, Undecodable
+from lorecraft.project.database import Database, DocumentText, SkillText, Undecodable
 from lorecraft.project.document import DocumentRef
+from lorecraft.project.item import MarkdownItemRef
 from lorecraft.project.layout import DOCS_DIR
 from lorecraft.project.skill import OutsideSymlink, SkillLocation, SkillResourceLocation
 from lorecraft.rules.report import SkippedSubject, SubjectReport, UndecodableSubject
 from lorecraft.rules.table import RuleTable
 from lorecraft.vfs import RefusedRead, RefusedRecord
 
-from .runner import RefusedSkillSubject, Subject, check_layout_entry, check_skill, check_skill_resource, judge_document
+from .runner import RefusedSkillSubject, Subject, check_layout_entry, check_skill_resource, judge_item
 
 
 def check_subjects(
@@ -55,10 +56,8 @@ def check_subjects(
                 reports.append(SkippedSubject(location.ref, (location.resolves_to,)))
             case RefusedSkillSubject(ref=ref, refused_at=path):
                 reports.append(SkippedSubject(ref, (path,)))
-            case DocumentRef():
-                reports.append(_check_document(database, subject, table))
-            case SkillLocation():
-                reports.append(check_skill(database, subject, table))
+            case DocumentRef() | SkillLocation():
+                reports.append(_check_item(database, subject, table))
             case SkillResourceLocation():
                 reports.append(check_skill_resource(database, subject, table))
             case OutsideSymlink():
@@ -78,30 +77,40 @@ def _is_refused_docs_path(path: RootRelativePath, refusals: Mapping[RootRelative
     return path.is_relative_to(DOCS_DIR) and refusals.get(path) is not None
 
 
-def _check_document(database: Database, ref: DocumentRef, table: RuleTable) -> SubjectReport:
-    """Decode one document, then run the table's rules over it if it decoded and no failed layer governs it.
+def _check_item(database: Database, subject: DocumentRef | SkillLocation, table: RuleTable) -> SubjectReport:
+    """Decode one document or skill entry, then judge it if it decoded and no failed layer governs it.
+
+    The skip policy is the same for both kinds: it reads the item's governance and never which kind it is.
 
     Args:
-        database: The revision the document is read from.
-        ref: The document to check.
+        database: The revision the item is read from.
+        subject: The document or skill entry to check.
         table: The rules the run enables.
 
     Raises:
         DocumentReadError: If the document is missing from the snapshot; a decode failure is a diagnostic.
+        SkillReadError: If a skill's `SKILL.md` is missing from the snapshot; a decode failure is a diagnostic.
     """
-    source = database.text(ref)
+    match subject:
+        case DocumentRef():
+            source = database.text(subject)
+            governance = database.governance(subject)
+        case SkillLocation():
+            source = database.skill_text(subject)
+            governance = database.item_governance(MarkdownItemRef(subject.ref.path))
+        case _:
+            assert_never(subject)
     match source:
         case Undecodable():
-            return UndecodableSubject(ref, source.failure)
-        case DocumentText():
-            # Governance is a lookup in the model, never a rule, so a skipped document reads nothing else.
-            governance = database.governance(ref)
+            return UndecodableSubject(source.ref, source.failure)
+        case DocumentText() | SkillText():
+            # Governance is a lookup in the model, never a rule, so a skipped item reads nothing else.
             if governance is not None:
                 failed_layers = governance.failed_layers()
                 if failed_layers:
                     # `SkippedSubject` requires a first path, so the first failed layer is split from the rest.
                     first, *others = failed_layers
-                    return SkippedSubject(ref, (first.path, *(layer.path for layer in others)))
-            return judge_document(database, source, table)
+                    return SkippedSubject(source.ref, (first.path, *(layer.path for layer in others)))
+            return judge_item(database, source, table)
         case _:
             assert_never(source)

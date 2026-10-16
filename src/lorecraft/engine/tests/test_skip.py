@@ -9,14 +9,14 @@ from lorecraft import rules
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
-from lorecraft.project.database import Database, DocumentText
+from lorecraft.project.database import Database, DocumentText, SkillText
 from lorecraft.project.document import DocumentRef
 from lorecraft.rules.registry import Registry
 from lorecraft.rules.report import SkippedSubject, UndecodableSubject
 from lorecraft.rules.selection import AllRules, RuleSelection
 from lorecraft.rules.table import RuleTable
 
-from ..runner import judge_document
+from ..runner import judge_item
 from ..skip import check_subjects
 
 TYPING: Final[DocumentRef] = DocumentRef(CorpusName.parse('code'), AspectFilename.parse('python-typing'))
@@ -87,8 +87,66 @@ class TestCheckSubjects:
         reports = check_subjects(database, [TYPING], table)
 
         #: Then
-        assert reports == (judge_document(database, source, table),), (
+        assert reports == (judge_item(database, source, table),), (
             'the entry point decodes the document and hands it to the runner every mode shares, and adds no judgment'
+        )
+
+
+@pytest.mark.unit
+class TestCheckSubjectsOverASkillEntry:
+    def test_check_subjects_with_a_skill_entry_reports_what_the_shared_runner_judges(self) -> None:
+        #: Given
+        snapshot = from_tree({'.agents': {'skills': {'review': {'SKILL.md': b'---\nname: review\n---\n\n# Review\n'}}}})
+        database = Database.from_snapshot(snapshot)
+        table = _all_rules()
+        location = database.model().sorted_skill_locations[0]
+        source = database.skill_text(location)
+        assert isinstance(source, SkillText), 'the skill is UTF-8, so it decodes'
+
+        #: When
+        reports = check_subjects(database, [location], table)
+
+        #: Then
+        assert reports == (judge_item(database, source, table),), (
+            'a skill entry goes through the same decode, skip policy and runner entry as a document'
+        )
+
+    def test_check_subjects_with_an_undecodable_skill_entry_reports_it_undecodable(self) -> None:
+        #: Given
+        snapshot = from_tree({'.agents': {'skills': {'review': {'SKILL.md': b'\xff\xfe'}}}})
+        database = Database.from_snapshot(snapshot)
+        location = database.model().sorted_skill_locations[0]
+
+        #: When
+        reports = check_subjects(database, [location], _all_rules())
+
+        #: Then
+        assert len(reports) == 1, 'the entry point reports the one skill it was given'
+        assert isinstance(reports[0], UndecodableSubject), 'a SKILL.md that is not UTF-8 is reported undecodable'
+
+    def test_check_subjects_with_a_failed_layer_governing_a_skill_entry_skips_it(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        #: Given
+        failed = _database_with(
+            {'code.spec.json': STATES_NO_RULE, 'code-python.spec.json': CORPUS_SPEC}, {'python-typing.md': DOCUMENT}
+        )
+        governance = failed.governance(TYPING)
+        assert governance is not None, 'the corpus is in the model, so its governance is found'
+        assert governance.failed_layers(), 'the corpus spec states no rule, so its layer failed'
+        snapshot = from_tree({'.agents': {'skills': {'review': {'SKILL.md': b'---\nname: review\n---\n\n# Review\n'}}}})
+        database = Database.from_snapshot(snapshot)
+        location = database.model().sorted_skill_locations[0]
+        monkeypatch.setattr(database, 'item_governance', lambda _ref: governance)
+
+        #: When
+        reports = check_subjects(database, [location], _all_rules())
+
+        #: Then
+        first, *others = governance.failed_layers()
+        expected = SkippedSubject(location.ref, (first.path, *(layer.path for layer in others)))
+        assert reports == (expected,), (
+            'the skip decision reads the governance, not the kind, so a failed layer skips a skill entry as a document'
         )
 
 
@@ -120,7 +178,7 @@ class TestCheckSubjectsWithAFailedLayer:
         table = _all_rules()
         logging_text = database.text(LOGGING)
         assert isinstance(logging_text, DocumentText), 'the document is UTF-8, so it decodes'
-        judged = judge_document(database, logging_text, table)
+        judged = judge_item(database, logging_text, table)
 
         #: When
         reports = check_subjects(database, [TYPING, LOGGING], table)

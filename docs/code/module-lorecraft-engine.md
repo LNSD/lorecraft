@@ -22,16 +22,16 @@ returns at its subject, as a diagnostic of `lorecraft.rules.report`.
 
 ## Belongs Here
 
-- The shared runner (`runner.py`): decoding a skill and a resource, the governance lookup, facet gating, running the
-  table's rules over a subject's context, and building its report. A document is decoded by each mode's entry
-  point, so its policy comes after decoding. A rule over a document or over the frontmatter runs only when
-  the document is governed for the facet the rule declares, each facet it is not governed for is recorded as
-  coverage, and a rule over a Markdown file runs over a document governed for its structure, a skill's `SKILL.md` and
-  each resource handed over as a subject of its own. A document's report is a `CheckedDocument`, which holds its
-  coverage; a skill's or a resource's is a `CheckedSkillFile`, which holds none, because the package governs every
-  skill file in full.
-- One entry point per mode: `skip.py` gives documents governed by a failed layer no rule, and skips skill files whose
-  docs target was refused; `partial.py` is for the LSP-style mode later.
+- The shared runner (`runner.py`): decoding a resource, the governance lookup, facet gating, running the
+  table's rules over a subject's context, and building its report. A document or skill entry is decoded by each
+  mode's entry point, so its policy comes after decoding, and `judge_item` judges either through one entry. A rule
+  over a document or over the frontmatter runs only when the document is governed for the facet the rule declares,
+  each facet it is not governed for is recorded as coverage, and a rule over a Markdown file runs over a document
+  governed for its structure, a skill's `SKILL.md` and each resource handed over as a subject of its own. A
+  document's report is a `CheckedDocument`, which holds its coverage; a skill's or a resource's is a
+  `CheckedSkillFile`, which holds none, because the package governs every skill file in full.
+- One entry point per mode: `skip.py` gives documents and skill entries governed by a failed layer no rule, and
+  skips skill files whose docs target was refused; `partial.py` is for the LSP-style mode later.
 - The report of each load failure the model lists (`load_failures.py`): the engine condition of its kind, filed
   once at the failure's path, whatever the configuration and the selection. A `docs/` or `docs/__meta__/` that
   cannot be listed comes back as `UnlistableRoot` instead of a report. Which failure stops a run is the command's
@@ -102,7 +102,7 @@ def skill_names(self) -> Mapping[str, SkillId]:
 ```python
 # ❌ Bad — a policy parameter matched inside the shared runner: the next mode adds a member and edits the
 # runner every mode shares
-def judge_document(database, source, table, policy: LoadFailurePolicy) -> SubjectReport:
+def judge_item(database, source, table, policy: LoadFailurePolicy) -> SubjectReport:
     if policy is LoadFailurePolicy.SKIP and governance.failed_layers:
         return SkippedSubject(source.ref)
 ```
@@ -110,7 +110,7 @@ def judge_document(database, source, table, policy: LoadFailurePolicy) -> Subjec
 ```python
 # ✅ Good — each mode's policy is its own entry point over the shared runner, which takes no policy
 def check_subjects(database, subjects, table) -> tuple[SubjectReport, ...]:
-    ...  # skip.py: the check run's policy, then runner.judge_document(database, source, table)
+    ...  # skip.py: the check run's policy, then runner.judge_item(database, source, table)
 ```
 
 ## Checklist
@@ -124,8 +124,9 @@ Before committing code, verify:
 - [ ] A mode's policy sits in that mode's own entry point; `runner.py` takes no policy parameter and no callback
 - [ ] A new load-failure condition is reported by `load_failures.py`, whose match stays exhaustive, and a skipped
   document names each failed layer's structure file
-- [ ] A document is decoded by each mode's entry point, so its policy comes after decoding; `runner.py` decodes a
-  skill and a resource only
+- [ ] A document or skill entry is decoded by each mode's entry point, so its policy comes after decoding; the skip
+  decision reads the item's governance, not its kind, though the governance lookup stays per kind until the
+  database answers for both through one query; `runner.py` decodes a resource only
 - [ ] Nothing here imports `lorecraft.cli` or `typer`
 
 ## References
