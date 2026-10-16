@@ -10,13 +10,14 @@ scope: "pkg:lorecraft.jsonschema"
 ## Responsibility
 
 Provide a stable, Lorecraft-owned vocabulary for the JSON Schema facts the project uses. It changes when the
-dialect or the facts Lorecraft reads from a validator change.
+dialect or the facts Lorecraft reads from a schema or validator change.
 
 ## Role
 
-**Derivation.** It turns validator reports into Lorecraft-owned facts that project code can use without depending
-on validator records. The dialect and keyword vocabulary stay with that translation because they define its input
-and output, letting one import contract contain both third-party libraries.
+**Derivation.** It turns schema checks and validator reports into Lorecraft-owned facts that project code can use
+without depending on validator or reference-library records. The dialect, schema inspection and keyword vocabulary
+stay with that translation because they define its input and output, letting one import contract contain both
+third-party libraries.
 
 ## Belongs Here
 
@@ -25,6 +26,7 @@ and output, letting one import contract contain both third-party libraries.
 - The adapter that reads `jsonschema` or `referencing` values and turns them into Lorecraft-owned facts.
 - `Violation` values with the verbatim message, typed keyword, paths and evaluated-property facts needed by callers.
 - Validation results exposed through the public vocabulary, without validator records.
+- Schema inspection results exposed through owned failures, without validator or reference-library records.
 - Code that resolves references for a subschema belongs here.
 - The public vocabulary imported by callers from `lorecraft.jsonschema`.
 
@@ -72,6 +74,7 @@ Before committing code, verify:
 - [ ] Only `lorecraft.jsonschema` imports `jsonschema` or `referencing`
 - [ ] This package imports no Lorecraft package above `lorecraft.core`
 - [ ] No third-party validator or reference-library type escapes through the public API
+- [ ] Schema checks and reference inspection return owned facts without library records
 - [ ] Invalid instances produce problem values and validation raises nothing
 - [ ] Subschema validation can resolve references against its containing root schema
 - [ ] `format` does not assert semantics during validation
