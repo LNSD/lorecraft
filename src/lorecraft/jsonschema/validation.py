@@ -23,9 +23,20 @@ def validate(schema: Mapping[str, Plain], instance: Plain) -> tuple[Violation, .
     return tuple(_violation(validator, error) for error in errors)
 
 
-def best_violation(schema: Mapping[str, Plain], instance: Plain) -> Violation | None:
-    """Return the validator's best-matching failure for one value, if it has one."""
-    validator = Draft202012Validator(schema)
+def best_violation(
+    schema: Mapping[str, Plain], instance: Plain, *, root_schema: Mapping[str, Plain] | None = None
+) -> Violation | None:
+    """Return the best failure, resolving a subschema against its root when one is supplied.
+
+    Args:
+        schema: The schema or subschema to validate against.
+        instance: The plain JSON value to validate.
+        root_schema: The enclosing root schema for resolving local references in `schema`, or `None`
+            when `schema` is already the root.
+    """
+    validator = Draft202012Validator(schema if root_schema is None else root_schema)
+    if root_schema is not None:
+        validator = validator.evolve(schema=schema)
     # `best_match` preserves jsonschema's selection policy for nested constraints.
     error = best_match(validator.iter_errors(instance))
     return None if error is None else _violation(validator, error)

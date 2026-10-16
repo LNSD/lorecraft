@@ -25,6 +25,7 @@ and output, letting one import contract contain both third-party libraries.
 - The adapter that reads `jsonschema` or `referencing` values and turns them into Lorecraft-owned facts.
 - `Violation` values with the verbatim message, typed keyword, paths and evaluated-property facts needed by callers.
 - Validation results exposed through the public vocabulary, without validator records.
+- Code that resolves references for a subschema belongs here.
 - The public vocabulary imported by callers from `lorecraft.jsonschema`.
 
 ## Belongs Elsewhere
@@ -57,8 +58,8 @@ if error.validator == 'type':
 ```
 
 ```python
-# ✅ Good — a caller consumes the typed keyword owned by the boundary
-match keyword_of(error):
+# ✅ Good — a caller consumes the typed keyword in an owned violation
+match violation.keyword:
     case TypeKeyword(names):
         return names
     case _:
@@ -73,6 +74,7 @@ Before committing code, verify:
 - [ ] This package imports no Lorecraft package above `lorecraft.core`
 - [ ] No third-party validator or reference-library type escapes through the public API
 - [ ] Invalid instances produce problem values and validation raises nothing
+- [ ] Subschema validation can resolve references against its containing root schema
 - [ ] `format` does not assert semantics during validation
 - [ ] Unclassified validator prose is preserved verbatim as an opaque message
 
