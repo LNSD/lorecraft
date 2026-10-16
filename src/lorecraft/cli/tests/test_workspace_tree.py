@@ -106,6 +106,40 @@ def _skills_model() -> WorkspaceModel:
     )
 
 
+def _governed_skills_model() -> WorkspaceModel:
+    """The skills model with a `skills` corpus and a `skills-code` namespace, which only `code-rules` matches."""
+    skills = CorpusName.parse('skills')
+    corpus = Corpus(
+        corpus_spec=CorpusSpec(name=CorpusSpecName(skills), files=(_path('docs/__meta__/skills.md'),), structure=None),
+        namespaces=FrozenMapping(
+            {
+                AspectNamespace.parse('code'): CorpusNamespace(
+                    files=(_path('docs/__meta__/skills-code.md'),), structure=None
+                )
+            }
+        ),
+        filenames=frozenset(),
+    )
+    rules = _regular_skill('.agents/skills/code-rules')
+    review = _regular_skill('.agents/skills/review')
+    return WorkspaceModel(
+        corpora=FrozenMapping({}),
+        skills_dirs=frozenset(
+            {
+                SkillsDir(
+                    agent=AgentName('codex'),
+                    path=_path('.agents/skills'),
+                    resolves_to=ResolvedPath(_path('.agents/skills')),
+                )
+            }
+        ),
+        skill_locations=FrozenMapping({rules.ref: rules, review.ref: review}),
+        outside_symlinks=FrozenMapping({}),
+        load_failures=(),
+        skills_corpus=corpus,
+    )
+
+
 def _regular_skill(directory: str) -> SkillLocation:
     """The location of a skill whose directory and `SKILL.md` are no links.
 
@@ -244,3 +278,36 @@ class TestRenderJson:
                 {'path': '.agents/skills/review/SKILL.md', 'agents': ['claude-code', 'codex']},
             ],
         }, 'a skills directory names its agent and where it leads, and a skill its SKILL.md and who reads it'
+
+
+@pytest.mark.unit
+class TestRenderGovernedSkills:
+    def test_render_text_with_a_skills_corpus_lists_the_stems_governing_each_skill_broad_to_narrow(self) -> None:
+        #: Given
+        model = _governed_skills_model()
+
+        #: When
+        text = render_text(Path('/work'), model)
+
+        #: Then
+        assert text.splitlines()[-5:] == [
+            '└── skills (2)',
+            '    ├── .agents/skills/code-rules [codex]',
+            '    │   └── governed by: skills, skills-code',
+            '    └── .agents/skills/review [codex]',
+            '        └── governed by: skills',
+        ], 'the namespace governs only the skill it prefixes'
+
+    def test_render_json_with_a_skills_corpus_lists_the_spec_files_governing_each_skill(self) -> None:
+        #: Given
+        model = _governed_skills_model()
+
+        #: When
+        document = json.loads(render_json(Path('/work'), model))
+
+        #: Then
+        assert [skill['governed_by'] for skill in document['skills']] == [
+            ['docs/__meta__/skills.md', 'docs/__meta__/skills-code.md'],
+            ['docs/__meta__/skills.md'],
+        ], 'each skill lists the files of its governing specs, and the corpora stay free of the skills corpus'
+        assert document['corpora'] == [], 'the skills corpus is no directory corpus'

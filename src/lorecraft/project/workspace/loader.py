@@ -32,7 +32,7 @@ from lorecraft.project.aspect import (
     EmptyAspectNameError,
     InvalidAspectNameCharacterError,
 )
-from lorecraft.project.corpus import CorpusName
+from lorecraft.project.corpus import SKILLS_CORPUS_NAME, CorpusName
 from lorecraft.project.document import CorpusListError
 from lorecraft.project.document import Repository as DocumentRepository
 from lorecraft.project.layout import SPECS_DIR
@@ -169,12 +169,21 @@ def load_workspace(
     groups = _group_spec_files(spec_paths)
 
     corpora: dict[CorpusName, Corpus] = {}
+    skills_corpus: Corpus | None = None
+    overlapping_corpora: set[CorpusName] = set()
     for corpus_name in sorted(groups, key=str):
         files = groups[corpus_name]
         if files.spec.is_empty():
             # A namespace spec narrows a corpus spec; without one there is nothing to narrow.
             continue
-        if PathComponent.parse(str(corpus_name)) not in corpus_directories:
+        has_directory = PathComponent.parse(str(corpus_name)) in corpus_directories
+        if str(corpus_name) == SKILLS_CORPUS_NAME:
+            # The skills are this corpus's documents, so it needs no directory; one that exists is ignored.
+            if has_directory:
+                overlapping_corpora.add(corpus_name)
+            skills_corpus = _load_corpus(schemas, corpus_name, files, [], failures)
+            continue
+        if not has_directory:
             # A corpus is a regular directory under docs/; a missing or linked one has no documents to list.
             continue
         filenames = _list_document_filenames(documents, corpus_name, failures)
@@ -194,6 +203,8 @@ def load_workspace(
         outside_symlinks=FrozenMapping(outside_by_path),
         # Two agents declaring one skills directory meet its failure twice; it is one failure at one path.
         load_failures=tuple(dict.fromkeys(failures)),
+        skills_corpus=skills_corpus,
+        overlapping_corpora=frozenset(overlapping_corpora),
     )
 
 

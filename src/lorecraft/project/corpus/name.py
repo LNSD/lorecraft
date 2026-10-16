@@ -9,6 +9,9 @@ from lorecraft.core.error import Error
 RESERVED_CORPUS_NAME: Final[str] = '__meta__'
 """The name no corpus may take: the directory under docs/ that holds the specifications, not documents."""
 
+SKILLS_CORPUS_NAME: Final[str] = 'skills'
+"""The corpus whose documents are the skills the agents read, not a directory under docs/."""
+
 
 class EmptyCorpusNameError(Error):
     """A corpus name is empty."""
