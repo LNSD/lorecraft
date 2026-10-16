@@ -27,16 +27,17 @@ from lorecraft.project.context import (
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.database import (
     Database,
-    DatabaseDocumentContext,
+    DatabaseItemContext,
     DatabaseLayoutContext,
-    DatabaseSkillContext,
     DatabaseSkillResourceContext,
     DocumentText,
-    GovernedDocument,
+    ItemText,
     SkillResourceText,
     SkillText,
 )
+from lorecraft.project.database.context import WrongItemKindError
 from lorecraft.project.document import DocumentRef
+from lorecraft.project.item import MarkdownItemRef
 from lorecraft.project.layout import SNAPSHOT_SCOPE
 from lorecraft.project.link_target import DocumentDirectory, EscapingTarget, LinkTarget, PathLookup, SkillRoot
 from lorecraft.project.skill import OutsideSymlink, SkillLocation, SkillRef
@@ -139,9 +140,29 @@ def _document_context(database: Database) -> DocumentContext:
     Args:
         database: The database `TYPING` is read from.
     """
-    governed = GovernedDocument.find(database, _document_text(database))
-    assert governed is not None, f'{TYPING.path} is in a corpus that states a structure specification'
-    return DatabaseDocumentContext(database, governed)
+    return DatabaseItemContext(database, _document_item(database))
+
+
+def _document_item(database: Database) -> ItemText:
+    """The witness of `TYPING`, as the database decodes it by its common reference.
+
+    Args:
+        database: The database the document is decoded by.
+    """
+    source = database.item_text(MarkdownItemRef(TYPING.path))
+    assert isinstance(source, ItemText), f'{TYPING.path} was written as UTF-8, so it decodes'
+    return source
+
+
+def _skill_item(database: Database) -> ItemText:
+    """The witness of `REVIEW`'s `SKILL.md`, as the database decodes it by its common reference.
+
+    Args:
+        database: The database the `SKILL.md` is decoded by.
+    """
+    source = database.item_text(MarkdownItemRef(REVIEW.path))
+    assert isinstance(source, ItemText), f'{REVIEW.path} was written as UTF-8, so it decodes'
+    return source
 
 
 def _skill_text(database: Database) -> SkillText:
@@ -193,7 +214,7 @@ def _skill_context(database: Database) -> SkillContext:
     Args:
         database: The database `REVIEW` is read from.
     """
-    return DatabaseSkillContext(database, _skill_text(database))
+    return DatabaseItemContext(database, _skill_item(database))
 
 
 def _scanned(root: Path) -> Database:
@@ -228,36 +249,7 @@ def _write_tree(directory: Path, tree: FileTree) -> None:
 
 
 @pytest.mark.it
-class TestGovernedDocument:
-    def test_find_with_a_document_of_a_corpus_that_states_a_structure_returns_it_governed(self) -> None:
-        #: Given
-        database = Database.from_snapshot(_snapshot())
-        text = _document_text(database)
-
-        #: When
-        governed = GovernedDocument.find(database, text)
-
-        #: Then
-        assert governed is not None, 'the corpus states a structure specification'
-        assert governed.text is text, 'the witness is the decoded text'
-        assert governed.governance is database.governance(TYPING), 'the governance is the memoized query value'
-        assert governed.corpus_structure.path == CORPUS_SPEC, "the structure is the corpus's"
-
-    def test_find_with_a_document_of_a_corpus_the_model_does_not_hold_returns_none(self) -> None:
-        #: Given
-        database = Database.from_snapshot(_snapshot())
-        ref = DocumentRef(CorpusName.parse('docs'), AspectFilename.parse('python-typing'))
-        text = DocumentText(ref=ref, text=TYPING_TEXT)
-
-        #: When
-        governed = GovernedDocument.find(database, text)
-
-        #: Then
-        assert governed is None, 'no corpus governs the document'
-
-
-@pytest.mark.it
-class TestDatabaseDocumentContext:
+class TestDatabaseItemContextOverADocument:
     def test_filename_with_a_document_returns_the_filename_of_its_ref(self) -> None:
         #: Given
         context = _document_context(Database.from_snapshot(_snapshot()))
@@ -425,7 +417,7 @@ class TestDatabaseDocumentContext:
 
 
 @pytest.mark.it
-class TestDatabaseSkillContext:
+class TestDatabaseItemContextOverASkillEntry:
     def test_directory_name_with_a_skill_returns_the_name_it_is_listed_under(self) -> None:
         #: Given
         context = _skill_context(Database.from_snapshot(_snapshot()))
@@ -645,3 +637,30 @@ class TestDatabaseLayoutContext:
         assert leaves_at == RootExit(RootRelativePath.parse('.agents/skills/x'), PurePosixPath('/elsewhere/x')), (
             'the entry links straight out, so it is the link the chain leaves through, with its target as recorded'
         )
+
+
+@pytest.mark.it
+class TestDatabaseItemContextOverTheOtherKind:
+    def test_filename_with_a_skill_entry_raises_wrong_item_kind_error(self) -> None:
+        #: Given
+        database = Database.from_snapshot(_snapshot())
+        context = DatabaseItemContext(database, _skill_item(database))
+
+        #: When
+        with pytest.raises(WrongItemKindError) as raised:
+            context.filename()
+
+        #: Then
+        assert REVIEW.path.value.as_posix() in str(raised.value), 'the error names the skill entry asked for a filename'
+
+    def test_directory_name_with_a_document_raises_wrong_item_kind_error(self) -> None:
+        #: Given
+        database = Database.from_snapshot(_snapshot())
+        context = DatabaseItemContext(database, _document_item(database))
+
+        #: When
+        with pytest.raises(WrongItemKindError) as raised:
+            context.directory_name()
+
+        #: Then
+        assert TYPING.path.value.as_posix() in str(raised.value), 'the error names the document asked for a directory'
