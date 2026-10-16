@@ -92,3 +92,5 @@ Before committing code, verify:
 
 - [adr-016-specifications](adr-016-specifications.md) - Foundation: Conjunction for meta specs
 - [adr-006-specifications](adr-006-specifications.md) - Related: The record adr-016 supersedes
+- [prd-024-shared-name-hierarchy](prd-024-shared-name-hierarchy.md) - Related: The requirements for one shared name
+  hierarchy across meta specs and corpus documents

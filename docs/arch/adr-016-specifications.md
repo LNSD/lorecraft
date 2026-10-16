@@ -151,3 +151,5 @@ Before committing code, verify:
   with a reserved corpus and bounded contradiction detection
 - [adr-023](adr-023-governed-items.md) - Related: Unified governed-item reference and model-resolved governance
   descriptor
+- [prd-024-shared-name-hierarchy](prd-024-shared-name-hierarchy.md) - Related: The requirements for one shared name
+  hierarchy across meta specs and corpus documents
