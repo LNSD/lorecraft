@@ -10,10 +10,10 @@ file at the descriptor's read location into one `ItemText` witness or an `Undeco
 `item_parse`, `item_token_count`, `item_line_count`, `item_link_targets`, `item_governance`, `item_schema_problems`,
 `item_outline_alignment` and `item_outline_divergences` take that witness and are computed on first demand. Link targets
 read the descriptor's link base, so no query tells a document from a skill entry; the analyses read
-`item_governance(ref)`, never the whole model. The skill-entry queries below (`skill_text`, `skill_parse`, ...) remain
-as compatibility entry points that delegate to this family and keep no cache of their own beyond the witness they wrap,
-until the callers migrate; their carry-over rules are the family's. A document the model does not list is answered for
-by the corpus and filename its path names.
+`item_governance(ref)`, never the whole model. `skill_text(location)` remains as a compatibility entry point that
+delegates to this family and keeps no cache of its own beyond the witness it wraps, until the callers migrate; its
+carry-over rules are the family's. A document the model does not list is answered for by the corpus and filename its
+path names.
 
 Input queries read the snapshot. Each is the one place its part of the snapshot becomes a value for a rule, so only an
 input query builds a witness or fails to read, and each states its own carry-over rule against the change set:
@@ -38,7 +38,7 @@ input query builds a witness or fails to read, and each states its own carry-ove
   through the links it recorded, like the IDE's index of a project's content roots. It reads the snapshot's
   scope, links and climbed directories and nothing else, and no caller reaches it but `is_in_scope` and the
   link-target queries.
-- `item_link_targets(source)`, `skill_link_targets(source)` and `skill_resource_link_targets(source)`: what the
+- `item_link_targets(source)` and `skill_resource_link_targets(source)`: what the
   snapshot holds at the target of each relative link of one item, `SKILL.md` or resource, like the IDE's index of a
   file's references resolved against the virtual file system. Each hands the file's parse, where its links are read
   from, the snapshot's view and the scope index to `link_targets_of`, which reads, for each path a link names, the
@@ -65,17 +65,9 @@ it read does, `item_governance(ref)` excepted, as its bullet states:
   frontmatter schema that governs one document rejects, which outline entry each section falls in, and where the
   sections first stop matching each outline, the shared analyses every inspection reads. They read the item's
   frontmatter or parse, its governance and, for the divergences, its alignment and line count, and nothing else.
-- `skill_frontmatter(source)`: one skill's frontmatter node, the same stub for a `SKILL.md`. It reads the text of
-  the witness `skill_text(location)` returned and nothing else.
-- `skill_parse(source)`: one skill's parse tree, the same syntax tree for a `SKILL.md`. It reads the text of the
-  witness and nothing else.
-- `skill_line_count(source)`: how many lines one skill's `SKILL.md` holds, like `token_count(source)` for a document:
-  counted from the raw text, frontmatter included, without a parse. It reads the text of the witness and nothing else.
-- `skill_schema_problems(source)`: what the Agent Skills specification rejects in one skill's frontmatter, the same
-  analysis as `item_schema_problems(source)` for a document. It reads `skill_frontmatter(source)` and nothing else: the
-  package states the specification, so no specification in the repository plays a part.
-- `skill_fields(source)`: the fields of one skill's frontmatter that parse, each on its own, keyed by field. It reads
-  `skill_frontmatter(source)` and nothing else.
+- `item_skill_schema_problems(source)` and `item_skill_fields(source)`: what the Agent Skills specification rejects in
+  one skill entry's frontmatter and the fields of it that parse, each on its own. They read `item_frontmatter(source)`
+  and nothing else: the package states the specification, so no specification in the repository plays a part.
 - `skill_resource_parse(source)`: one resource's parse tree, the same syntax tree again. It reads the text of the
   witness `skill_resource_text(resource)` returned and nothing else.
 
@@ -543,23 +535,6 @@ class Database:
             self._scope_index = ScopeIndex(self._snapshot)
         return self._scope_index
 
-    def skill_link_targets(self, source: SkillText) -> Mapping[NormalisedLinkPath, LinkTargetEntry]:
-        """Where each relative link in a skill's `SKILL.md` leads and what the snapshot holds there, on the first call.
-
-        Each link is read from the skill root, the skill directory where an agent reaches it, as `link_targets_of`
-        states, and looked up through the snapshot's view and scope. Raises nothing.
-
-        Carry-over: kept for the next revision only when `skill_parse(source)` is kept and every path the query
-        looked up, an absent target included, still resolves to the same place and is in the same scope state:
-        creating a missing target, deleting a present one or retargeting a symlink on the way to one must change its
-        entry.
-
-        Args:
-            source: The file's text, the witness every per-file query takes; its ref is the cache key, so one ref is
-                looked up once.
-        """
-        return self.item_link_targets(self._decoded(source.ref.path))
-
     def skill_resource_link_targets(self, source: SkillResourceText) -> Mapping[NormalisedLinkPath, LinkTargetEntry]:
         """Where each relative link in a resource of a skill leads and what the snapshot holds there, on the first call.
 
@@ -691,13 +666,6 @@ class Database:
         if item not in self._items:
             self._items[item] = self._model.resolve_item(ref)
         return item
-
-    def _decoded(self, path: RootRelativePath) -> ItemText:
-        """The witness of an item whose compatibility witness exists, so its file decoded."""
-        decoded = self._decode(MarkdownItemRef(path))
-        if isinstance(decoded, Undecodable):
-            raise AssertionError(f'{path} has a witness, so it decodes')
-        return decoded
 
     def item_link_targets(self, source: ItemText) -> Mapping[NormalisedLinkPath, LinkTargetEntry]:
         """Where each relative link of one item leads and what the snapshot holds there, found on the first call.
@@ -861,64 +829,6 @@ class Database:
         return divergences
 
     # Derived queries: each reads only other queries and carries over whenever they do.
-
-    def skill_frontmatter(self, source: SkillText) -> FrontmatterNode:
-        """The frontmatter of one skill's `SKILL.md`, parsed on the first call for its ref. Raises nothing.
-
-        Carry-over: kept for the next revision whenever `skill_text(source.location)` is.
-
-        Args:
-            source: The skill's `SKILL.md` text, as `skill_text(location)` returns it; its ref is the cache key, so one
-                skill is parsed once.
-        """
-        return self.item_frontmatter(self._decoded(source.ref.path))
-
-    def skill_parse(self, source: SkillText) -> ParsedDocument:
-        """The parse tree of one skill's `SKILL.md`, parsed on the first call for its ref. Raises nothing.
-
-        Cached apart from `skill_frontmatter(source)`, and holds no frontmatter, as a document's parse holds none.
-
-        Carry-over: kept for the next revision whenever `skill_text(source.location)` is.
-
-        Args:
-            source: The skill's `SKILL.md` text, as `skill_text(location)` returns it; its ref is the cache key, so one
-                skill is parsed once.
-        """
-        return self.item_parse(self._decoded(source.ref.path))
-
-    def skill_line_count(self, source: SkillText) -> LineCount:
-        """The lines in one skill's whole `SKILL.md`, counted on the first call for its ref. Raises nothing.
-
-        Cached apart from `skill_parse(source)` and never read from it, as a document's token count is from its
-        parse: the count needs the raw text, frontmatter included, not the tree.
-
-        Carry-over: kept for the next revision whenever `skill_text(source.location)` is.
-
-        Args:
-            source: The skill's `SKILL.md` text, as `skill_text(location)` returns it; its ref is the cache key, so one
-                skill is counted once.
-        """
-        return self.item_line_count(self._decoded(source.ref.path))
-
-    def skill_schema_problems(self, source: SkillText) -> tuple[SchemaProblems, ...]:
-        """What the Agent Skills specification rejects in a skill's frontmatter, found once. Raises nothing.
-
-        Answers as `item_skill_schema_problems` does for the skill's item.
-
-        Args:
-            source: The skill's `SKILL.md` text, as `skill_text(location)` returns it.
-        """
-        return self.item_skill_schema_problems(self._decoded(source.ref.path))
-
-    def skill_fields(self, source: SkillText) -> SkillFields:
-        """The fields of one skill's frontmatter that parse, parsed once. Raises nothing.
-
-        Answers as `item_skill_fields` does for the skill's item.
-
-        Args:
-            source: The skill's `SKILL.md` text, as `skill_text(location)` returns it.
-        """
-        return self.item_skill_fields(self._decoded(source.ref.path))
 
     def item_skill_schema_problems(self, source: ItemText) -> tuple[SchemaProblems, ...]:
         """What the Agent Skills specification rejects in a skill entry's frontmatter, found once. Raises nothing.

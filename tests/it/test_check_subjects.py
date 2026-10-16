@@ -29,7 +29,7 @@ from lorecraft.jsonschema import JsonType
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.context import DocumentContext, DocumentFrontmatterOwner, SkillFrontmatterOwner
 from lorecraft.project.corpus import CorpusName
-from lorecraft.project.database import Database, ItemText, SkillText
+from lorecraft.project.database import Database, ItemText
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.item import MarkdownItemRef
 from lorecraft.project.layout import SNAPSHOT_SCOPE
@@ -322,7 +322,7 @@ class CountingDatabase(Database):
 
     Attributes:
         counted_tokens: The documents whose tokens were counted, in the order asked, a repeat listed again.
-        counted_lines: The skills whose lines were counted, in the order asked.
+        counted_lines: The items whose lines were counted, in the order asked.
         parsed_frontmatters: The documents and skills whose frontmatter was parsed, in the order asked.
         validated_frontmatters: The documents and skills whose frontmatter was checked against its schema.
         parsed_documents: The documents whose Markdown was parsed, in the order asked.
@@ -337,7 +337,7 @@ class CountingDatabase(Database):
         """
         super().__init__(fs, model)
         self.counted_tokens: list[MarkdownItemRef] = []
-        self.counted_lines: list[SkillRef] = []
+        self.counted_lines: list[MarkdownItemRef] = []
         self.parsed_frontmatters: list[MarkdownItemRef] = []
         self.validated_frontmatters: list[MarkdownItemRef] = []
         self.parsed_documents: list[MarkdownItemRef] = []
@@ -351,14 +351,14 @@ class CountingDatabase(Database):
         self.counted_tokens.append(source.ref)
         return super().item_token_count(source)
 
-    def skill_line_count(self, source: SkillText) -> UnsignedInt:
-        """Record the skill, then count the lines of its `SKILL.md`.
+    def item_line_count(self, source: ItemText) -> UnsignedInt:
+        """Record the item, then count its lines.
 
         Args:
-            source: The decoded `SKILL.md` whose lines are counted, recorded by its skill's ref first.
+            source: The decoded item whose lines are counted, recorded by its ref first.
         """
         self.counted_lines.append(source.ref)
-        return super().skill_line_count(source)
+        return super().item_line_count(source)
 
     def item_frontmatter(self, source: ItemText) -> FrontmatterNode:
         """Record the document, then parse its frontmatter.
@@ -378,15 +378,6 @@ class CountingDatabase(Database):
         self.parsed_documents.append(source.ref)
         return super().item_parse(source)
 
-    def skill_frontmatter(self, source: SkillText) -> FrontmatterNode:
-        """Record the skill, then parse the frontmatter of its `SKILL.md`.
-
-        Args:
-            source: The decoded `SKILL.md` whose frontmatter is parsed, recorded by its skill's ref first.
-        """
-        self.parsed_frontmatters.append(MarkdownItemRef(source.ref.path))
-        return super().skill_frontmatter(source)
-
     def item_schema_problems(self, source: ItemText) -> tuple[SchemaProblems, ...]:
         """Record the document, then hold its frontmatter to the schemas that govern it.
 
@@ -396,14 +387,14 @@ class CountingDatabase(Database):
         self.validated_frontmatters.append(source.ref)
         return super().item_schema_problems(source)
 
-    def skill_schema_problems(self, source: SkillText) -> tuple[SchemaProblems, ...]:
+    def item_skill_schema_problems(self, source: ItemText) -> tuple[SchemaProblems, ...]:
         """Record the skill, then hold the frontmatter of its `SKILL.md` to the Agent Skills specification.
 
         Args:
-            source: The decoded `SKILL.md` whose frontmatter is validated, recorded by its skill's ref first.
+            source: The decoded `SKILL.md` whose frontmatter is validated, recorded by its ref first.
         """
-        self.validated_frontmatters.append(MarkdownItemRef(source.ref.path))
-        return super().skill_schema_problems(source)
+        self.validated_frontmatters.append(source.ref)
+        return super().item_skill_schema_problems(source)
 
 
 def _snapshot(

@@ -113,15 +113,15 @@ def _document_text(database: Database, ref: DocumentRef) -> ItemText:
     return source
 
 
-def _skill_text(database: Database, ref: SkillRef) -> SkillText:
+def _skill_text(database: Database, ref: SkillRef) -> ItemText:
     """The witness of a skill whose `SKILL.md` the test wrote as UTF-8, as the database decodes it.
 
     Args:
         database: The database the `SKILL.md` is decoded by.
         ref: A skill whose `SKILL.md` bytes are UTF-8.
     """
-    source = database.skill_text(_location(database, ref))
-    assert isinstance(source, SkillText), f'{ref.path} was written as UTF-8, so it decodes'
+    source = database.item_text(MarkdownItemRef(ref.path))
+    assert isinstance(source, ItemText), f'{ref.path} was written as UTF-8, so it decodes'
     return source
 
 
@@ -714,7 +714,7 @@ class TestDatabase:
         source = _skill_text(database, REVIEW)
 
         #: When
-        document = database.skill_parse(source)
+        document = database.item_parse(source)
 
         #: Then
         assert document.links == (MarkdownLink(url='guide.md', line=LineNumber(NonZeroUnsignedInt(6))),), (
@@ -725,10 +725,10 @@ class TestDatabase:
         #: Given
         database = Database.from_snapshot(_skill_snapshot(b'---\nname: review\n---\n# Review\n'))
         source = _skill_text(database, REVIEW)
-        first = database.skill_parse(source)
+        first = database.item_parse(source)
 
         #: When
-        second = database.skill_parse(source)
+        second = database.item_parse(source)
 
         #: Then
         assert second is first, 'a skill is parsed once per database, then shared by every check'
@@ -747,7 +747,7 @@ class TestDatabase:
         source = _skill_text(database, REVIEW)
 
         #: When
-        document = database.skill_parse(source)
+        document = database.item_parse(source)
 
         #: Then
         assert document.links == (MarkdownLink(url='guide.md', line=LineNumber(NonZeroUnsignedInt(4))),), (
@@ -763,7 +763,7 @@ class TestDatabase:
         source = _skill_text(database, REVIEW)
 
         #: When
-        lines = database.skill_line_count(source)
+        lines = database.item_line_count(source)
 
         #: Then
         assert lines == UnsignedInt(6), f'the frontmatter counts too, and the final newline adds no line, got {lines}'
@@ -772,10 +772,10 @@ class TestDatabase:
         #: Given
         database = Database.from_snapshot(_skill_snapshot(b'---\nname: review\n---\n'))
         source = _skill_text(database, REVIEW)
-        first = database.skill_frontmatter(source)
+        first = database.item_frontmatter(source)
 
         #: When
-        second = database.skill_frontmatter(source)
+        second = database.item_frontmatter(source)
 
         #: Then
         assert isinstance(first, Frontmatter), 'the skill bytes decode into a frontmatter node'

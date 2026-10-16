@@ -1,4 +1,4 @@
-"""The `schema_problems` and `skill_schema_problems` queries, for one decoded document or skill.
+"""The `item_schema_problems` and `item_skill_schema_problems` queries, for one decoded document or skill.
 
 A document's schemas come from the model's governance and a skill's is the Agent Skills specification, so the queries
 are tested over a database opened on an in-memory snapshot: a document governed by a corpus and a namespace schema, an
@@ -16,7 +16,7 @@ from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.jsonschema import JsonType
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
-from lorecraft.project.database import Database, ItemText, SkillText
+from lorecraft.project.database import Database, ItemText
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.item import MarkdownItemRef
 from lorecraft.project.schemas import (
@@ -121,17 +121,15 @@ def _document_text(database: Database, ref: DocumentRef) -> ItemText:
     return source
 
 
-def _skill_text(database: Database, ref: SkillRef) -> SkillText:
+def _skill_text(database: Database, ref: SkillRef) -> ItemText:
     """The witness of a skill whose `SKILL.md` the test wrote as UTF-8, as the database decodes it.
 
     Args:
         database: The database the `SKILL.md` is decoded by.
         ref: A skill whose `SKILL.md` bytes are UTF-8.
     """
-    location = database.model().find_skill_location(ref.directory)
-    assert location is not None, f'the model lists the skill {ref.directory}'
-    source = database.skill_text(location)
-    assert isinstance(source, SkillText), f'{ref.path} was written as UTF-8, so it decodes'
+    source = database.item_text(MarkdownItemRef(ref.path))
+    assert isinstance(source, ItemText), f'{ref.path} was written as UTF-8, so it decodes'
     return source
 
 
@@ -258,7 +256,7 @@ class TestSkillSchemaProblems:
         source = _skill_text(database, REVIEW)
 
         #: When
-        found = database.skill_schema_problems(source)
+        found = database.item_skill_schema_problems(source)
 
         #: Then
         assert found == (
@@ -310,7 +308,7 @@ class TestSkillSchemaProblems:
         source = _skill_text(database, REVIEW)
 
         #: When
-        found = database.skill_schema_problems(source)
+        found = database.item_skill_schema_problems(source)
 
         #: Then
         assert found == (), 'no schema can hold a missing block: the block rules report it'
@@ -320,10 +318,10 @@ class TestSkillSchemaProblems:
         review = b'---\nname: review\nallowed-tools: Read\n---\n# Review\n'
         database = Database.from_snapshot(_snapshot(REQUIRE_STATUS, STRING_DESCRIPTION, typing=b'', review=review))
         source = _skill_text(database, REVIEW)
-        first = database.skill_fields(source)
+        first = database.item_skill_fields(source)
 
         #: When
-        second = database.skill_fields(source)
+        second = database.item_skill_fields(source)
 
         #: Then
         assert second is first, "a skill's fields are parsed once per database, then shared by every rule"
@@ -334,10 +332,10 @@ class TestSkillSchemaProblems:
         review = b'---\nname: review\nextra: y\n---\n# Review\n'
         database = Database.from_snapshot(_snapshot(REQUIRE_STATUS, STRING_DESCRIPTION, typing=b'', review=review))
         source = _skill_text(database, REVIEW)
-        first = database.skill_schema_problems(source)
+        first = database.item_skill_schema_problems(source)
 
         #: When
-        second = database.skill_schema_problems(source)
+        second = database.item_skill_schema_problems(source)
 
         #: Then
         assert second is first, 'a skill is held to the specification once per database, then shared by every rule'
