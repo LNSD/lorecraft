@@ -52,7 +52,7 @@ above it decides what a heading, a link or a frontmatter block means for a docum
 - A link's URL is CommonMark-normalised: escapes and character references are decoded, then the value is
   percent-encoded.
 - A heading is read once, in one walk, into one `MarkdownHeading` that carries both its texts and whether it is
-  top-level: `text` keeps inline HTML and an image's alt text, and `rendered_text` drops both, as GitHub renders an
+  top-level: `text` keeps inline HTML verbatim, with no line break around it, and an image's alt text, and `rendered_text` drops both, as GitHub renders an
   anchor. The heading blocks of the tree are the same values as its `headings`.
 - The frontmatter scan finds the block wenmode's plugin finds, which `tests/it/test_frontmatter_scan.py` pins.
 

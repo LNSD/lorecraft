@@ -45,11 +45,11 @@ sequence of any length is no JSON Schema, so the file is a dialect of its own. `
 Every key is optional. An outline entry may also cap its section's words, as
 [spec-structure-budget](spec-structure-budget.md) describes.
 
-The `title` key's `words` and `chars` are positive integers. `words` counts prose words, each whitespace-delimited
-token of the H1's text; `chars` counts the code points of that text, without its `#` marker or inline markup. Only
-the first H1 is measured, and a document with no title is reported as missing one, never as over a cap. A title
-over a cap is `LEN004 title-too-many-words` or `LEN005 title-too-long`, at its heading, once per meta spec
-that sets it: a corpus and a namespace cap each apply on their own.
+The `title` key's `words` and `chars` are positive integers. `words` counts whitespace-delimited tokens of the
+H1's text; `chars` counts its code points, excluding the `#` marker. Inline Markdown markup is stripped; inline
+HTML remains and counts toward both limits. Only the first H1 is measured; a missing title is reported as missing,
+never over a cap. A title over a cap is `LEN004 title-too-many-words` or `LEN005 title-too-long`, at its heading,
+once per meta spec that sets it: corpus and namespace caps apply independently.
 
 Its `pattern` is a Python `re` expression that the title's text must match. It is matched as
 JSON Schema's `pattern` is, searched for anywhere in the text, so `^[A-Z]` asks only for a capital first letter, and a
@@ -140,7 +140,8 @@ whitespace at either end, or spans two lines: no heading's text could match it.
 ## Limitations
 
 - The outline names H2 sections only; H3 subsections are never required, ordered or forbidden.
-- A section is matched on its exact heading text, without its `#` markers or inline markup.
+- A section is matched on its exact heading text, without its `#` markers or inline Markdown markup. Inline HTML
+  remains in the text, including when matching a section name.
 
 ## References
 

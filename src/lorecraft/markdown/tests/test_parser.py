@@ -43,6 +43,18 @@ class TestParseMarkdown:
         assert isinstance(heading, MarkdownHeading)
         assert heading.text == expected, 'inline markup is stripped while its text is preserved'
 
+    def test_parse_markdown_with_inline_html_in_a_heading_keeps_it_on_one_line(self) -> None:
+        #: Given
+        text = '## Use <code>x</code> now\n'
+
+        #: When
+        tree = parse_markdown(text)
+
+        #: Then
+        heading = tree.blocks[0]
+        assert isinstance(heading, MarkdownHeading)
+        assert heading.text == 'Use <code>x</code> now', 'inline HTML is kept verbatim with no line break around it'
+
     def test_parse_markdown_with_a_heading_and_a_paragraph_returns_both_as_blocks(self) -> None:
         #: Given
         text = '# Guide\n\nSome prose.\n'
@@ -130,7 +142,7 @@ class TestParseMarkdown:
         #: Then
         assert tree.blocks == (
             MarkdownHeading(
-                level=1, text='Hi \n<b>\nx\n</b>\n alt', rendered_text='Hi x ', line=MarkdownLine(1), top_level=True
+                level=1, text='Hi <b>x</b> alt', rendered_text='Hi x ', line=MarkdownLine(1), top_level=True
             ),
         ), "the heading block's plain text keeps inline HTML and an image's alt text"
 

@@ -324,7 +324,9 @@ def _rendered_text(nodes: list[Node]) -> str:
 def _plain_text(nodes: list[Node]) -> str:
     """The heading's plain text: inline markup stripped, HTML and image alt text kept, with block separators.
 
-    This mirrors wenmode 0.15's `plain_text` behavior.
+    Inline HTML is kept verbatim and adds no separator, so `Use <code>x</code> now` stays on one line.
+
+    This mirrors wenmode 0.15's `plain_text` behavior, except that inline HTML adds no separator.
     """
     parts: list[str] = []
     previous_separated = False
@@ -332,7 +334,7 @@ def _plain_text(nodes: list[Node]) -> str:
         text = _plain_text_node(node)
         if not text:
             continue
-        separated = node.block
+        separated = node.block and not isinstance(node, Html)
         if parts and (previous_separated or separated):
             parts.append('\n')
         parts.append(text)
