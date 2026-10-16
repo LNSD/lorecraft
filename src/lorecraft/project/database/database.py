@@ -5,6 +5,13 @@ check can see, and never changed once built. `Database.from_snapshot` builds the
 model; every other query sits above it, computed on first use and kept for as long as the database lives
 (pattern-memoization). Queries come in two kinds, and the kind decides how a query carries over to the next revision.
 
+Documents and skill entries share one query family keyed by the common `MarkdownItemRef`: `item_text(ref)` decodes the
+file at the descriptor's read location into one `ItemText` witness or an `Undecodable` marker, and `item_frontmatter`,
+`item_parse`, `item_token_count` and `item_line_count` take that witness and are computed on first demand. The document
+and skill-entry queries below (`text`, `skill_text`, `parse`, `skill_parse`, ...) remain as compatibility entry points
+that delegate to this family and keep no cache of their own beyond the witness they wrap, until the callers migrate;
+their carry-over rules are the family's.
+
 Input queries read the snapshot. Each is the one place its part of the snapshot becomes a value for a rule, so only an
 input query builds a witness or fails to read, and each states its own carry-over rule against the change set:
 
@@ -160,8 +167,9 @@ from typing import Self
 
 from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.path import RootRelativePath
-from lorecraft.project.document import DocumentDecodeError, DocumentReadError, DocumentRef
+from lorecraft.project.document import DocumentReadError, DocumentRef
 from lorecraft.project.document import Repository as DocumentRepository
+from lorecraft.project.item import ItemReadError, MarkdownItemDescriptor, MarkdownItemRef, UnlistedItemError
 from lorecraft.project.layout import DOCS_DIR, SPECS_DIR, reject_linked_layout
 from lorecraft.project.link_target import DocumentDirectory, LinkTargetEntry, SkillRoot, link_targets_of
 from lorecraft.project.schemas import (
@@ -177,7 +185,6 @@ from lorecraft.project.schemas import (
 )
 from lorecraft.project.skill import Repository as SkillRepository
 from lorecraft.project.skill import (
-    SkillDecodeError,
     SkillLocation,
     SkillReadError,
     SkillRef,
@@ -201,7 +208,7 @@ from lorecraft.project.syntax import (
     parse_frontmatter,
     split_lines,
 )
-from lorecraft.project.workspace import Governance, WorkspaceModel, load_model, unreported_refusals
+from lorecraft.project.workspace import Governance, ResolvedItem, WorkspaceModel, load_model, unreported_refusals
 from lorecraft.vfs import (
     FILE_READ_FAILURES,
     RefusedRecord,
@@ -213,7 +220,7 @@ from lorecraft.vfs import (
     VirtualFileSystem,
 )
 
-from .text import DocumentText, SkillResourceText, SkillText, Undecodable
+from .text import DocumentText, ItemText, SkillResourceText, SkillText, Undecodable
 
 logger = logging.getLogger(__name__)
 
@@ -266,30 +273,30 @@ class Database:
         # `None` until the first `is_in_scope()` call, so the index is built only for a run that asks.
         self._scope_index: ScopeIndex | None = None
         self._unreported_docs_refusals: FrozenMapping[RootRelativePath, RefusedRecord] | None = None
-        # The input queries' caches.
+        # The unified family's caches, keyed by the common reference: the one implementation of every document and
+        # skill entry query.
+        self._items: dict[MarkdownItemRef, ResolvedItem] = {}
+        self._item_texts: dict[MarkdownItemRef, ItemText | Undecodable[MarkdownItemRef]] = {}
+        self._item_frontmatters: dict[MarkdownItemRef, FrontmatterNode] = {}
+        self._item_parses: dict[MarkdownItemRef, ParsedDocument] = {}
+        self._item_token_counts: dict[MarkdownItemRef, TokenCount] = {}
+        self._item_line_counts: dict[MarkdownItemRef, LineCount] = {}
+        # The compatibility entry points' witnesses, wrapped from the unified decode; they decode nothing themselves.
         self._texts: dict[DocumentRef, DocumentText | Undecodable[DocumentRef]] = {}
         self._skill_texts: dict[SkillRef, SkillText | Undecodable[SkillRef]] = {}
-        self._skill_resources: dict[SkillRef, SkillResourceListing] = {}
-        self._skill_resource_texts: dict[SkillResourceRef, SkillResourceText | Undecodable[SkillResourceRef]] = {}
         self._link_targets: dict[DocumentRef, Mapping[NormalisedLinkPath, LinkTargetEntry]] = {}
         self._skill_link_targets: dict[SkillRef, Mapping[NormalisedLinkPath, LinkTargetEntry]] = {}
-        self._skill_resource_link_targets: dict[SkillResourceRef, Mapping[NormalisedLinkPath, LinkTargetEntry]] = {}
-        # The derived queries' caches.
-        self._frontmatters: dict[DocumentRef, FrontmatterNode] = {}
-        self._parses: dict[DocumentRef, ParsedDocument] = {}
-        self._token_counts: dict[DocumentRef, TokenCount] = {}
-        self._line_counts: dict[DocumentRef, LineCount] = {}
         # A document in no corpus the model holds is governed by nothing, so `None` is an answer and is cached too.
         self._governances: dict[DocumentRef, Governance | None] = {}
         self._schema_problems: dict[DocumentRef, tuple[SchemaProblems, ...]] = {}
         self._outline_alignments: dict[DocumentRef, tuple[OutlineAlignmentSpec, ...]] = {}
         self._outline_divergences: dict[DocumentRef, tuple[OutlineDivergenceSpec, ...]] = {}
-        self._skill_frontmatters: dict[SkillRef, FrontmatterNode] = {}
-        self._skill_parses: dict[SkillRef, ParsedDocument] = {}
-        self._skill_line_counts: dict[SkillRef, LineCount] = {}
+        self._skill_resources: dict[SkillRef, SkillResourceListing] = {}
+        self._skill_resource_texts: dict[SkillResourceRef, SkillResourceText | Undecodable[SkillResourceRef]] = {}
+        self._skill_resource_link_targets: dict[SkillResourceRef, Mapping[NormalisedLinkPath, LinkTargetEntry]] = {}
+        self._skill_resource_parses: dict[SkillResourceRef, ParsedDocument] = {}
         self._skill_schema_problems: dict[SkillRef, tuple[SchemaProblems, ...]] = {}
         self._skill_fields: dict[SkillRef, SkillFields] = {}
-        self._skill_resource_parses: dict[SkillResourceRef, ParsedDocument] = {}
 
     @classmethod
     def from_snapshot(cls, snapshot: Snapshot) -> Self:
@@ -355,9 +362,10 @@ class Database:
         source = self._texts.get(ref)
         if source is None:
             try:
-                source = DocumentText(ref, self._documents.get_document(ref).text)
-            except DocumentDecodeError as exc:
-                source = Undecodable(ref, exc.source.failure)
+                item = self.item_text(self._document_item(ref))
+            except ItemReadError as exc:
+                raise DocumentReadError(ref, source=exc.source) from exc
+            source = Undecodable(ref, item.failure) if isinstance(item, Undecodable) else DocumentText(ref, item.text)
             self._texts[ref] = source
         return source
 
@@ -456,14 +464,17 @@ class Database:
         Raises:
             SkillReadError: If the snapshot holds no regular file at the skill's path.
         """
-        ref = location.ref
-        source = self._skill_texts.get(ref)
+        source = self._skill_texts.get(location.ref)
         if source is None:
             try:
-                source = SkillText(location, self._skills.get_skill(ref).text)
-            except SkillDecodeError as exc:
-                source = Undecodable(ref, exc.source.failure)
-            self._skill_texts[ref] = source
+                item = self.item_text(MarkdownItemRef(location.ref.path))
+            except ItemReadError as exc:
+                raise SkillReadError(location.ref, source=exc.source) from exc
+            if isinstance(item, Undecodable):
+                source = Undecodable(location.ref, item.failure)
+            else:
+                source = SkillText(location, item.text)
+            self._skill_texts[location.ref] = source
         return source
 
     def skill_resources(self, skill: SkillLocation) -> SkillResourceListing:
@@ -613,6 +624,133 @@ class Database:
             self._skill_resource_link_targets[source.ref] = targets
         return targets
 
+    # The unified family: one query per fact for a document or a skill entry, keyed by the common reference.
+
+    def item(self, ref: MarkdownItemRef) -> MarkdownItemDescriptor:
+        """The facts the model resolved for one listed document or skill entry, found on the first call for its ref.
+
+        Carry-over: kept for the next revision only when the next model resolves an equal descriptor.
+
+        Args:
+            ref: The item to look up; the cache key.
+
+        Raises:
+            UnlistedItemError: If the model lists no document or skill entry there.
+        """
+        return self._resolved(ref).descriptor
+
+    def _resolved(self, ref: MarkdownItemRef) -> ResolvedItem:
+        """The descriptor and governance the model resolved for a listed item, found on the first call."""
+        resolved = self._items.get(ref)
+        if resolved is None:
+            resolved = self._model.find_item(ref)
+            if resolved is None:
+                raise UnlistedItemError(ref)
+            self._items[ref] = resolved
+        return resolved
+
+    def item_text(self, ref: MarkdownItemRef) -> ItemText | Undecodable[MarkdownItemRef]:
+        """One item's bytes decoded as UTF-8, read from the descriptor's read location on the first call for its ref.
+
+        The one place a document's or skill entry's bytes become text for a rule: every other query about the item
+        takes the witness this returns. A file that is not UTF-8 is cached as `Undecodable`, so it is decoded once.
+
+        Carry-over: kept for the next revision only when the next model resolves an equal descriptor, and so the
+        same read location, and that file's bytes did not change.
+
+        A file that cannot be read is not cached, so each call raises the same error again.
+
+        Args:
+            ref: The item to decode; the cache key.
+
+        Raises:
+            UnlistedItemError: If the model lists no document or skill entry there.
+            ItemReadError: If the snapshot holds no regular file at the read location.
+        """
+        decoded = self._item_texts.get(ref)
+        if decoded is None:
+            descriptor = self.item(ref)
+            try:
+                decoded = ItemText(descriptor, self._fs.read_text(descriptor.read_location))
+            except TextDecodeError as exc:
+                decoded = Undecodable(ref, exc.failure)
+            except (*FILE_READ_FAILURES, UnrecordedFileError) as exc:
+                raise ItemReadError(ref, source=exc) from exc
+            self._item_texts[ref] = decoded
+        return decoded
+
+    def _document_item(self, ref: DocumentRef) -> MarkdownItemRef:
+        """The common reference of a document ref, resolved by the model even when it lists no such corpus."""
+        item = MarkdownItemRef(ref.path)
+        if item not in self._items:
+            self._items[item] = self._model.resolve_item(ref)
+        return item
+
+    def _decoded(self, path: RootRelativePath) -> ItemText:
+        """The witness of an item whose compatibility witness exists, so its file decoded."""
+        decoded = self.item_text(MarkdownItemRef(path))
+        if isinstance(decoded, Undecodable):
+            raise AssertionError(f'{path} has a witness, so it decodes')
+        return decoded
+
+    def item_frontmatter(self, source: ItemText) -> FrontmatterNode:
+        """The frontmatter of one item, parsed from its decoded text on the first call. Raises nothing.
+
+        Cached apart from `item_parse(source)`: the block is decoded here alone.
+
+        Carry-over: kept for the next revision whenever `item_text(source.ref)` is.
+
+        Args:
+            source: The item's text; its ref is the cache key.
+        """
+        decoded = self._item_frontmatters.get(source.ref)
+        if decoded is None:
+            decoded = parse_frontmatter(source.text)
+            self._item_frontmatters[source.ref] = decoded
+        return decoded
+
+    def item_parse(self, source: ItemText) -> ParsedDocument:
+        """The parse tree of one item, parsed from its decoded text on the first call. Raises nothing.
+
+        Carry-over: kept for the next revision whenever `item_text(source.ref)` is.
+
+        Args:
+            source: The item's text; its ref is the cache key.
+        """
+        parsed = self._item_parses.get(source.ref)
+        if parsed is None:
+            parsed = parse_document(source.text)
+            self._item_parses[source.ref] = parsed
+        return parsed
+
+    def item_token_count(self, source: ItemText) -> TokenCount:
+        """The tokens in one item's whole file, counted from the raw text on the first call. Raises nothing.
+
+        Carry-over: kept for the next revision whenever `item_text(source.ref)` is.
+
+        Args:
+            source: The item's text; its ref is the cache key.
+        """
+        count = self._item_token_counts.get(source.ref)
+        if count is None:
+            count = count_tokens(source.text)
+            self._item_token_counts[source.ref] = count
+        return count
+
+    def item_line_count(self, source: ItemText) -> LineCount:
+        """The lines in one item's whole file, counted from the raw text on the first call. Raises nothing.
+
+        Carry-over: kept for the next revision whenever `item_text(source.ref)` is.
+
+        Args:
+            source: The item's text; its ref is the cache key.
+        """
+        count = self._item_line_counts.get(source.ref)
+        if count is None:
+            count = count_lines(source.text)
+            self._item_line_counts[source.ref] = count
+        return count
+
     # Derived queries: each reads only other queries and carries over whenever they do.
 
     def frontmatter(self, source: DocumentText) -> FrontmatterNode:
@@ -626,11 +764,7 @@ class Database:
             source: The document's text, as `text(ref)` returns it; its ref is the cache key, so one ref is parsed
                 once.
         """
-        decoded = self._frontmatters.get(source.ref)
-        if decoded is None:
-            decoded = parse_frontmatter(source.text)
-            self._frontmatters[source.ref] = decoded
-        return decoded
+        return self.item_frontmatter(self._decoded(source.ref.path))
 
     def parse(self, source: DocumentText) -> ParsedDocument:
         """The parse tree of one document, parsed from its decoded text on the first call for its ref. Raises nothing.
@@ -641,11 +775,7 @@ class Database:
             source: The document's text, as `text(ref)` returns it; its ref is the cache key, so one ref is parsed
                 once.
         """
-        parsed = self._parses.get(source.ref)
-        if parsed is None:
-            parsed = parse_document(source.text)
-            self._parses[source.ref] = parsed
-        return parsed
+        return self.item_parse(self._decoded(source.ref.path))
 
     def token_count(self, source: DocumentText) -> TokenCount:
         """The tokens in one document's whole file, counted on the first call for its ref. Raises nothing.
@@ -659,11 +789,7 @@ class Database:
             source: The document's text, as `text(ref)` returns it; its ref is the cache key, so one ref is counted
                 once.
         """
-        count = self._token_counts.get(source.ref)
-        if count is None:
-            count = count_tokens(source.text)
-            self._token_counts[source.ref] = count
-        return count
+        return self.item_token_count(self._decoded(source.ref.path))
 
     def document_line_count(self, source: DocumentText) -> LineCount:
         """The lines in one document's whole file, counted on the first call for its ref. Raises nothing.
@@ -677,11 +803,7 @@ class Database:
             source: The document's text, as `text(ref)` returns it; its ref is the cache key, so one ref is counted
                 once.
         """
-        count = self._line_counts.get(source.ref)
-        if count is None:
-            count = count_lines(source.text)
-            self._line_counts[source.ref] = count
-        return count
+        return self.item_line_count(self._decoded(source.ref.path))
 
     def governance(self, ref: DocumentRef) -> Governance | None:
         """The specifications that govern one document, found in the model on the first call for its ref.
@@ -708,7 +830,7 @@ class Database:
             such a document, and the answer is cached like any other.
         """
         if ref not in self._governances:
-            self._governances[ref] = self.model().find_governance(ref)
+            self._governances[ref] = self._resolved(self._document_item(ref)).governance
         return self._governances[ref]
 
     def schema_problems(self, source: DocumentText) -> tuple[SchemaProblems, ...]:
@@ -811,11 +933,7 @@ class Database:
             source: The skill's `SKILL.md` text, as `skill_text(location)` returns it; its ref is the cache key, so one
                 skill is parsed once.
         """
-        decoded = self._skill_frontmatters.get(source.ref)
-        if decoded is None:
-            decoded = parse_frontmatter(source.text)
-            self._skill_frontmatters[source.ref] = decoded
-        return decoded
+        return self.item_frontmatter(self._decoded(source.ref.path))
 
     def skill_parse(self, source: SkillText) -> ParsedDocument:
         """The parse tree of one skill's `SKILL.md`, parsed on the first call for its ref. Raises nothing.
@@ -828,11 +946,7 @@ class Database:
             source: The skill's `SKILL.md` text, as `skill_text(location)` returns it; its ref is the cache key, so one
                 skill is parsed once.
         """
-        parsed = self._skill_parses.get(source.ref)
-        if parsed is None:
-            parsed = parse_document(source.text)
-            self._skill_parses[source.ref] = parsed
-        return parsed
+        return self.item_parse(self._decoded(source.ref.path))
 
     def skill_line_count(self, source: SkillText) -> LineCount:
         """The lines in one skill's whole `SKILL.md`, counted on the first call for its ref. Raises nothing.
@@ -846,11 +960,7 @@ class Database:
             source: The skill's `SKILL.md` text, as `skill_text(location)` returns it; its ref is the cache key, so one
                 skill is counted once.
         """
-        count = self._skill_line_counts.get(source.ref)
-        if count is None:
-            count = count_lines(source.text)
-            self._skill_line_counts[source.ref] = count
-        return count
+        return self.item_line_count(self._decoded(source.ref.path))
 
     def skill_schema_problems(self, source: SkillText) -> tuple[SchemaProblems, ...]:
         """What the Agent Skills specification rejects in a skill's frontmatter, found once. Raises nothing.

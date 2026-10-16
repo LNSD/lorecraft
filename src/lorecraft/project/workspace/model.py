@@ -281,6 +281,19 @@ class Corpus:
 
 
 @dataclass(frozen=True, slots=True)
+class ResolvedItem:
+    """A listed item's descriptor and the specifications governing it, resolved together.
+
+    Attributes:
+        descriptor: The item's model-resolved locations and origin facts.
+        governance: The governing specs, or `None` when none governs the item.
+    """
+
+    descriptor: MarkdownItemDescriptor
+    governance: Governance | None
+
+
+@dataclass(frozen=True, slots=True)
 class WorkspaceModel:
     """Immutable snapshot of structure and config; holds no root path and no document content.
 
@@ -473,11 +486,36 @@ class WorkspaceModel:
             return None
         return corpus.governance(ref.filename)
 
+    def find_item(self, ref: MarkdownItemRef) -> ResolvedItem | None:
+        """The facts of the document or skill entry the model lists at this reference, or None.
+
+        Args:
+            ref: Common reference to look up; compared by its path, whole and lexically.
+        """
+        document = self.find_document(ref.path)
+        if document is not None:
+            return self.resolve_item(document)
+        for skill in self.skill_locations:
+            if skill.path == ref.path:
+                return self.resolve_item(skill)
+        return None
+
     def describe_item(self, ref: DocumentRef | SkillRef) -> MarkdownItemDescriptor:
         """Resolve the shared location and origin facts for a document or skill entry.
 
         The existing references remain accepted by repositories and database queries. This descriptor is the
         common model contract for callers that need to handle either kind without classifying its origin.
+        """
+        return self.resolve_item(ref).descriptor
+
+    def resolve_item(self, ref: DocumentRef | SkillRef) -> ResolvedItem:
+        """Resolve an item's descriptor together with the specs governing it, finding the governance once.
+
+        A corpus document is governed by the specs of its corpus and matching namespaces. A skill entry has no
+        repository layers yet, as the reserved `skills` corpus is not loaded, so none governs it.
+
+        Args:
+            ref: Document or skill entry to resolve, whether or not the model lists a document's corpus.
         """
         match ref:
             case DocumentRef():
@@ -492,7 +530,7 @@ class WorkspaceModel:
                     facets.add(ItemFacet.OUTLINE)
                 if governance is not None and any(spec.tokens is not None for spec in governance.structure_specs()):
                     facets.add(ItemFacet.BUDGET)
-                return MarkdownItemDescriptor(
+                descriptor = MarkdownItemDescriptor(
                     ref=MarkdownItemRef(ref.path),
                     read_location=ResolvedPath(ref.path),
                     link_base=RootRelativePath(ref.path.value.parent),
@@ -505,10 +543,11 @@ class WorkspaceModel:
                     aspect_name=str(ref.filename),
                     active_facets=frozenset(facets),
                 )
+                return ResolvedItem(descriptor, governance)
             case SkillRef():
                 location = self.skill_locations[ref]
                 link_target = location.resolves_to if location.resolves_to != ref.directory else None
-                return MarkdownItemDescriptor(
+                descriptor = MarkdownItemDescriptor(
                     ref=MarkdownItemRef(ref.path),
                     read_location=location.file_resolves_to,
                     link_base=ref.directory,
@@ -517,5 +556,6 @@ class WorkspaceModel:
                     aspect_name=str(ref.entry),
                     active_facets=frozenset({ItemFacet.FRONTMATTER, ItemFacet.MARKDOWN}),
                 )
+                return ResolvedItem(descriptor, None)
             case _:
                 assert_never(ref)
