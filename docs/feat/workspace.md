@@ -28,9 +28,18 @@ repository works from.
 - **Root**: The directory that holds `docs/__meta__/`; every path a finding or the model names is relative to
   it, the root itself is printed absolute, and a refused path argument is echoed as typed.
 - **Corpus**: A directory directly under `docs/` whose documents meta specs govern, named by the
-  directory.
+  directory. The reserved `skills` corpus is the exception: its subjects are agent skills, so it has no
+  directory under `docs/`.
 - **Document**: A Markdown file directly inside a corpus directory.
 - **Workspace model**: The corpora, their meta specs and their documents, as found in one snapshot.
+- **Skills corpus**: The reserved `skills` corpus loads specs from `docs/__meta__/skills.*` and governs
+  agent skills by their listed directory name, without a `docs/skills/` directory. `skills-<namespace>`
+  matches an equal name or a hyphen continuation; matching layers apply from shorter to longer, with each
+  stem's prose and structure files together. A namespace spec needs the `skills` corpus spec to apply.
+  Skills are not documents.
+- **Overlapping corpus**: A `docs/skills/` directory is ignored, including its documents. The model records
+  this name overlap but does not yet report a diagnostic. Skill specs currently affect `inspect` only; they
+  do not yet change which rules check a `SKILL.md`.
 
 ## Architecture
 
