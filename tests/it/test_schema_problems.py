@@ -16,8 +16,9 @@ from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.jsonschema import JsonType
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
-from lorecraft.project.database import Database, DocumentText, SkillText
+from lorecraft.project.database import Database, DocumentText, ItemText, SkillText
 from lorecraft.project.document import DocumentRef
+from lorecraft.project.item import MarkdownItemRef
 from lorecraft.project.schemas import (
     AgentSkillsSchema,
     FieldGuidance,
@@ -71,16 +72,16 @@ class FrontmatterReadingDatabase(Database):
             model: The workspace model loaded through the view.
         """
         super().__init__(fs, model)
-        self.read: list[DocumentRef] = []
+        self.read: list[MarkdownItemRef] = []
 
-    def frontmatter(self, source: DocumentText) -> FrontmatterNode:
+    def item_frontmatter(self, source: ItemText) -> FrontmatterNode:
         """Record the document, then read its frontmatter.
 
         Args:
             source: The decoded document whose frontmatter is read, recorded by its ref first.
         """
         self.read.append(source.ref)
-        return super().frontmatter(source)
+        return super().item_frontmatter(source)
 
 
 def _snapshot(corpus_spec: bytes, namespace_spec: bytes, *, typing: bytes, review: bytes = b'') -> Snapshot:
@@ -182,7 +183,7 @@ class TestSchemaProblems:
 
         #: Then
         assert second is first, 'the schemas are applied once per database, then shared by every rule'
-        assert database.read == [TYPING], 'the frontmatter is read once, for the first call'
+        assert database.read == [MarkdownItemRef(TYPING.path)], 'the frontmatter is read once, for the first call'
 
     def test_schema_problems_with_no_frontmatter_schema_holds_none(self) -> None:
         #: Given

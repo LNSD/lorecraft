@@ -18,6 +18,7 @@ from lorecraft.project.corpus import CorpusName
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.item import DocumentOrigin, ItemFacet, MarkdownItemRef, SkillEntryOrigin
 from lorecraft.project.layout import SPECS_DIR
+from lorecraft.project.link_target import DocumentDirectory, SkillRoot
 from lorecraft.project.schemas import (
     CorpusSpecName,
     FrontmatterSchema,
@@ -830,7 +831,9 @@ class TestWorkspaceModel:
         #: Then
         assert descriptor.ref == MarkdownItemRef(ref.path), 'the logical ref is also the report path'
         assert descriptor.read_location == ResolvedPath(ref.path), 'regular corpus documents read from their path'
-        assert descriptor.link_base == RootRelativePath.parse('docs/code'), 'document links use their directory'
+        assert descriptor.link_base == DocumentDirectory(RootRelativePath.parse('docs/code')), (
+            'document links use their directory'
+        )
         assert descriptor.governance_corpus == 'code', 'the model derives governance from the corpus path'
         assert descriptor.aspect_name == 'logging', 'the model derives the aspect from the filename'
         assert isinstance(descriptor.origin, DocumentOrigin), 'the descriptor retains document provenance'
@@ -885,7 +888,9 @@ class TestWorkspaceModel:
         #: Then
         assert before.ref == after.ref == MarkdownItemRef(AUDIT.ref.path), 'the listed path owns stable identity'
         assert before.read_location != after.read_location, 'the descriptor records the changed read target'
-        assert before.link_base == after.link_base == AUDIT.ref.directory, 'skill links use the listed skill root'
+        assert before.link_base == after.link_base == SkillRoot(AUDIT.ref.directory), (
+            'skill links use the listed skill root'
+        )
         assert isinstance(after.origin, SkillEntryOrigin), 'the descriptor retains skill-specific origin facts'
         assert after.origin.expected_name == 'audit', 'frontmatter expects the listed directory name'
         assert after.origin.link_target == moved.resolves_to, 'the retargeted directory remains available for notes'

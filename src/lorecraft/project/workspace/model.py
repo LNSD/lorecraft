@@ -28,6 +28,7 @@ from lorecraft.project.item import (
     SkillEntryOrigin,
 )
 from lorecraft.project.layout import DOCS_DIR
+from lorecraft.project.link_target import DocumentDirectory, SkillRoot
 from lorecraft.project.schemas import CorpusSpecName, NamespaceSpecName, StatedFrontmatterSchema, StructureSpec
 from lorecraft.project.skill import OutsideSymlink, SkillLocation, SkillRef, SkillsDir
 from lorecraft.vfs import ResolvedPath
@@ -533,7 +534,7 @@ class WorkspaceModel:
                 descriptor = MarkdownItemDescriptor(
                     ref=MarkdownItemRef(ref.path),
                     read_location=ResolvedPath(ref.path),
-                    link_base=RootRelativePath(ref.path.value.parent),
+                    link_base=DocumentDirectory(RootRelativePath(ref.path.value.parent)),
                     origin=DocumentOrigin(
                         expected_name=str(ref.filename),
                         corpus=str(ref.corpus),
@@ -550,7 +551,7 @@ class WorkspaceModel:
                 descriptor = MarkdownItemDescriptor(
                     ref=MarkdownItemRef(ref.path),
                     read_location=location.file_resolves_to,
-                    link_base=ref.directory,
+                    link_base=SkillRoot(ref.directory),
                     origin=SkillEntryOrigin(expected_name=str(ref.entry), link_target=link_target),
                     governance_corpus='skills',
                     aspect_name=str(ref.entry),

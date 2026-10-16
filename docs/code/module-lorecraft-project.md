@@ -37,7 +37,7 @@ once in `lorecraft.project.layout` and read from there by every other module.
   root, and what the snapshot holds there.
 - Contexts: protocols for decoded documents, skills, resources and layout entries, with shared questions and
   project-owned return types.
-- The one-revision database: one memoized decode and per-file query family keyed
+- The one-revision database: one memoized decode, per-file, governance, analysis and link-target query family keyed
   by the common reference for documents and skill entries, other memoized derived queries, and fresh snapshot
   questions such as symlink targets.
 - The witness a decode query returns: a file's ref and decoded text, or the undecodable marker with its first

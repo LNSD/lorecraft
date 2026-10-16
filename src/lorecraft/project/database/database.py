@@ -7,10 +7,12 @@ model; every other query sits above it, computed on first use and kept for as lo
 
 Documents and skill entries share one query family keyed by the common `MarkdownItemRef`: `item_text(ref)` decodes the
 file at the descriptor's read location into one `ItemText` witness or an `Undecodable` marker, and `item_frontmatter`,
-`item_parse`, `item_token_count` and `item_line_count` take that witness and are computed on first demand. The document
-and skill-entry queries below (`text`, `skill_text`, `parse`, `skill_parse`, ...) remain as compatibility entry points
-that delegate to this family and keep no cache of their own beyond the witness they wrap, until the callers migrate;
-their carry-over rules are the family's.
+`item_parse`, `item_token_count`, `item_line_count`, `item_link_targets`, `item_governance`, `item_schema_problems`,
+`item_outline_alignment` and `item_outline_divergences` take that witness and are computed on first demand. Link targets
+read the descriptor's link base, so no query tells a document from a skill entry; the analyses read
+`item_governance(ref)`, never the whole model. The document and skill-entry queries below (`text`, `skill_text`,
+`parse`, `skill_parse`, ...) remain as compatibility entry points that delegate to this family and keep no cache of
+their own beyond the witness they wrap, until the callers migrate; their carry-over rules are the family's.
 
 Input queries read the snapshot. Each is the one place its part of the snapshot becomes a value for a rule, so only an
 input query builds a witness or fails to read, and each states its own carry-over rule against the change set:
@@ -171,7 +173,7 @@ from lorecraft.project.document import DocumentReadError, DocumentRef
 from lorecraft.project.document import Repository as DocumentRepository
 from lorecraft.project.item import ItemReadError, MarkdownItemDescriptor, MarkdownItemRef, UnlistedItemError
 from lorecraft.project.layout import DOCS_DIR, SPECS_DIR, reject_linked_layout
-from lorecraft.project.link_target import DocumentDirectory, LinkTargetEntry, SkillRoot, link_targets_of
+from lorecraft.project.link_target import LinkTargetEntry, SkillRoot, link_targets_of
 from lorecraft.project.schemas import (
     OutlineAlignmentSpec,
     OutlineDivergenceSpec,
@@ -277,20 +279,19 @@ class Database:
         # skill entry query.
         self._items: dict[MarkdownItemRef, ResolvedItem] = {}
         self._item_texts: dict[MarkdownItemRef, ItemText | Undecodable[MarkdownItemRef]] = {}
+        self._item_link_targets: dict[MarkdownItemRef, Mapping[NormalisedLinkPath, LinkTargetEntry]] = {}
         self._item_frontmatters: dict[MarkdownItemRef, FrontmatterNode] = {}
         self._item_parses: dict[MarkdownItemRef, ParsedDocument] = {}
         self._item_token_counts: dict[MarkdownItemRef, TokenCount] = {}
         self._item_line_counts: dict[MarkdownItemRef, LineCount] = {}
+        # An item no corpus governs is governed by nothing, so `None` is an answer and is cached too.
+        self._item_governances: dict[MarkdownItemRef, Governance | None] = {}
+        self._item_schema_problems: dict[MarkdownItemRef, tuple[SchemaProblems, ...]] = {}
+        self._item_outline_alignments: dict[MarkdownItemRef, tuple[OutlineAlignmentSpec, ...]] = {}
+        self._item_outline_divergences: dict[MarkdownItemRef, tuple[OutlineDivergenceSpec, ...]] = {}
         # The compatibility entry points' witnesses, wrapped from the unified decode; they decode nothing themselves.
         self._texts: dict[DocumentRef, DocumentText | Undecodable[DocumentRef]] = {}
         self._skill_texts: dict[SkillRef, SkillText | Undecodable[SkillRef]] = {}
-        self._link_targets: dict[DocumentRef, Mapping[NormalisedLinkPath, LinkTargetEntry]] = {}
-        self._skill_link_targets: dict[SkillRef, Mapping[NormalisedLinkPath, LinkTargetEntry]] = {}
-        # A document in no corpus the model holds is governed by nothing, so `None` is an answer and is cached too.
-        self._governances: dict[DocumentRef, Governance | None] = {}
-        self._schema_problems: dict[DocumentRef, tuple[SchemaProblems, ...]] = {}
-        self._outline_alignments: dict[DocumentRef, tuple[OutlineAlignmentSpec, ...]] = {}
-        self._outline_divergences: dict[DocumentRef, tuple[OutlineDivergenceSpec, ...]] = {}
         self._skill_resources: dict[SkillRef, SkillResourceListing] = {}
         self._skill_resource_texts: dict[SkillResourceRef, SkillResourceText | Undecodable[SkillResourceRef]] = {}
         self._skill_resource_link_targets: dict[SkillResourceRef, Mapping[NormalisedLinkPath, LinkTargetEntry]] = {}
@@ -571,12 +572,7 @@ class Database:
             source: The file's text, the witness every per-file query takes; its ref is the cache key, so one ref is
                 looked up once.
         """
-        targets = self._link_targets.get(source.ref)
-        if targets is None:
-            base = DocumentDirectory(source.ref.path.parent)
-            targets = link_targets_of(self.parse(source).links, base, self._fs, self._built_scope_index())
-            self._link_targets[source.ref] = targets
-        return targets
+        return self.item_link_targets(self._decoded(source.ref.path))
 
     def skill_link_targets(self, source: SkillText) -> Mapping[NormalisedLinkPath, LinkTargetEntry]:
         """Where each relative link in a skill's `SKILL.md` leads and what the snapshot holds there, on the first call.
@@ -593,12 +589,7 @@ class Database:
             source: The file's text, the witness every per-file query takes; its ref is the cache key, so one ref is
                 looked up once.
         """
-        targets = self._skill_link_targets.get(source.ref)
-        if targets is None:
-            base = SkillRoot(source.ref.directory)
-            targets = link_targets_of(self.skill_parse(source).links, base, self._fs, self._built_scope_index())
-            self._skill_link_targets[source.ref] = targets
-        return targets
+        return self.item_link_targets(self._decoded(source.ref.path))
 
     def skill_resource_link_targets(self, source: SkillResourceText) -> Mapping[NormalisedLinkPath, LinkTargetEntry]:
         """Where each relative link in a resource of a skill leads and what the snapshot holds there, on the first call.
@@ -693,6 +684,25 @@ class Database:
             raise AssertionError(f'{path} has a witness, so it decodes')
         return decoded
 
+    def item_link_targets(self, source: ItemText) -> Mapping[NormalisedLinkPath, LinkTargetEntry]:
+        """Where each relative link of one item leads and what the snapshot holds there, found on the first call.
+
+        Each link is read from the descriptor's link base, which carries its own climb bound, as `link_targets_of`
+        states. Raises nothing.
+
+        Carry-over: kept for the next revision only when `item_parse(source)` is kept and every path the query
+        looked up, an absent target included, still resolves to the same place and is in the same scope state.
+
+        Args:
+            source: The item's text; its ref is the cache key.
+        """
+        targets = self._item_link_targets.get(source.ref)
+        if targets is None:
+            links = self.item_parse(source).links
+            targets = link_targets_of(links, source.descriptor.link_base, self._fs, self._built_scope_index())
+            self._item_link_targets[source.ref] = targets
+        return targets
+
     def item_frontmatter(self, source: ItemText) -> FrontmatterNode:
         """The frontmatter of one item, parsed from its decoded text on the first call. Raises nothing.
 
@@ -750,6 +760,85 @@ class Database:
             count = count_lines(source.text)
             self._item_line_counts[source.ref] = count
         return count
+
+    def item_governance(self, ref: MarkdownItemRef) -> Governance | None:
+        """The specifications that govern one item, resolved by the model on the first call for its ref.
+
+        A layer whose structure file failed to load is held as the failed structure the model recorded, in the order
+        the layers apply, so the governance hands out what loaded and what failed and decides no skip or partial
+        policy. `None` when no specification governs the item.
+
+        Carry-over: kept for the next revision whenever the next model's governance of the ref is equal to it, as
+        compared by value, so a change elsewhere in the model leaves it, and every analysis reading it, valid.
+
+        Args:
+            ref: The item to look up; the cache key.
+
+        Raises:
+            UnlistedItemError: If the model lists no document or skill entry there.
+        """
+        if ref not in self._item_governances:
+            self._item_governances[ref] = self._resolved(ref).governance
+        return self._item_governances[ref]
+
+    def item_schema_problems(self, source: ItemText) -> tuple[SchemaProblems, ...]:
+        """What each frontmatter schema that governs one item rejects in its frontmatter, found on the first call.
+
+        Typed problems, each placed on its line; severity is a rule's. The frontmatter is read only when a schema
+        governs the item, and only the layers that loaded state a schema.
+
+        Carry-over: kept for the next revision whenever `item_frontmatter(source)` and `item_governance(source.ref)`
+        are.
+
+        Args:
+            source: The item's text; its ref is the cache key.
+        """
+        found = self._item_schema_problems.get(source.ref)
+        if found is None:
+            governance = self.item_governance(source.ref)
+            schemas = governance.frontmatter_schemas() if governance is not None else ()
+            found = locate_schema_problems(self.item_frontmatter(source), schemas) if schemas else ()
+            self._item_schema_problems[source.ref] = found
+        return found
+
+    def item_outline_alignment(self, source: ItemText) -> tuple[OutlineAlignmentSpec, ...]:
+        """Which outline entry each of one item's sections falls in, for each specification that governs it.
+
+        Only the layers that loaded are aligned. The parse is read only when a specification governs the item.
+
+        Carry-over: kept for the next revision whenever `item_parse(source)` and `item_governance(source.ref)` are.
+
+        Args:
+            source: The item's text; its ref is the cache key.
+        """
+        alignments = self._item_outline_alignments.get(source.ref)
+        if alignments is None:
+            governance = self.item_governance(source.ref)
+            structure_specs = governance.structure_specs() if governance is not None else ()
+            alignments = align_outlines(structure_specs, self.item_parse(source).headings) if structure_specs else ()
+            self._item_outline_alignments[source.ref] = alignments
+        return alignments
+
+    def item_outline_divergences(self, source: ItemText) -> tuple[OutlineDivergenceSpec, ...]:
+        """Where one item's sections first stop matching each outline that governs it, found on the first call.
+
+        Lines are counted only when a governing outline is stated.
+
+        Carry-over: kept for the next revision whenever `item_outline_alignment(source)` and `item_line_count(source)`
+        are.
+
+        Args:
+            source: The item's text; its ref is the cache key.
+        """
+        divergences = self._item_outline_divergences.get(source.ref)
+        if divergences is None:
+            alignments = self.item_outline_alignment(source)
+            if any(alignment.outline for alignment in alignments):
+                divergences = match_outlines(alignments, self.item_line_count(source))
+            else:
+                divergences = ()
+            self._item_outline_divergences[source.ref] = divergences
+        return divergences
 
     # Derived queries: each reads only other queries and carries over whenever they do.
 
@@ -829,9 +918,7 @@ class Database:
             The specifications, or `None` when the model holds no corpus named `ref.corpus`: no specification governs
             such a document, and the answer is cached like any other.
         """
-        if ref not in self._governances:
-            self._governances[ref] = self._resolved(self._document_item(ref)).governance
-        return self._governances[ref]
+        return self.item_governance(self._document_item(ref))
 
     def schema_problems(self, source: DocumentText) -> tuple[SchemaProblems, ...]:
         """What each frontmatter schema that governs one document rejects in its frontmatter, found on the first call.
@@ -853,16 +940,7 @@ class Database:
             the structure specification that states it; none when no schema governs it, or when its block is
             missing, not YAML or not a mapping, which no schema can hold.
         """
-        found = self._schema_problems.get(source.ref)
-        if found is None:
-            governance = self.governance(source.ref)
-            schemas = governance.frontmatter_schemas() if governance is not None else ()
-            if schemas:
-                found = locate_schema_problems(self.frontmatter(source), schemas)
-            else:
-                found = ()
-            self._schema_problems[source.ref] = found
-        return found
+        return self.item_schema_problems(self._decoded(source.ref.path))
 
     def outline_alignment(self, source: DocumentText) -> tuple[OutlineAlignmentSpec, ...]:
         """Which outline entry each of one document's sections falls in, for each specification that governs it.
@@ -884,16 +962,7 @@ class Database:
             One entry per structure specification that governs the document, in the order the specifications apply;
             none when none governs it.
         """
-        alignments = self._outline_alignments.get(source.ref)
-        if alignments is None:
-            governance = self.governance(source.ref)
-            structure_specs = governance.structure_specs() if governance is not None else ()
-            if structure_specs:
-                alignments = align_outlines(structure_specs, self.parse(source).headings)
-            else:
-                alignments = ()
-            self._outline_alignments[source.ref] = alignments
-        return alignments
+        return self.item_outline_alignment(self._decoded(source.ref.path))
 
     def outline_divergences(self, source: DocumentText) -> tuple[OutlineDivergenceSpec, ...]:
         """Where one document's sections first stop matching each outline that governs it, found on the first call.
@@ -913,16 +982,7 @@ class Database:
             One entry per structure specification that governs the document and states an outline, in the order the
             specifications apply; none when no outline governs it.
         """
-        divergences = self._outline_divergences.get(source.ref)
-        if divergences is None:
-            alignments = self.outline_alignment(source)
-            # Only a document some outline governs has its lines counted.
-            if any(alignment.outline for alignment in alignments):
-                divergences = match_outlines(alignments, self.document_line_count(source))
-            else:
-                divergences = ()
-            self._outline_divergences[source.ref] = divergences
-        return divergences
+        return self.item_outline_divergences(self._decoded(source.ref.path))
 
     def skill_frontmatter(self, source: SkillText) -> FrontmatterNode:
         """The frontmatter of one skill's `SKILL.md`, parsed on the first call for its ref. Raises nothing.

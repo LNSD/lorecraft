@@ -12,15 +12,52 @@ from lib.tree import from_tree
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.database import Database, ItemText, Undecodable
 from lorecraft.project.item import MarkdownItemRef, UnlistedItemError
-from lorecraft.vfs import Snapshot
+from lorecraft.project.link_target import EscapingTarget, LinkTarget, PathLookup
+from lorecraft.project.syntax import FrontmatterNode, NormalisedLinkPath, ParsedDocument
+from lorecraft.project.workspace import WorkspaceModel
+from lorecraft.vfs import Snapshot, VirtualFileSystem
 
 GUIDE: Final[MarkdownItemRef] = MarkdownItemRef(RootRelativePath.parse('docs/code/guide.md'))
 REVIEW: Final[MarkdownItemRef] = MarkdownItemRef(RootRelativePath.parse('.agents/skills/review/SKILL.md'))
+LINKS: Final[bytes] = b'---\nname: x\n---\n[up](../up.md)\n[far](../../far.md)\n'
+
 GUIDE_TEXT: Final[bytes] = b'---\nname: guide\n---\n# Guide\n'
 SKILL_TEXT: Final[bytes] = b'---\nname: review\n---\n'
 
 
-def _snapshot(guide: bytes = GUIDE_TEXT, skill: bytes = SKILL_TEXT) -> Snapshot:
+class TracingDatabase(Database):
+    """A database that records which per-file queries are computed, then computes them as usual."""
+
+    def __init__(self, fs: VirtualFileSystem, model: WorkspaceModel) -> None:
+        """Build the database on the view, with nothing computed yet.
+
+        Args:
+            fs: The view of the revision the database reads.
+            model: The workspace model loaded through the view.
+        """
+        super().__init__(fs, model)
+        self.computed: list[str] = []
+
+    def item_frontmatter(self, source: ItemText) -> FrontmatterNode:
+        """Record the frontmatter query, then answer it.
+
+        Args:
+            source: The decoded item whose frontmatter is read.
+        """
+        self.computed.append('frontmatter')
+        return super().item_frontmatter(source)
+
+    def item_parse(self, source: ItemText) -> ParsedDocument:
+        """Record the parse query, then answer it.
+
+        Args:
+            source: The decoded item that is parsed.
+        """
+        self.computed.append('parse')
+        return super().item_parse(source)
+
+
+def _snapshot(guide: bytes = GUIDE_TEXT, skill: bytes = LINKS) -> Snapshot:
     """A snapshot with a `code` corpus holding `guide.md` and the skill `.agents/skills/review/`."""
     return from_tree(
         {
@@ -78,6 +115,58 @@ class TestItemQueries:
         assert database.item_frontmatter(source) is database.item_frontmatter(source), 'the frontmatter is memoized'
         assert database.item_line_count(source) is database.item_line_count(source), 'the line count is memoized'
         assert database.item_token_count(source) is database.item_token_count(source), 'the token count is memoized'
+
+    def test_item_schema_problems_with_only_the_frontmatter_demanded_leaves_the_parse_uncomputed(self) -> None:
+        #: Given
+        database = TracingDatabase.from_snapshot(_snapshot())
+        source = _decoded(database, GUIDE)
+
+        #: When
+        database.item_schema_problems(source)
+        database.item_schema_problems(source)
+
+        #: Then
+        assert database.computed == ['frontmatter'], 'the frontmatter is computed once and no parse is demanded'
+
+    def test_item_outline_alignment_of_an_ungoverned_skill_entry_reads_no_parse(self) -> None:
+        #: Given
+        database = TracingDatabase.from_snapshot(_snapshot())
+        source = _decoded(database, REVIEW)
+
+        #: When
+        alignments = database.item_outline_alignment(source)
+
+        #: Then
+        assert alignments == (), 'no specification governs it'
+        assert database.computed == [], 'so nothing is parsed'
+
+    def test_item_governance_returns_the_models_layers_for_a_document_and_none_for_a_skill_entry(self) -> None:
+        #: Given
+        database = Database.from_snapshot(_snapshot())
+        document = database.model().find_document(GUIDE.path)
+        assert document is not None, 'the model lists the document'
+
+        #: Then
+        assert database.item_governance(GUIDE) == database.model().find_governance(document), 'the model decides'
+        assert database.item_governance(GUIDE) is database.item_governance(GUIDE), 'it is resolved once'
+        assert database.item_governance(REVIEW) is None, 'no repository layer governs a skill entry yet'
+
+    def test_item_link_targets_read_each_items_own_base_and_climb_bound(self) -> None:
+        #: Given
+        database = Database.from_snapshot(_snapshot(guide=LINKS))
+        up = NormalisedLinkPath.parse('../up.md')
+        far = NormalisedLinkPath.parse('../../far.md')
+
+        #: When
+        document = database.item_link_targets(_decoded(database, GUIDE))
+        skill = database.item_link_targets(_decoded(database, REVIEW))
+
+        #: Then
+        assert document[up] == LinkTarget(RootRelativePath.parse('docs/up.md'), PathLookup.OUTSIDE_SCOPE), (
+            'a document climbs from its own directory'
+        )
+        assert skill[up] == EscapingTarget(), 'a skill may not climb above its root'
+        assert skill[far] == EscapingTarget(), 'however far'
 
     def test_item_text_after_the_entry_is_retargeted_reads_the_newly_recorded_file(self) -> None:
         #: Given
