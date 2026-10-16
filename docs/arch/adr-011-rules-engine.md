@@ -420,3 +420,5 @@ Before committing code, verify:
 - [adr-016-specifications](adr-016-specifications.md) - Foundation: Governance, computed once by the model
 - [adr-012-database-derivation](adr-012-database-derivation.md) - Foundation: The database in the Derivation package
 - [module-lorecraft-engine](../code/module-lorecraft-engine.md) - Foundation: The package the runner lives in
+- [adr-023](adr-023-governed-items.md) - Related: Proposed replacement of per-kind content references, decode
+  witnesses and runner loops with one governed-item pipeline

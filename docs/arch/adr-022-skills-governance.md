@@ -183,3 +183,5 @@ It does not create a second matching algorithm or require a docs/skills/ directo
 - [prd-020](prd-020-skills-corpus.md) - Source: The skills corpus requirements and contradiction-detection boundary
 - [adr-016](adr-016-specifications.md) - Proposed replacement in part: Fixed-only skills governance; independent
   document layers and failed-layer semantics remain in force
+- [adr-023](adr-023-governed-items.md) - Related: Unified governed-item reference, model-resolved descriptor and
+  hierarchical resource governance identity

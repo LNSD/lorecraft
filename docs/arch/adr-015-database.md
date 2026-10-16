@@ -284,3 +284,5 @@ Before committing code, verify:
 - [adr-012-database-derivation](adr-012-database-derivation.md) - Related: The package the database lives in
 - [error-types](../code/error-types.md) - Foundation: Why load failures are not grouped under a base class
 - [pattern-memoization](../code/pattern-memoization.md) - Foundation: How a query is memoized
+- [adr-023](adr-023-governed-items.md) - Related: Proposed replacement of per-kind decode, analysis and link-target
+  query families with one governed-item query family

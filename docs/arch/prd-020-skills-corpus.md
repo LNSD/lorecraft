@@ -287,3 +287,5 @@ Scenario: The overlap is configured as an error
   namespaces follow
 - [adr-022](adr-022-skills-governance.md) - Leads to: Reserved-corpus governance for skills and bounded
   contradiction detection
+- [adr-023](adr-023-governed-items.md) - Leads to: Unified governed-item reference and pipeline across the project
+  model, database and rules engine
