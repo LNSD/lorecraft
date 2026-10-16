@@ -14,7 +14,16 @@ from .violation import Violation, _freeze
 
 
 def validate(schema: Mapping[str, Plain], instance: Plain) -> tuple[Violation, ...]:
-    """Validate plain JSON values and return ordered, library-independent failures."""
+    """Validate a plain JSON value and return ordered, library-independent failures.
+
+    Args:
+        schema: The schema to validate against.
+        instance: The plain JSON value to validate.
+
+    Returns:
+        The failures, ordered by instance path and then message. Each violation contains the schema and instance
+        context and evaluated-property facts needed to interpret the failure without validator-library records.
+    """
     validator = Draft202012Validator(schema)
     errors = sorted(
         validator.iter_errors(instance),
