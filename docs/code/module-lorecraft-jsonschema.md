@@ -27,6 +27,10 @@ third-party libraries.
 - The adapter that reads `jsonschema` or `referencing` values and turns them into Lorecraft-owned facts.
 - `Violation` values with the verbatim message, typed keyword, paths and evaluated-property facts needed by callers.
 - Validation results exposed through the public vocabulary, without validator records.
+- `CheckedSchema.check(schema)`, the only way to build a `CheckedSchema`: it returns the schema ready to validate or the
+  `check_schema` refusal; calling `CheckedSchema(...)` directly raises `TypeError`. `CheckedSchema.validate(instance)`
+  returns immutable `Violation` values ordered by instance path (each segment compared as text) and then verbatim
+  message, with duplicate `(path, message)` results removed.
 - Code that checks schema structure and references belongs here.
 - Code that resolves references for a subschema belongs here.
 - The public vocabulary imported by callers from `lorecraft.jsonschema`.
@@ -49,7 +53,10 @@ third-party libraries.
   reference-cycle analysis stay behind the JSON Schema package boundary; reference-library types do not cross it.
 - No library type escapes the package boundary; callers receive Lorecraft-owned vocabulary and facts.
 - Validation returns problems as values and raises nothing for an invalid instance.
+- Validation order is `(path, message)` and duplicate pairs occur once.
 - `format` remains annotation-only; validation does not assert format semantics.
+- The per-key wording of `required`, `dependentRequired`, `additionalProperties` and `unevaluatedProperties` is built
+  by message functions in this package and pinned against the library's text.
 - Schema error messages are retained verbatim as opaque `message` text when no typed keyword fact applies.
 
 ## Examples
@@ -78,6 +85,7 @@ Before committing code, verify:
 - [ ] No third-party validator or reference-library type escapes through the public API
 - [ ] Schema checks and reference inspection return owned facts without library records
 - [ ] Invalid instances produce problem values and validation raises nothing
+- [ ] `CheckedSchema.validate` returns `Violation` values in `(path, message)` order, path segments compared as text, with duplicates removed
 - [ ] Subschema validation can resolve references against its containing root schema
 - [ ] `format` does not assert semantics during validation
 - [ ] Unclassified validator prose is preserved verbatim as an opaque message

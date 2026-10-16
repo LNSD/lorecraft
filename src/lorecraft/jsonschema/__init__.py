@@ -2,6 +2,7 @@
 
 from .dialect import DIALECT
 from .json_type import JsonType, JsonTypes
+from .messages import additional_message, dependency_message, required_message, unevaluated_message
 from .schema_check import find_same_instance_ref_cycle, is_resolved_inside, iter_schemas
 from .schema_inspection import (
     SchemaCheckFailure,
@@ -26,7 +27,7 @@ from .schema_keyword import (
     TypeKeyword,
     UnevaluatedPropertiesKeyword,
 )
-from .validation import best_violation, validate
+from .validation import CheckedSchema, best_violation, validate
 from .violation import Violation
 
 __all__: list[str] = [
@@ -52,7 +53,12 @@ __all__: list[str] = [
     'SchemaMetaError',
     'SchemaUsesForeignDialect',
     'Violation',
+    'CheckedSchema',
     'check_schema',
+    'required_message',
+    'dependency_message',
+    'additional_message',
+    'unevaluated_message',
     'validate',
     'best_violation',
     'find_same_instance_ref_cycle',
