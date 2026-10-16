@@ -39,8 +39,12 @@ from lorecraft.jsonschema import (
     TypeKeyword,
     UnevaluatedPropertiesKeyword,
     Violation,
+    additional_message,
     best_violation,
     check_schema,
+    dependency_message,
+    required_message,
+    unevaluated_message,
     validate,
 )
 
@@ -230,7 +234,7 @@ def _frontmatter_problems(
             problems: list[FrontmatterProblem] = []
             for field in fields:
                 if field not in data:
-                    message = f'{field!r} is a required property'
+                    message = required_message(field)
                     # The schema the keyword sits in, which holds no `properties` when `required` is a branch's.
                     problems.append(MissingFieldProblem(field, message, guidance=property_guidance(schema, field)))
             return problems
@@ -242,8 +246,7 @@ def _frontmatter_problems(
             object_schema = _schema_object(schema)
             problems = []
             for key in _additional_keys(object_schema, data):
-                # `jsonschema`'s wording for one unexpected key.
-                message = f'Additional properties are not allowed ({key!r} was unexpected)'
+                message = additional_message(key)
                 problems.append(UnknownFieldProblem(key, message, known_fields=known_fields(object_schema)))
             return problems
         case UnevaluatedPropertiesKeyword():
@@ -311,7 +314,7 @@ def _dependency_problems(
             continue
         for dependency in dependencies:
             if dependency not in data:
-                message = f'{dependency!r} is a dependency of {field!r}'
+                message = dependency_message(field, dependency)
                 problems.append(
                     InvalidValueProblem(
                         field,
@@ -431,8 +434,7 @@ def _unevaluated_problems(
         if key in evaluated:
             continue
         if rule is False:
-            # `jsonschema`'s wording for one unexpected key.
-            message = f'Unevaluated properties are not allowed ({key!r} was unexpected)'
+            message = unevaluated_message(key)
             problems.append(UnknownFieldProblem(key, message, known_fields=known_fields(schema)))
         elif isinstance(rule, Mapping):
             reason = best_violation(rule, data[key], root_schema=root_schema)
