@@ -49,17 +49,17 @@ from typing import assert_never
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.database import (
     Database,
-    DatabaseDocumentContext,
+    DatabaseItemContext,
     DatabaseLayoutContext,
-    DatabaseSkillContext,
     DatabaseSkillResourceContext,
     DocumentText,
-    GovernedDocument,
     SkillResourceText,
     SkillText,
     Undecodable,
 )
+from lorecraft.project.database import ItemText as DecodedItem
 from lorecraft.project.document import DocumentRef
+from lorecraft.project.item import MarkdownItemRef
 from lorecraft.project.skill import OutsideSymlink, SkillAliasRef, SkillLocation, SkillResourceLocation
 from lorecraft.project.workspace import Governance
 from lorecraft.rules.declaration import Rule
@@ -119,6 +119,19 @@ def judge_item(database: Database, source: ItemText, table: RuleTable) -> Checke
             assert_never(source)
 
 
+def _witness(database: Database, path: RootRelativePath) -> DecodedItem:
+    """The decoded text of an item whose compatibility witness exists, so its file decodes.
+
+    Args:
+        database: The revision the item is read from.
+        path: Where the item is reported.
+    """
+    item = database.item_text(MarkdownItemRef(path))
+    if isinstance(item, Undecodable):
+        raise AssertionError(f'{path} has a witness, so it decodes')
+    return item
+
+
 def _located[R: Rule](
     path: RootRelativePath, partition: tuple[EnabledRule[R], ...], check: Callable[[type[R]], tuple[R, ...]]
 ) -> list[Diagnostic]:
@@ -152,8 +165,9 @@ def _judge_document(database: Database, source: DocumentText, table: RuleTable) 
     # Governance is never read when no rule over a document, over the frontmatter or over a Markdown file is enabled.
     # The ungoverned facets are recorded in the order the runner reaches them.
     if table.frontmatter_rules or table.document_rules or table.markdown_rules:
-        governed = GovernedDocument.find(database, source)
-        context = DatabaseDocumentContext(database, governed) if governed is not None else None
+        governance = database.governance(source.ref)
+        governed = governance is not None and governance.corpus_structure() is not None
+        context = DatabaseItemContext(database, _witness(database, source.ref.path)) if governed else None
         for facet in Facet:
             # The rules over a Markdown file join the rules over a document that declare the structure facet.
             markdown_rules = table.markdown_rules if facet is Facet.STRUCTURE else ()
@@ -186,7 +200,7 @@ def _judge_skill(database: Database, source: SkillText, table: RuleTable) -> Che
         table: The rules the run enables.
     """
     # Building the context asks nothing of the database; each rule asks it only for what it reads.
-    context = DatabaseSkillContext(database, source)
+    context = DatabaseItemContext(database, _witness(database, source.ref.path))
     path = source.ref.path
     diagnostics = [
         *_located(path, table.frontmatter_rules, lambda rule: rule.check(context)),
