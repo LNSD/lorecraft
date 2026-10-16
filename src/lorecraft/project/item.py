@@ -7,8 +7,9 @@ location and origin facts needed by consumers without reading the item's text.
 from dataclasses import dataclass
 from enum import Enum
 
+from lorecraft.core.error import Error
 from lorecraft.core.path import RootRelativePath
-from lorecraft.vfs import ResolvedPath
+from lorecraft.vfs import FileReadFailure, ResolvedPath, UnrecordedFileError
 
 
 @dataclass(frozen=True, slots=True, order=True)
@@ -84,3 +85,35 @@ class MarkdownItemDescriptor:
     governance_corpus: str
     aspect_name: str
     active_facets: frozenset[ItemFacet]
+
+
+class UnlistedItemError(Error):
+    """A common reference names no document or skill entry the model lists.
+
+    Attributes:
+        ref: The reference the model does not list.
+    """
+
+    ref: MarkdownItemRef
+
+    def __init__(self, ref: MarkdownItemRef) -> None:
+        self.ref = ref
+        super().__init__(f'the model lists no Markdown item at {ref.path}')
+
+
+class ItemReadError(Error):
+    """A listed item's file is missing or unreadable.
+
+    Attributes:
+        ref: The item that could not be read.
+        source: The failure to read its file.
+    """
+
+    ref: MarkdownItemRef
+    source: FileReadFailure | UnrecordedFileError
+
+    def __init__(self, ref: MarkdownItemRef, *, source: FileReadFailure | UnrecordedFileError) -> None:
+        self.ref = ref
+        self.source = source
+        super().__init__(f'cannot read item {ref.path}')
+        self.__cause__ = source

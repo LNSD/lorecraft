@@ -35,7 +35,7 @@ from .failure import (
     UnresolvableSkillsDirectory,
 )
 from .loader import load_model, load_workspace
-from .model import Corpus, CorpusNamespace, CorpusSpec, Governance, NamespaceSpec, Spec, WorkspaceModel
+from .model import Corpus, CorpusNamespace, CorpusSpec, Governance, NamespaceSpec, ResolvedItem, Spec, WorkspaceModel
 from .refusals import (
     UnreportedDirListError,
     UnreportedEntryInspectError,
@@ -45,6 +45,7 @@ from .refusals import (
 )
 
 __all__: list[str] = [
+    'ResolvedItem',
     'WorkspaceModel',
     'Corpus',
     'CorpusNamespace',
