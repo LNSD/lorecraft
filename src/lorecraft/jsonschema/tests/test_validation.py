@@ -125,3 +125,19 @@ class TestValidate:
         assert violation.message == '[] is not valid under any of the given schemas', (
             'the validator best-match selection is retained'
         )
+
+    def test_best_violation_with_a_subschema_uses_its_root_reference_context(self) -> None:
+        #: Given
+        schema: dict[str, Plain] = {'$ref': '#/$defs/text'}
+        root_schema: dict[str, Plain] = {
+            'type': 'object',
+            '$defs': {'text': {'type': 'string'}},
+            'unevaluatedProperties': schema,
+        }
+
+        #: When
+        violation = best_violation(schema, 1, root_schema=root_schema)
+
+        #: Then
+        assert violation is not None, 'the reference resolves in the containing schema'
+        assert violation.message == "1 is not of type 'string'", 'the referenced constraint supplies the failure'
