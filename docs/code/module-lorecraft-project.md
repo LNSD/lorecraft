@@ -67,7 +67,7 @@ once in `lorecraft.project.layout` and read from there by every other module.
   values. No third-party parser type leaves the package.
 - A shared analysis reads the parsed values and the meta specs it is handed, never a view, and returns
   immutable values.
-- A frontmatter schema maps JSON Schema violations to `FrontmatterProblem` values with project guidance; it
+- A frontmatter schema maps owned JSON Schema violation facts to `FrontmatterProblem` values with project guidance; it
   never reads validator records.
 - A memoized query is an input query or a derived one. An input query reads one input from the snapshot, one
   file's bytes or the structure, and states its carry-over rule. A derived query reads only other queries and
