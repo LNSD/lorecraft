@@ -477,6 +477,17 @@ class BasicYamlScanner(Scanner):
         self._flow_start: StreamMark | None = None
         self.refusals: list[RecordedRefusal] = []
 
+    def first_refusal(self) -> RecordedRefusal | None:
+        """The first construct the scanner or the reader has recorded, in the order the text writes them, or `None`."""
+        reader = self.reader
+        if not isinstance(reader, BasicYamlReader):
+            # SAFETY: the reader is declared on the scanner's base class; `_EventStream` always installs its own.
+            raise Unreachable("the scanner is built with `basic_yaml`'s reader")
+        recorded = [*self.refusals[:1], *([reader.separator] if reader.separator is not None else [])]
+        if not recorded:
+            return None
+        return min(recorded, key=lambda refusal: refusal.mark.index)
+
     def fetch_directive(self) -> Never:
         """Refuse a directive, a `%` line, naming it by the `%` and the name that follows it.
 
