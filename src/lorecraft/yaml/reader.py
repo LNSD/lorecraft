@@ -10,10 +10,8 @@ A read that fails returns the first problem the text writes, as a `YamlProblem`,
 scanner recorded above the one the read stopped on comes first, whichever the library met first.
 """
 
-from collections.abc import Iterator
 from typing import assert_never, overload
 
-from ruamel.yaml import YAML
 from ruamel.yaml.error import MarkedYAMLError, StreamMark
 from ruamel.yaml.events import (
     AliasEvent,
@@ -30,12 +28,9 @@ from ruamel.yaml.reader import ReaderError
 from lorecraft.core.error import Unreachable
 from lorecraft.core.num import NonZeroUnsignedInt
 
-from ._events import code_point, parse_failure
+from ._events import _EventStream, code_point, mark_of, parse_failure
 from .basic_yaml import (
     MERGE_KEY,
-    BasicYamlParser,
-    BasicYamlReader,
-    BasicYamlScanner,
     RecordedRefusal,
     RefusedAliasError,
     RefusedAnchorError,
@@ -47,7 +42,6 @@ from .basic_yaml import (
     RefusedNonStringKeyError,
     RefusedTagError,
     _RefusalError,
-    written_token,
 )
 from .problem import (
     ControlCharacterProblem,
@@ -137,86 +131,6 @@ def _refused(refusal: RecordedRefusal | _RefusalError) -> RefusedConstructProble
     return RefusedConstructProblem(message=refusal.problem, help=refusal_help, position=position)
 
 
-class _EventStream:
-    """The events of a text, read lazily, one at a time, with one event of lookahead.
-
-    `check_event` and its sibling `peek_event` keep ruamel.yaml's names: they mirror its `Parser` protocol, which
-    the composer calls.
-    """
-
-    def __init__(self, text: str) -> None:
-        """Start reading `text`. No character is read until the first event is asked for.
-
-        Args:
-            text: The YAML text to parse.
-        """
-        # Setting the reader and the scanner already selects the pure parser; `pure` states the intent, so a
-        # change in how ruamel.yaml chooses its parser cannot bring the C one, which has no reader of ours, in.
-        yaml = YAML(typ='safe', pure=True)
-        yaml.Reader = BasicYamlReader
-        yaml.Scanner = BasicYamlScanner
-        yaml.Parser = BasicYamlParser
-        self._text = text
-        self._events: Iterator[Event] = iter(yaml.parse(text))
-        self._peeked: Event | None = None
-        self._yaml = yaml
-
-    def peek_event(self) -> Event:
-        """The next event, left unread.
-
-        Raises:
-            MarkedYAMLError: The text is not valid YAML.
-            ReaderError: The text holds a character YAML does not allow, such as a control character.
-        """
-        if self._peeked is None:
-            self._peeked = next(self._events)
-        return self._peeked
-
-    def first_refusal(self) -> RecordedRefusal | None:
-        """The first construct the scanner or the reader has recorded, in the order the text writes them, or `None`."""
-        scanner = self._yaml.scanner
-        if not isinstance(scanner, BasicYamlScanner):
-            # SAFETY: the types are declared on the parser's base class; `_EventStream` always installs its own.
-            raise Unreachable("the parser is built with `basic_yaml`'s scanner")
-        return scanner.first_refusal()
-
-    def get_event(self) -> Event:
-        """The next event, read.
-
-        Raises:
-            MarkedYAMLError: The text is not valid YAML.
-            ReaderError: The text holds a character YAML does not allow, such as a control character.
-        """
-        event = self.peek_event()
-        self._peeked = None
-        return event
-
-    def written_tag(self, event: ScalarEvent | SequenceStartEvent | MappingStartEvent) -> str:
-        """The tag a node carries, spelled as the text writes it.
-
-        The parser hands over a tag resolved against its handles, so `!!!str` arrives as the tag `!!str` and a tag
-        in a flow collection can take the comma after it. The text itself is what the author wrote.
-
-        Args:
-            event: The event of a node that carries a tag and no anchor. Its start mark is where the tag begins
-                only then, because an anchor written first would start the node, so `_peek_node_start` refuses
-                an anchor before it asks for the tag.
-        """
-        return written_token(self._text, _mark_of(event).index)
-
-    def check_event(self, *kinds: type[Event]) -> bool:
-        """Whether the next event is of one of `kinds`, leaving it unread.
-
-        Args:
-            kinds: The event classes to test for.
-
-        Raises:
-            MarkedYAMLError: The text is not valid YAML.
-            ReaderError: The text holds a character YAML does not allow, such as a control character.
-        """
-        return isinstance(self.peek_event(), kinds)
-
-
 @overload
 def _first_refusal(stream: _EventStream, *, stopped: _RefusalError) -> RecordedRefusal | _RefusalError: ...
 @overload
@@ -239,26 +153,13 @@ def _first_refusal(
     return stopped
 
 
-def _mark_of(event: Event) -> StreamMark:
-    """Where an event starts.
-
-    Args:
-        event: An event the parser emitted.
-    """
-    mark = event.start_mark
-    if not isinstance(mark, StreamMark):
-        # SAFETY: an event's mark is optional only in its constructor's signature; the parser marks every event.
-        raise Unreachable('ruamel.yaml marks every event it parses')
-    return mark
-
-
 def _position_of(event: Event) -> YamlPosition:
     """Where an event starts, as the tree states it: one-based.
 
     Args:
         event: An event the parser emitted.
     """
-    mark = _mark_of(event)
+    mark = mark_of(event)
     return YamlPosition(NonZeroUnsignedInt(mark.line + 1), NonZeroUnsignedInt(mark.column + 1))
 
 
@@ -290,7 +191,7 @@ def _read_document(parser: _EventStream) -> YamlValue | None:
     parser.get_event()  # The document's start.
     first = _peek_node_start(parser)
     if isinstance(first, SequenceStartEvent | MappingStartEvent) and first.flow_style:
-        raise RefusedFlowBlockError(_mark_of(first))
+        raise RefusedFlowBlockError(mark_of(first))
     root = _read_value(parser)
     parser.get_event()  # The document's end.
     if not parser.check_event(StreamEndEvent):
@@ -312,15 +213,15 @@ def _peek_node_start(parser: _EventStream) -> ScalarEvent | SequenceStartEvent |
     """
     event = parser.peek_event()
     if isinstance(event, AliasEvent):
-        raise RefusedAliasError(event.anchor, _mark_of(event))
+        raise RefusedAliasError(event.anchor, mark_of(event))
     if not isinstance(event, ScalarEvent | SequenceStartEvent | MappingStartEvent):
         # SAFETY: only an end event or a document event is left, and the parser never gives one where a value starts.
         raise Unreachable(f'{type(event).__name__} where a value starts')
     if event.anchor is not None:
-        raise RefusedAnchorError(event.anchor, _mark_of(event))
+        raise RefusedAnchorError(event.anchor, mark_of(event))
     # The parser gives an event a tag only when one is written in the text, the non-specific `!` included.
     if event.tag is not None:
-        raise RefusedTagError(parser.written_tag(event), _mark_of(event))
+        raise RefusedTagError(parser.written_tag(event), mark_of(event))
     return event
 
 
@@ -423,10 +324,10 @@ def _read_key(parser: _EventStream) -> YamlKey:
     """
     event = _peek_node_start(parser)
     if not isinstance(event, ScalarEvent):
-        raise RefusedCollectionKeyError(_mark_of(event))
+        raise RefusedCollectionKeyError(mark_of(event))
     parser.get_event()
     name = _scalar_value(event)
-    mark = _mark_of(event)
+    mark = mark_of(event)
     if not isinstance(name, str):
         raise RefusedNonStringKeyError(event.value, mark)
     if event.style is None and name == MERGE_KEY:
@@ -461,9 +362,9 @@ def _refuse_nested_collection(parser: _EventStream, parent: SequenceStartEvent |
         case _:
             assert_never(event)
     if parent.flow_style:
-        raise RefusedFlowNestedCollectionError(_mark_of(event))
+        raise RefusedFlowNestedCollectionError(mark_of(event))
     if isinstance(parent, SequenceStartEvent) and isinstance(event, SequenceStartEvent) and not event.flow_style:
-        raise RefusedNestedBlockSequenceError(_mark_of(event))
+        raise RefusedNestedBlockSequenceError(mark_of(event))
 
 
 def _scalar_value(event: ScalarEvent) -> YamlScalarValue:
