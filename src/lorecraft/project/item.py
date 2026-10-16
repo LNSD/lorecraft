@@ -6,6 +6,7 @@ location and origin facts needed by consumers without reading the item's text.
 
 from dataclasses import dataclass
 from enum import Enum
+from typing import assert_never
 
 from lorecraft.core.error import Error
 from lorecraft.core.path import RootRelativePath
@@ -22,6 +23,13 @@ class MarkdownItemRef:
     """
 
     path: RootRelativePath
+
+
+class ItemKind(Enum):
+    """The kinds of governed Markdown item a rule may apply to."""
+
+    DOCUMENT = 'document'
+    SKILL_ENTRY = 'skill-entry'
 
 
 class ItemFacet(Enum):
@@ -76,7 +84,8 @@ class MarkdownItemDescriptor:
         origin: Expected-name and provenance facts specific to the item's origin.
         governance_corpus: Corpus whose specifications govern the item.
         aspect_name: Listed name matched against namespace specifications.
-        active_facets: Checks the model has enabled for this item.
+        active_facets: Checks the model has enabled for this item. The package governs a skill entry itself, so it is
+            always active for the frontmatter and the structure.
     """
 
     ref: MarkdownItemRef
@@ -86,6 +95,17 @@ class MarkdownItemDescriptor:
     governance_corpus: str
     aspect_name: str
     active_facets: frozenset[ItemFacet]
+
+    @property
+    def kind(self) -> ItemKind:
+        """Which kind of item the descriptor is for, read from its origin."""
+        match self.origin:
+            case DocumentOrigin():
+                return ItemKind.DOCUMENT
+            case SkillEntryOrigin():
+                return ItemKind.SKILL_ENTRY
+            case _:
+                assert_never(self.origin)
 
 
 class UnlistedItemError(Error):

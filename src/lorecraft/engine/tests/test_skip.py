@@ -9,8 +9,9 @@ from lorecraft import rules
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
-from lorecraft.project.database import Database, DocumentText, SkillText
+from lorecraft.project.database import Database, ItemText
 from lorecraft.project.document import DocumentRef
+from lorecraft.project.item import MarkdownItemRef
 from lorecraft.rules.registry import Registry
 from lorecraft.rules.report import SkippedSubject, UndecodableSubject
 from lorecraft.rules.selection import AllRules, RuleSelection
@@ -80,14 +81,14 @@ class TestCheckSubjects:
         table = RuleTable.from_registry(
             Registry.load(rules), RuleSelection(select=frozenset({AllRules()}), ignore=frozenset())
         )
-        source = database.text(TYPING)
-        assert isinstance(source, DocumentText), 'the document is UTF-8, so it decodes'
+        source = database.item_text(MarkdownItemRef(TYPING.path))
+        assert isinstance(source, ItemText), 'the document is UTF-8, so it decodes'
 
         #: When
         reports = check_subjects(database, [TYPING], table)
 
         #: Then
-        assert reports == (judge_item(database, source, table),), (
+        assert reports == (judge_item(database, source, TYPING, table),), (
             'the entry point decodes the document and hands it to the runner every mode shares, and adds no judgment'
         )
 
@@ -100,14 +101,14 @@ class TestCheckSubjectsOverASkillEntry:
         database = Database.from_snapshot(snapshot)
         table = _all_rules()
         location = database.model().sorted_skill_locations[0]
-        source = database.skill_text(location)
-        assert isinstance(source, SkillText), 'the skill is UTF-8, so it decodes'
+        source = database.item_text(MarkdownItemRef(location.ref.path))
+        assert isinstance(source, ItemText), 'the skill is UTF-8, so it decodes'
 
         #: When
         reports = check_subjects(database, [location], table)
 
         #: Then
-        assert reports == (judge_item(database, source, table),), (
+        assert reports == (judge_item(database, source, location.ref, table),), (
             'a skill entry goes through the same decode, skip policy and runner entry as a document'
         )
 
@@ -176,9 +177,9 @@ class TestCheckSubjectsWithAFailedLayer:
             {'python-typing.md': DOCUMENT, 'logging.md': DOCUMENT},
         )
         table = _all_rules()
-        logging_text = database.text(LOGGING)
-        assert isinstance(logging_text, DocumentText), 'the document is UTF-8, so it decodes'
-        judged = judge_item(database, logging_text, table)
+        logging_text = database.item_text(MarkdownItemRef(LOGGING.path))
+        assert isinstance(logging_text, ItemText), 'the document is UTF-8, so it decodes'
+        judged = judge_item(database, logging_text, LOGGING, table)
 
         #: When
         reports = check_subjects(database, [TYPING, LOGGING], table)

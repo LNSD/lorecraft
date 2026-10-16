@@ -52,16 +52,13 @@ from lorecraft.project.database import (
     DatabaseItemContext,
     DatabaseLayoutContext,
     DatabaseSkillResourceContext,
-    DocumentText,
+    ItemText,
     SkillResourceText,
-    SkillText,
     Undecodable,
 )
-from lorecraft.project.database import ItemText as DecodedItem
 from lorecraft.project.document import DocumentRef
-from lorecraft.project.item import MarkdownItemRef
-from lorecraft.project.skill import OutsideSymlink, SkillAliasRef, SkillLocation, SkillResourceLocation
-from lorecraft.project.workspace import Governance
+from lorecraft.project.item import ItemFacet, MarkdownItemDescriptor
+from lorecraft.project.skill import OutsideSymlink, SkillAliasRef, SkillLocation, SkillRef, SkillResourceLocation
 from lorecraft.rules.declaration import Rule
 from lorecraft.rules.report import (
     CheckedDocument,
@@ -72,7 +69,7 @@ from lorecraft.rules.report import (
     SubjectReport,
     UndecodableSubject,
 )
-from lorecraft.rules.subject import Facet
+from lorecraft.rules.subject import Facet, ItemRule, governing_facet
 from lorecraft.rules.table import EnabledRule, RuleTable
 
 
@@ -94,42 +91,84 @@ class RefusedSkillSubject:
 type Subject = DocumentRef | SkillLocation | SkillResourceLocation | OutsideSymlink | RefusedSkillSubject
 
 
-type ItemText = DocumentText | SkillText
-"""A decoded document or skill entry: the witness the entry point hands the runner after its own policy."""
-
-
-def judge_item(database: Database, source: ItemText, table: RuleTable) -> CheckedDocument | CheckedSkillFile:
+def judge_item(
+    database: Database, source: ItemText, ref: DocumentRef | SkillRef, table: RuleTable
+) -> CheckedDocument | CheckedSkillFile:
     """Run the enabled rules over a decoded document or skill entry, each over what the specifications govern it for.
 
-    A mode decodes the item and decides what a layer that failed to load means for it; this judges it by the
-    specifications that govern it. The rules over the frontmatter and over a Markdown file run the same way over both
-    kinds, through the context of the kind.
+    A mode decodes the item and decides what a layer that failed to load means for it; this judges it by the facets
+    its descriptor activates. A rule judges an item of a kind it applies to, and only when the item is governed for the
+    facet the rule reads; a facet an applicable enabled rule reads that is not active is recorded as coverage, whatever
+    the kind. Nothing here asks where the item came from, so a rule of a new base needs no branch.
 
     Args:
         database: The revision the item is read from.
         source: The item's text, the witness every per-file query takes.
+        ref: The document or skill the report is filed under; the report keeps the public ref of its kind.
         table: The rules the run enables.
     """
-    match source:
-        case DocumentText():
-            return _judge_document(database, source, table)
-        case SkillText():
-            return _judge_skill(database, source, table)
-        case _:
-            assert_never(source)
+    descriptor = source.descriptor
+    context = DatabaseItemContext(database, source)
+    diagnostics: list[Diagnostic] = []
+    ungoverned: list[Facet] = []
+
+    # The facets are reached in `Facet` order, then the rules that read none; the ungoverned facets are recorded in
+    # that order, and a facet no applicable enabled rule reads is never looked at.
+    for facet in (*Facet, None):
+        frontmatter_rules = _reading(table.frontmatter_rules, descriptor, facet)
+        document_rules = _reading(table.document_rules, descriptor, facet)
+        markdown_rules = _reading(table.markdown_rules, descriptor, facet)
+        skill_rules = _reading(table.skill_rules, descriptor, facet)
+        skill_file_rules = _reading(table.skill_file_rules, descriptor, facet)
+        if not (frontmatter_rules or document_rules or markdown_rules or skill_rules or skill_file_rules):
+            continue
+        if facet is not None and ItemFacet(facet.value) not in descriptor.active_facets:
+            ungoverned.append(facet)
+            continue
+        path = ref.path
+        diagnostics.extend(_located(path, frontmatter_rules, lambda rule: rule.check(context)))
+        diagnostics.extend(_located(path, document_rules, lambda rule: rule.check(context)))
+        diagnostics.extend(_located(path, markdown_rules, lambda rule: rule.check(context)))
+        diagnostics.extend(_located(path, skill_rules, lambda rule: rule.check(context)))
+        diagnostics.extend(_located(path, skill_file_rules, lambda rule: rule.check(context)))
+
+    return _report(ref, tuple(diagnostics), tuple(ungoverned))
 
 
-def _witness(database: Database, path: RootRelativePath) -> DecodedItem:
-    """The decoded text of an item whose compatibility witness exists, so its file decodes.
+def _reading[R: ItemRule](
+    partition: tuple[EnabledRule[R], ...], descriptor: MarkdownItemDescriptor, facet: Facet | None
+) -> tuple[EnabledRule[R], ...]:
+    """The partition's rules that judge an item of the descriptor's kind and read the facet.
 
     Args:
-        database: The revision the item is read from.
-        path: Where the item is reported.
+        partition: The enabled rules of one base.
+        descriptor: The item the rules would judge.
+        facet: The facet the rules must read, or `None` for those that read none.
     """
-    item = database.item_text(MarkdownItemRef(path))
-    if isinstance(item, Undecodable):
-        raise AssertionError(f'{path} has a witness, so it decodes')
-    return item
+    return tuple(
+        enabled
+        for enabled in partition
+        if descriptor.kind in enabled.rule.APPLIES_TO and governing_facet(enabled.rule) is facet
+    )
+
+
+def _report(
+    ref: DocumentRef | SkillRef, diagnostics: tuple[Diagnostic, ...], ungoverned: tuple[Facet, ...]
+) -> CheckedDocument | CheckedSkillFile:
+    """The report of one judged item, in the shape its public ref has: a document holds coverage, a skill none.
+
+    Args:
+        ref: The document or skill judged.
+        diagnostics: What the rules found.
+        ungoverned: The facets the item is not governed for.
+    """
+    match ref:
+        case DocumentRef():
+            return CheckedDocument(ref, diagnostics=diagnostics, ungoverned=ungoverned)
+        case SkillRef():
+            return CheckedSkillFile(ref, diagnostics=diagnostics)
+        case _:
+            assert_never(ref)
 
 
 def _located[R: Rule](
@@ -147,68 +186,6 @@ def _located[R: Rule](
         for enabled in partition
         for occurrence in check(enabled.rule)
     ]
-
-
-def _judge_document(database: Database, source: DocumentText, table: RuleTable) -> CheckedDocument:
-    """Run the enabled rules over a decoded document, each over what the specifications govern it for.
-
-    Args:
-        database: The revision the document is read from.
-        source: The document's text, the witness every per-file query takes.
-        table: The rules the run enables.
-    """
-    diagnostics: list[Diagnostic] = []
-    ungoverned: list[Facet] = []
-
-    # Each rule over the document or its frontmatter reads it through its context, and only when the specifications
-    # govern the facet it reads; a rule over a Markdown file reads it under `Facet.STRUCTURE`, as its base states.
-    # Governance is never read when no rule over a document, over the frontmatter or over a Markdown file is enabled.
-    # The ungoverned facets are recorded in the order the runner reaches them.
-    if table.frontmatter_rules or table.document_rules or table.markdown_rules:
-        governance = database.governance(source.ref)
-        governed = governance is not None and governance.corpus_structure() is not None
-        context = DatabaseItemContext(database, _witness(database, source.ref.path)) if governed else None
-        for facet in Facet:
-            # The rules over a Markdown file join the rules over a document that declare the structure facet.
-            markdown_rules = table.markdown_rules if facet is Facet.STRUCTURE else ()
-            frontmatter_rules = table.frontmatter_rules_governed_by(facet)
-            facet_rules = table.document_rules_governed_by(facet)
-            # A facet no enabled rule reads is never looked at, so it is never reported as ungoverned either.
-            if not frontmatter_rules and not facet_rules and not markdown_rules:
-                continue
-            if context is None or not _is_governed_for(context.specifications(), facet):
-                ungoverned.append(facet)
-                continue
-            path = source.ref.path
-            diagnostics.extend(_located(path, frontmatter_rules, lambda rule: rule.check(context)))
-            diagnostics.extend(_located(path, facet_rules, lambda rule: rule.check(context)))
-            diagnostics.extend(_located(path, markdown_rules, lambda rule: rule.check(context)))
-
-    return CheckedDocument(source.ref, diagnostics=tuple(diagnostics), ungoverned=tuple(ungoverned))
-
-
-def _judge_skill(database: Database, source: SkillText, table: RuleTable) -> CheckedSkillFile:
-    """Run the enabled rules over a decoded `SKILL.md`. Raises nothing.
-
-    The package governs a skill for every facet, so each rule judges it and the report holds no ungoverned facets.
-    The frontmatter rules come first, as on a document; a skill's Markdown file is its `SKILL.md`, and it is one of the
-    skill's files, so each rule over either judges it through the same context.
-
-    Args:
-        database: The revision the skill is read from.
-        source: The skill's `SKILL.md` text, the witness every per-file query takes.
-        table: The rules the run enables.
-    """
-    # Building the context asks nothing of the database; each rule asks it only for what it reads.
-    context = DatabaseItemContext(database, _witness(database, source.ref.path))
-    path = source.ref.path
-    diagnostics = [
-        *_located(path, table.frontmatter_rules, lambda rule: rule.check(context)),
-        *_located(path, table.skill_rules, lambda rule: rule.check(context)),
-        *_located(path, table.markdown_rules, lambda rule: rule.check(context)),
-        *_located(path, table.skill_file_rules, lambda rule: rule.check(context)),
-    ]
-    return CheckedSkillFile(source.ref, diagnostics=tuple(diagnostics))
 
 
 def check_skill_resource(database: Database, location: SkillResourceLocation, table: RuleTable) -> SubjectReport:
@@ -268,23 +245,3 @@ def check_layout_entry(outside: OutsideSymlink, table: RuleTable) -> CheckedLayo
     diagnostics = _located(outside.path, table.layout_rules, lambda rule: rule.check(context))
 
     return CheckedLayoutEntry(outside.path, diagnostics=tuple(diagnostics))
-
-
-def _is_governed_for(governance: Governance, facet: Facet) -> bool:
-    """Whether the specifications that govern a document govern it for a facet. Raises nothing.
-
-    Args:
-        governance: The specifications that govern the document, as `Database.governance` returns them.
-        facet: The facet a rule over the document declares.
-    """
-    match facet:
-        case Facet.FRONTMATTER:
-            return bool(governance.frontmatter_schemas())
-        case Facet.STRUCTURE:
-            return governance.corpus_structure() is not None
-        case Facet.OUTLINE:
-            return any(structure_spec.outline for structure_spec in governance.structure_specs())
-        case Facet.BUDGET:
-            return any(structure_spec.tokens is not None for structure_spec in governance.structure_specs())
-        case _:
-            assert_never(facet)
