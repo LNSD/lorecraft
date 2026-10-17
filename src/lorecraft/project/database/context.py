@@ -19,7 +19,7 @@ from it.
 from collections.abc import Mapping
 from typing import assert_never
 
-from lorecraft.core.path import PathComponent, RootRelativePath
+from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName, ReservedCorpusDirectory
 from lorecraft.project.document import SpecRef
@@ -32,13 +32,12 @@ from lorecraft.project.item import (
 from lorecraft.project.link_target import DocumentLink, LinkBase, LinkTargetEntry
 from lorecraft.project.schemas import (
     Query,
-    SkillFields,
     StructureSpec,
 )
 from lorecraft.project.skill import OutsideSymlink
 from lorecraft.project.syntax import FrontmatterNode, NormalisedLinkPath, ParsedDocument, TokenCount
 from lorecraft.project.workspace import Governance
-from lorecraft.vfs import ResolvedPath, RootExit
+from lorecraft.vfs import RootExit
 
 from .database import Database
 from .text import ItemText
@@ -148,34 +147,9 @@ class DatabaseItemContext:
             case _:
                 assert_never(origin)
 
-    def directory_name(self) -> PathComponent:
-        """The name of the skill's directory as an agent lists it, read from its origin.
-
-        Raises:
-            WrongItemKindError: If the item is a document.
-        """
-        return PathComponent.parse(self._skill().expected_name)
-
-    def link_target(self) -> ResolvedPath | None:
-        """The resolved directory the listed directory leads to when it is a link, or `None` when it is not.
-
-        Raises:
-            WrongItemKindError: If the item is a document.
-        """
-        return self._skill().link_target
-
     def frontmatter(self) -> FrontmatterNode:
         """The skill's frontmatter block, from the `item_frontmatter` query."""
         return self._database.item_frontmatter(self._source)
-
-    def skill_fields(self) -> SkillFields:
-        """The fields of the skill's frontmatter that parse, from the `item_skill_fields` query.
-
-        Raises:
-            WrongItemKindError: If the item is a document.
-        """
-        self._skill()
-        return self._database.item_skill_fields(self._source)
 
     def parse(self) -> ParsedDocument:
         """The item's parse tree, from the `item_parse` query."""

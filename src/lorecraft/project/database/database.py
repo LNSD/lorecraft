@@ -311,6 +311,14 @@ class _ReadPrimitives:
             case _:
                 return ()
 
+    def skill_fields(self) -> SkillFields:
+        """The fields of a skill entry's frontmatter that parse; none for any other item or one that is not UTF-8."""
+        self.read |= {'skill_fields'}
+        source = self._database.item_text(self._ref)
+        if isinstance(source, ItemText) and isinstance(source.descriptor.origin, SkillEntryOrigin):
+            return self._database.item_skill_fields(source)
+        return FrozenMapping({})
+
     def frontmatter_owner(self) -> FrontmatterOwner:
         """The document or the skill entry whose frontmatter block the item opens.
 

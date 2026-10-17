@@ -23,15 +23,18 @@ from typing import Final, assert_never
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.schemas import (
     AgentSkillsSchema,
+    AllowedTools,
     DocumentFrontmatterOwner,
     FrontmatterOwner,
     Primitives,
     SchemaProblems,
     SchemaSource,
+    SkillField,
     SkillFrontmatterOwner,
     StructureSpecSchema,
+    field_line,
 )
-from lorecraft.project.syntax import FrontmatterNode
+from lorecraft.project.syntax import Frontmatter, FrontmatterNode, LineNumber
 from lorecraft.rules.identity import RuleGroup, RuleGroupPrefix
 from lorecraft.rules.location import Elsewhere, Help, Note
 
@@ -59,6 +62,34 @@ def frontmatter_facts(primitives: Primitives) -> FrontmatterFacts:
         primitives: The model state of the document or the skill.
     """
     return FrontmatterFacts(primitives.frontmatter(), primitives.frontmatter_owner())
+
+
+@dataclass(frozen=True, slots=True)
+class AllowedToolsField:
+    """A skill's `allowed-tools` field as written, and the line it is written on.
+
+    Attributes:
+        line: The line of the field.
+        tools: The field's value, split into entries.
+    """
+
+    line: LineNumber
+    tools: AllowedTools
+
+
+def allowed_tools_field(primitives: Primitives) -> AllowedToolsField | None:
+    """The skill's `allowed-tools` field, the fact the two rules over it share; `None` when it holds no parsed value.
+
+    Args:
+        primitives: The model state of the skill.
+    """
+    frontmatter = primitives.frontmatter()
+    if not isinstance(frontmatter, Frontmatter):
+        return None
+    tools = primitives.skill_fields().get(SkillField.ALLOWED_TOOLS)
+    if not isinstance(tools, AllowedTools):
+        return None
+    return AllowedToolsField(field_line(frontmatter, SkillField.ALLOWED_TOOLS), tools)
 
 
 def schema_problems(primitives: Primitives) -> tuple[SchemaProblems, ...]:

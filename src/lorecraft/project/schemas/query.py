@@ -25,6 +25,7 @@ from lorecraft.project.syntax import (
 
 from .frontmatter_owner import FrontmatterOwner
 from .schema_problems import SchemaProblems
+from .skill_fields import SkillFields
 from .structure import StructureSpec
 
 type Query[T] = Callable[[Primitives], T]
@@ -77,6 +78,14 @@ class Primitives(Protocol):
         """
         ...
 
+    def skill_fields(self) -> SkillFields:
+        """The fields of a skill entry's frontmatter that parse, each on its own, by the field.
+
+        A field that is not written, is null or is rejected has no entry; none holds for any other item, or when the
+        block is missing, not YAML or not a mapping.
+        """
+        ...
+
     def frontmatter_owner(self) -> FrontmatterOwner:
         """The document or the skill the block opens, with the name its frontmatter must carry.
 
@@ -104,6 +113,7 @@ class StructurePrimitives:
         line_total: The lines in the item's whole file.
         frontmatter_node: The item's frontmatter block as parsed.
         problems: What each frontmatter schema that governs the item rejects, in the order the schemas apply.
+        fields: The fields of a skill entry's frontmatter that parse.
         owner: Whose frontmatter block it is, when the item has an owner.
     """
 
@@ -117,6 +127,7 @@ class StructurePrimitives:
     line_total: LineCount = LineCount(UnsignedInt(0))
     frontmatter_node: FrontmatterNode = MissingFrontmatter()
     problems: tuple[SchemaProblems, ...] = ()
+    fields: SkillFields = FrozenMapping({})
     owner: FrontmatterOwner | None = None
 
     def structure_specs(self) -> tuple[StructureSpec, ...]:
@@ -158,6 +169,10 @@ class StructurePrimitives:
     def schema_problems(self) -> tuple[SchemaProblems, ...]:
         """The problems this was built with."""
         return self.problems
+
+    def skill_fields(self) -> SkillFields:
+        """The fields this was built with."""
+        return self.fields
 
     def frontmatter_owner(self) -> FrontmatterOwner:
         """The owner this was built with; a query that asks for one is run over primitives that hold it."""

@@ -27,17 +27,16 @@ is never decoded, so its context is built from its record alone, and it states a
 from collections.abc import Mapping
 from typing import Protocol
 
-from lorecraft.core.path import PathComponent, RootRelativePath
+from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.schemas import (
     Query,
-    SkillFields,
     StructureSpec,
 )
 from lorecraft.project.syntax import FrontmatterNode, NormalisedLinkPath, ParsedDocument, TokenCount
 from lorecraft.project.workspace import Governance
-from lorecraft.vfs import ResolvedPath, RootExit
+from lorecraft.vfs import RootExit
 
 from .link_target import DocumentLink, LinkBase, LinkTargetEntry
 
@@ -135,22 +134,6 @@ class SkillContext(FrontmatterContext, SkillFileContext, Protocol):
 
     def frontmatter(self) -> FrontmatterNode:
         """The skill's frontmatter block as parsed: missing, not YAML, not a mapping, or the mapping."""
-        ...
-
-    def skill_fields(self) -> SkillFields:
-        """The fields of the skill's frontmatter that parse, each on its own, by the field.
-
-        A field that is not written, is null or is rejected has no entry; none holds when the block is missing, not
-        YAML or not a mapping.
-        """
-        ...
-
-    def directory_name(self) -> PathComponent:
-        """The name of the skill's directory as an agent lists it, whatever a link there leads to."""
-        ...
-
-    def link_target(self) -> ResolvedPath | None:
-        """The resolved directory the listed directory leads to when it is a link, or `None` when it is not."""
         ...
 
     def query[T](self, query: Query[T]) -> T:
