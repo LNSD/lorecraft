@@ -1,12 +1,13 @@
-"""What is wrong with a frontmatter block that does not parse, in lorecraft's words.
+"""What is wrong with a YAML text that does not parse, as a kind a caller words.
 
 The YAML parser fails with an error that names its own internals: `<block end>`, `simple key`, a tuple of tokens.
-adr-019 states the kinds of syntax error a writer meets, each with a label, a help and the line the writer fixes, and
-this module classifies the parser's error into one of them. It reads what the error carries, its class, the problem
-and the context it names and its two marks, and the block's own text at them; no parser text reaches the result.
+adr-019 states the kinds of syntax error a writer meets, and this module classifies the parser's error into one of
+them, as a value that carries the facts of the kind: the line the writer fixes and the text the error names. It
+reads what the error carries, the problem and the context it names and its two marks, and the text's own lines at
+them; no parser text reaches the result, and the package above words each kind.
 
-An error no kind matches is reported on the line the parser marked as `the block cannot be read from this line on`,
-with no help, so a parser upgrade that rewords an error moves it there rather than to a wrong kind.
+An error no kind matches is `UnreadableBlock`, on the line the parser marked, so a parser upgrade that rewords an
+error moves it there rather than to a wrong kind.
 """
 
 import ast
@@ -18,8 +19,9 @@ from types import MappingProxyType
 from typing import Final
 
 from lorecraft.core.lines import split_lines
+from lorecraft.core.num import UnsignedInt
 
-from .problem import LINE_SEPARATORS, ControlCharacterProblem, SyntaxErrorProblem
+from .problem import LINE_SEPARATORS, SyntaxErrorProblem
 from .tree import YamlPosition
 
 _ESCAPE_HEX_DIGITS: Final[Mapping[str, int]] = MappingProxyType({'x': 2, 'u': 4, 'U': 8})
@@ -53,27 +55,271 @@ def _mark_of(position: YamlPosition | None) -> _Mark | None:
     return _Mark(position.line.value - 1, position.column.value - 1)
 
 
+def _check_line(line: int | None) -> None:
+    """Refuse a negative line, which no line of the text is.
+
+    Args:
+        line: The line a kind carries, counted from 0, or None when the parser marks none.
+
+    Raises:
+        NegativeIntError: If the line is below 0.
+    """
+    if line is not None:
+        UnsignedInt(line)
+
+
 @dataclass(frozen=True, slots=True)
-class SyntaxProblem:
-    """One syntax error as lorecraft words it.
+class NotKeyOrItem:
+    """A line is neither `key: value` nor `- item`.
 
     Attributes:
-        label: What is wrong, in lorecraft's words, shown at the line.
-        help: What to do about it, or None where the error gives no more to say.
-        line: The line of the block the writer fixes, counted from 0, or None when the parser marks none.
+        line: The line the writer fixes, counted from 0, or None when the parser marks none.
     """
 
-    label: str
-    help: str | None
     line: int | None
 
+    def __post_init__(self) -> None:
+        """Refuse a negative line."""
+        _check_line(self.line)
 
-def describe_error(error: SyntaxErrorProblem, block: str) -> SyntaxProblem:
+
+@dataclass(frozen=True, slots=True)
+class UnclosedQuote:
+    """A quote is never closed.
+
+    Attributes:
+        line: The line the quote opens on, counted from 0, or None when the parser marks none.
+    """
+
+    line: int | None
+
+    def __post_init__(self) -> None:
+        """Refuse a negative line."""
+        _check_line(self.line)
+
+
+@dataclass(frozen=True, slots=True)
+class SeparatorEscape:
+    """A backslash is written before a line separator, which is no line break to escape.
+
+    Attributes:
+        separator: The separator the backslash is written before.
+        line: The line, counted from 0, or None when the parser marks none.
+    """
+
+    separator: str
+    line: int | None
+
+    def __post_init__(self) -> None:
+        """Refuse a negative line."""
+        _check_line(self.line)
+
+
+@dataclass(frozen=True, slots=True)
+class UnknownEscape:
+    """A double-quoted scalar holds an escape it does not know.
+
+    Attributes:
+        escape: The escape as written, with the hexadecimal digits the writer gave.
+        line: The line, counted from 0.
+    """
+
+    escape: str
+    line: int
+
+    def __post_init__(self) -> None:
+        """Refuse a negative line."""
+        _check_line(self.line)
+
+
+@dataclass(frozen=True, slots=True)
+class UnstartableCharacter:
+    """A character that cannot start a plain value starts one.
+
+    Attributes:
+        character: The character.
+        line: The line, counted from 0, or None when the parser marks none.
+    """
+
+    character: str
+    line: int | None
+
+    def __post_init__(self) -> None:
+        """Refuse a negative line."""
+        _check_line(self.line)
+
+
+@dataclass(frozen=True, slots=True)
+class ColonInValue:
+    """A plain value holds a `: `.
+
+    Attributes:
+        key: The key of the line, as written.
+        value: What follows the first `: ` of the line, as written.
+        line: The line, counted from 0.
+    """
+
+    key: str
+    value: str
+    line: int
+
+    def __post_init__(self) -> None:
+        """Refuse a negative line."""
+        _check_line(self.line)
+
+
+@dataclass(frozen=True, slots=True)
+class IndentedUnderText:
+    """A key is indented under a key whose value is text.
+
+    Attributes:
+        key: The indented key, as written.
+        parent: The key whose value is text.
+        line: The line of the indented key, counted from 0.
+    """
+
+    key: str
+    parent: str
+    line: int
+
+    def __post_init__(self) -> None:
+        """Refuse a negative line."""
+        _check_line(self.line)
+
+
+@dataclass(frozen=True, slots=True)
+class MatchesNoLevel:
+    """A line is indented to no level of the block.
+
+    Attributes:
+        line: The line, counted from 0, or None when the parser marks none.
+    """
+
+    line: int | None
+
+    def __post_init__(self) -> None:
+        """Refuse a negative line."""
+        _check_line(self.line)
+
+
+@dataclass(frozen=True, slots=True)
+class ClosesNothing:
+    """A closing bracket closes no flow collection.
+
+    Attributes:
+        bracket: The `]` or `}` as written.
+        line: The line, counted from 0, or None when the parser marks none.
+    """
+
+    bracket: str
+    line: int | None
+
+    def __post_init__(self) -> None:
+        """Refuse a negative line."""
+        _check_line(self.line)
+
+
+@dataclass(frozen=True, slots=True)
+class TextAfterQuote:
+    """Text follows a closing quote.
+
+    Attributes:
+        line: The line, counted from 0.
+    """
+
+    line: int
+
+    def __post_init__(self) -> None:
+        """Refuse a negative line."""
+        _check_line(self.line)
+
+
+@dataclass(frozen=True, slots=True)
+class TextAfterCollection:
+    """Text follows a closed flow collection.
+
+    Attributes:
+        bracket: The `]` or `}` that closes it.
+        line: The line, counted from 0.
+    """
+
+    bracket: str
+    line: int
+
+    def __post_init__(self) -> None:
+        """Refuse a negative line."""
+        _check_line(self.line)
+
+
+@dataclass(frozen=True, slots=True)
+class TabIndent:
+    """A tab indents a line.
+
+    Attributes:
+        line: The line, counted from 0, or None when the parser marks none.
+    """
+
+    line: int | None
+
+    def __post_init__(self) -> None:
+        """Refuse a negative line."""
+        _check_line(self.line)
+
+
+@dataclass(frozen=True, slots=True)
+class TabInLine:
+    """A tab is written where it is not whitespace.
+
+    Attributes:
+        line: The line, counted from 0, or None when the parser marks none.
+    """
+
+    line: int | None
+
+    def __post_init__(self) -> None:
+        """Refuse a negative line."""
+        _check_line(self.line)
+
+
+@dataclass(frozen=True, slots=True)
+class UnreadableBlock:
+    """An error no other kind matches.
+
+    Attributes:
+        line: The line the parser marked, counted from 0, or None when it marks none.
+    """
+
+    line: int | None
+
+    def __post_init__(self) -> None:
+        """Refuse a negative line."""
+        _check_line(self.line)
+
+
+type YamlSyntaxError = (
+    NotKeyOrItem
+    | UnclosedQuote
+    | SeparatorEscape
+    | UnknownEscape
+    | UnstartableCharacter
+    | ColonInValue
+    | IndentedUnderText
+    | MatchesNoLevel
+    | ClosesNothing
+    | TextAfterQuote
+    | TextAfterCollection
+    | TabIndent
+    | TabInLine
+    | UnreadableBlock
+)
+
+
+def classify_syntax_error(error: SyntaxErrorProblem, block: str) -> YamlSyntaxError:
     """Classify a scanner's or a parser's error into one of adr-019's syntax error kinds.
 
     Args:
         error: The scanner's or the parser's error, whose problem, context and positions pick the kind.
-        block: The text the parser read, the lines between the frontmatter delimiters.
+        block: The text the parser read.
     """
     lines = list(split_lines(block))
     problem = error.problem
@@ -84,11 +330,7 @@ def describe_error(error: SyntaxErrorProblem, block: str) -> SyntaxProblem:
     if problem == "could not find expected ':'":
         return _not_key_or_item(_line_of(context_mark or mark))
     if context.startswith('while scanning a quoted scalar') and problem.startswith('found unexpected end'):
-        return SyntaxProblem(
-            'this quote is never closed',
-            'Close it on the line it continues to, or remove it',
-            _line_of(context_mark or mark),
-        )
+        return UnclosedQuote(_line_of(context_mark or mark))
     if 'quoted scalar' in context and problem.startswith(('found unknown escape', 'expected escape sequence')):
         separator = _escaped_separator(problem)
         if separator is not None:
@@ -136,13 +378,13 @@ def _line_of(mark: _Mark | None) -> int | None:
     return None if mark is None else mark.line
 
 
-def _unreadable(line: int | None) -> SyntaxProblem:
+def _unreadable(line: int | None) -> UnreadableBlock:
     """The kind for an error no kind of the table matches, reported on the line the parser marked.
 
     Args:
         line: The line, counted from 0, or None when the parser marks none.
     """
-    return SyntaxProblem('the block cannot be read from this line on', None, line)
+    return UnreadableBlock(line)
 
 
 def _text(lines: list[str], line: int) -> str:
@@ -155,15 +397,13 @@ def _text(lines: list[str], line: int) -> str:
     return lines[line] if 0 <= line < len(lines) else ''
 
 
-def _not_key_or_item(line: int | None) -> SyntaxProblem:
+def _not_key_or_item(line: int | None) -> NotKeyOrItem:
     """The kind for a line that is neither `key: value` nor `- item`.
 
     Args:
         line: The line, counted from 0, or None when the parser marks none.
     """
-    return SyntaxProblem(
-        'this line is not `key: value` or `- item`', 'Add `: ` after the key, or quote a value that runs on', line
-    )
+    return NotKeyOrItem(line)
 
 
 def _is_key_line(text: str) -> bool:
@@ -204,7 +444,7 @@ def _key_of_line(text: str) -> str:
     return item_content.split(': ', 1)[0]
 
 
-def _indented_under_text(lines: list[str], line: int, key: str) -> SyntaxProblem | None:
+def _indented_under_text(lines: list[str], line: int, key: str) -> IndentedUnderText | None:
     """The kind for a key written indented under a key whose value is text, or None when it is not one.
 
     The scalar the key's line continues is walked up to the `key: value` line it started on, over the lines of
@@ -228,11 +468,7 @@ def _indented_under_text(lines: list[str], line: int, key: str) -> SyntaxProblem
             # A `key:` with no value opens a block, so a line under it is a child, not a mistake.
             return None
         parent = _key_of_line(text)
-        return SyntaxProblem(
-            f'`{key}` is indented under `{parent}`, whose value is text',
-            'Align it with the key it belongs beside',
-            line,
-        )
+        return IndentedUnderText(key, parent, line)
     return None
 
 
@@ -245,7 +481,7 @@ def _indent(text: str) -> int:
     return len(text) - len(text.lstrip(' '))
 
 
-def _bad_indent(mark: _Mark | None, lines: list[str]) -> SyntaxProblem:
+def _bad_indent(mark: _Mark | None, lines: list[str]) -> YamlSyntaxError:
     """Classify a line indented to no level of the block, which may be a key under a text value.
 
     Args:
@@ -261,20 +497,16 @@ def _bad_indent(mark: _Mark | None, lines: list[str]) -> SyntaxProblem:
     return _matches_no_level(_line_of(mark))
 
 
-def _matches_no_level(line: int | None) -> SyntaxProblem:
+def _matches_no_level(line: int | None) -> MatchesNoLevel:
     """The kind for a line indented to no level of the block.
 
     Args:
         line: The line, counted from 0, or None when the parser marks none.
     """
-    return SyntaxProblem(
-        "this line's indentation matches no key or item above it",
-        'Indent it like the keys or items it belongs with',
-        line,
-    )
+    return MatchesNoLevel(line)
 
 
-def _misplaced_colon(mark: _Mark | None, lines: list[str]) -> SyntaxProblem:
+def _misplaced_colon(mark: _Mark | None, lines: list[str]) -> YamlSyntaxError:
     """Classify a `:` where a key is not allowed: in a value, under a text value, or ending a multi-line scalar.
 
     Args:
@@ -289,8 +521,7 @@ def _misplaced_colon(mark: _Mark | None, lines: list[str]) -> SyntaxProblem:
         return _cannot_start_value(':', mark)
     if ': ' in before:
         key, _, value = text.strip().partition(': ')
-        quoted = f'`{key}: "{value}"`' if value and '"' not in value else 'it'
-        return SyntaxProblem('this value holds `: `', f'Quote the value: {quoted}', mark.line)
+        return ColonInValue(key, value, mark.line)
     under_text = _indented_under_text(lines, mark.line, before.strip())
     if under_text is not None:
         return under_text
@@ -333,7 +564,7 @@ def _ends_a_flow_collection(mark: _Mark | None, lines: list[str]) -> bool:
     return _text(lines, mark.line)[: mark.column].rstrip().endswith((']', '}'))
 
 
-def _text_after_value(mark: _Mark | None, lines: list[str]) -> SyntaxProblem:
+def _text_after_value(mark: _Mark | None, lines: list[str]) -> YamlSyntaxError:
     """Classify text where an entry ended: after a closing quote, after a flow collection, or below a block scalar.
 
     Args:
@@ -343,26 +574,22 @@ def _text_after_value(mark: _Mark | None, lines: list[str]) -> SyntaxProblem:
     if mark is not None:
         before = _text(lines, mark.line)[: mark.column].rstrip()
         if before.endswith(('"', "'")):
-            return SyntaxProblem('text follows the closing quote', 'Put the whole value inside the quotes', mark.line)
+            return TextAfterQuote(mark.line)
         if before.endswith((']', '}')):
-            return SyntaxProblem(
-                f'text follows the closing `{before[-1]}`',
-                'Move the text inside the brackets, or quote the whole value',
-                mark.line,
-            )
+            return TextAfterCollection(before[-1], mark.line)
         if _below_block_scalar(mark.line, lines):
             return _bad_indent(mark, lines)
     return _unreadable(_line_of(mark))
 
 
-def _closes_nothing(bracket: str, mark: _Mark | None) -> SyntaxProblem:
+def _closes_nothing(bracket: str, mark: _Mark | None) -> ClosesNothing:
     """The kind for a closing bracket that closes no flow collection.
 
     Args:
         bracket: The `]` or `}` as written.
         mark: Where the parser found it.
     """
-    return SyntaxProblem(f'this `{bracket}` closes nothing', 'Remove it, or quote the value', _line_of(mark))
+    return ClosesNothing(bracket, _line_of(mark))
 
 
 def _below_block_scalar(line: int, lines: list[str]) -> bool:
@@ -386,32 +613,17 @@ def _below_block_scalar(line: int, lines: list[str]) -> bool:
     return False
 
 
-def describe_control_character(error: ControlCharacterProblem) -> SyntaxProblem:
-    """Name a character the reader refuses, and the line it is on.
-
-    Args:
-        error: The refused character, with its position in the block.
-    """
-    return SyntaxProblem(
-        f'the block holds the control character U+{error.code:04X}',
-        'Remove it',
-        error.position.line.value - 1,
-    )
-
-
-def _cannot_start_value(character: str, mark: _Mark | None) -> SyntaxProblem:
+def _cannot_start_value(character: str, mark: _Mark | None) -> UnstartableCharacter:
     """The kind for a character that cannot start a plain value.
 
     Args:
         character: The character, shown in the label.
         mark: Where the scanner found it.
     """
-    # A backtick is named in words: written between backticks it would close its own quoting.
-    named = 'a backtick' if character == '`' else f'`{character}`'
-    return SyntaxProblem(f'a plain value cannot start with {named}', 'Quote the value', _line_of(mark))
+    return UnstartableCharacter(character, _line_of(mark))
 
 
-def _unstartable_character(problem: str, mark: _Mark | None, lines: list[str]) -> SyntaxProblem:
+def _unstartable_character(problem: str, mark: _Mark | None, lines: list[str]) -> YamlSyntaxError:
     """Classify a character that cannot start a token: a tab, or a character no plain value starts with.
 
     Args:
@@ -422,8 +634,8 @@ def _unstartable_character(problem: str, mark: _Mark | None, lines: list[str]) -
     if "'\\t'" in problem:
         text = _text(lines, mark.line) if mark is not None else ''
         if text.lstrip(' ').startswith('\t'):
-            return SyntaxProblem('a tab indents this line', 'Indent with spaces', _line_of(mark))
-        return SyntaxProblem('a tab is not whitespace here', 'Use spaces', _line_of(mark))
+            return TabIndent(_line_of(mark))
+        return TabInLine(_line_of(mark))
     if "'" not in problem:
         return _unreadable(_line_of(mark))
     return _cannot_start_value(problem.split("'")[1], mark)
@@ -445,22 +657,17 @@ def _escaped_separator(problem: str) -> str | None:
     return character if isinstance(character, str) and character in LINE_SEPARATORS else None
 
 
-def _separator_escape(separator: str, mark: _Mark | None) -> SyntaxProblem:
+def _separator_escape(separator: str, mark: _Mark | None) -> SeparatorEscape:
     """The kind for a backslash before a line separator, which is no line break to escape.
 
     Args:
         separator: The separator the backslash is written before.
         mark: Where the scanner found it.
     """
-    # The separator is invisible between backticks, so the label names its code point.
-    return SyntaxProblem(
-        f'`\\` before U+{ord(separator):04X} is not an escape',
-        'Write `\\\\` for a backslash, or use single quotes',
-        _line_of(mark),
-    )
+    return SeparatorEscape(separator, _line_of(mark))
 
 
-def _unknown_escape(mark: _Mark | None, lines: list[str]) -> SyntaxProblem:
+def _unknown_escape(mark: _Mark | None, lines: list[str]) -> YamlSyntaxError:
     """The kind for an escape double quotes do not know, naming the escape as written.
 
     Args:
@@ -481,6 +688,4 @@ def _unknown_escape(mark: _Mark | None, lines: list[str]) -> SyntaxProblem:
             break
         escape_end += 1
     escape = text[start:escape_end]
-    return SyntaxProblem(
-        f'`{escape}` is not an escape', 'Write `\\\\` for a backslash, or use single quotes', mark.line
-    )
+    return UnknownEscape(escape, mark.line)
