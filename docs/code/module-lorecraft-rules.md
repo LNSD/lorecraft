@@ -29,12 +29,10 @@ query and hands over its facts sits above it in `lorecraft.engine`; the query is
 - A rule class, the base class its subject kind gives it, and the places its occurrences may point at. A subject
   kind's base has a `Queried` form that names the query the rule needs and judges its facts; a document's also
   requires the rule to declare the facet it reads, from the facets this package states. A rule over what any
-  Markdown file has judges a document, a skill's `SKILL.md` and a skill's resource alike; a rule over one of a
-  skill's files judges a `SKILL.md` and a resource, and never a document. A base over an item binds the kinds it applies to, and `governing_facet`
-  states the facet a rule reads. A base over what both a
-  document and a skill share, such as the frontmatter, declares, for every rule on it, the facet a document is
-  gated on.
-- A removed rule, the decorator that registers a declaration, and the registry with its load checks.
+  Markdown file has judges a document, a `SKILL.md` and a resource alike; a rule over a skill's file never judges a document. A base over an item binds the kinds it applies to, and `governing_facet`
+  states the facet a rule reads. A base over what a document and a skill share, such as the frontmatter, declares
+  the facet a document is gated on.
+- A removed rule, the decorator that registers a declaration, and the registry.
 - The rule index, `lorecraft.rules.index`: identity as plain tuples and strings, with the lookups the command
   line's edge needs, importing nothing but `typing`; generated from the registry, never a source of rules.
 - An engine condition: what the engine reports before any rule runs, such as a file that does not decode.
@@ -44,6 +42,8 @@ query and hands over its facts sits above it in `lorecraft.engine`; the query is
 - A rule group, as a subpackage: its `__ruleset__.py` declares the group as `GROUP_ID` and whatever else its rules
   share, its `__init__.py` holds only the docstring, and each rule is one module. The `LC` group is declared in
   `identity.py` as `ENGINE_GROUP`, for `EngineCode`, and re-exported as its `GROUP_ID`.
+- A rule's query, per ADR-026: in its module, in the group's `__ruleset__.py` when its rules share it, in
+  `lorecraft.project` when several groups do. A `judge` names its parameter `facts`.
 
 ## Belongs Elsewhere
 
@@ -164,8 +164,7 @@ meta specs, not this package.
 - **An engine condition with several causes** has a section per cause in their place.
 - *Known problems* follows only when the rule misfires on a case users meet, and *Deviations from upstream* only
   on a rule with alias codes.
-- **Nothing of the implementation.** No section names a tokenizer, a parser, a query, a class or a field: a user acts only on what they can see or configure. The `Attributes:` block after the sections documents
-  the fields, for the maintainer.
+- **Nothing of the implementation.** No section names a tokenizer, a parser, a query, a class or a field. The `Attributes:` block after the sections documents the fields, for the maintainer.
 
 ```python
 # ❌ Bad — the page describes the machinery: which parser counts, not whether a code block counts

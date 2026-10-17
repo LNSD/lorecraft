@@ -167,17 +167,17 @@ class MissingSection(QueriedDocumentRule[tuple[OutlineDivergenceSpec, ...]]):
         return outline_divergences
 
     @classmethod
-    def judge(cls, divergences: tuple[OutlineDivergenceSpec, ...], /) -> tuple[Self, ...]:
+    def judge(cls, facts: tuple[OutlineDivergenceSpec, ...], /) -> tuple[Self, ...]:
         """One occurrence for each outline whose first divergence is a required section the document lacks.
 
         An occurrence has a line of the document as its primary location, so one expected at the end of the
         document is reported at its last line, the nearest line to where the section would be written.
 
         Args:
-            divergences: The answer of the rule's query.
+            facts: The answer of the rule's query.
         """
         occurrences: list[Self] = []
-        for outline_spec in divergences:
+        for outline_spec in facts:
             divergence = outline_spec.divergence
             match divergence:
                 case AbsentSection():

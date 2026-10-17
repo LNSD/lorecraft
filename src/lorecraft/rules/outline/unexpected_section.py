@@ -143,14 +143,14 @@ class UnexpectedSection(QueriedDocumentRule[tuple[OutlineDivergenceSpec, ...]]):
         return outline_divergences
 
     @classmethod
-    def judge(cls, divergences: tuple[OutlineDivergenceSpec, ...], /) -> tuple[Self, ...]:
+    def judge(cls, facts: tuple[OutlineDivergenceSpec, ...], /) -> tuple[Self, ...]:
         """One occurrence for each outline whose first divergence is a section it does not name.
 
         Args:
-            divergences: The answer of the rule's query.
+            facts: The answer of the rule's query.
         """
         occurrences: list[Self] = []
-        for outline_spec in divergences:
+        for outline_spec in facts:
             divergence = outline_spec.divergence
             match divergence:
                 case UnlistedSection():
