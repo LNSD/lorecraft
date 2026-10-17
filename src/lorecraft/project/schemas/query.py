@@ -6,12 +6,14 @@ reaches the model, so what a query read is what its answer depends on: a databas
 revision whenever every primitive it read is kept, and a query never reads the snapshot.
 """
 
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from typing import Protocol
 
+from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.num import UnsignedInt
-from lorecraft.project.syntax import Heading, TokenCount
+from lorecraft.project.link_target import LinkBase, LinkTargetEntry
+from lorecraft.project.syntax import Heading, Link, NormalisedLinkPath, TokenCount
 
 from .structure import StructureSpec
 
@@ -31,6 +33,22 @@ class Primitives(Protocol):
         """The tokens in the item's whole file; none for an item that is not UTF-8."""
         ...
 
+    def links(self) -> tuple[Link, ...]:
+        """The links of the item's parse, in document order; none for an item that is not UTF-8."""
+        ...
+
+    def link_targets(self) -> Mapping[NormalisedLinkPath, LinkTargetEntry]:
+        """What the snapshot holds at the target of each relative link; none for an item that is not UTF-8."""
+        ...
+
+    def link_base(self) -> LinkBase | None:
+        """Where the item's relative links are read from; `None` for an item that is not UTF-8."""
+        ...
+
+    def document_name(self) -> str | None:
+        """The stem of a document or meta specification; `None` for any other item."""
+        ...
+
 
 type Query[T] = Callable[[Primitives], T]
 
@@ -43,11 +61,19 @@ class StructurePrimitives:
         specs: The structure specifications that govern the item, in the order they apply.
         heading_list: The headings of the item's parse, in document order.
         token_total: The tokens in the item's whole file.
+        link_list: The links of the item's parse, in document order.
+        target_map: What the snapshot holds at the target of each relative link.
+        base: Where the item's relative links are read from.
+        name: The filename stem of the document.
     """
 
     specs: tuple[StructureSpec, ...]
     heading_list: tuple[Heading, ...] = ()
     token_total: TokenCount = TokenCount(UnsignedInt(0))
+    link_list: tuple[Link, ...] = ()
+    target_map: Mapping[NormalisedLinkPath, LinkTargetEntry] = FrozenMapping({})
+    base: LinkBase | None = None
+    name: str | None = None
 
     def structure_specs(self) -> tuple[StructureSpec, ...]:
         """The specifications this was built with."""
@@ -60,3 +86,19 @@ class StructurePrimitives:
     def token_count(self) -> TokenCount:
         """The count this was built with."""
         return self.token_total
+
+    def links(self) -> tuple[Link, ...]:
+        """The links this was built with."""
+        return self.link_list
+
+    def link_targets(self) -> Mapping[NormalisedLinkPath, LinkTargetEntry]:
+        """The targets this was built with."""
+        return self.target_map
+
+    def link_base(self) -> LinkBase | None:
+        """The base this was built with."""
+        return self.base
+
+    def document_name(self) -> str | None:
+        """The name this was built with."""
+        return self.name

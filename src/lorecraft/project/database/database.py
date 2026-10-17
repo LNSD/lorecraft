@@ -59,8 +59,8 @@ it read does, `item_governance(ref)` excepted, as its bullet states:
   frontmatter schema that governs one document rejects, which outline entry each section falls in, and where the
   sections first stop matching each outline, the shared analyses every inspection reads. They read the item's
   frontmatter or parse, its governance and, for the divergences, its alignment and line count, and nothing else.
-- `item_title(source)` and `item_extension_links(source)`: the facts the title and extension-link inspections
-  project, so none searches the headings itself. They read the item's parse or link targets and nothing else.
+- `item_title(source)`: the fact the title inspection projects, so none searches the headings itself. It reads the
+  item's parse and nothing else.
 - `item_skill_schema_problems(source)` and `item_skill_fields(source)`: what the Agent Skills specification rejects in
   one skill entry's frontmatter and the fields of it that parse, each on its own. They read `item_frontmatter(source)`
   and nothing else: the package states the specification, so no specification in the repository plays a part.
@@ -140,7 +140,7 @@ and that file's bytes did not change.
 
 import logging
 from collections.abc import Mapping
-from typing import Self, assert_never, cast
+from typing import Self, cast
 
 from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.num import UnsignedInt
@@ -158,18 +158,15 @@ from lorecraft.project.item import (
     ItemReadError,
     MarkdownItemDescriptor,
     MarkdownItemRef,
-    SkillEntryOrigin,
-    SkillResourceOrigin,
     SpecificationOrigin,
     UnlistedItemError,
 )
 from lorecraft.project.layout import DOCS_DIR, DOCUMENT_SUFFIX, SPECS_DIR, reject_linked_layout
 from lorecraft.project.link_target import (
     DocumentLink,
-    ExtensionLink,
+    LinkBase,
     LinkTargetEntry,
     document_links_of,
-    extension_links_of,
     has_link_to,
     link_targets_of,
     linked_files_of,
@@ -202,6 +199,7 @@ from lorecraft.project.syntax import (
     FrontmatterNode,
     Heading,
     LineCount,
+    Link,
     NormalisedLinkPath,
     ParsedDocument,
     TokenCount,
@@ -291,6 +289,31 @@ class _ReadPrimitives:
         source = self._database.item_text(self._ref)
         return self._database.item_token_count(source) if isinstance(source, ItemText) else TokenCount(UnsignedInt(0))
 
+    def links(self) -> tuple[Link, ...]:
+        """The links of the item's parse; none for an item that is not UTF-8."""
+        self.read |= {'links'}
+        source = self._database.item_text(self._ref)
+        return self._database.item_parse(source).links if isinstance(source, ItemText) else ()
+
+    def link_targets(self) -> Mapping[NormalisedLinkPath, LinkTargetEntry]:
+        """What the snapshot holds at each relative link's target; none for an item that is not UTF-8."""
+        self.read |= {'link_targets'}
+        source = self._database.item_text(self._ref)
+        return self._database.item_link_targets(source) if isinstance(source, ItemText) else FrozenMapping({})
+
+    def link_base(self) -> LinkBase | None:
+        """Where the item's relative links are read from; `None` for an item that is not UTF-8."""
+        self.read |= {'link_base'}
+        source = self._database.item_text(self._ref)
+        return source.descriptor.link_base if isinstance(source, ItemText) else None
+
+    def document_name(self) -> str | None:
+        """The stem of a document or meta specification; `None` for any other item or one that is not UTF-8."""
+        self.read |= {'document_name'}
+        source = self._database.item_text(self._ref)
+        origin = source.descriptor.origin if isinstance(source, ItemText) else None
+        return origin.expected_name if isinstance(origin, DocumentOrigin | SpecificationOrigin) else None
+
 
 class Database:
     """What the checks read from one snapshot: its model, built by `from_snapshot`, and every other value computed once.
@@ -340,7 +363,6 @@ class Database:
         self._item_titles: dict[MarkdownItemRef, DocumentTitle | None] = {}
         # Declared queries: the answer by the function and the item, with the primitives it read.
         self._queries: dict[tuple[Query[object], MarkdownItemRef], tuple[object, frozenset[str]]] = {}
-        self._item_extension_links: dict[MarkdownItemRef, tuple[ExtensionLink, ...]] = {}
         self._item_document_links: dict[MarkdownItemRef, tuple[DocumentLink, ...]] = {}
         # Each skill's resource listing, found on the first call; a resource is registered from it with `resource_item`.
         self._skill_resources: dict[SkillRef, SkillResourceListing] = {}
@@ -825,32 +847,6 @@ class Database:
             ref: The item it ran over.
         """
         return self._queries[(query, ref)][1] if (query, ref) in self._queries else frozenset()
-
-    def item_extension_links(self, source: ItemText) -> tuple[ExtensionLink, ...]:
-        """The links of one document to an existing document beside it that extends it; none for a skill's file.
-
-        Carry-over: kept for the next revision whenever `item_parse(source)` and `item_link_targets(source)` are.
-
-        Args:
-            source: The item's text; its ref is the cache key.
-        """
-        found = self._item_extension_links.get(source.ref)
-        if found is None:
-            origin = source.descriptor.origin
-            match origin:
-                case DocumentOrigin() | SpecificationOrigin():
-                    found = extension_links_of(
-                        self.item_parse(source).links,
-                        self.item_link_targets(source),
-                        source.descriptor.link_base,
-                        origin.expected_name,
-                    )
-                case SkillEntryOrigin() | SkillResourceOrigin():
-                    found = ()
-                case _:
-                    assert_never(origin)
-            self._item_extension_links[source.ref] = found
-        return found
 
     def item_document_links(self, source: ItemText) -> tuple[DocumentLink, ...]:
         """The links of one document to another document, with its corpus and filename and whether it links back.
