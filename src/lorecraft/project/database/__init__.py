@@ -3,11 +3,8 @@
 `Database` wraps one snapshot and memoizes every value derived from it, each computed by the rest of this package:
 the model, the decoded text, the frontmatter, the parse trees, the counts and the shared analyses. Its decode queries
 return a witness of a file's text, `ItemText`, or an `Undecodable` marker, and every per-file query takes the witness.
-`DatabaseItemContext` answers the contexts of `lorecraft.project.context` from those queries, for one decoded
-document, skill entry or skill resource.
 """
 
-from .context import DatabaseItemContext
 from .database import Database
 from .text import ItemText, Undecodable
 
@@ -15,5 +12,4 @@ __all__: list[str] = [
     'Database',
     'ItemText',
     'Undecodable',
-    'DatabaseItemContext',
 ]
