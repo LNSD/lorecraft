@@ -31,7 +31,6 @@ from lorecraft.project.schemas import (
     DocumentFrontmatterOwner,
     NamespaceSpecName,
     Query,
-    SchemaProblems,
     SkillFields,
     SkillFrontmatterOwner,
     SpecFileType,
@@ -249,10 +248,6 @@ class FakeDocumentContext:
         """The document's frontmatter block, as the real parser reads it."""
         return parse_frontmatter(self._text)
 
-    def schema_problems(self) -> tuple[SchemaProblems, ...]:
-        """What each governing frontmatter schema rejects, as the real analysis finds it."""
-        return locate_schema_problems(self.frontmatter(), self._governance.frontmatter_schemas())
-
     def frontmatter_owner(self) -> DocumentFrontmatterOwner:
         """The document, with its filename and its corpus's structure file."""
         return DocumentFrontmatterOwner(filename=self.filename(), spec=self._corpus_structure.path)
@@ -293,6 +288,7 @@ class FakeDocumentContext:
                 self.link_base(),
                 str(self.filename()),
                 count_lines(self._text),
+                problems=locate_schema_problems(parse_frontmatter(self._text), self._governance.frontmatter_schemas()),
             )
         )
 
@@ -334,10 +330,6 @@ class FakeSkillContext:
         """The skill's frontmatter block, as the real parser reads it."""
         return parse_frontmatter(self._text)
 
-    def schema_problems(self) -> tuple[SchemaProblems, ...]:
-        """What the Agent Skills specification rejects, as the real analysis finds it."""
-        return locate_skill_schema_problems(self.frontmatter())
-
     def skill_fields(self) -> SkillFields:
         """The fields that parse, as the real analysis finds them."""
         return parse_skill_fields(self.frontmatter())
@@ -360,7 +352,11 @@ class FakeSkillContext:
 
     def query[T](self, query: Query[T]) -> T:
         """The answer of a declared query over the skill, as the real database finds it."""
-        return query(StructurePrimitives((), line_total=count_lines(self._text)))
+        return query(
+            StructurePrimitives(
+                (), line_total=count_lines(self._text), problems=locate_skill_schema_problems(self.frontmatter())
+            )
+        )
 
 
 DEFAULT_SKILL_DIRECTORY: Final[RootRelativePath] = RootRelativePath.parse('.agents/skills/review')

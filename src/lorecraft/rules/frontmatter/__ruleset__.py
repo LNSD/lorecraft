@@ -24,6 +24,8 @@ from lorecraft.project.schemas import (
     AgentSkillsSchema,
     DocumentFrontmatterOwner,
     FrontmatterOwner,
+    Primitives,
+    SchemaProblems,
     SchemaSource,
     SkillFrontmatterOwner,
     StructureSpecSchema,
@@ -33,6 +35,15 @@ from lorecraft.rules.location import Elsewhere, Help, Note
 
 GROUP_ID: Final[RuleGroup] = RuleGroup(RuleGroupPrefix('FM'), 'Frontmatter checks')
 """The group of the rules over a subject's frontmatter: the block itself, and the schema that governs it."""
+
+
+def schema_problems(primitives: Primitives) -> tuple[SchemaProblems, ...]:
+    """What each schema that governs the subject rejects in its frontmatter, the fact the schema rules share.
+
+    Args:
+        primitives: The model state of the document or the skill.
+    """
+    return primitives.schema_problems()
 
 
 def owner_spec(owner: FrontmatterOwner) -> RootRelativePath | None:

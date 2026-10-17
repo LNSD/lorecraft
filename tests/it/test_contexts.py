@@ -37,7 +37,7 @@ from lorecraft.project.document import DocumentRef, SpecRef
 from lorecraft.project.item import MarkdownItemRef
 from lorecraft.project.layout import SNAPSHOT_SCOPE
 from lorecraft.project.link_target import DocumentDirectory, EscapingTarget, LinkTarget, PathLookup, SkillRoot
-from lorecraft.project.schemas import DocumentFrontmatterOwner, SkillFrontmatterOwner
+from lorecraft.project.schemas import DocumentFrontmatterOwner, Primitives, SchemaProblems, SkillFrontmatterOwner
 from lorecraft.project.skill import OutsideSymlink, SkillLocation, SkillRef
 from lorecraft.project.syntax import NormalisedLinkPath, count_lines, count_tokens
 from lorecraft.rules.length.too_many_lines import skill_line_count
@@ -248,6 +248,11 @@ def _write_tree(directory: Path, tree: FileTree) -> None:
                 assert_never(entry)
 
 
+def _schema_problems(primitives: Primitives) -> tuple[SchemaProblems, ...]:
+    """What each schema that governs the item rejects in its frontmatter."""
+    return primitives.schema_problems()
+
+
 @pytest.mark.it
 class TestDatabaseItemContextOverADocument:
     def test_filename_with_a_document_returns_the_filename_of_its_ref(self) -> None:
@@ -279,7 +284,7 @@ class TestDatabaseItemContextOverADocument:
         context = _document_context(database)
 
         #: When
-        schema_problems = context.schema_problems()
+        schema_problems = context.query(_schema_problems)
 
         #: Then
         assert schema_problems is database.item_schema_problems(_document_item(database)), (
@@ -441,7 +446,7 @@ class TestDatabaseItemContextOverASkillEntry:
         context = _skill_context(database)
 
         #: When
-        schema_problems = context.schema_problems()
+        schema_problems = context.query(_schema_problems)
 
         #: Then
         assert schema_problems is database.item_skill_schema_problems(_skill_item(database)), (
@@ -637,17 +642,16 @@ class TestDatabaseItemContextOfASpecification:
         #: Then
         assert str(SPEC.path) in str(exc_info.value), 'the error names the specification asked'
 
-    def test_schema_problems_with_a_specification_raises_wrong_item_kind(self) -> None:
+    def test_schema_problems_with_a_specification_returns_none(self) -> None:
         #: Given
         database = Database.from_snapshot(_snapshot())
         context = DatabaseItemContext(database, _spec_item(database))
 
         #: When
-        with pytest.raises(WrongItemKindError) as exc_info:
-            context.schema_problems()
+        schema_problems = context.query(_schema_problems)
 
         #: Then
-        assert str(SPEC.path) in str(exc_info.value), 'the error names the specification asked'
+        assert schema_problems == (), 'no frontmatter schema governs a meta specification'
 
     def test_specifications_with_a_specification_raises_wrong_item_kind(self) -> None:
         #: Given

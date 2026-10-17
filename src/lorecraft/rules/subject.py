@@ -277,6 +277,37 @@ class FrontmatterRule(ItemRule):
         """
 
 
+@dataclass(frozen=True, slots=True, kw_only=True)
+class QueriedFrontmatterRule[Facts](FrontmatterRule):
+    """The base of a rule over a frontmatter that names the query it needs and judges its facts, never a context.
+
+    It works as `QueriedDocumentRule` does, over the primitives of a document or a skill alike.
+    """
+
+    @classmethod
+    @abstractmethod
+    def query(cls) -> Query[Facts]:
+        """The query whose answer `judge` takes; the same function every call, since the database memoizes by it."""
+
+    @classmethod
+    def check(cls, subject: FrontmatterContext) -> tuple[Self, ...]:
+        """Resolve the query through the subject, then judge the facts it derives.
+
+        Args:
+            subject: The document or the skill judged; a document is governed for its frontmatter.
+        """
+        return cls.judge(subject.query(cls.query()))
+
+    @classmethod
+    @abstractmethod
+    def judge(cls, facts: Facts, /) -> tuple[Self, ...]:
+        """Every occurrence of the rule's condition in the frontmatter, from the facts alone.
+
+        Args:
+            facts: The answer of the rule's query.
+        """
+
+
 def governing_facet(rule: type[ItemRule]) -> Facet | None:
     """The facet an item must be governed for before the rule judges it, or `None` when every item it applies to is.
 
