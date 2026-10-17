@@ -23,6 +23,7 @@ from lorecraft.project.layout import DOCS_DIR, SPECS_DIR
 from lorecraft.project.link_target import (
     DocumentDirectory,
     DocumentLink,
+    LinkBase,
     LinkTargetEntry,
     SkillRoot,
 )
@@ -287,6 +288,8 @@ class FakeDocumentContext:
                 parse_frontmatter(self._text),
                 locate_schema_problems(parse_frontmatter(self._text), self._governance.frontmatter_schemas()),
                 owner=DocumentFrontmatterOwner(filename=self.filename(), spec=self._corpus_structure.path),
+                anchor_set=self.parse().anchors,
+                base_name=self.base(),
             )
         )
 
@@ -337,6 +340,8 @@ class FakeSkillContext:
         return query(
             StructurePrimitives(
                 (),
+                link_list=self.parse().links,
+                base=self.link_base(),
                 line_total=count_lines(self._text),
                 frontmatter_node=self.frontmatter(),
                 problems=locate_skill_schema_problems(self.frontmatter()),
@@ -351,6 +356,27 @@ DEFAULT_SKILL_DIRECTORY: Final[RootRelativePath] = RootRelativePath.parse('.agen
 
 DEFAULT_DOCUMENT_DIRECTORY: Final[RootRelativePath] = RootRelativePath.parse('docs/guide')
 """The directory a fake document lies in unless a test names another."""
+
+
+def _markdown_primitives(
+    text: str, base: LinkBase, link_targets: Mapping[NormalisedLinkPath, LinkTargetEntry]
+) -> StructurePrimitives:
+    """The primitives of a Markdown file, from its text through the real parser and the targets the test stated.
+
+    Args:
+        text: The file's whole text.
+        base: Where its relative links are read from.
+        link_targets: What the snapshot holds at the target of each relative link.
+    """
+    parsed = parse_document(text)
+    return StructurePrimitives(
+        (),
+        parsed.headings,
+        link_list=parsed.links,
+        anchor_set=parsed.anchors,
+        target_map=link_targets,
+        base=base,
+    )
 
 
 class FakeSkillResourceContext:
@@ -378,6 +404,10 @@ class FakeSkillResourceContext:
         self._text = text
         self._skill_directory = skill_directory
         self._link_targets = link_targets
+
+    def query[T](self, query: Query[T]) -> T:
+        """The answer of a declared query over the resource, as the real database finds it."""
+        return query(_markdown_primitives(self._text, self.link_base(), self._link_targets))
 
     def parse(self) -> ParsedDocument:
         """The resource's parse tree, as the real parser reads it."""
@@ -417,6 +447,10 @@ class FakeDocumentMarkdownContext:
         self._text = text
         self._directory = directory
         self._link_targets = link_targets
+
+    def query[T](self, query: Query[T]) -> T:
+        """The answer of a declared query over the document, as the real database finds it."""
+        return query(_markdown_primitives(self._text, self.link_base(), self._link_targets))
 
     def parse(self) -> ParsedDocument:
         """The document's parse tree, as the real parser reads it."""

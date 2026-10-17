@@ -4,24 +4,46 @@ from dataclasses import dataclass
 from typing import ClassVar, Self, assert_never
 from urllib.parse import unquote
 
-from lorecraft.project.context import MarkdownContext
+from lorecraft.project.schemas import Primitives, Query
 from lorecraft.project.syntax import (
     AbsoluteDestination,
     ExternalDestination,
     FragmentDestination,
+    Link,
     RelativeDestination,
 )
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Subdiagnostic
-from lorecraft.rules.subject import MarkdownRule
+from lorecraft.rules.subject import QueriedMarkdownRule
 
 from .__ruleset__ import GROUP_ID
 
 
+def absolute_links(primitives: Primitives) -> tuple[Link, ...]:
+    """The links and images of a Markdown file whose destination starts with `/`, in document order.
+
+    A query: it reads the item's links and nothing else.
+
+    Args:
+        primitives: The model state of the Markdown file.
+    """
+    absolute: list[Link] = []
+    for link in primitives.links():
+        destination = link.to_destination()
+        match destination:
+            case AbsoluteDestination():
+                absolute.append(link)
+            case ExternalDestination() | FragmentDestination() | RelativeDestination():
+                pass
+            case _:
+                assert_never(destination)
+    return tuple(absolute)
+
+
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
-class AbsoluteLink(MarkdownRule):
+class AbsoluteLink(QueriedMarkdownRule[tuple[Link, ...]]):
     """A link in a Markdown file starts at a filesystem root.
 
     ## What it does
@@ -87,20 +109,15 @@ class AbsoluteLink(MarkdownRule):
         return (Help('link by a relative path, which holds wherever the files are placed'),)
 
     @classmethod
-    def check(cls, subject: MarkdownContext) -> tuple[Self, ...]:
+    def query(cls) -> Query[tuple[Link, ...]]:
+        """The links whose destination starts with `/`."""
+        return absolute_links
+
+    @classmethod
+    def judge(cls, facts: tuple[Link, ...], /) -> tuple[Self, ...]:
         """One occurrence for each link or image whose destination starts with `/`, on its line, in document order.
 
         Args:
-            subject: The Markdown file whose links are judged.
+            facts: The absolute links of the file.
         """
-        occurrences: list[Self] = []
-        for link in subject.parse().links:
-            destination = link.to_destination()
-            match destination:
-                case AbsoluteDestination():
-                    occurrences.append(cls(line=link.line, url=link.url))
-                case ExternalDestination() | FragmentDestination() | RelativeDestination():
-                    pass
-                case _:
-                    assert_never(destination)
-        return tuple(occurrences)
+        return tuple(cls(line=link.line, url=link.url) for link in facts)
