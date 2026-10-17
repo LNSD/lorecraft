@@ -12,12 +12,11 @@ file, so the test states it by hand too.
 """
 
 from collections.abc import Mapping
-from typing import Final, cast
+from typing import Final, Protocol, cast
 
 from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.project.aspect import AspectFilename, AspectNamespace
-from lorecraft.project.context import MarkdownContext
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.layout import DOCS_DIR, SPECS_DIR
@@ -168,7 +167,7 @@ def _decode_structure(spec_name: SpecName, structure: str) -> StructureSpec:
 
 
 class FakeDocumentContext:
-    """A document a test writes as text, governed by the meta specs the test states; a `DocumentContext`.
+    """A document a test writes as text, governed by the meta specs the test states.
 
     The governance is set by hand, as the model would find it: the corpus's meta spec first, then each
     namespace's the test lists, broad to narrow. The meta specs are built through a `Corpus`, as the model builds
@@ -282,7 +281,7 @@ class FakeDocumentContext:
 
 
 class FakeSkillContext:
-    """A skill whose `SKILL.md` a test writes as text, listed where the test names; a `SkillContext`."""
+    """A skill whose `SKILL.md` a test writes as text, listed where the test names."""
 
     _text: str
     _directory_name: PathComponent
@@ -351,7 +350,7 @@ def _markdown_primitives(
 
 
 class FakeSkillResourceContext:
-    """A resource of a skill a test writes as text; a `SkillResourceContext`."""
+    """A resource of a skill a test writes as text."""
 
     _text: str
     _skill_directory: RootRelativePath
@@ -382,7 +381,7 @@ class FakeSkillResourceContext:
 
 
 class FakeDocumentMarkdownContext:
-    """A document a test writes as text, asked only what any Markdown file is asked; a `MarkdownContext`."""
+    """A document a test writes as text, asked only what any Markdown file is asked."""
 
     _text: str
     _directory: RootRelativePath
@@ -413,7 +412,7 @@ class FakeDocumentMarkdownContext:
 
 
 class FakeSymlinkContext:
-    """A symlink of the skill layout whose chain leaves the repository where the test states; a `SymlinkContext`."""
+    """A symlink of the skill layout whose chain leaves the repository where the test states."""
 
     _leaves_at: RootExit
 
@@ -439,7 +438,7 @@ class FakeSymlinkContext:
 
 
 class FakeCorpusDirectoryContext:
-    """A directory under `docs/` that takes a reserved corpus's name, as the test states; a `CorpusDirectoryContext`."""
+    """A directory under `docs/` that takes a reserved corpus's name, as the test states."""
 
     def __init__(self, corpus: str) -> None:
         """Hold the reserved corpus the directory takes.
@@ -462,7 +461,15 @@ class FakeCorpusDirectoryContext:
         return query(self)
 
 
-def judged[R: ItemRule](rule: type[R], context: MarkdownContext) -> tuple[R, ...]:
+class _Queryable(Protocol):
+    """A fake that answers a declared query over its subject."""
+
+    def query[T](self, query: Query[T]) -> T:
+        """The answer of the query over the fake's subject."""
+        ...
+
+
+def judged[R: ItemRule](rule: type[R], context: _Queryable) -> tuple[R, ...]:
     """Every occurrence of a queried rule over a fake context, resolved as the runner does: its query, then its facts.
 
     Args:

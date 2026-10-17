@@ -30,7 +30,7 @@ class TestReservedCorpusOverlap:
         subject = FakeCorpusDirectoryContext('skills')
 
         #: When
-        occurrences = ReservedCorpusOverlap.check(subject)
+        occurrences = ReservedCorpusOverlap.judge(subject.query(ReservedCorpusOverlap.query()))
 
         #: Then
         assert occurrences == (ReservedCorpusOverlap(corpus='skills'),), 'the directory is one occurrence'

@@ -4,18 +4,27 @@ from dataclasses import dataclass
 from typing import ClassVar, Self
 
 from lorecraft.core.num import NonZeroUnsignedInt
-from lorecraft.project.context import DocumentContext
-from lorecraft.project.syntax import LineNumber
+from lorecraft.project.query import CountPrimitives, Query
+from lorecraft.project.syntax import LineNumber, TokenCount
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
-from lorecraft.rules.subject import DocumentRule, Facet
+from lorecraft.rules.subject import Facet, QueriedDocumentRule
 
 from ..groups import SAMPLE
 
 
+def _token_count(primitives: CountPrimitives) -> TokenCount:
+    """The tokens in the document's whole file.
+
+    Args:
+        primitives: The model state of the document.
+    """
+    return primitives.token_count()
+
+
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
-class AnyTokens(DocumentRule):
+class AnyTokens(QueriedDocumentRule[TokenCount]):
     """A sample rule that fires once on every document a budget governs, whatever its token count.
 
     Attributes:
@@ -35,10 +44,15 @@ class AnyTokens(DocumentRule):
         return f'document counted ({self.token_count} tokens)'
 
     @classmethod
-    def check(cls, subject: DocumentContext) -> tuple[Self, ...]:
+    def query(cls) -> Query[TokenCount]:
+        """The tokens in the document's whole file."""
+        return _token_count
+
+    @classmethod
+    def judge(cls, facts: TokenCount, /) -> tuple[Self, ...]:
         """One occurrence at line 1, whatever the count.
 
         Args:
-            subject: The document, governed by a budget.
+            facts: The tokens in the document's whole file.
         """
-        return (cls(spec=None, line=LineNumber(NonZeroUnsignedInt(1)), token_count=subject.token_count().value),)
+        return (cls(spec=None, line=LineNumber(NonZeroUnsignedInt(1)), token_count=facts.value),)
