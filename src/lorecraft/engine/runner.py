@@ -49,11 +49,9 @@ from dataclasses import dataclass
 from typing import assert_never
 
 from lorecraft.core.path import RootRelativePath
-from lorecraft.project.corpus import ReservedCorpusDirectory
+from lorecraft.project.corpus import CorpusName, ReservedCorpusDirectory
 from lorecraft.project.database import (
     Database,
-    DatabaseCorpusDirectoryContext,
-    DatabaseSymlinkContext,
     ItemText,
 )
 from lorecraft.project.document import DocumentRef, SpecRef
@@ -75,6 +73,7 @@ from lorecraft.rules.subject import (
     governing_facet,
 )
 from lorecraft.rules.table import EnabledRule, RuleTable
+from lorecraft.vfs import RootExit
 
 
 # A subject an entry point checks: a document, a meta specification, a skill, a resource, a refused skill alias, or a
@@ -183,18 +182,50 @@ def _judged[Facts](rule: type[Queried[Facts]], database: Database, ref: Markdown
     return rule.judge(database.query(rule.query(), ref))
 
 
-def _judged_symlink[Facts](rule: type[QueriedSymlinkRule[Facts]], symlink: DatabaseSymlinkContext) -> tuple[Rule, ...]:
+class _SymlinkRecord:
+    """The primitives of one symlink, read from the record the model or a skill's resource listing returned."""
+
+    def __init__(self, outside: OutsideSymlink) -> None:
+        """Bind the primitives to one symlink whose chain leaves the repository.
+
+        Args:
+            outside: The symlink, as the model's `outside_symlinks` or a skill's resource listing holds it.
+        """
+        self._outside = outside
+
+    def leaves_at(self) -> RootExit:
+        """The link the chain leaves the repository through, and its target, read from the record."""
+        return self._outside.leaves_at
+
+
+class _CorpusDirectoryRecord:
+    """The primitives of one reserved-corpus directory, read from the record the model set aside."""
+
+    def __init__(self, directory: ReservedCorpusDirectory) -> None:
+        """Bind the primitives to one directory the model set aside.
+
+        Args:
+            directory: The directory, as the model's `overlapping_directories` holds it.
+        """
+        self._directory = directory
+
+    def reserved_corpus(self) -> CorpusName:
+        """The reserved corpus whose name the directory takes, read from the record."""
+        return self._directory.corpus
+
+
+def _judged_symlink[Facts](rule: type[QueriedSymlinkRule[Facts]], symlink: OutsideSymlink) -> tuple[Rule, ...]:
     """Every occurrence of one rule at a symlink, from the facts of its query.
 
     Args:
         rule: The rule to run.
         symlink: The symlink judged.
     """
-    return rule.judge(symlink.query(rule.query()))
+    return rule.judge(rule.query()(_SymlinkRecord(symlink)))
 
 
 def _judged_directory[Facts](
-    rule: type[QueriedCorpusDirectoryRule[Facts]], directory: DatabaseCorpusDirectoryContext
+    rule: type[QueriedCorpusDirectoryRule[Facts]], directory: ReservedCorpusDirectory
 ) -> tuple[Rule, ...]:
     """Every occurrence of one rule at a reserved-corpus directory, from the facts of its query.
 
@@ -202,7 +233,7 @@ def _judged_directory[Facts](
         rule: The rule to run.
         directory: The directory judged.
     """
-    return rule.judge(directory.query(rule.query()))
+    return rule.judge(rule.query()(_CorpusDirectoryRecord(directory)))
 
 
 def _located[R: Rule](
@@ -233,10 +264,10 @@ def check_layout_entry(entry: OutsideSymlink | ReservedCorpusDirectory, table: R
     # its query, which reads the record and asks the database nothing.
     match entry:
         case OutsideSymlink():
-            symlink = DatabaseSymlinkContext(entry)
+            symlink = entry
             diagnostics = _located(entry.path, table.symlink_rules, lambda rule: _judged_symlink(rule, symlink))
         case ReservedCorpusDirectory():
-            directory = DatabaseCorpusDirectoryContext(entry)
+            directory = entry
             diagnostics = _located(
                 entry.path, table.corpus_directory_rules, lambda rule: _judged_directory(rule, directory)
             )

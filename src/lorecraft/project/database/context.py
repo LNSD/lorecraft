@@ -9,29 +9,20 @@ A context is built only from a witness, so no fact of a file that does not decod
 answers for a document, a skill entry and a skill's resource alike; a fact only one kind has, or a document's
 governance when none governs it, is a defect of the caller to ask for, and raises `WrongItemKindError`. The rule bases
 name the kinds they apply to and the facet they read, so a rule that runs never asks.
-
-`DatabaseSymlinkContext` and `DatabaseCorpusDirectoryContext` implement `SymlinkContext` and
-`CorpusDirectoryContext`. A layout entry has no text, so it has no witness and no per-file query: the context holds the
-record the model or a skill's `skill_resources` listing returned, the memoized query value itself, and reads every fact
-from it.
 """
 
 from typing import assert_never
 
-from lorecraft.core.path import RootRelativePath
-from lorecraft.project.corpus import CorpusName, ReservedCorpusDirectory
 from lorecraft.project.item import (
     DocumentOrigin,
     SkillEntryOrigin,
     SkillResourceOrigin,
     SpecificationOrigin,
 )
-from lorecraft.project.query import CorpusDirectoryQuery, Query, SymlinkQuery
+from lorecraft.project.query import Query
 from lorecraft.project.schemas import StructureSpec
-from lorecraft.project.skill import OutsideSymlink
 from lorecraft.project.syntax import FrontmatterNode, TokenCount
 from lorecraft.project.workspace import Governance
-from lorecraft.vfs import RootExit
 
 from .database import Database
 from .text import ItemText
@@ -128,51 +119,3 @@ class DatabaseItemContext:
     def query[T](self, query: Query[T]) -> T:
         """The answer of a declared query, from the database's memoized `query`."""
         return self._database.query(query, self._source.ref)
-
-
-class DatabaseSymlinkContext:
-    """One symlink of the skill layout whose chain leaves the repository, as recorded; a `SymlinkContext`."""
-
-    def __init__(self, outside: OutsideSymlink) -> None:
-        """Bind the context to one symlink whose chain leaves the repository.
-
-        Args:
-            outside: The symlink, as the model's `outside_symlinks` or a skill's resource listing holds it.
-        """
-        self._outside = outside
-
-    def path(self) -> RootRelativePath:
-        """Where an agent reaches the symlink, read from the record."""
-        return self._outside.path
-
-    def leaves_at(self) -> RootExit:
-        """The link the chain leaves the repository through, and its target, read from the record."""
-        return self._outside.leaves_at
-
-    def query[T](self, query: SymlinkQuery[T]) -> T:
-        """The answer of a declared query, which reads the record through this context's primitives."""
-        return query(self)
-
-
-class DatabaseCorpusDirectoryContext:
-    """One directory under `docs/` that takes a reserved corpus's name, as recorded; a `CorpusDirectoryContext`."""
-
-    def __init__(self, directory: ReservedCorpusDirectory) -> None:
-        """Bind the context to one directory the model set aside.
-
-        Args:
-            directory: The directory, as the model's `overlapping_directories` holds it.
-        """
-        self._directory = directory
-
-    def path(self) -> RootRelativePath:
-        """The directory, read from the record."""
-        return self._directory.path
-
-    def reserved_corpus(self) -> CorpusName:
-        """The reserved corpus whose name the directory takes, read from the record."""
-        return self._directory.corpus
-
-    def query[T](self, query: CorpusDirectoryQuery[T]) -> T:
-        """The answer of a declared query, which reads the record through this context's primitives."""
-        return query(self)
