@@ -56,11 +56,11 @@ it read does, `item_governance(ref)` excepted, as its bullet states:
   item for the revision. It is the exception to the rule above: the model is dropped by any entry added or deleted
   under `docs/`, so it is recomputed from the next model and kept when it compares equal to the one it replaces. It
   can carry over when `model()` does not, and so can every analysis that reads it.
-- `item_schema_problems(source)`: what each frontmatter schema that governs one document rejects, the shared analysis
-  every frontmatter inspection reads. It reads the item's frontmatter and governance and nothing else.
-- `item_skill_schema_problems(source)` and `item_skill_fields(source)`: what the Agent Skills specification rejects in
-  one skill entry's frontmatter and the fields of it that parse, each on its own. They read `item_frontmatter(source)`
-  and nothing else: the package states the specification, so no specification in the repository plays a part.
+- `item_schema_problems(source)`: what each frontmatter schema that governs one item rejects, the shared analysis
+  every frontmatter inspection reads. It reads the item's frontmatter and governance and nothing else; a skill entry is
+  held to the Agent Skills specification the package states, so no governance plays a part.
+- `item_skill_fields(source)`: the fields of one skill entry's frontmatter that parse, each on its own. It reads
+  `item_frontmatter(source)` and nothing else.
 
 Questions asked of the snapshot's records directly are never cached, since an answer for one path is cheap:
 
@@ -295,21 +295,13 @@ class _ReadPrimitives:
         source = self._database.item_text(self._ref)
         if not isinstance(source, ItemText):
             return ()
-        match source.descriptor.origin:
-            case SkillEntryOrigin():
-                return self._database.item_skill_schema_problems(source)
-            case DocumentOrigin():
-                return self._database.item_schema_problems(source)
-            case _:
-                return ()
+        return self._database.item_schema_problems(source)
 
     def skill_fields(self) -> SkillFields:
         """The fields of a skill entry's frontmatter that parse; none for any other item or one that is not UTF-8."""
         self.read |= {'skill_fields'}
         source = self._database.item_text(self._ref)
-        if isinstance(source, ItemText) and isinstance(source.descriptor.origin, SkillEntryOrigin):
-            return self._database.item_skill_fields(source)
-        return FrozenMapping({})
+        return self._database.item_skill_fields(source) if isinstance(source, ItemText) else FrozenMapping({})
 
     def frontmatter_owner(self) -> FrontmatterOwner:
         """The document or the skill entry whose frontmatter block the item opens.
@@ -322,6 +314,8 @@ class _ReadPrimitives:
         source = self._database.item_text(self._ref)
         assert isinstance(source, ItemText), 'a query over the owner runs over decoded text'
         origin = source.descriptor.origin
+        # The owner stays split by kind: a skill entry is named by its directory and held to the Agent Skills
+        # specification, a document by its filename and its corpus's structure specification.
         match origin:
             case SkillEntryOrigin():
                 return SkillFrontmatterOwner(
@@ -481,7 +475,6 @@ class Database:
         self._queries: dict[tuple[Query[object], MarkdownItemRef], tuple[object, frozenset[str]]] = {}
         # Each skill's resource listing, found on the first call; a resource is registered from it with `resource_item`.
         self._skill_resources: dict[SkillRef, SkillResourceListing] = {}
-        self._item_skill_schema_problems: dict[MarkdownItemRef, tuple[SchemaProblems, ...]] = {}
         self._item_skill_fields: dict[MarkdownItemRef, SkillFields] = {}
 
     @classmethod
@@ -843,19 +836,25 @@ class Database:
         """What each frontmatter schema that governs one item rejects in its frontmatter, found on the first call.
 
         Typed problems, each placed on its line; severity is a rule's. The frontmatter is read only when a schema
-        governs the item, and only the layers that loaded state a schema.
+        governs the item, and only the layers that loaded state a schema. A skill entry is held to the Agent Skills
+        specification alone, one entry for it, none when the block is missing, not YAML or not a mapping.
 
-        Carry-over: kept for the next revision whenever `item_frontmatter(source)` and `item_governance(source.ref)`
-        are.
+        Carry-over: kept for the next revision whenever `item_frontmatter(source)` and, but for a skill entry,
+        `item_governance(source.ref)` are.
 
         Args:
             source: The item's text; its ref is the cache key.
         """
         found = self._item_schema_problems.get(source.ref)
         if found is None:
-            governance = self.item_governance(source.ref)
-            schemas = governance.frontmatter_schemas() if governance is not None else ()
-            found = locate_schema_problems(self.item_frontmatter(source), schemas) if schemas else ()
+            if isinstance(source.descriptor.origin, SkillEntryOrigin):
+                # No governance reaches a skill entry: the package states the Agent Skills specification, so every
+                # skill is held to it alone and no specification in the repository plays a part.
+                found = locate_skill_schema_problems(self.item_frontmatter(source))
+            else:
+                governance = self.item_governance(source.ref)
+                schemas = governance.frontmatter_schemas() if governance is not None else ()
+                found = locate_schema_problems(self.item_frontmatter(source), schemas) if schemas else ()
             self._item_schema_problems[source.ref] = found
         return found
 
@@ -922,32 +921,11 @@ class Database:
 
     # Derived queries: each reads only other queries and carries over whenever they do.
 
-    def item_skill_schema_problems(self, source: ItemText) -> tuple[SchemaProblems, ...]:
-        """What the Agent Skills specification rejects in a skill entry's frontmatter, found once. Raises nothing.
-
-        Each problem is placed on the line its field is written on, or line 1 when it has none. The package states
-        the specification, so every skill is held to it and no specification in the repository plays a part.
-
-        Carry-over: kept for the next revision whenever `item_frontmatter(source)` is.
-
-        Args:
-            source: The skill entry's text; its ref is the cache key.
-
-        Returns:
-            One entry, for the Agent Skills specification; none when the block is missing, not YAML or not a
-            mapping, which no schema can hold.
-        """
-        found = self._item_skill_schema_problems.get(source.ref)
-        if found is None:
-            found = locate_skill_schema_problems(self.item_frontmatter(source))
-            self._item_skill_schema_problems[source.ref] = found
-        return found
-
     def item_skill_fields(self, source: ItemText) -> SkillFields:
         """The fields of one skill entry's frontmatter that parse, parsed once. Raises nothing.
 
         A field that is not written or is rejected has no entry, so a rule over one field reads it whatever the
-        others hold.
+        others hold. None for any item that is not a skill entry.
 
         Carry-over: kept for the next revision whenever `item_frontmatter(source)` is.
 
@@ -956,7 +934,8 @@ class Database:
         """
         found = self._item_skill_fields.get(source.ref)
         if found is None:
-            found = parse_skill_fields(self.item_frontmatter(source))
+            is_skill = isinstance(source.descriptor.origin, SkillEntryOrigin)
+            found = parse_skill_fields(self.item_frontmatter(source)) if is_skill else FrozenMapping({})
             self._item_skill_fields[source.ref] = found
         return found
 

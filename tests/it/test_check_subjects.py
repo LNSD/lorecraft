@@ -424,22 +424,13 @@ class CountingDatabase(Database):
         return super().item_parse(source)
 
     def item_schema_problems(self, source: ItemText) -> tuple[SchemaProblems, ...]:
-        """Record the document, then hold its frontmatter to the schemas that govern it.
+        """Record the item, then hold its frontmatter to the schemas that govern it.
 
         Args:
             source: The decoded document whose frontmatter is validated, recorded by its ref first.
         """
         self.validated_frontmatters.append(source.ref)
         return super().item_schema_problems(source)
-
-    def item_skill_schema_problems(self, source: ItemText) -> tuple[SchemaProblems, ...]:
-        """Record the skill entry, then hold its frontmatter to the Agent Skills specification.
-
-        Args:
-            source: The decoded `SKILL.md` whose frontmatter is validated, recorded by its ref first.
-        """
-        self.validated_frontmatters.append(source.ref)
-        return super().item_skill_schema_problems(source)
 
 
 def _snapshot(
