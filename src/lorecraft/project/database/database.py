@@ -59,8 +59,6 @@ it read does, `item_governance(ref)` excepted, as its bullet states:
   frontmatter schema that governs one document rejects, which outline entry each section falls in, and where the
   sections first stop matching each outline, the shared analyses every inspection reads. They read the item's
   frontmatter or parse, its governance and, for the divergences, its alignment and line count, and nothing else.
-- `item_title(source)`: the fact the title inspection projects, so none searches the headings itself. It reads the
-  item's parse and nothing else.
 - `item_skill_schema_problems(source)` and `item_skill_fields(source)`: what the Agent Skills specification rejects in
   one skill entry's frontmatter and the fields of it that parse, each on its own. They read `item_frontmatter(source)`
   and nothing else: the package states the specification, so no specification in the repository plays a part.
@@ -172,18 +170,16 @@ from lorecraft.project.link_target import (
     linked_files_of,
 )
 from lorecraft.project.schemas import (
-    DocumentTitle,
     OutlineAlignmentSpec,
     OutlineDivergenceSpec,
     Query,
     SchemaProblems,
     SkillFields,
     StructureSpec,
-    align_outlines,
-    find_document_title,
     locate_schema_problems,
     locate_skill_schema_problems,
     match_outlines,
+    outline_alignment,
     parse_skill_fields,
 )
 from lorecraft.project.skill import Repository as SkillRepository
@@ -358,9 +354,7 @@ class Database:
         # An item no corpus governs is governed by nothing, so `None` is an answer and is cached too.
         self._item_governances: dict[MarkdownItemRef, Governance | None] = {}
         self._item_schema_problems: dict[MarkdownItemRef, tuple[SchemaProblems, ...]] = {}
-        self._item_outline_alignments: dict[MarkdownItemRef, tuple[OutlineAlignmentSpec, ...]] = {}
         self._item_outline_divergences: dict[MarkdownItemRef, tuple[OutlineDivergenceSpec, ...]] = {}
-        self._item_titles: dict[MarkdownItemRef, DocumentTitle | None] = {}
         # Declared queries: the answer by the function and the item, with the primitives it read.
         self._queries: dict[tuple[Query[object], MarkdownItemRef], tuple[object, frozenset[str]]] = {}
         self._item_document_links: dict[MarkdownItemRef, tuple[DocumentLink, ...]] = {}
@@ -760,20 +754,13 @@ class Database:
     def item_outline_alignment(self, source: ItemText) -> tuple[OutlineAlignmentSpec, ...]:
         """Which outline entry each of one item's sections falls in, for each specification that governs it.
 
-        Only the layers that loaded are aligned. The parse is read only when a specification governs the item.
-
-        Carry-over: kept for the next revision whenever `item_parse(source)` and `item_governance(source.ref)` are.
+        Only the layers that loaded are aligned. The parse is read only when a specification governs the item. This is
+        the `outline_alignment` query, so every path to the alignment shares its one memoized answer.
 
         Args:
             source: The item's text; its ref is the cache key.
         """
-        alignments = self._item_outline_alignments.get(source.ref)
-        if alignments is None:
-            governance = self._governance_of(source.ref)
-            structure_specs = governance.structure_specs() if governance is not None else ()
-            alignments = align_outlines(structure_specs, self.item_parse(source).headings) if structure_specs else ()
-            self._item_outline_alignments[source.ref] = alignments
-        return alignments
+        return self.query(outline_alignment, source.ref)
 
     def item_outline_divergences(self, source: ItemText) -> tuple[OutlineDivergenceSpec, ...]:
         """Where one item's sections first stop matching each outline that governs it, found on the first call.
@@ -804,18 +791,6 @@ class Database:
         """
         governance = self.item_governance(ref)
         return governance.structure_specs() if governance is not None else ()
-
-    def item_title(self, source: ItemText) -> DocumentTitle | None:
-        """One item's title with its character and word counts, found on the first call; `None` when it has none.
-
-        Carry-over: kept for the next revision whenever `item_parse(source)` is.
-
-        Args:
-            source: The item's text; its ref is the cache key.
-        """
-        if source.ref not in self._item_titles:
-            self._item_titles[source.ref] = find_document_title(self.item_parse(source).headings)
-        return self._item_titles[source.ref]
 
     def query[T](self, query: Query[T], ref: MarkdownItemRef) -> T:
         """The answer of a declared query over one item, found on the first call for the function and the ref.

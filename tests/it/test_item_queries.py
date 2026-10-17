@@ -18,6 +18,7 @@ from lorecraft.project.document import DocumentRef
 from lorecraft.project.item import ItemReadError, MarkdownItemRef, UnlistedItemError
 from lorecraft.project.layout import SNAPSHOT_SCOPE
 from lorecraft.project.link_target import EscapingTarget, LinkTarget, PathLookup
+from lorecraft.project.schemas import outline_alignment
 from lorecraft.project.syntax import FrontmatterNode, NormalisedLinkPath, ParsedDocument
 from lorecraft.project.workspace import WorkspaceModel
 from lorecraft.vfs import Snapshot, VirtualFileSystem, take_snapshot
@@ -139,7 +140,7 @@ class TestItemQueries:
         source = _decoded(database, REVIEW)
 
         #: When
-        alignments = database.item_outline_alignment(source)
+        alignments = database.query(outline_alignment, source.ref)
 
         #: Then
         assert alignments == (), 'no specification governs it'

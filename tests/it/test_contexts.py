@@ -358,20 +358,6 @@ class TestDatabaseItemContextOverADocument:
             "the corpus structure specification is the corpus's, not the python namespace's that also governs it"
         )
 
-    def test_outline_alignment_with_a_document_returns_the_outline_alignment_query(self) -> None:
-        #: Given
-        database = Database.from_snapshot(_snapshot())
-        context = _document_context(database)
-
-        #: When
-        alignment = context.outline_alignment()
-
-        #: Then
-        assert alignment is database.item_outline_alignment(_document_item(database)), (
-            'the alignment is the one the database memoizes, not one the context computed again'
-        )
-        assert len(alignment) == 2, 'the corpus and the python namespace both govern the document'
-
     def test_outline_divergences_with_a_document_returns_the_outline_divergences_query(self) -> None:
         #: Given
         database = Database.from_snapshot(_snapshot())

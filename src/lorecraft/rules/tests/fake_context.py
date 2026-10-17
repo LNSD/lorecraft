@@ -29,9 +29,7 @@ from lorecraft.project.link_target import (
 )
 from lorecraft.project.schemas import (
     CorpusSpecName,
-    DocumentTitle,
     NamespaceSpecName,
-    OutlineAlignmentSpec,
     OutlineDivergenceSpec,
     Query,
     SchemaProblems,
@@ -43,7 +41,6 @@ from lorecraft.project.schemas import (
     StructureSpec,
     StructureSpecFile,
     align_outlines,
-    find_document_title,
     locate_schema_problems,
     locate_skill_schema_problems,
     match_outlines,
@@ -291,17 +288,11 @@ class FakeDocumentContext:
         """The corpus's structure file, decoded from the JSON the test stated."""
         return self._corpus_structure
 
-    def outline_alignment(self) -> tuple[OutlineAlignmentSpec, ...]:
-        """Where the sections fall in each governing meta spec's outline, as the real analysis finds it."""
-        return align_outlines(self._governance.structure_specs(), self.parse().headings)
-
     def outline_divergences(self) -> tuple[OutlineDivergenceSpec, ...]:
         """Where the sections stop matching each governing outline, as the real analysis finds it."""
-        return match_outlines(self.outline_alignment(), count_lines(self._text))
-
-    def title(self) -> DocumentTitle | None:
-        """The document's title, as the real query finds it."""
-        return find_document_title(self.parse().headings)
+        return match_outlines(
+            align_outlines(self._governance.structure_specs(), self.parse().headings), count_lines(self._text)
+        )
 
     def query[T](self, query: Query[T]) -> T:
         """The answer of a declared query over the governing meta specs, as the real database finds it."""

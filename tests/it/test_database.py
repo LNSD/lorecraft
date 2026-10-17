@@ -28,6 +28,7 @@ from lorecraft.project.database import Database, ItemText, Undecodable
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.item import MarkdownItemRef
 from lorecraft.project.layout import LinkedLayoutError
+from lorecraft.project.schemas import outline_alignment
 from lorecraft.project.skill import SkillLocation, SkillRef
 from lorecraft.project.syntax import Frontmatter, Heading, LineNumber, count_tokens, split_lines
 from lorecraft.project.syntax import Link as MarkdownLink
@@ -268,7 +269,7 @@ class TestDatabase:
         source = _document_text(database, PYTHON_GUIDE)
 
         #: When
-        alignments = database.item_outline_alignment(source)
+        alignments = database.query(outline_alignment, source.ref)
 
         #: Then
         assert len(alignments) == 1, 'only the layer that loaded is aligned'

@@ -4,13 +4,19 @@ from dataclasses import dataclass
 from typing import ClassVar, Final, Self, assert_never
 
 from lorecraft.core.path import RootRelativePath
-from lorecraft.project.context import DocumentContext
-from lorecraft.project.schemas import AnyRunAlignment, NamedAlignment, UnalignedSection
+from lorecraft.project.schemas import (
+    AnyRunAlignment,
+    NamedAlignment,
+    OutlineAlignmentSpec,
+    Query,
+    UnalignedSection,
+    outline_alignment,
+)
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Here, Label, Note, Subdiagnostic
 from lorecraft.rules.overrun import Overrun, find_overrun
-from lorecraft.rules.subject import DocumentRule, Facet
+from lorecraft.rules.subject import Facet, QueriedDocumentRule
 
 from .__ruleset__ import GROUP_ID, spec_note
 
@@ -38,7 +44,7 @@ _SPLIT_HELP: Final[Help] = Help(
 
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
-class SectionTooManyWords(DocumentRule):
+class SectionTooManyWords(QueriedDocumentRule[tuple[OutlineAlignmentSpec, ...]]):
     """A section is longer than its word cap allows.
 
     ## What it does
@@ -141,17 +147,22 @@ class SectionTooManyWords(DocumentRule):
                 assert_never(self.cap_source)
 
     @classmethod
-    def check(cls, subject: DocumentContext) -> tuple[Self, ...]:
+    def query(cls) -> Query[tuple[OutlineAlignmentSpec, ...]]:
+        """The alignment of the document's sections to each outline that governs it."""
+        return outline_alignment
+
+    @classmethod
+    def judge(cls, alignments: tuple[OutlineAlignmentSpec, ...], /) -> tuple[Self, ...]:
         """One occurrence, at its heading, for each section over each cap that applies to it.
 
         The meta specs are taken in the order they apply, and the sections of each in document order. A section
         takes the cap of the outline entry it is aligned to, which may be none; one aligned to nothing has no cap.
 
         Args:
-            subject: The document, governed by a structure file.
+            alignments: The answer of the rule's query.
         """
         occurrences: list[Self] = []
-        for alignment in subject.outline_alignment():
+        for alignment in alignments:
             for aligned in alignment.sections:
                 cap_source: CapSource  # declared once, so each branch below may assign either variant
                 match aligned:
