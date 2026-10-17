@@ -5,7 +5,6 @@ from typing import ClassVar, Self, assert_never
 from urllib.parse import unquote
 
 from lorecraft.core.path import RootRelativePath
-from lorecraft.project.context import MarkdownContext
 from lorecraft.project.link_target import (
     DocumentDirectory,
     EscapingTarget,
@@ -14,18 +13,86 @@ from lorecraft.project.link_target import (
     PathLookup,
     SkillRoot,
 )
-from lorecraft.project.syntax import AbsoluteDestination, ExternalDestination, FragmentDestination, RelativeDestination
+from lorecraft.project.schemas import Primitives, Query
+from lorecraft.project.syntax import (
+    AbsoluteDestination,
+    ExternalDestination,
+    FragmentDestination,
+    Link,
+    RelativeDestination,
+)
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Note, Subdiagnostic
-from lorecraft.rules.subject import MarkdownRule
+from lorecraft.rules.subject import QueriedMarkdownRule
 
 from .__ruleset__ import GROUP_ID, SKILL_NOTE
 
 
+@dataclass(frozen=True, slots=True)
+class MissingTarget:
+    """A relative link whose target the snapshot holds nothing at.
+
+    Attributes:
+        link: The link.
+        base: Where the file's relative links are read from.
+        target: The root-relative path the link names once read from its base.
+    """
+
+    link: Link
+    base: LinkBase
+    target: RootRelativePath
+
+
+def missing_targets(primitives: Primitives) -> tuple[MissingTarget, ...]:
+    """The relative links of a Markdown file whose target holds nothing, in document order. Raises nothing.
+
+    A query: it reads the item's links, their targets and their base and nothing else.
+
+    Args:
+        primitives: The model state of the Markdown file.
+    """
+    base = primitives.link_base()
+    if base is None:
+        return ()
+    targets = primitives.link_targets()
+    missing: list[MissingTarget] = []
+    for link in primitives.links():
+        destination = link.to_destination()
+        match destination:
+            case RelativeDestination():
+                entry = targets.get(destination.path)
+            # A link spelling no relative path names no target.
+            case ExternalDestination() | AbsoluteDestination() | FragmentDestination():
+                continue
+            case _:
+                assert_never(destination)
+        match entry:
+            case LinkTarget():
+                match entry.lookup:
+                    case PathLookup.MISSING:
+                        missing.append(MissingTarget(link, base, entry.path))
+                    case PathLookup.FILE | PathLookup.DIRECTORY:
+                        continue
+                    # The scan never read where the path leads, so whether it names anything cannot be told.
+                    case PathLookup.OUTSIDE_SCOPE:
+                        continue
+                    case _:
+                        assert_never(entry.lookup)
+            # The link climbs past its bound, which `LINK004` reports in a skill and nothing reports in a document.
+            case EscapingTarget():
+                continue
+            # No entry: the item holds no target for the path.
+            case None:
+                continue
+            case _:
+                assert_never(entry)
+    return tuple(missing)
+
+
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
-class BrokenLink(MarkdownRule):
+class BrokenLink(QueriedMarkdownRule[tuple[MissingTarget, ...]]):
     """A relative link names nothing the repository holds.
 
     ## What it does
@@ -114,43 +181,18 @@ class BrokenLink(MarkdownRule):
                 assert_never(self.base)
 
     @classmethod
-    def check(cls, subject: MarkdownContext) -> tuple[Self, ...]:
+    def query(cls) -> Query[tuple[MissingTarget, ...]]:
+        """The relative links whose target holds nothing."""
+        return missing_targets
+
+    @classmethod
+    def judge(cls, facts: tuple[MissingTarget, ...], /) -> tuple[Self, ...]:
         """One occurrence for each relative link whose target holds nothing in the snapshot, on its line, in order.
 
         Args:
-            subject: The Markdown file whose relative links are judged by what the snapshot holds at each target.
+            facts: The links to nothing, each with where it was read from and what it names.
         """
-        base = subject.link_base()
-        targets = subject.link_targets()
-        occurrences: list[Self] = []
-        for link in subject.parse().links:
-            destination = link.to_destination()
-            match destination:
-                case RelativeDestination():
-                    entry = targets.get(destination.path)
-                # A link spelling no relative path names no target.
-                case ExternalDestination() | AbsoluteDestination() | FragmentDestination():
-                    continue
-                case _:
-                    assert_never(destination)
-            match entry:
-                case LinkTarget():
-                    match entry.lookup:
-                        case PathLookup.MISSING:
-                            occurrences.append(cls(line=link.line, url=link.url, base=base, target=entry.path))
-                        case PathLookup.FILE | PathLookup.DIRECTORY:
-                            continue
-                        # The scan never read where the path leads, so whether it names anything cannot be told.
-                        case PathLookup.OUTSIDE_SCOPE:
-                            continue
-                        case _:
-                            assert_never(entry.lookup)
-                # The link climbs past its bound, which `LINK004` reports in a skill and nothing reports in a document.
-                case EscapingTarget():
-                    continue
-                # No entry: the context holds no target for the path.
-                case None:
-                    continue
-                case _:
-                    assert_never(entry)
-        return tuple(occurrences)
+        return tuple(
+            cls(line=missing.link.line, url=missing.link.url, base=missing.base, target=missing.target)
+            for missing in facts
+        )
