@@ -8,8 +8,9 @@ policy for an item a failed layer governs comes after decoding; the entry point 
 
 The runner never names a rule. A rule joins its base's partition of the table through the registry, and the runner
 hands every rule of a partition the subject's context, so adding a rule never edits this module. What it names is
-each subject kind, in one hand-written branch, so `rule.check(context)` stays typed; a new fact a rule reads is a
-method of the context and a query of the database, never a branch here.
+each subject kind, in one hand-written branch, so `rule.check(context)` stays typed, and a queried rule is judged
+from its own query's facts; a new fact a rule reads is a method of the context and a query of the database, never a
+branch here.
 
 A subject's status comes before any rule. Each subject is decoded once: one that does not decode is reported as
 `UndecodableSubject`, whatever the table enables, and no rule sees it. A decoded document is then judged facet by
@@ -46,7 +47,7 @@ its context.
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import assert_never
+from typing import assert_never, cast
 
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.corpus import ReservedCorpusDirectory
@@ -58,7 +59,7 @@ from lorecraft.project.database import (
     ItemText,
 )
 from lorecraft.project.document import DocumentRef, SpecRef
-from lorecraft.project.item import ItemFacet, MarkdownItemDescriptor
+from lorecraft.project.item import ItemFacet, MarkdownItemDescriptor, MarkdownItemRef
 from lorecraft.project.skill import OutsideSymlink, SkillAliasRef, SkillLocation, SkillResourceLocation
 from lorecraft.rules.declaration import Rule
 from lorecraft.rules.report import (
@@ -67,7 +68,7 @@ from lorecraft.rules.report import (
     Diagnostic,
     RuleDiagnostic,
 )
-from lorecraft.rules.subject import Facet, ItemRule, governing_facet
+from lorecraft.rules.subject import Facet, ItemRule, Queried, governing_facet
 from lorecraft.rules.table import EnabledRule, RuleTable
 
 
@@ -129,11 +130,35 @@ def judge_item(database: Database, source: ItemText, table: RuleTable) -> Checke
             ungoverned.append(facet)
             continue
         path = descriptor.ref.path
-        diagnostics.extend(_located(path, frontmatter_rules, lambda rule: rule.check(context)))
-        diagnostics.extend(_located(path, document_rules, lambda rule: rule.check(context)))
-        diagnostics.extend(_located(path, markdown_rules, lambda rule: rule.check(context)))
-        diagnostics.extend(_located(path, skill_rules, lambda rule: rule.check(context)))
-        diagnostics.extend(_located(path, skill_file_rules, lambda rule: rule.check(context)))
+        diagnostics.extend(
+            _located(
+                path,
+                frontmatter_rules,
+                lambda rule: _judged(rule, database, descriptor.ref, lambda: rule.check(context)),
+            )
+        )
+        diagnostics.extend(
+            _located(
+                path, document_rules, lambda rule: _judged(rule, database, descriptor.ref, lambda: rule.check(context))
+            )
+        )
+        diagnostics.extend(
+            _located(
+                path, markdown_rules, lambda rule: _judged(rule, database, descriptor.ref, lambda: rule.check(context))
+            )
+        )
+        diagnostics.extend(
+            _located(
+                path, skill_rules, lambda rule: _judged(rule, database, descriptor.ref, lambda: rule.check(context))
+            )
+        )
+        diagnostics.extend(
+            _located(
+                path,
+                skill_file_rules,
+                lambda rule: _judged(rule, database, descriptor.ref, lambda: rule.check(context)),
+            )
+        )
 
     return CheckedItem(descriptor.ref, diagnostics=tuple(diagnostics), ungoverned=tuple(ungoverned))
 
@@ -153,6 +178,22 @@ def _reading[R: ItemRule](
         for enabled in partition
         if descriptor.kind in enabled.rule.APPLIES_TO and governing_facet(enabled.rule) is facet
     )
+
+
+def _judged[R: Rule](
+    rule: type[R], database: Database, ref: MarkdownItemRef, through_context: Callable[[], tuple[R, ...]]
+) -> tuple[R, ...]:
+    """Every occurrence of one rule over an item: a queried rule from its query's facts, another by context.
+
+    Args:
+        rule: The rule to run.
+        database: The revision the query is resolved from.
+        ref: The item judged.
+        through_context: Runs the rule over the item's context, for a rule that names no query.
+    """
+    if issubclass(rule, Queried):
+        return cast('tuple[R, ...]', rule.judge(database.query(rule.query(), ref)))
+    return through_context()
 
 
 def _located[R: Rule](
