@@ -6,7 +6,6 @@ from typing import ClassVar, Self
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.context import DocumentContext
 from lorecraft.project.schemas import TitlePattern
-from lorecraft.project.syntax import find_title
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Here, Label, Subdiagnostic
@@ -96,17 +95,14 @@ class InvalidTitle(DocumentRule):
         Args:
             subject: The document, governed by a structure file.
         """
-        title = find_title(subject.parse().headings)
+        title = subject.title()
         if title is None:
             return ()
+        heading = title.heading
         occurrences: list[Self] = []
-        for structure_spec in subject.specifications().structure_specs():
-            title_checks = structure_spec.title
-            if title_checks is None or title_checks.pattern is None:
+        for constraint in subject.title_constraints():
+            pattern = constraint.checks.pattern
+            if pattern is None or pattern.is_found_in(heading.text):
                 continue
-            if title_checks.pattern.is_found_in(title.text):
-                continue
-            occurrences.append(
-                cls(spec=structure_spec.path, line=title.line, title=title.text, pattern=title_checks.pattern)
-            )
+            occurrences.append(cls(spec=constraint.spec, line=heading.line, title=heading.text, pattern=pattern))
         return tuple(occurrences)

@@ -3,10 +3,8 @@
 from dataclasses import dataclass
 from typing import ClassVar, Self
 
-from lorecraft.core.num import UnsignedInt
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.context import DocumentContext
-from lorecraft.project.syntax import find_title
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Here, Label, Note, Subdiagnostic
@@ -101,18 +99,16 @@ class TitleTooLong(DocumentRule):
         Args:
             subject: The document, governed by a structure file.
         """
-        title = find_title(subject.parse().headings)
+        title = subject.title()
         if title is None:
             return ()
-        # The parse holds the title's text with its inline markup stripped, and `len` counts its Unicode code
-        # points: neither its bytes nor the letters a reader sees, so an emoji built of several counts each of them.
-        char_count = UnsignedInt(len(title.text))
+        # The count is of the Unicode code points of the title's text with its inline markup stripped: neither its
+        # bytes nor the letters a reader sees, so an emoji built of several counts each of them.
         occurrences: list[Self] = []
-        for structure_spec in subject.specifications().structure_specs():
-            title_checks = structure_spec.title
-            if title_checks is None or title_checks.chars is None:
+        for constraint in subject.title_constraints():
+            if constraint.checks.chars is None:
                 continue
-            overrun = find_overrun(char_count, title_checks.chars)
+            overrun = find_overrun(title.chars, constraint.checks.chars)
             if overrun is not None:
-                occurrences.append(cls(spec=structure_spec.path, line=title.line, overrun=overrun))
+                occurrences.append(cls(spec=constraint.spec, line=title.heading.line, overrun=overrun))
         return tuple(occurrences)

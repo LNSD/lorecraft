@@ -12,7 +12,7 @@ from lorecraft.project.schemas import (
     SectionEntry,
     UnalignedSection,
 )
-from lorecraft.project.syntax import Heading, SectionHeading, find_title, section_headings
+from lorecraft.project.syntax import Heading, SectionHeading, section_headings
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Subdiagnostic
@@ -149,24 +149,21 @@ class EmptySection(DocumentRule):
         Args:
             subject: The document, governed by a structure file.
         """
-        headings = subject.parse().headings
-        title = find_title(headings)
-        sections = {section.line: section for section in section_headings(headings)}
+        document_title = subject.title()
+        title = None if document_title is None else document_title.heading
+        sections = {section.line: section for section in section_headings(subject.parse().headings)}
         alignments = subject.outline_alignment()
-        occurrences: list[Self] = []
-        for structure_spec in subject.specifications().structure_specs():
-            if structure_spec.forbid_empty_sections:
-                for heading in headings:
-                    if heading.empty:
-                        occurrences.append(
-                            cls(
-                                spec=structure_spec.path,
-                                line=heading.line,
-                                section=heading.text,
-                                role=_role_of(alignments, heading, title, sections.get(heading.line)),
-                            )
-                        )
-        return tuple(occurrences)
+        empty = subject.empty_headings()
+        return tuple(
+            cls(
+                spec=spec,
+                line=heading.line,
+                section=heading.text,
+                role=_role_of(alignments, heading, title, sections.get(heading.line)),
+            )
+            for spec in subject.empty_section_specs()
+            for heading in empty
+        )
 
 
 def _role_of(
