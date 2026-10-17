@@ -117,13 +117,14 @@ that projects its own problem type into its occurrences. The analysis finds prob
 applied after detection, so no diagnostic is cached and a rule's result still is not.
 
 **A cross-file fact is a query.** The link-target states are a query keyed by the subject's ref, one per kind of
-Markdown file, read through `link_targets()`: what the snapshot holds at the target of each relative link, present,
-missing or outside the scope the scan read, with the root-relative path it was looked up at, keyed by the link's
-normalised relative path. Each link is read from the file's `link_base()`, the skill root for any file of a skill and
-the document's own directory for a document, and a link climbing past that bound has no entry. The query states facts;
-whether a missing target makes a link broken is the rule's. Its carry-over rule names every path it looked up, an
-absent target included, since creating a missing target must remove its diagnostic. Nothing a rule reads is left
-outside a query contract.
+Markdown file, read as the `link_targets` primitive: what the snapshot holds at the target of each relative link,
+present, missing or outside the scope the scan read, with the root-relative path it was looked up at, keyed by the
+link's normalised relative path. Each link is read from the file's `link_base` primitive, the skill root for any file
+of a skill and the document's own directory for a document, and a link climbing past that bound has no entry. A
+document's links to other documents, with each one's corpus and whether it links back, are the `document_links`
+primitive. The query states facts; whether a missing target makes a link broken is the rule's. Its carry-over rule
+names every path it looked up, an absent target included, since creating a missing target must remove its diagnostic.
+Nothing a rule reads is left outside a query contract.
 
 **A subject's facts are also stated as a context.** `lorecraft.project` declares, as a `Protocol` per subject kind,
 what can be asked of one decoded subject: `DocumentContext`, `SkillContext` and `SkillResourceContext`. The first

@@ -12,7 +12,7 @@ from typing import Protocol
 
 from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.num import UnsignedInt
-from lorecraft.project.link_target import LinkBase, LinkTargetEntry
+from lorecraft.project.link_target import DocumentLink, LinkBase, LinkTargetEntry
 from lorecraft.project.syntax import (
     Anchor,
     FrontmatterNode,
@@ -69,6 +69,17 @@ class Primitives(Protocol):
 
     def document_name(self) -> str | None:
         """The stem of a document or meta specification; `None` for any other item."""
+        ...
+
+    def document_links(self) -> tuple[DocumentLink, ...]:
+        """The links to another document, with its corpus and filename and whether it links back, in document order.
+
+        None for an item that is not UTF-8.
+        """
+        ...
+
+    def document_corpus(self) -> str | None:
+        """The corpus a document lies in; `None` for any other item or one that is not UTF-8."""
         ...
 
     def document_base(self) -> str | None:
@@ -130,6 +141,8 @@ class StructurePrimitives:
         owner: Whose frontmatter block it is, when the item has an owner.
         anchor_set: The anchor of every heading of the item's parse.
         base_name: The stem of the document the document extends.
+        document_link_list: The links to another document, with their corpus, filename and back link.
+        corpus: The corpus the document lies in.
     """
 
     specs: tuple[StructureSpec, ...]
@@ -146,6 +159,8 @@ class StructurePrimitives:
     owner: FrontmatterOwner | None = None
     anchor_set: frozenset[Anchor] = frozenset()
     base_name: str | None = None
+    document_link_list: tuple[DocumentLink, ...] = ()
+    corpus: str | None = None
 
     def structure_specs(self) -> tuple[StructureSpec, ...]:
         """The specifications this was built with."""
@@ -182,6 +197,14 @@ class StructurePrimitives:
     def document_base(self) -> str | None:
         """The base this was built with."""
         return self.base_name
+
+    def document_links(self) -> tuple[DocumentLink, ...]:
+        """The links this was built with."""
+        return self.document_link_list
+
+    def document_corpus(self) -> str | None:
+        """The corpus this was built with."""
+        return self.corpus
 
     def line_count(self) -> LineCount:
         """The count this was built with."""

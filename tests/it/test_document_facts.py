@@ -11,7 +11,6 @@ import pytest
 from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.database import Database, DatabaseItemContext, ItemText
-from lorecraft.project.database.context import WrongItemKindError
 from lorecraft.project.item import MarkdownItemRef, UnlistedItemError
 from lorecraft.project.layout import SNAPSHOT_SCOPE
 from lorecraft.project.link_target import DocumentLink
@@ -19,6 +18,7 @@ from lorecraft.project.schemas import Primitives, title_facts
 from lorecraft.project.syntax import Anchor, LineNumber
 from lorecraft.rules.length.too_many_tokens import token_facts
 from lorecraft.rules.link.extension_link import extension_link_facts
+from lorecraft.rules.link.mutual_link import mutual_link_facts
 from lorecraft.rules.outline.empty_section import empty_section_facts
 from lorecraft.vfs import Snapshot, take_snapshot
 
@@ -224,6 +224,11 @@ class TestDocumentFactContext:
         assert database.query_reads(title_facts, GUIDE) == {'structure_specs', 'headings'}, 'the carry-over is derived'
 
 
+def _document_links(primitives: Primitives) -> tuple[DocumentLink, ...]:
+    """The links to another document the item holds."""
+    return primitives.document_links()
+
+
 @pytest.mark.it
 class TestDocumentLinks:
     @staticmethod
@@ -243,10 +248,10 @@ class TestDocumentLinks:
 
     def test_document_links_holds_each_linked_document_with_its_corpus_and_back_link(self, tmp_path: Path) -> None:
         #: Given
-        context = _context(Database.from_snapshot(self._snapshot(tmp_path)), GUIDE)
+        database = Database.from_snapshot(self._snapshot(tmp_path))
 
         #: When
-        links = context.document_links()
+        links = database.query(_document_links, GUIDE)
 
         #: Then
         assert links == (
@@ -265,19 +270,33 @@ class TestDocumentLinks:
     def test_document_links_called_twice_returns_the_first_answer(self, tmp_path: Path) -> None:
         #: Given
         database = Database.from_snapshot(self._snapshot(tmp_path))
-        source = _decoded(database)
-        first = database.item_document_links(source)
+        first = database.query(_document_links, GUIDE)
 
         #: When
-        second = database.item_document_links(source)
+        second = database.query(_document_links, GUIDE)
 
         #: Then
         assert second is first, 'the links are memoized'
 
-    def test_document_links_of_a_skill_entry_raises_wrong_item_kind_error(self, tmp_path: Path) -> None:
+    def test_document_links_of_a_skill_entry_holds_none(self, tmp_path: Path) -> None:
         #: Given
-        context = _context(Database.from_snapshot(_snapshot(tmp_path)), SKILL)
+        database = Database.from_snapshot(_snapshot(tmp_path))
 
-        #: When / Then
-        with pytest.raises(WrongItemKindError):
-            context.document_links()
+        #: When
+        links = database.query(_document_links, SKILL)
+
+        #: Then
+        assert links == (), 'a skill entry links to no document of the layout'
+
+    def test_mutual_link_facts_holds_the_corpus_and_reads_only_what_it_names(self, tmp_path: Path) -> None:
+        #: Given
+        database = Database.from_snapshot(self._snapshot(tmp_path))
+
+        #: When
+        facts = database.query(mutual_link_facts, GUIDE)
+
+        #: Then
+        assert facts.corpus == 'code', 'the corpus of the document'
+        assert database.query_reads(mutual_link_facts, GUIDE) == {'document_corpus', 'document_links'}, (
+            'the carry-over is derived'
+        )

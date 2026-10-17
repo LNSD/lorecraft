@@ -269,12 +269,10 @@ class FakeDocumentContext:
                 owner=DocumentFrontmatterOwner(filename=self._ref.filename, spec=self._corpus_structure.path),
                 anchor_set=self.parse().anchors,
                 base_name=self._base_name(),
+                document_link_list=self._document_links,
+                corpus=str(self._ref.corpus),
             )
         )
-
-    def document_links(self) -> tuple[DocumentLink, ...]:
-        """The links the test stated, since the fake holds one document and reads no destination."""
-        return self._document_links
 
     def _base_name(self) -> str | None:
         """The base the corpus the test stated gives the document, as the real model derives it."""
