@@ -612,8 +612,8 @@ class WorkspaceModel:
 
         Args:
             ref: Document, skill entry or meta specification to resolve, whether or not the model lists a document's
-                corpus. The package governs a specification, so it resolves with no governance and only the Markdown
-                checks active.
+                corpus. The package governs a specification, so it resolves with no governance and the structure and
+                Markdown checks active.
         """
         match ref:
             case DocumentRef():
@@ -663,7 +663,7 @@ class WorkspaceModel:
                     origin=SpecificationOrigin(expected_name=ref.name, corpus=ref.corpus),
                     governance_corpus=ref.corpus,
                     aspect_name=ref.name,
-                    active_facets=frozenset({ItemFacet.MARKDOWN}),
+                    active_facets=frozenset({ItemFacet.STRUCTURE, ItemFacet.MARKDOWN}),
                 )
                 return ResolvedItem(descriptor, None)
             case _:

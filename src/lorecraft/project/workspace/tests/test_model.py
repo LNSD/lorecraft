@@ -1293,8 +1293,8 @@ class TestSpecifications:
         assert descriptor.ref == MarkdownItemRef(ref.path), 'the logical ref is also the report path'
         assert descriptor.read_location == ResolvedPath(ref.path), 'the file is read where it is listed'
         assert descriptor.link_base == DocumentDirectory(SPECS_DIR), 'links are read from docs/__meta__'
-        assert descriptor.active_facets == frozenset({ItemFacet.MARKDOWN}), (
-            'the package governs a specification, so only the Markdown checks are active'
+        assert descriptor.active_facets == frozenset({ItemFacet.STRUCTURE, ItemFacet.MARKDOWN}), (
+            'the package governs a specification, so the structure and the Markdown checks are active'
         )
 
     def test_find_item_with_a_listed_specification_returns_its_descriptor(

@@ -1293,7 +1293,7 @@ class TestCheckCommand:
             'docs/code/logging.md: skipped, governed by a structure file that failed to load: '
             'docs/__meta__/code.spec.json\n'
             'LC  1 error\n'
-            'checked 1 subject(s): 1 error(s), 0 warning(s)\n'
+            'checked 2 subject(s): 1 error(s), 0 warning(s)\n'
         ), 'the document it governs is listed as skipped, and the run is not clean'
 
     @pytest.mark.skipif(os.geteuid() == 0, reason='root ignores file permissions')
@@ -1315,6 +1315,26 @@ class TestCheckCommand:
             item['path'] == 'docs/code/logging.md' and item['code'] == 'LC002' for item in document['diagnostics']
         )
         assert document['summary']['subjects'] == baseline_subjects, 'the unreadable document remains a subject'
+
+    @pytest.mark.skipif(os.geteuid() == 0, reason='root ignores file permissions')
+    def test_check_with_an_unreadable_specification_reports_lc002_and_exits_one(self, workspace: Path) -> None:
+        #: Given
+        baseline = runner.invoke(build_app(), ['check', '--root', str(workspace), '--format', 'json'])
+        baseline_subjects = json.loads(baseline.stdout)['summary']['subjects']
+        (workspace / 'docs' / '__meta__' / 'code.md').chmod(0o000)
+        app = build_app()
+        arguments = ['check', '--root', str(workspace), '--format', 'json']
+
+        #: When
+        result = runner.invoke(app, arguments)
+
+        #: Then
+        assert result.exit_code == 1, result.output
+        document = json.loads(result.stdout)
+        assert any(
+            item['path'] == 'docs/__meta__/code.md' and item['code'] == 'LC002' for item in document['diagnostics']
+        ), 'the unreadable specification is reported under LC002 at its path'
+        assert document['summary']['subjects'] == baseline_subjects, 'the unreadable specification remains a subject'
 
     def test_check_with_a_linked_specs_directory_exits_as_invalid_input(self, linked_specs_workspace: Path) -> None:
         #: Given

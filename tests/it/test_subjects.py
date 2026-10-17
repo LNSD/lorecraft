@@ -14,8 +14,8 @@ from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.database import Database
-from lorecraft.project.document import DocumentRef
-from lorecraft.project.layout import SNAPSHOT_SCOPE
+from lorecraft.project.document import DocumentRef, SpecRef
+from lorecraft.project.layout import SNAPSHOT_SCOPE, SPECS_DIR
 from lorecraft.project.skill import (
     OutsideSymlink,
     SkillLocation,
@@ -43,6 +43,15 @@ def _write(root: Path, relative: str, text: str = '') -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text, encoding='utf-8')
     return path
+
+
+def _specification(name: str) -> SpecRef:
+    """The meta specification `docs/__meta__/<name>.md`.
+
+    Args:
+        name: The specification's name without its `.md` suffix.
+    """
+    return SpecRef(SPECS_DIR / PathComponent.parse(f'{name}.md'))
 
 
 def _document(corpus: str, filename: str) -> DocumentRef:
@@ -114,10 +123,12 @@ class TestSelectWorkspace:
             _resource(REVIEW, 'LINT.md'),
             _skill(REVIEW),
             _resource(REVIEW, 'references/guide.md'),
+            _specification('arch'),
+            _specification('code'),
             _document('arch', 'adr-001'),
             _document('code', 'logging'),
             _document('code', 'typing'),
-        ), 'every document, skill and resource is selected once, by its report path compared by code point'
+        ), 'every document, specification, skill and resource is selected once, by its report path by code point'
 
     def test_select_workspace_with_symlinks_leading_outside_selects_each_at_its_place(self, tmp_path: Path) -> None:
         #: Given

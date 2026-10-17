@@ -11,7 +11,7 @@ from typing import assert_never
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.corpus import ReservedCorpusDirectory
 from lorecraft.project.database import Database, ItemText, Undecodable
-from lorecraft.project.document import DocumentReadError, DocumentRef
+from lorecraft.project.document import DocumentReadError, DocumentRef, SpecRef
 from lorecraft.project.item import ItemReadError, MarkdownItemRef
 from lorecraft.project.layout import DOCS_DIR
 from lorecraft.project.skill import (
@@ -35,12 +35,12 @@ def check_subjects(
     table: RuleTable,
     refusals: Mapping[RootRelativePath, RefusedRecord] | None = None,
 ) -> tuple[SubjectReport, ...]:
-    """Run the table's rules over each document, skill, resource and layout entry, and report each in the order given.
+    """Run the table's rules over each document, specification, skill, resource and layout entry, and report each.
 
     Args:
         database: The revision the subjects are read from; its model decides which specifications govern each.
-        subjects: The documents, skills, resources and layout entries to check; a document in no corpus the
-            database's model holds is ungoverned for every facet a specification governs, and a layout
+        subjects: The documents, specifications, skills, resources and layout entries to check; a document in no
+            corpus the database's model holds is ungoverned for every facet a specification governs, and a layout
             entry is a symlink whose chain leaves the repository or a directory named like a reserved corpus, as the
             database's model or a skill's resource listing records it.
         table: The rules the run enables, each with its severity.
@@ -50,13 +50,14 @@ def check_subjects(
         DocumentReadError: If a document is missing from the snapshot; a decode failure is a diagnostic.
         SkillReadError: If a skill's `SKILL.md` is missing from the snapshot; a decode failure is a diagnostic.
         SkillResourceReadError: If a resource is missing from the snapshot; a decode failure is a diagnostic.
+        ItemReadError: If a specification is missing from the snapshot; a decode failure is a diagnostic.
     """
     if refusals is None:
         refusals = {}
     reports: list[SubjectReport] = []
     for subject in subjects:
         match subject:
-            case DocumentRef() as ref if isinstance(refusals.get(ref.path), RefusedRead):
+            case DocumentRef() | SpecRef() as ref if isinstance(refusals.get(ref.path), RefusedRead):
                 continue  # the unreadable-document report is already in the caller's reports
             case SkillLocation() as location if _is_refused_docs_path(location.file_resolves_to, refusals):
                 reports.append(SkippedSubject(location.ref, (location.file_resolves_to,)))
@@ -66,6 +67,8 @@ def check_subjects(
                 reports.append(SkippedSubject(ref, (path,)))
             case DocumentRef() | SkillLocation():
                 reports.append(_check_item(database, subject, table))
+            case SpecRef():
+                reports.append(_check_specification(database, subject, table))
             case SkillResourceLocation():
                 reports.append(_check_resource(database, subject, table))
             case OutsideSymlink() | ReservedCorpusDirectory():
@@ -106,6 +109,30 @@ def _check_resource(database: Database, location: SkillResourceLocation, table: 
     match source:
         case Undecodable():
             return UndecodableSubject(location.ref, source.failure)
+        case ItemText():
+            return judge_item(database, source, table)
+        case _:
+            assert_never(source)
+
+
+def _check_specification(database: Database, ref: SpecRef, table: RuleTable) -> SubjectReport:
+    """Decode one meta specification, then judge it if it decoded.
+
+    The package governs a specification and no facet beyond that is active, so a layer that failed to load suppresses
+    none of its checks, as for a resource.
+
+    Args:
+        database: The revision the specification is read from.
+        ref: The specification to check.
+        table: The rules the run enables.
+
+    Raises:
+        ItemReadError: If the file is missing from the snapshot; a decode failure is a diagnostic.
+    """
+    source = database.item_text(MarkdownItemRef(ref.path))
+    match source:
+        case Undecodable():
+            return UndecodableSubject(ref, source.failure)
         case ItemText():
             return judge_item(database, source, table)
         case _:

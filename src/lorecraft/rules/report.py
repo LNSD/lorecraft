@@ -11,13 +11,13 @@ The order is an output contract, total over one revision, so one revision always
 the same order: by path, then primary location, then severity, then code, then message. `DiagnosticOrder` states
 that order as the fields it compares, and `diagnostic_order` builds it as the sort key.
 
-Each subject the runner checks, a document, a skill or a skill's resource, gets one report, and either kind of
-report gives its diagnostics as `diagnostics`. A `CheckedItem` decoded, and holds its diagnostics, in their output
-order however it is built, and the facets no meta spec governs it for; a skill file, a skill or one of its resources,
-is governed for every facet, so it holds none. An `UndecodableSubject` did not decode, so no rule judged it: it
-holds its ref and where the bytes stopped being UTF-8, and its one diagnostic, the engine's, is built from them, at
-the subject's path. An `UnreadableDocument` could not be read at all, so it holds its document ref and the engine's
-unreadable-path condition, and counts as a subject. A layout
+Each subject the runner checks, a document, a meta specification, a skill or a skill's resource, gets one report,
+and either kind of report gives its diagnostics as `diagnostics`. A `CheckedItem` decoded, and holds its
+diagnostics, in their output order however it is built, and the facets no meta spec governs it for; a skill file, a
+skill or one of its resources, is governed for every facet, so it holds none. An `UndecodableSubject` did not decode,
+so no rule judged it: it holds its ref and where the bytes stopped being UTF-8, and its one diagnostic, the engine's,
+is built from them, at the subject's path. An `UnreadableDocument` could not be read at all, so it holds its document
+or specification ref and the engine's unreadable-path condition, and counts as a subject. A layout
 entry, one symlink of the skill layout whose chain leaves the repository or a directory under `docs/` named like a
 reserved corpus, has no text to decode and no meta spec to be
 ungoverned by, so it gets a report of its own, a `CheckedLayoutEntry`: its path and its diagnostics, in their output
@@ -35,7 +35,7 @@ from typing import assert_never
 
 from lorecraft.core.num import UnsignedInt
 from lorecraft.core.path import RootRelativePath
-from lorecraft.project.document import DocumentRef
+from lorecraft.project.document import DocumentRef, SpecRef
 from lorecraft.project.item import MarkdownItemRef
 from lorecraft.project.skill import SkillAliasRef, SkillRef, SkillResourceRef
 from lorecraft.rules.engine.invalid_utf8 import InvalidUtf8
@@ -139,9 +139,9 @@ def diagnostic_order(diagnostic: Diagnostic) -> DiagnosticOrder:
     )
 
 
-# A subject the runner checks: a document, a skill, whose report path is its `SKILL.md`, or a skill's resource, whose
-# report path is where an agent reaches it.
-type SubjectRef = DocumentRef | SkillRef | SkillResourceRef | SkillAliasRef
+# A subject the runner checks: a document, a meta specification, a skill, whose report path is its `SKILL.md`, or a
+# skill's resource, whose report path is where an agent reaches it.
+type SubjectRef = DocumentRef | SkillRef | SkillResourceRef | SkillAliasRef | SpecRef
 
 
 @dataclass(frozen=True, slots=True)
@@ -178,7 +178,8 @@ class UndecodableSubject:
     A skill's file is its `SKILL.md`, and a resource's is reported where an agent reaches it.
 
     Attributes:
-        ref: The document, skill or resource whose file did not decode, and the path its diagnostic is reported at.
+        ref: The document, specification, skill or resource whose file did not decode, and the path its diagnostic
+            is reported at.
         failure: Where the file's bytes first stop being UTF-8, and why.
     """
 
@@ -193,14 +194,14 @@ class UndecodableSubject:
 
 @dataclass(frozen=True, slots=True)
 class UnreadableDocument:
-    """A governed document that could not be read, still counted as a subject with its `LC002` diagnostic.
+    """A governed document or meta specification that could not be read, still counted as a subject with its `LC002`.
 
     Attributes:
-        ref: The document whose bytes the snapshot could not read.
+        ref: The document or specification whose bytes the snapshot could not read.
         occurrence: The engine condition explaining the unreadable path.
     """
 
-    ref: DocumentRef
+    ref: DocumentRef | SpecRef
     occurrence: EngineCondition
 
     @property

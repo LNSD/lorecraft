@@ -6,16 +6,18 @@ import pytest
 
 from lib.tree import from_tree
 from lorecraft import rules
-from lorecraft.core.path import RootRelativePath
+from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.database import Database, ItemText
-from lorecraft.project.document import DocumentRef
+from lorecraft.project.document import DocumentRef, SpecRef
 from lorecraft.project.item import MarkdownItemRef
+from lorecraft.project.layout import SPECS_DIR
 from lorecraft.rules.registry import Registry
 from lorecraft.rules.report import CheckedItem, SkippedSubject, UndecodableSubject
 from lorecraft.rules.selection import AllRules, RuleSelection
 from lorecraft.rules.table import RuleTable
+from lorecraft.vfs import OsRefusal, RefusedRead
 
 from ..runner import judge_item
 from ..skip import check_subjects
@@ -266,3 +268,62 @@ class TestCheckSubjectsWithAFailedLayer:
         assert reports == (SkippedSubject(TYPING, failed_layers=(CODE_SPEC_PATH,)),), (
             'a document is skipped for what governs it, not for what the run enables, so it is never read as clean'
         )
+
+
+CODE_SPECIFICATION: Final[SpecRef] = SpecRef(SPECS_DIR / PathComponent.parse('code.md'))
+"""The prose of the meta spec of corpus `code`."""
+
+
+@pytest.mark.unit
+class TestCheckSubjectsOverASpecification:
+    def test_check_subjects_with_a_specification_reports_what_the_shared_runner_judges(self) -> None:
+        #: Given
+        database = _database_with({'code.md': b'# Code\n\nSee [x](/x.md).\n'}, {})
+        table = _all_rules()
+        source = database.item_text(MarkdownItemRef(CODE_SPECIFICATION.path))
+        assert isinstance(source, ItemText), 'the specification is UTF-8, so it decodes'
+
+        #: When
+        reports = check_subjects(database, [CODE_SPECIFICATION], table)
+
+        #: Then
+        assert reports == (judge_item(database, source, table),), (
+            'a specification is decoded and handed to the runner every mode shares, and the entry adds no judgment'
+        )
+        (report,) = reports
+        assert isinstance(report, CheckedItem), 'a specification that decodes is judged'
+        assert [type(item.occurrence).__name__ for item in report.diagnostics] == ['AbsoluteLink'], (
+            'the link checks judge it, and no frontmatter, outline or budget rule does'
+        )
+
+    def test_check_subjects_with_an_undecodable_specification_reports_it_undecodable(self) -> None:
+        #: Given
+        database = _database_with({'code.md': b'\xff\xfe'}, {})
+
+        #: When
+        reports = check_subjects(database, [CODE_SPECIFICATION], _all_rules())
+
+        #: Then
+        assert len(reports) == 1, 'the entry point reports the one specification it was given'
+        assert isinstance(reports[0], UndecodableSubject), 'a specification that is not UTF-8 is reported undecodable'
+
+    def test_check_subjects_with_a_refused_read_of_the_specification_adds_no_report_of_its_own(self) -> None:
+        #: Given
+        database = _database_with({'code.md': b'# Code\n'}, {})
+        refusals = {CODE_SPECIFICATION.path: RefusedRead(OsRefusal.PERMISSION_DENIED)}
+
+        #: When
+        reports = check_subjects(database, [CODE_SPECIFICATION], _all_rules(), refusals)
+
+        #: Then
+        assert reports == (), 'the unreadable-path report is already in the caller reports, as for a document'
+
+    def test_check_subjects_with_a_failed_layer_of_its_corpus_still_judges_the_specification(self) -> None:
+        #: Given
+        database = _database_with({'code.md': b'# Code\n', 'code.spec.json': STATES_NO_RULE}, {})
+
+        #: When
+        (report,) = check_subjects(database, [CODE_SPECIFICATION], _all_rules())
+
+        #: Then
+        assert isinstance(report, CheckedItem), 'the package governs a specification, so no failed layer skips it'
