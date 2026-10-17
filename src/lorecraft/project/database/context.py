@@ -26,7 +26,7 @@ from lorecraft.project.item import (
     SkillResourceOrigin,
     SpecificationOrigin,
 )
-from lorecraft.project.query import Query
+from lorecraft.project.query import CorpusDirectoryQuery, Query, SymlinkQuery
 from lorecraft.project.schemas import StructureSpec
 from lorecraft.project.skill import OutsideSymlink
 from lorecraft.project.syntax import FrontmatterNode, TokenCount
@@ -149,6 +149,10 @@ class DatabaseSymlinkContext:
         """The link the chain leaves the repository through, and its target, read from the record."""
         return self._outside.leaves_at
 
+    def query[T](self, query: SymlinkQuery[T]) -> T:
+        """The answer of a declared query, which reads the record through this context's primitives."""
+        return query(self)
+
 
 class DatabaseCorpusDirectoryContext:
     """One directory under `docs/` that takes a reserved corpus's name, as recorded; a `CorpusDirectoryContext`."""
@@ -168,3 +172,7 @@ class DatabaseCorpusDirectoryContext:
     def reserved_corpus(self) -> CorpusName:
         """The reserved corpus whose name the directory takes, read from the record."""
         return self._directory.corpus
+
+    def query[T](self, query: CorpusDirectoryQuery[T]) -> T:
+        """The answer of a declared query, which reads the record through this context's primitives."""
+        return query(self)

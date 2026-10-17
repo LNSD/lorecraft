@@ -24,12 +24,10 @@ is never decoded, so its context is built from its record alone, and it states a
 from typing import Protocol
 
 from lorecraft.core.path import RootRelativePath
-from lorecraft.project.corpus import CorpusName
-from lorecraft.project.query import Query
+from lorecraft.project.query import CorpusDirectoryQuery, Query, SymlinkQuery
 from lorecraft.project.schemas import StructureSpec
 from lorecraft.project.syntax import FrontmatterNode, TokenCount
 from lorecraft.project.workspace import Governance
-from lorecraft.vfs import RootExit
 
 
 class MarkdownContext(Protocol):
@@ -124,17 +122,14 @@ class SymlinkContext(LayoutContext, Protocol):
     or a path inside a skill; the run supplies the path an agent reaches it by.
     """
 
-    def leaves_at(self) -> RootExit:
-        """The link the entry's chain leaves the repository through, and that link's target, as the scan recorded it.
-
-        The link is the entry itself when it links straight out, or one on the way to it or further along its chain.
-        """
+    def query[T](self, query: SymlinkQuery[T]) -> T:
+        """The answer of a declared query over the symlink, such as the link its chain leaves the repository through."""
         ...
 
 
 class CorpusDirectoryContext(LayoutContext, Protocol):
     """One directory directly under `docs/` that takes a reserved corpus's name, which the model ignores."""
 
-    def reserved_corpus(self) -> CorpusName:
-        """The reserved corpus whose name the directory takes."""
+    def query[T](self, query: CorpusDirectoryQuery[T]) -> T:
+        """The answer of a declared query over the directory, such as the reserved corpus whose name it takes."""
         ...

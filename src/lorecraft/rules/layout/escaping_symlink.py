@@ -3,19 +3,30 @@
 from dataclasses import dataclass
 from typing import ClassVar, Self
 
-from lorecraft.project.context import SymlinkContext
+from lorecraft.project.query import SymlinkPrimitives, SymlinkQuery
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import EntryHelp, EntryNote, EntrySubdiagnostic
-from lorecraft.rules.subject import SymlinkRule
+from lorecraft.rules.subject import QueriedSymlinkRule
 from lorecraft.vfs import RootExit
 
 from .__ruleset__ import GROUP_ID
 
 
+def symlink_exit(primitives: SymlinkPrimitives) -> RootExit:
+    """The link the symlink's chain leaves the repository through, and that link's target.
+
+    A query: it reads where the chain leaves and nothing else.
+
+    Args:
+        primitives: The model state of the symlink.
+    """
+    return primitives.leaves_at()
+
+
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
-class EscapingSymlink(SymlinkRule):
+class EscapingSymlink(QueriedSymlinkRule[RootExit]):
     """A symlink an agent follows in the skill layout leads outside the repository.
 
     ## What it does
@@ -84,13 +95,18 @@ class EscapingSymlink(SymlinkRule):
         )
 
     @classmethod
-    def check(cls, subject: SymlinkContext) -> tuple[Self, ...]:
+    def query(cls) -> SymlinkQuery[RootExit]:
+        """Where the symlink's chain leaves the repository."""
+        return symlink_exit
+
+    @classmethod
+    def judge(cls, facts: RootExit, /) -> tuple[Self, ...]:
         """The one occurrence, at the symlink, naming where its chain leaves the repository.
 
         Every layout entry is a symlink whose chain leaves the repository, as the scan found it, so the rule only
         words the finding.
 
         Args:
-            subject: The symlink judged.
+            facts: The link the chain leaves through, and that link's target.
         """
-        return (cls(leaves_at=subject.leaves_at()),)
+        return (cls(leaves_at=facts),)

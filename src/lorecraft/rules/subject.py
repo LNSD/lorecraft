@@ -42,7 +42,7 @@ from lorecraft.project.context import (
     SymlinkContext,
 )
 from lorecraft.project.item import ItemKind
-from lorecraft.project.query import Query
+from lorecraft.project.query import CorpusDirectoryQuery, Query, SymlinkQuery
 
 from .declaration import ContentRule, LayoutRule
 
@@ -249,6 +249,38 @@ class SymlinkRule(LayoutRule):
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
+class QueriedSymlinkRule[Facts](SymlinkRule):
+    """The base of a rule over a symlink that names the query it needs and judges its facts, never a context.
+
+    The rule names its query in `query` and its `judge` takes the facts that query returns, both typed by the rule's
+    type argument, as `QueriedDocumentRule` does over a document.
+    """
+
+    @classmethod
+    @abstractmethod
+    def query(cls) -> SymlinkQuery[Facts]:
+        """The query whose answer `judge` takes."""
+
+    @classmethod
+    def check(cls, subject: SymlinkContext) -> tuple[Self, ...]:
+        """Resolve the query through the subject, then judge the facts it derives.
+
+        Args:
+            subject: The symlink judged.
+        """
+        return cls.judge(subject.query(cls.query()))
+
+    @classmethod
+    @abstractmethod
+    def judge(cls, facts: Facts, /) -> tuple[Self, ...]:
+        """Every occurrence of the rule's condition at the symlink, from the facts alone.
+
+        Args:
+            facts: The answer of the rule's query.
+        """
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
 class CorpusDirectoryRule(LayoutRule):
     """The base of every rule over a directory under `docs/` named like a reserved corpus; it declares no facet."""
 
@@ -259,6 +291,38 @@ class CorpusDirectoryRule(LayoutRule):
 
         Args:
             subject: The directory judged.
+        """
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class QueriedCorpusDirectoryRule[Facts](CorpusDirectoryRule):
+    """The base of a rule over a reserved-corpus directory that names the query it needs and judges its facts.
+
+    The rule names its query in `query` and its `judge` takes the facts that query returns, both typed by the rule's
+    type argument, as `QueriedSymlinkRule` does over a symlink.
+    """
+
+    @classmethod
+    @abstractmethod
+    def query(cls) -> CorpusDirectoryQuery[Facts]:
+        """The query whose answer `judge` takes."""
+
+    @classmethod
+    def check(cls, subject: CorpusDirectoryContext) -> tuple[Self, ...]:
+        """Resolve the query through the subject, then judge the facts it derives.
+
+        Args:
+            subject: The directory judged.
+        """
+        return cls.judge(subject.query(cls.query()))
+
+    @classmethod
+    @abstractmethod
+    def judge(cls, facts: Facts, /) -> tuple[Self, ...]:
+        """Every occurrence of the rule's condition at the directory, from the facts alone.
+
+        Args:
+            facts: The answer of the rule's query.
         """
 
 
