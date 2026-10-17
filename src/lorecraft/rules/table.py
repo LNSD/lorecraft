@@ -13,31 +13,32 @@ resource alike, the rules over a symlink of the skill layout, and the rules over
 corpus. The rules over a document and over the frontmatter are also
 grouped by the facet each declares, since the runner runs them over a document facet by facet. Each partition pairs
 every rule in it with its severity, as an `EnabledRule`, so a rule the runner finds in a partition always has a
-severity to report at.
+severity to report at. A partition holds only queried rules, so the runner finds a query to resolve for every rule
+in it; a rule that names none is rejected as the table is built.
 """
 
 from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Self, assert_never
+from typing import Any, Self, assert_never
 
 from .declaration import Rule
 from .identity import Level, Severity
 from .registry import Registry
 from .selection import RuleSelection
 from .subject import (
-    CorpusDirectoryRule,
-    DocumentRule,
     Facet,
-    FrontmatterRule,
-    MarkdownRule,
-    SkillFileRule,
-    SkillRule,
-    SymlinkRule,
+    QueriedCorpusDirectoryRule,
+    QueriedDocumentRule,
+    QueriedFrontmatterRule,
+    QueriedMarkdownRule,
+    QueriedSkillFileRule,
+    QueriedSkillRule,
+    QueriedSymlinkRule,
 )
 
 
 class UnknownRuleBaseError(TypeError):
-    """A rule derives from no base the table knows, so no partition holds it and it would never run.
+    """A rule derives from no queried base the table knows, so no partition holds it and it would never run.
 
     The rule hierarchy is open, so no type closes the set of bases a rule may derive from; the table rejects such a
     rule as it is built, before any subject.
@@ -69,15 +70,15 @@ class EnabledRule[R: Rule]:
 class RuleTable:
     """The enabled rules of one run, each with its severity, partitioned by base in code order."""
 
-    _document_rules: tuple[EnabledRule[DocumentRule], ...]
-    _document_rules_by_facet: dict[Facet, tuple[EnabledRule[DocumentRule], ...]]
-    _skill_rules: tuple[EnabledRule[SkillRule], ...]
-    _markdown_rules: tuple[EnabledRule[MarkdownRule], ...]
-    _skill_file_rules: tuple[EnabledRule[SkillFileRule], ...]
-    _symlink_rules: tuple[EnabledRule[SymlinkRule], ...]
-    _corpus_directory_rules: tuple[EnabledRule[CorpusDirectoryRule], ...]
-    _frontmatter_rules: tuple[EnabledRule[FrontmatterRule], ...]
-    _frontmatter_rules_by_facet: dict[Facet, tuple[EnabledRule[FrontmatterRule], ...]]
+    _document_rules: tuple[EnabledRule[QueriedDocumentRule[Any]], ...]
+    _document_rules_by_facet: dict[Facet, tuple[EnabledRule[QueriedDocumentRule[Any]], ...]]
+    _skill_rules: tuple[EnabledRule[QueriedSkillRule[Any]], ...]
+    _markdown_rules: tuple[EnabledRule[QueriedMarkdownRule[Any]], ...]
+    _skill_file_rules: tuple[EnabledRule[QueriedSkillFileRule[Any]], ...]
+    _symlink_rules: tuple[EnabledRule[QueriedSymlinkRule[Any]], ...]
+    _corpus_directory_rules: tuple[EnabledRule[QueriedCorpusDirectoryRule[Any]], ...]
+    _frontmatter_rules: tuple[EnabledRule[QueriedFrontmatterRule[Any]], ...]
+    _frontmatter_rules_by_facet: dict[Facet, tuple[EnabledRule[QueriedFrontmatterRule[Any]], ...]]
 
     def __init__(self, severities: Mapping[type[Rule], Severity]) -> None:
         """Hold the enabled rules, and partition them by the base each derives from.
@@ -89,29 +90,29 @@ class RuleTable:
         Raises:
             UnknownRuleBaseError: If a rule derives from no base the table partitions by.
         """
-        document_rules: list[EnabledRule[DocumentRule]] = []
-        skill_rules: list[EnabledRule[SkillRule]] = []
-        markdown_rules: list[EnabledRule[MarkdownRule]] = []
-        skill_file_rules: list[EnabledRule[SkillFileRule]] = []
-        symlink_rules: list[EnabledRule[SymlinkRule]] = []
-        corpus_directory_rules: list[EnabledRule[CorpusDirectoryRule]] = []
-        frontmatter_rules: list[EnabledRule[FrontmatterRule]] = []
+        document_rules: list[EnabledRule[QueriedDocumentRule[Any]]] = []
+        skill_rules: list[EnabledRule[QueriedSkillRule[Any]]] = []
+        markdown_rules: list[EnabledRule[QueriedMarkdownRule[Any]]] = []
+        skill_file_rules: list[EnabledRule[QueriedSkillFileRule[Any]]] = []
+        symlink_rules: list[EnabledRule[QueriedSymlinkRule[Any]]] = []
+        corpus_directory_rules: list[EnabledRule[QueriedCorpusDirectoryRule[Any]]] = []
+        frontmatter_rules: list[EnabledRule[QueriedFrontmatterRule[Any]]] = []
         for rule_class in sorted(severities, key=_printed_code):
             # The rule hierarchy is open, so the chain cannot close with `assert_never`: a rule over a base with no
             # partition here is a defect, raised before any subject is checked.
-            if issubclass(rule_class, DocumentRule):
+            if issubclass(rule_class, QueriedDocumentRule):
                 document_rules.append(EnabledRule(rule_class, severities[rule_class]))
-            elif issubclass(rule_class, SkillRule):
+            elif issubclass(rule_class, QueriedSkillRule):
                 skill_rules.append(EnabledRule(rule_class, severities[rule_class]))
-            elif issubclass(rule_class, MarkdownRule):
+            elif issubclass(rule_class, QueriedMarkdownRule):
                 markdown_rules.append(EnabledRule(rule_class, severities[rule_class]))
-            elif issubclass(rule_class, SkillFileRule):
+            elif issubclass(rule_class, QueriedSkillFileRule):
                 skill_file_rules.append(EnabledRule(rule_class, severities[rule_class]))
-            elif issubclass(rule_class, SymlinkRule):
+            elif issubclass(rule_class, QueriedSymlinkRule):
                 symlink_rules.append(EnabledRule(rule_class, severities[rule_class]))
-            elif issubclass(rule_class, CorpusDirectoryRule):
+            elif issubclass(rule_class, QueriedCorpusDirectoryRule):
                 corpus_directory_rules.append(EnabledRule(rule_class, severities[rule_class]))
-            elif issubclass(rule_class, FrontmatterRule):
+            elif issubclass(rule_class, QueriedFrontmatterRule):
                 frontmatter_rules.append(EnabledRule(rule_class, severities[rule_class]))
             else:
                 raise UnknownRuleBaseError(rule_class)
@@ -154,11 +155,11 @@ class RuleTable:
         return cls(severities)
 
     @property
-    def document_rules(self) -> tuple[EnabledRule[DocumentRule], ...]:
+    def document_rules(self) -> tuple[EnabledRule[QueriedDocumentRule[Any]], ...]:
         """Each enabled rule over a document, whatever facet it reads, in code order; empty when none is."""
         return self._document_rules
 
-    def document_rules_governed_by(self, facet: Facet) -> tuple[EnabledRule[DocumentRule], ...]:
+    def document_rules_governed_by(self, facet: Facet) -> tuple[EnabledRule[QueriedDocumentRule[Any]], ...]:
         """Each enabled rule over a document that reads this facet, with its severity, in code order.
 
         Args:
@@ -167,36 +168,36 @@ class RuleTable:
         return self._document_rules_by_facet[facet]
 
     @property
-    def skill_rules(self) -> tuple[EnabledRule[SkillRule], ...]:
+    def skill_rules(self) -> tuple[EnabledRule[QueriedSkillRule[Any]], ...]:
         """Each enabled rule over a skill, with its severity, in code order; empty when none is."""
         return self._skill_rules
 
     @property
-    def markdown_rules(self) -> tuple[EnabledRule[MarkdownRule], ...]:
+    def markdown_rules(self) -> tuple[EnabledRule[QueriedMarkdownRule[Any]], ...]:
         """Each enabled rule over a Markdown file, with its severity, in code order; empty when none is."""
         return self._markdown_rules
 
     @property
-    def skill_file_rules(self) -> tuple[EnabledRule[SkillFileRule], ...]:
+    def skill_file_rules(self) -> tuple[EnabledRule[QueriedSkillFileRule[Any]], ...]:
         """Each enabled rule over a skill's file, with its severity, in code order; empty when none is."""
         return self._skill_file_rules
 
     @property
-    def symlink_rules(self) -> tuple[EnabledRule[SymlinkRule], ...]:
+    def symlink_rules(self) -> tuple[EnabledRule[QueriedSymlinkRule[Any]], ...]:
         """Each enabled rule over a layout symlink, with its severity, in code order; empty when none is."""
         return self._symlink_rules
 
     @property
-    def corpus_directory_rules(self) -> tuple[EnabledRule[CorpusDirectoryRule], ...]:
+    def corpus_directory_rules(self) -> tuple[EnabledRule[QueriedCorpusDirectoryRule[Any]], ...]:
         """Each enabled rule over a directory named like a reserved corpus, with its severity, in code order."""
         return self._corpus_directory_rules
 
     @property
-    def frontmatter_rules(self) -> tuple[EnabledRule[FrontmatterRule], ...]:
+    def frontmatter_rules(self) -> tuple[EnabledRule[QueriedFrontmatterRule[Any]], ...]:
         """Each enabled rule over the frontmatter, with its severity, in code order; empty when none is."""
         return self._frontmatter_rules
 
-    def frontmatter_rules_governed_by(self, facet: Facet) -> tuple[EnabledRule[FrontmatterRule], ...]:
+    def frontmatter_rules_governed_by(self, facet: Facet) -> tuple[EnabledRule[QueriedFrontmatterRule[Any]], ...]:
         """Each enabled rule over the frontmatter that a document is gated on this facet for, in code order.
 
         Args:
