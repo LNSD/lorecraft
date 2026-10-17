@@ -38,9 +38,11 @@ from lorecraft.project.schemas import (
     parse_spec_name,
     spec_filename,
 )
+from lorecraft.project.schemas.structure import AnySections
 from lorecraft.project.skill import OutsideSymlink, SkillLocation, SkillRef, SkillsDir
 from lorecraft.vfs import ResolvedPath, RootExit
 
+from ..compatibility import StructureContradiction, compatibility_issues
 from ..failure import FailedStructure
 from ..model import Corpus, CorpusNamespace, CorpusSpec, NamespaceSpec, WorkspaceModel, namespace_order_key
 
@@ -643,6 +645,246 @@ class TestNamespaceOrderKey:
 
         #: Then
         assert key == (1, 'python-errors'), 'the key is the hyphen count of the namespace, then its value'
+
+
+@pytest.mark.unit
+class TestCompatibilityIssues:
+    def test_compatibility_issues_with_required_field_closed_by_base_reports_contradiction(self) -> None:
+        #: Given
+        base = _corpus_spec('code').structure
+        extension = _namespace_spec('code-python').structure
+        assert isinstance(base, StructureSpec), 'the corpus structure is loaded'
+        assert isinstance(extension, StructureSpec), 'the namespace structure is loaded'
+        base = replace(
+            base,
+            frontmatter=FrontmatterSchema(
+                FrozenMapping.from_plain(
+                    {'type': 'object', 'additionalProperties': False, 'properties': {'name': {'type': 'string'}}}
+                )
+            ),
+        )
+        extension = replace(
+            extension,
+            frontmatter=FrontmatterSchema(
+                FrozenMapping.from_plain(
+                    {'type': 'object', 'required': ['extra'], 'properties': {'extra': {'type': 'string'}}}
+                )
+            ),
+        )
+        namespace = (
+            AspectNamespace.parse('python'),
+            CorpusNamespace(files=(extension.file.path,), structure=extension),
+        )
+        corpus = _code_corpus(replace(_corpus_spec('code'), structure=base), (namespace,))
+
+        #: When
+        issues = compatibility_issues(corpus)
+
+        #: Then
+        assert issues == (
+            StructureContradiction(extension, base, "requires field 'extra', which the base closed schema rejects"),
+        ), 'the extension field rejected by the closed base is reported'
+
+    def test_compatibility_issues_with_disjoint_enum_in_unused_namespace_reports_the_extension_and_base(self) -> None:
+        #: Given
+        base = _corpus_spec('code').structure
+        extension = _namespace_spec('code-python').structure
+        assert isinstance(base, StructureSpec), 'the corpus structure is loaded'
+        assert isinstance(extension, StructureSpec), 'the namespace structure is loaded'
+        base = replace(
+            base,
+            frontmatter=FrontmatterSchema(
+                FrozenMapping.from_plain({'type': 'object', 'properties': {'state': {'enum': ['draft', 'ready']}}})
+            ),
+        )
+        extension = replace(
+            extension,
+            frontmatter=FrontmatterSchema(
+                FrozenMapping.from_plain({'type': 'object', 'properties': {'state': {'enum': ['archived']}}})
+            ),
+        )
+        namespace = (
+            AspectNamespace.parse('python'),
+            CorpusNamespace(
+                files=(extension.file.path,),
+                structure=extension,
+            ),
+        )
+        corpus = _code_corpus(replace(_corpus_spec('code'), structure=base), (namespace,))
+
+        #: When
+        issues = compatibility_issues(corpus)
+
+        #: Then
+        assert issues == (StructureContradiction(extension, base, "field 'state' has no value allowed by its base"),), (
+            'the disjoint extension enum is reported against its base'
+        )
+
+    def test_compatibility_issues_with_pattern_excluding_base_enum_reports_contradiction(self) -> None:
+        #: Given
+        base = _corpus_spec('code').structure
+        extension = _namespace_spec('code-python').structure
+        assert isinstance(base, StructureSpec), 'the corpus structure is loaded'
+        assert isinstance(extension, StructureSpec), 'the namespace structure is loaded'
+        base = replace(
+            base,
+            frontmatter=FrontmatterSchema(
+                FrozenMapping.from_plain({'type': 'object', 'properties': {'state': {'enum': ['draft', 'ready']}}})
+            ),
+        )
+        extension = replace(
+            extension,
+            frontmatter=FrontmatterSchema(
+                FrozenMapping.from_plain({'type': 'object', 'properties': {'state': {'pattern': '^published'}}})
+            ),
+        )
+        namespace = (
+            AspectNamespace.parse('python'),
+            CorpusNamespace(
+                files=(extension.file.path,),
+                structure=extension,
+            ),
+        )
+        corpus = _code_corpus(replace(_corpus_spec('code'), structure=base), (namespace,))
+
+        #: When
+        issues = compatibility_issues(corpus)
+
+        #: Then
+        assert issues == (
+            StructureContradiction(extension, base, "field 'state' pattern excludes every base enum value"),
+        ), 'the extension pattern excluding the base enum is reported'
+
+    def test_compatibility_issues_with_forbidden_and_reversed_required_sections_reports_both(self) -> None:
+        #: Given
+        base = _corpus_spec('code', frontmatter=False, structure=True).structure
+        extension = _namespace_spec('code-python', frontmatter=False, structure=True).structure
+        assert isinstance(base, StructureSpec), 'the corpus structure is loaded'
+        assert isinstance(extension, StructureSpec), 'the namespace structure is loaded'
+        base = replace(
+            base,
+            outline=(SectionEntry(name=SectionName('First')), SectionEntry(name=SectionName('Second'))),
+            forbidden=(SectionName('Never'),),
+        )
+        extension = replace(
+            extension,
+            outline=(
+                SectionEntry(name=SectionName('Second')),
+                SectionEntry(name=SectionName('First')),
+                SectionEntry(name=SectionName('Never')),
+            ),
+        )
+        namespace = (
+            AspectNamespace.parse('python'),
+            CorpusNamespace(
+                files=(extension.file.path,),
+                structure=extension,
+            ),
+        )
+        corpus = _code_corpus(
+            replace(_corpus_spec('code', frontmatter=False, structure=True), structure=base), (namespace,)
+        )
+
+        #: When
+        issues = compatibility_issues(corpus)
+
+        #: Then
+        assert issues == (
+            StructureContradiction(extension, base, "requires section 'Never', forbidden by its base"),
+            StructureContradiction(extension, base, "requires 'Second' before 'First', opposite to its base"),
+        ), 'the forbidden section and reversed required order are both reported'
+
+    def test_compatibility_issues_with_required_section_absent_from_closed_outline_reports_contradiction(self) -> None:
+        #: Given
+        base = _corpus_spec('code', frontmatter=False, structure=True).structure
+        extension = _namespace_spec('code-python', frontmatter=False, structure=True).structure
+        assert isinstance(base, StructureSpec), 'the corpus structure is loaded'
+        assert isinstance(extension, StructureSpec), 'the namespace structure is loaded'
+        base = replace(base, outline=(SectionEntry(name=SectionName('A')),))
+        extension = replace(
+            extension,
+            outline=(SectionEntry(name=SectionName('A')), SectionEntry(name=SectionName('C'))),
+        )
+        namespace = (
+            AspectNamespace.parse('python'),
+            CorpusNamespace(files=(extension.file.path,), structure=extension),
+        )
+        corpus = _code_corpus(
+            replace(_corpus_spec('code', frontmatter=False, structure=True), structure=base), (namespace,)
+        )
+
+        #: When
+        issues = compatibility_issues(corpus)
+
+        #: Then
+        assert issues == (
+            StructureContradiction(extension, base, "requires section 'C', absent from its closed base outline"),
+        ), 'the finding names the required section that the base cannot accept'
+
+    def test_compatibility_issues_with_any_base_outline_accepts_unnamed_required_section(self) -> None:
+        #: Given
+        base = _corpus_spec('code', frontmatter=False, structure=True).structure
+        extension = _namespace_spec('code-python', frontmatter=False, structure=True).structure
+        assert isinstance(base, StructureSpec), 'the corpus structure is loaded'
+        assert isinstance(extension, StructureSpec), 'the namespace structure is loaded'
+        base = replace(base, outline=(SectionEntry(name=SectionName('A')), AnySections()))
+        extension = replace(
+            extension,
+            outline=(SectionEntry(name=SectionName('A')), SectionEntry(name=SectionName('C'))),
+        )
+        namespace = (
+            AspectNamespace.parse('python'),
+            CorpusNamespace(files=(extension.file.path,), structure=extension),
+        )
+        corpus = _code_corpus(
+            replace(_corpus_spec('code', frontmatter=False, structure=True), structure=base), (namespace,)
+        )
+
+        #: When
+        issues = compatibility_issues(corpus)
+
+        #: Then
+        assert issues == (), 'an any entry lets the base accept unnamed sections'
+
+    def test_compatibility_issues_with_disjoint_sibling_namespaces_reports_nothing(self) -> None:
+        #: Given
+        base = _corpus_spec('code').structure
+        first = _namespace_spec('code-python').structure
+        second = _namespace_spec('code-rust').structure
+        assert isinstance(base, StructureSpec), 'the corpus structure is loaded'
+        assert isinstance(first, StructureSpec), 'the first namespace structure is loaded'
+        assert isinstance(second, StructureSpec), 'the second namespace structure is loaded'
+        base = replace(
+            base,
+            frontmatter=FrontmatterSchema(
+                FrozenMapping.from_plain(
+                    {'type': 'object', 'properties': {'state': {'enum': ['published', 'archived']}}}
+                )
+            ),
+        )
+        first = replace(
+            first,
+            frontmatter=FrontmatterSchema(
+                FrozenMapping.from_plain({'type': 'object', 'properties': {'state': {'enum': ['published']}}})
+            ),
+        )
+        second = replace(
+            second,
+            frontmatter=FrontmatterSchema(
+                FrozenMapping.from_plain({'type': 'object', 'properties': {'state': {'enum': ['archived']}}})
+            ),
+        )
+        namespaces = (
+            (AspectNamespace.parse('python'), CorpusNamespace(files=(first.file.path,), structure=first)),
+            (AspectNamespace.parse('rust'), CorpusNamespace(files=(second.file.path,), structure=second)),
+        )
+        corpus = _code_corpus(replace(_corpus_spec('code'), structure=base), namespaces)
+
+        #: When
+        issues = compatibility_issues(corpus)
+
+        #: Then
+        assert issues == (), 'siblings are checked against their shared base, not against one another'
 
 
 @pytest.fixture(scope='function')
