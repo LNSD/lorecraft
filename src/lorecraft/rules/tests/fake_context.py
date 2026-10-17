@@ -45,8 +45,6 @@ from lorecraft.project.schemas import (
     StructureSpec,
     StructureSpecFile,
     align_outlines,
-    empty_headings,
-    empty_section_specs,
     find_document_title,
     locate_schema_problems,
     locate_skill_schema_problems,
@@ -306,14 +304,6 @@ class FakeDocumentContext:
     def query[T](self, query: Query[T]) -> T:
         """The answer of a declared query over the governing meta specs, as the real database finds it."""
         return query(StructurePrimitives(self._governance.structure_specs(), self.parse().headings, self.token_count()))
-
-    def empty_section_specs(self) -> tuple[RootRelativePath, ...]:
-        """The governing meta specs that forbid an empty section, as the real query finds them."""
-        return empty_section_specs(self._governance.structure_specs())
-
-    def empty_headings(self) -> tuple[Heading, ...]:
-        """The headings that open an empty section, as the real query finds them."""
-        return empty_headings(self.parse().headings)
 
     def extension_links(self) -> tuple[ExtensionLink, ...]:
         """The links to a document that extends this one, as the real query finds them."""

@@ -40,7 +40,7 @@ from lorecraft.project.schemas import (
     SkillFields,
     StructureSpec,
 )
-from lorecraft.project.syntax import FrontmatterNode, Heading, LineCount, NormalisedLinkPath, ParsedDocument, TokenCount
+from lorecraft.project.syntax import FrontmatterNode, LineCount, NormalisedLinkPath, ParsedDocument, TokenCount
 from lorecraft.project.workspace import Governance
 from lorecraft.vfs import ResolvedPath, RootExit
 
@@ -196,14 +196,6 @@ class DocumentContext(FrontmatterContext, MarkdownContext, Protocol):
 
     def query[T](self, query: Query[T]) -> T:
         """The answer of a declared query over this document, memoized by the query and the document."""
-        ...
-
-    def empty_section_specs(self) -> tuple[RootRelativePath, ...]:
-        """The specifications that govern the document and forbid an empty section, in the order they apply."""
-        ...
-
-    def empty_headings(self) -> tuple[Heading, ...]:
-        """The headings that open an empty section, the title included, in document order."""
         ...
 
     def extension_links(self) -> tuple[ExtensionLink, ...]:

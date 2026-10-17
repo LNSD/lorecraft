@@ -18,6 +18,7 @@ from lorecraft.project.link_target import DocumentLink
 from lorecraft.project.schemas import title_facts
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.length.too_many_tokens import token_facts
+from lorecraft.rules.outline.empty_section import empty_section_facts
 from lorecraft.vfs import Snapshot, take_snapshot
 
 GUIDE: Final[MarkdownItemRef] = MarkdownItemRef(RootRelativePath.parse('docs/code/guide.md'))
@@ -117,6 +118,18 @@ class TestDocumentFactQueries:
         assert facts.count == database.item_token_count(_decoded(database)), 'the count is the file whole'
         assert database.query_reads(token_facts, GUIDE) == {'structure_specs', 'token_count'}, 'derived carry-over'
 
+    def test_query_empty_section_facts_holds_the_forbidding_file_and_the_empty_section(self, tmp_path: Path) -> None:
+        #: Given
+        database = Database.from_snapshot(_snapshot(tmp_path))
+
+        #: When
+        facts = database.query(empty_section_facts, GUIDE)
+
+        #: Then
+        assert facts.specs == (SPEC_PATH,), 'the file that forbids empty sections'
+        assert [h.text for h in facts.headings] == ['Empty'], 'the one empty section'
+        assert database.query(empty_section_facts, GUIDE) is facts, 'the answer is memoized'
+
     def test_query_of_an_unlisted_path_raises_unlisted_item_error(self, tmp_path: Path) -> None:
         #: Given
         database = Database.from_snapshot(_snapshot(tmp_path))
@@ -124,49 +137,6 @@ class TestDocumentFactQueries:
         #: When / Then
         with pytest.raises(UnlistedItemError):
             database.query(token_facts, MarkdownItemRef(RootRelativePath.parse('README.md')))
-
-    def test_item_empty_section_specs_called_twice_returns_the_first_answer(self, tmp_path: Path) -> None:
-        #: Given
-        database = Database.from_snapshot(_snapshot(tmp_path))
-        first = database.item_empty_section_specs(GUIDE)
-
-        #: When
-        second = database.item_empty_section_specs(GUIDE)
-
-        #: Then
-        assert second is first, 'the specifications are memoized'
-
-    def test_item_empty_headings_called_twice_returns_the_first_answer(self, tmp_path: Path) -> None:
-        #: Given
-        database = Database.from_snapshot(_snapshot(tmp_path))
-        source = _decoded(database)
-        first = database.item_empty_headings(source)
-
-        #: When
-        second = database.item_empty_headings(source)
-
-        #: Then
-        assert second is first, 'the headings are memoized'
-
-    def test_item_empty_section_specs_on_a_fresh_database_holds_the_governing_specification(
-        self, tmp_path: Path
-    ) -> None:
-        #: Given
-        database = Database.from_snapshot(_snapshot(tmp_path))
-
-        #: When
-        specs = database.item_empty_section_specs(GUIDE)
-
-        #: Then
-        assert specs == (SPEC_PATH,), 'the item is resolved by the query itself'
-
-    def test_item_empty_section_specs_of_an_unlisted_path_raises_unlisted_item_error(self, tmp_path: Path) -> None:
-        #: Given
-        database = Database.from_snapshot(_snapshot(tmp_path))
-
-        #: When / Then
-        with pytest.raises(UnlistedItemError):
-            database.item_empty_section_specs(MarkdownItemRef(RootRelativePath.parse('README.md')))
 
     def test_item_extension_links_called_twice_returns_the_first_answer(self, tmp_path: Path) -> None:
         #: Given
@@ -211,42 +181,6 @@ class TestDocumentFactContext:
         #: When / Then
         with pytest.raises(WrongItemKindError):
             context.title()
-
-    def test_empty_section_specs_names_the_file_that_forbids_empty_sections(self, tmp_path: Path) -> None:
-        #: Given
-        context = _context(Database.from_snapshot(_snapshot(tmp_path)), GUIDE)
-
-        #: When
-        specs = context.empty_section_specs()
-
-        #: Then
-        assert specs == (SPEC_PATH,), 'the file that forbids empty sections'
-
-    def test_empty_headings_holds_the_empty_section(self, tmp_path: Path) -> None:
-        #: Given
-        context = _context(Database.from_snapshot(_snapshot(tmp_path)), GUIDE)
-
-        #: When
-        headings = context.empty_headings()
-
-        #: Then
-        assert [h.text for h in headings] == ['Empty'], 'the one empty section'
-
-    def test_empty_section_specs_of_a_skill_entry_raises_wrong_item_kind_error(self, tmp_path: Path) -> None:
-        #: Given
-        context = _context(Database.from_snapshot(_snapshot(tmp_path)), SKILL)
-
-        #: When / Then
-        with pytest.raises(WrongItemKindError):
-            context.empty_section_specs()
-
-    def test_empty_headings_of_a_skill_entry_raises_wrong_item_kind_error(self, tmp_path: Path) -> None:
-        #: Given
-        context = _context(Database.from_snapshot(_snapshot(tmp_path)), SKILL)
-
-        #: When / Then
-        with pytest.raises(WrongItemKindError):
-            context.empty_headings()
 
     def test_extension_links_holds_the_link_to_the_existing_extension_only(self, tmp_path: Path) -> None:
         #: Given

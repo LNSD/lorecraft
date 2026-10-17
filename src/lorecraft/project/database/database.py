@@ -59,10 +59,8 @@ it read does, `item_governance(ref)` excepted, as its bullet states:
   frontmatter schema that governs one document rejects, which outline entry each section falls in, and where the
   sections first stop matching each outline, the shared analyses every inspection reads. They read the item's
   frontmatter or parse, its governance and, for the divergences, its alignment and line count, and nothing else.
-- `item_title(source)`, `item_empty_section_specs(ref)`, `item_empty_headings(source)` and
-  `item_extension_links(source)`: the facts the title, empty-section and extension-link inspections project, so none
-  unpacks a governance or searches the headings itself. They read the item's parse, link targets or governance and
-  nothing else.
+- `item_title(source)` and `item_extension_links(source)`: the facts the title and extension-link inspections
+  project, so none searches the headings itself. They read the item's parse or link targets and nothing else.
 - `item_skill_schema_problems(source)` and `item_skill_fields(source)`: what the Agent Skills specification rejects in
   one skill entry's frontmatter and the fields of it that parse, each on its own. They read `item_frontmatter(source)`
   and nothing else: the package states the specification, so no specification in the repository plays a part.
@@ -182,8 +180,6 @@ from lorecraft.project.schemas import (
     SkillFields,
     StructureSpec,
     align_outlines,
-    empty_headings,
-    empty_section_specs,
     find_document_title,
     locate_schema_problems,
     locate_skill_schema_problems,
@@ -341,8 +337,6 @@ class Database:
         self._item_titles: dict[MarkdownItemRef, DocumentTitle | None] = {}
         # Declared queries: the answer by the function and the item, with the primitives it read.
         self._queries: dict[tuple[Query[object], MarkdownItemRef], tuple[object, frozenset[str]]] = {}
-        self._item_empty_section_specs: dict[MarkdownItemRef, tuple[RootRelativePath, ...]] = {}
-        self._item_empty_headings: dict[MarkdownItemRef, tuple[Heading, ...]] = {}
         self._item_extension_links: dict[MarkdownItemRef, tuple[ExtensionLink, ...]] = {}
         self._item_document_links: dict[MarkdownItemRef, tuple[DocumentLink, ...]] = {}
         # Each skill's resource listing, found on the first call; a resource is registered from it with `resource_item`.
@@ -828,37 +822,6 @@ class Database:
             ref: The item it ran over.
         """
         return self._queries[(query, ref)][1] if (query, ref) in self._queries else frozenset()
-
-    def item_empty_section_specs(self, ref: MarkdownItemRef) -> tuple[RootRelativePath, ...]:
-        """The specifications that govern one item and forbid an empty section, found on the first call.
-
-        Carry-over: kept for the next revision whenever `item_governance(ref)` is.
-
-        Args:
-            ref: The item to look up; the cache key.
-
-        Raises:
-            UnlistedItemError: If the model lists no document or skill entry there.
-        """
-        found = self._item_empty_section_specs.get(ref)
-        if found is None:
-            found = empty_section_specs(self.structure_specs(ref))
-            self._item_empty_section_specs[ref] = found
-        return found
-
-    def item_empty_headings(self, source: ItemText) -> tuple[Heading, ...]:
-        """The headings of one item that open an empty section, found on the first call.
-
-        Carry-over: kept for the next revision whenever `item_parse(source)` is.
-
-        Args:
-            source: The item's text; its ref is the cache key.
-        """
-        found = self._item_empty_headings.get(source.ref)
-        if found is None:
-            found = empty_headings(self.item_parse(source).headings)
-            self._item_empty_headings[source.ref] = found
-        return found
 
     def item_extension_links(self, source: ItemText) -> tuple[ExtensionLink, ...]:
         """The links of one document to an existing document beside it that extends it; none for a skill's file.

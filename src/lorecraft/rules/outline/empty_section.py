@@ -9,6 +9,7 @@ from lorecraft.project.schemas import (
     AnyRunAlignment,
     NamedAlignment,
     OutlineAlignmentSpec,
+    Primitives,
     SectionEntry,
     UnalignedSection,
 )
@@ -19,6 +20,31 @@ from lorecraft.rules.location import Help, Subdiagnostic
 from lorecraft.rules.subject import DocumentRule, Facet
 
 from .__ruleset__ import GROUP_ID, example_note, spec_note
+
+
+@dataclass(frozen=True, slots=True)
+class EmptySectionFacts:
+    """What a rule over empty sections reads of the specifications and the headings.
+
+    Attributes:
+        specs: The specifications that govern the document and forbid an empty section, in the order they apply.
+        headings: The headings that open an empty section, the title included, in document order.
+    """
+
+    specs: tuple[RootRelativePath, ...]
+    headings: tuple[Heading, ...]
+
+
+def empty_section_facts(primitives: Primitives) -> EmptySectionFacts:
+    """The specifications that forbid an empty section and the headings that open one. Raises nothing.
+
+    A query: it reads the item's structure specifications and headings and nothing else.
+
+    Args:
+        primitives: The model state of the document.
+    """
+    specs = tuple(spec.path for spec in primitives.structure_specs() if spec.forbid_empty_sections)
+    return EmptySectionFacts(specs=specs, headings=tuple(h for h in primitives.headings() if h.empty))
 
 
 @dataclass(frozen=True, slots=True)
@@ -153,7 +179,7 @@ class EmptySection(DocumentRule):
         title = None if document_title is None else document_title.heading
         sections = {section.line: section for section in section_headings(subject.parse().headings)}
         alignments = subject.outline_alignment()
-        empty = subject.empty_headings()
+        facts = subject.query(empty_section_facts)
         return tuple(
             cls(
                 spec=spec,
@@ -161,8 +187,8 @@ class EmptySection(DocumentRule):
                 section=heading.text,
                 role=_role_of(alignments, heading, title, sections.get(heading.line)),
             )
-            for spec in subject.empty_section_specs()
-            for heading in empty
+            for spec in facts.specs
+            for heading in facts.headings
         )
 
 
