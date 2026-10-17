@@ -32,7 +32,7 @@ returns at its subject, as a diagnostic of `lorecraft.rules.report`.
   A document's, a skill's and a resource's report is one `CheckedItem`; a skill file's holds no coverage, because the
   package governs every skill file in full and no rule gated on a facet judges one.
 - One entry point per mode: `skip.py` gives documents and skill entries governed by a failed layer no rule, and
-  skips skill files whose docs target was refused; `partial.py` is for the LSP-style mode later.
+  skips skill files whose docs target was refused. An LSP-style partial mode is future work.
 - The report of each load failure the model lists (`load_failures.py`): the engine condition of its kind, filed
   once at the failure's path, whatever the configuration and the selection. A `docs/` or `docs/__meta__/` that
   cannot be listed comes back as `UnlistableRoot` instead of a report. Which failure stops a run is the command's

@@ -159,6 +159,6 @@ When another later value replaces a reported value, a note at the last occurrenc
 ## Code References
 
 - `src/lorecraft/project/syntax/frontmatter.py` - Decodes the frontmatter block and records refused constructs and repeated keys
-- `src/lorecraft/project/syntax/syntax_error.py` - Describes syntax and character errors
+- `src/lorecraft/yaml/syntax_error.py` - Describes syntax and character errors
 - `src/lorecraft/rules/frontmatter/invalid_yaml.py` - Reports `FM002`
 - `src/lorecraft/rules/frontmatter/duplicate_key.py` - Reports `FM005`
