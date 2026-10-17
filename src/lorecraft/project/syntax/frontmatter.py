@@ -42,11 +42,11 @@ from lorecraft.yaml.problem import (
     YamlProblem,
 )
 from lorecraft.yaml.reader import read_yaml
+from lorecraft.yaml.syntax_error import SyntaxProblem, describe_control_character, describe_error
 from lorecraft.yaml.tree import YamlMapping, YamlScalar, YamlSequence, YamlValue
 
 from .position import LineNumber
 from .refusal import describe_refusal, refusal_help
-from .syntax_error import SyntaxProblem, describe_control_character, describe_error
 
 _FIRST_BLOCK_LINE: Final[int] = 2
 """The document line the block's first YAML line sits on: the opening delimiter is always line 1."""
