@@ -33,6 +33,8 @@ returns at its subject, as a diagnostic of `lorecraft.rules.report`.
   package governs every skill file in full and no rule gated on a facet judges one.
 - One entry point per mode: `skip.py` gives documents and skill entries governed by a failed layer no rule, and
   skips skill files whose docs target was refused. An LSP-style partial mode is future work.
+- `skip.py` wraps an item read failure in the kind-specific error declared by the document or skill repository. A
+  specification has no kind-specific read error, so its `ItemReadError` propagates unchanged.
 - The report of each load failure the model lists (`load_failures.py`): the engine condition of its kind, filed
   once at the failure's path, whatever the configuration and the selection. A `docs/` or `docs/__meta__/` that
   cannot be listed comes back as `UnlistableRoot` instead of a report. Which failure stops a run is the command's
