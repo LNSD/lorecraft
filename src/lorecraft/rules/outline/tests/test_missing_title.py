@@ -11,7 +11,7 @@ import pytest
 from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.location import Help
-from lorecraft.rules.tests.fake_context import FakeDocumentContext, judged, namespace_spec
+from lorecraft.rules.tests.fake_database import FakeDocumentContext, judged, namespace_spec
 
 from ..missing_title import MissingTitle
 

@@ -8,7 +8,7 @@ import pytest
 
 from lorecraft.rules.identity import Level
 from lorecraft.rules.location import EntryHelp, EntryNote, WholeSubject
-from lorecraft.rules.tests.fake_context import FakeCorpusDirectoryContext, judged
+from lorecraft.rules.tests.fake_database import FakeCorpusDirectoryContext, judged
 
 from ..reserved_corpus_overlap import ReservedCorpusOverlap
 

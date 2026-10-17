@@ -12,7 +12,7 @@ from lorecraft.core.path import RootRelativePath
 from lorecraft.project.link_target import EscapingTarget, LinkTarget, PathLookup
 from lorecraft.project.syntax import LineNumber, NormalisedLinkPath
 from lorecraft.rules.location import Help, Note
-from lorecraft.rules.tests.fake_context import FakeSkillResourceContext, judged
+from lorecraft.rules.tests.fake_database import FakeSkillResourceContext, judged
 
 from ..escaping_link import EscapingLink
 

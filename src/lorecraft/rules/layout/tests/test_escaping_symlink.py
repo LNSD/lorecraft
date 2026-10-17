@@ -10,7 +10,7 @@ import pytest
 
 from lorecraft.core.path import RootRelativePath
 from lorecraft.rules.location import EntryHelp, EntryNote, WholeSubject
-from lorecraft.rules.tests.fake_context import FakeSymlinkContext, judged
+from lorecraft.rules.tests.fake_database import FakeSymlinkContext, judged
 from lorecraft.vfs import RootExit
 
 from ..escaping_symlink import EscapingSymlink
