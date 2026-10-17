@@ -4,47 +4,24 @@ from dataclasses import dataclass
 from typing import ClassVar, Self, assert_never
 
 from lorecraft.core.path import RootRelativePath
-from lorecraft.project.context import DocumentContext
 from lorecraft.project.schemas import (
     AnyRunAlignment,
     NamedAlignment,
     OutlineAlignmentSpec,
     Primitives,
+    Query,
     SectionEntry,
     UnalignedSection,
+    align_outlines,
+    find_document_title,
 )
 from lorecraft.project.syntax import Heading, SectionHeading, section_headings
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Subdiagnostic
-from lorecraft.rules.subject import DocumentRule, Facet
+from lorecraft.rules.subject import Facet, QueriedDocumentRule
 
 from .__ruleset__ import GROUP_ID, example_note, spec_note
-
-
-@dataclass(frozen=True, slots=True)
-class EmptySectionFacts:
-    """What a rule over empty sections reads of the specifications and the headings.
-
-    Attributes:
-        specs: The specifications that govern the document and forbid an empty section, in the order they apply.
-        headings: The headings that open an empty section, the title included, in document order.
-    """
-
-    specs: tuple[RootRelativePath, ...]
-    headings: tuple[Heading, ...]
-
-
-def empty_section_facts(primitives: Primitives) -> EmptySectionFacts:
-    """The specifications that forbid an empty section and the headings that open one. Raises nothing.
-
-    A query: it reads the item's structure specifications and headings and nothing else.
-
-    Args:
-        primitives: The model state of the document.
-    """
-    specs = tuple(spec.path for spec in primitives.structure_specs() if spec.forbid_empty_sections)
-    return EmptySectionFacts(specs=specs, headings=tuple(h for h in primitives.headings() if h.empty))
 
 
 @dataclass(frozen=True, slots=True)
@@ -61,9 +38,59 @@ class OtherSection:
 type SectionRole = EmptyTitle | SectionEntry | OtherSection
 
 
+@dataclass(frozen=True, slots=True)
+class EmptyHeading:
+    """A heading that opens an empty section, and what it is.
+
+    Attributes:
+        heading: The heading that opens the empty section.
+        role: What the heading is: the title, a section the outline requires, or any other section.
+    """
+
+    heading: Heading
+    role: SectionRole
+
+
+@dataclass(frozen=True, slots=True)
+class EmptySectionFacts:
+    """What a rule over empty sections reads of the specifications and the headings.
+
+    Attributes:
+        specs: The specifications that govern the document and forbid an empty section, in the order they apply.
+        empty: The headings that open an empty section, the title included, in document order, each with its role.
+    """
+
+    specs: tuple[RootRelativePath, ...]
+    empty: tuple[EmptyHeading, ...]
+
+
+def empty_section_facts(primitives: Primitives) -> EmptySectionFacts:
+    """The specifications that forbid an empty section and the empty headings, each with its role. Raises nothing.
+
+    A query: it reads the item's structure specifications and headings and nothing else.
+
+    Args:
+        primitives: The model state of the document.
+    """
+    specs = tuple(spec.path for spec in primitives.structure_specs() if spec.forbid_empty_sections)
+    headings = primitives.headings()
+    document_title = find_document_title(headings)
+    title = None if document_title is None else document_title.heading
+    sections = {section.line: section for section in section_headings(headings)}
+    alignments = align_outlines(primitives.structure_specs(), headings)
+    return EmptySectionFacts(
+        specs=specs,
+        empty=tuple(
+            EmptyHeading(heading=heading, role=_role_of(alignments, heading, title, sections.get(heading.line)))
+            for heading in headings
+            if heading.empty
+        ),
+    )
+
+
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
-class EmptySection(DocumentRule):
+class EmptySection(QueriedDocumentRule[EmptySectionFacts]):
     """A section holds no content, under a structure file that forbids empty sections.
 
     ## What it does
@@ -166,29 +193,24 @@ class EmptySection(DocumentRule):
         return tuple(parts)
 
     @classmethod
-    def check(cls, subject: DocumentContext) -> tuple[Self, ...]:
+    def query(cls) -> Query[EmptySectionFacts]:
+        """The specifications that forbid empty sections and the empty headings with their roles."""
+        return empty_section_facts
+
+    @classmethod
+    def judge(cls, facts: EmptySectionFacts, /) -> tuple[Self, ...]:
         """One occurrence, at its heading, for each empty section under each meta spec that forbids them.
 
         The meta specs are taken in the order they apply, and the headings of each in document order. An H2 the
         meta spec's outline requires carries its entry, for the help to describe.
 
         Args:
-            subject: The document, governed by a structure file.
+            facts: The meta specs that forbid empty sections and the empty headings, each with its role.
         """
-        document_title = subject.title()
-        title = None if document_title is None else document_title.heading
-        sections = {section.line: section for section in section_headings(subject.parse().headings)}
-        alignments = subject.outline_alignment()
-        facts = subject.query(empty_section_facts)
         return tuple(
-            cls(
-                spec=spec,
-                line=heading.line,
-                section=heading.text,
-                role=_role_of(alignments, heading, title, sections.get(heading.line)),
-            )
+            cls(spec=spec, line=empty.heading.line, section=empty.heading.text, role=empty.role)
             for spec in facts.specs
-            for heading in facts.headings
+            for empty in facts.empty
         )
 
 

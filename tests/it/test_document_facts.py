@@ -127,7 +127,7 @@ class TestDocumentFactQueries:
 
         #: Then
         assert facts.specs == (SPEC_PATH,), 'the file that forbids empty sections'
-        assert [h.text for h in facts.headings] == ['Empty'], 'the one empty section'
+        assert [e.heading.text for e in facts.empty] == ['Empty'], 'the one empty section'
         assert database.query(empty_section_facts, GUIDE) is facts, 'the answer is memoized'
 
     def test_query_of_an_unlisted_path_raises_unlisted_item_error(self, tmp_path: Path) -> None:
