@@ -162,7 +162,16 @@ from lorecraft.project.item import (
     UnlistedItemError,
 )
 from lorecraft.project.layout import DOCS_DIR, DOCUMENT_SUFFIX, SPECS_DIR, reject_linked_layout
-from lorecraft.project.link_target import ExtensionLink, LinkTargetEntry, extension_links_of, link_targets_of
+from lorecraft.project.link_target import (
+    DocumentLink,
+    ExtensionLink,
+    LinkTargetEntry,
+    document_links_of,
+    extension_links_of,
+    has_link_to,
+    link_targets_of,
+    linked_files_of,
+)
 from lorecraft.project.schemas import (
     DocumentTitle,
     OutlineAlignmentSpec,
@@ -307,6 +316,7 @@ class Database:
         self._item_empty_section_specs: dict[MarkdownItemRef, tuple[RootRelativePath, ...]] = {}
         self._item_empty_headings: dict[MarkdownItemRef, tuple[Heading, ...]] = {}
         self._item_extension_links: dict[MarkdownItemRef, tuple[ExtensionLink, ...]] = {}
+        self._item_document_links: dict[MarkdownItemRef, tuple[DocumentLink, ...]] = {}
         # Each skill's resource listing, found on the first call; a resource is registered from it with `resource_item`.
         self._skill_resources: dict[SkillRef, SkillResourceListing] = {}
         self._item_skill_schema_problems: dict[MarkdownItemRef, tuple[SchemaProblems, ...]] = {}
@@ -847,6 +857,57 @@ class Database:
                 found = ()
             self._item_extension_links[source.ref] = found
         return found
+
+    def item_document_links(self, source: ItemText) -> tuple[DocumentLink, ...]:
+        """The links of one document to another document, with its corpus and filename and whether it links back.
+
+        A skill's file has none. A destination that cannot be read or decoded is logged and has no back link.
+
+        Carry-over: kept for the next revision whenever `item_parse(source)`, `item_link_targets(source)` and, for each
+        destination, `item_text` (its decode or refusal outcome) and `item_link_targets` are.
+
+        Args:
+            source: The item's text; its ref is the cache key.
+
+        Returns:
+            One entry per link to an existing document of the layout, in document order; `has_back_link` is false
+            for a destination that cannot be read or decoded, as for one that does not link back.
+        """
+        found = self._item_document_links.get(source.ref)
+        if found is None:
+            linked = linked_files_of(
+                self.item_parse(source).links, self.item_link_targets(source), source.descriptor.link_base
+            )
+            documents: dict[RootRelativePath, tuple[str, str]] = {}
+            for link in linked:
+                destination = _document_at(MarkdownItemRef(link.path))
+                if destination is not None:
+                    documents[link.path] = (str(destination.corpus), str(destination.filename))
+            back_links = {
+                path: self._has_link_to(MarkdownItemRef(path), source.ref.path)
+                for path in documents
+                if path != source.ref.path
+            }
+            found = document_links_of(linked, source.ref.path, documents, back_links)
+            self._item_document_links[source.ref] = found
+        return found
+
+    def _has_link_to(self, ref: MarkdownItemRef, path: RootRelativePath) -> bool:
+        """Whether the document at a ref links to an existing file at a path; false, logged, when it cannot be read.
+
+        Args:
+            ref: The document to read.
+            path: The root-relative path to look for among its links.
+        """
+        try:
+            text = self.item_text(ref)
+        except ItemReadError:
+            logger.warning('cannot read %s to look for a link back to %s', ref.path, path, exc_info=True)
+            return False
+        if isinstance(text, Undecodable):
+            logger.warning('%s is not UTF-8, so it holds no link back to %s', ref.path, path)
+            return False
+        return has_link_to(self.item_link_targets(text), path)
 
     # Derived queries: each reads only other queries and carries over whenever they do.
 
