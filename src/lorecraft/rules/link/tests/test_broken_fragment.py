@@ -9,7 +9,7 @@ import pytest
 from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.location import Note
-from lorecraft.rules.tests.fake_context import FakeSkillResourceContext
+from lorecraft.rules.tests.fake_context import FakeSkillResourceContext, judged
 
 from ..broken_fragment import BrokenFragment
 
@@ -21,7 +21,7 @@ class TestBrokenFragment:
         subject = FakeSkillResourceContext('# Guide\n\nSee [usage](#usage).\n')
 
         #: When
-        occurrences = BrokenFragment.check(subject)
+        occurrences = judged(BrokenFragment, subject)
 
         #: Then
         assert occurrences == (
@@ -33,7 +33,7 @@ class TestBrokenFragment:
         subject = FakeSkillResourceContext('See [usage](#usage).\n')
 
         #: When
-        occurrences = BrokenFragment.check(subject)
+        occurrences = judged(BrokenFragment, subject)
 
         #: Then
         assert occurrences == (
@@ -45,7 +45,7 @@ class TestBrokenFragment:
         subject = FakeSkillResourceContext('# Guide\n\nSee [usage](#usage).\n\n## Usage\n')
 
         #: When
-        occurrences = BrokenFragment.check(subject)
+        occurrences = judged(BrokenFragment, subject)
 
         #: Then
         assert occurrences == (), 'a fragment naming a heading the file has, wherever it is, goes somewhere'
@@ -55,7 +55,7 @@ class TestBrokenFragment:
         subject = FakeSkillResourceContext('# Guide\n\nSee [usage](#Usage).\n\n## Usage\n')
 
         #: When
-        occurrences = BrokenFragment.check(subject)
+        occurrences = judged(BrokenFragment, subject)
 
         #: Then
         assert occurrences == (), 'a fragment resolves regardless of case, so `#Usage` names `## Usage`'
@@ -66,7 +66,7 @@ class TestBrokenFragment:
         subject = FakeSkillResourceContext('# Guide\n\nSee [x](<#a b>).\n\n## A b\n')
 
         #: When
-        occurrences = BrokenFragment.check(subject)
+        occurrences = judged(BrokenFragment, subject)
 
         #: Then
         assert occurrences == (
@@ -78,7 +78,7 @@ class TestBrokenFragment:
         subject = FakeSkillResourceContext('# Guide\n\nBack to [the top](#).\n')
 
         #: When
-        occurrences = BrokenFragment.check(subject)
+        occurrences = judged(BrokenFragment, subject)
 
         #: Then
         assert occurrences == (), 'a bare # names no heading, so it names no missing one'
@@ -88,7 +88,7 @@ class TestBrokenFragment:
         subject = FakeSkillResourceContext('# Guide\n\nSee [usage](setup.md#usage).\n')
 
         #: When
-        occurrences = BrokenFragment.check(subject)
+        occurrences = judged(BrokenFragment, subject)
 
         #: Then
         assert occurrences == (), "a fragment after a path names another file's heading, which this rule does not check"
@@ -98,7 +98,7 @@ class TestBrokenFragment:
         subject = FakeSkillResourceContext('# Guide\n\nSee [usage](https://example.com/setup#usage).\n')
 
         #: When
-        occurrences = BrokenFragment.check(subject)
+        occurrences = judged(BrokenFragment, subject)
 
         #: Then
         assert occurrences == (), "a URL's fragment names a heading of another page, not of this file"
@@ -108,7 +108,7 @@ class TestBrokenFragment:
         subject = FakeSkillResourceContext('# Guide\n\nSee [b](#b), [guide](#guide).\n\nAnd [a](#a).\n')
 
         #: When
-        occurrences = BrokenFragment.check(subject)
+        occurrences = judged(BrokenFragment, subject)
 
         #: Then
         assert occurrences == (

@@ -13,7 +13,7 @@ from lorecraft.core.path import RootRelativePath
 from lorecraft.project.link_target import LinkTarget, LinkTargetEntry, PathLookup
 from lorecraft.project.syntax import LineNumber, NormalisedLinkPath
 from lorecraft.rules.location import Help, Note
-from lorecraft.rules.tests.fake_context import DEFAULT_DOCUMENT_DIRECTORY, FakeDocumentContext
+from lorecraft.rules.tests.fake_context import DEFAULT_DOCUMENT_DIRECTORY, FakeDocumentContext, judged
 
 from ..missing_base_link import MissingBaseLink
 
@@ -61,7 +61,7 @@ class TestMissingBaseLink:
         subject = _document('# Setup extra\n\n## References\n\n- [o](other.md) - Related: x\n')
 
         #: When
-        occurrences = MissingBaseLink.check(subject)
+        occurrences = judged(MissingBaseLink, subject)
 
         #: Then
         assert occurrences == (_occurrence(3),), 'a base absent from References is one occurrence, on its heading'
@@ -71,7 +71,7 @@ class TestMissingBaseLink:
         subject = _document('# Setup extra\n\nText.\n')
 
         #: When
-        occurrences = MissingBaseLink.check(subject)
+        occurrences = judged(MissingBaseLink, subject)
 
         #: Then
         assert occurrences == (_occurrence(1),), 'a document without References names no base, so the title is reported'
@@ -83,7 +83,7 @@ class TestMissingBaseLink:
         )
 
         #: When
-        occurrences = MissingBaseLink.check(subject)
+        occurrences = judged(MissingBaseLink, subject)
 
         #: Then
         assert occurrences == (), 'a link to the base file inside References names the base'
@@ -96,7 +96,7 @@ class TestMissingBaseLink:
         )
 
         #: When
-        occurrences = MissingBaseLink.check(subject)
+        occurrences = judged(MissingBaseLink, subject)
 
         #: Then
         assert occurrences == (_occurrence(5),), 'a link outside the References section does not count'
@@ -108,7 +108,7 @@ class TestMissingBaseLink:
         )
 
         #: When
-        occurrences = MissingBaseLink.check(subject)
+        occurrences = judged(MissingBaseLink, subject)
 
         #: Then
         assert occurrences == (_occurrence(3),), (
@@ -120,7 +120,7 @@ class TestMissingBaseLink:
         subject = _document('# Setup extra\n\n## References\n', siblings=())
 
         #: When
-        occurrences = MissingBaseLink.check(subject)
+        occurrences = judged(MissingBaseLink, subject)
 
         #: Then
         assert occurrences == (), 'a document no name continues into has no base to name'

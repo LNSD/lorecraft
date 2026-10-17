@@ -9,7 +9,7 @@ from lib.overruns import overrun
 from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.location import Help, Here, Label, Note
-from lorecraft.rules.tests.fake_context import FakeSkillContext
+from lorecraft.rules.tests.fake_context import FakeSkillContext, judged
 
 from ..allowed_tools_too_long import AllowedToolsTooLong
 from .test_malformed_allowed_tools import SPECIFICATION_NOTE
@@ -73,7 +73,7 @@ class TestAllowedToolsTooLong:
         subject = FakeSkillContext(text)
 
         #: When
-        occurrences = AllowedToolsTooLong.check(subject)
+        occurrences = judged(AllowedToolsTooLong, subject)
 
         #: Then
         assert occurrences == (), 'an empty value is within the recommendation'
@@ -91,7 +91,7 @@ class TestAllowedToolsTooLong:
         subject = FakeSkillContext(text)
 
         #: When
-        occurrences = AllowedToolsTooLong.check(subject)
+        occurrences = judged(AllowedToolsTooLong, subject)
 
         #: Then
         assert occurrences == (), 'a value one under the recommendation is within it'
@@ -109,7 +109,7 @@ class TestAllowedToolsTooLong:
         subject = FakeSkillContext(text)
 
         #: When
-        occurrences = AllowedToolsTooLong.check(subject)
+        occurrences = judged(AllowedToolsTooLong, subject)
 
         #: Then
         assert occurrences == (), 'the recommendation includes exactly 500 characters'
@@ -127,7 +127,7 @@ class TestAllowedToolsTooLong:
         subject = FakeSkillContext(text)
 
         #: When
-        occurrences = AllowedToolsTooLong.check(subject)
+        occurrences = judged(AllowedToolsTooLong, subject)
 
         #: Then
         assert occurrences == (
@@ -147,7 +147,7 @@ class TestAllowedToolsTooLong:
         subject = FakeSkillContext(text)
 
         #: When
-        occurrences = AllowedToolsTooLong.check(subject)
+        occurrences = judged(AllowedToolsTooLong, subject)
 
         #: Then
         assert occurrences == (
@@ -167,7 +167,7 @@ class TestAllowedToolsTooLong:
         subject = FakeSkillContext(text)
 
         #: When
-        occurrences = AllowedToolsTooLong.check(subject)
+        occurrences = judged(AllowedToolsTooLong, subject)
 
         #: Then
         assert occurrences == (
@@ -179,7 +179,7 @@ class TestAllowedToolsTooLong:
         subject = FakeSkillContext('# Review\n')
 
         #: When
-        occurrences = AllowedToolsTooLong.check(subject)
+        occurrences = judged(AllowedToolsTooLong, subject)
 
         #: Then
         assert occurrences == (), 'missing, invalid and non-string frontmatter is left to its own rules'
@@ -189,7 +189,7 @@ class TestAllowedToolsTooLong:
         subject = FakeSkillContext(UNCLOSED_SEQUENCE)
 
         #: When
-        occurrences = AllowedToolsTooLong.check(subject)
+        occurrences = judged(AllowedToolsTooLong, subject)
 
         #: Then
         assert occurrences == (), 'missing, invalid and non-string frontmatter is left to its own rules'
@@ -199,7 +199,7 @@ class TestAllowedToolsTooLong:
         subject = FakeSkillContext(SEQUENCE)
 
         #: When
-        occurrences = AllowedToolsTooLong.check(subject)
+        occurrences = judged(AllowedToolsTooLong, subject)
 
         #: Then
         assert occurrences == (), 'missing, invalid and non-string frontmatter is left to its own rules'
@@ -209,7 +209,7 @@ class TestAllowedToolsTooLong:
         subject = FakeSkillContext(NO_ALLOWED_TOOLS)
 
         #: When
-        occurrences = AllowedToolsTooLong.check(subject)
+        occurrences = judged(AllowedToolsTooLong, subject)
 
         #: Then
         assert occurrences == (), 'missing, invalid and non-string frontmatter is left to its own rules'
@@ -219,7 +219,7 @@ class TestAllowedToolsTooLong:
         subject = FakeSkillContext(NULL_ALLOWED_TOOLS)
 
         #: When
-        occurrences = AllowedToolsTooLong.check(subject)
+        occurrences = judged(AllowedToolsTooLong, subject)
 
         #: Then
         assert occurrences == (), 'missing, invalid and non-string frontmatter is left to its own rules'
@@ -229,7 +229,7 @@ class TestAllowedToolsTooLong:
         subject = FakeSkillContext(NUMBER_ALLOWED_TOOLS)
 
         #: When
-        occurrences = AllowedToolsTooLong.check(subject)
+        occurrences = judged(AllowedToolsTooLong, subject)
 
         #: Then
         assert occurrences == (), 'missing, invalid and non-string frontmatter is left to its own rules'
@@ -239,7 +239,7 @@ class TestAllowedToolsTooLong:
         subject = FakeSkillContext(LIST_ALLOWED_TOOLS)
 
         #: When
-        occurrences = AllowedToolsTooLong.check(subject)
+        occurrences = judged(AllowedToolsTooLong, subject)
 
         #: Then
         assert occurrences == (), 'missing, invalid and non-string frontmatter is left to its own rules'

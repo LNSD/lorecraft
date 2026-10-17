@@ -14,7 +14,7 @@ from lorecraft.project.link_target import EscapingTarget, LinkTarget, LinkTarget
 from lorecraft.project.schemas import StructurePrimitives
 from lorecraft.project.syntax import LineNumber, NormalisedLinkPath
 from lorecraft.rules.location import Help, Note
-from lorecraft.rules.tests.fake_context import DEFAULT_DOCUMENT_DIRECTORY, FakeDocumentContext
+from lorecraft.rules.tests.fake_context import DEFAULT_DOCUMENT_DIRECTORY, FakeDocumentContext, judged
 
 from ..extension_link import ExtensionLink, ExtensionLinkFacts, extension_link_facts
 
@@ -51,7 +51,7 @@ class TestExtensionLink:
         subject = _document('# Setup\n\nSee [more](setup-extra.md).\n', 'setup-extra.md', _present('setup-extra.md'))
 
         #: When
-        occurrences = ExtensionLink.check(subject)
+        occurrences = judged(ExtensionLink, subject)
 
         #: Then
         assert occurrences == (
@@ -83,7 +83,7 @@ class TestExtensionLink:
         subject = _document('[x](setupextra.md)\n', 'setupextra.md', _present('setupextra.md'))
 
         #: When
-        occurrences = ExtensionLink.check(subject)
+        occurrences = judged(ExtensionLink, subject)
 
         #: Then
         assert occurrences == (), 'only a name continued after a hyphen is an extension'
@@ -93,7 +93,7 @@ class TestExtensionLink:
         subject = _document('[x](other-setup.md)\n', 'other-setup.md', _present('other-setup.md'))
 
         #: When
-        occurrences = ExtensionLink.check(subject)
+        occurrences = judged(ExtensionLink, subject)
 
         #: Then
         assert occurrences == (), 'a name that only ends in the document name is no extension'
@@ -103,7 +103,7 @@ class TestExtensionLink:
         subject = _document('[x](setup.md)\n', 'setup.md', _present('setup.md'))
 
         #: When
-        occurrences = ExtensionLink.check(subject)
+        occurrences = judged(ExtensionLink, subject)
 
         #: Then
         assert occurrences == (), 'a document is not its own extension'
@@ -116,7 +116,7 @@ class TestExtensionLink:
         subject = _document('[folder](setup-extra.md/)\n', 'setup-extra.md', entry)
 
         #: When
-        occurrences = ExtensionLink.check(subject)
+        occurrences = judged(ExtensionLink, subject)
 
         #: Then
         assert occurrences == (), 'a directory is no document, so a link to one is no link to an extension'
@@ -130,7 +130,7 @@ class TestExtensionLink:
         )
 
         #: When
-        occurrences = ExtensionLink.check(subject)
+        occurrences = judged(ExtensionLink, subject)
 
         #: Then
         assert occurrences == (), 'an extension lies beside its base, so a name in another directory is no extension'
@@ -143,7 +143,7 @@ class TestExtensionLink:
         subject = _document('[x](setup-extra.md)\n', 'setup-extra.md', entry)
 
         #: When
-        occurrences = ExtensionLink.check(subject)
+        occurrences = judged(ExtensionLink, subject)
 
         #: Then
         assert occurrences == (), 'a link to nothing is `LINK003`, not this rule'
@@ -153,7 +153,7 @@ class TestExtensionLink:
         subject = _document('[x](../../../setup-extra.md)\n', '../../../setup-extra.md', EscapingTarget())
 
         #: When
-        occurrences = ExtensionLink.check(subject)
+        occurrences = judged(ExtensionLink, subject)
 
         #: Then
         assert occurrences == (), 'a link above the repository names no document'
@@ -165,7 +165,7 @@ class TestExtensionLink:
         )
 
         #: When
-        occurrences = ExtensionLink.check(subject)
+        occurrences = judged(ExtensionLink, subject)
 
         #: Then
         assert occurrences == (), 'a fragment-only link and a URL spell no relative path'

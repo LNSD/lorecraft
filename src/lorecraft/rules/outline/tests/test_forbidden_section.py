@@ -12,7 +12,7 @@ from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.location import Elsewhere, Help, Note
-from lorecraft.rules.tests.fake_context import FakeDocumentContext, namespace_spec, structure_spec_path
+from lorecraft.rules.tests.fake_context import FakeDocumentContext, judged, namespace_spec, structure_spec_path
 
 from ..forbidden_section import ForbiddenSection
 
@@ -42,7 +42,7 @@ class TestForbiddenSection:
         subject = FakeDocumentContext(WITH_CHANGELOG, corpus='guide', structure=FORBIDS_CHANGELOG)
 
         #: When
-        occurrences = ForbiddenSection.check(subject)
+        occurrences = judged(ForbiddenSection, subject)
 
         #: Then
         assert occurrences == (
@@ -54,7 +54,7 @@ class TestForbiddenSection:
         subject = FakeDocumentContext(RUN, corpus='guide', structure=FORBIDS_CHANGELOG)
 
         #: When
-        occurrences = ForbiddenSection.check(subject)
+        occurrences = judged(ForbiddenSection, subject)
 
         #: Then
         assert occurrences == (), 'a document without the forbidden section breaks nothing'
@@ -64,7 +64,7 @@ class TestForbiddenSection:
         subject = FakeDocumentContext(WITH_CHANGELOG, corpus='guide', structure=FORBIDS_NOTHING)
 
         #: When
-        occurrences = ForbiddenSection.check(subject)
+        occurrences = judged(ForbiddenSection, subject)
 
         #: Then
         assert occurrences == (), 'a specification that forbids no section allows every section'
@@ -76,7 +76,7 @@ class TestForbiddenSection:
         )
 
         #: When
-        occurrences = ForbiddenSection.check(subject)
+        occurrences = judged(ForbiddenSection, subject)
 
         #: Then
         assert occurrences == (), 'a deeper heading of a forbidden name is a subsection, not a forbidden section'
@@ -87,7 +87,7 @@ class TestForbiddenSection:
         subject = FakeDocumentContext(text, corpus='guide', structure=FORBIDS_CHANGELOG)
 
         #: When
-        occurrences = ForbiddenSection.check(subject)
+        occurrences = judged(ForbiddenSection, subject)
 
         #: Then
         assert occurrences == (
@@ -101,7 +101,7 @@ class TestForbiddenSection:
         subject = FakeDocumentContext(text, corpus='guide', structure='{"forbidden": ["Changelog", "History"]}')
 
         #: When
-        occurrences = ForbiddenSection.check(subject)
+        occurrences = judged(ForbiddenSection, subject)
 
         #: Then
         assert occurrences == (
@@ -119,7 +119,7 @@ class TestForbiddenSection:
         )
 
         #: When
-        occurrences = ForbiddenSection.check(subject)
+        occurrences = judged(ForbiddenSection, subject)
 
         #: Then
         assert occurrences == (
@@ -137,7 +137,7 @@ class TestForbiddenSection:
         )
 
         #: When
-        occurrences = ForbiddenSection.check(subject)
+        occurrences = judged(ForbiddenSection, subject)
 
         #: Then
         assert occurrences == (

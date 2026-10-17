@@ -18,6 +18,7 @@ from lorecraft.rules.location import Elsewhere, Help, Here, Label, Note
 from lorecraft.rules.tests.fake_context import (
     FakeDocumentContext,
     FakeSkillContext,
+    judged,
     namespace_spec,
     structure_spec_path,
 )
@@ -69,7 +70,7 @@ class TestWrongType:
         subject = FakeDocumentContext(TEXT, corpus='guide', structure=STRING_DESCRIPTION)
 
         #: When
-        occurrences = WrongType.check(subject)
+        occurrences = judged(WrongType, subject)
 
         #: Then
         assert occurrences == (WrongType(source=CORPUS_SOURCE, line=LINE, problem=PROBLEM),), (
@@ -87,7 +88,7 @@ class TestWrongType:
         subject = FakeDocumentContext(text, corpus='guide', structure=STRING_DESCRIPTION)
 
         #: When
-        occurrences = WrongType.check(subject)
+        occurrences = judged(WrongType, subject)
 
         #: Then
         assert occurrences == (), "a value of the right type that breaks another constraint is another rule's condition"
@@ -102,7 +103,7 @@ class TestWrongType:
         )
 
         #: When
-        occurrences = WrongType.check(subject)
+        occurrences = judged(WrongType, subject)
 
         #: Then
         assert occurrences == (
@@ -121,7 +122,7 @@ class TestWrongType:
         subject = FakeSkillContext(text)
 
         #: When
-        occurrences = WrongType.check(subject)
+        occurrences = judged(WrongType, subject)
 
         #: Then
         problem = WrongTypeProblem(
@@ -153,7 +154,7 @@ class TestWrongType:
         subject = FakeDocumentContext(text, corpus='guide', structure=STRING_DESCRIPTION)
 
         #: When
-        occurrences = WrongType.check(subject)
+        occurrences = judged(WrongType, subject)
 
         #: Then
         assert occurrences == (), (

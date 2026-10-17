@@ -14,7 +14,7 @@ from lorecraft.core.path import RootRelativePath
 from lorecraft.project.schemas import TitlePattern
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.location import Elsewhere, Here, Label, Note
-from lorecraft.rules.tests.fake_context import FakeDocumentContext, namespace_spec, structure_spec_path
+from lorecraft.rules.tests.fake_context import FakeDocumentContext, judged, namespace_spec, structure_spec_path
 
 from ..invalid_title import InvalidTitle
 
@@ -50,7 +50,7 @@ class TestInvalidTitle:
         subject = FakeDocumentContext(TEXT, corpus='guide', structure=CAPITALIZED)
 
         #: When
-        occurrences = InvalidTitle.check(subject)
+        occurrences = judged(InvalidTitle, subject)
 
         #: Then
         assert occurrences == (
@@ -64,7 +64,7 @@ class TestInvalidTitle:
         subject = FakeDocumentContext('# Setup\n\nInstall the toolkit once.\n', corpus='guide', structure=CAPITALIZED)
 
         #: When
-        occurrences = InvalidTitle.check(subject)
+        occurrences = judged(InvalidTitle, subject)
 
         #: Then
         assert occurrences == (), 'a title its pattern matches is not reported'
@@ -74,7 +74,7 @@ class TestInvalidTitle:
         subject = FakeDocumentContext(TEXT, corpus='guide', structure='{"title": {"pattern": "first"}}')
 
         #: When
-        occurrences = InvalidTitle.check(subject)
+        occurrences = judged(InvalidTitle, subject)
 
         #: Then
         assert occurrences == (), 'a pattern is searched for anywhere in the title, so one found inside it matches'
@@ -84,7 +84,7 @@ class TestInvalidTitle:
         subject = FakeDocumentContext(TEXT, corpus='guide', structure=NO_PATTERN)
 
         #: When
-        occurrences = InvalidTitle.check(subject)
+        occurrences = judged(InvalidTitle, subject)
 
         #: Then
         assert occurrences == (), 'a specification setting no pattern holds the title to none'
@@ -96,7 +96,7 @@ class TestInvalidTitle:
         )
 
         #: When
-        occurrences = InvalidTitle.check(subject)
+        occurrences = judged(InvalidTitle, subject)
 
         #: Then
         assert occurrences == (), 'a missing title is reported as missing alone, not as a title off its pattern'
@@ -107,7 +107,7 @@ class TestInvalidTitle:
         subject = FakeDocumentContext(text, corpus='guide', structure=CAPITALIZED)
 
         #: When
-        occurrences = InvalidTitle.check(subject)
+        occurrences = judged(InvalidTitle, subject)
 
         #: Then
         assert occurrences == (), 'only the first H1 is the title, so a later one is not held to the pattern'
@@ -119,7 +119,7 @@ class TestInvalidTitle:
         )
 
         #: When
-        occurrences = InvalidTitle.check(subject)
+        occurrences = judged(InvalidTitle, subject)
 
         #: Then
         assert occurrences == (
@@ -138,7 +138,7 @@ class TestInvalidTitle:
         )
 
         #: When
-        occurrences = InvalidTitle.check(subject)
+        occurrences = judged(InvalidTitle, subject)
 
         #: Then
         assert occurrences == (

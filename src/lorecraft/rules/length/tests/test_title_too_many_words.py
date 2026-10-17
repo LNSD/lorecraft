@@ -13,7 +13,7 @@ from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.location import Elsewhere, Help, Here, Label, Note
-from lorecraft.rules.tests.fake_context import FakeDocumentContext, namespace_spec, structure_spec_path
+from lorecraft.rules.tests.fake_context import FakeDocumentContext, judged, namespace_spec, structure_spec_path
 
 from ..title_too_many_words import TitleTooManyWords
 
@@ -46,7 +46,7 @@ class TestTitleTooManyWords:
         subject = FakeDocumentContext(TEXT, corpus='guide', structure=_title_cap(5))
 
         #: When
-        occurrences = TitleTooManyWords.check(subject)
+        occurrences = judged(TitleTooManyWords, subject)
 
         #: Then
         assert occurrences == (
@@ -58,7 +58,7 @@ class TestTitleTooManyWords:
         subject = FakeDocumentContext(TEXT, corpus='guide', structure=_title_cap(8))
 
         #: When
-        occurrences = TitleTooManyWords.check(subject)
+        occurrences = judged(TitleTooManyWords, subject)
 
         #: Then
         assert occurrences == (), 'the cap is the most words allowed, so a title at its cap fits it'
@@ -68,7 +68,7 @@ class TestTitleTooManyWords:
         subject = FakeDocumentContext(TEXT, corpus='guide', structure=NO_CAP)
 
         #: When
-        occurrences = TitleTooManyWords.check(subject)
+        occurrences = judged(TitleTooManyWords, subject)
 
         #: Then
         assert occurrences == (), 'a title no cap applies to may hold any number of words'
@@ -80,7 +80,7 @@ class TestTitleTooManyWords:
         )
 
         #: When
-        occurrences = TitleTooManyWords.check(subject)
+        occurrences = judged(TitleTooManyWords, subject)
 
         #: Then
         assert occurrences == (), 'a missing title is reported as missing alone, not as a title over its cap'
@@ -91,7 +91,7 @@ class TestTitleTooManyWords:
         subject = FakeDocumentContext(text, corpus='guide', structure=_title_cap(5))
 
         #: When
-        occurrences = TitleTooManyWords.check(subject)
+        occurrences = judged(TitleTooManyWords, subject)
 
         #: Then
         assert occurrences == (), 'only the first H1 is the title, so a later one over the cap is not held to it'
@@ -103,7 +103,7 @@ class TestTitleTooManyWords:
         )
 
         #: When
-        occurrences = TitleTooManyWords.check(subject)
+        occurrences = judged(TitleTooManyWords, subject)
 
         #: Then
         assert occurrences == (
@@ -120,7 +120,7 @@ class TestTitleTooManyWords:
         )
 
         #: When
-        occurrences = TitleTooManyWords.check(subject)
+        occurrences = judged(TitleTooManyWords, subject)
 
         #: Then
         assert occurrences == (
@@ -137,7 +137,7 @@ class TestTitleTooManyWords:
         )
 
         #: When
-        occurrences = TitleTooManyWords.check(subject)
+        occurrences = judged(TitleTooManyWords, subject)
 
         #: Then
         assert occurrences == (

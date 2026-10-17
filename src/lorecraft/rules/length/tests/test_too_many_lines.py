@@ -12,7 +12,7 @@ from lib.overruns import overrun
 from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.location import Help, Here, Label, Note
-from lorecraft.rules.tests.fake_context import FakeSkillContext
+from lorecraft.rules.tests.fake_context import FakeSkillContext, judged
 
 from ..too_many_lines import TooManyLines
 
@@ -36,7 +36,7 @@ class TestTooManyLines:
         subject = FakeSkillContext(_skill_of(501))
 
         #: When
-        occurrences = TooManyLines.check(subject)
+        occurrences = judged(TooManyLines, subject)
 
         #: Then
         assert occurrences == (TooManyLines(line=LineNumber(NonZeroUnsignedInt(501)), overrun=overrun(501, 500)),), (
@@ -48,7 +48,7 @@ class TestTooManyLines:
         subject = FakeSkillContext(_skill_of(500))
 
         #: When
-        occurrences = TooManyLines.check(subject)
+        occurrences = judged(TooManyLines, subject)
 
         #: Then
         assert occurrences == (), 'the budget is the most lines allowed, so a SKILL.md of exactly 500 lines fits it'

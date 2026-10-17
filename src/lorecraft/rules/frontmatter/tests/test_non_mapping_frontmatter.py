@@ -15,7 +15,7 @@ from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.schemas import DocumentFrontmatterOwner, SkillFrontmatterOwner
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.location import Elsewhere, Help, Note
-from lorecraft.rules.tests.fake_context import FakeDocumentContext, FakeSkillContext, structure_spec_path
+from lorecraft.rules.tests.fake_context import FakeDocumentContext, FakeSkillContext, judged, structure_spec_path
 
 from ..non_mapping_frontmatter import NonMappingFrontmatter
 
@@ -49,7 +49,7 @@ class TestNonMappingFrontmatter:
         subject = FakeDocumentContext(text, corpus='guide', structure=STRUCTURE)
 
         #: When
-        occurrences = NonMappingFrontmatter.check(subject)
+        occurrences = judged(NonMappingFrontmatter, subject)
 
         #: Then
         assert occurrences == (NonMappingFrontmatter(owner=DOCUMENT_OWNER, line=LineNumber(NonZeroUnsignedInt(1))),), (
@@ -66,7 +66,7 @@ class TestNonMappingFrontmatter:
         subject = FakeDocumentContext(text, corpus='guide', structure=STRUCTURE)
 
         #: When
-        occurrences = NonMappingFrontmatter.check(subject)
+        occurrences = judged(NonMappingFrontmatter, subject)
 
         #: Then
         assert occurrences == (NonMappingFrontmatter(owner=DOCUMENT_OWNER, line=LineNumber(NonZeroUnsignedInt(1))),), (
@@ -83,7 +83,7 @@ class TestNonMappingFrontmatter:
         subject = FakeSkillContext(text)
 
         #: When
-        occurrences = NonMappingFrontmatter.check(subject)
+        occurrences = judged(NonMappingFrontmatter, subject)
 
         #: Then
         assert occurrences == (NonMappingFrontmatter(owner=SKILL_OWNER, line=LineNumber(NonZeroUnsignedInt(1))),), (
@@ -101,7 +101,7 @@ class TestNonMappingFrontmatter:
         subject = FakeDocumentContext(text, corpus='guide', structure=STRUCTURE)
 
         #: When
-        occurrences = NonMappingFrontmatter.check(subject)
+        occurrences = judged(NonMappingFrontmatter, subject)
 
         #: Then
         assert occurrences == (), 'a mapping is what the rule asks for'
@@ -111,7 +111,7 @@ class TestNonMappingFrontmatter:
         subject = FakeDocumentContext('# Setup\n', corpus='guide', structure=STRUCTURE)
 
         #: When
-        occurrences = NonMappingFrontmatter.check(subject)
+        occurrences = judged(NonMappingFrontmatter, subject)
 
         #: Then
         assert occurrences == (), 'a missing block is missing-frontmatter, never non-mapping-frontmatter'

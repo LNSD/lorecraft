@@ -9,7 +9,7 @@ import pytest
 from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.location import Help
-from lorecraft.rules.tests.fake_context import FakeSkillResourceContext
+from lorecraft.rules.tests.fake_context import FakeSkillResourceContext, judged
 
 from ..absolute_link import AbsoluteLink
 
@@ -21,7 +21,7 @@ class TestAbsoluteLink:
         subject = FakeSkillResourceContext('# Guide\n\nRead [the setup](/docs/guide/setup.md).\n')
 
         #: When
-        occurrences = AbsoluteLink.check(subject)
+        occurrences = judged(AbsoluteLink, subject)
 
         #: Then
         assert occurrences == (AbsoluteLink(line=LineNumber(NonZeroUnsignedInt(3)), url='/docs/guide/setup.md'),), (
@@ -33,7 +33,7 @@ class TestAbsoluteLink:
         subject = FakeSkillResourceContext('# Guide\n\n![the diagram](/assets/flow.png)\n')
 
         #: When
-        occurrences = AbsoluteLink.check(subject)
+        occurrences = judged(AbsoluteLink, subject)
 
         #: Then
         assert occurrences == (AbsoluteLink(line=LineNumber(NonZeroUnsignedInt(3)), url='/assets/flow.png'),), (
@@ -45,7 +45,7 @@ class TestAbsoluteLink:
         subject = FakeSkillResourceContext('# Guide\n\nRead [the setup](https://example.com/setup).\n')
 
         #: When
-        occurrences = AbsoluteLink.check(subject)
+        occurrences = judged(AbsoluteLink, subject)
 
         #: Then
         assert occurrences == (), 'a URL with a scheme starts with its scheme, not with /, so it is not absolute'
@@ -55,7 +55,7 @@ class TestAbsoluteLink:
         subject = FakeSkillResourceContext('# Guide\n\n## Usage\n\nSee [usage](#usage).\n')
 
         #: When
-        occurrences = AbsoluteLink.check(subject)
+        occurrences = judged(AbsoluteLink, subject)
 
         #: Then
         assert occurrences == (), 'a link to a heading of the same file starts with #, not with /'
@@ -65,7 +65,7 @@ class TestAbsoluteLink:
         subject = FakeSkillResourceContext('# Guide\n\nRead [the file](%2Fetc/x.md).\n')
 
         #: When
-        occurrences = AbsoluteLink.check(subject)
+        occurrences = judged(AbsoluteLink, subject)
 
         #: Then
         assert occurrences == (AbsoluteLink(line=LineNumber(NonZeroUnsignedInt(3)), url='%2Fetc/x.md'),), (
@@ -77,7 +77,7 @@ class TestAbsoluteLink:
         subject = FakeSkillResourceContext('# Guide\n\nRead [the setup](setup.md).\n')
 
         #: When
-        occurrences = AbsoluteLink.check(subject)
+        occurrences = judged(AbsoluteLink, subject)
 
         #: Then
         assert occurrences == (), 'a relative path names no filesystem root'
@@ -87,7 +87,7 @@ class TestAbsoluteLink:
         subject = FakeSkillResourceContext('# Guide\n\nRead [b](/b.md), then [setup](setup.md).\n\nAnd [a](/a.md).\n')
 
         #: When
-        occurrences = AbsoluteLink.check(subject)
+        occurrences = judged(AbsoluteLink, subject)
 
         #: Then
         assert occurrences == (

@@ -15,7 +15,13 @@ from lorecraft.core.path import RootRelativePath
 from lorecraft.project.schemas import ExpectedSection, OutlineEnd, SectionName
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.location import Elsewhere, Help, Here, Label, Note
-from lorecraft.rules.tests.fake_context import FakeDocumentContext, namespace_spec, section_in, structure_spec_path
+from lorecraft.rules.tests.fake_context import (
+    FakeDocumentContext,
+    judged,
+    namespace_spec,
+    section_in,
+    structure_spec_path,
+)
 
 from ..unexpected_section import UnexpectedSection
 
@@ -53,7 +59,7 @@ class TestUnexpectedSection:
         subject = FakeDocumentContext(TIPS_BETWEEN, corpus='guide', structure=OUTLINE)
 
         #: When
-        occurrences = UnexpectedSection.check(subject)
+        occurrences = judged(UnexpectedSection, subject)
 
         #: Then
         assert occurrences == (
@@ -67,7 +73,7 @@ class TestUnexpectedSection:
         subject = FakeDocumentContext(AFTERWORD, corpus='guide', structure=OUTLINE)
 
         #: When
-        occurrences = UnexpectedSection.check(subject)
+        occurrences = judged(UnexpectedSection, subject)
 
         #: Then
         assert occurrences == (
@@ -84,7 +90,7 @@ class TestUnexpectedSection:
         subject = FakeDocumentContext('# Check\n\n## Usage\n\nRun it.\n', corpus='guide', structure=OUTLINE)
 
         #: When
-        occurrences = UnexpectedSection.check(subject)
+        occurrences = judged(UnexpectedSection, subject)
 
         #: Then
         assert occurrences == (), 'a missing section is never an unexpected section'
@@ -95,7 +101,7 @@ class TestUnexpectedSection:
         subject = FakeDocumentContext(out_of_order, corpus='guide', structure=OUTLINE)
 
         #: When
-        occurrences = UnexpectedSection.check(subject)
+        occurrences = judged(UnexpectedSection, subject)
 
         #: Then
         assert occurrences == (), 'a section the outline names, out of its place, is never an unexpected section'
@@ -105,7 +111,7 @@ class TestUnexpectedSection:
         subject = FakeDocumentContext(FOLLOWS, corpus='guide', structure=OUTLINE)
 
         #: When
-        occurrences = UnexpectedSection.check(subject)
+        occurrences = judged(UnexpectedSection, subject)
 
         #: Then
         assert occurrences == (), 'a document that matches its outline has no unexpected section'
@@ -122,7 +128,7 @@ class TestUnexpectedSection:
         )
 
         #: When
-        occurrences = UnexpectedSection.check(subject)
+        occurrences = judged(UnexpectedSection, subject)
 
         #: Then
         assert occurrences == (
@@ -155,7 +161,7 @@ class TestUnexpectedSection:
         subject = FakeDocumentContext('# Check\n\n## Tips\n\nA tip.\n', corpus='guide', structure=outline)
 
         #: When
-        occurrences = UnexpectedSection.check(subject)
+        occurrences = judged(UnexpectedSection, subject)
 
         #: Then
         assert occurrences == (

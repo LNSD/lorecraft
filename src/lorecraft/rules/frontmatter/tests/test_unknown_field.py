@@ -17,6 +17,7 @@ from lorecraft.rules.location import Elsewhere, Help, Here, Label, Note
 from lorecraft.rules.tests.fake_context import (
     FakeDocumentContext,
     FakeSkillContext,
+    judged,
     namespace_spec,
     structure_spec_path,
 )
@@ -72,7 +73,7 @@ class TestUnknownField:
         subject = FakeDocumentContext(TEXT, corpus='guide', structure=CLOSED)
 
         #: When
-        occurrences = UnknownField.check(subject)
+        occurrences = judged(UnknownField, subject)
 
         #: Then
         assert occurrences == (UnknownField(source=CORPUS_SOURCE, line=LINE, problem=PROBLEM),), (
@@ -89,7 +90,7 @@ class TestUnknownField:
         subject = FakeDocumentContext(text, corpus='guide', structure=REQUIRE_DESCRIPTION)
 
         #: When
-        occurrences = UnknownField.check(subject)
+        occurrences = judged(UnknownField, subject)
 
         #: Then
         assert occurrences == (), "a required field missing is another rule's condition"
@@ -101,7 +102,7 @@ class TestUnknownField:
         )
 
         #: When
-        occurrences = UnknownField.check(subject)
+        occurrences = judged(UnknownField, subject)
 
         #: Then
         assert occurrences == (
@@ -121,7 +122,7 @@ class TestUnknownField:
         subject = FakeSkillContext(text)
 
         #: When
-        occurrences = UnknownField.check(subject)
+        occurrences = judged(UnknownField, subject)
 
         #: Then
         problem = UnknownFieldProblem(
@@ -143,7 +144,7 @@ class TestUnknownField:
         subject = FakeDocumentContext(text, corpus='guide', structure=CLOSED)
 
         #: When
-        occurrences = UnknownField.check(subject)
+        occurrences = judged(UnknownField, subject)
 
         #: Then
         assert occurrences == (), (

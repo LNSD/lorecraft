@@ -16,7 +16,7 @@ from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.schemas import DocumentFrontmatterOwner, SkillFrontmatterOwner
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.location import Elsewhere, Help, Here, Label, Note
-from lorecraft.rules.tests.fake_context import FakeDocumentContext, FakeSkillContext, structure_spec_path
+from lorecraft.rules.tests.fake_context import FakeDocumentContext, FakeSkillContext, judged, structure_spec_path
 
 from ..duplicate_key import DuplicateKey
 
@@ -68,7 +68,7 @@ class TestDuplicateKey:
         subject = FakeDocumentContext(text, corpus='guide', structure=STRUCTURE)
 
         #: When
-        occurrences = DuplicateKey.check(subject)
+        occurrences = judged(DuplicateKey, subject)
 
         #: Then
         first = LineNumber(NonZeroUnsignedInt(2))
@@ -100,7 +100,7 @@ class TestDuplicateKey:
         subject = FakeDocumentContext(text, corpus='guide', structure=STRUCTURE)
 
         #: When
-        occurrences = DuplicateKey.check(subject)
+        occurrences = judged(DuplicateKey, subject)
 
         #: Then
         assert occurrences == (), 'a key nested in a value is written once in its own mapping, so it repeats none'
@@ -118,7 +118,7 @@ class TestDuplicateKey:
         subject = FakeDocumentContext(text, corpus='guide', structure=STRUCTURE)
 
         #: When
-        occurrences = DuplicateKey.check(subject)
+        occurrences = judged(DuplicateKey, subject)
 
         #: Then
         assert occurrences == (
@@ -142,7 +142,7 @@ class TestDuplicateKey:
         subject = FakeSkillContext(text)
 
         #: When
-        occurrences = DuplicateKey.check(subject)
+        occurrences = judged(DuplicateKey, subject)
 
         #: Then
         assert occurrences == (
@@ -167,7 +167,7 @@ class TestDuplicateKey:
         subject = FakeDocumentContext(text, corpus='guide', structure=STRUCTURE)
 
         #: When
-        occurrences = DuplicateKey.check(subject)
+        occurrences = judged(DuplicateKey, subject)
 
         #: Then
         assert occurrences == (), 'a mapping that writes each key once repeats nothing'
@@ -177,7 +177,7 @@ class TestDuplicateKey:
         subject = FakeDocumentContext('# Setup\n', corpus='guide', structure=STRUCTURE)
 
         #: When
-        occurrences = DuplicateKey.check(subject)
+        occurrences = judged(DuplicateKey, subject)
 
         #: Then
         assert occurrences == (), 'a subject with no block has no key to repeat'
@@ -240,7 +240,7 @@ class TestDuplicateKey:
             ---
             """)
         subject = FakeDocumentContext(text, corpus='guide', structure=STRUCTURE)
-        (occurrence,) = DuplicateKey.check(subject)
+        (occurrence,) = judged(DuplicateKey, subject)
 
         #: When
         labels = occurrence.labels()
