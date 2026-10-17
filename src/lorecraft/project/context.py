@@ -45,7 +45,7 @@ from lorecraft.project.syntax import FrontmatterNode, Heading, LineCount, Normal
 from lorecraft.project.workspace import Governance
 from lorecraft.vfs import ResolvedPath, RootExit
 
-from .link_target import ExtensionLink, LinkBase, LinkTargetEntry
+from .link_target import DocumentLink, ExtensionLink, LinkBase, LinkTargetEntry
 
 
 @dataclass(frozen=True, slots=True)
@@ -213,6 +213,10 @@ class DocumentContext(FrontmatterContext, MarkdownContext, Protocol):
 
     def extension_links(self) -> tuple[ExtensionLink, ...]:
         """The links to an existing document beside this one whose filename extends this one's, in document order."""
+        ...
+
+    def document_links(self) -> tuple[DocumentLink, ...]:
+        """The links to another document, with its corpus and filename and whether it links back, in document order."""
         ...
 
 

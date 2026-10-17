@@ -23,6 +23,7 @@ from typing import assert_never
 
 from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.path import RootRelativePath
+from lorecraft.project.layout import DOCUMENT_SUFFIX
 from lorecraft.project.syntax import (
     AbsoluteDestination,
     ExternalDestination,
@@ -242,7 +243,111 @@ def extension_links_of(
         if not isinstance(entry, LinkTarget) or entry.lookup is not PathLookup.FILE:
             continue
         name = entry.path.name
-        if entry.path.parent == base.directory and name is not None and name.has_suffix('.md'):
+        if entry.path.parent == base.directory and name is not None and name.has_suffix(DOCUMENT_SUFFIX):
             if str(name).startswith(prefix):
                 found.append(ExtensionLink(line=link.line, url=link.url, extension=str(name)))
     return tuple(found)
+
+
+@dataclass(frozen=True, slots=True)
+class LinkedDocument:
+    """A link from a document to an existing Markdown file in the `docs/` tree, to be read as a document.
+
+    Attributes:
+        line: The line the link is on.
+        url: The link's destination as written.
+        path: The root-relative path of the file it leads to.
+    """
+
+    line: LineNumber
+    url: str
+    path: RootRelativePath
+
+
+def linked_files_of(
+    links: tuple[Link, ...], targets: Mapping[NormalisedLinkPath, LinkTargetEntry], base: LinkBase
+) -> tuple[LinkedDocument, ...]:
+    """The links to an existing Markdown file, with the path each leads to. Raises nothing.
+
+    A file in a skill has none: its relative links are read from the skill root, and no document is its destination.
+
+    Args:
+        links: The document's links, in document order.
+        targets: Where each relative link leads, as `link_targets_of` returns it.
+        base: Where the document's relative links are read from.
+    """
+    if not isinstance(base, DocumentDirectory):
+        return ()
+    found: list[LinkedDocument] = []
+    for link in links:
+        destination = link.to_destination()
+        if not isinstance(destination, RelativeDestination):
+            continue
+        entry = targets.get(destination.path)
+        if not isinstance(entry, LinkTarget) or entry.lookup is not PathLookup.FILE:
+            continue
+        name = entry.path.name
+        if name is not None and name.has_suffix('.md'):
+            found.append(LinkedDocument(line=link.line, url=link.url, path=entry.path))
+    return tuple(found)
+
+
+@dataclass(frozen=True, slots=True)
+class DocumentLink:
+    """A link from a document to another document of the `docs/<corpus>/<name>.md` layout.
+
+    Attributes:
+        line: The line the link is on.
+        url: The link's destination as written.
+        corpus: The corpus directory of the document it leads to, such as `feat`.
+        filename: The filename of the document it leads to, without its extension.
+        has_back_link: Whether that document links to this one.
+    """
+
+    line: LineNumber
+    url: str
+    corpus: str
+    filename: str
+    has_back_link: bool
+
+
+def has_link_to(targets: Mapping[NormalisedLinkPath, LinkTargetEntry], path: RootRelativePath) -> bool:
+    """Whether any relative link of a file leads to an existing file at a path.
+
+    Args:
+        targets: Where each relative link of the file leads, as `link_targets_of` returns it.
+        path: The root-relative path to look for.
+    """
+    return any(
+        isinstance(entry, LinkTarget) and entry.lookup is PathLookup.FILE and entry.path == path
+        for entry in targets.values()
+    )
+
+
+def document_links_of(
+    linked: tuple[LinkedDocument, ...],
+    source: RootRelativePath,
+    documents: Mapping[RootRelativePath, tuple[str, str]],
+    back_links: Mapping[RootRelativePath, bool],
+) -> tuple[DocumentLink, ...]:
+    """The links to another document of the `docs/<corpus>/<name>.md` layout, with its back link. Raises nothing.
+
+    A link to the document itself, or to a file that is no such document, is left out.
+
+    Args:
+        linked: The links to an existing Markdown file, as `linked_files_of` returns them.
+        source: The root-relative path of the document that holds the links.
+        documents: The corpus and filename of each path that is a document of the layout.
+        back_links: For each such path, whether that document links to the source.
+    """
+    return tuple(
+        DocumentLink(
+            line=link.line,
+            url=link.url,
+            corpus=documents[link.path][0],
+            filename=documents[link.path][1],
+            has_back_link=back_links.get(link.path, False),
+        )
+        for link in linked
+        if link.path in documents and link.path != source
+    )

@@ -8,11 +8,14 @@ from typing import Final
 
 import pytest
 
+from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.database import Database, DatabaseItemContext, ItemText
 from lorecraft.project.database.context import WrongItemKindError
 from lorecraft.project.item import MarkdownItemRef, UnlistedItemError
 from lorecraft.project.layout import SNAPSHOT_SCOPE
+from lorecraft.project.link_target import DocumentLink
+from lorecraft.project.syntax import LineNumber
 from lorecraft.vfs import Snapshot, take_snapshot
 
 GUIDE: Final[MarkdownItemRef] = MarkdownItemRef(RootRelativePath.parse('docs/code/guide.md'))
@@ -297,3 +300,62 @@ class TestDocumentFactContext:
         #: When / Then
         with pytest.raises(WrongItemKindError):
             context.extension_links()
+
+
+@pytest.mark.it
+class TestDocumentLinks:
+    @staticmethod
+    def _snapshot(root: Path) -> Snapshot:
+        """A `code` guide linking a `feat` document that links back, a `code` one that does not, and a non-document."""
+        files = {
+            'docs/__meta__/code.md': b'# Code\n',
+            'docs/code/guide.md': b'# Guide\n\n[a](../feat/a.md)\n[b](b.md)\n[r](../../README.md)\n[gone](gone.md)\n',
+            'docs/feat/a.md': b'# A\n\n[back](../code/guide.md)\n',
+            'docs/code/b.md': b'# B\n',
+            'README.md': b'# Readme\n',
+        }
+        for name, content in files.items():
+            (root / name).parent.mkdir(parents=True, exist_ok=True)
+            (root / name).write_bytes(content)
+        return take_snapshot(root, SNAPSHOT_SCOPE)
+
+    def test_document_links_holds_each_linked_document_with_its_corpus_and_back_link(self, tmp_path: Path) -> None:
+        #: Given
+        context = _context(Database.from_snapshot(self._snapshot(tmp_path)), GUIDE)
+
+        #: When
+        links = context.document_links()
+
+        #: Then
+        assert links == (
+            DocumentLink(
+                line=LineNumber(NonZeroUnsignedInt(3)),
+                url='../feat/a.md',
+                corpus='feat',
+                filename='a',
+                has_back_link=True,
+            ),
+            DocumentLink(
+                line=LineNumber(NonZeroUnsignedInt(4)), url='b.md', corpus='code', filename='b', has_back_link=False
+            ),
+        ), 'existing documents only, README and the missing file left out, each with its url and back link'
+
+    def test_document_links_called_twice_returns_the_first_answer(self, tmp_path: Path) -> None:
+        #: Given
+        database = Database.from_snapshot(self._snapshot(tmp_path))
+        source = _decoded(database)
+        first = database.item_document_links(source)
+
+        #: When
+        second = database.item_document_links(source)
+
+        #: Then
+        assert second is first, 'the links are memoized'
+
+    def test_document_links_of_a_skill_entry_raises_wrong_item_kind_error(self, tmp_path: Path) -> None:
+        #: Given
+        context = _context(Database.from_snapshot(_snapshot(tmp_path)), SKILL)
+
+        #: When / Then
+        with pytest.raises(WrongItemKindError):
+            context.document_links()

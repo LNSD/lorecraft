@@ -23,6 +23,7 @@ from lorecraft.project.document import DocumentRef
 from lorecraft.project.layout import DOCS_DIR, SPECS_DIR
 from lorecraft.project.link_target import (
     DocumentDirectory,
+    DocumentLink,
     ExtensionLink,
     LinkTargetEntry,
     SkillRoot,
@@ -323,6 +324,10 @@ class FakeDocumentContext:
     def extension_links(self) -> tuple[ExtensionLink, ...]:
         """The links to a document that extends this one, as the real query finds them."""
         return extension_links_of(self.parse().links, self.link_targets(), self.link_base(), str(self.filename()))
+
+    def document_links(self) -> tuple[DocumentLink, ...]:
+        """Not modelled: the fake holds one document, so no destination is read and none is reported."""
+        return ()
 
 
 class FakeSkillContext:

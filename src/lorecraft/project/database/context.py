@@ -30,7 +30,7 @@ from lorecraft.project.item import (
     SkillResourceOrigin,
     SpecificationOrigin,
 )
-from lorecraft.project.link_target import ExtensionLink, LinkBase, LinkTargetEntry
+from lorecraft.project.link_target import DocumentLink, ExtensionLink, LinkBase, LinkTargetEntry
 from lorecraft.project.schemas import (
     DocumentTitle,
     OutlineAlignmentSpec,
@@ -317,6 +317,15 @@ class DatabaseItemContext:
         """
         self._document()
         return self._database.item_extension_links(self._source)
+
+    def document_links(self) -> tuple[DocumentLink, ...]:
+        """The links to another document, from the `item_document_links` query.
+
+        Raises:
+            WrongItemKindError: If the item is a skill entry.
+        """
+        self._document()
+        return self._database.item_document_links(self._source)
 
 
 class DatabaseSymlinkContext:
