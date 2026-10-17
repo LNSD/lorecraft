@@ -21,16 +21,15 @@ once in `lorecraft.project.layout` and read from there by every other module.
 
 ## Belongs Here
 
-- The project model and the loader that builds it from listings and meta specs, the directory-less `skills` corpus
-  included.
+- The project model and loader built from listings and meta specs, including the directory-less `skills` corpus.
 - A repository that lists entries or reads text through a view, and decides what an entry is.
-- The decoding of a meta spec into rules that are proved usable when they are built.
+- Decoding meta specs into rules proved usable at build time.
 - The parse tree, token count and line count: pure functions of document text. The tree derives from the values
   `lorecraft.markdown` returns; `document` maps its line and link values into the project model and decodes raw
   frontmatter.
-- A shared analysis of one document's parsed values against its meta specs: frontmatter violations mapped to
-  project-owned problems and placed on field lines, or where sections first stop matching an outline. It finds
-  facts several rules read; whether one is reported, and how, is a rule's.
+- Shared analysis of a document's parsed values against its meta specs: frontmatter violations mapped to
+  project-owned problems on field lines, or where sections first stop matching an outline. It finds facts
+  several rules read; whether and how one is reported is a rule's.
 - A document's, a skill's or a skill resource's identity, kept apart from its content and from where its symlinks
   lead.
 - The common reference and model-resolved descriptor for corpus documents and skill entries, including their
