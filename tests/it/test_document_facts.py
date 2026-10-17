@@ -1,6 +1,6 @@
-"""The document-fact queries of the database and the context methods over them, for one governed document.
+"""The document-fact queries of the database, for one governed document.
 
-Each query is computed once per database, a fresh one included; the context refuses a skill entry.
+Each query is computed once per database, a fresh one included; a skill entry has no document facts.
 """
 
 from pathlib import Path
@@ -10,7 +10,7 @@ import pytest
 
 from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.core.path import RootRelativePath
-from lorecraft.project.database import Database, DatabaseItemContext, ItemText
+from lorecraft.project.database import Database, ItemText
 from lorecraft.project.item import MarkdownItemRef, UnlistedItemError
 from lorecraft.project.layout import SNAPSHOT_SCOPE
 from lorecraft.project.link_target import DocumentLink
@@ -48,13 +48,6 @@ def _snapshot(root: Path) -> Snapshot:
         (root / name).parent.mkdir(parents=True, exist_ok=True)
         (root / name).write_bytes(content)
     return take_snapshot(root, SNAPSHOT_SCOPE)
-
-
-def _context(database: Database, ref: MarkdownItemRef) -> DatabaseItemContext:
-    """The context of an item the test wrote as UTF-8."""
-    source = database.item_text(ref)
-    assert isinstance(source, ItemText), f'{ref.path} was written as UTF-8, so it decodes'
-    return DatabaseItemContext(database, source)
 
 
 def _decoded(database: Database) -> ItemText:
@@ -213,7 +206,7 @@ class TestDocumentFactQueries:
 
 
 @pytest.mark.it
-class TestDocumentFactContext:
+class TestDocumentFactReads:
     def test_query_reads_only_the_primitives_the_query_names(self, tmp_path: Path) -> None:
         #: Given
         database = Database.from_snapshot(_snapshot(tmp_path))
