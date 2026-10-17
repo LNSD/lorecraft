@@ -27,6 +27,7 @@ from lorecraft.project.syntax import (
     AbsoluteDestination,
     ExternalDestination,
     FragmentDestination,
+    LineNumber,
     Link,
     NormalisedLinkPath,
     RelativeDestination,
@@ -199,3 +200,49 @@ def _look_up(path: RootRelativePath, view: FileSystem, scope: ScopeIndex) -> Pat
     if view.find_file(path) is not None:
         return PathLookup.FILE
     return PathLookup.MISSING
+
+
+@dataclass(frozen=True, slots=True)
+class ExtensionLink:
+    """A link from a document to an existing document in its directory that extends it.
+
+    Attributes:
+        line: The line the link is on.
+        url: The link's destination as written.
+        extension: The filename of the document it leads to, such as `guide-extra.md`.
+    """
+
+    line: LineNumber
+    url: str
+    extension: str
+
+
+def extension_links_of(
+    links: tuple[Link, ...], targets: Mapping[NormalisedLinkPath, LinkTargetEntry], base: LinkBase, filename: str
+) -> tuple[ExtensionLink, ...]:
+    """The links to an existing Markdown file beside the document whose name starts with `<filename>-`. Raises nothing.
+
+    A document in a skill has no such links: its relative links are read from the skill root.
+
+    Args:
+        links: The document's links, in document order.
+        targets: Where each relative link leads, as `link_targets_of` returns it.
+        base: Where the document's relative links are read from.
+        filename: The document's filename, without its extension.
+    """
+    if not isinstance(base, DocumentDirectory):
+        return ()
+    prefix = f'{filename}-'
+    found: list[ExtensionLink] = []
+    for link in links:
+        destination = link.to_destination()
+        if not isinstance(destination, RelativeDestination):
+            continue
+        entry = targets.get(destination.path)
+        if not isinstance(entry, LinkTarget) or entry.lookup is not PathLookup.FILE:
+            continue
+        name = entry.path.name
+        if entry.path.parent == base.directory and name is not None and name.has_suffix('.md'):
+            if str(name).startswith(prefix):
+                found.append(ExtensionLink(line=link.line, url=link.url, extension=str(name)))
+    return tuple(found)

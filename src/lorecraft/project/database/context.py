@@ -24,7 +24,7 @@ from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.context import DocumentFrontmatterOwner, SkillFrontmatterOwner
 from lorecraft.project.corpus import CorpusName, ReservedCorpusDirectory
 from lorecraft.project.item import DocumentOrigin, MarkdownItemRef, SkillEntryOrigin, SkillResourceOrigin
-from lorecraft.project.link_target import LinkBase, LinkTargetEntry
+from lorecraft.project.link_target import ExtensionLink, LinkBase, LinkTargetEntry
 from lorecraft.project.schemas import (
     DocumentTitle,
     OutlineAlignmentSpec,
@@ -295,6 +295,15 @@ class DatabaseItemContext:
         """
         self._document()
         return self._database.item_empty_headings(self._source)
+
+    def extension_links(self) -> tuple[ExtensionLink, ...]:
+        """The links to an existing document that extends this one, from the `item_extension_links` query.
+
+        Raises:
+            WrongItemKindError: If the item is a skill entry.
+        """
+        self._document()
+        return self._database.item_extension_links(self._source)
 
 
 class DatabaseSymlinkContext:

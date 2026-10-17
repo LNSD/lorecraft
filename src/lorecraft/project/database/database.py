@@ -59,9 +59,10 @@ it read does, `item_governance(ref)` excepted, as its bullet states:
   frontmatter schema that governs one document rejects, which outline entry each section falls in, and where the
   sections first stop matching each outline, the shared analyses every inspection reads. They read the item's
   frontmatter or parse, its governance and, for the divergences, its alignment and line count, and nothing else.
-- `item_title(source)`, `item_title_constraints(ref)`, `item_token_budgets(ref)`, `item_empty_section_specs(ref)` and
-  `item_empty_headings(source)`: the facts the length, title and empty-section inspections project, so none unpacks a
-  governance or searches the headings itself. They read the item's parse or governance and nothing else.
+- `item_title(source)`, `item_title_constraints(ref)`, `item_token_budgets(ref)`, `item_empty_section_specs(ref)`,
+  `item_empty_headings(source)` and `item_extension_links(source)`: the facts the length, title, empty-section and
+  extension-link inspections project, so none unpacks a governance or searches the headings itself. They read the
+  item's parse, link targets or governance and nothing else.
 - `item_skill_schema_problems(source)` and `item_skill_fields(source)`: what the Agent Skills specification rejects in
   one skill entry's frontmatter and the fields of it that parse, each on its own. They read `item_frontmatter(source)`
   and nothing else: the package states the specification, so no specification in the repository plays a part.
@@ -154,13 +155,14 @@ from lorecraft.project.corpus import (
 )
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.item import (
+    DocumentOrigin,
     ItemReadError,
     MarkdownItemDescriptor,
     MarkdownItemRef,
     UnlistedItemError,
 )
 from lorecraft.project.layout import DOCS_DIR, DOCUMENT_SUFFIX, SPECS_DIR, reject_linked_layout
-from lorecraft.project.link_target import LinkTargetEntry, link_targets_of
+from lorecraft.project.link_target import ExtensionLink, LinkTargetEntry, extension_links_of, link_targets_of
 from lorecraft.project.schemas import (
     DocumentTitle,
     OutlineAlignmentSpec,
@@ -304,6 +306,7 @@ class Database:
         self._item_token_budgets: dict[MarkdownItemRef, tuple[TokenBudget, ...]] = {}
         self._item_empty_section_specs: dict[MarkdownItemRef, tuple[RootRelativePath, ...]] = {}
         self._item_empty_headings: dict[MarkdownItemRef, tuple[Heading, ...]] = {}
+        self._item_extension_links: dict[MarkdownItemRef, tuple[ExtensionLink, ...]] = {}
         # Each skill's resource listing, found on the first call; a resource is registered from it with `resource_item`.
         self._skill_resources: dict[SkillRef, SkillResourceListing] = {}
         self._item_skill_schema_problems: dict[MarkdownItemRef, tuple[SchemaProblems, ...]] = {}
@@ -820,6 +823,29 @@ class Database:
         if found is None:
             found = empty_headings(self.item_parse(source).headings)
             self._item_empty_headings[source.ref] = found
+        return found
+
+    def item_extension_links(self, source: ItemText) -> tuple[ExtensionLink, ...]:
+        """The links of one document to an existing document beside it that extends it; none for a skill's file.
+
+        Carry-over: kept for the next revision whenever `item_parse(source)` and `item_link_targets(source)` are.
+
+        Args:
+            source: The item's text; its ref is the cache key.
+        """
+        found = self._item_extension_links.get(source.ref)
+        if found is None:
+            origin = source.descriptor.origin
+            if isinstance(origin, DocumentOrigin):
+                found = extension_links_of(
+                    self.item_parse(source).links,
+                    self.item_link_targets(source),
+                    source.descriptor.link_base,
+                    origin.expected_name,
+                )
+            else:
+                found = ()
+            self._item_extension_links[source.ref] = found
         return found
 
     # Derived queries: each reads only other queries and carries over whenever they do.

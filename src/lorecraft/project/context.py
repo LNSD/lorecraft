@@ -45,7 +45,7 @@ from lorecraft.project.syntax import FrontmatterNode, Heading, LineCount, Normal
 from lorecraft.project.workspace import Governance
 from lorecraft.vfs import ResolvedPath, RootExit
 
-from .link_target import LinkBase, LinkTargetEntry
+from .link_target import ExtensionLink, LinkBase, LinkTargetEntry
 
 
 @dataclass(frozen=True, slots=True)
@@ -209,6 +209,10 @@ class DocumentContext(FrontmatterContext, MarkdownContext, Protocol):
 
     def empty_headings(self) -> tuple[Heading, ...]:
         """The headings that open an empty section, the title included, in document order."""
+        ...
+
+    def extension_links(self) -> tuple[ExtensionLink, ...]:
+        """The links to an existing document beside this one whose filename extends this one's, in document order."""
         ...
 
 
