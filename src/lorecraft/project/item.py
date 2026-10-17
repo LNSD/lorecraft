@@ -76,10 +76,11 @@ class SkillEntryOrigin:
 class SkillResourceOrigin:
     """Origin facts for a Markdown resource inside a skill.
 
-    The resource keeps its own ref and read location; it takes its governance identity from the containing skill.
+    The resource keeps its own ref and read location. The containing skill identifies its provenance only; no
+    corpus governance is applied to the resource.
 
     Attributes:
-        skill_entry: Listed directory name of the containing skill, which the skill's governance is matched by.
+        skill_entry: Listed directory name of the containing skill.
     """
 
     skill_entry: str
@@ -110,11 +111,12 @@ class MarkdownItemDescriptor:
         read_location: Snapshot path from which the item's text is read.
         link_base: Where the item's relative Markdown links are read from, with the climb bound of that base.
         origin: Expected-name and provenance facts specific to the item's origin.
-        governance_corpus: Corpus whose specifications govern the item.
-        aspect_name: Listed name matched against namespace specifications.
-        active_facets: Checks the model has enabled for this item. The package governs a skill entry itself, so it is
-            always active for the frontmatter and the structure; it governs a meta specification too, which, like a
-            resource, is always active for the structure and the Markdown checks.
+        governance_corpus: Corpus whose specifications govern the item, when it belongs to one; empty otherwise.
+        aspect_name: Listed name matched against namespace specifications, when it belongs to a corpus; retained as
+            provenance for skills and resources.
+        active_facets: Checks enabled for this item. The package's skill checks activate skill-entry frontmatter and
+            structure checks, independently of corpus governance. A meta specification is active for structure and
+            Markdown checks; a resource activates the structure and Markdown facets.
     """
 
     ref: MarkdownItemRef

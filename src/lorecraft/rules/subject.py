@@ -11,8 +11,8 @@ A document is judged only for what a meta spec governs, so a rule over a documen
 `GOVERNED_BY`, and the runner hands it the document only when the meta specs govern that facet. A rule over the
 frontmatter inherits `Facet.FRONTMATTER` from its base, which the runner gates it on over a document. A rule over a
 Markdown file declares none: the base fixes the one facet it judges a document under, as its docstring states. The
-package governs every skill and every resource, so a rule over a skill or one of its files declares none either, and
-a rule over the frontmatter or a Markdown file judges a skill whatever its facet.
+package checks apply to skill entries independently of corpus governance. Resource Markdown checks are also package
+checks, but a resource has no meta-spec structure governance.
 
 A layout entry has a kind, and each kind has its base, which derives from `LayoutRule` rather than `ContentRule`, since
 an entry has no lines and an occurrence points at the entry itself: `SymlinkRule` over a symlink of the skill layout
@@ -140,7 +140,8 @@ class MarkdownRule(ItemRule):
     corpus states a structure file, since a document is otherwise governed for no facet at all. The base
     fixes that facet rather than letting the rule declare one in `GOVERNED_BY`: a facet only gates a document, and a
     rule that declared a narrower one, such as `Facet.BUDGET`, would still judge every skill and resource, so the
-    declaration would say less than the rule does. The package governs every skill and every resource.
+    declaration would say less than the rule does. Package Markdown checks apply to every skill and resource,
+    independently of corpus governance; the model keeps both facets active for a resource.
     """
 
     APPLIES_TO: ClassVar[frozenset[ItemKind]] = frozenset(ItemKind)
@@ -159,8 +160,8 @@ class SkillFileRule(ItemRule):
     """The base of every rule over one of a skill's Markdown files: its `SKILL.md` or one of its resources.
 
     The rule judges what holds of a skill's files and not of a document, such as a relative link read from the skill
-    root: a document's links are read from its own directory. The package governs every skill and every resource, so
-    the rule declares no facet.
+    root: a document's links are read from its own directory. This is a package check, so the rule declares no facet
+    and applies independently of corpus governance.
     """
 
     APPLIES_TO: ClassVar[frozenset[ItemKind]] = frozenset({ItemKind.SKILL_ENTRY, ItemKind.SKILL_RESOURCE})

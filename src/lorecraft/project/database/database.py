@@ -58,10 +58,11 @@ it read does, `item_governance(ref)` excepted, as its bullet states:
 - `item_skill_fields(source)`: the fields of one skill entry's frontmatter that parse, each on its own. It reads
   `item_frontmatter(source)` and nothing else; for any other item it is empty. It carries over whenever that
   frontmatter does.
-- `item_governance(ref)`: the specifications that govern one item, its corpus's first and then each namespace's that
-  matches it, like the IDE's resolution of which inspection profile a file falls under. It reads `model()` and
-  nothing else, and it is the one place an item's governance is computed, so the model's corpus is searched once per
-  item for the revision. It is the exception to the rule above: the model is dropped by any entry added or deleted
+- `item_governance(ref)`: the specifications that govern a corpus document, its corpus's first and then each
+  namespace's that matches it. Skill entries and resources have no corpus governance; the reserved `skills` corpus
+  does not apply to them. It reads `model()` and nothing else, and it is the one place an item's governance is
+  computed, so the model's corpus is searched once per item for the revision. It is the exception to the rule above:
+  the model is dropped by any entry added or deleted
   under `docs/`, so it is recomputed from the next model and kept when it compares equal to the one it replaces. It
   can carry over when `model()` does not, and so can every analysis that reads it.
 - `item_schema_problems(source)`: what each frontmatter schema that governs one item rejects, the shared analysis
@@ -70,8 +71,8 @@ it read does, `item_governance(ref)` excepted, as its bullet states:
 
 Other public methods either answer from queries or inspect the snapshot. Their section and carry-over rules are:
 
-- `item_structure_specs(ref)` reads `item_governance(ref)` and is not cached separately; it carries over with that
-  governance.
+- `item_structure_specs(ref)` reads `item_governance(ref)` for documents. Skill entries, resources and
+  specifications have no corpus structure specs; it is not cached separately and carries over with that governance.
 - `query(query, ref)` runs a declared query over the item's primitives and caches its answer and read set. It carries
   over whenever every primitive it read does.
 - `item_has_link_to(ref, path)` reads the item's cached `item_link_targets`; it is not cached separately and carries
@@ -842,11 +843,11 @@ class Database:
         return count
 
     def item_governance(self, ref: MarkdownItemRef) -> Governance | None:
-        """The specifications that govern one item, resolved by the model on the first call for its ref.
+        """The specifications that govern a corpus document, resolved by the model on the first call for its ref.
 
         A layer whose structure file failed to load is held as the failed structure the model recorded, in the order
-        the layers apply, so the governance hands out what loaded and what failed and decides no skip or partial
-        policy. `None` when no specification governs the item.
+        the layers apply. Skill entries and resources have no corpus governance, and the reserved `skills` corpus
+        does not apply to them. `None` when no specification governs the item.
 
         Carry-over: kept for the next revision whenever the next model's governance of the ref is equal to it, as
         compared by value, so a change elsewhere in the model leaves it, and every analysis reading it, valid.
@@ -867,11 +868,11 @@ class Database:
         return self._item_governances[ref]
 
     def item_schema_problems(self, source: ItemText) -> tuple[SchemaProblems, ...]:
-        """What each frontmatter schema that governs one item rejects in its frontmatter, found on the first call.
+        """What each applicable frontmatter schema rejects in an item's frontmatter, found on the first call.
 
         Typed problems, each placed on its line; severity is a rule's. The frontmatter is read only when a schema
-        governs the item, and only the layers that loaded state a schema. A skill entry is held to the Agent Skills
-        specification alone, one entry for it, none when the block is missing, not YAML or not a mapping.
+        governs the item, and only the layers that loaded state a schema. A skill entry is checked against the Agent
+        Skills specification independently of corpus governance. Resources have no frontmatter schema checks.
 
         Carry-over: kept for the next revision whenever `item_frontmatter(source)` and the governance this item reads
         are kept.
@@ -882,8 +883,7 @@ class Database:
         found = self._item_schema_problems.get(source.ref)
         if found is None:
             if isinstance(source.descriptor.origin, SkillEntryOrigin):
-                # No governance reaches a skill entry: the package states the Agent Skills specification, so every
-                # skill is held to it alone and no specification in the repository plays a part.
+                # The package's Agent Skills check is independent of corpus governance.
                 found = locate_skill_schema_problems(self.item_frontmatter(source))
             else:
                 governance = self.item_governance(source.ref)
@@ -893,9 +893,10 @@ class Database:
         return found
 
     def item_structure_specs(self, ref: MarkdownItemRef) -> tuple[StructureSpec, ...]:
-        """The structure specifications of the layers that loaded for an answerable item.
+        """The structure specifications of the layers that loaded for a corpus document.
 
-        Not cached: the answer is read off `item_governance(ref)`, which is, so it carries over with it.
+        Not cached: the answer is read off `item_governance(ref)`, which is, so it carries over with it. Skill entries,
+        resources and specifications have no corpus structure specs.
 
         Raises:
             UnlistedItemError: If the reference is not a listed item, registered resource or answerable document path.

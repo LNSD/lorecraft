@@ -32,8 +32,8 @@ once in `lorecraft.project.layout` and read from there by every other module.
   several rules read; whether and how one is reported is a rule's.
 - A document's, a skill's or a skill resource's identity, kept apart from its content and from where its symlinks
   lead.
-- The common reference and model-resolved descriptor for corpus documents and skill entries, including their
-  report path, read location, link base, origin metadata, governance target and active check facets.
+- The common reference and model-resolved descriptor for documents and skill entries, including location, origin,
+  governance target and active check facets. The reserved `skills` corpus does not govern skills or resources.
 - Turning a Markdown link's destination into a root-relative path, from its document's directory or its skill's
   root, and what the snapshot holds there.
 - `lorecraft.project.query`: the primitive protocols a query reads an item through, in facets of the model state.

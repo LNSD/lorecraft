@@ -127,60 +127,54 @@ class TestCheckSubjectsOverASkillEntry:
         assert len(reports) == 1, 'the entry point reports the one skill it was given'
         assert isinstance(reports[0], UndecodableSubject), 'a SKILL.md that is not UTF-8 is reported undecodable'
 
-    def test_check_subjects_with_a_failed_layer_governing_a_skill_entry_skips_it(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_check_subjects_with_a_failed_corpus_layer_still_judges_a_skill_entry(self) -> None:
         #: Given
-        failed = _database_with(
-            {'code.spec.json': STATES_NO_RULE, 'code-python.spec.json': CORPUS_SPEC}, {'python-typing.md': DOCUMENT}
+        snapshot = from_tree(
+            {
+                'docs': {'__meta__': {'skills.spec.json': STATES_NO_RULE}},
+                '.agents': {'skills': {'review': {'SKILL.md': b'---\nname: review\n---\n\n# Review\n'}}},
+            }
         )
-        governance = failed.item_governance(MarkdownItemRef(TYPING.path))
-        assert governance is not None, 'the corpus is in the model, so its governance is found'
-        assert governance.failed_layers(), 'the corpus spec states no rule, so its layer failed'
-        snapshot = from_tree({'.agents': {'skills': {'review': {'SKILL.md': b'---\nname: review\n---\n\n# Review\n'}}}})
         database = Database.from_snapshot(snapshot)
         location = database.model().sorted_skill_locations[0]
-        monkeypatch.setattr(database, 'item_governance', lambda _ref: governance)
+        item = MarkdownItemRef(location.ref.path)
+        assert database.item_governance(item) is None, 'the skills corpus does not govern skill entries'
 
         #: When
         reports = check_subjects(database, [location], _all_rules())
 
         #: Then
-        first, *others = governance.failed_layers()
-        expected = SkippedSubject(location.ref, (first.path, *(layer.path for layer in others)))
-        assert reports == (expected,), (
-            'the skip decision reads the governance, not the kind, so a failed layer skips a skill entry as a document'
-        )
+        assert len(reports) == 1, 'the entry point reports the one skill it was given'
+        assert isinstance(reports[0], CheckedItem), 'a failed skills-corpus layer does not suppress skill checks'
 
-    def test_check_subjects_with_a_failed_layer_still_judges_a_resource_for_markdown_checks_only(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_check_subjects_with_a_failed_corpus_layer_still_judges_a_resource_for_markdown_checks_only(self) -> None:
         #: Given
-        failed = _database_with(
-            {'code.spec.json': STATES_NO_RULE, 'code-python.spec.json': CORPUS_SPEC}, {'python-typing.md': DOCUMENT}
-        )
-        governance = failed.item_governance(MarkdownItemRef(TYPING.path))
-        assert governance is not None, 'the corpus is in the model, so its governance is found'
-        assert governance.failed_layers(), 'a layer failed to load'
         snapshot = from_tree(
             {
+                'docs': {'__meta__': {'skills.spec.json': STATES_NO_RULE}},
                 '.agents': {
-                    'skills': {'review': {'SKILL.md': b'---\nname: review\n---\n', 'guide.md': b'Read [x](/x.md).\n'}}
-                }
+                    'skills': {
+                        'review': {
+                            'SKILL.md': b'---\nname: review\n---\n',
+                            'guide.md': b'Read [x](/x.md) and ![a](/a.png).\n',
+                        }
+                    }
+                },
             }
         )
         database = Database.from_snapshot(snapshot)
         (location,) = database.skill_resources(database.model().sorted_skill_locations[0]).resources
-        monkeypatch.setattr(database, 'item_governance', lambda _ref: governance)
+        item = database.resource_item(location)
+        assert database.item_governance(item) is None, 'the skills corpus does not govern resources'
 
         #: When
         (report,) = check_subjects(database, [location], _all_rules())
 
         #: Then
         assert isinstance(report, CheckedItem), 'a failed layer suppresses none of a resource, which it does not govern'
-        assert report.ungoverned == (), 'the package governs a resource, so no facet is recorded as ungoverned'
-        assert [type(item.occurrence).__name__ for item in report.diagnostics] == ['AbsoluteLink'], (
-            'only the Markdown and skill-file checks judge a resource: no name, frontmatter, outline or budget rule'
+        assert report.ungoverned == (), 'resource checks are package-defined and are not gated by corpus governance'
+        assert [type(item.occurrence).__name__ for item in report.diagnostics] == ['AbsoluteLink', 'AbsoluteLink'], (
+            'package Markdown checks continue to judge a resource'
         )
 
 

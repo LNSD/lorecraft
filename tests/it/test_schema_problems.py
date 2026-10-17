@@ -1,6 +1,7 @@
 """The `item_schema_problems` and `item_skill_fields` queries, for one decoded document or skill.
 
-A document's schemas come from the model's governance and a skill's is the Agent Skills specification, so the queries
+A document's schemas come from the model's governance and a skill's Agent Skills check is independent of corpus
+governance, so the queries
 are tested over a database opened on an in-memory snapshot: a document governed by a corpus and a namespace schema, an
 ungoverned one, one without a block, and a skill. How each problem is found and placed on its line is
 `locate_schema_problems`'s, tested on its own beside it.
@@ -249,7 +250,7 @@ class TestSchemaProblems:
 
 @pytest.mark.it
 class TestSkillSchemaProblems:
-    def test_skill_schema_problems_of_a_skill_holds_the_agent_skills_problems(self) -> None:
+    def test_skill_schema_problems_of_a_skill_are_independent_of_the_skills_corpus(self) -> None:
         #: Given
         review = b'---\nname: review\nextra: y\n---\n# Review\n'
         database = Database.from_snapshot(_snapshot(REQUIRE_STATUS, STRING_DESCRIPTION, typing=b'', review=review))
@@ -298,7 +299,7 @@ class TestSkillSchemaProblems:
                     ),
                 ),
             ),
-        ), 'a skill is held to the Agent Skills specification alone, whatever the specifications in the repository'
+        ), 'the package skill check applies independently of any skills-corpus schemas'
 
     def test_skill_schema_problems_with_a_skill_with_no_frontmatter_holds_none(self) -> None:
         #: Given

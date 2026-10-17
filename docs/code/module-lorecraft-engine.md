@@ -28,10 +28,9 @@ returns at its subject, as a diagnostic of `lorecraft.rules.report`.
   over the descriptor's active facets. A rule runs over an item of a kind it applies to, and only when the item is governed
   for the facet the rule reads; each facet an applicable rule reads that the item is not governed for is recorded as
   coverage. A rule over a Markdown file runs over a document governed for its structure, a skill's `SKILL.md` and
-  each resource handed over as a subject of its own, whose descriptor activates no facet the package does not govern.
-  A document's, a skill's and a resource's report is one `CheckedItem`; a skill file's holds no coverage, because the
-  package governs every skill file in full and no rule gated on a facet judges one.
-- One entry point per mode: `skip.py` gives documents and skill entries governed by a failed layer no rule, and
+  each resource handed over as a subject of its own. A resource has no corpus structure governance, while package
+  Markdown checks still run; a skill entry's package checks run independently of corpus governance.
+- One entry point per mode: `skip.py` gives documents governed by a failed layer no rule, and
   skips skill files whose docs target was refused. An LSP-style partial mode is future work.
 - `skip.py` wraps an item read failure in the kind-specific error declared by the document or skill repository. A
   specification has no kind-specific read error, so its `ItemReadError` propagates unchanged.
@@ -126,8 +125,8 @@ Before committing code, verify:
 - [ ] A new load-failure condition is reported by `load_failures.py`, whose match stays exhaustive, and a skipped
   document names each failed layer's structure file
 - [ ] A document, skill entry or resource is decoded by each mode's entry point, so its policy comes after decoding; the
-  item is asked for by its common reference, and the skip decision reads its governance, which a resource is exempt
-  from; `runner.py` decodes nothing
+  item is asked for by its common reference, and only a document's failed corpus governance can skip it; `runner.py`
+  decodes nothing
 - [ ] `judge_item` asks a rule its kinds and facet, never its base; only building the report matches on the kind
 - [ ] Nothing here imports `lorecraft.cli` or `typer`
 

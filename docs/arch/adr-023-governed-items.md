@@ -70,9 +70,8 @@ layout subject category ([adr-011](adr-011-rules-engine.md)).
 The project model is the only layer that classifies a Markdown item's origin:
 
 - A corpus document derives its corpus and aspect name from its `docs/<corpus>/<name>.md` path.
-- A skill entry belongs to the reserved `skills` corpus and derives its aspect name from the skill's listed directory
-  name in `.agents/skills/` (`FR-001` through `FR-003`), with the built-in skills schema supplying the default floor
-  unless disabled (`FR-006`, `FR-007`, `FR-009`, `FR-018`, [adr-022](adr-022-skills-governance.md)).
+- A skill entry derives its aspect name from the skill's listed directory name in `.agents/skills/`; its package
+  checks are independent of corpus governance. The reserved corpus does not govern the entry until LORE-324.
 - A skill resource is discovered lazily through its skill's resource listing rather than by an eager workspace-wide
   walk when the model opens ([adr-003](adr-003-project-model.md), [adr-015](adr-015-database.md)). When listed, it
   yields the same common reference and descriptor shape as any other Markdown item.
@@ -82,16 +81,11 @@ derivation rather than reimplemented in the database, runner or rules.
 
 ### Hierarchical Governance for Skill Entries and Resources
 
-The `skills` corpus governs skills hierarchically. A skill entry answers to the built-in floor (when enabled), the
-`skills` corpus specification, and every `skills-<namespace>` specification matching the skill's listed directory name,
-broad to narrow (`FR-002` through `FR-004`).
+The reserved `skills` corpus is loaded and its specifications are checked, but does not govern skill entries or
+resources. Package skill checks remain active for skill entries; corpus governance is deferred to LORE-324.
 
-A Markdown resource inside a skill inherits its owning skill's `skills` governance identity rather than matching
-against the resource's own filename stem. While [prd-020](prd-020-skills-corpus.md) (`FR-014`) and
-[adr-022](adr-022-skills-governance.md) restrict repository `skills` checks to `SKILL.md`, the project model sets no
-active structure, frontmatter, outline or budget facets on resource descriptors, so resources run only Markdown and
-skill-file link rules. When resource governance is enabled by a later specification, activating resource facets in the
-descriptor requires no new reference type, database query family or runner branch.
+A Markdown resource inside a skill has no corpus governance. The model activates Markdown checks only for resources;
+no skills-corpus schema or structure spec applies.
 
 ### One Decode Witness, Query Family and Runner Pipeline
 
@@ -103,10 +97,10 @@ The database and rules engine consume the common reference and descriptor unifor
 - **Unified per-file and cross-file queries:** frontmatter parsing, Markdown parsing, line counting, token counting and
   relative-link target resolution each have one query implementation taking the common decode witness and reading the
   descriptor's link base.
-- **Unified governance and analysis queries:** `item_governance(ref)` resolves ordered layers (including built-in skills
-  provenance and failed repository layers) for any governed Markdown item. Schema validation and outline analysis read
-  `item_governance(ref)` and the per-file queries, keeping their results whenever those inputs compare equal; a governed
-  resource's analysis depends on its owning skill's governance ([adr-015](adr-015-database.md)).
+- **Unified governance and analysis queries:** `item_governance(ref)` resolves ordered layers for corpus documents;
+  skill entries and resources have no corpus governance. Schema validation and outline analysis read
+  `item_governance(ref)` and the per-file queries, keeping their results whenever those inputs compare equal
+  ([adr-015](adr-015-database.md)).
 - **One content runner loop:** the engine decodes the item once, applies the mode's failed-layer policy whenever an
   active governing layer failed to load, gates enabled rules by the descriptor's active and governed facets, and
   produces one checked content report carrying diagnostics and ungoverned facets (`FR-005`, `FR-010`, `FR-018`).
@@ -118,8 +112,7 @@ requires:
 
 - With no repository `skills` specification and the built-in schema enabled, skill entries and resources produce the
   exact diagnostics, notes, severity and sort order they produce today (`FR-013`).
-- `lorecraft inspect` renders corpus documents and skills in their existing text and JSON sections while reading
-  governing layers from the unified model query (`FR-011`).
+- `lorecraft inspect` renders corpus documents and skills, without reporting corpus governance for skills.
 
 ## Consequences
 
@@ -161,8 +154,8 @@ Before committing code, verify:
   governance identity and active facets once
 - [ ] Logical identity stays separate from resolved symlink location for documents, skill entries and skill resources
   alike, and skill resource discovery remains lazy through the skill resource listing
-- [ ] A skill resource's governance identity comes from its owning skill's listed name in the `skills` corpus, with
-  resource structure, frontmatter, outline and budget facets inactive while `FR-014` is in force
+- [ ] Skill resources have no corpus governance under this decision; defer any resource governance identity and
+  governed resource facets to LORE-324.
 - [ ] The database provides one decode, per-file, analysis and link-target query family for governed Markdown items,
   with analyses depending on `item_governance(ref)` rather than the whole model
 - [ ] The rules engine runs one content-item check loop that decodes once, applies failed-layer policy, gates rules by
