@@ -9,13 +9,20 @@ from typing import Final
 import pytest
 
 from lib.overruns import overrun
-from lorecraft.core.num import NonZeroUnsignedInt
+from lib.primitives import StructurePrimitives
+from lorecraft.core.num import NonZeroUnsignedInt, UnsignedInt
 from lorecraft.core.path import RootRelativePath
-from lorecraft.project.syntax import LineNumber, count_tokens
+from lorecraft.project.syntax import LineNumber, TokenCount, count_tokens
 from lorecraft.rules.location import Elsewhere, Help, Here, Label, Note
-from lorecraft.rules.tests.fake_context import FakeDocumentContext, judged, namespace_spec, structure_spec_path
+from lorecraft.rules.tests.fake_context import (
+    FakeDocumentContext,
+    judged,
+    namespace_spec,
+    structure_spec,
+    structure_spec_path,
+)
 
-from ..too_many_tokens import TooManyTokens
+from ..too_many_tokens import TooManyTokens, token_facts
 
 TEXT: Final[str] = '# Setup\n\nInstall the toolkit, then run it once over the repository.\n'
 """The document every case judges."""
@@ -176,3 +183,45 @@ class TestTooManyTokens:
             ),
             Note('tokens are counted as o200k_base over the whole file: frontmatter, code blocks and tables included'),
         ), 'the specification note comes first, then the help, then how the tokens are counted'
+
+
+@pytest.mark.unit
+class TestTokenBudgets:
+    def test_token_facts_keeps_the_order_and_skips_specifications_setting_none(self) -> None:
+        #: Given
+        corpus = structure_spec('code', '{"tokens": 100, "title": {"chars": 20}, "empty_sections": "forbidden"}')
+        silent = structure_spec('code-silent', '{"outline": [{"section": "Rule"}]}')
+        namespace = structure_spec('code-python', '{"tokens": 50, "title": {"words": 3}}')
+
+        #: When
+        budgets = token_facts(StructurePrimitives((corpus, silent, namespace))).budgets
+
+        #: Then
+        assert [(b.spec, b.tokens.value) for b in budgets] == [(corpus.path, 100), (namespace.path, 50)], (
+            'one budget per specification that sets one'
+        )
+
+    def test_token_facts_of_no_specification_is_empty(self) -> None:
+        #: When
+        budgets = token_facts(StructurePrimitives(())).budgets
+
+        #: Then
+        assert budgets == (), 'nothing governs'
+
+
+@pytest.mark.unit
+class TestTokenCount:
+    def test_token_facts_counts_tokens_only_when_a_budget_governs(self) -> None:
+        #: Given
+        budgeted = structure_spec('code', '{"tokens": 100}')
+        silent = structure_spec('code-silent', '{"outline": [{"section": "Rule"}]}')
+        count = TokenCount(UnsignedInt(7))
+
+        #: When
+        governed = token_facts(StructurePrimitives((budgeted,), token_total=count))
+        ungoverned = token_facts(StructurePrimitives((silent,), token_total=count))
+
+        #: Then
+        assert (governed.count, ungoverned.count) == (count, UnsignedInt(0)), (
+            'a document no budget governs is never counted'
+        )

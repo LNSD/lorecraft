@@ -49,7 +49,7 @@ def _targets(
 
 
 @pytest.mark.unit
-class TestBrokenLinkInASkill:
+class TestBrokenLink:
     def test_check_with_a_link_whose_target_is_missing_reports_it_on_its_line(self) -> None:
         #: Given
         subject = FakeSkillResourceContext(
@@ -162,10 +162,7 @@ class TestBrokenLinkInASkill:
             ),
         ), 'the query is no part of the path, and the occurrence keeps the destination as written'
 
-
-@pytest.mark.unit
-class TestBrokenLinkInADocument:
-    def test_check_with_a_link_whose_target_is_missing_reports_it_on_its_line(self) -> None:
+    def test_check_with_a_document_link_whose_target_is_missing_reports_it_on_its_line(self) -> None:
         #: Given
         subject = FakeDocumentMarkdownContext(
             '# Setup\n\nRun [install](install.md) first.\n',
@@ -185,7 +182,7 @@ class TestBrokenLinkInADocument:
             ),
         ), "a document's link whose target holds nothing is one occurrence, read from the document's directory"
 
-    def test_check_with_a_link_whose_target_is_present_reports_nothing(self) -> None:
+    def test_check_with_a_document_link_whose_target_is_present_reports_nothing(self) -> None:
         #: Given
         subject = FakeDocumentMarkdownContext(
             '# Setup\n\nRun [install](install.md) first.\n',
@@ -198,9 +195,6 @@ class TestBrokenLinkInADocument:
         #: Then
         assert occurrences == (), 'a link to a file the snapshot holds goes somewhere'
 
-
-@pytest.mark.unit
-class TestBrokenLinkDiagnostic:
     def test_message_with_a_percent_encoded_destination_shows_it_decoded(self) -> None:
         #: Given
         occurrence = BrokenLink(

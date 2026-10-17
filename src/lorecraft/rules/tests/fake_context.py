@@ -168,6 +168,16 @@ def _decode_structure(spec_name: SpecName, structure: str) -> StructureSpec:
     return spec
 
 
+def structure_spec(spec_name: str, text: str) -> StructureSpec:
+    """A structure specification decoded from its JSON by the real decoder, for a test of a query over specifications.
+
+    Args:
+        spec_name: The specification's name, such as `code` or `code-python`.
+        text: The structure specification's JSON.
+    """
+    return _decode_structure(parse_spec_name(spec_name), text)
+
+
 class FakeDocumentContext:
     """A document a test writes as text, governed by the meta specs the test states.
 
