@@ -16,7 +16,7 @@ from lorecraft.project.schemas import ExpectedSection, OutlineEnd, SectionName
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.location import Elsewhere, Help, Here, Label, Note
 from lorecraft.rules.tests.fake_database import (
-    FakeDocumentContext,
+    FakeDocumentDatabase,
     judged,
     namespace_spec,
     section_in,
@@ -56,7 +56,7 @@ ENDS_AFTER_OPTIONS: Final[OutlineEnd] = OutlineEnd(last_matched=section_in(FOLLO
 class TestUnexpectedSection:
     def test_check_with_an_unlisted_section_in_place_of_a_later_one_reports_it_at_its_heading(self) -> None:
         #: Given
-        subject = FakeDocumentContext(TIPS_BETWEEN, corpus='guide', structure=OUTLINE)
+        subject = FakeDocumentDatabase(TIPS_BETWEEN, corpus='guide', structure=OUTLINE)
 
         #: When
         occurrences = judged(UnexpectedSection, subject)
@@ -70,7 +70,7 @@ class TestUnexpectedSection:
 
     def test_check_with_an_unlisted_section_after_the_outline_reports_it_with_the_last_section_matched(self) -> None:
         #: Given
-        subject = FakeDocumentContext(AFTERWORD, corpus='guide', structure=OUTLINE)
+        subject = FakeDocumentDatabase(AFTERWORD, corpus='guide', structure=OUTLINE)
 
         #: When
         occurrences = judged(UnexpectedSection, subject)
@@ -87,7 +87,7 @@ class TestUnexpectedSection:
 
     def test_check_with_an_absent_section_reports_nothing(self) -> None:
         #: Given
-        subject = FakeDocumentContext('# Check\n\n## Usage\n\nRun it.\n', corpus='guide', structure=OUTLINE)
+        subject = FakeDocumentDatabase('# Check\n\n## Usage\n\nRun it.\n', corpus='guide', structure=OUTLINE)
 
         #: When
         occurrences = judged(UnexpectedSection, subject)
@@ -98,7 +98,7 @@ class TestUnexpectedSection:
     def test_check_with_a_misplaced_section_reports_nothing(self) -> None:
         #: Given
         out_of_order = '# Check\n\n## Options\n\nPass a flag.\n\n## Usage\n\nRun it.\n'
-        subject = FakeDocumentContext(out_of_order, corpus='guide', structure=OUTLINE)
+        subject = FakeDocumentDatabase(out_of_order, corpus='guide', structure=OUTLINE)
 
         #: When
         occurrences = judged(UnexpectedSection, subject)
@@ -108,7 +108,7 @@ class TestUnexpectedSection:
 
     def test_check_with_no_divergence_reports_nothing(self) -> None:
         #: Given
-        subject = FakeDocumentContext(FOLLOWS, corpus='guide', structure=OUTLINE)
+        subject = FakeDocumentDatabase(FOLLOWS, corpus='guide', structure=OUTLINE)
 
         #: When
         occurrences = judged(UnexpectedSection, subject)
@@ -120,7 +120,7 @@ class TestUnexpectedSection:
         #: Given
         # the namespace's outline lets any section stand between `Usage` and `Options`, so `Tips` is allowed there
         any_between = '{"outline": [{"section": "Usage"}, {"any": true}, {"section": "Options"}]}'
-        subject = FakeDocumentContext(
+        subject = FakeDocumentDatabase(
             TIPS_BETWEEN + '\n## Afterword\n\nThanks.\n',
             corpus='guide',
             structure=OUTLINE,
@@ -158,7 +158,7 @@ class TestUnexpectedSection:
     def test_check_with_an_outline_that_matched_no_section_reports_the_end_with_none_matched(self) -> None:
         #: Given
         outline = '{"outline": [{"section": "Usage", "optional": true}]}'
-        subject = FakeDocumentContext('# Check\n\n## Tips\n\nA tip.\n', corpus='guide', structure=outline)
+        subject = FakeDocumentDatabase('# Check\n\n## Tips\n\nA tip.\n', corpus='guide', structure=outline)
 
         #: When
         occurrences = judged(UnexpectedSection, subject)

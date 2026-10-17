@@ -24,7 +24,7 @@ from lorecraft.project.schemas import (
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.location import Elsewhere, Help, Here, Label, Note
 from lorecraft.rules.tests.fake_database import (
-    FakeDocumentContext,
+    FakeDocumentDatabase,
     FakeSkillDatabase,
     judged,
     namespace_spec,
@@ -74,7 +74,7 @@ LINE: Final[LineNumber] = LineNumber(NonZeroUnsignedInt(2))
 class TestInvalidValue:
     def test_check_with_a_value_breaking_a_pattern_reports_it_on_its_line_naming_the_specification(self) -> None:
         #: Given
-        subject = FakeDocumentContext(TEXT, corpus='guide', structure=NAME_PATTERN)
+        subject = FakeDocumentDatabase(TEXT, corpus='guide', structure=NAME_PATTERN)
 
         #: When
         occurrences = judged(InvalidValue, subject)
@@ -91,7 +91,7 @@ class TestInvalidValue:
             name: 3
             ---
             """)
-        subject = FakeDocumentContext(text, corpus='guide', structure=NAME_PATTERN)
+        subject = FakeDocumentDatabase(text, corpus='guide', structure=NAME_PATTERN)
 
         #: When
         occurrences = judged(InvalidValue, subject)
@@ -101,7 +101,7 @@ class TestInvalidValue:
 
     def test_check_with_two_schemas_reports_each_problem_with_its_own_specification(self) -> None:
         #: Given
-        subject = FakeDocumentContext(
+        subject = FakeDocumentDatabase(
             TEXT, corpus='guide', structure=NAME_PATTERN, namespaces=(namespace_spec('guide', 'setup', NAME_PATTERN),)
         )
 
@@ -171,7 +171,7 @@ class TestInvalidValue:
             - Setup Guide
             ---
             """)
-        subject = FakeDocumentContext(text, corpus='guide', structure=NAME_PATTERN)
+        subject = FakeDocumentDatabase(text, corpus='guide', structure=NAME_PATTERN)
 
         #: When
         occurrences = judged(InvalidValue, subject)
@@ -337,7 +337,7 @@ class TestInvalidValue:
             description: Load when x.
             ---
             """)
-        subject = FakeDocumentContext(text, corpus='guide', structure=structure)
+        subject = FakeDocumentDatabase(text, corpus='guide', structure=structure)
 
         #: When
         occurrences = judged(InvalidValue, subject)

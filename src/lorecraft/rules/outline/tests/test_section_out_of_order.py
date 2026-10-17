@@ -16,7 +16,7 @@ from lorecraft.project.schemas import ExpectedSection, LeftOver, SectionName
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.location import Elsewhere, Help, Here, Label, Note
 from lorecraft.rules.tests.fake_database import (
-    FakeDocumentContext,
+    FakeDocumentDatabase,
     judged,
     namespace_spec,
     section_in,
@@ -57,7 +57,7 @@ REPEATS_USAGE: Final[LeftOver] = LeftOver(earlier=section_in(FOLLOWS, 'Usage'))
 class TestSectionOutOfOrder:
     def test_check_with_a_section_in_place_of_a_later_one_reports_it_at_its_heading(self) -> None:
         #: Given
-        subject = FakeDocumentContext(OUT_OF_ORDER, corpus='guide', structure=OUTLINE)
+        subject = FakeDocumentDatabase(OUT_OF_ORDER, corpus='guide', structure=OUTLINE)
 
         #: When
         occurrences = judged(SectionOutOfOrder, subject)
@@ -71,7 +71,7 @@ class TestSectionOutOfOrder:
 
     def test_check_with_a_section_left_over_reports_it_with_the_heading_it_repeats(self) -> None:
         #: Given
-        subject = FakeDocumentContext(LEFT_OVER, corpus='guide', structure=OUTLINE)
+        subject = FakeDocumentDatabase(LEFT_OVER, corpus='guide', structure=OUTLINE)
 
         #: When
         occurrences = judged(SectionOutOfOrder, subject)
@@ -85,7 +85,7 @@ class TestSectionOutOfOrder:
 
     def test_check_with_an_absent_section_reports_nothing(self) -> None:
         #: Given
-        subject = FakeDocumentContext('# Check\n\n## Options\n\nPass a flag.\n', corpus='guide', structure=OUTLINE)
+        subject = FakeDocumentDatabase('# Check\n\n## Options\n\nPass a flag.\n', corpus='guide', structure=OUTLINE)
 
         #: When
         occurrences = judged(SectionOutOfOrder, subject)
@@ -95,7 +95,7 @@ class TestSectionOutOfOrder:
 
     def test_check_with_an_unlisted_section_reports_nothing(self) -> None:
         #: Given
-        subject = FakeDocumentContext(FOLLOWS + '\n## Afterword\n\nThanks.\n', corpus='guide', structure=OUTLINE)
+        subject = FakeDocumentDatabase(FOLLOWS + '\n## Afterword\n\nThanks.\n', corpus='guide', structure=OUTLINE)
 
         #: When
         occurrences = judged(SectionOutOfOrder, subject)
@@ -105,7 +105,7 @@ class TestSectionOutOfOrder:
 
     def test_check_with_no_divergence_reports_nothing(self) -> None:
         #: Given
-        subject = FakeDocumentContext(FOLLOWS, corpus='guide', structure=OUTLINE)
+        subject = FakeDocumentDatabase(FOLLOWS, corpus='guide', structure=OUTLINE)
 
         #: When
         occurrences = judged(SectionOutOfOrder, subject)
@@ -117,7 +117,7 @@ class TestSectionOutOfOrder:
         #: Given
         # the namespace's outline reverses the corpus's, so it matches `Options` and `Usage`, then finds `Options` again
         reversed_outline = '{"outline": [{"section": "Options"}, {"section": "Usage"}]}'
-        subject = FakeDocumentContext(
+        subject = FakeDocumentDatabase(
             OUT_OF_ORDER + '\n## Options\n\nPass another flag.\n',
             corpus='guide',
             structure=OUTLINE,
@@ -144,7 +144,7 @@ class TestSectionOutOfOrder:
         #: Given
         outline = '{"outline": [{"section": "Usage", "optional": true}, {"section": "Options"}]}'
         text = '# Check\n\n## Options\n\nPass a flag.\n\n## Usage\n\nRun it.\n'
-        subject = FakeDocumentContext(text, corpus='guide', structure=outline)
+        subject = FakeDocumentDatabase(text, corpus='guide', structure=outline)
 
         #: When
         occurrences = judged(SectionOutOfOrder, subject)

@@ -14,7 +14,7 @@ from lorecraft.core.path import RootRelativePath
 from lorecraft.project.schemas import AgentSkillsSchema, FieldCount, FieldLimit, StructureSpecSchema
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.location import Elsewhere, Help, Here, Label, Note
-from lorecraft.rules.tests.fake_database import FakeDocumentContext, judged, namespace_spec, structure_spec_path
+from lorecraft.rules.tests.fake_database import FakeDocumentDatabase, judged, namespace_spec, structure_spec_path
 
 from ..too_many_fields import TooManyFields
 
@@ -59,7 +59,7 @@ LINE: Final[LineNumber] = LineNumber(NonZeroUnsignedInt(1))
 class TestTooManyFields:
     def test_check_with_more_fields_than_the_schema_allows_reports_it_on_line_1(self) -> None:
         #: Given
-        subject = FakeDocumentContext(TEXT, corpus='guide', structure=MAX_PROPERTIES)
+        subject = FakeDocumentDatabase(TEXT, corpus='guide', structure=MAX_PROPERTIES)
 
         #: When
         occurrences = judged(TooManyFields, subject)
@@ -72,7 +72,7 @@ class TestTooManyFields:
     def test_check_with_exactly_the_most_fields_reports_nothing(self) -> None:
         #: Given
         structure = '{"frontmatter": {"type": "object", "maxProperties": 2}}'
-        subject = FakeDocumentContext(TEXT, corpus='guide', structure=structure)
+        subject = FakeDocumentDatabase(TEXT, corpus='guide', structure=structure)
 
         #: When
         occurrences = judged(TooManyFields, subject)
@@ -82,7 +82,7 @@ class TestTooManyFields:
 
     def test_check_with_too_few_fields_reports_nothing(self) -> None:
         #: Given
-        subject = FakeDocumentContext(TEXT, corpus='guide', structure=MIN_PROPERTIES)
+        subject = FakeDocumentDatabase(TEXT, corpus='guide', structure=MIN_PROPERTIES)
 
         #: When
         occurrences = judged(TooManyFields, subject)
@@ -92,7 +92,7 @@ class TestTooManyFields:
 
     def test_check_with_two_schemas_reports_each_problem_with_its_own_specification(self) -> None:
         #: Given
-        subject = FakeDocumentContext(
+        subject = FakeDocumentDatabase(
             TEXT,
             corpus='guide',
             structure=MAX_PROPERTIES,
@@ -114,7 +114,7 @@ class TestTooManyFields:
             '{"frontmatter": {"type": "object", "maxProperties": 1, '
             '"description": "The fields an agent lists a document by."}}'
         )
-        subject = FakeDocumentContext(TEXT, corpus='guide', structure=structure)
+        subject = FakeDocumentDatabase(TEXT, corpus='guide', structure=structure)
 
         #: When
         occurrences = judged(TooManyFields, subject)

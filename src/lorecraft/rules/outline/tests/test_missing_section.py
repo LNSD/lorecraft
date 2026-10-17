@@ -16,7 +16,7 @@ from lorecraft.project.schemas import DocumentEnd, SectionName
 from lorecraft.project.syntax import LineNumber, SectionHeading
 from lorecraft.rules.location import Elsewhere, Help, Here, Label, Note
 from lorecraft.rules.tests.fake_database import (
-    FakeDocumentContext,
+    FakeDocumentDatabase,
     judged,
     namespace_spec,
     section_in,
@@ -76,7 +76,7 @@ END_AFTER_OPTIONS: Final[DocumentEnd] = DocumentEnd(
 class TestMissingSection:
     def test_check_with_a_section_absent_before_another_reports_it_at_that_section(self) -> None:
         #: Given
-        subject = FakeDocumentContext(OPTIONS_ONLY, corpus='guide', structure=DESCRIBED_OUTLINE)
+        subject = FakeDocumentDatabase(OPTIONS_ONLY, corpus='guide', structure=DESCRIBED_OUTLINE)
 
         #: When
         occurrences = judged(MissingSection, subject)
@@ -94,7 +94,7 @@ class TestMissingSection:
 
     def test_check_with_a_section_absent_at_the_end_reports_it_at_the_last_line(self) -> None:
         #: Given
-        subject = FakeDocumentContext(USAGE_ONLY, corpus='guide', structure=OUTLINE)
+        subject = FakeDocumentDatabase(USAGE_ONLY, corpus='guide', structure=OUTLINE)
 
         #: When
         occurrences = judged(MissingSection, subject)
@@ -155,7 +155,7 @@ class TestMissingSection:
 
     def test_check_with_a_misplaced_section_reports_nothing(self) -> None:
         #: Given
-        subject = FakeDocumentContext(OUT_OF_ORDER, corpus='guide', structure=OUTLINE)
+        subject = FakeDocumentDatabase(OUT_OF_ORDER, corpus='guide', structure=OUTLINE)
 
         #: When
         occurrences = judged(MissingSection, subject)
@@ -165,7 +165,7 @@ class TestMissingSection:
 
     def test_check_with_an_unlisted_section_reports_nothing(self) -> None:
         #: Given
-        subject = FakeDocumentContext(FOLLOWS + '\n## Afterword\n\nThanks.\n', corpus='guide', structure=OUTLINE)
+        subject = FakeDocumentDatabase(FOLLOWS + '\n## Afterword\n\nThanks.\n', corpus='guide', structure=OUTLINE)
 
         #: When
         occurrences = judged(MissingSection, subject)
@@ -175,7 +175,7 @@ class TestMissingSection:
 
     def test_check_with_no_divergence_reports_nothing(self) -> None:
         #: Given
-        subject = FakeDocumentContext(FOLLOWS, corpus='guide', structure=OUTLINE)
+        subject = FakeDocumentDatabase(FOLLOWS, corpus='guide', structure=OUTLINE)
 
         #: When
         occurrences = judged(MissingSection, subject)
@@ -185,7 +185,7 @@ class TestMissingSection:
 
     def test_check_with_a_section_absent_under_both_specifications_reports_each_in_order(self) -> None:
         #: Given
-        subject = FakeDocumentContext(
+        subject = FakeDocumentDatabase(
             OPTIONS_ONLY,
             corpus='guide',
             structure=OUTLINE,

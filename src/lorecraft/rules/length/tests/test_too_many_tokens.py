@@ -15,7 +15,7 @@ from lorecraft.core.path import RootRelativePath
 from lorecraft.project.syntax import LineNumber, TokenCount, count_tokens
 from lorecraft.rules.location import Elsewhere, Help, Here, Label, Note
 from lorecraft.rules.tests.fake_database import (
-    FakeDocumentContext,
+    FakeDocumentDatabase,
     judged,
     namespace_spec,
     structure_spec,
@@ -53,7 +53,7 @@ def _budget(tokens: int) -> str:
 class TestTooManyTokens:
     def test_check_with_a_document_over_the_budget_reports_it_on_line_1(self) -> None:
         #: Given
-        subject = FakeDocumentContext(TEXT, corpus='code', structure=_budget(TOKENS - 1))
+        subject = FakeDocumentDatabase(TEXT, corpus='code', structure=_budget(TOKENS - 1))
 
         #: When
         occurrences = judged(TooManyTokens, subject)
@@ -67,7 +67,7 @@ class TestTooManyTokens:
 
     def test_check_with_a_document_at_the_budget_reports_nothing(self) -> None:
         #: Given
-        subject = FakeDocumentContext(TEXT, corpus='code', structure=_budget(TOKENS))
+        subject = FakeDocumentDatabase(TEXT, corpus='code', structure=_budget(TOKENS))
 
         #: When
         occurrences = judged(TooManyTokens, subject)
@@ -77,7 +77,7 @@ class TestTooManyTokens:
 
     def test_check_with_a_document_over_only_the_namespace_budget_reports_that_budget(self) -> None:
         #: Given
-        subject = FakeDocumentContext(
+        subject = FakeDocumentDatabase(
             TEXT,
             corpus='code',
             structure=_budget(TOKENS + 10),
@@ -96,7 +96,7 @@ class TestTooManyTokens:
 
     def test_check_with_a_document_over_both_budgets_reports_each_in_order(self) -> None:
         #: Given
-        subject = FakeDocumentContext(
+        subject = FakeDocumentDatabase(
             TEXT,
             corpus='code',
             structure=_budget(TOKENS - 1),
@@ -118,7 +118,7 @@ class TestTooManyTokens:
 
     def test_check_with_no_specification_setting_a_budget_reports_nothing(self) -> None:
         #: Given
-        subject = FakeDocumentContext(TEXT, corpus='code', structure=NO_BUDGET)
+        subject = FakeDocumentDatabase(TEXT, corpus='code', structure=NO_BUDGET)
 
         #: When
         occurrences = judged(TooManyTokens, subject)
@@ -128,7 +128,7 @@ class TestTooManyTokens:
 
     def test_check_with_a_specification_setting_no_budget_holds_the_document_to_the_other(self) -> None:
         #: Given
-        subject = FakeDocumentContext(
+        subject = FakeDocumentDatabase(
             TEXT,
             corpus='code',
             structure=NO_BUDGET,

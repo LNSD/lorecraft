@@ -13,7 +13,7 @@ from lorecraft.core.path import RootRelativePath
 from lorecraft.project.link_target import LinkTarget, LinkTargetEntry, PathLookup
 from lorecraft.project.syntax import LineNumber, NormalisedLinkPath
 from lorecraft.rules.location import Help, Note
-from lorecraft.rules.tests.fake_database import DEFAULT_DOCUMENT_DIRECTORY, FakeDocumentContext, judged
+from lorecraft.rules.tests.fake_database import DEFAULT_DOCUMENT_DIRECTORY, FakeDocumentDatabase, judged
 
 from ..missing_base_link import MissingBaseLink
 
@@ -22,7 +22,7 @@ STRUCTURE = '{"frontmatter": {"type": "object"}}'
 
 def _document(
     text: str, *, siblings: tuple[str, ...] = ('setup',), targets: dict[str, str] | None = None
-) -> FakeDocumentContext:
+) -> FakeDocumentDatabase:
     """The document `setup-extra.md` with the text, beside the siblings, each link leading to a file the snapshot holds.
 
     Args:
@@ -34,7 +34,7 @@ def _document(
         NormalisedLinkPath.parse(url): LinkTarget(path=RootRelativePath.parse(path), lookup=PathLookup.FILE)
         for url, path in (targets or {}).items()
     }
-    return FakeDocumentContext(
+    return FakeDocumentDatabase(
         text,
         corpus='guide',
         structure=STRUCTURE,

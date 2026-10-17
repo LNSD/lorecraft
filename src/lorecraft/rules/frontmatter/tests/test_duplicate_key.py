@@ -16,7 +16,7 @@ from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.schemas import DocumentFrontmatterOwner, SkillFrontmatterOwner
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.location import Elsewhere, Help, Here, Label, Note
-from lorecraft.rules.tests.fake_database import FakeDocumentContext, FakeSkillDatabase, judged, structure_spec_path
+from lorecraft.rules.tests.fake_database import FakeDocumentDatabase, FakeSkillDatabase, judged, structure_spec_path
 
 from ..duplicate_key import DuplicateKey
 
@@ -65,7 +65,7 @@ class TestDuplicateKey:
             ---
             # Setup
             """)
-        subject = FakeDocumentContext(text, corpus='guide', structure=STRUCTURE)
+        subject = FakeDocumentDatabase(text, corpus='guide', structure=STRUCTURE)
 
         #: When
         occurrences = judged(DuplicateKey, subject)
@@ -97,7 +97,7 @@ class TestDuplicateKey:
             ---
             # Setup
             """)
-        subject = FakeDocumentContext(text, corpus='guide', structure=STRUCTURE)
+        subject = FakeDocumentDatabase(text, corpus='guide', structure=STRUCTURE)
 
         #: When
         occurrences = judged(DuplicateKey, subject)
@@ -115,7 +115,7 @@ class TestDuplicateKey:
               author: b
             ---
             """)
-        subject = FakeDocumentContext(text, corpus='guide', structure=STRUCTURE)
+        subject = FakeDocumentDatabase(text, corpus='guide', structure=STRUCTURE)
 
         #: When
         occurrences = judged(DuplicateKey, subject)
@@ -164,7 +164,7 @@ class TestDuplicateKey:
             ---
             # Setup
             """)
-        subject = FakeDocumentContext(text, corpus='guide', structure=STRUCTURE)
+        subject = FakeDocumentDatabase(text, corpus='guide', structure=STRUCTURE)
 
         #: When
         occurrences = judged(DuplicateKey, subject)
@@ -174,7 +174,7 @@ class TestDuplicateKey:
 
     def test_check_with_no_block_reports_nothing(self) -> None:
         #: Given
-        subject = FakeDocumentContext('# Setup\n', corpus='guide', structure=STRUCTURE)
+        subject = FakeDocumentDatabase('# Setup\n', corpus='guide', structure=STRUCTURE)
 
         #: When
         occurrences = judged(DuplicateKey, subject)
@@ -239,7 +239,7 @@ class TestDuplicateKey:
             size: {w: 1, w: 2}
             ---
             """)
-        subject = FakeDocumentContext(text, corpus='guide', structure=STRUCTURE)
+        subject = FakeDocumentDatabase(text, corpus='guide', structure=STRUCTURE)
         (occurrence,) = judged(DuplicateKey, subject)
 
         #: When

@@ -15,7 +15,7 @@ from lorecraft.project.schemas import SectionEntry, SectionName
 from lorecraft.project.syntax import LineNumber, parse_document
 from lorecraft.rules.location import Elsewhere, Help, Note
 from lorecraft.rules.tests.fake_database import (
-    FakeDocumentContext,
+    FakeDocumentDatabase,
     judged,
     namespace_spec,
     structure_spec,
@@ -44,7 +44,7 @@ EMPTY_INSTALL: Final[str] = '# Setup\n\n## Install\n\n## Run\n\nRun the toolkit 
 class TestEmptySection:
     def test_check_with_an_empty_section_reports_it_at_its_heading(self) -> None:
         #: Given
-        subject = FakeDocumentContext(EMPTY_INSTALL, corpus='guide', structure=FORBIDS_EMPTY)
+        subject = FakeDocumentDatabase(EMPTY_INSTALL, corpus='guide', structure=FORBIDS_EMPTY)
 
         #: When
         occurrences = judged(EmptySection, subject)
@@ -58,7 +58,7 @@ class TestEmptySection:
 
     def test_check_with_empty_sections_allowed_reports_nothing(self) -> None:
         #: Given
-        subject = FakeDocumentContext(EMPTY_INSTALL, corpus='guide', structure=ALLOWS_EMPTY)
+        subject = FakeDocumentDatabase(EMPTY_INSTALL, corpus='guide', structure=ALLOWS_EMPTY)
 
         #: When
         occurrences = judged(EmptySection, subject)
@@ -68,7 +68,7 @@ class TestEmptySection:
 
     def test_check_with_every_section_holding_content_reports_nothing(self) -> None:
         #: Given
-        subject = FakeDocumentContext(
+        subject = FakeDocumentDatabase(
             '# Setup\n\n## Run\n\nRun the toolkit once over the repository.\n', corpus='guide', structure=FORBIDS_EMPTY
         )
 
@@ -80,7 +80,7 @@ class TestEmptySection:
 
     def test_check_with_an_empty_title_reports_it(self) -> None:
         #: Given
-        subject = FakeDocumentContext('# Setup\n', corpus='guide', structure=FORBIDS_EMPTY)
+        subject = FakeDocumentDatabase('# Setup\n', corpus='guide', structure=FORBIDS_EMPTY)
 
         #: When
         occurrences = judged(EmptySection, subject)
@@ -92,7 +92,7 @@ class TestEmptySection:
 
     def test_check_with_empty_sections_of_different_levels_reports_each_in_order(self) -> None:
         #: Given
-        subject = FakeDocumentContext(EMPTY_INSTALL + '\n### Linux\n', corpus='guide', structure=FORBIDS_EMPTY)
+        subject = FakeDocumentDatabase(EMPTY_INSTALL + '\n### Linux\n', corpus='guide', structure=FORBIDS_EMPTY)
 
         #: When
         occurrences = judged(EmptySection, subject)
@@ -109,7 +109,7 @@ class TestEmptySection:
 
     def test_check_with_two_specifications_forbidding_empty_sections_reports_each_in_order(self) -> None:
         #: Given
-        subject = FakeDocumentContext(
+        subject = FakeDocumentDatabase(
             EMPTY_INSTALL,
             corpus='guide',
             structure=FORBIDS_EMPTY,
@@ -131,7 +131,7 @@ class TestEmptySection:
 
     def test_check_with_one_of_two_specifications_forbidding_empty_sections_reports_under_it_alone(self) -> None:
         #: Given
-        subject = FakeDocumentContext(
+        subject = FakeDocumentDatabase(
             EMPTY_INSTALL,
             corpus='guide',
             structure=ALLOWS_EMPTY,
@@ -165,7 +165,7 @@ class TestEmptySection:
         structure = (
             '{"empty_sections": "forbidden", "outline": [{"section": "Install", "description": "How to install."}]}'
         )
-        subject = FakeDocumentContext('# Setup\n\n## Install\n', corpus='guide', structure=structure)
+        subject = FakeDocumentDatabase('# Setup\n\n## Install\n', corpus='guide', structure=structure)
         entry = SectionEntry(name=SectionName.parse('Install'), description='How to install.')
 
         #: When
@@ -179,7 +179,7 @@ class TestEmptySection:
     def test_check_with_an_empty_optional_section_carries_no_entry(self) -> None:
         #: Given
         structure = '{"empty_sections": "forbidden", "outline": [{"section": "Install", "optional": true}]}'
-        subject = FakeDocumentContext('# Setup\n\n## Install\n', corpus='guide', structure=structure)
+        subject = FakeDocumentDatabase('# Setup\n\n## Install\n', corpus='guide', structure=structure)
 
         #: When
         occurrences = judged(EmptySection, subject)
@@ -194,7 +194,7 @@ class TestEmptySection:
     def test_check_with_an_empty_subsection_named_like_a_required_section_carries_no_entry(self) -> None:
         #: Given
         structure = '{"empty_sections": "forbidden", "outline": [{"section": "Install"}]}'
-        subject = FakeDocumentContext('# Setup\n\n## Install\n\n### Install\n', corpus='guide', structure=structure)
+        subject = FakeDocumentDatabase('# Setup\n\n## Install\n\n### Install\n', corpus='guide', structure=structure)
 
         #: When
         occurrences = judged(EmptySection, subject)
@@ -208,7 +208,7 @@ class TestEmptySection:
 
     def test_check_with_an_extra_empty_title_does_not_mark_it_as_the_title(self) -> None:
         #: Given
-        subject = FakeDocumentContext('# Setup\n\nText.\n\n# Second\n', corpus='guide', structure=FORBIDS_EMPTY)
+        subject = FakeDocumentDatabase('# Setup\n\nText.\n\n# Second\n', corpus='guide', structure=FORBIDS_EMPTY)
 
         #: When
         occurrences = judged(EmptySection, subject)
@@ -223,7 +223,7 @@ class TestEmptySection:
     def test_check_with_a_section_required_by_another_specification_carries_its_entry(self) -> None:
         #: Given
         required = '{"outline": [{"section": "Install", "description": "How to install."}]}'
-        subject = FakeDocumentContext(
+        subject = FakeDocumentDatabase(
             '# Setup\n\n## Install\n',
             corpus='guide',
             structure=FORBIDS_EMPTY,

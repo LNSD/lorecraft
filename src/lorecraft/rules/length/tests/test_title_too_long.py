@@ -13,7 +13,7 @@ from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.location import Elsewhere, Help, Here, Label, Note
-from lorecraft.rules.tests.fake_database import FakeDocumentContext, judged, namespace_spec, structure_spec_path
+from lorecraft.rules.tests.fake_database import FakeDocumentDatabase, judged, namespace_spec, structure_spec_path
 
 from ..title_too_long import TitleTooLong
 
@@ -43,7 +43,7 @@ def _title_cap(chars: int) -> str:
 class TestTitleTooLong:
     def test_check_with_a_title_over_its_cap_reports_it_at_its_heading(self) -> None:
         #: Given
-        subject = FakeDocumentContext(TEXT, corpus='guide', structure=_title_cap(30))
+        subject = FakeDocumentDatabase(TEXT, corpus='guide', structure=_title_cap(30))
 
         #: When
         occurrences = judged(TitleTooLong, subject)
@@ -55,7 +55,7 @@ class TestTitleTooLong:
 
     def test_check_with_a_title_at_its_cap_reports_nothing(self) -> None:
         #: Given
-        subject = FakeDocumentContext(TEXT, corpus='guide', structure=_title_cap(39))
+        subject = FakeDocumentDatabase(TEXT, corpus='guide', structure=_title_cap(39))
 
         #: When
         occurrences = judged(TitleTooLong, subject)
@@ -65,7 +65,7 @@ class TestTitleTooLong:
 
     def test_check_with_a_specification_setting_no_cap_reports_nothing(self) -> None:
         #: Given
-        subject = FakeDocumentContext(TEXT, corpus='guide', structure=NO_CAP)
+        subject = FakeDocumentDatabase(TEXT, corpus='guide', structure=NO_CAP)
 
         #: When
         occurrences = judged(TitleTooLong, subject)
@@ -75,7 +75,7 @@ class TestTitleTooLong:
 
     def test_check_with_a_document_without_a_title_reports_nothing(self) -> None:
         #: Given
-        subject = FakeDocumentContext(
+        subject = FakeDocumentDatabase(
             '## Run\n\nRun the toolkit over the repository.\n', corpus='guide', structure=_title_cap(1)
         )
 
@@ -88,7 +88,7 @@ class TestTitleTooLong:
     def test_check_with_a_later_h1_over_the_cap_reports_nothing(self) -> None:
         #: Given
         text = '# Setup\n\nRun the toolkit over the repository.\n\n' + TEXT
-        subject = FakeDocumentContext(text, corpus='guide', structure=_title_cap(30))
+        subject = FakeDocumentDatabase(text, corpus='guide', structure=_title_cap(30))
 
         #: When
         occurrences = judged(TitleTooLong, subject)
@@ -98,7 +98,7 @@ class TestTitleTooLong:
 
     def test_check_with_a_cap_set_by_the_namespace_alone_reports_it_under_the_namespace(self) -> None:
         #: Given
-        subject = FakeDocumentContext(
+        subject = FakeDocumentDatabase(
             TEXT, corpus='guide', structure=NO_CAP, namespaces=(namespace_spec('guide', 'cli', _title_cap(35)),)
         )
 
@@ -112,7 +112,7 @@ class TestTitleTooLong:
 
     def test_check_with_a_title_over_only_the_namespace_cap_reports_that_cap(self) -> None:
         #: Given
-        subject = FakeDocumentContext(
+        subject = FakeDocumentDatabase(
             TEXT,
             corpus='guide',
             structure=_title_cap(60),
@@ -129,7 +129,7 @@ class TestTitleTooLong:
 
     def test_check_with_a_title_over_both_caps_reports_each_in_order(self) -> None:
         #: Given
-        subject = FakeDocumentContext(
+        subject = FakeDocumentDatabase(
             TEXT,
             corpus='guide',
             structure=_title_cap(38),
@@ -148,7 +148,9 @@ class TestTitleTooLong:
     def test_check_with_markup_and_a_multibyte_character_counts_the_code_points_of_the_text(self) -> None:
         #: Given
         # `Typing in Python é` is 18 code points, though its `é` is two bytes and its backticks are left out
-        subject = FakeDocumentContext('# Typing in `Python` é\n\nAnnotate.\n', corpus='guide', structure=_title_cap(17))
+        subject = FakeDocumentDatabase(
+            '# Typing in `Python` é\n\nAnnotate.\n', corpus='guide', structure=_title_cap(17)
+        )
 
         #: When
         occurrences = judged(TitleTooLong, subject)

@@ -13,7 +13,7 @@ from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.location import Elsewhere, Help, Here, Label, Note
-from lorecraft.rules.tests.fake_database import FakeDocumentContext, judged, namespace_spec, structure_spec_path
+from lorecraft.rules.tests.fake_database import FakeDocumentDatabase, judged, namespace_spec, structure_spec_path
 
 from ..section_too_many_words import AnyRunCap, NamedSectionCap, SectionTooManyWords
 
@@ -57,7 +57,7 @@ def _outline(*, run: int | None, configuration: int | None) -> str:
 class TestSectionTooManyWords:
     def test_check_with_a_section_over_its_cap_reports_it_at_its_heading(self) -> None:
         #: Given
-        subject = FakeDocumentContext(TEXT, corpus='guide', structure=_outline(run=None, configuration=10))
+        subject = FakeDocumentDatabase(TEXT, corpus='guide', structure=_outline(run=None, configuration=10))
 
         #: When
         occurrences = judged(SectionTooManyWords, subject)
@@ -75,7 +75,7 @@ class TestSectionTooManyWords:
 
     def test_check_with_a_section_at_its_cap_reports_nothing(self) -> None:
         #: Given
-        subject = FakeDocumentContext(TEXT, corpus='guide', structure=_outline(run=None, configuration=12))
+        subject = FakeDocumentDatabase(TEXT, corpus='guide', structure=_outline(run=None, configuration=12))
 
         #: When
         occurrences = judged(SectionTooManyWords, subject)
@@ -85,7 +85,7 @@ class TestSectionTooManyWords:
 
     def test_check_with_no_section_capped_reports_nothing(self) -> None:
         #: Given
-        subject = FakeDocumentContext(TEXT, corpus='guide', structure=_outline(run=None, configuration=None))
+        subject = FakeDocumentDatabase(TEXT, corpus='guide', structure=_outline(run=None, configuration=None))
 
         #: When
         occurrences = judged(SectionTooManyWords, subject)
@@ -95,7 +95,7 @@ class TestSectionTooManyWords:
 
     def test_check_with_two_sections_over_their_caps_reports_each_in_document_order(self) -> None:
         #: Given
-        subject = FakeDocumentContext(TEXT, corpus='guide', structure=_outline(run=5, configuration=10))
+        subject = FakeDocumentDatabase(TEXT, corpus='guide', structure=_outline(run=5, configuration=10))
 
         #: When
         occurrences = judged(SectionTooManyWords, subject)
@@ -137,7 +137,7 @@ class TestSectionTooManyWords:
             'Every signature is annotated, and every annotation is honest.\n'
         )
         outline = '{"outline": [{"section": "Rule", "words": 2}, {"any": true, "words": 2}, {"section": "Checklist"}]}'
-        subject = FakeDocumentContext(text, corpus='guide', structure=outline)
+        subject = FakeDocumentDatabase(text, corpus='guide', structure=outline)
 
         #: When
         occurrences = judged(SectionTooManyWords, subject)
@@ -165,7 +165,7 @@ class TestSectionTooManyWords:
         # `Intro` falls in the first run, capped at 1 word, and `Detail`, after `Middle`, in the second, capped at 5
         text = '# Guide\n\n## Intro\n\nOne.\n\n## Middle\n\nText.\n\n## Detail\n\nOne two three.\n'
         outline = '{"outline": [{"any": true, "words": 1}, {"section": "Middle"}, {"any": true, "words": 5}]}'
-        subject = FakeDocumentContext(text, corpus='guide', structure=outline)
+        subject = FakeDocumentDatabase(text, corpus='guide', structure=outline)
 
         #: When
         occurrences = judged(SectionTooManyWords, subject)
@@ -175,7 +175,7 @@ class TestSectionTooManyWords:
 
     def test_check_with_a_section_over_only_the_namespace_cap_reports_that_cap(self) -> None:
         #: Given
-        subject = FakeDocumentContext(
+        subject = FakeDocumentDatabase(
             TEXT,
             corpus='guide',
             structure=_outline(run=None, configuration=20),
@@ -198,7 +198,7 @@ class TestSectionTooManyWords:
 
     def test_check_with_a_section_over_both_caps_reports_each_in_order(self) -> None:
         #: Given
-        subject = FakeDocumentContext(
+        subject = FakeDocumentDatabase(
             TEXT,
             corpus='guide',
             structure=_outline(run=None, configuration=10),

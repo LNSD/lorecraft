@@ -16,7 +16,7 @@ from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.schemas import DocumentFrontmatterOwner, SkillFrontmatterOwner
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.location import Help, Here, Label, Note
-from lorecraft.rules.tests.fake_database import FakeDocumentContext, FakeSkillDatabase, judged, structure_spec_path
+from lorecraft.rules.tests.fake_database import FakeDocumentDatabase, FakeSkillDatabase, judged, structure_spec_path
 from lorecraft.vfs import ResolvedPath
 
 from ..name_mismatch import NameMismatch
@@ -52,7 +52,7 @@ class TestNameMismatch:
             ---
             # Setup
             """)
-        subject = FakeDocumentContext(text, corpus='guide', structure=STRUCTURE)
+        subject = FakeDocumentDatabase(text, corpus='guide', structure=STRUCTURE)
 
         #: When
         occurrences = judged(NameMismatch, subject)
@@ -73,7 +73,7 @@ class TestNameMismatch:
             ---
             # Setup
             """)
-        subject = FakeDocumentContext(text, corpus='guide', structure=STRUCTURE)
+        subject = FakeDocumentDatabase(text, corpus='guide', structure=STRUCTURE)
 
         #: When
         occurrences = judged(NameMismatch, subject)
@@ -91,7 +91,7 @@ class TestNameMismatch:
             ---
             # Setup
             """)
-        subject = FakeDocumentContext(text, corpus='guide', structure=STRUCTURE)
+        subject = FakeDocumentDatabase(text, corpus='guide', structure=STRUCTURE)
 
         #: When
         occurrences = judged(NameMismatch, subject)
@@ -107,7 +107,7 @@ class TestNameMismatch:
             ---
             # Setup
             """)
-        subject = FakeDocumentContext(text, corpus='guide', structure=STRUCTURE)
+        subject = FakeDocumentDatabase(text, corpus='guide', structure=STRUCTURE)
 
         #: When
         occurrences = judged(NameMismatch, subject)
@@ -138,7 +138,7 @@ class TestNameMismatch:
             ---
             # Setup
             """)
-        subject = FakeDocumentContext(text, corpus='guide', structure=STRUCTURE)
+        subject = FakeDocumentDatabase(text, corpus='guide', structure=STRUCTURE)
 
         #: When
         occurrences = judged(NameMismatch, subject)
