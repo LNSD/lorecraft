@@ -138,7 +138,7 @@ class BrokenLink(MarkdownRule):
                     match entry.lookup:
                         case PathLookup.MISSING:
                             occurrences.append(cls(line=link.line, url=link.url, base=base, target=entry.path))
-                        case PathLookup.PRESENT:
+                        case PathLookup.FILE | PathLookup.DIRECTORY:
                             continue
                         # The scan never read where the path leads, so whether it names anything cannot be told.
                         case PathLookup.OUTSIDE_SCOPE:

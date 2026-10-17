@@ -33,7 +33,7 @@ def _inside(url: str, path: str) -> FrozenMapping[NormalisedLinkPath, LinkTarget
         url: The link's destination, already percent-decoded and normalised, as the key of its entry.
         path: The root-relative path the link names once read from the skill root.
     """
-    target = LinkTarget(path=RootRelativePath.parse(path), lookup=PathLookup.PRESENT)
+    target = LinkTarget(path=RootRelativePath.parse(path), lookup=PathLookup.FILE)
     return FrozenMapping({NormalisedLinkPath.parse(url): target})
 
 

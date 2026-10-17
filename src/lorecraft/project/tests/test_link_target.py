@@ -101,8 +101,8 @@ class TestFindLinkTargetsInASkill:
 
         #: Then
         assert found == {
-            'references/a.md': _link_target('.agents/skills/review/references/a.md', PathLookup.PRESENT),
-            'references': _link_target('.agents/skills/review/references', PathLookup.PRESENT),
+            'references/a.md': _link_target('.agents/skills/review/references/a.md', PathLookup.FILE),
+            'references': _link_target('.agents/skills/review/references', PathLookup.DIRECTORY),
         }, 'a file and a directory the skill holds are both present, keyed by the normalised path'
 
     def test_link_targets_of_with_nothing_at_the_path_finds_it_missing(self) -> None:
@@ -130,7 +130,7 @@ class TestFindLinkTargetsInASkill:
         #: Then
         assert found == {
             'a.md': _link_target('.agents/skills/review/a.md', PathLookup.MISSING),
-            'SKILL.md': _link_target('.agents/skills/review/SKILL.md', PathLookup.PRESENT),
+            'SKILL.md': _link_target('.agents/skills/review/SKILL.md', PathLookup.FILE),
         }, 'every link is read from the skill root, and a `..` cancels the directory written before it'
 
     def test_link_targets_of_with_a_link_to_the_skill_root_itself_finds_it_present(self) -> None:
@@ -142,7 +142,7 @@ class TestFindLinkTargetsInASkill:
         found = _find(urls, REVIEW_ROOT, snapshot)
 
         #: Then
-        assert found == {'.': _link_target('.agents/skills/review', PathLookup.PRESENT)}, (
+        assert found == {'.': _link_target('.agents/skills/review', PathLookup.DIRECTORY)}, (
             'references/.. normalises to the skill root itself, which is not above it'
         )
 
@@ -193,7 +193,7 @@ class TestFindLinkTargetsInASkill:
 
         #: Then
         assert found == {
-            'guides/d.md': _link_target('.agents/skills/review/guides/d.md', PathLookup.PRESENT),
+            'guides/d.md': _link_target('.agents/skills/review/guides/d.md', PathLookup.FILE),
             'guides/e.md': _link_target('.agents/skills/review/guides/e.md', PathLookup.MISSING),
         }, 'the symlink inside the skill is followed to the files it leads to'
 
@@ -210,9 +210,9 @@ class TestFindLinkTargetsInADocument:
 
         #: Then
         assert found == {
-            'setup.md': _link_target('docs/guide/setup.md', PathLookup.PRESENT),
+            'setup.md': _link_target('docs/guide/setup.md', PathLookup.FILE),
             'install.md': _link_target('docs/guide/install.md', PathLookup.MISSING),
-            '../code/rules.md': _link_target('docs/code/rules.md', PathLookup.PRESENT),
+            '../code/rules.md': _link_target('docs/code/rules.md', PathLookup.FILE),
         }, "a document's links are read from its own directory, and a `..` may climb out of it"
 
     def test_link_targets_of_with_a_path_the_scan_never_read_finds_it_outside_the_scope(self) -> None:

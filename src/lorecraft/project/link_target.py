@@ -4,8 +4,9 @@ A relative link is read from a directory that depends on the file. In a file of 
 specification reads it from the skill root, the skill directory where an agent reaches it, whichever file holds it. In
 a document, it is read from the document's own directory, as Markdown renders it. `LinkBase` states which.
 
-`link_targets_of` joins each link's relative path to that directory and looks the result up through a view: present,
-missing, or in a directory the scan never read, so the snapshot cannot tell. Each entry keeps the root-relative path
+`link_targets_of` joins each link's relative path to that directory and looks the result up through a view: a file, a
+directory, missing, or in a directory the scan never read, so the snapshot cannot tell. Each entry keeps the
+root-relative path
 it joined beside the lookup, so a reader says where a link really leads. It is a fact of the revision, never a
 judgment: whether a missing target makes a link broken is a rule's to decide. A link spelling no relative path has no
 entry. One that climbs past its bound has an `EscapingTarget` instead of a `LinkTarget`: above the skill root in a
@@ -66,8 +67,10 @@ type LinkBase = SkillRoot | DocumentDirectory
 class PathLookup(Enum):
     """What the snapshot holds at a root-relative path."""
 
-    PRESENT = 'present'
-    """A file or a directory the snapshot holds, reached through any symlink on the way."""
+    FILE = 'file'
+    """A file the snapshot holds, reached through any symlink on the way."""
+    DIRECTORY = 'directory'
+    """A directory the snapshot holds, reached through any symlink on the way."""
     MISSING = 'missing'
     """Nothing the snapshot holds, in a directory the scan read: no entry, or a symlink that dangles or leads to
     nothing it holds."""
@@ -191,6 +194,8 @@ def _look_up(path: RootRelativePath, view: FileSystem, scope: ScopeIndex) -> Pat
     # the view alone would call it missing.
     if not scope.is_in_scope(path):
         return PathLookup.OUTSIDE_SCOPE
-    if view.find_dir(path) is None and view.find_file(path) is None:
-        return PathLookup.MISSING
-    return PathLookup.PRESENT
+    if view.find_dir(path) is not None:
+        return PathLookup.DIRECTORY
+    if view.find_file(path) is not None:
+        return PathLookup.FILE
+    return PathLookup.MISSING

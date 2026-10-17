@@ -24,7 +24,7 @@ checker on a vague annotation is not a pass.
 Naming of the annotated things is owned by [python-naming](python-naming.md). How a record's fields are
 declared and defaulted is owned by [python-dataclasses](python-dataclasses.md). The prose that documents a
 parameter is owned by [python-docstrings](python-docstrings.md). `Never`, and the branches an annotation
-proves dead, are owned by [python-typing-unreachable](python-typing-unreachable.md).
+proves dead, are owned by the unreachable-code document that extends this one.
 
 ## 1. Make an Invalid State Unrepresentable
 
@@ -38,7 +38,7 @@ no reader needs a branch for it.
 | One record whose fields only make sense in certain combinations, or a `kind` field that decides which other fields mean something | A union of records, one per case: `CorpusSpec \| NamespaceSpec` |
 | A `kind` field whose type admits a case no value can be | One record per outcome that can occur: `ResolvedDirectory \| ResolvedFile` |
 | A tuple read by its length | One record per shape: `CorpusSpecName \| NamespaceSpecName` |
-| A plain value carrying a distinction no runtime check can see | A `NewType` ([python-typing-newtype](python-typing-newtype.md)): `ResolvedPath` |
+| A plain value carrying a distinction no runtime check can see | A `NewType`: `ResolvedPath` |
 | A non-empty guard on a collection whose first item is always there | A required field for that item ([python-dataclasses §4](python-dataclasses.md#4-no-optional-stands-in-for-set-later)) |
 | A bare `str` naming one of several cases | An `Enum`, or a closed union when the cases carry different data |
 
@@ -89,7 +89,7 @@ def target_exists(target: LinkTarget, files: frozenset[RootRelativePath], anchor
 A `Literal` is already closed, and it is right where the value is its own meaning, such as a token a wire
 model mirrors from a file format. Prefer an `Enum` where the cases are domain concepts, because each case is
 then named once and renamed in one place rather than at every literal that spells it. Branching on a closed
-union is owned by [python-typing-unreachable](python-typing-unreachable.md), and declaring each record by
+union is owned by the unreachable-code document that extends this one, and declaring each record by
 [python-dataclasses](python-dataclasses.md).
 
 A runtime check is still right at the edge. Input from outside the process has no type until it is parsed, so
@@ -360,14 +360,6 @@ Before committing code, verify:
   signature
 - [python-modules](python-modules.md) - Related: Import placement and ordering, including the
   `TYPE_CHECKING` block
-- [python-typing-unreachable](python-typing-unreachable.md) - Related: Owns `Never`, the `match` closed by
-  `assert_never` over a closed union, and the paths `ty` cannot prove dead
-- [python-typing-protocol](python-typing-protocol.md) - Related: Owns choosing between a closed union, a
-  `Protocol` and an ABC, and which `collections.abc` type annotates an operation
-- [python-typing-constants](python-typing-constants.md) - Related: Owns when a module-level name is annotated
-  `Final[...]`, and the immutable value it holds
-- [python-typing-newtype](python-typing-newtype.md) - Related: Owns the static distinction for a value no
-  runtime check can tell apart
 - [pattern-value-object](pattern-value-object.md) - Related: Owns the value object that validates its
   invariant on construction
 - [error-boundaries](error-boundaries.md) - Related: Owns whether a failed check raises a built-in or an
