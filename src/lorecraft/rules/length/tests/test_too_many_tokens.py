@@ -186,7 +186,7 @@ class TestTooManyTokens:
 
 
 @pytest.mark.unit
-class TestTokenBudgets:
+class TestTokenFacts:
     def test_token_facts_keeps_the_order_and_skips_specifications_setting_none(self) -> None:
         #: Given
         corpus = structure_spec('code', '{"tokens": 100, "title": {"chars": 20}, "empty_sections": "forbidden"}')
@@ -210,7 +210,7 @@ class TestTokenBudgets:
 
 
 @pytest.mark.unit
-class TestTokenCount:
+class TestTokenFactsCount:
     def test_token_facts_counts_tokens_only_when_a_budget_governs(self) -> None:
         #: Given
         budgeted = structure_spec('code', '{"tokens": 100}')

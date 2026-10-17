@@ -40,8 +40,8 @@ query and hands it the facts sits above in `lorecraft.engine`; the query is answ
 - A rule group, as a subpackage: its `__ruleset__.py` declares the group as `GROUP_ID` and whatever else its rules
   share, its `__init__.py` holds only the docstring, each rule is one module. The `LC` group is declared in
   `identity.py` as `ENGINE_GROUP`, for `EngineCode`, and re-exported as its `GROUP_ID`.
-- A rule's query, per ADR-026: in its module, in the group's `__ruleset__.py` when its rules share it, in
-  `lorecraft.project` when several groups do. A `judge` names its parameter `facts`.
+- A rule's query, per ADR-026: in its module, the shared `__ruleset__.py`, or `lorecraft.project.schemas` for
+  several groups. A `judge` names its parameter `facts`.
 
 ## Belongs Elsewhere
 

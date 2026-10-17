@@ -210,7 +210,7 @@ class FakeDocumentDatabase:
         Args:
             text: The document's whole text, frontmatter included.
             corpus: The document's corpus, which is its meta spec name, such as `guide`.
-            structure: The JSON of the corpus's structure file; a document's context exists only for a
+            structure: The JSON of the corpus's structure file; a document's structure exists only for a
                 corpus that states one.
             namespaces: The namespace meta specs that govern the document, broad to narrow, as `namespace_spec`
                 builds them.

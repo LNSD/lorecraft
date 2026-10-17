@@ -172,7 +172,7 @@ class TestExtensionLink:
 
 
 @pytest.mark.unit
-class TestExtensionLinkFacts:
+class TestExtensionLinkQuery:
     def test_extension_link_facts_of_an_item_that_is_no_document_holds_no_link(self) -> None:
         #: When
         facts = extension_link_facts(StructurePrimitives(()))

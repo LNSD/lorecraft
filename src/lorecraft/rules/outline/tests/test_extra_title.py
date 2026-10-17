@@ -126,7 +126,7 @@ class TestExtraTitle:
 
 
 @pytest.mark.unit
-class TestTitles:
+class TestTitleFacts:
     def test_titles_keeps_only_the_h1_headings_in_document_order(self) -> None:
         #: Given
         primitives = StructurePrimitives(
