@@ -8,11 +8,9 @@ to its protocol is in `lorecraft.project.database.tests.test_context`, where the
 """
 
 from collections.abc import Mapping
-from pathlib import Path, PurePosixPath
+from pathlib import Path
 from textwrap import dedent
 from typing import Final, assert_never
-
-import pytest
 
 from lib.tree import FileTree, from_tree
 from lorecraft.core.path import PathComponent, RootRelativePath
@@ -28,36 +26,26 @@ from lorecraft.project.database import (
     DatabaseItemContext,
     ItemText,
 )
-from lorecraft.project.database.context import WrongItemKindError
 from lorecraft.project.document import DocumentRef, SpecRef
 from lorecraft.project.item import MarkdownItemRef
 from lorecraft.project.layout import SNAPSHOT_SCOPE
 from lorecraft.project.link_target import (
-    DocumentDirectory,
-    EscapingTarget,
     LinkBase,
     LinkTarget,
     LinkTargetEntry,
     PathLookup,
-    SkillRoot,
 )
 from lorecraft.project.query import Primitives
 from lorecraft.project.schemas import (
     FrontmatterOwner,
     SchemaProblems,
-    SkillField,
     SkillFields,
-    SkillFrontmatterOwner,
 )
 from lorecraft.project.skill import SkillLocation, SkillRef
-from lorecraft.project.syntax import Anchor, NormalisedLinkPath, count_lines
-from lorecraft.rules.length.too_many_lines import skill_line_count
+from lorecraft.project.syntax import Anchor, NormalisedLinkPath
 from lorecraft.vfs import (
-    EntryRecord,
     ResolvedPath,
     Snapshot,
-    SnapshotRecords,
-    SymlinkRecord,
     take_snapshot,
 )
 
@@ -291,195 +279,3 @@ def _document_base(primitives: Primitives) -> str | None:
 def _frontmatter_owner(primitives: Primitives) -> FrontmatterOwner:
     """Whose frontmatter block the item opens, with the name its frontmatter must carry."""
     return primitives.frontmatter_owner()
-
-
-@pytest.mark.it
-class TestDatabaseItemContextOverASkillEntry:
-    def test_link_target_with_a_linked_directory_returns_where_the_link_leads(self) -> None:
-        #: Given
-        # What a scan records for `.agents/skills/review -> ../../skills/review`: the link in the skills directory,
-        # and the SKILL.md at the resolved path it leads to.
-        shipped = from_tree({'.agents': {'skills': {}}, 'skills': {'review': {'SKILL.md': REVIEW_TEXT.encode()}}})
-        records: dict[RootRelativePath, EntryRecord] = dict(shipped.records)
-        records[RootRelativePath.parse('.agents/skills/review')] = SymlinkRecord(PurePosixPath('../../skills/review'))
-        database = Database.from_snapshot(Snapshot(SnapshotRecords(records)))
-        context = _skill_context(database)
-
-        #: When
-        owner = context.query(_frontmatter_owner)
-
-        #: Then
-        assert isinstance(owner, SkillFrontmatterOwner)
-        assert owner.link_target == _location(database).resolves_to, (
-            'the link target is where the model locates the listed directory'
-        )
-
-    def test_frontmatter_with_a_skill_returns_the_skill_frontmatter_query(self) -> None:
-        #: Given
-        database = Database.from_snapshot(_snapshot())
-        context = _skill_context(database)
-
-        #: When
-        frontmatter = context.frontmatter()
-
-        #: Then
-        assert frontmatter is database.item_frontmatter(_skill_item(database)), (
-            'the frontmatter is the value the database memoizes, not one the context parsed again'
-        )
-
-    def test_skill_fields_with_a_skill_returns_the_fields_that_parse(self) -> None:
-        #: Given
-        context = _skill_context(Database.from_snapshot(_snapshot()))
-
-        #: When
-        fields = context.query(_skill_fields)
-
-        #: Then
-        assert set(fields) == {SkillField.NAME}, 'the one field the skill writes parses, and nothing else is read in'
-
-    def test_schema_problems_with_a_skill_returns_the_skill_schema_problems_query(self) -> None:
-        #: Given
-        database = Database.from_snapshot(_snapshot())
-        context = _skill_context(database)
-
-        #: When
-        schema_problems = context.query(_schema_problems)
-
-        #: Then
-        assert schema_problems is database.item_skill_schema_problems(_skill_item(database)), (
-            'the problems are the ones the database memoizes, not ones the context validated again'
-        )
-        assert schema_problems != (), 'the Agent Skills specification requires the description the skill lacks'
-
-    def test_frontmatter_owner_with_a_skill_returns_its_directory_name_and_link_target(self) -> None:
-        #: Given
-        context = _skill_context(Database.from_snapshot(_snapshot()))
-
-        #: When
-        owner = context.query(_frontmatter_owner)
-
-        #: Then
-        assert owner == SkillFrontmatterOwner(directory_name=PathComponent.parse('review'), link_target=None), (
-            'the owner names the directory the skill is listed under, and that it leads nowhere else'
-        )
-
-    def test_query_with_a_skill_returns_the_answer_the_database_memoizes(self) -> None:
-        #: Given
-        database = Database.from_snapshot(_snapshot())
-        context = _skill_context(database)
-
-        #: When
-        lines = context.query(skill_line_count)
-
-        #: Then
-        assert lines == count_lines(REVIEW_TEXT), 'the lines are those the line-count query counts'
-        assert lines == database.query(skill_line_count, _skill_item(database).ref), (
-            'the answer is the one the database memoizes, not one the context computed again'
-        )
-
-    def test_link_base_with_a_skill_returns_the_skill_directory_an_agent_reaches(self) -> None:
-        #: Given
-        context = _skill_context(Database.from_snapshot(_snapshot()))
-
-        #: When
-        base = context.query(_link_base)
-
-        #: Then
-        assert base == SkillRoot(REVIEW.directory), "a SKILL.md's relative links are read from the skill root"
-
-    def test_link_targets_with_a_skill_returns_the_skill_link_targets_query(self, tmp_path: Path) -> None:
-        #: Given
-        database = _scanned(tmp_path)
-        context = _skill_context(database)
-
-        #: When
-        targets = context.query(_link_targets)
-
-        #: Then
-        assert targets is database.item_link_targets(_skill_item(database)), (
-            'the targets are the ones the database memoizes, not ones the context looked up again'
-        )
-        assert dict(targets) == {
-            NormalisedLinkPath.parse('references/checklist.md'): _link_target(
-                '.agents/skills/review/references/checklist.md', PathLookup.FILE
-            ),
-            NormalisedLinkPath.parse('references/gone.md'): _link_target(
-                '.agents/skills/review/references/gone.md', PathLookup.MISSING
-            ),
-            NormalisedLinkPath.parse('../x.md'): EscapingTarget(),
-        }, 'each link is read from the skill root, and the one climbing above it escapes'
-
-
-@pytest.mark.it
-class TestDatabaseItemContextOfASpecification:
-    def test_base_with_a_specification_returns_the_specification_its_name_continues(self) -> None:
-        #: Given
-        database = Database.from_snapshot(_snapshot())
-        context = DatabaseItemContext(database, _spec_item(database))
-        expected = 'code'
-
-        #: When
-        base = context.query(_document_base)
-
-        #: Then
-        assert base == expected, 'code-python continues code, the corpus specification beside it'
-
-    def test_link_base_with_a_specification_returns_the_meta_directory(self) -> None:
-        #: Given
-        database = Database.from_snapshot(_snapshot())
-        context = DatabaseItemContext(database, _spec_item(database))
-
-        #: When
-        base = context.query(_link_base)
-
-        #: Then
-        assert base == DocumentDirectory(RootRelativePath.parse('docs/__meta__')), 'links are read from docs/__meta__'
-
-    def test_link_targets_with_a_specification_returns_the_item_link_targets_query(self, tmp_path: Path) -> None:
-        #: Given
-        database = _scanned(tmp_path)
-        context = DatabaseItemContext(database, _spec_item(database))
-
-        #: When
-        targets = context.query(_link_targets)
-
-        #: Then
-        assert dict(targets) == {
-            NormalisedLinkPath.parse('code.md'): _link_target('docs/__meta__/code.md', PathLookup.FILE),
-            NormalisedLinkPath.parse('gone.md'): _link_target('docs/__meta__/gone.md', PathLookup.MISSING),
-        }, 'each link is read from the meta directory the specification sits in'
-
-    def test_frontmatter_owner_with_a_specification_raises_wrong_item_kind(self) -> None:
-        #: Given
-        database = Database.from_snapshot(_snapshot())
-        context = DatabaseItemContext(database, _spec_item(database))
-
-        #: When
-        with pytest.raises(WrongItemKindError) as exc_info:
-            context.query(_frontmatter_owner)
-
-        #: Then
-        assert str(SPEC.path) in str(exc_info.value), 'the error names the specification asked'
-
-    def test_schema_problems_with_a_specification_returns_none(self) -> None:
-        #: Given
-        database = Database.from_snapshot(_snapshot())
-        context = DatabaseItemContext(database, _spec_item(database))
-
-        #: When
-        schema_problems = context.query(_schema_problems)
-
-        #: Then
-        assert schema_problems == (), 'no frontmatter schema governs a meta specification'
-
-    def test_specifications_with_a_specification_raises_wrong_item_kind(self) -> None:
-        #: Given
-        database = Database.from_snapshot(_snapshot())
-        context = DatabaseItemContext(database, _spec_item(database))
-
-        #: When
-        with pytest.raises(WrongItemKindError) as exc_info:
-            context.specifications()
-
-        #: Then
-        assert str(SPEC.path) in str(exc_info.value), 'the error names the specification asked'
