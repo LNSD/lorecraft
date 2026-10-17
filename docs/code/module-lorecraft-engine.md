@@ -22,14 +22,14 @@ returns at its subject, as a diagnostic of `lorecraft.rules.report`.
 
 ## Belongs Here
 
-- The shared runner (`runner.py`): decoding a resource, the governance lookup, facet gating, running the
-  table's rules over a subject's context, and building its report. A document or skill entry is decoded by each
-  mode's entry point, so its policy comes after decoding, and `judge_item` judges either through one facet loop over
-  the descriptor's active facets. A rule runs over an item of a kind it applies to, and only when the item is governed
+- The shared runner (`runner.py`): the governance lookup, facet gating, running the table's rules over a
+  subject's context, and building its report. A document, skill entry or skill resource is decoded by each
+  mode's entry point, so its policy comes after decoding, and `judge_item` judges any of them through one facet loop
+  over the descriptor's active facets. A rule runs over an item of a kind it applies to, and only when the item is governed
   for the facet the rule reads; each facet an applicable rule reads that the item is not governed for is recorded as
   coverage. A rule over a Markdown file runs over a document governed for its structure, a skill's `SKILL.md` and
-  each resource handed over as a subject of its own. A
-  document's, a skill's and a resource's report is one `CheckedItem`; a skill file's holds no coverage, because the
+  each resource handed over as a subject of its own, whose descriptor activates no facet the package does not govern.
+  A document's, a skill's and a resource's report is one `CheckedItem`; a skill file's holds no coverage, because the
   package governs every skill file in full and no rule gated on a facet judges one.
 - One entry point per mode: `skip.py` gives documents and skill entries governed by a failed layer no rule, and
   skips skill files whose docs target was refused; `partial.py` is for the LSP-style mode later.
@@ -124,8 +124,9 @@ Before committing code, verify:
 - [ ] A mode's policy sits in that mode's own entry point; `runner.py` takes no policy parameter and no callback
 - [ ] A new load-failure condition is reported by `load_failures.py`, whose match stays exhaustive, and a skipped
   document names each failed layer's structure file
-- [ ] A document or skill entry is decoded by each mode's entry point, so its policy comes after decoding; the item
-  is asked for by its common reference, and the skip decision reads its governance; `runner.py` decodes a resource only
+- [ ] A document, skill entry or resource is decoded by each mode's entry point, so its policy comes after decoding; the
+  item is asked for by its common reference, and the skip decision reads its governance, which a resource is exempt
+  from; `runner.py` decodes nothing
 - [ ] `judge_item` asks a rule its kinds and facet, never its base; only building the report matches on the kind
 - [ ] Nothing here imports `lorecraft.cli` or `typer`
 

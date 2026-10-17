@@ -11,7 +11,8 @@ file at the descriptor's read location into one `ItemText` witness or an `Undeco
 `item_outline_alignment` and `item_outline_divergences` take that witness and are computed on first demand. Link targets
 read the descriptor's link base, so no query tells a document from a skill entry; the analyses read
 `item_governance(ref)`, never the whole model. A document the model does not list is answered for by the corpus and
-filename its path names. A skill's resources are the one kind of file still queried apart.
+filename its path names. A skill's resource is answered for by the reference `resource_item` registers from its
+skill's listing.
 
 Input queries read the snapshot. Each is the one place its part of the snapshot becomes a value for a rule, so only an
 input query builds a witness or fails to read, and each states its own carry-over rule against the change set:
@@ -21,25 +22,22 @@ input query builds a witness or fails to read, and each states its own carry-ove
   specifications, the corpus directories, the skills directories and the listing of each skill's directory, nothing
   deeper inside a skill, and no document's contents. Among that structure it records each skills directory, skill
   entry and `SKILL.md` whose symlink chain leaves the repository.
-- `item_text(ref)`: one document's or skill entry's bytes decoded as UTF-8, like the IDE's document text for a file: an
-  `ItemText` witness, or an `Undecodable` marker when the bytes are not UTF-8. It is the one place their bytes become
-  text for a rule, and it reads that file's bytes and nothing else.
+- `item_text(ref)`: one document's, skill entry's or skill resource's bytes decoded as UTF-8, like the IDE's document
+  text for a file: an `ItemText` witness, or an `Undecodable` marker when the bytes are not UTF-8. It is the one place
+  their bytes become text for a rule, and it reads that file's bytes and nothing else.
 - `skill_resources(skill)`: one skill's resources, the Markdown files inside it other than its top-level `SKILL.md`,
   like the IDE's listing of a content root's children, and the symlinks inside it whose chain leaves the
   repository. It reads the listings and the symlink targets reached from that skill, and where the model locates
   the skill, and no file's content.
-- `skill_resource_text(resource)`: one resource decoded, the same document text: a `SkillResourceText` witness, or an
-  `Undecodable` marker. It reads that resource's bytes, and where its skill's listing locates it, and nothing else.
 - The `ScopeIndex` behind `is_in_scope(path)`: the scope the snapshot records it was taken of, expanded once
   through the links it recorded, like the IDE's index of a project's content roots. It reads the snapshot's
   scope, links and climbed directories and nothing else, and no caller reaches it but `is_in_scope` and the
   link-target queries.
-- `item_link_targets(source)` and `skill_resource_link_targets(source)`: what the snapshot holds at the target of each
-  relative link of one item or resource, like the IDE's index of a file's references resolved against the virtual file
-  system. Each hands the file's parse, where its links are read from, the snapshot's view and the scope index to
-  `link_targets_of`, which reads, for each path a link names, the snapshot's records on the way to it, so each is an
-  input query: it is kept only when its parse is kept and every path it looked up, an absent target included, still
-  resolves to the same place and is in the same scope state.
+- `item_link_targets(source)`: what the snapshot holds at the target of each relative link of one item, like the IDE's
+  index of a file's references resolved against the virtual file system. It hands the file's parse, where its links
+  are read from, the snapshot's view and the scope index to `link_targets_of`, which reads, for each path a link names,
+  the snapshot's records on the way to it, so it is an input query: it is kept only when its parse is kept and every
+  path it looked up, an absent target included, still resolves to the same place and is in the same scope state.
 
 Derived queries read the results of other queries and never the snapshot. Each hands what it read to one function
 of this package that computes the value, so its arguments are its read set, and it carries over whenever every query
@@ -64,8 +62,6 @@ it read does, `item_governance(ref)` excepted, as its bullet states:
 - `item_skill_schema_problems(source)` and `item_skill_fields(source)`: what the Agent Skills specification rejects in
   one skill entry's frontmatter and the fields of it that parse, each on its own. They read `item_frontmatter(source)`
   and nothing else: the package states the specification, so no specification in the repository plays a part.
-- `skill_resource_parse(source)`: one resource's parse tree, the same syntax tree again. It reads the text of the
-  witness `skill_resource_text(resource)` returned and nothing else.
 
 Three questions are asked of the snapshot's records directly and their answers are never cached, since an answer for
 one path is cheap:
@@ -156,7 +152,7 @@ from lorecraft.project.corpus import (
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.item import ItemReadError, MarkdownItemDescriptor, MarkdownItemRef, UnlistedItemError
 from lorecraft.project.layout import DOCS_DIR, DOCUMENT_SUFFIX, SPECS_DIR, reject_linked_layout
-from lorecraft.project.link_target import LinkTargetEntry, SkillRoot, link_targets_of
+from lorecraft.project.link_target import LinkTargetEntry, link_targets_of
 from lorecraft.project.schemas import (
     OutlineAlignmentSpec,
     OutlineDivergenceSpec,
@@ -172,11 +168,8 @@ from lorecraft.project.skill import Repository as SkillRepository
 from lorecraft.project.skill import (
     SkillLocation,
     SkillRef,
-    SkillResourceDecodeError,
     SkillResourceListing,
     SkillResourceLocation,
-    SkillResourceReadError,
-    SkillResourceRef,
     SkillResourcesListError,
     SkillResourcesSymlinkResolveError,
 )
@@ -204,7 +197,7 @@ from lorecraft.vfs import (
     VirtualFileSystem,
 )
 
-from .text import ItemText, SkillResourceText, Undecodable
+from .text import ItemText, Undecodable
 
 logger = logging.getLogger(__name__)
 
@@ -231,7 +224,7 @@ def _document_at(ref: MarkdownItemRef) -> DocumentRef | None:
 
 
 def _witness_text(
-    source: ItemText | SkillResourceText | Undecodable[MarkdownItemRef] | Undecodable[SkillResourceRef],
+    source: ItemText | Undecodable,
 ) -> str | None:
     """The text a decode query returned, or None when its file is not UTF-8.
 
@@ -277,7 +270,7 @@ class Database:
         self._items: dict[MarkdownItemRef, ResolvedItem] = {}
         # What the compatibility entry points resolved for a document the model does not list; never an item's answer.
         self._unlisted_items: dict[MarkdownItemRef, ResolvedItem] = {}
-        self._item_texts: dict[MarkdownItemRef, ItemText | Undecodable[MarkdownItemRef]] = {}
+        self._item_texts: dict[MarkdownItemRef, ItemText | Undecodable] = {}
         self._item_link_targets: dict[MarkdownItemRef, Mapping[NormalisedLinkPath, LinkTargetEntry]] = {}
         self._item_frontmatters: dict[MarkdownItemRef, FrontmatterNode] = {}
         self._item_parses: dict[MarkdownItemRef, ParsedDocument] = {}
@@ -288,11 +281,8 @@ class Database:
         self._item_schema_problems: dict[MarkdownItemRef, tuple[SchemaProblems, ...]] = {}
         self._item_outline_alignments: dict[MarkdownItemRef, tuple[OutlineAlignmentSpec, ...]] = {}
         self._item_outline_divergences: dict[MarkdownItemRef, tuple[OutlineDivergenceSpec, ...]] = {}
-        # The compatibility entry points' witnesses, wrapped from the unified decode; they decode nothing themselves.
+        # Each skill's resource listing, found on the first call; a resource is registered from it with `resource_item`.
         self._skill_resources: dict[SkillRef, SkillResourceListing] = {}
-        self._skill_resource_texts: dict[SkillResourceRef, SkillResourceText | Undecodable[SkillResourceRef]] = {}
-        self._skill_resource_link_targets: dict[SkillResourceRef, Mapping[NormalisedLinkPath, LinkTargetEntry]] = {}
-        self._skill_resource_parses: dict[SkillResourceRef, ParsedDocument] = {}
         self._item_skill_schema_problems: dict[MarkdownItemRef, tuple[SchemaProblems, ...]] = {}
         self._item_skill_fields: dict[MarkdownItemRef, SkillFields] = {}
 
@@ -360,7 +350,6 @@ class Database:
             text = self._source_text(path)
         except (
             ItemReadError,
-            SkillResourceReadError,
             SkillResourcesListError,
             SkillResourcesSymlinkResolveError,
         ):
@@ -378,8 +367,8 @@ class Database:
             path: The root-relative file, as `source_lines` is asked for it.
 
         Raises:
-            ItemReadError: If the snapshot holds no regular file at the document's or the skill's `SKILL.md`.
-            SkillResourceReadError: If the snapshot holds no regular file at the resource's resolved file.
+            ItemReadError: If the snapshot holds no regular file at the document's, the skill's `SKILL.md` or the
+                resource's resolved file.
             SkillResourcesListError: If a directory the walk over the skill's resources enters cannot be listed.
             SkillResourcesSymlinkResolveError: If a symlink the walk over the skill's resources meets cannot be
                 resolved.
@@ -394,7 +383,7 @@ class Database:
             if path.is_relative_to(location.ref.directory):
                 for resource in self.skill_resources(location).resources:
                     if path == resource.ref.path:
-                        return _witness_text(self.skill_resource_text(resource))
+                        return _witness_text(self.item_text(self.resource_item(resource)))
 
         if path.parent == SPECS_DIR:
             try:
@@ -440,71 +429,11 @@ class Database:
             self._skill_resources[skill.ref] = resources
         return resources
 
-    # Takes the location its listing issued where `text` takes a ref: the model locates a document by its ref, but
-    # only the skill's resource listing locates a resource's file.
-    def skill_resource_text(self, resource: SkillResourceLocation) -> SkillResourceText | Undecodable[SkillResourceRef]:
-        """One resource of a skill decoded as UTF-8, read from the snapshot on the first call for its ref.
-
-        The resource is read at the resolved file its location records, as `skill_resources` lists it, never at
-        `resource.ref.path`. The one place a resource's bytes become text for a rule: every other query about it takes
-        the witness this returns. A resource that is not UTF-8 is cached as `Undecodable` like any answer, so it is
-        decoded once.
-
-        Carry-over: kept for the next revision only when the next `skill_resources` of its skill locates the ref at
-        the same resolved file and that file's bytes did not change.
-
-        A resource that cannot be read is not cached, so each call raises the same error again.
-
-        Args:
-            resource: The resource to decode, as `skill_resources` locates it; its ref is the cache key, so one ref
-                is decoded once.
-
-        Returns:
-            The witness, or `Undecodable` when the resource is present but not UTF-8: such bytes are a finding
-            about the file, on the same side of the line as invalid YAML, not the failure to read it a missing file
-            is.
-
-        Raises:
-            SkillResourceReadError: If the snapshot holds no regular file at the resolved file the ref leads to.
-        """
-        source = self._skill_resource_texts.get(resource.ref)
-        if source is None:
-            try:
-                source = SkillResourceText(resource.ref, self._skills.get_skill_resource(resource).text)
-            except SkillResourceDecodeError as exc:
-                source = Undecodable(resource.ref, exc.source.failure)
-            self._skill_resource_texts[resource.ref] = source
-        return source
-
     def _built_scope_index(self) -> ScopeIndex:
         """The scope index `is_in_scope` and the link-target queries answer from, built on the first call."""
         if self._scope_index is None:
             self._scope_index = ScopeIndex(self._snapshot)
         return self._scope_index
-
-    def skill_resource_link_targets(self, source: SkillResourceText) -> Mapping[NormalisedLinkPath, LinkTargetEntry]:
-        """Where each relative link in a resource of a skill leads and what the snapshot holds there, on the first call.
-
-        Each link is read from the root of the resource's skill, where an agent reaches it, as `link_targets_of`
-        states, and looked up through the snapshot's view and scope. Raises nothing.
-
-        Carry-over: kept for the next revision only when `skill_resource_parse(source)` is kept and every path the query
-        looked up, an absent target included, still resolves to the same place and is in the same scope state:
-        creating a missing target, deleting a present one or retargeting a symlink on the way to one must change its
-        entry.
-
-        Args:
-            source: The file's text, the witness every per-file query takes; its ref is the cache key, so one ref is
-                looked up once.
-        """
-        targets = self._skill_resource_link_targets.get(source.ref)
-        if targets is None:
-            base = SkillRoot(source.ref.skill.directory)
-            targets = link_targets_of(
-                self.skill_resource_parse(source).links, base, self._fs, self._built_scope_index()
-            )
-            self._skill_resource_link_targets[source.ref] = targets
-        return targets
 
     # The unified family: one query per fact for a document or a skill entry, keyed by the common reference.
 
@@ -531,7 +460,7 @@ class Database:
             self._items[ref] = resolved
         return resolved
 
-    def item_text(self, ref: MarkdownItemRef) -> ItemText | Undecodable[MarkdownItemRef]:
+    def item_text(self, ref: MarkdownItemRef) -> ItemText | Undecodable:
         """One item's bytes decoded as UTF-8, read from the descriptor's read location on the first call for its ref.
 
         The one place a document's or skill entry's bytes become text for a rule: every other query about the item
@@ -577,7 +506,7 @@ class Database:
             self._document_item(document)
             return self._known(ref)
 
-    def _decode(self, ref: MarkdownItemRef) -> ItemText | Undecodable[MarkdownItemRef]:
+    def _decode(self, ref: MarkdownItemRef) -> ItemText | Undecodable:
         """Decode an item the database already resolved, listed or not, once."""
         decoded = self._item_texts.get(ref)
         if decoded is None:
@@ -823,21 +752,6 @@ class Database:
             found = parse_skill_fields(self.item_frontmatter(source))
             self._item_skill_fields[source.ref] = found
         return found
-
-    def skill_resource_parse(self, source: SkillResourceText) -> ParsedDocument:
-        """The parse tree of one resource of a skill, parsed on the first call for its ref. Raises nothing.
-
-        Carry-over: kept for the next revision whenever `skill_resource_text` keeps the text of `source.ref`.
-
-        Args:
-            source: The resource's text, as `skill_resource_text(resource)` returns it; its ref is the cache key, so one
-                ref is parsed once.
-        """
-        parsed = self._skill_resource_parses.get(source.ref)
-        if parsed is None:
-            parsed = parse_document(source.text)
-            self._skill_resource_parses[source.ref] = parsed
-        return parsed
 
     # Not queries: each is answered from the snapshot on every call and never cached.
 

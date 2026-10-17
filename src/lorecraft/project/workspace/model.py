@@ -542,7 +542,9 @@ class WorkspaceModel:
 
         The model lists no resource: only the skill's resource listing locates one, so the caller hands the location
         over. The resource keeps its own ref and read location, and takes the governance identity of its skill, never
-        of its filename. Only the Markdown facet is active, so no entry-only check judges it.
+        of its filename. The package governs a resource as it does a skill entry, so the structure facet its Markdown
+        rules read is active; the frontmatter, outline and budget facets stay inactive, so no entry-only check
+        judges it.
 
         Args:
             location: Resource to resolve, as its skill's resource listing locates it.
@@ -555,7 +557,7 @@ class WorkspaceModel:
             origin=SkillResourceOrigin(skill_entry=str(skill.entry)),
             governance_corpus='skills',
             aspect_name=str(skill.entry),
-            active_facets=frozenset({ItemFacet.MARKDOWN}),
+            active_facets=frozenset({ItemFacet.STRUCTURE, ItemFacet.MARKDOWN}),
         )
         return ResolvedItem(descriptor, self.find_skill_governance(skill))
 

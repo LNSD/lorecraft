@@ -1,15 +1,14 @@
 """The contexts of `lorecraft.project.context`, answered by the database's queries for one decoded subject.
 
-`DatabaseItemContext` and `DatabaseSkillResourceContext` implement `DocumentContext` and `SkillContext`, and
-`SkillResourceContext`. Each holds the database and the decode query's witness, and nothing it computed: every fact,
-a document's governance included, is the matching memoized query of the database, so a fact nobody asks for is never
-computed, and one asked for twice is computed once. An identity value, such as a document's filename or a skill's
-directory name, is read from the descriptor's origin.
+`DatabaseItemContext` implements `DocumentContext`, `SkillContext` and `SkillResourceContext`. It holds the database
+and the decode query's witness, and nothing it computed: every fact, a document's governance included, is the matching
+memoized query of the database, so a fact nobody asks for is never computed, and one asked for twice is computed once.
+An identity value, such as a document's filename or a skill's directory name, is read from the descriptor's origin.
 
 A context is built only from a witness, so no fact of a file that does not decode can be asked for. The item context
-answers for a document and for a skill entry alike; a fact only one kind has, or a document's governance when none
-governs it, is a defect of the caller to ask for, and raises `WrongItemKindError`. The rule bases name the kinds they
-apply to and the facet they read, so a rule that runs never asks.
+answers for a document, a skill entry and a skill's resource alike; a fact only one kind has, or a document's
+governance when none governs it, is a defect of the caller to ask for, and raises `WrongItemKindError`. The rule bases
+name the kinds they apply to and the facet they read, so a rule that runs never asks.
 
 `DatabaseLayoutContext` implements `LayoutContext`. A layout entry has no text, so it has no witness and no per-file
 query: the context holds the `OutsideSymlink` record the model's `outside_symlinks` or a skill's `skill_resources`
@@ -23,7 +22,7 @@ from lorecraft.core.path import PathComponent
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.context import DocumentFrontmatterOwner, SkillFrontmatterOwner
 from lorecraft.project.item import DocumentOrigin, MarkdownItemRef, SkillEntryOrigin, SkillResourceOrigin
-from lorecraft.project.link_target import LinkBase, LinkTargetEntry, SkillRoot
+from lorecraft.project.link_target import LinkBase, LinkTargetEntry
 from lorecraft.project.schemas import (
     OutlineAlignmentSpec,
     OutlineDivergenceSpec,
@@ -37,7 +36,7 @@ from lorecraft.project.workspace import Governance
 from lorecraft.vfs import ResolvedPath, RootExit
 
 from .database import Database
-from .text import ItemText, SkillResourceText
+from .text import ItemText
 
 
 class WrongItemKindError(TypeError):
@@ -233,33 +232,6 @@ class DatabaseItemContext:
         """
         self._document()
         return self._database.item_outline_divergences(self._source)
-
-
-class DatabaseSkillResourceContext:
-    """One resource of a skill whose file decoded, as the database answers for it; a `SkillResourceContext`."""
-
-    def __init__(self, database: Database, source: SkillResourceText) -> None:
-        """Bind the context to one decoded resource.
-
-        Args:
-            database: The revision the resource is read from.
-            source: The resource's text, as `Database.skill_resource_text` returns it: the witness every per-file
-                query takes.
-        """
-        self._database = database
-        self._source = source
-
-    def parse(self) -> ParsedDocument:
-        """The resource's parse tree, from the `skill_resource_parse` query."""
-        return self._database.skill_resource_parse(self._source)
-
-    def link_base(self) -> SkillRoot:
-        """The directory of the resource's skill where an agent reaches it, read from its ref."""
-        return SkillRoot(self._source.ref.skill.directory)
-
-    def link_targets(self) -> Mapping[NormalisedLinkPath, LinkTargetEntry]:
-        """Where each relative link leads and what the snapshot holds there, from `skill_resource_link_targets`."""
-        return self._database.skill_resource_link_targets(self._source)
 
 
 class DatabaseLayoutContext:

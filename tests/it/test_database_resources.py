@@ -63,7 +63,9 @@ class TestResourceItems:
         assert descriptor.ref == MarkdownItemRef(location.ref.path), 'the resource keeps its own reported path'
         assert descriptor.kind is ItemKind.SKILL_RESOURCE, 'the descriptor is for a skill resource'
         assert descriptor.read_location == location.resolves_to, 'the text is read at the listed resolved file'
-        assert descriptor.active_facets == {ItemFacet.MARKDOWN}, 'no entry-only facet is active for a resource'
+        assert descriptor.active_facets == {ItemFacet.STRUCTURE, ItemFacet.MARKDOWN}, (
+            "only the package's Markdown governance is active, never the entry-only facets"
+        )
 
     def test_item_text_of_resources_with_the_same_filename_keeps_a_ref_and_owner_for_each(self) -> None:
         #: Given

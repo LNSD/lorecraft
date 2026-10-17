@@ -13,7 +13,7 @@ from lorecraft.project.database import Database, ItemText
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.item import MarkdownItemRef
 from lorecraft.rules.registry import Registry
-from lorecraft.rules.report import SkippedSubject, UndecodableSubject
+from lorecraft.rules.report import CheckedItem, SkippedSubject, UndecodableSubject
 from lorecraft.rules.selection import AllRules, RuleSelection
 from lorecraft.rules.table import RuleTable
 
@@ -148,6 +148,37 @@ class TestCheckSubjectsOverASkillEntry:
         expected = SkippedSubject(location.ref, (first.path, *(layer.path for layer in others)))
         assert reports == (expected,), (
             'the skip decision reads the governance, not the kind, so a failed layer skips a skill entry as a document'
+        )
+
+    def test_check_subjects_with_a_failed_layer_still_judges_a_resource_for_markdown_checks_only(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        #: Given
+        failed = _database_with(
+            {'code.spec.json': STATES_NO_RULE, 'code-python.spec.json': CORPUS_SPEC}, {'python-typing.md': DOCUMENT}
+        )
+        governance = failed.item_governance(MarkdownItemRef(TYPING.path))
+        assert governance is not None, 'the corpus is in the model, so its governance is found'
+        assert governance.failed_layers(), 'a layer failed to load'
+        snapshot = from_tree(
+            {
+                '.agents': {
+                    'skills': {'review': {'SKILL.md': b'---\nname: review\n---\n', 'guide.md': b'Read [x](/x.md).\n'}}
+                }
+            }
+        )
+        database = Database.from_snapshot(snapshot)
+        (location,) = database.skill_resources(database.model().sorted_skill_locations[0]).resources
+        monkeypatch.setattr(database, 'item_governance', lambda _ref: governance)
+
+        #: When
+        (report,) = check_subjects(database, [location], _all_rules())
+
+        #: Then
+        assert isinstance(report, CheckedItem), 'a failed layer suppresses none of a resource, which it does not govern'
+        assert report.ungoverned == (), 'the package governs a resource, so no facet is recorded as ungoverned'
+        assert [type(item.occurrence).__name__ for item in report.diagnostics] == ['AbsoluteLink'], (
+            'only the Markdown and skill-file checks judge a resource: no name, frontmatter, outline or budget rule'
         )
 
 

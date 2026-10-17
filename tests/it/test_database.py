@@ -24,7 +24,7 @@ from lorecraft.core.num import NonZeroUnsignedInt, UnsignedInt
 from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
-from lorecraft.project.database import Database, ItemText, SkillResourceText, Undecodable
+from lorecraft.project.database import Database, ItemText, Undecodable
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.item import MarkdownItemRef
 from lorecraft.project.layout import LinkedLayoutError
@@ -488,8 +488,8 @@ class TestDatabase:
         database = Database.from_snapshot(snapshot)
         location = database.model().skill_locations[REVIEW]
         resource = database.skill_resources(location).resources[0]
-        decoded = database.skill_resource_text(resource)
-        assert isinstance(decoded, SkillResourceText), 'the resource was written as UTF-8, so it decodes'
+        decoded = database.item_text(database.resource_item(resource))
+        assert isinstance(decoded, ItemText), 'the resource was written as UTF-8, so it decodes'
 
         #: When
         lines = database.source_lines(resource.ref.path)
