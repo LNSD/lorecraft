@@ -19,11 +19,11 @@ GUIDE: Final[MarkdownItemRef] = MarkdownItemRef(RootRelativePath.parse('docs/cod
 SKILL: Final[MarkdownItemRef] = MarkdownItemRef(RootRelativePath.parse('.agents/skills/review/SKILL.md'))
 SPEC_PATH: Final[RootRelativePath] = RootRelativePath.parse('docs/__meta__/code.spec.json')
 SPEC: Final[bytes] = b'{"tokens": 500, "title": {"words": 2}, "empty_sections": "forbidden"}'
-TEXT: Final[bytes] = b'# A Long Title\n\n## Empty\n\n## Full\n\nText.\n'
+TEXT: Final[bytes] = b'# A Long Title\n\n## Empty\n\n## Full\n\n[more](guide-more.md)\n[none](guide-none.md)\n'
 
 
 def _snapshot(root: Path) -> Snapshot:
-    """A scanned `code` corpus with a `guide` document, and a skill.
+    """A scanned `code` corpus with a `guide` document linking its extension `guide-more.md`, and a skill.
 
     Args:
         root: The empty directory the repository is written to.
@@ -32,6 +32,7 @@ def _snapshot(root: Path) -> Snapshot:
         'docs/__meta__/code.md': b'# Code\n',
         'docs/__meta__/code.spec.json': SPEC,
         'docs/code/guide.md': TEXT,
+        'docs/code/guide-more.md': b'# More\n',
         '.agents/skills/review/SKILL.md': b'---\nname: review\n---\n',
     }
     for name, content in files.items():
@@ -173,6 +174,18 @@ class TestDocumentFactQueries:
         with pytest.raises(UnlistedItemError):
             database.item_empty_section_specs(MarkdownItemRef(RootRelativePath.parse('README.md')))
 
+    def test_item_extension_links_called_twice_returns_the_first_answer(self, tmp_path: Path) -> None:
+        #: Given
+        database = Database.from_snapshot(_snapshot(tmp_path))
+        source = _decoded(database)
+        first = database.item_extension_links(source)
+
+        #: When
+        second = database.item_extension_links(source)
+
+        #: Then
+        assert second is first, 'the links are memoized'
+
 
 @pytest.mark.it
 class TestDocumentFactContext:
@@ -266,3 +279,21 @@ class TestDocumentFactContext:
         #: When / Then
         with pytest.raises(WrongItemKindError):
             context.empty_headings()
+
+    def test_extension_links_holds_the_link_to_the_existing_extension_only(self, tmp_path: Path) -> None:
+        #: Given
+        context = _context(Database.from_snapshot(_snapshot(tmp_path)), GUIDE)
+
+        #: When
+        links = context.extension_links()
+
+        #: Then
+        assert [(link.line.value, link.extension) for link in links] == [(7, 'guide-more.md')], 'the existing one'
+
+    def test_extension_links_of_a_skill_entry_raises_wrong_item_kind_error(self, tmp_path: Path) -> None:
+        #: Given
+        context = _context(Database.from_snapshot(_snapshot(tmp_path)), SKILL)
+
+        #: When / Then
+        with pytest.raises(WrongItemKindError):
+            context.extension_links()
