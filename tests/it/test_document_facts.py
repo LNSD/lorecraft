@@ -18,6 +18,7 @@ from lorecraft.project.link_target import DocumentLink
 from lorecraft.project.schemas import title_facts
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.length.too_many_tokens import token_facts
+from lorecraft.rules.link.extension_link import extension_link_facts
 from lorecraft.rules.outline.empty_section import empty_section_facts
 from lorecraft.vfs import Snapshot, take_snapshot
 
@@ -138,17 +139,33 @@ class TestDocumentFactQueries:
         with pytest.raises(UnlistedItemError):
             database.query(token_facts, MarkdownItemRef(RootRelativePath.parse('README.md')))
 
-    def test_item_extension_links_called_twice_returns_the_first_answer(self, tmp_path: Path) -> None:
+    def test_query_extension_link_facts_holds_the_link_to_the_existing_extension_only(self, tmp_path: Path) -> None:
         #: Given
         database = Database.from_snapshot(_snapshot(tmp_path))
-        source = _decoded(database)
-        first = database.item_extension_links(source)
 
         #: When
-        second = database.item_extension_links(source)
+        facts = database.query(extension_link_facts, GUIDE)
 
         #: Then
-        assert second is first, 'the links are memoized'
+        assert facts.base == 'guide.md', 'the document that holds the links'
+        assert [(link.line.value, link.extension) for link in facts.links] == [(7, 'guide-more.md')], 'the existing one'
+        assert database.query(extension_link_facts, GUIDE) is facts, 'the answer is memoized'
+        assert database.query_reads(extension_link_facts, GUIDE) == {
+            'links',
+            'link_targets',
+            'link_base',
+            'document_name',
+        }, 'derived carry-over'
+
+    def test_query_extension_link_facts_of_a_skill_entry_holds_no_link(self, tmp_path: Path) -> None:
+        #: Given
+        database = Database.from_snapshot(_snapshot(tmp_path))
+
+        #: When
+        facts = database.query(extension_link_facts, SKILL)
+
+        #: Then
+        assert facts.links == (), 'a skill entry is no document'
 
 
 @pytest.mark.it
@@ -181,24 +198,6 @@ class TestDocumentFactContext:
         #: When / Then
         with pytest.raises(WrongItemKindError):
             context.title()
-
-    def test_extension_links_holds_the_link_to_the_existing_extension_only(self, tmp_path: Path) -> None:
-        #: Given
-        context = _context(Database.from_snapshot(_snapshot(tmp_path)), GUIDE)
-
-        #: When
-        links = context.extension_links()
-
-        #: Then
-        assert [(link.line.value, link.extension) for link in links] == [(7, 'guide-more.md')], 'the existing one'
-
-    def test_extension_links_of_a_skill_entry_raises_wrong_item_kind_error(self, tmp_path: Path) -> None:
-        #: Given
-        context = _context(Database.from_snapshot(_snapshot(tmp_path)), SKILL)
-
-        #: When / Then
-        with pytest.raises(WrongItemKindError):
-            context.extension_links()
 
 
 @pytest.mark.it

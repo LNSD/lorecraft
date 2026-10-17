@@ -11,11 +11,12 @@ from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.link_target import EscapingTarget, LinkTarget, LinkTargetEntry, PathLookup
+from lorecraft.project.schemas import StructurePrimitives
 from lorecraft.project.syntax import LineNumber, NormalisedLinkPath
 from lorecraft.rules.location import Help, Note
 from lorecraft.rules.tests.fake_context import DEFAULT_DOCUMENT_DIRECTORY, FakeDocumentContext
 
-from ..extension_link import ExtensionLink
+from ..extension_link import ExtensionLink, ExtensionLinkFacts, extension_link_facts
 
 STRUCTURE = '{"frontmatter": {"type": "object"}}'
 
@@ -168,3 +169,13 @@ class TestExtensionLink:
 
         #: Then
         assert occurrences == (), 'a fragment-only link and a URL spell no relative path'
+
+
+@pytest.mark.unit
+class TestExtensionLinkFacts:
+    def test_extension_link_facts_of_an_item_that_is_no_document_holds_no_link(self) -> None:
+        #: When
+        facts = extension_link_facts(StructurePrimitives(()))
+
+        #: Then
+        assert facts == ExtensionLinkFacts(base='', links=()), 'no name and no link base'

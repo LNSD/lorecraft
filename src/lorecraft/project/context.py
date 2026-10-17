@@ -44,7 +44,7 @@ from lorecraft.project.syntax import FrontmatterNode, LineCount, NormalisedLinkP
 from lorecraft.project.workspace import Governance
 from lorecraft.vfs import ResolvedPath, RootExit
 
-from .link_target import DocumentLink, ExtensionLink, LinkBase, LinkTargetEntry
+from .link_target import DocumentLink, LinkBase, LinkTargetEntry
 
 
 @dataclass(frozen=True, slots=True)
@@ -201,10 +201,6 @@ class DocumentContext(FrontmatterContext, MarkdownContext, Protocol):
 
     def query[T](self, query: Query[T]) -> T:
         """The answer of a declared query over this document, memoized by the query and the document."""
-        ...
-
-    def extension_links(self) -> tuple[ExtensionLink, ...]:
-        """The links to an existing document beside this one whose filename extends this one's, in document order."""
         ...
 
     def document_links(self) -> tuple[DocumentLink, ...]:

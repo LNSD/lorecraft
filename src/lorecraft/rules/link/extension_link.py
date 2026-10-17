@@ -4,19 +4,51 @@ from dataclasses import dataclass
 from typing import ClassVar, Self
 from urllib.parse import unquote
 
-from lorecraft.project.context import DocumentContext
 from lorecraft.project.item import ItemKind
+from lorecraft.project.link_target import ExtensionLink as LinkToExtension
+from lorecraft.project.link_target import extension_links_of
+from lorecraft.project.schemas import Primitives, Query
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Note, Subdiagnostic
-from lorecraft.rules.subject import DocumentRule, Facet
+from lorecraft.rules.subject import Facet, QueriedDocumentRule
 
 from .__ruleset__ import GROUP_ID
 
 
+@dataclass(frozen=True, slots=True)
+class ExtensionLinkFacts:
+    """What a rule over links to extensions reads of the document.
+
+    Attributes:
+        base: The filename, with its extension, of the document that holds the links.
+        links: The links to an existing document beside it whose filename extends its own, in document order.
+    """
+
+    base: str
+    links: tuple[LinkToExtension, ...]
+
+
+def extension_link_facts(primitives: Primitives) -> ExtensionLinkFacts:
+    """The links of a document to an existing document that extends it. Raises nothing.
+
+    A query: it reads the item's links, their targets, their base and its name and nothing else. An item that is not a
+    document has none.
+
+    Args:
+        primitives: The model state of the document.
+    """
+    name = primitives.document_name()
+    base = primitives.link_base()
+    if name is None or base is None:
+        return ExtensionLinkFacts(base='', links=())
+    links = extension_links_of(primitives.links(), primitives.link_targets(), base, name)
+    return ExtensionLinkFacts(base=f'{name}.md', links=links)
+
+
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
-class ExtensionLink(DocumentRule):
+class ExtensionLink(QueriedDocumentRule[ExtensionLinkFacts]):
     """A document links to a document that extends it.
 
     ## What it does
@@ -88,13 +120,17 @@ class ExtensionLink(DocumentRule):
         )
 
     @classmethod
-    def check(cls, subject: DocumentContext) -> tuple[Self, ...]:
+    def query(cls) -> Query[ExtensionLinkFacts]:
+        """The links of the document to a document that extends it."""
+        return extension_link_facts
+
+    @classmethod
+    def judge(cls, facts: ExtensionLinkFacts, /) -> tuple[Self, ...]:
         """One occurrence for each link to an existing document in the same directory that extends this one.
 
         Args:
-            subject: The document whose relative links are judged by the filename each leads to.
+            facts: The links to extensions and the filename of the document that holds them.
         """
-        base = f'{subject.name()}.md'
         return tuple(
-            cls(line=link.line, url=link.url, extension=link.extension, base=base) for link in subject.extension_links()
+            cls(line=link.line, url=link.url, extension=link.extension, base=facts.base) for link in facts.links
         )

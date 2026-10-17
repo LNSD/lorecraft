@@ -24,10 +24,8 @@ from lorecraft.project.layout import DOCS_DIR, SPECS_DIR
 from lorecraft.project.link_target import (
     DocumentDirectory,
     DocumentLink,
-    ExtensionLink,
     LinkTargetEntry,
     SkillRoot,
-    extension_links_of,
 )
 from lorecraft.project.schemas import (
     CorpusSpecName,
@@ -307,11 +305,17 @@ class FakeDocumentContext:
 
     def query[T](self, query: Query[T]) -> T:
         """The answer of a declared query over the governing meta specs, as the real database finds it."""
-        return query(StructurePrimitives(self._governance.structure_specs(), self.parse().headings, self.token_count()))
-
-    def extension_links(self) -> tuple[ExtensionLink, ...]:
-        """The links to a document that extends this one, as the real query finds them."""
-        return extension_links_of(self.parse().links, self.link_targets(), self.link_base(), str(self.filename()))
+        return query(
+            StructurePrimitives(
+                self._governance.structure_specs(),
+                self.parse().headings,
+                self.token_count(),
+                self.parse().links,
+                self.link_targets(),
+                self.link_base(),
+                str(self.filename()),
+            )
+        )
 
     def document_links(self) -> tuple[DocumentLink, ...]:
         """Not modelled: the fake holds one document, so no destination is read and none is reported."""
