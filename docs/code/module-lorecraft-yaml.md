@@ -54,6 +54,8 @@ check is, so the package above it decides what a refused construct means for a d
 - What the subset leaves out is refused as a typed construct carrying where it is written, never as a bare library error
   or a string. The package names constructs as types and never words them, and no docstring or code names frontmatter or a
   diagnostic code.
+- No caller reads the parser's message text. A syntax error is returned as a typed kind of this package, carrying the
+  line the writer fixes and the text it names, and the package above words it.
 
 ## Examples
 
@@ -87,6 +89,7 @@ Before committing code, verify:
 - [ ] The tree builder reads the values `_events` declares, never an event or an error of the library
 - [ ] Problems are dispatched exhaustively with `match` and `assert_never`, never through runtime tuples
 - [ ] A construct the subset leaves out is returned as a `RefusedConstructProblem` that carries a `RefusedConstruct` type and its position, never a message
+- [ ] A syntax error is returned as a `YamlSyntaxError` kind, never as the parser's problem or context text
 - [ ] A position is computed from a mark's index and the text, never read from the mark's column
 - [ ] Nothing here names a document, a frontmatter key or a diagnostic code, in code, docstrings or tests
 

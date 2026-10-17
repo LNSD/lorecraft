@@ -42,7 +42,6 @@ from lorecraft.yaml.problem import (
     YamlProblem,
 )
 from lorecraft.yaml.reader import read_yaml
-from lorecraft.yaml.syntax_error import classify_syntax_error
 from lorecraft.yaml.tree import YamlMapping, YamlScalar, YamlSequence, YamlValue
 
 from .position import LineNumber
@@ -177,7 +176,7 @@ def decode_frontmatter(block: str) -> FrontmatterNode:
         root = read_yaml(block)
         match root:
             case ControlCharacterProblem() | SyntaxErrorProblem() | RefusedConstructProblem() | NestingTooDeepProblem():
-                return _invalid_yaml_of(root, block)
+                return _invalid_yaml_of(root)
             case YamlMapping() | YamlSequence() | YamlScalar() | None:
                 return _node_of(root)
             case _:
@@ -318,18 +317,17 @@ def _invalid_yaml(problem: SyntaxProblem) -> InvalidYamlFrontmatter:
     return InvalidYamlFrontmatter(problem=problem.label, line=line, help=problem.help)
 
 
-def _invalid_yaml_of(problem: YamlProblem, block: str) -> InvalidYamlFrontmatter:
+def _invalid_yaml_of(problem: YamlProblem) -> InvalidYamlFrontmatter:
     """The node for a block that could not be read, worded from the problem it wrote first.
 
     Args:
         problem: What stopped the read.
-        block: The block's text, which words a syntax error.
     """
     match problem:
         case ControlCharacterProblem():
             return _invalid_yaml(describe_control_character(problem))
         case SyntaxErrorProblem():
-            return _invalid_yaml(describe_syntax_error(classify_syntax_error(problem, block)))
+            return _invalid_yaml(describe_syntax_error(problem.error))
         case RefusedConstructProblem():
             return InvalidYamlFrontmatter(
                 problem=describe_refusal(problem.construct),

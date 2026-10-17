@@ -21,7 +21,7 @@ from typing import Final
 from lorecraft.core.lines import split_lines
 from lorecraft.core.num import UnsignedInt
 
-from .problem import LINE_SEPARATORS, SyntaxErrorProblem
+from .position import LINE_SEPARATORS
 from .tree import YamlPosition
 
 _ESCAPE_HEX_DIGITS: Final[Mapping[str, int]] = MappingProxyType({'x': 2, 'u': 4, 'U': 8})
@@ -314,7 +314,24 @@ type YamlSyntaxError = (
 )
 
 
-def classify_syntax_error(error: SyntaxErrorProblem, block: str) -> YamlSyntaxError:
+@dataclass(frozen=True, slots=True)
+class ParserError:
+    """What the parser or the scanner reported about a text it could not read, in its own words.
+
+    Attributes:
+        problem: What it found wrong, or an empty text when it gave none.
+        context: What it was reading, or an empty text when it gave none.
+        position: Where it found the problem, or `None` when it gave no mark.
+        context_position: Where what it was reading began, or `None` when it gave no mark.
+    """
+
+    problem: str
+    context: str
+    position: YamlPosition | None
+    context_position: YamlPosition | None
+
+
+def classify_syntax_error(error: ParserError, block: str) -> YamlSyntaxError:
     """Classify a scanner's or a parser's error into one of adr-019's syntax error kinds.
 
     Args:

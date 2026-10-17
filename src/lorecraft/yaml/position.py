@@ -13,6 +13,9 @@ from lorecraft.core.num import NonZeroUnsignedInt
 
 from .tree import YamlPosition
 
+LINE_SEPARATORS: Final[str] = '\x85\u2028\u2029'
+"""The characters other YAML grammars end a line at, which `core/lines.py` does not: U+0085, U+2028 and U+2029."""
+
 _BREAK: Final[re.Pattern[str]] = re.compile(r'\r\n?|\n')
 """A line break as `core/lines.py` counts it, which the reader of this package follows: `\\r\\n`, `\\r` or `\\n`."""
 

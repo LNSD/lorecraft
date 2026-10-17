@@ -52,6 +52,7 @@ from .problem import (
     YamlProblem,
 )
 from .scalar import resolve_plain_scalar
+from .syntax_error import ParserError, classify_syntax_error
 from .tree import YamlKey, YamlMapping, YamlPosition, YamlScalar, YamlScalarValue, YamlSequence, YamlValue
 
 
@@ -85,12 +86,13 @@ def read_yaml(text: str) -> YamlValue | None | YamlProblem:
         if recorded is not None:
             return _refused(stream.lines, recorded)
         failure = parse_failure(exc)
-        return SyntaxErrorProblem(
+        error = ParserError(
             problem=failure.problem,
             context=failure.context,
             position=_position_of_mark(stream.lines, failure.problem_mark),
             context_position=_position_of_mark(stream.lines, failure.context_mark),
         )
+        return SyntaxErrorProblem(classify_syntax_error(error, text))
     except RecursionError:
         # The value is read with one call per level of nesting, so only a deeply nested text reaches the
         # interpreter's limit. By the time this clause runs the stack has unwound to this frame, so there is room

@@ -24,8 +24,8 @@ from ruamel.yaml.tokens import ScalarToken, TagToken, Token
 
 from lorecraft.core.error import Error, Unreachable
 
+from .position import LINE_SEPARATORS
 from .problem import (
-    LINE_SEPARATORS,
     Alias,
     Anchor,
     CollectionInFlow,
