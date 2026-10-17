@@ -39,7 +39,6 @@ from lorecraft.project.schemas import (
     SchemaProblems,
     SkillFields,
     StructureSpec,
-    TokenBudget,
 )
 from lorecraft.project.skill import OutsideSymlink
 from lorecraft.project.syntax import FrontmatterNode, Heading, LineCount, NormalisedLinkPath, ParsedDocument, TokenCount
@@ -281,15 +280,6 @@ class DatabaseItemContext:
         """
         self._document()
         return self._database.query(query, self._source.ref)
-
-    def token_budgets(self) -> tuple[TokenBudget, ...]:
-        """The token budget each governing specification sets, from the `item_token_budgets` query.
-
-        Raises:
-            WrongItemKindError: If the item is a skill entry.
-        """
-        self._document()
-        return self._database.item_token_budgets(self._source.ref)
 
     def empty_section_specs(self) -> tuple[RootRelativePath, ...]:
         """The specifications that forbid an empty section, from the `item_empty_section_specs` query.

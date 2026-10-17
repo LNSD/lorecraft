@@ -10,12 +10,10 @@ from .document_facts import (
     DocumentTitle,
     TitleConstraint,
     TitleFacts,
-    TokenBudget,
     empty_headings,
     empty_section_specs,
     find_document_title,
     title_facts,
-    token_budgets,
 )
 from .frontmatter_problem import (
     BlockProblem,
@@ -112,7 +110,6 @@ from .structure_file import StructureFile
 __all__: list[str] = [
     'DocumentTitle',
     'TitleConstraint',
-    'TokenBudget',
     'empty_headings',
     'empty_section_specs',
     'find_document_title',
@@ -121,7 +118,6 @@ __all__: list[str] = [
     'Primitives',
     'Query',
     'StructurePrimitives',
-    'token_budgets',
     'CorpusSpecName',
     'NamespaceSpecName',
     'SpecName',

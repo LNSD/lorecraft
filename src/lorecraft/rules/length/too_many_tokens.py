@@ -3,21 +3,65 @@
 from dataclasses import dataclass
 from typing import ClassVar, Self
 
+from lorecraft.core.num import NonZeroUnsignedInt, UnsignedInt
 from lorecraft.core.path import RootRelativePath
-from lorecraft.project.context import DocumentContext
-from lorecraft.project.syntax import FIRST_LINE
+from lorecraft.project.schemas import Primitives, Query
+from lorecraft.project.syntax import FIRST_LINE, TokenCount
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Here, Label, Note, Subdiagnostic
 from lorecraft.rules.overrun import Overrun, find_overrun
-from lorecraft.rules.subject import DocumentRule, Facet
+from lorecraft.rules.subject import Facet, QueriedDocumentRule
 
 from .__ruleset__ import GROUP_ID, spec_note
 
 
+@dataclass(frozen=True, slots=True)
+class TokenBudget:
+    """The token budget one structure specification sets.
+
+    Attributes:
+        spec: The structure file that sets the budget.
+        tokens: The most tokens the document's whole file may hold.
+    """
+
+    spec: RootRelativePath
+    tokens: NonZeroUnsignedInt
+
+
+@dataclass(frozen=True, slots=True)
+class TokenFacts:
+    """Everything a rule over the token budget reads, so it judges without the document's context.
+
+    Attributes:
+        count: The tokens in the document's whole file; zero when no budget governs it, as nothing is counted then.
+        budgets: The token budget each governing specification sets, in the order the specifications apply.
+    """
+
+    count: TokenCount
+    budgets: tuple[TokenBudget, ...]
+
+
+def token_facts(primitives: Primitives) -> TokenFacts:
+    """The token budgets that govern the document and its token count. Raises nothing.
+
+    A query: counting tokens is the costly step, so a document no budget governs is never counted.
+
+    Args:
+        primitives: The model state of the document.
+    """
+    budgets = tuple(
+        TokenBudget(spec=spec.path, tokens=spec.tokens)
+        for spec in primitives.structure_specs()
+        if spec.tokens is not None
+    )
+    count = primitives.token_count() if budgets else TokenCount(UnsignedInt(0))
+    return TokenFacts(count=count, budgets=budgets)
+
+
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
-class TooManyTokens(DocumentRule):
+class TooManyTokens(QueriedDocumentRule[TokenFacts]):
     """A document is longer than its token budget allows.
 
     ## What it does
@@ -106,22 +150,22 @@ class TooManyTokens(DocumentRule):
         )
 
     @classmethod
-    def check(cls, subject: DocumentContext) -> tuple[Self, ...]:
+    def query(cls) -> Query[TokenFacts]:
+        """The token budgets of the document and its token count."""
+        return token_facts
+
+    @classmethod
+    def judge(cls, facts: TokenFacts, /) -> tuple[Self, ...]:
         """One occurrence for each budget the document exceeds, in the order the meta specs apply.
 
         A meta spec that sets no budget holds the document to none.
 
         Args:
-            subject: The document, governed by at least one budget.
+            facts: The budgets that govern the document and the tokens in its whole file.
         """
-        budgets = subject.token_budgets()
-        if not budgets:
-            # Counting tokens is the costly step, so a document no budget governs is never counted.
-            return ()
-        token_count = subject.token_count()
         occurrences: list[Self] = []
-        for budget in budgets:
-            overrun = find_overrun(token_count, budget.tokens)
+        for budget in facts.budgets:
+            overrun = find_overrun(facts.count, budget.tokens)
             if overrun is not None:
                 occurrences.append(cls(spec=budget.spec, line=FIRST_LINE, overrun=overrun))
         return tuple(occurrences)
