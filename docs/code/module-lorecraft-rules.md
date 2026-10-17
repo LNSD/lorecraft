@@ -11,26 +11,26 @@ scope: "pkg:lorecraft.rules"
 
 Declare the rules a subject is judged by, and state how a run enables and reports them. It changes when a
 rule is added, changed or removed, or when what a declaration states changes: a rule's identity, the places
-its occurrences point at, or the context it reads. It also changes with the selection, table or report of a
+its occurrences point at, or the query it names. It also changes with the selection, table or report of a
 run.
 
 ## Role
 
-**Analysis**, the judging half of it. A rule is a pure judgment of one subject, read through its context, and this
+**Analysis**, the judging half of it. A rule is a pure judgment of the facts of one subject's query, and this
 package holds the rules with everything that makes one a rule: its identity, the class that declares and checks it,
-and the registry that lists them all, with the values a run is stated in. The run that hands over a
-context sits above it in `lorecraft.engine`; the context is a `Protocol` of `lorecraft.project`, answered by
-the database there, so a rule reads nothing but what it is handed.
+and the registry that lists them all, with the values a run is stated in. The run that resolves a rule's
+query and hands over its facts sits above it in `lorecraft.engine`; the query is answered by the database in
+`lorecraft.project`, so a rule reads nothing but what it is handed.
 
 ## Belongs Here
 
 - A value that identifies a rule: a release, a group's prefix and title, a code, a name, an alias code, a level, and
   the severity an engine condition fixes.
 - A rule class, the base class its subject kind gives it, and the places its occurrences may point at. A subject
-  kind's base takes the subject's context; a document's also requires the rule to declare the facet it reads, from
-  the facets this package states. A rule over what any Markdown file has takes the context they share, and
-  judges a document, a skill's `SKILL.md` and a skill's resource alike; a rule over one of a skill's files
-  takes the context a `SKILL.md` and a resource share, and never judges a document. A base over an item binds the kinds it applies to, and `governing_facet`
+  kind's base has a `Queried` form that names the query the rule needs and judges its facts; a document's also
+  requires the rule to declare the facet it reads, from the facets this package states. A rule over what any
+  Markdown file has judges a document, a skill's `SKILL.md` and a skill's resource alike; a rule over one of a
+  skill's files judges a `SKILL.md` and a resource, and never a document. A base over an item binds the kinds it applies to, and `governing_facet`
   states the facet a rule reads. A base over what both a
   document and a skill share, such as the frontmatter, declares, for every rule on it, the facet a document is
   gated on.
@@ -60,7 +60,7 @@ the database there, so a rule reads nothing but what it is handed.
 - Nothing here imports `lorecraft.engine` or `lorecraft.project.database`. The layers contract puts this package
   below the first and a forbidden contract refuses the second, so the database, a query and the run are out of
   reach by import.
-- A rule reads its base's one context, or only the facts of the query it names, and performs no I/O.
+- A rule reads only the facts of the query it names, and performs no I/O.
 - An occurrence names no subject: it points at a line of the subject or at the subject itself, and the run
   supplies the path.
 - The registry is package data: it reads no workspace, is not a query, and holds this package's rules, never a
@@ -92,19 +92,20 @@ class EmptySection(DocumentRule):
 ```
 
 ```python
-# ✅ Good — the rule judges the context its base class fixes; each fact it asks for is a memoized query
+# ✅ Good — the rule names its query and judges the facts it returns; the query is memoized by the database
 @rule
-class EmptySection(DocumentRule):
+class EmptySection(QueriedDocumentRule[EmptySectionFacts]):
     @classmethod
-    def check(cls, subject: DocumentContext) -> tuple[Self, ...]:
-        headings = subject.parse().headings
-        occurrences: list[Self] = []
-        for structure_spec in subject.specifications().structure_specs():
-            if structure_spec.forbid_empty_sections:
-                for heading in headings:
-                    if heading.empty:
-                        occurrences.append(cls(spec=structure_spec.path, line=heading.line, section=heading.text))
-        return tuple(occurrences)
+    def query(cls) -> Query[EmptySectionFacts]:
+        return empty_section_facts
+
+    @classmethod
+    def judge(cls, facts: EmptySectionFacts, /) -> tuple[Self, ...]:
+        return tuple(
+            cls(spec=spec, line=heading.line, section=heading.text)
+            for spec in facts.forbidding_specs
+            for heading in facts.empty_headings
+        )
 ```
 
 ## Naming a Rule
@@ -194,10 +195,10 @@ class SectionTooManyWords(DocumentRule):
 Before committing:
 
 - [ ] Nothing added to `lorecraft.rules` reads the disk, a view, a query or configuration
-- [ ] A new rule's `check` takes the one context its base class fixes and returns occurrences that name no
+- [ ] A new rule names its query and its `judge` takes that query's facts and returns occurrences that name no
       subject; a rule over a document declares its facet in `GOVERNED_BY`
 - [ ] A new rule is declared with `@rule` in its own module in its group's subpackage, listed nowhere else
-- [ ] Decoding, answering a context, running the rules and rendering stay out of the package
+- [ ] Decoding, answering a query, running the rules and rendering stay out of the package
 - [ ] A new rule's name states its condition; its class and module spell it
 - [ ] A new rule's `message()` is lowercase with the value found against the limit; `children()` puts a
       `Note` at the meta spec that states the rule (the corpus's structure file when no key does; the external

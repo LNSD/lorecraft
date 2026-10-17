@@ -1,6 +1,6 @@
 ---
 name: "module-lorecraft-engine"
-description: "The lorecraft.engine package's responsibility, role, boundary and invariants: the shared runner that hands each rule its subject's context, and each mode's own entry point. Load when adding or moving code in lorecraft.engine, changing how the rules run over a subject, adding a mode of the engine, or deciding how a rule gets its subject's context"
+description: "The lorecraft.engine package's responsibility, role, boundary and invariants: the shared runner that hands each rule the facts of its query, and each mode's own entry point. Load when adding or moving code in lorecraft.engine, changing how the rules run over a subject, adding a mode of the engine, or deciding how a rule gets its facts"
 type: "pkg"
 scope: "pkg:lorecraft.engine"
 ---
@@ -16,14 +16,14 @@ governed by a failed layer changes, or when a load failure is reported different
 ## Role
 
 **Analysis.** A run judges each subject by the rules of `lorecraft.rules`, the layer below, where the rules are
-declared. It hands each rule the context of the subject it judges, whose every fact is a query of the database in
-`lorecraft.project`, so a rule is a pure function of what its context answers. It locates each occurrence a rule
+declared. It resolves the query each rule names against the subject it judges, a query of the database in
+`lorecraft.project`, and hands the rule its facts, so a rule is a pure function of what its query answers. It locates each occurrence a rule
 returns at its subject, as a diagnostic of `lorecraft.rules.report`.
 
 ## Belongs Here
 
 - The shared runner (`runner.py`): the governance lookup, facet gating, running the table's rules over a
-  subject's context, and building its report. A document, skill entry or skill resource is decoded by each
+  subject through their queries, and building its report. A document, skill entry or skill resource is decoded by each
   mode's entry point, so its policy comes after decoding, and `judge_item` judges any of them through one facet loop
   over the descriptor's active facets. A rule runs over an item of a kind it applies to, and only when the item is governed
   for the facet the rule reads; each facet an applicable rule reads that the item is not governed for is recorded as
@@ -55,7 +55,7 @@ returns at its subject, as a diagnostic of `lorecraft.rules.report`.
 
 - Nothing here memoizes a value derived from the snapshot. A value worth keeping for the revision is a query of
   the database, in `lorecraft.project`.
-- A run matches each subject's decode once, and hands a rule only the context of a decoded subject, never the
+- A run matches each subject's decode once, and hands a rule only the facts of a decoded subject's query, never the
   database, a view or a path it could read through.
 - A rule returns occurrences that name no subject. The run attaches the subject's path, as a diagnostic.
 - A load failure is reported once, at its own path, and never once per subject it touches; a document a failed layer
@@ -78,11 +78,11 @@ for enabled in table.document_rules_governed_by(Facet.OUTLINE):
 ```
 
 ```python
-# ✅ Good — the run hands a rule its subject's context; a unit test hands it a fake context over a literal
-context = DatabaseItemContext(database, source)
+# ✅ Good — the run resolves the rule's query and hands the rule its facts; a unit test hands it a literal
 if ItemFacet.OUTLINE in source.descriptor.active_facets:
     for enabled in table.document_rules_governed_by(Facet.OUTLINE):
-        for occurrence in enabled.rule.check(context):
+        facts = database.query(enabled.rule.query(), source.ref)
+        for occurrence in enabled.rule.judge(facts):
             diagnostics.append(RuleDiagnostic(source.ref.path, occurrence, enabled.severity))
 ```
 
@@ -118,7 +118,7 @@ def check_subjects(database, subjects, table) -> tuple[SubjectReport, ...]:
 Before committing code, verify:
 
 - [ ] Nothing added memoizes a value derived from the snapshot; such a value is a query in `lorecraft.project`
-- [ ] A rule is handed its subject's context, never the database, a view or a path it could read through
+- [ ] A rule is handed the facts of its query, never the database, a view or a path it could read through
 - [ ] A run attaches the subject's path to each occurrence; an occurrence names no subject
 - [ ] Nothing added takes a snapshot or sets an exit code
 - [ ] A mode's policy sits in that mode's own entry point; `runner.py` takes no policy parameter and no callback
