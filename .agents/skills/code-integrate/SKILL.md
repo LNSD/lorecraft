@@ -26,6 +26,7 @@ needs no `cd`; patch and message-file paths are read from the caller's directory
 
 ```bash
 python3 <repo>/.agents/skills/code-integrate/scripts/integrate.py apply --repo <repo> --branch lnsd/<slug> --base origin/main <patch>...
+python3 <repo>/.agents/skills/code-integrate/scripts/integrate.py apply --repo <repo> --branch lnsd/<slug> --base origin/main --rebase <patch>...
 python3 <repo>/.agents/skills/code-integrate/scripts/integrate.py squash --repo <repo> --branch lnsd/<slug> --base origin/main --message-file <file>
 ```
 
@@ -36,17 +37,23 @@ python3 <repo>/.agents/skills/code-integrate/scripts/integrate.py squash --repo 
 | `--base` | The ref the part sits on: `origin/main`, or the branch of the part below |
 | `<patch>...` | The `git format-patch` files, in order |
 | `--message-file` | The commit message, written by the caller with the `commit` skill |
+| `--rebase` | `apply` only: start the part branch at `--base`, not `origin/<branch>`, for patches from a Writer REBASE |
 
 `apply` fetches, switches to the branch (created at the base when it is not on the remote, otherwise at
 `origin/<branch>`; a local branch that already descends from that start is continued, so a FIX after a failed
 gate lands on top of the commits applied before), applies the patches with `git am --3way`, runs the gates
 `fmt-check`, `check`, `typecheck`, `test` and `check-docs` in that order, stopping at the first failure, and
-measures the size against the base. A gate that passes but leaves the tree changed is reported as `gates_failed`.
+measures the size against the base. With `--rebase`, it starts at `--base` even when the local branch still points
+to the old remote head, and records that fetched remote SHA for `squash`'s lease. The default behavior is unchanged.
+A FIX after a failed `apply --rebase` must pass `--rebase` again to keep the same mode.
+A gate that passes but leaves the tree changed is reported as `gates_failed`.
 
 `squash` soft-resets to the base, commits with `-s -S`, checks that `%G?` is `G`, then pushes: `-u` when the
 branch is new on the remote, otherwise `--force-with-lease` pinned to the `origin/<branch>` that `apply` fetched.
-It refuses when the tree is not clean, when `origin/<branch>` is not in the branch, and when the push is
-rejected; each time it puts the branch back and pushes nothing, as it does when the commit is not signed.
+After `apply --rebase`, it uses the recorded base and lease SHA and allows the rebased branch not to contain
+`origin/<branch>`. A remote update after `apply` still makes the lease fail. It refuses when the tree is not clean,
+when the default-mode branch does not contain `origin/<branch>`, and when the push is rejected; each time it puts
+the branch back and pushes nothing, as it does when the commit is not signed.
 
 ## Result
 
@@ -55,8 +62,8 @@ rejected; each time it puts the branch back and pushes nothing, as it does when 
 ```
 
 - `apply`: `status` is `ok`, `gates_failed` (the failed gate is `fail` and later gates did not run, or a gate
-  left the tree changed, with a `reason`) or `needs_rebase`. `size` is lines added plus deleted against the base,
-  lockfiles and binary files excluded.
+  left the tree changed, with a `reason`) or `needs_rebase`. In rebase mode, `lease_sha` is the remote SHA fetched
+  for the later push lease. `size` is lines added plus deleted against the base, lockfiles and binary files excluded.
 - `squash`: `status` is `ok` with `head_sha`, `signature` (`G`) and `push` (`new` or `lease`).
 - `refused` and `error` carry a `reason`.
 
@@ -66,5 +73,5 @@ rejected; each time it puts the branch back and pushes nothing, as it does when 
 |---|---|---|
 | 0 | `ok` | Continue |
 | 1 | A gate failed | Read the log, send the failure back as a FIX |
-| 2 | The patches do not apply; `git am` was aborted and the branch is untouched | Ask the Writer for a REBASE |
-| 3 | Refused (`--repo` is not a git repository, dirty tree, local branch not descending from the remote, unsigned commit, base not an ancestor, remote ahead of the branch) or a git command failed | Read `reason`; fix the setup, do not work around it |
+| 2 | The patches do not apply; `git am` was aborted and the branch is untouched | Resolve the patch conflict with the Writer against the selected base |
+| 3 | Refused (`--repo` is not a git repository, dirty tree, local branch not descending from its start, unsigned commit, base not an ancestor, remote ahead of the branch in default mode, or stale rebase lease) or a git command failed | Read `reason`; fix the setup, do not work around it |
