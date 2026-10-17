@@ -213,3 +213,7 @@ lorecraft {{command}} {{subcommand}}
 - [ ] Examples invoke `lorecraft` directly; the CLI overview gives the on-demand and conditional uv project
       alternatives, and output shown is copied from a run
 - [ ] The document agrees with the command's `--help`
+
+## References
+
+- [feat](feat.md) - Extends: Base feat corpus meta spec

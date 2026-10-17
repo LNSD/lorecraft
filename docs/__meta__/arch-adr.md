@@ -132,3 +132,7 @@ status: "proposed"
   states something code can be checked against
 - [ ] The ADR states the design, lists no inventory of rules, commands, fields or files, and links no feat spec
 - [ ] An `accepted` ADR's implementation has landed
+
+## References
+
+- [arch](arch.md) - Extends: Base architecture corpus meta spec

@@ -667,6 +667,24 @@ def two_corpora_model() -> WorkspaceModel:
     )
 
 
+def _model_of_corpora(*names: str) -> WorkspaceModel:
+    """A model of corpora with the names, each holding a corpus specification and no document.
+
+    Args:
+        names: The corpus names, such as `code` and `code_`.
+    """
+    corpora = [
+        Corpus(corpus_spec=_corpus_spec(name), namespaces=FrozenMapping({}), filenames=frozenset()) for name in names
+    ]
+    return WorkspaceModel(
+        corpora=FrozenMapping({corpus.name: corpus for corpus in corpora}),
+        skills_dirs=frozenset(),
+        skill_locations=FrozenMapping({}),
+        outside_symlinks=FrozenMapping({}),
+        load_failures=(),
+    )
+
+
 def _regular_skill(directory: str) -> SkillLocation:
     """The location of a skill whose directory and `SKILL.md` are no links.
 
@@ -1209,6 +1227,84 @@ class TestSpecifications:
         assert specifications == (_spec_ref('code-python'), _spec_ref('code'), _spec_ref('feat')), (
             'the prose of each corpus and namespace spec, by path, and none of the structure files'
         )
+
+    def test_find_specification_base_returns_the_narrowest_specification_the_name_continues(self) -> None:
+        #: Given
+        code = Corpus(
+            corpus_spec=_corpus_spec('code'),
+            namespaces=FrozenMapping(dict((_code_namespace('python'), _code_namespace('python-typing')))),
+            filenames=frozenset(),
+        )
+        model = WorkspaceModel(
+            corpora=FrozenMapping({code.name: code}),
+            skills_dirs=frozenset(),
+            skill_locations=FrozenMapping({}),
+            outside_symlinks=FrozenMapping({}),
+            load_failures=(),
+        )
+        extension = _spec_ref('code-python-typing')
+        expected = _spec_ref('code-python')
+
+        #: When
+        base = model.find_specification_base(extension)
+
+        #: Then
+        assert base == expected, 'the base is the narrowest specification whose name is continued'
+
+    def test_find_specification_base_of_a_corpus_specification_returns_none(self) -> None:
+        #: Given
+        code = Corpus(corpus_spec=_corpus_spec('code'), namespaces=FrozenMapping({}), filenames=frozenset())
+        model = WorkspaceModel(
+            corpora=FrozenMapping({code.name: code}),
+            skills_dirs=frozenset(),
+            skill_locations=FrozenMapping({}),
+            outside_symlinks=FrozenMapping({}),
+            load_failures=(),
+        )
+        corpus_specification = _spec_ref('code')
+
+        #: When
+        base = model.find_specification_base(corpus_specification)
+
+        #: Then
+        assert base is None, 'a corpus specification continues no other name, so it has no base'
+
+    def test_find_specification_base_with_a_corpus_named_with_a_trailing_underscore_returns_none(self) -> None:
+        #: Given
+        model = _model_of_corpora('code', 'code_')
+        specification = _spec_ref('code_')
+
+        #: When
+        base = model.find_specification_base(specification)
+
+        #: Then
+        assert base is None, (
+            'a trailing underscore is no aspect name, and the lookup neither breaks nor takes `code` as its base'
+        )
+
+    def test_find_specification_base_with_a_corpus_named_with_a_leading_underscore_returns_none(self) -> None:
+        #: Given
+        model = _model_of_corpora('code', '_code')
+        specification = _spec_ref('_code')
+
+        #: When
+        base = model.find_specification_base(specification)
+
+        #: Then
+        assert base is None, (
+            'a leading underscore is no aspect name, and the lookup neither breaks nor takes `code` as its base'
+        )
+
+    def test_find_specification_base_with_a_corpus_named_with_a_repeated_underscore_returns_none(self) -> None:
+        #: Given
+        model = _model_of_corpora('code', 'a__b')
+        specification = _spec_ref('a__b')
+
+        #: When
+        base = model.find_specification_base(specification)
+
+        #: Then
+        assert base is None, 'a repeated underscore is no aspect name, and the lookup neither breaks nor finds a base'
 
     def test_specifications_lists_the_prose_of_the_skills_spec(self) -> None:
         #: Given

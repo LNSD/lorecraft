@@ -244,10 +244,14 @@ class FakeDocumentContext:
         """The document's filename, without its extension."""
         return self._ref.filename
 
-    def base(self) -> AspectFilename | None:
+    def name(self) -> str:
+        """The document's filename stem, as the repository spells it."""
+        return str(self._ref.filename)
+
+    def base(self) -> str | None:
         """The base the corpus the test stated gives the document, as the real model derives it."""
         base = self._corpus.document_base(self.filename())
-        return None if base is None else base.filename
+        return None if base is None else str(base.filename)
 
     def frontmatter(self) -> FrontmatterNode:
         """The document's frontmatter block, as the real parser reads it."""

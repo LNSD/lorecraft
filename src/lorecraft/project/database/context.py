@@ -23,6 +23,7 @@ from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.context import DocumentFrontmatterOwner, SkillFrontmatterOwner
 from lorecraft.project.corpus import CorpusName, ReservedCorpusDirectory
+from lorecraft.project.document import SpecRef
 from lorecraft.project.item import (
     DocumentOrigin,
     MarkdownItemRef,
@@ -120,18 +121,44 @@ class DatabaseItemContext:
             case _:
                 assert_never(origin)
 
-    def base(self) -> AspectFilename | None:
-        """The filename of the document this one extends, from the corpus the model lists the document in.
+    def name(self) -> str:
+        """The stem of a document or meta specification, read from its origin.
 
         Raises:
-            WrongItemKindError: If the item is a skill entry.
+            WrongItemKindError: If the item is a skill entry or a skill resource.
         """
-        origin = self._document()
-        corpus = self._database.model().find_corpus(CorpusName.parse(origin.corpus))
-        if corpus is None:
-            return None
-        base = corpus.document_base(self.filename())
-        return None if base is None else base.filename
+        origin = self._source.descriptor.origin
+        match origin:
+            case DocumentOrigin() | SpecificationOrigin():
+                return origin.expected_name
+            case SkillEntryOrigin() | SkillResourceOrigin():
+                raise WrongItemKindError(self._source.ref, 'a document or a specification')
+            case _:
+                assert_never(origin)
+
+    def base(self) -> str | None:
+        """The stem of the document or specification this one extends, from the names the model lists.
+
+        A document's base is looked for among the documents of its corpus, a specification's among the specifications.
+
+        Raises:
+            WrongItemKindError: If the item is a skill entry or a skill resource.
+        """
+        origin = self._source.descriptor.origin
+        match origin:
+            case DocumentOrigin():
+                corpus = self._database.model().find_corpus(CorpusName.parse(origin.corpus))
+                if corpus is None:
+                    return None
+                base = corpus.document_base(AspectFilename.parse(origin.expected_name))
+                return None if base is None else str(base.filename)
+            case SpecificationOrigin():
+                base_spec = self._database.model().find_specification_base(SpecRef(self._source.ref.path))
+                return None if base_spec is None else base_spec.name
+            case SkillEntryOrigin() | SkillResourceOrigin():
+                raise WrongItemKindError(self._source.ref, 'a document or a specification')
+            case _:
+                assert_never(origin)
 
     def directory_name(self) -> PathComponent:
         """The name of the skill's directory as an agent lists it, read from its origin.
@@ -285,9 +312,9 @@ class DatabaseItemContext:
         """The links to an existing document that extends this one, from the `item_extension_links` query.
 
         Raises:
-            WrongItemKindError: If the item is a skill entry.
+            WrongItemKindError: If the item is a skill entry or a skill resource.
         """
-        self._document()
+        self.name()
         return self._database.item_extension_links(self._source)
 
     def document_links(self) -> tuple[DocumentLink, ...]:

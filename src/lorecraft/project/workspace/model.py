@@ -11,6 +11,7 @@ base; it never supplies one, so a corpus spec that states no rule of one kind, a
 frontmatter schema, leaves the document ungoverned for that kind whatever the namespace specs carry.
 """
 
+from collections.abc import Iterable
 from dataclasses import InitVar, dataclass, field
 from typing import assert_never
 
@@ -198,6 +199,23 @@ class Governance:
         return tuple(outline_specs)
 
 
+def find_narrowest_ancestor(name: str, names: Iterable[str]) -> str | None:
+    """The narrowest of the names whose hyphen-delimited prefix the name continues, or `None` when none is.
+
+    A name `a` is an ancestor of `b` when `b` starts with `a-`; the narrowest has the most hyphen-delimited segments,
+    so no two ancestors tie. Names are compared as spelled, never parsed, so any name a corpus or a namespace can
+    take is comparable.
+
+    Args:
+        name: Stem whose base is wanted; it need not be one of the names.
+        names: The stems to look for an ancestor among.
+    """
+    ancestors = [candidate for candidate in names if candidate != name and name.startswith(f'{candidate}-')]
+    if not ancestors:
+        return None
+    return max(ancestors, key=lambda candidate: candidate.count('-'))
+
+
 def namespace_order_key(namespace: AspectNamespace) -> tuple[int, str]:
     """The broad-to-narrow order of a corpus's namespace specs: segment count first, then value.
 
@@ -280,15 +298,11 @@ class Corpus:
         Args:
             filename: Stem of the document whose base is wanted; it need not be one of the corpus's.
         """
-        name = str(filename)
-        ancestors = [
-            candidate for candidate in self.filenames if candidate != filename and name.startswith(f'{candidate}-')
-        ]
-        if not ancestors:
+        by_name = {str(candidate): candidate for candidate in self.filenames}
+        narrowest = find_narrowest_ancestor(str(filename), by_name)
+        if narrowest is None:
             return None
-        # The narrowest ancestor has the most hyphen-delimited segments, so no two ancestors tie.
-        narrowest = max(ancestors, key=lambda candidate: str(candidate).count('-'))
-        return DocumentRef(corpus=self.name, filename=narrowest)
+        return DocumentRef(corpus=self.name, filename=by_name[narrowest])
 
     @property
     def directory(self) -> RootRelativePath:
@@ -440,6 +454,16 @@ class WorkspaceModel:
                 if file.value.name.endswith(DOCUMENT_SUFFIX) and file.parent == SPECS_DIR:
                     refs.add(SpecRef(file))
         return tuple(sorted(refs))
+
+    def find_specification_base(self, ref: SpecRef) -> SpecRef | None:
+        """The meta specification this one extends: the narrowest whose name continues into this one's, or `None`.
+
+        Args:
+            ref: The specification whose base is wanted.
+        """
+        by_name = {spec.name: spec for spec in self.specifications()}
+        base = find_narrowest_ancestor(ref.name, by_name)
+        return None if base is None else by_name[base]
 
     def skills(self) -> tuple[SkillRef, ...]:
         """Every ref of a skill in the agents' skills directories, in directory order."""
