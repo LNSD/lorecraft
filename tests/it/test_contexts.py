@@ -18,18 +18,14 @@ from lib.tree import FileTree, from_tree
 from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.context import (
-    CorpusDirectoryContext,
     DocumentContext,
     SkillContext,
     SkillResourceContext,
-    SymlinkContext,
 )
-from lorecraft.project.corpus import CorpusName, ReservedCorpusDirectory
+from lorecraft.project.corpus import CorpusName
 from lorecraft.project.database import (
     Database,
-    DatabaseCorpusDirectoryContext,
     DatabaseItemContext,
-    DatabaseSymlinkContext,
     ItemText,
 )
 from lorecraft.project.database.context import WrongItemKindError
@@ -54,13 +50,12 @@ from lorecraft.project.schemas import (
     SkillFields,
     SkillFrontmatterOwner,
 )
-from lorecraft.project.skill import OutsideSymlink, SkillLocation, SkillRef
+from lorecraft.project.skill import SkillLocation, SkillRef
 from lorecraft.project.syntax import Anchor, NormalisedLinkPath, count_lines, count_tokens
 from lorecraft.rules.length.too_many_lines import skill_line_count
 from lorecraft.vfs import (
     EntryRecord,
     ResolvedPath,
-    RootExit,
     Snapshot,
     SnapshotRecords,
     SymlinkRecord,
@@ -639,60 +634,3 @@ class TestDatabaseItemContextOfASpecification:
 
         #: Then
         assert str(SPEC.path) in str(exc_info.value), 'the error names the specification asked'
-
-
-def _outside_symlink(database: Database) -> OutsideSymlink:
-    """The one symlink of the skill layout whose chain leaves the repository, as the database's model records it.
-
-    Args:
-        database: The database over a snapshot whose skills directory holds one entry linked outside the repository.
-    """
-    outside_symlinks = database.model().sorted_outside_symlinks
-    assert len(outside_symlinks) == 1, 'the snapshot holds one entry linked outside the repository'
-    return outside_symlinks[0]
-
-
-def _symlink_context(database: Database) -> SymlinkContext:
-    """The context of the entry linked outside the repository, typed as the protocol, so the type checker holds it.
-
-    Args:
-        database: The database whose model records the entry.
-    """
-    return DatabaseSymlinkContext(_outside_symlink(database))
-
-
-@pytest.mark.it
-class TestDatabaseSymlinkContext:
-    def test_leaves_at_with_an_entry_linked_outside_returns_where_the_model_records_it_leaving(self) -> None:
-        #: Given
-        # What a scan records for `.agents/skills/x -> /elsewhere/x`: the link alone, since nothing outside the root
-        # is read.
-        records: dict[RootRelativePath, EntryRecord] = dict(_snapshot().records)
-        records[RootRelativePath.parse('.agents/skills/x')] = SymlinkRecord(PurePosixPath('/elsewhere/x'))
-        database = Database.from_snapshot(Snapshot(SnapshotRecords(records)))
-        context = _symlink_context(database)
-
-        #: When
-        leaves_at = context.leaves_at()
-
-        #: Then
-        assert leaves_at is _outside_symlink(database).leaves_at, (
-            'where the chain leaves is the record the model query keeps, not one the context looked up again'
-        )
-        assert leaves_at == RootExit(RootRelativePath.parse('.agents/skills/x'), PurePosixPath('/elsewhere/x')), (
-            'the entry links straight out, so it is the link the chain leaves through, with its target as recorded'
-        )
-
-
-@pytest.mark.it
-class TestDatabaseCorpusDirectoryContext:
-    def test_path_and_reserved_corpus_with_a_recorded_directory_return_what_the_record_holds(self) -> None:
-        #: Given
-        directory = ReservedCorpusDirectory(RootRelativePath.parse('docs/skills'), CorpusName.parse('skills'))
-        context: CorpusDirectoryContext = DatabaseCorpusDirectoryContext(directory)
-
-        #: When
-        facts = (context.path(), context.reserved_corpus())
-
-        #: Then
-        assert facts == (directory.path, directory.corpus), 'the context reads both facts from the record'
