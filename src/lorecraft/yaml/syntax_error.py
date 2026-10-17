@@ -18,8 +18,9 @@ from types import MappingProxyType
 from typing import Final
 
 from lorecraft.core.lines import split_lines
-from lorecraft.yaml.problem import LINE_SEPARATORS, ControlCharacterProblem, SyntaxErrorProblem
-from lorecraft.yaml.tree import YamlPosition
+
+from .problem import LINE_SEPARATORS, ControlCharacterProblem, SyntaxErrorProblem
+from .tree import YamlPosition
 
 _ESCAPE_HEX_DIGITS: Final[Mapping[str, int]] = MappingProxyType({'x': 2, 'u': 4, 'U': 8})
 """How many hexadecimal digits the escapes `\\x`, `\\u` and `\\U` take after their letter."""
