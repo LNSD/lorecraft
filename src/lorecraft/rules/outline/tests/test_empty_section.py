@@ -328,9 +328,6 @@ class TestEmptySectionFacts:
         #: Then
         assert specs == (), 'nothing governs'
 
-
-@pytest.mark.unit
-class TestEmptySectionFactsEmpty:
     def test_empty_section_facts_holds_the_empty_sections_in_document_order(self) -> None:
         #: Given
         headings = parse_document('# Title\n\n## Empty\n\n## Full\n\nText.\n\n## Last\n').headings
