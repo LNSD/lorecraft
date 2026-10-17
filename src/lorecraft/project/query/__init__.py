@@ -18,7 +18,6 @@ from .primitives import (
     SymlinkQuery,
     SyntaxPrimitives,
 )
-from .structure_primitives import StructurePrimitives
 
 __all__: list[str] = [
     'CorpusDirectoryPrimitives',
@@ -28,7 +27,6 @@ __all__: list[str] = [
     'LinkResolutionPrimitives',
     'Primitives',
     'Query',
-    'StructurePrimitives',
     'SymlinkPrimitives',
     'SymlinkQuery',
     'SyntaxPrimitives',

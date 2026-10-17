@@ -18,6 +18,7 @@ from typing import Final
 
 import pytest
 
+from lib.database import find_file, is_in_scope
 from lib.tree import from_tree
 from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.num import NonZeroUnsignedInt, UnsignedInt
@@ -294,7 +295,7 @@ class TestDatabase:
         path = RootRelativePath.parse('src/tool.py')
 
         #: When
-        in_scope = database.is_in_scope(path)
+        in_scope = is_in_scope(database, path)
 
         #: Then
         assert in_scope is True, (
@@ -309,7 +310,7 @@ class TestDatabase:
         path = RootRelativePath.parse('docs/code/guide.md')
 
         #: When
-        in_scope = database.is_in_scope(path)
+        in_scope = is_in_scope(database, path)
 
         #: Then
         assert in_scope is False, 'the snapshot was not taken of docs/, so the layout reading it plays no part'
@@ -320,7 +321,7 @@ class TestDatabase:
         path = RootRelativePath.parse('docs/code/guide.md')
 
         #: When
-        in_scope = database.is_in_scope(path)
+        in_scope = is_in_scope(database, path)
 
         #: Then
         assert in_scope is False, (
@@ -336,11 +337,11 @@ class TestDatabase:
             scope=(ScanRoot(RootRelativePath.parse('.agents/skills'), depth=UnsignedInt(1), follow_links=True),),
         )
         database = Database.from_snapshot(snapshot)
-        database.is_in_scope(RootRelativePath.parse('src/tool.py'))
+        is_in_scope(database, RootRelativePath.parse('src/tool.py'))
         path = RootRelativePath.parse('skills/review/absent.md')
 
         #: When
-        in_scope = database.is_in_scope(path)
+        in_scope = is_in_scope(database, path)
 
         #: Then
         assert in_scope is True, 'every question after the first is answered from the same expanded scan roots'
@@ -353,7 +354,7 @@ class TestDatabase:
         path = RootRelativePath.parse('skills/l/SKILL.md')
 
         #: When
-        resolved = database.find_file(path)
+        resolved = find_file(database, path)
 
         #: Then
         assert resolved == RootRelativePath.parse('a/b/SKILL.md'), 'the `..` after a/tmp is a, so skills/l is a/b'
@@ -366,7 +367,7 @@ class TestDatabase:
         path = RootRelativePath.parse('skills/far/SKILL.md')
 
         #: When
-        resolved = database.find_file(path)
+        resolved = find_file(database, path)
 
         #: Then
         assert resolved == RootRelativePath.parse('c/d/SKILL.md'), (
@@ -379,7 +380,7 @@ class TestDatabase:
         path = RootRelativePath.parse('skills/n/SKILL.md')
 
         #: When
-        resolved = database.find_file(path)
+        resolved = find_file(database, path)
 
         #: Then
         assert resolved is None, 'a/missing does not exist, so skills/n leads to no file, though a/b/SKILL.md does'
@@ -390,7 +391,7 @@ class TestDatabase:
         path = RootRelativePath.parse('skills/n/SKILL.md')
 
         #: When
-        in_scope = database.is_in_scope(path)
+        in_scope = is_in_scope(database, path)
 
         #: Then
         assert in_scope is False, 'the scan never climbed out of a/missing, so the scope query does not either'
@@ -401,7 +402,7 @@ class TestDatabase:
         path = RootRelativePath.parse('skills/m/SKILL.md')
 
         #: When
-        resolved = database.find_file(path)
+        resolved = find_file(database, path)
 
         #: Then
         assert resolved == RootRelativePath.parse('a/b/SKILL.md'), 'the scan follows skills/m to a/b'

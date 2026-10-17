@@ -8,8 +8,8 @@ from typing import Final
 
 import pytest
 
+from lib.primitives import StructurePrimitives
 from lorecraft.core.num import NonZeroUnsignedInt
-from lorecraft.project.query import StructurePrimitives
 from lorecraft.project.syntax import Heading, LineNumber
 from lorecraft.rules.location import Help, Here, Label
 from lorecraft.rules.tests.fake_context import FakeDocumentContext, heading_in, judged, namespace_spec

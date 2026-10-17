@@ -12,6 +12,7 @@ from typing import Final, assert_never
 
 import pytest
 
+from lib.database import find_file, is_in_scope
 from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.project.database import Database, ItemText, Undecodable
@@ -208,7 +209,7 @@ class TestSnapshotScopeInsideASkill:
         path = RootRelativePath.parse(f'{SKILL}/references/deep/absent.md')
 
         #: When
-        in_scope = database.is_in_scope(path)
+        in_scope = is_in_scope(database, path)
 
         #: Then
         assert in_scope is True, 'the skills directory is read with no depth limit, so references/deep/ is listed'
@@ -219,7 +220,7 @@ class TestSnapshotScopeInsideASkill:
         path = RootRelativePath.parse(f'{SKILL}/scripts/nested/run.py')
 
         #: When
-        in_scope = database.is_in_scope(path)
+        in_scope = is_in_scope(database, path)
 
         #: Then
         assert in_scope is True, 'the scope is declared: a missing directory inside a skill is in it, its file missing'
@@ -230,7 +231,7 @@ class TestSnapshotScopeInsideASkill:
         path = RootRelativePath.parse(f'{SKILL}/guides/deeper/absent.md')
 
         #: When
-        in_scope = database.is_in_scope(path)
+        in_scope = is_in_scope(database, path)
 
         #: Then
         assert in_scope is True, 'guides leads to shared/guides/, listed with no depth limit, deeper/ included'
@@ -241,7 +242,7 @@ class TestSnapshotScopeInsideASkill:
         path = RootRelativePath.parse(f'{SKILL}/references/up/references/deep/b.md')
 
         #: When
-        in_scope = database.is_in_scope(path)
+        in_scope = is_in_scope(database, path)
 
         #: Then
         assert in_scope is True, 'up leads back to the skill directory, so the path names references/deep/b.md there'
@@ -252,7 +253,7 @@ class TestSnapshotScopeInsideASkill:
         path = RootRelativePath.parse(f'{SKILL}/outside/f.md')
 
         #: When
-        in_scope = database.is_in_scope(path)
+        in_scope = is_in_scope(database, path)
 
         #: Then
         assert in_scope is False, 'the scan never follows a link out of the repository, so nothing there is in scope'
@@ -263,7 +264,7 @@ class TestSnapshotScopeInsideASkill:
         path = RootRelativePath.parse('src/tool.py')
 
         #: When
-        in_scope = database.is_in_scope(path)
+        in_scope = is_in_scope(database, path)
 
         #: Then
         assert in_scope is False, 'no link inside the skill leads to src/, so it stays outside the scope'
@@ -274,7 +275,7 @@ class TestSnapshotScopeInsideASkill:
         path = RootRelativePath.parse('docs/feat/deep/a.md')
 
         #: When
-        in_scope = database.is_in_scope(path)
+        in_scope = is_in_scope(database, path)
 
         #: Then
         assert in_scope is False, 'docs/ is still read one level deep, whatever the skills directories reach'
@@ -287,7 +288,7 @@ class TestSnapshotScopeInsideASkill:
         path = RootRelativePath.parse(f'{SKILL}/guides/deeper/d.md')
 
         #: When
-        resolved_file = database.find_file(path)
+        resolved_file = find_file(database, path)
 
         #: Then
         assert resolved_file == RootRelativePath.parse('shared/guides/deeper/d.md'), (
@@ -300,7 +301,7 @@ class TestSnapshotScopeInsideASkill:
         path = RootRelativePath.parse(f'{SKILL}/notes.md')
 
         #: When
-        resolved_file = database.find_file(path)
+        resolved_file = find_file(database, path)
 
         #: Then
         assert resolved_file == RootRelativePath.parse('notes/e.md'), (
@@ -313,7 +314,7 @@ class TestSnapshotScopeInsideASkill:
         path = RootRelativePath.parse(f'{SKILL}/outside/f.md')
 
         #: When
-        resolved_file = database.find_file(path)
+        resolved_file = find_file(database, path)
 
         #: Then
         assert resolved_file is None, 'the file behind a link out of the repository was never read'

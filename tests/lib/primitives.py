@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.num import UnsignedInt
 from lorecraft.project.link_target import DocumentLink, LinkBase, LinkTargetEntry
+from lorecraft.project.query import Query
 from lorecraft.project.schemas import FrontmatterOwner, SchemaProblems, SkillFields, StructureSpec
 from lorecraft.project.syntax import (
     Anchor,
@@ -17,8 +18,6 @@ from lorecraft.project.syntax import (
     NormalisedLinkPath,
     TokenCount,
 )
-
-from .primitives import Query
 
 
 @dataclass(frozen=True, slots=True)

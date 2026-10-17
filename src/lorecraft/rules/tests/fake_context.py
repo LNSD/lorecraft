@@ -14,6 +14,7 @@ file, so the test states it by hand too.
 from collections.abc import Mapping
 from typing import Final, Protocol, cast
 
+from lib.primitives import StructurePrimitives
 from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.project.aspect import AspectFilename, AspectNamespace
@@ -27,7 +28,7 @@ from lorecraft.project.link_target import (
     LinkTargetEntry,
     SkillRoot,
 )
-from lorecraft.project.query import CorpusDirectoryQuery, Query, StructurePrimitives, SymlinkQuery
+from lorecraft.project.query import CorpusDirectoryQuery, Query, SymlinkQuery
 from lorecraft.project.schemas import (
     CorpusSpecName,
     DocumentFrontmatterOwner,

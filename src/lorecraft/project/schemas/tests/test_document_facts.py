@@ -7,8 +7,8 @@ from typing import Final
 
 import pytest
 
+from lib.primitives import StructurePrimitives
 from lorecraft.core.path import PathComponent, RootRelativePath
-from lorecraft.project.query import StructurePrimitives
 from lorecraft.project.syntax import parse_document
 
 from ..document_facts import (

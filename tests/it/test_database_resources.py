@@ -9,6 +9,7 @@ from pathlib import PurePosixPath
 
 import pytest
 
+from lib.database import listed_item
 from lib.tree import from_tree
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.database import Database, ItemText
@@ -164,7 +165,7 @@ class TestResourceItems:
 
         #: When / Then
         with pytest.raises(UnlistedItemError):
-            database.item(ref)
+            listed_item(database, ref)
 
     def test_item_text_of_an_unregistered_resource_path_raises_unlisted(self) -> None:
         #: Given

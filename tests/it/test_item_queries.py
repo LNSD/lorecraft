@@ -9,6 +9,7 @@ from typing import Final
 
 import pytest
 
+from lib.database import listed_item
 from lib.tree import from_tree
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectFilename
@@ -203,7 +204,7 @@ class TestItemQueries:
 
         #: When
         with pytest.raises(UnlistedItemError) as raised:
-            database.item(MarkdownItemRef(unlisted.path))
+            listed_item(database, MarkdownItemRef(unlisted.path))
 
         #: Then
         assert raised.value.ref == MarkdownItemRef(unlisted.path), 'the item stays refused'
