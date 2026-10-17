@@ -1,6 +1,6 @@
 """The rules engine's shared runner: every enabled rule over a subject, through one rule table.
 
-This is what every mode of the engine shares: decoding a resource, the governance lookup, facet gating, and running
+This is what every mode of the engine shares: the governance lookup, facet gating, and running
 the table's rules over a subject into its report. It holds no mode's policy. A document and a skill entry
 are decoded by each mode's own entry point beside this module, `skip.check_subjects` for the check run, so that its
 policy for an item a failed layer governs comes after decoding; the entry point hands the decoded item to

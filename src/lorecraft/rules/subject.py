@@ -81,7 +81,7 @@ class DocumentRule(ItemRule):
 
 
 class Queried[Facts](Rule, ABC):
-    """The mixin of a rule that names the query it needs and judges its facts, never a context.
+    """The mixin of a rule that names the query it needs and judges its facts.
 
     The rule names its query in `query` and its `judge` takes the facts that query returns, both typed by the rule's
     type argument: a rule whose query returns `TitleFacts` derives from `QueriedDocumentRule[TitleFacts]`, and a
@@ -108,7 +108,7 @@ class Queried[Facts](Rule, ABC):
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class QueriedDocumentRule[Facts](Queried[Facts], DocumentRule):
-    """The base of a rule over a document that names the query it needs and judges its facts, never a context.
+    """The base of a rule over a document that names the query it needs and judges its facts.
 
     The rule names its query in `query` and its `judge` takes the facts that query returns, both typed by the rule's
     type argument: a rule whose query returns `TitleFacts` derives from `QueriedDocumentRule[TitleFacts]`, and a
@@ -126,7 +126,7 @@ class SkillRule(ItemRule):
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class QueriedSkillRule[Facts](Queried[Facts], SkillRule):
-    """The base of a rule over a skill that names the query it needs and judges its facts, never a context.
+    """The base of a rule over a skill that names the query it needs and judges its facts.
 
     It works as `QueriedDocumentRule` does, over a skill's primitives.
     """
@@ -148,7 +148,7 @@ class MarkdownRule(ItemRule):
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class QueriedMarkdownRule[Facts](Queried[Facts], MarkdownRule):
-    """The base of a rule over a Markdown file that names the query it needs and judges its facts, never a context.
+    """The base of a rule over a Markdown file that names the query it needs and judges its facts.
 
     It works as `QueriedDocumentRule` does, over the primitives of a document, a skill or a resource alike.
     """
@@ -181,7 +181,7 @@ class SymlinkRule(LayoutRule):
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class QueriedSymlinkRule[Facts](SymlinkRule):
-    """The base of a rule over a symlink that names the query it needs and judges its facts, never a context.
+    """The base of a rule over a symlink that names the query it needs and judges its facts.
 
     The rule names its query in `query` and its `judge` takes the facts that query returns, both typed by the rule's
     type argument, as `QueriedDocumentRule` does over a document.
@@ -248,7 +248,7 @@ class FrontmatterRule(ItemRule):
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class QueriedFrontmatterRule[Facts](Queried[Facts], FrontmatterRule):
-    """The base of a rule over a frontmatter that names the query it needs and judges its facts, never a context.
+    """The base of a rule over a frontmatter that names the query it needs and judges its facts.
 
     It works as `QueriedDocumentRule` does, over the primitives of a document or a skill alike.
     """

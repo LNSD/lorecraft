@@ -89,8 +89,8 @@ collection protocols avoid a project-specific interface for behavior Python alre
 ## Pragmatism Caveat
 
 Use the concrete type while there is one implementation. A layer-boundary contract is the exception: a
-`Protocol` a lower layer exposes so a higher one depends only on it, as each context in `lorecraft.project` is
-for the rules, may have one production implementation; the test fake the higher layer's tests pass counts as
+`Protocol` a lower layer exposes so a higher one depends only on it, as each primitive protocol in `lorecraft.project.query` is
+for the queries, may have one production implementation; the test fake the higher layer's tests pass counts as
 the second. Its static conformance check lives with the implementation's unit tests
 ([tests-organization](tests-organization.md) §2). Do not create a protocol solely to
 inject a dependency or replace a simple function. If implementations need shared behavior or

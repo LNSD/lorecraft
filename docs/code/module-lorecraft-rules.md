@@ -9,18 +9,17 @@ scope: "pkg:lorecraft.rules"
 
 ## Responsibility
 
-Declare the rules a subject is judged by, and state how a run enables and reports them. It changes when a
+Declare the rules a subject is judged by, and how a run enables and reports them. It changes when a
 rule is added, changed or removed, or when what a declaration states changes: a rule's identity, the places
-its occurrences point at, or the query it names. It also changes with the selection, table or report of a
-run.
+its occurrences point at, or the query it names. It also changes with a run's selection, table or report.
 
 ## Role
 
-**Analysis**, the judging half of it. A rule is a pure judgment of the facts of one subject's query, and this
-package holds the rules with everything that makes one a rule: its identity, the class that declares and checks it,
+**Analysis**, the judging half of it. A rule is a pure judgment of one subject's query facts, and this
+package holds the rules with everything that makes one a rule: its identity and class,
 and the registry that lists them all, with the values a run is stated in. The run that resolves a rule's
-query and hands over its facts sits above it in `lorecraft.engine`; the query is answered by the database in
-`lorecraft.project`, so a rule reads nothing but what it is handed.
+query and hands it the facts sits above in `lorecraft.engine`; the query is answered by the database in
+`lorecraft.project`, so a rule reads only its facts.
 
 ## Belongs Here
 
@@ -29,18 +28,17 @@ query and hands over its facts sits above it in `lorecraft.engine`; the query is
 - A rule class, the base class its subject kind gives it, and the places its occurrences may point at. A subject
   kind's base has a `Queried` form that names the query the rule needs and judges its facts; a document's also
   requires the rule to declare the facet it reads, from the facets this package states. A rule over what any
-  Markdown file has judges a document, a `SKILL.md` and a resource alike; a rule over a skill's file never judges a document. A base over an item binds the kinds it applies to, and `governing_facet`
-  states the facet a rule reads. A base over what a document and a skill share, such as the frontmatter, declares
-  the facet a document is gated on.
-- A removed rule, the decorator that registers a declaration, and the registry.
+  Markdown file has judges a document, a `SKILL.md` and a resource alike; a rule over one of a skill's files judges a `SKILL.md` and a resource, never a document. A base over an item binds the kinds it applies to; `governing_facet` states the facet a rule reads, and a base
+  over what a document and a skill share, such as the frontmatter, declares the facet a document is gated on.
+- A removed rule, the decorator that registers a declaration and the registry.
 - The rule index, `lorecraft.rules.index`: identity as plain tuples and strings, with the lookups the command
-  line's edge needs, importing nothing but `typing`; generated from the registry, never a source of rules.
-- An engine condition: what the engine reports before any rule runs, such as a file that does not decode.
-  Declared and rendered like a rule, with an `EngineCode` in group `LC`, a fixed severity and no `check`; it
+  line's edge needs, importing only `typing`; generated from the registry, never a source of rules.
+- An engine condition: what the engine reports before any rule runs, such as an undecodable file.
+  Declared and rendered like a rule, with an `EngineCode` in group `LC`, a fixed severity, no `judge`; it
   derives from `FileCondition` or `EntryCondition`.
 - The one-run selection, the rule table and the report of a run, each stated in its module docstring.
 - A rule group, as a subpackage: its `__ruleset__.py` declares the group as `GROUP_ID` and whatever else its rules
-  share, its `__init__.py` holds only the docstring, and each rule is one module. The `LC` group is declared in
+  share, its `__init__.py` holds only the docstring, each rule is one module. The `LC` group is declared in
   `identity.py` as `ENGINE_GROUP`, for `EngineCode`, and re-exported as its `GROUP_ID`.
 - A rule's query, per ADR-026: in its module, in the group's `__ruleset__.py` when its rules share it, in
   `lorecraft.project` when several groups do. A `judge` names its parameter `facts`.
@@ -168,7 +166,7 @@ meta specs, not this package.
 
 ```python
 # ❌ Bad — the page describes the machinery: which parser counts, not whether a code block counts
-class WordCap(DocumentRule):
+class WordCap(QueriedDocumentRule[Facts]):
     """Compares each section's word count from the Markdown parser with its outline entry's cap.
 
     ## What it does
@@ -179,7 +177,7 @@ class WordCap(DocumentRule):
 
 ```python
 # ✅ Good — the name states what is wrong, and the page speaks of the user's section and meta spec
-class SectionTooManyWords(DocumentRule):
+class SectionTooManyWords(QueriedDocumentRule[Facts]):
     """A section is longer than its word cap allows.
 
     ## What it does

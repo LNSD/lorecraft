@@ -3,7 +3,7 @@
 A document's frontmatter block is governed by the structure file of its corpus, and a skill's by the
 package, after the Agent Skills specification, which no file in the repository holds. Rules over both subject kinds
 derive from `FrontmatterRule`, so one check judges a document and a skill alike, and reads which of the two governs the
-subject from its context, through `owner_spec` for the block and `schema_spec` for a schema's problems. It says which
+subject from its facts, through `owner_spec` for the block and `schema_spec` for a schema's problems. It says which
 it is through `spec_note` or `schema_note`, so a document's occurrence and a skill's read apart. Rules over a skill's
 `allowed-tools` alone derive from `SkillRule`, and both say where the meta spec states the field through
 `ALLOWED_TOOLS_NOTE`; its recommended length is set by Lorecraft, not the meta spec.

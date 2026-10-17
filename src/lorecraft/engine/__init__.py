@@ -1,8 +1,8 @@
 """Run the rules over one revision: the engine the command line calls.
 
 `lorecraft check` calls `check_subjects`, which judges each document, skill, resource and layout entry by the rules of
-`lorecraft.rules` that a `RuleTable` enables, handing each rule the subject context `lorecraft.project.database`
-answers from the queries, and `report_load_failures`, which reports each unit of the declaration that failed to load
+`lorecraft.rules` that a `RuleTable` enables, handing each rule the facts `lorecraft.project.database`
+answers from its query, and `report_load_failures`, which reports each unit of the declaration that failed to load
 at its own path, or returns the `UnlistableRoot` when `docs/` or `docs/__meta__/` cannot be listed, for the command
 to stop on. The table, the selection that narrows it and the report each subject gets are
 `lorecraft.rules.table`, `lorecraft.rules.selection` and `lorecraft.rules.report`.

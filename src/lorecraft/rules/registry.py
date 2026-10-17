@@ -189,7 +189,7 @@ class DuplicateAliasCodeError(RuntimeError):
 
 
 class AbstractRuleError(RuntimeError):
-    """A rule's class or an engine condition is still abstract, such as a rule with no `check`, so it is never built.
+    """A rule's class or an engine condition is still abstract, such as a rule with no `judge`, so it is never built.
 
     Attributes:
         declaration: The abstract rule class or engine condition.

@@ -37,6 +37,8 @@ once in `lorecraft.project.layout` and read from there by every other module.
   report path, read location, link base, origin metadata, governance target and active check facets.
 - Turning a Markdown link's destination into a root-relative path, from its document's directory or its skill's
   root, and what the snapshot holds there.
+- `lorecraft.project.query`: the primitive protocols a query reads an item through, in facets of the model state.
+  A rule owns the queries it needs; this package supplies the primitives and the database that memoizes the answers.
 - The one-revision database: one memoized decode, per-file, governance, analysis and link-target query family keyed
   by the common reference for documents and skill entries, other memoized derived queries, and fresh snapshot
   questions such as symlink targets.

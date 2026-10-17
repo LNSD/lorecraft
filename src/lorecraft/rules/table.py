@@ -59,7 +59,7 @@ class EnabledRule[R: Rule]:
     """A rule a run enables, with the severity its occurrences are reported at.
 
     Attributes:
-        rule: The rule class, whose `check` the runner calls on the context its partition reads.
+        rule: The rule class, whose `query` and `judge` the runner calls on the partition's subjects.
         severity: The severity each of the rule's occurrences is reported at.
     """
 
