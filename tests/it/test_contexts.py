@@ -36,7 +36,15 @@ from lorecraft.project.database.context import WrongItemKindError
 from lorecraft.project.document import DocumentRef, SpecRef
 from lorecraft.project.item import MarkdownItemRef
 from lorecraft.project.layout import SNAPSHOT_SCOPE
-from lorecraft.project.link_target import DocumentDirectory, EscapingTarget, LinkTarget, PathLookup, SkillRoot
+from lorecraft.project.link_target import (
+    DocumentDirectory,
+    EscapingTarget,
+    LinkBase,
+    LinkTarget,
+    LinkTargetEntry,
+    PathLookup,
+    SkillRoot,
+)
 from lorecraft.project.schemas import (
     DocumentFrontmatterOwner,
     FrontmatterOwner,
@@ -47,7 +55,7 @@ from lorecraft.project.schemas import (
     SkillFrontmatterOwner,
 )
 from lorecraft.project.skill import OutsideSymlink, SkillLocation, SkillRef
-from lorecraft.project.syntax import NormalisedLinkPath, count_lines, count_tokens
+from lorecraft.project.syntax import Anchor, NormalisedLinkPath, count_lines, count_tokens
 from lorecraft.rules.length.too_many_lines import skill_line_count
 from lorecraft.vfs import (
     EntryRecord,
@@ -266,6 +274,26 @@ def _skill_fields(primitives: Primitives) -> SkillFields:
     return primitives.skill_fields()
 
 
+def _link_base(primitives: Primitives) -> LinkBase | None:
+    """Where the item's relative links are read from."""
+    return primitives.link_base()
+
+
+def _link_targets(primitives: Primitives) -> Mapping[NormalisedLinkPath, LinkTargetEntry]:
+    """What the snapshot holds at the target of each relative link of the item."""
+    return primitives.link_targets()
+
+
+def _anchors(primitives: Primitives) -> frozenset[Anchor]:
+    """The anchor of every heading of the item's parse."""
+    return primitives.anchors()
+
+
+def _document_base(primitives: Primitives) -> str | None:
+    """The stem of the document or specification the item extends."""
+    return primitives.document_base()
+
+
 def _frontmatter_owner(primitives: Primitives) -> FrontmatterOwner:
     """Whose frontmatter block the item opens, with the name its frontmatter must carry."""
     return primitives.frontmatter_owner()
@@ -273,16 +301,6 @@ def _frontmatter_owner(primitives: Primitives) -> FrontmatterOwner:
 
 @pytest.mark.it
 class TestDatabaseItemContextOverADocument:
-    def test_filename_with_a_document_returns_the_filename_of_its_ref(self) -> None:
-        #: Given
-        context = _document_context(Database.from_snapshot(_snapshot()))
-
-        #: When
-        filename = context.filename()
-
-        #: Then
-        assert filename == AspectFilename.parse('python-typing'), 'the filename is read from the ref'
-
     def test_frontmatter_with_a_document_returns_the_frontmatter_query(self) -> None:
         #: Given
         database = Database.from_snapshot(_snapshot())
@@ -376,7 +394,7 @@ class TestDatabaseItemContextOverADocument:
         context = _document_context(Database.from_snapshot(_snapshot()))
 
         #: When
-        base = context.link_base()
+        base = context.query(_link_base)
 
         #: Then
         assert base == DocumentDirectory(RootRelativePath.parse('docs/code')), (
@@ -389,7 +407,7 @@ class TestDatabaseItemContextOverADocument:
         context = _document_context(database)
 
         #: When
-        targets = context.link_targets()
+        targets = context.query(_link_targets)
 
         #: Then
         assert targets is database.item_link_targets(_document_item(database)), (
@@ -505,7 +523,7 @@ class TestDatabaseItemContextOverASkillEntry:
         context = _skill_context(Database.from_snapshot(_snapshot()))
 
         #: When
-        base = context.link_base()
+        base = context.query(_link_base)
 
         #: Then
         assert base == SkillRoot(REVIEW.directory), "a SKILL.md's relative links are read from the skill root"
@@ -516,7 +534,7 @@ class TestDatabaseItemContextOverASkillEntry:
         context = _skill_context(database)
 
         #: When
-        targets = context.link_targets()
+        targets = context.query(_link_targets)
 
         #: Then
         assert targets is database.item_link_targets(_skill_item(database)), (
@@ -548,12 +566,23 @@ class TestDatabaseItemContextOfAResource:
             'the parse is the one the database memoizes, not one the context parsed again'
         )
 
+    def test_anchors_with_a_resource_returns_the_anchors_of_the_item_parse(self) -> None:
+        #: Given
+        database = Database.from_snapshot(_snapshot())
+        context = _resource_context(database)
+
+        #: When
+        anchors = context.query(_anchors)
+
+        #: Then
+        assert anchors == database.item_parse(_resource_text(database)).anchors, "the anchors are the parse's own"
+
     def test_link_base_with_a_resource_returns_its_skill_directory(self) -> None:
         #: Given
         context = _resource_context(Database.from_snapshot(_snapshot()))
 
         #: When
-        base = context.link_base()
+        base = context.query(_link_base)
 
         #: Then
         assert base == SkillRoot(REVIEW.directory), "a resource's relative links are read from the skill root"
@@ -564,7 +593,7 @@ class TestDatabaseItemContextOfAResource:
         context = _resource_context(database)
 
         #: When
-        targets = context.link_targets()
+        targets = context.query(_link_targets)
 
         #: Then
         assert targets is database.item_link_targets(_resource_text(database)), (
@@ -578,17 +607,6 @@ class TestDatabaseItemContextOfAResource:
 
 @pytest.mark.it
 class TestDatabaseItemContextOfASpecification:
-    def test_filename_with_a_specification_returns_its_specification_name(self) -> None:
-        #: Given
-        database = Database.from_snapshot(_snapshot())
-        context = DatabaseItemContext(database, _spec_item(database))
-
-        #: When
-        filename = context.filename()
-
-        #: Then
-        assert filename == AspectFilename.parse('code-python'), 'the name is the specification file stem'
-
     def test_base_with_a_specification_returns_the_specification_its_name_continues(self) -> None:
         #: Given
         database = Database.from_snapshot(_snapshot())
@@ -596,7 +614,7 @@ class TestDatabaseItemContextOfASpecification:
         expected = 'code'
 
         #: When
-        base = context.base()
+        base = context.query(_document_base)
 
         #: Then
         assert base == expected, 'code-python continues code, the corpus specification beside it'
@@ -618,7 +636,7 @@ class TestDatabaseItemContextOfASpecification:
         context = DatabaseItemContext(database, _spec_item(database))
 
         #: When
-        base = context.link_base()
+        base = context.query(_link_base)
 
         #: Then
         assert base == DocumentDirectory(RootRelativePath.parse('docs/__meta__')), 'links are read from docs/__meta__'
@@ -629,7 +647,7 @@ class TestDatabaseItemContextOfASpecification:
         context = DatabaseItemContext(database, _spec_item(database))
 
         #: When
-        targets = context.link_targets()
+        targets = context.query(_link_targets)
 
         #: Then
         assert dict(targets) == {
@@ -714,21 +732,6 @@ class TestDatabaseSymlinkContext:
         assert leaves_at == RootExit(RootRelativePath.parse('.agents/skills/x'), PurePosixPath('/elsewhere/x')), (
             'the entry links straight out, so it is the link the chain leaves through, with its target as recorded'
         )
-
-
-@pytest.mark.it
-class TestDatabaseItemContextOverTheOtherKind:
-    def test_filename_with_a_skill_entry_raises_wrong_item_kind_error(self) -> None:
-        #: Given
-        database = Database.from_snapshot(_snapshot())
-        context = DatabaseItemContext(database, _skill_item(database))
-
-        #: When
-        with pytest.raises(WrongItemKindError) as raised:
-            context.filename()
-
-        #: Then
-        assert REVIEW.path.value.as_posix() in str(raised.value), 'the error names the skill entry asked for a filename'
 
 
 @pytest.mark.it

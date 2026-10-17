@@ -16,26 +16,23 @@ record the model or a skill's `skill_resources` listing returned, the memoized q
 from it.
 """
 
-from collections.abc import Mapping
 from typing import assert_never
 
 from lorecraft.core.path import RootRelativePath
-from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName, ReservedCorpusDirectory
-from lorecraft.project.document import SpecRef
 from lorecraft.project.item import (
     DocumentOrigin,
     SkillEntryOrigin,
     SkillResourceOrigin,
     SpecificationOrigin,
 )
-from lorecraft.project.link_target import DocumentLink, LinkBase, LinkTargetEntry
+from lorecraft.project.link_target import DocumentLink
 from lorecraft.project.schemas import (
     Query,
     StructureSpec,
 )
 from lorecraft.project.skill import OutsideSymlink
-from lorecraft.project.syntax import FrontmatterNode, NormalisedLinkPath, ParsedDocument, TokenCount
+from lorecraft.project.syntax import FrontmatterNode, ParsedDocument, TokenCount
 from lorecraft.project.workspace import Governance
 from lorecraft.vfs import RootExit
 
@@ -93,60 +90,6 @@ class DatabaseItemContext:
             case _:
                 assert_never(origin)
 
-    def filename(self) -> AspectFilename:
-        """The filename of a document or meta specification, without its extension, read from its origin.
-
-        Raises:
-            WrongItemKindError: If the item is a skill entry or a skill resource.
-        """
-        origin = self._source.descriptor.origin
-        match origin:
-            case DocumentOrigin() | SpecificationOrigin():
-                return AspectFilename.parse(origin.expected_name)
-            case SkillEntryOrigin() | SkillResourceOrigin():
-                raise WrongItemKindError(self._source.ref, 'a document or a specification')
-            case _:
-                assert_never(origin)
-
-    def name(self) -> str:
-        """The stem of a document or meta specification, read from its origin.
-
-        Raises:
-            WrongItemKindError: If the item is a skill entry or a skill resource.
-        """
-        origin = self._source.descriptor.origin
-        match origin:
-            case DocumentOrigin() | SpecificationOrigin():
-                return origin.expected_name
-            case SkillEntryOrigin() | SkillResourceOrigin():
-                raise WrongItemKindError(self._source.ref, 'a document or a specification')
-            case _:
-                assert_never(origin)
-
-    def base(self) -> str | None:
-        """The stem of the document or specification this one extends, from the names the model lists.
-
-        A document's base is looked for among the documents of its corpus, a specification's among the specifications.
-
-        Raises:
-            WrongItemKindError: If the item is a skill entry or a skill resource.
-        """
-        origin = self._source.descriptor.origin
-        match origin:
-            case DocumentOrigin():
-                corpus = self._database.model().find_corpus(CorpusName.parse(origin.corpus))
-                if corpus is None:
-                    return None
-                base = corpus.document_base(AspectFilename.parse(origin.expected_name))
-                return None if base is None else str(base.filename)
-            case SpecificationOrigin():
-                base_spec = self._database.model().find_specification_base(SpecRef(self._source.ref.path))
-                return None if base_spec is None else base_spec.name
-            case SkillEntryOrigin() | SkillResourceOrigin():
-                raise WrongItemKindError(self._source.ref, 'a document or a specification')
-            case _:
-                assert_never(origin)
-
     def frontmatter(self) -> FrontmatterNode:
         """The skill's frontmatter block, from the `item_frontmatter` query."""
         return self._database.item_frontmatter(self._source)
@@ -154,14 +97,6 @@ class DatabaseItemContext:
     def parse(self) -> ParsedDocument:
         """The item's parse tree, from the `item_parse` query."""
         return self._database.item_parse(self._source)
-
-    def link_base(self) -> LinkBase:
-        """Where the item's relative links are read from, as its descriptor carries it."""
-        return self._source.descriptor.link_base
-
-    def link_targets(self) -> Mapping[NormalisedLinkPath, LinkTargetEntry]:
-        """Where each relative link leads and what the snapshot holds there, from the `item_link_targets` query."""
-        return self._database.item_link_targets(self._source)
 
     def token_count(self) -> TokenCount:
         """The tokens in the document's whole file, from the `item_token_count` query.

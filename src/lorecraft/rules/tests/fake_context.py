@@ -236,30 +236,9 @@ class FakeDocumentContext:
         self._governance = Governance(self._corpus, document)
         self._ref = DocumentRef(corpus=spec_name.corpus, filename=document)
 
-    def filename(self) -> AspectFilename:
-        """The document's filename, without its extension."""
-        return self._ref.filename
-
-    def name(self) -> str:
-        """The document's filename stem, as the repository spells it."""
-        return str(self._ref.filename)
-
-    def base(self) -> str | None:
-        """The base the corpus the test stated gives the document, as the real model derives it."""
-        base = self._corpus.document_base(self.filename())
-        return None if base is None else str(base.filename)
-
     def parse(self) -> ParsedDocument:
         """The document's parse tree, as the real parser reads it."""
         return parse_document(self._text)
-
-    def link_base(self) -> DocumentDirectory:
-        """The directory holding the document, read from its ref."""
-        return DocumentDirectory(self._ref.path.parent)
-
-    def link_targets(self) -> Mapping[NormalisedLinkPath, LinkTargetEntry]:
-        """What the snapshot holds at each link target, as the test stated it."""
-        return self._link_targets
 
     def token_count(self) -> TokenCount:
         """The tokens in the document's whole text, as the real tokenizer counts them."""
@@ -281,21 +260,26 @@ class FakeDocumentContext:
                 self.parse().headings,
                 self.token_count(),
                 self.parse().links,
-                self.link_targets(),
-                self.link_base(),
-                str(self.filename()),
+                self._link_targets,
+                DocumentDirectory(self._ref.path.parent),
+                str(self._ref.filename),
                 count_lines(self._text),
                 parse_frontmatter(self._text),
                 locate_schema_problems(parse_frontmatter(self._text), self._governance.frontmatter_schemas()),
-                owner=DocumentFrontmatterOwner(filename=self.filename(), spec=self._corpus_structure.path),
+                owner=DocumentFrontmatterOwner(filename=self._ref.filename, spec=self._corpus_structure.path),
                 anchor_set=self.parse().anchors,
-                base_name=self.base(),
+                base_name=self._base_name(),
             )
         )
 
     def document_links(self) -> tuple[DocumentLink, ...]:
         """The links the test stated, since the fake holds one document and reads no destination."""
         return self._document_links
+
+    def _base_name(self) -> str | None:
+        """The base the corpus the test stated gives the document, as the real model derives it."""
+        base = self._corpus.document_base(self._ref.filename)
+        return None if base is None else str(base.filename)
 
 
 class FakeSkillContext:
@@ -323,25 +307,13 @@ class FakeSkillContext:
         """The skill's frontmatter block, as the real parser reads it."""
         return parse_frontmatter(self._text)
 
-    def parse(self) -> ParsedDocument:
-        """The parse tree of the `SKILL.md`, as the real parser reads it."""
-        return parse_document(self._text)
-
-    def link_base(self) -> SkillRoot:
-        """The skill directory, under the skills directory, at the name the test listed it under."""
-        return SkillRoot(_SKILLS_DIRECTORY / self._directory_name)
-
-    def link_targets(self) -> Mapping[NormalisedLinkPath, LinkTargetEntry]:
-        """None: a fake skill holds no link target."""
-        return FrozenMapping({})
-
     def query[T](self, query: Query[T]) -> T:
         """The answer of a declared query over the skill, as the real database finds it."""
         return query(
             StructurePrimitives(
                 (),
-                link_list=self.parse().links,
-                base=self.link_base(),
+                link_list=parse_document(self._text).links,
+                base=SkillRoot(_SKILLS_DIRECTORY / self._directory_name),
                 line_total=count_lines(self._text),
                 frontmatter_node=self.frontmatter(),
                 problems=locate_skill_schema_problems(self.frontmatter()),
@@ -407,19 +379,7 @@ class FakeSkillResourceContext:
 
     def query[T](self, query: Query[T]) -> T:
         """The answer of a declared query over the resource, as the real database finds it."""
-        return query(_markdown_primitives(self._text, self.link_base(), self._link_targets))
-
-    def parse(self) -> ParsedDocument:
-        """The resource's parse tree, as the real parser reads it."""
-        return parse_document(self._text)
-
-    def link_base(self) -> SkillRoot:
-        """The skill root, at the directory the test named."""
-        return SkillRoot(self._skill_directory)
-
-    def link_targets(self) -> Mapping[NormalisedLinkPath, LinkTargetEntry]:
-        """What the snapshot holds at each link target, as the test stated it."""
-        return self._link_targets
+        return query(_markdown_primitives(self._text, SkillRoot(self._skill_directory), self._link_targets))
 
 
 class FakeDocumentMarkdownContext:
@@ -450,19 +410,7 @@ class FakeDocumentMarkdownContext:
 
     def query[T](self, query: Query[T]) -> T:
         """The answer of a declared query over the document, as the real database finds it."""
-        return query(_markdown_primitives(self._text, self.link_base(), self._link_targets))
-
-    def parse(self) -> ParsedDocument:
-        """The document's parse tree, as the real parser reads it."""
-        return parse_document(self._text)
-
-    def link_base(self) -> DocumentDirectory:
-        """The document's own directory, as the test named it."""
-        return DocumentDirectory(self._directory)
-
-    def link_targets(self) -> Mapping[NormalisedLinkPath, LinkTargetEntry]:
-        """What the snapshot holds at each link target, as the test stated it."""
-        return self._link_targets
+        return query(_markdown_primitives(self._text, DocumentDirectory(self._directory), self._link_targets))
 
 
 class FakeSymlinkContext:
