@@ -48,11 +48,13 @@ def missing_base(primitives: GovernanceSyntaxLinkResolutionPrimitives) -> Missin
     if base is None or name is None or not isinstance(link_base, DocumentDirectory):
         return None
     headings = primitives.headings()
-    sections = [heading for heading in headings if heading.level <= 2]
-    references = next((heading for heading in sections if heading.text == _REFERENCES), None)
+    title = find_title(headings)
+    references = next((heading for heading in headings if heading.level <= 2 and heading.text == _REFERENCES), None)
     wanted = link_base.directory / RootRelativePath.parse(f'{base}.md')
     if references is not None:
-        end = next((heading.line for heading in sections if heading.line > references.line), None)
+        end = next(
+            (heading.line for heading in headings if heading.level <= 2 and heading.line > references.line), None
+        )
         targets = primitives.link_targets()
         for link in primitives.links():
             destination = link.to_destination()
@@ -63,7 +65,6 @@ def missing_base(primitives: GovernanceSyntaxLinkResolutionPrimitives) -> Missin
             entry = targets.get(destination.path)
             if isinstance(entry, LinkTarget) and entry.path == wanted:
                 return None
-    title = find_title(headings)
     line: LineNumber = references.line if references is not None else (title.line if title else FIRST_LINE)
     return MissingBase(line=line, base=f'{base}.md', extension=f'{name}.md')
 

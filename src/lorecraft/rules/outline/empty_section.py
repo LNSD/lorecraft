@@ -11,8 +11,8 @@ from lorecraft.project.schemas import (
     OutlineAlignmentSpec,
     SectionEntry,
     UnalignedSection,
-    align_outlines,
     find_document_title,
+    outline_alignment,
 )
 from lorecraft.project.syntax import Heading, SectionHeading, section_headings
 from lorecraft.rules.collector import rule
@@ -66,6 +66,10 @@ class EmptySectionFacts:
 class _GovernanceSyntaxPrimitives(GovernancePrimitives, SyntaxPrimitives, Protocol):
     """The primitives the queries below read."""
 
+    def query[T](self, query: Query[T]) -> T:
+        """The memoized answer of another query over this item."""
+        ...
+
 
 def empty_section_facts(primitives: _GovernanceSyntaxPrimitives) -> EmptySectionFacts:
     """The specifications that forbid an empty section and the empty headings, each with its role. Raises nothing.
@@ -80,7 +84,7 @@ def empty_section_facts(primitives: _GovernanceSyntaxPrimitives) -> EmptySection
     document_title = find_document_title(headings)
     title = None if document_title is None else document_title.heading
     sections = {section.line: section for section in section_headings(headings)}
-    alignments = align_outlines(primitives.structure_specs(), headings)
+    alignments = primitives.query(outline_alignment)
     return EmptySectionFacts(
         specs=specs,
         empty=tuple(
