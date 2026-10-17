@@ -37,7 +37,7 @@ from lorecraft.project.schemas import (
     SkillFields,
     StructureSpec,
 )
-from lorecraft.project.syntax import FrontmatterNode, LineCount, NormalisedLinkPath, ParsedDocument, TokenCount
+from lorecraft.project.syntax import FrontmatterNode, NormalisedLinkPath, ParsedDocument, TokenCount
 from lorecraft.project.workspace import Governance
 from lorecraft.vfs import ResolvedPath, RootExit
 
@@ -156,10 +156,6 @@ class DocumentContext(FrontmatterContext, MarkdownContext, Protocol):
         """The `o200k_base` tokens in the document's whole file, frontmatter, code and tables included."""
         ...
 
-    def line_count(self) -> LineCount:
-        """The lines in the document's whole file, frontmatter included."""
-        ...
-
     def specifications(self) -> Governance:
         """The specifications that govern the document: its corpus's first, then each matching namespace's.
 
@@ -208,8 +204,8 @@ class SkillContext(FrontmatterContext, SkillFileContext, Protocol):
         """The resolved directory the listed directory leads to when it is a link, or `None` when it is not."""
         ...
 
-    def line_count(self) -> LineCount:
-        """The lines in the skill's whole `SKILL.md`, frontmatter, code and blank lines included."""
+    def query[T](self, query: Query[T]) -> T:
+        """The answer of a declared query over this skill, memoized by the query and the skill."""
         ...
 
 

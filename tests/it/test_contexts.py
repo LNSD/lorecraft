@@ -41,6 +41,7 @@ from lorecraft.project.layout import SNAPSHOT_SCOPE
 from lorecraft.project.link_target import DocumentDirectory, EscapingTarget, LinkTarget, PathLookup, SkillRoot
 from lorecraft.project.skill import OutsideSymlink, SkillLocation, SkillRef
 from lorecraft.project.syntax import NormalisedLinkPath, count_lines, count_tokens
+from lorecraft.rules.length.too_many_lines import skill_line_count
 from lorecraft.vfs import (
     EntryRecord,
     ResolvedPath,
@@ -322,16 +323,6 @@ class TestDatabaseItemContextOverADocument:
         #: Then
         assert tokens == count_tokens(TYPING_TEXT), 'the tokens are those the token_count query counts'
 
-    def test_line_count_with_a_document_returns_the_lines_of_its_whole_file(self) -> None:
-        #: Given
-        context = _document_context(Database.from_snapshot(_snapshot()))
-
-        #: When
-        lines = context.line_count()
-
-        #: Then
-        assert lines == count_lines(TYPING_TEXT), 'the lines are those the document-lines query counts'
-
     def test_specifications_with_a_document_returns_the_governance_query(self) -> None:
         #: Given
         database = Database.from_snapshot(_snapshot())
@@ -484,15 +475,19 @@ class TestDatabaseItemContextOverASkillEntry:
             'the parse is the one the database memoizes, not one the context parsed again'
         )
 
-    def test_line_count_with_a_skill_returns_the_lines_of_its_whole_skill_file(self) -> None:
+    def test_query_with_a_skill_returns_the_answer_the_database_memoizes(self) -> None:
         #: Given
-        context = _skill_context(Database.from_snapshot(_snapshot()))
+        database = Database.from_snapshot(_snapshot())
+        context = _skill_context(database)
 
         #: When
-        lines = context.line_count()
+        lines = context.query(skill_line_count)
 
         #: Then
-        assert lines == count_lines(REVIEW_TEXT), 'the lines are those the skill-lines query counts'
+        assert lines == count_lines(REVIEW_TEXT), 'the lines are those the line-count query counts'
+        assert lines == database.query(skill_line_count, _skill_item(database).ref), (
+            'the answer is the one the database memoizes, not one the context computed again'
+        )
 
     def test_link_base_with_a_skill_returns_the_skill_directory_an_agent_reaches(self) -> None:
         #: Given

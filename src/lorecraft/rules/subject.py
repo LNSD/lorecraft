@@ -150,6 +150,37 @@ class SkillRule(ItemRule):
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
+class QueriedSkillRule[Facts](SkillRule):
+    """The base of a rule over a skill that names the query it needs and judges its facts, never a context.
+
+    It works as `QueriedDocumentRule` does, over a skill's primitives.
+    """
+
+    @classmethod
+    @abstractmethod
+    def query(cls) -> Query[Facts]:
+        """The query whose answer `judge` takes; the same function every call, since the database memoizes by it."""
+
+    @classmethod
+    def check(cls, subject: SkillContext) -> tuple[Self, ...]:
+        """Resolve the query through the subject, then judge the facts it derives.
+
+        Args:
+            subject: The skill judged.
+        """
+        return cls.judge(subject.query(cls.query()))
+
+    @classmethod
+    @abstractmethod
+    def judge(cls, facts: Facts, /) -> tuple[Self, ...]:
+        """Every occurrence of the rule's condition in the skill, from the facts alone.
+
+        Args:
+            facts: The answer of the rule's query.
+        """
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
 class MarkdownRule(ItemRule):
     """The base of every rule over one Markdown file: a document, a skill's `SKILL.md` or a skill's resource.
 

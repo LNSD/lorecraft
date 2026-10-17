@@ -39,7 +39,7 @@ from lorecraft.project.schemas import (
     StructureSpec,
 )
 from lorecraft.project.skill import OutsideSymlink
-from lorecraft.project.syntax import FrontmatterNode, LineCount, NormalisedLinkPath, ParsedDocument, TokenCount
+from lorecraft.project.syntax import FrontmatterNode, NormalisedLinkPath, ParsedDocument, TokenCount
 from lorecraft.project.workspace import Governance
 from lorecraft.vfs import ResolvedPath, RootExit
 
@@ -240,10 +240,6 @@ class DatabaseItemContext:
         self._document()
         return self._database.item_token_count(self._source)
 
-    def line_count(self) -> LineCount:
-        """The lines in the item's whole file, from the `item_line_count` query."""
-        return self._database.item_line_count(self._source)
-
     def specifications(self) -> Governance:
         """The specifications that govern the document, from the `item_governance` query.
 
@@ -273,9 +269,10 @@ class DatabaseItemContext:
         """The answer of a declared query, from the database's memoized `query`.
 
         Raises:
-            WrongItemKindError: If the item is a skill entry or a skill resource.
+            WrongItemKindError: If the item is a skill resource.
         """
-        self.name()
+        if isinstance(self._source.descriptor.origin, SkillResourceOrigin):
+            raise WrongItemKindError(self._source.ref, 'a document or a skill entry')
         return self._database.query(query, self._source.ref)
 
     def document_links(self) -> tuple[DocumentLink, ...]:

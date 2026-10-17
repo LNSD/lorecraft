@@ -4,13 +4,13 @@ from dataclasses import dataclass
 from typing import ClassVar, Final, Self
 
 from lorecraft.core.num import NonZeroUnsignedInt
-from lorecraft.project.context import SkillContext
-from lorecraft.project.syntax import LineNumber
+from lorecraft.project.schemas import Primitives, Query
+from lorecraft.project.syntax import LineCount, LineNumber
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Here, Label, Note, Subdiagnostic
 from lorecraft.rules.overrun import Overrun, find_overrun
-from lorecraft.rules.subject import SkillRule
+from lorecraft.rules.subject import QueriedSkillRule
 
 from .__ruleset__ import GROUP_ID
 
@@ -26,9 +26,20 @@ _FIRST_LINE_PAST_BUDGET: Final[LineNumber] = LineNumber(_LINE_BUDGET.successor()
 """Where an occurrence is reported: the first line the budget does not allow."""
 
 
+def skill_line_count(primitives: Primitives) -> LineCount:
+    """The lines in the skill's whole `SKILL.md`, frontmatter, code and blank lines included. Raises nothing.
+
+    A query over the line count alone.
+
+    Args:
+        primitives: The model state of the skill.
+    """
+    return primitives.line_count()
+
+
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
-class TooManyLines(SkillRule):
+class TooManyLines(QueriedSkillRule[LineCount]):
     """A skill's `SKILL.md` is longer than the Agent Skills specification allows.
 
     ## What it does
@@ -117,13 +128,18 @@ class TooManyLines(SkillRule):
         )
 
     @classmethod
-    def check(cls, subject: SkillContext) -> tuple[Self, ...]:
+    def query(cls) -> Query[LineCount]:
+        """The lines in the skill's whole `SKILL.md`."""
+        return skill_line_count
+
+    @classmethod
+    def judge(cls, facts: LineCount, /) -> tuple[Self, ...]:
         """The one occurrence, on the first line past the budget, when the `SKILL.md` runs over it; none otherwise.
 
         Args:
-            subject: The skill, whose whole `SKILL.md` is counted.
+            facts: The lines in the skill's whole `SKILL.md`.
         """
-        overrun = find_overrun(subject.line_count(), _LINE_BUDGET)
+        overrun = find_overrun(facts, _LINE_BUDGET)
         if overrun is None:
             return ()
         return (cls(line=_FIRST_LINE_PAST_BUDGET, overrun=overrun),)

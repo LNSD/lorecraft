@@ -48,7 +48,6 @@ from lorecraft.project.schemas import (
 from lorecraft.project.syntax import (
     FrontmatterNode,
     Heading,
-    LineCount,
     NormalisedLinkPath,
     ParsedDocument,
     SectionHeading,
@@ -273,10 +272,6 @@ class FakeDocumentContext:
         """The tokens in the document's whole text, as the real tokenizer counts them."""
         return count_tokens(self._text)
 
-    def line_count(self) -> LineCount:
-        """The lines in the document's whole text, as the real counter counts them."""
-        return count_lines(self._text)
-
     def specifications(self) -> Governance:
         """The meta specs the test stated."""
         return self._governance
@@ -296,7 +291,7 @@ class FakeDocumentContext:
                 self.link_targets(),
                 self.link_base(),
                 str(self.filename()),
-                self.line_count(),
+                count_lines(self._text),
             )
         )
 
@@ -362,9 +357,9 @@ class FakeSkillContext:
         """None: a fake skill holds no link target."""
         return FrozenMapping({})
 
-    def line_count(self) -> LineCount:
-        """The lines in the whole `SKILL.md`, as the real counter counts them."""
-        return count_lines(self._text)
+    def query[T](self, query: Query[T]) -> T:
+        """The answer of a declared query over the skill, as the real database finds it."""
+        return query(StructurePrimitives((), line_total=count_lines(self._text)))
 
 
 DEFAULT_SKILL_DIRECTORY: Final[RootRelativePath] = RootRelativePath.parse('.agents/skills/review')
