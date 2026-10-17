@@ -91,7 +91,6 @@ class MissingField(QueriedFrontmatterRule[tuple[SchemaProblems, ...]]):
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('0.3.0')
 
-    # The specification file is derived from `source`, so no caller can state one that disagrees with it.
     spec: RootRelativePath | None = field(init=False)
     source: SchemaSource
     problem: MissingFieldProblem

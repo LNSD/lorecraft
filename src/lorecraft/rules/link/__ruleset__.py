@@ -5,8 +5,9 @@ meta spec has it. The Agent Skills specification is no file in the repository: t
 that depend on it, the ones over where a link leads, say so through `SKILL_NOTE`.
 """
 
-from typing import Final
+from typing import Final, Protocol
 
+from lorecraft.project.query import GovernancePrimitives, LinkResolutionPrimitives, SyntaxPrimitives
 from lorecraft.rules.identity import RuleGroup, RuleGroupPrefix
 from lorecraft.rules.location import Note
 
@@ -17,3 +18,13 @@ its resources."""
 
 SKILL_NOTE: Final[Note] = Note("the Agent Skills specification reads a skill's relative links from the skill root")
 """The note naming the meta spec that has a skill's relative links read from the skill root."""
+
+
+class SyntaxLinkResolutionPrimitives(SyntaxPrimitives, LinkResolutionPrimitives, Protocol):
+    """The primitives the queries over a file's links and where they lead read."""
+
+
+class GovernanceSyntaxLinkResolutionPrimitives(
+    GovernancePrimitives, SyntaxPrimitives, LinkResolutionPrimitives, Protocol
+):
+    """The primitives the queries over a document's links and where they lead read."""

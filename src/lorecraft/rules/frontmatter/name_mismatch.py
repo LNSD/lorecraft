@@ -25,6 +25,53 @@ from lorecraft.rules.subject import QueriedFrontmatterRule
 from .__ruleset__ import GROUP_ID, FrontmatterFacts, frontmatter_facts, owner_spec
 
 
+def _expected_name(owner: FrontmatterOwner) -> str:
+    """The name a `name` must equal: the document's filename, or the skill's listed directory name.
+
+    Args:
+        owner: The document or the skill whose `name` is compared.
+    """
+    match owner:
+        case DocumentFrontmatterOwner():
+            return str(owner.filename)
+        case SkillFrontmatterOwner():
+            return str(owner.directory_name)
+        case _:
+            assert_never(owner)
+
+
+def _is_skill_name(name: str) -> bool:
+    """Whether the Agent Skills specification accepts `name` as a skill's `name`, its length included.
+
+    Args:
+        name: The `name` the frontmatter writes.
+    """
+    try:
+        SkillName.parse(name)
+    except (EmptySkillNameError, OverlongSkillNameError, InvalidSkillNameFormatError):
+        return False
+    return True
+
+
+def _link_notes(owner: SkillFrontmatterOwner) -> tuple[Note, ...]:
+    """The note naming where a listed skill directory leads, when it is a link to a directory named otherwise.
+
+    The target is named by its root-relative path, so the root, which has no name, reads as such.
+
+    Args:
+        owner: The skill, with its listed directory name and where it leads when it is a link.
+    """
+    link_target = owner.link_target
+    if link_target is None:
+        return ()
+    name = link_target.name
+    if name == owner.directory_name:
+        return ()
+    if link_target == ROOT:
+        return (Note(f'{str(owner.directory_name)!r} is a link to the repository root'),)
+    return (Note(f'{str(owner.directory_name)!r} is a link to {str(link_target)!r}'),)
+
+
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
 class NameMismatch(QueriedFrontmatterRule[FrontmatterFacts]):
@@ -178,50 +225,3 @@ class NameMismatch(QueriedFrontmatterRule[FrontmatterFacts]):
         if name == _expected_name(owner):
             return ()
         return (cls(owner=owner, line=field_line(frontmatter, 'name'), name=name),)
-
-
-def _expected_name(owner: FrontmatterOwner) -> str:
-    """The name a `name` must equal: the document's filename, or the skill's listed directory name.
-
-    Args:
-        owner: The document or the skill whose `name` is compared.
-    """
-    match owner:
-        case DocumentFrontmatterOwner():
-            return str(owner.filename)
-        case SkillFrontmatterOwner():
-            return str(owner.directory_name)
-        case _:
-            assert_never(owner)
-
-
-def _is_skill_name(name: str) -> bool:
-    """Whether the Agent Skills specification accepts `name` as a skill's `name`, its length included.
-
-    Args:
-        name: The `name` the frontmatter writes.
-    """
-    try:
-        SkillName.parse(name)
-    except (EmptySkillNameError, OverlongSkillNameError, InvalidSkillNameFormatError):
-        return False
-    return True
-
-
-def _link_notes(owner: SkillFrontmatterOwner) -> tuple[Note, ...]:
-    """The note naming where a listed skill directory leads, when it is a link to a directory named otherwise.
-
-    The target is named by its root-relative path, so the root, which has no name, reads as such.
-
-    Args:
-        owner: The skill, with its listed directory name and where it leads when it is a link.
-    """
-    link_target = owner.link_target
-    if link_target is None:
-        return ()
-    name = link_target.name
-    if name == owner.directory_name:
-        return ()
-    if link_target == ROOT:
-        return (Note(f'{str(owner.directory_name)!r} is a link to the repository root'),)
-    return (Note(f'{str(owner.directory_name)!r} is a link to {str(link_target)!r}'),)

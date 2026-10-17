@@ -1,19 +1,19 @@
 """`LINK005`: a document links to a document that extends it."""
 
 from dataclasses import dataclass
-from typing import ClassVar, Protocol, Self
+from typing import ClassVar, Self
 from urllib.parse import unquote
 
 from lorecraft.project.item import ItemKind
 from lorecraft.project.link_target import ExtensionLink as LinkToExtension
 from lorecraft.project.link_target import extension_links_of
-from lorecraft.project.query import GovernancePrimitives, LinkResolutionPrimitives, Query, SyntaxPrimitives
+from lorecraft.project.query import Query
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Note, Subdiagnostic
 from lorecraft.rules.subject import Facet, QueriedDocumentRule
 
-from .__ruleset__ import GROUP_ID
+from .__ruleset__ import GROUP_ID, GovernanceSyntaxLinkResolutionPrimitives
 
 
 @dataclass(frozen=True, slots=True)
@@ -29,13 +29,7 @@ class ExtensionLinkFacts:
     links: tuple[LinkToExtension, ...]
 
 
-class _GovernanceSyntaxLinkResolutionPrimitives(
-    GovernancePrimitives, SyntaxPrimitives, LinkResolutionPrimitives, Protocol
-):
-    """The primitives the queries below read."""
-
-
-def extension_link_facts(primitives: _GovernanceSyntaxLinkResolutionPrimitives) -> ExtensionLinkFacts:
+def extension_link_facts(primitives: GovernanceSyntaxLinkResolutionPrimitives) -> ExtensionLinkFacts:
     """The links of a document to an existing document that extends it. Raises nothing.
 
     A query: it reads the item's links, their targets, their base and its name and nothing else. An item that is not a
