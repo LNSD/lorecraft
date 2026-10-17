@@ -15,7 +15,7 @@ from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.schemas import DocumentFrontmatterOwner, SkillFrontmatterOwner
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.location import Elsewhere, Help, Here, Label, Note
-from lorecraft.rules.tests.fake_context import FakeDocumentContext, FakeSkillContext, structure_spec_path
+from lorecraft.rules.tests.fake_context import FakeDocumentContext, FakeSkillContext, judged, structure_spec_path
 
 from ..missing_frontmatter import MissingFrontmatter
 
@@ -43,7 +43,7 @@ class TestMissingFrontmatter:
         subject = FakeDocumentContext('# Setup\n', corpus='guide', structure=STRUCTURE)
 
         #: When
-        occurrences = MissingFrontmatter.check(subject)
+        occurrences = judged(MissingFrontmatter, subject)
 
         #: Then
         assert occurrences == (MissingFrontmatter(owner=DOCUMENT_OWNER, line=LineNumber(NonZeroUnsignedInt(1))),), (
@@ -60,7 +60,7 @@ class TestMissingFrontmatter:
         subject = FakeDocumentContext(text, corpus='guide', structure=STRUCTURE)
 
         #: When
-        occurrences = MissingFrontmatter.check(subject)
+        occurrences = judged(MissingFrontmatter, subject)
 
         #: Then
         assert occurrences == (MissingFrontmatter(owner=DOCUMENT_OWNER, line=LineNumber(NonZeroUnsignedInt(1))),), (
@@ -72,7 +72,7 @@ class TestMissingFrontmatter:
         subject = FakeSkillContext('# Review\n', directory_name='review')
 
         #: When
-        occurrences = MissingFrontmatter.check(subject)
+        occurrences = judged(MissingFrontmatter, subject)
 
         #: Then
         assert occurrences == (MissingFrontmatter(owner=SKILL_OWNER, line=LineNumber(NonZeroUnsignedInt(1))),), (
@@ -90,7 +90,7 @@ class TestMissingFrontmatter:
         subject = FakeDocumentContext(text, corpus='guide', structure=STRUCTURE)
 
         #: When
-        occurrences = MissingFrontmatter.check(subject)
+        occurrences = judged(MissingFrontmatter, subject)
 
         #: Then
         assert occurrences == (), 'a block that is there but not YAML is invalid-yaml, never missing-frontmatter'
@@ -106,7 +106,7 @@ class TestMissingFrontmatter:
         subject = FakeDocumentContext(text, corpus='guide', structure=STRUCTURE)
 
         #: When
-        occurrences = MissingFrontmatter.check(subject)
+        occurrences = judged(MissingFrontmatter, subject)
 
         #: Then
         assert occurrences == (), 'a block that decoded to a mapping is there'

@@ -8,7 +8,7 @@ import pytest
 from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.location import Help, Here, Label, Note
-from lorecraft.rules.tests.fake_context import FakeSkillContext
+from lorecraft.rules.tests.fake_context import FakeSkillContext, judged
 
 from ..malformed_allowed_tools import (
     CommaSeparated,
@@ -55,7 +55,7 @@ class TestMalformedAllowedTools:
         subject = FakeSkillContext(text)
 
         #: When
-        occurrences = MalformedAllowedTools.check(subject)
+        occurrences = judged(MalformedAllowedTools, subject)
 
         #: Then
         assert occurrences == (
@@ -76,7 +76,7 @@ class TestMalformedAllowedTools:
         subject = FakeSkillContext(text)
 
         #: When
-        occurrences = MalformedAllowedTools.check(subject)
+        occurrences = judged(MalformedAllowedTools, subject)
 
         #: Then
         assert occurrences == (
@@ -97,7 +97,7 @@ class TestMalformedAllowedTools:
         subject = FakeSkillContext(text)
 
         #: When
-        occurrences = MalformedAllowedTools.check(subject)
+        occurrences = judged(MalformedAllowedTools, subject)
 
         #: Then
         assert occurrences == (
@@ -109,7 +109,7 @@ class TestMalformedAllowedTools:
         subject = _skill_allowing('  ')
 
         #: When
-        occurrences = MalformedAllowedTools.check(subject)
+        occurrences = judged(MalformedAllowedTools, subject)
 
         #: Then
         assert occurrences == (MalformedAllowedTools(line=LineNumber(NonZeroUnsignedInt(4)), problem=EmptyValue()),), (
@@ -121,7 +121,7 @@ class TestMalformedAllowedTools:
         subject = _skill_allowing('Read Bash(git log --format=%h,%s)')
 
         #: When
-        occurrences = MalformedAllowedTools.check(subject)
+        occurrences = judged(MalformedAllowedTools, subject)
 
         #: Then
         assert occurrences == (), 'a balanced pattern keeps its commas and percent signs'
@@ -131,7 +131,7 @@ class TestMalformedAllowedTools:
         subject = _skill_allowing('Bash(git *) Read')
 
         #: When
-        occurrences = MalformedAllowedTools.check(subject)
+        occurrences = judged(MalformedAllowedTools, subject)
 
         #: Then
         assert occurrences == (), 'a tool name may follow a balanced parenthesised pattern'
@@ -141,7 +141,7 @@ class TestMalformedAllowedTools:
         subject = _skill_allowing('Bash() Read')
 
         #: When
-        occurrences = MalformedAllowedTools.check(subject)
+        occurrences = judged(MalformedAllowedTools, subject)
 
         #: Then
         assert occurrences == (), 'an empty parenthesised pattern is balanced'
@@ -151,7 +151,7 @@ class TestMalformedAllowedTools:
         subject = _skill_allowing('Read Grep')
 
         #: When
-        occurrences = MalformedAllowedTools.check(subject)
+        occurrences = judged(MalformedAllowedTools, subject)
 
         #: Then
         assert occurrences == (), 'tool names separated by a space form a list'
@@ -167,7 +167,7 @@ class TestMalformedAllowedTools:
         subject = FakeSkillContext(text)
 
         #: When
-        occurrences = MalformedAllowedTools.check(subject)
+        occurrences = judged(MalformedAllowedTools, subject)
 
         #: Then
         assert occurrences == (), 'the optional field may be absent'
@@ -177,7 +177,7 @@ class TestMalformedAllowedTools:
         subject = _skill_allowing('Read,Grep')
 
         #: When
-        occurrences = MalformedAllowedTools.check(subject)
+        occurrences = judged(MalformedAllowedTools, subject)
 
         #: Then
         assert occurrences == (
@@ -191,7 +191,7 @@ class TestMalformedAllowedTools:
         subject = _skill_allowing('Read,Bash(a,b)')
 
         #: When
-        occurrences = MalformedAllowedTools.check(subject)
+        occurrences = judged(MalformedAllowedTools, subject)
 
         #: Then
         assert occurrences == (
@@ -206,7 +206,7 @@ class TestMalformedAllowedTools:
         subject = _skill_allowing('Bash(git diff),Read')
 
         #: When
-        occurrences = MalformedAllowedTools.check(subject)
+        occurrences = judged(MalformedAllowedTools, subject)
 
         #: Then
         assert occurrences == (
@@ -221,7 +221,7 @@ class TestMalformedAllowedTools:
         subject = _skill_allowing(',')
 
         #: When
-        occurrences = MalformedAllowedTools.check(subject)
+        occurrences = judged(MalformedAllowedTools, subject)
 
         #: Then
         assert occurrences == (
@@ -233,7 +233,7 @@ class TestMalformedAllowedTools:
         subject = _skill_allowing('(a,b)')
 
         #: When
-        occurrences = MalformedAllowedTools.check(subject)
+        occurrences = judged(MalformedAllowedTools, subject)
 
         #: Then
         assert occurrences == (
@@ -245,7 +245,7 @@ class TestMalformedAllowedTools:
         subject = _skill_allowing('Bash(a)Read')
 
         #: When
-        occurrences = MalformedAllowedTools.check(subject)
+        occurrences = judged(MalformedAllowedTools, subject)
 
         #: Then
         assert occurrences == (
@@ -257,7 +257,7 @@ class TestMalformedAllowedTools:
         subject = _skill_allowing('(a')
 
         #: When
-        occurrences = MalformedAllowedTools.check(subject)
+        occurrences = judged(MalformedAllowedTools, subject)
 
         #: Then
         assert occurrences == (

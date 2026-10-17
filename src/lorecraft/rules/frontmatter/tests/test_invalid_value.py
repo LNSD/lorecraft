@@ -26,6 +26,7 @@ from lorecraft.rules.location import Elsewhere, Help, Here, Label, Note
 from lorecraft.rules.tests.fake_context import (
     FakeDocumentContext,
     FakeSkillContext,
+    judged,
     namespace_spec,
     structure_spec_path,
 )
@@ -76,7 +77,7 @@ class TestInvalidValue:
         subject = FakeDocumentContext(TEXT, corpus='guide', structure=NAME_PATTERN)
 
         #: When
-        occurrences = InvalidValue.check(subject)
+        occurrences = judged(InvalidValue, subject)
 
         #: Then
         assert occurrences == (InvalidValue(source=CORPUS_SOURCE, line=LINE, problem=PROBLEM),), (
@@ -93,7 +94,7 @@ class TestInvalidValue:
         subject = FakeDocumentContext(text, corpus='guide', structure=NAME_PATTERN)
 
         #: When
-        occurrences = InvalidValue.check(subject)
+        occurrences = judged(InvalidValue, subject)
 
         #: Then
         assert occurrences == (), "a value of the wrong type is another rule's condition"
@@ -105,7 +106,7 @@ class TestInvalidValue:
         )
 
         #: When
-        occurrences = InvalidValue.check(subject)
+        occurrences = judged(InvalidValue, subject)
 
         #: Then
         assert occurrences == (
@@ -125,7 +126,7 @@ class TestInvalidValue:
         subject = FakeSkillContext(text)
 
         #: When
-        occurrences = InvalidValue.check(subject)
+        occurrences = judged(InvalidValue, subject)
 
         #: Then
         problem = InvalidValueProblem(
@@ -153,7 +154,7 @@ class TestInvalidValue:
             ---
             """)
         subject = FakeSkillContext(text)
-        occurrences = InvalidValue.check(subject)
+        occurrences = judged(InvalidValue, subject)
 
         #: When
         labels = occurrences[0].labels()
@@ -173,7 +174,7 @@ class TestInvalidValue:
         subject = FakeDocumentContext(text, corpus='guide', structure=NAME_PATTERN)
 
         #: When
-        occurrences = InvalidValue.check(subject)
+        occurrences = judged(InvalidValue, subject)
 
         #: Then
         assert occurrences == (), (
@@ -339,7 +340,7 @@ class TestInvalidValue:
         subject = FakeDocumentContext(text, corpus='guide', structure=structure)
 
         #: When
-        occurrences = InvalidValue.check(subject)
+        occurrences = judged(InvalidValue, subject)
 
         #: Then
         message = "'Load when x.' should not be valid under {'pattern': '\\\\.\\\\s*$'}"
