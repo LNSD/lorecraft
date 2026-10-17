@@ -36,11 +36,10 @@ once in `lorecraft.project.layout` and read from there by every other module.
   governance target and active check facets. The reserved `skills` corpus does not govern skills or resources.
 - Turning a Markdown link's destination into a root-relative path, from its document's directory or its skill's
   root, and what the snapshot holds there.
-- `lorecraft.project.query`: the primitive protocols a query reads an item through, in facets of the model state.
-  A rule owns the queries it needs; this package supplies the primitives and the database that memoizes the answers.
-- The one-revision database: one memoized decode, per-file, governance, analysis and link-target query family keyed
-  by the common reference for documents and skill entries, other memoized derived queries, and fresh snapshot
-  questions such as symlink targets.
+- `lorecraft.project.query`: raw-state primitives and queries promoted for cross-group use. A promoted query gives
+  both groups one memoized answer. This package supplies project-owned queries and the database that answers them.
+- The one-revision database: memoized decode, per-file, governance, analysis and link-target queries keyed by
+  Markdown item, symlink or corpus directory, other derived queries, and fresh snapshot questions such as symlink targets.
 - The witness a decode query returns: a file's ref and decoded text, or the undecodable marker with its first
   invalid byte's line, offset, bytes and reason.
 - The carry-over rule: which change to a revision's inputs invalidates which query, stated by each database query and
@@ -74,10 +73,11 @@ once in `lorecraft.project.layout` and read from there by every other module.
   immutable values.
 - A frontmatter schema maps owned JSON Schema violation facts to `FrontmatterProblem` values with project guidance; it
   never reads validator records.
-- A database query states its carry-over rule; a declared query a rule owns, run through `Database.query`, takes it
-  from what it read. An input query reads one input, one file's bytes or the structure. A derived query reads only
-  other queries and hands them to one package function; its arguments are its read set, so it carries over when they
-  do. A value drawn from several files is its own query, with its carry-over rule in its docstring.
+- A database query states its carry-over rule; a rule-group-owned query run through `Database.query` derives it from its
+  reads. An input query reads one input: file bytes or structure. A derived query passes other query results to one
+  package function. Its typed read set includes query and subject reference, making cross-item dependencies explicit.
+  Reuse an existing query rather than recomputing its answer. A value drawn from several files is its own query, with
+  its carry-over rule in its docstring.
 - A per-file query takes its decode query's witness, never a bare ref, is keyed by the ref, and carries over only
   when the next revision locates the ref at the same file with unchanged bytes. Only the database builds a witness.
 - Nothing derived from a snapshot is cached outside a database, or across revisions but by a carry-over rule. The
@@ -110,8 +110,12 @@ Before committing code, verify:
 - [ ] Every new read in `lorecraft.project` goes through a view
 - [ ] A new database query reads one input or states its own carry-over rule in its docstring, and takes a witness,
       not a bare ref, for a file's content; a declared query a rule owns states none
+- [ ] Database queries are keyed by a subject reference for Markdown items, symlinks and corpus directories; a
+      cross-item query read is recorded as the typed pair `(query, ref)`
 - [ ] A new derived query reads no view, only other queries, and passes what it read to one function of the
       package
+- [ ] Reuse derived queries; promote one to `lorecraft.project.query` when another group needs it, sharing its
+      memoized `(query, subject)` answer
 - [ ] Nothing added caches a value derived from a snapshot outside a database
 - [ ] The model and its loader read no document's content
 - [ ] A unit the loader cannot read or use is recorded as a frozen value of facts in a closed union, never raised
