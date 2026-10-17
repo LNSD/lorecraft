@@ -155,14 +155,9 @@ from typing import Self, cast
 from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.num import UnsignedInt
 from lorecraft.core.path import PathComponent, RootRelativePath
-from lorecraft.project.aspect import AspectFilename, EmptyAspectNameError, InvalidAspectNameCharacterError
-from lorecraft.project.corpus import (
-    CorpusName,
-    EmptyCorpusNameError,
-    InvalidCorpusNameCharacterError,
-    ReservedCorpusNameError,
-)
-from lorecraft.project.document import DocumentRef, SpecRef
+from lorecraft.project.aspect import AspectFilename
+from lorecraft.project.corpus import CorpusName
+from lorecraft.project.document import SpecRef
 from lorecraft.project.item import (
     DocumentOrigin,
     ItemReadError,
@@ -171,7 +166,7 @@ from lorecraft.project.item import (
     SpecificationOrigin,
     UnlistedItemError,
 )
-from lorecraft.project.layout import DOCS_DIR, DOCUMENT_SUFFIX, SPECS_DIR, reject_linked_layout
+from lorecraft.project.layout import DOCS_DIR, SPECS_DIR, reject_linked_layout
 from lorecraft.project.link_target import (
     DocumentLink,
     LinkBase,
@@ -219,6 +214,7 @@ from lorecraft.project.syntax import (
     split_lines,
 )
 from lorecraft.project.workspace import Governance, ResolvedItem, WorkspaceModel, load_model, unreported_refusals
+from lorecraft.project.workspace.model import find_document_at
 from lorecraft.vfs import (
     FILE_READ_FAILURES,
     RefusedRecord,
@@ -233,27 +229,6 @@ from .text import ItemText, Undecodable
 from .wrong_kind import WrongItemKindError
 
 logger = logging.getLogger(__name__)
-
-
-def _document_at(ref: MarkdownItemRef) -> DocumentRef | None:
-    """The document whose path an item reference is, or None when it is no `docs/<corpus>/<name>.md` path.
-
-    Args:
-        ref: The reference to read the corpus and filename from.
-    """
-    parts = ref.path.value.parts
-    if len(parts) != 3 or parts[0] != DOCS_DIR.value.name or not parts[2].endswith(DOCUMENT_SUFFIX):
-        return None
-    try:
-        return DocumentRef(CorpusName.parse(parts[1]), AspectFilename.parse(parts[2].removesuffix(DOCUMENT_SUFFIX)))
-    except (
-        EmptyCorpusNameError,
-        InvalidCorpusNameCharacterError,
-        ReservedCorpusNameError,
-        EmptyAspectNameError,
-        InvalidAspectNameCharacterError,
-    ):
-        return None
 
 
 def _witness_text(
@@ -413,7 +388,7 @@ class _ReadPrimitives:
         )
         documents: dict[RootRelativePath, tuple[str, str]] = {}
         for link in linked:
-            destination = _document_at(MarkdownItemRef(link.path))
+            destination = find_document_at(MarkdownItemRef(link.path))
             if destination is not None:
                 documents[link.path] = (str(destination.corpus), str(destination.filename))
         back_links = {
@@ -515,7 +490,7 @@ class Database:
         self._queries: dict[tuple[Query[object], MarkdownItemRef], tuple[object, frozenset[str]]] = {}
         # Each skill's resource listing, found on the first call; a resource is registered from it with `resource_item`.
         self._skill_resources: dict[SkillRef, SkillResourceListing] = {}
-        self._item_skill_fields: dict[MarkdownItemRef, SkillFields] = {}
+        self._item_skill_fields_cache: dict[MarkdownItemRef, SkillFields] = {}
 
     @classmethod
     def from_snapshot(cls, snapshot: Snapshot) -> Self:
@@ -727,11 +702,10 @@ class Database:
         except UnlistedItemError:
             if ref in self._unlisted_items:
                 return self._unlisted_items[ref]
-            document = _document_at(ref)
-            if document is None:
-                raise
-            self._document_item(ref, document)
-            return self._known(ref)
+            # The ref is unlisted, so model resolution validates its document path without checking the listing again.
+            resolved = self._model.resolve_item(ref)
+            self._unlisted_items[ref] = resolved
+            return resolved
 
     def _decode(self, ref: MarkdownItemRef) -> ItemText | Undecodable:
         """Decode an item the database already resolved, listed or not, once."""
@@ -781,16 +755,6 @@ class Database:
         """
         if item not in self._items and item not in self._unlisted_items:
             (self._items if listed else self._unlisted_items)[item] = resolve()
-
-    def _document_item(self, item: MarkdownItemRef, ref: DocumentRef) -> None:
-        """Resolve the document an item reference names, by its document ref and without scanning the model's items.
-
-        A document the model lists is kept as an item. One it does not list, in a corpus it lacks or beyond the
-        corpus's listing, is kept apart, so the listed items still refuse it.
-        """
-        corpus = self._model.find_corpus(ref.corpus)
-        listed = corpus is not None and ref.filename in corpus.filenames
-        self._register(item, lambda: self._model.resolve_item(ref), listed=listed)
 
     # Input query: resolve the paths named by one item's links against the snapshot and scope.
 
@@ -960,6 +924,9 @@ class Database:
     def query_reads(self, query: Query[object], ref: MarkdownItemRef) -> frozenset[str]:
         """The primitives a query read over one item, by method name, once it has been run. Raises nothing.
 
+        `_ReadPrimitives.query` consumes the read set to propagate dependencies. This method is public so that this
+        collaborator does not reach into another class's private cache.
+
         Args:
             query: The query asked for.
             ref: The item it ran over.
@@ -970,6 +937,8 @@ class Database:
         """Whether the item at a ref links to an existing file at a path; false, logged, when it cannot be read.
 
         Not cached: the answer is a lookup in `item_link_targets`, which is, so it carries over with it.
+        `_ReadPrimitives.linked_documents` uses this operation to check whether linked documents point back to their
+        source; keeping it here lets the database own decode failures and cached target lookups.
 
         Args:
             ref: The item to read.
@@ -989,18 +958,20 @@ class Database:
         """The fields of one skill entry's frontmatter that parse, parsed once. Raises nothing.
 
         A field that is not written or is rejected has no entry, so a rule over one field reads it whatever the
-        others hold. Empty for any item that is not a skill entry.
+        others hold. Empty for any item that is not a skill entry. This stays separate because only skill entries
+        have fields defined by the Agent Skills specification. `_ReadPrimitives.skill_fields` consumes this database
+        query, whose result is shared by every rule that reads those fields.
 
         Carry-over: kept for the next revision whenever `item_frontmatter(source)` is.
 
         Args:
             source: The skill entry's text; its ref is the cache key.
         """
-        found = self._item_skill_fields.get(source.ref)
+        found = self._item_skill_fields_cache.get(source.ref)
         if found is None:
             is_skill = isinstance(source.descriptor.origin, SkillEntryOrigin)
             found = parse_skill_fields(self.item_frontmatter(source)) if is_skill else FrozenMapping({})
-            self._item_skill_fields[source.ref] = found
+            self._item_skill_fields_cache[source.ref] = found
         return found
 
     # Snapshot questions: `refusals` is read on each call; `unreported_docs_refusals` is memoized for this database.
