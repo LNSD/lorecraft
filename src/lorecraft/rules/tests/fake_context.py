@@ -12,11 +12,12 @@ file, so the test states it by hand too.
 """
 
 from collections.abc import Mapping
-from typing import Final
+from typing import Final, cast
 
 from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.project.aspect import AspectFilename, AspectNamespace
+from lorecraft.project.context import MarkdownContext
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.layout import DOCS_DIR, SPECS_DIR
@@ -58,6 +59,7 @@ from lorecraft.project.syntax import (
     section_headings,
 )
 from lorecraft.project.workspace import Corpus, CorpusNamespace, CorpusSpec, Governance, NamespaceSpec
+from lorecraft.rules.subject import ItemRule, Queried
 from lorecraft.vfs import ResolvedPath, RootExit
 
 _DEFAULT_FILENAME: Final[str] = 'setup'
@@ -450,3 +452,14 @@ class FakeCorpusDirectoryContext:
     def reserved_corpus(self) -> CorpusName:
         """The reserved corpus the directory takes, as the test stated it."""
         return self._corpus
+
+
+def judged[R: ItemRule](rule: type[R], context: MarkdownContext) -> tuple[R, ...]:
+    """Every occurrence of a queried rule over a fake context, resolved as the runner does: its query, then its facts.
+
+    Args:
+        rule: The queried rule to run.
+        context: The fake context that answers the rule's query.
+    """
+    assert issubclass(rule, Queried)
+    return cast('tuple[R, ...]', rule.judge(context.query(rule.query())))
