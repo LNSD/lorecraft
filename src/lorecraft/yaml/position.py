@@ -34,6 +34,11 @@ class LineIndex:
         """
         self._starts = (0, *(match.end() for match in _BREAK.finditer(text)))
 
+    @property
+    def line_count(self) -> int:
+        """How many lines the text has, a trailing line break starting an empty last one."""
+        return len(self._starts)
+
     def position_at(self, index: int) -> YamlPosition:
         """The position of the character at `index`.
 

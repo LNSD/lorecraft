@@ -50,7 +50,12 @@ check is, so the package above it decides what a refused construct means for a d
   that reads YAML can import it without a cycle.
 - The library's loaders and constructors are never called: no tag resolves and no type is constructed, so the text
   can never build a value beyond what JSON holds.
-- It is a pure function of its input. It performs no I/O and holds no state between calls.
+- It is a pure function of its input. It performs no I/O and holds no state between calls; its one side effect is the
+  debug logging below.
+- It logs at `debug` only, with `logger = logging.getLogger(__name__)` in `reader` and `syntax_error`, and named
+  `extra={'fields': ...}`: a read's outcome and size, a refused construct's type and position, a syntax error's kind or
+  unclassified problem as one of the parser's fixed templates or a constant, and line. It never logs the text, a scalar, a key or a tag, and it sets no handler and no
+  level: the entry point configures logging.
 - What the subset leaves out is refused as a typed construct carrying where it is written, never as a bare library error
   or a string. The package names constructs as types and never words them, and no docstring or code names frontmatter or a
   diagnostic code.
@@ -91,6 +96,7 @@ Before committing code, verify:
 - [ ] A construct the subset leaves out is returned as a `RefusedConstructProblem` that carries a `RefusedConstruct` type and its position, never a message
 - [ ] A syntax error is returned as a `YamlSyntaxError` kind, never as the parser's problem or context text
 - [ ] A position is computed from a mark's index and the text, never read from the mark's column
+- [ ] Logging is `debug` only, with named fields and no content of the text, and no handler or level is set
 - [ ] Nothing here names a document, a frontmatter key or a diagnostic code, in code, docstrings or tests
 
 ## References
