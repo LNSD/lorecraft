@@ -113,8 +113,8 @@ is derived from the primitives it read: that is where a new cost enters and is r
 
 **A shared analysis is a query.** Schema validation and outline matching each find several conditions in one
 pass. Each is a pure function of the revision's per-file queries and the meta specs that govern the subject, so
-it is memoized on the database like any other query, with its own carry-over rule: `schema_problems` and
-`skill_schema_problems` are kept whenever the frontmatter is and, for a document, the model is, and
+it is memoized on the database like any other query, with its own carry-over rule: `item_schema_problems` is kept
+whenever the frontmatter is and, for a document, the model is, and
 `outline_divergences` whenever the parse and the line count are and the model is. It is computed once per subject,
 as a tuple of typed problems, however many rules ask for it, and only when an enabled rule reads it and a
 meta spec governs the subject for it, so an ungoverned subject never pays for it. Each condition is then a rule
@@ -122,7 +122,7 @@ that projects its own problem type into its occurrences. The analysis finds prob
 applied after detection, so no diagnostic is cached and a rule's result still is not.
 
 **A cross-file fact is a query.** The link-target states are a query keyed by the subject's ref, one per kind of
-Markdown file, read as the `link_targets` primitive: what the snapshot holds at the target of each relative link,
+Markdown file, read as the `item_link_targets` primitive: what the snapshot holds at the target of each relative link,
 present, missing or outside the scope the scan read, with the root-relative path it was looked up at, keyed by the
 link's normalised relative path. Each link is read from the file's `link_base` primitive, the skill root for any file
 of a skill and the document's own directory for a document, and a link climbing past that bound has no entry. A
@@ -146,9 +146,10 @@ such as the first H1, is a helper beside the parse tree.
 the skill layout whose chain leaves the repository: a skills directory, an entry in one or an entry's `SKILL.md`, from
 the model's outside symlinks, or a symlink inside a skill, from that skill's resource listing. The loader and the
 resource walk decide that a chain leaves, from the link targets the scan recorded, so a symlink that stays or dangles
-inside is no entry. The query states where the chain leaves, a fact and never a verdict. A rule over an entry derives
-from `LayoutEntryRule` and only words the finding, at the path an agent reaches the symlink by. A symlink has no text,
-so it is never decoded, and the package governs the layout, so it is never ungoverned.
+inside is no entry. `SymlinkPrimitives` and `CorpusDirectoryPrimitives` state where the chain leaves, a fact and never a
+verdict, from the record those queries returned. A rule over an entry derives from `LayoutRule`, through
+`QueriedSymlinkRule` or `QueriedCorpusDirectoryRule`, and only words the finding, at the path an agent reaches the
+symlink by. A symlink has no text, so it is never decoded, and the package governs the layout, so it is never ungoverned.
 
 ### A Subject's Status Comes Before Any Rule
 
@@ -197,12 +198,7 @@ the entry's record, in a report that holds the entry's path and its
 diagnostics.
 
 ```python
-def _check_document(database: Database, ref: DocumentRef, table: RuleTable) -> SubjectReport:
-    source = database.text(ref)
-    if isinstance(source, Undecodable):
-        return UndecodableSubject(ref, source.failure)
-    # `source` is a `DocumentText` from here on: the witness every per-file query takes
-
+def judge_item(database: Database, source: ItemText, table: RuleTable) -> CheckedItem:
     diagnostics: list[Diagnostic] = []
     ungoverned: list[Facet] = []
 

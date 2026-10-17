@@ -53,8 +53,8 @@ takes one.
    |---|---|---|
    | Analysis | Holds the checks that judge the query results: the rules, the runner that hands each rule its subject, each mode's policy for a document a failed layer governs, the rule table, level resolution and the reports | Takes a snapshot, prints, memoizes a value derived from the snapshot, or reads the workspace except through the database's queries |
 
-3. **The database lives in `lorecraft.project.database`**, with the witnesses (`DocumentText`, `SkillText`,
-   `SkillResourceText`, `Undecodable`).
+3. **The database lives in `lorecraft.project.database`**, with the witness `ItemText` and the
+    undecodable marker `Undecodable`.
    `lorecraft.engine` imports them from there and re-exports none of them.
 4. **A rule still never reaches the database.** `lorecraft.rules` now sits above it, so the layers contract alone
    would allow the import; a forbidden contract in `pyproject.toml` refuses `lorecraft.rules` importing
