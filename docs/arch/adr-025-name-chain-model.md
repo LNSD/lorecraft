@@ -19,8 +19,12 @@ without a cross-layer compatibility prover while documenting that contradictory 
 Today [adr-016](adr-016-specifications.md) and [adr-013](adr-013-namespace-extension.md) state that both hierarchies
 layer by conjunction and that a document's base chain is distinct from its governing meta specs, but `lorecraft.project`
 models only the flat list of matching namespace meta specs (`NamespaceSpec.is_governing` and `namespace_order_key` in
-`lorecraft.project.workspace`). Neither a `NamespaceSpec`'s own base in the meta spec hierarchy nor a `DocumentRef`'s
-base chain in its corpus is represented in `WorkspaceModel`, so `lorecraft inspect` cannot show either chain.
+`lorecraft.project.workspace`). The model already holds the single-step base of each hierarchy:
+`Corpus.document_base(filename)` returns the `DocumentRef` a document extends, and
+`WorkspaceModel.find_specification_base(ref)` returns the `SpecRef` of the meta specification a meta specification
+extends; both resolve the narrowest existing ancestor through `find_narrowest_ancestor`. Still unbuilt are the full
+chains (`document_chain`, the meta spec chain), the reverse direction (`document_extensions`) and the
+`lorecraft inspect` output, so `inspect` cannot show either chain.
 
 ## Decision
 
@@ -76,17 +80,20 @@ class Corpus:
     namespaces: FrozenMapping[AspectNamespace, CorpusNamespace]
     filenames: frozenset[AspectFilename]
 
-    def spec_base(self, namespace: AspectNamespace) -> Spec: ...
-    def spec_chain(self, namespace: AspectNamespace) -> tuple[Spec, ...]: ...
-    def document_base(self, filename: AspectFilename) -> DocumentRef | None: ...
+    # Meta spec base: built as WorkspaceModel.find_specification_base(ref: SpecRef) -> SpecRef | None
+    def spec_chain(self, namespace: AspectNamespace) -> tuple[Spec, ...]: ...  # proposed
+    def document_base(self, filename: AspectFilename) -> DocumentRef | None: ...  # built
     def document_chain(self, filename: AspectFilename) -> tuple[DocumentRef, ...]: ...
     def governance(self, filename: AspectFilename) -> Governance: ...
 ```
 
-Names in the sketch are illustrative; the separation of the two chains on `Corpus` over one name-chain helper is the
-decision. Because `Corpus` builds both hierarchies from `namespaces` and `filenames` alone, editing a document's text
-never invalidates `WorkspaceModel`, `Governance`, or `document_chain` ([adr-003](adr-003-project-model.md),
-[adr-015](adr-015-database.md), `NFR-001`).
+Of the sketch, only `document_base` and `WorkspaceModel.find_specification_base` exist today; `spec_chain`,
+`document_chain` and `document_extensions` are proposals. The meta spec base stays on `WorkspaceModel` under its
+current name, which takes a `SpecRef`, because the meta specification set is read from the workspace rather than from
+one `Corpus`. Names in the sketch are illustrative; the separation of the two chains on `Corpus` over one name-chain
+helper is the decision. Because `Corpus` builds both hierarchies from `namespaces` and `filenames` alone, editing a
+document's text never invalidates `WorkspaceModel`, `Governance`, or `document_chain`
+([adr-003](adr-003-project-model.md), [adr-015](adr-015-database.md), `NFR-001`).
 
 ### Rendering Both Hierarchies in Workspace Inspection
 
@@ -105,7 +112,8 @@ never invalidates `WorkspaceModel`, `Governance`, or `document_chain` ([adr-003]
 2. **JSON output (`render_json`, `--format json`):**
    - `_SpecJson` gains `base: str | None`, holding the `stem` of the meta spec's base (`None` for the corpus meta spec,
      and the base meta spec's name for each namespace meta spec).
-   - `_DocumentJson` gains `base_chain: list[str]`, holding the root-relative paths of `corpus.document_chain(filename)`
+   - `_DocumentJson` does not yet carry a base chain; this ADR proposes adding
+     `base_chain: list[str]`, holding the root-relative paths of `corpus.document_chain(filename)`
      from broadest ancestor to the document itself (a one-element list `[str(ref.path)]` when the document extends no
      other document in its corpus).
 
@@ -168,7 +176,7 @@ separate meta spec compatibility diagnostic.
 
 | Deferred | What the design keeps open |
 |---|---|
-| Reference-direction checks | A future rule in `lorecraft.rules` can read `Corpus.document_base` and `Corpus.spec_base` to verify that an extension links to its base and a base never links to its extensions |
+| Reference-direction checks | A future rule in `lorecraft.rules` can read `Corpus.document_base` and `WorkspaceModel.find_specification_base` to verify that an extension links to its base and a base never links to its extensions |
 | Governing `docs/__meta__/` prose | Validating the prose files of `docs/__meta__/` against a meta spec of their own is left to a follow-up feature |
 
 ## Checklist
