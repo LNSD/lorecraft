@@ -12,7 +12,7 @@ from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.project.query import StructurePrimitives
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.location import Help, Here, Label
-from lorecraft.rules.tests.fake_context import FakeDocumentContext, heading_in, namespace_spec
+from lorecraft.rules.tests.fake_context import FakeDocumentContext, heading_in, judged, namespace_spec
 
 from ..title_not_first import TitleNotFirst, headings
 
@@ -30,7 +30,7 @@ class TestTitleNotFirst:
         subject = FakeDocumentContext(SECTION_FIRST, corpus='guide', structure=STRUCTURE)
 
         #: When
-        occurrences = TitleNotFirst.check(subject)
+        occurrences = judged(TitleNotFirst, subject)
 
         #: Then
         assert occurrences == (
@@ -46,7 +46,7 @@ class TestTitleNotFirst:
         )
 
         #: When
-        occurrences = TitleNotFirst.check(subject)
+        occurrences = judged(TitleNotFirst, subject)
 
         #: Then
         assert occurrences == (), 'a document with no title is missing it, which `missing-title` reports instead'
@@ -58,7 +58,7 @@ class TestTitleNotFirst:
         )
 
         #: When
-        occurrences = TitleNotFirst.check(subject)
+        occurrences = judged(TitleNotFirst, subject)
 
         #: Then
         assert occurrences == (
@@ -72,7 +72,7 @@ class TestTitleNotFirst:
         subject = FakeDocumentContext('# Setup\n\n## Usage\n\nRun it.\n', corpus='guide', structure=STRUCTURE)
 
         #: When
-        occurrences = TitleNotFirst.check(subject)
+        occurrences = judged(TitleNotFirst, subject)
 
         #: Then
         assert occurrences == (), 'a document opening with its H1 title has it first'
@@ -84,7 +84,7 @@ class TestTitleNotFirst:
         )
 
         #: When
-        occurrences = TitleNotFirst.check(subject)
+        occurrences = judged(TitleNotFirst, subject)
 
         #: Then
         assert occurrences == (), 'a document with no heading is missing its title, which is not this rule'
@@ -96,7 +96,7 @@ class TestTitleNotFirst:
         )
 
         #: When
-        occurrences = TitleNotFirst.check(subject)
+        occurrences = judged(TitleNotFirst, subject)
 
         #: Then
         assert occurrences == (

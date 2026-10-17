@@ -12,7 +12,7 @@ from lorecraft.core.path import RootRelativePath
 from lorecraft.project.link_target import EscapingTarget, LinkTarget, PathLookup
 from lorecraft.project.syntax import LineNumber, NormalisedLinkPath
 from lorecraft.rules.location import Help, Note
-from lorecraft.rules.tests.fake_context import FakeSkillResourceContext
+from lorecraft.rules.tests.fake_context import FakeSkillResourceContext, judged
 
 from ..escaping_link import EscapingLink
 
@@ -46,7 +46,7 @@ class TestEscapingLink:
         )
 
         #: When
-        occurrences = EscapingLink.check(subject)
+        occurrences = judged(EscapingLink, subject)
 
         #: Then
         assert occurrences == (EscapingLink(line=LineNumber(NonZeroUnsignedInt(3)), url='../SKILL.md'),), (
@@ -60,7 +60,7 @@ class TestEscapingLink:
         )
 
         #: When
-        occurrences = EscapingLink.check(subject)
+        occurrences = judged(EscapingLink, subject)
 
         #: Then
         assert occurrences == (
@@ -72,7 +72,7 @@ class TestEscapingLink:
         subject = FakeSkillResourceContext('![flow](../../flow.png)\n', link_targets=_escaping('../../flow.png'))
 
         #: When
-        occurrences = EscapingLink.check(subject)
+        occurrences = judged(EscapingLink, subject)
 
         #: Then
         assert occurrences == (EscapingLink(line=LineNumber(NonZeroUnsignedInt(1)), url='../../flow.png'),), (
@@ -84,7 +84,7 @@ class TestEscapingLink:
         subject = FakeSkillResourceContext('[a b](%2E%2E/a%20b.md)\n', link_targets=_escaping('../a b.md'))
 
         #: When
-        occurrences = EscapingLink.check(subject)
+        occurrences = judged(EscapingLink, subject)
 
         #: Then
         assert occurrences == (EscapingLink(line=LineNumber(NonZeroUnsignedInt(1)), url='%2E%2E/a%20b.md'),), (
@@ -99,7 +99,7 @@ class TestEscapingLink:
         )
 
         #: When
-        occurrences = EscapingLink.check(subject)
+        occurrences = judged(EscapingLink, subject)
 
         #: Then
         assert occurrences == (), 'references/../SKILL.md normalises to SKILL.md, inside the skill'
@@ -111,7 +111,7 @@ class TestEscapingLink:
         )
 
         #: When
-        occurrences = EscapingLink.check(subject)
+        occurrences = judged(EscapingLink, subject)
 
         #: Then
         assert occurrences == (), 'references/.. normalises to the skill root itself, which is not above it'
@@ -121,7 +121,7 @@ class TestEscapingLink:
         subject = FakeSkillResourceContext('[the spec](https://example.com/../spec)\n')
 
         #: When
-        occurrences = EscapingLink.check(subject)
+        occurrences = judged(EscapingLink, subject)
 
         #: Then
         assert occurrences == (), 'a URL with a scheme spells no relative path, so it never escapes'
@@ -131,7 +131,7 @@ class TestEscapingLink:
         subject = FakeSkillResourceContext('[up](/../outside.md)\n')
 
         #: When
-        occurrences = EscapingLink.check(subject)
+        occurrences = judged(EscapingLink, subject)
 
         #: Then
         assert occurrences == (), 'an absolute link spells no relative path; it is LINK001, not this rule'
@@ -141,7 +141,7 @@ class TestEscapingLink:
         subject = FakeSkillResourceContext('# Checklist\n\nSee [the top](#checklist).\n')
 
         #: When
-        occurrences = EscapingLink.check(subject)
+        occurrences = judged(EscapingLink, subject)
 
         #: Then
         assert occurrences == (), 'a fragment-only link spells no path at all'

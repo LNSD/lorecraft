@@ -12,7 +12,7 @@ from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.project.query import StructurePrimitives
 from lorecraft.project.syntax import Heading, LineNumber
 from lorecraft.rules.location import Help, Here, Label
-from lorecraft.rules.tests.fake_context import FakeDocumentContext, heading_in, namespace_spec
+from lorecraft.rules.tests.fake_context import FakeDocumentContext, heading_in, judged, namespace_spec
 
 from ..extra_title import ExtraTitle, titles
 
@@ -36,7 +36,7 @@ class TestExtraTitle:
         subject = FakeDocumentContext(SECOND_TITLE, corpus='guide', structure=STRUCTURE)
 
         #: When
-        occurrences = ExtraTitle.check(subject)
+        occurrences = judged(ExtraTitle, subject)
 
         #: Then
         assert occurrences == (ExtraTitle(line=LineNumber(NonZeroUnsignedInt(7)), first_title=FIRST_TITLE),), (
@@ -48,7 +48,7 @@ class TestExtraTitle:
         subject = FakeDocumentContext(SECOND_TITLE + '\n# Reference\n', corpus='guide', structure=STRUCTURE)
 
         #: When
-        occurrences = ExtraTitle.check(subject)
+        occurrences = judged(ExtraTitle, subject)
 
         #: Then
         assert occurrences == (
@@ -61,7 +61,7 @@ class TestExtraTitle:
         subject = FakeDocumentContext(ONE_TITLE, corpus='guide', structure=STRUCTURE)
 
         #: When
-        occurrences = ExtraTitle.check(subject)
+        occurrences = judged(ExtraTitle, subject)
 
         #: Then
         assert occurrences == (), 'a document carrying its one title has none extra'
@@ -71,7 +71,7 @@ class TestExtraTitle:
         subject = FakeDocumentContext('## Install\n\nInstall the toolkit.\n', corpus='guide', structure=STRUCTURE)
 
         #: When
-        occurrences = ExtraTitle.check(subject)
+        occurrences = judged(ExtraTitle, subject)
 
         #: Then
         assert occurrences == (), 'a document short of its titles is missing one, never carrying an extra one'
@@ -83,7 +83,7 @@ class TestExtraTitle:
         )
 
         #: When
-        occurrences = ExtraTitle.check(subject)
+        occurrences = judged(ExtraTitle, subject)
 
         #: Then
         assert occurrences == (ExtraTitle(line=LineNumber(NonZeroUnsignedInt(7)), first_title=FIRST_TITLE),), (

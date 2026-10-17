@@ -10,7 +10,7 @@ from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.project.link_target import DocumentLink
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.location import Help, Note
-from lorecraft.rules.tests.fake_context import FakeDocumentContext
+from lorecraft.rules.tests.fake_context import FakeDocumentContext, judged
 
 from ..mutual_link import MutualLink
 
@@ -53,7 +53,7 @@ class TestMutualLink:
         )
 
         #: When
-        occurrences = MutualLink.check(subject)
+        occurrences = judged(MutualLink, subject)
 
         #: Then
         assert occurrences == (expected,), 'a mutual link across corpora is one occurrence, on the link'
@@ -63,7 +63,7 @@ class TestMutualLink:
         subject = _document(_link('feat', has_back_link=False))
 
         #: When
-        occurrences = MutualLink.check(subject)
+        occurrences = judged(MutualLink, subject)
 
         #: Then
         assert occurrences == (), 'a link one way is the direction the rule asks for'
@@ -73,7 +73,7 @@ class TestMutualLink:
         subject = _document(_link('guide', has_back_link=True))
 
         #: When
-        occurrences = MutualLink.check(subject)
+        occurrences = judged(MutualLink, subject)
 
         #: Then
         assert occurrences == (), 'two documents of one corpus may link each other, which this rule leaves alone'
@@ -87,7 +87,7 @@ class TestMutualLink:
         )
 
         #: When
-        occurrences = MutualLink.check(subject)
+        occurrences = judged(MutualLink, subject)
 
         #: Then
         assert occurrences == expected, 'each mutual link is reported whole, in the order of the document'
