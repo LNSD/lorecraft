@@ -208,9 +208,6 @@ class TestTokenFacts:
         #: Then
         assert budgets == (), 'nothing governs'
 
-
-@pytest.mark.unit
-class TestTokenFactsCount:
     def test_token_facts_counts_tokens_only_when_a_budget_governs(self) -> None:
         #: Given
         budgeted = structure_spec('code', '{"tokens": 100}')
