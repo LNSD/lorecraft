@@ -7,6 +7,11 @@ status: "accepted"
 
 # The Project Model
 
+> [!NOTE]
+> Superseded in part: the separate document, skill and skill resource reference types, which one governed-item
+> reference and model-resolved descriptor replace. The text below states that design where it spoke of them. The rest
+> of this record binds code.
+
 ## Context
 
 The project model is what a repository declares: its corpora, meta specs, specs and skills. It answers
@@ -42,10 +47,10 @@ def is_read(roots: tuple[ReadRoot, ...], symlinks: tuple[SymlinkRecord, ...], pa
 
 ### Identity Is Not Location
 
-A document or a skill is identified by a ref, named where it is listed. Where its symlinks lead is its location,
+A document, a skill entry or a skill resource is identified by one governed-item ref, named where it is listed. Where its symlinks lead is its location,
 recorded beside the ref in the model. A symlink retargeted to another file leaves the ref as it was and changes
-the location, so whatever is keyed by the ref reads a different file without any bytes changing. A skill resource
-is identified by a ref too, and its location is recorded in its skill's resource listing, not in the model.
+the location, so whatever is keyed by the ref reads a different file without any bytes changing. A skill resource's descriptor
+is resolved lazily from its skill's resource listing, not recorded in the model.
 
 ## Consequences
 
@@ -66,7 +71,5 @@ Before committing code, verify:
 - [adr-001-snapshot-model](adr-001-snapshot-model.md) - Related: The model and the package roles
 - [adr-005-incremental](adr-005-incremental.md) - Related: Why location decides whether a result carries over
 - [adr-016-specifications](adr-016-specifications.md) - Related: Meta specs and governance restated, which supersedes adr-006
-- [adr-023](adr-023-governed-items.md) - Related: Proposed replacement of origin-specific references with one
-  governed-item reference and model-resolved descriptor
 - [adr-025](adr-025-name-chain-model.md) - Related: Meta spec and document name chains derived from declared names
   and listings

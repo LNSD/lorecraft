@@ -10,6 +10,11 @@ status: "accepted"
 > [!NOTE]
 > Supersedes [adr-004-database](adr-004-database.md): its revisions, view, cache and kinds of query, restated here
 > unchanged except for how the model is loaded. adr-004 binds no code.
+>
+> Superseded in part: the per-kind decode, analysis and link-target query families and the document-only failed-layer
+> skipping, which one governed-item query family replaces, and the stated carry-over of a query a rule owns, which
+> derived carry-over replaces. The text below states that design where it spoke of them. The rest of this record
+> binds code.
 
 ## Context
 
@@ -96,7 +101,7 @@ class FailedStructure:
 
 @dataclass(frozen=True, slots=True)
 class Governance:
-    ref: DocumentRef
+    ref: MarkdownItemRef
     corpus_spec: CorpusSpec          # its `structure` may be a FailedStructure
     namespace_specs: tuple[NamespaceSpec, ...]
 
@@ -128,11 +133,11 @@ Names in the sketches are illustrative; the shapes are the decision.
 
 ### Skip or Partial Is the Consumer's Policy
 
-1. **The database hands out what loaded and what failed, and nothing more.** `governance(ref)` returns the layers
+1. **The database hands out what loaded and what failed, and nothing more.** `item_governance(ref)` returns the layers
    as they are. An analysis that reads governance, such as `schema_problems` or `outline_divergences`, reads only the
    layers that loaded. That is a fact about those layers and not a verdict on the document.
-2. **The check run skips.** Its entry point gives a document whose governance holds a failed layer no rule. It reports the
-   document as skipped in coverage, naming each failed layer's structure file (FR-010, FR-011). The document is still
+2. **The check run skips.** Its entry point gives a governed item whose governance holds a failed layer no rule. It
+   reports the item as skipped in coverage, naming each failed layer's structure file (FR-010, FR-011). The item is still
    decoded first, so a file that cannot be decoded is reported as it is today.
 3. **The LSP-style mode will judge partially.** It will have an entry point of its own beside the check run's, over
    the same shared runner, that runs the rules over the layers that loaded and labels the result partial (FR-012).
@@ -157,34 +162,32 @@ A query is a method of the database, memoized until the database is dropped. Its
 model is loaded when the database is opened; every other query is computed on first use. The queries are layered:
 
 - **Structure**: the project model, the index of the scope the snapshot was taken of, a document's governance,
-  `governance(ref)`, what the model states governs one document, and a skill's resource listing, the Markdown files
+  `item_governance(ref)`, what the model states governs one document, and a skill's resource listing, the Markdown files
   inside a skill beside its `SKILL.md` and its symlinks that lead outside the root. They read listings, symlink
   targets, the declared scope and meta specs, never a document's content: an edit to a document's text leaves them
   valid, and a retargeted symlink on the way to a skill does not. A resource listing reads only the listings and
   symlink targets its skill's walk reaches, so a change the walk does not reach leaves it valid. A document's
   governance is kept whenever it is recomputed equal, a failed layer compared by its recorded failure, so a model
   change that leaves it equal leaves valid every query that reads it.
-- **Decode**: a file's text, one query per kind of file: a document, a `SKILL.md`, a resource. Each is keyed by the
-  file's ref and reads the one file a structure query locates: the model locates a document or a `SKILL.md` by its
-  ref, and the resource decode takes the location its skill's resource listing issued. Each returns a witness, the
-  ref and its decoded text, or an undecodable marker, cached like any answer. It is the one place a file's bytes
-  become text: an excerpt of a document, a `SKILL.md` or a resource, rendered for a diagnostic, is cut from the text
-  its decode query returned, never from a second decode of the file.
+- **Decode**: a governed item's text, one query, `item_text`, keyed by the item's ref and reading the one file the
+  item's descriptor locates. It returns one witness, the ref and its decoded text, or an undecodable marker, cached
+  like any answer. It is the one place a file's bytes become text: an excerpt of a document, a skill entry or a
+  resource, rendered for a diagnostic, is cut from the text this query returned, never from a second decode of the
+  file.
 - **Per file**: a frontmatter node, a parse tree, a token count, a line count. Each takes the witness its decode query
   returned, never a bare ref, so a fact of an undecodable file cannot be asked for, and is keyed by the witness's ref.
-- **Analysis**: a shared analysis of one file against what governs it, which several rules read: `schema_problems`,
-  what each governing frontmatter schema rejects in a document's frontmatter, `skill_schema_problems`, the same for a
-  skill against the Agent Skills specification, and `outline_divergences`, where a document's sections first stop
-  matching each governing outline. Each takes the witness, reads the per-file queries it analyses and, for a
-  document, its governance through `governance(ref)`, never the whole model, and is kept whenever they are: a model
-  change that leaves a document's governance equal keeps its analyses. It finds problems, not diagnostics: levels
-  apply after detection, so no diagnostic is cached.
-- **Cross-file**: `link_targets`, `skill_link_targets` and `skill_resource_link_targets`, what the snapshot holds at
-  the target of each relative link of a document, a `SKILL.md` or a resource: present, missing or outside the scope,
-  each entry also keeping the root-relative path it was looked up at. Each takes the witness, reads the file's parse
-  and, for each path a link names, the snapshot's records on the way to it and the scope, and is kept only when the
-  parse is kept and every path it looked up, an absent target included, resolves the same and is in the same scope
-  state.
+- **Analysis**: a shared analysis of one file against what governs it, which several rules read:
+  `item_schema_problems`, what each governing frontmatter schema rejects in a frontmatter, `item_skill_schema_problems`,
+  the same for a skill against the Agent Skills specification, and the outline divergences, where a document's sections
+  first stop matching each governing outline. Each takes the witness, reads the per-file queries it analyses and its
+  governance through `item_governance(ref)`, never the whole model, and is kept whenever they are: a model change that
+  leaves an item's governance equal keeps its analyses. It finds problems, not diagnostics: levels apply after
+  detection, so no diagnostic is cached.
+- **Cross-file**: `item_link_targets`, what the snapshot holds at the target of each relative link of a governed item:
+  present, missing or outside the scope, each entry also keeping the root-relative path it was looked up at. It takes
+  the witness, reads the item's parse and, for each path a link names, the snapshot's records on the way to it and the
+  scope, and is kept only when the parse is kept and every path it looked up, an absent target included, resolves the
+  same and is in the same scope state.
 - **Fresh**: a question too cheap to keep, such as where a symlink leads, answered on every call and never memoized.
 
 A query reads what it needs through the view, or calls another query to reuse that query's cached result, then stores
@@ -256,13 +259,13 @@ Before committing code, verify:
 - [ ] Each load failure is reported once, as an engine diagnostic at its own path, with a fixed error severity
 - [ ] A documentation root or meta spec directory that cannot be listed is recorded like any load failure, and the
   check command, not the model, turns it into a failure that exits 2 before any subject is selected
-- [ ] Neither the model nor the database decides skip or partial; the check run's entry point skips a document with a
+- [ ] Neither the model nor the database decides skip or partial; the check run's entry point skips an item with a
   failed layer and lists it in coverage
 - [ ] No code but the database builds a view over the snapshot; code below it reads only the view a query hands it
 - [ ] Every value derived from the snapshot is a query on the database
-- [ ] A per-document analysis reads the document's governance through `governance(ref)`, never the project model, and
+- [ ] A per-document analysis reads the document's governance through `item_governance(ref)`, never the project model, and
   only the layers that loaded
-- [ ] A source excerpt of a document, a `SKILL.md` or a resource is cut from its decode query's text, never decoded
+- [ ] A source excerpt of a governed item is cut from its decode query's text, never decoded
   again
 - [ ] Nothing patches a revision in place; work on an old revision is abandoned when a new one arrives
 - [ ] No database's cache is filled from two threads at once
@@ -286,5 +289,3 @@ Before committing code, verify:
 - [pattern-memoization](../code/pattern-memoization.md) - Foundation: How a query is memoized
 - [adr-025](adr-025-name-chain-model.md) - Related: Meta spec and document hierarchies exposed on the workspace
   model
-- [adr-023](adr-023-governed-items.md) - Related: Proposed replacement of per-kind decode, analysis and link-target
-  query families with one governed-item query family
