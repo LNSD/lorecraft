@@ -1,6 +1,6 @@
 """`LINK005`, `extension-link`, over the relative links of one document and the filename each leads to.
 
-Every case is a document written as text and parsed by the real parser, through a fake context; what the snapshot
+Every case is a document written as text and parsed by the real parser, through a fake database; what the snapshot
 holds at each link's target is a cross-file state, so the test states it by hand, keyed by the link's normalised
 relative path. The document is `setup.md`, so its extensions are the files named `setup-<something>.md`.
 """

@@ -1,6 +1,6 @@
 """`LINK003`, `broken-link`, over the relative links of one Markdown file and what the snapshot holds at each target.
 
-Every case is a Markdown file written as text and parsed by the real parser, through a fake context: a skill's
+Every case is a Markdown file written as text and parsed by the real parser, through a fake database: a skill's
 resource, whose links are read from the skill root, or a document, whose links are read from its own directory. What
 the snapshot holds at each link's target is a cross-file state, so the test states it by hand, keyed by the link's
 normalised relative path; where each link leads is `link_targets_of`'s, tested beside it.

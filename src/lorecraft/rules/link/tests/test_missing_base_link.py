@@ -1,6 +1,6 @@
 """`LINK006`, `missing-base-link`, over the References section of one document and the base its name chain gives it.
 
-Every case is a document written as text and parsed by the real parser, through a fake context that states the other
+Every case is a document written as text and parsed by the real parser, through a fake database that states the other
 documents of its corpus. What the snapshot holds at each link's target is stated by hand, keyed by the link's
 normalised relative path. The document is `setup-extra.md`, so its base is `setup.md` when `setup` is a sibling.
 """

@@ -1,6 +1,6 @@
 """`LEN005`, `title-too-long`, over the character cap of a document's title.
 
-Every case is a document written as text, read through a fake context that parses it as the real parser does, under
+Every case is a document written as text, read through a fake database that parses it as the real parser does, under
 structure files decoded from JSON; no document is read from disk.
 """
 
