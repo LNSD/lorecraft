@@ -128,7 +128,7 @@ and that file's bytes did not change.
 """
 
 import logging
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from typing import Self, cast
 
 from lorecraft.core.mapping import FrozenMapping
@@ -250,6 +250,10 @@ def _witness_text(
 
 class _ReadPrimitives:
     """The primitives of one item as the database answers them, noting each one a query reads.
+
+    A primitive that walks the model or other files, such as `linked_documents`, `item_base` and `frontmatter_owner`,
+    is not cached here: a query over the item is memoized by the database for the function and the ref, so each of
+    them is computed once per query, and a cache beside it would only hold the same answer twice.
 
     Attributes:
         read: The names of the primitives read so far.
@@ -714,9 +718,22 @@ class Database:
             location: The resource, as `skill_resources` locates it; its resolved file is where the text is read.
         """
         item = MarkdownItemRef(location.ref.path)
-        if item not in self._unlisted_items:
-            self._unlisted_items[item] = self._model.resolve_resource(location)
+        self._register(item, lambda: self._model.resolve_resource(location), listed=False)
         return item
+
+    def _register(self, item: MarkdownItemRef, resolve: Callable[[], ResolvedItem], *, listed: bool) -> None:
+        """Keep what an item resolves to, once: the one route by which a document or a resource enters the database.
+
+        A listed item is kept with the model's, so the listed items answer for it; any other is kept apart, so they
+        still refuse it. The item is resolved only when it is not kept yet.
+
+        Args:
+            item: The item to keep.
+            resolve: Resolves the item; called only for an item not kept yet.
+            listed: Whether the model lists the item.
+        """
+        if item not in self._items and item not in self._unlisted_items:
+            (self._items if listed else self._unlisted_items)[item] = resolve()
 
     def _document_item(self, item: MarkdownItemRef, ref: DocumentRef) -> None:
         """Resolve the document an item reference names, by its document ref and without scanning the model's items.
@@ -724,10 +741,9 @@ class Database:
         A document the model lists is kept as an item. One it does not list, in a corpus it lacks or beyond the
         corpus's listing, is kept apart, so the listed items still refuse it.
         """
-        if item not in self._items and item not in self._unlisted_items:
-            corpus = self._model.find_corpus(ref.corpus)
-            listed = corpus is not None and ref.filename in corpus.filenames
-            (self._items if listed else self._unlisted_items)[item] = self._model.resolve_item(ref)
+        corpus = self._model.find_corpus(ref.corpus)
+        listed = corpus is not None and ref.filename in corpus.filenames
+        self._register(item, lambda: self._model.resolve_item(ref), listed=listed)
 
     def item_link_targets(self, source: ItemText) -> Mapping[NormalisedLinkPath, LinkTargetEntry]:
         """Where each relative link of one item leads and what the snapshot holds there, found on the first call.
