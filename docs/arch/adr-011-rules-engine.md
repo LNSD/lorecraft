@@ -199,23 +199,33 @@ diagnostics.
 
 ```python
 def judge_item(database: Database, source: ItemText, table: RuleTable) -> CheckedItem:
+    descriptor = source.descriptor
     diagnostics: list[Diagnostic] = []
     ungoverned: list[Facet] = []
 
-    governance = database.item_governance(source.ref)  # None when no specification governs the item
-    for facet in Facet:
-        rules = table.document_rules_governed_by(facet)
-        if not rules:  # a facet no enabled rule reads is never looked at
+    for facet in (*Facet, None):
+        partitions = [
+            _reading(partition, descriptor, facet)
+            for partition in (
+                table.frontmatter_rules,
+                table.document_rules,
+                table.markdown_rules,
+                table.skill_rules,
+                table.skill_file_rules,
+            )
+        ]
+        if not any(partitions):  # a facet no applicable enabled rule reads is never looked at
             continue
-        if governance is None or not _is_governed_for(governance, facet):
+        if facet is not None and ItemFacet(facet.value) not in descriptor.active_facets:
             ungoverned.append(facet)
             continue
-        for enabled in rules:
-            facts = database.query(enabled.rule.query(), source.ref)  # the query reads only what the rule needs
-            for occurrence in enabled.rule.judge(facts):
-                diagnostics.append(RuleDiagnostic(ref.path, occurrence, enabled.severity))
+        for rules in partitions:
+            for enabled in rules:
+                facts = database.query(enabled.rule.query(), descriptor.ref)  # the query reads only what the rule needs
+                for occurrence in enabled.rule.judge(facts):
+                    diagnostics.append(RuleDiagnostic(descriptor.ref.path, occurrence, enabled.severity))
     ...
-    return CheckedItem(ref, diagnostics=tuple(diagnostics), ungoverned=tuple(ungoverned))
+    return CheckedItem(descriptor.ref, diagnostics=tuple(diagnostics), ungoverned=tuple(ungoverned))
 ```
 
 - **Adding a rule never touches the runner.** The rule joins its base's partition through the registry

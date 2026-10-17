@@ -185,9 +185,9 @@ Before committing code, verify:
 
 - [ ] One pure name-chain derivation in `lorecraft.project` computes bases, chains and direct extensions for both
   meta spec namespaces and document filenames by longest existing hyphen-delimited prefix
-- [ ] `Corpus` exposes both the meta spec hierarchy (`CorpusSpec` root, `NamespaceSpec` base and chain) and the
+- [ ] `Corpus` exposes the meta spec hierarchy (`CorpusSpec` root, `NamespaceSpec` base and chain) and proposes the
   document hierarchy (`document_base`, `document_chain`, `document_extensions`) without reading document content
-- [ ] `Corpus.governance` and `Corpus.document_chain` are kept separate; neither is derived from the other
+- [ ] `Corpus.governance` and the proposed `Corpus.document_chain` are kept separate; neither is derived from the other
 - [ ] `lorecraft inspect` renders each namespace meta spec's base and each document's base chain in both text and
   `--format json`, reading them from `WorkspaceModel` without prefix logic in `lorecraft.cli`
 - [ ] `/code-rules` and `/feat-discovery` instruct agents to load the full base chain of a matched document, broadest
