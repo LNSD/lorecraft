@@ -12,7 +12,7 @@ from lib.overruns import overrun
 from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.location import Help, Here, Label, Note
-from lorecraft.rules.tests.fake_context import FakeSkillContext, judged
+from lorecraft.rules.tests.fake_database import FakeSkillContext, judged
 
 from ..too_many_lines import TooManyLines
 

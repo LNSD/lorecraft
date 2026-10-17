@@ -258,10 +258,10 @@ tests/it/rule_cases/OUT004/
 
 The unit tests of a rule under `src/lorecraft/rules/<group>/` live in `tests/test_<module>.py` beside the rule, in one
 `Test<Rule>` class. A test of the rule's occurrences runs it through `judged(Rule, database)` of
-`rules/tests/fake_context.py`, which resolves the rule's query and then its facts as the runner does, for a rule over
+`rules/tests/fake_database.py`, which resolves the rule's query and then its facts as the runner does, for a rule over
 an item, a symlink or a corpus directory alike; no test calls `Rule.judge` or `Rule.query` by hand. A test of the rule's
 query is a second class in the same file, named for what the query returns, never a file of its own. A helper two rule
-files need, such as `structure_spec`, is defined once in `fake_context.py`.
+files need, such as `structure_spec`, is defined once in `fake_database.py`.
 
 ## Checklist
 

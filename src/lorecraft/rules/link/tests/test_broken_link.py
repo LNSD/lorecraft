@@ -16,7 +16,7 @@ from lorecraft.core.path import RootRelativePath
 from lorecraft.project.link_target import DocumentDirectory, EscapingTarget, LinkTarget, PathLookup, SkillRoot
 from lorecraft.project.syntax import LineNumber, NormalisedLinkPath
 from lorecraft.rules.location import Help, Note
-from lorecraft.rules.tests.fake_context import (
+from lorecraft.rules.tests.fake_database import (
     DEFAULT_DOCUMENT_DIRECTORY,
     DEFAULT_SKILL_DIRECTORY,
     FakeDocumentMarkdownContext,

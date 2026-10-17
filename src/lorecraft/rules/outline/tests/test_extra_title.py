@@ -12,7 +12,7 @@ from lib.primitives import StructurePrimitives
 from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.project.syntax import Heading, LineNumber
 from lorecraft.rules.location import Help, Here, Label
-from lorecraft.rules.tests.fake_context import FakeDocumentContext, heading_in, judged, namespace_spec
+from lorecraft.rules.tests.fake_database import FakeDocumentContext, heading_in, judged, namespace_spec
 
 from ..extra_title import ExtraTitle, titles
 

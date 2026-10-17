@@ -13,7 +13,7 @@ from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.location import Elsewhere, Help, Here, Label, Note
-from lorecraft.rules.tests.fake_context import FakeDocumentContext, judged, namespace_spec, structure_spec_path
+from lorecraft.rules.tests.fake_database import FakeDocumentContext, judged, namespace_spec, structure_spec_path
 
 from ..title_too_many_words import TitleTooManyWords
 

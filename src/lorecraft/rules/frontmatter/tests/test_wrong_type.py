@@ -15,7 +15,7 @@ from lorecraft.jsonschema import JsonType
 from lorecraft.project.schemas import AgentSkillsSchema, FieldGuidance, StructureSpecSchema, WrongTypeProblem
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.location import Elsewhere, Help, Here, Label, Note
-from lorecraft.rules.tests.fake_context import (
+from lorecraft.rules.tests.fake_database import (
     FakeDocumentContext,
     FakeSkillContext,
     judged,

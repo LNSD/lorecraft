@@ -10,7 +10,7 @@ from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.project.link_target import DocumentLink
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.location import Help, Note
-from lorecraft.rules.tests.fake_context import FakeDocumentContext, judged
+from lorecraft.rules.tests.fake_database import FakeDocumentContext, judged
 
 from ..mutual_link import MutualLink
 

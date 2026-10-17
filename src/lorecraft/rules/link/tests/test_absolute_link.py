@@ -9,7 +9,7 @@ import pytest
 from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.location import Help
-from lorecraft.rules.tests.fake_context import FakeSkillResourceContext, judged
+from lorecraft.rules.tests.fake_database import FakeSkillResourceContext, judged
 
 from ..absolute_link import AbsoluteLink
 

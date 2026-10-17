@@ -24,7 +24,7 @@ from lorecraft.project.schemas import (
 )
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.location import Elsewhere, Help, Note
-from lorecraft.rules.tests.fake_context import FakeDocumentContext, judged, namespace_spec, structure_spec_path
+from lorecraft.rules.tests.fake_database import FakeDocumentContext, judged, namespace_spec, structure_spec_path
 
 from ..invalid_frontmatter import InvalidFrontmatter
 
