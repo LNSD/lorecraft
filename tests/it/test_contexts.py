@@ -20,9 +20,7 @@ from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.context import (
     CorpusDirectoryContext,
     DocumentContext,
-    DocumentFrontmatterOwner,
     SkillContext,
-    SkillFrontmatterOwner,
     SkillResourceContext,
     SymlinkContext,
 )
@@ -39,6 +37,7 @@ from lorecraft.project.document import DocumentRef, SpecRef
 from lorecraft.project.item import MarkdownItemRef
 from lorecraft.project.layout import SNAPSHOT_SCOPE
 from lorecraft.project.link_target import DocumentDirectory, EscapingTarget, LinkTarget, PathLookup, SkillRoot
+from lorecraft.project.schemas import DocumentFrontmatterOwner, SkillFrontmatterOwner
 from lorecraft.project.skill import OutsideSymlink, SkillLocation, SkillRef
 from lorecraft.project.syntax import NormalisedLinkPath, count_lines, count_tokens
 from lorecraft.rules.length.too_many_lines import skill_line_count

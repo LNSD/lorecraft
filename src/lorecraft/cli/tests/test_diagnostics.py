@@ -12,11 +12,10 @@ from lib.snapshot import TextSnapshotExtension
 from lorecraft.core.num import NonZeroUnsignedInt, UnsignedInt
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectFilename
-from lorecraft.project.context import DocumentFrontmatterOwner
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.item import MarkdownItemRef
-from lorecraft.project.schemas import DocumentEnd, SectionName
+from lorecraft.project.schemas import DocumentEnd, DocumentFrontmatterOwner, SectionName
 from lorecraft.project.syntax import LineNumber, SectionHeading, WordCount
 from lorecraft.rules.engine.malformed_structure_file import FormatViolated, MalformedStructureFile
 from lorecraft.rules.frontmatter.duplicate_key import DuplicateKey

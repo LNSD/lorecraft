@@ -17,7 +17,6 @@ from typing import Final
 from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.project.aspect import AspectFilename, AspectNamespace
-from lorecraft.project.context import DocumentFrontmatterOwner, SkillFrontmatterOwner
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.layout import DOCS_DIR, SPECS_DIR
@@ -29,10 +28,12 @@ from lorecraft.project.link_target import (
 )
 from lorecraft.project.schemas import (
     CorpusSpecName,
+    DocumentFrontmatterOwner,
     NamespaceSpecName,
     Query,
     SchemaProblems,
     SkillFields,
+    SkillFrontmatterOwner,
     SpecFileType,
     SpecName,
     StructurePrimitives,

@@ -4,7 +4,8 @@ from dataclasses import dataclass, field
 from typing import ClassVar, Self, assert_never
 
 from lorecraft.core.path import RootRelativePath
-from lorecraft.project.context import FrontmatterContext, FrontmatterOwner
+from lorecraft.project.context import FrontmatterContext
+from lorecraft.project.schemas import FrontmatterOwner
 from lorecraft.project.syntax import (
     FIRST_LINE,
     Frontmatter,

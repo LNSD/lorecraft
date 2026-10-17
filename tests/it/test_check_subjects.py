@@ -27,7 +27,7 @@ from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.engine import check_subjects
 from lorecraft.jsonschema import JsonType
 from lorecraft.project.aspect import AspectFilename
-from lorecraft.project.context import DocumentContext, DocumentFrontmatterOwner, SkillFrontmatterOwner
+from lorecraft.project.context import DocumentContext
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.database import Database, ItemText
 from lorecraft.project.document import DocumentRef
@@ -37,6 +37,7 @@ from lorecraft.project.link_target import DocumentDirectory, SkillRoot
 from lorecraft.project.schemas import (
     AgentSkillsSchema,
     DocumentEnd,
+    DocumentFrontmatterOwner,
     ExpectedSection,
     FieldCount,
     FieldGuidance,
@@ -47,6 +48,7 @@ from lorecraft.project.schemas import (
     PatternMismatch,
     SchemaProblems,
     SectionName,
+    SkillFrontmatterOwner,
     StructureSpecSchema,
     TitlePattern,
     UnknownFieldProblem,
