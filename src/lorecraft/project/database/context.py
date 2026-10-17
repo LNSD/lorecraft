@@ -105,6 +105,19 @@ class DatabaseItemContext:
         """
         return AspectFilename.parse(self._document().expected_name)
 
+    def base(self) -> AspectFilename | None:
+        """The filename of the document this one extends, from the corpus the model lists the document in.
+
+        Raises:
+            WrongItemKindError: If the item is a skill entry.
+        """
+        origin = self._document()
+        corpus = self._database.model().find_corpus(CorpusName.parse(origin.corpus))
+        if corpus is None:
+            return None
+        base = corpus.document_base(self.filename())
+        return None if base is None else base.filename
+
     def directory_name(self) -> PathComponent:
         """The name of the skill's directory as an agent lists it, read from its origin.
 

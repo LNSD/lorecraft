@@ -1,3 +1,5 @@
 # Setup extra
 
-Builds on [setup](setup.md).
+## References
+
+- [setup](setup.md) - Extends: The base

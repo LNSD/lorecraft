@@ -78,6 +78,7 @@ Before committing code, verify:
 
 ## References
 
+- [python-fn](python-fn.md) - Extends: Owns the signature and the single job of the function this document specialises
 - [pattern-value-object](pattern-value-object.md) - Related: Owns the runtime invariant on a wrapped primitive
 - [python-docstrings](python-docstrings.md) - Related: Owns docstring structure and required sections
 

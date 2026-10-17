@@ -269,6 +269,26 @@ class Corpus:
             refs.append(DocumentRef(corpus=self.name, filename=filename))
         return tuple(refs)
 
+    def document_base(self, filename: AspectFilename) -> DocumentRef | None:
+        """The document this one extends: the narrowest of the corpus's documents whose name continues into this one.
+
+        A name `a` is an ancestor of `b` when `b` starts with `a-`, so `python-fn` is an ancestor of
+        `python-fn-unchecked`. A missing intermediate name is skipped: the base is the nearest ancestor the corpus
+        holds.
+
+        Args:
+            filename: Stem of the document whose base is wanted; it need not be one of the corpus's.
+        """
+        name = str(filename)
+        ancestors = [
+            candidate for candidate in self.filenames if candidate != filename and name.startswith(f'{candidate}-')
+        ]
+        if not ancestors:
+            return None
+        # The narrowest ancestor has the most hyphen-delimited segments, so no two ancestors tie.
+        narrowest = max(ancestors, key=lambda candidate: str(candidate).count('-'))
+        return DocumentRef(corpus=self.name, filename=narrowest)
+
     @property
     def directory(self) -> RootRelativePath:
         """Root-relative `docs/<name>`, the directory the corpus's documents sit directly inside."""

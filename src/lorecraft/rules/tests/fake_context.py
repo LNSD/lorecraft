@@ -176,6 +176,7 @@ class FakeDocumentContext:
     _governance: Governance
     _corpus_structure: StructureSpec
     _link_targets: Mapping[NormalisedLinkPath, LinkTargetEntry]
+    _corpus: Corpus
 
     def __init__(
         self,
@@ -186,6 +187,7 @@ class FakeDocumentContext:
         namespaces: tuple[NamespaceSpec, ...] = (),
         filename: str | None = None,
         link_targets: Mapping[NormalisedLinkPath, LinkTargetEntry] = FrozenMapping({}),
+        siblings: tuple[str, ...] = (),
     ) -> None:
         """Hold the document's text and the meta specs that govern it.
 
@@ -200,6 +202,7 @@ class FakeDocumentContext:
                 narrowest namespace listed, which every namespace listed then governs.
             link_targets: What the snapshot holds at the target of each relative link, keyed by the link's
                 normalised relative path, as the database's link-target query would find it; none by default.
+            siblings: The filenames, without extension, of the other documents the corpus holds; none by default.
 
         Raises:
             ValueError: If a listed namespace does not govern the filename, or is of another corpus.
@@ -221,13 +224,19 @@ class FakeDocumentContext:
             if namespace.name.corpus != spec_name.corpus or not namespace.is_governing(document):
                 raise ValueError(f'the namespace spec {namespace.name} does not govern {spec_name.corpus}/{document}')
             corpus_namespaces[namespace.name.namespace] = CorpusNamespace(namespace.files, namespace.structure)
-        held_corpus = Corpus(corpus_spec, FrozenMapping(corpus_namespaces), frozenset())
-        self._governance = Governance(held_corpus, document)
+        filenames = frozenset({document, *(AspectFilename.parse(sibling) for sibling in siblings)})
+        self._corpus = Corpus(corpus_spec, FrozenMapping(corpus_namespaces), filenames)
+        self._governance = Governance(self._corpus, document)
         self._ref = DocumentRef(corpus=spec_name.corpus, filename=document)
 
     def filename(self) -> AspectFilename:
         """The document's filename, without its extension."""
         return self._ref.filename
+
+    def base(self) -> AspectFilename | None:
+        """The base the corpus the test stated gives the document, as the real model derives it."""
+        base = self._corpus.document_base(self.filename())
+        return None if base is None else base.filename
 
     def frontmatter(self) -> FrontmatterNode:
         """The document's frontmatter block, as the real parser reads it."""
