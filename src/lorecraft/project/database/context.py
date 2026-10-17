@@ -10,9 +10,10 @@ answers for a document, a skill entry and a skill's resource alike; a fact only 
 governance when none governs it, is a defect of the caller to ask for, and raises `WrongItemKindError`. The rule bases
 name the kinds they apply to and the facet they read, so a rule that runs never asks.
 
-`DatabaseSymlinkContext` implements `SymlinkContext`. A layout entry has no text, so it has no witness and no per-file
-query: the context holds the `OutsideSymlink` record the model's `outside_symlinks` or a skill's `skill_resources`
-listing returned, the memoized query value itself, and reads every fact from it.
+`DatabaseSymlinkContext` and `DatabaseCorpusDirectoryContext` implement `SymlinkContext` and
+`CorpusDirectoryContext`. A layout entry has no text, so it has no witness and no per-file query: the context holds the
+record the model or a skill's `skill_resources` listing returned, the memoized query value itself, and reads every fact
+from it.
 """
 
 from collections.abc import Mapping
@@ -21,6 +22,7 @@ from typing import assert_never
 from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.context import DocumentFrontmatterOwner, SkillFrontmatterOwner
+from lorecraft.project.corpus import CorpusName, ReservedCorpusDirectory
 from lorecraft.project.item import DocumentOrigin, MarkdownItemRef, SkillEntryOrigin, SkillResourceOrigin
 from lorecraft.project.link_target import LinkBase, LinkTargetEntry
 from lorecraft.project.schemas import (
@@ -252,3 +254,23 @@ class DatabaseSymlinkContext:
     def leaves_at(self) -> RootExit:
         """The link the chain leaves the repository through, and its target, read from the record."""
         return self._outside.leaves_at
+
+
+class DatabaseCorpusDirectoryContext:
+    """One directory under `docs/` that takes a reserved corpus's name, as recorded; a `CorpusDirectoryContext`."""
+
+    def __init__(self, directory: ReservedCorpusDirectory) -> None:
+        """Bind the context to one directory the model set aside.
+
+        Args:
+            directory: The directory, as the model's `overlapping_directories` holds it.
+        """
+        self._directory = directory
+
+    def path(self) -> RootRelativePath:
+        """The directory, read from the record."""
+        return self._directory.path
+
+    def reserved_corpus(self) -> CorpusName:
+        """The reserved corpus whose name the directory takes, read from the record."""
+        return self._directory.corpus

@@ -17,6 +17,7 @@ from lib.tree import FileTree, from_tree
 from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.context import (
+    CorpusDirectoryContext,
     DocumentContext,
     DocumentFrontmatterOwner,
     SkillContext,
@@ -24,9 +25,10 @@ from lorecraft.project.context import (
     SkillResourceContext,
     SymlinkContext,
 )
-from lorecraft.project.corpus import CorpusName
+from lorecraft.project.corpus import CorpusName, ReservedCorpusDirectory
 from lorecraft.project.database import (
     Database,
+    DatabaseCorpusDirectoryContext,
     DatabaseItemContext,
     DatabaseSymlinkContext,
     ItemText,
@@ -640,3 +642,17 @@ class TestDatabaseItemContextOverTheOtherKind:
 
         #: Then
         assert TYPING.path.value.as_posix() in str(raised.value), 'the error names the document asked for a directory'
+
+
+@pytest.mark.it
+class TestDatabaseCorpusDirectoryContext:
+    def test_path_and_reserved_corpus_with_a_recorded_directory_return_what_the_record_holds(self) -> None:
+        #: Given
+        directory = ReservedCorpusDirectory(RootRelativePath.parse('docs/skills'), CorpusName.parse('skills'))
+        context: CorpusDirectoryContext = DatabaseCorpusDirectoryContext(directory)
+
+        #: When
+        facts = (context.path(), context.reserved_corpus())
+
+        #: Then
+        assert facts == (directory.path, directory.corpus), 'the context reads both facts from the record'

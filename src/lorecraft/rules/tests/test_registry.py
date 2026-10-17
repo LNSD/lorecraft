@@ -5,6 +5,7 @@ import sys
 import pytest
 
 from lorecraft import rules
+from lorecraft.rules.corpus.reserved_corpus_overlap import ReservedCorpusOverlap
 from lorecraft.rules.engine.invalid_utf8 import InvalidUtf8
 from lorecraft.rules.engine.malformed_structure_file import MalformedStructureFile
 from lorecraft.rules.engine.unreadable_path import UnreadablePath
@@ -511,6 +512,7 @@ class TestPackageRegistry:
 
         #: Then
         assert loaded.rules == (
+            ReservedCorpusOverlap,
             MissingFrontmatter,
             InvalidYaml,
             NonMappingFrontmatter,

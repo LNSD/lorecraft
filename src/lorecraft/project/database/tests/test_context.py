@@ -6,13 +6,14 @@ which `ty check src` refuses if the class drifts from the protocol; the integrat
 """
 
 from lorecraft.project.context import (
+    CorpusDirectoryContext,
     DocumentContext,
     SkillContext,
     SkillResourceContext,
     SymlinkContext,
 )
 
-from ..context import DatabaseItemContext, DatabaseSymlinkContext
+from ..context import DatabaseCorpusDirectoryContext, DatabaseItemContext, DatabaseSymlinkContext
 
 
 def _as_document_context(context: DatabaseItemContext) -> DocumentContext:
@@ -47,5 +48,14 @@ def _as_symlink_context(context: DatabaseSymlinkContext) -> SymlinkContext:
 
     Args:
         context: The database-backed context of one symlink of the skill layout whose chain leaves the repository.
+    """
+    return context
+
+
+def _as_corpus_directory_context(context: DatabaseCorpusDirectoryContext) -> CorpusDirectoryContext:
+    """The corpus directory context, as the protocol it implements.
+
+    Args:
+        context: The database-backed context of one directory under `docs/` that takes a reserved corpus's name.
     """
     return context

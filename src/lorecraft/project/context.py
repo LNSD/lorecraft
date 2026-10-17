@@ -18,10 +18,10 @@ A Markdown file also states two facts beyond its own text, for a rule that follo
 relative links are read from, a `LinkBase`, and where each link leads with what the snapshot holds there, a
 `LinkTargetEntry`. Both are facts of the revision, never a judgment of a link.
 
-`LayoutContext` is the context of a subject with no text: a layout entry, of the kind its sub-protocol names. A symlink
-of the skill layout whose chain leaves the repository, as the model or a skill's resource listing records it, is a
-`SymlinkContext`. An entry is never decoded, so its context is built from its record alone, and it states a fact,
-never that it is a finding.
+`LayoutContext` is the context of a subject with no text: a layout entry, of one of the kinds its sub-protocols name.
+A symlink of the skill layout whose chain leaves the repository, as the model or a skill's resource listing records it,
+is a `SymlinkContext`, and a directory under `docs/` named like a reserved corpus a `CorpusDirectoryContext`. An entry
+is never decoded, so its context is built from its record alone, and it states a fact, never that it is a finding.
 """
 
 from collections.abc import Mapping
@@ -30,6 +30,7 @@ from typing import Protocol
 
 from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.project.aspect import AspectFilename
+from lorecraft.project.corpus import CorpusName
 from lorecraft.project.schemas import (
     OutlineAlignmentSpec,
     OutlineDivergenceSpec,
@@ -220,8 +221,9 @@ class SkillResourceContext(SkillFileContext, Protocol):
 class LayoutContext(Protocol):
     """One layout entry, the subject of a rule over the layout: what every kind of entry has, its reported path.
 
-    An entry has a kind, and each kind has the context that asks what only it has, such as `SymlinkContext`. A rule is
-    over one kind, so it asks the context of that kind. An entry has no text, so nothing about it is decoded.
+    An entry has a kind, and each kind has the context that asks what only it has: a symlink, `SymlinkContext`, and a
+    directory under `docs/` named like a reserved corpus, `CorpusDirectoryContext`. A rule is over one kind, so it
+    asks the context of that kind. An entry has no text, so nothing about it is decoded.
     """
 
     def path(self) -> RootRelativePath:
@@ -241,4 +243,12 @@ class SymlinkContext(LayoutContext, Protocol):
 
         The link is the entry itself when it links straight out, or one on the way to it or further along its chain.
         """
+        ...
+
+
+class CorpusDirectoryContext(LayoutContext, Protocol):
+    """One directory directly under `docs/` that takes a reserved corpus's name, which the model ignores."""
+
+    def reserved_corpus(self) -> CorpusName:
+        """The reserved corpus whose name the directory takes."""
         ...

@@ -9,10 +9,11 @@ it does not keep; it filters, and never enables a rule its level leaves off.
 A rule is partitioned by its base: the rules over a document, the rules over a skill, the rules over the
 frontmatter, which the runner runs over documents and skills alike, the rules over a Markdown file, which the runner
 runs over a document, a skill and a resource alike, the rules over a skill's file, which it runs over a skill and a
-resource alike, and the rules over a symlink of the skill layout. The rules over a document and over the
-frontmatter are also grouped by the facet each declares, since the runner runs them over a document facet by facet.
-Each partition pairs every rule in it with its severity, as an `EnabledRule`, so a rule the runner finds in a
-partition always has a severity to report at.
+resource alike, the rules over a symlink of the skill layout, and the rules over a directory named like a reserved
+corpus. The rules over a document and over the frontmatter are also
+grouped by the facet each declares, since the runner runs them over a document facet by facet. Each partition pairs
+every rule in it with its severity, as an `EnabledRule`, so a rule the runner finds in a partition always has a
+severity to report at.
 """
 
 from collections.abc import Mapping
@@ -24,6 +25,7 @@ from .identity import Level, Severity
 from .registry import Registry
 from .selection import RuleSelection
 from .subject import (
+    CorpusDirectoryRule,
     DocumentRule,
     Facet,
     FrontmatterRule,
@@ -73,6 +75,7 @@ class RuleTable:
     _markdown_rules: tuple[EnabledRule[MarkdownRule], ...]
     _skill_file_rules: tuple[EnabledRule[SkillFileRule], ...]
     _symlink_rules: tuple[EnabledRule[SymlinkRule], ...]
+    _corpus_directory_rules: tuple[EnabledRule[CorpusDirectoryRule], ...]
     _frontmatter_rules: tuple[EnabledRule[FrontmatterRule], ...]
     _frontmatter_rules_by_facet: dict[Facet, tuple[EnabledRule[FrontmatterRule], ...]]
 
@@ -91,6 +94,7 @@ class RuleTable:
         markdown_rules: list[EnabledRule[MarkdownRule]] = []
         skill_file_rules: list[EnabledRule[SkillFileRule]] = []
         symlink_rules: list[EnabledRule[SymlinkRule]] = []
+        corpus_directory_rules: list[EnabledRule[CorpusDirectoryRule]] = []
         frontmatter_rules: list[EnabledRule[FrontmatterRule]] = []
         for rule_class in sorted(severities, key=_printed_code):
             # The rule hierarchy is open, so the chain cannot close with `assert_never`: a rule over a base with no
@@ -105,6 +109,8 @@ class RuleTable:
                 skill_file_rules.append(EnabledRule(rule_class, severities[rule_class]))
             elif issubclass(rule_class, SymlinkRule):
                 symlink_rules.append(EnabledRule(rule_class, severities[rule_class]))
+            elif issubclass(rule_class, CorpusDirectoryRule):
+                corpus_directory_rules.append(EnabledRule(rule_class, severities[rule_class]))
             elif issubclass(rule_class, FrontmatterRule):
                 frontmatter_rules.append(EnabledRule(rule_class, severities[rule_class]))
             else:
@@ -119,6 +125,7 @@ class RuleTable:
         self._markdown_rules = tuple(markdown_rules)
         self._skill_file_rules = tuple(skill_file_rules)
         self._symlink_rules = tuple(symlink_rules)
+        self._corpus_directory_rules = tuple(corpus_directory_rules)
         self._frontmatter_rules = tuple(frontmatter_rules)
         self._frontmatter_rules_by_facet = {}
         for facet in Facet:
@@ -178,6 +185,11 @@ class RuleTable:
     def symlink_rules(self) -> tuple[EnabledRule[SymlinkRule], ...]:
         """Each enabled rule over a layout symlink, with its severity, in code order; empty when none is."""
         return self._symlink_rules
+
+    @property
+    def corpus_directory_rules(self) -> tuple[EnabledRule[CorpusDirectoryRule], ...]:
+        """Each enabled rule over a directory named like a reserved corpus, with its severity, in code order."""
+        return self._corpus_directory_rules
 
     @property
     def frontmatter_rules(self) -> tuple[EnabledRule[FrontmatterRule], ...]:

@@ -5,6 +5,7 @@ from typing import Final
 import pytest
 
 from lorecraft import rules
+from lorecraft.rules.corpus.reserved_corpus_overlap import ReservedCorpusOverlap
 from lorecraft.rules.frontmatter.allowed_tools_too_long import AllowedToolsTooLong
 from lorecraft.rules.frontmatter.duplicate_key import DuplicateKey
 from lorecraft.rules.frontmatter.invalid_frontmatter import InvalidFrontmatter
@@ -254,6 +255,18 @@ class TestRuleTableFromRegistry:
             EnabledRule(SectionOutOfOrder, Severity.ERROR),
             EnabledRule(UnexpectedSection, Severity.ERROR),
         ), "the package's rules over where the sections leave their outline judge only a document an outline governs"
+
+    def test_from_registry_with_the_package_registry_enables_the_corpus_directory_rules_as_warnings(self) -> None:
+        #: Given
+        registry = Registry.load(rules)
+
+        #: When
+        table = RuleTable.from_registry(registry, EVERY_RULE)
+
+        #: Then
+        assert table.corpus_directory_rules == (EnabledRule(ReservedCorpusOverlap, Severity.WARNING),), (
+            'the overlap rule defaults to a warning and is handed no symlink'
+        )
 
     def test_from_registry_with_the_package_registry_enables_the_layout_rules(self) -> None:
         #: Given

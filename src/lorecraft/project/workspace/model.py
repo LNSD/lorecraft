@@ -18,7 +18,7 @@ from lorecraft.agents import AgentName
 from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.project.aspect import AspectFilename, AspectNamespace
-from lorecraft.project.corpus import CorpusName
+from lorecraft.project.corpus import CorpusName, ReservedCorpusDirectory
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.item import (
     DocumentOrigin,
@@ -319,8 +319,8 @@ class WorkspaceModel:
         skills_corpus: The reserved `skills` corpus, whose specs govern the skills by their listed directory name, or
             None when no `skills` spec exists. It lists no document: its documents are the skills, which
             `find_skill_governance` resolves, and no directory under `docs/` backs it.
-        overlapping_corpora: The reserved corpora a directory under `docs/` shares the name of, which the model
-            ignores: none of its documents is listed.
+        overlapping_directories: The directories under `docs/` that take a reserved corpus's name, which the model
+            ignores: none of their documents is listed.
         outside_symlinks: Every skills directory an agent declares, entry in a resolved skills directory, and
             `SKILL.md` of such an entry, whose symlink chain leaves the repository, by path.
             None of them is a skills directory or a skill of the model; a symlink inside a skill is in its
@@ -337,7 +337,7 @@ class WorkspaceModel:
     outside_symlinks: FrozenMapping[RootRelativePath, OutsideSymlink]
     load_failures: tuple[LoadFailure, ...]
     skills_corpus: Corpus | None = None
-    overlapping_corpora: frozenset[CorpusName] = frozenset()
+    overlapping_directories: frozenset[ReservedCorpusDirectory] = frozenset()
 
     def __post_init__(self) -> None:
         """Keep a key from naming something other than its value, which the lookups read the key alone to answer.
@@ -375,6 +375,11 @@ class WorkspaceModel:
     def sorted_outside_symlinks(self) -> tuple[OutsideSymlink, ...]:
         """Every symlink leading outside the repository, sorted by path."""
         return tuple(self.outside_symlinks[path] for path in sorted(self.outside_symlinks))
+
+    @property
+    def sorted_overlapping_directories(self) -> tuple[ReservedCorpusDirectory, ...]:
+        """Every directory under `docs/` that takes a reserved corpus's name, sorted by path."""
+        return tuple(sorted(self.overlapping_directories))
 
     def find_corpus(self, name: CorpusName) -> Corpus | None:
         """The corpus with this name, or None when the model has none.

@@ -1,5 +1,6 @@
 """Validated names for documentation corpora."""
 
+from .directory import ReservedCorpusDirectory
 from .name import (
     RESERVED_CORPUS_NAME,
     SKILLS_CORPUS_NAME,
@@ -16,4 +17,5 @@ __all__: list[str] = [
     'EmptyCorpusNameError',
     'InvalidCorpusNameCharacterError',
     'ReservedCorpusNameError',
+    'ReservedCorpusDirectory',
 ]
