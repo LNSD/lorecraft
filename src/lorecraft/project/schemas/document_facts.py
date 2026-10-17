@@ -60,7 +60,7 @@ def find_document_title(headings: Sequence[Heading]) -> DocumentTitle | None:
 
 @dataclass(frozen=True, slots=True)
 class TitleFacts:
-    """Everything a rule over the title reads, so it judges without the document's context.
+    """Everything a rule over the title reads, so it judges without the document's structure specifications.
 
     Attributes:
         title: The document's title with its counts, or `None` when it has none.

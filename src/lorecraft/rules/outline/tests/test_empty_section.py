@@ -309,7 +309,7 @@ class TestEmptySection:
 
 
 @pytest.mark.unit
-class TestEmptySectionSpecs:
+class TestEmptySectionFacts:
     def test_empty_section_facts_holds_only_the_specifications_forbidding_them(self) -> None:
         #: Given
         corpus = structure_spec('code', '{"tokens": 100, "title": {"chars": 20}, "empty_sections": "forbidden"}')
@@ -330,7 +330,7 @@ class TestEmptySectionSpecs:
 
 
 @pytest.mark.unit
-class TestEmptyHeadings:
+class TestEmptySectionFactsEmpty:
     def test_empty_section_facts_holds_the_empty_sections_in_document_order(self) -> None:
         #: Given
         headings = parse_document('# Title\n\n## Empty\n\n## Full\n\nText.\n\n## Last\n').headings

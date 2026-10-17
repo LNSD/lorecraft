@@ -3,9 +3,9 @@
 Every case is a document or a `SKILL.md` written as text, read through a fake database that holds it to its schemas as
 the real analysis does, under structure files decoded from JSON; no file is read from disk.
 
-No skill appears in the `check` cases: the Agent Skills specification places every problem it finds on a field, so a
-skill's frontmatter breaks no constraint over the whole block, and the note such an occurrence would carry is tested on
-its own below.
+The `check` cases use documents because the Agent Skills specification places every problem it finds on a field, so a
+skill's frontmatter breaks no constraint over the whole block. The note such an occurrence would carry is tested on its
+own below.
 """
 
 from textwrap import dedent

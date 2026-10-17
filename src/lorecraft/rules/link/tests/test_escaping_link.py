@@ -1,6 +1,6 @@
 """`LINK004`, `escaping-link`, over the relative links of one of a skill's Markdown files.
 
-Every case is a skill's file written as text and parsed by the real parser, through a fake resource context; the rule
+Every case is a skill's file written as text and parsed by the real parser, through a fake database; the rule
 reads what any of a skill's files has, so a `SKILL.md` is judged the same way.
 """
 

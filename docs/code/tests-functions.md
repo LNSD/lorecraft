@@ -20,6 +20,9 @@ Tests are grouped into classes named `Test<Subject>`, where the subject is the c
 under test. Each test function is named `test_<unit>_<condition>_<expectation>`: what is being exercised, under
 what circumstance, and what should happen.
 
+Query tests use the query's name for the class, not the facts type or a facet of its result. Keep cases together
+even when they assert different fields. Judge tests use the rule's name, including cases with no facts.
+
 The third segment is the one most often missing. A name that stops at the condition —
 `test_check_with_empty_document` — tells a reader of the CI line that something about empty documents is wrong
 but not whether the checker returned the wrong findings, returned none, or raised. The expectation is what

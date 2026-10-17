@@ -89,6 +89,16 @@ class TestTitleNotFirst:
         #: Then
         assert occurrences == (), 'a document with no heading is missing its title, which is not this rule'
 
+    def test_judge_with_no_headings_reports_nothing(self) -> None:
+        #: Given
+        subject = FakeDocumentDatabase('', corpus='guide', structure=STRUCTURE)
+
+        #: When
+        occurrences = judged(TitleNotFirst, subject)
+
+        #: Then
+        assert occurrences == (), 'a document with no heading has no title to come first'
+
     def test_check_with_two_specifications_reports_once_under_the_corpus_specification(self) -> None:
         #: Given
         subject = FakeDocumentDatabase(
@@ -174,13 +184,3 @@ class TestHeadings:
 
         #: Then
         assert found == headings_in_text, 'the query projects the headings and nothing else'
-
-    def test_judge_with_no_headings_reports_nothing(self) -> None:
-        #: Given
-        subject = FakeDocumentDatabase('', corpus='guide', structure=STRUCTURE)
-
-        #: When
-        occurrences = judged(TitleNotFirst, subject)
-
-        #: Then
-        assert occurrences == (), 'a document with no heading has no title to come first'
