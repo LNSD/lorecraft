@@ -50,7 +50,7 @@ third-party libraries.
 
 - The layers contract places this package beside `lorecraft.yaml`, above `lorecraft.core`; neither package imports the other.
 - This package imports only `lorecraft.core` from Lorecraft, so it can be used below `lorecraft.project` without a cycle.
-- `project`, `rules` and `cli` may import this package's public vocabulary; this inbound use is separate from third-party library containment.
+- `engine`, `project`, `rules` and `cli` may import this package's public vocabulary; this inbound use is separate from third-party library containment.
 - `jsonschema` and `referencing` are imported only here. Schema walking, local-reference resolution and same-instance
   reference-cycle analysis stay behind the JSON Schema package boundary; reference-library types do not cross it.
 - No library type escapes the package boundary; callers receive Lorecraft-owned vocabulary and facts.

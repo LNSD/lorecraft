@@ -38,9 +38,9 @@ Do not infer structure that is not on disk.
 If you are an AI agent working on this repository, follow these rules first:
 
 1. Read this file, then look at what exists on disk. The toolchain, the document format and the checks are
-   fixed; the library is being written.
+   fixed; the feature docs under `docs/feat/` say what the library ships.
 2. Ask a concise question when a task needs a convention this guide does not fix. Decisions this repository
-   has not made — where each check lands in the library, the first feature doc — belong to the owner.
+   has not made — where a check lands in the library, a new feature doc — belong to the owner.
 3. Run everything Python through `uv run`. Never install into a system interpreter, never use bare `pip`.
 4. Keep changes small and readable. Readability over cleverness, always.
 5. Update this guide in the same change that makes one of its statements untrue.
@@ -136,6 +136,9 @@ operation it covers. A user-level skill of the same name may exist; the reposito
 | `code-check` | Linting Python with `ruff check`, through `just check`, auto-fixing the mechanical findings first |
 | `code-gen` | Regenerating the committed generated files, such as `docs/schemas/` and `docs/rulebook/`, through `just gen` |
 | `code-test` | Running the pytest tiers through `just test-unit`, `just test-it`, `just test-e2e` and `just test`, coverage when asked what the tests reach, and mutation testing when asked how effective they are |
+| `code-integrate` | Applying a Code Writer's patch files to a part branch, running the gates, then squashing it into one signed commit and pushing it |
+| `code-restack` | Rebasing a stack of pushed part branches onto a moved base, running the gates on each and pushing with a lease |
+| `code-sync` | Bringing open pull requests that are behind `main` up to date with a signed rebase, the gates and a leased push |
 | `release` | Tagging a release, building the artifacts from that tag, and verifying what they contain |
 | `docs-rules` | Writing or editing anything under `docs/` — picks the corpus and the specification that governs it |
 | `docs-rules-check` | The review pass over `docs/`: a document against its specs, through `lorecraft check`, and a specification for loading, prose-JSON agreement and resolution |
