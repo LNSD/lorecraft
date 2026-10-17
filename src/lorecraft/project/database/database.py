@@ -29,10 +29,11 @@ input query builds a witness or fails to read, and each states its own carry-ove
   like the IDE's listing of a content root's children, and the symlinks inside it whose chain leaves the
   repository. It reads the listings and the symlink targets reached from that skill, and where the model locates
   the skill, and no file's content.
-- The `ScopeIndex` behind `is_in_scope(path)`: the scope the snapshot records it was taken of, expanded once
+- The `ScopeIndex` the link-target queries answer from: the scope the snapshot records it was taken of, expanded once
   through the links it recorded, like the IDE's index of a project's content roots. It reads the snapshot's
-  scope, links and climbed directories and nothing else, and no caller reaches it but `is_in_scope` and the
-  link-target queries.
+  scope, links and climbed directories and nothing else, and no caller reaches it but the link-target queries.
+  Whether the scan reads the directory a path sits in is configuration, not content: it is answered from this
+  index and never from which directories the snapshot holds.
 - `item_link_targets(source)`: what the snapshot holds at the target of each relative link of one item, like the IDE's
   index of a file's references resolved against the virtual file system. It hands the file's parse, where its links
   are read from, the snapshot's view and the scope index to `link_targets_of`, which reads, for each path a link names,
@@ -61,16 +62,8 @@ it read does, `item_governance(ref)` excepted, as its bullet states:
   one skill entry's frontmatter and the fields of it that parse, each on its own. They read `item_frontmatter(source)`
   and nothing else: the package states the specification, so no specification in the repository plays a part.
 
-Three questions are asked of the snapshot's records directly and their answers are never cached, since an answer for
-one path is cheap:
+Questions asked of the snapshot's records directly are never cached, since an answer for one path is cheap:
 
-- `find_file(path)`: where a path leads in the snapshot, like a lookup in the IDE's virtual file system. It reads the
-  snapshot's records and nothing else and builds nothing worth keeping.
-- `is_in_scope(path)`: whether the scan reads the directory a path sits in, like the IDE asking whether a file
-  is in the project's content roots. It is configuration, not content: answered from the `ScopeIndex` cached
-  above, built on the first call, with the path walked through the snapshot's recorded links to tell where it
-  leads, and never from which directories the snapshot holds. The index is what costs, so it is kept; the
-  answer for one path is cheap, so it is not.
 - `source_lines(path)`: the lines of one file for a diagnostic to excerpt, numbered as the rules number them. It takes
   a bare path, since a diagnostic names a file by its path, and finds the decode query the path belongs to: the
   excerpt of a document, a `SKILL.md` or a resource is cut from the text that decode query returned, so it shows what
@@ -152,7 +145,6 @@ from lorecraft.project.document import DocumentRef, SpecRef
 from lorecraft.project.item import (
     DocumentOrigin,
     ItemReadError,
-    MarkdownItemDescriptor,
     MarkdownItemRef,
     SkillEntryOrigin,
     SpecificationOrigin,
@@ -209,7 +201,6 @@ from lorecraft.project.workspace import Governance, ResolvedItem, WorkspaceModel
 from lorecraft.vfs import (
     FILE_READ_FAILURES,
     RefusedRecord,
-    ResolvedPath,
     ScopeIndex,
     Snapshot,
     TextDecodeError,
@@ -272,7 +263,7 @@ class _ReadPrimitives:
     def structure_specs(self) -> tuple[StructureSpec, ...]:
         """The structure specifications of the layers that loaded for the item."""
         self.read |= {'structure_specs'}
-        return self._database.structure_specs(self._ref)
+        return self._database.item_structure_specs(self._ref)
 
     def headings(self) -> tuple[Heading, ...]:
         """The headings of the item's parse; none for an item that is not UTF-8."""
@@ -407,7 +398,7 @@ class _ReadPrimitives:
             if destination is not None:
                 documents[link.path] = (str(destination.corpus), str(destination.filename))
         back_links = {
-            path: self._database.has_link_to(MarkdownItemRef(path), self._ref.path)
+            path: self._database.item_has_link_to(MarkdownItemRef(path), self._ref.path)
             for path in documents
             if path != self._ref.path
         }
@@ -451,7 +442,7 @@ class Database:
     governance, the schema problems, the outline alignment and the outline divergences of the documents, the decoded
     text, the frontmatter, the parse trees, the line counts and the schema problems of the skills, the resources of each
     skill with their decoded text and their parse trees, the link targets of every one of those Markdown files, and the
-    scope index `is_in_scope` answers from.
+    scope index the link-target queries answer from.
     """
 
     def __init__(self, fs: VirtualFileSystem, model: WorkspaceModel) -> None:
@@ -469,7 +460,7 @@ class Database:
         self._fs = fs
         self._skills = SkillRepository(self._fs)
         self._model = model
-        # `None` until the first `is_in_scope()` call, so the index is built only for a run that asks.
+        # `None` until the first link-target query, so the index is built only for a run that asks.
         self._scope_index: ScopeIndex | None = None
         self._unreported_docs_refusals: FrozenMapping[RootRelativePath, RefusedRecord] | None = None
         # The unified family's caches, keyed by the common reference: the one implementation of every document and
@@ -637,25 +628,12 @@ class Database:
         return resources
 
     def _built_scope_index(self) -> ScopeIndex:
-        """The scope index `is_in_scope` and the link-target queries answer from, built on the first call."""
+        """The scope index the link-target queries answer from, built on the first call."""
         if self._scope_index is None:
             self._scope_index = ScopeIndex(self._snapshot)
         return self._scope_index
 
     # The unified family: one query per fact for a document or a skill entry, keyed by the common reference.
-
-    def item(self, ref: MarkdownItemRef) -> MarkdownItemDescriptor:
-        """The facts the model resolved for one listed document or skill entry, found on the first call for its ref.
-
-        Carry-over: kept for the next revision only when the next model resolves an equal descriptor.
-
-        Args:
-            ref: The item to look up; the cache key.
-
-        Raises:
-            UnlistedItemError: If the model lists no document or skill entry there.
-        """
-        return self._resolved(ref).descriptor
 
     def _resolved(self, ref: MarkdownItemRef) -> ResolvedItem:
         """The descriptor and governance the model resolved for a listed item, found on the first call."""
@@ -691,7 +669,7 @@ class Database:
     def _answerable(self, ref: MarkdownItemRef) -> ResolvedItem:
         """What the database resolves for an item a query answers for: a listed one, or a document by its path.
 
-        A document in a corpus the model lacks, or beyond its corpus's listing, is not an item `item(ref)` hands out,
+        A document in a corpus the model lacks, or beyond its corpus's listing, is not an item the model lists,
         but it is read and judged like any other: it is resolved by the corpus and filename its path names, and kept
         apart from the listed items.
 
@@ -736,7 +714,7 @@ class Database:
         """The common reference of a skill's resource, resolved from the location its skill's listing gives.
 
         The model lists no resource, so the resource is kept apart from the listed items, as an unlisted document is:
-        the `item_*` queries answer for its reference, and `item(ref)` still refuses it. Raises nothing.
+        the `item_*` queries answer for its reference, and the listed items still refuse it. Raises nothing.
 
         Args:
             location: The resource, as `skill_resources` locates it; its resolved file is where the text is read.
@@ -750,7 +728,7 @@ class Database:
         """The common reference of a document ref, resolved by ref without scanning the model's items.
 
         A document the model lists is kept as an item. One it does not list, in a corpus it lacks or beyond the
-        corpus's listing, is kept apart, so `item(ref)` still refuses it.
+        corpus's listing, is kept apart, so the listed items still refuse it.
         """
         item = MarkdownItemRef(ref.path)
         if item not in self._items and item not in self._unlisted_items:
@@ -875,14 +853,16 @@ class Database:
         """
         found = self._item_schema_problems.get(source.ref)
         if found is None:
-            governance = self._governance_of(source.ref)
+            governance = self.item_governance(source.ref)
             schemas = governance.frontmatter_schemas() if governance is not None else ()
             found = locate_schema_problems(self.item_frontmatter(source), schemas) if schemas else ()
             self._item_schema_problems[source.ref] = found
         return found
 
-    def structure_specs(self, ref: MarkdownItemRef) -> tuple[StructureSpec, ...]:
+    def item_structure_specs(self, ref: MarkdownItemRef) -> tuple[StructureSpec, ...]:
         """The structure specifications of the layers that loaded for an item the model lists.
+
+        Not cached: the answer is read off `item_governance(ref)`, which is, so it carries over with it.
 
         Raises:
             UnlistedItemError: If the model lists no document or skill entry there.
@@ -921,8 +901,10 @@ class Database:
         """
         return self._queries[(query, ref)][1] if (query, ref) in self._queries else frozenset()
 
-    def has_link_to(self, ref: MarkdownItemRef, path: RootRelativePath) -> bool:
+    def item_has_link_to(self, ref: MarkdownItemRef, path: RootRelativePath) -> bool:
         """Whether the document at a ref links to an existing file at a path; false, logged, when it cannot be read.
+
+        Not cached: the answer is a lookup in `item_link_targets`, which is, so it carries over with it.
 
         Args:
             ref: The document to read.
@@ -998,33 +980,3 @@ class Database:
             }
             self._unreported_docs_refusals = FrozenMapping(refusals)
         return self._unreported_docs_refusals
-
-    def find_file(self, path: RootRelativePath) -> ResolvedPath | None:
-        """The file `path` leads to in the snapshot, every recorded link on the way followed; never cached.
-
-        Args:
-            path: The path to look up, relative to the snapshot root; a directory leads to no file.
-
-        Returns:
-            The resolved file, root-relative, or `None` when the snapshot holds no file there: nothing, a
-            directory, or a link it did not follow.
-        """
-        return self._fs.find_file(path)
-
-    def is_in_scope(self, path: RootRelativePath) -> bool:
-        """Whether the scan lists the directory `path` sits in, as the snapshot's scope declares it.
-
-        Like the IDE's question whether a file is in the project's content, answered from the roots the snapshot
-        records it was taken of rather than from what the virtual file system holds: a path in a directory the
-        scope covers is in it even where the directory does not exist, and then whatever the path names is
-        missing. Only the links and climbed directories the snapshot recorded are read besides, to tell where
-        `path` leads. A snapshot that scanned nothing, such as one a test built by hand, has no path in
-        scope.
-
-        The answer is not cached, but what it is computed from is: the scope expanded through the recorded
-        links, a `ScopeIndex` built on the first call and asked on every later one.
-
-        Args:
-            path: The entry to ask about, relative to the snapshot root; it need not exist.
-        """
-        return self._built_scope_index().is_in_scope(path)
