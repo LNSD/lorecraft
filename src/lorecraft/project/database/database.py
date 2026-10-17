@@ -5,17 +5,21 @@ check can see, and never changed once built. `Database.from_snapshot` builds the
 model; every other query sits above it, computed on first use and kept for as long as the database lives
 (pattern-memoization). Queries come in two kinds, and the kind decides how a query carries over to the next revision.
 
-Documents, skill entries and skill resources share one query family keyed by `MarkdownItemRef`. `item_text(ref)`
-decodes the descriptor's read location into an `ItemText` witness or an `Undecodable` marker. The derived queries
-`item_frontmatter`, `item_parse`, `item_token_count`, `item_line_count`, `item_governance`, and
-`item_schema_problems`, and the input query `item_link_targets`, are computed on demand. A resource's
-`resource_item(location)` registers the reference from its skill's listing, and its `item_*` queries read the
+The item queries share one family keyed by `MarkdownItemRef`.
+`item_text(ref)` decodes the descriptor's read location into an `ItemText` witness or an `Undecodable` marker.
+`item_link_targets(source)` is an input query; `item_frontmatter`, `item_parse`, `item_token_count`,
+`item_line_count`, `item_governance`, `item_schema_problems` and `item_skill_fields` are derived queries. A
+resource's `resource_item(location)` registers the reference from its skill's listing, and its item queries read the
 descriptor at the resolved location. A document the model does not list is resolved by its corpus and filename.
 
 The declared `query(query, ref)` memoizes a rule-owned query over one item's primitives; `query_reads(query, ref)`
 reports the primitives it read. A query's result carries over when each primitive it read does. `item_governance(ref)`
-reads the model, and a query does not distinguish a document, skill entry or resource when it reads their common
-primitives.
+reads the model, and a declared query reads common primitives without distinguishing item origins.
+
+Database construction and resource registration have no separate carry-over cache. `from_snapshot(snapshot)` creates
+a fresh database for that snapshot. `resource_item(location)` registers the ref from the skill resource listing in
+that database; in a later revision, the listing must locate the resource at the same ref and resolved file for its
+item query results to carry over.
 
 Input queries read the snapshot. Each is the one place its part of the snapshot becomes a value for a rule, so only an
 input query builds a witness or fails to read, and each states its own carry-over rule against the change set:
@@ -25,9 +29,9 @@ input query builds a witness or fails to read, and each states its own carry-ove
   specifications, the corpus directories, the skills directories and the listing of each skill's directory, nothing
   deeper inside a skill, and no document's contents. Among that structure it records each skills directory, skill
   entry and `SKILL.md` whose symlink chain leaves the repository.
-- `item_text(ref)`: one document's, skill entry's or skill resource's bytes decoded as UTF-8, like the IDE's document
-  text for a file: an `ItemText` witness, or an `Undecodable` marker when the bytes are not UTF-8. It is the one place
-  their bytes become text for a rule, and it reads that file's bytes and nothing else.
+- `item_text(ref)`: one item's bytes decoded as UTF-8, like the IDE's document text for a file: an `ItemText` witness,
+  or an `Undecodable` marker when the bytes are not UTF-8. It is the one place those bytes become text for a rule, and
+  it reads that file's bytes and nothing else.
 - `skill_resources(skill)`: one skill's resources, the Markdown files inside it other than its top-level `SKILL.md`,
   like the IDE's listing of a content root's children, and the symlinks inside it whose chain leaves the
   repository. It reads the listings and the symlink targets reached from that skill, and where the model locates
@@ -37,11 +41,9 @@ input query builds a witness or fails to read, and each states its own carry-ove
   scope, links and climbed directories and nothing else, and no caller reaches it but the link-target queries.
   Whether the scan reads the directory a path sits in is configuration, not content: it is answered from this
   index and never from which directories the snapshot holds.
-- `item_link_targets(source)`: what the snapshot holds at the target of each relative link of one item, like the IDE's
-  index of a file's references resolved against the virtual file system. It hands the file's parse, where its links
-  are read from, the snapshot's view and the scope index to `link_targets_of`, which reads, for each path a link names,
-  the snapshot's records on the way to it, so it is an input query: it is kept only when its parse is kept and every
-  path it looked up, an absent target included, still resolves to the same place and is in the same scope state.
+- `item_link_targets(source)`: what the snapshot holds at the target of each relative link of one item. It reads the
+  item's parse and link base, the snapshot's view and the scope index. Carry-over requires the parse to carry and
+  every looked-up path, including an absent target, to resolve to the same place in the same scope state.
 
 Derived queries read the results of other queries and never the snapshot. Each hands what it read to one function
 of this package that computes the value, so its arguments are its read set, and it carries over whenever every query
@@ -53,6 +55,9 @@ it read does, `item_governance(ref)` excepted, as its bullet states:
   and nothing else.
 - `item_token_count(source)` and `item_line_count(source)`: what one item's whole file costs an agent that loads it,
   and how many lines it holds, counted from the raw text, frontmatter included, without a parse.
+- `item_skill_fields(source)`: the fields of one skill entry's frontmatter that parse, each on its own. It reads
+  `item_frontmatter(source)` and nothing else; for any other item it is empty. It carries over whenever that
+  frontmatter does.
 - `item_governance(ref)`: the specifications that govern one item, its corpus's first and then each namespace's that
   matches it, like the IDE's resolution of which inspection profile a file falls under. It reads `model()` and
   nothing else, and it is the one place an item's governance is computed, so the model's corpus is searched once per
@@ -60,15 +65,15 @@ it read does, `item_governance(ref)` excepted, as its bullet states:
   under `docs/`, so it is recomputed from the next model and kept when it compares equal to the one it replaces. It
   can carry over when `model()` does not, and so can every analysis that reads it.
 - `item_schema_problems(source)`: what each frontmatter schema that governs one item rejects, the shared analysis
-  every frontmatter inspection reads. It reads the item's frontmatter and governance and nothing else; a skill entry is
-  held to the Agent Skills specification the package states, so no governance plays a part.
-- `item_skill_fields(source)`: the fields of one skill entry's frontmatter that parse, each on its own. It reads
-  `item_frontmatter(source)` and nothing else; for any other item it is empty. It carries over with the frontmatter.
+  every frontmatter inspection reads. It reads the item's frontmatter and the applicable governance, if any, and
+  nothing else. Carry-over follows the frontmatter and the governance it reads.
 
 Other public methods either answer from queries or inspect the snapshot. Their section and carry-over rules are:
 
 - `item_structure_specs(ref)` reads `item_governance(ref)` and is not cached separately; it carries over with that
   governance.
+- `query(query, ref)` runs a declared query over the item's primitives and caches its answer and read set. It carries
+  over whenever every primitive it read does.
 - `item_has_link_to(ref, path)` reads the item's cached `item_link_targets`; it is not cached separately and carries
   over with those targets.
 - `query_reads(query, ref)` reports recorded primitive names; it is empty before that query has run and is not cached.
@@ -135,10 +140,12 @@ and not back, so the model records each skill's `SkillLocation`, the resolved `S
 they were and the ref as it was, like a file's identity in the IDE, while its location changes. So a skill's
 decoded text, its frontmatter, its parse and its line count carry over only when the two models hand out an equal
 location for its ref (its resolved directory and its resolved `SKILL.md`) and that file's bytes did not change; the
-link target a skill's context reads is the one in the location its witness carries. A resource is named the same
-way, through the symlinks on the way to it, and its `SkillResourceLocation` records the resolved file: its decoded
-text and its parse carry over only when the two databases' `skill_resources` locate its ref at the same resolved file
-and that file's bytes did not change.
+link targets also require the same resolved link base and scope state. A resource is named through the symlinks on
+the way to it, and its `SkillResourceLocation` records the resolved file. Its decoded text, frontmatter, parse, token
+count and line count carry over only when both databases' resource listings locate its ref at the same resolved file
+and its bytes did not change. Its link targets additionally require the parse, link base and scope state to carry
+over. Its schema problems and governance carry over by the same rules as for other items: equal frontmatter and the
+governance those problems read; equal governance, respectively.
 """
 
 import logging
@@ -452,25 +459,24 @@ class Database:
 
     Input queries read the snapshot: `model()`, `skill_resources(skill)`, `item_text(ref)` and
     `item_link_targets(source)`. `model()` loads workspace structure. `skill_resources` lists a skill's resources;
-    `item_text` decodes a document, skill entry or skill resource; `item_link_targets` resolves an item's relative
-    links against the snapshot and scope. Their carry-over rules are stated by their methods.
+    `item_text` decodes an item's bytes; `item_link_targets` resolves its relative links against the snapshot and
+    scope. Their carry-over rules are stated by their methods.
 
     Derived queries read other queries: `item_frontmatter(source)`, `item_parse(source)`,
     `item_token_count(source)`, `item_line_count(source)`, `item_governance(ref)`,
-    `item_schema_problems(source)`, and `item_skill_fields(source)`. The first four derive values from decoded text;
-    governance reads the model; schema problems read frontmatter and, for documents, governance; skill fields read
-    frontmatter.
+    `item_schema_problems(source)` and `item_skill_fields(source)`. The first four derive values from decoded text;
+    governance reads the model; schema problems read frontmatter and applicable governance; skill fields read
+    frontmatter. Each derived answer carries over with the query results it reads, under its method's rule.
 
-    The item family is keyed by `MarkdownItemRef` and covers documents, skill entries and skill resources. A resource's
+    The item family is keyed by `MarkdownItemRef`. A resource's
     reference is registered from its listing by `resource_item(location)`. A document outside the model's listing is
-    still resolved from its corpus and filename. The other public methods are `item_structure_specs(ref)`,
-    `query(query, ref)`, `query_reads(query, ref)`, `item_has_link_to(ref, path)`, `source_lines(path)`,
-    `refusals()` and `unreported_docs_refusals()`. `item_structure_specs`, `query` and `item_has_link_to` read queries;
-    `query_reads` reads the recorded read set. `source_lines`, `refusals` and `unreported_docs_refusals` read the
-    snapshot. `query` memoizes its answer and read set; `query_reads` is empty before that query runs.
-    `item_structure_specs` and `item_has_link_to` are not cached separately. `source_lines` and `refusals` are answered
-    on each call; `unreported_docs_refusals` is cached for this database's lifetime, then recomputed from the next
-    revision's refusals and model failures.
+    still resolved from its corpus and filename. `from_snapshot(snapshot)` starts a fresh database; it carries no
+    cached values from another revision. `resource_item(location)` registers a resource under the ref in its listing.
+    The snapshot questions are `source_lines(path)`, `refusals()` and `unreported_docs_refusals()`: the first two are
+    answered on each call; the last is cached for this database's lifetime and recomputed from the next revision's
+    refusals and model failures. The declared query `query(query, ref)` memoizes its answer and read set;
+    `query_reads(query, ref)` is empty before that query runs. `item_structure_specs` and `item_has_link_to` are not
+    cached separately and carry over with the query results they read.
     """
 
     def __init__(self, fs: VirtualFileSystem, model: WorkspaceModel) -> None:
@@ -524,6 +530,9 @@ class Database:
         A unit of the declaration that cannot be read or used does not stop the build: the model records it, in
         `load_failures` and in the layer it stands in.
 
+        Carry-over: none. Each call creates a fresh database for the supplied snapshot; cached values belong to
+        that database and are never transferred from another revision.
+
         Args:
             snapshot: The frozen state every query reads; kept for the database's lifetime and never changed.
 
@@ -534,7 +543,7 @@ class Database:
         reject_linked_layout(fs)
         return cls(fs, load_model(fs))
 
-    # Input queries: each reads the snapshot and states its own carry-over rule.
+    # Input query: the model is loaded once from the snapshot.
 
     def model(self) -> WorkspaceModel:
         """The workspace model the snapshot declares, loaded when the database was opened. Raises nothing.
@@ -549,6 +558,8 @@ class Database:
           repository included; and a directory added or deleted that a `..` on such a chain climbs out of.
         """
         return self._model
+
+    # Snapshot question: an excerpt uses cached input text for items and reads specification text from the view.
 
     def source_lines(self, path: RootRelativePath) -> tuple[str, ...] | None:
         """The lines of one file under the root, for a diagnostic to excerpt, numbered as the rules number them.
@@ -617,6 +628,8 @@ class Database:
                 return None
         return None
 
+    # Input query: each skill's resource listing is read once from the snapshot.
+
     def skill_resources(self, skill: SkillLocation) -> SkillResourceListing:
         """The resources of one skill and its symlinks leading outside the repository, listed on the first call.
 
@@ -660,7 +673,7 @@ class Database:
             self._scope_index = ScopeIndex(self._snapshot)
         return self._scope_index
 
-    # The unified family: one query per fact for a document, skill entry or resource, keyed by the common reference.
+    # Item resolution and registration use the common reference; listed resources and unlisted documents enter here.
 
     def _resolved(self, ref: MarkdownItemRef) -> ResolvedItem:
         """The descriptor and governance the model resolved for a listed item, found on the first call."""
@@ -672,11 +685,13 @@ class Database:
             self._items[ref] = resolved
         return resolved
 
+    # Input query: decode one resolved item's bytes into the witness all content queries read.
+
     def item_text(self, ref: MarkdownItemRef) -> ItemText | Undecodable:
         """One item's bytes decoded as UTF-8, read from the descriptor's read location on the first call for its ref.
 
-        The one place a document's or skill entry's bytes become text for a rule: every other query about the item
-        takes the witness this returns. A file that is not UTF-8 is cached as `Undecodable`, so it is decoded once.
+        The one place an item's bytes become text for a rule: every other query about it takes the witness this
+        returns. A file that is not UTF-8 is cached as `Undecodable`, so it is decoded once.
 
         Carry-over: kept for the next revision only when the next model resolves an equal descriptor, and so the
         same read location, and that file's bytes did not change.
@@ -687,7 +702,7 @@ class Database:
             ref: The item to decode; the cache key.
 
         Raises:
-            UnlistedItemError: If the model lists no document or skill entry there.
+            UnlistedItemError: If the reference is not a listed item, registered resource or answerable document path.
             ItemReadError: If the snapshot holds no regular file at the read location.
         """
         self._answerable(ref)
@@ -743,6 +758,9 @@ class Database:
         The model lists no resource, so the resource is kept apart from the listed items, as an unlisted document is:
         the `item_*` queries answer for its reference, and the listed items still refuse it. Raises nothing.
 
+        Carry-over: this registration is database-local. In the next revision, the resource's item queries can carry
+        over only when its listing resolves the ref to the same file and the relevant query inputs are unchanged.
+
         Args:
             location: The resource, as `skill_resources` locates it; its resolved file is where the text is read.
         """
@@ -774,6 +792,8 @@ class Database:
         listed = corpus is not None and ref.filename in corpus.filenames
         self._register(item, lambda: self._model.resolve_item(ref), listed=listed)
 
+    # Input query: resolve the paths named by one item's links against the snapshot and scope.
+
     def item_link_targets(self, source: ItemText) -> Mapping[NormalisedLinkPath, LinkTargetEntry]:
         """Where each relative link of one item leads and what the snapshot holds there, found on the first call.
 
@@ -792,6 +812,8 @@ class Database:
             targets = link_targets_of(links, source.descriptor.link_base, self._fs, self._built_scope_index())
             self._item_link_targets[source.ref] = targets
         return targets
+
+    # Derived queries: each reads other queries and carries over with the queries it reads.
 
     def item_frontmatter(self, source: ItemText) -> FrontmatterNode:
         """The frontmatter of one item, parsed from its decoded text on the first call. Raises nothing.
@@ -865,7 +887,7 @@ class Database:
             ref: The item to look up; the cache key.
 
         Raises:
-            UnlistedItemError: If the model lists no document or skill entry there.
+            UnlistedItemError: If the reference is not a listed item, registered resource or answerable document path.
         """
         self._answerable(ref)
         return self._governance_of(ref)
@@ -883,8 +905,8 @@ class Database:
         governs the item, and only the layers that loaded state a schema. A skill entry is held to the Agent Skills
         specification alone, one entry for it, none when the block is missing, not YAML or not a mapping.
 
-        Carry-over: kept for the next revision whenever `item_frontmatter(source)` and, but for a skill entry,
-        `item_governance(source.ref)` are.
+        Carry-over: kept for the next revision whenever `item_frontmatter(source)` and the governance this item reads
+        are kept.
 
         Args:
             source: The item's text; its ref is the cache key.
@@ -903,12 +925,12 @@ class Database:
         return found
 
     def item_structure_specs(self, ref: MarkdownItemRef) -> tuple[StructureSpec, ...]:
-        """The structure specifications of the layers that loaded for an item the model lists.
+        """The structure specifications of the layers that loaded for an answerable item.
 
         Not cached: the answer is read off `item_governance(ref)`, which is, so it carries over with it.
 
         Raises:
-            UnlistedItemError: If the model lists no document or skill entry there.
+            UnlistedItemError: If the reference is not a listed item, registered resource or answerable document path.
         """
         governance = self.item_governance(ref)
         return governance.structure_specs() if governance is not None else ()
@@ -926,7 +948,7 @@ class Database:
             ref: The item to run it over.
 
         Raises:
-            UnlistedItemError: If the model lists no document or skill entry there.
+            UnlistedItemError: If the reference is not a listed item, registered resource or answerable document path.
         """
         key = (query, ref)
         if key not in self._queries:
@@ -945,12 +967,12 @@ class Database:
         return self._queries[(query, ref)][1] if (query, ref) in self._queries else frozenset()
 
     def item_has_link_to(self, ref: MarkdownItemRef, path: RootRelativePath) -> bool:
-        """Whether the document at a ref links to an existing file at a path; false, logged, when it cannot be read.
+        """Whether the item at a ref links to an existing file at a path; false, logged, when it cannot be read.
 
         Not cached: the answer is a lookup in `item_link_targets`, which is, so it carries over with it.
 
         Args:
-            ref: The document to read.
+            ref: The item to read.
             path: The root-relative path to look for among its links.
         """
         try:
@@ -962,8 +984,6 @@ class Database:
             logger.warning('%s is not UTF-8, so it holds no link back to %s', ref.path, path)
             return False
         return has_link_to(self.item_link_targets(text), path)
-
-    # Derived queries: each reads other queries and carries over with the queries it reads.
 
     def item_skill_fields(self, source: ItemText) -> SkillFields:
         """The fields of one skill entry's frontmatter that parse, parsed once. Raises nothing.
