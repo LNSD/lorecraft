@@ -11,6 +11,7 @@ from lorecraft.core.num import NonZeroUnsignedInt, UnsignedInt
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.syntax import Heading, WordCount, count_words, find_title
 
+from .query import Primitives
 from .structure import StructureSpec, TitleChecks
 
 
@@ -67,13 +68,33 @@ def find_document_title(headings: Sequence[Heading]) -> DocumentTitle | None:
     return DocumentTitle(heading=heading, chars=UnsignedInt(len(heading.text)), words=count_words(heading.text))
 
 
-def title_constraints(specs: Sequence[StructureSpec]) -> tuple[TitleConstraint, ...]:
-    """The title checks each specification states, in the order the specifications apply. Raises nothing.
+@dataclass(frozen=True, slots=True)
+class TitleFacts:
+    """Everything a rule over the title reads, so it judges without the document's context.
+
+    Attributes:
+        title: The document's title with its counts, or `None` when it has none.
+        constraints: The title checks each governing specification states, in the order the specifications apply.
+    """
+
+    title: DocumentTitle | None
+    constraints: tuple[TitleConstraint, ...]
+
+
+def title_facts(primitives: Primitives) -> TitleFacts:
+    """The document's title and the title checks each specification states. Raises nothing.
+
+    A query: it reads the item's headings and structure specifications and nothing else.
 
     Args:
-        specs: The structure specifications that govern the document.
+        primitives: The model state of the document.
     """
-    return tuple(TitleConstraint(spec=spec.path, checks=spec.title) for spec in specs if spec.title is not None)
+    constraints = tuple(
+        TitleConstraint(spec=spec.path, checks=spec.title)
+        for spec in primitives.structure_specs()
+        if spec.title is not None
+    )
+    return TitleFacts(title=find_document_title(primitives.headings()), constraints=constraints)
 
 
 def token_budgets(specs: Sequence[StructureSpec]) -> tuple[TokenBudget, ...]:

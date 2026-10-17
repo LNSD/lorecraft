@@ -60,7 +60,7 @@ the database there, so a rule reads nothing but what it is handed.
 - Nothing here imports `lorecraft.engine` or `lorecraft.project.database`. The layers contract puts this package
   below the first and a forbidden contract refuses the second, so the database, a query and the run are out of
   reach by import.
-- A rule reads the one context its base fixes and nothing else, and performs no I/O.
+- A rule reads its base's one context, or only the facts of the query it names, and performs no I/O.
 - An occurrence names no subject: it points at a line of the subject or at the subject itself, and the run
   supplies the path.
 - The registry is package data: it reads no workspace, is not a query, and holds this package's rules, never a

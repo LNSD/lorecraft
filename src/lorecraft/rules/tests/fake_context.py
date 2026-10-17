@@ -35,14 +35,15 @@ from lorecraft.project.schemas import (
     NamespaceSpecName,
     OutlineAlignmentSpec,
     OutlineDivergenceSpec,
+    Query,
     SchemaProblems,
     SkillFields,
     SpecFileType,
     SpecName,
+    StructurePrimitives,
     StructureSchema,
     StructureSpec,
     StructureSpecFile,
-    TitleConstraint,
     TokenBudget,
     align_outlines,
     empty_headings,
@@ -54,7 +55,6 @@ from lorecraft.project.schemas import (
     parse_skill_fields,
     parse_spec_name,
     spec_filename,
-    title_constraints,
     token_budgets,
 )
 from lorecraft.project.syntax import (
@@ -305,9 +305,9 @@ class FakeDocumentContext:
         """The document's title, as the real query finds it."""
         return find_document_title(self.parse().headings)
 
-    def title_constraints(self) -> tuple[TitleConstraint, ...]:
-        """The title checks the governing meta specs state, as the real query finds them."""
-        return title_constraints(self._governance.structure_specs())
+    def query[T](self, query: Query[T]) -> T:
+        """The answer of a declared query over the governing meta specs, as the real database finds it."""
+        return query(StructurePrimitives(self._governance.structure_specs(), self.parse().headings))
 
     def token_budgets(self) -> tuple[TokenBudget, ...]:
         """The token budgets the governing meta specs set, as the real query finds them."""

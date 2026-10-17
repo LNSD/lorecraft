@@ -4,19 +4,19 @@ from dataclasses import dataclass
 from typing import ClassVar, Self
 
 from lorecraft.core.path import RootRelativePath
-from lorecraft.project.context import DocumentContext
+from lorecraft.project.schemas import Query, TitleFacts, title_facts
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Here, Label, Subdiagnostic
 from lorecraft.rules.overrun import Overrun, find_overrun
-from lorecraft.rules.subject import DocumentRule, Facet
+from lorecraft.rules.subject import Facet, QueriedDocumentRule
 
 from .__ruleset__ import GROUP_ID, TITLE_HELP, spec_note
 
 
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
-class TitleTooManyWords(DocumentRule):
+class TitleTooManyWords(QueriedDocumentRule[TitleFacts]):
     """A document's title is longer than its word cap allows.
 
     ## What it does
@@ -84,19 +84,24 @@ class TitleTooManyWords(DocumentRule):
         return (spec_note(self.spec), TITLE_HELP)
 
     @classmethod
-    def check(cls, subject: DocumentContext) -> tuple[Self, ...]:
+    def query(cls) -> Query[TitleFacts]:
+        """The title and the title checks of the document."""
+        return title_facts
+
+    @classmethod
+    def judge(cls, facts: TitleFacts, /) -> tuple[Self, ...]:
         """One occurrence, at the title's heading, for each cap on the title that it exceeds.
 
         The caps are taken in the order their meta specs apply; a document with no title is held to none.
 
         Args:
-            subject: The document, governed by a structure file.
+            facts: The document's title and the title checks each governing specification states.
         """
-        title = subject.title()
+        title = facts.title
         if title is None:
             return ()
         occurrences: list[Self] = []
-        for constraint in subject.title_constraints():
+        for constraint in facts.constraints:
             if constraint.checks.words is None:
                 continue
             overrun = find_overrun(title.words, constraint.checks.words)

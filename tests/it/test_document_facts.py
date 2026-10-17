@@ -15,6 +15,7 @@ from lorecraft.project.database.context import WrongItemKindError
 from lorecraft.project.item import MarkdownItemRef, UnlistedItemError
 from lorecraft.project.layout import SNAPSHOT_SCOPE
 from lorecraft.project.link_target import DocumentLink
+from lorecraft.project.schemas import title_facts
 from lorecraft.project.syntax import LineNumber
 from lorecraft.vfs import Snapshot, take_snapshot
 
@@ -72,13 +73,13 @@ class TestDocumentFactQueries:
         #: Then
         assert second is first, 'the title is memoized'
 
-    def test_item_title_constraints_called_twice_returns_the_first_answer(self, tmp_path: Path) -> None:
+    def test_item_title_facts_called_twice_returns_the_first_answer(self, tmp_path: Path) -> None:
         #: Given
         database = Database.from_snapshot(_snapshot(tmp_path))
-        first = database.item_title_constraints(GUIDE)
+        first = database.query(title_facts, GUIDE)
 
         #: When
-        second = database.item_title_constraints(GUIDE)
+        second = database.query(title_facts, GUIDE)
 
         #: Then
         assert second is first, 'the checks are memoized'
@@ -94,14 +95,14 @@ class TestDocumentFactQueries:
         #: Then
         assert second is first, 'the budgets are memoized'
 
-    def test_item_title_constraints_on_a_fresh_database_holds_the_checks_of_the_governing_specification(
+    def test_item_title_facts_on_a_fresh_database_holds_the_checks_of_the_governing_specification(
         self, tmp_path: Path
     ) -> None:
         #: Given
         database = Database.from_snapshot(_snapshot(tmp_path))
 
         #: When
-        constraints = database.item_title_constraints(GUIDE)
+        constraints = database.query(title_facts, GUIDE).constraints
 
         #: Then
         assert [c.spec for c in constraints] == [SPEC_PATH], 'the item is resolved by the query itself'
@@ -118,13 +119,13 @@ class TestDocumentFactQueries:
         #: Then
         assert [(b.spec, b.tokens.value) for b in budgets] == [(SPEC_PATH, 500)], 'the item is resolved by the query'
 
-    def test_item_title_constraints_of_an_unlisted_path_raises_unlisted_item_error(self, tmp_path: Path) -> None:
+    def test_item_title_facts_of_an_unlisted_path_raises_unlisted_item_error(self, tmp_path: Path) -> None:
         #: Given
         database = Database.from_snapshot(_snapshot(tmp_path))
 
         #: When / Then
         with pytest.raises(UnlistedItemError):
-            database.item_title_constraints(MarkdownItemRef(RootRelativePath.parse('README.md')))
+            database.query(title_facts, MarkdownItemRef(RootRelativePath.parse('README.md')))
 
     def test_item_token_budgets_of_an_unlisted_path_raises_unlisted_item_error(self, tmp_path: Path) -> None:
         #: Given
@@ -203,15 +204,15 @@ class TestDocumentFactContext:
         assert title is not None, 'the document has a title'
         assert (title.chars.value, title.words.value) == (12, 3), 'the title is measured'
 
-    def test_title_constraints_names_the_file_that_states_them(self, tmp_path: Path) -> None:
+    def test_query_reads_only_the_primitives_the_query_names(self, tmp_path: Path) -> None:
         #: Given
-        context = _context(Database.from_snapshot(_snapshot(tmp_path)), GUIDE)
+        database = Database.from_snapshot(_snapshot(tmp_path))
 
         #: When
-        constraints = context.title_constraints()
+        database.query(title_facts, GUIDE)
 
         #: Then
-        assert [c.spec for c in constraints] == [SPEC_PATH], 'the title checks name their file'
+        assert database.query_reads(title_facts, GUIDE) == {'structure_specs', 'headings'}, 'the carry-over is derived'
 
     def test_token_budgets_names_the_file_that_sets_them(self, tmp_path: Path) -> None:
         #: Given
@@ -230,14 +231,6 @@ class TestDocumentFactContext:
         #: When / Then
         with pytest.raises(WrongItemKindError):
             context.title()
-
-    def test_title_constraints_of_a_skill_entry_raises_wrong_item_kind_error(self, tmp_path: Path) -> None:
-        #: Given
-        context = _context(Database.from_snapshot(_snapshot(tmp_path)), SKILL)
-
-        #: When / Then
-        with pytest.raises(WrongItemKindError):
-            context.title_constraints()
 
     def test_token_budgets_of_a_skill_entry_raises_wrong_item_kind_error(self, tmp_path: Path) -> None:
         #: Given
