@@ -6,6 +6,14 @@ problems both frontmatter schemas report, each placed on the line it is reported
 first stop matching an outline.
 """
 
+from .document_facts import (
+    DocumentTitle,
+    TitleConstraint,
+    TokenBudget,
+    find_document_title,
+    title_constraints,
+    token_budgets,
+)
 from .frontmatter_problem import (
     BlockProblem,
     FieldCount,
@@ -98,6 +106,12 @@ from .structure_failure import StructureSpecProblem
 from .structure_file import StructureFile
 
 __all__: list[str] = [
+    'DocumentTitle',
+    'TitleConstraint',
+    'TokenBudget',
+    'find_document_title',
+    'title_constraints',
+    'token_budgets',
     'CorpusSpecName',
     'NamespaceSpecName',
     'SpecName',

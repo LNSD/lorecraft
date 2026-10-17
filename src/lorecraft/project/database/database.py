@@ -59,6 +59,9 @@ it read does, `item_governance(ref)` excepted, as its bullet states:
   frontmatter schema that governs one document rejects, which outline entry each section falls in, and where the
   sections first stop matching each outline, the shared analyses every inspection reads. They read the item's
   frontmatter or parse, its governance and, for the divergences, its alignment and line count, and nothing else.
+- `item_title(source)`, `item_title_constraints(ref)` and `item_token_budgets(ref)`: the facts the length and title
+  inspections project, so none unpacks a governance or searches the headings itself. They read the item's parse or
+  governance and nothing else.
 - `item_skill_schema_problems(source)` and `item_skill_fields(source)`: what the Agent Skills specification rejects in
   one skill entry's frontmatter and the fields of it that parse, each on its own. They read `item_frontmatter(source)`
   and nothing else: the package states the specification, so no specification in the repository plays a part.
@@ -150,19 +153,31 @@ from lorecraft.project.corpus import (
     ReservedCorpusNameError,
 )
 from lorecraft.project.document import DocumentRef
-from lorecraft.project.item import ItemReadError, MarkdownItemDescriptor, MarkdownItemRef, UnlistedItemError
+from lorecraft.project.item import (
+    ItemReadError,
+    MarkdownItemDescriptor,
+    MarkdownItemRef,
+    UnlistedItemError,
+)
 from lorecraft.project.layout import DOCS_DIR, DOCUMENT_SUFFIX, SPECS_DIR, reject_linked_layout
 from lorecraft.project.link_target import LinkTargetEntry, link_targets_of
 from lorecraft.project.schemas import (
+    DocumentTitle,
     OutlineAlignmentSpec,
     OutlineDivergenceSpec,
     SchemaProblems,
     SkillFields,
+    StructureSpec,
+    TitleConstraint,
+    TokenBudget,
     align_outlines,
+    find_document_title,
     locate_schema_problems,
     locate_skill_schema_problems,
     match_outlines,
     parse_skill_fields,
+    title_constraints,
+    token_budgets,
 )
 from lorecraft.project.skill import Repository as SkillRepository
 from lorecraft.project.skill import (
@@ -281,6 +296,9 @@ class Database:
         self._item_schema_problems: dict[MarkdownItemRef, tuple[SchemaProblems, ...]] = {}
         self._item_outline_alignments: dict[MarkdownItemRef, tuple[OutlineAlignmentSpec, ...]] = {}
         self._item_outline_divergences: dict[MarkdownItemRef, tuple[OutlineDivergenceSpec, ...]] = {}
+        self._item_titles: dict[MarkdownItemRef, DocumentTitle | None] = {}
+        self._item_title_constraints: dict[MarkdownItemRef, tuple[TitleConstraint, ...]] = {}
+        self._item_token_budgets: dict[MarkdownItemRef, tuple[TokenBudget, ...]] = {}
         # Each skill's resource listing, found on the first call; a resource is registered from it with `resource_item`.
         self._skill_resources: dict[SkillRef, SkillResourceListing] = {}
         self._item_skill_schema_problems: dict[MarkdownItemRef, tuple[SchemaProblems, ...]] = {}
@@ -712,6 +730,61 @@ class Database:
                 divergences = ()
             self._item_outline_divergences[source.ref] = divergences
         return divergences
+
+    def _structure_specs(self, ref: MarkdownItemRef) -> tuple[StructureSpec, ...]:
+        """The structure specifications of the layers that loaded for an item the model lists.
+
+        Raises:
+            UnlistedItemError: If the model lists no document or skill entry there.
+        """
+        governance = self.item_governance(ref)
+        return governance.structure_specs() if governance is not None else ()
+
+    def item_title(self, source: ItemText) -> DocumentTitle | None:
+        """One item's title with its character and word counts, found on the first call; `None` when it has none.
+
+        Carry-over: kept for the next revision whenever `item_parse(source)` is.
+
+        Args:
+            source: The item's text; its ref is the cache key.
+        """
+        if source.ref not in self._item_titles:
+            self._item_titles[source.ref] = find_document_title(self.item_parse(source).headings)
+        return self._item_titles[source.ref]
+
+    def item_title_constraints(self, ref: MarkdownItemRef) -> tuple[TitleConstraint, ...]:
+        """The title checks each specification that governs one item states, found on the first call.
+
+        Carry-over: kept for the next revision whenever `item_governance(ref)` is.
+
+        Args:
+            ref: The item to look up; the cache key.
+
+        Raises:
+            UnlistedItemError: If the model lists no document or skill entry there.
+        """
+        found = self._item_title_constraints.get(ref)
+        if found is None:
+            found = title_constraints(self._structure_specs(ref))
+            self._item_title_constraints[ref] = found
+        return found
+
+    def item_token_budgets(self, ref: MarkdownItemRef) -> tuple[TokenBudget, ...]:
+        """The token budget each specification that governs one item sets, found on the first call.
+
+        Carry-over: kept for the next revision whenever `item_governance(ref)` is.
+
+        Args:
+            ref: The item to look up; the cache key.
+
+        Raises:
+            UnlistedItemError: If the model lists no document or skill entry there.
+        """
+        found = self._item_token_budgets.get(ref)
+        if found is None:
+            found = token_budgets(self._structure_specs(ref))
+            self._item_token_budgets[ref] = found
+        return found
 
     # Derived queries: each reads only other queries and carries over whenever they do.
 

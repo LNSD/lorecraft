@@ -26,11 +26,14 @@ from lorecraft.project.corpus import CorpusName, ReservedCorpusDirectory
 from lorecraft.project.item import DocumentOrigin, MarkdownItemRef, SkillEntryOrigin, SkillResourceOrigin
 from lorecraft.project.link_target import LinkBase, LinkTargetEntry
 from lorecraft.project.schemas import (
+    DocumentTitle,
     OutlineAlignmentSpec,
     OutlineDivergenceSpec,
     SchemaProblems,
     SkillFields,
     StructureSpec,
+    TitleConstraint,
+    TokenBudget,
 )
 from lorecraft.project.skill import OutsideSymlink
 from lorecraft.project.syntax import FrontmatterNode, LineCount, NormalisedLinkPath, ParsedDocument, TokenCount
@@ -247,6 +250,33 @@ class DatabaseItemContext:
         """
         self._document()
         return self._database.item_outline_divergences(self._source)
+
+    def title(self) -> DocumentTitle | None:
+        """The document's title with its counts, from the `item_title` query.
+
+        Raises:
+            WrongItemKindError: If the item is a skill entry.
+        """
+        self._document()
+        return self._database.item_title(self._source)
+
+    def title_constraints(self) -> tuple[TitleConstraint, ...]:
+        """The title checks each governing specification states, from the `item_title_constraints` query.
+
+        Raises:
+            WrongItemKindError: If the item is a skill entry.
+        """
+        self._document()
+        return self._database.item_title_constraints(self._source.ref)
+
+    def token_budgets(self) -> tuple[TokenBudget, ...]:
+        """The token budget each governing specification sets, from the `item_token_budgets` query.
+
+        Raises:
+            WrongItemKindError: If the item is a skill entry.
+        """
+        self._document()
+        return self._database.item_token_budgets(self._source.ref)
 
 
 class DatabaseSymlinkContext:
