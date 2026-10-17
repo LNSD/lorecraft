@@ -191,7 +191,7 @@ class TestRegistryLoad:
         assert exc_info.value.first is Original, 'the rule with the code holds it'
         assert exc_info.value.second is Lookalike, 'the rule listing it as an alias code bound it again'
 
-    def test_load_with_a_rule_without_check_raises_abstract_rule_error(self) -> None:
+    def test_load_with_a_rule_without_judge_raises_abstract_rule_error(self) -> None:
         #: Given
         package = abstract_rule
 
@@ -201,7 +201,7 @@ class TestRegistryLoad:
 
         #: Then
         assert exc_info.value.declaration is Unchecked, 'the error names the abstract rule class'
-        assert exc_info.value.missing == ('check',), 'the error names the method it does not implement'
+        assert exc_info.value.missing == ('judge',), 'the error names the method it does not implement'
 
     def test_load_with_a_rule_without_since_raises_unset_rule_attribute_error(self) -> None:
         #: Given

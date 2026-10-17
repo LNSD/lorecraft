@@ -33,14 +33,14 @@ class LongLine(SampleLinesRule):
         return f'line is {self.length} characters long'
 
     @classmethod
-    def check(cls, subject: SampleLines) -> tuple[Self, ...]:
+    def judge(cls, facts: SampleLines, /) -> tuple[Self, ...]:
         """Every line longer than 80 characters.
 
         Args:
-            subject: The lines judged.
+            facts: The lines judged.
         """
         return tuple(
             cls(spec=None, line=LineNumber(NonZeroUnsignedInt(index + 1)), length=len(line))
-            for index, line in enumerate(subject.lines)
+            for index, line in enumerate(facts.lines)
             if len(line) > 80
         )

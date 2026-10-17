@@ -26,14 +26,14 @@ class EmptyLine(SampleLinesRule):
         return 'line is empty'
 
     @classmethod
-    def check(cls, subject: SampleLines) -> tuple[Self, ...]:
+    def judge(cls, facts: SampleLines, /) -> tuple[Self, ...]:
         """Every empty line.
 
         Args:
-            subject: The lines judged.
+            facts: The lines judged.
         """
         return tuple(
             cls(spec=None, line=LineNumber(NonZeroUnsignedInt(index + 1)))
-            for index, line in enumerate(subject.lines)
+            for index, line in enumerate(facts.lines)
             if not line
         )

@@ -1,4 +1,4 @@
-"""A sample rule declared without its check."""
+"""A sample rule declared without its judge."""
 
 from dataclasses import dataclass
 from typing import ClassVar
@@ -13,7 +13,7 @@ from ..groups import SAMPLE
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
 class Unchecked(SampleLinesRule):
-    """A sample rule that cannot judge anything: it does not implement `check`."""
+    """A sample rule that cannot judge anything: it does not implement `judge`."""
 
     CODE: ClassVar[RuleCode] = RuleCode(SAMPLE, 1)
     NAME: ClassVar[RuleName] = RuleName('unchecked')

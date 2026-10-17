@@ -256,14 +256,6 @@ class FakeDocumentDatabase:
         """The tokens in the document's whole text, as the real tokenizer counts them."""
         return count_tokens(self._text)
 
-    def specifications(self) -> Governance:
-        """The meta specs the test stated."""
-        return self._governance
-
-    def corpus_structure(self) -> StructureSpec:
-        """The corpus's structure file, decoded from the JSON the test stated."""
-        return self._corpus_structure
-
     def query[T](self, query: Query[T]) -> T:
         """The answer of a declared query over the governing meta specs, as the real database finds it."""
         return query(

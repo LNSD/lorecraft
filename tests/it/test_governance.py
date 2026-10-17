@@ -3,7 +3,7 @@
 The query reads the model, so it is tested over a database opened on an in-memory snapshot: a document a corpus and
 a namespace specification govern, and one in a corpus the model lacks. That a run computes the governance once is
 counted at the one place it is computed, `Corpus.governance`, while every reader of it runs: the runner's facet gate,
-the context's `specifications()` and `corpus_structure()`, `schema_problems` and `outline_divergences`.
+the rules' queries, `schema_problems` and `outline_divergences`.
 """
 
 from dataclasses import replace
@@ -176,6 +176,6 @@ class TestRunComputesGovernanceOnce:
         #: Then
         assert len(reports) == 2, 'both documents are checked'
         assert computed == [TYPING.filename, ASYNC.filename], (
-            'the facet gate, the context and the schema and outline analyses all read the one query, so each '
+            'the facet gate, the queries and the schema and outline analyses all read the one query, so each '
             'document is governed once however many readers ask'
         )

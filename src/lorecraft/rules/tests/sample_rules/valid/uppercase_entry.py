@@ -25,12 +25,12 @@ class UppercaseEntry(SampleEntryRule):
         return 'entry name holds an uppercase letter'
 
     @classmethod
-    def check(cls, subject: SampleEntry) -> tuple[Self, ...]:
+    def judge(cls, facts: SampleEntry, /) -> tuple[Self, ...]:
         """The occurrence at the entry, when its name is not all lowercase.
 
         Args:
-            subject: The entry judged.
+            facts: The entry judged.
         """
-        if subject.name == subject.name.lower():
+        if facts.name == facts.name.lower():
             return ()
         return (cls(spec=None),)
