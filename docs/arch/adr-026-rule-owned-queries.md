@@ -68,6 +68,10 @@ checked that the prose matched what the query read.
   dependency flow: `engine` imports `rules` and `project`, while `rules` never touches `engine` or `database`.
 - Context protocols (`DocumentContext`, `SkillContext`, `DatabaseItemContext`) are deprecated and removed once all
   rules migrate to queries.
+- The rules over layout entries, COR001 and LAY001, are the documented exception to that retirement. Their subjects are
+  layout entries, records the model already holds, so there is nothing to derive or memoize and no Markdown item to
+  key a query by. They keep reading their facts from the contexts of their entry, and the shared context protocols keep
+  those small layout methods.
 - Query abstractions are cleanly decoupled from `lorecraft.project.schemas`.
 - The facts are typed by the rule's type argument, and `query()` is checked against it: a rule whose query returns
   another type fails the type check.

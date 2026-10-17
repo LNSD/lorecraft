@@ -236,7 +236,7 @@ class FakeDocumentContext:
         self._governance = Governance(self._corpus, document)
         self._ref = DocumentRef(corpus=spec_name.corpus, filename=document)
 
-    def parse(self) -> ParsedDocument:
+    def _parse(self) -> ParsedDocument:
         """The document's parse tree, as the real parser reads it."""
         return parse_document(self._text)
 
@@ -257,9 +257,9 @@ class FakeDocumentContext:
         return query(
             StructurePrimitives(
                 self._governance.structure_specs(),
-                self.parse().headings,
+                self._parse().headings,
                 self.token_count(),
-                self.parse().links,
+                self._parse().links,
                 self._link_targets,
                 DocumentDirectory(self._ref.path.parent),
                 str(self._ref.filename),
@@ -267,7 +267,7 @@ class FakeDocumentContext:
                 parse_frontmatter(self._text),
                 locate_schema_problems(parse_frontmatter(self._text), self._governance.frontmatter_schemas()),
                 owner=DocumentFrontmatterOwner(filename=self._ref.filename, spec=self._corpus_structure.path),
-                anchor_set=self.parse().anchors,
+                anchor_set=self._parse().anchors,
                 base_name=self._base_name(),
                 document_link_list=self._document_links,
                 corpus=str(self._ref.corpus),
