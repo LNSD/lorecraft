@@ -55,10 +55,13 @@ review, not by the schema.
 ## 4. Cross-References
 
 Documents cite each other by relative link, `[adr-004](adr-004-database.md)`, and by `<kind>-<NNN>` in
-prose. A link to the code specs is relative too: `../code/module-lorecraft-vfs.md`. Citations go both ways: a
-document that leads to another names it under References, and the other names it back.
+prose. A link to the code specs is relative too: `../code/module-lorecraft-vfs.md`. Citations go one way: a
+document names the documents it builds on under References, and the document built on never names it back. An ADR
+names the PRD it answers, and the PRD does not name the ADR; where a code spec and an ADR would cite each other, the
+code spec names the ADR and the ADR names no code spec. A replacement ADR names the ADR it supersedes, and the
+superseded ADR does not name it.
 
-**A feat spec is the one exception.** It links the PRD and the ADRs it comes from, and they never name it back:
+**A feat spec follows the same direction.** It links the PRD and the ADRs it comes from, and they never name it back:
 what shipped keeps changing after a requirement or a decision is settled, and an architecture document that
 linked it would go stale with it.
 
@@ -100,7 +103,7 @@ status: "{{status}}"
 - [ ] The file is named `<kind>-<NNN>-<slug>.md`, and `name` matches it
 - [ ] The number is the next free one in `docs/arch/`, and no other document of any kind, merged or dropped, has it
 - [ ] `type` equals the filename's kind prefix
-- [ ] The document closes with References, and every document it cites names it back
+- [ ] The document closes with References, and no document it cites names it back
 - [ ] The document links no feat spec in `docs/feat/`, in References or inline
 - [ ] The document cites no issue or pull request, in References or inline, and names work not yet done by what
   it is

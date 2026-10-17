@@ -340,14 +340,9 @@ Scenario: Inspecting a skill resource
 
 ## Assumptions
 
-- Namespace meta specs layer by conjunction for every corpus, as [adr-016](adr-016-specifications.md) decides.
+- Namespace meta specs layer by conjunction for every corpus.
 - A skill is a directory in a skills directory holding a `SKILL.md`, and its name is that directory's name.
 
 ## References
 
-- [adr-016-specifications](adr-016-specifications.md) - Source: Meta specs layer by conjunction, which the skills
-  namespaces follow
-- [adr-022](adr-022-skills-governance.md) - Leads to: Reserved-corpus governance for skills and bounded
-  contradiction detection
-- [adr-023](adr-023-governed-items.md) - Leads to: Unified governed-item reference and pipeline across the project
-  model, database and rules engine
+- [prd-008-structured-checks](prd-008-structured-checks.md) - Related: The structured checks that judge a skill against its specifications

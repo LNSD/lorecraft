@@ -8,7 +8,7 @@ status: "accepted"
 # The Snapshot Model
 
 > [!NOTE]
-> Superseded in part by [adr-012-database-derivation](adr-012-database-derivation.md): the Derivation and
+> Superseded in part: the Derivation and
 > Analysis rows of the role table below. The rest of this record binds code.
 
 ## Context
@@ -66,8 +66,6 @@ Before committing code, verify:
 - [adr-003-project-model](adr-003-project-model.md) - Related: The declared scope, apart from the captured content
 - [adr-005-incremental](adr-005-incremental.md) - Related: Results carried over between revisions and processes
 - [adr-010-diagnostics](adr-010-diagnostics.md) - Related: What a rule reports, and how it reaches the user
-- [adr-012-database-derivation](adr-012-database-derivation.md) - Superseded in part by: The Derivation and Analysis
-  rows of the role table
 - [principle-single-responsibility](../code/principle-single-responsibility.md) - Foundation: One role per package is
   one reason to change per package
 - [adr-015-database](adr-015-database.md) - Related: Revisions, the view and the queries

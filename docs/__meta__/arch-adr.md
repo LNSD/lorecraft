@@ -42,21 +42,22 @@ the decision:
 ```
 
 The change that accepts the replacement turns its callout into `Supersedes …`, sets the old record's `status` to
-`superseded`, and gives the old record a callout of its own and the replacement under References:
+`superseded`, and gives the old record a callout of its own. The callout does not name the replacement, which
+names the old record under References:
 
 ```markdown
 > [!NOTE]
-> Superseded by [adr-010-diagnostics](adr-010-diagnostics.md). It binds no code.
+> Superseded. It binds no code.
 ```
 
 A record may also replace only some sections or rows of an older one, when the rest of it must keep binding code.
 The replacement names what it replaces in a `Supersedes in part …` callout, and the older record keeps its
-`status`, gains a `Superseded in part by …` callout naming the same parts, and stays binding for everything else.
-The same rule of acceptance applies, and each names the other under References:
+`status`, gains a `Superseded in part …` callout naming the same parts, and stays binding for everything else.
+The same rule of acceptance applies, and only the replacement names the older record under References:
 
 ```markdown
 > [!NOTE]
-> Superseded in part by [adr-012-database-derivation](adr-012-database-derivation.md): the Derivation and
+> Superseded in part: the Derivation and
 > Analysis rows of the role table below. The rest of this record binds code.
 ```
 
@@ -124,10 +125,10 @@ status: "proposed"
 - [ ] A requirement the ADR answers is cited by its identifier
 - [ ] A record is marked `superseded` only in the change that accepts its replacement; until then the proposed
   replacement says it is proposed to supersede it
-- [ ] A `superseded` ADR names its replacement, and the replacement names it back, each in a callout after the
-  title and under References
-- [ ] A record superseded in part keeps its `status`, and it and its replacement name the replaced parts, each in a
-  callout after the title and under References
+- [ ] A `superseded` ADR carries a callout after the title that does not name its replacement, and the replacement
+  names it in a callout after its title and under References
+- [ ] A record superseded in part keeps its `status` and names the replaced parts in a callout after its title,
+  and its replacement names the record and the parts in a callout after its title and under References
 - [ ] An `accepted` ADR's description ends with a `Load when …` trigger, and it carries a checklist when it
   states something code can be checked against
 - [ ] The ADR states the design, lists no inventory of rules, commands, fields or files, and links no feat spec

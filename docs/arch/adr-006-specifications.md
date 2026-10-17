@@ -8,7 +8,7 @@ status: "superseded"
 # Meta Specs and Governance
 
 > [!NOTE]
-> Superseded by [adr-016-specifications](adr-016-specifications.md). It binds no code.
+> Superseded. It binds no code.
 
 ## Context
 
@@ -133,6 +133,5 @@ Before committing code, verify:
   feat specs
 - [principle-validate-at-edge](../code/principle-validate-at-edge.md) - Foundation: A dialect is decoded and proved at
   the edge
-- [adr-016-specifications](adr-016-specifications.md) - Superseded by: Meta specs and governance, a meta spec that cannot be loaded as a failed layer
 - [adr-015-database](adr-015-database.md) - Related: The model that records a meta spec that cannot be loaded
 - [prd-014-resilient-model-loading](prd-014-resilient-model-loading.md) - Related: The requirements behind the replacement

@@ -230,14 +230,9 @@ Scenario: A sample rule
 - The rules of later milestones read inputs of the kinds the ported rules already read, or add one new kind
   at a time.
 - A meta spec's layers reach a rule by conjunction: each governing meta spec applies on its own, and a rule
-  reports each one a subject breaks ([adr-016](adr-016-specifications.md)).
+  reports each one a subject breaks.
 
 ## References
 
-- [adr-016](adr-016-specifications.md) - Foundation: How a document's meta specs layer onto each other
-- [adr-009](adr-009-rules.md) - Leads to: How a rule is declared and identified
-- [adr-010](adr-010-diagnostics.md) - Leads to: What a rule reports, and how it reaches the user
-- [adr-011](adr-011-rules-engine.md) - Leads to: How a run judges subjects
 - [prd-014-resilient-model-loading](prd-014-resilient-model-loading.md) - Related: Load failures reported under codes and coverage
 - [prd-018-frontmatter-format](prd-018-frontmatter-format.md) - Related: The frontmatter format the `FM` codes judge
-- [adr-006-specifications](adr-006-specifications.md) - Related: The record adr-016 supersedes

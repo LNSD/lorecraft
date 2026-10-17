@@ -8,7 +8,7 @@ status: "superseded"
 # The Database
 
 > [!NOTE]
-> Superseded by [adr-015-database](adr-015-database.md). It binds no code.
+> Superseded. It binds no code.
 
 ## Context
 
@@ -107,4 +107,3 @@ Before committing code, verify:
 - [adr-011-rules-engine](adr-011-rules-engine.md) - Related: The rule contexts that read a document's governance
 - [adr-012-database-derivation](adr-012-database-derivation.md) - Related: The package the database lives in
 - [pattern-memoization](../code/pattern-memoization.md) - Foundation: How a query is memoized
-- [adr-015-database](adr-015-database.md) - Superseded by: The database opened with its model

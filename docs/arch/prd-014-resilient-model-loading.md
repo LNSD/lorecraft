@@ -225,7 +225,7 @@ Scenario: Checked against the meta specs that loaded
 
 ## Assumptions
 
-- A meta spec's layers apply by conjunction ([adr-016](adr-016-specifications.md)), so a document governed by a
+- A meta spec's layers apply by conjunction, so a document governed by a
   failed layer cannot be called clean from the layers that loaded. That is why a check run skips it.
 - The LSP-style mode reads the same model as a check run, and differs only in what it does with a document whose
   governing meta specs include a failed one.
@@ -233,7 +233,3 @@ Scenario: Checked against the meta specs that loaded
 ## References
 
 - [prd-008](prd-008-structured-checks.md) - Foundation: The codes, coverage and output shape this PRD builds on
-- [adr-016](adr-016-specifications.md) - Foundation: Layers apply by conjunction, and a meta spec that cannot be
-  loaded is a failed layer
-- [adr-015](adr-015-database.md) - Leads to: How load failures are recorded and the database is opened
-- [adr-006](adr-006-specifications.md) - Related: The record adr-016 supersedes

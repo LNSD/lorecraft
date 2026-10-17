@@ -179,6 +179,7 @@ class FakeDocumentContext:
     _corpus_structure: StructureSpec
     _link_targets: Mapping[NormalisedLinkPath, LinkTargetEntry]
     _corpus: Corpus
+    _document_links: tuple[DocumentLink, ...]
 
     def __init__(
         self,
@@ -190,6 +191,7 @@ class FakeDocumentContext:
         filename: str | None = None,
         link_targets: Mapping[NormalisedLinkPath, LinkTargetEntry] = FrozenMapping({}),
         siblings: tuple[str, ...] = (),
+        document_links: tuple[DocumentLink, ...] = (),
     ) -> None:
         """Hold the document's text and the meta specs that govern it.
 
@@ -205,6 +207,8 @@ class FakeDocumentContext:
             link_targets: What the snapshot holds at the target of each relative link, keyed by the link's
                 normalised relative path, as the database's link-target query would find it; none by default.
             siblings: The filenames, without extension, of the other documents the corpus holds; none by default.
+            document_links: The links to other documents the document holds, as the database would find them; none by
+                default.
 
         Raises:
             ValueError: If a listed namespace does not govern the filename, or is of another corpus.
@@ -216,6 +220,7 @@ class FakeDocumentContext:
         spec_name = CorpusSpecName(CorpusName.parse(corpus))
         self._text = text
         self._link_targets = link_targets
+        self._document_links = document_links
         self._corpus_structure = _decode_structure(spec_name, structure)
         corpus_spec = CorpusSpec(name=spec_name, files=_files(spec_name), structure=self._corpus_structure)
         if filename is None:
@@ -287,8 +292,8 @@ class FakeDocumentContext:
         )
 
     def document_links(self) -> tuple[DocumentLink, ...]:
-        """Not modelled: the fake holds one document, so no destination is read and none is reported."""
-        return ()
+        """The links the test stated, since the fake holds one document and reads no destination."""
+        return self._document_links
 
 
 class FakeSkillContext:

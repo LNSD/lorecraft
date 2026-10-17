@@ -234,14 +234,8 @@ Scenario: The catch-22 of contradictory layers is documented
 
 - Every corpus is flat: documents sit directly inside their corpus directory, and meta specs sit directly inside the
   meta spec directory.
-- Meta specs and corpus documents layer onto their bases by conjunction, as [adr-016](adr-016-specifications.md) and
-  [adr-013](adr-013-namespace-extension.md) state.
+- Meta specs and corpus documents layer onto their bases by conjunction.
 
 ## References
 
-- [adr-016](adr-016-specifications.md) - Foundation: Meta specs layer onto their base by conjunction, and each layer
-  is evaluated on its own
-- [adr-013](adr-013-namespace-extension.md) - Foundation: Conjunction across meta specs, code rules and feature
-  documents, separate document base chains, and base-first loading
-- [adr-025](adr-025-name-chain-model.md) - Leads to: The shared name-chain derivation in the project model and
-  workspace inspection rendering
+- [prd-008-structured-checks](prd-008-structured-checks.md) - Related: The structured checks that judge meta specs and documents layer by layer
