@@ -7,12 +7,9 @@ past.
 """
 
 from dataclasses import dataclass
-from typing import Final
 
+from .syntax_error import YamlSyntaxError
 from .tree import YamlPosition
-
-LINE_SEPARATORS: Final[str] = '\x85\u2028\u2029'
-"""The characters other YAML grammars end a line at, which `core/lines.py` does not: U+0085, U+2028 and U+2029."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -30,19 +27,13 @@ class ControlCharacterProblem:
 
 @dataclass(frozen=True, slots=True)
 class SyntaxErrorProblem:
-    """The text is not valid YAML, as the parser or the scanner reported it.
+    """The text is not valid YAML, as one of the kinds of syntax error adr-019 states.
 
     Attributes:
-        problem: What the parser found wrong, in its own words, or an empty text when it gave none.
-        context: What it was reading, in its own words, or an empty text when it gave none.
-        position: Where it found the problem, or `None` when it gave no mark.
-        context_position: Where what it was reading began, or `None` when it gave no mark.
+        error: The kind of the error, with the line the writer fixes and the text it names.
     """
 
-    problem: str
-    context: str
-    position: YamlPosition | None
-    context_position: YamlPosition | None
+    error: YamlSyntaxError
 
 
 @dataclass(frozen=True, slots=True)

@@ -16,6 +16,7 @@ from ..problem import (
     SyntaxErrorProblem,
 )
 from ..reader import read_yaml
+from ..syntax_error import ColonInValue, UnknownEscape
 from ..tree import YamlMapping, YamlPosition, YamlScalar, YamlSequence
 
 
@@ -245,8 +246,7 @@ class TestReadYaml:
         problem = read_yaml(text)
 
         #: Then
-        assert isinstance(problem, SyntaxErrorProblem), f'an unknown escape is a syntax error, got {problem!r}'
-        assert problem.position == _at(1, 8), f'the marks take a column each, got {problem.position!r}'
+        assert problem == SyntaxErrorProblem(UnknownEscape('\\q', 0)), f'the marks take a column each, got {problem!r}'
 
     def test_read_yaml_with_a_control_character_after_byte_order_marks_returns_its_character_column(self) -> None:
         #: Given
@@ -258,7 +258,7 @@ class TestReadYaml:
         #: Then
         assert problem == ControlCharacterProblem(code=7, position=_at(1, 6)), f'got {problem!r}'
 
-    def test_read_yaml_with_a_syntax_error_returns_the_parser_facts_and_the_position(self) -> None:
+    def test_read_yaml_with_a_syntax_error_returns_its_kind(self) -> None:
         #: Given
         text = 'a: b: c\n'
 
@@ -266,9 +266,7 @@ class TestReadYaml:
         problem = read_yaml(text)
 
         #: Then
-        assert isinstance(problem, SyntaxErrorProblem), f'a second colon is a syntax error, got {problem!r}'
-        assert problem.position is not None, 'the parser marks where it found the problem'
-        assert problem.problem != '', 'the parser words what it found'
+        assert problem == SyntaxErrorProblem(ColonInValue('a', 'b: c', 0)), f'a second colon is a kind, got {problem!r}'
 
     def test_read_yaml_with_an_explicit_key_returns_the_recorded_construct_at_the_key(self) -> None:
         #: Given
