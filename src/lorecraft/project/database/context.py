@@ -22,7 +22,7 @@ from typing import assert_never
 from lorecraft.core.path import PathComponent
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.context import DocumentFrontmatterOwner, SkillFrontmatterOwner
-from lorecraft.project.item import DocumentOrigin, MarkdownItemRef, SkillEntryOrigin
+from lorecraft.project.item import DocumentOrigin, MarkdownItemRef, SkillEntryOrigin, SkillResourceOrigin
 from lorecraft.project.link_target import LinkBase, LinkTargetEntry, SkillRoot
 from lorecraft.project.schemas import (
     OutlineAlignmentSpec,
@@ -76,7 +76,7 @@ class DatabaseItemContext:
         match origin:
             case DocumentOrigin():
                 return origin
-            case SkillEntryOrigin():
+            case SkillEntryOrigin() | SkillResourceOrigin():
                 raise WrongItemKindError(self._source.ref, 'a document')
             case _:
                 assert_never(origin)
@@ -91,7 +91,7 @@ class DatabaseItemContext:
         match origin:
             case SkillEntryOrigin():
                 return origin
-            case DocumentOrigin():
+            case DocumentOrigin() | SkillResourceOrigin():
                 raise WrongItemKindError(self._source.ref, 'a skill entry')
             case _:
                 assert_never(origin)
@@ -132,6 +132,8 @@ class DatabaseItemContext:
                 return self._database.item_skill_schema_problems(self._source)
             case DocumentOrigin():
                 return self._database.item_schema_problems(self._source)
+            case SkillResourceOrigin():
+                raise WrongItemKindError(self._source.ref, 'a document or a skill entry')
             case _:
                 assert_never(origin)
 
@@ -159,6 +161,8 @@ class DatabaseItemContext:
                 # A schema governs a document only through its corpus's structure specification, which a namespace's
                 # schema merely narrows; so that specification states every rule over the block.
                 return DocumentFrontmatterOwner(filename=self.filename(), spec=self.corpus_structure().path)
+            case SkillResourceOrigin():
+                raise WrongItemKindError(self._source.ref, 'a document or a skill entry')
             case _:
                 assert_never(origin)
 

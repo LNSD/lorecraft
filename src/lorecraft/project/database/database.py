@@ -569,6 +569,8 @@ class Database:
         try:
             return self._resolved(ref)
         except UnlistedItemError:
+            if ref in self._unlisted_items:
+                return self._unlisted_items[ref]
             document = _document_at(ref)
             if document is None:
                 raise
@@ -593,6 +595,20 @@ class Database:
         """What the database resolved for an item, listed or not; the item was resolved before it is asked for."""
         resolved = self._items.get(ref)
         return resolved if resolved is not None else self._unlisted_items[ref]
+
+    def resource_item(self, location: SkillResourceLocation) -> MarkdownItemRef:
+        """The common reference of a skill's resource, resolved from the location its skill's listing gives.
+
+        The model lists no resource, so the resource is kept apart from the listed items, as an unlisted document is:
+        the `item_*` queries answer for its reference, and `item(ref)` still refuses it. Raises nothing.
+
+        Args:
+            location: The resource, as `skill_resources` locates it; its resolved file is where the text is read.
+        """
+        item = MarkdownItemRef(location.ref.path)
+        if item not in self._unlisted_items:
+            self._unlisted_items[item] = self._model.resolve_resource(location)
+        return item
 
     def _document_item(self, ref: DocumentRef) -> MarkdownItemRef:
         """The common reference of a document ref, resolved by ref without scanning the model's items.
