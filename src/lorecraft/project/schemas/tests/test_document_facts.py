@@ -1,4 +1,4 @@
-"""What the structure specifications state about a document's title and budget, as facts.
+"""What the structure specifications state about a document's title, budget and empty sections, as facts.
 
 Every specification is decoded from its JSON by the real decoder and every document read by the real parser.
 """
@@ -11,6 +11,8 @@ from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.project.syntax import parse_document
 
 from ..document_facts import (
+    empty_headings,
+    empty_section_specs,
     find_document_title,
     title_constraints,
     token_budgets,
@@ -65,7 +67,7 @@ class TestFindDocumentTitle:
 class TestTitleConstraints:
     def test_title_constraints_keeps_the_order_and_skips_specifications_stating_none(self) -> None:
         #: Given
-        corpus = _structure_spec('code', '{"tokens": 100, "title": {"chars": 20}}')
+        corpus = _structure_spec('code', '{"tokens": 100, "title": {"chars": 20}, "empty_sections": "forbidden"}')
         silent = _structure_spec('code-silent', '{"outline": [{"section": "Rule"}]}')
         namespace = _structure_spec('code-python', '{"tokens": 50, "title": {"words": 3}}')
 
@@ -87,7 +89,7 @@ class TestTitleConstraints:
 class TestTokenBudgets:
     def test_token_budgets_keeps_the_order_and_skips_specifications_setting_none(self) -> None:
         #: Given
-        corpus = _structure_spec('code', '{"tokens": 100, "title": {"chars": 20}}')
+        corpus = _structure_spec('code', '{"tokens": 100, "title": {"chars": 20}, "empty_sections": "forbidden"}')
         silent = _structure_spec('code-silent', '{"outline": [{"section": "Rule"}]}')
         namespace = _structure_spec('code-python', '{"tokens": 50, "title": {"words": 3}}')
 
@@ -105,3 +107,37 @@ class TestTokenBudgets:
 
         #: Then
         assert budgets == (), 'nothing governs'
+
+
+@pytest.mark.unit
+class TestEmptySectionSpecs:
+    def test_empty_section_specs_holds_only_the_specifications_forbidding_them(self) -> None:
+        #: Given
+        corpus = _structure_spec('code', '{"tokens": 100, "title": {"chars": 20}, "empty_sections": "forbidden"}')
+        namespace = _structure_spec('code-python', '{"tokens": 50, "title": {"words": 3}}')
+
+        #: When
+        specs = empty_section_specs((corpus, namespace))
+
+        #: Then
+        assert specs == (corpus.path,), 'only the specification that forbids empty sections'
+
+    def test_empty_section_specs_of_no_specification_is_empty(self) -> None:
+        #: When
+        specs = empty_section_specs(())
+
+        #: Then
+        assert specs == (), 'nothing governs'
+
+
+@pytest.mark.unit
+class TestEmptyHeadings:
+    def test_empty_headings_holds_the_empty_sections_in_document_order(self) -> None:
+        #: Given
+        headings = parse_document('# Title\n\n## Empty\n\n## Full\n\nText.\n\n## Last\n').headings
+
+        #: When
+        empty = empty_headings(headings)
+
+        #: Then
+        assert [heading.text for heading in empty] == ['Empty', 'Last'], 'document order'
