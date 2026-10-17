@@ -114,18 +114,14 @@ class TooManyTokens(DocumentRule):
         Args:
             subject: The document, governed by at least one budget.
         """
-        budgets = [
-            (structure_spec.path, structure_spec.tokens)
-            for structure_spec in subject.specifications().structure_specs()
-            if structure_spec.tokens is not None
-        ]
+        budgets = subject.token_budgets()
         if not budgets:
             # Counting tokens is the costly step, so a document no budget governs is never counted.
             return ()
         token_count = subject.token_count()
         occurrences: list[Self] = []
-        for spec_path, budget in budgets:
-            overrun = find_overrun(token_count, budget)
+        for budget in budgets:
+            overrun = find_overrun(token_count, budget.tokens)
             if overrun is not None:
-                occurrences.append(cls(spec=spec_path, line=FIRST_LINE, overrun=overrun))
+                occurrences.append(cls(spec=budget.spec, line=FIRST_LINE, overrun=overrun))
         return tuple(occurrences)

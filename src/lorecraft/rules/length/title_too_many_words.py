@@ -5,7 +5,6 @@ from typing import ClassVar, Self
 
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.context import DocumentContext
-from lorecraft.project.syntax import count_words, find_title
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Here, Label, Subdiagnostic
@@ -93,16 +92,14 @@ class TitleTooManyWords(DocumentRule):
         Args:
             subject: The document, governed by a structure file.
         """
-        title = find_title(subject.parse().headings)
+        title = subject.title()
         if title is None:
             return ()
-        word_count = count_words(title.text)
         occurrences: list[Self] = []
-        for structure_spec in subject.specifications().structure_specs():
-            title_checks = structure_spec.title
-            if title_checks is None or title_checks.words is None:
+        for constraint in subject.title_constraints():
+            if constraint.checks.words is None:
                 continue
-            overrun = find_overrun(word_count, title_checks.words)
+            overrun = find_overrun(title.words, constraint.checks.words)
             if overrun is not None:
-                occurrences.append(cls(spec=structure_spec.path, line=title.line, overrun=overrun))
+                occurrences.append(cls(spec=constraint.spec, line=title.heading.line, overrun=overrun))
         return tuple(occurrences)

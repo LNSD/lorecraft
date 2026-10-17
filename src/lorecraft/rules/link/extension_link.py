@@ -1,12 +1,10 @@
 """`LINK005`: a document links to a document that extends it."""
 
 from dataclasses import dataclass
-from typing import ClassVar, Self, assert_never
+from typing import ClassVar, Self
 from urllib.parse import unquote
 
 from lorecraft.project.context import DocumentContext
-from lorecraft.project.link_target import DocumentDirectory, EscapingTarget, LinkTarget, PathLookup
-from lorecraft.project.syntax import AbsoluteDestination, ExternalDestination, FragmentDestination, RelativeDestination
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Note, Subdiagnostic
@@ -94,33 +92,7 @@ class ExtensionLink(DocumentRule):
         Args:
             subject: The document whose relative links are judged by the filename each leads to.
         """
-        base = subject.link_base()
-        if not isinstance(base, DocumentDirectory):
-            return ()
-        prefix = f'{subject.filename()}-'
-        targets = subject.link_targets()
-        occurrences: list[Self] = []
-        for link in subject.parse().links:
-            destination = link.to_destination()
-            match destination:
-                case RelativeDestination():
-                    entry = targets.get(destination.path)
-                # A link spelling no relative path names no document.
-                case ExternalDestination() | AbsoluteDestination() | FragmentDestination():
-                    continue
-                case _:
-                    assert_never(destination)
-            match entry:
-                case LinkTarget(path=path, lookup=PathLookup.FILE):
-                    name = path.name
-                    if path.parent == base.directory and name is not None and name.has_suffix('.md'):
-                        if str(name).startswith(prefix):
-                            occurrences.append(
-                                cls(line=link.line, url=link.url, extension=str(name), base=f'{subject.filename()}.md')
-                            )
-                # A directory is no document, a missing target is `LINK003`'s, and an escaping link names no document.
-                case LinkTarget() | EscapingTarget() | None:
-                    continue
-                case _:
-                    assert_never(entry)
-        return tuple(occurrences)
+        base = f'{subject.filename()}.md'
+        return tuple(
+            cls(line=link.line, url=link.url, extension=link.extension, base=base) for link in subject.extension_links()
+        )

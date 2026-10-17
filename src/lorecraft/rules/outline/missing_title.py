@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import ClassVar, Self
 
 from lorecraft.project.context import DocumentContext
-from lorecraft.project.syntax import FIRST_LINE, find_title
+from lorecraft.project.syntax import FIRST_LINE
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Subdiagnostic
@@ -88,6 +88,6 @@ class MissingTitle(DocumentRule):
         Args:
             subject: The document, governed by a structure file.
         """
-        if find_title(subject.parse().headings) is not None:
+        if subject.title() is not None:
             return ()
         return (cls(line=FIRST_LINE),)
