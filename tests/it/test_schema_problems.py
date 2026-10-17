@@ -1,4 +1,4 @@
-"""The `item_schema_problems` and `item_skill_schema_problems` queries, for one decoded document or skill.
+"""The `item_schema_problems` and `item_skill_fields` queries, for one decoded document or skill.
 
 A document's schemas come from the model's governance and a skill's is the Agent Skills specification, so the queries
 are tested over a database opened on an in-memory snapshot: a document governed by a corpus and a namespace schema, an
@@ -256,7 +256,7 @@ class TestSkillSchemaProblems:
         source = _skill_text(database, REVIEW)
 
         #: When
-        found = database.item_skill_schema_problems(source)
+        found = database.item_schema_problems(source)
 
         #: Then
         assert found == (
@@ -308,7 +308,7 @@ class TestSkillSchemaProblems:
         source = _skill_text(database, REVIEW)
 
         #: When
-        found = database.item_skill_schema_problems(source)
+        found = database.item_schema_problems(source)
 
         #: Then
         assert found == (), 'no schema can hold a missing block: the block rules report it'
@@ -332,10 +332,10 @@ class TestSkillSchemaProblems:
         review = b'---\nname: review\nextra: y\n---\n# Review\n'
         database = Database.from_snapshot(_snapshot(REQUIRE_STATUS, STRING_DESCRIPTION, typing=b'', review=review))
         source = _skill_text(database, REVIEW)
-        first = database.item_skill_schema_problems(source)
+        first = database.item_schema_problems(source)
 
         #: When
-        second = database.item_skill_schema_problems(source)
+        second = database.item_schema_problems(source)
 
         #: Then
         assert second is first, 'a skill is held to the specification once per database, then shared by every rule'
