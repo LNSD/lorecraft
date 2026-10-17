@@ -1,6 +1,6 @@
 """`LINK007`, `mutual-link`, over the links of one document to other documents and whether each links back.
 
-Every case is a document of corpus `guide` written as text, through a fake context that states the links the database
+Every case is a document of corpus `guide` written as text, through a fake database that states the links the database
 would find to other documents, each with its corpus and whether that document links back.
 """
 

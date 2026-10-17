@@ -1,4 +1,4 @@
-"""Hand-written fakes of the contexts a rule reads, shared by the unit tests of every rule group.
+"""Hand-written fakes of the database a rule's query reads, shared by the unit tests of every rule group.
 
 A fake answers every fact of its subject's own file from the subject's text, through the real parsers and analyses of
 `lorecraft.project` the database's queries call, so a test cannot hand a rule a parse or a count no file would
@@ -494,13 +494,13 @@ def judged[R: CorpusDirectoryRule](rule: type[R], database: FakeCorpusDirectoryD
 
 
 def judged(rule: type[Rule], database: object) -> tuple[Rule, ...]:
-    """Every occurrence of a queried rule over a fake context, resolved as the runner does: its query, then its facts.
+    """Every occurrence of a queried rule over a fake database, resolved as the runner does: its query, then its facts.
 
     One entry serves every kind of rule: over an item, a symlink or a corpus directory.
 
     Args:
         rule: The queried rule to run.
-        database: The fake context that answers the rule's query.
+        database: The fake database that answers the rule's query.
     """
     queried = cast('type[Queried[object]]', rule)
     return cast('tuple[Rule, ...]', queried.judge(cast('_Queryable', database).query(queried.query())))

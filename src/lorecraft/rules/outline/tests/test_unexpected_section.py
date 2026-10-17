@@ -1,6 +1,6 @@
 """`OUT008`, `unexpected-section`, over where a document's sections first stop matching their outlines.
 
-Every case is a document written as text, read through a fake context that parses it and matches it against its
+Every case is a document written as text, read through a fake database that parses it and matches it against its
 outlines as the real parser and matcher do, under structure files decoded from JSON; no document is read from
 disk. Where each divergence falls is the matcher's, tested beside it, so a case here only shows which one the rule
 reports.
