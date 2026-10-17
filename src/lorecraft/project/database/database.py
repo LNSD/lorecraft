@@ -101,9 +101,9 @@ Nothing here records what a cached value read, so no dependency is tracked. Inva
 way the IDE drops per-file index entries on a file change event and resets structural caches on a project model change.
 Reserved, not implemented: `advance(snapshot) -> Database`, the next state. It would `diff` the two snapshots and carry
 over each cached value the change set leaves valid: the decoded text, the frontmatter, the parse, the token count and
-the line count of every item whose bytes did not change, and its schema problems, outline alignment and outline
-divergences too when its governance carries over, the governance of every item the next model governs by equal
-specifications, the resources of every skill and the decoded text and the parse of every resource as their own
+the line count of every item whose bytes did not change, and its schema problems when its governance carries over;
+the governance of every item the next model governs by equal specifications; the resources of every skill and the
+decoded text and the parse of every resource as their own
 docstrings state, and the model unless one of these changes invalidates it. An entry added or deleted under `docs/`
 invalidates it. So does an entry added or deleted in a skills directory, or in a skill's directory, both where the
 skill's entry names it and where a link leads it. So does an entry added or deleted at the resolved path a skill's
@@ -121,10 +121,9 @@ scope. A change of scope invalidates nothing else: what the new scope adds or dr
 resources as entries in the change set. That rule holds only while the decoded text reads its own document, skill or
 resource, the frontmatter, the parse, the token count and the line count each read only the decoded text of their own,
 the governance reads only the model, the schema problems read only their own document's frontmatter and its governance,
-the outline alignment only its own document's parse and its governance, the outline divergences only that alignment and
-the line count, a skill's schema problems only its own frontmatter, the model and each skill's resource listing read no
-document, and the scope index reads only the scope, the links and the climbed directories, so keep them that way: data
-drawn from several documents belongs in a new cache with its own rule.
+a skill's schema problems only its own frontmatter, the model and each skill's resource listing read no document, and
+the scope index reads only the scope, the links and the climbed directories, so keep them that way: data drawn from
+several documents belongs in a new cache with its own rule.
 
 The link targets of a Markdown file are such a cache: each reads where every path its links name leads, so each
 carries over only as its own docstring states.
