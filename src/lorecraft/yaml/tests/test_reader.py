@@ -1,5 +1,6 @@
 """Reading a YAML text: the tree it builds, where each node sits, and the problem that stops a read."""
 
+import logging
 from textwrap import dedent
 
 import pytest
@@ -16,7 +17,7 @@ from ..problem import (
     SyntaxErrorProblem,
 )
 from ..reader import read_yaml
-from ..syntax_error import ColonInValue, UnknownEscape
+from ..syntax_error import ColonInValue, UnknownEscape, UnreadableBlock
 from ..tree import YamlMapping, YamlPosition, YamlScalar, YamlSequence
 
 
@@ -301,3 +302,105 @@ class TestReadYaml:
 
         #: Then
         assert problem == NestingTooDeepProblem(), f'a deep text exhausts the stack, got {problem!r}'
+
+
+def _fields(caplog: pytest.LogCaptureFixture, message: str) -> dict[str, object]:
+    """The fields of the one debug record with `message`."""
+    records = [record for record in caplog.records if record.getMessage() == message]
+    assert len(records) == 1, f'expected one {message!r} record, got {[r.getMessage() for r in caplog.records]}'
+    fields = records[0].__dict__['fields']
+    assert isinstance(fields, dict)
+    return fields
+
+
+@pytest.mark.unit
+class TestReadYamlLogging:
+    def test_read_yaml_with_a_text_logs_its_size_and_outcome_at_debug(self, caplog: pytest.LogCaptureFixture) -> None:
+        #: Given
+        caplog.set_level(logging.DEBUG, logger='lorecraft.yaml')
+
+        #: When
+        read_yaml('a: SENTINEL\nb: 2\n')
+
+        #: Then
+        assert _fields(caplog, 'yaml read') == {'outcome': 'YamlMapping', 'characters': 17, 'lines': 3}, (
+            'a read logs the root it returned and the text size, as named fields'
+        )
+
+    def test_read_yaml_with_a_refused_construct_logs_its_kind_and_position(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        #: Given
+        caplog.set_level(logging.DEBUG, logger='lorecraft.yaml')
+
+        #: When
+        read_yaml('a: &SENTINEL b\n')
+
+        #: Then
+        assert _fields(caplog, 'yaml construct refused') == {'construct': 'Anchor', 'line': 1, 'column': 4}, (
+            'a refused construct logs its type and where it is written'
+        )
+        assert _fields(caplog, 'yaml read')['outcome'] == 'RefusedConstructProblem'
+
+    def test_read_yaml_with_a_classified_syntax_error_logs_its_kind_and_line(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        #: Given
+        caplog.set_level(logging.DEBUG, logger='lorecraft.yaml')
+
+        #: When
+        read_yaml('a: SENTINEL: c\n')
+
+        #: Then
+        assert _fields(caplog, 'yaml syntax error classified') == {'kind': 'ColonInValue', 'line': 0}
+
+    def test_read_yaml_never_logs_the_text_it_reads(self, caplog: pytest.LogCaptureFixture) -> None:
+        #: Given
+        caplog.set_level(logging.DEBUG, logger='lorecraft.yaml')
+        texts = [
+            'SENTINEL: x\n',
+            'a: &SENTINEL b\n',
+            'a: SENTINEL: c\n',
+            'a: !SENTINEL b\n',
+            'a: "SENTINEL\n',
+            'a: |SENTINEL\n  b',
+        ]
+
+        #: When
+        for text in texts:
+            read_yaml(text)
+
+        #: Then
+        assert caplog.records, 'the reads log at debug'
+        for record in caplog.records:
+            assert 'SENTINEL' not in f'{record.getMessage()} {record.__dict__["fields"]}', (
+                f'{record.getMessage()!r} carries a value of the text'
+            )
+
+    def test_read_yaml_at_the_default_level_logs_nothing(self, caplog: pytest.LogCaptureFixture) -> None:
+        #: When
+        read_yaml('a: &b c\n')
+
+        #: Then
+        assert not caplog.records, 'nothing is logged above the level the operator sets'
+        assert logging.getLogger('lorecraft.yaml.reader').handlers == [], 'the library installs no handler'
+        assert logging.getLogger('lorecraft.yaml.syntax_error').handlers == []
+
+    @pytest.mark.parametrize('echoed', ["'", '"', '\\', 'SENTINEL', "'SENTINEL'"])
+    def test_read_yaml_with_an_unclassified_syntax_error_logs_no_character_of_the_text(
+        self, caplog: pytest.LogCaptureFixture, echoed: str
+    ) -> None:
+        #: Given
+        caplog.set_level(logging.DEBUG, logger='lorecraft.yaml')
+        text = f'a: |{echoed}\n  b'
+
+        #: When
+        problem = read_yaml(text)
+
+        #: Then
+        assert problem == SyntaxErrorProblem(UnreadableBlock(0)), 'the parser fails on a bad block scalar header'
+        fields = _fields(caplog, 'yaml syntax error unclassified')
+        assert fields == {'problem': 'expected chomping or indentation indicators', 'line': 0}, (
+            'the problem is the parser template, without the character it found'
+        )
+        assert 'SENTINEL' not in str(fields), 'no word of the text is logged'

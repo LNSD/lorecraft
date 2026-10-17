@@ -4,6 +4,7 @@ Every case reads a real text, so the kind is pinned for the error the parser rep
 does not produce build the error by hand.
 """
 
+import logging
 from textwrap import dedent
 
 import pytest
@@ -488,3 +489,46 @@ class TestClassifySyntaxErrorOfHandBuiltError:
 
         #: Then
         assert problem == UnreadableBlock(0), 'an escape the text does not show is left as the fallback, on its line'
+
+
+@pytest.mark.unit
+class TestClassifySyntaxErrorLogging:
+    def test_classify_syntax_error_with_a_matching_kind_logs_the_kind_and_line(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        #: Given
+        caplog.set_level(logging.DEBUG, logger='lorecraft.yaml')
+
+        #: When
+        classify_syntax_error(_error("could not find expected ':'", None), 'a: b\n')
+
+        #: Then
+        record = caplog.records[-1]
+        assert record.getMessage() == 'yaml syntax error classified'
+        assert record.__dict__['fields'] == {'kind': 'NotKeyOrItem', 'line': None}
+
+    def test_classify_syntax_error_with_no_matching_kind_logs_the_parser_problem_and_line(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        #: Given
+        caplog.set_level(logging.DEBUG, logger='lorecraft.yaml')
+
+        #: When
+        classify_syntax_error(_error('mapping values are not allowed here', None), 'a: b: c\n')
+
+        #: Then
+        record = caplog.records[-1]
+        assert record.getMessage() == 'yaml syntax error unclassified'
+        assert record.__dict__['fields'] == {'problem': 'mapping values are not allowed here', 'line': None}
+
+    def test_classify_syntax_error_with_a_problem_outside_the_templates_logs_a_constant(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        #: Given
+        caplog.set_level(logging.DEBUG, logger='lorecraft.yaml')
+
+        #: When
+        classify_syntax_error(_error('found something "SENTINEL" new', None), 'a: b\n')
+
+        #: Then
+        assert caplog.records[-1].__dict__['fields'] == {'problem': 'unrecognized', 'line': None}

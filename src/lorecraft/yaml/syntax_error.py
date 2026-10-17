@@ -11,6 +11,7 @@ error moves it there rather than to a wrong kind.
 """
 
 import ast
+import logging
 import re
 import string
 from collections.abc import Mapping
@@ -24,8 +25,33 @@ from lorecraft.core.num import UnsignedInt
 from .position import LINE_SEPARATORS
 from .tree import YamlPosition
 
+logger = logging.getLogger(__name__)
+
 _ESCAPE_HEX_DIGITS: Final[Mapping[str, int]] = MappingProxyType({'x': 2, 'u': 4, 'U': 8})
 """How many hexadecimal digits the escapes `\\x`, `\\u` and `\\U` take after their letter."""
+
+_PROBLEM_TEMPLATES: Final[tuple[str, ...]] = (
+    'expected chomping or indentation indicators',
+    'expected a comment or a line break',
+    'expected <block end>',
+    'expected the node content',
+    'expected <document start>',
+    'expected alphabetic or numeric character',
+    'did not find expected',
+    'could not find expected',
+    'found undefined',
+    'found character',
+    'found unexpected',
+    'found duplicate',
+    'found invalid',
+    'found unknown',
+    'found a tab character',
+    'while parsing',
+    'mapping values are not allowed here',
+    'mapping keys are not allowed here',
+    'sequence entries are not allowed here',
+)
+"""The parser's problem templates that can be logged: each stops before the first character it quotes of the text."""
 
 _BLOCK_SCALAR_HEADER: Final[re.Pattern[str]] = re.compile(r'(?:^|\s)[|>][+-]?[0-9]?\s*(?:#.*)?$')
 """The end of a line that opens a literal or folded block scalar, with its indicators and a comment after them."""
@@ -336,6 +362,42 @@ def classify_syntax_error(error: ParserError, block: str) -> YamlSyntaxError:
 
     Args:
         error: The scanner's or the parser's error, whose problem, context and positions pick the kind.
+        block: The text the parser read.
+    """
+    kind = _classify(error, block)
+    if isinstance(kind, UnreadableBlock):
+        logger.debug(
+            'yaml syntax error unclassified',
+            extra={'fields': {'problem': _template(error.problem), 'line': kind.line}},
+        )
+    else:
+        logger.debug(
+            'yaml syntax error classified',
+            extra={'fields': {'kind': type(kind).__name__, 'line': getattr(kind, 'line', None)}},
+        )
+    return kind
+
+
+def _template(problem: str) -> str:
+    """The parser's problem as one of its fixed templates, or a constant for any other text.
+
+    The parser's text echoes the characters it found, quoted in ways no cut can follow, so only a template that is
+    known to carry none is logged.
+
+    Args:
+        problem: What the parser found wrong.
+    """
+    for template in _PROBLEM_TEMPLATES:
+        if problem.startswith(template):
+            return template
+    return 'unrecognized'
+
+
+def _classify(error: ParserError, block: str) -> YamlSyntaxError:
+    """The kind of a scanner's or a parser's error, before it is logged.
+
+    Args:
+        error: The scanner's or the parser's error.
         block: The text the parser read.
     """
     lines = list(split_lines(block))

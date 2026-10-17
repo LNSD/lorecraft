@@ -10,6 +10,7 @@ A read that fails returns the first problem the text writes, as a `YamlProblem`,
 scanner recorded above the one the read stopped on comes first, whichever the library met first.
 """
 
+import logging
 from typing import assert_never, overload
 
 from ruamel.yaml.error import MarkedYAMLError, StreamMark
@@ -55,6 +56,8 @@ from .scalar import resolve_plain_scalar
 from .syntax_error import ParserError, classify_syntax_error
 from .tree import YamlKey, YamlMapping, YamlPosition, YamlScalar, YamlScalarValue, YamlSequence, YamlValue
 
+logger = logging.getLogger(__name__)
+
 
 def read_yaml(text: str) -> YamlValue | None | YamlProblem:
     """Read a YAML text, which holds one document, into its tree.
@@ -70,6 +73,27 @@ def read_yaml(text: str) -> YamlValue | None | YamlProblem:
         the first problem the text writes, when it cannot be read.
     """
     stream = _EventStream(text)
+    result = _read(stream, text)
+    logger.debug(
+        'yaml read',
+        extra={
+            'fields': {
+                'outcome': 'empty' if result is None else type(result).__name__,
+                'characters': len(text),
+                'lines': stream.lines.line_count,
+            }
+        },
+    )
+    return result
+
+
+def _read(stream: _EventStream, text: str) -> YamlValue | None | YamlProblem:
+    """Read the text's events into its root, or into the first problem the text writes.
+
+    Args:
+        stream: The text's events, before the first one is read.
+        text: The YAML text the events come from.
+    """
     try:
         root = _read_document(stream)
     except ReaderError as exc:
@@ -154,6 +178,16 @@ def _refused(lines: LineIndex, refusal: RecordedRefusal | _RefusalError) -> Refu
     if position is None:
         # SAFETY: a refusal is marked where it is written.
         raise Unreachable('a refused construct has a mark')
+    logger.debug(
+        'yaml construct refused',
+        extra={
+            'fields': {
+                'construct': type(refusal.construct).__name__,
+                'line': position.line.value,
+                'column': position.column.value,
+            }
+        },
+    )
     return RefusedConstructProblem(construct=refusal.construct, position=position)
 
 
