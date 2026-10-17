@@ -15,7 +15,7 @@ and opens the database on a scan of it instead.
 import re
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
-from typing import ClassVar, Final, Self
+from typing import ClassVar, Final, Protocol, Self
 
 import pytest
 
@@ -27,13 +27,13 @@ from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.engine import check_subjects
 from lorecraft.jsonschema import JsonType
 from lorecraft.project.aspect import AspectFilename
-from lorecraft.project.context import DocumentContext
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.database import Database, ItemText
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.item import MarkdownItemRef
 from lorecraft.project.layout import SNAPSHOT_SCOPE
 from lorecraft.project.link_target import DocumentDirectory, SkillRoot
+from lorecraft.project.query import CountPrimitives, GovernancePrimitives, Query
 from lorecraft.project.schemas import (
     AgentSkillsSchema,
     DocumentEnd,
@@ -68,6 +68,7 @@ from lorecraft.project.syntax import (
     LineNumber,
     ParsedDocument,
     SectionHeading,
+    TokenCount,
     count_tokens,
     parse_document,
     parse_frontmatter,
@@ -115,7 +116,7 @@ from lorecraft.rules.report import (
     UndecodableSubject,
 )
 from lorecraft.rules.selection import AllRules, RuleSelection
-from lorecraft.rules.subject import DocumentRule, Facet
+from lorecraft.rules.subject import Facet, QueriedDocumentRule
 from lorecraft.rules.table import RuleTable
 from lorecraft.vfs import (
     ByteOffset,
@@ -215,8 +216,44 @@ SAMPLE: Final[RuleGroup] = RuleGroup(RuleGroupPrefix('SMP'), 'Sample rules')
 """The group of the sample rules this module declares."""
 
 
+@dataclass(frozen=True, slots=True)
+class BudgetFacts:
+    """What `OverHalfBudget` reads of a document.
+
+    Attributes:
+        count: The tokens in the document's whole file.
+        budgets: The structure file and the budget each governing specification sets, where it sets one.
+    """
+
+    count: TokenCount
+    budgets: tuple[tuple[RootRelativePath, int], ...]
+
+
+class _GovernanceCountPrimitives(GovernancePrimitives, CountPrimitives, Protocol):
+    """The primitives the sample queries read."""
+
+
+def _budget_facts(primitives: _GovernanceCountPrimitives) -> BudgetFacts:
+    """The document's token count and the budgets that govern it.
+
+    Args:
+        primitives: The model state of the document.
+    """
+    budgets = tuple((spec.path, spec.tokens.value) for spec in primitives.structure_specs() if spec.tokens is not None)
+    return BudgetFacts(count=primitives.token_count(), budgets=budgets)
+
+
+def _token_count(primitives: CountPrimitives) -> TokenCount:
+    """The tokens in the document's whole file.
+
+    Args:
+        primitives: The model state of the document.
+    """
+    return primitives.token_count()
+
+
 @dataclass(frozen=True, slots=True, kw_only=True)
-class OverHalfBudget(DocumentRule):
+class OverHalfBudget(QueriedDocumentRule[BudgetFacts]):
     """A sample rule at `warn`: a document holds more than half the tokens a budget allows.
 
     Attributes:
@@ -240,30 +277,27 @@ class OverHalfBudget(DocumentRule):
         return f'over half the budget ({self.token_count} of {self.budget})'
 
     @classmethod
-    def check(cls, subject: DocumentContext) -> tuple[Self, ...]:
+    def query(cls) -> Query[BudgetFacts]:
+        """The document's token count and the budgets that govern it."""
+        return _budget_facts
+
+    @classmethod
+    def judge(cls, facts: BudgetFacts, /) -> tuple[Self, ...]:
         """One occurrence for each budget the document holds more than half of.
 
         Args:
-            subject: The document, governed by a budget.
+            facts: The document's token count and its budgets.
         """
-        token_count = subject.token_count().value
-        occurrences: list[Self] = []
-        for structure_spec in subject.specifications().structure_specs():
-            budget = structure_spec.tokens
-            if budget is not None and token_count * 2 > budget.value:
-                occurrences.append(
-                    cls(
-                        spec=structure_spec.path,
-                        line=LineNumber(NonZeroUnsignedInt(1)),
-                        token_count=token_count,
-                        budget=budget.value,
-                    )
-                )
-        return tuple(occurrences)
+        token_count = facts.count.value
+        return tuple(
+            cls(spec=spec, line=LineNumber(NonZeroUnsignedInt(1)), token_count=token_count, budget=budget)
+            for spec, budget in facts.budgets
+            if token_count * 2 > budget
+        )
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
-class EmptyDocument(DocumentRule):
+class EmptyDocument(QueriedDocumentRule[TokenCount]):
     """A sample rule at `allow`: a document holds no token at all."""
 
     CODE: ClassVar[RuleCode] = RuleCode(SAMPLE, 2)
@@ -277,19 +311,24 @@ class EmptyDocument(DocumentRule):
         return 'document is empty'
 
     @classmethod
-    def check(cls, subject: DocumentContext) -> tuple[Self, ...]:
+    def query(cls) -> Query[TokenCount]:
+        """The tokens in the document's whole file."""
+        return _token_count
+
+    @classmethod
+    def judge(cls, facts: TokenCount, /) -> tuple[Self, ...]:
         """The occurrence at line 1, when the document has no token.
 
         Args:
-            subject: The document, governed by a budget.
+            facts: The tokens in the document's whole file.
         """
-        if subject.token_count().value > 0:
+        if facts.value > 0:
             return ()
         return (cls(spec=None, line=LineNumber(NonZeroUnsignedInt(1))),)
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
-class AnyTokens(DocumentRule):
+class AnyTokens(QueriedDocumentRule[TokenCount]):
     """A sample rule at `deny` that fires once on every document a budget governs, whatever its token count.
 
     Attributes:
@@ -309,13 +348,18 @@ class AnyTokens(DocumentRule):
         return f'document counted ({self.token_count} tokens)'
 
     @classmethod
-    def check(cls, subject: DocumentContext) -> tuple[Self, ...]:
+    def query(cls) -> Query[TokenCount]:
+        """The tokens in the document's whole file."""
+        return _token_count
+
+    @classmethod
+    def judge(cls, facts: TokenCount, /) -> tuple[Self, ...]:
         """One occurrence at line 1, whatever the count.
 
         Args:
-            subject: The document, governed by a budget.
+            facts: The tokens in the document's whole file.
         """
-        return (cls(spec=None, line=LineNumber(NonZeroUnsignedInt(1)), token_count=subject.token_count().value),)
+        return (cls(spec=None, line=LineNumber(NonZeroUnsignedInt(1)), token_count=facts.value),)
 
 
 class CountingDatabase(Database):

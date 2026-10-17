@@ -4,18 +4,27 @@ from dataclasses import dataclass
 from typing import ClassVar, Self
 
 from lorecraft.core.num import NonZeroUnsignedInt
-from lorecraft.project.context import DocumentContext
-from lorecraft.project.syntax import LineNumber
+from lorecraft.project.query import CountPrimitives, Query
+from lorecraft.project.syntax import LineNumber, TokenCount
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
-from lorecraft.rules.subject import DocumentRule, Facet
+from lorecraft.rules.subject import Facet, QueriedDocumentRule
 
 from ..groups import SAMPLE
 
 
+def _token_count(primitives: CountPrimitives) -> TokenCount:
+    """The tokens in the document's whole file.
+
+    Args:
+        primitives: The model state of the document.
+    """
+    return primitives.token_count()
+
+
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
-class EmptyDocument(DocumentRule):
+class EmptyDocument(QueriedDocumentRule[TokenCount]):
     """A document holds no token at all."""
 
     CODE: ClassVar[RuleCode] = RuleCode(SAMPLE, 2)
@@ -29,12 +38,17 @@ class EmptyDocument(DocumentRule):
         return 'document is empty'
 
     @classmethod
-    def check(cls, subject: DocumentContext) -> tuple[Self, ...]:
+    def query(cls) -> Query[TokenCount]:
+        """The tokens in the document's whole file."""
+        return _token_count
+
+    @classmethod
+    def judge(cls, facts: TokenCount, /) -> tuple[Self, ...]:
         """The occurrence at line 1, when the document has no token.
 
         Args:
-            subject: The document, governed by a budget.
+            facts: The tokens in the document's whole file.
         """
-        if subject.token_count().value > 0:
+        if facts.value > 0:
             return ()
         return (cls(spec=None, line=LineNumber(NonZeroUnsignedInt(1))),)
