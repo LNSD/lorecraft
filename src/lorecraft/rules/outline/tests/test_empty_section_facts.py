@@ -16,7 +16,7 @@ from lorecraft.project.schemas import (
 )
 from lorecraft.project.syntax import parse_document
 
-from ..empty_section import empty_section_facts
+from ..empty_section import EmptyTitle, OtherSection, empty_section_facts
 
 SPECS_DIR: Final[RootRelativePath] = RootRelativePath.parse('docs/__meta__')
 
@@ -63,7 +63,27 @@ class TestEmptyHeadings:
         headings = parse_document('# Title\n\n## Empty\n\n## Full\n\nText.\n\n## Last\n').headings
 
         #: When
-        empty = empty_section_facts(StructurePrimitives((), headings)).headings
+        empty = empty_section_facts(StructurePrimitives((), headings)).empty
 
         #: Then
-        assert [heading.text for heading in empty] == ['Empty', 'Last'], 'document order'
+        assert [item.heading.text for item in empty] == ['Empty', 'Last'], 'document order'
+
+    def test_empty_section_facts_gives_the_title_its_own_role(self) -> None:
+        #: Given
+        headings = parse_document('# Title\n').headings
+
+        #: When
+        empty = empty_section_facts(StructurePrimitives((), headings)).empty
+
+        #: Then
+        assert [item.role for item in empty] == [EmptyTitle()], 'the title'
+
+    def test_empty_section_facts_gives_an_unrequired_section_the_other_role(self) -> None:
+        #: Given
+        headings = parse_document('# Title\n\nText.\n\n## Empty\n').headings
+
+        #: When
+        empty = empty_section_facts(StructurePrimitives((), headings)).empty
+
+        #: Then
+        assert [item.role for item in empty] == [OtherSection()], 'no outline requires it'
