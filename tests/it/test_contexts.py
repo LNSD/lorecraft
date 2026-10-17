@@ -37,7 +37,13 @@ from lorecraft.project.document import DocumentRef, SpecRef
 from lorecraft.project.item import MarkdownItemRef
 from lorecraft.project.layout import SNAPSHOT_SCOPE
 from lorecraft.project.link_target import DocumentDirectory, EscapingTarget, LinkTarget, PathLookup, SkillRoot
-from lorecraft.project.schemas import DocumentFrontmatterOwner, Primitives, SchemaProblems, SkillFrontmatterOwner
+from lorecraft.project.schemas import (
+    DocumentFrontmatterOwner,
+    FrontmatterOwner,
+    Primitives,
+    SchemaProblems,
+    SkillFrontmatterOwner,
+)
 from lorecraft.project.skill import OutsideSymlink, SkillLocation, SkillRef
 from lorecraft.project.syntax import NormalisedLinkPath, count_lines, count_tokens
 from lorecraft.rules.length.too_many_lines import skill_line_count
@@ -253,6 +259,11 @@ def _schema_problems(primitives: Primitives) -> tuple[SchemaProblems, ...]:
     return primitives.schema_problems()
 
 
+def _frontmatter_owner(primitives: Primitives) -> FrontmatterOwner:
+    """Whose frontmatter block the item opens, with the name its frontmatter must carry."""
+    return primitives.frontmatter_owner()
+
+
 @pytest.mark.it
 class TestDatabaseItemContextOverADocument:
     def test_filename_with_a_document_returns_the_filename_of_its_ref(self) -> None:
@@ -297,7 +308,7 @@ class TestDatabaseItemContextOverADocument:
         context = _document_context(Database.from_snapshot(_snapshot()))
 
         #: When
-        owner = context.frontmatter_owner()
+        owner = context.query(_frontmatter_owner)
 
         #: Then
         assert owner == DocumentFrontmatterOwner(filename=AspectFilename.parse('python-typing'), spec=CORPUS_SPEC), (
@@ -459,7 +470,7 @@ class TestDatabaseItemContextOverASkillEntry:
         context = _skill_context(Database.from_snapshot(_snapshot()))
 
         #: When
-        owner = context.frontmatter_owner()
+        owner = context.query(_frontmatter_owner)
 
         #: Then
         assert owner == SkillFrontmatterOwner(directory_name=PathComponent.parse('review'), link_target=None), (
@@ -637,7 +648,7 @@ class TestDatabaseItemContextOfASpecification:
 
         #: When
         with pytest.raises(WrongItemKindError) as exc_info:
-            context.frontmatter_owner()
+            context.query(_frontmatter_owner)
 
         #: Then
         assert str(SPEC.path) in str(exc_info.value), 'the error names the specification asked'

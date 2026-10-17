@@ -31,7 +31,6 @@ from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.schemas import (
-    FrontmatterOwner,
     Query,
     SkillFields,
     StructureSpec,
@@ -72,22 +71,10 @@ class SkillFileContext(MarkdownContext, Protocol):
 
 
 class FrontmatterContext(Protocol):
-    """The frontmatter a document or a skill opens with, and whose it is; what its schemas reject is a query."""
-
-    def frontmatter(self) -> FrontmatterNode:
-        """The subject's frontmatter block as parsed: missing, not YAML, not a mapping, or the mapping."""
-        ...
+    """The frontmatter a document or a skill opens with, read through the queries a rule declares."""
 
     def query[T](self, query: Query[T]) -> T:
         """The answer of a declared query over this subject, memoized by the query and the subject."""
-        ...
-
-    def frontmatter_owner(self) -> FrontmatterOwner:
-        """The document or the skill the block opens, with the name its frontmatter must carry.
-
-        A document's context exists only for a document whose corpus states a structure specification, so every
-        subject has an owner.
-        """
         ...
 
 
@@ -145,6 +132,10 @@ class SkillContext(FrontmatterContext, SkillFileContext, Protocol):
     Its Markdown file is its `SKILL.md` alone, so its parse tree is that file's: each of its resources is a subject of
     its own.
     """
+
+    def frontmatter(self) -> FrontmatterNode:
+        """The skill's frontmatter block as parsed: missing, not YAML, not a mapping, or the mapping."""
+        ...
 
     def skill_fields(self) -> SkillFields:
         """The fields of the skill's frontmatter that parse, each on its own, by the field.

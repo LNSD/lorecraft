@@ -17,6 +17,7 @@ rule that has it: the values it allows through `allowed_values_help`, an example
 its children in one order: the note naming the meta spec first, then the help, then the other notes.
 """
 
+from dataclasses import dataclass
 from typing import Final, assert_never
 
 from lorecraft.core.path import RootRelativePath
@@ -30,11 +31,34 @@ from lorecraft.project.schemas import (
     SkillFrontmatterOwner,
     StructureSpecSchema,
 )
+from lorecraft.project.syntax import FrontmatterNode
 from lorecraft.rules.identity import RuleGroup, RuleGroupPrefix
 from lorecraft.rules.location import Elsewhere, Help, Note
 
 GROUP_ID: Final[RuleGroup] = RuleGroup(RuleGroupPrefix('FM'), 'Frontmatter checks')
 """The group of the rules over a subject's frontmatter: the block itself, and the schema that governs it."""
+
+
+@dataclass(frozen=True, slots=True)
+class FrontmatterFacts:
+    """The frontmatter block a rule judges, and whose it is.
+
+    Attributes:
+        frontmatter: The block as parsed.
+        owner: The document or the skill the block opens.
+    """
+
+    frontmatter: FrontmatterNode
+    owner: FrontmatterOwner
+
+
+def frontmatter_facts(primitives: Primitives) -> FrontmatterFacts:
+    """The block and its owner, the facts the rules over the block itself share.
+
+    Args:
+        primitives: The model state of the document or the skill.
+    """
+    return FrontmatterFacts(primitives.frontmatter(), primitives.frontmatter_owner())
 
 
 def schema_problems(primitives: Primitives) -> tuple[SchemaProblems, ...]:

@@ -7,19 +7,18 @@ from lorecraft.core.path import RootRelativePath
 
 # The module, not its classes: this rule's own name is the syntax's `MissingFrontmatter`.
 from lorecraft.project import syntax
-from lorecraft.project.context import FrontmatterContext
-from lorecraft.project.schemas import DocumentFrontmatterOwner, FrontmatterOwner, SkillFrontmatterOwner
+from lorecraft.project.schemas import DocumentFrontmatterOwner, FrontmatterOwner, Query, SkillFrontmatterOwner
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Here, Label, Note, Subdiagnostic
-from lorecraft.rules.subject import FrontmatterRule
+from lorecraft.rules.subject import QueriedFrontmatterRule
 
-from .__ruleset__ import GROUP_ID, owner_spec, spec_note
+from .__ruleset__ import GROUP_ID, FrontmatterFacts, frontmatter_facts, owner_spec, spec_note
 
 
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
-class MissingFrontmatter(FrontmatterRule):
+class MissingFrontmatter(QueriedFrontmatterRule[FrontmatterFacts]):
     """A document or a skill does not open with a frontmatter block.
 
     ## What it does
@@ -121,16 +120,21 @@ class MissingFrontmatter(FrontmatterRule):
         return tuple(parts)
 
     @classmethod
-    def check(cls, subject: FrontmatterContext) -> tuple[Self, ...]:
+    def query(cls) -> Query[FrontmatterFacts]:
+        """The frontmatter block and whose it is."""
+        return frontmatter_facts
+
+    @classmethod
+    def judge(cls, facts: FrontmatterFacts, /) -> tuple[Self, ...]:
         """The one occurrence, on line 1, when the subject has no frontmatter block; none otherwise.
 
         Args:
-            subject: The document or the skill whose frontmatter is judged.
+            facts: The block the subject opens with, and whose it is.
         """
-        frontmatter = subject.frontmatter()
+        frontmatter = facts.frontmatter
         match frontmatter:
             case syntax.MissingFrontmatter():
-                return (cls(owner=subject.frontmatter_owner(), line=syntax.FIRST_LINE),)
+                return (cls(owner=facts.owner, line=syntax.FIRST_LINE),)
             case syntax.InvalidYamlFrontmatter() | syntax.NonMappingFrontmatter() | syntax.Frontmatter():
                 return ()
             case _:

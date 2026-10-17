@@ -4,8 +4,7 @@ from dataclasses import dataclass, field
 from typing import ClassVar, Self, assert_never
 
 from lorecraft.core.path import RootRelativePath
-from lorecraft.project.context import FrontmatterContext
-from lorecraft.project.schemas import FrontmatterOwner
+from lorecraft.project.schemas import FrontmatterOwner, Query
 from lorecraft.project.syntax import (
     FIRST_LINE,
     Frontmatter,
@@ -17,14 +16,14 @@ from lorecraft.project.syntax import (
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Here, Label, Subdiagnostic
-from lorecraft.rules.subject import FrontmatterRule
+from lorecraft.rules.subject import QueriedFrontmatterRule
 
-from .__ruleset__ import GROUP_ID, owner_spec, spec_note
+from .__ruleset__ import GROUP_ID, FrontmatterFacts, frontmatter_facts, owner_spec, spec_note
 
 
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
-class InvalidYaml(FrontmatterRule):
+class InvalidYaml(QueriedFrontmatterRule[FrontmatterFacts]):
     """A frontmatter block is not valid YAML.
 
     ## What it does
@@ -127,18 +126,23 @@ class InvalidYaml(FrontmatterRule):
         return (Help(self.help), spec_note(self.owner))
 
     @classmethod
-    def check(cls, subject: FrontmatterContext) -> tuple[Self, ...]:
+    def query(cls) -> Query[FrontmatterFacts]:
+        """The frontmatter block and whose it is."""
+        return frontmatter_facts
+
+    @classmethod
+    def judge(cls, facts: FrontmatterFacts, /) -> tuple[Self, ...]:
         """The one occurrence, at the line the YAML reader stopped on or else line 1, when the block is not YAML.
 
         Args:
-            subject: The document or the skill whose frontmatter is judged.
+            facts: The block the subject opens with, and whose it is.
         """
-        frontmatter = subject.frontmatter()
+        frontmatter = facts.frontmatter
         match frontmatter:
             case InvalidYamlFrontmatter():
                 return (
                     cls(
-                        owner=subject.frontmatter_owner(),
+                        owner=facts.owner,
                         problem=frontmatter.problem,
                         stopped_at=frontmatter.line,
                         help=frontmatter.help,

@@ -4,8 +4,7 @@ from dataclasses import dataclass, field
 from typing import ClassVar, Self, assert_never
 
 from lorecraft.core.path import RootRelativePath
-from lorecraft.project.context import FrontmatterContext
-from lorecraft.project.schemas import FrontmatterOwner
+from lorecraft.project.schemas import FrontmatterOwner, Query
 from lorecraft.project.syntax import (
     Frontmatter,
     InvalidYamlFrontmatter,
@@ -16,14 +15,14 @@ from lorecraft.project.syntax import (
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Here, Label, Note, Subdiagnostic
-from lorecraft.rules.subject import FrontmatterRule
+from lorecraft.rules.subject import QueriedFrontmatterRule
 
-from .__ruleset__ import GROUP_ID, owner_spec, spec_note
+from .__ruleset__ import GROUP_ID, FrontmatterFacts, frontmatter_facts, owner_spec, spec_note
 
 
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
-class DuplicateKey(FrontmatterRule):
+class DuplicateKey(QueriedFrontmatterRule[FrontmatterFacts]):
     """A frontmatter key is written more than once in one mapping.
 
     ## What it does
@@ -133,16 +132,21 @@ class DuplicateKey(FrontmatterRule):
         return tuple(parts)
 
     @classmethod
-    def check(cls, subject: FrontmatterContext) -> tuple[Self, ...]:
+    def query(cls) -> Query[FrontmatterFacts]:
+        """The frontmatter block and whose it is."""
+        return frontmatter_facts
+
+    @classmethod
+    def judge(cls, facts: FrontmatterFacts, /) -> tuple[Self, ...]:
         """One occurrence per key written after its first in a mapping, at any depth, in document order.
 
         The third occurrence of a key points back at the first, not at the second. The same key in two mappings is
         written once in each, so it repeats none.
 
         Args:
-            subject: The document or the skill whose frontmatter is judged.
+            facts: The block the subject opens with, and whose it is.
         """
-        frontmatter = subject.frontmatter()
+        frontmatter = facts.frontmatter
         match frontmatter:
             case Frontmatter():
                 pass  # the repeats are listed below
@@ -151,7 +155,7 @@ class DuplicateKey(FrontmatterRule):
             case _:
                 assert_never(frontmatter)
 
-        owner = subject.frontmatter_owner()
+        owner = facts.owner
         occurrences: list[Self] = []
         for repeat in frontmatter.repeats:
             occurrences.append(
