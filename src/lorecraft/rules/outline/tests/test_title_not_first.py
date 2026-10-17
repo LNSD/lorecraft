@@ -9,11 +9,12 @@ from typing import Final
 import pytest
 
 from lorecraft.core.num import NonZeroUnsignedInt
+from lorecraft.project.schemas import StructurePrimitives
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.location import Help, Here, Label
-from lorecraft.rules.tests.fake_context import FakeDocumentContext, namespace_spec
+from lorecraft.rules.tests.fake_context import FakeDocumentContext, heading_in, namespace_spec
 
-from ..title_not_first import TitleNotFirst
+from ..title_not_first import TitleNotFirst, headings
 
 STRUCTURE: Final[str] = '{"forbidden": ["Changelog"]}'
 """A structure file that states a rule other than the title, which no key states."""
@@ -159,3 +160,24 @@ class TestTitleNotFirst:
         assert children == (Help('move the title above every section'),), (
             'help says where the title belongs, and no note points at a specification that does not state the rule'
         )
+
+
+@pytest.mark.unit
+class TestHeadings:
+    def test_headings_returns_the_headings_of_the_document_in_order(self) -> None:
+        #: Given
+        text = '## Install\n\n# Setup\n'
+        headings_in_text = (heading_in(text, 'Install'), heading_in(text, 'Setup'))
+
+        #: When
+        found = headings(StructurePrimitives((), heading_list=headings_in_text))
+
+        #: Then
+        assert found == headings_in_text, 'the query projects the headings and nothing else'
+
+    def test_judge_with_no_headings_reports_nothing(self) -> None:
+        #: When
+        occurrences = TitleNotFirst.judge(())
+
+        #: Then
+        assert occurrences == (), 'a document with no heading has no title to come first'

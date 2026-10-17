@@ -9,11 +9,12 @@ from typing import Final
 import pytest
 
 from lorecraft.core.num import NonZeroUnsignedInt
+from lorecraft.project.schemas import StructurePrimitives
 from lorecraft.project.syntax import Heading, LineNumber
 from lorecraft.rules.location import Help, Here, Label
 from lorecraft.rules.tests.fake_context import FakeDocumentContext, heading_in, namespace_spec
 
-from ..extra_title import ExtraTitle
+from ..extra_title import ExtraTitle, titles
 
 STRUCTURE: Final[str] = '{"forbidden": ["Changelog"]}'
 """A structure file that states a rule other than the title, which no key states."""
@@ -122,3 +123,32 @@ class TestExtraTitle:
         assert children == (Help('make it an H2 section, or move it into a document of its own'),), (
             'help says to make the extra title a section or a document, and no note points at a specification'
         )
+
+
+@pytest.mark.unit
+class TestTitles:
+    def test_titles_keeps_only_the_h1_headings_in_document_order(self) -> None:
+        #: Given
+        primitives = StructurePrimitives(
+            (),
+            heading_list=(
+                heading_in(SECOND_TITLE, 'Setup'),
+                heading_in(SECOND_TITLE, 'Install'),
+                heading_in(SECOND_TITLE, 'Usage'),
+            ),
+        )
+
+        #: When
+        found = titles(primitives)
+
+        #: Then
+        assert [heading.text for heading in found] == ['Setup', 'Usage'], (
+            'a section is no title; the titles keep their order'
+        )
+
+    def test_judge_with_no_title_reports_nothing(self) -> None:
+        #: When
+        occurrences = ExtraTitle.judge(())
+
+        #: Then
+        assert occurrences == (), 'a document with no title has none extra'

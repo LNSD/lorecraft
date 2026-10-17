@@ -3,19 +3,30 @@
 from dataclasses import dataclass
 from typing import ClassVar, Self
 
-from lorecraft.project.context import DocumentContext
+from lorecraft.project.schemas import Primitives, Query
 from lorecraft.project.syntax import Heading
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Here, Label, Subdiagnostic
-from lorecraft.rules.subject import DocumentRule, Facet
+from lorecraft.rules.subject import Facet, QueriedDocumentRule
 
 from .__ruleset__ import GROUP_ID
 
 
+def titles(primitives: Primitives) -> tuple[Heading, ...]:
+    """The document's H1 headings, in document order. Raises nothing.
+
+    A query: it reads the document's headings and nothing else.
+
+    Args:
+        primitives: The model state of the document.
+    """
+    return tuple(heading for heading in primitives.headings() if heading.level == 1)
+
+
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
-class ExtraTitle(DocumentRule):
+class ExtraTitle(QueriedDocumentRule[tuple[Heading, ...]]):
     """A document a structure file governs carries more than one H1 title.
 
     ## What it does
@@ -101,20 +112,18 @@ class ExtraTitle(DocumentRule):
         return (Help('make it an H2 section, or move it into a document of its own'),)
 
     @classmethod
-    def check(cls, subject: DocumentContext) -> tuple[Self, ...]:
+    def query(cls) -> Query[tuple[Heading, ...]]:
+        """The H1 headings of the document."""
+        return titles
+
+    @classmethod
+    def judge(cls, facts: tuple[Heading, ...], /) -> tuple[Self, ...]:
         """One occurrence per H1 title after the first, at its heading.
 
         Args:
-            subject: The document, governed by a structure file.
+            facts: The document's H1 headings, in document order.
         """
-        titles: list[Heading] = []
-        for heading in subject.parse().headings:
-            if heading.level == 1:
-                titles.append(heading)
-        if not titles:
+        if not facts:
             return ()
-        first = titles[0]
-        occurrences: list[Self] = []
-        for extra in titles[1:]:
-            occurrences.append(cls(line=extra.line, first_title=first))
-        return tuple(occurrences)
+        first = facts[0]
+        return tuple(cls(line=extra.line, first_title=first) for extra in facts[1:])
