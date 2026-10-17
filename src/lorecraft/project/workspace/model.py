@@ -391,6 +391,7 @@ class WorkspaceModel:
             under `docs/` backs it.
         overlapping_directories: The directories under `docs/` that take a reserved corpus's name, which the model
             ignores: none of their documents is listed.
+        builtin_skills_schema: Whether the Agent Skills schema is part of skills governance.
         outside_symlinks: Every skills directory an agent declares, entry in a resolved skills directory, and
             `SKILL.md` of such an entry, whose symlink chain leaves the repository, by path.
             None of them is a skills directory or a skill of the model; a symlink inside a skill is in its
@@ -408,6 +409,7 @@ class WorkspaceModel:
     load_failures: tuple[LoadFailure, ...]
     skills_corpus: Corpus | None = None
     overlapping_directories: frozenset[ReservedCorpusDirectory] = frozenset()
+    builtin_skills_schema: bool = True
 
     def __post_init__(self) -> None:
         """Keep a key from naming something other than its value, which the lookups read the key alone to answer.
@@ -679,7 +681,9 @@ class WorkspaceModel:
                 location = self.skill_locations[ref]
                 link_target = location.resolves_to if location.resolves_to != ref.directory else None
                 governance = self.skill_governance(ref)
-                facets = {ItemFacet.FRONTMATTER, ItemFacet.STRUCTURE, ItemFacet.MARKDOWN}
+                facets = {ItemFacet.STRUCTURE, ItemFacet.MARKDOWN}
+                if self.builtin_skills_schema or (governance is not None and governance.frontmatter_schemas()):
+                    facets.add(ItemFacet.FRONTMATTER)
                 if governance is not None and governance.outline_specs():
                     facets.add(ItemFacet.OUTLINE)
                 if governance is not None and any(spec.tokens is not None for spec in governance.structure_specs()):

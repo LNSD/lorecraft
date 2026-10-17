@@ -500,7 +500,7 @@ class Database:
         self._item_skill_fields_cache: dict[MarkdownItemRef, SkillFields] = {}
 
     @classmethod
-    def from_snapshot(cls, snapshot: Snapshot) -> Self:
+    def from_snapshot(cls, snapshot: Snapshot, *, builtin_skills_schema: bool = True) -> Self:
         """Build the database of one snapshot: build its view, refuse a linked layout and load its model.
 
         The one way to get a database. The model is the one structure value loaded here; every other query is still
@@ -517,13 +517,14 @@ class Database:
 
         Args:
             snapshot: The frozen state every query reads; kept for the database's lifetime and never changed.
+            builtin_skills_schema: Whether skills use the Agent Skills floor and its contradiction preflight.
 
         Raises:
             LinkedLayoutError: If `docs/` is a symlink, or else if `docs/__meta__/` is one.
         """
         fs = VirtualFileSystem(snapshot)
         reject_linked_layout(fs)
-        return cls(fs, load_model(fs))
+        return cls(fs, load_model(fs, builtin_skills_schema=builtin_skills_schema))
 
     # Input query: the model is loaded once from the snapshot.
 
@@ -884,7 +885,7 @@ class Database:
         """
         found = self._item_schema_problems.get(source.ref)
         if found is None:
-            if isinstance(source.descriptor.origin, SkillEntryOrigin):
+            if isinstance(source.descriptor.origin, SkillEntryOrigin) and self.model().builtin_skills_schema:
                 # The fixed Agent Skills floor comes first; configured skill schemas can only add constraints.
                 floor = locate_skill_schema_problems(self.item_frontmatter(source))
                 governance = self.item_governance(source.ref)

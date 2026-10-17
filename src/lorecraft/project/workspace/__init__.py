@@ -2,6 +2,7 @@
 
 from lorecraft.project.schemas.structure_failure import (
     AdjacentAnyRuns,
+    ContradictorySkillField,
     CyclicFrontmatterSchemaRef,
     EmptyStructureSpec,
     ForbiddenOutlineSections,
@@ -61,6 +62,7 @@ __all__: list[str] = [
     'NonUtf8StructureFile',
     'UndecodableStructureSpec',
     'EmptyStructureSpec',
+    'ContradictorySkillField',
     'RepeatedOutlineSections',
     'RepeatedForbiddenSections',
     'ForbiddenOutlineSections',

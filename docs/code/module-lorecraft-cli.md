@@ -29,7 +29,10 @@ process: the arguments, the working directory, standard output and the exit code
 - Building, from those values and the registry, the selection the rule table is made from, and warning on stderr of
   what a selection cannot do.
 - Registering commands so a new one is a new module.
+- Declaring global options in `app.py` and passing their invocation values to commands through the root context.
 - Rendering diagnostics and the model as text, short lines or compact JSON, and choosing the exit code.
+- `inspect` shows corpora and skill locations without restating default built-in Agent Skills governance; it reports
+  the opt-out only when `--no-builtin-skills-schema` disables that default.
 - Asking the process about the terminal it prints to — encoding and width — and reading the colour variables of its
   environment once into a typed value, and asking the database for the source lines an excerpt shows, so the
   renderers stay pure.
@@ -115,6 +118,7 @@ Before committing code, verify:
 - [ ] Nothing below the root is handed down as a `Path`
 - [ ] A new rule lives in `lorecraft.rules`, not in a command handler
 - [ ] A new output format renders values a run returned, and reads nothing itself
+- [ ] `inspect` reports an opt-out only when the built-in skills schema is disabled
 - [ ] A command's `--format` and `--color` are `Enum`s from `output.py`, and its exit codes are `ExitStatus` members
 
 ## References

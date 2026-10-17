@@ -248,10 +248,12 @@ class FrontmatterRule(ItemRule):
         GOVERNED_BY: `Facet.FRONTMATTER`, bound here for every rule over the frontmatter: a document is judged only
             when it is governed for it. The package governs every skill, so a skill is always judged. A skill's resource
             opens with no frontmatter the package governs, so the rule judges none.
+        SKILL_AGENT_SPEC_RULE: Whether this rule enforces an Agent Skills requirement for skill entries.
     """
 
     GOVERNED_BY: ClassVar[Facet] = Facet.FRONTMATTER
     APPLIES_TO: ClassVar[frozenset[ItemKind]] = frozenset({ItemKind.DOCUMENT, ItemKind.SKILL_ENTRY})
+    SKILL_AGENT_SPEC_RULE: ClassVar[bool] = False
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

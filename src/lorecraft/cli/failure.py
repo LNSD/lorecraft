@@ -16,6 +16,7 @@ from lorecraft.core.path import RootRelativePath
 from lorecraft.jsonschema import DIALECT
 from lorecraft.project.workspace import (
     AdjacentAnyRuns,
+    ContradictorySkillField,
     CyclicFrontmatterSchemaRef,
     EmptyStructureSpec,
     ForbiddenOutlineSections,
@@ -133,6 +134,9 @@ def _failure_text(failure: LoadFailure) -> _FailureText:
             return _FailureText(f'invalid structure schema {path}: {"; ".join(str(problem) for problem in problems)}')
         case EmptyStructureSpec():
             return _FailureText(f'invalid structure schema {path}: states no rule, so it would check nothing')
+        case ContradictorySkillField(contradictions=contradictions):
+            details = ', '.join(f'{item.field} contradicts {item.rule}' for item in contradictions)
+            return _FailureText(f'invalid skills structure schema {path}: {details}')
         case RepeatedOutlineSections(sections=sections):
             names = [str(name) for name in sections]
             return _FailureText(

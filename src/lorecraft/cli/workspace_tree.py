@@ -7,7 +7,7 @@ form carries the same content as nested objects.
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Final
+from typing import Final, Literal
 
 from pydantic import BaseModel, ConfigDict
 
@@ -133,11 +133,13 @@ class _WorkspaceJson(BaseModel):
             and directory, sorted by agent then path; two agents reading one directory share a `resolves_to`.
         skills: Every skill directly inside a directory an entry of `agent_skills_dirs` resolves to, each once, sorted
             by its directory.
+        builtin_skills_schema: False when the root command opts out; None for the default, omitted from JSON.
     """
 
     model_config = ConfigDict(frozen=True)
 
     root: str
+    builtin_skills_schema: Literal[False] | None
     corpora: list[_CorpusJson]
     agent_skills_dirs: list[_AgentSkillsDirJson]
     skills: list[_SkillJson]
@@ -170,7 +172,8 @@ def render_text(root: Path, model: WorkspaceModel) -> str:
 def render_json(root: Path, model: WorkspaceModel) -> str:
     """Encode the model as one compact JSON document, the root beside one key per section.
 
-    The keys are `root`, `corpora`, `agent_skills_dirs` and `skills`.
+    The keys are `root`, `corpora`, `agent_skills_dirs` and `skills`; when opted out, it also carries
+    `builtin_skills_schema: false`.
 
     Args:
         root: The workspace root, written under the `root` key.
@@ -191,6 +194,7 @@ def render_json(root: Path, model: WorkspaceModel) -> str:
         skills.append(_SkillJson(path=str(ref.path), agents=list(model.skill_agents(ref))))
     document = _WorkspaceJson(
         root=str(root),
+        builtin_skills_schema=False if not model.builtin_skills_schema else None,
         corpora=corpora,
         agent_skills_dirs=skills_dirs,
         skills=skills,
@@ -264,7 +268,7 @@ def _skills_dirs_section(skills_dirs: tuple[SkillsDir, ...]) -> _Line:
 
 
 def _skills_section(model: WorkspaceModel) -> _Line:
-    """`skills (N)`, one line per skill: its directory, then the agents that read it in brackets.
+    """`skills (N)`, one line per skill, noting only when the built-in schema is opted out.
 
     Args:
         model: The workspace model, which lists the skills and the agents that read each.
@@ -273,7 +277,8 @@ def _skills_section(model: WorkspaceModel) -> _Line:
     for ref in model.skills():
         agents = model.skill_agents(ref)
         lines.append(_Line(f'{ref.directory} [{", ".join(agents)}]'))
-    return _Line(f'skills ({len(model.skill_locations)})', tuple(lines))
+    opt_out = '; Agent Skills schema disabled' if not model.builtin_skills_schema else ''
+    return _Line(f'skills ({len(model.skill_locations)}{opt_out})', tuple(lines))
 
 
 def _json_corpus(corpus: Corpus) -> _CorpusJson:

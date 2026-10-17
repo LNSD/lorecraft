@@ -723,6 +723,85 @@ class TestWorkspaceDefaults:
             'the one skill written is the one checked'
         )
 
+    def test_check_rejects_a_skills_schema_that_contradicts_a_builtin_rule(self, tmp_path: Path, faker: Faker) -> None:
+        #: Given
+        workspace = Workspace(
+            specs=[Spec('skills', structure={'frontmatter': {'type': 'object', 'properties': {'description': False}}})]
+        )
+        root = workspace.write(tmp_path, faker)
+
+        #: When
+        result = run_cli('check', '--root', str(root))
+
+        #: Then
+        assert result.returncode == 1, 'the contradictory skills specification makes check fail'
+        assert 'skills.spec.json' in result.stdout
+        assert 'description' in result.stdout
+        assert 'built-in rule' in result.stdout
+
+    def test_check_can_opt_out_of_the_builtin_skills_schema(self, tmp_path: Path, faker: Faker) -> None:
+        #: Given
+        workspace = Workspace(skills=[Skill('review', frontmatter=RawFrontmatter('name: review\n'))])
+        root = workspace.write(tmp_path, faker)
+
+        #: When
+        result = run_cli('--no-builtin-skills-schema', 'check', '--root', str(root))
+
+        #: Then
+        assert result.returncode == 0, result.stdout
+        assert 'missing required field `description`' not in result.stdout
+        assert 'ungoverned' in result.stderr
+
+    def test_check_opt_out_does_not_apply_builtin_name_rule_alongside_a_repository_schema(
+        self, tmp_path: Path, faker: Faker
+    ) -> None:
+        #: Given
+        workspace = Workspace(
+            specs=[Spec('skills', structure={'frontmatter': {'type': 'object', 'required': ['owner']}})],
+            skills=[Skill('a', frontmatter=RawFrontmatter('name: wrong-name\n'))],
+        )
+        root = workspace.write(tmp_path, faker)
+
+        #: When
+        result = run_cli('--no-builtin-skills-schema', 'check', '--root', str(root))
+
+        #: Then
+        assert result.returncode == 1, result.stdout
+        assert 'missing required field `owner`' in result.stdout, 'the repository schema remains active'
+        assert 'FM004' not in result.stdout, 'the opt-out disables the built-in skill name rule'
+
+    def test_inspect_json_reports_only_the_builtin_skills_opt_out(
+        self, tmp_path: Path, faker: Faker, snapshot: SnapshotAssertion
+    ) -> None:
+        #: Given
+        expected = snapshot.use_extension(JsonTextSnapshotExtension)
+        root = Workspace().write(tmp_path, faker)
+
+        #: When
+        result = run_cli('--no-builtin-skills-schema', 'inspect', str(root), '--format', 'json')
+
+        #: Then
+        assert result.returncode == 0, result.stderr
+        assert result.stdout.replace(str(root), _ROOT_PLACEHOLDER) == expected, (
+            'the JSON document names the active opt-out and no enabled state'
+        )
+
+    def test_inspect_text_reports_the_builtin_schema_opt_out_only_when_disabled(
+        self, tmp_path: Path, faker: Faker, snapshot: SnapshotAssertion
+    ) -> None:
+        #: Given
+        expected = snapshot.use_extension(TextSnapshotExtension)
+        root = Workspace().write(tmp_path, faker)
+
+        #: When
+        result = run_cli('--no-builtin-skills-schema', 'inspect', str(root))
+
+        #: Then
+        assert result.returncode == 0, result.stderr
+        assert result.stdout.replace(str(root), _ROOT_PLACEHOLDER) == expected, (
+            'the tree identifies the active opt-out and no enabled state'
+        )
+
     def test_check_with_a_default_spec_and_document_reports_no_diagnostic(self, tmp_path: Path, faker: Faker) -> None:
         #: Given
         workspace = Workspace(specs=[Spec('code')], documents=[Document('code', 'guide')])

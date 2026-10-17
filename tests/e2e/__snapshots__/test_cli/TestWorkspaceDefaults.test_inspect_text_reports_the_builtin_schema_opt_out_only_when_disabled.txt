@@ -1,0 +1,4 @@
+<workspace>
+├── corpora (0)
+├── agent skills directories (0)
+└── skills (0; Agent Skills schema disabled)

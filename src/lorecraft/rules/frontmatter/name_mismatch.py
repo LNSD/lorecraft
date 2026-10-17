@@ -144,6 +144,7 @@ class NameMismatch(QueriedFrontmatterRule[FrontmatterFacts]):
     NAME: ClassVar[RuleName] = RuleName('name-mismatch')
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('0.3.0')
+    SKILL_AGENT_SPEC_RULE: ClassVar[bool] = True
 
     # The specification file is derived from `owner`, so no caller can state one that disagrees with it.
     spec: RootRelativePath | None = field(init=False)

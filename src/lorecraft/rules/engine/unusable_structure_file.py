@@ -5,6 +5,7 @@ from typing import ClassVar, assert_never
 
 from lorecraft.jsonschema import DIALECT
 from lorecraft.project.schemas import SectionName
+from lorecraft.project.schemas.structure_failure import ContradictorySkillField as ContradictorySkillFieldFailure
 from lorecraft.rules.collector import rule
 from lorecraft.rules.declaration import FileCondition
 from lorecraft.rules.identity import EngineCode, Release, RuleName, Severity
@@ -128,6 +129,7 @@ type Cause = (
     | UnresolvableFrontmatterSchemaRef
     | CyclicFrontmatterSchemaRef
     | UntypedFrontmatterSchema
+    | ContradictorySkillFieldFailure
 )
 """Why the structure file cannot be applied."""
 
@@ -451,6 +453,8 @@ class UnusableStructureFile(FileCondition):
                 return 'frontmatter schema holds a $ref that leads back to itself with no keyword in between'
             case UntypedFrontmatterSchema():
                 return 'frontmatter schema does not state "type": "object" at its root'
+            case ContradictorySkillFieldFailure():
+                return 'skills schema contradicts a built-in Agent Skills rule'
             case _:
                 assert_never(self.cause)
 
@@ -495,5 +499,7 @@ class UnusableStructureFile(FileCondition):
                 )
             case UntypedFrontmatterSchema():
                 return (Help('add "type": "object" to the root of the frontmatter schema'),)
+            case ContradictorySkillFieldFailure(contradictions=contradictions):
+                return tuple(Note(f'{item.field}: contradicts built-in rule: {item.rule}') for item in contradictions)
             case _:
                 assert_never(self.cause)
