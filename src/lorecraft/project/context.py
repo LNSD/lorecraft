@@ -33,7 +33,6 @@ from lorecraft.project.corpus import CorpusName
 from lorecraft.project.schemas import (
     FrontmatterOwner,
     Query,
-    SchemaProblems,
     SkillFields,
     StructureSpec,
 )
@@ -73,19 +72,14 @@ class SkillFileContext(MarkdownContext, Protocol):
 
 
 class FrontmatterContext(Protocol):
-    """The frontmatter a document or a skill opens with, and whose it is."""
+    """The frontmatter a document or a skill opens with, and whose it is; what its schemas reject is a query."""
 
     def frontmatter(self) -> FrontmatterNode:
         """The subject's frontmatter block as parsed: missing, not YAML, not a mapping, or the mapping."""
         ...
 
-    def schema_problems(self) -> tuple[SchemaProblems, ...]:
-        """What each frontmatter schema that governs the subject rejects in its frontmatter, each problem on its line.
-
-        One entry per schema, in the order the schemas apply; a skill's one schema is the Agent Skills
-        specification's. None when no schema governs the subject, or when its block is missing, not YAML or not a
-        mapping, which no schema can hold.
-        """
+    def query[T](self, query: Query[T]) -> T:
+        """The answer of a declared query over this subject, memoized by the query and the subject."""
         ...
 
     def frontmatter_owner(self) -> FrontmatterOwner:

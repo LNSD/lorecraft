@@ -4,7 +4,6 @@ from dataclasses import dataclass, field
 from typing import ClassVar, Self, assert_never
 
 from lorecraft.core.path import RootRelativePath
-from lorecraft.project.context import FrontmatterContext
 from lorecraft.project.schemas import (
     BlockProblem,
     FieldCount,
@@ -12,6 +11,8 @@ from lorecraft.project.schemas import (
     InvalidValueProblem,
     MinFields,
     MissingFieldProblem,
+    Query,
+    SchemaProblems,
     SchemaSource,
     UnknownFieldProblem,
     WrongTypeProblem,
@@ -19,14 +20,14 @@ from lorecraft.project.schemas import (
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Here, Label, Subdiagnostic
-from lorecraft.rules.subject import FrontmatterRule
+from lorecraft.rules.subject import QueriedFrontmatterRule
 
-from .__ruleset__ import GROUP_ID, schema_note, schema_spec
+from .__ruleset__ import GROUP_ID, schema_note, schema_problems, schema_spec
 
 
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
-class TooFewFields(FrontmatterRule):
+class TooFewFields(QueriedFrontmatterRule[tuple[SchemaProblems, ...]]):
     """A frontmatter holds fewer fields than its schema requires.
 
     ## What it does
@@ -119,14 +120,19 @@ class TooFewFields(FrontmatterRule):
         return tuple(parts)
 
     @classmethod
-    def check(cls, subject: FrontmatterContext) -> tuple[Self, ...]:
+    def query(cls) -> Query[tuple[SchemaProblems, ...]]:
+        """What each schema that governs the subject rejects in its frontmatter."""
+        return schema_problems
+
+    @classmethod
+    def judge(cls, facts: tuple[SchemaProblems, ...], /) -> tuple[Self, ...]:
         """One occurrence for each schema that finds fewer fields than it requires, in the order found.
 
         Args:
-            subject: The document or the skill whose frontmatter each governing schema is applied to.
+            facts: What each governing schema rejects, in the order the schemas apply.
         """
         occurrences: list[Self] = []
-        for schema in subject.schema_problems():
+        for schema in facts:
             for located in schema.problems:
                 problem = located.problem
                 match problem:

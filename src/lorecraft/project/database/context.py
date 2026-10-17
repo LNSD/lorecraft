@@ -34,7 +34,6 @@ from lorecraft.project.link_target import DocumentLink, LinkBase, LinkTargetEntr
 from lorecraft.project.schemas import (
     DocumentFrontmatterOwner,
     Query,
-    SchemaProblems,
     SkillFields,
     SkillFrontmatterOwner,
     StructureSpec,
@@ -177,19 +176,6 @@ class DatabaseItemContext:
     def frontmatter(self) -> FrontmatterNode:
         """The item's frontmatter block, from the `item_frontmatter` query."""
         return self._database.item_frontmatter(self._source)
-
-    def schema_problems(self) -> tuple[SchemaProblems, ...]:
-        """What each schema that governs the item rejects in its frontmatter, from the matching schema query."""
-        origin = self._source.descriptor.origin
-        match origin:
-            case SkillEntryOrigin():
-                return self._database.item_skill_schema_problems(self._source)
-            case DocumentOrigin():
-                return self._database.item_schema_problems(self._source)
-            case SkillResourceOrigin() | SpecificationOrigin():
-                raise WrongItemKindError(self._source.ref, 'a document or a skill entry')
-            case _:
-                assert_never(origin)
 
     def skill_fields(self) -> SkillFields:
         """The fields of the skill's frontmatter that parse, from the `item_skill_fields` query.

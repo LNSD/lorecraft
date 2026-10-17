@@ -154,6 +154,7 @@ from lorecraft.project.item import (
     ItemReadError,
     MarkdownItemDescriptor,
     MarkdownItemRef,
+    SkillEntryOrigin,
     SpecificationOrigin,
     UnlistedItemError,
 )
@@ -284,6 +285,20 @@ class _ReadPrimitives:
         self.read |= {'line_count'}
         source = self._database.item_text(self._ref)
         return self._database.item_line_count(source) if isinstance(source, ItemText) else LineCount(UnsignedInt(0))
+
+    def schema_problems(self) -> tuple[SchemaProblems, ...]:
+        """What each schema that governs the item rejects in its frontmatter; none for an item that is not UTF-8."""
+        self.read |= {'schema_problems'}
+        source = self._database.item_text(self._ref)
+        if not isinstance(source, ItemText):
+            return ()
+        match source.descriptor.origin:
+            case SkillEntryOrigin():
+                return self._database.item_skill_schema_problems(source)
+            case DocumentOrigin():
+                return self._database.item_schema_problems(source)
+            case _:
+                return ()
 
     def query[T](self, query: Query[T]) -> T:
         """The memoized answer of another query over the item; what it read counts as this query's reads."""
