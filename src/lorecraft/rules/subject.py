@@ -1,13 +1,11 @@
-"""The rule base of each subject kind, whose `check` reads the subject through its context, and the facets.
+"""The rule base of each subject kind, whose queried rules judge the facts of a query, and the facets.
 
 A rule picks its subject kind by deriving from that kind's base: `DocumentRule` over a document, `SkillRule` over a
 skill. A rule over what any Markdown file has derives from `MarkdownRule` instead, and judges a document, a skill's
 `SKILL.md` and a skill's resource alike; a rule over one of a skill's Markdown files derives from `SkillFileRule`, and
 judges its `SKILL.md` and its resources alike, never a document; one over the frontmatter a document or a skill opens
-with, which both kinds share, derives from `FrontmatterRule`. The base's abstract `check` takes the subject's
-context, declared in `lorecraft.project`, and the rule asks it for the facts it reads and nothing else. The context
-is answered by the database in `lorecraft.project.database`, so a rule never learns that a database exists. A rule that
-derives from a `Queried*Rule` base reads no context: it names a query and the runner hands `judge` its facts.
+with, which both kinds share, derives from `FrontmatterRule`. A rule derives from a `Queried*Rule` base of its kind: it
+names a query and the runner hands `judge` the facts the query returns, so a rule never learns that a database exists.
 
 A document is judged only for what a meta spec governs, so a rule over a document declares the facet it reads in
 `GOVERNED_BY`, and the runner hands it the document only when the meta specs govern that facet. A rule over the
@@ -32,15 +30,6 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import ClassVar, Self
 
-from lorecraft.project.context import (
-    CorpusDirectoryContext,
-    DocumentContext,
-    FrontmatterContext,
-    MarkdownContext,
-    SkillContext,
-    SkillFileContext,
-    SymlinkContext,
-)
 from lorecraft.project.item import ItemKind
 from lorecraft.project.query import CorpusDirectoryQuery, Query, SymlinkQuery
 
@@ -90,15 +79,6 @@ class DocumentRule(ItemRule):
     GOVERNED_BY: ClassVar[Facet]
     APPLIES_TO: ClassVar[frozenset[ItemKind]] = frozenset({ItemKind.DOCUMENT})
 
-    @classmethod
-    @abstractmethod
-    def check(cls, subject: DocumentContext) -> tuple[Self, ...]:
-        """Every occurrence of the rule's condition in the document.
-
-        Args:
-            subject: The document judged, governed for the rule's facet.
-        """
-
 
 class Queried[Facts](ABC):
     """The mixin of a rule that names the query it needs and judges its facts, never a context.
@@ -125,19 +105,6 @@ class Queried[Facts](ABC):
             facts: The answer of the rule's query.
         """
 
-    @classmethod
-    def check(cls, subject: object) -> tuple[Self, ...]:
-        """Never called: the runner judges a queried rule from its query, not through a context.
-
-        Args:
-            subject: Unused.
-
-        Raises:
-            TypeError: Always.
-        """
-        msg = f'{cls.__name__} is judged from its query by the runner, never through a context'
-        raise TypeError(msg)
-
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class QueriedDocumentRule[Facts](Queried[Facts], DocumentRule):
@@ -155,15 +122,6 @@ class SkillRule(ItemRule):
     """The base of every rule over a skill; the package governs every skill, so the rule declares no facet."""
 
     APPLIES_TO: ClassVar[frozenset[ItemKind]] = frozenset({ItemKind.SKILL_ENTRY})
-
-    @classmethod
-    @abstractmethod
-    def check(cls, subject: SkillContext) -> tuple[Self, ...]:
-        """Every occurrence of the rule's condition in the skill.
-
-        Args:
-            subject: The skill judged.
-        """
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -187,15 +145,6 @@ class MarkdownRule(ItemRule):
 
     APPLIES_TO: ClassVar[frozenset[ItemKind]] = frozenset(ItemKind)
 
-    @classmethod
-    @abstractmethod
-    def check(cls, subject: MarkdownContext) -> tuple[Self, ...]:
-        """Every occurrence of the rule's condition in the Markdown file.
-
-        Args:
-            subject: The file judged: a document governed for its structure, a skill's `SKILL.md` or a resource.
-        """
-
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class QueriedMarkdownRule[Facts](Queried[Facts], MarkdownRule):
@@ -216,15 +165,6 @@ class SkillFileRule(ItemRule):
 
     APPLIES_TO: ClassVar[frozenset[ItemKind]] = frozenset({ItemKind.SKILL_ENTRY, ItemKind.SKILL_RESOURCE})
 
-    @classmethod
-    @abstractmethod
-    def check(cls, subject: SkillFileContext) -> tuple[Self, ...]:
-        """Every occurrence of the rule's condition in the skill's file.
-
-        Args:
-            subject: The file judged: a skill's `SKILL.md` or one of its resources.
-        """
-
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class QueriedSkillFileRule[Facts](Queried[Facts], SkillFileRule):
@@ -237,15 +177,6 @@ class QueriedSkillFileRule[Facts](Queried[Facts], SkillFileRule):
 @dataclass(frozen=True, slots=True, kw_only=True)
 class SymlinkRule(LayoutRule):
     """The base of every rule over a symlink of the skill layout; the package governs it, so it declares no facet."""
-
-    @classmethod
-    @abstractmethod
-    def check(cls, subject: SymlinkContext) -> tuple[Self, ...]:
-        """Every occurrence of the rule's condition at the symlink.
-
-        Args:
-            subject: The symlink judged.
-        """
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -262,15 +193,6 @@ class QueriedSymlinkRule[Facts](SymlinkRule):
         """The query whose answer `judge` takes."""
 
     @classmethod
-    def check(cls, subject: SymlinkContext) -> tuple[Self, ...]:
-        """Resolve the query through the subject, then judge the facts it derives.
-
-        Args:
-            subject: The symlink judged.
-        """
-        return cls.judge(subject.query(cls.query()))
-
-    @classmethod
     @abstractmethod
     def judge(cls, facts: Facts, /) -> tuple[Self, ...]:
         """Every occurrence of the rule's condition at the symlink, from the facts alone.
@@ -283,15 +205,6 @@ class QueriedSymlinkRule[Facts](SymlinkRule):
 @dataclass(frozen=True, slots=True, kw_only=True)
 class CorpusDirectoryRule(LayoutRule):
     """The base of every rule over a directory under `docs/` named like a reserved corpus; it declares no facet."""
-
-    @classmethod
-    @abstractmethod
-    def check(cls, subject: CorpusDirectoryContext) -> tuple[Self, ...]:
-        """Every occurrence of the rule's condition at the directory.
-
-        Args:
-            subject: The directory judged.
-        """
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -308,15 +221,6 @@ class QueriedCorpusDirectoryRule[Facts](CorpusDirectoryRule):
         """The query whose answer `judge` takes."""
 
     @classmethod
-    def check(cls, subject: CorpusDirectoryContext) -> tuple[Self, ...]:
-        """Resolve the query through the subject, then judge the facts it derives.
-
-        Args:
-            subject: The directory judged.
-        """
-        return cls.judge(subject.query(cls.query()))
-
-    @classmethod
     @abstractmethod
     def judge(cls, facts: Facts, /) -> tuple[Self, ...]:
         """Every occurrence of the rule's condition at the directory, from the facts alone.
@@ -330,7 +234,7 @@ class QueriedCorpusDirectoryRule[Facts](CorpusDirectoryRule):
 class FrontmatterRule(ItemRule):
     """The base of every rule over the frontmatter a document or a skill opens with.
 
-    One rule judges both kinds through what their contexts share, so its check is written once.
+    One rule judges both kinds through the primitives their queries share, so its judgment is written once.
 
     Attributes:
         GOVERNED_BY: `Facet.FRONTMATTER`, bound here for every rule over the frontmatter: a document is judged only
@@ -340,15 +244,6 @@ class FrontmatterRule(ItemRule):
 
     GOVERNED_BY: ClassVar[Facet] = Facet.FRONTMATTER
     APPLIES_TO: ClassVar[frozenset[ItemKind]] = frozenset({ItemKind.DOCUMENT, ItemKind.SKILL_ENTRY})
-
-    @classmethod
-    @abstractmethod
-    def check(cls, subject: FrontmatterContext) -> tuple[Self, ...]:
-        """Every occurrence of the rule's condition in the subject's frontmatter.
-
-        Args:
-            subject: The document or the skill judged; a document is governed for its frontmatter.
-        """
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

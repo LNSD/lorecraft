@@ -1,27 +1,26 @@
 """The rules engine's shared runner: every enabled rule over a subject, through one rule table.
 
 This is what every mode of the engine shares: decoding a resource, the governance lookup, facet gating, and running
-the table's rules over a subject's context into its report. It holds no mode's policy. A document and a skill entry
+the table's rules over a subject into its report. It holds no mode's policy. A document and a skill entry
 are decoded by each mode's own entry point beside this module, `skip.check_subjects` for the check run, so that its
 policy for an item a failed layer governs comes after decoding; the entry point hands the decoded item to
 `judge_item` and the other subjects to the functions here.
 
 The runner never names a rule. A rule joins its base's partition of the table through the registry, and the runner
-hands every rule of a partition the subject's context, so adding a rule never edits this module. What it names is
-each subject kind, in one hand-written branch, so `rule.check(context)` stays typed, and a queried rule is judged
-from its own query's facts; a new fact a rule reads is a method of the context and a query of the database, never a
-branch here.
+judges every rule of a partition from its query's facts, so adding a rule never edits this module. What it names is
+each subject kind, in one hand-written branch, so the queries stay typed; a new fact a rule reads is a query of the
+database, never a branch here.
 
 A subject's status comes before any rule. Each subject is decoded once: one that does not decode is reported as
 `UndecodableSubject`, whatever the table enables, and no rule sees it. A decoded document is then judged facet by
 facet: for each facet an enabled rule over a document or over the frontmatter declares, the runner reads whether the
-specifications govern the document for it, runs those rules over the document's context if they do, and records the
+specifications govern the document for it, runs those rules over the document if they do, and records the
 facet as ungoverned rather than a diagnostic if they do not. A rule over a Markdown file judges a document under
 `Facet.STRUCTURE`, beside the rules over a document that declare it. A document in no corpus, or in one that states no
-structure specification, is governed for no facet, and no context is built for it. The package governs every skill and
+structure specification, is governed for no facet, and no rule is run over it. The package governs every skill and
 every resource, so neither is ever ungoverned, and the rules over the frontmatter, over a skill and over a Markdown
-file run over its context. A rule over a skill's file judges every `SKILL.md` and every resource, and never a
-document. A context asks the database only for what a rule reads, so a fact no enabled rule reads is never computed.
+file run over it. A rule over a skill's file judges every `SKILL.md` and every resource, and never a
+document. The database answers only for what a rule's query reads, so a fact no enabled rule reads is never computed.
 
 The subjects are documents, skills, skills' resources and layout entries. A decoded document, skill entry or resource
 is judged by the one entry `judge_item`; a layout entry has a function of its own, so a subject kind without one is a
@@ -41,8 +40,8 @@ queries: the model's `outside_symlinks`, for a skills directory, an entry in one
 `sorted_overlapping_directories`, for a reserved-corpus directory, and the `skill_resources` listing of each skill it
 checks whole, for a symlink inside that skill. Each is reported at the path
 an agent reaches it by, in the order given like every subject. An entry has no text, so it is never decoded, and the
-package governs the layout, so it is never ungoverned: every rule over a layout entry of its kind judges it through
-its context.
+package governs the layout, so it is never ungoverned: every rule over a layout entry of its kind judges it from its
+query.
 """
 
 from collections.abc import Callable
@@ -54,7 +53,6 @@ from lorecraft.project.corpus import ReservedCorpusDirectory
 from lorecraft.project.database import (
     Database,
     DatabaseCorpusDirectoryContext,
-    DatabaseItemContext,
     DatabaseSymlinkContext,
     ItemText,
 )
@@ -68,7 +66,16 @@ from lorecraft.rules.report import (
     Diagnostic,
     RuleDiagnostic,
 )
-from lorecraft.rules.subject import Facet, ItemRule, Queried, governing_facet
+from lorecraft.rules.subject import (
+    CorpusDirectoryRule,
+    Facet,
+    ItemRule,
+    Queried,
+    QueriedCorpusDirectoryRule,
+    QueriedSymlinkRule,
+    SymlinkRule,
+    governing_facet,
+)
 from lorecraft.rules.table import EnabledRule, RuleTable
 
 
@@ -112,7 +119,6 @@ def judge_item(database: Database, source: ItemText, table: RuleTable) -> Checke
         table: The rules the run enables.
     """
     descriptor = source.descriptor
-    context = DatabaseItemContext(database, source)
     diagnostics: list[Diagnostic] = []
     ungoverned: list[Facet] = []
 
@@ -134,29 +140,17 @@ def judge_item(database: Database, source: ItemText, table: RuleTable) -> Checke
             _located(
                 path,
                 frontmatter_rules,
-                lambda rule: _judged(rule, database, descriptor.ref, lambda: rule.check(context)),
+                lambda rule: _judged(rule, database, descriptor.ref),
             )
         )
-        diagnostics.extend(
-            _located(
-                path, document_rules, lambda rule: _judged(rule, database, descriptor.ref, lambda: rule.check(context))
-            )
-        )
-        diagnostics.extend(
-            _located(
-                path, markdown_rules, lambda rule: _judged(rule, database, descriptor.ref, lambda: rule.check(context))
-            )
-        )
-        diagnostics.extend(
-            _located(
-                path, skill_rules, lambda rule: _judged(rule, database, descriptor.ref, lambda: rule.check(context))
-            )
-        )
+        diagnostics.extend(_located(path, document_rules, lambda rule: _judged(rule, database, descriptor.ref)))
+        diagnostics.extend(_located(path, markdown_rules, lambda rule: _judged(rule, database, descriptor.ref)))
+        diagnostics.extend(_located(path, skill_rules, lambda rule: _judged(rule, database, descriptor.ref)))
         diagnostics.extend(
             _located(
                 path,
                 skill_file_rules,
-                lambda rule: _judged(rule, database, descriptor.ref, lambda: rule.check(context)),
+                lambda rule: _judged(rule, database, descriptor.ref),
             )
         )
 
@@ -180,20 +174,61 @@ def _reading[R: ItemRule](
     )
 
 
-def _judged[R: Rule](
-    rule: type[R], database: Database, ref: MarkdownItemRef, through_context: Callable[[], tuple[R, ...]]
-) -> tuple[R, ...]:
-    """Every occurrence of one rule over an item: a queried rule from its query's facts, another by context.
+def _judged[R: Rule](rule: type[R], database: Database, ref: MarkdownItemRef) -> tuple[R, ...]:
+    """Every occurrence of one rule over an item, from the facts of its query.
 
     Args:
         rule: The rule to run.
         database: The revision the query is resolved from.
         ref: The item judged.
-        through_context: Runs the rule over the item's context, for a rule that names no query.
+
+    Raises:
+        TypeError: If the rule names no query.
     """
-    if issubclass(rule, Queried):
-        return cast('tuple[R, ...]', rule.judge(database.query(rule.query(), ref)))
-    return through_context()
+    if not issubclass(rule, Queried):
+        raise _unqueried(rule)
+    return cast('tuple[R, ...]', rule.judge(database.query(rule.query(), ref)))
+
+
+def _judged_symlink(rule: type[SymlinkRule], symlink: DatabaseSymlinkContext) -> tuple[SymlinkRule, ...]:
+    """Every occurrence of one rule at a symlink, from the facts of its query.
+
+    Args:
+        rule: The rule to run.
+        symlink: The symlink judged.
+
+    Raises:
+        TypeError: If the rule names no query.
+    """
+    if not issubclass(rule, QueriedSymlinkRule):
+        raise _unqueried(rule)
+    return cast('tuple[SymlinkRule, ...]', rule.judge(symlink.query(rule.query())))
+
+
+def _judged_directory(
+    rule: type[CorpusDirectoryRule], directory: DatabaseCorpusDirectoryContext
+) -> tuple[CorpusDirectoryRule, ...]:
+    """Every occurrence of one rule at a reserved-corpus directory, from the facts of its query.
+
+    Args:
+        rule: The rule to run.
+        directory: The directory judged.
+
+    Raises:
+        TypeError: If the rule names no query.
+    """
+    if not issubclass(rule, QueriedCorpusDirectoryRule):
+        raise _unqueried(rule)
+    return cast('tuple[CorpusDirectoryRule, ...]', rule.judge(directory.query(rule.query())))
+
+
+def _unqueried(rule: type[Rule]) -> TypeError:
+    """The error of a rule the runner cannot judge, since it names no query.
+
+    Args:
+        rule: The rule.
+    """
+    return TypeError(f'{rule.__name__} names no query, so the runner cannot judge it')
 
 
 def _located[R: Rule](
@@ -204,7 +239,7 @@ def _located[R: Rule](
     Args:
         path: Where the subject is reported.
         partition: The enabled rules of one base.
-        check: Runs one rule of the partition over the subject's context.
+        check: Runs one rule of the partition over the subject.
     """
     return [
         RuleDiagnostic(path, occurrence, enabled.severity)
@@ -220,15 +255,17 @@ def check_layout_entry(entry: OutsideSymlink | ReservedCorpusDirectory, table: R
         entry: The entry, as the model or a skill's resource listing records it.
         table: The rules the run enables.
     """
-    # An entry has no text to decode, and the package governs the layout, so each rule over its kind judges it through
-    # its context, which reads the record and asks the database nothing.
+    # An entry has no text to decode, and the package governs the layout, so each rule over its kind judges it from
+    # its query, which reads the record and asks the database nothing.
     match entry:
         case OutsideSymlink():
             symlink = DatabaseSymlinkContext(entry)
-            diagnostics = _located(entry.path, table.symlink_rules, lambda rule: rule.check(symlink))
+            diagnostics = _located(entry.path, table.symlink_rules, lambda rule: _judged_symlink(rule, symlink))
         case ReservedCorpusDirectory():
             directory = DatabaseCorpusDirectoryContext(entry)
-            diagnostics = _located(entry.path, table.corpus_directory_rules, lambda rule: rule.check(directory))
+            diagnostics = _located(
+                entry.path, table.corpus_directory_rules, lambda rule: _judged_directory(rule, directory)
+            )
         case _:
             assert_never(entry)
 
