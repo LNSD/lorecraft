@@ -27,7 +27,7 @@ check is, so the package above it decides what a refused construct means for a d
   the text, U+FEFF included, and is computed from the index of the library's mark and the text, never from its column.
 - A fact about YAML's grammar, such as which characters end a line or a token.
 - `reader.read_yaml(text)` and the values it returns, declared in `tree` and `problem`.
-- Dispatch over problems exhaustively with `match` and `assert_never`, never through runtime tuples of problem classes.
+- The closed unions that name what a read returns, `YamlProblem`, `RefusedConstruct` and `YamlSyntaxError`, so a caller dispatches over them exhaustively with `match` and `assert_never`, and a `match` over a closed union ends in `assert_never`.
 
 ## Belongs Elsewhere
 
@@ -41,26 +41,26 @@ check is, so the package above it decides what a refused construct means for a d
 ## Invariants
 
 - The YAML library is imported in this package alone, which a contract in `pyproject.toml` enforces.
-- Every other package reads a value, a position or a problem that this package declares, so an upgrade of the library
-  changes this package and no type of it escapes. The grammar module that holds the library's types is read inside
-  this package alone, which a second contract enforces.
-- Every value the library hands over, an event's fields and an error's texts, is checked once, in `_events`, and read
-  as a frozen value of this package's own, so nothing past that seam reads an `Any`.
-- It imports no other Lorecraft package than `lorecraft.core`, which the layers contract enforces, so every package
+- No function of the package returns, and no value `read_yaml` returns holds, a type of the library, so an upgrade
+  changes this package alone. `basic_yaml`, the grammar that holds the library's types, is read inside this package alone, which a
+  second contract enforces for every other package, a new one included.
+- Every event the library emits is checked once, in `_events`, and read as a frozen value of this package's own, so
+  the tree is built from no library event and no loosely typed field. The library's errors and marks are named in
+  `basic_yaml`, `_events` and `reader` alone, never in `tree` or `problem`.
+- It imports no Lorecraft package other than `lorecraft.core`, which the layers contract enforces, so every package
   that reads YAML can import it without a cycle.
-- The library's loaders and constructors are never called: no tag resolves and no type is constructed, so the text
-  can never build a value beyond what JSON holds.
-- It is a pure function of its input. It performs no I/O and holds no state between calls; its one side effect is the
-  debug logging below.
-- It logs at `debug` only, with `logger = logging.getLogger(__name__)` in `reader` and `syntax_error`, and named
-  `extra={'fields': ...}`: a read's outcome and size, a refused construct's type and position, a syntax error's kind or
-  unclassified problem as one of the parser's fixed templates or a constant, and line. It never logs the text, a scalar, a key or a tag, and it sets no handler and no
-  level: the entry point configures logging.
-- What the subset leaves out is refused as a typed construct carrying where it is written, never as a bare library error
-  or a string. The package names constructs as types and never words them, and no docstring or code names frontmatter or a
-  diagnostic code.
-- No caller reads the parser's message text. A syntax error is returned as a typed kind of this package, carrying the
-  line the writer fixes and the text it names, and the package above words it.
+- The library's loaders and constructors are never called: no tag resolves and no type is constructed.
+- It is a pure function of its input: no I/O and no state between calls. Its one side effect is debug logging.
+- It logs at `debug` only, through `logging.getLogger(__name__)`, with named `extra={'fields': ...}`: sizes, outcomes,
+  a construct's type, a position, a syntax error's kind or one of the parser's fixed templates. It never logs the text,
+  a scalar, a key or a tag, and sets no handler and no level.
+- What the subset leaves out is refused as a typed construct carrying where it is written, never as a bare library
+  error or a string. The package names constructs as types and never words them, and nothing in it names frontmatter
+  or a diagnostic code.
+- A syntax error is returned as a typed kind of this package, never as the parser's message text, which no caller reads.
+- A text nested deeper than the interpreter reads is returned as `NestingTooDeepProblem`, which stays positionless.
+  `read_yaml` catches the `RecursionError` of its own read, so no exception escapes it; a caller that recurses over the
+  tree it returns guards its own recursion.
 
 ## Examples
 
@@ -88,14 +88,16 @@ def is_refused(block: str) -> bool:
 
 Before committing code, verify:
 
-- [ ] No package other than `lorecraft.yaml` imports `lorecraft.yaml.basic_yaml` or `ruamel`
+- [ ] No package other than `lorecraft.yaml` imports `lorecraft.yaml.basic_yaml` or `ruamel`, and `just check` runs the contracts that say so
+- [ ] Nothing in `lorecraft.yaml` imports a Lorecraft package other than `lorecraft.core`
 - [ ] Nothing in `lorecraft.yaml` reads the disk
-- [ ] No library loader or constructor is called, and no library type is part of what the package returns
-- [ ] The tree builder reads the values `_events` declares, never an event or an error of the library
-- [ ] Problems are dispatched exhaustively with `match` and `assert_never`, never through runtime tuples
+- [ ] No library loader or constructor is called, and no library type is part of what `read_yaml` returns
+- [ ] The tree builder reads the values `_events` declares, never an event of the library, and the library's errors and marks are named in `basic_yaml`, `_events` and `reader` alone
+- [ ] A `match` over a closed union ends in `assert_never`, and no dispatch goes through a runtime tuple of classes
 - [ ] A construct the subset leaves out is returned as a `RefusedConstructProblem` that carries a `RefusedConstruct` type and its position, never a message
 - [ ] A syntax error is returned as a `YamlSyntaxError` kind, never as the parser's problem or context text
 - [ ] A position is computed from a mark's index and the text, never read from the mark's column
+- [ ] `NestingTooDeepProblem` stays positionless, and no exception escapes `read_yaml`
 - [ ] Logging is `debug` only, with named fields and no content of the text, and no handler or level is set
 - [ ] Nothing here names a document, a frontmatter key or a diagnostic code, in code, docstrings or tests
 
