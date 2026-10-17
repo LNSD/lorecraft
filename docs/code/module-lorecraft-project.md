@@ -42,8 +42,9 @@ once in `lorecraft.project.layout` and read from there by every other module.
   questions such as symlink targets.
 - The witness a decode query returns: a file's ref and decoded text, or the undecodable marker with its first
   invalid byte's line, offset, bytes and reason.
-- The carry-over rule: which change to a revision's inputs invalidates which query; and what a persisted result is
-  keyed by, and its validation before the database keeps it.
+- The carry-over rule: which change to a revision's inputs invalidates which query, stated by each database query and
+  derived for a declared query a rule owns from the primitives it read; and what a persisted result is keyed by, and
+  its validation before the database keeps it.
 
 ## Belongs Elsewhere
 
@@ -72,11 +73,10 @@ once in `lorecraft.project.layout` and read from there by every other module.
   immutable values.
 - A frontmatter schema maps owned JSON Schema violation facts to `FrontmatterProblem` values with project guidance; it
   never reads validator records.
-- A memoized query is an input query or a derived one. An input query reads one input from the snapshot, one
-  file's bytes or the structure, and states its carry-over rule. A derived query reads only other queries and
-  hands them to one package function; its arguments are its read set, so it carries over when they do. A shared
-  analysis reads one file's queries and its governing meta specs. A value drawn from several files is its own
-  query, with its carry-over rule in its docstring.
+- A database query states its carry-over rule; a declared query a rule owns, run through `Database.query`, takes it
+  from what it read. An input query reads one input, one file's bytes or the structure. A derived query reads only
+  other queries and hands them to one package function; its arguments are its read set, so it carries over when they
+  do. A value drawn from several files is its own query, with its carry-over rule in its docstring.
 - A per-file query takes its decode query's witness, never a bare ref, is keyed by the ref, and carries over only
   when the next revision locates the ref at the same file with unchanged bytes. Only the database builds a witness.
 - Nothing derived from a snapshot is cached outside a database, or across revisions but by a carry-over rule. The
@@ -107,8 +107,8 @@ def load_corpus(view: TreeView, corpus: CorpusId) -> Corpus:
 Before committing code, verify:
 
 - [ ] Every new read in `lorecraft.project` goes through a view
-- [ ] A new query reads one input or states its own carry-over rule in its docstring, and takes a witness, not a
-      bare ref, for a file's content
+- [ ] A new database query reads one input or states its own carry-over rule in its docstring, and takes a witness,
+      not a bare ref, for a file's content; a declared query a rule owns states none
 - [ ] A new derived query reads no view, only other queries, and passes what it read to one function of the
       package
 - [ ] Nothing added caches a value derived from a snapshot outside a database

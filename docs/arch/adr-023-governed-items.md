@@ -2,17 +2,17 @@
 name: "adr-023-governed-items"
 description: "Unify corpus documents, skill entries and skill resources behind one governed-item reference and model-resolved descriptor across the project model, database and rules engine. Load when changing document or skill references, governance resolution, database per-file or analysis queries, or runner subject dispatch"
 type: "adr"
-status: "proposed"
+status: "accepted"
 ---
 
 # Unified Governed-Item Reference and Pipeline
 
 > [!NOTE]
-> Proposed to supersede in part [adr-003](adr-003-project-model.md), [adr-011](adr-011-rules-engine.md) and
+> Supersedes in part [adr-003](adr-003-project-model.md), [adr-011](adr-011-rules-engine.md) and
 > [adr-015](adr-015-database.md): their separate document, skill and resource reference types, decode witnesses,
 > per-kind database query families, per-kind runner branches, and document-only governance and failed-layer skipping.
 > Declared scope versus captured content, identity versus location, lazy database queries, and levels after detection
-> stay in force, and all three records stay binding until this record is accepted.
+> stay in force in all three records.
 
 ## Context
 
@@ -103,9 +103,9 @@ The database and rules engine consume the common reference and descriptor unifor
 - **Unified per-file and cross-file queries:** frontmatter parsing, Markdown parsing, line counting, token counting and
   relative-link target resolution each have one query implementation taking the common decode witness and reading the
   descriptor's link base.
-- **Unified governance and analysis queries:** `governance(ref)` resolves ordered layers (including built-in skills
+- **Unified governance and analysis queries:** `item_governance(ref)` resolves ordered layers (including built-in skills
   provenance and failed repository layers) for any governed Markdown item. Schema validation and outline analysis read
-  `governance(ref)` and the per-file queries, keeping their results whenever those inputs compare equal; a governed
+  `item_governance(ref)` and the per-file queries, keeping their results whenever those inputs compare equal; a governed
   resource's analysis depends on its owning skill's governance ([adr-015](adr-015-database.md)).
 - **One content runner loop:** the engine decodes the item once, applies the mode's failed-layer policy whenever an
   active governing layer failed to load, gates enabled rules by the descriptor's active and governed facets, and
@@ -164,7 +164,7 @@ Before committing code, verify:
 - [ ] A skill resource's governance identity comes from its owning skill's listed name in the `skills` corpus, with
   resource structure, frontmatter, outline and budget facets inactive while `FR-014` is in force
 - [ ] The database provides one decode, per-file, analysis and link-target query family for governed Markdown items,
-  with analyses depending on `governance(ref)` rather than the whole model
+  with analyses depending on `item_governance(ref)` rather than the whole model
 - [ ] The rules engine runs one content-item check loop that decodes once, applies failed-layer policy, gates rules by
   active governed facets and records ungoverned facets uniformly
 - [ ] Existing diagnostics, notes, ordering, exit codes and `inspect` shapes remain unchanged when no repository
@@ -174,11 +174,11 @@ Before committing code, verify:
 
 - [prd-020](prd-020-skills-corpus.md) - Source: The skills corpus requirements (`FR-001` through `FR-007`, `FR-009`
   through `FR-011`, `FR-013`, `FR-014`, `FR-018`, `NFR-001`) that unified governed-item handling serves
-- [adr-003](adr-003-project-model.md) - Proposed replacement in part: Origin-specific reference representation;
+- [adr-003](adr-003-project-model.md) - Supersedes in part: Origin-specific reference representation;
   declared scope and identity-versus-location separation remain in force
-- [adr-011](adr-011-rules-engine.md) - Proposed replacement in part: Per-kind content references, decode witnesses and
+- [adr-011](adr-011-rules-engine.md) - Supersedes in part: Per-kind content references, decode witnesses and
   runner loops; one context per subject, lazy queries and levels after detection remain in force
-- [adr-015](adr-015-database.md) - Proposed replacement in part: Per-kind decode, analysis and link-target query
+- [adr-015](adr-015-database.md) - Supersedes in part: Per-kind decode, analysis and link-target query
   families and document-only failed-layer skipping; revision immutability, eager model loading and value load failures
   remain in force
 - [adr-016](adr-016-specifications.md) - Related: Model-computed governance and independent layer conjunction
