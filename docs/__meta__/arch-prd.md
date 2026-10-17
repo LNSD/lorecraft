@@ -16,7 +16,7 @@ A PRD states **what** a feature must do and **why**, and nothing about **how**. 
 person who will build the feature without a follow-up conversation, so every requirement is explicit, numbered
 and checkable. How the feature is built goes in a design document, and each decision taken while building it
 goes in a decision record; the PRD links them. What shipped goes in the feat spec, which links the PRD; the PRD
-never links it back, as the [arch](arch.md#4-cross-references) corpus states.
+never links it back, as the [arch](arch.md#4-cross-references) corpus states after [References Point to the Base](../feat/spec.md#references-point-to-the-base).
 
 ## 1. Naming
 

@@ -57,8 +57,8 @@ What a base documents, its extensions inherit and do not restate:
   subcommands, with a Usage section for what the bare group does. A group that only prints help is `meta`.
 - **Every other command is a `feature`.** A command is not a component, even when one module implements it.
 
-A base never links to its extensions, and never lists them: `lorecraft <command> --help` is the inventory,
-and it cannot go stale.
+A base never links to its extensions ([References Point to the Base](../feat/spec.md#references-point-to-the-base)), and never lists
+them: `lorecraft <command> --help` is the inventory, and it cannot go stale.
 
 ---
 

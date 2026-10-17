@@ -373,7 +373,7 @@ Code specs may reference other code specs to establish relationships. Cross-refe
 - Core code specs link laterally to related or parent core code specs, and may reference principle code specs as foundation
 - Package code specs reference the principle/core code specs and the accepted ADRs they depend on, plus a companion or the package doc they specialize
 - Meta specs only reference the corpus meta spec they extend
-- A document whose name continues another's names that base, and the base names none of its extensions
+- An extension names its base and a base names none of its extensions, as [References Point to the Base](../feat/spec.md#references-point-to-the-base) states
 
 ### References Section Format
 

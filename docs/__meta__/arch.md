@@ -55,8 +55,8 @@ review, not by the schema.
 ## 4. Cross-References
 
 Documents cite each other by relative link, `[adr-004](adr-004-database.md)`, and by `<kind>-<NNN>` in
-prose. A link to the code specs is relative too: `../code/module-lorecraft-vfs.md`. Citations go one way: a
-document names the documents it builds on under References, and the document built on never names it back. An ADR
+prose. A link to the code specs is relative too: `../code/module-lorecraft-vfs.md`. Citations go one way, as
+[References Point to the Base](../feat/spec.md#references-point-to-the-base) states for every corpus. Here, an ADR
 names the PRD it answers, and the PRD does not name the ADR; where a code spec and an ADR would cite each other, the
 code spec names the ADR and the ADR names no code spec. A replacement ADR names the ADR it supersedes, and the
 superseded ADR does not name it.

@@ -146,8 +146,7 @@ A python document links its neighbours. Entries are `- [{{name}}]({{name}}.md) -
 reader gets there}}`, with continuation lines indented two spaces.
 
 - A document that specializes a parent (`python-<facet>-<segment>`) names the parent `Extends`, **first** in
-  the list. The parent names none of its children, under References or inline: specialization points one way, and a
-  pair that each name the other has recorded no relationship at all.
+  the list. The parent names none of its children, under References or inline ([References Point to the Base](../feat/spec.md#references-point-to-the-base)).
 - Siblings inside the group are `Related`. A `principle-*` document is `Foundation`.
 - The description says what the reader gets by following the link, not what the target is called.
   "Related: Owns the comment a `# type: ignore` must carry" earns its line; "Related: Comments" does not.

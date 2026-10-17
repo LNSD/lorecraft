@@ -431,9 +431,7 @@ Reference rules depend on document type:
 - Links in Architecture diagrams or tables
 - Any markdown link `[text](file.md)` pointing to a feat spec
 
-**Rationale**: A base provides stable, higher-level context. Linking downward creates a maintenance burden
-whenever an extension is added, removed or renamed; it couples a stable document to volatile detail; and it invites
-circular references between documents.
+**Rationale**: the direction and its reason are stated once, in [References Point to the Base](../feat/spec.md#references-point-to-the-base).
 
 **Examples:**
 - ✅ `spec-structure.md` (feature) → `spec.md` (meta) — extension to base
