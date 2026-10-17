@@ -7,8 +7,8 @@ model; every other query sits above it, computed on first use and kept for as lo
 
 Documents and skill entries share one query family keyed by the common `MarkdownItemRef`: `item_text(ref)` decodes the
 file at the descriptor's read location into one `ItemText` witness or an `Undecodable` marker, and `item_frontmatter`,
-`item_parse`, `item_token_count`, `item_line_count`, `item_link_targets`, `item_governance`, `item_schema_problems`,
-`item_outline_alignment` and `item_outline_divergences` take that witness and are computed on first demand. Link targets
+`item_parse`, `item_token_count`, `item_line_count`, `item_link_targets`, `item_governance` and `item_schema_problems`
+take that witness and are computed on first demand. Link targets
 read the descriptor's link base, so no query tells a document from a skill entry; the analyses read
 `item_governance(ref)`, never the whole model. A document the model does not list is answered for by the corpus and
 filename its path names. A skill's resource is answered for by the reference `resource_item` registers from its
@@ -55,10 +55,8 @@ it read does, `item_governance(ref)` excepted, as its bullet states:
   item for the revision. It is the exception to the rule above: the model is dropped by any entry added or deleted
   under `docs/`, so it is recomputed from the next model and kept when it compares equal to the one it replaces. It
   can carry over when `model()` does not, and so can every analysis that reads it.
-- `item_schema_problems(source)`, `item_outline_alignment(source)` and `item_outline_divergences(source)`: what each
-  frontmatter schema that governs one document rejects, which outline entry each section falls in, and where the
-  sections first stop matching each outline, the shared analyses every inspection reads. They read the item's
-  frontmatter or parse, its governance and, for the divergences, its alignment and line count, and nothing else.
+- `item_schema_problems(source)`: what each frontmatter schema that governs one document rejects, the shared analysis
+  every frontmatter inspection reads. It reads the item's frontmatter and governance and nothing else.
 - `item_skill_schema_problems(source)` and `item_skill_fields(source)`: what the Agent Skills specification rejects in
   one skill entry's frontmatter and the fields of it that parse, each on its own. They read `item_frontmatter(source)`
   and nothing else: the package states the specification, so no specification in the repository plays a part.
@@ -170,16 +168,12 @@ from lorecraft.project.link_target import (
     linked_files_of,
 )
 from lorecraft.project.schemas import (
-    OutlineAlignmentSpec,
-    OutlineDivergenceSpec,
     Query,
     SchemaProblems,
     SkillFields,
     StructureSpec,
     locate_schema_problems,
     locate_skill_schema_problems,
-    match_outlines,
-    outline_alignment,
     parse_skill_fields,
 )
 from lorecraft.project.skill import Repository as SkillRepository
@@ -285,6 +279,18 @@ class _ReadPrimitives:
         source = self._database.item_text(self._ref)
         return self._database.item_token_count(source) if isinstance(source, ItemText) else TokenCount(UnsignedInt(0))
 
+    def line_count(self) -> LineCount:
+        """The lines in the item's whole file; none for an item that is not UTF-8."""
+        self.read |= {'line_count'}
+        source = self._database.item_text(self._ref)
+        return self._database.item_line_count(source) if isinstance(source, ItemText) else LineCount(UnsignedInt(0))
+
+    def query[T](self, query: Query[T]) -> T:
+        """The memoized answer of another query over the item; what it read counts as this query's reads."""
+        answer = self._database.query(query, self._ref)
+        self.read |= self._database.query_reads(query, self._ref)
+        return answer
+
     def links(self) -> tuple[Link, ...]:
         """The links of the item's parse; none for an item that is not UTF-8."""
         self.read |= {'links'}
@@ -354,7 +360,6 @@ class Database:
         # An item no corpus governs is governed by nothing, so `None` is an answer and is cached too.
         self._item_governances: dict[MarkdownItemRef, Governance | None] = {}
         self._item_schema_problems: dict[MarkdownItemRef, tuple[SchemaProblems, ...]] = {}
-        self._item_outline_divergences: dict[MarkdownItemRef, tuple[OutlineDivergenceSpec, ...]] = {}
         # Declared queries: the answer by the function and the item, with the primitives it read.
         self._queries: dict[tuple[Query[object], MarkdownItemRef], tuple[object, frozenset[str]]] = {}
         self._item_document_links: dict[MarkdownItemRef, tuple[DocumentLink, ...]] = {}
@@ -750,38 +755,6 @@ class Database:
             found = locate_schema_problems(self.item_frontmatter(source), schemas) if schemas else ()
             self._item_schema_problems[source.ref] = found
         return found
-
-    def item_outline_alignment(self, source: ItemText) -> tuple[OutlineAlignmentSpec, ...]:
-        """Which outline entry each of one item's sections falls in, for each specification that governs it.
-
-        Only the layers that loaded are aligned. The parse is read only when a specification governs the item. This is
-        the `outline_alignment` query, so every path to the alignment shares its one memoized answer.
-
-        Args:
-            source: The item's text; its ref is the cache key.
-        """
-        return self.query(outline_alignment, source.ref)
-
-    def item_outline_divergences(self, source: ItemText) -> tuple[OutlineDivergenceSpec, ...]:
-        """Where one item's sections first stop matching each outline that governs it, found on the first call.
-
-        Lines are counted only when a governing outline is stated.
-
-        Carry-over: kept for the next revision whenever `item_outline_alignment(source)` and `item_line_count(source)`
-        are.
-
-        Args:
-            source: The item's text; its ref is the cache key.
-        """
-        divergences = self._item_outline_divergences.get(source.ref)
-        if divergences is None:
-            alignments = self.item_outline_alignment(source)
-            if any(alignment.outline for alignment in alignments):
-                divergences = match_outlines(alignments, self.item_line_count(source))
-            else:
-                divergences = ()
-            self._item_outline_divergences[source.ref] = divergences
-        return divergences
 
     def structure_specs(self, ref: MarkdownItemRef) -> tuple[StructureSpec, ...]:
         """The structure specifications of the layers that loaded for an item the model lists.

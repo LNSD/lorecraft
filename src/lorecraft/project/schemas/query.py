@@ -13,9 +13,11 @@ from typing import Protocol
 from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.num import UnsignedInt
 from lorecraft.project.link_target import LinkBase, LinkTargetEntry
-from lorecraft.project.syntax import Heading, Link, NormalisedLinkPath, TokenCount
+from lorecraft.project.syntax import Heading, LineCount, Link, NormalisedLinkPath, TokenCount
 
 from .structure import StructureSpec
+
+type Query[T] = Callable[[Primitives], T]
 
 
 class Primitives(Protocol):
@@ -31,6 +33,10 @@ class Primitives(Protocol):
 
     def token_count(self) -> TokenCount:
         """The tokens in the item's whole file; none for an item that is not UTF-8."""
+        ...
+
+    def line_count(self) -> LineCount:
+        """The lines in the item's whole file; none for an item that is not UTF-8."""
         ...
 
     def links(self) -> tuple[Link, ...]:
@@ -49,8 +55,9 @@ class Primitives(Protocol):
         """The stem of a document or meta specification; `None` for any other item."""
         ...
 
-
-type Query[T] = Callable[[Primitives], T]
+    def query[T](self, query: Query[T]) -> T:
+        """The memoized answer of another query over the same item, whose reads count as the asking query's own."""
+        ...
 
 
 @dataclass(frozen=True, slots=True)
@@ -65,6 +72,7 @@ class StructurePrimitives:
         target_map: What the snapshot holds at the target of each relative link.
         base: Where the item's relative links are read from.
         name: The filename stem of the document.
+        line_total: The lines in the item's whole file.
     """
 
     specs: tuple[StructureSpec, ...]
@@ -74,6 +82,7 @@ class StructurePrimitives:
     target_map: Mapping[NormalisedLinkPath, LinkTargetEntry] = FrozenMapping({})
     base: LinkBase | None = None
     name: str | None = None
+    line_total: LineCount = LineCount(UnsignedInt(0))
 
     def structure_specs(self) -> tuple[StructureSpec, ...]:
         """The specifications this was built with."""
@@ -102,3 +111,11 @@ class StructurePrimitives:
     def document_name(self) -> str | None:
         """The name this was built with."""
         return self.name
+
+    def line_count(self) -> LineCount:
+        """The count this was built with."""
+        return self.line_total
+
+    def query[T](self, query: Query[T]) -> T:
+        """The answer of the query over these same primitives."""
+        return query(self)

@@ -4,19 +4,26 @@ from dataclasses import dataclass
 from typing import ClassVar, Self, assert_never
 
 from lorecraft.core.path import RootRelativePath
-from lorecraft.project.context import DocumentContext
-from lorecraft.project.schemas import AbsentSection, ExpectedSection, LeftOver, MisplacedSection, UnlistedSection
+from lorecraft.project.schemas import (
+    AbsentSection,
+    ExpectedSection,
+    LeftOver,
+    MisplacedSection,
+    OutlineDivergenceSpec,
+    Query,
+    UnlistedSection,
+)
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Here, Label, Subdiagnostic
-from lorecraft.rules.subject import DocumentRule, Facet
+from lorecraft.rules.subject import Facet, QueriedDocumentRule
 
-from .__ruleset__ import GROUP_ID, spec_note
+from .__ruleset__ import GROUP_ID, outline_divergences, spec_note
 
 
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
-class SectionOutOfOrder(DocumentRule):
+class SectionOutOfOrder(QueriedDocumentRule[tuple[OutlineDivergenceSpec, ...]]):
     """A section the outline names is written out of the order the outline sets.
 
     ## What it does
@@ -137,14 +144,19 @@ class SectionOutOfOrder(DocumentRule):
                 assert_never(placement)
 
     @classmethod
-    def check(cls, subject: DocumentContext) -> tuple[Self, ...]:
+    def query(cls) -> Query[tuple[OutlineDivergenceSpec, ...]]:
+        """The outline divergences of the document, one for each outline that governs it."""
+        return outline_divergences
+
+    @classmethod
+    def judge(cls, divergences: tuple[OutlineDivergenceSpec, ...], /) -> tuple[Self, ...]:
         """One occurrence for each outline whose first divergence is a section it names, out of its place.
 
         Args:
-            subject: The document, governed by at least one outline.
+            divergences: The answer of the rule's query.
         """
         occurrences: list[Self] = []
-        for outline_spec in subject.outline_divergences():
+        for outline_spec in divergences:
             divergence = outline_spec.divergence
             match divergence:
                 case MisplacedSection():

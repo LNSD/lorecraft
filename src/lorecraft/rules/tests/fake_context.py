@@ -30,7 +30,6 @@ from lorecraft.project.link_target import (
 from lorecraft.project.schemas import (
     CorpusSpecName,
     NamespaceSpecName,
-    OutlineDivergenceSpec,
     Query,
     SchemaProblems,
     SkillFields,
@@ -40,10 +39,8 @@ from lorecraft.project.schemas import (
     StructureSchema,
     StructureSpec,
     StructureSpecFile,
-    align_outlines,
     locate_schema_problems,
     locate_skill_schema_problems,
-    match_outlines,
     parse_skill_fields,
     parse_spec_name,
     spec_filename,
@@ -288,12 +285,6 @@ class FakeDocumentContext:
         """The corpus's structure file, decoded from the JSON the test stated."""
         return self._corpus_structure
 
-    def outline_divergences(self) -> tuple[OutlineDivergenceSpec, ...]:
-        """Where the sections stop matching each governing outline, as the real analysis finds it."""
-        return match_outlines(
-            align_outlines(self._governance.structure_specs(), self.parse().headings), count_lines(self._text)
-        )
-
     def query[T](self, query: Query[T]) -> T:
         """The answer of a declared query over the governing meta specs, as the real database finds it."""
         return query(
@@ -305,6 +296,7 @@ class FakeDocumentContext:
                 self.link_targets(),
                 self.link_base(),
                 str(self.filename()),
+                self.line_count(),
             )
         )
 

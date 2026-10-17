@@ -33,7 +33,6 @@ from lorecraft.project.item import (
 )
 from lorecraft.project.link_target import DocumentLink, LinkBase, LinkTargetEntry
 from lorecraft.project.schemas import (
-    OutlineDivergenceSpec,
     Query,
     SchemaProblems,
     SkillFields,
@@ -269,15 +268,6 @@ class DatabaseItemContext:
         if structure is None:
             raise WrongItemKindError(self._source.ref, 'a document whose corpus states a structure specification')
         return structure
-
-    def outline_divergences(self) -> tuple[OutlineDivergenceSpec, ...]:
-        """Where the document's sections stop matching each outline, from the `item_outline_divergences` query.
-
-        Raises:
-            WrongItemKindError: If the item is a skill entry.
-        """
-        self._document()
-        return self._database.item_outline_divergences(self._source)
 
     def query[T](self, query: Query[T]) -> T:
         """The answer of a declared query, from the database's memoized `query`.

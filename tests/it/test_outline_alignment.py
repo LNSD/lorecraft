@@ -6,12 +6,10 @@ specifications of which one states no outline, one no structure specification go
 section is aligned is `align_outlines`'s, tested on its own beside it.
 """
 
-from collections.abc import Callable
 from typing import Final
 
 import pytest
 
-import lorecraft.project.schemas.outline_queries as outline_queries_module
 from lib.tree import from_tree
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectFilename
@@ -23,13 +21,11 @@ from lorecraft.project.schemas import (
     AnyRunAlignment,
     NamedAlignment,
     OutlineAlignmentSpec,
-    StructureSpec,
     UnalignedSection,
-    align_outlines,
     outline_alignment,
 )
 from lorecraft.project.schemas.outline_alignment import AlignedSection
-from lorecraft.project.syntax import Heading, ParsedDocument
+from lorecraft.project.syntax import ParsedDocument
 from lorecraft.project.workspace import WorkspaceModel
 from lorecraft.vfs import Snapshot, VirtualFileSystem
 
@@ -109,24 +105,6 @@ def _document_text(database: Database, ref: DocumentRef) -> ItemText:
     source = database.item_text(MarkdownItemRef(ref.path))
     assert isinstance(source, ItemText), f'{ref.path} was written as UTF-8, so it decodes'
     return source
-
-
-def _counting(
-    calls: list[int],
-) -> Callable[[tuple[StructureSpec, ...], tuple[Heading, ...]], tuple[OutlineAlignmentSpec, ...]]:
-    """`align_outlines`, recording one call for each time it is run.
-
-    Args:
-        calls: Receives a `1` per call.
-    """
-
-    def counted(
-        structure_specs: tuple[StructureSpec, ...], headings: tuple[Heading, ...]
-    ) -> tuple[OutlineAlignmentSpec, ...]:
-        calls.append(1)
-        return align_outlines(structure_specs, headings)
-
-    return counted
 
 
 def _specs(alignment: tuple[OutlineAlignmentSpec, ...]) -> list[RootRelativePath]:
@@ -245,40 +223,6 @@ class TestOutlineAlignment:
 
         #: Then
         assert alignment == (), 'no specification governs a document in no corpus the model holds'
-
-    def test_outline_alignment_then_outline_divergences_aligns_the_document_once(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        #: Given
-        outline = b'{"outline": [{"section": "Rule"}, {"any": true}, {"section": "Checklist"}]}'
-        database = Database.from_snapshot(_snapshot(outline, None, RULE_ASIDE_CHECKLIST))
-        source = _document_text(database, TYPING)
-        aligned: list[int] = []
-        monkeypatch.setattr(outline_queries_module, 'align_outlines', _counting(aligned))
-        database.query(outline_alignment, source.ref)
-
-        #: When
-        database.item_outline_divergences(source)
-
-        #: Then
-        assert aligned == [1], 'the divergences are derived from the alignment already held, so it is computed once'
-
-    def test_outline_divergences_then_outline_alignment_aligns_the_document_once(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        #: Given
-        outline = b'{"outline": [{"section": "Rule"}, {"any": true}, {"section": "Checklist"}]}'
-        database = Database.from_snapshot(_snapshot(outline, None, RULE_ASIDE_CHECKLIST))
-        source = _document_text(database, TYPING)
-        aligned: list[int] = []
-        monkeypatch.setattr(outline_queries_module, 'align_outlines', _counting(aligned))
-        database.item_outline_divergences(source)
-
-        #: When
-        database.query(outline_alignment, source.ref)
-
-        #: Then
-        assert aligned == [1], 'the divergences ask for the alignment, which the later query then finds held'
 
     def test_outline_alignment_query_reads_only_the_specifications_and_the_headings(self) -> None:
         #: Given
