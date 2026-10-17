@@ -8,7 +8,7 @@ import pytest
 
 from lorecraft.rules.identity import Level
 from lorecraft.rules.location import EntryHelp, EntryNote, WholeSubject
-from lorecraft.rules.tests.fake_context import FakeCorpusDirectoryContext
+from lorecraft.rules.tests.fake_context import FakeCorpusDirectoryContext, judged
 
 from ..reserved_corpus_overlap import ReservedCorpusOverlap
 
@@ -30,7 +30,7 @@ class TestReservedCorpusOverlap:
         subject = FakeCorpusDirectoryContext('skills')
 
         #: When
-        occurrences = ReservedCorpusOverlap.judge(subject.query(ReservedCorpusOverlap.query()))
+        occurrences = judged(ReservedCorpusOverlap, subject)
 
         #: Then
         assert occurrences == (ReservedCorpusOverlap(corpus='skills'),), 'the directory is one occurrence'

@@ -147,8 +147,11 @@ class TestTitles:
         )
 
     def test_judge_with_no_title_reports_nothing(self) -> None:
+        #: Given
+        subject = FakeDocumentContext('## Install\n', corpus='guide', structure=STRUCTURE)
+
         #: When
-        occurrences = ExtraTitle.judge(())
+        occurrences = judged(ExtraTitle, subject)
 
         #: Then
         assert occurrences == (), 'a document with no title has none extra'
