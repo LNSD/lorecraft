@@ -15,13 +15,14 @@ from lorecraft.project.database.context import WrongItemKindError
 from lorecraft.project.item import MarkdownItemRef, UnlistedItemError
 from lorecraft.project.layout import SNAPSHOT_SCOPE
 from lorecraft.project.link_target import DocumentLink
-from lorecraft.project.schemas import title_facts
-from lorecraft.project.syntax import LineNumber
+from lorecraft.project.schemas import Primitives, title_facts
+from lorecraft.project.syntax import Anchor, LineNumber
 from lorecraft.rules.length.too_many_tokens import token_facts
 from lorecraft.rules.link.extension_link import extension_link_facts
 from lorecraft.rules.outline.empty_section import empty_section_facts
 from lorecraft.vfs import Snapshot, take_snapshot
 
+GUIDE_MORE: Final[MarkdownItemRef] = MarkdownItemRef(RootRelativePath.parse('docs/code/guide-more.md'))
 GUIDE: Final[MarkdownItemRef] = MarkdownItemRef(RootRelativePath.parse('docs/code/guide.md'))
 SKILL: Final[MarkdownItemRef] = MarkdownItemRef(RootRelativePath.parse('.agents/skills/review/SKILL.md'))
 SPEC_PATH: Final[RootRelativePath] = RootRelativePath.parse('docs/__meta__/code.spec.json')
@@ -60,6 +61,60 @@ def _decoded(database: Database) -> ItemText:
     source = database.item_text(GUIDE)
     assert isinstance(source, ItemText), 'the guide decodes'
     return source
+
+
+def _anchors(primitives: Primitives) -> frozenset[Anchor]:
+    """The anchor of every heading of the item's parse."""
+    return primitives.anchors()
+
+
+def _document_base(primitives: Primitives) -> str | None:
+    """The stem of the document the item extends."""
+    return primitives.document_base()
+
+
+@pytest.mark.it
+class TestMarkdownPrimitives:
+    def test_anchors_with_a_document_returns_the_anchors_of_its_parse(self, tmp_path: Path) -> None:
+        #: Given
+        database = Database.from_snapshot(_snapshot(tmp_path))
+
+        #: When
+        anchors = database.query(_anchors, GUIDE)
+
+        #: Then
+        assert anchors == database.item_parse(_decoded(database)).anchors, "the anchors are the parse's own"
+        assert len(anchors) == 3, 'the title and the two sections each take an anchor'
+
+    def test_document_base_with_an_extension_returns_the_document_its_name_continues(self, tmp_path: Path) -> None:
+        #: Given
+        database = Database.from_snapshot(_snapshot(tmp_path))
+
+        #: When
+        base = database.query(_document_base, GUIDE_MORE)
+
+        #: Then
+        assert base == 'guide', 'guide-more continues guide, the document beside it'
+
+    def test_document_base_with_a_document_no_other_precedes_returns_none(self, tmp_path: Path) -> None:
+        #: Given
+        database = Database.from_snapshot(_snapshot(tmp_path))
+
+        #: When
+        base = database.query(_document_base, GUIDE)
+
+        #: Then
+        assert base is None, 'guide continues no other name'
+
+    def test_document_base_with_a_skill_returns_none(self, tmp_path: Path) -> None:
+        #: Given
+        database = Database.from_snapshot(_snapshot(tmp_path))
+
+        #: When
+        base = database.query(_document_base, SKILL)
+
+        #: Then
+        assert base is None, 'a skill extends no document'
 
 
 @pytest.mark.it
