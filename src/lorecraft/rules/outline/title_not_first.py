@@ -3,19 +3,30 @@
 from dataclasses import dataclass
 from typing import ClassVar, Self
 
-from lorecraft.project.context import DocumentContext
-from lorecraft.project.syntax import HeadingLevel, LineNumber, find_title
+from lorecraft.project.schemas import Primitives, Query
+from lorecraft.project.syntax import Heading, HeadingLevel, LineNumber, find_title
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Here, Label, Subdiagnostic
-from lorecraft.rules.subject import DocumentRule, Facet
+from lorecraft.rules.subject import Facet, QueriedDocumentRule
 
 from .__ruleset__ import GROUP_ID
 
 
+def headings(primitives: Primitives) -> tuple[Heading, ...]:
+    """The document's headings, in document order. Raises nothing.
+
+    A query: it reads the document's headings and nothing else.
+
+    Args:
+        primitives: The model state of the document.
+    """
+    return primitives.headings()
+
+
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
-class TitleNotFirst(DocumentRule):
+class TitleNotFirst(QueriedDocumentRule[tuple[Heading, ...]]):
     """A document a structure file governs opens with a heading that is not its H1 title.
 
     ## What it does
@@ -96,17 +107,21 @@ class TitleNotFirst(DocumentRule):
         return (Help('move the title above every section'),)
 
     @classmethod
-    def check(cls, subject: DocumentContext) -> tuple[Self, ...]:
+    def query(cls) -> Query[tuple[Heading, ...]]:
+        """The headings of the document."""
+        return headings
+
+    @classmethod
+    def judge(cls, facts: tuple[Heading, ...], /) -> tuple[Self, ...]:
         """One occurrence, at the first heading, when the document has an H1 title and the first heading is not it.
 
         Args:
-            subject: The document, governed by a structure file.
+            facts: The document's headings, in document order.
         """
-        headings = subject.parse().headings
-        title = find_title(headings)
+        title = find_title(facts)
         if title is None:
             return ()
-        first = headings[0]
+        first = facts[0]
         if first.level == 1:
             return ()
         return (cls(line=first.line, level=first.level, title_line=title.line),)
