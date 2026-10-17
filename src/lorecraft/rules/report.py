@@ -13,8 +13,9 @@ that order as the fields it compares, and `diagnostic_order` builds it as the so
 
 Each subject the runner checks, a document, a meta specification, a skill or a skill's resource, gets one report,
 and either kind of report gives its diagnostics as `diagnostics`. A `CheckedItem` decoded, and holds its
-diagnostics, in their output order however it is built, and the facets no meta spec governs it for; a skill file, a
-skill or one of its resources, is governed for every facet, so it holds none. An `UndecodableSubject` did not decode,
+diagnostics, in their output order however it is built, and the facets no meta spec governs it for; a skill entry has
+package checks independent of corpus governance, while a resource has no meta-spec structure governance. An
+`UndecodableSubject` did not decode,
 so no rule judged it: it holds its ref and where the bytes stopped being UTF-8, and its one diagnostic, the engine's,
 is built from them, at the subject's path. An `UnreadableDocument` could not be read at all, so it holds its document
 or specification ref and the engine's unreadable-path condition, and counts as a subject. A layout

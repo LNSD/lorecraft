@@ -17,9 +17,10 @@ facet: for each facet an enabled rule over a document or over the frontmatter de
 specifications govern the document for it, runs those rules over the document if they do, and records the
 facet as ungoverned rather than a diagnostic if they do not. A rule over a Markdown file judges a document under
 `Facet.STRUCTURE`, beside the rules over a document that declare it. A document in no corpus, or in one that states no
-structure specification, is governed for no facet, and no rule is run over it. The package governs every skill and
-every resource, so neither is ever ungoverned, and the rules over the frontmatter, over a skill and over a Markdown
-file run over it. A rule over a skill's file judges every `SKILL.md` and every resource, and never a
+structure specification, is governed for no facet, and no rule is run over it. Package checks judge skill entries
+independently of corpus governance. Package Markdown checks judge resources, whose structure and Markdown facets
+remain active independently of corpus governance. A rule over a skill's file judges every
+`SKILL.md` and every resource, and never a
 document. The database answers only for what a rule's query reads, so a fact no enabled rule reads is never computed.
 
 The subjects are those of `skip.Subject`, which defines and dispatches them: documents, specifications, skills,

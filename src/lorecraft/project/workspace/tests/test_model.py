@@ -892,7 +892,7 @@ class TestWorkspaceModel:
         assert descriptor.link_base == DocumentDirectory(RootRelativePath.parse('docs/code')), (
             'document links use their directory'
         )
-        assert descriptor.governance_corpus == 'code', 'the model derives governance from the corpus path'
+        assert descriptor.governance_corpus == 'code', 'the model derives document governance from the corpus path'
         assert descriptor.aspect_name == 'logging', 'the model derives the aspect from the filename'
         assert isinstance(descriptor.origin, DocumentOrigin), 'the descriptor retains document provenance'
         assert descriptor.origin.expected_name == 'logging', 'frontmatter expects the filename stem'

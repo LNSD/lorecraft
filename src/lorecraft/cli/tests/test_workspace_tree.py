@@ -282,7 +282,7 @@ class TestRenderJson:
 
 @pytest.mark.unit
 class TestRenderGovernedSkills:
-    def test_render_text_with_a_skills_corpus_lists_the_stems_governing_each_skill_broad_to_narrow(self) -> None:
+    def test_render_text_with_a_skills_corpus_does_not_show_governance_for_skills(self) -> None:
         #: Given
         model = _governed_skills_model()
 
@@ -290,15 +290,13 @@ class TestRenderGovernedSkills:
         text = render_text(Path('/work'), model)
 
         #: Then
-        assert text.splitlines()[-5:] == [
+        assert text.splitlines()[-3:] == [
             '└── skills (2)',
             '    ├── .agents/skills/code-rules [codex]',
-            '    │   └── governed by: skills, skills-code',
             '    └── .agents/skills/review [codex]',
-            '        └── governed by: skills',
-        ], 'the namespace governs only the skill it prefixes'
+        ], 'the skills corpus does not govern its skill entries'
 
-    def test_render_json_with_a_skills_corpus_lists_the_spec_files_governing_each_skill(self) -> None:
+    def test_render_json_with_a_skills_corpus_does_not_list_governance_for_skills(self) -> None:
         #: Given
         model = _governed_skills_model()
 
@@ -306,8 +304,8 @@ class TestRenderGovernedSkills:
         document = json.loads(render_json(Path('/work'), model))
 
         #: Then
-        assert [skill['governed_by'] for skill in document['skills']] == [
-            ['docs/__meta__/skills.md', 'docs/__meta__/skills-code.md'],
-            ['docs/__meta__/skills.md'],
-        ], 'each skill lists the files of its governing specs, and the corpora stay free of the skills corpus'
+        assert document['skills'] == [
+            {'path': '.agents/skills/code-rules/SKILL.md', 'agents': ['codex']},
+            {'path': '.agents/skills/review/SKILL.md', 'agents': ['codex']},
+        ], 'skills list their location and readers, without corpus governance'
         assert document['corpora'] == [], 'the skills corpus is no directory corpus'

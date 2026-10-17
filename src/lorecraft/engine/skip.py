@@ -1,8 +1,8 @@
 """Run checks over workspace subjects, skipping files whose required input was refused.
 
-A document or skill entry governed by a meta spec that failed to load cannot be called clean from only the layers that
-loaded. It is decoded first, and a decoded item is skipped with the failed structure paths. A skill or resource whose
-resolved docs target was refused is also skipped; the refusal itself is reported at its target.
+A document governed by a meta spec that failed to load cannot be called clean from only the layers that loaded. It is
+decoded first, and a decoded document is skipped with the failed structure paths. A skill or resource whose resolved
+docs target was refused is also skipped; the refusal itself is reported at its target.
 """
 
 from collections.abc import Iterable, Mapping
@@ -106,9 +106,9 @@ def _check_item(
     """Decode one item subject through the item queries, then judge it if it decoded and no failed layer skips it.
 
     Every item kind is decoded the same way, by its common reference. A missing file is reported by the read error of
-    its kind; a specification has none, so it raises the item's own. Only a document or a skill entry is skipped when
-    a failed layer governs it: the package alone governs a specification and a resource, and no facet beyond that is
-    active, so a layer that failed to load suppresses none of their checks.
+    its kind; a specification has none, so it raises the item's own. Only a document is skipped when a failed layer
+    governs it. Skill entries and resources receive no corpus governance, and specifications are governed by the
+    package, so failed corpus layers suppress none of their checks.
 
     Args:
         database: The revision the item is read from.
@@ -153,7 +153,7 @@ def _check_item(
             return UndecodableSubject(ref, source.failure)
         case ItemText():
             match ref:
-                case DocumentRef() | SkillRef():
+                case DocumentRef():
                     # Governance is a lookup in the model, never a rule, so a skipped item reads nothing else.
                     governance = database.item_governance(item)
                     if governance is not None:
@@ -162,8 +162,8 @@ def _check_item(
                             # `SkippedSubject` requires a first path, so the first failed layer is split from the rest.
                             first, *others = failed_layers
                             return SkippedSubject(ref, (first.path, *(layer.path for layer in others)))
-                case SpecRef() | SkillResourceRef():
-                    pass  # governed by the package alone: no failed layer suppresses a check
+                case SkillRef() | SpecRef() | SkillResourceRef():
+                    pass  # none receives corpus governance, so no failed corpus layer suppresses a check
                 case _:
                     assert_never(ref)
             return judge_item(database, source, table)

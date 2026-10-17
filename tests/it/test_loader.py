@@ -308,22 +308,6 @@ def _structure_spec_paths(governance: Governance) -> tuple[RootRelativePath, ...
     return tuple(structure_spec.path for structure_spec in governance.structure_specs())
 
 
-def _skill_stems(model: WorkspaceModel) -> dict[str, tuple[str, ...]]:
-    """The names of the specs governing each skill the model governs, broad to narrow, by the skill's listed name.
-
-    A skill the model leaves ungoverned has no entry.
-
-    Args:
-        model: Loaded workspace model whose skills are asked for their governance.
-    """
-    stems: dict[str, tuple[str, ...]] = {}
-    for ref in model.skills():
-        governance = model.find_skill_governance(ref)
-        if governance is not None:
-            stems[ref.entry.value] = tuple(str(spec.name) for spec in governance.specs())
-    return stems
-
-
 def _failure_paths(model: WorkspaceModel) -> tuple[RootRelativePath, ...]:
     """The path of every load failure the model records, in recorded order.
 
@@ -1883,65 +1867,6 @@ class TestLoadWorkspaceSkillsCorpus:
         assert model.skills_corpus is not None, 'the skills corpus needs no directory under docs/'
         assert _corpus_names(model) == (), 'it is no corpus of documents'
         assert model.overlapping_directories == frozenset(), 'nothing overlaps it'
-
-    def test_find_skill_governance_with_global_namespaced_and_aspect_files_layers_the_stems_broad_to_narrow(
-        self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
-    ) -> None:
-        #: Given
-        _write_tree(
-            tmp_path,
-            prose=('skills', 'skills-code', 'skills-code-rules', 'skills-feat'),
-            schemas=('skills.spec.json', 'skills-code.spec.json'),
-            documents=(),
-        )
-        for name in ('code-rules-check', 'code-format', 'feat-status', 'commit', 'coder', '3d-tools'):
-            _write(tmp_path, f'.agents/skills/{name}/SKILL.md')
-        model = load_workspace(schemas, documents, skills)
-
-        #: When
-        stems = _skill_stems(model)
-
-        #: Then
-        assert stems == {
-            'code-rules-check': ('skills', 'skills-code', 'skills-code-rules'),
-            'code-format': ('skills', 'skills-code'),
-            'feat-status': ('skills', 'skills-feat'),
-            'commit': ('skills',),
-            'coder': ('skills',),
-            '3d-tools': ('skills',),
-        }, 'namespaces layer shorter first and every skill, a digit-leading name included, has the global layer'
-
-    def test_find_skill_governance_with_a_namespace_having_aspect_files_keeps_them_with_the_stem(
-        self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
-    ) -> None:
-        #: Given
-        _write_tree(tmp_path, prose=('skills', 'skills-code'), schemas=('skills-code.spec.json',), documents=())
-        _write(tmp_path, '.agents/skills/code-format/SKILL.md')
-        model = load_workspace(schemas, documents, skills)
-
-        #: When
-        governance = model.find_skill_governance(model.skills()[0])
-
-        #: Then
-        assert governance is not None, 'the skill is governed'
-        assert [str(path) for path in governance.specs()[1].files] == [
-            'docs/__meta__/skills-code.md',
-            'docs/__meta__/skills-code.spec.json',
-        ], 'the aspect files of a stem travel with it'
-
-    def test_find_skill_governance_with_no_skills_spec_returns_none(
-        self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
-    ) -> None:
-        #: Given
-        _write_tree(tmp_path, prose=('skills-code',), schemas=(), documents=())
-        _write(tmp_path, '.agents/skills/code-rules/SKILL.md')
-
-        #: When
-        model = load_workspace(schemas, documents, skills)
-
-        #: Then
-        assert model.skills_corpus is None, 'a namespace spec narrows a corpus spec and cannot stand alone'
-        assert model.find_skill_governance(model.skills()[0]) is None, 'the skill is ungoverned'
 
     def test_load_workspace_with_a_docs_skills_directory_ignores_its_documents_and_records_the_overlap(
         self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository

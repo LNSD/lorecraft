@@ -381,12 +381,12 @@ class WorkspaceModel:
             `resolves_to`.
         skill_locations: The location of every skill directly inside the directories those resolve to,
             by the skill's ref; `skills()` lists the refs alone, and `skill_agents` says which
-            agents read one. A skill belongs to no corpus, so no spec governs it and `documents()` does not
+            agents read one. A skill belongs to no corpus, so no corpus spec governs it and `documents()` does not
             list it. The locations, not the refs, record where each link leads, so two models differ when a
             link is retargeted even though every ref is the same.
-        skills_corpus: The reserved `skills` corpus, whose specs govern the skills by their listed directory name, or
-            None when no `skills` spec exists. It lists no document: its documents are the skills, which
-            `find_skill_governance` resolves, and no directory under `docs/` backs it.
+        skills_corpus: The reserved `skills` corpus, available to its own specification checks, or None when no
+            `skills` spec exists. It lists no document and does not govern skill entries or resources; no directory
+            under `docs/` backs it.
         overlapping_directories: The directories under `docs/` that take a reserved corpus's name, which the model
             ignores: none of their documents is listed.
         outside_symlinks: Every skills directory an agent declares, entry in a resolved skills directory, and
@@ -594,20 +594,6 @@ class WorkspaceModel:
             return None
         return corpus.governance(ref.filename)
 
-    def find_skill_governance(self, ref: SkillRef) -> Governance | None:
-        """The specs governing a skill by its listed directory name, or None when the model has no `skills` spec.
-
-        Every skill the model lists has the global `skills` layer, whatever its name, and a namespace matches the
-        listed name as it is: a name no document could take, such as `3d-tools`, is still governed. The governance
-        names no document, so its `ref` is None for such a name.
-
-        Args:
-            ref: Skill to look up, whether or not the model lists it; only its listed directory name is read.
-        """
-        if self.skills_corpus is None:
-            return None
-        return self.skills_corpus.governance(str(ref.entry))
-
     def find_item(self, ref: MarkdownItemRef) -> ResolvedItem | None:
         """The facts of the document or skill entry the model lists at this reference, or None.
 
@@ -637,13 +623,11 @@ class WorkspaceModel:
         return self.resolve_item(ref).descriptor
 
     def resolve_resource(self, location: SkillResourceLocation) -> ResolvedItem:
-        """Resolve a skill resource's descriptor, with the governance of the skill that holds it.
+        """Resolve a skill resource's descriptor without corpus governance.
 
         The model lists no resource: only the skill's resource listing locates one, so the caller hands the location
-        over. The resource keeps its own ref and read location, and takes the governance identity of its skill, never
-        of its filename. The package governs a resource as it does a skill entry, so the structure facet its Markdown
-        rules read is active; the frontmatter, outline and budget facets stay inactive, so no entry-only check
-        judges it.
+        over. The resource keeps its own ref and read location. Its containing skill is provenance, not a governance
+        identity. No skills-corpus schema or structure spec applies; only its Markdown checks are active.
 
         Args:
             location: Resource to resolve, as its skill's resource listing locates it.
@@ -654,18 +638,17 @@ class WorkspaceModel:
             read_location=location.resolves_to,
             link_base=SkillRoot(skill.directory),
             origin=SkillResourceOrigin(skill_entry=str(skill.entry)),
-            governance_corpus='skills',
+            governance_corpus='',
             aspect_name=str(skill.entry),
             active_facets=frozenset({ItemFacet.STRUCTURE, ItemFacet.MARKDOWN}),
         )
-        return ResolvedItem(descriptor, self.find_skill_governance(skill))
+        return ResolvedItem(descriptor, None)
 
     def resolve_item(self, ref: DocumentRef | MarkdownItemRef | SkillRef | SpecRef) -> ResolvedItem:
         """Resolve an item's descriptor together with the specs governing it, finding the governance once.
 
-        A corpus document is governed by the specs of its corpus and matching namespaces. A skill entry resolves with no
-        governance until the checks of a skill's `SKILL.md` read the `skills` corpus; `find_skill_governance` answers
-        it for inspection.
+        A corpus document is governed by the specs of its corpus and matching namespaces. Skill entries and resources
+        resolve with no governance; the reserved `skills` corpus does not govern them.
 
         Args:
             ref: Document, skill entry or meta specification to resolve, whether or not the model lists a document's
@@ -691,7 +674,7 @@ class WorkspaceModel:
                     read_location=location.file_resolves_to,
                     link_base=SkillRoot(ref.directory),
                     origin=SkillEntryOrigin(expected_name=str(ref.entry), link_target=link_target),
-                    governance_corpus='skills',
+                    governance_corpus='',
                     aspect_name=str(ref.entry),
                     active_facets=frozenset({ItemFacet.FRONTMATTER, ItemFacet.STRUCTURE, ItemFacet.MARKDOWN}),
                 )

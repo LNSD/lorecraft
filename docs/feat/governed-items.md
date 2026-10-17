@@ -10,7 +10,7 @@ components: "module:lorecraft.project"
 
 ## Summary
 
-The workspace model describes a corpus document or listed skill entry through one common item reference and descriptor. The reference gives the stable logical path used to identify and report the item; the descriptor also records where the current snapshot reads its text and the origin facts consumers need. This lets callers handle both item kinds through a shared model contract while preserving their different link bases and governance.
+The workspace model describes a corpus document or listed skill entry through one common item reference and descriptor. The reference gives the stable logical path used to identify and report the item; the descriptor also records where the current snapshot reads its text and the origin facts consumers need. This lets callers handle both item kinds through a shared model contract while preserving their different link bases and checks.
 
 ## Table of Contents
 
@@ -30,7 +30,7 @@ The workspace model describes a corpus document or listed skill entry through on
 
 ## Architecture
 
-`WorkspaceModel.describe_item` accepts an existing corpus-document or skill-entry reference and returns the same descriptor shape for either. Corpus documents use their document directory as the relative-link base; listed skill entries use the listed skill directory. A linked skill's logical path remains tied to its listed entry when the resolved Markdown read location changes. When multiple agents reach one listed skill, the model retains one skill identity. Skill resource files continue to be listed lazily by the existing resource APIs; this descriptor does not migrate resource consumers.
+`WorkspaceModel.describe_item` accepts an existing corpus-document or skill-entry reference and returns the same descriptor shape for either. Corpus documents use their document directory as the relative-link base; listed skill entries use the listed skill directory. A linked skill's logical path remains tied to its listed entry when the resolved Markdown read location changes. When multiple agents reach one listed skill, the model retains one skill identity. Skill entries and their resources receive no governance from the reserved `skills` corpus until LORE-324. Skill entries retain package checks, and resources retain package Markdown checks; resource files continue to be listed lazily by the existing resource APIs.
 
 ## Usage
 
@@ -44,7 +44,7 @@ markdown_path = item.read_location
 link_base = item.link_base
 ```
 
-`ref` is an existing document or skill reference. The descriptor also exposes `origin`, `governance_corpus`, `aspect_name`, and `active_facets`; consumers can use these facts without inferring governance identity from frontmatter content.
+`ref` is an existing document or skill reference. The descriptor also exposes `origin`, `governance_corpus`, `aspect_name`, and `active_facets`; consumers can use these facts without inferring governance identity from frontmatter content. A skill entry has an empty `governance_corpus`; its `aspect_name` is retained only as provenance, and its active facets reflect package checks only.
 
 | Item kind | Relative-link base | Expected name and provenance |
 |-----------|--------------------|------------------------------|
@@ -54,7 +54,7 @@ link_base = item.link_base
 ## Limitations
 
 - The shared descriptor covers corpus documents and listed skill entries; resource consumers still use the existing resource discovery behavior.
-- Skill entries activate frontmatter and Markdown facets. Corpus-document facets reflect the governance available in the workspace model.
+- Skill entries activate package frontmatter and Markdown checks, not skills-corpus facets. Resources do not receive skills-corpus structure schemas or failed-layer skipping. Corpus-document facets reflect the governance available in the workspace model.
 - Layout symlinks remain separate non-text subjects.
 
 ## References

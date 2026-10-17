@@ -113,8 +113,6 @@ class _SkillJson(BaseModel):
 
     Attributes:
         path: The skill's `SKILL.md`, as a root-relative path.
-        governed_by: Every file of the specs of the `skills` corpus that govern the skill, broad to narrow, each
-            specification's files sorted; left out of the output when none governs it.
         agents: The names of the agents whose skills directory leads to the one holding the skill, each once, sorted
             by name; each is the `agent` of an entry in `agent_skills_dirs`.
     """
@@ -122,7 +120,6 @@ class _SkillJson(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     path: str
-    governed_by: list[str] | None
     agents: list[str]
 
 
@@ -191,9 +188,7 @@ def render_json(root: Path, model: WorkspaceModel) -> str:
         )
     skills: list[_SkillJson] = []
     for ref in model.skills():
-        governance = model.find_skill_governance(ref)
-        governed_by = _governing_files(governance.specs()) if governance is not None else None
-        skills.append(_SkillJson(path=str(ref.path), governed_by=governed_by, agents=list(model.skill_agents(ref))))
+        skills.append(_SkillJson(path=str(ref.path), agents=list(model.skill_agents(ref))))
     document = _WorkspaceJson(
         root=str(root),
         corpora=corpora,
@@ -277,11 +272,7 @@ def _skills_section(model: WorkspaceModel) -> _Line:
     lines: list[_Line] = []
     for ref in model.skills():
         agents = model.skill_agents(ref)
-        governance = model.find_skill_governance(ref)
-        children: list[_Line] = []
-        if governance is not None:
-            children.append(_Line(f'governed by: {", ".join(_governing_spec_names(governance.specs()))}'))
-        lines.append(_Line(f'{ref.directory} [{", ".join(agents)}]', tuple(children)))
+        lines.append(_Line(f'{ref.directory} [{", ".join(agents)}]'))
     return _Line(f'skills ({len(model.skill_locations)})', tuple(lines))
 
 

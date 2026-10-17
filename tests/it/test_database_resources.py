@@ -1,7 +1,7 @@
 """The database answers the common `item_*` queries for a skill's Markdown resources.
 
-A resource keeps its own reference and location and takes the containing skill's governance identity; its links are
-read from the skill root, and the model activates no facet but Markdown for it.
+A resource keeps its own reference and location without corpus governance; its links are read from the skill root, and
+the package's Markdown checks remain active alongside resource structure checks.
 """
 
 from collections.abc import Mapping
@@ -65,7 +65,7 @@ class TestResourceItems:
         assert descriptor.kind is ItemKind.SKILL_RESOURCE, 'the descriptor is for a skill resource'
         assert descriptor.read_location == location.resolves_to, 'the text is read at the listed resolved file'
         assert descriptor.active_facets == {ItemFacet.STRUCTURE, ItemFacet.MARKDOWN}, (
-            "only the package's Markdown governance is active, never the entry-only facets"
+            'a resource has Markdown checks only, with no corpus structure governance'
         )
 
     def test_item_text_of_resources_with_the_same_filename_keeps_a_ref_and_owner_for_each(self) -> None:
@@ -92,7 +92,7 @@ class TestResourceItems:
             f'each resource inherits its own skill as owner, got {owners}'
         )
         assert [source.descriptor.aspect_name for source in sources] == ['review', 'deploy'], (
-            'governance is matched by the skill name, never by the resource filename'
+            'the skill name records provenance, not corpus governance'
         )
 
     def test_item_text_of_a_retargeted_resource_symlink_keeps_the_ref_and_moves_the_location(self) -> None:
