@@ -314,8 +314,8 @@ class _ReadPrimitives:
         source = self._database.item_text(self._ref)
         assert isinstance(source, ItemText), 'a query over the owner runs over decoded text'
         origin = source.descriptor.origin
-        # The owner stays split by kind: a skill entry is named by its directory and held to the Agent Skills
-        # specification, a document by its filename and its corpus's structure specification.
+        # Keep this dispatch: skill entries are owned by their directory and the Agent Skills specification,
+        # while documents are owned by their filename and their corpus's structure specification.
         match origin:
             case SkillEntryOrigin():
                 return SkillFrontmatterOwner(
@@ -369,6 +369,7 @@ class _ReadPrimitives:
         self.read |= {'item_name'}
         source = self._database.item_text(self._ref)
         origin = source.descriptor.origin if isinstance(source, ItemText) else None
+        # Keep this dispatch: the query names documents and meta specifications, not skill directories or resources.
         return origin.expected_name if isinstance(origin, DocumentOrigin | SpecificationOrigin) else None
 
     def linked_documents(self) -> tuple[DocumentLink, ...]:
@@ -403,6 +404,8 @@ class _ReadPrimitives:
         self.read |= {'item_corpus'}
         source = self._database.item_text(self._ref)
         origin = source.descriptor.origin if isinstance(source, ItemText) else None
+        # Keep this dispatch: this query answers for user documents; a specification's `corpus` is a prefix of its
+        # name, and a skill has none.
         return origin.corpus if isinstance(origin, DocumentOrigin) else None
 
     def item_base(self) -> str | None:
@@ -415,6 +418,7 @@ class _ReadPrimitives:
         self.read |= {'item_base'}
         source = self._database.item_text(self._ref)
         origin = source.descriptor.origin if isinstance(source, ItemText) else None
+        # Keep this dispatch: documents and specifications inherit within separate model hierarchies; skills do not.
         match origin:
             case DocumentOrigin():
                 corpus = self._database.model().find_corpus(CorpusName.parse(origin.corpus))
