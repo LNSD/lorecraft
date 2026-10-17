@@ -10,7 +10,7 @@ answers for a document, a skill entry and a skill's resource alike; a fact only 
 governance when none governs it, is a defect of the caller to ask for, and raises `WrongItemKindError`. The rule bases
 name the kinds they apply to and the facet they read, so a rule that runs never asks.
 
-`DatabaseLayoutContext` implements `LayoutContext`. A layout entry has no text, so it has no witness and no per-file
+`DatabaseSymlinkContext` implements `SymlinkContext`. A layout entry has no text, so it has no witness and no per-file
 query: the context holds the `OutsideSymlink` record the model's `outside_symlinks` or a skill's `skill_resources`
 listing returned, the memoized query value itself, and reads every fact from it.
 """
@@ -18,7 +18,7 @@ listing returned, the memoized query value itself, and reads every fact from it.
 from collections.abc import Mapping
 from typing import assert_never
 
-from lorecraft.core.path import PathComponent
+from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.context import DocumentFrontmatterOwner, SkillFrontmatterOwner
 from lorecraft.project.item import DocumentOrigin, MarkdownItemRef, SkillEntryOrigin, SkillResourceOrigin
@@ -234,8 +234,8 @@ class DatabaseItemContext:
         return self._database.item_outline_divergences(self._source)
 
 
-class DatabaseLayoutContext:
-    """One symlink of the skill layout whose chain leaves the repository, as recorded; a `LayoutContext`."""
+class DatabaseSymlinkContext:
+    """One symlink of the skill layout whose chain leaves the repository, as recorded; a `SymlinkContext`."""
 
     def __init__(self, outside: OutsideSymlink) -> None:
         """Bind the context to one symlink whose chain leaves the repository.
@@ -244,6 +244,10 @@ class DatabaseLayoutContext:
             outside: The symlink, as the model's `outside_symlinks` or a skill's resource listing holds it.
         """
         self._outside = outside
+
+    def path(self) -> RootRelativePath:
+        """Where an agent reaches the symlink, read from the record."""
+        return self._outside.path
 
     def leaves_at(self) -> RootExit:
         """The link the chain leaves the repository through, and its target, read from the record."""

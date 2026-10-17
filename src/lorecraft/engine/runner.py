@@ -49,7 +49,7 @@ from lorecraft.core.path import RootRelativePath
 from lorecraft.project.database import (
     Database,
     DatabaseItemContext,
-    DatabaseLayoutContext,
+    DatabaseSymlinkContext,
     ItemText,
 )
 from lorecraft.project.document import DocumentRef
@@ -166,9 +166,9 @@ def check_layout_entry(outside: OutsideSymlink, table: RuleTable) -> CheckedLayo
         outside: The symlink, as the model or a skill's resource listing records it.
         table: The rules the run enables.
     """
-    # The symlink has no text to decode, and the package governs the skill layout, so each rule over a layout entry
+    # The symlink has no text to decode, and the package governs the skill layout, so each rule over a symlink
     # judges it through its context, which reads the record and asks the database nothing.
-    context = DatabaseLayoutContext(outside)
-    diagnostics = _located(outside.path, table.layout_rules, lambda rule: rule.check(context))
+    context = DatabaseSymlinkContext(outside)
+    diagnostics = _located(outside.path, table.symlink_rules, lambda rule: rule.check(context))
 
     return CheckedLayoutEntry(outside.path, diagnostics=tuple(diagnostics))

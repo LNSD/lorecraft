@@ -15,13 +15,13 @@ Markdown file declares none: the base fixes the one facet it judges a document u
 package governs every skill and every resource, so a rule over a skill or one of its files declares none either, and
 a rule over the frontmatter or a Markdown file judges a skill whatever its facet.
 
-`LayoutEntryRule` is the base over a layout entry, one symlink of the skill layout whose chain leaves the repository.
-A symlink has no lines, so the base derives from `LayoutRule` rather than `ContentRule`, and an occurrence points at
-the entry itself. The package governs the skill layout, so a rule over it declares no facet either.
+A layout entry has a kind, and each kind has its base, which derives from `LayoutRule` rather than `ContentRule`, since
+an entry has no lines and an occurrence points at the entry itself: `SymlinkRule` over a symlink of the skill layout
+whose chain leaves the repository. The package governs the layout, so a rule over an entry declares no facet either.
 
 Every rule derives from one of these bases: the length and the outline rules from `DocumentRule` or `SkillRule`, the
 frontmatter rules from `FrontmatterRule` or, for those over a skill alone, from `SkillRule`, the link rules from
-`MarkdownRule` and `SkillFileRule`, and the layout rule from `LayoutEntryRule`.
+`MarkdownRule` and `SkillFileRule`, and the layout rule from `SymlinkRule`.
 """
 
 from abc import abstractmethod
@@ -32,10 +32,10 @@ from typing import ClassVar, Self
 from lorecraft.project.context import (
     DocumentContext,
     FrontmatterContext,
-    LayoutContext,
     MarkdownContext,
     SkillContext,
     SkillFileContext,
+    SymlinkContext,
 )
 from lorecraft.project.item import ItemKind
 
@@ -156,16 +156,16 @@ class SkillFileRule(ItemRule):
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
-class LayoutEntryRule(LayoutRule):
-    """The base of every rule over a layout entry; the package governs the skill layout, so it declares no facet."""
+class SymlinkRule(LayoutRule):
+    """The base of every rule over a symlink of the skill layout; the package governs it, so it declares no facet."""
 
     @classmethod
     @abstractmethod
-    def check(cls, subject: LayoutContext) -> tuple[Self, ...]:
-        """Every occurrence of the rule's condition at the layout entry.
+    def check(cls, subject: SymlinkContext) -> tuple[Self, ...]:
+        """Every occurrence of the rule's condition at the symlink.
 
         Args:
-            subject: The layout entry judged.
+            subject: The symlink judged.
         """
 
 

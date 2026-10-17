@@ -263,7 +263,7 @@ class TestRuleTableFromRegistry:
         table = RuleTable.from_registry(registry, EVERY_RULE)
 
         #: Then
-        assert table.layout_rules == (EnabledRule(EscapingSymlink, Severity.ERROR),), (
+        assert table.symlink_rules == (EnabledRule(EscapingSymlink, Severity.ERROR),), (
             "the package's layout rules are enabled by default as errors"
         )
 
@@ -546,7 +546,7 @@ class TestRuleTable:
         table = RuleTable(severities)
 
         #: Then
-        assert table.layout_rules == (), 'no enabled rule reads a layout entry'
+        assert table.symlink_rules == (), 'no enabled rule reads a layout entry'
 
     def test_rule_table_with_a_rule_over_a_layout_entry_partitions_it_by_its_base(self) -> None:
         #: Given
@@ -556,6 +556,6 @@ class TestRuleTable:
         table = RuleTable(severities)
 
         #: Then
-        assert table.layout_rules == (EnabledRule(EscapingSymlink, Severity.WARNING),), (
+        assert table.symlink_rules == (EnabledRule(EscapingSymlink, Severity.WARNING),), (
             'a rule over a layout entry joins the layout partition, and no other'
         )

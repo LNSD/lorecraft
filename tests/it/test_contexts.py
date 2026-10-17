@@ -1,6 +1,6 @@
 """The database-backed contexts, held to the protocols of `lorecraft.project` they implement.
 
-Each method of `DocumentContext`, `SkillContext`, `SkillResourceContext` and `LayoutContext` is asked through a
+Each method of `DocumentContext`, `SkillContext`, `SkillResourceContext` and `SymlinkContext` is asked through a
 value typed as the protocol, over a database opened on an in-memory snapshot, or on a scan of a real tree where the
 query needs a path in scope, and compared with what the database's matching query returns; a fact the database
 memoizes is the very value the query keeps, so a context computes nothing of its own. The static hold of each class
@@ -19,16 +19,16 @@ from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.context import (
     DocumentContext,
     DocumentFrontmatterOwner,
-    LayoutContext,
     SkillContext,
     SkillFrontmatterOwner,
     SkillResourceContext,
+    SymlinkContext,
 )
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.database import (
     Database,
     DatabaseItemContext,
-    DatabaseLayoutContext,
+    DatabaseSymlinkContext,
     ItemText,
 )
 from lorecraft.project.database.context import WrongItemKindError
@@ -583,17 +583,17 @@ def _outside_symlink(database: Database) -> OutsideSymlink:
     return outside_symlinks[0]
 
 
-def _layout_context(database: Database) -> LayoutContext:
+def _symlink_context(database: Database) -> SymlinkContext:
     """The context of the entry linked outside the repository, typed as the protocol, so the type checker holds it.
 
     Args:
         database: The database whose model records the entry.
     """
-    return DatabaseLayoutContext(_outside_symlink(database))
+    return DatabaseSymlinkContext(_outside_symlink(database))
 
 
 @pytest.mark.it
-class TestDatabaseLayoutContext:
+class TestDatabaseSymlinkContext:
     def test_leaves_at_with_an_entry_linked_outside_returns_where_the_model_records_it_leaving(self) -> None:
         #: Given
         # What a scan records for `.agents/skills/x -> /elsewhere/x`: the link alone, since nothing outside the root
@@ -601,7 +601,7 @@ class TestDatabaseLayoutContext:
         records: dict[RootRelativePath, EntryRecord] = dict(_snapshot().records)
         records[RootRelativePath.parse('.agents/skills/x')] = SymlinkRecord(PurePosixPath('/elsewhere/x'))
         database = Database.from_snapshot(Snapshot(SnapshotRecords(records)))
-        context = _layout_context(database)
+        context = _symlink_context(database)
 
         #: When
         leaves_at = context.leaves_at()

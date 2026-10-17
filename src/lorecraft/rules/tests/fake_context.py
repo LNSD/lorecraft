@@ -425,8 +425,8 @@ class FakeDocumentMarkdownContext:
         return self._link_targets
 
 
-class FakeLayoutContext:
-    """A symlink of the skill layout whose chain leaves the repository where the test states; a `LayoutContext`."""
+class FakeSymlinkContext:
+    """A symlink of the skill layout whose chain leaves the repository where the test states; a `SymlinkContext`."""
 
     _leaves_at: RootExit
 
@@ -437,6 +437,10 @@ class FakeLayoutContext:
             leaves_at: The link the chain leaves through, and that link's target, as a scan would record them.
         """
         self._leaves_at = leaves_at
+
+    def path(self) -> RootRelativePath:
+        """The symlink's path: the link the chain leaves through, as the test stated it."""
+        return self._leaves_at.link
 
     def leaves_at(self) -> RootExit:
         """Where the chain leaves the repository, as the test stated it."""

@@ -18,10 +18,10 @@ A Markdown file also states two facts beyond its own text, for a rule that follo
 relative links are read from, a `LinkBase`, and where each link leads with what the snapshot holds there, a
 `LinkTargetEntry`. Both are facts of the revision, never a judgment of a link.
 
-`LayoutContext` is the one context of a subject with no text: a layout entry, one symlink of the skill layout whose
-chain leaves the repository, as the model or a skill's resource listing records it. A symlink is never decoded, so
-its context is built from that record alone, and it states where the chain leaves, a fact, never that it is a
-finding.
+`LayoutContext` is the context of a subject with no text: a layout entry, of the kind its sub-protocol names. A symlink
+of the skill layout whose chain leaves the repository, as the model or a skill's resource listing records it, is a
+`SymlinkContext`. An entry is never decoded, so its context is built from its record alone, and it states a fact,
+never that it is a finding.
 """
 
 from collections.abc import Mapping
@@ -218,11 +218,22 @@ class SkillResourceContext(SkillFileContext, Protocol):
 
 
 class LayoutContext(Protocol):
-    """One layout entry: a symlink an agent follows in the skill layout whose chain leaves the repository.
+    """One layout entry, the subject of a rule over the layout: what every kind of entry has, its reported path.
+
+    An entry has a kind, and each kind has the context that asks what only it has, such as `SymlinkContext`. A rule is
+    over one kind, so it asks the context of that kind. An entry has no text, so nothing about it is decoded.
+    """
+
+    def path(self) -> RootRelativePath:
+        """Where the entry is reached, the path its diagnostics are reported at."""
+        ...
+
+
+class SymlinkContext(LayoutContext, Protocol):
+    """One symlink an agent follows in the skill layout whose chain leaves the repository.
 
     The entry is a skills directory as an agent declares it, an entry in a skills directory, that entry's `SKILL.md`,
-    or a path inside a skill; the run supplies the path an agent reaches it by. It has no text, so nothing about it
-    is decoded.
+    or a path inside a skill; the run supplies the path an agent reaches it by.
     """
 
     def leaves_at(self) -> RootExit:
