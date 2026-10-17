@@ -30,6 +30,7 @@ class ItemKind(Enum):
 
     DOCUMENT = 'document'
     SKILL_ENTRY = 'skill-entry'
+    SKILL_RESOURCE = 'skill-resource'
 
 
 class ItemFacet(Enum):
@@ -70,7 +71,20 @@ class SkillEntryOrigin:
     link_target: ResolvedPath | None
 
 
-type ItemOrigin = DocumentOrigin | SkillEntryOrigin
+@dataclass(frozen=True, slots=True)
+class SkillResourceOrigin:
+    """Origin facts for a Markdown resource inside a skill.
+
+    The resource keeps its own ref and read location; it takes its governance identity from the containing skill.
+
+    Attributes:
+        skill_entry: Listed directory name of the containing skill, which the skill's governance is matched by.
+    """
+
+    skill_entry: str
+
+
+type ItemOrigin = DocumentOrigin | SkillEntryOrigin | SkillResourceOrigin
 
 
 @dataclass(frozen=True, slots=True)
@@ -104,6 +118,8 @@ class MarkdownItemDescriptor:
                 return ItemKind.DOCUMENT
             case SkillEntryOrigin():
                 return ItemKind.SKILL_ENTRY
+            case SkillResourceOrigin():
+                return ItemKind.SKILL_RESOURCE
             case _:
                 assert_never(self.origin)
 

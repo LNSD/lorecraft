@@ -26,11 +26,12 @@ from lorecraft.project.item import (
     MarkdownItemDescriptor,
     MarkdownItemRef,
     SkillEntryOrigin,
+    SkillResourceOrigin,
 )
 from lorecraft.project.layout import DOCS_DIR
 from lorecraft.project.link_target import DocumentDirectory, SkillRoot
 from lorecraft.project.schemas import CorpusSpecName, NamespaceSpecName, StatedFrontmatterSchema, StructureSpec
-from lorecraft.project.skill import OutsideSymlink, SkillLocation, SkillRef, SkillsDir
+from lorecraft.project.skill import OutsideSymlink, SkillLocation, SkillRef, SkillResourceLocation, SkillsDir
 from lorecraft.vfs import ResolvedPath
 
 from .failure import FailedStructure, LoadFailure
@@ -535,6 +536,28 @@ class WorkspaceModel:
         common model contract for callers that need to handle either kind without classifying its origin.
         """
         return self.resolve_item(ref).descriptor
+
+    def resolve_resource(self, location: SkillResourceLocation) -> ResolvedItem:
+        """Resolve a skill resource's descriptor, with the governance of the skill that holds it.
+
+        The model lists no resource: only the skill's resource listing locates one, so the caller hands the location
+        over. The resource keeps its own ref and read location, and takes the governance identity of its skill, never
+        of its filename. Only the Markdown facet is active, so no entry-only check judges it.
+
+        Args:
+            location: Resource to resolve, as its skill's resource listing locates it.
+        """
+        skill = location.ref.skill
+        descriptor = MarkdownItemDescriptor(
+            ref=MarkdownItemRef(location.ref.path),
+            read_location=location.resolves_to,
+            link_base=SkillRoot(skill.directory),
+            origin=SkillResourceOrigin(skill_entry=str(skill.entry)),
+            governance_corpus='skills',
+            aspect_name=str(skill.entry),
+            active_facets=frozenset({ItemFacet.MARKDOWN}),
+        )
+        return ResolvedItem(descriptor, self.find_skill_governance(skill))
 
     def resolve_item(self, ref: DocumentRef | SkillRef) -> ResolvedItem:
         """Resolve an item's descriptor together with the specs governing it, finding the governance once.
