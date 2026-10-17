@@ -23,7 +23,13 @@ from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.context import DocumentFrontmatterOwner, SkillFrontmatterOwner
 from lorecraft.project.corpus import CorpusName, ReservedCorpusDirectory
-from lorecraft.project.item import DocumentOrigin, MarkdownItemRef, SkillEntryOrigin, SkillResourceOrigin
+from lorecraft.project.item import (
+    DocumentOrigin,
+    MarkdownItemRef,
+    SkillEntryOrigin,
+    SkillResourceOrigin,
+    SpecificationOrigin,
+)
 from lorecraft.project.link_target import ExtensionLink, LinkBase, LinkTargetEntry
 from lorecraft.project.schemas import (
     DocumentTitle,
@@ -80,7 +86,7 @@ class DatabaseItemContext:
         match origin:
             case DocumentOrigin():
                 return origin
-            case SkillEntryOrigin() | SkillResourceOrigin():
+            case SkillEntryOrigin() | SkillResourceOrigin() | SpecificationOrigin():
                 raise WrongItemKindError(self._source.ref, 'a document')
             case _:
                 assert_never(origin)
@@ -95,18 +101,25 @@ class DatabaseItemContext:
         match origin:
             case SkillEntryOrigin():
                 return origin
-            case DocumentOrigin() | SkillResourceOrigin():
+            case DocumentOrigin() | SkillResourceOrigin() | SpecificationOrigin():
                 raise WrongItemKindError(self._source.ref, 'a skill entry')
             case _:
                 assert_never(origin)
 
     def filename(self) -> AspectFilename:
-        """The document's filename, without its extension, read from its origin.
+        """The filename of a document or meta specification, without its extension, read from its origin.
 
         Raises:
-            WrongItemKindError: If the item is a skill entry.
+            WrongItemKindError: If the item is a skill entry or a skill resource.
         """
-        return AspectFilename.parse(self._document().expected_name)
+        origin = self._source.descriptor.origin
+        match origin:
+            case DocumentOrigin() | SpecificationOrigin():
+                return AspectFilename.parse(origin.expected_name)
+            case SkillEntryOrigin() | SkillResourceOrigin():
+                raise WrongItemKindError(self._source.ref, 'a document or a specification')
+            case _:
+                assert_never(origin)
 
     def base(self) -> AspectFilename | None:
         """The filename of the document this one extends, from the corpus the model lists the document in.
@@ -149,7 +162,7 @@ class DatabaseItemContext:
                 return self._database.item_skill_schema_problems(self._source)
             case DocumentOrigin():
                 return self._database.item_schema_problems(self._source)
-            case SkillResourceOrigin():
+            case SkillResourceOrigin() | SpecificationOrigin():
                 raise WrongItemKindError(self._source.ref, 'a document or a skill entry')
             case _:
                 assert_never(origin)
@@ -178,7 +191,7 @@ class DatabaseItemContext:
                 # A schema governs a document only through its corpus's structure specification, which a namespace's
                 # schema merely narrows; so that specification states every rule over the block.
                 return DocumentFrontmatterOwner(filename=self.filename(), spec=self.corpus_structure().path)
-            case SkillResourceOrigin():
+            case SkillResourceOrigin() | SpecificationOrigin():
                 raise WrongItemKindError(self._source.ref, 'a document or a skill entry')
             case _:
                 assert_never(origin)

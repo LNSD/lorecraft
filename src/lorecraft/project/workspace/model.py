@@ -19,7 +19,7 @@ from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.project.aspect import AspectFilename, AspectNamespace
 from lorecraft.project.corpus import CorpusName, ReservedCorpusDirectory
-from lorecraft.project.document import DocumentRef
+from lorecraft.project.document import DocumentRef, SpecRef
 from lorecraft.project.item import (
     DocumentOrigin,
     ItemFacet,
@@ -27,8 +27,9 @@ from lorecraft.project.item import (
     MarkdownItemRef,
     SkillEntryOrigin,
     SkillResourceOrigin,
+    SpecificationOrigin,
 )
-from lorecraft.project.layout import DOCS_DIR
+from lorecraft.project.layout import DOCS_DIR, DOCUMENT_SUFFIX, SPECS_DIR
 from lorecraft.project.link_target import DocumentDirectory, SkillRoot
 from lorecraft.project.schemas import CorpusSpecName, NamespaceSpecName, StatedFrontmatterSchema, StructureSpec
 from lorecraft.project.skill import OutsideSymlink, SkillLocation, SkillRef, SkillResourceLocation, SkillsDir
@@ -427,6 +428,19 @@ class WorkspaceModel:
                 return ref
         return None
 
+    def specifications(self) -> tuple[SpecRef, ...]:
+        """Every meta specification, a Markdown file of a corpus or namespace spec, sorted by path; no README."""
+        specs: list[Spec] = []
+        for corpus in (*self.sorted_corpora, *([self.skills_corpus] if self.skills_corpus is not None else [])):
+            specs.append(corpus.corpus_spec)
+            specs.extend(corpus.namespace_specs)
+        refs: set[SpecRef] = set()
+        for spec in specs:
+            for file in spec.files:
+                if file.value.name.endswith(DOCUMENT_SUFFIX) and file.parent == SPECS_DIR:
+                    refs.add(SpecRef(file))
+        return tuple(sorted(refs))
+
     def skills(self) -> tuple[SkillRef, ...]:
         """Every ref of a skill in the agents' skills directories, in directory order."""
         return tuple(sorted(self.skill_locations))
@@ -552,9 +566,12 @@ class WorkspaceModel:
         for skill in self.skill_locations:
             if skill.path == ref.path:
                 return self.resolve_item(skill)
+        for specification in self.specifications():
+            if specification.path == ref.path:
+                return self.resolve_item(specification)
         return None
 
-    def describe_item(self, ref: DocumentRef | SkillRef) -> MarkdownItemDescriptor:
+    def describe_item(self, ref: DocumentRef | SkillRef | SpecRef) -> MarkdownItemDescriptor:
         """Resolve the shared location and origin facts for a document or skill entry.
 
         The existing references remain accepted by repositories and database queries. This descriptor is the
@@ -586,7 +603,7 @@ class WorkspaceModel:
         )
         return ResolvedItem(descriptor, self.find_skill_governance(skill))
 
-    def resolve_item(self, ref: DocumentRef | SkillRef) -> ResolvedItem:
+    def resolve_item(self, ref: DocumentRef | SkillRef | SpecRef) -> ResolvedItem:
         """Resolve an item's descriptor together with the specs governing it, finding the governance once.
 
         A corpus document is governed by the specs of its corpus and matching namespaces. A skill entry resolves with no
@@ -594,7 +611,9 @@ class WorkspaceModel:
         it for inspection.
 
         Args:
-            ref: Document or skill entry to resolve, whether or not the model lists a document's corpus.
+            ref: Document, skill entry or meta specification to resolve, whether or not the model lists a document's
+                corpus. The package governs a specification, so it resolves with no governance and only the Markdown
+                checks active.
         """
         match ref:
             case DocumentRef():
@@ -634,6 +653,17 @@ class WorkspaceModel:
                     governance_corpus='skills',
                     aspect_name=str(ref.entry),
                     active_facets=frozenset({ItemFacet.FRONTMATTER, ItemFacet.STRUCTURE, ItemFacet.MARKDOWN}),
+                )
+                return ResolvedItem(descriptor, None)
+            case SpecRef():
+                descriptor = MarkdownItemDescriptor(
+                    ref=MarkdownItemRef(ref.path),
+                    read_location=ResolvedPath(ref.path),
+                    link_base=DocumentDirectory(SPECS_DIR),
+                    origin=SpecificationOrigin(expected_name=ref.name, corpus=ref.corpus),
+                    governance_corpus=ref.corpus,
+                    aspect_name=ref.name,
+                    active_facets=frozenset({ItemFacet.MARKDOWN}),
                 )
                 return ResolvedItem(descriptor, None)
             case _:

@@ -31,6 +31,7 @@ class ItemKind(Enum):
     DOCUMENT = 'document'
     SKILL_ENTRY = 'skill-entry'
     SKILL_RESOURCE = 'skill-resource'
+    SPECIFICATION = 'specification'
 
 
 class ItemFacet(Enum):
@@ -84,7 +85,20 @@ class SkillResourceOrigin:
     skill_entry: str
 
 
-type ItemOrigin = DocumentOrigin | SkillEntryOrigin | SkillResourceOrigin
+@dataclass(frozen=True, slots=True)
+class SpecificationOrigin:
+    """Origin facts for a meta specification, a Markdown file of `docs/__meta__/`.
+
+    Attributes:
+        expected_name: Specification name, the file's stem, such as `feat-cli`.
+        corpus: Corpus the specification belongs to, the first segment of its name.
+    """
+
+    expected_name: str
+    corpus: str
+
+
+type ItemOrigin = DocumentOrigin | SkillEntryOrigin | SkillResourceOrigin | SpecificationOrigin
 
 
 @dataclass(frozen=True, slots=True)
@@ -99,7 +113,8 @@ class MarkdownItemDescriptor:
         governance_corpus: Corpus whose specifications govern the item.
         aspect_name: Listed name matched against namespace specifications.
         active_facets: Checks the model has enabled for this item. The package governs a skill entry itself, so it is
-            always active for the frontmatter and the structure.
+            always active for the frontmatter and the structure; it governs a meta specification too, which is always
+            active for the Markdown checks alone.
     """
 
     ref: MarkdownItemRef
@@ -120,6 +135,8 @@ class MarkdownItemDescriptor:
                 return ItemKind.SKILL_ENTRY
             case SkillResourceOrigin():
                 return ItemKind.SKILL_RESOURCE
+            case SpecificationOrigin():
+                return ItemKind.SPECIFICATION
             case _:
                 assert_never(self.origin)
 
