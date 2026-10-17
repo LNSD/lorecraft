@@ -32,22 +32,27 @@ the file it leads to, and reported under its ref, at the path an agent reaches i
 The runner never lists a skill's resources itself, so a skill handed over judges its `SKILL.md` alone.
 
 A layout entry is one symlink of the skill layout whose chain leaves the repository, handed over as the
-`OutsideSymlink` record the model or a skill's resource listing holds for it. Whether a chain leaves the repository is
-decided there, from the link targets the scan recorded; a symlink that stays inside, or dangles inside, is no layout
-entry. The caller collects the entries its selection covers as it chooses every other subject, from two queries: the
-model's `outside_symlinks`, for a skills directory, an entry in one or an entry's `SKILL.md`, and the
-`skill_resources` listing of each skill it checks whole, for a symlink inside that skill. Each is reported at the path
-an agent reaches it by, in the order given like every subject. A symlink has no text, so it is never decoded, and the
-package governs the skill layout, so it is never ungoverned: every rule over a layout entry judges it through its
-context.
+`OutsideSymlink` record the model or a skill's resource listing holds for it, or a directory under `docs/` named like
+a reserved corpus, handed over as the `ReservedCorpusDirectory` record the model holds. Whether a chain leaves the
+repository is decided there, from the link targets the scan recorded; a symlink that stays inside, or dangles inside,
+is no layout entry. The caller collects the entries its selection covers as it chooses every other subject, from
+queries: the model's `outside_symlinks`, for a skills directory, an entry in one or an entry's `SKILL.md`, its
+`sorted_overlapping_directories`, for a reserved-corpus directory, and the `skill_resources` listing of each skill it
+checks whole, for a symlink inside that skill. Each is reported at the path
+an agent reaches it by, in the order given like every subject. An entry has no text, so it is never decoded, and the
+package governs the layout, so it is never ungoverned: every rule over a layout entry of its kind judges it through
+its context.
 """
 
 from collections.abc import Callable
 from dataclasses import dataclass
+from typing import assert_never
 
 from lorecraft.core.path import RootRelativePath
+from lorecraft.project.corpus import ReservedCorpusDirectory
 from lorecraft.project.database import (
     Database,
+    DatabaseCorpusDirectoryContext,
     DatabaseItemContext,
     DatabaseSymlinkContext,
     ItemText,
@@ -81,7 +86,9 @@ class RefusedSkillSubject:
     refused_at: RootRelativePath
 
 
-type Subject = DocumentRef | SkillLocation | SkillResourceLocation | OutsideSymlink | RefusedSkillSubject
+type Subject = (
+    DocumentRef | SkillLocation | SkillResourceLocation | OutsideSymlink | ReservedCorpusDirectory | RefusedSkillSubject
+)
 
 
 def judge_item(database: Database, source: ItemText, table: RuleTable) -> CheckedItem:
@@ -159,16 +166,23 @@ def _located[R: Rule](
     ]
 
 
-def check_layout_entry(outside: OutsideSymlink, table: RuleTable) -> CheckedLayoutEntry:
-    """Run the enabled rules over one symlink of the skill layout whose chain leaves the repository. Raises nothing.
+def check_layout_entry(entry: OutsideSymlink | ReservedCorpusDirectory, table: RuleTable) -> CheckedLayoutEntry:
+    """Run the enabled rules over one layout entry, a symlink or a reserved-corpus directory. Raises nothing.
 
     Args:
-        outside: The symlink, as the model or a skill's resource listing records it.
+        entry: The entry, as the model or a skill's resource listing records it.
         table: The rules the run enables.
     """
-    # The symlink has no text to decode, and the package governs the skill layout, so each rule over a symlink
-    # judges it through its context, which reads the record and asks the database nothing.
-    context = DatabaseSymlinkContext(outside)
-    diagnostics = _located(outside.path, table.symlink_rules, lambda rule: rule.check(context))
+    # An entry has no text to decode, and the package governs the layout, so each rule over its kind judges it through
+    # its context, which reads the record and asks the database nothing.
+    match entry:
+        case OutsideSymlink():
+            symlink = DatabaseSymlinkContext(entry)
+            diagnostics = _located(entry.path, table.symlink_rules, lambda rule: rule.check(symlink))
+        case ReservedCorpusDirectory():
+            directory = DatabaseCorpusDirectoryContext(entry)
+            diagnostics = _located(entry.path, table.corpus_directory_rules, lambda rule: rule.check(directory))
+        case _:
+            assert_never(entry)
 
-    return CheckedLayoutEntry(outside.path, diagnostics=tuple(diagnostics))
+    return CheckedLayoutEntry(entry.path, diagnostics=tuple(diagnostics))

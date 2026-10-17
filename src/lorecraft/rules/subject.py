@@ -17,11 +17,13 @@ a rule over the frontmatter or a Markdown file judges a skill whatever its facet
 
 A layout entry has a kind, and each kind has its base, which derives from `LayoutRule` rather than `ContentRule`, since
 an entry has no lines and an occurrence points at the entry itself: `SymlinkRule` over a symlink of the skill layout
-whose chain leaves the repository. The package governs the layout, so a rule over an entry declares no facet either.
+whose chain leaves the repository, `CorpusDirectoryRule` over a directory under `docs/` named like a reserved corpus.
+The package governs the layout, so a rule over an entry declares no facet either.
 
 Every rule derives from one of these bases: the length and the outline rules from `DocumentRule` or `SkillRule`, the
 frontmatter rules from `FrontmatterRule` or, for those over a skill alone, from `SkillRule`, the link rules from
-`MarkdownRule` and `SkillFileRule`, and the layout rule from `SymlinkRule`.
+`MarkdownRule` and `SkillFileRule`, the symlink rule from `SymlinkRule` and the corpus directory rule from
+`CorpusDirectoryRule`.
 """
 
 from abc import abstractmethod
@@ -30,6 +32,7 @@ from enum import StrEnum
 from typing import ClassVar, Self
 
 from lorecraft.project.context import (
+    CorpusDirectoryContext,
     DocumentContext,
     FrontmatterContext,
     MarkdownContext,
@@ -166,6 +169,20 @@ class SymlinkRule(LayoutRule):
 
         Args:
             subject: The symlink judged.
+        """
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class CorpusDirectoryRule(LayoutRule):
+    """The base of every rule over a directory under `docs/` named like a reserved corpus; it declares no facet."""
+
+    @classmethod
+    @abstractmethod
+    def check(cls, subject: CorpusDirectoryContext) -> tuple[Self, ...]:
+        """Every occurrence of the rule's condition at the directory.
+
+        Args:
+            subject: The directory judged.
         """
 
 

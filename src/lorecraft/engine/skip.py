@@ -9,6 +9,7 @@ from collections.abc import Iterable, Mapping
 from typing import assert_never
 
 from lorecraft.core.path import RootRelativePath
+from lorecraft.project.corpus import ReservedCorpusDirectory
 from lorecraft.project.database import Database, ItemText, Undecodable
 from lorecraft.project.document import DocumentReadError, DocumentRef
 from lorecraft.project.item import ItemReadError, MarkdownItemRef
@@ -40,8 +41,8 @@ def check_subjects(
         database: The revision the subjects are read from; its model decides which specifications govern each.
         subjects: The documents, skills, resources and layout entries to check; a document in no corpus the
             database's model holds is ungoverned for every facet a specification governs, and a layout
-            entry is a symlink whose chain leaves the repository, as the database's model or a skill's resource
-            listing records it.
+            entry is a symlink whose chain leaves the repository or a directory named like a reserved corpus, as the
+            database's model or a skill's resource listing records it.
         table: The rules the run enables, each with its severity.
         refusals: Docs paths the snapshot refused, whose diagnostics the caller reports; empty by default.
 
@@ -67,7 +68,7 @@ def check_subjects(
                 reports.append(_check_item(database, subject, table))
             case SkillResourceLocation():
                 reports.append(_check_resource(database, subject, table))
-            case OutsideSymlink():
+            case OutsideSymlink() | ReservedCorpusDirectory():
                 reports.append(check_layout_entry(subject, table))
             case _:
                 assert_never(subject)

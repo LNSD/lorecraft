@@ -18,7 +18,8 @@ is governed for every facet, so it holds none. An `UndecodableSubject` did not d
 holds its ref and where the bytes stopped being UTF-8, and its one diagnostic, the engine's, is built from them, at
 the subject's path. An `UnreadableDocument` could not be read at all, so it holds its document ref and the engine's
 unreadable-path condition, and counts as a subject. A layout
-entry, one symlink of the skill layout whose chain leaves the repository, has no text to decode and no meta spec to be
+entry, one symlink of the skill layout whose chain leaves the repository or a directory under `docs/` named like a
+reserved corpus, has no text to decode and no meta spec to be
 ungoverned by, so it gets a report of its own, a `CheckedLayoutEntry`: its path and its diagnostics, in their output
 order.
 
@@ -210,14 +211,16 @@ class UnreadableDocument:
 
 @dataclass(frozen=True, slots=True)
 class CheckedLayoutEntry:
-    """A layout entry the enabled rules judged: one symlink of the skill layout whose chain leaves the repository.
+    """A layout entry the enabled rules judged.
 
-    The entry has no text, so it is never undecodable, and the package governs the skill layout, so it is never
-    ungoverned.
+    It is either a symlink of the skill layout whose chain leaves the repository or a directory under `docs/` named
+    like a reserved corpus. The entry has no text, so it is never undecodable, and the package governs the layout, so
+    it is never ungoverned.
 
     Attributes:
-        path: Where an agent reaches the symlink, the path its diagnostics are reported at: a skills directory as
-            declared, an entry in one, that entry's `SKILL.md`, or a path inside a skill, under the skill's entry.
+        path: Where the entry is reached, the path its diagnostics are reported at. For a symlink: a skills directory
+            as declared, an entry in one, that entry's `SKILL.md`, or a path inside a skill, under the skill's entry.
+            For a directory: its path under `docs/`.
         diagnostics: Every occurrence the rules found at the entry, in the order `diagnostic_order` sorts them into,
             whatever order they are given in.
     """

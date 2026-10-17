@@ -20,7 +20,7 @@ from lorecraft.agents import AgentName
 from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.project.aspect import AspectFilename, AspectNamespace
-from lorecraft.project.corpus import CorpusName
+from lorecraft.project.corpus import CorpusName, ReservedCorpusDirectory
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.document import Repository as DocumentRepository
 from lorecraft.project.layout import SNAPSHOT_SCOPE, SPECS_DIR
@@ -1882,7 +1882,7 @@ class TestLoadWorkspaceSkillsCorpus:
         #: Then
         assert model.skills_corpus is not None, 'the skills corpus needs no directory under docs/'
         assert _corpus_names(model) == (), 'it is no corpus of documents'
-        assert model.overlapping_corpora == frozenset(), 'nothing overlaps it'
+        assert model.overlapping_directories == frozenset(), 'nothing overlaps it'
 
     def test_find_skill_governance_with_global_namespaced_and_aspect_files_layers_the_stems_broad_to_narrow(
         self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
@@ -1953,5 +1953,7 @@ class TestLoadWorkspaceSkillsCorpus:
         model = load_workspace(schemas, documents, skills)
 
         #: Then
-        assert model.overlapping_corpora == frozenset({CorpusName.parse('skills')}), 'the overlap is recorded'
+        assert model.sorted_overlapping_directories == (
+            ReservedCorpusDirectory(RootRelativePath.parse('docs/skills'), CorpusName.parse('skills')),
+        ), 'the overlap is recorded with its directory and corpus'
         assert model.documents() == (), 'none of the documents in docs/skills/ is listed'

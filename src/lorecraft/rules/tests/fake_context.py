@@ -20,7 +20,7 @@ from lorecraft.project.aspect import AspectFilename, AspectNamespace
 from lorecraft.project.context import DocumentFrontmatterOwner, SkillFrontmatterOwner
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.document import DocumentRef
-from lorecraft.project.layout import SPECS_DIR
+from lorecraft.project.layout import DOCS_DIR, SPECS_DIR
 from lorecraft.project.link_target import DocumentDirectory, LinkTargetEntry, SkillRoot
 from lorecraft.project.schemas import (
     CorpusSpecName,
@@ -445,3 +445,23 @@ class FakeSymlinkContext:
     def leaves_at(self) -> RootExit:
         """Where the chain leaves the repository, as the test stated it."""
         return self._leaves_at
+
+
+class FakeCorpusDirectoryContext:
+    """A directory under `docs/` that takes a reserved corpus's name, as the test states; a `CorpusDirectoryContext`."""
+
+    def __init__(self, corpus: str) -> None:
+        """Hold the reserved corpus the directory takes.
+
+        Args:
+            corpus: The reserved corpus name, such as `skills`.
+        """
+        self._corpus = CorpusName.parse(corpus)
+
+    def path(self) -> RootRelativePath:
+        """The directory, `docs/` and the corpus name."""
+        return DOCS_DIR / PathComponent.parse(str(self._corpus))
+
+    def reserved_corpus(self) -> CorpusName:
+        """The reserved corpus the directory takes, as the test stated it."""
+        return self._corpus

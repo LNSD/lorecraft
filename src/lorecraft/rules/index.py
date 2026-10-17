@@ -16,6 +16,7 @@ CODE_DIGITS: Final[int] = 3
 
 GROUPS: Final[tuple[tuple[str, str], ...]] = (
     # prefix, title
+    ('COR', 'Corpus directory checks'),
     ('FM', 'Frontmatter checks'),
     ('LAY', 'Skill layout checks'),
     ('LC', 'Engine conditions'),
@@ -26,6 +27,7 @@ GROUPS: Final[tuple[tuple[str, str], ...]] = (
 
 RULES: Final[tuple[tuple[str, str, Literal['rule', 'removed', 'condition'], str, tuple[str, ...]], ...]] = (
     # code, name, kind, level or severity, alias codes
+    ('COR001', 'reserved-corpus-overlap', 'rule', 'warn', ()),
     ('FM001', 'missing-frontmatter', 'rule', 'deny', ()),
     ('FM002', 'invalid-yaml', 'rule', 'deny', ()),
     ('FM003', 'non-mapping-frontmatter', 'rule', 'deny', ()),
