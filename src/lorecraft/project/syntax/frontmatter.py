@@ -42,11 +42,12 @@ from lorecraft.yaml.problem import (
     YamlProblem,
 )
 from lorecraft.yaml.reader import read_yaml
-from lorecraft.yaml.syntax_error import SyntaxProblem, describe_control_character, describe_error
+from lorecraft.yaml.syntax_error import classify_syntax_error
 from lorecraft.yaml.tree import YamlMapping, YamlScalar, YamlSequence, YamlValue
 
 from .position import LineNumber
 from .refusal import describe_refusal, refusal_help
+from .syntax_label import SyntaxProblem, describe_control_character, describe_syntax_error
 
 _FIRST_BLOCK_LINE: Final[int] = 2
 """The document line the block's first YAML line sits on: the opening delimiter is always line 1."""
@@ -328,7 +329,7 @@ def _invalid_yaml_of(problem: YamlProblem, block: str) -> InvalidYamlFrontmatter
         case ControlCharacterProblem():
             return _invalid_yaml(describe_control_character(problem))
         case SyntaxErrorProblem():
-            return _invalid_yaml(describe_error(problem, block))
+            return _invalid_yaml(describe_syntax_error(classify_syntax_error(problem, block)))
         case RefusedConstructProblem():
             return InvalidYamlFrontmatter(
                 problem=describe_refusal(problem.construct),
