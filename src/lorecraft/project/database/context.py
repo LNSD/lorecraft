@@ -25,17 +25,14 @@ from lorecraft.project.corpus import CorpusName, ReservedCorpusDirectory
 from lorecraft.project.document import SpecRef
 from lorecraft.project.item import (
     DocumentOrigin,
-    MarkdownItemRef,
     SkillEntryOrigin,
     SkillResourceOrigin,
     SpecificationOrigin,
 )
 from lorecraft.project.link_target import DocumentLink, LinkBase, LinkTargetEntry
 from lorecraft.project.schemas import (
-    DocumentFrontmatterOwner,
     Query,
     SkillFields,
-    SkillFrontmatterOwner,
     StructureSpec,
 )
 from lorecraft.project.skill import OutsideSymlink
@@ -45,13 +42,7 @@ from lorecraft.vfs import ResolvedPath, RootExit
 
 from .database import Database
 from .text import ItemText
-
-
-class WrongItemKindError(TypeError):
-    """A fact of one kind of item was asked of another, which a rule that applies to its kind never does."""
-
-    def __init__(self, ref: MarkdownItemRef, asked: str) -> None:
-        super().__init__(f'{ref.path} is not {asked}')
+from .wrong_kind import WrongItemKindError
 
 
 class DatabaseItemContext:
@@ -174,7 +165,7 @@ class DatabaseItemContext:
         return self._skill().link_target
 
     def frontmatter(self) -> FrontmatterNode:
-        """The item's frontmatter block, from the `item_frontmatter` query."""
+        """The skill's frontmatter block, from the `item_frontmatter` query."""
         return self._database.item_frontmatter(self._source)
 
     def skill_fields(self) -> SkillFields:
@@ -185,26 +176,6 @@ class DatabaseItemContext:
         """
         self._skill()
         return self._database.item_skill_fields(self._source)
-
-    def frontmatter_owner(self) -> DocumentFrontmatterOwner | SkillFrontmatterOwner:
-        """The item, with the name its frontmatter `name` must equal and the facts the rules read of its origin.
-
-        Raises:
-            WrongItemKindError: If the item is a document no specification governs, or whose corpus states no
-                structure specification.
-        """
-        origin = self._source.descriptor.origin
-        match origin:
-            case SkillEntryOrigin():
-                return SkillFrontmatterOwner(directory_name=self.directory_name(), link_target=self.link_target())
-            case DocumentOrigin():
-                # A schema governs a document only through its corpus's structure specification, which a namespace's
-                # schema merely narrows; so that specification states every rule over the block.
-                return DocumentFrontmatterOwner(filename=self.filename(), spec=self.corpus_structure().path)
-            case SkillResourceOrigin() | SpecificationOrigin():
-                raise WrongItemKindError(self._source.ref, 'a document or a skill entry')
-            case _:
-                assert_never(origin)
 
     def parse(self) -> ParsedDocument:
         """The item's parse tree, from the `item_parse` query."""

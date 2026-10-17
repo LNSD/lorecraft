@@ -244,14 +244,6 @@ class FakeDocumentContext:
         base = self._corpus.document_base(self.filename())
         return None if base is None else str(base.filename)
 
-    def frontmatter(self) -> FrontmatterNode:
-        """The document's frontmatter block, as the real parser reads it."""
-        return parse_frontmatter(self._text)
-
-    def frontmatter_owner(self) -> DocumentFrontmatterOwner:
-        """The document, with its filename and its corpus's structure file."""
-        return DocumentFrontmatterOwner(filename=self.filename(), spec=self._corpus_structure.path)
-
     def parse(self) -> ParsedDocument:
         """The document's parse tree, as the real parser reads it."""
         return parse_document(self._text)
@@ -288,7 +280,9 @@ class FakeDocumentContext:
                 self.link_base(),
                 str(self.filename()),
                 count_lines(self._text),
-                problems=locate_schema_problems(parse_frontmatter(self._text), self._governance.frontmatter_schemas()),
+                parse_frontmatter(self._text),
+                locate_schema_problems(parse_frontmatter(self._text), self._governance.frontmatter_schemas()),
+                DocumentFrontmatterOwner(filename=self.filename(), spec=self._corpus_structure.path),
             )
         )
 
@@ -334,10 +328,6 @@ class FakeSkillContext:
         """The fields that parse, as the real analysis finds them."""
         return parse_skill_fields(self.frontmatter())
 
-    def frontmatter_owner(self) -> SkillFrontmatterOwner:
-        """The skill, with its directory name and where a link there leads."""
-        return SkillFrontmatterOwner(directory_name=self._directory_name, link_target=self._link_target)
-
     def parse(self) -> ParsedDocument:
         """The parse tree of the `SKILL.md`, as the real parser reads it."""
         return parse_document(self._text)
@@ -354,7 +344,11 @@ class FakeSkillContext:
         """The answer of a declared query over the skill, as the real database finds it."""
         return query(
             StructurePrimitives(
-                (), line_total=count_lines(self._text), problems=locate_skill_schema_problems(self.frontmatter())
+                (),
+                line_total=count_lines(self._text),
+                frontmatter_node=self.frontmatter(),
+                problems=locate_skill_schema_problems(self.frontmatter()),
+                owner=SkillFrontmatterOwner(directory_name=self._directory_name, link_target=self._link_target),
             )
         )
 

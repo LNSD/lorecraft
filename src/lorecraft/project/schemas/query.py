@@ -13,8 +13,17 @@ from typing import Protocol
 from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.num import UnsignedInt
 from lorecraft.project.link_target import LinkBase, LinkTargetEntry
-from lorecraft.project.syntax import Heading, LineCount, Link, NormalisedLinkPath, TokenCount
+from lorecraft.project.syntax import (
+    FrontmatterNode,
+    Heading,
+    LineCount,
+    Link,
+    MissingFrontmatter,
+    NormalisedLinkPath,
+    TokenCount,
+)
 
+from .frontmatter_owner import FrontmatterOwner
 from .schema_problems import SchemaProblems
 from .structure import StructureSpec
 
@@ -56,11 +65,22 @@ class Primitives(Protocol):
         """The stem of a document or meta specification; `None` for any other item."""
         ...
 
+    def frontmatter(self) -> FrontmatterNode:
+        """The item's frontmatter block as parsed: missing, not YAML, not a mapping, or the mapping."""
+        ...
+
     def schema_problems(self) -> tuple[SchemaProblems, ...]:
         """What each frontmatter schema that governs the item rejects in its frontmatter, each problem on its line.
 
         One entry per schema, in the order the schemas apply; none when no schema governs the item, or when its block
         is missing, not YAML or not a mapping, which no schema can hold.
+        """
+        ...
+
+    def frontmatter_owner(self) -> FrontmatterOwner:
+        """The document or the skill the block opens, with the name its frontmatter must carry.
+
+        Only a document whose corpus states a structure specification, or a skill entry, has one.
         """
         ...
 
@@ -82,7 +102,9 @@ class StructurePrimitives:
         base: Where the item's relative links are read from.
         name: The filename stem of the document.
         line_total: The lines in the item's whole file.
+        frontmatter_node: The item's frontmatter block as parsed.
         problems: What each frontmatter schema that governs the item rejects, in the order the schemas apply.
+        owner: Whose frontmatter block it is, when the item has an owner.
     """
 
     specs: tuple[StructureSpec, ...]
@@ -93,7 +115,9 @@ class StructurePrimitives:
     base: LinkBase | None = None
     name: str | None = None
     line_total: LineCount = LineCount(UnsignedInt(0))
+    frontmatter_node: FrontmatterNode = MissingFrontmatter()
     problems: tuple[SchemaProblems, ...] = ()
+    owner: FrontmatterOwner | None = None
 
     def structure_specs(self) -> tuple[StructureSpec, ...]:
         """The specifications this was built with."""
@@ -127,9 +151,18 @@ class StructurePrimitives:
         """The count this was built with."""
         return self.line_total
 
+    def frontmatter(self) -> FrontmatterNode:
+        """The block this was built with."""
+        return self.frontmatter_node
+
     def schema_problems(self) -> tuple[SchemaProblems, ...]:
         """The problems this was built with."""
         return self.problems
+
+    def frontmatter_owner(self) -> FrontmatterOwner:
+        """The owner this was built with; a query that asks for one is run over primitives that hold it."""
+        assert self.owner is not None, 'the primitives were built without an owner'
+        return self.owner
 
     def query[T](self, query: Query[T]) -> T:
         """The answer of the query over these same primitives."""

@@ -4,7 +4,6 @@ from dataclasses import dataclass, field
 from typing import ClassVar, Self, assert_never
 
 from lorecraft.core.path import ROOT, RootRelativePath
-from lorecraft.project.context import FrontmatterContext
 from lorecraft.project.layout import DOCUMENT_SUFFIX
 from lorecraft.project.schemas import (
     DocumentFrontmatterOwner,
@@ -12,6 +11,7 @@ from lorecraft.project.schemas import (
     FrontmatterOwner,
     InvalidSkillNameFormatError,
     OverlongSkillNameError,
+    Query,
     SkillFrontmatterOwner,
     SkillName,
     field_line,
@@ -20,14 +20,14 @@ from lorecraft.project.syntax import Frontmatter, InvalidYamlFrontmatter, Missin
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Here, Label, Note, Subdiagnostic
-from lorecraft.rules.subject import FrontmatterRule
+from lorecraft.rules.subject import QueriedFrontmatterRule
 
-from .__ruleset__ import GROUP_ID, owner_spec
+from .__ruleset__ import GROUP_ID, FrontmatterFacts, frontmatter_facts, owner_spec
 
 
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
-class NameMismatch(FrontmatterRule):
+class NameMismatch(QueriedFrontmatterRule[FrontmatterFacts]):
     """A frontmatter `name` differs from the name its document or skill is found under.
 
     ## What it does
@@ -147,15 +147,20 @@ class NameMismatch(FrontmatterRule):
                 assert_never(owner)
 
     @classmethod
-    def check(cls, subject: FrontmatterContext) -> tuple[Self, ...]:
+    def query(cls) -> Query[FrontmatterFacts]:
+        """The frontmatter block and whose it is."""
+        return frontmatter_facts
+
+    @classmethod
+    def judge(cls, facts: FrontmatterFacts, /) -> tuple[Self, ...]:
         """The one occurrence, on the `name` line, when a string `name` differs from the expected name.
 
         A `name` written more than once holds its last value, so it is reported on the last line it is written on.
 
         Args:
-            subject: The document or the skill whose frontmatter is judged.
+            facts: The block the subject opens with, and whose it is.
         """
-        frontmatter = subject.frontmatter()
+        frontmatter = facts.frontmatter
         match frontmatter:
             case Frontmatter():
                 pass  # the `name` is compared below
@@ -169,7 +174,7 @@ class NameMismatch(FrontmatterRule):
         if not isinstance(name, str):
             return ()
 
-        owner = subject.frontmatter_owner()
+        owner = facts.owner
         if name == _expected_name(owner):
             return ()
         return (cls(owner=owner, line=field_line(frontmatter, 'name'), name=name),)

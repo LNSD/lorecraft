@@ -140,7 +140,7 @@ from typing import Self, cast
 
 from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.num import UnsignedInt
-from lorecraft.core.path import RootRelativePath
+from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.project.aspect import AspectFilename, EmptyAspectNameError, InvalidAspectNameCharacterError
 from lorecraft.project.corpus import (
     CorpusName,
@@ -169,9 +169,12 @@ from lorecraft.project.link_target import (
     linked_files_of,
 )
 from lorecraft.project.schemas import (
+    DocumentFrontmatterOwner,
+    FrontmatterOwner,
     Query,
     SchemaProblems,
     SkillFields,
+    SkillFrontmatterOwner,
     StructureSpec,
     locate_schema_problems,
     locate_skill_schema_problems,
@@ -191,6 +194,7 @@ from lorecraft.project.syntax import (
     Heading,
     LineCount,
     Link,
+    MissingFrontmatter,
     NormalisedLinkPath,
     ParsedDocument,
     TokenCount,
@@ -213,6 +217,7 @@ from lorecraft.vfs import (
 )
 
 from .text import ItemText, Undecodable
+from .wrong_kind import WrongItemKindError
 
 logger = logging.getLogger(__name__)
 
@@ -286,6 +291,12 @@ class _ReadPrimitives:
         source = self._database.item_text(self._ref)
         return self._database.item_line_count(source) if isinstance(source, ItemText) else LineCount(UnsignedInt(0))
 
+    def frontmatter(self) -> FrontmatterNode:
+        """The item's frontmatter block; missing for an item that is not UTF-8."""
+        self.read |= {'frontmatter'}
+        source = self._database.item_text(self._ref)
+        return self._database.item_frontmatter(source) if isinstance(source, ItemText) else MissingFrontmatter()
+
     def schema_problems(self) -> tuple[SchemaProblems, ...]:
         """What each schema that governs the item rejects in its frontmatter; none for an item that is not UTF-8."""
         self.read |= {'schema_problems'}
@@ -299,6 +310,35 @@ class _ReadPrimitives:
                 return self._database.item_schema_problems(source)
             case _:
                 return ()
+
+    def frontmatter_owner(self) -> FrontmatterOwner:
+        """The document or the skill entry whose frontmatter block the item opens.
+
+        Raises:
+            WrongItemKindError: If the item is not a document whose corpus states a structure specification, or a
+                skill entry.
+        """
+        self.read |= {'frontmatter_owner'}
+        source = self._database.item_text(self._ref)
+        assert isinstance(source, ItemText), 'a query over the owner runs over decoded text'
+        origin = source.descriptor.origin
+        match origin:
+            case SkillEntryOrigin():
+                return SkillFrontmatterOwner(
+                    directory_name=PathComponent.parse(origin.expected_name), link_target=origin.link_target
+                )
+            case DocumentOrigin():
+                # A schema governs a document only through its corpus's structure specification, which a namespace's
+                # schema merely narrows; so that specification states every rule over the block.
+                governance = self._database.item_governance(self._ref)
+                structure = governance.corpus_structure() if governance is not None else None
+                if structure is None:
+                    raise WrongItemKindError(self._ref, 'a document whose corpus states a structure specification')
+                return DocumentFrontmatterOwner(
+                    filename=AspectFilename.parse(origin.expected_name), spec=structure.path
+                )
+            case _:
+                raise WrongItemKindError(self._ref, 'a document or a skill entry')
 
     def query[T](self, query: Query[T]) -> T:
         """The memoized answer of another query over the item; what it read counts as this query's reads."""
