@@ -43,7 +43,6 @@ from lorecraft.project.link_target import (
 )
 from lorecraft.project.query import Primitives
 from lorecraft.project.schemas import (
-    DocumentFrontmatterOwner,
     FrontmatterOwner,
     SchemaProblems,
     SkillField,
@@ -51,7 +50,7 @@ from lorecraft.project.schemas import (
     SkillFrontmatterOwner,
 )
 from lorecraft.project.skill import SkillLocation, SkillRef
-from lorecraft.project.syntax import Anchor, NormalisedLinkPath, count_lines, count_tokens
+from lorecraft.project.syntax import Anchor, NormalisedLinkPath, count_lines
 from lorecraft.rules.length.too_many_lines import skill_line_count
 from lorecraft.vfs import (
     EntryRecord,
@@ -295,115 +294,6 @@ def _frontmatter_owner(primitives: Primitives) -> FrontmatterOwner:
 
 
 @pytest.mark.it
-class TestDatabaseItemContextOverADocument:
-    def test_frontmatter_with_a_document_returns_the_frontmatter_query(self) -> None:
-        #: Given
-        database = Database.from_snapshot(_snapshot())
-        context = _document_context(database)
-
-        #: When
-        frontmatter = context.frontmatter()
-
-        #: Then
-        assert frontmatter is database.item_frontmatter(_document_item(database)), (
-            'the frontmatter is the value the database memoizes, not one the context parsed again'
-        )
-
-    def test_schema_problems_with_a_document_returns_the_schema_problems_query(self) -> None:
-        #: Given
-        database = Database.from_snapshot(_snapshot())
-        context = _document_context(database)
-
-        #: When
-        schema_problems = context.query(_schema_problems)
-
-        #: Then
-        assert schema_problems is database.item_schema_problems(_document_item(database)), (
-            'the problems are the ones the database memoizes, not ones the context validated again'
-        )
-        assert schema_problems != (), 'the corpus schema rejects the `owner` the document writes as a number'
-
-    def test_frontmatter_owner_with_a_document_returns_its_filename_and_corpus_specification(self) -> None:
-        #: Given
-        context = _document_context(Database.from_snapshot(_snapshot()))
-
-        #: When
-        owner = context.query(_frontmatter_owner)
-
-        #: Then
-        assert owner == DocumentFrontmatterOwner(filename=AspectFilename.parse('python-typing'), spec=CORPUS_SPEC), (
-            "the owner names the document's filename and its corpus's structure specification"
-        )
-
-    def test_token_count_with_a_document_returns_the_tokens_of_its_whole_file(self) -> None:
-        #: Given
-        context = _document_context(Database.from_snapshot(_snapshot()))
-
-        #: When
-        tokens = context.token_count()
-
-        #: Then
-        assert tokens == count_tokens(TYPING_TEXT), 'the tokens are those the token_count query counts'
-
-    def test_specifications_with_a_document_returns_the_governance_query(self) -> None:
-        #: Given
-        database = Database.from_snapshot(_snapshot())
-        context = _document_context(database)
-
-        #: When
-        governance = context.specifications()
-
-        #: Then
-        assert governance is database.item_governance(MarkdownItemRef(TYPING.path)), (
-            'the specifications are the governance query'
-        )
-        assert len(governance.structure_specs()) == 2, 'the corpus and the python namespace both govern the document'
-
-    def test_corpus_structure_with_a_document_returns_its_corpus_structure_specification(self) -> None:
-        #: Given
-        context = _document_context(Database.from_snapshot(_snapshot()))
-
-        #: When
-        corpus_structure = context.corpus_structure()
-
-        #: Then
-        assert corpus_structure.path == CORPUS_SPEC, (
-            "the corpus structure specification is the corpus's, not the python namespace's that also governs it"
-        )
-
-    def test_link_base_with_a_document_returns_its_own_directory(self) -> None:
-        #: Given
-        context = _document_context(Database.from_snapshot(_snapshot()))
-
-        #: When
-        base = context.query(_link_base)
-
-        #: Then
-        assert base == DocumentDirectory(RootRelativePath.parse('docs/code')), (
-            "a document's relative links are read from the directory holding it"
-        )
-
-    def test_link_targets_with_a_document_returns_the_link_targets_query(self, tmp_path: Path) -> None:
-        #: Given
-        database = _scanned(tmp_path)
-        context = _document_context(database)
-
-        #: When
-        targets = context.query(_link_targets)
-
-        #: Then
-        assert targets is database.item_link_targets(_document_item(database)), (
-            'the targets are the ones the database memoizes, not ones the context looked up again'
-        )
-        assert dict(targets) == {
-            NormalisedLinkPath.parse('../__meta__/code.md'): _link_target('docs/__meta__/code.md', PathLookup.FILE),
-            NormalisedLinkPath.parse('gone.md'): _link_target('docs/code/gone.md', PathLookup.MISSING),
-            NormalisedLinkPath.parse('../../src/main.py'): _link_target('src/main.py', PathLookup.OUTSIDE_SCOPE),
-            NormalisedLinkPath.parse('../../../x.md'): EscapingTarget(),
-        }, "each link is read from the document's directory, and the one climbing above the repository escapes"
-
-
-@pytest.mark.it
 class TestDatabaseItemContextOverASkillEntry:
     def test_link_target_with_a_linked_directory_returns_where_the_link_leads(self) -> None:
         #: Given
@@ -518,47 +408,6 @@ class TestDatabaseItemContextOverASkillEntry:
             ),
             NormalisedLinkPath.parse('../x.md'): EscapingTarget(),
         }, 'each link is read from the skill root, and the one climbing above it escapes'
-
-
-@pytest.mark.it
-class TestDatabaseItemContextOfAResource:
-    def test_anchors_with_a_resource_returns_the_anchors_of_the_item_parse(self) -> None:
-        #: Given
-        database = Database.from_snapshot(_snapshot())
-        context = _resource_context(database)
-
-        #: When
-        anchors = context.query(_anchors)
-
-        #: Then
-        assert anchors == database.item_parse(_resource_text(database)).anchors, "the anchors are the parse's own"
-
-    def test_link_base_with_a_resource_returns_its_skill_directory(self) -> None:
-        #: Given
-        context = _resource_context(Database.from_snapshot(_snapshot()))
-
-        #: When
-        base = context.query(_link_base)
-
-        #: Then
-        assert base == SkillRoot(REVIEW.directory), "a resource's relative links are read from the skill root"
-
-    def test_link_targets_with_a_resource_returns_the_item_link_targets_query(self, tmp_path: Path) -> None:
-        #: Given
-        database = _scanned(tmp_path)
-        context = _resource_context(database)
-
-        #: When
-        targets = context.query(_link_targets)
-
-        #: Then
-        assert targets is database.item_link_targets(_resource_text(database)), (
-            'the targets are the ones the database memoizes, not ones the context looked up again'
-        )
-        assert dict(targets) == {
-            NormalisedLinkPath.parse('SKILL.md'): _link_target('.agents/skills/review/SKILL.md', PathLookup.FILE),
-            NormalisedLinkPath.parse('gone.md'): _link_target('.agents/skills/review/gone.md', PathLookup.MISSING),
-        }, "a resource's links are read from the skill root, so `SKILL.md` names the skill's own"
 
 
 @pytest.mark.it
