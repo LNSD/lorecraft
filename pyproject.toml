@@ -320,22 +320,12 @@ forbidden_modules = ["ruamel"]
 ignore_imports = ["lorecraft.yaml.** -> ruamel"]
 
 # `lorecraft.yaml.basic_yaml` is the grammar the library is bent to, whose names carry the library's types. The other
-# packages read the package's values, problems and tree through its other modules, and never that grammar.
+# packages read the package's values, problems and tree through its other modules, and never that grammar. The sources
+# are every child of `lorecraft`, so a new package is held to it without this contract being edited; the contract skips
+# the one source that contains the grammar, `lorecraft.yaml`, whose own modules read it freely.
 [[tool.importlinter.contracts]]
 name = "The YAML grammar is read inside its package"
 type = "forbidden"
-source_modules = [
-    "lorecraft.cli",
-    "lorecraft.engine",
-    "lorecraft.rules",
-    "lorecraft.project",
-    "lorecraft.agents",
-    "lorecraft.vfs",
-    "lorecraft.jsonschema",
-    "lorecraft.markdown",
-    "lorecraft.core",
-    "lorecraft.metadata",
-    "lorecraft.__main__",
-]
+source_modules = ["lorecraft.*"]
 forbidden_modules = ["lorecraft.yaml.basic_yaml"]
 allow_indirect_imports = true
