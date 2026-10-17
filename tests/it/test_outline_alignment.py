@@ -11,7 +11,7 @@ from typing import Final
 
 import pytest
 
-import lorecraft.project.database.database as database_module
+import lorecraft.project.schemas.outline_queries as outline_queries_module
 from lib.tree import from_tree
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectFilename
@@ -26,6 +26,7 @@ from lorecraft.project.schemas import (
     StructureSpec,
     UnalignedSection,
     align_outlines,
+    outline_alignment,
 )
 from lorecraft.project.schemas.outline_alignment import AlignedSection
 from lorecraft.project.syntax import Heading, ParsedDocument
@@ -164,7 +165,7 @@ class TestOutlineAlignment:
         source = _document_text(database, TYPING)
 
         #: When
-        alignment = database.item_outline_alignment(source)
+        alignment = database.query(outline_alignment, source.ref)
 
         #: Then
         assert len(alignment) == 1, 'the one governing specification is aligned'
@@ -181,10 +182,10 @@ class TestOutlineAlignment:
         outline = b'{"outline": [{"section": "Rule"}, {"any": true}, {"section": "Checklist"}]}'
         database = ParsingDatabase.from_snapshot(_snapshot(outline, None, RULE_ASIDE_CHECKLIST))
         source = _document_text(database, TYPING)
-        first = database.item_outline_alignment(source)
+        first = database.query(outline_alignment, source.ref)
 
         #: When
-        second = database.item_outline_alignment(source)
+        second = database.query(outline_alignment, source.ref)
 
         #: Then
         assert second is first, 'the sections are aligned once per database, then shared by every rule'
@@ -198,7 +199,7 @@ class TestOutlineAlignment:
         source = _document_text(database, TYPING)
 
         #: When
-        alignment = database.item_outline_alignment(source)
+        alignment = database.query(outline_alignment, source.ref)
 
         #: Then
         assert len(alignment) == 2, 'both specifications are aligned'
@@ -219,7 +220,7 @@ class TestOutlineAlignment:
         source = _document_text(database, TYPING)
 
         #: When
-        alignment = database.item_outline_alignment(source)
+        alignment = database.query(outline_alignment, source.ref)
 
         #: Then
         assert alignment == (), 'no structure specification governs the document, so nothing is aligned'
@@ -240,7 +241,7 @@ class TestOutlineAlignment:
         source = _document_text(database, DocumentRef(CorpusName.parse('blog'), AspectFilename.parse('launch')))
 
         #: When
-        alignment = database.item_outline_alignment(source)
+        alignment = database.query(outline_alignment, source.ref)
 
         #: Then
         assert alignment == (), 'no specification governs a document in no corpus the model holds'
@@ -253,8 +254,8 @@ class TestOutlineAlignment:
         database = Database.from_snapshot(_snapshot(outline, None, RULE_ASIDE_CHECKLIST))
         source = _document_text(database, TYPING)
         aligned: list[int] = []
-        monkeypatch.setattr(database_module, 'align_outlines', _counting(aligned))
-        database.item_outline_alignment(source)
+        monkeypatch.setattr(outline_queries_module, 'align_outlines', _counting(aligned))
+        database.query(outline_alignment, source.ref)
 
         #: When
         database.item_outline_divergences(source)
@@ -270,11 +271,25 @@ class TestOutlineAlignment:
         database = Database.from_snapshot(_snapshot(outline, None, RULE_ASIDE_CHECKLIST))
         source = _document_text(database, TYPING)
         aligned: list[int] = []
-        monkeypatch.setattr(database_module, 'align_outlines', _counting(aligned))
+        monkeypatch.setattr(outline_queries_module, 'align_outlines', _counting(aligned))
         database.item_outline_divergences(source)
 
         #: When
-        database.item_outline_alignment(source)
+        database.query(outline_alignment, source.ref)
 
         #: Then
         assert aligned == [1], 'the divergences ask for the alignment, which the later query then finds held'
+
+    def test_outline_alignment_query_reads_only_the_specifications_and_the_headings(self) -> None:
+        #: Given
+        outline = b'{"outline": [{"section": "Rule"}, {"any": true}, {"section": "Checklist"}]}'
+        database = Database.from_snapshot(_snapshot(outline, None, RULE_ASIDE_CHECKLIST))
+
+        #: When
+        database.query(outline_alignment, MarkdownItemRef(TYPING.path))
+
+        #: Then
+        assert database.query_reads(outline_alignment, MarkdownItemRef(TYPING.path)) == {
+            'structure_specs',
+            'headings',
+        }, 'the carry-over is derived from what the query read'

@@ -3,19 +3,19 @@
 from dataclasses import dataclass
 from typing import ClassVar, Self
 
-from lorecraft.project.context import DocumentContext
+from lorecraft.project.schemas import Query, TitleFacts, title_facts
 from lorecraft.project.syntax import FIRST_LINE
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Subdiagnostic
-from lorecraft.rules.subject import DocumentRule, Facet
+from lorecraft.rules.subject import Facet, QueriedDocumentRule
 
 from .__ruleset__ import GROUP_ID
 
 
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
-class MissingTitle(DocumentRule):
+class MissingTitle(QueriedDocumentRule[TitleFacts]):
     """A document a structure file governs carries no H1 title.
 
     ## What it does
@@ -82,12 +82,17 @@ class MissingTitle(DocumentRule):
         return (Help('open the document with an H1 title, `# <title>`'),)
 
     @classmethod
-    def check(cls, subject: DocumentContext) -> tuple[Self, ...]:
+    def query(cls) -> Query[TitleFacts]:
+        """The title and the title checks of the document."""
+        return title_facts
+
+    @classmethod
+    def judge(cls, facts: TitleFacts, /) -> tuple[Self, ...]:
         """One occurrence, on line 1, when the document has no H1 title.
 
         Args:
-            subject: The document, governed by a structure file.
+            facts: The document's title and the title checks each governing specification states.
         """
-        if subject.title() is not None:
+        if facts.title is not None:
             return ()
         return (cls(line=FIRST_LINE),)

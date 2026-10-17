@@ -49,6 +49,7 @@ from .outline_divergence import (
     UnlistedSection,
     match_outlines,
 )
+from .outline_queries import outline_alignment
 from .query import Primitives, Query, StructurePrimitives
 from .repo import Repository, StructureSchemaReadError
 from .schema_problems import (
@@ -111,6 +112,7 @@ __all__: list[str] = [
     'find_document_title',
     'title_facts',
     'TitleFacts',
+    'outline_alignment',
     'Primitives',
     'Query',
     'StructurePrimitives',

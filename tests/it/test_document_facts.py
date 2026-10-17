@@ -64,18 +64,6 @@ def _decoded(database: Database) -> ItemText:
 
 @pytest.mark.it
 class TestDocumentFactQueries:
-    def test_item_title_called_twice_returns_the_first_answer(self, tmp_path: Path) -> None:
-        #: Given
-        database = Database.from_snapshot(_snapshot(tmp_path))
-        source = _decoded(database)
-        first = database.item_title(source)
-
-        #: When
-        second = database.item_title(source)
-
-        #: Then
-        assert second is first, 'the title is memoized'
-
     def test_item_title_facts_called_twice_returns_the_first_answer(self, tmp_path: Path) -> None:
         #: Given
         database = Database.from_snapshot(_snapshot(tmp_path))
@@ -170,17 +158,6 @@ class TestDocumentFactQueries:
 
 @pytest.mark.it
 class TestDocumentFactContext:
-    def test_title_measures_the_title_of_the_document(self, tmp_path: Path) -> None:
-        #: Given
-        context = _context(Database.from_snapshot(_snapshot(tmp_path)), GUIDE)
-
-        #: When
-        title = context.title()
-
-        #: Then
-        assert title is not None, 'the document has a title'
-        assert (title.chars.value, title.words.value) == (12, 3), 'the title is measured'
-
     def test_query_reads_only_the_primitives_the_query_names(self, tmp_path: Path) -> None:
         #: Given
         database = Database.from_snapshot(_snapshot(tmp_path))
@@ -190,14 +167,6 @@ class TestDocumentFactContext:
 
         #: Then
         assert database.query_reads(title_facts, GUIDE) == {'structure_specs', 'headings'}, 'the carry-over is derived'
-
-    def test_title_of_a_skill_entry_raises_wrong_item_kind_error(self, tmp_path: Path) -> None:
-        #: Given
-        context = _context(Database.from_snapshot(_snapshot(tmp_path)), SKILL)
-
-        #: When / Then
-        with pytest.raises(WrongItemKindError):
-            context.title()
 
 
 @pytest.mark.it

@@ -33,8 +33,6 @@ from lorecraft.project.item import (
 )
 from lorecraft.project.link_target import DocumentLink, LinkBase, LinkTargetEntry
 from lorecraft.project.schemas import (
-    DocumentTitle,
-    OutlineAlignmentSpec,
     OutlineDivergenceSpec,
     Query,
     SchemaProblems,
@@ -272,15 +270,6 @@ class DatabaseItemContext:
             raise WrongItemKindError(self._source.ref, 'a document whose corpus states a structure specification')
         return structure
 
-    def outline_alignment(self) -> tuple[OutlineAlignmentSpec, ...]:
-        """Which outline entry each of the document's sections falls in, from the `item_outline_alignment` query.
-
-        Raises:
-            WrongItemKindError: If the item is a skill entry.
-        """
-        self._document()
-        return self._database.item_outline_alignment(self._source)
-
     def outline_divergences(self) -> tuple[OutlineDivergenceSpec, ...]:
         """Where the document's sections stop matching each outline, from the `item_outline_divergences` query.
 
@@ -289,15 +278,6 @@ class DatabaseItemContext:
         """
         self._document()
         return self._database.item_outline_divergences(self._source)
-
-    def title(self) -> DocumentTitle | None:
-        """The document's title with its counts, from the `item_title` query.
-
-        Raises:
-            WrongItemKindError: If the item is a skill entry.
-        """
-        self._document()
-        return self._database.item_title(self._source)
 
     def query[T](self, query: Query[T]) -> T:
         """The answer of a declared query, from the database's memoized `query`.

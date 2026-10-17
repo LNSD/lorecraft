@@ -32,8 +32,6 @@ from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.schemas import (
-    DocumentTitle,
-    OutlineAlignmentSpec,
     OutlineDivergenceSpec,
     Query,
     SchemaProblems,
@@ -179,24 +177,12 @@ class DocumentContext(FrontmatterContext, MarkdownContext, Protocol):
         """
         ...
 
-    def outline_alignment(self) -> tuple[OutlineAlignmentSpec, ...]:
-        """Which outline entry each of the document's H2 sections falls in, for each specification that governs it.
-
-        One entry per structure specification that governs the document, in the order the specifications apply,
-        one that states no outline included: it aligns each section to nothing.
-        """
-        ...
-
     def outline_divergences(self) -> tuple[OutlineDivergenceSpec, ...]:
         """Where the document's sections first stop matching each outline that governs it.
 
         One entry per structure specification that governs the document and states an outline, in the order the
         specifications apply; none when no outline governs it.
         """
-        ...
-
-    def title(self) -> DocumentTitle | None:
-        """The document's title with its character and word counts, or `None` when it has none."""
         ...
 
     def query[T](self, query: Query[T]) -> T:
