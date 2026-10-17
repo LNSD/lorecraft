@@ -13,7 +13,7 @@ from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.location import Elsewhere, Help, Here, Label, Note
-from lorecraft.rules.tests.fake_context import FakeDocumentContext, namespace_spec, structure_spec_path
+from lorecraft.rules.tests.fake_context import FakeDocumentContext, judged, namespace_spec, structure_spec_path
 
 from ..section_too_many_words import AnyRunCap, NamedSectionCap, SectionTooManyWords
 
@@ -60,7 +60,7 @@ class TestSectionTooManyWords:
         subject = FakeDocumentContext(TEXT, corpus='guide', structure=_outline(run=None, configuration=10))
 
         #: When
-        occurrences = SectionTooManyWords.check(subject)
+        occurrences = judged(SectionTooManyWords, subject)
 
         #: Then
         assert occurrences == (
@@ -78,7 +78,7 @@ class TestSectionTooManyWords:
         subject = FakeDocumentContext(TEXT, corpus='guide', structure=_outline(run=None, configuration=12))
 
         #: When
-        occurrences = SectionTooManyWords.check(subject)
+        occurrences = judged(SectionTooManyWords, subject)
 
         #: Then
         assert occurrences == (), 'the cap is the most words allowed, so a section at its cap fits it'
@@ -88,7 +88,7 @@ class TestSectionTooManyWords:
         subject = FakeDocumentContext(TEXT, corpus='guide', structure=_outline(run=None, configuration=None))
 
         #: When
-        occurrences = SectionTooManyWords.check(subject)
+        occurrences = judged(SectionTooManyWords, subject)
 
         #: Then
         assert occurrences == (), 'a section no cap applies to may hold any number of words'
@@ -98,7 +98,7 @@ class TestSectionTooManyWords:
         subject = FakeDocumentContext(TEXT, corpus='guide', structure=_outline(run=5, configuration=10))
 
         #: When
-        occurrences = SectionTooManyWords.check(subject)
+        occurrences = judged(SectionTooManyWords, subject)
 
         #: Then
         assert occurrences == (
@@ -140,7 +140,7 @@ class TestSectionTooManyWords:
         subject = FakeDocumentContext(text, corpus='guide', structure=outline)
 
         #: When
-        occurrences = SectionTooManyWords.check(subject)
+        occurrences = judged(SectionTooManyWords, subject)
 
         #: Then
         assert occurrences == (
@@ -168,7 +168,7 @@ class TestSectionTooManyWords:
         subject = FakeDocumentContext(text, corpus='guide', structure=outline)
 
         #: When
-        occurrences = SectionTooManyWords.check(subject)
+        occurrences = judged(SectionTooManyWords, subject)
 
         #: Then
         assert occurrences == (), 'a section after `Middle` falls in the second run, capped at 5 words, not 1'
@@ -183,7 +183,7 @@ class TestSectionTooManyWords:
         )
 
         #: When
-        occurrences = SectionTooManyWords.check(subject)
+        occurrences = judged(SectionTooManyWords, subject)
 
         #: Then
         assert occurrences == (
@@ -206,7 +206,7 @@ class TestSectionTooManyWords:
         )
 
         #: When
-        occurrences = SectionTooManyWords.check(subject)
+        occurrences = judged(SectionTooManyWords, subject)
 
         #: Then
         assert occurrences == (

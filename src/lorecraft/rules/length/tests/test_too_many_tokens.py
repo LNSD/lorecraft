@@ -13,7 +13,7 @@ from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.syntax import LineNumber, count_tokens
 from lorecraft.rules.location import Elsewhere, Help, Here, Label, Note
-from lorecraft.rules.tests.fake_context import FakeDocumentContext, namespace_spec, structure_spec_path
+from lorecraft.rules.tests.fake_context import FakeDocumentContext, judged, namespace_spec, structure_spec_path
 
 from ..too_many_tokens import TooManyTokens
 
@@ -49,7 +49,7 @@ class TestTooManyTokens:
         subject = FakeDocumentContext(TEXT, corpus='code', structure=_budget(TOKENS - 1))
 
         #: When
-        occurrences = TooManyTokens.check(subject)
+        occurrences = judged(TooManyTokens, subject)
 
         #: Then
         assert occurrences == (
@@ -63,7 +63,7 @@ class TestTooManyTokens:
         subject = FakeDocumentContext(TEXT, corpus='code', structure=_budget(TOKENS))
 
         #: When
-        occurrences = TooManyTokens.check(subject)
+        occurrences = judged(TooManyTokens, subject)
 
         #: Then
         assert occurrences == (), 'the budget is the most tokens allowed, so a document at the budget fits it'
@@ -78,7 +78,7 @@ class TestTooManyTokens:
         )
 
         #: When
-        occurrences = TooManyTokens.check(subject)
+        occurrences = judged(TooManyTokens, subject)
 
         #: Then
         assert occurrences == (
@@ -97,7 +97,7 @@ class TestTooManyTokens:
         )
 
         #: When
-        occurrences = TooManyTokens.check(subject)
+        occurrences = judged(TooManyTokens, subject)
 
         #: Then
         assert occurrences == (
@@ -114,7 +114,7 @@ class TestTooManyTokens:
         subject = FakeDocumentContext(TEXT, corpus='code', structure=NO_BUDGET)
 
         #: When
-        occurrences = TooManyTokens.check(subject)
+        occurrences = judged(TooManyTokens, subject)
 
         #: Then
         assert occurrences == (), 'a document no specification sets a budget for is held to none'
@@ -129,7 +129,7 @@ class TestTooManyTokens:
         )
 
         #: When
-        occurrences = TooManyTokens.check(subject)
+        occurrences = judged(TooManyTokens, subject)
 
         #: Then
         assert occurrences == (

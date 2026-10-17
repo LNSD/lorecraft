@@ -15,7 +15,13 @@ from lorecraft.core.path import RootRelativePath
 from lorecraft.project.schemas import DocumentEnd, SectionName
 from lorecraft.project.syntax import LineNumber, SectionHeading
 from lorecraft.rules.location import Elsewhere, Help, Here, Label, Note
-from lorecraft.rules.tests.fake_context import FakeDocumentContext, namespace_spec, section_in, structure_spec_path
+from lorecraft.rules.tests.fake_context import (
+    FakeDocumentContext,
+    judged,
+    namespace_spec,
+    section_in,
+    structure_spec_path,
+)
 
 from ..missing_section import MissingSection
 
@@ -73,7 +79,7 @@ class TestMissingSection:
         subject = FakeDocumentContext(OPTIONS_ONLY, corpus='guide', structure=DESCRIBED_OUTLINE)
 
         #: When
-        occurrences = MissingSection.check(subject)
+        occurrences = judged(MissingSection, subject)
 
         #: Then
         assert occurrences == (
@@ -91,7 +97,7 @@ class TestMissingSection:
         subject = FakeDocumentContext(USAGE_ONLY, corpus='guide', structure=OUTLINE)
 
         #: When
-        occurrences = MissingSection.check(subject)
+        occurrences = judged(MissingSection, subject)
 
         #: Then
         assert occurrences == (
@@ -152,7 +158,7 @@ class TestMissingSection:
         subject = FakeDocumentContext(OUT_OF_ORDER, corpus='guide', structure=OUTLINE)
 
         #: When
-        occurrences = MissingSection.check(subject)
+        occurrences = judged(MissingSection, subject)
 
         #: Then
         assert occurrences == (), 'a section out of order is never a missing section'
@@ -162,7 +168,7 @@ class TestMissingSection:
         subject = FakeDocumentContext(FOLLOWS + '\n## Afterword\n\nThanks.\n', corpus='guide', structure=OUTLINE)
 
         #: When
-        occurrences = MissingSection.check(subject)
+        occurrences = judged(MissingSection, subject)
 
         #: Then
         assert occurrences == (), 'an unexpected section is never a missing section'
@@ -172,7 +178,7 @@ class TestMissingSection:
         subject = FakeDocumentContext(FOLLOWS, corpus='guide', structure=OUTLINE)
 
         #: When
-        occurrences = MissingSection.check(subject)
+        occurrences = judged(MissingSection, subject)
 
         #: Then
         assert occurrences == (), 'a document that matches its outline lacks no section'
@@ -187,7 +193,7 @@ class TestMissingSection:
         )
 
         #: When
-        occurrences = MissingSection.check(subject)
+        occurrences = judged(MissingSection, subject)
 
         #: Then
         assert occurrences == (

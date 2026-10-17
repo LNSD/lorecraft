@@ -15,7 +15,13 @@ from lorecraft.core.path import RootRelativePath
 from lorecraft.project.schemas import ExpectedSection, LeftOver, SectionName
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.location import Elsewhere, Help, Here, Label, Note
-from lorecraft.rules.tests.fake_context import FakeDocumentContext, namespace_spec, section_in, structure_spec_path
+from lorecraft.rules.tests.fake_context import (
+    FakeDocumentContext,
+    judged,
+    namespace_spec,
+    section_in,
+    structure_spec_path,
+)
 
 from ..section_out_of_order import SectionOutOfOrder
 
@@ -54,7 +60,7 @@ class TestSectionOutOfOrder:
         subject = FakeDocumentContext(OUT_OF_ORDER, corpus='guide', structure=OUTLINE)
 
         #: When
-        occurrences = SectionOutOfOrder.check(subject)
+        occurrences = judged(SectionOutOfOrder, subject)
 
         #: Then
         assert occurrences == (
@@ -68,7 +74,7 @@ class TestSectionOutOfOrder:
         subject = FakeDocumentContext(LEFT_OVER, corpus='guide', structure=OUTLINE)
 
         #: When
-        occurrences = SectionOutOfOrder.check(subject)
+        occurrences = judged(SectionOutOfOrder, subject)
 
         #: Then
         assert occurrences == (
@@ -82,7 +88,7 @@ class TestSectionOutOfOrder:
         subject = FakeDocumentContext('# Check\n\n## Options\n\nPass a flag.\n', corpus='guide', structure=OUTLINE)
 
         #: When
-        occurrences = SectionOutOfOrder.check(subject)
+        occurrences = judged(SectionOutOfOrder, subject)
 
         #: Then
         assert occurrences == (), 'a missing section is never a section out of order'
@@ -92,7 +98,7 @@ class TestSectionOutOfOrder:
         subject = FakeDocumentContext(FOLLOWS + '\n## Afterword\n\nThanks.\n', corpus='guide', structure=OUTLINE)
 
         #: When
-        occurrences = SectionOutOfOrder.check(subject)
+        occurrences = judged(SectionOutOfOrder, subject)
 
         #: Then
         assert occurrences == (), 'a section the outline does not name is never a section out of order'
@@ -102,7 +108,7 @@ class TestSectionOutOfOrder:
         subject = FakeDocumentContext(FOLLOWS, corpus='guide', structure=OUTLINE)
 
         #: When
-        occurrences = SectionOutOfOrder.check(subject)
+        occurrences = judged(SectionOutOfOrder, subject)
 
         #: Then
         assert occurrences == (), 'a document that matches its outline has no section out of order'
@@ -119,7 +125,7 @@ class TestSectionOutOfOrder:
         )
 
         #: When
-        occurrences = SectionOutOfOrder.check(subject)
+        occurrences = judged(SectionOutOfOrder, subject)
 
         #: Then
         assert occurrences == (
@@ -141,7 +147,7 @@ class TestSectionOutOfOrder:
         subject = FakeDocumentContext(text, corpus='guide', structure=outline)
 
         #: When
-        occurrences = SectionOutOfOrder.check(subject)
+        occurrences = judged(SectionOutOfOrder, subject)
 
         #: Then
         assert occurrences == (
