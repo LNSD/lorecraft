@@ -156,17 +156,17 @@ class SectionTooManyWords(QueriedDocumentRule[tuple[OutlineAlignmentSpec, ...]])
         return outline_alignment
 
     @classmethod
-    def judge(cls, alignments: tuple[OutlineAlignmentSpec, ...], /) -> tuple[Self, ...]:
+    def judge(cls, facts: tuple[OutlineAlignmentSpec, ...], /) -> tuple[Self, ...]:
         """One occurrence, at its heading, for each section over each cap that applies to it.
 
         The meta specs are taken in the order they apply, and the sections of each in document order. A section
         takes the cap of the outline entry it is aligned to, which may be none; one aligned to nothing has no cap.
 
         Args:
-            alignments: The answer of the rule's query.
+            facts: The answer of the rule's query.
         """
         occurrences: list[Self] = []
-        for alignment in alignments:
+        for alignment in facts:
             for aligned in alignment.sections:
                 cap_source: CapSource  # declared once, so each branch below may assign either variant
                 match aligned:

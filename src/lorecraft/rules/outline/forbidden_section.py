@@ -104,16 +104,16 @@ class ForbiddenSection(QueriedDocumentRule[tuple[OutlineAlignmentSpec, ...]]):
         return outline_alignment
 
     @classmethod
-    def judge(cls, alignments: tuple[OutlineAlignmentSpec, ...], /) -> tuple[Self, ...]:
+    def judge(cls, facts: tuple[OutlineAlignmentSpec, ...], /) -> tuple[Self, ...]:
         """One occurrence, at its heading, for each forbidden H2 section under each meta spec that forbids it.
 
         The meta specs are taken in the order they apply, and the headings of each in document order.
 
         Args:
-            alignments: The answer of the rule's query.
+            facts: The answer of the rule's query.
         """
         occurrences: list[Self] = []
-        for alignment in alignments:
+        for alignment in facts:
             for aligned in alignment.sections:
                 match aligned:
                     case NamedAlignment():
