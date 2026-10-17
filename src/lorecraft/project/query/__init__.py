@@ -7,21 +7,29 @@ revision whenever every primitive it read is kept, and a query never reads the s
 """
 
 from .primitives import (
+    CorpusDirectoryPrimitives,
+    CorpusDirectoryQuery,
     CountPrimitives,
     GovernancePrimitives,
     LinkResolutionPrimitives,
     Primitives,
     Query,
+    SymlinkPrimitives,
+    SymlinkQuery,
     SyntaxPrimitives,
 )
 from .structure_primitives import StructurePrimitives
 
 __all__: list[str] = [
+    'CorpusDirectoryPrimitives',
+    'CorpusDirectoryQuery',
     'CountPrimitives',
     'GovernancePrimitives',
     'LinkResolutionPrimitives',
     'Primitives',
     'Query',
     'StructurePrimitives',
+    'SymlinkPrimitives',
+    'SymlinkQuery',
     'SyntaxPrimitives',
 ]

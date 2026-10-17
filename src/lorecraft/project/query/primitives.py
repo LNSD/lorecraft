@@ -7,6 +7,7 @@ kind of state can name that facet. `Primitives` is the whole, composed from the 
 from collections.abc import Callable, Mapping
 from typing import Protocol
 
+from lorecraft.project.corpus import CorpusName
 from lorecraft.project.link_target import DocumentLink, LinkBase, LinkTargetEntry
 from lorecraft.project.schemas import FrontmatterOwner, SchemaProblems, SkillFields, StructureSpec
 from lorecraft.project.syntax import (
@@ -18,8 +19,11 @@ from lorecraft.project.syntax import (
     NormalisedLinkPath,
     TokenCount,
 )
+from lorecraft.vfs import RootExit
 
 type Query[T] = Callable[[Primitives], T]
+type SymlinkQuery[T] = Callable[[SymlinkPrimitives], T]
+type CorpusDirectoryQuery[T] = Callable[[CorpusDirectoryPrimitives], T]
 
 
 class SyntaxPrimitives(Protocol):
@@ -131,4 +135,20 @@ class Primitives(
 
     def query[T](self, query: Query[T]) -> T:
         """The memoized answer of another query over the same item, whose reads count as the asking query's own."""
+        ...
+
+
+class SymlinkPrimitives(Protocol):
+    """The model state of one symlink of the skill layout whose chain leaves the repository."""
+
+    def leaves_at(self) -> RootExit:
+        """The link the symlink's chain leaves the repository through, and its target, as the scan recorded it."""
+        ...
+
+
+class CorpusDirectoryPrimitives(Protocol):
+    """The model state of one directory under `docs/` that takes a reserved corpus's name."""
+
+    def reserved_corpus(self) -> CorpusName:
+        """The reserved corpus whose name the directory takes."""
         ...

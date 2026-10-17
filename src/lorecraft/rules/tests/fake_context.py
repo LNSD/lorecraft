@@ -28,7 +28,7 @@ from lorecraft.project.link_target import (
     LinkTargetEntry,
     SkillRoot,
 )
-from lorecraft.project.query import Query, StructurePrimitives
+from lorecraft.project.query import CorpusDirectoryQuery, Query, StructurePrimitives, SymlinkQuery
 from lorecraft.project.schemas import (
     CorpusSpecName,
     DocumentFrontmatterOwner,
@@ -433,6 +433,10 @@ class FakeSymlinkContext:
         """Where the chain leaves the repository, as the test stated it."""
         return self._leaves_at
 
+    def query[T](self, query: SymlinkQuery[T]) -> T:
+        """The answer of a declared query over the symlink, read through this fake's primitives."""
+        return query(self)
+
 
 class FakeCorpusDirectoryContext:
     """A directory under `docs/` that takes a reserved corpus's name, as the test states; a `CorpusDirectoryContext`."""
@@ -452,6 +456,10 @@ class FakeCorpusDirectoryContext:
     def reserved_corpus(self) -> CorpusName:
         """The reserved corpus the directory takes, as the test stated it."""
         return self._corpus
+
+    def query[T](self, query: CorpusDirectoryQuery[T]) -> T:
+        """The answer of a declared query over the directory, read through this fake's primitives."""
+        return query(self)
 
 
 def judged[R: ItemRule](rule: type[R], context: MarkdownContext) -> tuple[R, ...]:

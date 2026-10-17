@@ -3,18 +3,30 @@
 from dataclasses import dataclass
 from typing import ClassVar, Self
 
-from lorecraft.project.context import CorpusDirectoryContext
+from lorecraft.project.corpus import CorpusName
+from lorecraft.project.query import CorpusDirectoryPrimitives, CorpusDirectoryQuery
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import EntryHelp, EntryNote, EntrySubdiagnostic
-from lorecraft.rules.subject import CorpusDirectoryRule
+from lorecraft.rules.subject import QueriedCorpusDirectoryRule
 
 from .__ruleset__ import GROUP_ID
 
 
+def reserved_corpus(primitives: CorpusDirectoryPrimitives) -> CorpusName:
+    """The reserved corpus whose name the directory takes.
+
+    A query: it reads the directory's reserved corpus and nothing else.
+
+    Args:
+        primitives: The model state of the directory.
+    """
+    return primitives.reserved_corpus()
+
+
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
-class ReservedCorpusOverlap(CorpusDirectoryRule):
+class ReservedCorpusOverlap(QueriedCorpusDirectoryRule[CorpusName]):
     """A directory under `docs/` has the name of a reserved corpus.
 
     ## What it does
@@ -67,10 +79,15 @@ class ReservedCorpusOverlap(CorpusDirectoryRule):
         )
 
     @classmethod
-    def check(cls, subject: CorpusDirectoryContext) -> tuple[Self, ...]:
+    def query(cls) -> CorpusDirectoryQuery[CorpusName]:
+        """The reserved corpus the directory takes."""
+        return reserved_corpus
+
+    @classmethod
+    def judge(cls, facts: CorpusName, /) -> tuple[Self, ...]:
         """The one occurrence, at the directory, naming the reserved corpus it takes.
 
         Args:
-            subject: The directory judged; the model lists only directories that take a reserved name.
+            facts: The reserved corpus whose name the directory takes; the model lists only such directories.
         """
-        return (cls(corpus=str(subject.reserved_corpus())),)
+        return (cls(corpus=str(facts)),)
