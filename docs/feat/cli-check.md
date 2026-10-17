@@ -170,8 +170,9 @@ For JSON, every path must be valid UTF-8; non-ASCII text is written directly, no
 
 - No option sets a level: every rule runs at its default, and a selection only narrows which run.
 - Warnings do not fail the run: [`FM007`](../rulebook/FM007-unknown-field.md),
-  [`LINK005`](../rulebook/LINK005-extension-link.md), [`LINK006`](../rulebook/LINK006-missing-base-link.md) or
-  [`COR001`](../rulebook/COR001-reserved-corpus-overlap.md), all of which exit 0.
+  [`LINK005`](../rulebook/LINK005-extension-link.md), [`LINK006`](../rulebook/LINK006-missing-base-link.md),
+  [`LINK007`](../rulebook/LINK007-mutual-link.md) or [`COR001`](../rulebook/COR001-reserved-corpus-overlap.md),
+  all of which exit 0. LINK007's diagnostic puts its `help` before its `note`.
   `COR001` is selectable; if its level makes it an error, the run exits 1.
 - A whole subject, such as a layout entry, shows `--> path` without an excerpt. Unreadable source appears as
   `= at path:line: text`. Excerpts are available for documents, `SKILL.md` files, skill resources and specification
@@ -189,10 +190,12 @@ For JSON, every path must be valid UTF-8; non-ASCII text is written directly, no
 | `FM` | Frontmatter checks: a document's frontmatter against its schemas, a skill's against the Agent Skills specification and Lorecraft's recommendations. `FM001` missing-frontmatter, `FM002` invalid-yaml, `FM003` non-mapping-frontmatter, `FM004` name-mismatch, `FM005` duplicate-key, `FM006` missing-field, `FM007` unknown-field (a warning), `FM008` wrong-type, `FM009` invalid-value, `FM010` invalid-frontmatter, `FM011` malformed-allowed-tools (a warning; pattern whitespace stays intact), `FM012` allowed-tools-too-long (a warning over 500 characters), `FM013` too-many-fields (`maxProperties`, an error), `FM014` too-few-fields (`minProperties`, an error) |
 | `OUT` | Outline checks: a document's H1 title and sections against its structure files. `OUT001` missing-title, `OUT002` extra-title, `OUT003` title-not-first, `OUT004` empty-section, `OUT005` forbidden-section, `OUT006` missing-section, `OUT007` section-out-of-order, `OUT008` unexpected-section, `OUT009` invalid-title |
 | `LEN` | Length limits: a document's tokens, a section's or its title's words or characters, a `SKILL.md`'s lines. `LEN001` too-many-tokens, `LEN002` too-many-lines, `LEN003` section-too-many-words, `LEN004` title-too-many-words, `LEN005` title-too-long |
-| `LINK` | Links in structured documents and skills. `LINK001` absolute, `LINK002` broken fragment, `LINK003` broken, `LINK004` escaping, `LINK005` extension-link (link to same-directory name extension; warning; also checks specs), `LINK006` missing-base-link (an extension omits its nearest existing document or specification ancestor under `References`; warning; also checks specs) |
+| `LINK` | Links in structured documents and skills. `LINK001` absolute, `LINK002` broken fragment, `LINK003` broken, `LINK004` escaping, `LINK005` extension-link (link to same-directory name extension; warning; also checks specs), `LINK006` missing-base-link (an extension omits its nearest existing document or specification ancestor under `References`; warning; also checks specs), `LINK007` mutual-link (documents in different corpora link each other; warning) |
 | `COR` | Corpus layout checks: `COR001` reserved-corpus-overlap, a directory under `docs/` has a reserved corpus name such as `skills`; warning by default. It can be selected or ignored by code or group. |
 | `LAY` | Skill layout checks: `LAY001` escaping-symlink, a symlink an agent reaches whose chain leaves the repository |
 | `LC` | Engine conditions are errors with no level; selection and configuration cannot turn them off. `LC001` invalid-utf8 reports a file that cannot be decoded, including a structure file; `LC002` unreadable-path reports a workspace path the run cannot read, list or follow; `LC003` malformed-structure-file reports a structure file that breaks the format or states no rule; `LC004` unusable-structure-file reports a well-formed structure file with rules that repeat, contradict each other or cannot be applied. |
+
+`LINK005`–`LINK007` check the reference direction stated in [spec](spec.md#references-point-to-the-base).
 
 Each reported structure-file failure appears once at that file.
 `LC001` points to the first invalid byte; `LC002`, `LC003` and `LC004` are whole-file diagnostics that give
@@ -212,7 +215,7 @@ validator's wording. `FM012` to `FM014` and the `LEN` rules label the amount pas
 
 - [cli](cli.md) - Base: the command line and the options every command shares
 - [workspace](workspace.md) - Dependency: the documents, skills and snapshot the command reads
-- [spec](spec.md) - Dependency: the meta spec files the rules read
+- [spec](spec.md#references-point-to-the-base) - Dependency: the meta spec files the rules read and their reference direction
 - [frontmatter](frontmatter.md) - Related: the values the block accepts and the `FM002` and `FM005` findings
 - [cli-inspect](cli-inspect.md) - Related: shows the subjects this command checks
 - [cli-rule](cli-rule.md) - Related: prints the page of a rule by the code a diagnostic prints

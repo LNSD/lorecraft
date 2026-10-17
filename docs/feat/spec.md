@@ -105,11 +105,10 @@ meta spec, and each diagnostic names the meta spec it breaks.
 
 ### References Point to the Base
 
-An extension names its base; a base never names its extensions, neither in its references nor inline.
-`feat-cli.md` links to `feat.md` and `spec-structure-outline.md` to `spec-structure.md`; neither base links back. For a
-meta spec this covers its JSON files too: a base's `description` names no extension, and `feat.md` does
-not point at any `feat-cli.*.json`. A base is written without knowing what extends it, so adding, renaming or
-removing an extension never edits the base, and the base carries no list of extensions to go stale.
+An extension names its base; a base names none of its extensions, in references or inline. Across corpora, the
+document that builds on another links to it, and the other does not link back. `LINK005`, `LINK006` and `LINK007`
+check these directions. For a meta spec, the rule also covers its JSON files. A base is written without knowing
+what extends it, so adding, renaming or removing an extension never edits the base or leaves a list to go stale.
 
 ## References
 
