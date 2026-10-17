@@ -20,7 +20,7 @@ use.
 Loading the model fails as a whole today. Any error on the way aborts the load: a structure file that cannot be
 read or is invalid, a corpus or a directory under `docs/` that cannot be listed, a skills directory, skill entry or
 `SKILL.md` that cannot be resolved. Because the model loads on first use, every query that reaches it, directly or
-through `governance(ref)`, can be the call that triggers the load. So every per-document query lists every one of the
+through `item_governance(ref)`, can be the call that triggers the load. So every per-document query lists every one of the
 load's errors, each "if the model is not loaded yet". A database whose model has not loaded can be represented, and
 every query has to answer for that state. In practice every command loads the model before any per-document query
 runs, so the laziness buys nothing.

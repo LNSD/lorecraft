@@ -96,9 +96,8 @@ per run            configuration (a query of the revision) ──▶ levels
 A rule reads one context, a read-only view of one decoded subject, and nothing else: never the database, a view or a
 path. Each method of a context is a memoized query of the database, or an identity value read from the subject's ref
 or location, such as a filename or the directory a skill is listed under. So a rule pulls only what it reads, and a
-fact no enabled rule reads is never computed. A document's governance is the one exception: `specifications()` and
-`corpus_structure()` hand out what the model stated when the context was built, and no per-document query records
-that dependency yet; a planned `governance(ref)` query is where it will be recorded. Three rules follow.
+fact no enabled rule reads is never computed. A document's governance is the `item_governance(ref)` query, carried
+over when the next model's governance of the ref compares equal. Three rules follow.
 
 **A query scans, a rule loops.** The cost of a run lies in the queries: the parse, and the shared analyses over it. A
 rule's own work is a loop over a short tuple a query returned, or a walk of the parse tree it alone reads. A scan
@@ -384,7 +383,7 @@ The PRD defers the IDE-like, long-lived mode. The design builds none of it and c
 
 | Deferred | What the design keeps open |
 |---|---|
-| Re-checking only what a change affects | A rule reads its context, each context method but a document's governance is one query, and a query states its carry-over rule, so the affected rules are derivable once a `governance(ref)` query records that last dependency; the long-lived mode's own entry point beside the check run's chooses what to re-check, and the shared runner does not change |
+| Re-checking only what a change affects | A rule reads its context, each context method is one query, and a query states its carry-over rule, so the affected rules are derivable, a document's governance being recorded by `item_governance(ref)`; the long-lived mode's own entry point beside the check run's chooses what to re-check, and the shared runner does not change |
 | Unsaved content | A rule reads values, never the disk |
 | Rejecting a superseded revision's results | One report reads one revision; a diagnostic names no revision-bound object; the long-lived mode's own entry point abandons a superseded revision, and the shared runner does not change |
 | Warm starts | No store is built: caching is in memory, for one revision. Query results stay persistable data, the new queries included, and the registry stays out of them, so the store of [adr-005-incremental](adr-005-incremental.md) is an addition. A cross-file query's carry-over rule names the paths it looked up; recording them waits for the store or for the next revision's carry-over |
