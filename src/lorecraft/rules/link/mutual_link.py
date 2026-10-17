@@ -4,18 +4,43 @@ from dataclasses import dataclass
 from typing import ClassVar, Self
 from urllib.parse import unquote
 
-from lorecraft.project.context import DocumentContext
+from lorecraft.project.link_target import DocumentLink
+from lorecraft.project.schemas import Primitives, Query
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Note, Subdiagnostic
-from lorecraft.rules.subject import DocumentRule, Facet
+from lorecraft.rules.subject import Facet, QueriedDocumentRule
 
 from .__ruleset__ import GROUP_ID
 
 
+@dataclass(frozen=True, slots=True)
+class MutualLinkFacts:
+    """What a rule over links between corpora reads of the document.
+
+    Attributes:
+        corpus: The corpus the document lies in; `None` when it lies in none.
+        links: The links to another document, with their corpus, filename and whether each links back.
+    """
+
+    corpus: str | None
+    links: tuple[DocumentLink, ...]
+
+
+def mutual_link_facts(primitives: Primitives) -> MutualLinkFacts:
+    """The document's corpus and its links to other documents. Raises nothing.
+
+    A query: it reads the document's corpus and its links with their back links and nothing else.
+
+    Args:
+        primitives: The model state of the document.
+    """
+    return MutualLinkFacts(corpus=primitives.document_corpus(), links=primitives.document_links())
+
+
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
-class MutualLink(DocumentRule):
+class MutualLink(QueriedDocumentRule[MutualLinkFacts]):
     """Two documents of different corpora link to each other.
 
     ## What it does
@@ -89,18 +114,21 @@ class MutualLink(DocumentRule):
         )
 
     @classmethod
-    def check(cls, subject: DocumentContext) -> tuple[Self, ...]:
+    def query(cls) -> Query[MutualLinkFacts]:
+        """The corpus of the document and its links to other documents."""
+        return mutual_link_facts
+
+    @classmethod
+    def judge(cls, facts: MutualLinkFacts, /) -> tuple[Self, ...]:
         """One occurrence for each link to a document of another corpus that links back, in document order.
 
         Args:
-            subject: The document whose links to other documents are judged.
+            facts: The corpus of the document and the links to other documents it holds.
         """
-        governance = subject.specifications()
-        if governance.ref is None:
+        if facts.corpus is None:
             return ()
-        own = str(governance.ref.corpus)
         return tuple(
             cls(line=link.line, url=link.url, corpus=link.corpus, filename=f'{link.filename}.md')
-            for link in subject.document_links()
-            if link.has_back_link and link.corpus != own
+            for link in facts.links
+            if link.has_back_link and link.corpus != facts.corpus
         )

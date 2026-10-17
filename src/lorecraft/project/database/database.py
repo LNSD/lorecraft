@@ -386,6 +386,40 @@ class _ReadPrimitives:
         origin = source.descriptor.origin if isinstance(source, ItemText) else None
         return origin.expected_name if isinstance(origin, DocumentOrigin | SpecificationOrigin) else None
 
+    def document_links(self) -> tuple[DocumentLink, ...]:
+        """The links to another document, with its corpus and filename and whether it links back, in document order.
+
+        A destination that cannot be read or decoded is logged and has no back link. None for an item that is not
+        UTF-8.
+        """
+        self.read |= {'document_links'}
+        source = self._database.item_text(self._ref)
+        if not isinstance(source, ItemText):
+            return ()
+        linked = linked_files_of(
+            self._database.item_parse(source).links,
+            self._database.item_link_targets(source),
+            source.descriptor.link_base,
+        )
+        documents: dict[RootRelativePath, tuple[str, str]] = {}
+        for link in linked:
+            destination = _document_at(MarkdownItemRef(link.path))
+            if destination is not None:
+                documents[link.path] = (str(destination.corpus), str(destination.filename))
+        back_links = {
+            path: self._database.has_link_to(MarkdownItemRef(path), self._ref.path)
+            for path in documents
+            if path != self._ref.path
+        }
+        return document_links_of(linked, self._ref.path, documents, back_links)
+
+    def document_corpus(self) -> str | None:
+        """The corpus a document lies in; `None` for any other item or one that is not UTF-8."""
+        self.read |= {'document_corpus'}
+        source = self._database.item_text(self._ref)
+        origin = source.descriptor.origin if isinstance(source, ItemText) else None
+        return origin.corpus if isinstance(origin, DocumentOrigin) else None
+
     def document_base(self) -> str | None:
         """The stem of the document or specification the item extends, from the names the model lists.
 
@@ -454,7 +488,6 @@ class Database:
         self._item_schema_problems: dict[MarkdownItemRef, tuple[SchemaProblems, ...]] = {}
         # Declared queries: the answer by the function and the item, with the primitives it read.
         self._queries: dict[tuple[Query[object], MarkdownItemRef], tuple[object, frozenset[str]]] = {}
-        self._item_document_links: dict[MarkdownItemRef, tuple[DocumentLink, ...]] = {}
         # Each skill's resource listing, found on the first call; a resource is registered from it with `resource_item`.
         self._skill_resources: dict[SkillRef, SkillResourceListing] = {}
         self._item_skill_schema_problems: dict[MarkdownItemRef, tuple[SchemaProblems, ...]] = {}
@@ -888,41 +921,7 @@ class Database:
         """
         return self._queries[(query, ref)][1] if (query, ref) in self._queries else frozenset()
 
-    def item_document_links(self, source: ItemText) -> tuple[DocumentLink, ...]:
-        """The links of one document to another document, with its corpus and filename and whether it links back.
-
-        A skill's file has none. A destination that cannot be read or decoded is logged and has no back link.
-
-        Carry-over: kept for the next revision whenever `item_parse(source)`, `item_link_targets(source)` and, for each
-        destination, `item_text` (its decode or refusal outcome) and `item_link_targets` are.
-
-        Args:
-            source: The item's text; its ref is the cache key.
-
-        Returns:
-            One entry per link to an existing document of the layout, in document order; `has_back_link` is false
-            for a destination that cannot be read or decoded, as for one that does not link back.
-        """
-        found = self._item_document_links.get(source.ref)
-        if found is None:
-            linked = linked_files_of(
-                self.item_parse(source).links, self.item_link_targets(source), source.descriptor.link_base
-            )
-            documents: dict[RootRelativePath, tuple[str, str]] = {}
-            for link in linked:
-                destination = _document_at(MarkdownItemRef(link.path))
-                if destination is not None:
-                    documents[link.path] = (str(destination.corpus), str(destination.filename))
-            back_links = {
-                path: self._has_link_to(MarkdownItemRef(path), source.ref.path)
-                for path in documents
-                if path != source.ref.path
-            }
-            found = document_links_of(linked, source.ref.path, documents, back_links)
-            self._item_document_links[source.ref] = found
-        return found
-
-    def _has_link_to(self, ref: MarkdownItemRef, path: RootRelativePath) -> bool:
+    def has_link_to(self, ref: MarkdownItemRef, path: RootRelativePath) -> bool:
         """Whether the document at a ref links to an existing file at a path; false, logged, when it cannot be read.
 
         Args:

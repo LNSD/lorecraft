@@ -33,8 +33,6 @@ from lorecraft.project.syntax import FrontmatterNode, ParsedDocument, TokenCount
 from lorecraft.project.workspace import Governance
 from lorecraft.vfs import RootExit
 
-from .link_target import DocumentLink
-
 
 class MarkdownContext(Protocol):
     """One decoded Markdown file: a document, a skill's `SKILL.md` or a skill's resource."""
@@ -85,10 +83,6 @@ class DocumentContext(FrontmatterContext, MarkdownContext, Protocol):
 
         Never absent: a document's context exists only for a document whose corpus states one.
         """
-        ...
-
-    def document_links(self) -> tuple[DocumentLink, ...]:
-        """The links to another document, with its corpus and filename and whether it links back, in document order."""
         ...
 
 

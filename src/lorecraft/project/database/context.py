@@ -26,7 +26,6 @@ from lorecraft.project.item import (
     SkillResourceOrigin,
     SpecificationOrigin,
 )
-from lorecraft.project.link_target import DocumentLink
 from lorecraft.project.schemas import (
     Query,
     StructureSpec,
@@ -135,15 +134,6 @@ class DatabaseItemContext:
     def query[T](self, query: Query[T]) -> T:
         """The answer of a declared query, from the database's memoized `query`."""
         return self._database.query(query, self._source.ref)
-
-    def document_links(self) -> tuple[DocumentLink, ...]:
-        """The links to another document, from the `item_document_links` query.
-
-        Raises:
-            WrongItemKindError: If the item is a skill entry.
-        """
-        self._document()
-        return self._database.item_document_links(self._source)
 
 
 class DatabaseSymlinkContext:
