@@ -12,7 +12,7 @@ file, so the test states it by hand too.
 """
 
 from collections.abc import Mapping
-from typing import Final, Protocol, cast
+from typing import Final, Protocol, cast, overload
 
 from lib.primitives import StructurePrimitives
 from lorecraft.core.mapping import FrozenMapping
@@ -59,7 +59,8 @@ from lorecraft.project.syntax import (
     section_headings,
 )
 from lorecraft.project.workspace import Corpus, CorpusNamespace, CorpusSpec, Governance, NamespaceSpec
-from lorecraft.rules.subject import ItemRule, Queried
+from lorecraft.rules.declaration import Rule
+from lorecraft.rules.subject import CorpusDirectoryRule, ItemRule, Queried, SymlinkRule
 from lorecraft.vfs import ResolvedPath, RootExit
 
 _DEFAULT_FILENAME: Final[str] = 'setup'
@@ -470,12 +471,26 @@ class _Queryable(Protocol):
         ...
 
 
-def judged[R: ItemRule](rule: type[R], context: _Queryable) -> tuple[R, ...]:
+@overload
+def judged[R: ItemRule](rule: type[R], database: _Queryable) -> tuple[R, ...]: ...
+
+
+@overload
+def judged[R: SymlinkRule](rule: type[R], database: FakeSymlinkContext) -> tuple[R, ...]: ...
+
+
+@overload
+def judged[R: CorpusDirectoryRule](rule: type[R], database: FakeCorpusDirectoryContext) -> tuple[R, ...]: ...
+
+
+def judged(rule: type[Rule], database: object) -> tuple[Rule, ...]:
     """Every occurrence of a queried rule over a fake context, resolved as the runner does: its query, then its facts.
+
+    One entry serves every kind of rule: over an item, a symlink or a corpus directory.
 
     Args:
         rule: The queried rule to run.
-        context: The fake context that answers the rule's query.
+        database: The fake context that answers the rule's query.
     """
-    assert issubclass(rule, Queried)
-    return cast('tuple[R, ...]', rule.judge(context.query(rule.query())))
+    queried = cast('type[Queried[object]]', rule)
+    return cast('tuple[Rule, ...]', queried.judge(cast('_Queryable', database).query(queried.query())))

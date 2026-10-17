@@ -10,7 +10,7 @@ import pytest
 
 from lorecraft.core.path import RootRelativePath
 from lorecraft.rules.location import EntryHelp, EntryNote, WholeSubject
-from lorecraft.rules.tests.fake_context import FakeSymlinkContext
+from lorecraft.rules.tests.fake_context import FakeSymlinkContext, judged
 from lorecraft.vfs import RootExit
 
 from ..escaping_symlink import EscapingSymlink
@@ -24,7 +24,7 @@ class TestEscapingSymlink:
         subject = FakeSymlinkContext(leaves_at)
 
         #: When
-        occurrences = EscapingSymlink.judge(subject.query(EscapingSymlink.query()))
+        occurrences = judged(EscapingSymlink, subject)
 
         #: Then
         assert occurrences == (EscapingSymlink(leaves_at=leaves_at),), (
@@ -38,7 +38,7 @@ class TestEscapingSymlink:
         subject = FakeSymlinkContext(leaves_at)
 
         #: When
-        occurrences = EscapingSymlink.judge(subject.query(EscapingSymlink.query()))
+        occurrences = judged(EscapingSymlink, subject)
 
         #: Then
         assert occurrences == (EscapingSymlink(leaves_at=leaves_at),), (
@@ -51,7 +51,7 @@ class TestEscapingSymlink:
         subject = FakeSymlinkContext(leaves_at)
 
         #: When
-        occurrences = EscapingSymlink.judge(subject.query(EscapingSymlink.query()))
+        occurrences = judged(EscapingSymlink, subject)
 
         #: Then
         assert occurrences == (EscapingSymlink(leaves_at=leaves_at),), (

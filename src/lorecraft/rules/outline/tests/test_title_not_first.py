@@ -176,8 +176,11 @@ class TestHeadings:
         assert found == headings_in_text, 'the query projects the headings and nothing else'
 
     def test_judge_with_no_headings_reports_nothing(self) -> None:
+        #: Given
+        subject = FakeDocumentContext('', corpus='guide', structure=STRUCTURE)
+
         #: When
-        occurrences = TitleNotFirst.judge(())
+        occurrences = judged(TitleNotFirst, subject)
 
         #: Then
         assert occurrences == (), 'a document with no heading has no title to come first'
