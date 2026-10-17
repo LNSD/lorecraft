@@ -11,10 +11,9 @@ scope: "global"
 blocking call stalls every task sharing the loop, and a needless `async def` forces every caller to become one
 too.
 
-The runtime, and the choice of `anyio` as the API every example here is spelled in, are owned by
-[python-async-rt](python-async-rt.md). Task lifetime, cancellation, and deadlines are owned by
-[python-async-tasks](python-async-tasks.md). This document is about the code
-that runs inside a task.
+The runtime, and the choice of `anyio` as the API every example here is spelled in, are owned by the runtime
+document that extends this one. Task lifetime, cancellation, and deadlines are owned by the tasks document that
+extends it. This document is about the code that runs inside a task.
 
 ## 1. A Function Is `async` Only When It Awaits
 
@@ -104,10 +103,7 @@ Before committing code, verify:
 
 ## References
 
-- [python-async-rt](python-async-rt.md) - Related: Owns the runtime, the entry point, and why the API is
-  `anyio`
-- [python-async-tasks](python-async-tasks.md) - Related: Owns task
-  lifetime, cancellation, and deadlines
+- [python-fn](python-fn.md) - Related: Owns the signature and the single job of the function a coroutine is
 
 ## External References
 

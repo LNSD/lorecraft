@@ -387,7 +387,7 @@ class TestDatabaseItemContextOverADocument:
             'the targets are the ones the database memoizes, not ones the context looked up again'
         )
         assert dict(targets) == {
-            NormalisedLinkPath.parse('../__meta__/code.md'): _link_target('docs/__meta__/code.md', PathLookup.PRESENT),
+            NormalisedLinkPath.parse('../__meta__/code.md'): _link_target('docs/__meta__/code.md', PathLookup.FILE),
             NormalisedLinkPath.parse('gone.md'): _link_target('docs/code/gone.md', PathLookup.MISSING),
             NormalisedLinkPath.parse('../../src/main.py'): _link_target('src/main.py', PathLookup.OUTSIDE_SCOPE),
             NormalisedLinkPath.parse('../../../x.md'): EscapingTarget(),
@@ -522,7 +522,7 @@ class TestDatabaseItemContextOverASkillEntry:
         )
         assert dict(targets) == {
             NormalisedLinkPath.parse('references/checklist.md'): _link_target(
-                '.agents/skills/review/references/checklist.md', PathLookup.PRESENT
+                '.agents/skills/review/references/checklist.md', PathLookup.FILE
             ),
             NormalisedLinkPath.parse('references/gone.md'): _link_target(
                 '.agents/skills/review/references/gone.md', PathLookup.MISSING
@@ -569,7 +569,7 @@ class TestDatabaseSkillResourceContext:
             'the targets are the ones the database memoizes, not ones the context looked up again'
         )
         assert dict(targets) == {
-            NormalisedLinkPath.parse('SKILL.md'): _link_target('.agents/skills/review/SKILL.md', PathLookup.PRESENT),
+            NormalisedLinkPath.parse('SKILL.md'): _link_target('.agents/skills/review/SKILL.md', PathLookup.FILE),
             NormalisedLinkPath.parse('gone.md'): _link_target('.agents/skills/review/gone.md', PathLookup.MISSING),
         }, "a resource's links are read from the skill root, so `SKILL.md` names the skill's own"
 

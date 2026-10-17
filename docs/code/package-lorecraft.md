@@ -76,4 +76,3 @@ Before committing code, verify:
 ## References
 
 - [principle-single-responsibility](principle-single-responsibility.md) - Foundation: One reason to change
-- [package-lorecraft-gen](package-lorecraft-gen.md) - Companion: The private package that imports this one and is never published

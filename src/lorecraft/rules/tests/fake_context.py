@@ -175,6 +175,7 @@ class FakeDocumentContext:
     _text: str
     _governance: Governance
     _corpus_structure: StructureSpec
+    _link_targets: Mapping[NormalisedLinkPath, LinkTargetEntry]
 
     def __init__(
         self,
@@ -184,6 +185,7 @@ class FakeDocumentContext:
         structure: str,
         namespaces: tuple[NamespaceSpec, ...] = (),
         filename: str | None = None,
+        link_targets: Mapping[NormalisedLinkPath, LinkTargetEntry] = FrozenMapping({}),
     ) -> None:
         """Hold the document's text and the meta specs that govern it.
 
@@ -196,6 +198,8 @@ class FakeDocumentContext:
                 builds them.
             filename: The document's filename, without its extension; `setup`, or `<namespace>-setup` for the
                 narrowest namespace listed, which every namespace listed then governs.
+            link_targets: What the snapshot holds at the target of each relative link, keyed by the link's
+                normalised relative path, as the database's link-target query would find it; none by default.
 
         Raises:
             ValueError: If a listed namespace does not govern the filename, or is of another corpus.
@@ -206,6 +210,7 @@ class FakeDocumentContext:
         """
         spec_name = CorpusSpecName(CorpusName.parse(corpus))
         self._text = text
+        self._link_targets = link_targets
         self._corpus_structure = _decode_structure(spec_name, structure)
         corpus_spec = CorpusSpec(name=spec_name, files=_files(spec_name), structure=self._corpus_structure)
         if filename is None:
@@ -245,8 +250,8 @@ class FakeDocumentContext:
         return DocumentDirectory(self._ref.path.parent)
 
     def link_targets(self) -> Mapping[NormalisedLinkPath, LinkTargetEntry]:
-        """None: a fake document holds no link target."""
-        return FrozenMapping({})
+        """What the snapshot holds at each link target, as the test stated it."""
+        return self._link_targets
 
     def token_count(self) -> TokenCount:
         """The tokens in the document's whole text, as the real tokenizer counts them."""

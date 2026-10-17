@@ -73,7 +73,7 @@ class TestBrokenLinkInASkill:
         #: Given
         subject = FakeSkillResourceContext(
             '# Guide\n\nSee [a](references/a.md).\n',
-            link_targets=_targets(SKILL_ROOT, 'references/a.md', PathLookup.PRESENT),
+            link_targets=_targets(SKILL_ROOT, 'references/a.md', PathLookup.FILE),
         )
 
         #: When
@@ -188,7 +188,7 @@ class TestBrokenLinkInADocument:
         #: Given
         subject = FakeDocumentMarkdownContext(
             '# Setup\n\nRun [install](install.md) first.\n',
-            link_targets=_targets(DOCUMENT_DIRECTORY, 'install.md', PathLookup.PRESENT),
+            link_targets=_targets(DOCUMENT_DIRECTORY, 'install.md', PathLookup.FILE),
         )
 
         #: When

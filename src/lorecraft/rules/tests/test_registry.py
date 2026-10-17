@@ -33,6 +33,7 @@ from lorecraft.rules.link.absolute_link import AbsoluteLink
 from lorecraft.rules.link.broken_fragment import BrokenFragment
 from lorecraft.rules.link.broken_link import BrokenLink
 from lorecraft.rules.link.escaping_link import EscapingLink
+from lorecraft.rules.link.extension_link import ExtensionLink
 from lorecraft.rules.outline.empty_section import EmptySection
 from lorecraft.rules.outline.extra_title import ExtraTitle
 from lorecraft.rules.outline.forbidden_section import ForbiddenSection
@@ -538,6 +539,7 @@ class TestPackageRegistry:
             BrokenFragment,
             BrokenLink,
             EscapingLink,
+            ExtensionLink,
             MissingTitle,
             ExtraTitle,
             TitleNotFirst,
