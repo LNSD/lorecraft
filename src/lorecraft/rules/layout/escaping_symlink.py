@@ -3,11 +3,11 @@
 from dataclasses import dataclass
 from typing import ClassVar, Self
 
-from lorecraft.project.context import LayoutContext
+from lorecraft.project.context import SymlinkContext
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import EntryHelp, EntryNote, EntrySubdiagnostic
-from lorecraft.rules.subject import LayoutEntryRule
+from lorecraft.rules.subject import SymlinkRule
 from lorecraft.vfs import RootExit
 
 from .__ruleset__ import GROUP_ID
@@ -15,7 +15,7 @@ from .__ruleset__ import GROUP_ID
 
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
-class EscapingSymlink(LayoutEntryRule):
+class EscapingSymlink(SymlinkRule):
     """A symlink an agent follows in the skill layout leads outside the repository.
 
     ## What it does
@@ -84,7 +84,7 @@ class EscapingSymlink(LayoutEntryRule):
         )
 
     @classmethod
-    def check(cls, subject: LayoutContext) -> tuple[Self, ...]:
+    def check(cls, subject: SymlinkContext) -> tuple[Self, ...]:
         """The one occurrence, at the symlink, naming where its chain leaves the repository.
 
         Every layout entry is a symlink whose chain leaves the repository, as the scan found it, so the rule only

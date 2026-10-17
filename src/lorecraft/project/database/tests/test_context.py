@@ -5,9 +5,14 @@ class has every member with a compatible type. Each helper below returns a class
 which `ty check src` refuses if the class drifts from the protocol; the integration tier holds each method's value.
 """
 
-from lorecraft.project.context import DocumentContext, LayoutContext, SkillContext, SkillResourceContext
+from lorecraft.project.context import (
+    DocumentContext,
+    SkillContext,
+    SkillResourceContext,
+    SymlinkContext,
+)
 
-from ..context import DatabaseItemContext, DatabaseLayoutContext
+from ..context import DatabaseItemContext, DatabaseSymlinkContext
 
 
 def _as_document_context(context: DatabaseItemContext) -> DocumentContext:
@@ -37,8 +42,8 @@ def _as_skill_resource_context(context: DatabaseItemContext) -> SkillResourceCon
     return context
 
 
-def _as_layout_context(context: DatabaseLayoutContext) -> LayoutContext:
-    """The layout context, as the protocol it implements.
+def _as_symlink_context(context: DatabaseSymlinkContext) -> SymlinkContext:
+    """The symlink context, as the protocol it implements.
 
     Args:
         context: The database-backed context of one symlink of the skill layout whose chain leaves the repository.

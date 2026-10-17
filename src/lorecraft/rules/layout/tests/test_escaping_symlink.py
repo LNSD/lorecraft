@@ -10,7 +10,7 @@ import pytest
 
 from lorecraft.core.path import RootRelativePath
 from lorecraft.rules.location import EntryHelp, EntryNote, WholeSubject
-from lorecraft.rules.tests.fake_context import FakeLayoutContext
+from lorecraft.rules.tests.fake_context import FakeSymlinkContext
 from lorecraft.vfs import RootExit
 
 from ..escaping_symlink import EscapingSymlink
@@ -21,7 +21,7 @@ class TestEscapingSymlink:
     def test_check_with_a_symlink_linking_straight_out_reports_it_leaving_through_itself(self) -> None:
         #: Given
         leaves_at = RootExit(RootRelativePath.parse('.agents/skills/review'), PurePosixPath('/home/alex/review'))
-        subject = FakeLayoutContext(leaves_at)
+        subject = FakeSymlinkContext(leaves_at)
 
         #: When
         occurrences = EscapingSymlink.check(subject)
@@ -35,7 +35,7 @@ class TestEscapingSymlink:
         #: Given
         # `.agents/skills/review -> ../../hop/review`, and `hop -> /home/alex`
         leaves_at = RootExit(RootRelativePath.parse('hop'), PurePosixPath('/home/alex'))
-        subject = FakeLayoutContext(leaves_at)
+        subject = FakeSymlinkContext(leaves_at)
 
         #: When
         occurrences = EscapingSymlink.check(subject)
@@ -48,7 +48,7 @@ class TestEscapingSymlink:
     def test_check_with_a_link_climbing_above_the_root_reports_its_relative_target(self) -> None:
         #: Given
         leaves_at = RootExit(RootRelativePath.parse('.agents/skills/review/shared'), PurePosixPath('../../../../x'))
-        subject = FakeLayoutContext(leaves_at)
+        subject = FakeSymlinkContext(leaves_at)
 
         #: When
         occurrences = EscapingSymlink.check(subject)

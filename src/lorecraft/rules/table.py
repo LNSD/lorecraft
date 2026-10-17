@@ -9,10 +9,10 @@ it does not keep; it filters, and never enables a rule its level leaves off.
 A rule is partitioned by its base: the rules over a document, the rules over a skill, the rules over the
 frontmatter, which the runner runs over documents and skills alike, the rules over a Markdown file, which the runner
 runs over a document, a skill and a resource alike, the rules over a skill's file, which it runs over a skill and a
-resource alike, and the rules over a layout entry. The rules over a document and over the frontmatter are also
-grouped by the facet each declares, since the runner runs them over a document facet by facet. Each partition pairs
-every rule in it with its severity, as an `EnabledRule`, so a rule the runner finds in a partition always has a
-severity to report at.
+resource alike, and the rules over a symlink of the skill layout. The rules over a document and over the
+frontmatter are also grouped by the facet each declares, since the runner runs them over a document facet by facet.
+Each partition pairs every rule in it with its severity, as an `EnabledRule`, so a rule the runner finds in a
+partition always has a severity to report at.
 """
 
 from collections.abc import Mapping
@@ -27,10 +27,10 @@ from .subject import (
     DocumentRule,
     Facet,
     FrontmatterRule,
-    LayoutEntryRule,
     MarkdownRule,
     SkillFileRule,
     SkillRule,
+    SymlinkRule,
 )
 
 
@@ -72,7 +72,7 @@ class RuleTable:
     _skill_rules: tuple[EnabledRule[SkillRule], ...]
     _markdown_rules: tuple[EnabledRule[MarkdownRule], ...]
     _skill_file_rules: tuple[EnabledRule[SkillFileRule], ...]
-    _layout_rules: tuple[EnabledRule[LayoutEntryRule], ...]
+    _symlink_rules: tuple[EnabledRule[SymlinkRule], ...]
     _frontmatter_rules: tuple[EnabledRule[FrontmatterRule], ...]
     _frontmatter_rules_by_facet: dict[Facet, tuple[EnabledRule[FrontmatterRule], ...]]
 
@@ -90,7 +90,7 @@ class RuleTable:
         skill_rules: list[EnabledRule[SkillRule]] = []
         markdown_rules: list[EnabledRule[MarkdownRule]] = []
         skill_file_rules: list[EnabledRule[SkillFileRule]] = []
-        layout_rules: list[EnabledRule[LayoutEntryRule]] = []
+        symlink_rules: list[EnabledRule[SymlinkRule]] = []
         frontmatter_rules: list[EnabledRule[FrontmatterRule]] = []
         for rule_class in sorted(severities, key=_printed_code):
             # The rule hierarchy is open, so the chain cannot close with `assert_never`: a rule over a base with no
@@ -103,8 +103,8 @@ class RuleTable:
                 markdown_rules.append(EnabledRule(rule_class, severities[rule_class]))
             elif issubclass(rule_class, SkillFileRule):
                 skill_file_rules.append(EnabledRule(rule_class, severities[rule_class]))
-            elif issubclass(rule_class, LayoutEntryRule):
-                layout_rules.append(EnabledRule(rule_class, severities[rule_class]))
+            elif issubclass(rule_class, SymlinkRule):
+                symlink_rules.append(EnabledRule(rule_class, severities[rule_class]))
             elif issubclass(rule_class, FrontmatterRule):
                 frontmatter_rules.append(EnabledRule(rule_class, severities[rule_class]))
             else:
@@ -118,7 +118,7 @@ class RuleTable:
         self._skill_rules = tuple(skill_rules)
         self._markdown_rules = tuple(markdown_rules)
         self._skill_file_rules = tuple(skill_file_rules)
-        self._layout_rules = tuple(layout_rules)
+        self._symlink_rules = tuple(symlink_rules)
         self._frontmatter_rules = tuple(frontmatter_rules)
         self._frontmatter_rules_by_facet = {}
         for facet in Facet:
@@ -175,9 +175,9 @@ class RuleTable:
         return self._skill_file_rules
 
     @property
-    def layout_rules(self) -> tuple[EnabledRule[LayoutEntryRule], ...]:
-        """Each enabled rule over a layout entry, with its severity, in code order; empty when none is."""
-        return self._layout_rules
+    def symlink_rules(self) -> tuple[EnabledRule[SymlinkRule], ...]:
+        """Each enabled rule over a layout symlink, with its severity, in code order; empty when none is."""
+        return self._symlink_rules
 
     @property
     def frontmatter_rules(self) -> tuple[EnabledRule[FrontmatterRule], ...]:
