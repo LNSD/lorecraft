@@ -1,7 +1,7 @@
 # The lorecraft package: one import package, `lorecraft`, in layers, each importing only those below it:
 #
 #   lorecraft.cli      the command line, console script `lorecraft`
-#   lorecraft.engine   the runner that hands each rule its subject's context, and each mode's policy for a failed layer
+#   lorecraft.engine   the runner that judges each rule from its query's facts, and each mode's policy for a failed layer
 #   lorecraft.rules    the rules, how one is declared and identified, and the selection, table and report of a run
 #   lorecraft.project  the workspace model and the parse trees, on the filesystem boundary
 #   lorecraft.agents   the model of the coding agents: the aspects an agent has, and each agent's values
@@ -269,9 +269,9 @@ forbidden_modules = ["jsonschema", "pydantic", "pydantic_core"]
 allow_indirect_imports = true
 
 # The database sits in `lorecraft.project`, a layer below the rules, so the layers contract alone would let a rule
-# import it. A rule reads only the context it is handed, so the database stays out of its reach by import.
+# import it. A rule reads only the facts its query is handed, so the database stays out of its reach by import.
 [[tool.importlinter.contracts]]
-name = "A rule reads its subject's context, never the database"
+name = "A rule reads its query's facts, never the database"
 type = "forbidden"
 source_modules = ["lorecraft.rules"]
 forbidden_modules = ["lorecraft.project.database"]
