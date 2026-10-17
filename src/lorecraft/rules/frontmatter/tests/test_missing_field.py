@@ -15,7 +15,7 @@ from lorecraft.project.schemas import AgentSkillsSchema, FieldGuidance, MissingF
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.location import Elsewhere, Help, Note
 from lorecraft.rules.tests.fake_database import (
-    FakeDocumentContext,
+    FakeDocumentDatabase,
     FakeSkillDatabase,
     judged,
     namespace_spec,
@@ -73,7 +73,7 @@ LINE: Final[LineNumber] = LineNumber(NonZeroUnsignedInt(1))
 class TestMissingField:
     def test_check_with_a_missing_field_reports_it_on_line_1_naming_the_specification(self) -> None:
         #: Given
-        subject = FakeDocumentContext(TEXT, corpus='guide', structure=REQUIRE_DESCRIPTION)
+        subject = FakeDocumentDatabase(TEXT, corpus='guide', structure=REQUIRE_DESCRIPTION)
 
         #: When
         occurrences = judged(MissingField, subject)
@@ -92,7 +92,7 @@ class TestMissingField:
             desc: Install.
             ---
             """)
-        subject = FakeDocumentContext(text, corpus='guide', structure=CLOSED)
+        subject = FakeDocumentDatabase(text, corpus='guide', structure=CLOSED)
 
         #: When
         occurrences = judged(MissingField, subject)
@@ -102,7 +102,7 @@ class TestMissingField:
 
     def test_check_with_two_schemas_reports_each_problem_with_its_own_specification(self) -> None:
         #: Given
-        subject = FakeDocumentContext(
+        subject = FakeDocumentDatabase(
             TEXT,
             corpus='guide',
             structure=REQUIRE_DESCRIPTION,
@@ -146,7 +146,7 @@ class TestMissingField:
             - setup
             ---
             """)
-        subject = FakeDocumentContext(text, corpus='guide', structure=REQUIRE_DESCRIPTION)
+        subject = FakeDocumentDatabase(text, corpus='guide', structure=REQUIRE_DESCRIPTION)
 
         #: When
         occurrences = judged(MissingField, subject)
@@ -205,7 +205,7 @@ class TestMissingField:
             name: setup
             ---
             """)
-        subject = FakeDocumentContext(text, corpus='guide', structure=structure)
+        subject = FakeDocumentDatabase(text, corpus='guide', structure=structure)
 
         #: When
         occurrences = judged(MissingField, subject)

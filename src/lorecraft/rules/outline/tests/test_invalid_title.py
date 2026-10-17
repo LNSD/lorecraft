@@ -14,7 +14,7 @@ from lorecraft.core.path import RootRelativePath
 from lorecraft.project.schemas import TitlePattern
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.location import Elsewhere, Here, Label, Note
-from lorecraft.rules.tests.fake_database import FakeDocumentContext, judged, namespace_spec, structure_spec_path
+from lorecraft.rules.tests.fake_database import FakeDocumentDatabase, judged, namespace_spec, structure_spec_path
 
 from ..invalid_title import InvalidTitle
 
@@ -47,7 +47,7 @@ NO_PATTERN: Final[str] = '{"empty_sections": "forbidden"}'
 class TestInvalidTitle:
     def test_check_with_a_title_failing_its_pattern_reports_it_at_its_heading(self) -> None:
         #: Given
-        subject = FakeDocumentContext(TEXT, corpus='guide', structure=CAPITALIZED)
+        subject = FakeDocumentDatabase(TEXT, corpus='guide', structure=CAPITALIZED)
 
         #: When
         occurrences = judged(InvalidTitle, subject)
@@ -61,7 +61,7 @@ class TestInvalidTitle:
 
     def test_check_with_a_title_matching_its_pattern_reports_nothing(self) -> None:
         #: Given
-        subject = FakeDocumentContext('# Setup\n\nInstall the toolkit once.\n', corpus='guide', structure=CAPITALIZED)
+        subject = FakeDocumentDatabase('# Setup\n\nInstall the toolkit once.\n', corpus='guide', structure=CAPITALIZED)
 
         #: When
         occurrences = judged(InvalidTitle, subject)
@@ -71,7 +71,7 @@ class TestInvalidTitle:
 
     def test_check_with_a_pattern_found_inside_the_title_reports_nothing(self) -> None:
         #: Given
-        subject = FakeDocumentContext(TEXT, corpus='guide', structure='{"title": {"pattern": "first"}}')
+        subject = FakeDocumentDatabase(TEXT, corpus='guide', structure='{"title": {"pattern": "first"}}')
 
         #: When
         occurrences = judged(InvalidTitle, subject)
@@ -81,7 +81,7 @@ class TestInvalidTitle:
 
     def test_check_with_a_specification_setting_no_pattern_reports_nothing(self) -> None:
         #: Given
-        subject = FakeDocumentContext(TEXT, corpus='guide', structure=NO_PATTERN)
+        subject = FakeDocumentDatabase(TEXT, corpus='guide', structure=NO_PATTERN)
 
         #: When
         occurrences = judged(InvalidTitle, subject)
@@ -91,7 +91,7 @@ class TestInvalidTitle:
 
     def test_check_with_a_document_without_a_title_reports_nothing(self) -> None:
         #: Given
-        subject = FakeDocumentContext(
+        subject = FakeDocumentDatabase(
             '## install\n\nInstall the toolkit once.\n', corpus='guide', structure=CAPITALIZED
         )
 
@@ -104,7 +104,7 @@ class TestInvalidTitle:
     def test_check_with_a_later_h1_failing_the_pattern_reports_nothing(self) -> None:
         #: Given
         text = '# Setup\n\nInstall the toolkit once.\n\n# setup again\n'
-        subject = FakeDocumentContext(text, corpus='guide', structure=CAPITALIZED)
+        subject = FakeDocumentDatabase(text, corpus='guide', structure=CAPITALIZED)
 
         #: When
         occurrences = judged(InvalidTitle, subject)
@@ -114,7 +114,7 @@ class TestInvalidTitle:
 
     def test_check_with_a_title_failing_only_the_namespace_pattern_reports_that_pattern(self) -> None:
         #: Given
-        subject = FakeDocumentContext(
+        subject = FakeDocumentDatabase(
             TEXT, corpus='guide', structure=NO_PATTERN, namespaces=(namespace_spec('guide', 'cli', NO_COLON),)
         )
 
@@ -133,7 +133,7 @@ class TestInvalidTitle:
 
     def test_check_with_a_title_failing_both_patterns_reports_each_in_order(self) -> None:
         #: Given
-        subject = FakeDocumentContext(
+        subject = FakeDocumentDatabase(
             TEXT, corpus='guide', structure=CAPITALIZED, namespaces=(namespace_spec('guide', 'cli', NO_COLON),)
         )
 

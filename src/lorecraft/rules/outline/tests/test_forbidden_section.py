@@ -12,7 +12,7 @@ from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.location import Elsewhere, Help, Note
-from lorecraft.rules.tests.fake_database import FakeDocumentContext, judged, namespace_spec, structure_spec_path
+from lorecraft.rules.tests.fake_database import FakeDocumentDatabase, judged, namespace_spec, structure_spec_path
 
 from ..forbidden_section import ForbiddenSection
 
@@ -39,7 +39,7 @@ WITH_CHANGELOG: Final[str] = RUN + '\n## Changelog\n\nAdded the run step.\n'
 class TestForbiddenSection:
     def test_check_with_a_forbidden_section_reports_it_at_its_heading(self) -> None:
         #: Given
-        subject = FakeDocumentContext(WITH_CHANGELOG, corpus='guide', structure=FORBIDS_CHANGELOG)
+        subject = FakeDocumentDatabase(WITH_CHANGELOG, corpus='guide', structure=FORBIDS_CHANGELOG)
 
         #: When
         occurrences = judged(ForbiddenSection, subject)
@@ -51,7 +51,7 @@ class TestForbiddenSection:
 
     def test_check_with_no_forbidden_section_present_reports_nothing(self) -> None:
         #: Given
-        subject = FakeDocumentContext(RUN, corpus='guide', structure=FORBIDS_CHANGELOG)
+        subject = FakeDocumentDatabase(RUN, corpus='guide', structure=FORBIDS_CHANGELOG)
 
         #: When
         occurrences = judged(ForbiddenSection, subject)
@@ -61,7 +61,7 @@ class TestForbiddenSection:
 
     def test_check_with_nothing_forbidden_reports_nothing(self) -> None:
         #: Given
-        subject = FakeDocumentContext(WITH_CHANGELOG, corpus='guide', structure=FORBIDS_NOTHING)
+        subject = FakeDocumentDatabase(WITH_CHANGELOG, corpus='guide', structure=FORBIDS_NOTHING)
 
         #: When
         occurrences = judged(ForbiddenSection, subject)
@@ -71,7 +71,7 @@ class TestForbiddenSection:
 
     def test_check_with_a_deeper_heading_of_a_forbidden_name_reports_nothing(self) -> None:
         #: Given
-        subject = FakeDocumentContext(
+        subject = FakeDocumentDatabase(
             RUN + '\n### Changelog\n\nAdded the run step.\n', corpus='guide', structure=FORBIDS_CHANGELOG
         )
 
@@ -84,7 +84,7 @@ class TestForbiddenSection:
     def test_check_with_a_forbidden_section_written_twice_reports_each_in_order(self) -> None:
         #: Given
         text = WITH_CHANGELOG + '\n## Changelog\n\nAdded the title.\n'
-        subject = FakeDocumentContext(text, corpus='guide', structure=FORBIDS_CHANGELOG)
+        subject = FakeDocumentDatabase(text, corpus='guide', structure=FORBIDS_CHANGELOG)
 
         #: When
         occurrences = judged(ForbiddenSection, subject)
@@ -98,7 +98,7 @@ class TestForbiddenSection:
     def test_check_with_two_forbidden_sections_reports_each_in_document_order(self) -> None:
         #: Given
         text = RUN + '\n## History\n\nFirst written.\n\n## Changelog\n\nAdded the run step.\n'
-        subject = FakeDocumentContext(text, corpus='guide', structure='{"forbidden": ["Changelog", "History"]}')
+        subject = FakeDocumentDatabase(text, corpus='guide', structure='{"forbidden": ["Changelog", "History"]}')
 
         #: When
         occurrences = judged(ForbiddenSection, subject)
@@ -111,7 +111,7 @@ class TestForbiddenSection:
 
     def test_check_with_two_specifications_forbidding_the_section_reports_each_in_order(self) -> None:
         #: Given
-        subject = FakeDocumentContext(
+        subject = FakeDocumentDatabase(
             WITH_CHANGELOG,
             corpus='guide',
             structure=FORBIDS_CHANGELOG,
@@ -129,7 +129,7 @@ class TestForbiddenSection:
 
     def test_check_with_one_of_two_specifications_forbidding_the_section_reports_under_it_alone(self) -> None:
         #: Given
-        subject = FakeDocumentContext(
+        subject = FakeDocumentDatabase(
             WITH_CHANGELOG,
             corpus='guide',
             structure=FORBIDS_NOTHING,

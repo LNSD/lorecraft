@@ -12,7 +12,7 @@ from lib.primitives import StructurePrimitives
 from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.location import Help, Here, Label
-from lorecraft.rules.tests.fake_database import FakeDocumentContext, heading_in, judged, namespace_spec
+from lorecraft.rules.tests.fake_database import FakeDocumentDatabase, heading_in, judged, namespace_spec
 
 from ..title_not_first import TitleNotFirst, headings
 
@@ -27,7 +27,7 @@ SECTION_FIRST: Final[str] = '## Install\n\nInstall the toolkit, then run it once
 class TestTitleNotFirst:
     def test_check_with_a_section_before_the_title_reports_it_at_the_section(self) -> None:
         #: Given
-        subject = FakeDocumentContext(SECTION_FIRST, corpus='guide', structure=STRUCTURE)
+        subject = FakeDocumentDatabase(SECTION_FIRST, corpus='guide', structure=STRUCTURE)
 
         #: When
         occurrences = judged(TitleNotFirst, subject)
@@ -41,7 +41,7 @@ class TestTitleNotFirst:
 
     def test_check_with_sections_and_no_title_reports_nothing(self) -> None:
         #: Given
-        subject = FakeDocumentContext(
+        subject = FakeDocumentDatabase(
             '## Install\n\nInstall it.\n\n## Usage\n\nRun it.\n', corpus='guide', structure=STRUCTURE
         )
 
@@ -53,7 +53,7 @@ class TestTitleNotFirst:
 
     def test_check_with_a_subsection_opening_the_document_reports_its_level(self) -> None:
         #: Given
-        subject = FakeDocumentContext(
+        subject = FakeDocumentDatabase(
             '### Details\n\nRead them once.\n\n# Setup\n', corpus='guide', structure=STRUCTURE
         )
 
@@ -69,7 +69,7 @@ class TestTitleNotFirst:
 
     def test_check_with_the_title_first_reports_nothing(self) -> None:
         #: Given
-        subject = FakeDocumentContext('# Setup\n\n## Usage\n\nRun it.\n', corpus='guide', structure=STRUCTURE)
+        subject = FakeDocumentDatabase('# Setup\n\n## Usage\n\nRun it.\n', corpus='guide', structure=STRUCTURE)
 
         #: When
         occurrences = judged(TitleNotFirst, subject)
@@ -79,7 +79,7 @@ class TestTitleNotFirst:
 
     def test_check_with_no_heading_reports_nothing(self) -> None:
         #: Given
-        subject = FakeDocumentContext(
+        subject = FakeDocumentDatabase(
             'Run the toolkit once over the repository.\n', corpus='guide', structure=STRUCTURE
         )
 
@@ -91,7 +91,7 @@ class TestTitleNotFirst:
 
     def test_check_with_two_specifications_reports_once_under_the_corpus_specification(self) -> None:
         #: Given
-        subject = FakeDocumentContext(
+        subject = FakeDocumentDatabase(
             SECTION_FIRST, corpus='guide', structure=STRUCTURE, namespaces=(namespace_spec('guide', 'cli', STRUCTURE),)
         )
 
@@ -177,7 +177,7 @@ class TestHeadings:
 
     def test_judge_with_no_headings_reports_nothing(self) -> None:
         #: Given
-        subject = FakeDocumentContext('', corpus='guide', structure=STRUCTURE)
+        subject = FakeDocumentDatabase('', corpus='guide', structure=STRUCTURE)
 
         #: When
         occurrences = judged(TitleNotFirst, subject)

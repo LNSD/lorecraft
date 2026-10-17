@@ -10,7 +10,7 @@ from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.project.link_target import DocumentLink
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.location import Help, Note
-from lorecraft.rules.tests.fake_database import FakeDocumentContext, judged
+from lorecraft.rules.tests.fake_database import FakeDocumentDatabase, judged
 
 from ..mutual_link import MutualLink
 
@@ -34,13 +34,13 @@ def _link(corpus: str, *, has_back_link: bool, line: int = 3) -> DocumentLink:
     )
 
 
-def _document(*links: DocumentLink) -> FakeDocumentContext:
+def _document(*links: DocumentLink) -> FakeDocumentDatabase:
     """A document of corpus `guide` holding the links.
 
     Args:
         links: The links to other documents the database would find.
     """
-    return FakeDocumentContext('# Setup\n', corpus='guide', structure=STRUCTURE, document_links=links)
+    return FakeDocumentDatabase('# Setup\n', corpus='guide', structure=STRUCTURE, document_links=links)
 
 
 @pytest.mark.unit

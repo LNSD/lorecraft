@@ -14,14 +14,14 @@ from lorecraft.core.path import RootRelativePath
 from lorecraft.project.link_target import EscapingTarget, LinkTarget, LinkTargetEntry, PathLookup
 from lorecraft.project.syntax import LineNumber, NormalisedLinkPath
 from lorecraft.rules.location import Help, Note
-from lorecraft.rules.tests.fake_database import DEFAULT_DOCUMENT_DIRECTORY, FakeDocumentContext, judged
+from lorecraft.rules.tests.fake_database import DEFAULT_DOCUMENT_DIRECTORY, FakeDocumentDatabase, judged
 
 from ..extension_link import ExtensionLink, ExtensionLinkFacts, extension_link_facts
 
 STRUCTURE = '{"frontmatter": {"type": "object"}}'
 
 
-def _document(text: str, url: str, entry: LinkTargetEntry) -> FakeDocumentContext:
+def _document(text: str, url: str, entry: LinkTargetEntry) -> FakeDocumentDatabase:
     """A document `setup.md` with the text, whose one link has the snapshot entry.
 
     Args:
@@ -29,7 +29,7 @@ def _document(text: str, url: str, entry: LinkTargetEntry) -> FakeDocumentContex
         url: The link's normalised relative path, as the key of its entry.
         entry: What the snapshot holds where the link leads.
     """
-    return FakeDocumentContext(
+    return FakeDocumentDatabase(
         text, corpus='guide', structure=STRUCTURE, link_targets=FrozenMapping({NormalisedLinkPath.parse(url): entry})
     )
 

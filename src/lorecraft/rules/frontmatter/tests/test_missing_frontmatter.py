@@ -15,7 +15,7 @@ from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.schemas import DocumentFrontmatterOwner, SkillFrontmatterOwner
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.location import Elsewhere, Help, Here, Label, Note
-from lorecraft.rules.tests.fake_database import FakeDocumentContext, FakeSkillDatabase, judged, structure_spec_path
+from lorecraft.rules.tests.fake_database import FakeDocumentDatabase, FakeSkillDatabase, judged, structure_spec_path
 
 from ..missing_frontmatter import MissingFrontmatter
 
@@ -40,7 +40,7 @@ SKILL_OWNER: Final[SkillFrontmatterOwner] = SkillFrontmatterOwner(
 class TestMissingFrontmatter:
     def test_check_with_a_document_without_a_block_reports_it_on_line_1(self) -> None:
         #: Given
-        subject = FakeDocumentContext('# Setup\n', corpus='guide', structure=STRUCTURE)
+        subject = FakeDocumentDatabase('# Setup\n', corpus='guide', structure=STRUCTURE)
 
         #: When
         occurrences = judged(MissingFrontmatter, subject)
@@ -57,7 +57,7 @@ class TestMissingFrontmatter:
             name: setup
             # Setup
             """)
-        subject = FakeDocumentContext(text, corpus='guide', structure=STRUCTURE)
+        subject = FakeDocumentDatabase(text, corpus='guide', structure=STRUCTURE)
 
         #: When
         occurrences = judged(MissingFrontmatter, subject)
@@ -87,7 +87,7 @@ class TestMissingFrontmatter:
             ---
             # Setup
             """)
-        subject = FakeDocumentContext(text, corpus='guide', structure=STRUCTURE)
+        subject = FakeDocumentDatabase(text, corpus='guide', structure=STRUCTURE)
 
         #: When
         occurrences = judged(MissingFrontmatter, subject)
@@ -103,7 +103,7 @@ class TestMissingFrontmatter:
             ---
             # Setup
             """)
-        subject = FakeDocumentContext(text, corpus='guide', structure=STRUCTURE)
+        subject = FakeDocumentDatabase(text, corpus='guide', structure=STRUCTURE)
 
         #: When
         occurrences = judged(MissingFrontmatter, subject)

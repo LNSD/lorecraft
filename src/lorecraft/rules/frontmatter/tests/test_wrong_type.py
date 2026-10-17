@@ -16,7 +16,7 @@ from lorecraft.project.schemas import AgentSkillsSchema, FieldGuidance, Structur
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.location import Elsewhere, Help, Here, Label, Note
 from lorecraft.rules.tests.fake_database import (
-    FakeDocumentContext,
+    FakeDocumentDatabase,
     FakeSkillDatabase,
     judged,
     namespace_spec,
@@ -67,7 +67,7 @@ LINE: Final[LineNumber] = LineNumber(NonZeroUnsignedInt(3))
 class TestWrongType:
     def test_check_with_a_wrong_type_reports_it_on_its_line_naming_the_specification(self) -> None:
         #: Given
-        subject = FakeDocumentContext(TEXT, corpus='guide', structure=STRING_DESCRIPTION)
+        subject = FakeDocumentDatabase(TEXT, corpus='guide', structure=STRING_DESCRIPTION)
 
         #: When
         occurrences = judged(WrongType, subject)
@@ -85,7 +85,7 @@ class TestWrongType:
             description: Install.
             ---
             """)
-        subject = FakeDocumentContext(text, corpus='guide', structure=STRING_DESCRIPTION)
+        subject = FakeDocumentDatabase(text, corpus='guide', structure=STRING_DESCRIPTION)
 
         #: When
         occurrences = judged(WrongType, subject)
@@ -95,7 +95,7 @@ class TestWrongType:
 
     def test_check_with_two_schemas_reports_each_problem_with_its_own_specification(self) -> None:
         #: Given
-        subject = FakeDocumentContext(
+        subject = FakeDocumentDatabase(
             TEXT,
             corpus='guide',
             structure=STRING_DESCRIPTION,
@@ -151,7 +151,7 @@ class TestWrongType:
             - description
             ---
             """)
-        subject = FakeDocumentContext(text, corpus='guide', structure=STRING_DESCRIPTION)
+        subject = FakeDocumentDatabase(text, corpus='guide', structure=STRING_DESCRIPTION)
 
         #: When
         occurrences = judged(WrongType, subject)

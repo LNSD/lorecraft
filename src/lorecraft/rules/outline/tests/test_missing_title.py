@@ -11,7 +11,7 @@ import pytest
 from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.location import Help
-from lorecraft.rules.tests.fake_database import FakeDocumentContext, judged, namespace_spec
+from lorecraft.rules.tests.fake_database import FakeDocumentDatabase, judged, namespace_spec
 
 from ..missing_title import MissingTitle
 
@@ -26,7 +26,7 @@ UNTITLED: Final[str] = '## Install\n\nInstall the toolkit, then run it once over
 class TestMissingTitle:
     def test_check_with_a_document_without_a_title_reports_it_on_line_1(self) -> None:
         #: Given
-        subject = FakeDocumentContext(UNTITLED, corpus='guide', structure=STRUCTURE)
+        subject = FakeDocumentDatabase(UNTITLED, corpus='guide', structure=STRUCTURE)
 
         #: When
         occurrences = judged(MissingTitle, subject)
@@ -38,7 +38,7 @@ class TestMissingTitle:
 
     def test_check_with_a_document_carrying_its_title_reports_nothing(self) -> None:
         #: Given
-        subject = FakeDocumentContext('# Setup\n\n' + UNTITLED, corpus='guide', structure=STRUCTURE)
+        subject = FakeDocumentDatabase('# Setup\n\n' + UNTITLED, corpus='guide', structure=STRUCTURE)
 
         #: When
         occurrences = judged(MissingTitle, subject)
@@ -48,7 +48,7 @@ class TestMissingTitle:
 
     def test_check_with_more_than_one_title_reports_nothing(self) -> None:
         #: Given
-        subject = FakeDocumentContext('# Setup\n\n' + UNTITLED + '\n# Again\n', corpus='guide', structure=STRUCTURE)
+        subject = FakeDocumentDatabase('# Setup\n\n' + UNTITLED + '\n# Again\n', corpus='guide', structure=STRUCTURE)
 
         #: When
         occurrences = judged(MissingTitle, subject)
@@ -58,7 +58,7 @@ class TestMissingTitle:
 
     def test_check_with_an_h1_inside_a_blockquote_reports_the_title_missing(self) -> None:
         #: Given
-        subject = FakeDocumentContext('> # Setup\n\n' + UNTITLED, corpus='guide', structure=STRUCTURE)
+        subject = FakeDocumentDatabase('> # Setup\n\n' + UNTITLED, corpus='guide', structure=STRUCTURE)
 
         #: When
         occurrences = judged(MissingTitle, subject)
@@ -70,7 +70,7 @@ class TestMissingTitle:
 
     def test_check_with_two_specifications_reports_once_under_the_corpus_specification(self) -> None:
         #: Given
-        subject = FakeDocumentContext(
+        subject = FakeDocumentDatabase(
             UNTITLED, corpus='guide', structure=STRUCTURE, namespaces=(namespace_spec('guide', 'cli', STRUCTURE),)
         )
 

@@ -12,7 +12,7 @@ from lib.primitives import StructurePrimitives
 from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.project.syntax import Heading, LineNumber
 from lorecraft.rules.location import Help, Here, Label
-from lorecraft.rules.tests.fake_database import FakeDocumentContext, heading_in, judged, namespace_spec
+from lorecraft.rules.tests.fake_database import FakeDocumentDatabase, heading_in, judged, namespace_spec
 
 from ..extra_title import ExtraTitle, titles
 
@@ -33,7 +33,7 @@ FIRST_TITLE: Final[Heading] = heading_in(ONE_TITLE, 'Setup')
 class TestExtraTitle:
     def test_check_with_a_second_title_reports_it_at_its_heading(self) -> None:
         #: Given
-        subject = FakeDocumentContext(SECOND_TITLE, corpus='guide', structure=STRUCTURE)
+        subject = FakeDocumentDatabase(SECOND_TITLE, corpus='guide', structure=STRUCTURE)
 
         #: When
         occurrences = judged(ExtraTitle, subject)
@@ -45,7 +45,7 @@ class TestExtraTitle:
 
     def test_check_with_two_titles_after_the_first_reports_each(self) -> None:
         #: Given
-        subject = FakeDocumentContext(SECOND_TITLE + '\n# Reference\n', corpus='guide', structure=STRUCTURE)
+        subject = FakeDocumentDatabase(SECOND_TITLE + '\n# Reference\n', corpus='guide', structure=STRUCTURE)
 
         #: When
         occurrences = judged(ExtraTitle, subject)
@@ -58,7 +58,7 @@ class TestExtraTitle:
 
     def test_check_with_one_title_reports_nothing(self) -> None:
         #: Given
-        subject = FakeDocumentContext(ONE_TITLE, corpus='guide', structure=STRUCTURE)
+        subject = FakeDocumentDatabase(ONE_TITLE, corpus='guide', structure=STRUCTURE)
 
         #: When
         occurrences = judged(ExtraTitle, subject)
@@ -68,7 +68,7 @@ class TestExtraTitle:
 
     def test_check_with_no_title_reports_nothing(self) -> None:
         #: Given
-        subject = FakeDocumentContext('## Install\n\nInstall the toolkit.\n', corpus='guide', structure=STRUCTURE)
+        subject = FakeDocumentDatabase('## Install\n\nInstall the toolkit.\n', corpus='guide', structure=STRUCTURE)
 
         #: When
         occurrences = judged(ExtraTitle, subject)
@@ -78,7 +78,7 @@ class TestExtraTitle:
 
     def test_check_with_two_specifications_reports_once_under_the_corpus_specification(self) -> None:
         #: Given
-        subject = FakeDocumentContext(
+        subject = FakeDocumentDatabase(
             SECOND_TITLE, corpus='guide', structure=STRUCTURE, namespaces=(namespace_spec('guide', 'cli', STRUCTURE),)
         )
 
@@ -148,7 +148,7 @@ class TestTitles:
 
     def test_judge_with_no_title_reports_nothing(self) -> None:
         #: Given
-        subject = FakeDocumentContext('## Install\n', corpus='guide', structure=STRUCTURE)
+        subject = FakeDocumentDatabase('## Install\n', corpus='guide', structure=STRUCTURE)
 
         #: When
         occurrences = judged(ExtraTitle, subject)

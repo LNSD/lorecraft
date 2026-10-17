@@ -15,7 +15,7 @@ from lorecraft.project.schemas import AgentSkillsSchema, StructureSpecSchema, Un
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.location import Elsewhere, Help, Here, Label, Note
 from lorecraft.rules.tests.fake_database import (
-    FakeDocumentContext,
+    FakeDocumentDatabase,
     FakeSkillDatabase,
     judged,
     namespace_spec,
@@ -70,7 +70,7 @@ LINE: Final[LineNumber] = LineNumber(NonZeroUnsignedInt(4))
 class TestUnknownField:
     def test_check_with_an_unknown_field_reports_it_on_its_line_naming_the_specification(self) -> None:
         #: Given
-        subject = FakeDocumentContext(TEXT, corpus='guide', structure=CLOSED)
+        subject = FakeDocumentDatabase(TEXT, corpus='guide', structure=CLOSED)
 
         #: When
         occurrences = judged(UnknownField, subject)
@@ -87,7 +87,7 @@ class TestUnknownField:
             name: setup
             ---
             """)
-        subject = FakeDocumentContext(text, corpus='guide', structure=REQUIRE_DESCRIPTION)
+        subject = FakeDocumentDatabase(text, corpus='guide', structure=REQUIRE_DESCRIPTION)
 
         #: When
         occurrences = judged(UnknownField, subject)
@@ -97,7 +97,7 @@ class TestUnknownField:
 
     def test_check_with_two_schemas_reports_each_problem_with_its_own_specification(self) -> None:
         #: Given
-        subject = FakeDocumentContext(
+        subject = FakeDocumentDatabase(
             TEXT, corpus='guide', structure=CLOSED, namespaces=(namespace_spec('guide', 'setup', CLOSED),)
         )
 
@@ -141,7 +141,7 @@ class TestUnknownField:
             - desc
             ---
             """)
-        subject = FakeDocumentContext(text, corpus='guide', structure=CLOSED)
+        subject = FakeDocumentDatabase(text, corpus='guide', structure=CLOSED)
 
         #: When
         occurrences = judged(UnknownField, subject)

@@ -178,7 +178,7 @@ def structure_spec(spec_name: str, text: str) -> StructureSpec:
     return _decode_structure(parse_spec_name(spec_name), text)
 
 
-class FakeDocumentContext:
+class FakeDocumentDatabase:
     """A document a test writes as text, governed by the meta specs the test states.
 
     The governance is set by hand, as the model would find it: the corpus's meta spec first, then each
