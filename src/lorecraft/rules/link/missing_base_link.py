@@ -4,14 +4,14 @@ from dataclasses import dataclass
 from typing import ClassVar, Self
 
 from lorecraft.core.path import RootRelativePath
-from lorecraft.project.context import DocumentContext
 from lorecraft.project.item import ItemKind
 from lorecraft.project.link_target import DocumentDirectory, LinkTarget
+from lorecraft.project.schemas import Primitives, Query
 from lorecraft.project.syntax import FIRST_LINE, LineNumber, RelativeDestination, find_title
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Note, Subdiagnostic
-from lorecraft.rules.subject import DocumentRule, Facet
+from lorecraft.rules.subject import Facet, QueriedDocumentRule
 
 from .__ruleset__ import GROUP_ID
 
@@ -19,9 +19,58 @@ _REFERENCES: str = 'References'
 """The heading of the section that names the documents a document builds on."""
 
 
+@dataclass(frozen=True, slots=True)
+class MissingBase:
+    """The base a document does not link under its References section.
+
+    Attributes:
+        line: The line of the `References` heading, or of the title when there is no such section.
+        base: The filename, with its extension, of the base.
+        extension: The filename, with its extension, of the document that extends it.
+    """
+
+    line: LineNumber
+    base: str
+    extension: str
+
+
+def missing_base(primitives: Primitives) -> MissingBase | None:
+    """The base a document leaves out of its References section; `None` when it has no base or links it.
+
+    A query: it reads the item's base, name, links, their targets, their base and its headings and nothing else.
+
+    Args:
+        primitives: The model state of the document.
+    """
+    base = primitives.document_base()
+    name = primitives.document_name()
+    link_base = primitives.link_base()
+    if base is None or name is None or not isinstance(link_base, DocumentDirectory):
+        return None
+    headings = primitives.headings()
+    sections = [heading for heading in headings if heading.level <= 2]
+    references = next((heading for heading in sections if heading.text == _REFERENCES), None)
+    wanted = link_base.directory / RootRelativePath.parse(f'{base}.md')
+    if references is not None:
+        end = next((heading.line for heading in sections if heading.line > references.line), None)
+        targets = primitives.link_targets()
+        for link in primitives.links():
+            destination = link.to_destination()
+            if not isinstance(destination, RelativeDestination):
+                continue
+            if link.line <= references.line or (end is not None and link.line >= end):
+                continue
+            entry = targets.get(destination.path)
+            if isinstance(entry, LinkTarget) and entry.path == wanted:
+                return None
+    title = find_title(headings)
+    line: LineNumber = references.line if references is not None else (title.line if title else FIRST_LINE)
+    return MissingBase(line=line, base=f'{base}.md', extension=f'{name}.md')
+
+
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
-class MissingBaseLink(DocumentRule):
+class MissingBaseLink(QueriedDocumentRule[MissingBase | None]):
     """A document that extends another does not link to it under References.
 
     ## What it does
@@ -96,32 +145,17 @@ class MissingBaseLink(DocumentRule):
         )
 
     @classmethod
-    def check(cls, subject: DocumentContext) -> tuple[Self, ...]:
+    def query(cls) -> Query[MissingBase | None]:
+        """The base the document does not link under References, when it has one."""
+        return missing_base
+
+    @classmethod
+    def judge(cls, facts: MissingBase | None, /) -> tuple[Self, ...]:
         """One occurrence when the document has a base that its References section does not link.
 
         Args:
-            subject: The document whose base and References links are compared.
+            facts: The base left out; `None` when the document has no base or links it.
         """
-        base = subject.base()
-        link_base = subject.link_base()
-        if base is None or not isinstance(link_base, DocumentDirectory):
+        if facts is None:
             return ()
-        parsed = subject.parse()
-        sections = [heading for heading in parsed.headings if heading.level <= 2]
-        references = next((heading for heading in sections if heading.text == _REFERENCES), None)
-        wanted = link_base.directory / RootRelativePath.parse(f'{base}.md')
-        if references is not None:
-            end = next((heading.line for heading in sections if heading.line > references.line), None)
-            targets = subject.link_targets()
-            for link in parsed.links:
-                destination = link.to_destination()
-                if not isinstance(destination, RelativeDestination):
-                    continue
-                if link.line <= references.line or (end is not None and link.line >= end):
-                    continue
-                entry = targets.get(destination.path)
-                if isinstance(entry, LinkTarget) and entry.path == wanted:
-                    return ()
-        title = find_title(parsed.headings)
-        line: LineNumber = references.line if references is not None else (title.line if title else FIRST_LINE)
-        return (cls(line=line, base=f'{base}.md', extension=f'{subject.name()}.md'),)
+        return (cls(line=facts.line, base=facts.base, extension=facts.extension),)

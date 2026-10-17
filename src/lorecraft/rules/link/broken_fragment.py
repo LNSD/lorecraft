@@ -4,25 +4,70 @@ from dataclasses import dataclass
 from typing import ClassVar, Self, assert_never
 from urllib.parse import unquote
 
-from lorecraft.project.context import MarkdownContext
+from lorecraft.project.schemas import Primitives, Query
 from lorecraft.project.syntax import (
     AbsoluteDestination,
     Anchor,
     ExternalDestination,
     FragmentDestination,
+    Link,
     RelativeDestination,
 )
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Note, Subdiagnostic
-from lorecraft.rules.subject import MarkdownRule
+from lorecraft.rules.subject import QueriedMarkdownRule
 
 from .__ruleset__ import GROUP_ID
 
 
+@dataclass(frozen=True, slots=True)
+class BrokenFragmentFacts:
+    """What a rule over fragment-only links reads of a Markdown file.
+
+    Attributes:
+        has_headings: Whether the file has any heading.
+        links: The fragment-only links naming no heading of the file, in document order.
+    """
+
+    has_headings: bool
+    links: tuple[Link, ...]
+
+
+def broken_fragments(primitives: Primitives) -> BrokenFragmentFacts:
+    """The fragment-only links of a Markdown file that name none of its headings. Raises nothing.
+
+    A query: it reads the item's links and heading anchors and nothing else.
+
+    Args:
+        primitives: The model state of the Markdown file.
+    """
+    anchors = primitives.anchors()
+    broken: list[Link] = []
+    for link in primitives.links():
+        destination = link.to_destination()
+        match destination:
+            case FragmentDestination():
+                fragment = destination.fragment
+            case ExternalDestination() | AbsoluteDestination() | RelativeDestination():
+                continue
+            case _:
+                assert_never(destination)
+        # A bare `#` names no heading at all, so it names no missing one either; nor does a query alone.
+        if fragment == '':
+            continue
+        # `None` is a fragment no heading can have, such as one holding a space, so it is missing whatever the
+        # file's headings are.
+        anchor = Anchor.from_fragment(fragment)
+        if anchor is None or anchor not in anchors:
+            broken.append(link)
+    # Every heading takes an anchor, so the file has a heading exactly when it has an anchor.
+    return BrokenFragmentFacts(has_headings=len(anchors) > 0, links=tuple(broken))
+
+
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
-class BrokenFragment(MarkdownRule):
+class BrokenFragment(QueriedMarkdownRule[BrokenFragmentFacts]):
     """A link to a heading of the same Markdown file names a heading the file does not have.
 
     ## What it does
@@ -94,31 +139,15 @@ class BrokenFragment(MarkdownRule):
         return (Note('this file has no headings'),)
 
     @classmethod
-    def check(cls, subject: MarkdownContext) -> tuple[Self, ...]:
+    def query(cls) -> Query[BrokenFragmentFacts]:
+        """The fragment-only links naming no heading of the file."""
+        return broken_fragments
+
+    @classmethod
+    def judge(cls, facts: BrokenFragmentFacts, /) -> tuple[Self, ...]:
         """One occurrence for each fragment-only link naming no heading of the file, on its line, in document order.
 
         Args:
-            subject: The Markdown file whose links are judged against its own headings.
+            facts: The links naming no heading, and whether the file has any.
         """
-        parsed = subject.parse()
-        # Every heading takes an anchor, so the file has a heading exactly when it has an anchor.
-        has_headings = len(parsed.anchors) > 0
-        occurrences: list[Self] = []
-        for link in parsed.links:
-            destination = link.to_destination()
-            match destination:
-                case FragmentDestination():
-                    fragment = destination.fragment
-                case ExternalDestination() | AbsoluteDestination() | RelativeDestination():
-                    continue
-                case _:
-                    assert_never(destination)
-            # A bare `#` names no heading at all, so it names no missing one either; nor does a query alone.
-            if fragment == '':
-                continue
-            # `None` is a fragment no heading can have, such as one holding a space, so it is missing whatever the
-            # file's headings are.
-            anchor = Anchor.from_fragment(fragment)
-            if anchor is None or anchor not in parsed.anchors:
-                occurrences.append(cls(line=link.line, url=link.url, has_headings=has_headings))
-        return tuple(occurrences)
+        return tuple(cls(line=link.line, url=link.url, has_headings=facts.has_headings) for link in facts.links)
