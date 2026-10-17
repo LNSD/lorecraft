@@ -32,6 +32,7 @@ from lorecraft.rules.link.broken_link import BrokenLink
 from lorecraft.rules.link.escaping_link import EscapingLink
 from lorecraft.rules.link.extension_link import ExtensionLink
 from lorecraft.rules.link.missing_base_link import MissingBaseLink
+from lorecraft.rules.link.mutual_link import MutualLink
 from lorecraft.rules.outline.empty_section import EmptySection
 from lorecraft.rules.outline.extra_title import ExtraTitle
 from lorecraft.rules.outline.forbidden_section import ForbiddenSection
@@ -142,6 +143,7 @@ class TestRuleTableFromRegistry:
             EnabledRule(TitleTooLong, Severity.ERROR),
             EnabledRule(ExtensionLink, Severity.WARNING),
             EnabledRule(MissingBaseLink, Severity.WARNING),
+            EnabledRule(MutualLink, Severity.WARNING),
             EnabledRule(MissingTitle, Severity.ERROR),
             EnabledRule(ExtraTitle, Severity.ERROR),
             EnabledRule(TitleNotFirst, Severity.ERROR),
@@ -235,6 +237,7 @@ class TestRuleTableFromRegistry:
             EnabledRule(TitleTooLong, Severity.ERROR),
             EnabledRule(ExtensionLink, Severity.WARNING),
             EnabledRule(MissingBaseLink, Severity.WARNING),
+            EnabledRule(MutualLink, Severity.WARNING),
             EnabledRule(MissingTitle, Severity.ERROR),
             EnabledRule(ExtraTitle, Severity.ERROR),
             EnabledRule(TitleNotFirst, Severity.ERROR),

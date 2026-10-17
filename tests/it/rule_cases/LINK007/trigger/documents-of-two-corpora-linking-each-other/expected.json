@@ -1,0 +1,14 @@
+[
+  {
+    "path": "docs/guide/setup.md",
+    "line": 3,
+    "severity": "warning",
+    "code": "LINK007"
+  },
+  {
+    "path": "docs/notes/n.md",
+    "line": 3,
+    "severity": "warning",
+    "code": "LINK007"
+  }
+]

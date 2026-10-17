@@ -68,4 +68,3 @@ For this decision, a large dependency is a parser- or validator-style engine who
 
 - [adr-001-snapshot-model](adr-001-snapshot-model.md) - Foundation: Package roles define which layer owns an operation
 - [adr-017-yaml-parser](adr-017-yaml-parser.md) - Related: The parser choice and YAML-specific guarantees for `lorecraft.yaml`
-- [module-lorecraft-yaml](../code/module-lorecraft-yaml.md) - Example: The YAML wrapper's responsibility and checkable boundary

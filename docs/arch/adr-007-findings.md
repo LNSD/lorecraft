@@ -8,7 +8,7 @@ status: "superseded"
 # Findings
 
 > [!NOTE]
-> Superseded by [adr-010-diagnostics](adr-010-diagnostics.md). It binds no code, and records what Lorecraft v0.2
+> Superseded. It binds no code, and records what Lorecraft v0.2
 > reports.
 
 ## Context
@@ -82,7 +82,6 @@ Before committing code, verify:
 
 ## References
 
-- [adr-010-diagnostics](adr-010-diagnostics.md) - Superseded by: Diagnostics, their order and the exit codes
 - [adr-001-snapshot-model](adr-001-snapshot-model.md) - Related: The model and the package roles
 - [adr-006-specifications](adr-006-specifications.md) - Related: Where the rules a finding cites come from
 - [adr-004-database](adr-004-database.md) - Related: The revision every finding in one report comes from

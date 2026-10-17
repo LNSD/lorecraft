@@ -88,6 +88,4 @@ Before committing code, verify:
 - [adr-005-incremental](adr-005-incremental.md) - Related: Carry-over and the store, the only caching across
   revisions
 - [adr-011-rules-engine](adr-011-rules-engine.md) - Related: Where the engine's code lives
-- [module-lorecraft-project](../code/module-lorecraft-project.md) - Leads to: The Derivation package's rules
-- [module-lorecraft-engine](../code/module-lorecraft-engine.md) - Leads to: The Analysis package's rules
 - [adr-004-database](adr-004-database.md) - Related: The record adr-015 supersedes
