@@ -198,13 +198,7 @@ class DatabaseItemContext:
         return structure
 
     def query[T](self, query: Query[T]) -> T:
-        """The answer of a declared query, from the database's memoized `query`.
-
-        Raises:
-            WrongItemKindError: If the item is a skill resource.
-        """
-        if isinstance(self._source.descriptor.origin, SkillResourceOrigin):
-            raise WrongItemKindError(self._source.ref, 'a document or a skill entry')
+        """The answer of a declared query, from the database's memoized `query`."""
         return self._database.query(query, self._source.ref)
 
     def document_links(self) -> tuple[DocumentLink, ...]:

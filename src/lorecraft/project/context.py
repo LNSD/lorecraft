@@ -44,6 +44,10 @@ from .link_target import DocumentLink, LinkBase, LinkTargetEntry
 class MarkdownContext(Protocol):
     """One decoded Markdown file: a document, a skill's `SKILL.md` or a skill's resource."""
 
+    def query[T](self, query: Query[T]) -> T:
+        """The answer of a declared query over this file, memoized by the query and the file."""
+        ...
+
     def parse(self) -> ParsedDocument:
         """The file's parse tree: its headings, their anchors and its links."""
         ...

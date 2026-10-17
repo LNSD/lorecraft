@@ -204,6 +204,37 @@ class MarkdownRule(ItemRule):
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
+class QueriedMarkdownRule[Facts](MarkdownRule):
+    """The base of a rule over a Markdown file that names the query it needs and judges its facts, never a context.
+
+    It works as `QueriedDocumentRule` does, over the primitives of a document, a skill or a resource alike.
+    """
+
+    @classmethod
+    @abstractmethod
+    def query(cls) -> Query[Facts]:
+        """The query whose answer `judge` takes; the same function every call, since the database memoizes by it."""
+
+    @classmethod
+    def check(cls, subject: MarkdownContext) -> tuple[Self, ...]:
+        """Resolve the query through the subject, then judge the facts it derives.
+
+        Args:
+            subject: The file judged: a document governed for its structure, a skill's `SKILL.md` or a resource.
+        """
+        return cls.judge(subject.query(cls.query()))
+
+    @classmethod
+    @abstractmethod
+    def judge(cls, facts: Facts, /) -> tuple[Self, ...]:
+        """Every occurrence of the rule's condition in the Markdown file, from the facts alone.
+
+        Args:
+            facts: The answer of the rule's query.
+        """
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
 class SkillFileRule(ItemRule):
     """The base of every rule over one of a skill's Markdown files: its `SKILL.md` or one of its resources.
 
@@ -221,6 +252,37 @@ class SkillFileRule(ItemRule):
 
         Args:
             subject: The file judged: a skill's `SKILL.md` or one of its resources.
+        """
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class QueriedSkillFileRule[Facts](SkillFileRule):
+    """The base of a rule over one of a skill's Markdown files that names the query it needs and judges its facts.
+
+    It works as `QueriedDocumentRule` does, over the primitives of a skill's `SKILL.md` or a resource alike.
+    """
+
+    @classmethod
+    @abstractmethod
+    def query(cls) -> Query[Facts]:
+        """The query whose answer `judge` takes; the same function every call, since the database memoizes by it."""
+
+    @classmethod
+    def check(cls, subject: SkillFileContext) -> tuple[Self, ...]:
+        """Resolve the query through the subject, then judge the facts it derives.
+
+        Args:
+            subject: The file judged: a skill's `SKILL.md` or one of its resources.
+        """
+        return cls.judge(subject.query(cls.query()))
+
+    @classmethod
+    @abstractmethod
+    def judge(cls, facts: Facts, /) -> tuple[Self, ...]:
+        """Every occurrence of the rule's condition in the skill's file, from the facts alone.
+
+        Args:
+            facts: The answer of the rule's query.
         """
 
 

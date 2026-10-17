@@ -4,20 +4,58 @@ from dataclasses import dataclass
 from typing import ClassVar, Self, assert_never
 from urllib.parse import unquote
 
-from lorecraft.project.context import SkillFileContext
 from lorecraft.project.link_target import EscapingTarget, LinkTarget
-from lorecraft.project.syntax import AbsoluteDestination, ExternalDestination, FragmentDestination, RelativeDestination
+from lorecraft.project.schemas import Primitives, Query
+from lorecraft.project.syntax import (
+    AbsoluteDestination,
+    ExternalDestination,
+    FragmentDestination,
+    Link,
+    RelativeDestination,
+)
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Subdiagnostic
-from lorecraft.rules.subject import SkillFileRule
+from lorecraft.rules.subject import QueriedSkillFileRule
 
 from .__ruleset__ import GROUP_ID, SKILL_NOTE
 
 
+def escaping_links(primitives: Primitives) -> tuple[Link, ...]:
+    """The relative links of a skill's file whose path climbs above the skill root, in file order.
+
+    A query: it reads the item's links and their targets and nothing else.
+
+    Args:
+        primitives: The model state of the skill's file.
+    """
+    targets = primitives.link_targets()
+    escaping: list[Link] = []
+    for link in primitives.links():
+        # The link target decides whether the path climbs past the skill root.
+        destination = link.to_destination()
+        match destination:
+            case RelativeDestination():
+                entry = targets.get(destination.path)
+            # A URL with a scheme, an absolute or a fragment-only link spells no relative path, so it never escapes.
+            case ExternalDestination() | AbsoluteDestination() | FragmentDestination():
+                continue
+            case _:
+                assert_never(destination)
+        match entry:
+            case EscapingTarget():
+                escaping.append(link)
+            # An entry inside the skill, or none.
+            case LinkTarget() | None:
+                continue
+            case _:
+                assert_never(entry)
+    return tuple(escaping)
+
+
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
-class EscapingLink(SkillFileRule):
+class EscapingLink(QueriedSkillFileRule[tuple[Link, ...]]):
     """A relative link in a skill's file climbs above the skill root.
 
     ## What it does
@@ -84,31 +122,15 @@ class EscapingLink(SkillFileRule):
         return (SKILL_NOTE, Help('link a file inside the skill, relative to the skill root'))
 
     @classmethod
-    def check(cls, subject: SkillFileContext) -> tuple[Self, ...]:
+    def query(cls) -> Query[tuple[Link, ...]]:
+        """The relative links whose path climbs above the skill root."""
+        return escaping_links
+
+    @classmethod
+    def judge(cls, facts: tuple[Link, ...], /) -> tuple[Self, ...]:
         """One occurrence for each relative link whose path climbs above the skill root, on its line, in file order.
 
         Args:
-            subject: The skill's `SKILL.md` or one of its resources, whose links are read from the skill root.
+            facts: The escaping links of the skill's file.
         """
-        targets = subject.link_targets()
-        occurrences: list[Self] = []
-        for link in subject.parse().links:
-            # The link target decides whether the path climbs past the skill root.
-            destination = link.to_destination()
-            match destination:
-                case RelativeDestination():
-                    entry = targets.get(destination.path)
-                # A URL with a scheme, an absolute or a fragment-only link spells no relative path, so it never escapes.
-                case ExternalDestination() | AbsoluteDestination() | FragmentDestination():
-                    continue
-                case _:
-                    assert_never(destination)
-            match entry:
-                case EscapingTarget():
-                    occurrences.append(cls(line=link.line, url=link.url))
-                # An entry inside the skill, or none.
-                case LinkTarget() | None:
-                    continue
-                case _:
-                    assert_never(entry)
-        return tuple(occurrences)
+        return tuple(cls(line=link.line, url=link.url) for link in facts)
