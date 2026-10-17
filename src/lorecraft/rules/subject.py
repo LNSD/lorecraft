@@ -6,7 +6,8 @@ skill. A rule over what any Markdown file has derives from `MarkdownRule` instea
 judges its `SKILL.md` and its resources alike, never a document; one over the frontmatter a document or a skill opens
 with, which both kinds share, derives from `FrontmatterRule`. The base's abstract `check` takes the subject's
 context, declared in `lorecraft.project`, and the rule asks it for the facts it reads and nothing else. The context
-is answered by the database in `lorecraft.project.database`, so a rule never learns that a database exists.
+is answered by the database in `lorecraft.project.database`, so a rule never learns that a database exists. A rule that
+derives from a `Queried*Rule` base reads no context: it names a query and the runner hands `judge` its facts.
 
 A document is judged only for what a meta spec governs, so a rule over a document declares the facet it reads in
 `GOVERNED_BY`, and the runner hands it the document only when the meta specs govern that facet. A rule over the
@@ -124,6 +125,19 @@ class Queried[Facts](ABC):
             facts: The answer of the rule's query.
         """
 
+    @classmethod
+    def check(cls, subject: object) -> tuple[Self, ...]:
+        """Never called: the runner judges a queried rule from its query, not through a context.
+
+        Args:
+            subject: Unused.
+
+        Raises:
+            TypeError: Always.
+        """
+        msg = f'{cls.__name__} is judged from its query by the runner, never through a context'
+        raise TypeError(msg)
+
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class QueriedDocumentRule[Facts](Queried[Facts], DocumentRule):
@@ -134,15 +148,6 @@ class QueriedDocumentRule[Facts](Queried[Facts], DocumentRule):
     query of another type fails the type check. The query is a pure function over the document's primitives, so the
     rule is coupled to the rest only through the model state it reads.
     """
-
-    @classmethod
-    def check(cls, subject: DocumentContext) -> tuple[Self, ...]:
-        """Resolve the query through the subject, then judge the facts it derives.
-
-        Args:
-            subject: The document judged, governed for the rule's facet.
-        """
-        return cls.judge(subject.query(cls.query()))
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -167,15 +172,6 @@ class QueriedSkillRule[Facts](Queried[Facts], SkillRule):
 
     It works as `QueriedDocumentRule` does, over a skill's primitives.
     """
-
-    @classmethod
-    def check(cls, subject: SkillContext) -> tuple[Self, ...]:
-        """Resolve the query through the subject, then judge the facts it derives.
-
-        Args:
-            subject: The skill judged.
-        """
-        return cls.judge(subject.query(cls.query()))
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -208,15 +204,6 @@ class QueriedMarkdownRule[Facts](Queried[Facts], MarkdownRule):
     It works as `QueriedDocumentRule` does, over the primitives of a document, a skill or a resource alike.
     """
 
-    @classmethod
-    def check(cls, subject: MarkdownContext) -> tuple[Self, ...]:
-        """Resolve the query through the subject, then judge the facts it derives.
-
-        Args:
-            subject: The file judged: a document governed for its structure, a skill's `SKILL.md` or a resource.
-        """
-        return cls.judge(subject.query(cls.query()))
-
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class SkillFileRule(ItemRule):
@@ -245,15 +232,6 @@ class QueriedSkillFileRule[Facts](Queried[Facts], SkillFileRule):
 
     It works as `QueriedDocumentRule` does, over the primitives of a skill's `SKILL.md` or a resource alike.
     """
-
-    @classmethod
-    def check(cls, subject: SkillFileContext) -> tuple[Self, ...]:
-        """Resolve the query through the subject, then judge the facts it derives.
-
-        Args:
-            subject: The file judged: a skill's `SKILL.md` or one of its resources.
-        """
-        return cls.judge(subject.query(cls.query()))
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -315,15 +293,6 @@ class QueriedFrontmatterRule[Facts](Queried[Facts], FrontmatterRule):
 
     It works as `QueriedDocumentRule` does, over the primitives of a document or a skill alike.
     """
-
-    @classmethod
-    def check(cls, subject: FrontmatterContext) -> tuple[Self, ...]:
-        """Resolve the query through the subject, then judge the facts it derives.
-
-        Args:
-            subject: The document or the skill judged; a document is governed for its frontmatter.
-        """
-        return cls.judge(subject.query(cls.query()))
 
 
 def governing_facet(rule: type[ItemRule]) -> Facet | None:

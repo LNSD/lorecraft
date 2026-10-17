@@ -21,6 +21,7 @@ from lorecraft.rules.tests.fake_context import (
     DEFAULT_SKILL_DIRECTORY,
     FakeDocumentMarkdownContext,
     FakeSkillResourceContext,
+    judged,
 )
 
 from ..broken_link import BrokenLink
@@ -57,7 +58,7 @@ class TestBrokenLinkInASkill:
         )
 
         #: When
-        occurrences = BrokenLink.check(subject)
+        occurrences = judged(BrokenLink, subject)
 
         #: Then
         assert occurrences == (
@@ -77,7 +78,7 @@ class TestBrokenLinkInASkill:
         )
 
         #: When
-        occurrences = BrokenLink.check(subject)
+        occurrences = judged(BrokenLink, subject)
 
         #: Then
         assert occurrences == (), 'a link to a file or a directory the snapshot holds goes somewhere'
@@ -90,7 +91,7 @@ class TestBrokenLinkInASkill:
         )
 
         #: When
-        occurrences = BrokenLink.check(subject)
+        occurrences = judged(BrokenLink, subject)
 
         #: Then
         assert occurrences == (), 'whether a target the scan never read holds anything cannot be told'
@@ -103,7 +104,7 @@ class TestBrokenLinkInASkill:
         )
 
         #: When
-        occurrences = BrokenLink.check(subject)
+        occurrences = judged(BrokenLink, subject)
 
         #: Then
         assert occurrences == (), (
@@ -117,7 +118,7 @@ class TestBrokenLinkInASkill:
         )
 
         #: When
-        occurrences = BrokenLink.check(subject)
+        occurrences = judged(BrokenLink, subject)
 
         #: Then
         assert occurrences == (), 'a URL, an absolute link and a fragment-only link name no target'
@@ -130,7 +131,7 @@ class TestBrokenLinkInASkill:
         )
 
         #: When
-        occurrences = BrokenLink.check(subject)
+        occurrences = judged(BrokenLink, subject)
 
         #: Then
         assert occurrences == (
@@ -149,7 +150,7 @@ class TestBrokenLinkInASkill:
         )
 
         #: When
-        occurrences = BrokenLink.check(subject)
+        occurrences = judged(BrokenLink, subject)
 
         #: Then
         assert occurrences == (
@@ -172,7 +173,7 @@ class TestBrokenLinkInADocument:
         )
 
         #: When
-        occurrences = BrokenLink.check(subject)
+        occurrences = judged(BrokenLink, subject)
 
         #: Then
         assert occurrences == (
@@ -192,7 +193,7 @@ class TestBrokenLinkInADocument:
         )
 
         #: When
-        occurrences = BrokenLink.check(subject)
+        occurrences = judged(BrokenLink, subject)
 
         #: Then
         assert occurrences == (), 'a link to a file the snapshot holds goes somewhere'
