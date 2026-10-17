@@ -91,6 +91,57 @@ def empty_section_facts(primitives: _GovernanceSyntaxPrimitives) -> EmptySection
     )
 
 
+def _role_of(
+    alignments: tuple[OutlineAlignmentSpec, ...],
+    heading: Heading,
+    title: Heading | None,
+    section: SectionHeading | None,
+) -> SectionRole:
+    """What an empty heading is: the title, a section the outline requires, or any other section.
+
+    Args:
+        alignments: The document's sections aligned to the outline of every structure file that governs
+            it, in the order they apply.
+        heading: The heading of the empty section.
+        title: The document's title, or `None` when it has none.
+        section: The heading as a section, or `None` when it opens no section: only an H2 does.
+    """
+    # Compared by line, as two headings never start on the same one.
+    if title is not None and heading.line == title.line:
+        return EmptyTitle()
+    if section is None:
+        return OtherSection()
+    required = _find_required_entry(alignments, section)
+    if required is None:
+        return OtherSection()
+    return required
+
+
+def _find_required_entry(alignments: tuple[OutlineAlignmentSpec, ...], section: SectionHeading) -> SectionEntry | None:
+    """The first outline entry, across the meta specs, that requires a section.
+
+    The entry may come from a meta spec other than the one that forbids empty sections: a namespace can require
+    what its corpus leaves out. `None` comes back when no meta spec aligns the section to an entry that
+    requires it.
+
+    Args:
+        alignments: The document's sections aligned to the outline of every structure file that governs
+            it, in the order they apply.
+        section: The heading of the empty section.
+    """
+    for alignment in alignments:
+        aligned = alignment.aligned_section(section)
+        match aligned:
+            case NamedAlignment():
+                if not aligned.entry.optional:
+                    return aligned.entry
+            case AnyRunAlignment() | UnalignedSection():
+                pass  # an `any` run, or nothing, requires no section
+            case _:
+                assert_never(aligned)
+    return None
+
+
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
 class EmptySection(QueriedDocumentRule[EmptySectionFacts]):
@@ -215,54 +266,3 @@ class EmptySection(QueriedDocumentRule[EmptySectionFacts]):
             for spec in facts.specs
             for empty in facts.empty
         )
-
-
-def _role_of(
-    alignments: tuple[OutlineAlignmentSpec, ...],
-    heading: Heading,
-    title: Heading | None,
-    section: SectionHeading | None,
-) -> SectionRole:
-    """What an empty heading is: the title, a section the outline requires, or any other section.
-
-    Args:
-        alignments: The document's sections aligned to the outline of every structure file that governs
-            it, in the order they apply.
-        heading: The heading of the empty section.
-        title: The document's title, or `None` when it has none.
-        section: The heading as a section, or `None` when it opens no section: only an H2 does.
-    """
-    # Compared by line, as two headings never start on the same one.
-    if title is not None and heading.line == title.line:
-        return EmptyTitle()
-    if section is None:
-        return OtherSection()
-    required = _find_required_entry(alignments, section)
-    if required is None:
-        return OtherSection()
-    return required
-
-
-def _find_required_entry(alignments: tuple[OutlineAlignmentSpec, ...], section: SectionHeading) -> SectionEntry | None:
-    """The first outline entry, across the meta specs, that requires a section.
-
-    The entry may come from a meta spec other than the one that forbids empty sections: a namespace can require
-    what its corpus leaves out. `None` comes back when no meta spec aligns the section to an entry that
-    requires it.
-
-    Args:
-        alignments: The document's sections aligned to the outline of every structure file that governs
-            it, in the order they apply.
-        section: The heading of the empty section.
-    """
-    for alignment in alignments:
-        aligned = alignment.aligned_section(section)
-        match aligned:
-            case NamedAlignment():
-                if not aligned.entry.optional:
-                    return aligned.entry
-            case AnyRunAlignment() | UnalignedSection():
-                pass  # an `any` run, or nothing, requires no section
-            case _:
-                assert_never(aligned)
-    return None

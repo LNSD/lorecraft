@@ -1,7 +1,7 @@
 """`LINK003`: a relative link names nothing the repository holds where it is read from."""
 
 from dataclasses import dataclass
-from typing import ClassVar, Protocol, Self, assert_never
+from typing import ClassVar, Self, assert_never
 from urllib.parse import unquote
 
 from lorecraft.core.path import RootRelativePath
@@ -13,7 +13,7 @@ from lorecraft.project.link_target import (
     PathLookup,
     SkillRoot,
 )
-from lorecraft.project.query import LinkResolutionPrimitives, Query, SyntaxPrimitives
+from lorecraft.project.query import Query
 from lorecraft.project.syntax import (
     AbsoluteDestination,
     ExternalDestination,
@@ -26,7 +26,7 @@ from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Note, Subdiagnostic
 from lorecraft.rules.subject import QueriedMarkdownRule
 
-from .__ruleset__ import GROUP_ID, SKILL_NOTE
+from .__ruleset__ import GROUP_ID, SKILL_NOTE, SyntaxLinkResolutionPrimitives
 
 
 @dataclass(frozen=True, slots=True)
@@ -44,11 +44,7 @@ class MissingTarget:
     target: RootRelativePath
 
 
-class _SyntaxLinkResolutionPrimitives(SyntaxPrimitives, LinkResolutionPrimitives, Protocol):
-    """The primitives the queries below read."""
-
-
-def missing_targets(primitives: _SyntaxLinkResolutionPrimitives) -> tuple[MissingTarget, ...]:
+def missing_targets(primitives: SyntaxLinkResolutionPrimitives) -> tuple[MissingTarget, ...]:
     """The relative links of a Markdown file whose target holds nothing, in document order. Raises nothing.
 
     A query: it reads the item's links, their targets and their base and nothing else.

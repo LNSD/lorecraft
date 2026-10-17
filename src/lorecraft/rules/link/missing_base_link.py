@@ -1,21 +1,21 @@
 """`LINK006`: a document that extends another does not link to it under References."""
 
 from dataclasses import dataclass
-from typing import ClassVar, Protocol, Self
+from typing import ClassVar, Final, Self
 
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.item import ItemKind
 from lorecraft.project.link_target import DocumentDirectory, LinkTarget
-from lorecraft.project.query import GovernancePrimitives, LinkResolutionPrimitives, Query, SyntaxPrimitives
+from lorecraft.project.query import Query
 from lorecraft.project.syntax import FIRST_LINE, LineNumber, RelativeDestination, find_title
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Note, Subdiagnostic
 from lorecraft.rules.subject import Facet, QueriedDocumentRule
 
-from .__ruleset__ import GROUP_ID
+from .__ruleset__ import GROUP_ID, GovernanceSyntaxLinkResolutionPrimitives
 
-_REFERENCES: str = 'References'
+_REFERENCES: Final[str] = 'References'
 """The heading of the section that names the documents a document builds on."""
 
 
@@ -34,13 +34,7 @@ class MissingBase:
     extension: str
 
 
-class _GovernanceSyntaxLinkResolutionPrimitives(
-    GovernancePrimitives, SyntaxPrimitives, LinkResolutionPrimitives, Protocol
-):
-    """The primitives the queries below read."""
-
-
-def missing_base(primitives: _GovernanceSyntaxLinkResolutionPrimitives) -> MissingBase | None:
+def missing_base(primitives: GovernanceSyntaxLinkResolutionPrimitives) -> MissingBase | None:
     """The base a document leaves out of its References section; `None` when it has no base or links it.
 
     A query: it reads the item's base, name, links, their targets, their base and its headings and nothing else.

@@ -42,6 +42,22 @@ _SPLIT_HELP: Final[Help] = Help(
 """How to bring a section under its cap, and what the cap leaves out of its count."""
 
 
+def _cap_source_note(cap_source: CapSource, section: str) -> Note:
+    """The note saying which entry of the outline the cap is.
+
+    Args:
+        cap_source: Whether the cap is the section's own entry's or that of the `any` run it falls in.
+        section: The heading text of the section.
+    """
+    match cap_source:
+        case NamedSectionCap():
+            return Note(f"the cap is the `{section}` entry's")
+        case AnyRunCap():
+            return Note("the cap is the `any` run's, which caps each section the outline does not name")
+        case _:
+            assert_never(cap_source)
+
+
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
 class SectionTooManyWords(QueriedDocumentRule[tuple[OutlineAlignmentSpec, ...]]):
@@ -109,8 +125,6 @@ class SectionTooManyWords(QueriedDocumentRule[tuple[OutlineAlignmentSpec, ...]])
     NAME: ClassVar[RuleName] = RuleName('section-too-many-words')
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('0.3.0')
-    # STRUCTURE, not OUTLINE, though only the outline is read: it judges the same documents as the rules over the
-    # headings (owner decision).
     GOVERNED_BY: ClassVar[Facet] = Facet.STRUCTURE
 
     spec: RootRelativePath
@@ -134,17 +148,7 @@ class SectionTooManyWords(QueriedDocumentRule[tuple[OutlineAlignmentSpec, ...]])
 
     def children(self) -> tuple[Subdiagnostic, ...]:
         """Point at the meta spec that sets the cap, say how to shorten the section, and whose cap it is."""
-        return (spec_note(self.spec), _SPLIT_HELP, self._cap_source_note())
-
-    def _cap_source_note(self) -> Note:
-        """The note saying which entry of the outline the cap is."""
-        match self.cap_source:
-            case NamedSectionCap():
-                return Note(f"the cap is the `{self.section}` entry's")
-            case AnyRunCap():
-                return Note("the cap is the `any` run's, which caps each section the outline does not name")
-            case _:
-                assert_never(self.cap_source)
+        return (spec_note(self.spec), _SPLIT_HELP, _cap_source_note(self.cap_source, self.section))
 
     @classmethod
     def query(cls) -> Query[tuple[OutlineAlignmentSpec, ...]]:
