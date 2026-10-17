@@ -32,11 +32,14 @@ from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.schemas import (
+    DocumentTitle,
     OutlineAlignmentSpec,
     OutlineDivergenceSpec,
     SchemaProblems,
     SkillFields,
     StructureSpec,
+    TitleConstraint,
+    TokenBudget,
 )
 from lorecraft.project.syntax import FrontmatterNode, LineCount, NormalisedLinkPath, ParsedDocument, TokenCount
 from lorecraft.project.workspace import Governance
@@ -186,6 +189,18 @@ class DocumentContext(FrontmatterContext, MarkdownContext, Protocol):
         One entry per structure specification that governs the document and states an outline, in the order the
         specifications apply; none when no outline governs it.
         """
+        ...
+
+    def title(self) -> DocumentTitle | None:
+        """The document's title with its character and word counts, or `None` when it has none."""
+        ...
+
+    def title_constraints(self) -> tuple[TitleConstraint, ...]:
+        """The title checks each specification that governs the document states, in the order they apply."""
+        ...
+
+    def token_budgets(self) -> tuple[TokenBudget, ...]:
+        """The token budget each specification that governs the document sets, in the order they apply."""
         ...
 
 
