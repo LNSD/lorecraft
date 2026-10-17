@@ -356,7 +356,7 @@ Code specs may reference other code specs to establish relationships. Cross-refe
 |---|---|---|
 | `Related` | Sibling in same prefix group | tests-organization <-> tests-functions |
 | `Foundation` | Principle or core code spec, or an accepted ADR in `docs/arch/`, a code spec builds on | module-lorecraft-project -> pattern-repository |
-| `Companion` | Paired doc for same package | pkg-lorecraft-project-syntax <-> pkg-lorecraft-project-syntax-security |
+| `Companion` | Paired doc for same package | pkg-lorecraft-project-syntax-security -> pkg-lorecraft-project-syntax |
 | `Extends` | Specializes/refines another code spec | python-async-tasks -> python-async |
 
 ### Direction Rules
@@ -373,6 +373,7 @@ Code specs may reference other code specs to establish relationships. Cross-refe
 - Core code specs link laterally to related or parent core code specs, and may reference principle code specs as foundation
 - Package code specs reference the principle/core code specs and the accepted ADRs they depend on, plus a companion or the package doc they specialize
 - Meta specs only reference the corpus meta spec they extend
+- A document whose name continues another's names that base, and the base names none of its extensions
 
 ### References Section Format
 
@@ -380,7 +381,7 @@ Code specs may reference other code specs to establish relationships. Cross-refe
 ## References
 - [error-types](error-types.md) - Extends: Error type declaration
 - [python-modules](python-modules.md) - Foundation: Module organization
-- [pkg-lorecraft-project-syntax-security](pkg-lorecraft-project-syntax-security.md) - Companion: Security checklist
+- [pkg-lorecraft-project-syntax](pkg-lorecraft-project-syntax.md) - Companion: The package this security checklist covers
 ```
 
 ### Examples
@@ -388,7 +389,7 @@ Code specs may reference other code specs to establish relationships. Cross-refe
 - ✅ `python-async-tasks` -> `python-async` (Extends: core to core)
 - ✅ `module-lorecraft-project` -> `pattern-repository` (Foundation: pkg to core)
 - ✅ `module-lorecraft-project-syntax` -> `module-lorecraft-project` (Extends: pkg to pkg)
-- ✅ `pkg-lorecraft-project-syntax` <-> `pkg-lorecraft-project-syntax-security` (Companion: bidirectional)
+- ✅ `pkg-lorecraft-project-syntax-security` -> `pkg-lorecraft-project-syntax` (Companion: the extension names its base)
 - ✅ `tests-organization` <-> `tests-functions` (Related: core siblings)
 - ❌ `code` -> `python-modules` (meta specs only reference other meta specs)
 - ❌ `python-modules` -> `module-lorecraft-project` (core cannot reference pkg code specs)
@@ -679,7 +680,7 @@ Before committing a code spec:
 
 - [ ] References use defined relationship types (`Related`, `Foundation`, `Companion`, `Extends`)
 - [ ] Package code specs reference foundation core code specs
-- [ ] Security companions are bidirectionally linked
+- [ ] A security companion names its package, and the package names no companion
 - [ ] Meta specs only reference other meta specs
 
 ### Content

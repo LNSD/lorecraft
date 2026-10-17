@@ -5,6 +5,7 @@ from typing import ClassVar, Self
 
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.context import DocumentContext
+from lorecraft.project.item import ItemKind
 from lorecraft.project.link_target import DocumentDirectory, LinkTarget
 from lorecraft.project.syntax import FIRST_LINE, LineNumber, RelativeDestination, find_title
 from lorecraft.rules.collector import rule
@@ -30,7 +31,9 @@ class MissingBaseLink(DocumentRule):
     `python-fn-unchecked`, even when `python-fn-unchecked` sits two names below it. A document with no such name
     has no base and is not judged. The link must lead to the base's file, and lie between the `References` heading
     and the next heading of its level or above, so a link in the text or under `External References` does not count.
-    No meta spec key states the rule: every document of a corpus that states a structure file is held to it.
+    A meta specification of `docs/__meta__/` is judged the same way, its base looked for among the specifications.
+    No meta spec key states the rule: every document of a corpus that states a structure file, and every meta
+    specification, is held to it.
 
     The finding is reported on the `References` heading, or on the title when the document has no such section.
 
@@ -75,6 +78,7 @@ class MissingBaseLink(DocumentRule):
     LEVEL: ClassVar[Level] = Level.WARN
     SINCE: ClassVar[Release] = Release('0.4.0')
     GOVERNED_BY: ClassVar[Facet] = Facet.STRUCTURE
+    APPLIES_TO: ClassVar[frozenset[ItemKind]] = frozenset({ItemKind.DOCUMENT, ItemKind.SPECIFICATION})
 
     spec: None = None
     base: str
@@ -120,4 +124,4 @@ class MissingBaseLink(DocumentRule):
                     return ()
         title = find_title(parsed.headings)
         line: LineNumber = references.line if references is not None else (title.line if title else FIRST_LINE)
-        return (cls(line=line, base=f'{base}.md', extension=f'{subject.filename()}.md'),)
+        return (cls(line=line, base=f'{base}.md', extension=f'{subject.name()}.md'),)

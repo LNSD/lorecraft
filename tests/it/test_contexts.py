@@ -611,6 +611,18 @@ class TestDatabaseItemContextOfASpecification:
         #: Then
         assert filename == AspectFilename.parse('code-python'), 'the name is the specification file stem'
 
+    def test_base_with_a_specification_returns_the_specification_its_name_continues(self) -> None:
+        #: Given
+        database = Database.from_snapshot(_snapshot())
+        context = DatabaseItemContext(database, _spec_item(database))
+        expected = 'code'
+
+        #: When
+        base = context.base()
+
+        #: Then
+        assert base == expected, 'code-python continues code, the corpus specification beside it'
+
     def test_parse_with_a_specification_returns_the_item_parse_query(self) -> None:
         #: Given
         database = Database.from_snapshot(_snapshot())

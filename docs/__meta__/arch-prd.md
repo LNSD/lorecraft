@@ -273,3 +273,7 @@ Scenario: {{Short title}}
 - [ ] An `approved` PRD's implementation has landed
 - [ ] The PRD links no feat spec, whatever its status
 - [ ] The PRD cites no issue, under References or inline, and names deferred work by what it is
+
+## References
+
+- [arch](arch.md) - Extends: Base architecture corpus meta spec

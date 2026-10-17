@@ -140,7 +140,7 @@ and that file's bytes did not change.
 
 import logging
 from collections.abc import Mapping
-from typing import Self, cast
+from typing import Self, assert_never, cast
 
 from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.num import UnsignedInt
@@ -158,6 +158,9 @@ from lorecraft.project.item import (
     ItemReadError,
     MarkdownItemDescriptor,
     MarkdownItemRef,
+    SkillEntryOrigin,
+    SkillResourceOrigin,
+    SpecificationOrigin,
     UnlistedItemError,
 )
 from lorecraft.project.layout import DOCS_DIR, DOCUMENT_SUFFIX, SPECS_DIR, reject_linked_layout
@@ -834,15 +837,18 @@ class Database:
         found = self._item_extension_links.get(source.ref)
         if found is None:
             origin = source.descriptor.origin
-            if isinstance(origin, DocumentOrigin):
-                found = extension_links_of(
-                    self.item_parse(source).links,
-                    self.item_link_targets(source),
-                    source.descriptor.link_base,
-                    origin.expected_name,
-                )
-            else:
-                found = ()
+            match origin:
+                case DocumentOrigin() | SpecificationOrigin():
+                    found = extension_links_of(
+                        self.item_parse(source).links,
+                        self.item_link_targets(source),
+                        source.descriptor.link_base,
+                        origin.expected_name,
+                    )
+                case SkillEntryOrigin() | SkillResourceOrigin():
+                    found = ()
+                case _:
+                    assert_never(origin)
             self._item_extension_links[source.ref] = found
         return found
 

@@ -143,10 +143,15 @@ class DocumentContext(FrontmatterContext, MarkdownContext, Protocol):
         """The document's filename, without its extension."""
         ...
 
-    def base(self) -> AspectFilename | None:
-        """The filename of the document this one extends, or `None` when no document of its corpus continues into it.
+    def name(self) -> str:
+        """The stem of the document or meta specification, as the repository spells it."""
+        ...
 
-        The base is the narrowest document of the corpus whose name the document's name continues after a hyphen.
+    def base(self) -> str | None:
+        """The stem of the document this one extends, or `None` when no document of its corpus continues into it.
+
+        The base is the narrowest document of the corpus whose name the document's name continues after a hyphen. A
+        meta specification's is the narrowest meta specification.
         """
         ...
 

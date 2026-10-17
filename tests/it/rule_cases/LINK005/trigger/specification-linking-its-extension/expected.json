@@ -1,0 +1,8 @@
+[
+  {
+    "path": "docs/__meta__/guide.md",
+    "line": 3,
+    "severity": "warning",
+    "code": "LINK005"
+  }
+]
