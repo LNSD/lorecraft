@@ -6,7 +6,7 @@ produce. Only what no single file states is set by hand: a document's governance
 decoded from their JSON by the real decoder, where a skill is listed and what a link there leads to, and, as a
 cross-file state, what the snapshot holds at the target of each relative link, keyed by the link's normalised relative
 path. A fake document or skill holds no link target; a test of a rule over links states them on
-`FakeDocumentMarkdownContext` or `FakeSkillResourceContext`. A layout entry has no text for a fake to parse: where a
+`FakeDocumentMarkdownDatabase` or `FakeSkillResourceDatabase`. A layout entry has no text for a fake to parse: where a
 symlink's chain leaves the repository is read from the link targets a scan recorded across the tree, never from one
 file, so the test states it by hand too.
 """
@@ -292,7 +292,7 @@ class FakeDocumentContext:
         return None if base is None else str(base.filename)
 
 
-class FakeSkillContext:
+class FakeSkillDatabase:
     """A skill whose `SKILL.md` a test writes as text, listed where the test names."""
 
     _text: str
@@ -361,7 +361,7 @@ def _markdown_primitives(
     )
 
 
-class FakeSkillResourceContext:
+class FakeSkillResourceDatabase:
     """A resource of a skill a test writes as text."""
 
     _text: str
@@ -392,7 +392,7 @@ class FakeSkillResourceContext:
         return query(_markdown_primitives(self._text, SkillRoot(self._skill_directory), self._link_targets))
 
 
-class FakeDocumentMarkdownContext:
+class FakeDocumentMarkdownDatabase:
     """A document a test writes as text, asked only what any Markdown file is asked."""
 
     _text: str
@@ -423,7 +423,7 @@ class FakeDocumentMarkdownContext:
         return query(_markdown_primitives(self._text, DocumentDirectory(self._directory), self._link_targets))
 
 
-class FakeSymlinkContext:
+class FakeSymlinkDatabase:
     """A symlink of the skill layout whose chain leaves the repository where the test states."""
 
     _leaves_at: RootExit
@@ -449,7 +449,7 @@ class FakeSymlinkContext:
         return query(self)
 
 
-class FakeCorpusDirectoryContext:
+class FakeCorpusDirectoryDatabase:
     """A directory under `docs/` that takes a reserved corpus's name, as the test states."""
 
     def __init__(self, corpus: str) -> None:
@@ -486,11 +486,11 @@ def judged[R: ItemRule](rule: type[R], database: _Queryable) -> tuple[R, ...]: .
 
 
 @overload
-def judged[R: SymlinkRule](rule: type[R], database: FakeSymlinkContext) -> tuple[R, ...]: ...
+def judged[R: SymlinkRule](rule: type[R], database: FakeSymlinkDatabase) -> tuple[R, ...]: ...
 
 
 @overload
-def judged[R: CorpusDirectoryRule](rule: type[R], database: FakeCorpusDirectoryContext) -> tuple[R, ...]: ...
+def judged[R: CorpusDirectoryRule](rule: type[R], database: FakeCorpusDirectoryDatabase) -> tuple[R, ...]: ...
 
 
 def judged(rule: type[Rule], database: object) -> tuple[Rule, ...]:

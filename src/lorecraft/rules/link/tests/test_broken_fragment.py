@@ -9,7 +9,7 @@ import pytest
 from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.location import Note
-from lorecraft.rules.tests.fake_database import FakeSkillResourceContext, judged
+from lorecraft.rules.tests.fake_database import FakeSkillResourceDatabase, judged
 
 from ..broken_fragment import BrokenFragment
 
@@ -18,7 +18,7 @@ from ..broken_fragment import BrokenFragment
 class TestBrokenFragment:
     def test_check_with_a_fragment_naming_no_heading_reports_it_on_its_line(self) -> None:
         #: Given
-        subject = FakeSkillResourceContext('# Guide\n\nSee [usage](#usage).\n')
+        subject = FakeSkillResourceDatabase('# Guide\n\nSee [usage](#usage).\n')
 
         #: When
         occurrences = judged(BrokenFragment, subject)
@@ -30,7 +30,7 @@ class TestBrokenFragment:
 
     def test_check_with_a_file_holding_no_heading_reports_it_as_having_none(self) -> None:
         #: Given
-        subject = FakeSkillResourceContext('See [usage](#usage).\n')
+        subject = FakeSkillResourceDatabase('See [usage](#usage).\n')
 
         #: When
         occurrences = judged(BrokenFragment, subject)
@@ -42,7 +42,7 @@ class TestBrokenFragment:
 
     def test_check_with_a_fragment_naming_a_heading_of_the_file_reports_nothing(self) -> None:
         #: Given
-        subject = FakeSkillResourceContext('# Guide\n\nSee [usage](#usage).\n\n## Usage\n')
+        subject = FakeSkillResourceDatabase('# Guide\n\nSee [usage](#usage).\n\n## Usage\n')
 
         #: When
         occurrences = judged(BrokenFragment, subject)
@@ -52,7 +52,7 @@ class TestBrokenFragment:
 
     def test_check_with_a_fragment_written_in_another_case_reports_nothing(self) -> None:
         #: Given
-        subject = FakeSkillResourceContext('# Guide\n\nSee [usage](#Usage).\n\n## Usage\n')
+        subject = FakeSkillResourceDatabase('# Guide\n\nSee [usage](#Usage).\n\n## Usage\n')
 
         #: When
         occurrences = judged(BrokenFragment, subject)
@@ -63,7 +63,7 @@ class TestBrokenFragment:
     def test_check_with_a_fragment_no_heading_can_have_reports_it(self) -> None:
         #: Given
         # The parser percent-encodes the space of `<#a b>`; no anchor holds a space, whatever the headings are.
-        subject = FakeSkillResourceContext('# Guide\n\nSee [x](<#a b>).\n\n## A b\n')
+        subject = FakeSkillResourceDatabase('# Guide\n\nSee [x](<#a b>).\n\n## A b\n')
 
         #: When
         occurrences = judged(BrokenFragment, subject)
@@ -75,7 +75,7 @@ class TestBrokenFragment:
 
     def test_check_with_a_bare_hash_reports_nothing(self) -> None:
         #: Given
-        subject = FakeSkillResourceContext('# Guide\n\nBack to [the top](#).\n')
+        subject = FakeSkillResourceDatabase('# Guide\n\nBack to [the top](#).\n')
 
         #: When
         occurrences = judged(BrokenFragment, subject)
@@ -85,7 +85,7 @@ class TestBrokenFragment:
 
     def test_check_with_a_fragment_after_a_path_reports_nothing(self) -> None:
         #: Given
-        subject = FakeSkillResourceContext('# Guide\n\nSee [usage](setup.md#usage).\n')
+        subject = FakeSkillResourceDatabase('# Guide\n\nSee [usage](setup.md#usage).\n')
 
         #: When
         occurrences = judged(BrokenFragment, subject)
@@ -95,7 +95,7 @@ class TestBrokenFragment:
 
     def test_check_with_a_url_with_a_fragment_reports_nothing(self) -> None:
         #: Given
-        subject = FakeSkillResourceContext('# Guide\n\nSee [usage](https://example.com/setup#usage).\n')
+        subject = FakeSkillResourceDatabase('# Guide\n\nSee [usage](https://example.com/setup#usage).\n')
 
         #: When
         occurrences = judged(BrokenFragment, subject)
@@ -105,7 +105,7 @@ class TestBrokenFragment:
 
     def test_check_with_several_broken_fragments_reports_each_in_document_order(self) -> None:
         #: Given
-        subject = FakeSkillResourceContext('# Guide\n\nSee [b](#b), [guide](#guide).\n\nAnd [a](#a).\n')
+        subject = FakeSkillResourceDatabase('# Guide\n\nSee [b](#b), [guide](#guide).\n\nAnd [a](#a).\n')
 
         #: When
         occurrences = judged(BrokenFragment, subject)

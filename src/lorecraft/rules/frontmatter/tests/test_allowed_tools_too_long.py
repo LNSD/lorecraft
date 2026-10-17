@@ -9,7 +9,7 @@ from lib.overruns import overrun
 from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.location import Help, Here, Label, Note
-from lorecraft.rules.tests.fake_database import FakeSkillContext, judged
+from lorecraft.rules.tests.fake_database import FakeSkillDatabase, judged
 
 from ..allowed_tools_too_long import AllowedToolsTooLong
 from .test_malformed_allowed_tools import SPECIFICATION_NOTE
@@ -70,7 +70,7 @@ class TestAllowedToolsTooLong:
             allowed-tools: "{value}"
             ---
             """)
-        subject = FakeSkillContext(text)
+        subject = FakeSkillDatabase(text)
 
         #: When
         occurrences = judged(AllowedToolsTooLong, subject)
@@ -88,7 +88,7 @@ class TestAllowedToolsTooLong:
             allowed-tools: "{value}"
             ---
             """)
-        subject = FakeSkillContext(text)
+        subject = FakeSkillDatabase(text)
 
         #: When
         occurrences = judged(AllowedToolsTooLong, subject)
@@ -106,7 +106,7 @@ class TestAllowedToolsTooLong:
             allowed-tools: "{value}"
             ---
             """)
-        subject = FakeSkillContext(text)
+        subject = FakeSkillDatabase(text)
 
         #: When
         occurrences = judged(AllowedToolsTooLong, subject)
@@ -124,7 +124,7 @@ class TestAllowedToolsTooLong:
             allowed-tools: "{value}"
             ---
             """)
-        subject = FakeSkillContext(text)
+        subject = FakeSkillDatabase(text)
 
         #: When
         occurrences = judged(AllowedToolsTooLong, subject)
@@ -144,7 +144,7 @@ class TestAllowedToolsTooLong:
             allowed-tools: "{value}"
             ---
             """)
-        subject = FakeSkillContext(text)
+        subject = FakeSkillDatabase(text)
 
         #: When
         occurrences = judged(AllowedToolsTooLong, subject)
@@ -164,7 +164,7 @@ class TestAllowedToolsTooLong:
             allowed-tools: "{value}"
             ---
             """)
-        subject = FakeSkillContext(text)
+        subject = FakeSkillDatabase(text)
 
         #: When
         occurrences = judged(AllowedToolsTooLong, subject)
@@ -176,7 +176,7 @@ class TestAllowedToolsTooLong:
 
     def test_check_with_no_frontmatter_reports_nothing(self) -> None:
         #: Given
-        subject = FakeSkillContext('# Review\n')
+        subject = FakeSkillDatabase('# Review\n')
 
         #: When
         occurrences = judged(AllowedToolsTooLong, subject)
@@ -186,7 +186,7 @@ class TestAllowedToolsTooLong:
 
     def test_check_with_invalid_yaml_frontmatter_reports_nothing(self) -> None:
         #: Given
-        subject = FakeSkillContext(UNCLOSED_SEQUENCE)
+        subject = FakeSkillDatabase(UNCLOSED_SEQUENCE)
 
         #: When
         occurrences = judged(AllowedToolsTooLong, subject)
@@ -196,7 +196,7 @@ class TestAllowedToolsTooLong:
 
     def test_check_with_a_sequence_as_frontmatter_reports_nothing(self) -> None:
         #: Given
-        subject = FakeSkillContext(SEQUENCE)
+        subject = FakeSkillDatabase(SEQUENCE)
 
         #: When
         occurrences = judged(AllowedToolsTooLong, subject)
@@ -206,7 +206,7 @@ class TestAllowedToolsTooLong:
 
     def test_check_with_no_allowed_tools_reports_nothing(self) -> None:
         #: Given
-        subject = FakeSkillContext(NO_ALLOWED_TOOLS)
+        subject = FakeSkillDatabase(NO_ALLOWED_TOOLS)
 
         #: When
         occurrences = judged(AllowedToolsTooLong, subject)
@@ -216,7 +216,7 @@ class TestAllowedToolsTooLong:
 
     def test_check_with_a_null_allowed_tools_reports_nothing(self) -> None:
         #: Given
-        subject = FakeSkillContext(NULL_ALLOWED_TOOLS)
+        subject = FakeSkillDatabase(NULL_ALLOWED_TOOLS)
 
         #: When
         occurrences = judged(AllowedToolsTooLong, subject)
@@ -226,7 +226,7 @@ class TestAllowedToolsTooLong:
 
     def test_check_with_a_number_as_allowed_tools_reports_nothing(self) -> None:
         #: Given
-        subject = FakeSkillContext(NUMBER_ALLOWED_TOOLS)
+        subject = FakeSkillDatabase(NUMBER_ALLOWED_TOOLS)
 
         #: When
         occurrences = judged(AllowedToolsTooLong, subject)
@@ -236,7 +236,7 @@ class TestAllowedToolsTooLong:
 
     def test_check_with_a_list_as_allowed_tools_reports_nothing(self) -> None:
         #: Given
-        subject = FakeSkillContext(LIST_ALLOWED_TOOLS)
+        subject = FakeSkillDatabase(LIST_ALLOWED_TOOLS)
 
         #: When
         occurrences = judged(AllowedToolsTooLong, subject)

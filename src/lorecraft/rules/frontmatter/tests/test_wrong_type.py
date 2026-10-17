@@ -17,7 +17,7 @@ from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.location import Elsewhere, Help, Here, Label, Note
 from lorecraft.rules.tests.fake_database import (
     FakeDocumentContext,
-    FakeSkillContext,
+    FakeSkillDatabase,
     judged,
     namespace_spec,
     structure_spec_path,
@@ -119,7 +119,7 @@ class TestWrongType:
             description: [Review a change.]
             ---
             """)
-        subject = FakeSkillContext(text)
+        subject = FakeSkillDatabase(text)
 
         #: When
         occurrences = judged(WrongType, subject)

@@ -15,7 +15,7 @@ from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.schemas import DocumentFrontmatterOwner, SkillFrontmatterOwner
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.location import Elsewhere, Help, Note
-from lorecraft.rules.tests.fake_database import FakeDocumentContext, FakeSkillContext, judged, structure_spec_path
+from lorecraft.rules.tests.fake_database import FakeDocumentContext, FakeSkillDatabase, judged, structure_spec_path
 
 from ..non_mapping_frontmatter import NonMappingFrontmatter
 
@@ -80,7 +80,7 @@ class TestNonMappingFrontmatter:
             - review
             ---
             """)
-        subject = FakeSkillContext(text)
+        subject = FakeSkillDatabase(text)
 
         #: When
         occurrences = judged(NonMappingFrontmatter, subject)

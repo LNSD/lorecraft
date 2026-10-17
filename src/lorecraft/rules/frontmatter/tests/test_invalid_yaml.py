@@ -16,7 +16,7 @@ from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.schemas import DocumentFrontmatterOwner, SkillFrontmatterOwner
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.location import Elsewhere, Help, Here, Label, Note
-from lorecraft.rules.tests.fake_database import FakeDocumentContext, FakeSkillContext, judged, structure_spec_path
+from lorecraft.rules.tests.fake_database import FakeDocumentContext, FakeSkillDatabase, judged, structure_spec_path
 
 from ..invalid_yaml import InvalidYaml
 
@@ -78,7 +78,7 @@ class TestInvalidYaml:
         # stack, and the parser can name no line
         depth = sys.getrecursionlimit()
         block = 'name: review\n' + ''.join(f'{" " * level}nested:\n' for level in range(depth)) + f'{" " * depth}a: b\n'
-        subject = FakeSkillContext(f'---\n{block}---\n')
+        subject = FakeSkillDatabase(f'---\n{block}---\n')
 
         #: When
         occurrences = judged(InvalidYaml, subject)
@@ -110,7 +110,7 @@ class TestInvalidYaml:
 
     def test_check_with_no_block_reports_nothing(self) -> None:
         #: Given
-        subject = FakeSkillContext('# Review\n')
+        subject = FakeSkillDatabase('# Review\n')
 
         #: When
         occurrences = judged(InvalidYaml, subject)

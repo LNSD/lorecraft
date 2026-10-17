@@ -15,7 +15,7 @@ from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.schemas import DocumentFrontmatterOwner, SkillFrontmatterOwner
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.location import Elsewhere, Help, Here, Label, Note
-from lorecraft.rules.tests.fake_database import FakeDocumentContext, FakeSkillContext, judged, structure_spec_path
+from lorecraft.rules.tests.fake_database import FakeDocumentContext, FakeSkillDatabase, judged, structure_spec_path
 
 from ..missing_frontmatter import MissingFrontmatter
 
@@ -69,7 +69,7 @@ class TestMissingFrontmatter:
 
     def test_check_with_a_skill_without_a_block_reports_it_under_no_specification_file(self) -> None:
         #: Given
-        subject = FakeSkillContext('# Review\n', directory_name='review')
+        subject = FakeSkillDatabase('# Review\n', directory_name='review')
 
         #: When
         occurrences = judged(MissingFrontmatter, subject)

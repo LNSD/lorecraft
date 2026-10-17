@@ -19,8 +19,8 @@ from lorecraft.rules.location import Help, Note
 from lorecraft.rules.tests.fake_database import (
     DEFAULT_DOCUMENT_DIRECTORY,
     DEFAULT_SKILL_DIRECTORY,
-    FakeDocumentMarkdownContext,
-    FakeSkillResourceContext,
+    FakeDocumentMarkdownDatabase,
+    FakeSkillResourceDatabase,
     judged,
 )
 
@@ -52,7 +52,7 @@ def _targets(
 class TestBrokenLink:
     def test_check_with_a_link_whose_target_is_missing_reports_it_on_its_line(self) -> None:
         #: Given
-        subject = FakeSkillResourceContext(
+        subject = FakeSkillResourceDatabase(
             '# Guide\n\nSee [a](references/a.md).\n',
             link_targets=_targets(SKILL_ROOT, 'references/a.md', PathLookup.MISSING),
         )
@@ -72,7 +72,7 @@ class TestBrokenLink:
 
     def test_check_with_a_link_whose_target_is_present_reports_nothing(self) -> None:
         #: Given
-        subject = FakeSkillResourceContext(
+        subject = FakeSkillResourceDatabase(
             '# Guide\n\nSee [a](references/a.md).\n',
             link_targets=_targets(SKILL_ROOT, 'references/a.md', PathLookup.FILE),
         )
@@ -85,7 +85,7 @@ class TestBrokenLink:
 
     def test_check_with_a_link_whose_target_is_outside_the_scope_reports_nothing(self) -> None:
         #: Given
-        subject = FakeSkillResourceContext(
+        subject = FakeSkillResourceDatabase(
             '# Guide\n\nSee [x](shared/x.md).\n',
             link_targets=_targets(SKILL_ROOT, 'shared/x.md', PathLookup.OUTSIDE_SCOPE),
         )
@@ -98,7 +98,7 @@ class TestBrokenLink:
 
     def test_check_with_a_link_climbing_past_its_bound_reports_nothing(self) -> None:
         #: Given
-        subject = FakeSkillResourceContext(
+        subject = FakeSkillResourceDatabase(
             '# Guide\n\nSee [up](../SKILL.md).\n',
             link_targets=FrozenMapping({NormalisedLinkPath.parse('../SKILL.md'): EscapingTarget()}),
         )
@@ -113,7 +113,7 @@ class TestBrokenLink:
 
     def test_check_with_links_spelling_no_relative_path_reports_nothing(self) -> None:
         #: Given
-        subject = FakeSkillResourceContext(
+        subject = FakeSkillResourceDatabase(
             '# Guide\n\nSee [site](https://example.com/a.md), [abs](/a.md) and [top](#guide).\n'
         )
 
@@ -125,7 +125,7 @@ class TestBrokenLink:
 
     def test_check_with_a_link_spelled_unnormalised_finds_its_entry_by_the_normalised_path(self) -> None:
         #: Given
-        subject = FakeSkillResourceContext(
+        subject = FakeSkillResourceDatabase(
             '# Guide\n\nSee [a](references/./a.md).\n',
             link_targets=_targets(SKILL_ROOT, 'references/a.md', PathLookup.MISSING),
         )
@@ -145,7 +145,7 @@ class TestBrokenLink:
 
     def test_check_with_a_query_after_a_missing_path_reports_the_whole_destination(self) -> None:
         #: Given
-        subject = FakeSkillResourceContext(
+        subject = FakeSkillResourceDatabase(
             '# Guide\n\nSee [b](b.md?raw=1).\n', link_targets=_targets(SKILL_ROOT, 'b.md', PathLookup.MISSING)
         )
 
@@ -164,7 +164,7 @@ class TestBrokenLink:
 
     def test_check_with_a_document_link_whose_target_is_missing_reports_it_on_its_line(self) -> None:
         #: Given
-        subject = FakeDocumentMarkdownContext(
+        subject = FakeDocumentMarkdownDatabase(
             '# Setup\n\nRun [install](install.md) first.\n',
             link_targets=_targets(DOCUMENT_DIRECTORY, 'install.md', PathLookup.MISSING),
         )
@@ -184,7 +184,7 @@ class TestBrokenLink:
 
     def test_check_with_a_document_link_whose_target_is_present_reports_nothing(self) -> None:
         #: Given
-        subject = FakeDocumentMarkdownContext(
+        subject = FakeDocumentMarkdownDatabase(
             '# Setup\n\nRun [install](install.md) first.\n',
             link_targets=_targets(DOCUMENT_DIRECTORY, 'install.md', PathLookup.FILE),
         )
