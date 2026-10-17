@@ -1,15 +1,23 @@
 """Subject bases for the sample rules the unit tests declare, standing in for the engine's subject kinds.
 
-A rule picks its subject by deriving from its subject kind's base, whose abstract `check` fixes what it reads. These
-two stand in for a subject with lines and a layout entry, so the tests of a rule's declaration and of the registry
-depend on no subject kind of the engine's.
+A rule picks its subject by deriving from its subject kind's base, whose abstract `judge` takes the facts it reads.
+These two stand in for a subject with lines and a layout entry, so the tests of a rule's declaration and of the
+registry depend on no subject kind of the engine's. Their `query` is never run: the tests hand `judge` its facts.
 """
 
 from abc import abstractmethod
 from dataclasses import dataclass
-from typing import Self
+from typing import NoReturn, Self
+
+from lorecraft.project.query import Primitives, Query
 
 from ..declaration import ContentRule, LayoutRule
+from ..subject import Queried
+
+
+def _unqueried(primitives: Primitives) -> NoReturn:
+    """Stand in for a query, which no test of a sample rule runs."""
+    raise NotImplementedError('a sample rule is judged on facts the test hands it')
 
 
 @dataclass(frozen=True, slots=True)
@@ -35,28 +43,38 @@ class SampleEntry:
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
-class SampleLinesRule(ContentRule):
+class SampleLinesRule(Queried[SampleLines], ContentRule):
     """The base of every sample rule over the lines of a subject."""
 
     @classmethod
+    def query(cls) -> Query[SampleLines]:
+        """The query a sample rule names; the tests never run it."""
+        return _unqueried
+
+    @classmethod
     @abstractmethod
-    def check(cls, subject: SampleLines) -> tuple[Self, ...]:
+    def judge(cls, facts: SampleLines, /) -> tuple[Self, ...]:
         """Every occurrence of the rule's condition in the subject's lines.
 
         Args:
-            subject: The lines judged.
+            facts: The lines judged.
         """
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
-class SampleEntryRule(LayoutRule):
+class SampleEntryRule(Queried[SampleEntry], LayoutRule):
     """The base of every sample rule over a layout entry."""
 
     @classmethod
+    def query(cls) -> Query[SampleEntry]:
+        """The query a sample rule names; the tests never run it."""
+        return _unqueried
+
+    @classmethod
     @abstractmethod
-    def check(cls, subject: SampleEntry) -> tuple[Self, ...]:
+    def judge(cls, facts: SampleEntry, /) -> tuple[Self, ...]:
         """The rule's occurrence at the entry, if it has one.
 
         Args:
-            subject: The entry judged.
+            facts: The entry judged.
         """

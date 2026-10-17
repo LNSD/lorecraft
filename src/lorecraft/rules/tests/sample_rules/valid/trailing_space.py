@@ -28,14 +28,14 @@ class TrailingSpace(SampleLinesRule):
         return 'line ends in a space'
 
     @classmethod
-    def check(cls, subject: SampleLines) -> tuple[Self, ...]:
+    def judge(cls, facts: SampleLines, /) -> tuple[Self, ...]:
         """Every line that ends in a space.
 
         Args:
-            subject: The lines judged.
+            facts: The lines judged.
         """
         return tuple(
             cls(spec=None, line=LineNumber(NonZeroUnsignedInt(index + 1)))
-            for index, line in enumerate(subject.lines)
+            for index, line in enumerate(facts.lines)
             if line.endswith(' ')
         )

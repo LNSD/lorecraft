@@ -25,10 +25,10 @@ class FirstRule(SampleLinesRule):
         return 'never reported'
 
     @classmethod
-    def check(cls, subject: SampleLines) -> tuple[Self, ...]:
+    def judge(cls, facts: SampleLines, /) -> tuple[Self, ...]:
         """No occurrence, whatever the lines.
 
         Args:
-            subject: The lines judged.
+            facts: The lines judged.
         """
         return ()

@@ -1,11 +1,11 @@
 """The rules engine's runner over a database opened on a snapshot, built in memory or scanned from a real tree.
 
-The runner decodes each document, skill and resource, hands each rule over a document, a skill, the frontmatter or a
-Markdown file the subject's context, and runs the rules of a table built from a registry. The package's own registry
-runs the frontmatter rules over documents and skills, the token budget, the headings rules and the outline divergence
-rules over documents, the line budget over skills, and the link rules over every Markdown file and every skill's file;
-a registry of sample rules over a document's token count, declared in this module, runs through the same runner, with
-no edit to it.
+The runner decodes each document, skill and resource, hands each rule the facts its query reads from a document, a
+skill, the frontmatter or a Markdown file, and runs the rules of a table built from a registry. The package's own
+registry runs the frontmatter rules over documents and skills, the token budget, the headings rules and the outline
+divergence rules over documents, the line budget over skills, and the link rules over every Markdown file and every
+skill's file; a registry of sample rules over a document's token count, declared in this module, runs through the same
+runner, with no edit to it.
 
 A snapshot built in memory scans nothing, so no path is in its scope and no link is looked up in it. A test that
 needs a path in scope, such as those of `LINK003`, which judges what a link names, writes a tree under `tmp_path`
@@ -803,7 +803,7 @@ class TestCheckSubjects:
         check_subjects(database, (GUIDE,), table)
 
         #: Then
-        assert database.counted_tokens == [], 'no context is built for it, so its tokens are never counted'
+        assert database.counted_tokens == [], 'no query is run for it, so its tokens are never counted'
 
     def test_check_subjects_with_a_corpus_stating_no_structure_specification_reports_the_structure_as_ungoverned(
         self,
@@ -824,7 +824,7 @@ class TestCheckSubjects:
         assert reports == (CheckedItem(MarkdownItemRef(GUIDE.path), diagnostics=(), ungoverned=(Facet.STRUCTURE,)),), (
             'the length rules over sections and the title read the structure facet, recorded once as ungoverned'
         )
-        assert database.parsed_documents == [], 'no context is built for it, so it is never parsed'
+        assert database.parsed_documents == [], 'no query is run for it, so it is never parsed'
 
     def test_check_subjects_with_an_undecodable_document_reports_it_undecodable(self, package_table: RuleTable) -> None:
         #: Given

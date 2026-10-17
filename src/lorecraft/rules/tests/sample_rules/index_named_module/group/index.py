@@ -24,10 +24,10 @@ class IndexNamed(SampleLinesRule):
         return 'never reported'
 
     @classmethod
-    def check(cls, subject: SampleLines) -> tuple[Self, ...]:
+    def judge(cls, facts: SampleLines, /) -> tuple[Self, ...]:
         """Never reports.
 
         Args:
-            subject: The lines judged.
+            facts: The lines judged.
         """
         return ()

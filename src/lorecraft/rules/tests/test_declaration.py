@@ -627,24 +627,24 @@ class TestContentRule:
         #: Then
         assert children == (), 'a rule that writes no help or note prints its message alone'
 
-    def test_check_of_a_sample_rule_reports_its_own_occurrences(self) -> None:
+    def test_judge_of_a_sample_rule_reports_its_own_occurrences(self) -> None:
         #: Given
-        subject = SampleLines(('clean', 'trailing ', 'clean'))
+        facts = SampleLines(('clean', 'trailing ', 'clean'))
 
         #: When
-        occurrences = TrailingSpace.check(subject)
+        occurrences = TrailingSpace.judge(facts)
 
         #: Then
         assert occurrences == (TrailingSpace(spec=None, line=LineNumber(NonZeroUnsignedInt(2))),), (
             'a rule reports one instance of its own class per occurrence'
         )
 
-    def test_check_of_a_sample_rule_captures_the_value_its_message_names(self) -> None:
+    def test_judge_of_a_sample_rule_captures_the_value_its_message_names(self) -> None:
         #: Given
-        subject = SampleLines(('short', 'x' * 81, 'x' * 80))
+        facts = SampleLines(('short', 'x' * 81, 'x' * 80))
 
         #: When
-        occurrences = LongLine.check(subject)
+        occurrences = LongLine.judge(facts)
 
         #: Then
         assert occurrences == (LongLine(spec=None, line=LineNumber(NonZeroUnsignedInt(2)), length=81),), (
@@ -684,12 +684,12 @@ class TestLayoutRule:
         #: Then
         assert children == (), 'a rule that writes no help or note prints its message alone'
 
-    def test_check_of_a_sample_layout_rule_reports_one_occurrence_for_the_entry(self) -> None:
+    def test_judge_of_a_sample_layout_rule_reports_one_occurrence_for_the_entry(self) -> None:
         #: Given
-        subject = SampleEntry('README')
+        facts = SampleEntry('README')
 
         #: When
-        occurrences = UppercaseEntry.check(subject)
+        occurrences = UppercaseEntry.judge(facts)
 
         #: Then
         assert occurrences == (UppercaseEntry(spec=None),), 'a layout rule reports the entry once, with no line'
