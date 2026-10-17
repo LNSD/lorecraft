@@ -22,7 +22,8 @@ every resource, so neither is ever ungoverned, and the rules over the frontmatte
 file run over it. A rule over a skill's file judges every `SKILL.md` and every resource, and never a
 document. The database answers only for what a rule's query reads, so a fact no enabled rule reads is never computed.
 
-The subjects are documents, skills, skills' resources and layout entries. A decoded document, skill entry or resource
+The subjects are those of `skip.Subject`, which defines and dispatches them: documents, specifications, skills,
+skills' resources and layout entries. A decoded document, skill entry or resource
 is judged by the one entry `judge_item`; a layout entry has a function of its own, so a subject kind without one is a
 type error. A document is handed over as its ref, and a skill as the `SkillLocation` the
 model hands out for it, since a rule over a skill may read where its directory leads. A skill is its `SKILL.md`,
@@ -45,7 +46,6 @@ query.
 """
 
 from collections.abc import Callable
-from dataclasses import dataclass
 from typing import assert_never
 
 from lorecraft.core.path import RootRelativePath
@@ -54,9 +54,8 @@ from lorecraft.project.database import (
     Database,
     ItemText,
 )
-from lorecraft.project.document import DocumentRef, SpecRef
 from lorecraft.project.item import ItemFacet, MarkdownItemDescriptor, MarkdownItemRef
-from lorecraft.project.skill import OutsideSymlink, SkillAliasRef, SkillLocation, SkillResourceLocation
+from lorecraft.project.skill import OutsideSymlink
 from lorecraft.rules.declaration import Rule
 from lorecraft.rules.report import (
     CheckedItem,
@@ -74,32 +73,6 @@ from lorecraft.rules.subject import (
 )
 from lorecraft.rules.table import EnabledRule, RuleTable
 from lorecraft.vfs import RootExit
-
-
-# A subject an entry point checks: a document, a meta specification, a skill, a resource, a refused skill alias, or a
-# layout entry. Each report holds its ref or the path an agent reaches the symlink by.
-@dataclass(frozen=True, slots=True)
-class RefusedSkillSubject:
-    """A skill alias whose resource listing reached a refused docs path.
-
-    Attributes:
-        ref: The symlink path where an agent reaches the refused alias, including a directory alias.
-        refused_at: The docs path the skill listing could not inspect.
-    """
-
-    ref: SkillAliasRef
-    refused_at: RootRelativePath
-
-
-type Subject = (
-    DocumentRef
-    | SpecRef
-    | SkillLocation
-    | SkillResourceLocation
-    | OutsideSymlink
-    | ReservedCorpusDirectory
-    | RefusedSkillSubject
-)
 
 
 def judge_item(database: Database, source: ItemText, table: RuleTable) -> CheckedItem:
@@ -122,34 +95,25 @@ def judge_item(database: Database, source: ItemText, table: RuleTable) -> Checke
     # The facets are reached in `Facet` order, then the rules that read none; the ungoverned facets are recorded in
     # that order, and a facet no applicable enabled rule reads is never looked at.
     for facet in (*Facet, None):
-        frontmatter_rules = _reading(table.frontmatter_rules, descriptor, facet)
-        document_rules = _reading(table.document_rules, descriptor, facet)
-        markdown_rules = _reading(table.markdown_rules, descriptor, facet)
-        skill_rules = _reading(table.skill_rules, descriptor, facet)
-        skill_file_rules = _reading(table.skill_file_rules, descriptor, facet)
-        if not (frontmatter_rules or document_rules or markdown_rules or skill_rules or skill_file_rules):
+        partitions = [
+            _reading(partition, descriptor, facet)
+            for partition in (
+                table.frontmatter_rules,
+                table.document_rules,
+                table.markdown_rules,
+                table.skill_rules,
+                table.skill_file_rules,
+            )
+        ]
+        if not any(partitions):
             continue
         if facet is not None and ItemFacet(facet.value) not in descriptor.active_facets:
             ungoverned.append(facet)
             continue
-        path = descriptor.ref.path
-        diagnostics.extend(
-            _located(
-                path,
-                frontmatter_rules,
-                lambda rule: _judged(rule, database, descriptor.ref),
+        for rules in partitions:
+            diagnostics.extend(
+                _located(descriptor.ref.path, rules, lambda rule: _judged(rule, database, descriptor.ref))
             )
-        )
-        diagnostics.extend(_located(path, document_rules, lambda rule: _judged(rule, database, descriptor.ref)))
-        diagnostics.extend(_located(path, markdown_rules, lambda rule: _judged(rule, database, descriptor.ref)))
-        diagnostics.extend(_located(path, skill_rules, lambda rule: _judged(rule, database, descriptor.ref)))
-        diagnostics.extend(
-            _located(
-                path,
-                skill_file_rules,
-                lambda rule: _judged(rule, database, descriptor.ref),
-            )
-        )
 
     return CheckedItem(descriptor.ref, diagnostics=tuple(diagnostics), ungoverned=tuple(ungoverned))
 
@@ -261,7 +225,8 @@ def check_layout_entry(entry: OutsideSymlink | ReservedCorpusDirectory, table: R
         table: The rules the run enables.
     """
     # An entry has no text to decode, and the package governs the layout, so each rule over its kind judges it from
-    # its query, which reads the record and asks the database nothing.
+    # its query, which reads the record and asks the database nothing. Unlike an item rule's, that query runs directly
+    # and unmemoized: a record is no item of the revision, so `Database.query` has no key to memoize it on.
     match entry:
         case OutsideSymlink():
             symlink = entry
