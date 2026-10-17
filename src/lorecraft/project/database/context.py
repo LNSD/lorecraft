@@ -24,16 +24,19 @@ from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.context import DocumentFrontmatterOwner, SkillFrontmatterOwner
 from lorecraft.project.corpus import CorpusName, ReservedCorpusDirectory
 from lorecraft.project.item import DocumentOrigin, MarkdownItemRef, SkillEntryOrigin, SkillResourceOrigin
-from lorecraft.project.link_target import LinkBase, LinkTargetEntry
+from lorecraft.project.link_target import ExtensionLink, LinkBase, LinkTargetEntry
 from lorecraft.project.schemas import (
+    DocumentTitle,
     OutlineAlignmentSpec,
     OutlineDivergenceSpec,
     SchemaProblems,
     SkillFields,
     StructureSpec,
+    TitleConstraint,
+    TokenBudget,
 )
 from lorecraft.project.skill import OutsideSymlink
-from lorecraft.project.syntax import FrontmatterNode, LineCount, NormalisedLinkPath, ParsedDocument, TokenCount
+from lorecraft.project.syntax import FrontmatterNode, Heading, LineCount, NormalisedLinkPath, ParsedDocument, TokenCount
 from lorecraft.project.workspace import Governance
 from lorecraft.vfs import ResolvedPath, RootExit
 
@@ -247,6 +250,60 @@ class DatabaseItemContext:
         """
         self._document()
         return self._database.item_outline_divergences(self._source)
+
+    def title(self) -> DocumentTitle | None:
+        """The document's title with its counts, from the `item_title` query.
+
+        Raises:
+            WrongItemKindError: If the item is a skill entry.
+        """
+        self._document()
+        return self._database.item_title(self._source)
+
+    def title_constraints(self) -> tuple[TitleConstraint, ...]:
+        """The title checks each governing specification states, from the `item_title_constraints` query.
+
+        Raises:
+            WrongItemKindError: If the item is a skill entry.
+        """
+        self._document()
+        return self._database.item_title_constraints(self._source.ref)
+
+    def token_budgets(self) -> tuple[TokenBudget, ...]:
+        """The token budget each governing specification sets, from the `item_token_budgets` query.
+
+        Raises:
+            WrongItemKindError: If the item is a skill entry.
+        """
+        self._document()
+        return self._database.item_token_budgets(self._source.ref)
+
+    def empty_section_specs(self) -> tuple[RootRelativePath, ...]:
+        """The specifications that forbid an empty section, from the `item_empty_section_specs` query.
+
+        Raises:
+            WrongItemKindError: If the item is a skill entry.
+        """
+        self._document()
+        return self._database.item_empty_section_specs(self._source.ref)
+
+    def empty_headings(self) -> tuple[Heading, ...]:
+        """The headings that open an empty section, from the `item_empty_headings` query.
+
+        Raises:
+            WrongItemKindError: If the item is a skill entry.
+        """
+        self._document()
+        return self._database.item_empty_headings(self._source)
+
+    def extension_links(self) -> tuple[ExtensionLink, ...]:
+        """The links to an existing document that extends this one, from the `item_extension_links` query.
+
+        Raises:
+            WrongItemKindError: If the item is a skill entry.
+        """
+        self._document()
+        return self._database.item_extension_links(self._source)
 
 
 class DatabaseSymlinkContext:

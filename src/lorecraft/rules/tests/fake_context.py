@@ -21,9 +21,16 @@ from lorecraft.project.context import DocumentFrontmatterOwner, SkillFrontmatter
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.layout import DOCS_DIR, SPECS_DIR
-from lorecraft.project.link_target import DocumentDirectory, LinkTargetEntry, SkillRoot
+from lorecraft.project.link_target import (
+    DocumentDirectory,
+    ExtensionLink,
+    LinkTargetEntry,
+    SkillRoot,
+    extension_links_of,
+)
 from lorecraft.project.schemas import (
     CorpusSpecName,
+    DocumentTitle,
     NamespaceSpecName,
     OutlineAlignmentSpec,
     OutlineDivergenceSpec,
@@ -34,13 +41,20 @@ from lorecraft.project.schemas import (
     StructureSchema,
     StructureSpec,
     StructureSpecFile,
+    TitleConstraint,
+    TokenBudget,
     align_outlines,
+    empty_headings,
+    empty_section_specs,
+    find_document_title,
     locate_schema_problems,
     locate_skill_schema_problems,
     match_outlines,
     parse_skill_fields,
     parse_spec_name,
     spec_filename,
+    title_constraints,
+    token_budgets,
 )
 from lorecraft.project.syntax import (
     FrontmatterNode,
@@ -285,6 +299,30 @@ class FakeDocumentContext:
     def outline_divergences(self) -> tuple[OutlineDivergenceSpec, ...]:
         """Where the sections stop matching each governing outline, as the real analysis finds it."""
         return match_outlines(self.outline_alignment(), count_lines(self._text))
+
+    def title(self) -> DocumentTitle | None:
+        """The document's title, as the real query finds it."""
+        return find_document_title(self.parse().headings)
+
+    def title_constraints(self) -> tuple[TitleConstraint, ...]:
+        """The title checks the governing meta specs state, as the real query finds them."""
+        return title_constraints(self._governance.structure_specs())
+
+    def token_budgets(self) -> tuple[TokenBudget, ...]:
+        """The token budgets the governing meta specs set, as the real query finds them."""
+        return token_budgets(self._governance.structure_specs())
+
+    def empty_section_specs(self) -> tuple[RootRelativePath, ...]:
+        """The governing meta specs that forbid an empty section, as the real query finds them."""
+        return empty_section_specs(self._governance.structure_specs())
+
+    def empty_headings(self) -> tuple[Heading, ...]:
+        """The headings that open an empty section, as the real query finds them."""
+        return empty_headings(self.parse().headings)
+
+    def extension_links(self) -> tuple[ExtensionLink, ...]:
+        """The links to a document that extends this one, as the real query finds them."""
+        return extension_links_of(self.parse().links, self.link_targets(), self.link_base(), str(self.filename()))
 
 
 class FakeSkillContext:

@@ -32,17 +32,20 @@ from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.schemas import (
+    DocumentTitle,
     OutlineAlignmentSpec,
     OutlineDivergenceSpec,
     SchemaProblems,
     SkillFields,
     StructureSpec,
+    TitleConstraint,
+    TokenBudget,
 )
-from lorecraft.project.syntax import FrontmatterNode, LineCount, NormalisedLinkPath, ParsedDocument, TokenCount
+from lorecraft.project.syntax import FrontmatterNode, Heading, LineCount, NormalisedLinkPath, ParsedDocument, TokenCount
 from lorecraft.project.workspace import Governance
 from lorecraft.vfs import ResolvedPath, RootExit
 
-from .link_target import LinkBase, LinkTargetEntry
+from .link_target import ExtensionLink, LinkBase, LinkTargetEntry
 
 
 @dataclass(frozen=True, slots=True)
@@ -186,6 +189,30 @@ class DocumentContext(FrontmatterContext, MarkdownContext, Protocol):
         One entry per structure specification that governs the document and states an outline, in the order the
         specifications apply; none when no outline governs it.
         """
+        ...
+
+    def title(self) -> DocumentTitle | None:
+        """The document's title with its character and word counts, or `None` when it has none."""
+        ...
+
+    def title_constraints(self) -> tuple[TitleConstraint, ...]:
+        """The title checks each specification that governs the document states, in the order they apply."""
+        ...
+
+    def token_budgets(self) -> tuple[TokenBudget, ...]:
+        """The token budget each specification that governs the document sets, in the order they apply."""
+        ...
+
+    def empty_section_specs(self) -> tuple[RootRelativePath, ...]:
+        """The specifications that govern the document and forbid an empty section, in the order they apply."""
+        ...
+
+    def empty_headings(self) -> tuple[Heading, ...]:
+        """The headings that open an empty section, the title included, in document order."""
+        ...
+
+    def extension_links(self) -> tuple[ExtensionLink, ...]:
+        """The links to an existing document beside this one whose filename extends this one's, in document order."""
         ...
 
 
