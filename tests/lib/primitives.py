@@ -88,19 +88,19 @@ class StructurePrimitives:
         """The base this was built with."""
         return self.base
 
-    def document_name(self) -> str | None:
+    def item_name(self) -> str | None:
         """The name this was built with."""
         return self.name
 
-    def document_base(self) -> str | None:
+    def item_base(self) -> str | None:
         """The base this was built with."""
         return self.base_name
 
-    def document_links(self) -> tuple[DocumentLink, ...]:
+    def linked_documents(self) -> tuple[DocumentLink, ...]:
         """The links this was built with."""
         return self.document_link_list
 
-    def document_corpus(self) -> str | None:
+    def item_corpus(self) -> str | None:
         """The corpus this was built with."""
         return self.corpus
 

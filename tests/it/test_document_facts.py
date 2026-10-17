@@ -64,7 +64,7 @@ def _anchors(primitives: Primitives) -> frozenset[Anchor]:
 
 def _document_base(primitives: Primitives) -> str | None:
     """The stem of the document the item extends."""
-    return primitives.document_base()
+    return primitives.item_base()
 
 
 @pytest.mark.it
@@ -191,7 +191,7 @@ class TestDocumentFactQueries:
             'links',
             'link_targets',
             'link_base',
-            'document_name',
+            'item_name',
         }, 'derived carry-over'
 
     def test_query_extension_link_facts_of_a_skill_entry_holds_no_link(self, tmp_path: Path) -> None:
@@ -220,7 +220,7 @@ class TestDocumentFactReads:
 
 def _document_links(primitives: Primitives) -> tuple[DocumentLink, ...]:
     """The links to another document the item holds."""
-    return primitives.document_links()
+    return primitives.linked_documents()
 
 
 @pytest.mark.it
@@ -291,6 +291,6 @@ class TestDocumentLinks:
 
         #: Then
         assert facts.corpus == 'code', 'the corpus of the document'
-        assert database.query_reads(mutual_link_facts, GUIDE) == {'document_corpus', 'document_links'}, (
+        assert database.query_reads(mutual_link_facts, GUIDE) == {'item_corpus', 'linked_documents'}, (
             'the carry-over is derived'
         )
