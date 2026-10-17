@@ -7,7 +7,8 @@ from lorecraft.core.path import RootRelativePath
 
 # The module, not its classes: this rule's own name is the syntax's `MissingFrontmatter`.
 from lorecraft.project import syntax
-from lorecraft.project.schemas import DocumentFrontmatterOwner, FrontmatterOwner, Query, SkillFrontmatterOwner
+from lorecraft.project.query import Query
+from lorecraft.project.schemas import DocumentFrontmatterOwner, FrontmatterOwner, SkillFrontmatterOwner
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Here, Label, Note, Subdiagnostic

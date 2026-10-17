@@ -2,7 +2,8 @@
 
 from typing import Self
 
-from lorecraft.project.schemas import Query, TitleFacts, title_facts
+from lorecraft.project.query import Query
+from lorecraft.project.schemas import TitleFacts, title_facts
 from lorecraft.rules.subject import QueriedDocumentRule
 
 

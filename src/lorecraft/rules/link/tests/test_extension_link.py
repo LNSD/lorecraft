@@ -11,7 +11,7 @@ from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.link_target import EscapingTarget, LinkTarget, LinkTargetEntry, PathLookup
-from lorecraft.project.schemas import StructurePrimitives
+from lorecraft.project.query import StructurePrimitives
 from lorecraft.project.syntax import LineNumber, NormalisedLinkPath
 from lorecraft.rules.location import Help, Note
 from lorecraft.rules.tests.fake_context import DEFAULT_DOCUMENT_DIRECTORY, FakeDocumentContext

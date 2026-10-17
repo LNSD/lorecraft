@@ -4,13 +4,13 @@ from dataclasses import dataclass, field
 from typing import ClassVar, Self, assert_never
 
 from lorecraft.core.path import RootRelativePath
+from lorecraft.project.query import Query
 from lorecraft.project.schemas import (
     BlockProblem,
     InvalidValueProblem,
     MaxFields,
     MinFields,
     MissingFieldProblem,
-    Query,
     SchemaProblems,
     SchemaSource,
     UnknownFieldProblem,

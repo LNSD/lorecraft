@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import ClassVar, Self, assert_never
 from urllib.parse import unquote
 
-from lorecraft.project.schemas import Primitives, Query
+from lorecraft.project.query import Query, SyntaxPrimitives
 from lorecraft.project.syntax import (
     AbsoluteDestination,
     Anchor,
@@ -34,7 +34,7 @@ class BrokenFragmentFacts:
     links: tuple[Link, ...]
 
 
-def broken_fragments(primitives: Primitives) -> BrokenFragmentFacts:
+def broken_fragments(primitives: SyntaxPrimitives) -> BrokenFragmentFacts:
     """The fragment-only links of a Markdown file that name none of its headings. Raises nothing.
 
     A query: it reads the item's links and heading anchors and nothing else.

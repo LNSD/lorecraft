@@ -4,11 +4,11 @@ from dataclasses import dataclass
 from typing import ClassVar, Final, Self, assert_never
 
 from lorecraft.core.path import RootRelativePath
+from lorecraft.project.query import Query
 from lorecraft.project.schemas import (
     AnyRunAlignment,
     NamedAlignment,
     OutlineAlignmentSpec,
-    Query,
     UnalignedSection,
     outline_alignment,
 )

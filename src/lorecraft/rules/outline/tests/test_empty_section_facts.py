@@ -5,9 +5,9 @@ from typing import Final
 import pytest
 
 from lorecraft.core.path import PathComponent, RootRelativePath
+from lorecraft.project.query import StructurePrimitives
 from lorecraft.project.schemas import (
     SpecFileType,
-    StructurePrimitives,
     StructureSchema,
     StructureSpec,
     StructureSpecFile,

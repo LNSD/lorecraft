@@ -41,7 +41,7 @@ from lorecraft.project.context import (
     SymlinkContext,
 )
 from lorecraft.project.item import ItemKind
-from lorecraft.project.schemas import Query
+from lorecraft.project.query import Query
 
 from .declaration import ContentRule, LayoutRule
 

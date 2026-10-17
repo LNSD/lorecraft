@@ -45,10 +45,10 @@ from lorecraft.project.link_target import (
     PathLookup,
     SkillRoot,
 )
+from lorecraft.project.query import Primitives
 from lorecraft.project.schemas import (
     DocumentFrontmatterOwner,
     FrontmatterOwner,
-    Primitives,
     SchemaProblems,
     SkillField,
     SkillFields,

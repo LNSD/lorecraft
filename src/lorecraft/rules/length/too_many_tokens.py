@@ -1,11 +1,11 @@
 """`LEN001`: a document is longer than its token budget allows."""
 
 from dataclasses import dataclass
-from typing import ClassVar, Self
+from typing import ClassVar, Protocol, Self
 
 from lorecraft.core.num import NonZeroUnsignedInt, UnsignedInt
 from lorecraft.core.path import RootRelativePath
-from lorecraft.project.schemas import Primitives, Query
+from lorecraft.project.query import CountPrimitives, GovernancePrimitives, Query
 from lorecraft.project.syntax import FIRST_LINE, TokenCount
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
@@ -42,7 +42,11 @@ class TokenFacts:
     budgets: tuple[TokenBudget, ...]
 
 
-def token_facts(primitives: Primitives) -> TokenFacts:
+class _GovernanceCountPrimitives(GovernancePrimitives, CountPrimitives, Protocol):
+    """The primitives the queries below read."""
+
+
+def token_facts(primitives: _GovernanceCountPrimitives) -> TokenFacts:
     """The token budgets that govern the document and its token count. Raises nothing.
 
     A query: counting tokens is the costly step, so a document no budget governs is never counted.

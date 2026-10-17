@@ -51,7 +51,6 @@ from .outline_divergence import (
     match_outlines,
 )
 from .outline_queries import outline_alignment
-from .query import Primitives, Query, StructurePrimitives
 from .repo import Repository, StructureSchemaReadError
 from .schema_problems import (
     AgentSkillsSchema,
@@ -116,10 +115,7 @@ __all__: list[str] = [
     'outline_alignment',
     'DocumentFrontmatterOwner',
     'FrontmatterOwner',
-    'Primitives',
-    'Query',
     'SkillFrontmatterOwner',
-    'StructurePrimitives',
     'CorpusSpecName',
     'NamespaceSpecName',
     'SpecName',

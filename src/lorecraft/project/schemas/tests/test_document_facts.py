@@ -8,6 +8,7 @@ from typing import Final
 import pytest
 
 from lorecraft.core.path import PathComponent, RootRelativePath
+from lorecraft.project.query import StructurePrimitives
 from lorecraft.project.syntax import parse_document
 
 from ..document_facts import (
@@ -15,7 +16,6 @@ from ..document_facts import (
     title_facts,
 )
 from ..name import parse_spec_name
-from ..query import StructurePrimitives
 from ..spec_file import SpecFileType, StructureSpecFile, spec_filename
 from ..structure import StructureSchema, StructureSpec
 

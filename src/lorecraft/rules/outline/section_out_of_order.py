@@ -4,13 +4,13 @@ from dataclasses import dataclass
 from typing import ClassVar, Self, assert_never
 
 from lorecraft.core.path import RootRelativePath
+from lorecraft.project.query import Query
 from lorecraft.project.schemas import (
     AbsentSection,
     ExpectedSection,
     LeftOver,
     MisplacedSection,
     OutlineDivergenceSpec,
-    Query,
     UnlistedSection,
 )
 from lorecraft.rules.collector import rule
