@@ -31,7 +31,7 @@ class TokenBudget:
 
 @dataclass(frozen=True, slots=True)
 class TokenFacts:
-    """Everything a rule over the token budget reads, so it judges without the document's context.
+    """Everything a rule over the token budget reads, so it judges without the document.
 
     Attributes:
         count: The tokens in the document's whole file; zero when no budget governs it, as nothing is counted then.

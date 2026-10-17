@@ -76,9 +76,9 @@ Every query about one file's content takes the witness its decode query returned
 file that is not UTF-8 cannot be asked for: a reader matches the decode once and no later reader carries a branch for
 it. Each still caches by the witness's ref.
 
-Rules are pure functions of the values a subject's context reads for them through the database, like an inspection
-run over one file: the runner matches each file's decode once and hands a rule the context of the part it judges. A
-context asks for the cheapest query that holds what a rule reads, so a rule that needs only the frontmatter never pays
+Rules are pure functions of the values a subject's query reads for them through the database, like an inspection
+run over one file: the runner matches each file's decode once and hands a rule the facts of the part it judges. A
+query asks for the cheapest query that holds what a rule reads, so a rule that needs only the frontmatter never pays
 for the full parse, and every rule reading the same query shares one computation of it. Their results are not cached;
 a rule runs again every time.
 

@@ -1,12 +1,12 @@
-"""How a rule is declared: the rule classes and the engine conditions, each one class that declares and checks.
+"""How a rule is declared: the rule classes and the engine conditions, each one class that declares and judges.
 
-A rule is one class. The class is the declaration and the check: its code, name, default level, the
-release it is stable since and its documentation, as class attributes and the docstring, and the `check`
-classmethod that judges its subject. Each subject kind has one base class deriving from `ContentRule` or
-`LayoutRule`, whose abstract `check` fixes the context it reads, so a rule picks its subject by picking its base.
+A rule is one class. The class is the declaration and the judgment: its code, name, default level, the
+release it is stable since and its documentation, as class attributes and the docstring, and the `query` and
+`judge` classmethods that derive and judge the facts of its subject. Each subject kind has one base class deriving
+from `ContentRule` or `LayoutRule` and a `Queried` form of it, so a rule picks its subject by picking its base.
 A retired rule is a `RemovedRule`, which is not a `Rule`, so it can never be built as one or reported. What the
 engine itself reports about a subject, such as a file that does not decode, is an `EngineCondition`: declared
-and rendered like a rule, but with an `EngineCode`, a fixed `Severity` in place of a level, and no `check`. It derives
+and rendered like a rule, but with an `EngineCode`, a fixed `Severity` in place of a level, and no judgment. It derives
 from `FileCondition` or `EntryCondition`, as a rule does from `ContentRule` or `LayoutRule`.
 """
 
@@ -31,16 +31,16 @@ from .location import (
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class Rule(ABC):
-    """A rule, declared and checked by its class.
+    """A rule, declared and judged by its class.
 
-    An instance of a rule is one occurrence of it, at one place, which is why its `check` returns `tuple[Self, ...]`.
+    An instance of a rule is one occurrence of it, at one place, which is why its `judge` returns `tuple[Self, ...]`.
 
     A subclass declares the rule in its class attributes and its docstring, adds the data of its own condition
     and the context its diagnostic needs as fields, and renders every part of the diagnostic from those fields.
     It names no subject: the run that checked the subject locates it.
 
     A rule never derives from this class directly, but from its subject kind's base, which derives from
-    `ContentRule` or `LayoutRule` and declares the abstract `check` a rule implements.
+    `ContentRule` or `LayoutRule`.
 
     Attributes:
         spec: The structure file that states the rule, or None for a rule the package itself states.
@@ -146,7 +146,7 @@ class EngineCondition(ABC):
 
     It is declared like a rule, with a code, a name, the release it is stable since and its documentation, and an
     instance of it is one occurrence that renders like a rule's. It is not a `Rule`: it has no level, so nothing
-    can turn it off, and no `check`, since the engine finds it, not a judgment of a subject. Its severity is fixed
+    can turn it off, and no `judge`, since the engine finds it, not a judgment of a subject. Its severity is fixed
     on the class, and its code is an `EngineCode`, always in the engine's group.
 
     A condition never derives from this class directly, but from the base of the subject it is about: a
