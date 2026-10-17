@@ -340,19 +340,6 @@ class TestDatabaseItemContextOverADocument:
             "the owner names the document's filename and its corpus's structure specification"
         )
 
-    def test_parse_with_a_document_returns_the_parse_query(self) -> None:
-        #: Given
-        database = Database.from_snapshot(_snapshot())
-        context = _document_context(database)
-
-        #: When
-        parsed = context.parse()
-
-        #: Then
-        assert parsed is database.item_parse(_document_item(database)), (
-            'the parse is the one the database memoizes, not one the context parsed again'
-        )
-
     def test_token_count_with_a_document_returns_the_tokens_of_its_whole_file(self) -> None:
         #: Given
         context = _document_context(Database.from_snapshot(_snapshot()))
@@ -491,19 +478,6 @@ class TestDatabaseItemContextOverASkillEntry:
             'the owner names the directory the skill is listed under, and that it leads nowhere else'
         )
 
-    def test_parse_with_a_skill_returns_the_skill_parse_query(self) -> None:
-        #: Given
-        database = Database.from_snapshot(_snapshot())
-        context = _skill_context(database)
-
-        #: When
-        parsed = context.parse()
-
-        #: Then
-        assert parsed is database.item_parse(_skill_item(database)), (
-            'the parse is the one the database memoizes, not one the context parsed again'
-        )
-
     def test_query_with_a_skill_returns_the_answer_the_database_memoizes(self) -> None:
         #: Given
         database = Database.from_snapshot(_snapshot())
@@ -553,19 +527,6 @@ class TestDatabaseItemContextOverASkillEntry:
 
 @pytest.mark.it
 class TestDatabaseItemContextOfAResource:
-    def test_parse_with_a_resource_returns_the_item_parse_query(self) -> None:
-        #: Given
-        database = Database.from_snapshot(_snapshot())
-        context = _resource_context(database)
-
-        #: When
-        parsed = context.parse()
-
-        #: Then
-        assert parsed is database.item_parse(_resource_text(database)), (
-            'the parse is the one the database memoizes, not one the context parsed again'
-        )
-
     def test_anchors_with_a_resource_returns_the_anchors_of_the_item_parse(self) -> None:
         #: Given
         database = Database.from_snapshot(_snapshot())
@@ -618,17 +579,6 @@ class TestDatabaseItemContextOfASpecification:
 
         #: Then
         assert base == expected, 'code-python continues code, the corpus specification beside it'
-
-    def test_parse_with_a_specification_returns_the_item_parse_query(self) -> None:
-        #: Given
-        database = Database.from_snapshot(_snapshot())
-        context = DatabaseItemContext(database, _spec_item(database))
-
-        #: When
-        parsed = context.parse()
-
-        #: Then
-        assert parsed is database.item_parse(_spec_item(database)), 'the parse is the one the database memoizes'
 
     def test_link_base_with_a_specification_returns_the_meta_directory(self) -> None:
         #: Given

@@ -31,7 +31,7 @@ from lorecraft.project.schemas import (
     StructureSpec,
 )
 from lorecraft.project.skill import OutsideSymlink
-from lorecraft.project.syntax import FrontmatterNode, ParsedDocument, TokenCount
+from lorecraft.project.syntax import FrontmatterNode, TokenCount
 from lorecraft.project.workspace import Governance
 from lorecraft.vfs import RootExit
 
@@ -92,10 +92,6 @@ class DatabaseItemContext:
     def frontmatter(self) -> FrontmatterNode:
         """The skill's frontmatter block, from the `item_frontmatter` query."""
         return self._database.item_frontmatter(self._source)
-
-    def parse(self) -> ParsedDocument:
-        """The item's parse tree, from the `item_parse` query."""
-        return self._database.item_parse(self._source)
 
     def token_count(self) -> TokenCount:
         """The tokens in the document's whole file, from the `item_token_count` query.

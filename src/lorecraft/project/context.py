@@ -29,7 +29,7 @@ from lorecraft.project.schemas import (
     Query,
     StructureSpec,
 )
-from lorecraft.project.syntax import FrontmatterNode, ParsedDocument, TokenCount
+from lorecraft.project.syntax import FrontmatterNode, TokenCount
 from lorecraft.project.workspace import Governance
 from lorecraft.vfs import RootExit
 
@@ -60,10 +60,6 @@ class FrontmatterContext(Protocol):
 
 class DocumentContext(FrontmatterContext, MarkdownContext, Protocol):
     """One decoded document of a corpus, and the specifications that govern it."""
-
-    def parse(self) -> ParsedDocument:
-        """The document's parse tree: its headings, their anchors and its links."""
-        ...
 
     def token_count(self) -> TokenCount:
         """The `o200k_base` tokens in the document's whole file, frontmatter, code and tables included."""
