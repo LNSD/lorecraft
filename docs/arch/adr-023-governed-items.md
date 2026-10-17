@@ -177,7 +177,7 @@ Before committing code, verify:
 - [adr-003](adr-003-project-model.md) - Supersedes in part: Origin-specific reference representation;
   declared scope and identity-versus-location separation remain in force
 - [adr-011](adr-011-rules-engine.md) - Supersedes in part: Per-kind content references, decode witnesses and
-  runner loops; one context per subject, lazy queries and levels after detection remain in force
+  runner loops, and one context per subject; lazy queries and levels after detection remain in force
 - [adr-015](adr-015-database.md) - Supersedes in part: Per-kind decode, analysis and link-target query
   families and document-only failed-layer skipping; revision immutability, eager model loading and value load failures
   remain in force
