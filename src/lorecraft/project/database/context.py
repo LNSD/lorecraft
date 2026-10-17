@@ -35,10 +35,10 @@ from lorecraft.project.schemas import (
     DocumentTitle,
     OutlineAlignmentSpec,
     OutlineDivergenceSpec,
+    Query,
     SchemaProblems,
     SkillFields,
     StructureSpec,
-    TitleConstraint,
     TokenBudget,
 )
 from lorecraft.project.skill import OutsideSymlink
@@ -273,14 +273,14 @@ class DatabaseItemContext:
         self._document()
         return self._database.item_title(self._source)
 
-    def title_constraints(self) -> tuple[TitleConstraint, ...]:
-        """The title checks each governing specification states, from the `item_title_constraints` query.
+    def query[T](self, query: Query[T]) -> T:
+        """The answer of a declared query, from the database's memoized `query`.
 
         Raises:
             WrongItemKindError: If the item is a skill entry.
         """
         self._document()
-        return self._database.item_title_constraints(self._source.ref)
+        return self._database.query(query, self._source.ref)
 
     def token_budgets(self) -> tuple[TokenBudget, ...]:
         """The token budget each governing specification sets, from the `item_token_budgets` query.

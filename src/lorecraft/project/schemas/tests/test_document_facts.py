@@ -14,10 +14,11 @@ from ..document_facts import (
     empty_headings,
     empty_section_specs,
     find_document_title,
-    title_constraints,
+    title_facts,
     token_budgets,
 )
 from ..name import parse_spec_name
+from ..query import StructurePrimitives
 from ..spec_file import SpecFileType, StructureSpecFile, spec_filename
 from ..structure import StructureSchema, StructureSpec
 
@@ -65,21 +66,21 @@ class TestFindDocumentTitle:
 
 @pytest.mark.unit
 class TestTitleConstraints:
-    def test_title_constraints_keeps_the_order_and_skips_specifications_stating_none(self) -> None:
+    def test_title_facts_keeps_the_order_and_skips_specifications_stating_none(self) -> None:
         #: Given
         corpus = _structure_spec('code', '{"tokens": 100, "title": {"chars": 20}, "empty_sections": "forbidden"}')
         silent = _structure_spec('code-silent', '{"outline": [{"section": "Rule"}]}')
         namespace = _structure_spec('code-python', '{"tokens": 50, "title": {"words": 3}}')
 
         #: When
-        constraints = title_constraints((corpus, silent, namespace))
+        constraints = title_facts(StructurePrimitives((corpus, silent, namespace))).constraints
 
         #: Then
         assert [c.spec for c in constraints] == [corpus.path, namespace.path], 'title checks, in order'
 
-    def test_title_constraints_of_no_specification_is_empty(self) -> None:
+    def test_title_facts_of_no_specification_is_empty(self) -> None:
         #: When
-        constraints = title_constraints(())
+        constraints = title_facts(StructurePrimitives(())).constraints
 
         #: Then
         assert constraints == (), 'nothing governs'

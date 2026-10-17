@@ -41,6 +41,7 @@ from lorecraft.project.context import (
     SymlinkContext,
 )
 from lorecraft.project.item import ItemKind
+from lorecraft.project.schemas import Query
 
 from .declaration import ContentRule, LayoutRule
 
@@ -95,6 +96,40 @@ class DocumentRule(ItemRule):
 
         Args:
             subject: The document judged, governed for the rule's facet.
+        """
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class QueriedDocumentRule[Facts](DocumentRule):
+    """The base of a rule over a document that names the query it needs and judges its facts, never a context.
+
+    The rule names its query in `query` and its `judge` takes the facts that query returns, both typed by the rule's
+    type argument: a rule whose query returns `TitleFacts` derives from `QueriedDocumentRule[TitleFacts]`, and a
+    query of another type fails the type check. The query is a pure function over the document's primitives, so the
+    rule is coupled to the rest only through the model state it reads.
+    """
+
+    @classmethod
+    @abstractmethod
+    def query(cls) -> Query[Facts]:
+        """The query whose answer `judge` takes; the same function every call, since the database memoizes by it."""
+
+    @classmethod
+    def check(cls, subject: DocumentContext) -> tuple[Self, ...]:
+        """Resolve the query through the subject, then judge the facts it derives.
+
+        Args:
+            subject: The document judged, governed for the rule's facet.
+        """
+        return cls.judge(subject.query(cls.query()))
+
+    @classmethod
+    @abstractmethod
+    def judge(cls, facts: Facts, /) -> tuple[Self, ...]:
+        """Every occurrence of the rule's condition in the document, from the facts alone.
+
+        Args:
+            facts: The answer of the rule's query.
         """
 
 

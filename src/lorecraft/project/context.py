@@ -35,10 +35,10 @@ from lorecraft.project.schemas import (
     DocumentTitle,
     OutlineAlignmentSpec,
     OutlineDivergenceSpec,
+    Query,
     SchemaProblems,
     SkillFields,
     StructureSpec,
-    TitleConstraint,
     TokenBudget,
 )
 from lorecraft.project.syntax import FrontmatterNode, Heading, LineCount, NormalisedLinkPath, ParsedDocument, TokenCount
@@ -195,8 +195,8 @@ class DocumentContext(FrontmatterContext, MarkdownContext, Protocol):
         """The document's title with its character and word counts, or `None` when it has none."""
         ...
 
-    def title_constraints(self) -> tuple[TitleConstraint, ...]:
-        """The title checks each specification that governs the document states, in the order they apply."""
+    def query[T](self, query: Query[T]) -> T:
+        """The answer of a declared query over this document, memoized by the query and the document."""
         ...
 
     def token_budgets(self) -> tuple[TokenBudget, ...]:

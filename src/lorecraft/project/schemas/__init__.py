@@ -9,11 +9,12 @@ first stop matching an outline.
 from .document_facts import (
     DocumentTitle,
     TitleConstraint,
+    TitleFacts,
     TokenBudget,
     empty_headings,
     empty_section_specs,
     find_document_title,
-    title_constraints,
+    title_facts,
     token_budgets,
 )
 from .frontmatter_problem import (
@@ -52,6 +53,7 @@ from .outline_divergence import (
     UnlistedSection,
     match_outlines,
 )
+from .query import Primitives, Query, StructurePrimitives
 from .repo import Repository, StructureSchemaReadError
 from .schema_problems import (
     AgentSkillsSchema,
@@ -114,7 +116,11 @@ __all__: list[str] = [
     'empty_headings',
     'empty_section_specs',
     'find_document_title',
-    'title_constraints',
+    'title_facts',
+    'TitleFacts',
+    'Primitives',
+    'Query',
+    'StructurePrimitives',
     'token_budgets',
     'CorpusSpecName',
     'NamespaceSpecName',

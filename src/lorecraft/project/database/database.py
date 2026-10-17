@@ -59,7 +59,7 @@ it read does, `item_governance(ref)` excepted, as its bullet states:
   frontmatter schema that governs one document rejects, which outline entry each section falls in, and where the
   sections first stop matching each outline, the shared analyses every inspection reads. They read the item's
   frontmatter or parse, its governance and, for the divergences, its alignment and line count, and nothing else.
-- `item_title(source)`, `item_title_constraints(ref)`, `item_token_budgets(ref)`, `item_empty_section_specs(ref)`,
+- `item_title(source)`, `item_token_budgets(ref)`, `item_empty_section_specs(ref)`,
   `item_empty_headings(source)` and `item_extension_links(source)`: the facts the length, title, empty-section and
   extension-link inspections project, so none unpacks a governance or searches the headings itself. They read the
   item's parse, link targets or governance and nothing else.
@@ -142,7 +142,7 @@ and that file's bytes did not change.
 
 import logging
 from collections.abc import Mapping
-from typing import Self
+from typing import Self, cast
 
 from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.path import RootRelativePath
@@ -176,10 +176,10 @@ from lorecraft.project.schemas import (
     DocumentTitle,
     OutlineAlignmentSpec,
     OutlineDivergenceSpec,
+    Query,
     SchemaProblems,
     SkillFields,
     StructureSpec,
-    TitleConstraint,
     TokenBudget,
     align_outlines,
     empty_headings,
@@ -189,7 +189,6 @@ from lorecraft.project.schemas import (
     locate_skill_schema_problems,
     match_outlines,
     parse_skill_fields,
-    title_constraints,
     token_budgets,
 )
 from lorecraft.project.skill import Repository as SkillRepository
@@ -265,6 +264,30 @@ def _witness_text(
     return source.text
 
 
+class _ReadPrimitives:
+    """The primitives of one item as the database answers them, noting each one a query reads.
+
+    Attributes:
+        read: The names of the primitives read so far.
+    """
+
+    def __init__(self, database: 'Database', ref: MarkdownItemRef) -> None:
+        self._database = database
+        self._ref = ref
+        self.read: frozenset[str] = frozenset()
+
+    def structure_specs(self) -> tuple[StructureSpec, ...]:
+        """The structure specifications of the layers that loaded for the item."""
+        self.read |= {'structure_specs'}
+        return self._database.structure_specs(self._ref)
+
+    def headings(self) -> tuple[Heading, ...]:
+        """The headings of the item's parse; none for an item that is not UTF-8."""
+        self.read |= {'headings'}
+        source = self._database.item_text(self._ref)
+        return self._database.item_parse(source).headings if isinstance(source, ItemText) else ()
+
+
 class Database:
     """What the checks read from one snapshot: its model, built by `from_snapshot`, and every other value computed once.
 
@@ -311,7 +334,8 @@ class Database:
         self._item_outline_alignments: dict[MarkdownItemRef, tuple[OutlineAlignmentSpec, ...]] = {}
         self._item_outline_divergences: dict[MarkdownItemRef, tuple[OutlineDivergenceSpec, ...]] = {}
         self._item_titles: dict[MarkdownItemRef, DocumentTitle | None] = {}
-        self._item_title_constraints: dict[MarkdownItemRef, tuple[TitleConstraint, ...]] = {}
+        # Declared queries: the answer by the function and the item, with the primitives it read.
+        self._queries: dict[tuple[Query[object], MarkdownItemRef], tuple[object, frozenset[str]]] = {}
         self._item_token_budgets: dict[MarkdownItemRef, tuple[TokenBudget, ...]] = {}
         self._item_empty_section_specs: dict[MarkdownItemRef, tuple[RootRelativePath, ...]] = {}
         self._item_empty_headings: dict[MarkdownItemRef, tuple[Heading, ...]] = {}
@@ -749,7 +773,7 @@ class Database:
             self._item_outline_divergences[source.ref] = divergences
         return divergences
 
-    def _structure_specs(self, ref: MarkdownItemRef) -> tuple[StructureSpec, ...]:
+    def structure_specs(self, ref: MarkdownItemRef) -> tuple[StructureSpec, ...]:
         """The structure specifications of the layers that loaded for an item the model lists.
 
         Raises:
@@ -770,22 +794,36 @@ class Database:
             self._item_titles[source.ref] = find_document_title(self.item_parse(source).headings)
         return self._item_titles[source.ref]
 
-    def item_title_constraints(self, ref: MarkdownItemRef) -> tuple[TitleConstraint, ...]:
-        """The title checks each specification that governs one item states, found on the first call.
+    def query[T](self, query: Query[T], ref: MarkdownItemRef) -> T:
+        """The answer of a declared query over one item, found on the first call for the function and the ref.
 
-        Carry-over: kept for the next revision whenever `item_governance(ref)` is.
+        The query runs over the item's primitives and reads nothing else; the database notes which it read.
+
+        Carry-over: kept for the next revision whenever every primitive the query read is kept, such as
+        `item_governance(ref)` for the structure specifications.
 
         Args:
-            ref: The item to look up; the cache key.
+            query: The pure function to run; with the ref, the cache key.
+            ref: The item to run it over.
 
         Raises:
             UnlistedItemError: If the model lists no document or skill entry there.
         """
-        found = self._item_title_constraints.get(ref)
-        if found is None:
-            found = title_constraints(self._structure_specs(ref))
-            self._item_title_constraints[ref] = found
-        return found
+        key = (query, ref)
+        if key not in self._queries:
+            primitives = _ReadPrimitives(self, ref)
+            answer = query(primitives)
+            self._queries[key] = (answer, primitives.read)
+        return cast('T', self._queries[key][0])
+
+    def query_reads(self, query: Query[object], ref: MarkdownItemRef) -> frozenset[str]:
+        """The primitives a query read over one item, by method name, once it has been run. Raises nothing.
+
+        Args:
+            query: The query asked for.
+            ref: The item it ran over.
+        """
+        return self._queries[(query, ref)][1] if (query, ref) in self._queries else frozenset()
 
     def item_token_budgets(self, ref: MarkdownItemRef) -> tuple[TokenBudget, ...]:
         """The token budget each specification that governs one item sets, found on the first call.
@@ -800,7 +838,7 @@ class Database:
         """
         found = self._item_token_budgets.get(ref)
         if found is None:
-            found = token_budgets(self._structure_specs(ref))
+            found = token_budgets(self.structure_specs(ref))
             self._item_token_budgets[ref] = found
         return found
 
@@ -817,7 +855,7 @@ class Database:
         """
         found = self._item_empty_section_specs.get(ref)
         if found is None:
-            found = empty_section_specs(self._structure_specs(ref))
+            found = empty_section_specs(self.structure_specs(ref))
             self._item_empty_section_specs[ref] = found
         return found
 
