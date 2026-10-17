@@ -388,6 +388,39 @@ class TestCorpus:
             'each filename is a document of the corpus, in filename order'
         )
 
+    def test_document_base_with_a_missing_intermediate_name_returns_the_nearest_existing_ancestor(self) -> None:
+        #: Given
+        filenames = frozenset(AspectFilename.parse(name) for name in ('python', 'python-fn-unchecked', 'python-fn-x'))
+        corpus = Corpus(corpus_spec=_corpus_spec('code'), namespaces=FrozenMapping({}), filenames=filenames)
+
+        #: When
+        base = corpus.document_base(AspectFilename.parse('python-fn-unchecked'))
+
+        #: Then
+        assert base == _ref('code', 'python'), 'the nearest ancestor the corpus holds is the base, a gap skipped'
+
+    def test_document_base_with_the_narrowest_of_two_ancestors_returns_it(self) -> None:
+        #: Given
+        filenames = frozenset(AspectFilename.parse(name) for name in ('python', 'python-fn', 'python-fn-names'))
+        corpus = Corpus(corpus_spec=_corpus_spec('code'), namespaces=FrozenMapping({}), filenames=filenames)
+
+        #: When
+        base = corpus.document_base(AspectFilename.parse('python-fn-names'))
+
+        #: Then
+        assert base == _ref('code', 'python-fn'), 'of the ancestors, the one with the most segments is the base'
+
+    def test_document_base_with_no_ancestor_returns_none(self) -> None:
+        #: Given
+        filenames = frozenset(AspectFilename.parse(name) for name in ('python', 'pythonic', 'logging'))
+        corpus = Corpus(corpus_spec=_corpus_spec('code'), namespaces=FrozenMapping({}), filenames=filenames)
+
+        #: When
+        base = corpus.document_base(AspectFilename.parse('pythonic'))
+
+        #: Then
+        assert base is None, 'a name that only shares letters with another has no base'
+
     def test_documents_with_filenames_out_of_order_returns_them_sorted_by_filename(self) -> None:
         #: Given
         filenames = frozenset({AspectFilename.parse('python-typing'), AspectFilename.parse('logging')})

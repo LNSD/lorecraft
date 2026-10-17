@@ -141,6 +141,13 @@ class DocumentContext(FrontmatterContext, MarkdownContext, Protocol):
         """The document's filename, without its extension."""
         ...
 
+    def base(self) -> AspectFilename | None:
+        """The filename of the document this one extends, or `None` when no document of its corpus continues into it.
+
+        The base is the narrowest document of the corpus whose name the document's name continues after a hyphen.
+        """
+        ...
+
     def token_count(self) -> TokenCount:
         """The `o200k_base` tokens in the document's whole file, frontmatter, code and tables included."""
         ...
