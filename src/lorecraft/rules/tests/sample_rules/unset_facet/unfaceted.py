@@ -3,17 +3,25 @@
 from dataclasses import dataclass
 from typing import ClassVar, Self
 
-from lorecraft.project.context import DocumentContext
+from lorecraft.project.query import Primitives, Query
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
-from lorecraft.rules.subject import DocumentRule
+from lorecraft.rules.subject import QueriedDocumentRule
 
 from ..groups import SAMPLE
 
 
+def _nothing(primitives: Primitives) -> None:
+    """The query of a rule that reads nothing.
+
+    Args:
+        primitives: The model state of the document, unread.
+    """
+
+
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
-class Unfaceted(DocumentRule):
+class Unfaceted(QueriedDocumentRule[None]):
     """A sample rule that never fires, and leaves `GOVERNED_BY` unbound."""
 
     CODE: ClassVar[RuleCode] = RuleCode(SAMPLE, 1)
@@ -26,10 +34,15 @@ class Unfaceted(DocumentRule):
         return 'never reported'
 
     @classmethod
-    def check(cls, subject: DocumentContext) -> tuple[Self, ...]:
+    def query(cls) -> Query[None]:
+        """No fact: the rule reads nothing."""
+        return _nothing
+
+    @classmethod
+    def judge(cls, facts: None, /) -> tuple[Self, ...]:
         """No occurrence, whatever the document.
 
         Args:
-            subject: The document judged.
+            facts: Nothing.
         """
         return ()
