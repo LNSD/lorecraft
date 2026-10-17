@@ -9,6 +9,7 @@ to its protocol is in `lorecraft.project.database.tests.test_context`, where the
 
 from collections.abc import Mapping
 from pathlib import Path, PurePosixPath
+from textwrap import dedent
 from typing import Final, assert_never
 
 import pytest
@@ -34,7 +35,7 @@ from lorecraft.project.database import (
     ItemText,
 )
 from lorecraft.project.database.context import WrongItemKindError
-from lorecraft.project.document import DocumentRef
+from lorecraft.project.document import DocumentRef, SpecRef
 from lorecraft.project.item import MarkdownItemRef
 from lorecraft.project.layout import SNAPSHOT_SCOPE
 from lorecraft.project.link_target import DocumentDirectory, EscapingTarget, LinkTarget, PathLookup, SkillRoot
@@ -68,6 +69,18 @@ CORPUS_STRUCTURE: Final[bytes] = (
 CORPUS_SPEC: Final[RootRelativePath] = RootRelativePath.parse('docs/__meta__/code.spec.json')
 """Where the corpus structure specification lies."""
 
+SPEC: Final[SpecRef] = SpecRef(RootRelativePath.parse('docs/__meta__/code-python.md'))
+"""A meta specification, the namespace spec `python` of corpus `code`."""
+
+SPEC_TEXT: Final[str] = dedent(
+    """\
+    # Code Python
+
+    Read [the code spec](code.md), not [gone](gone.md).
+    """
+)
+"""The text of `SPEC`: a title and two links, one to the corpus spec beside it and one to nothing."""
+
 REVIEW: Final[SkillRef] = SkillRef(
     ResolvedPath(RootRelativePath.parse('.agents/skills')), PathComponent.parse('review')
 )
@@ -98,7 +111,7 @@ def _tree() -> FileTree:
             '__meta__': {
                 'code.md': b'# Code\n',
                 'code.spec.json': CORPUS_STRUCTURE,
-                'code-python.md': b'# Code Python\n',
+                'code-python.md': SPEC_TEXT.encode(),
                 'code-python.spec.json': b'{"tokens": 200}',
             },
             'code': {'python-typing.md': TYPING_TEXT.encode()},
@@ -138,6 +151,17 @@ def _document_item(database: Database) -> ItemText:
     """
     source = database.item_text(MarkdownItemRef(TYPING.path))
     assert isinstance(source, ItemText), f'{TYPING.path} was written as UTF-8, so it decodes'
+    return source
+
+
+def _spec_item(database: Database) -> ItemText:
+    """The witness of `SPEC`, as the database decodes it by its common reference.
+
+    Args:
+        database: The database the specification is decoded by.
+    """
+    source = database.item_text(MarkdownItemRef(SPEC.path))
+    assert isinstance(source, ItemText), f'{SPEC.path} was written as UTF-8, so it decodes'
     return source
 
 
@@ -572,6 +596,104 @@ class TestDatabaseItemContextOfAResource:
             NormalisedLinkPath.parse('SKILL.md'): _link_target('.agents/skills/review/SKILL.md', PathLookup.FILE),
             NormalisedLinkPath.parse('gone.md'): _link_target('.agents/skills/review/gone.md', PathLookup.MISSING),
         }, "a resource's links are read from the skill root, so `SKILL.md` names the skill's own"
+
+
+@pytest.mark.it
+class TestDatabaseItemContextOfASpecification:
+    def test_filename_with_a_specification_returns_its_specification_name(self) -> None:
+        #: Given
+        database = Database.from_snapshot(_snapshot())
+        context = DatabaseItemContext(database, _spec_item(database))
+
+        #: When
+        filename = context.filename()
+
+        #: Then
+        assert filename == AspectFilename.parse('code-python'), 'the name is the specification file stem'
+
+    def test_parse_with_a_specification_returns_the_item_parse_query(self) -> None:
+        #: Given
+        database = Database.from_snapshot(_snapshot())
+        context = DatabaseItemContext(database, _spec_item(database))
+
+        #: When
+        parsed = context.parse()
+
+        #: Then
+        assert parsed is database.item_parse(_spec_item(database)), 'the parse is the one the database memoizes'
+
+    def test_link_base_with_a_specification_returns_the_meta_directory(self) -> None:
+        #: Given
+        database = Database.from_snapshot(_snapshot())
+        context = DatabaseItemContext(database, _spec_item(database))
+
+        #: When
+        base = context.link_base()
+
+        #: Then
+        assert base == DocumentDirectory(RootRelativePath.parse('docs/__meta__')), 'links are read from docs/__meta__'
+
+    def test_link_targets_with_a_specification_returns_the_item_link_targets_query(self, tmp_path: Path) -> None:
+        #: Given
+        database = _scanned(tmp_path)
+        context = DatabaseItemContext(database, _spec_item(database))
+
+        #: When
+        targets = context.link_targets()
+
+        #: Then
+        assert dict(targets) == {
+            NormalisedLinkPath.parse('code.md'): _link_target('docs/__meta__/code.md', PathLookup.FILE),
+            NormalisedLinkPath.parse('gone.md'): _link_target('docs/__meta__/gone.md', PathLookup.MISSING),
+        }, 'each link is read from the meta directory the specification sits in'
+
+    def test_frontmatter_owner_with_a_specification_raises_wrong_item_kind(self) -> None:
+        #: Given
+        database = Database.from_snapshot(_snapshot())
+        context = DatabaseItemContext(database, _spec_item(database))
+
+        #: When
+        with pytest.raises(WrongItemKindError) as exc_info:
+            context.frontmatter_owner()
+
+        #: Then
+        assert str(SPEC.path) in str(exc_info.value), 'the error names the specification asked'
+
+    def test_schema_problems_with_a_specification_raises_wrong_item_kind(self) -> None:
+        #: Given
+        database = Database.from_snapshot(_snapshot())
+        context = DatabaseItemContext(database, _spec_item(database))
+
+        #: When
+        with pytest.raises(WrongItemKindError) as exc_info:
+            context.schema_problems()
+
+        #: Then
+        assert str(SPEC.path) in str(exc_info.value), 'the error names the specification asked'
+
+    def test_outline_divergences_with_a_specification_raises_wrong_item_kind(self) -> None:
+        #: Given
+        database = Database.from_snapshot(_snapshot())
+        context = DatabaseItemContext(database, _spec_item(database))
+
+        #: When
+        with pytest.raises(WrongItemKindError) as exc_info:
+            context.outline_divergences()
+
+        #: Then
+        assert str(SPEC.path) in str(exc_info.value), 'the error names the specification asked'
+
+    def test_specifications_with_a_specification_raises_wrong_item_kind(self) -> None:
+        #: Given
+        database = Database.from_snapshot(_snapshot())
+        context = DatabaseItemContext(database, _spec_item(database))
+
+        #: When
+        with pytest.raises(WrongItemKindError) as exc_info:
+            context.specifications()
+
+        #: Then
+        assert str(SPEC.path) in str(exc_info.value), 'the error names the specification asked'
 
 
 def _outside_symlink(database: Database) -> OutsideSymlink:

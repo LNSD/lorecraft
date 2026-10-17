@@ -15,8 +15,15 @@ from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.project.aspect import AspectFilename, AspectNamespace
 from lorecraft.project.corpus import CorpusName
-from lorecraft.project.document import DocumentRef
-from lorecraft.project.item import DocumentOrigin, ItemFacet, MarkdownItemRef, SkillEntryOrigin
+from lorecraft.project.document import DocumentRef, InvalidSpecificationNameError, MisplacedSpecificationError, SpecRef
+from lorecraft.project.item import (
+    DocumentOrigin,
+    ItemFacet,
+    ItemKind,
+    MarkdownItemRef,
+    SkillEntryOrigin,
+    SpecificationOrigin,
+)
 from lorecraft.project.layout import SPECS_DIR
 from lorecraft.project.link_target import DocumentDirectory, SkillRoot
 from lorecraft.project.schemas import (
@@ -1171,3 +1178,135 @@ class TestDocumentRef:
         assert path == RootRelativePath.parse('docs/code/python-errors-handling.md'), (
             'the path is root-relative docs/<corpus>/<filename>.md'
         )
+
+
+def _spec_ref(name: str) -> SpecRef:
+    return SpecRef(SPECS_DIR / PathComponent.parse(f'{name}.md'))
+
+
+@pytest.mark.unit
+class TestSpecifications:
+    def test_specifications_lists_every_markdown_file_of_a_spec_sorted_and_no_json(self) -> None:
+        #: Given
+        code = Corpus(
+            corpus_spec=_corpus_spec('code'),
+            namespaces=FrozenMapping(dict((_code_namespace('python'),))),
+            filenames=frozenset(),
+        )
+        feat = Corpus(corpus_spec=_corpus_spec('feat'), namespaces=FrozenMapping({}), filenames=frozenset())
+        model = WorkspaceModel(
+            corpora=FrozenMapping({feat.name: feat, code.name: code}),
+            skills_dirs=frozenset(),
+            skill_locations=FrozenMapping({}),
+            outside_symlinks=FrozenMapping({}),
+            load_failures=(),
+        )
+
+        #: When
+        specifications = model.specifications()
+
+        #: Then
+        assert specifications == (_spec_ref('code-python'), _spec_ref('code'), _spec_ref('feat')), (
+            'the prose of each corpus and namespace spec, by path, and none of the structure files'
+        )
+
+    def test_specifications_lists_the_prose_of_the_skills_spec(self) -> None:
+        #: Given
+        skills = Corpus(corpus_spec=_corpus_spec('skills'), namespaces=FrozenMapping({}), filenames=frozenset())
+        model = WorkspaceModel(
+            corpora=FrozenMapping({}),
+            skills_dirs=frozenset(),
+            skill_locations=FrozenMapping({}),
+            outside_symlinks=FrozenMapping({}),
+            load_failures=(),
+            skills_corpus=skills,
+        )
+
+        #: When
+        specifications = model.specifications()
+
+        #: Then
+        assert specifications == (_spec_ref('skills'),), 'the reserved skills corpus states specifications too'
+
+    def test_spec_ref_outside_the_meta_directory_raises_misplaced_specification_error(self) -> None:
+        #: When
+        with pytest.raises(MisplacedSpecificationError) as exc_info:
+            SpecRef(RootRelativePath.parse('docs/code/logging.md'))
+
+        #: Then
+        assert exc_info.value.path == RootRelativePath.parse('docs/code/logging.md'), 'the error names the path refused'
+
+    def test_spec_ref_with_a_readme_raises_invalid_specification_name_error(self) -> None:
+        #: When
+        with pytest.raises(InvalidSpecificationNameError) as exc_info:
+            SpecRef(SPECS_DIR / PathComponent.parse('README.md'))
+
+        #: Then
+        assert exc_info.value.path == SPECS_DIR / PathComponent.parse('README.md'), (
+            'the readme is no specification, and the error names it'
+        )
+
+    def test_spec_ref_with_a_dotted_name_raises_invalid_specification_name_error(self) -> None:
+        #: When
+        with pytest.raises(InvalidSpecificationNameError) as exc_info:
+            SpecRef(SPECS_DIR / PathComponent.parse('code.bad.md'))
+
+        #: Then
+        assert 'code.bad.md' in str(exc_info.value), (
+            'a dot in the stem is no specification name, and the error names it'
+        )
+
+    def test_spec_ref_with_a_trailing_hyphen_raises_invalid_specification_name_error(self) -> None:
+        #: When
+        with pytest.raises(InvalidSpecificationNameError) as exc_info:
+            SpecRef(SPECS_DIR / PathComponent.parse('code-.md'))
+
+        #: Then
+        assert exc_info.value.path == SPECS_DIR / PathComponent.parse('code-.md'), (
+            'an empty namespace is no specification name, and the error names it'
+        )
+
+    def test_spec_ref_with_an_uppercase_namespace_raises_invalid_specification_name_error(self) -> None:
+        #: When
+        with pytest.raises(InvalidSpecificationNameError) as exc_info:
+            SpecRef(SPECS_DIR / PathComponent.parse('code-Upper.md'))
+
+        #: Then
+        assert 'code-Upper.md' in str(exc_info.value), (
+            'an uppercase namespace is no specification name, and the error names it'
+        )
+
+    def test_describe_item_for_a_specification_reads_links_from_the_meta_directory(
+        self, two_corpora_model: WorkspaceModel
+    ) -> None:
+        #: Given
+        ref = _spec_ref('feat-cli')
+
+        #: When
+        descriptor = two_corpora_model.describe_item(ref)
+
+        #: Then
+        assert descriptor.kind is ItemKind.SPECIFICATION, 'the origin makes it a specification'
+        assert descriptor.origin == SpecificationOrigin(expected_name='feat-cli', corpus='feat'), (
+            'the origin carries the specification name and the corpus its first segment names'
+        )
+        assert descriptor.ref == MarkdownItemRef(ref.path), 'the logical ref is also the report path'
+        assert descriptor.read_location == ResolvedPath(ref.path), 'the file is read where it is listed'
+        assert descriptor.link_base == DocumentDirectory(SPECS_DIR), 'links are read from docs/__meta__'
+        assert descriptor.active_facets == frozenset({ItemFacet.MARKDOWN}), (
+            'the package governs a specification, so only the Markdown checks are active'
+        )
+
+    def test_find_item_with_a_listed_specification_returns_its_descriptor(
+        self, two_corpora_model: WorkspaceModel
+    ) -> None:
+        #: Given
+        ref = _spec_ref('feat')
+
+        #: When
+        found = two_corpora_model.find_item(MarkdownItemRef(ref.path))
+
+        #: Then
+        assert found is not None, 'the model lists the specification'
+        assert found.descriptor == two_corpora_model.describe_item(ref), 'a lookup by path resolves it as the ref does'
+        assert found.governance is None, 'no corpus specification governs a specification'
