@@ -3,24 +3,20 @@
 from dataclasses import dataclass
 from typing import ClassVar, Self, assert_never
 
-from lorecraft.project.context import SkillContext
 from lorecraft.project.schemas import (
     AllowedTool,
-    AllowedTools,
     CommaSeparated,
     MalformedEntry,
     NotATool,
-    SkillField,
+    Query,
     UnbalancedParentheses,
-    field_line,
 )
-from lorecraft.project.syntax import Frontmatter, InvalidYamlFrontmatter, MissingFrontmatter, NonMappingFrontmatter
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Here, Label, Subdiagnostic
-from lorecraft.rules.subject import SkillRule
+from lorecraft.rules.subject import QueriedSkillRule
 
-from .__ruleset__ import ALLOWED_TOOLS_NOTE, GROUP_ID
+from .__ruleset__ import ALLOWED_TOOLS_NOTE, GROUP_ID, AllowedToolsField, allowed_tools_field
 
 
 @dataclass(frozen=True, slots=True)
@@ -34,7 +30,7 @@ type MalformedAllowedToolsProblem = EmptyValue | MalformedEntry
 
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
-class MalformedAllowedTools(SkillRule):
+class MalformedAllowedTools(QueriedSkillRule[AllowedToolsField | None]):
     """A skill's `allowed-tools` is not a list of tool entries.
 
     ## What it does
@@ -118,31 +114,25 @@ class MalformedAllowedTools(SkillRule):
         return (ALLOWED_TOOLS_NOTE, Help(fix))
 
     @classmethod
-    def check(cls, subject: SkillContext) -> tuple[Self, ...]:
+    def query(cls) -> Query[AllowedToolsField | None]:
+        """The `allowed-tools` field and its line."""
+        return allowed_tools_field
+
+    @classmethod
+    def judge(cls, facts: AllowedToolsField | None, /) -> tuple[Self, ...]:
         """Report malformed entries at the `allowed-tools` field's line.
 
         Args:
-            subject: The skill whose frontmatter is judged.
+            facts: The field as written; `None` when the skill writes none.
         """
-        frontmatter = subject.frontmatter()
-        match frontmatter:
-            case Frontmatter():
-                pass
-            case MissingFrontmatter() | InvalidYamlFrontmatter() | NonMappingFrontmatter():
-                return ()
-            case _:
-                assert_never(frontmatter)
-
-        allowed_tools = subject.skill_fields().get(SkillField.ALLOWED_TOOLS)
-        if not isinstance(allowed_tools, AllowedTools):
+        if facts is None:
             return ()
-
-        line = field_line(frontmatter, SkillField.ALLOWED_TOOLS)
-        if not allowed_tools.entries:
+        line = facts.line
+        if not facts.tools.entries:
             return (cls(line=line, problem=EmptyValue()),)
 
         occurrences: list[Self] = []
-        for entry in allowed_tools.entries:
+        for entry in facts.tools.entries:
             match entry:
                 case AllowedTool():
                     pass

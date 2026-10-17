@@ -42,6 +42,8 @@ from lorecraft.project.schemas import (
     FrontmatterOwner,
     Primitives,
     SchemaProblems,
+    SkillField,
+    SkillFields,
     SkillFrontmatterOwner,
 )
 from lorecraft.project.skill import OutsideSymlink, SkillLocation, SkillRef
@@ -259,6 +261,11 @@ def _schema_problems(primitives: Primitives) -> tuple[SchemaProblems, ...]:
     return primitives.schema_problems()
 
 
+def _skill_fields(primitives: Primitives) -> SkillFields:
+    """The fields of the skill's frontmatter that parse."""
+    return primitives.skill_fields()
+
+
 def _frontmatter_owner(primitives: Primitives) -> FrontmatterOwner:
     """Whose frontmatter block the item opens, with the name its frontmatter must carry."""
     return primitives.frontmatter_owner()
@@ -398,28 +405,6 @@ class TestDatabaseItemContextOverADocument:
 
 @pytest.mark.it
 class TestDatabaseItemContextOverASkillEntry:
-    def test_directory_name_with_a_skill_returns_the_name_it_is_listed_under(self) -> None:
-        #: Given
-        context = _skill_context(Database.from_snapshot(_snapshot()))
-
-        #: When
-        directory_name = context.directory_name()
-
-        #: Then
-        assert directory_name == PathComponent.parse('review'), (
-            'the name is the listed directory, not the name the frontmatter gives'
-        )
-
-    def test_link_target_with_a_listed_directory_returns_none(self) -> None:
-        #: Given
-        context = _skill_context(Database.from_snapshot(_snapshot()))
-
-        #: When
-        link_target = context.link_target()
-
-        #: Then
-        assert link_target is None, 'a skill listed as a directory, not a link, leads nowhere else'
-
     def test_link_target_with_a_linked_directory_returns_where_the_link_leads(self) -> None:
         #: Given
         # What a scan records for `.agents/skills/review -> ../../skills/review`: the link in the skills directory,
@@ -431,10 +416,11 @@ class TestDatabaseItemContextOverASkillEntry:
         context = _skill_context(database)
 
         #: When
-        link_target = context.link_target()
+        owner = context.query(_frontmatter_owner)
 
         #: Then
-        assert link_target == _location(database).resolves_to, (
+        assert isinstance(owner, SkillFrontmatterOwner)
+        assert owner.link_target == _location(database).resolves_to, (
             'the link target is where the model locates the listed directory'
         )
 
@@ -450,6 +436,16 @@ class TestDatabaseItemContextOverASkillEntry:
         assert frontmatter is database.item_frontmatter(_skill_item(database)), (
             'the frontmatter is the value the database memoizes, not one the context parsed again'
         )
+
+    def test_skill_fields_with_a_skill_returns_the_fields_that_parse(self) -> None:
+        #: Given
+        context = _skill_context(Database.from_snapshot(_snapshot()))
+
+        #: When
+        fields = context.query(_skill_fields)
+
+        #: Then
+        assert set(fields) == {SkillField.NAME}, 'the one field the skill writes parses, and nothing else is read in'
 
     def test_schema_problems_with_a_skill_returns_the_skill_schema_problems_query(self) -> None:
         #: Given
@@ -733,18 +729,6 @@ class TestDatabaseItemContextOverTheOtherKind:
 
         #: Then
         assert REVIEW.path.value.as_posix() in str(raised.value), 'the error names the skill entry asked for a filename'
-
-    def test_directory_name_with_a_document_raises_wrong_item_kind_error(self) -> None:
-        #: Given
-        database = Database.from_snapshot(_snapshot())
-        context = DatabaseItemContext(database, _document_item(database))
-
-        #: When
-        with pytest.raises(WrongItemKindError) as raised:
-            context.directory_name()
-
-        #: Then
-        assert TYPING.path.value.as_posix() in str(raised.value), 'the error names the document asked for a directory'
 
 
 @pytest.mark.it

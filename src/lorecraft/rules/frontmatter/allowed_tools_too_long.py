@@ -1,19 +1,17 @@
 """`FM012`: a skill's `allowed-tools` value exceeds Lorecraft's recommended length."""
 
 from dataclasses import dataclass
-from typing import ClassVar, Final, Self, assert_never
+from typing import ClassVar, Final, Self
 
 from lorecraft.core.num import NonZeroUnsignedInt, UnsignedInt
-from lorecraft.project.context import SkillContext
-from lorecraft.project.schemas import AllowedTools, SkillField, field_line
-from lorecraft.project.syntax import Frontmatter, InvalidYamlFrontmatter, MissingFrontmatter, NonMappingFrontmatter
+from lorecraft.project.schemas import Query
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Here, Label, Note, Subdiagnostic
 from lorecraft.rules.overrun import Overrun, find_overrun
-from lorecraft.rules.subject import SkillRule
+from lorecraft.rules.subject import QueriedSkillRule
 
-from .__ruleset__ import ALLOWED_TOOLS_NOTE, GROUP_ID
+from .__ruleset__ import ALLOWED_TOOLS_NOTE, GROUP_ID, AllowedToolsField, allowed_tools_field
 
 _CHARACTER_LIMIT: Final[NonZeroUnsignedInt] = NonZeroUnsignedInt(500)
 """Lorecraft's recommended length, matching the compatibility field's maximum."""
@@ -21,7 +19,7 @@ _CHARACTER_LIMIT: Final[NonZeroUnsignedInt] = NonZeroUnsignedInt(500)
 
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
-class AllowedToolsTooLong(SkillRule):
+class AllowedToolsTooLong(QueriedSkillRule[AllowedToolsField | None]):
     """A skill's `allowed-tools` value exceeds the recommended length.
 
     ## What it does
@@ -98,25 +96,20 @@ class AllowedToolsTooLong(SkillRule):
         )
 
     @classmethod
-    def check(cls, subject: SkillContext) -> tuple[Self, ...]:
+    def query(cls) -> Query[AllowedToolsField | None]:
+        """The `allowed-tools` field and its line."""
+        return allowed_tools_field
+
+    @classmethod
+    def judge(cls, facts: AllowedToolsField | None, /) -> tuple[Self, ...]:
         """Report an overlong value at the field's line.
 
         Args:
-            subject: The skill whose frontmatter is judged.
+            facts: The field as written; `None` when the skill writes none.
         """
-        frontmatter = subject.frontmatter()
-        match frontmatter:
-            case Frontmatter():
-                pass
-            case MissingFrontmatter() | InvalidYamlFrontmatter() | NonMappingFrontmatter():
-                return ()
-            case _:
-                assert_never(frontmatter)
-
-        allowed_tools = subject.skill_fields().get(SkillField.ALLOWED_TOOLS)
-        if not isinstance(allowed_tools, AllowedTools):
+        if facts is None:
             return ()
-        overrun = find_overrun(UnsignedInt(len(allowed_tools.text)), _CHARACTER_LIMIT)
+        overrun = find_overrun(UnsignedInt(len(facts.tools.text)), _CHARACTER_LIMIT)
         if overrun is None:
             return ()
-        return (cls(line=field_line(frontmatter, SkillField.ALLOWED_TOOLS), overrun=overrun),)
+        return (cls(line=facts.line, overrun=overrun),)

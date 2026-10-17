@@ -31,7 +31,6 @@ from lorecraft.project.schemas import (
     DocumentFrontmatterOwner,
     NamespaceSpecName,
     Query,
-    SkillFields,
     SkillFrontmatterOwner,
     SpecFileType,
     SpecName,
@@ -287,7 +286,7 @@ class FakeDocumentContext:
                 count_lines(self._text),
                 parse_frontmatter(self._text),
                 locate_schema_problems(parse_frontmatter(self._text), self._governance.frontmatter_schemas()),
-                DocumentFrontmatterOwner(filename=self.filename(), spec=self._corpus_structure.path),
+                owner=DocumentFrontmatterOwner(filename=self.filename(), spec=self._corpus_structure.path),
             )
         )
 
@@ -317,21 +316,9 @@ class FakeSkillContext:
         self._directory_name = PathComponent.parse(directory_name)
         self._link_target = link_target
 
-    def directory_name(self) -> PathComponent:
-        """The name of the skill's directory, as the test named it."""
-        return self._directory_name
-
-    def link_target(self) -> ResolvedPath | None:
-        """Where the listed directory leads, as the test named it."""
-        return self._link_target
-
     def frontmatter(self) -> FrontmatterNode:
         """The skill's frontmatter block, as the real parser reads it."""
         return parse_frontmatter(self._text)
-
-    def skill_fields(self) -> SkillFields:
-        """The fields that parse, as the real analysis finds them."""
-        return parse_skill_fields(self.frontmatter())
 
     def parse(self) -> ParsedDocument:
         """The parse tree of the `SKILL.md`, as the real parser reads it."""
@@ -353,6 +340,7 @@ class FakeSkillContext:
                 line_total=count_lines(self._text),
                 frontmatter_node=self.frontmatter(),
                 problems=locate_skill_schema_problems(self.frontmatter()),
+                fields=parse_skill_fields(self.frontmatter()),
                 owner=SkillFrontmatterOwner(directory_name=self._directory_name, link_target=self._link_target),
             )
         )
