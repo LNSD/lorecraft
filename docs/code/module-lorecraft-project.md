@@ -37,7 +37,6 @@ once in `lorecraft.project.layout` and read from there by every other module.
   report path, read location, link base, origin metadata, governance target and active check facets.
 - Turning a Markdown link's destination into a root-relative path, from its document's directory or its skill's
   root, and what the snapshot holds there.
-- Contexts: protocols for decoded documents, skills, resources and layout entries, with project-owned types.
 - The one-revision database: one memoized decode, per-file, governance, analysis and link-target query family keyed
   by the common reference for documents and skill entries, other memoized derived queries, and fresh snapshot
   questions such as symlink targets.
@@ -45,8 +44,6 @@ once in `lorecraft.project.layout` and read from there by every other module.
   invalid byte's line, offset, bytes and reason.
 - The carry-over rule: which change to a revision's inputs invalidates which query; and what a persisted result is
   keyed by, and its validation before the database keeps it.
-- A context over the database: decoded facts answered by memoized queries, identity read from the subject's ref or
-  location, and layout facts read from its record.
 
 ## Belongs Elsewhere
 

@@ -46,8 +46,7 @@ returns at its subject, as a diagnostic of `lorecraft.rules.report`.
 | Prints, writes JSON, or sets an exit code | `lorecraft.cli` |
 | Declares a rule, its identity or its group, or the base a rule derives from | `lorecraft.rules` |
 | Builds the rule table, applies a level or a one-run selection, or declares what a run reports | `lorecraft.rules` |
-| Declares what a context of a subject holds | `lorecraft.project` |
-| Adds a query, a decode witness, a carry-over rule, or a context implemented over the database | `lorecraft.project` |
+| Adds a query, a decode witness, or a carry-over rule | `lorecraft.project` |
 | Parses text, decodes a meta spec, or builds the model | `lorecraft.project` |
 | Reads the disk | `lorecraft.vfs` |
 
