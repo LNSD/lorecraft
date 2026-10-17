@@ -88,15 +88,15 @@ class GovernancePrimitives(Protocol):
         """
         ...
 
-    def document_name(self) -> str | None:
+    def item_name(self) -> str | None:
         """The stem of a document or meta specification; `None` for any other item."""
         ...
 
-    def document_corpus(self) -> str | None:
+    def item_corpus(self) -> str | None:
         """The corpus a document lies in; `None` for any other item or one that is not UTF-8."""
         ...
 
-    def document_base(self) -> str | None:
+    def item_base(self) -> str | None:
         """The stem of the document or specification the item extends, looked for among the names the model lists.
 
         A document's base is the narrowest document of its corpus whose name its own continues after a hyphen, a
@@ -116,7 +116,7 @@ class LinkResolutionPrimitives(Protocol):
         """Where the item's relative links are read from; `None` for an item that is not UTF-8."""
         ...
 
-    def document_links(self) -> tuple[DocumentLink, ...]:
+    def linked_documents(self) -> tuple[DocumentLink, ...]:
         """The links to another document, with its corpus and filename and whether it links back, in document order.
 
         None for an item that is not UTF-8.

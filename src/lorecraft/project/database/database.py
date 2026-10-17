@@ -364,20 +364,20 @@ class _ReadPrimitives:
         source = self._database.item_text(self._ref)
         return source.descriptor.link_base if isinstance(source, ItemText) else None
 
-    def document_name(self) -> str | None:
+    def item_name(self) -> str | None:
         """The stem of a document or meta specification; `None` for any other item or one that is not UTF-8."""
-        self.read |= {'document_name'}
+        self.read |= {'item_name'}
         source = self._database.item_text(self._ref)
         origin = source.descriptor.origin if isinstance(source, ItemText) else None
         return origin.expected_name if isinstance(origin, DocumentOrigin | SpecificationOrigin) else None
 
-    def document_links(self) -> tuple[DocumentLink, ...]:
+    def linked_documents(self) -> tuple[DocumentLink, ...]:
         """The links to another document, with its corpus and filename and whether it links back, in document order.
 
         A destination that cannot be read or decoded is logged and has no back link. None for an item that is not
         UTF-8.
         """
-        self.read |= {'document_links'}
+        self.read |= {'linked_documents'}
         source = self._database.item_text(self._ref)
         if not isinstance(source, ItemText):
             return ()
@@ -398,20 +398,21 @@ class _ReadPrimitives:
         }
         return document_links_of(linked, self._ref.path, documents, back_links)
 
-    def document_corpus(self) -> str | None:
+    def item_corpus(self) -> str | None:
         """The corpus a document lies in; `None` for any other item or one that is not UTF-8."""
-        self.read |= {'document_corpus'}
+        self.read |= {'item_corpus'}
         source = self._database.item_text(self._ref)
         origin = source.descriptor.origin if isinstance(source, ItemText) else None
         return origin.corpus if isinstance(origin, DocumentOrigin) else None
 
-    def document_base(self) -> str | None:
+    def item_base(self) -> str | None:
         """The stem of the document or specification the item extends, from the names the model lists.
 
         A document's base is looked for among the documents of its corpus, a specification's among the specifications;
-        `None` for any other item or one that is not UTF-8.
+        `None` for any other item or one that is not UTF-8. A skill entry extends nothing: its name is its directory's,
+        which no hyphenated prefix continues.
         """
-        self.read |= {'document_base'}
+        self.read |= {'item_base'}
         source = self._database.item_text(self._ref)
         origin = source.descriptor.origin if isinstance(source, ItemText) else None
         match origin:
@@ -681,7 +682,7 @@ class Database:
             document = _document_at(ref)
             if document is None:
                 raise
-            self._document_item(document)
+            self._document_item(ref, document)
             return self._known(ref)
 
     def _decode(self, ref: MarkdownItemRef) -> ItemText | Undecodable:
@@ -717,18 +718,16 @@ class Database:
             self._unlisted_items[item] = self._model.resolve_resource(location)
         return item
 
-    def _document_item(self, ref: DocumentRef) -> MarkdownItemRef:
-        """The common reference of a document ref, resolved by ref without scanning the model's items.
+    def _document_item(self, item: MarkdownItemRef, ref: DocumentRef) -> None:
+        """Resolve the document an item reference names, by its document ref and without scanning the model's items.
 
         A document the model lists is kept as an item. One it does not list, in a corpus it lacks or beyond the
         corpus's listing, is kept apart, so the listed items still refuse it.
         """
-        item = MarkdownItemRef(ref.path)
         if item not in self._items and item not in self._unlisted_items:
             corpus = self._model.find_corpus(ref.corpus)
             listed = corpus is not None and ref.filename in corpus.filenames
             (self._items if listed else self._unlisted_items)[item] = self._model.resolve_item(ref)
-        return item
 
     def item_link_targets(self, source: ItemText) -> Mapping[NormalisedLinkPath, LinkTargetEntry]:
         """Where each relative link of one item leads and what the snapshot holds there, found on the first call.

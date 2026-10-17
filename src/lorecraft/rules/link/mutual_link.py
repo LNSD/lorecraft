@@ -39,7 +39,7 @@ def mutual_link_facts(primitives: _GovernanceLinkResolutionPrimitives) -> Mutual
     Args:
         primitives: The model state of the document.
     """
-    return MutualLinkFacts(corpus=primitives.document_corpus(), links=primitives.document_links())
+    return MutualLinkFacts(corpus=primitives.item_corpus(), links=primitives.linked_documents())
 
 
 @rule

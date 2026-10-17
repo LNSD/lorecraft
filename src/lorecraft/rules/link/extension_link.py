@@ -38,7 +38,7 @@ def extension_link_facts(primitives: GovernanceSyntaxLinkResolutionPrimitives) -
     Args:
         primitives: The model state of the document.
     """
-    name = primitives.document_name()
+    name = primitives.item_name()
     base = primitives.link_base()
     if name is None or base is None:
         return ExtensionLinkFacts(base='', links=())
