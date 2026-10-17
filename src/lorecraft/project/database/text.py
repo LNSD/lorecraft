@@ -1,9 +1,9 @@
 """The decoded text of a file, as the database's decode queries return it: a witness, or an undecodable marker.
 
-A witness holds a ref and that ref's bytes decoded as UTF-8, one type for a governed item and one for a skill's
-resource, so an item's text cannot be passed where a resource's is asked for. Every per-file query of the `Database`
-takes a witness rather than a bare ref, so asking for a fact of a file that does not decode cannot be written: a
-caller matches the decode query's answer once, and no later reader carries a branch for an undecodable file.
+A witness holds a ref and that ref's bytes decoded as UTF-8, one type for every governed item, a skill's resource
+included. Every per-file query of the `Database` takes a witness rather than a bare ref, so asking for a fact of a
+file that does not decode cannot be written: a caller matches the decode query's answer once, and no later reader
+carries a branch for an undecodable file.
 
 Only the database builds a witness. Python has no private constructor, so nothing stops another caller from
 building one; forged text would still be text, but no longer that ref's bytes. A witness also belongs to the
@@ -13,7 +13,6 @@ database that built it, which no type records, so it never leaves the run that a
 from dataclasses import dataclass
 
 from lorecraft.project.item import MarkdownItemDescriptor, MarkdownItemRef
-from lorecraft.project.skill import SkillResourceRef
 from lorecraft.vfs import Utf8Failure
 
 
@@ -36,30 +35,13 @@ class ItemText:
 
 
 @dataclass(frozen=True, slots=True)
-class SkillResourceText:
-    """One resource's bytes, decoded; built only by `Database.skill_resource_text`.
+class Undecodable:
+    """A file whose bytes are not UTF-8: what `Database.item_text` returns instead of a witness.
 
     Attributes:
-        ref: The resource the text was read from, as the skill's resource listing names it.
-        text: The resource's whole file.
-    """
-
-    ref: SkillResourceRef
-    text: str
-
-
-@dataclass(frozen=True, slots=True)
-class Undecodable[R: (SkillResourceRef, MarkdownItemRef)]:
-    """A file whose bytes are not UTF-8: what a decode query returns instead of a witness.
-
-    The type parameter is the kind of ref the file is named by, so each decode query returns the marker of its own
-    kind: `Database.item_text` an `Undecodable[MarkdownItemRef]`, `Database.skill_resource_text` an
-    `Undecodable[SkillResourceRef]`.
-
-    Attributes:
-        ref: The document, skill or resource whose file did not decode.
+        ref: The document, skill entry or resource whose file did not decode.
         failure: Where the file's bytes first stop being UTF-8, and why.
     """
 
-    ref: R
+    ref: MarkdownItemRef
     failure: Utf8Failure

@@ -3,8 +3,8 @@
 `take_snapshot` reads the tree with `SNAPSHOT_SCOPE`, the scope every command passes, and the database answers
 from that one snapshot, so these see the layout, the scan and the queries wired together: what the snapshot holds
 inside a skill, what `Database.is_in_scope` and `Database.find_file` say about a path there, and which
-resources `Database.skill_resources` lists for the skill and how `Database.skill_resource_text` decodes one and
-`Database.skill_resource_parse` parses it.
+resources `Database.skill_resources` lists for the skill and how `Database.item_text` decodes one and
+`Database.item_parse` parses it.
 """
 
 from pathlib import Path, PurePosixPath
@@ -14,7 +14,8 @@ import pytest
 
 from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.core.path import PathComponent, RootRelativePath
-from lorecraft.project.database import Database, SkillResourceText, Undecodable
+from lorecraft.project.database import Database, ItemText, Undecodable
+from lorecraft.project.item import MarkdownItemRef
 from lorecraft.project.layout import SNAPSHOT_SCOPE
 from lorecraft.project.skill import (
     SkillLocation,
@@ -83,15 +84,15 @@ def _listed_resource(database: Database, ref: SkillResourceRef) -> SkillResource
     pytest.fail(f'the skill lists no resource {ref.path}')
 
 
-def _skill_resource_text(database: Database, ref: SkillResourceRef) -> SkillResourceText:
+def _skill_resource_text(database: Database, ref: SkillResourceRef) -> ItemText:
     """The witness of a resource the test wrote as UTF-8, as the database decodes it.
 
     Args:
         database: The database the resource is decoded by.
         ref: A resource whose bytes are UTF-8.
     """
-    source = database.skill_resource_text(_listed_resource(database, ref))
-    assert isinstance(source, SkillResourceText), f'{ref.path} was written as UTF-8, so it decodes'
+    source = database.item_text(database.resource_item(_listed_resource(database, ref)))
+    assert isinstance(source, ItemText), f'{ref.path} was written as UTF-8, so it decodes'
     return source
 
 
@@ -375,7 +376,7 @@ class TestDatabaseSkillResources:
         #: Then
         assert second is first, "a skill's resources are listed once per database, then shared by every check"
 
-    def test_skill_resource_parse_of_a_resource_behind_a_symlinked_directory_parses_the_resolved_file(
+    def test_item_parse_of_a_resource_behind_a_symlinked_directory_parses_the_resolved_file(
         self, skill_tree: Path
     ) -> None:
         #: Given
@@ -384,27 +385,27 @@ class TestDatabaseSkillResources:
         source = _skill_resource_text(database, ref)
 
         #: When
-        document = database.skill_resource_parse(source)
+        document = database.item_parse(source)
 
         #: Then
         assert document.links == (MarkdownLink(url='../../SKILL.md', line=LineNumber(NonZeroUnsignedInt(3))),), (
             'the ref names the resource through the symlink, and the tree is parsed from shared/guides/deeper/d.md'
         )
 
-    def test_skill_resource_parse_called_twice_returns_the_first_answer(self, skill_tree: Path) -> None:
+    def test_item_parse_of_a_resource_called_twice_returns_the_first_answer(self, skill_tree: Path) -> None:
         #: Given
         database = Database.from_snapshot(take_snapshot(skill_tree, SNAPSHOT_SCOPE))
         ref = SkillResourceRef(REVIEW, SkillRelativePath.parse('references/a.md'))
         source = _skill_resource_text(database, ref)
-        first = database.skill_resource_parse(source)
+        first = database.item_parse(source)
 
         #: When
-        second = database.skill_resource_parse(source)
+        second = database.item_parse(source)
 
         #: Then
         assert second is first, 'a resource is parsed once per database, then shared by every check'
 
-    def test_skill_resource_text_of_a_resource_that_is_not_utf8_returns_undecodable(self, tmp_path: Path) -> None:
+    def test_item_text_of_a_resource_that_is_not_utf8_returns_undecodable(self, tmp_path: Path) -> None:
         #: Given
         _write(tmp_path, f'{SKILL}/SKILL.md', b'---\nname: review\n---\n')
         _write(tmp_path, f'{SKILL}/references/a.md', b'caf\xe9\n')
@@ -413,7 +414,7 @@ class TestDatabaseSkillResources:
         location = _listed_resource(database, ref)
 
         #: When
-        source = database.skill_resource_text(location)
+        source = database.item_text(database.resource_item(location))
 
         #: Then
         failure = Utf8Failure(
@@ -422,11 +423,11 @@ class TestDatabaseSkillResources:
             invalid=b'\xe9',
             reason=Utf8Reason.INVALID_CONTINUATION_BYTE,
         )
-        assert source == Undecodable(ref, failure), (
+        assert source == Undecodable(MarkdownItemRef(ref.path), failure), (
             'a decode failure is an answer naming the resource and where its bytes stop being UTF-8, not an error'
         )
 
-    def test_skill_resource_text_of_a_resource_that_is_not_utf8_called_twice_returns_the_first_answer(
+    def test_item_text_of_a_resource_that_is_not_utf8_called_twice_returns_the_first_answer(
         self, tmp_path: Path
     ) -> None:
         #: Given
@@ -435,10 +436,10 @@ class TestDatabaseSkillResources:
         database = Database.from_snapshot(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
         ref = SkillResourceRef(REVIEW, SkillRelativePath.parse('references/a.md'))
         location = _listed_resource(database, ref)
-        first = database.skill_resource_text(location)
+        first = database.item_text(database.resource_item(location))
 
         #: When
-        second = database.skill_resource_text(location)
+        second = database.item_text(database.resource_item(location))
 
         #: Then
         assert second is first, 'an undecodable resource is cached like any answer, so it is decoded once'

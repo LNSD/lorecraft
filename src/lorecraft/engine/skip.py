@@ -19,12 +19,13 @@ from lorecraft.project.skill import (
     SkillReadError,
     SkillRef,
     SkillResourceLocation,
+    SkillResourceReadError,
 )
 from lorecraft.rules.report import SkippedSubject, SubjectReport, UndecodableSubject
 from lorecraft.rules.table import RuleTable
 from lorecraft.vfs import RefusedRead, RefusedRecord
 
-from .runner import RefusedSkillSubject, Subject, check_layout_entry, check_skill_resource, judge_item
+from .runner import RefusedSkillSubject, Subject, check_layout_entry, judge_item
 
 
 def check_subjects(
@@ -65,7 +66,7 @@ def check_subjects(
             case DocumentRef() | SkillLocation():
                 reports.append(_check_item(database, subject, table))
             case SkillResourceLocation():
-                reports.append(check_skill_resource(database, subject, table))
+                reports.append(_check_resource(database, subject, table))
             case OutsideSymlink():
                 reports.append(check_layout_entry(subject, table))
             case _:
@@ -81,6 +82,33 @@ def _is_refused_docs_path(path: RootRelativePath, refusals: Mapping[RootRelative
         refusals: Snapshot refusals keyed by their root-relative path.
     """
     return path.is_relative_to(DOCS_DIR) and refusals.get(path) is not None
+
+
+def _check_resource(database: Database, location: SkillResourceLocation, table: RuleTable) -> SubjectReport:
+    """Decode one resource of a skill through the item queries, then judge it if it decoded.
+
+    A layer that failed to load suppresses none of a resource's checks, since the package governs the resource and no
+    resource facet is active beyond that, so the skip policy of `_check_item` does not apply here.
+
+    Args:
+        database: The revision the resource is read from.
+        location: The resource to check, and the file it leads to, as its skill's resource listing gives it.
+        table: The rules the run enables.
+
+    Raises:
+        SkillResourceReadError: If the resource is missing from the snapshot; a decode failure is a diagnostic.
+    """
+    try:
+        source = database.item_text(database.resource_item(location))
+    except ItemReadError as exc:
+        raise SkillResourceReadError(location.ref, source=exc.source) from exc
+    match source:
+        case Undecodable():
+            return UndecodableSubject(location.ref, source.failure)
+        case ItemText():
+            return judge_item(database, source, table)
+        case _:
+            assert_never(source)
 
 
 def _check_item(database: Database, subject: DocumentRef | SkillLocation, table: RuleTable) -> SubjectReport:

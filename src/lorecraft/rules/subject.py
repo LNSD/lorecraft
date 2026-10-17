@@ -143,7 +143,7 @@ class SkillFileRule(ItemRule):
     the rule declares no facet.
     """
 
-    APPLIES_TO: ClassVar[frozenset[ItemKind]] = frozenset({ItemKind.SKILL_ENTRY})
+    APPLIES_TO: ClassVar[frozenset[ItemKind]] = frozenset({ItemKind.SKILL_ENTRY, ItemKind.SKILL_RESOURCE})
 
     @classmethod
     @abstractmethod
@@ -177,11 +177,12 @@ class FrontmatterRule(ItemRule):
 
     Attributes:
         GOVERNED_BY: `Facet.FRONTMATTER`, bound here for every rule over the frontmatter: a document is judged only
-            when it is governed for it. The package governs every skill, so a skill is always judged.
+            when it is governed for it. The package governs every skill, so a skill is always judged. A skill's resource
+            opens with no frontmatter the package governs, so the rule judges none.
     """
 
     GOVERNED_BY: ClassVar[Facet] = Facet.FRONTMATTER
-    APPLIES_TO: ClassVar[frozenset[ItemKind]] = frozenset(ItemKind)
+    APPLIES_TO: ClassVar[frozenset[ItemKind]] = frozenset({ItemKind.DOCUMENT, ItemKind.SKILL_ENTRY})
 
     @classmethod
     @abstractmethod

@@ -7,7 +7,7 @@ which `ty check src` refuses if the class drifts from the protocol; the integrat
 
 from lorecraft.project.context import DocumentContext, LayoutContext, SkillContext, SkillResourceContext
 
-from ..context import DatabaseItemContext, DatabaseLayoutContext, DatabaseSkillResourceContext
+from ..context import DatabaseItemContext, DatabaseLayoutContext
 
 
 def _as_document_context(context: DatabaseItemContext) -> DocumentContext:
@@ -28,7 +28,7 @@ def _as_skill_context(context: DatabaseItemContext) -> SkillContext:
     return context
 
 
-def _as_skill_resource_context(context: DatabaseSkillResourceContext) -> SkillResourceContext:
+def _as_skill_resource_context(context: DatabaseItemContext) -> SkillResourceContext:
     """The skill resource context, as the protocol it implements.
 
     Args:

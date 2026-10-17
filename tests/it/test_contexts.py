@@ -29,9 +29,7 @@ from lorecraft.project.database import (
     Database,
     DatabaseItemContext,
     DatabaseLayoutContext,
-    DatabaseSkillResourceContext,
     ItemText,
-    SkillResourceText,
 )
 from lorecraft.project.database.context import WrongItemKindError
 from lorecraft.project.document import DocumentRef
@@ -163,15 +161,15 @@ def _location(database: Database) -> SkillLocation:
     return location
 
 
-def _resource_text(database: Database) -> SkillResourceText:
+def _resource_text(database: Database) -> ItemText:
     """The witness of `REVIEW`'s one resource, as the database decodes it at the file its listing locates.
 
     Args:
         database: The database the resource is listed and decoded by.
     """
     (resource,) = database.skill_resources(_location(database)).resources
-    source = database.skill_resource_text(resource)
-    assert isinstance(source, SkillResourceText), f'{resource.ref.path} was written as UTF-8, so it decodes'
+    source = database.item_text(database.resource_item(resource))
+    assert isinstance(source, ItemText), f'{resource.ref.path} was written as UTF-8, so it decodes'
     return source
 
 
@@ -181,7 +179,7 @@ def _resource_context(database: Database) -> SkillResourceContext:
     Args:
         database: The database the resource is read from.
     """
-    return DatabaseSkillResourceContext(database, _resource_text(database))
+    return DatabaseItemContext(database, _resource_text(database))
 
 
 def _skill_context(database: Database) -> SkillContext:
@@ -532,8 +530,8 @@ class TestDatabaseItemContextOverASkillEntry:
 
 
 @pytest.mark.it
-class TestDatabaseSkillResourceContext:
-    def test_parse_with_a_resource_returns_the_skill_resource_parse_query(self) -> None:
+class TestDatabaseItemContextOfAResource:
+    def test_parse_with_a_resource_returns_the_item_parse_query(self) -> None:
         #: Given
         database = Database.from_snapshot(_snapshot())
         context = _resource_context(database)
@@ -542,7 +540,7 @@ class TestDatabaseSkillResourceContext:
         parsed = context.parse()
 
         #: Then
-        assert parsed is database.skill_resource_parse(_resource_text(database)), (
+        assert parsed is database.item_parse(_resource_text(database)), (
             'the parse is the one the database memoizes, not one the context parsed again'
         )
 
@@ -556,7 +554,7 @@ class TestDatabaseSkillResourceContext:
         #: Then
         assert base == SkillRoot(REVIEW.directory), "a resource's relative links are read from the skill root"
 
-    def test_link_targets_with_a_resource_returns_the_skill_resource_link_targets_query(self, tmp_path: Path) -> None:
+    def test_link_targets_with_a_resource_returns_the_item_link_targets_query(self, tmp_path: Path) -> None:
         #: Given
         database = _scanned(tmp_path)
         context = _resource_context(database)
@@ -565,7 +563,7 @@ class TestDatabaseSkillResourceContext:
         targets = context.link_targets()
 
         #: Then
-        assert targets is database.skill_resource_link_targets(_resource_text(database)), (
+        assert targets is database.item_link_targets(_resource_text(database)), (
             'the targets are the ones the database memoizes, not ones the context looked up again'
         )
         assert dict(targets) == {

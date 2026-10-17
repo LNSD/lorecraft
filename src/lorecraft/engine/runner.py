@@ -22,14 +22,14 @@ every resource, so neither is ever ungoverned, and the rules over the frontmatte
 file run over its context. A rule over a skill's file judges every `SKILL.md` and every resource, and never a
 document. A context asks the database only for what a rule reads, so a fact no enabled rule reads is never computed.
 
-The subjects are documents, skills, skills' resources and layout entries. A decoded document or skill entry is
-judged by the one entry `judge_item`; a resource and a layout entry each have a function of their own, so a subject
-kind without one is a type error. A document is handed over as its ref, and a skill as the `SkillLocation` the
+The subjects are documents, skills, skills' resources and layout entries. A decoded document, skill entry or resource
+is judged by the one entry `judge_item`; a layout entry has a function of its own, so a subject kind without one is a
+type error. A document is handed over as its ref, and a skill as the `SkillLocation` the
 model hands out for it, since a rule over a skill may read where its directory leads. A skill is its `SKILL.md`,
 decoded and reported at that path, under its ref. A resource is a subject of its own, handed over as the
 `SkillResourceLocation` its skill's resource listing gives, since only that listing locates its file: it is decoded at
-the file it leads to, and reported under its ref, at the path an agent reaches it by. The runner never lists a skill's
-resources itself, so a skill handed over judges its `SKILL.md` alone.
+the file it leads to, and reported under its ref, at the path an agent reaches it by, through the same item queries.
+The runner never lists a skill's resources itself, so a skill handed over judges its `SKILL.md` alone.
 
 A layout entry is one symlink of the skill layout whose chain leaves the repository, handed over as the
 `OutsideSymlink` record the model or a skill's resource listing holds for it. Whether a chain leaves the repository is
@@ -44,20 +44,16 @@ context.
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import assert_never
 
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.database import (
     Database,
     DatabaseItemContext,
     DatabaseLayoutContext,
-    DatabaseSkillResourceContext,
     ItemText,
-    SkillResourceText,
-    Undecodable,
 )
 from lorecraft.project.document import DocumentRef
-from lorecraft.project.item import ItemFacet, MarkdownItemDescriptor, MarkdownItemRef
+from lorecraft.project.item import ItemFacet, MarkdownItemDescriptor
 from lorecraft.project.skill import OutsideSymlink, SkillAliasRef, SkillLocation, SkillResourceLocation
 from lorecraft.rules.declaration import Rule
 from lorecraft.rules.report import (
@@ -65,8 +61,6 @@ from lorecraft.rules.report import (
     CheckedLayoutEntry,
     Diagnostic,
     RuleDiagnostic,
-    SubjectReport,
-    UndecodableSubject,
 )
 from lorecraft.rules.subject import Facet, ItemRule, governing_facet
 from lorecraft.rules.table import EnabledRule, RuleTable
@@ -163,50 +157,6 @@ def _located[R: Rule](
         for enabled in partition
         for occurrence in check(enabled.rule)
     ]
-
-
-def check_skill_resource(database: Database, location: SkillResourceLocation, table: RuleTable) -> SubjectReport:
-    """Decode one resource of a skill, then run the table's rules over it if it decoded.
-
-    Args:
-        database: The revision the resource is read from.
-        location: The resource to check, and the file it leads to, as its skill's resource listing gives it.
-        table: The rules the run enables.
-
-    Raises:
-        SkillResourceReadError: If the resource is missing from the snapshot; a decode failure is a diagnostic.
-    """
-    source = database.skill_resource_text(location)
-    match source:
-        case Undecodable():
-            return UndecodableSubject(location.ref, source.failure)
-        case SkillResourceText():
-            return _check_skill_resource_text(database, source, table)
-        case _:
-            assert_never(source)
-
-
-def _check_skill_resource_text(database: Database, source: SkillResourceText, table: RuleTable) -> CheckedItem:
-    """Run the enabled rules over a decoded resource of a skill. Raises nothing.
-
-    Only a rule over a Markdown file or over a skill's file judges a resource: no rule over a document, over a skill or
-    over the frontmatter reads one.
-
-    Args:
-        database: The revision the resource is read from.
-        source: The resource's text, the witness every per-file query takes.
-        table: The rules the run enables.
-    """
-    # Building the context asks nothing of the database; each rule asks it only for what it reads.
-    context = DatabaseSkillResourceContext(database, source)
-    path = source.ref.path
-    diagnostics = [
-        *_located(path, table.markdown_rules, lambda rule: rule.check(context)),
-        *_located(path, table.skill_file_rules, lambda rule: rule.check(context)),
-    ]
-
-    # The package governs every resource, after the Agent Skills specification, so the report holds no ungoverned facet.
-    return CheckedItem(MarkdownItemRef(path), diagnostics=tuple(diagnostics))
 
 
 def check_layout_entry(outside: OutsideSymlink, table: RuleTable) -> CheckedLayoutEntry:
