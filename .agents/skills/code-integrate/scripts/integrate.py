@@ -9,6 +9,8 @@ Exit codes: 0 ok, 1 a gate failed, 2 the patches do not apply, 3 refused or a co
 """
 
 import argparse
+import hashlib
+import json
 import sys
 from collections.abc import Mapping
 from pathlib import Path
@@ -18,7 +20,14 @@ from gitflow import EXIT_GATES_FAILED, EXIT_NEEDS_REBASE, EXIT_OK, EXIT_REFUSED,
 
 
 def apply(
-    repo: Path, branch: str, base: str, patches: list[Path], log: Path, gates: Mapping[str, list[str]]
+    repo: Path,
+    branch: str,
+    base: str,
+    patches: list[Path],
+    log: Path,
+    gates: Mapping[str, list[str]],
+    *,
+    rebase: bool = False,
 ) -> tuple[dict[str, object], int]:
     """Check out the part branch, apply the patches, run the gates and measure the size.
 
@@ -32,6 +41,7 @@ def apply(
         patches: The `git format-patch` files, in order.
         log: The file raw git and gate output goes to.
         gates: The command of each gate, by name.
+        rebase: Start at `base` and save the fetched remote SHA for `squash`.
 
     Raises:
         GitError: A git command that must succeed failed.
@@ -41,12 +51,18 @@ def apply(
     if reason:
         return {'status': 'refused', 'reason': reason}, EXIT_REFUSED
     base_sha = gitflow.git(repo, log, 'rev-parse', base)
-    start = gitflow.rev_parse(repo, log, f'origin/{branch}') or base_sha
+    expected_remote = gitflow.rev_parse(repo, log, f'origin/{branch}')
+    state_path = _rebase_state_path(repo, log, branch)
+    # A new apply attempt supersedes any prior lease record, even if this attempt fails.
+    state_path.unlink(missing_ok=True)
+    start = base_sha if rebase else expected_remote or base_sha
     local = gitflow.rev_parse(repo, log, f'refs/heads/{branch}')
     if local is None or local == start:
         gitflow.git(repo, log, 'switch', '-C', branch, start)
     elif gitflow.is_ancestor(repo, log, start, local):
         gitflow.git(repo, log, 'switch', branch)
+    elif rebase:
+        gitflow.git(repo, log, 'switch', '-C', branch, start)
     else:
         return {'status': 'refused', 'reason': f'local {branch} at {local} does not descend from {start}'}, EXIT_REFUSED
 
@@ -66,6 +82,8 @@ def apply(
         'size': gitflow.measure_size(repo, log, base_sha),
         'gates': gate_results,
     }
+    if rebase:
+        result['lease_sha'] = expected_remote
     if 'fail' in gate_results.values():
         return {**result, 'status': 'gates_failed'}, EXIT_GATES_FAILED
     dirty = gitflow.require_clean(repo, log)
@@ -75,13 +93,17 @@ def apply(
             'status': 'gates_failed',
             'reason': f'a gate left the tree changed: {dirty}',
         }, EXIT_GATES_FAILED
+    if rebase:
+        _write_rebase_state(repo, log, branch, base_sha, expected_remote, str(result['head_sha']))
     return result, EXIT_OK
 
 
 def squash(repo: Path, branch: str, base: str, message_file: Path, log: Path) -> tuple[dict[str, object], int]:
     """Squash the branch into one signed commit on the base and push it.
 
-    Reads `origin/<branch>` as the last `apply` fetched it, and refuses when the branch does not contain it.
+    In the default mode, reads `origin/<branch>` and refuses when the branch does not contain it. After
+    `apply --rebase`, uses the fetched remote SHA and base recorded by that apply, even when the branch does not
+    contain the remote SHA.
 
     Args:
         repo: The repository to work in, with the branch checked out.
@@ -98,12 +120,18 @@ def squash(repo: Path, branch: str, base: str, message_file: Path, log: Path) ->
     reason = gitflow.require_clean(repo, log)
     if reason:
         return {'status': 'refused', 'reason': reason}, EXIT_REFUSED
-    base_sha = gitflow.git(repo, log, 'rev-parse', base)
     old_head = gitflow.git(repo, log, 'rev-parse', 'HEAD')
+    state = _read_rebase_state(repo, log, branch)
+    requested_base_sha = gitflow.git(repo, log, 'rev-parse', base)
+    if state is not None and state['base_sha'] != requested_base_sha:
+        return {'status': 'refused', 'reason': f'{base} changed since apply --rebase'}, EXIT_REFUSED
+    base_sha = str(state['base_sha']) if state is not None else requested_base_sha
     if not gitflow.is_ancestor(repo, log, base_sha, old_head):
         return {'status': 'refused', 'reason': f'{base} is not an ancestor of {branch}'}, EXIT_REFUSED
-    expected = gitflow.rev_parse(repo, log, f'origin/{branch}')
-    if expected is not None and not gitflow.is_ancestor(repo, log, expected, old_head):
+    if state is not None and state['applied_head'] != old_head:
+        return {'status': 'refused', 'reason': f'{branch} changed after its successful apply --rebase'}, EXIT_REFUSED
+    expected = state['expected_remote'] if state is not None else gitflow.rev_parse(repo, log, f'origin/{branch}')
+    if state is None and expected is not None and not gitflow.is_ancestor(repo, log, expected, old_head):
         return {'status': 'refused', 'reason': f'origin/{branch} at {expected} is not in {branch}'}, EXIT_REFUSED
 
     gitflow.git(repo, log, 'reset', '--soft', base_sha)
@@ -124,6 +152,8 @@ def squash(repo: Path, branch: str, base: str, message_file: Path, log: Path) ->
     except GitError as error:
         gitflow.git(repo, log, 'reset', '--soft', old_head)
         return {'status': 'refused', 'reason': str(error), 'head_sha': old_head}, EXIT_REFUSED
+    if state is not None:
+        _rebase_state_path(repo, log, branch).unlink(missing_ok=True)
     return {
         'status': 'ok',
         'branch': branch,
@@ -150,6 +180,9 @@ def main(argv: list[str]) -> int:
         sub.add_argument('--branch', required=True, help='the part branch, as named on the remote')
         sub.add_argument('--base', required=True, help='the ref the part sits on, such as origin/main')
         if name == 'apply':
+            sub.add_argument(
+                '--rebase', action='store_true', help='start at --base and pin squash to origin/<branch> fetched now'
+            )
             sub.add_argument('patches', nargs='+', type=Path)
         else:
             sub.add_argument('--message-file', required=True, type=Path)
@@ -162,13 +195,59 @@ def main(argv: list[str]) -> int:
     log = gitflow.default_log(repo, f'code-integrate-{args.command}')
     try:
         if args.command == 'apply':
-            result, code = apply(repo, args.branch, args.base, args.patches, log, gitflow.default_gates())
+            result, code = apply(
+                repo, args.branch, args.base, args.patches, log, gitflow.default_gates(), rebase=args.rebase
+            )
         else:
             result, code = squash(repo, args.branch, args.base, args.message_file, log)
     except GitError as error:
         result, code = {'status': 'error', 'reason': str(error)}, EXIT_REFUSED
     gitflow.emit(result, log)
     return code
+
+
+def _rebase_state_path(repo: Path, log: Path, branch: str) -> Path:
+    """The git-directory file holding the remote lease and head from a successful rebased apply."""
+    git_dir = Path(gitflow.git(repo, log, 'rev-parse', '--absolute-git-dir'))
+    branch_id = hashlib.sha256(branch.encode()).hexdigest()
+    return git_dir / f'code-integrate-rebase-{branch_id}.json'
+
+
+def _write_rebase_state(
+    repo: Path, log: Path, branch: str, base_sha: str, expected_remote: str | None, applied_head: str
+) -> None:
+    """Record the fetched remote lease and clean applied head for `squash`."""
+    path = _rebase_state_path(repo, log, branch)
+    state = {
+        'branch': branch,
+        'base_sha': base_sha,
+        'expected_remote': expected_remote,
+        'applied_head': applied_head,
+    }
+    try:
+        path.write_text(json.dumps(state), encoding='utf-8')
+    except OSError as error:
+        raise GitError(f'could not write rebase apply state: {error}') from error
+
+
+def _read_rebase_state(repo: Path, log: Path, branch: str) -> dict[str, str | None] | None:
+    """Read a matching successful rebase apply state, or None for the default integration flow."""
+    path = _rebase_state_path(repo, log, branch)
+    try:
+        value = json.loads(path.read_text(encoding='utf-8'))
+    except FileNotFoundError:
+        return None
+    except (OSError, json.JSONDecodeError) as error:
+        raise GitError(f'could not read rebase apply state: {error}') from error
+    if (
+        not isinstance(value, dict)
+        or value.get('branch') != branch
+        or not isinstance(value.get('base_sha'), str)
+        or not isinstance(value.get('applied_head'), str)
+        or (value.get('expected_remote') is not None and not isinstance(value.get('expected_remote'), str))
+    ):
+        raise GitError(f'invalid rebase apply state for {branch}')
+    return value
 
 
 if __name__ == '__main__':
