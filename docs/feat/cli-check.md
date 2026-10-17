@@ -50,8 +50,9 @@ relative to it. `docs/` and `docs/__meta__/` must be [real directories](workspac
 
 ### The Subjects
 
-A run checks every [workspace](workspace.md) document, skill, skill resource and skill-layout symlink leading
-outside the repository. Shared skills are checked once. Subjects and diagnostics follow path order.
+A run checks every [workspace](workspace.md) document, `docs/__meta__/*.md` specification, skill, skill resource
+and escaping skill-layout symlink. The package governs specifications; `LINK005` and `LINK006` judge them too.
+Shared skills are checked once. Subjects and diagnostics follow path order.
 
 ### One Run, One Snapshot
 
@@ -62,10 +63,8 @@ A structure file's diagnostic and coverage path use its actual name, `.spec.json
 
 ### Selecting Rules
 
-`--select` and `--ignore` take comma-separated or repeated selectors. From the least
-specific to the most, one is `ALL`; a group's prefix, such as `OUT`; a code prefix of one or two digits, such as
-`OUT0`, every rule whose code starts with it; or a code, such as `OUT006`, or an alias code for it.
-Selectors are case-sensitive; without `--select`, all rules run.
+`--select` and `--ignore` take comma-separated or repeated selectors: `ALL`, a group prefix (`OUT`), a code
+prefix (`OUT0`), a rule code (`OUT006`) or its alias. Selectors are case-sensitive; without `--select`, all run.
 
 The most specific selector decides; `--ignore` wins ties. Selection cannot enable an `allow` rule.
 
@@ -129,8 +128,8 @@ error[OUT006]: missing required section `Checklist`
   = help: The items a reviewer verifies before committing a change the rule document governs.
 ```
 
-On stderr, `text` prints ungoverned and skipped coverage in path order, then counts per code prefix and an
-overall `checked N subject(s): ...` line. Skipped coverage names each failed structure file, corpus first.
+On stderr, `text` prints coverage, counts per code prefix and `checked N subject(s): ...`. The count includes
+unreadable specifications. Skipped coverage names failed structure files, corpus first.
 A run with one subject and two errors prints:
 
 ```text
@@ -148,13 +147,10 @@ without prefix counts. For example:
 docs/code/logging.md:1: error[OUT006]: missing required section `Checklist`
 ```
 
-In `json` format stdout is one compact JSON object on one line, without indentation or spaces after
-commas or colons; stderr holds nothing but the selection's warnings. `diagnostics`
-holds each diagnostic in the text order, its `line` `null` for a whole file, `labels` as `{"path", "line", "text"}`
-and `children` as `{"kind", "text", "path", "line"}`, `kind` being `help` or `note`. `summary` counts the subjects,
-errors and warnings; load failures count as errors but not subjects. `coverage` lists each subject with an
-ungoverned part or a skipped document. Every coverage item has `path`, `ungoverned` and `skipped_by`;
-`skipped_by` lists failed structure files in layer order, and `ungoverned` is empty for a skipped document:
+In `json` format stdout is one compact JSON object on one line; stderr holds selection warnings. `diagnostics` lists
+findings in text order with `path`, nullable `line`, `severity`, `code`, `name`, `message`, `labels` and `children`
+(help or note). `summary` counts subjects, errors and warnings; load failures count as errors, not subjects.
+`coverage` lists `path`, `ungoverned` parts and failed structure files in `skipped_by`:
 
 ```json
 {"diagnostics":[{"path":"docs/notes/broken.md","line":4,"severity":"error","code":"LC001","name":"invalid-utf8","message":"file is not valid UTF-8","labels":[{"path":"docs/notes/broken.md","line":4,"text":"0xE9 at byte offset 31 starts a character the next byte does not continue"}],"children":[{"kind":"help","text":"save the file as UTF-8","path":null,"line":null}]}],"summary":{"subjects":3,"errors":1,"warnings":0},"coverage":[{"path":"docs/notes/todo.md","ungoverned":["outline","budget"],"skipped_by":[]}]}
@@ -193,7 +189,7 @@ For JSON, every path must be valid UTF-8; non-ASCII text is written directly, no
 | `FM` | Frontmatter checks: a document's frontmatter against its schemas, a skill's against the Agent Skills specification and Lorecraft's recommendations. `FM001` missing-frontmatter, `FM002` invalid-yaml, `FM003` non-mapping-frontmatter, `FM004` name-mismatch, `FM005` duplicate-key, `FM006` missing-field, `FM007` unknown-field (a warning), `FM008` wrong-type, `FM009` invalid-value, `FM010` invalid-frontmatter, `FM011` malformed-allowed-tools (a warning; pattern whitespace stays intact), `FM012` allowed-tools-too-long (a warning over 500 characters), `FM013` too-many-fields (`maxProperties`, an error), `FM014` too-few-fields (`minProperties`, an error) |
 | `OUT` | Outline checks: a document's H1 title and sections against its structure files. `OUT001` missing-title, `OUT002` extra-title, `OUT003` title-not-first, `OUT004` empty-section, `OUT005` forbidden-section, `OUT006` missing-section, `OUT007` section-out-of-order, `OUT008` unexpected-section, `OUT009` invalid-title |
 | `LEN` | Length limits: a document's tokens, a section's or its title's words or characters, a `SKILL.md`'s lines. `LEN001` too-many-tokens, `LEN002` too-many-lines, `LEN003` section-too-many-words, `LEN004` title-too-many-words, `LEN005` title-too-long |
-| `LINK` | Markdown links in structured documents and skills. `LINK001` absolute, `LINK002` broken fragment, `LINK003` broken, `LINK004` escaping, `LINK005` extension-link (link to same-directory name extension; warning), `LINK006` missing-base-link (corpus extension omits its base link under `References`; warning) |
+| `LINK` | Links in structured documents and skills. `LINK001` absolute, `LINK002` broken fragment, `LINK003` broken, `LINK004` escaping, `LINK005` extension-link (link to same-directory name extension; warning; also checks specs), `LINK006` missing-base-link (an extension omits its nearest existing document or specification ancestor under `References`; warning; also checks specs) |
 | `COR` | Corpus layout checks: `COR001` reserved-corpus-overlap, a directory under `docs/` has a reserved corpus name such as `skills`; warning by default. It can be selected or ignored by code or group. |
 | `LAY` | Skill layout checks: `LAY001` escaping-symlink, a symlink an agent reaches whose chain leaves the repository |
 | `LC` | Engine conditions are errors with no level; selection and configuration cannot turn them off. `LC001` invalid-utf8 reports a file that cannot be decoded, including a structure file; `LC002` unreadable-path reports a workspace path the run cannot read, list or follow; `LC003` malformed-structure-file reports a structure file that breaks the format or states no rule; `LC004` unusable-structure-file reports a well-formed structure file with rules that repeat, contradict each other or cannot be applied. |
@@ -202,7 +198,8 @@ Each reported structure-file failure appears once at that file.
 `LC001` points to the first invalid byte; `LC002`, `LC003` and `LC004` are whole-file diagnostics that give
 their help before their notes.
 `LC002` covers unreadable meta specs and documents, unknown files, and unlistable nested `docs/` directories.
-Unreadable documents count as subjects; unknown paths do not. Coverage skips and counts resource or `SKILL.md`
+Unreadable specifications and documents get an unreadable-path diagnostic and count as subjects; unknown paths do
+not. Coverage skips and counts resource or `SKILL.md`
 aliases at their paths, naming the refused target; `LC002` stays at target. Sibling resources and unaffected subjects
 continue; all formats exit 1. A directory alias is reported at its path, never at the skill's `SKILL.md`.
 Refusals outside `docs/` (including skill-directory and skill-link refusals) exit 2.
