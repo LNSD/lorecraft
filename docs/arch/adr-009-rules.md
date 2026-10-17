@@ -7,6 +7,11 @@ status: "accepted"
 
 # Rules: Declaration and Identity
 
+> [!NOTE]
+> Superseded in part: how a rule reads the facts it judges, which a queried rule replaces by naming its query and
+> judging the facts it returns. The text below states that design where it spoke of a subject context. The rest of
+> this record binds code.
+
 This record is one of three that state how the structured checks of [prd-008](prd-008-structured-checks.md) are
 built: [adr-009](adr-009-rules.md) how a rule is declared and identified, [adr-010](adr-010-diagnostics.md) what a
 rule reports and how it reaches the user, and [adr-011](adr-011-rules-engine.md) how a run judges subjects.
@@ -42,7 +47,7 @@ shorter still: the checker reports errors and warnings, and they act on them.
 | **Engine condition** | A condition the engine reports before any rule runs, such as an undecodable file: declared like a rule, with no level, and one per kind of fix |
 | **Cause** | One case of an engine condition, such as which rule of a structure file cannot be applied: a type in the condition's closed union, held as data of its occurrence |
 | **Subject** | What is checked: a document, a skill, a skill resource or a layout entry |
-| **Context** | The read-only view of one decoded subject a rule asks for the facts it reads, each a query of the database |
+| **Facts** | What a rule's query returns for one decoded subject, a pure function of the primitives it reads, each a query of the database |
 | **Facet** | What part of a document a meta spec governs, which a rule over a document or the frontmatter is gated on |
 | **Diagnostic** | An occurrence located at a subject's path, with a severity |
 | **Level** | `allow`, `warn` or `deny`: how a rule is configured |
@@ -99,7 +104,7 @@ class EmptySection(DocumentRule):
         return f'section `{self.section}` is empty'
 
     @classmethod
-    def check(cls, subject: DocumentContext) -> tuple[Self, ...]:
+    def judge(cls, facts: SectionFacts) -> tuple[Self, ...]:
         ...
 ```
 
@@ -107,10 +112,10 @@ class EmptySection(DocumentRule):
   as [adr-010-diagnostics](adr-010-diagnostics.md) states, and the meta spec file that states the rule, or none
   for a rule the package states. A rule over a subject with lines carries the line; one over a layout entry
   carries none.
-- **The base class names the subject kind.** Each subject kind has a base whose abstract `check` takes that kind's
-  context, a `Protocol` of `lorecraft.project`. What several kinds share has a base too, such as the frontmatter
+- **The base class names the subject kind.** Each subject kind has a base whose `query` names the facts a rule reads and whose
+  abstract `judge` takes them, the facts being typed by the rule. What several kinds share has a base too, such as the frontmatter
   of a document and a skill alike, or any one Markdown file, so one check judges each of them. A rule picks its
-  subject by picking its base, and asks the context for what it reads.
+  subject by picking its base, and names the query for what it reads.
 - **A rule over a document declares the facet it reads** in `GOVERNED_BY`, so the runner gates it on governance;
   the registry rejects one that declares none. The package governs skills, their files and the skill layout, so a
   rule over them declares none.
@@ -168,11 +173,11 @@ instance is one occurrence of it.
   rules. The rulebook page renders each alias as the rule's provenance, and the lookup command finds a rule by one.
   Output prints the code alone. A one-run selection, and later the configuration and suppression, accept an alias
   code and resolve it to the code, with a warning naming the code to write. Absorbing a linter adds rules and
-  aliases, and leaves the registry untouched; a fact its rules need that no context offers yet is a method of the
-  context and a query of the database, never a change to the runner. Which upstream rules are ported is decided
+  aliases, and leaves the registry untouched; a fact its rules need that no query returns yet is a new query
+  a rule names, never a change to the runner. Which upstream rules are ported is decided
   rule by rule, outside this design.
 - **Documents and skills share the frontmatter codes.** The governing schema and the name the subject is found
-  under are data of the context, so one rule serves both, and a later meta spec for skills retires no code.
+  under are data of the facts, so one rule serves both, and a later meta spec for skills retires no code.
 - **The set of codes is fixed by the package** (FR-011). A schema field never creates a code.
 - **Codes identify the engine's rules alone.** A code spec under `docs/code/`, or any other document that states a
   convention, keeps its kebab-case name and never takes a code.
