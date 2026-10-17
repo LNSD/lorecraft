@@ -148,7 +148,7 @@ from lorecraft.project.corpus import (
     InvalidCorpusNameCharacterError,
     ReservedCorpusNameError,
 )
-from lorecraft.project.document import DocumentRef
+from lorecraft.project.document import DocumentRef, SpecRef
 from lorecraft.project.item import (
     DocumentOrigin,
     ItemReadError,
@@ -190,6 +190,7 @@ from lorecraft.project.skill import (
     SkillResourcesSymlinkResolveError,
 )
 from lorecraft.project.syntax import (
+    Anchor,
     FrontmatterNode,
     Heading,
     LineCount,
@@ -360,6 +361,12 @@ class _ReadPrimitives:
         source = self._database.item_text(self._ref)
         return self._database.item_parse(source).links if isinstance(source, ItemText) else ()
 
+    def anchors(self) -> frozenset[Anchor]:
+        """The anchor of every heading of the item's parse; none for an item that is not UTF-8."""
+        self.read |= {'anchors'}
+        source = self._database.item_text(self._ref)
+        return self._database.item_parse(source).anchors if isinstance(source, ItemText) else frozenset()
+
     def link_targets(self) -> Mapping[NormalisedLinkPath, LinkTargetEntry]:
         """What the snapshot holds at each relative link's target; none for an item that is not UTF-8."""
         self.read |= {'link_targets'}
@@ -378,6 +385,28 @@ class _ReadPrimitives:
         source = self._database.item_text(self._ref)
         origin = source.descriptor.origin if isinstance(source, ItemText) else None
         return origin.expected_name if isinstance(origin, DocumentOrigin | SpecificationOrigin) else None
+
+    def document_base(self) -> str | None:
+        """The stem of the document or specification the item extends, from the names the model lists.
+
+        A document's base is looked for among the documents of its corpus, a specification's among the specifications;
+        `None` for any other item or one that is not UTF-8.
+        """
+        self.read |= {'document_base'}
+        source = self._database.item_text(self._ref)
+        origin = source.descriptor.origin if isinstance(source, ItemText) else None
+        match origin:
+            case DocumentOrigin():
+                corpus = self._database.model().find_corpus(CorpusName.parse(origin.corpus))
+                if corpus is None:
+                    return None
+                base = corpus.document_base(AspectFilename.parse(origin.expected_name))
+                return None if base is None else str(base.filename)
+            case SpecificationOrigin():
+                base_spec = self._database.model().find_specification_base(SpecRef(self._ref.path))
+                return None if base_spec is None else base_spec.name
+            case _:
+                return None
 
 
 class Database:

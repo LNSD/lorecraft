@@ -14,6 +14,7 @@ from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.num import UnsignedInt
 from lorecraft.project.link_target import LinkBase, LinkTargetEntry
 from lorecraft.project.syntax import (
+    Anchor,
     FrontmatterNode,
     Heading,
     LineCount,
@@ -54,6 +55,10 @@ class Primitives(Protocol):
         """The links of the item's parse, in document order; none for an item that is not UTF-8."""
         ...
 
+    def anchors(self) -> frozenset[Anchor]:
+        """The anchor of every heading of the item's parse, as GitHub derives them; none for a non-UTF-8 item."""
+        ...
+
     def link_targets(self) -> Mapping[NormalisedLinkPath, LinkTargetEntry]:
         """What the snapshot holds at the target of each relative link; none for an item that is not UTF-8."""
         ...
@@ -64,6 +69,14 @@ class Primitives(Protocol):
 
     def document_name(self) -> str | None:
         """The stem of a document or meta specification; `None` for any other item."""
+        ...
+
+    def document_base(self) -> str | None:
+        """The stem of the document or specification the item extends, looked for among the names the model lists.
+
+        A document's base is the narrowest document of its corpus whose name its own continues after a hyphen, a
+        specification's the narrowest specification; `None` when it has none, and for any other item.
+        """
         ...
 
     def frontmatter(self) -> FrontmatterNode:
@@ -115,6 +128,8 @@ class StructurePrimitives:
         problems: What each frontmatter schema that governs the item rejects, in the order the schemas apply.
         fields: The fields of a skill entry's frontmatter that parse.
         owner: Whose frontmatter block it is, when the item has an owner.
+        anchor_set: The anchor of every heading of the item's parse.
+        base_name: The stem of the document the document extends.
     """
 
     specs: tuple[StructureSpec, ...]
@@ -129,6 +144,8 @@ class StructurePrimitives:
     problems: tuple[SchemaProblems, ...] = ()
     fields: SkillFields = FrozenMapping({})
     owner: FrontmatterOwner | None = None
+    anchor_set: frozenset[Anchor] = frozenset()
+    base_name: str | None = None
 
     def structure_specs(self) -> tuple[StructureSpec, ...]:
         """The specifications this was built with."""
@@ -146,6 +163,10 @@ class StructurePrimitives:
         """The links this was built with."""
         return self.link_list
 
+    def anchors(self) -> frozenset[Anchor]:
+        """The anchors this was built with."""
+        return self.anchor_set
+
     def link_targets(self) -> Mapping[NormalisedLinkPath, LinkTargetEntry]:
         """The targets this was built with."""
         return self.target_map
@@ -157,6 +178,10 @@ class StructurePrimitives:
     def document_name(self) -> str | None:
         """The name this was built with."""
         return self.name
+
+    def document_base(self) -> str | None:
+        """The base this was built with."""
+        return self.base_name
 
     def line_count(self) -> LineCount:
         """The count this was built with."""
