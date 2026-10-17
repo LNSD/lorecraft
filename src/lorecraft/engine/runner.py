@@ -57,7 +57,7 @@ from lorecraft.project.database import (
     DatabaseSymlinkContext,
     ItemText,
 )
-from lorecraft.project.document import DocumentRef
+from lorecraft.project.document import DocumentRef, SpecRef
 from lorecraft.project.item import ItemFacet, MarkdownItemDescriptor
 from lorecraft.project.skill import OutsideSymlink, SkillAliasRef, SkillLocation, SkillResourceLocation
 from lorecraft.rules.declaration import Rule
@@ -71,8 +71,8 @@ from lorecraft.rules.subject import Facet, ItemRule, governing_facet
 from lorecraft.rules.table import EnabledRule, RuleTable
 
 
-# A subject an entry point checks: a document, a skill, a resource, a refused skill alias, or a layout entry. Each
-# report holds its ref or the path an agent reaches the symlink by.
+# A subject an entry point checks: a document, a meta specification, a skill, a resource, a refused skill alias, or a
+# layout entry. Each report holds its ref or the path an agent reaches the symlink by.
 @dataclass(frozen=True, slots=True)
 class RefusedSkillSubject:
     """A skill alias whose resource listing reached a refused docs path.
@@ -87,7 +87,13 @@ class RefusedSkillSubject:
 
 
 type Subject = (
-    DocumentRef | SkillLocation | SkillResourceLocation | OutsideSymlink | ReservedCorpusDirectory | RefusedSkillSubject
+    DocumentRef
+    | SpecRef
+    | SkillLocation
+    | SkillResourceLocation
+    | OutsideSymlink
+    | ReservedCorpusDirectory
+    | RefusedSkillSubject
 )
 
 

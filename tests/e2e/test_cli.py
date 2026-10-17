@@ -454,7 +454,7 @@ class TestCheckCommand:
         assert result.returncode == 1, result.stderr
         assert result.stdout == expected, 'the diagnostics found from the working directory match the snapshot'
         assert result.stderr == (
-            'FM   3 errors\nLEN  1 error\nOUT  5 errors\nchecked 5 subject(s): 9 error(s), 0 warning(s)\n'
+            'FM   3 errors\nLEN  1 error\nOUT  5 errors\nchecked 7 subject(s): 9 error(s), 0 warning(s)\n'
         ), 'every document and skill of the fixture is checked, and each is governed'
 
     def test_check_without_a_root_in_a_subdirectory_of_the_workspace_fixture_checks_the_whole_workspace(self) -> None:

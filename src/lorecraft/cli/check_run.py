@@ -27,7 +27,7 @@ from lorecraft.core.error import Error
 from lorecraft.core.path import RootRelativePath
 from lorecraft.engine import UnlistableRoot, check_subjects, report_load_failures
 from lorecraft.project.database import Database
-from lorecraft.project.document import DocumentRef
+from lorecraft.project.document import DocumentRef, SpecRef
 from lorecraft.project.layout import DECLARATION, DOCS_DIR, SNAPSHOT_SCOPE
 from lorecraft.project.workspace import WorkspaceModel, reject_unreported_refusals
 from lorecraft.rules.engine import RefusedOperation
@@ -95,7 +95,7 @@ def run_check(
         all_docs_refusals = {path: refusal for path, refusal in refusals.items() if path.is_relative_to(DOCS_DIR)}
         non_docs_refusals = {path: refusal for path, refusal in refusals.items() if not path.is_relative_to(DOCS_DIR)}
         reject_unreported_refusals(non_docs_refusals, model)
-        documents = {ref.path: ref for ref in model.documents()}
+        documents = {ref.path: ref for ref in (*model.documents(), *model.specifications())}
         refusal_reports = _refusal_reports(docs_refusals, documents)
         subjects = select_workspace(database)
         table = RuleTable.from_registry(registry, parsed.selection)
@@ -143,13 +143,13 @@ def _reports_or_status(model: WorkspaceModel) -> tuple[RunReport, ...] | ExitSta
 
 
 def _refusal_reports(
-    refusals: Mapping[RootRelativePath, RefusedRecord], documents: Mapping[RootRelativePath, DocumentRef]
+    refusals: Mapping[RootRelativePath, RefusedRecord], documents: Mapping[RootRelativePath, DocumentRef | SpecRef]
 ) -> tuple[RunReport, ...]:
-    """Report retained refusals under `docs/`, keeping unreadable governed documents as subjects.
+    """Report retained refusals under `docs/`, keeping unreadable documents and meta specifications as subjects.
 
     Args:
         refusals: Docs refusals the model has not already reported as load failures.
-        documents: Governed documents keyed by path, used to preserve their subject counts.
+        documents: Governed documents and meta specifications keyed by path, used to preserve their subject counts.
     """
     reports: list[RunReport] = []
     for path, refusal in refusals.items():

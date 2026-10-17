@@ -113,8 +113,8 @@ class MarkdownItemDescriptor:
         governance_corpus: Corpus whose specifications govern the item.
         aspect_name: Listed name matched against namespace specifications.
         active_facets: Checks the model has enabled for this item. The package governs a skill entry itself, so it is
-            always active for the frontmatter and the structure; it governs a meta specification too, which is always
-            active for the Markdown checks alone.
+            always active for the frontmatter and the structure; it governs a meta specification too, which, like a
+            resource, is always active for the structure and the Markdown checks.
     """
 
     ref: MarkdownItemRef

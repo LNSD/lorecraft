@@ -1,11 +1,11 @@
 """Choose the subjects a run of the rules engine checks: the whole workspace one revision holds.
 
-A subject is a document, a skill, a resource of a skill, a refused skill alias, or a layout entry: a symlink of the
-skill layout whose chain leaves the repository, or a directory under `docs/` named like a reserved corpus. The
-workspace is every one of them the model or a skill's resource listing gives: each document, each skill whole, which
-is its `SKILL.md`, every resource and refused alias, every symlink that leads outside and every such directory. The
-subjects are sorted by the path each is reported at, so a run reports the same revision in the same order however the
-model or a listing orders them.
+A subject is a document, a meta specification, a skill, a resource of a skill, a refused skill alias, or a layout
+entry: a symlink of the skill layout whose chain leaves the repository, or a directory under `docs/` named like a
+reserved corpus. The workspace is every one of them the model or a skill's resource listing gives: each document, each
+meta specification, each skill whole, which is its `SKILL.md`, every resource and refused alias, every symlink that
+leads outside and every such directory. The subjects are sorted by the path each is reported at, so a run reports the
+same revision in the same order however the model or a listing orders them.
 """
 
 from typing import assert_never
@@ -14,7 +14,7 @@ from lorecraft.core.path import RootRelativePath
 from lorecraft.engine import RefusedSkillSubject, Subject
 from lorecraft.project.corpus import ReservedCorpusDirectory
 from lorecraft.project.database import Database
-from lorecraft.project.document import DocumentRef
+from lorecraft.project.document import DocumentRef, SpecRef
 from lorecraft.project.skill import OutsideSymlink, SkillLocation, SkillResourceLocation
 
 
@@ -26,13 +26,14 @@ def select_workspace(database: Database) -> tuple[Subject, ...]:
     model's symlinks are the skills directories, entries and `SKILL.md` files, never one inside a skill.
 
     Args:
-        database: The revision whose model lists the documents, the skills, the symlinks leading outside and the
-            reserved-corpus directories, and whose resource listing of each skill gives its resources, aliases and
-            symlinks inside it.
+        database: The revision whose model lists the documents, the meta specifications, the skills, the symlinks
+            leading outside and the reserved-corpus directories, and whose resource listing of each skill gives its
+            resources, aliases and symlinks inside it.
     """
     model = database.model()
     subjects: list[Subject] = []
     subjects.extend(model.documents())
+    subjects.extend(model.specifications())
     for location in model.sorted_skill_locations:
         subjects.append(location)
         listing = database.skill_resources(location)
@@ -50,10 +51,10 @@ def _report_path(subject: Subject) -> RootRelativePath:
     """The path a subject's report is filed at: a skill's is its `SKILL.md`, a layout entry's where it is reached.
 
     Args:
-        subject: The document, skill, resource or layout entry whose report is placed.
+        subject: The document, specification, skill, resource or layout entry whose report is placed.
     """
     match subject:
-        case DocumentRef():
+        case DocumentRef() | SpecRef():
             return subject.path
         case SkillLocation():
             return subject.ref.path
