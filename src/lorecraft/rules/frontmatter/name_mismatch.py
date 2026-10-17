@@ -4,17 +4,15 @@ from dataclasses import dataclass, field
 from typing import ClassVar, Self, assert_never
 
 from lorecraft.core.path import ROOT, RootRelativePath
-from lorecraft.project.context import (
-    DocumentFrontmatterOwner,
-    FrontmatterContext,
-    FrontmatterOwner,
-    SkillFrontmatterOwner,
-)
+from lorecraft.project.context import FrontmatterContext
 from lorecraft.project.layout import DOCUMENT_SUFFIX
 from lorecraft.project.schemas import (
+    DocumentFrontmatterOwner,
     EmptySkillNameError,
+    FrontmatterOwner,
     InvalidSkillNameFormatError,
     OverlongSkillNameError,
+    SkillFrontmatterOwner,
     SkillName,
     field_line,
 )

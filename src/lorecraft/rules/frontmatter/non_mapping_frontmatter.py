@@ -7,7 +7,8 @@ from lorecraft.core.path import RootRelativePath
 
 # The module, not its classes: this rule's own name is the syntax's `NonMappingFrontmatter`.
 from lorecraft.project import syntax
-from lorecraft.project.context import FrontmatterContext, FrontmatterOwner
+from lorecraft.project.context import FrontmatterContext
+from lorecraft.project.schemas import FrontmatterOwner
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Subdiagnostic

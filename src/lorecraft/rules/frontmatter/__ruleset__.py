@@ -20,8 +20,14 @@ its children in one order: the note naming the meta spec first, then the help, t
 from typing import Final, assert_never
 
 from lorecraft.core.path import RootRelativePath
-from lorecraft.project.context import DocumentFrontmatterOwner, FrontmatterOwner, SkillFrontmatterOwner
-from lorecraft.project.schemas import AgentSkillsSchema, SchemaSource, StructureSpecSchema
+from lorecraft.project.schemas import (
+    AgentSkillsSchema,
+    DocumentFrontmatterOwner,
+    FrontmatterOwner,
+    SchemaSource,
+    SkillFrontmatterOwner,
+    StructureSpecSchema,
+)
 from lorecraft.rules.identity import RuleGroup, RuleGroupPrefix
 from lorecraft.rules.location import Elsewhere, Help, Note
 

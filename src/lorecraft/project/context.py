@@ -25,13 +25,13 @@ is never decoded, so its context is built from its record alone, and it states a
 """
 
 from collections.abc import Mapping
-from dataclasses import dataclass
 from typing import Protocol
 
 from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.schemas import (
+    FrontmatterOwner,
     Query,
     SchemaProblems,
     SkillFields,
@@ -42,42 +42,6 @@ from lorecraft.project.workspace import Governance
 from lorecraft.vfs import ResolvedPath, RootExit
 
 from .link_target import DocumentLink, LinkBase, LinkTargetEntry
-
-
-@dataclass(frozen=True, slots=True)
-class DocumentFrontmatterOwner:
-    """A document whose frontmatter a schema governs: the name its frontmatter must carry, and where it is governed.
-
-    Attributes:
-        filename: The document's filename, without its extension, which its frontmatter `name` must equal.
-        spec: The structure specification of the document's corpus, whose frontmatter schema makes the document
-            governed for its frontmatter. A namespace's schema only narrows the corpus's, so this one file is
-            always the specification that states every rule over the block.
-    """
-
-    filename: AspectFilename
-    spec: RootRelativePath
-
-
-@dataclass(frozen=True, slots=True)
-class SkillFrontmatterOwner:
-    """A skill, whose frontmatter the package governs after the Agent Skills specification.
-
-    Attributes:
-        directory_name: The name of the skill directory as an agent lists it in its skills directory, which the
-            frontmatter `name` must equal. An agent never resolves a link itself, so where a link leads plays no
-            part in it.
-        link_target: The resolved directory the listed directory leads to when it is a link, or `None` when it is
-            not; it only words a note, so a reader sees why the name they know is not the one expected.
-    """
-
-    directory_name: PathComponent
-    link_target: ResolvedPath | None
-
-
-# Whose frontmatter block it is: a document a frontmatter schema governs, or a skill. A union of two records rather
-# than one with a flag, so a document can never carry a link target, nor a skill a specification.
-type FrontmatterOwner = DocumentFrontmatterOwner | SkillFrontmatterOwner
 
 
 class MarkdownContext(Protocol):

@@ -13,6 +13,7 @@ from .document_facts import (
     find_document_title,
     title_facts,
 )
+from .frontmatter_owner import DocumentFrontmatterOwner, FrontmatterOwner, SkillFrontmatterOwner
 from .frontmatter_problem import (
     BlockProblem,
     FieldCount,
@@ -113,6 +114,9 @@ __all__: list[str] = [
     'title_facts',
     'TitleFacts',
     'outline_alignment',
+    'DocumentFrontmatterOwner',
+    'FrontmatterOwner',
+    'SkillFrontmatterOwner',
     'Primitives',
     'Query',
     'StructurePrimitives',

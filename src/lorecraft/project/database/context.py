@@ -21,7 +21,6 @@ from typing import assert_never
 
 from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.project.aspect import AspectFilename
-from lorecraft.project.context import DocumentFrontmatterOwner, SkillFrontmatterOwner
 from lorecraft.project.corpus import CorpusName, ReservedCorpusDirectory
 from lorecraft.project.document import SpecRef
 from lorecraft.project.item import (
@@ -33,9 +32,11 @@ from lorecraft.project.item import (
 )
 from lorecraft.project.link_target import DocumentLink, LinkBase, LinkTargetEntry
 from lorecraft.project.schemas import (
+    DocumentFrontmatterOwner,
     Query,
     SchemaProblems,
     SkillFields,
+    SkillFrontmatterOwner,
     StructureSpec,
 )
 from lorecraft.project.skill import OutsideSymlink
