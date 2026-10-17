@@ -18,8 +18,19 @@ from typing import assert_never
 from lorecraft.agents import AgentName
 from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.path import PathComponent, RootRelativePath
-from lorecraft.project.aspect import AspectFilename, AspectNamespace
-from lorecraft.project.corpus import CorpusName, ReservedCorpusDirectory
+from lorecraft.project.aspect import (
+    AspectFilename,
+    AspectNamespace,
+    EmptyAspectNameError,
+    InvalidAspectNameCharacterError,
+)
+from lorecraft.project.corpus import (
+    CorpusName,
+    EmptyCorpusNameError,
+    InvalidCorpusNameCharacterError,
+    ReservedCorpusDirectory,
+    ReservedCorpusNameError,
+)
 from lorecraft.project.document import DocumentRef, SpecRef
 from lorecraft.project.item import (
     DocumentOrigin,
@@ -29,6 +40,7 @@ from lorecraft.project.item import (
     SkillEntryOrigin,
     SkillResourceOrigin,
     SpecificationOrigin,
+    UnlistedItemError,
 )
 from lorecraft.project.layout import DOCS_DIR, DOCUMENT_SUFFIX, SPECS_DIR
 from lorecraft.project.link_target import DocumentDirectory, SkillRoot
@@ -37,6 +49,27 @@ from lorecraft.project.skill import OutsideSymlink, SkillLocation, SkillRef, Ski
 from lorecraft.vfs import ResolvedPath
 
 from .failure import FailedStructure, LoadFailure
+
+
+def find_document_at(ref: MarkdownItemRef) -> DocumentRef | None:
+    """The document represented by a ref's path, or None when it is not a valid document path.
+
+    Args:
+        ref: Common item reference whose path may name a document.
+    """
+    parts = ref.path.value.parts
+    if len(parts) != 3 or parts[0] != DOCS_DIR.value.name or not parts[2].endswith(DOCUMENT_SUFFIX):
+        return None
+    try:
+        return DocumentRef(CorpusName.parse(parts[1]), AspectFilename.parse(parts[2].removesuffix(DOCUMENT_SUFFIX)))
+    except (
+        EmptyCorpusNameError,
+        InvalidCorpusNameCharacterError,
+        ReservedCorpusNameError,
+        EmptyAspectNameError,
+        InvalidAspectNameCharacterError,
+    ):
+        return None
 
 
 @dataclass(frozen=True, slots=True)
@@ -627,7 +660,7 @@ class WorkspaceModel:
         )
         return ResolvedItem(descriptor, self.find_skill_governance(skill))
 
-    def resolve_item(self, ref: DocumentRef | SkillRef | SpecRef) -> ResolvedItem:
+    def resolve_item(self, ref: DocumentRef | MarkdownItemRef | SkillRef | SpecRef) -> ResolvedItem:
         """Resolve an item's descriptor together with the specs governing it, finding the governance once.
 
         A corpus document is governed by the specs of its corpus and matching namespaces. A skill entry resolves with no
@@ -636,36 +669,20 @@ class WorkspaceModel:
 
         Args:
             ref: Document, skill entry or meta specification to resolve, whether or not the model lists a document's
-                corpus. The package governs a specification, so it resolves with no governance and the structure and
-                Markdown checks active.
+                corpus, or a common ref naming a document. The package governs a specification, so it resolves with
+                no governance and the structure and Markdown checks active.
+
+        Raises:
+            UnlistedItemError: If a common ref does not name a valid document path.
         """
         match ref:
+            case MarkdownItemRef():
+                document = find_document_at(ref)
+                if document is None:
+                    raise UnlistedItemError(ref)
+                return self._resolve_document_item(ref, document)
             case DocumentRef():
-                governance = self.find_governance(ref)
-                schemas = governance.frontmatter_schemas() if governance is not None else ()
-                facets = {ItemFacet.MARKDOWN}
-                if schemas:
-                    facets.add(ItemFacet.FRONTMATTER)
-                if governance is not None and governance.corpus_structure() is not None:
-                    facets.add(ItemFacet.STRUCTURE)
-                if governance is not None and governance.outline_specs():
-                    facets.add(ItemFacet.OUTLINE)
-                if governance is not None and any(spec.tokens is not None for spec in governance.structure_specs()):
-                    facets.add(ItemFacet.BUDGET)
-                descriptor = MarkdownItemDescriptor(
-                    ref=MarkdownItemRef(ref.path),
-                    read_location=ResolvedPath(ref.path),
-                    link_base=DocumentDirectory(RootRelativePath(ref.path.value.parent)),
-                    origin=DocumentOrigin(
-                        expected_name=str(ref.filename),
-                        corpus=str(ref.corpus),
-                        schema_paths=tuple(schema.spec for schema in schemas),
-                    ),
-                    governance_corpus=str(ref.corpus),
-                    aspect_name=str(ref.filename),
-                    active_facets=frozenset(facets),
-                )
-                return ResolvedItem(descriptor, governance)
+                return self._resolve_document_item(MarkdownItemRef(ref.path), ref)
             case SkillRef():
                 location = self.skill_locations[ref]
                 link_target = location.resolves_to if location.resolves_to != ref.directory else None
@@ -692,3 +709,36 @@ class WorkspaceModel:
                 return ResolvedItem(descriptor, None)
             case _:
                 assert_never(ref)
+
+    def _resolve_document_item(self, item: MarkdownItemRef, document: DocumentRef) -> ResolvedItem:
+        """Resolve a document using its common identity and validated corpus and filename.
+
+        Args:
+            item: The common identity to preserve on the resolved descriptor.
+            document: The validated corpus and filename the item path names.
+        """
+        governance = self.find_governance(document)
+        schemas = governance.frontmatter_schemas() if governance is not None else ()
+        facets = {ItemFacet.MARKDOWN}
+        if schemas:
+            facets.add(ItemFacet.FRONTMATTER)
+        if governance is not None and governance.corpus_structure() is not None:
+            facets.add(ItemFacet.STRUCTURE)
+        if governance is not None and governance.outline_specs():
+            facets.add(ItemFacet.OUTLINE)
+        if governance is not None and any(spec.tokens is not None for spec in governance.structure_specs()):
+            facets.add(ItemFacet.BUDGET)
+        descriptor = MarkdownItemDescriptor(
+            ref=item,
+            read_location=ResolvedPath(document.path),
+            link_base=DocumentDirectory(RootRelativePath(document.path.value.parent)),
+            origin=DocumentOrigin(
+                expected_name=str(document.filename),
+                corpus=str(document.corpus),
+                schema_paths=tuple(schema.spec for schema in schemas),
+            ),
+            governance_corpus=str(document.corpus),
+            aspect_name=str(document.filename),
+            active_facets=frozenset(facets),
+        )
+        return ResolvedItem(descriptor, governance)
