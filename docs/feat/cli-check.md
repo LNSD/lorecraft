@@ -183,11 +183,11 @@ messages, labels and notes is written as UTF-8 characters instead of `\uXXXX` es
 
 - The command takes no paths, and no option sets a level: every rule runs at its default level, and a selection
   only narrows which run.
-- A warning does not fail the run: a rule whose default level is `warn`, such as
-  [`FM007`](../rulebook/FM007-unknown-field.md), exits 0.
-- A whole subject, such as a layout entry, shows `--> path` without an excerpt. When source text cannot be
-  read, a label appears as `= at path:line: text`. Source lines are available for documents, skills' `SKILL.md`
-  files, skill resources and specification files directly in `docs/__meta__/`; other paths have no excerpt.
+- A default `warn` does not fail the run: [`FM007`](../rulebook/FM007-unknown-field.md) or
+  [`LINK005`](../rulebook/LINK005-extension-link.md) exits 0.
+- A whole subject, such as a layout entry, shows `--> path` without an excerpt. Unreadable source appears as
+  `= at path:line: text`. Excerpts are available for documents, `SKILL.md` files, skill resources and specification
+  files directly in `docs/__meta__/`; other paths have none.
   A UTF-8 byte order mark is omitted from excerpted line 1, so its underline spans only the visible text.
   The gutter and underlines use `| ^ - .` when UTF-8 output is unavailable.
 - A repository with skills and no `docs/__meta__/` needs `--root`.
@@ -201,7 +201,7 @@ messages, labels and notes is written as UTF-8 characters instead of `\uXXXX` es
 | `FM` | Frontmatter checks: a document's frontmatter against its schemas, a skill's against the Agent Skills specification and Lorecraft's recommendations. `FM001` missing-frontmatter, `FM002` invalid-yaml, `FM003` non-mapping-frontmatter, `FM004` name-mismatch, `FM005` duplicate-key, `FM006` missing-field, `FM007` unknown-field (a warning), `FM008` wrong-type, `FM009` invalid-value, `FM010` invalid-frontmatter, `FM011` malformed-allowed-tools (a warning; pattern whitespace stays intact), `FM012` allowed-tools-too-long (a warning over 500 characters), `FM013` too-many-fields (`maxProperties`, an error), `FM014` too-few-fields (`minProperties`, an error) |
 | `OUT` | Outline checks: a document's H1 title and sections against its structure files. `OUT001` missing-title, `OUT002` extra-title, `OUT003` title-not-first, `OUT004` empty-section, `OUT005` forbidden-section, `OUT006` missing-section, `OUT007` section-out-of-order, `OUT008` unexpected-section, `OUT009` invalid-title |
 | `LEN` | Length limits: a document's tokens, a section's or its title's words or characters, a `SKILL.md`'s lines. `LEN001` too-many-tokens, `LEN002` too-many-lines, `LEN003` section-too-many-words, `LEN004` title-too-many-words, `LEN005` title-too-long |
-| `LINK` | Links in Markdown files: a document governed for its structure, a `SKILL.md` and each resource, a skill's relative link read from the skill root. `LINK001` absolute-link, `LINK002` broken-fragment, `LINK003` broken-link, `LINK004` escaping-link |
+| `LINK` | Markdown links in documents governed for structure and in skills. `LINK001` absolute, `LINK002` broken fragment, `LINK003` broken, `LINK004` escaping, `LINK005` extension-link (a document links to a same-directory document continuing its name after a hyphen; warning by default) |
 | `LAY` | Skill layout checks: `LAY001` escaping-symlink, a symlink an agent reaches whose chain leaves the repository |
 | `LC` | Engine conditions are errors with no level; selection and configuration cannot turn them off. `LC001` invalid-utf8 reports a file that cannot be decoded, including a structure file; `LC002` unreadable-path reports a workspace path the run cannot read, list or follow; `LC003` malformed-structure-file reports a structure file that breaks the format or states no rule; `LC004` unusable-structure-file reports a well-formed structure file with rules that repeat, contradict each other or cannot be applied. |
 
