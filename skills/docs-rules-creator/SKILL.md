@@ -120,6 +120,12 @@ guide, name the corpus there, and whether its documents are binding.
 **Add a namespace.** Only when a group's specs genuinely share conventions the rest of the corpus does not: a
 prefix alone is not a reason. Create `<corpus>-<namespace>.md` and, when it adds a checkable requirement, its structure file.
 
+**Govern skills.** The corpus name `skills` is reserved: its documents are the skills the agents list, not files under
+`docs/skills/`. Create `docs/__meta__/skills.md` for every skill and `skills-<namespace>.md` for the skills named
+`<namespace>` or `<namespace>-*`; they layer like any namespace, match the skill's directory name, and a namespace file
+without `skills.md` is ignored. Do not create `docs/skills/`: `lorecraft check` warns (rule `COR001`, a warning unless a level is set) and checks none of it.
+Run `lorecraft inspect` to see which meta specs govern each skill.
+
 **Change a requirement.** Edit the prose, then the JSON, then run the checks and fix what the change breaks in existing
 documents in the same change, or say why they are left.
 

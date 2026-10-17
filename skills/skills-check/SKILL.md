@@ -36,6 +36,11 @@ known by the entry an agent lists. A skill kept in a directory no agent reads is
 symlink, and the symlink takes the skill's name, because that entry is the name an agent knows it by. `lorecraft check
 skills` reads the skills where agents list them, so it checks a linked skill once, through its entry.
 
+A repository states its own rules for skills in the reserved `skills` corpus of `docs/__meta__/`: `skills` governs every
+skill, and `skills-<namespace>` the skills named `<namespace>` or `<namespace>-*`, layered broad to narrow as for
+documents. They match the skill's listed directory name and need no `docs/skills/`. `lorecraft inspect` lists the
+ones that govern each skill under it. A `docs/skills/` directory is ignored and reported by the `COR001` rule, a warning by default.
+
 ## 2. Frontmatter
 
 `SKILL.md` opens with YAML frontmatter between `---` lines. It must parse as basic YAML, with string keys and no

@@ -39,6 +39,15 @@ a group renamed under `docs/` stops matching the meta spec name it used to, so r
 the same change. A meta spec whose namespace no longer matches any document still loads, and still must be
 valid JSON.
 
+## The Reserved `skills` Corpus
+
+`skills` is the one corpus name with no directory under `docs/`. Its documents are the skills in the agents' skills
+directories, and a skill's name is its listed directory name. `skills` governs every skill; `skills-<namespace>`
+governs the skills whose name equals the namespace or continues it with a hyphen, so `skills-code` matches `code-rules`
+and `code-rules-check`, and layers on `skills` as any namespace does, with aspect files at the same names. A
+`skills-<namespace>` without a `skills` meta spec narrows nothing. `lorecraft inspect` lists the meta specs governing
+each skill. A `docs/skills/` directory is reported by the `COR001` rule, a warning by default, and ignored: none of its documents is checked.
+
 ## A Meta Spec and Its Checks
 
 `<name>.md` holds a meta spec in prose, and a reader is its audience. Beside it, the rules of that

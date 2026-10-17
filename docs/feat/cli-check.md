@@ -29,10 +29,9 @@ and exits `1` when any diagnostic is an error.
 
 - **Subject**: What a rule judges: a document, a skill by its `SKILL.md`, a resource of a skill (any other
   Markdown file inside it), or a symlink of the skill layout leading outside the repository.
-- **Rule**: One judgment of a subject, with a code, `<prefix><digits>`, and a kebab-case name. Its default
-  level is `deny` for an error or `warn` for a warning.
+- **Rule**: One judgment of a subject, with a code and kebab-case name. Its default level is `deny` or `warn`.
 - **Diagnostic**: One occurrence: a path, optional line, severity, code, message, labels, help and notes.
-  Diagnostics sort by path, location, severity, code and message.
+  They sort by path, location, severity, code and message.
 - **Line**: A line ends only at `\n`, at `\r\n` as one break, or at a lone `\r`. Vertical tab, form feed, U+0085,
   U+2028 and U+2029 stay within a line. Findings and source excerpts use these lines.
 - **Governed**: A document's `structure` is governed when its corpus has a structure file, its `frontmatter` when
@@ -63,16 +62,15 @@ A structure file's diagnostic and coverage path use its actual name, `.spec.json
 
 ### Selecting Rules
 
-`--select` and `--ignore` take selectors, comma-separated or repeated, as ruff's rule selection does. From the least
+`--select` and `--ignore` take comma-separated or repeated selectors. From the least
 specific to the most, one is `ALL`; a group's prefix, such as `OUT`; a code prefix of one or two digits, such as
 `OUT0`, every rule whose code starts with it; or a code, such as `OUT006`, or an alias code for it.
 Selectors are case-sensitive; without `--select`, all rules run.
 
-For each rule, the most specific matching selector decides, with `--ignore` winning a tie. A selection cannot
-turn on a rule at `allow`.
+The most specific selector decides; `--ignore` wins ties. Selection cannot enable an `allow` rule.
 
-Selectors are checked before the workspace loads. Empty, malformed, unknown, name, engine condition (`LC`
-included) and removed-rule selectors exit `2`. Aliases and `allow` rules warn.
+Selectors are validated before loading. Empty, malformed, unknown, name, engine-condition (`LC`) and removed-rule
+selectors exit `2`; aliases and `allow` rules warn.
 
 ## Configuration
 
@@ -141,12 +139,6 @@ OUT  1 error
 checked 1 subject(s): 2 error(s), 0 warning(s)
 ```
 
-A skipped document is listed as coverage, with no rule diagnostic:
-
-```text
-docs/code/python-typing.md: skipped, governed by a structure file that failed to load: docs/__meta__/code-python.spec.json
-```
-
 In `short` format, stdout has one uncoloured line per diagnostic:
 `path:line: severity[code]: message`, or `path: severity[code]: message` for a whole file. It omits
 labels, help and notes, and keeps `text` order and exit status. Stderr has coverage and the overall count,
@@ -168,8 +160,7 @@ ungoverned part or a skipped document. Every coverage item has `path`, `ungovern
 {"diagnostics":[{"path":"docs/notes/broken.md","line":4,"severity":"error","code":"LC001","name":"invalid-utf8","message":"file is not valid UTF-8","labels":[{"path":"docs/notes/broken.md","line":4,"text":"0xE9 at byte offset 31 starts a character the next byte does not continue"}],"children":[{"kind":"help","text":"save the file as UTF-8","path":null,"line":null}]}],"summary":{"subjects":3,"errors":1,"warnings":0},"coverage":[{"path":"docs/notes/todo.md","ungoverned":["outline","budget"],"skipped_by":[]}]}
 ```
 
-For `--format json`, every path, including the workspace root, must be valid UTF-8. Non-ASCII text in paths,
-messages, labels and notes is written as UTF-8 characters instead of `\uXXXX` escapes.
+For JSON, every path must be valid UTF-8; non-ASCII text is written directly, not as `\uXXXX`.
 
 ### Exit Status
 
@@ -183,8 +174,9 @@ messages, labels and notes is written as UTF-8 characters instead of `\uXXXX` es
 
 - The command takes no paths, and no option sets a level: every rule runs at its default level, and a selection
   only narrows which run.
-- A default `warn` does not fail the run: [`FM007`](../rulebook/FM007-unknown-field.md) or
-  [`LINK005`](../rulebook/LINK005-extension-link.md) exits 0.
+- A default `warn` does not fail the run: [`FM007`](../rulebook/FM007-unknown-field.md),
+  [`LINK005`](../rulebook/LINK005-extension-link.md) or [`COR001`](../rulebook/COR001-reserved-corpus-overlap.md).
+  `COR001` is selectable; if its level makes it an error, the run exits 1.
 - A whole subject, such as a layout entry, shows `--> path` without an excerpt. Unreadable source appears as
   `= at path:line: text`. Excerpts are available for documents, `SKILL.md` files, skill resources and specification
   files directly in `docs/__meta__/`; other paths have none.
@@ -202,6 +194,7 @@ messages, labels and notes is written as UTF-8 characters instead of `\uXXXX` es
 | `OUT` | Outline checks: a document's H1 title and sections against its structure files. `OUT001` missing-title, `OUT002` extra-title, `OUT003` title-not-first, `OUT004` empty-section, `OUT005` forbidden-section, `OUT006` missing-section, `OUT007` section-out-of-order, `OUT008` unexpected-section, `OUT009` invalid-title |
 | `LEN` | Length limits: a document's tokens, a section's or its title's words or characters, a `SKILL.md`'s lines. `LEN001` too-many-tokens, `LEN002` too-many-lines, `LEN003` section-too-many-words, `LEN004` title-too-many-words, `LEN005` title-too-long |
 | `LINK` | Markdown links in documents governed for structure and in skills. `LINK001` absolute, `LINK002` broken fragment, `LINK003` broken, `LINK004` escaping, `LINK005` extension-link (a document links to a same-directory document continuing its name after a hyphen; warning by default) |
+| `COR` | Corpus layout checks: `COR001` reserved-corpus-overlap, a directory under `docs/` has a reserved corpus name such as `skills`; warning by default. It can be selected or ignored by code or group. |
 | `LAY` | Skill layout checks: `LAY001` escaping-symlink, a symlink an agent reaches whose chain leaves the repository |
 | `LC` | Engine conditions are errors with no level; selection and configuration cannot turn them off. `LC001` invalid-utf8 reports a file that cannot be decoded, including a structure file; `LC002` unreadable-path reports a workspace path the run cannot read, list or follow; `LC003` malformed-structure-file reports a structure file that breaks the format or states no rule; `LC004` unusable-structure-file reports a well-formed structure file with rules that repeat, contradict each other or cannot be applied. |
 

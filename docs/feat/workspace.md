@@ -37,8 +37,8 @@ repository works from.
   matches an equal name or a hyphen continuation; matching layers apply from shorter to longer, with each
   stem's prose and structure files together. A namespace spec needs the `skills` corpus spec to apply.
   Skills are not documents.
-- **Overlapping corpus**: A `docs/skills/` directory is ignored, including its documents. The model records
-  this name overlap but does not yet report a diagnostic. Skill specs currently affect `inspect` only; they
+- **Overlapping corpus**: A `docs/skills/` directory is ignored, including its documents. The model records this name overlap, and `lorecraft check` reports it as the
+  [`COR001` warning](../rulebook/COR001-reserved-corpus-overlap.md). Skill specs currently affect `inspect` only; they
   do not yet change which rules check a `SKILL.md`.
 
 ## Architecture

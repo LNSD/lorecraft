@@ -21,8 +21,9 @@ once in `lorecraft.project.layout` and read from there by every other module.
 
 ## Belongs Here
 
-- The project model and the loader that builds it from listings and meta specs.
-- A repository that lists entries or reads text through a view, and decides what an entry is to Lorecraft.
+- The project model and the loader that builds it from listings and meta specs, the directory-less `skills` corpus
+  included.
+- A repository that lists entries or reads text through a view, and decides what an entry is.
 - The decoding of a meta spec into rules that are proved usable when they are built.
 - The parse tree, token count and line count: pure functions of document text. The tree derives from the values
   `lorecraft.markdown` returns; `document` maps its line and link values into the project model and decodes raw
@@ -36,8 +37,7 @@ once in `lorecraft.project.layout` and read from there by every other module.
   report path, read location, link base, origin metadata, governance target and active check facets.
 - Turning a Markdown link's destination into a root-relative path, from its document's directory or its skill's
   root, and what the snapshot holds there.
-- Contexts: protocols for decoded documents, skills, resources and layout entries, with shared questions and
-  project-owned return types.
+- Contexts: protocols for decoded documents, skills, resources and layout entries, with project-owned types.
 - The one-revision database: one memoized decode, per-file, governance, analysis and link-target query family keyed
   by the common reference for documents and skill entries, other memoized derived queries, and fresh snapshot
   questions such as symlink targets.
