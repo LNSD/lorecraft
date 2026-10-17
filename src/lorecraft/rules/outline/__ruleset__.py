@@ -18,7 +18,13 @@ so they judge only a document some outline governs.
 from typing import Final
 
 from lorecraft.core.path import RootRelativePath
-from lorecraft.project.schemas import SectionName
+from lorecraft.project.schemas import (
+    OutlineDivergenceSpec,
+    Primitives,
+    SectionName,
+    match_outlines,
+    outline_alignment,
+)
 from lorecraft.rules.identity import RuleGroup, RuleGroupPrefix
 from lorecraft.rules.location import Elsewhere, Note
 
@@ -46,3 +52,19 @@ def example_note(section: SectionName, example: str) -> Note:
         example: The sample of the section's body, without its heading.
     """
     return Note(f'for example:\n## {section}\n\n{example}')
+
+
+def outline_divergences(primitives: Primitives) -> tuple[OutlineDivergenceSpec, ...]:
+    """Where the document's sections first stop matching each outline that governs it.
+
+    One entry per structure specification that governs the document and states an outline, in the order the
+    specifications apply; none when no outline governs it. A query: it reads what `outline_alignment` does and, only
+    when an outline is stated, the line count. Raises nothing.
+
+    Args:
+        primitives: The model state of the document.
+    """
+    alignments = primitives.query(outline_alignment)
+    if any(alignment.outline for alignment in alignments):
+        return match_outlines(alignments, primitives.line_count())
+    return ()

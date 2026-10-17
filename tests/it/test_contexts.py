@@ -358,20 +358,6 @@ class TestDatabaseItemContextOverADocument:
             "the corpus structure specification is the corpus's, not the python namespace's that also governs it"
         )
 
-    def test_outline_divergences_with_a_document_returns_the_outline_divergences_query(self) -> None:
-        #: Given
-        database = Database.from_snapshot(_snapshot())
-        context = _document_context(database)
-
-        #: When
-        divergences = context.outline_divergences()
-
-        #: Then
-        assert divergences is database.item_outline_divergences(_document_item(database)), (
-            'the divergences are the ones the database memoizes, not ones the context matched again'
-        )
-        assert divergences != (), 'the corpus outline states a section the document lacks'
-
     def test_link_base_with_a_document_returns_its_own_directory(self) -> None:
         #: Given
         context = _document_context(Database.from_snapshot(_snapshot()))
@@ -665,18 +651,6 @@ class TestDatabaseItemContextOfASpecification:
         #: When
         with pytest.raises(WrongItemKindError) as exc_info:
             context.schema_problems()
-
-        #: Then
-        assert str(SPEC.path) in str(exc_info.value), 'the error names the specification asked'
-
-    def test_outline_divergences_with_a_specification_raises_wrong_item_kind(self) -> None:
-        #: Given
-        database = Database.from_snapshot(_snapshot())
-        context = DatabaseItemContext(database, _spec_item(database))
-
-        #: When
-        with pytest.raises(WrongItemKindError) as exc_info:
-            context.outline_divergences()
 
         #: Then
         assert str(SPEC.path) in str(exc_info.value), 'the error names the specification asked'

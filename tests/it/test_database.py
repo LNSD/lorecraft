@@ -33,6 +33,7 @@ from lorecraft.project.skill import SkillLocation, SkillRef
 from lorecraft.project.syntax import Frontmatter, Heading, LineNumber, count_tokens, split_lines
 from lorecraft.project.syntax import Link as MarkdownLink
 from lorecraft.project.workspace import EmptyStructureSpec, FailedStructure, LoadFailure
+from lorecraft.rules.outline.__ruleset__ import outline_divergences
 from lorecraft.vfs import (
     ByteOffset,
     Declaration,
@@ -280,7 +281,7 @@ class TestDatabase:
         source = _document_text(database, PYTHON_GUIDE)
 
         #: When
-        divergences = database.item_outline_divergences(source)
+        divergences = database.query(outline_divergences, source.ref)
 
         #: Then
         assert divergences == (), 'no outline governs the document, so nothing diverges'

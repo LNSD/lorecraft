@@ -32,7 +32,6 @@ from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.schemas import (
-    OutlineDivergenceSpec,
     Query,
     SchemaProblems,
     SkillFields,
@@ -174,14 +173,6 @@ class DocumentContext(FrontmatterContext, MarkdownContext, Protocol):
         It is the one the document's corpus states, which every rule over the document's structure is gated on.
 
         Never absent: a document's context exists only for a document whose corpus states one.
-        """
-        ...
-
-    def outline_divergences(self) -> tuple[OutlineDivergenceSpec, ...]:
-        """Where the document's sections first stop matching each outline that governs it.
-
-        One entry per structure specification that governs the document and states an outline, in the order the
-        specifications apply; none when no outline governs it.
         """
         ...
 

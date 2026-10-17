@@ -1,6 +1,7 @@
 """The outline alignment as a query: where a document's sections fall in each outline.
 
-It is shared by the rules over a document's outline, so it lives with the model rather than with one rule.
+It is shared by the rules over a document's outline and by the divergences the outline rules read, so it lives with the
+model rather than with one rule.
 """
 
 from .outline_alignment import OutlineAlignmentSpec, align_outlines

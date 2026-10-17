@@ -4,20 +4,27 @@ from dataclasses import dataclass, field
 from typing import ClassVar, Self, assert_never
 
 from lorecraft.core.path import RootRelativePath
-from lorecraft.project.context import DocumentContext
-from lorecraft.project.schemas import AbsentSection, DocumentEnd, MisplacedSection, SectionName, UnlistedSection
+from lorecraft.project.schemas import (
+    AbsentSection,
+    DocumentEnd,
+    MisplacedSection,
+    OutlineDivergenceSpec,
+    Query,
+    SectionName,
+    UnlistedSection,
+)
 from lorecraft.project.syntax import LineNumber, SectionHeading
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Here, Label, Subdiagnostic
-from lorecraft.rules.subject import DocumentRule, Facet
+from lorecraft.rules.subject import Facet, QueriedDocumentRule
 
-from .__ruleset__ import GROUP_ID, example_note, spec_note
+from .__ruleset__ import GROUP_ID, example_note, outline_divergences, spec_note
 
 
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
-class MissingSection(DocumentRule):
+class MissingSection(QueriedDocumentRule[tuple[OutlineDivergenceSpec, ...]]):
     """A document lacks a section its outline requires.
 
     ## What it does
@@ -155,17 +162,22 @@ class MissingSection(DocumentRule):
         return tuple(parts)
 
     @classmethod
-    def check(cls, subject: DocumentContext) -> tuple[Self, ...]:
+    def query(cls) -> Query[tuple[OutlineDivergenceSpec, ...]]:
+        """The outline divergences of the document, one for each outline that governs it."""
+        return outline_divergences
+
+    @classmethod
+    def judge(cls, divergences: tuple[OutlineDivergenceSpec, ...], /) -> tuple[Self, ...]:
         """One occurrence for each outline whose first divergence is a required section the document lacks.
 
         An occurrence has a line of the document as its primary location, so one expected at the end of the
         document is reported at its last line, the nearest line to where the section would be written.
 
         Args:
-            subject: The document, governed by at least one outline.
+            divergences: The answer of the rule's query.
         """
         occurrences: list[Self] = []
-        for outline_spec in subject.outline_divergences():
+        for outline_spec in divergences:
             divergence = outline_spec.divergence
             match divergence:
                 case AbsentSection():
