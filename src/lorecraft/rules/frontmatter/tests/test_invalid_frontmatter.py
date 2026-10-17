@@ -24,7 +24,7 @@ from lorecraft.project.schemas import (
 )
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.location import Elsewhere, Help, Note
-from lorecraft.rules.tests.fake_context import FakeDocumentContext, namespace_spec, structure_spec_path
+from lorecraft.rules.tests.fake_context import FakeDocumentContext, judged, namespace_spec, structure_spec_path
 
 from ..invalid_frontmatter import InvalidFrontmatter
 
@@ -75,7 +75,7 @@ class TestInvalidFrontmatter:
         subject = FakeDocumentContext(TEXT, corpus='guide', structure=FORBID_NAME)
 
         #: When
-        occurrences = InvalidFrontmatter.check(subject)
+        occurrences = judged(InvalidFrontmatter, subject)
 
         #: Then
         assert occurrences == (InvalidFrontmatter(source=CORPUS_SOURCE, line=LINE, problem=PROBLEM),), (
@@ -88,7 +88,7 @@ class TestInvalidFrontmatter:
         subject = FakeDocumentContext(TEXT, corpus='guide', structure=REQUIRE_DESCRIPTION)
 
         #: When
-        occurrences = InvalidFrontmatter.check(subject)
+        occurrences = judged(InvalidFrontmatter, subject)
 
         #: Then
         assert occurrences == (), "a required field missing, which concerns that field, is another rule's condition"
@@ -99,7 +99,7 @@ class TestInvalidFrontmatter:
         subject = FakeDocumentContext(TEXT, corpus='guide', structure=structure)
 
         #: When
-        occurrences = InvalidFrontmatter.check(subject)
+        occurrences = judged(InvalidFrontmatter, subject)
 
         #: Then
         assert occurrences == (), "a block short of `minProperties` is `too-few-fields`'s condition"
@@ -110,7 +110,7 @@ class TestInvalidFrontmatter:
         subject = FakeDocumentContext(TEXT, corpus='guide', structure=structure)
 
         #: When
-        occurrences = InvalidFrontmatter.check(subject)
+        occurrences = judged(InvalidFrontmatter, subject)
 
         #: Then
         assert occurrences == (), "a block past `maxProperties` is `too-many-fields`'s condition"
@@ -125,7 +125,7 @@ class TestInvalidFrontmatter:
         )
 
         #: When
-        occurrences = InvalidFrontmatter.check(subject)
+        occurrences = judged(InvalidFrontmatter, subject)
 
         #: Then
         assert occurrences == (
@@ -143,7 +143,7 @@ class TestInvalidFrontmatter:
         subject = FakeDocumentContext(text, corpus='guide', structure=FORBID_NAME)
 
         #: When
-        occurrences = InvalidFrontmatter.check(subject)
+        occurrences = judged(InvalidFrontmatter, subject)
 
         #: Then
         assert occurrences == (), (
@@ -159,7 +159,7 @@ class TestInvalidFrontmatter:
         subject = FakeDocumentContext(TEXT, corpus='guide', structure=structure)
 
         #: When
-        occurrences = InvalidFrontmatter.check(subject)
+        occurrences = judged(InvalidFrontmatter, subject)
 
         #: Then
         problem = BlockProblem(

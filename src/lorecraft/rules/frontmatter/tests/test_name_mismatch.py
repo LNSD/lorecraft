@@ -16,7 +16,7 @@ from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.schemas import DocumentFrontmatterOwner, SkillFrontmatterOwner
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.location import Help, Here, Label, Note
-from lorecraft.rules.tests.fake_context import FakeDocumentContext, FakeSkillContext, structure_spec_path
+from lorecraft.rules.tests.fake_context import FakeDocumentContext, FakeSkillContext, judged, structure_spec_path
 from lorecraft.vfs import ResolvedPath
 
 from ..name_mismatch import NameMismatch
@@ -55,7 +55,7 @@ class TestNameMismatch:
         subject = FakeDocumentContext(text, corpus='guide', structure=STRUCTURE)
 
         #: When
-        occurrences = NameMismatch.check(subject)
+        occurrences = judged(NameMismatch, subject)
 
         #: Then
         assert occurrences == (
@@ -76,7 +76,7 @@ class TestNameMismatch:
         subject = FakeDocumentContext(text, corpus='guide', structure=STRUCTURE)
 
         #: When
-        occurrences = NameMismatch.check(subject)
+        occurrences = judged(NameMismatch, subject)
 
         #: Then
         assert occurrences == (
@@ -94,7 +94,7 @@ class TestNameMismatch:
         subject = FakeDocumentContext(text, corpus='guide', structure=STRUCTURE)
 
         #: When
-        occurrences = NameMismatch.check(subject)
+        occurrences = judged(NameMismatch, subject)
 
         #: Then
         assert occurrences == (), 'a name equal to the filename holds to the rule'
@@ -110,7 +110,7 @@ class TestNameMismatch:
         subject = FakeDocumentContext(text, corpus='guide', structure=STRUCTURE)
 
         #: When
-        occurrences = NameMismatch.check(subject)
+        occurrences = judged(NameMismatch, subject)
 
         #: Then
         assert occurrences == (), "a missing `name` is the schema's to report, never this rule's"
@@ -125,7 +125,7 @@ class TestNameMismatch:
         subject = FakeSkillContext(text)
 
         #: When
-        occurrences = NameMismatch.check(subject)
+        occurrences = judged(NameMismatch, subject)
 
         #: Then
         assert occurrences == (), "a `name` of another type is the schema's to report, never this rule's"
@@ -141,7 +141,7 @@ class TestNameMismatch:
         subject = FakeDocumentContext(text, corpus='guide', structure=STRUCTURE)
 
         #: When
-        occurrences = NameMismatch.check(subject)
+        occurrences = judged(NameMismatch, subject)
 
         #: Then
         assert occurrences == (), 'a block that is not a mapping has no `name` to compare'
@@ -156,7 +156,7 @@ class TestNameMismatch:
         subject = FakeSkillContext(text)
 
         #: When
-        occurrences = NameMismatch.check(subject)
+        occurrences = judged(NameMismatch, subject)
 
         #: Then
         assert occurrences == (), 'a name equal to the listed directory name holds to the rule'
@@ -171,7 +171,7 @@ class TestNameMismatch:
         subject = FakeSkillContext(text, link_target=SHIPPED)
 
         #: When
-        occurrences = NameMismatch.check(subject)
+        occurrences = judged(NameMismatch, subject)
 
         #: Then
         assert occurrences == (

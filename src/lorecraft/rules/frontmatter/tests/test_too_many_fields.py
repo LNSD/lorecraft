@@ -14,7 +14,7 @@ from lorecraft.core.path import RootRelativePath
 from lorecraft.project.schemas import AgentSkillsSchema, FieldCount, FieldLimit, StructureSpecSchema
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.location import Elsewhere, Help, Here, Label, Note
-from lorecraft.rules.tests.fake_context import FakeDocumentContext, namespace_spec, structure_spec_path
+from lorecraft.rules.tests.fake_context import FakeDocumentContext, judged, namespace_spec, structure_spec_path
 
 from ..too_many_fields import TooManyFields
 
@@ -62,7 +62,7 @@ class TestTooManyFields:
         subject = FakeDocumentContext(TEXT, corpus='guide', structure=MAX_PROPERTIES)
 
         #: When
-        occurrences = TooManyFields.check(subject)
+        occurrences = judged(TooManyFields, subject)
 
         #: Then
         assert occurrences == (TooManyFields(source=CORPUS_SOURCE, line=LINE, limit=LIMIT, field_count=FIELD_COUNT),), (
@@ -75,7 +75,7 @@ class TestTooManyFields:
         subject = FakeDocumentContext(TEXT, corpus='guide', structure=structure)
 
         #: When
-        occurrences = TooManyFields.check(subject)
+        occurrences = judged(TooManyFields, subject)
 
         #: Then
         assert occurrences == (), 'a block at the limit holds no more fields than the schema allows'
@@ -85,7 +85,7 @@ class TestTooManyFields:
         subject = FakeDocumentContext(TEXT, corpus='guide', structure=MIN_PROPERTIES)
 
         #: When
-        occurrences = TooManyFields.check(subject)
+        occurrences = judged(TooManyFields, subject)
 
         #: Then
         assert occurrences == (), "a block short of `minProperties` is another rule's condition"
@@ -100,7 +100,7 @@ class TestTooManyFields:
         )
 
         #: When
-        occurrences = TooManyFields.check(subject)
+        occurrences = judged(TooManyFields, subject)
 
         #: Then
         assert occurrences == (
@@ -117,7 +117,7 @@ class TestTooManyFields:
         subject = FakeDocumentContext(TEXT, corpus='guide', structure=structure)
 
         #: When
-        occurrences = TooManyFields.check(subject)
+        occurrences = judged(TooManyFields, subject)
 
         #: Then
         assert occurrences == (

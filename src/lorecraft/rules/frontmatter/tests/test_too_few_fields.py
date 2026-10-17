@@ -14,7 +14,7 @@ from lorecraft.core.path import RootRelativePath
 from lorecraft.project.schemas import AgentSkillsSchema, FieldCount, FieldLimit, StructureSpecSchema
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.location import Elsewhere, Help, Here, Label, Note
-from lorecraft.rules.tests.fake_context import FakeDocumentContext, namespace_spec, structure_spec_path
+from lorecraft.rules.tests.fake_context import FakeDocumentContext, judged, namespace_spec, structure_spec_path
 
 from ..too_few_fields import TooFewFields
 
@@ -62,7 +62,7 @@ class TestTooFewFields:
         subject = FakeDocumentContext(TEXT, corpus='guide', structure=MIN_PROPERTIES)
 
         #: When
-        occurrences = TooFewFields.check(subject)
+        occurrences = judged(TooFewFields, subject)
 
         #: Then
         assert occurrences == (TooFewFields(source=CORPUS_SOURCE, line=LINE, limit=LIMIT, field_count=FIELD_COUNT),), (
@@ -75,7 +75,7 @@ class TestTooFewFields:
         subject = FakeDocumentContext(TEXT, corpus='guide', structure=structure)
 
         #: When
-        occurrences = TooFewFields.check(subject)
+        occurrences = judged(TooFewFields, subject)
 
         #: Then
         assert occurrences == (), 'a block at the limit holds no fewer fields than the schema requires'
@@ -85,7 +85,7 @@ class TestTooFewFields:
         subject = FakeDocumentContext(TEXT, corpus='guide', structure=MAX_PROPERTIES)
 
         #: When
-        occurrences = TooFewFields.check(subject)
+        occurrences = judged(TooFewFields, subject)
 
         #: Then
         assert occurrences == (), "a block past `maxProperties` is another rule's condition"
@@ -100,7 +100,7 @@ class TestTooFewFields:
         )
 
         #: When
-        occurrences = TooFewFields.check(subject)
+        occurrences = judged(TooFewFields, subject)
 
         #: Then
         assert occurrences == (
@@ -117,7 +117,7 @@ class TestTooFewFields:
         subject = FakeDocumentContext(TEXT, corpus='guide', structure=structure)
 
         #: When
-        occurrences = TooFewFields.check(subject)
+        occurrences = judged(TooFewFields, subject)
 
         #: Then
         assert occurrences == (

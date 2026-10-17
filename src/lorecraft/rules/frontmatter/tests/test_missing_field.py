@@ -17,6 +17,7 @@ from lorecraft.rules.location import Elsewhere, Help, Note
 from lorecraft.rules.tests.fake_context import (
     FakeDocumentContext,
     FakeSkillContext,
+    judged,
     namespace_spec,
     structure_spec_path,
 )
@@ -75,7 +76,7 @@ class TestMissingField:
         subject = FakeDocumentContext(TEXT, corpus='guide', structure=REQUIRE_DESCRIPTION)
 
         #: When
-        occurrences = MissingField.check(subject)
+        occurrences = judged(MissingField, subject)
 
         #: Then
         assert occurrences == (MissingField(source=CORPUS_SOURCE, line=LINE, problem=PROBLEM),), (
@@ -94,7 +95,7 @@ class TestMissingField:
         subject = FakeDocumentContext(text, corpus='guide', structure=CLOSED)
 
         #: When
-        occurrences = MissingField.check(subject)
+        occurrences = judged(MissingField, subject)
 
         #: Then
         assert occurrences == (), "a field the schema does not define is another rule's condition"
@@ -109,7 +110,7 @@ class TestMissingField:
         )
 
         #: When
-        occurrences = MissingField.check(subject)
+        occurrences = judged(MissingField, subject)
 
         #: Then
         assert occurrences == (
@@ -127,7 +128,7 @@ class TestMissingField:
         subject = FakeSkillContext(text)
 
         #: When
-        occurrences = MissingField.check(subject)
+        occurrences = judged(MissingField, subject)
 
         #: Then
         assert occurrences == (
@@ -148,7 +149,7 @@ class TestMissingField:
         subject = FakeDocumentContext(text, corpus='guide', structure=REQUIRE_DESCRIPTION)
 
         #: When
-        occurrences = MissingField.check(subject)
+        occurrences = judged(MissingField, subject)
 
         #: Then
         assert occurrences == (), (
@@ -207,7 +208,7 @@ class TestMissingField:
         subject = FakeDocumentContext(text, corpus='guide', structure=structure)
 
         #: When
-        occurrences = MissingField.check(subject)
+        occurrences = judged(MissingField, subject)
 
         #: Then
         guidance = FieldGuidance(description='The kind of document.', example='rule', allowed=('rule', 'pattern'))

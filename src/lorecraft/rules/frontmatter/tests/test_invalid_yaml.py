@@ -16,7 +16,7 @@ from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.schemas import DocumentFrontmatterOwner, SkillFrontmatterOwner
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.location import Elsewhere, Help, Here, Label, Note
-from lorecraft.rules.tests.fake_context import FakeDocumentContext, FakeSkillContext, structure_spec_path
+from lorecraft.rules.tests.fake_context import FakeDocumentContext, FakeSkillContext, judged, structure_spec_path
 
 from ..invalid_yaml import InvalidYaml
 
@@ -60,7 +60,7 @@ class TestInvalidYaml:
         subject = FakeDocumentContext(text, corpus='guide', structure=STRUCTURE)
 
         #: When
-        occurrences = InvalidYaml.check(subject)
+        occurrences = judged(InvalidYaml, subject)
 
         #: Then
         assert occurrences == (
@@ -81,7 +81,7 @@ class TestInvalidYaml:
         subject = FakeSkillContext(f'---\n{block}---\n')
 
         #: When
-        occurrences = InvalidYaml.check(subject)
+        occurrences = judged(InvalidYaml, subject)
 
         #: Then
         assert occurrences == (
@@ -103,7 +103,7 @@ class TestInvalidYaml:
         subject = FakeDocumentContext(text, corpus='guide', structure=STRUCTURE)
 
         #: When
-        occurrences = InvalidYaml.check(subject)
+        occurrences = judged(InvalidYaml, subject)
 
         #: Then
         assert occurrences == (), 'a block that reads as YAML is not invalid-yaml'
@@ -113,7 +113,7 @@ class TestInvalidYaml:
         subject = FakeSkillContext('# Review\n')
 
         #: When
-        occurrences = InvalidYaml.check(subject)
+        occurrences = judged(InvalidYaml, subject)
 
         #: Then
         assert occurrences == (), 'a missing block is missing-frontmatter, never invalid-yaml'
