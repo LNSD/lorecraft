@@ -3,14 +3,8 @@
 from dataclasses import dataclass
 from typing import ClassVar, Self, assert_never
 
-from lorecraft.project.schemas import (
-    AllowedTool,
-    CommaSeparated,
-    MalformedEntry,
-    NotATool,
-    Query,
-    UnbalancedParentheses,
-)
+from lorecraft.project.query import Query
+from lorecraft.project.schemas import AllowedTool, CommaSeparated, MalformedEntry, NotATool, UnbalancedParentheses
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Here, Label, Subdiagnostic

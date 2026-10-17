@@ -4,7 +4,8 @@ from dataclasses import dataclass
 from typing import ClassVar, Self
 
 from lorecraft.core.path import RootRelativePath
-from lorecraft.project.schemas import Query, TitleFacts, TitlePattern, title_facts
+from lorecraft.project.query import Query
+from lorecraft.project.schemas import TitleFacts, TitlePattern, title_facts
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Here, Label, Subdiagnostic

@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import ClassVar, Final, Self
 
 from lorecraft.core.num import NonZeroUnsignedInt, UnsignedInt
-from lorecraft.project.schemas import Query
+from lorecraft.project.query import Query
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Here, Label, Note, Subdiagnostic

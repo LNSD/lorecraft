@@ -1,15 +1,14 @@
 """`OUT004`: a section holds no content, under a structure file that forbids empty sections."""
 
 from dataclasses import dataclass
-from typing import ClassVar, Self, assert_never
+from typing import ClassVar, Protocol, Self, assert_never
 
 from lorecraft.core.path import RootRelativePath
+from lorecraft.project.query import GovernancePrimitives, Query, SyntaxPrimitives
 from lorecraft.project.schemas import (
     AnyRunAlignment,
     NamedAlignment,
     OutlineAlignmentSpec,
-    Primitives,
-    Query,
     SectionEntry,
     UnalignedSection,
     align_outlines,
@@ -64,7 +63,11 @@ class EmptySectionFacts:
     empty: tuple[EmptyHeading, ...]
 
 
-def empty_section_facts(primitives: Primitives) -> EmptySectionFacts:
+class _GovernanceSyntaxPrimitives(GovernancePrimitives, SyntaxPrimitives, Protocol):
+    """The primitives the queries below read."""
+
+
+def empty_section_facts(primitives: _GovernanceSyntaxPrimitives) -> EmptySectionFacts:
     """The specifications that forbid an empty section and the empty headings, each with its role. Raises nothing.
 
     A query: it reads the item's structure specifications and headings and nothing else.

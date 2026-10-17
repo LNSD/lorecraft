@@ -1,11 +1,11 @@
 """`LINK007`: two documents of different corpora link to each other."""
 
 from dataclasses import dataclass
-from typing import ClassVar, Self
+from typing import ClassVar, Protocol, Self
 from urllib.parse import unquote
 
 from lorecraft.project.link_target import DocumentLink
-from lorecraft.project.schemas import Primitives, Query
+from lorecraft.project.query import GovernancePrimitives, LinkResolutionPrimitives, Query
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Note, Subdiagnostic
@@ -27,7 +27,11 @@ class MutualLinkFacts:
     links: tuple[DocumentLink, ...]
 
 
-def mutual_link_facts(primitives: Primitives) -> MutualLinkFacts:
+class _GovernanceLinkResolutionPrimitives(GovernancePrimitives, LinkResolutionPrimitives, Protocol):
+    """The primitives the queries below read."""
+
+
+def mutual_link_facts(primitives: _GovernanceLinkResolutionPrimitives) -> MutualLinkFacts:
     """The document's corpus and its links to other documents. Raises nothing.
 
     A query: it reads the document's corpus and its links with their back links and nothing else.

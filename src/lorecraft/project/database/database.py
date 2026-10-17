@@ -168,10 +168,10 @@ from lorecraft.project.link_target import (
     link_targets_of,
     linked_files_of,
 )
+from lorecraft.project.query import Query
 from lorecraft.project.schemas import (
     DocumentFrontmatterOwner,
     FrontmatterOwner,
-    Query,
     SchemaProblems,
     SkillFields,
     SkillFrontmatterOwner,

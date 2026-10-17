@@ -1,12 +1,12 @@
 """`LINK006`: a document that extends another does not link to it under References."""
 
 from dataclasses import dataclass
-from typing import ClassVar, Self
+from typing import ClassVar, Protocol, Self
 
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.item import ItemKind
 from lorecraft.project.link_target import DocumentDirectory, LinkTarget
-from lorecraft.project.schemas import Primitives, Query
+from lorecraft.project.query import GovernancePrimitives, LinkResolutionPrimitives, Query, SyntaxPrimitives
 from lorecraft.project.syntax import FIRST_LINE, LineNumber, RelativeDestination, find_title
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
@@ -34,7 +34,13 @@ class MissingBase:
     extension: str
 
 
-def missing_base(primitives: Primitives) -> MissingBase | None:
+class _GovernanceSyntaxLinkResolutionPrimitives(
+    GovernancePrimitives, SyntaxPrimitives, LinkResolutionPrimitives, Protocol
+):
+    """The primitives the queries below read."""
+
+
+def missing_base(primitives: _GovernanceSyntaxLinkResolutionPrimitives) -> MissingBase | None:
     """The base a document leaves out of its References section; `None` when it has no base or links it.
 
     A query: it reads the item's base, name, links, their targets, their base and its headings and nothing else.

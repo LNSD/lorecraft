@@ -25,10 +25,8 @@ from typing import Protocol
 
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.corpus import CorpusName
-from lorecraft.project.schemas import (
-    Query,
-    StructureSpec,
-)
+from lorecraft.project.query import Query
+from lorecraft.project.schemas import StructureSpec
 from lorecraft.project.syntax import FrontmatterNode, TokenCount
 from lorecraft.project.workspace import Governance
 from lorecraft.vfs import RootExit

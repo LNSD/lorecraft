@@ -27,15 +27,14 @@ from lorecraft.project.link_target import (
     LinkTargetEntry,
     SkillRoot,
 )
+from lorecraft.project.query import Query, StructurePrimitives
 from lorecraft.project.schemas import (
     CorpusSpecName,
     DocumentFrontmatterOwner,
     NamespaceSpecName,
-    Query,
     SkillFrontmatterOwner,
     SpecFileType,
     SpecName,
-    StructurePrimitives,
     StructureSchema,
     StructureSpec,
     StructureSpecFile,

@@ -9,7 +9,7 @@ from typing import Final
 import pytest
 
 from lorecraft.core.num import NonZeroUnsignedInt
-from lorecraft.project.schemas import StructurePrimitives
+from lorecraft.project.query import StructurePrimitives
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.location import Help, Here, Label
 from lorecraft.rules.tests.fake_context import FakeDocumentContext, heading_in, namespace_spec

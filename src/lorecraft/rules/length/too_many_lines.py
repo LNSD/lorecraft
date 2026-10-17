@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import ClassVar, Final, Self
 
 from lorecraft.core.num import NonZeroUnsignedInt
-from lorecraft.project.schemas import Primitives, Query
+from lorecraft.project.query import CountPrimitives, Query
 from lorecraft.project.syntax import LineCount, LineNumber
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
@@ -26,7 +26,7 @@ _FIRST_LINE_PAST_BUDGET: Final[LineNumber] = LineNumber(_LINE_BUDGET.successor()
 """Where an occurrence is reported: the first line the budget does not allow."""
 
 
-def skill_line_count(primitives: Primitives) -> LineCount:
+def skill_line_count(primitives: CountPrimitives) -> LineCount:
     """The lines in the skill's whole `SKILL.md`, frontmatter, code and blank lines included. Raises nothing.
 
     A query over the line count alone.

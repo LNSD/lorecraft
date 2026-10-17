@@ -1,11 +1,11 @@
 """`LINK004`: a relative link in a skill's file climbs above the skill root."""
 
 from dataclasses import dataclass
-from typing import ClassVar, Self, assert_never
+from typing import ClassVar, Protocol, Self, assert_never
 from urllib.parse import unquote
 
 from lorecraft.project.link_target import EscapingTarget, LinkTarget
-from lorecraft.project.schemas import Primitives, Query
+from lorecraft.project.query import LinkResolutionPrimitives, Query, SyntaxPrimitives
 from lorecraft.project.syntax import (
     AbsoluteDestination,
     ExternalDestination,
@@ -21,7 +21,11 @@ from lorecraft.rules.subject import QueriedSkillFileRule
 from .__ruleset__ import GROUP_ID, SKILL_NOTE
 
 
-def escaping_links(primitives: Primitives) -> tuple[Link, ...]:
+class _SyntaxLinkResolutionPrimitives(SyntaxPrimitives, LinkResolutionPrimitives, Protocol):
+    """The primitives the queries below read."""
+
+
+def escaping_links(primitives: _SyntaxLinkResolutionPrimitives) -> tuple[Link, ...]:
     """The relative links of a skill's file whose path climbs above the skill root, in file order.
 
     A query: it reads the item's links and their targets and nothing else.

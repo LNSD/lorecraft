@@ -18,13 +18,8 @@ so they judge only a document some outline governs.
 from typing import Final
 
 from lorecraft.core.path import RootRelativePath
-from lorecraft.project.schemas import (
-    OutlineDivergenceSpec,
-    Primitives,
-    SectionName,
-    match_outlines,
-    outline_alignment,
-)
+from lorecraft.project.query import Primitives
+from lorecraft.project.schemas import OutlineDivergenceSpec, SectionName, match_outlines, outline_alignment
 from lorecraft.rules.identity import RuleGroup, RuleGroupPrefix
 from lorecraft.rules.location import Elsewhere, Note
 

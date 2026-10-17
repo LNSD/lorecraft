@@ -26,10 +26,8 @@ from lorecraft.project.item import (
     SkillResourceOrigin,
     SpecificationOrigin,
 )
-from lorecraft.project.schemas import (
-    Query,
-    StructureSpec,
-)
+from lorecraft.project.query import Query
+from lorecraft.project.schemas import StructureSpec
 from lorecraft.project.skill import OutsideSymlink
 from lorecraft.project.syntax import FrontmatterNode, TokenCount
 from lorecraft.project.workspace import Governance

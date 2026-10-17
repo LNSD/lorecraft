@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import ClassVar, Self, assert_never
 from urllib.parse import unquote
 
-from lorecraft.project.schemas import Primitives, Query
+from lorecraft.project.query import Query, SyntaxPrimitives
 from lorecraft.project.syntax import (
     AbsoluteDestination,
     ExternalDestination,
@@ -20,7 +20,7 @@ from lorecraft.rules.subject import QueriedMarkdownRule
 from .__ruleset__ import GROUP_ID
 
 
-def absolute_links(primitives: Primitives) -> tuple[Link, ...]:
+def absolute_links(primitives: SyntaxPrimitives) -> tuple[Link, ...]:
     """The links and images of a Markdown file whose destination starts with `/`, in document order.
 
     A query: it reads the item's links and nothing else.

@@ -18,15 +18,15 @@ its children in one order: the note naming the meta spec first, then the help, t
 """
 
 from dataclasses import dataclass
-from typing import Final, assert_never
+from typing import Final, Protocol, assert_never
 
 from lorecraft.core.path import RootRelativePath
+from lorecraft.project.query import GovernancePrimitives, SyntaxPrimitives
 from lorecraft.project.schemas import (
     AgentSkillsSchema,
     AllowedTools,
     DocumentFrontmatterOwner,
     FrontmatterOwner,
-    Primitives,
     SchemaProblems,
     SchemaSource,
     SkillField,
@@ -55,7 +55,11 @@ class FrontmatterFacts:
     owner: FrontmatterOwner
 
 
-def frontmatter_facts(primitives: Primitives) -> FrontmatterFacts:
+class _SyntaxGovernancePrimitives(SyntaxPrimitives, GovernancePrimitives, Protocol):
+    """The primitives the queries below read."""
+
+
+def frontmatter_facts(primitives: _SyntaxGovernancePrimitives) -> FrontmatterFacts:
     """The block and its owner, the facts the rules over the block itself share.
 
     Args:
@@ -77,7 +81,7 @@ class AllowedToolsField:
     tools: AllowedTools
 
 
-def allowed_tools_field(primitives: Primitives) -> AllowedToolsField | None:
+def allowed_tools_field(primitives: _SyntaxGovernancePrimitives) -> AllowedToolsField | None:
     """The skill's `allowed-tools` field, the fact the two rules over it share; `None` when it holds no parsed value.
 
     Args:
@@ -92,7 +96,7 @@ def allowed_tools_field(primitives: Primitives) -> AllowedToolsField | None:
     return AllowedToolsField(field_line(frontmatter, SkillField.ALLOWED_TOOLS), tools)
 
 
-def schema_problems(primitives: Primitives) -> tuple[SchemaProblems, ...]:
+def schema_problems(primitives: GovernancePrimitives) -> tuple[SchemaProblems, ...]:
     """What each schema that governs the subject rejects in its frontmatter, the fact the schema rules share.
 
     Args:

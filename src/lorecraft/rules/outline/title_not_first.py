@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from typing import ClassVar, Self
 
-from lorecraft.project.schemas import Primitives, Query
+from lorecraft.project.query import Query, SyntaxPrimitives
 from lorecraft.project.syntax import Heading, HeadingLevel, LineNumber, find_title
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
@@ -13,7 +13,7 @@ from lorecraft.rules.subject import Facet, QueriedDocumentRule
 from .__ruleset__ import GROUP_ID
 
 
-def headings(primitives: Primitives) -> tuple[Heading, ...]:
+def headings(primitives: SyntaxPrimitives) -> tuple[Heading, ...]:
     """The document's headings, in document order. Raises nothing.
 
     A query: it reads the document's headings and nothing else.

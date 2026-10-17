@@ -14,7 +14,8 @@ from lorecraft.project.database import Database, DatabaseItemContext, ItemText
 from lorecraft.project.item import MarkdownItemRef, UnlistedItemError
 from lorecraft.project.layout import SNAPSHOT_SCOPE
 from lorecraft.project.link_target import DocumentLink
-from lorecraft.project.schemas import Primitives, title_facts
+from lorecraft.project.query import Primitives
+from lorecraft.project.schemas import title_facts
 from lorecraft.project.syntax import Anchor, LineNumber
 from lorecraft.rules.length.too_many_tokens import token_facts
 from lorecraft.rules.link.extension_link import extension_link_facts

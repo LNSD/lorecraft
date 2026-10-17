@@ -3,7 +3,8 @@
 from dataclasses import dataclass
 from typing import ClassVar, Self
 
-from lorecraft.project.schemas import Query, TitleFacts, title_facts
+from lorecraft.project.query import Query
+from lorecraft.project.schemas import TitleFacts, title_facts
 from lorecraft.project.syntax import FIRST_LINE
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
