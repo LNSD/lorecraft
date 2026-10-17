@@ -12,7 +12,7 @@ from lib.overruns import overrun
 from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.location import Help, Here, Label, Note
-from lorecraft.rules.tests.fake_database import FakeSkillContext, judged
+from lorecraft.rules.tests.fake_database import FakeSkillDatabase, judged
 
 from ..too_many_lines import TooManyLines
 
@@ -33,7 +33,7 @@ def _skill_of(lines: int) -> str:
 class TestTooManyLines:
     def test_check_with_a_skill_over_the_budget_reports_it_on_the_first_line_past_it(self) -> None:
         #: Given
-        subject = FakeSkillContext(_skill_of(501))
+        subject = FakeSkillDatabase(_skill_of(501))
 
         #: When
         occurrences = judged(TooManyLines, subject)
@@ -45,7 +45,7 @@ class TestTooManyLines:
 
     def test_check_with_a_skill_at_the_budget_reports_nothing(self) -> None:
         #: Given
-        subject = FakeSkillContext(_skill_of(500))
+        subject = FakeSkillDatabase(_skill_of(500))
 
         #: When
         occurrences = judged(TooManyLines, subject)

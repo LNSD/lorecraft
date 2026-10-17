@@ -8,7 +8,7 @@ import pytest
 from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.location import Help, Here, Label, Note
-from lorecraft.rules.tests.fake_database import FakeSkillContext, judged
+from lorecraft.rules.tests.fake_database import FakeSkillDatabase, judged
 
 from ..malformed_allowed_tools import (
     CommaSeparated,
@@ -25,7 +25,7 @@ SPECIFICATION_NOTE: Final[Note] = Note(
 """The note naming where the meta spec states the field, which both skill rules of the group carry."""
 
 
-def _skill_allowing(value: str) -> FakeSkillContext:
+def _skill_allowing(value: str) -> FakeSkillDatabase:
     """A skill whose `allowed-tools`, on line 4, holds the value.
 
     Args:
@@ -38,7 +38,7 @@ def _skill_allowing(value: str) -> FakeSkillContext:
         allowed-tools: "{value}"
         ---
         """)
-    return FakeSkillContext(text)
+    return FakeSkillDatabase(text)
 
 
 @pytest.mark.unit
@@ -52,7 +52,7 @@ class TestMalformedAllowedTools:
             allowed-tools: Read, Bash(git log --format=%h,%s)
             ---
             """)
-        subject = FakeSkillContext(text)
+        subject = FakeSkillDatabase(text)
 
         #: When
         occurrences = judged(MalformedAllowedTools, subject)
@@ -73,7 +73,7 @@ class TestMalformedAllowedTools:
             allowed-tools: Bash(git diff *
             ---
             """)
-        subject = FakeSkillContext(text)
+        subject = FakeSkillDatabase(text)
 
         #: When
         occurrences = judged(MalformedAllowedTools, subject)
@@ -94,7 +94,7 @@ class TestMalformedAllowedTools:
             allowed-tools: Bash(git *)tail
             ---
             """)
-        subject = FakeSkillContext(text)
+        subject = FakeSkillDatabase(text)
 
         #: When
         occurrences = judged(MalformedAllowedTools, subject)
@@ -164,7 +164,7 @@ class TestMalformedAllowedTools:
             description: Review a change.
             ---
             """)
-        subject = FakeSkillContext(text)
+        subject = FakeSkillDatabase(text)
 
         #: When
         occurrences = judged(MalformedAllowedTools, subject)

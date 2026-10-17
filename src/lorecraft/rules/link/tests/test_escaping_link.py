@@ -12,7 +12,7 @@ from lorecraft.core.path import RootRelativePath
 from lorecraft.project.link_target import EscapingTarget, LinkTarget, PathLookup
 from lorecraft.project.syntax import LineNumber, NormalisedLinkPath
 from lorecraft.rules.location import Help, Note
-from lorecraft.rules.tests.fake_database import FakeSkillResourceContext, judged
+from lorecraft.rules.tests.fake_database import FakeSkillResourceDatabase, judged
 
 from ..escaping_link import EscapingLink
 
@@ -41,7 +41,7 @@ def _inside(url: str, path: str) -> FrozenMapping[NormalisedLinkPath, LinkTarget
 class TestEscapingLink:
     def test_check_with_a_link_climbing_above_the_skill_root_reports_it_on_its_line(self) -> None:
         #: Given
-        subject = FakeSkillResourceContext(
+        subject = FakeSkillResourceDatabase(
             '# Checklist\n\nStart from [the steps](../SKILL.md).\n', link_targets=_escaping('../SKILL.md')
         )
 
@@ -55,7 +55,7 @@ class TestEscapingLink:
 
     def test_check_with_a_link_back_in_by_the_repository_path_reports_it(self) -> None:
         #: Given
-        subject = FakeSkillResourceContext(
+        subject = FakeSkillResourceDatabase(
             '[the steps](../../skills/review/SKILL.md)\n', link_targets=_escaping('../../skills/review/SKILL.md')
         )
 
@@ -69,7 +69,7 @@ class TestEscapingLink:
 
     def test_check_with_an_image_climbing_above_the_skill_root_reports_it(self) -> None:
         #: Given
-        subject = FakeSkillResourceContext('![flow](../../flow.png)\n', link_targets=_escaping('../../flow.png'))
+        subject = FakeSkillResourceDatabase('![flow](../../flow.png)\n', link_targets=_escaping('../../flow.png'))
 
         #: When
         occurrences = judged(EscapingLink, subject)
@@ -81,7 +81,7 @@ class TestEscapingLink:
 
     def test_check_with_percent_encoded_dots_climbing_above_the_skill_root_reports_it(self) -> None:
         #: Given
-        subject = FakeSkillResourceContext('[a b](%2E%2E/a%20b.md)\n', link_targets=_escaping('../a b.md'))
+        subject = FakeSkillResourceDatabase('[a b](%2E%2E/a%20b.md)\n', link_targets=_escaping('../a b.md'))
 
         #: When
         occurrences = judged(EscapingLink, subject)
@@ -93,7 +93,7 @@ class TestEscapingLink:
 
     def test_check_with_a_link_climbing_and_coming_back_inside_reports_nothing(self) -> None:
         #: Given
-        subject = FakeSkillResourceContext(
+        subject = FakeSkillResourceDatabase(
             '[the steps](references/../SKILL.md)\n',
             link_targets=_inside('SKILL.md', '.agents/skills/review/SKILL.md'),
         )
@@ -106,7 +106,7 @@ class TestEscapingLink:
 
     def test_check_with_a_link_to_the_skill_root_itself_reports_nothing(self) -> None:
         #: Given
-        subject = FakeSkillResourceContext(
+        subject = FakeSkillResourceDatabase(
             '[the skill](references/..)\n', link_targets=_inside('.', '.agents/skills/review')
         )
 
@@ -118,7 +118,7 @@ class TestEscapingLink:
 
     def test_check_with_a_url_with_a_scheme_reports_nothing(self) -> None:
         #: Given
-        subject = FakeSkillResourceContext('[the spec](https://example.com/../spec)\n')
+        subject = FakeSkillResourceDatabase('[the spec](https://example.com/../spec)\n')
 
         #: When
         occurrences = judged(EscapingLink, subject)
@@ -128,7 +128,7 @@ class TestEscapingLink:
 
     def test_check_with_an_absolute_link_reports_nothing(self) -> None:
         #: Given
-        subject = FakeSkillResourceContext('[up](/../outside.md)\n')
+        subject = FakeSkillResourceDatabase('[up](/../outside.md)\n')
 
         #: When
         occurrences = judged(EscapingLink, subject)
@@ -138,7 +138,7 @@ class TestEscapingLink:
 
     def test_check_with_a_fragment_only_link_reports_nothing(self) -> None:
         #: Given
-        subject = FakeSkillResourceContext('# Checklist\n\nSee [the top](#checklist).\n')
+        subject = FakeSkillResourceDatabase('# Checklist\n\nSee [the top](#checklist).\n')
 
         #: When
         occurrences = judged(EscapingLink, subject)

@@ -8,7 +8,7 @@ import pytest
 
 from lorecraft.rules.identity import Level
 from lorecraft.rules.location import EntryHelp, EntryNote, WholeSubject
-from lorecraft.rules.tests.fake_database import FakeCorpusDirectoryContext, judged
+from lorecraft.rules.tests.fake_database import FakeCorpusDirectoryDatabase, judged
 
 from ..reserved_corpus_overlap import ReservedCorpusOverlap
 
@@ -27,7 +27,7 @@ class TestReservedCorpusOverlap:
 
     def test_check_with_a_directory_taking_a_reserved_name_reports_it_naming_the_corpus(self) -> None:
         #: Given
-        subject = FakeCorpusDirectoryContext('skills')
+        subject = FakeCorpusDirectoryDatabase('skills')
 
         #: When
         occurrences = judged(ReservedCorpusOverlap, subject)

@@ -16,7 +16,7 @@ from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.schemas import DocumentFrontmatterOwner, SkillFrontmatterOwner
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.location import Help, Here, Label, Note
-from lorecraft.rules.tests.fake_database import FakeDocumentContext, FakeSkillContext, judged, structure_spec_path
+from lorecraft.rules.tests.fake_database import FakeDocumentContext, FakeSkillDatabase, judged, structure_spec_path
 from lorecraft.vfs import ResolvedPath
 
 from ..name_mismatch import NameMismatch
@@ -122,7 +122,7 @@ class TestNameMismatch:
             name: 42
             ---
             """)
-        subject = FakeSkillContext(text)
+        subject = FakeSkillDatabase(text)
 
         #: When
         occurrences = judged(NameMismatch, subject)
@@ -153,7 +153,7 @@ class TestNameMismatch:
             name: review
             ---
             """)
-        subject = FakeSkillContext(text)
+        subject = FakeSkillDatabase(text)
 
         #: When
         occurrences = judged(NameMismatch, subject)
@@ -168,7 +168,7 @@ class TestNameMismatch:
             name: code-review
             ---
             """)
-        subject = FakeSkillContext(text, link_target=SHIPPED)
+        subject = FakeSkillDatabase(text, link_target=SHIPPED)
 
         #: When
         occurrences = judged(NameMismatch, subject)
