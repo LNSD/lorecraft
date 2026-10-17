@@ -10,7 +10,8 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Protocol
 
-from lorecraft.project.syntax import Heading
+from lorecraft.core.num import UnsignedInt
+from lorecraft.project.syntax import Heading, TokenCount
 
 from .structure import StructureSpec
 
@@ -26,6 +27,10 @@ class Primitives(Protocol):
         """The headings of the item's parse, in document order."""
         ...
 
+    def token_count(self) -> TokenCount:
+        """The tokens in the item's whole file; none for an item that is not UTF-8."""
+        ...
+
 
 type Query[T] = Callable[[Primitives], T]
 
@@ -37,10 +42,12 @@ class StructurePrimitives:
     Attributes:
         specs: The structure specifications that govern the item, in the order they apply.
         heading_list: The headings of the item's parse, in document order.
+        token_total: The tokens in the item's whole file.
     """
 
     specs: tuple[StructureSpec, ...]
     heading_list: tuple[Heading, ...] = ()
+    token_total: TokenCount = TokenCount(UnsignedInt(0))
 
     def structure_specs(self) -> tuple[StructureSpec, ...]:
         """The specifications this was built with."""
@@ -49,3 +56,7 @@ class StructurePrimitives:
     def headings(self) -> tuple[Heading, ...]:
         """The headings this was built with."""
         return self.heading_list
+
+    def token_count(self) -> TokenCount:
+        """The count this was built with."""
+        return self.token_total

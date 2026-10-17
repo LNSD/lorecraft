@@ -39,7 +39,6 @@ from lorecraft.project.schemas import (
     SchemaProblems,
     SkillFields,
     StructureSpec,
-    TokenBudget,
 )
 from lorecraft.project.syntax import FrontmatterNode, Heading, LineCount, NormalisedLinkPath, ParsedDocument, TokenCount
 from lorecraft.project.workspace import Governance
@@ -197,10 +196,6 @@ class DocumentContext(FrontmatterContext, MarkdownContext, Protocol):
 
     def query[T](self, query: Query[T]) -> T:
         """The answer of a declared query over this document, memoized by the query and the document."""
-        ...
-
-    def token_budgets(self) -> tuple[TokenBudget, ...]:
-        """The token budget each specification that governs the document sets, in the order they apply."""
         ...
 
     def empty_section_specs(self) -> tuple[RootRelativePath, ...]:

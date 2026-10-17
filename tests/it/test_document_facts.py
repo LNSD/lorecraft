@@ -17,6 +17,7 @@ from lorecraft.project.layout import SNAPSHOT_SCOPE
 from lorecraft.project.link_target import DocumentLink
 from lorecraft.project.schemas import title_facts
 from lorecraft.project.syntax import LineNumber
+from lorecraft.rules.length.too_many_tokens import token_facts
 from lorecraft.vfs import Snapshot, take_snapshot
 
 GUIDE: Final[MarkdownItemRef] = MarkdownItemRef(RootRelativePath.parse('docs/code/guide.md'))
@@ -84,17 +85,6 @@ class TestDocumentFactQueries:
         #: Then
         assert second is first, 'the checks are memoized'
 
-    def test_item_token_budgets_called_twice_returns_the_first_answer(self, tmp_path: Path) -> None:
-        #: Given
-        database = Database.from_snapshot(_snapshot(tmp_path))
-        first = database.item_token_budgets(GUIDE)
-
-        #: When
-        second = database.item_token_budgets(GUIDE)
-
-        #: Then
-        assert second is first, 'the budgets are memoized'
-
     def test_item_title_facts_on_a_fresh_database_holds_the_checks_of_the_governing_specification(
         self, tmp_path: Path
     ) -> None:
@@ -107,18 +97,6 @@ class TestDocumentFactQueries:
         #: Then
         assert [c.spec for c in constraints] == [SPEC_PATH], 'the item is resolved by the query itself'
 
-    def test_item_token_budgets_on_a_fresh_database_holds_the_budget_of_the_governing_specification(
-        self, tmp_path: Path
-    ) -> None:
-        #: Given
-        database = Database.from_snapshot(_snapshot(tmp_path))
-
-        #: When
-        budgets = database.item_token_budgets(GUIDE)
-
-        #: Then
-        assert [(b.spec, b.tokens.value) for b in budgets] == [(SPEC_PATH, 500)], 'the item is resolved by the query'
-
     def test_item_title_facts_of_an_unlisted_path_raises_unlisted_item_error(self, tmp_path: Path) -> None:
         #: Given
         database = Database.from_snapshot(_snapshot(tmp_path))
@@ -127,13 +105,25 @@ class TestDocumentFactQueries:
         with pytest.raises(UnlistedItemError):
             database.query(title_facts, MarkdownItemRef(RootRelativePath.parse('README.md')))
 
-    def test_item_token_budgets_of_an_unlisted_path_raises_unlisted_item_error(self, tmp_path: Path) -> None:
+    def test_query_token_facts_holds_the_budget_and_counts_the_file(self, tmp_path: Path) -> None:
+        #: Given
+        database = Database.from_snapshot(_snapshot(tmp_path))
+
+        #: When
+        facts = database.query(token_facts, GUIDE)
+
+        #: Then
+        assert [(b.spec, b.tokens.value) for b in facts.budgets] == [(SPEC_PATH, 500)], 'the budget names its file'
+        assert facts.count == database.item_token_count(_decoded(database)), 'the count is the file whole'
+        assert database.query_reads(token_facts, GUIDE) == {'structure_specs', 'token_count'}, 'derived carry-over'
+
+    def test_query_of_an_unlisted_path_raises_unlisted_item_error(self, tmp_path: Path) -> None:
         #: Given
         database = Database.from_snapshot(_snapshot(tmp_path))
 
         #: When / Then
         with pytest.raises(UnlistedItemError):
-            database.item_token_budgets(MarkdownItemRef(RootRelativePath.parse('README.md')))
+            database.query(token_facts, MarkdownItemRef(RootRelativePath.parse('README.md')))
 
     def test_item_empty_section_specs_called_twice_returns_the_first_answer(self, tmp_path: Path) -> None:
         #: Given
@@ -214,16 +204,6 @@ class TestDocumentFactContext:
         #: Then
         assert database.query_reads(title_facts, GUIDE) == {'structure_specs', 'headings'}, 'the carry-over is derived'
 
-    def test_token_budgets_names_the_file_that_sets_them(self, tmp_path: Path) -> None:
-        #: Given
-        context = _context(Database.from_snapshot(_snapshot(tmp_path)), GUIDE)
-
-        #: When
-        budgets = context.token_budgets()
-
-        #: Then
-        assert [(b.spec, b.tokens.value) for b in budgets] == [(SPEC_PATH, 500)], 'the budget names its file'
-
     def test_title_of_a_skill_entry_raises_wrong_item_kind_error(self, tmp_path: Path) -> None:
         #: Given
         context = _context(Database.from_snapshot(_snapshot(tmp_path)), SKILL)
@@ -231,14 +211,6 @@ class TestDocumentFactContext:
         #: When / Then
         with pytest.raises(WrongItemKindError):
             context.title()
-
-    def test_token_budgets_of_a_skill_entry_raises_wrong_item_kind_error(self, tmp_path: Path) -> None:
-        #: Given
-        context = _context(Database.from_snapshot(_snapshot(tmp_path)), SKILL)
-
-        #: When / Then
-        with pytest.raises(WrongItemKindError):
-            context.token_budgets()
 
     def test_empty_section_specs_names_the_file_that_forbids_empty_sections(self, tmp_path: Path) -> None:
         #: Given

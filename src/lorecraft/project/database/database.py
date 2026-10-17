@@ -59,10 +59,10 @@ it read does, `item_governance(ref)` excepted, as its bullet states:
   frontmatter schema that governs one document rejects, which outline entry each section falls in, and where the
   sections first stop matching each outline, the shared analyses every inspection reads. They read the item's
   frontmatter or parse, its governance and, for the divergences, its alignment and line count, and nothing else.
-- `item_title(source)`, `item_token_budgets(ref)`, `item_empty_section_specs(ref)`,
-  `item_empty_headings(source)` and `item_extension_links(source)`: the facts the length, title, empty-section and
-  extension-link inspections project, so none unpacks a governance or searches the headings itself. They read the
-  item's parse, link targets or governance and nothing else.
+- `item_title(source)`, `item_empty_section_specs(ref)`, `item_empty_headings(source)` and
+  `item_extension_links(source)`: the facts the title, empty-section and extension-link inspections project, so none
+  unpacks a governance or searches the headings itself. They read the item's parse, link targets or governance and
+  nothing else.
 - `item_skill_schema_problems(source)` and `item_skill_fields(source)`: what the Agent Skills specification rejects in
   one skill entry's frontmatter and the fields of it that parse, each on its own. They read `item_frontmatter(source)`
   and nothing else: the package states the specification, so no specification in the repository plays a part.
@@ -145,6 +145,7 @@ from collections.abc import Mapping
 from typing import Self, cast
 
 from lorecraft.core.mapping import FrozenMapping
+from lorecraft.core.num import UnsignedInt
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectFilename, EmptyAspectNameError, InvalidAspectNameCharacterError
 from lorecraft.project.corpus import (
@@ -180,7 +181,6 @@ from lorecraft.project.schemas import (
     SchemaProblems,
     SkillFields,
     StructureSpec,
-    TokenBudget,
     align_outlines,
     empty_headings,
     empty_section_specs,
@@ -189,7 +189,6 @@ from lorecraft.project.schemas import (
     locate_skill_schema_problems,
     match_outlines,
     parse_skill_fields,
-    token_budgets,
 )
 from lorecraft.project.skill import Repository as SkillRepository
 from lorecraft.project.skill import (
@@ -287,6 +286,12 @@ class _ReadPrimitives:
         source = self._database.item_text(self._ref)
         return self._database.item_parse(source).headings if isinstance(source, ItemText) else ()
 
+    def token_count(self) -> TokenCount:
+        """The tokens in the item's whole file; none for an item that is not UTF-8."""
+        self.read |= {'token_count'}
+        source = self._database.item_text(self._ref)
+        return self._database.item_token_count(source) if isinstance(source, ItemText) else TokenCount(UnsignedInt(0))
+
 
 class Database:
     """What the checks read from one snapshot: its model, built by `from_snapshot`, and every other value computed once.
@@ -336,7 +341,6 @@ class Database:
         self._item_titles: dict[MarkdownItemRef, DocumentTitle | None] = {}
         # Declared queries: the answer by the function and the item, with the primitives it read.
         self._queries: dict[tuple[Query[object], MarkdownItemRef], tuple[object, frozenset[str]]] = {}
-        self._item_token_budgets: dict[MarkdownItemRef, tuple[TokenBudget, ...]] = {}
         self._item_empty_section_specs: dict[MarkdownItemRef, tuple[RootRelativePath, ...]] = {}
         self._item_empty_headings: dict[MarkdownItemRef, tuple[Heading, ...]] = {}
         self._item_extension_links: dict[MarkdownItemRef, tuple[ExtensionLink, ...]] = {}
@@ -824,23 +828,6 @@ class Database:
             ref: The item it ran over.
         """
         return self._queries[(query, ref)][1] if (query, ref) in self._queries else frozenset()
-
-    def item_token_budgets(self, ref: MarkdownItemRef) -> tuple[TokenBudget, ...]:
-        """The token budget each specification that governs one item sets, found on the first call.
-
-        Carry-over: kept for the next revision whenever `item_governance(ref)` is.
-
-        Args:
-            ref: The item to look up; the cache key.
-
-        Raises:
-            UnlistedItemError: If the model lists no document or skill entry there.
-        """
-        found = self._item_token_budgets.get(ref)
-        if found is None:
-            found = token_budgets(self.structure_specs(ref))
-            self._item_token_budgets[ref] = found
-        return found
 
     def item_empty_section_specs(self, ref: MarkdownItemRef) -> tuple[RootRelativePath, ...]:
         """The specifications that govern one item and forbid an empty section, found on the first call.

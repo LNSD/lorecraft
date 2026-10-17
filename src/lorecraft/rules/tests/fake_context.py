@@ -44,7 +44,6 @@ from lorecraft.project.schemas import (
     StructureSchema,
     StructureSpec,
     StructureSpecFile,
-    TokenBudget,
     align_outlines,
     empty_headings,
     empty_section_specs,
@@ -55,7 +54,6 @@ from lorecraft.project.schemas import (
     parse_skill_fields,
     parse_spec_name,
     spec_filename,
-    token_budgets,
 )
 from lorecraft.project.syntax import (
     FrontmatterNode,
@@ -307,11 +305,7 @@ class FakeDocumentContext:
 
     def query[T](self, query: Query[T]) -> T:
         """The answer of a declared query over the governing meta specs, as the real database finds it."""
-        return query(StructurePrimitives(self._governance.structure_specs(), self.parse().headings))
-
-    def token_budgets(self) -> tuple[TokenBudget, ...]:
-        """The token budgets the governing meta specs set, as the real query finds them."""
-        return token_budgets(self._governance.structure_specs())
+        return query(StructurePrimitives(self._governance.structure_specs(), self.parse().headings, self.token_count()))
 
     def empty_section_specs(self) -> tuple[RootRelativePath, ...]:
         """The governing meta specs that forbid an empty section, as the real query finds them."""

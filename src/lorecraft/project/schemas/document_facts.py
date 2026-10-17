@@ -1,4 +1,4 @@
-"""What a document's structure specifications state about its title, its budget and its empty sections, as facts.
+"""What a document's structure specifications state about its title and its empty sections, as facts.
 
 Each function reads the governing specifications or the parse tree once and returns a value a rule only projects, so no
 rule unpacks a `Governance` or searches the headings itself.
@@ -7,7 +7,7 @@ rule unpacks a `Governance` or searches the headings itself.
 from collections.abc import Sequence
 from dataclasses import dataclass
 
-from lorecraft.core.num import NonZeroUnsignedInt, UnsignedInt
+from lorecraft.core.num import UnsignedInt
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.syntax import Heading, WordCount, count_words, find_title
 
@@ -41,19 +41,6 @@ class TitleConstraint:
 
     spec: RootRelativePath
     checks: TitleChecks
-
-
-@dataclass(frozen=True, slots=True)
-class TokenBudget:
-    """The token budget one structure specification sets.
-
-    Attributes:
-        spec: The structure file that sets the budget.
-        tokens: The most tokens the document's whole file may hold.
-    """
-
-    spec: RootRelativePath
-    tokens: NonZeroUnsignedInt
 
 
 def find_document_title(headings: Sequence[Heading]) -> DocumentTitle | None:
@@ -95,15 +82,6 @@ def title_facts(primitives: Primitives) -> TitleFacts:
         if spec.title is not None
     )
     return TitleFacts(title=find_document_title(primitives.headings()), constraints=constraints)
-
-
-def token_budgets(specs: Sequence[StructureSpec]) -> tuple[TokenBudget, ...]:
-    """The token budget each specification sets, in the order the specifications apply. Raises nothing.
-
-    Args:
-        specs: The structure specifications that govern the document.
-    """
-    return tuple(TokenBudget(spec=spec.path, tokens=spec.tokens) for spec in specs if spec.tokens is not None)
 
 
 def empty_section_specs(specs: Sequence[StructureSpec]) -> tuple[RootRelativePath, ...]:
