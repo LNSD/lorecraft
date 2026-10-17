@@ -10,8 +10,6 @@ from .document_facts import (
     DocumentTitle,
     TitleConstraint,
     TitleFacts,
-    empty_headings,
-    empty_section_specs,
     find_document_title,
     title_facts,
 )
@@ -110,8 +108,6 @@ from .structure_file import StructureFile
 __all__: list[str] = [
     'DocumentTitle',
     'TitleConstraint',
-    'empty_headings',
-    'empty_section_specs',
     'find_document_title',
     'title_facts',
     'TitleFacts',

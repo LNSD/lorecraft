@@ -1,4 +1,4 @@
-"""What a document's structure specifications state about its title and its empty sections, as facts.
+"""What a document's structure specifications state about its title, as facts.
 
 Each function reads the governing specifications or the parse tree once and returns a value a rule only projects, so no
 rule unpacks a `Governance` or searches the headings itself.
@@ -12,7 +12,7 @@ from lorecraft.core.path import RootRelativePath
 from lorecraft.project.syntax import Heading, WordCount, count_words, find_title
 
 from .query import Primitives
-from .structure import StructureSpec, TitleChecks
+from .structure import TitleChecks
 
 
 @dataclass(frozen=True, slots=True)
@@ -82,21 +82,3 @@ def title_facts(primitives: Primitives) -> TitleFacts:
         if spec.title is not None
     )
     return TitleFacts(title=find_document_title(primitives.headings()), constraints=constraints)
-
-
-def empty_section_specs(specs: Sequence[StructureSpec]) -> tuple[RootRelativePath, ...]:
-    """The specifications that forbid an empty section, in the order they apply. Raises nothing.
-
-    Args:
-        specs: The structure specifications that govern the document.
-    """
-    return tuple(spec.path for spec in specs if spec.forbid_empty_sections)
-
-
-def empty_headings(headings: Sequence[Heading]) -> tuple[Heading, ...]:
-    """The headings that open an empty section, the title included, in document order. Raises nothing.
-
-    Args:
-        headings: The document's top-level headings, in document order.
-    """
-    return tuple(heading for heading in headings if heading.empty)
