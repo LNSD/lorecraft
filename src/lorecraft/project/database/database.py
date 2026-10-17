@@ -5,14 +5,17 @@ check can see, and never changed once built. `Database.from_snapshot` builds the
 model; every other query sits above it, computed on first use and kept for as long as the database lives
 (pattern-memoization). Queries come in two kinds, and the kind decides how a query carries over to the next revision.
 
-Documents and skill entries share one query family keyed by the common `MarkdownItemRef`: `item_text(ref)` decodes the
-file at the descriptor's read location into one `ItemText` witness or an `Undecodable` marker, and `item_frontmatter`,
-`item_parse`, `item_token_count`, `item_line_count`, `item_link_targets`, `item_governance` and `item_schema_problems`
-take that witness and are computed on first demand. Link targets
-read the descriptor's link base, so no query tells a document from a skill entry; the analyses read
-`item_governance(ref)`, never the whole model. A document the model does not list is answered for by the corpus and
-filename its path names. A skill's resource is answered for by the reference `resource_item` registers from its
-skill's listing.
+Documents, skill entries and skill resources share one query family keyed by `MarkdownItemRef`. `item_text(ref)`
+decodes the descriptor's read location into an `ItemText` witness or an `Undecodable` marker. The derived queries
+`item_frontmatter`, `item_parse`, `item_token_count`, `item_line_count`, `item_governance`, and
+`item_schema_problems`, and the input query `item_link_targets`, are computed on demand. A resource's
+`resource_item(location)` registers the reference from its skill's listing, and its `item_*` queries read the
+descriptor at the resolved location. A document the model does not list is resolved by its corpus and filename.
+
+The declared `query(query, ref)` memoizes a rule-owned query over one item's primitives; `query_reads(query, ref)`
+reports the primitives it read. A query's result carries over when each primitive it read does. `item_governance(ref)`
+reads the model, and a query does not distinguish a document, skill entry or resource when it reads their common
+primitives.
 
 Input queries read the snapshot. Each is the one place its part of the snapshot becomes a value for a rule, so only an
 input query builds a witness or fails to read, and each states its own carry-over rule against the change set:
@@ -60,10 +63,22 @@ it read does, `item_governance(ref)` excepted, as its bullet states:
   every frontmatter inspection reads. It reads the item's frontmatter and governance and nothing else; a skill entry is
   held to the Agent Skills specification the package states, so no governance plays a part.
 - `item_skill_fields(source)`: the fields of one skill entry's frontmatter that parse, each on its own. It reads
-  `item_frontmatter(source)` and nothing else.
+  `item_frontmatter(source)` and nothing else; for any other item it is empty. It carries over with the frontmatter.
 
-Questions asked of the snapshot's records directly are never cached, since an answer for one path is cheap:
+Other public methods either answer from queries or inspect the snapshot. Their section and carry-over rules are:
 
+- `item_structure_specs(ref)` reads `item_governance(ref)` and is not cached separately; it carries over with that
+  governance.
+- `item_has_link_to(ref, path)` reads the item's cached `item_link_targets`; it is not cached separately and carries
+  over with those targets.
+- `query_reads(query, ref)` reports recorded primitive names; it is empty before that query has run and is not cached.
+
+Snapshot questions are answered on each call, except `unreported_docs_refusals()`, which is cached for this database's
+lifetime:
+
+- `refusals()` returns all access refusals recorded in the snapshot.
+- `unreported_docs_refusals()` filters snapshot refusals under `docs/` to those not already reported by model load
+  failures, and is recomputed from the next revision's refusals and model failures.
 - `source_lines(path)`: the lines of one file for a diagnostic to excerpt, numbered as the rules number them. It takes
   a bare path, since a diagnostic names a file by its path, and finds the decode query the path belongs to: the
   excerpt of a document, a `SKILL.md` or a resource is cut from the text that decode query returned, so it shows what
@@ -434,14 +449,29 @@ class _ReadPrimitives:
 
 
 class Database:
-    """What the checks read from one snapshot: its model, built by `from_snapshot`, and every other value computed once.
+    """What checks read from one snapshot: its model and values computed on first use for the database's lifetime.
 
-    `from_snapshot` loads the workspace model; every other value is computed on first use and cached for the snapshot's
-    lifetime. Those are the decoded text, the frontmatter, the parse trees, the token counts, the line counts, the
-    governance, the schema problems, the outline alignment and the outline divergences of the documents, the decoded
-    text, the frontmatter, the parse trees, the line counts and the schema problems of the skills, the resources of each
-    skill with their decoded text and their parse trees, the link targets of every one of those Markdown files, and the
-    scope index the link-target queries answer from.
+    Input queries read the snapshot: `model()`, `skill_resources(skill)`, `item_text(ref)` and
+    `item_link_targets(source)`. `model()` loads workspace structure. `skill_resources` lists a skill's resources;
+    `item_text` decodes a document, skill entry or skill resource; `item_link_targets` resolves an item's relative
+    links against the snapshot and scope. Their carry-over rules are stated by their methods.
+
+    Derived queries read other queries: `item_frontmatter(source)`, `item_parse(source)`,
+    `item_token_count(source)`, `item_line_count(source)`, `item_governance(ref)`,
+    `item_schema_problems(source)`, and `item_skill_fields(source)`. The first four derive values from decoded text;
+    governance reads the model; schema problems read frontmatter and, for documents, governance; skill fields read
+    frontmatter.
+
+    The item family is keyed by `MarkdownItemRef` and covers documents, skill entries and skill resources. A resource's
+    reference is registered from its listing by `resource_item(location)`. A document outside the model's listing is
+    still resolved from its corpus and filename. The other public methods are `item_structure_specs(ref)`,
+    `query(query, ref)`, `query_reads(query, ref)`, `item_has_link_to(ref, path)`, `source_lines(path)`,
+    `refusals()` and `unreported_docs_refusals()`. `item_structure_specs`, `query` and `item_has_link_to` read queries;
+    `query_reads` reads the recorded read set. `source_lines`, `refusals` and `unreported_docs_refusals` read the
+    snapshot. `query` memoizes its answer and read set; `query_reads` is empty before that query runs.
+    `item_structure_specs` and `item_has_link_to` are not cached separately. `source_lines` and `refusals` are answered
+    on each call; `unreported_docs_refusals` is cached for this database's lifetime, then recomputed from the next
+    revision's refusals and model failures.
     """
 
     def __init__(self, fs: VirtualFileSystem, model: WorkspaceModel) -> None:
@@ -463,9 +493,9 @@ class Database:
         self._scope_index: ScopeIndex | None = None
         self._unreported_docs_refusals: FrozenMapping[RootRelativePath, RefusedRecord] | None = None
         # The unified family's caches, keyed by the common reference: the one implementation of every document and
-        # skill entry query.
+        # skill entry or resource query.
         self._items: dict[MarkdownItemRef, ResolvedItem] = {}
-        # What the compatibility entry points resolved for a document the model does not list; never an item's answer.
+        # What a query resolved for a document the model does not list; kept apart from listed items.
         self._unlisted_items: dict[MarkdownItemRef, ResolvedItem] = {}
         self._item_texts: dict[MarkdownItemRef, ItemText | Undecodable] = {}
         self._item_link_targets: dict[MarkdownItemRef, Mapping[NormalisedLinkPath, LinkTargetEntry]] = {}
@@ -631,7 +661,7 @@ class Database:
             self._scope_index = ScopeIndex(self._snapshot)
         return self._scope_index
 
-    # The unified family: one query per fact for a document or a skill entry, keyed by the common reference.
+    # The unified family: one query per fact for a document, skill entry or resource, keyed by the common reference.
 
     def _resolved(self, ref: MarkdownItemRef) -> ResolvedItem:
         """The descriptor and governance the model resolved for a listed item, found on the first call."""
@@ -934,13 +964,13 @@ class Database:
             return False
         return has_link_to(self.item_link_targets(text), path)
 
-    # Derived queries: each reads only other queries and carries over whenever they do.
+    # Derived queries: each reads other queries and carries over with the queries it reads.
 
     def item_skill_fields(self, source: ItemText) -> SkillFields:
         """The fields of one skill entry's frontmatter that parse, parsed once. Raises nothing.
 
         A field that is not written or is rejected has no entry, so a rule over one field reads it whatever the
-        others hold. None for any item that is not a skill entry.
+        others hold. Empty for any item that is not a skill entry.
 
         Carry-over: kept for the next revision whenever `item_frontmatter(source)` is.
 
@@ -954,7 +984,7 @@ class Database:
             self._item_skill_fields[source.ref] = found
         return found
 
-    # Not queries: each is answered from the snapshot on every call and never cached.
+    # Snapshot questions: `refusals` is read on each call; `unreported_docs_refusals` is memoized for this database.
 
     def refusals(self) -> dict[RootRelativePath, RefusedRecord]:
         """Every access the operating system refused the scan and the snapshot kept, keyed by path in path order."""
