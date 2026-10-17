@@ -56,19 +56,31 @@ class TestPositionAt:
 
     def test_position_at_with_a_long_text_locates_every_key_in_linear_time(self) -> None:
         #: Given
-        count = 20_000
-        text = ''.join(f'k{i}: x\n' for i in range(count))
+        count = 2_000
+        repeats = 5
+
+        def best_read_time(entries: int) -> float:
+            text = ''.join(f'k{i}: x\n' for i in range(entries))
+            times = []
+            for _ in range(repeats):
+                started = time.perf_counter()
+                read_yaml(text)
+                times.append(time.perf_counter() - started)
+            return min(times)
 
         #: When
-        started = time.perf_counter()
-        problem = read_yaml(text)
-        elapsed = time.perf_counter() - started
+        problem = read_yaml(''.join(f'k{i}: x\n' for i in range(count)))
+        single = best_read_time(count)
+        double = best_read_time(2 * count)
 
         #: Then
         assert isinstance(problem, YamlMapping), f'the text is a mapping, got {problem!r}'
         last = problem.entries[-1][0]
         assert last.position == _at(count, 1), f'the last key is on the last line, got {last.position!r}'
-        assert elapsed < 5, f'{count} entries read in {elapsed:.1f}s, which a quadratic scan of the breaks would exceed'
+        # Doubling the entries doubles a linear read and quadruples a quadratic one; 3 splits them.
+        assert double < 3 * single, (
+            f'{2 * count} entries took {double / single:.1f}x the time of {count}, beyond a linear scan of the breaks'
+        )
 
     def test_read_yaml_with_two_texts_that_differ_only_after_the_first_locates_each_in_its_own_text(self) -> None:
         #: Given
