@@ -13,7 +13,7 @@ from lorecraft.core.path import RootRelativePath
 from lorecraft.project.schemas import SectionEntry, SectionName
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.location import Elsewhere, Help, Note
-from lorecraft.rules.tests.fake_context import FakeDocumentContext, namespace_spec, structure_spec_path
+from lorecraft.rules.tests.fake_context import FakeDocumentContext, judged, namespace_spec, structure_spec_path
 
 from ..empty_section import EmptySection, EmptyTitle, OtherSection, SectionRole
 
@@ -40,7 +40,7 @@ class TestEmptySection:
         subject = FakeDocumentContext(EMPTY_INSTALL, corpus='guide', structure=FORBIDS_EMPTY)
 
         #: When
-        occurrences = EmptySection.check(subject)
+        occurrences = judged(EmptySection, subject)
 
         #: Then
         assert occurrences == (
@@ -54,7 +54,7 @@ class TestEmptySection:
         subject = FakeDocumentContext(EMPTY_INSTALL, corpus='guide', structure=ALLOWS_EMPTY)
 
         #: When
-        occurrences = EmptySection.check(subject)
+        occurrences = judged(EmptySection, subject)
 
         #: Then
         assert occurrences == (), 'a specification that does not forbid empty sections allows them'
@@ -66,7 +66,7 @@ class TestEmptySection:
         )
 
         #: When
-        occurrences = EmptySection.check(subject)
+        occurrences = judged(EmptySection, subject)
 
         #: Then
         assert occurrences == (), 'a document whose every section holds content has no empty section'
@@ -76,7 +76,7 @@ class TestEmptySection:
         subject = FakeDocumentContext('# Setup\n', corpus='guide', structure=FORBIDS_EMPTY)
 
         #: When
-        occurrences = EmptySection.check(subject)
+        occurrences = judged(EmptySection, subject)
 
         #: Then
         assert occurrences == (
@@ -88,7 +88,7 @@ class TestEmptySection:
         subject = FakeDocumentContext(EMPTY_INSTALL + '\n### Linux\n', corpus='guide', structure=FORBIDS_EMPTY)
 
         #: When
-        occurrences = EmptySection.check(subject)
+        occurrences = judged(EmptySection, subject)
 
         #: Then
         assert occurrences == (
@@ -110,7 +110,7 @@ class TestEmptySection:
         )
 
         #: When
-        occurrences = EmptySection.check(subject)
+        occurrences = judged(EmptySection, subject)
 
         #: Then
         assert occurrences == (
@@ -132,7 +132,7 @@ class TestEmptySection:
         )
 
         #: When
-        occurrences = EmptySection.check(subject)
+        occurrences = judged(EmptySection, subject)
 
         #: Then
         assert occurrences == (
@@ -162,7 +162,7 @@ class TestEmptySection:
         entry = SectionEntry(name=SectionName.parse('Install'), description='How to install.')
 
         #: When
-        occurrences = EmptySection.check(subject)
+        occurrences = judged(EmptySection, subject)
 
         #: Then
         assert occurrences == (
@@ -175,7 +175,7 @@ class TestEmptySection:
         subject = FakeDocumentContext('# Setup\n\n## Install\n', corpus='guide', structure=structure)
 
         #: When
-        occurrences = EmptySection.check(subject)
+        occurrences = judged(EmptySection, subject)
 
         #: Then
         assert occurrences == (
@@ -190,7 +190,7 @@ class TestEmptySection:
         subject = FakeDocumentContext('# Setup\n\n## Install\n\n### Install\n', corpus='guide', structure=structure)
 
         #: When
-        occurrences = EmptySection.check(subject)
+        occurrences = judged(EmptySection, subject)
 
         #: Then
         assert occurrences == (
@@ -204,7 +204,7 @@ class TestEmptySection:
         subject = FakeDocumentContext('# Setup\n\nText.\n\n# Second\n', corpus='guide', structure=FORBIDS_EMPTY)
 
         #: When
-        occurrences = EmptySection.check(subject)
+        occurrences = judged(EmptySection, subject)
 
         #: Then
         assert occurrences == (
@@ -225,7 +225,7 @@ class TestEmptySection:
         entry = SectionEntry(name=SectionName.parse('Install'), description='How to install.')
 
         #: When
-        occurrences = EmptySection.check(subject)
+        occurrences = judged(EmptySection, subject)
 
         #: Then
         assert occurrences == (

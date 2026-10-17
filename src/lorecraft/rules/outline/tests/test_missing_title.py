@@ -11,7 +11,7 @@ import pytest
 from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.location import Help
-from lorecraft.rules.tests.fake_context import FakeDocumentContext, namespace_spec
+from lorecraft.rules.tests.fake_context import FakeDocumentContext, judged, namespace_spec
 
 from ..missing_title import MissingTitle
 
@@ -29,7 +29,7 @@ class TestMissingTitle:
         subject = FakeDocumentContext(UNTITLED, corpus='guide', structure=STRUCTURE)
 
         #: When
-        occurrences = MissingTitle.check(subject)
+        occurrences = judged(MissingTitle, subject)
 
         #: Then
         assert occurrences == (MissingTitle(line=LineNumber(NonZeroUnsignedInt(1))),), (
@@ -41,7 +41,7 @@ class TestMissingTitle:
         subject = FakeDocumentContext('# Setup\n\n' + UNTITLED, corpus='guide', structure=STRUCTURE)
 
         #: When
-        occurrences = MissingTitle.check(subject)
+        occurrences = judged(MissingTitle, subject)
 
         #: Then
         assert occurrences == (), 'a document carrying its title is not missing one'
@@ -51,7 +51,7 @@ class TestMissingTitle:
         subject = FakeDocumentContext('# Setup\n\n' + UNTITLED + '\n# Again\n', corpus='guide', structure=STRUCTURE)
 
         #: When
-        occurrences = MissingTitle.check(subject)
+        occurrences = judged(MissingTitle, subject)
 
         #: Then
         assert occurrences == (), 'a title after the first is an extra title, never a missing one'
@@ -61,7 +61,7 @@ class TestMissingTitle:
         subject = FakeDocumentContext('> # Setup\n\n' + UNTITLED, corpus='guide', structure=STRUCTURE)
 
         #: When
-        occurrences = MissingTitle.check(subject)
+        occurrences = judged(MissingTitle, subject)
 
         #: Then
         assert occurrences == (MissingTitle(line=LineNumber(NonZeroUnsignedInt(1))),), (
@@ -75,7 +75,7 @@ class TestMissingTitle:
         )
 
         #: When
-        occurrences = MissingTitle.check(subject)
+        occurrences = judged(MissingTitle, subject)
 
         #: Then
         assert occurrences == (MissingTitle(line=LineNumber(NonZeroUnsignedInt(1))),), (
