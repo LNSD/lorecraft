@@ -18,8 +18,8 @@ from lorecraft.vfs import Snapshot, take_snapshot
 GUIDE: Final[MarkdownItemRef] = MarkdownItemRef(RootRelativePath.parse('docs/code/guide.md'))
 SKILL: Final[MarkdownItemRef] = MarkdownItemRef(RootRelativePath.parse('.agents/skills/review/SKILL.md'))
 SPEC_PATH: Final[RootRelativePath] = RootRelativePath.parse('docs/__meta__/code.spec.json')
-SPEC: Final[bytes] = b'{"tokens": 500, "title": {"words": 2}}'
-TEXT: Final[bytes] = b'# A Long Title\n\n## Full\n\nText.\n'
+SPEC: Final[bytes] = b'{"tokens": 500, "title": {"words": 2}, "empty_sections": "forbidden"}'
+TEXT: Final[bytes] = b'# A Long Title\n\n## Empty\n\n## Full\n\nText.\n'
 
 
 def _snapshot(root: Path) -> Snapshot:
@@ -130,6 +130,49 @@ class TestDocumentFactQueries:
         with pytest.raises(UnlistedItemError):
             database.item_token_budgets(MarkdownItemRef(RootRelativePath.parse('README.md')))
 
+    def test_item_empty_section_specs_called_twice_returns_the_first_answer(self, tmp_path: Path) -> None:
+        #: Given
+        database = Database.from_snapshot(_snapshot(tmp_path))
+        first = database.item_empty_section_specs(GUIDE)
+
+        #: When
+        second = database.item_empty_section_specs(GUIDE)
+
+        #: Then
+        assert second is first, 'the specifications are memoized'
+
+    def test_item_empty_headings_called_twice_returns_the_first_answer(self, tmp_path: Path) -> None:
+        #: Given
+        database = Database.from_snapshot(_snapshot(tmp_path))
+        source = _decoded(database)
+        first = database.item_empty_headings(source)
+
+        #: When
+        second = database.item_empty_headings(source)
+
+        #: Then
+        assert second is first, 'the headings are memoized'
+
+    def test_item_empty_section_specs_on_a_fresh_database_holds_the_governing_specification(
+        self, tmp_path: Path
+    ) -> None:
+        #: Given
+        database = Database.from_snapshot(_snapshot(tmp_path))
+
+        #: When
+        specs = database.item_empty_section_specs(GUIDE)
+
+        #: Then
+        assert specs == (SPEC_PATH,), 'the item is resolved by the query itself'
+
+    def test_item_empty_section_specs_of_an_unlisted_path_raises_unlisted_item_error(self, tmp_path: Path) -> None:
+        #: Given
+        database = Database.from_snapshot(_snapshot(tmp_path))
+
+        #: When / Then
+        with pytest.raises(UnlistedItemError):
+            database.item_empty_section_specs(MarkdownItemRef(RootRelativePath.parse('README.md')))
+
 
 @pytest.mark.it
 class TestDocumentFactContext:
@@ -187,3 +230,39 @@ class TestDocumentFactContext:
         #: When / Then
         with pytest.raises(WrongItemKindError):
             context.token_budgets()
+
+    def test_empty_section_specs_names_the_file_that_forbids_empty_sections(self, tmp_path: Path) -> None:
+        #: Given
+        context = _context(Database.from_snapshot(_snapshot(tmp_path)), GUIDE)
+
+        #: When
+        specs = context.empty_section_specs()
+
+        #: Then
+        assert specs == (SPEC_PATH,), 'the file that forbids empty sections'
+
+    def test_empty_headings_holds_the_empty_section(self, tmp_path: Path) -> None:
+        #: Given
+        context = _context(Database.from_snapshot(_snapshot(tmp_path)), GUIDE)
+
+        #: When
+        headings = context.empty_headings()
+
+        #: Then
+        assert [h.text for h in headings] == ['Empty'], 'the one empty section'
+
+    def test_empty_section_specs_of_a_skill_entry_raises_wrong_item_kind_error(self, tmp_path: Path) -> None:
+        #: Given
+        context = _context(Database.from_snapshot(_snapshot(tmp_path)), SKILL)
+
+        #: When / Then
+        with pytest.raises(WrongItemKindError):
+            context.empty_section_specs()
+
+    def test_empty_headings_of_a_skill_entry_raises_wrong_item_kind_error(self, tmp_path: Path) -> None:
+        #: Given
+        context = _context(Database.from_snapshot(_snapshot(tmp_path)), SKILL)
+
+        #: When / Then
+        with pytest.raises(WrongItemKindError):
+            context.empty_headings()

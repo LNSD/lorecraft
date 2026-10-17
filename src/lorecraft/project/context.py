@@ -41,7 +41,7 @@ from lorecraft.project.schemas import (
     TitleConstraint,
     TokenBudget,
 )
-from lorecraft.project.syntax import FrontmatterNode, LineCount, NormalisedLinkPath, ParsedDocument, TokenCount
+from lorecraft.project.syntax import FrontmatterNode, Heading, LineCount, NormalisedLinkPath, ParsedDocument, TokenCount
 from lorecraft.project.workspace import Governance
 from lorecraft.vfs import ResolvedPath, RootExit
 
@@ -201,6 +201,14 @@ class DocumentContext(FrontmatterContext, MarkdownContext, Protocol):
 
     def token_budgets(self) -> tuple[TokenBudget, ...]:
         """The token budget each specification that governs the document sets, in the order they apply."""
+        ...
+
+    def empty_section_specs(self) -> tuple[RootRelativePath, ...]:
+        """The specifications that govern the document and forbid an empty section, in the order they apply."""
+        ...
+
+    def empty_headings(self) -> tuple[Heading, ...]:
+        """The headings that open an empty section, the title included, in document order."""
         ...
 
 

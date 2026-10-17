@@ -42,6 +42,8 @@ from lorecraft.project.schemas import (
     TitleConstraint,
     TokenBudget,
     align_outlines,
+    empty_headings,
+    empty_section_specs,
     find_document_title,
     locate_schema_problems,
     locate_skill_schema_problems,
@@ -307,6 +309,14 @@ class FakeDocumentContext:
     def token_budgets(self) -> tuple[TokenBudget, ...]:
         """The token budgets the governing meta specs set, as the real query finds them."""
         return token_budgets(self._governance.structure_specs())
+
+    def empty_section_specs(self) -> tuple[RootRelativePath, ...]:
+        """The governing meta specs that forbid an empty section, as the real query finds them."""
+        return empty_section_specs(self._governance.structure_specs())
+
+    def empty_headings(self) -> tuple[Heading, ...]:
+        """The headings that open an empty section, as the real query finds them."""
+        return empty_headings(self.parse().headings)
 
 
 class FakeSkillContext:

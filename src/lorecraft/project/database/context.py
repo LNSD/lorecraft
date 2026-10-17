@@ -36,7 +36,7 @@ from lorecraft.project.schemas import (
     TokenBudget,
 )
 from lorecraft.project.skill import OutsideSymlink
-from lorecraft.project.syntax import FrontmatterNode, LineCount, NormalisedLinkPath, ParsedDocument, TokenCount
+from lorecraft.project.syntax import FrontmatterNode, Heading, LineCount, NormalisedLinkPath, ParsedDocument, TokenCount
 from lorecraft.project.workspace import Governance
 from lorecraft.vfs import ResolvedPath, RootExit
 
@@ -277,6 +277,24 @@ class DatabaseItemContext:
         """
         self._document()
         return self._database.item_token_budgets(self._source.ref)
+
+    def empty_section_specs(self) -> tuple[RootRelativePath, ...]:
+        """The specifications that forbid an empty section, from the `item_empty_section_specs` query.
+
+        Raises:
+            WrongItemKindError: If the item is a skill entry.
+        """
+        self._document()
+        return self._database.item_empty_section_specs(self._source.ref)
+
+    def empty_headings(self) -> tuple[Heading, ...]:
+        """The headings that open an empty section, from the `item_empty_headings` query.
+
+        Raises:
+            WrongItemKindError: If the item is a skill entry.
+        """
+        self._document()
+        return self._database.item_empty_headings(self._source)
 
 
 class DatabaseSymlinkContext:
