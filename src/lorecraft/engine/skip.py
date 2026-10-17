@@ -6,7 +6,6 @@ resolved docs target was refused is also skipped; the refusal itself is reported
 """
 
 from collections.abc import Iterable, Mapping
-from dataclasses import dataclass
 from typing import assert_never
 
 from lorecraft.core.path import RootRelativePath
@@ -17,7 +16,7 @@ from lorecraft.project.item import ItemReadError, MarkdownItemRef
 from lorecraft.project.layout import DOCS_DIR
 from lorecraft.project.skill import (
     OutsideSymlink,
-    SkillAliasRef,
+    RefusedSkillAlias,
     SkillLocation,
     SkillReadError,
     SkillRef,
@@ -31,20 +30,6 @@ from lorecraft.vfs import RefusedRead, RefusedRecord
 
 from .runner import check_layout_entry, judge_item
 
-
-@dataclass(frozen=True, slots=True)
-class RefusedSkillSubject:
-    """A skill alias whose resource listing reached a refused docs path.
-
-    Attributes:
-        ref: The symlink path where an agent reaches the refused alias, including a directory alias.
-        refused_at: The docs path the skill listing could not inspect.
-    """
-
-    ref: SkillAliasRef
-    refused_at: RootRelativePath
-
-
 # A subject `check_subjects` dispatches: a document, a meta specification, a skill, a resource, a refused skill alias,
 # or a layout entry. Each report holds its ref or the path an agent reaches the symlink by.
 type Subject = (
@@ -54,7 +39,7 @@ type Subject = (
     | SkillResourceLocation
     | OutsideSymlink
     | ReservedCorpusDirectory
-    | RefusedSkillSubject
+    | RefusedSkillAlias
 )
 
 type ReportedRef = DocumentRef | SpecRef | SkillRef | SkillResourceRef
@@ -94,7 +79,7 @@ def check_subjects(
                 reports.append(SkippedSubject(location.ref, (location.file_resolves_to,)))
             case SkillResourceLocation() as location if _is_refused_docs_path(location.resolves_to, refusals):
                 reports.append(SkippedSubject(location.ref, (location.resolves_to,)))
-            case RefusedSkillSubject(ref=ref, refused_at=path):
+            case RefusedSkillAlias(ref=ref, refused_at=path):
                 reports.append(SkippedSubject(ref, (path,)))
             case DocumentRef() | SpecRef() | SkillLocation() | SkillResourceLocation():
                 reports.append(_check_item(database, subject, table))

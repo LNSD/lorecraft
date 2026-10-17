@@ -11,11 +11,11 @@ same revision in the same order however the model or a listing orders them.
 from typing import assert_never
 
 from lorecraft.core.path import RootRelativePath
-from lorecraft.engine import RefusedSkillSubject, Subject
+from lorecraft.engine import Subject
 from lorecraft.project.corpus import ReservedCorpusDirectory
 from lorecraft.project.database import Database
 from lorecraft.project.document import DocumentRef, SpecRef
-from lorecraft.project.skill import OutsideSymlink, SkillLocation, SkillResourceLocation
+from lorecraft.project.skill import OutsideSymlink, RefusedSkillAlias, SkillLocation, SkillResourceLocation
 
 
 def select_workspace(database: Database) -> tuple[Subject, ...]:
@@ -39,7 +39,7 @@ def select_workspace(database: Database) -> tuple[Subject, ...]:
         listing = database.skill_resources(location)
         subjects.extend(listing.resources)
         subjects.extend(listing.outside_symlinks)
-        subjects.extend(RefusedSkillSubject(alias.ref, alias.refused_at) for alias in listing.refused_aliases)
+        subjects.extend(listing.refused_aliases)
     subjects.extend(model.sorted_outside_symlinks)
     subjects.extend(model.sorted_overlapping_directories)
 
@@ -60,7 +60,7 @@ def _report_path(subject: Subject) -> RootRelativePath:
             return subject.ref.path
         case SkillResourceLocation():
             return subject.ref.path
-        case RefusedSkillSubject():
+        case RefusedSkillAlias():
             return subject.ref.path
         case OutsideSymlink() | ReservedCorpusDirectory():
             return subject.path

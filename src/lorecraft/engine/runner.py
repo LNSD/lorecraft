@@ -1,9 +1,9 @@
 """The rules engine's shared runner: every enabled rule over a subject, through one rule table.
 
 This is what every mode of the engine shares: the governance lookup, facet gating, and running
-the table's rules over a subject into its report. It holds no mode's policy. A document and a skill entry
-are decoded by each mode's own entry point beside this module, `skip.check_subjects` for the check run, so that its
-policy for an item a failed layer governs comes after decoding; the entry point hands the decoded item to
+the table's rules over a subject into its report. It holds no mode's policy. A document, specification, skill entry
+and resource are decoded by each mode's own entry point beside this module, `skip.check_subjects` for the check run,
+so that its policy for an item a failed layer governs comes after decoding; the entry point hands the decoded item to
 `judge_item` and the other subjects to the functions here.
 
 The runner never names a rule. A rule joins its base's partition of the table through the registry, and the runner
@@ -76,7 +76,7 @@ from lorecraft.vfs import RootExit
 
 
 def judge_item(database: Database, source: ItemText, table: RuleTable) -> CheckedItem:
-    """Run the enabled rules over a decoded document or skill entry, each over what the specifications govern it for.
+    """Run enabled rules over a decoded document, specification, skill entry or resource.
 
     A mode decodes the item and decides what a layer that failed to load means for it; this judges it by the facets
     its descriptor activates. A rule judges an item of a kind it applies to, and only when the item is governed for the
@@ -201,19 +201,19 @@ def _judged_directory[Facts](
 
 
 def _located[R: Rule](
-    path: RootRelativePath, partition: tuple[EnabledRule[R], ...], check: Callable[[type[R]], tuple[Rule, ...]]
+    path: RootRelativePath, partition: tuple[EnabledRule[R], ...], judge: Callable[[type[R]], tuple[Rule, ...]]
 ) -> list[Diagnostic]:
     """Every occurrence of the partition's rules, each located at the path at its rule's severity, in code order.
 
     Args:
         path: Where the subject is reported.
         partition: The enabled rules of one base.
-        check: Runs one rule of the partition over the subject.
+        judge: Runs one rule of the partition over the subject.
     """
     return [
         RuleDiagnostic(path, occurrence, enabled.severity)
         for enabled in partition
-        for occurrence in check(enabled.rule)
+        for occurrence in judge(enabled.rule)
     ]
 
 
