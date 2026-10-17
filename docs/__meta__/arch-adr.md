@@ -43,7 +43,7 @@ the decision:
 
 The change that accepts the replacement turns its callout into `Supersedes …`, sets the old record's `status` to
 `superseded`, and gives the old record a callout of its own. The callout does not name the replacement, which
-names the old record under References:
+names the old record under References, in the direction [References Point to the Base](../feat/spec.md#references-point-to-the-base) states:
 
 ```markdown
 > [!NOTE]
