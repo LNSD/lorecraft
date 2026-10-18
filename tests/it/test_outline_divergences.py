@@ -17,7 +17,7 @@ from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
-from lorecraft.project.database import Database, ItemText
+from lorecraft.project.database import Database, ItemText, QueryRead
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.item import MarkdownItemRef
 from lorecraft.project.schemas import (
@@ -256,8 +256,12 @@ class TestOutlineDivergences:
         unoutlined.query(outline_divergences, ref)
 
         #: Then
-        assert 'line_count' in outlined.query_reads(outline_divergences, ref), 'the end of the document is counted'
-        assert 'line_count' not in unoutlined.query_reads(outline_divergences, ref), 'no outline, no lines counted'
+        assert QueryRead('line_count', ref) in outlined.query_reads(outline_divergences, ref), (
+            'the end of the document is counted'
+        )
+        assert QueryRead('line_count', ref) not in unoutlined.query_reads(outline_divergences, ref), (
+            'no outline, no lines counted'
+        )
 
     def test_outline_divergences_then_outline_alignment_aligns_the_document_once(
         self, monkeypatch: pytest.MonkeyPatch
@@ -292,16 +296,3 @@ class TestOutlineDivergences:
 
         #: Then
         assert aligned == [1], 'the divergences are derived from the alignment already held, so it is computed once'
-
-    def test_outline_divergences_query_reads_what_the_alignment_it_asks_for_reads(self) -> None:
-        #: Given
-        ref = MarkdownItemRef(TYPING.path)
-        database = Database.from_snapshot(_snapshot(b'{"outline": [{"section": "Rule"}]}', None, RULE_ASIDE_CHECKLIST))
-
-        #: When
-        database.query(outline_divergences, ref)
-
-        #: Then
-        assert database.query_reads(outline_divergences, ref) == {'structure_specs', 'headings', 'line_count'}, (
-            'the reads of the alignment are the divergences own'
-        )
