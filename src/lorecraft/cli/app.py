@@ -1,16 +1,27 @@
-"""The root `lorecraft` application: the global options, and nothing about any subcommand.
+"""The root `lorecraft` application: global options, and nothing about any subcommand.
 
-This module is closed to modification. It declares what is true of every invocation — the program
-name, the help text, `--version` — and delegates the rest to the registry, so a new subcommand
-never edits it.
+It declares options shared by every invocation and delegates commands to the registry.
 """
 
+from dataclasses import dataclass
 from typing import Annotated, Final
 
 import typer
 
 from .registry import mount
 from .version import short_version
+
+
+@dataclass(frozen=True, slots=True)
+class GlobalOptions:
+    """Options shared by every command in one invocation.
+
+    Attributes:
+        builtin_skills_schema: Whether the built-in Agent Skills schema is enabled.
+    """
+
+    builtin_skills_schema: bool
+
 
 _HELP: Final[str] = "Check a repository's agent-facing documentation: rule documents, feature docs and skills."
 
@@ -57,6 +68,7 @@ def _show_version(value: bool) -> None:
 
 
 def _root(
+    ctx: typer.Context,
     version: Annotated[
         bool,
         typer.Option(
@@ -67,5 +79,10 @@ def _root(
             help='Show the version and exit.',
         ),
     ] = False,
+    no_builtin_skills_schema: Annotated[
+        bool,
+        typer.Option('--no-builtin-skills-schema', help='Do not apply the built-in Agent Skills schema.'),
+    ] = False,
 ) -> None:
-    """Root callback: it exists to carry the global options, and does nothing itself."""
+    """Store global options for subcommands."""
+    ctx.obj = GlobalOptions(builtin_skills_schema=not no_builtin_skills_schema)

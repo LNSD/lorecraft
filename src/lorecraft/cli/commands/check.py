@@ -10,6 +10,7 @@ from typing import Annotated
 
 import typer
 
+from ..app import GlobalOptions
 from ..output import ColorChoice, DiagnosticFormat
 from ..registry import register
 from ..rule_arguments import (
@@ -48,6 +49,7 @@ def _parse_selectors(value: str) -> SelectorValue:
 
 @register('check')
 def check(
+    ctx: typer.Context,
     root: Annotated[
         Path | None,
         typer.Option('--root', help='Repository root. Defaults to the nearest parent containing docs/__meta__.'),
@@ -115,6 +117,16 @@ def check(
     # Imported here, not at the top: `check_run` imports the rules engine, which `--help` and `--version` never use.
     from ..check_run import run_check
 
-    status = run_check(root, output_format=output_format, color=color, select=select, ignore=ignore)
+    options = ctx.find_root().obj
+    assert isinstance(options, GlobalOptions), 'the root callback stores global options'
+    builtin_skills_schema = options.builtin_skills_schema
+    status = run_check(
+        root,
+        output_format=output_format,
+        color=color,
+        select=select,
+        ignore=ignore,
+        builtin_skills_schema=builtin_skills_schema,
+    )
     if status is not None:
         raise typer.Exit(code=status)

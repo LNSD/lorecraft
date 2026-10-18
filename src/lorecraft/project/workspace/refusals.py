@@ -14,6 +14,7 @@ from lorecraft.core.error import Error
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.schemas.structure_failure import (
     AdjacentAnyRuns,
+    ContradictorySkillField,
     CyclicFrontmatterSchemaRef,
     EmptyStructureSpec,
     ForbiddenOutlineSections,
@@ -134,6 +135,7 @@ def unreported_refusals(
                 | NonUtf8StructureFile()
                 | UndecodableStructureSpec()
                 | EmptyStructureSpec()
+                | ContradictorySkillField()
                 | RepeatedOutlineSections()
                 | RepeatedForbiddenSections()
                 | ForbiddenOutlineSections()

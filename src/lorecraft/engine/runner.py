@@ -66,6 +66,7 @@ from lorecraft.rules.report import (
 )
 from lorecraft.rules.subject import (
     Facet,
+    FrontmatterRule,
     ItemRule,
     Queried,
     QueriedCorpusDirectoryRule,
@@ -95,6 +96,7 @@ def judge_item(database: Database, source: ItemText, table: RuleTable) -> Checke
     failed_skill_layer = (
         descriptor.kind is ItemKind.SKILL_ENTRY and governance is not None and bool(governance.failed_layers())
     )
+    builtin_skills_schema = database.model().builtin_skills_schema
     diagnostics: list[Diagnostic] = []
     ungoverned: list[Facet] = []
 
@@ -102,7 +104,7 @@ def judge_item(database: Database, source: ItemText, table: RuleTable) -> Checke
     # that order, and a facet no applicable enabled rule reads is never looked at.
     for facet in (*Facet, None):
         partitions = [
-            _reading(partition, descriptor, facet, failed_skill_layer)
+            _reading(partition, descriptor, facet, failed_skill_layer, builtin_skills_schema)
             for partition in (
                 table.frontmatter_rules,
                 table.document_rules,
@@ -129,6 +131,7 @@ def _reading[R: ItemRule](
     descriptor: MarkdownItemDescriptor,
     facet: Facet | None,
     failed_skill_layer: bool,
+    builtin_skills_schema: bool,
 ) -> tuple[EnabledRule[R], ...]:
     """The partition's rules that judge an item of the descriptor's kind and read the facet.
 
@@ -137,12 +140,19 @@ def _reading[R: ItemRule](
         descriptor: The item the rules would judge.
         facet: The facet the rules must read, or `None` for those that read none.
         failed_skill_layer: Whether failed skill governance suppresses corpus rules for this entry.
+        builtin_skills_schema: Whether built-in Agent Skills frontmatter rules remain active.
     """
     return tuple(
         enabled
         for enabled in partition
         if descriptor.kind in enabled.rule.APPLIES_TO
         and governing_facet(enabled.rule) is facet
+        and not (
+            descriptor.kind is ItemKind.SKILL_ENTRY
+            and not builtin_skills_schema
+            and issubclass(enabled.rule, FrontmatterRule)
+            and enabled.rule.SKILL_AGENT_SPEC_RULE
+        )
         and not (
             descriptor.kind is ItemKind.SKILL_ENTRY
             and issubclass(enabled.rule, QueriedDocumentSkillRule)

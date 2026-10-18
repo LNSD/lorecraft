@@ -8,6 +8,7 @@ file, and are a closed union, so a reader that matches one is checked exhaustive
 from dataclasses import dataclass
 
 from .section_name import SectionName
+from .skill_compatibility import SkillSchemaContradiction
 
 
 @dataclass(frozen=True, slots=True)
@@ -44,6 +45,17 @@ class UndecodableStructureSpec:
 @dataclass(frozen=True, slots=True)
 class EmptyStructureSpec:
     """The structure file states no rule, so it would check nothing."""
+
+
+@dataclass(frozen=True, slots=True)
+class ContradictorySkillField:
+    """A skills schema's direct constraint contradicts a required built-in field rule.
+
+    Attributes:
+        contradictions: The required Agent Skills field rules constrained impossibly.
+    """
+
+    contradictions: tuple[SkillSchemaContradiction, ...]
 
 
 @dataclass(frozen=True, slots=True)
@@ -168,6 +180,7 @@ type StructureSpecRuleFailure = (
 type StructureSpecFailure = (
     UndecodableStructureSpec
     | EmptyStructureSpec
+    | ContradictorySkillField
     | RepeatedOutlineSections
     | RepeatedForbiddenSections
     | ForbiddenOutlineSections

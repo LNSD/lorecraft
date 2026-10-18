@@ -1,6 +1,7 @@
 """The workspace model drawn as a tree and encoded as JSON, from hand-built models."""
 
 import json
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -188,7 +189,14 @@ class TestRenderText:
     def test_render_text_with_an_empty_model_draws_every_section_with_a_zero_count(self) -> None:
         #: Given
         model = _empty_model()
-        expected = '\n'.join(['/work', '├── corpora (0)', '├── agent skills directories (0)', '└── skills (0)'])
+        expected = '\n'.join(
+            [
+                '/work',
+                '├── corpora (0)',
+                '├── agent skills directories (0)',
+                '└── skills (0)',
+            ]
+        )
         root = Path('/work')
 
         #: When
@@ -309,3 +317,26 @@ class TestRenderGovernedSkills:
             {'path': '.agents/skills/review/SKILL.md', 'agents': ['codex']},
         ], 'skills list their location and readers, without corpus governance'
         assert document['corpora'] == [], 'the skills corpus is no directory corpus'
+
+    def test_render_text_with_the_builtin_schema_opted_out_shows_only_the_opt_out(self) -> None:
+        #: Given
+        model = replace(_skills_model(), builtin_skills_schema=False)
+
+        #: When
+        text = render_text(Path('/work'), model)
+
+        #: Then
+        assert text.splitlines()[-3] == '└── skills (2; Agent Skills schema disabled)', (
+            'the tree identifies the nondefault opt-out and is silent for the default'
+        )
+
+    def test_render_json_with_the_builtin_schema_opted_out_reports_only_the_opt_out(self) -> None:
+        #: Given
+        model = replace(_skills_model(), builtin_skills_schema=False)
+
+        #: When
+        document = json.loads(render_json(Path('/work'), model))
+
+        #: Then
+        assert document.get('builtin_skills_schema') is False, 'JSON marks the opt-out when it is active'
+        assert 'Agent Skills schema' not in json.dumps(document), 'JSON has no schema status when enabled'

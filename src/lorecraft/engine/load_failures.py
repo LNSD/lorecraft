@@ -92,6 +92,10 @@ def _occurrence_of(failure: workspace.LoadFailure) -> EngineCondition | Unlistab
             )
         case workspace.EmptyStructureSpec():
             return malformed_structure_file.MalformedStructureFile(cause=malformed_structure_file.NoRuleStated())
+        case workspace.ContradictorySkillField(contradictions=contradictions):
+            return unusable_structure_file.UnusableStructureFile(
+                cause=unusable_structure_file.ContradictorySkillFieldFailure(contradictions=contradictions)
+            )
         case workspace.RepeatedOutlineSections(sections=sections):
             return unusable_structure_file.UnusableStructureFile(
                 cause=unusable_structure_file.RepeatedOutlineSection(sections=sections)
