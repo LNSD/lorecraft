@@ -10,7 +10,7 @@ from typing import Protocol
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.item import ItemOrigin
 from lorecraft.project.link_target import DocumentLink, LinkBase, LinkTargetEntry
-from lorecraft.project.schemas import SchemaProblems, StructureSpec
+from lorecraft.project.schemas import StructureSpec
 from lorecraft.project.syntax import (
     Anchor,
     FrontmatterNode,
@@ -67,20 +67,16 @@ class GovernancePrimitives(Protocol):
         """The structure specifications that govern the item, in the order they apply; none when nothing governs it."""
         ...
 
-    def schema_problems(self) -> tuple[SchemaProblems, ...]:
-        """What each frontmatter schema that governs the item rejects in its frontmatter, each problem on its line.
-
-        One entry per schema, in the order the schemas apply; none when no schema governs the item, or when its block
-        is missing, not YAML or not a mapping, which no schema can hold.
-        """
-        ...
-
     def item_origin(self) -> ItemOrigin:
         """The model's origin facts for this item, including its expected name and provenance."""
         ...
 
     def item_governance(self) -> Governance | None:
         """The governance of this item, or none when it has no corpus governance."""
+        ...
+
+    def builtin_skills_schema(self) -> bool:
+        """Whether the package's Agent Skills frontmatter schema is enabled for skill entries."""
         ...
 
     def item_name(self) -> str | None:

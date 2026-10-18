@@ -21,7 +21,7 @@ from dataclasses import dataclass
 from typing import Final, assert_never
 
 from lorecraft.core.path import RootRelativePath
-from lorecraft.project.query import GovernancePrimitives, Primitives
+from lorecraft.project.query import Primitives
 from lorecraft.project.schemas import (
     AgentSkillsSchema,
     AllowedTools,
@@ -34,6 +34,7 @@ from lorecraft.project.schemas import (
     StructureSpecSchema,
     field_line,
     frontmatter_owner_query,
+    schema_problems_query,
     skill_fields_query,
 )
 from lorecraft.project.syntax import Frontmatter, FrontmatterNode, LineNumber
@@ -94,13 +95,13 @@ def allowed_tools_field(primitives: Primitives) -> AllowedToolsField | None:
     return AllowedToolsField(field_line(frontmatter, SkillField.ALLOWED_TOOLS), tools)
 
 
-def schema_problems(primitives: GovernancePrimitives) -> tuple[SchemaProblems, ...]:
+def schema_problems(primitives: Primitives) -> tuple[SchemaProblems, ...]:
     """What each schema that governs the subject rejects in its frontmatter, the fact the schema rules share.
 
     Args:
         primitives: The model state of the document or the skill.
     """
-    return primitives.schema_problems()
+    return primitives.query(schema_problems_query)
 
 
 def owner_spec(owner: FrontmatterOwner) -> RootRelativePath | None:
