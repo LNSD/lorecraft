@@ -17,6 +17,7 @@ from lorecraft.project.schemas.schema_problems import (
     locate_schema_problems,
     locate_skill_schema_problems,
 )
+from lorecraft.project.schemas.skill import SKILL_SCHEMA_REFERENCE, skill_frontmatter_schema_query
 from lorecraft.project.schemas.skill_fields import SkillFields, parse_skill_fields
 
 if TYPE_CHECKING:
@@ -66,7 +67,8 @@ def schema_problems_query(primitives: 'Primitives') -> tuple[SchemaProblems, ...
     schemas = governance.frontmatter_schemas() if governance is not None else ()
     if isinstance(origin, SkillEntryOrigin) and primitives.builtin_skills_schema():
         frontmatter = primitives.frontmatter()
-        floor = locate_skill_schema_problems(frontmatter)
+        floor_schema = primitives.query_schema(SKILL_SCHEMA_REFERENCE, skill_frontmatter_schema_query)
+        floor = locate_skill_schema_problems(frontmatter, floor_schema)
         governed = locate_schema_problems(frontmatter, schemas) if schemas else ()
         floor_missing = {
             (located.line, located.problem.field)

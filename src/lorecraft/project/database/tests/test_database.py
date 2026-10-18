@@ -13,6 +13,12 @@ from lorecraft.project.corpus import CorpusDirectoryRef, CorpusName, ReservedCor
 from lorecraft.project.database import Database, PrimitiveRead, QueryRead, SchemaInputRead
 from lorecraft.project.item import ItemReadError, MarkdownItemRef, UnlistedItemError
 from lorecraft.project.query import CorpusDirectoryPrimitives, Primitives, SchemaPrimitives, SymlinkPrimitives
+from lorecraft.project.schemas.skill import (
+    SKILL_FRONTMATTER_SCHEMA,
+    SKILL_SCHEMA_INPUT,
+    SKILL_SCHEMA_REFERENCE,
+    skill_frontmatter_schema_query,
+)
 from lorecraft.project.skill import OutsideSymlink, SymlinkRef
 from lorecraft.project.syntax import Heading
 from lorecraft.schemas import BundledOrigin, SchemaInput, SchemaKind, SchemaReference, SchemaReferenceError
@@ -234,6 +240,22 @@ def _schema_catches_missing(primitives: Primitives) -> str | None:
 
 @pytest.mark.unit
 class TestQueryReads:
+    def test_builtin_skills_schema_uses_a_bundled_registry_subject(self) -> None:
+        #: Given
+        database = _database()
+
+        #: When
+        schema = database.query(skill_frontmatter_schema_query, SKILL_SCHEMA_REFERENCE)
+
+        #: Then
+        assert schema is SKILL_FRONTMATTER_SCHEMA, 'the schema query preserves the Pydantic validator instance'
+        assert database.model().schema_inputs[SKILL_SCHEMA_REFERENCE] == SKILL_SCHEMA_INPUT, (
+            'the loaded model exposes the built-in schema with bundled provenance'
+        )
+        assert database.query_reads(skill_frontmatter_schema_query, SKILL_SCHEMA_REFERENCE) == {
+            SchemaInputRead(SKILL_SCHEMA_REFERENCE)
+        }, 'the built-in schema query records its typed registry input dependency'
+
     def test_schema_query_memoizes_by_reference_and_records_its_input(self) -> None:
         #: Given
         database = _database()

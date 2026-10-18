@@ -29,7 +29,7 @@ from .frontmatter_problem import (
     WrongTypeProblem,
 )
 from .frontmatter_schema import StatedFrontmatterSchema
-from .skill import SKILL_FRONTMATTER_SCHEMA
+from .skill import SKILL_FRONTMATTER_SCHEMA, SkillFrontmatterSchema
 
 
 @dataclass(frozen=True, slots=True)
@@ -114,12 +114,15 @@ def locate_schema_problems(
     return tuple(found)
 
 
-def locate_skill_schema_problems(frontmatter: FrontmatterNode) -> tuple[SchemaProblems, ...]:
+def locate_skill_schema_problems(
+    frontmatter: FrontmatterNode, schema: SkillFrontmatterSchema = SKILL_FRONTMATTER_SCHEMA
+) -> tuple[SchemaProblems, ...]:
     """What the Agent Skills specification rejects in a skill's frontmatter, each problem on its line. Raises nothing.
 
     Args:
         frontmatter: The frontmatter of the skill's `SKILL.md`, as parsed; a block that is missing, not YAML or not a
             mapping is held to no schema.
+        schema: The Pydantic validator resolved for the bundled Agent Skills registry subject.
 
     Returns:
         One entry, for the Agent Skills specification; none when the block is missing, not YAML or not a mapping,
@@ -133,7 +136,7 @@ def locate_skill_schema_problems(frontmatter: FrontmatterNode) -> tuple[SchemaPr
         case _:
             assert_never(frontmatter)
 
-    problems = _located_problems(frontmatter, SKILL_FRONTMATTER_SCHEMA.validate(frontmatter.data))
+    problems = _located_problems(frontmatter, schema.validate(frontmatter.data))
     return (SchemaProblems(source=AgentSkillsSchema(), problems=problems),)
 
 

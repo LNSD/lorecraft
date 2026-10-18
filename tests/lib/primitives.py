@@ -12,6 +12,7 @@ from lorecraft.project.item import DocumentOrigin, ItemOrigin, MarkdownItemRef
 from lorecraft.project.link_target import DocumentLink, LinkBase, LinkTargetEntry
 from lorecraft.project.query import Query, SchemaQuery
 from lorecraft.project.schemas import SpecName, StructureSpec
+from lorecraft.project.schemas.skill import SKILL_SCHEMA_INPUT, SKILL_SCHEMA_REFERENCE
 from lorecraft.project.syntax import (
     Anchor,
     FrontmatterNode,
@@ -24,7 +25,19 @@ from lorecraft.project.syntax import (
 )
 from lorecraft.project.workspace import Governance
 from lorecraft.rules.link.queries import linked_documents
-from lorecraft.schemas import SchemaReference
+from lorecraft.schemas import SchemaInput, SchemaReference
+
+
+class _BundledSkillSchemaPrimitives:
+    """Schema primitives for standalone rule tests; only the bundled skills subject is available."""
+
+    def schema_input(self) -> SchemaInput:
+        """The immutable bundled Agent Skills schema input."""
+        return SKILL_SCHEMA_INPUT
+
+    def query_schema[T](self, ref: SchemaReference, query: SchemaQuery[T]) -> T:
+        """Standalone rule tests do not expose nested schema subjects."""
+        raise NotImplementedError(f'standalone primitives cannot read nested schema {ref}')
 
 
 @dataclass(frozen=True, slots=True)
@@ -135,5 +148,7 @@ class StructurePrimitives:
         raise NotImplementedError('standalone primitives cannot read another item')
 
     def query_schema[T](self, ref: SchemaReference, query: SchemaQuery[T]) -> T:
-        """No schema subjects are available to this standalone primitive value."""
-        raise NotImplementedError('standalone primitives cannot read a schema')
+        """Answer only the bundled skills subject for standalone skill rule tests."""
+        if ref != SKILL_SCHEMA_REFERENCE:
+            raise NotImplementedError(f'standalone primitives cannot read schema {ref}')
+        return query(_BundledSkillSchemaPrimitives())

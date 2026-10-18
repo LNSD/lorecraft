@@ -58,6 +58,7 @@ from lorecraft.project.schemas import (
     parse_spec_file,
 )
 from lorecraft.project.schemas import Repository as SchemaRepository
+from lorecraft.project.schemas.skill import SKILL_SCHEMA_INPUT
 from lorecraft.project.schemas.skill_compatibility import skill_schema_contradictions
 from lorecraft.project.schemas.structure_failure import ContradictorySkillField
 from lorecraft.project.skill import (
@@ -175,7 +176,7 @@ def load_workspace(
         builtin_skills_schema: Whether to apply the Agent Skills floor and preflight skills schemas for contradictions.
     """
     failures: list[LoadFailure] = []
-    schema_inputs: dict[SchemaReference, SchemaInput] = {}
+    schema_inputs: dict[SchemaReference, SchemaInput] = {SKILL_SCHEMA_INPUT.reference: SKILL_SCHEMA_INPUT}
     spec_paths = _list_spec_paths(schemas, failures)
     corpus_directories = _list_corpus_directories(documents, failures)
 
