@@ -53,6 +53,9 @@ ls docs/__meta__/*.md
 grep -m 2 -E '^(name|description):' docs/__meta__/*.md   # where meta specs carry frontmatter
 ```
 
+A feature doc is only for behavior a user or an agent can invoke or observe; internal architecture, libraries
+and registries belong in `docs/code/` or `docs/arch/`, not in `docs/feat/`.
+
 If none fits, the document probably belongs outside every corpus, at the `docs/` root, where no check reads it.
 If it needs a corpus that does not exist yet, that is a new meta spec: use `/docs-rules-creator` first.
 
