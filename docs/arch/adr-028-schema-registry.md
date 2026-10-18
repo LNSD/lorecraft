@@ -77,6 +77,24 @@ are interchangeable.
 10. **Schema references do not expand JSON Schema resource policy.** An internal registry reference is not a
     JSON Schema `$id`. Existing restrictions on external references, dialects, and resource boundaries remain in
     force. Registry resolution is local to loaded repository inputs and bundled definitions.
+11. **The Agent Skills floor schema enters via bootstrap pre-registration.** Pre-registration supplies the bundled
+    Agent Skills floor schema input during workspace model loading. The global opt-out (`--no-builtin-skills-schema`)
+    is achieved by omitting the pre-registered floor schema input from the loaded model's schema inputs. When
+    omitted, the active schema registry simply contains no entry for the floor schema reference; absence is a
+    normal registry state rather than an error.
+12. **Boolean flag plumbing is eliminated across downstream layers.** Because the presence or absence of the floor
+    schema is fully captured by the schema registry entries in the loaded model, `check_skill_compatibility` and
+    `builtin_skills_schema` boolean parameters are removed from `loader.py`, `model.py`, `database.py`,
+    `primitives.py`, and `runner.py`. Downstream layers (database query primitives, frontmatter queries, engine rule
+    runners, inspect command formatting) determine whether the floor applies by querying registry presence for the
+    floor schema reference rather than inspecting a propagated boolean flag.
+13. **Bounded compatibility preflight is a project-owned operation.** During loader bootstrap, when the pre-registered
+    floor schema input is present, a project schema operation (`project/schemas`) evaluates candidate repository skills
+    layers against the active floor schema reference using ADR-022's bounded direct-field analysis (`name` and
+    `description` string constraints). The preflight operation returns contradictions to the loader, which records
+    them via its existing failed-structure mechanism (`_record_failed_structure`). When the floor schema is not
+    pre-registered, no compatibility preflight is executed and no contradiction can occur. `lorecraft.schemas` does
+    not execute compatibility checks, compose layers, or enforce failed-layer policy.
 
 ### Design Shape
 
@@ -84,7 +102,13 @@ The intended flow is:
 
 ```text
 workspace FileSystem
-        │ reads source inputs once
+        │ reads repository schemas
+        │
+bundled Agent Skills schema
+        │ pre-registered at bootstrap (omitted if opted out)
+        ▼
+project preflight ── bounded contradiction check ──► loader records failed layers
+        │
         ▼
 loaded model: typed schema inputs + origin + governance data
         │
@@ -94,9 +118,12 @@ Database ── memoized schema query(schema subject) ──► schema facts
         └──────── item validation query reads facts ────────┘
 ```
 
-The diagram separates ownership. The loader supplies immutable raw inputs and project governance data. Schema
-queries produce memoized derived facts. Item queries record dependencies on the schema subjects they actually
-read. The registry is a lookup and type boundary; it does not independently memoize parsed or validated results.
+The diagram separates ownership. The loader supplies immutable raw inputs and project governance data, pre-registering
+bundled schemas unless opted out. Project-owned preflight evaluates candidate skills layers against the pre-registered
+floor before recording failed layers. Schema queries produce memoized derived facts. Item queries record dependencies
+on the schema subjects they actually read. Downstream query and engine consumers test registry presence instead of
+carrying boolean flags. The registry is a lookup and type boundary; it does not independently memoize parsed or validated
+results.
 
 ### Alternatives Considered
 
@@ -110,6 +137,13 @@ read. The registry is a lookup and type boundary; it does not independently memo
   resources, but it does not provide Lorecraft source governance, failure policy, query dependencies or
   memoization. It also crosses the current dependency containment boundary. It may be used inside an owned adapter
   only if a separate dependency-boundary decision permits it; it is not the project registry architecture.
+- **Keep contradiction preflight directly inside loader structure loops.** Rejected. Having `loader.py` coordinate
+  skills-specific schema contradiction analysis across multiple helper functions couples loader parsing with
+  skill domain rules.
+- **Put layer composition and contradiction preflight into `lorecraft.schemas`.** Rejected. Coupling contradiction
+  detection to `SchemaRegistry` registration would violate decision 4 by placing project governance and failure
+  policy inside pure schema utilities. Option 2 (a project-owned preflight operation invoked at bootstrap) preserves
+  architectural separation.
 
 ## Consequences
 
@@ -121,6 +155,11 @@ read. The registry is a lookup and type boundary; it does not independently memo
 - Keeping raw inputs in the loaded model and parsed structure specifications in their existing domain avoids a
   registry/database bootstrap cycle. It also means loader parsing and database schema queries have distinct roles
   that must be documented and tested at their boundary.
+- Pre-registering the Agent Skills floor schema into the loaded model makes opt-out a simple omission of the
+  bundled input at the bootstrap edge, eliminating redundant boolean plumbing across loader, model, database, and
+  engine layers.
+- Bounded contradiction preflight remains owned by the project schema layer; the pure registry remains unaware of
+  governance policy or failure recording.
 - Explicit kind and origin make the model more verbose but prevent a structure dialect from being mistaken for
   JSON Schema and prevent built-in provenance from being lost.
 - The design prepares schema read sets for future cross-revision carry-over, but does not deliver cross-revision
@@ -155,6 +194,11 @@ read. The registry is a lookup and type boundary; it does not independently memo
       governed by the structure-specification domain
 - [ ] Built-in skills use registry resolution with bundled origin and preserve ADR-022 validation behavior,
       diagnostics, independent layers, opt-out, bounded preflight, and duplicate-field suppression
+- [ ] The Agent Skills floor schema is pre-registered during bootstrap and omitted when opting out, without
+      propagating `check_skill_compatibility` or `builtin_skills_schema` boolean flags downstream
+- [ ] Bounded compatibility preflight is executed by a project-owned operation against the pre-registered floor
+      schema input and reported to the loader's failed-structure records, keeping `lorecraft.schemas` free of
+      project governance and failure policy
 - [ ] Schema subject identities and read sets can be compared across database revisions by a future `advance`
       implementation; this ADR does not implement advancement
 - [ ] Internal schema references do not enable external JSON Schema resources or change current dialect and
