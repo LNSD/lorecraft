@@ -25,8 +25,9 @@ query and hands it the facts sits above in `lorecraft.engine`; the query is answ
 
 - A value that identifies a rule: a release, a group's prefix and title, a code, a name, an alias code, a level, and
   the severity an engine condition fixes.
-- A rule base binds the subject kinds a rule judges and where its occurrences point. A `Queried*Rule` names a query
-  whose facts `judge` receives; `QueriedDocumentSkillRule` lets a corpus rule judge both documents and skill entries.
+- A rule base binds the subject kinds a rule judges and where its occurrences point. A queried rule combines `Queried`
+  with its subject-kind base and names the query whose facts `judge` receives; `QueriedDocumentSkillRule` lets a corpus
+  rule judge both documents and skill entries.
   `MarkdownRule` covers documents, skill entries and resources; `SkillFileRule` covers skill entries and resources,
   never documents. Document rules declare the facet they read, and `governing_facet` states the facet gating the rule.
   Markdown rules use `Facet.STRUCTURE` for documents and run on skill Markdown independently of corpus governance.

@@ -33,26 +33,25 @@ decoded and reported at that path, under its ref. A resource is a subject of its
 the file it leads to, and reported under its ref, at the path an agent reaches it by, through the same item queries.
 The runner never lists a skill's resources itself, so a skill handed over judges its `SKILL.md` alone.
 
-A layout entry is one symlink of the skill layout whose chain leaves the repository, handed over as the
-`OutsideSymlink` record the model or a skill's resource listing holds for it, or a directory under `docs/` named like
-a reserved corpus, handed over as the `ReservedCorpusDirectory` record the model holds. Whether a chain leaves the
-repository is decided there, from the link targets the scan recorded; a symlink that stays inside, or dangles inside,
-is no layout entry. The caller collects the entries its selection covers as it chooses every other subject, from
+A layout entry is one symlink of the skill layout whose chain leaves the repository, represented by its typed
+`SymlinkRef`, or a directory under `docs/` named like a reserved corpus, represented by its typed
+`CorpusDirectoryRef`. The caller collects the entries its selection covers as it chooses every other subject, from
 queries: the model's `outside_symlinks`, for a skills directory, an entry in one or an entry's `SKILL.md`, its
 `sorted_overlapping_directories`, for a reserved-corpus directory, and the `skill_resources` listing of each skill it
-checks whole, for a symlink inside that skill. Each is reported at the path
-an agent reaches it by, in the order given like every subject. An entry has no text, so it is never decoded, and the
-package governs the layout, so it is never ungoverned: every rule over a layout entry of its kind judges it from its
-query.
+checks whole, for a symlink inside that skill. Each is reported at the path an agent reaches it by, in the order given
+like every subject. An entry has no text, so it is never decoded, and the package governs the layout, so it is never
+ungoverned. The runner judges an entry through `Database.query` by its typed subject ref, so its answer is memoized
+just like an item's.
 """
 
 from collections.abc import Callable
-from typing import assert_never
+from typing import assert_never, cast, overload
 
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.corpus import CorpusDirectoryRef, ReservedCorpusDirectory
 from lorecraft.project.database import Database, ItemText
 from lorecraft.project.item import ItemFacet, ItemKind, MarkdownItemDescriptor, MarkdownItemRef
+from lorecraft.project.query import CorpusDirectoryQuery, Query, SymlinkQuery
 from lorecraft.project.skill import OutsideSymlink, SymlinkRef
 from lorecraft.rules.declaration import Rule
 from lorecraft.rules.report import (
@@ -67,7 +66,12 @@ from lorecraft.rules.subject import (
     ItemRule,
     Queried,
     QueriedCorpusDirectoryRule,
+    QueriedDocumentRule,
     QueriedDocumentSkillRule,
+    QueriedFrontmatterRule,
+    QueriedMarkdownRule,
+    QueriedSkillFileRule,
+    QueriedSkillRule,
     QueriedSymlinkRule,
     governing_facet,
 )
@@ -157,41 +161,54 @@ def _reading[R: ItemRule](
     )
 
 
-def _judged[Facts](rule: type[Queried[Facts]], database: Database, ref: MarkdownItemRef) -> tuple[Rule, ...]:
-    """Every occurrence of one rule over an item, from the facts of its query.
-
-    Args:
-        rule: The rule to run.
-        database: The revision the query is resolved from.
-        ref: The item judged.
-    """
-    return rule.judge(database.query(rule.query(), ref))
+type ItemQueriedRule[Facts] = (
+    QueriedDocumentRule[Facts]
+    | QueriedSkillRule[Facts]
+    | QueriedMarkdownRule[Facts]
+    | QueriedSkillFileRule[Facts]
+    | QueriedFrontmatterRule[Facts]
+)
 
 
-def _judged_symlink[Facts](
-    rule: type[QueriedSymlinkRule[Facts]], database: Database, symlink: OutsideSymlink
+@overload
+def _judged[Facts](
+    rule: type[ItemQueriedRule[Facts]], database: Database, ref: MarkdownItemRef
+) -> tuple[Rule, ...]: ...
+
+
+@overload
+def _judged[Facts](rule: type[QueriedSymlinkRule[Facts]], database: Database, ref: SymlinkRef) -> tuple[Rule, ...]: ...
+
+
+@overload
+def _judged[Facts](
+    rule: type[QueriedCorpusDirectoryRule[Facts]], database: Database, ref: CorpusDirectoryRef
+) -> tuple[Rule, ...]: ...
+
+
+def _judged[Facts](
+    rule: type[Queried[Facts]],
+    database: Database,
+    ref: MarkdownItemRef | SymlinkRef | CorpusDirectoryRef,
 ) -> tuple[Rule, ...]:
-    """Every occurrence of one rule at a symlink, from the cached query facts.
+    """Every occurrence of one rule over a subject, from the facts of its memoized query.
 
     Args:
         rule: The rule to run.
         database: The revision the query is resolved from.
-        symlink: The outside symlink judged.
+        ref: The typed subject judged by the rule.
     """
-    return rule.judge(database.query(rule.query(), SymlinkRef(symlink.path)))
-
-
-def _judged_directory[Facts](
-    rule: type[QueriedCorpusDirectoryRule[Facts]], database: Database, directory: ReservedCorpusDirectory
-) -> tuple[Rule, ...]:
-    """Every occurrence of one rule at a reserved-corpus directory, from the cached query facts.
-
-    Args:
-        rule: The rule to run.
-        database: The revision the query is resolved from.
-        directory: The reserved-corpus directory judged.
-    """
-    return rule.judge(database.query(rule.query(), CorpusDirectoryRef(directory.path)))
+    query = rule.query()
+    match ref:
+        case MarkdownItemRef():
+            facts = database.query(cast('Query[Facts]', query), ref)
+        case SymlinkRef():
+            facts = database.query(cast('SymlinkQuery[Facts]', query), ref)
+        case CorpusDirectoryRef():
+            facts = database.query(cast('CorpusDirectoryQuery[Facts]', query), ref)
+        case _:
+            assert_never(ref)
+    return rule.judge(facts)
 
 
 def _located[R: Rule](
@@ -221,16 +238,19 @@ def check_layout_entry(
         database: The revision whose model and resource listings resolve the subject ref.
         table: The rules the run enables.
     """
+    # Layout facts use the database's typed query cache like facts for Markdown subjects.
     match entry:
         case OutsideSymlink():
             symlink = entry
             diagnostics = _located(
-                entry.path, table.symlink_rules, lambda rule: _judged_symlink(rule, database, symlink)
+                entry.path, table.symlink_rules, lambda rule: _judged(rule, database, SymlinkRef(symlink.path))
             )
         case ReservedCorpusDirectory():
             directory = entry
             diagnostics = _located(
-                entry.path, table.corpus_directory_rules, lambda rule: _judged_directory(rule, database, directory)
+                entry.path,
+                table.corpus_directory_rules,
+                lambda rule: _judged(rule, database, CorpusDirectoryRef(directory.path)),
             )
         case _:
             assert_never(entry)
