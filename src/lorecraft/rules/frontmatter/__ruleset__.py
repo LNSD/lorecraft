@@ -23,6 +23,7 @@ from typing import Final, assert_never
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.query import Primitives
 from lorecraft.project.query import frontmatter_owner as item_frontmatter_owner
+from lorecraft.project.query import schema_problems as item_schema_problems
 from lorecraft.project.query import skill_fields as item_skill_fields
 from lorecraft.project.schemas import (
     AgentSkillsSchema,
@@ -100,7 +101,7 @@ def schema_problems(primitives: Primitives) -> tuple[SchemaProblems, ...]:
     Args:
         primitives: The model state of the document or the skill.
     """
-    return primitives.schema_problems()
+    return primitives.query(item_schema_problems)
 
 
 def owner_spec(owner: FrontmatterOwner) -> RootRelativePath | None:

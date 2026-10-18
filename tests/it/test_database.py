@@ -29,6 +29,7 @@ from lorecraft.project.database import Database, ItemText, Undecodable
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.item import MarkdownItemRef
 from lorecraft.project.layout import LinkedLayoutError
+from lorecraft.project.query import schema_problems
 from lorecraft.project.schemas import outline_alignment
 from lorecraft.project.skill import SkillLocation, SkillRef
 from lorecraft.project.syntax import Frontmatter, Heading, LineNumber, count_tokens, split_lines
@@ -276,7 +277,7 @@ class TestDatabase:
         source = _document_text(database, PYTHON_GUIDE)
 
         #: When
-        problems = database.item_schema_problems(source)
+        problems = database.query(schema_problems, source.ref)
 
         #: Then
         assert len(problems) == 1, 'one frontmatter schema judges the document: the failed layer states none'
@@ -293,7 +294,7 @@ class TestDatabase:
         )
 
         #: When
-        problems = database.item_schema_problems(source)
+        problems = database.query(schema_problems, source.ref)
 
         #: Then
         assert [type(problem.source).__name__ for problem in problems] == [
@@ -328,7 +329,7 @@ class TestDatabase:
         source = _skill_text(database, REVIEW)
 
         #: When
-        problems = database.item_schema_problems(source)
+        problems = database.query(schema_problems, source.ref)
 
         #: Then
         assert [len(schema.problems) for schema in problems] == [1, 0], (

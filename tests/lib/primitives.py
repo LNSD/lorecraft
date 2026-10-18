@@ -10,11 +10,13 @@ from lorecraft.project.item import MarkdownItemDescriptor, MarkdownItemRef
 from lorecraft.project.link_target import DocumentLink, LinkBase, LinkTargetEntry
 from lorecraft.project.query import Query
 from lorecraft.project.query import frontmatter_owner as item_frontmatter_owner
+from lorecraft.project.query import schema_problems as item_schema_problems
 from lorecraft.project.query import skill_fields as item_skill_fields
 from lorecraft.project.schemas import (
     FrontmatterOwner,
     SchemaProblems,
     SkillFields,
+    StatedFrontmatterSchema,
     StructureSpec,
 )
 from lorecraft.project.syntax import (
@@ -78,6 +80,14 @@ class StructurePrimitives:
         """No model descriptor is needed by these fakes; shared queries return their held result directly."""
         raise NotImplementedError('standalone primitives do not model item descriptors')
 
+    def frontmatter_schemas(self) -> tuple[StatedFrontmatterSchema, ...]:
+        """No model schemas are needed by these fakes; shared queries return their held result directly."""
+        raise NotImplementedError('standalone primitives do not model frontmatter schemas')
+
+    def builtin_skills_schema(self) -> bool:
+        """No model setting is needed by these fakes; shared queries return their held result directly."""
+        raise NotImplementedError('standalone primitives do not model the built-in skills schema')
+
     def headings(self) -> tuple[Heading, ...]:
         """The headings this was built with."""
         return self.heading_list
@@ -122,10 +132,6 @@ class StructurePrimitives:
         """The block this was built with."""
         return self.frontmatter_node
 
-    def schema_problems(self) -> tuple[SchemaProblems, ...]:
-        """The problems this was built with."""
-        return self.problems
-
     def query[T](self, query: Query[T]) -> T:
         """The answer of the query over these same primitives."""
         if query is linked_documents:
@@ -133,6 +139,8 @@ class StructurePrimitives:
         if query is item_frontmatter_owner:
             assert self.owner is not None, 'the primitives were built without an owner'
             return cast('T', self.owner)
+        if query is item_schema_problems:
+            return cast('T', self.problems)
         if query is item_skill_fields:
             return cast('T', self.fields)
         return query(self)

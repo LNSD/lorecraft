@@ -19,6 +19,7 @@ from lorecraft.project.document import DocumentRef
 from lorecraft.project.item import ItemReadError, MarkdownItemRef, UnlistedItemError
 from lorecraft.project.layout import SNAPSHOT_SCOPE
 from lorecraft.project.link_target import EscapingTarget, LinkTarget, PathLookup
+from lorecraft.project.query import schema_problems
 from lorecraft.project.schemas import outline_alignment
 from lorecraft.project.syntax import FrontmatterNode, NormalisedLinkPath, ParsedDocument
 from lorecraft.project.workspace import WorkspaceModel
@@ -129,8 +130,8 @@ class TestItemQueries:
         source = _decoded(database, GUIDE)
 
         #: When
-        database.item_schema_problems(source)
-        database.item_schema_problems(source)
+        database.query(schema_problems, source.ref)
+        database.query(schema_problems, source.ref)
 
         #: Then
         assert database.computed == ['frontmatter'], 'the frontmatter is computed once and no parse is demanded'

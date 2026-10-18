@@ -6,7 +6,7 @@ reaches the model, so what a query read is what its answer depends on: a databas
 revision whenever every primitive it read is kept, and a query never reads the snapshot.
 """
 
-from .frontmatter import frontmatter_owner, skill_fields
+from .frontmatter import frontmatter_owner, schema_problems, skill_fields
 from .linked_paths import linked_paths
 from .primitives import (
     CorpusDirectoryPrimitives,
@@ -34,5 +34,6 @@ __all__: list[str] = [
     'SyntaxPrimitives',
     'linked_paths',
     'frontmatter_owner',
+    'schema_problems',
     'skill_fields',
 ]

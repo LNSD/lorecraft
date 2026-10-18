@@ -1,4 +1,4 @@
-"""The `item_schema_problems` and `skill_fields` queries, for one document or skill.
+"""The `schema_problems` and `skill_fields` queries, for one document or skill.
 
 A document's schemas come from the model's governance and a skill's Agent Skills check is independent of corpus
 governance, so the queries
@@ -20,7 +20,7 @@ from lorecraft.project.corpus import CorpusName
 from lorecraft.project.database import Database, ItemText
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.item import ItemReadError, MarkdownItemRef
-from lorecraft.project.query import skill_fields
+from lorecraft.project.query import schema_problems, skill_fields
 from lorecraft.project.schemas import (
     AgentSkillsSchema,
     FieldGuidance,
@@ -145,7 +145,7 @@ class TestSchemaProblems:
         source = _document_text(database, TYPING)
 
         #: When
-        found = database.item_schema_problems(source)
+        found = database.query(schema_problems, source.ref)
 
         #: Then
         assert found == (
@@ -176,22 +176,35 @@ class TestSchemaProblems:
         typing = b'---\nname: python-typing\n---\n# Typing\n'
         database = FrontmatterReadingDatabase.from_snapshot(_snapshot(REQUIRE_STATUS, REQUIRE_OWNER, typing=typing))
         source = _document_text(database, TYPING)
-        first = database.item_schema_problems(source)
+        first = database.query(schema_problems, source.ref)
 
         #: When
-        second = database.item_schema_problems(source)
+        second = database.query(schema_problems, source.ref)
 
         #: Then
         assert second is first, 'the schemas are applied once per database, then shared by every rule'
         assert database.read == [MarkdownItemRef(TYPING.path)], 'the frontmatter is read once, for the first call'
 
-    def test_skill_fields_keep_undecodable_items_empty(self) -> None:
+    def test_schema_problems_keep_undecodable_items_empty(self) -> None:
         #: Given
-        snapshot = _snapshot(REQUIRE_STATUS, STRING_DESCRIPTION, typing=b'\xff', review=b'\xff')
+        snapshot = _snapshot(REQUIRE_STATUS, STRING_DESCRIPTION, typing=b'\xff', review=b'')
         database = Database.from_snapshot(snapshot)
+        ref = MarkdownItemRef(TYPING.path)
 
         #: When
-        fields = database.query(skill_fields, MarkdownItemRef(REVIEW.path))
+        problems = database.query(schema_problems, ref)
+
+        #: Then
+        assert problems == (), 'an undecodable document has no frontmatter schema problems'
+
+    def test_skill_fields_keep_undecodable_items_empty(self) -> None:
+        #: Given
+        snapshot = _snapshot(REQUIRE_STATUS, STRING_DESCRIPTION, typing=b'', review=b'\xff')
+        database = Database.from_snapshot(snapshot)
+        ref = MarkdownItemRef(REVIEW.path)
+
+        #: When
+        fields = database.query(skill_fields, ref)
 
         #: Then
         assert fields == {}, 'an undecodable skill has no parsed frontmatter fields'
@@ -211,6 +224,21 @@ class TestSchemaProblems:
         #: Then
         assert raised.value.ref == ref, 'the unreadable skill is identified by its reference'
 
+    def test_schema_problems_of_an_unreadable_item_still_raise_the_read_error(self) -> None:
+        #: Given
+        snapshot = _snapshot(REQUIRE_STATUS, STRING_DESCRIPTION, typing=b'---\nname: python-typing\n---\n')
+        ref = MarkdownItemRef(TYPING.path)
+        records = dict(snapshot.records)
+        records[ref.path] = RefusedRead(OsRefusal.PERMISSION_DENIED)
+        database = Database.from_snapshot(Snapshot(SnapshotRecords(records), snapshot.scope))
+
+        #: When
+        with pytest.raises(ItemReadError) as raised:
+            database.query(schema_problems, ref)
+
+        #: Then
+        assert raised.value.ref == ref, 'the unreadable document is identified by its reference'
+
     def test_schema_problems_with_no_frontmatter_schema_holds_none(self) -> None:
         #: Given
         # the namespace states a schema, but a namespace narrows the corpus, which states none
@@ -220,7 +248,7 @@ class TestSchemaProblems:
         source = _document_text(database, TYPING)
 
         #: When
-        found = database.item_schema_problems(source)
+        found = database.query(schema_problems, source.ref)
 
         #: Then
         assert found == (), 'no corpus schema states a frontmatter schema, so no schema is applied'
@@ -234,7 +262,7 @@ class TestSchemaProblems:
         source = _document_text(database, TYPING)
 
         #: When
-        database.item_schema_problems(source)
+        database.query(schema_problems, source.ref)
 
         #: Then
         assert database.read == [], (
@@ -247,7 +275,7 @@ class TestSchemaProblems:
         source = _document_text(database, TYPING)
 
         #: When
-        found = database.item_schema_problems(source)
+        found = database.query(schema_problems, source.ref)
 
         #: Then
         assert found == (), (
@@ -269,7 +297,7 @@ class TestSchemaProblems:
         source = _document_text(database, DocumentRef(CorpusName.parse('blog'), AspectFilename.parse('launch')))
 
         #: When
-        found = database.item_schema_problems(source)
+        found = database.query(schema_problems, source.ref)
 
         #: Then
         assert found == (), 'no specification governs a document in no corpus the model holds'
@@ -284,7 +312,7 @@ class TestSkillSchemaProblems:
         source = _skill_text(database, REVIEW)
 
         #: When
-        found = database.item_schema_problems(source)
+        found = database.query(schema_problems, source.ref)
 
         #: Then
         assert found == (
@@ -336,7 +364,7 @@ class TestSkillSchemaProblems:
         source = _skill_text(database, REVIEW)
 
         #: When
-        found = database.item_schema_problems(source)
+        found = database.query(schema_problems, source.ref)
 
         #: Then
         assert found == (), 'no schema can hold a missing block: the block rules report it'
@@ -360,10 +388,10 @@ class TestSkillSchemaProblems:
         review = b'---\nname: review\nextra: y\n---\n# Review\n'
         database = Database.from_snapshot(_snapshot(REQUIRE_STATUS, STRING_DESCRIPTION, typing=b'', review=review))
         source = _skill_text(database, REVIEW)
-        first = database.item_schema_problems(source)
+        first = database.query(schema_problems, source.ref)
 
         #: When
-        second = database.item_schema_problems(source)
+        second = database.query(schema_problems, source.ref)
 
         #: Then
         assert second is first, 'a skill is held to the specification once per database, then shared by every rule'

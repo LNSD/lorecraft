@@ -8,10 +8,10 @@ model; every other query sits above it, computed on first use and kept for as lo
 The item queries share one family keyed by `MarkdownItemRef`.
 `item_text(ref)` decodes the descriptor's read location into an `ItemText` witness or an `Undecodable` marker.
 `item_link_targets(source)` is an input query; `item_frontmatter`, `item_parse`, `item_token_count`,
-`item_line_count`, `item_governance` and `item_schema_problems` are derived queries. Frontmatter owner and skill field
-facts are declared rule queries. A
-resource's `resource_item(location)` registers the reference from its skill's listing, and its item queries read the
-descriptor at the resolved location. A document the model does not list is resolved by its corpus and filename.
+`item_line_count` and `item_governance` are derived queries. Frontmatter rule facts are declared queries in
+`lorecraft.project.query`. A resource's `resource_item(location)` registers the reference from its skill's listing,
+and its item queries read the descriptor at the resolved location. A document the model does not list is resolved by
+its corpus and filename.
 
 The declared `query(query, ref)` memoizes a rule-owned query over one item's primitives; `query_reads(query, ref)`
 reports typed reads, each naming a primitive or query and the item ref it read. A query's result carries over when each
@@ -65,10 +65,6 @@ it read does, `item_governance(ref)` excepted, as its bullet states:
   the model is dropped by any entry added or deleted
   under `docs/`, so it is recomputed from the next model and kept when it compares equal to the one it replaces. It
   can carry over when `model()` does not, and so can every analysis that reads it.
-- `item_schema_problems(source)`: what each frontmatter schema that governs one item rejects, the shared analysis
-  every frontmatter inspection reads. It reads the item's frontmatter and applicable governance, if any, and nothing
-  else. Carry-over follows the frontmatter and the governance it reads.
-
 Other public methods either answer from queries or inspect the snapshot. Their section and carry-over rules are:
 
 - `item_structure_specs(ref)` reads `item_governance(ref)` for documents and skill entries. Resources and
@@ -165,7 +161,6 @@ from lorecraft.project.item import (
     ItemReadError,
     MarkdownItemDescriptor,
     MarkdownItemRef,
-    SkillEntryOrigin,
     SpecificationOrigin,
     UnlistedItemError,
 )
@@ -177,11 +172,8 @@ from lorecraft.project.link_target import (
 )
 from lorecraft.project.query import Query
 from lorecraft.project.schemas import (
-    MissingFieldProblem,
-    SchemaProblems,
+    StatedFrontmatterSchema,
     StructureSpec,
-    locate_schema_problems,
-    locate_skill_schema_problems,
 )
 from lorecraft.project.skill import Repository as SkillRepository
 from lorecraft.project.skill import (
@@ -230,8 +222,9 @@ class PrimitiveRead(StrEnum):
     TOKEN_COUNT = 'token_count'
     LINE_COUNT = 'line_count'
     FRONTMATTER = 'frontmatter'
-    SCHEMA_PROBLEMS = 'schema_problems'
     ITEM_DESCRIPTOR = 'item_descriptor'
+    FRONTMATTER_SCHEMAS = 'frontmatter_schemas'
+    BUILTIN_SKILLS_SCHEMA = 'builtin_skills_schema'
     LINKS = 'links'
     ANCHORS = 'anchors'
     LINK_TARGETS = 'link_targets'
@@ -345,13 +338,16 @@ class _ReadPrimitives(_ReadSet):
         source = self._database.item_text(self._ref)
         return source.descriptor if isinstance(source, ItemText) else None
 
-    def schema_problems(self) -> tuple[SchemaProblems, ...]:
-        """What each schema that governs the item rejects in its frontmatter; none for an item that is not UTF-8."""
-        self._record(QueryRead(PrimitiveRead.SCHEMA_PROBLEMS, self._ref))
-        source = self._database.item_text(self._ref)
-        if not isinstance(source, ItemText):
-            return ()
-        return self._database.item_schema_problems(source)
+    def frontmatter_schemas(self) -> tuple[StatedFrontmatterSchema, ...]:
+        """The frontmatter schemas governing this item, from its resolved model governance."""
+        self._record(QueryRead(PrimitiveRead.FRONTMATTER_SCHEMAS, self._ref))
+        governance = self._database.item_governance(self._ref)
+        return governance.frontmatter_schemas() if governance is not None else ()
+
+    def builtin_skills_schema(self) -> bool:
+        """Whether the built-in Agent Skills schema applies to skill entries."""
+        self._record(QueryRead(PrimitiveRead.BUILTIN_SKILLS_SCHEMA, self._ref))
+        return self._database.model().builtin_skills_schema
 
     def query[T](self, query: Query[T]) -> T:
         """The memoized answer of another query over the item; what it read counts as this query's reads."""
@@ -441,9 +437,9 @@ class Database:
     scope. Their carry-over rules are stated by their methods.
 
     Derived queries read other queries: `item_frontmatter(source)`, `item_parse(source)`,
-    `item_token_count(source)`, `item_line_count(source)`, `item_governance(ref)` and `item_schema_problems(source)`.
-    The frontmatter rule facts `frontmatter_owner` and `skill_fields` are declared queries in
-    `lorecraft.project.query`, memoized with the other query results and their read sets.
+    `item_token_count(source)`, `item_line_count(source)` and `item_governance(ref)`. Frontmatter rule facts such as
+    `frontmatter_owner`, `schema_problems` and `skill_fields` are declared queries in `lorecraft.project.query`,
+    memoized with the other query results and their read sets.
 
     The item family is keyed by `MarkdownItemRef`. A resource's
     reference is registered from its listing by `resource_item(location)`. A document outside the model's listing is
@@ -487,8 +483,8 @@ class Database:
         self._item_line_counts: dict[MarkdownItemRef, LineCount] = {}
         # An item no corpus governs is governed by nothing, so `None` is an answer and is cached too.
         self._item_governances: dict[MarkdownItemRef, Governance | None] = {}
-        self._item_schema_problems: dict[MarkdownItemRef, tuple[SchemaProblems, ...]] = {}
-        # Declared queries: the answer by the function and the item, with the primitives it read.
+        # Declared queries: the answer by the function and the item, with the primitive and cross-item query keys
+        # it read.
         self._queries: dict[tuple[Query[object], MarkdownItemRef], tuple[object, frozenset[QueryRead]]] = {}
         # Each skill's resource listing, found on the first call; a resource is registered from it with `resource_item`.
         self._skill_resources: dict[SkillRef, SkillResourceListing] = {}
@@ -863,55 +859,6 @@ class Database:
         if ref not in self._item_governances:
             self._item_governances[ref] = self._known(ref).governance
         return self._item_governances[ref]
-
-    def item_schema_problems(self, source: ItemText) -> tuple[SchemaProblems, ...]:
-        """What each applicable frontmatter schema rejects in an item's frontmatter, found on the first call.
-
-        Typed problems, each placed on its line; severity is a rule's. Skills are checked against the Agent Skills
-        floor followed by each loaded corpus schema; an identical missing-field problem is kept only from the floor.
-        Resources have no frontmatter schema checks.
-
-        Carry-over: kept for the next revision whenever `item_frontmatter(source)` and the governance this item reads
-        are kept.
-
-        Args:
-            source: The item's text; its ref is the cache key.
-        """
-        found = self._item_schema_problems.get(source.ref)
-        if found is None:
-            if isinstance(source.descriptor.origin, SkillEntryOrigin) and self.model().builtin_skills_schema:
-                # The fixed Agent Skills floor comes first; configured skill schemas can only add constraints.
-                floor = locate_skill_schema_problems(self.item_frontmatter(source))
-                governance = self.item_governance(source.ref)
-                schemas = governance.frontmatter_schemas() if governance is not None else ()
-                governed = locate_schema_problems(self.item_frontmatter(source), schemas) if schemas else ()
-                floor_missing = tuple(
-                    (located.line, located.problem.field)
-                    for schema in floor
-                    for located in schema.problems
-                    if isinstance(located.problem, MissingFieldProblem)
-                )
-                governed = tuple(
-                    SchemaProblems(
-                        schema.source,
-                        tuple(
-                            located
-                            for located in schema.problems
-                            if not (
-                                isinstance(located.problem, MissingFieldProblem)
-                                and (located.line, located.problem.field) in floor_missing
-                            )
-                        ),
-                    )
-                    for schema in governed
-                )
-                found = (*floor, *governed)
-            else:
-                governance = self.item_governance(source.ref)
-                schemas = governance.frontmatter_schemas() if governance is not None else ()
-                found = locate_schema_problems(self.item_frontmatter(source), schemas) if schemas else ()
-            self._item_schema_problems[source.ref] = found
-        return found
 
     def item_structure_specs(self, ref: MarkdownItemRef) -> tuple[StructureSpec, ...]:
         """The structure specifications of the layers that loaded for a corpus document or skill entry.

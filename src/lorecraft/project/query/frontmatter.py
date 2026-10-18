@@ -8,10 +8,15 @@ from lorecraft.project.query.primitives import Primitives
 from lorecraft.project.schemas import (
     DocumentFrontmatterOwner,
     FrontmatterOwner,
+    MissingFieldProblem,
+    SchemaProblems,
     SkillFields,
     SkillFrontmatterOwner,
+    locate_schema_problems,
+    locate_skill_schema_problems,
     parse_skill_fields,
 )
+from lorecraft.project.syntax import Frontmatter
 
 
 def frontmatter_owner(primitives: Primitives) -> FrontmatterOwner:
@@ -53,3 +58,49 @@ def skill_fields(primitives: Primitives) -> SkillFields:
     if descriptor is None or descriptor.kind is not ItemKind.SKILL_ENTRY:
         return FrozenMapping({})
     return parse_skill_fields(primitives.frontmatter())
+
+
+def schema_problems(primitives: Primitives) -> tuple[SchemaProblems, ...]:
+    """What each schema governing the item rejects in its frontmatter, preserving schema order.
+
+    Args:
+        primitives: The model state of the document or skill entry.
+    """
+    descriptor = primitives.item_descriptor()
+    if descriptor is None:
+        return ()
+    schemas = primitives.frontmatter_schemas()
+    skills = descriptor.kind is ItemKind.SKILL_ENTRY
+    builtin = skills and primitives.builtin_skills_schema()
+    if not schemas and not builtin:
+        return ()
+    frontmatter = primitives.frontmatter()
+    if not isinstance(frontmatter, Frontmatter):
+        return ()
+
+    # The fixed Agent Skills floor comes first; configured skill schemas can only add constraints.
+    floor = locate_skill_schema_problems(frontmatter) if builtin else ()
+    governed = locate_schema_problems(frontmatter, schemas) if schemas else ()
+    if not floor:
+        return governed
+    floor_missing = {
+        (located.line, located.problem.field)
+        for problem_set in floor
+        for located in problem_set.problems
+        if isinstance(located.problem, MissingFieldProblem)
+    }
+    governed = tuple(
+        SchemaProblems(
+            schema.source,
+            tuple(
+                located
+                for located in schema.problems
+                if not (
+                    isinstance(located.problem, MissingFieldProblem)
+                    and (located.line, located.problem.field) in floor_missing
+                )
+            ),
+        )
+        for schema in governed
+    )
+    return (*floor, *governed)

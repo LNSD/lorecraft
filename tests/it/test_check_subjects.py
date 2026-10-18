@@ -33,7 +33,14 @@ from lorecraft.project.document import DocumentRef
 from lorecraft.project.item import MarkdownItemRef
 from lorecraft.project.layout import SNAPSHOT_SCOPE
 from lorecraft.project.link_target import DocumentDirectory, SkillRoot
-from lorecraft.project.query import CountPrimitives, GovernancePrimitives, Query
+from lorecraft.project.query import (
+    CountPrimitives,
+    GovernancePrimitives,
+    Query,
+)
+from lorecraft.project.query import (
+    schema_problems as item_schema_problems,
+)
 from lorecraft.project.schemas import (
     AgentSkillsSchema,
     DocumentEnd,
@@ -46,7 +53,6 @@ from lorecraft.project.schemas import (
     MissingFieldProblem,
     OtherValueConstraint,
     PatternMismatch,
-    SchemaProblems,
     SectionName,
     SkillFrontmatterOwner,
     StructureSpecSchema,
@@ -369,7 +375,6 @@ class CountingDatabase(Database):
         counted_tokens: The items whose tokens were counted, in the order asked, a repeat listed again.
         counted_lines: The items whose lines were counted, in the order asked.
         parsed_frontmatters: The items whose frontmatter was parsed, in the order asked.
-        validated_frontmatters: The items whose frontmatter was checked against its schema.
         parsed_documents: The items whose Markdown was parsed, in the order asked.
     """
 
@@ -384,7 +389,6 @@ class CountingDatabase(Database):
         self.counted_tokens: list[MarkdownItemRef] = []
         self.counted_lines: list[MarkdownItemRef] = []
         self.parsed_frontmatters: list[MarkdownItemRef] = []
-        self.validated_frontmatters: list[MarkdownItemRef] = []
         self.parsed_documents: list[MarkdownItemRef] = []
 
     def item_token_count(self, source: ItemText) -> UnsignedInt:
@@ -422,15 +426,6 @@ class CountingDatabase(Database):
         """
         self.parsed_documents.append(source.ref)
         return super().item_parse(source)
-
-    def item_schema_problems(self, source: ItemText) -> tuple[SchemaProblems, ...]:
-        """Record the item, then hold its frontmatter to the schemas that govern it.
-
-        Args:
-            source: The decoded document whose frontmatter is validated, recorded by its ref first.
-        """
-        self.validated_frontmatters.append(source.ref)
-        return super().item_schema_problems(source)
 
 
 def _snapshot(
@@ -1388,8 +1383,11 @@ class TestCheckSubjects:
 
         #: Then
         assert database.parsed_frontmatters == [], 'no enabled rule reads the frontmatter, so it is never parsed'
-        assert database.validated_frontmatters == [], (
-            'no enabled rule reads the schema problems, so no frontmatter is held to a schema'
+        assert database.query_reads(item_schema_problems, MarkdownItemRef(GUIDE.path)) == frozenset(), (
+            'no enabled rule reads the schema problems, so that query is not run'
+        )
+        assert database.query_reads(item_schema_problems, MarkdownItemRef(REVIEW.path)) == frozenset(), (
+            'no enabled rule reads the schema problems, so that query is not run for skills either'
         )
 
     def test_check_subjects_with_no_frontmatter_schema_never_parses_a_document_frontmatter(
@@ -1672,8 +1670,11 @@ class TestCheckSubjects:
         check_subjects(database, subjects, table)
 
         #: Then
-        assert database.validated_frontmatters == [], (
-            'no enabled rule reads the schema problems, so neither frontmatter is held to its schema'
+        assert database.query_reads(item_schema_problems, MarkdownItemRef(GUIDE.path)) == frozenset(), (
+            'no enabled rule reads the schema problems, so that query is not run'
+        )
+        assert database.query_reads(item_schema_problems, MarkdownItemRef(REVIEW.path)) == frozenset(), (
+            'no enabled rule reads the schema problems, so that query is not run for skills either'
         )
 
     def test_check_subjects_with_a_document_without_its_title_reports_missing_title(
