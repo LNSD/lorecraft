@@ -8,11 +8,13 @@ import pytest
 from lib.tree import from_tree
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.database import Database, PrimitiveRead, QueryRead
-from lorecraft.project.item import MarkdownItemRef
+from lorecraft.project.item import ItemReadError, MarkdownItemRef
 from lorecraft.project.query import Primitives
 from lorecraft.project.syntax import Heading
+from lorecraft.vfs import OsRefusal, RefusedRead, Snapshot, SnapshotRecords
 
 GUIDE: MarkdownItemRef = MarkdownItemRef(RootRelativePath.parse('docs/code/guide.md'))
+TARGET: MarkdownItemRef = MarkdownItemRef(RootRelativePath.parse('docs/feat/target.md'))
 
 
 def _inner(primitives: Primitives) -> tuple[Heading, ...]:
@@ -62,6 +64,19 @@ def _read_set_mutations(source_root: Path) -> tuple[str, ...]:
     return tuple(violations)
 
 
+def _reads_another_item(primitives: Primitives) -> tuple[Heading, ...]:
+    """Read headings from another item through the primitive query interface."""
+    return primitives.query_at(TARGET, _inner)
+
+
+def _reads_unreadable_item(primitives: Primitives) -> tuple[Heading, ...]:
+    """Read another item while treating an unreadable item as empty."""
+    try:
+        return primitives.query_at(TARGET, _inner)
+    except ItemReadError:
+        return ()
+
+
 @pytest.mark.unit
 class TestQueryReads:
     def test_query_reads_with_a_composed_query_includes_inner_query_and_primitive(self) -> None:
@@ -72,6 +87,7 @@ class TestQueryReads:
                     'docs': {
                         '__meta__': {'code.md': b'# Code\n', 'code.spec.json': b'{}'},
                         'code': {'guide.md': b'# Guide\n'},
+                        'feat': {'target.md': b'# Target\n'},
                     }
                 }
             )
@@ -95,3 +111,51 @@ class TestQueryReads:
 
         #: Then
         assert violations == (), 'primitive classes expose reads without direct mutation access'
+
+    def test_query_at_records_the_query_and_the_other_item_ref(self) -> None:
+        #: Given
+        database = Database.from_snapshot(
+            from_tree(
+                {
+                    'docs': {
+                        '__meta__': {'code.md': b'# Code\n', 'code.spec.json': b'{}'},
+                        'code': {'guide.md': b'# Guide\n'},
+                        'feat': {'target.md': b'# Target\n'},
+                    }
+                }
+            )
+        )
+
+        #: When
+        headings = database.query(_reads_another_item, GUIDE)
+
+        #: Then
+        assert tuple(heading.text for heading in headings) == ('Target',), 'the target item query returns its heading'
+        assert database.query_reads(_reads_another_item, GUIDE) == {
+            QueryRead(_inner, TARGET),
+            QueryRead(PrimitiveRead.HEADINGS, TARGET),
+        }, 'the read set identifies the query and the primitive it read'
+
+    def test_query_at_records_an_unreadable_other_item(self) -> None:
+        #: Given
+        snapshot = from_tree(
+            {
+                'docs': {
+                    '__meta__': {'code.md': b'# Code\n', 'code.spec.json': b'{}'},
+                    'code': {'guide.md': b'# Guide\n'},
+                    'feat': {'target.md': b'# Target\n'},
+                }
+            }
+        )
+        records = dict(snapshot.records)
+        records[TARGET.path] = RefusedRead(OsRefusal.PERMISSION_DENIED)
+        database = Database.from_snapshot(Snapshot(SnapshotRecords(records), scope=snapshot.scope))
+
+        #: When
+        headings = database.query(_reads_unreadable_item, GUIDE)
+
+        #: Then
+        assert headings == (), 'an unreadable destination contributes no headings'
+        assert database.query_reads(_reads_unreadable_item, GUIDE) == {
+            QueryRead(_inner, TARGET),
+        }, 'the read set retains a failed destination query'

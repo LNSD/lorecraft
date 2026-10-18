@@ -76,9 +76,7 @@ Other public methods either answer from queries or inspect the snapshot. Their s
 - `item_structure_specs(ref)` reads `item_governance(ref)` for documents and skill entries. Resources and
   specifications have no corpus structure specs; it is not cached separately and carries over with that governance.
 - `query(query, ref)` runs a declared query over the item's primitives and caches its answer and read set. It carries
-  over whenever every primitive it read does.
-- `item_has_link_to(ref, path)` reads the item's cached `item_link_targets`; it is not cached separately and carries
-  over with those targets.
+  over whenever every primitive or cross-item query it read does.
 - `query_reads(query, ref)` reports recorded primitive and nested-query reads, each paired with its item ref; it is
   empty before that query has run and is not cached.
 
@@ -174,13 +172,9 @@ from lorecraft.project.item import (
 )
 from lorecraft.project.layout import DOCS_DIR, SPECS_DIR, reject_linked_layout
 from lorecraft.project.link_target import (
-    DocumentLink,
     LinkBase,
     LinkTargetEntry,
-    document_links_of,
-    has_link_to,
     link_targets_of,
-    linked_files_of,
 )
 from lorecraft.project.query import Query
 from lorecraft.project.schemas import (
@@ -221,7 +215,6 @@ from lorecraft.project.syntax import (
     split_lines,
 )
 from lorecraft.project.workspace import Governance, ResolvedItem, WorkspaceModel, load_model, unreported_refusals
-from lorecraft.project.workspace.model import find_document_at
 from lorecraft.vfs import (
     FILE_READ_FAILURES,
     RefusedRecord,
@@ -254,7 +247,6 @@ class PrimitiveRead(StrEnum):
     ITEM_NAME = 'item_name'
     ITEM_CORPUS = 'item_corpus'
     ITEM_BASE = 'item_base'
-    LINKED_DOCUMENTS = 'linked_documents'
 
 
 @dataclass(frozen=True)
@@ -304,7 +296,7 @@ class _ReadSet:
 class _ReadPrimitives(_ReadSet):
     """The primitives of one item as the database answers them, noting each one a query reads.
 
-    A primitive that walks the model or other files, such as `linked_documents`, `item_base` and `frontmatter_owner`,
+    A primitive that walks the model or other files, such as `item_base` and `frontmatter_owner`,
     is not cached here: a query over the item is memoized by the database for the function and the ref, so each of
     them is computed once per query, and a cache beside it would only hold the same answer twice.
 
@@ -404,6 +396,15 @@ class _ReadPrimitives(_ReadSet):
         """The memoized answer of another query over the item; what it read counts as this query's reads."""
         return self._record_nested(query, self._ref)
 
+    def query_at[T](self, ref: MarkdownItemRef, query: Query[T]) -> T:
+        """The memoized answer of a query over another item, recorded as a read dependency.
+
+        Args:
+            ref: The item whose primitives the query reads.
+            query: The pure function to run over that item's primitives.
+        """
+        return self._record_nested(query, ref)
+
     def links(self) -> tuple[Link, ...]:
         """The links of the item's parse; none for an item that is not UTF-8."""
         self._record(QueryRead(PrimitiveRead.LINKS, self._ref))
@@ -435,34 +436,6 @@ class _ReadPrimitives(_ReadSet):
         origin = source.descriptor.origin if isinstance(source, ItemText) else None
         # Keep this dispatch: the query names documents and meta specifications, not skill directories or resources.
         return origin.expected_name if isinstance(origin, DocumentOrigin | SpecificationOrigin) else None
-
-    def linked_documents(self) -> tuple[DocumentLink, ...]:
-        """The links to another document, with its corpus and filename and whether it links back, in document order.
-
-        A destination that cannot be read or decoded is logged and has no back link. None for an item that is not
-        UTF-8.
-        """
-        self._record(QueryRead(PrimitiveRead.LINKED_DOCUMENTS, self._ref))
-        source = self._database.item_text(self._ref)
-        if not isinstance(source, ItemText):
-            return ()
-        linked = linked_files_of(
-            self._database.item_parse(source).links,
-            self._database.item_link_targets(source),
-            source.descriptor.link_base,
-        )
-        documents: dict[RootRelativePath, tuple[str, str]] = {}
-        for link in linked:
-            destination = find_document_at(MarkdownItemRef(link.path))
-            if destination is not None:
-                documents[link.path] = (str(destination.corpus), str(destination.filename))
-        back_links = {
-            path: self._database.item_has_link_to(MarkdownItemRef(path), self._ref.path)
-            for path in documents
-            if path != self._ref.path
-        }
-        # Cross-item read tracking is deferred to the `query_at` step (LORE-393 step 4).
-        return document_links_of(linked, self._ref.path, documents, back_links)
 
     def item_corpus(self) -> str | None:
         """The corpus a document lies in; `None` for any other item or one that is not UTF-8."""
@@ -519,8 +492,8 @@ class Database:
     The snapshot questions are `source_lines(path)`, `refusals()` and `unreported_docs_refusals()`: the first two are
     answered on each call; the last is cached for this database's lifetime and recomputed from the next revision's
     refusals and model failures. The declared query `query(query, ref)` memoizes its answer and read set;
-    `query_reads(query, ref)` holds typed reads and is empty before that query runs. `item_structure_specs` and
-    `item_has_link_to` are not cached separately and carry over with the query results they read.
+    `query_reads(query, ref)` holds typed reads and is empty before that query runs. `item_structure_specs` is not
+    cached separately and carries over with the query result it reads.
     """
 
     def __init__(self, fs: VirtualFileSystem, model: WorkspaceModel) -> None:
@@ -1027,27 +1000,6 @@ class Database:
             ref: The item it ran over.
         """
         return self._queries[(query, ref)][1] if (query, ref) in self._queries else frozenset()
-
-    def item_has_link_to(self, ref: MarkdownItemRef, path: RootRelativePath) -> bool:
-        """Whether the item at a ref links to an existing file at a path; false, logged, when it cannot be read.
-
-        Not cached: the answer is a lookup in `item_link_targets`, which is, so it carries over with it.
-        `_ReadPrimitives.linked_documents` uses this operation to check whether linked documents point back to their
-        source; keeping it here lets the database own decode failures and cached target lookups.
-
-        Args:
-            ref: The item to read.
-            path: The root-relative path to look for among its links.
-        """
-        try:
-            text = self.item_text(ref)
-        except ItemReadError:
-            logger.warning('cannot read %s to look for a link back to %s', ref.path, path, exc_info=True)
-            return False
-        if isinstance(text, Undecodable):
-            logger.warning('%s is not UTF-8, so it holds no link back to %s', ref.path, path)
-            return False
-        return has_link_to(self.item_link_targets(text), path)
 
     def item_skill_fields(self, source: ItemText) -> SkillFields:
         """The fields of one skill entry's frontmatter that parse, parsed once. Raises nothing.

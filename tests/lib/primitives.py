@@ -2,9 +2,11 @@
 
 from collections.abc import Mapping
 from dataclasses import dataclass
+from typing import cast
 
 from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.num import UnsignedInt
+from lorecraft.project.item import MarkdownItemRef
 from lorecraft.project.link_target import DocumentLink, LinkBase, LinkTargetEntry
 from lorecraft.project.query import Query
 from lorecraft.project.schemas import FrontmatterOwner, SchemaProblems, SkillFields, StructureSpec
@@ -18,6 +20,7 @@ from lorecraft.project.syntax import (
     NormalisedLinkPath,
     TokenCount,
 )
+from lorecraft.rules.link.queries import linked_documents
 
 
 @dataclass(frozen=True, slots=True)
@@ -96,10 +99,6 @@ class StructurePrimitives:
         """The base this was built with."""
         return self.base_name
 
-    def linked_documents(self) -> tuple[DocumentLink, ...]:
-        """The links this was built with."""
-        return self.document_link_list
-
     def item_corpus(self) -> str | None:
         """The corpus this was built with."""
         return self.corpus
@@ -127,4 +126,10 @@ class StructurePrimitives:
 
     def query[T](self, query: Query[T]) -> T:
         """The answer of the query over these same primitives."""
+        if query is linked_documents:
+            return cast('T', self.document_link_list)
         return query(self)
+
+    def query_at[T](self, ref: MarkdownItemRef, query: Query[T]) -> T:
+        """No other item is available to this standalone primitive value."""
+        raise NotImplementedError('standalone primitives cannot read another item')
