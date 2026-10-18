@@ -25,8 +25,9 @@ query and hands it the facts sits above in `lorecraft.engine`; the query is answ
 
 - A value that identifies a rule: a release, a group's prefix and title, a code, a name, an alias code, a level, and
   the severity an engine condition fixes.
-- A rule class, the base class its subject kind gives it, and the places its occurrences may point at. A subject
-  kind's base has a `Queried` form that names the query the rule needs and judges its facts; a document's also
+- A rule class, the shared `Queried` base for its subject, and the places its occurrences may point at. A queried
+  rule names its parameterless query and judges the returned facts; Markdown items, symlinks and corpus directories
+  use this same query base. A document's also
   requires the rule to declare the facet it reads, from the facets this package states. A rule over what any
   Markdown file has judges a document, a `SKILL.md` and a resource alike; a rule over one of a skill's files judges a `SKILL.md` and a resource, never a document. A base over an item binds the kinds it applies to; `governing_facet` states the facet a rule reads, and a base
   over what a document and a skill share, such as the frontmatter, declares the facet a document is gated on.
@@ -36,12 +37,12 @@ query and hands it the facts sits above in `lorecraft.engine`; the query is answ
 - An engine condition: what the engine reports before any rule runs, such as an undecodable file.
   Declared and rendered like a rule, with an `EngineCode` in group `LC`, a fixed severity, no `judge`; it
   derives from `FileCondition` or `EntryCondition`.
-- The one-run selection, the rule table and the report of a run, each stated in its module docstring.
-- A rule group, as a subpackage: its `__ruleset__.py` declares the group as `GROUP_ID` and whatever else its rules
-  share, its `__init__.py` holds only the docstring, each rule is one module. The `LC` group is declared in
-  `identity.py` as `ENGINE_GROUP`, for `EngineCode`, and re-exported as its `GROUP_ID`.
-- A rule's query, per ADR-026: in its module, the shared `__ruleset__.py`, or `lorecraft.project.schemas` for
-  several groups. A `judge` names its parameter `facts`.
+- The one-run selection, rule table and report, each stated in its module docstring.
+- A rule group, as a subpackage: `__ruleset__.py` declares its `GROUP_ID` and shared values, `__init__.py` holds
+  only the docstring, and each rule has its module. `identity.py` declares the `LC` group as `ENGINE_GROUP` for
+  `EngineCode` and re-exports it as `GROUP_ID`.
+- Group queries live in a group-level query module. Promote one to `lorecraft.project.query` when another group
+  needs it, sharing its memoized `(query, subject)` answer. A `judge` names its parameter `facts`.
 
 ## Belongs Elsewhere
 
@@ -58,7 +59,7 @@ query and hands it the facts sits above in `lorecraft.engine`; the query is answ
 - Nothing here imports `lorecraft.engine` or `lorecraft.project.database`. The layers contract puts this package
   below the first and a forbidden contract refuses the second, so the database, a query and the run are out of
   reach by import.
-- A rule reads only the facts of the query it names, and performs no I/O.
+- A rule judges only query facts; cross-item reads use `query_at(ref, query)` below.
 - An occurrence names no subject: it points at a line of the subject or at the subject itself, and the run
   supplies the path.
 - The registry is package data: it reads no workspace, is not a query, and holds this package's rules, never a
@@ -192,11 +193,11 @@ class SectionTooManyWords(QueriedDocumentRule[Facts]):
 Before committing:
 
 - [ ] Nothing added to `lorecraft.rules` reads the disk, a view, a query or configuration
-- [ ] A new rule names its query and its `judge` takes that query's facts and returns occurrences that name no
-      subject; a rule over a document declares its facet in `GOVERNED_BY`
-- [ ] A new rule is declared with `@rule` in its own module in its group's subpackage, listed nowhere else
-- [ ] Decoding, answering a query, running the rules and rendering stay out of the package
-- [ ] A new rule's name states its condition; its class and module spell it
+- [ ] A rule names its query; `judge(facts)` returns subject-free occurrences. Document rules declare `GOVERNED_BY`.
+- [ ] Reuse an existing query before recomputing; promote cross-group queries to `lorecraft.project.query`.
+- [ ] Each `@rule` declaration appears once in a module in its group's subpackage
+- [ ] Decoding, queries, rule execution and rendering stay out of this package
+- [ ] A rule's name states its condition; its class and module spell it
 - [ ] A new rule's `message()` is lowercase with the value found against the limit; `children()` puts a
       `Note` at the meta spec that states the rule (the corpus's structure file when no key does; the external
       one, without `at`, when the package states it, or the group's `Note` for a rule over an Agent

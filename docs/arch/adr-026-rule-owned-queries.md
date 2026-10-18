@@ -11,7 +11,8 @@ status: "accepted"
 > Supersedes in part [adr-009-rules](adr-009-rules.md), [adr-011-rules-engine](adr-011-rules-engine.md),
 > [adr-012-database-derivation](adr-012-database-derivation.md) and [adr-015-database](adr-015-database.md): where a
 > fact a rule reads is declared, computed and memoized, how its carry-over is derived, and how a run coordinates rule
-> evaluation without subject contexts. They stay binding for everything else.
+> evaluation without subject contexts. They stay binding for everything else. Superseded in part by
+> [ADR-027](adr-027-subject-keyed-queries.md): decisions 2 and 7 (layout dispatch, memoization key).
 
 ## Context
 
@@ -107,4 +108,6 @@ Before committing code, verify:
 - [adr-011-rules-engine](adr-011-rules-engine.md) - Supersedes in part: Contexts, queries, and runner orchestration
 - [adr-012-database-derivation](adr-012-database-derivation.md) - Supersedes in part: Where a derived fact lives
 - [adr-015-database](adr-015-database.md) - Supersedes in part: The kinds of query and their carry-over
+- [adr-027-subject-keyed-queries](adr-027-subject-keyed-queries.md) - Supersedes in part: Layout dispatch and the
+  memoization key in decisions 2 and 7
 - [pattern-memoization](../code/pattern-memoization.md) - Foundation: Memoizing a pure function

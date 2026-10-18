@@ -23,8 +23,12 @@ returns at its subject, as a diagnostic of `lorecraft.rules.report`.
 ## Belongs Here
 
 - The shared runner (`runner.py`): the governance lookup, facet gating, running the table's rules over a
-  subject through their queries, and building its report. A document, skill entry or skill resource is decoded by each
-  mode's entry point, so its policy comes after decoding, and `judge_item` judges any of them through one facet loop
+  subject through their queries, and building its report. A rule query is resolved for its subject, whether that
+  subject is a Markdown item, symlink or corpus directory; each kind follows the same query and judgment path. A
+  query is owned by its rule group unless another group needs it, when it is promoted to `lorecraft.project.query`;
+  the runner resolves that shared query for both groups through the same database. A
+  document, skill entry or skill resource is decoded by each mode's entry point, so its policy comes after decoding,
+  and `judge_item` judges any of them through one facet loop
   over the descriptor's active facets. A rule runs over an item of a kind it applies to, and only when the item is governed
   for the facet the rule reads; each facet an applicable rule reads that the item is not governed for is recorded as
   coverage. A rule over a Markdown file runs over a document governed for its structure, a skill's `SKILL.md` and
@@ -47,7 +51,7 @@ returns at its subject, as a diagnostic of `lorecraft.rules.report`.
 | Prints, writes JSON, or sets an exit code | `lorecraft.cli` |
 | Declares a rule, its identity or its group, or the base a rule derives from | `lorecraft.rules` |
 | Builds the rule table, applies a level or a one-run selection, or declares what a run reports | `lorecraft.rules` |
-| Adds a query, a decode witness, or a carry-over rule | `lorecraft.project` |
+| Adds a project query, a query promoted for cross-group reuse, a decode witness, or a carry-over rule | `lorecraft.project` |
 | Parses text, decodes a meta spec, or builds the model | `lorecraft.project` |
 | Reads the disk | `lorecraft.vfs` |
 
@@ -55,8 +59,10 @@ returns at its subject, as a diagnostic of `lorecraft.rules.report`.
 
 - Nothing here memoizes a value derived from the snapshot. A value worth keeping for the revision is a query of
   the database, in `lorecraft.project`.
-- A run matches each subject's decode once, and hands a rule only the facts of a decoded subject's query, never the
-  database, a view or a path it could read through.
+- A run matches each subject's decode once, resolves each rule's query for that subject through the database, and
+  hands the rule only those facts, never the database, primitives, a view or a path it could read through.
+- Markdown items, symlinks and corpus directories use the same queried-rule dispatch; no layout subject is judged
+  through a separate direct path.
 - A rule returns occurrences that name no subject. The run attaches the subject's path, as a diagnostic.
 - A load failure is reported once, at its own path, and never once per subject it touches; a document a failed layer
   governs is coverage, never a diagnostic.
@@ -119,6 +125,7 @@ Before committing code, verify:
 
 - [ ] Nothing added memoizes a value derived from the snapshot; such a value is a query in `lorecraft.project`
 - [ ] A rule is handed the facts of its query, never the database, a view or a path it could read through
+- [ ] A queried Markdown item, symlink or corpus directory is dispatched through the same query and `judge` path
 - [ ] A run attaches the subject's path to each occurrence; an occurrence names no subject
 - [ ] Nothing added takes a snapshot or sets an exit code
 - [ ] A mode's policy sits in that mode's own entry point; `runner.py` takes no policy parameter and no callback
