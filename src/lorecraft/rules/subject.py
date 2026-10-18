@@ -4,8 +4,9 @@ A rule picks its subject kind by deriving from that kind's base: `DocumentRule` 
 skill. A rule over what any Markdown file has derives from `MarkdownRule` instead, and judges a document, a skill's
 `SKILL.md` and a skill's resource alike; a rule over one of a skill's Markdown files derives from `SkillFileRule`, and
 judges its `SKILL.md` and its resources alike, never a document; one over the frontmatter a document or a skill opens
-with, which both kinds share, derives from `FrontmatterRule`. A rule derives from a `Queried*Rule` base of its kind: it
-names a query and the runner hands `judge` the facts the query returns, so a rule never learns that a database exists.
+with, which both kinds share, derives from `FrontmatterRule`. A rule derives from `Queried` and its subject-kind
+base: it names a query and the runner hands `judge` the facts the query returns, so a rule never learns that a
+database exists.
 
 A document is judged only for what a meta spec governs, so a rule over a document declares the facet it reads in
 `GOVERNED_BY`, and the runner hands it the document only when the meta specs govern that facet. A rule over the
@@ -21,8 +22,8 @@ The package governs the layout, so a rule over an entry declares no facet either
 
 Every rule derives from one of these bases: the length and the outline rules from `DocumentRule` or `SkillRule`, the
 frontmatter rules from `FrontmatterRule` or, for those over a skill alone, from `SkillRule`, the link rules from
-`MarkdownRule` and `SkillFileRule`, the symlink rule from `SymlinkRule` and the corpus directory rule from
-`CorpusDirectoryRule`.
+`MarkdownRule` and `SkillFileRule`, and layout rules from `QueriedSymlinkRule` or `QueriedCorpusDirectoryRule`,
+which bind each layout kind to its matching query type.
 """
 
 from abc import ABC, abstractmethod
@@ -80,6 +81,9 @@ class DocumentRule(ItemRule):
     APPLIES_TO: ClassVar[frozenset[ItemKind]] = frozenset({ItemKind.DOCUMENT})
 
 
+type SubjectQuery[Facts] = Query[Facts] | SymlinkQuery[Facts] | CorpusDirectoryQuery[Facts]
+
+
 class Queried[Facts](Rule, ABC):
     """The mixin of a rule that names the query it needs and judges its facts.
 
@@ -93,7 +97,7 @@ class Queried[Facts](Rule, ABC):
 
     @classmethod
     @abstractmethod
-    def query(cls) -> Query[Facts]:
+    def query(cls) -> SubjectQuery[Facts]:
         """The query whose answer `judge` takes; the same function every call, since the database memoizes by it."""
 
     @classmethod
@@ -110,11 +114,14 @@ class Queried[Facts](Rule, ABC):
 class QueriedDocumentRule[Facts](Queried[Facts], DocumentRule):
     """The base of a rule over a document that names the query it needs and judges its facts.
 
-    The rule names its query in `query` and its `judge` takes the facts that query returns, both typed by the rule's
-    type argument: a rule whose query returns `TitleFacts` derives from `QueriedDocumentRule[TitleFacts]`, and a
-    query of another type fails the type check. The query is a pure function over the document's primitives, so the
-    rule is coupled to the rest only through the model state it reads.
+    Its query is a pure function over the document's primitives, so a rule naming another subject kind's query fails
+    the type check.
     """
+
+    @classmethod
+    @abstractmethod
+    def query(cls) -> Query[Facts]:
+        """The query over an item's primitives whose answer `judge` takes."""
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -130,6 +137,11 @@ class QueriedSkillRule[Facts](Queried[Facts], SkillRule):
 
     It works as `QueriedDocumentRule` does, over a skill's primitives.
     """
+
+    @classmethod
+    @abstractmethod
+    def query(cls) -> Query[Facts]:
+        """The query over an item's primitives whose answer `judge` takes."""
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -161,6 +173,11 @@ class QueriedMarkdownRule[Facts](Queried[Facts], MarkdownRule):
     It works as `QueriedDocumentRule` does, over the primitives of a document, a skill or a resource alike.
     """
 
+    @classmethod
+    @abstractmethod
+    def query(cls) -> Query[Facts]:
+        """The query over an item's primitives whose answer `judge` takes."""
+
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class SkillFileRule(ItemRule):
@@ -181,6 +198,11 @@ class QueriedSkillFileRule[Facts](Queried[Facts], SkillFileRule):
     It works as `QueriedDocumentRule` does, over the primitives of a skill's `SKILL.md` or a resource alike.
     """
 
+    @classmethod
+    @abstractmethod
+    def query(cls) -> Query[Facts]:
+        """The query over an item's primitives whose answer `judge` takes."""
+
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class SymlinkRule(LayoutRule):
@@ -188,54 +210,28 @@ class SymlinkRule(LayoutRule):
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
-class QueriedSymlinkRule[Facts](SymlinkRule):
-    """The base of a rule over a symlink that names the query it needs and judges its facts.
+class CorpusDirectoryRule(LayoutRule):
+    """The base of every rule over a reserved-corpus directory; the package governs it, so it declares no facet."""
 
-    The rule names its query in `query` and its `judge` takes the facts that query returns, both typed by the rule's
-    type argument, as `QueriedDocumentRule` does over a document.
-    """
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class QueriedSymlinkRule[Facts](Queried[Facts], SymlinkRule):
+    """The base of a query-backed rule over a symlink of the skill layout."""
 
     @classmethod
     @abstractmethod
     def query(cls) -> SymlinkQuery[Facts]:
-        """The query whose answer `judge` takes."""
-
-    @classmethod
-    @abstractmethod
-    def judge(cls, facts: Facts, /) -> tuple[Self, ...]:
-        """Every occurrence of the rule's condition at the symlink, from the facts alone.
-
-        Args:
-            facts: The answer of the rule's query.
-        """
+        """The query over a symlink's model facts whose answer `judge` takes."""
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
-class CorpusDirectoryRule(LayoutRule):
-    """The base of every rule over a directory under `docs/` named like a reserved corpus; it declares no facet."""
-
-
-@dataclass(frozen=True, slots=True, kw_only=True)
-class QueriedCorpusDirectoryRule[Facts](CorpusDirectoryRule):
-    """The base of a rule over a reserved-corpus directory that names the query it needs and judges its facts.
-
-    The rule names its query in `query` and its `judge` takes the facts that query returns, both typed by the rule's
-    type argument, as `QueriedSymlinkRule` does over a symlink.
-    """
+class QueriedCorpusDirectoryRule[Facts](Queried[Facts], CorpusDirectoryRule):
+    """The base of a query-backed rule over a reserved-corpus directory."""
 
     @classmethod
     @abstractmethod
     def query(cls) -> CorpusDirectoryQuery[Facts]:
-        """The query whose answer `judge` takes."""
-
-    @classmethod
-    @abstractmethod
-    def judge(cls, facts: Facts, /) -> tuple[Self, ...]:
-        """Every occurrence of the rule's condition at the directory, from the facts alone.
-
-        Args:
-            facts: The answer of the rule's query.
-        """
+        """The query over a reserved-corpus directory's model facts whose answer `judge` takes."""
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -262,6 +258,11 @@ class QueriedFrontmatterRule[Facts](Queried[Facts], FrontmatterRule):
 
     It works as `QueriedDocumentRule` does, over the primitives of a document or a skill alike.
     """
+
+    @classmethod
+    @abstractmethod
+    def query(cls) -> Query[Facts]:
+        """The query over an item's primitives whose answer `judge` takes."""
 
 
 def governing_facet(rule: type[ItemRule]) -> Facet | None:

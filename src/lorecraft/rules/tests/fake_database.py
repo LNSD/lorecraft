@@ -491,4 +491,11 @@ def judged(rule: type[Rule], database: object) -> tuple[Rule, ...]:
         database: The fake database that answers the rule's query.
     """
     queried = cast('type[Queried[object]]', rule)
-    return cast('tuple[Rule, ...]', queried.judge(cast('_Queryable', database).query(queried.query())))
+    query = queried.query()
+    if isinstance(database, FakeSymlinkDatabase):
+        facts = database.query(cast('SymlinkQuery[object]', query))
+    elif isinstance(database, FakeCorpusDirectoryDatabase):
+        facts = database.query(cast('CorpusDirectoryQuery[object]', query))
+    else:
+        facts = cast('_Queryable', database).query(cast('Query[object]', query))
+    return cast('tuple[Rule, ...]', queried.judge(facts))
