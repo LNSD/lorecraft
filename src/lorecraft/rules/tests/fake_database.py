@@ -262,13 +262,13 @@ class FakeDocumentDatabase:
                 self._parse().links,
                 self._link_targets,
                 DocumentDirectory(self._ref.path.parent),
-                str(self._ref.filename),
+                self._ref.filename,
                 count_lines(self._text),
                 parse_frontmatter(self._text),
                 anchor_set=self._parse().anchors,
                 base_name=self._base_name(),
                 document_link_list=self._document_links,
-                corpus=str(self._ref.corpus),
+                corpus=self._ref.corpus,
                 origin_value=DocumentOrigin(
                     expected_name=str(self._ref.filename), corpus=str(self._ref.corpus), schema_paths=()
                 ),
@@ -276,10 +276,10 @@ class FakeDocumentDatabase:
             )
         )
 
-    def _base_name(self) -> str | None:
-        """The base the corpus the test stated gives the document, as the real model derives it."""
+    def _base_name(self) -> AspectFilename | None:
+        """The typed base the corpus the test stated gives the document, as the real model derives it."""
         base = self._corpus.document_base(self._ref.filename)
-        return None if base is None else str(base.filename)
+        return None if base is None else base.filename
 
 
 class FakeSkillDatabase:

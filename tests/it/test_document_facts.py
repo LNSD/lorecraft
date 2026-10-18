@@ -10,12 +10,14 @@ import pytest
 
 from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.core.path import RootRelativePath
+from lorecraft.project.aspect import AspectFilename
+from lorecraft.project.corpus import CorpusName
 from lorecraft.project.database import Database, ItemText, PrimitiveRead, QueryRead
 from lorecraft.project.item import MarkdownItemRef, UnlistedItemError
 from lorecraft.project.layout import SNAPSHOT_SCOPE
 from lorecraft.project.link_target import DocumentLink
 from lorecraft.project.query import Primitives, linked_paths
-from lorecraft.project.schemas import title_facts
+from lorecraft.project.schemas import CorpusSpecName, SpecName, title_facts
 from lorecraft.project.syntax import Anchor, LineNumber
 from lorecraft.rules.length.too_many_tokens import token_facts
 from lorecraft.rules.link.extension_link import extension_link_facts
@@ -30,6 +32,7 @@ FEATURE: Final[MarkdownItemRef] = MarkdownItemRef(RootRelativePath.parse('docs/f
 OTHER_GUIDE: Final[MarkdownItemRef] = MarkdownItemRef(RootRelativePath.parse('docs/code/b.md'))
 SKILL: Final[MarkdownItemRef] = MarkdownItemRef(RootRelativePath.parse('.agents/skills/review/SKILL.md'))
 SPEC_PATH: Final[RootRelativePath] = RootRelativePath.parse('docs/__meta__/code.spec.json')
+SPEC_MD: Final[MarkdownItemRef] = MarkdownItemRef(RootRelativePath.parse('docs/__meta__/code-python.md'))
 SPEC: Final[bytes] = b'{"tokens": 500, "title": {"words": 2}, "empty_sections": "forbidden"}'
 TEXT: Final[bytes] = b'# A Long Title\n\n## Empty\n\n## Full\n\n[more](guide-more.md)\n[none](guide-none.md)\n'
 
@@ -42,6 +45,7 @@ def _snapshot(root: Path) -> Snapshot:
     """
     files = {
         'docs/__meta__/code.md': b'# Code\n',
+        'docs/__meta__/code-python.md': b'# Python\n',
         'docs/__meta__/code.spec.json': SPEC,
         'docs/code/guide.md': TEXT,
         'docs/code/guide-more.md': b'# More\n',
@@ -65,8 +69,18 @@ def _anchors(primitives: Primitives) -> frozenset[Anchor]:
     return primitives.anchors()
 
 
-def _document_base(primitives: Primitives) -> str | None:
-    """The stem of the document the item extends."""
+def _item_name(primitives: Primitives) -> AspectFilename | SpecName | None:
+    """The typed filename of the item."""
+    return primitives.item_name()
+
+
+def _item_corpus(primitives: Primitives) -> CorpusName | None:
+    """The typed corpus of the item."""
+    return primitives.item_corpus()
+
+
+def _document_base(primitives: Primitives) -> AspectFilename | SpecName | None:
+    """The typed name of the document or specification the item extends."""
     return primitives.item_base()
 
 
@@ -83,6 +97,36 @@ class TestMarkdownPrimitives:
         assert anchors == database.item_parse(_decoded(database)).anchors, "the anchors are the parse's own"
         assert len(anchors) == 3, 'the title and the two sections each take an anchor'
 
+    def test_item_name_with_a_document_returns_its_typed_filename(self, tmp_path: Path) -> None:
+        #: Given
+        database = Database.from_snapshot(_snapshot(tmp_path))
+
+        #: When
+        name = database.query(_item_name, GUIDE)
+
+        #: Then
+        assert name == AspectFilename.parse('guide'), 'the filename stem is returned as its typed value'
+
+    def test_item_corpus_with_a_document_returns_its_typed_corpus(self, tmp_path: Path) -> None:
+        #: Given
+        database = Database.from_snapshot(_snapshot(tmp_path))
+
+        #: When
+        corpus = database.query(_item_corpus, GUIDE)
+
+        #: Then
+        assert corpus == CorpusName.parse('code'), 'the corpus is returned as its typed value'
+
+    def test_item_base_with_a_specification_returns_its_typed_spec_name(self, tmp_path: Path) -> None:
+        #: Given
+        database = Database.from_snapshot(_snapshot(tmp_path))
+
+        #: When
+        base = database.query(_document_base, SPEC_MD)
+
+        #: Then
+        assert base == CorpusSpecName(CorpusName.parse('code')), 'code-python extends the code specification'
+
     def test_document_base_with_an_extension_returns_the_document_its_name_continues(self, tmp_path: Path) -> None:
         #: Given
         database = Database.from_snapshot(_snapshot(tmp_path))
@@ -91,7 +135,7 @@ class TestMarkdownPrimitives:
         base = database.query(_document_base, GUIDE_MORE)
 
         #: Then
-        assert base == 'guide', 'guide-more continues guide, the document beside it'
+        assert base == AspectFilename.parse('guide'), 'guide-more continues guide, the document beside it'
 
     def test_document_base_with_a_document_no_other_precedes_returns_none(self, tmp_path: Path) -> None:
         #: Given
@@ -261,12 +305,16 @@ class TestDocumentLinks:
             DocumentLink(
                 line=LineNumber(NonZeroUnsignedInt(3)),
                 url='../feat/a.md',
-                corpus='feat',
-                filename='a',
+                corpus=CorpusName.parse('feat'),
+                filename=AspectFilename.parse('a'),
                 has_back_link=True,
             ),
             DocumentLink(
-                line=LineNumber(NonZeroUnsignedInt(4)), url='b.md', corpus='code', filename='b', has_back_link=False
+                line=LineNumber(NonZeroUnsignedInt(4)),
+                url='b.md',
+                corpus=CorpusName.parse('code'),
+                filename=AspectFilename.parse('b'),
+                has_back_link=False,
             ),
         ), 'existing documents only, README and the missing file left out, each with its url and back link'
 
@@ -299,7 +347,7 @@ class TestDocumentLinks:
         facts = database.query(mutual_link_facts, GUIDE)
 
         #: Then
-        assert facts.corpus == 'code', 'the corpus of the document'
+        assert facts.corpus == CorpusName.parse('code'), 'the corpus of the document'
         assert database.query_reads(mutual_link_facts, GUIDE) == {
             QueryRead(PrimitiveRead.ITEM_CORPUS, GUIDE),
             QueryRead(PrimitiveRead.ITEM_NAME, GUIDE),

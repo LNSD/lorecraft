@@ -177,7 +177,11 @@ from lorecraft.project.query import (
     SymlinkQuery,
     SymlinkQueryRead,
 )
-from lorecraft.project.schemas import StructureSpec
+from lorecraft.project.schemas import (
+    SpecName,
+    StructureSpec,
+    parse_spec_name,
+)
 from lorecraft.project.skill import (
     OutsideSymlink,
     SkillLocation,
@@ -428,25 +432,31 @@ class _ReadPrimitives(_ReadSet):
         source = self._database.item_text(self._ref)
         return source.descriptor.link_base if isinstance(source, ItemText) else None
 
-    def item_name(self) -> str | None:
-        """The stem of a document or meta specification; `None` for any other item or one that is not UTF-8."""
+    def item_name(self) -> AspectFilename | SpecName | None:
+        """The typed name of a document or meta specification; `None` for any other item or one that is not UTF-8."""
         self._record(QueryRead(PrimitiveRead.ITEM_NAME, self._ref))
         source = self._database.item_text(self._ref)
         origin = source.descriptor.origin if isinstance(source, ItemText) else None
-        # Keep this dispatch: the query names documents and meta specifications, not skill directories or resources.
-        return origin.expected_name if isinstance(origin, DocumentOrigin | SpecificationOrigin) else None
+        # Keep this dispatch: documents and specifications have different name formats; skills and resources have none.
+        match origin:
+            case DocumentOrigin():
+                return AspectFilename.parse(origin.expected_name)
+            case SpecificationOrigin():
+                return parse_spec_name(origin.expected_name)
+            case _:
+                return None
 
-    def item_corpus(self) -> str | None:
-        """The corpus a document lies in; `None` for any other item or one that is not UTF-8."""
+    def item_corpus(self) -> CorpusName | None:
+        """The typed corpus a document lies in; `None` for any other item or one that is not UTF-8."""
         self._record(QueryRead(PrimitiveRead.ITEM_CORPUS, self._ref))
         source = self._database.item_text(self._ref)
         origin = source.descriptor.origin if isinstance(source, ItemText) else None
         # Keep this dispatch: this query answers for user documents; a specification's `corpus` is a prefix of its
         # name, and a skill has none.
-        return origin.corpus if isinstance(origin, DocumentOrigin) else None
+        return CorpusName.parse(origin.corpus) if isinstance(origin, DocumentOrigin) else None
 
-    def item_base(self) -> str | None:
-        """The stem of the document or specification the item extends, from the names the model lists.
+    def item_base(self) -> AspectFilename | SpecName | None:
+        """The typed name of the document or specification the item extends, from the names the model lists.
 
         A document's base is looked for among the documents of its corpus, a specification's among the specifications;
         `None` for any other item or one that is not UTF-8. A skill entry extends nothing: its name is its directory's,
@@ -462,10 +472,10 @@ class _ReadPrimitives(_ReadSet):
                 if corpus is None:
                     return None
                 base = corpus.document_base(AspectFilename.parse(origin.expected_name))
-                return None if base is None else str(base.filename)
+                return None if base is None else base.filename
             case SpecificationOrigin():
                 base_spec = self._database.model().find_specification_base(SpecRef(self._ref.path))
-                return None if base_spec is None else base_spec.name
+                return None if base_spec is None else parse_spec_name(base_spec.name)
             case _:
                 return None
 

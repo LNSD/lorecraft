@@ -3,6 +3,8 @@
 import logging
 
 from lorecraft.core.path import RootRelativePath
+from lorecraft.project.aspect import AspectFilename
+from lorecraft.project.corpus import CorpusName
 from lorecraft.project.item import ItemReadError, MarkdownItemRef
 from lorecraft.project.link_target import DocumentDirectory, DocumentLink, document_links_of
 from lorecraft.project.query import Primitives, linked_paths
@@ -25,8 +27,8 @@ def linked_documents(primitives: Primitives) -> tuple[DocumentLink, ...]:
         return ()
     source = base.directory / RootRelativePath.parse(f'{name}.md')
     linked = primitives.query(linked_paths)
-    documents = {
-        link.path: (str(document.corpus), str(document.filename))
+    documents: dict[RootRelativePath, tuple[CorpusName, AspectFilename]] = {
+        link.path: (document.corpus, document.filename)
         for link in linked
         if (document := find_document_at(MarkdownItemRef(link.path))) is not None
     }

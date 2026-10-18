@@ -6,10 +6,12 @@ from typing import cast
 
 from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.num import UnsignedInt
+from lorecraft.project.aspect import AspectFilename
+from lorecraft.project.corpus import CorpusName
 from lorecraft.project.item import DocumentOrigin, ItemOrigin, MarkdownItemRef
 from lorecraft.project.link_target import DocumentLink, LinkBase, LinkTargetEntry
 from lorecraft.project.query import Query
-from lorecraft.project.schemas import StructureSpec
+from lorecraft.project.schemas import SpecName, StructureSpec
 from lorecraft.project.syntax import (
     Anchor,
     FrontmatterNode,
@@ -50,13 +52,13 @@ class StructurePrimitives:
     link_list: tuple[Link, ...] = ()
     target_map: Mapping[NormalisedLinkPath, LinkTargetEntry] = FrozenMapping({})
     base: LinkBase | None = None
-    name: str | None = None
+    name: AspectFilename | SpecName | None = None
     line_total: LineCount = LineCount(UnsignedInt(0))
     frontmatter_node: FrontmatterNode = MissingFrontmatter()
     anchor_set: frozenset[Anchor] = frozenset()
-    base_name: str | None = None
+    base_name: AspectFilename | SpecName | None = None
     document_link_list: tuple[DocumentLink, ...] = ()
-    corpus: str | None = None
+    corpus: CorpusName | None = None
     origin_value: ItemOrigin = DocumentOrigin(expected_name='setup', corpus='guide', schema_paths=())
     governance_value: Governance | None = None
     builtin_schema: bool = True
@@ -101,15 +103,15 @@ class StructurePrimitives:
         """The base this was built with."""
         return self.base
 
-    def item_name(self) -> str | None:
+    def item_name(self) -> AspectFilename | SpecName | None:
         """The name this was built with."""
         return self.name
 
-    def item_base(self) -> str | None:
+    def item_base(self) -> AspectFilename | SpecName | None:
         """The base this was built with."""
         return self.base_name
 
-    def item_corpus(self) -> str | None:
+    def item_corpus(self) -> CorpusName | None:
         """The corpus this was built with."""
         return self.corpus
 
