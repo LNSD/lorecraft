@@ -12,8 +12,9 @@ components: "module:lorecraft.cli,module:lorecraft.project"
 
 `lorecraft inspect` shows what a repository declares: each corpus under `docs/`, its meta specs and
 documents, then agent skills directories and the skills each agent reads. It shows governing specs for
-documents; skill entries have no corpus governance and show no governing specs. It answers why a document
-is or is not checked and which agents see a skill, without running a check.
+documents; skill entries have no `governed_by` entry. The skills heading notes the built-in schema opt-out
+only when active. It answers why a document is or is not checked and which agents see a skill, without
+running a check.
 
 ## Table of Contents
 
@@ -32,7 +33,7 @@ is or is not checked and which agents see a skill, without running a check.
   `feat-cli`, with the files that share it.
 - **Governed by**: The meta specs whose rules apply to a document, broad to narrow: their names in the
   tree, and every selected file at those names in the JSON. Files appear under their actual names. Skill
-  entries are not governed by the reserved `skills` corpus and have no `governed by` entry.
+  entries have no `governed_by` entry.
 - **Agent skills directory**: A directory an agent reads skills from, such as `.claude/skills`, shown only when
   the root has it, with the resolved directory it leads to when it is a symlink.
 - **Skill**: A directory directly inside an agent skills directory that holds a `SKILL.md`.
@@ -55,6 +56,9 @@ lorecraft inspect
 
 # The model of another root, as JSON
 lorecraft inspect ../other-repo --format json
+
+# Show the built-in schema opt-out
+lorecraft --no-builtin-skills-schema inspect
 ```
 
 ### Output
@@ -103,8 +107,12 @@ or to a directory elsewhere in the repository, is listed where the agent finds i
     └── .agents/skills/docs-rules [claude-code, codex]
 ```
 
+By default the text heading reads `skills (N)`. With `--no-builtin-skills-schema`, it reads
+`skills (N; Agent Skills schema disabled)`.
+
 In the JSON these are `agent_skills_dirs`, each with `agent`, `path` and `resolves_to`, and `skills`, each with
-the `path` of its `SKILL.md` and its `agents`. Skill objects do not include `governed_by`.
+the `path` of its `SKILL.md` and its `agents`. Skill objects do not include `governed_by`. The top-level
+`builtin_skills_schema` field is omitted by default; with `--no-builtin-skills-schema`, it is `false`.
 
 A root with no `docs/__meta__/` prints a model with no corpora, a root with no skills directory one with no
 skills, and both exit `0`.
@@ -125,7 +133,8 @@ error: invalid structure schema docs/__meta__/feat.spec.json: Invalid JSON: key 
 - A skill is shown as found, not as valid: `inspect` does not read a `SKILL.md`;
   [check](cli-check.md) does.
 - A skill entry that is a symlink does not show where it leads.
-- The reserved `skills` corpus does not govern skill entries; its specs are not included in inspect output.
+- Repository skill corpus specs are not included in inspect output; only an active built-in schema opt-out
+  is shown.
 - A `docs/skills/` directory is ignored; its overlap with the reserved `skills` corpus is recorded but has no
   diagnostic yet.
 - A skills directory, a skill entry or a `SKILL.md` whose symlink leads outside the repository is left out of
