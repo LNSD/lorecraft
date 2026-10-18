@@ -51,12 +51,9 @@ from typing import assert_never
 
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.corpus import CorpusName, ReservedCorpusDirectory
-from lorecraft.project.database import (
-    Database,
-    ItemText,
-)
+from lorecraft.project.database import Database, ItemText
 from lorecraft.project.item import ItemFacet, ItemKind, MarkdownItemDescriptor, MarkdownItemRef
-from lorecraft.project.skill import OutsideSymlink
+from lorecraft.project.skill import OutsideSymlink, SymlinkRef
 from lorecraft.rules.declaration import Rule
 from lorecraft.rules.report import (
     CheckedItem,
@@ -75,7 +72,6 @@ from lorecraft.rules.subject import (
     governing_facet,
 )
 from lorecraft.rules.table import EnabledRule, RuleTable
-from lorecraft.vfs import RootExit
 
 
 def judge_item(database: Database, source: ItemText, table: RuleTable) -> CheckedItem:
@@ -172,20 +168,17 @@ def _judged[Facts](rule: type[Queried[Facts]], database: Database, ref: Markdown
     return rule.judge(database.query(rule.query(), ref))
 
 
-class _SymlinkRecord:
-    """The primitives of one symlink, read from the record the model or a skill's resource listing returned."""
+def _judged_symlink[Facts](
+    rule: type[QueriedSymlinkRule[Facts]], database: Database, symlink: OutsideSymlink
+) -> tuple[Rule, ...]:
+    """Every occurrence of one rule at a symlink, from the cached query facts.
 
-    def __init__(self, outside: OutsideSymlink) -> None:
-        """Bind the primitives to one symlink whose chain leaves the repository.
-
-        Args:
-            outside: The symlink, as the model's `outside_symlinks` or a skill's resource listing holds it.
-        """
-        self._outside = outside
-
-    def leaves_at(self) -> RootExit:
-        """The link the chain leaves the repository through, and its target, read from the record."""
-        return self._outside.leaves_at
+    Args:
+        rule: The rule to run.
+        database: The revision the query is resolved from.
+        symlink: The outside symlink judged.
+    """
+    return rule.judge(database.query(rule.query(), SymlinkRef(symlink.path)))
 
 
 class _CorpusDirectoryRecord:
@@ -195,33 +188,23 @@ class _CorpusDirectoryRecord:
         """Bind the primitives to one directory the model set aside.
 
         Args:
-            directory: The directory, as the model's `overlapping_directories` holds it.
+            directory: The directory the model holds.
         """
         self._directory = directory
 
     def reserved_corpus(self) -> CorpusName:
-        """The reserved corpus whose name the directory takes, read from the record."""
+        """The reserved corpus whose name the directory takes."""
         return self._directory.corpus
-
-
-def _judged_symlink[Facts](rule: type[QueriedSymlinkRule[Facts]], symlink: OutsideSymlink) -> tuple[Rule, ...]:
-    """Every occurrence of one rule at a symlink, from the facts of its query.
-
-    Args:
-        rule: The rule to run.
-        symlink: The symlink judged.
-    """
-    return rule.judge(rule.query()(_SymlinkRecord(symlink)))
 
 
 def _judged_directory[Facts](
     rule: type[QueriedCorpusDirectoryRule[Facts]], directory: ReservedCorpusDirectory
 ) -> tuple[Rule, ...]:
-    """Every occurrence of one rule at a reserved-corpus directory, from the facts of its query.
+    """Every occurrence of one rule at a reserved-corpus directory, from the cached query facts.
 
     Args:
         rule: The rule to run.
-        directory: The directory judged.
+        directory: The reserved-corpus directory judged.
     """
     return rule.judge(rule.query()(_CorpusDirectoryRecord(directory)))
 
@@ -243,20 +226,22 @@ def _located[R: Rule](
     ]
 
 
-def check_layout_entry(entry: OutsideSymlink | ReservedCorpusDirectory, table: RuleTable) -> CheckedLayoutEntry:
+def check_layout_entry(
+    entry: OutsideSymlink | ReservedCorpusDirectory, database: Database, table: RuleTable
+) -> CheckedLayoutEntry:
     """Run the enabled rules over one layout entry, a symlink or a reserved-corpus directory. Raises nothing.
 
     Args:
         entry: The entry, as the model or a skill's resource listing records it.
+        database: The revision whose model and resource listings resolve the subject ref.
         table: The rules the run enables.
     """
-    # An entry has no text to decode, and the package governs the layout, so each rule over its kind judges it from
-    # its query, which reads the record and asks the database nothing. Unlike an item rule's, that query runs directly
-    # and unmemoized: a record is no item of the revision, so `Database.query` has no key to memoize it on.
     match entry:
         case OutsideSymlink():
             symlink = entry
-            diagnostics = _located(entry.path, table.symlink_rules, lambda rule: _judged_symlink(rule, symlink))
+            diagnostics = _located(
+                entry.path, table.symlink_rules, lambda rule: _judged_symlink(rule, database, symlink)
+            )
         case ReservedCorpusDirectory():
             directory = entry
             diagnostics = _located(

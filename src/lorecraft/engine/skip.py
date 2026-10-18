@@ -85,7 +85,7 @@ def check_subjects(
             case DocumentRef() | SpecRef() | SkillLocation() | SkillResourceLocation():
                 reports.append(_check_item(database, subject, table))
             case OutsideSymlink() | ReservedCorpusDirectory():
-                reports.append(check_layout_entry(subject, table))
+                reports.append(check_layout_entry(subject, database, table))
             case _:
                 assert_never(subject)
     return tuple(reports)

@@ -13,6 +13,13 @@ from lorecraft.core.path import RootRelativePath
 from lorecraft.vfs import RootExit
 
 
+@dataclass(frozen=True, slots=True, order=True)
+class SymlinkRef:
+    """The path identifying one symlink subject in the workspace model."""
+
+    path: RootRelativePath
+
+
 @dataclass(frozen=True, slots=True)
 class OutsideSymlink:
     """One symlink an agent reaches in the skill layout whose chain leaves the repository.
