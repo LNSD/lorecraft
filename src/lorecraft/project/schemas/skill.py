@@ -10,7 +10,7 @@ words that do not change with pydantic's version.
 from collections.abc import Mapping
 from dataclasses import dataclass, replace
 from types import MappingProxyType
-from typing import Final, assert_never
+from typing import TYPE_CHECKING, Final, assert_never
 
 from pydantic import ValidationError
 from pydantic_core import ErrorDetails
@@ -18,6 +18,10 @@ from pydantic_core import ErrorDetails
 from lorecraft.core.mapping import Frozen, FrozenMapping
 from lorecraft.core.num import UnsignedInt
 from lorecraft.jsonschema import JsonType
+from lorecraft.schemas import BundledOrigin, SchemaInput, SchemaKind, SchemaReference
+
+if TYPE_CHECKING:
+    from lorecraft.project.query.primitives import SchemaPrimitives
 
 from .frontmatter_problem import (
     BlockProblem,
@@ -70,6 +74,22 @@ class SkillFrontmatterSchema:
 
 SKILL_FRONTMATTER_SCHEMA: Final[SkillFrontmatterSchema] = SkillFrontmatterSchema()
 """The Agent Skills specification every skill's frontmatter is held to."""
+
+SKILL_SCHEMA_REFERENCE: Final[SchemaReference] = SchemaReference(SchemaKind.FRONTMATTER, 'builtin:agent-skills')
+"""The stable schema subject for the bundled Agent Skills frontmatter floor."""
+
+SKILL_SCHEMA_INPUT: Final[SchemaInput] = SchemaInput(
+    SKILL_SCHEMA_REFERENCE,
+    BundledOrigin('builtin:agent-skills'),
+    FrozenMapping.from_plain(SkillFrontmatter.model_json_schema()),
+)
+"""The Agent Skills schema's JSON Schema representation, identity and bundled provenance."""
+
+
+def skill_frontmatter_schema_query(primitives: 'SchemaPrimitives') -> SkillFrontmatterSchema:
+    """The Pydantic schema for the bundled Agent Skills subject, obtained through its registry input."""
+    primitives.schema_input()
+    return SKILL_FRONTMATTER_SCHEMA
 
 
 _SPECIFIED_FIELDS: Final[tuple[str, ...]] = known_fields(SkillFrontmatter.model_json_schema())

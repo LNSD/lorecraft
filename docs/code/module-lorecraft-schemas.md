@@ -40,7 +40,7 @@ the registry a loader, query layer or cache. Its import layer sits below `lorecr
 - Structure and frontmatter are the only schema kinds; either kind may have repository or bundled provenance. Parsed structure specifications are not registry inputs.
 - Repository origins retain a root-relative path and governing layer; bundled origins retain a stable identity and no fabricated path.
 - A bundled origin identity must match its schema reference identity so the provenance names the referenced schema, regardless of kind; `SchemaOriginMismatchError` carries this mismatch.
-- A bundled input's payload for validator-backed entries remains an open question for the skills-floor part; do not infer Pydantic compatibility from its JSON document type.
+- The bundled Agent Skills input carries the model-rendered JSON Schema as registry data, while schema queries return its Pydantic validator; do not substitute JSON Schema validation or infer equivalent diagnostic behavior from that document.
 - Registry resolution examines only the supplied immutable inputs. It performs no filesystem or external resource reads and holds no mutable cache.
 - This package imports no project database, query, workspace-loading or filesystem modules.
 
