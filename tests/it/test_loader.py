@@ -6,6 +6,7 @@ skill cases lay out the project skills directories the same way. The repositorie
 `DiskFileSystem` over `tmp_path`, and every path in the model is root-relative to it.
 """
 
+import json
 import os
 import stat
 from collections.abc import Callable, Iterator
@@ -56,6 +57,7 @@ from lorecraft.project.workspace import (
     load_model,
     load_workspace,
 )
+from lorecraft.schemas import SchemaKind
 from lorecraft.vfs import OsRefusal, ResolvedPath, RootExit, VirtualFileSystem, take_snapshot
 
 CLAUDE: Final[AgentName] = AgentName('claude-code')
@@ -1001,6 +1003,32 @@ class TestLoadWorkspaceSkills:
         #: Then
         assert not missing_skills_dir.exists(), 'the case turns on the skills directories being absent'
         assert model.sorted_skills_dirs == (), 'an agent whose skills directory is absent is not recorded'
+
+
+@pytest.mark.it
+class TestSchemaInputRegistration:
+    def test_load_workspace_registers_structure_and_frontmatter_inputs_with_origins(
+        self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
+    ) -> None:
+        #: Given
+        text = '{"frontmatter": {"type": "object"}}'
+        _write(tmp_path, 'docs/__meta__/code.spec.json', text)
+        (tmp_path / 'docs' / 'code').mkdir(parents=True)
+
+        #: When
+        model = load_workspace(schemas, documents, skills)
+
+        #: Then
+        structure = model.schema_inputs[next(ref for ref in model.schema_inputs if ref.kind is SchemaKind.STRUCTURE)]
+        frontmatter = model.schema_inputs[
+            next(ref for ref in model.schema_inputs if ref.kind is SchemaKind.FRONTMATTER)
+        ]
+        assert structure.document == FrozenMapping.from_plain(json.loads(text))
+        assert structure.origin.path == RootRelativePath.parse('docs/__meta__/code.spec.json')
+        assert frontmatter.origin == structure.origin, 'the embedded JSON Schema retains its specification layer'
+        assert frontmatter.reference.identity == structure.reference.identity, (
+            'both inputs identify their governing layer'
+        )
 
 
 @pytest.mark.it

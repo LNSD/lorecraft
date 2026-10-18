@@ -2,8 +2,8 @@
 
 The loader builds one model per run from `docs/__meta__/`, the corpus directories and the project skills
 directories; every query here is pure. The model holds structure (corpora, document refs, skills directories, skill
-refs) and configuration (decoded specs), never document content: text stays behind the document repository and is
-read on demand through a `DocumentRef`, and the model reads no `SKILL.md`.
+refs) and configuration (decoded specs and immutable raw schema inputs), never document content: text stays behind
+the document repository and is read on demand through a `DocumentRef`, and the model reads no `SKILL.md`.
 
 Governance is the one computation the model owns. A document is governed by its corpus spec first, then by
 every namespace spec whose namespace matches its filename, broad to narrow. A skill entry is governed by the
@@ -48,6 +48,7 @@ from lorecraft.project.layout import DOCS_DIR, DOCUMENT_SUFFIX, SPECS_DIR
 from lorecraft.project.link_target import DocumentDirectory, SkillRoot
 from lorecraft.project.schemas import CorpusSpecName, NamespaceSpecName, StatedFrontmatterSchema, StructureSpec
 from lorecraft.project.skill import OutsideSymlink, SkillLocation, SkillRef, SkillResourceLocation, SkillsDir
+from lorecraft.schemas import SchemaInput, SchemaReference
 from lorecraft.vfs import ResolvedPath
 
 from .failure import FailedStructure, LoadFailure
@@ -400,6 +401,7 @@ class WorkspaceModel:
             loader met them: a structure file, whose `FailedStructure` also stands in its layer, a corpus directory,
             a skills directory, a skill entry or a `SKILL.md`, and a `docs/` or `docs/__meta__/` that cannot be
             listed. Nothing a failure touches is in the model beyond that record; every other unit is loaded.
+        schema_inputs: Immutable raw schema inputs keyed by typed reference; parsed structure specs remain in layers.
     """
 
     corpora: FrozenMapping[CorpusName, Corpus]
@@ -410,6 +412,7 @@ class WorkspaceModel:
     skills_corpus: Corpus | None = None
     overlapping_directories: frozenset[ReservedCorpusDirectory] = frozenset()
     builtin_skills_schema: bool = True
+    schema_inputs: FrozenMapping[SchemaReference, SchemaInput] = FrozenMapping({})
 
     def __post_init__(self) -> None:
         """Keep a key from naming something other than its value, which the lookups read the key alone to answer.
@@ -427,6 +430,9 @@ class WorkspaceModel:
         for path, outside in self.outside_symlinks.items():
             if path != outside.path:
                 raise ValueError(f'outside_symlinks key {path} holds the symlink at {outside.path}')
+        for ref, schema_input in self.schema_inputs.items():
+            if ref != schema_input.reference:
+                raise ValueError(f'schema_inputs key {ref} holds input {schema_input.reference}')
 
     @property
     def sorted_corpora(self) -> tuple[Corpus, ...]:

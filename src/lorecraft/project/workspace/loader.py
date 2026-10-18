@@ -6,6 +6,8 @@ its specification name. The loader lists the specification directory, parses eac
 `docs/<corpus>/` is a regular directory, lists the Markdown files directly inside each, and builds a
 `StructureSpec` from every structure specification, which proves each one usable, its frontmatter schema
 included, before any document is read.
+It also records the raw structure source and each usable embedded frontmatter JSON Schema as immutable, typed inputs
+for the model; parsed structure specifications remain in their existing layer.
 
 The skills come from the agents: the loader asks each agent in `lorecraft.agents` which project skills
 directories it reads, keeps the ones the repository has, and lists the skills in each resolved directory once. A
@@ -20,8 +22,11 @@ while the loader goes on with the next one. A structure file that fails stands i
 variants of one unit, keeps the facts they carry and drops the exception. Nothing here logs.
 """
 
+import json
 from dataclasses import dataclass, field
 from typing import assert_never
+
+from pydantic import JsonValue
 
 from lorecraft.agents import SKILL_ENTRY, iter_agents
 from lorecraft.core.mapping import FrozenMapping
@@ -45,6 +50,7 @@ from lorecraft.project.schemas import (
     NotASpecStemError,
     ProseSpecFile,
     SpecFile,
+    StructureSchema,
     StructureSchemaReadError,
     StructureSpec,
     StructureSpecFile,
@@ -64,6 +70,7 @@ from lorecraft.project.skill import (
     SkillsDirListError,
 )
 from lorecraft.project.skill import Repository as SkillRepository
+from lorecraft.schemas import RepositoryOrigin, SchemaInput, SchemaKind, SchemaReference
 from lorecraft.vfs import (
     DIR_LIST_FAILURES,
     ROOT_EXIT_WALK_FAILURES,
@@ -168,6 +175,7 @@ def load_workspace(
         builtin_skills_schema: Whether to apply the Agent Skills floor and preflight skills schemas for contradictions.
     """
     failures: list[LoadFailure] = []
+    schema_inputs: dict[SchemaReference, SchemaInput] = {}
     spec_paths = _list_spec_paths(schemas, failures)
     corpus_directories = _list_corpus_directories(documents, failures)
 
@@ -188,14 +196,20 @@ def load_workspace(
                 directory = DOCS_DIR / PathComponent.parse(str(corpus_name))
                 overlapping_directories.add(ReservedCorpusDirectory(directory, corpus_name))
             skills_corpus = _load_corpus(
-                schemas, corpus_name, files, [], failures, check_skill_compatibility=builtin_skills_schema
+                schemas,
+                corpus_name,
+                files,
+                [],
+                failures,
+                schema_inputs,
+                check_skill_compatibility=builtin_skills_schema,
             )
             continue
         if not has_directory:
             # A corpus is a regular directory under docs/; a missing or linked one has no documents to list.
             continue
         filenames = _list_document_filenames(documents, corpus_name, failures)
-        corpora[corpus_name] = _load_corpus(schemas, corpus_name, files, filenames, failures)
+        corpora[corpus_name] = _load_corpus(schemas, corpus_name, files, filenames, failures, schema_inputs)
 
     skills_dirs, outside_skills_dirs = _load_skills_dirs(skills, failures)
     skill_locations, outside_entries = _list_skill_locations(skills, skills_dirs, failures)
@@ -214,6 +228,7 @@ def load_workspace(
         skills_corpus=skills_corpus,
         overlapping_directories=frozenset(overlapping_directories),
         builtin_skills_schema=builtin_skills_schema,
+        schema_inputs=FrozenMapping(schema_inputs),
     )
 
 
@@ -300,6 +315,7 @@ def _load_corpus(
     files: _CorpusFiles,
     filenames: list[AspectFilename],
     failures: list[LoadFailure],
+    schema_inputs: dict[SchemaReference, SchemaInput],
     *,
     check_skill_compatibility: bool = False,
 ) -> Corpus:
@@ -311,6 +327,7 @@ def _load_corpus(
         files: Specification files at the corpus spec's name and at each of its namespace specs' names.
         filenames: Stems of the documents listed in the corpus directory, which the corpus lists by filename.
         failures: The load failures so far; each structure file that fails is appended.
+        schema_inputs: Raw inputs collected from the structure files.
         check_skill_compatibility: Whether to reject layers contradicting the built-in skill field rules.
     """
     corpus_spec_name = CorpusSpecName(corpus_name)
@@ -318,7 +335,7 @@ def _load_corpus(
         name=corpus_spec_name,
         files=_sorted_paths(files.spec),
         structure=_load_structure(
-            schemas, files.spec.structure, failures, check_skill_compatibility=check_skill_compatibility
+            schemas, files.spec.structure, failures, schema_inputs, check_skill_compatibility=check_skill_compatibility
         ),
     )
 
@@ -330,7 +347,11 @@ def _load_corpus(
         namespaces[namespace] = CorpusNamespace(
             files=_sorted_paths(namespace_files),
             structure=_load_structure(
-                schemas, namespace_files.structure, failures, check_skill_compatibility=check_skill_compatibility
+                schemas,
+                namespace_files.structure,
+                failures,
+                schema_inputs,
+                check_skill_compatibility=check_skill_compatibility,
             ),
         )
 
@@ -353,6 +374,7 @@ def _load_structure(
     schemas: SchemaRepository,
     structure_file: StructureSpecFile | None,
     failures: list[LoadFailure],
+    schema_inputs: dict[SchemaReference, SchemaInput],
     *,
     check_skill_compatibility: bool = False,
 ) -> StructureSpec | FailedStructure | None:
@@ -362,6 +384,7 @@ def _load_structure(
         schemas: Repository the structure specification is read from.
         structure_file: The name's structure file, or None when the name has none; the prose is never decoded.
         failures: The load failures so far; a structure file that cannot be read or used is appended.
+        schema_inputs: Raw inputs collected by typed reference.
         check_skill_compatibility: Whether to check direct required-field constraints against the built-in schema.
 
     Returns:
@@ -383,11 +406,27 @@ def _load_structure(
             case _:
                 assert_never(exc.source)
         return _record_failed_structure(failures, structure_file.path, failure)
+    parsed = StructureSpec.parse(structure_file, StructureSchema(text))
+    identity = str(structure_file.name)
+    origin = RepositoryOrigin(structure_file.path, identity)
+    try:
+        document: JsonValue = json.loads(text)
+    except json.JSONDecodeError:
+        document = None
+    if isinstance(document, dict):
+        structure_ref = SchemaReference(SchemaKind.STRUCTURE, identity)
+        schema_inputs[structure_ref] = SchemaInput(structure_ref, origin, FrozenMapping.from_plain(document))
     # Parsing is the check, and it raises nothing: text that is not JSON in the structure dialect, a title pattern
     # that does not compile, a frontmatter schema that cannot be held and rules that are not usable each come back
     # as their failure record.
-    parsed = StructureSpec.parse(structure_file, text)
     if isinstance(parsed, StructureSpec):
+        if parsed.frontmatter is not None:
+            frontmatter_document = document.get('frontmatter') if isinstance(document, dict) else None
+            if isinstance(frontmatter_document, dict):
+                frontmatter_ref = SchemaReference(SchemaKind.FRONTMATTER, identity)
+                schema_inputs[frontmatter_ref] = SchemaInput(
+                    frontmatter_ref, origin, FrozenMapping.from_plain(frontmatter_document)
+                )
         if check_skill_compatibility and parsed.frontmatter is not None:
             contradictions = skill_schema_contradictions(parsed.frontmatter.schema.to_plain())
             if contradictions:
