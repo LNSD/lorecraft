@@ -16,7 +16,8 @@ function re-checks. The boundary is the hard shell; the domain is the soft core.
 
 - An invariant is established in the value's `parse` classmethod, or in a `__post_init__` guard that `parse`
   delegates to — not in a standalone helper and not in a command body. That is the one place the invariant
-  lives, and every entry point calls it.
+  lives, and every entry point calls it. A dataclass `__post_init__` raises the invariant's typed variant,
+  never a bare built-in to validate fields ([python-dataclasses](python-dataclasses.md) §6).
 - A command handler's job is to turn its arguments into domain types and hand them on. Domain functions take
   the parsed types, never the raw `str`.
 - Untrusted input is annotated as what it is until it is parsed: `object`, or `Mapping[str, object]` for
@@ -100,7 +101,7 @@ class LineSpan:
 
     def __post_init__(self) -> None:
         if not 1 <= self.first < self.end:
-            raise EmptyLineSpanError(self.first, self.end)
+            raise InvalidLineSpanError(self.first, self.end)
 
 
 def excerpt(lines: Sequence[str], span: LineSpan) -> list[str]:

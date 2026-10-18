@@ -34,9 +34,10 @@ with no traceback to locate the call.
 A value object's invariant raises its variant, whoever constructs the value
 ([pattern-value-object](pattern-value-object.md)), since it cannot know whether its caller parsed input or
 joined a literal. A record only code builds, from values already parsed, is the other case: no file supplies
-its fields, so a value breaking its invariant is a broken contract, and its guard may raise `ValueError`, but
-only once the questions of [§3](#3-a-built-in-in-raises-is-a-smell) leave no other answer. Where that guard
-sits is owned by [python-dataclasses](python-dataclasses.md).
+its fields, so a value breaking its invariant is a broken contract. A dataclass `__post_init__` that validates
+fields raises the invariant's typed variant, not a bare built-in; [python-dataclasses](python-dataclasses.md)
+owns that rule. Other guards may raise a built-in only once the questions of
+[§3](#3-a-built-in-in-raises-is-a-smell) leave no other answer.
 
 A defect a test must single out subclasses the one built-in it already is, never `BaseException` and never two
 built-ins, and builds its message from its attributes as a variant does. `abc.abstractmethod` is preferred to
@@ -303,7 +304,8 @@ Before committing code, verify:
 - [ ] A broken contract raises `ValueError`, `TypeError`, `RuntimeError` or `NotImplementedError`, and a dead
       path `Unreachable`; never an `Error`, a `KeyError` or another built-in, outside the cases of §2
 - [ ] A value object's invariant raises its variant, whoever constructs the value, outside the case of §2
-- [ ] Among invariants, only the guard of a record only code builds may raise `ValueError`
+- [ ] A dataclass `__post_init__` never raises a bare built-in to validate a field invariant; see
+      [python-dataclasses](python-dataclasses.md) §6
 - [ ] Every built-in in a `Raises:` section, direct or propagated, has passed the questions of §2 at its
       source: no type can exclude the case, and no file a command read can cause it
 - [ ] A precondition phrased "values from X never trigger it" is carried by a type X issues, or the lookup
