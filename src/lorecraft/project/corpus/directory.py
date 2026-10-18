@@ -7,6 +7,13 @@ from lorecraft.core.path import RootRelativePath
 from .name import CorpusName
 
 
+@dataclass(frozen=True, slots=True, order=True)
+class CorpusDirectoryRef:
+    """The path identifying one reserved-corpus directory subject in the workspace model."""
+
+    path: RootRelativePath
+
+
 # order=True so a collection of directories sorts by path, as the root-relative paths they wrap do.
 @dataclass(frozen=True, slots=True, order=True)
 class ReservedCorpusDirectory:

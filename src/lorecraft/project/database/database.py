@@ -12,9 +12,9 @@ The item queries share one family keyed by `MarkdownItemRef`.
 resource's `resource_item(location)` registers the reference from its skill's listing, and its item queries read the
 descriptor at the resolved location. A document the model does not list is resolved by its corpus and filename.
 
-The declared `query(query, ref)` memoizes a rule-owned query over a Markdown item or symlink subject.
-`query_reads(query, ref)` reports typed primitive and cross-item reads, each paired with the source subject ref. A
-query's result carries over when each primitive or query dependency it read does. `item_governance(ref)`
+The declared `query(query, ref)` memoizes a rule-owned query over a Markdown item, symlink or reserved-corpus
+directory subject. `query_reads(query, ref)` reports typed primitive and cross-item reads, each paired with the source
+subject ref. A query's result carries over when each primitive or query dependency it read does. `item_governance(ref)`
 reads the model, and a declared query reads common primitives without distinguishing item origins.
 
 Database construction and resource registration have no separate carry-over cache. `from_snapshot(snapshot)` creates
@@ -69,7 +69,7 @@ Other public methods either answer from queries or inspect the snapshot. Their s
 
 - `item_structure_specs(ref)` reads `item_governance(ref)` for documents and skill entries. Resources and
   specifications have no corpus structure specs; it is not cached separately and carries over with that governance.
-- `query(query, ref)` runs a declared query over a Markdown item or symlink subject and
+- `query(query, ref)` runs a declared query over a Markdown item, symlink or reserved-corpus directory subject and
   caches its answer and read set. It carries over whenever every primitive or cross-item query it read does.
 - `query_reads(query, ref)` reports recorded primitive and cross-item reads, paired with their source refs; it is empty
   before that query has run and is not cached.
@@ -154,7 +154,7 @@ from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.num import UnsignedInt
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectFilename
-from lorecraft.project.corpus import CorpusName
+from lorecraft.project.corpus import CorpusDirectoryRef, CorpusName, ReservedCorpusDirectory
 from lorecraft.project.document import SpecRef
 from lorecraft.project.item import (
     DocumentOrigin,
@@ -171,6 +171,8 @@ from lorecraft.project.link_target import (
     link_targets_of,
 )
 from lorecraft.project.query import (
+    CorpusDirectoryQuery,
+    CorpusDirectoryQueryRead,
     Query,
     SymlinkQuery,
     SymlinkQueryRead,
@@ -237,6 +239,7 @@ class PrimitiveRead(StrEnum):
     ITEM_CORPUS = 'item_corpus'
     ITEM_BASE = 'item_base'
     SYMLINK_LEAVES_AT = 'symlink_leaves_at'
+    RESERVED_CORPUS = 'reserved_corpus'
 
 
 @dataclass(frozen=True)
@@ -247,8 +250,8 @@ class QueryRead:
     ref: MarkdownItemRef
 
 
-type QueryKey = tuple[Query[object], MarkdownItemRef] | SymlinkQueryRead
-type ReadKey = PrimitiveRead | QueryRead | SymlinkQueryRead
+type QueryKey = tuple[Query[object], MarkdownItemRef] | SymlinkQueryRead | CorpusDirectoryQueryRead
+type ReadKey = PrimitiveRead | QueryRead | SymlinkQueryRead | CorpusDirectoryQueryRead
 
 
 class _ReadSet:
@@ -286,6 +289,22 @@ class _ReadSymlinkPrimitives(_ReadSet):
         """The point where this symlink's chain leaves the repository."""
         self._record(PrimitiveRead.SYMLINK_LEAVES_AT)
         return self._database._outside_symlink(self._ref).leaves_at
+
+
+class _ReadCorpusDirectoryPrimitives(_ReadSet):
+    """The primitive reads of one reserved-corpus directory subject, recorded with typed keys."""
+
+    def __init__(self, database: 'Database', ref: CorpusDirectoryRef) -> None:
+        super().__init__()
+        self._database = database
+        self._ref = ref
+
+    __slots__ = ('_database', '_ref')
+
+    def reserved_corpus(self) -> CorpusName:
+        """The reserved corpus whose name this directory takes."""
+        self._record(PrimitiveRead.RESERVED_CORPUS)
+        return self._database._reserved_corpus_directory(self._ref).corpus
 
 
 logger = logging.getLogger(__name__)
@@ -902,15 +921,19 @@ class Database:
     @overload
     def query[T](self, query: SymlinkQuery[T], ref: SymlinkRef) -> T: ...  # noqa: D102 — implementation documents the overload
 
+    @overload
+    def query[T](self, query: CorpusDirectoryQuery[T], ref: CorpusDirectoryRef) -> T: ...  # noqa: D102 — implementation documents the overload
+
     def query[T](
         self,
-        query: Query[T] | SymlinkQuery[T],
-        ref: MarkdownItemRef | SymlinkRef,
+        query: Query[T] | SymlinkQuery[T] | CorpusDirectoryQuery[T],
+        ref: MarkdownItemRef | SymlinkRef | CorpusDirectoryRef,
     ) -> T:
         """The memoized answer of a declared query over a typed subject.
 
         A query over a Markdown item carries over when each primitive it read does. A query over a symlink carries
-        over when the model still lists that outside symlink at the same path.
+        over when the model still lists that outside symlink at the same path. A query over a reserved-corpus
+        directory carries over when the model still lists that directory at the same path.
 
         Args:
             query: The declared query to run.
@@ -918,7 +941,7 @@ class Database:
 
         Raises:
             UnlistedItemError: If an item ref is not a listed item, registered resource or answerable document.
-            KeyError: If a symlink ref is not held by the model and its listings.
+            KeyError: If a symlink or directory ref is not held by the model and its listings.
         """
         key = cast('QueryKey', (query, ref))
         if key not in self._queries:
@@ -929,6 +952,9 @@ class Database:
                 case SymlinkRef():
                     primitives = _ReadSymlinkPrimitives(self, ref)
                     answer = cast('SymlinkQuery[T]', query)(primitives)
+                case CorpusDirectoryRef():
+                    primitives = _ReadCorpusDirectoryPrimitives(self, ref)
+                    answer = cast('CorpusDirectoryQuery[T]', query)(primitives)
                 case _:
                     assert_never(ref)
             self._queries[key] = (answer, primitives._recorded_reads())
@@ -936,8 +962,8 @@ class Database:
 
     def query_reads(
         self,
-        query: Query[object] | SymlinkQuery[object],
-        ref: MarkdownItemRef | SymlinkRef,
+        query: Query[object] | SymlinkQuery[object] | CorpusDirectoryQuery[object],
+        ref: MarkdownItemRef | SymlinkRef | CorpusDirectoryRef,
     ) -> frozenset[ReadKey]:
         """The typed read keys recorded for a query; public so nested queries avoid private-cache access.
 
@@ -959,6 +985,13 @@ class Database:
                 if outside.path == ref.path:
                     return outside
         raise KeyError(ref.path)
+
+    def _reserved_corpus_directory(self, ref: CorpusDirectoryRef) -> ReservedCorpusDirectory:
+        """Find one reserved-corpus directory by its typed subject reference."""
+        found = next((entry for entry in self._model.overlapping_directories if entry.path == ref.path), None)
+        if found is None:
+            raise KeyError(ref.path)
+        return found
 
     # Snapshot questions: `refusals` is read on each call; `unreported_docs_refusals` is memoized for this database.
 

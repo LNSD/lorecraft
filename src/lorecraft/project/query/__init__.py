@@ -10,6 +10,7 @@ from .linked_paths import linked_paths
 from .primitives import (
     CorpusDirectoryPrimitives,
     CorpusDirectoryQuery,
+    CorpusDirectoryQueryRead,
     CountPrimitives,
     GovernancePrimitives,
     LinkResolutionPrimitives,
@@ -24,6 +25,7 @@ from .primitives import (
 __all__: list[str] = [
     'CorpusDirectoryPrimitives',
     'CorpusDirectoryQuery',
+    'CorpusDirectoryQueryRead',
     'CountPrimitives',
     'GovernancePrimitives',
     'LinkResolutionPrimitives',

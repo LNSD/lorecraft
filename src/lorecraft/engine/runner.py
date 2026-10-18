@@ -50,7 +50,7 @@ from collections.abc import Callable
 from typing import assert_never
 
 from lorecraft.core.path import RootRelativePath
-from lorecraft.project.corpus import CorpusName, ReservedCorpusDirectory
+from lorecraft.project.corpus import CorpusDirectoryRef, ReservedCorpusDirectory
 from lorecraft.project.database import Database, ItemText
 from lorecraft.project.item import ItemFacet, ItemKind, MarkdownItemDescriptor, MarkdownItemRef
 from lorecraft.project.skill import OutsideSymlink, SymlinkRef
@@ -181,32 +181,17 @@ def _judged_symlink[Facts](
     return rule.judge(database.query(rule.query(), SymlinkRef(symlink.path)))
 
 
-class _CorpusDirectoryRecord:
-    """The primitives of one reserved-corpus directory, read from the record the model set aside."""
-
-    def __init__(self, directory: ReservedCorpusDirectory) -> None:
-        """Bind the primitives to one directory the model set aside.
-
-        Args:
-            directory: The directory the model holds.
-        """
-        self._directory = directory
-
-    def reserved_corpus(self) -> CorpusName:
-        """The reserved corpus whose name the directory takes."""
-        return self._directory.corpus
-
-
 def _judged_directory[Facts](
-    rule: type[QueriedCorpusDirectoryRule[Facts]], directory: ReservedCorpusDirectory
+    rule: type[QueriedCorpusDirectoryRule[Facts]], database: Database, directory: ReservedCorpusDirectory
 ) -> tuple[Rule, ...]:
     """Every occurrence of one rule at a reserved-corpus directory, from the cached query facts.
 
     Args:
         rule: The rule to run.
+        database: The revision the query is resolved from.
         directory: The reserved-corpus directory judged.
     """
-    return rule.judge(rule.query()(_CorpusDirectoryRecord(directory)))
+    return rule.judge(database.query(rule.query(), CorpusDirectoryRef(directory.path)))
 
 
 def _located[R: Rule](
@@ -245,7 +230,7 @@ def check_layout_entry(
         case ReservedCorpusDirectory():
             directory = entry
             diagnostics = _located(
-                entry.path, table.corpus_directory_rules, lambda rule: _judged_directory(rule, directory)
+                entry.path, table.corpus_directory_rules, lambda rule: _judged_directory(rule, database, directory)
             )
         case _:
             assert_never(entry)
