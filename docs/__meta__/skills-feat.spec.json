@@ -1,0 +1,5 @@
+{
+  "$schema": "../schemas/structure.spec.json",
+  "description": "Narrows skills.spec.json for feat-* entries. The prose authority is skills-feat.md; it sets a 3500-token whole-entry budget for feature-document workflows.",
+  "tokens": 3500
+}

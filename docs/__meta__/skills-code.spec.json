@@ -1,0 +1,5 @@
+{
+  "$schema": "../schemas/structure.spec.json",
+  "description": "Narrows skills.spec.json for code-* entries. The prose authority is skills-code.md; it sets a 6500-token whole-entry budget to leave room for the longest current code-* entry, code-test.",
+  "tokens": 6500
+}
