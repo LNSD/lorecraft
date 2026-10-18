@@ -33,6 +33,7 @@ if TYPE_CHECKING:
 type Query[T] = Callable[[Primitives], T]
 type SymlinkQuery[T] = Callable[[SymlinkPrimitives], T]
 type CorpusDirectoryQuery[T] = Callable[[CorpusDirectoryPrimitives], T]
+type SubjectQuery[T] = Query[T] | SymlinkQuery[T] | CorpusDirectoryQuery[T]
 type SymlinkQueryRead = tuple[SymlinkQuery[object], SymlinkRef]
 type CorpusDirectoryQueryRead = tuple[CorpusDirectoryQuery[object], CorpusDirectoryRef]
 

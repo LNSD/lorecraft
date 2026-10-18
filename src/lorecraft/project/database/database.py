@@ -950,8 +950,7 @@ class Database:
             ref: The typed subject the query reads.
 
         Raises:
-            UnlistedItemError: If an item ref is not a listed item, registered resource or answerable document.
-            KeyError: If a symlink or directory ref is not held by the model and its listings.
+            UnlistedItemError: If the subject ref is not listed by the model or a skill resource listing.
         """
         key = cast('QueryKey', (query, ref))
         if key not in self._queries:
@@ -989,18 +988,17 @@ class Database:
         found = self._model.outside_symlinks.get(ref.path)
         if found is not None:
             return found
-        for location in self._model.sorted_skill_locations:
-            listing = self.skill_resources(location)
+        for listing in self._skill_resources.values():
             for outside in listing.outside_symlinks:
                 if outside.path == ref.path:
                     return outside
-        raise KeyError(ref.path)
+        raise UnlistedItemError(ref)
 
     def _reserved_corpus_directory(self, ref: CorpusDirectoryRef) -> ReservedCorpusDirectory:
         """Find one reserved-corpus directory by its typed subject reference."""
         found = next((entry for entry in self._model.overlapping_directories if entry.path == ref.path), None)
         if found is None:
-            raise KeyError(ref.path)
+            raise UnlistedItemError(ref)
         return found
 
     # Snapshot questions: `refusals` is read on each call; `unreported_docs_refusals` is memoized for this database.

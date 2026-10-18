@@ -9,7 +9,11 @@ from .name import CorpusName
 
 @dataclass(frozen=True, slots=True, order=True)
 class CorpusDirectoryRef:
-    """The path identifying one reserved-corpus directory subject in the workspace model."""
+    """The path identifying one reserved-corpus directory subject in the workspace model.
+
+    Attributes:
+        path: Root-relative path of the directory, also used in reports.
+    """
 
     path: RootRelativePath
 

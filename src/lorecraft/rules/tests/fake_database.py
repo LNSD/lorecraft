@@ -29,7 +29,7 @@ from lorecraft.project.link_target import (
     LinkTargetEntry,
     SkillRoot,
 )
-from lorecraft.project.query import CorpusDirectoryQuery, Query, SymlinkQuery
+from lorecraft.project.query import CorpusDirectoryQuery, Query, SubjectQuery, SymlinkQuery
 from lorecraft.project.schemas import (
     CorpusSpecName,
     NamespaceSpecName,
@@ -490,7 +490,7 @@ def judged(rule: type[Rule], database: object) -> tuple[Rule, ...]:
         rule: The queried rule to run.
         database: The fake database that answers the rule's query.
     """
-    queried = cast('type[Queried[object]]', rule)
+    queried = cast('type[Queried[object, SubjectQuery[object]]]', rule)
     query = queried.query()
     if isinstance(database, FakeSymlinkDatabase):
         facts = database.query(cast('SymlinkQuery[object]', query))

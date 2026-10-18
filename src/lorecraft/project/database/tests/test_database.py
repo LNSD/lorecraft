@@ -1,17 +1,21 @@
 """The database's declared queries and their recorded reads."""
 
 import ast
-from pathlib import Path
+from dataclasses import replace
+from pathlib import Path, PurePosixPath
 
 import pytest
 
 from lib.tree import from_tree
+from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.path import RootRelativePath
+from lorecraft.project.corpus import CorpusDirectoryRef, CorpusName, ReservedCorpusDirectory
 from lorecraft.project.database import Database, PrimitiveRead, QueryRead
-from lorecraft.project.item import ItemReadError, MarkdownItemRef
-from lorecraft.project.query import Primitives
+from lorecraft.project.item import ItemReadError, MarkdownItemRef, UnlistedItemError
+from lorecraft.project.query import CorpusDirectoryPrimitives, Primitives, SymlinkPrimitives
+from lorecraft.project.skill import OutsideSymlink, SymlinkRef
 from lorecraft.project.syntax import Heading
-from lorecraft.vfs import OsRefusal, RefusedRead, Snapshot, SnapshotRecords
+from lorecraft.vfs import OsRefusal, RefusedRead, RootExit, Snapshot, SnapshotRecords
 
 GUIDE: MarkdownItemRef = MarkdownItemRef(RootRelativePath.parse('docs/code/guide.md'))
 TARGET: MarkdownItemRef = MarkdownItemRef(RootRelativePath.parse('docs/feat/target.md'))
@@ -341,3 +345,77 @@ class TestQueryReads:
         assert database.query_reads(_reads_unreadable_item, GUIDE) == {
             QueryRead(_inner, TARGET),
         }, 'the read set retains a failed destination query'
+
+    def test_query_memoizes_symlink_subjects_and_records_their_primitive(self) -> None:
+        #: Given
+        database = Database.from_snapshot(from_tree({}))
+        path = RootRelativePath.parse('.agents/skills/outside')
+        outside = OutsideSymlink(path, RootExit(path, PurePosixPath('/outside')))
+        database._model = replace(database.model(), outside_symlinks=FrozenMapping({path: outside}))
+        calls = 0
+
+        def query(primitives: SymlinkPrimitives) -> RootExit:
+            nonlocal calls
+            calls += 1
+            return primitives.leaves_at()
+
+        ref = SymlinkRef(path)
+
+        #: When
+        first = database.query(query, ref)
+        repeated = database.query(query, ref)
+
+        #: Then
+        assert first == outside.leaves_at, 'the query returns the symlink primitive'
+        assert repeated == outside.leaves_at, 'the repeated query returns the same fact'
+        assert calls == 1, 'the query is memoized on repeated calls'
+        assert database.query_reads(query, ref) == {PrimitiveRead.SYMLINK_LEAVES_AT}, 'the primitive read is recorded'
+
+    def test_query_memoizes_corpus_directory_subjects_and_records_their_primitive(self) -> None:
+        #: Given
+        database = Database.from_snapshot(from_tree({}))
+        path = RootRelativePath.parse('docs/skills')
+        directory = ReservedCorpusDirectory(path, CorpusName.parse('skills'))
+        database._model = replace(database.model(), overlapping_directories=frozenset({directory}))
+        calls = 0
+
+        def query(primitives: CorpusDirectoryPrimitives) -> CorpusName:
+            nonlocal calls
+            calls += 1
+            return primitives.reserved_corpus()
+
+        ref = CorpusDirectoryRef(path)
+
+        #: When
+        first = database.query(query, ref)
+        repeated = database.query(query, ref)
+
+        #: Then
+        assert first == directory.corpus, 'the query returns the reserved corpus primitive'
+        assert repeated == directory.corpus, 'the repeated query returns the same fact'
+        assert calls == 1, 'the query is memoized on repeated calls'
+        assert database.query_reads(query, ref) == {PrimitiveRead.RESERVED_CORPUS}, 'the primitive read is recorded'
+
+    def test_query_over_an_unlisted_symlink_raises_unlisted_item_error(self) -> None:
+        #: Given
+        database = Database.from_snapshot(from_tree({}))
+        ref = SymlinkRef(RootRelativePath.parse('.agents/skills/missing'))
+
+        #: When
+        with pytest.raises(UnlistedItemError) as raised:
+            database.query(lambda primitives: primitives.leaves_at(), ref)
+
+        #: Then
+        assert 'no subject' in str(raised.value), 'the unknown symlink is reported as an unlisted subject'
+
+    def test_query_over_an_unlisted_corpus_directory_raises_unlisted_item_error(self) -> None:
+        #: Given
+        database = Database.from_snapshot(from_tree({}))
+        ref = CorpusDirectoryRef(RootRelativePath.parse('docs/skills'))
+
+        #: When
+        with pytest.raises(UnlistedItemError) as raised:
+            database.query(lambda primitives: primitives.reserved_corpus(), ref)
+
+        #: Then
+        assert 'no subject' in str(raised.value), 'the unknown corpus directory is reported as an unlisted subject'
