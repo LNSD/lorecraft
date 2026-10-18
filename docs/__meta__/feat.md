@@ -27,6 +27,9 @@ scope: "global"
 The corpus in `docs/feat/` is **the feature documentation**; a single member of it is a **feat spec**.
 A feat spec describes something this toolkit provides — a check, a meta spec dialect, a corpus, a
 command surface — at the level a reader needs to use it, not at the level a reader needs to modify it.
+It documents behavior a user or an agent can invoke or observe. Internal architecture, libraries and
+registries without such a surface belong in `docs/code/` or `docs/arch/`, and get no feat spec; an internal
+schema registry is one example.
 
 ### The Corpus Grows With Features
 
