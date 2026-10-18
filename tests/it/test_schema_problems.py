@@ -1,4 +1,4 @@
-"""The `item_schema_problems` and `item_skill_fields` queries, for one decoded document or skill.
+"""The `item_schema_problems` and `skill_fields` queries, for one document or skill.
 
 A document's schemas come from the model's governance and a skill's Agent Skills check is independent of corpus
 governance, so the queries
@@ -19,7 +19,8 @@ from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.database import Database, ItemText
 from lorecraft.project.document import DocumentRef
-from lorecraft.project.item import MarkdownItemRef
+from lorecraft.project.item import ItemReadError, MarkdownItemRef
+from lorecraft.project.query import skill_fields
 from lorecraft.project.schemas import (
     AgentSkillsSchema,
     FieldGuidance,
@@ -34,7 +35,7 @@ from lorecraft.project.schemas import (
 from lorecraft.project.skill import SkillRef
 from lorecraft.project.syntax import FrontmatterNode, LineNumber
 from lorecraft.project.workspace import WorkspaceModel
-from lorecraft.vfs import ResolvedPath, Snapshot, VirtualFileSystem
+from lorecraft.vfs import OsRefusal, RefusedRead, ResolvedPath, Snapshot, SnapshotRecords, VirtualFileSystem
 
 TYPING: Final[DocumentRef] = DocumentRef(CorpusName.parse('code'), AspectFilename.parse('python-typing'))
 """A document of corpus `code` its `python` namespace governs too."""
@@ -184,6 +185,32 @@ class TestSchemaProblems:
         assert second is first, 'the schemas are applied once per database, then shared by every rule'
         assert database.read == [MarkdownItemRef(TYPING.path)], 'the frontmatter is read once, for the first call'
 
+    def test_skill_fields_keep_undecodable_items_empty(self) -> None:
+        #: Given
+        snapshot = _snapshot(REQUIRE_STATUS, STRING_DESCRIPTION, typing=b'\xff', review=b'\xff')
+        database = Database.from_snapshot(snapshot)
+
+        #: When
+        fields = database.query(skill_fields, MarkdownItemRef(REVIEW.path))
+
+        #: Then
+        assert fields == {}, 'an undecodable skill has no parsed frontmatter fields'
+
+    def test_skill_fields_of_an_unreadable_item_still_raise_the_read_error(self) -> None:
+        #: Given
+        snapshot = _snapshot(REQUIRE_STATUS, STRING_DESCRIPTION, typing=b'', review=b'---\nname: review\n---\n')
+        ref = MarkdownItemRef(REVIEW.path)
+        records = dict(snapshot.records)
+        records[ref.path] = RefusedRead(OsRefusal.PERMISSION_DENIED)
+        database = Database.from_snapshot(Snapshot(SnapshotRecords(records), snapshot.scope))
+
+        #: When
+        with pytest.raises(ItemReadError) as raised:
+            database.query(skill_fields, ref)
+
+        #: Then
+        assert raised.value.ref == ref, 'the unreadable skill is identified by its reference'
+
     def test_schema_problems_with_no_frontmatter_schema_holds_none(self) -> None:
         #: Given
         # the namespace states a schema, but a namespace narrows the corpus, which states none
@@ -319,10 +346,10 @@ class TestSkillSchemaProblems:
         review = b'---\nname: review\nallowed-tools: Read\n---\n# Review\n'
         database = Database.from_snapshot(_snapshot(REQUIRE_STATUS, STRING_DESCRIPTION, typing=b'', review=review))
         source = _skill_text(database, REVIEW)
-        first = database.item_skill_fields(source)
+        first = database.query(skill_fields, source.ref)
 
         #: When
-        second = database.item_skill_fields(source)
+        second = database.query(skill_fields, source.ref)
 
         #: Then
         assert second is first, "a skill's fields are parsed once per database, then shared by every rule"

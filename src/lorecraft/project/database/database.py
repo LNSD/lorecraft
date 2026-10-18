@@ -8,7 +8,8 @@ model; every other query sits above it, computed on first use and kept for as lo
 The item queries share one family keyed by `MarkdownItemRef`.
 `item_text(ref)` decodes the descriptor's read location into an `ItemText` witness or an `Undecodable` marker.
 `item_link_targets(source)` is an input query; `item_frontmatter`, `item_parse`, `item_token_count`,
-`item_line_count`, `item_governance`, `item_schema_problems` and `item_skill_fields` are derived queries. A
+`item_line_count`, `item_governance` and `item_schema_problems` are derived queries. Frontmatter owner and skill field
+facts are declared rule queries. A
 resource's `resource_item(location)` registers the reference from its skill's listing, and its item queries read the
 descriptor at the resolved location. A document the model does not list is resolved by its corpus and filename.
 
@@ -56,9 +57,6 @@ it read does, `item_governance(ref)` excepted, as its bullet states:
   and nothing else.
 - `item_token_count(source)` and `item_line_count(source)`: what one item's whole file costs an agent that loads it,
   and how many lines it holds, counted from the raw text, frontmatter included, without a parse.
-- `item_skill_fields(source)`: the fields of one skill entry's frontmatter that parse, each on its own. It reads
-  `item_frontmatter(source)` and nothing else; for any other item it is empty. It carries over whenever that
-  frontmatter does.
 - `item_governance(ref)`: the specifications that govern a corpus document or skill entry, its corpus's first and
   then each namespace's that matches it. Skill entries use the reserved `skills` corpus; resources have no corpus
   governance.
@@ -68,8 +66,8 @@ it read does, `item_governance(ref)` excepted, as its bullet states:
   under `docs/`, so it is recomputed from the next model and kept when it compares equal to the one it replaces. It
   can carry over when `model()` does not, and so can every analysis that reads it.
 - `item_schema_problems(source)`: what each frontmatter schema that governs one item rejects, the shared analysis
-  every frontmatter inspection reads. It reads the item's frontmatter and the applicable governance, if any, and
-  nothing else. Carry-over follows the frontmatter and the governance it reads.
+  every frontmatter inspection reads. It reads the item's frontmatter and applicable governance, if any, and nothing
+  else. Carry-over follows the frontmatter and the governance it reads.
 
 Other public methods either answer from queries or inspect the snapshot. Their section and carry-over rules are:
 
@@ -158,13 +156,14 @@ from typing import Self, cast
 
 from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.num import UnsignedInt
-from lorecraft.core.path import PathComponent, RootRelativePath
+from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.document import SpecRef
 from lorecraft.project.item import (
     DocumentOrigin,
     ItemReadError,
+    MarkdownItemDescriptor,
     MarkdownItemRef,
     SkillEntryOrigin,
     SpecificationOrigin,
@@ -178,16 +177,11 @@ from lorecraft.project.link_target import (
 )
 from lorecraft.project.query import Query
 from lorecraft.project.schemas import (
-    DocumentFrontmatterOwner,
-    FrontmatterOwner,
     MissingFieldProblem,
     SchemaProblems,
-    SkillFields,
-    SkillFrontmatterOwner,
     StructureSpec,
     locate_schema_problems,
     locate_skill_schema_problems,
-    parse_skill_fields,
 )
 from lorecraft.project.skill import Repository as SkillRepository
 from lorecraft.project.skill import (
@@ -226,7 +220,6 @@ from lorecraft.vfs import (
 )
 
 from .text import ItemText, Undecodable
-from .wrong_kind import WrongItemKindError
 
 
 class PrimitiveRead(StrEnum):
@@ -238,8 +231,7 @@ class PrimitiveRead(StrEnum):
     LINE_COUNT = 'line_count'
     FRONTMATTER = 'frontmatter'
     SCHEMA_PROBLEMS = 'schema_problems'
-    SKILL_FIELDS = 'skill_fields'
-    FRONTMATTER_OWNER = 'frontmatter_owner'
+    ITEM_DESCRIPTOR = 'item_descriptor'
     LINKS = 'links'
     ANCHORS = 'anchors'
     LINK_TARGETS = 'link_targets'
@@ -296,7 +288,7 @@ class _ReadSet:
 class _ReadPrimitives(_ReadSet):
     """The primitives of one item as the database answers them, noting each one a query reads.
 
-    A primitive that walks the model or other files, such as `item_base` and `frontmatter_owner`,
+    A primitive that walks the model or other files, such as `item_base`,
     is not cached here: a query over the item is memoized by the database for the function and the ref, so each of
     them is computed once per query, and a cache beside it would only hold the same answer twice.
 
@@ -347,6 +339,12 @@ class _ReadPrimitives(_ReadSet):
         source = self._database.item_text(self._ref)
         return self._database.item_frontmatter(source) if isinstance(source, ItemText) else MissingFrontmatter()
 
+    def item_descriptor(self) -> MarkdownItemDescriptor | None:
+        """The model-resolved identity and location facts, or None when the item's bytes are not UTF-8."""
+        self._record(QueryRead(PrimitiveRead.ITEM_DESCRIPTOR, self._ref))
+        source = self._database.item_text(self._ref)
+        return source.descriptor if isinstance(source, ItemText) else None
+
     def schema_problems(self) -> tuple[SchemaProblems, ...]:
         """What each schema that governs the item rejects in its frontmatter; none for an item that is not UTF-8."""
         self._record(QueryRead(PrimitiveRead.SCHEMA_PROBLEMS, self._ref))
@@ -354,43 +352,6 @@ class _ReadPrimitives(_ReadSet):
         if not isinstance(source, ItemText):
             return ()
         return self._database.item_schema_problems(source)
-
-    def skill_fields(self) -> SkillFields:
-        """The fields of a skill entry's frontmatter that parse; none for any other item or one that is not UTF-8."""
-        self._record(QueryRead(PrimitiveRead.SKILL_FIELDS, self._ref))
-        source = self._database.item_text(self._ref)
-        return self._database.item_skill_fields(source) if isinstance(source, ItemText) else FrozenMapping({})
-
-    def frontmatter_owner(self) -> FrontmatterOwner:
-        """The document or the skill entry whose frontmatter block the item opens.
-
-        Raises:
-            WrongItemKindError: If the item is not a document whose corpus states a structure specification, or a
-                skill entry.
-        """
-        self._record(QueryRead(PrimitiveRead.FRONTMATTER_OWNER, self._ref))
-        source = self._database.item_text(self._ref)
-        assert isinstance(source, ItemText), 'a query over the owner runs over decoded text'
-        origin = source.descriptor.origin
-        # Keep this dispatch: skill entries are owned by their directory and the Agent Skills specification,
-        # while documents are owned by their filename and their corpus's structure specification.
-        match origin:
-            case SkillEntryOrigin():
-                return SkillFrontmatterOwner(
-                    directory_name=PathComponent.parse(origin.expected_name), link_target=origin.link_target
-                )
-            case DocumentOrigin():
-                # A schema governs a document only through its corpus's structure specification, which a namespace's
-                # schema merely narrows; so that specification states every rule over the block.
-                governance = self._database.item_governance(self._ref)
-                structure = governance.corpus_structure() if governance is not None else None
-                if structure is None:
-                    raise WrongItemKindError(self._ref, 'a document whose corpus states a structure specification')
-                return DocumentFrontmatterOwner(
-                    filename=AspectFilename.parse(origin.expected_name), spec=structure.path
-                )
-            case _:
-                raise WrongItemKindError(self._ref, 'a document or a skill entry')
 
     def query[T](self, query: Query[T]) -> T:
         """The memoized answer of another query over the item; what it read counts as this query's reads."""
@@ -480,10 +441,9 @@ class Database:
     scope. Their carry-over rules are stated by their methods.
 
     Derived queries read other queries: `item_frontmatter(source)`, `item_parse(source)`,
-    `item_token_count(source)`, `item_line_count(source)`, `item_governance(ref)`,
-    `item_schema_problems(source)` and `item_skill_fields(source)`. The first four derive values from decoded text;
-    governance reads the model; schema problems read frontmatter and applicable governance; skill fields read
-    frontmatter. Each derived answer carries over with the query results it reads, under its method's rule.
+    `item_token_count(source)`, `item_line_count(source)`, `item_governance(ref)` and `item_schema_problems(source)`.
+    The frontmatter rule facts `frontmatter_owner` and `skill_fields` are declared queries in
+    `lorecraft.project.query`, memoized with the other query results and their read sets.
 
     The item family is keyed by `MarkdownItemRef`. A resource's
     reference is registered from its listing by `resource_item(location)`. A document outside the model's listing is
@@ -532,7 +492,6 @@ class Database:
         self._queries: dict[tuple[Query[object], MarkdownItemRef], tuple[object, frozenset[QueryRead]]] = {}
         # Each skill's resource listing, found on the first call; a resource is registered from it with `resource_item`.
         self._skill_resources: dict[SkillRef, SkillResourceListing] = {}
-        self._item_skill_fields_cache: dict[MarkdownItemRef, SkillFields] = {}
 
     @classmethod
     def from_snapshot(cls, snapshot: Snapshot, *, builtin_skills_schema: bool = True) -> Self:
@@ -1000,26 +959,6 @@ class Database:
             ref: The item it ran over.
         """
         return self._queries[(query, ref)][1] if (query, ref) in self._queries else frozenset()
-
-    def item_skill_fields(self, source: ItemText) -> SkillFields:
-        """The fields of one skill entry's frontmatter that parse, parsed once. Raises nothing.
-
-        A field that is not written or is rejected has no entry, so a rule over one field reads it whatever the
-        others hold. Empty for any item that is not a skill entry. This stays separate because only skill entries
-        have fields defined by the Agent Skills specification. `_ReadPrimitives.skill_fields` consumes this database
-        query, whose result is shared by every rule that reads those fields.
-
-        Carry-over: kept for the next revision whenever `item_frontmatter(source)` is.
-
-        Args:
-            source: The skill entry's text; its ref is the cache key.
-        """
-        found = self._item_skill_fields_cache.get(source.ref)
-        if found is None:
-            is_skill = isinstance(source.descriptor.origin, SkillEntryOrigin)
-            found = parse_skill_fields(self.item_frontmatter(source)) if is_skill else FrozenMapping({})
-            self._item_skill_fields_cache[source.ref] = found
-        return found
 
     # Snapshot questions: `refusals` is read on each call; `unreported_docs_refusals` is memoized for this database.
 

@@ -8,9 +8,9 @@ from collections.abc import Callable, Mapping
 from typing import Protocol
 
 from lorecraft.project.corpus import CorpusName
-from lorecraft.project.item import MarkdownItemRef
+from lorecraft.project.item import MarkdownItemDescriptor, MarkdownItemRef
 from lorecraft.project.link_target import LinkBase, LinkTargetEntry
-from lorecraft.project.schemas import FrontmatterOwner, SchemaProblems, SkillFields, StructureSpec
+from lorecraft.project.schemas import SchemaProblems, StructureSpec
 from lorecraft.project.syntax import (
     Anchor,
     FrontmatterNode,
@@ -66,26 +66,15 @@ class GovernancePrimitives(Protocol):
         """The structure specifications that govern the item, in the order they apply; none when nothing governs it."""
         ...
 
+    def item_descriptor(self) -> MarkdownItemDescriptor | None:
+        """The model-resolved identity and location facts, or `None` when its bytes are not UTF-8."""
+        ...
+
     def schema_problems(self) -> tuple[SchemaProblems, ...]:
-        """What each frontmatter schema that governs the item rejects in its frontmatter, each problem on its line.
+        """What each frontmatter schema that governs the item rejects in its frontmatter.
 
         One entry per schema, in the order the schemas apply; none when no schema governs the item, or when its block
         is missing, not YAML or not a mapping, which no schema can hold.
-        """
-        ...
-
-    def skill_fields(self) -> SkillFields:
-        """The fields of a skill entry's frontmatter that parse, each on its own, by the field.
-
-        A field that is not written, is null or is rejected has no entry; none holds for any other item, or when the
-        block is missing, not YAML or not a mapping.
-        """
-        ...
-
-    def frontmatter_owner(self) -> FrontmatterOwner:
-        """The document or the skill the block opens, with the name its frontmatter must carry.
-
-        Only a document whose corpus states a structure specification, or a skill entry, has one.
         """
         ...
 

@@ -6,10 +6,17 @@ from typing import cast
 
 from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.num import UnsignedInt
-from lorecraft.project.item import MarkdownItemRef
+from lorecraft.project.item import MarkdownItemDescriptor, MarkdownItemRef
 from lorecraft.project.link_target import DocumentLink, LinkBase, LinkTargetEntry
 from lorecraft.project.query import Query
-from lorecraft.project.schemas import FrontmatterOwner, SchemaProblems, SkillFields, StructureSpec
+from lorecraft.project.query import frontmatter_owner as item_frontmatter_owner
+from lorecraft.project.query import skill_fields as item_skill_fields
+from lorecraft.project.schemas import (
+    FrontmatterOwner,
+    SchemaProblems,
+    SkillFields,
+    StructureSpec,
+)
 from lorecraft.project.syntax import (
     Anchor,
     FrontmatterNode,
@@ -67,6 +74,10 @@ class StructurePrimitives:
         """The specifications this was built with."""
         return self.specs
 
+    def item_descriptor(self) -> MarkdownItemDescriptor | None:
+        """No model descriptor is needed by these fakes; shared queries return their held result directly."""
+        raise NotImplementedError('standalone primitives do not model item descriptors')
+
     def headings(self) -> tuple[Heading, ...]:
         """The headings this was built with."""
         return self.heading_list
@@ -115,19 +126,15 @@ class StructurePrimitives:
         """The problems this was built with."""
         return self.problems
 
-    def skill_fields(self) -> SkillFields:
-        """The fields this was built with."""
-        return self.fields
-
-    def frontmatter_owner(self) -> FrontmatterOwner:
-        """The owner this was built with; a query that asks for one is run over primitives that hold it."""
-        assert self.owner is not None, 'the primitives were built without an owner'
-        return self.owner
-
     def query[T](self, query: Query[T]) -> T:
         """The answer of the query over these same primitives."""
         if query is linked_documents:
             return cast('T', self.document_link_list)
+        if query is item_frontmatter_owner:
+            assert self.owner is not None, 'the primitives were built without an owner'
+            return cast('T', self.owner)
+        if query is item_skill_fields:
+            return cast('T', self.fields)
         return query(self)
 
     def query_at[T](self, ref: MarkdownItemRef, query: Query[T]) -> T:
