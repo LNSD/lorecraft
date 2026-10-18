@@ -16,10 +16,11 @@ from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.database import Database, ItemText, Undecodable
 from lorecraft.project.document import DocumentRef
-from lorecraft.project.item import ItemReadError, MarkdownItemRef, UnlistedItemError
+from lorecraft.project.item import ItemOrigin, ItemReadError, MarkdownItemRef, SkillEntryOrigin, UnlistedItemError
 from lorecraft.project.layout import SNAPSHOT_SCOPE
 from lorecraft.project.link_target import EscapingTarget, LinkTarget, PathLookup
-from lorecraft.project.schemas import outline_alignment, schema_problems_query
+from lorecraft.project.query import Primitives
+from lorecraft.project.schemas import SpecName, outline_alignment, schema_problems_query
 from lorecraft.project.syntax import FrontmatterNode, NormalisedLinkPath, ParsedDocument
 from lorecraft.project.workspace import WorkspaceModel
 from lorecraft.vfs import Snapshot, VirtualFileSystem, take_snapshot
@@ -84,6 +85,26 @@ def _decoded(database: Database, ref: MarkdownItemRef) -> ItemText:
     return source
 
 
+def _item_origin(primitives: Primitives) -> ItemOrigin:
+    """The item's model-resolved origin, which does not require decoded text."""
+    return primitives.item_origin()
+
+
+def _item_name(primitives: Primitives) -> AspectFilename | SpecName | None:
+    """The item's decoded name, when it has one."""
+    return primitives.item_name()
+
+
+def _item_corpus(primitives: Primitives) -> CorpusName | None:
+    """The item's decoded corpus, when it is a document."""
+    return primitives.item_corpus()
+
+
+def _item_base(primitives: Primitives) -> AspectFilename | SpecName | None:
+    """The item's decoded base name, when it has one."""
+    return primitives.item_base()
+
+
 @pytest.mark.it
 class TestItemQueries:
     def test_item_text_of_a_document_and_a_skill_entry_returns_one_witness_type(self) -> None:
@@ -110,6 +131,23 @@ class TestItemQueries:
         assert isinstance(first, Undecodable), 'the file is not UTF-8'
         assert first.ref == REVIEW, 'the marker names the common ref'
         assert database.item_text(REVIEW) is first, 'an undecodable file is decoded once'
+
+    def test_item_primitives_answer_undecodable_text_consistently(self) -> None:
+        #: Given
+        database = Database.from_snapshot(_snapshot(skill=b'---\nname: caf\xe9\n---\n'))
+        source = database.item_text(REVIEW)
+        assert isinstance(source, Undecodable), 'the skill entry is not UTF-8'
+
+        #: When
+        origin = database.query(_item_origin, REVIEW)
+        name = database.query(_item_name, REVIEW)
+        corpus = database.query(_item_corpus, REVIEW)
+        base = database.query(_item_base, REVIEW)
+
+        #: Then
+        assert isinstance(origin, SkillEntryOrigin), "the resolved item's origin survives invalid text"
+        assert origin.expected_name == 'review', 'the origin keeps the listed skill name'
+        assert (name, corpus, base) == (None, None, None), 'content-derived facts are empty without decoded text'
 
     def test_item_queries_called_twice_return_the_first_answer(self) -> None:
         #: Given

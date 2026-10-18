@@ -2,7 +2,7 @@
 
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.database import Database
-from lorecraft.project.item import MarkdownItemDescriptor, MarkdownItemRef
+from lorecraft.project.item import MarkdownItemDescriptor, MarkdownItemRef, UnlistedItemError
 from lorecraft.vfs import ResolvedPath
 
 
@@ -18,4 +18,7 @@ def is_in_scope(database: Database, path: RootRelativePath) -> bool:
 
 def listed_item(database: Database, ref: MarkdownItemRef) -> MarkdownItemDescriptor:
     """The descriptor the model resolved for a listed item; raises `UnlistedItemError` for any other."""
-    return database._resolved(ref).descriptor  # noqa: SLF001
+    item = database.model().find_item(ref)
+    if item is None:
+        raise UnlistedItemError(ref)
+    return item.descriptor
