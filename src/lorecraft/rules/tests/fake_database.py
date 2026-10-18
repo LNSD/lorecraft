@@ -38,8 +38,6 @@ from lorecraft.project.schemas import (
     StructureSchema,
     StructureSpec,
     StructureSpecFile,
-    locate_schema_problems,
-    locate_skill_schema_problems,
     parse_spec_name,
     spec_filename,
 )
@@ -267,7 +265,6 @@ class FakeDocumentDatabase:
                 str(self._ref.filename),
                 count_lines(self._text),
                 parse_frontmatter(self._text),
-                locate_schema_problems(parse_frontmatter(self._text), self._governance.frontmatter_schemas()),
                 anchor_set=self._parse().anchors,
                 base_name=self._base_name(),
                 document_link_list=self._document_links,
@@ -319,7 +316,6 @@ class FakeSkillDatabase:
                 base=SkillRoot(_SKILLS_DIRECTORY / self._directory_name),
                 line_total=count_lines(self._text),
                 frontmatter_node=self.frontmatter(),
-                problems=locate_skill_schema_problems(self.frontmatter()),
                 origin_value=SkillEntryOrigin(expected_name=str(self._directory_name), link_target=self._link_target),
             )
         )

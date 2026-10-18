@@ -1,4 +1,4 @@
-"""The `item_schema_problems` database method and `skill_fields_query`, for one decoded document or skill.
+"""The `schema_problems_query` and `skill_fields_query`, for one decoded document or skill.
 
 A document's schemas come from the model's governance and a skill's Agent Skills check is independent of corpus
 governance, so the queries
@@ -33,6 +33,7 @@ from lorecraft.project.schemas import (
     UnknownFieldProblem,
     WrongTypeProblem,
     frontmatter_owner_query,
+    schema_problems_query,
     skill_fields_query,
 )
 from lorecraft.project.skill import SkillRef
@@ -148,7 +149,7 @@ class TestSchemaProblems:
         source = _document_text(database, TYPING)
 
         #: When
-        found = database.item_schema_problems(source)
+        found = database.query(schema_problems_query, source.ref)
 
         #: Then
         assert found == (
@@ -179,13 +180,20 @@ class TestSchemaProblems:
         typing = b'---\nname: python-typing\n---\n# Typing\n'
         database = FrontmatterReadingDatabase.from_snapshot(_snapshot(REQUIRE_STATUS, REQUIRE_OWNER, typing=typing))
         source = _document_text(database, TYPING)
-        first = database.item_schema_problems(source)
+        first = database.query(schema_problems_query, source.ref)
 
         #: When
-        second = database.item_schema_problems(source)
+        second = database.query(schema_problems_query, source.ref)
 
         #: Then
         assert second is first, 'the schemas are applied once per database, then shared by every rule'
+        assert database.query_reads(schema_problems_query, source.ref) == frozenset(
+            {
+                QueryRead('item_origin', source.ref),
+                QueryRead('item_governance', source.ref),
+                QueryRead('frontmatter', source.ref),
+            }
+        ), 'the query cache records the raw facts the schema analysis depends on'
         assert database.read == [MarkdownItemRef(TYPING.path)], 'the frontmatter is read once, for the first call'
 
     def test_schema_problems_with_no_frontmatter_schema_holds_none(self) -> None:
@@ -197,7 +205,7 @@ class TestSchemaProblems:
         source = _document_text(database, TYPING)
 
         #: When
-        found = database.item_schema_problems(source)
+        found = database.query(schema_problems_query, source.ref)
 
         #: Then
         assert found == (), 'no corpus schema states a frontmatter schema, so no schema is applied'
@@ -211,7 +219,7 @@ class TestSchemaProblems:
         source = _document_text(database, TYPING)
 
         #: When
-        database.item_schema_problems(source)
+        database.query(schema_problems_query, source.ref)
 
         #: Then
         assert database.read == [], (
@@ -224,7 +232,7 @@ class TestSchemaProblems:
         source = _document_text(database, TYPING)
 
         #: When
-        found = database.item_schema_problems(source)
+        found = database.query(schema_problems_query, source.ref)
 
         #: Then
         assert found == (), (
@@ -246,7 +254,7 @@ class TestSchemaProblems:
         source = _document_text(database, DocumentRef(CorpusName.parse('blog'), AspectFilename.parse('launch')))
 
         #: When
-        found = database.item_schema_problems(source)
+        found = database.query(schema_problems_query, source.ref)
 
         #: Then
         assert found == (), 'no specification governs a document in no corpus the model holds'
@@ -261,7 +269,7 @@ class TestSkillSchemaProblems:
         source = _skill_text(database, REVIEW)
 
         #: When
-        found = database.item_schema_problems(source)
+        found = database.query(schema_problems_query, source.ref)
 
         #: Then
         assert found == (
@@ -313,7 +321,7 @@ class TestSkillSchemaProblems:
         source = _skill_text(database, REVIEW)
 
         #: When
-        found = database.item_schema_problems(source)
+        found = database.query(schema_problems_query, source.ref)
 
         #: Then
         assert found == (), 'no schema can hold a missing block: the block rules report it'
@@ -368,10 +376,10 @@ class TestSkillSchemaProblems:
         review = b'---\nname: review\nextra: y\n---\n# Review\n'
         database = Database.from_snapshot(_snapshot(REQUIRE_STATUS, STRING_DESCRIPTION, typing=b'', review=review))
         source = _skill_text(database, REVIEW)
-        first = database.item_schema_problems(source)
+        first = database.query(schema_problems_query, source.ref)
 
         #: When
-        second = database.item_schema_problems(source)
+        second = database.query(schema_problems_query, source.ref)
 
         #: Then
         assert second is first, 'a skill is held to the specification once per database, then shared by every rule'

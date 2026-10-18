@@ -8,7 +8,7 @@ from lorecraft.core.num import UnsignedInt
 from lorecraft.project.item import DocumentOrigin, ItemOrigin
 from lorecraft.project.link_target import DocumentLink, LinkBase, LinkTargetEntry
 from lorecraft.project.query import Query
-from lorecraft.project.schemas import SchemaProblems, StructureSpec
+from lorecraft.project.schemas import StructureSpec
 from lorecraft.project.syntax import (
     Anchor,
     FrontmatterNode,
@@ -36,7 +36,6 @@ class StructurePrimitives:
         name: The filename stem of the document.
         line_total: The lines in the item's whole file.
         frontmatter_node: The item's frontmatter block as parsed.
-        problems: What each frontmatter schema that governs the item rejects, in the order the schemas apply.
         anchor_set: The anchor of every heading of the item's parse.
         base_name: The stem of the document the document extends.
         document_link_list: The links to another document, with their corpus, filename and back link.
@@ -52,7 +51,6 @@ class StructurePrimitives:
     name: str | None = None
     line_total: LineCount = LineCount(UnsignedInt(0))
     frontmatter_node: FrontmatterNode = MissingFrontmatter()
-    problems: tuple[SchemaProblems, ...] = ()
     anchor_set: frozenset[Anchor] = frozenset()
     base_name: str | None = None
     document_link_list: tuple[DocumentLink, ...] = ()
@@ -124,10 +122,6 @@ class StructurePrimitives:
     def frontmatter(self) -> FrontmatterNode:
         """The block this was built with."""
         return self.frontmatter_node
-
-    def schema_problems(self) -> tuple[SchemaProblems, ...]:
-        """The problems this was built with."""
-        return self.problems
 
     def query[T](self, query: Query[T]) -> T:
         """The answer of the query over these same primitives."""

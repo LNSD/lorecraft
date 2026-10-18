@@ -30,7 +30,7 @@ from .frontmatter_problem import (
     UnknownFieldProblem,
     WrongTypeProblem,
 )
-from .frontmatter_queries import frontmatter_owner_query, skill_fields_query
+from .frontmatter_queries import frontmatter_owner_query, schema_problems_query, skill_fields_query
 from .frontmatter_schema import FrontmatterSchema, FrontmatterSchemaFailure, StatedFrontmatterSchema
 from .name import CorpusSpecName, NamespaceSpecName, SpecName, parse_spec_name
 from .outline_alignment import (
@@ -117,6 +117,7 @@ __all__: list[str] = [
     'DocumentFrontmatterOwner',
     'FrontmatterOwner',
     'frontmatter_owner_query',
+    'schema_problems_query',
     'skill_fields_query',
     'SkillFrontmatterOwner',
     'CorpusSpecName',

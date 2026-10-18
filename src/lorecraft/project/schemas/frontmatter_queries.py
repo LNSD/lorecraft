@@ -11,6 +11,12 @@ from lorecraft.project.schemas.frontmatter_owner import (
     FrontmatterOwner,
     SkillFrontmatterOwner,
 )
+from lorecraft.project.schemas.schema_problems import (
+    MissingFieldProblem,
+    SchemaProblems,
+    locate_schema_problems,
+    locate_skill_schema_problems,
+)
 from lorecraft.project.schemas.skill_fields import SkillFields, parse_skill_fields
 
 if TYPE_CHECKING:
@@ -44,3 +50,47 @@ def skill_fields_query(primitives: 'Primitives') -> SkillFields:
     if not isinstance(primitives.item_origin(), SkillEntryOrigin):
         return FrozenMapping({})
     return parse_skill_fields(primitives.frontmatter())
+
+
+def schema_problems_query(primitives: 'Primitives') -> tuple[SchemaProblems, ...]:
+    """What each applicable frontmatter schema rejects, with skill floor problems before corpus problems.
+
+    Args:
+        primitives: The model state of the document or skill.
+
+    Returns:
+        One entry per applicable schema, in order; none when no schema applies or frontmatter cannot be held to one.
+    """
+    origin = primitives.item_origin()
+    governance = primitives.item_governance()
+    schemas = governance.frontmatter_schemas() if governance is not None else ()
+    if isinstance(origin, SkillEntryOrigin) and primitives.builtin_skills_schema():
+        frontmatter = primitives.frontmatter()
+        floor = locate_skill_schema_problems(frontmatter)
+        governed = locate_schema_problems(frontmatter, schemas) if schemas else ()
+        floor_missing = {
+            (located.line, located.problem.field)
+            for schema in floor
+            for located in schema.problems
+            if isinstance(located.problem, MissingFieldProblem)
+        }
+        return (
+            *floor,
+            *(
+                SchemaProblems(
+                    schema.source,
+                    tuple(
+                        located
+                        for located in schema.problems
+                        if not (
+                            isinstance(located.problem, MissingFieldProblem)
+                            and (located.line, located.problem.field) in floor_missing
+                        )
+                    ),
+                )
+                for schema in governed
+            ),
+        )
+    if not schemas:
+        return ()
+    return locate_schema_problems(primitives.frontmatter(), schemas)

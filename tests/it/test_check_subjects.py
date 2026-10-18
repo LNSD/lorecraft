@@ -46,13 +46,13 @@ from lorecraft.project.schemas import (
     MissingFieldProblem,
     OtherValueConstraint,
     PatternMismatch,
-    SchemaProblems,
     SectionName,
     SkillFrontmatterOwner,
     StructureSpecSchema,
     TitlePattern,
     UnknownFieldProblem,
     WrongTypeProblem,
+    schema_problems_query,
 )
 from lorecraft.project.skill import (
     SkillLocation,
@@ -369,7 +369,6 @@ class CountingDatabase(Database):
         counted_tokens: The items whose tokens were counted, in the order asked, a repeat listed again.
         counted_lines: The items whose lines were counted, in the order asked.
         parsed_frontmatters: The items whose frontmatter was parsed, in the order asked.
-        validated_frontmatters: The items whose frontmatter was checked against its schema.
         parsed_documents: The items whose Markdown was parsed, in the order asked.
     """
 
@@ -384,7 +383,6 @@ class CountingDatabase(Database):
         self.counted_tokens: list[MarkdownItemRef] = []
         self.counted_lines: list[MarkdownItemRef] = []
         self.parsed_frontmatters: list[MarkdownItemRef] = []
-        self.validated_frontmatters: list[MarkdownItemRef] = []
         self.parsed_documents: list[MarkdownItemRef] = []
 
     def item_token_count(self, source: ItemText) -> UnsignedInt:
@@ -422,15 +420,6 @@ class CountingDatabase(Database):
         """
         self.parsed_documents.append(source.ref)
         return super().item_parse(source)
-
-    def item_schema_problems(self, source: ItemText) -> tuple[SchemaProblems, ...]:
-        """Record the item, then hold its frontmatter to the schemas that govern it.
-
-        Args:
-            source: The decoded document whose frontmatter is validated, recorded by its ref first.
-        """
-        self.validated_frontmatters.append(source.ref)
-        return super().item_schema_problems(source)
 
 
 def _snapshot(
@@ -1388,9 +1377,8 @@ class TestCheckSubjects:
 
         #: Then
         assert database.parsed_frontmatters == [], 'no enabled rule reads the frontmatter, so it is never parsed'
-        assert database.validated_frontmatters == [], (
-            'no enabled rule reads the schema problems, so no frontmatter is held to a schema'
-        )
+        assert database.query_reads(schema_problems_query, MarkdownItemRef(GUIDE.path)) == frozenset()
+        assert database.query_reads(schema_problems_query, MarkdownItemRef(REVIEW_FILE)) == frozenset()
 
     def test_check_subjects_with_no_frontmatter_schema_never_parses_a_document_frontmatter(
         self, package_table: RuleTable
@@ -1672,9 +1660,8 @@ class TestCheckSubjects:
         check_subjects(database, subjects, table)
 
         #: Then
-        assert database.validated_frontmatters == [], (
-            'no enabled rule reads the schema problems, so neither frontmatter is held to its schema'
-        )
+        assert database.query_reads(schema_problems_query, MarkdownItemRef(GUIDE.path)) == frozenset()
+        assert database.query_reads(schema_problems_query, MarkdownItemRef(REVIEW_FILE)) == frozenset()
 
     def test_check_subjects_with_a_document_without_its_title_reports_missing_title(
         self, package_table: RuleTable
