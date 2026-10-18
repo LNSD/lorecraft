@@ -19,7 +19,7 @@ from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.database import Database, ItemText, QueryRead
 from lorecraft.project.document import DocumentRef
-from lorecraft.project.item import MarkdownItemRef
+from lorecraft.project.item import ItemReadError, MarkdownItemRef
 from lorecraft.project.schemas import (
     AgentSkillsSchema,
     DocumentFrontmatterOwner,
@@ -39,7 +39,7 @@ from lorecraft.project.schemas import (
 from lorecraft.project.skill import SkillRef
 from lorecraft.project.syntax import FrontmatterNode, LineNumber
 from lorecraft.project.workspace import WorkspaceModel
-from lorecraft.vfs import ResolvedPath, Snapshot, VirtualFileSystem
+from lorecraft.vfs import OsRefusal, RefusedRead, ResolvedPath, Snapshot, SnapshotRecords, VirtualFileSystem
 
 TYPING: Final[DocumentRef] = DocumentRef(CorpusName.parse('code'), AspectFilename.parse('python-typing'))
 """A document of corpus `code` its `python` namespace governs too."""
@@ -137,6 +137,13 @@ def _skill_text(database: Database, ref: SkillRef) -> ItemText:
     source = database.item_text(MarkdownItemRef(ref.path))
     assert isinstance(source, ItemText), f'{ref.path} was written as UTF-8, so it decodes'
     return source
+
+
+def _unreadable_database(snapshot: Snapshot, ref: MarkdownItemRef) -> Database:
+    """A database snapshot whose listed item is refused by the operating system."""
+    records = dict(snapshot.records)
+    records[ref.path] = RefusedRead(OsRefusal.PERMISSION_DENIED)
+    return Database.from_snapshot(Snapshot(SnapshotRecords(records), snapshot.scope))
 
 
 @pytest.mark.it
@@ -258,6 +265,31 @@ class TestSchemaProblems:
 
         #: Then
         assert found == (), 'no specification governs a document in no corpus the model holds'
+
+    def test_schema_problems_for_an_undecodable_document_are_empty(self) -> None:
+        #: Given
+        snapshot = _snapshot(REQUIRE_STATUS, STRING_DESCRIPTION, typing=b'\xff')
+        database = Database.from_snapshot(snapshot)
+        ref = MarkdownItemRef(TYPING.path)
+
+        #: When
+        found = database.query(schema_problems_query, ref)
+
+        #: Then
+        assert found == (), 'an undecodable document has no frontmatter facts to check'
+
+    def test_schema_problems_propagate_an_unreadable_document(self) -> None:
+        #: Given
+        ref = MarkdownItemRef(TYPING.path)
+        snapshot = _snapshot(REQUIRE_STATUS, STRING_DESCRIPTION, typing=b'---\nname: python-typing\n---\n# Typing\n')
+        database = _unreadable_database(snapshot, ref)
+
+        #: When
+        with pytest.raises(ItemReadError) as raised:
+            database.query(schema_problems_query, ref)
+
+        #: Then
+        assert raised.value.ref == ref, 'schema analysis preserves the unreadable item identity'
 
 
 @pytest.mark.it
@@ -383,3 +415,29 @@ class TestSkillSchemaProblems:
 
         #: Then
         assert second is first, 'a skill is held to the specification once per database, then shared by every rule'
+
+    def test_skill_fields_for_an_undecodable_skill_are_empty(self) -> None:
+        #: Given
+        database = Database.from_snapshot(_snapshot(REQUIRE_STATUS, STRING_DESCRIPTION, typing=b'', review=b'\xff'))
+        ref = MarkdownItemRef(REVIEW.path)
+
+        #: When
+        fields = database.query(skill_fields_query, ref)
+
+        #: Then
+        assert fields == {}, 'an undecodable skill has no parsed frontmatter fields'
+
+    def test_skill_fields_propagate_an_unreadable_skill(self) -> None:
+        #: Given
+        ref = MarkdownItemRef(REVIEW.path)
+        snapshot = _snapshot(
+            REQUIRE_STATUS, STRING_DESCRIPTION, typing=b'', review=b'---\nname: review\n---\n# Review\n'
+        )
+        database = _unreadable_database(snapshot, ref)
+
+        #: When
+        with pytest.raises(ItemReadError) as raised:
+            database.query(skill_fields_query, ref)
+
+        #: Then
+        assert raised.value.ref == ref, 'skill field parsing preserves the unreadable item identity'
