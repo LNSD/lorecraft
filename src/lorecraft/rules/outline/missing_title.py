@@ -9,14 +9,14 @@ from lorecraft.project.syntax import FIRST_LINE
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Subdiagnostic
-from lorecraft.rules.subject import Facet, QueriedDocumentRule
+from lorecraft.rules.subject import Facet, QueriedDocumentSkillRule
 
 from .__ruleset__ import GROUP_ID
 
 
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
-class MissingTitle(QueriedDocumentRule[TitleFacts]):
+class MissingTitle(QueriedDocumentSkillRule[TitleFacts]):
     """A document a structure file governs carries no H1 title.
 
     ## What it does

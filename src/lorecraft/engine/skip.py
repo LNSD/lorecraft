@@ -1,8 +1,9 @@
 """Run checks over workspace subjects, skipping files whose required input was refused.
 
 A document governed by a meta spec that failed to load cannot be called clean from only the layers that loaded. It is
-decoded first, and a decoded document is skipped with the failed structure paths. A skill or resource whose resolved
-docs target was refused is also skipped; the refusal itself is reported at its target.
+decoded first, and a decoded document is skipped with the failed structure paths. A skill entry still receives its
+Agent Skills checks when a corpus layer fails; rules that depend on the corpus are suppressed by the runner. A skill
+or resource whose resolved docs target was refused is skipped; the refusal itself is reported at its target.
 """
 
 from collections.abc import Iterable, Mapping
@@ -106,9 +107,9 @@ def _check_item(
     """Decode one item subject through the item queries, then judge it if it decoded and no failed layer skips it.
 
     Every item kind is decoded the same way, by its common reference. A missing file is reported by the read error of
-    its kind; a specification has none, so it raises the item's own. Only a document is skipped when a failed layer
-    governs it. Skill entries and resources receive no corpus governance, and specifications are governed by the
-    package, so failed corpus layers suppress none of their checks.
+    its kind; a specification has none, so it raises the item's own. A document is skipped when a failed layer
+    governs it; a skill entry retains its Agent Skills checks. Resources have no corpus governance, and
+    specifications are governed by the package.
 
     Args:
         database: The revision the item is read from.
@@ -162,8 +163,10 @@ def _check_item(
                             # `SkippedSubject` requires a first path, so the first failed layer is split from the rest.
                             first, *others = failed_layers
                             return SkippedSubject(ref, (first.path, *(layer.path for layer in others)))
-                case SkillRef() | SpecRef() | SkillResourceRef():
-                    pass  # none receives corpus governance, so no failed corpus layer suppresses a check
+                case SkillRef():
+                    pass  # the runner suppresses corpus rules but retains the Agent Skills floor
+                case SpecRef() | SkillResourceRef():
+                    pass  # specs are package governed; resources have no corpus governance
                 case _:
                     assert_never(ref)
             return judge_item(database, source, table)

@@ -9,14 +9,14 @@ from lorecraft.project.schemas import TitleFacts, TitlePattern, title_facts
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Here, Label, Subdiagnostic
-from lorecraft.rules.subject import Facet, QueriedDocumentRule
+from lorecraft.rules.subject import Facet, QueriedDocumentSkillRule
 
 from .__ruleset__ import GROUP_ID, spec_note
 
 
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
-class InvalidTitle(QueriedDocumentRule[TitleFacts]):
+class InvalidTitle(QueriedDocumentSkillRule[TitleFacts]):
     """A document's title does not match the pattern its structure file sets on `title`.
 
     ## What it does

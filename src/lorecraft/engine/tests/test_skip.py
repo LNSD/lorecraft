@@ -127,7 +127,7 @@ class TestCheckSubjectsOverASkillEntry:
         assert len(reports) == 1, 'the entry point reports the one skill it was given'
         assert isinstance(reports[0], UndecodableSubject), 'a SKILL.md that is not UTF-8 is reported undecodable'
 
-    def test_check_subjects_with_a_failed_corpus_layer_still_judges_a_skill_entry(self) -> None:
+    def test_check_subjects_with_a_failed_corpus_layer_keeps_agent_skills_checks(self) -> None:
         #: Given
         snapshot = from_tree(
             {
@@ -138,14 +138,17 @@ class TestCheckSubjectsOverASkillEntry:
         database = Database.from_snapshot(snapshot)
         location = database.model().sorted_skill_locations[0]
         item = MarkdownItemRef(location.ref.path)
-        assert database.item_governance(item) is None, 'the skills corpus does not govern skill entries'
+        assert database.item_governance(item) is not None, 'the reserved skills corpus governs skill entries'
 
         #: When
         reports = check_subjects(database, [location], _all_rules())
 
         #: Then
         assert len(reports) == 1, 'the entry point reports the one skill it was given'
-        assert isinstance(reports[0], CheckedItem), 'a failed skills-corpus layer does not suppress skill checks'
+        assert isinstance(reports[0], CheckedItem), 'a failed layer leaves the skill entry available for package checks'
+        assert [str(diagnostic.occurrence.CODE) for diagnostic in reports[0].diagnostics] == ['FM006'], (
+            'the Agent Skills floor still reports its missing description'
+        )
 
     def test_check_subjects_with_a_failed_corpus_layer_still_judges_a_resource_for_markdown_checks_only(self) -> None:
         #: Given

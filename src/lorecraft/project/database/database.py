@@ -58,9 +58,10 @@ it read does, `item_governance(ref)` excepted, as its bullet states:
 - `item_skill_fields(source)`: the fields of one skill entry's frontmatter that parse, each on its own. It reads
   `item_frontmatter(source)` and nothing else; for any other item it is empty. It carries over whenever that
   frontmatter does.
-- `item_governance(ref)`: the specifications that govern a corpus document, its corpus's first and then each
-  namespace's that matches it. Skill entries and resources have no corpus governance; the reserved `skills` corpus
-  does not apply to them. It reads `model()` and nothing else, and it is the one place an item's governance is
+- `item_governance(ref)`: the specifications that govern a corpus document or skill entry, its corpus's first and
+  then each namespace's that matches it. Skill entries use the reserved `skills` corpus; resources have no corpus
+  governance.
+  It reads `model()` and nothing else, and it is the one place an item's governance is
   computed, so the model's corpus is searched once per item for the revision. It is the exception to the rule above:
   the model is dropped by any entry added or deleted
   under `docs/`, so it is recomputed from the next model and kept when it compares equal to the one it replaces. It
@@ -71,7 +72,7 @@ it read does, `item_governance(ref)` excepted, as its bullet states:
 
 Other public methods either answer from queries or inspect the snapshot. Their section and carry-over rules are:
 
-- `item_structure_specs(ref)` reads `item_governance(ref)` for documents. Skill entries, resources and
+- `item_structure_specs(ref)` reads `item_governance(ref)` for documents and skill entries. Resources and
   specifications have no corpus structure specs; it is not cached separately and carries over with that governance.
 - `query(query, ref)` runs a declared query over the item's primitives and caches its answer and read set. It carries
   over whenever every primitive it read does.
@@ -181,6 +182,7 @@ from lorecraft.project.query import Query
 from lorecraft.project.schemas import (
     DocumentFrontmatterOwner,
     FrontmatterOwner,
+    MissingFieldProblem,
     SchemaProblems,
     SkillFields,
     SkillFrontmatterOwner,
@@ -843,11 +845,11 @@ class Database:
         return count
 
     def item_governance(self, ref: MarkdownItemRef) -> Governance | None:
-        """The specifications that govern a corpus document, resolved by the model on the first call for its ref.
+        """The specifications that govern an item, resolved by the model on the first call for its ref.
 
         A layer whose structure file failed to load is held as the failed structure the model recorded, in the order
-        the layers apply. Skill entries and resources have no corpus governance, and the reserved `skills` corpus
-        does not apply to them. `None` when no specification governs the item.
+        the layers apply. Skill entries use the reserved `skills` corpus; resources have no corpus governance.
+        `None` when no specification governs the item.
 
         Carry-over: kept for the next revision whenever the next model's governance of the ref is equal to it, as
         compared by value, so a change elsewhere in the model leaves it, and every analysis reading it, valid.
@@ -870,9 +872,9 @@ class Database:
     def item_schema_problems(self, source: ItemText) -> tuple[SchemaProblems, ...]:
         """What each applicable frontmatter schema rejects in an item's frontmatter, found on the first call.
 
-        Typed problems, each placed on its line; severity is a rule's. The frontmatter is read only when a schema
-        governs the item, and only the layers that loaded state a schema. A skill entry is checked against the Agent
-        Skills specification independently of corpus governance. Resources have no frontmatter schema checks.
+        Typed problems, each placed on its line; severity is a rule's. Skills are checked against the Agent Skills
+        floor followed by each loaded corpus schema; an identical missing-field problem is kept only from the floor.
+        Resources have no frontmatter schema checks.
 
         Carry-over: kept for the next revision whenever `item_frontmatter(source)` and the governance this item reads
         are kept.
@@ -883,8 +885,32 @@ class Database:
         found = self._item_schema_problems.get(source.ref)
         if found is None:
             if isinstance(source.descriptor.origin, SkillEntryOrigin):
-                # The package's Agent Skills check is independent of corpus governance.
-                found = locate_skill_schema_problems(self.item_frontmatter(source))
+                # The fixed Agent Skills floor comes first; configured skill schemas can only add constraints.
+                floor = locate_skill_schema_problems(self.item_frontmatter(source))
+                governance = self.item_governance(source.ref)
+                schemas = governance.frontmatter_schemas() if governance is not None else ()
+                governed = locate_schema_problems(self.item_frontmatter(source), schemas) if schemas else ()
+                floor_missing = tuple(
+                    (located.line, located.problem.field)
+                    for schema in floor
+                    for located in schema.problems
+                    if isinstance(located.problem, MissingFieldProblem)
+                )
+                governed = tuple(
+                    SchemaProblems(
+                        schema.source,
+                        tuple(
+                            located
+                            for located in schema.problems
+                            if not (
+                                isinstance(located.problem, MissingFieldProblem)
+                                and (located.line, located.problem.field) in floor_missing
+                            )
+                        ),
+                    )
+                    for schema in governed
+                )
+                found = (*floor, *governed)
             else:
                 governance = self.item_governance(source.ref)
                 schemas = governance.frontmatter_schemas() if governance is not None else ()
@@ -893,10 +919,10 @@ class Database:
         return found
 
     def item_structure_specs(self, ref: MarkdownItemRef) -> tuple[StructureSpec, ...]:
-        """The structure specifications of the layers that loaded for a corpus document.
+        """The structure specifications of the layers that loaded for a corpus document or skill entry.
 
-        Not cached: the answer is read off `item_governance(ref)`, which is, so it carries over with it. Skill entries,
-        resources and specifications have no corpus structure specs.
+        Not cached: the answer is read off `item_governance(ref)`, which is, so it carries over with it. Resources
+        and specifications have no corpus structure specs.
 
         Raises:
             UnlistedItemError: If the reference is not a listed item, registered resource or answerable document path.

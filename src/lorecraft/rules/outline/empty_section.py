@@ -18,7 +18,7 @@ from lorecraft.project.syntax import Heading, SectionHeading, section_headings
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Subdiagnostic
-from lorecraft.rules.subject import Facet, QueriedDocumentRule
+from lorecraft.rules.subject import Facet, QueriedDocumentSkillRule
 
 from .__ruleset__ import GROUP_ID, example_note, spec_note
 
@@ -148,7 +148,7 @@ def _find_required_entry(alignments: tuple[OutlineAlignmentSpec, ...], section: 
 
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
-class EmptySection(QueriedDocumentRule[EmptySectionFacts]):
+class EmptySection(QueriedDocumentSkillRule[EmptySectionFacts]):
     """A section holds no content, under a structure file that forbids empty sections.
 
     ## What it does

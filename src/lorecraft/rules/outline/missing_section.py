@@ -17,14 +17,14 @@ from lorecraft.project.syntax import LineNumber, SectionHeading
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Here, Label, Subdiagnostic
-from lorecraft.rules.subject import Facet, QueriedDocumentRule
+from lorecraft.rules.subject import Facet, QueriedDocumentSkillRule
 
 from .__ruleset__ import GROUP_ID, example_note, outline_divergences, spec_note
 
 
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
-class MissingSection(QueriedDocumentRule[tuple[OutlineDivergenceSpec, ...]]):
+class MissingSection(QueriedDocumentSkillRule[tuple[OutlineDivergenceSpec, ...]]):
     """A document lacks a section its outline requires.
 
     ## What it does

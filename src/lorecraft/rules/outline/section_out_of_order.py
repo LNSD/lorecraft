@@ -16,14 +16,14 @@ from lorecraft.project.schemas import (
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Here, Label, Subdiagnostic
-from lorecraft.rules.subject import Facet, QueriedDocumentRule
+from lorecraft.rules.subject import Facet, QueriedDocumentSkillRule
 
 from .__ruleset__ import GROUP_ID, outline_divergences, spec_note
 
 
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
-class SectionOutOfOrder(QueriedDocumentRule[tuple[OutlineDivergenceSpec, ...]]):
+class SectionOutOfOrder(QueriedDocumentSkillRule[tuple[OutlineDivergenceSpec, ...]]):
     """A section the outline names is written out of the order the outline sets.
 
     ## What it does

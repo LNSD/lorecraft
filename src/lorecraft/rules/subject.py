@@ -133,6 +133,13 @@ class QueriedSkillRule[Facts](Queried[Facts], SkillRule):
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
+class QueriedDocumentSkillRule[Facts](QueriedDocumentRule[Facts], QueriedSkillRule[Facts]):
+    """The base of a queried corpus rule that applies to documents and governed skill entries alike."""
+
+    APPLIES_TO: ClassVar[frozenset[ItemKind]] = frozenset({ItemKind.DOCUMENT, ItemKind.SKILL_ENTRY})
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
 class MarkdownRule(ItemRule):
     """The base of every rule over one Markdown file: a document, a skill's `SKILL.md` or a skill's resource.
 

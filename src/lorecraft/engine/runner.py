@@ -55,7 +55,7 @@ from lorecraft.project.database import (
     Database,
     ItemText,
 )
-from lorecraft.project.item import ItemFacet, MarkdownItemDescriptor, MarkdownItemRef
+from lorecraft.project.item import ItemFacet, ItemKind, MarkdownItemDescriptor, MarkdownItemRef
 from lorecraft.project.skill import OutsideSymlink
 from lorecraft.rules.declaration import Rule
 from lorecraft.rules.report import (
@@ -69,6 +69,7 @@ from lorecraft.rules.subject import (
     ItemRule,
     Queried,
     QueriedCorpusDirectoryRule,
+    QueriedDocumentSkillRule,
     QueriedSymlinkRule,
     governing_facet,
 )
@@ -90,6 +91,10 @@ def judge_item(database: Database, source: ItemText, table: RuleTable) -> Checke
         table: The rules the run enables.
     """
     descriptor = source.descriptor
+    governance = database.item_governance(descriptor.ref)
+    failed_skill_layer = (
+        descriptor.kind is ItemKind.SKILL_ENTRY and governance is not None and bool(governance.failed_layers())
+    )
     diagnostics: list[Diagnostic] = []
     ungoverned: list[Facet] = []
 
@@ -97,7 +102,7 @@ def judge_item(database: Database, source: ItemText, table: RuleTable) -> Checke
     # that order, and a facet no applicable enabled rule reads is never looked at.
     for facet in (*Facet, None):
         partitions = [
-            _reading(partition, descriptor, facet)
+            _reading(partition, descriptor, facet, failed_skill_layer)
             for partition in (
                 table.frontmatter_rules,
                 table.document_rules,
@@ -120,7 +125,10 @@ def judge_item(database: Database, source: ItemText, table: RuleTable) -> Checke
 
 
 def _reading[R: ItemRule](
-    partition: tuple[EnabledRule[R], ...], descriptor: MarkdownItemDescriptor, facet: Facet | None
+    partition: tuple[EnabledRule[R], ...],
+    descriptor: MarkdownItemDescriptor,
+    facet: Facet | None,
+    failed_skill_layer: bool,
 ) -> tuple[EnabledRule[R], ...]:
     """The partition's rules that judge an item of the descriptor's kind and read the facet.
 
@@ -128,11 +136,18 @@ def _reading[R: ItemRule](
         partition: The enabled rules of one base.
         descriptor: The item the rules would judge.
         facet: The facet the rules must read, or `None` for those that read none.
+        failed_skill_layer: Whether failed skill governance suppresses corpus rules for this entry.
     """
     return tuple(
         enabled
         for enabled in partition
-        if descriptor.kind in enabled.rule.APPLIES_TO and governing_facet(enabled.rule) is facet
+        if descriptor.kind in enabled.rule.APPLIES_TO
+        and governing_facet(enabled.rule) is facet
+        and not (
+            descriptor.kind is ItemKind.SKILL_ENTRY
+            and issubclass(enabled.rule, QueriedDocumentSkillRule)
+            and (not descriptor.governance_corpus or failed_skill_layer)
+        )
     )
 
 
