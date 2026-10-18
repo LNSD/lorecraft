@@ -1,5 +1,8 @@
 """The database's declared queries and their recorded reads."""
 
+import ast
+from pathlib import Path
+
 import pytest
 
 from lib.tree import from_tree
@@ -10,6 +13,116 @@ from lorecraft.project.query import Primitives
 from lorecraft.project.syntax import Heading
 
 GUIDE: MarkdownItemRef = MarkdownItemRef(RootRelativePath.parse('docs/code/guide.md'))
+
+
+_DATABASE_SOURCE = Path('src/lorecraft/project/database/database.py')
+_PRIVATE_READ_NAMES = {'_record', '_reads', '__reads', '_ReadSet__reads'}
+_REFLECTION_CALLS = {'getattr', 'setattr', 'vars'}
+
+
+def _enclosing_class(node: ast.AST, parents: dict[ast.AST, ast.AST]) -> ast.ClassDef | None:
+    parent = parents.get(node)
+    while parent is not None:
+        if isinstance(parent, ast.ClassDef):
+            return parent
+        parent = parents.get(parent)
+    return None
+
+
+def _enclosing_method(node: ast.AST, parents: dict[ast.AST, ast.AST]) -> ast.FunctionDef | None:
+    parent = parents.get(node)
+    while parent is not None:
+        if isinstance(parent, ast.FunctionDef):
+            return parent
+        parent = parents.get(parent)
+    return None
+
+
+def _read_set_mutations(*roots: Path) -> tuple[tuple[Path, ...], tuple[str, ...]]:
+    """Scan Python sources for common read-set bypasses.
+
+    Literal private names in reflection calls are reported, but dynamically built names and deliberate Python
+    reflection cannot be closed by this practical in-process guard.
+    """
+    database_path = next(
+        (root / _DATABASE_SOURCE.relative_to('src') for root in roots if root.name == 'src'),
+        None,
+    )
+    files = tuple(sorted((path for root in roots for path in root.rglob('*.py')), key=str))
+    violations = []
+    for path in files:
+        tree = ast.parse(path.read_text())
+        parents = {child: node for node in ast.walk(tree) for child in ast.iter_child_nodes(node)}
+        class_definitions = tuple(node for node in tree.body if isinstance(node, ast.ClassDef))
+        read_set_root = (
+            next((node for node in class_definitions if node.name == '_ReadSet'), None)
+            if path == database_path
+            else None
+        )
+        read_set_classes: set[ast.ClassDef] = set()
+        bound_classes: dict[str, ast.ClassDef] = {}
+        for node in class_definitions:
+            if node is read_set_root or any(
+                isinstance(base, ast.Name) and bound_classes.get(base.id) in read_set_classes for base in node.bases
+            ):
+                read_set_classes.add(node)
+            bound_classes[node.name] = node
+
+        aliases: set[str] = set()
+        for node in ast.walk(tree):
+            if isinstance(node, (ast.Assign, ast.AnnAssign)):
+                value = node.value
+                targets = node.targets if isinstance(node, ast.Assign) else (node.target,)
+                if isinstance(value, ast.Attribute) and value.attr == 'read':
+                    aliases.update(target.id for target in targets if isinstance(target, ast.Name))
+
+        for node in ast.walk(tree):
+            scope = _enclosing_class(node, parents)
+            trusted_read_set_scope = scope in read_set_classes
+            if isinstance(node, ast.Attribute) and node.attr in {'_ReadSet__reads', '_reads', '__reads'}:
+                method = _enclosing_method(node, parents)
+                owns_storage = (
+                    scope is read_set_root
+                    and method is not None
+                    and method.name in {'__init__', '_record', '_recorded_reads'}
+                )
+                if not owns_storage:
+                    violations.append(f'{path.name}:{node.lineno}: private read-set storage access')
+            elif isinstance(node, (ast.Assign, ast.AnnAssign, ast.AugAssign)):
+                targets = node.targets if isinstance(node, ast.Assign) else (node.target,)
+                if any(isinstance(target, ast.Attribute) and target.attr == 'read' for target in targets):
+                    violations.append(f'{path.name}:{node.lineno}: raw read-set assignment')
+                elif (
+                    isinstance(node, ast.AugAssign) and isinstance(node.target, ast.Name) and node.target.id in aliases
+                ):
+                    violations.append(f'{path.name}:{node.lineno}: aliased read-set mutation')
+            elif (
+                isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Attribute)
+                and node.func.attr in {'add', 'update', 'clear', 'discard', 'remove', 'pop'}
+            ):
+                receiver = node.func.value
+                if isinstance(receiver, ast.Attribute) and receiver.attr == 'read':
+                    violations.append(f'{path.name}:{node.lineno}: raw read-set mutation')
+                elif isinstance(receiver, ast.Name) and receiver.id in aliases:
+                    violations.append(f'{path.name}:{node.lineno}: aliased read-set mutation')
+            elif isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and node.func.attr == '_record':
+                if not trusted_read_set_scope:
+                    violations.append(f'{path.name}:{node.lineno}: read recording outside its shared base')
+            elif isinstance(node, ast.Call):
+                function_name = (
+                    node.func.id
+                    if isinstance(node.func, ast.Name)
+                    else (node.func.attr if isinstance(node.func, ast.Attribute) else None)
+                )
+                if function_name in _REFLECTION_CALLS | {'__setattr__'} and any(
+                    isinstance(argument, ast.Constant)
+                    and isinstance(argument.value, str)
+                    and argument.value in _PRIVATE_READ_NAMES
+                    for argument in node.args
+                ):
+                    violations.append(f'{path.name}:{node.lineno}: reflective read-set access')
+    return files, tuple(violations)
 
 
 def _inner(primitives: Primitives) -> tuple[Heading, ...]:
@@ -48,8 +161,73 @@ def _database() -> Database:
     )
 
 
+def _read_set_bypass_examples() -> str:
+    """Build source with representative bypass syntax without placing it in the scanned module AST."""
+    return '\n'.join(
+        (
+            'class Adapter:',
+            '    def query(self, p):',
+            '        p._record(key)',
+            '        type(p).__mro__[1]._record(p, key)',
+            '        p.read = set()',
+            '        p.read.update(keys)',
+            '        s = p.read',
+            '        s |= {key}',
+            "        object.__setattr__(p, '_reads', set())",
+            "        setattr(p, '_record', write)",
+            "        getattr(p, '_reads')",
+            "        vars(p, '_record')",
+        )
+    )
+
+
 @pytest.mark.unit
 class TestQueryReads:
+    def test_read_set_is_only_accessed_through_its_shared_base(self) -> None:
+        #: Given
+        repository_root = Path(__file__).resolve().parents[5]
+
+        #: When
+        scanned, violations = _read_set_mutations(repository_root / 'src', repository_root / 'tests')
+
+        #: Then
+        assert repository_root / _DATABASE_SOURCE in scanned, 'the guard scans the database implementation'
+        assert violations == (), 'primitive queries use the shared read recorder and keep its storage private'
+
+    def test_read_set_guard_finds_representative_bypasses(self, tmp_path: Path) -> None:
+        #: Given
+        source = _read_set_bypass_examples()
+        example = tmp_path / 'bypasses.py'
+        example.write_text(source)
+
+        #: When
+        scanned, violations = _read_set_mutations(tmp_path)
+
+        #: Then
+        assert example in scanned, 'the guard visits the synthetic Python source'
+        assert len(violations) >= 8, 'the guard catches direct, aliased, indirect and reflective bypasses'
+
+    def test_read_set_guard_binds_its_exemption_to_the_declared_class(self, tmp_path: Path) -> None:
+        #: Given
+        database_path = tmp_path / _DATABASE_SOURCE
+        database_path.parent.mkdir(parents=True)
+        database_path.write_text(
+            'class _ReadSet:\n'
+            '    def _record(self, key): pass\n'
+            '    def _recorded_reads(self): return self.__reads\n'
+            'class _ReadSet:\n'
+            '    def bypass(self, key):\n'
+            '        self._record(key)\n'
+            '        return self.__reads\n'
+        )
+
+        #: When
+        scanned, violations = _read_set_mutations(tmp_path / 'src')
+
+        #: Then
+        assert database_path in scanned, 'the fixture uses the exact implementation path'
+        assert len(violations) == 2, 'a duplicate class name cannot inherit the holder exemption'
+
     def test_primitive_adapter_rejects_a_raw_read_attribute(self) -> None:
         #: Given
         database = Database.from_snapshot(
