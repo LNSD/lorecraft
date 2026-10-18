@@ -10,7 +10,7 @@ from lib.tree import from_tree
 from lorecraft.core.mapping import Frozen, FrozenMapping
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.corpus import CorpusDirectoryRef, CorpusName, ReservedCorpusDirectory
-from lorecraft.project.database import Database, PrimitiveRead, QueryRead, SchemaInputRead
+from lorecraft.project.database import Database, PrimitiveRead, Read
 from lorecraft.project.item import ItemReadError, MarkdownItemRef, UnlistedItemError
 from lorecraft.project.query import CorpusDirectoryPrimitives, Primitives, SchemaPrimitives, SymlinkPrimitives
 from lorecraft.project.schemas.skill import (
@@ -32,7 +32,7 @@ SCHEMA_MISSING: SchemaReference = SchemaReference(SchemaKind.STRUCTURE, 'missing
 
 
 _DATABASE_SOURCE = Path('src/lorecraft/project/database/database.py')
-_PRIVATE_READ_NAMES = {'_record', '_reads', '__reads', '_ReadSet__reads'}
+_PRIVATE_READ_NAMES = {'_record', '_reads', '__reads', '_ReadPrimitives__reads'}
 _REFLECTION_CALLS = {'getattr', 'setattr', 'vars'}
 
 
@@ -71,7 +71,7 @@ def _read_set_mutations(*roots: Path) -> tuple[tuple[Path, ...], tuple[str, ...]
         parents = {child: node for node in ast.walk(tree) for child in ast.iter_child_nodes(node)}
         class_definitions = tuple(node for node in tree.body if isinstance(node, ast.ClassDef))
         read_set_root = (
-            next((node for node in class_definitions if node.name == '_ReadSet'), None)
+            next((node for node in class_definitions if node.name == '_ReadPrimitives'), None)
             if path == database_path
             else None
         )
@@ -95,7 +95,7 @@ def _read_set_mutations(*roots: Path) -> tuple[tuple[Path, ...], tuple[str, ...]
         for node in ast.walk(tree):
             scope = _enclosing_class(node, parents)
             trusted_read_set_scope = scope in read_set_classes
-            if isinstance(node, ast.Attribute) and node.attr in {'_ReadSet__reads', '_reads', '__reads'}:
+            if isinstance(node, ast.Attribute) and node.attr in {'_ReadPrimitives__reads', '_reads', '__reads'}:
                 method = _enclosing_method(node, parents)
                 owns_storage = (
                     scope is read_set_root
@@ -239,7 +239,7 @@ def _schema_catches_missing(primitives: Primitives) -> str | None:
 
 
 @pytest.mark.unit
-class TestQueryReads:
+class TestReads:
     def test_builtin_skills_schema_uses_a_bundled_registry_subject(self) -> None:
         #: Given
         database = _database()
@@ -253,7 +253,7 @@ class TestQueryReads:
             'the loaded model exposes the built-in schema with bundled provenance'
         )
         assert database.query_reads(skill_frontmatter_schema_query, SKILL_SCHEMA_REFERENCE) == {
-            SchemaInputRead(SKILL_SCHEMA_REFERENCE)
+            Read(PrimitiveRead.SCHEMA_INPUT, SKILL_SCHEMA_REFERENCE)
         }, 'the built-in schema query records its typed registry input dependency'
 
     def test_schema_query_memoizes_by_reference_and_records_its_input(self) -> None:
@@ -273,7 +273,7 @@ class TestQueryReads:
         #: Then
         assert first == schema_input.document, 'the schema query returns the loaded immutable input'
         assert repeated is first, 'the database memoizes schema query answers by their typed reference'
-        assert database.query_reads(_schema_document, SCHEMA) == {SchemaInputRead(SCHEMA)}, (
+        assert database.query_reads(_schema_document, SCHEMA) == {Read(PrimitiveRead.SCHEMA_INPUT, SCHEMA)}, (
             'the read identity retains the schema reference for future revision comparisons'
         )
 
@@ -293,8 +293,8 @@ class TestQueryReads:
         #: Then
         assert result == schema_input.document, 'the item query receives the schema query fact'
         assert database.query_reads(_reads_schema, GUIDE) == {
-            (_schema_document, SCHEMA),
-            SchemaInputRead(SCHEMA),
+            Read(_schema_document, SCHEMA),
+            Read(PrimitiveRead.SCHEMA_INPUT, SCHEMA),
         }, 'the cross-schema dependency is recorded by callable and typed schema reference'
 
     def test_schema_query_records_a_nested_schema_query(self) -> None:
@@ -320,8 +320,8 @@ class TestQueryReads:
         #: Then
         assert identity == SCHEMA_BASE.identity, 'a schema query can compose facts from its base schema'
         assert database.query_reads(_schema_reads_base, SCHEMA) == {
-            (_schema_identity, SCHEMA_BASE),
-            SchemaInputRead(SCHEMA_BASE),
+            Read(_schema_identity, SCHEMA_BASE),
+            Read(PrimitiveRead.SCHEMA_INPUT, SCHEMA_BASE),
         }, 'the outer read set retains the nested schema identity and input read'
 
     def test_item_query_retains_a_missing_schema_read_when_caught(self) -> None:
@@ -340,7 +340,7 @@ class TestQueryReads:
         #: Then
         assert result is None, 'a caller can handle a missing schema input'
         assert database.query_reads(_schema_catches_missing, GUIDE) == {
-            (_schema_identity, SCHEMA_MISSING),
+            Read(_schema_identity, SCHEMA_MISSING),
         }, 'the attempted schema dependency is recorded before resolution raises'
 
     def test_read_set_is_only_accessed_through_its_shared_base(self) -> None:
@@ -372,10 +372,10 @@ class TestQueryReads:
         database_path = tmp_path / _DATABASE_SOURCE
         database_path.parent.mkdir(parents=True)
         database_path.write_text(
-            'class _ReadSet:\n'
+            'class _ReadPrimitives:\n'
             '    def _record(self, key): pass\n'
             '    def _recorded_reads(self): return self.__reads\n'
-            'class _ReadSet:\n'
+            'class _ReadPrimitives:\n'
             '    def bypass(self, key):\n'
             '        self._record(key)\n'
             '        return self.__reads\n'
@@ -435,8 +435,8 @@ class TestQueryReads:
 
         #: Then
         assert database.query_reads(_outer, GUIDE) == {
-            QueryRead(_inner, GUIDE),
-            QueryRead(PrimitiveRead.HEADINGS, GUIDE),
+            Read(_inner, GUIDE),
+            Read(PrimitiveRead.HEADINGS, GUIDE),
         }, 'the outer read set includes the inner query and its primitive read'
 
     def test_query_at_records_the_query_and_the_other_item_ref(self) -> None:
@@ -459,8 +459,8 @@ class TestQueryReads:
         #: Then
         assert tuple(heading.text for heading in headings) == ('Target',), 'the target item query returns its heading'
         assert database.query_reads(_reads_another_item, GUIDE) == {
-            QueryRead(_inner, TARGET),
-            QueryRead(PrimitiveRead.HEADINGS, TARGET),
+            Read(_inner, TARGET),
+            Read(PrimitiveRead.HEADINGS, TARGET),
         }, 'the read set identifies the query and the primitive it read'
 
     def test_query_at_records_an_unreadable_other_item(self) -> None:
@@ -484,7 +484,7 @@ class TestQueryReads:
         #: Then
         assert headings == (), 'an unreadable destination contributes no headings'
         assert database.query_reads(_reads_unreadable_item, GUIDE) == {
-            QueryRead(_inner, TARGET),
+            Read(_inner, TARGET),
         }, 'the read set retains a failed destination query'
 
     def test_query_memoizes_symlink_subjects_and_records_their_primitive(self) -> None:
@@ -510,7 +510,9 @@ class TestQueryReads:
         assert first == outside.leaves_at, 'the query returns the symlink primitive'
         assert repeated == outside.leaves_at, 'the repeated query returns the same fact'
         assert calls == 1, 'the query is memoized on repeated calls'
-        assert database.query_reads(query, ref) == {PrimitiveRead.SYMLINK_LEAVES_AT}, 'the primitive read is recorded'
+        assert database.query_reads(query, ref) == {Read(PrimitiveRead.SYMLINK_LEAVES_AT, ref)}, (
+            'the primitive read is recorded'
+        )
 
     def test_query_memoizes_corpus_directory_subjects_and_records_their_primitive(self) -> None:
         #: Given
@@ -535,7 +537,9 @@ class TestQueryReads:
         assert first == directory.corpus, 'the query returns the reserved corpus primitive'
         assert repeated == directory.corpus, 'the repeated query returns the same fact'
         assert calls == 1, 'the query is memoized on repeated calls'
-        assert database.query_reads(query, ref) == {PrimitiveRead.RESERVED_CORPUS}, 'the primitive read is recorded'
+        assert database.query_reads(query, ref) == {Read(PrimitiveRead.RESERVED_CORPUS, ref)}, (
+            'the primitive read is recorded'
+        )
 
     def test_query_over_an_unlisted_symlink_raises_unlisted_item_error(self) -> None:
         #: Given

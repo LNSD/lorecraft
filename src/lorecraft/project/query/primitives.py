@@ -36,21 +36,27 @@ type Query[T] = Callable[[Primitives], T]
 type SymlinkQuery[T] = Callable[[SymlinkPrimitives], T]
 type CorpusDirectoryQuery[T] = Callable[[CorpusDirectoryPrimitives], T]
 type SchemaQuery[T] = Callable[[SchemaPrimitives], T]
-type SubjectQuery[T] = Query[T] | SymlinkQuery[T] | CorpusDirectoryQuery[T]
-type SymlinkQueryRead = tuple[SymlinkQuery[object], SymlinkRef]
-type CorpusDirectoryQueryRead = tuple[CorpusDirectoryQuery[object], CorpusDirectoryRef]
-type SchemaQueryRead = tuple[SchemaQuery[object], SchemaReference]
+type SubjectRef = MarkdownItemRef | SymlinkRef | CorpusDirectoryRef | SchemaReference
+type SubjectQuery[T] = Query[T] | SymlinkQuery[T] | CorpusDirectoryQuery[T] | SchemaQuery[T]
 
 
-class SchemaPrimitives(Protocol):
+class QueryPrimitives(Protocol):
+    """Query operations shared by every subject's primitive facet."""
+
+    def query_at[T](self, ref: MarkdownItemRef, query: Query[T]) -> T:
+        """Read an item query by reference and record the typed dependency."""
+        ...
+
+    def query_schema[T](self, ref: SchemaReference, query: SchemaQuery[T]) -> T:
+        """Read a schema query by reference and record the typed dependency."""
+        ...
+
+
+class SchemaPrimitives(QueryPrimitives, Protocol):
     """The immutable input for one typed schema subject."""
 
     def schema_input(self) -> SchemaInput:
         """The loaded schema input identified by this query's subject reference."""
-        ...
-
-    def query_schema[T](self, ref: SchemaReference, query: SchemaQuery[T]) -> T:
-        """The memoized answer of another schema query, recorded with its typed reference."""
         ...
 
 
@@ -135,6 +141,7 @@ class LinkResolutionPrimitives(Protocol):
 
 
 class Primitives(
+    QueryPrimitives,
     SyntaxPrimitives,
     CountPrimitives,
     GovernancePrimitives,
@@ -161,7 +168,7 @@ class Primitives(
         ...
 
 
-class SymlinkPrimitives(Protocol):
+class SymlinkPrimitives(QueryPrimitives, Protocol):
     """The model state of one symlink of the skill layout whose chain leaves the repository."""
 
     def leaves_at(self) -> RootExit:
@@ -169,7 +176,7 @@ class SymlinkPrimitives(Protocol):
         ...
 
 
-class CorpusDirectoryPrimitives(Protocol):
+class CorpusDirectoryPrimitives(QueryPrimitives, Protocol):
     """The model state of one directory under `docs/` that takes a reserved corpus's name."""
 
     def reserved_corpus(self) -> CorpusName:
