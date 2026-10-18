@@ -8,6 +8,7 @@ from collections.abc import Callable, Mapping
 from typing import Protocol
 
 from lorecraft.project.corpus import CorpusName
+from lorecraft.project.corpus.directory import CorpusDirectoryRef
 from lorecraft.project.item import ItemOrigin, MarkdownItemRef
 from lorecraft.project.link_target import LinkBase, LinkTargetEntry
 from lorecraft.project.schemas import StructureSpec
@@ -28,6 +29,7 @@ type Query[T] = Callable[[Primitives], T]
 type SymlinkQuery[T] = Callable[[SymlinkPrimitives], T]
 type CorpusDirectoryQuery[T] = Callable[[CorpusDirectoryPrimitives], T]
 type SymlinkQueryRead = tuple[SymlinkQuery[object], SymlinkRef]
+type CorpusDirectoryQueryRead = tuple[CorpusDirectoryQuery[object], CorpusDirectoryRef]
 
 
 class SyntaxPrimitives(Protocol):
