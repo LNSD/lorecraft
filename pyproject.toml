@@ -5,6 +5,7 @@
 #   lorecraft.rules    the rules, how one is declared and identified, and the selection, table and report of a run
 #   lorecraft.project  the workspace model and the parse trees, on the filesystem boundary
 #   lorecraft.agents   the model of the coding agents: the aspects an agent has, and each agent's values
+#   lorecraft.schemas  schema identities, provenance, immutable inputs and pure registry lookup
 #   lorecraft.vfs      the filesystem boundary: paths, views, scan, snapshot
 #   lorecraft.jsonschema, lorecraft.yaml and lorecraft.markdown  peers directly above core: JSON Schema vocabulary;
 #                      YAML syntax/refusals; the Markdown parse values
@@ -233,7 +234,7 @@ root_package = "lorecraft"
 include_external_packages = true
 
 [[tool.importlinter.contracts]]
-name = "The command line over the engine, the rules, the model, the agents, the filesystem and the base"
+name = "The command line over the engine, rules, model, agents, schemas, filesystem and base"
 type = "layers"
 containers = ["lorecraft"]
 layers = [
@@ -242,6 +243,7 @@ layers = [
     "rules",
     "project",
     "agents",
+    "schemas",
     "vfs",
     "jsonschema|yaml|markdown",
     "core",
