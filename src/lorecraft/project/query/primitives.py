@@ -8,8 +8,8 @@ from collections.abc import Callable, Mapping
 from typing import Protocol
 
 from lorecraft.project.corpus import CorpusName
-from lorecraft.project.item import ItemOrigin
-from lorecraft.project.link_target import DocumentLink, LinkBase, LinkTargetEntry
+from lorecraft.project.item import ItemOrigin, MarkdownItemRef
+from lorecraft.project.link_target import LinkBase, LinkTargetEntry
 from lorecraft.project.schemas import StructureSpec
 from lorecraft.project.syntax import (
     Anchor,
@@ -107,13 +107,6 @@ class LinkResolutionPrimitives(Protocol):
         """Where the item's relative links are read from; `None` for an item that is not UTF-8."""
         ...
 
-    def linked_documents(self) -> tuple[DocumentLink, ...]:
-        """The links to another document, with its corpus and filename and whether it links back, in document order.
-
-        None for an item that is not UTF-8.
-        """
-        ...
-
 
 class Primitives(
     SyntaxPrimitives,
@@ -126,6 +119,15 @@ class Primitives(
 
     def query[T](self, query: Query[T]) -> T:
         """The memoized answer of another query over the same item, whose reads count as the asking query's own."""
+        ...
+
+    def query_at[T](self, ref: MarkdownItemRef, query: Query[T]) -> T:
+        """The memoized answer of a query over another item, recorded as the typed pair `(query, ref)`.
+
+        Args:
+            ref: The item whose primitives the query reads.
+            query: The pure function to run over that item's primitives.
+        """
         ...
 
 
