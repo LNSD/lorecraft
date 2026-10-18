@@ -149,7 +149,8 @@ governance those problems read; equal governance, respectively.
 import logging
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
-from typing import Literal, Self, cast
+from enum import StrEnum
+from typing import Self, cast
 
 from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.num import UnsignedInt
@@ -216,31 +217,33 @@ from lorecraft.vfs import (
 
 from .text import ItemText, Undecodable
 
-type PrimitiveName = Literal[
-    'structure_specs',
-    'headings',
-    'token_count',
-    'line_count',
-    'frontmatter',
-    'item_origin',
-    'item_governance',
-    'builtin_skills_schema',
-    'links',
-    'anchors',
-    'link_targets',
-    'link_base',
-    'item_name',
-    'item_corpus',
-    'item_base',
-    'linked_documents',
-]
+
+class PrimitiveRead(StrEnum):
+    """A primitive that a declared query read, named by its method."""
+
+    STRUCTURE_SPECS = 'structure_specs'
+    HEADINGS = 'headings'
+    TOKEN_COUNT = 'token_count'
+    LINE_COUNT = 'line_count'
+    FRONTMATTER = 'frontmatter'
+    ITEM_ORIGIN = 'item_origin'
+    ITEM_GOVERNANCE = 'item_governance'
+    BUILTIN_SKILLS_SCHEMA = 'builtin_skills_schema'
+    LINKS = 'links'
+    ANCHORS = 'anchors'
+    LINK_TARGETS = 'link_targets'
+    LINK_BASE = 'link_base'
+    ITEM_NAME = 'item_name'
+    ITEM_CORPUS = 'item_corpus'
+    ITEM_BASE = 'item_base'
+    LINKED_DOCUMENTS = 'linked_documents'
 
 
 @dataclass(frozen=True)
 class QueryRead:
     """One primitive or declared query read from one Markdown item."""
 
-    source: PrimitiveName | Query[object]
+    source: PrimitiveRead | Query[object]
     ref: MarkdownItemRef
 
 
@@ -260,104 +263,126 @@ def _witness_text(
     return source.text
 
 
-class _ReadPrimitives:
+class _ReadSet:
+    """A practical in-process guard around reads shared by database primitive adapters.
+
+    Name-mangled storage and the repository source guard keep ordinary callers on `_record`; deliberate Python
+    reflection can still bypass that boundary.
+    """
+
+    __slots__ = ('__reads',)
+
+    def __init__(self) -> None:
+        self.__reads: set[QueryRead] = set()
+
+    def _record(self, *keys: QueryRead) -> None:
+        """Record primitive or nested-query keys without exposing mutable storage."""
+        self.__reads.update(keys)
+
+    def _recorded_reads(self) -> frozenset[QueryRead]:
+        """Return a frozen copy for the database cache."""
+        return frozenset(self.__reads)
+
+
+class _ReadPrimitives(_ReadSet):
     """The primitives of one item as the database answers them, noting each one a query reads.
 
     A primitive that walks the model or other files, such as `linked_documents` and `item_base`,
     is not cached here: a query over the item is memoized by the database for the function and the ref, so each of
     them is computed once per query, and a cache beside it would only hold the same answer twice.
 
-    Attributes:
-        read: The typed primitive and query reads recorded so far.
     """
 
+    __slots__ = ('_database', '_ref')
+
     def __init__(self, database: 'Database', ref: MarkdownItemRef) -> None:
+        super().__init__()
         self._database = database
         self._ref = ref
-        self.read: frozenset[QueryRead] = frozenset()
-
-    def _record(self, primitive: PrimitiveName) -> None:
-        self.read |= {QueryRead(primitive, self._ref)}
 
     def item_origin(self) -> ItemOrigin:
         """The model-resolved origin facts of the item."""
-        self._record('item_origin')
+        self._record(QueryRead(PrimitiveRead.ITEM_ORIGIN, self._ref))
         self._database._answerable(self._ref)
         return self._database._known(self._ref).descriptor.origin
 
     def item_governance(self) -> Governance | None:
         """The model's governance of the item."""
-        self._record('item_governance')
+        self._record(QueryRead(PrimitiveRead.ITEM_GOVERNANCE, self._ref))
         return self._database.item_governance(self._ref)
 
     def builtin_skills_schema(self) -> bool:
         """Whether the package's Agent Skills frontmatter schema is enabled."""
-        self._record('builtin_skills_schema')
+        self._record(QueryRead(PrimitiveRead.BUILTIN_SKILLS_SCHEMA, self._ref))
         return self._database.model().builtin_skills_schema
 
     def structure_specs(self) -> tuple[StructureSpec, ...]:
         """The structure specifications of the layers that loaded for the item."""
-        self._record('structure_specs')
+        self._record(QueryRead(PrimitiveRead.STRUCTURE_SPECS, self._ref))
         return self._database.item_structure_specs(self._ref)
 
     def headings(self) -> tuple[Heading, ...]:
         """The headings of the item's parse; none for an item that is not UTF-8."""
-        self._record('headings')
+        self._record(QueryRead(PrimitiveRead.HEADINGS, self._ref))
         source = self._database.item_text(self._ref)
         return self._database.item_parse(source).headings if isinstance(source, ItemText) else ()
 
     def token_count(self) -> TokenCount:
         """The tokens in the item's whole file; none for an item that is not UTF-8."""
-        self._record('token_count')
+        self._record(QueryRead(PrimitiveRead.TOKEN_COUNT, self._ref))
         source = self._database.item_text(self._ref)
         return self._database.item_token_count(source) if isinstance(source, ItemText) else TokenCount(UnsignedInt(0))
 
     def line_count(self) -> LineCount:
         """The lines in the item's whole file; none for an item that is not UTF-8."""
-        self._record('line_count')
+        self._record(QueryRead(PrimitiveRead.LINE_COUNT, self._ref))
         source = self._database.item_text(self._ref)
         return self._database.item_line_count(source) if isinstance(source, ItemText) else LineCount(UnsignedInt(0))
 
     def frontmatter(self) -> FrontmatterNode:
         """The item's frontmatter block; missing for an item that is not UTF-8."""
-        self._record('frontmatter')
+        self._record(QueryRead(PrimitiveRead.FRONTMATTER, self._ref))
         source = self._database.item_text(self._ref)
         return self._database.item_frontmatter(source) if isinstance(source, ItemText) else MissingFrontmatter()
 
     def query[T](self, query: Query[T]) -> T:
         """The memoized answer of another query over the item; what it read counts as this query's reads."""
         answer = self._database.query(query, self._ref)
-        self.read |= {QueryRead(cast('Query[object]', query), self._ref)}
-        self.read |= self._database.query_reads(query, self._ref)
+        self._record_nested(query, self._ref)
         return answer
+
+    def _record_nested[T](self, query: Query[T], ref: MarkdownItemRef) -> None:
+        """Record a nested query and its primitive reads."""
+        self._record(QueryRead(cast('Query[object]', query), ref))
+        self._record(*self._database.query_reads(query, ref))
 
     def links(self) -> tuple[Link, ...]:
         """The links of the item's parse; none for an item that is not UTF-8."""
-        self._record('links')
+        self._record(QueryRead(PrimitiveRead.LINKS, self._ref))
         source = self._database.item_text(self._ref)
         return self._database.item_parse(source).links if isinstance(source, ItemText) else ()
 
     def anchors(self) -> frozenset[Anchor]:
         """The anchor of every heading of the item's parse; none for an item that is not UTF-8."""
-        self._record('anchors')
+        self._record(QueryRead(PrimitiveRead.ANCHORS, self._ref))
         source = self._database.item_text(self._ref)
         return self._database.item_parse(source).anchors if isinstance(source, ItemText) else frozenset()
 
     def link_targets(self) -> Mapping[NormalisedLinkPath, LinkTargetEntry]:
         """What the snapshot holds at each relative link's target; none for an item that is not UTF-8."""
-        self._record('link_targets')
+        self._record(QueryRead(PrimitiveRead.LINK_TARGETS, self._ref))
         source = self._database.item_text(self._ref)
         return self._database.item_link_targets(source) if isinstance(source, ItemText) else FrozenMapping({})
 
     def link_base(self) -> LinkBase | None:
         """Where the item's relative links are read from; `None` for an item that is not UTF-8."""
-        self._record('link_base')
+        self._record(QueryRead(PrimitiveRead.LINK_BASE, self._ref))
         source = self._database.item_text(self._ref)
         return source.descriptor.link_base if isinstance(source, ItemText) else None
 
     def item_name(self) -> str | None:
         """The stem of a document or meta specification; `None` for any other item or one that is not UTF-8."""
-        self._record('item_name')
+        self._record(QueryRead(PrimitiveRead.ITEM_NAME, self._ref))
         source = self._database.item_text(self._ref)
         origin = source.descriptor.origin if isinstance(source, ItemText) else None
         # Keep this dispatch: the query names documents and meta specifications, not skill directories or resources.
@@ -369,7 +394,7 @@ class _ReadPrimitives:
         A destination that cannot be read or decoded is logged and has no back link. None for an item that is not
         UTF-8.
         """
-        self._record('linked_documents')
+        self._record(QueryRead(PrimitiveRead.LINKED_DOCUMENTS, self._ref))
         source = self._database.item_text(self._ref)
         if not isinstance(source, ItemText):
             return ()
@@ -393,7 +418,7 @@ class _ReadPrimitives:
 
     def item_corpus(self) -> str | None:
         """The corpus a document lies in; `None` for any other item or one that is not UTF-8."""
-        self._record('item_corpus')
+        self._record(QueryRead(PrimitiveRead.ITEM_CORPUS, self._ref))
         source = self._database.item_text(self._ref)
         origin = source.descriptor.origin if isinstance(source, ItemText) else None
         # Keep this dispatch: this query answers for user documents; a specification's `corpus` is a prefix of its
@@ -407,7 +432,7 @@ class _ReadPrimitives:
         `None` for any other item or one that is not UTF-8. A skill entry extends nothing: its name is its directory's,
         which no hyphenated prefix continues.
         """
-        self._record('item_base')
+        self._record(QueryRead(PrimitiveRead.ITEM_BASE, self._ref))
         source = self._database.item_text(self._ref)
         origin = source.descriptor.origin if isinstance(source, ItemText) else None
         # Keep this dispatch: documents and specifications inherit within separate model hierarchies; skills do not.
@@ -889,7 +914,7 @@ class Database:
         if key not in self._queries:
             primitives = _ReadPrimitives(self, ref)
             answer = query(primitives)
-            self._queries[key] = (answer, primitives.read)
+            self._queries[key] = (answer, primitives._recorded_reads())
         return cast('T', self._queries[key][0])
 
     def query_reads(self, query: Query[object], ref: MarkdownItemRef) -> frozenset[QueryRead]:
