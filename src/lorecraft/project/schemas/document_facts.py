@@ -6,16 +6,26 @@ rule unpacks a `Governance` or searches the headings itself.
 
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Protocol
 
 from lorecraft.core.num import UnsignedInt
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.syntax import Heading, WordCount, count_words, find_title
 
+from .structure import StructureSpec, TitleChecks
+
 if TYPE_CHECKING:
     # Type-only: `lorecraft.project.query` imports this package, so a runtime import here would be a cycle.
-    from lorecraft.project.query import Primitives
-from .structure import TitleChecks
+    class TitlePrimitives(Protocol):
+        """The syntax and governing structure facts needed to derive a document title."""
+
+        def headings(self) -> tuple[Heading, ...]:
+            """The item's headings in document order."""
+            ...
+
+        def structure_specs(self) -> tuple[StructureSpec, ...]:
+            """The structure specifications governing the item."""
+            ...
 
 
 @dataclass(frozen=True, slots=True)
@@ -71,7 +81,7 @@ class TitleFacts:
     constraints: tuple[TitleConstraint, ...]
 
 
-def title_facts(primitives: 'Primitives') -> TitleFacts:
+def title_facts(primitives: 'TitlePrimitives') -> TitleFacts:
     """The document's title and the title checks each specification states. Raises nothing.
 
     A query: it reads the item's headings and structure specifications and nothing else.

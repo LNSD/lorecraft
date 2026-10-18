@@ -21,10 +21,10 @@ from lorecraft.project.schemas.skill import SKILL_SCHEMA_REFERENCE, skill_frontm
 from lorecraft.project.schemas.skill_fields import SkillFields, parse_skill_fields
 
 if TYPE_CHECKING:
-    from lorecraft.project.query import Primitives
+    from lorecraft.project.query import GovernancePrimitives, Primitives
 
 
-def frontmatter_owner_query(primitives: 'Primitives') -> FrontmatterOwner:
+def frontmatter_owner_query(primitives: 'GovernancePrimitives') -> FrontmatterOwner:
     """The document or skill whose frontmatter the item opens, from origin facts and governance.
 
     Raises:

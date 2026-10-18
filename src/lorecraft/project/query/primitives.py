@@ -33,6 +33,7 @@ if TYPE_CHECKING:
     from lorecraft.project.schemas import SpecName
 
 type Query[T] = Callable[[Primitives], T]
+type SameSubjectQuery[P, T] = Callable[[P], T]
 type SymlinkQuery[T] = Callable[[SymlinkPrimitives], T]
 type CorpusDirectoryQuery[T] = Callable[[CorpusDirectoryPrimitives], T]
 type SchemaQuery[T] = Callable[[SchemaPrimitives], T]
@@ -40,19 +41,31 @@ type SubjectRef = MarkdownItemRef | SymlinkRef | CorpusDirectoryRef | SchemaRefe
 type SubjectQuery[T] = Query[T] | SymlinkQuery[T] | CorpusDirectoryQuery[T] | SchemaQuery[T]
 
 
-class QueryPrimitives(Protocol):
-    """Query operations shared by every subject's primitive facet."""
+class QueryPrimitives[P](Protocol):
+    """Same-subject query operations shared by every subject's primitive facet."""
+
+    def query[T](self, query: SameSubjectQuery[P, T]) -> T:
+        """Read a query over the same subject and record its dependency."""
+        ...
+
+
+class ItemReads(Protocol):
+    """Cross-subject queries whose target is a Markdown item."""
 
     def query_at[T](self, ref: MarkdownItemRef, query: Query[T]) -> T:
         """Read an item query by reference and record the typed dependency."""
         ...
+
+
+class SchemaReads(Protocol):
+    """Cross-subject queries whose target is a schema."""
 
     def query_schema[T](self, ref: SchemaReference, query: SchemaQuery[T]) -> T:
         """Read a schema query by reference and record the typed dependency."""
         ...
 
 
-class SchemaPrimitives(QueryPrimitives, Protocol):
+class SchemaPrimitives(QueryPrimitives['SchemaPrimitives'], SchemaReads, Protocol):
     """The immutable input for one typed schema subject."""
 
     def schema_input(self) -> SchemaInput:
@@ -141,7 +154,9 @@ class LinkResolutionPrimitives(Protocol):
 
 
 class Primitives(
-    QueryPrimitives,
+    QueryPrimitives['Primitives'],
+    ItemReads,
+    SchemaReads,
     SyntaxPrimitives,
     CountPrimitives,
     GovernancePrimitives,
@@ -150,25 +165,8 @@ class Primitives(
 ):
     """The model state of one item a query derives from; each method is one primitive, grouped in the facets."""
 
-    def query[T](self, query: Query[T]) -> T:
-        """The memoized answer of another query over the same item, whose reads count as the asking query's own."""
-        ...
 
-    def query_at[T](self, ref: MarkdownItemRef, query: Query[T]) -> T:
-        """The memoized answer of a query over another item, recorded as the typed pair `(query, ref)`.
-
-        Args:
-            ref: The item whose primitives the query reads.
-            query: The pure function to run over that item's primitives.
-        """
-        ...
-
-    def query_schema[T](self, ref: SchemaReference, query: SchemaQuery[T]) -> T:
-        """The memoized answer of a schema query, recorded as `(query, schema reference)`."""
-        ...
-
-
-class SymlinkPrimitives(QueryPrimitives, Protocol):
+class SymlinkPrimitives(QueryPrimitives['SymlinkPrimitives'], Protocol):
     """The model state of one symlink of the skill layout whose chain leaves the repository."""
 
     def leaves_at(self) -> RootExit:
@@ -176,7 +174,7 @@ class SymlinkPrimitives(QueryPrimitives, Protocol):
         ...
 
 
-class CorpusDirectoryPrimitives(QueryPrimitives, Protocol):
+class CorpusDirectoryPrimitives(QueryPrimitives['CorpusDirectoryPrimitives'], Protocol):
     """The model state of one directory under `docs/` that takes a reserved corpus's name."""
 
     def reserved_corpus(self) -> CorpusName:
