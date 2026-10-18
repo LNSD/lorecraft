@@ -25,6 +25,13 @@ class MarkdownItemRef:
     path: RootRelativePath
 
 
+class WrongItemKindError(TypeError):
+    """A fact of one kind of item was asked of another, which a rule that applies to its kind never does."""
+
+    def __init__(self, expected: str) -> None:
+        super().__init__(f'expected {expected}')
+
+
 class ItemKind(Enum):
     """The kinds of governed Markdown item a rule may apply to."""
 

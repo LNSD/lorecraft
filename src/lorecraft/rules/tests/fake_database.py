@@ -20,6 +20,7 @@ from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.project.aspect import AspectFilename, AspectNamespace
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.document import DocumentRef
+from lorecraft.project.item import DocumentOrigin, SkillEntryOrigin
 from lorecraft.project.layout import DOCS_DIR, SPECS_DIR
 from lorecraft.project.link_target import (
     DocumentDirectory,
@@ -31,9 +32,7 @@ from lorecraft.project.link_target import (
 from lorecraft.project.query import CorpusDirectoryQuery, Query, SymlinkQuery
 from lorecraft.project.schemas import (
     CorpusSpecName,
-    DocumentFrontmatterOwner,
     NamespaceSpecName,
-    SkillFrontmatterOwner,
     SpecFileType,
     SpecName,
     StructureSchema,
@@ -41,7 +40,6 @@ from lorecraft.project.schemas import (
     StructureSpecFile,
     locate_schema_problems,
     locate_skill_schema_problems,
-    parse_skill_fields,
     parse_spec_name,
     spec_filename,
 )
@@ -270,11 +268,14 @@ class FakeDocumentDatabase:
                 count_lines(self._text),
                 parse_frontmatter(self._text),
                 locate_schema_problems(parse_frontmatter(self._text), self._governance.frontmatter_schemas()),
-                owner=DocumentFrontmatterOwner(filename=self._ref.filename, spec=self._corpus_structure.path),
                 anchor_set=self._parse().anchors,
                 base_name=self._base_name(),
                 document_link_list=self._document_links,
                 corpus=str(self._ref.corpus),
+                origin_value=DocumentOrigin(
+                    expected_name=str(self._ref.filename), corpus=str(self._ref.corpus), schema_paths=()
+                ),
+                governance_value=self._governance,
             )
         )
 
@@ -319,8 +320,7 @@ class FakeSkillDatabase:
                 line_total=count_lines(self._text),
                 frontmatter_node=self.frontmatter(),
                 problems=locate_skill_schema_problems(self.frontmatter()),
-                fields=parse_skill_fields(self.frontmatter()),
-                owner=SkillFrontmatterOwner(directory_name=self._directory_name, link_target=self._link_target),
+                origin_value=SkillEntryOrigin(expected_name=str(self._directory_name), link_target=self._link_target),
             )
         )
 
