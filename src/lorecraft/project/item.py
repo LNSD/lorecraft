@@ -10,7 +10,9 @@ from typing import assert_never
 
 from lorecraft.core.error import Error
 from lorecraft.core.path import RootRelativePath
+from lorecraft.project.corpus import CorpusDirectoryRef
 from lorecraft.project.link_target import LinkBase
+from lorecraft.project.skill import SymlinkRef
 from lorecraft.vfs import FileReadFailure, ResolvedPath, UnrecordedFileError
 
 
@@ -23,6 +25,9 @@ class MarkdownItemRef:
     """
 
     path: RootRelativePath
+
+
+type SubjectRef = MarkdownItemRef | SymlinkRef | CorpusDirectoryRef
 
 
 class WrongItemKindError(TypeError):
@@ -151,17 +156,17 @@ class MarkdownItemDescriptor:
 
 
 class UnlistedItemError(Error):
-    """A common reference names no document or skill entry the model lists.
+    """A common reference names no Markdown item or layout subject the model lists.
 
     Attributes:
         ref: The reference the model does not list.
     """
 
-    ref: MarkdownItemRef
+    ref: SubjectRef
 
-    def __init__(self, ref: MarkdownItemRef) -> None:
+    def __init__(self, ref: SubjectRef) -> None:
         self.ref = ref
-        super().__init__(f'the model lists no Markdown item at {ref.path}')
+        super().__init__(f'the model lists no subject at {ref.path}')
 
 
 class ItemReadError(Error):

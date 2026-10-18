@@ -43,7 +43,7 @@ class SampleEntry:
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
-class SampleLinesRule(Queried[SampleLines], ContentRule):
+class SampleLinesRule(Queried[SampleLines, Query[SampleLines]], ContentRule):
     """The base of every sample rule over the lines of a subject."""
 
     @classmethod
@@ -62,7 +62,7 @@ class SampleLinesRule(Queried[SampleLines], ContentRule):
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
-class SampleEntryRule(Queried[SampleEntry], LayoutRule):
+class SampleEntryRule(Queried[SampleEntry, Query[SampleEntry]], LayoutRule):
     """The base of every sample rule over a layout entry."""
 
     @classmethod

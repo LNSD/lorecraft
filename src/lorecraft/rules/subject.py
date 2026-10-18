@@ -84,7 +84,7 @@ class DocumentRule(ItemRule):
 type SubjectQuery[Facts] = Query[Facts] | SymlinkQuery[Facts] | CorpusDirectoryQuery[Facts]
 
 
-class Queried[Facts](Rule, ABC):
+class Queried[Facts, QueryType](Rule, ABC):
     """The mixin of a rule that names the query it needs and judges its facts.
 
     The rule names its query in `query` and its `judge` takes the facts that query returns, both typed by the rule's
@@ -97,7 +97,7 @@ class Queried[Facts](Rule, ABC):
 
     @classmethod
     @abstractmethod
-    def query(cls) -> SubjectQuery[Facts]:
+    def query(cls) -> QueryType:
         """The query whose answer `judge` takes; the same function every call, since the database memoizes by it."""
 
     @classmethod
@@ -111,7 +111,7 @@ class Queried[Facts](Rule, ABC):
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
-class QueriedDocumentRule[Facts](Queried[Facts], DocumentRule):
+class QueriedDocumentRule[Facts](Queried[Facts, Query[Facts]], DocumentRule):
     """The base of a rule over a document that names the query it needs and judges its facts.
 
     Its query is a pure function over the document's primitives, so a rule naming another subject kind's query fails
@@ -132,7 +132,7 @@ class SkillRule(ItemRule):
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
-class QueriedSkillRule[Facts](Queried[Facts], SkillRule):
+class QueriedSkillRule[Facts](Queried[Facts, Query[Facts]], SkillRule):
     """The base of a rule over a skill that names the query it needs and judges its facts.
 
     It works as `QueriedDocumentRule` does, over a skill's primitives.
@@ -167,7 +167,7 @@ class MarkdownRule(ItemRule):
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
-class QueriedMarkdownRule[Facts](Queried[Facts], MarkdownRule):
+class QueriedMarkdownRule[Facts](Queried[Facts, Query[Facts]], MarkdownRule):
     """The base of a rule over a Markdown file that names the query it needs and judges its facts.
 
     It works as `QueriedDocumentRule` does, over the primitives of a document, a skill or a resource alike.
@@ -192,7 +192,7 @@ class SkillFileRule(ItemRule):
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
-class QueriedSkillFileRule[Facts](Queried[Facts], SkillFileRule):
+class QueriedSkillFileRule[Facts](Queried[Facts, Query[Facts]], SkillFileRule):
     """The base of a rule over one of a skill's Markdown files that names the query it needs and judges its facts.
 
     It works as `QueriedDocumentRule` does, over the primitives of a skill's `SKILL.md` or a resource alike.
@@ -215,7 +215,7 @@ class CorpusDirectoryRule(LayoutRule):
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
-class QueriedSymlinkRule[Facts](Queried[Facts], SymlinkRule):
+class QueriedSymlinkRule[Facts](Queried[Facts, SymlinkQuery[Facts]], SymlinkRule):
     """The base of a query-backed rule over a symlink of the skill layout."""
 
     @classmethod
@@ -225,7 +225,7 @@ class QueriedSymlinkRule[Facts](Queried[Facts], SymlinkRule):
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
-class QueriedCorpusDirectoryRule[Facts](Queried[Facts], CorpusDirectoryRule):
+class QueriedCorpusDirectoryRule[Facts](Queried[Facts, CorpusDirectoryQuery[Facts]], CorpusDirectoryRule):
     """The base of a query-backed rule over a reserved-corpus directory."""
 
     @classmethod
@@ -253,7 +253,7 @@ class FrontmatterRule(ItemRule):
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
-class QueriedFrontmatterRule[Facts](Queried[Facts], FrontmatterRule):
+class QueriedFrontmatterRule[Facts](Queried[Facts, Query[Facts]], FrontmatterRule):
     """The base of a rule over a frontmatter that names the query it needs and judges its facts.
 
     It works as `QueriedDocumentRule` does, over the primitives of a document or a skill alike.

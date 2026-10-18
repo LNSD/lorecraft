@@ -51,7 +51,7 @@ from lorecraft.core.path import RootRelativePath
 from lorecraft.project.corpus import CorpusDirectoryRef, ReservedCorpusDirectory
 from lorecraft.project.database import Database, ItemText
 from lorecraft.project.item import ItemFacet, ItemKind, MarkdownItemDescriptor, MarkdownItemRef
-from lorecraft.project.query import CorpusDirectoryQuery, Query, SymlinkQuery
+from lorecraft.project.query import CorpusDirectoryQuery, Query, SubjectQuery, SymlinkQuery
 from lorecraft.project.skill import OutsideSymlink, SymlinkRef
 from lorecraft.rules.declaration import Rule
 from lorecraft.rules.report import (
@@ -187,7 +187,7 @@ def _judged[Facts](
 
 
 def _judged[Facts](
-    rule: type[Queried[Facts]],
+    rule: type[Queried[Facts, SubjectQuery[Facts]]],
     database: Database,
     ref: MarkdownItemRef | SymlinkRef | CorpusDirectoryRef,
 ) -> tuple[Rule, ...]:
