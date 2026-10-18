@@ -14,17 +14,20 @@ from lorecraft.project.database import Database, ItemText, PrimitiveRead, QueryR
 from lorecraft.project.item import MarkdownItemRef, UnlistedItemError
 from lorecraft.project.layout import SNAPSHOT_SCOPE
 from lorecraft.project.link_target import DocumentLink
-from lorecraft.project.query import Primitives
+from lorecraft.project.query import Primitives, linked_paths
 from lorecraft.project.schemas import title_facts
 from lorecraft.project.syntax import Anchor, LineNumber
 from lorecraft.rules.length.too_many_tokens import token_facts
 from lorecraft.rules.link.extension_link import extension_link_facts
 from lorecraft.rules.link.mutual_link import mutual_link_facts
+from lorecraft.rules.link.queries import linked_documents
 from lorecraft.rules.outline.empty_section import empty_section_facts
 from lorecraft.vfs import Snapshot, take_snapshot
 
 GUIDE_MORE: Final[MarkdownItemRef] = MarkdownItemRef(RootRelativePath.parse('docs/code/guide-more.md'))
 GUIDE: Final[MarkdownItemRef] = MarkdownItemRef(RootRelativePath.parse('docs/code/guide.md'))
+FEATURE: Final[MarkdownItemRef] = MarkdownItemRef(RootRelativePath.parse('docs/feat/a.md'))
+OTHER_GUIDE: Final[MarkdownItemRef] = MarkdownItemRef(RootRelativePath.parse('docs/code/b.md'))
 SKILL: Final[MarkdownItemRef] = MarkdownItemRef(RootRelativePath.parse('.agents/skills/review/SKILL.md'))
 SPEC_PATH: Final[RootRelativePath] = RootRelativePath.parse('docs/__meta__/code.spec.json')
 SPEC: Final[bytes] = b'{"tokens": 500, "title": {"words": 2}, "empty_sections": "forbidden"}'
@@ -226,7 +229,7 @@ class TestDocumentFactReads:
 
 def _document_links(primitives: Primitives) -> tuple[DocumentLink, ...]:
     """The links to another document the item holds."""
-    return primitives.linked_documents()
+    return primitives.query(linked_documents)
 
 
 @pytest.mark.it
@@ -299,5 +302,16 @@ class TestDocumentLinks:
         assert facts.corpus == 'code', 'the corpus of the document'
         assert database.query_reads(mutual_link_facts, GUIDE) == {
             QueryRead(PrimitiveRead.ITEM_CORPUS, GUIDE),
-            QueryRead(PrimitiveRead.LINKED_DOCUMENTS, GUIDE),
-        }, 'the carry-over is derived'
+            QueryRead(PrimitiveRead.ITEM_NAME, GUIDE),
+            QueryRead(PrimitiveRead.LINK_BASE, GUIDE),
+            QueryRead(PrimitiveRead.LINKS, GUIDE),
+            QueryRead(PrimitiveRead.LINK_TARGETS, GUIDE),
+            QueryRead(linked_documents, GUIDE),
+            QueryRead(linked_paths, GUIDE),
+            QueryRead(linked_paths, FEATURE),
+            QueryRead(linked_paths, OTHER_GUIDE),
+        } | {
+            QueryRead(primitive, ref)
+            for ref in (FEATURE, OTHER_GUIDE)
+            for primitive in (PrimitiveRead.LINK_BASE, PrimitiveRead.LINKS, PrimitiveRead.LINK_TARGETS)
+        }, 'the carry-over includes dependencies of linked item queries'

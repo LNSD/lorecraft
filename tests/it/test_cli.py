@@ -9,7 +9,7 @@ read a real tree under `tmp_path`.
 import json
 import os
 import sys
-from collections.abc import Iterator, Mapping
+from collections.abc import Callable, Iterator, Mapping
 from pathlib import Path
 from textwrap import dedent
 from types import MappingProxyType
@@ -1315,6 +1315,31 @@ class TestCheckCommand:
             item['path'] == 'docs/code/logging.md' and item['code'] == 'LC002' for item in document['diagnostics']
         )
         assert document['summary']['subjects'] == baseline_subjects, 'the unreadable document remains a subject'
+
+    @pytest.mark.skipif(os.geteuid() == 0, reason='root ignores file permissions')
+    def test_check_with_an_unreadable_link_destination_keeps_checking(
+        self, workspace: Path, lock: Callable[[Path], None]
+    ) -> None:
+        #: Given
+        feat = workspace / 'docs' / 'feat'
+        feat.mkdir()
+        (feat / 'guide.md').write_text(
+            '# Guide\n\n[the code](../code/logging.md) and [a missing page](missing.md)\n', encoding='utf-8'
+        )
+        code = workspace / 'docs' / 'code' / 'logging.md'
+        code.write_text('# Logging\n\n[the guide](../feat/guide.md)\n', encoding='utf-8')
+        lock(code)
+        app = build_app()
+
+        #: When
+        result = runner.invoke(app, ['check', '--root', str(workspace), '--format', 'json'])
+
+        #: Then
+        assert result.exit_code == 1, result.stderr
+        report = json.loads(result.stdout)
+        diagnostics = {(item['path'], item['code']) for item in report['diagnostics']}
+        assert ('docs/code/logging.md', 'LC002') in diagnostics, 'the unreadable destination is still reported'
+        assert report['summary']['subjects'] > 0, 'the check returns its report instead of aborting'
 
     @pytest.mark.skipif(os.geteuid() == 0, reason='root ignores file permissions')
     def test_check_with_an_unreadable_specification_reports_lc002_and_exits_one(self, workspace: Path) -> None:

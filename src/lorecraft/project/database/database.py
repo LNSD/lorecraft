@@ -167,15 +167,7 @@ from lorecraft.project.item import (
     UnlistedItemError,
 )
 from lorecraft.project.layout import DOCS_DIR, SPECS_DIR, reject_linked_layout
-from lorecraft.project.link_target import (
-    DocumentLink,
-    LinkBase,
-    LinkTargetEntry,
-    document_links_of,
-    has_link_to,
-    link_targets_of,
-    linked_files_of,
-)
+from lorecraft.project.link_target import LinkBase, LinkTargetEntry, link_targets_of
 from lorecraft.project.query import Query
 from lorecraft.project.schemas import StructureSpec
 from lorecraft.project.skill import Repository as SkillRepository
@@ -204,7 +196,6 @@ from lorecraft.project.syntax import (
     split_lines,
 )
 from lorecraft.project.workspace import Governance, ResolvedItem, WorkspaceModel, load_model, unreported_refusals
-from lorecraft.project.workspace.model import find_document_at
 from lorecraft.vfs import (
     FILE_READ_FAILURES,
     RefusedRecord,
@@ -347,14 +338,23 @@ class _ReadPrimitives(_ReadSet):
 
     def query[T](self, query: Query[T]) -> T:
         """The memoized answer of another query over the item; what it read counts as this query's reads."""
-        answer = self._database.query(query, self._ref)
-        self._record_nested(query, self._ref)
+        return self._record_nested(query, self._ref)
+
+    def _record_nested[T](self, query: Query[T], ref: MarkdownItemRef) -> T:
+        """Run a nested query and record its dependency chain, including when it fails."""
+        self._record(QueryRead(cast('Query[object]', query), ref))
+        answer = self._database.query(query, ref)
+        self._record(*self._database.query_reads(query, ref))
         return answer
 
-    def _record_nested[T](self, query: Query[T], ref: MarkdownItemRef) -> None:
-        """Record a nested query and its primitive reads."""
-        self._record(QueryRead(cast('Query[object]', query), ref))
-        self._record(*self._database.query_reads(query, ref))
+    def query_at[T](self, ref: MarkdownItemRef, query: Query[T]) -> T:
+        """The memoized answer of a query over another item, recorded as a read dependency.
+
+        Args:
+            ref: The item whose primitives the query reads.
+            query: The pure function to run over that item's primitives.
+        """
+        return self._record_nested(query, ref)
 
     def links(self) -> tuple[Link, ...]:
         """The links of the item's parse; none for an item that is not UTF-8."""
@@ -387,34 +387,6 @@ class _ReadPrimitives(_ReadSet):
         origin = source.descriptor.origin if isinstance(source, ItemText) else None
         # Keep this dispatch: the query names documents and meta specifications, not skill directories or resources.
         return origin.expected_name if isinstance(origin, DocumentOrigin | SpecificationOrigin) else None
-
-    def linked_documents(self) -> tuple[DocumentLink, ...]:
-        """The links to another document, with its corpus and filename and whether it links back, in document order.
-
-        A destination that cannot be read or decoded is logged and has no back link. None for an item that is not
-        UTF-8.
-        """
-        self._record(QueryRead(PrimitiveRead.LINKED_DOCUMENTS, self._ref))
-        source = self._database.item_text(self._ref)
-        if not isinstance(source, ItemText):
-            return ()
-        linked = linked_files_of(
-            self._database.item_parse(source).links,
-            self._database.item_link_targets(source),
-            source.descriptor.link_base,
-        )
-        documents: dict[RootRelativePath, tuple[str, str]] = {}
-        for link in linked:
-            destination = find_document_at(MarkdownItemRef(link.path))
-            if destination is not None:
-                documents[link.path] = (str(destination.corpus), str(destination.filename))
-        back_links = {
-            path: self._database.item_has_link_to(MarkdownItemRef(path), self._ref.path)
-            for path in documents
-            if path != self._ref.path
-        }
-        # Cross-item read tracking is deferred to the `query_at` step (LORE-393 step 4).
-        return document_links_of(linked, self._ref.path, documents, back_links)
 
     def item_corpus(self) -> str | None:
         """The corpus a document lies in; `None` for any other item or one that is not UTF-8."""
@@ -928,27 +900,6 @@ class Database:
             ref: The item it ran over.
         """
         return self._queries[(query, ref)][1] if (query, ref) in self._queries else frozenset()
-
-    def item_has_link_to(self, ref: MarkdownItemRef, path: RootRelativePath) -> bool:
-        """Whether the item at a ref links to an existing file at a path; false, logged, when it cannot be read.
-
-        Not cached: the answer is a lookup in `item_link_targets`, which is, so it carries over with it.
-        `_ReadPrimitives.linked_documents` uses this operation to check whether linked documents point back to their
-        source; keeping it here lets the database own decode failures and cached target lookups.
-
-        Args:
-            ref: The item to read.
-            path: The root-relative path to look for among its links.
-        """
-        try:
-            text = self.item_text(ref)
-        except ItemReadError:
-            logger.warning('cannot read %s to look for a link back to %s', ref.path, path, exc_info=True)
-            return False
-        if isinstance(text, Undecodable):
-            logger.warning('%s is not UTF-8, so it holds no link back to %s', ref.path, path)
-            return False
-        return has_link_to(self.item_link_targets(text), path)
 
     # Snapshot questions: `refusals` is read on each call; `unreported_docs_refusals` is memoized for this database.
 
