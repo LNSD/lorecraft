@@ -172,6 +172,8 @@ def flush_findings(self, corpus_name: str) -> None:
 third-party parser's opaque handle, a `**kwargs` passthrough, a frontmatter mapping not yet validated against
 its schema — and say which in a comment or in the docstring.
 
+`typing.cast` does not validate its value at runtime, so every cast needs its own `# SAFETY:` invariant.
+
 An `Any` written because the real type was inconvenient to look up is indistinguishable from one written
 because no real type exists, so the next reader cannot tell whether narrowing it is safe.
 

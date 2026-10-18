@@ -320,6 +320,7 @@ class _ReadSchemaPrimitives(_ReadSet):
 
     def query_schema[T](self, ref: SchemaReference, query: SchemaQuery[T]) -> T:
         """Read a memoized schema query and retain its key even when it raises."""
+        # SAFETY: a schema query is hashable by its function identity regardless of its result parameter
         key = (cast('SchemaQuery[object]', query), ref)
         return self._nested_query(
             key,
@@ -442,6 +443,7 @@ class _ReadPrimitives(_ReadSet):
 
     def _record_nested[T](self, query: Query[T], ref: MarkdownItemRef) -> T:
         """Run a nested query and record its dependency chain, including when it fails."""
+        # SAFETY: query identity is independent of its result parameter in the memoization key
         key = QueryRead(cast('Query[object]', query), ref)
         return self._nested_query(
             key,
@@ -460,6 +462,7 @@ class _ReadPrimitives(_ReadSet):
 
     def query_schema[T](self, ref: SchemaReference, query: SchemaQuery[T]) -> T:
         """Read a memoized schema query and retain its key even when it raises."""
+        # SAFETY: a schema query is hashable by its function identity regardless of its result parameter
         key = (cast('SchemaQuery[object]', query), ref)
         return self._nested_query(
             key,
@@ -971,24 +974,30 @@ class Database:
             UnlistedItemError: If the subject ref is not listed by the model or a skill resource listing.
             SchemaReferenceError: If the schema subject is not present in the loaded model.
         """
+        # SAFETY: query and reference form one of the declared typed query-key variants
         key = cast('QueryKey', (query, ref))
         if key not in self._queries:
             match ref:
                 case MarkdownItemRef():
                     primitives = _ReadPrimitives(self, ref)
+                    # SAFETY: the reference variant selects the matching query protocol
                     answer = cast('Query[T]', query)(primitives)
                 case SymlinkRef():
                     primitives = _ReadSymlinkPrimitives(self, ref)
+                    # SAFETY: the reference variant selects the matching query protocol
                     answer = cast('SymlinkQuery[T]', query)(primitives)
                 case CorpusDirectoryRef():
                     primitives = _ReadCorpusDirectoryPrimitives(self, ref)
+                    # SAFETY: the reference variant selects the matching query protocol
                     answer = cast('CorpusDirectoryQuery[T]', query)(primitives)
                 case SchemaReference():
                     primitives = _ReadSchemaPrimitives(self, ref)
+                    # SAFETY: the reference variant selects the matching query protocol
                     answer = cast('SchemaQuery[T]', query)(primitives)
                 case _:
                     assert_never(ref)
             self._queries[key] = (answer, primitives._recorded_reads())
+        # SAFETY: this key includes the query function and reference; that query produced the cached answer
         return cast('T', self._queries[key][0])
 
     def query_reads(
@@ -1002,6 +1011,7 @@ class Database:
             query: The declared query whose reads are requested.
             ref: The typed subject the query was run against.
         """
+        # SAFETY: query and reference form one of the declared typed query-key variants
         key = cast('QueryKey', (query, ref))
         return self._queries[key][1] if key in self._queries else frozenset()
 
