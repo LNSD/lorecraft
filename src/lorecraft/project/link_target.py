@@ -19,10 +19,12 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import PurePosixPath
-from typing import assert_never
+from typing import TYPE_CHECKING, assert_never
 
 from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.path import RootRelativePath
+from lorecraft.project.aspect import AspectFilename
+from lorecraft.project.corpus import CorpusName
 from lorecraft.project.layout import DOCUMENT_SUFFIX
 from lorecraft.project.syntax import (
     AbsoluteDestination,
@@ -34,6 +36,10 @@ from lorecraft.project.syntax import (
     RelativeDestination,
 )
 from lorecraft.vfs import FileSystem, ScopeIndex
+
+if TYPE_CHECKING:
+    # Avoid the project.schemas -> project.item -> project.link_target import cycle.
+    from lorecraft.project.schemas import SpecName
 
 
 @dataclass(frozen=True, slots=True)
@@ -219,7 +225,10 @@ class ExtensionLink:
 
 
 def extension_links_of(
-    links: tuple[Link, ...], targets: Mapping[NormalisedLinkPath, LinkTargetEntry], base: LinkBase, filename: str
+    links: tuple[Link, ...],
+    targets: Mapping[NormalisedLinkPath, LinkTargetEntry],
+    base: LinkBase,
+    filename: 'AspectFilename | SpecName',
 ) -> tuple[ExtensionLink, ...]:
     """The links to an existing Markdown file beside the document whose name starts with `<filename>-`. Raises nothing.
 
@@ -229,7 +238,7 @@ def extension_links_of(
         links: The document's links, in document order.
         targets: Where each relative link leads, as `link_targets_of` returns it.
         base: Where the document's relative links are read from.
-        filename: The document's filename, without its extension.
+        filename: The typed filename stem of a document or specification.
     """
     if not isinstance(base, DocumentDirectory):
         return ()
@@ -299,15 +308,15 @@ class DocumentLink:
     Attributes:
         line: The line the link is on.
         url: The link's destination as written.
-        corpus: The corpus directory of the document it leads to, such as `feat`.
-        filename: The filename of the document it leads to, without its extension.
+        corpus: The typed corpus directory of the document it leads to.
+        filename: The typed filename of the document it leads to, without its extension.
         has_back_link: Whether that document links to this one.
     """
 
     line: LineNumber
     url: str
-    corpus: str
-    filename: str
+    corpus: CorpusName
+    filename: AspectFilename
     has_back_link: bool
 
 
@@ -327,7 +336,7 @@ def has_link_to(targets: Mapping[NormalisedLinkPath, LinkTargetEntry], path: Roo
 def document_links_of(
     linked: tuple[LinkedDocument, ...],
     source: RootRelativePath,
-    documents: Mapping[RootRelativePath, tuple[str, str]],
+    documents: Mapping[RootRelativePath, tuple[CorpusName, AspectFilename]],
     back_links: Mapping[RootRelativePath, bool],
 ) -> tuple[DocumentLink, ...]:
     """The links to another document of the `docs/<corpus>/<name>.md` layout, with its back link. Raises nothing.
@@ -337,7 +346,7 @@ def document_links_of(
     Args:
         linked: The links to an existing Markdown file, as `linked_files_of` returns them.
         source: The root-relative path of the document that holds the links.
-        documents: The corpus and filename of each path that is a document of the layout.
+        documents: The typed corpus and filename of each path that is a document of the layout.
         back_links: For each such path, whether that document links to the source.
     """
     return tuple(

@@ -5,8 +5,9 @@ kind of state can name that facet. `Primitives` is the whole, composed from the 
 """
 
 from collections.abc import Callable, Mapping
-from typing import Protocol
+from typing import TYPE_CHECKING, Protocol
 
+from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.corpus.directory import CorpusDirectoryRef
 from lorecraft.project.item import ItemOrigin, MarkdownItemRef
@@ -24,6 +25,10 @@ from lorecraft.project.syntax import (
 )
 from lorecraft.project.workspace import Governance
 from lorecraft.vfs import RootExit
+
+if TYPE_CHECKING:
+    # Avoid importing the schema package while its declared queries load the project query protocol.
+    from lorecraft.project.schemas import SpecName
 
 type Query[T] = Callable[[Primitives], T]
 type SymlinkQuery[T] = Callable[[SymlinkPrimitives], T]
@@ -83,16 +88,16 @@ class GovernancePrimitives(Protocol):
         """Whether the package's Agent Skills frontmatter schema is enabled for skill entries."""
         ...
 
-    def item_name(self) -> str | None:
-        """The stem of a document or meta specification; `None` for any other item."""
+    def item_name(self) -> 'AspectFilename | SpecName | None':
+        """The typed name of a document or meta specification; `None` for any other item."""
         ...
 
-    def item_corpus(self) -> str | None:
-        """The corpus a document lies in; `None` for any other item or one that is not UTF-8."""
+    def item_corpus(self) -> CorpusName | None:
+        """The typed corpus a document lies in; `None` for any other item or one that is not UTF-8."""
         ...
 
-    def item_base(self) -> str | None:
-        """The stem of the document or specification the item extends, looked for among the names the model lists.
+    def item_base(self) -> 'AspectFilename | SpecName | None':
+        """The typed name of the document or specification the item extends, looked for among the names the model lists.
 
         A document's base is the narrowest document of its corpus whose name its own continues after a hyphen, a
         specification's the narrowest specification; `None` when it has none, and for any other item.

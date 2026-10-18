@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import ClassVar, Self
 from urllib.parse import unquote
 
+from lorecraft.project.corpus import CorpusName
 from lorecraft.project.link_target import DocumentLink
 from lorecraft.project.query import Primitives, Query
 from lorecraft.rules.collector import rule
@@ -20,11 +21,11 @@ class MutualLinkFacts:
     """What a rule over links between corpora reads of the document.
 
     Attributes:
-        corpus: The corpus the document lies in; `None` when it lies in none.
+        corpus: The typed corpus the document lies in; `None` when it lies in none.
         links: The links to another document, with their corpus, filename and whether each links back.
     """
 
-    corpus: str | None
+    corpus: CorpusName | None
     links: tuple[DocumentLink, ...]
 
 
@@ -129,7 +130,7 @@ class MutualLink(QueriedDocumentRule[MutualLinkFacts]):
         if facts.corpus is None:
             return ()
         return tuple(
-            cls(line=link.line, url=link.url, corpus=link.corpus, filename=f'{link.filename}.md')
+            cls(line=link.line, url=link.url, corpus=str(link.corpus), filename=f'{link.filename}.md')
             for link in facts.links
             if link.has_back_link and link.corpus != facts.corpus
         )

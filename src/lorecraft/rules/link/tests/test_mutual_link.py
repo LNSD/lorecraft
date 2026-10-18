@@ -7,6 +7,8 @@ would find to other documents, each with its corpus and whether that document li
 import pytest
 
 from lorecraft.core.num import NonZeroUnsignedInt
+from lorecraft.project.aspect import AspectFilename
+from lorecraft.project.corpus import CorpusName
 from lorecraft.project.link_target import DocumentLink
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.location import Help, Note
@@ -28,8 +30,8 @@ def _link(corpus: str, *, has_back_link: bool, line: int = 3) -> DocumentLink:
     return DocumentLink(
         line=LineNumber(NonZeroUnsignedInt(line)),
         url=f'../{corpus}/a.md',
-        corpus=corpus,
-        filename='a',
+        corpus=CorpusName.parse(corpus),
+        filename=AspectFilename.parse('a'),
         has_back_link=has_back_link,
     )
 
