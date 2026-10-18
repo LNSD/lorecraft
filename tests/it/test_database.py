@@ -104,6 +104,23 @@ def _skill_snapshot(skill: bytes) -> Snapshot:
     return from_tree({'.agents': {'skills': {'review': {'SKILL.md': skill}}}})
 
 
+def _governed_skill_snapshot(skill: bytes) -> Snapshot:
+    """A `skills` corpus requiring `name` and a namespace adding a corpus-specific `team` field."""
+    return from_tree(
+        {
+            'docs': {
+                '__meta__': {
+                    'skills.md': b'# Skills\n',
+                    'skills.spec.json': b'{"frontmatter":{"type":"object","required":["name"]},"tokens":10000}',
+                    'skills-code.md': b'# Code skills\n',
+                    'skills-code.spec.json': b'{"frontmatter":{"type":"object","required":["team"]}}',
+                }
+            },
+            '.agents': {'skills': {'code-review': {'SKILL.md': skill}}},
+        }
+    )
+
+
 def _document_text(database: Database, ref: DocumentRef) -> ItemText:
     """The witness of a document the test wrote as UTF-8, as the database decodes it.
 
@@ -264,6 +281,62 @@ class TestDatabase:
         #: Then
         assert len(problems) == 1, 'one frontmatter schema judges the document: the failed layer states none'
         assert len(problems[0].problems) == 1, 'the corpus layer that loaded finds the required `name` missing'
+
+    def test_skill_schema_problems_keep_the_agent_skills_floor_before_corpus_layers(self) -> None:
+        #: Given
+        database = Database.from_snapshot(
+            _governed_skill_snapshot(b'---\nname: code-review\ndescription: Review code\nextra: value\n---\n# Review\n')
+        )
+        source = _skill_text(
+            database,
+            SkillRef(ResolvedPath(RootRelativePath.parse('.agents/skills')), PathComponent.parse('code-review')),
+        )
+
+        #: When
+        problems = database.item_schema_problems(source)
+
+        #: Then
+        assert [type(problem.source).__name__ for problem in problems] == [
+            'AgentSkillsSchema',
+            'StructureSpecSchema',
+            'StructureSpecSchema',
+        ], 'the fixed specification is reported first, followed by the skills corpus and matching namespace'
+        assert [str(problem.source.spec) for problem in problems[1:]] == [
+            'docs/__meta__/skills.spec.json',
+            'docs/__meta__/skills-code.spec.json',
+        ], 'the layered schema problems name their governing files in broad-to-narrow order'
+        assert [[type(located.problem).__name__ for located in problem.problems] for problem in problems] == [
+            ['UnknownFieldProblem'],
+            [],
+            ['MissingFieldProblem'],
+        ], 'the floor violation stays visible and the namespace adds its missing field'
+
+    def test_skill_schema_problems_report_a_missing_floor_field_only_once(self) -> None:
+        #: Given
+        snapshot = from_tree(
+            {
+                'docs': {
+                    '__meta__': {
+                        'skills.md': b'# Skills\n',
+                        'skills.spec.json': b'{"frontmatter":{"type":"object","required":["description"]}}',
+                    }
+                },
+                '.agents': {'skills': {'review': {'SKILL.md': b'---\nname: review\n---\n# Review\n'}}},
+            }
+        )
+        database = Database.from_snapshot(snapshot)
+        source = _skill_text(database, REVIEW)
+
+        #: When
+        problems = database.item_schema_problems(source)
+
+        #: Then
+        assert [len(schema.problems) for schema in problems] == [1, 0], (
+            'the floor reports its required description once and the identical corpus problem is removed'
+        )
+        assert type(problems[0].problems[0].problem).__name__ == 'MissingFieldProblem', (
+            'the retained report is the Agent Skills floor finding'
+        )
 
     def test_outline_alignment_with_a_failed_namespace_layer_aligns_only_the_layers_that_loaded(self) -> None:
         #: Given

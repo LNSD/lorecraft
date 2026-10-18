@@ -1324,6 +1324,39 @@ class TestSpecifications:
         #: Then
         assert specifications == (_spec_ref('skills'),), 'the reserved skills corpus states specifications too'
 
+    def test_skill_governance_with_a_skills_corpus_returns_matching_layers(self) -> None:
+        #: Given
+        skills = Corpus(
+            corpus_spec=_corpus_spec('skills'),
+            namespaces=FrozenMapping(
+                {
+                    AspectNamespace.parse('code'): CorpusNamespace(
+                        files=(RootRelativePath.parse('docs/__meta__/skills-code.md'),),
+                        structure=_namespace_spec('skills-code').structure,
+                    )
+                }
+            ),
+            filenames=frozenset(),
+        )
+        location = _regular_skill('.agents/skills/code-rules')
+        model = WorkspaceModel(
+            corpora=FrozenMapping({}),
+            skills_dirs=frozenset(),
+            skill_locations=FrozenMapping({location.ref: location}),
+            outside_symlinks=FrozenMapping({}),
+            load_failures=(),
+            skills_corpus=skills,
+        )
+
+        #: When
+        governance = model.skill_governance(location.ref)
+
+        #: Then
+        assert governance is not None, 'the reserved skills corpus governs its listed skill entry'
+        assert tuple(str(spec.name) for spec in governance.specs()) == ('skills', 'skills-code'), (
+            'matching namespace specifications layer after the skills corpus specification'
+        )
+
     def test_spec_ref_outside_the_meta_directory_raises_misplaced_specification_error(self) -> None:
         #: When
         with pytest.raises(MisplacedSpecificationError) as exc_info:

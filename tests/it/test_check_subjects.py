@@ -958,6 +958,65 @@ class TestCheckSubjects:
             ),
         ), 'LEN002 runs at deny, so a skill over the budget carries its occurrence as an error, at its SKILL.md'
 
+    def test_check_subjects_with_a_skill_over_the_corpus_token_budget_reports_the_layered_budget(self) -> None:
+        #: Given
+        snapshot = from_tree(
+            {
+                'docs': {
+                    '__meta__': {
+                        'skills.md': b'# Skills\n',
+                        'skills.spec.json': b'{"tokens":1}',
+                    }
+                },
+                '.agents': {'skills': {'review': {'SKILL.md': REVIEW_FRONTMATTER + b'# Review\n'}}},
+            }
+        )
+        database = Database.from_snapshot(snapshot)
+        table = RuleTable({TooManyTokens: Severity.ERROR})
+
+        #: When
+        reports = check_subjects(database, (_location(database, REVIEW),), table)
+
+        #: Then
+        assert len(reports) == 1, 'the skill has one report'
+        assert isinstance(reports[0], CheckedItem), 'the skill is a checked item'
+        assert [diagnostic.occurrence.spec for diagnostic in reports[0].diagnostics] == [
+            RootRelativePath.parse('docs/__meta__/skills.spec.json')
+        ], 'the skill entry is checked against the reserved corpus budget'
+
+    def test_check_subjects_with_a_skill_breaking_its_corpus_structure_reports_the_governing_spec(self) -> None:
+        #: Given
+        snapshot = from_tree(
+            {
+                'docs': {
+                    '__meta__': {
+                        'skills.md': b'# Skills\n',
+                        'skills.spec.json': b'{"forbidden":["Changelog"]}',
+                    }
+                },
+                '.agents': {
+                    'skills': {
+                        'review': {'SKILL.md': REVIEW_FRONTMATTER + b'# Review\n\n## Changelog\n\nUpdated yesterday.\n'}
+                    }
+                },
+            }
+        )
+        database = Database.from_snapshot(snapshot)
+        table = RuleTable({ForbiddenSection: Severity.ERROR})
+
+        #: When
+        reports = check_subjects(database, (_location(database, REVIEW),), table)
+
+        #: Then
+        assert len(reports) == 1, 'the skill has one report'
+        assert isinstance(reports[0], CheckedItem), 'the skill is checked'
+        assert len(reports[0].diagnostics) == 1, 'the forbidden section is reported once'
+        diagnostic = reports[0].diagnostics[0]
+        assert diagnostic.path == REVIEW_FILE, 'the occurrence is located at the SKILL.md an agent loads'
+        assert diagnostic.occurrence.spec == RootRelativePath.parse('docs/__meta__/skills.spec.json'), (
+            'the finding names the corpus specification that governs the skill'
+        )
+
     def test_check_subjects_with_a_linked_skill_over_the_line_budget_reports_it_where_an_agent_reaches_it(
         self, package_table: RuleTable
     ) -> None:

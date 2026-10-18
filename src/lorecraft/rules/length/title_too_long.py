@@ -10,14 +10,14 @@ from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Here, Label, Note, Subdiagnostic
 from lorecraft.rules.overrun import Overrun, find_overrun
-from lorecraft.rules.subject import Facet, QueriedDocumentRule
+from lorecraft.rules.subject import Facet, QueriedDocumentSkillRule
 
 from .__ruleset__ import GROUP_ID, TITLE_HELP, spec_note
 
 
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
-class TitleTooLong(QueriedDocumentRule[TitleFacts]):
+class TitleTooLong(QueriedDocumentSkillRule[TitleFacts]):
     """A document's title is longer than its character cap allows.
 
     ## What it does

@@ -65,7 +65,7 @@ returns at its subject, as a diagnostic of `lorecraft.rules.report`.
   through a separate direct path.
 - A rule returns occurrences that name no subject. The run attaches the subject's path, as a diagnostic.
 - A load failure is reported once, at its own path, and never once per subject it touches; a document a failed layer
-  governs is coverage, never a diagnostic.
+  governs is coverage, never a diagnostic. A skill entry still receives its Agent Skills checks.
 - A skill file whose docs target was refused is coverage at its own path; the refusal is reported at the target.
 - A run's results are not cached. Every rule runs again every time, and never sees the store of persisted results.
 - The shared runner holds no mode's policy. A new mode is a new entry point that edits neither `runner.py` nor
@@ -132,7 +132,8 @@ Before committing code, verify:
 - [ ] A new load-failure condition is reported by `load_failures.py`, whose match stays exhaustive, and a skipped
   document names each failed layer's structure file
 - [ ] A document, skill entry or resource is decoded by each mode's entry point, so its policy comes after decoding; the
-  item is asked for by its common reference, and only a document's failed corpus governance can skip it; `runner.py`
+  item is asked for by its common reference, and failed corpus governance can skip documents or suppress skill
+  corpus rules while preserving the Agent Skills floor; `runner.py`
   decodes nothing
 - [ ] `judge_item` asks a rule its kinds and facet, never its base; only building the report matches on the kind
 - [ ] Nothing here imports `lorecraft.cli` or `typer`

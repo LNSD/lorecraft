@@ -58,7 +58,7 @@ class TestAppliesTo:
         assert all(rule.APPLIES_TO for rule in item_rules), 'every rule over an item applies to some kind'
         assert all(rule.APPLIES_TO <= frozenset(ItemKind) for rule in item_rules), 'each kind it names is known'
 
-    def test_applies_to_with_a_rule_over_a_document_excludes_a_skill_entry(self) -> None:
+    def test_applies_to_with_a_corpus_rule_includes_skill_entries(self) -> None:
         #: Given
         rule = TooManyTokens
 
@@ -66,4 +66,4 @@ class TestAppliesTo:
         kinds = rule.APPLIES_TO
 
         #: Then
-        assert ItemKind.SKILL_ENTRY not in kinds, 'a document rule never judges a skill'
+        assert ItemKind.SKILL_ENTRY in kinds, 'a corpus rule can judge documents and skill entries'

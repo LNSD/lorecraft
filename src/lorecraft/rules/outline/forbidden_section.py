@@ -15,14 +15,14 @@ from lorecraft.project.schemas import (
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Subdiagnostic
-from lorecraft.rules.subject import Facet, QueriedDocumentRule
+from lorecraft.rules.subject import Facet, QueriedDocumentSkillRule
 
 from .__ruleset__ import GROUP_ID, spec_note
 
 
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
-class ForbiddenSection(QueriedDocumentRule[tuple[OutlineAlignmentSpec, ...]]):
+class ForbiddenSection(QueriedDocumentSkillRule[tuple[OutlineAlignmentSpec, ...]]):
     """A section a structure file forbids appears in the document.
 
     ## What it does

@@ -25,12 +25,12 @@ query and hands it the facts sits above in `lorecraft.engine`; the query is answ
 
 - A value that identifies a rule: a release, a group's prefix and title, a code, a name, an alias code, a level, and
   the severity an engine condition fixes.
-- A rule class, the shared `Queried` base for its subject, and the places its occurrences may point at. A queried
-  rule names its parameterless query and judges the returned facts; Markdown items, symlinks and corpus directories
-  use this same query base. A document's also
-  requires the rule to declare the facet it reads, from the facets this package states. A rule over what any
-  Markdown file has judges a document, a `SKILL.md` and a resource alike; a rule over one of a skill's files judges a `SKILL.md` and a resource, never a document. A base over an item binds the kinds it applies to; `governing_facet` states the facet a rule reads, and a base
-  over what a document and a skill share, such as the frontmatter, declares the facet a document is gated on.
+- A rule base binds the subject kinds a rule judges and where its occurrences point. A `Queried*Rule` names a query
+  whose facts `judge` receives; `QueriedDocumentSkillRule` lets a corpus rule judge both documents and skill entries.
+  `MarkdownRule` covers documents, skill entries and resources; `SkillFileRule` covers skill entries and resources,
+  never documents. Document rules declare the facet they read, and `governing_facet` states the facet gating the rule.
+  Markdown rules use `Facet.STRUCTURE` for documents and run on skill Markdown independently of corpus governance.
+  Layout rules cover skill symlinks and reserved-corpus directories, with occurrences at the entry itself.
 - A removed rule, the decorator that registers a declaration and the registry.
 - The rule index, `lorecraft.rules.index`: identity as plain tuples and strings, with the lookups the command
   line's edge needs, importing only `typing`; generated from the registry, never a source of rules.

@@ -16,7 +16,7 @@ from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Here, Label, Note, Subdiagnostic
 from lorecraft.rules.overrun import Overrun, find_overrun
-from lorecraft.rules.subject import Facet, QueriedDocumentRule
+from lorecraft.rules.subject import Facet, QueriedDocumentSkillRule
 
 from .__ruleset__ import GROUP_ID, spec_note
 
@@ -60,7 +60,7 @@ def _cap_source_note(cap_source: CapSource, section: str) -> Note:
 
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
-class SectionTooManyWords(QueriedDocumentRule[tuple[OutlineAlignmentSpec, ...]]):
+class SectionTooManyWords(QueriedDocumentSkillRule[tuple[OutlineAlignmentSpec, ...]]):
     """A section is longer than its word cap allows.
 
     ## What it does

@@ -6,9 +6,10 @@ refs) and configuration (decoded specs), never document content: text stays behi
 read on demand through a `DocumentRef`, and the model reads no `SKILL.md`.
 
 Governance is the one computation the model owns. A document is governed by its corpus spec first, then by
-every namespace spec whose namespace matches its filename, broad to narrow. A namespace spec narrows a
-base; it never supplies one, so a corpus spec that states no rule of one kind, a structure specification or a
-frontmatter schema, leaves the document ungoverned for that kind whatever the namespace specs carry.
+every namespace spec whose namespace matches its filename, broad to narrow. A skill entry is governed by the
+reserved `skills` corpus and its listed directory name. A namespace spec narrows a base; it never supplies one, so a
+corpus spec that states no rule of one kind, a structure specification or a frontmatter schema, leaves the item
+ungoverned for that kind whatever the namespace specs carry.
 """
 
 from collections.abc import Iterable
@@ -25,6 +26,7 @@ from lorecraft.project.aspect import (
     InvalidAspectNameCharacterError,
 )
 from lorecraft.project.corpus import (
+    SKILLS_CORPUS_NAME,
     CorpusName,
     EmptyCorpusNameError,
     InvalidCorpusNameCharacterError,
@@ -120,20 +122,20 @@ type Spec = CorpusSpec | NamespaceSpec
 
 @dataclass(frozen=True, slots=True)
 class Governance:
-    """The specs that govern one document, broad to narrow.
+    """The specs that govern one document or skill entry, broad to narrow.
 
     A layer whose structure file failed to load is held as it is, with its `FailedStructure`. The queries below read
     only the layers that loaded; `failed_layers` names the others, so a consumer decides what a failed layer means.
 
     The governance is built from a corpus and a filename and keeps only the specs they yield, so it cannot hold a spec
     of another corpus, one whose namespace does not match the filename, or one twice. Two governances are equal when
-    they govern the same document with the same specs, whatever else their corpora hold.
+    they govern the same listed name with the same specs, whatever else their corpora hold.
 
     Attributes:
         ref: The governed document, or None when a listed name that is no valid filename stem, such as a skill's
             directory name, was matched.
-        corpus_spec: The spec of the document's corpus, which governs every document in it.
-        namespace_specs: Every namespace spec whose namespace matches the document, broad to narrow.
+        corpus_spec: The corpus spec that governs every document or skill entry in it.
+        namespace_specs: Every namespace spec whose namespace matches the name, broad to narrow.
     """
 
     # Construction arguments, not fields: neither is kept, so neither takes part in equality or hashing.
@@ -187,7 +189,7 @@ class Governance:
     def structure_specs(self) -> tuple[StructureSpec, ...]:
         """Structure specifications to apply in order, the layers that loaded; `()` means ungoverned for structure.
 
-        A corpus spec without a loaded structure specification leaves the document ungoverned even when a
+        A corpus spec without a loaded structure specification leaves the item ungoverned even when a
         matching namespace spec carries one: a namespace narrows a base, it cannot supply one. A layer that failed to
         load is left out, and `failed_layers` lists it.
         """
@@ -208,7 +210,7 @@ class Governance:
         """Frontmatter schemas to apply in order, each with its specification; `()` means ungoverned for frontmatter.
 
         Each comes from the `frontmatter` key of a structure specification that loaded. As with `structure_specs`, a
-        corpus spec whose structure specification states no frontmatter schema leaves the document ungoverned even
+        corpus spec whose structure specification states no frontmatter schema leaves the item ungoverned even
         when a matching namespace spec states one.
         """
         corpus_structure = self.corpus_structure()
@@ -381,11 +383,11 @@ class WorkspaceModel:
             `resolves_to`.
         skill_locations: The location of every skill directly inside the directories those resolve to,
             by the skill's ref; `skills()` lists the refs alone, and `skill_agents` says which
-            agents read one. A skill belongs to no corpus, so no corpus spec governs it and `documents()` does not
-            list it. The locations, not the refs, record where each link leads, so two models differ when a
-            link is retargeted even though every ref is the same.
+            agents read one. The reserved `skills` corpus governs its frontmatter and structure checks, but
+            `documents()` does not list it. The locations, not the refs, record where each link leads, so two models
+            differ when a link is retargeted even though every ref is the same.
         skills_corpus: The reserved `skills` corpus, available to its own specification checks, or None when no
-            `skills` spec exists. It lists no document and does not govern skill entries or resources; no directory
+            `skills` spec exists. It governs skill entries but not resources; no directory
             under `docs/` backs it.
         overlapping_directories: The directories under `docs/` that take a reserved corpus's name, which the model
             ignores: none of their documents is listed.
@@ -594,6 +596,13 @@ class WorkspaceModel:
             return None
         return corpus.governance(ref.filename)
 
+    def skill_governance(self, ref: SkillRef) -> Governance | None:
+        """The specs governing a skill entry's listed name, or None when no skills corpus is declared."""
+        corpus = self.skills_corpus
+        if corpus is None:
+            return None
+        return corpus.governance(ref.entry.value)
+
     def find_item(self, ref: MarkdownItemRef) -> ResolvedItem | None:
         """The facts of the document or skill entry the model lists at this reference, or None.
 
@@ -647,8 +656,8 @@ class WorkspaceModel:
     def resolve_item(self, ref: DocumentRef | MarkdownItemRef | SkillRef | SpecRef) -> ResolvedItem:
         """Resolve an item's descriptor together with the specs governing it, finding the governance once.
 
-        A corpus document is governed by the specs of its corpus and matching namespaces. Skill entries and resources
-        resolve with no governance; the reserved `skills` corpus does not govern them.
+        A corpus document is governed by the specs of its corpus and matching namespaces. Skill entries are governed
+        by the reserved `skills` corpus and matching namespaces; resources remain outside corpus governance.
 
         Args:
             ref: Document, skill entry or meta specification to resolve, whether or not the model lists a document's
@@ -669,16 +678,22 @@ class WorkspaceModel:
             case SkillRef():
                 location = self.skill_locations[ref]
                 link_target = location.resolves_to if location.resolves_to != ref.directory else None
+                governance = self.skill_governance(ref)
+                facets = {ItemFacet.FRONTMATTER, ItemFacet.STRUCTURE, ItemFacet.MARKDOWN}
+                if governance is not None and governance.outline_specs():
+                    facets.add(ItemFacet.OUTLINE)
+                if governance is not None and any(spec.tokens is not None for spec in governance.structure_specs()):
+                    facets.add(ItemFacet.BUDGET)
                 descriptor = MarkdownItemDescriptor(
                     ref=MarkdownItemRef(ref.path),
                     read_location=location.file_resolves_to,
                     link_base=SkillRoot(ref.directory),
                     origin=SkillEntryOrigin(expected_name=str(ref.entry), link_target=link_target),
-                    governance_corpus='',
+                    governance_corpus=(SKILLS_CORPUS_NAME if governance is not None else ''),
                     aspect_name=str(ref.entry),
-                    active_facets=frozenset({ItemFacet.FRONTMATTER, ItemFacet.STRUCTURE, ItemFacet.MARKDOWN}),
+                    active_facets=frozenset(facets),
                 )
-                return ResolvedItem(descriptor, None)
+                return ResolvedItem(descriptor, governance)
             case SpecRef():
                 descriptor = MarkdownItemDescriptor(
                     ref=MarkdownItemRef(ref.path),

@@ -8,7 +8,7 @@ from lorecraft.project.syntax import Heading, HeadingLevel, LineNumber, find_tit
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Here, Label, Subdiagnostic
-from lorecraft.rules.subject import Facet, QueriedDocumentRule
+from lorecraft.rules.subject import Facet, QueriedDocumentSkillRule
 
 from .__ruleset__ import GROUP_ID
 
@@ -26,7 +26,7 @@ def headings(primitives: SyntaxPrimitives) -> tuple[Heading, ...]:
 
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
-class TitleNotFirst(QueriedDocumentRule[tuple[Heading, ...]]):
+class TitleNotFirst(QueriedDocumentSkillRule[tuple[Heading, ...]]):
     """A document a structure file governs opens with a heading that is not its H1 title.
 
     ## What it does
