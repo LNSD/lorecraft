@@ -10,9 +10,7 @@ components: "module:lorecraft.cli,module:lorecraft.engine,module:lorecraft.rules
 
 ## Summary
 
-`lorecraft check` checks documents against their meta specs and agent skills against the Agent Skills
-specification. It reports broken rules and load failures as diagnostics with codes such as `FM001`,
-and exits `1` when any diagnostic is an error.
+Checks docs against meta specs, skills against the Agent Skills spec; broken rules/load failures are diagnostics (`FM001`), errors exit `1`.
 
 ## Table of Contents
 
@@ -34,9 +32,8 @@ and exits `1` when any diagnostic is an error.
   They sort by path, location, severity, code and message.
 - **Line**: A line ends only at `\n`, at `\r\n` as one break, or at a lone `\r`. Vertical tab, form feed, U+0085,
   U+2028 and U+2029 stay within a line. Findings and source excerpts use these lines.
-- **Governed**: A document's `structure` is governed when its corpus has a structure file, its `frontmatter` when
-  that file states a schema, its `outline` or `budget` when an applying file states an outline or `tokens`. A rule
-  over an ungoverned part does not run; the part is reported as coverage, not a diagnostic.
+- **Governed**: `structure` needs a corpus structure file, `frontmatter` a schema, `outline`/`budget` an applying file's outline/`tokens`;
+  a rule over an ungoverned part does not run (coverage, not a diagnostic).
 - **Frontmatter format**: The [accepted YAML subset](frontmatter.md), decoded to JSON values; `FM002` names
   refused constructs and syntax errors, while `FM005` reports repeated keys.
 
@@ -50,17 +47,12 @@ relative to it. `docs/` and `docs/__meta__/` must be [real directories](workspac
 
 ### The Subjects
 
-A run checks every [workspace](workspace.md) document, `docs/__meta__/*.md` specification, skill, skill resource
-and escaping skill-layout symlink. The package governs specifications; `LINK005` and `LINK006` judge them too.
-Shared skills are checked once. Subjects and diagnostics follow path order.
-
+Checks every workspace doc/spec, skill/resource and escaping symlink. Package governs specs; `LINK005` and `LINK006` judge them too.
+Shared skills once; subjects and diagnostics follow path order. Name-matched budgets: skills 10000; code 6500; docs/feat 3500. Specs forbid empty sections, allow any outline; task-shaped headings guide review. Resources lack facets.
 ### One Run, One Snapshot
 
-Every rule reads one [snapshot](workspace.md#one-snapshot). Meta specs load before subjects. A failed structure
-file gets a diagnostic; documents it governs are skipped while others are checked. Invalid UTF-8 is `LC001`;
-no rule judges that file.
-A structure file's diagnostic and coverage path use its actual name, `.spec.json`.
-
+Rules read one snapshot; meta specs load before subjects. A failed structure file gets one diagnostic; governed docs are skipped,
+others checked. Corpus-layer failure preserves skill floor checks without duplicate missing-field findings. `LC001` invalid UTF-8 is unjudged. Structure diagnostic and coverage path use its actual `.spec.json` name.
 ### Selecting Rules
 
 `--select` and `--ignore` take comma-separated or repeated selectors: `ALL`, a group prefix (`OUT`), a code
@@ -68,13 +60,13 @@ prefix (`OUT0`), a rule code (`OUT006`) or its alias. Selectors are case-sensiti
 
 The most specific selector decides; `--ignore` wins ties. Selection cannot enable an `allow` rule.
 
-Selectors are validated before loading. Empty, malformed, unknown, name, engine-condition (`LC`) and removed-rule
-selectors exit `2`; aliases and `allow` rules warn.
+Invalid selectors exit `2`; aliases and `allow` rules warn.
 
 ## Configuration
 
 | Argument or option | Default | Env var | Description |
 |--------------------|---------|---------|-------------|
+| `--no-builtin-skills-schema` | unset | — | Disable built-in frontmatter rules; repo schemas still apply |
 | `--root <path>`    | nearest of working directory and parents holding `docs/__meta__/` | — | The repository root, as [Root Discovery](#root-discovery) describes |
 | `--format <text\|short\|json>` | `text` | — | The output format, as [Output](#output) describes |
 | `--color <WHEN>` | `auto` | [`NO_COLOR`](https://no-color.org/), [`FORCE_COLOR`](https://force-color.org/) | Control when colored output is used. `auto`: colour when stdout is an interactive terminal, unless `NO_COLOR` is set; `FORCE_COLOR` forces it. `always`: colour even when stdout is not a terminal. `never`: no colour. Only the `text` format is coloured. |
@@ -85,8 +77,7 @@ An unlisted `--format` or `--color` value exits `2`.
 For colour, an explicit `--color always` or `--color never` wins over both variables. Under `auto`, a non-empty
 `FORCE_COLOR` enables colour, even when piped; otherwise a non-empty `NO_COLOR` disables it; otherwise colour
 follows whether stdout is an interactive terminal. An empty variable counts as unset; any non-empty value,
-including `0`, counts as set. When colour is enabled, errors are bold red, warnings bold yellow, messages bold,
-and the gutter and location markers bold blue.
+including `0`, counts as set. Enabled colour: errors bold red, warnings bold yellow, messages bold, gutter and location markers bold blue.
 
 ## Usage
 
@@ -104,16 +95,15 @@ lorecraft check --select OUT006 --ignore OUT
 lorecraft check --select OUT00
 ```
 
+Opt-out disables built-in frontmatter rules, including `FM004`, and contradiction preflight. Repo schemas stay active; without
+one, skill frontmatter is ungoverned. Direct constraints excluding required `name`/`description` fail, naming field and rule;
+indirect and cross-layer cases are unchecked.
+
 ### Output
 
-In the default `text` format, diagnostics go to stdout, separated by blank lines. A header gives severity,
-code and message; numbered source lines and labels follow. The reported line has a solid underline; another
-labelled line has a dotted one. Nearby lines are grouped, with an ellipsis between distant lines. `:::`
-points to another file. Help and notes follow as `= help:` and `= note:`. Single-line help and notes wrap
-to terminal width, or 100 columns when piped; piped output ignores `COLUMNS`. Multi-line text keeps its
-line breaks. A note with a lone `\r` is drawn on separate lines under this policy.
+In `text`, diagnostics go to stdout, separated by blank lines. A header gives severity, code and message; numbered source lines and labels follow. The reported line has a solid underline; other labelled lines dotted. Nearby lines group; distant lines use ellipses. `:::` points to another file. Help and notes use `= help:` and `= note:`. Single-line help and notes wrap to terminal width (100 columns when piped; piped output ignores `COLUMNS`); multi-line text keeps breaks. Notes with lone `\r` draw on separate lines.
 
-This excerpt is from a check run (stdout):
+Check output (stdout):
 
 ```text
 error[OUT006]: missing required section `Checklist`
@@ -128,9 +118,8 @@ error[OUT006]: missing required section `Checklist`
   = help: The items a reviewer verifies before committing a change the rule document governs.
 ```
 
-On stderr, `text` prints coverage, counts per code prefix and `checked N subject(s): ...`. The count includes
-unreadable specifications. Skipped coverage names failed structure files, corpus first.
-A run with one subject and two errors prints:
+On stderr, `text` prints coverage, counts per code prefix and `checked N subject(s): ...` (including unreadable specifications). Skipped coverage names failed structure files, corpus first.
+One subject, two errors:
 
 ```text
 FM   1 error
@@ -138,7 +127,7 @@ OUT  1 error
 checked 1 subject(s): 2 error(s), 0 warning(s)
 ```
 
-In `short` format, stdout has one uncoloured line per diagnostic:
+In `short`, stdout has one uncoloured line per diagnostic:
 `path:line: severity[code]: message`, or `path: severity[code]: message` for a whole file. It omits
 labels, help and notes, and keeps `text` order and exit status. Stderr has coverage and the overall count,
 without prefix counts. For example:
@@ -147,16 +136,13 @@ without prefix counts. For example:
 docs/code/logging.md:1: error[OUT006]: missing required section `Checklist`
 ```
 
-In `json` format stdout is one compact JSON object on one line; stderr holds selection warnings. `diagnostics` lists
-findings in text order with `path`, nullable `line`, `severity`, `code`, `name`, `message`, `labels` and `children`
-(help or note). `summary` counts subjects, errors and warnings; load failures count as errors, not subjects.
-`coverage` lists `path`, `ungoverned` parts and failed structure files in `skipped_by`:
+In `json`, stdout is one compact object on one line; stderr holds selection warnings. In text order, `diagnostics` lists `path`, nullable `line`, `severity`, `code`, `name`, `message`, `labels` and `children` (help or note). `summary` counts subjects, errors and warnings; load failures are errors, not subjects. `coverage` lists `path`, `ungoverned` parts and failed structure files in `skipped_by`:
 
 ```json
 {"diagnostics":[{"path":"docs/notes/broken.md","line":4,"severity":"error","code":"LC001","name":"invalid-utf8","message":"file is not valid UTF-8","labels":[{"path":"docs/notes/broken.md","line":4,"text":"0xE9 at byte offset 31 starts a character the next byte does not continue"}],"children":[{"kind":"help","text":"save the file as UTF-8","path":null,"line":null}]}],"summary":{"subjects":3,"errors":1,"warnings":0},"coverage":[{"path":"docs/notes/todo.md","ungoverned":["outline","budget"],"skipped_by":[]}]}
 ```
 
-For JSON, every path must be valid UTF-8; non-ASCII text is written directly, not as `\uXXXX`.
+JSON paths must be valid UTF-8; non-ASCII text is direct, not `\uXXXX`.
 
 ### Exit Status
 
