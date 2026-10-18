@@ -10,7 +10,7 @@ from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.item import DocumentOrigin, ItemOrigin, MarkdownItemRef
 from lorecraft.project.link_target import DocumentLink, LinkBase, LinkTargetEntry
-from lorecraft.project.query import Query
+from lorecraft.project.query import Query, SchemaQuery
 from lorecraft.project.schemas import SpecName, StructureSpec
 from lorecraft.project.syntax import (
     Anchor,
@@ -24,6 +24,7 @@ from lorecraft.project.syntax import (
 )
 from lorecraft.project.workspace import Governance
 from lorecraft.rules.link.queries import linked_documents
+from lorecraft.schemas import SchemaReference
 
 
 @dataclass(frozen=True, slots=True)
@@ -132,3 +133,7 @@ class StructurePrimitives:
     def query_at[T](self, ref: MarkdownItemRef, query: Query[T]) -> T:
         """No other item is available to this standalone primitive value."""
         raise NotImplementedError('standalone primitives cannot read another item')
+
+    def query_schema[T](self, ref: SchemaReference, query: SchemaQuery[T]) -> T:
+        """No schema subjects are available to this standalone primitive value."""
+        raise NotImplementedError('standalone primitives cannot read a schema')

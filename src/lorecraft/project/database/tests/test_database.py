@@ -7,18 +7,22 @@ from pathlib import Path, PurePosixPath
 import pytest
 
 from lib.tree import from_tree
-from lorecraft.core.mapping import FrozenMapping
+from lorecraft.core.mapping import Frozen, FrozenMapping
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.corpus import CorpusDirectoryRef, CorpusName, ReservedCorpusDirectory
-from lorecraft.project.database import Database, PrimitiveRead, QueryRead
+from lorecraft.project.database import Database, PrimitiveRead, QueryRead, SchemaInputRead
 from lorecraft.project.item import ItemReadError, MarkdownItemRef, UnlistedItemError
-from lorecraft.project.query import CorpusDirectoryPrimitives, Primitives, SymlinkPrimitives
+from lorecraft.project.query import CorpusDirectoryPrimitives, Primitives, SchemaPrimitives, SymlinkPrimitives
 from lorecraft.project.skill import OutsideSymlink, SymlinkRef
 from lorecraft.project.syntax import Heading
+from lorecraft.schemas import BundledOrigin, SchemaInput, SchemaKind, SchemaReference, SchemaReferenceError
 from lorecraft.vfs import OsRefusal, RefusedRead, RootExit, Snapshot, SnapshotRecords
 
 GUIDE: MarkdownItemRef = MarkdownItemRef(RootRelativePath.parse('docs/code/guide.md'))
 TARGET: MarkdownItemRef = MarkdownItemRef(RootRelativePath.parse('docs/feat/target.md'))
+SCHEMA: SchemaReference = SchemaReference(SchemaKind.FRONTMATTER, 'agent-skills')
+SCHEMA_BASE: SchemaReference = SchemaReference(SchemaKind.STRUCTURE, 'skills-base')
+SCHEMA_MISSING: SchemaReference = SchemaReference(SchemaKind.STRUCTURE, 'missing')
 
 
 _DATABASE_SOURCE = Path('src/lorecraft/project/database/database.py')
@@ -200,8 +204,123 @@ def _reads_unreadable_item(primitives: Primitives) -> tuple[Heading, ...]:
         return ()
 
 
+def _schema_document(primitives: SchemaPrimitives) -> FrozenMapping[str, Frozen]:
+    """Read the immutable document held by one schema subject."""
+    return primitives.schema_input().document
+
+
+def _reads_schema(primitives: Primitives) -> FrozenMapping[str, Frozen]:
+    """Read one schema through the database's typed subject query."""
+    return primitives.query_schema(SCHEMA, _schema_document)
+
+
+def _schema_identity(primitives: SchemaPrimitives) -> str:
+    """Read the stable identity of one schema subject."""
+    return primitives.schema_input().reference.identity
+
+
+def _schema_reads_base(primitives: SchemaPrimitives) -> str:
+    """Read a base schema through the shared schema query operation."""
+    return primitives.query_schema(SCHEMA_BASE, _schema_identity)
+
+
+def _schema_catches_missing(primitives: Primitives) -> str | None:
+    """Catch a missing schema query so its attempted dependency remains observable."""
+    try:
+        return primitives.query_schema(SCHEMA_MISSING, _schema_identity)
+    except SchemaReferenceError:
+        return None
+
+
 @pytest.mark.unit
 class TestQueryReads:
+    def test_schema_query_memoizes_by_reference_and_records_its_input(self) -> None:
+        #: Given
+        database = _database()
+        schema_input = SchemaInput(
+            SCHEMA,
+            BundledOrigin(SCHEMA.identity),
+            FrozenMapping.from_plain({'type': 'object'}),
+        )
+        database._model = replace(database.model(), schema_inputs=FrozenMapping({SCHEMA: schema_input}))
+
+        #: When
+        first = database.query(_schema_document, SCHEMA)
+        repeated = database.query(_schema_document, SCHEMA)
+
+        #: Then
+        assert first == schema_input.document, 'the schema query returns the loaded immutable input'
+        assert repeated is first, 'the database memoizes schema query answers by their typed reference'
+        assert database.query_reads(_schema_document, SCHEMA) == {SchemaInputRead(SCHEMA)}, (
+            'the read identity retains the schema reference for future revision comparisons'
+        )
+
+    def test_item_query_records_schema_query_and_schema_reference(self) -> None:
+        #: Given
+        database = _database()
+        schema_input = SchemaInput(
+            SCHEMA,
+            BundledOrigin(SCHEMA.identity),
+            FrozenMapping.from_plain({'type': 'object'}),
+        )
+        database._model = replace(database.model(), schema_inputs=FrozenMapping({SCHEMA: schema_input}))
+
+        #: When
+        result = database.query(_reads_schema, GUIDE)
+
+        #: Then
+        assert result == schema_input.document, 'the item query receives the schema query fact'
+        assert database.query_reads(_reads_schema, GUIDE) == {
+            (_schema_document, SCHEMA),
+            SchemaInputRead(SCHEMA),
+        }, 'the cross-schema dependency is recorded by callable and typed schema reference'
+
+    def test_schema_query_records_a_nested_schema_query(self) -> None:
+        #: Given
+        database = _database()
+        schema_base = SchemaInput(
+            SCHEMA_BASE,
+            BundledOrigin(SCHEMA_BASE.identity),
+            FrozenMapping.from_plain({'type': 'object'}),
+        )
+        schema = SchemaInput(
+            SCHEMA,
+            BundledOrigin(SCHEMA.identity),
+            FrozenMapping.from_plain({'type': 'object'}),
+        )
+        database._model = replace(
+            database.model(), schema_inputs=FrozenMapping({SCHEMA: schema, SCHEMA_BASE: schema_base})
+        )
+
+        #: When
+        identity = database.query(_schema_reads_base, SCHEMA)
+
+        #: Then
+        assert identity == SCHEMA_BASE.identity, 'a schema query can compose facts from its base schema'
+        assert database.query_reads(_schema_reads_base, SCHEMA) == {
+            (_schema_identity, SCHEMA_BASE),
+            SchemaInputRead(SCHEMA_BASE),
+        }, 'the outer read set retains the nested schema identity and input read'
+
+    def test_item_query_retains_a_missing_schema_read_when_caught(self) -> None:
+        #: Given
+        database = _database()
+        schema = SchemaInput(
+            SCHEMA,
+            BundledOrigin(SCHEMA.identity),
+            FrozenMapping.from_plain({'type': 'object'}),
+        )
+        database._model = replace(database.model(), schema_inputs=FrozenMapping({SCHEMA: schema}))
+
+        #: When
+        result = database.query(_schema_catches_missing, GUIDE)
+
+        #: Then
+        assert result is None, 'a caller can handle a missing schema input'
+        assert database.query_reads(_schema_catches_missing, GUIDE) == {
+            (_schema_identity, SCHEMA_MISSING),
+        }, 'the attempted schema dependency is recorded before resolution raises'
+
     def test_read_set_is_only_accessed_through_its_shared_base(self) -> None:
         #: Given
         repository_root = Path(__file__).resolve().parents[5]

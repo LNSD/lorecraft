@@ -40,7 +40,8 @@ once in `lorecraft.project.layout` and read from there by every other module.
 - `lorecraft.project.query`: raw-state primitives and queries promoted for cross-group use. A promoted query gives
   both groups one memoized answer. This package supplies project-owned queries and the database that answers them.
 - The one-revision database: memoized decode, per-file, governance, analysis and link-target queries keyed by
-  Markdown item, symlink or corpus directory, other derived queries, and fresh snapshot questions such as symlink targets.
+  Markdown item, symlink, corpus directory or schema reference, other derived queries, and fresh snapshot questions
+  such as symlink targets.
 - The witness a decode query returns: a file's ref and decoded text, or the undecodable marker with its first
   invalid byte's line, offset, bytes and reason.
 - The carry-over rule: which change to a revision's inputs invalidates which query, stated by each database query and
@@ -111,8 +112,8 @@ Before committing code, verify:
 - [ ] Every new read in `lorecraft.project` goes through a view
 - [ ] A new database query reads one input or states its own carry-over rule in its docstring, and takes a witness,
       not a bare ref, for a file's content; a declared query a rule owns states none
-- [ ] Database queries are keyed by a subject reference for Markdown items, symlinks and corpus directories; a
-      cross-item query read is recorded as the typed pair `(query, ref)`
+- [ ] Database queries are keyed by a subject reference for Markdown items, symlinks, corpus directories and
+      schemas; cross-subject query reads retain the typed pair `(query, ref)`
 - [ ] A new derived query reads no view, only other queries, and passes what it read to one function of the
       package
 - [ ] Reuse derived queries; promote one to `lorecraft.project.query` when another group needs it, sharing its

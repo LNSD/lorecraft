@@ -12,10 +12,11 @@ The item queries share one family keyed by `MarkdownItemRef`.
 resource's `resource_item(location)` registers the reference from its skill's listing, and its item queries read the
 descriptor at the resolved location. A document the model does not list is resolved by its corpus and filename.
 
-The declared `query(query, ref)` memoizes a rule-owned query over a Markdown item, symlink or reserved-corpus
-directory subject. `query_reads(query, ref)` reports typed primitive and cross-item reads, each paired with the source
-subject ref. A query's result carries over when each primitive or query dependency it read does. `item_governance(ref)`
-reads the model, and a declared query reads common primitives without distinguishing item origins.
+The declared `query(query, ref)` memoizes a rule-owned query over a Markdown item, symlink, reserved-corpus directory
+or schema subject. `query_reads(query, ref)` reports typed primitive and cross-subject reads, each retaining its
+subject reference. A query's result carries over when each primitive or query dependency it read does.
+`item_governance(ref)` reads the model, and a declared item query reads common primitives without distinguishing item
+origins.
 
 Database construction and resource registration have no separate carry-over cache. `from_snapshot(snapshot)` creates
 a fresh database for that snapshot. `resource_item(location)` registers the ref from the skill resource listing in
@@ -174,6 +175,8 @@ from lorecraft.project.query import (
     CorpusDirectoryQuery,
     CorpusDirectoryQueryRead,
     Query,
+    SchemaQuery,
+    SchemaQueryRead,
     SymlinkQuery,
     SymlinkQueryRead,
 )
@@ -210,6 +213,7 @@ from lorecraft.project.syntax import (
     split_lines,
 )
 from lorecraft.project.workspace import Governance, ResolvedItem, WorkspaceModel, load_model, unreported_refusals
+from lorecraft.schemas import SchemaInput, SchemaReference, SchemaReferenceError
 from lorecraft.vfs import (
     FILE_READ_FAILURES,
     RefusedRecord,
@@ -254,8 +258,21 @@ class QueryRead:
     ref: MarkdownItemRef
 
 
-type QueryKey = tuple[Query[object], MarkdownItemRef] | SymlinkQueryRead | CorpusDirectoryQueryRead
-type ReadKey = PrimitiveRead | QueryRead | SymlinkQueryRead | CorpusDirectoryQueryRead
+@dataclass(frozen=True)
+class SchemaInputRead:
+    """The immutable raw schema input read by a schema query.
+
+    Attributes:
+        reference: The typed schema identity the query reads.
+    """
+
+    reference: SchemaReference
+
+
+type QueryKey = tuple[Query[object], MarkdownItemRef] | SymlinkQueryRead | CorpusDirectoryQueryRead | SchemaQueryRead
+type ReadKey = (
+    PrimitiveRead | QueryRead | SymlinkQueryRead | CorpusDirectoryQueryRead | SchemaQueryRead | SchemaInputRead
+)
 
 
 class _ReadSet:
@@ -277,6 +294,46 @@ class _ReadSet:
     def _recorded_reads(self) -> frozenset[ReadKey]:
         """Return a frozen copy for the database cache."""
         return frozenset(self.__reads)
+
+    def _nested_query[T](
+        self,
+        key: ReadKey,
+        answer: Callable[[], T],
+        reads: Callable[[], frozenset[ReadKey]],
+    ) -> T:
+        """Record a nested query key before running it, then add its reads when it succeeds.
+
+        The key remains recorded if the nested query raises, so failed references remain dependencies too.
+        """
+        self._record(key)
+        result = answer()
+        self._record(*reads())
+        return result
+
+
+class _ReadSchemaPrimitives(_ReadSet):
+    """The immutable input of one schema subject, recorded under its typed reference."""
+
+    __slots__ = ('_database', '_ref')
+
+    def __init__(self, database: 'Database', ref: SchemaReference) -> None:
+        super().__init__()
+        self._database = database
+        self._ref = ref
+
+    def schema_input(self) -> SchemaInput:
+        """Resolve the subject from this database's loaded model."""
+        self._record(SchemaInputRead(self._ref))
+        return self._database._schema_input(self._ref)
+
+    def query_schema[T](self, ref: SchemaReference, query: SchemaQuery[T]) -> T:
+        """Read a memoized schema query and retain its key even when it raises."""
+        key = (cast('SchemaQuery[object]', query), ref)
+        return self._nested_query(
+            key,
+            lambda: self._database.query(query, ref),
+            lambda: self._database.query_reads(query, ref),
+        )
 
 
 class _ReadSymlinkPrimitives(_ReadSet):
@@ -394,10 +451,12 @@ class _ReadPrimitives(_ReadSet):
 
     def _record_nested[T](self, query: Query[T], ref: MarkdownItemRef) -> T:
         """Run a nested query and record its dependency chain, including when it fails."""
-        self._record(QueryRead(cast('Query[object]', query), ref))
-        answer = self._database.query(query, ref)
-        self._record(*self._database.query_reads(query, ref))
-        return answer
+        key = QueryRead(cast('Query[object]', query), ref)
+        return self._nested_query(
+            key,
+            lambda: self._database.query(query, ref),
+            lambda: self._database.query_reads(query, ref),
+        )
 
     def query_at[T](self, ref: MarkdownItemRef, query: Query[T]) -> T:
         """The memoized answer of a query over another item, recorded as a read dependency.
@@ -407,6 +466,15 @@ class _ReadPrimitives(_ReadSet):
             query: The pure function to run over that item's primitives.
         """
         return self._record_nested(query, ref)
+
+    def query_schema[T](self, ref: SchemaReference, query: SchemaQuery[T]) -> T:
+        """Read a memoized schema query and retain its key even when it raises."""
+        key = (cast('SchemaQuery[object]', query), ref)
+        return self._nested_query(
+            key,
+            lambda: self._database.query(query, ref),
+            lambda: self._database.query_reads(query, ref),
+        )
 
     def links(self) -> tuple[Link, ...]:
         """The links of the item's parse; none for an item that is not UTF-8."""
@@ -492,7 +560,8 @@ class Database:
     `item_token_count(source)`, `item_line_count(source)` derive values from decoded text;
     `item_governance(ref)` reads the model.
     `skill_fields_query`, `frontmatter_owner_query` and `schema_problems_query`
-    (`lorecraft.project.schemas`) run through `query(query, ref)`, which memoizes each answer and its reads.
+    (`lorecraft.project.schemas`) run through `query(query, ref)`, which memoizes each answer and its reads. Schema
+    queries use the same cache keyed by `(query, SchemaReference)` and read immutable inputs from the model.
 
     The item family is keyed by `MarkdownItemRef`. A resource's
     reference is registered from its listing by `resource_item(location)`. A document outside the model's listing is
@@ -934,16 +1003,20 @@ class Database:
     @overload
     def query[T](self, query: CorpusDirectoryQuery[T], ref: CorpusDirectoryRef) -> T: ...  # noqa: D102 — implementation documents the overload
 
+    @overload
+    def query[T](self, query: SchemaQuery[T], ref: SchemaReference) -> T: ...  # noqa: D102 — implementation documents the overload
+
     def query[T](
         self,
-        query: Query[T] | SymlinkQuery[T] | CorpusDirectoryQuery[T],
-        ref: MarkdownItemRef | SymlinkRef | CorpusDirectoryRef,
+        query: Query[T] | SymlinkQuery[T] | CorpusDirectoryQuery[T] | SchemaQuery[T],
+        ref: MarkdownItemRef | SymlinkRef | CorpusDirectoryRef | SchemaReference,
     ) -> T:
         """The memoized answer of a declared query over a typed subject.
 
         A query over a Markdown item carries over when each primitive it read does. A query over a symlink carries
         over when the model still lists that outside symlink at the same path. A query over a reserved-corpus
-        directory carries over when the model still lists that directory at the same path.
+        directory carries over when the model still lists that directory at the same path. A schema query is keyed by
+        its typed reference and reads the immutable input retained by the model.
 
         Args:
             query: The declared query to run.
@@ -951,6 +1024,7 @@ class Database:
 
         Raises:
             UnlistedItemError: If the subject ref is not listed by the model or a skill resource listing.
+            SchemaReferenceError: If the schema subject is not present in the loaded model.
         """
         key = cast('QueryKey', (query, ref))
         if key not in self._queries:
@@ -964,6 +1038,9 @@ class Database:
                 case CorpusDirectoryRef():
                     primitives = _ReadCorpusDirectoryPrimitives(self, ref)
                     answer = cast('CorpusDirectoryQuery[T]', query)(primitives)
+                case SchemaReference():
+                    primitives = _ReadSchemaPrimitives(self, ref)
+                    answer = cast('SchemaQuery[T]', query)(primitives)
                 case _:
                     assert_never(ref)
             self._queries[key] = (answer, primitives._recorded_reads())
@@ -971,8 +1048,8 @@ class Database:
 
     def query_reads(
         self,
-        query: Query[object] | SymlinkQuery[object] | CorpusDirectoryQuery[object],
-        ref: MarkdownItemRef | SymlinkRef | CorpusDirectoryRef,
+        query: Query[object] | SymlinkQuery[object] | CorpusDirectoryQuery[object] | SchemaQuery[object],
+        ref: MarkdownItemRef | SymlinkRef | CorpusDirectoryRef | SchemaReference,
     ) -> frozenset[ReadKey]:
         """The typed read keys recorded for a query; public so nested queries avoid private-cache access.
 
@@ -982,6 +1059,13 @@ class Database:
         """
         key = cast('QueryKey', (query, ref))
         return self._queries[key][1] if key in self._queries else frozenset()
+
+    def _schema_input(self, reference: SchemaReference) -> SchemaInput:
+        """Resolve a loaded schema input without adding a second cache."""
+        schema_input = self._model.schema_inputs.get(reference)
+        if schema_input is None:
+            raise SchemaReferenceError(reference)
+        return schema_input
 
     def _outside_symlink(self, ref: SymlinkRef) -> OutsideSymlink:
         """Find one symlink by its typed subject reference, including a skill resource link."""
