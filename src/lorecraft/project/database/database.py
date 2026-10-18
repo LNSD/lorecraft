@@ -12,10 +12,10 @@ The item queries share one family keyed by `MarkdownItemRef`.
 resource's `resource_item(location)` registers the reference from its skill's listing, and its item queries read the
 descriptor at the resolved location. A document the model does not list is resolved by its corpus and filename.
 
-The declared `query(query, ref)` memoizes a rule-owned query over one item's primitives; `query_reads(query, ref)`
-reports typed reads, each naming a primitive or query and the item ref it read. A query's result carries over when each
-primitive or query it read does. `item_governance(ref)` reads the model, and a declared query reads common primitives
-without distinguishing item origins.
+The declared `query(query, ref)` memoizes a rule-owned query over a Markdown item or symlink subject.
+`query_reads(query, ref)` reports typed primitive and cross-item reads, each paired with the source subject ref. A
+query's result carries over when each primitive or query dependency it read does. `item_governance(ref)`
+reads the model, and a declared query reads common primitives without distinguishing item origins.
 
 Database construction and resource registration have no separate carry-over cache. `from_snapshot(snapshot)` creates
 a fresh database for that snapshot. `resource_item(location)` registers the ref from the skill resource listing in
@@ -69,12 +69,10 @@ Other public methods either answer from queries or inspect the snapshot. Their s
 
 - `item_structure_specs(ref)` reads `item_governance(ref)` for documents and skill entries. Resources and
   specifications have no corpus structure specs; it is not cached separately and carries over with that governance.
-- `query(query, ref)` runs a declared query over the item's primitives and caches its answer and read set. It carries
-  over whenever every primitive it read does.
-- `item_has_link_to(ref, path)` reads the item's cached `item_link_targets`; it is not cached separately and carries
-  over with those targets.
-- `query_reads(query, ref)` reports recorded primitive and nested-query reads, each paired with its item ref; it is
-  empty before that query has run and is not cached.
+- `query(query, ref)` runs a declared query over a Markdown item or symlink subject and
+  caches its answer and read set. It carries over whenever every primitive or cross-item query it read does.
+- `query_reads(query, ref)` reports recorded primitive and cross-item reads, paired with their source refs; it is empty
+  before that query has run and is not cached.
 
 Snapshot questions are answered on each call, except `unreported_docs_refusals()`, which is cached for this database's
 lifetime:
@@ -150,7 +148,7 @@ import logging
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import Self, cast
+from typing import Self, assert_never, cast, overload
 
 from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.num import UnsignedInt
@@ -167,18 +165,28 @@ from lorecraft.project.item import (
     UnlistedItemError,
 )
 from lorecraft.project.layout import DOCS_DIR, SPECS_DIR, reject_linked_layout
-from lorecraft.project.link_target import LinkBase, LinkTargetEntry, link_targets_of
-from lorecraft.project.query import Query
+from lorecraft.project.link_target import (
+    LinkBase,
+    LinkTargetEntry,
+    link_targets_of,
+)
+from lorecraft.project.query import (
+    Query,
+    SymlinkQuery,
+    SymlinkQueryRead,
+)
 from lorecraft.project.schemas import StructureSpec
-from lorecraft.project.skill import Repository as SkillRepository
 from lorecraft.project.skill import (
+    OutsideSymlink,
     SkillLocation,
     SkillRef,
     SkillResourceListing,
     SkillResourceLocation,
     SkillResourcesListError,
     SkillResourcesSymlinkResolveError,
+    SymlinkRef,
 )
+from lorecraft.project.skill import Repository as SkillRepository
 from lorecraft.project.syntax import (
     Anchor,
     FrontmatterNode,
@@ -199,6 +207,7 @@ from lorecraft.project.workspace import Governance, ResolvedItem, WorkspaceModel
 from lorecraft.vfs import (
     FILE_READ_FAILURES,
     RefusedRecord,
+    RootExit,
     ScopeIndex,
     Snapshot,
     TextDecodeError,
@@ -227,7 +236,7 @@ class PrimitiveRead(StrEnum):
     ITEM_NAME = 'item_name'
     ITEM_CORPUS = 'item_corpus'
     ITEM_BASE = 'item_base'
-    LINKED_DOCUMENTS = 'linked_documents'
+    SYMLINK_LEAVES_AT = 'symlink_leaves_at'
 
 
 @dataclass(frozen=True)
@@ -236,6 +245,47 @@ class QueryRead:
 
     source: PrimitiveRead | Query[object]
     ref: MarkdownItemRef
+
+
+type QueryKey = tuple[Query[object], MarkdownItemRef] | SymlinkQueryRead
+type ReadKey = PrimitiveRead | QueryRead | SymlinkQueryRead
+
+
+class _ReadSet:
+    """A practical in-process guard around reads shared by database primitive adapters.
+
+    Name-mangled storage and the repository source guard keep ordinary callers on `_record`; deliberate Python
+    reflection can still bypass that boundary.
+    """
+
+    __slots__ = ('__reads',)
+
+    def __init__(self) -> None:
+        self.__reads: set[ReadKey] = set()
+
+    def _record(self, *keys: ReadKey) -> None:
+        """Record primitive or nested-query keys without exposing mutable storage."""
+        self.__reads.update(keys)
+
+    def _recorded_reads(self) -> frozenset[ReadKey]:
+        """Return a frozen copy for the database cache."""
+        return frozenset(self.__reads)
+
+
+class _ReadSymlinkPrimitives(_ReadSet):
+    """The primitive reads of one symlink subject, recorded with typed keys."""
+
+    def __init__(self, database: 'Database', ref: SymlinkRef) -> None:
+        super().__init__()
+        self._database = database
+        self._ref = ref
+
+    __slots__ = ('_database', '_ref')
+
+    def leaves_at(self) -> RootExit:
+        """The point where this symlink's chain leaves the repository."""
+        self._record(PrimitiveRead.SYMLINK_LEAVES_AT)
+        return self._database._outside_symlink(self._ref).leaves_at
 
 
 logger = logging.getLogger(__name__)
@@ -252,27 +302,6 @@ def _witness_text(
     if isinstance(source, Undecodable):
         return None
     return source.text
-
-
-class _ReadSet:
-    """A practical in-process guard around reads shared by database primitive adapters.
-
-    Name-mangled storage and the repository source guard keep ordinary callers on `_record`; deliberate Python
-    reflection can still bypass that boundary.
-    """
-
-    __slots__ = ('__reads',)
-
-    def __init__(self) -> None:
-        self.__reads: set[QueryRead] = set()
-
-    def _record(self, *keys: QueryRead) -> None:
-        """Record primitive or nested-query keys without exposing mutable storage."""
-        self.__reads.update(keys)
-
-    def _recorded_reads(self) -> frozenset[QueryRead]:
-        """Return a frozen copy for the database cache."""
-        return frozenset(self.__reads)
 
 
 class _ReadPrimitives(_ReadSet):
@@ -478,8 +507,9 @@ class Database:
         self._item_line_counts: dict[MarkdownItemRef, LineCount] = {}
         # An item no corpus governs is governed by nothing, so `None` is an answer and is cached too.
         self._item_governances: dict[MarkdownItemRef, Governance | None] = {}
-        # Declared queries: the answer by the function and the item, with the primitives it read.
-        self._queries: dict[tuple[Query[object], MarkdownItemRef], tuple[object, frozenset[QueryRead]]] = {}
+        # Declared queries: the answer by the function and the item, with the primitive and cross-item query keys
+        # it read.
+        self._queries: dict[QueryKey, tuple[object, frozenset[ReadKey]]] = {}
         # Each skill's resource listing, found on the first call; a resource is registered from it with `resource_item`.
         self._skill_resources: dict[SkillRef, SkillResourceListing] = {}
 
@@ -866,40 +896,69 @@ class Database:
         governance = self.item_governance(ref)
         return governance.structure_specs() if governance is not None else ()
 
-    def query[T](self, query: Query[T], ref: MarkdownItemRef) -> T:
-        """The answer of a declared query over one item, found on the first call for the function and the ref.
+    @overload
+    def query[T](self, query: Query[T], ref: MarkdownItemRef) -> T: ...  # noqa: D102 — implementation documents the overload
 
-        The query runs over the item's primitives and reads nothing else; the database notes each primitive or query
-        it read.
+    @overload
+    def query[T](self, query: SymlinkQuery[T], ref: SymlinkRef) -> T: ...  # noqa: D102 — implementation documents the overload
 
-        Carry-over: kept for the next revision whenever every primitive or query it read is kept, such as
-        `item_governance(ref)` for the structure specifications.
+    def query[T](
+        self,
+        query: Query[T] | SymlinkQuery[T],
+        ref: MarkdownItemRef | SymlinkRef,
+    ) -> T:
+        """The memoized answer of a declared query over a typed subject.
+
+        A query over a Markdown item carries over when each primitive it read does. A query over a symlink carries
+        over when the model still lists that outside symlink at the same path.
 
         Args:
-            query: The pure function to run; with the ref, the cache key.
-            ref: The item to run it over.
+            query: The declared query to run.
+            ref: The typed subject the query reads.
 
         Raises:
-            UnlistedItemError: If the reference is not a listed item, registered resource or answerable document path.
+            UnlistedItemError: If an item ref is not a listed item, registered resource or answerable document.
+            KeyError: If a symlink ref is not held by the model and its listings.
         """
-        key = (query, ref)
+        key = cast('QueryKey', (query, ref))
         if key not in self._queries:
-            primitives = _ReadPrimitives(self, ref)
-            answer = query(primitives)
+            match ref:
+                case MarkdownItemRef():
+                    primitives = _ReadPrimitives(self, ref)
+                    answer = cast('Query[T]', query)(primitives)
+                case SymlinkRef():
+                    primitives = _ReadSymlinkPrimitives(self, ref)
+                    answer = cast('SymlinkQuery[T]', query)(primitives)
+                case _:
+                    assert_never(ref)
             self._queries[key] = (answer, primitives._recorded_reads())
         return cast('T', self._queries[key][0])
 
-    def query_reads(self, query: Query[object], ref: MarkdownItemRef) -> frozenset[QueryRead]:
-        """Each primitive or query it read and the item ref it came from, once the query has run. Raises nothing.
-
-        `_ReadPrimitives.query` consumes the read set to propagate dependencies. This method is public so that this
-        collaborator does not reach into another class's private cache.
+    def query_reads(
+        self,
+        query: Query[object] | SymlinkQuery[object],
+        ref: MarkdownItemRef | SymlinkRef,
+    ) -> frozenset[ReadKey]:
+        """The typed read keys recorded for a query; public so nested queries avoid private-cache access.
 
         Args:
-            query: The query asked for.
-            ref: The item it ran over.
+            query: The declared query whose reads are requested.
+            ref: The typed subject the query was run against.
         """
-        return self._queries[(query, ref)][1] if (query, ref) in self._queries else frozenset()
+        key = cast('QueryKey', (query, ref))
+        return self._queries[key][1] if key in self._queries else frozenset()
+
+    def _outside_symlink(self, ref: SymlinkRef) -> OutsideSymlink:
+        """Find one symlink by its typed subject reference, including a skill resource link."""
+        found = self._model.outside_symlinks.get(ref.path)
+        if found is not None:
+            return found
+        for location in self._model.sorted_skill_locations:
+            listing = self.skill_resources(location)
+            for outside in listing.outside_symlinks:
+                if outside.path == ref.path:
+                    return outside
+        raise KeyError(ref.path)
 
     # Snapshot questions: `refusals` is read on each call; `unreported_docs_refusals` is memoized for this database.
 

@@ -11,6 +11,7 @@ from lorecraft.project.corpus import CorpusName
 from lorecraft.project.item import ItemOrigin, MarkdownItemRef
 from lorecraft.project.link_target import LinkBase, LinkTargetEntry
 from lorecraft.project.schemas import StructureSpec
+from lorecraft.project.skill.outside import SymlinkRef
 from lorecraft.project.syntax import (
     Anchor,
     FrontmatterNode,
@@ -26,6 +27,7 @@ from lorecraft.vfs import RootExit
 type Query[T] = Callable[[Primitives], T]
 type SymlinkQuery[T] = Callable[[SymlinkPrimitives], T]
 type CorpusDirectoryQuery[T] = Callable[[CorpusDirectoryPrimitives], T]
+type SymlinkQueryRead = tuple[SymlinkQuery[object], SymlinkRef]
 
 
 class SyntaxPrimitives(Protocol):

@@ -17,6 +17,7 @@ from .primitives import (
     Query,
     SymlinkPrimitives,
     SymlinkQuery,
+    SymlinkQueryRead,
     SyntaxPrimitives,
 )
 
@@ -30,6 +31,7 @@ __all__: list[str] = [
     'Query',
     'SymlinkPrimitives',
     'SymlinkQuery',
+    'SymlinkQueryRead',
     'SyntaxPrimitives',
     'linked_paths',
 ]

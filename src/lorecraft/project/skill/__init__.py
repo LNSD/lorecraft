@@ -7,7 +7,7 @@ carries its name; and its form is the Agent Skills specification's, not a corpus
 A symlink the layout reaches whose chain leaves the repository is recorded too, as an `OutsideSymlink`.
 """
 
-from .outside import OutsideSymlink
+from .outside import OutsideSymlink, SymlinkRef
 from .ref import (
     NotASkillResourceError,
     SkillAliasRef,
@@ -47,6 +47,7 @@ __all__: list[str] = [
     'SkillResourceLocation',
     'SkillsDir',
     'OutsideSymlink',
+    'SymlinkRef',
     'SkillsListing',
     'SkillEntry',
     'NotASkillResourceError',
