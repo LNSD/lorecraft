@@ -1,4 +1,4 @@
-"""The `item_schema_problems` and `item_skill_fields` queries, for one decoded document or skill.
+"""The `item_schema_problems` database method and `skill_fields_query`, for one decoded document or skill.
 
 A document's schemas come from the model's governance and a skill's Agent Skills check is independent of corpus
 governance, so the queries
@@ -17,19 +17,23 @@ from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.jsonschema import JsonType
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
-from lorecraft.project.database import Database, ItemText
+from lorecraft.project.database import Database, ItemText, QueryRead
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.item import MarkdownItemRef
 from lorecraft.project.schemas import (
     AgentSkillsSchema,
+    DocumentFrontmatterOwner,
     FieldGuidance,
     LocatedProblem,
     MissingFieldProblem,
     SchemaProblems,
     SkillField,
+    SkillFrontmatterOwner,
     StructureSpecSchema,
     UnknownFieldProblem,
     WrongTypeProblem,
+    frontmatter_owner_query,
+    skill_fields_query,
 )
 from lorecraft.project.skill import SkillRef
 from lorecraft.project.syntax import FrontmatterNode, LineNumber
@@ -319,14 +323,45 @@ class TestSkillSchemaProblems:
         review = b'---\nname: review\nallowed-tools: Read\n---\n# Review\n'
         database = Database.from_snapshot(_snapshot(REQUIRE_STATUS, STRING_DESCRIPTION, typing=b'', review=review))
         source = _skill_text(database, REVIEW)
-        first = database.item_skill_fields(source)
+        first = database.query(skill_fields_query, source.ref)
 
         #: When
-        second = database.item_skill_fields(source)
+        second = database.query(skill_fields_query, source.ref)
 
         #: Then
         assert second is first, "a skill's fields are parsed once per database, then shared by every rule"
+        assert {
+            QueryRead('frontmatter', source.ref),
+            QueryRead('item_origin', source.ref),
+        } <= database.query_reads(skill_fields_query, source.ref)
         assert set(first) == {SkillField.NAME, SkillField.ALLOWED_TOOLS}, 'each written, conforming field is kept'
+
+    def test_frontmatter_owner_query_with_a_document_reads_its_origin_and_governance(self) -> None:
+        #: Given
+        database = Database.from_snapshot(_snapshot(REQUIRE_STATUS, STRING_DESCRIPTION, typing=b'', review=b''))
+        source = _document_text(database, TYPING)
+
+        #: When
+        owner = database.query(frontmatter_owner_query, source.ref)
+
+        #: Then
+        assert owner == DocumentFrontmatterOwner(AspectFilename.parse('python-typing'), CORPUS_SPEC)
+        assert {
+            QueryRead('item_origin', source.ref),
+            QueryRead('item_governance', source.ref),
+        } <= database.query_reads(frontmatter_owner_query, source.ref)
+
+    def test_frontmatter_owner_query_with_a_skill_entry_reads_its_origin(self) -> None:
+        #: Given
+        database = Database.from_snapshot(_snapshot(REQUIRE_STATUS, STRING_DESCRIPTION, typing=b'', review=b''))
+        source = _skill_text(database, REVIEW)
+
+        #: When
+        owner = database.query(frontmatter_owner_query, source.ref)
+
+        #: Then
+        assert owner == SkillFrontmatterOwner(PathComponent.parse('review'), None)
+        assert QueryRead('item_origin', source.ref) in database.query_reads(frontmatter_owner_query, source.ref)
 
     def test_skill_schema_problems_called_twice_returns_the_first_answer(self) -> None:
         #: Given

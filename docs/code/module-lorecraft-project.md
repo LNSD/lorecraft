@@ -27,8 +27,9 @@ once in `lorecraft.project.layout` and read from there by every other module.
 - The parse tree, token count and line count: pure functions of document text. The tree derives from the values
   `lorecraft.markdown` returns; `document` maps its line and link values into the project model and decodes raw
   frontmatter.
-- Shared analysis of a document's parsed values against its meta specs: frontmatter violations mapped to
-  project-owned problems on field lines, or where sections first stop matching an outline. It finds facts
+- Shared queries over a document's raw syntax and governance primitives: frontmatter violations mapped to
+  project-owned problems on field lines, skill fields, and frontmatter ownership, or where sections first stop
+  matching an outline. It finds facts
   several rules read; whether and how one is reported is a rule's.
 - A document's, a skill's or a skill resource's identity, kept apart from its content and from where its symlinks
   lead.

@@ -8,8 +8,9 @@ from collections.abc import Callable, Mapping
 from typing import Protocol
 
 from lorecraft.project.corpus import CorpusName
+from lorecraft.project.item import ItemOrigin
 from lorecraft.project.link_target import DocumentLink, LinkBase, LinkTargetEntry
-from lorecraft.project.schemas import FrontmatterOwner, SchemaProblems, SkillFields, StructureSpec
+from lorecraft.project.schemas import SchemaProblems, StructureSpec
 from lorecraft.project.syntax import (
     Anchor,
     FrontmatterNode,
@@ -19,6 +20,7 @@ from lorecraft.project.syntax import (
     NormalisedLinkPath,
     TokenCount,
 )
+from lorecraft.project.workspace import Governance
 from lorecraft.vfs import RootExit
 
 type Query[T] = Callable[[Primitives], T]
@@ -73,19 +75,12 @@ class GovernancePrimitives(Protocol):
         """
         ...
 
-    def skill_fields(self) -> SkillFields:
-        """The fields of a skill entry's frontmatter that parse, each on its own, by the field.
-
-        A field that is not written, is null or is rejected has no entry; none holds for any other item, or when the
-        block is missing, not YAML or not a mapping.
-        """
+    def item_origin(self) -> ItemOrigin:
+        """The model's origin facts for this item, including its expected name and provenance."""
         ...
 
-    def frontmatter_owner(self) -> FrontmatterOwner:
-        """The document or the skill the block opens, with the name its frontmatter must carry.
-
-        Only a document whose corpus states a structure specification, or a skill entry, has one.
-        """
+    def item_governance(self) -> Governance | None:
+        """The governance of this item, or none when it has no corpus governance."""
         ...
 
     def item_name(self) -> str | None:

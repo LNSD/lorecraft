@@ -5,9 +5,10 @@ from dataclasses import dataclass
 
 from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.num import UnsignedInt
+from lorecraft.project.item import DocumentOrigin, ItemOrigin
 from lorecraft.project.link_target import DocumentLink, LinkBase, LinkTargetEntry
 from lorecraft.project.query import Query
-from lorecraft.project.schemas import FrontmatterOwner, SchemaProblems, SkillFields, StructureSpec
+from lorecraft.project.schemas import SchemaProblems, StructureSpec
 from lorecraft.project.syntax import (
     Anchor,
     FrontmatterNode,
@@ -18,6 +19,7 @@ from lorecraft.project.syntax import (
     NormalisedLinkPath,
     TokenCount,
 )
+from lorecraft.project.workspace import Governance
 
 
 @dataclass(frozen=True, slots=True)
@@ -35,8 +37,6 @@ class StructurePrimitives:
         line_total: The lines in the item's whole file.
         frontmatter_node: The item's frontmatter block as parsed.
         problems: What each frontmatter schema that governs the item rejects, in the order the schemas apply.
-        fields: The fields of a skill entry's frontmatter that parse.
-        owner: Whose frontmatter block it is, when the item has an owner.
         anchor_set: The anchor of every heading of the item's parse.
         base_name: The stem of the document the document extends.
         document_link_list: The links to another document, with their corpus, filename and back link.
@@ -53,12 +53,25 @@ class StructurePrimitives:
     line_total: LineCount = LineCount(UnsignedInt(0))
     frontmatter_node: FrontmatterNode = MissingFrontmatter()
     problems: tuple[SchemaProblems, ...] = ()
-    fields: SkillFields = FrozenMapping({})
-    owner: FrontmatterOwner | None = None
     anchor_set: frozenset[Anchor] = frozenset()
     base_name: str | None = None
     document_link_list: tuple[DocumentLink, ...] = ()
     corpus: str | None = None
+    origin_value: ItemOrigin = DocumentOrigin(expected_name='setup', corpus='guide', schema_paths=())
+    governance_value: Governance | None = None
+    builtin_schema: bool = True
+
+    def item_origin(self) -> ItemOrigin:
+        """The origin this was built with."""
+        return self.origin_value
+
+    def item_governance(self) -> Governance | None:
+        """The governance this was built with."""
+        return self.governance_value
+
+    def builtin_skills_schema(self) -> bool:
+        """Whether the built-in skills schema applies."""
+        return self.builtin_schema
 
     def structure_specs(self) -> tuple[StructureSpec, ...]:
         """The specifications this was built with."""
@@ -115,15 +128,6 @@ class StructurePrimitives:
     def schema_problems(self) -> tuple[SchemaProblems, ...]:
         """The problems this was built with."""
         return self.problems
-
-    def skill_fields(self) -> SkillFields:
-        """The fields this was built with."""
-        return self.fields
-
-    def frontmatter_owner(self) -> FrontmatterOwner:
-        """The owner this was built with; a query that asks for one is run over primitives that hold it."""
-        assert self.owner is not None, 'the primitives were built without an owner'
-        return self.owner
 
     def query[T](self, query: Query[T]) -> T:
         """The answer of the query over these same primitives."""

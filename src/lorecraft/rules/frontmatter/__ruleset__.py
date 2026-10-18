@@ -18,10 +18,10 @@ its children in one order: the note naming the meta spec first, then the help, t
 """
 
 from dataclasses import dataclass
-from typing import Final, Protocol, assert_never
+from typing import Final, assert_never
 
 from lorecraft.core.path import RootRelativePath
-from lorecraft.project.query import GovernancePrimitives, SyntaxPrimitives
+from lorecraft.project.query import GovernancePrimitives, Primitives
 from lorecraft.project.schemas import (
     AgentSkillsSchema,
     AllowedTools,
@@ -33,6 +33,8 @@ from lorecraft.project.schemas import (
     SkillFrontmatterOwner,
     StructureSpecSchema,
     field_line,
+    frontmatter_owner_query,
+    skill_fields_query,
 )
 from lorecraft.project.syntax import Frontmatter, FrontmatterNode, LineNumber
 from lorecraft.rules.identity import RuleGroup, RuleGroupPrefix
@@ -55,17 +57,13 @@ class FrontmatterFacts:
     owner: FrontmatterOwner
 
 
-class _SyntaxGovernancePrimitives(SyntaxPrimitives, GovernancePrimitives, Protocol):
-    """The primitives the queries below read."""
-
-
-def frontmatter_facts(primitives: _SyntaxGovernancePrimitives) -> FrontmatterFacts:
+def frontmatter_facts(primitives: Primitives) -> FrontmatterFacts:
     """The block and its owner, the facts the rules over the block itself share.
 
     Args:
         primitives: The model state of the document or the skill.
     """
-    return FrontmatterFacts(primitives.frontmatter(), primitives.frontmatter_owner())
+    return FrontmatterFacts(primitives.frontmatter(), primitives.query(frontmatter_owner_query))
 
 
 @dataclass(frozen=True, slots=True)
@@ -81,7 +79,7 @@ class AllowedToolsField:
     tools: AllowedTools
 
 
-def allowed_tools_field(primitives: _SyntaxGovernancePrimitives) -> AllowedToolsField | None:
+def allowed_tools_field(primitives: Primitives) -> AllowedToolsField | None:
     """The skill's `allowed-tools` field, the fact the two rules over it share; `None` when it holds no parsed value.
 
     Args:
@@ -90,7 +88,7 @@ def allowed_tools_field(primitives: _SyntaxGovernancePrimitives) -> AllowedTools
     frontmatter = primitives.frontmatter()
     if not isinstance(frontmatter, Frontmatter):
         return None
-    tools = primitives.skill_fields().get(SkillField.ALLOWED_TOOLS)
+    tools = primitives.query(skill_fields_query).get(SkillField.ALLOWED_TOOLS)
     if not isinstance(tools, AllowedTools):
         return None
     return AllowedToolsField(field_line(frontmatter, SkillField.ALLOWED_TOOLS), tools)
