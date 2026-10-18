@@ -8,15 +8,15 @@ model; every other query sits above it, computed on first use and kept for as lo
 The item queries share one family keyed by `MarkdownItemRef`.
 `item_text(ref)` decodes the descriptor's read location into an `ItemText` witness or an `Undecodable` marker.
 `item_link_targets(source)` is an input query; `item_frontmatter`, `item_parse`, `item_token_count`,
-`item_line_count` and `item_governance` are derived queries. A
-resource's `resource_item(location)` registers the reference from its skill's listing, and its item queries read the
-descriptor at the resolved location. A document the model does not list is resolved by its corpus and filename.
+`item_line_count` are derived queries. `item_governance(ref)` returns the governance already held by the resolved
+item. A resource's `resource_item(location)` registers the reference from its skill's listing, and its item queries
+read the descriptor at the resolved location. A document the model does not list is resolved by its corpus and
+filename.
 
 The declared `query(query, ref)` memoizes a rule-owned query over a Markdown item, symlink, reserved-corpus directory
 or schema subject. `query_reads(query, ref)` reports typed primitive and cross-subject reads, each retaining its
-subject reference. A query's result carries over when each primitive or query dependency it read does.
-`item_governance(ref)` reads the model, and a declared item query reads common primitives without distinguishing item
-origins.
+subject reference. A query's result carries over when each primitive or query dependency it read does. A declared
+item query reads common primitives without distinguishing item origins.
 
 Database construction and resource registration have no separate carry-over cache. `from_snapshot(snapshot)` creates
 a fresh database for that snapshot. `resource_item(location)` registers the ref from the skill resource listing in
@@ -49,7 +49,7 @@ input query builds a witness or fails to read, and each states its own carry-ove
 
 Derived queries read the results of other queries and never the snapshot. Each hands what it read to one function
 of this package that computes the value, so its arguments are its read set, and it carries over whenever every query
-it read does, `item_governance(ref)` excepted, as its bullet states:
+it read does:
 
 - `item_frontmatter(source)`: one item's frontmatter node, like a stub: the part of a file the IDE reads without
   building its full syntax tree. It reads the text of the witness and nothing else.
@@ -57,14 +57,6 @@ it read does, `item_governance(ref)` excepted, as its bullet states:
   and nothing else.
 - `item_token_count(source)` and `item_line_count(source)`: what one item's whole file costs an agent that loads it,
   and how many lines it holds, counted from the raw text, frontmatter included, without a parse.
-- `item_governance(ref)`: the specifications that govern a corpus document or skill entry, its corpus's first and
-  then each namespace's that matches it. Skill entries use the reserved `skills` corpus; resources have no corpus
-  governance.
-  It reads `model()` and nothing else, and it is the one place an item's governance is
-  computed, so the model's corpus is searched once per item for the revision. It is the exception to the rule above:
-  the model is dropped by any entry added or deleted
-  under `docs/`, so it is recomputed from the next model and kept when it compares equal to the one it replaces. It
-  can carry over when `model()` does not, and so can every analysis that reads it.
 
 Other public methods either answer from queries or inspect the snapshot. Their section and carry-over rules are:
 
@@ -403,8 +395,7 @@ class _ReadPrimitives(_ReadSet):
     def item_origin(self) -> ItemOrigin:
         """The model-resolved origin facts of the item."""
         self._record(QueryRead(PrimitiveRead.ITEM_ORIGIN, self._ref))
-        self._database._answerable(self._ref)
-        return self._database._known(self._ref).descriptor.origin
+        return self._database._item(self._ref).descriptor.origin
 
     def item_governance(self) -> Governance | None:
         """The model's governance of the item."""
@@ -595,16 +586,12 @@ class Database:
         # The unified family's caches, keyed by the common reference: the one implementation of every document and
         # skill entry or resource query.
         self._items: dict[MarkdownItemRef, ResolvedItem] = {}
-        # What a query resolved for a document the model does not list; kept apart from listed items.
-        self._unlisted_items: dict[MarkdownItemRef, ResolvedItem] = {}
         self._item_texts: dict[MarkdownItemRef, ItemText | Undecodable] = {}
         self._item_link_targets: dict[MarkdownItemRef, Mapping[NormalisedLinkPath, LinkTargetEntry]] = {}
         self._item_frontmatters: dict[MarkdownItemRef, FrontmatterNode] = {}
         self._item_parses: dict[MarkdownItemRef, ParsedDocument] = {}
         self._item_token_counts: dict[MarkdownItemRef, TokenCount] = {}
         self._item_line_counts: dict[MarkdownItemRef, LineCount] = {}
-        # An item no corpus governs is governed by nothing, so `None` is an answer and is cached too.
-        self._item_governances: dict[MarkdownItemRef, Governance | None] = {}
         # Declared queries: the answer by the function and the item, with the primitive and cross-item query keys
         # it read.
         self._queries: dict[QueryKey, tuple[object, frozenset[ReadKey]]] = {}
@@ -770,13 +757,15 @@ class Database:
 
     # Item resolution and registration use the common reference; listed resources and unlisted documents enter here.
 
-    def _resolved(self, ref: MarkdownItemRef) -> ResolvedItem:
-        """The descriptor and governance the model resolved for a listed item, found on the first call."""
+    def _item(self, ref: MarkdownItemRef) -> ResolvedItem:
+        """The descriptor and governance for a listed item, resource or answerable document, found once."""
         resolved = self._items.get(ref)
         if resolved is None:
             resolved = self._model.find_item(ref)
             if resolved is None:
-                raise UnlistedItemError(ref)
+                # A document's path can be answerable even when the model does not list it. Resources are registered
+                # here from their skill's listing before any item query asks for them.
+                resolved = self._model.resolve_item(ref)
             self._items[ref] = resolved
         return resolved
 
@@ -800,38 +789,13 @@ class Database:
             UnlistedItemError: If the reference is not a listed item, registered resource or answerable document path.
             ItemReadError: If the snapshot holds no regular file at the read location.
         """
-        self._answerable(ref)
         return self._decode(ref)
-
-    def _answerable(self, ref: MarkdownItemRef) -> ResolvedItem:
-        """What the database resolves for an item a query answers for: a listed one, or a document by its path.
-
-        A document in a corpus the model lacks, or beyond its corpus's listing, is not an item the model lists,
-        but it is read and judged like any other: it is resolved by the corpus and filename its path names, and kept
-        apart from the listed items.
-
-        Args:
-            ref: The item to look up: a listed document or skill entry, or a `docs/<corpus>/<name>.md` path whose
-                corpus and filename are valid names.
-
-        Raises:
-            UnlistedItemError: If the model lists no skill entry there and the path names no document.
-        """
-        try:
-            return self._resolved(ref)
-        except UnlistedItemError:
-            if ref in self._unlisted_items:
-                return self._unlisted_items[ref]
-            # The ref is unlisted, so model resolution validates its document path without checking the listing again.
-            resolved = self._model.resolve_item(ref)
-            self._unlisted_items[ref] = resolved
-            return resolved
 
     def _decode(self, ref: MarkdownItemRef) -> ItemText | Undecodable:
         """Decode an item the database already resolved, listed or not, once."""
         decoded = self._item_texts.get(ref)
         if decoded is None:
-            descriptor = self._known(ref).descriptor
+            descriptor = self._item(ref).descriptor
             try:
                 decoded = ItemText(descriptor, self._fs.read_text(descriptor.read_location))
             except TextDecodeError as exc:
@@ -840,11 +804,6 @@ class Database:
                 raise ItemReadError(ref, source=exc) from exc
             self._item_texts[ref] = decoded
         return decoded
-
-    def _known(self, ref: MarkdownItemRef) -> ResolvedItem:
-        """What the database resolved for an item, listed or not; the item was resolved before it is asked for."""
-        resolved = self._items.get(ref)
-        return resolved if resolved is not None else self._unlisted_items[ref]
 
     def resource_item(self, location: SkillResourceLocation) -> MarkdownItemRef:
         """The common reference of a skill's resource, resolved from the location its skill's listing gives.
@@ -859,22 +818,18 @@ class Database:
             location: The resource, as `skill_resources` locates it; its resolved file is where the text is read.
         """
         item = MarkdownItemRef(location.ref.path)
-        self._register(item, lambda: self._model.resolve_resource(location), listed=False)
+        self._register(item, lambda: self._model.resolve_resource(location))
         return item
 
-    def _register(self, item: MarkdownItemRef, resolve: Callable[[], ResolvedItem], *, listed: bool) -> None:
-        """Keep what an item resolves to, once: the one route by which a document or a resource enters the database.
-
-        A listed item is kept with the model's, so the listed items answer for it; any other is kept apart, so they
-        still refuse it. The item is resolved only when it is not kept yet.
+    def _register(self, item: MarkdownItemRef, resolve: Callable[[], ResolvedItem]) -> None:
+        """Keep a resource's resolved item once, before its common-ref queries ask for it.
 
         Args:
             item: The item to keep.
             resolve: Resolves the item; called only for an item not kept yet.
-            listed: Whether the model lists the item.
         """
-        if item not in self._items and item not in self._unlisted_items:
-            (self._items if listed else self._unlisted_items)[item] = resolve()
+        if item not in self._items:
+            self._items[item] = resolve()
 
     # Input query: resolve the paths named by one item's links against the snapshot and scope.
 
@@ -964,23 +919,13 @@ class Database:
         the layers apply. Skill entries use the reserved `skills` corpus; resources have no corpus governance.
         `None` when no specification governs the item.
 
-        Carry-over: kept for the next revision whenever the next model's governance of the ref is equal to it, as
-        compared by value, so a change elsewhere in the model leaves it, and every analysis reading it, valid.
-
         Args:
             ref: The item to look up; the cache key.
 
         Raises:
             UnlistedItemError: If the reference is not a listed item, registered resource or answerable document path.
         """
-        self._answerable(ref)
-        return self._governance_of(ref)
-
-    def _governance_of(self, ref: MarkdownItemRef) -> Governance | None:
-        """The governance of an item the database already resolved, listed or not, found once."""
-        if ref not in self._item_governances:
-            self._item_governances[ref] = self._known(ref).governance
-        return self._item_governances[ref]
+        return self._item(ref).governance
 
     def item_structure_specs(self, ref: MarkdownItemRef) -> tuple[StructureSpec, ...]:
         """The structure specifications of the layers that loaded for a corpus document or skill entry.
