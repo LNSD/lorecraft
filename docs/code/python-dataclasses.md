@@ -1,6 +1,6 @@
 ---
 name: "python-dataclasses"
-description: "Choosing between `@dataclass` and pydantic `BaseModel`, a `TypedDict` for a JSON document written, mutable defaults, avoiding set-later `None`, `frozen=True` for value records, `__post_init__` range checks, and the `Attributes:` contract. Load when declaring a config record, a value object, or a wire-boundary model"
+description: "Choosing between `@dataclass` and pydantic `BaseModel`, a `TypedDict` for a JSON document written, mutable defaults, avoiding set-later `None`, `frozen=True` for value records, `__post_init__` invariants, and the `Attributes:` contract. Load when declaring a config record, a value object, or a wire-boundary model"
 type: "core"
 scope: "global"
 ---
@@ -215,11 +215,17 @@ mutated the config halfway through a run" impossible instead of merely unlikely.
 accumulator — a findings buffer, a running counter — is not frozen, and is not a dict key either.
 [pattern-value-object](pattern-value-object.md) owns the fuller treatment.
 
-## 6. A Numeric Limit Validates in `__post_init__`
+## 6. A Numeric Limit Is Validated in `__post_init__` Without a Built-in Error
 
 A field with a meaningful range — a line budget, a heading depth, a finding limit, a line number — is checked
-in `__post_init__`, and the error names the field and the offending value. Whether a check is needed at all,
-and what it raises, is owned by [error-boundaries](error-boundaries.md).
+in `__post_init__`, and the typed error names the invariant and the offending value. A dataclass
+`__post_init__` must not raise a bare built-in exception (`ValueError`, `TypeError`, `RuntimeError` or another
+built-in) to reject a field value. A check of this kind validates an invariant, so it raises the named `Error`
+variant for that invariant. This rule applies even when code, rather than a file, constructs the record.
+
+Do not write `raise ValueError(...)` in `__post_init__` for a field range or relationship. Define or use a
+typed variant, and raise it with the offending values. The rule and its relationship to other built-in errors
+are owned here; [error-boundaries](error-boundaries.md) points back to it.
 
 Where no type carries the bound, the check is **mandatory**, because Python offers nothing stronger. In a
 type-driven design the constraint would live in the type, so an out-of-range value would be unconstructible and
@@ -238,27 +244,48 @@ class LengthBudget:
 ```
 
 ```python
-# ✅ Good — a record only code builds, so an impossible value is a caller's defect, rejected
-# at construction, where the traceback points at the caller that supplied it
+# ❌ Bad — `__post_init__` rejects a field invariant with a bare built-in exception
 @dataclass
 class LengthBudget:
     max_lines: int = 400
     warn_ratio: float = 0.9
 
     def __post_init__(self) -> None:
-        """Validate budget bounds.
-
-        Raises:
-            ValueError: If `max_lines` is below 1 or `warn_ratio` is outside `(0, 1]`.
-        """
         if self.max_lines < 1:
             raise ValueError(f'max_lines must be at least 1, got {self.max_lines}')
         if not 0 < self.warn_ratio <= 1:
             raise ValueError(f'warn_ratio must be in (0, 1], got {self.warn_ratio}')
 ```
 
-The message includes the value. `ValueError('invalid max_lines')` sends the reader back to the call site to
-find out what was passed; the value in the message ends the investigation.
+```python
+# ✅ Good — each invariant has a typed error that carries its offending value
+class InvalidMaxLinesError(Error):
+    def __init__(self, value: int) -> None:
+        self.value = value
+        super().__init__(f'max_lines must be at least 1, got {value}')
+
+
+class InvalidWarnRatioError(Error):
+    def __init__(self, value: float) -> None:
+        self.value = value
+        super().__init__(f'warn_ratio must be in (0, 1], got {value}')
+
+
+@dataclass
+class LengthBudget:
+    max_lines: int = 400
+    warn_ratio: float = 0.9
+
+    def __post_init__(self) -> None:
+        if self.max_lines < 1:
+            raise InvalidMaxLinesError(self.max_lines)
+        if not 0 < self.warn_ratio <= 1:
+            raise InvalidWarnRatioError(self.warn_ratio)
+```
+
+The error carries the field and received value, so a handler can report the actual invariant failure without
+parsing message text. The compliant shape is the same whether the fields describe one value or a relationship
+between fields.
 
 Cross-field relationships belong here too — a line span whose `end` precedes its `start` is one check, not two
 field checks.
@@ -322,7 +349,8 @@ Before committing code, verify:
       can legitimately be absent
 - [ ] Every record used as a dict key, set member, or compared identity is `frozen=True`
 - [ ] Every field with a meaningful numeric range has a `__post_init__` check naming the field and the
-      received value, raising what error-boundaries prescribes
+      received value, raising its typed `Error` variant; `__post_init__` never raises a bare built-in to
+      validate a field or cross-field invariant
 - [ ] Every record's class docstring lists all public fields under `Attributes:` with units and constraints
 
 ## References
@@ -337,8 +365,8 @@ Before committing code, verify:
 - [python-docstrings](python-docstrings.md) - Related: Docstring sections beyond `Attributes:`
 - [principle-validate-at-edge](principle-validate-at-edge.md) - Related: Why a `TypedDict` never describes
   unchecked input
-- [error-boundaries](error-boundaries.md) - Related: Owns whether a guard raises an `Error` variant or
-  `ValueError`, and the questions a built-in in `Raises:` must pass first
+- [error-boundaries](error-boundaries.md) - Related: Owns built-in errors generally; this document owns the
+  rule for invariant validation in `__post_init__`
 
 ## External References
 

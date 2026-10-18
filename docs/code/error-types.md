@@ -25,7 +25,9 @@ step. Where a rule below could be left to review or made a type, it is a type, a
 
 This document owns how a variant is declared. Catching and raising in a handler are owned by
 [error-handling](error-handling.md); a defect's built-in, a framework's seam, a foreign failure's translation and
-a layer's wrap are owned by [error-boundaries](error-boundaries.md).
+a layer's wrap are owned by [error-boundaries](error-boundaries.md). For a dataclass `__post_init__` validating
+fields, [python-dataclasses](python-dataclasses.md) owns the rule to raise a typed invariant variant, not a bare
+built-in.
 
 ## 1. Every Expected Failure Derives From `Error`
 
