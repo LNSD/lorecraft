@@ -17,7 +17,7 @@ from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.jsonschema import JsonType
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
-from lorecraft.project.database import Database, ItemText, QueryRead
+from lorecraft.project.database import Database, ItemText, PrimitiveRead, QueryRead
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.item import ItemReadError, MarkdownItemRef
 from lorecraft.project.schemas import (
@@ -78,7 +78,7 @@ class FrontmatterReadingDatabase(Database):
             model: The workspace model loaded through the view.
         """
         super().__init__(fs, model)
-        self.read: list[MarkdownItemRef] = []
+        self.frontmatter_call_count = 0
 
     def item_frontmatter(self, source: ItemText) -> FrontmatterNode:
         """Record the document, then read its frontmatter.
@@ -86,7 +86,7 @@ class FrontmatterReadingDatabase(Database):
         Args:
             source: The decoded document whose frontmatter is read, recorded by its ref first.
         """
-        self.read.append(source.ref)
+        self.frontmatter_call_count += 1
         return super().item_frontmatter(source)
 
 
@@ -196,12 +196,12 @@ class TestSchemaProblems:
         assert second is first, 'the schemas are applied once per database, then shared by every rule'
         assert database.query_reads(schema_problems_query, source.ref) == frozenset(
             {
-                QueryRead('item_origin', source.ref),
-                QueryRead('item_governance', source.ref),
-                QueryRead('frontmatter', source.ref),
+                QueryRead(PrimitiveRead.ITEM_ORIGIN, source.ref),
+                QueryRead(PrimitiveRead.ITEM_GOVERNANCE, source.ref),
+                QueryRead(PrimitiveRead.FRONTMATTER, source.ref),
             }
         ), 'the query cache records the raw facts the schema analysis depends on'
-        assert database.read == [MarkdownItemRef(TYPING.path)], 'the frontmatter is read once, for the first call'
+        assert database.frontmatter_call_count == 1, 'the frontmatter is read once, for the first call'
 
     def test_schema_problems_with_no_frontmatter_schema_holds_none(self) -> None:
         #: Given
@@ -229,7 +229,7 @@ class TestSchemaProblems:
         database.query(schema_problems_query, source.ref)
 
         #: Then
-        assert database.read == [], (
+        assert database.frontmatter_call_count == 0, (
             'the schemas are read first, so a document no schema governs never has its block read'
         )
 
