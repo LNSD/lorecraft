@@ -2,6 +2,7 @@
 
 A primitive is one method; the facets group them by what they answer about an item, so a caller that needs only one
 kind of state can name that facet. `Primitives` is the whole, composed from the facets and the memoized `query`.
+Schema subjects have their own parameterless query family over immutable inputs retained by the workspace model.
 """
 
 from collections.abc import Callable, Mapping
@@ -24,6 +25,7 @@ from lorecraft.project.syntax import (
     TokenCount,
 )
 from lorecraft.project.workspace import Governance
+from lorecraft.schemas import SchemaInput, SchemaReference
 from lorecraft.vfs import RootExit
 
 if TYPE_CHECKING:
@@ -33,9 +35,23 @@ if TYPE_CHECKING:
 type Query[T] = Callable[[Primitives], T]
 type SymlinkQuery[T] = Callable[[SymlinkPrimitives], T]
 type CorpusDirectoryQuery[T] = Callable[[CorpusDirectoryPrimitives], T]
+type SchemaQuery[T] = Callable[[SchemaPrimitives], T]
 type SubjectQuery[T] = Query[T] | SymlinkQuery[T] | CorpusDirectoryQuery[T]
 type SymlinkQueryRead = tuple[SymlinkQuery[object], SymlinkRef]
 type CorpusDirectoryQueryRead = tuple[CorpusDirectoryQuery[object], CorpusDirectoryRef]
+type SchemaQueryRead = tuple[SchemaQuery[object], SchemaReference]
+
+
+class SchemaPrimitives(Protocol):
+    """The immutable input for one typed schema subject."""
+
+    def schema_input(self) -> SchemaInput:
+        """The loaded schema input identified by this query's subject reference."""
+        ...
+
+    def query_schema[T](self, ref: SchemaReference, query: SchemaQuery[T]) -> T:
+        """The memoized answer of another schema query, recorded with its typed reference."""
+        ...
 
 
 class SyntaxPrimitives(Protocol):
@@ -138,6 +154,10 @@ class Primitives(
             ref: The item whose primitives the query reads.
             query: The pure function to run over that item's primitives.
         """
+        ...
+
+    def query_schema[T](self, ref: SchemaReference, query: SchemaQuery[T]) -> T:
+        """The memoized answer of a schema query, recorded as `(query, schema reference)`."""
         ...
 
 
