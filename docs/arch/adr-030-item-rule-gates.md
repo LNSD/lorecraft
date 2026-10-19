@@ -36,6 +36,7 @@ keep layout subjects separate because their primitives and query subjects differ
    @dataclass(frozen=True, slots=True)
    class BySpec:
        facet: Facet
+       requires_loaded_layer: bool = False
 
    @dataclass(frozen=True, slots=True)
    class ByPackage:
@@ -48,24 +49,29 @@ keep layout subjects separate because their primitives and query subjects differ
    type Gate = BySpec | ByPackage | BySchema
    ```
 
-   `BySpec(facet)` means a loaded, non-failed structure layer governs the item and states that facet. A failed or
-   absent structure layer does not admit the rule. `ByPackage()` means the package governs the item kind without a
-   per-item structure declaration. `BySchema(schema)` means the named schema is registered and therefore governs
-   the item for this rule. These gates say only whether the rule is eligible to judge; they do not alter its query
-   or judgement.
+   `BySpec(facet, requires_loaded_layer=False)` identifies the facet a rule reads from specifications. The runner
+   uses it to select the item bucket and to report `ungoverned` coverage when that facet is inactive. When true on a
+   skill-entry gate, `requires_loaded_layer` also requires loaded, successful skills-corpus governance before the
+   rule is eligible; document-and-skill corpus rules set it. `ByPackage()` means the package governs the item kind
+   without a per-item structure declaration. `BySchema(schema)` means the named schema is registered and therefore
+   governs the item for this rule. These gates do not alter a rule's query or judgement.
 
 2. **One queried item base owns the declaration.** Every item rule derives from `QueriedItemRule[Facts]`, which keeps
-   the existing typed `query()` and `judge(facts)` contract and declares a class-level mapping
-   `GATES: Mapping[ItemKind, Gate]`. A missing kind means the rule never judges that kind. Each rule writes its full
-   mapping explicitly; no preset base encodes a default or preserves the old item-base names. A rule applying to
-   both documents and skill entries declares both keys, even when they use the same gate.
+   the typed `query() -> ItemQuery[Facts]` and `judge(facts)` contract and declares a class-level mapping
+   `GATES: Mapping[ItemKind, Gate]`. `ItemQuery[Facts]` is the query over `Primitives` that returns `Facts`; the
+   shared `Query[P, Facts]` type names the primitive facet explicitly. A missing kind means the rule never judges
+   that kind. Each rule writes its full mapping explicitly; no preset base encodes a default or preserves the old
+   item-base names. A rule applying to both documents and skill entries declares both keys, even when they use the
+   same gate.
 
    The mapping can express the existing cases directly: a document rule governed by facet `f` declares
    `{DOCUMENT: BySpec(f)}`; a skill rule declares `{SKILL_ENTRY: ByPackage()}`; and a rule shared by documents and
    skill entries declares a gate for each. A Markdown rule uses `BySpec(STRUCTURE)` for documents and package gates
-   for skill entries and skill resources. A frontmatter rule uses `BySpec(FRONTMATTER)` for documents and a package
-   gate for skill entries, except `name_mismatch`, whose skill-entry gate is `BySchema` of the registered Agent
-   Skills floor `SchemaReference`. This is a vocabulary for applicability, not a central list of which rules exist.
+   for skill entries and skill resources. A frontmatter rule uses `BySpec(FRONTMATTER)` for documents and skill
+   entries, except `name_mismatch`, whose skill-entry gate is `BySchema` of the registered Agent Skills floor
+   `SchemaReference`. When the floor is opted out, the frontmatter facet remains a coverage gate on skill entries
+   and is reported as `ungoverned`; the rules do not judge that inactive facet. This is a vocabulary for
+   applicability, not a central list of which rules exist.
 
 3. **Schema-backed eligibility is explicit.** A rule whose applicability depends on a registered schema uses
    `BySchema` for that kind. In particular, the Agent Skills floor is represented by the registered
@@ -73,19 +79,22 @@ keep layout subjects separate because their primitives and query subjects differ
    it. If a schema is not registered, the gate does not admit the rule. Schema registration and resolution remain
    governed by the schema registry design in ADR-028.
 
-4. **The runner has one item eligibility predicate.** `judges(rule, descriptor)` looks up the descriptor's kind in
-   `rule.GATES` and evaluates the gate: a spec gate requires a loaded, non-failed structure layer to govern the
-   item and state its facet, a package gate admits it, and a schema gate requires the schema to be registered. This
-   includes today's loaded-corpus and failed-layer condition, moving that check into the gate and preserving one
-   predicate. The match is exhaustive over `Gate` and closes with `assert_never`. A missing mapping entry returns
-   false. The runner has no `governing_facet` helper, `ItemQueriedRule` union, base-specific branch or exception for
-   the Agent Skills floor or a loaded corpus layer.
+4. **The runner has one item eligibility predicate.** `judges(rule, descriptor, governance, model)` looks up the
+   descriptor's kind in `rule.GATES` and evaluates the gate: a package gate admits the item, a schema gate requires
+   the schema to be registered in the model, and a spec gate identifies the facet whose coverage the runner tracks.
+   For a skill-entry `BySpec` gate whose `requires_loaded_layer` field is true, the predicate also requires loaded
+   skills-corpus governance with no failed layer. This field carries today's loaded-corpus and failed-layer
+   condition for document-and-skill corpus rules without a base-specific branch, and does not require a structure
+   file. Other skill-entry spec gates, including frontmatter, do not inherit that restriction. The match is
+   exhaustive over `Gate` and closes with `assert_never`. A missing mapping entry returns false. The runner has no
+   `governing_facet` helper, `ItemQueriedRule` union, base-specific branch or Agent Skills floor exception.
 
-   Eligibility and coverage remain distinct. If a loaded, successful structure layer governs the item but does not
-   state the gate's facet, the runner records the otherwise applicable rule as `ungoverned` coverage and does not
-   judge it. If the layer is absent or failed, or the rule's kind is absent from `GATES`, the runner skips the
-   inapplicable rule silently. It therefore also reads the gate when recording coverage, and `judges` does not
-   replace that behavior.
+   Eligibility and coverage remain distinct. When an applicable `BySpec` gate names a facet absent from the
+   descriptor's active facets, the runner records `ungoverned` coverage and does not judge it. This includes skill
+   frontmatter when the built-in schema is opted out and no repository schema activates the facet. A rule whose kind
+   is absent from `GATES`, a schema gate whose schema is unregistered, or a document-and-skill corpus rule on a skill
+   entry without loaded skills governance is skipped silently. The runner therefore reads the gate both to select
+   rules and to record coverage; `judges` does not replace that behavior.
 
    The runner still owns evaluation order, decoding, diagnostics and rule judgement.
 
@@ -100,7 +109,8 @@ keep layout subjects separate because their primitives and query subjects differ
    not infer a gate from a class or silently supply one.
 
 7. **Layout rule bases stay separate.** `QueriedSymlinkRule` and `QueriedCorpusDirectoryRule` keep their own
-   subject-specific query and primitive types. A layout subject is not an item kind, and combining those bases with
+   subject-specific query types, `Query[SymlinkPrimitives, Facts]` and
+   `Query[CorpusDirectoryPrimitives, Facts]`. A layout subject is not an item kind, and combining those bases with
    `QueriedItemRule` would weaken the per-subject typing required by ADR-027 and ADR-029.
 
 ## Consequences
