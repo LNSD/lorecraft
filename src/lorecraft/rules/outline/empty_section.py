@@ -1,9 +1,12 @@
 """`OUT004`: a section holds no content, under a structure file that forbids empty sections."""
 
+from collections.abc import Mapping
 from dataclasses import dataclass
+from types import MappingProxyType
 from typing import ClassVar, Protocol, Self, assert_never
 
 from lorecraft.core.path import RootRelativePath
+from lorecraft.project.item import ItemKind
 from lorecraft.project.query import GovernancePrimitives, ItemQuery, SyntaxPrimitives, item_parse, item_structure_specs
 from lorecraft.project.schemas import (
     AnyRunAlignment,
@@ -18,7 +21,7 @@ from lorecraft.project.syntax import Heading, SectionHeading, section_headings
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Subdiagnostic
-from lorecraft.rules.subject import Facet, QueriedDocumentSkillRule
+from lorecraft.rules.subject import BySpec, Facet, Gate, QueriedItemRule
 
 from .__ruleset__ import GROUP_ID, example_note, spec_note
 
@@ -148,7 +151,7 @@ def _find_required_entry(alignments: tuple[OutlineAlignmentSpec, ...], section: 
 
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
-class EmptySection(QueriedDocumentSkillRule[EmptySectionFacts]):
+class EmptySection(QueriedItemRule[EmptySectionFacts]):
     """A section holds no content, under a structure file that forbids empty sections.
 
     ## What it does
@@ -216,6 +219,12 @@ class EmptySection(QueriedDocumentSkillRule[EmptySectionFacts]):
     NAME: ClassVar[RuleName] = RuleName('empty-section')
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('0.3.0')
+    GATES: ClassVar[Mapping[ItemKind, Gate]] = MappingProxyType(
+        {
+            ItemKind.DOCUMENT: BySpec(Facet.STRUCTURE),
+            ItemKind.SKILL_ENTRY: BySpec(Facet.STRUCTURE, requires_loaded_layer=True),
+        }
+    )
     GOVERNED_BY: ClassVar[Facet] = Facet.STRUCTURE
 
     spec: RootRelativePath

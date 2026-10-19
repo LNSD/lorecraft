@@ -1,16 +1,19 @@
 """`LEN002`: a skill's `SKILL.md` is longer than the Agent Skills specification's line budget."""
 
+from collections.abc import Mapping
 from dataclasses import dataclass
+from types import MappingProxyType
 from typing import ClassVar, Final, Self
 
 from lorecraft.core.num import NonZeroUnsignedInt
+from lorecraft.project.item import ItemKind
 from lorecraft.project.query import CountPrimitives, ItemQuery, item_line_count
 from lorecraft.project.syntax import LineCount, LineNumber
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Here, Label, Note, Subdiagnostic
 from lorecraft.rules.overrun import Overrun, find_overrun
-from lorecraft.rules.subject import QueriedSkillRule
+from lorecraft.rules.subject import ByPackage, Gate, QueriedItemRule
 
 from .__ruleset__ import GROUP_ID
 
@@ -39,7 +42,7 @@ def skill_line_count(primitives: CountPrimitives) -> LineCount:
 
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
-class TooManyLines(QueriedSkillRule[LineCount]):
+class TooManyLines(QueriedItemRule[LineCount]):
     """A skill's `SKILL.md` is longer than the Agent Skills specification allows.
 
     ## What it does
@@ -100,6 +103,7 @@ class TooManyLines(QueriedSkillRule[LineCount]):
     NAME: ClassVar[RuleName] = RuleName('too-many-lines')
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('0.3.0')
+    GATES: ClassVar[Mapping[ItemKind, Gate]] = MappingProxyType({ItemKind.SKILL_ENTRY: ByPackage()})
 
     spec: None = None
     overrun: Overrun

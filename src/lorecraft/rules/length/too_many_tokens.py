@@ -1,10 +1,13 @@
 """`LEN001`: a document is longer than its token budget allows."""
 
+from collections.abc import Mapping
 from dataclasses import dataclass
+from types import MappingProxyType
 from typing import ClassVar, Protocol, Self
 
 from lorecraft.core.num import NonZeroUnsignedInt, UnsignedInt
 from lorecraft.core.path import RootRelativePath
+from lorecraft.project.item import ItemKind
 from lorecraft.project.query import (
     CountPrimitives,
     GovernancePrimitives,
@@ -17,7 +20,7 @@ from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Here, Label, Note, Subdiagnostic
 from lorecraft.rules.overrun import Overrun, find_overrun
-from lorecraft.rules.subject import Facet, QueriedDocumentSkillRule
+from lorecraft.rules.subject import BySpec, Facet, Gate, QueriedItemRule
 
 from .__ruleset__ import GROUP_ID, spec_note
 
@@ -71,7 +74,7 @@ def token_facts(primitives: _GovernanceCountPrimitives) -> TokenFacts:
 
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
-class TooManyTokens(QueriedDocumentSkillRule[TokenFacts]):
+class TooManyTokens(QueriedItemRule[TokenFacts]):
     """A document is longer than its token budget allows.
 
     ## What it does
@@ -135,6 +138,12 @@ class TooManyTokens(QueriedDocumentSkillRule[TokenFacts]):
     NAME: ClassVar[RuleName] = RuleName('too-many-tokens')
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('0.3.0')
+    GATES: ClassVar[Mapping[ItemKind, Gate]] = MappingProxyType(
+        {
+            ItemKind.DOCUMENT: BySpec(Facet.BUDGET),
+            ItemKind.SKILL_ENTRY: BySpec(Facet.BUDGET, requires_loaded_layer=True),
+        }
+    )
     GOVERNED_BY: ClassVar[Facet] = Facet.BUDGET
 
     spec: RootRelativePath

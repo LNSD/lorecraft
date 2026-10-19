@@ -158,6 +158,20 @@ class Queried[Facts, QueryType](Rule, ABC):
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
+class QueriedItemRule[Facts](Queried[Facts, ItemQuery[Facts]], ItemRule):
+    """The base of a rule over items that declares each kind and gate it judges.
+
+    The rule names its query and declares its complete `GATES` mapping. Item kinds absent from that mapping are
+    never judged. Layout rules use their separate queried bases because their query primitives differ.
+    """
+
+    @classmethod
+    @abstractmethod
+    def query(cls) -> ItemQuery[Facts]:
+        """The query over an item's primitives whose answer `judge` takes."""
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
 class QueriedDocumentRule[Facts](Queried[Facts, ItemQuery[Facts]], DocumentRule):
     """The base of a rule over a document that names the query it needs and judges its facts.
 

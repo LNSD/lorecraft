@@ -42,7 +42,7 @@ from .identity import (
     RuleGroupPrefix,
     RuleName,
 )
-from .subject import DocumentRule
+from .subject import DocumentRule, ItemRule
 
 _UNIT_TESTS: Final[str] = 'tests'
 """The name of the subpackage beside a package's modules that holds their unit tests, fixed by the unit tier."""
@@ -452,6 +452,9 @@ def _reject_unbound_attributes_of_kinds(
     for rule_class in rule_classes:
         _reject_unbound_attributes(rule_class, _RULE_ATTRIBUTES)
     # The runner gates a rule over a document on the facet it declares, so one that declares none would never run.
+    for rule_class in rule_classes:
+        if issubclass(rule_class, ItemRule) and not rule_class.GATES:
+            raise UnsetRuleAttributeError(rule_class, 'GATES')
     for rule_class in rule_classes:
         if issubclass(rule_class, DocumentRule):
             _reject_unbound_attributes(rule_class, _DOCUMENT_RULE_ATTRIBUTES)
