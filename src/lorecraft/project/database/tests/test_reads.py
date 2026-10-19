@@ -15,6 +15,7 @@ from lorecraft.project.query import (
     ItemPrimitives,
     SchemaPrimitives,
     SymlinkPrimitives,
+    item_base,
     item_parse,
 )
 from lorecraft.project.skill import OutsideSymlinkRef
@@ -76,9 +77,19 @@ def _item_text(primitives: ItemPrimitives) -> object:
     return primitives.text()
 
 
-def _item_base_primitive(primitives: ItemPrimitives) -> object:
-    """The base held by the item descriptor and model."""
-    return primitives.base()
+def _item_descriptor(primitives: ItemPrimitives) -> object:
+    """The item's model-resolved descriptor."""
+    return primitives.item_descriptor()
+
+
+def _item_model(primitives: ItemPrimitives) -> object:
+    """The workspace model used by item queries."""
+    return primitives.model()
+
+
+def _link_base(primitives: ItemPrimitives) -> object:
+    """The base path for links in the item's decoded text."""
+    return primitives.link_base()
 
 
 def _link_targets(primitives: ItemPrimitives) -> object:
@@ -101,7 +112,11 @@ def _database(root: Path) -> Database:
     files = {
         'docs/__meta__/code.md': b'# Code\n',
         'docs/__meta__/skills.md': b'# Skills\n',
+        'docs/__meta__/code-python.md': b'# Python\n',
+        'docs/__meta__/code.spec.json': b'{"tokens": 500}',
         'docs/code/source.md': b'# Source\n',
+        'docs/code/guide.md': b'# Guide\n',
+        'docs/code/guide-more.md': b'# More\n',
         'docs/feat/target.md': b'# Target\n',
     }
     for name, content in files.items():
@@ -214,18 +229,72 @@ class TestSubjectReads:
         #: Then
         assert database.query_reads(_item_text, ref) == {Read(PrimitiveRead.TEXT, ref)}
 
-    def test_base_primitive_records_its_typed_input(self, tmp_path: Path) -> None:
+    def test_item_descriptor_primitive_records_only_its_own_input(self, tmp_path: Path) -> None:
         #: Given
         database = _database(tmp_path)
         ref = ItemRef(RootRelativePath.parse('docs/code/source.md'))
 
         #: When
-        database.query(_item_base_primitive, ref)
+        database.query(_item_descriptor, ref)
 
         #: Then
-        assert database.query_reads(_item_base_primitive, ref) == {Read(PrimitiveRead.BASE, ref)}, (
-            'the base primitive records its own typed input'
-        )
+        assert database.query_reads(_item_descriptor, ref) == {Read(PrimitiveRead.ITEM_DESCRIPTOR, ref)}
+
+    def test_model_primitive_records_only_its_own_input(self, tmp_path: Path) -> None:
+        #: Given
+        database = _database(tmp_path)
+        ref = ItemRef(RootRelativePath.parse('docs/code/source.md'))
+
+        #: When
+        database.query(_item_model, ref)
+
+        #: Then
+        assert database.query_reads(_item_model, ref) == {Read(PrimitiveRead.MODEL, ref)}
+
+    def test_link_base_primitive_records_its_decoded_inputs(self, tmp_path: Path) -> None:
+        #: Given
+        database = _database(tmp_path)
+        ref = ItemRef(RootRelativePath.parse('docs/code/source.md'))
+
+        #: When
+        database.query(_link_base, ref)
+
+        #: Then
+        assert database.query_reads(_link_base, ref) == {
+            Read(PrimitiveRead.LINK_BASE, ref),
+            Read(PrimitiveRead.TEXT, ref),
+            Read(PrimitiveRead.ITEM_DESCRIPTOR, ref),
+        }
+
+    def test_item_base_records_document_hierarchy_inputs(self, tmp_path: Path) -> None:
+        #: Given
+        database = _database(tmp_path)
+        ref = ItemRef(RootRelativePath.parse('docs/code/guide-more.md'))
+
+        #: When
+        database.query(item_base, ref)
+
+        #: Then
+        assert database.query_reads(item_base, ref) == {
+            Read(PrimitiveRead.TEXT, ref),
+            Read(PrimitiveRead.ITEM_DESCRIPTOR, ref),
+            Read(PrimitiveRead.MODEL, ref),
+        }
+
+    def test_item_base_records_meta_spec_hierarchy_inputs(self, tmp_path: Path) -> None:
+        #: Given
+        database = _database(tmp_path)
+        ref = ItemRef(RootRelativePath.parse('docs/__meta__/code-python.md'))
+
+        #: When
+        database.query(item_base, ref)
+
+        #: Then
+        assert database.query_reads(item_base, ref) == {
+            Read(PrimitiveRead.TEXT, ref),
+            Read(PrimitiveRead.ITEM_DESCRIPTOR, ref),
+            Read(PrimitiveRead.MODEL, ref),
+        }
 
     def test_query_records_text_as_link_targets_dependency(self, tmp_path: Path) -> None:
         #: Given

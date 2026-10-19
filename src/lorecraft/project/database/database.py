@@ -33,9 +33,7 @@ from typing import Protocol, Self, assert_never, cast, overload
 
 from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.path import RootRelativePath
-from lorecraft.project.aspect import AspectFilename, AspectName
 from lorecraft.project.corpus import CorpusName, ReservedCorpusDirectory, ReservedCorpusDirectoryRef
-from lorecraft.project.document import MetaSpecRef
 from lorecraft.project.item import (
     ItemDescriptor,
     ItemOrigin,
@@ -59,7 +57,6 @@ from lorecraft.project.query import (
     SymlinkQuery,
     item_parse,
 )
-from lorecraft.project.schemas import CorpusSpecName, NamespaceSpecName, SpecName, parse_spec_name
 from lorecraft.project.skill import (
     OutsideSymlink,
     OutsideSymlinkRef,
@@ -117,7 +114,6 @@ class PrimitiveRead(StrEnum):
     LINK_BASE = 'link_base'
     ITEM_DESCRIPTOR = 'item_descriptor'
     MODEL = 'model'
-    BASE = 'base'
 
 
 @dataclass(frozen=True)
@@ -313,40 +309,9 @@ class _ItemPrimitives(_Reads[ItemRef, '_ItemPrimitives']):
 
     @primitive
     def link_base(self) -> LinkBase | None:
-        """Where the item's relative links are read from; `None` for an item that is not UTF-8."""
-        source = self._database.item_text(self._ref)
-        return source.descriptor.link_base if isinstance(source, ItemText) else None
-
-    @primitive
-    def base(self) -> AspectFilename | SpecName | None:
-        """The typed name of the document or specification the item extends, from the names the model lists.
-
-        A document's base is looked for among the documents of its corpus, a specification's among the specifications;
-        `None` for any other item or one that is not UTF-8. A skill extends nothing: its name is its directory's,
-        which no hyphenated prefix continues.
-        """
-        source = self._database.item_text(self._ref)
-        if not isinstance(source, ItemText):
-            return None
-        descriptor = source.descriptor
-        if isinstance(descriptor.name, AspectName):
-            return None
-        if isinstance(descriptor.name, AspectFilename):
-            if descriptor.corpus is None:
-                return None
-            corpus = self._database.model().find_corpus(descriptor.corpus)
-            if corpus is None:
-                return None
-            base = corpus.document_base(descriptor.name)
-            return None if base is None else base.filename
-        if descriptor.name is None:
-            return None
-        match descriptor.name:
-            case CorpusSpecName() | NamespaceSpecName():
-                base_spec = self._database.model().find_specification_base(MetaSpecRef(self._ref.path))
-                return None if base_spec is None else parse_spec_name(base_spec.name)
-            case _:
-                return None
+        """Where the item's relative links are read from."""
+        source = self.text()
+        return self.item_descriptor().link_base if source is not None else None
 
 
 class Database:

@@ -6,14 +6,17 @@ from typing import cast
 
 from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.num import UnsignedInt
+from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
-from lorecraft.project.item import DocumentOrigin, ItemOrigin
-from lorecraft.project.link_target import DocumentLink, LinkBase, LinkTargetEntry
+from lorecraft.project.document import DocumentRef, MetaSpecRef
+from lorecraft.project.item import DocumentOrigin, ItemDescriptor, ItemOrigin, ItemRef
+from lorecraft.project.link_target import DocumentDirectory, DocumentLink, LinkBase, LinkTargetEntry
 from lorecraft.project.query import (
     DecodedText,
     ItemQuery,
     QueryTargetRef,
+    item_base,
     item_corpus,
     item_frontmatter,
     item_line_count,
@@ -93,6 +96,42 @@ class StructurePrimitives:
         """The origin this was built with."""
         return self.origin_value
 
+    def item_descriptor(self) -> ItemDescriptor:
+        """The descriptor synthesized from this standalone test value."""
+        name = self.name
+        corpus = self.corpus
+        path = RootRelativePath.parse(f'docs/{corpus or "guide"}/{name or "setup"}.md')
+        link_base = self.link_base_value or DocumentDirectory(path.parent)
+        return ItemDescriptor(
+            ItemRef(path),
+            path,
+            link_base,
+            self.origin_value,
+            name,
+            str(name or self.base_name or ''),
+            corpus,
+            (),
+            frozenset(),
+        )
+
+    def model(self) -> StructurePrimitives:
+        """The minimal name hierarchy available to standalone rule tests."""
+        return self
+
+    def find_corpus(self, name: CorpusName) -> StructurePrimitives | None:
+        """Return this item's hierarchy only for the corpus the test supplied."""
+        return self if self.corpus == name else None
+
+    def find_specification_base(self, ref: MetaSpecRef) -> MetaSpecRef | None:
+        """Standalone rule fixtures do not model specification hierarchies."""
+        return None
+
+    def document_base(self, filename: AspectFilename) -> DocumentRef | None:
+        """Return the base explicitly supplied by a standalone document fixture."""
+        if self.base_name is None:
+            return None
+        return DocumentRef(self.corpus or CorpusName.parse('guide'), self.base_name)
+
     def item_listed_name(self) -> str:
         """The original name this was built with."""
         return str(self.name or self.base_name or '')
@@ -169,6 +208,8 @@ class StructurePrimitives:
             return self.corpus
         if query is item_name:
             return self.name
+        if query is item_base:
+            return self.base_name
         if query is item_token_count:
             return self.token_total
         return query(self)
