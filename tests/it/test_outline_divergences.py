@@ -20,6 +20,7 @@ from lorecraft.project.corpus import CorpusName
 from lorecraft.project.database import Database, ItemText, Read
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.item import MarkdownItemRef
+from lorecraft.project.query import item_line_count, item_parse
 from lorecraft.project.schemas import (
     AbsentSection,
     DocumentEnd,
@@ -33,7 +34,6 @@ from lorecraft.project.schemas import (
 from lorecraft.project.syntax import (
     Heading,
     LineNumber,
-    ParsedDocument,
     SectionHeading,
     parse_document,
     section_headings,
@@ -100,14 +100,11 @@ class ParsingDatabase(Database):
         super().__init__(fs, model)
         self.parsed: list[MarkdownItemRef] = []
 
-    def item_parse(self, source: ItemText) -> ParsedDocument:
-        """Record the document, then parse it.
-
-        Args:
-            source: The decoded document that is parsed, recorded by its ref first.
-        """
-        self.parsed.append(source.ref)
-        return super().item_parse(source)
+    def _memo_query[T](self, key: Read, answer: Callable[[], T], reads: Callable[[], frozenset[Read]]) -> T:
+        """Record parse query evaluations, then memoize them as usual."""
+        if key.source is item_parse:
+            self.parsed.append(key.subject)
+        return super()._memo_query(key, answer, reads)
 
 
 def _snapshot(corpus_spec: bytes | None, namespace_spec: bytes | None, text: str) -> Snapshot:
@@ -256,10 +253,10 @@ class TestOutlineDivergences:
         unoutlined.query(outline_divergences, ref)
 
         #: Then
-        assert Read('line_count', ref) in outlined.query_reads(outline_divergences, ref), (
+        assert Read(item_line_count, ref) in outlined.query_reads(outline_divergences, ref), (
             'the end of the document is counted'
         )
-        assert Read('line_count', ref) not in unoutlined.query_reads(outline_divergences, ref), (
+        assert Read(item_line_count, ref) not in unoutlined.query_reads(outline_divergences, ref), (
             'no outline, no lines counted'
         )
 

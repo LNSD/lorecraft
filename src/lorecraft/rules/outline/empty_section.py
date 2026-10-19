@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import ClassVar, Protocol, Self, assert_never
 
 from lorecraft.core.path import RootRelativePath
-from lorecraft.project.query import GovernancePrimitives, Query, SyntaxPrimitives
+from lorecraft.project.query import GovernancePrimitives, Query, SyntaxPrimitives, item_parse, item_structure_specs
 from lorecraft.project.schemas import (
     AnyRunAlignment,
     NamedAlignment,
@@ -79,8 +79,8 @@ def empty_section_facts(primitives: _GovernanceSyntaxPrimitives) -> EmptySection
     Args:
         primitives: The model state of the document.
     """
-    specs = tuple(spec.path for spec in primitives.structure_specs() if spec.forbid_empty_sections)
-    headings = primitives.headings()
+    specs = tuple(spec.path for spec in primitives.query(item_structure_specs) if spec.forbid_empty_sections)
+    headings = primitives.query(item_parse).headings
     document_title = find_document_title(headings)
     title = None if document_title is None else document_title.heading
     sections = {section.line: section for section in section_headings(headings)}

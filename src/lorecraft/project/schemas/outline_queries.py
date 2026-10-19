@@ -6,6 +6,8 @@ model rather than with one rule.
 
 from typing import TYPE_CHECKING
 
+from lorecraft.project.query import item_parse, item_structure_specs
+
 from .outline_alignment import OutlineAlignmentSpec, align_outlines
 
 if TYPE_CHECKING:
@@ -23,5 +25,5 @@ def outline_alignment(primitives: 'Primitives') -> tuple[OutlineAlignmentSpec, .
     Args:
         primitives: The model state of the document.
     """
-    specs = primitives.structure_specs()
-    return align_outlines(specs, primitives.headings()) if specs else ()
+    specs = primitives.query(item_structure_specs)
+    return align_outlines(specs, primitives.query(item_parse).headings) if specs else ()

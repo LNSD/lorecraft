@@ -81,7 +81,7 @@ class SchemaPrimitives(QueryPrimitives['SchemaPrimitives'], SchemaReads, Protoco
         ...
 
 
-class SyntaxPrimitives(Protocol):
+class SyntaxPrimitives(QueryPrimitives['Primitives'], Protocol):
     """What the item's parse holds: its headings, anchors, links and frontmatter block."""
 
     def item_text(self) -> DecodedText | None:
@@ -117,7 +117,7 @@ class CountPrimitives(Protocol):
         ...
 
 
-class GovernancePrimitives(Protocol):
+class GovernancePrimitives(QueryPrimitives['Primitives'], Protocol):
     """What governs the item and what it is named: its specifications, schemas, owner and place among the documents."""
 
     def structure_specs(self) -> tuple[StructureSpec, ...]:
@@ -166,7 +166,6 @@ class LinkResolutionPrimitives(Protocol):
 
 
 class Primitives(
-    QueryPrimitives['Primitives'],
     ItemReads,
     SchemaReads,
     SyntaxPrimitives,

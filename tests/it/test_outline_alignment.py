@@ -6,6 +6,7 @@ specifications of which one states no outline, one no structure specification go
 section is aligned is `align_outlines`'s, tested on its own beside it.
 """
 
+from collections.abc import Callable
 from typing import Final
 
 import pytest
@@ -17,6 +18,7 @@ from lorecraft.project.corpus import CorpusName
 from lorecraft.project.database import Database, ItemText, Read
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.item import MarkdownItemRef
+from lorecraft.project.query import item_parse, item_structure_specs
 from lorecraft.project.schemas import (
     AnyRunAlignment,
     NamedAlignment,
@@ -25,7 +27,6 @@ from lorecraft.project.schemas import (
     outline_alignment,
 )
 from lorecraft.project.schemas.outline_alignment import AlignedSection
-from lorecraft.project.syntax import ParsedDocument
 from lorecraft.project.workspace import WorkspaceModel
 from lorecraft.vfs import Snapshot, VirtualFileSystem
 
@@ -69,14 +70,11 @@ class ParsingDatabase(Database):
         super().__init__(fs, model)
         self.parsed: list[MarkdownItemRef] = []
 
-    def item_parse(self, source: ItemText) -> ParsedDocument:
-        """Record the document, then parse it.
-
-        Args:
-            source: The decoded document that is parsed, recorded by its ref first.
-        """
-        self.parsed.append(source.ref)
-        return super().item_parse(source)
+    def _memo_query[T](self, key: Read, answer: Callable[[], T], reads: Callable[[], frozenset[Read]]) -> T:
+        """Record parse query evaluations, then memoize them as usual."""
+        if key.source is item_parse:
+            self.parsed.append(key.subject)
+        return super()._memo_query(key, answer, reads)
 
 
 def _snapshot(corpus_spec: bytes | None, namespace_spec: bytes | None, text: str) -> Snapshot:
@@ -234,6 +232,8 @@ class TestOutlineAlignment:
 
         #: Then
         assert database.query_reads(outline_alignment, MarkdownItemRef(TYPING.path)) == {
-            Read('structure_specs', MarkdownItemRef(TYPING.path)),
-            Read('headings', MarkdownItemRef(TYPING.path)),
+            Read(item_structure_specs, MarkdownItemRef(TYPING.path)),
+            Read('item_governance', MarkdownItemRef(TYPING.path)),
+            Read(item_parse, MarkdownItemRef(TYPING.path)),
+            Read('item_text', MarkdownItemRef(TYPING.path)),
         }, 'the carry-over is derived from what the query read'
