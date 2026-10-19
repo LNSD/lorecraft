@@ -17,7 +17,7 @@ built: [adr-009](adr-009-rules.md) how a rule is declared and identified, [adr-0
 rule reports and how it reaches the user, and [adr-011](adr-011-rules-engine.md) how a run judges subjects.
 Requirement identifiers such as `FR-009` cite the PRD, and the terms are those of [adr-009's
 glossary](adr-009-rules.md#glossary). Names of types, modules, codes and prefixes in the sketches are illustrative;
-the shapes are the decision. Which rules exist, and which base and facet each takes, is the registry's and the
+the shapes are the decision. Which rules exist, and which base and meta spec part each declares, is the registry's and the
 rulebook's to say, never this record's.
 
 ## Context
@@ -38,7 +38,7 @@ What it replaces is everything around the checks:
 
 ## Decision
 
-1. **A rule names its query and judges the facts it returns** and, over a document, declares the facet it is
+1. **A rule names its query and judges the facts it returns** and, over a document, declares the meta spec part it is
    governed for. A rule may walk the parse tree its facts hold, but a pass over a file's raw text or a schema
    is a query, and so is a walk several rules share. A helper that only selects from a value the facts already
    hold, such as the first H1 among the parsed headings, is not such a walk, so it stays a function beside the parse
@@ -46,7 +46,7 @@ What it replaces is everything around the checks:
 2. **One runner** resolves each rule's query for a subject through the database and hands the facts to the rule's
    judgement, with one hand-written branch per subject kind. A query asks the database only for what a rule reads.
 3. **A subject's status is the engine's, not a rule's.** Whether a file decodes, and whether a meta spec
-   governs each facet, is resolved before any rule runs.
+   governs each meta spec part, is resolved before any rule runs.
 4. **Levels are applied after detection.** The configuration is an input of the revision, and a rule's result
    never depends on it.
 5. **The engine is efficient within one revision**, caching in memory and persisting nothing across runs.
@@ -68,7 +68,7 @@ per run            configuration (a query of the revision) ──▶ levels
                    rule table = registry × levels × selection
                      · enabled rules only (allow and filtered-out rules are absent)
                      · each with its severity
-                     · partitioned by base, a document's rules also by facet, in code order
+                     · partitioned by base, a document's rules also by meta spec part, in code order
                      · a bad configuration is raised here, before any subject
                        │
                        ▼
@@ -76,7 +76,7 @@ per run            configuration (a query of the revision) ──▶ levels
                      for each subject:
                        decode → witness, or an undecodable engine diagnostic
                        decode once; each rule's query runs over the item
-                       for each facet an enabled rule over a document declares:
+                       for each meta spec part an enabled rule over a document declares:
                          governed or ungoverned, from the meta specs
                          for each rule in that partition: rule.judge(facts of rule.query()) → occurrences
                        locate the occurrences into diagnostics with the table's severities
@@ -88,7 +88,7 @@ per run            configuration (a query of the revision) ──▶ levels
 - **Generic over rules.** The runner never names a rule: a new rule is a class the registry collects, and it
   joins its base's partition of the table.
 - **Specific over subject kinds.** The runner has one hand-written branch per subject kind, which keeps dispatch
-  typed: the document partition holds `type[DocumentRule]`, so `rule.judge(facts)` checks against
+  typed: the document partition holds queried item rules with document gates, so `rule.judge(facts)` checks against
   the facts its query returns.
 - **Configuration and selection never reach a rule.** They shape the table and nothing else.
 - **Subjects arrive chosen.** The command line chooses the subjects, the whole workspace until paths arrive; the
@@ -132,35 +132,34 @@ names every path it looked up, an absent target included, since creating a missi
 Nothing a rule reads is left outside a query contract.
 
 **A subject's facts are the query's.** `lorecraft.project.query` declares the primitives a query reads as focused
-protocols, and a rule base per subject kind types its query and its judgement by the facts it returns, with a base
-for what several kinds share: any one Markdown file, one of a skill's files, and the frontmatter of a document and a
-skill alike. A rule over a document declares the facet it reads in `GOVERNED_BY`: a frontmatter schema, the structure
-file its corpus states, an outline, or a token budget. A rule over the frontmatter inherits the frontmatter facet from
-its base, so the runner gates it on a document as it gates a rule over a document, and a skill is governed for it by
-the package. A rule over a Markdown file judges a document under its structure, and every skill entrypoint, which the
-package governs; a rule over a skill's file or a layout entry declares no facet. A rule over a shared analysis
-filters its own problem type out of the one answer the query gives; a selection from a value the facts already hold,
-such as the first H1, is a helper beside the parse tree.
+protocols. Each queried item rule types its query and judgement by the facts it returns, then declares applicable item
+kinds and their gates in `GATES`. A gate names the meta spec part, package or registered schema that admits the rule.
+A document rule may require frontmatter schema, structure, outline or token-budget governance. Frontmatter rules
+state a gate for each item kind they judge. A document's Markdown checks use its structure part; skill entrypoints
+and resources receive package-gated Markdown checks. A skill's Agent Skills floor is a schema gate, while its other
+meta spec parts come from the reserved `skills` corpus. A resource has no corpus governance. A rule over a shared
+analysis filters its problem type from the one answer its query returns; a selection from facts already held, such as
+the first H1, is a helper beside the parse tree.
 
 **A layout entry is read through a query over its record**, since it has no text. One layout entry is one symlink of
 the skill layout whose chain leaves the repository: a skills directory, an entry in one or an entry's `SKILL.md`, from
 the model's outside symlinks, or a symlink inside a skill, from that skill's resource listing. The loader and the
 resource walk decide that a chain leaves, from the link targets the scan recorded, so a symlink that stays or dangles
 inside is no entry. `SymlinkPrimitives` and `CorpusDirectoryPrimitives` state where the chain leaves, a fact and never a
-verdict, from the record those queries returned. A rule over an entry derives from `LayoutRule`, through
-`QueriedSymlinkRule` or `QueriedCorpusDirectoryRule`, and only words the finding, at the path an agent reaches the
-symlink by. A symlink has no text, so it is never decoded, and the package governs the layout, so it is never ungoverned.
+verdict, from the record those queries returned. A rule over an entry derives from `QueriedSymlinkRule` or
+`QueriedCorpusDirectoryRule`, and only words the finding, at the path an agent reaches the
+symlink by. A symlink has no text, so it is never decoded, and package rules cover the layout, so it is never ungoverned.
 
 ### A Subject's Status Comes Before Any Rule
 
 - **Readable or undecodable.** A file is decoded once, as a query value: its text, or an undecodable marker,
   cached like any result. The runner decodes every selected subject, whatever the levels. That is the one read
   NFR-003 does not gate, so that FR-020 holds under any configuration.
-- **Governed or ungoverned, per facet.** Governance comes from the model, which computes it once. A document can be
+- **Governed or ungoverned, per meta spec part.** Governance comes from the model, which computes it once. A document can be
   governed for its frontmatter and ungoverned for its outline. The runner runs a rule over a document or over the
-  frontmatter only when the document is governed for the rule's facet, and records each facet an enabled rule reads
-  that it is not governed for. A skill and a resource are governed by the package for every facet, so neither is ever
-  ungoverned.
+  frontmatter only when the document is governed for the rule's meta spec part, and records each meta spec part an enabled rule reads
+  that it is not governed for. Package and schema gates remain independent of a skill entrypoint's corpus governance; a resource has no corpus
+  governance and receives package-gated checks.
 - **Undecodable is an engine diagnostic**, not a rule (FR-020). It has a fixed code under the engine's prefix
   and a rulebook page, and no level. It always fails the run, and a configuration that names its code fails.
 - **Ungoverned is coverage**, not a diagnostic (FR-019). It describes the meta specs, not the subject.
@@ -188,9 +187,9 @@ Python's types bound what this proves, and the design states the two gaps rather
 
 The runner takes the database, the selected subjects and a rule table. The table is built once per run from the
 registry and the resolved levels: the enabled rules, partitioned by base, in code order, and a document's rules
-also by facet. Each partition holds every enabled rule beside its severity, so a rule the runner holds always
-has one. For a document, the runner runs, for each facet an enabled document rule declares, and the
-frontmatter facet when a frontmatter rule is enabled, those rules' queries and judgements, or records the facet as
+also by meta spec part. Each partition holds every enabled rule beside its severity, so a rule the runner holds always
+has one. For a document, the runner runs, for each meta spec part an enabled document rule declares, and the
+frontmatter part when a frontmatter rule is enabled, those rules' queries and judgements, or records the part as
 ungoverned; the Markdown rules run beside the `STRUCTURE` rules. For a skill, it runs every
 frontmatter rule, then every skill rule, every Markdown rule and every skill-file rule. For a resource, it
 runs every Markdown rule and every skill-file rule. For a layout entry, it runs every layout rule over the query of
@@ -201,11 +200,11 @@ diagnostics.
 def judge_item(database: Database, source: ItemText, table: RuleTable) -> CheckedItem:
     descriptor = source.descriptor
     diagnostics: list[Diagnostic] = []
-    ungoverned: list[Facet] = []
+    ungoverned: list[MetaSpecPart] = []
 
-    for facet in (*Facet, None):
+    for part in (*MetaSpecPart, None):
         partitions = [
-            _reading(partition, descriptor, facet)
+            _reading(partition, descriptor, part)
             for partition in (
                 table.frontmatter_rules,
                 table.document_rules,
@@ -214,10 +213,10 @@ def judge_item(database: Database, source: ItemText, table: RuleTable) -> Checke
                 table.skill_file_rules,
             )
         ]
-        if not any(partitions):  # a facet no applicable enabled rule reads is never looked at
+        if not any(partitions):  # a meta spec part no applicable enabled rule reads is never looked at
             continue
-        if facet is not None and ItemFacet(facet.value) not in descriptor.active_facets:
-            ungoverned.append(facet)
+        if part is not None and part not in descriptor.governed_parts:
+            ungoverned.append(part)
             continue
         for rules in partitions:
             for enabled in rules:
@@ -302,7 +301,7 @@ def judge_item(database: Database, source: ItemText, table: RuleTable) -> Checke
 
 | Piece | Package |
 |---|---|
-| Rule classes and removed rules, the registry, the rule groups and their rules, the rule bases per subject kind and the facets | `lorecraft.rules` |
+| Rule classes and removed rules, the registry, the rule groups and their rules, item-rule gates by kind and meta spec part | `lorecraft.rules` |
 | The rule table, the report types, the selection's rule-side types, level resolution | `lorecraft.rules` |
 | The runner, which resolves each rule's query and hands the facts to its judgement | `lorecraft.engine` |
 | Each mode's policy for a document a failed layer governs: skip for the check run, partial for the LSP-style mode | `lorecraft.engine` |
@@ -400,7 +399,7 @@ Before committing code, verify:
   rule, reached through a query a rule names, and never a rule with several codes
 - [ ] A new rule joins its base's partition through the registry, and the runner does not change for it
 - [ ] Every per-file query takes the decode witness, and only the database builds one
-- [ ] A file that cannot be decoded is an engine diagnostic and a facet no meta spec governs is coverage, both
+- [ ] A file that cannot be decoded is an engine diagnostic and a meta spec part no governing layer states is coverage, both
   resolved before any rule runs
 - [ ] A rule at `allow` is not in the rule table, and a selection only filters it, never enabling a rule
 - [ ] Neither a rule nor its detection reads the configuration or the selection; levels apply after detection

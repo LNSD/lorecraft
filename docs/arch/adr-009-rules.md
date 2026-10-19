@@ -48,7 +48,7 @@ shorter still: the checker reports errors and warnings, and they act on them.
 | **Cause** | One case of an engine condition, such as which rule of a structure file cannot be applied: a type in the condition's closed union, held as data of its occurrence |
 | **Subject** | What is checked: a document, a skill, a skill resource or a layout entry |
 | **Facts** | What a rule's query returns for one decoded subject, a pure function of the primitives it reads, each a query of the database |
-| **Facet** | What part of a document a meta spec governs, which a rule over a document or the frontmatter is gated on |
+| **Meta-spec part** | What part of an item a rule reads from its governing meta specs and declares in its gate |
 | **Diagnostic** | An occurrence located at a subject's path, with a severity |
 | **Level** | `allow`, `warn` or `deny`: how a rule is configured |
 | **Severity** | `error` or `warning`: what a diagnostic carries, and what a user acts on |
@@ -56,7 +56,7 @@ shorter still: the checker reports errors and warnings, and they act on them.
 | **Help**, **note** | A sub-diagnostic: help says how to fix this occurrence, a note gives the context that explains it. Either may point at a location |
 | **Location** | A line in the subject, the whole subject when it has no lines, or a place in another file, such as the meta spec. The runner supplies the subject's path |
 | **Engine diagnostic** | A diagnostic no rule produced: an engine condition's occurrence, or a warning about the configuration |
-| **Coverage** | Which facets of a subject no meta spec governs. Never a diagnostic |
+| **Coverage** | Which meta-spec parts of a subject no governing layer states. Never a diagnostic |
 | **Failure** | What stops Lorecraft from judging at all: raised, and exit code 2 |
 
 ## Decision
@@ -82,7 +82,7 @@ shorter still: the checker reports errors and warnings, and they act on them.
 ```python
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
-class EmptySection(DocumentRule):
+class EmptySection(QueriedItemRule[SectionFacts]):
     """A section holds no content, under a structure file that forbids empty sections.
 
     ## What it does
@@ -95,7 +95,7 @@ class EmptySection(DocumentRule):
     NAME: ClassVar[RuleName] = RuleName('empty-section')
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('0.3.0')
-    GOVERNED_BY: ClassVar[Facet] = Facet.STRUCTURE
+    GATES: ClassVar[Mapping[ItemKind, Gate]] = {ItemKind.DOCUMENT: ByMetaSpec(MetaSpecPart.STRUCTURE)}
 
     spec: RootRelativePath
     section: str
@@ -112,14 +112,13 @@ class EmptySection(DocumentRule):
   as [adr-010-diagnostics](adr-010-diagnostics.md) states, and the meta spec file that states the rule, or none
   for a rule the package states. A rule over a subject with lines carries the line; one over a layout entry
   carries none.
-- **The base class names the subject kind.** Each subject kind has a base whose `query` names the facts a rule reads and whose
-  abstract `judge` takes them, the facts being typed by the rule. What several kinds share has a base too, such as the frontmatter
-  of a document and a skill alike, or any one Markdown file, so one check judges each of them. A rule picks its
-  subject by picking its base, and names the query for what it reads.
-- **A rule over a document declares the facet it reads** in `GOVERNED_BY`, so the runner gates it on governance;
-  the registry rejects one that declares none. The package governs skills, their files and the skill layout, so a
+- **An item rule declares its applicability.** Every item rule names its query and maps each kind it judges to a gate.
+  A gate names the meta spec part, package or registered schema that permits the rule to run. Shared query facts let
+  one rule judge several item kinds without a separate base for each kind.
+- **A rule over a document declares the meta spec part it reads** in `GATES`, so the runner gates it on governance;
+  the registry rejects an item rule with no gates. The package governs skills, their files and the skill layout, so a
   rule over them declares none.
-- **`check` returns `tuple[Self, ...]`**, so a rule can only report its own occurrence, and the type checker
+- **`judge` returns `tuple[Self, ...]`**, so a rule can only report its own occurrence, and the type checker
   rejects one that reports another's. That needs no type parameter anywhere in the engine.
 - **The message is rendered from the fields.** The corpus, the field and the section travel as data, not as
   text inside a message (FR-011), so the machine-readable output and a persisted result hold structured values.
@@ -307,7 +306,7 @@ Before committing code, verify:
 - [ ] A rule's `message()` never branches; a condition fixed differently is another class and another code
 - [ ] An engine condition has one code per kind of fix; its cases are a closed union of cause types, matched with
   `assert_never`, and each cause has a test asserting its message
-- [ ] A rule over a document declares the facet it reads in `GOVERNED_BY`
+- [ ] A rule over a document declares its gates in `GATES`
 - [ ] A code is never reused: a retired rule becomes a `RemovedRule` in the same file
 - [ ] A ported rule keeps a Lorecraft code in the group of its mechanism and lists upstream codes in `ALIASES`
 - [ ] An engine condition is declared in the engine's group, and no rule is

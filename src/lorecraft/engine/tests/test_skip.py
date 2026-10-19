@@ -345,4 +345,4 @@ class TestCheckSubjectsOverASpecification:
         (report,) = check_subjects(database, [CODE_SPECIFICATION], _all_rules())
 
         #: Then
-        assert isinstance(report, CheckedItem), 'the package governs a specification, so no failed layer skips it'
+        assert isinstance(report, CheckedItem), 'failed corpus layers do not skip a meta spec'

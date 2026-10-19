@@ -49,7 +49,7 @@ instructions. It is a governed [item](#item) with kind `SKILL_ENTRYPOINT`.
 
 ### Resource
 
-A Markdown file inside an [agent skill](#agent-skill) other than its top-level `SKILL.md`, at any depth, such as a reference the skill loads on demand. It is named where an agent reaches it, through any symlink inside the skill, and located at the [resolved](#resolved-path) file that path leads to.
+A Markdown file inside an [agent skill](#agent-skill) other than its top-level `SKILL.md`, at any depth, such as a reference the skill loads on demand. It is named where an agent reaches it, through any symlink inside the skill, and located at the [resolved](#resolved-path) file that path leads to. In code, `SkillResourceOrigin.skill_entry` is an accepted alias for the containing skill's listed directory name.
 
 ### Item
 
@@ -121,7 +121,7 @@ What a meta spec file's name says it governs: the filename with its [file type](
 
 ### Aspect
 
-The part of a name after its corpus: in `docs/code/python-fn.md`, or the [meta spec name](#meta-spec-name) `code-python-fn`, the corpus is `code` and the aspect is `python-fn`. An aspect splits into a namespace and a [facet](#facet): `python-fn` is the namespace `python` plus the facet `fn`. The `spec` part of `code.spec.json` is not an aspect: what that file is comes from its [file type](#file-type).
+The part of a name after its corpus: in `docs/code/python-fn.md`, or the [meta spec name](#meta-spec-name) `code-python-fn`, the corpus is `code` and the aspect is `python-fn`. An aspect splits into a namespace and a [facet](#facet): `python-fn` is the namespace `python` plus the facet `fn`. The `spec` part of `code.spec.json` is not an aspect: what that file is comes from its [file type](#file-type). In code, `aspect_name`, `AspectFilename` and `AspectNamespace` are accepted aliases for the corresponding item name, document-name and namespace-name values.
 
 ### Facet
 
@@ -139,7 +139,7 @@ A feat doc's maturity label: `development`, `unstable`, `experimental`, or `stab
 
 ### Machine-checkable companion
 
-A JSON file of a meta spec, beside its prose, that holds the rules a checker can decide: the structure file, `<name>.spec.json`, holding the section structure with its word caps, the token budget and the frontmatter schema. Formerly *structure specification*.
+A JSON file of a meta spec, beside its prose, that holds the rules a checker can decide: the structure file, `<name>.spec.json`, holding the section structure with its word caps, the token budget and the frontmatter schema. Formerly *structure specification*. The bundled Agent Skills frontmatter schema ref is identified in code by `AGENT_SKILLS_SCHEMA_REFERENCE`, an accepted alias for that schema reference.
 
 ### File type
 

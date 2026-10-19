@@ -47,7 +47,7 @@ relative to it. `docs/` and `docs/__meta__/` must be [real directories](workspac
 
 ### The Subjects
 
-Checks workspace docs/specs, skills/resources and escaping symlinks. Package governs specs; `LINK005` and `LINK006` judge them too. Shared skills once; subjects and diagnostics follow path order. Budgets: skills 10000; code 6500; docs/feat 3500. A skill without a skills-corpus layer is ungoverned for structure, outline and budget; resources without governed parts are ungoverned.
+Checks workspace docs/specs, skills/resources and escaping symlinks. Package-gated `LINK005` and `LINK006` also check meta specs. Shared skills once; subjects and diagnostics follow path order. Budgets: skills 10000; code 6500; docs/feat 3500. A skill without a skills-corpus layer is ungoverned for structure, outline and budget; resources without governed parts are ungoverned.
 ### One Run, One Snapshot
 
 Rules read one snapshot; meta specs load first. A failed structure file gets one diagnostic; governed docs are skipped, others checked. A failed skills-corpus layer skips structure, outline and budget checks; package and schema checks continue. `LC001` invalid UTF-8 is unjudged. Structure diagnostics and coverage use the actual `.spec.json` name.

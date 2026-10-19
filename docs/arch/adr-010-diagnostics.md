@@ -74,10 +74,11 @@ diagnostic from those fields:
 ```python
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
-class MissingSection(DocumentRule):
+class MissingSection(QueriedItemRule[MissingSectionFacts]):
     """..."""
 
     CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 6)
+    GATES: ClassVar[Mapping[ItemKind, Gate]] = {ItemKind.DOCUMENT: ByMetaSpec(MetaSpecPart.STRUCTURE)}
     ...
     spec: RootRelativePath
     section: SectionName
@@ -269,8 +270,8 @@ type SubjectReport = CheckedItem | UndecodableSubject | CheckedLayoutEntry | Ski
   diagnostic carries one of two severities.
 - **An undecodable subject has one diagnostic and no coverage**, which the union states: the engine's
   `InvalidUtf8` (`LC001`) at its path, since no rule judged it.
-- **A skill entrypoint has no coverage either.** The package governs every skill and resource for every facet, so a
-  `CheckedItem` for a skill holds no ungoverned facets; a `CheckedItem` for a document may hold them.
+- **Coverage records missing meta spec parts only.** Package and schema checks are not reported as ungoverned parts;
+  a `CheckedItem` for a skill entrypoint or document may carry ungoverned parts when no governing layer states them.
 - **A layout entry is reported by its path, and has no coverage.** It is not a document, a skill or a resource, so
   it has no subject reference, and no meta spec governs it, so it can never be ungoverned. Its diagnostics take the
   same shape as every other subject's.
