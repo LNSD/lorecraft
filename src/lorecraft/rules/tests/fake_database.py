@@ -20,7 +20,7 @@ from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.project.aspect import AspectFilename, AspectNamespace
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.document import DocumentRef
-from lorecraft.project.item import DocumentOrigin, ItemRef, SkillEntryOrigin
+from lorecraft.project.item import DocumentOrigin, ItemRef, SkillOrigin
 from lorecraft.project.layout import DOCS_DIR, SPECS_DIR
 from lorecraft.project.link_target import (
     DocumentDirectory,
@@ -324,7 +324,7 @@ class FakeSkillDatabase:
                 base=SkillRoot(_SKILLS_DIRECTORY / self._directory_name),
                 line_total=count_lines(self._text),
                 frontmatter_node=self.frontmatter(),
-                origin_value=SkillEntryOrigin(expected_name=str(self._directory_name), link_target=self._link_target),
+                origin_value=SkillOrigin(expected_name=str(self._directory_name), link_target=self._link_target),
             )
         )
 

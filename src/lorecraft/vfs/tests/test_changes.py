@@ -60,7 +60,7 @@ def _docs_link(name: str, target: str) -> Snapshot:
 
 
 def _linked_skill(leads_to: Mapping[str, EntryRecord]) -> Snapshot:
-    """A scan-shaped snapshot whose one skill entry links to `skills/review`, plus the records given.
+    """A scan-shaped snapshot whose one skill links to `skills/review`, plus the records given.
 
     Args:
         leads_to: What the scan recorded where the link leads; empty when the link dangles.

@@ -66,23 +66,23 @@ keep layout subjects separate because their primitives and query subjects differ
    same gate.
 
    The mapping can express the existing cases directly: an ordinary document rule governed by part `p` declares
-   `{DOCUMENT: ByMetaSpec(p)}`; a package-only skill check declares `{SKILL_ENTRY: ByPackage()}`; and a rule shared by documents and
+   `{DOCUMENT: ByMetaSpec(p)}`; a package-only skill check declares `{SKILL: ByPackage()}`; and a rule shared by documents and
    skill entries declares a gate for each. A Markdown rule uses `ByMetaSpec(STRUCTURE)` for ordinary documents and
-   `ByPackage()` for `SPECIFICATION`, `SKILL_ENTRY` and `SKILL_RESOURCE`. A frontmatter rule uses
+   `ByPackage()` for `SPECIFICATION`, `SKILL` and `SKILL_RESOURCE`. A frontmatter rule uses
    `ByMetaSpec(FRONTMATTER)` for documents and skill
-   entries, except `name_mismatch`, whose skill-entry gate is `BySchema` of the registered Agent Skills floor
+   entries, except `name_mismatch`, whose skill gate is `BySchema` of the registered Agent Skills floor
    `SchemaReference`. When the floor is opted out, the frontmatter part remains a coverage gate on skill entries
    and is reported as `ungoverned`; the rules do not judge that inactive part. This is a vocabulary for
    applicability, not a central list of which rules exist.
 
 3. **Governance follows loaded layers.** `governed_parts` contains only the parts stated by loaded layers, for every
-   item kind; no part is forced active. Rules applied to `SPECIFICATION` items use `ByPackage()`. A skill-entry rule
+   item kind; no part is forced active. Rules applied to `SPECIFICATION` items use `ByPackage()`. A skill rule
    gated by a part uses plain `ByMetaSpec(part)`, just as a document rule does: a skills layer stating the part is the
    condition for judging. Package-only skill checks keep `ByPackage()`. `requires_loaded_layer` is removed. When a
    skills layer fails, skill entries follow the mode's skip policy in
    `engine/skip.py`, rather than handling failed-layer state in `judges`.
 
-   A skill entry with no skills-corpus layer is reported as `ungoverned` for `STRUCTURE`, `OUTLINE` and `BUDGET`
+   A skill with no skills-corpus layer is reported as `ungoverned` for `STRUCTURE`, `OUTLINE` and `BUDGET`
    when enabled rules read those parts. Coverage therefore exposes missing governance instead of silently skipping
    the entry. This is the recommended behavior because coverage describes what is ungoverned, as it does for
    documents. The alternative, a `BySkillsCorpus(part)` gate, would preserve today's silent skip but introduce a

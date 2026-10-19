@@ -72,7 +72,7 @@ class AllowedToolsTooLong(QueriedItemRule[AllowedToolsField | None]):
     NAME: ClassVar[RuleName] = RuleName('allowed-tools-too-long')
     LEVEL: ClassVar[Level] = Level.WARN
     SINCE: ClassVar[Release] = Release('0.3.0')
-    GATES: ClassVar[Mapping[ItemKind, Gate]] = MappingProxyType({ItemKind.SKILL_ENTRY: ByPackage()})
+    GATES: ClassVar[Mapping[ItemKind, Gate]] = MappingProxyType({ItemKind.SKILL: ByPackage()})
 
     spec: None = None
     overrun: Overrun

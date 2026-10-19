@@ -11,12 +11,12 @@ for the model; parsed structure specifications remain in their existing layer.
 
 The skills come from the agents: the loader asks each agent in `lorecraft.agents` which project skills
 directories it reads, keeps the ones the repository has, and lists the skills in each resolved directory once. A
-skills directory, a skill entry or a `SKILL.md` whose symlink chain leaves the repository is recorded in the model
+skills directory, a skill or a `SKILL.md` whose symlink chain leaves the repository is recorded in the model
 as an outside symlink, for a check to report. Any other entry that does not fit the layout is left out of the
 model; nothing it leaves out fails the run.
 
 The loader is total over the declaration: it reads each unit on its own, a structure file, a corpus directory, a
-skills directory, a skill entry or a `SKILL.md`, and a unit that fails is recorded in the model as a load failure
+skills directory, a skill or a `SKILL.md`, and a unit that fails is recorded in the model as a load failure
 while the loader goes on with the next one. A structure file that fails stands in its meta spec layer as a
 `FailedStructure` and is listed too. Each repository still raises its own error variant; the loader catches the
 variants of one unit, keeps the details they carry and drops the exception. Nothing here logs.

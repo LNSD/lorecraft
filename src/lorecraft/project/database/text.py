@@ -39,7 +39,7 @@ class Undecodable:
     """A file whose bytes are not UTF-8: what `Database.item_text` returns instead of a witness.
 
     Attributes:
-        ref: The document, skill entry or resource whose file did not decode.
+        ref: The document, skill or resource whose file did not decode.
         failure: Where the file's bytes first stop being UTF-8, and why.
     """
 

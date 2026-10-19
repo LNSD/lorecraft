@@ -1,7 +1,7 @@
 """The rules engine's shared runner: every enabled rule over a subject, through one rule table.
 
 This is what every mode of the engine shares: the governance lookup, gate evaluation, and running
-the table's rules over a subject into its report. It holds no mode's policy. A document, specification, skill entry
+the table's rules over a subject into its report. It holds no mode's policy. A document, specification, skill
 and resource are decoded by each mode's own entry point beside this module, `skip.check_subjects` for the check run,
 so that its policy for an item a failed layer governs comes after decoding; the entry point hands the decoded item to
 `judge_item` and the other subjects to the functions here.
@@ -23,7 +23,7 @@ judges every `SKILL.md` and every resource, and never a document. The database a
 so a value no enabled rule reads is never computed.
 
 The subjects are those of `skip.Subject`, which defines and dispatches them: documents, specifications, skills,
-skills' resources and layout entries. A decoded document, skill entry or resource
+skills' resources and layout entries. A decoded document, skill or resource
 is judged by the one entry `judge_item`; a layout entry has a function of its own, so a subject kind without one is a
 type error. A document is handed over as its ref, and a skill as the `SkillLocation` the
 model hands out for it, since a rule over a skill may read where its directory leads. A skill is its `SKILL.md`,
@@ -73,7 +73,7 @@ from lorecraft.rules.table import EnabledRule, QueriedItem, RuleTable
 
 
 def judge_item(database: Database, source: ItemText, table: RuleTable) -> CheckedItem:
-    """Run enabled rules over a decoded document, specification, skill entry or resource.
+    """Run enabled rules over a decoded document, specification, skill or resource.
 
     A mode decodes the item and decides what a layer that failed to load means for it; this judges it against the
     gates applicable to its kind. A rule judges an item only when its gate admits that item; an applicable enabled
@@ -130,7 +130,7 @@ def judges(
         return False
     match gate:
         case ByMetaSpec(_, requires_loaded_layer):
-            if descriptor.kind is ItemKind.SKILL_ENTRY and requires_loaded_layer:
+            if descriptor.kind is ItemKind.SKILL and requires_loaded_layer:
                 return bool(descriptor.governance_corpus) and governance is not None and not governance.failed_layers()
             return True
         case ByPackage():

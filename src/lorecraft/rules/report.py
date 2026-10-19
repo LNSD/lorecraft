@@ -14,7 +14,7 @@ that order as the fields it compares, and `diagnostic_order` builds it as the so
 Each subject the runner checks, a document, a meta spec, a skill or a skill's resource, gets one report,
 and either kind of report gives its diagnostics as `diagnostics`. A `CheckedItem` decoded, and holds its
 diagnostics, in their output order however it is built, and the meta spec parts no meta spec governs it for. A
-skill entry has package checks independent of corpus governance, while a resource has no meta-spec structure
+skill has package checks independent of corpus governance, while a resource has no meta-spec structure
 governance. An
 `UndecodableSubject` did not decode,
 so no rule judged it: it holds its ref and where the bytes stopped being UTF-8, and its one diagnostic, the engine's,
@@ -264,8 +264,8 @@ class SkippedSubject:
 class LoadFailureReport:
     """One unit of the declaration that failed to load, reported once at its own path.
 
-    It is a report of its own, beside the subjects', filed at the structure file, the directory or the skill entry
-    that failed, and not once per subject the failure touches.
+    It is a report of its own, beside the subjects', filed at the structure file, the
+    directory or the listed skill directory that failed, and not once per subject the failure touches.
 
     Attributes:
         path: Where the declaration reaches the unit that failed: the path its diagnostic is reported at.

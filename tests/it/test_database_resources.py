@@ -187,4 +187,4 @@ class TestResourceItems:
         database.item_text(ItemRef(RootRelativePath.parse('.agents/skills/review/SKILL.md')))
 
         #: Then
-        assert not database._skill_resources, 'deciding a skill entry lists no resources'  # noqa: SLF001
+        assert not database._skill_resources, 'deciding a skill lists no resources'  # noqa: SLF001

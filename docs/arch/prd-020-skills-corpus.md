@@ -318,7 +318,7 @@ Scenario: Inspecting a skill resource
 - **Skills meta spec:** A meta spec named `skills` or `skills-<namespace>`, in the same directory and with the same
   files as any other.
 - **Context-specific sub-spec:** A sub-spec declared within a skills meta spec defining checks for a
-  specific item context (such as skill entry or skill resource).
+  specific item context (such as skill or skill resource).
 - **Skill resource:** A Markdown file contained within a skill's directory other than its top-level `SKILL.md`.
 - **Built-in skills schema:** The Agent Skills specification's rules, stated as a schema that ships with the tool.
   The `skills` meta spec extends it unless the workspace opts out.

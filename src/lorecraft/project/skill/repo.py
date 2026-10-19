@@ -8,8 +8,10 @@ frontmatter has the shape the Agent Skills specification defines is decided abov
 directories to look in, which the agents state.
 
 A skill is `<skills directory>/<skill name>/SKILL.md` and nothing else. Symlinks are followed here, unlike under
-`docs/`: an agent's skills directory is commonly a link to another one, a skill entry a link to where the skill's
-files live, and a `SKILL.md` a link to where its text lives. A skill is still named where it is listed, under the
+`docs/`: an agent's skills directory is commonly a link to another one, a
+listed skill directory may link to where the skill's files live, and a
+`SKILL.md` a link to where its text lives. A skill is still named where it is listed,
+under the
 resolved skills directory of an agent: the place a link leads to is not a skill of its own. Where each link
 leads is recorded beside the ref, in its location, so what a skill is named by and where its files live are both
 known. A link whose chain leaves the repository is not followed out of it, and is recorded instead as an

@@ -1,6 +1,6 @@
-"""The unified query family of the database, keyed by the common reference of a document or a skill entry.
+"""The unified query family of the database, keyed by the common reference of a document or a skill.
 
-A document and a skill entry decode to one witness type and are asked the same per-file, governance and link-target
+A document and a skill decode to one witness type and are asked the same per-file, governance and link-target
 questions; each answer is computed on demand and kept for the database's lifetime. Every snapshot is built in memory.
 """
 
@@ -17,7 +17,7 @@ from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.database import Database, ItemText, Read, Undecodable
 from lorecraft.project.document import DocumentRef
-from lorecraft.project.item import ItemOrigin, ItemReadError, ItemRef, SkillEntryOrigin, UnlistedItemError
+from lorecraft.project.item import ItemOrigin, ItemReadError, ItemRef, SkillOrigin, UnlistedItemError
 from lorecraft.project.layout import SNAPSHOT_SCOPE
 from lorecraft.project.link_target import EscapingTarget, LinkTarget, PathLookup
 from lorecraft.project.query import (
@@ -116,7 +116,7 @@ class TestItemQueries:
 
         #: Then
         assert isinstance(document, ItemText), 'a document decodes to the shared witness'
-        assert isinstance(skill, ItemText), 'a skill entry decodes to the same witness type'
+        assert isinstance(skill, ItemText), 'a skill decodes to the same witness type'
         assert (document.ref, skill.ref) == (GUIDE, REVIEW), 'each witness is keyed by its common ref'
 
     def test_item_text_of_a_file_that_is_not_utf8_returns_one_marker_without_per_file_facts(self) -> None:
@@ -135,7 +135,7 @@ class TestItemQueries:
         #: Given
         database = Database.from_snapshot(_snapshot(skill=b'---\nname: caf\xe9\n---\n'))
         source = database.item_text(REVIEW)
-        assert isinstance(source, Undecodable), 'the skill entry is not UTF-8'
+        assert isinstance(source, Undecodable), 'the skill is not UTF-8'
 
         #: When
         origin = database.query(_item_origin, REVIEW)
@@ -144,7 +144,7 @@ class TestItemQueries:
         base = database.query(_item_base, REVIEW)
 
         #: Then
-        assert isinstance(origin, SkillEntryOrigin), "the resolved item's origin survives invalid text"
+        assert isinstance(origin, SkillOrigin), "the resolved item's origin survives invalid text"
         assert origin.expected_name == 'review', 'the origin keeps the listed skill name'
         assert (name, corpus, base) == (None, None, None), 'content-derived facts are empty without decoded text'
 
@@ -201,7 +201,7 @@ class TestItemQueries:
         #: Then
         assert database.item_governance(GUIDE) == database.model().find_governance(document), 'the model decides'
         assert database.item_governance(GUIDE) is database.item_governance(GUIDE), 'it is resolved once'
-        assert database.item_governance(REVIEW) is None, 'no repository layer governs a skill entry yet'
+        assert database.item_governance(REVIEW) is None, 'no repository layer governs a skill yet'
 
     def test_item_link_targets_read_each_items_own_base_and_climb_bound(self) -> None:
         #: Given

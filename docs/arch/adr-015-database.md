@@ -23,7 +23,7 @@ one revision. [adr-004](adr-004-database.md) made every query, the project model
 use.
 
 Loading the model fails as a whole today. Any error on the way aborts the load: a structure file that cannot be
-read or is invalid, a corpus or a directory under `docs/` that cannot be listed, a skills directory, skill entry or
+read or is invalid, a corpus or a directory under `docs/` that cannot be listed, a skills directory, skill or
 `SKILL.md` that cannot be resolved. Because the model loads on first use, every query that reaches it, directly or
 through `item_governance(ref)`, can be the call that triggers the load. So every per-document query lists every one of the
 load's errors, each "if the model is not loaded yet". A database whose model has not loaded can be represented, and
@@ -71,7 +71,7 @@ design states the gap rather than guard it, as [adr-011](adr-011-rules-engine.md
 ### Load Failures Are Values the Model Records
 
 1. **The loader is total over the model's structural declaration.** Each structural unit it reads is loaded on its
-   own: a structure file, a corpus directory, a skills directory, a skill entry, a skill's `SKILL.md`. A unit that
+   own: a structure file, a corpus directory, a skills directory, a skill, a skill's `SKILL.md`. A unit that
    fails is recorded in the model as a load failure, and the loader goes on with the next unit. The snapshot
    declaration also retains unreadable regular files under `docs/`; the database exposes refusals not represented
    by model load failures as a query result, so check and future workspace consumers can report them without a
@@ -81,7 +81,7 @@ design states the gap rather than guard it, as [adr-011](adr-011-rules-engine.md
    a document's governance holds each layer as loaded or failed, in the layer order
    [adr-016](adr-016-specifications.md) fixes.
 3. **Every load failure is also listed once on the model**, with its path and its condition, whatever its origin: a
-   structure file, a corpus directory, a skills directory, a skill entry or a `SKILL.md`. This list is what the run
+   structure file, a corpus directory, a skills directory, a skill or a `SKILL.md`. This list is what the run
    reports (FR-006).
 4. **A recorded failure is data, never an exception.** It is a frozen record of the facts the error carries, such as
    the path, the operating system's refusal or the decoder's problems, without the foreign exception the error wraps.
@@ -115,7 +115,7 @@ Names in the sketches are illustrative; the shapes are the decision.
 1. **A load failure is an engine condition** ([adr-009](adr-009-rules.md)): a code in the engine's group, a fixed
    error severity, no level, and a rulebook page. No configuration or selection turns it off (FR-007, FR-008, FR-016).
 2. **It is reported once, at its own path.** The run turns each failure the model lists into an engine diagnostic in
-   a report of its own, filed at the failure's path: the structure file, the directory or the skill entry. The report
+   a report of its own, filed at the failure's path: the structure file, the directory or the skill. The report
    joins the subject reports in the one total order of [adr-010](adr-010-diagnostics.md) (FR-001 to FR-004, FR-006).
 3. **The exit code follows from the severity.** A load failure or a retained refusal reported as an error diagnostic
    makes a check run exit 1 (FR-014). What stops the run before any report, such as root discovery, an invalid

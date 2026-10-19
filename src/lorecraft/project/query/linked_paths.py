@@ -8,7 +8,7 @@ from lorecraft.project.query.primitives import ItemPrimitives
 def linked_paths(primitives: ItemPrimitives) -> tuple[LinkedDocument, ...]:
     """The existing Markdown files a document links to, in link order. Raises nothing.
 
-    A skill entry or resource has no document links. The result records the resolved root-relative path, so a query
+    A skill or resource has no document links. The result records the resolved root-relative path, so a query
     can ask that item's database for another derived value without resolving the link again.
 
     Args:

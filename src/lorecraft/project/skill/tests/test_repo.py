@@ -403,7 +403,7 @@ class TestRepositoryListSkillResources:
                 SkillResourceRef(audit.ref, SkillRelativePath.parse('references/a.md')),
                 resolves_to=ResolvedPath(RootRelativePath.parse('skills/audit/references/a.md')),
             ),
-        ), 'the resource is named under the skill entry, and located under the directory the entry leads to'
+        ), 'the resource is named under the skill, and located under the directory the entry leads to'
 
     def test_list_skill_resources_with_a_linked_entry_and_a_symlink_to_its_skills_directory_does_not_enter_it(
         self,

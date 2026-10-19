@@ -16,12 +16,12 @@ status: "accepted"
 
 ## Context
 
-[prd-020](prd-020-skills-corpus.md) brings skill entry documents into the meta spec model through the reserved
+[prd-020](prd-020-skills-corpus.md) brings skill documents into the meta spec model through the reserved
 `skills` corpus (`FR-001` through `FR-007`, `FR-009` through `FR-011`, `FR-018`, `NFR-001`), and
 [adr-022](adr-022-skills-governance.md) settles how `skills` layers, the built-in schema and bounded contradiction
 detection work.
 
-In the current architecture, documents under `docs/`, skill entry documents (`SKILL.md`) and Markdown resources inside
+In the current architecture, documents under `docs/`, skill documents (`SKILL.md`) and Markdown resources inside
 skills travel through three parallel representations above the project model:
 
 - Separate reference types identify corpus documents by corpus and filename stem, skill entries by skills directory and
@@ -30,7 +30,7 @@ skills travel through three parallel representations above the project model:
 - The database maintains separate decode witnesses, caches and query methods for decoding, frontmatter parsing,
   Markdown parsing, line counting, schema validation and relative-link target lookup across the three kinds.
 - Context protocols, the rule table, the runner and subject reports branch on whether a Markdown subject is a document,
-  a skill entry or a skill resource.
+  a skill or a skill resource.
 
 Extending that split to support `skills` repository layers (`FR-005`) and later governed skill resources would duplicate
 governance lookup, failed-layer skipping, facet gating and coverage reporting across parallel pipelines.
@@ -70,7 +70,7 @@ layout subject category ([adr-011](adr-011-rules-engine.md)).
 The project model is the only layer that classifies a Markdown item's origin:
 
 - A corpus document derives its corpus and aspect name from its `docs/<corpus>/<name>.md` path.
-- A skill entry derives its aspect name from the skill's listed directory name in `.agents/skills/`; its package
+- A skill derives its aspect name from the skill's listed directory name in `.agents/skills/`; its package
   checks are independent of corpus governance. The reserved corpus does not govern the entry until LORE-324.
 - A skill resource is discovered lazily through its skill's resource listing rather than by an eager workspace-wide
   walk when the model opens ([adr-003](adr-003-project-model.md), [adr-015](adr-015-database.md)). When listed, it

@@ -76,7 +76,7 @@ class MissingTitle(QueriedItemRule[TitleFacts]):
     GATES: ClassVar[Mapping[ItemKind, Gate]] = MappingProxyType(
         {
             ItemKind.DOCUMENT: ByMetaSpec(MetaSpecPart.STRUCTURE),
-            ItemKind.SKILL_ENTRY: ByMetaSpec(MetaSpecPart.STRUCTURE, requires_loaded_layer=True),
+            ItemKind.SKILL: ByMetaSpec(MetaSpecPart.STRUCTURE, requires_loaded_layer=True),
         }
     )
 

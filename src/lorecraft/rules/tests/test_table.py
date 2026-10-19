@@ -326,7 +326,7 @@ class TestRuleTable:
 
         #: Then
         assert table.item_rules(ItemKind.DOCUMENT, MetaSpecPart.FRONTMATTER) == (), 'no document rule reads frontmatter'
-        assert table.item_rules(ItemKind.SKILL_ENTRY, MetaSpecPart.FRONTMATTER) == (), 'no skill rule reads frontmatter'
+        assert table.item_rules(ItemKind.SKILL, MetaSpecPart.FRONTMATTER) == (), 'no skill rule reads frontmatter'
 
     def test_item_rules_with_two_parts_indexes_each_gate_separately(self) -> None:
         #: Given
@@ -403,7 +403,7 @@ class TestRuleTableItemIndex:
             ),
             (ItemKind.DOCUMENT, MetaSpecPart.OUTLINE): ('OUT006', 'OUT007', 'OUT008'),
             (ItemKind.DOCUMENT, MetaSpecPart.BUDGET): ('LEN001',),
-            (ItemKind.SKILL_ENTRY, None): (
+            (ItemKind.SKILL, None): (
                 'FM004',
                 'FM011',
                 'FM012',
@@ -413,7 +413,7 @@ class TestRuleTableItemIndex:
                 'LINK003',
                 'LINK004',
             ),
-            (ItemKind.SKILL_ENTRY, MetaSpecPart.FRONTMATTER): (
+            (ItemKind.SKILL, MetaSpecPart.FRONTMATTER): (
                 'FM001',
                 'FM002',
                 'FM003',
@@ -426,7 +426,7 @@ class TestRuleTableItemIndex:
                 'FM013',
                 'FM014',
             ),
-            (ItemKind.SKILL_ENTRY, MetaSpecPart.STRUCTURE): (
+            (ItemKind.SKILL, MetaSpecPart.STRUCTURE): (
                 'LEN003',
                 'LEN004',
                 'LEN005',
@@ -437,8 +437,8 @@ class TestRuleTableItemIndex:
                 'OUT005',
                 'OUT009',
             ),
-            (ItemKind.SKILL_ENTRY, MetaSpecPart.OUTLINE): ('OUT006', 'OUT007', 'OUT008'),
-            (ItemKind.SKILL_ENTRY, MetaSpecPart.BUDGET): ('LEN001',),
+            (ItemKind.SKILL, MetaSpecPart.OUTLINE): ('OUT006', 'OUT007', 'OUT008'),
+            (ItemKind.SKILL, MetaSpecPart.BUDGET): ('LEN001',),
             (ItemKind.SKILL_RESOURCE, None): ('LINK001', 'LINK002', 'LINK003', 'LINK004'),
             (ItemKind.META_SPEC, MetaSpecPart.STRUCTURE): ('LINK001', 'LINK002', 'LINK003', 'LINK005', 'LINK006'),
         }
@@ -486,8 +486,8 @@ class TestRuleTableItemIndex:
         table = RuleTable(severities)
 
         #: Then
-        assert table.item_rules(ItemKind.SKILL_ENTRY, None) == expected, 'schema gates use the package and schema index'
-        assert table.item_rules(ItemKind.SKILL_ENTRY, MetaSpecPart.FRONTMATTER) == (), (
+        assert table.item_rules(ItemKind.SKILL, None) == expected, 'schema gates use the package and schema index'
+        assert table.item_rules(ItemKind.SKILL, MetaSpecPart.FRONTMATTER) == (), (
             'schema gates do not use a meta spec part index'
         )
 
@@ -500,7 +500,7 @@ class TestRuleTableItemIndex:
         table = RuleTable(severities)
 
         #: Then
-        assert table.item_rules(ItemKind.SKILL_ENTRY, MetaSpecPart.FRONTMATTER) == expected, (
+        assert table.item_rules(ItemKind.SKILL, MetaSpecPart.FRONTMATTER) == expected, (
             'skill frontmatter rules use the active frontmatter meta spec part'
         )
 

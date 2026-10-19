@@ -1,7 +1,7 @@
 """Run checks over workspace subjects, skipping files whose required input was refused.
 
 A document governed by a meta spec that failed to load cannot be called clean from only the layers that loaded. It is
-decoded first, and a decoded document is skipped with the failed structure paths. A skill entry still receives its
+decoded first, and a decoded document is skipped with the failed structure paths. A skill still receives its
 Agent Skills checks when a corpus layer fails; rules that depend on the corpus are suppressed by the runner. A skill
 or resource whose resolved docs target was refused is skipped; the refusal itself is reported at its target.
 """
@@ -108,12 +108,12 @@ def _check_item(
 
     Every item kind is decoded the same way, by its common reference. A missing file is reported by the read error of
     its kind; a specification has none, so it raises the item's own. A document is skipped when a failed layer
-    governs it; a skill entry retains its Agent Skills checks. Resources have no corpus governance, and
+    governs it; a skill retains its Agent Skills checks. Resources have no corpus governance, and
     specifications are governed by the package.
 
     Args:
         database: The revision the item is read from.
-        subject: The document, specification, skill entry or resource to check.
+        subject: The document, specification, skill or resource to check.
         table: The rules the run enables.
 
     Raises:

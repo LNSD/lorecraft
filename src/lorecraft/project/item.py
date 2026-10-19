@@ -41,7 +41,7 @@ class ItemKind(Enum):
     """The kinds of governed Markdown item a rule may apply to."""
 
     DOCUMENT = 'document'
-    SKILL_ENTRY = 'skill-entry'
+    SKILL = 'skill-entry'
     SKILL_RESOURCE = 'skill-resource'
     META_SPEC = 'specification'
 
@@ -75,8 +75,8 @@ class DocumentOrigin:
 
 
 @dataclass(frozen=True, slots=True)
-class SkillEntryOrigin:
-    """Origin metadata for a listed skill entry.
+class SkillOrigin:
+    """Origin metadata for a listed skill.
 
     Attributes:
         expected_name: Listed directory name the skill's frontmatter name is checked against.
@@ -114,7 +114,7 @@ class MetaSpecOrigin:
     corpus: str
 
 
-type ItemOrigin = DocumentOrigin | SkillEntryOrigin | SkillResourceOrigin | MetaSpecOrigin
+type ItemOrigin = DocumentOrigin | SkillOrigin | SkillResourceOrigin | MetaSpecOrigin
 
 
 @dataclass(frozen=True, slots=True)
@@ -129,7 +129,7 @@ class ItemDescriptor:
         governance_corpus: Corpus whose meta specs govern the item, when it belongs to one; empty otherwise.
         aspect_name: Listed name matched against namespace meta specs, when it belongs to a corpus; retained as
             provenance for skills and resources.
-        governed_parts: Parts that activate checks for this item. The package's skill checks activate skill-entry
+        governed_parts: Parts that activate checks for this item. The package's skill checks activate skill
             frontmatter and structure checks, independently of corpus governance. A meta spec and a resource
             activate the structure part.
     """
@@ -148,8 +148,8 @@ class ItemDescriptor:
         match self.origin:
             case DocumentOrigin():
                 return ItemKind.DOCUMENT
-            case SkillEntryOrigin():
-                return ItemKind.SKILL_ENTRY
+            case SkillOrigin():
+                return ItemKind.SKILL
             case SkillResourceOrigin():
                 return ItemKind.SKILL_RESOURCE
             case MetaSpecOrigin():

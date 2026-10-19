@@ -47,7 +47,7 @@ def is_read(roots: tuple[ReadRoot, ...], symlinks: tuple[SymlinkRecord, ...], pa
 
 ### Identity Is Not Location
 
-A document, a skill entry or a skill resource is identified by one governed-item ref, named where it is listed. Where its symlinks lead is its location,
+A document, a skill or a skill resource is identified by one governed-item ref, named where it is listed. Where its symlinks lead is its location,
 recorded beside the ref in the model. A symlink retargeted to another file leaves the ref as it was and changes
 the location, so whatever is keyed by the ref reads a different file without any bytes changing. A skill resource's descriptor
 is resolved lazily from its skill's resource listing, not recorded in the model.

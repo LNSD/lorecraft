@@ -27,7 +27,7 @@ from lorecraft.project.item import (
     ItemRef,
     MetaSpecOrigin,
     MetaSpecPart,
-    SkillEntryOrigin,
+    SkillOrigin,
 )
 from lorecraft.project.layout import SPECS_DIR
 from lorecraft.project.link_target import DocumentDirectory, SkillRoot
@@ -954,7 +954,7 @@ class TestWorkspaceModel:
         assert before.link_base == after.link_base == SkillRoot(AUDIT.ref.directory), (
             'skill links use the listed skill root'
         )
-        assert isinstance(after.origin, SkillEntryOrigin), 'the descriptor retains skill-specific origin facts'
+        assert isinstance(after.origin, SkillOrigin), 'the descriptor retains skill-specific origin facts'
         assert after.origin.expected_name == 'audit', 'frontmatter expects the listed directory name'
         assert after.origin.link_target == moved.resolves_to, 'the retargeted directory remains available for notes'
 
@@ -1357,7 +1357,7 @@ class TestSpecifications:
         governance = model.skill_governance(location.ref)
 
         #: Then
-        assert governance is not None, 'the reserved skills corpus governs its listed skill entry'
+        assert governance is not None, 'the reserved skills corpus governs its listed skill'
         assert tuple(str(spec.name) for spec in governance.specs()) == ('skills', 'skills-code'), (
             'matching namespace specifications layer after the skills corpus specification'
         )

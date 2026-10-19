@@ -44,17 +44,18 @@ class UnreadablePath(EntryCondition):
 
     Checks for paths the operating system refuses to let the check read, list or look up: a structure file, one of
     the `<name>.spec.json` files of `docs/__meta__/` that it cannot read; a
-    corpus directory, a skills directory or a skill entry that it cannot list; and a link on the way to a skill, a
-    skill entry or a skill's `SKILL.md` that it cannot follow. A structure file the check expected, with no regular
-    file standing in its place, is reported the same way, with nothing refused to name.
+    corpus directory, a skills directory or a listed skill directory that it cannot list; and a link on the way to
+    a skill or its `SKILL.md` that it cannot follow.
+    A structure file the check expected, with no regular file standing in its place,
+    is reported the same way, with nothing refused to name.
     It is reported once, at its path, and nothing under it is loaded. The message names the operation that was
     refused, the path it was refused at, which may be one on the way, and the reason the operating system gave.
 
     What the path held is then not checked. A structure file it cannot read governs documents, and each of them is
     listed as skipped in coverage, with no rule run over it: a document that was not checked is never reported as
-    clean. A corpus directory, a skills directory or a skill entry it cannot list holds documents the check never
-    learns of, so none is listed, and this diagnostic is the only sign of them. Every other corpus, skill and
-    document is checked as if the path could be read.
+    clean. A corpus directory, a skills directory or a listed skill directory it cannot list holds documents
+    the check never learns of, so none is listed, and this diagnostic is the only sign of them.
+    Every other corpus, skill and document is checked as if the path could be read.
 
     Four refusals are not reported under this code, and each stops the run with an error naming the path and exit
     status 2: a `docs/` or `docs/__meta__/` that cannot be listed, since with it nothing can be checked; a
