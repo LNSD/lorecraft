@@ -86,7 +86,7 @@ The option has no environment-variable counterpart and no repository configurati
 A task recipe or CI command can persist the explicit flag.
 
 With the option enabled, repository skills meta specs apply on their own (FR-009). With no repository
-skills specification, skill entries are reported as ungoverned without an error (FR-018).
+skills specification, skills are reported as ungoverned without an error (FR-018).
 The option changes schema governance; it does not disable discovery, I/O diagnostics or unrelated link checks.
 
 ### Contradiction Detection Is Bounded
@@ -138,7 +138,7 @@ It does not create a second matching algorithm or require a docs/skills/ directo
 
 ## Consequences
 
-- Skill entry documents gain repository frontmatter, outline and length rules without changing the document
+- Skill documents gain repository frontmatter, outline and length rules without changing the document
   specification dialect or allowing narrower layers to erase broader constraints.
 - Existing skills diagnostics and identity must survive the migration. Generated schema output alone is not
   evidence of that compatibility: representative existing findings must remain unchanged with no skills meta spec.

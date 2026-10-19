@@ -1,6 +1,6 @@
 ---
 name: "skills"
-description: "Writing rules for every agent skill entry in the repository. Load when creating or editing a SKILL.md"
+description: "Writing rules for every agent skill in the repository. Load when creating or editing a SKILL.md"
 type: "meta"
 scope: "global"
 ---

@@ -86,7 +86,7 @@ run. `LC001`–`LC004` are engine conditions, not rules; they are always reporte
 | `deny` | `FM001`, `FM002`, `FM003`, `FM004`, `FM005`, `FM006`, `FM008`, `FM009`, `FM010`, `FM013`, `FM014`, `LAY001`, `LEN001`, `LEN002`, `LEN003`, `LEN004`, `LEN005`, `LINK001`, `LINK002`, `LINK003`, `LINK004`, `OUT001`, `OUT002`, `OUT003`, `OUT004`, `OUT005`, `OUT006`, `OUT007`, `OUT008`, `OUT009` |
 | `warn` | `FM007`, `FM011`, `FM012`, `LINK005`, `LINK006`, `LINK007` |
 
-The `LC002` page covers unreadable structure files, unlistable corpus and skills directories, skill entries
+The `LC002` page covers unreadable structure files, unlistable corpus and skills directories, skills
 that cannot be listed or resolved, and `SKILL.md` links that cannot be followed. A regular `SKILL.md` whose
 contents cannot be read still stops `check` with exit `2`.
 The `LC003` page covers format errors and a file that states no rule. The `LC004` page explains each kind of

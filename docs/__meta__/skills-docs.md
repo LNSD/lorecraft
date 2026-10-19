@@ -1,6 +1,6 @@
 ---
 name: "skills-docs"
-description: "Additional writing rules for documentation workflow skills. Load when creating or editing a docs-* skill entry"
+description: "Additional writing rules for documentation workflow skills. Load when creating or editing a docs-* skill"
 type: "meta"
 scope: "global"
 ---
@@ -28,4 +28,4 @@ applies in addition to the base budget.
 
 ## References
 
-- [skills](skills.md) - Extends: Base rules for every skill entry
+- [skills](skills.md) - Extends: Base rules for every skill
