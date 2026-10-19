@@ -51,7 +51,7 @@ from lorecraft.project.link_target import (
 )
 from lorecraft.project.query import (
     CorpusDirectoryQuery,
-    Query,
+    ItemQuery,
     SchemaQuery,
     SubjectRef,
     SymlinkQuery,
@@ -171,7 +171,7 @@ class _Reads[R: SubjectRef, P: _HasRecordedReads](metaclass=ABCMeta):
         target = self._fresh(self._ref)
         return self._compose(key, target, query)
 
-    def query_at[T](self, ref: MarkdownItemRef, query: Query[T]) -> T:
+    def query_at[T](self, ref: MarkdownItemRef, query: ItemQuery[T]) -> T:
         """Read an item query and include its dependencies."""
         key = Read(query, ref)
         target = _ItemPrimitives(self._database, ref)
@@ -640,7 +640,7 @@ class Database:
         return self._item(ref).governance
 
     @overload
-    def query[T](self, query: Query[T], ref: MarkdownItemRef) -> T: ...  # noqa: D102 — implementation documents the overload
+    def query[T](self, query: ItemQuery[T], ref: MarkdownItemRef) -> T: ...  # noqa: D102 — implementation documents the overload
 
     @overload
     def query[T](self, query: SymlinkQuery[T], ref: SymlinkRef) -> T: ...  # noqa: D102 — implementation documents the overload
@@ -700,7 +700,7 @@ class Database:
 
     def query_reads(
         self,
-        query: Query[object] | SymlinkQuery[object] | CorpusDirectoryQuery[object] | SchemaQuery[object],
+        query: ItemQuery[object] | SymlinkQuery[object] | CorpusDirectoryQuery[object] | SchemaQuery[object],
         ref: MarkdownItemRef | SymlinkRef | CorpusDirectoryRef | SchemaReference,
     ) -> frozenset[Read]:
         """The typed read keys recorded for a query; public so nested queries avoid private-cache access.

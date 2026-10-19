@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import ClassVar, Self
 
 from lorecraft.core.path import RootRelativePath
-from lorecraft.project.query import Query
+from lorecraft.project.query import ItemQuery
 from lorecraft.project.schemas import TitleFacts, TitlePattern, title_facts
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
@@ -87,7 +87,7 @@ class InvalidTitle(QueriedDocumentSkillRule[TitleFacts]):
         return (spec_note(self.spec),)
 
     @classmethod
-    def query(cls) -> Query[TitleFacts]:
+    def query(cls) -> ItemQuery[TitleFacts]:
         """The title and the title checks of the document."""
         return title_facts
 

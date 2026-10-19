@@ -7,7 +7,7 @@ from urllib.parse import unquote
 from lorecraft.project.item import ItemKind
 from lorecraft.project.link_target import ExtensionLink as LinkToExtension
 from lorecraft.project.link_target import extension_links_of
-from lorecraft.project.query import Query, item_name, item_parse
+from lorecraft.project.query import ItemQuery, item_name, item_parse
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Note, Subdiagnostic
@@ -120,7 +120,7 @@ class ExtensionLink(QueriedDocumentRule[ExtensionLinkFacts]):
         )
 
     @classmethod
-    def query(cls) -> Query[ExtensionLinkFacts]:
+    def query(cls) -> ItemQuery[ExtensionLinkFacts]:
         """The links of the document to a document that extends it."""
         return extension_link_facts
 

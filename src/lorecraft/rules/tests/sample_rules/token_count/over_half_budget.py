@@ -4,7 +4,13 @@ from dataclasses import dataclass
 from typing import ClassVar, Protocol, Self
 
 from lorecraft.core.path import RootRelativePath
-from lorecraft.project.query import CountPrimitives, GovernancePrimitives, Query, item_structure_specs, item_token_count
+from lorecraft.project.query import (
+    CountPrimitives,
+    GovernancePrimitives,
+    ItemQuery,
+    item_structure_specs,
+    item_token_count,
+)
 from lorecraft.project.syntax import FIRST_LINE, TokenCount
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
@@ -68,7 +74,7 @@ class OverHalfBudget(QueriedDocumentRule[BudgetFacts]):
         return f'over half the budget ({self.token_count} of {self.budget})'
 
     @classmethod
-    def query(cls) -> Query[BudgetFacts]:
+    def query(cls) -> ItemQuery[BudgetFacts]:
         """The document's token count and the budgets that govern it."""
         return _budget_facts
 

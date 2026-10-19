@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import ClassVar, Self, assert_never
 
 from lorecraft.core.path import RootRelativePath
-from lorecraft.project.query import Query
+from lorecraft.project.query import ItemQuery
 from lorecraft.project.schemas import (
     AbsentSection,
     ExpectedSection,
@@ -144,7 +144,7 @@ class SectionOutOfOrder(QueriedDocumentSkillRule[tuple[OutlineDivergenceSpec, ..
                 assert_never(placement)
 
     @classmethod
-    def query(cls) -> Query[tuple[OutlineDivergenceSpec, ...]]:
+    def query(cls) -> ItemQuery[tuple[OutlineDivergenceSpec, ...]]:
         """The outline divergences of the document, one for each outline that governs it."""
         return outline_divergences
 

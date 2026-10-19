@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from typing import ClassVar, Self, assert_never
 
 from lorecraft.core.path import RootRelativePath
-from lorecraft.project.query import Query
+from lorecraft.project.query import ItemQuery
 from lorecraft.project.schemas import (
     BlockProblem,
     InvalidValueProblem,
@@ -150,7 +150,7 @@ class InvalidValue(QueriedFrontmatterRule[tuple[SchemaProblems, ...]]):
         return tuple(parts + validator_wording)
 
     @classmethod
-    def query(cls) -> Query[tuple[SchemaProblems, ...]]:
+    def query(cls) -> ItemQuery[tuple[SchemaProblems, ...]]:
         """What each schema that governs the subject rejects in its frontmatter."""
         return schema_problems
 

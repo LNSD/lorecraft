@@ -9,7 +9,7 @@ from abc import abstractmethod
 from dataclasses import dataclass
 from typing import NoReturn, Self
 
-from lorecraft.project.query import Primitives, Query
+from lorecraft.project.query import ItemQuery, Primitives
 
 from ..declaration import ContentRule, LayoutRule
 from ..subject import Queried
@@ -43,11 +43,11 @@ class SampleEntry:
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
-class SampleLinesRule(Queried[SampleLines, Query[SampleLines]], ContentRule):
+class SampleLinesRule(Queried[SampleLines, ItemQuery[SampleLines]], ContentRule):
     """The base of every sample rule over the lines of a subject."""
 
     @classmethod
-    def query(cls) -> Query[SampleLines]:
+    def query(cls) -> ItemQuery[SampleLines]:
         """The query a sample rule names; the tests never run it."""
         return _unqueried
 
@@ -62,11 +62,11 @@ class SampleLinesRule(Queried[SampleLines, Query[SampleLines]], ContentRule):
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
-class SampleEntryRule(Queried[SampleEntry, Query[SampleEntry]], LayoutRule):
+class SampleEntryRule(Queried[SampleEntry, ItemQuery[SampleEntry]], LayoutRule):
     """The base of every sample rule over a layout entry."""
 
     @classmethod
-    def query(cls) -> Query[SampleEntry]:
+    def query(cls) -> ItemQuery[SampleEntry]:
         """The query a sample rule names; the tests never run it."""
         return _unqueried
 

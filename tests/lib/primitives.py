@@ -12,7 +12,7 @@ from lorecraft.project.item import DocumentOrigin, ItemOrigin, MarkdownItemRef
 from lorecraft.project.link_target import DocumentLink, LinkBase, LinkTargetEntry
 from lorecraft.project.query import (
     DecodedText,
-    Query,
+    ItemQuery,
     SchemaQuery,
     item_corpus,
     item_frontmatter,
@@ -149,7 +149,7 @@ class StructurePrimitives:
         """The block this was built with."""
         return self.frontmatter_node
 
-    def query[T](self, query: Query[T]) -> T:
+    def query[T](self, query: ItemQuery[T]) -> T:
         """The answer of the query over these same primitives."""
         if query is linked_documents:
             return cast('T', self.document_link_list)
@@ -169,7 +169,7 @@ class StructurePrimitives:
             return self.token_total
         return query(self)
 
-    def query_at[T](self, ref: MarkdownItemRef, query: Query[T]) -> T:
+    def query_at[T](self, ref: MarkdownItemRef, query: ItemQuery[T]) -> T:
         """No other item is available to this standalone primitive value."""
         raise NotImplementedError('standalone primitives cannot read another item')
 

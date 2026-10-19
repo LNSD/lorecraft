@@ -5,7 +5,7 @@ from typing import ClassVar, Self, assert_never
 
 from lorecraft.core.path import ROOT, RootRelativePath
 from lorecraft.project.layout import DOCUMENT_SUFFIX
-from lorecraft.project.query import Query
+from lorecraft.project.query import ItemQuery
 from lorecraft.project.schemas import (
     DocumentFrontmatterOwner,
     FrontmatterOwner,
@@ -197,7 +197,7 @@ class NameMismatch(QueriedFrontmatterRule[FrontmatterFacts]):
                 assert_never(owner)
 
     @classmethod
-    def query(cls) -> Query[FrontmatterFacts]:
+    def query(cls) -> ItemQuery[FrontmatterFacts]:
         """The frontmatter block and whose it is."""
         return frontmatter_facts
 

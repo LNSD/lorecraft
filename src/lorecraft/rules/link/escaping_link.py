@@ -5,7 +5,7 @@ from typing import ClassVar, Self, assert_never
 from urllib.parse import unquote
 
 from lorecraft.project.link_target import EscapingTarget, LinkTarget
-from lorecraft.project.query import Query, item_parse
+from lorecraft.project.query import ItemQuery, item_parse
 from lorecraft.project.syntax import (
     AbsoluteDestination,
     ExternalDestination,
@@ -122,7 +122,7 @@ class EscapingLink(QueriedSkillFileRule[tuple[Link, ...]]):
         return (SKILL_NOTE, Help('link a file inside the skill, relative to the skill root'))
 
     @classmethod
-    def query(cls) -> Query[tuple[Link, ...]]:
+    def query(cls) -> ItemQuery[tuple[Link, ...]]:
         """The relative links whose path climbs above the skill root."""
         return escaping_links
 
