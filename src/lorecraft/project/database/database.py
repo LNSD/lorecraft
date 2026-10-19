@@ -138,10 +138,11 @@ governance those problems read; equal governance, respectively.
 """
 
 import logging
+from abc import ABCMeta, abstractmethod
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import Self, assert_never, cast, overload
+from typing import Protocol, Self, assert_never, cast, overload
 
 from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.num import UnsignedInt
@@ -165,12 +166,10 @@ from lorecraft.project.link_target import (
 )
 from lorecraft.project.query import (
     CorpusDirectoryQuery,
-    CorpusDirectoryQueryRead,
     Query,
     SchemaQuery,
-    SchemaQueryRead,
+    SubjectRef,
     SymlinkQuery,
-    SymlinkQueryRead,
 )
 from lorecraft.project.schemas import (
     SpecName,
@@ -240,124 +239,115 @@ class PrimitiveRead(StrEnum):
     ITEM_BASE = 'item_base'
     SYMLINK_LEAVES_AT = 'symlink_leaves_at'
     RESERVED_CORPUS = 'reserved_corpus'
+    SCHEMA_INPUT = 'schema_input'
 
 
 @dataclass(frozen=True)
-class QueryRead:
-    """One primitive or declared query read from one Markdown item."""
+class Read:
+    """One primitive or declared query read from a typed subject.
 
-    source: PrimitiveRead | Query[object]
-    ref: MarkdownItemRef
-
-
-@dataclass(frozen=True)
-class SchemaInputRead:
-    """The immutable raw schema input read by a schema query.
-
-    Attributes:
-        reference: The typed schema identity the query reads.
+    Query sources use a broad callable type because `ty` cannot correlate `_Reads`' generic same-subject callback with
+    the subject-specific arms of `SubjectQuery`; public `Database.query` overloads retain that precision.
     """
 
-    reference: SchemaReference
+    source: PrimitiveRead | Callable[..., object]
+    subject: SubjectRef
 
 
-type QueryKey = tuple[Query[object], MarkdownItemRef] | SymlinkQueryRead | CorpusDirectoryQueryRead | SchemaQueryRead
-type ReadKey = (
-    PrimitiveRead | QueryRead | SymlinkQueryRead | CorpusDirectoryQueryRead | SchemaQueryRead | SchemaInputRead
-)
+class _HasRecordedReads(Protocol):
+    """The private recording operation a fresh query adapter exposes to the memo cache."""
+
+    def _recorded_reads(self) -> frozenset[Read]: ...
 
 
-class _ReadSet:
-    """A practical in-process guard around reads shared by database primitive adapters.
+class _Reads[R: SubjectRef, P: _HasRecordedReads](metaclass=ABCMeta):
+    """One subject's raw primitives, private read recorder, and memoized query composition."""
 
-    Name-mangled storage and the repository source guard keep ordinary callers on `_record`; deliberate Python
-    reflection can still bypass that boundary.
-    """
+    __slots__ = ('__reads', '_database', '_ref')
 
-    __slots__ = ('__reads',)
+    def __init__(self, database: 'Database', ref: R) -> None:
+        self.__reads: set[Read] = set()
+        self._database = database
+        self._ref = ref
 
-    def __init__(self) -> None:
-        self.__reads: set[ReadKey] = set()
-
-    def _record(self, *keys: ReadKey) -> None:
+    def _record(self, *keys: Read) -> None:
         """Record primitive or nested-query keys without exposing mutable storage."""
         self.__reads.update(keys)
 
-    def _recorded_reads(self) -> frozenset[ReadKey]:
+    def _recorded_reads(self) -> frozenset[Read]:
         """Return a frozen copy for the database cache."""
         return frozenset(self.__reads)
 
-    def _nested_query[T](
-        self,
-        key: ReadKey,
-        answer: Callable[[], T],
-        reads: Callable[[], frozenset[ReadKey]],
-    ) -> T:
-        """Record a nested query key before running it, then add its reads when it succeeds.
+    @abstractmethod
+    def _fresh(self, ref: R) -> P:
+        """Build fresh primitives for this subject when its query is first evaluated."""
+        ...
 
-        The key remains recorded if the nested query raises, so failed references remain dependencies too.
-        """
+    def _compose[Q: _HasRecordedReads, T](self, key: Read, target: Q, query: Callable[[Q], T]) -> T:
+        """Memoize a nested query and include its key and dependencies in this subject's reads."""
         self._record(key)
-        result = answer()
-        self._record(*reads())
-        return result
+        answer = self._database._memo_query(key, lambda: query(target), target._recorded_reads)
+        self._record(*self._database._query_reads(key))
+        return answer
+
+    def query[T](self, query: Callable[[P], T]) -> T:
+        """Read another query over this subject and include its dependencies."""
+        key = Read(query, self._ref)
+        target = self._fresh(self._ref)
+        return self._compose(key, target, query)
+
+    def query_at[T](self, ref: MarkdownItemRef, query: Query[T]) -> T:
+        """Read an item query and include its dependencies."""
+        key = Read(query, ref)
+        target = _ItemPrimitives(self._database, ref)
+        return self._compose(key, target, query)
+
+    def query_schema[T](self, ref: SchemaReference, query: SchemaQuery[T]) -> T:
+        """Read a schema query and include its dependencies."""
+        key = Read(query, ref)
+        target = _ReadSchemaPrimitives(self._database, ref)
+        return self._compose(key, target, query)
 
 
-class _ReadSchemaPrimitives(_ReadSet):
+class _ReadSchemaPrimitives(_Reads[SchemaReference, '_ReadSchemaPrimitives']):
     """The immutable input of one schema subject, recorded under its typed reference."""
 
-    __slots__ = ('_database', '_ref')
+    __slots__ = ()
 
-    def __init__(self, database: 'Database', ref: SchemaReference) -> None:
-        super().__init__()
-        self._database = database
-        self._ref = ref
+    def _fresh(self, ref: SchemaReference) -> '_ReadSchemaPrimitives':
+        return _ReadSchemaPrimitives(self._database, ref)
 
     def schema_input(self) -> SchemaInput:
         """Resolve the subject from this database's loaded model."""
-        self._record(SchemaInputRead(self._ref))
+        self._record(Read(PrimitiveRead.SCHEMA_INPUT, self._ref))
         return self._database._schema_input(self._ref)
 
-    def query_schema[T](self, ref: SchemaReference, query: SchemaQuery[T]) -> T:
-        """Read a memoized schema query and retain its key even when it raises."""
-        # SAFETY: a schema query is hashable by its function identity regardless of its result parameter
-        key = (cast('SchemaQuery[object]', query), ref)
-        return self._nested_query(
-            key,
-            lambda: self._database.query(query, ref),
-            lambda: self._database.query_reads(query, ref),
-        )
 
-
-class _ReadSymlinkPrimitives(_ReadSet):
+class _ReadSymlinkPrimitives(_Reads[SymlinkRef, '_ReadSymlinkPrimitives']):
     """The primitive reads of one symlink subject, recorded with typed keys."""
 
-    def __init__(self, database: 'Database', ref: SymlinkRef) -> None:
-        super().__init__()
-        self._database = database
-        self._ref = ref
+    __slots__ = ()
 
-    __slots__ = ('_database', '_ref')
+    def _fresh(self, ref: SymlinkRef) -> '_ReadSymlinkPrimitives':
+        return _ReadSymlinkPrimitives(self._database, ref)
 
     def leaves_at(self) -> RootExit:
         """The point where this symlink's chain leaves the repository."""
-        self._record(PrimitiveRead.SYMLINK_LEAVES_AT)
+        self._record(Read(PrimitiveRead.SYMLINK_LEAVES_AT, self._ref))
         return self._database._outside_symlink(self._ref).leaves_at
 
 
-class _ReadCorpusDirectoryPrimitives(_ReadSet):
+class _ReadCorpusDirectoryPrimitives(_Reads[CorpusDirectoryRef, '_ReadCorpusDirectoryPrimitives']):
     """The primitive reads of one reserved-corpus directory subject, recorded with typed keys."""
 
-    def __init__(self, database: 'Database', ref: CorpusDirectoryRef) -> None:
-        super().__init__()
-        self._database = database
-        self._ref = ref
+    __slots__ = ()
 
-    __slots__ = ('_database', '_ref')
+    def _fresh(self, ref: CorpusDirectoryRef) -> '_ReadCorpusDirectoryPrimitives':
+        return _ReadCorpusDirectoryPrimitives(self._database, ref)
 
     def reserved_corpus(self) -> CorpusName:
         """The reserved corpus whose name this directory takes."""
-        self._record(PrimitiveRead.RESERVED_CORPUS)
+        self._record(Read(PrimitiveRead.RESERVED_CORPUS, self._ref))
         return self._database._reserved_corpus_directory(self._ref).corpus
 
 
@@ -377,7 +367,7 @@ def _witness_text(
     return source.text
 
 
-class _ReadPrimitives(_ReadSet):
+class _ItemPrimitives(_Reads[MarkdownItemRef, '_ItemPrimitives']):
     """The primitives of one item as the database answers them, noting each one a query reads.
 
     A primitive that walks the model or other files, such as `linked_documents` and `item_base`,
@@ -386,117 +376,82 @@ class _ReadPrimitives(_ReadSet):
 
     """
 
-    __slots__ = ('_database', '_ref')
+    __slots__ = ()
 
-    def __init__(self, database: 'Database', ref: MarkdownItemRef) -> None:
-        super().__init__()
-        self._database = database
-        self._ref = ref
+    def _fresh(self, ref: MarkdownItemRef) -> '_ItemPrimitives':
+        return _ItemPrimitives(self._database, ref)
 
     def item_origin(self) -> ItemOrigin:
         """The model-resolved origin facts of the item."""
-        self._record(QueryRead(PrimitiveRead.ITEM_ORIGIN, self._ref))
+        self._record(Read(PrimitiveRead.ITEM_ORIGIN, self._ref))
         return self._database._item(self._ref).descriptor.origin
 
     def item_governance(self) -> Governance | None:
         """The model's governance of the item."""
-        self._record(QueryRead(PrimitiveRead.ITEM_GOVERNANCE, self._ref))
+        self._record(Read(PrimitiveRead.ITEM_GOVERNANCE, self._ref))
         return self._database.item_governance(self._ref)
 
     def builtin_skills_schema(self) -> bool:
         """Whether the package's Agent Skills frontmatter schema is enabled."""
-        self._record(QueryRead(PrimitiveRead.BUILTIN_SKILLS_SCHEMA, self._ref))
+        self._record(Read(PrimitiveRead.BUILTIN_SKILLS_SCHEMA, self._ref))
         return self._database.model().builtin_skills_schema
 
     def structure_specs(self) -> tuple[StructureSpec, ...]:
         """The structure specifications of the layers that loaded for the item."""
-        self._record(QueryRead(PrimitiveRead.STRUCTURE_SPECS, self._ref))
+        self._record(Read(PrimitiveRead.STRUCTURE_SPECS, self._ref))
         return self._database.item_structure_specs(self._ref)
 
     def headings(self) -> tuple[Heading, ...]:
         """The headings of the item's parse; none for an item that is not UTF-8."""
-        self._record(QueryRead(PrimitiveRead.HEADINGS, self._ref))
+        self._record(Read(PrimitiveRead.HEADINGS, self._ref))
         source = self._database.item_text(self._ref)
         return self._database.item_parse(source).headings if isinstance(source, ItemText) else ()
 
     def token_count(self) -> TokenCount:
         """The tokens in the item's whole file; none for an item that is not UTF-8."""
-        self._record(QueryRead(PrimitiveRead.TOKEN_COUNT, self._ref))
+        self._record(Read(PrimitiveRead.TOKEN_COUNT, self._ref))
         source = self._database.item_text(self._ref)
         return self._database.item_token_count(source) if isinstance(source, ItemText) else TokenCount(UnsignedInt(0))
 
     def line_count(self) -> LineCount:
         """The lines in the item's whole file; none for an item that is not UTF-8."""
-        self._record(QueryRead(PrimitiveRead.LINE_COUNT, self._ref))
+        self._record(Read(PrimitiveRead.LINE_COUNT, self._ref))
         source = self._database.item_text(self._ref)
         return self._database.item_line_count(source) if isinstance(source, ItemText) else LineCount(UnsignedInt(0))
 
     def frontmatter(self) -> FrontmatterNode:
         """The item's frontmatter block; missing for an item that is not UTF-8."""
-        self._record(QueryRead(PrimitiveRead.FRONTMATTER, self._ref))
+        self._record(Read(PrimitiveRead.FRONTMATTER, self._ref))
         source = self._database.item_text(self._ref)
         return self._database.item_frontmatter(source) if isinstance(source, ItemText) else MissingFrontmatter()
 
-    def query[T](self, query: Query[T]) -> T:
-        """The memoized answer of another query over the item; what it read counts as this query's reads."""
-        return self._record_nested(query, self._ref)
-
-    def _record_nested[T](self, query: Query[T], ref: MarkdownItemRef) -> T:
-        """Run a nested query and record its dependency chain, including when it fails."""
-        # SAFETY: query identity is independent of its result parameter in the memoization key
-        key = QueryRead(cast('Query[object]', query), ref)
-        return self._nested_query(
-            key,
-            lambda: self._database.query(query, ref),
-            lambda: self._database.query_reads(query, ref),
-        )
-
-    def query_at[T](self, ref: MarkdownItemRef, query: Query[T]) -> T:
-        """The memoized answer of a query over another item, recorded as a read dependency.
-
-        Args:
-            ref: The item whose primitives the query reads.
-            query: The pure function to run over that item's primitives.
-        """
-        return self._record_nested(query, ref)
-
-    def query_schema[T](self, ref: SchemaReference, query: SchemaQuery[T]) -> T:
-        """Read a memoized schema query and retain its key even when it raises."""
-        # SAFETY: a schema query is hashable by its function identity regardless of its result parameter
-        key = (cast('SchemaQuery[object]', query), ref)
-        return self._nested_query(
-            key,
-            lambda: self._database.query(query, ref),
-            lambda: self._database.query_reads(query, ref),
-        )
-
     def links(self) -> tuple[Link, ...]:
         """The links of the item's parse; none for an item that is not UTF-8."""
-        self._record(QueryRead(PrimitiveRead.LINKS, self._ref))
+        self._record(Read(PrimitiveRead.LINKS, self._ref))
         source = self._database.item_text(self._ref)
         return self._database.item_parse(source).links if isinstance(source, ItemText) else ()
 
     def anchors(self) -> frozenset[Anchor]:
         """The anchor of every heading of the item's parse; none for an item that is not UTF-8."""
-        self._record(QueryRead(PrimitiveRead.ANCHORS, self._ref))
+        self._record(Read(PrimitiveRead.ANCHORS, self._ref))
         source = self._database.item_text(self._ref)
         return self._database.item_parse(source).anchors if isinstance(source, ItemText) else frozenset()
 
     def link_targets(self) -> Mapping[NormalisedLinkPath, LinkTargetEntry]:
         """What the snapshot holds at each relative link's target; none for an item that is not UTF-8."""
-        self._record(QueryRead(PrimitiveRead.LINK_TARGETS, self._ref))
+        self._record(Read(PrimitiveRead.LINK_TARGETS, self._ref))
         source = self._database.item_text(self._ref)
         return self._database.item_link_targets(source) if isinstance(source, ItemText) else FrozenMapping({})
 
     def link_base(self) -> LinkBase | None:
         """Where the item's relative links are read from; `None` for an item that is not UTF-8."""
-        self._record(QueryRead(PrimitiveRead.LINK_BASE, self._ref))
+        self._record(Read(PrimitiveRead.LINK_BASE, self._ref))
         source = self._database.item_text(self._ref)
         return source.descriptor.link_base if isinstance(source, ItemText) else None
 
     def item_name(self) -> AspectFilename | SpecName | None:
         """The typed name of a document or meta specification; `None` for any other item or one that is not UTF-8."""
-        self._record(QueryRead(PrimitiveRead.ITEM_NAME, self._ref))
+        self._record(Read(PrimitiveRead.ITEM_NAME, self._ref))
         source = self._database.item_text(self._ref)
         origin = source.descriptor.origin if isinstance(source, ItemText) else None
         # Keep this dispatch: documents and specifications have different name formats; skills and resources have none.
@@ -510,7 +465,7 @@ class _ReadPrimitives(_ReadSet):
 
     def item_corpus(self) -> CorpusName | None:
         """The typed corpus a document lies in; `None` for any other item or one that is not UTF-8."""
-        self._record(QueryRead(PrimitiveRead.ITEM_CORPUS, self._ref))
+        self._record(Read(PrimitiveRead.ITEM_CORPUS, self._ref))
         source = self._database.item_text(self._ref)
         origin = source.descriptor.origin if isinstance(source, ItemText) else None
         # Keep this dispatch: this query answers for user documents; a specification's `corpus` is a prefix of its
@@ -524,7 +479,7 @@ class _ReadPrimitives(_ReadSet):
         `None` for any other item or one that is not UTF-8. A skill entry extends nothing: its name is its directory's,
         which no hyphenated prefix continues.
         """
-        self._record(QueryRead(PrimitiveRead.ITEM_BASE, self._ref))
+        self._record(Read(PrimitiveRead.ITEM_BASE, self._ref))
         source = self._database.item_text(self._ref)
         origin = source.descriptor.origin if isinstance(source, ItemText) else None
         # Keep this dispatch: documents and specifications inherit within separate model hierarchies; skills do not.
@@ -597,7 +552,7 @@ class Database:
         self._item_line_counts: dict[MarkdownItemRef, LineCount] = {}
         # Declared queries: the answer by the function and the item, with the primitive and cross-item query keys
         # it read.
-        self._queries: dict[QueryKey, tuple[object, frozenset[ReadKey]]] = {}
+        self._queries: dict[Read, tuple[object, frozenset[Read]]] = {}
         # Each skill's resource listing, found on the first call; a resource is registered from it with `resource_item`.
         self._skill_resources: dict[SkillRef, SkillResourceListing] = {}
 
@@ -956,7 +911,7 @@ class Database:
 
     def query[T](
         self,
-        query: Query[T] | SymlinkQuery[T] | CorpusDirectoryQuery[T] | SchemaQuery[T],
+        query: Callable[..., T],
         ref: MarkdownItemRef | SymlinkRef | CorpusDirectoryRef | SchemaReference,
     ) -> T:
         """The memoized answer of a declared query over a typed subject.
@@ -974,45 +929,48 @@ class Database:
             UnlistedItemError: If the subject ref is not listed by the model or a skill resource listing.
             SchemaReferenceError: If the schema subject is not present in the loaded model.
         """
-        # SAFETY: query and reference form one of the declared typed query-key variants
-        key = cast('QueryKey', (query, ref))
+        match ref:
+            case MarkdownItemRef():
+                primitives = _ItemPrimitives(self, ref)
+            case SymlinkRef():
+                primitives = _ReadSymlinkPrimitives(self, ref)
+            case CorpusDirectoryRef():
+                primitives = _ReadCorpusDirectoryPrimitives(self, ref)
+            case SchemaReference():
+                primitives = _ReadSchemaPrimitives(self, ref)
+            case _:
+                assert_never(ref)
+        key = Read(query, ref)
+        return self._memo_query(key, lambda: query(primitives), primitives._recorded_reads)
+
+    def _memo_query[T](
+        self,
+        key: Read,
+        answer: Callable[[], T],
+        reads: Callable[[], frozenset[Read]],
+    ) -> T:
+        """Memoize one declared query and its recorded reads."""
         if key not in self._queries:
-            match ref:
-                case MarkdownItemRef():
-                    primitives = _ReadPrimitives(self, ref)
-                    # SAFETY: the reference variant selects the matching query protocol
-                    answer = cast('Query[T]', query)(primitives)
-                case SymlinkRef():
-                    primitives = _ReadSymlinkPrimitives(self, ref)
-                    # SAFETY: the reference variant selects the matching query protocol
-                    answer = cast('SymlinkQuery[T]', query)(primitives)
-                case CorpusDirectoryRef():
-                    primitives = _ReadCorpusDirectoryPrimitives(self, ref)
-                    # SAFETY: the reference variant selects the matching query protocol
-                    answer = cast('CorpusDirectoryQuery[T]', query)(primitives)
-                case SchemaReference():
-                    primitives = _ReadSchemaPrimitives(self, ref)
-                    # SAFETY: the reference variant selects the matching query protocol
-                    answer = cast('SchemaQuery[T]', query)(primitives)
-                case _:
-                    assert_never(ref)
-            self._queries[key] = (answer, primitives._recorded_reads())
-        # SAFETY: this key includes the query function and reference; that query produced the cached answer
+            result = answer()
+            self._queries[key] = (result, reads())
+        # SAFETY: the key is created with this query's result type and identifies this cached answer.
         return cast('T', self._queries[key][0])
 
     def query_reads(
         self,
         query: Query[object] | SymlinkQuery[object] | CorpusDirectoryQuery[object] | SchemaQuery[object],
         ref: MarkdownItemRef | SymlinkRef | CorpusDirectoryRef | SchemaReference,
-    ) -> frozenset[ReadKey]:
+    ) -> frozenset[Read]:
         """The typed read keys recorded for a query; public so nested queries avoid private-cache access.
 
         Args:
             query: The declared query whose reads are requested.
             ref: The typed subject the query was run against.
         """
-        # SAFETY: query and reference form one of the declared typed query-key variants
-        key = cast('QueryKey', (query, ref))
+        return self._query_reads(Read(query, ref))
+
+    def _query_reads(self, key: Read) -> frozenset[Read]:
+        """Find dependencies for one read key, with no overload correlation to recover."""
         return self._queries[key][1] if key in self._queries else frozenset()
 
     def _schema_input(self, reference: SchemaReference) -> SchemaInput:

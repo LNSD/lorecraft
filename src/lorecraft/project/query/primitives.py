@@ -5,6 +5,8 @@ kind of state can name that facet. `Primitives` is the whole, composed from the 
 Schema subjects have their own parameterless query family over immutable inputs retained by the workspace model.
 """
 
+from __future__ import annotations
+
 from collections.abc import Callable, Mapping
 from typing import TYPE_CHECKING, Protocol
 
@@ -13,7 +15,6 @@ from lorecraft.project.corpus import CorpusName
 from lorecraft.project.corpus.directory import CorpusDirectoryRef
 from lorecraft.project.item import ItemOrigin, MarkdownItemRef
 from lorecraft.project.link_target import LinkBase, LinkTargetEntry
-from lorecraft.project.schemas import StructureSpec
 from lorecraft.project.skill.outside import SymlinkRef
 from lorecraft.project.syntax import (
     Anchor,
@@ -24,33 +25,52 @@ from lorecraft.project.syntax import (
     NormalisedLinkPath,
     TokenCount,
 )
-from lorecraft.project.workspace import Governance
 from lorecraft.schemas import SchemaInput, SchemaReference
 from lorecraft.vfs import RootExit
 
 if TYPE_CHECKING:
-    # Avoid importing the schema package while its declared queries load the project query protocol.
-    from lorecraft.project.schemas import SpecName
+    from lorecraft.project.schemas.name import SpecName
+    from lorecraft.project.schemas.structure import StructureSpec
+    from lorecraft.project.workspace import Governance
 
 type Query[T] = Callable[[Primitives], T]
+type SameSubjectQuery[P, T] = Callable[[P], T]
 type SymlinkQuery[T] = Callable[[SymlinkPrimitives], T]
 type CorpusDirectoryQuery[T] = Callable[[CorpusDirectoryPrimitives], T]
 type SchemaQuery[T] = Callable[[SchemaPrimitives], T]
-type SubjectQuery[T] = Query[T] | SymlinkQuery[T] | CorpusDirectoryQuery[T]
-type SymlinkQueryRead = tuple[SymlinkQuery[object], SymlinkRef]
-type CorpusDirectoryQueryRead = tuple[CorpusDirectoryQuery[object], CorpusDirectoryRef]
-type SchemaQueryRead = tuple[SchemaQuery[object], SchemaReference]
+type SubjectRef = MarkdownItemRef | SymlinkRef | CorpusDirectoryRef | SchemaReference
+type SubjectQuery[T] = Query[T] | SymlinkQuery[T] | CorpusDirectoryQuery[T] | SchemaQuery[T]
 
 
-class SchemaPrimitives(Protocol):
+class QueryPrimitives[P](Protocol):
+    """Same-subject query operations shared by every subject's primitive facet."""
+
+    def query[T](self, query: SameSubjectQuery[P, T]) -> T:
+        """Read a query over the same subject and record its dependency."""
+        ...
+
+
+class ItemReads(Protocol):
+    """Cross-subject queries whose target is a Markdown item."""
+
+    def query_at[T](self, ref: MarkdownItemRef, query: Query[T]) -> T:
+        """Read an item query by reference and record the typed dependency."""
+        ...
+
+
+class SchemaReads(Protocol):
+    """Cross-subject queries whose target is a schema."""
+
+    def query_schema[T](self, ref: SchemaReference, query: SchemaQuery[T]) -> T:
+        """Read a schema query by reference and record the typed dependency."""
+        ...
+
+
+class SchemaPrimitives(QueryPrimitives['SchemaPrimitives'], SchemaReads, Protocol):
     """The immutable input for one typed schema subject."""
 
     def schema_input(self) -> SchemaInput:
         """The loaded schema input identified by this query's subject reference."""
-        ...
-
-    def query_schema[T](self, ref: SchemaReference, query: SchemaQuery[T]) -> T:
-        """The memoized answer of another schema query, recorded with its typed reference."""
         ...
 
 
@@ -105,7 +125,7 @@ class GovernancePrimitives(Protocol):
         """Whether the package's Agent Skills frontmatter schema is enabled for skill entries."""
         ...
 
-    def item_name(self) -> 'AspectFilename | SpecName | None':
+    def item_name(self) -> AspectFilename | SpecName | None:
         """The typed name of a document or meta specification; `None` for any other item."""
         ...
 
@@ -113,13 +133,17 @@ class GovernancePrimitives(Protocol):
         """The typed corpus a document lies in; `None` for any other item or one that is not UTF-8."""
         ...
 
-    def item_base(self) -> 'AspectFilename | SpecName | None':
+    def item_base(self) -> AspectFilename | SpecName | None:
         """The typed name of the document or specification the item extends, looked for among the names the model lists.
 
         A document's base is the narrowest document of its corpus whose name its own continues after a hyphen, a
         specification's the narrowest specification; `None` when it has none, and for any other item.
         """
         ...
+
+
+class TitlePrimitives(SyntaxPrimitives, GovernancePrimitives, Protocol):
+    """The syntax and structure facets used to derive document title facts."""
 
 
 class LinkResolutionPrimitives(Protocol):
@@ -135,6 +159,9 @@ class LinkResolutionPrimitives(Protocol):
 
 
 class Primitives(
+    QueryPrimitives['Primitives'],
+    ItemReads,
+    SchemaReads,
     SyntaxPrimitives,
     CountPrimitives,
     GovernancePrimitives,
@@ -143,25 +170,8 @@ class Primitives(
 ):
     """The model state of one item a query derives from; each method is one primitive, grouped in the facets."""
 
-    def query[T](self, query: Query[T]) -> T:
-        """The memoized answer of another query over the same item, whose reads count as the asking query's own."""
-        ...
 
-    def query_at[T](self, ref: MarkdownItemRef, query: Query[T]) -> T:
-        """The memoized answer of a query over another item, recorded as the typed pair `(query, ref)`.
-
-        Args:
-            ref: The item whose primitives the query reads.
-            query: The pure function to run over that item's primitives.
-        """
-        ...
-
-    def query_schema[T](self, ref: SchemaReference, query: SchemaQuery[T]) -> T:
-        """The memoized answer of a schema query, recorded as `(query, schema reference)`."""
-        ...
-
-
-class SymlinkPrimitives(Protocol):
+class SymlinkPrimitives(QueryPrimitives['SymlinkPrimitives'], Protocol):
     """The model state of one symlink of the skill layout whose chain leaves the repository."""
 
     def leaves_at(self) -> RootExit:
@@ -169,7 +179,7 @@ class SymlinkPrimitives(Protocol):
         ...
 
 
-class CorpusDirectoryPrimitives(Protocol):
+class CorpusDirectoryPrimitives(QueryPrimitives['CorpusDirectoryPrimitives'], Protocol):
     """The model state of one directory under `docs/` that takes a reserved corpus's name."""
 
     def reserved_corpus(self) -> CorpusName:
