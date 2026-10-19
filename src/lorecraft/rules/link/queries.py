@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 def linked_documents(primitives: Primitives) -> tuple[DocumentLink, ...]:
     """The links to other documents and whether each destination links back. Raises nothing.
 
-    Paths and destination facts are queries, so cross-item dependencies are recorded by ref.
+    Paths and destination answers are queries, so cross-item dependencies are recorded by ref.
 
     Args:
         primitives: The model state of the document.

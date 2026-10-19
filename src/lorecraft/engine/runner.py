@@ -1,27 +1,26 @@
 """The rules engine's shared runner: every enabled rule over a subject, through one rule table.
 
-This is what every mode of the engine shares: the governance lookup, facet gating, and running
+This is what every mode of the engine shares: the governance lookup, gate evaluation, and running
 the table's rules over a subject into its report. It holds no mode's policy. A document, specification, skill entry
 and resource are decoded by each mode's own entry point beside this module, `skip.check_subjects` for the check run,
 so that its policy for an item a failed layer governs comes after decoding; the entry point hands the decoded item to
 `judge_item` and the other subjects to the functions here.
 
-The runner never names a rule. A rule joins its base's partition of the table through the registry, and the runner
-judges every rule of a partition from its query's facts, so adding a rule never edits this module. What it names is
-each subject kind, in one hand-written branch, so the queries stay typed; a new fact a rule reads is a query of the
+The runner never names a rule. A rule joins its base's group in the table through the registry, and the runner
+judges every rule of a group from its query's answer, so adding a rule never edits this module. What it names is
+each subject kind, in one hand-written branch, so the queries stay typed; a new value a rule reads is a query of the
 database, never a branch here.
 
-A subject's status comes before any rule. Each subject is decoded once: one that does not decode is reported as
-`UndecodableSubject`, whatever the table enables, and no rule sees it. A decoded document is then judged facet by
-facet: for each facet an enabled rule over a document or over the frontmatter declares, the runner reads whether the
-specifications govern the document for it, runs those rules over the document if they do, and records the
-facet as ungoverned rather than a diagnostic if they do not. A rule over a Markdown file judges a document under
-`Facet.STRUCTURE`, beside the rules over a document that declare it. A document in no corpus, or in one that states no
-structure specification, is governed for no facet, and no rule is run over it. Package checks judge skill entries
-independently of corpus governance. Package Markdown checks judge resources, whose structure and Markdown facets
-remain active independently of corpus governance. A rule over a skill's file judges every
-`SKILL.md` and every resource, and never a
-document. The database answers only for what a rule's query reads, so a fact no enabled rule reads is never computed.
+Subject decoding precedes rule judgment. Each subject is decoded once: one that does not decode is reported as
+`UndecodableSubject`, whatever the table enables, and no rule sees it. A decoded item is then judged group by
+group: for each group of enabled rules that applies to its kind, the runner checks the rule's gate, runs the rules
+whose gates admit the item, and records an ungoverned gate as coverage rather than a diagnostic. A rule over a
+Markdown file judges a document when its structure specification is loaded, alongside rules gated by a named
+specification facet. A document in no corpus, or in one that states no structure specification, has no specification
+gate admitted, and no such rule is run over it. Package checks judge skill entries independently of corpus
+governance. Package Markdown checks judge resources independently of corpus governance. A rule over a skill's file
+judges every `SKILL.md` and every resource, and never a document. The database answers only what a rule's query reads,
+so a value no enabled rule reads is never computed.
 
 The subjects are those of `skip.Subject`, which defines and dispatches them: documents, specifications, skills,
 skills' resources and layout entries. A decoded document, skill entry or resource
@@ -77,10 +76,10 @@ from lorecraft.rules.table import EnabledRule, QueriedItem, RuleTable
 def judge_item(database: Database, source: ItemText, table: RuleTable) -> CheckedItem:
     """Run enabled rules over a decoded document, specification, skill entry or resource.
 
-    A mode decodes the item and decides what a layer that failed to load means for it; this judges it by the facets
-    its descriptor activates. A rule judges an item of a kind it applies to, and only when the item is governed for the
-    facet the rule reads; a facet an applicable enabled rule reads that is not active is recorded as coverage, whatever
-    the kind. Nothing here asks where the item came from, so a rule of a new base needs no branch.
+    A mode decodes the item and decides what a layer that failed to load means for it; this judges it against the
+    gates applicable to its kind. A rule judges an item only when its gate admits that item; an applicable enabled
+    rule whose gate is not met is recorded as coverage. Nothing here asks where the item came from, so registering a
+    rule under a new base needs no branch.
 
     Args:
         database: The revision the item is read from.
@@ -93,7 +92,7 @@ def judge_item(database: Database, source: ItemText, table: RuleTable) -> Checke
     diagnostics: list[Diagnostic] = []
     ungoverned: list[Facet] = []
 
-    # Spec facets are reached in `Facet` order, then package/schema rules; inactive applicable facets become coverage.
+    # Specification facets follow `Facet` order, then package/schema rules; unmet gates become coverage.
     for facet in (*Facet, None):
         rules = tuple(
             enabled
@@ -122,7 +121,7 @@ def judges(
 
     Args:
         rule: The queried rule whose gate is being checked.
-        descriptor: The item kind and origin facts used by the gate.
+        descriptor: The item kind and origin metadata used by the gate.
         governance: The item's loaded governance, when it belongs to a governed corpus.
         model: The workspace state used to check registered schema gates.
     """
@@ -146,7 +145,7 @@ def judges(
 def _judged_item[Facts](
     rule: type[Queried[Facts, ItemQuery[Facts]]], database: Database, ref: MarkdownItemRef
 ) -> tuple[Rule, ...]:
-    """Judge one item rule from the facts of its memoized query.
+    """Judge one item rule from the answer of its memoized query.
 
     Args:
         rule: The rule to run.
@@ -160,7 +159,7 @@ def _judged_item[Facts](
 def _judged_symlink[Facts](
     rule: type[QueriedSymlinkRule[Facts]], database: Database, ref: SymlinkRef
 ) -> tuple[Rule, ...]:
-    """Judge one symlink rule from the facts of its memoized query.
+    """Judge one symlink rule from the answer of its memoized query.
 
     Args:
         rule: The rule to run.
@@ -173,7 +172,7 @@ def _judged_symlink[Facts](
 def _judged_corpus_directory[Facts](
     rule: type[QueriedCorpusDirectoryRule[Facts]], database: Database, ref: CorpusDirectoryRef
 ) -> tuple[Rule, ...]:
-    """Judge one corpus-directory rule from the facts of its memoized query.
+    """Judge one corpus-directory rule from the answer of its memoized query.
 
     Args:
         rule: The rule to run.
@@ -210,7 +209,7 @@ def check_layout_entry(
         database: The revision whose model and resource listings resolve the subject ref.
         table: The rules the run enables.
     """
-    # Layout facts use the database's typed query cache like facts for Markdown subjects.
+    # Layout query answers use the database's typed cache like item query answers.
     match entry:
         case OutsideSymlink():
             symlink = entry

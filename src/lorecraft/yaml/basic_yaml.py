@@ -438,7 +438,7 @@ class BasicYamlScanner(Scanner):
     block's own text never reaches ruamel.yaml's directive scanner, whose version number conversion raises a plain
     `ValueError` for more digits than Python converts to an `int`, 4300 by default. Those refusals are
     errors of lorecraft's own, not a `ScannerError`, which `read_yaml` returns as the construct they carry, where
-    it returns the scanner's problems as the facts they hold.
+    it returns the scanner's problems with the details they hold.
 
     An explicit key, an empty key, a flow collection spread over lines and a block scalar's indentation indicator
     are not refused where the scanner meets them. It records each in `refusals`, in the order the block writes them,

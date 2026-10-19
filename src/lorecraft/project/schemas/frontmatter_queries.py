@@ -28,7 +28,7 @@ if TYPE_CHECKING:
 
 
 def owner_of_frontmatter(primitives: GovernancePrimitives) -> FrontmatterOwner:
-    """The document or skill whose frontmatter the item opens, from origin facts and governance.
+    """The document or skill whose frontmatter the item opens, from origin metadata and governance.
 
     Raises:
         WrongItemKindError: If the item is not a skill entry or a document whose corpus states a structure spec.

@@ -7,7 +7,7 @@ a document, it is read from the document's own directory, as Markdown renders it
 `link_targets_of` joins each link's relative path to that directory and looks the result up through a view: a file, a
 directory, missing, or in a directory the scan never read, so the snapshot cannot tell. Each entry keeps the
 root-relative path
-it joined beside the lookup, so a reader says where a link really leads. It is a fact of the revision, never a
+it joined beside the lookup, so a reader says where a link really leads. It is part of the revision's state, never a
 judgment: whether a missing target makes a link broken is a rule's to decide. A link spelling no relative path has no
 entry. One that climbs past its bound has an `EscapingTarget` instead of a `LinkTarget`: above the skill root in a
 file of a skill, which names nothing the skill carries once it is installed elsewhere, or above the repository root in

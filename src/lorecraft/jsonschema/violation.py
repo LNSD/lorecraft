@@ -1,4 +1,4 @@
-"""Project-independent facts read from a JSON Schema validation failure."""
+"""Project-independent details read from a JSON Schema validation failure."""
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass

@@ -45,7 +45,7 @@ class UnknownField(QueriedItemRule[tuple[SchemaProblems, ...]]):
 
     ## Why is this bad?
 
-    An agent reads every field of the frontmatter, so a field no schema defines costs it tokens and offers a fact
+    An agent reads every field of the frontmatter, so a field no schema defines costs it tokens and offers information
     no other document states the same way, often a misspelling of a field the schema does define.
 
     ## Example

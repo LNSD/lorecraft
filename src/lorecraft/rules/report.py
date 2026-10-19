@@ -13,8 +13,9 @@ that order as the fields it compares, and `diagnostic_order` builds it as the so
 
 Each subject the runner checks, a document, a meta specification, a skill or a skill's resource, gets one report,
 and either kind of report gives its diagnostics as `diagnostics`. A `CheckedItem` decoded, and holds its
-diagnostics, in their output order however it is built, and the facets no meta spec governs it for; a skill entry has
-package checks independent of corpus governance, while a resource has no meta-spec structure governance. An
+diagnostics, in their output order however it is built, and the specification facets no meta spec governs it for.
+A skill entry has package checks independent of corpus governance, while a resource has no meta-spec structure
+governance. An
 `UndecodableSubject` did not decode,
 so no rule judged it: it holds its ref and where the bytes stopped being UTF-8, and its one diagnostic, the engine's,
 is built from them, at the subject's path. An `UnreadableDocument` could not be read at all, so it holds its document
@@ -150,15 +151,15 @@ class CheckedItem:
     """A Markdown item that decoded, so the enabled rules judged everything it is governed for.
 
     A document, a skill's `SKILL.md` and a skill's resource are reported alike. Only a rule over a document is gated
-    on a facet beyond the ones the package always activates for a skill file, so a skill file's report holds no
-    ungoverned facet by construction, and only a document's can.
+    on a specification facet beyond the checks the package always activates for a skill file, so a skill file's
+    report holds no ungoverned facet by construction, and only a document's can.
 
     Attributes:
         ref: The item the rules judged, at the path its diagnostics are reported at.
         diagnostics: Every occurrence the rules found in it, in the order `diagnostic_order` sorts them into,
             whatever order they are given in; empty when it holds to every rule.
-        ungoverned: The facets an enabled rule reads that no meta spec governs the item for, in the order the
-            runner reads them; no rule that reads one judged the item.
+        ungoverned: The specification facets an enabled rule reads that no meta spec governs the item for, in the order
+            the runner reads them; no rule that reads one judged the item.
     """
 
     ref: MarkdownItemRef

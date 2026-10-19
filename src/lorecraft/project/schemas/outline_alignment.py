@@ -2,7 +2,7 @@
 
 A section is aligned to the entry that names it, wherever in the outline that entry sits, or else to the `any` run it
 falls in: the first `any` run after the entry naming the last named section before it. A section no entry names and
-no `any` run follows is aligned to nothing. The alignment is a fact of the document and its specifications, whether
+no `any` run follows is aligned to nothing. The alignment describes the document and its specifications, whether
 or not the document follows the outline: `match_outlines` finds where it stops following it by reading the
 alignment, and every rule that needs an outline entry of a section reads it too, so no two of them place a section
 differently.

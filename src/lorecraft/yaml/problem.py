@@ -1,7 +1,7 @@
-"""What stops a YAML text from being read, as values that carry the facts a caller words a problem from.
+"""What stops a YAML text from being read, as values that carry the details a caller words a problem from.
 
 A text that cannot be read is one problem, the first the text writes, in one of four kinds. No kind holds a type of the
-YAML library, so a package above this one words each from the facts alone: the character a text is not allowed, the
+YAML library, so a package above this one words each from the details alone: the character a text is not allowed, the
 error a parser reported with where it reported it, the construct the subset leaves out, or the depth the text nests
 past.
 """
@@ -182,7 +182,7 @@ type RefusedConstruct = (
     | SpreadFlowCollection
     | LineSeparator
 )
-"""A construct the subset leaves out, as the facts a package above words a problem from."""
+"""A construct the subset leaves out, as the details a package above words a problem from."""
 
 
 @dataclass(frozen=True, slots=True)

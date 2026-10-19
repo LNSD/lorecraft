@@ -1,7 +1,7 @@
 """The query-backed rules over items and layout subjects, with their closed eligibility gates.
 
 Every rule over an item derives from `QueriedItemRule[Facts]`, names its `ItemQuery[Facts]`, and declares a `GATES`
-mapping for the item kinds it judges. `BySpec` requires a loaded structure layer to state the named facet;
+mapping for the item kinds it judges. `BySpec` requires a loaded structure layer to state the named specification facet;
 `ByPackage` admits a package-governed kind, and `BySchema` admits a kind only when the named schema is registered.
 A kind absent from the mapping is inapplicable. These declarations let the runner and rule table use one explicit
 contract while the rule itself judges only query facts.
@@ -44,10 +44,10 @@ class Facet(StrEnum):
 
 @dataclass(frozen=True, slots=True)
 class BySpec:
-    """A gate for an item facet a loaded structure layer may govern.
+    """A gate for a specification facet a loaded structure layer may govern.
 
     Attributes:
-        facet: The facet a loaded structure layer must state for the rule to judge the item.
+        facet: The specification facet a loaded structure layer must state for the rule to judge the item.
         requires_loaded_layer: Whether a skill entry also requires loaded corpus governance for this rule.
     """
 
@@ -132,12 +132,12 @@ class QueriedItemRule[Facts](Queried[Facts, ItemQuery[Facts]], ItemRule):
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class SymlinkRule(LayoutRule):
-    """The base of every rule over a symlink of the skill layout; the package governs it, so it declares no facet."""
+    """The base of every rule over a skill-layout symlink; it is package-governed and has no gates."""
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class CorpusDirectoryRule(LayoutRule):
-    """The base of every rule over a reserved-corpus directory; the package governs it, so it declares no facet."""
+    """The base of every rule over a reserved-corpus directory; it is package-governed and has no gates."""
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -147,7 +147,7 @@ class QueriedSymlinkRule[Facts](Queried[Facts, Query[SymlinkPrimitives, Facts]],
     @classmethod
     @abstractmethod
     def query(cls) -> Query[SymlinkPrimitives, Facts]:
-        """The query over a symlink's model facts whose answer `judge` takes."""
+        """The query over a symlink's model state whose answer `judge` takes."""
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -157,4 +157,4 @@ class QueriedCorpusDirectoryRule[Facts](Queried[Facts, Query[CorpusDirectoryPrim
     @classmethod
     @abstractmethod
     def query(cls) -> Query[CorpusDirectoryPrimitives, Facts]:
-        """The query over a reserved-corpus directory's model facts whose answer `judge` takes."""
+        """The query over a reserved-corpus directory's model state whose answer `judge` takes."""

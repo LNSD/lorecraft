@@ -1,7 +1,7 @@
-"""Common identity and model-resolved facts for governed Markdown items.
+"""Common identity and model state for governed Markdown items.
 
 The ref names an item where the repository lists it. Its descriptor records the
-location and origin facts needed by consumers without reading the item's text.
+location and origin metadata needed by consumers without reading the item's text.
 """
 
 from dataclasses import dataclass
@@ -31,7 +31,7 @@ type SubjectRef = MarkdownItemRef | SymlinkRef | CorpusDirectoryRef
 
 
 class WrongItemKindError(TypeError):
-    """A fact of one kind of item was asked of another, which a rule that applies to its kind never does."""
+    """A value for one kind of item was requested from another, which a rule never does for its kind."""
 
     def __init__(self, expected: str) -> None:
         super().__init__(f'expected {expected}')
@@ -58,7 +58,7 @@ class ItemFacet(Enum):
 
 @dataclass(frozen=True, slots=True)
 class DocumentOrigin:
-    """Origin facts for a corpus document.
+    """Origin metadata for a corpus document.
 
     Attributes:
         expected_name: Filename stem the document's frontmatter name is checked against.
@@ -73,7 +73,7 @@ class DocumentOrigin:
 
 @dataclass(frozen=True, slots=True)
 class SkillEntryOrigin:
-    """Origin facts for a listed skill entry.
+    """Origin metadata for a listed skill entry.
 
     Attributes:
         expected_name: Listed directory name the skill's frontmatter name is checked against.
@@ -86,7 +86,7 @@ class SkillEntryOrigin:
 
 @dataclass(frozen=True, slots=True)
 class SkillResourceOrigin:
-    """Origin facts for a Markdown resource inside a skill.
+    """Origin metadata for a Markdown resource inside a skill.
 
     The resource keeps its own ref and read location. The containing skill identifies its provenance only; no
     corpus governance is applied to the resource.
@@ -100,7 +100,7 @@ class SkillResourceOrigin:
 
 @dataclass(frozen=True, slots=True)
 class SpecificationOrigin:
-    """Origin facts for a meta specification, a Markdown file of `docs/__meta__/`.
+    """Origin metadata for a meta specification, a Markdown file of `docs/__meta__/`.
 
     Attributes:
         expected_name: Specification name, the file's stem, such as `feat-cli`.
@@ -122,13 +122,13 @@ class MarkdownItemDescriptor:
         ref: Common logical identity and report path.
         read_location: Snapshot path from which the item's text is read.
         link_base: Where the item's relative Markdown links are read from, with the climb bound of that base.
-        origin: Expected-name and provenance facts specific to the item's origin.
+        origin: Expected-name and provenance metadata specific to the item's origin.
         governance_corpus: Corpus whose specifications govern the item, when it belongs to one; empty otherwise.
         aspect_name: Listed name matched against namespace specifications, when it belongs to a corpus; retained as
             provenance for skills and resources.
         active_facets: Checks enabled for this item. The package's skill checks activate skill-entry frontmatter and
             structure checks, independently of corpus governance. A meta specification is active for structure and
-            Markdown checks; a resource activates the structure and Markdown facets.
+            Markdown checks; a resource activates the structure and Markdown checks.
     """
 
     ref: MarkdownItemRef

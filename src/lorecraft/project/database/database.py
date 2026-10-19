@@ -3,7 +3,7 @@
 `Database.from_snapshot` loads the model for one immutable snapshot. Input queries such as `model()`,
 `item_text(ref)`, `skill_resources(skill)` and `item_link_targets(source)` read the snapshot and document their
 carry-over rules. Declared queries run through `query(query, ref)`, which memoizes each answer and its typed reads;
-item facts such as parsing, frontmatter, counts and structure specifications are declared in `lorecraft.project.query`
+item values such as parsing, frontmatter, counts and structure specifications are declared in `lorecraft.project.query`
 and derive from raw primitive state.
 
 The item family shares `MarkdownItemRef` across documents, skill entries and resources. Resource references are
@@ -260,7 +260,7 @@ class _ItemPrimitives(_Reads[MarkdownItemRef, '_ItemPrimitives']):
 
     @primitive
     def item_origin(self) -> ItemOrigin:
-        """The model-resolved origin facts of the item."""
+        """The model-resolved origin metadata of the item."""
         return self._database._item(self._ref).descriptor.origin
 
     @primitive
@@ -320,7 +320,7 @@ class Database:
     `item_text` decodes an item's bytes; `item_link_targets` resolves its relative links against the snapshot and
     scope. Their carry-over rules are stated by their methods.
 
-    Declared queries in `lorecraft.project.query` derive item facts from raw primitive state. Other declared queries,
+    Declared queries in `lorecraft.project.query` derive item values from raw primitive state. Other declared queries,
     including `parsed_skill_fields`, `owner_of_frontmatter` and `frontmatter_schema_problems`, run through `query(query,
     ref)`, which memoizes each answer and its reads. Schema queries use the same cache keyed by `(query,
     SchemaReference)` and read immutable inputs from the model.
