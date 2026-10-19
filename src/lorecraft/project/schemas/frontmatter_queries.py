@@ -6,6 +6,7 @@ from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.path import PathComponent
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.item import DocumentOrigin, SkillEntryOrigin, WrongItemKindError
+from lorecraft.project.query import item_frontmatter
 from lorecraft.project.schemas.agent_skills_schema import agent_skills_frontmatter_schema_query
 from lorecraft.project.schemas.frontmatter_owner import (
     DocumentFrontmatterOwner,
@@ -52,7 +53,7 @@ def skill_fields_query(primitives: 'Primitives') -> SkillFields:
     """The independently parsed fields of a skill entry; empty for every other item."""
     if not isinstance(primitives.item_origin(), SkillEntryOrigin):
         return FrozenMapping({})
-    return parse_skill_fields(primitives.frontmatter())
+    return parse_skill_fields(primitives.query(item_frontmatter))
 
 
 def schema_problems_query(primitives: 'Primitives') -> tuple[SchemaProblems, ...]:
@@ -68,7 +69,7 @@ def schema_problems_query(primitives: 'Primitives') -> tuple[SchemaProblems, ...
     governance = primitives.item_governance()
     schemas = governance.frontmatter_schemas() if governance is not None else ()
     if isinstance(origin, SkillEntryOrigin):
-        frontmatter = primitives.frontmatter()
+        frontmatter = primitives.query(item_frontmatter)
         floor_present = False
         try:
             floor_schema = primitives.query_schema(AGENT_SKILLS_SCHEMA_REFERENCE, agent_skills_frontmatter_schema_query)
@@ -105,4 +106,4 @@ def schema_problems_query(primitives: 'Primitives') -> tuple[SchemaProblems, ...
         )
     if not schemas:
         return ()
-    return locate_schema_problems(primitives.frontmatter(), schemas)
+    return locate_schema_problems(primitives.query(item_frontmatter), schemas)

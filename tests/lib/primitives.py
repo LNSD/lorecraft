@@ -10,7 +10,7 @@ from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.item import DocumentOrigin, ItemOrigin, MarkdownItemRef
 from lorecraft.project.link_target import DocumentLink, LinkBase, LinkTargetEntry
-from lorecraft.project.query import DecodedText, Query, SchemaQuery
+from lorecraft.project.query import DecodedText, Query, SchemaQuery, item_frontmatter
 from lorecraft.project.schemas import SpecName, StructureSpec
 from lorecraft.project.syntax import (
     Anchor,
@@ -81,13 +81,13 @@ class StructurePrimitives:
         """The origin this was built with."""
         return self.origin_value
 
+    def item_text(self) -> DecodedText | None:
+        """Standalone test facts have no decoded witness; derived answers are supplied below."""
+        return None
+
     def item_governance(self) -> Governance | None:
         """The governance this was built with."""
         return self.governance_value
-
-    def item_text(self) -> DecodedText | None:
-        """Standalone test facts have no decoded witness."""
-        return None
 
     def structure_specs(self) -> tuple[StructureSpec, ...]:
         """The specifications this was built with."""
@@ -141,6 +141,8 @@ class StructurePrimitives:
         """The answer of the query over these same primitives."""
         if query is linked_documents:
             return cast('T', self.document_link_list)
+        if query is item_frontmatter:
+            return self.frontmatter_node
         return query(self)
 
     def query_at[T](self, ref: MarkdownItemRef, query: Query[T]) -> T:
