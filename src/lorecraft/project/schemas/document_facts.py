@@ -9,6 +9,7 @@ from dataclasses import dataclass
 
 from lorecraft.core.num import UnsignedInt
 from lorecraft.core.path import RootRelativePath
+from lorecraft.project.query import item_parse, item_structure_specs
 from lorecraft.project.query.primitives import TitlePrimitives
 from lorecraft.project.syntax import Heading, WordCount, count_words, find_title
 
@@ -78,7 +79,7 @@ def title_facts(primitives: TitlePrimitives) -> TitleFacts:
     """
     constraints = tuple(
         TitleConstraint(spec=spec.path, checks=spec.title)
-        for spec in primitives.structure_specs()
+        for spec in primitives.query(item_structure_specs)
         if spec.title is not None
     )
-    return TitleFacts(title=find_document_title(primitives.headings()), constraints=constraints)
+    return TitleFacts(title=find_document_title(primitives.query(item_parse).headings), constraints=constraints)

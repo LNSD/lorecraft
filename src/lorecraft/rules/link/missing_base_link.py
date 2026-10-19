@@ -6,7 +6,7 @@ from typing import ClassVar, Final, Self
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.item import ItemKind
 from lorecraft.project.link_target import DocumentDirectory, LinkTarget
-from lorecraft.project.query import Query
+from lorecraft.project.query import Query, item_name, item_parse
 from lorecraft.project.syntax import FIRST_LINE, LineNumber, RelativeDestination, find_title
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
@@ -43,11 +43,11 @@ def missing_base(primitives: GovernanceSyntaxLinkResolutionPrimitives) -> Missin
         primitives: The model state of the document.
     """
     base = primitives.item_base()
-    name = primitives.item_name()
+    name = primitives.query(item_name)
     link_base = primitives.link_base()
     if base is None or name is None or not isinstance(link_base, DocumentDirectory):
         return None
-    headings = primitives.headings()
+    headings = primitives.query(item_parse).headings
     title = find_title(headings)
     references = next((heading for heading in headings if heading.level <= 2 and heading.text == _REFERENCES), None)
     wanted = link_base.directory / RootRelativePath.parse(f'{base}.md')
@@ -56,7 +56,7 @@ def missing_base(primitives: GovernanceSyntaxLinkResolutionPrimitives) -> Missin
             (heading.line for heading in headings if heading.level <= 2 and heading.line > references.line), None
         )
         targets = primitives.link_targets()
-        for link in primitives.links():
+        for link in primitives.query(item_parse).links:
             destination = link.to_destination()
             if not isinstance(destination, RelativeDestination):
                 continue

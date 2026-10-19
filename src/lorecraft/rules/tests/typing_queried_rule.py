@@ -2,7 +2,7 @@
 
 from typing import Self
 
-from lorecraft.project.query import Query, SymlinkPrimitives, SymlinkQuery
+from lorecraft.project.query import Primitives, Query, SymlinkPrimitives, SymlinkQuery
 from lorecraft.project.schemas import TitleFacts, title_facts
 from lorecraft.rules.subject import QueriedDocumentRule
 
@@ -24,6 +24,11 @@ class WrongQuery(QueriedDocumentRule[int]):
 def symlink_query(_: SymlinkPrimitives) -> int:
     """A well-typed symlink query for the subject-kind check below."""
     return 0
+
+
+def wrong_subject_query(primitives: Primitives) -> int:
+    """The same-subject query contract rejects a query for another subject kind."""
+    return primitives.query(symlink_query)  # ty: ignore[invalid-argument-type]
 
 
 class WrongSubjectQuery(QueriedDocumentRule[int]):

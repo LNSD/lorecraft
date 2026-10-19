@@ -13,24 +13,17 @@ from typing import TYPE_CHECKING, Protocol
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.corpus.directory import CorpusDirectoryRef
-from lorecraft.project.item import ItemOrigin, MarkdownItemRef
+from lorecraft.project.item import ItemOrigin, MarkdownItemDescriptor, MarkdownItemRef
 from lorecraft.project.link_target import LinkBase, LinkTargetEntry
 from lorecraft.project.skill.outside import SymlinkRef
 from lorecraft.project.syntax import (
-    Anchor,
-    FrontmatterNode,
-    Heading,
-    LineCount,
-    Link,
     NormalisedLinkPath,
-    TokenCount,
 )
 from lorecraft.schemas import SchemaInput, SchemaReference
 from lorecraft.vfs import RootExit
 
 if TYPE_CHECKING:
     from lorecraft.project.schemas.name import SpecName
-    from lorecraft.project.schemas.structure import StructureSpec
     from lorecraft.project.workspace import Governance
 
 type Query[T] = Callable[[Primitives], T]
@@ -66,6 +59,13 @@ class SchemaReads(Protocol):
         ...
 
 
+class DecodedText(Protocol):
+    """The raw text facts every decoded item witness exposes to a query."""
+
+    descriptor: MarkdownItemDescriptor
+    text: str
+
+
 class SchemaPrimitives(QueryPrimitives['SchemaPrimitives'], SchemaReads, Protocol):
     """The immutable input for one typed schema subject."""
 
@@ -74,44 +74,20 @@ class SchemaPrimitives(QueryPrimitives['SchemaPrimitives'], SchemaReads, Protoco
         ...
 
 
-class SyntaxPrimitives(Protocol):
-    """What the item's parse holds: its headings, anchors, links and frontmatter block."""
+class SyntaxPrimitives(QueryPrimitives['Primitives'], Protocol):
+    """Raw decoded text from which syntax and counts are derived."""
 
-    def headings(self) -> tuple[Heading, ...]:
-        """The headings of the item's parse, in document order."""
-        ...
-
-    def links(self) -> tuple[Link, ...]:
-        """The links of the item's parse, in document order; none for an item that is not UTF-8."""
-        ...
-
-    def anchors(self) -> frozenset[Anchor]:
-        """The anchor of every heading of the item's parse, as GitHub derives them; none for a non-UTF-8 item."""
-        ...
-
-    def frontmatter(self) -> FrontmatterNode:
-        """The item's frontmatter block as parsed: missing, not YAML, not a mapping, or the mapping."""
+    def item_text(self) -> DecodedText | None:
+        """The decoded witness of this subject, or none when its bytes are not UTF-8."""
         ...
 
 
-class CountPrimitives(Protocol):
-    """What is measured of the item's whole file."""
-
-    def token_count(self) -> TokenCount:
-        """The tokens in the item's whole file; none for an item that is not UTF-8."""
-        ...
-
-    def line_count(self) -> LineCount:
-        """The lines in the item's whole file; none for an item that is not UTF-8."""
-        ...
+# Counts are derived from the same raw text witness as syntax.
+CountPrimitives = SyntaxPrimitives
 
 
-class GovernancePrimitives(Protocol):
+class GovernancePrimitives(QueryPrimitives['Primitives'], Protocol):
     """What governs the item and what it is named: its specifications, schemas, owner and place among the documents."""
-
-    def structure_specs(self) -> tuple[StructureSpec, ...]:
-        """The structure specifications that govern the item, in the order they apply; none when nothing governs it."""
-        ...
 
     def item_origin(self) -> ItemOrigin:
         """The model's origin facts for this item, including its expected name and provenance."""
@@ -119,14 +95,6 @@ class GovernancePrimitives(Protocol):
 
     def item_governance(self) -> Governance | None:
         """The governance of this item, or none when it has no corpus governance."""
-        ...
-
-    def item_name(self) -> AspectFilename | SpecName | None:
-        """The typed name of a document or meta specification; `None` for any other item."""
-        ...
-
-    def item_corpus(self) -> CorpusName | None:
-        """The typed corpus a document lies in; `None` for any other item or one that is not UTF-8."""
         ...
 
     def item_base(self) -> AspectFilename | SpecName | None:
@@ -142,7 +110,7 @@ class TitlePrimitives(SyntaxPrimitives, GovernancePrimitives, Protocol):
     """The syntax and structure facets used to derive document title facts."""
 
 
-class LinkResolutionPrimitives(Protocol):
+class LinkResolutionPrimitives(QueryPrimitives['Primitives'], Protocol):
     """What the snapshot holds where the item's links point."""
 
     def link_targets(self) -> Mapping[NormalisedLinkPath, LinkTargetEntry]:
@@ -155,11 +123,9 @@ class LinkResolutionPrimitives(Protocol):
 
 
 class Primitives(
-    QueryPrimitives['Primitives'],
     ItemReads,
     SchemaReads,
     SyntaxPrimitives,
-    CountPrimitives,
     GovernancePrimitives,
     LinkResolutionPrimitives,
     Protocol,

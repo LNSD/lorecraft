@@ -10,7 +10,13 @@ from lorecraft.project.corpus import CorpusDirectoryRef, CorpusName
 from lorecraft.project.database import Database, Read
 from lorecraft.project.item import MarkdownItemRef
 from lorecraft.project.layout import SNAPSHOT_SCOPE
-from lorecraft.project.query import CorpusDirectoryPrimitives, Primitives, SchemaPrimitives, SymlinkPrimitives
+from lorecraft.project.query import (
+    CorpusDirectoryPrimitives,
+    Primitives,
+    SchemaPrimitives,
+    SymlinkPrimitives,
+    item_parse,
+)
 from lorecraft.project.skill import SymlinkRef
 from lorecraft.project.syntax import Heading
 from lorecraft.schemas import SchemaInput, SchemaReference
@@ -30,12 +36,12 @@ def _reserved_corpus(primitives: CorpusDirectoryPrimitives) -> CorpusName:
 
 def _item_headings(primitives: Primitives) -> tuple[Heading, ...]:
     """The headings read from a Markdown item subject."""
-    return primitives.headings()
+    return primitives.query(item_parse).headings
 
 
 def _read_only_lookup(primitives: Primitives) -> object:
     """Fetch a primitive method without invoking it."""
-    return primitives.headings
+    return primitives.item_text
 
 
 def _schema_input(primitives: SchemaPrimitives) -> SchemaInput:
@@ -111,7 +117,7 @@ class TestSubjectReads:
 
         #: Then
         assert len(headings) == 1, f'the query returns the source heading, got {headings}'
-        assert database.query_reads(_item_headings, ref) == {Read('headings', ref)}, (
+        assert database.query_reads(_item_headings, ref) == {Read(item_parse, ref), Read('item_text', ref)}, (
             'the read key retains the Markdown item subject'
         )
 

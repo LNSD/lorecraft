@@ -16,7 +16,15 @@ from lorecraft.project.database import Database, ItemText, Read
 from lorecraft.project.item import MarkdownItemRef, UnlistedItemError
 from lorecraft.project.layout import SNAPSHOT_SCOPE
 from lorecraft.project.link_target import DocumentLink
-from lorecraft.project.query import Primitives, linked_paths
+from lorecraft.project.query import (
+    Primitives,
+    item_corpus,
+    item_name,
+    item_parse,
+    item_structure_specs,
+    item_token_count,
+    linked_paths,
+)
 from lorecraft.project.schemas import CorpusSpecName, SpecName, title_facts
 from lorecraft.project.syntax import Anchor, LineNumber
 from lorecraft.rules.length.too_many_tokens import token_facts
@@ -66,17 +74,17 @@ def _decoded(database: Database) -> ItemText:
 
 def _anchors(primitives: Primitives) -> frozenset[Anchor]:
     """The anchor of every heading of the item's parse."""
-    return primitives.anchors()
+    return primitives.query(item_parse).anchors
 
 
 def _item_name(primitives: Primitives) -> AspectFilename | SpecName | None:
     """The typed filename of the item."""
-    return primitives.item_name()
+    return primitives.query(item_name)
 
 
 def _item_corpus(primitives: Primitives) -> CorpusName | None:
     """The typed corpus of the item."""
-    return primitives.item_corpus()
+    return primitives.query(item_corpus)
 
 
 def _document_base(primitives: Primitives) -> AspectFilename | SpecName | None:
@@ -94,7 +102,7 @@ class TestMarkdownPrimitives:
         anchors = database.query(_anchors, GUIDE)
 
         #: Then
-        assert anchors == database.item_parse(_decoded(database)).anchors, "the anchors are the parse's own"
+        assert anchors == database.query(item_parse, _decoded(database).ref).anchors, "the anchors are the parse's own"
         assert len(anchors) == 3, 'the title and the two sections each take an anchor'
 
     def test_item_name_with_a_document_returns_its_typed_filename(self, tmp_path: Path) -> None:
@@ -200,10 +208,12 @@ class TestDocumentFactQueries:
 
         #: Then
         assert [(b.spec, b.tokens.value) for b in facts.budgets] == [(SPEC_PATH, 500)], 'the budget names its file'
-        assert facts.count == database.item_token_count(_decoded(database)), 'the count is the file whole'
+        assert facts.count == database.query(item_token_count, _decoded(database).ref), 'the count is the file whole'
         assert database.query_reads(token_facts, GUIDE) == {
-            Read('structure_specs', GUIDE),
-            Read('token_count', GUIDE),
+            Read(item_structure_specs, GUIDE),
+            Read('item_governance', GUIDE),
+            Read(item_token_count, GUIDE),
+            Read('item_text', GUIDE),
         }, 'derived carry-over names each primitive and the item read'
 
     def test_query_empty_section_facts_holds_the_forbidding_file_and_the_empty_section(self, tmp_path: Path) -> None:
@@ -238,10 +248,11 @@ class TestDocumentFactQueries:
         assert [(link.line.value, link.extension) for link in facts.links] == [(7, 'guide-more.md')], 'the existing one'
         assert database.query(extension_link_facts, GUIDE) is facts, 'the answer is memoized'
         assert database.query_reads(extension_link_facts, GUIDE) == {
-            Read('links', GUIDE),
+            Read(item_parse, GUIDE),
+            Read('item_text', GUIDE),
             Read('link_targets', GUIDE),
             Read('link_base', GUIDE),
-            Read('item_name', GUIDE),
+            Read(item_name, GUIDE),
         }, 'derived carry-over'
 
     def test_query_extension_link_facts_of_a_skill_entry_holds_no_link(self, tmp_path: Path) -> None:
@@ -266,8 +277,10 @@ class TestDocumentFactReads:
 
         #: Then
         assert database.query_reads(title_facts, GUIDE) == {
-            Read('structure_specs', GUIDE),
-            Read('headings', GUIDE),
+            Read(item_structure_specs, GUIDE),
+            Read('item_governance', GUIDE),
+            Read(item_parse, GUIDE),
+            Read('item_text', GUIDE),
         }, 'the carry-over names each primitive and the item read'
 
 
@@ -349,17 +362,20 @@ class TestDocumentLinks:
         #: Then
         assert facts.corpus == CorpusName.parse('code'), 'the corpus of the document'
         assert database.query_reads(mutual_link_facts, GUIDE) == {
-            Read('item_corpus', GUIDE),
-            Read('item_name', GUIDE),
+            Read(item_corpus, GUIDE),
+            Read('item_text', GUIDE),
+            Read(item_name, GUIDE),
             Read('link_base', GUIDE),
-            Read('links', GUIDE),
+            Read(item_parse, GUIDE),
             Read('link_targets', GUIDE),
             Read(linked_documents, GUIDE),
             Read(linked_paths, GUIDE),
             Read(linked_paths, FEATURE),
+            Read(item_parse, FEATURE),
+            Read('item_text', FEATURE),
             Read(linked_paths, OTHER_GUIDE),
-        } | {
-            Read(primitive, ref)
-            for ref in (FEATURE, OTHER_GUIDE)
-            for primitive in ('link_base', 'links', 'link_targets')
-        }, 'the carry-over includes dependencies of linked item queries'
+            Read(item_parse, OTHER_GUIDE),
+            Read('item_text', OTHER_GUIDE),
+        } | {Read(primitive, ref) for ref in (FEATURE, OTHER_GUIDE) for primitive in ('link_base', 'link_targets')}, (
+            'the carry-over includes dependencies of linked item queries'
+        )

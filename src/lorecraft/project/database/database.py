@@ -1,140 +1,25 @@
-"""One frozen state of a workspace: its snapshot, and the cached data every check, and every command, reads through.
+"""One frozen state of a workspace: its snapshot and memoized derived values.
 
-The layering follows an IDE's. The `Snapshot` plays the virtual file system: every byte a
-check can see, and never changed once built. `Database.from_snapshot` builds the database from a snapshot and loads the
-model; every other query sits above it, computed on first use and kept for as long as the database lives
-(pattern-memoization). Queries come in two kinds, and the kind decides how a query carries over to the next revision.
+`Database.from_snapshot` loads the model for one immutable snapshot. Input queries such as `model()`,
+`item_text(ref)`, `skill_resources(skill)` and `item_link_targets(source)` read the snapshot and document their
+carry-over rules. Declared queries run through `query(query, ref)`, which memoizes each answer and its typed reads;
+item facts such as parsing, frontmatter, counts and structure specifications are declared in `lorecraft.project.query`
+and derive from raw primitive state.
 
-The item queries share one family keyed by `MarkdownItemRef`.
-`item_text(ref)` decodes the descriptor's read location into an `ItemText` witness or an `Undecodable` marker.
-`item_link_targets(source)` is an input query; `item_frontmatter`, `item_parse`, `item_token_count`,
-`item_line_count` are derived queries. `item_governance(ref)` returns the governance already held by the resolved
-item. A resource's `resource_item(location)` registers the reference from its skill's listing, and its item queries
-read the descriptor at the resolved location. A document the model does not list is resolved by its corpus and
-filename.
+The item family shares `MarkdownItemRef` across documents, skill entries and resources. Resource references are
+registered from their skill's listing; documents not listed by the model can still be resolved from their corpus and
+filename. A new database is created for each snapshot, and no derived value is cached across databases here.
 
-The declared `query(query, ref)` memoizes a rule-owned query over a Markdown item, symlink, reserved-corpus directory
-or schema subject. `query_reads(query, ref)` reports typed primitive and cross-subject reads, each retaining its
-subject reference. A query's result carries over when each primitive or query dependency it read does. A declared
-item query reads common primitives without distinguishing item origins.
-
-Database construction and resource registration have no separate carry-over cache. `from_snapshot(snapshot)` creates
-a fresh database for that snapshot. `resource_item(location)` registers the ref from the skill resource listing in
-that database; in a later revision, the listing must locate the resource at the same ref and resolved file for its
-item query results to carry over.
-
-Input queries read the snapshot. Each is the one place its part of the snapshot becomes a value for a rule, so only an
-input query builds a witness or fails to read, and each states its own carry-over rule against the change set:
-
-- `model()`: the workspace model, like the IDE's project model, loaded when the database is opened, so no query that
-  reads it raises a load error. It reads the structure of the snapshot, the
-  specifications, the corpus directories, the skills directories and the listing of each skill's directory, nothing
-  deeper inside a skill, and no document's contents. Among that structure it records each skills directory, skill
-  entry and `SKILL.md` whose symlink chain leaves the repository.
-- `item_text(ref)`: one item's bytes decoded as UTF-8, like the IDE's document text for a file: an `ItemText` witness,
-  or an `Undecodable` marker when the bytes are not UTF-8. It is the one place those bytes become text for a rule, and
-  it reads that file's bytes and nothing else.
-- `skill_resources(skill)`: one skill's resources, the Markdown files inside it other than its top-level `SKILL.md`,
-  like the IDE's listing of a content root's children, and the symlinks inside it whose chain leaves the
-  repository. It reads the listings and the symlink targets reached from that skill, and where the model locates
-  the skill, and no file's content.
-- The `ScopeIndex` the link-target queries answer from: the scope the snapshot records it was taken of, expanded once
-  through the links it recorded, like the IDE's index of a project's content roots. It reads the snapshot's
-  scope, links and climbed directories and nothing else, and no caller reaches it but the link-target queries.
-  Whether the scan reads the directory a path sits in is configuration, not content: it is answered from this
-  index and never from which directories the snapshot holds.
-- `item_link_targets(source)`: what the snapshot holds at the target of each relative link of one item. It reads the
-  item's parse and link base, the snapshot's view and the scope index. Carry-over requires the parse to carry and
-  every looked-up path, including an absent target, to resolve to the same place in the same scope state.
-
-Derived queries read the results of other queries and never the snapshot. Each hands what it read to one function
-of this package that computes the value, so its arguments are its read set, and it carries over whenever every query
-it read does:
-
-- `item_frontmatter(source)`: one item's frontmatter node, like a stub: the part of a file the IDE reads without
-  building its full syntax tree. It reads the text of the witness and nothing else.
-- `item_parse(source)`: one item's parse tree, like the IDE's syntax tree of a file. It reads the text of the witness
-  and nothing else.
-- `item_token_count(source)` and `item_line_count(source)`: what one item's whole file costs an agent that loads it,
-  and how many lines it holds, counted from the raw text, frontmatter included, without a parse.
-
-Other public methods either answer from queries or inspect the snapshot. Their section and carry-over rules are:
-
-- `item_structure_specs(ref)` reads `item_governance(ref)` for documents and skill entries. Resources and
-  specifications have no corpus structure specs; it is not cached separately and carries over with that governance.
-- `query(query, ref)` runs a declared query over a Markdown item, symlink or reserved-corpus directory subject and
-  caches its answer and read set. It carries over whenever every primitive or cross-item query it read does.
-- `query_reads(query, ref)` reports recorded primitive and cross-item reads, paired with their source refs; it is empty
-  before that query has run and is not cached.
-
-Snapshot questions are answered on each call, except `unreported_docs_refusals()`, which is cached for this database's
-lifetime:
-
-- `refusals()` returns all access refusals recorded in the snapshot.
-- `unreported_docs_refusals()` filters snapshot refusals under `docs/` to those not already reported by model load
-  failures, and is recomputed from the next revision's refusals and model failures.
-- `source_lines(path)`: the lines of one file for a diagnostic to excerpt, numbered as the rules number them. It takes
-  a bare path, since a diagnostic names a file by its path, and finds the decode query the path belongs to: the
-  excerpt of a document, a `SKILL.md` or a resource is cut from the text that decode query returned, so it shows what
-  the rules numbered and no other code path decodes those files. A specification file has no decode query, as the
-  model reads it itself, so its excerpt is cut from its bytes decoded as UTF-8, as the model reads a structure
-  file. It returns `None` for a path it holds no such file at, or a file that is missing or not UTF-8, and no rule
-  reads it.
-
-Every query about one file's content takes the witness its decode query returned, never a bare ref, so a fact of a
-file that is not UTF-8 cannot be asked for: a reader matches the decode once and no later reader carries a branch for
-it. Each still caches by the witness's ref.
-
-Rules are pure functions of the values a subject's query reads for them through the database, like an inspection
-run over one file: the runner matches each file's decode once and hands a rule the facts of the part it judges. A
-query asks for the cheapest query that holds what a rule reads, so a rule that needs only the frontmatter never pays
-for the full parse, and every rule reading the same query shares one computation of it. Their results are not cached;
-a rule runs again every time.
-
-Nothing here records what a cached value read, so no dependency is tracked. Invalidation is written by hand instead, the
-way the IDE drops per-file index entries on a file change event and resets structural caches on a project model change.
-Reserved, not implemented: `advance(snapshot) -> Database`, the next state. It would `diff` the two snapshots and carry
-over each cached value the change set leaves valid: the decoded text, the frontmatter, the parse, the token count and
-the line count of every item whose bytes did not change, and its schema problems when its governance carries over;
-the governance of every item the next model governs by equal specifications; the resources of every skill and the
-decoded text and the parse of every resource as their own
-docstrings state, and the model unless one of these changes invalidates it. An entry added or deleted under `docs/`
-invalidates it. So does an entry added or deleted in a skills directory, or in a skill's directory, both where the
-skill's entry names it and where a link leads it. So does an entry added or deleted at the resolved path a skill's
-linked `SKILL.md` leads to, or on the way to it, since the loader resolves that link to find the skill. So does a link
-on the way to a skill or to its `SKILL.md` that changed its target, and so does a changed specification. So does a link
-that changed its target on the chain of a skills directory an agent declares, of an entry in a skills directory, or of
-an entry's `SKILL.md`, a chain leaving the repository included, since the model records the link each such chain leaves
-through and its target. So does a directory added or deleted that a `..` on such a chain climbs out of: deleting `tmp`
-leaves `x -> tmp/../alpha` leading nowhere, and the change set shows `tmp` go, since the snapshot records each climbed
-directory and the next scan, stopping at the missing `tmp`, no longer records it. Any other change leaves the model
-valid, an entry added or deleted anywhere else inside a skill included: the model lists nothing below a skill's
-directory, and reads nothing there but the way to its `SKILL.md`. The scope index carries over unless the two snapshots'
-scopes, links or climbed directories differ, compared as recorded rather than through the change set, which holds no
-scope. A change of scope invalidates nothing else: what the new scope adds or drops reaches the model and each skill's
-resources as entries in the change set. That rule holds only while the decoded text reads its own document, skill or
-resource, the frontmatter, the parse, the token count and the line count each read only the decoded text of their own,
-the governance reads only the model, the schema problems read only their own document's frontmatter and its governance,
-a skill's schema problems only its own frontmatter, the model and each skill's resource listing read no document, and
-the scope index reads only the scope, the links and the climbed directories, so keep them that way: data drawn from
-several documents belongs in a new cache with its own rule.
-
-The link targets of a Markdown file are such a cache: each reads where every path its links name leads, so each
-carries over only as its own docstring states.
-
-A change names a resolved path, while a ref may name a path through a link: a skill's `SKILL.md` under a linked
-skill entry changes at the path the link leads to, not at the ref's. A snapshot maps a linked path to its resolved one
-and not back, so the model records each skill's `SkillLocation`, the resolved `SKILL.md` its ref leads to, and
-`advance` would look that path up in the change set. A link retargeted to another skill leaves every file's bytes as
-they were and the ref as it was, like a file's identity in the IDE, while its location changes. So a skill's
-decoded text, its frontmatter, its parse and its line count carry over only when the two models hand out an equal
-location for its ref (its resolved directory and its resolved `SKILL.md`) and that file's bytes did not change; the
-link targets also require the same resolved link base and scope state. A resource is named through the symlinks on
-the way to it, and its `SkillResourceLocation` records the resolved file. Its decoded text, frontmatter, parse, token
-count and line count carry over only when both databases' resource listings locate its ref at the same resolved file
-and its bytes did not change. Its link targets additionally require the parse, link base and scope state to carry
-over. Its schema problems and governance carry over by the same rules as for other items: equal frontmatter and the
-governance those problems read; equal governance, respectively.
+The reserved, unimplemented `advance(snapshot) -> Database` would diff two snapshots and carry cached values only
+when their inputs remain valid. The model is kept unless its structure changes; item text requires an equal resolved
+descriptor and unchanged bytes; skill resources require the same listing and resolved location; link targets require
+the same parse, resolved paths and scope state. The scope index is kept only when the recorded scopes, links and
+climbed directories match. Each input query owns its carry-over rule, and declared queries inherit the validity of
+their recorded reads. These rules rely on each query reading only the data it owns: text reads one file, governance
+reads the model, schema findings read their item's frontmatter and governance, and link targets read one item's links
+and the paths they reach. Keep those boundaries; a value drawn from several documents needs its own query and
+carry-over rule. A skill's linked `SKILL.md` also needs an equal resolved location, because the ref names the link
+while the bytes belong to its target.
 """
 
 import logging
@@ -146,7 +31,6 @@ from types import FunctionType
 from typing import Concatenate, Protocol, Self, assert_never, cast, overload
 
 from lorecraft.core.mapping import FrozenMapping
-from lorecraft.core.num import UnsignedInt
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusDirectoryRef, CorpusName, ReservedCorpusDirectory
@@ -171,10 +55,10 @@ from lorecraft.project.query import (
     SchemaQuery,
     SubjectRef,
     SymlinkQuery,
+    item_parse,
 )
 from lorecraft.project.schemas import (
     SpecName,
-    StructureSpec,
     parse_spec_name,
 )
 from lorecraft.project.skill import (
@@ -189,19 +73,7 @@ from lorecraft.project.skill import (
 )
 from lorecraft.project.skill import Repository as SkillRepository
 from lorecraft.project.syntax import (
-    Anchor,
-    FrontmatterNode,
-    Heading,
-    LineCount,
-    Link,
-    MissingFrontmatter,
     NormalisedLinkPath,
-    ParsedDocument,
-    TokenCount,
-    count_lines,
-    count_tokens,
-    parse_document,
-    parse_frontmatter,
     split_lines,
 )
 from lorecraft.project.workspace import Governance, ResolvedItem, WorkspaceModel, load_model, unreported_refusals
@@ -390,54 +262,20 @@ class _ItemPrimitives(_Reads[MarkdownItemRef, '_ItemPrimitives']):
         return self._database._item(self._ref).descriptor.origin
 
     @primitive
+    def item_text(self) -> ItemText | None:
+        """The decoded witness of this subject, or none when its bytes are not UTF-8."""
+        source = self._database.item_text(self._ref)
+        return source if isinstance(source, ItemText) else None
+
+    @primitive
     def item_governance(self) -> Governance | None:
         """The model's governance of the item."""
         return self._database.item_governance(self._ref)
 
     @primitive
-    def structure_specs(self) -> tuple[StructureSpec, ...]:
-        """The structure specifications of the layers that loaded for the item."""
-        return self._database.item_structure_specs(self._ref)
-
-    @primitive
-    def headings(self) -> tuple[Heading, ...]:
-        """The headings of the item's parse; none for an item that is not UTF-8."""
-        source = self._database.item_text(self._ref)
-        return self._database.item_parse(source).headings if isinstance(source, ItemText) else ()
-
-    @primitive
-    def token_count(self) -> TokenCount:
-        """The tokens in the item's whole file; none for an item that is not UTF-8."""
-        source = self._database.item_text(self._ref)
-        return self._database.item_token_count(source) if isinstance(source, ItemText) else TokenCount(UnsignedInt(0))
-
-    @primitive
-    def line_count(self) -> LineCount:
-        """The lines in the item's whole file; none for an item that is not UTF-8."""
-        source = self._database.item_text(self._ref)
-        return self._database.item_line_count(source) if isinstance(source, ItemText) else LineCount(UnsignedInt(0))
-
-    @primitive
-    def frontmatter(self) -> FrontmatterNode:
-        """The item's frontmatter block; missing for an item that is not UTF-8."""
-        source = self._database.item_text(self._ref)
-        return self._database.item_frontmatter(source) if isinstance(source, ItemText) else MissingFrontmatter()
-
-    @primitive
-    def links(self) -> tuple[Link, ...]:
-        """The links of the item's parse; none for an item that is not UTF-8."""
-        source = self._database.item_text(self._ref)
-        return self._database.item_parse(source).links if isinstance(source, ItemText) else ()
-
-    @primitive
-    def anchors(self) -> frozenset[Anchor]:
-        """The anchor of every heading of the item's parse; none for an item that is not UTF-8."""
-        source = self._database.item_text(self._ref)
-        return self._database.item_parse(source).anchors if isinstance(source, ItemText) else frozenset()
-
-    @primitive
     def link_targets(self) -> Mapping[NormalisedLinkPath, LinkTargetEntry]:
         """What the snapshot holds at each relative link's target; none for an item that is not UTF-8."""
+        self._record(self._read_key('item_text'))
         source = self._database.item_text(self._ref)
         return self._database.item_link_targets(source) if isinstance(source, ItemText) else FrozenMapping({})
 
@@ -446,29 +284,6 @@ class _ItemPrimitives(_Reads[MarkdownItemRef, '_ItemPrimitives']):
         """Where the item's relative links are read from; `None` for an item that is not UTF-8."""
         source = self._database.item_text(self._ref)
         return source.descriptor.link_base if isinstance(source, ItemText) else None
-
-    @primitive
-    def item_name(self) -> AspectFilename | SpecName | None:
-        """The typed name of a document or meta specification; `None` for any other item or one that is not UTF-8."""
-        source = self._database.item_text(self._ref)
-        origin = source.descriptor.origin if isinstance(source, ItemText) else None
-        # Keep this dispatch: documents and specifications have different name formats; skills and resources have none.
-        match origin:
-            case DocumentOrigin():
-                return AspectFilename.parse(origin.expected_name)
-            case SpecificationOrigin():
-                return parse_spec_name(origin.expected_name)
-            case _:
-                return None
-
-    @primitive
-    def item_corpus(self) -> CorpusName | None:
-        """The typed corpus a document lies in; `None` for any other item or one that is not UTF-8."""
-        source = self._database.item_text(self._ref)
-        origin = source.descriptor.origin if isinstance(source, ItemText) else None
-        # Keep this dispatch: this query answers for user documents; a specification's `corpus` is a prefix of its
-        # name, and a skill has none.
-        return CorpusName.parse(origin.corpus) if isinstance(origin, DocumentOrigin) else None
 
     @primitive
     def item_base(self) -> AspectFilename | SpecName | None:
@@ -503,12 +318,10 @@ class Database:
     `item_text` decodes an item's bytes; `item_link_targets` resolves its relative links against the snapshot and
     scope. Their carry-over rules are stated by their methods.
 
-    Derived queries read other queries: `item_frontmatter(source)`, `item_parse(source)`,
-    `item_token_count(source)`, `item_line_count(source)` derive values from decoded text;
-    `item_governance(ref)` reads the model.
-    `skill_fields_query`, `frontmatter_owner_query` and `schema_problems_query`
-    (`lorecraft.project.schemas`) run through `query(query, ref)`, which memoizes each answer and its reads. Schema
-    queries use the same cache keyed by `(query, SchemaReference)` and read immutable inputs from the model.
+    Declared queries in `lorecraft.project.query` derive item facts from raw primitive state. Other declared queries,
+    including `skill_fields_query`, `frontmatter_owner_query` and `schema_problems_query`, run through `query(query,
+    ref)`, which memoizes each answer and its reads. Schema queries use the same cache keyed by `(query,
+    SchemaReference)` and read immutable inputs from the model.
 
     The item family is keyed by `MarkdownItemRef`. A resource's
     reference is registered from its listing by `resource_item(location)`. A document outside the model's listing is
@@ -517,8 +330,7 @@ class Database:
     The snapshot questions are `source_lines(path)`, `refusals()` and `unreported_docs_refusals()`: the first two are
     answered on each call; the last is cached for this database's lifetime and recomputed from the next revision's
     refusals and model failures. The declared query `query(query, ref)` memoizes its answer and read set;
-    `query_reads(query, ref)` holds typed reads and is empty before that query runs. `item_structure_specs` and
-    `item_has_link_to` are not cached separately and carry over with the query results they read.
+    `query_reads(query, ref)` holds typed reads and is empty before that query runs.
     """
 
     def __init__(self, fs: VirtualFileSystem, model: WorkspaceModel) -> None:
@@ -544,10 +356,6 @@ class Database:
         self._items: dict[MarkdownItemRef, ResolvedItem] = {}
         self._item_texts: dict[MarkdownItemRef, ItemText | Undecodable] = {}
         self._item_link_targets: dict[MarkdownItemRef, Mapping[NormalisedLinkPath, LinkTargetEntry]] = {}
-        self._item_frontmatters: dict[MarkdownItemRef, FrontmatterNode] = {}
-        self._item_parses: dict[MarkdownItemRef, ParsedDocument] = {}
-        self._item_token_counts: dict[MarkdownItemRef, TokenCount] = {}
-        self._item_line_counts: dict[MarkdownItemRef, LineCount] = {}
         # Declared queries: the answer by the function and the item, with the primitive and cross-item query keys
         # it read.
         self._queries: dict[Read, tuple[object, frozenset[Read]]] = {}
@@ -586,7 +394,7 @@ class Database:
     def model(self) -> WorkspaceModel:
         """The workspace model the snapshot declares, loaded when the database was opened. Raises nothing.
 
-        Carry-over: kept for the next revision unless one of these changed, as the module docstring details:
+        Carry-over: kept for the next revision unless the model's structural inputs changed:
 
         - An entry added or deleted under `docs/`, or a changed specification.
         - An entry added or deleted in a skills directory, in a skill's directory, or at or on the way to the
@@ -594,6 +402,9 @@ class Database:
         - A link that changed its target on the way to a skill or its `SKILL.md`, or on the chain of a skills
           directory an agent declares, an entry of one, or such an entry's `SKILL.md`, a chain leaving the
           repository included; and a directory added or deleted that a `..` on such a chain climbs out of.
+
+        An entry added or deleted anywhere else inside a skill does not invalidate the model: it lists nothing below
+        a skill's directory, and reads nothing there but the way to its `SKILL.md`.
         """
         return self._model
 
@@ -706,7 +517,12 @@ class Database:
         return resources
 
     def _built_scope_index(self) -> ScopeIndex:
-        """The scope index the link-target queries answer from, built on the first call."""
+        """The scope index the link-target queries answer from, built on the first call.
+
+        Carry-over: kept only when the two snapshots' scopes, links and climbed directories are equal as recorded;
+        the change set does not contain scope. A scope change invalidates no other input by itself: additions and
+        removals become entries in the model or skill-resource change sets.
+        """
         if self._scope_index is None:
             self._scope_index = ScopeIndex(self._snapshot)
         return self._scope_index
@@ -795,7 +611,7 @@ class Database:
         Each link is read from the descriptor's link base, which carries its own climb bound, as `link_targets_of`
         states. Raises nothing.
 
-        Carry-over: kept for the next revision only when `item_parse(source)` is kept and every path the query
+        Carry-over: kept for the next revision only when the declared parse query for this item is kept and every path
         looked up, an absent target included, still resolves to the same place and is in the same scope state.
 
         Args:
@@ -803,70 +619,10 @@ class Database:
         """
         targets = self._item_link_targets.get(source.ref)
         if targets is None:
-            links = self.item_parse(source).links
+            links = self.query(item_parse, source.ref).links
             targets = link_targets_of(links, source.descriptor.link_base, self._fs, self._built_scope_index())
             self._item_link_targets[source.ref] = targets
         return targets
-
-    # Derived queries: each reads other queries and carries over with the queries it reads.
-
-    def item_frontmatter(self, source: ItemText) -> FrontmatterNode:
-        """The frontmatter of one item, parsed from its decoded text on the first call. Raises nothing.
-
-        Cached apart from `item_parse(source)`: the block is decoded here alone.
-
-        Carry-over: kept for the next revision whenever `item_text(source.ref)` is.
-
-        Args:
-            source: The item's text; its ref is the cache key.
-        """
-        decoded = self._item_frontmatters.get(source.ref)
-        if decoded is None:
-            decoded = parse_frontmatter(source.text)
-            self._item_frontmatters[source.ref] = decoded
-        return decoded
-
-    def item_parse(self, source: ItemText) -> ParsedDocument:
-        """The parse tree of one item, parsed from its decoded text on the first call. Raises nothing.
-
-        Carry-over: kept for the next revision whenever `item_text(source.ref)` is.
-
-        Args:
-            source: The item's text; its ref is the cache key.
-        """
-        parsed = self._item_parses.get(source.ref)
-        if parsed is None:
-            parsed = parse_document(source.text)
-            self._item_parses[source.ref] = parsed
-        return parsed
-
-    def item_token_count(self, source: ItemText) -> TokenCount:
-        """The tokens in one item's whole file, counted from the raw text on the first call. Raises nothing.
-
-        Carry-over: kept for the next revision whenever `item_text(source.ref)` is.
-
-        Args:
-            source: The item's text; its ref is the cache key.
-        """
-        count = self._item_token_counts.get(source.ref)
-        if count is None:
-            count = count_tokens(source.text)
-            self._item_token_counts[source.ref] = count
-        return count
-
-    def item_line_count(self, source: ItemText) -> LineCount:
-        """The lines in one item's whole file, counted from the raw text on the first call. Raises nothing.
-
-        Carry-over: kept for the next revision whenever `item_text(source.ref)` is.
-
-        Args:
-            source: The item's text; its ref is the cache key.
-        """
-        count = self._item_line_counts.get(source.ref)
-        if count is None:
-            count = count_lines(source.text)
-            self._item_line_counts[source.ref] = count
-        return count
 
     def item_governance(self, ref: MarkdownItemRef) -> Governance | None:
         """The specifications that govern an item, resolved by the model on the first call for its ref.
@@ -882,18 +638,6 @@ class Database:
             UnlistedItemError: If the reference is not a listed item, registered resource or answerable document path.
         """
         return self._item(ref).governance
-
-    def item_structure_specs(self, ref: MarkdownItemRef) -> tuple[StructureSpec, ...]:
-        """The structure specifications of the layers that loaded for a corpus document or skill entry.
-
-        Not cached: the answer is read off `item_governance(ref)`, which is, so it carries over with it. Resources
-        and specifications have no corpus structure specs.
-
-        Raises:
-            UnlistedItemError: If the reference is not a listed item, registered resource or answerable document path.
-        """
-        governance = self.item_governance(ref)
-        return governance.structure_specs() if governance is not None else ()
 
     @overload
     def query[T](self, query: Query[T], ref: MarkdownItemRef) -> T: ...  # noqa: D102 — implementation documents the overload

@@ -29,6 +29,7 @@ from lorecraft.project.database import Database, ItemText, Undecodable
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.item import MarkdownItemRef
 from lorecraft.project.layout import LinkedLayoutError
+from lorecraft.project.query import item_frontmatter, item_line_count, item_parse, item_token_count
 from lorecraft.project.schemas import outline_alignment, schema_problems_query
 from lorecraft.project.skill import SkillLocation, SkillRef
 from lorecraft.project.syntax import Frontmatter, Heading, LineNumber, count_tokens, split_lines
@@ -645,7 +646,7 @@ class TestDatabase:
         source = _document_text(database, GUIDE)
 
         #: When
-        frontmatter = database.item_frontmatter(source)
+        frontmatter = database.query(item_frontmatter, source.ref)
 
         #: Then
         assert isinstance(frontmatter, Frontmatter), 'the snapshot bytes decode into a frontmatter node'
@@ -655,10 +656,10 @@ class TestDatabase:
         #: Given
         database = Database.from_snapshot(_snapshot(b'---\nname: "guide"\n---\n'))
         source = _document_text(database, GUIDE)
-        first = database.item_frontmatter(source)
+        first = database.query(item_frontmatter, source.ref)
 
         #: When
-        second = database.item_frontmatter(source)
+        second = database.query(item_frontmatter, source.ref)
 
         #: Then
         assert second is first, 'a document frontmatter is decoded once per database, then shared by every check'
@@ -677,7 +678,7 @@ class TestDatabase:
         source = _document_text(database, GUIDE)
 
         #: When
-        document = database.item_parse(source)
+        document = database.query(item_parse, source.ref)
 
         #: Then
         assert document.headings == (
@@ -691,7 +692,7 @@ class TestDatabase:
 
         #: When
         lines = database.source_lines(GUIDE.path)
-        document = database.item_parse(source)
+        document = database.query(item_parse, source.ref)
 
         #: Then
         assert lines is not None, 'a document that decodes has lines to excerpt'
@@ -704,10 +705,10 @@ class TestDatabase:
         #: Given
         database = Database.from_snapshot(_snapshot(b'---\nname: "guide"\n---\n'))
         source = _document_text(database, GUIDE)
-        first = database.item_parse(source)
+        first = database.query(item_parse, source.ref)
 
         #: When
-        second = database.item_parse(source)
+        second = database.query(item_parse, source.ref)
 
         #: Then
         assert second is first, 'a document is parsed once per database, then shared by every check'
@@ -721,7 +722,7 @@ class TestDatabase:
         expected = count_tokens(guide)
 
         #: When
-        tokens = database.item_token_count(source)
+        tokens = database.query(item_token_count, source.ref)
 
         #: Then
         assert tokens == expected, f'frontmatter and code count too, got {tokens}'
@@ -733,7 +734,7 @@ class TestDatabase:
         source = _document_text(database, GUIDE)
 
         #: When
-        lines = database.item_line_count(source)
+        lines = database.query(item_line_count, source.ref)
 
         #: Then
         assert lines == UnsignedInt(5), f'the frontmatter counts too, and the final newline adds no line, got {lines}'
@@ -788,7 +789,7 @@ class TestDatabase:
         source = _skill_text(database, REVIEW)
 
         #: When
-        document = database.item_parse(source)
+        document = database.query(item_parse, source.ref)
 
         #: Then
         assert document.links == (MarkdownLink(url='guide.md', line=LineNumber(NonZeroUnsignedInt(6))),), (
@@ -799,10 +800,10 @@ class TestDatabase:
         #: Given
         database = Database.from_snapshot(_skill_snapshot(b'---\nname: review\n---\n# Review\n'))
         source = _skill_text(database, REVIEW)
-        first = database.item_parse(source)
+        first = database.query(item_parse, source.ref)
 
         #: When
-        second = database.item_parse(source)
+        second = database.query(item_parse, source.ref)
 
         #: Then
         assert second is first, 'a skill is parsed once per database, then shared by every check'
@@ -821,7 +822,7 @@ class TestDatabase:
         source = _skill_text(database, REVIEW)
 
         #: When
-        document = database.item_parse(source)
+        document = database.query(item_parse, source.ref)
 
         #: Then
         assert document.links == (MarkdownLink(url='guide.md', line=LineNumber(NonZeroUnsignedInt(4))),), (
@@ -837,7 +838,7 @@ class TestDatabase:
         source = _skill_text(database, REVIEW)
 
         #: When
-        lines = database.item_line_count(source)
+        lines = database.query(item_line_count, source.ref)
 
         #: Then
         assert lines == UnsignedInt(6), f'the frontmatter counts too, and the final newline adds no line, got {lines}'
@@ -846,10 +847,10 @@ class TestDatabase:
         #: Given
         database = Database.from_snapshot(_skill_snapshot(b'---\nname: review\n---\n'))
         source = _skill_text(database, REVIEW)
-        first = database.item_frontmatter(source)
+        first = database.query(item_frontmatter, source.ref)
 
         #: When
-        second = database.item_frontmatter(source)
+        second = database.query(item_frontmatter, source.ref)
 
         #: Then
         assert isinstance(first, Frontmatter), 'the skill bytes decode into a frontmatter node'

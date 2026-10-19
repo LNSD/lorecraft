@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from typing import ClassVar, Self
 
-from lorecraft.project.query import Query, SyntaxPrimitives
+from lorecraft.project.query import Query, SyntaxPrimitives, item_parse
 from lorecraft.project.syntax import Heading, HeadingLevel, LineNumber, find_title
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
@@ -21,7 +21,7 @@ def headings(primitives: SyntaxPrimitives) -> tuple[Heading, ...]:
     Args:
         primitives: The model state of the document.
     """
-    return primitives.headings()
+    return primitives.query(item_parse).headings
 
 
 @rule

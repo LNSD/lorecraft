@@ -7,7 +7,7 @@ from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.item import ItemReadError, MarkdownItemRef
 from lorecraft.project.link_target import DocumentDirectory, DocumentLink, document_links_of
-from lorecraft.project.query import Primitives, linked_paths
+from lorecraft.project.query import Primitives, item_name, linked_paths
 from lorecraft.project.workspace.model import find_document_at
 
 logger = logging.getLogger(__name__)
@@ -22,7 +22,7 @@ def linked_documents(primitives: Primitives) -> tuple[DocumentLink, ...]:
         primitives: The model state of the document.
     """
     base = primitives.link_base()
-    name = primitives.item_name()
+    name = primitives.query(item_name)
     if not isinstance(base, DocumentDirectory) or name is None:
         return ()
     source = base.directory / RootRelativePath.parse(f'{name}.md')
