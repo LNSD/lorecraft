@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import ClassVar, Protocol, Self
 
 from lorecraft.core.path import RootRelativePath
-from lorecraft.project.query import CountPrimitives, GovernancePrimitives, Query
+from lorecraft.project.query import CountPrimitives, GovernancePrimitives, Query, item_structure_specs, item_token_count
 from lorecraft.project.syntax import FIRST_LINE, TokenCount
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
@@ -36,8 +36,10 @@ def _budget_facts(primitives: _GovernanceCountPrimitives) -> BudgetFacts:
     Args:
         primitives: The model state of the document.
     """
-    budgets = tuple((spec.path, spec.tokens.value) for spec in primitives.structure_specs() if spec.tokens is not None)
-    return BudgetFacts(count=primitives.token_count(), budgets=budgets)
+    budgets = tuple(
+        (spec.path, spec.tokens.value) for spec in primitives.query(item_structure_specs) if spec.tokens is not None
+    )
+    return BudgetFacts(count=primitives.query(item_token_count), budgets=budgets)
 
 
 @rule

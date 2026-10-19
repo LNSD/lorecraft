@@ -12,7 +12,13 @@ from lorecraft.core.path import RootRelativePath
 from lorecraft.project.corpus import CorpusDirectoryRef, CorpusName, ReservedCorpusDirectory
 from lorecraft.project.database import Database, Read
 from lorecraft.project.item import ItemReadError, MarkdownItemRef, UnlistedItemError
-from lorecraft.project.query import CorpusDirectoryPrimitives, Primitives, SchemaPrimitives, SymlinkPrimitives
+from lorecraft.project.query import (
+    CorpusDirectoryPrimitives,
+    Primitives,
+    SchemaPrimitives,
+    SymlinkPrimitives,
+    item_parse,
+)
 from lorecraft.project.schemas.agent_skills_schema import (
     AGENT_SKILLS_FRONTMATTER_SCHEMA,
     agent_skills_frontmatter_schema_query,
@@ -166,7 +172,7 @@ def _read_set_mutations(*roots: Path) -> tuple[tuple[Path, ...], tuple[str, ...]
 
 def _inner(primitives: Primitives) -> tuple[Heading, ...]:
     """Return the item's headings as a declared query."""
-    return primitives.headings()
+    return primitives.query(item_parse).headings
 
 
 def _outer(primitives: Primitives) -> tuple[Heading, ...]:
@@ -459,7 +465,8 @@ class TestReads:
         #: Then
         assert database.query_reads(_outer, GUIDE) == {
             Read(_inner, GUIDE),
-            Read('headings', GUIDE),
+            Read(item_parse, GUIDE),
+            Read('item_text', GUIDE),
         }, 'the outer read set includes the inner query and its primitive read'
 
     def test_query_at_records_the_query_and_the_other_item_ref(self) -> None:
@@ -483,7 +490,8 @@ class TestReads:
         assert tuple(heading.text for heading in headings) == ('Target',), 'the target item query returns its heading'
         assert database.query_reads(_reads_another_item, GUIDE) == {
             Read(_inner, TARGET),
-            Read('headings', TARGET),
+            Read(item_parse, TARGET),
+            Read('item_text', TARGET),
         }, 'the read set identifies the query and the primitive it read'
 
     def test_query_at_records_an_unreadable_other_item(self) -> None:

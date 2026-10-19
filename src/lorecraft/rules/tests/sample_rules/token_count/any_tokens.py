@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import ClassVar, Self
 
 from lorecraft.core.num import NonZeroUnsignedInt
-from lorecraft.project.query import CountPrimitives, Query
+from lorecraft.project.query import CountPrimitives, Query, item_token_count
 from lorecraft.project.syntax import LineNumber, TokenCount
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
@@ -19,7 +19,7 @@ def _token_count(primitives: CountPrimitives) -> TokenCount:
     Args:
         primitives: The model state of the document.
     """
-    return primitives.token_count()
+    return primitives.query(item_token_count)
 
 
 @rule
