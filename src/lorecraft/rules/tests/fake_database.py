@@ -490,12 +490,20 @@ def judged(rule: type[Rule], database: object) -> tuple[Rule, ...]:
         rule: The queried rule to run.
         database: The fake database that answers the rule's query.
     """
+    # SAFETY: the overloads admit only queried rule classes, whose query and judge share this facts parameter
     queried = cast('type[Queried[object, SubjectQuery[object]]]', rule)
     query = queried.query()
     if isinstance(database, FakeSymlinkDatabase):
+        # SAFETY: the fake database variant determines the matching query protocol for this branch
         facts = database.query(cast('SymlinkQuery[object]', query))
     elif isinstance(database, FakeCorpusDirectoryDatabase):
+        # SAFETY: the fake database variant determines the matching query protocol for this branch
         facts = database.query(cast('CorpusDirectoryQuery[object]', query))
     else:
-        facts = cast('_Queryable', database).query(cast('Query[object]', query))
+        # SAFETY: remaining overload is the item database, whose protocol exposes query(Query)
+        item_database = cast('_Queryable', database)
+        # SAFETY: remaining overload is the item database, whose query method accepts Query
+        item_query = cast('Query[object]', query)
+        facts = item_database.query(item_query)
+    # SAFETY: judge returns the rules represented by the declared queried rule class
     return cast('tuple[Rule, ...]', queried.judge(facts))

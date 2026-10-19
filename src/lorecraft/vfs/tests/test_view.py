@@ -60,8 +60,8 @@ class TestOsRefusalFromError:
 class TestFileSystem:
     def test_instantiate_the_abstract_view_raises_type_error(self) -> None:
         #: Given
-        # The cast hides which class this is from the type checker, which would otherwise reject the very
-        # instantiation under test; at runtime it is still the abstract FileSystem.
+        # SAFETY: FileSystem itself is abstract; the test deliberately widens its class object to instantiate it
+        # and assert Python's runtime rejection.
         abstract = cast(type[FileSystem], FileSystem)
 
         #: When

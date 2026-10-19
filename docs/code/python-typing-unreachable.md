@@ -155,7 +155,8 @@ validator established upstream. The path ends with `raise Unreachable('<expectat
 `AssertionError` subclass from `lorecraft.core.error`, under a `# SAFETY: <invariant>` comment. The two say
 different things to different readers, as Rust's `.expect()` does: the comment justifies the code to a reviewer
 by naming the invariant that makes the path dead, and the message tells whoever reads the traceback which
-expectation broke. A helper that ends such a path for its caller raises `Unreachable` and is annotated `-> Never`
+expectation broke. The same comment marker on a cast justifies its asserted type; cast invariants are owned by
+[python-typing-cast](python-typing-cast.md). A helper that ends such a path for its caller raises `Unreachable` and is annotated `-> Never`
 ([§1](#1-spell-the-bottom-type-never-never-noreturn)).
 
 The neighbouring forms are wrong for opposite reasons. `assert_never` there is a type error, because the
@@ -206,6 +207,7 @@ Before committing code, verify:
 
 - [python-typing](python-typing.md) - Extends: Owns how the annotations that make a path provably dead are
   spelled and checked
+- [python-typing-cast](python-typing-cast.md) - Related: Owns the `# SAFETY:` invariant required when a cast asserts a type
 - [error-types](error-types.md) - Related: Owns the error unions whose `source` a `match` most often branches on
 - [error-handling](error-handling.md) - Related: Owns the handler that catches a variant before its `source`
   is matched

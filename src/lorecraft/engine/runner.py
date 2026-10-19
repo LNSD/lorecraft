@@ -201,10 +201,13 @@ def _judged[Facts](
     query = rule.query()
     match ref:
         case MarkdownItemRef():
+            # SAFETY: Markdown item rules expose Query, selected by this typed reference variant
             facts = database.query(cast('Query[Facts]', query), ref)
         case SymlinkRef():
+            # SAFETY: symlink rules expose SymlinkQuery, selected by this typed reference variant
             facts = database.query(cast('SymlinkQuery[Facts]', query), ref)
         case CorpusDirectoryRef():
+            # SAFETY: corpus-directory rules expose CorpusDirectoryQuery, selected by this typed reference variant
             facts = database.query(cast('CorpusDirectoryQuery[Facts]', query), ref)
         case _:
             assert_never(ref)
