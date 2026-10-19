@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import ClassVar, Final, Self
 
 from lorecraft.core.num import NonZeroUnsignedInt
-from lorecraft.project.query import CountPrimitives, Query
+from lorecraft.project.query import CountPrimitives, Query, item_line_count
 from lorecraft.project.syntax import LineCount, LineNumber
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
@@ -34,7 +34,7 @@ def skill_line_count(primitives: CountPrimitives) -> LineCount:
     Args:
         primitives: The model state of the skill.
     """
-    return primitives.line_count()
+    return primitives.query(item_line_count)
 
 
 @rule

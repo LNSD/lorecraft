@@ -5,7 +5,7 @@ from typing import ClassVar, Self, assert_never
 from urllib.parse import unquote
 
 from lorecraft.project.link_target import EscapingTarget, LinkTarget
-from lorecraft.project.query import Query
+from lorecraft.project.query import Query, item_parse
 from lorecraft.project.syntax import (
     AbsoluteDestination,
     ExternalDestination,
@@ -31,7 +31,7 @@ def escaping_links(primitives: SyntaxLinkResolutionPrimitives) -> tuple[Link, ..
     """
     targets = primitives.link_targets()
     escaping: list[Link] = []
-    for link in primitives.links():
+    for link in primitives.query(item_parse).links:
         # The link target decides whether the path climbs past the skill root.
         destination = link.to_destination()
         match destination:

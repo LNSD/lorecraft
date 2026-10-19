@@ -105,7 +105,7 @@ class SyntaxPrimitives(QueryPrimitives['Primitives'], Protocol):
         ...
 
 
-class CountPrimitives(Protocol):
+class CountPrimitives(QueryPrimitives['Primitives'], Protocol):
     """What is measured of the item's whole file."""
 
     def token_count(self) -> TokenCount:

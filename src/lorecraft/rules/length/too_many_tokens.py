@@ -5,7 +5,7 @@ from typing import ClassVar, Protocol, Self
 
 from lorecraft.core.num import NonZeroUnsignedInt, UnsignedInt
 from lorecraft.core.path import RootRelativePath
-from lorecraft.project.query import CountPrimitives, GovernancePrimitives, Query
+from lorecraft.project.query import CountPrimitives, GovernancePrimitives, Query, item_structure_specs, item_token_count
 from lorecraft.project.syntax import FIRST_LINE, TokenCount
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
@@ -56,10 +56,10 @@ def token_facts(primitives: _GovernanceCountPrimitives) -> TokenFacts:
     """
     budgets = tuple(
         TokenBudget(spec=spec.path, tokens=spec.tokens)
-        for spec in primitives.structure_specs()
+        for spec in primitives.query(item_structure_specs)
         if spec.tokens is not None
     )
-    count = primitives.token_count() if budgets else TokenCount(UnsignedInt(0))
+    count = primitives.query(item_token_count) if budgets else TokenCount(UnsignedInt(0))
     return TokenFacts(count=count, budgets=budgets)
 
 

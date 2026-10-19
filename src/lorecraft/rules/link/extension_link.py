@@ -7,7 +7,7 @@ from urllib.parse import unquote
 from lorecraft.project.item import ItemKind
 from lorecraft.project.link_target import ExtensionLink as LinkToExtension
 from lorecraft.project.link_target import extension_links_of
-from lorecraft.project.query import Query
+from lorecraft.project.query import Query, item_name, item_parse
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Note, Subdiagnostic
@@ -38,11 +38,11 @@ def extension_link_facts(primitives: GovernanceSyntaxLinkResolutionPrimitives) -
     Args:
         primitives: The model state of the document.
     """
-    name = primitives.item_name()
+    name = primitives.query(item_name)
     base = primitives.link_base()
     if name is None or base is None:
         return ExtensionLinkFacts(base='', links=())
-    links = extension_links_of(primitives.links(), primitives.link_targets(), base, name)
+    links = extension_links_of(primitives.query(item_parse).links, primitives.link_targets(), base, name)
     return ExtensionLinkFacts(base=f'{name}.md', links=links)
 
 
