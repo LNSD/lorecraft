@@ -22,6 +22,8 @@ from lorecraft.jsonschema import JsonType
 if TYPE_CHECKING:
     from lorecraft.project.query.primitives import SchemaPrimitives
 
+from lorecraft.schemas.agent_skills_frontmatter import SKILL_NAME_PATTERN, SkillFrontmatter, value_object_error_type
+
 from .frontmatter_problem import (
     BlockProblem,
     FieldCount,
@@ -36,7 +38,6 @@ from .frontmatter_problem import (
     WrongTypeProblem,
 )
 from .schema_guidance import json_type_of, known_fields, schema_guidance
-from .skill_frontmatter import SKILL_NAME_PATTERN, SkillFrontmatter, value_object_error_type
 
 
 # It holds nothing, since the specification is fixed. It is an object rather than a function so that it has the

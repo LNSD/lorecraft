@@ -3,9 +3,9 @@
 from typing import Final
 
 from lorecraft.core.mapping import FrozenMapping
-from lorecraft.schemas import BundledOrigin, SchemaInput, SchemaKind, SchemaReference
 
-from .skill_frontmatter import SkillFrontmatter
+from .agent_skills_frontmatter import SkillFrontmatter
+from .types import BundledOrigin, SchemaInput, SchemaKind, SchemaReference
 
 AGENT_SKILLS_SCHEMA_REFERENCE: Final[SchemaReference] = SchemaReference(
     SchemaKind.FRONTMATTER, 'builtin:agent-skills-frontmatter'

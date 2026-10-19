@@ -16,8 +16,7 @@ from enum import StrEnum
 from lorecraft.core.error import Error
 from lorecraft.core.mapping import Frozen, FrozenMapping
 from lorecraft.project.syntax import Frontmatter, FrontmatterNode
-
-from .skill_frontmatter import SkillCompatibility, SkillDescription, SkillLicense, SkillName
+from lorecraft.schemas.agent_skills_frontmatter import SkillCompatibility, SkillDescription, SkillLicense, SkillName
 
 
 class SkillField(StrEnum):

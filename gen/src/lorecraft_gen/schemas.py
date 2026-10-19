@@ -16,7 +16,8 @@ from typing import Final
 from pydantic import BaseModel
 from pydantic.json_schema import GenerateJsonSchema
 
-from lorecraft.project.schemas import SkillFrontmatter, StructureFile
+from lorecraft.project.schemas import StructureFile
+from lorecraft.schemas.agent_skills_frontmatter import SkillFrontmatter
 
 _JSON_SCHEMA_DIALECT: Final[str] = 'https://json-schema.org/draft/2020-12/schema'
 _DEFAULT_OUTDIR: Final[Path] = Path('docs/schemas')

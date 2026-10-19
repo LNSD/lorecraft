@@ -7,7 +7,6 @@ from lorecraft.core.path import PathComponent
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.item import DocumentOrigin, SkillEntryOrigin, WrongItemKindError
 from lorecraft.project.schemas.agent_skills_schema import agent_skills_frontmatter_schema_query
-from lorecraft.project.schemas.builtin import AGENT_SKILLS_SCHEMA_REFERENCE
 from lorecraft.project.schemas.frontmatter_owner import (
     DocumentFrontmatterOwner,
     FrontmatterOwner,
@@ -20,6 +19,7 @@ from lorecraft.project.schemas.schema_problems import (
     locate_schema_problems,
 )
 from lorecraft.project.schemas.skill_fields import SkillFields, parse_skill_fields
+from lorecraft.schemas.builtin import AGENT_SKILLS_SCHEMA_REFERENCE
 
 if TYPE_CHECKING:
     from lorecraft.project.query import GovernancePrimitives, Primitives

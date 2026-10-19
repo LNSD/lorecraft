@@ -27,7 +27,6 @@ from lorecraft.project.document import Repository as DocumentRepository
 from lorecraft.project.layout import SNAPSHOT_SCOPE, SPECS_DIR
 from lorecraft.project.schemas import CorpusSpecName, NamespaceSpecName, SectionName, StructureSpec
 from lorecraft.project.schemas import Repository as SchemaRepository
-from lorecraft.project.schemas.builtin import AGENT_SKILLS_SCHEMA_INPUT
 from lorecraft.project.skill import OutsideSymlink, SkillLocation, SkillRef, SkillsDir
 from lorecraft.project.skill import Repository as SkillRepository
 from lorecraft.project.workspace import (
@@ -59,6 +58,7 @@ from lorecraft.project.workspace import (
     load_workspace,
 )
 from lorecraft.schemas import SchemaKind
+from lorecraft.schemas.builtin import AGENT_SKILLS_SCHEMA_INPUT
 from lorecraft.vfs import OsRefusal, ResolvedPath, RootExit, VirtualFileSystem, take_snapshot
 
 CLAUDE: Final[AgentName] = AgentName('claude-code')

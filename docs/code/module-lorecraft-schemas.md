@@ -9,17 +9,21 @@ scope: "pkg:lorecraft.schemas"
 
 ## Responsibility
 
-Provide the typed vocabulary and pure lookup for schema inputs already acquired by a workspace loader or shipped
-with Lorecraft. It changes when schema identity, provenance or the immutable input representation changes.
+Provide typed schema identity and provenance, the bundled Agent Skills frontmatter model and input, and pure lookup
+for schema inputs already acquired by a workspace loader or shipped with Lorecraft. It changes when a schema
+identity, provenance, bundled schema declaration or immutable input representation changes.
 
 ## Role
 
 **Derivation boundary.** It lets project queries and loaders share schema identity and input values without making
-the registry a loader, query layer or cache. Its import layer sits below `lorecraft.agents` and above `lorecraft.vfs`.
+the registry a loader, query layer or cache. The Agent Skills model renders the bundled input here; the project
+layer owns its validator and problem translation. Its import layer sits below `lorecraft.agents` and above
+`lorecraft.vfs`.
 
 ## Belongs Here
 
 - Structure and frontmatter schema kinds, references, repository and bundled origins, and immutable schema inputs.
+- The bundled Agent Skills frontmatter model, its value types, and the input and registration function rendered from it.
 - In-memory lookup of an input by its typed reference.
 - `EmptySchemaReferenceIdentityError`, `EmptyRepositoryLayerError` and `EmptyBundledOriginIdentityError` carry rejected identity values.
 - `SchemaOriginMismatchError` carries a reference and bundled origin with different identities; registry lookups have typed missing and duplicate reference errors.

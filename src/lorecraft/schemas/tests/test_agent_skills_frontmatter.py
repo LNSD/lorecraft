@@ -7,7 +7,7 @@ field, refuses an invalid one as a validation error, serializes it back and rend
 import pytest
 from pydantic import BaseModel, ConfigDict, TypeAdapter, ValidationError
 
-from ..skill_frontmatter import (
+from ..agent_skills_frontmatter import (
     EmptySkillCompatibilityError,
     EmptySkillDescriptionError,
     EmptySkillNameError,

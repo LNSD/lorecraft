@@ -8,12 +8,8 @@ from lorecraft.project.layout import DOCUMENT_SUFFIX
 from lorecraft.project.query import Query
 from lorecraft.project.schemas import (
     DocumentFrontmatterOwner,
-    EmptySkillNameError,
     FrontmatterOwner,
-    InvalidSkillNameFormatError,
-    OverlongSkillNameError,
     SkillFrontmatterOwner,
-    SkillName,
     field_line,
 )
 from lorecraft.project.syntax import Frontmatter, InvalidYamlFrontmatter, MissingFrontmatter, NonMappingFrontmatter
@@ -21,6 +17,12 @@ from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Here, Label, Note, Subdiagnostic
 from lorecraft.rules.subject import QueriedFrontmatterRule
+from lorecraft.schemas.agent_skills_frontmatter import (
+    EmptySkillNameError,
+    InvalidSkillNameFormatError,
+    OverlongSkillNameError,
+    SkillName,
+)
 
 from .__ruleset__ import GROUP_ID, FrontmatterFacts, frontmatter_facts, owner_spec
 

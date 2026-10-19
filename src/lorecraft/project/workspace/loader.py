@@ -59,7 +59,6 @@ from lorecraft.project.schemas import (
 )
 from lorecraft.project.schemas import Repository as SchemaRepository
 from lorecraft.project.schemas.agent_skills_compatibility import agent_skills_schema_contradictions
-from lorecraft.project.schemas.builtin import register_builtin_schemas
 from lorecraft.project.schemas.structure_failure import ContradictorySkillField
 from lorecraft.project.skill import (
     OutsideSymlink,
@@ -72,6 +71,7 @@ from lorecraft.project.skill import (
 )
 from lorecraft.project.skill import Repository as SkillRepository
 from lorecraft.schemas import RepositoryOrigin, SchemaInput, SchemaKind, SchemaReference
+from lorecraft.schemas.builtin import register_builtin_schemas
 from lorecraft.vfs import (
     DIR_LIST_FAILURES,
     ROOT_EXIT_WALK_FAILURES,
