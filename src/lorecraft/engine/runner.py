@@ -45,13 +45,12 @@ just like an item's.
 """
 
 from collections.abc import Callable
-from typing import assert_never, cast
+from typing import assert_never
 
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.corpus import ReservedCorpusDirectory, ReservedCorpusDirectoryRef
 from lorecraft.project.database import Database, ItemText
 from lorecraft.project.item import ItemDescriptor, ItemRef, MetaSpecPart
-from lorecraft.project.query import ItemQuery
 from lorecraft.project.skill import OutsideSymlink, OutsideSymlinkRef
 from lorecraft.project.workspace.model import WorkspaceModel
 from lorecraft.rules.declaration import Rule
@@ -65,9 +64,8 @@ from lorecraft.rules.subject import (
     ByMetaSpec,
     ByPackage,
     BySchema,
-    ItemRule,
-    Queried,
     QueriedCorpusDirectoryRule,
+    QueriedItemRule,
     QueriedSymlinkRule,
 )
 from lorecraft.rules.table import EnabledRule, QueriedItem, RuleTable
@@ -120,8 +118,7 @@ def judges(
         descriptor: The item kind and origin metadata used by the gate.
         model: The workspace state used to check registered schema gates.
     """
-    # SAFETY: Every queried item rule is also an ItemRule; the table rejects other queried bases from item buckets.
-    gate = cast(type[ItemRule], rule).GATES.get(descriptor.kind)
+    gate = rule.GATES.get(descriptor.kind)
     if gate is None:
         return False
     match gate:
@@ -135,9 +132,7 @@ def judges(
             assert_never(gate)
 
 
-def _judged_item[Facts](
-    rule: type[Queried[Facts, ItemQuery[Facts]]], database: Database, ref: ItemRef
-) -> tuple[Rule, ...]:
+def _judged_item[Facts](rule: type[QueriedItemRule[Facts]], database: Database, ref: ItemRef) -> tuple[Rule, ...]:
     """Judge one item rule from the answer of its memoized query.
 
     Args:

@@ -22,9 +22,8 @@ from .subject import (
     ByMetaSpec,
     ByPackage,
     BySchema,
-    ItemRule,
-    Queried,
     QueriedCorpusDirectoryRule,
+    QueriedItemRule,
     QueriedSymlinkRule,
 )
 
@@ -59,7 +58,7 @@ class EnabledRule[R: Rule]:
     severity: Severity
 
 
-type QueriedItem = Queried[Any, Any]
+type QueriedItem = QueriedItemRule[Any]
 
 
 class RuleTable:
@@ -86,10 +85,9 @@ class RuleTable:
                 symlink_rules.append(EnabledRule(rule_class, severities[rule_class]))
             elif issubclass(rule_class, QueriedCorpusDirectoryRule):
                 corpus_directory_rules.append(EnabledRule(rule_class, severities[rule_class]))
-            elif issubclass(rule_class, ItemRule) and issubclass(rule_class, Queried):
+            elif issubclass(rule_class, QueriedItemRule):
                 if not rule_class.GATES:
                     raise UnknownRuleBaseError(rule_class)
-                # SAFETY: Both subclass checks prove this is a query-backed item rule in the table's item index.
                 enabled = EnabledRule(cast(type[QueriedItem], rule_class), severities[rule_class])
                 for kind, gate in rule_class.GATES.items():
                     match gate:
@@ -147,7 +145,7 @@ class RuleTable:
         severities.update({enabled.rule: enabled.severity for enabled in self._corpus_directory_rules})
         retained: dict[type[Rule], Severity] = {}
         for rule, severity in severities.items():
-            gate = rule.GATES.get(kind) if issubclass(rule, ItemRule) else None
+            gate = rule.GATES.get(kind) if issubclass(rule, QueriedItemRule) else None
             if not isinstance(gate, ByMetaSpec) or gate.part not in parts:
                 retained[rule] = severity
         return type(self)(retained)

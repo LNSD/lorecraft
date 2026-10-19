@@ -42,7 +42,7 @@ from .identity import (
     RuleGroupPrefix,
     RuleName,
 )
-from .subject import ItemRule
+from .subject import QueriedItemRule
 
 _UNIT_TESTS: Final[str] = 'tests'
 """The name of the subpackage beside a package's modules that holds their unit tests, fixed by the unit tier."""
@@ -449,7 +449,7 @@ def _reject_unbound_attributes_of_kinds(
     for rule_class in rule_classes:
         _reject_unbound_attributes(rule_class, _RULE_ATTRIBUTES)
     for rule_class in rule_classes:
-        if issubclass(rule_class, ItemRule) and not rule_class.__dict__.get('GATES'):
+        if issubclass(rule_class, QueriedItemRule) and not rule_class.__dict__.get('GATES'):
             raise UnsetRuleAttributeError(rule_class, 'GATES')
     for removed_rule in removed_rules:
         _reject_unbound_attributes(removed_rule, _REMOVED_RULE_ATTRIBUTES)

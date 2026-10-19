@@ -27,7 +27,7 @@ query and hands it the facts sits above in `lorecraft.engine`; the query is answ
   the severity an engine condition fixes.
 - An item rule derives from `QueriedItemRule`, names its typed query, and declares a gate for every item kind it
   judges. `ByMetaSpec`, `ByPackage`, and `BySchema` keep structure, package and registered-schema eligibility distinct.
-  A missing kind is inapplicable, and a rule with no gates is rejected while the registry loads. Layout rules keep
+  A missing kind is inapplicable, and a rule with no gates is rejected while the registry loads. Layout rules use
   their separate queried bases for skill symlinks and reserved-corpus directories, with occurrences at the entry
   itself.
 - A removed rule, the decorator that registers a declaration and the registry.
@@ -78,7 +78,7 @@ query and hands it the facts sits above in `lorecraft.engine`; the query is answ
 # ❌ Bad — the rule asks the database for the headings itself: it imports the database, which the import
 # contracts refuse, and a test of one heading rule now needs a whole revision
 @rule
-class EmptySection(ItemRule):
+class EmptySection(ContentRule):
     @classmethod
     def check(cls, database: Database, source: DocumentText) -> tuple[Self, ...]:
         occurrences: list[Self] = []

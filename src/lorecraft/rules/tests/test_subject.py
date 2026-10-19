@@ -1,4 +1,4 @@
-"""The item gates a rule declares alongside its existing item-kind bases."""
+"""The item gates each queried item rule declares."""
 
 from types import MappingProxyType
 
@@ -12,7 +12,7 @@ from lorecraft.rules.length.too_many_lines import TooManyLines
 from lorecraft.rules.length.too_many_tokens import TooManyTokens
 from lorecraft.rules.link.broken_link import BrokenLink
 from lorecraft.rules.registry import Registry
-from lorecraft.rules.subject import ByMetaSpec, ByPackage, BySchema, ItemRule, MetaSpecPart
+from lorecraft.rules.subject import ByMetaSpec, ByPackage, BySchema, MetaSpecPart, QueriedItemRule
 from lorecraft.schemas.builtin import AGENT_SKILLS_SCHEMA_REFERENCE
 
 
@@ -23,7 +23,7 @@ class TestGates:
         registered_rules = Registry.load(rules).rules
 
         #: When
-        item_rules = tuple(rule for rule in registered_rules if issubclass(rule, ItemRule))
+        item_rules = tuple(rule for rule in registered_rules if issubclass(rule, QueriedItemRule))
 
         #: Then
         assert item_rules, 'the registry includes rules over items'
@@ -107,7 +107,7 @@ class TestGateApplicability:
         registered_rules = Registry.load(rules).rules
 
         #: When
-        item_rules = tuple(rule for rule in registered_rules if issubclass(rule, ItemRule))
+        item_rules = tuple(rule for rule in registered_rules if issubclass(rule, QueriedItemRule))
 
         #: Then
         assert item_rules, 'the registry includes rules over items'

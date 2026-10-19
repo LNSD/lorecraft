@@ -6,9 +6,9 @@ mapping for the item kinds it judges. `ByMetaSpec` requires a loaded layer to st
 A kind absent from the mapping is inapplicable. These declarations let the runner and rule table use one explicit
 contract while the rule itself judges only query facts.
 
-A layout entry is not an item: `SymlinkRule` covers links in the skill layout and `CorpusDirectoryRule` covers
-reserved-corpus directories. They derive from `LayoutRule`, and their queried forms keep separate primitive and query
-types, since an occurrence points at the entry itself and not at a line of Markdown.
+A layout entry is not an item: `QueriedSymlinkRule` covers links in the skill layout and
+`QueriedCorpusDirectoryRule` covers reserved-corpus directories. Their separate primitive and query types preserve
+the entry subject, since an occurrence points at the entry itself and not at a line of Markdown.
 
 Rules in each group declare their own gates alongside their codes and queries. Shared document and skill rules
 name both kinds explicitly; Markdown checks can combine structure gates for corpus items with package gates for skill
@@ -58,17 +58,6 @@ class BySchema:
 type Gate = ByMetaSpec | ByPackage | BySchema
 
 
-@dataclass(frozen=True, slots=True, kw_only=True)
-class ItemRule(ContentRule):
-    """The base of every rule over an item, with its required per-kind gate mapping.
-
-    Attributes:
-        GATES: The item kinds a rule judges and the gate that admits each kind.
-    """
-
-    GATES: ClassVar[Mapping[ItemKind, Gate]] = MappingProxyType({})
-
-
 type SubjectQuery[Facts] = (
     Query[ItemPrimitives, Facts] | Query[SymlinkPrimitives, Facts] | Query[CorpusDirectoryPrimitives, Facts]
 )
@@ -101,12 +90,14 @@ class Queried[Facts, QueryType](Rule, ABC):
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
-class QueriedItemRule[Facts](Queried[Facts, ItemQuery[Facts]], ItemRule):
+class QueriedItemRule[Facts](Queried[Facts, ItemQuery[Facts]], ContentRule):
     """The base of a rule over items that declares each kind and gate it judges.
 
     The rule names its query and declares its complete `GATES` mapping. Item kinds absent from that mapping are
     never judged. Layout rules use their separate queried bases because their query primitives differ.
     """
+
+    GATES: ClassVar[Mapping[ItemKind, Gate]] = MappingProxyType({})
 
     @classmethod
     @abstractmethod
@@ -115,17 +106,7 @@ class QueriedItemRule[Facts](Queried[Facts, ItemQuery[Facts]], ItemRule):
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
-class SymlinkRule(LayoutRule):
-    """The base of every rule over a skill-layout symlink; it is package-governed and has no gates."""
-
-
-@dataclass(frozen=True, slots=True, kw_only=True)
-class CorpusDirectoryRule(LayoutRule):
-    """The base of every rule over a reserved-corpus directory; it is package-governed and has no gates."""
-
-
-@dataclass(frozen=True, slots=True, kw_only=True)
-class QueriedSymlinkRule[Facts](Queried[Facts, Query[SymlinkPrimitives, Facts]], SymlinkRule):
+class QueriedSymlinkRule[Facts](Queried[Facts, Query[SymlinkPrimitives, Facts]], LayoutRule):
     """The base of a query-backed rule over a symlink of the skill layout."""
 
     @classmethod
@@ -135,7 +116,7 @@ class QueriedSymlinkRule[Facts](Queried[Facts, Query[SymlinkPrimitives, Facts]],
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
-class QueriedCorpusDirectoryRule[Facts](Queried[Facts, Query[CorpusDirectoryPrimitives, Facts]], CorpusDirectoryRule):
+class QueriedCorpusDirectoryRule[Facts](Queried[Facts, Query[CorpusDirectoryPrimitives, Facts]], LayoutRule):
     """The base of a query-backed rule over a reserved-corpus directory."""
 
     @classmethod
