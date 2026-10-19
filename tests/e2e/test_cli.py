@@ -454,6 +454,9 @@ class TestCheckCommand:
         assert result.returncode == 1, result.stderr
         assert result.stdout == expected, 'the diagnostics found from the working directory match the snapshot'
         assert result.stderr == (
+            '.agents/skills/alpha/SKILL.md: ungoverned for structure, outline, budget\n'
+            '.agents/skills/beta/SKILL.md: ungoverned for structure, outline, budget\n'
+            '.agents/skills/gamma/SKILL.md: ungoverned for structure, outline, budget\n'
             'FM   3 errors\nLEN  1 error\nOUT  5 errors\nchecked 7 subject(s): 9 error(s), 0 warning(s)\n'
         ), 'every document and skill of the fixture is checked, and each is governed'
 
@@ -484,6 +487,7 @@ class TestCheckCommand:
         assert result.returncode == 1, result.stderr
         assert result.stdout == expected, 'the undecodable file, the broken link and the symlink match the snapshot'
         assert result.stderr == (
+            '.agents/skills/review/SKILL.md: ungoverned for structure, outline, budget\n'
             'docs/notes/todo.md: ungoverned for outline, budget\n'
             'LAY   1 error\nLC    1 error\nLINK  1 error\n'
             'checked 5 subject(s): 3 error(s), 0 warning(s)\n'
@@ -574,7 +578,14 @@ class TestCheckCommand:
                 },
             ],
             'summary': {'subjects': 5, 'errors': 3, 'warnings': 0},
-            'coverage': [{'path': 'docs/notes/todo.md', 'ungoverned': ['outline', 'budget'], 'skipped_by': []}],
+            'coverage': [
+                {
+                    'path': '.agents/skills/review/SKILL.md',
+                    'ungoverned': ['structure', 'outline', 'budget'],
+                    'skipped_by': [],
+                },
+                {'path': 'docs/notes/todo.md', 'ungoverned': ['outline', 'budget'], 'skipped_by': []},
+            ],
         }, f'the document holds every diagnostic, the summary and the coverage, got {result.stdout!r}'
 
     def test_check_with_rules_selected_and_ignored_prints_only_the_kept_rules_and_the_engine_diagnostics(
@@ -719,9 +730,10 @@ class TestWorkspaceDefaults:
         #: Then
         assert result.returncode == 0, result.stdout
         assert result.stdout == '', 'a skill whose every field but its name is generated has nothing to report'
-        assert result.stderr == 'checked 1 subject(s): 0 error(s), 0 warning(s)\n', (
-            'the one skill written is the one checked'
-        )
+        assert result.stderr == (
+            '.agents/skills/review/SKILL.md: ungoverned for structure, outline, budget\n'
+            'checked 1 subject(s): 0 error(s), 0 warning(s)\n'
+        ), 'the one skill written is the one checked'
 
     def test_check_rejects_a_skills_schema_that_contradicts_a_builtin_rule(self, tmp_path: Path, faker: Faker) -> None:
         #: Given
@@ -751,7 +763,7 @@ class TestWorkspaceDefaults:
         assert result.returncode == 0, result.stdout
         assert 'missing required field `description`' not in result.stdout
         assert result.stderr == (
-            '.agents/skills/review/SKILL.md: ungoverned for frontmatter\n'
+            '.agents/skills/review/SKILL.md: ungoverned for frontmatter, structure, outline, budget\n'
             'checked 1 subject(s): 0 error(s), 0 warning(s)\n'
         ), 'the opted-out frontmatter facet is reported as ungoverned, as on main'
 
@@ -777,7 +789,7 @@ class TestWorkspaceDefaults:
         assert result.returncode == 0, result.stdout
         assert result.stdout == '', f'{case} frontmatter has no active schema diagnostic'
         assert result.stderr == (
-            '.agents/skills/review/SKILL.md: ungoverned for frontmatter\n'
+            '.agents/skills/review/SKILL.md: ungoverned for frontmatter, structure, outline, budget\n'
             'checked 1 subject(s): 0 error(s), 0 warning(s)\n'
         ), f'{case} frontmatter keeps main coverage output when the built-in schema is opted out'
 
@@ -794,7 +806,7 @@ class TestWorkspaceDefaults:
         assert result.returncode == 0, result.stdout
         assert result.stdout == '', 'missing frontmatter has no active schema diagnostic'
         assert result.stderr == (
-            '.agents/skills/review/SKILL.md: ungoverned for frontmatter\n'
+            '.agents/skills/review/SKILL.md: ungoverned for frontmatter, structure, outline, budget\n'
             'checked 1 subject(s): 0 error(s), 0 warning(s)\n'
         ), 'missing frontmatter keeps main coverage output when the built-in schema is opted out'
 

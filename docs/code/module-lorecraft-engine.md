@@ -22,20 +22,21 @@ returns at its subject, as a diagnostic of `lorecraft.rules.report`.
 
 ## Belongs Here
 
-- The shared runner (`runner.py`): the governance lookup, facet gating, running the table's rules over a
+- The shared runner (`runner.py`): the governance lookup, meta spec part gating, running the table's rules over a
   subject through their queries, and building its report. A rule query is resolved for its subject, whether that
   subject is a Markdown item, symlink or corpus directory; each kind follows the same query and judgment path. A
   query is owned by its rule group unless another group needs it, when it is promoted to `lorecraft.project.query`;
   the runner resolves that shared query for both groups through the same database. A
   document, skill or skill resource is decoded by each mode's entry point, so its policy comes after decoding,
-  and `judge_item` judges any of them through one facet loop
-  over the descriptor's active facets. A rule runs over an item of a kind it applies to, and only when the item is governed
-  for the facet the rule reads; each facet an applicable rule reads that the item is not governed for is recorded as
+  and `judge_item` judges any of them through one loop over meta spec parts and package gates. A rule runs over an item
+  of a kind it applies to, and only when the item is governed for the part the rule reads; each part an applicable
+  rule reads that the item is not governed for is recorded as
   coverage. A rule over a Markdown file runs over a document governed for its structure, a skill's `SKILL.md` and
   each resource handed over as a subject of its own. A resource has no corpus structure governance, while package
   Markdown checks still run; a skill's package checks run independently of corpus governance.
-- One entry point per mode: `skip.py` gives documents governed by a failed layer no rule, and
-  skips skill entrypoints whose docs target was refused. An LSP-style partial mode is future work.
+- One entry point per mode: `skip.py` gives documents governed by a failed layer no rule, suppresses skill corpus
+  rules for failed skill layers while retaining package and schema checks, and skips skill entrypoints whose docs
+  target was refused. An LSP-style partial mode is future work.
 - `skip.py` wraps an item read failure in the kind-specific error declared by the document or skill repository. A
   specification has no kind-specific read error, so its `ItemReadError` propagates unchanged.
 - The report of each load failure the model lists (`load_failures.py`): the engine condition of its kind, filed
@@ -78,15 +79,15 @@ returns at its subject, as a diagnostic of `lorecraft.rules.report`.
 ```python
 # ❌ Bad — the run hands a rule the database: the rule can read any document, so nothing bounds what a change
 # to one file invalidates, and a unit test needs a whole snapshot to test a rule about one heading
-for enabled in table.document_rules_governed_by(Facet.OUTLINE):
+for enabled in table.item_rules(source.descriptor.kind, MetaSpecPart.OUTLINE):
     for occurrence in enabled.rule.check_in(database, source):
         diagnostics.append(RuleDiagnostic(source.ref.path, occurrence, enabled.severity))
 ```
 
 ```python
 # ✅ Good — the run resolves the rule's query and hands the rule its facts; a unit test hands it a literal
-if ItemFacet.OUTLINE in source.descriptor.active_facets:
-    for enabled in table.document_rules_governed_by(Facet.OUTLINE):
+if MetaSpecPart.OUTLINE in source.descriptor.governed_parts:
+    for enabled in table.item_rules(source.descriptor.kind, MetaSpecPart.OUTLINE):
         facts = database.query(enabled.rule.query(), source.ref)
         for occurrence in enabled.rule.judge(facts):
             diagnostics.append(RuleDiagnostic(source.ref.path, occurrence, enabled.severity))
@@ -133,9 +134,9 @@ Before committing code, verify:
   document names each failed layer's structure file
 - [ ] A document, skill or resource is decoded by each mode's entry point, so its policy comes after decoding; the
   item is asked for by its common reference, and failed corpus governance can skip documents or suppress skill
-  corpus rules while preserving the Agent Skills floor; `runner.py`
+  corpus rules while preserving package and schema checks; `runner.py`
   decodes nothing
-- [ ] `judge_item` asks a rule its kinds and facet, never its base; only building the report matches on the kind
+- [ ] `judge_item` asks a rule its kinds and meta spec part, never its base; only building the report matches on the kind
 - [ ] Nothing here imports `lorecraft.cli` or `typer`
 
 ## References

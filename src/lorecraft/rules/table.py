@@ -135,6 +135,23 @@ class RuleTable:
         """
         return self._item_rules.get((kind, part), ())
 
+    def without_item_meta_spec_gates(self, kind: ItemKind, parts: frozenset[MetaSpecPart]) -> Self:
+        """Return a table without selected meta spec gates for one item kind.
+
+        A mode uses this when that item's governing layer failed to load. Package and schema gates remain active.
+        """
+        severities: dict[type[Rule], Severity] = {
+            cast(type[Rule], enabled.rule): enabled.severity for rules in self._item_rules.values() for enabled in rules
+        }
+        severities.update({enabled.rule: enabled.severity for enabled in self._symlink_rules})
+        severities.update({enabled.rule: enabled.severity for enabled in self._corpus_directory_rules})
+        retained: dict[type[Rule], Severity] = {}
+        for rule, severity in severities.items():
+            gate = rule.GATES.get(kind) if issubclass(rule, ItemRule) else None
+            if not isinstance(gate, ByMetaSpec) or gate.part not in parts:
+                retained[rule] = severity
+        return type(self)(retained)
+
     @property
     def symlink_rules(self) -> tuple[EnabledRule[QueriedSymlinkRule[Any]], ...]:
         """Each enabled rule over a layout symlink, in code order."""

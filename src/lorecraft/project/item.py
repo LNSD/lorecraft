@@ -129,9 +129,7 @@ class ItemDescriptor:
         governance_corpus: Corpus whose meta specs govern the item, when it belongs to one; empty otherwise.
         aspect_name: Listed name matched against namespace meta specs, when it belongs to a corpus; retained as
             provenance for skills and resources.
-        governed_parts: Parts that activate checks for this item. The package's skill-entrypoint checks activate its
-            frontmatter and structure checks, independently of corpus governance. A meta spec and a resource
-            activate the structure part.
+        governed_parts: Meta spec parts stated by loaded layers that govern this item.
     """
 
     ref: ItemRef

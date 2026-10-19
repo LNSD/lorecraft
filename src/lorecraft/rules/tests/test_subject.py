@@ -47,7 +47,7 @@ class TestGates:
         expected = MappingProxyType(
             {
                 ItemKind.DOCUMENT: ByMetaSpec(MetaSpecPart.BUDGET),
-                ItemKind.SKILL_ENTRYPOINT: ByMetaSpec(MetaSpecPart.BUDGET, requires_loaded_layer=True),
+                ItemKind.SKILL_ENTRYPOINT: ByMetaSpec(MetaSpecPart.BUDGET),
             }
         )
 
@@ -63,7 +63,7 @@ class TestGates:
         expected = MappingProxyType(
             {
                 ItemKind.DOCUMENT: ByMetaSpec(MetaSpecPart.STRUCTURE),
-                ItemKind.META_SPEC: ByMetaSpec(MetaSpecPart.STRUCTURE),
+                ItemKind.META_SPEC: ByPackage(),
                 ItemKind.SKILL_ENTRYPOINT: ByPackage(),
                 ItemKind.SKILL_RESOURCE: ByPackage(),
             }

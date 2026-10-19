@@ -127,7 +127,7 @@ class BrokenFragment(QueriedItemRule[BrokenFragmentFacts]):
     GATES: ClassVar[Mapping[ItemKind, Gate]] = MappingProxyType(
         {
             ItemKind.DOCUMENT: ByMetaSpec(MetaSpecPart.STRUCTURE),
-            ItemKind.META_SPEC: ByMetaSpec(MetaSpecPart.STRUCTURE),
+            ItemKind.META_SPEC: ByPackage(),
             ItemKind.SKILL_ENTRYPOINT: ByPackage(),
             ItemKind.SKILL_RESOURCE: ByPackage(),
         }

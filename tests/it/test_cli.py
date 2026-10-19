@@ -54,6 +54,12 @@ PLAIN_TERMINAL: Final[Mapping[str, str | None]] = MappingProxyType({'TERM': 'dum
 # A `SKILL.md` holding a field the Agent Skills specification does not define, which is a warning and nothing else.
 UNKNOWN_FIELD_SKILL_MD: Final[str] = '---\nname: review\ndescription: Review a change\nversion: 2\n---\n# Review\n'
 
+SKILL_COVERAGE: Final[dict[str, object]] = {
+    'path': '.agents/skills/review/SKILL.md',
+    'ungoverned': ['structure', 'outline', 'budget'],
+    'skipped_by': [],
+}
+
 # A structure specification whose token budget a two-section document exceeds.
 TIGHT_BUDGET_STRUCTURE_SPEC: Final[str] = '{"tokens": 5}'
 
@@ -718,9 +724,10 @@ class TestCheckCommand:
         #: Then
         assert result.exit_code == 0, 'the recommendation does not fail the run'
         assert result.stdout == expected_text, 'the warning text matches the reviewed snapshot'
-        assert result.stderr == 'FM  1 warning\nchecked 1 subject(s): 0 error(s), 1 warning(s)\n', (
-            'the warning is counted, under its code prefix'
-        )
+        assert result.stderr == (
+            '.agents/skills/review/SKILL.md: ungoverned for structure, outline, budget\n'
+            'FM  1 warning\nchecked 1 subject(s): 0 error(s), 1 warning(s)\n'
+        ), 'the warning is counted, under its code prefix'
 
     def test_check_with_overlong_allowed_tools_and_json_format_reports_the_warning_and_exits_zero(
         self, overlong_allowed_tools_root: Path
@@ -776,7 +783,7 @@ class TestCheckCommand:
                 }
             ],
             'summary': {'subjects': 1, 'errors': 0, 'warnings': 1},
-            'coverage': [],
+            'coverage': [SKILL_COVERAGE],
         }, 'JSON labels the excess, notes where the specification states the field, and where the limit comes from'
 
     def test_check_with_malformed_allowed_tools_warns_and_exits_zero(
@@ -793,9 +800,10 @@ class TestCheckCommand:
         #: Then
         assert result.exit_code == 0, result.output
         assert result.stdout == expected_text, 'the warning text matches the reviewed snapshot'
-        assert result.stderr == 'FM  1 warning\nchecked 1 subject(s): 0 error(s), 1 warning(s)\n', (
-            'the warning is counted under its code prefix and does not fail the run'
-        )
+        assert result.stderr == (
+            '.agents/skills/review/SKILL.md: ungoverned for structure, outline, budget\n'
+            'FM  1 warning\nchecked 1 subject(s): 0 error(s), 1 warning(s)\n'
+        ), 'the warning is counted under its code prefix and does not fail the run'
 
     def test_check_with_malformed_allowed_tools_and_json_format_reports_the_warning_and_exits_zero(
         self, malformed_allowed_tools_root: Path
@@ -843,7 +851,7 @@ class TestCheckCommand:
                 }
             ],
             'summary': {'subjects': 1, 'errors': 0, 'warnings': 1},
-            'coverage': [],
+            'coverage': [SKILL_COVERAGE],
         }, 'JSON reports the skill path, line, warning, help and specification note'
 
     def test_check_with_help_prints_the_description_and_stops_before_raises(self, snapshot: SnapshotAssertion) -> None:
@@ -909,9 +917,10 @@ class TestCheckCommand:
         #: Then
         assert result.exit_code == 0, result.output
         assert result.stdout == expected, 'the unknown-field warning matches the reviewed snapshot'
-        assert result.stderr == 'FM  1 warning\nchecked 1 subject(s): 0 error(s), 1 warning(s)\n', (
-            'a warning is counted apart'
-        )
+        assert result.stderr == (
+            '.agents/skills/review/SKILL.md: ungoverned for structure, outline, budget\n'
+            'FM  1 warning\nchecked 1 subject(s): 0 error(s), 1 warning(s)\n'
+        ), 'a warning is counted apart'
 
     def test_check_with_an_ungoverned_document_prints_its_coverage_on_stderr(self, tmp_path: Path) -> None:
         #: Given
@@ -1143,7 +1152,10 @@ class TestCheckCommand:
                 },
             ],
             'summary': {'subjects': 3, 'errors': 1, 'warnings': 1},
-            'coverage': [{'path': 'docs/code/guide.md', 'ungoverned': ['outline', 'budget'], 'skipped_by': []}],
+            'coverage': [
+                SKILL_COVERAGE,
+                {'path': 'docs/code/guide.md', 'ungoverned': ['outline', 'budget'], 'skipped_by': []},
+            ],
         }, f'the document holds every diagnostic, the summary and the coverage, got {result.stdout!r}'
 
     def test_check_with_json_format_and_errors_from_two_groups_reports_their_labels_and_notes(

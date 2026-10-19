@@ -181,6 +181,13 @@ _CAFE_NAME_FAILURE: Final[Utf8Failure] = Utf8Failure(
 REVIEW_FILE: Final[RootRelativePath] = RootRelativePath.parse('.agents/skills/review/SKILL.md')
 """Where `REVIEW` is reported: its `SKILL.md`, under the skills directory an agent lists it in."""
 
+SKILL_UNGOVERNED: Final[tuple[MetaSpecPart, ...]] = (
+    MetaSpecPart.STRUCTURE,
+    MetaSpecPart.OUTLINE,
+    MetaSpecPart.BUDGET,
+)
+"""The skills corpus is absent, so its structure, outline and budget parts are ungoverned."""
+
 OBJECT_SCHEMA: Final[bytes] = b'{"frontmatter": {"type": "object"}}'
 """A corpus structure specification whose frontmatter schema accepts any mapping, and which sets no budget."""
 
@@ -581,6 +588,7 @@ class TestCheckSubjects:
                         Severity.WARNING,
                     ),
                 ),
+                ungoverned=SKILL_UNGOVERNED,
             ),
         ), 'an overlong value still receives structural validation, and both warnings point at its field'
 
@@ -608,6 +616,7 @@ class TestCheckSubjects:
             CheckedItem(
                 ItemRef(REVIEW.path),
                 diagnostics=(RuleDiagnostic(skill_file, occurrence, Severity.WARNING),),
+                ungoverned=SKILL_UNGOVERNED,
             ),
         ), 'the registry runs FM011 over a skill and reports the warning at its listed path and field line'
 
@@ -931,6 +940,7 @@ class TestCheckSubjects:
             CheckedItem(
                 ItemRef(REVIEW.path),
                 diagnostics=(RuleDiagnostic(skill_file, occurrence, Severity.ERROR),),
+                ungoverned=SKILL_UNGOVERNED,
             ),
         ), 'LEN002 runs at deny, so a skill over the budget carries its occurrence as an error, at its SKILL.md'
 
@@ -1015,6 +1025,7 @@ class TestCheckSubjects:
             CheckedItem(
                 ItemRef(REVIEW.path),
                 diagnostics=(RuleDiagnostic(skill_file, occurrence, Severity.ERROR),),
+                ungoverned=SKILL_UNGOVERNED,
             ),
         ), 'the SKILL.md is counted where the link leads, and reported under the skills directory, not under skills/'
 
@@ -1027,7 +1038,7 @@ class TestCheckSubjects:
         reports = check_subjects(database, subjects, package_table)
 
         #: Then
-        assert reports == (CheckedItem(ItemRef(REVIEW.path), diagnostics=()),), (
+        assert reports == (CheckedItem(ItemRef(REVIEW.path), diagnostics=(), ungoverned=SKILL_UNGOVERNED),), (
             'a SKILL.md of exactly 500 lines is within the budget, and the package governs its line count'
         )
 
@@ -1063,7 +1074,7 @@ class TestCheckSubjects:
                 diagnostics=(),
                 ungoverned=(MetaSpecPart.FRONTMATTER, MetaSpecPart.OUTLINE),
             ),
-            CheckedItem(ItemRef(REVIEW.path), diagnostics=()),
+            CheckedItem(ItemRef(REVIEW.path), diagnostics=(), ungoverned=SKILL_UNGOVERNED),
             CheckedItem(
                 ItemRef(INTRO.path),
                 diagnostics=(),
@@ -1211,6 +1222,7 @@ class TestCheckSubjects:
             CheckedItem(
                 ItemRef(REVIEW.path),
                 diagnostics=(RuleDiagnostic(REVIEW_FILE, occurrence, Severity.ERROR),),
+                ungoverned=SKILL_UNGOVERNED,
             ),
         ), 'every skill is governed for its frontmatter, so FM001 needs no specification in the repository'
 
@@ -1235,6 +1247,7 @@ class TestCheckSubjects:
             CheckedItem(
                 ItemRef(REVIEW.path),
                 diagnostics=(RuleDiagnostic(REVIEW_FILE, occurrence, Severity.ERROR),),
+                ungoverned=SKILL_UNGOVERNED,
             ),
         ), 'FM002 runs at deny over a skill, at the line the YAML parser stopped on'
 
@@ -1256,6 +1269,7 @@ class TestCheckSubjects:
             CheckedItem(
                 ItemRef(REVIEW.path),
                 diagnostics=(RuleDiagnostic(REVIEW_FILE, occurrence, Severity.ERROR),),
+                ungoverned=SKILL_UNGOVERNED,
             ),
         ), 'FM003 runs at deny over a skill whose block is not a mapping'
 
@@ -1279,6 +1293,7 @@ class TestCheckSubjects:
             CheckedItem(
                 ItemRef(REVIEW.path),
                 diagnostics=(RuleDiagnostic(REVIEW_FILE, occurrence, Severity.ERROR),),
+                ungoverned=SKILL_UNGOVERNED,
             ),
         ), 'FM004 runs at deny over a skill whose `name` is not its directory name'
 
@@ -1308,6 +1323,7 @@ class TestCheckSubjects:
             CheckedItem(
                 ItemRef(REVIEW.path),
                 diagnostics=(RuleDiagnostic(REVIEW_FILE, occurrence, Severity.ERROR),),
+                ungoverned=SKILL_UNGOVERNED,
             ),
         ), 'FM005 runs at deny over a skill that writes a key again'
 
@@ -1344,6 +1360,7 @@ class TestCheckSubjects:
             CheckedItem(
                 ItemRef(REVIEW.path),
                 diagnostics=(RuleDiagnostic(REVIEW_FILE, occurrence, Severity.ERROR),),
+                ungoverned=SKILL_UNGOVERNED,
             ),
         ), 'a skill is held to the name it is listed under, and its occurrence carries where the link leads'
 
@@ -1540,6 +1557,7 @@ class TestCheckSubjects:
                     RuleDiagnostic(REVIEW_FILE, wrong_type, Severity.ERROR),
                     RuleDiagnostic(REVIEW_FILE, invalid_value, Severity.ERROR),
                 ),
+                ungoverned=SKILL_UNGOVERNED,
             ),
         ), 'the schema rules judge a skill against the Agent Skills specification, naming no specification file'
 
@@ -2059,6 +2077,7 @@ class TestCheckSubjects:
             CheckedItem(
                 ItemRef(REVIEW.path),
                 diagnostics=(RuleDiagnostic(REVIEW_FILE, occurrence, Severity.ERROR),),
+                ungoverned=SKILL_UNGOVERNED,
             ),
         ), "LINK001 runs at deny over a skill's SKILL.md, on the line of the link, counted from the file's first line"
 
@@ -2124,7 +2143,7 @@ class TestCheckSubjects:
         occurrence = AbsoluteLink(line=LineNumber(NonZeroUnsignedInt(1)), url='/x.md')
         first_path = RootRelativePath.parse('.agents/skills/review/references/a.md')
         assert reports == (
-            CheckedItem(ItemRef(REVIEW.path), diagnostics=()),
+            CheckedItem(ItemRef(REVIEW.path), diagnostics=(), ungoverned=SKILL_UNGOVERNED),
             CheckedItem(
                 ItemRef(first.path),
                 diagnostics=(RuleDiagnostic(first_path, occurrence, Severity.ERROR),),
@@ -2208,6 +2227,7 @@ class TestCheckSubjects:
                     RuleDiagnostic(REVIEW_FILE, invalid_yaml, Severity.ERROR),
                     RuleDiagnostic(REVIEW_FILE, absolute_link, Severity.ERROR),
                 ),
+                ungoverned=SKILL_UNGOVERNED,
             ),
         ), 'a link is judged whether or not the frontmatter parses, so a broken block hides no link diagnostic'
 
@@ -2273,6 +2293,7 @@ class TestCheckSubjects:
             CheckedItem(
                 ItemRef(REVIEW.path),
                 diagnostics=(RuleDiagnostic(REVIEW_FILE, occurrence, Severity.ERROR),),
+                ungoverned=SKILL_UNGOVERNED,
             ),
         ), "LINK002 runs at deny over a skill's SKILL.md, on the line of the link"
 
@@ -2297,7 +2318,7 @@ class TestCheckSubjects:
         occurrence = BrokenFragment(line=LineNumber(NonZeroUnsignedInt(3)), url='#usage', has_headings=True)
         checklist_path = RootRelativePath.parse('.agents/skills/review/references/checklist.md')
         assert reports == (
-            CheckedItem(ItemRef(REVIEW.path), diagnostics=()),
+            CheckedItem(ItemRef(REVIEW.path), diagnostics=(), ungoverned=SKILL_UNGOVERNED),
             CheckedItem(
                 ItemRef(checklist.path),
                 diagnostics=(RuleDiagnostic(checklist_path, occurrence, Severity.ERROR),),
@@ -2343,6 +2364,7 @@ class TestCheckSubjects:
                         Severity.ERROR,
                     ),
                 ),
+                ungoverned=SKILL_UNGOVERNED,
             ),
             CheckedItem(
                 ItemRef(a.path),
@@ -2422,6 +2444,7 @@ class TestCheckSubjects:
             CheckedItem(
                 ItemRef(REVIEW.path),
                 diagnostics=(RuleDiagnostic(REVIEW_FILE, occurrence, Severity.ERROR),),
+                ungoverned=SKILL_UNGOVERNED,
             ),
         ), 'the path alone decides, so a link out of the skill and back in by the repository path escapes'
 
