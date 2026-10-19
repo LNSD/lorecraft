@@ -10,7 +10,7 @@ for the runner to resolve.
 
 from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Any, Self, assert_never, cast
+from typing import Any, Self, assert_never
 
 from lorecraft.project.item import ItemKind, MetaSpecPart
 
@@ -88,7 +88,7 @@ class RuleTable:
             elif issubclass(rule_class, QueriedItemRule):
                 if not rule_class.GATES:
                     raise UnknownRuleBaseError(rule_class)
-                enabled = EnabledRule(cast(type[QueriedItem], rule_class), severities[rule_class])
+                enabled = EnabledRule(rule_class, severities[rule_class])
                 for kind, gate in rule_class.GATES.items():
                     match gate:
                         case ByMetaSpec(part):
@@ -139,7 +139,7 @@ class RuleTable:
         A mode uses this when that item's governing layer failed to load. Package and schema gates remain active.
         """
         severities: dict[type[Rule], Severity] = {
-            cast(type[Rule], enabled.rule): enabled.severity for rules in self._item_rules.values() for enabled in rules
+            enabled.rule: enabled.severity for rules in self._item_rules.values() for enabled in rules
         }
         severities.update({enabled.rule: enabled.severity for enabled in self._symlink_rules})
         severities.update({enabled.rule: enabled.severity for enabled in self._corpus_directory_rules})
