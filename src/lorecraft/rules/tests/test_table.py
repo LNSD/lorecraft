@@ -1,4 +1,4 @@
-"""The rule table: the rules a run enables, each with its severity, and their partition by base."""
+"""The rule table: enabled rules, their severity and their item-kind and facet index."""
 
 from types import MappingProxyType
 from typing import Final
@@ -8,41 +8,14 @@ import pytest
 from lorecraft import rules
 from lorecraft.project.item import ItemKind
 from lorecraft.rules.corpus.reserved_corpus_overlap import ReservedCorpusOverlap
-from lorecraft.rules.frontmatter.allowed_tools_too_long import AllowedToolsTooLong
 from lorecraft.rules.frontmatter.duplicate_key import DuplicateKey
-from lorecraft.rules.frontmatter.invalid_frontmatter import InvalidFrontmatter
-from lorecraft.rules.frontmatter.invalid_value import InvalidValue
-from lorecraft.rules.frontmatter.invalid_yaml import InvalidYaml
-from lorecraft.rules.frontmatter.malformed_allowed_tools import MalformedAllowedTools
-from lorecraft.rules.frontmatter.missing_field import MissingField
-from lorecraft.rules.frontmatter.missing_frontmatter import MissingFrontmatter
 from lorecraft.rules.frontmatter.name_mismatch import NameMismatch
-from lorecraft.rules.frontmatter.non_mapping_frontmatter import NonMappingFrontmatter
-from lorecraft.rules.frontmatter.too_few_fields import TooFewFields
-from lorecraft.rules.frontmatter.too_many_fields import TooManyFields
-from lorecraft.rules.frontmatter.unknown_field import UnknownField
-from lorecraft.rules.frontmatter.wrong_type import WrongType
 from lorecraft.rules.layout.escaping_symlink import EscapingSymlink
-from lorecraft.rules.length.section_too_many_words import SectionTooManyWords
-from lorecraft.rules.length.title_too_long import TitleTooLong
-from lorecraft.rules.length.title_too_many_words import TitleTooManyWords
 from lorecraft.rules.length.too_many_lines import TooManyLines
 from lorecraft.rules.length.too_many_tokens import TooManyTokens
-from lorecraft.rules.link.absolute_link import AbsoluteLink
-from lorecraft.rules.link.broken_fragment import BrokenFragment
-from lorecraft.rules.link.broken_link import BrokenLink
-from lorecraft.rules.link.escaping_link import EscapingLink
-from lorecraft.rules.link.extension_link import ExtensionLink
-from lorecraft.rules.link.missing_base_link import MissingBaseLink
-from lorecraft.rules.link.mutual_link import MutualLink
-from lorecraft.rules.outline.empty_section import EmptySection
-from lorecraft.rules.outline.extra_title import ExtraTitle
-from lorecraft.rules.outline.forbidden_section import ForbiddenSection
-from lorecraft.rules.outline.invalid_title import InvalidTitle
 from lorecraft.rules.outline.missing_section import MissingSection
 from lorecraft.rules.outline.missing_title import MissingTitle
 from lorecraft.rules.outline.section_out_of_order import SectionOutOfOrder
-from lorecraft.rules.outline.title_not_first import TitleNotFirst
 from lorecraft.rules.outline.unexpected_section import UnexpectedSection
 
 from ..declaration import Rule
@@ -82,7 +55,7 @@ class TestRuleTableFromRegistry:
         table = RuleTable.from_registry(registry, EVERY_RULE)
 
         #: Then
-        assert table.document_rules == enabled, (
+        assert table.item_rules(ItemKind.DOCUMENT, Facet.BUDGET) == enabled, (
             'the rules above allow are enabled, in code order; the removed rule and the condition are not rules'
         )
 
@@ -94,7 +67,7 @@ class TestRuleTableFromRegistry:
         table = RuleTable.from_registry(registry, EVERY_RULE)
 
         #: Then
-        assert table.document_rules == (EnabledRule(OverHalfBudget, Severity.WARNING),), (
+        assert table.item_rules(ItemKind.DOCUMENT, Facet.BUDGET) == (EnabledRule(OverHalfBudget, Severity.WARNING),), (
             'a rule at warn reports warnings'
         )
 
@@ -106,7 +79,9 @@ class TestRuleTableFromRegistry:
         table = RuleTable.from_registry(registry, EVERY_RULE)
 
         #: Then
-        assert table.document_rules == (EnabledRule(AnyTokens, Severity.ERROR),), 'a rule at deny reports errors'
+        assert table.item_rules(ItemKind.DOCUMENT, Facet.BUDGET) == (EnabledRule(AnyTokens, Severity.ERROR),), (
+            'a rule at deny reports errors'
+        )
 
     def test_from_registry_with_a_rule_at_allow_leaves_it_out(self) -> None:
         #: Given
@@ -116,7 +91,9 @@ class TestRuleTableFromRegistry:
         table = RuleTable.from_registry(registry, EVERY_RULE)
 
         #: Then
-        assert table.document_rules == (), 'a rule at allow is not in the table, so it never runs'
+        assert table.item_rules(ItemKind.DOCUMENT, Facet.BUDGET) == (), (
+            'a rule at allow is not in the table, so it never runs'
+        )
 
     def test_from_registry_with_a_rule_over_no_known_base_raises_unknown_rule_base_error(self) -> None:
         #: Given
@@ -130,124 +107,6 @@ class TestRuleTableFromRegistry:
         #: Then
         assert exc_info.value.rule is UppercaseEntry, 'the error names the first enabled rule, in code order'
 
-    def test_from_registry_with_the_package_registry_enables_the_rules_over_a_document_in_code_order(self) -> None:
-        #: Given
-        registry = Registry.load(rules)
-
-        #: When
-        table = RuleTable.from_registry(registry, EVERY_RULE)
-
-        #: Then
-        assert table.document_rules == (
-            EnabledRule(TooManyTokens, Severity.ERROR),
-            EnabledRule(SectionTooManyWords, Severity.ERROR),
-            EnabledRule(TitleTooManyWords, Severity.ERROR),
-            EnabledRule(TitleTooLong, Severity.ERROR),
-            EnabledRule(ExtensionLink, Severity.WARNING),
-            EnabledRule(MissingBaseLink, Severity.WARNING),
-            EnabledRule(MutualLink, Severity.WARNING),
-            EnabledRule(MissingTitle, Severity.ERROR),
-            EnabledRule(ExtraTitle, Severity.ERROR),
-            EnabledRule(TitleNotFirst, Severity.ERROR),
-            EnabledRule(EmptySection, Severity.ERROR),
-            EnabledRule(ForbiddenSection, Severity.ERROR),
-            EnabledRule(MissingSection, Severity.ERROR),
-            EnabledRule(SectionOutOfOrder, Severity.ERROR),
-            EnabledRule(UnexpectedSection, Severity.ERROR),
-            EnabledRule(InvalidTitle, Severity.ERROR),
-        ), (
-            "the package's length and outline rules over a document are enabled by default as errors, in code order, "
-            'and its engine condition is not in the table'
-        )
-
-    def test_from_registry_with_the_package_registry_enables_the_line_budget(self) -> None:
-        #: Given
-        registry = Registry.load(rules)
-
-        #: When
-        table = RuleTable.from_registry(registry, EVERY_RULE)
-
-        #: Then
-        assert table.skill_rules == (
-            EnabledRule(MalformedAllowedTools, Severity.WARNING),
-            EnabledRule(AllowedToolsTooLong, Severity.WARNING),
-            EnabledRule(TooManyLines, Severity.ERROR),
-        ), "the package's allowed-tools rules are enabled as warnings, and its line budget as an error"
-
-    def test_from_registry_with_the_package_registry_enables_the_link_rules_in_code_order(self) -> None:
-        #: Given
-        registry = Registry.load(rules)
-
-        #: When
-        table = RuleTable.from_registry(registry, EVERY_RULE)
-
-        #: Then
-        assert table.markdown_rules == (
-            EnabledRule(AbsoluteLink, Severity.ERROR),
-            EnabledRule(BrokenFragment, Severity.ERROR),
-            EnabledRule(BrokenLink, Severity.ERROR),
-        ), "the package's rules over a Markdown file's links are enabled by default as errors, in code order"
-
-    def test_from_registry_with_the_package_registry_enables_the_skill_file_link_rule(self) -> None:
-        #: Given
-        registry = Registry.load(rules)
-
-        #: When
-        table = RuleTable.from_registry(registry, EVERY_RULE)
-
-        #: Then
-        assert table.skill_file_rules == (EnabledRule(EscapingLink, Severity.ERROR),), (
-            "the package's rule over a skill file's escaping links is enabled by default as an error"
-        )
-
-    def test_from_registry_with_the_package_registry_enables_the_frontmatter_rules_in_code_order(self) -> None:
-        #: Given
-        registry = Registry.load(rules)
-
-        #: When
-        table = RuleTable.from_registry(registry, EVERY_RULE)
-
-        #: Then
-        assert table.frontmatter_rules == (
-            EnabledRule(MissingFrontmatter, Severity.ERROR),
-            EnabledRule(InvalidYaml, Severity.ERROR),
-            EnabledRule(NonMappingFrontmatter, Severity.ERROR),
-            EnabledRule(NameMismatch, Severity.ERROR),
-            EnabledRule(DuplicateKey, Severity.ERROR),
-            EnabledRule(MissingField, Severity.ERROR),
-            EnabledRule(UnknownField, Severity.WARNING),
-            EnabledRule(WrongType, Severity.ERROR),
-            EnabledRule(InvalidValue, Severity.ERROR),
-            EnabledRule(InvalidFrontmatter, Severity.ERROR),
-            EnabledRule(TooManyFields, Severity.ERROR),
-            EnabledRule(TooFewFields, Severity.ERROR),
-        ), "the package's frontmatter rules are enabled by default at their own level, in code order"
-
-    def test_from_registry_with_the_package_registry_runs_the_rules_over_the_headings_under_the_structure_facet(
-        self,
-    ) -> None:
-        #: Given
-        registry = Registry.load(rules)
-
-        #: When
-        table = RuleTable.from_registry(registry, EVERY_RULE)
-
-        #: Then
-        assert table.document_rules_governed_by(Facet.STRUCTURE) == (
-            EnabledRule(SectionTooManyWords, Severity.ERROR),
-            EnabledRule(TitleTooManyWords, Severity.ERROR),
-            EnabledRule(TitleTooLong, Severity.ERROR),
-            EnabledRule(ExtensionLink, Severity.WARNING),
-            EnabledRule(MissingBaseLink, Severity.WARNING),
-            EnabledRule(MutualLink, Severity.WARNING),
-            EnabledRule(MissingTitle, Severity.ERROR),
-            EnabledRule(ExtraTitle, Severity.ERROR),
-            EnabledRule(TitleNotFirst, Severity.ERROR),
-            EnabledRule(EmptySection, Severity.ERROR),
-            EnabledRule(ForbiddenSection, Severity.ERROR),
-            EnabledRule(InvalidTitle, Severity.ERROR),
-        ), "the package's rules over a document's headings judge every document a structure specification governs"
-
     def test_from_registry_with_the_package_registry_runs_the_outline_divergence_rules_under_the_outline_facet(
         self,
     ) -> None:
@@ -258,7 +117,7 @@ class TestRuleTableFromRegistry:
         table = RuleTable.from_registry(registry, EVERY_RULE)
 
         #: Then
-        assert table.document_rules_governed_by(Facet.OUTLINE) == (
+        assert table.item_rules(ItemKind.DOCUMENT, Facet.OUTLINE) == (
             EnabledRule(MissingSection, Severity.ERROR),
             EnabledRule(SectionOutOfOrder, Severity.ERROR),
             EnabledRule(UnexpectedSection, Severity.ERROR),
@@ -299,7 +158,7 @@ class TestRuleTableFromRegistryWithASelection:
         table = RuleTable.from_registry(registry, selection)
 
         #: Then
-        assert table.document_rules == (EnabledRule(AnyTokens, Severity.ERROR),), (
+        assert table.item_rules(ItemKind.DOCUMENT, Facet.BUDGET) == (EnabledRule(AnyTokens, Severity.ERROR),), (
             'a selected rule is enabled at its level, and the rules not selected are left out'
         )
 
@@ -313,7 +172,7 @@ class TestRuleTableFromRegistryWithASelection:
         table = RuleTable.from_registry(registry, selection)
 
         #: Then
-        assert table.document_rules == (EnabledRule(AnyTokens, Severity.ERROR),), (
+        assert table.item_rules(ItemKind.DOCUMENT, Facet.BUDGET) == (EnabledRule(AnyTokens, Severity.ERROR),), (
             'an ignored rule is left out of a selected group'
         )
 
@@ -327,7 +186,7 @@ class TestRuleTableFromRegistryWithASelection:
         table = RuleTable.from_registry(registry, selection)
 
         #: Then
-        assert table.document_rules == (EnabledRule(AnyTokens, Severity.ERROR),), (
+        assert table.item_rules(ItemKind.DOCUMENT, Facet.BUDGET) == (EnabledRule(AnyTokens, Severity.ERROR),), (
             'the code, more specific than the group ignored, keeps its rule, and the group leaves the rest out'
         )
 
@@ -339,7 +198,7 @@ class TestRuleTableFromRegistryWithASelection:
         table = RuleTable.from_registry(registry, selection)
 
         #: Then
-        assert table.document_rules == (), 'a selection never enables a rule at allow'
+        assert table.item_rules(ItemKind.DOCUMENT, Facet.BUDGET) == (), 'a selection never enables a rule at allow'
 
 
 @pytest.mark.unit
@@ -401,76 +260,36 @@ class TestRuleTable:
         table = RuleTable(severities)
 
         #: Then
-        assert table.document_rules == (
+        assert table.item_rules(ItemKind.DOCUMENT, Facet.BUDGET) == (
             EnabledRule(OverHalfBudget, Severity.WARNING),
             EnabledRule(AnyTokens, Severity.ERROR),
         ), 'a partition is in code order, whatever is given, each rule with the severity given for it'
 
-    def test_rule_table_with_no_rules_has_an_empty_document_partition(self) -> None:
-        #: Given
-        severities: dict[type[Rule], Severity] = {}
-
-        #: When
-        table = RuleTable(severities)
-
-        #: Then
-        assert table.document_rules == (), 'no enabled rule reads a document'
-
-    def test_rule_table_with_no_rules_has_an_empty_skill_partition(self) -> None:
-        #: Given
-        severities: dict[type[Rule], Severity] = {}
-
-        #: When
-        table = RuleTable(severities)
-
-        #: Then
-        assert table.skill_rules == (), 'no enabled rule reads a skill'
-
-    def test_rule_table_with_no_rules_has_an_empty_markdown_partition(self) -> None:
-        #: Given
-        severities: dict[type[Rule], Severity] = {}
-
-        #: When
-        table = RuleTable(severities)
-
-        #: Then
-        assert table.markdown_rules == (), 'no enabled rule reads a Markdown file'
-
-    def test_rule_table_with_no_rules_has_an_empty_skill_file_partition(self) -> None:
-        #: Given
-        severities: dict[type[Rule], Severity] = {}
-
-        #: When
-        table = RuleTable(severities)
-
-        #: Then
-        assert table.skill_file_rules == (), "no enabled rule reads a skill's file"
-
-    def test_document_rules_governed_by_with_the_facet_a_rule_reads_returns_it(self) -> None:
+    def test_item_rules_with_a_document_budget_gate_returns_the_rule(self) -> None:
         #: Given
         severities: dict[type[Rule], Severity] = {TooManyTokens: Severity.ERROR}
         table = RuleTable(severities)
 
         #: When
-        governed = table.document_rules_governed_by(Facet.BUDGET)
+        governed = table.item_rules(ItemKind.DOCUMENT, Facet.BUDGET)
 
         #: Then
         assert governed == (EnabledRule(TooManyTokens, Severity.ERROR),), (
             'a rule over a document is run under the facet it declares'
         )
 
-    def test_document_rules_governed_by_with_a_facet_no_rule_reads_returns_nothing(self) -> None:
+    def test_item_rules_with_another_document_facet_returns_nothing(self) -> None:
         #: Given
         severities: dict[type[Rule], Severity] = {TooManyTokens: Severity.ERROR}
         table = RuleTable(severities)
 
         #: When
-        governed = table.document_rules_governed_by(Facet.OUTLINE)
+        governed = table.item_rules(ItemKind.DOCUMENT, Facet.OUTLINE)
 
         #: Then
         assert governed == (), 'a rule over a document is run under no facet but the one it declares'
 
-    def test_frontmatter_rules_governed_by_with_the_frontmatter_facet_returns_a_rule_over_the_frontmatter(
+    def test_item_rules_with_a_document_frontmatter_gate_returns_the_rule(
         self,
     ) -> None:
         #: Given
@@ -478,20 +297,20 @@ class TestRuleTable:
         table = RuleTable(severities)
 
         #: When
-        governed = table.frontmatter_rules_governed_by(Facet.FRONTMATTER)
+        governed = table.item_rules(ItemKind.DOCUMENT, Facet.FRONTMATTER)
 
         #: Then
         assert governed == (EnabledRule(NameMismatch, Severity.WARNING),), (
             'a rule over the frontmatter is run over a document under the facet its base declares'
         )
 
-    def test_frontmatter_rules_governed_by_with_another_facet_returns_nothing(self) -> None:
+    def test_item_rules_with_another_frontmatter_facet_returns_nothing(self) -> None:
         #: Given
         severities: dict[type[Rule], Severity] = {NameMismatch: Severity.WARNING}
         table = RuleTable(severities)
 
         #: When
-        governed = table.frontmatter_rules_governed_by(Facet.STRUCTURE)
+        governed = table.item_rules(ItemKind.DOCUMENT, Facet.STRUCTURE)
 
         #: Then
         assert governed == (), 'a rule over the frontmatter is run over a document under no other facet'
@@ -504,55 +323,16 @@ class TestRuleTable:
         table = RuleTable(severities)
 
         #: Then
-        assert table.frontmatter_rules == (), 'no enabled rule reads the frontmatter'
+        assert table.item_rules(ItemKind.DOCUMENT, Facet.FRONTMATTER) == (), 'no document rule reads frontmatter'
+        assert table.item_rules(ItemKind.SKILL_ENTRY, Facet.FRONTMATTER) == (), 'no skill rule reads frontmatter'
 
-    def test_rule_table_with_a_rule_over_the_frontmatter_partitions_it_with_its_severity(self) -> None:
-        #: Given
-        severities: dict[type[Rule], Severity] = {NameMismatch: Severity.WARNING, TooManyLines: Severity.ERROR}
-
-        #: When
-        table = RuleTable(severities)
-
-        #: Then
-        assert table.frontmatter_rules == (EnabledRule(NameMismatch, Severity.WARNING),), (
-            'a rule over the frontmatter joins the frontmatter partition, and no other'
-        )
-
-    def test_rule_table_with_a_rule_over_a_document_and_one_over_a_skill_partitions_each_by_its_base(self) -> None:
-        #: Given
-        severities: dict[type[Rule], Severity] = {TooManyTokens: Severity.ERROR, TooManyLines: Severity.WARNING}
-
-        #: When
-        table = RuleTable(severities)
-
-        #: Then
-        assert table.document_rules == (EnabledRule(TooManyTokens, Severity.ERROR),), (
-            'a rule over a document joins the document partition, and no other'
-        )
-        assert table.skill_rules == (EnabledRule(TooManyLines, Severity.WARNING),), (
-            'a rule over a skill joins the skill partition, and no other'
-        )
-
-    def test_rule_table_with_a_rule_over_the_frontmatter_leaves_it_out_of_the_document_and_skill_partitions(
-        self,
-    ) -> None:
-        #: Given
-        severities: dict[type[Rule], Severity] = {MissingField: Severity.ERROR}
-
-        #: When
-        table = RuleTable(severities)
-
-        #: Then
-        assert table.document_rules == (), 'a rule over the frontmatter is not a rule over a document'
-        assert table.skill_rules == (), 'a rule over the frontmatter is not a rule over a skill'
-
-    def test_document_rules_governed_by_with_rules_over_two_facets_returns_each_under_its_own(self) -> None:
+    def test_item_rules_with_two_facets_indexes_each_gate_separately(self) -> None:
         #: Given
         severities: dict[type[Rule], Severity] = {MissingSection: Severity.WARNING, MissingTitle: Severity.ERROR}
         table = RuleTable(severities)
 
         #: When
-        outline_rules = table.document_rules_governed_by(Facet.OUTLINE)
+        outline_rules = table.item_rules(ItemKind.DOCUMENT, Facet.OUTLINE)
 
         #: Then
         assert outline_rules == (EnabledRule(MissingSection, Severity.WARNING),), (
@@ -584,6 +364,101 @@ class TestRuleTable:
 
 @pytest.mark.unit
 class TestRuleTableItemIndex:
+    def test_package_registry_indexes_each_item_rule_under_its_declared_gate(self) -> None:
+        #: Given
+        registry = Registry.load(rules)
+        expected = {
+            (ItemKind.DOCUMENT, Facet.FRONTMATTER): (
+                'FM001',
+                'FM002',
+                'FM003',
+                'FM004',
+                'FM005',
+                'FM006',
+                'FM007',
+                'FM008',
+                'FM009',
+                'FM010',
+                'FM013',
+                'FM014',
+            ),
+            (ItemKind.DOCUMENT, Facet.STRUCTURE): (
+                'LEN003',
+                'LEN004',
+                'LEN005',
+                'LINK001',
+                'LINK002',
+                'LINK003',
+                'LINK005',
+                'LINK006',
+                'LINK007',
+                'OUT001',
+                'OUT002',
+                'OUT003',
+                'OUT004',
+                'OUT005',
+                'OUT009',
+            ),
+            (ItemKind.DOCUMENT, Facet.OUTLINE): ('OUT006', 'OUT007', 'OUT008'),
+            (ItemKind.DOCUMENT, Facet.BUDGET): ('LEN001',),
+            (ItemKind.SKILL_ENTRY, None): (
+                'FM004',
+                'FM011',
+                'FM012',
+                'LEN002',
+                'LINK001',
+                'LINK002',
+                'LINK003',
+                'LINK004',
+            ),
+            (ItemKind.SKILL_ENTRY, Facet.FRONTMATTER): (
+                'FM001',
+                'FM002',
+                'FM003',
+                'FM005',
+                'FM006',
+                'FM007',
+                'FM008',
+                'FM009',
+                'FM010',
+                'FM013',
+                'FM014',
+            ),
+            (ItemKind.SKILL_ENTRY, Facet.STRUCTURE): (
+                'LEN003',
+                'LEN004',
+                'LEN005',
+                'OUT001',
+                'OUT002',
+                'OUT003',
+                'OUT004',
+                'OUT005',
+                'OUT009',
+            ),
+            (ItemKind.SKILL_ENTRY, Facet.OUTLINE): ('OUT006', 'OUT007', 'OUT008'),
+            (ItemKind.SKILL_ENTRY, Facet.BUDGET): ('LEN001',),
+            (ItemKind.SKILL_RESOURCE, None): ('LINK001', 'LINK002', 'LINK003', 'LINK004'),
+            (ItemKind.SPECIFICATION, Facet.STRUCTURE): ('LINK001', 'LINK002', 'LINK003', 'LINK005', 'LINK006'),
+        }
+
+        #: When
+        table = RuleTable.from_registry(registry, EVERY_RULE)
+
+        #: Then
+        for (kind, facet), codes in expected.items():
+            actual = tuple(str(enabled.rule.CODE) for enabled in table.item_rules(kind, facet))
+            assert actual == codes, f'{kind.value} {facet or "package"} index contains its declared rules in code order'
+
+    def test_empty_table_has_no_rules_in_any_item_index(self) -> None:
+        #: Given
+        table = RuleTable({})
+
+        #: When
+        indexes = {(kind, facet): table.item_rules(kind, facet) for kind in ItemKind for facet in (None, *Facet)}
+
+        #: Then
+        assert all(not rules for rules in indexes.values()), 'an empty severity map leaves every item gate bucket empty'
+
     def test_item_rules_with_a_spec_gate_are_indexed_by_kind_and_facet(self) -> None:
         #: Given
         severities: dict[type[Rule], Severity] = {TooManyTokens: Severity.ERROR}
