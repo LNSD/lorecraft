@@ -13,13 +13,14 @@ from lorecraft.project.database import Database, ItemText
 from lorecraft.project.document import DocumentRef, SpecRef
 from lorecraft.project.item import MarkdownItemRef
 from lorecraft.project.layout import SPECS_DIR
+from lorecraft.rules.outline.empty_section import EmptySection
 from lorecraft.rules.registry import Registry
 from lorecraft.rules.report import CheckedItem, SkippedSubject, UndecodableSubject
 from lorecraft.rules.selection import AllRules, RuleSelection
 from lorecraft.rules.table import RuleTable
 from lorecraft.vfs import OsRefusal, RefusedRead
 
-from ..runner import judge_item
+from ..runner import judge_item, judges
 from ..skip import check_subjects
 
 TYPING: Final[DocumentRef] = DocumentRef(CorpusName.parse('code'), AspectFilename.parse('python-typing'))
@@ -149,6 +150,29 @@ class TestCheckSubjectsOverASkillEntry:
         assert [str(diagnostic.occurrence.CODE) for diagnostic in reports[0].diagnostics] == ['FM006'], (
             'the Agent Skills floor still reports its missing description'
         )
+
+    def test_judges_with_a_loaded_skills_layer_without_a_structure_file_keeps_corpus_rules(self) -> None:
+        #: Given
+        snapshot = from_tree(
+            {
+                'docs': {'__meta__': {'skills.md': b'# Skills\n'}},
+                '.agents': {'skills': {'review': {'SKILL.md': b'---\nname: review\n---\n\n# Review\n'}}},
+            }
+        )
+        database = Database.from_snapshot(snapshot)
+        model = database.model()
+        location = model.sorted_skill_locations[0]
+        source = database.item_text(MarkdownItemRef(location.ref.path))
+        assert isinstance(source, ItemText), 'the skill is UTF-8, so it decodes'
+        governance = database.item_governance(source.descriptor.ref)
+        assert governance is not None, 'the loaded skills layer governs its listed entry'
+        assert governance.corpus_structure() is None, 'the corpus layer has no structure file'
+
+        #: When
+        applies = judges(EmptySection, source.descriptor, governance, model)
+
+        #: Then
+        assert applies, 'a loaded skills layer without a structure file still admits corpus rules as on main'
 
     def test_check_subjects_with_a_failed_corpus_layer_still_judges_a_resource_for_markdown_checks_only(self) -> None:
         #: Given

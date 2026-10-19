@@ -95,9 +95,11 @@ lorecraft check --select OUT006 --ignore OUT
 lorecraft check --select OUT00
 ```
 
-Opt-out disables built-in frontmatter rules, including `FM004`, and contradiction preflight. Repo schemas stay active; without
-one, skill frontmatter is ungoverned. Direct constraints excluding required `name`/`description` fail, naming field and rule;
-indirect and cross-layer cases are unchecked.
+Opt-out disables built-in frontmatter rules, including `FM004`, and contradiction preflight. Repo schemas stay active;
+without one, skill frontmatter is inactive: it produces no frontmatter diagnostic, one `ungoverned for frontmatter`
+coverage line, and exit status `0`. This also holds for malformed or missing frontmatter and a valid but mismatched skill
+name. Direct constraints excluding required `name`/`description` fail, naming field and rule; indirect and cross-layer
+cases are unchecked.
 
 ### Output
 
@@ -166,7 +168,6 @@ JSON paths must be valid UTF-8; non-ASCII text is direct, not `\uXXXX`.
   A UTF-8 byte order mark is omitted from excerpted line 1, so its underline spans only the visible text.
   The gutter and underlines use `| ^ - .` when UTF-8 output is unavailable.
 - A repository with skills and no `docs/__meta__/` needs `--root`.
-- A fragment after a path, such as `guide.md#usage`, is not checked against the file it names.
 - A check covers what a machine can decide. Whether a section says what it should stays with review.
 
 ## Findings

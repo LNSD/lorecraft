@@ -750,7 +750,53 @@ class TestWorkspaceDefaults:
         #: Then
         assert result.returncode == 0, result.stdout
         assert 'missing required field `description`' not in result.stdout
-        assert 'ungoverned' in result.stderr
+        assert result.stderr == (
+            '.agents/skills/review/SKILL.md: ungoverned for frontmatter\n'
+            'checked 1 subject(s): 0 error(s), 0 warning(s)\n'
+        ), 'the opted-out frontmatter facet is reported as ungoverned, as on main'
+
+    @pytest.mark.parametrize(
+        ('frontmatter', 'case'),
+        [
+            (RawFrontmatter('name: review\nname: repeated\n'), 'duplicate key'),
+            (RawFrontmatter(': review\nname: review\n'), 'empty key'),
+            (RawFrontmatter('name: another-skill\n'), 'valid but wrong name'),
+        ],
+        ids=lambda value: value if isinstance(value, str) else None,
+    )
+    def test_check_opt_out_reports_inactive_frontmatter_for_skill_inputs(
+        self, tmp_path: Path, faker: Faker, frontmatter: RawFrontmatter, case: str
+    ) -> None:
+        #: Given
+        root = Workspace(skills=[Skill('review', frontmatter=frontmatter)]).write(tmp_path, faker)
+
+        #: When
+        result = run_cli('--no-builtin-skills-schema', 'check', '--root', str(root))
+
+        #: Then
+        assert result.returncode == 0, result.stdout
+        assert result.stdout == '', f'{case} frontmatter has no active schema diagnostic'
+        assert result.stderr == (
+            '.agents/skills/review/SKILL.md: ungoverned for frontmatter\n'
+            'checked 1 subject(s): 0 error(s), 0 warning(s)\n'
+        ), f'{case} frontmatter keeps main coverage output when the built-in schema is opted out'
+
+    def test_check_opt_out_reports_inactive_frontmatter_when_skill_has_no_frontmatter(
+        self, tmp_path: Path, faker: Faker
+    ) -> None:
+        #: Given
+        root = Workspace(files=[File('.agents/skills/review/SKILL.md', '# Review\n')]).write(tmp_path, faker)
+
+        #: When
+        result = run_cli('--no-builtin-skills-schema', 'check', '--root', str(root))
+
+        #: Then
+        assert result.returncode == 0, result.stdout
+        assert result.stdout == '', 'missing frontmatter has no active schema diagnostic'
+        assert result.stderr == (
+            '.agents/skills/review/SKILL.md: ungoverned for frontmatter\n'
+            'checked 1 subject(s): 0 error(s), 0 warning(s)\n'
+        ), 'missing frontmatter keeps main coverage output when the built-in schema is opted out'
 
     def test_check_opt_out_does_not_apply_builtin_name_rule_alongside_a_repository_schema(
         self, tmp_path: Path, faker: Faker
