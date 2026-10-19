@@ -45,7 +45,7 @@ A reusable set of agent instructions, sometimes with supporting scripts.
 ### Skill entrypoint
 
 The top-level `SKILL.md` file inside an [agent skill](#agent-skill), which an agent reads to load the skill's
-instructions. It is a governed [item](#item) with kind `SKILL_ENTRYPOINT`.
+instructions. It is a governed [item](#item) with type `SKILL_ENTRYPOINT`.
 
 ### Resource
 
@@ -55,11 +55,11 @@ A Markdown file inside an [agent skill](#agent-skill) other than its top-level `
 
 A governed Markdown file: a [document](#spec), [meta spec](#meta-spec), [skill entrypoint](#skill-entrypoint), or
 [resource](#resource). The project model calls its identity an `ItemRef`, describes it with an `ItemDescriptor`, and
-classifies it by an [item kind](#item-kind).
+classifies it by an [item type](#item-type).
 
-### Item kind
+### Item type
 
-Which kind of [item](#item) a governed Markdown file is: `DOCUMENT`, `META_SPEC`, `SKILL_ENTRYPOINT`, or `SKILL_RESOURCE`.
+Which type of [item](#item) a governed Markdown file is: `DOCUMENT`, `META_SPEC`, `SKILL_ENTRYPOINT`, or `SKILL_RESOURCE`.
 
 ### Entry
 
@@ -183,7 +183,7 @@ A meta spec governs a corpus, namespace, package, or registered schema when it p
 
 ### Gate
 
-For each item kind, the condition a rule requires before judging it. `APPLIES_TO` names these requirements; `WhenMetaSpec`, `Always`, and `WhenSchema` name the corresponding authorities.
+For each item type, the condition a rule requires before judging it. `APPLIES_TO` names these requirements; `WhenMetaSpec`, `Always`, and `WhenSchema` name the corresponding authorities.
 
 ### Ungoverned
 

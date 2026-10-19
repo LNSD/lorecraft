@@ -5,7 +5,7 @@ from types import MappingProxyType
 import pytest
 
 from lorecraft import rules
-from lorecraft.project.item import ItemKind
+from lorecraft.project.item import ItemType
 from lorecraft.rules.frontmatter.duplicate_key import DuplicateKey
 from lorecraft.rules.frontmatter.name_mismatch import NameMismatch
 from lorecraft.rules.length.too_many_lines import TooManyLines
@@ -28,7 +28,7 @@ class TestGates:
         #: Then
         assert item_rules, 'the registry includes rules over items'
         assert all(rule.APPLIES_TO for rule in item_rules), 'each registered item rule declares at least one gate'
-        assert all(set(rule.APPLIES_TO) <= set(ItemKind) for rule in item_rules), 'each gate names a known item kind'
+        assert all(set(rule.APPLIES_TO) <= set(ItemType) for rule in item_rules), 'each gate names a known item type'
 
     def test_document_rule_with_budget_part_uses_meta_spec_gate(self) -> None:
         #: Given
@@ -36,7 +36,7 @@ class TestGates:
         expected = WhenMetaSpec(MetaSpecPart.BUDGET)
 
         #: When
-        gate = rule.APPLIES_TO[ItemKind.DOCUMENT]
+        gate = rule.APPLIES_TO[ItemType.DOCUMENT]
 
         #: Then
         assert gate == expected, 'the document budget rule requires its declared meta spec part'
@@ -46,8 +46,8 @@ class TestGates:
         rule = TooManyTokens
         expected = MappingProxyType(
             {
-                ItemKind.DOCUMENT: WhenMetaSpec(MetaSpecPart.BUDGET),
-                ItemKind.SKILL_ENTRYPOINT: WhenMetaSpec(MetaSpecPart.BUDGET),
+                ItemType.DOCUMENT: WhenMetaSpec(MetaSpecPart.BUDGET),
+                ItemType.SKILL_ENTRYPOINT: WhenMetaSpec(MetaSpecPart.BUDGET),
             }
         )
 
@@ -57,15 +57,15 @@ class TestGates:
         #: Then
         assert gates == expected, 'the shared budget rule requires its meta spec part and loaded layer for skills'
 
-    def test_markdown_rule_with_item_kinds_uses_spec_and_always_gates(self) -> None:
+    def test_markdown_rule_with_item_types_uses_spec_and_always_gates(self) -> None:
         #: Given
         rule = BrokenLink
         expected = MappingProxyType(
             {
-                ItemKind.DOCUMENT: WhenMetaSpec(MetaSpecPart.STRUCTURE),
-                ItemKind.META_SPEC: Always(),
-                ItemKind.SKILL_ENTRYPOINT: Always(),
-                ItemKind.SKILL_RESOURCE: Always(),
+                ItemType.DOCUMENT: WhenMetaSpec(MetaSpecPart.STRUCTURE),
+                ItemType.META_SPEC: Always(),
+                ItemType.SKILL_ENTRYPOINT: Always(),
+                ItemType.SKILL_RESOURCE: Always(),
             }
         )
 
@@ -81,7 +81,7 @@ class TestGates:
         expected = WhenMetaSpec(MetaSpecPart.FRONTMATTER)
 
         #: When
-        gate = rule.APPLIES_TO[ItemKind.SKILL_ENTRYPOINT]
+        gate = rule.APPLIES_TO[ItemType.SKILL_ENTRYPOINT]
 
         #: Then
         assert gate == expected, 'skill frontmatter rules follow the active frontmatter meta spec part'
@@ -92,7 +92,7 @@ class TestGates:
         expected = WhenSchema(AGENT_SKILLS_SCHEMA_REFERENCE)
 
         #: When
-        gate = rule.APPLIES_TO[ItemKind.SKILL_ENTRYPOINT]
+        gate = rule.APPLIES_TO[ItemType.SKILL_ENTRYPOINT]
 
         #: Then
         assert gate == expected, 'the skill name rule requires the registered Agent Skills schema'
@@ -112,27 +112,27 @@ class TestGateApplicability:
         assert all('APPLIES_TO' in rule.__dict__ for rule in item_rules), (
             'each registered item rule declares its own gates'
         )
-        assert all(rule.APPLIES_TO for rule in item_rules), 'each item rule applies to at least one kind'
-        assert all(set(rule.APPLIES_TO) <= set(ItemKind) for rule in item_rules), 'each rule names known item kinds'
+        assert all(rule.APPLIES_TO for rule in item_rules), 'each item rule applies to at least one item type'
+        assert all(set(rule.APPLIES_TO) <= set(ItemType) for rule in item_rules), 'each rule names known item types'
 
     def test_corpus_rule_with_skill_entry_applies_to_skill_entries(self) -> None:
         #: Given
         rule = TooManyTokens
-        expected = ItemKind.SKILL_ENTRYPOINT
+        expected = ItemType.SKILL_ENTRYPOINT
 
         #: When
-        kinds = rule.APPLIES_TO
+        item_types = rule.APPLIES_TO
 
         #: Then
-        assert expected in kinds, 'corpus rules declare a gate for skill entrypoints as well as documents'
+        assert expected in item_types, 'corpus rules declare a gate for skill entrypoints as well as documents'
 
     def test_always_rule_with_skill_entry_applies_to_skill_entries(self) -> None:
         #: Given
         rule = TooManyLines
-        expected = ItemKind.SKILL_ENTRYPOINT
+        expected = ItemType.SKILL_ENTRYPOINT
 
         #: When
-        kinds = rule.APPLIES_TO
+        item_types = rule.APPLIES_TO
 
         #: Then
-        assert expected in kinds, 'Always skill rules declare a gate for skill entrypoints'
+        assert expected in item_types, 'Always skill rules declare a gate for skill entrypoints'

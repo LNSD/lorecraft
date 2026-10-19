@@ -25,9 +25,9 @@ query and hands it the facts sits above in `lorecraft.engine`; the query is answ
 
 - A value that identifies a rule: a release, a group's prefix and title, a code, a name, an alias code, a level, and
   the severity an engine condition fixes.
-- An item rule derives from `QueriedItemRule`, names its typed query, and declares a gate for every item kind it
+- An item rule derives from `QueriedItemRule`, names its typed query, and declares a gate for every item type it
   judges. `WhenMetaSpec`, `Always`, and `WhenSchema` keep structure, unconditional and registered-schema eligibility distinct.
-  A missing kind is inapplicable, and a rule with no gates is rejected while the registry loads. Layout rules use
+  A missing item type is inapplicable, and a rule with no gates is rejected while the registry loads. Layout rules use
   their separate queried bases for skill symlinks and reserved-corpus directories, with occurrences at the entry
   itself.
 - A removed rule, the decorator that registers a declaration and the registry.
@@ -66,7 +66,7 @@ query and hands it the facts sits above in `lorecraft.engine`; the query is answ
 - The registry is built once, with `Registry.load`, where a command starts, and passed down; nothing below imports
   an instance or memoizes one.
 - A code bound twice, a declaration left incomplete, a group with no title, a code numbered out of range, or a
-  code in a group its kind may not use, or an item rule with no applicability mapping is a defect here, raised when it
+  code in a group its type may not use, or an item rule with no applicability mapping is a defect here, raised when it
   loads, never the user's fault.
 - The `LC` group holds engine conditions alone, each coded with an `EngineCode`, which names no other group.
 - A release, a rule name, a group's prefix, an alias code's linter and upstream code, and a code prefix are
@@ -95,7 +95,7 @@ class EmptySection(ContentRule):
 # by the database
 @rule
 class EmptySection(QueriedItemRule[EmptySectionFacts]):
-    APPLIES_TO = {ItemKind.DOCUMENT: WhenMetaSpec(MetaSpecPart.STRUCTURE)}
+    APPLIES_TO = {ItemType.DOCUMENT: WhenMetaSpec(MetaSpecPart.STRUCTURE)}
 
     @classmethod
     def query(cls) -> Query[EmptySectionFacts]:
@@ -191,8 +191,8 @@ class SectionTooManyWords(QueriedItemRule[Facts]):
     """
 
     APPLIES_TO = {
-        ItemKind.DOCUMENT: WhenMetaSpec(MetaSpecPart.STRUCTURE),
-        ItemKind.SKILL_ENTRYPOINT: WhenMetaSpec(MetaSpecPart.STRUCTURE),
+        ItemType.DOCUMENT: WhenMetaSpec(MetaSpecPart.STRUCTURE),
+        ItemType.SKILL_ENTRYPOINT: WhenMetaSpec(MetaSpecPart.STRUCTURE),
     }
 ```
 
@@ -201,7 +201,7 @@ class SectionTooManyWords(QueriedItemRule[Facts]):
 Before committing:
 
 - [ ] Nothing added to `lorecraft.rules` reads the disk, a view, a query or configuration
-- [ ] An item rule names its query and a gate for every item kind; `judge(facts)` returns subject-free occurrences.
+- [ ] An item rule names its query and a gate for every item type; `judge(facts)` returns subject-free occurrences.
 - [ ] Reuse an existing query before recomputing; promote cross-group queries to `lorecraft.project.query`.
 - [ ] Each `@rule` declaration appears once in a module in its group's subpackage
 - [ ] Decoding, queries, rule execution and rendering stay out of this package

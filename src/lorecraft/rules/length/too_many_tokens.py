@@ -7,7 +7,7 @@ from typing import ClassVar, Protocol, Self
 
 from lorecraft.core.num import NonZeroUnsignedInt, UnsignedInt
 from lorecraft.core.path import RootRelativePath
-from lorecraft.project.item import ItemKind
+from lorecraft.project.item import ItemType
 from lorecraft.project.query import (
     CountPrimitives,
     GovernancePrimitives,
@@ -138,10 +138,10 @@ class TooManyTokens(QueriedItemRule[TokenFacts]):
     NAME: ClassVar[RuleName] = RuleName('too-many-tokens')
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('0.3.0')
-    APPLIES_TO: ClassVar[Mapping[ItemKind, Gate]] = MappingProxyType(
+    APPLIES_TO: ClassVar[Mapping[ItemType, Gate]] = MappingProxyType(
         {
-            ItemKind.DOCUMENT: WhenMetaSpec(MetaSpecPart.BUDGET),
-            ItemKind.SKILL_ENTRYPOINT: WhenMetaSpec(MetaSpecPart.BUDGET),
+            ItemType.DOCUMENT: WhenMetaSpec(MetaSpecPart.BUDGET),
+            ItemType.SKILL_ENTRYPOINT: WhenMetaSpec(MetaSpecPart.BUDGET),
         }
     )
 

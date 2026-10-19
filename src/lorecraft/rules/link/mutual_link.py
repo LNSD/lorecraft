@@ -7,7 +7,7 @@ from typing import ClassVar, Self
 from urllib.parse import unquote
 
 from lorecraft.project.corpus import CorpusName
-from lorecraft.project.item import ItemKind
+from lorecraft.project.item import ItemType
 from lorecraft.project.link_target import DocumentLink
 from lorecraft.project.query import ItemPrimitives, ItemQuery, item_corpus
 from lorecraft.rules.collector import rule
@@ -98,9 +98,9 @@ class MutualLink(QueriedItemRule[MutualLinkFacts]):
     NAME: ClassVar[RuleName] = RuleName('mutual-link')
     LEVEL: ClassVar[Level] = Level.WARN
     SINCE: ClassVar[Release] = Release('0.4.0')
-    APPLIES_TO: ClassVar[Mapping[ItemKind, Gate]] = MappingProxyType(
+    APPLIES_TO: ClassVar[Mapping[ItemType, Gate]] = MappingProxyType(
         {
-            ItemKind.DOCUMENT: WhenMetaSpec(MetaSpecPart.STRUCTURE),
+            ItemType.DOCUMENT: WhenMetaSpec(MetaSpecPart.STRUCTURE),
         }
     )
 

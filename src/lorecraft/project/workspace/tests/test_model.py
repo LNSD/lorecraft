@@ -23,8 +23,8 @@ from lorecraft.project.document import (
 )
 from lorecraft.project.item import (
     DocumentOrigin,
-    ItemKind,
     ItemRef,
+    ItemType,
     MetaSpecOrigin,
     MetaSpecPart,
     SkillEntrypointOrigin,
@@ -956,8 +956,8 @@ class TestWorkspaceModel:
             'skill links use the listed skill root'
         )
         assert isinstance(after.origin, SkillEntrypointOrigin), 'the descriptor retains skill-specific origin facts'
-        assert after.kind is ItemKind.SKILL_ENTRYPOINT
-        assert after.kind.value == 'skill-entry', 'the serialized kind remains unchanged'
+        assert after.type is ItemType.SKILL_ENTRYPOINT
+        assert after.type.value == 'skill-entry', 'the serialized item type remains unchanged'
         assert after.name == AspectFilename.parse('audit'), 'the descriptor retains the typed skill name'
         assert after.origin.link_target == moved.resolves_to, 'the retargeted directory remains available for notes'
 
@@ -1441,7 +1441,7 @@ class TestSpecifications:
         descriptor = two_corpora_model.describe_item(ref)
 
         #: Then
-        assert descriptor.kind is ItemKind.META_SPEC, 'the origin makes it a specification'
+        assert descriptor.type is ItemType.META_SPEC, 'the origin makes it a specification'
         assert descriptor.origin == MetaSpecOrigin(), 'the origin carries no facts already present in the descriptor'
         assert descriptor.ref == ItemRef(ref.path), 'the logical ref is also the report path'
         assert descriptor.read_location == ResolvedPath(ref.path), 'the file is read where it is listed'

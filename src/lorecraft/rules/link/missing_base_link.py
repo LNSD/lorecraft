@@ -6,7 +6,7 @@ from types import MappingProxyType
 from typing import ClassVar, Final, Self
 
 from lorecraft.core.path import RootRelativePath
-from lorecraft.project.item import ItemKind
+from lorecraft.project.item import ItemType
 from lorecraft.project.link_target import DocumentDirectory, LinkTarget
 from lorecraft.project.query import ItemQuery, item_name, item_parse
 from lorecraft.project.syntax import FIRST_LINE, LineNumber, RelativeDestination, find_title
@@ -129,10 +129,10 @@ class MissingBaseLink(QueriedItemRule[MissingBase | None]):
     NAME: ClassVar[RuleName] = RuleName('missing-base-link')
     LEVEL: ClassVar[Level] = Level.WARN
     SINCE: ClassVar[Release] = Release('0.4.0')
-    APPLIES_TO: ClassVar[Mapping[ItemKind, Gate]] = MappingProxyType(
+    APPLIES_TO: ClassVar[Mapping[ItemType, Gate]] = MappingProxyType(
         {
-            ItemKind.DOCUMENT: WhenMetaSpec(MetaSpecPart.STRUCTURE),
-            ItemKind.META_SPEC: Always(),
+            ItemType.DOCUMENT: WhenMetaSpec(MetaSpecPart.STRUCTURE),
+            ItemType.META_SPEC: Always(),
         }
     )
 

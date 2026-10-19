@@ -34,15 +34,15 @@ class ItemRef:
 type SubjectRef = ItemRef | OutsideSymlinkRef | ReservedCorpusDirectoryRef
 
 
-class WrongItemKindError(TypeError):
-    """A value for one kind of item was requested from another, which a rule never does for its kind."""
+class WrongItemTypeError(TypeError):
+    """An item value of the wrong type was requested, which a rule never does for its type."""
 
     def __init__(self, expected: str) -> None:
         super().__init__(f'expected {expected}')
 
 
-class ItemKind(Enum):
-    """The kinds of governed Markdown file a rule may apply to."""
+class ItemType(Enum):
+    """The types of governed Markdown file a rule may apply to."""
 
     DOCUMENT = 'document'
     SKILL_ENTRYPOINT = 'skill-entry'
@@ -128,17 +128,17 @@ class ItemDescriptor:
     governed_parts: frozenset[MetaSpecPart]
 
     @property
-    def kind(self) -> ItemKind:
-        """Which kind of item the descriptor is for, read from its origin."""
+    def type(self) -> ItemType:
+        """Which type of item the descriptor is for, read from its origin."""
         match self.origin:
             case DocumentOrigin():
-                return ItemKind.DOCUMENT
+                return ItemType.DOCUMENT
             case SkillEntrypointOrigin():
-                return ItemKind.SKILL_ENTRYPOINT
+                return ItemType.SKILL_ENTRYPOINT
             case SkillResourceOrigin():
-                return ItemKind.SKILL_RESOURCE
+                return ItemType.SKILL_RESOURCE
             case MetaSpecOrigin():
-                return ItemKind.META_SPEC
+                return ItemType.META_SPEC
             case _:
                 assert_never(self.origin)
 

@@ -14,7 +14,7 @@ from lib.tree import from_tree
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.database import Database, ItemText
-from lorecraft.project.item import ItemKind, ItemRef, SkillResourceOrigin, UnlistedItemError
+from lorecraft.project.item import ItemRef, ItemType, SkillResourceOrigin, UnlistedItemError
 from lorecraft.project.skill import OutsideSymlinkRef, SkillResourceLocation
 from lorecraft.vfs import (
     DirectoryRecord,
@@ -98,7 +98,7 @@ class TestResourceItems:
         descriptor = source.descriptor
         assert source.text == '[b](guides/b.md)\n', 'the text is the resource file decoded'
         assert descriptor.ref == ItemRef(location.ref.path), 'the resource keeps its own reported path'
-        assert descriptor.kind is ItemKind.SKILL_RESOURCE, 'the descriptor is for a skill resource'
+        assert descriptor.type is ItemType.SKILL_RESOURCE, 'the descriptor is for a skill resource'
         assert descriptor.read_location == location.resolves_to, 'the text is read at the listed resolved file'
         assert descriptor.governed_parts == frozenset(), (
             'a resource has Markdown checks only, with no corpus structure governance'

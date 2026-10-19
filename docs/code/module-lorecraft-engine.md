@@ -29,7 +29,7 @@ returns at its subject, as a diagnostic of `lorecraft.rules.report`.
   the runner resolves that shared query for both groups through the same database. A
   document, skill or skill resource is decoded by each mode's entry point, so its policy comes after decoding,
   and `judge_item` judges any of them through one loop over meta spec parts and `Always` gates. A rule runs over an item
-  of a kind it applies to, and only when the item is governed for the part the rule reads; each part an applicable
+  of a type it applies to, and only when the item is governed for the part the rule reads; each part an applicable
   rule reads that the item is not governed for is recorded as
   coverage. A rule over a Markdown file runs over a document governed for its structure, a skill's `SKILL.md` and
   each resource handed over as a subject of its own. A resource has no corpus structure governance, while `Always`
@@ -79,7 +79,7 @@ returns at its subject, as a diagnostic of `lorecraft.rules.report`.
 ```python
 # ❌ Bad — the run hands a rule the database: the rule can read any document, so nothing bounds what a change
 # to one file invalidates, and a unit test needs a whole snapshot to test a rule about one heading
-for enabled in table.item_rules(source.descriptor.kind, MetaSpecPart.OUTLINE):
+for enabled in table.item_rules(source.descriptor.type, MetaSpecPart.OUTLINE):
     for occurrence in enabled.rule.check_in(database, source):
         diagnostics.append(RuleDiagnostic(source.ref.path, occurrence, enabled.severity))
 ```
@@ -87,7 +87,7 @@ for enabled in table.item_rules(source.descriptor.kind, MetaSpecPart.OUTLINE):
 ```python
 # ✅ Good — the run resolves the rule's query and hands the rule its facts; a unit test hands it a literal
 if MetaSpecPart.OUTLINE in source.descriptor.governed_parts:
-    for enabled in table.item_rules(source.descriptor.kind, MetaSpecPart.OUTLINE):
+    for enabled in table.item_rules(source.descriptor.type, MetaSpecPart.OUTLINE):
         facts = database.query(enabled.rule.query(), source.ref)
         for occurrence in enabled.rule.judge(facts):
             diagnostics.append(RuleDiagnostic(source.ref.path, occurrence, enabled.severity))
@@ -136,7 +136,7 @@ Before committing code, verify:
   item is asked for by its common reference, and failed corpus governance can skip documents or suppress skill
   corpus rules while preserving package and schema checks; `runner.py`
   decodes nothing
-- [ ] `judge_item` asks a rule its kinds and meta spec part, never its base; only building the report matches on the kind
+- [ ] `judge_item` asks a rule its item types and meta spec part, never its base; only building the report matches on the item type
 - [ ] Nothing here imports `lorecraft.cli` or `typer`
 
 ## References

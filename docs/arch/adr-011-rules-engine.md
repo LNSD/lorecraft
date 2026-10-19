@@ -133,9 +133,9 @@ Nothing a rule reads is left outside a query contract.
 
 **A subject's facts are the query's.** `lorecraft.project.query` declares the primitives a query reads as focused
 protocols. Each queried item rule types its query and judgement by the facts it returns, then declares applicable item
-kinds and their gates in `APPLIES_TO`. A gate names the meta spec part, unconditional admission or registered schema that admits the rule.
+types and their gates in `APPLIES_TO`. A gate names the meta spec part, unconditional admission or registered schema that admits the rule.
 A document rule may require frontmatter schema, structure, outline or token-budget governance. Frontmatter rules
-state a gate for each item kind they judge. A document's Markdown checks use its structure part; skill entrypoints
+state a gate for each item type they judge. A document's Markdown checks use its structure part; skill entrypoints
 and resources receive `Always` Markdown checks. A skill's Agent Skills floor is a schema gate, while its other
 meta spec parts come from the reserved `skills` corpus. A resource has no corpus governance. A rule over a shared
 analysis filters its problem type from the one answer its query returns; a selection from facts already held, such as
