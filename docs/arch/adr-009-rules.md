@@ -95,7 +95,7 @@ class EmptySection(QueriedItemRule[SectionFacts]):
     NAME: ClassVar[RuleName] = RuleName('empty-section')
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('0.3.0')
-    GATES: ClassVar[Mapping[ItemKind, Gate]] = {ItemKind.DOCUMENT: ByMetaSpec(MetaSpecPart.STRUCTURE)}
+    APPLIES_TO: ClassVar[Mapping[ItemKind, Gate]] = {ItemKind.DOCUMENT: WhenMetaSpec(MetaSpecPart.STRUCTURE)}
 
     spec: RootRelativePath
     section: str
@@ -113,11 +113,10 @@ class EmptySection(QueriedItemRule[SectionFacts]):
   for a rule the package states. A rule over a subject with lines carries the line; one over a layout entry
   carries none.
 - **An item rule declares its applicability.** Every item rule names its query and maps each kind it judges to a gate.
-  A gate names the meta spec part, package or registered schema that permits the rule to run. Shared query facts let
+  A gate names the meta spec part, unconditional admission or registered schema that permits the rule to run. Shared query facts let
   one rule judge several item kinds without a separate base for each kind.
-- **A rule over a document declares the meta spec part it reads** in `GATES`, so the runner gates it on governance;
-  the registry rejects an item rule with no gates. The package governs skills, their files and the skill layout, so a
-  rule over them declares none.
+- **A rule over a document declares the meta spec part it reads** in `APPLIES_TO`, so the runner gates it on governance;
+  the registry rejects an item rule with no gates. The skills, their files and the skill layout receive checks according to each rule's explicit kind mapping.
 - **`judge` returns `tuple[Self, ...]`**, so a rule can only report its own occurrence, and the type checker
   rejects one that reports another's. That needs no type parameter anywhere in the engine.
 - **The message is rendered from the fields.** The corpus, the field and the section travel as data, not as
@@ -306,7 +305,7 @@ Before committing code, verify:
 - [ ] A rule's `message()` never branches; a condition fixed differently is another class and another code
 - [ ] An engine condition has one code per kind of fix; its cases are a closed union of cause types, matched with
   `assert_never`, and each cause has a test asserting its message
-- [ ] A rule over a document declares its gates in `GATES`
+- [ ] A rule over a document declares its gates in `APPLIES_TO`
 - [ ] A code is never reused: a retired rule becomes a `RemovedRule` in the same file
 - [ ] A ported rule keeps a Lorecraft code in the group of its mechanism and lists upstream codes in `ALIASES`
 - [ ] An engine condition is declared in the engine's group, and no rule is

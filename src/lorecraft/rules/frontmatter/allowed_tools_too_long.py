@@ -12,7 +12,7 @@ from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Here, Label, Note, Subdiagnostic
 from lorecraft.rules.overrun import Overrun, find_overrun
-from lorecraft.rules.subject import ByPackage, Gate, QueriedItemRule
+from lorecraft.rules.subject import Always, Gate, QueriedItemRule
 
 from .__ruleset__ import ALLOWED_TOOLS_NOTE, GROUP_ID, AllowedToolsField, allowed_tools_field
 
@@ -72,7 +72,7 @@ class AllowedToolsTooLong(QueriedItemRule[AllowedToolsField | None]):
     NAME: ClassVar[RuleName] = RuleName('allowed-tools-too-long')
     LEVEL: ClassVar[Level] = Level.WARN
     SINCE: ClassVar[Release] = Release('0.3.0')
-    GATES: ClassVar[Mapping[ItemKind, Gate]] = MappingProxyType({ItemKind.SKILL_ENTRYPOINT: ByPackage()})
+    APPLIES_TO: ClassVar[Mapping[ItemKind, Gate]] = MappingProxyType({ItemKind.SKILL_ENTRYPOINT: Always()})
 
     spec: None = None
     overrun: Overrun

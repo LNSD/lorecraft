@@ -17,8 +17,9 @@ group: for each group of enabled rules that applies to its kind, the runner chec
 whose gates admit the item, and records an ungoverned meta spec part as coverage rather than a diagnostic. A rule over a
 Markdown file judges a document when its structure file is loaded, alongside rules gated by a named
 meta spec part. A document in no corpus, or in one that states no structure file, has no such part
-governed, and no such rule is run over it. Package checks judge skill entrypoints independently of corpus
-governance. Package Markdown checks judge resources independently of corpus governance. A rule over a skill entrypoint
+governed, and no such rule is run over it. `Always` checks judge only the explicitly mapped kinds, independently of
+corpus governance. Markdown checks over resources are `Always`-gated, so they judge resources independently of corpus
+governance. A rule over a skill entrypoint
 judges every `SKILL.md` and every resource, and never a document. The database answers only what a rule's query reads,
 so a value no enabled rule reads is never computed.
 
@@ -61,12 +62,12 @@ from lorecraft.rules.report import (
     RuleDiagnostic,
 )
 from lorecraft.rules.subject import (
-    ByMetaSpec,
-    ByPackage,
-    BySchema,
+    Always,
     QueriedCorpusDirectoryRule,
     QueriedItemRule,
     QueriedSymlinkRule,
+    WhenMetaSpec,
+    WhenSchema,
 )
 from lorecraft.rules.table import EnabledRule, QueriedItem, RuleTable
 
@@ -89,7 +90,7 @@ def judge_item(database: Database, source: ItemText, table: RuleTable) -> Checke
     diagnostics: list[Diagnostic] = []
     ungoverned: list[MetaSpecPart] = []
 
-    # Meta spec parts follow `MetaSpecPart` order, then package/schema rules; unmet gates become coverage.
+    # Meta spec parts follow `MetaSpecPart` order, then `Always`/schema rules; unmet gates become coverage.
     for part in (*MetaSpecPart, None):
         rules = tuple(
             enabled for enabled in table.item_rules(descriptor.kind, part) if judges(enabled.rule, descriptor, model)
@@ -118,15 +119,15 @@ def judges(
         descriptor: The item kind and origin metadata used by the gate.
         model: The workspace state used to check registered schema gates.
     """
-    gate = rule.GATES.get(descriptor.kind)
+    gate = rule.APPLIES_TO.get(descriptor.kind)
     if gate is None:
         return False
     match gate:
-        case ByMetaSpec():
+        case WhenMetaSpec():
             return True
-        case ByPackage():
+        case Always():
             return True
-        case BySchema(schema):
+        case WhenSchema(schema):
             return schema in model.schema_inputs
         case _:
             assert_never(gate)

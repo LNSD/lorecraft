@@ -28,12 +28,12 @@ returns at its subject, as a diagnostic of `lorecraft.rules.report`.
   query is owned by its rule group unless another group needs it, when it is promoted to `lorecraft.project.query`;
   the runner resolves that shared query for both groups through the same database. A
   document, skill or skill resource is decoded by each mode's entry point, so its policy comes after decoding,
-  and `judge_item` judges any of them through one loop over meta spec parts and package gates. A rule runs over an item
+  and `judge_item` judges any of them through one loop over meta spec parts and `Always` gates. A rule runs over an item
   of a kind it applies to, and only when the item is governed for the part the rule reads; each part an applicable
   rule reads that the item is not governed for is recorded as
   coverage. A rule over a Markdown file runs over a document governed for its structure, a skill's `SKILL.md` and
-  each resource handed over as a subject of its own. A resource has no corpus structure governance, while package
-  Markdown checks still run; a skill's package checks run independently of corpus governance.
+  each resource handed over as a subject of its own. A resource has no corpus structure governance, while `Always`
+  Markdown checks still run; a skill's explicitly mapped `Always` checks run independently of corpus governance.
 - One entry point per mode: `skip.py` gives documents governed by a failed layer no rule, suppresses skill corpus
   rules for failed skill layers while retaining package and schema checks, and skips skill entrypoints whose docs
   target was refused. An LSP-style partial mode is future work.

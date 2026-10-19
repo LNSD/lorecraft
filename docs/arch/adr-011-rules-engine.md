@@ -133,10 +133,10 @@ Nothing a rule reads is left outside a query contract.
 
 **A subject's facts are the query's.** `lorecraft.project.query` declares the primitives a query reads as focused
 protocols. Each queried item rule types its query and judgement by the facts it returns, then declares applicable item
-kinds and their gates in `GATES`. A gate names the meta spec part, package or registered schema that admits the rule.
+kinds and their gates in `APPLIES_TO`. A gate names the meta spec part, unconditional admission or registered schema that admits the rule.
 A document rule may require frontmatter schema, structure, outline or token-budget governance. Frontmatter rules
 state a gate for each item kind they judge. A document's Markdown checks use its structure part; skill entrypoints
-and resources receive package-gated Markdown checks. A skill's Agent Skills floor is a schema gate, while its other
+and resources receive `Always` Markdown checks. A skill's Agent Skills floor is a schema gate, while its other
 meta spec parts come from the reserved `skills` corpus. A resource has no corpus governance. A rule over a shared
 analysis filters its problem type from the one answer its query returns; a selection from facts already held, such as
 the first H1, is a helper beside the parse tree.
@@ -159,7 +159,7 @@ symlink by. A symlink has no text, so it is never decoded, and package rules cov
   governed for its frontmatter and ungoverned for its outline. The runner runs a rule over a document or over the
   frontmatter only when the document is governed for the rule's meta spec part, and records each meta spec part an enabled rule reads
   that it is not governed for. Package and schema gates remain independent of a skill entrypoint's corpus governance; a resource has no corpus
-  governance and receives package-gated checks.
+  governance and receives `Always` checks.
 - **Undecodable is an engine diagnostic**, not a rule (FR-020). It has a fixed code under the engine's prefix
   and a rulebook page, and no level. It always fails the run, and a configuration that names its code fails.
 - **Ungoverned is coverage**, not a diagnostic (FR-019). It describes the meta specs, not the subject.

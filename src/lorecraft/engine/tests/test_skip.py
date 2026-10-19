@@ -142,7 +142,7 @@ class TestCheckSubjectsOverASkillEntry:
 
         #: Then
         assert len(reports) == 1, 'the entry point reports the one skill it was given'
-        assert isinstance(reports[0], CheckedItem), 'a failed layer leaves the skill available for package checks'
+        assert isinstance(reports[0], CheckedItem), 'a failed layer leaves the skill available for `Always` checks'
         assert [str(diagnostic.occurrence.CODE) for diagnostic in reports[0].diagnostics] == ['FM006'], (
             'the Agent Skills floor still reports its missing description'
         )
@@ -169,7 +169,7 @@ class TestCheckSubjectsOverASkillEntry:
         (report,) = check_subjects(database, [location], _all_rules())
 
         #: Then
-        assert isinstance(report, CheckedItem), 'the loaded skills layer lets package checks run'
+        assert isinstance(report, CheckedItem), 'the loaded skills layer lets `Always` checks run'
         assert MetaSpecPart.STRUCTURE in report.ungoverned, 'no structure file means structure rules are ungoverned'
 
     def test_check_subjects_with_a_failed_corpus_layer_still_judges_a_resource_for_markdown_checks_only(self) -> None:
@@ -197,7 +197,7 @@ class TestCheckSubjectsOverASkillEntry:
 
         #: Then
         assert isinstance(report, CheckedItem), 'a failed layer suppresses none of a resource, which it does not govern'
-        assert report.ungoverned == (), 'resource checks are package-defined and are not gated by corpus governance'
+        assert report.ungoverned == (), 'resource checks are not gated by corpus governance'
         assert [type(item.occurrence).__name__ for item in report.diagnostics] == ['AbsoluteLink', 'AbsoluteLink'], (
             'package Markdown checks continue to judge a resource'
         )

@@ -260,7 +260,7 @@ class TestRuleSelectionIsKept:
 
 
 @pytest.mark.unit
-class TestRuleSelectionIsKeptByMetaSpecificity:
+class TestRuleSelectionIsKeptWhenMetaSpecificity:
     def test_is_kept_with_all_selected_and_a_group_ignored_leaves_the_group_out(self) -> None:
         #: Given
         selection = RuleSelection(select=frozenset({AllRules()}), ignore=frozenset({SAMPLE}))

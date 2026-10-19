@@ -1,8 +1,9 @@
 """The query-backed rules over items and layout subjects, with their closed eligibility gates.
 
-Every rule over an item derives from `QueriedItemRule[Facts]`, names its `ItemQuery[Facts]`, and declares a `GATES`
-mapping for the item kinds it judges. `ByMetaSpec` requires a loaded layer to state the named part;
-`ByPackage` admits a package-governed kind, and `BySchema` admits a kind only when the named schema is registered.
+Every rule over an item derives from `QueriedItemRule[Facts]`, names its `ItemQuery[Facts]`, and declares an
+`APPLIES_TO` mapping for the item kinds it judges. `WhenMetaSpec` requires a loaded layer to state the named part;
+`Always` admits the kind wherever it appears in the rule's mapping, and `WhenSchema` admits a kind only when the
+named schema is registered.
 A kind absent from the mapping is inapplicable. These declarations let the runner and rule table use one explicit
 contract while the rule itself judges only query facts.
 
@@ -10,9 +11,9 @@ A layout entry is not an item: `QueriedSymlinkRule` covers links in the skill la
 `QueriedCorpusDirectoryRule` covers reserved-corpus directories. Their separate primitive and query types preserve
 the entry subject, since an occurrence points at the entry itself and not at a line of Markdown.
 
-Rules in each group declare their own gates alongside their codes and queries. Shared document and skill rules
-name both kinds explicitly; Markdown checks can combine structure gates for corpus items with package gates for skill
-files, and schema-dependent skill checks name their registered schema directly.
+Rules in each group declare their own applicability alongside their codes and queries. Shared document and skill rules
+name both kinds explicitly; Markdown checks can combine structure requirements for corpus items with `Always` for
+skill files, and schema-dependent skill checks name their registered schema directly.
 """
 
 from abc import ABC, abstractmethod
@@ -33,7 +34,7 @@ from .declaration import ContentRule, LayoutRule, Rule
 
 
 @dataclass(frozen=True, slots=True)
-class ByMetaSpec:
+class WhenMetaSpec:
     """A gate for a meta spec part a loaded layer may govern.
 
     Attributes:
@@ -44,12 +45,12 @@ class ByMetaSpec:
 
 
 @dataclass(frozen=True, slots=True)
-class ByPackage:
+class Always:
     """A gate for an item kind governed independently of a structure layer."""
 
 
 @dataclass(frozen=True, slots=True)
-class BySchema:
+class WhenSchema:
     """A gate for an item kind when its governing schema is registered.
 
     Attributes:
@@ -59,7 +60,7 @@ class BySchema:
     schema: SchemaRef
 
 
-type Gate = ByMetaSpec | ByPackage | BySchema
+type Gate = WhenMetaSpec | Always | WhenSchema
 
 
 class Queried[Facts, QueryType](Rule, ABC):
@@ -92,11 +93,11 @@ class Queried[Facts, QueryType](Rule, ABC):
 class QueriedItemRule[Facts](Queried[Facts, ItemQuery[Facts]], ContentRule):
     """The base of a rule over items that declares each kind and gate it judges.
 
-    The rule names its query and declares its complete `GATES` mapping. Item kinds absent from that mapping are
+    The rule names its query and declares its complete `APPLIES_TO` mapping. Item kinds absent from that mapping are
     never judged. Layout rules use their separate queried bases because their query primitives differ.
     """
 
-    GATES: ClassVar[Mapping[ItemKind, Gate]] = MappingProxyType({})
+    APPLIES_TO: ClassVar[Mapping[ItemKind, Gate]] = MappingProxyType({})
 
     @classmethod
     @abstractmethod

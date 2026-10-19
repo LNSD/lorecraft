@@ -237,7 +237,7 @@ class TestRegistryLoad:
 
         #: Then
         assert exc_info.value.declaration is Unfaceted, 'the error names the item rule missing its gate'
-        assert exc_info.value.attribute == 'GATES', 'the error names the missing applicability declaration'
+        assert exc_info.value.attribute == 'APPLIES_TO', 'the error names the missing applicability declaration'
 
     def test_load_with_one_prefix_given_two_titles_raises_conflicting_rule_group_error(self) -> None:
         #: Given

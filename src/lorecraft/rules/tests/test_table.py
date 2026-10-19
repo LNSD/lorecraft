@@ -368,7 +368,7 @@ class TestRuleTable:
 
 @pytest.mark.unit
 class TestRuleTableItemIndex:
-    def test_package_registry_indexes_each_item_rule_under_its_declared_gate(self) -> None:
+    def test_registry_indexes_each_item_rule_under_its_declared_gate(self) -> None:
         #: Given
         registry = Registry.load(rules)
         expected = {
@@ -489,7 +489,7 @@ class TestRuleTableItemIndex:
 
         #: Then
         assert table.item_rules(ItemKind.SKILL_ENTRYPOINT, None) == expected, (
-            'schema gates use the package and schema index'
+            'Always and schema gates use the item-kind and schema indexes'
         )
         assert table.item_rules(ItemKind.SKILL_ENTRYPOINT, MetaSpecPart.FRONTMATTER) == (), (
             'schema gates do not use a meta spec part index'
@@ -512,7 +512,7 @@ class TestRuleTableItemIndex:
         #: Given
         rule = TooManyTokens
         severities: dict[type[Rule], Severity] = {rule: Severity.ERROR}
-        monkeypatch.setattr(rule, 'GATES', MappingProxyType({}))
+        monkeypatch.setattr(rule, 'APPLIES_TO', MappingProxyType({}))
 
         #: When
         with pytest.raises(UnknownRuleBaseError) as exc_info:

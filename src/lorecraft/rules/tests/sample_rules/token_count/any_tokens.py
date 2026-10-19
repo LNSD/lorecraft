@@ -11,7 +11,7 @@ from lorecraft.project.query import CountPrimitives, ItemQuery, item_token_count
 from lorecraft.project.syntax import LineNumber, TokenCount
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
-from lorecraft.rules.subject import ByMetaSpec, Gate, MetaSpecPart, QueriedItemRule
+from lorecraft.rules.subject import Gate, MetaSpecPart, QueriedItemRule, WhenMetaSpec
 
 from ..groups import SAMPLE
 
@@ -38,9 +38,9 @@ class AnyTokens(QueriedItemRule[TokenCount]):
     NAME: ClassVar[RuleName] = RuleName('any-tokens')
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('1.0.0')
-    GATES: ClassVar[Mapping[ItemKind, Gate]] = MappingProxyType(
+    APPLIES_TO: ClassVar[Mapping[ItemKind, Gate]] = MappingProxyType(
         {
-            ItemKind.DOCUMENT: ByMetaSpec(MetaSpecPart.BUDGET),
+            ItemKind.DOCUMENT: WhenMetaSpec(MetaSpecPart.BUDGET),
         }
     )
 

@@ -19,7 +19,7 @@ from lorecraft.project.schemas import (
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Here, Label, Subdiagnostic
-from lorecraft.rules.subject import ByMetaSpec, Gate, MetaSpecPart, QueriedItemRule
+from lorecraft.rules.subject import Gate, MetaSpecPart, QueriedItemRule, WhenMetaSpec
 
 from .__ruleset__ import GROUP_ID, outline_divergences, spec_note
 
@@ -106,10 +106,10 @@ class UnexpectedSection(QueriedItemRule[tuple[OutlineDivergenceSpec, ...]]):
     NAME: ClassVar[RuleName] = RuleName('unexpected-section')
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('0.3.0')
-    GATES: ClassVar[Mapping[ItemKind, Gate]] = MappingProxyType(
+    APPLIES_TO: ClassVar[Mapping[ItemKind, Gate]] = MappingProxyType(
         {
-            ItemKind.DOCUMENT: ByMetaSpec(MetaSpecPart.OUTLINE),
-            ItemKind.SKILL_ENTRYPOINT: ByMetaSpec(MetaSpecPart.OUTLINE),
+            ItemKind.DOCUMENT: WhenMetaSpec(MetaSpecPart.OUTLINE),
+            ItemKind.SKILL_ENTRYPOINT: WhenMetaSpec(MetaSpecPart.OUTLINE),
         }
     )
 
