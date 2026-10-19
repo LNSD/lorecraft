@@ -395,11 +395,6 @@ class _ItemPrimitives(_Reads[MarkdownItemRef, '_ItemPrimitives']):
         return self._database.item_governance(self._ref)
 
     @primitive
-    def builtin_skills_schema(self) -> bool:
-        """Whether the package's Agent Skills frontmatter schema is enabled."""
-        return self._database.model().builtin_skills_schema
-
-    @primitive
     def structure_specs(self) -> tuple[StructureSpec, ...]:
         """The structure specifications of the layers that loaded for the item."""
         return self._database.item_structure_specs(self._ref)
@@ -577,7 +572,7 @@ class Database:
 
         Args:
             snapshot: The frozen state every query reads; kept for the database's lifetime and never changed.
-            builtin_skills_schema: Whether skills use the Agent Skills floor and its contradiction preflight.
+            builtin_skills_schema: Whether to pre-register the Agent Skills floor schema.
 
         Raises:
             LinkedLayoutError: If `docs/` is a symlink, or else if `docs/__meta__/` is one.

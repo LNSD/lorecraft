@@ -49,6 +49,7 @@ from lorecraft.project.link_target import DocumentDirectory, SkillRoot
 from lorecraft.project.schemas import CorpusSpecName, NamespaceSpecName, StatedFrontmatterSchema, StructureSpec
 from lorecraft.project.skill import OutsideSymlink, SkillLocation, SkillRef, SkillResourceLocation, SkillsDir
 from lorecraft.schemas import SchemaInput, SchemaReference
+from lorecraft.schemas.builtin import AGENT_SKILLS_SCHEMA_REFERENCE
 from lorecraft.vfs import ResolvedPath
 
 from .failure import FailedStructure, LoadFailure
@@ -392,7 +393,6 @@ class WorkspaceModel:
             under `docs/` backs it.
         overlapping_directories: The directories under `docs/` that take a reserved corpus's name, which the model
             ignores: none of their documents is listed.
-        builtin_skills_schema: Whether the Agent Skills schema is part of skills governance.
         outside_symlinks: Every skills directory an agent declares, entry in a resolved skills directory, and
             `SKILL.md` of such an entry, whose symlink chain leaves the repository, by path.
             None of them is a skills directory or a skill of the model; a symlink inside a skill is in its
@@ -411,7 +411,6 @@ class WorkspaceModel:
     load_failures: tuple[LoadFailure, ...]
     skills_corpus: Corpus | None = None
     overlapping_directories: frozenset[ReservedCorpusDirectory] = frozenset()
-    builtin_skills_schema: bool = True
     schema_inputs: FrozenMapping[SchemaReference, SchemaInput] = FrozenMapping({})
 
     def __post_init__(self) -> None:
@@ -688,7 +687,9 @@ class WorkspaceModel:
                 link_target = location.resolves_to if location.resolves_to != ref.directory else None
                 governance = self.skill_governance(ref)
                 facets = {ItemFacet.STRUCTURE, ItemFacet.MARKDOWN}
-                if self.builtin_skills_schema or (governance is not None and governance.frontmatter_schemas()):
+                if AGENT_SKILLS_SCHEMA_REFERENCE in self.schema_inputs or (
+                    governance is not None and governance.frontmatter_schemas()
+                ):
                     facets.add(ItemFacet.FRONTMATTER)
                 if governance is not None and governance.outline_specs():
                     facets.add(ItemFacet.OUTLINE)

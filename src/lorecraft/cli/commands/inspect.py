@@ -55,11 +55,10 @@ def inspect(
 
     options = ctx.find_root().obj
     assert isinstance(options, GlobalOptions), 'the root callback stores global options'
-    builtin_skills_schema = options.builtin_skills_schema
     status = run_inspect(
         root,
         _resolve_format(output_format, as_json=as_json),
-        builtin_skills_schema=builtin_skills_schema,
+        builtin_skills_schema=options.builtin_skills_schema,
     )
     if status is not None:
         raise typer.Exit(code=status)

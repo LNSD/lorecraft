@@ -85,10 +85,6 @@ class StructurePrimitives:
         """The governance this was built with."""
         return self.governance_value
 
-    def builtin_skills_schema(self) -> bool:
-        """Whether the built-in skills schema applies."""
-        return self.builtin_schema
-
     def structure_specs(self) -> tuple[StructureSpec, ...]:
         """The specifications this was built with."""
         return self.specs

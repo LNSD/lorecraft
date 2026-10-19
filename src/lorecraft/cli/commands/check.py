@@ -119,14 +119,13 @@ def check(
 
     options = ctx.find_root().obj
     assert isinstance(options, GlobalOptions), 'the root callback stores global options'
-    builtin_skills_schema = options.builtin_skills_schema
     status = run_check(
         root,
         output_format=output_format,
         color=color,
         select=select,
         ignore=ignore,
-        builtin_skills_schema=builtin_skills_schema,
+        builtin_skills_schema=options.builtin_skills_schema,
     )
     if status is not None:
         raise typer.Exit(code=status)

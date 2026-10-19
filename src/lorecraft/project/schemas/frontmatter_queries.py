@@ -19,6 +19,7 @@ from lorecraft.project.schemas.schema_problems import (
     locate_schema_problems,
 )
 from lorecraft.project.schemas.skill_fields import SkillFields, parse_skill_fields
+from lorecraft.schemas import SchemaReferenceError
 from lorecraft.schemas.builtin import AGENT_SKILLS_SCHEMA_REFERENCE
 
 if TYPE_CHECKING:
@@ -66,10 +67,16 @@ def schema_problems_query(primitives: 'Primitives') -> tuple[SchemaProblems, ...
     origin = primitives.item_origin()
     governance = primitives.item_governance()
     schemas = governance.frontmatter_schemas() if governance is not None else ()
-    if isinstance(origin, SkillEntryOrigin) and primitives.builtin_skills_schema():
+    if isinstance(origin, SkillEntryOrigin):
         frontmatter = primitives.frontmatter()
-        floor_schema = primitives.query_schema(AGENT_SKILLS_SCHEMA_REFERENCE, agent_skills_frontmatter_schema_query)
-        floor = locate_agent_skills_schema_problems(frontmatter, floor_schema)
+        floor_present = False
+        try:
+            floor_schema = primitives.query_schema(AGENT_SKILLS_SCHEMA_REFERENCE, agent_skills_frontmatter_schema_query)
+        except SchemaReferenceError:
+            floor = ()
+        else:
+            floor_present = True
+            floor = locate_agent_skills_schema_problems(frontmatter, floor_schema)
         governed = locate_schema_problems(frontmatter, schemas) if schemas else ()
         floor_missing = {
             (located.line, located.problem.field)
@@ -77,6 +84,8 @@ def schema_problems_query(primitives: 'Primitives') -> tuple[SchemaProblems, ...
             for located in schema.problems
             if isinstance(located.problem, MissingFieldProblem)
         }
+        if not floor_present:
+            return governed
         return (
             *floor,
             *(

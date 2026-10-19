@@ -121,10 +121,6 @@ class GovernancePrimitives(Protocol):
         """The governance of this item, or none when it has no corpus governance."""
         ...
 
-    def builtin_skills_schema(self) -> bool:
-        """Whether the package's Agent Skills frontmatter schema is enabled for skill entries."""
-        ...
-
     def item_name(self) -> AspectFilename | SpecName | None:
         """The typed name of a document or meta specification; `None` for any other item."""
         ...

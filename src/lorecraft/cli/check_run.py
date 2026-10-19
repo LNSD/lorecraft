@@ -67,7 +67,7 @@ def run_check(
         color: When to emphasise the text format with colour.
         select: The `--select` values, already parsed and confirmed against the rule index.
         ignore: The `--ignore` values, already parsed and confirmed against the rule index.
-        builtin_skills_schema: Whether to apply the built-in Agent Skills schema.
+        builtin_skills_schema: Whether to pre-register the Agent Skills floor schema.
 
     Returns:
         `ExitStatus.FINDINGS` when any diagnostic is an error, `ExitStatus.FAILURE` for invalid input, an
