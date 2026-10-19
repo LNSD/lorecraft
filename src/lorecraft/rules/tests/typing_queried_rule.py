@@ -21,7 +21,7 @@ class WrongQuery(QueriedDocumentRule[int]):
         return ()
 
 
-def symlink_query(_: SymlinkPrimitives) -> int:
+def symlink_depth(_: SymlinkPrimitives) -> int:
     """A well-typed symlink query for the subject-kind check below."""
     return 0
 
@@ -32,7 +32,7 @@ class WrongSubjectQuery(QueriedDocumentRule[int]):
     @classmethod
     def query(cls) -> Query[SymlinkPrimitives, int]:  # ty: ignore[invalid-method-override]
         """A query for the wrong subject kind."""
-        return symlink_query
+        return symlink_depth
 
     @classmethod
     def judge(cls, facts: int, /) -> tuple[Self, ...]:

@@ -321,7 +321,7 @@ class Database:
     scope. Their carry-over rules are stated by their methods.
 
     Declared queries in `lorecraft.project.query` derive item facts from raw primitive state. Other declared queries,
-    including `skill_fields_query`, `frontmatter_owner_query` and `schema_problems_query`, run through `query(query,
+    including `parsed_skill_fields`, `owner_of_frontmatter` and `frontmatter_schema_problems`, run through `query(query,
     ref)`, which memoizes each answer and its reads. Schema queries use the same cache keyed by `(query,
     SchemaReference)` and read immutable inputs from the model.
 

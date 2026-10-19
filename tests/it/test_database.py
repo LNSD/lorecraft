@@ -30,7 +30,7 @@ from lorecraft.project.document import DocumentRef
 from lorecraft.project.item import MarkdownItemRef
 from lorecraft.project.layout import LinkedLayoutError
 from lorecraft.project.query import item_frontmatter, item_line_count, item_parse, item_token_count
-from lorecraft.project.schemas import outline_alignment, schema_problems_query
+from lorecraft.project.schemas import frontmatter_schema_problems, outline_alignment
 from lorecraft.project.skill import SkillLocation, SkillRef
 from lorecraft.project.syntax import Frontmatter, Heading, LineNumber, count_tokens, split_lines
 from lorecraft.project.syntax import Link as MarkdownLink
@@ -271,19 +271,19 @@ class TestDatabase:
             'the failed layer is held where its structure would be'
         )
 
-    def test_schema_problems_with_a_failed_namespace_layer_reads_only_the_layers_that_loaded(self) -> None:
+    def test_frontmatter_schema_problems_with_a_failed_namespace_layer_reads_only_the_layers_that_loaded(self) -> None:
         #: Given
         database = Database.from_snapshot(_failed_namespace_layer_snapshot())
         source = _document_text(database, PYTHON_GUIDE)
 
         #: When
-        problems = database.query(schema_problems_query, source.ref)
+        problems = database.query(frontmatter_schema_problems, source.ref)
 
         #: Then
         assert len(problems) == 1, 'one frontmatter schema judges the document: the failed layer states none'
         assert len(problems[0].problems) == 1, 'the corpus layer that loaded finds the required `name` missing'
 
-    def test_skill_schema_problems_keep_the_agent_skills_floor_before_corpus_layers(self) -> None:
+    def test_skill_frontmatter_schema_problems_keep_the_agent_skills_floor_before_corpus_layers(self) -> None:
         #: Given
         database = Database.from_snapshot(
             _governed_skill_snapshot(b'---\nname: code-review\ndescription: Review code\nextra: value\n---\n# Review\n')
@@ -294,7 +294,7 @@ class TestDatabase:
         )
 
         #: When
-        problems = database.query(schema_problems_query, source.ref)
+        problems = database.query(frontmatter_schema_problems, source.ref)
 
         #: Then
         assert [type(problem.source).__name__ for problem in problems] == [
@@ -312,7 +312,7 @@ class TestDatabase:
             ['MissingFieldProblem'],
         ], 'the floor violation stays visible and the namespace adds its missing field'
 
-    def test_skill_schema_problems_report_a_missing_floor_field_only_once(self) -> None:
+    def test_skill_frontmatter_schema_problems_report_a_missing_floor_field_only_once(self) -> None:
         #: Given
         snapshot = from_tree(
             {
@@ -329,7 +329,7 @@ class TestDatabase:
         source = _skill_text(database, REVIEW)
 
         #: When
-        problems = database.query(schema_problems_query, source.ref)
+        problems = database.query(frontmatter_schema_problems, source.ref)
 
         #: Then
         assert [len(schema.problems) for schema in problems] == [1, 0], (

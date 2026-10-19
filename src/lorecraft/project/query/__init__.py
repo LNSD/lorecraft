@@ -1,4 +1,4 @@
-"""What a query reads and what it is: a pure function over the primitives of one item.
+"""What a query reads and what it is: a pure function over the primitives of one subject.
 
 A query is a plain function from `Primitives` to the fact it derives, such as a document's title facts. A rule declares
 the queries it needs and a database memoizes each by the function and the item. The primitives are the only way a query
@@ -45,10 +45,10 @@ __all__: list[str] = [
     'ItemReads',
     'LinkResolutionPrimitives',
     'Primitives',
-    'SchemaPrimitives',
-    'SchemaReads',
     'Query',
     'QueryPrimitives',
+    'SchemaPrimitives',
+    'SchemaReads',
     'SubjectQuery',
     'SubjectRef',
     'SymlinkPrimitives',

@@ -29,7 +29,7 @@ from lorecraft.project.query import (
     item_parse,
     item_token_count,
 )
-from lorecraft.project.schemas import SpecName, outline_alignment, schema_problems_query
+from lorecraft.project.schemas import SpecName, frontmatter_schema_problems, outline_alignment
 from lorecraft.project.syntax import NormalisedLinkPath
 from lorecraft.project.workspace import WorkspaceModel
 from lorecraft.vfs import Snapshot, VirtualFileSystem, take_snapshot
@@ -166,14 +166,16 @@ class TestItemQueries:
             'the token count is memoized'
         )
 
-    def test_item_schema_problems_with_only_the_frontmatter_demanded_leaves_the_parse_uncomputed(self) -> None:
+    def test_item_frontmatter_schema_problems_with_only_the_frontmatter_demanded_leaves_the_parse_uncomputed(
+        self,
+    ) -> None:
         #: Given
         database = TracingDatabase.from_snapshot(_snapshot())
         source = _decoded(database, GUIDE)
 
         #: When
-        database.query(schema_problems_query, source.ref)
-        database.query(schema_problems_query, source.ref)
+        database.query(frontmatter_schema_problems, source.ref)
+        database.query(frontmatter_schema_problems, source.ref)
 
         #: Then
         assert database.computed == ['frontmatter'], 'the frontmatter is computed once and no parse is demanded'

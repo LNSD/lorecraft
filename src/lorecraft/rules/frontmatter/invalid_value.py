@@ -22,7 +22,14 @@ from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Here, Label, Note, Subdiagnostic
 from lorecraft.rules.subject import QueriedFrontmatterRule
 
-from .__ruleset__ import GROUP_ID, allowed_values_help, example_note, schema_note, schema_problems, schema_spec
+from .__ruleset__ import (
+    GROUP_ID,
+    allowed_values_help,
+    example_note,
+    schema_note,
+    schema_problems,
+    schema_spec,
+)
 
 
 @rule

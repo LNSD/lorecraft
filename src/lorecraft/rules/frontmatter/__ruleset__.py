@@ -33,9 +33,9 @@ from lorecraft.project.schemas import (
     SkillFrontmatterOwner,
     StructureSpecSchema,
     field_line,
-    frontmatter_owner_query,
-    schema_problems_query,
-    skill_fields_query,
+    frontmatter_schema_problems,
+    owner_of_frontmatter,
+    parsed_skill_fields,
 )
 from lorecraft.project.syntax import Frontmatter, FrontmatterNode, LineNumber
 from lorecraft.rules.identity import RuleGroup, RuleGroupPrefix
@@ -64,7 +64,7 @@ def frontmatter_facts(primitives: Primitives) -> FrontmatterFacts:
     Args:
         primitives: The model state of the document or the skill.
     """
-    return FrontmatterFacts(primitives.query(item_frontmatter), primitives.query(frontmatter_owner_query))
+    return FrontmatterFacts(primitives.query(item_frontmatter), primitives.query(owner_of_frontmatter))
 
 
 @dataclass(frozen=True, slots=True)
@@ -89,7 +89,7 @@ def allowed_tools_field(primitives: Primitives) -> AllowedToolsField | None:
     frontmatter = primitives.query(item_frontmatter)
     if not isinstance(frontmatter, Frontmatter):
         return None
-    tools = primitives.query(skill_fields_query).get(SkillField.ALLOWED_TOOLS)
+    tools = primitives.query(parsed_skill_fields).get(SkillField.ALLOWED_TOOLS)
     if not isinstance(tools, AllowedTools):
         return None
     return AllowedToolsField(field_line(frontmatter, SkillField.ALLOWED_TOOLS), tools)
@@ -101,7 +101,7 @@ def schema_problems(primitives: Primitives) -> tuple[SchemaProblems, ...]:
     Args:
         primitives: The model state of the document or the skill.
     """
-    return primitives.query(schema_problems_query)
+    return primitives.query(frontmatter_schema_problems)
 
 
 def owner_spec(owner: FrontmatterOwner) -> RootRelativePath | None:
