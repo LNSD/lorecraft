@@ -1,6 +1,6 @@
 """The conditions a structure specification fails with when its text is decoded and its rules are checked.
 
-Each is a frozen record of the facts the failure carries, so it is plain data: it compares by value and a result that
+Each is a frozen record of the details the failure carries, so it is plain data: it compares by value and a result that
 holds one can persist (adr-005). They sit below the loader, which records one as the load failure of a structure
 file, and are a closed union, so a reader that matches one is checked exhaustive.
 """

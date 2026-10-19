@@ -50,7 +50,7 @@ class MissingField(QueriedItemRule[tuple[SchemaProblems, ...]]):
 
     ## Why is this bad?
 
-    An agent chooses which document or skill to load from its frontmatter alone, so a field left out is a fact the
+    An agent chooses which document or skill to load from its frontmatter alone, so a field left out is information the
     agent never sees and cannot choose by.
 
     ## Example

@@ -1,7 +1,7 @@
 """The decoded text of a file, as the database's decode queries return it: a witness, or an undecodable marker.
 
 A witness holds a ref and that ref's bytes decoded as UTF-8, one type for every governed item, a skill's resource
-included. Every per-file query of the `Database` takes a witness rather than a bare ref, so asking for a fact of a
+included. Every per-file query of the `Database` takes a witness rather than a bare ref, so asking for a property of a
 file that does not decode cannot be written: a caller matches the decode query's answer once, and no later reader
 carries a branch for an undecodable file.
 
@@ -21,7 +21,7 @@ class ItemText:
     """One governed Markdown item's bytes, decoded; built only by `Database.item_text`.
 
     Attributes:
-        descriptor: The model's facts for the item the text was read from, as this database's model resolved them.
+        descriptor: The model's descriptor for the item the text was read from.
         text: The whole file, frontmatter included.
     """
 

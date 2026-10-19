@@ -362,7 +362,7 @@ class ResolvedItem:
     """A listed item's descriptor and the specifications governing it, resolved together.
 
     Attributes:
-        descriptor: The item's model-resolved locations and origin facts.
+        descriptor: The item's model-resolved locations and origin metadata.
         governance: The governing specs, or `None` when none governs the item.
     """
 
@@ -611,7 +611,7 @@ class WorkspaceModel:
         return corpus.governance(ref.entry.value)
 
     def find_item(self, ref: MarkdownItemRef) -> ResolvedItem | None:
-        """The facts of the document or skill entry the model lists at this reference, or None.
+        """The descriptor of the document or skill entry the model lists at this reference, or None.
 
         Scans the model's documents and skills, so it answers a lookup by reference; a caller holding a document or
         skill ref resolves it with `resolve_item` and never calls this once per item.
@@ -631,7 +631,7 @@ class WorkspaceModel:
         return None
 
     def describe_item(self, ref: DocumentRef | SkillRef | SpecRef) -> MarkdownItemDescriptor:
-        """Resolve the shared location and origin facts for a document or skill entry.
+        """Resolve the shared location and origin metadata for a document or skill entry.
 
         The existing references remain accepted by repositories and database queries. This descriptor is the
         common model contract for callers that need to handle either kind without classifying its origin.

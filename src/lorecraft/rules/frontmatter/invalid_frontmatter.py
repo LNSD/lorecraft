@@ -48,7 +48,7 @@ class InvalidFrontmatter(QueriedItemRule[tuple[SchemaProblems, ...]]):
 
     ## Why is this bad?
 
-    The schema states what the block must hold as a whole so that every document gives an agent the same facts; a
+    The schema states what the block must hold as a whole so that every document gives an agent the same information; a
     block outside it leaves the agent without some of them.
 
     ## Example

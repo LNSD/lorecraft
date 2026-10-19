@@ -43,7 +43,7 @@ def validate(schema: Mapping[str, Plain], instance: Plain) -> tuple[Violation, .
 
     Returns:
         The failures, ordered by instance path and then message. Each violation contains the schema and instance
-        context and evaluated-property facts needed to interpret the failure without validator-library records.
+        context and evaluated-property details needed to interpret the failure without validator-library records.
     """
     validator = Draft202012Validator(schema)
     errors = sorted(
@@ -94,7 +94,7 @@ def _violation(validator: SchemaValidator, error: ValidationError, root_instance
 def _facts(
     error: ValidationError, keyword: Keyword, evaluated: frozenset[str], root_instance: Plain
 ) -> tuple[ViolationFact, ...]:
-    """Return the typed facts of an object-keyword failure, each narrowed to what this one violation is about."""
+    """Return the typed details of an object-keyword failure, each narrowed to what this one violation is about."""
     if _is_property_name_failure(error, root_instance):
         return (InvalidPropertyName(str(error.instance)),)
     schema, instance = error.schema, error.instance

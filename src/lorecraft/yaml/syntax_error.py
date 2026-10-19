@@ -2,7 +2,7 @@
 
 The YAML parser fails with an error that names its own internals: `<block end>`, `simple key`, a tuple of tokens.
 adr-019 states the kinds of syntax error a writer meets, and this module classifies the parser's error into one of
-them, as a value that carries the facts of the kind: the line the writer fixes and the text the error names. It
+them, as a value that carries the details of the kind: the line the writer fixes and the text the error names. It
 reads what the error carries, the problem and the context it names and its two marks, and the text's own lines at
 them; no parser text reaches the result, and the package above words each kind.
 

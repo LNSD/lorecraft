@@ -1,9 +1,9 @@
-"""The rule table: rules a run enables, indexed by the items and facets they judge.
+"""The rule table: rules a run enables, indexed by the items and specification facets they judge.
 
 The table is built once per run, before any subject is checked. It pairs each enabled rule with the severity of its
 occurrences. Rules left off by their default level or a run selection are absent; removed rules and engine
-conditions are not enabled rules. Item rules are indexed once by item kind and optional spec facet, while rules over
-layout symlinks and reserved-corpus directories keep separate partitions. A rule's closed gate declaration
+conditions are not enabled rules. Item rules are indexed once by item kind and optional specification facet, while
+rules over layout symlinks and reserved-corpus directories keep separate partitions. A rule's closed gate declaration
 determines which index buckets contain it. Only queried rules can be indexed, so each rule in a bucket has a query
 for the runner to resolve.
 """
@@ -64,7 +64,7 @@ type QueriedItem = Queried[Any, Any]
 
 
 class RuleTable:
-    """The enabled rules of one run, indexed by item kind and facet, plus separate layout partitions."""
+    """The enabled rules of one run, indexed by item kind and specification facet, plus separate layout groups."""
 
     _item_rules: dict[tuple[ItemKind, Facet | None], tuple[EnabledRule[QueriedItem], ...]]
     _symlink_rules: tuple[EnabledRule[QueriedSymlinkRule[Any]], ...]
@@ -128,11 +128,11 @@ class RuleTable:
         return cls(severities)
 
     def item_rules(self, kind: ItemKind, facet: Facet | None) -> tuple[EnabledRule[QueriedItem], ...]:
-        """Each enabled item rule gated for this kind and facet, in code order.
+        """Each enabled item rule gated for this kind and specification facet, in code order.
 
         Args:
             kind: The item kind to look up.
-            facet: The active spec facet, or `None` for package and schema gates.
+            facet: The active specification facet, or `None` for package and schema gates.
         """
         return self._item_rules.get((kind, facet), ())
 

@@ -3,7 +3,7 @@
 A document's frontmatter is a `---` delimited block on its first lines. Finding the block is the Markdown
 reader's job (`lorecraft.markdown.parse_markdown_frontmatter`); decoding its raw block is this module's. Parsing has
 exactly four outcomes, one type each: no block, a block that is not YAML, a block that is YAML but not a mapping,
-and a mapping. Every outcome is a value, never an exception, because a broken block is a fact about the document
+and a mapping. Every outcome is a value, never an exception, because a broken block is a property of the document
 that a check reports, not a failure of the parse.
 
 The block is read as basic YAML, which decodes to exactly what JSON can hold, and accepts only these constructs:
@@ -132,7 +132,7 @@ class MissingFrontmatter:
 class InvalidYamlFrontmatter:
     """The block is there but is not valid YAML, or uses YAML beyond the basic subset frontmatter is read as.
 
-    A value, compared by value, so it holds the parser's facts rather than the parser's exception, which compares
+    A value, compared by value, so it holds the parser's findings rather than the parser's exception, which compares
     by identity.
 
     Attributes:

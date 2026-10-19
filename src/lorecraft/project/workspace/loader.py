@@ -19,7 +19,7 @@ The loader is total over the declaration: it reads each unit on its own, a struc
 skills directory, a skill entry or a `SKILL.md`, and a unit that fails is recorded in the model as a load failure
 while the loader goes on with the next one. A structure file that fails stands in its meta spec layer as a
 `FailedStructure` and is listed too. Each repository still raises its own error variant; the loader catches the
-variants of one unit, keeps the facts they carry and drops the exception. Nothing here logs.
+variants of one unit, keeps the details they carry and drops the exception. Nothing here logs.
 """
 
 import json

@@ -204,7 +204,7 @@ def _frontmatter_problems(
 
     Args:
         root_schema: The complete schema, read by project-owned schema guidance.
-        violation: The validator facts that select and describe the problem.
+        violation: The validator details that select and describe the problem.
         data: The frontmatter that was validated, as plain data, read to tell which fields are at fault.
     """
     keyword = violation.keyword
@@ -280,7 +280,7 @@ def _invalid_value(
     """The problem of a value breaking a constraint, on the field it is written at.
 
     Args:
-        violation: The validator facts for the value's failed constraint.
+        violation: The validator details for the value's failed constraint.
         root_schema: The complete schema, read by project-owned schema guidance.
         keyword: The keyword that reported the error.
         field: The top-level field at fault.
@@ -303,7 +303,7 @@ def _dependency_problems(
     pairs are found the way the keyword finds them, and a pair two errors report is reported once.
 
     Args:
-        violation: The validator facts, whose schema states the dependencies.
+        violation: The validator details, whose schema states the dependencies.
         root_schema: The complete schema, read by project-owned schema guidance.
         keyword: The error's keyword, which maps each field to the fields it requires.
         data: The frontmatter that was validated, as plain data.
@@ -418,7 +418,7 @@ def _unevaluated_problems(
     schema the value breaks.
 
     Args:
-        violation: The validator facts, including properties evaluated by this schema.
+        violation: The validator details, including properties evaluated by this schema.
         schema: The object schema whose `unevaluatedProperties` rule fired.
         root_schema: The complete schema that supplies local reference targets.
         data: The frontmatter that was validated, as plain data.

@@ -57,7 +57,7 @@ def check_subjects(
     Args:
         database: The revision the subjects are read from; its model decides which specifications govern each.
         subjects: The documents, specifications, skills, resources and layout entries to check; a document in no
-            corpus the database's model holds is ungoverned for every facet a specification governs, and a layout
+            corpus the database's model holds is ungoverned for every gate a specification governs, and a layout
             entry is a symlink whose chain leaves the repository or a directory named like a reserved corpus, as the
             database's model or a skill's resource listing records it.
         table: The rules the run enables, each with its severity.

@@ -1,7 +1,7 @@
-"""The primitives a query reads, in the facets of the model state they come from.
+"""The primitives a query reads, grouped by the model state they come from.
 
-A primitive is one method; the facets group them by what they answer about an item, so a caller that needs only one
-kind of state can name that facet. `Primitives` is the whole, composed from the facets and the memoized `query`.
+A primitive is one method; protocol groups organize them by what they answer about an item, so a query can declare
+the state it needs. `Primitives` composes those groups with the memoized `query` operation.
 Schema subjects have their own parameterless query family over immutable inputs retained by the workspace model.
 """
 
@@ -38,7 +38,7 @@ type SubjectQuery[T] = (
 
 
 class QueryPrimitives[P](Protocol):
-    """Same-subject query operations shared by every subject's primitive facet."""
+    """Same-subject query operations shared by every subject's primitive group."""
 
     def query[T](self, query: Query[P, T]) -> T:
         """Read a query over the same subject and record its dependency."""
@@ -62,7 +62,7 @@ class SchemaReads(Protocol):
 
 
 class DecodedText(Protocol):
-    """The raw text facts every decoded item witness exposes to a query."""
+    """The raw text state every decoded item witness exposes to a query."""
 
     descriptor: MarkdownItemDescriptor
     text: str
@@ -92,7 +92,7 @@ class GovernancePrimitives(QueryPrimitives['Primitives'], Protocol):
     """What governs the item and what it is named: its specifications, schemas, owner and place among the documents."""
 
     def item_origin(self) -> ItemOrigin:
-        """The model's origin facts for this item, including its expected name and provenance."""
+        """The model's origin metadata for this item, including its expected name and provenance."""
         ...
 
     def item_governance(self) -> Governance | None:
@@ -109,7 +109,7 @@ class GovernancePrimitives(QueryPrimitives['Primitives'], Protocol):
 
 
 class TitlePrimitives(SyntaxPrimitives, GovernancePrimitives, Protocol):
-    """The syntax and structure facets used to derive document title facts."""
+    """The syntax and structure state used to derive a document's title."""
 
 
 class LinkResolutionPrimitives(QueryPrimitives['Primitives'], Protocol):
@@ -132,7 +132,7 @@ class Primitives(
     LinkResolutionPrimitives,
     Protocol,
 ):
-    """The model state of one item a query derives from; each method is one primitive, grouped in the facets."""
+    """The model state of one item a query derives from, grouped by primitive protocol."""
 
 
 class SymlinkPrimitives(QueryPrimitives['SymlinkPrimitives'], Protocol):

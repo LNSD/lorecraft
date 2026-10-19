@@ -4,7 +4,7 @@ The loader reads the declaration unit by unit: a structure file, a corpus direct
 entry, a skill's `SKILL.md`. A unit that fails is not raised: it is recorded, as one of the frozen records here, and
 the loader goes on with the next unit (adr-015).
 
-A record holds the facts the error it stands for carried, the path, the operating system's refusal or the decoder's
+A record holds the details of the error it stands for, the path, the operating system's refusal or the decoder's
 problems, and never the foreign exception that error wrapped, so it is plain data: it compares by value and a result
 that holds one can persist (adr-005). There is one record type per condition, and the conditions are two closed
 unions, so a reader that matches a failure is checked exhaustive.
