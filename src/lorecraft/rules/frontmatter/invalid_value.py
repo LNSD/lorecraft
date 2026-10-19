@@ -1,9 +1,12 @@
 """`FM009`: a frontmatter field's value breaks a constraint its schema sets."""
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
+from types import MappingProxyType
 from typing import ClassVar, Self, assert_never
 
 from lorecraft.core.path import RootRelativePath
+from lorecraft.project.item import ItemKind
 from lorecraft.project.query import ItemQuery
 from lorecraft.project.schemas import (
     BlockProblem,
@@ -20,7 +23,7 @@ from lorecraft.project.schemas import (
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Here, Label, Note, Subdiagnostic
-from lorecraft.rules.subject import QueriedFrontmatterRule
+from lorecraft.rules.subject import BySpec, Facet, Gate, QueriedItemRule
 
 from .__ruleset__ import (
     GROUP_ID,
@@ -34,7 +37,7 @@ from .__ruleset__ import (
 
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
-class InvalidValue(QueriedFrontmatterRule[tuple[SchemaProblems, ...]]):
+class InvalidValue(QueriedItemRule[tuple[SchemaProblems, ...]]):
     """A frontmatter field's value breaks a constraint its schema sets.
 
     ## What it does
@@ -103,6 +106,12 @@ class InvalidValue(QueriedFrontmatterRule[tuple[SchemaProblems, ...]]):
     NAME: ClassVar[RuleName] = RuleName('invalid-value')
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('0.3.0')
+    GATES: ClassVar[Mapping[ItemKind, Gate]] = MappingProxyType(
+        {
+            ItemKind.DOCUMENT: BySpec(Facet.FRONTMATTER),
+            ItemKind.SKILL_ENTRY: BySpec(Facet.FRONTMATTER),
+        }
+    )
 
     # The specification file is derived from `source`, so no caller can state one that disagrees with it.
     spec: RootRelativePath | None = field(init=False)

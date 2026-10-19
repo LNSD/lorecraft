@@ -1,9 +1,12 @@
 """`OUT005`: a section a structure file forbids appears in the document."""
 
+from collections.abc import Mapping
 from dataclasses import dataclass
+from types import MappingProxyType
 from typing import ClassVar, Self, assert_never
 
 from lorecraft.core.path import RootRelativePath
+from lorecraft.project.item import ItemKind
 from lorecraft.project.query import ItemQuery
 from lorecraft.project.schemas import (
     AnyRunAlignment,
@@ -15,14 +18,14 @@ from lorecraft.project.schemas import (
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Subdiagnostic
-from lorecraft.rules.subject import Facet, QueriedDocumentSkillRule
+from lorecraft.rules.subject import BySpec, Facet, Gate, QueriedItemRule
 
 from .__ruleset__ import GROUP_ID, spec_note
 
 
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
-class ForbiddenSection(QueriedDocumentSkillRule[tuple[OutlineAlignmentSpec, ...]]):
+class ForbiddenSection(QueriedItemRule[tuple[OutlineAlignmentSpec, ...]]):
     """A section a structure file forbids appears in the document.
 
     ## What it does
@@ -85,6 +88,12 @@ class ForbiddenSection(QueriedDocumentSkillRule[tuple[OutlineAlignmentSpec, ...]
     NAME: ClassVar[RuleName] = RuleName('forbidden-section')
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('0.3.0')
+    GATES: ClassVar[Mapping[ItemKind, Gate]] = MappingProxyType(
+        {
+            ItemKind.DOCUMENT: BySpec(Facet.STRUCTURE),
+            ItemKind.SKILL_ENTRY: BySpec(Facet.STRUCTURE, requires_loaded_layer=True),
+        }
+    )
     GOVERNED_BY: ClassVar[Facet] = Facet.STRUCTURE
 
     spec: RootRelativePath

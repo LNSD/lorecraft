@@ -1,14 +1,17 @@
 """`OUT003`: a document a structure file governs opens with a heading other than its H1 title."""
 
+from collections.abc import Mapping
 from dataclasses import dataclass
+from types import MappingProxyType
 from typing import ClassVar, Self
 
+from lorecraft.project.item import ItemKind
 from lorecraft.project.query import ItemQuery, SyntaxPrimitives, item_parse
 from lorecraft.project.syntax import Heading, HeadingLevel, LineNumber, find_title
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Here, Label, Subdiagnostic
-from lorecraft.rules.subject import Facet, QueriedDocumentSkillRule
+from lorecraft.rules.subject import BySpec, Facet, Gate, QueriedItemRule
 
 from .__ruleset__ import GROUP_ID
 
@@ -26,7 +29,7 @@ def headings(primitives: SyntaxPrimitives) -> tuple[Heading, ...]:
 
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
-class TitleNotFirst(QueriedDocumentSkillRule[tuple[Heading, ...]]):
+class TitleNotFirst(QueriedItemRule[tuple[Heading, ...]]):
     """A document a structure file governs opens with a heading that is not its H1 title.
 
     ## What it does
@@ -88,6 +91,12 @@ class TitleNotFirst(QueriedDocumentSkillRule[tuple[Heading, ...]]):
     NAME: ClassVar[RuleName] = RuleName('title-not-first')
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('0.3.0')
+    GATES: ClassVar[Mapping[ItemKind, Gate]] = MappingProxyType(
+        {
+            ItemKind.DOCUMENT: BySpec(Facet.STRUCTURE),
+            ItemKind.SKILL_ENTRY: BySpec(Facet.STRUCTURE, requires_loaded_layer=True),
+        }
+    )
     GOVERNED_BY: ClassVar[Facet] = Facet.STRUCTURE
 
     spec: None = None

@@ -1,9 +1,12 @@
 """`FM002`: a frontmatter block is not valid YAML."""
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
+from types import MappingProxyType
 from typing import ClassVar, Self, assert_never
 
 from lorecraft.core.path import RootRelativePath
+from lorecraft.project.item import ItemKind
 from lorecraft.project.query import ItemQuery
 from lorecraft.project.schemas import FrontmatterOwner
 from lorecraft.project.syntax import (
@@ -17,14 +20,14 @@ from lorecraft.project.syntax import (
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Here, Label, Subdiagnostic
-from lorecraft.rules.subject import QueriedFrontmatterRule
+from lorecraft.rules.subject import BySpec, Facet, Gate, QueriedItemRule
 
 from .__ruleset__ import GROUP_ID, FrontmatterFacts, frontmatter_facts, owner_spec, spec_note
 
 
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
-class InvalidYaml(QueriedFrontmatterRule[FrontmatterFacts]):
+class InvalidYaml(QueriedItemRule[FrontmatterFacts]):
     """A frontmatter block is not valid YAML.
 
     ## What it does
@@ -93,6 +96,12 @@ class InvalidYaml(QueriedFrontmatterRule[FrontmatterFacts]):
     NAME: ClassVar[RuleName] = RuleName('invalid-yaml')
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('0.3.0')
+    GATES: ClassVar[Mapping[ItemKind, Gate]] = MappingProxyType(
+        {
+            ItemKind.DOCUMENT: BySpec(Facet.FRONTMATTER),
+            ItemKind.SKILL_ENTRY: BySpec(Facet.FRONTMATTER),
+        }
+    )
 
     # Reported at the line the YAML reader stopped on, or else at the line that opens the block, so it is derived
     # from `stopped_at` and no caller can state a line that disagrees with it. The specification file is derived

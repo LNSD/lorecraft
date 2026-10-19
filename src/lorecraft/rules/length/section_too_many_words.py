@@ -1,9 +1,12 @@
 """`LEN003`: a section of a document holds more prose words than its word cap allows."""
 
+from collections.abc import Mapping
 from dataclasses import dataclass
+from types import MappingProxyType
 from typing import ClassVar, Final, Self, assert_never
 
 from lorecraft.core.path import RootRelativePath
+from lorecraft.project.item import ItemKind
 from lorecraft.project.query import ItemQuery
 from lorecraft.project.schemas import (
     AnyRunAlignment,
@@ -16,7 +19,7 @@ from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Here, Label, Note, Subdiagnostic
 from lorecraft.rules.overrun import Overrun, find_overrun
-from lorecraft.rules.subject import Facet, QueriedDocumentSkillRule
+from lorecraft.rules.subject import BySpec, Facet, Gate, QueriedItemRule
 
 from .__ruleset__ import GROUP_ID, spec_note
 
@@ -60,7 +63,7 @@ def _cap_source_note(cap_source: CapSource, section: str) -> Note:
 
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
-class SectionTooManyWords(QueriedDocumentSkillRule[tuple[OutlineAlignmentSpec, ...]]):
+class SectionTooManyWords(QueriedItemRule[tuple[OutlineAlignmentSpec, ...]]):
     """A section is longer than its word cap allows.
 
     ## What it does
@@ -125,6 +128,12 @@ class SectionTooManyWords(QueriedDocumentSkillRule[tuple[OutlineAlignmentSpec, .
     NAME: ClassVar[RuleName] = RuleName('section-too-many-words')
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('0.3.0')
+    GATES: ClassVar[Mapping[ItemKind, Gate]] = MappingProxyType(
+        {
+            ItemKind.DOCUMENT: BySpec(Facet.STRUCTURE),
+            ItemKind.SKILL_ENTRY: BySpec(Facet.STRUCTURE, requires_loaded_layer=True),
+        }
+    )
     GOVERNED_BY: ClassVar[Facet] = Facet.STRUCTURE
 
     spec: RootRelativePath

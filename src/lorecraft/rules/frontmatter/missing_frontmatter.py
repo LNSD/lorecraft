@@ -1,25 +1,28 @@
 """`FM001`: a document or a skill does not open with a frontmatter block."""
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
+from types import MappingProxyType
 from typing import ClassVar, Self, assert_never
 
 from lorecraft.core.path import RootRelativePath
 
 # The module, not its classes: this rule's own name is the syntax's `MissingFrontmatter`.
 from lorecraft.project import syntax
+from lorecraft.project.item import ItemKind
 from lorecraft.project.query import ItemQuery
 from lorecraft.project.schemas import DocumentFrontmatterOwner, FrontmatterOwner, SkillFrontmatterOwner
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Here, Label, Note, Subdiagnostic
-from lorecraft.rules.subject import QueriedFrontmatterRule
+from lorecraft.rules.subject import BySpec, Facet, Gate, QueriedItemRule
 
 from .__ruleset__ import GROUP_ID, FrontmatterFacts, frontmatter_facts, owner_spec, spec_note
 
 
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
-class MissingFrontmatter(QueriedFrontmatterRule[FrontmatterFacts]):
+class MissingFrontmatter(QueriedItemRule[FrontmatterFacts]):
     """A document or a skill does not open with a frontmatter block.
 
     ## What it does
@@ -83,6 +86,12 @@ class MissingFrontmatter(QueriedFrontmatterRule[FrontmatterFacts]):
     NAME: ClassVar[RuleName] = RuleName('missing-frontmatter')
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('0.3.0')
+    GATES: ClassVar[Mapping[ItemKind, Gate]] = MappingProxyType(
+        {
+            ItemKind.DOCUMENT: BySpec(Facet.FRONTMATTER),
+            ItemKind.SKILL_ENTRY: BySpec(Facet.FRONTMATTER),
+        }
+    )
 
     # The specification file is derived from `owner`, so no caller can state one that disagrees with it.
     spec: RootRelativePath | None = field(init=False)
