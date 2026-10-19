@@ -31,7 +31,6 @@ from types import FunctionType
 from typing import Concatenate, Protocol, Self, assert_never, cast, overload
 
 from lorecraft.core.mapping import FrozenMapping
-from lorecraft.core.num import UnsignedInt
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusDirectoryRef, CorpusName, ReservedCorpusDirectory
@@ -56,10 +55,10 @@ from lorecraft.project.query import (
     SchemaQuery,
     SubjectRef,
     SymlinkQuery,
+    item_parse,
 )
 from lorecraft.project.schemas import (
     SpecName,
-    StructureSpec,
     parse_spec_name,
 )
 from lorecraft.project.skill import (
@@ -74,19 +73,7 @@ from lorecraft.project.skill import (
 )
 from lorecraft.project.skill import Repository as SkillRepository
 from lorecraft.project.syntax import (
-    Anchor,
-    FrontmatterNode,
-    Heading,
-    LineCount,
-    Link,
-    MissingFrontmatter,
     NormalisedLinkPath,
-    ParsedDocument,
-    TokenCount,
-    count_lines,
-    count_tokens,
-    parse_document,
-    parse_frontmatter,
     split_lines,
 )
 from lorecraft.project.workspace import Governance, ResolvedItem, WorkspaceModel, load_model, unreported_refusals
@@ -286,49 +273,9 @@ class _ItemPrimitives(_Reads[MarkdownItemRef, '_ItemPrimitives']):
         return self._database.item_governance(self._ref)
 
     @primitive
-    def structure_specs(self) -> tuple[StructureSpec, ...]:
-        """The structure specifications of the layers that loaded for the item."""
-        return self._database.item_structure_specs(self._ref)
-
-    @primitive
-    def headings(self) -> tuple[Heading, ...]:
-        """The headings of the item's parse; none for an item that is not UTF-8."""
-        source = self._database.item_text(self._ref)
-        return self._database.item_parse(source).headings if isinstance(source, ItemText) else ()
-
-    @primitive
-    def token_count(self) -> TokenCount:
-        """The tokens in the item's whole file; none for an item that is not UTF-8."""
-        source = self._database.item_text(self._ref)
-        return self._database.item_token_count(source) if isinstance(source, ItemText) else TokenCount(UnsignedInt(0))
-
-    @primitive
-    def line_count(self) -> LineCount:
-        """The lines in the item's whole file; none for an item that is not UTF-8."""
-        source = self._database.item_text(self._ref)
-        return self._database.item_line_count(source) if isinstance(source, ItemText) else LineCount(UnsignedInt(0))
-
-    @primitive
-    def frontmatter(self) -> FrontmatterNode:
-        """The item's frontmatter block; missing for an item that is not UTF-8."""
-        source = self._database.item_text(self._ref)
-        return self._database.item_frontmatter(source) if isinstance(source, ItemText) else MissingFrontmatter()
-
-    @primitive
-    def links(self) -> tuple[Link, ...]:
-        """The links of the item's parse; none for an item that is not UTF-8."""
-        source = self._database.item_text(self._ref)
-        return self._database.item_parse(source).links if isinstance(source, ItemText) else ()
-
-    @primitive
-    def anchors(self) -> frozenset[Anchor]:
-        """The anchor of every heading of the item's parse; none for an item that is not UTF-8."""
-        source = self._database.item_text(self._ref)
-        return self._database.item_parse(source).anchors if isinstance(source, ItemText) else frozenset()
-
-    @primitive
     def link_targets(self) -> Mapping[NormalisedLinkPath, LinkTargetEntry]:
         """What the snapshot holds at each relative link's target; none for an item that is not UTF-8."""
+        self._record(self._read_key('item_text'))
         source = self._database.item_text(self._ref)
         return self._database.item_link_targets(source) if isinstance(source, ItemText) else FrozenMapping({})
 
@@ -337,29 +284,6 @@ class _ItemPrimitives(_Reads[MarkdownItemRef, '_ItemPrimitives']):
         """Where the item's relative links are read from; `None` for an item that is not UTF-8."""
         source = self._database.item_text(self._ref)
         return source.descriptor.link_base if isinstance(source, ItemText) else None
-
-    @primitive
-    def item_name(self) -> AspectFilename | SpecName | None:
-        """The typed name of a document or meta specification; `None` for any other item or one that is not UTF-8."""
-        source = self._database.item_text(self._ref)
-        origin = source.descriptor.origin if isinstance(source, ItemText) else None
-        # Keep this dispatch: documents and specifications have different name formats; skills and resources have none.
-        match origin:
-            case DocumentOrigin():
-                return AspectFilename.parse(origin.expected_name)
-            case SpecificationOrigin():
-                return parse_spec_name(origin.expected_name)
-            case _:
-                return None
-
-    @primitive
-    def item_corpus(self) -> CorpusName | None:
-        """The typed corpus a document lies in; `None` for any other item or one that is not UTF-8."""
-        source = self._database.item_text(self._ref)
-        origin = source.descriptor.origin if isinstance(source, ItemText) else None
-        # Keep this dispatch: this query answers for user documents; a specification's `corpus` is a prefix of its
-        # name, and a skill has none.
-        return CorpusName.parse(origin.corpus) if isinstance(origin, DocumentOrigin) else None
 
     @primitive
     def item_base(self) -> AspectFilename | SpecName | None:
@@ -394,12 +318,10 @@ class Database:
     `item_text` decodes an item's bytes; `item_link_targets` resolves its relative links against the snapshot and
     scope. Their carry-over rules are stated by their methods.
 
-    Derived queries read other queries: `item_frontmatter(source)`, `item_parse(source)`,
-    `item_token_count(source)`, `item_line_count(source)` derive values from decoded text;
-    `item_governance(ref)` reads the model.
-    `skill_fields_query`, `frontmatter_owner_query` and `schema_problems_query`
-    (`lorecraft.project.schemas`) run through `query(query, ref)`, which memoizes each answer and its reads. Schema
-    queries use the same cache keyed by `(query, SchemaReference)` and read immutable inputs from the model.
+    Declared queries in `lorecraft.project.query` derive item facts from raw primitive state. Other declared queries,
+    including `skill_fields_query`, `frontmatter_owner_query` and `schema_problems_query`, run through `query(query,
+    ref)`, which memoizes each answer and its reads. Schema queries use the same cache keyed by `(query,
+    SchemaReference)` and read immutable inputs from the model.
 
     The item family is keyed by `MarkdownItemRef`. A resource's
     reference is registered from its listing by `resource_item(location)`. A document outside the model's listing is
@@ -408,8 +330,7 @@ class Database:
     The snapshot questions are `source_lines(path)`, `refusals()` and `unreported_docs_refusals()`: the first two are
     answered on each call; the last is cached for this database's lifetime and recomputed from the next revision's
     refusals and model failures. The declared query `query(query, ref)` memoizes its answer and read set;
-    `query_reads(query, ref)` holds typed reads and is empty before that query runs. `item_structure_specs` and
-    `item_has_link_to` are not cached separately and carry over with the query results they read.
+    `query_reads(query, ref)` holds typed reads and is empty before that query runs.
     """
 
     def __init__(self, fs: VirtualFileSystem, model: WorkspaceModel) -> None:
@@ -435,10 +356,6 @@ class Database:
         self._items: dict[MarkdownItemRef, ResolvedItem] = {}
         self._item_texts: dict[MarkdownItemRef, ItemText | Undecodable] = {}
         self._item_link_targets: dict[MarkdownItemRef, Mapping[NormalisedLinkPath, LinkTargetEntry]] = {}
-        self._item_frontmatters: dict[MarkdownItemRef, FrontmatterNode] = {}
-        self._item_parses: dict[MarkdownItemRef, ParsedDocument] = {}
-        self._item_token_counts: dict[MarkdownItemRef, TokenCount] = {}
-        self._item_line_counts: dict[MarkdownItemRef, LineCount] = {}
         # Declared queries: the answer by the function and the item, with the primitive and cross-item query keys
         # it read.
         self._queries: dict[Read, tuple[object, frozenset[Read]]] = {}
@@ -477,7 +394,7 @@ class Database:
     def model(self) -> WorkspaceModel:
         """The workspace model the snapshot declares, loaded when the database was opened. Raises nothing.
 
-        Carry-over: kept for the next revision unless one of these changed, as the module docstring details:
+        Carry-over: kept for the next revision unless the model's structural inputs changed:
 
         - An entry added or deleted under `docs/`, or a changed specification.
         - An entry added or deleted in a skills directory, in a skill's directory, or at or on the way to the
@@ -485,6 +402,9 @@ class Database:
         - A link that changed its target on the way to a skill or its `SKILL.md`, or on the chain of a skills
           directory an agent declares, an entry of one, or such an entry's `SKILL.md`, a chain leaving the
           repository included; and a directory added or deleted that a `..` on such a chain climbs out of.
+
+        An entry added or deleted anywhere else inside a skill does not invalidate the model: it lists nothing below
+        a skill's directory, and reads nothing there but the way to its `SKILL.md`.
         """
         return self._model
 
@@ -597,7 +517,12 @@ class Database:
         return resources
 
     def _built_scope_index(self) -> ScopeIndex:
-        """The scope index the link-target queries answer from, built on the first call."""
+        """The scope index the link-target queries answer from, built on the first call.
+
+        Carry-over: kept only when the two snapshots' scopes, links and climbed directories are equal as recorded;
+        the change set does not contain scope. A scope change invalidates no other input by itself: additions and
+        removals become entries in the model or skill-resource change sets.
+        """
         if self._scope_index is None:
             self._scope_index = ScopeIndex(self._snapshot)
         return self._scope_index
@@ -686,7 +611,7 @@ class Database:
         Each link is read from the descriptor's link base, which carries its own climb bound, as `link_targets_of`
         states. Raises nothing.
 
-        Carry-over: kept for the next revision only when `item_parse(source)` is kept and every path the query
+        Carry-over: kept for the next revision only when the declared parse query for this item is kept and every path
         looked up, an absent target included, still resolves to the same place and is in the same scope state.
 
         Args:
@@ -694,70 +619,10 @@ class Database:
         """
         targets = self._item_link_targets.get(source.ref)
         if targets is None:
-            links = self.item_parse(source).links
+            links = self.query(item_parse, source.ref).links
             targets = link_targets_of(links, source.descriptor.link_base, self._fs, self._built_scope_index())
             self._item_link_targets[source.ref] = targets
         return targets
-
-    # Derived queries: each reads other queries and carries over with the queries it reads.
-
-    def item_frontmatter(self, source: ItemText) -> FrontmatterNode:
-        """The frontmatter of one item, parsed from its decoded text on the first call. Raises nothing.
-
-        Cached apart from `item_parse(source)`: the block is decoded here alone.
-
-        Carry-over: kept for the next revision whenever `item_text(source.ref)` is.
-
-        Args:
-            source: The item's text; its ref is the cache key.
-        """
-        decoded = self._item_frontmatters.get(source.ref)
-        if decoded is None:
-            decoded = parse_frontmatter(source.text)
-            self._item_frontmatters[source.ref] = decoded
-        return decoded
-
-    def item_parse(self, source: ItemText) -> ParsedDocument:
-        """The parse tree of one item, parsed from its decoded text on the first call. Raises nothing.
-
-        Carry-over: kept for the next revision whenever `item_text(source.ref)` is.
-
-        Args:
-            source: The item's text; its ref is the cache key.
-        """
-        parsed = self._item_parses.get(source.ref)
-        if parsed is None:
-            parsed = parse_document(source.text)
-            self._item_parses[source.ref] = parsed
-        return parsed
-
-    def item_token_count(self, source: ItemText) -> TokenCount:
-        """The tokens in one item's whole file, counted from the raw text on the first call. Raises nothing.
-
-        Carry-over: kept for the next revision whenever `item_text(source.ref)` is.
-
-        Args:
-            source: The item's text; its ref is the cache key.
-        """
-        count = self._item_token_counts.get(source.ref)
-        if count is None:
-            count = count_tokens(source.text)
-            self._item_token_counts[source.ref] = count
-        return count
-
-    def item_line_count(self, source: ItemText) -> LineCount:
-        """The lines in one item's whole file, counted from the raw text on the first call. Raises nothing.
-
-        Carry-over: kept for the next revision whenever `item_text(source.ref)` is.
-
-        Args:
-            source: The item's text; its ref is the cache key.
-        """
-        count = self._item_line_counts.get(source.ref)
-        if count is None:
-            count = count_lines(source.text)
-            self._item_line_counts[source.ref] = count
-        return count
 
     def item_governance(self, ref: MarkdownItemRef) -> Governance | None:
         """The specifications that govern an item, resolved by the model on the first call for its ref.
@@ -773,18 +638,6 @@ class Database:
             UnlistedItemError: If the reference is not a listed item, registered resource or answerable document path.
         """
         return self._item(ref).governance
-
-    def item_structure_specs(self, ref: MarkdownItemRef) -> tuple[StructureSpec, ...]:
-        """The structure specifications of the layers that loaded for a corpus document or skill entry.
-
-        Not cached: the answer is read off `item_governance(ref)`, which is, so it carries over with it. Resources
-        and specifications have no corpus structure specs.
-
-        Raises:
-            UnlistedItemError: If the reference is not a listed item, registered resource or answerable document path.
-        """
-        governance = self.item_governance(ref)
-        return governance.structure_specs() if governance is not None else ()
 
     @overload
     def query[T](self, query: Query[T], ref: MarkdownItemRef) -> T: ...  # noqa: D102 — implementation documents the overload
