@@ -11,10 +11,10 @@ from lorecraft.project.database import Database, Read
 from lorecraft.project.item import MarkdownItemRef
 from lorecraft.project.layout import SNAPSHOT_SCOPE
 from lorecraft.project.query import CorpusDirectoryPrimitives, Primitives, SchemaPrimitives, SymlinkPrimitives
-from lorecraft.project.schemas.builtin import AGENT_SKILLS_SCHEMA_REFERENCE
 from lorecraft.project.skill import SymlinkRef
 from lorecraft.project.syntax import Heading
 from lorecraft.schemas import SchemaInput, SchemaReference
+from lorecraft.schemas.builtin import AGENT_SKILLS_SCHEMA_REFERENCE
 from lorecraft.vfs import RootExit, take_snapshot
 
 

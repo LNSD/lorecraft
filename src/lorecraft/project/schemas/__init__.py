@@ -77,14 +77,6 @@ from .skill_fields import (
     UnbalancedParentheses,
     parse_skill_fields,
 )
-from .skill_frontmatter import (
-    SKILL_NAME_PATTERN,
-    EmptySkillNameError,
-    InvalidSkillNameFormatError,
-    OverlongSkillNameError,
-    SkillFrontmatter,
-    SkillName,
-)
 from .spec_file import (
     DottedSpecStemError,
     InvalidSpecStemError,
@@ -147,12 +139,6 @@ __all__: list[str] = [
     'StructureSpecProblem',
     'StructureSchemaReadError',
     'Repository',
-    'SkillFrontmatter',
-    'SkillName',
-    'SKILL_NAME_PATTERN',
-    'EmptySkillNameError',
-    'OverlongSkillNameError',
-    'InvalidSkillNameFormatError',
     'AGENT_SKILLS_FRONTMATTER_SCHEMA',
     'SkillField',
     'SkillFieldValue',

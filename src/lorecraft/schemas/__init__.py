@@ -1,4 +1,4 @@
-"""Typed inputs and pure lookup for validation schemas."""
+"""Typed schema identities, provenance, immutable inputs and pure registry lookup."""
 
 from .registry import DuplicateSchemaReferenceError, SchemaReferenceError, SchemaRegistry
 from .types import (

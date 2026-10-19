@@ -12,7 +12,6 @@ import pytest
 from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.schemas import (
-    SKILL_NAME_PATTERN,
     AgentSkillsSchema,
     FieldGuidance,
     InvalidValueProblem,
@@ -30,6 +29,7 @@ from lorecraft.rules.tests.fake_database import (
     namespace_spec,
     structure_spec_path,
 )
+from lorecraft.schemas.agent_skills_frontmatter import SKILL_NAME_PATTERN
 
 from ..invalid_value import InvalidValue
 

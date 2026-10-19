@@ -4,8 +4,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 
 from lorecraft.core.mapping import Plain
-
-from .skill_frontmatter import (
+from lorecraft.schemas.agent_skills_frontmatter import (
     EmptySkillDescriptionError,
     EmptySkillNameError,
     InvalidSkillNameFormatError,

@@ -12,7 +12,6 @@ from lorecraft.project.item import DocumentOrigin, ItemOrigin, MarkdownItemRef
 from lorecraft.project.link_target import DocumentLink, LinkBase, LinkTargetEntry
 from lorecraft.project.query import Query, SchemaQuery
 from lorecraft.project.schemas import SpecName, StructureSpec
-from lorecraft.project.schemas.builtin import AGENT_SKILLS_SCHEMA_INPUT, AGENT_SKILLS_SCHEMA_REFERENCE
 from lorecraft.project.syntax import (
     Anchor,
     FrontmatterNode,
@@ -26,6 +25,7 @@ from lorecraft.project.syntax import (
 from lorecraft.project.workspace import Governance
 from lorecraft.rules.link.queries import linked_documents
 from lorecraft.schemas import SchemaInput, SchemaReference
+from lorecraft.schemas.builtin import AGENT_SKILLS_SCHEMA_INPUT, AGENT_SKILLS_SCHEMA_REFERENCE
 
 
 class _BundledAgentSkillsSchemaPrimitives:

@@ -5,6 +5,7 @@ judgement of it.
 """
 
 from lorecraft.project.syntax import parse_frontmatter
+from lorecraft.schemas.agent_skills_frontmatter import SkillName
 
 from ..skill_fields import (
     AllowedTool,
@@ -16,7 +17,6 @@ from ..skill_fields import (
     parse_allowed_tools,
     parse_skill_fields,
 )
-from ..skill_frontmatter import SkillName
 
 
 def _fields(*lines: str) -> dict[SkillField, object]:

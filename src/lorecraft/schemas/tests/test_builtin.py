@@ -2,12 +2,15 @@
 
 import pytest
 
-from lorecraft.project.schemas.builtin import (
+from lorecraft.schemas import (
+    SchemaInput,
+    SchemaReference,
+)
+from lorecraft.schemas.builtin import (
     AGENT_SKILLS_SCHEMA_INPUT,
     AGENT_SKILLS_SCHEMA_REFERENCE,
     register_builtin_schemas,
 )
-from lorecraft.schemas import SchemaInput, SchemaReference
 
 
 @pytest.mark.unit

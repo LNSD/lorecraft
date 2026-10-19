@@ -9,6 +9,7 @@ import pytest
 
 from lorecraft.core.mapping import FrozenMapping, Plain
 from lorecraft.jsonschema import JsonType
+from lorecraft.schemas.agent_skills_frontmatter import SKILL_NAME_PATTERN
 
 from ..agent_skills_schema import AGENT_SKILLS_FRONTMATTER_SCHEMA
 from ..frontmatter_problem import (
@@ -20,7 +21,6 @@ from ..frontmatter_problem import (
     UnknownFieldProblem,
     WrongTypeProblem,
 )
-from ..skill_frontmatter import SKILL_NAME_PATTERN
 
 NAME_GUIDANCE: Final[FieldGuidance] = FieldGuidance(
     description=(

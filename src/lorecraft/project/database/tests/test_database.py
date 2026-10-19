@@ -17,10 +17,16 @@ from lorecraft.project.schemas.agent_skills_schema import (
     AGENT_SKILLS_FRONTMATTER_SCHEMA,
     agent_skills_frontmatter_schema_query,
 )
-from lorecraft.project.schemas.builtin import AGENT_SKILLS_SCHEMA_INPUT, AGENT_SKILLS_SCHEMA_REFERENCE
 from lorecraft.project.skill import OutsideSymlink, SymlinkRef
 from lorecraft.project.syntax import Heading
-from lorecraft.schemas import BundledOrigin, SchemaInput, SchemaKind, SchemaReference, SchemaReferenceError
+from lorecraft.schemas import (
+    BundledOrigin,
+    SchemaInput,
+    SchemaKind,
+    SchemaReference,
+    SchemaReferenceError,
+)
+from lorecraft.schemas.builtin import AGENT_SKILLS_SCHEMA_INPUT, AGENT_SKILLS_SCHEMA_REFERENCE
 from lorecraft.vfs import OsRefusal, RefusedRead, RootExit, Snapshot, SnapshotRecords
 
 GUIDE: MarkdownItemRef = MarkdownItemRef(RootRelativePath.parse('docs/code/guide.md'))
