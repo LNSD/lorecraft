@@ -95,6 +95,23 @@ are interchangeable.
     them via its existing failed-structure mechanism (`_record_failed_structure`). When the floor schema is not
     pre-registered, no compatibility preflight is executed and no contradiction can occur. `lorecraft.schemas` does
     not execute compatibility checks, compose layers, or enforce failed-layer policy.
+14. **One query resolves an item's applicable frontmatter schemas.** An item query resolves its applicable frontmatter
+    schemas as an ordered tuple of `SchemaRef`: any bundled floor schemas declared for its kind (such as the Agent
+    Skills floor for skill entrypoints, when pre-registered), followed by each loaded governing layer's frontmatter
+    schema from broad to narrow. Every schema in the tuple is read through the typed `query_schema` operation.
+    Repository frontmatter schemas are no longer read through a separate structure-spec wrapper.
+15. **One locator maps schema violations to located problems with progressive deduplication.** Rather than maintaining
+    kind-specific locators, one frontmatter schema locator validates frontmatter against each applicable schema in the
+    tuple. Missing-field diagnostics are deduplicated progressively: a missing-field violation is suppressed if any
+    earlier schema in the tuple already reported a missing field on the same line. Differences in validator backends
+    (JSON Schema for repository schemas and Pydantic for the Agent Skills floor) produce uniform `FrontmatterProblem`
+    instances and do not obstruct shared location or progressive deduplication.
+16. **Frontmatter governance and rule gates are uniform across all item kinds.** An item is governed for
+    `MetaSpecPart.FRONTMATTER` exactly when its applicable frontmatter schema tuple is non-empty. Every frontmatter
+    rule, including `name_mismatch`, declares `ByMetaSpec(MetaSpecPart.FRONTMATTER)` for every governed item kind.
+    `name_mismatch` is treated as a general invariant of Lorecraft-governed frontmatter: when an item's frontmatter is
+    governed by any schema, a written string `name` must equal the item's aspect name (its filename for documents, or
+    its directory name for skills). `BySchema` is no longer used by frontmatter rules.
 
 ### Design Shape
 
@@ -168,6 +185,13 @@ results.
   not promise uniform validation behavior; the skills floor keeps its current compatibility contract.
 - Local-only registry resolution retains deterministic, offline behavior and the existing restriction against
   cross-resource `$ref` resolution.
+- Resolving applicable schemas as an ordered tuple of schema references and querying each via `query_schema`
+  unifies the validation query and problem location across bundled and repository schemas, eliminating kind-based
+  branches from `frontmatter_schema_problems`.
+- Progressive missing-field deduplication across earlier schemas in the tuple generalizes floor-only suppression
+  to any combination of bundled and repository layers.
+- Gating all frontmatter rules on `ByMetaSpec(FRONTMATTER)` establishes complete gate homogeneity across item kinds
+  and removes `BySchema` from frontmatter rules.
 
 ## Deferred
 
@@ -199,6 +223,12 @@ results.
 - [ ] Bounded compatibility preflight is executed by a project-owned operation against the pre-registered floor
       schema input and reported to the loader's failed-structure records, keeping `lorecraft.schemas` free of
       project governance and failure policy
+- [ ] Applicable frontmatter schemas are resolved as an ordered tuple of `SchemaRef` and read through `query_schema`,
+      for both bundled floor schemas and repository layers
+- [ ] Frontmatter schema problems are located by one locator that deduplicates missing-field findings progressively
+      across earlier schemas in the tuple
+- [ ] `MetaSpecPart.FRONTMATTER` is governed exactly when an item's applicable frontmatter schema tuple is non-empty,
+      and all frontmatter rules use `ByMetaSpec(FRONTMATTER)` for every governed item kind
 - [ ] Schema subject identities and read sets can be compared across database revisions by a future `advance`
       implementation; this ADR does not implement advancement
 - [ ] Internal schema references do not enable external JSON Schema resources or change current dialect and

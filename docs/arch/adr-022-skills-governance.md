@@ -56,6 +56,12 @@ matching namespace layers. It has a built-in origin rather than a fabricated rep
 Repository schema findings identify the repository layer; built-in findings retain their current provenance
 and wording wherever FR-013 requires compatibility.
 
+The floor schema enters as the first entry in a skill's applicable frontmatter schema tuple and is queried through
+the schema registry (`query_schema`). Each schema in the tuple is evaluated by one common locator, and missing-field
+deduplication applies progressively across any earlier schemas in the tuple rather than through a skills-only
+branch. Frontmatter rules (including directory name matching) gate uniformly on `ByMetaSpec(FRONTMATTER)` whenever
+the tuple is non-empty.
+
 One declaration supplies the built-in field constraints, the representation exposed as the built-in schema,
 and its generated documentation. No hand-maintained copy of those constraints is introduced.
 Rules needing a skill's identity, such as its name matching its directory, remain rules rather than pretending
@@ -152,6 +158,11 @@ It does not create a second matching algorithm or require a docs/skills/ directo
   It is visible per invocation rather than inherited from an environment variable.
 - A docs/skills/ directory loses ordinary document-corpus semantics. Its overlap diagnostic explains why its
   documents are unchecked; making that diagnostic an error does not make those documents governed.
+- Reading the floor schema through the schema registry unifies skills and document frontmatter validation into one
+  ordered schema tuple, removing bespoke skill-only branches from `frontmatter_schema_problems`.
+- Progressive missing-field deduplication across earlier schemas in the tuple preserves the guarantee that an
+  absent field required by both floor and repository layers is reported once, without treating the floor as an
+  architectural exception.
 
 ## Alternatives Considered
 
@@ -177,6 +188,8 @@ It does not create a second matching algorithm or require a docs/skills/ directo
 - [ ] A detected contradiction names the faulty meta spec and fails check even when no skill exists
 - [ ] A reserved docs corpus is excluded and reported once, warning by default and promoted to error by `--error <selectors>`
 - [ ] Inspection reports the same governing layers the checker uses, with honest built-in provenance
+- [ ] The floor schema is queried via `query_schema` as the first entry in the skill's applicable frontmatter schema tuple
+- [ ] Missing-field deduplication operates progressively across earlier schemas in the applicable tuple
 
 ## References
 
@@ -185,3 +198,5 @@ It does not create a second matching algorithm or require a docs/skills/ directo
   document layers and failed-layer semantics remain in force
 - [adr-023](adr-023-governed-items.md) - Related: Unified governed-item reference, model-resolved descriptor and
   hierarchical resource governance identity
+- [adr-028](adr-028-schema-registry.md) - Foundation: Central schema registry, query-backed schema resolution and
+  unified frontmatter schema path
