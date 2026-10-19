@@ -1,10 +1,12 @@
 """The rule table: the rules a run enables, each with its severity, and their partition by base."""
 
+from types import MappingProxyType
 from typing import Final
 
 import pytest
 
 from lorecraft import rules
+from lorecraft.project.item import ItemKind
 from lorecraft.rules.corpus.reserved_corpus_overlap import ReservedCorpusOverlap
 from lorecraft.rules.frontmatter.allowed_tools_too_long import AllowedToolsTooLong
 from lorecraft.rules.frontmatter.duplicate_key import DuplicateKey
@@ -578,3 +580,58 @@ class TestRuleTable:
         assert table.symlink_rules == (EnabledRule(EscapingSymlink, Severity.WARNING),), (
             'a rule over a layout entry joins the layout partition, and no other'
         )
+
+
+@pytest.mark.unit
+class TestRuleTableItemIndex:
+    def test_item_rules_with_a_spec_gate_are_indexed_by_kind_and_facet(self) -> None:
+        #: Given
+        severities: dict[type[Rule], Severity] = {TooManyTokens: Severity.ERROR}
+        expected = (EnabledRule(TooManyTokens, Severity.ERROR),)
+
+        #: When
+        table = RuleTable(severities)
+
+        #: Then
+        assert table.item_rules(ItemKind.DOCUMENT, Facet.BUDGET) == expected, (
+            'the document budget gate indexes its rule'
+        )
+        assert table.item_rules(ItemKind.DOCUMENT, Facet.OUTLINE) == (), 'a different facet has no budget rule'
+
+    def test_item_rules_with_a_schema_gate_are_indexed_without_a_facet(self) -> None:
+        #: Given
+        severities: dict[type[Rule], Severity] = {NameMismatch: Severity.ERROR}
+        expected = (EnabledRule(NameMismatch, Severity.ERROR),)
+
+        #: When
+        table = RuleTable(severities)
+
+        #: Then
+        assert table.item_rules(ItemKind.SKILL_ENTRY, None) == expected, 'schema gates use the no-facet index'
+        assert table.item_rules(ItemKind.SKILL_ENTRY, Facet.FRONTMATTER) == (), 'schema gates do not use facet indexes'
+
+    def test_frontmatter_rule_with_skill_entry_gate_is_indexed_by_frontmatter(self) -> None:
+        #: Given
+        severities: dict[type[Rule], Severity] = {DuplicateKey: Severity.ERROR}
+        expected = (EnabledRule(DuplicateKey, Severity.ERROR),)
+
+        #: When
+        table = RuleTable(severities)
+
+        #: Then
+        assert table.item_rules(ItemKind.SKILL_ENTRY, Facet.FRONTMATTER) == expected, (
+            'skill frontmatter rules use the active frontmatter facet'
+        )
+
+    def test_item_rule_without_gates_raises_when_table_is_built(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        #: Given
+        rule = TooManyTokens
+        severities: dict[type[Rule], Severity] = {rule: Severity.ERROR}
+        monkeypatch.setattr(rule, 'GATES', MappingProxyType({}))
+
+        #: When
+        with pytest.raises(UnknownRuleBaseError) as exc_info:
+            RuleTable(severities)
+
+        #: Then
+        assert exc_info.value.rule is rule, 'the table rejects an item rule that declares no gate'
