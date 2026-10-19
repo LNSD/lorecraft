@@ -6,8 +6,8 @@ carry-over rules. Declared queries run through `query(query, ref)`, which memoiz
 item values such as parsing, frontmatter, counts and structure specifications are declared in `lorecraft.project.query`
 and derive from raw primitive state.
 
-The item family shares `ItemRef` across documents, skill entrypoints and resources. Resource references are
-registered from their skill's listing; documents not listed by the model can still be resolved from their corpus and
+The item family shares `ItemRef` across documents, skill entrypoints and resources. Resources resolve from their
+reference through the skill listings; documents not listed by the model can still be resolved from their corpus and
 filename. A new database is created for each snapshot, and no derived value is cached across databases here.
 
 The reserved, unimplemented `advance(snapshot) -> Database` would diff two snapshots and carry cached values only
@@ -325,10 +325,9 @@ class Database:
     ref)`, which memoizes each answer and its reads. Schema queries use the same cache keyed by `(query,
     SchemaRef)` and read immutable inputs from the model.
 
-    The item family is keyed by `ItemRef`. A resource's
-    reference is registered from its listing by `resource_item(location)`. A document outside the model's listing is
-    still resolved from its corpus and filename. `from_snapshot(snapshot)` starts a fresh database; it carries no
-    cached values from another revision. `resource_item(location)` registers a resource under the ref in its listing.
+    The item family is keyed by `ItemRef`. A resource is resolved from its reference through its skill's listing. A
+    document outside the model's listing is still resolved from its corpus and filename. `from_snapshot(snapshot)`
+    starts a fresh database; it carries no cached values from another revision.
     The snapshot questions are `source_lines(path)`, `refusals()` and `unreported_docs_refusals()`: the first two are
     answered on each call; the last is cached for this database's lifetime and recomputed from the next revision's
     refusals and model failures. The declared query `query(query, ref)` memoizes its answer and read set;
@@ -361,7 +360,7 @@ class Database:
         # Declared queries: the answer by the function and the item, with the primitive and cross-item query keys
         # it read.
         self._queries: dict[Read, tuple[object, frozenset[Read]]] = {}
-        # Each skill's resource listing, found on the first call; a resource is registered from it with `resource_item`.
+        # Each skill's resource listing, found on the first call.
         self._skill_resources: dict[SkillRef, SkillResourceListing] = {}
 
     @classmethod
@@ -464,13 +463,16 @@ class Database:
         if document is not None:
             return _witness_text(self.item_text(ItemRef(document.path)))
 
+        for specification in self._model.specifications():
+            if path == specification.path:
+                return _witness_text(self.item_text(ItemRef(path)))
         for location in self._model.skill_locations.values():
             if path == location.ref.path:
                 return _witness_text(self.item_text(ItemRef(location.ref.path)))
             if path.is_relative_to(location.ref.directory):
-                for resource in self.skill_resources(location).resources:
-                    if path == resource.ref.path:
-                        return _witness_text(self.item_text(self.resource_item(resource)))
+                resource = self._resource_location(ItemRef(path))
+                if resource is not None:
+                    return _witness_text(self.item_text(ItemRef(path)))
 
         if path.parent == SPECS_DIR:
             try:
@@ -529,7 +531,7 @@ class Database:
             self._scope_index = ScopeIndex(self._snapshot)
         return self._scope_index
 
-    # Item resolution and registration use the common reference; listed resources and unlisted documents enter here.
+    # Item resolution uses the common reference; resources and unlisted documents enter here.
 
     def _item(self, ref: ItemRef) -> ResolvedItem:
         """The descriptor and governance for a listed item, resource or answerable document, found once."""
@@ -537,11 +539,27 @@ class Database:
         if resolved is None:
             resolved = self._model.find_item(ref)
             if resolved is None:
-                # A document's path can be answerable even when the model does not list it. Resources are registered
-                # here from their skill's listing before any item query asks for them.
-                resolved = self._model.resolve_item(ref)
+                resource = self._resource_location(ref)
+                resolved = (
+                    self._model.resolve_resource(resource.ref, resource)
+                    if resource is not None
+                    else self._model.resolve_item(ref)
+                )
             self._items[ref] = resolved
         return resolved
+
+    def _resource_location(self, ref: ItemRef) -> SkillResourceLocation | None:
+        """Locate one resource from its common ref through the owning skill's listing.
+
+        Carry-over: valid only while the next model locates the same skill directory and its listing resolves this
+        resource to the same file. Listing inputs are owned by `skill_resources`; a missing ref raises through the
+        normal unlisted-item path below.
+        """
+        for skill in self._model.skill_locations.values():
+            if ref.path.is_relative_to(skill.ref.directory):
+                listing = self.skill_resources(skill)
+                return next((item for item in listing.resources if item.ref.path == ref.path), None)
+        return None
 
     # Input query: decode one resolved item's bytes into the witness all content queries read.
 
@@ -578,32 +596,6 @@ class Database:
                 raise ItemReadError(ref, source=exc) from exc
             self._item_texts[ref] = decoded
         return decoded
-
-    def resource_item(self, location: SkillResourceLocation) -> ItemRef:
-        """The common reference of a skill's resource, resolved from the location its skill's listing gives.
-
-        The model lists no resource, so the resource is kept apart from the listed items, as an unlisted document is:
-        the `item_*` queries answer for its reference, and the listed items still refuse it. Raises nothing.
-
-        Carry-over: this registration is database-local. In the next revision, the resource's item queries can carry
-        over only when its listing resolves the ref to the same file and the relevant query inputs are unchanged.
-
-        Args:
-            location: The resource, as `skill_resources` locates it; its resolved file is where the text is read.
-        """
-        item = ItemRef(location.ref.path)
-        self._register(item, lambda: self._model.resolve_resource(location))
-        return item
-
-    def _register(self, item: ItemRef, resolve: Callable[[], ResolvedItem]) -> None:
-        """Keep a resource's resolved item once, before its common-ref queries ask for it.
-
-        Args:
-            item: The item to keep.
-            resolve: Resolves the item; called only for an item not kept yet.
-        """
-        if item not in self._items:
-            self._items[item] = resolve()
 
     # Input query: resolve the paths named by one item's links against the snapshot and scope.
 
@@ -728,11 +720,14 @@ class Database:
         return schema_input
 
     def _outside_symlink(self, ref: OutsideSymlinkRef) -> OutsideSymlink:
-        """Find one symlink by its typed subject reference, including a skill resource link."""
+        """Resolve one outside symlink by ref, listing its owning skill when it is inside a skill."""
         found = self._model.outside_symlinks.get(ref.path)
         if found is not None:
             return found
-        for listing in self._skill_resources.values():
+        for skill in self._model.skill_locations.values():
+            if not ref.path.is_relative_to(skill.ref.directory):
+                continue
+            listing = self.skill_resources(skill)
             for outside in listing.outside_symlinks:
                 if outside.path == ref.path:
                     return outside
