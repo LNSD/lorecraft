@@ -21,7 +21,7 @@ from lorecraft.project.query import (
 )
 from lorecraft.project.schemas.agent_skills_schema import (
     AGENT_SKILLS_FRONTMATTER_SCHEMA,
-    agent_skills_frontmatter_schema_query,
+    agent_skills_frontmatter_schema,
 )
 from lorecraft.project.skill import OutsideSymlink, SymlinkRef
 from lorecraft.project.syntax import Heading
@@ -274,14 +274,14 @@ class TestReads:
         database = _database()
 
         #: When
-        schema = database.query(agent_skills_frontmatter_schema_query, AGENT_SKILLS_SCHEMA_REFERENCE)
+        schema = database.query(agent_skills_frontmatter_schema, AGENT_SKILLS_SCHEMA_REFERENCE)
 
         #: Then
         assert schema is AGENT_SKILLS_FRONTMATTER_SCHEMA, 'the schema query preserves the Pydantic validator instance'
         assert database.model().schema_inputs[AGENT_SKILLS_SCHEMA_REFERENCE] == AGENT_SKILLS_SCHEMA_INPUT, (
             'the loaded model exposes the built-in schema with bundled provenance'
         )
-        assert database.query_reads(agent_skills_frontmatter_schema_query, AGENT_SKILLS_SCHEMA_REFERENCE) == {
+        assert database.query_reads(agent_skills_frontmatter_schema, AGENT_SKILLS_SCHEMA_REFERENCE) == {
             Read('schema_input', AGENT_SKILLS_SCHEMA_REFERENCE)
         }, 'the built-in schema query records its typed registry input dependency'
 

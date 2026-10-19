@@ -61,7 +61,7 @@ from lorecraft.project.schemas import (
     TitlePattern,
     UnknownFieldProblem,
     WrongTypeProblem,
-    schema_problems_query,
+    frontmatter_schema_problems,
 )
 from lorecraft.project.skill import (
     SkillLocation,
@@ -1362,8 +1362,8 @@ class TestCheckSubjects:
 
         #: Then
         assert database.parsed_frontmatters == [], 'no enabled rule reads the frontmatter, so it is never parsed'
-        assert database.query_reads(schema_problems_query, MarkdownItemRef(GUIDE.path)) == frozenset()
-        assert database.query_reads(schema_problems_query, MarkdownItemRef(REVIEW_FILE)) == frozenset()
+        assert database.query_reads(frontmatter_schema_problems, MarkdownItemRef(GUIDE.path)) == frozenset()
+        assert database.query_reads(frontmatter_schema_problems, MarkdownItemRef(REVIEW_FILE)) == frozenset()
 
     def test_check_subjects_with_no_frontmatter_schema_never_parses_a_document_frontmatter(
         self, package_table: RuleTable
@@ -1645,8 +1645,8 @@ class TestCheckSubjects:
         check_subjects(database, subjects, table)
 
         #: Then
-        assert database.query_reads(schema_problems_query, MarkdownItemRef(GUIDE.path)) == frozenset()
-        assert database.query_reads(schema_problems_query, MarkdownItemRef(REVIEW_FILE)) == frozenset()
+        assert database.query_reads(frontmatter_schema_problems, MarkdownItemRef(GUIDE.path)) == frozenset()
+        assert database.query_reads(frontmatter_schema_problems, MarkdownItemRef(REVIEW_FILE)) == frozenset()
 
     def test_check_subjects_with_a_document_without_its_title_reports_missing_title(
         self, package_table: RuleTable
