@@ -1,7 +1,7 @@
 """The rules engine's shared runner: every enabled rule over a subject, through one rule table.
 
 This is what every mode of the engine shares: the governance lookup, gate evaluation, and running
-the table's rules over a subject into its report. It holds no mode's policy. A document, specification, skill
+the table's rules over a subject into its report. It holds no mode's policy. A document, meta spec, skill
 and resource are decoded by each mode's own entry point beside this module, `skip.check_subjects` for the check run,
 so that its policy for an item a failed layer governs comes after decoding; the entry point hands the decoded item to
 `judge_item` and the other subjects to the functions here.
@@ -15,14 +15,14 @@ Subject decoding precedes rule judgment. Each subject is decoded once: one that 
 `UndecodableSubject`, whatever the table enables, and no rule sees it. A decoded item is then judged group by
 group: for each group of enabled rules that applies to its kind, the runner checks the rule's gate, runs the rules
 whose gates admit the item, and records an ungoverned meta spec part as coverage rather than a diagnostic. A rule over a
-Markdown file judges a document when its structure specification is loaded, alongside rules gated by a named
-meta spec part. A document in no corpus, or in one that states no structure specification, has no such part
+Markdown file judges a document when its structure file is loaded, alongside rules gated by a named
+meta spec part. A document in no corpus, or in one that states no structure file, has no such part
 governed, and no such rule is run over it. Package checks judge skill entrypoints independently of corpus
 governance. Package Markdown checks judge resources independently of corpus governance. A rule over a skill entrypoint
 judges every `SKILL.md` and every resource, and never a document. The database answers only what a rule's query reads,
 so a value no enabled rule reads is never computed.
 
-The subjects are those of `skip.CheckedSubject`, which defines and dispatches them: documents, specifications, skills,
+The subjects are those of `skip.CheckedSubject`, which defines and dispatches them: documents, meta specs, skills,
 skills' resources and layout entries. A decoded document, skill or resource
 is judged by the one entry `judge_item`; a layout entry has a function of its own, so a subject kind without one is a
 type error. A document is handed over as its ref, and a skill as the `SkillLocation` the
@@ -72,7 +72,7 @@ from lorecraft.rules.table import EnabledRule, QueriedItem, RuleTable
 
 
 def judge_item(database: Database, source: ItemText, table: RuleTable) -> CheckedItem:
-    """Run enabled rules over a decoded document, specification, skill or resource.
+    """Run enabled rules over a decoded document, meta spec, skill or resource.
 
     A mode decodes the item and decides what a layer that failed to load means for it; this judges it against the
     gates applicable to its kind. A rule judges an item only when its gate admits that item; an applicable enabled

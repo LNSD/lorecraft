@@ -26,7 +26,7 @@ from lorecraft.vfs import RefusedRead, RefusedRecord
 
 from .runner import check_layout_entry, judge_item
 
-# A subject `check_subjects` dispatches: a document, a meta specification, a skill, a resource, a refused skill alias,
+# A subject `check_subjects` dispatches: a document, a meta spec, a skill, a resource, a refused skill alias,
 # or a layout entry. Each report holds its ref or the path an agent reaches the symlink by.
 type CheckedSubject = (
     ItemRef | SkillLocation | SkillResourceLocation | OutsideSymlink | ReservedCorpusDirectory | RefusedSkillAlias
@@ -39,12 +39,12 @@ def check_subjects(
     table: RuleTable,
     refusals: Mapping[RootRelativePath, RefusedRecord] | None = None,
 ) -> tuple[SubjectReport, ...]:
-    """Run the table's rules over each document, specification, skill, resource and layout entry, and report each.
+    """Run the table's rules over each document, meta spec, skill, resource and layout entry, and report each.
 
     Args:
-        database: The revision the subjects are read from; its model decides which specifications govern each.
-        subjects: The documents, specifications, skills, resources and layout entries to check; a document in no
-            corpus the database's model holds is ungoverned for every gate a specification governs, and a layout
+        database: The revision the subjects are read from; its model decides which meta specs govern each.
+        subjects: The documents, meta specs, skills, resources and layout entries to check; a document in no
+            corpus the database's model holds is ungoverned for every gate a meta spec governs, and a layout
             entry is a symlink whose chain leaves the repository or a directory named like a reserved corpus, as the
             database's model or a skill's resource listing records it.
         table: The rules the run enables, each with its severity.
@@ -95,13 +95,13 @@ def _check_item(
     """Decode one item subject through the item queries, then judge it if it decoded and no failed layer skips it.
 
     Every item kind is decoded the same way, by its common reference. A missing file is reported by the read error of
-    its kind; a specification has none, so it raises the item's own. A document is skipped when a failed layer
+    its kind; a meta spec has none, so it raises the item's own. A document is skipped when a failed layer
     governs it; a skill retains its Agent Skills checks. Resources have no corpus governance, and
-    specifications are governed by the package.
+    meta specs have no corpus governance.
 
     Args:
         database: The revision the item is read from.
-        subject: The document, specification, skill or resource to check.
+        subject: The document, meta spec, skill or resource to check.
         table: The rules the run enables.
 
     Raises:
@@ -143,7 +143,7 @@ def _check_item(
                             frozenset({MetaSpecPart.STRUCTURE, MetaSpecPart.OUTLINE, MetaSpecPart.BUDGET}),
                         )
                 case ItemKind.META_SPEC | ItemKind.SKILL_RESOURCE:
-                    pass  # specs are package governed; resources have no corpus governance
+                    pass  # neither kind is skipped by a failed corpus layer
                 case _:
                     assert_never(source.descriptor.kind)
             return judge_item(database, source, table)

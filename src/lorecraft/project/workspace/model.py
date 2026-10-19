@@ -679,8 +679,8 @@ class WorkspaceModel:
 
         Args:
             ref: Document, skill or meta spec to resolve, whether or not the model lists a document's
-                corpus, or a common ref naming a document. The package governs a meta spec, so it resolves with
-                no governance and the structure and Markdown checks active.
+                corpus, or a common ref naming a document. A meta spec has no corpus governance, so only package
+                checks apply to its Markdown.
 
         Raises:
             UnlistedItemError: If a common ref does not name a valid document path.
