@@ -27,7 +27,7 @@ if TYPE_CHECKING:
     from lorecraft.project.query import GovernancePrimitives, Primitives
 
 
-def owner_of_frontmatter(primitives: 'GovernancePrimitives') -> FrontmatterOwner:
+def owner_of_frontmatter(primitives: GovernancePrimitives) -> FrontmatterOwner:
     """The document or skill whose frontmatter the item opens, from origin facts and governance.
 
     Raises:
@@ -49,14 +49,14 @@ def owner_of_frontmatter(primitives: 'GovernancePrimitives') -> FrontmatterOwner
             raise WrongItemKindError('a document or a skill entry')
 
 
-def parsed_skill_fields(primitives: 'Primitives') -> SkillFields:
+def parsed_skill_fields(primitives: Primitives) -> SkillFields:
     """The independently parsed fields of a skill entry; empty for every other item."""
     if not isinstance(primitives.item_origin(), SkillEntryOrigin):
         return FrozenMapping({})
     return parse_skill_fields(primitives.query(item_frontmatter))
 
 
-def frontmatter_schema_problems(primitives: 'Primitives') -> tuple[SchemaProblems, ...]:
+def frontmatter_schema_problems(primitives: Primitives) -> tuple[SchemaProblems, ...]:
     """What each applicable frontmatter schema rejects, with skill floor problems before corpus problems.
 
     Args:

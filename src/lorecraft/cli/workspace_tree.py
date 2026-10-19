@@ -35,7 +35,7 @@ class _Line:
     """
 
     label: str
-    children: tuple['_Line', ...] = ()
+    children: tuple[_Line, ...] = ()
 
 
 # The JSON `--format json` prints, one `BaseModel` per object, so a misspelt or missing key fails the type

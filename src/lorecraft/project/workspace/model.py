@@ -141,13 +141,13 @@ class Governance:
     """
 
     # Construction arguments, not fields: neither is kept, so neither takes part in equality or hashing.
-    corpus: InitVar['Corpus']  # defined below: a corpus builds its governance, and the governance reads it
+    corpus: InitVar[Corpus]  # defined below: a corpus builds its governance, and the governance reads it
     filename: InitVar[AspectFilename | str]  # matched by hyphen-delimited prefix; the item is the corpus's
     ref: DocumentRef | None = field(init=False)
     corpus_spec: CorpusSpec = field(init=False)
     namespace_specs: tuple[NamespaceSpec, ...] = field(init=False)
 
-    def __post_init__(self, corpus: 'Corpus', filename: AspectFilename | str) -> None:
+    def __post_init__(self, corpus: Corpus, filename: AspectFilename | str) -> None:
         """Derive the governing specs once, from the corpus and the filename."""
         matching: list[NamespaceSpec] = []
         for namespace_spec in corpus.namespace_specs:

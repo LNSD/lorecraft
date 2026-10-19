@@ -599,7 +599,7 @@ def find_lstat_kind(root: Path, path: RootRelativePath) -> EntryKind | None:
     """
     try:
         mode = os.lstat(disk_location(root, path)).st_mode
-    except (FileNotFoundError, NotADirectoryError):  # a missing path has no kind, by contract
+    except FileNotFoundError, NotADirectoryError:  # a missing path has no kind, by contract
         return None
     except OSError as exc:
         raise SnapshotEntryInspectError(path, OsRefusal.from_error(exc), source=exc) from exc
@@ -711,7 +711,7 @@ def find_listing(root: Path, path: RootRelativePath) -> tuple[DirEntry, ...] | N
         with os.scandir(disk_location(root, path)) as scan:
             # os.scandir never yields an empty name, `.`, `..` or a name holding `/`, so parsing never raises here.
             entries = [DirEntry(PathComponent.parse(entry.name), _entry_kind(entry)) for entry in scan]
-    except (FileNotFoundError, NotADirectoryError):  # a missing path is None, by contract
+    except FileNotFoundError, NotADirectoryError:  # a missing path is None, by contract
         return None
     except OSError as exc:
         if exc.errno == errno.ELOOP:  # a looping link leads to no directory, exactly like a dangling one

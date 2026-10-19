@@ -228,7 +228,7 @@ def extension_links_of(
     links: tuple[Link, ...],
     targets: Mapping[NormalisedLinkPath, LinkTargetEntry],
     base: LinkBase,
-    filename: 'AspectFilename | SpecName',
+    filename: AspectFilename | SpecName,
 ) -> tuple[ExtensionLink, ...]:
     """The links to an existing Markdown file beside the document whose name starts with `<filename>-`. Raises nothing.
 

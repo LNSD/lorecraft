@@ -467,7 +467,7 @@ def _list_document_filenames(
     for document_file in document_files:
         try:
             filename = AspectFilename.parse(document_file.stem)
-        except (EmptyAspectNameError, InvalidAspectNameCharacterError):
+        except EmptyAspectNameError, InvalidAspectNameCharacterError:
             continue
         filenames.append(filename)
     return filenames

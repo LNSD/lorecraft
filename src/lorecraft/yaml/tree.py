@@ -64,7 +64,7 @@ class YamlSequence:
         position: Where the sequence starts.
     """
 
-    items: tuple['YamlValue', ...]
+    items: tuple[YamlValue, ...]
     position: YamlPosition
 
 
@@ -78,7 +78,7 @@ class YamlMapping:
         position: Where the mapping starts.
     """
 
-    entries: tuple[tuple[YamlKey, 'YamlValue'], ...]
+    entries: tuple[tuple[YamlKey, YamlValue], ...]
     position: YamlPosition
 
 

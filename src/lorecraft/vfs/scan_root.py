@@ -68,7 +68,7 @@ class ScanRoot:
         """
         return UnsignedInt(len(path.parent.parts) - len(self.directory.parts))
 
-    def find_root_below(self, directory: RootRelativePath, *, levels: NonZeroUnsignedInt) -> 'ScanRoot | None':
+    def find_root_below(self, directory: RootRelativePath, *, levels: NonZeroUnsignedInt) -> ScanRoot | None:
         """The root that lists `directory` with the depth this root has left `levels` levels down.
 
         The scan lists a DIRECTORY entry of `self.directory` as `find_root_below(entry, levels=NonZeroUnsignedInt(1))`,
@@ -90,7 +90,7 @@ class ScanRoot:
             return None
         return ScanRoot(directory, depth_left, follow_links=self.follow_links)
 
-    def is_at_least_as_deep_as(self, other: 'ScanRoot') -> bool:
+    def is_at_least_as_deep_as(self, other: ScanRoot) -> bool:
         """Whether a scan of this root lists at least as many levels below its directory as one of `other`.
 
         The scan lists a directory again only when a later root asks for more under it than an earlier one

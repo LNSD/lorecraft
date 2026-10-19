@@ -138,7 +138,7 @@ class _Reads[R: SubjectRef, P: _HasRecordedReads](metaclass=ABCMeta):
 
     __slots__ = ('__reads', '_database', '_ref')
 
-    def __init__(self, database: 'Database', ref: R) -> None:
+    def __init__(self, database: Database, ref: R) -> None:
         self.__reads: set[Read] = set()
         self._database = database
         self._ref = ref
@@ -191,7 +191,7 @@ class _ReadSchemaPrimitives(_Reads[SchemaReference, '_ReadSchemaPrimitives']):
 
     __slots__ = ()
 
-    def _fresh(self, ref: SchemaReference) -> '_ReadSchemaPrimitives':
+    def _fresh(self, ref: SchemaReference) -> _ReadSchemaPrimitives:
         return _ReadSchemaPrimitives(self._database, ref)
 
     def schema_input(self) -> SchemaInput:
@@ -205,7 +205,7 @@ class _ReadSymlinkPrimitives(_Reads[SymlinkRef, '_ReadSymlinkPrimitives']):
 
     __slots__ = ()
 
-    def _fresh(self, ref: SymlinkRef) -> '_ReadSymlinkPrimitives':
+    def _fresh(self, ref: SymlinkRef) -> _ReadSymlinkPrimitives:
         return _ReadSymlinkPrimitives(self._database, ref)
 
     @primitive
@@ -219,7 +219,7 @@ class _ReadCorpusDirectoryPrimitives(_Reads[CorpusDirectoryRef, '_ReadCorpusDire
 
     __slots__ = ()
 
-    def _fresh(self, ref: CorpusDirectoryRef) -> '_ReadCorpusDirectoryPrimitives':
+    def _fresh(self, ref: CorpusDirectoryRef) -> _ReadCorpusDirectoryPrimitives:
         return _ReadCorpusDirectoryPrimitives(self._database, ref)
 
     @primitive
@@ -255,7 +255,7 @@ class _ItemPrimitives(_Reads[MarkdownItemRef, '_ItemPrimitives']):
 
     __slots__ = ()
 
-    def _fresh(self, ref: MarkdownItemRef) -> '_ItemPrimitives':
+    def _fresh(self, ref: MarkdownItemRef) -> _ItemPrimitives:
         return _ItemPrimitives(self._database, ref)
 
     @primitive

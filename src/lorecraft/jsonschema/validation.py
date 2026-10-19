@@ -165,7 +165,7 @@ class CheckedSchema:
         raise TypeError('build a CheckedSchema with CheckedSchema.check(schema)')
 
     @classmethod
-    def check(cls, schema: Mapping[str, Plain]) -> 'CheckedSchema | SchemaCheckFailure':
+    def check(cls, schema: Mapping[str, Plain]) -> CheckedSchema | SchemaCheckFailure:
         """Return the schema ready to validate, or the first reason `check_schema` refuses it."""
         failure = check_schema(schema)
         if failure is not None:

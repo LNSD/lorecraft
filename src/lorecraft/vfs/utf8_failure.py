@@ -43,7 +43,7 @@ class Utf8Reason(Enum):
     """Any other wording: the three above are CPython's, and a runtime that words a reason differently lands here."""
 
     @classmethod
-    def _missing_(cls, value: object) -> 'Utf8Reason':
+    def _missing_(cls, value: object) -> Utf8Reason:
         """Map a wording this enum does not know to `OTHER`, so an unfamiliar decoder reports instead of crashing.
 
         Args:

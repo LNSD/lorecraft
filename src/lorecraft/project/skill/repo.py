@@ -116,7 +116,7 @@ class SkillResourceListing:
 
     resources: tuple[SkillResourceLocation, ...]
     outside_symlinks: tuple[OutsideSymlink, ...]
-    refused_aliases: tuple['RefusedSkillAlias', ...] = ()
+    refused_aliases: tuple[RefusedSkillAlias, ...] = ()
 
 
 @dataclass(frozen=True, slots=True, order=True)

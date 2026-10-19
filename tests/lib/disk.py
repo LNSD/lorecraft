@@ -91,7 +91,7 @@ class DiskFileSystem(FileSystem):
         """
         try:
             mode = os.lstat(disk_location(self._root, path)).st_mode
-        except (FileNotFoundError, NotADirectoryError):  # a missing path has no kind, by contract
+        except FileNotFoundError, NotADirectoryError:  # a missing path has no kind, by contract
             return None
         except OSError as exc:
             if exc.errno == errno.ELOOP:  # a looping link on the way leads to no directory, like a dangling one
@@ -111,7 +111,7 @@ class DiskFileSystem(FileSystem):
         """
         try:
             resolved = os.path.realpath(disk_location(self._root, path), strict=True)
-        except (FileNotFoundError, NotADirectoryError):  # missing or through a file resolves to None, by contract
+        except FileNotFoundError, NotADirectoryError:  # missing or through a file resolves to None, by contract
             return None
         except OSError as exc:
             if exc.errno == errno.ELOOP:  # a looping link leads nowhere, exactly like a dangling one
@@ -145,7 +145,7 @@ class DiskFileSystem(FileSystem):
         """
         try:
             resolved = os.path.realpath(disk_location(self._root, path), strict=True)
-        except (FileNotFoundError, NotADirectoryError):  # missing or through a file resolves to None, by contract
+        except FileNotFoundError, NotADirectoryError:  # missing or through a file resolves to None, by contract
             return None
         except OSError as exc:
             if exc.errno == errno.ELOOP:  # a looping link leads nowhere, exactly like a dangling one

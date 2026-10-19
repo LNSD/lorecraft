@@ -61,7 +61,7 @@ class SkillRelativePath:
         """The path with POSIX separators, spelled from the skill's directory, such as `references/a.md`."""
         return str(self.value)
 
-    def __truediv__(self, other: PathComponent | RootRelativePath) -> 'SkillRelativePath':
+    def __truediv__(self, other: PathComponent | RootRelativePath) -> SkillRelativePath:
         """This path joined with `other`, so the result stays inside the skill.
 
         Args:
@@ -143,7 +143,7 @@ class SkillRef:
         """Root-relative `<directory>/SKILL.md`; the report path in findings."""
         return self.directory / SKILL_ENTRY
 
-    def find_resource(self, path: SkillRelativePath) -> 'SkillResourceRef | None':
+    def find_resource(self, path: SkillRelativePath) -> SkillResourceRef | None:
         """The resource of this skill an agent reaches at `path`, or `None` when a file there is no resource.
 
         Decided from the name alone, so it asks nothing of the snapshot; see `SkillResourceRef` for which files are
