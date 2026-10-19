@@ -93,7 +93,7 @@ def _skill_resource_text(database: Database, ref: SkillResourceRef) -> ItemText:
         database: The database the resource is decoded by.
         ref: A resource whose bytes are UTF-8.
     """
-    source = database.item_text(database.resource_item(_listed_resource(database, ref)))
+    source = database.item_text(ItemRef(ref.path))
     assert isinstance(source, ItemText), f'{ref.path} was written as UTF-8, so it decodes'
     return source
 
@@ -416,7 +416,7 @@ class TestDatabaseSkillResources:
         location = _listed_resource(database, ref)
 
         #: When
-        source = database.item_text(database.resource_item(location))
+        source = database.item_text(ItemRef(location.ref.path))
 
         #: Then
         failure = Utf8Failure(
@@ -438,10 +438,10 @@ class TestDatabaseSkillResources:
         database = Database.from_snapshot(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
         ref = SkillResourceRef(REVIEW, SkillRelativePath.parse('references/a.md'))
         location = _listed_resource(database, ref)
-        first = database.item_text(database.resource_item(location))
+        first = database.item_text(ItemRef(location.ref.path))
 
         #: When
-        second = database.item_text(database.resource_item(location))
+        second = database.item_text(ItemRef(location.ref.path))
 
         #: Then
         assert second is first, 'an undecodable resource is cached like any answer, so it is decoded once'

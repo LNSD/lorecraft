@@ -47,7 +47,14 @@ from lorecraft.project.item import (
 from lorecraft.project.layout import DOCS_DIR, DOCUMENT_SUFFIX, SPECS_DIR
 from lorecraft.project.link_target import DocumentDirectory, SkillRoot
 from lorecraft.project.schemas import CorpusSpecName, NamespaceSpecName, StatedFrontmatterSchema, StructureSpec
-from lorecraft.project.skill import OutsideSymlink, SkillLocation, SkillRef, SkillResourceLocation, SkillsDir
+from lorecraft.project.skill import (
+    OutsideSymlink,
+    SkillLocation,
+    SkillRef,
+    SkillResourceLocation,
+    SkillResourceRef,
+    SkillsDir,
+)
 from lorecraft.schemas import SchemaInput, SchemaRef
 from lorecraft.schemas.builtin import AGENT_SKILLS_SCHEMA_REFERENCE
 from lorecraft.vfs import ResolvedPath
@@ -639,19 +646,22 @@ class WorkspaceModel:
         """
         return self.resolve_item(ref).descriptor
 
-    def resolve_resource(self, location: SkillResourceLocation) -> ResolvedItem:
-        """Resolve a skill resource's descriptor without corpus governance.
+    def resolve_resource(self, ref: SkillResourceRef, location: SkillResourceLocation) -> ResolvedItem:
+        """Resolve a skill resource ref's descriptor without corpus governance.
 
         The model lists no resource: only the skill's resource listing locates one, so the caller hands the location
         over. The resource keeps its own ref and read location. Its containing skill is provenance, not a governance
         identity. No skills-corpus schema or structure spec applies; only its Markdown checks are active.
 
         Args:
-            location: Resource to resolve, as its skill's resource listing locates it.
+            ref: Resource identity, as an agent reaches it inside the skill.
+            location: The matching resource location from its skill's listing.
         """
-        skill = location.ref.skill
+        if location.ref != ref:
+            raise ValueError(f'resource location for {location.ref} does not resolve {ref}')
+        skill = ref.skill
         descriptor = ItemDescriptor(
-            ref=ItemRef(location.ref.path),
+            ref=ItemRef(ref.path),
             read_location=location.resolves_to,
             link_base=SkillRoot(skill.directory),
             origin=SkillResourceOrigin(skill_entry=str(skill.entry)),

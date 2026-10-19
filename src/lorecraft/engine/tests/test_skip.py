@@ -189,7 +189,7 @@ class TestCheckSubjectsOverASkillEntry:
         )
         database = Database.from_snapshot(snapshot)
         (location,) = database.skill_resources(database.model().sorted_skill_locations[0]).resources
-        item = database.resource_item(location)
+        item = ItemRef(location.ref.path)
         assert database.item_governance(item) is None, 'the skills corpus does not govern resources'
 
         #: When

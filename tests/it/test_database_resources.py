@@ -14,7 +14,7 @@ from lib.tree import from_tree
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.database import Database, ItemText
 from lorecraft.project.item import ItemKind, ItemRef, SkillResourceOrigin, UnlistedItemError
-from lorecraft.project.skill import SkillResourceLocation
+from lorecraft.project.skill import OutsideSymlinkRef, SkillResourceLocation
 from lorecraft.vfs import (
     DirectoryRecord,
     EntryRecord,
@@ -35,7 +35,7 @@ def _resources(database: Database, skill: str) -> tuple[SkillResourceLocation, .
 
 def _text(database: Database, location: SkillResourceLocation) -> ItemText:
     """The witness of a resource the test wrote as UTF-8, read through the common queries."""
-    source = database.item_text(database.resource_item(location))
+    source = database.item_text(ItemRef(location.ref.path))
     assert isinstance(source, ItemText), f'{location.ref.path} was written as UTF-8, so it decodes'
     return source
 
@@ -47,6 +47,41 @@ def _snapshot_of(records: Mapping[str, EntryRecord]) -> Snapshot:
 
 @pytest.mark.it
 class TestResourceItems:
+    def test_item_text_resolves_a_resource_ref_on_a_fresh_database(self) -> None:
+        #: Given
+        database = Database.from_snapshot(
+            from_tree({'.agents': {'skills': {'review': {'SKILL.md': b'# R\n', 'guide.md': b'Read me.\n'}}}})
+        )
+
+        #: When
+        source = database.item_text(ItemRef(RootRelativePath.parse('.agents/skills/review/guide.md')))
+
+        #: Then
+        assert isinstance(source, ItemText), 'a resource resolves without listing its skill first'
+        assert source.text == 'Read me.\n', 'the descriptor points at the resource file'
+
+    def test_query_resolves_an_inner_outside_symlink_on_a_fresh_database(self) -> None:
+        #: Given
+        path = RootRelativePath.parse('.agents/skills/review/outside.md')
+        database = Database.from_snapshot(
+            _snapshot_of(
+                {
+                    '.': DirectoryRecord(listed=True),
+                    '.agents': DirectoryRecord(listed=True),
+                    '.agents/skills': DirectoryRecord(listed=True),
+                    '.agents/skills/review': DirectoryRecord(listed=True),
+                    '.agents/skills/review/SKILL.md': FileRecord(b'# Review\n'),
+                    '.agents/skills/review/outside.md': SymlinkRecord(PurePosixPath('../../../../outside.md')),
+                }
+            )
+        )
+
+        #: When
+        exit_point = database.query(lambda primitives: primitives.leaves_at(), OutsideSymlinkRef(path))
+
+        #: Then
+        assert exit_point.link == path, 'the symlink is discovered from its ref before any skill listing call'
+
     def test_item_text_of_a_resource_returns_its_text_with_the_resource_descriptor(self) -> None:
         #: Given
         snapshot = from_tree(
@@ -161,13 +196,13 @@ class TestResourceItems:
             from_tree({'.agents': {'skills': {'review': {'SKILL.md': b'# R\n', 'a.md': b'a\n'}}}})
         )
         location = _resources(database, 'review')[0]
-        ref = database.resource_item(location)
+        ref = ItemRef(location.ref.path)
 
         #: When / Then
         with pytest.raises(UnlistedItemError):
             listed_item(database, ref)
 
-    def test_item_text_of_an_unregistered_resource_path_raises_unlisted(self) -> None:
+    def test_item_text_of_an_unlisted_path_inside_a_skill_raises_unlisted(self) -> None:
         #: Given
         database = Database.from_snapshot(
             from_tree({'.agents': {'skills': {'review': {'SKILL.md': b'# R\n', 'a.md': b'a\n'}}}})
@@ -175,7 +210,7 @@ class TestResourceItems:
 
         #: When / Then
         with pytest.raises(UnlistedItemError):
-            database.item_text(ItemRef(RootRelativePath.parse('.agents/skills/review/a.md')))
+            database.item_text(ItemRef(RootRelativePath.parse('.agents/skills/review/missing.md')))
 
     def test_listing_a_skill_stays_lazy_until_a_resource_is_asked_for(self) -> None:
         #: Given

@@ -113,7 +113,7 @@ def _check_item(
         case SkillLocation():
             item = ItemRef(subject.ref.path)
         case SkillResourceLocation():
-            item = database.resource_item(subject)
+            item = ItemRef(subject.ref.path)
         case _:
             assert_never(subject)
     source = database.item_text(item)

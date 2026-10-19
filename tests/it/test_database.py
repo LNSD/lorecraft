@@ -565,7 +565,7 @@ class TestDatabase:
         database = Database.from_snapshot(snapshot)
         location = database.model().skill_locations[REVIEW]
         resource = database.skill_resources(location).resources[0]
-        decoded = database.item_text(database.resource_item(resource))
+        decoded = database.item_text(ItemRef(resource.ref.path))
         assert isinstance(decoded, ItemText), 'the resource was written as UTF-8, so it decodes'
 
         #: When
