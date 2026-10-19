@@ -12,8 +12,7 @@ from lorecraft.rules.length.too_many_lines import TooManyLines
 from lorecraft.rules.length.too_many_tokens import TooManyTokens
 from lorecraft.rules.link.broken_link import BrokenLink
 from lorecraft.rules.registry import Registry
-from lorecraft.rules.subject import Always, MetaSpecPart, QueriedItemRule, WhenMetaSpec, WhenSchema
-from lorecraft.schemas.builtin import AGENT_SKILLS_SCHEMA_REFERENCE
+from lorecraft.rules.subject import Always, MetaSpecPart, QueriedItemRule, WhenMetaSpec
 
 
 @pytest.mark.unit
@@ -86,16 +85,16 @@ class TestGates:
         #: Then
         assert gate == expected, 'skill frontmatter rules follow the active frontmatter meta spec part'
 
-    def test_name_mismatch_with_skill_entry_uses_agent_skills_schema(self) -> None:
+    def test_name_mismatch_with_skill_entry_uses_frontmatter_part(self) -> None:
         #: Given
         rule = NameMismatch
-        expected = WhenSchema(AGENT_SKILLS_SCHEMA_REFERENCE)
+        expected = WhenMetaSpec(MetaSpecPart.FRONTMATTER)
 
         #: When
         gate = rule.APPLIES_TO[ItemType.SKILL_ENTRYPOINT]
 
         #: Then
-        assert gate == expected, 'the skill name rule requires the registered Agent Skills schema'
+        assert gate == expected, 'the skill name rule follows whether its frontmatter is governed'
 
 
 @pytest.mark.unit

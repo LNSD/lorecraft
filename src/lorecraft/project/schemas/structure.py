@@ -80,6 +80,7 @@ from lorecraft.core.mapping import Frozen, FrozenMapping
 from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.syntax import SectionHeading
+from lorecraft.schemas import SchemaRef
 
 from .frontmatter_schema import FrontmatterSchema, FrontmatterSchemaFailure
 from .section_name import SectionName
@@ -282,6 +283,7 @@ class StructureSpec:
     forbidden: tuple[SectionName, ...]
     tokens: NonZeroUnsignedInt | None
     frontmatter: FrontmatterSchema | None
+    frontmatter_schema_ref: SchemaRef | None = None
 
     @property
     def path(self) -> RootRelativePath:

@@ -12,6 +12,7 @@ file, so the test states it by hand too.
 """
 
 from collections.abc import Callable, Mapping
+from dataclasses import replace
 from typing import Any, Final, Protocol, cast, overload
 
 from lib.primitives import StructurePrimitives
@@ -69,6 +70,7 @@ from lorecraft.project.syntax import (
 from lorecraft.project.workspace import Corpus, CorpusNamespace, CorpusSpec, Governance, NamespaceSpec
 from lorecraft.rules.declaration import Rule
 from lorecraft.rules.subject import Queried, QueriedCorpusDirectoryRule, QueriedItemRule, QueriedSymlinkRule
+from lorecraft.schemas import RepositoryOrigin, SchemaInput, SchemaKind, SchemaRef
 from lorecraft.vfs import ResolvedPath, RootExit
 
 _DEFAULT_FILENAME: Final[str] = 'setup'
@@ -181,7 +183,20 @@ def _decode_structure(spec_name: SpecName, structure: str) -> StructureSpec:
     )
     spec = StructureSpec.parse(file, StructureSchema(structure))
     assert isinstance(spec, StructureSpec), f'a test states a usable structure specification, got {spec!r}'
+    if spec.frontmatter is not None:
+        reference = SchemaRef(SchemaKind.FRONTMATTER, str(spec_name))
+        return replace(spec, frontmatter_schema_ref=reference)
     return spec
+
+
+def _schema_inputs(governance: Governance) -> FrozenMapping[SchemaRef, SchemaInput]:
+    """The registry inputs for the governing frontmatter schemas in this fake workspace."""
+    inputs: dict[SchemaRef, SchemaInput] = {}
+    for reference, schema in zip(
+        governance.applicable_frontmatter_schema_refs(), governance.frontmatter_schemas(), strict=True
+    ):
+        inputs[reference] = SchemaInput(reference, RepositoryOrigin(schema.spec, 'test'), schema.schema.schema)
+    return FrozenMapping(inputs)
 
 
 def structure_spec(spec_name: str, text: str) -> StructureSpec:
@@ -291,8 +306,19 @@ class FakeDocumentDatabase:
                 corpus=self._ref.corpus,
                 origin_value=DocumentOrigin(),
                 governance_value=self._governance,
+                schema_inputs_value=_schema_inputs(self._governance),
             )
         )
+
+    def query_at[T](self, ref: QueryTargetRef, query: Callable[..., T]) -> T:
+        """Resolve a registry schema subject for this fake document."""
+        if isinstance(ref, SchemaRef):
+            schema_input = _schema_inputs(self._governance).get(ref)
+            if schema_input is not None:
+                from lib.primitives import _SchemaInputPrimitives
+
+                return query(_SchemaInputPrimitives(schema_input))
+        raise AssertionError(f'no schema input is available for {ref}')
 
     def _base_name(self) -> AspectFilename | None:
         """The typed base the corpus the test stated gives the document, as the real model derives it."""

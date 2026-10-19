@@ -119,6 +119,10 @@ class GovernancePrimitives(QueryPrimitives['ItemPrimitives'], Protocol):
         """The governance of this item, or none when it has no corpus governance."""
         ...
 
+    def schema_inputs(self) -> Mapping[SchemaRef, SchemaInput]:
+        """The immutable schema inputs loaded for the workspace."""
+        ...
+
 
 class NameHierarchyPrimitives(Protocol):
     """The raw descriptor and model hierarchy used to derive an item's base."""

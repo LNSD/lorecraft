@@ -826,7 +826,12 @@ class TestWorkspaceDefaults:
         #: Then
         assert result.returncode == 1, result.stdout
         assert 'missing required field `owner`' in result.stdout, 'the repository schema remains active'
-        assert 'FM004' not in result.stdout, 'the opt-out disables the built-in skill name rule'
+        assert 'error[FM004]' in result.stdout, 'the repository schema governs the skill name rule'
+        assert "a skill's `name` must match its directory name" in result.stdout, (
+            'the name guidance identifies the skill directory as the expected name'
+        )
+        assert "or rename the skill directory to 'wrong-name'" in result.stdout
+        assert "or rename the file to 'wrong-name.md'" not in result.stdout
 
     def test_inspect_json_reports_only_the_builtin_skills_opt_out(
         self, tmp_path: Path, faker: Faker, snapshot: SnapshotAssertion

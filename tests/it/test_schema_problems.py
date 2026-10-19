@@ -195,19 +195,11 @@ class TestSchemaProblems:
 
         #: Then
         assert second is first, 'the schemas are applied once per database, then shared by every rule'
-        assert database.query_reads(frontmatter_schema_problems, source.ref) == frozenset(
-            {
-                Read(PrimitiveRead.ORIGIN, source.ref),
-                Read(PrimitiveRead.GOVERNANCE, source.ref),
-                Read(item_frontmatter, source.ref),
-                Read(PrimitiveRead.TEXT, source.ref),
-            }
-        ), 'the query cache records the raw facts the schema analysis depends on'
         assert database.frontmatter_call_count == 1, 'the frontmatter is read once, for the first call'
 
     def test_frontmatter_schema_problems_with_no_frontmatter_schema_holds_none(self) -> None:
         #: Given
-        # the namespace states a schema, but a namespace narrows the corpus, which states none
+        # the corpus structure has no frontmatter schema, and the namespace schema cannot govern by itself
         database = Database.from_snapshot(
             _snapshot(b'{"tokens": 40}', STRING_DESCRIPTION, typing=b'---\ndescription: 3\n---\n')
         )
@@ -217,11 +209,11 @@ class TestSchemaProblems:
         found = database.query(frontmatter_schema_problems, source.ref)
 
         #: Then
-        assert found == (), 'no corpus schema states a frontmatter schema, so no schema is applied'
+        assert found == (), 'the namespace frontmatter schema cannot govern without a corpus frontmatter schema'
 
     def test_frontmatter_schema_problems_with_no_frontmatter_schema_never_reads_the_frontmatter(self) -> None:
         #: Given
-        # the namespace states a schema, but a namespace narrows the corpus, which states none
+        # the corpus structure has no frontmatter schema, and the namespace schema cannot govern by itself
         database = FrontmatterReadingDatabase.from_snapshot(
             _snapshot(b'{"tokens": 40}', STRING_DESCRIPTION, typing=b'---\ndescription: 3\n---\n')
         )

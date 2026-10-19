@@ -14,6 +14,7 @@ from lorecraft.project.aspect import AspectFilename, AspectName
 from lorecraft.project.corpus import CorpusName, ReservedCorpusDirectoryRef
 from lorecraft.project.link_target import LinkBase
 from lorecraft.project.skill import OutsideSymlinkRef
+from lorecraft.schemas import SchemaRef
 from lorecraft.vfs import FileReadFailure, ResolvedPath, UnrecordedFileError
 
 if TYPE_CHECKING:
@@ -113,7 +114,8 @@ class ItemDescriptor:
         name: Typed name in the hierarchy used to find its base.
         listed_name: Original name used by governance and frontmatter ownership.
         corpus: Typed corpus whose meta specs govern the item, or none.
-        schema_paths: Governing frontmatter schemas, broad to narrow; empty when none governs the item.
+        schema_paths: Repository paths of governing frontmatter schemas, broad to narrow; bundled schemas have no path.
+        frontmatter_schema_refs: Applicable frontmatter schema registry subjects, broad to narrow.
         governed_parts: Meta spec parts stated by loaded layers that govern this item.
     """
 
@@ -125,6 +127,7 @@ class ItemDescriptor:
     listed_name: str
     corpus: CorpusName | None
     schema_paths: tuple[RootRelativePath, ...]
+    frontmatter_schema_refs: tuple[SchemaRef, ...]
     governed_parts: frozenset[MetaSpecPart]
 
     @property

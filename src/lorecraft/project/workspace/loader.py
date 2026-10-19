@@ -23,7 +23,7 @@ variants of one unit, keeps the details they carry and drops the exception. Noth
 """
 
 import json
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import assert_never
 
 from pydantic import JsonValue
@@ -419,6 +419,7 @@ def _load_structure(
                 schema_inputs[frontmatter_ref] = SchemaInput(
                     frontmatter_ref, origin, FrozenMapping.from_plain(frontmatter_document)
                 )
+                parsed = replace(parsed, frontmatter_schema_ref=frontmatter_ref)
         if AGENT_SKILLS_SCHEMA_REFERENCE in schema_inputs and parsed.frontmatter is not None:
             contradictions = agent_skills_schema_contradictions(parsed.frontmatter.schema.to_plain())
             if contradictions:

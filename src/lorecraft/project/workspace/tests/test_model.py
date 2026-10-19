@@ -44,6 +44,7 @@ from lorecraft.project.schemas import (
     spec_filename,
 )
 from lorecraft.project.skill import OutsideSymlink, SkillLocation, SkillRef, SkillsDir
+from lorecraft.schemas import RepositoryOrigin, SchemaInput, SchemaKind, SchemaRef
 from lorecraft.vfs import ResolvedPath, RootExit
 
 from ..failure import FailedStructure
@@ -126,6 +127,7 @@ def _spec_files(
             forbidden=(),
             tokens=None,
             frontmatter=frontmatter_schema,
+            frontmatter_schema_ref=(SchemaRef(SchemaKind.FRONTMATTER, str(spec_name)) if frontmatter else None),
         )
         files.append(path)
     return tuple(sorted(files, key=str)), structure_spec
@@ -669,7 +671,23 @@ def two_corpora_model() -> WorkspaceModel:
         skill_locations=FrozenMapping({}),
         outside_symlinks=FrozenMapping({}),
         load_failures=(),
+        schema_inputs=_schema_inputs(code, feat),
     )
+
+
+def _schema_inputs(*corpora: Corpus) -> FrozenMapping[SchemaRef, SchemaInput]:
+    """The registry inputs for every frontmatter schema stated by the given corpus layers."""
+    inputs: dict[SchemaRef, SchemaInput] = {}
+    for corpus in corpora:
+        for filename in corpus.filenames:
+            governance = corpus.governance(filename)
+            for reference, schema in zip(
+                governance.applicable_frontmatter_schema_refs(), governance.frontmatter_schemas(), strict=True
+            ):
+                inputs[reference] = SchemaInput(
+                    reference, RepositoryOrigin(schema.spec, str(schema.spec)), schema.schema.schema
+                )
+    return FrozenMapping(inputs)
 
 
 def _model_of_corpora(*names: str) -> WorkspaceModel:
@@ -905,6 +923,9 @@ class TestWorkspaceModel:
         assert descriptor.schema_paths == (SPECS_DIR / PathComponent.parse('code.spec.json'),), (
             'the corpus schema is the one that governs frontmatter findings'
         )
+        assert descriptor.frontmatter_schema_refs == (SchemaRef(SchemaKind.FRONTMATTER, 'code'),), (
+            'the descriptor retains the loader identity used for frontmatter governance and diagnostics'
+        )
         assert descriptor.governed_parts == frozenset({MetaSpecPart.FRONTMATTER, MetaSpecPart.STRUCTURE}), (
             'a corpus structure specification activates structure and its frontmatter alongside Markdown checks'
         )
@@ -919,6 +940,7 @@ class TestWorkspaceModel:
             skill_locations=FrozenMapping({}),
             outside_symlinks=FrozenMapping({}),
             load_failures=(),
+            schema_inputs=_schema_inputs(code),
         )
 
         #: When
@@ -930,6 +952,10 @@ class TestWorkspaceModel:
             SPECS_DIR / PathComponent.parse('code.spec.json'),
             SPECS_DIR / PathComponent.parse('code-python.spec.json'),
         ), 'the corpus and namespace schemas are both carried, broad to narrow'
+        assert descriptor.frontmatter_schema_refs == (
+            SchemaRef(SchemaKind.FRONTMATTER, 'code'),
+            SchemaRef(SchemaKind.FRONTMATTER, 'code-python'),
+        ), 'the same registry refs carry the corpus and namespace schema order'
 
     def test_describe_item_for_a_linked_skill_keeps_logical_identity_when_read_target_changes(
         self, skills_model: WorkspaceModel

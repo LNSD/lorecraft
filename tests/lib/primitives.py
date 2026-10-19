@@ -10,7 +10,13 @@ from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.document import DocumentRef, MetaSpecRef
-from lorecraft.project.item import DocumentOrigin, ItemDescriptor, ItemOrigin, ItemRef
+from lorecraft.project.item import (
+    DocumentOrigin,
+    ItemDescriptor,
+    ItemOrigin,
+    ItemRef,
+    SkillEntrypointOrigin,
+)
 from lorecraft.project.link_target import DocumentDirectory, DocumentLink, LinkBase, LinkTargetEntry
 from lorecraft.project.query import (
     DecodedText,
@@ -39,7 +45,7 @@ from lorecraft.project.syntax import (
 )
 from lorecraft.project.workspace import Governance
 from lorecraft.rules.link.queries import linked_documents
-from lorecraft.schemas import SchemaInput
+from lorecraft.schemas import RepositoryOrigin, SchemaInput, SchemaRef
 from lorecraft.schemas.builtin import AGENT_SKILLS_SCHEMA_INPUT, AGENT_SKILLS_SCHEMA_REFERENCE
 
 
@@ -53,6 +59,21 @@ class _BundledAgentSkillsSchemaPrimitives:
     def query_at[T](self, ref: QueryTargetRef, query: Callable[..., T]) -> T:
         """Standalone rule tests do not expose nested subjects."""
         raise NotImplementedError(f'standalone primitives cannot read another subject {ref}')
+
+
+@dataclass(frozen=True, slots=True)
+class _SchemaInputPrimitives:
+    """The immutable registry input for a standalone schema query."""
+
+    input: SchemaInput
+
+    def schema_input(self) -> SchemaInput:
+        """Return the input this fake schema subject represents."""
+        return self.input
+
+    def query_at[T](self, ref: QueryTargetRef, query: Callable[..., T]) -> T:
+        """Standalone schema queries do not compose across subjects."""
+        raise NotImplementedError(f'standalone schema primitives cannot read another subject {ref}')
 
 
 @dataclass(frozen=True, slots=True)
@@ -91,6 +112,7 @@ class StructurePrimitives:
     origin_value: ItemOrigin = DocumentOrigin()
     governance_value: Governance | None = None
     builtin_schema: bool = True
+    schema_inputs_value: Mapping[SchemaRef, SchemaInput] | None = None
 
     def origin(self) -> ItemOrigin:
         """The origin this was built with."""
@@ -102,6 +124,11 @@ class StructurePrimitives:
         corpus = self.corpus
         path = RootRelativePath.parse(f'docs/{corpus or "guide"}/{name or "setup"}.md')
         link_base = self.link_base_value or DocumentDirectory(path.parent)
+        schema_refs = (
+            (AGENT_SKILLS_SCHEMA_REFERENCE,)
+            if isinstance(self.origin_value, SkillEntrypointOrigin) and self.builtin_schema
+            else ()
+        ) + (self.governance_value.applicable_frontmatter_schema_refs() if self.governance_value is not None else ())
         return ItemDescriptor(
             ItemRef(path),
             path,
@@ -111,6 +138,7 @@ class StructurePrimitives:
             str(name or self.base_name or ''),
             corpus,
             (),
+            schema_refs,
             frozenset(),
         )
 
@@ -143,6 +171,36 @@ class StructurePrimitives:
     def governance(self) -> Governance | None:
         """The governance this was built with."""
         return self.governance_value
+
+    def schema_inputs(self) -> Mapping[SchemaRef, SchemaInput]:
+        """The immutable schema inputs available to standalone rule queries."""
+        if self.schema_inputs_value is not None:
+            return self.schema_inputs_value
+        inputs: dict[SchemaRef, SchemaInput] = {}
+        if self.builtin_schema:
+            inputs[AGENT_SKILLS_SCHEMA_REFERENCE] = AGENT_SKILLS_SCHEMA_INPUT
+        if self.governance_value is not None:
+            for reference, schema in zip(
+                self.governance_value.applicable_frontmatter_schema_refs(),
+                self.governance_value.frontmatter_schemas(),
+                strict=True,
+            ):
+                inputs[reference] = SchemaInput(reference, RepositoryOrigin(schema.spec, 'test'), schema.schema.schema)
+        return FrozenMapping(inputs)
+
+    def schema_input(self, reference: SchemaRef) -> SchemaInput | None:
+        """Resolve one standalone schema reference from the fake registry."""
+        return self.schema_inputs().get(reference)
+
+    def query_at[T](self, ref: QueryTargetRef, query: Callable[..., T]) -> T:
+        """Resolve a standalone schema subject from this fixture's schema inputs."""
+        if ref == AGENT_SKILLS_SCHEMA_REFERENCE:
+            return query(_BundledAgentSkillsSchemaPrimitives())
+        if isinstance(ref, SchemaRef):
+            schema_input = self.schema_inputs().get(ref)
+            if schema_input is not None:
+                return query(_SchemaInputPrimitives(schema_input))
+        raise NotImplementedError(f'standalone primitives cannot read another subject {ref}')
 
     def structure_specs(self) -> tuple[StructureSpec, ...]:
         """The specifications this was built with."""
@@ -213,9 +271,3 @@ class StructurePrimitives:
         if query is item_token_count:
             return self.token_total
         return query(self)
-
-    def query_at[T](self, ref: QueryTargetRef, query: Callable[..., T]) -> T:
-        """Answer only the bundled skills subject for standalone skill rule tests."""
-        if ref != AGENT_SKILLS_SCHEMA_REFERENCE:
-            raise NotImplementedError(f'standalone primitives cannot read subject {ref}')
-        return query(_BundledAgentSkillsSchemaPrimitives())

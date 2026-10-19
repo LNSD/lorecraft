@@ -114,10 +114,9 @@ class TestMissingField:
         occurrences = judged(MissingField, subject)
 
         #: Then
-        assert occurrences == (
-            MissingField(source=CORPUS_SOURCE, line=LINE, problem=PROBLEM),
-            MissingField(source=NAMESPACE_SOURCE, line=LINE, problem=PROBLEM),
-        ), 'each schema is applied on its own, so each reports the problem under its own specification, in order'
+        assert occurrences == (MissingField(source=CORPUS_SOURCE, line=LINE, problem=PROBLEM),), (
+            'the broader schema already reported the missing field, so the narrower schema does not repeat it'
+        )
 
     def test_check_with_a_skill_reports_it_with_no_specification_file(self) -> None:
         #: Given
