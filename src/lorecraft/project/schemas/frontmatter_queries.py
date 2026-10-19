@@ -70,7 +70,7 @@ def frontmatter_schema_problems(primitives: ItemPrimitives) -> tuple[SchemaProbl
         frontmatter = primitives.query(item_frontmatter)
         floor_present = False
         try:
-            floor_schema = primitives.query_schema(AGENT_SKILLS_SCHEMA_REFERENCE, agent_skills_frontmatter_schema)
+            floor_schema = primitives.query_at(AGENT_SKILLS_SCHEMA_REFERENCE, agent_skills_frontmatter_schema)
         except SchemaRefError:
             floor = ()
         else:

@@ -22,7 +22,11 @@ from types import MappingProxyType
 from typing import ClassVar, Self
 
 from lorecraft.project.item import ItemKind, MetaSpecPart
-from lorecraft.project.query import CorpusDirectoryPrimitives, ItemPrimitives, ItemQuery, Query, SymlinkPrimitives
+from lorecraft.project.query import (
+    CorpusDirectoryQuery,
+    ItemQuery,
+    SymlinkQuery,
+)
 from lorecraft.schemas.types import SchemaRef
 
 from .declaration import ContentRule, LayoutRule, Rule
@@ -56,11 +60,6 @@ class BySchema:
 
 
 type Gate = ByMetaSpec | ByPackage | BySchema
-
-
-type SubjectQuery[Facts] = (
-    Query[ItemPrimitives, Facts] | Query[SymlinkPrimitives, Facts] | Query[CorpusDirectoryPrimitives, Facts]
-)
 
 
 class Queried[Facts, QueryType](Rule, ABC):
@@ -106,20 +105,20 @@ class QueriedItemRule[Facts](Queried[Facts, ItemQuery[Facts]], ContentRule):
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
-class QueriedSymlinkRule[Facts](Queried[Facts, Query[SymlinkPrimitives, Facts]], LayoutRule):
+class QueriedSymlinkRule[Facts](Queried[Facts, SymlinkQuery[Facts]], LayoutRule):
     """The base of a query-backed rule over a symlink of the skill layout."""
 
     @classmethod
     @abstractmethod
-    def query(cls) -> Query[SymlinkPrimitives, Facts]:
+    def query(cls) -> SymlinkQuery[Facts]:
         """The query over a symlink's model state whose answer `judge` takes."""
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
-class QueriedCorpusDirectoryRule[Facts](Queried[Facts, Query[CorpusDirectoryPrimitives, Facts]], LayoutRule):
+class QueriedCorpusDirectoryRule[Facts](Queried[Facts, CorpusDirectoryQuery[Facts]], LayoutRule):
     """The base of a query-backed rule over a reserved-corpus directory."""
 
     @classmethod
     @abstractmethod
-    def query(cls) -> Query[CorpusDirectoryPrimitives, Facts]:
+    def query(cls) -> CorpusDirectoryQuery[Facts]:
         """The query over a reserved-corpus directory's model state whose answer `judge` takes."""

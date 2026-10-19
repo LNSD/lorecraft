@@ -11,7 +11,7 @@ symlink's chain leaves the repository is read from the link targets a scan recor
 file, so the test states it by hand too.
 """
 
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from typing import Any, Final, Protocol, cast, overload
 
 from lib.primitives import StructurePrimitives
@@ -25,7 +25,7 @@ from lorecraft.project.aspect import (
 )
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.document import DocumentRef
-from lorecraft.project.item import DocumentOrigin, ItemRef, SkillEntrypointOrigin
+from lorecraft.project.item import DocumentOrigin, SkillEntrypointOrigin
 from lorecraft.project.layout import DOCS_DIR, SPECS_DIR
 from lorecraft.project.link_target import (
     DocumentDirectory,
@@ -38,7 +38,7 @@ from lorecraft.project.query import (
     CorpusDirectoryPrimitives,
     ItemQuery,
     Query,
-    SchemaPrimitives,
+    QueryTargetRef,
     SubjectQuery,
     SymlinkPrimitives,
 )
@@ -69,7 +69,6 @@ from lorecraft.project.syntax import (
 from lorecraft.project.workspace import Corpus, CorpusNamespace, CorpusSpec, Governance, NamespaceSpec
 from lorecraft.rules.declaration import Rule
 from lorecraft.rules.subject import Queried, QueriedCorpusDirectoryRule, QueriedItemRule, QueriedSymlinkRule
-from lorecraft.schemas import SchemaRef
 from lorecraft.vfs import ResolvedPath, RootExit
 
 _DEFAULT_FILENAME: Final[str] = 'setup'
@@ -456,13 +455,9 @@ class FakeSymlinkDatabase:
         """The answer of a declared query over the symlink, read through this fake's primitives."""
         return query(self)
 
-    def query_at[T](self, ref: ItemRef, query: ItemQuery[T]) -> T:
-        """Cross-item reads are outside the symlink fake's declared facts."""
-        raise AssertionError(f'no item query is available for {ref}')
-
-    def query_schema[T](self, ref: SchemaRef, query: Query[SchemaPrimitives, T]) -> T:
-        """Schema reads are outside the symlink fake's declared facts."""
-        raise AssertionError(f'no schema query is available for {ref}')
+    def query_at[T](self, ref: QueryTargetRef, query: Callable[..., T]) -> T:
+        """Cross-subject reads are outside the symlink fake's declared facts."""
+        raise AssertionError(f'no query is available for {ref}')
 
 
 class FakeCorpusDirectoryDatabase:
@@ -488,13 +483,9 @@ class FakeCorpusDirectoryDatabase:
         """The answer of a declared query over the directory, read through this fake's primitives."""
         return query(self)
 
-    def query_at[T](self, ref: ItemRef, query: ItemQuery[T]) -> T:
-        """Cross-item reads are outside the directory fake's declared facts."""
-        raise AssertionError(f'no item query is available for {ref}')
-
-    def query_schema[T](self, ref: SchemaRef, query: Query[SchemaPrimitives, T]) -> T:
-        """Schema reads are outside the directory fake's declared facts."""
-        raise AssertionError(f'no schema query is available for {ref}')
+    def query_at[T](self, ref: QueryTargetRef, query: Callable[..., T]) -> T:
+        """Cross-subject reads are outside the directory fake's declared facts."""
+        raise AssertionError(f'no query is available for {ref}')
 
 
 class _Queryable(Protocol):

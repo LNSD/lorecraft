@@ -246,7 +246,7 @@ def _schema_document(primitives: SchemaPrimitives) -> FrozenMapping[str, Frozen]
 
 def _reads_schema(primitives: ItemPrimitives) -> FrozenMapping[str, Frozen]:
     """Read one schema through the database's typed subject query."""
-    return primitives.query_schema(SCHEMA, _schema_document)
+    return primitives.query_at(SCHEMA, _schema_document)
 
 
 def _schema_identity(primitives: SchemaPrimitives) -> str:
@@ -256,13 +256,13 @@ def _schema_identity(primitives: SchemaPrimitives) -> str:
 
 def _schema_reads_base(primitives: SchemaPrimitives) -> str:
     """Read a base schema through the shared schema query operation."""
-    return primitives.query_schema(SCHEMA_BASE, _schema_identity)
+    return primitives.query_at(SCHEMA_BASE, _schema_identity)
 
 
 def _schema_catches_missing(primitives: ItemPrimitives) -> str | None:
     """Catch a missing schema query so its attempted dependency remains observable."""
     try:
-        return primitives.query_schema(SCHEMA_MISSING, _schema_identity)
+        return primitives.query_at(SCHEMA_MISSING, _schema_identity)
     except SchemaRefError:
         return None
 
