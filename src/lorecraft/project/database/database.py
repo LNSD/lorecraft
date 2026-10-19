@@ -34,13 +34,13 @@ from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusDirectoryRef, CorpusName, ReservedCorpusDirectory
-from lorecraft.project.document import SpecRef
+from lorecraft.project.document import MetaSpecRef
 from lorecraft.project.item import (
     DocumentOrigin,
     ItemOrigin,
     ItemReadError,
     ItemRef,
-    SpecificationOrigin,
+    MetaSpecOrigin,
     UnlistedItemError,
 )
 from lorecraft.project.layout import DOCS_DIR, SPECS_DIR, reject_linked_layout
@@ -305,8 +305,8 @@ class _ItemPrimitives(_Reads[ItemRef, '_ItemPrimitives']):
                     return None
                 base = corpus.document_base(AspectFilename.parse(origin.expected_name))
                 return None if base is None else base.filename
-            case SpecificationOrigin():
-                base_spec = self._database.model().find_specification_base(SpecRef(self._ref.path))
+            case MetaSpecOrigin():
+                base_spec = self._database.model().find_specification_base(MetaSpecRef(self._ref.path))
                 return None if base_spec is None else parse_spec_name(base_spec.name)
             case _:
                 return None

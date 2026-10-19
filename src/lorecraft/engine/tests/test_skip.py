@@ -10,7 +10,7 @@ from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.database import Database, ItemText
-from lorecraft.project.document import DocumentRef, SpecRef
+from lorecraft.project.document import DocumentRef, MetaSpecRef
 from lorecraft.project.item import ItemRef
 from lorecraft.project.layout import SPECS_DIR
 from lorecraft.rules.outline.empty_section import EmptySection
@@ -291,7 +291,7 @@ class TestCheckSubjectsWithAFailedLayer:
         )
 
 
-CODE_SPECIFICATION: Final[SpecRef] = SpecRef(SPECS_DIR / PathComponent.parse('code.md'))
+CODE_SPECIFICATION: Final[MetaSpecRef] = MetaSpecRef(SPECS_DIR / PathComponent.parse('code.md'))
 """The prose of the meta spec of corpus `code`."""
 
 

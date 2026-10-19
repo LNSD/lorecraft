@@ -16,7 +16,7 @@ status: "accepted"
 
 ## Context
 
-[prd-020](prd-020-skills-corpus.md) brings skill entry documents into the specifications model through the reserved
+[prd-020](prd-020-skills-corpus.md) brings skill entry documents into the meta spec model through the reserved
 `skills` corpus (`FR-001` through `FR-007`, `FR-009` through `FR-011`, `FR-018`, `NFR-001`), and
 [adr-022](adr-022-skills-governance.md) settles how `skills` layers, the built-in schema and bounded contradiction
 detection work.
@@ -76,12 +76,12 @@ The project model is the only layer that classifies a Markdown item's origin:
   walk when the model opens ([adr-003](adr-003-project-model.md), [adr-015](adr-015-database.md)). When listed, it
   yields the same common reference and descriptor shape as any other Markdown item.
 
-Name-chain ordering and prefix matching are shared with the project model's specification and document hierarchy
+Name-chain ordering and prefix matching are shared with the project model's meta spec and document hierarchy
 derivation rather than reimplemented in the database, runner or rules.
 
 ### Hierarchical Governance for Skill Entries and Resources
 
-The reserved `skills` corpus is loaded and its specifications are checked, but does not govern skill entries or
+The reserved `skills` corpus is loaded and its meta specs are checked, but does not govern skill entries or
 resources. Package skill checks remain active for skill entries; corpus governance is deferred to LORE-324.
 
 A Markdown resource inside a skill has no corpus governance. The model activates Markdown checks only for resources;
@@ -110,7 +110,7 @@ The database and rules engine consume the common reference and descriptor unifor
 Unifying the internal pipeline changes no user-visible contract outside what [prd-020](prd-020-skills-corpus.md)
 requires:
 
-- With no repository `skills` specification and the built-in schema enabled, skill entries and resources produce the
+- With no repository `skills` meta spec and the built-in schema enabled, skill entries and resources produce the
   exact diagnostics, notes, severity and sort order they produce today (`FR-013`).
 - `lorecraft inspect` renders corpus documents and skills, without reporting corpus governance for skills.
 
@@ -140,7 +140,7 @@ requires:
   types while normalizing consumer calls. Rejected: cache keys, witnesses and reports still require a cross-variant
   identity and descriptor contract, and keeping three reference types above the project model leaks origin
   classification past the boundary meant to encapsulate it.
-- **Match governed skill resources by their own filename stems instead of their owning skill.** Lets a specification
+- **Match governed skill resources by their own filename stems instead of their owning skill.** Lets a meta spec
   target a resource filename across skills. Rejected: a skill is a unit whose resources exist to support its entry, so
   the `skills` corpus establishes governance hierarchically from the containing skill.
 
@@ -161,7 +161,7 @@ Before committing code, verify:
 - [ ] The rules engine runs one content-item check loop that decodes once, applies failed-layer policy, gates rules by
   active governed facets and records ungoverned facets uniformly
 - [ ] Existing diagnostics, notes, ordering, exit codes and `inspect` shapes remain unchanged when no repository
-  `skills` specification is present
+  `skills` meta spec is present
 
 ## References
 

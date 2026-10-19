@@ -83,7 +83,7 @@ class MissingBaseLink(QueriedItemRule[MissingBase | None]):
     `python-fn-unchecked`, even when `python-fn-unchecked` sits two names below it. A document with no such name
     has no base and is not judged. The link must lead to the base's file, and lie between the `References` heading
     and the next heading of its level or above, so a link in the text or under `External References` does not count.
-    A meta specification of `docs/__meta__/` is judged the same way, its base looked for among the specifications.
+    A meta spec of `docs/__meta__/` is judged the same way, its base looked for among the specifications.
     No meta spec key states the rule: every document of a corpus that states a structure file, and every meta
     specification, is held to it.
 
@@ -132,7 +132,7 @@ class MissingBaseLink(QueriedItemRule[MissingBase | None]):
     GATES: ClassVar[Mapping[ItemKind, Gate]] = MappingProxyType(
         {
             ItemKind.DOCUMENT: ByMetaSpec(MetaSpecPart.STRUCTURE),
-            ItemKind.SPECIFICATION: ByMetaSpec(MetaSpecPart.STRUCTURE),
+            ItemKind.META_SPEC: ByMetaSpec(MetaSpecPart.STRUCTURE),
         }
     )
 

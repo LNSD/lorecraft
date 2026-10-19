@@ -21,7 +21,7 @@ layer by conjunction and that a document's base chain is distinct from its gover
 models only the flat list of matching namespace meta specs (`NamespaceSpec.is_governing` and `namespace_order_key` in
 `lorecraft.project.workspace`). The model already holds the single-step base of each hierarchy:
 `Corpus.document_base(filename)` returns the `DocumentRef` a document extends, and
-`WorkspaceModel.find_specification_base(ref)` returns the `SpecRef` of the meta specification a meta specification
+`WorkspaceModel.find_specification_base(ref)` returns the `MetaSpecRef` of the meta spec a meta spec
 extends; both resolve the narrowest existing ancestor through `find_narrowest_ancestor`. Still unbuilt are the full
 chains (`document_chain`, the meta spec chain), the reverse direction (`document_extensions`) and the
 `lorecraft inspect` output, so `inspect` cannot show either chain.
@@ -80,7 +80,7 @@ class Corpus:
     namespaces: FrozenMapping[AspectNamespace, CorpusNamespace]
     filenames: frozenset[AspectFilename]
 
-    # Meta spec base: built as WorkspaceModel.find_specification_base(ref: SpecRef) -> SpecRef | None
+    # Meta spec base: built as WorkspaceModel.find_specification_base(ref: MetaSpecRef) -> MetaSpecRef | None
     def spec_chain(self, namespace: AspectNamespace) -> tuple[Spec, ...]: ...  # proposed
     def document_base(self, filename: AspectFilename) -> DocumentRef | None: ...  # built
     def document_chain(self, filename: AspectFilename) -> tuple[DocumentRef, ...]: ...
@@ -89,7 +89,7 @@ class Corpus:
 
 Of the sketch, only `document_base` and `WorkspaceModel.find_specification_base` exist today; `spec_chain`,
 `document_chain` and `document_extensions` are proposals. The meta spec base stays on `WorkspaceModel` under its
-current name, which takes a `SpecRef`, because the meta specification set is read from the workspace rather than from
+current name, which takes a `MetaSpecRef`, because the meta spec set is read from the workspace rather than from
 one `Corpus`. Names in the sketch are illustrative; the separation of the two chains on `Corpus` over one name-chain
 helper is the decision. Because `Corpus` builds both hierarchies from `namespaces` and `filenames` alone, editing a
 document's text never invalidates `WorkspaceModel`, `Governance`, or `document_chain`

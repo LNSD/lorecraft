@@ -15,14 +15,19 @@ from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.project.aspect import AspectFilename, AspectNamespace
 from lorecraft.project.corpus import CorpusName
-from lorecraft.project.document import DocumentRef, InvalidSpecificationNameError, MisplacedSpecificationError, SpecRef
+from lorecraft.project.document import (
+    DocumentRef,
+    InvalidSpecificationNameError,
+    MetaSpecRef,
+    MisplacedSpecificationError,
+)
 from lorecraft.project.item import (
     DocumentOrigin,
     ItemKind,
     ItemRef,
+    MetaSpecOrigin,
     MetaSpecPart,
     SkillEntryOrigin,
-    SpecificationOrigin,
 )
 from lorecraft.project.layout import SPECS_DIR
 from lorecraft.project.link_target import DocumentDirectory, SkillRoot
@@ -1198,8 +1203,8 @@ class TestDocumentRef:
         )
 
 
-def _spec_ref(name: str) -> SpecRef:
-    return SpecRef(SPECS_DIR / PathComponent.parse(f'{name}.md'))
+def _spec_ref(name: str) -> MetaSpecRef:
+    return MetaSpecRef(SPECS_DIR / PathComponent.parse(f'{name}.md'))
 
 
 @pytest.mark.unit
@@ -1360,7 +1365,7 @@ class TestSpecifications:
     def test_spec_ref_outside_the_meta_directory_raises_misplaced_specification_error(self) -> None:
         #: When
         with pytest.raises(MisplacedSpecificationError) as exc_info:
-            SpecRef(RootRelativePath.parse('docs/code/logging.md'))
+            MetaSpecRef(RootRelativePath.parse('docs/code/logging.md'))
 
         #: Then
         assert exc_info.value.path == RootRelativePath.parse('docs/code/logging.md'), 'the error names the path refused'
@@ -1368,7 +1373,7 @@ class TestSpecifications:
     def test_spec_ref_with_a_readme_raises_invalid_specification_name_error(self) -> None:
         #: When
         with pytest.raises(InvalidSpecificationNameError) as exc_info:
-            SpecRef(SPECS_DIR / PathComponent.parse('README.md'))
+            MetaSpecRef(SPECS_DIR / PathComponent.parse('README.md'))
 
         #: Then
         assert exc_info.value.path == SPECS_DIR / PathComponent.parse('README.md'), (
@@ -1378,7 +1383,7 @@ class TestSpecifications:
     def test_spec_ref_with_a_dotted_name_raises_invalid_specification_name_error(self) -> None:
         #: When
         with pytest.raises(InvalidSpecificationNameError) as exc_info:
-            SpecRef(SPECS_DIR / PathComponent.parse('code.bad.md'))
+            MetaSpecRef(SPECS_DIR / PathComponent.parse('code.bad.md'))
 
         #: Then
         assert 'code.bad.md' in str(exc_info.value), (
@@ -1388,7 +1393,7 @@ class TestSpecifications:
     def test_spec_ref_with_a_trailing_hyphen_raises_invalid_specification_name_error(self) -> None:
         #: When
         with pytest.raises(InvalidSpecificationNameError) as exc_info:
-            SpecRef(SPECS_DIR / PathComponent.parse('code-.md'))
+            MetaSpecRef(SPECS_DIR / PathComponent.parse('code-.md'))
 
         #: Then
         assert exc_info.value.path == SPECS_DIR / PathComponent.parse('code-.md'), (
@@ -1398,7 +1403,7 @@ class TestSpecifications:
     def test_spec_ref_with_an_uppercase_namespace_raises_invalid_specification_name_error(self) -> None:
         #: When
         with pytest.raises(InvalidSpecificationNameError) as exc_info:
-            SpecRef(SPECS_DIR / PathComponent.parse('code-Upper.md'))
+            MetaSpecRef(SPECS_DIR / PathComponent.parse('code-Upper.md'))
 
         #: Then
         assert 'code-Upper.md' in str(exc_info.value), (
@@ -1415,8 +1420,8 @@ class TestSpecifications:
         descriptor = two_corpora_model.describe_item(ref)
 
         #: Then
-        assert descriptor.kind is ItemKind.SPECIFICATION, 'the origin makes it a specification'
-        assert descriptor.origin == SpecificationOrigin(expected_name='feat-cli', corpus='feat'), (
+        assert descriptor.kind is ItemKind.META_SPEC, 'the origin makes it a specification'
+        assert descriptor.origin == MetaSpecOrigin(expected_name='feat-cli', corpus='feat'), (
             'the origin carries the specification name and the corpus its first segment names'
         )
         assert descriptor.ref == ItemRef(ref.path), 'the logical ref is also the report path'

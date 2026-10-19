@@ -12,7 +12,7 @@ from typing import assert_never
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.corpus import ReservedCorpusDirectory
 from lorecraft.project.database import Database, ItemText, Undecodable
-from lorecraft.project.document import DocumentReadError, DocumentRef, SpecRef
+from lorecraft.project.document import DocumentReadError, DocumentRef, MetaSpecRef
 from lorecraft.project.item import ItemReadError, ItemRef
 from lorecraft.project.layout import DOCS_DIR
 from lorecraft.project.skill import (
@@ -35,7 +35,7 @@ from .runner import check_layout_entry, judge_item
 # or a layout entry. Each report holds its ref or the path an agent reaches the symlink by.
 type Subject = (
     DocumentRef
-    | SpecRef
+    | MetaSpecRef
     | SkillLocation
     | SkillResourceLocation
     | OutsideSymlink
@@ -43,7 +43,7 @@ type Subject = (
     | RefusedSkillAlias
 )
 
-type ReportedRef = DocumentRef | SpecRef | SkillRef | SkillResourceRef
+type ReportedRef = DocumentRef | MetaSpecRef | SkillRef | SkillResourceRef
 
 
 def check_subjects(
@@ -74,7 +74,7 @@ def check_subjects(
     reports: list[SubjectReport] = []
     for subject in subjects:
         match subject:
-            case DocumentRef() | SpecRef() as ref if isinstance(refusals.get(ref.path), RefusedRead):
+            case DocumentRef() | MetaSpecRef() as ref if isinstance(refusals.get(ref.path), RefusedRead):
                 continue  # the unreadable-document report is already in the caller's reports
             case SkillLocation() as location if _is_refused_docs_path(location.file_resolves_to, refusals):
                 reports.append(SkippedSubject(location.ref, (location.file_resolves_to,)))
@@ -82,7 +82,7 @@ def check_subjects(
                 reports.append(SkippedSubject(location.ref, (location.resolves_to,)))
             case RefusedSkillAlias(ref=ref, refused_at=path):
                 reports.append(SkippedSubject(ref, (path,)))
-            case DocumentRef() | SpecRef() | SkillLocation() | SkillResourceLocation():
+            case DocumentRef() | MetaSpecRef() | SkillLocation() | SkillResourceLocation():
                 reports.append(_check_item(database, subject, table))
             case OutsideSymlink() | ReservedCorpusDirectory():
                 reports.append(check_layout_entry(subject, database, table))
@@ -102,7 +102,7 @@ def _is_refused_docs_path(path: RootRelativePath, refusals: Mapping[RootRelative
 
 
 def _check_item(
-    database: Database, subject: DocumentRef | SpecRef | SkillLocation | SkillResourceLocation, table: RuleTable
+    database: Database, subject: DocumentRef | MetaSpecRef | SkillLocation | SkillResourceLocation, table: RuleTable
 ) -> SubjectReport:
     """Decode one item subject through the item queries, then judge it if it decoded and no failed layer skips it.
 
@@ -123,7 +123,7 @@ def _check_item(
         ItemReadError: If a specification is missing from the snapshot; a decode failure is a diagnostic.
     """
     match subject:
-        case DocumentRef() | SpecRef():
+        case DocumentRef() | MetaSpecRef():
             ref: ReportedRef = subject
             item = ItemRef(subject.path)
         case SkillLocation():
@@ -145,7 +145,7 @@ def _check_item(
                 raise SkillReadError(ref, source=exc.source) from exc
             case SkillResourceRef():
                 raise SkillResourceReadError(ref, source=exc.source) from exc
-            case SpecRef():
+            case MetaSpecRef():
                 raise
             case _:
                 assert_never(ref)
@@ -165,7 +165,7 @@ def _check_item(
                             return SkippedSubject(ref, (first.path, *(layer.path for layer in others)))
                 case SkillRef():
                     pass  # the runner suppresses corpus rules but retains the Agent Skills floor
-                case SpecRef() | SkillResourceRef():
+                case MetaSpecRef() | SkillResourceRef():
                     pass  # specs are package governed; resources have no corpus governance
                 case _:
                     assert_never(ref)

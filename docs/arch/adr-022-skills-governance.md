@@ -16,12 +16,12 @@ status: "proposed"
 ## Context
 
 [prd-020](prd-020-skills-corpus.md) requires repository rules for skill entry documents without inventing a
-second specification language. Today the workspace loads document corpora from specification names and
+second meta spec language. Today the workspace loads document corpora from meta spec names and
 directories under docs/, while skill frontmatter answers to a fixed schema. Document contexts receive their
 governing layers; skill contexts have no repository layers.
 
 The existing schema declaration already generates an editor schema. The new corpus must preserve existing
-findings when no repository skills specification exists (FR-013), expose the built-in rules as generated
+findings when no repository skills meta spec exists (FR-013), expose the built-in rules as generated
 documentation (FR-012), and permit an explicit opt-out (FR-009, FR-018).
 
 Conjunction prevents a repository layer from relaxing a built-in rule. It does not identify an impossible
@@ -33,8 +33,8 @@ they do not require a general schema compatibility prover.
 ### A Reserved Corpus Has Skill Entries as Its Members
 
 The project model recognises skills as a reserved corpus independently of a docs/skills/ directory (FR-001).
-Its repository specifications use the same prose and .spec.json file types as document corpora. It loads
-skills specifications before checking skill contents and retains failed layers rather than applying them in part.
+Its repository meta specs use the same prose and .spec.json file types as document corpora. It loads
+skills meta specs before checking skill contents and retains failed layers rather than applying them in part.
 
 The corpus obtains its members from the existing discovery of .agents/skills/ entries. A skill's listed
 directory name is its aspect; governance is not derived from a resolved symlink target or from the frontmatter
@@ -42,7 +42,7 @@ name, which may itself be invalid. Existing skill identity and discovery are ret
 
 A skills namespace matches that aspect exactly or as a hyphen-delimited prefix. Governance is computed once
 by the model and ordered broad to narrow, using the same namespace ordering as documents (FR-002 through
-FR-004). Namespace layers still require the repository corpus specification at the skills name; they do not
+FR-004). Namespace layers still require the repository corpus meta spec at the skills name; they do not
 become standalone corpora merely because a built-in schema exists.
 
 Only SKILL.md receives these repository layers (FR-014). Resource discovery and existing link checks remain
@@ -85,7 +85,7 @@ lorecraft --no-builtin-skills-schema inspect
 The option has no environment-variable counterpart and no repository configuration in this change.
 A task recipe or CI command can persist the explicit flag.
 
-With the option enabled, repository skills specifications apply on their own (FR-009). With no repository
+With the option enabled, repository skills meta specs apply on their own (FR-009). With no repository
 skills specification, skill entries are reported as ungoverned without an error (FR-018).
 The option changes schema governance; it does not disable discovery, I/O diagnostics or unrelated link checks.
 
@@ -111,11 +111,11 @@ Passing preflight therefore does not certify that the schemas are jointly satisf
 A detected contradiction is recorded against the repository specification with the field and contradicted
 built-in rule, even in a workspace with no skills (FR-008). It is an unusable layer under the existing
 failed-layer model: check reports the error and fails (FR-019); inspect follows its existing behaviour for
-an unusable specification. It is not repeated as a contradiction finding on every skill.
+an unusable meta spec. It is not repeated as a contradiction finding on every skill.
 
 A consumer skips governed subjects under a failed layer according to its existing failed-layer policy.
 Disabling the built-in layer removes only this compatibility analysis, not validation of the repository
-specification's own syntax and usability.
+meta spec's own syntax and usability.
 
 ### Reserved Docs Names Are Reported and Excluded
 
@@ -156,7 +156,7 @@ It does not create a second matching algorithm or require a docs/skills/ directo
 ## Alternatives Considered
 
 - **Conjunction alone.** The simplest implementation preserves the existing layer model and ensures repository
-  rules cannot weaken the built-in rules. It cannot identify the faulty specification independently of skill
+  rules cannot weaken the built-in rules. It cannot identify the faulty meta spec independently of skill
   contents, so it does not provide the agreed early contradiction diagnostic.
 - **A restricted skills extension dialect.** Limiting schemas to constraints with complete compatibility checks
   gives a stronger guarantee within that subset, but creates a second dialect and reduces parity with documents.
@@ -169,12 +169,12 @@ It does not create a second matching algorithm or require a docs/skills/ directo
 ## Checklist
 
 - [ ] Skills governance uses the listed skill name and existing namespace matching, never the resolved target name
-- [ ] Skills specifications load without docs/skills/ and apply only to SKILL.md
+- [ ] Skills meta specs load without docs/skills/ and apply only to SKILL.md
 - [ ] Every layer applies independently, with one declaration supplying built-in constraints and generated docs
-- [ ] A skill with no repository skills specification retains the existing findings under the default setting
+- [ ] A skill with no repository skills meta spec retains the existing findings under the default setting
 - [ ] The opt-out affects check and inspect alike and allows ungoverned skills without an error
 - [ ] Compatibility analysis covers only the stated direct required-field constraints and is disabled by opt-out
-- [ ] A detected contradiction names the faulty specification and fails check even when no skill exists
+- [ ] A detected contradiction names the faulty meta spec and fails check even when no skill exists
 - [ ] A reserved docs corpus is excluded and reported once, warning by default and promoted to error by `--error <selectors>`
 - [ ] Inspection reports the same governing layers the checker uses, with honest built-in provenance
 
