@@ -33,14 +33,14 @@ def owner_of_frontmatter(primitives: GovernancePrimitives) -> FrontmatterOwner:
     Raises:
         WrongItemKindError: If the item is not a skill or a document whose corpus states a structure spec.
     """
-    origin = primitives.item_origin()
+    origin = primitives.origin()
     match origin:
         case SkillEntrypointOrigin():
             return SkillFrontmatterOwner(
                 directory_name=PathComponent.parse(origin.expected_name), link_target=origin.link_target
             )
         case DocumentOrigin():
-            governance = primitives.item_governance()
+            governance = primitives.governance()
             structure = governance.corpus_structure() if governance is not None else None
             if structure is None:
                 raise WrongItemKindError('a document whose corpus states a structure specification')
@@ -51,7 +51,7 @@ def owner_of_frontmatter(primitives: GovernancePrimitives) -> FrontmatterOwner:
 
 def parsed_skill_fields(primitives: ItemPrimitives) -> SkillFields:
     """The independently parsed fields of a skill; empty for every other item."""
-    if not isinstance(primitives.item_origin(), SkillEntrypointOrigin):
+    if not isinstance(primitives.origin(), SkillEntrypointOrigin):
         return FrozenMapping({})
     return parse_skill_fields(primitives.query(item_frontmatter))
 
@@ -65,8 +65,8 @@ def frontmatter_schema_problems(primitives: ItemPrimitives) -> tuple[SchemaProbl
     Returns:
         One entry per applicable schema, in order; none when no schema applies or frontmatter cannot be held to one.
     """
-    origin = primitives.item_origin()
-    governance = primitives.item_governance()
+    origin = primitives.origin()
+    governance = primitives.governance()
     schemas = governance.frontmatter_schemas() if governance is not None else ()
     if isinstance(origin, SkillEntrypointOrigin):
         frontmatter = primitives.query(item_frontmatter)

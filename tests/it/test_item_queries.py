@@ -86,7 +86,7 @@ def _decoded(database: Database, ref: ItemRef) -> ItemText:
 
 def _item_origin(primitives: ItemPrimitives) -> ItemOrigin:
     """The item's model-resolved origin, which does not require decoded text."""
-    return primitives.item_origin()
+    return primitives.origin()
 
 
 def _item_name(primitives: ItemPrimitives) -> AspectFilename | SpecName | None:
@@ -101,7 +101,7 @@ def _item_corpus(primitives: ItemPrimitives) -> CorpusName | None:
 
 def _item_base(primitives: ItemPrimitives) -> AspectFilename | SpecName | None:
     """The item's decoded base name, when it has one."""
-    return primitives.item_base()
+    return primitives.base()
 
 
 @pytest.mark.it

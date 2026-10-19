@@ -182,17 +182,17 @@ class _Reads[R: QueryTargetRef, P: _HasRecordedReads](metaclass=ABCMeta):
     def query_schema[T](self, ref: SchemaRef, query: Query[SchemaPrimitives, T]) -> T:
         """Read a schema query and include its dependencies."""
         key = Read(query, ref)
-        target = _ReadSchemaPrimitives(self._database, ref)
+        target = _SchemaPrimitives(self._database, ref)
         return self._compose(key, target, query)
 
 
-class _ReadSchemaPrimitives(_Reads[SchemaRef, '_ReadSchemaPrimitives']):
+class _SchemaPrimitives(_Reads[SchemaRef, '_SchemaPrimitives']):
     """The immutable input of one schema subject, recorded under its typed reference."""
 
     __slots__ = ()
 
-    def _fresh(self, ref: SchemaRef) -> _ReadSchemaPrimitives:
-        return _ReadSchemaPrimitives(self._database, ref)
+    def _fresh(self, ref: SchemaRef) -> _SchemaPrimitives:
+        return _SchemaPrimitives(self._database, ref)
 
     def schema_input(self) -> SchemaInput:
         """Resolve the database-owned schema input, recorded by hand rather than as a primitive method."""
@@ -200,13 +200,13 @@ class _ReadSchemaPrimitives(_Reads[SchemaRef, '_ReadSchemaPrimitives']):
         return self._database._schema_input(self._ref)
 
 
-class _ReadSymlinkPrimitives(_Reads[OutsideSymlinkRef, '_ReadSymlinkPrimitives']):
+class _SymlinkPrimitives(_Reads[OutsideSymlinkRef, '_SymlinkPrimitives']):
     """The primitive reads of one symlink subject, recorded with typed keys."""
 
     __slots__ = ()
 
-    def _fresh(self, ref: OutsideSymlinkRef) -> _ReadSymlinkPrimitives:
-        return _ReadSymlinkPrimitives(self._database, ref)
+    def _fresh(self, ref: OutsideSymlinkRef) -> _SymlinkPrimitives:
+        return _SymlinkPrimitives(self._database, ref)
 
     @primitive
     def leaves_at(self) -> RootExit:
@@ -214,13 +214,13 @@ class _ReadSymlinkPrimitives(_Reads[OutsideSymlinkRef, '_ReadSymlinkPrimitives']
         return self._database._outside_symlink(self._ref).leaves_at
 
 
-class _ReadCorpusDirectoryPrimitives(_Reads[ReservedCorpusDirectoryRef, '_ReadCorpusDirectoryPrimitives']):
+class _CorpusDirectoryPrimitives(_Reads[ReservedCorpusDirectoryRef, '_CorpusDirectoryPrimitives']):
     """The primitive reads of one reserved-corpus directory subject, recorded with typed keys."""
 
     __slots__ = ()
 
-    def _fresh(self, ref: ReservedCorpusDirectoryRef) -> _ReadCorpusDirectoryPrimitives:
-        return _ReadCorpusDirectoryPrimitives(self._database, ref)
+    def _fresh(self, ref: ReservedCorpusDirectoryRef) -> _CorpusDirectoryPrimitives:
+        return _CorpusDirectoryPrimitives(self._database, ref)
 
     @primitive
     def reserved_corpus(self) -> CorpusName:
@@ -247,7 +247,7 @@ def _witness_text(
 class _ItemPrimitives(_Reads[ItemRef, '_ItemPrimitives']):
     """The primitives of one item as the database answers them, noting each one a query reads.
 
-    A primitive that walks the model or other files, such as `linked_documents` and `item_base`,
+    A primitive that walks the model or other files, such as `linked_documents` and `base`,
     is not cached here: a query over the item is memoized by the database for the function and the ref, so each of
     them is computed once per query, and a cache beside it would only hold the same answer twice.
 
@@ -259,25 +259,25 @@ class _ItemPrimitives(_Reads[ItemRef, '_ItemPrimitives']):
         return _ItemPrimitives(self._database, ref)
 
     @primitive
-    def item_origin(self) -> ItemOrigin:
+    def origin(self) -> ItemOrigin:
         """The model-resolved origin metadata of the item."""
         return self._database._item(self._ref).descriptor.origin
 
     @primitive
-    def item_text(self) -> ItemText | None:
+    def text(self) -> ItemText | None:
         """The decoded witness of this subject, or none when its bytes are not UTF-8."""
         source = self._database.item_text(self._ref)
         return source if isinstance(source, ItemText) else None
 
     @primitive
-    def item_governance(self) -> Governance | None:
+    def governance(self) -> Governance | None:
         """The model's governance of the item."""
         return self._database.item_governance(self._ref)
 
     @primitive
     def link_targets(self) -> Mapping[NormalisedLinkPath, LinkTargetEntry]:
         """What the snapshot holds at each relative link's target; none for an item that is not UTF-8."""
-        self._record(self._read_key('item_text'))
+        self._record(self._read_key('text'))
         source = self._database.item_text(self._ref)
         return self._database.item_link_targets(source) if isinstance(source, ItemText) else FrozenMapping({})
 
@@ -288,7 +288,7 @@ class _ItemPrimitives(_Reads[ItemRef, '_ItemPrimitives']):
         return source.descriptor.link_base if isinstance(source, ItemText) else None
 
     @primitive
-    def item_base(self) -> AspectFilename | SpecName | None:
+    def base(self) -> AspectFilename | SpecName | None:
         """The typed name of the document or specification the item extends, from the names the model lists.
 
         A document's base is looked for among the documents of its corpus, a specification's among the specifications;
@@ -669,11 +669,11 @@ class Database:
             case ItemRef():
                 primitives = _ItemPrimitives(self, ref)
             case OutsideSymlinkRef():
-                primitives = _ReadSymlinkPrimitives(self, ref)
+                primitives = _SymlinkPrimitives(self, ref)
             case ReservedCorpusDirectoryRef():
-                primitives = _ReadCorpusDirectoryPrimitives(self, ref)
+                primitives = _CorpusDirectoryPrimitives(self, ref)
             case SchemaRef():
-                primitives = _ReadSchemaPrimitives(self, ref)
+                primitives = _SchemaPrimitives(self, ref)
             case _:
                 assert_never(ref)
         key = Read(query, ref)

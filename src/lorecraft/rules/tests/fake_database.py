@@ -321,7 +321,7 @@ class FakeSkillDatabase:
             StructurePrimitives(
                 (),
                 link_list=parse_document(self._text).links,
-                base=SkillRoot(_SKILLS_DIRECTORY / self._directory_name),
+                link_base_value=SkillRoot(_SKILLS_DIRECTORY / self._directory_name),
                 line_total=count_lines(self._text),
                 frontmatter_node=self.frontmatter(),
                 origin_value=SkillEntrypointOrigin(
@@ -355,7 +355,7 @@ def _markdown_primitives(
         link_list=parsed.links,
         anchor_set=parsed.anchors,
         target_map=link_targets,
-        base=base,
+        link_base_value=base,
     )
 
 

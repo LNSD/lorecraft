@@ -233,7 +233,7 @@ class TestOutlineAlignment:
         #: Then
         assert database.query_reads(outline_alignment, ItemRef(TYPING.path)) == {
             Read(item_structure_specs, ItemRef(TYPING.path)),
-            Read('item_governance', ItemRef(TYPING.path)),
+            Read('governance', ItemRef(TYPING.path)),
             Read(item_parse, ItemRef(TYPING.path)),
-            Read('item_text', ItemRef(TYPING.path)),
+            Read('text', ItemRef(TYPING.path)),
         }, 'the carry-over is derived from what the query read'
