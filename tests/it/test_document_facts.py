@@ -89,7 +89,7 @@ def _item_corpus(primitives: ItemPrimitives) -> CorpusName | None:
 
 def _document_base(primitives: ItemPrimitives) -> AspectFilename | SpecName | None:
     """The typed name of the document or specification the item extends."""
-    return primitives.item_base()
+    return primitives.base()
 
 
 @pytest.mark.it
@@ -211,9 +211,9 @@ class TestDocumentFactQueries:
         assert facts.count == database.query(item_token_count, _decoded(database).ref), 'the count is the file whole'
         assert database.query_reads(token_facts, GUIDE) == {
             Read(item_structure_specs, GUIDE),
-            Read('item_governance', GUIDE),
+            Read('governance', GUIDE),
             Read(item_token_count, GUIDE),
-            Read('item_text', GUIDE),
+            Read('text', GUIDE),
         }, 'derived carry-over names each primitive and the item read'
 
     def test_query_empty_section_facts_holds_the_forbidding_file_and_the_empty_section(self, tmp_path: Path) -> None:
@@ -249,7 +249,7 @@ class TestDocumentFactQueries:
         assert database.query(extension_link_facts, GUIDE) is facts, 'the answer is memoized'
         assert database.query_reads(extension_link_facts, GUIDE) == {
             Read(item_parse, GUIDE),
-            Read('item_text', GUIDE),
+            Read('text', GUIDE),
             Read('link_targets', GUIDE),
             Read('link_base', GUIDE),
             Read(item_name, GUIDE),
@@ -278,9 +278,9 @@ class TestDocumentFactReads:
         #: Then
         assert database.query_reads(title_facts, GUIDE) == {
             Read(item_structure_specs, GUIDE),
-            Read('item_governance', GUIDE),
+            Read('governance', GUIDE),
             Read(item_parse, GUIDE),
-            Read('item_text', GUIDE),
+            Read('text', GUIDE),
         }, 'the carry-over names each primitive and the item read'
 
 
@@ -363,7 +363,7 @@ class TestDocumentLinks:
         assert facts.corpus == CorpusName.parse('code'), 'the corpus of the document'
         assert database.query_reads(mutual_link_facts, GUIDE) == {
             Read(item_corpus, GUIDE),
-            Read('item_text', GUIDE),
+            Read('text', GUIDE),
             Read(item_name, GUIDE),
             Read('link_base', GUIDE),
             Read(item_parse, GUIDE),
@@ -372,10 +372,10 @@ class TestDocumentLinks:
             Read(linked_paths, GUIDE),
             Read(linked_paths, FEATURE),
             Read(item_parse, FEATURE),
-            Read('item_text', FEATURE),
+            Read('text', FEATURE),
             Read(linked_paths, OTHER_GUIDE),
             Read(item_parse, OTHER_GUIDE),
-            Read('item_text', OTHER_GUIDE),
+            Read('text', OTHER_GUIDE),
         } | {Read(primitive, ref) for ref in (FEATURE, OTHER_GUIDE) for primitive in ('link_base', 'link_targets')}, (
             'the carry-over includes dependencies of linked item queries'
         )

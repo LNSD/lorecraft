@@ -79,7 +79,7 @@ class SchemaPrimitives(QueryPrimitives['SchemaPrimitives'], SchemaReads, Protoco
 class SyntaxPrimitives(QueryPrimitives['ItemPrimitives'], Protocol):
     """Raw decoded text from which syntax and counts are derived."""
 
-    def item_text(self) -> DecodedText | None:
+    def text(self) -> DecodedText | None:
         """The decoded witness of this subject, or none when its bytes are not UTF-8."""
         ...
 
@@ -91,15 +91,15 @@ CountPrimitives = SyntaxPrimitives
 class GovernancePrimitives(QueryPrimitives['ItemPrimitives'], Protocol):
     """What governs the item and what it is named: its specifications, schemas, owner and place among the documents."""
 
-    def item_origin(self) -> ItemOrigin:
+    def origin(self) -> ItemOrigin:
         """The model's origin metadata for this item, including its expected name and provenance."""
         ...
 
-    def item_governance(self) -> Governance | None:
+    def governance(self) -> Governance | None:
         """The governance of this item, or none when it has no corpus governance."""
         ...
 
-    def item_base(self) -> AspectFilename | SpecName | None:
+    def base(self) -> AspectFilename | SpecName | None:
         """The typed name of the document or specification the item extends, looked for among the names the model lists.
 
         A document's base is the narrowest document of its corpus whose name its own continues after a hyphen, a

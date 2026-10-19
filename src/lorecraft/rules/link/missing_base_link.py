@@ -44,7 +44,7 @@ def missing_base(primitives: GovernanceSyntaxLinkResolutionPrimitives) -> Missin
     Args:
         primitives: The model state of the document.
     """
-    base = primitives.item_base()
+    base = primitives.base()
     name = primitives.query(item_name)
     link_base = primitives.link_base()
     if base is None or name is None or not isinstance(link_base, DocumentDirectory):

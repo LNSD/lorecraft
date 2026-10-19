@@ -28,37 +28,37 @@ if TYPE_CHECKING:
 
 def item_frontmatter(primitives: ItemPrimitives) -> FrontmatterNode:
     """The item's frontmatter, parsed from its decoded text alone."""
-    source = primitives.item_text()
+    source = primitives.text()
     return parse_frontmatter(source.text) if source is not None else MissingFrontmatter()
 
 
 def item_parse(primitives: ItemPrimitives) -> ParsedDocument:
     """The item's parse tree, built from its decoded text alone."""
-    source = primitives.item_text()
+    source = primitives.text()
     return parse_document(source.text) if source is not None else parse_document('')
 
 
 def item_token_count(primitives: ItemPrimitives) -> TokenCount:
     """The tokens in the item's whole decoded file; zero when it is not UTF-8."""
-    source = primitives.item_text()
+    source = primitives.text()
     return count_tokens(source.text) if source is not None else TokenCount(UnsignedInt(0))
 
 
 def item_line_count(primitives: ItemPrimitives) -> LineCount:
     """The lines in the item's whole decoded file; zero when it is not UTF-8."""
-    source = primitives.item_text()
+    source = primitives.text()
     return count_lines(source.text) if source is not None else LineCount(UnsignedInt(0))
 
 
 def item_structure_specs(primitives: ItemPrimitives) -> tuple[StructureSpec, ...]:
     """The structure specifications of the item's governance, if any."""
-    governance = primitives.item_governance()
+    governance = primitives.governance()
     return governance.structure_specs() if governance is not None else ()
 
 
 def item_name(primitives: ItemPrimitives) -> AspectFilename | SpecName | None:
     """The typed name declared by this item's origin, when it has readable text."""
-    source = primitives.item_text()
+    source = primitives.text()
     if source is None:
         return None
     origin = source.descriptor.origin
@@ -73,6 +73,6 @@ def item_name(primitives: ItemPrimitives) -> AspectFilename | SpecName | None:
 
 def item_corpus(primitives: ItemPrimitives) -> CorpusName | None:
     """The typed corpus declared by a readable document item."""
-    source = primitives.item_text()
+    source = primitives.text()
     origin = source.descriptor.origin if source is not None else None
     return CorpusName.parse(origin.corpus) if isinstance(origin, DocumentOrigin) else None

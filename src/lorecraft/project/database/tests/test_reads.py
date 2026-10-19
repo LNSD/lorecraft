@@ -41,7 +41,7 @@ def _item_headings(primitives: ItemPrimitives) -> tuple[Heading, ...]:
 
 def _read_only_lookup(primitives: ItemPrimitives) -> object:
     """Fetch a primitive method without invoking it."""
-    return primitives.item_text
+    return primitives.text
 
 
 def _schema_input(primitives: SchemaPrimitives) -> SchemaInput:
@@ -81,9 +81,9 @@ class TestSubjectReads:
         #: Given
         adapters = (
             '_ItemPrimitives',
-            '_ReadSymlinkPrimitives',
-            '_ReadCorpusDirectoryPrimitives',
-            '_ReadSchemaPrimitives',
+            '_SymlinkPrimitives',
+            '_CorpusDirectoryPrimitives',
+            '_SchemaPrimitives',
         )
 
         #: Then
@@ -117,7 +117,7 @@ class TestSubjectReads:
 
         #: Then
         assert len(headings) == 1, f'the query returns the source heading, got {headings}'
-        assert database.query_reads(_item_headings, ref) == {Read(item_parse, ref), Read('item_text', ref)}, (
+        assert database.query_reads(_item_headings, ref) == {Read(item_parse, ref), Read('text', ref)}, (
             'the read key retains the Markdown item subject'
         )
 

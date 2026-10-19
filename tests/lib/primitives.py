@@ -63,7 +63,7 @@ class StructurePrimitives:
         token_total: The tokens in the item's whole file.
         link_list: The links of the item's parse, in document order.
         target_map: What the snapshot holds at the target of each relative link.
-        base: Where the item's relative links are read from.
+        link_base_value: Where the item's relative links are read from.
         name: The filename stem of the document.
         line_total: The lines in the item's whole file.
         frontmatter_node: The item's frontmatter block as parsed.
@@ -78,7 +78,7 @@ class StructurePrimitives:
     token_total: TokenCount = TokenCount(UnsignedInt(0))
     link_list: tuple[Link, ...] = ()
     target_map: Mapping[NormalisedLinkPath, LinkTargetEntry] = FrozenMapping({})
-    base: LinkBase | None = None
+    link_base_value: LinkBase | None = None
     name: AspectFilename | SpecName | None = None
     line_total: LineCount = LineCount(UnsignedInt(0))
     frontmatter_node: FrontmatterNode = MissingFrontmatter()
@@ -90,15 +90,15 @@ class StructurePrimitives:
     governance_value: Governance | None = None
     builtin_schema: bool = True
 
-    def item_origin(self) -> ItemOrigin:
+    def origin(self) -> ItemOrigin:
         """The origin this was built with."""
         return self.origin_value
 
-    def item_text(self) -> DecodedText | None:
+    def text(self) -> DecodedText | None:
         """Standalone test facts have no decoded witness; derived answers are supplied below."""
         return None
 
-    def item_governance(self) -> Governance | None:
+    def governance(self) -> Governance | None:
         """The governance this was built with."""
         return self.governance_value
 
@@ -128,13 +128,13 @@ class StructurePrimitives:
 
     def link_base(self) -> LinkBase | None:
         """The base this was built with."""
-        return self.base
+        return self.link_base_value
 
     def item_name(self) -> AspectFilename | SpecName | None:
         """The name this was built with."""
         return self.name
 
-    def item_base(self) -> AspectFilename | SpecName | None:
+    def base(self) -> AspectFilename | SpecName | None:
         """The base this was built with."""
         return self.base_name
 

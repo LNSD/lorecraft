@@ -466,7 +466,7 @@ class TestReads:
         assert database.query_reads(_outer, GUIDE) == {
             Read(_inner, GUIDE),
             Read(item_parse, GUIDE),
-            Read('item_text', GUIDE),
+            Read('text', GUIDE),
         }, 'the outer read set includes the inner query and its primitive read'
 
     def test_query_at_records_the_query_and_the_other_item_ref(self) -> None:
@@ -491,7 +491,7 @@ class TestReads:
         assert database.query_reads(_reads_another_item, GUIDE) == {
             Read(_inner, TARGET),
             Read(item_parse, TARGET),
-            Read('item_text', TARGET),
+            Read('text', TARGET),
         }, 'the read set identifies the query and the primitive it read'
 
     def test_query_at_records_an_unreadable_other_item(self) -> None:
