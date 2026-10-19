@@ -141,8 +141,9 @@ import logging
 from abc import ABCMeta, abstractmethod
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
-from enum import StrEnum
-from typing import Protocol, Self, assert_never, cast, overload
+from functools import wraps
+from types import FunctionType
+from typing import Concatenate, Protocol, Self, assert_never, cast, overload
 
 from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.num import UnsignedInt
@@ -219,27 +220,17 @@ from lorecraft.vfs import (
 from .text import ItemText, Undecodable
 
 
-class PrimitiveRead(StrEnum):
-    """A primitive that a declared query read, named by its method."""
+def primitive[S: '_PrimitiveReadRecorder', **P, T](
+    method: FunctionType,
+) -> Callable[Concatenate[S, P], T]:
+    """Record a primitive read when its method is called, preserving its exact signature."""
 
-    STRUCTURE_SPECS = 'structure_specs'
-    HEADINGS = 'headings'
-    TOKEN_COUNT = 'token_count'
-    LINE_COUNT = 'line_count'
-    FRONTMATTER = 'frontmatter'
-    ITEM_ORIGIN = 'item_origin'
-    ITEM_GOVERNANCE = 'item_governance'
-    BUILTIN_SKILLS_SCHEMA = 'builtin_skills_schema'
-    LINKS = 'links'
-    ANCHORS = 'anchors'
-    LINK_TARGETS = 'link_targets'
-    LINK_BASE = 'link_base'
-    ITEM_NAME = 'item_name'
-    ITEM_CORPUS = 'item_corpus'
-    ITEM_BASE = 'item_base'
-    SYMLINK_LEAVES_AT = 'symlink_leaves_at'
-    RESERVED_CORPUS = 'reserved_corpus'
-    SCHEMA_INPUT = 'schema_input'
+    @wraps(method)
+    def wrapper(self: S, *args: P.args, **kwargs: P.kwargs) -> T:
+        self._record(self._read_key(method.__name__))
+        return method(self, *args, **kwargs)
+
+    return wrapper
 
 
 @dataclass(frozen=True)
@@ -250,8 +241,16 @@ class Read:
     the subject-specific arms of `SubjectQuery`; public `Database.query` overloads retain that precision.
     """
 
-    source: PrimitiveRead | Callable[..., object]
+    source: str | Callable[..., object]
     subject: SubjectRef
+
+
+class _PrimitiveReadRecorder(Protocol):
+    """The subject-qualified recording operations a primitive wrapper calls."""
+
+    def _read_key(self, method_name: str) -> Read: ...
+
+    def _record(self, *keys: Read) -> None: ...
 
 
 class _HasRecordedReads(Protocol):
@@ -269,6 +268,10 @@ class _Reads[R: SubjectRef, P: _HasRecordedReads](metaclass=ABCMeta):
         self.__reads: set[Read] = set()
         self._database = database
         self._ref = ref
+
+    def _read_key(self, method_name: str) -> Read:
+        """Pair a primitive method name with this adapter's subject."""
+        return Read(method_name, self._ref)
 
     def _record(self, *keys: Read) -> None:
         """Record primitive or nested-query keys without exposing mutable storage."""
@@ -318,8 +321,8 @@ class _ReadSchemaPrimitives(_Reads[SchemaReference, '_ReadSchemaPrimitives']):
         return _ReadSchemaPrimitives(self._database, ref)
 
     def schema_input(self) -> SchemaInput:
-        """Resolve the subject from this database's loaded model."""
-        self._record(Read(PrimitiveRead.SCHEMA_INPUT, self._ref))
+        """Resolve the database-owned schema input, recorded by hand rather than as a primitive method."""
+        self._record(Read('schema_input', self._ref))
         return self._database._schema_input(self._ref)
 
 
@@ -331,9 +334,9 @@ class _ReadSymlinkPrimitives(_Reads[SymlinkRef, '_ReadSymlinkPrimitives']):
     def _fresh(self, ref: SymlinkRef) -> '_ReadSymlinkPrimitives':
         return _ReadSymlinkPrimitives(self._database, ref)
 
+    @primitive
     def leaves_at(self) -> RootExit:
         """The point where this symlink's chain leaves the repository."""
-        self._record(Read(PrimitiveRead.SYMLINK_LEAVES_AT, self._ref))
         return self._database._outside_symlink(self._ref).leaves_at
 
 
@@ -345,9 +348,9 @@ class _ReadCorpusDirectoryPrimitives(_Reads[CorpusDirectoryRef, '_ReadCorpusDire
     def _fresh(self, ref: CorpusDirectoryRef) -> '_ReadCorpusDirectoryPrimitives':
         return _ReadCorpusDirectoryPrimitives(self._database, ref)
 
+    @primitive
     def reserved_corpus(self) -> CorpusName:
         """The reserved corpus whose name this directory takes."""
-        self._record(Read(PrimitiveRead.RESERVED_CORPUS, self._ref))
         return self._database._reserved_corpus_directory(self._ref).corpus
 
 
@@ -381,77 +384,77 @@ class _ItemPrimitives(_Reads[MarkdownItemRef, '_ItemPrimitives']):
     def _fresh(self, ref: MarkdownItemRef) -> '_ItemPrimitives':
         return _ItemPrimitives(self._database, ref)
 
+    @primitive
     def item_origin(self) -> ItemOrigin:
         """The model-resolved origin facts of the item."""
-        self._record(Read(PrimitiveRead.ITEM_ORIGIN, self._ref))
         return self._database._item(self._ref).descriptor.origin
 
+    @primitive
     def item_governance(self) -> Governance | None:
         """The model's governance of the item."""
-        self._record(Read(PrimitiveRead.ITEM_GOVERNANCE, self._ref))
         return self._database.item_governance(self._ref)
 
+    @primitive
     def builtin_skills_schema(self) -> bool:
         """Whether the package's Agent Skills frontmatter schema is enabled."""
-        self._record(Read(PrimitiveRead.BUILTIN_SKILLS_SCHEMA, self._ref))
         return self._database.model().builtin_skills_schema
 
+    @primitive
     def structure_specs(self) -> tuple[StructureSpec, ...]:
         """The structure specifications of the layers that loaded for the item."""
-        self._record(Read(PrimitiveRead.STRUCTURE_SPECS, self._ref))
         return self._database.item_structure_specs(self._ref)
 
+    @primitive
     def headings(self) -> tuple[Heading, ...]:
         """The headings of the item's parse; none for an item that is not UTF-8."""
-        self._record(Read(PrimitiveRead.HEADINGS, self._ref))
         source = self._database.item_text(self._ref)
         return self._database.item_parse(source).headings if isinstance(source, ItemText) else ()
 
+    @primitive
     def token_count(self) -> TokenCount:
         """The tokens in the item's whole file; none for an item that is not UTF-8."""
-        self._record(Read(PrimitiveRead.TOKEN_COUNT, self._ref))
         source = self._database.item_text(self._ref)
         return self._database.item_token_count(source) if isinstance(source, ItemText) else TokenCount(UnsignedInt(0))
 
+    @primitive
     def line_count(self) -> LineCount:
         """The lines in the item's whole file; none for an item that is not UTF-8."""
-        self._record(Read(PrimitiveRead.LINE_COUNT, self._ref))
         source = self._database.item_text(self._ref)
         return self._database.item_line_count(source) if isinstance(source, ItemText) else LineCount(UnsignedInt(0))
 
+    @primitive
     def frontmatter(self) -> FrontmatterNode:
         """The item's frontmatter block; missing for an item that is not UTF-8."""
-        self._record(Read(PrimitiveRead.FRONTMATTER, self._ref))
         source = self._database.item_text(self._ref)
         return self._database.item_frontmatter(source) if isinstance(source, ItemText) else MissingFrontmatter()
 
+    @primitive
     def links(self) -> tuple[Link, ...]:
         """The links of the item's parse; none for an item that is not UTF-8."""
-        self._record(Read(PrimitiveRead.LINKS, self._ref))
         source = self._database.item_text(self._ref)
         return self._database.item_parse(source).links if isinstance(source, ItemText) else ()
 
+    @primitive
     def anchors(self) -> frozenset[Anchor]:
         """The anchor of every heading of the item's parse; none for an item that is not UTF-8."""
-        self._record(Read(PrimitiveRead.ANCHORS, self._ref))
         source = self._database.item_text(self._ref)
         return self._database.item_parse(source).anchors if isinstance(source, ItemText) else frozenset()
 
+    @primitive
     def link_targets(self) -> Mapping[NormalisedLinkPath, LinkTargetEntry]:
         """What the snapshot holds at each relative link's target; none for an item that is not UTF-8."""
-        self._record(Read(PrimitiveRead.LINK_TARGETS, self._ref))
         source = self._database.item_text(self._ref)
         return self._database.item_link_targets(source) if isinstance(source, ItemText) else FrozenMapping({})
 
+    @primitive
     def link_base(self) -> LinkBase | None:
         """Where the item's relative links are read from; `None` for an item that is not UTF-8."""
-        self._record(Read(PrimitiveRead.LINK_BASE, self._ref))
         source = self._database.item_text(self._ref)
         return source.descriptor.link_base if isinstance(source, ItemText) else None
 
+    @primitive
     def item_name(self) -> AspectFilename | SpecName | None:
         """The typed name of a document or meta specification; `None` for any other item or one that is not UTF-8."""
-        self._record(Read(PrimitiveRead.ITEM_NAME, self._ref))
         source = self._database.item_text(self._ref)
         origin = source.descriptor.origin if isinstance(source, ItemText) else None
         # Keep this dispatch: documents and specifications have different name formats; skills and resources have none.
@@ -463,15 +466,16 @@ class _ItemPrimitives(_Reads[MarkdownItemRef, '_ItemPrimitives']):
             case _:
                 return None
 
+    @primitive
     def item_corpus(self) -> CorpusName | None:
         """The typed corpus a document lies in; `None` for any other item or one that is not UTF-8."""
-        self._record(Read(PrimitiveRead.ITEM_CORPUS, self._ref))
         source = self._database.item_text(self._ref)
         origin = source.descriptor.origin if isinstance(source, ItemText) else None
         # Keep this dispatch: this query answers for user documents; a specification's `corpus` is a prefix of its
         # name, and a skill has none.
         return CorpusName.parse(origin.corpus) if isinstance(origin, DocumentOrigin) else None
 
+    @primitive
     def item_base(self) -> AspectFilename | SpecName | None:
         """The typed name of the document or specification the item extends, from the names the model lists.
 
@@ -479,7 +483,6 @@ class _ItemPrimitives(_Reads[MarkdownItemRef, '_ItemPrimitives']):
         `None` for any other item or one that is not UTF-8. A skill entry extends nothing: its name is its directory's,
         which no hyphenated prefix continues.
         """
-        self._record(Read(PrimitiveRead.ITEM_BASE, self._ref))
         source = self._database.item_text(self._ref)
         origin = source.descriptor.origin if isinstance(source, ItemText) else None
         # Keep this dispatch: documents and specifications inherit within separate model hierarchies; skills do not.

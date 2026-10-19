@@ -12,7 +12,7 @@ from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
-from lorecraft.project.database import Database, ItemText, PrimitiveRead, Read
+from lorecraft.project.database import Database, ItemText, Read
 from lorecraft.project.item import MarkdownItemRef, UnlistedItemError
 from lorecraft.project.layout import SNAPSHOT_SCOPE
 from lorecraft.project.link_target import DocumentLink
@@ -202,8 +202,8 @@ class TestDocumentFactQueries:
         assert [(b.spec, b.tokens.value) for b in facts.budgets] == [(SPEC_PATH, 500)], 'the budget names its file'
         assert facts.count == database.item_token_count(_decoded(database)), 'the count is the file whole'
         assert database.query_reads(token_facts, GUIDE) == {
-            Read(PrimitiveRead.STRUCTURE_SPECS, GUIDE),
-            Read(PrimitiveRead.TOKEN_COUNT, GUIDE),
+            Read('structure_specs', GUIDE),
+            Read('token_count', GUIDE),
         }, 'derived carry-over names each primitive and the item read'
 
     def test_query_empty_section_facts_holds_the_forbidding_file_and_the_empty_section(self, tmp_path: Path) -> None:
@@ -238,10 +238,10 @@ class TestDocumentFactQueries:
         assert [(link.line.value, link.extension) for link in facts.links] == [(7, 'guide-more.md')], 'the existing one'
         assert database.query(extension_link_facts, GUIDE) is facts, 'the answer is memoized'
         assert database.query_reads(extension_link_facts, GUIDE) == {
-            Read(PrimitiveRead.LINKS, GUIDE),
-            Read(PrimitiveRead.LINK_TARGETS, GUIDE),
-            Read(PrimitiveRead.LINK_BASE, GUIDE),
-            Read(PrimitiveRead.ITEM_NAME, GUIDE),
+            Read('links', GUIDE),
+            Read('link_targets', GUIDE),
+            Read('link_base', GUIDE),
+            Read('item_name', GUIDE),
         }, 'derived carry-over'
 
     def test_query_extension_link_facts_of_a_skill_entry_holds_no_link(self, tmp_path: Path) -> None:
@@ -266,8 +266,8 @@ class TestDocumentFactReads:
 
         #: Then
         assert database.query_reads(title_facts, GUIDE) == {
-            Read(PrimitiveRead.STRUCTURE_SPECS, GUIDE),
-            Read(PrimitiveRead.HEADINGS, GUIDE),
+            Read('structure_specs', GUIDE),
+            Read('headings', GUIDE),
         }, 'the carry-over names each primitive and the item read'
 
 
@@ -349,11 +349,11 @@ class TestDocumentLinks:
         #: Then
         assert facts.corpus == CorpusName.parse('code'), 'the corpus of the document'
         assert database.query_reads(mutual_link_facts, GUIDE) == {
-            Read(PrimitiveRead.ITEM_CORPUS, GUIDE),
-            Read(PrimitiveRead.ITEM_NAME, GUIDE),
-            Read(PrimitiveRead.LINK_BASE, GUIDE),
-            Read(PrimitiveRead.LINKS, GUIDE),
-            Read(PrimitiveRead.LINK_TARGETS, GUIDE),
+            Read('item_corpus', GUIDE),
+            Read('item_name', GUIDE),
+            Read('link_base', GUIDE),
+            Read('links', GUIDE),
+            Read('link_targets', GUIDE),
             Read(linked_documents, GUIDE),
             Read(linked_paths, GUIDE),
             Read(linked_paths, FEATURE),
@@ -361,5 +361,5 @@ class TestDocumentLinks:
         } | {
             Read(primitive, ref)
             for ref in (FEATURE, OTHER_GUIDE)
-            for primitive in (PrimitiveRead.LINK_BASE, PrimitiveRead.LINKS, PrimitiveRead.LINK_TARGETS)
+            for primitive in ('link_base', 'links', 'link_targets')
         }, 'the carry-over includes dependencies of linked item queries'
