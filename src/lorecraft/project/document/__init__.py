@@ -6,7 +6,6 @@ from .repo import (
     Document,
     DocumentDecodeError,
     DocumentFile,
-    DocumentReadError,
     Repository,
 )
 
@@ -19,6 +18,5 @@ __all__: list[str] = [
     'DocumentFile',
     'Repository',
     'CorpusListError',
-    'DocumentReadError',
     'DocumentDecodeError',
 ]

@@ -45,9 +45,9 @@ class ItemType(Enum):
     """The types of governed Markdown file a rule may apply to."""
 
     DOCUMENT = 'document'
-    SKILL_ENTRYPOINT = 'skill-entry'
+    SKILL_ENTRYPOINT = 'skill-entrypoint'
     SKILL_RESOURCE = 'skill-resource'
-    META_SPEC = 'specification'
+    META_SPEC = 'meta-spec'
 
 
 class MetaSpecPart(StrEnum):

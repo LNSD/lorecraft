@@ -8,7 +8,7 @@ from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.item import ItemRef
-from lorecraft.project.skill import SkillRef
+from lorecraft.project.skill import OutsideSymlinkRef, SkillRef
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.engine.invalid_utf8 import InvalidUtf8
 from lorecraft.rules.engine.malformed_structure_file import MalformedStructureFile, NoRuleStated
@@ -263,9 +263,10 @@ class TestCheckedLayoutEntry:
         error = RuleDiagnostic(path, UppercaseEntry(spec=None), Severity.ERROR)
 
         #: When
-        entry = CheckedLayoutEntry(path, diagnostics=(warning, error))
+        entry = CheckedLayoutEntry(OutsideSymlinkRef(path), diagnostics=(warning, error))
 
         #: Then
+        assert entry.ref == OutsideSymlinkRef(path), 'the report is keyed by the layout entry ref'
         assert entry.diagnostics == (error, warning), 'a report holds its diagnostics in output order, however built'
 
 

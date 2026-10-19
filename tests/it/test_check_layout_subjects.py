@@ -18,6 +18,7 @@ from lorecraft.engine import CheckedSubject, check_subjects
 from lorecraft.project.database import Database
 from lorecraft.project.item import ItemRef, MetaSpecPart
 from lorecraft.project.layout import SNAPSHOT_SCOPE
+from lorecraft.project.skill import OutsideSymlinkRef
 from lorecraft.rules.identity import Severity
 from lorecraft.rules.layout.escaping_symlink import EscapingSymlink
 from lorecraft.rules.registry import Registry
@@ -65,7 +66,9 @@ def _outside_report(path: str, link: str, target: Path | str) -> CheckedLayoutEn
     """
     entry = RootRelativePath.parse(path)
     occurrence = EscapingSymlink(leaves_at=RootExit(RootRelativePath.parse(link), PurePosixPath(target)))
-    return CheckedLayoutEntry(entry, diagnostics=(RuleDiagnostic(entry, occurrence, Severity.ERROR),))
+    return CheckedLayoutEntry(
+        OutsideSymlinkRef(entry), diagnostics=(RuleDiagnostic(entry, occurrence, Severity.ERROR),)
+    )
 
 
 @pytest.fixture(scope='module')

@@ -20,10 +20,10 @@ from lorecraft.project.document import (
     Document,
     DocumentDecodeError,
     DocumentFile,
-    DocumentReadError,
     DocumentRef,
     Repository,
 )
+from lorecraft.project.item import ItemReadError, ItemRef
 from lorecraft.vfs import DirListError, FileReadError, TextDecodeError
 
 
@@ -249,11 +249,11 @@ class TestRepositoryGetDocument:
         ref = DocumentRef(CorpusName.parse('code'), AspectFilename.parse('missing'))
 
         #: When
-        with pytest.raises(DocumentReadError) as exc_info:
+        with pytest.raises(ItemReadError) as exc_info:
             repository.get_document(ref)
 
         #: Then
-        assert exc_info.value.ref == ref, 'the error names the document that could not be read'
+        assert exc_info.value.ref == ItemRef(ref.path), 'the error names the document that could not be read'
         assert isinstance(exc_info.value.source, FileReadError), 'its source is the failed read'
         assert 'docs/code/missing.md' in str(exc_info.value), 'the message names the document'
 
@@ -271,5 +271,5 @@ class TestRepositoryGetDocument:
         #: Then
         assert exc_info.value.ref == ref, 'the error names the document that could not be decoded'
         assert isinstance(exc_info.value.source, TextDecodeError), 'its source is the failed decode'
-        assert not isinstance(exc_info.value, DocumentReadError), 'a decode failure is a variant of its own'
+        assert not isinstance(exc_info.value, ItemReadError), 'a decode failure is a variant of its own'
         assert 'docs/code/latin.md' in str(exc_info.value), 'the message names the document'

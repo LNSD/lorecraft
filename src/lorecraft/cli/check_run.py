@@ -34,7 +34,7 @@ from lorecraft.rules.engine import RefusedOperation
 from lorecraft.rules.engine.unreadable_path import Refused, UnreadablePath
 from lorecraft.rules.identity import Severity
 from lorecraft.rules.registry import Registry
-from lorecraft.rules.report import LoadFailureReport, RunReport, UnreadableDocument
+from lorecraft.rules.report import LoadFailureReport, RunReport, UnreadableItem
 from lorecraft.rules.table import RuleTable, selected_rules_left_off
 from lorecraft.vfs import RefusedInspect, RefusedListing, RefusedRead, RefusedRecord, take_snapshot
 
@@ -170,7 +170,7 @@ def _refusal_reports(
         occurrence = UnreadablePath(failed_at=path, cause=Refused(operation, reason))
         document = documents.get(path)
         if isinstance(refusal, RefusedRead) and document is not None:
-            reports.append(UnreadableDocument(document, occurrence))
+            reports.append(UnreadableItem(document, occurrence))
         else:
             reports.append(LoadFailureReport(path, occurrence))
     return tuple(reports)

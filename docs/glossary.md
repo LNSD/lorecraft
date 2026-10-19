@@ -59,7 +59,7 @@ classifies it by an [item type](#item-type).
 
 ### Item type
 
-Which type of [item](#item) a governed Markdown file is: `DOCUMENT`, `META_SPEC`, `SKILL_ENTRYPOINT`, or `SKILL_RESOURCE`.
+Which type of [item](#item) a governed Markdown file is: `DOCUMENT`, `META_SPEC`, `SKILL_ENTRYPOINT`, or `SKILL_RESOURCE`; their values are `document`, `meta-spec`, `skill-entrypoint`, and `skill-resource`.
 
 ### Entry
 

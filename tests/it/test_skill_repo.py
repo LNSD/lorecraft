@@ -15,6 +15,7 @@ import pytest
 
 from lib.disk import DiskFileSystem
 from lorecraft.core.path import PathComponent, RootRelativePath
+from lorecraft.project.item import ItemReadError, ItemRef
 from lorecraft.project.skill import (
     OutsideSymlink,
     Repository,
@@ -24,7 +25,6 @@ from lorecraft.project.skill import (
     SkillEntryResolveError,
     SkillFileResolveError,
     SkillLocation,
-    SkillReadError,
     SkillRef,
     SkillResourcesListError,
     SkillResourcesSymlinkResolveError,
@@ -699,11 +699,11 @@ class TestRepositoryGetSkill:
         ref = _ref('.agents/skills/review')
 
         #: When
-        with pytest.raises(SkillReadError) as exc_info:
+        with pytest.raises(ItemReadError) as exc_info:
             repository.get_skill(ref)
 
         #: Then
-        assert type(exc_info.value) is SkillReadError, 'a missing SKILL.md is unreadable, not undecodable'
-        assert exc_info.value.ref == ref, 'the error names the skill that could not be read'
+        assert type(exc_info.value) is ItemReadError, 'a missing SKILL.md is unreadable, not undecodable'
+        assert exc_info.value.ref == ItemRef(ref.path), 'the error names the skill that could not be read'
         assert isinstance(exc_info.value.source, FileReadError), 'its source is the failed read'
         assert '.agents/skills/review' in str(exc_info.value), 'the message names the skill'
