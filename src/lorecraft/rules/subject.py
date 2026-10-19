@@ -32,7 +32,7 @@ from enum import StrEnum
 from typing import ClassVar, Self
 
 from lorecraft.project.item import ItemKind
-from lorecraft.project.query import CorpusDirectoryQuery, ItemQuery, SymlinkQuery
+from lorecraft.project.query import CorpusDirectoryPrimitives, ItemQuery, Primitives, Query, SymlinkPrimitives
 
 from .declaration import ContentRule, LayoutRule, Rule
 
@@ -81,7 +81,9 @@ class DocumentRule(ItemRule):
     APPLIES_TO: ClassVar[frozenset[ItemKind]] = frozenset({ItemKind.DOCUMENT})
 
 
-type SubjectQuery[Facts] = ItemQuery[Facts] | SymlinkQuery[Facts] | CorpusDirectoryQuery[Facts]
+type SubjectQuery[Facts] = (
+    Query[Primitives, Facts] | Query[SymlinkPrimitives, Facts] | Query[CorpusDirectoryPrimitives, Facts]
+)
 
 
 class Queried[Facts, QueryType](Rule, ABC):
@@ -215,22 +217,22 @@ class CorpusDirectoryRule(LayoutRule):
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
-class QueriedSymlinkRule[Facts](Queried[Facts, SymlinkQuery[Facts]], SymlinkRule):
+class QueriedSymlinkRule[Facts](Queried[Facts, Query[SymlinkPrimitives, Facts]], SymlinkRule):
     """The base of a query-backed rule over a symlink of the skill layout."""
 
     @classmethod
     @abstractmethod
-    def query(cls) -> SymlinkQuery[Facts]:
+    def query(cls) -> Query[SymlinkPrimitives, Facts]:
         """The query over a symlink's model facts whose answer `judge` takes."""
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
-class QueriedCorpusDirectoryRule[Facts](Queried[Facts, CorpusDirectoryQuery[Facts]], CorpusDirectoryRule):
+class QueriedCorpusDirectoryRule[Facts](Queried[Facts, Query[CorpusDirectoryPrimitives, Facts]], CorpusDirectoryRule):
     """The base of a query-backed rule over a reserved-corpus directory."""
 
     @classmethod
     @abstractmethod
-    def query(cls) -> CorpusDirectoryQuery[Facts]:
+    def query(cls) -> Query[CorpusDirectoryPrimitives, Facts]:
         """The query over a reserved-corpus directory's model facts whose answer `judge` takes."""
 
 

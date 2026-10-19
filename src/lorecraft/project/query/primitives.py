@@ -26,20 +26,21 @@ if TYPE_CHECKING:
     from lorecraft.project.schemas.name import SpecName
     from lorecraft.project.workspace import Governance
 
-type Query[T] = Callable[[Primitives], T]
-type ItemQuery[T] = Query[T]
-type SameSubjectQuery[P, T] = Callable[[P], T]
-type SymlinkQuery[T] = Callable[[SymlinkPrimitives], T]
-type CorpusDirectoryQuery[T] = Callable[[CorpusDirectoryPrimitives], T]
-type SchemaQuery[T] = Callable[[SchemaPrimitives], T]
+type Query[P, T] = Callable[[P], T]
+type ItemQuery[T] = Query[Primitives, T]
 type SubjectRef = MarkdownItemRef | SymlinkRef | CorpusDirectoryRef | SchemaReference
-type SubjectQuery[T] = Query[T] | SymlinkQuery[T] | CorpusDirectoryQuery[T] | SchemaQuery[T]
+type SubjectQuery[T] = (
+    Query[Primitives, T]
+    | Query[SymlinkPrimitives, T]
+    | Query[CorpusDirectoryPrimitives, T]
+    | Query[SchemaPrimitives, T]
+)
 
 
 class QueryPrimitives[P](Protocol):
     """Same-subject query operations shared by every subject's primitive facet."""
 
-    def query[T](self, query: SameSubjectQuery[P, T]) -> T:
+    def query[T](self, query: Query[P, T]) -> T:
         """Read a query over the same subject and record its dependency."""
         ...
 
@@ -55,7 +56,7 @@ class ItemReads(Protocol):
 class SchemaReads(Protocol):
     """Cross-subject queries whose target is a schema."""
 
-    def query_schema[T](self, ref: SchemaReference, query: SchemaQuery[T]) -> T:
+    def query_schema[T](self, ref: SchemaReference, query: Query[SchemaPrimitives, T]) -> T:
         """Read a schema query by reference and record the typed dependency."""
         ...
 

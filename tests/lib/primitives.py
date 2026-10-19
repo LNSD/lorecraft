@@ -13,7 +13,8 @@ from lorecraft.project.link_target import DocumentLink, LinkBase, LinkTargetEntr
 from lorecraft.project.query import (
     DecodedText,
     ItemQuery,
-    SchemaQuery,
+    Query,
+    SchemaPrimitives,
     item_corpus,
     item_frontmatter,
     item_line_count,
@@ -47,7 +48,7 @@ class _BundledAgentSkillsSchemaPrimitives:
         """The immutable bundled Agent Skills schema input."""
         return AGENT_SKILLS_SCHEMA_INPUT
 
-    def query_schema[T](self, ref: SchemaReference, query: SchemaQuery[T]) -> T:
+    def query_schema[T](self, ref: SchemaReference, query: Query[SchemaPrimitives, T]) -> T:
         """Standalone rule tests do not expose nested schema subjects."""
         raise NotImplementedError(f'standalone primitives cannot read nested schema {ref}')
 
@@ -173,7 +174,7 @@ class StructurePrimitives:
         """No other item is available to this standalone primitive value."""
         raise NotImplementedError('standalone primitives cannot read another item')
 
-    def query_schema[T](self, ref: SchemaReference, query: SchemaQuery[T]) -> T:
+    def query_schema[T](self, ref: SchemaReference, query: Query[SchemaPrimitives, T]) -> T:
         """Answer only the bundled skills subject for standalone skill rule tests."""
         if ref != AGENT_SKILLS_SCHEMA_REFERENCE:
             raise NotImplementedError(f'standalone primitives cannot read schema {ref}')

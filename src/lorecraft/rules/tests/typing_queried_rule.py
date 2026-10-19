@@ -2,7 +2,7 @@
 
 from typing import Self
 
-from lorecraft.project.query import ItemQuery, SymlinkPrimitives, SymlinkQuery
+from lorecraft.project.query import ItemQuery, Query, SymlinkPrimitives
 from lorecraft.project.schemas import TitleFacts, title_facts
 from lorecraft.rules.subject import QueriedDocumentRule
 
@@ -30,7 +30,7 @@ class WrongSubjectQuery(QueriedDocumentRule[int]):
     """A document rule naming a symlink query, which the type checker must reject."""
 
     @classmethod
-    def query(cls) -> SymlinkQuery[int]:  # ty: ignore[invalid-method-override]
+    def query(cls) -> Query[SymlinkPrimitives, int]:  # ty: ignore[invalid-method-override]
         """A query for the wrong subject kind."""
         return symlink_query
 
