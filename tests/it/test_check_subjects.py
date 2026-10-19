@@ -123,7 +123,7 @@ from lorecraft.rules.report import (
     UndecodableSubject,
 )
 from lorecraft.rules.selection import AllRules, RuleSelection
-from lorecraft.rules.subject import ByMetaSpec, Gate, MetaSpecPart, QueriedItemRule
+from lorecraft.rules.subject import Gate, MetaSpecPart, QueriedItemRule, WhenMetaSpec
 from lorecraft.rules.table import RuleTable
 from lorecraft.vfs import (
     ByteOffset,
@@ -282,7 +282,9 @@ class OverHalfBudget(QueriedItemRule[BudgetFacts]):
     NAME: ClassVar[RuleName] = RuleName('over-half-budget')
     LEVEL: ClassVar[Level] = Level.WARN
     SINCE: ClassVar[Release] = Release('1.0.0')
-    GATES: ClassVar[Mapping[ItemKind, Gate]] = MappingProxyType({ItemKind.DOCUMENT: ByMetaSpec(MetaSpecPart.BUDGET)})
+    APPLIES_TO: ClassVar[Mapping[ItemKind, Gate]] = MappingProxyType(
+        {ItemKind.DOCUMENT: WhenMetaSpec(MetaSpecPart.BUDGET)}
+    )
 
     spec: RootRelativePath
     token_count: int
@@ -320,7 +322,9 @@ class EmptyDocument(QueriedItemRule[TokenCount]):
     NAME: ClassVar[RuleName] = RuleName('empty-document')
     LEVEL: ClassVar[Level] = Level.ALLOW
     SINCE: ClassVar[Release] = Release('1.0.0')
-    GATES: ClassVar[Mapping[ItemKind, Gate]] = MappingProxyType({ItemKind.DOCUMENT: ByMetaSpec(MetaSpecPart.BUDGET)})
+    APPLIES_TO: ClassVar[Mapping[ItemKind, Gate]] = MappingProxyType(
+        {ItemKind.DOCUMENT: WhenMetaSpec(MetaSpecPart.BUDGET)}
+    )
 
     def message(self) -> str:
         """Name the condition."""
@@ -355,7 +359,9 @@ class AnyTokens(QueriedItemRule[TokenCount]):
     NAME: ClassVar[RuleName] = RuleName('any-tokens')
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('1.0.0')
-    GATES: ClassVar[Mapping[ItemKind, Gate]] = MappingProxyType({ItemKind.DOCUMENT: ByMetaSpec(MetaSpecPart.BUDGET)})
+    APPLIES_TO: ClassVar[Mapping[ItemKind, Gate]] = MappingProxyType(
+        {ItemKind.DOCUMENT: WhenMetaSpec(MetaSpecPart.BUDGET)}
+    )
 
     token_count: int
 

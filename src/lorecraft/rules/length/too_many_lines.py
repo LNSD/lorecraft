@@ -13,7 +13,7 @@ from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Here, Label, Note, Subdiagnostic
 from lorecraft.rules.overrun import Overrun, find_overrun
-from lorecraft.rules.subject import ByPackage, Gate, QueriedItemRule
+from lorecraft.rules.subject import Always, Gate, QueriedItemRule
 
 from .__ruleset__ import GROUP_ID
 
@@ -103,7 +103,7 @@ class TooManyLines(QueriedItemRule[LineCount]):
     NAME: ClassVar[RuleName] = RuleName('too-many-lines')
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('0.3.0')
-    GATES: ClassVar[Mapping[ItemKind, Gate]] = MappingProxyType({ItemKind.SKILL_ENTRYPOINT: ByPackage()})
+    APPLIES_TO: ClassVar[Mapping[ItemKind, Gate]] = MappingProxyType({ItemKind.SKILL_ENTRYPOINT: Always()})
 
     spec: None = None
     overrun: Overrun

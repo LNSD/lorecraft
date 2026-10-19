@@ -21,7 +21,7 @@ from lorecraft.project.syntax import Heading, SectionHeading, section_headings
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Subdiagnostic
-from lorecraft.rules.subject import ByMetaSpec, Gate, MetaSpecPart, QueriedItemRule
+from lorecraft.rules.subject import Gate, MetaSpecPart, QueriedItemRule, WhenMetaSpec
 
 from .__ruleset__ import GROUP_ID, example_note, spec_note
 
@@ -219,10 +219,10 @@ class EmptySection(QueriedItemRule[EmptySectionFacts]):
     NAME: ClassVar[RuleName] = RuleName('empty-section')
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('0.3.0')
-    GATES: ClassVar[Mapping[ItemKind, Gate]] = MappingProxyType(
+    APPLIES_TO: ClassVar[Mapping[ItemKind, Gate]] = MappingProxyType(
         {
-            ItemKind.DOCUMENT: ByMetaSpec(MetaSpecPart.STRUCTURE),
-            ItemKind.SKILL_ENTRYPOINT: ByMetaSpec(MetaSpecPart.STRUCTURE),
+            ItemKind.DOCUMENT: WhenMetaSpec(MetaSpecPart.STRUCTURE),
+            ItemKind.SKILL_ENTRYPOINT: WhenMetaSpec(MetaSpecPart.STRUCTURE),
         }
     )
 

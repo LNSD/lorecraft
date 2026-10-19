@@ -19,7 +19,7 @@ from lorecraft.project.syntax import Frontmatter, InvalidYamlFrontmatter, Missin
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Here, Label, Note, Subdiagnostic
-from lorecraft.rules.subject import ByMetaSpec, BySchema, Gate, MetaSpecPart, QueriedItemRule
+from lorecraft.rules.subject import Gate, MetaSpecPart, QueriedItemRule, WhenMetaSpec, WhenSchema
 from lorecraft.schemas.agent_skills_frontmatter import (
     EmptySkillNameError,
     InvalidSkillNameFormatError,
@@ -150,10 +150,10 @@ class NameMismatch(QueriedItemRule[FrontmatterFacts]):
     NAME: ClassVar[RuleName] = RuleName('name-mismatch')
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('0.3.0')
-    GATES: ClassVar[Mapping[ItemKind, Gate]] = MappingProxyType(
+    APPLIES_TO: ClassVar[Mapping[ItemKind, Gate]] = MappingProxyType(
         {
-            ItemKind.DOCUMENT: ByMetaSpec(MetaSpecPart.FRONTMATTER),
-            ItemKind.SKILL_ENTRYPOINT: BySchema(AGENT_SKILLS_SCHEMA_REFERENCE),
+            ItemKind.DOCUMENT: WhenMetaSpec(MetaSpecPart.FRONTMATTER),
+            ItemKind.SKILL_ENTRYPOINT: WhenSchema(AGENT_SKILLS_SCHEMA_REFERENCE),
         }
     )
 

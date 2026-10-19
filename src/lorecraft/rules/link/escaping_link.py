@@ -19,7 +19,7 @@ from lorecraft.project.syntax import (
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Subdiagnostic
-from lorecraft.rules.subject import ByPackage, Gate, QueriedItemRule
+from lorecraft.rules.subject import Always, Gate, QueriedItemRule
 
 from .__ruleset__ import GROUP_ID, SKILL_NOTE, SyntaxLinkResolutionPrimitives
 
@@ -110,10 +110,10 @@ class EscapingLink(QueriedItemRule[tuple[Link, ...]]):
     NAME: ClassVar[RuleName] = RuleName('escaping-link')
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('0.3.0')
-    GATES: ClassVar[Mapping[ItemKind, Gate]] = MappingProxyType(
+    APPLIES_TO: ClassVar[Mapping[ItemKind, Gate]] = MappingProxyType(
         {
-            ItemKind.SKILL_ENTRYPOINT: ByPackage(),
-            ItemKind.SKILL_RESOURCE: ByPackage(),
+            ItemKind.SKILL_ENTRYPOINT: Always(),
+            ItemKind.SKILL_RESOURCE: Always(),
         }
     )
 

@@ -19,12 +19,12 @@ from .identity import Level, Severity
 from .registry import Registry
 from .selection import RuleSelection
 from .subject import (
-    ByMetaSpec,
-    ByPackage,
-    BySchema,
+    Always,
     QueriedCorpusDirectoryRule,
     QueriedItemRule,
     QueriedSymlinkRule,
+    WhenMetaSpec,
+    WhenSchema,
 )
 
 
@@ -86,14 +86,14 @@ class RuleTable:
             elif issubclass(rule_class, QueriedCorpusDirectoryRule):
                 corpus_directory_rules.append(EnabledRule(rule_class, severities[rule_class]))
             elif issubclass(rule_class, QueriedItemRule):
-                if not rule_class.GATES:
+                if not rule_class.APPLIES_TO:
                     raise UnknownRuleBaseError(rule_class)
                 enabled = EnabledRule(rule_class, severities[rule_class])
-                for kind, gate in rule_class.GATES.items():
+                for kind, gate in rule_class.APPLIES_TO.items():
                     match gate:
-                        case ByMetaSpec(part):
+                        case WhenMetaSpec(part):
                             part_key = part
-                        case ByPackage() | BySchema():
+                        case Always() | WhenSchema():
                             part_key = None
                         case _:
                             assert_never(gate)
@@ -129,14 +129,14 @@ class RuleTable:
 
         Args:
             kind: The item kind to look up.
-            part: The active meta spec part, or `None` for package and schema gates.
+            part: The active meta spec part, or `None` for `Always` and schema gates.
         """
         return self._item_rules.get((kind, part), ())
 
     def without_item_meta_spec_gates(self, kind: ItemKind, parts: frozenset[MetaSpecPart]) -> Self:
         """Return a table without selected meta spec gates for one item kind.
 
-        A mode uses this when that item's governing layer failed to load. Package and schema gates remain active.
+        A mode uses this when that item's governing layer failed to load. `Always` and schema gates remain active.
         """
         severities: dict[type[Rule], Severity] = {
             enabled.rule: enabled.severity for rules in self._item_rules.values() for enabled in rules
@@ -145,8 +145,8 @@ class RuleTable:
         severities.update({enabled.rule: enabled.severity for enabled in self._corpus_directory_rules})
         retained: dict[type[Rule], Severity] = {}
         for rule, severity in severities.items():
-            gate = rule.GATES.get(kind) if issubclass(rule, QueriedItemRule) else None
-            if not isinstance(gate, ByMetaSpec) or gate.part not in parts:
+            gate = rule.APPLIES_TO.get(kind) if issubclass(rule, QueriedItemRule) else None
+            if not isinstance(gate, WhenMetaSpec) or gate.part not in parts:
                 retained[rule] = severity
         return type(self)(retained)
 

@@ -183,7 +183,7 @@ A meta spec governs a corpus, namespace, package, or registered schema when it p
 
 ### Gate
 
-For each item kind, the authority a rule needs before judging it. `GATES` names these requirements; `ByMetaSpec`, `ByPackage`, and `BySchema` name the corresponding authorities.
+For each item kind, the condition a rule requires before judging it. `APPLIES_TO` names these requirements; `WhenMetaSpec`, `Always`, and `WhenSchema` name the corresponding authorities.
 
 ### Ungoverned
 

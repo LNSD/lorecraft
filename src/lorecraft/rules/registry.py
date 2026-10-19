@@ -449,8 +449,8 @@ def _reject_unbound_attributes_of_kinds(
     for rule_class in rule_classes:
         _reject_unbound_attributes(rule_class, _RULE_ATTRIBUTES)
     for rule_class in rule_classes:
-        if issubclass(rule_class, QueriedItemRule) and not rule_class.__dict__.get('GATES'):
-            raise UnsetRuleAttributeError(rule_class, 'GATES')
+        if issubclass(rule_class, QueriedItemRule) and not rule_class.__dict__.get('APPLIES_TO'):
+            raise UnsetRuleAttributeError(rule_class, 'APPLIES_TO')
     for removed_rule in removed_rules:
         _reject_unbound_attributes(removed_rule, _REMOVED_RULE_ATTRIBUTES)
     for condition in conditions:

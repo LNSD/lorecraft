@@ -5,7 +5,7 @@ package, after the Agent Skills specification, which no file in the repository h
 declare a gate for each and judge either kind through the shared query facts. The document gate requires the
 frontmatter specification facet; the skill gate does the same except for the name rule, which requires the registered
 Agent Skills schema. `owner_spec` and `schema_spec` state which spec grounds an occurrence, and `spec_note` or
-`schema_note` says which it is. Rules over a skill's `allowed-tools` use package gates and name the field's source
+`schema_note` says which it is. Rules over a skill's `allowed-tools` use `Always` and name the field's source
 through `ALLOWED_TOOLS_NOTE`; its recommended length is set by Lorecraft, not the meta spec.
 
 A field's line, or line 1 in its absence, is decided in one place, `field_line` in `lorecraft.project.schemas`: the
