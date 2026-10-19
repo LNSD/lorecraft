@@ -74,6 +74,7 @@ from lorecraft.rules.subject import (
     governing_facet,
 )
 from lorecraft.rules.table import EnabledRule, RuleTable
+from lorecraft.schemas.builtin import AGENT_SKILLS_SCHEMA_REFERENCE
 
 
 def judge_item(database: Database, source: ItemText, table: RuleTable) -> CheckedItem:
@@ -94,7 +95,7 @@ def judge_item(database: Database, source: ItemText, table: RuleTable) -> Checke
     failed_skill_layer = (
         descriptor.kind is ItemKind.SKILL_ENTRY and governance is not None and bool(governance.failed_layers())
     )
-    builtin_skills_schema = database.model().builtin_skills_schema
+    builtin_skills_schema = AGENT_SKILLS_SCHEMA_REFERENCE in database.model().schema_inputs
     diagnostics: list[Diagnostic] = []
     ungoverned: list[Facet] = []
 
@@ -138,7 +139,7 @@ def _reading[R: ItemRule](
         descriptor: The item the rules would judge.
         facet: The facet the rules must read, or `None` for those that read none.
         failed_skill_layer: Whether failed skill governance suppresses corpus rules for this entry.
-        builtin_skills_schema: Whether built-in Agent Skills frontmatter rules remain active.
+        builtin_skills_schema: Whether the built-in Agent Skills schema is registered.
     """
     return tuple(
         enabled

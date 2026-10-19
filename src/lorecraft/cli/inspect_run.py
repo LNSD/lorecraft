@@ -25,7 +25,7 @@ def run_inspect(root: Path, output_format: OutputFormat, *, builtin_skills_schem
     Args:
         root: The workspace root, already resolved by the command's argument.
         output_format: How to print the model, already resolved from `--format` and the `--json` alias.
-        builtin_skills_schema: Whether the built-in Agent Skills schema is included in governance.
+        builtin_skills_schema: Whether to pre-register the Agent Skills floor schema.
 
     Returns:
         `ExitStatus.FAILURE` when the scan or the load fails, which the command handler exits with; `None` when the

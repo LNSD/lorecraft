@@ -17,7 +17,7 @@ class GlobalOptions:
     """Options shared by every command in one invocation.
 
     Attributes:
-        builtin_skills_schema: Whether the built-in Agent Skills schema is enabled.
+        builtin_skills_schema: Whether the Agent Skills floor is enabled for this invocation.
     """
 
     builtin_skills_schema: bool

@@ -15,6 +15,7 @@ from lorecraft.core.error import Unreachable
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.skill import SkillsDir
 from lorecraft.project.workspace import Corpus, Spec, WorkspaceModel
+from lorecraft.schemas.builtin import AGENT_SKILLS_SCHEMA_REFERENCE
 
 # The box-drawing prefixes `tree` uses: one for an entry with siblings after it, one for the last entry, and
 # the matching indent each leaves for the entries nested under it.
@@ -194,7 +195,7 @@ def render_json(root: Path, model: WorkspaceModel) -> str:
         skills.append(_SkillJson(path=str(ref.path), agents=list(model.skill_agents(ref))))
     document = _WorkspaceJson(
         root=str(root),
-        builtin_skills_schema=False if not model.builtin_skills_schema else None,
+        builtin_skills_schema=False if AGENT_SKILLS_SCHEMA_REFERENCE not in model.schema_inputs else None,
         corpora=corpora,
         agent_skills_dirs=skills_dirs,
         skills=skills,
@@ -268,7 +269,7 @@ def _skills_dirs_section(skills_dirs: tuple[SkillsDir, ...]) -> _Line:
 
 
 def _skills_section(model: WorkspaceModel) -> _Line:
-    """`skills (N)`, one line per skill, noting only when the built-in schema is opted out.
+    """`skills (N)`, one line per skill.
 
     Args:
         model: The workspace model, which lists the skills and the agents that read each.
@@ -277,7 +278,7 @@ def _skills_section(model: WorkspaceModel) -> _Line:
     for ref in model.skills():
         agents = model.skill_agents(ref)
         lines.append(_Line(f'{ref.directory} [{", ".join(agents)}]'))
-    opt_out = '; Agent Skills schema disabled' if not model.builtin_skills_schema else ''
+    opt_out = '; Agent Skills schema disabled' if AGENT_SKILLS_SCHEMA_REFERENCE not in model.schema_inputs else ''
     return _Line(f'skills ({len(model.skill_locations)}{opt_out})', tuple(lines))
 
 
