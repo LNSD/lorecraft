@@ -585,6 +585,14 @@ class Database:
         """
         return self._decode(ref)
 
+    def item_descriptor(self, ref: ItemRef) -> ItemDescriptor:
+        """The model-resolved descriptor of one item, without reading its text.
+
+        Args:
+            ref: The common reference used to resolve the item.
+        """
+        return self._item(ref).descriptor
+
     def _decode(self, ref: ItemRef) -> ItemText | Undecodable:
         """Decode an item the database already resolved, listed or not, once."""
         decoded = self._item_texts.get(ref)

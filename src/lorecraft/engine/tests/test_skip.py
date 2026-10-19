@@ -104,7 +104,7 @@ class TestCheckSubjectsOverASkillEntry:
         assert isinstance(source, ItemText), 'the skill is UTF-8, so it decodes'
 
         #: When
-        reports = check_subjects(database, [location], table)
+        reports = check_subjects(database, [ItemRef(location.ref.path)], table)
 
         #: Then
         assert reports == (judge_item(database, source, table),), (
@@ -118,7 +118,7 @@ class TestCheckSubjectsOverASkillEntry:
         location = database.model().sorted_skill_locations[0]
 
         #: When
-        reports = check_subjects(database, [location], _all_rules())
+        reports = check_subjects(database, [ItemRef(location.ref.path)], _all_rules())
 
         #: Then
         assert len(reports) == 1, 'the entry point reports the one skill it was given'
@@ -138,7 +138,7 @@ class TestCheckSubjectsOverASkillEntry:
         assert database.item_governance(item) is not None, 'the reserved skills corpus governs skill entrypoints'
 
         #: When
-        reports = check_subjects(database, [location], _all_rules())
+        reports = check_subjects(database, [ItemRef(location.ref.path)], _all_rules())
 
         #: Then
         assert len(reports) == 1, 'the entry point reports the one skill it was given'
@@ -166,7 +166,7 @@ class TestCheckSubjectsOverASkillEntry:
         assert governance.corpus_structure() is None, 'the corpus layer has no structure file'
 
         #: When
-        (report,) = check_subjects(database, [location], _all_rules())
+        (report,) = check_subjects(database, [ItemRef(location.ref.path)], _all_rules())
 
         #: Then
         assert isinstance(report, CheckedItem), 'the loaded skills layer lets `Always` checks run'
@@ -193,7 +193,7 @@ class TestCheckSubjectsOverASkillEntry:
         assert database.item_governance(item) is None, 'the skills corpus does not govern resources'
 
         #: When
-        (report,) = check_subjects(database, [location], _all_rules())
+        (report,) = check_subjects(database, [ItemRef(location.ref.path)], _all_rules())
 
         #: Then
         assert isinstance(report, CheckedItem), 'a failed layer suppresses none of a resource, which it does not govern'

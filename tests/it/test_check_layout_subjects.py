@@ -256,7 +256,7 @@ class TestCheckSubjectsLayout:
         database = Database.from_snapshot(take_snapshot(root, SNAPSHOT_SCOPE))
         location = database.model().find_skill_location(RootRelativePath.parse('.agents/skills/review'))
         assert location is not None, 'the model lists the skill .agents/skills/review'
-        subjects: tuple[CheckedSubject, ...] = (*_layout_subjects(database), location)
+        subjects: tuple[CheckedSubject, ...] = (*_layout_subjects(database), ItemRef(location.ref.path))
 
         #: When
         reports = check_subjects(database, subjects, package_table)
