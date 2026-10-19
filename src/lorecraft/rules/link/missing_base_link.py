@@ -8,7 +8,7 @@ from typing import ClassVar, Final, Self
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.item import ItemKind
 from lorecraft.project.link_target import DocumentDirectory, LinkTarget
-from lorecraft.project.query import ItemQuery, item_name, item_parse
+from lorecraft.project.query import ItemQuery, item_base, item_name, item_parse
 from lorecraft.project.syntax import FIRST_LINE, LineNumber, RelativeDestination, find_title
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
@@ -44,7 +44,7 @@ def missing_base(primitives: GovernanceSyntaxLinkResolutionPrimitives) -> Missin
     Args:
         primitives: The model state of the document.
     """
-    base = primitives.base()
+    base = primitives.query(item_base)
     name = primitives.query(item_name)
     link_base = primitives.link_base()
     if base is None or name is None or not isinstance(link_base, DocumentDirectory):

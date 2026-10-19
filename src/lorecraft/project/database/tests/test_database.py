@@ -10,7 +10,7 @@ from lib.tree import from_tree
 from lorecraft.core.mapping import Frozen, FrozenMapping
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.corpus import CorpusName, ReservedCorpusDirectory, ReservedCorpusDirectoryRef
-from lorecraft.project.database import Database, Read
+from lorecraft.project.database import Database, PrimitiveRead, Read
 from lorecraft.project.item import ItemReadError, ItemRef, UnlistedItemError
 from lorecraft.project.query import (
     CorpusDirectoryPrimitives,
@@ -282,7 +282,7 @@ class TestReads:
             'the loaded model exposes the built-in schema with bundled provenance'
         )
         assert database.query_reads(agent_skills_frontmatter_schema, AGENT_SKILLS_SCHEMA_REFERENCE) == {
-            Read('schema_input', AGENT_SKILLS_SCHEMA_REFERENCE)
+            Read(PrimitiveRead.SCHEMA_INPUT, AGENT_SKILLS_SCHEMA_REFERENCE)
         }, 'the built-in schema query records its typed registry input dependency'
 
     def test_schema_query_memoizes_by_reference_and_records_its_input(self) -> None:
@@ -302,7 +302,7 @@ class TestReads:
         #: Then
         assert first == schema_input.document, 'the schema query returns the loaded immutable input'
         assert repeated is first, 'the database memoizes schema query answers by their typed reference'
-        assert database.query_reads(_schema_document, SCHEMA) == {Read('schema_input', SCHEMA)}, (
+        assert database.query_reads(_schema_document, SCHEMA) == {Read(PrimitiveRead.SCHEMA_INPUT, SCHEMA)}, (
             'the read identity retains the schema reference for future revision comparisons'
         )
 
@@ -323,7 +323,7 @@ class TestReads:
         assert result == schema_input.document, 'the item query receives the schema query fact'
         assert database.query_reads(_reads_schema, GUIDE) == {
             Read(_schema_document, SCHEMA),
-            Read('schema_input', SCHEMA),
+            Read(PrimitiveRead.SCHEMA_INPUT, SCHEMA),
         }, 'the cross-schema dependency is recorded by callable and typed schema reference'
 
     def test_schema_query_records_a_nested_schema_query(self) -> None:
@@ -350,7 +350,7 @@ class TestReads:
         assert identity == SCHEMA_BASE.identity, 'a schema query can compose facts from its base schema'
         assert database.query_reads(_schema_reads_base, SCHEMA) == {
             Read(_schema_identity, SCHEMA_BASE),
-            Read('schema_input', SCHEMA_BASE),
+            Read(PrimitiveRead.SCHEMA_INPUT, SCHEMA_BASE),
         }, 'the outer read set retains the nested schema identity and input read'
 
     def test_item_query_retains_a_missing_schema_read_when_caught(self) -> None:
@@ -466,7 +466,7 @@ class TestReads:
         assert database.query_reads(_outer, GUIDE) == {
             Read(_inner, GUIDE),
             Read(item_parse, GUIDE),
-            Read('text', GUIDE),
+            Read(PrimitiveRead.TEXT, GUIDE),
         }, 'the outer read set includes the inner query and its primitive read'
 
     def test_query_at_records_the_query_and_the_other_item_ref(self) -> None:
@@ -491,7 +491,7 @@ class TestReads:
         assert database.query_reads(_reads_another_item, GUIDE) == {
             Read(_inner, TARGET),
             Read(item_parse, TARGET),
-            Read('text', TARGET),
+            Read(PrimitiveRead.TEXT, TARGET),
         }, 'the read set identifies the query and the primitive it read'
 
     def test_query_at_records_an_unreadable_other_item(self) -> None:
@@ -541,7 +541,9 @@ class TestReads:
         assert first == outside.leaves_at, 'the query returns the symlink primitive'
         assert repeated == outside.leaves_at, 'the repeated query returns the same fact'
         assert calls == 1, 'the query is memoized on repeated calls'
-        assert database.query_reads(query, ref) == {Read('leaves_at', ref)}, 'the primitive read is recorded'
+        assert database.query_reads(query, ref) == {Read(PrimitiveRead.LEAVES_AT, ref)}, (
+            'the primitive read is recorded'
+        )
 
     def test_query_memoizes_corpus_directory_subjects_and_records_their_primitive(self) -> None:
         #: Given
@@ -566,7 +568,9 @@ class TestReads:
         assert first == directory.corpus, 'the query returns the reserved corpus primitive'
         assert repeated == directory.corpus, 'the repeated query returns the same fact'
         assert calls == 1, 'the query is memoized on repeated calls'
-        assert database.query_reads(query, ref) == {Read('reserved_corpus', ref)}, 'the primitive read is recorded'
+        assert database.query_reads(query, ref) == {Read(PrimitiveRead.RESERVED_CORPUS, ref)}, (
+            'the primitive read is recorded'
+        )
 
     def test_query_over_an_unlisted_symlink_raises_unlisted_item_error(self) -> None:
         #: Given

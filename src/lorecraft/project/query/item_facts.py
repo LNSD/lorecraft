@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 from lorecraft.core.num import UnsignedInt
 from lorecraft.project.aspect import AspectFilename, AspectName
 from lorecraft.project.corpus import CorpusName
+from lorecraft.project.item import ItemKind
 from lorecraft.project.syntax import (
     FrontmatterNode,
     LineCount,
@@ -20,7 +21,7 @@ from lorecraft.project.syntax import (
 )
 
 if TYPE_CHECKING:
-    from lorecraft.project.query import ItemPrimitives
+    from lorecraft.project.query import ItemPrimitives, NameHierarchyPrimitives
     from lorecraft.project.schemas.name import SpecName
     from lorecraft.project.schemas.structure import StructureSpec
 
@@ -55,15 +56,38 @@ def item_structure_specs(primitives: ItemPrimitives) -> tuple[StructureSpec, ...
     return governance.structure_specs() if governance is not None else ()
 
 
-def item_name(primitives: ItemPrimitives) -> AspectFilename | AspectName | SpecName | None:
-    """The typed name declared by this item's descriptor, when it has readable text."""
-    source = primitives.text()
-    if source is None:
+def item_name(primitives: NameHierarchyPrimitives) -> AspectFilename | AspectName | SpecName | None:
+    """The typed name declared by this item's descriptor when its text decodes."""
+    if primitives.text() is None:
         return None
-    return source.descriptor.name
+    return primitives.item_descriptor().name
 
 
-def item_corpus(primitives: ItemPrimitives) -> CorpusName | None:
-    """The typed corpus declared by this item's descriptor, when it has readable text."""
-    source = primitives.text()
-    return source.descriptor.corpus if source is not None else None
+def item_corpus(primitives: NameHierarchyPrimitives) -> CorpusName | None:
+    """The typed corpus declared by this item's descriptor when its text decodes."""
+    if primitives.text() is None:
+        return None
+    return primitives.item_descriptor().corpus
+
+
+def item_base(primitives: NameHierarchyPrimitives) -> AspectFilename | SpecName | None:
+    """The nearest existing name in this item's descriptor hierarchy."""
+    if primitives.text() is None:
+        return None
+    descriptor = primitives.item_descriptor()
+    model = primitives.model()
+    if isinstance(descriptor.name, AspectFilename):
+        if descriptor.corpus is None:
+            return None
+        corpus = model.find_corpus(descriptor.corpus)
+        if corpus is None:
+            return None
+        base = corpus.document_base(descriptor.name)
+        return None if base is None else base.filename
+    if descriptor.kind is ItemKind.META_SPEC:
+        from lorecraft.project.document import MetaSpecRef
+        from lorecraft.project.schemas.name import parse_spec_name
+
+        base_spec = model.find_specification_base(MetaSpecRef(descriptor.ref.path))
+        return None if base_spec is None else parse_spec_name(base_spec.name)
+    return None

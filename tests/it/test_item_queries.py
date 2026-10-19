@@ -22,6 +22,7 @@ from lorecraft.project.layout import SNAPSHOT_SCOPE
 from lorecraft.project.link_target import EscapingTarget, LinkTarget, PathLookup
 from lorecraft.project.query import (
     ItemPrimitives,
+    item_base,
     item_corpus,
     item_frontmatter,
     item_line_count,
@@ -101,7 +102,7 @@ def _item_corpus(primitives: ItemPrimitives) -> CorpusName | None:
 
 def _item_base(primitives: ItemPrimitives) -> AspectFilename | SpecName | None:
     """The item's decoded base name, when it has one."""
-    return primitives.base()
+    return primitives.query(item_base)
 
 
 @pytest.mark.it

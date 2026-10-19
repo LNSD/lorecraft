@@ -15,7 +15,7 @@ from lib.tree import from_tree
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
-from lorecraft.project.database import Database, ItemText, Read
+from lorecraft.project.database import Database, ItemText, PrimitiveRead, Read
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.item import ItemRef
 from lorecraft.project.query import item_parse, item_structure_specs
@@ -233,7 +233,7 @@ class TestOutlineAlignment:
         #: Then
         assert database.query_reads(outline_alignment, ItemRef(TYPING.path)) == {
             Read(item_structure_specs, ItemRef(TYPING.path)),
-            Read('governance', ItemRef(TYPING.path)),
+            Read(PrimitiveRead.GOVERNANCE, ItemRef(TYPING.path)),
             Read(item_parse, ItemRef(TYPING.path)),
-            Read('text', ItemRef(TYPING.path)),
+            Read(PrimitiveRead.TEXT, ItemRef(TYPING.path)),
         }, 'the carry-over is derived from what the query read'

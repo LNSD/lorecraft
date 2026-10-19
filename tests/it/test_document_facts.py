@@ -12,12 +12,13 @@ from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
-from lorecraft.project.database import Database, ItemText, Read
+from lorecraft.project.database import Database, ItemText, PrimitiveRead, Read
 from lorecraft.project.item import ItemRef, UnlistedItemError
 from lorecraft.project.layout import SNAPSHOT_SCOPE
 from lorecraft.project.link_target import DocumentLink
 from lorecraft.project.query import (
     ItemPrimitives,
+    item_base,
     item_corpus,
     item_name,
     item_parse,
@@ -89,7 +90,7 @@ def _item_corpus(primitives: ItemPrimitives) -> CorpusName | None:
 
 def _document_base(primitives: ItemPrimitives) -> AspectFilename | SpecName | None:
     """The typed name of the document or specification the item extends."""
-    return primitives.base()
+    return primitives.query(item_base)
 
 
 @pytest.mark.it
@@ -211,9 +212,9 @@ class TestDocumentFactQueries:
         assert facts.count == database.query(item_token_count, _decoded(database).ref), 'the count is the file whole'
         assert database.query_reads(token_facts, GUIDE) == {
             Read(item_structure_specs, GUIDE),
-            Read('governance', GUIDE),
+            Read(PrimitiveRead.GOVERNANCE, GUIDE),
             Read(item_token_count, GUIDE),
-            Read('text', GUIDE),
+            Read(PrimitiveRead.TEXT, GUIDE),
         }, 'derived carry-over names each primitive and the item read'
 
     def test_query_empty_section_facts_holds_the_forbidding_file_and_the_empty_section(self, tmp_path: Path) -> None:
@@ -249,10 +250,11 @@ class TestDocumentFactQueries:
         assert database.query(extension_link_facts, GUIDE) is facts, 'the answer is memoized'
         assert database.query_reads(extension_link_facts, GUIDE) == {
             Read(item_parse, GUIDE),
-            Read('text', GUIDE),
-            Read('link_targets', GUIDE),
-            Read('link_base', GUIDE),
+            Read(PrimitiveRead.TEXT, GUIDE),
+            Read(PrimitiveRead.LINK_TARGETS, GUIDE),
+            Read(PrimitiveRead.LINK_BASE, GUIDE),
             Read(item_name, GUIDE),
+            Read(PrimitiveRead.ITEM_DESCRIPTOR, GUIDE),
         }, 'derived carry-over'
 
     def test_query_extension_link_facts_of_a_skill_entry_holds_no_link(self, tmp_path: Path) -> None:
@@ -278,9 +280,9 @@ class TestDocumentFactReads:
         #: Then
         assert database.query_reads(title_facts, GUIDE) == {
             Read(item_structure_specs, GUIDE),
-            Read('governance', GUIDE),
+            Read(PrimitiveRead.GOVERNANCE, GUIDE),
             Read(item_parse, GUIDE),
-            Read('text', GUIDE),
+            Read(PrimitiveRead.TEXT, GUIDE),
         }, 'the carry-over names each primitive and the item read'
 
 
@@ -363,19 +365,24 @@ class TestDocumentLinks:
         assert facts.corpus == CorpusName.parse('code'), 'the corpus of the document'
         assert database.query_reads(mutual_link_facts, GUIDE) == {
             Read(item_corpus, GUIDE),
-            Read('text', GUIDE),
+            Read(PrimitiveRead.TEXT, GUIDE),
             Read(item_name, GUIDE),
-            Read('link_base', GUIDE),
+            Read(PrimitiveRead.LINK_BASE, GUIDE),
             Read(item_parse, GUIDE),
-            Read('link_targets', GUIDE),
+            Read(PrimitiveRead.LINK_TARGETS, GUIDE),
             Read(linked_documents, GUIDE),
             Read(linked_paths, GUIDE),
             Read(linked_paths, FEATURE),
             Read(item_parse, FEATURE),
-            Read('text', FEATURE),
+            Read(PrimitiveRead.TEXT, FEATURE),
             Read(linked_paths, OTHER_GUIDE),
             Read(item_parse, OTHER_GUIDE),
-            Read('text', OTHER_GUIDE),
-        } | {Read(primitive, ref) for ref in (FEATURE, OTHER_GUIDE) for primitive in ('link_base', 'link_targets')}, (
-            'the carry-over includes dependencies of linked item queries'
-        )
+            Read(PrimitiveRead.TEXT, OTHER_GUIDE),
+            Read(PrimitiveRead.ITEM_DESCRIPTOR, GUIDE),
+            Read(PrimitiveRead.ITEM_DESCRIPTOR, FEATURE),
+            Read(PrimitiveRead.ITEM_DESCRIPTOR, OTHER_GUIDE),
+        } | {
+            Read(primitive, ref)
+            for ref in (FEATURE, OTHER_GUIDE)
+            for primitive in (PrimitiveRead.LINK_BASE, PrimitiveRead.LINK_TARGETS)
+        }, 'the carry-over includes dependencies of linked item queries'
