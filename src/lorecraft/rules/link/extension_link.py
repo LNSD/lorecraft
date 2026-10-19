@@ -13,7 +13,7 @@ from lorecraft.project.query import ItemQuery, item_name, item_parse
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Note, Subdiagnostic
-from lorecraft.rules.subject import ByMetaSpec, Gate, MetaSpecPart, QueriedItemRule
+from lorecraft.rules.subject import ByMetaSpec, ByPackage, Gate, MetaSpecPart, QueriedItemRule
 
 from .__ruleset__ import GROUP_ID, GovernanceSyntaxLinkResolutionPrimitives
 
@@ -105,7 +105,7 @@ class ExtensionLink(QueriedItemRule[ExtensionLinkFacts]):
     GATES: ClassVar[Mapping[ItemKind, Gate]] = MappingProxyType(
         {
             ItemKind.DOCUMENT: ByMetaSpec(MetaSpecPart.STRUCTURE),
-            ItemKind.META_SPEC: ByMetaSpec(MetaSpecPart.STRUCTURE),
+            ItemKind.META_SPEC: ByPackage(),
         }
     )
 

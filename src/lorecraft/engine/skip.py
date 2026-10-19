@@ -13,7 +13,7 @@ from lorecraft.core.path import RootRelativePath
 from lorecraft.project.corpus import ReservedCorpusDirectory
 from lorecraft.project.database import Database, ItemText, Undecodable
 from lorecraft.project.document import DocumentReadError, DocumentRef, MetaSpecRef
-from lorecraft.project.item import ItemReadError, ItemRef
+from lorecraft.project.item import ItemKind, ItemReadError, ItemRef, MetaSpecPart
 from lorecraft.project.layout import DOCS_DIR
 from lorecraft.project.skill import (
     OutsideSymlink,
@@ -164,7 +164,12 @@ def _check_item(
                             first, *others = failed_layers
                             return SkippedSubject(ref, (first.path, *(layer.path for layer in others)))
                 case SkillRef():
-                    pass  # the runner suppresses corpus rules but retains the Agent Skills floor
+                    governance = database.item_governance(item)
+                    if governance is not None and governance.failed_layers():
+                        table = table.without_item_meta_spec_gates(
+                            ItemKind.SKILL_ENTRYPOINT,
+                            frozenset({MetaSpecPart.STRUCTURE, MetaSpecPart.OUTLINE, MetaSpecPart.BUDGET}),
+                        )
                 case MetaSpecRef() | SkillResourceRef():
                     pass  # specs are package governed; resources have no corpus governance
                 case _:

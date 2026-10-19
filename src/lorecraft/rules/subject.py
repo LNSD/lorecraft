@@ -1,7 +1,7 @@
 """The query-backed rules over items and layout subjects, with their closed eligibility gates.
 
 Every rule over an item derives from `QueriedItemRule[Facts]`, names its `ItemQuery[Facts]`, and declares a `GATES`
-mapping for the item kinds it judges. `ByMetaSpec` requires a loaded structure layer to state the named part;
+mapping for the item kinds it judges. `ByMetaSpec` requires a loaded layer to state the named part;
 `ByPackage` admits a package-governed kind, and `BySchema` admits a kind only when the named schema is registered.
 A kind absent from the mapping is inapplicable. These declarations let the runner and rule table use one explicit
 contract while the rule itself judges only query facts.
@@ -30,15 +30,13 @@ from .declaration import ContentRule, LayoutRule, Rule
 
 @dataclass(frozen=True, slots=True)
 class ByMetaSpec:
-    """A gate for a meta spec part a loaded structure layer may govern.
+    """A gate for a meta spec part a loaded layer may govern.
 
     Attributes:
-        part: The meta spec part a loaded structure layer must state for the rule to judge the item.
-        requires_loaded_layer: Whether a skill also requires loaded corpus governance for this rule.
+        part: The meta spec part a loaded layer must state for the rule to judge the item.
     """
 
     part: MetaSpecPart
-    requires_loaded_layer: bool = False
 
 
 @dataclass(frozen=True, slots=True)

@@ -442,7 +442,7 @@ class TestRuleTableItemIndex:
             (ItemKind.SKILL_ENTRYPOINT, MetaSpecPart.OUTLINE): ('OUT006', 'OUT007', 'OUT008'),
             (ItemKind.SKILL_ENTRYPOINT, MetaSpecPart.BUDGET): ('LEN001',),
             (ItemKind.SKILL_RESOURCE, None): ('LINK001', 'LINK002', 'LINK003', 'LINK004'),
-            (ItemKind.META_SPEC, MetaSpecPart.STRUCTURE): ('LINK001', 'LINK002', 'LINK003', 'LINK005', 'LINK006'),
+            (ItemKind.META_SPEC, None): ('LINK001', 'LINK002', 'LINK003', 'LINK005', 'LINK006'),
         }
 
         #: When

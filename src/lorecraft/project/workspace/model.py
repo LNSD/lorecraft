@@ -657,7 +657,7 @@ class WorkspaceModel:
             origin=SkillResourceOrigin(skill_entry=str(skill.entry)),
             governance_corpus='',
             aspect_name=str(skill.entry),
-            governed_parts=frozenset({MetaSpecPart.STRUCTURE}),
+            governed_parts=frozenset(),
         )
         return ResolvedItem(descriptor, None)
 
@@ -687,11 +687,13 @@ class WorkspaceModel:
                 location = self.skill_locations[ref]
                 link_target = location.resolves_to if location.resolves_to != ref.directory else None
                 governance = self.skill_governance(ref)
-                parts = {MetaSpecPart.STRUCTURE}
+                parts: set[MetaSpecPart] = set()
                 if AGENT_SKILLS_SCHEMA_REFERENCE in self.schema_inputs or (
                     governance is not None and governance.frontmatter_schemas()
                 ):
                     parts.add(MetaSpecPart.FRONTMATTER)
+                if governance is not None and governance.corpus_structure() is not None:
+                    parts.add(MetaSpecPart.STRUCTURE)
                 if governance is not None and governance.outline_specs():
                     parts.add(MetaSpecPart.OUTLINE)
                 if governance is not None and any(spec.tokens is not None for spec in governance.structure_specs()):
@@ -714,7 +716,7 @@ class WorkspaceModel:
                     origin=MetaSpecOrigin(expected_name=ref.name, corpus=ref.corpus),
                     governance_corpus=ref.corpus,
                     aspect_name=ref.name,
-                    governed_parts=frozenset({MetaSpecPart.STRUCTURE}),
+                    governed_parts=frozenset(),
                 )
                 return ResolvedItem(descriptor, None)
             case _:

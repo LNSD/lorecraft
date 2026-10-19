@@ -73,7 +73,7 @@ class TitleTooManyWords(QueriedItemRule[TitleFacts]):
     GATES: ClassVar[Mapping[ItemKind, Gate]] = MappingProxyType(
         {
             ItemKind.DOCUMENT: ByMetaSpec(MetaSpecPart.STRUCTURE),
-            ItemKind.SKILL_ENTRYPOINT: ByMetaSpec(MetaSpecPart.STRUCTURE, requires_loaded_layer=True),
+            ItemKind.SKILL_ENTRYPOINT: ByMetaSpec(MetaSpecPart.STRUCTURE),
         }
     )
 

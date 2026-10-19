@@ -50,10 +50,10 @@ from typing import assert_never, cast
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.corpus import ReservedCorpusDirectory, ReservedCorpusDirectoryRef
 from lorecraft.project.database import Database, ItemText
-from lorecraft.project.item import ItemDescriptor, ItemKind, ItemRef, MetaSpecPart
+from lorecraft.project.item import ItemDescriptor, ItemRef, MetaSpecPart
 from lorecraft.project.query import ItemQuery
 from lorecraft.project.skill import OutsideSymlink, OutsideSymlinkRef
-from lorecraft.project.workspace.model import Governance, WorkspaceModel
+from lorecraft.project.workspace.model import WorkspaceModel
 from lorecraft.rules.declaration import Rule
 from lorecraft.rules.report import (
     CheckedItem,
@@ -87,7 +87,6 @@ def judge_item(database: Database, source: ItemText, table: RuleTable) -> Checke
         table: The rules the run enables.
     """
     descriptor = source.descriptor
-    governance = database.item_governance(descriptor.ref)
     model = database.model()
     diagnostics: list[Diagnostic] = []
     ungoverned: list[MetaSpecPart] = []
@@ -95,9 +94,7 @@ def judge_item(database: Database, source: ItemText, table: RuleTable) -> Checke
     # Meta spec parts follow `MetaSpecPart` order, then package/schema rules; unmet gates become coverage.
     for part in (*MetaSpecPart, None):
         rules = tuple(
-            enabled
-            for enabled in table.item_rules(descriptor.kind, part)
-            if judges(enabled.rule, descriptor, governance, model)
+            enabled for enabled in table.item_rules(descriptor.kind, part) if judges(enabled.rule, descriptor, model)
         )
         if not rules:
             continue
@@ -114,7 +111,6 @@ def judge_item(database: Database, source: ItemText, table: RuleTable) -> Checke
 def judges(
     rule: type[QueriedItem],
     descriptor: ItemDescriptor,
-    governance: Governance | None,
     model: WorkspaceModel,
 ) -> bool:
     """Whether the rule's gate admits this item and any required governance source.
@@ -122,7 +118,6 @@ def judges(
     Args:
         rule: The queried rule whose gate is being checked.
         descriptor: The item kind and origin metadata used by the gate.
-        governance: The item's loaded governance, when it belongs to a governed corpus.
         model: The workspace state used to check registered schema gates.
     """
     # SAFETY: Every queried item rule is also an ItemRule; the table rejects other queried bases from item buckets.
@@ -130,9 +125,7 @@ def judges(
     if gate is None:
         return False
     match gate:
-        case ByMetaSpec(_, requires_loaded_layer):
-            if descriptor.kind is ItemKind.SKILL_ENTRYPOINT and requires_loaded_layer:
-                return bool(descriptor.governance_corpus) and governance is not None and not governance.failed_layers()
+        case ByMetaSpec():
             return True
         case ByPackage():
             return True

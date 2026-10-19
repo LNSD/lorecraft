@@ -1429,9 +1429,7 @@ class TestSpecifications:
         assert descriptor.ref == ItemRef(ref.path), 'the logical ref is also the report path'
         assert descriptor.read_location == ResolvedPath(ref.path), 'the file is read where it is listed'
         assert descriptor.link_base == DocumentDirectory(SPECS_DIR), 'links are read from docs/__meta__'
-        assert descriptor.governed_parts == frozenset({MetaSpecPart.STRUCTURE}), (
-            'the package governs a specification, so the structure and the Markdown checks are active'
-        )
+        assert descriptor.governed_parts == frozenset(), 'package governance does not activate a meta spec part'
 
     def test_find_item_with_a_listed_specification_returns_its_descriptor(
         self, two_corpora_model: WorkspaceModel
