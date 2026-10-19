@@ -12,7 +12,7 @@ file, so the test states it by hand too.
 """
 
 from collections.abc import Mapping
-from typing import Final, Protocol, cast, overload
+from typing import Any, Final, Protocol, cast, overload
 
 from lib.primitives import StructurePrimitives
 from lorecraft.core.mapping import FrozenMapping
@@ -63,7 +63,7 @@ from lorecraft.project.syntax import (
 )
 from lorecraft.project.workspace import Corpus, CorpusNamespace, CorpusSpec, Governance, NamespaceSpec
 from lorecraft.rules.declaration import Rule
-from lorecraft.rules.subject import CorpusDirectoryRule, ItemRule, Queried, SymlinkRule
+from lorecraft.rules.subject import Queried, QueriedCorpusDirectoryRule, QueriedItemRule, QueriedSymlinkRule
 from lorecraft.schemas import SchemaRef
 from lorecraft.vfs import ResolvedPath, RootExit
 
@@ -496,15 +496,17 @@ class _Queryable(Protocol):
 
 
 @overload
-def judged[R: ItemRule](rule: type[R], database: _Queryable) -> tuple[R, ...]: ...
+def judged[R: QueriedItemRule[Any]](rule: type[R], database: _Queryable) -> tuple[R, ...]: ...
 
 
 @overload
-def judged[R: SymlinkRule](rule: type[R], database: FakeSymlinkDatabase) -> tuple[R, ...]: ...
+def judged[R: QueriedSymlinkRule[Any]](rule: type[R], database: FakeSymlinkDatabase) -> tuple[R, ...]: ...
 
 
 @overload
-def judged[R: CorpusDirectoryRule](rule: type[R], database: FakeCorpusDirectoryDatabase) -> tuple[R, ...]: ...
+def judged[R: QueriedCorpusDirectoryRule[Any]](
+    rule: type[R], database: FakeCorpusDirectoryDatabase
+) -> tuple[R, ...]: ...
 
 
 def judged(rule: type[Rule], database: object) -> tuple[Rule, ...]:

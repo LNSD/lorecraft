@@ -118,10 +118,10 @@ keep layout subjects separate because their primitives and query subjects differ
    This prevents a structurally valid but unreachable rule from silently entering the registry. The registry does
    not infer a gate from a class or silently supply one.
 
-8. **Layout rule bases stay separate.** `QueriedSymlinkRule` and `QueriedCorpusDirectoryRule` keep their own
-   subject-specific query types, `Query[SymlinkPrimitives, Facts]` and
-   `Query[CorpusDirectoryPrimitives, Facts]`. A layout subject is not an item kind, and combining those bases with
-   `QueriedItemRule` would weaken the per-subject typing required by ADR-027 and ADR-029.
+8. **Layout rules keep subject-specific queried bases.** `QueriedSymlinkRule` and
+   `QueriedCorpusDirectoryRule` directly provide the rule bases, with query types `Query[SymlinkPrimitives, Facts]`
+   and `Query[CorpusDirectoryPrimitives, Facts]`. A layout subject is not an item kind, and combining those bases
+   with `QueriedItemRule` would weaken the per-subject typing required by ADR-027 and ADR-029.
 
 ## Consequences
 
