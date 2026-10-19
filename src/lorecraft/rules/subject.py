@@ -27,12 +27,15 @@ which bind each layout kind to its matching query type.
 """
 
 from abc import ABC, abstractmethod
+from collections.abc import Mapping
 from dataclasses import dataclass
 from enum import StrEnum
+from types import MappingProxyType
 from typing import ClassVar, Self
 
 from lorecraft.project.item import ItemKind
 from lorecraft.project.query import CorpusDirectoryPrimitives, ItemQuery, Primitives, Query, SymlinkPrimitives
+from lorecraft.schemas.types import SchemaReference
 
 from .declaration import ContentRule, LayoutRule, Rule
 
@@ -54,17 +57,47 @@ class Facet(StrEnum):
     """The document's length in tokens: a structure file that governs it sets a token budget."""
 
 
-@dataclass(frozen=True, slots=True, kw_only=True)
-class ItemRule(ContentRule):
-    """The base of every rule over a governed Markdown item, which binds the kinds of item the rule applies to.
-
-    A run asks `applies_to` and `governing_facet` of a rule and never which base it derives from, so a rule of a new
-    base needs no branch on where an item came from.
+@dataclass(frozen=True, slots=True)
+class BySpec:
+    """A gate for an item facet a loaded structure layer may govern.
 
     Attributes:
-        APPLIES_TO: The kinds of item the rule judges; a rule judges no item of another kind.
+        facet: The facet a loaded structure layer must state for the rule to judge the item.
+        requires_loaded_layer: Whether a skill entry also requires loaded corpus governance for this rule.
     """
 
+    facet: Facet
+    requires_loaded_layer: bool = False
+
+
+@dataclass(frozen=True, slots=True)
+class ByPackage:
+    """A gate for an item kind governed independently of a structure layer."""
+
+
+@dataclass(frozen=True, slots=True)
+class BySchema:
+    """A gate for an item kind when its governing schema is registered.
+
+    Attributes:
+        schema: The registered schema that governs the item for this rule.
+    """
+
+    schema: SchemaReference
+
+
+type Gate = BySpec | ByPackage | BySchema
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class ItemRule(ContentRule):
+    """The base of every rule over a Markdown item, with a gate for each kind it judges.
+
+    Attributes:
+        GATES: The item kinds a rule judges and the gate that admits each kind.
+    """
+
+    GATES: ClassVar[Mapping[ItemKind, Gate]] = MappingProxyType({})
     APPLIES_TO: ClassVar[frozenset[ItemKind]]
 
 
@@ -79,6 +112,18 @@ class DocumentRule(ItemRule):
 
     GOVERNED_BY: ClassVar[Facet]
     APPLIES_TO: ClassVar[frozenset[ItemKind]] = frozenset({ItemKind.DOCUMENT})
+    GATES: ClassVar[Mapping[ItemKind, Gate]] = MappingProxyType({})
+
+    def __init_subclass__(cls) -> None:
+        """Set the document gate when a rule declares its governed facet.
+
+        Args:
+            cls: The document rule class being created.
+        """
+        super(DocumentRule, cls).__init_subclass__()
+        facet = cls.__dict__.get('GOVERNED_BY')
+        if isinstance(facet, Facet):
+            cls.GATES = MappingProxyType({ItemKind.DOCUMENT: BySpec(facet)})
 
 
 type SubjectQuery[Facts] = (
@@ -131,6 +176,7 @@ class SkillRule(ItemRule):
     """The base of every rule over a skill; the package governs every skill, so the rule declares no facet."""
 
     APPLIES_TO: ClassVar[frozenset[ItemKind]] = frozenset({ItemKind.SKILL_ENTRY})
+    GATES: ClassVar[Mapping[ItemKind, Gate]] = MappingProxyType({ItemKind.SKILL_ENTRY: ByPackage()})
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -152,6 +198,22 @@ class QueriedDocumentSkillRule[Facts](QueriedDocumentRule[Facts], QueriedSkillRu
 
     APPLIES_TO: ClassVar[frozenset[ItemKind]] = frozenset({ItemKind.DOCUMENT, ItemKind.SKILL_ENTRY})
 
+    def __init_subclass__(cls) -> None:
+        """Set both structure gates from the corpus rule's declared facet.
+
+        Args:
+            cls: The document-and-skill rule class being created.
+        """
+        super(QueriedDocumentSkillRule, cls).__init_subclass__()
+        facet = cls.__dict__.get('GOVERNED_BY')
+        if isinstance(facet, Facet):
+            cls.GATES = MappingProxyType(
+                {
+                    ItemKind.DOCUMENT: BySpec(facet),
+                    ItemKind.SKILL_ENTRY: BySpec(facet, requires_loaded_layer=True),
+                }
+            )
+
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class MarkdownRule(ItemRule):
@@ -166,6 +228,14 @@ class MarkdownRule(ItemRule):
     """
 
     APPLIES_TO: ClassVar[frozenset[ItemKind]] = frozenset(ItemKind)
+    GATES: ClassVar[Mapping[ItemKind, Gate]] = MappingProxyType(
+        {
+            ItemKind.DOCUMENT: BySpec(Facet.STRUCTURE),
+            ItemKind.SPECIFICATION: BySpec(Facet.STRUCTURE),
+            ItemKind.SKILL_ENTRY: ByPackage(),
+            ItemKind.SKILL_RESOURCE: ByPackage(),
+        }
+    )
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -191,6 +261,9 @@ class SkillFileRule(ItemRule):
     """
 
     APPLIES_TO: ClassVar[frozenset[ItemKind]] = frozenset({ItemKind.SKILL_ENTRY, ItemKind.SKILL_RESOURCE})
+    GATES: ClassVar[Mapping[ItemKind, Gate]] = MappingProxyType(
+        {ItemKind.SKILL_ENTRY: ByPackage(), ItemKind.SKILL_RESOURCE: ByPackage()}
+    )
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -243,14 +316,18 @@ class FrontmatterRule(ItemRule):
     One rule judges both kinds through the primitives their queries share, so its judgment is written once.
 
     Attributes:
-        GOVERNED_BY: `Facet.FRONTMATTER`, bound here for every rule over the frontmatter: a document is judged only
-            when it is governed for it. The package governs every skill, so a skill is always judged. A skill's resource
-            opens with no frontmatter the package governs, so the rule judges none.
+        GOVERNED_BY: `Facet.FRONTMATTER`, bound here for every rule over the frontmatter.
         SKILL_AGENT_SPEC_RULE: Whether this rule enforces an Agent Skills requirement for skill entries.
     """
 
     GOVERNED_BY: ClassVar[Facet] = Facet.FRONTMATTER
     APPLIES_TO: ClassVar[frozenset[ItemKind]] = frozenset({ItemKind.DOCUMENT, ItemKind.SKILL_ENTRY})
+    GATES: ClassVar[Mapping[ItemKind, Gate]] = MappingProxyType(
+        {
+            ItemKind.DOCUMENT: BySpec(Facet.FRONTMATTER),
+            ItemKind.SKILL_ENTRY: BySpec(Facet.FRONTMATTER),
+        }
+    )
     SKILL_AGENT_SPEC_RULE: ClassVar[bool] = False
 
 

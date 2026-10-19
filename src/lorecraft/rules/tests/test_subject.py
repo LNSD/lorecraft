@@ -1,69 +1,135 @@
-"""The applicability a rule base binds: the kinds of item a rule judges and the facet it reads."""
+"""The item gates a rule declares alongside its existing item-kind bases."""
+
+from types import MappingProxyType
 
 import pytest
 
 from lorecraft import rules
 from lorecraft.project.item import ItemKind
+from lorecraft.rules.frontmatter.duplicate_key import DuplicateKey
+from lorecraft.rules.frontmatter.name_mismatch import NameMismatch
 from lorecraft.rules.length.too_many_lines import TooManyLines
 from lorecraft.rules.length.too_many_tokens import TooManyTokens
 from lorecraft.rules.link.broken_link import BrokenLink
 from lorecraft.rules.registry import Registry
-from lorecraft.rules.subject import Facet, ItemRule, governing_facet
+from lorecraft.rules.subject import ByPackage, BySchema, BySpec, Facet, ItemRule
+from lorecraft.schemas.builtin import AGENT_SKILLS_SCHEMA_REFERENCE
 
 
 @pytest.mark.unit
-class TestGoverningFacet:
-    def test_governing_facet_with_a_rule_over_a_document_returns_the_facet_it_declares(self) -> None:
+class TestGates:
+    def test_registered_item_rules_with_known_kinds_have_gates(self) -> None:
+        #: Given
+        registered_rules = Registry.load(rules).rules
+
+        #: When
+        item_rules = tuple(rule for rule in registered_rules if issubclass(rule, ItemRule))
+
+        #: Then
+        assert item_rules, 'the registry includes rules over items'
+        assert all(rule.GATES for rule in item_rules), 'each registered item rule declares at least one gate'
+        assert all(set(rule.GATES) <= set(ItemKind) for rule in item_rules), 'each gate names a known item kind'
+
+    def test_document_rule_with_budget_facet_uses_spec_gate(self) -> None:
         #: Given
         rule = TooManyTokens
+        expected = BySpec(Facet.BUDGET)
 
         #: When
-        facet = governing_facet(rule)
+        gate = rule.GATES[ItemKind.DOCUMENT]
 
         #: Then
-        assert facet is Facet.BUDGET, 'a rule over a document reads its GOVERNED_BY'
+        assert gate == expected, 'the document budget rule requires its declared facet'
 
-    def test_governing_facet_with_a_rule_over_a_markdown_file_returns_the_structure_facet(self) -> None:
+    def test_document_and_skill_rule_with_budget_facet_uses_both_spec_gates(self) -> None:
+        #: Given
+        rule = TooManyTokens
+        expected = MappingProxyType(
+            {
+                ItemKind.DOCUMENT: BySpec(Facet.BUDGET),
+                ItemKind.SKILL_ENTRY: BySpec(Facet.BUDGET, requires_loaded_layer=True),
+            }
+        )
+
+        #: When
+        gates = rule.GATES
+
+        #: Then
+        assert gates == expected, 'the shared budget rule requires its facet and loaded layer for skills'
+
+    def test_markdown_rule_with_item_kinds_uses_spec_and_package_gates(self) -> None:
         #: Given
         rule = BrokenLink
+        expected = MappingProxyType(
+            {
+                ItemKind.DOCUMENT: BySpec(Facet.STRUCTURE),
+                ItemKind.SPECIFICATION: BySpec(Facet.STRUCTURE),
+                ItemKind.SKILL_ENTRY: ByPackage(),
+                ItemKind.SKILL_RESOURCE: ByPackage(),
+            }
+        )
 
         #: When
-        facet = governing_facet(rule)
+        gates = rule.GATES
 
         #: Then
-        assert facet is Facet.STRUCTURE, 'its base fixes the facet it judges a document under'
+        assert gates == expected, 'Markdown rules use structure for corpus items and package gates for skill files'
 
-    def test_governing_facet_with_a_rule_over_a_skill_returns_none(self) -> None:
+    def test_frontmatter_rule_with_skill_entry_uses_frontmatter_facet(self) -> None:
         #: Given
-        rule = TooManyLines
+        rule = DuplicateKey
+        expected = BySpec(Facet.FRONTMATTER)
 
         #: When
-        facet = governing_facet(rule)
+        gate = rule.GATES[ItemKind.SKILL_ENTRY]
 
         #: Then
-        assert facet is None, 'the package governs every skill, so no facet gates it'
+        assert gate == expected, 'skill frontmatter rules follow the active frontmatter facet'
+
+    def test_name_mismatch_with_skill_entry_uses_agent_skills_schema(self) -> None:
+        #: Given
+        rule = NameMismatch
+        expected = BySchema(AGENT_SKILLS_SCHEMA_REFERENCE)
+
+        #: When
+        gate = rule.GATES[ItemKind.SKILL_ENTRY]
+
+        #: Then
+        assert gate == expected, 'the skill name rule requires the registered Agent Skills schema'
 
 
 @pytest.mark.unit
 class TestAppliesTo:
-    def test_applies_to_with_every_registered_rule_over_an_item_names_known_kinds(self) -> None:
+    def test_registered_item_rules_with_known_kinds_apply_to_items(self) -> None:
         #: Given
-        registered = Registry.load(rules).rules
+        registered_rules = Registry.load(rules).rules
 
         #: When
-        item_rules = [rule for rule in registered if issubclass(rule, ItemRule)]
+        item_rules = tuple(rule for rule in registered_rules if issubclass(rule, ItemRule))
 
         #: Then
-        assert item_rules, 'the registry holds rules over an item'
-        assert all(rule.APPLIES_TO for rule in item_rules), 'every rule over an item applies to some kind'
-        assert all(rule.APPLIES_TO <= frozenset(ItemKind) for rule in item_rules), 'each kind it names is known'
+        assert item_rules, 'the registry includes rules over items'
+        assert all(rule.APPLIES_TO for rule in item_rules), 'each item rule applies to at least one kind'
+        assert all(rule.APPLIES_TO <= frozenset(ItemKind) for rule in item_rules), 'each rule names known item kinds'
 
-    def test_applies_to_with_a_corpus_rule_includes_skill_entries(self) -> None:
+    def test_corpus_rule_with_skill_entry_applies_to_skill_entries(self) -> None:
         #: Given
         rule = TooManyTokens
+        expected = ItemKind.SKILL_ENTRY
 
         #: When
         kinds = rule.APPLIES_TO
 
         #: Then
-        assert ItemKind.SKILL_ENTRY in kinds, 'a corpus rule can judge documents and skill entries'
+        assert expected in kinds, 'corpus rules apply to skill entries as well as documents'
+
+    def test_package_rule_with_skill_entry_applies_to_skill_entries(self) -> None:
+        #: Given
+        rule = TooManyLines
+        expected = ItemKind.SKILL_ENTRY
+
+        #: When
+        kinds = rule.APPLIES_TO
+
+        #: Then
+        assert expected in kinds, 'package skill rules apply to skill entries'

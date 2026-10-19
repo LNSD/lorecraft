@@ -19,14 +19,21 @@ in it; a rule that names none is rejected as the table is built.
 
 from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Any, Self, assert_never
+from typing import Any, Self, assert_never, cast
+
+from lorecraft.project.item import ItemKind
 
 from .declaration import Rule
 from .identity import Level, Severity
 from .registry import Registry
 from .selection import RuleSelection
 from .subject import (
+    ByPackage,
+    BySchema,
+    BySpec,
     Facet,
+    ItemRule,
+    Queried,
     QueriedCorpusDirectoryRule,
     QueriedDocumentRule,
     QueriedFrontmatterRule,
@@ -38,10 +45,10 @@ from .subject import (
 
 
 class UnknownRuleBaseError(TypeError):
-    """A rule derives from no queried base the table knows, so no partition holds it and it would never run.
+    """A rule has no supported queried base or declares no item gates, so it would never run.
 
-    The rule hierarchy is open, so no type closes the set of bases a rule may derive from; the table rejects such a
-    rule as it is built, before any subject.
+    The rule hierarchy is open, so no type closes the set of bases a rule may derive from. The table rejects such a
+    rule, or an item rule with no gates, as it is built, before any subject.
 
     Attributes:
         rule: The rule that derives from no base the table partitions by.
@@ -51,7 +58,7 @@ class UnknownRuleBaseError(TypeError):
 
     def __init__(self, rule: type[Rule]) -> None:
         self.rule = rule
-        super().__init__(f'rule {rule.__qualname__} ({rule.CODE}) derives from no base the rule table knows')
+        super().__init__(f'rule {rule.__qualname__} ({rule.CODE}) has no supported base or item gates')
 
 
 @dataclass(frozen=True, slots=True)
@@ -67,9 +74,13 @@ class EnabledRule[R: Rule]:
     severity: Severity
 
 
-class RuleTable:
-    """The enabled rules of one run, each with its severity, partitioned by base in code order."""
+type QueriedItem = Queried[Any, Any]
 
+
+class RuleTable:
+    """The enabled rules of one run, partitioned by base and indexed by item kind and facet."""
+
+    _item_rules: dict[tuple[ItemKind, Facet | None], tuple[EnabledRule[QueriedItem], ...]]
     _document_rules: tuple[EnabledRule[QueriedDocumentRule[Any]], ...]
     _document_rules_by_facet: dict[Facet, tuple[EnabledRule[QueriedDocumentRule[Any]], ...]]
     _skill_rules: tuple[EnabledRule[QueriedSkillRule[Any]], ...]
@@ -90,6 +101,7 @@ class RuleTable:
         Raises:
             UnknownRuleBaseError: If a rule derives from no base the table partitions by.
         """
+        item_rules: dict[tuple[ItemKind, Facet | None], list[EnabledRule[QueriedItem]]] = {}
         document_rules: list[EnabledRule[QueriedDocumentRule[Any]]] = []
         skill_rules: list[EnabledRule[QueriedSkillRule[Any]]] = []
         markdown_rules: list[EnabledRule[QueriedMarkdownRule[Any]]] = []
@@ -98,6 +110,8 @@ class RuleTable:
         corpus_directory_rules: list[EnabledRule[QueriedCorpusDirectoryRule[Any]]] = []
         frontmatter_rules: list[EnabledRule[QueriedFrontmatterRule[Any]]] = []
         for rule_class in sorted(severities, key=_printed_code):
+            if issubclass(rule_class, ItemRule) and not rule_class.GATES:
+                raise UnknownRuleBaseError(rule_class)
             # The rule hierarchy is open, so the chain cannot close with `assert_never`: a rule over a base with no
             # partition here is a defect, raised before any subject is checked.
             if issubclass(rule_class, QueriedDocumentRule):
@@ -116,11 +130,24 @@ class RuleTable:
                 frontmatter_rules.append(EnabledRule(rule_class, severities[rule_class]))
             else:
                 raise UnknownRuleBaseError(rule_class)
+            if issubclass(rule_class, ItemRule) and issubclass(rule_class, Queried):
+                # SAFETY: both subclass checks prove this is a query-backed item rule, which matches QueriedItem.
+                enabled_item = EnabledRule(cast(type[QueriedItem], rule_class), severities[rule_class])
+                for kind, gate in rule_class.GATES.items():
+                    match gate:
+                        case BySpec(facet):
+                            facet_key = facet
+                        case ByPackage() | BySchema():
+                            facet_key = None
+                        case _:
+                            assert_never(gate)
+                    item_rules.setdefault((kind, facet_key), []).append(enabled_item)
+        self._item_rules = {key: tuple(rules) for key, rules in item_rules.items()}
         self._document_rules = tuple(document_rules)
         self._document_rules_by_facet = {}
         for facet in Facet:
             self._document_rules_by_facet[facet] = tuple(
-                enabled for enabled in document_rules if enabled.rule.GOVERNED_BY is facet
+                enabled for enabled in document_rules if _facet_gate(enabled.rule, ItemKind.DOCUMENT) is facet
             )
         self._skill_rules = tuple(skill_rules)
         self._markdown_rules = tuple(markdown_rules)
@@ -131,7 +158,7 @@ class RuleTable:
         self._frontmatter_rules_by_facet = {}
         for facet in Facet:
             self._frontmatter_rules_by_facet[facet] = tuple(
-                enabled for enabled in frontmatter_rules if enabled.rule.GOVERNED_BY is facet
+                enabled for enabled in frontmatter_rules if _facet_gate(enabled.rule, ItemKind.DOCUMENT) is facet
             )
 
     @classmethod
@@ -153,6 +180,15 @@ class RuleTable:
             if severity is not None:
                 severities[rule_class] = severity
         return cls(severities)
+
+    def item_rules(self, kind: ItemKind, facet: Facet | None) -> tuple[EnabledRule[QueriedItem], ...]:
+        """Each enabled item rule gated for this kind and facet, in code order.
+
+        Args:
+            kind: The kind of item being judged.
+            facet: The facet of a spec gate, or `None` for package and schema gates.
+        """
+        return self._item_rules.get((kind, facet), ())
 
     @property
     def document_rules(self) -> tuple[EnabledRule[QueriedDocumentRule[Any]], ...]:
@@ -204,6 +240,20 @@ class RuleTable:
             facet: The facet the rules declare in `GOVERNED_BY`; the result is empty when no enabled rule reads it.
         """
         return self._frontmatter_rules_by_facet[facet]
+
+
+def _facet_gate(rule: type[Rule], kind: ItemKind) -> Facet | None:
+    """The facet named by this rule's gate for a kind, or None for non-spec gates."""
+    if not issubclass(rule, ItemRule):
+        return None
+    gate = rule.GATES.get(kind)
+    match gate:
+        case BySpec(facet):
+            return facet
+        case ByPackage() | BySchema() | None:
+            return None
+        case _:
+            assert_never(gate)
 
 
 def selected_rules_left_off(registry: Registry, selection: RuleSelection) -> tuple[type[Rule], ...]:

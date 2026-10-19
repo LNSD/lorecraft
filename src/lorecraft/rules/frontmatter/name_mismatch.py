@@ -1,9 +1,12 @@
 """`FM004`: a frontmatter `name` differs from the name its document or skill is found under."""
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
+from types import MappingProxyType
 from typing import ClassVar, Self, assert_never
 
 from lorecraft.core.path import ROOT, RootRelativePath
+from lorecraft.project.item import ItemKind
 from lorecraft.project.layout import DOCUMENT_SUFFIX
 from lorecraft.project.query import ItemQuery
 from lorecraft.project.schemas import (
@@ -16,13 +19,14 @@ from lorecraft.project.syntax import Frontmatter, InvalidYamlFrontmatter, Missin
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Here, Label, Note, Subdiagnostic
-from lorecraft.rules.subject import QueriedFrontmatterRule
+from lorecraft.rules.subject import BySchema, BySpec, Facet, Gate, QueriedFrontmatterRule
 from lorecraft.schemas.agent_skills_frontmatter import (
     EmptySkillNameError,
     InvalidSkillNameFormatError,
     OverlongSkillNameError,
     SkillName,
 )
+from lorecraft.schemas.builtin import AGENT_SKILLS_SCHEMA_REFERENCE
 
 from .__ruleset__ import GROUP_ID, FrontmatterFacts, frontmatter_facts, owner_spec
 
@@ -147,6 +151,12 @@ class NameMismatch(QueriedFrontmatterRule[FrontmatterFacts]):
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('0.3.0')
     SKILL_AGENT_SPEC_RULE: ClassVar[bool] = True
+    GATES: ClassVar[Mapping[ItemKind, Gate]] = MappingProxyType(
+        {
+            ItemKind.DOCUMENT: BySpec(Facet.FRONTMATTER),
+            ItemKind.SKILL_ENTRY: BySchema(AGENT_SKILLS_SCHEMA_REFERENCE),
+        }
+    )
 
     # The specification file is derived from `owner`, so no caller can state one that disagrees with it.
     spec: RootRelativePath | None = field(init=False)
