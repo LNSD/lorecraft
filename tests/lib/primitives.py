@@ -1,6 +1,6 @@
 """Primitives held as given, for a caller that has no database."""
 
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from typing import cast
 
@@ -8,13 +8,12 @@ from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.num import UnsignedInt
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
-from lorecraft.project.item import DocumentOrigin, ItemOrigin, ItemRef
+from lorecraft.project.item import DocumentOrigin, ItemOrigin
 from lorecraft.project.link_target import DocumentLink, LinkBase, LinkTargetEntry
 from lorecraft.project.query import (
     DecodedText,
     ItemQuery,
-    Query,
-    SchemaPrimitives,
+    QueryTargetRef,
     item_corpus,
     item_frontmatter,
     item_line_count,
@@ -37,7 +36,7 @@ from lorecraft.project.syntax import (
 )
 from lorecraft.project.workspace import Governance
 from lorecraft.rules.link.queries import linked_documents
-from lorecraft.schemas import SchemaInput, SchemaRef
+from lorecraft.schemas import SchemaInput
 from lorecraft.schemas.builtin import AGENT_SKILLS_SCHEMA_INPUT, AGENT_SKILLS_SCHEMA_REFERENCE
 
 
@@ -48,9 +47,9 @@ class _BundledAgentSkillsSchemaPrimitives:
         """The immutable bundled Agent Skills schema input."""
         return AGENT_SKILLS_SCHEMA_INPUT
 
-    def query_schema[T](self, ref: SchemaRef, query: Query[SchemaPrimitives, T]) -> T:
-        """Standalone rule tests do not expose nested schema subjects."""
-        raise NotImplementedError(f'standalone primitives cannot read nested schema {ref}')
+    def query_at[T](self, ref: QueryTargetRef, query: Callable[..., T]) -> T:
+        """Standalone rule tests do not expose nested subjects."""
+        raise NotImplementedError(f'standalone primitives cannot read another subject {ref}')
 
 
 @dataclass(frozen=True, slots=True)
@@ -170,12 +169,8 @@ class StructurePrimitives:
             return self.token_total
         return query(self)
 
-    def query_at[T](self, ref: ItemRef, query: ItemQuery[T]) -> T:
-        """No other item is available to this standalone primitive value."""
-        raise NotImplementedError('standalone primitives cannot read another item')
-
-    def query_schema[T](self, ref: SchemaRef, query: Query[SchemaPrimitives, T]) -> T:
+    def query_at[T](self, ref: QueryTargetRef, query: Callable[..., T]) -> T:
         """Answer only the bundled skills subject for standalone skill rule tests."""
         if ref != AGENT_SKILLS_SCHEMA_REFERENCE:
-            raise NotImplementedError(f'standalone primitives cannot read schema {ref}')
+            raise NotImplementedError(f'standalone primitives cannot read subject {ref}')
         return query(_BundledAgentSkillsSchemaPrimitives())

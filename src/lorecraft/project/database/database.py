@@ -50,13 +50,13 @@ from lorecraft.project.link_target import (
     link_targets_of,
 )
 from lorecraft.project.query import (
-    CorpusDirectoryPrimitives,
-    ItemPrimitives,
+    CorpusDirectoryQuery,
     ItemQuery,
     Query,
     QueryTargetRef,
-    SchemaPrimitives,
-    SymlinkPrimitives,
+    SchemaQuery,
+    SubjectQuery,
+    SymlinkQuery,
     item_parse,
 )
 from lorecraft.project.schemas import (
@@ -173,17 +173,20 @@ class _Reads[R: QueryTargetRef, P: _HasRecordedReads](metaclass=ABCMeta):
         target = self._fresh(self._ref)
         return self._compose(key, target, query)
 
-    def query_at[T](self, ref: ItemRef, query: ItemQuery[T]) -> T:
-        """Read an item query and include its dependencies."""
-        key = Read(query, ref)
-        target = _ItemPrimitives(self._database, ref)
-        return self._compose(key, target, query)
-
-    def query_schema[T](self, ref: SchemaRef, query: Query[SchemaPrimitives, T]) -> T:
-        """Read a schema query and include its dependencies."""
-        key = Read(query, ref)
-        target = _SchemaPrimitives(self._database, ref)
-        return self._compose(key, target, query)
+    def query_at[T](self, ref: QueryTargetRef, query: Callable[..., T]) -> T:
+        """Read a query over any typed subject and include its dependencies."""
+        match ref:
+            case ItemRef():
+                target = _ItemPrimitives(self._database, ref)
+            case OutsideSymlinkRef():
+                target = _SymlinkPrimitives(self._database, ref)
+            case ReservedCorpusDirectoryRef():
+                target = _CorpusDirectoryPrimitives(self._database, ref)
+            case SchemaRef():
+                target = _SchemaPrimitives(self._database, ref)
+            case _:
+                assert_never(ref)
+        return self._compose(Read(query, ref), target, query)
 
 
 class _SchemaPrimitives(_Reads[SchemaRef, '_SchemaPrimitives']):
@@ -634,16 +637,16 @@ class Database:
         return self._item(ref).governance
 
     @overload
-    def query[T](self, query: Query[ItemPrimitives, T], ref: ItemRef) -> T: ...  # noqa: D102 — implementation documents the overload
+    def query[T](self, query: ItemQuery[T], ref: ItemRef) -> T: ...  # noqa: D102 — implementation documents the overload
 
     @overload
-    def query[T](self, query: Query[SymlinkPrimitives, T], ref: OutsideSymlinkRef) -> T: ...  # noqa: D102 — implementation documents the overload
+    def query[T](self, query: SymlinkQuery[T], ref: OutsideSymlinkRef) -> T: ...  # noqa: D102 — implementation documents the overload
 
     @overload
-    def query[T](self, query: Query[CorpusDirectoryPrimitives, T], ref: ReservedCorpusDirectoryRef) -> T: ...  # noqa: D102 — implementation documents the overload
+    def query[T](self, query: CorpusDirectoryQuery[T], ref: ReservedCorpusDirectoryRef) -> T: ...  # noqa: D102 — implementation documents the overload
 
     @overload
-    def query[T](self, query: Query[SchemaPrimitives, T], ref: SchemaRef) -> T: ...  # noqa: D102 — implementation documents the overload
+    def query[T](self, query: SchemaQuery[T], ref: SchemaRef) -> T: ...  # noqa: D102 — implementation documents the overload
 
     def query[T](
         self,
@@ -694,10 +697,7 @@ class Database:
 
     def query_reads(
         self,
-        query: Query[ItemPrimitives, object]
-        | Query[SymlinkPrimitives, object]
-        | Query[CorpusDirectoryPrimitives, object]
-        | Query[SchemaPrimitives, object],
+        query: SubjectQuery[object],
         ref: ItemRef | OutsideSymlinkRef | ReservedCorpusDirectoryRef | SchemaRef,
     ) -> frozenset[Read]:
         """The typed read keys recorded for a query; public so nested queries avoid private-cache access.

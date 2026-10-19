@@ -8,7 +8,7 @@ Schema subjects have their own parameterless query family over immutable inputs 
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping
-from typing import TYPE_CHECKING, Protocol
+from typing import TYPE_CHECKING, Protocol, overload
 
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
@@ -28,37 +28,31 @@ if TYPE_CHECKING:
 
 type Query[P, T] = Callable[[P], T]
 type ItemQuery[T] = Query[ItemPrimitives, T]
+type SymlinkQuery[T] = Query[SymlinkPrimitives, T]
+type CorpusDirectoryQuery[T] = Query[CorpusDirectoryPrimitives, T]
+type SchemaQuery[T] = Query[SchemaPrimitives, T]
 type QueryTargetRef = ItemRef | OutsideSymlinkRef | ReservedCorpusDirectoryRef | SchemaRef
-type SubjectQuery[T] = (
-    Query[ItemPrimitives, T]
-    | Query[SymlinkPrimitives, T]
-    | Query[CorpusDirectoryPrimitives, T]
-    | Query[SchemaPrimitives, T]
-)
+type SubjectQuery[T] = ItemQuery[T] | SymlinkQuery[T] | CorpusDirectoryQuery[T] | SchemaQuery[T]
 
 
 class QueryPrimitives[P](Protocol):
-    """Same-subject query operations shared by every subject's primitive group."""
+    """Same-subject and cross-subject queries shared by every primitive group."""
 
     def query[T](self, query: Query[P, T]) -> T:
         """Read a query over the same subject and record its dependency."""
         ...
 
+    @overload
+    def query_at[T](self, ref: ItemRef, query: ItemQuery[T]) -> T: ...
 
-class ItemReads(Protocol):
-    """Cross-subject queries whose target is a Markdown item."""
+    @overload
+    def query_at[T](self, ref: OutsideSymlinkRef, query: SymlinkQuery[T]) -> T: ...
 
-    def query_at[T](self, ref: ItemRef, query: ItemQuery[T]) -> T:
-        """Read an item query by reference and record the typed dependency."""
-        ...
+    @overload
+    def query_at[T](self, ref: ReservedCorpusDirectoryRef, query: CorpusDirectoryQuery[T]) -> T: ...
 
-
-class SchemaReads(Protocol):
-    """Cross-subject queries whose target is a schema."""
-
-    def query_schema[T](self, ref: SchemaRef, query: Query[SchemaPrimitives, T]) -> T:
-        """Read a schema query by reference and record the typed dependency."""
-        ...
+    @overload
+    def query_at[T](self, ref: SchemaRef, query: SchemaQuery[T]) -> T: ...
 
 
 class DecodedText(Protocol):
@@ -68,7 +62,7 @@ class DecodedText(Protocol):
     text: str
 
 
-class SchemaPrimitives(QueryPrimitives['SchemaPrimitives'], SchemaReads, Protocol):
+class SchemaPrimitives(QueryPrimitives['SchemaPrimitives'], Protocol):
     """The immutable input for one typed schema subject."""
 
     def schema_input(self) -> SchemaInput:
@@ -125,11 +119,10 @@ class LinkResolutionPrimitives(QueryPrimitives['ItemPrimitives'], Protocol):
 
 
 class ItemPrimitives(
-    ItemReads,
-    SchemaReads,
     SyntaxPrimitives,
     GovernancePrimitives,
     LinkResolutionPrimitives,
+    QueryPrimitives['ItemPrimitives'],
     Protocol,
 ):
     """The model state of one item a query derives from, grouped by primitive protocol."""

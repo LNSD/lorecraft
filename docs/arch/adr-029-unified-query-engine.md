@@ -62,10 +62,12 @@ proposal or expand its schema policy.
 
 3. **D3 — One recording base, shared composition on every subject.** Merge `_ReadSet` and the adapters' shared
    state and recording machinery into one primitives base. Every subject protocol extends a `QueryPrimitives`
-   facet supplying `query`, `query_at` and `query_schema`. Only the raw-state facet differs by subject.
-   Same-subject composition retains that subject's precise query type; cross-subject composition keeps the
-   query/reference pairing typed. Keep subject-specific protocols and overloads. Do not replace them with a
-   generic subject-to-primitives mapping that erases which raw operations a query may call.
+   facet supplying `query` and one overloaded `query_at` for item, symlink, corpus-directory and schema references.
+   The matching `ItemQuery`, `SymlinkQuery`, `CorpusDirectoryQuery` and `SchemaQuery` aliases live beside the
+   protocols in `lorecraft.project.query`; `SubjectQuery` is their union. Only the raw-state facet differs by
+   subject. Same-subject composition retains that subject's precise query type; cross-subject composition keeps
+   the query/reference pairing typed. Do not replace the subject-specific protocols and overloads with a generic
+   subject-to-primitives mapping that erases which raw operations a query may call.
 
 4. **D4 — One subject dispatch and one unchecked retrieval.** Keep per-subject `@overload`s on
    `Database.query`. The database alone selects the subject's primitives and evaluates its query. The runner

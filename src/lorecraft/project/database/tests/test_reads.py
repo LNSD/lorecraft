@@ -39,6 +39,23 @@ def _item_headings(primitives: ItemPrimitives) -> tuple[Heading, ...]:
     return primitives.query(item_parse).headings
 
 
+def _reads_layout_subjects(primitives: ItemPrimitives) -> tuple[RootExit, CorpusName]:
+    """Read both layout subject kinds from an item query."""
+    symlink = OutsideSymlinkRef(RootRelativePath.parse('.agents/skills/outside'))
+    directory = ReservedCorpusDirectoryRef(RootRelativePath.parse('docs/skills'))
+    return primitives.query_at(symlink, _symlink_exit), primitives.query_at(directory, _reserved_corpus)
+
+
+def _symlink_reads_item(primitives: SymlinkPrimitives) -> tuple[Heading, ...]:
+    """Read an item query from a symlink query."""
+    return primitives.query_at(ItemRef(RootRelativePath.parse('docs/code/source.md')), _item_headings)
+
+
+def _corpus_directory_reads_item(primitives: CorpusDirectoryPrimitives) -> tuple[Heading, ...]:
+    """Read an item query from a corpus-directory query."""
+    return primitives.query_at(ItemRef(RootRelativePath.parse('docs/code/source.md')), _item_headings)
+
+
 def _read_only_lookup(primitives: ItemPrimitives) -> object:
     """Fetch a primitive method without invoking it."""
     return primitives.text
@@ -89,7 +106,7 @@ class TestSubjectReads:
         #: Then
         for adapter_name in adapters:
             adapter = getattr(database_module, adapter_name)
-            for name in _primitive_methods(adapter, excluded={'schema_input', 'query', 'query_at', 'query_schema'}):
+            for name in _primitive_methods(adapter, excluded={'schema_input', 'query', 'query_at'}):
                 assert getattr(adapter, name).__wrapped__.__name__ == name, (
                     f'{adapter_name}.{name} records its read before calling the primitive'
                 )
@@ -164,4 +181,46 @@ class TestSubjectReads:
         assert corpus == directory.corpus, 'the query returns the reserved corpus named by the model'
         assert database.query_reads(_reserved_corpus, ref) == {Read('reserved_corpus', ref)}, (
             'the read set identifies the reserved-corpus primitive'
+        )
+
+    def test_query_at_composes_every_target_kind_from_items(self, tmp_path: Path) -> None:
+        #: Given
+        database = _database(tmp_path)
+        item = ItemRef(RootRelativePath.parse('docs/code/source.md'))
+        symlink = database.model().sorted_outside_symlinks[0]
+        directory = database.model().sorted_overlapping_directories[0]
+
+        #: When
+        exits, corpora = database.query(_reads_layout_subjects, item)
+
+        #: Then
+        assert exits == symlink.leaves_at, 'query_at reads the typed symlink subject'
+        assert corpora == directory.corpus, 'query_at reads the typed corpus-directory subject'
+        assert database.query_reads(_reads_layout_subjects, item) == {
+            Read(_symlink_exit, OutsideSymlinkRef(symlink.path)),
+            Read('leaves_at', OutsideSymlinkRef(symlink.path)),
+            Read(_reserved_corpus, ReservedCorpusDirectoryRef(directory.path)),
+            Read('reserved_corpus', ReservedCorpusDirectoryRef(directory.path)),
+        }, 'each nested read keeps its target subject'
+
+    def test_query_at_composes_item_queries_from_layout_subjects(self, tmp_path: Path) -> None:
+        #: Given
+        database = _database(tmp_path)
+        item = ItemRef(RootRelativePath.parse('docs/code/source.md'))
+        symlink = OutsideSymlinkRef(database.model().sorted_outside_symlinks[0].path)
+        directory = ReservedCorpusDirectoryRef(database.model().sorted_overlapping_directories[0].path)
+
+        #: When
+        from_symlink = database.query(_symlink_reads_item, symlink)
+        from_directory = database.query(_corpus_directory_reads_item, directory)
+
+        #: Then
+        assert tuple(heading.text for heading in from_symlink) == ('Source',), 'the symlink query reads the item'
+        assert tuple(heading.text for heading in from_directory) == ('Source',), (
+            'the corpus-directory query reads the item'
+        )
+        expected = {Read(_item_headings, item), Read(item_parse, item), Read('text', item)}
+        assert database.query_reads(_symlink_reads_item, symlink) == expected, 'symlink reads retain item dependencies'
+        assert database.query_reads(_corpus_directory_reads_item, directory) == expected, (
+            'corpus-directory reads retain item dependencies'
         )
