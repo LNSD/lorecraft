@@ -18,6 +18,7 @@ from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.project.database import Database, ItemText, Undecodable
 from lorecraft.project.item import MarkdownItemRef
 from lorecraft.project.layout import SNAPSHOT_SCOPE
+from lorecraft.project.query import item_parse
 from lorecraft.project.skill import (
     SkillLocation,
     SkillRef,
@@ -386,7 +387,7 @@ class TestDatabaseSkillResources:
         source = _skill_resource_text(database, ref)
 
         #: When
-        document = database.item_parse(source)
+        document = database.query(item_parse, source.ref)
 
         #: Then
         assert document.links == (MarkdownLink(url='../../SKILL.md', line=LineNumber(NonZeroUnsignedInt(3))),), (
@@ -398,10 +399,10 @@ class TestDatabaseSkillResources:
         database = Database.from_snapshot(take_snapshot(skill_tree, SNAPSHOT_SCOPE))
         ref = SkillResourceRef(REVIEW, SkillRelativePath.parse('references/a.md'))
         source = _skill_resource_text(database, ref)
-        first = database.item_parse(source)
+        first = database.query(item_parse, source.ref)
 
         #: When
-        second = database.item_parse(source)
+        second = database.query(item_parse, source.ref)
 
         #: Then
         assert second is first, 'a resource is parsed once per database, then shared by every check'

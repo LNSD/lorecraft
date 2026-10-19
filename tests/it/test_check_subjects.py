@@ -28,12 +28,21 @@ from lorecraft.engine import check_subjects
 from lorecraft.jsonschema import JsonType
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
-from lorecraft.project.database import Database, ItemText
+from lorecraft.project.database import Database
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.item import MarkdownItemRef
 from lorecraft.project.layout import SNAPSHOT_SCOPE
 from lorecraft.project.link_target import DocumentDirectory, SkillRoot
-from lorecraft.project.query import CountPrimitives, GovernancePrimitives, Query
+from lorecraft.project.query import (
+    CountPrimitives,
+    GovernancePrimitives,
+    Query,
+    item_frontmatter,
+    item_line_count,
+    item_parse,
+    item_structure_specs,
+    item_token_count,
+)
 from lorecraft.project.schemas import (
     AgentSkillsSchema,
     DocumentEnd,
@@ -62,11 +71,9 @@ from lorecraft.project.skill import (
     SkillResourceRef,
 )
 from lorecraft.project.syntax import (
-    FrontmatterNode,
     Heading,
     InvalidYamlFrontmatter,
     LineNumber,
-    ParsedDocument,
     SectionHeading,
     TokenCount,
     count_tokens,
@@ -239,8 +246,10 @@ def _budget_facts(primitives: _GovernanceCountPrimitives) -> BudgetFacts:
     Args:
         primitives: The model state of the document.
     """
-    budgets = tuple((spec.path, spec.tokens.value) for spec in primitives.structure_specs() if spec.tokens is not None)
-    return BudgetFacts(count=primitives.token_count(), budgets=budgets)
+    budgets = tuple(
+        (spec.path, spec.tokens.value) for spec in primitives.query(item_structure_specs) if spec.tokens is not None
+    )
+    return BudgetFacts(count=primitives.query(item_token_count), budgets=budgets)
 
 
 def _token_count(primitives: CountPrimitives) -> TokenCount:
@@ -249,7 +258,7 @@ def _token_count(primitives: CountPrimitives) -> TokenCount:
     Args:
         primitives: The model state of the document.
     """
-    return primitives.token_count()
+    return primitives.query(item_token_count)
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -385,41 +394,17 @@ class CountingDatabase(Database):
         self.parsed_frontmatters: list[MarkdownItemRef] = []
         self.parsed_documents: list[MarkdownItemRef] = []
 
-    def item_token_count(self, source: ItemText) -> UnsignedInt:
-        """Record the item, then count its tokens.
-
-        Args:
-            source: The decoded item whose tokens are counted, recorded by its ref first.
-        """
-        self.counted_tokens.append(source.ref)
-        return super().item_token_count(source)
-
-    def item_line_count(self, source: ItemText) -> UnsignedInt:
-        """Record the item, then count its lines.
-
-        Args:
-            source: The decoded item whose lines are counted, recorded by its ref first.
-        """
-        self.counted_lines.append(source.ref)
-        return super().item_line_count(source)
-
-    def item_frontmatter(self, source: ItemText) -> FrontmatterNode:
-        """Record the item, then parse its frontmatter.
-
-        Args:
-            source: The decoded item whose frontmatter is parsed, recorded by its ref first.
-        """
-        self.parsed_frontmatters.append(source.ref)
-        return super().item_frontmatter(source)
-
-    def item_parse(self, source: ItemText) -> ParsedDocument:
-        """Record the item, then parse it.
-
-        Args:
-            source: The decoded item that is parsed, recorded by its ref first.
-        """
-        self.parsed_documents.append(source.ref)
-        return super().item_parse(source)
+    def query[T](self, query: Query[T], ref: MarkdownItemRef) -> T:
+        """Record each declared per-item fact query before evaluating it."""
+        if query is item_token_count:
+            self.counted_tokens.append(ref)
+        elif query is item_line_count:
+            self.counted_lines.append(ref)
+        elif query is item_frontmatter:
+            self.parsed_frontmatters.append(ref)
+        elif query is item_parse:
+            self.parsed_documents.append(ref)
+        return super().query(query, ref)
 
 
 def _snapshot(
