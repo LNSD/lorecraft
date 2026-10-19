@@ -21,7 +21,7 @@ from lorecraft.project.schemas import (
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Here, Label, Subdiagnostic
-from lorecraft.rules.subject import BySpec, Facet, Gate, QueriedItemRule
+from lorecraft.rules.subject import ByMetaSpec, Gate, MetaSpecPart, QueriedItemRule
 
 from .__ruleset__ import GROUP_ID, example_note, schema_note, schema_problems, schema_spec
 
@@ -103,8 +103,8 @@ class WrongType(QueriedItemRule[tuple[SchemaProblems, ...]]):
     SINCE: ClassVar[Release] = Release('0.3.0')
     GATES: ClassVar[Mapping[ItemKind, Gate]] = MappingProxyType(
         {
-            ItemKind.DOCUMENT: BySpec(Facet.FRONTMATTER),
-            ItemKind.SKILL_ENTRY: BySpec(Facet.FRONTMATTER),
+            ItemKind.DOCUMENT: ByMetaSpec(MetaSpecPart.FRONTMATTER),
+            ItemKind.SKILL_ENTRY: ByMetaSpec(MetaSpecPart.FRONTMATTER),
         }
     )
 

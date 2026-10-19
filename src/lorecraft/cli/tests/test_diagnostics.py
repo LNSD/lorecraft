@@ -32,7 +32,7 @@ from lorecraft.rules.report import (
     SkippedSubject,
     UndecodableSubject,
 )
-from lorecraft.rules.subject import Facet
+from lorecraft.rules.subject import MetaSpecPart
 from lorecraft.vfs import ByteOffset, RootExit, Utf8Failure, Utf8Line, Utf8Reason
 
 from ..diagnostic_text import SourceLines, SourceText, TextStyle, render_text
@@ -106,7 +106,7 @@ def _every_kind_of_report() -> tuple[RunReport, ...]:
         CheckedItem(
             MarkdownItemRef(check.path),
             diagnostics=(RuleDiagnostic(check.path, missing_usage, Severity.ERROR),),
-            ungoverned=(Facet.FRONTMATTER, Facet.BUDGET),
+            ungoverned=(MetaSpecPart.FRONTMATTER, MetaSpecPart.BUDGET),
         ),
         CheckedLayoutEntry(review, diagnostics=(RuleDiagnostic(review, outside, Severity.ERROR),)),
         UndecodableSubject(_document('code', 'latin'), _latin_failure()),
@@ -121,7 +121,7 @@ def _every_kind_of_report() -> tuple[RunReport, ...]:
         CheckedItem(
             MarkdownItemRef(_document('arch', 'adr').path),
             diagnostics=(),
-            ungoverned=(Facet.STRUCTURE,),
+            ungoverned=(MetaSpecPart.STRUCTURE,),
         ),
     )
 
@@ -688,7 +688,7 @@ def _reports_of_a_failed_meta_spec() -> tuple[RunReport, ...]:
         CheckedItem(
             MarkdownItemRef(_document('feat', 'check').path),
             diagnostics=(),
-            ungoverned=(Facet.BUDGET,),
+            ungoverned=(MetaSpecPart.BUDGET,),
         ),
         SkippedSubject(_document('code', 'a'), failed_layers=(_CODE_SPEC,)),
     )

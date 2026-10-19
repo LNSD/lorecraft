@@ -20,7 +20,7 @@ from lorecraft.project.syntax import LineNumber, SectionHeading
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Here, Label, Subdiagnostic
-from lorecraft.rules.subject import BySpec, Facet, Gate, QueriedItemRule
+from lorecraft.rules.subject import ByMetaSpec, Gate, MetaSpecPart, QueriedItemRule
 
 from .__ruleset__ import GROUP_ID, example_note, outline_divergences, spec_note
 
@@ -101,8 +101,8 @@ class MissingSection(QueriedItemRule[tuple[OutlineDivergenceSpec, ...]]):
     SINCE: ClassVar[Release] = Release('0.3.0')
     GATES: ClassVar[Mapping[ItemKind, Gate]] = MappingProxyType(
         {
-            ItemKind.DOCUMENT: BySpec(Facet.OUTLINE),
-            ItemKind.SKILL_ENTRY: BySpec(Facet.OUTLINE, requires_loaded_layer=True),
+            ItemKind.DOCUMENT: ByMetaSpec(MetaSpecPart.OUTLINE),
+            ItemKind.SKILL_ENTRY: ByMetaSpec(MetaSpecPart.OUTLINE, requires_loaded_layer=True),
         }
     )
 

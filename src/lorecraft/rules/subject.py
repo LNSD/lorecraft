@@ -1,7 +1,7 @@
 """The query-backed rules over items and layout subjects, with their closed eligibility gates.
 
 Every rule over an item derives from `QueriedItemRule[Facts]`, names its `ItemQuery[Facts]`, and declares a `GATES`
-mapping for the item kinds it judges. `BySpec` requires a loaded structure layer to state the named specification facet;
+mapping for the item kinds it judges. `ByMetaSpec` requires a loaded structure layer to state the named part;
 `ByPackage` admits a package-governed kind, and `BySchema` admits a kind only when the named schema is registered.
 A kind absent from the mapping is inapplicable. These declarations let the runner and rule table use one explicit
 contract while the rule itself judges only query facts.
@@ -18,40 +18,26 @@ files, and schema-dependent skill checks name their registered schema directly.
 from abc import ABC, abstractmethod
 from collections.abc import Mapping
 from dataclasses import dataclass
-from enum import StrEnum
 from types import MappingProxyType
 from typing import ClassVar, Self
 
-from lorecraft.project.item import ItemKind
+from lorecraft.project.item import ItemKind, MetaSpecPart
 from lorecraft.project.query import CorpusDirectoryPrimitives, ItemQuery, Primitives, Query, SymlinkPrimitives
 from lorecraft.schemas.types import SchemaReference
 
 from .declaration import ContentRule, LayoutRule, Rule
 
 
-class Facet(StrEnum):
-    """What part of a governed item a loaded structure layer must state for a spec gate to admit a rule."""
-
-    FRONTMATTER = 'frontmatter'
-    """The item's frontmatter: a loaded structure layer states a frontmatter schema."""
-    STRUCTURE = 'structure'
-    """The item's structure: its loaded corpus layer states a structure file."""
-    OUTLINE = 'outline'
-    """The item's sections: a loaded structure layer states an outline."""
-    BUDGET = 'budget'
-    """The item's length in tokens: a loaded structure layer sets a token budget."""
-
-
 @dataclass(frozen=True, slots=True)
-class BySpec:
-    """A gate for a specification facet a loaded structure layer may govern.
+class ByMetaSpec:
+    """A gate for a meta spec part a loaded structure layer may govern.
 
     Attributes:
-        facet: The specification facet a loaded structure layer must state for the rule to judge the item.
+        part: The meta spec part a loaded structure layer must state for the rule to judge the item.
         requires_loaded_layer: Whether a skill entry also requires loaded corpus governance for this rule.
     """
 
-    facet: Facet
+    part: MetaSpecPart
     requires_loaded_layer: bool = False
 
 
@@ -71,7 +57,7 @@ class BySchema:
     schema: SchemaReference
 
 
-type Gate = BySpec | ByPackage | BySchema
+type Gate = ByMetaSpec | ByPackage | BySchema
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

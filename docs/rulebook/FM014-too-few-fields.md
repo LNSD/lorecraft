@@ -18,7 +18,7 @@ schema states for the block, when it states one.
 
 ## Why is this bad?
 
-The schema sets a floor on the block so that every document gives an agent the same few facts, and a block under
+The schema sets a floor on the block so that every document gives an agent the same few details, and a block under
 the floor leaves the agent without some of them.
 
 ## Example

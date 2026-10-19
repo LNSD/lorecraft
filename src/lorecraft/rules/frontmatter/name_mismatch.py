@@ -19,7 +19,7 @@ from lorecraft.project.syntax import Frontmatter, InvalidYamlFrontmatter, Missin
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Here, Label, Note, Subdiagnostic
-from lorecraft.rules.subject import BySchema, BySpec, Facet, Gate, QueriedItemRule
+from lorecraft.rules.subject import ByMetaSpec, BySchema, Gate, MetaSpecPart, QueriedItemRule
 from lorecraft.schemas.agent_skills_frontmatter import (
     EmptySkillNameError,
     InvalidSkillNameFormatError,
@@ -152,7 +152,7 @@ class NameMismatch(QueriedItemRule[FrontmatterFacts]):
     SINCE: ClassVar[Release] = Release('0.3.0')
     GATES: ClassVar[Mapping[ItemKind, Gate]] = MappingProxyType(
         {
-            ItemKind.DOCUMENT: BySpec(Facet.FRONTMATTER),
+            ItemKind.DOCUMENT: ByMetaSpec(MetaSpecPart.FRONTMATTER),
             ItemKind.SKILL_ENTRY: BySchema(AGENT_SKILLS_SCHEMA_REFERENCE),
         }
     )

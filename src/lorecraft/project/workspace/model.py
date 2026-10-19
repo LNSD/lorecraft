@@ -36,9 +36,9 @@ from lorecraft.project.corpus import (
 from lorecraft.project.document import DocumentRef, SpecRef
 from lorecraft.project.item import (
     DocumentOrigin,
-    ItemFacet,
     MarkdownItemDescriptor,
     MarkdownItemRef,
+    MetaSpecPart,
     SkillEntryOrigin,
     SkillResourceOrigin,
     SpecificationOrigin,
@@ -656,7 +656,7 @@ class WorkspaceModel:
             origin=SkillResourceOrigin(skill_entry=str(skill.entry)),
             governance_corpus='',
             aspect_name=str(skill.entry),
-            active_facets=frozenset({ItemFacet.STRUCTURE, ItemFacet.MARKDOWN}),
+            governed_parts=frozenset({MetaSpecPart.STRUCTURE}),
         )
         return ResolvedItem(descriptor, None)
 
@@ -686,15 +686,15 @@ class WorkspaceModel:
                 location = self.skill_locations[ref]
                 link_target = location.resolves_to if location.resolves_to != ref.directory else None
                 governance = self.skill_governance(ref)
-                facets = {ItemFacet.STRUCTURE, ItemFacet.MARKDOWN}
+                parts = {MetaSpecPart.STRUCTURE}
                 if AGENT_SKILLS_SCHEMA_REFERENCE in self.schema_inputs or (
                     governance is not None and governance.frontmatter_schemas()
                 ):
-                    facets.add(ItemFacet.FRONTMATTER)
+                    parts.add(MetaSpecPart.FRONTMATTER)
                 if governance is not None and governance.outline_specs():
-                    facets.add(ItemFacet.OUTLINE)
+                    parts.add(MetaSpecPart.OUTLINE)
                 if governance is not None and any(spec.tokens is not None for spec in governance.structure_specs()):
-                    facets.add(ItemFacet.BUDGET)
+                    parts.add(MetaSpecPart.BUDGET)
                 descriptor = MarkdownItemDescriptor(
                     ref=MarkdownItemRef(ref.path),
                     read_location=location.file_resolves_to,
@@ -702,7 +702,7 @@ class WorkspaceModel:
                     origin=SkillEntryOrigin(expected_name=str(ref.entry), link_target=link_target),
                     governance_corpus=(SKILLS_CORPUS_NAME if governance is not None else ''),
                     aspect_name=str(ref.entry),
-                    active_facets=frozenset(facets),
+                    governed_parts=frozenset(parts),
                 )
                 return ResolvedItem(descriptor, governance)
             case SpecRef():
@@ -713,7 +713,7 @@ class WorkspaceModel:
                     origin=SpecificationOrigin(expected_name=ref.name, corpus=ref.corpus),
                     governance_corpus=ref.corpus,
                     aspect_name=ref.name,
-                    active_facets=frozenset({ItemFacet.STRUCTURE, ItemFacet.MARKDOWN}),
+                    governed_parts=frozenset({MetaSpecPart.STRUCTURE}),
                 )
                 return ResolvedItem(descriptor, None)
             case _:
@@ -728,15 +728,15 @@ class WorkspaceModel:
         """
         governance = self.find_governance(document)
         schemas = governance.frontmatter_schemas() if governance is not None else ()
-        facets = {ItemFacet.MARKDOWN}
+        parts: set[MetaSpecPart] = set()
         if schemas:
-            facets.add(ItemFacet.FRONTMATTER)
+            parts.add(MetaSpecPart.FRONTMATTER)
         if governance is not None and governance.corpus_structure() is not None:
-            facets.add(ItemFacet.STRUCTURE)
+            parts.add(MetaSpecPart.STRUCTURE)
         if governance is not None and governance.outline_specs():
-            facets.add(ItemFacet.OUTLINE)
+            parts.add(MetaSpecPart.OUTLINE)
         if governance is not None and any(spec.tokens is not None for spec in governance.structure_specs()):
-            facets.add(ItemFacet.BUDGET)
+            parts.add(MetaSpecPart.BUDGET)
         descriptor = MarkdownItemDescriptor(
             ref=item,
             read_location=ResolvedPath(document.path),
@@ -748,6 +748,6 @@ class WorkspaceModel:
             ),
             governance_corpus=str(document.corpus),
             aspect_name=str(document.filename),
-            active_facets=frozenset(facets),
+            governed_parts=frozenset(parts),
         )
         return ResolvedItem(descriptor, governance)

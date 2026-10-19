@@ -18,7 +18,7 @@ states for the block, when it states one.
 
 ## Why is this bad?
 
-The schema caps the block so that every document gives an agent the same few facts, and a block past the cap
+The schema caps the block so that every document gives an agent the same few details, and a block past the cap
 carries fields the schema did not plan for.
 
 ## Example

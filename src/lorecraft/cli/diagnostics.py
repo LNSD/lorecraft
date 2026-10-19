@@ -4,7 +4,7 @@ Pure: the subject reports arrive as values, and each function returns the text a
 reads the disk or writes to a stream. The diagnostics as text for a person are drawn by `diagnostic_text`. As short
 lines, one per diagnostic, they are what a command prints on stdout for a tool to match; the coverage lines and the
 summaries are what it prints on stderr; as JSON, one compact document carries the diagnostics, the summary and the
-coverage. The coverage lists a subject for which no specification facet is governed and a document skipped because a
+coverage. The coverage lists a subject for which no meta spec part is governed and a document skipped because a
 structure file that governs it failed to load, with that file.
 
 Every diagnostic of every report is printed in the order `diagnostic_order` states, whatever order the reports
@@ -130,7 +130,7 @@ class _CoverageJson(BaseModel):
 
     Attributes:
         path: The subject.
-        ungoverned: The specification facets no specification governs it for, in the order its report holds them; none
+        ungoverned: The meta spec parts no specification governs it for, in the order its report holds them; none
             for a skipped subject.
         skipped_by: The structure files that govern the subject and failed to load, in layer order, the corpus's
             first; none for a subject that was judged.
@@ -149,8 +149,8 @@ class _ReportJson(BaseModel):
     Attributes:
         diagnostics: Every diagnostic of the run, in output order.
         summary: What the run counted.
-        coverage: Every subject with an ungoverned specification facet and every skipped subject, in path order;
-            none when every subject was judged for every specification facet.
+        coverage: Every subject with an ungoverned meta spec part and every skipped subject, in path order;
+            none when every subject was judged for every governed part.
     """
 
     model_config = ConfigDict(frozen=True)
@@ -182,10 +182,10 @@ def render_short(reports: tuple[RunReport, ...]) -> str:
 
 
 def render_coverage(reports: tuple[RunReport, ...]) -> str:
-    """One line per subject no rule judged for some specification facet or at all, in path order.
+    """One line per subject no rule judged for some meta spec part or at all, in path order.
 
-    A checked document with a specification facet no specification governs reads `{path}: ungoverned for {facets}`,
-    the facets comma-separated in the order the report holds them. A document skipped because a governing structure file
+    A checked document with a meta spec part no specification governs reads `{path}: ungoverned for {facets}`,
+    with the parts comma-separated in report order. A document skipped because a governing structure file
     failed to load reads `{path}: skipped, governed by a structure file that failed to load: {files}`, the files
     comma-separated in layer order. A subject that did not decode and a layout entry are never ungoverned or skipped,
     so they never print one.
@@ -295,7 +295,7 @@ def render_json(reports: tuple[RunReport, ...]) -> str:
 
 
 def _coverage_subjects(reports: tuple[RunReport, ...]) -> list[CheckedItem | SkippedSubject]:
-    """The checked documents with ungoverned specification facets and skipped ones, compared by path code point.
+    """The checked documents with ungoverned meta spec parts and skipped ones, compared by path code point.
 
     Args:
         reports: One report per subject the run checked, in any order.

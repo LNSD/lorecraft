@@ -18,7 +18,7 @@ from lorecraft.project.syntax import (
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Subdiagnostic
-from lorecraft.rules.subject import ByPackage, BySpec, Facet, Gate, QueriedItemRule
+from lorecraft.rules.subject import ByMetaSpec, ByPackage, Gate, MetaSpecPart, QueriedItemRule
 
 from .__ruleset__ import GROUP_ID
 
@@ -96,8 +96,8 @@ class AbsoluteLink(QueriedItemRule[tuple[Link, ...]]):
     SINCE: ClassVar[Release] = Release('0.3.0')
     GATES: ClassVar[Mapping[ItemKind, Gate]] = MappingProxyType(
         {
-            ItemKind.DOCUMENT: BySpec(Facet.STRUCTURE),
-            ItemKind.SPECIFICATION: BySpec(Facet.STRUCTURE),
+            ItemKind.DOCUMENT: ByMetaSpec(MetaSpecPart.STRUCTURE),
+            ItemKind.SPECIFICATION: ByMetaSpec(MetaSpecPart.STRUCTURE),
             ItemKind.SKILL_ENTRY: ByPackage(),
             ItemKind.SKILL_RESOURCE: ByPackage(),
         }

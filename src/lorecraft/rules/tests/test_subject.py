@@ -12,7 +12,7 @@ from lorecraft.rules.length.too_many_lines import TooManyLines
 from lorecraft.rules.length.too_many_tokens import TooManyTokens
 from lorecraft.rules.link.broken_link import BrokenLink
 from lorecraft.rules.registry import Registry
-from lorecraft.rules.subject import ByPackage, BySchema, BySpec, Facet, ItemRule
+from lorecraft.rules.subject import ByMetaSpec, ByPackage, BySchema, ItemRule, MetaSpecPart
 from lorecraft.schemas.builtin import AGENT_SKILLS_SCHEMA_REFERENCE
 
 
@@ -30,24 +30,24 @@ class TestGates:
         assert all(rule.GATES for rule in item_rules), 'each registered item rule declares at least one gate'
         assert all(set(rule.GATES) <= set(ItemKind) for rule in item_rules), 'each gate names a known item kind'
 
-    def test_document_rule_with_budget_facet_uses_spec_gate(self) -> None:
+    def test_document_rule_with_budget_part_uses_meta_spec_gate(self) -> None:
         #: Given
         rule = TooManyTokens
-        expected = BySpec(Facet.BUDGET)
+        expected = ByMetaSpec(MetaSpecPart.BUDGET)
 
         #: When
         gate = rule.GATES[ItemKind.DOCUMENT]
 
         #: Then
-        assert gate == expected, 'the document budget rule requires its declared facet'
+        assert gate == expected, 'the document budget rule requires its declared meta spec part'
 
-    def test_document_and_skill_rule_with_budget_facet_uses_both_spec_gates(self) -> None:
+    def test_document_and_skill_rule_with_budget_part_uses_both_meta_spec_gates(self) -> None:
         #: Given
         rule = TooManyTokens
         expected = MappingProxyType(
             {
-                ItemKind.DOCUMENT: BySpec(Facet.BUDGET),
-                ItemKind.SKILL_ENTRY: BySpec(Facet.BUDGET, requires_loaded_layer=True),
+                ItemKind.DOCUMENT: ByMetaSpec(MetaSpecPart.BUDGET),
+                ItemKind.SKILL_ENTRY: ByMetaSpec(MetaSpecPart.BUDGET, requires_loaded_layer=True),
             }
         )
 
@@ -55,15 +55,15 @@ class TestGates:
         gates = rule.GATES
 
         #: Then
-        assert gates == expected, 'the shared budget rule requires its facet and loaded layer for skills'
+        assert gates == expected, 'the shared budget rule requires its meta spec part and loaded layer for skills'
 
     def test_markdown_rule_with_item_kinds_uses_spec_and_package_gates(self) -> None:
         #: Given
         rule = BrokenLink
         expected = MappingProxyType(
             {
-                ItemKind.DOCUMENT: BySpec(Facet.STRUCTURE),
-                ItemKind.SPECIFICATION: BySpec(Facet.STRUCTURE),
+                ItemKind.DOCUMENT: ByMetaSpec(MetaSpecPart.STRUCTURE),
+                ItemKind.SPECIFICATION: ByMetaSpec(MetaSpecPart.STRUCTURE),
                 ItemKind.SKILL_ENTRY: ByPackage(),
                 ItemKind.SKILL_RESOURCE: ByPackage(),
             }
@@ -75,16 +75,16 @@ class TestGates:
         #: Then
         assert gates == expected, 'Markdown rules use structure for corpus items and package gates for skill files'
 
-    def test_frontmatter_rule_with_skill_entry_uses_frontmatter_facet(self) -> None:
+    def test_frontmatter_rule_with_skill_entry_uses_frontmatter_part(self) -> None:
         #: Given
         rule = DuplicateKey
-        expected = BySpec(Facet.FRONTMATTER)
+        expected = ByMetaSpec(MetaSpecPart.FRONTMATTER)
 
         #: When
         gate = rule.GATES[ItemKind.SKILL_ENTRY]
 
         #: Then
-        assert gate == expected, 'skill frontmatter rules follow the active frontmatter facet'
+        assert gate == expected, 'skill frontmatter rules follow the active frontmatter meta spec part'
 
     def test_name_mismatch_with_skill_entry_uses_agent_skills_schema(self) -> None:
         #: Given

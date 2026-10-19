@@ -26,7 +26,7 @@ query and hands it the facts sits above in `lorecraft.engine`; the query is answ
 - A value that identifies a rule: a release, a group's prefix and title, a code, a name, an alias code, a level, and
   the severity an engine condition fixes.
 - An item rule derives from `QueriedItemRule`, names its typed query, and declares a gate for every item kind it
-  judges. `BySpec`, `ByPackage`, and `BySchema` keep structure, package and registered-schema eligibility distinct.
+  judges. `ByMetaSpec`, `ByPackage`, and `BySchema` keep structure, package and registered-schema eligibility distinct.
   A missing kind is inapplicable, and a rule with no gates is rejected while the registry loads. Layout rules keep
   their separate queried bases for skill symlinks and reserved-corpus directories, with occurrences at the entry
   itself.
@@ -95,7 +95,7 @@ class EmptySection(ItemRule):
 # by the database
 @rule
 class EmptySection(QueriedItemRule[EmptySectionFacts]):
-    GATES = {ItemKind.DOCUMENT: BySpec(Facet.STRUCTURE)}
+    GATES = {ItemKind.DOCUMENT: ByMetaSpec(MetaSpecPart.STRUCTURE)}
 
     @classmethod
     def query(cls) -> Query[EmptySectionFacts]:
@@ -191,8 +191,8 @@ class SectionTooManyWords(QueriedItemRule[Facts]):
     """
 
     GATES = {
-        ItemKind.DOCUMENT: BySpec(Facet.STRUCTURE),
-        ItemKind.SKILL_ENTRY: BySpec(Facet.STRUCTURE, requires_loaded_layer=True),
+        ItemKind.DOCUMENT: ByMetaSpec(MetaSpecPart.STRUCTURE),
+        ItemKind.SKILL_ENTRY: ByMetaSpec(MetaSpecPart.STRUCTURE, requires_loaded_layer=True),
     }
 ```
 
