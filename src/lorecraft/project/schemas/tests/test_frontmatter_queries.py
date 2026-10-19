@@ -3,6 +3,8 @@
 import pytest
 
 from lib.primitives import StructurePrimitives
+from lorecraft.project.aspect import AspectFilename
+from lorecraft.project.corpus import CorpusName
 from lorecraft.project.item import DocumentOrigin, WrongItemKindError
 
 from ..frontmatter_queries import owner_of_frontmatter
@@ -14,7 +16,9 @@ class TestFrontmatterOwnerQuery:
         #: Given
         primitives = StructurePrimitives(
             (),
-            origin_value=DocumentOrigin(expected_name='guide', corpus='guide', schema_paths=()),
+            origin_value=DocumentOrigin(),
+            name=AspectFilename.parse('guide'),
+            corpus=CorpusName.parse('guide'),
         )
 
         #: When / Then

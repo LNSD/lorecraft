@@ -1,6 +1,6 @@
 """The paths an item's links reach, shared by queries that follow links between items."""
 
-from lorecraft.project.link_target import DocumentDirectory, LinkedDocument, linked_files_of
+from lorecraft.project.link_target import LinkedDocument, linked_files_of
 from lorecraft.project.query.item_facts import item_parse
 from lorecraft.project.query.primitives import ItemPrimitives
 
@@ -15,6 +15,6 @@ def linked_paths(primitives: ItemPrimitives) -> tuple[LinkedDocument, ...]:
         primitives: The model state of the document.
     """
     base = primitives.link_base()
-    if not isinstance(base, DocumentDirectory):
+    if base is None:
         return ()
     return linked_files_of(primitives.query(item_parse).links, primitives.link_targets(), base)

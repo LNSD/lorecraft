@@ -6,14 +6,18 @@ location and origin metadata needed by consumers without reading the item's text
 
 from dataclasses import dataclass
 from enum import Enum, StrEnum
-from typing import assert_never
+from typing import TYPE_CHECKING, assert_never
 
 from lorecraft.core.error import Error
 from lorecraft.core.path import RootRelativePath
-from lorecraft.project.corpus import ReservedCorpusDirectoryRef
+from lorecraft.project.aspect import AspectFilename, AspectName
+from lorecraft.project.corpus import CorpusName, ReservedCorpusDirectoryRef
 from lorecraft.project.link_target import LinkBase
 from lorecraft.project.skill import OutsideSymlinkRef
 from lorecraft.vfs import FileReadFailure, ResolvedPath, UnrecordedFileError
+
+if TYPE_CHECKING:
+    from lorecraft.project.schemas.name import SpecName
 
 
 @dataclass(frozen=True, slots=True, order=True)
@@ -61,17 +65,7 @@ class MetaSpecPart(StrEnum):
 
 @dataclass(frozen=True, slots=True)
 class DocumentOrigin:
-    """Origin metadata for a corpus document.
-
-    Attributes:
-        expected_name: Filename stem the document's frontmatter name is checked against.
-        corpus: Corpus path component used as the governance target.
-        schema_paths: Governing frontmatter schemas, broad to narrow; `()` when none governs the document.
-    """
-
-    expected_name: str
-    corpus: str
-    schema_paths: tuple[RootRelativePath, ...]
+    """A corpus document, whose identity and governance are on its descriptor."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -79,11 +73,9 @@ class SkillEntrypointOrigin:
     """Origin metadata for a skill entrypoint.
 
     Attributes:
-        expected_name: Listed directory name the skill's frontmatter name is checked against.
         link_target: Resolved directory when the listed entry is linked, for compatibility notes; otherwise None.
     """
 
-    expected_name: str
     link_target: ResolvedPath | None
 
 
@@ -103,15 +95,7 @@ class SkillResourceOrigin:
 
 @dataclass(frozen=True, slots=True)
 class MetaSpecOrigin:
-    """Origin metadata for a meta spec, a Markdown file of `docs/__meta__/`.
-
-    Attributes:
-        expected_name: Meta spec name, the file's stem, such as `feat-cli`.
-        corpus: Corpus the specification belongs to, the first segment of its name.
-    """
-
-    expected_name: str
-    corpus: str
+    """A meta spec, a Markdown file of `docs/__meta__/`."""
 
 
 type ItemOrigin = DocumentOrigin | SkillEntrypointOrigin | SkillResourceOrigin | MetaSpecOrigin
@@ -125,10 +109,11 @@ class ItemDescriptor:
         ref: Common logical identity and report path.
         read_location: Snapshot path from which the item's text is read.
         link_base: Where the item's relative Markdown links are read from, with the climb bound of that base.
-        origin: Expected-name and provenance metadata specific to the item's origin.
-        governance_corpus: Corpus whose meta specs govern the item, when it belongs to one; empty otherwise.
-        aspect_name: Listed name matched against namespace meta specs, when it belongs to a corpus; retained as
-            provenance for skills and resources.
+        origin: Provenance metadata specific to the item's origin.
+        name: Typed name in the hierarchy used to find its base.
+        listed_name: Original name used by governance and frontmatter ownership.
+        corpus: Typed corpus whose meta specs govern the item, or none.
+        schema_paths: Governing frontmatter schemas, broad to narrow; empty when none governs the item.
         governed_parts: Meta spec parts stated by loaded layers that govern this item.
     """
 
@@ -136,8 +121,10 @@ class ItemDescriptor:
     read_location: ResolvedPath
     link_base: LinkBase
     origin: ItemOrigin
-    governance_corpus: str
-    aspect_name: str
+    name: AspectName | AspectFilename | SpecName | None
+    listed_name: str
+    corpus: CorpusName | None
+    schema_paths: tuple[RootRelativePath, ...]
     governed_parts: frozenset[MetaSpecPart]
 
     @property

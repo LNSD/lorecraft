@@ -46,7 +46,13 @@ from lorecraft.project.item import (
 )
 from lorecraft.project.layout import DOCS_DIR, DOCUMENT_SUFFIX, SPECS_DIR
 from lorecraft.project.link_target import DocumentDirectory, SkillRoot
-from lorecraft.project.schemas import CorpusSpecName, NamespaceSpecName, StatedFrontmatterSchema, StructureSpec
+from lorecraft.project.schemas import (
+    CorpusSpecName,
+    NamespaceSpecName,
+    StatedFrontmatterSchema,
+    StructureSpec,
+    parse_spec_name,
+)
 from lorecraft.project.skill import (
     OutsideSymlink,
     SkillLocation,
@@ -80,6 +86,14 @@ def find_document_at(ref: ItemRef) -> DocumentRef | None:
         EmptyAspectNameError,
         InvalidAspectNameCharacterError,
     ):
+        return None
+
+
+def _skill_aspect_filename(entry: str) -> AspectFilename | None:
+    """Return the skill entry as an aspect filename when its name has that format."""
+    try:
+        return AspectFilename.parse(entry)
+    except EmptyAspectNameError, InvalidAspectNameCharacterError:
         return None
 
 
@@ -665,11 +679,27 @@ class WorkspaceModel:
             read_location=location.resolves_to,
             link_base=SkillRoot(skill.directory),
             origin=SkillResourceOrigin(skill_entry=str(skill.entry)),
-            governance_corpus='',
-            aspect_name=str(skill.entry),
+            name=_skill_aspect_filename(str(skill.entry)),
+            listed_name=str(skill.entry),
+            corpus=None,
+            schema_paths=(),
             governed_parts=frozenset(),
         )
         return ResolvedItem(descriptor, None)
+
+    @staticmethod
+    def _governed_parts(governance: Governance | None, floor_frontmatter: bool = False) -> frozenset[MetaSpecPart]:
+        """The meta spec parts named by loaded governance layers and any built-in floor schema."""
+        parts: set[MetaSpecPart] = set()
+        if floor_frontmatter or (governance is not None and governance.frontmatter_schemas()):
+            parts.add(MetaSpecPart.FRONTMATTER)
+        if governance is not None and governance.corpus_structure() is not None:
+            parts.add(MetaSpecPart.STRUCTURE)
+        if governance is not None and governance.outline_specs():
+            parts.add(MetaSpecPart.OUTLINE)
+        if governance is not None and any(spec.tokens is not None for spec in governance.structure_specs()):
+            parts.add(MetaSpecPart.BUDGET)
+        return frozenset(parts)
 
     def resolve_item(self, ref: DocumentRef | ItemRef | SkillRef | MetaSpecRef) -> ResolvedItem:
         """Resolve an item's descriptor together with the specs governing it, finding the governance once.
@@ -697,25 +727,21 @@ class WorkspaceModel:
                 location = self.skill_locations[ref]
                 link_target = location.resolves_to if location.resolves_to != ref.directory else None
                 governance = self.skill_governance(ref)
-                parts: set[MetaSpecPart] = set()
-                if AGENT_SKILLS_SCHEMA_REFERENCE in self.schema_inputs or (
-                    governance is not None and governance.frontmatter_schemas()
-                ):
-                    parts.add(MetaSpecPart.FRONTMATTER)
-                if governance is not None and governance.corpus_structure() is not None:
-                    parts.add(MetaSpecPart.STRUCTURE)
-                if governance is not None and governance.outline_specs():
-                    parts.add(MetaSpecPart.OUTLINE)
-                if governance is not None and any(spec.tokens is not None for spec in governance.structure_specs()):
-                    parts.add(MetaSpecPart.BUDGET)
+                schemas = governance.frontmatter_schemas() if governance is not None else ()
+                schema_paths = tuple(schema.spec for schema in schemas)
+                parts = self._governed_parts(
+                    governance, bool(schema_paths) or AGENT_SKILLS_SCHEMA_REFERENCE in self.schema_inputs
+                )
                 descriptor = ItemDescriptor(
                     ref=ItemRef(ref.path),
                     read_location=location.file_resolves_to,
                     link_base=SkillRoot(ref.directory),
-                    origin=SkillEntrypointOrigin(expected_name=str(ref.entry), link_target=link_target),
-                    governance_corpus=(SKILLS_CORPUS_NAME if governance is not None else ''),
-                    aspect_name=str(ref.entry),
-                    governed_parts=frozenset(parts),
+                    origin=SkillEntrypointOrigin(link_target=link_target),
+                    name=_skill_aspect_filename(str(ref.entry)),
+                    listed_name=str(ref.entry),
+                    corpus=CorpusName.parse(SKILLS_CORPUS_NAME) if governance is not None else None,
+                    schema_paths=schema_paths,
+                    governed_parts=parts,
                 )
                 return ResolvedItem(descriptor, governance)
             case MetaSpecRef():
@@ -723,9 +749,11 @@ class WorkspaceModel:
                     ref=ItemRef(ref.path),
                     read_location=ResolvedPath(ref.path),
                     link_base=DocumentDirectory(SPECS_DIR),
-                    origin=MetaSpecOrigin(expected_name=ref.name, corpus=ref.corpus),
-                    governance_corpus=ref.corpus,
-                    aspect_name=ref.name,
+                    origin=MetaSpecOrigin(),
+                    name=parse_spec_name(ref.name),
+                    listed_name=ref.name,
+                    corpus=CorpusName.parse(ref.corpus),
+                    schema_paths=(),
                     governed_parts=frozenset(),
                 )
                 return ResolvedItem(descriptor, None)
@@ -741,26 +769,17 @@ class WorkspaceModel:
         """
         governance = self.find_governance(document)
         schemas = governance.frontmatter_schemas() if governance is not None else ()
-        parts: set[MetaSpecPart] = set()
-        if schemas:
-            parts.add(MetaSpecPart.FRONTMATTER)
-        if governance is not None and governance.corpus_structure() is not None:
-            parts.add(MetaSpecPart.STRUCTURE)
-        if governance is not None and governance.outline_specs():
-            parts.add(MetaSpecPart.OUTLINE)
-        if governance is not None and any(spec.tokens is not None for spec in governance.structure_specs()):
-            parts.add(MetaSpecPart.BUDGET)
+        schema_paths = tuple(schema.spec for schema in schemas)
+        parts = self._governed_parts(governance, bool(schema_paths))
         descriptor = ItemDescriptor(
             ref=item,
             read_location=ResolvedPath(document.path),
             link_base=DocumentDirectory(RootRelativePath(document.path.value.parent)),
-            origin=DocumentOrigin(
-                expected_name=str(document.filename),
-                corpus=str(document.corpus),
-                schema_paths=tuple(schema.spec for schema in schemas),
-            ),
-            governance_corpus=str(document.corpus),
-            aspect_name=str(document.filename),
-            governed_parts=frozenset(parts),
+            origin=DocumentOrigin(),
+            name=document.filename,
+            listed_name=str(document.filename),
+            corpus=document.corpus,
+            schema_paths=schema_paths,
+            governed_parts=parts,
         )
         return ResolvedItem(descriptor, governance)
