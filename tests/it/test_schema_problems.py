@@ -17,7 +17,7 @@ from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.jsonschema import JsonType
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
-from lorecraft.project.database import Database, ItemText, PrimitiveRead, Read
+from lorecraft.project.database import Database, ItemText, Read
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.item import ItemReadError, MarkdownItemRef
 from lorecraft.project.schemas import (
@@ -196,9 +196,9 @@ class TestSchemaProblems:
         assert second is first, 'the schemas are applied once per database, then shared by every rule'
         assert database.query_reads(schema_problems_query, source.ref) == frozenset(
             {
-                Read(PrimitiveRead.ITEM_ORIGIN, source.ref),
-                Read(PrimitiveRead.ITEM_GOVERNANCE, source.ref),
-                Read(PrimitiveRead.FRONTMATTER, source.ref),
+                Read('item_origin', source.ref),
+                Read('item_governance', source.ref),
+                Read('frontmatter', source.ref),
             }
         ), 'the query cache records the raw facts the schema analysis depends on'
         assert database.frontmatter_call_count == 1, 'the frontmatter is read once, for the first call'

@@ -17,7 +17,7 @@ from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
-from lorecraft.project.database import Database, ItemText, PrimitiveRead, Read
+from lorecraft.project.database import Database, ItemText, Read
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.item import MarkdownItemRef
 from lorecraft.project.schemas import (
@@ -256,10 +256,10 @@ class TestOutlineDivergences:
         unoutlined.query(outline_divergences, ref)
 
         #: Then
-        assert Read(PrimitiveRead.LINE_COUNT, ref) in outlined.query_reads(outline_divergences, ref), (
+        assert Read('line_count', ref) in outlined.query_reads(outline_divergences, ref), (
             'the end of the document is counted'
         )
-        assert Read(PrimitiveRead.LINE_COUNT, ref) not in unoutlined.query_reads(outline_divergences, ref), (
+        assert Read('line_count', ref) not in unoutlined.query_reads(outline_divergences, ref), (
             'no outline, no lines counted'
         )
 

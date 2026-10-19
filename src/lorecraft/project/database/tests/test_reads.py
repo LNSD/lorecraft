@@ -4,9 +4,10 @@ from pathlib import Path
 
 import pytest
 
+import lorecraft.project.database.database as database_module
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.corpus import CorpusDirectoryRef, CorpusName
-from lorecraft.project.database import Database, PrimitiveRead, Read
+from lorecraft.project.database import Database, Read
 from lorecraft.project.item import MarkdownItemRef
 from lorecraft.project.layout import SNAPSHOT_SCOPE
 from lorecraft.project.query import CorpusDirectoryPrimitives, Primitives, SchemaPrimitives, SymlinkPrimitives
@@ -30,6 +31,11 @@ def _reserved_corpus(primitives: CorpusDirectoryPrimitives) -> CorpusName:
 def _item_headings(primitives: Primitives) -> tuple[Heading, ...]:
     """The headings read from a Markdown item subject."""
     return primitives.headings()
+
+
+def _read_only_lookup(primitives: Primitives) -> object:
+    """Fetch a primitive method without invoking it."""
+    return primitives.headings
 
 
 def _schema_input(primitives: SchemaPrimitives) -> SchemaInput:
@@ -58,8 +64,43 @@ def _database(root: Path) -> Database:
     return Database.from_snapshot(take_snapshot(root, SNAPSHOT_SCOPE))
 
 
+def _primitive_methods(adapter: type[object], *, excluded: set[str]) -> frozenset[str]:
+    """The public primitive methods declared directly on a recording adapter."""
+    return frozenset(name for name in vars(adapter) if not name.startswith('_') and name not in excluded)
+
+
 @pytest.mark.unit
 class TestSubjectReads:
+    def test_every_database_primitive_is_decorated(self) -> None:
+        #: Given
+        adapters = (
+            '_ItemPrimitives',
+            '_ReadSymlinkPrimitives',
+            '_ReadCorpusDirectoryPrimitives',
+            '_ReadSchemaPrimitives',
+        )
+
+        #: Then
+        for adapter_name in adapters:
+            adapter = getattr(database_module, adapter_name)
+            for name in _primitive_methods(adapter, excluded={'schema_input', 'query', 'query_at', 'query_schema'}):
+                assert getattr(adapter, name).__wrapped__.__name__ == name, (
+                    f'{adapter_name}.{name} records its read before calling the primitive'
+                )
+
+    def test_fetching_a_primitive_method_without_calling_it_records_nothing(self, tmp_path: Path) -> None:
+        #: Given
+        database = _database(tmp_path)
+        ref = MarkdownItemRef(RootRelativePath.parse('docs/code/source.md'))
+
+        #: When
+        database.query(_read_only_lookup, ref)
+
+        #: Then
+        assert database.query_reads(_read_only_lookup, ref) == frozenset(), (
+            'looking up a primitive method does not read it'
+        )
+
     def test_query_records_a_markdown_item_subject_primitive(self, tmp_path: Path) -> None:
         #: Given
         database = _database(tmp_path)
@@ -70,7 +111,7 @@ class TestSubjectReads:
 
         #: Then
         assert len(headings) == 1, f'the query returns the source heading, got {headings}'
-        assert database.query_reads(_item_headings, ref) == {Read(PrimitiveRead.HEADINGS, ref)}, (
+        assert database.query_reads(_item_headings, ref) == {Read('headings', ref)}, (
             'the read key retains the Markdown item subject'
         )
 
@@ -85,7 +126,7 @@ class TestSubjectReads:
 
         #: Then
         assert schema == expected, 'the query returns the schema input identified by its subject'
-        assert database.query_reads(_schema_input, ref) == {Read(PrimitiveRead.SCHEMA_INPUT, ref)}, (
+        assert database.query_reads(_schema_input, ref) == {Read('schema_input', ref)}, (
             'the read key retains the typed schema subject'
         )
 
@@ -100,7 +141,7 @@ class TestSubjectReads:
 
         #: Then
         assert exit_point == symlink.leaves_at, 'the query returns the symlink exit recorded by the model'
-        assert database.query_reads(_symlink_exit, ref) == {Read(PrimitiveRead.SYMLINK_LEAVES_AT, ref)}, (
+        assert database.query_reads(_symlink_exit, ref) == {Read('leaves_at', ref)}, (
             'the read set identifies the symlink primitive'
         )
 
@@ -115,6 +156,6 @@ class TestSubjectReads:
 
         #: Then
         assert corpus == directory.corpus, 'the query returns the reserved corpus named by the model'
-        assert database.query_reads(_reserved_corpus, ref) == {Read(PrimitiveRead.RESERVED_CORPUS, ref)}, (
+        assert database.query_reads(_reserved_corpus, ref) == {Read('reserved_corpus', ref)}, (
             'the read set identifies the reserved-corpus primitive'
         )
