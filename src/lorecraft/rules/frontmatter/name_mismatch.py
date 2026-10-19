@@ -150,7 +150,6 @@ class NameMismatch(QueriedFrontmatterRule[FrontmatterFacts]):
     NAME: ClassVar[RuleName] = RuleName('name-mismatch')
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('0.3.0')
-    SKILL_AGENT_SPEC_RULE: ClassVar[bool] = True
     GATES: ClassVar[Mapping[ItemKind, Gate]] = MappingProxyType(
         {
             ItemKind.DOCUMENT: BySpec(Facet.FRONTMATTER),

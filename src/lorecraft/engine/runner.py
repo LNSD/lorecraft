@@ -45,13 +45,15 @@ just like an item's.
 """
 
 from collections.abc import Callable
-from typing import assert_never
+from typing import assert_never, cast
 
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.corpus import CorpusDirectoryRef, ReservedCorpusDirectory
 from lorecraft.project.database import Database, ItemText
 from lorecraft.project.item import ItemFacet, ItemKind, MarkdownItemDescriptor, MarkdownItemRef
+from lorecraft.project.query import ItemQuery
 from lorecraft.project.skill import OutsideSymlink, SymlinkRef
+from lorecraft.project.workspace.model import Governance, WorkspaceModel
 from lorecraft.rules.declaration import Rule
 from lorecraft.rules.report import (
     CheckedItem,
@@ -60,21 +62,16 @@ from lorecraft.rules.report import (
     RuleDiagnostic,
 )
 from lorecraft.rules.subject import (
+    ByPackage,
+    BySchema,
+    BySpec,
     Facet,
-    FrontmatterRule,
     ItemRule,
+    Queried,
     QueriedCorpusDirectoryRule,
-    QueriedDocumentRule,
-    QueriedDocumentSkillRule,
-    QueriedFrontmatterRule,
-    QueriedMarkdownRule,
-    QueriedSkillFileRule,
-    QueriedSkillRule,
     QueriedSymlinkRule,
-    governing_facet,
 )
-from lorecraft.rules.table import EnabledRule, RuleTable
-from lorecraft.schemas.builtin import AGENT_SKILLS_SCHEMA_REFERENCE
+from lorecraft.rules.table import EnabledRule, QueriedItem, RuleTable
 
 
 def judge_item(database: Database, source: ItemText, table: RuleTable) -> CheckedItem:
@@ -92,85 +89,62 @@ def judge_item(database: Database, source: ItemText, table: RuleTable) -> Checke
     """
     descriptor = source.descriptor
     governance = database.item_governance(descriptor.ref)
-    failed_skill_layer = (
-        descriptor.kind is ItemKind.SKILL_ENTRY and governance is not None and bool(governance.failed_layers())
-    )
-    builtin_skills_schema = AGENT_SKILLS_SCHEMA_REFERENCE in database.model().schema_inputs
+    model = database.model()
     diagnostics: list[Diagnostic] = []
     ungoverned: list[Facet] = []
 
-    # The facets are reached in `Facet` order, then the rules that read none; the ungoverned facets are recorded in
-    # that order, and a facet no applicable enabled rule reads is never looked at.
+    # Spec facets are reached in `Facet` order, then package/schema rules; inactive applicable facets become coverage.
     for facet in (*Facet, None):
-        partitions = [
-            _reading(partition, descriptor, facet, failed_skill_layer, builtin_skills_schema)
-            for partition in (
-                table.frontmatter_rules,
-                table.document_rules,
-                table.markdown_rules,
-                table.skill_rules,
-                table.skill_file_rules,
-            )
-        ]
-        if not any(partitions):
+        rules = tuple(
+            enabled
+            for enabled in table.item_rules(descriptor.kind, facet)
+            if judges(enabled.rule, descriptor, governance, model)
+        )
+        if not rules:
             continue
         if facet is not None and ItemFacet(facet.value) not in descriptor.active_facets:
             ungoverned.append(facet)
             continue
-        for rules in partitions:
-            diagnostics.extend(
-                _located(descriptor.ref.path, rules, lambda rule: _judged_item(rule, database, descriptor.ref))
-            )
+        diagnostics.extend(
+            _located(descriptor.ref.path, rules, lambda rule: _judged_item(rule, database, descriptor.ref))
+        )
 
     return CheckedItem(descriptor.ref, diagnostics=tuple(diagnostics), ungoverned=tuple(ungoverned))
 
 
-def _reading[R: ItemRule](
-    partition: tuple[EnabledRule[R], ...],
+def judges(
+    rule: type[QueriedItem],
     descriptor: MarkdownItemDescriptor,
-    facet: Facet | None,
-    failed_skill_layer: bool,
-    builtin_skills_schema: bool,
-) -> tuple[EnabledRule[R], ...]:
-    """The partition's rules that judge an item of the descriptor's kind and read the facet.
+    governance: Governance | None,
+    model: WorkspaceModel,
+) -> bool:
+    """Whether the rule's gate admits this item and any required governance source.
 
     Args:
-        partition: The enabled rules of one base.
-        descriptor: The item the rules would judge.
-        facet: The facet the rules must read, or `None` for those that read none.
-        failed_skill_layer: Whether failed skill governance suppresses corpus rules for this entry.
-        builtin_skills_schema: Whether the built-in Agent Skills schema is registered.
+        rule: The queried rule whose gate is being checked.
+        descriptor: The item kind and origin facts used by the gate.
+        governance: The item's loaded governance, when it belongs to a governed corpus.
+        model: The workspace state used to check registered schema gates.
     """
-    return tuple(
-        enabled
-        for enabled in partition
-        if descriptor.kind in enabled.rule.APPLIES_TO
-        and governing_facet(enabled.rule) is facet
-        and not (
-            descriptor.kind is ItemKind.SKILL_ENTRY
-            and not builtin_skills_schema
-            and issubclass(enabled.rule, FrontmatterRule)
-            and enabled.rule.SKILL_AGENT_SPEC_RULE
-        )
-        and not (
-            descriptor.kind is ItemKind.SKILL_ENTRY
-            and issubclass(enabled.rule, QueriedDocumentSkillRule)
-            and (not descriptor.governance_corpus or failed_skill_layer)
-        )
-    )
-
-
-type ItemQueriedRule[Facts] = (
-    QueriedDocumentRule[Facts]
-    | QueriedSkillRule[Facts]
-    | QueriedMarkdownRule[Facts]
-    | QueriedSkillFileRule[Facts]
-    | QueriedFrontmatterRule[Facts]
-)
+    # SAFETY: Every queried item rule is also an ItemRule; the table rejects other queried bases from item buckets.
+    gate = cast(type[ItemRule], rule).GATES.get(descriptor.kind)
+    if gate is None:
+        return False
+    match gate:
+        case BySpec(_, requires_loaded_layer):
+            if descriptor.kind is ItemKind.SKILL_ENTRY and requires_loaded_layer:
+                return bool(descriptor.governance_corpus) and governance is not None and not governance.failed_layers()
+            return True
+        case ByPackage():
+            return True
+        case BySchema(schema):
+            return schema in model.schema_inputs
+        case _:
+            assert_never(gate)
 
 
 def _judged_item[Facts](
-    rule: type[ItemQueriedRule[Facts]], database: Database, ref: MarkdownItemRef
+    rule: type[Queried[Facts, ItemQuery[Facts]]], database: Database, ref: MarkdownItemRef
 ) -> tuple[Rule, ...]:
     """Judge one item rule from the facts of its memoized query.
 

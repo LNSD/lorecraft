@@ -123,7 +123,7 @@ class DocumentRule(ItemRule):
         super(DocumentRule, cls).__init_subclass__()
         facet = cls.__dict__.get('GOVERNED_BY')
         if isinstance(facet, Facet):
-            cls.GATES = MappingProxyType({ItemKind.DOCUMENT: BySpec(facet)})
+            cls.GATES = MappingProxyType({kind: BySpec(facet) for kind in cls.APPLIES_TO})
 
 
 type SubjectQuery[Facts] = (
@@ -317,7 +317,6 @@ class FrontmatterRule(ItemRule):
 
     Attributes:
         GOVERNED_BY: `Facet.FRONTMATTER`, bound here for every rule over the frontmatter.
-        SKILL_AGENT_SPEC_RULE: Whether this rule enforces an Agent Skills requirement for skill entries.
     """
 
     GOVERNED_BY: ClassVar[Facet] = Facet.FRONTMATTER
@@ -328,7 +327,6 @@ class FrontmatterRule(ItemRule):
             ItemKind.SKILL_ENTRY: BySpec(Facet.FRONTMATTER),
         }
     )
-    SKILL_AGENT_SPEC_RULE: ClassVar[bool] = False
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -342,19 +340,3 @@ class QueriedFrontmatterRule[Facts](Queried[Facts, ItemQuery[Facts]], Frontmatte
     @abstractmethod
     def query(cls) -> ItemQuery[Facts]:
         """The query over an item's primitives whose answer `judge` takes."""
-
-
-def governing_facet(rule: type[ItemRule]) -> Facet | None:
-    """The facet an item must be governed for before the rule judges it, or `None` when every item it applies to is.
-
-    A rule over a document or the frontmatter declares it in `GOVERNED_BY`, and a rule over a Markdown file judges
-    under `Facet.STRUCTURE`, as its base states. A rule over a skill or a skill's file reads no facet.
-
-    Args:
-        rule: The rule class.
-    """
-    if issubclass(rule, DocumentRule | FrontmatterRule):
-        return rule.GOVERNED_BY
-    if issubclass(rule, MarkdownRule):
-        return Facet.STRUCTURE
-    return None
