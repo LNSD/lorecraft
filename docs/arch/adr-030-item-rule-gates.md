@@ -73,6 +73,14 @@ keep layout subjects separate because their primitives and query subjects differ
    documents and `Always()` for `SPECIFICATION`, `SKILL` and `SKILL_RESOURCE`. A frontmatter rule uses
    `WhenMetaSpec(FRONTMATTER)` for documents and skills, except `name_mismatch`, whose skill gate is
    `WhenSchema` of the registered Agent Skills floor `SchemaReference`. When the floor is opted out, the
+   `{DOCUMENT: WhenMetaSpec(p)}`; a skill check independent of meta-spec parts declares
+   `{SKILL_ENTRYPOINT: Always()}`; and a rule shared by documents and skills declares a gate for each. Markdown
+   syntax link checks (`broken_link`, `broken_fragment`, `absolute_link`) use `Always()` for all item types, documents
+   included. Corpus naming convention checks (`missing_base_link`, `extension_link`, `mutual_link`) remain
+   `WhenMetaSpec(STRUCTURE)` for documents. Meta spec items are governed by the reserved `meta` corpus and declare the
+   same gates as document items. A frontmatter rule uses `WhenMetaSpec(FRONTMATTER)` for documents, meta specs and
+   skills, except `name_mismatch`, whose skill gate is `WhenSchema` of the registered Agent Skills floor
+   `SchemaReference`. When the floor is opted out, the
    frontmatter part remains a coverage gate on skills and is reported as `ungoverned`; the rules do not judge that
    inactive part. This is a vocabulary for applicability, not a central list of which rules exist.
 
@@ -82,6 +90,15 @@ keep layout subjects separate because their primitives and query subjects differ
    condition for judging. Skill checks independent of a meta-spec part use `Always()`. `requires_loaded_layer` is
    removed. When a skills layer fails, skills follow the mode's skip policy in
    `engine/skip.py`, rather than handling failed-layer state in `judges`.
+
+   Meta specs in `docs/__meta__/` are governed by the reserved `meta` corpus: `meta.spec.json` is the corpus meta spec,
+   and `meta-<corpus>.spec.json` is the namespace meta spec for meta specs named `<corpus>` or `<corpus>-*`.
+   `MetaSpecOrigin.corpus` records the specification's subject category, while `ItemDescriptor.governance_corpus` is
+   `'meta'`. Rules applied to `META_SPEC` items declare the same gates as document rules.
+
+   When any governing layer fails to load, Lorecraft applies a uniform partial check policy across all item types:
+   the failed layer suppresses every `WhenMetaSpec` gate, while `Always` and `WhenSchema` gates still run. The
+   suppressed meta-spec parts are reported under coverage, rather than skipping the subject entirely.
 
    A skill with no skills-corpus layer is reported as `ungoverned` for `STRUCTURE`, `OUTLINE` and `BUDGET`
    when enabled rules read those parts. Coverage therefore exposes missing governance instead of silently skipping
@@ -132,6 +149,12 @@ keep layout subjects separate because their primitives and query subjects differ
   interpretation of the item-base hierarchy and makes missing gate cases visible at registry load.
 - `WhenMetaSpec`, `Always`, and `WhenSchema` remain distinct. Schema-backed cases follow registry presence, while
   `Always` admits only the item types named in `APPLIES_TO` without requiring a per-item meta-spec declaration.
+- Meta specs in `docs/__meta__/` are governed by the reserved `meta` corpus; `meta.spec.json` and namespace layers
+  `meta-<corpus>.spec.json` apply to meta spec items with the same gate semantics as corpus documents.
+- Markdown syntax link checks run for all item types, ensuring link integrity across documents and
+  skills without requiring structure files.
+- A failed governing layer applies a uniform partial check policy across all item types: meta-spec gates are
+  suppressed and reported under coverage while `Always` and schema gates still execute.
 - Skills without a skills-corpus layer appear in coverage as ungoverned for the parts enabled rules need;
   readers can see missing governance instead of mistaking silence for coverage.
 - Existing judgement behavior and rule-case diagnostics remain the compatibility boundary. This decision changes
