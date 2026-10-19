@@ -12,7 +12,7 @@ database that built it, which no type records, so it never leaves the run that a
 
 from dataclasses import dataclass
 
-from lorecraft.project.item import ItemDescriptor, MarkdownItemRef
+from lorecraft.project.item import ItemDescriptor, ItemRef
 from lorecraft.vfs import Utf8Failure
 
 
@@ -29,7 +29,7 @@ class ItemText:
     text: str
 
     @property
-    def ref(self) -> MarkdownItemRef:
+    def ref(self) -> ItemRef:
         """The item whose file the text was read from, the key of every per-file query."""
         return self.descriptor.ref
 
@@ -43,5 +43,5 @@ class Undecodable:
         failure: Where the file's bytes first stop being UTF-8, and why.
     """
 
-    ref: MarkdownItemRef
+    ref: ItemRef
     failure: Utf8Failure

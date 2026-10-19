@@ -16,7 +16,7 @@ from lib.database import find_file, is_in_scope
 from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.project.database import Database, ItemText, Undecodable
-from lorecraft.project.item import MarkdownItemRef
+from lorecraft.project.item import ItemRef
 from lorecraft.project.layout import SNAPSHOT_SCOPE
 from lorecraft.project.query import item_parse
 from lorecraft.project.skill import (
@@ -425,7 +425,7 @@ class TestDatabaseSkillResources:
             invalid=b'\xe9',
             reason=Utf8Reason.INVALID_CONTINUATION_BYTE,
         )
-        assert source == Undecodable(MarkdownItemRef(ref.path), failure), (
+        assert source == Undecodable(ItemRef(ref.path), failure), (
             'a decode failure is an answer naming the resource and where its bytes stop being UTF-8, not an error'
         )
 

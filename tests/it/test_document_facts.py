@@ -13,7 +13,7 @@ from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.database import Database, ItemText, Read
-from lorecraft.project.item import MarkdownItemRef, UnlistedItemError
+from lorecraft.project.item import ItemRef, UnlistedItemError
 from lorecraft.project.layout import SNAPSHOT_SCOPE
 from lorecraft.project.link_target import DocumentLink
 from lorecraft.project.query import (
@@ -34,13 +34,13 @@ from lorecraft.rules.link.queries import linked_documents
 from lorecraft.rules.outline.empty_section import empty_section_facts
 from lorecraft.vfs import Snapshot, take_snapshot
 
-GUIDE_MORE: Final[MarkdownItemRef] = MarkdownItemRef(RootRelativePath.parse('docs/code/guide-more.md'))
-GUIDE: Final[MarkdownItemRef] = MarkdownItemRef(RootRelativePath.parse('docs/code/guide.md'))
-FEATURE: Final[MarkdownItemRef] = MarkdownItemRef(RootRelativePath.parse('docs/feat/a.md'))
-OTHER_GUIDE: Final[MarkdownItemRef] = MarkdownItemRef(RootRelativePath.parse('docs/code/b.md'))
-SKILL: Final[MarkdownItemRef] = MarkdownItemRef(RootRelativePath.parse('.agents/skills/review/SKILL.md'))
+GUIDE_MORE: Final[ItemRef] = ItemRef(RootRelativePath.parse('docs/code/guide-more.md'))
+GUIDE: Final[ItemRef] = ItemRef(RootRelativePath.parse('docs/code/guide.md'))
+FEATURE: Final[ItemRef] = ItemRef(RootRelativePath.parse('docs/feat/a.md'))
+OTHER_GUIDE: Final[ItemRef] = ItemRef(RootRelativePath.parse('docs/code/b.md'))
+SKILL: Final[ItemRef] = ItemRef(RootRelativePath.parse('.agents/skills/review/SKILL.md'))
 SPEC_PATH: Final[RootRelativePath] = RootRelativePath.parse('docs/__meta__/code.spec.json')
-SPEC_MD: Final[MarkdownItemRef] = MarkdownItemRef(RootRelativePath.parse('docs/__meta__/code-python.md'))
+SPEC_MD: Final[ItemRef] = ItemRef(RootRelativePath.parse('docs/__meta__/code-python.md'))
 SPEC: Final[bytes] = b'{"tokens": 500, "title": {"words": 2}, "empty_sections": "forbidden"}'
 TEXT: Final[bytes] = b'# A Long Title\n\n## Empty\n\n## Full\n\n[more](guide-more.md)\n[none](guide-none.md)\n'
 
@@ -197,7 +197,7 @@ class TestDocumentFactQueries:
 
         #: When / Then
         with pytest.raises(UnlistedItemError):
-            database.query(title_facts, MarkdownItemRef(RootRelativePath.parse('README.md')))
+            database.query(title_facts, ItemRef(RootRelativePath.parse('README.md')))
 
     def test_query_token_facts_holds_the_budget_and_counts_the_file(self, tmp_path: Path) -> None:
         #: Given
@@ -234,7 +234,7 @@ class TestDocumentFactQueries:
 
         #: When / Then
         with pytest.raises(UnlistedItemError):
-            database.query(token_facts, MarkdownItemRef(RootRelativePath.parse('README.md')))
+            database.query(token_facts, ItemRef(RootRelativePath.parse('README.md')))
 
     def test_query_extension_link_facts_holds_the_link_to_the_existing_extension_only(self, tmp_path: Path) -> None:
         #: Given

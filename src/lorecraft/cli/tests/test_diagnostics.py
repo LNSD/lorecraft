@@ -14,7 +14,7 @@ from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.document import DocumentRef
-from lorecraft.project.item import MarkdownItemRef
+from lorecraft.project.item import ItemRef
 from lorecraft.project.schemas import DocumentEnd, DocumentFrontmatterOwner, SectionName
 from lorecraft.project.syntax import LineNumber, SectionHeading, WordCount
 from lorecraft.rules.engine.malformed_structure_file import FormatViolated, MalformedStructureFile
@@ -104,14 +104,14 @@ def _every_kind_of_report() -> tuple[RunReport, ...]:
     over_budget = TooManyTokens(spec=_CODE_SPEC, line=_line(1), overrun=overrun(2400, 2000))
     return (
         CheckedItem(
-            MarkdownItemRef(check.path),
+            ItemRef(check.path),
             diagnostics=(RuleDiagnostic(check.path, missing_usage, Severity.ERROR),),
             ungoverned=(MetaSpecPart.FRONTMATTER, MetaSpecPart.BUDGET),
         ),
         CheckedLayoutEntry(review, diagnostics=(RuleDiagnostic(review, outside, Severity.ERROR),)),
         UndecodableSubject(_document('code', 'latin'), _latin_failure()),
         CheckedItem(
-            MarkdownItemRef(a.path),
+            ItemRef(a.path),
             diagnostics=(
                 RuleDiagnostic(a.path, duplicate_name, Severity.ERROR),
                 RuleDiagnostic(a.path, over_budget, Severity.WARNING),
@@ -119,7 +119,7 @@ def _every_kind_of_report() -> tuple[RunReport, ...]:
             ungoverned=(),
         ),
         CheckedItem(
-            MarkdownItemRef(_document('arch', 'adr').path),
+            ItemRef(_document('arch', 'adr').path),
             diagnostics=(),
             ungoverned=(MetaSpecPart.STRUCTURE,),
         ),
@@ -241,7 +241,7 @@ class TestRenderText:
         )
         reports: tuple[RunReport, ...] = (
             CheckedItem(
-                MarkdownItemRef(guide.path),
+                ItemRef(guide.path),
                 diagnostics=(RuleDiagnostic(guide.path, missing_usage, Severity.ERROR),),
                 ungoverned=(),
             ),
@@ -267,7 +267,7 @@ class TestRenderText:
         )
         reports: tuple[RunReport, ...] = (
             CheckedItem(
-                MarkdownItemRef(guide.path),
+                ItemRef(guide.path),
                 diagnostics=(RuleDiagnostic(guide.path, missing_usage, Severity.ERROR),),
                 ungoverned=(),
             ),
@@ -291,7 +291,7 @@ class TestRenderText:
         )
         reports: tuple[RunReport, ...] = (
             CheckedItem(
-                MarkdownItemRef(guide.path),
+                ItemRef(guide.path),
                 diagnostics=(RuleDiagnostic(guide.path, missing_usage, Severity.ERROR),),
                 ungoverned=(),
             ),
@@ -316,7 +316,7 @@ class TestRenderText:
         )
         reports: tuple[RunReport, ...] = (
             CheckedItem(
-                MarkdownItemRef(guide.path),
+                ItemRef(guide.path),
                 diagnostics=(RuleDiagnostic(guide.path, missing_usage, Severity.ERROR),),
                 ungoverned=(),
             ),
@@ -353,7 +353,7 @@ class TestRenderText:
         )
         reports: tuple[RunReport, ...] = (
             CheckedItem(
-                MarkdownItemRef(guide.path),
+                ItemRef(guide.path),
                 diagnostics=(RuleDiagnostic(guide.path, missing_usage, Severity.ERROR),),
                 ungoverned=(),
             ),
@@ -415,7 +415,7 @@ class TestRenderCoverage:
         #: Given
         a = _document('code', 'a')
         reports: tuple[RunReport, ...] = (
-            CheckedItem(MarkdownItemRef(a.path), diagnostics=(), ungoverned=()),
+            CheckedItem(ItemRef(a.path), diagnostics=(), ungoverned=()),
             UndecodableSubject(_document('code', 'latin'), _latin_failure()),
         )
 
@@ -499,7 +499,7 @@ class TestRenderJson:
         )
         reports: tuple[RunReport, ...] = (
             CheckedItem(
-                MarkdownItemRef(a.path),
+                ItemRef(a.path),
                 diagnostics=(RuleDiagnostic(a.path, duplicate_key, Severity.ERROR),),
                 ungoverned=(),
             ),
@@ -686,7 +686,7 @@ def _reports_of_a_failed_meta_spec() -> tuple[RunReport, ...]:
         SkippedSubject(_document('code', 'b'), failed_layers=(_CODE_SPEC,)),
         LoadFailureReport(_CODE_SPEC, malformed),
         CheckedItem(
-            MarkdownItemRef(_document('feat', 'check').path),
+            ItemRef(_document('feat', 'check').path),
             diagnostics=(),
             ungoverned=(MetaSpecPart.BUDGET,),
         ),

@@ -13,7 +13,7 @@ from lib.database import listed_item
 from lib.tree import from_tree
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.database import Database, ItemText
-from lorecraft.project.item import ItemKind, MarkdownItemRef, MetaSpecPart, SkillResourceOrigin, UnlistedItemError
+from lorecraft.project.item import ItemKind, ItemRef, MetaSpecPart, SkillResourceOrigin, UnlistedItemError
 from lorecraft.project.skill import SkillResourceLocation
 from lorecraft.vfs import (
     DirectoryRecord,
@@ -61,7 +61,7 @@ class TestResourceItems:
         #: Then
         descriptor = source.descriptor
         assert source.text == '[b](guides/b.md)\n', 'the text is the resource file decoded'
-        assert descriptor.ref == MarkdownItemRef(location.ref.path), 'the resource keeps its own reported path'
+        assert descriptor.ref == ItemRef(location.ref.path), 'the resource keeps its own reported path'
         assert descriptor.kind is ItemKind.SKILL_RESOURCE, 'the descriptor is for a skill resource'
         assert descriptor.read_location == location.resolves_to, 'the text is read at the listed resolved file'
         assert descriptor.governed_parts == {MetaSpecPart.STRUCTURE}, (
@@ -175,7 +175,7 @@ class TestResourceItems:
 
         #: When / Then
         with pytest.raises(UnlistedItemError):
-            database.item_text(MarkdownItemRef(RootRelativePath.parse('.agents/skills/review/a.md')))
+            database.item_text(ItemRef(RootRelativePath.parse('.agents/skills/review/a.md')))
 
     def test_listing_a_skill_stays_lazy_until_a_resource_is_asked_for(self) -> None:
         #: Given
@@ -184,7 +184,7 @@ class TestResourceItems:
         )
 
         #: When
-        database.item_text(MarkdownItemRef(RootRelativePath.parse('.agents/skills/review/SKILL.md')))
+        database.item_text(ItemRef(RootRelativePath.parse('.agents/skills/review/SKILL.md')))
 
         #: Then
         assert not database._skill_resources, 'deciding a skill entry lists no resources'  # noqa: SLF001

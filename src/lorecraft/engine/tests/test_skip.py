@@ -11,7 +11,7 @@ from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.database import Database, ItemText
 from lorecraft.project.document import DocumentRef, SpecRef
-from lorecraft.project.item import MarkdownItemRef
+from lorecraft.project.item import ItemRef
 from lorecraft.project.layout import SPECS_DIR
 from lorecraft.rules.outline.empty_section import EmptySection
 from lorecraft.rules.registry import Registry
@@ -84,7 +84,7 @@ class TestCheckSubjects:
         table = RuleTable.from_registry(
             Registry.load(rules), RuleSelection(select=frozenset({AllRules()}), ignore=frozenset())
         )
-        source = database.item_text(MarkdownItemRef(TYPING.path))
+        source = database.item_text(ItemRef(TYPING.path))
         assert isinstance(source, ItemText), 'the document is UTF-8, so it decodes'
 
         #: When
@@ -104,7 +104,7 @@ class TestCheckSubjectsOverASkillEntry:
         database = Database.from_snapshot(snapshot)
         table = _all_rules()
         location = database.model().sorted_skill_locations[0]
-        source = database.item_text(MarkdownItemRef(location.ref.path))
+        source = database.item_text(ItemRef(location.ref.path))
         assert isinstance(source, ItemText), 'the skill is UTF-8, so it decodes'
 
         #: When
@@ -138,7 +138,7 @@ class TestCheckSubjectsOverASkillEntry:
         )
         database = Database.from_snapshot(snapshot)
         location = database.model().sorted_skill_locations[0]
-        item = MarkdownItemRef(location.ref.path)
+        item = ItemRef(location.ref.path)
         assert database.item_governance(item) is not None, 'the reserved skills corpus governs skill entries'
 
         #: When
@@ -162,7 +162,7 @@ class TestCheckSubjectsOverASkillEntry:
         database = Database.from_snapshot(snapshot)
         model = database.model()
         location = model.sorted_skill_locations[0]
-        source = database.item_text(MarkdownItemRef(location.ref.path))
+        source = database.item_text(ItemRef(location.ref.path))
         assert isinstance(source, ItemText), 'the skill is UTF-8, so it decodes'
         governance = database.item_governance(source.descriptor.ref)
         assert governance is not None, 'the loaded skills layer governs its listed entry'
@@ -231,7 +231,7 @@ class TestCheckSubjectsWithAFailedLayer:
             {'python-typing.md': DOCUMENT, 'logging.md': DOCUMENT},
         )
         table = _all_rules()
-        logging_text = database.item_text(MarkdownItemRef(LOGGING.path))
+        logging_text = database.item_text(ItemRef(LOGGING.path))
         assert isinstance(logging_text, ItemText), 'the document is UTF-8, so it decodes'
         judged = judge_item(database, logging_text, table)
 
@@ -301,7 +301,7 @@ class TestCheckSubjectsOverASpecification:
         #: Given
         database = _database_with({'code.md': b'# Code\n\nSee [x](/x.md).\n'}, {})
         table = _all_rules()
-        source = database.item_text(MarkdownItemRef(CODE_SPECIFICATION.path))
+        source = database.item_text(ItemRef(CODE_SPECIFICATION.path))
         assert isinstance(source, ItemText), 'the specification is UTF-8, so it decodes'
 
         #: When

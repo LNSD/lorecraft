@@ -17,7 +17,7 @@ from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.database import Database, ItemText, Read
 from lorecraft.project.document import DocumentRef
-from lorecraft.project.item import MarkdownItemRef
+from lorecraft.project.item import ItemRef
 from lorecraft.project.query import item_parse, item_structure_specs
 from lorecraft.project.schemas import (
     AnyRunAlignment,
@@ -68,7 +68,7 @@ class ParsingDatabase(Database):
             model: The workspace model loaded through the view.
         """
         super().__init__(fs, model)
-        self.parsed: list[MarkdownItemRef] = []
+        self.parsed: list[ItemRef] = []
 
     def _memo_query[T](self, key: Read, answer: Callable[[], T], reads: Callable[[], frozenset[Read]]) -> T:
         """Record parse query evaluations, then memoize them as usual."""
@@ -100,7 +100,7 @@ def _document_text(database: Database, ref: DocumentRef) -> ItemText:
         database: The database the document is decoded by.
         ref: A document whose bytes are UTF-8.
     """
-    source = database.item_text(MarkdownItemRef(ref.path))
+    source = database.item_text(ItemRef(ref.path))
     assert isinstance(source, ItemText), f'{ref.path} was written as UTF-8, so it decodes'
     return source
 
@@ -165,7 +165,7 @@ class TestOutlineAlignment:
 
         #: Then
         assert second is first, 'the sections are aligned once per database, then shared by every rule'
-        assert database.parsed == [MarkdownItemRef(TYPING.path)], 'the document is parsed once, for the first call'
+        assert database.parsed == [ItemRef(TYPING.path)], 'the document is parsed once, for the first call'
 
     def test_outline_alignment_with_a_specification_stating_no_outline_aligns_it_to_nothing(self) -> None:
         #: Given
@@ -228,12 +228,12 @@ class TestOutlineAlignment:
         database = Database.from_snapshot(_snapshot(outline, None, RULE_ASIDE_CHECKLIST))
 
         #: When
-        database.query(outline_alignment, MarkdownItemRef(TYPING.path))
+        database.query(outline_alignment, ItemRef(TYPING.path))
 
         #: Then
-        assert database.query_reads(outline_alignment, MarkdownItemRef(TYPING.path)) == {
-            Read(item_structure_specs, MarkdownItemRef(TYPING.path)),
-            Read('item_governance', MarkdownItemRef(TYPING.path)),
-            Read(item_parse, MarkdownItemRef(TYPING.path)),
-            Read('item_text', MarkdownItemRef(TYPING.path)),
+        assert database.query_reads(outline_alignment, ItemRef(TYPING.path)) == {
+            Read(item_structure_specs, ItemRef(TYPING.path)),
+            Read('item_governance', ItemRef(TYPING.path)),
+            Read(item_parse, ItemRef(TYPING.path)),
+            Read('item_text', ItemRef(TYPING.path)),
         }, 'the carry-over is derived from what the query read'

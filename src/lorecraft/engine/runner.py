@@ -49,7 +49,7 @@ from typing import assert_never, cast
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.corpus import CorpusDirectoryRef, ReservedCorpusDirectory
 from lorecraft.project.database import Database, ItemText
-from lorecraft.project.item import ItemDescriptor, ItemKind, MarkdownItemRef, MetaSpecPart
+from lorecraft.project.item import ItemDescriptor, ItemKind, ItemRef, MetaSpecPart
 from lorecraft.project.query import ItemQuery
 from lorecraft.project.skill import OutsideSymlink, SymlinkRef
 from lorecraft.project.workspace.model import Governance, WorkspaceModel
@@ -142,7 +142,7 @@ def judges(
 
 
 def _judged_item[Facts](
-    rule: type[Queried[Facts, ItemQuery[Facts]]], database: Database, ref: MarkdownItemRef
+    rule: type[Queried[Facts, ItemQuery[Facts]]], database: Database, ref: ItemRef
 ) -> tuple[Rule, ...]:
     """Judge one item rule from the answer of its memoized query.
 

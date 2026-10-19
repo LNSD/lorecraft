@@ -19,7 +19,7 @@ from lorecraft.project.aspect import AspectFilename, AspectNamespace
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.database import Database
 from lorecraft.project.document import DocumentRef
-from lorecraft.project.item import MarkdownItemRef
+from lorecraft.project.item import ItemRef
 from lorecraft.project.schemas.name import CorpusSpecName, NamespaceSpecName
 from lorecraft.project.workspace import Corpus, CorpusNamespace, Governance
 from lorecraft.rules.registry import Registry
@@ -84,7 +84,7 @@ class TestGovernance:
         database = Database.from_snapshot(_snapshot())
 
         #: When
-        governance = database.item_governance(MarkdownItemRef(TYPING.path))
+        governance = database.item_governance(ItemRef(TYPING.path))
 
         #: Then
         assert governance is not None, 'the corpus `code` is one the model holds'
@@ -100,7 +100,7 @@ class TestGovernance:
         database = Database.from_snapshot(_snapshot())
 
         #: When
-        governance = database.item_governance(MarkdownItemRef(UNLISTED.path))
+        governance = database.item_governance(ItemRef(UNLISTED.path))
 
         #: Then
         assert governance is None, 'no specification governs a document in a corpus the model does not hold'
@@ -108,10 +108,10 @@ class TestGovernance:
     def test_governance_called_twice_returns_the_first_answer(self) -> None:
         #: Given
         database = Database.from_snapshot(_snapshot())
-        first = database.item_governance(MarkdownItemRef(TYPING.path))
+        first = database.item_governance(ItemRef(TYPING.path))
 
         #: When
-        second = database.item_governance(MarkdownItemRef(TYPING.path))
+        second = database.item_governance(ItemRef(TYPING.path))
 
         #: Then
         assert second is first, 'the governance is found once per database, then shared by every reader'

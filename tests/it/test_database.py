@@ -27,7 +27,7 @@ from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.database import Database, ItemText, Undecodable
 from lorecraft.project.document import DocumentRef
-from lorecraft.project.item import MarkdownItemRef
+from lorecraft.project.item import ItemRef
 from lorecraft.project.layout import LinkedLayoutError
 from lorecraft.project.query import item_frontmatter, item_line_count, item_parse, item_token_count
 from lorecraft.project.schemas import frontmatter_schema_problems, outline_alignment
@@ -129,7 +129,7 @@ def _document_text(database: Database, ref: DocumentRef) -> ItemText:
         database: The database the document is decoded by.
         ref: A document whose bytes are UTF-8.
     """
-    source = database.item_text(MarkdownItemRef(ref.path))
+    source = database.item_text(ItemRef(ref.path))
     assert isinstance(source, ItemText), f'{ref.path} was written as UTF-8, so it decodes'
     return source
 
@@ -141,7 +141,7 @@ def _skill_text(database: Database, ref: SkillRef) -> ItemText:
         database: The database the `SKILL.md` is decoded by.
         ref: A skill whose `SKILL.md` bytes are UTF-8.
     """
-    source = database.item_text(MarkdownItemRef(ref.path))
+    source = database.item_text(ItemRef(ref.path))
     assert isinstance(source, ItemText), f'{ref.path} was written as UTF-8, so it decodes'
     return source
 
@@ -265,7 +265,7 @@ class TestDatabase:
         assert database.model().load_failures == (LoadFailure(path, EmptyStructureSpec()),), (
             'the failure is a value the model records, so opening raises nothing and the database has its model'
         )
-        governance = database.item_governance(MarkdownItemRef(GUIDE.path))
+        governance = database.item_governance(ItemRef(GUIDE.path))
         assert governance is not None, 'the document is in a corpus the model holds'
         assert governance.failed_layers() == (FailedStructure(path, EmptyStructureSpec()),), (
             'the failed layer is held where its structure would be'
@@ -486,11 +486,11 @@ class TestDatabase:
         database = Database.from_snapshot(_snapshot(b'---\nname: "guide"\n---\n'))
 
         #: When
-        source = database.item_text(MarkdownItemRef(GUIDE.path))
+        source = database.item_text(ItemRef(GUIDE.path))
 
         #: Then
         assert isinstance(source, ItemText), 'the document is UTF-8, so it decodes'
-        assert source.ref == MarkdownItemRef(GUIDE.path), 'the witness holds the common ref of the document'
+        assert source.ref == ItemRef(GUIDE.path), 'the witness holds the common ref of the document'
         assert source.text == '---\nname: "guide"\n---\n', 'the witness holds the document text'
 
     def test_item_text_of_a_document_that_is_not_utf8_returns_undecodable(self) -> None:
@@ -498,7 +498,7 @@ class TestDatabase:
         database = Database.from_snapshot(_snapshot(b'---\nname: "gu\xffide"\n---\n'))
 
         #: When
-        source = database.item_text(MarkdownItemRef(GUIDE.path))
+        source = database.item_text(ItemRef(GUIDE.path))
 
         #: Then
         failure = Utf8Failure(
@@ -507,17 +507,17 @@ class TestDatabase:
             invalid=b'\xff',
             reason=Utf8Reason.INVALID_START_BYTE,
         )
-        assert source == Undecodable(MarkdownItemRef(GUIDE.path), failure), (
+        assert source == Undecodable(ItemRef(GUIDE.path), failure), (
             'a decode failure is an answer naming the document and where its bytes stop being UTF-8, not an error'
         )
 
     def test_item_text_of_a_document_that_is_not_utf8_called_twice_returns_the_first_answer(self) -> None:
         #: Given
         database = Database.from_snapshot(_snapshot(b'---\nname: "gu\xffide"\n---\n'))
-        first = database.item_text(MarkdownItemRef(GUIDE.path))
+        first = database.item_text(ItemRef(GUIDE.path))
 
         #: When
-        second = database.item_text(MarkdownItemRef(GUIDE.path))
+        second = database.item_text(ItemRef(GUIDE.path))
 
         #: Then
         assert second is first, 'an undecodable document is cached like any answer, so it is decoded once'
@@ -743,11 +743,11 @@ class TestDatabase:
         #: Given
         database = Database.from_snapshot(_skill_snapshot(b'---\nname: review\n---\n'))
         #: When
-        source = database.item_text(MarkdownItemRef(REVIEW.path))
+        source = database.item_text(ItemRef(REVIEW.path))
 
         #: Then
         assert isinstance(source, ItemText), 'the skill is UTF-8, so it decodes'
-        assert source.ref == MarkdownItemRef(REVIEW.path), 'the witness holds the common ref of the skill'
+        assert source.ref == ItemRef(REVIEW.path), 'the witness holds the common ref of the skill'
         assert source.text == '---\nname: review\n---\n', 'the witness holds the skill text'
         assert source.descriptor.read_location == _location(database, REVIEW).file_resolves_to, (
             'the text is read from the location the model issued'
@@ -757,7 +757,7 @@ class TestDatabase:
         #: Given
         database = Database.from_snapshot(_skill_snapshot(b'---\nname: caf\xe9\n---\n'))
         #: When
-        source = database.item_text(MarkdownItemRef(REVIEW.path))
+        source = database.item_text(ItemRef(REVIEW.path))
 
         #: Then
         failure = Utf8Failure(
@@ -766,17 +766,17 @@ class TestDatabase:
             invalid=b'\xe9',
             reason=Utf8Reason.INVALID_CONTINUATION_BYTE,
         )
-        assert source == Undecodable(MarkdownItemRef(REVIEW.path), failure), (
+        assert source == Undecodable(ItemRef(REVIEW.path), failure), (
             'a decode failure is an answer naming the skill and where its bytes stop being UTF-8, not an error'
         )
 
     def test_item_text_of_a_skill_that_is_not_utf8_called_twice_returns_the_first_answer(self) -> None:
         #: Given
         database = Database.from_snapshot(_skill_snapshot(b'---\nname: caf\xe9\n---\n'))
-        first = database.item_text(MarkdownItemRef(REVIEW.path))
+        first = database.item_text(ItemRef(REVIEW.path))
 
         #: When
-        second = database.item_text(MarkdownItemRef(REVIEW.path))
+        second = database.item_text(ItemRef(REVIEW.path))
 
         #: Then
         assert second is first, 'an undecodable skill is cached like any answer, so it is decoded once'

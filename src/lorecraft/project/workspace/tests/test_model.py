@@ -19,7 +19,7 @@ from lorecraft.project.document import DocumentRef, InvalidSpecificationNameErro
 from lorecraft.project.item import (
     DocumentOrigin,
     ItemKind,
-    MarkdownItemRef,
+    ItemRef,
     MetaSpecPart,
     SkillEntryOrigin,
     SpecificationOrigin,
@@ -887,7 +887,7 @@ class TestWorkspaceModel:
         descriptor = two_corpora_model.describe_item(ref)
 
         #: Then
-        assert descriptor.ref == MarkdownItemRef(ref.path), 'the logical ref is also the report path'
+        assert descriptor.ref == ItemRef(ref.path), 'the logical ref is also the report path'
         assert descriptor.read_location == ResolvedPath(ref.path), 'regular corpus documents read from their path'
         assert descriptor.link_base == DocumentDirectory(RootRelativePath.parse('docs/code')), (
             'document links use their directory'
@@ -944,7 +944,7 @@ class TestWorkspaceModel:
         after = retargeted.describe_item(AUDIT.ref)
 
         #: Then
-        assert before.ref == after.ref == MarkdownItemRef(AUDIT.ref.path), 'the listed path owns stable identity'
+        assert before.ref == after.ref == ItemRef(AUDIT.ref.path), 'the listed path owns stable identity'
         assert before.read_location != after.read_location, 'the descriptor records the changed read target'
         assert before.link_base == after.link_base == SkillRoot(AUDIT.ref.directory), (
             'skill links use the listed skill root'
@@ -1419,7 +1419,7 @@ class TestSpecifications:
         assert descriptor.origin == SpecificationOrigin(expected_name='feat-cli', corpus='feat'), (
             'the origin carries the specification name and the corpus its first segment names'
         )
-        assert descriptor.ref == MarkdownItemRef(ref.path), 'the logical ref is also the report path'
+        assert descriptor.ref == ItemRef(ref.path), 'the logical ref is also the report path'
         assert descriptor.read_location == ResolvedPath(ref.path), 'the file is read where it is listed'
         assert descriptor.link_base == DocumentDirectory(SPECS_DIR), 'links are read from docs/__meta__'
         assert descriptor.governed_parts == frozenset({MetaSpecPart.STRUCTURE}), (
@@ -1433,7 +1433,7 @@ class TestSpecifications:
         ref = _spec_ref('feat')
 
         #: When
-        found = two_corpora_model.find_item(MarkdownItemRef(ref.path))
+        found = two_corpora_model.find_item(ItemRef(ref.path))
 
         #: Then
         assert found is not None, 'the model lists the specification'

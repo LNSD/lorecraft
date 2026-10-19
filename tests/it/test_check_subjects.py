@@ -32,7 +32,7 @@ from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.database import Database
 from lorecraft.project.document import DocumentRef
-from lorecraft.project.item import ItemKind, MarkdownItemRef
+from lorecraft.project.item import ItemKind, ItemRef
 from lorecraft.project.layout import SNAPSHOT_SCOPE
 from lorecraft.project.link_target import DocumentDirectory, SkillRoot
 from lorecraft.project.query import (
@@ -391,12 +391,12 @@ class CountingDatabase(Database):
             model: The workspace model loaded through the view.
         """
         super().__init__(fs, model)
-        self.counted_tokens: list[MarkdownItemRef] = []
-        self.counted_lines: list[MarkdownItemRef] = []
-        self.parsed_frontmatters: list[MarkdownItemRef] = []
-        self.parsed_documents: list[MarkdownItemRef] = []
+        self.counted_tokens: list[ItemRef] = []
+        self.counted_lines: list[ItemRef] = []
+        self.parsed_frontmatters: list[ItemRef] = []
+        self.parsed_documents: list[ItemRef] = []
 
-    def query[T](self, query: ItemQuery[T], ref: MarkdownItemRef) -> T:
+    def query[T](self, query: ItemQuery[T], ref: ItemRef) -> T:
         """Record each declared per-item fact query before evaluating it."""
         if query is item_token_count:
             self.counted_tokens.append(ref)
@@ -534,7 +534,7 @@ def sample_table() -> RuleTable:
     )
 
 
-def _refs(reports: tuple[SubjectReport, ...]) -> list[SubjectRef | MarkdownItemRef]:
+def _refs(reports: tuple[SubjectReport, ...]) -> list[SubjectRef | ItemRef]:
     """The document, skill or resource each report is about, every report's, in the order the reports are given.
 
     Args:
@@ -565,7 +565,7 @@ class TestCheckSubjects:
         skill_file = RootRelativePath.parse('.agents/skills/review/SKILL.md')
         assert reports == (
             CheckedItem(
-                MarkdownItemRef(REVIEW.path),
+                ItemRef(REVIEW.path),
                 diagnostics=(
                     RuleDiagnostic(
                         skill_file,
@@ -606,7 +606,7 @@ class TestCheckSubjects:
         skill_file = RootRelativePath.parse('.agents/skills/review/SKILL.md')
         assert reports == (
             CheckedItem(
-                MarkdownItemRef(REVIEW.path),
+                ItemRef(REVIEW.path),
                 diagnostics=(RuleDiagnostic(skill_file, occurrence, Severity.WARNING),),
             ),
         ), 'the registry runs FM011 over a skill and reports the warning at its listed path and field line'
@@ -626,7 +626,7 @@ class TestCheckSubjects:
         )
         assert reports == (
             CheckedItem(
-                MarkdownItemRef(GUIDE.path),
+                ItemRef(GUIDE.path),
                 diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
                 ungoverned=(MetaSpecPart.FRONTMATTER, MetaSpecPart.OUTLINE),
             ),
@@ -667,7 +667,7 @@ class TestCheckSubjects:
         )
         assert reports == (
             CheckedItem(
-                MarkdownItemRef(typing.path),
+                ItemRef(typing.path),
                 diagnostics=(
                     RuleDiagnostic(typing.path, corpus_budget, Severity.ERROR),
                     RuleDiagnostic(typing.path, namespace_budget, Severity.ERROR),
@@ -686,7 +686,7 @@ class TestCheckSubjects:
         #: Then
         assert reports == (
             CheckedItem(
-                MarkdownItemRef(GUIDE.path),
+                ItemRef(GUIDE.path),
                 diagnostics=(),
                 ungoverned=(MetaSpecPart.FRONTMATTER, MetaSpecPart.OUTLINE),
             ),
@@ -702,7 +702,7 @@ class TestCheckSubjects:
         #: Then
         assert reports == (
             CheckedItem(
-                MarkdownItemRef(GUIDE.path),
+                ItemRef(GUIDE.path),
                 diagnostics=(),
                 ungoverned=(
                     MetaSpecPart.FRONTMATTER,
@@ -734,7 +734,7 @@ class TestCheckSubjects:
         #: Then
         assert reports == (
             CheckedItem(
-                MarkdownItemRef(launch.path),
+                ItemRef(launch.path),
                 diagnostics=(),
                 ungoverned=(
                     MetaSpecPart.FRONTMATTER,
@@ -761,9 +761,9 @@ class TestCheckSubjects:
         reports = check_subjects(database, (GUIDE,), table)
 
         #: Then
-        assert reports == (
-            CheckedItem(MarkdownItemRef(GUIDE.path), diagnostics=(), ungoverned=(MetaSpecPart.BUDGET,)),
-        ), 'a document whose corpus states no structure specification is governed for no facet'
+        assert reports == (CheckedItem(ItemRef(GUIDE.path), diagnostics=(), ungoverned=(MetaSpecPart.BUDGET,)),), (
+            'a document whose corpus states no structure specification is governed for no facet'
+        )
 
     def test_check_subjects_with_a_corpus_stating_no_structure_specification_never_counts_the_tokens(self) -> None:
         #: Given
@@ -797,9 +797,9 @@ class TestCheckSubjects:
         reports = check_subjects(database, (GUIDE,), table)
 
         #: Then
-        assert reports == (
-            CheckedItem(MarkdownItemRef(GUIDE.path), diagnostics=(), ungoverned=(MetaSpecPart.STRUCTURE,)),
-        ), 'the length rules over sections and the title read the structure facet, recorded once as ungoverned'
+        assert reports == (CheckedItem(ItemRef(GUIDE.path), diagnostics=(), ungoverned=(MetaSpecPart.STRUCTURE,)),), (
+            'the length rules over sections and the title read the structure facet, recorded once as ungoverned'
+        )
         assert database.parsed_documents == [], 'no query is run for it, so it is never parsed'
 
     def test_check_subjects_with_an_undecodable_document_reports_it_undecodable(self, package_table: RuleTable) -> None:
@@ -838,7 +838,7 @@ class TestCheckSubjects:
         reports = check_subjects(database, (INTRO, GUIDE), package_table)
 
         #: Then
-        assert _refs(reports) == [MarkdownItemRef(INTRO.path), MarkdownItemRef(GUIDE.path)], (
+        assert _refs(reports) == [ItemRef(INTRO.path), ItemRef(GUIDE.path)], (
             'each document is reported in the order given'
         )
 
@@ -887,7 +887,7 @@ class TestCheckSubjects:
         any_tokens = AnyTokens(spec=None, line=LineNumber(NonZeroUnsignedInt(1)), token_count=token_count_of_guide)
         assert reports == (
             CheckedItem(
-                MarkdownItemRef(GUIDE.path),
+                ItemRef(GUIDE.path),
                 diagnostics=(
                     RuleDiagnostic(GUIDE.path, any_tokens, Severity.ERROR),
                     RuleDiagnostic(GUIDE.path, over_half, Severity.WARNING),
@@ -908,7 +908,7 @@ class TestCheckSubjects:
         any_tokens = AnyTokens(spec=None, line=LineNumber(NonZeroUnsignedInt(1)), token_count=0)
         assert reports == (
             CheckedItem(
-                MarkdownItemRef(GUIDE.path),
+                ItemRef(GUIDE.path),
                 diagnostics=(RuleDiagnostic(GUIDE.path, any_tokens, Severity.ERROR),),
                 ungoverned=(),
             ),
@@ -929,7 +929,7 @@ class TestCheckSubjects:
         skill_file = RootRelativePath.parse('.agents/skills/review/SKILL.md')
         assert reports == (
             CheckedItem(
-                MarkdownItemRef(REVIEW.path),
+                ItemRef(REVIEW.path),
                 diagnostics=(RuleDiagnostic(skill_file, occurrence, Severity.ERROR),),
             ),
         ), 'LEN002 runs at deny, so a skill over the budget carries its occurrence as an error, at its SKILL.md'
@@ -1013,7 +1013,7 @@ class TestCheckSubjects:
         skill_file = RootRelativePath.parse('.agents/skills/review/SKILL.md')
         assert reports == (
             CheckedItem(
-                MarkdownItemRef(REVIEW.path),
+                ItemRef(REVIEW.path),
                 diagnostics=(RuleDiagnostic(skill_file, occurrence, Severity.ERROR),),
             ),
         ), 'the SKILL.md is counted where the link leads, and reported under the skills directory, not under skills/'
@@ -1027,7 +1027,7 @@ class TestCheckSubjects:
         reports = check_subjects(database, subjects, package_table)
 
         #: Then
-        assert reports == (CheckedItem(MarkdownItemRef(REVIEW.path), diagnostics=()),), (
+        assert reports == (CheckedItem(ItemRef(REVIEW.path), diagnostics=()),), (
             'a SKILL.md of exactly 500 lines is within the budget, and the package governs its line count'
         )
 
@@ -1059,13 +1059,13 @@ class TestCheckSubjects:
         #: Then
         assert reports == (
             CheckedItem(
-                MarkdownItemRef(GUIDE.path),
+                ItemRef(GUIDE.path),
                 diagnostics=(),
                 ungoverned=(MetaSpecPart.FRONTMATTER, MetaSpecPart.OUTLINE),
             ),
-            CheckedItem(MarkdownItemRef(REVIEW.path), diagnostics=()),
+            CheckedItem(ItemRef(REVIEW.path), diagnostics=()),
             CheckedItem(
-                MarkdownItemRef(INTRO.path),
+                ItemRef(INTRO.path),
                 diagnostics=(),
                 ungoverned=(MetaSpecPart.FRONTMATTER, MetaSpecPart.OUTLINE),
             ),
@@ -1100,7 +1100,7 @@ class TestCheckSubjects:
         occurrence = MissingFrontmatter(owner=GUIDE_OWNER, line=LineNumber(NonZeroUnsignedInt(1)))
         assert reports == (
             CheckedItem(
-                MarkdownItemRef(GUIDE.path),
+                ItemRef(GUIDE.path),
                 diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
                 ungoverned=(MetaSpecPart.OUTLINE, MetaSpecPart.BUDGET),
             ),
@@ -1124,7 +1124,7 @@ class TestCheckSubjects:
         )
         assert reports == (
             CheckedItem(
-                MarkdownItemRef(GUIDE.path),
+                ItemRef(GUIDE.path),
                 diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
                 ungoverned=(MetaSpecPart.OUTLINE, MetaSpecPart.BUDGET),
             ),
@@ -1143,7 +1143,7 @@ class TestCheckSubjects:
         occurrence = NonMappingFrontmatter(owner=GUIDE_OWNER, line=LineNumber(NonZeroUnsignedInt(1)))
         assert reports == (
             CheckedItem(
-                MarkdownItemRef(GUIDE.path),
+                ItemRef(GUIDE.path),
                 diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
                 ungoverned=(MetaSpecPart.OUTLINE, MetaSpecPart.BUDGET),
             ),
@@ -1162,7 +1162,7 @@ class TestCheckSubjects:
         occurrence = NameMismatch(owner=GUIDE_OWNER, line=LineNumber(NonZeroUnsignedInt(2)), name='setup')
         assert reports == (
             CheckedItem(
-                MarkdownItemRef(GUIDE.path),
+                ItemRef(GUIDE.path),
                 diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
                 ungoverned=(MetaSpecPart.OUTLINE, MetaSpecPart.BUDGET),
             ),
@@ -1189,7 +1189,7 @@ class TestCheckSubjects:
         )
         assert reports == (
             CheckedItem(
-                MarkdownItemRef(GUIDE.path),
+                ItemRef(GUIDE.path),
                 diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
                 ungoverned=(MetaSpecPart.OUTLINE, MetaSpecPart.BUDGET),
             ),
@@ -1209,7 +1209,7 @@ class TestCheckSubjects:
         occurrence = MissingFrontmatter(owner=REVIEW_OWNER, line=LineNumber(NonZeroUnsignedInt(1)))
         assert reports == (
             CheckedItem(
-                MarkdownItemRef(REVIEW.path),
+                ItemRef(REVIEW.path),
                 diagnostics=(RuleDiagnostic(REVIEW_FILE, occurrence, Severity.ERROR),),
             ),
         ), 'every skill is governed for its frontmatter, so FM001 needs no specification in the repository'
@@ -1233,7 +1233,7 @@ class TestCheckSubjects:
         )
         assert reports == (
             CheckedItem(
-                MarkdownItemRef(REVIEW.path),
+                ItemRef(REVIEW.path),
                 diagnostics=(RuleDiagnostic(REVIEW_FILE, occurrence, Severity.ERROR),),
             ),
         ), 'FM002 runs at deny over a skill, at the line the YAML parser stopped on'
@@ -1254,7 +1254,7 @@ class TestCheckSubjects:
         occurrence = NonMappingFrontmatter(owner=REVIEW_OWNER, line=LineNumber(NonZeroUnsignedInt(1)))
         assert reports == (
             CheckedItem(
-                MarkdownItemRef(REVIEW.path),
+                ItemRef(REVIEW.path),
                 diagnostics=(RuleDiagnostic(REVIEW_FILE, occurrence, Severity.ERROR),),
             ),
         ), 'FM003 runs at deny over a skill whose block is not a mapping'
@@ -1277,7 +1277,7 @@ class TestCheckSubjects:
         occurrence = NameMismatch(owner=REVIEW_OWNER, line=LineNumber(NonZeroUnsignedInt(2)), name='code-review')
         assert reports == (
             CheckedItem(
-                MarkdownItemRef(REVIEW.path),
+                ItemRef(REVIEW.path),
                 diagnostics=(RuleDiagnostic(REVIEW_FILE, occurrence, Severity.ERROR),),
             ),
         ), 'FM004 runs at deny over a skill whose `name` is not its directory name'
@@ -1306,7 +1306,7 @@ class TestCheckSubjects:
         )
         assert reports == (
             CheckedItem(
-                MarkdownItemRef(REVIEW.path),
+                ItemRef(REVIEW.path),
                 diagnostics=(RuleDiagnostic(REVIEW_FILE, occurrence, Severity.ERROR),),
             ),
         ), 'FM005 runs at deny over a skill that writes a key again'
@@ -1342,7 +1342,7 @@ class TestCheckSubjects:
         occurrence = NameMismatch(owner=owner, line=LineNumber(NonZeroUnsignedInt(2)), name='code-review')
         assert reports == (
             CheckedItem(
-                MarkdownItemRef(REVIEW.path),
+                ItemRef(REVIEW.path),
                 diagnostics=(RuleDiagnostic(REVIEW_FILE, occurrence, Severity.ERROR),),
             ),
         ), 'a skill is held to the name it is listed under, and its occurrence carries where the link leads'
@@ -1364,8 +1364,8 @@ class TestCheckSubjects:
 
         #: Then
         assert database.parsed_frontmatters == [], 'no enabled rule reads the frontmatter, so it is never parsed'
-        assert database.query_reads(frontmatter_schema_problems, MarkdownItemRef(GUIDE.path)) == frozenset()
-        assert database.query_reads(frontmatter_schema_problems, MarkdownItemRef(REVIEW_FILE)) == frozenset()
+        assert database.query_reads(frontmatter_schema_problems, ItemRef(GUIDE.path)) == frozenset()
+        assert database.query_reads(frontmatter_schema_problems, ItemRef(REVIEW_FILE)) == frozenset()
 
     def test_check_subjects_with_no_frontmatter_schema_never_parses_a_document_frontmatter(
         self, package_table: RuleTable
@@ -1379,10 +1379,10 @@ class TestCheckSubjects:
         check_subjects(database, subjects, package_table)
 
         #: Then
-        assert MarkdownItemRef(GUIDE.path) not in database.parsed_frontmatters, (
+        assert ItemRef(GUIDE.path) not in database.parsed_frontmatters, (
             'no schema governs the guide, so governance stops the rules over the frontmatter before they parse it'
         )
-        assert MarkdownItemRef(INTRO.path) not in database.parsed_frontmatters, (
+        assert ItemRef(INTRO.path) not in database.parsed_frontmatters, (
             'no schema governs the intro, so governance stops the rules over the frontmatter before they parse it'
         )
 
@@ -1413,7 +1413,7 @@ class TestCheckSubjects:
         #: Then
         assert reports == (
             CheckedItem(
-                MarkdownItemRef(typing.path),
+                ItemRef(typing.path),
                 diagnostics=(),
                 ungoverned=(MetaSpecPart.FRONTMATTER, MetaSpecPart.OUTLINE),
             ),
@@ -1467,7 +1467,7 @@ class TestCheckSubjects:
         )
         assert reports == (
             CheckedItem(
-                MarkdownItemRef(GUIDE.path),
+                ItemRef(GUIDE.path),
                 diagnostics=(
                     RuleDiagnostic(GUIDE.path, missing_field, Severity.ERROR),
                     RuleDiagnostic(GUIDE.path, unknown_field, Severity.WARNING),
@@ -1533,7 +1533,7 @@ class TestCheckSubjects:
         )
         assert reports == (
             CheckedItem(
-                MarkdownItemRef(REVIEW.path),
+                ItemRef(REVIEW.path),
                 diagnostics=(
                     RuleDiagnostic(REVIEW_FILE, missing_field, Severity.ERROR),
                     RuleDiagnostic(REVIEW_FILE, unknown_field, Severity.WARNING),
@@ -1581,7 +1581,7 @@ class TestCheckSubjects:
         )
         assert reports == (
             CheckedItem(
-                MarkdownItemRef(typing.path),
+                ItemRef(typing.path),
                 diagnostics=(
                     RuleDiagnostic(typing.path, status, Severity.ERROR),
                     RuleDiagnostic(typing.path, owner, Severity.ERROR),
@@ -1602,7 +1602,7 @@ class TestCheckSubjects:
         #: Then
         assert reports == (
             CheckedItem(
-                MarkdownItemRef(GUIDE.path),
+                ItemRef(GUIDE.path),
                 diagnostics=(),
                 ungoverned=(MetaSpecPart.FRONTMATTER, MetaSpecPart.OUTLINE),
             ),
@@ -1621,7 +1621,7 @@ class TestCheckSubjects:
         occurrence = NonMappingFrontmatter(owner=GUIDE_OWNER, line=LineNumber(NonZeroUnsignedInt(1)))
         assert reports == (
             CheckedItem(
-                MarkdownItemRef(GUIDE.path),
+                ItemRef(GUIDE.path),
                 diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
                 ungoverned=(MetaSpecPart.OUTLINE, MetaSpecPart.BUDGET),
             ),
@@ -1647,8 +1647,8 @@ class TestCheckSubjects:
         check_subjects(database, subjects, table)
 
         #: Then
-        assert database.query_reads(frontmatter_schema_problems, MarkdownItemRef(GUIDE.path)) == frozenset()
-        assert database.query_reads(frontmatter_schema_problems, MarkdownItemRef(REVIEW_FILE)) == frozenset()
+        assert database.query_reads(frontmatter_schema_problems, ItemRef(GUIDE.path)) == frozenset()
+        assert database.query_reads(frontmatter_schema_problems, ItemRef(REVIEW_FILE)) == frozenset()
 
     def test_check_subjects_with_a_document_without_its_title_reports_missing_title(
         self, package_table: RuleTable
@@ -1664,7 +1664,7 @@ class TestCheckSubjects:
         missing = MissingTitle(line=LineNumber(NonZeroUnsignedInt(1)))
         assert reports == (
             CheckedItem(
-                MarkdownItemRef(GUIDE.path),
+                ItemRef(GUIDE.path),
                 diagnostics=(RuleDiagnostic(GUIDE.path, missing, Severity.ERROR),),
                 ungoverned=(
                     MetaSpecPart.FRONTMATTER,
@@ -1693,7 +1693,7 @@ class TestCheckSubjects:
         occurrence = ExtraTitle(line=LineNumber(NonZeroUnsignedInt(5)), first_title=first_title)
         assert reports == (
             CheckedItem(
-                MarkdownItemRef(GUIDE.path),
+                ItemRef(GUIDE.path),
                 diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
                 ungoverned=(
                     MetaSpecPart.FRONTMATTER,
@@ -1720,7 +1720,7 @@ class TestCheckSubjects:
         )
         assert reports == (
             CheckedItem(
-                MarkdownItemRef(GUIDE.path),
+                ItemRef(GUIDE.path),
                 diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
                 ungoverned=(
                     MetaSpecPart.FRONTMATTER,
@@ -1741,7 +1741,7 @@ class TestCheckSubjects:
         #: Then
         assert reports == (
             CheckedItem(
-                MarkdownItemRef(GUIDE.path),
+                ItemRef(GUIDE.path),
                 diagnostics=(),
                 ungoverned=(
                     MetaSpecPart.FRONTMATTER,
@@ -1765,7 +1765,7 @@ class TestCheckSubjects:
         )
         assert reports == (
             CheckedItem(
-                MarkdownItemRef(GUIDE.path),
+                ItemRef(GUIDE.path),
                 diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
                 ungoverned=(
                     MetaSpecPart.FRONTMATTER,
@@ -1787,7 +1787,7 @@ class TestCheckSubjects:
         occurrence = ForbiddenSection(spec=CODE_SPEC, line=LineNumber(NonZeroUnsignedInt(7)), section='Changelog')
         assert reports == (
             CheckedItem(
-                MarkdownItemRef(GUIDE.path),
+                ItemRef(GUIDE.path),
                 diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
                 ungoverned=(
                     MetaSpecPart.FRONTMATTER,
@@ -1817,7 +1817,7 @@ class TestCheckSubjects:
         )
         assert reports == (
             CheckedItem(
-                MarkdownItemRef(GUIDE.path),
+                ItemRef(GUIDE.path),
                 diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
                 ungoverned=(MetaSpecPart.FRONTMATTER, MetaSpecPart.BUDGET),
             ),
@@ -1837,7 +1837,7 @@ class TestCheckSubjects:
         occurrence = TitleTooManyWords(spec=CODE_SPEC, line=LineNumber(NonZeroUnsignedInt(1)), overrun=overrun(4, 3))
         assert reports == (
             CheckedItem(
-                MarkdownItemRef(GUIDE.path),
+                ItemRef(GUIDE.path),
                 diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
                 ungoverned=(
                     MetaSpecPart.FRONTMATTER,
@@ -1861,7 +1861,7 @@ class TestCheckSubjects:
         occurrence = TitleTooLong(spec=CODE_SPEC, line=LineNumber(NonZeroUnsignedInt(1)), overrun=overrun(20, 12))
         assert reports == (
             CheckedItem(
-                MarkdownItemRef(GUIDE.path),
+                ItemRef(GUIDE.path),
                 diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
                 ungoverned=(
                     MetaSpecPart.FRONTMATTER,
@@ -1890,7 +1890,7 @@ class TestCheckSubjects:
         )
         assert reports == (
             CheckedItem(
-                MarkdownItemRef(GUIDE.path),
+                ItemRef(GUIDE.path),
                 diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
                 ungoverned=(
                     MetaSpecPart.FRONTMATTER,
@@ -1935,7 +1935,7 @@ class TestCheckSubjects:
         )
         assert reports == (
             CheckedItem(
-                MarkdownItemRef(GUIDE.path),
+                ItemRef(GUIDE.path),
                 diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
                 ungoverned=(MetaSpecPart.FRONTMATTER, MetaSpecPart.BUDGET),
             ),
@@ -1959,7 +1959,7 @@ class TestCheckSubjects:
         )
         assert reports == (
             CheckedItem(
-                MarkdownItemRef(GUIDE.path),
+                ItemRef(GUIDE.path),
                 diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
                 ungoverned=(MetaSpecPart.FRONTMATTER, MetaSpecPart.BUDGET),
             ),
@@ -1983,7 +1983,7 @@ class TestCheckSubjects:
         )
         assert reports == (
             CheckedItem(
-                MarkdownItemRef(GUIDE.path),
+                ItemRef(GUIDE.path),
                 diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
                 ungoverned=(MetaSpecPart.FRONTMATTER, MetaSpecPart.BUDGET),
             ),
@@ -2002,7 +2002,7 @@ class TestCheckSubjects:
         #: Then
         assert reports == (
             CheckedItem(
-                MarkdownItemRef(GUIDE.path),
+                ItemRef(GUIDE.path),
                 diagnostics=(),
                 ungoverned=(MetaSpecPart.FRONTMATTER, MetaSpecPart.BUDGET),
             ),
@@ -2036,7 +2036,7 @@ class TestCheckSubjects:
         occurrence = AbsoluteLink(line=LineNumber(NonZeroUnsignedInt(3)), url='/docs/code/setup.md')
         assert reports == (
             CheckedItem(
-                MarkdownItemRef(GUIDE.path),
+                ItemRef(GUIDE.path),
                 diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
                 ungoverned=(MetaSpecPart.FRONTMATTER, MetaSpecPart.OUTLINE),
             ),
@@ -2057,7 +2057,7 @@ class TestCheckSubjects:
         occurrence = AbsoluteLink(line=LineNumber(NonZeroUnsignedInt(7)), url='/tmp/diff.md')
         assert reports == (
             CheckedItem(
-                MarkdownItemRef(REVIEW.path),
+                ItemRef(REVIEW.path),
                 diagnostics=(RuleDiagnostic(REVIEW_FILE, occurrence, Severity.ERROR),),
             ),
         ), "LINK001 runs at deny over a skill's SKILL.md, on the line of the link, counted from the file's first line"
@@ -2091,7 +2091,7 @@ class TestCheckSubjects:
         resource_path = RootRelativePath.parse('.agents/skills/review/references/deep/guide.md')
         assert reports == (
             CheckedItem(
-                MarkdownItemRef(guide.path),
+                ItemRef(guide.path),
                 diagnostics=(RuleDiagnostic(resource_path, occurrence, Severity.ERROR),),
             ),
         ), 'LINK001 runs at deny over a resource, reported at the path an agent reaches it by, on the line of the link'
@@ -2124,12 +2124,12 @@ class TestCheckSubjects:
         occurrence = AbsoluteLink(line=LineNumber(NonZeroUnsignedInt(1)), url='/x.md')
         first_path = RootRelativePath.parse('.agents/skills/review/references/a.md')
         assert reports == (
-            CheckedItem(MarkdownItemRef(REVIEW.path), diagnostics=()),
+            CheckedItem(ItemRef(REVIEW.path), diagnostics=()),
             CheckedItem(
-                MarkdownItemRef(first.path),
+                ItemRef(first.path),
                 diagnostics=(RuleDiagnostic(first_path, occurrence, Severity.ERROR),),
             ),
-            CheckedItem(MarkdownItemRef(second.path), diagnostics=()),
+            CheckedItem(ItemRef(second.path), diagnostics=()),
         ), 'a skill judges its SKILL.md alone, and each resource is reported on its own, in the order given'
 
     def test_check_subjects_with_an_undecodable_resource_reports_it_undecodable(self, package_table: RuleTable) -> None:
@@ -2178,7 +2178,7 @@ class TestCheckSubjects:
         assert reports == (
             UndecodableSubject(REVIEW, _CAFE_NAME_FAILURE),
             CheckedItem(
-                MarkdownItemRef(resource.path),
+                ItemRef(resource.path),
                 diagnostics=(RuleDiagnostic(resource.path, occurrence, Severity.ERROR),),
             ),
         ), 'each resource is a subject of its own, judged whatever bytes the SKILL.md holds'
@@ -2203,7 +2203,7 @@ class TestCheckSubjects:
         absolute_link = AbsoluteLink(line=LineNumber(NonZeroUnsignedInt(4)), url='/x.md')
         assert reports == (
             CheckedItem(
-                MarkdownItemRef(REVIEW.path),
+                ItemRef(REVIEW.path),
                 diagnostics=(
                     RuleDiagnostic(REVIEW_FILE, invalid_yaml, Severity.ERROR),
                     RuleDiagnostic(REVIEW_FILE, absolute_link, Severity.ERROR),
@@ -2232,9 +2232,9 @@ class TestCheckSubjects:
         reports = check_subjects(database, (GUIDE,), table)
 
         #: Then
-        assert reports == (
-            CheckedItem(MarkdownItemRef(GUIDE.path), diagnostics=(), ungoverned=(MetaSpecPart.STRUCTURE,)),
-        ), 'a rule over a Markdown file judges a document only under its structure, which is coverage when ungoverned'
+        assert reports == (CheckedItem(ItemRef(GUIDE.path), diagnostics=(), ungoverned=(MetaSpecPart.STRUCTURE,)),), (
+            'a rule over a Markdown file judges a document only under its structure, which is coverage when ungoverned'
+        )
 
     def test_check_subjects_with_a_fragment_missing_from_a_document_reports_broken_fragment_on_its_line(
         self, package_table: RuleTable
@@ -2250,7 +2250,7 @@ class TestCheckSubjects:
         occurrence = BrokenFragment(line=LineNumber(NonZeroUnsignedInt(3)), url='#install', has_headings=True)
         assert reports == (
             CheckedItem(
-                MarkdownItemRef(GUIDE.path),
+                ItemRef(GUIDE.path),
                 diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
                 ungoverned=(MetaSpecPart.FRONTMATTER, MetaSpecPart.OUTLINE),
             ),
@@ -2271,7 +2271,7 @@ class TestCheckSubjects:
         occurrence = BrokenFragment(line=LineNumber(NonZeroUnsignedInt(7)), url='#steps', has_headings=True)
         assert reports == (
             CheckedItem(
-                MarkdownItemRef(REVIEW.path),
+                ItemRef(REVIEW.path),
                 diagnostics=(RuleDiagnostic(REVIEW_FILE, occurrence, Severity.ERROR),),
             ),
         ), "LINK002 runs at deny over a skill's SKILL.md, on the line of the link"
@@ -2297,9 +2297,9 @@ class TestCheckSubjects:
         occurrence = BrokenFragment(line=LineNumber(NonZeroUnsignedInt(3)), url='#usage', has_headings=True)
         checklist_path = RootRelativePath.parse('.agents/skills/review/references/checklist.md')
         assert reports == (
-            CheckedItem(MarkdownItemRef(REVIEW.path), diagnostics=()),
+            CheckedItem(ItemRef(REVIEW.path), diagnostics=()),
             CheckedItem(
-                MarkdownItemRef(checklist.path),
+                ItemRef(checklist.path),
                 diagnostics=(RuleDiagnostic(checklist_path, occurrence, Severity.ERROR),),
             ),
         ), "a resource's fragment names one of its own headings, never the SKILL.md's, and is reported where it is"
@@ -2335,7 +2335,7 @@ class TestCheckSubjects:
         #: Then
         assert reports == (
             CheckedItem(
-                MarkdownItemRef(REVIEW.path),
+                ItemRef(REVIEW.path),
                 diagnostics=(
                     RuleDiagnostic(
                         REVIEW_FILE,
@@ -2345,7 +2345,7 @@ class TestCheckSubjects:
                 ),
             ),
             CheckedItem(
-                MarkdownItemRef(a.path),
+                ItemRef(a.path),
                 diagnostics=(
                     RuleDiagnostic(
                         a.path, EscapingLink(line=LineNumber(NonZeroUnsignedInt(1)), url='../a.md'), Severity.ERROR
@@ -2358,7 +2358,7 @@ class TestCheckSubjects:
                 ),
             ),
             CheckedItem(
-                MarkdownItemRef(guide.path),
+                ItemRef(guide.path),
                 diagnostics=(
                     RuleDiagnostic(
                         guide.path,
@@ -2400,7 +2400,7 @@ class TestCheckSubjects:
         resource_path = RootRelativePath.parse('.agents/skills/review/references/a.md')
         assert reports == (
             CheckedItem(
-                MarkdownItemRef(a.path),
+                ItemRef(a.path),
                 diagnostics=(RuleDiagnostic(resource_path, occurrence, Severity.ERROR),),
             ),
         ), 'the resource is read through the linked entry, and reported under the skills directory'
@@ -2420,7 +2420,7 @@ class TestCheckSubjects:
         occurrence = EscapingLink(line=LineNumber(NonZeroUnsignedInt(5)), url='../../skills/review/SKILL.md')
         assert reports == (
             CheckedItem(
-                MarkdownItemRef(REVIEW.path),
+                ItemRef(REVIEW.path),
                 diagnostics=(RuleDiagnostic(REVIEW_FILE, occurrence, Severity.ERROR),),
             ),
         ), 'the path alone decides, so a link out of the skill and back in by the repository path escapes'
@@ -2438,7 +2438,7 @@ class TestCheckSubjects:
         #: Then
         assert reports == (
             CheckedItem(
-                MarkdownItemRef(GUIDE.path),
+                ItemRef(GUIDE.path),
                 diagnostics=(),
                 ungoverned=(MetaSpecPart.FRONTMATTER, MetaSpecPart.OUTLINE),
             ),
@@ -2518,7 +2518,7 @@ class TestCheckSubjectsBrokenLink:
         #: Then
         assert reports == (
             CheckedItem(
-                MarkdownItemRef(REVIEW.path),
+                ItemRef(REVIEW.path),
                 diagnostics=(_broken_in_skill('.agents/skills/review/SKILL.md', 9, 'references/steps.md'),),
             ),
         ), 'a file and a directory the skill holds are found, whatever their kind, and the missing file is not'
@@ -2543,9 +2543,9 @@ class TestCheckSubjectsBrokenLink:
         #: Then
         guide = '.agents/skills/review/references/deep/guide.md'
         assert reports == (
-            CheckedItem(MarkdownItemRef(resources[0].ref.path), diagnostics=()),
+            CheckedItem(ItemRef(resources[0].ref.path), diagnostics=()),
             CheckedItem(
-                MarkdownItemRef(resources[1].ref.path),
+                ItemRef(resources[1].ref.path),
                 diagnostics=(_broken_in_skill(guide, 3, 'a.md'), _broken_in_skill(guide, 3, 'guide.md')),
             ),
         ), 'a link in a resource is read from the skill root, not from the resource, so only the first is found'
@@ -2570,7 +2570,7 @@ class TestCheckSubjectsBrokenLink:
         #: Then
         assert reports == (
             CheckedItem(
-                MarkdownItemRef(REVIEW.path),
+                ItemRef(REVIEW.path),
                 diagnostics=(_broken_in_skill('.agents/skills/review/SKILL.md', 7, 'guides/e.md'),),
             ),
         ), 'the symlink inside the skill is followed to the files it leads to, and a file it lacks is missing'
@@ -2597,11 +2597,11 @@ class TestCheckSubjectsBrokenLink:
         #: Then
         assert reports == (
             CheckedItem(
-                MarkdownItemRef(REVIEW.path),
+                ItemRef(REVIEW.path),
                 diagnostics=(_broken_in_skill('.agents/skills/review/SKILL.md', 7, 'references/b.md'),),
             ),
             CheckedItem(
-                MarkdownItemRef(resources[0].ref.path),
+                ItemRef(resources[0].ref.path),
                 diagnostics=(_broken_in_skill('.agents/skills/review/references/a.md', 3, 'c.md'),),
             ),
         ), 'each diagnostic names its file where an agent reaches it, under the skills directory, not under skills/'
@@ -2623,7 +2623,7 @@ class TestCheckSubjectsBrokenLink:
         reports = check_subjects(database, subjects, broken_link_table)
 
         #: Then
-        assert reports == (CheckedItem(MarkdownItemRef(REVIEW.path), diagnostics=()),), (
+        assert reports == (CheckedItem(ItemRef(REVIEW.path), diagnostics=()),), (
             'a link above the skill root is not judged as broken, whether a file lies where it leads or not'
         )
 
@@ -2646,7 +2646,7 @@ class TestCheckSubjectsBrokenLink:
         )
         assert reports == (
             CheckedItem(
-                MarkdownItemRef(GUIDE.path),
+                ItemRef(GUIDE.path),
                 diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
                 ungoverned=(),
             ),
@@ -2664,7 +2664,7 @@ class TestCheckSubjectsBrokenLink:
         reports = check_subjects(database, (GUIDE,), broken_link_table)
 
         #: Then
-        assert reports == (CheckedItem(MarkdownItemRef(GUIDE.path), diagnostics=(), ungoverned=()),), (
+        assert reports == (CheckedItem(ItemRef(GUIDE.path), diagnostics=(), ungoverned=()),), (
             "a sibling file and a directory reached by climbing out of the document's directory are both found"
         )
 
@@ -2680,7 +2680,7 @@ class TestCheckSubjectsBrokenLink:
         reports = check_subjects(database, (GUIDE,), broken_link_table)
 
         #: Then
-        assert reports == (CheckedItem(MarkdownItemRef(GUIDE.path), diagnostics=(), ungoverned=()),), (
+        assert reports == (CheckedItem(ItemRef(GUIDE.path), diagnostics=(), ungoverned=()),), (
             'a link into a directory the scan never read is not judged'
         )
 
@@ -2695,6 +2695,6 @@ class TestCheckSubjectsBrokenLink:
         reports = check_subjects(database, (GUIDE,), broken_link_table)
 
         #: Then
-        assert reports == (CheckedItem(MarkdownItemRef(GUIDE.path), diagnostics=(), ungoverned=()),), (
+        assert reports == (CheckedItem(ItemRef(GUIDE.path), diagnostics=(), ungoverned=()),), (
             'a link climbing above the repository root names nothing the snapshot can hold, so it is not judged'
         )

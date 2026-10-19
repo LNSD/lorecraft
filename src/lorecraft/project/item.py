@@ -17,7 +17,7 @@ from lorecraft.vfs import FileReadFailure, ResolvedPath, UnrecordedFileError
 
 
 @dataclass(frozen=True, slots=True, order=True)
-class MarkdownItemRef:
+class ItemRef:
     """The logical, reportable path of one governed Markdown item.
 
     Attributes:
@@ -27,7 +27,7 @@ class MarkdownItemRef:
     path: RootRelativePath
 
 
-type SubjectRef = MarkdownItemRef | SymlinkRef | CorpusDirectoryRef
+type SubjectRef = ItemRef | SymlinkRef | CorpusDirectoryRef
 
 
 class WrongItemKindError(TypeError):
@@ -134,7 +134,7 @@ class ItemDescriptor:
             activate the structure part.
     """
 
-    ref: MarkdownItemRef
+    ref: ItemRef
     read_location: ResolvedPath
     link_base: LinkBase
     origin: ItemOrigin
@@ -180,10 +180,10 @@ class ItemReadError(Error):
         source: The failure to read its file.
     """
 
-    ref: MarkdownItemRef
+    ref: ItemRef
     source: FileReadFailure | UnrecordedFileError
 
-    def __init__(self, ref: MarkdownItemRef, *, source: FileReadFailure | UnrecordedFileError) -> None:
+    def __init__(self, ref: ItemRef, *, source: FileReadFailure | UnrecordedFileError) -> None:
         self.ref = ref
         self.source = source
         super().__init__(f'cannot read item {ref.path}')

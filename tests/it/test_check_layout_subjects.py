@@ -16,7 +16,7 @@ from lorecraft import rules
 from lorecraft.core.path import RootRelativePath
 from lorecraft.engine import Subject, check_subjects
 from lorecraft.project.database import Database
-from lorecraft.project.item import MarkdownItemRef
+from lorecraft.project.item import ItemRef
 from lorecraft.project.layout import SNAPSHOT_SCOPE
 from lorecraft.rules.identity import Severity
 from lorecraft.rules.layout.escaping_symlink import EscapingSymlink
@@ -265,7 +265,7 @@ class TestCheckSubjectsLayout:
         assert reports == (
             _outside_report('.agents/skills/review/references', '.agents/skills/review/references', target),
             CheckedItem(
-                MarkdownItemRef(RootRelativePath.parse('.agents/skills/review/SKILL.md')),
+                ItemRef(RootRelativePath.parse('.agents/skills/review/SKILL.md')),
                 diagnostics=(),
             ),
         ), 'a layout entry and a skill share one run, each reported in the order given'

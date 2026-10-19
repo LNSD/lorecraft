@@ -20,7 +20,7 @@ from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.project.aspect import AspectFilename, AspectNamespace
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.document import DocumentRef
-from lorecraft.project.item import DocumentOrigin, MarkdownItemRef, SkillEntryOrigin
+from lorecraft.project.item import DocumentOrigin, ItemRef, SkillEntryOrigin
 from lorecraft.project.layout import DOCS_DIR, SPECS_DIR
 from lorecraft.project.link_target import (
     DocumentDirectory,
@@ -444,7 +444,7 @@ class FakeSymlinkDatabase:
         """The answer of a declared query over the symlink, read through this fake's primitives."""
         return query(self)
 
-    def query_at[T](self, ref: MarkdownItemRef, query: ItemQuery[T]) -> T:
+    def query_at[T](self, ref: ItemRef, query: ItemQuery[T]) -> T:
         """Cross-item reads are outside the symlink fake's declared facts."""
         raise AssertionError(f'no item query is available for {ref}')
 
@@ -476,7 +476,7 @@ class FakeCorpusDirectoryDatabase:
         """The answer of a declared query over the directory, read through this fake's primitives."""
         return query(self)
 
-    def query_at[T](self, ref: MarkdownItemRef, query: ItemQuery[T]) -> T:
+    def query_at[T](self, ref: ItemRef, query: ItemQuery[T]) -> T:
         """Cross-item reads are outside the directory fake's declared facts."""
         raise AssertionError(f'no item query is available for {ref}')
 

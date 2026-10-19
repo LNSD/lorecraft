@@ -6,7 +6,7 @@ carry-over rules. Declared queries run through `query(query, ref)`, which memoiz
 item values such as parsing, frontmatter, counts and structure specifications are declared in `lorecraft.project.query`
 and derive from raw primitive state.
 
-The item family shares `MarkdownItemRef` across documents, skill entries and resources. Resource references are
+The item family shares `ItemRef` across documents, skill entries and resources. Resource references are
 registered from their skill's listing; documents not listed by the model can still be resolved from their corpus and
 filename. A new database is created for each snapshot, and no derived value is cached across databases here.
 
@@ -39,7 +39,7 @@ from lorecraft.project.item import (
     DocumentOrigin,
     ItemOrigin,
     ItemReadError,
-    MarkdownItemRef,
+    ItemRef,
     SpecificationOrigin,
     UnlistedItemError,
 )
@@ -173,7 +173,7 @@ class _Reads[R: QueryTargetRef, P: _HasRecordedReads](metaclass=ABCMeta):
         target = self._fresh(self._ref)
         return self._compose(key, target, query)
 
-    def query_at[T](self, ref: MarkdownItemRef, query: ItemQuery[T]) -> T:
+    def query_at[T](self, ref: ItemRef, query: ItemQuery[T]) -> T:
         """Read an item query and include its dependencies."""
         key = Read(query, ref)
         target = _ItemPrimitives(self._database, ref)
@@ -244,7 +244,7 @@ def _witness_text(
     return source.text
 
 
-class _ItemPrimitives(_Reads[MarkdownItemRef, '_ItemPrimitives']):
+class _ItemPrimitives(_Reads[ItemRef, '_ItemPrimitives']):
     """The primitives of one item as the database answers them, noting each one a query reads.
 
     A primitive that walks the model or other files, such as `linked_documents` and `item_base`,
@@ -255,7 +255,7 @@ class _ItemPrimitives(_Reads[MarkdownItemRef, '_ItemPrimitives']):
 
     __slots__ = ()
 
-    def _fresh(self, ref: MarkdownItemRef) -> _ItemPrimitives:
+    def _fresh(self, ref: ItemRef) -> _ItemPrimitives:
         return _ItemPrimitives(self._database, ref)
 
     @primitive
@@ -325,7 +325,7 @@ class Database:
     ref)`, which memoizes each answer and its reads. Schema queries use the same cache keyed by `(query,
     SchemaReference)` and read immutable inputs from the model.
 
-    The item family is keyed by `MarkdownItemRef`. A resource's
+    The item family is keyed by `ItemRef`. A resource's
     reference is registered from its listing by `resource_item(location)`. A document outside the model's listing is
     still resolved from its corpus and filename. `from_snapshot(snapshot)` starts a fresh database; it carries no
     cached values from another revision. `resource_item(location)` registers a resource under the ref in its listing.
@@ -355,9 +355,9 @@ class Database:
         self._unreported_docs_refusals: FrozenMapping[RootRelativePath, RefusedRecord] | None = None
         # The unified family's caches, keyed by the common reference: the one implementation of every document and
         # skill entry or resource query.
-        self._items: dict[MarkdownItemRef, ResolvedItem] = {}
-        self._item_texts: dict[MarkdownItemRef, ItemText | Undecodable] = {}
-        self._item_link_targets: dict[MarkdownItemRef, Mapping[NormalisedLinkPath, LinkTargetEntry]] = {}
+        self._items: dict[ItemRef, ResolvedItem] = {}
+        self._item_texts: dict[ItemRef, ItemText | Undecodable] = {}
+        self._item_link_targets: dict[ItemRef, Mapping[NormalisedLinkPath, LinkTargetEntry]] = {}
         # Declared queries: the answer by the function and the item, with the primitive and cross-item query keys
         # it read.
         self._queries: dict[Read, tuple[object, frozenset[Read]]] = {}
@@ -462,11 +462,11 @@ class Database:
         """
         document = self._model.find_document(path)
         if document is not None:
-            return _witness_text(self.item_text(MarkdownItemRef(document.path)))
+            return _witness_text(self.item_text(ItemRef(document.path)))
 
         for location in self._model.skill_locations.values():
             if path == location.ref.path:
-                return _witness_text(self.item_text(MarkdownItemRef(location.ref.path)))
+                return _witness_text(self.item_text(ItemRef(location.ref.path)))
             if path.is_relative_to(location.ref.directory):
                 for resource in self.skill_resources(location).resources:
                     if path == resource.ref.path:
@@ -531,7 +531,7 @@ class Database:
 
     # Item resolution and registration use the common reference; listed resources and unlisted documents enter here.
 
-    def _item(self, ref: MarkdownItemRef) -> ResolvedItem:
+    def _item(self, ref: ItemRef) -> ResolvedItem:
         """The descriptor and governance for a listed item, resource or answerable document, found once."""
         resolved = self._items.get(ref)
         if resolved is None:
@@ -545,7 +545,7 @@ class Database:
 
     # Input query: decode one resolved item's bytes into the witness all content queries read.
 
-    def item_text(self, ref: MarkdownItemRef) -> ItemText | Undecodable:
+    def item_text(self, ref: ItemRef) -> ItemText | Undecodable:
         """One item's bytes decoded as UTF-8, read from the descriptor's read location on the first call for its ref.
 
         The one place an item's bytes become text for a rule: every other query about it takes the witness this
@@ -565,7 +565,7 @@ class Database:
         """
         return self._decode(ref)
 
-    def _decode(self, ref: MarkdownItemRef) -> ItemText | Undecodable:
+    def _decode(self, ref: ItemRef) -> ItemText | Undecodable:
         """Decode an item the database already resolved, listed or not, once."""
         decoded = self._item_texts.get(ref)
         if decoded is None:
@@ -579,7 +579,7 @@ class Database:
             self._item_texts[ref] = decoded
         return decoded
 
-    def resource_item(self, location: SkillResourceLocation) -> MarkdownItemRef:
+    def resource_item(self, location: SkillResourceLocation) -> ItemRef:
         """The common reference of a skill's resource, resolved from the location its skill's listing gives.
 
         The model lists no resource, so the resource is kept apart from the listed items, as an unlisted document is:
@@ -591,11 +591,11 @@ class Database:
         Args:
             location: The resource, as `skill_resources` locates it; its resolved file is where the text is read.
         """
-        item = MarkdownItemRef(location.ref.path)
+        item = ItemRef(location.ref.path)
         self._register(item, lambda: self._model.resolve_resource(location))
         return item
 
-    def _register(self, item: MarkdownItemRef, resolve: Callable[[], ResolvedItem]) -> None:
+    def _register(self, item: ItemRef, resolve: Callable[[], ResolvedItem]) -> None:
         """Keep a resource's resolved item once, before its common-ref queries ask for it.
 
         Args:
@@ -626,7 +626,7 @@ class Database:
             self._item_link_targets[source.ref] = targets
         return targets
 
-    def item_governance(self, ref: MarkdownItemRef) -> Governance | None:
+    def item_governance(self, ref: ItemRef) -> Governance | None:
         """The specifications that govern an item, resolved by the model on the first call for its ref.
 
         A layer whose structure file failed to load is held as the failed structure the model recorded, in the order
@@ -642,7 +642,7 @@ class Database:
         return self._item(ref).governance
 
     @overload
-    def query[T](self, query: Query[ItemPrimitives, T], ref: MarkdownItemRef) -> T: ...  # noqa: D102 — implementation documents the overload
+    def query[T](self, query: Query[ItemPrimitives, T], ref: ItemRef) -> T: ...  # noqa: D102 — implementation documents the overload
 
     @overload
     def query[T](self, query: Query[SymlinkPrimitives, T], ref: SymlinkRef) -> T: ...  # noqa: D102 — implementation documents the overload
@@ -656,7 +656,7 @@ class Database:
     def query[T](
         self,
         query: Callable[..., T],
-        ref: MarkdownItemRef | SymlinkRef | CorpusDirectoryRef | SchemaReference,
+        ref: ItemRef | SymlinkRef | CorpusDirectoryRef | SchemaReference,
     ) -> T:
         """The memoized answer of a declared query over a typed subject.
 
@@ -674,7 +674,7 @@ class Database:
             SchemaReferenceError: If the schema subject is not present in the loaded model.
         """
         match ref:
-            case MarkdownItemRef():
+            case ItemRef():
                 primitives = _ItemPrimitives(self, ref)
             case SymlinkRef():
                 primitives = _ReadSymlinkPrimitives(self, ref)
@@ -706,7 +706,7 @@ class Database:
         | Query[SymlinkPrimitives, object]
         | Query[CorpusDirectoryPrimitives, object]
         | Query[SchemaPrimitives, object],
-        ref: MarkdownItemRef | SymlinkRef | CorpusDirectoryRef | SchemaReference,
+        ref: ItemRef | SymlinkRef | CorpusDirectoryRef | SchemaReference,
     ) -> frozenset[Read]:
         """The typed read keys recorded for a query; public so nested queries avoid private-cache access.
 
