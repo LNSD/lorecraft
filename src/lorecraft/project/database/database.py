@@ -50,11 +50,13 @@ from lorecraft.project.link_target import (
     link_targets_of,
 )
 from lorecraft.project.query import (
-    CorpusDirectoryQuery,
+    CorpusDirectoryPrimitives,
     ItemQuery,
-    SchemaQuery,
+    Primitives,
+    Query,
+    SchemaPrimitives,
     SubjectRef,
-    SymlinkQuery,
+    SymlinkPrimitives,
     item_parse,
 )
 from lorecraft.project.schemas import (
@@ -165,7 +167,7 @@ class _Reads[R: SubjectRef, P: _HasRecordedReads](metaclass=ABCMeta):
         self._record(*self._database._query_reads(key))
         return answer
 
-    def query[T](self, query: Callable[[P], T]) -> T:
+    def query[T](self, query: Query[P, T]) -> T:
         """Read another query over this subject and include its dependencies."""
         key = Read(query, self._ref)
         target = self._fresh(self._ref)
@@ -177,7 +179,7 @@ class _Reads[R: SubjectRef, P: _HasRecordedReads](metaclass=ABCMeta):
         target = _ItemPrimitives(self._database, ref)
         return self._compose(key, target, query)
 
-    def query_schema[T](self, ref: SchemaReference, query: SchemaQuery[T]) -> T:
+    def query_schema[T](self, ref: SchemaReference, query: Query[SchemaPrimitives, T]) -> T:
         """Read a schema query and include its dependencies."""
         key = Read(query, ref)
         target = _ReadSchemaPrimitives(self._database, ref)
@@ -640,16 +642,16 @@ class Database:
         return self._item(ref).governance
 
     @overload
-    def query[T](self, query: ItemQuery[T], ref: MarkdownItemRef) -> T: ...  # noqa: D102 — implementation documents the overload
+    def query[T](self, query: Query[Primitives, T], ref: MarkdownItemRef) -> T: ...  # noqa: D102 — implementation documents the overload
 
     @overload
-    def query[T](self, query: SymlinkQuery[T], ref: SymlinkRef) -> T: ...  # noqa: D102 — implementation documents the overload
+    def query[T](self, query: Query[SymlinkPrimitives, T], ref: SymlinkRef) -> T: ...  # noqa: D102 — implementation documents the overload
 
     @overload
-    def query[T](self, query: CorpusDirectoryQuery[T], ref: CorpusDirectoryRef) -> T: ...  # noqa: D102 — implementation documents the overload
+    def query[T](self, query: Query[CorpusDirectoryPrimitives, T], ref: CorpusDirectoryRef) -> T: ...  # noqa: D102 — implementation documents the overload
 
     @overload
-    def query[T](self, query: SchemaQuery[T], ref: SchemaReference) -> T: ...  # noqa: D102 — implementation documents the overload
+    def query[T](self, query: Query[SchemaPrimitives, T], ref: SchemaReference) -> T: ...  # noqa: D102 — implementation documents the overload
 
     def query[T](
         self,
@@ -700,7 +702,10 @@ class Database:
 
     def query_reads(
         self,
-        query: ItemQuery[object] | SymlinkQuery[object] | CorpusDirectoryQuery[object] | SchemaQuery[object],
+        query: Query[Primitives, object]
+        | Query[SymlinkPrimitives, object]
+        | Query[CorpusDirectoryPrimitives, object]
+        | Query[SchemaPrimitives, object],
         ref: MarkdownItemRef | SymlinkRef | CorpusDirectoryRef | SchemaReference,
     ) -> frozenset[Read]:
         """The typed read keys recorded for a query; public so nested queries avoid private-cache access.

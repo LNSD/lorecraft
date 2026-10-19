@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import ClassVar, Self
 
 from lorecraft.project.corpus import CorpusName
-from lorecraft.project.query import CorpusDirectoryPrimitives, CorpusDirectoryQuery
+from lorecraft.project.query import CorpusDirectoryPrimitives, Query
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import EntryHelp, EntryNote, EntrySubdiagnostic
@@ -79,7 +79,7 @@ class ReservedCorpusOverlap(QueriedCorpusDirectoryRule[CorpusName]):
         )
 
     @classmethod
-    def query(cls) -> CorpusDirectoryQuery[CorpusName]:
+    def query(cls) -> Query[CorpusDirectoryPrimitives, CorpusName]:
         """The reserved corpus the directory takes."""
         return reserved_corpus
 

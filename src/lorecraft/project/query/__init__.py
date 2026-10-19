@@ -18,7 +18,6 @@ from .item_facts import (
 from .linked_paths import linked_paths
 from .primitives import (
     CorpusDirectoryPrimitives,
-    CorpusDirectoryQuery,
     CountPrimitives,
     DecodedText,
     GovernancePrimitives,
@@ -29,19 +28,16 @@ from .primitives import (
     Query,
     QueryPrimitives,
     SchemaPrimitives,
-    SchemaQuery,
     SchemaReads,
     SubjectQuery,
     SubjectRef,
     SymlinkPrimitives,
-    SymlinkQuery,
     SyntaxPrimitives,
     TitlePrimitives,
 )
 
 __all__: list[str] = [
     'CorpusDirectoryPrimitives',
-    'CorpusDirectoryQuery',
     'CountPrimitives',
     'DecodedText',
     'GovernancePrimitives',
@@ -51,13 +47,11 @@ __all__: list[str] = [
     'Primitives',
     'SchemaPrimitives',
     'SchemaReads',
-    'SchemaQuery',
     'Query',
     'QueryPrimitives',
     'SubjectQuery',
     'SubjectRef',
     'SymlinkPrimitives',
-    'SymlinkQuery',
     'SyntaxPrimitives',
     'TitlePrimitives',
     'linked_paths',

@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from typing import ClassVar, Self
 
-from lorecraft.project.query import SymlinkPrimitives, SymlinkQuery
+from lorecraft.project.query import Query, SymlinkPrimitives
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import EntryHelp, EntryNote, EntrySubdiagnostic
@@ -95,7 +95,7 @@ class EscapingSymlink(QueriedSymlinkRule[RootExit]):
         )
 
     @classmethod
-    def query(cls) -> SymlinkQuery[RootExit]:
+    def query(cls) -> Query[SymlinkPrimitives, RootExit]:
         """Where the symlink's chain leaves the repository."""
         return symlink_exit
 
