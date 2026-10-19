@@ -404,7 +404,6 @@ class TestRuleTableItemIndex:
             (ItemType.DOCUMENT, MetaSpecPart.OUTLINE): ('OUT006', 'OUT007', 'OUT008'),
             (ItemType.DOCUMENT, MetaSpecPart.BUDGET): ('LEN001',),
             (ItemType.SKILL_ENTRYPOINT, None): (
-                'FM004',
                 'FM011',
                 'FM012',
                 'LEN002',
@@ -417,6 +416,7 @@ class TestRuleTableItemIndex:
                 'FM001',
                 'FM002',
                 'FM003',
+                'FM004',
                 'FM005',
                 'FM006',
                 'FM007',
@@ -483,7 +483,7 @@ class TestRuleTableItemIndex:
             'a different meta spec part has no budget rule'
         )
 
-    def test_item_rules_with_a_schema_gate_are_indexed_without_a_meta_spec_part(self) -> None:
+    def test_name_mismatch_skill_rule_is_indexed_under_frontmatter(self) -> None:
         #: Given
         severities: dict[type[Rule], Severity] = {NameMismatch: Severity.ERROR}
         expected = (EnabledRule(NameMismatch, Severity.ERROR),)
@@ -492,11 +492,8 @@ class TestRuleTableItemIndex:
         table = RuleTable(severities)
 
         #: Then
-        assert table.item_rules(ItemType.SKILL_ENTRYPOINT, None) == expected, (
-            'Always and schema gates use the item-type and schema indexes'
-        )
-        assert table.item_rules(ItemType.SKILL_ENTRYPOINT, MetaSpecPart.FRONTMATTER) == (), (
-            'schema gates do not use a meta spec part index'
+        assert table.item_rules(ItemType.SKILL_ENTRYPOINT, MetaSpecPart.FRONTMATTER) == expected, (
+            'the skill name rule uses the frontmatter governance index'
         )
 
     def test_frontmatter_rule_with_skill_entry_gate_is_indexed_by_frontmatter(self) -> None:

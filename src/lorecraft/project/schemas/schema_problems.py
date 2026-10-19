@@ -2,8 +2,8 @@
 
 A schema reports a problem by the field it concerns, as `FrontmatterProblem` states; this module places it on the
 line that field is written on, through `field_line`, the one place a field's line, or line 1 in its absence, is
-decided. A document is held to each frontmatter schema that governs it, and a skill to the Agent Skills
-specification's, so each set of problems names the schema it was found against.
+decided. A document or skill is held to each frontmatter schema that governs it, so each set of problems names the
+schema it was found against.
 """
 
 from dataclasses import dataclass
@@ -29,7 +29,7 @@ from .frontmatter_problem import (
     UnknownFieldProblem,
     WrongTypeProblem,
 )
-from .frontmatter_schema import StatedFrontmatterSchema
+from .frontmatter_schema import FrontmatterSchema, StatedFrontmatterSchema
 
 
 @dataclass(frozen=True, slots=True)
@@ -82,14 +82,12 @@ class SchemaProblems:
 def locate_schema_problems(
     frontmatter: FrontmatterNode, schemas: tuple[StatedFrontmatterSchema, ...]
 ) -> tuple[SchemaProblems, ...]:
-    """What each frontmatter schema rejects in a document's frontmatter, each problem on its line. Raises nothing.
-
-    Every schema is applied on its own: a document governed by a corpus and a namespace schema must conform to both.
+    """What each applicable schema rejects in frontmatter, each problem on its line. Raises nothing.
 
     Args:
         frontmatter: The document's frontmatter, as parsed; a block that is missing, not YAML or not a mapping is held
             to no schema.
-        schemas: The frontmatter schemas that govern the document, in the order they apply.
+        schemas: The frontmatter schemas that govern the item, in the order they apply.
 
     Returns:
         One entry per schema, in the order given, each naming the structure specification that states it; none when
@@ -112,6 +110,24 @@ def locate_schema_problems(
             )
         )
     return tuple(found)
+
+
+def locate_repository_schema_problems(
+    frontmatter: FrontmatterNode, schema: FrontmatterSchema, source: RootRelativePath
+) -> tuple[SchemaProblems, ...]:
+    """What one registry-loaded repository schema rejects in frontmatter, with its provenance."""
+    match frontmatter:
+        case MissingFrontmatter() | InvalidYamlFrontmatter() | NonMappingFrontmatter():
+            return ()
+        case Frontmatter():
+            return (
+                SchemaProblems(
+                    StructureSpecSchema(source),
+                    _located_problems(frontmatter, schema.validate(frontmatter.data)),
+                ),
+            )
+        case _:
+            assert_never(frontmatter)
 
 
 def locate_agent_skills_schema_problems(

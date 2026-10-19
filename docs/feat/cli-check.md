@@ -64,7 +64,7 @@ Invalid selectors exit `2`; aliases and `allow` rules warn.
 
 | Argument or option | Default | Env var | Description |
 |--------------------|---------|---------|-------------|
-| `--no-builtin-skills-schema` | unset | — | Disable built-in frontmatter rules; repo schemas still apply |
+| `--no-builtin-skills-schema` | unset | — | Do not apply the bundled Agent Skills schema or its contradiction preflight; repository schemas still apply |
 | `--root <path>`    | nearest of working directory and parents holding `docs/__meta__/` | — | The repository root, as [Root Discovery](#root-discovery) describes |
 | `--format <text\|short\|json>` | `text` | — | The output format, as [Output](#output) describes |
 | `--color <WHEN>` | `auto` | [`NO_COLOR`](https://no-color.org/), [`FORCE_COLOR`](https://force-color.org/) | Control when colored output is used. `auto`: colour when stdout is an interactive terminal, unless `NO_COLOR` is set; `FORCE_COLOR` forces it. `always`: colour even when stdout is not a terminal. `never`: no colour. Only the `text` format is coloured. |
@@ -89,12 +89,12 @@ lorecraft check --select OUT006 --ignore OUT
 lorecraft check --select OUT00
 ```
 
-Opt-out disables built-in frontmatter rules, including `FM004`, and contradiction preflight; repo schemas remain.
-Without a repo schema, skill frontmatter is inactive: no diagnostic, one `ungoverned for frontmatter` coverage line,
-and exit `0`. Skills without a skills-corpus layer report other ungoverned parts too, e.g.
+`--no-builtin-skills-schema` skips the bundled schema and contradiction preflight; repository schemas still
+apply, so `FM004` can run. For skills, it expects the listed directory name; its guidance never renames
+`SKILL.md`. Without a repository schema, skill frontmatter has no schema diagnostics and is reported ungoverned.
+Without a skills-corpus layer, other parts are ungoverned too:
 `.agents/skills/review/SKILL.md: ungoverned for structure, outline, budget`; with opt-out, frontmatter joins that line.
-This holds for malformed/missing frontmatter and mismatched names too. Direct constraints excluding required
-`name`/`description` fail, naming field and rule; indirect and cross-layer cases are unchecked.
+Excluding required `name`/`description` fails; indirect or cross-layer constraints are unchecked.
 
 ### Output
 
@@ -168,7 +168,7 @@ JSON paths must be UTF-8; non-ASCII text is direct, not escaped.
 
 | Rule | Reported when |
 |------|---------------|
-| `FM` | Frontmatter checks: a document's frontmatter against its schemas, a skill's against the Agent Skills specification and Lorecraft's recommendations. `FM001` missing-frontmatter, `FM002` invalid-yaml, `FM003` non-mapping-frontmatter, `FM004` name-mismatch, `FM005` duplicate-key, `FM006` missing-field, `FM007` unknown-field (a warning), `FM008` wrong-type, `FM009` invalid-value, `FM010` invalid-frontmatter, `FM011` malformed-allowed-tools (a warning; pattern whitespace stays intact), `FM012` allowed-tools-too-long (a warning over 500 characters), `FM013` too-many-fields (`maxProperties`, an error), `FM014` too-few-fields (`minProperties`, an error) |
+| `FM` | Frontmatter checks use applicable schemas; the bundled skills schema is optional. `FM004` compares skill names with listed directories. `FM001` missing-frontmatter, `FM002` invalid-yaml, `FM003` non-mapping-frontmatter, `FM004` name-mismatch, `FM005` duplicate-key, `FM006` missing-field, `FM007` unknown-field (a warning), `FM008` wrong-type, `FM009` invalid-value, `FM010` invalid-frontmatter, `FM011` malformed-allowed-tools (a warning; pattern whitespace stays intact), `FM012` allowed-tools-too-long (a warning over 500 characters), `FM013` too-many-fields (`maxProperties`, an error), `FM014` too-few-fields (`minProperties`, an error) |
 | `OUT` | Outline checks: a document's H1 title and sections against its structure files. `OUT001` missing-title, `OUT002` extra-title, `OUT003` title-not-first, `OUT004` empty-section, `OUT005` forbidden-section, `OUT006` missing-section, `OUT007` section-out-of-order, `OUT008` unexpected-section, `OUT009` invalid-title |
 | `LEN` | Length limits: a document's tokens, a section's or its title's words or characters, a `SKILL.md`'s lines. `LEN001` too-many-tokens, `LEN002` too-many-lines, `LEN003` section-too-many-words, `LEN004` title-too-many-words, `LEN005` title-too-long |
 | `LINK` | Links in structured documents and skills. `LINK001` absolute, `LINK002` broken fragment, `LINK003` broken, `LINK004` escaping, `LINK005` extension-link (link to same-directory name extension; warning; also checks specs), `LINK006` missing-base-link (an extension omits its nearest existing document or specification ancestor under `References`; warning; also checks specs), `LINK007` mutual-link (documents in different corpora link each other; warning) |

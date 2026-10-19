@@ -19,14 +19,13 @@ from lorecraft.project.syntax import Frontmatter, InvalidYamlFrontmatter, Missin
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Here, Label, Note, Subdiagnostic
-from lorecraft.rules.subject import Gate, MetaSpecPart, QueriedItemRule, WhenMetaSpec, WhenSchema
+from lorecraft.rules.subject import Gate, MetaSpecPart, QueriedItemRule, WhenMetaSpec
 from lorecraft.schemas.agent_skills_frontmatter import (
     EmptySkillNameError,
     InvalidSkillNameFormatError,
     OverlongSkillNameError,
     SkillName,
 )
-from lorecraft.schemas.builtin import AGENT_SKILLS_SCHEMA_REFERENCE
 
 from .__ruleset__ import GROUP_ID, FrontmatterFacts, frontmatter_facts, owner_spec
 
@@ -85,17 +84,16 @@ class NameMismatch(QueriedItemRule[FrontmatterFacts]):
 
     ## What it does
 
-    Checks for documents whose structure file sets a `frontmatter` schema and whose `name` differs from
-    their filename without its extension, and for skills whose `name` differs from the name of their directory,
-    as the Agent Skills specification requires. A skill's directory is named as an agent lists it in its skills
-    directory: when that directory is a link to a directory named otherwise, the listed name is the one expected.
+    Checks for governed items whose `name` differs from the filename or directory name they are found under. A
+    skill's directory is named as an agent lists it in its skills directory: when that directory is a link to a
+    directory named otherwise, the listed name is the one expected.
 
     Only a `name` written as a string is compared. A `name` that is missing or of another type is the schema's to
     report, so a document whose schema does not require `name` may leave it out.
 
-    No schema key states the rule: the package holds a document's `name` to its filename, and the Agent Skills
-    specification holds a skill's to its directory name. The rename of a skill's directory is offered only for a
-    `name` that specification accepts.
+    The name comparison applies when a frontmatter schema governs the item, whether the schema comes from a
+    structure specification or from the Agent Skills specification. The rename of a skill's directory is offered
+    only when its `name` matches the Agent Skills name format.
 
     ## Why is this bad?
 
@@ -142,7 +140,7 @@ class NameMismatch(QueriedItemRule[FrontmatterFacts]):
             one that disagrees with it.
         owner: The document or the skill whose `name` is compared. It says what the name is held to, the document's
             filename or the skill's directory name with where a linked directory leads, and which kind of subject
-            is governed; no note renders the meta spec, since no schema states this rule.
+            is governed.
         name: The `name` the frontmatter writes.
     """
 
@@ -153,7 +151,7 @@ class NameMismatch(QueriedItemRule[FrontmatterFacts]):
     APPLIES_TO: ClassVar[Mapping[ItemType, Gate]] = MappingProxyType(
         {
             ItemType.DOCUMENT: WhenMetaSpec(MetaSpecPart.FRONTMATTER),
-            ItemType.SKILL_ENTRYPOINT: WhenSchema(AGENT_SKILLS_SCHEMA_REFERENCE),
+            ItemType.SKILL_ENTRYPOINT: WhenMetaSpec(MetaSpecPart.FRONTMATTER),
         }
     )
 
@@ -176,11 +174,7 @@ class NameMismatch(QueriedItemRule[FrontmatterFacts]):
         return (Label(Here(self.line), f'expected `{_expected_name(self.owner)}`'),)
 
     def children(self) -> tuple[Subdiagnostic, ...]:
-        """Say which name is expected and why, the two ways to make the names agree, and where a link leads.
-
-        No schema states this rule, so no note points at the structure file: the document's `name` is held to its
-        filename by the package, and a skill's to its directory by the Agent Skills specification.
-        """
+        """Say which name is expected, the two ways to make the names agree, and where a link leads."""
         owner = self.owner
         match owner:
             case DocumentFrontmatterOwner():
@@ -194,7 +188,7 @@ class NameMismatch(QueriedItemRule[FrontmatterFacts]):
                 return tuple(parts)
             case SkillFrontmatterOwner():
                 parts = [
-                    Note('the Agent Skills specification requires `name` to match the skill directory name'),
+                    Note("a skill's `name` must match its directory name"),
                     Help(f'set `name` to {str(owner.directory_name)!r}'),
                 ]
                 # Renaming the directory to a `name` the specification rejects would trade this finding for another.

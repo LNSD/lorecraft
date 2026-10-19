@@ -110,6 +110,7 @@ class PrimitiveRead(StrEnum):
     ITEM_LISTED_NAME = 'item_listed_name'
     TEXT = 'text'
     GOVERNANCE = 'governance'
+    SCHEMA_INPUTS = 'schema_inputs'
     LINK_TARGETS = 'link_targets'
     LINK_BASE = 'link_base'
     ITEM_DESCRIPTOR = 'item_descriptor'
@@ -300,6 +301,11 @@ class _ItemPrimitives(_Reads[ItemRef, '_ItemPrimitives']):
     def governance(self) -> Governance | None:
         """The model's governance of the item."""
         return self._database.item_governance(self._ref)
+
+    @primitive
+    def schema_inputs(self) -> Mapping[SchemaRef, SchemaInput]:
+        """The immutable schema inputs retained by the loaded model."""
+        return self._database.model().schema_inputs
 
     @primitive
     def link_targets(self) -> Mapping[NormalisedLinkPath, LinkTargetEntry]:

@@ -243,7 +243,7 @@ class TestNameMismatch:
 
         #: Then
         assert children == (
-            Note('the Agent Skills specification requires `name` to match the skill directory name'),
+            Note("a skill's `name` must match its directory name"),
             Help("set `name` to 'review'"),
             Help("or rename the skill directory to 'code-review'"),
             Note("'review' is a link to 'skills/code-review'"),
@@ -260,7 +260,7 @@ class TestNameMismatch:
 
         #: Then
         assert children == (
-            Note('the Agent Skills specification requires `name` to match the skill directory name'),
+            Note("a skill's `name` must match its directory name"),
             Help("set `name` to 'review'"),
             Help("or rename the skill directory to 'code-review'"),
         ), 'a link to a directory of the listed name explains nothing, so no note names it'
@@ -274,7 +274,7 @@ class TestNameMismatch:
 
         #: Then
         assert children == (
-            Note('the Agent Skills specification requires `name` to match the skill directory name'),
+            Note("a skill's `name` must match its directory name"),
             Help("set `name` to 'review'"),
         ), 'a directory renamed to a name FM009 rejects would trade this finding for that one, so it is not offered'
 
@@ -288,7 +288,7 @@ class TestNameMismatch:
 
         #: Then
         assert children == (
-            Note('the Agent Skills specification requires `name` to match the skill directory name'),
+            Note("a skill's `name` must match its directory name"),
             Help("set `name` to 'review'"),
             Help("or rename the skill directory to 'code-review'"),
             Note("'review' is a link to the repository root"),

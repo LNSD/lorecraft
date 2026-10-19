@@ -79,7 +79,10 @@ text must be kept.
 - A block sequence, scalar or empty block at the top level is `FM003 non-mapping-frontmatter`.
 - A flow collection at the top level is `FM002`, even when it contains a mapping.
 - The format excludes YAML constructs used to share nodes or choose custom types; write the value directly.
-- Schema rules apply after the block decodes. A valid value can still fail its frontmatter schema.
+- Applicable frontmatter schemas are checked from broader to narrower governance layers. A missing-field
+  diagnostic is reported only once when multiple schemas require the same field. Frontmatter rules, including
+  the `name` comparison, run only when at least one applicable schema is loaded; a valid value can still fail a
+  schema that applies to the item.
 - `---` delimiters ending in a lone `\r` are not recognized as a frontmatter block.
 
 ## Refused Constructs
@@ -152,7 +155,7 @@ When another later value replaces a reported value, a note at the last occurrenc
 ## References
 
 - [cli-check](cli-check.md) - Related: the command that reports these findings
-- [spec-structure-frontmatter](spec-structure-frontmatter.md) - Related: the schema applied after decoding
+- [spec-structure-frontmatter](spec-structure-frontmatter.md) - Related: structure schemas applied after decoding
 - [adr-019](../arch/adr-019-frontmatter-format.md) - Source: the format decision
 - [adr-017](../arch/adr-017-yaml-parser.md) - Source: the parser decision
 

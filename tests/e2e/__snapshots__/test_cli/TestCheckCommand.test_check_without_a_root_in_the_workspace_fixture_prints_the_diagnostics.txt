@@ -4,7 +4,7 @@ error[FM004]: `name` is 'alpha', which is not the name it is found under
 2 │ name: alpha
   │ ─────────── expected `beta`
   │
-  = note: the Agent Skills specification requires `name` to match the skill directory name
+  = note: a skill's `name` must match its directory name
   = help: set `name` to 'beta'
   = help: or rename the skill directory to 'alpha'
   = note: 'beta' is a link to '.agents/skills/alpha'

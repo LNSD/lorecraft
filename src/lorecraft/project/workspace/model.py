@@ -46,13 +46,8 @@ from lorecraft.project.item import (
 )
 from lorecraft.project.layout import DOCS_DIR, DOCUMENT_SUFFIX, SPECS_DIR
 from lorecraft.project.link_target import DocumentDirectory, SkillRoot
-from lorecraft.project.schemas import (
-    CorpusSpecName,
-    NamespaceSpecName,
-    StatedFrontmatterSchema,
-    StructureSpec,
-    parse_spec_name,
-)
+from lorecraft.project.schemas import CorpusSpecName, NamespaceSpecName, StatedFrontmatterSchema, parse_spec_name
+from lorecraft.project.schemas.structure import StructureSpec
 from lorecraft.project.skill import (
     OutsideSymlink,
     SkillLocation,
@@ -61,7 +56,7 @@ from lorecraft.project.skill import (
     SkillResourceRef,
     SkillsDir,
 )
-from lorecraft.schemas import SchemaInput, SchemaRef
+from lorecraft.schemas import RepositoryOrigin, SchemaInput, SchemaKind, SchemaRef
 from lorecraft.schemas.builtin import AGENT_SKILLS_SCHEMA_REFERENCE
 from lorecraft.vfs import ResolvedPath
 
@@ -232,9 +227,8 @@ class Governance:
     def frontmatter_schemas(self) -> tuple[StatedFrontmatterSchema, ...]:
         """Frontmatter schemas to apply in order, each with its specification; `()` means ungoverned for frontmatter.
 
-        Each comes from the `frontmatter` key of a structure specification that loaded. As with `structure_specs`, a
-        corpus spec whose structure specification states no frontmatter schema leaves the item ungoverned even
-        when a matching namespace spec states one.
+        Each comes from the `frontmatter` key of a loaded governing structure specification. An applicable tuple is
+        empty when no loaded governing layer states a schema.
         """
         corpus_structure = self.corpus_structure()
         if corpus_structure is None or corpus_structure.frontmatter is None:
@@ -244,6 +238,17 @@ class Governance:
             if structure_spec.frontmatter is not None:
                 schemas.append(StatedFrontmatterSchema(spec=structure_spec.path, schema=structure_spec.frontmatter))
         return tuple(schemas)
+
+    def applicable_frontmatter_schema_refs(self) -> tuple[SchemaRef, ...]:
+        """The applicable loaded frontmatter registry subjects, broad to narrow."""
+        corpus_structure = self.corpus_structure()
+        if corpus_structure is None or corpus_structure.frontmatter_schema_ref is None:
+            return ()
+        return tuple(
+            schema_ref
+            for structure in self.structure_specs()
+            if (schema_ref := structure.frontmatter_schema_ref) is not None
+        )
 
     def outline_specs(self) -> tuple[StructureSpec, ...]:
         """Structure specifications that state an outline, in order; `()` means ungoverned for the outline.
@@ -683,15 +688,18 @@ class WorkspaceModel:
             listed_name=str(skill.entry),
             corpus=None,
             schema_paths=(),
+            frontmatter_schema_refs=(),
             governed_parts=frozenset(),
         )
         return ResolvedItem(descriptor, None)
 
     @staticmethod
-    def _governed_parts(governance: Governance | None, floor_frontmatter: bool = False) -> frozenset[MetaSpecPart]:
-        """The meta spec parts named by loaded governance layers and any built-in floor schema."""
+    def _governed_parts(
+        governance: Governance | None, schema_refs: tuple[SchemaRef, ...] = ()
+    ) -> frozenset[MetaSpecPart]:
+        """The meta spec parts named by loaded layers and the item's applicable schema inputs."""
         parts: set[MetaSpecPart] = set()
-        if floor_frontmatter or (governance is not None and governance.frontmatter_schemas()):
+        if any(reference.kind is SchemaKind.FRONTMATTER for reference in schema_refs):
             parts.add(MetaSpecPart.FRONTMATTER)
         if governance is not None and governance.corpus_structure() is not None:
             parts.add(MetaSpecPart.STRUCTURE)
@@ -727,11 +735,15 @@ class WorkspaceModel:
                 location = self.skill_locations[ref]
                 link_target = location.resolves_to if location.resolves_to != ref.directory else None
                 governance = self.skill_governance(ref)
-                schemas = governance.frontmatter_schemas() if governance is not None else ()
-                schema_paths = tuple(schema.spec for schema in schemas)
-                parts = self._governed_parts(
-                    governance, bool(schema_paths) or AGENT_SKILLS_SCHEMA_REFERENCE in self.schema_inputs
+                schema_refs = (
+                    (AGENT_SKILLS_SCHEMA_REFERENCE,) if AGENT_SKILLS_SCHEMA_REFERENCE in self.schema_inputs else ()
+                ) + (governance.applicable_frontmatter_schema_refs() if governance is not None else ())
+                schema_paths = tuple(
+                    schema_input.origin.path
+                    for ref in schema_refs
+                    if isinstance((schema_input := self.schema_inputs[ref]).origin, RepositoryOrigin)
                 )
+                parts = self._governed_parts(governance, schema_refs)
                 descriptor = ItemDescriptor(
                     ref=ItemRef(ref.path),
                     read_location=location.file_resolves_to,
@@ -741,6 +753,7 @@ class WorkspaceModel:
                     listed_name=str(ref.entry),
                     corpus=CorpusName.parse(SKILLS_CORPUS_NAME) if governance is not None else None,
                     schema_paths=schema_paths,
+                    frontmatter_schema_refs=schema_refs,
                     governed_parts=parts,
                 )
                 return ResolvedItem(descriptor, governance)
@@ -754,6 +767,7 @@ class WorkspaceModel:
                     listed_name=ref.name,
                     corpus=CorpusName.parse(ref.corpus),
                     schema_paths=(),
+                    frontmatter_schema_refs=(),
                     governed_parts=frozenset(),
                 )
                 return ResolvedItem(descriptor, None)
@@ -768,9 +782,13 @@ class WorkspaceModel:
             document: The validated corpus and filename the item path names.
         """
         governance = self.find_governance(document)
-        schemas = governance.frontmatter_schemas() if governance is not None else ()
-        schema_paths = tuple(schema.spec for schema in schemas)
-        parts = self._governed_parts(governance, bool(schema_paths))
+        schema_refs = governance.applicable_frontmatter_schema_refs() if governance is not None else ()
+        schema_paths = tuple(
+            schema_input.origin.path
+            for ref in schema_refs
+            if isinstance((schema_input := self.schema_inputs[ref]).origin, RepositoryOrigin)
+        )
+        parts = self._governed_parts(governance, schema_refs)
         descriptor = ItemDescriptor(
             ref=item,
             read_location=ResolvedPath(document.path),
@@ -780,6 +798,7 @@ class WorkspaceModel:
             listed_name=str(document.filename),
             corpus=document.corpus,
             schema_paths=schema_paths,
+            frontmatter_schema_refs=schema_refs,
             governed_parts=parts,
         )
         return ResolvedItem(descriptor, governance)
