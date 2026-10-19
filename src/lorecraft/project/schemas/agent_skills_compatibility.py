@@ -17,7 +17,7 @@ from .skill_frontmatter import (
 
 
 @dataclass(frozen=True, slots=True)
-class SkillSchemaContradiction:
+class AgentSkillsSchemaContradiction:
     """One direct property constraint that excludes a required Agent Skills field rule."""
 
     field: str
@@ -30,7 +30,7 @@ _FIELD_RULES = {
 }
 
 
-def skill_schema_contradictions(schema: Mapping[str, Plain]) -> tuple[SkillSchemaContradiction, ...]:
+def agent_skills_schema_contradictions(schema: Mapping[str, Plain]) -> tuple[AgentSkillsSchemaContradiction, ...]:
     """Find directly stated required-field contradictions within the agreed bounded analysis.
 
     Args:
@@ -39,13 +39,13 @@ def skill_schema_contradictions(schema: Mapping[str, Plain]) -> tuple[SkillSchem
     properties = schema.get('properties')
     if not isinstance(properties, dict):
         return ()
-    found: list[SkillSchemaContradiction] = []
+    found: list[AgentSkillsSchemaContradiction] = []
     for field, (rule, floor_min, floor_max) in _FIELD_RULES.items():
         constraint = properties.get(field)
         if constraint is None:
             continue
         if constraint is False:
-            found.append(SkillSchemaContradiction(field, rule))
+            found.append(AgentSkillsSchemaContradiction(field, rule))
             continue
         if not isinstance(constraint, dict):
             continue
@@ -53,12 +53,12 @@ def skill_schema_contradictions(schema: Mapping[str, Plain]) -> tuple[SkillSchem
         if types is not None:
             allowed_types = types if isinstance(types, list) else [types]
             if 'string' not in allowed_types:
-                found.append(SkillSchemaContradiction(field, rule))
+                found.append(AgentSkillsSchemaContradiction(field, rule))
                 continue
         minimum = _bound(constraint.get('minLength'), floor_min)
         maximum = _bound(constraint.get('maxLength'), floor_max)
         if max(floor_min, minimum) > min(floor_max, maximum):
-            found.append(SkillSchemaContradiction(field, rule))
+            found.append(AgentSkillsSchemaContradiction(field, rule))
             continue
         candidates = constraint.get('enum')
         if candidates is not None and not isinstance(candidates, list):
@@ -70,7 +70,7 @@ def skill_schema_contradictions(schema: Mapping[str, Plain]) -> tuple[SkillSchem
                 candidates = [item for item in candidates if item == constraint['const']]
         if isinstance(candidates, list):
             if not any(_satisfies(field, candidate, constraint, floor_min, floor_max) for candidate in candidates):
-                found.append(SkillSchemaContradiction(field, rule))
+                found.append(AgentSkillsSchemaContradiction(field, rule))
     return tuple(found)
 
 

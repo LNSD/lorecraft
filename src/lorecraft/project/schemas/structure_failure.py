@@ -7,8 +7,8 @@ file, and are a closed union, so a reader that matches one is checked exhaustive
 
 from dataclasses import dataclass
 
+from .agent_skills_compatibility import AgentSkillsSchemaContradiction
 from .section_name import SectionName
-from .skill_compatibility import SkillSchemaContradiction
 
 
 @dataclass(frozen=True, slots=True)
@@ -55,7 +55,7 @@ class ContradictorySkillField:
         contradictions: The required Agent Skills field rules constrained impossibly.
     """
 
-    contradictions: tuple[SkillSchemaContradiction, ...]
+    contradictions: tuple[AgentSkillsSchemaContradiction, ...]
 
 
 @dataclass(frozen=True, slots=True)

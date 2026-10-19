@@ -1,7 +1,7 @@
 """The Agent Skills specification as a frontmatter schema: what it says is wrong with a skill's frontmatter.
 
 `SkillFrontmatter` declares the specification's fields once, and pydantic holds a decoded frontmatter to it.
-`SkillFrontmatterSchema` is the seam where pydantic's errors are translated into `FrontmatterProblem` values,
+`AgentSkillsFrontmatterSchema` is the seam where pydantic's errors are translated into `FrontmatterProblem` values,
 in the shape `FrontmatterSchema` reports a document's in, so the skill check and the frontmatter check read one
 shape. The messages are Lorecraft's own: the specification is fixed, so a reader is told what it requires in
 words that do not change with pydantic's version.
@@ -18,7 +18,6 @@ from pydantic_core import ErrorDetails
 from lorecraft.core.mapping import Frozen, FrozenMapping
 from lorecraft.core.num import UnsignedInt
 from lorecraft.jsonschema import JsonType
-from lorecraft.schemas import BundledOrigin, SchemaInput, SchemaKind, SchemaReference
 
 if TYPE_CHECKING:
     from lorecraft.project.query.primitives import SchemaPrimitives
@@ -43,10 +42,10 @@ from .skill_frontmatter import SKILL_NAME_PATTERN, SkillFrontmatter, value_objec
 # It holds nothing, since the specification is fixed. It is an object rather than a function so that it has the
 # entry point `FrontmatterSchema` has, and the two checks that hold a frontmatter to a schema take it the same way.
 @dataclass(frozen=True, slots=True)
-class SkillFrontmatterSchema:
+class AgentSkillsFrontmatterSchema:
     """The Agent Skills specification, as the frontmatter schema every skill is held to.
 
-    `SKILL_FRONTMATTER_SCHEMA` is the one instance.
+    `AGENT_SKILLS_FRONTMATTER_SCHEMA` is the one instance.
     """
 
     def validate(self, data: FrozenMapping[str, Frozen]) -> tuple[FrontmatterProblem, ...]:
@@ -72,24 +71,14 @@ class SkillFrontmatterSchema:
         return ()
 
 
-SKILL_FRONTMATTER_SCHEMA: Final[SkillFrontmatterSchema] = SkillFrontmatterSchema()
+AGENT_SKILLS_FRONTMATTER_SCHEMA: Final[AgentSkillsFrontmatterSchema] = AgentSkillsFrontmatterSchema()
 """The Agent Skills specification every skill's frontmatter is held to."""
 
-SKILL_SCHEMA_REFERENCE: Final[SchemaReference] = SchemaReference(SchemaKind.FRONTMATTER, 'builtin:agent-skills')
-"""The stable schema subject for the bundled Agent Skills frontmatter floor."""
 
-SKILL_SCHEMA_INPUT: Final[SchemaInput] = SchemaInput(
-    SKILL_SCHEMA_REFERENCE,
-    BundledOrigin('builtin:agent-skills'),
-    FrozenMapping.from_plain(SkillFrontmatter.model_json_schema()),
-)
-"""The Agent Skills schema's JSON Schema representation, identity and bundled provenance."""
-
-
-def skill_frontmatter_schema_query(primitives: 'SchemaPrimitives') -> SkillFrontmatterSchema:
+def agent_skills_frontmatter_schema_query(primitives: 'SchemaPrimitives') -> AgentSkillsFrontmatterSchema:
     """The Pydantic schema for the bundled Agent Skills subject, obtained through its registry input."""
     primitives.schema_input()
-    return SKILL_FRONTMATTER_SCHEMA
+    return AGENT_SKILLS_FRONTMATTER_SCHEMA
 
 
 _SPECIFIED_FIELDS: Final[tuple[str, ...]] = known_fields(SkillFrontmatter.model_json_schema())
@@ -142,7 +131,7 @@ def _frontmatter_problem(detail: ErrorDetails, field_count: FieldCount) -> Front
             # A name's characters are the one value-object rejection a pattern states, as a document's are.
             constraint = PatternMismatch(SKILL_NAME_PATTERN)
             return InvalidValueProblem(field, detail['msg'], constraint, guidance=guidance)
-        case 'skill_name' | 'skill_description' | 'skill_compatibility':
+        case 'skill_name' | 'skill_description' | 'agent_skills_compatibility':
             return InvalidValueProblem(field, detail['msg'], OtherValueConstraint(), guidance=guidance)
         case _:
             assert_never(value_object_error)

@@ -2,7 +2,7 @@
 
 Two kinds of schema govern a frontmatter: the JSON Schema a structure specification states for a corpus, which
 `FrontmatterSchema` applies through `lorecraft.jsonschema`, and the Agent Skills specification, which
-`SkillFrontmatterSchema` applies with pydantic. Each translates its validator's errors into
+`AgentSkillsFrontmatterSchema` applies with pydantic. Each translates its validator's errors into
 `FrontmatterProblem` values at its own seam, so a check reads the same shape from either and never reads a
 validator's error record.
 

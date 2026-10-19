@@ -27,7 +27,7 @@ from lorecraft.project.document import Repository as DocumentRepository
 from lorecraft.project.layout import SNAPSHOT_SCOPE, SPECS_DIR
 from lorecraft.project.schemas import CorpusSpecName, NamespaceSpecName, SectionName, StructureSpec
 from lorecraft.project.schemas import Repository as SchemaRepository
-from lorecraft.project.schemas.skill import SKILL_SCHEMA_INPUT
+from lorecraft.project.schemas.builtin import AGENT_SKILLS_SCHEMA_INPUT
 from lorecraft.project.skill import OutsideSymlink, SkillLocation, SkillRef, SkillsDir
 from lorecraft.project.skill import Repository as SkillRepository
 from lorecraft.project.workspace import (
@@ -805,7 +805,7 @@ class TestLoadWorkspaceEdgeCases:
             skill_locations=FrozenMapping({}),
             outside_symlinks=FrozenMapping({}),
             load_failures=(),
-            schema_inputs=FrozenMapping({SKILL_SCHEMA_INPUT.reference: SKILL_SCHEMA_INPUT}),
+            schema_inputs=FrozenMapping({AGENT_SKILLS_SCHEMA_INPUT.reference: AGENT_SKILLS_SCHEMA_INPUT}),
         ), 'a root without docs/ is an empty workspace'
 
 
@@ -1029,14 +1029,14 @@ class TestSchemaInputRegistration:
                 if ref.kind is SchemaKind.FRONTMATTER and schema_input.origin == structure.origin
             )
         ]
-        bundled = model.schema_inputs[SKILL_SCHEMA_INPUT.reference]
+        bundled = model.schema_inputs[AGENT_SKILLS_SCHEMA_INPUT.reference]
         assert structure.document == FrozenMapping.from_plain(json.loads(text))
         assert structure.origin.path == RootRelativePath.parse('docs/__meta__/code.spec.json')
         assert frontmatter.origin == structure.origin, 'the embedded JSON Schema retains its specification layer'
         assert frontmatter.reference.identity == structure.reference.identity, (
             'both inputs identify their governing layer'
         )
-        assert bundled == SKILL_SCHEMA_INPUT, 'the Agent Skills floor is registered with bundled provenance'
+        assert bundled == AGENT_SKILLS_SCHEMA_INPUT, 'the Agent Skills floor is registered with bundled provenance'
 
     def test_load_workspace_with_agent_skills_namespace_keeps_bundled_subject_distinct(
         self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
@@ -1051,13 +1051,15 @@ class TestSchemaInputRegistration:
         model = load_workspace(schemas, documents, skills)
 
         #: Then
-        bundled = model.schema_inputs[SKILL_SCHEMA_INPUT.reference]
-        assert bundled == SKILL_SCHEMA_INPUT, 'the repository namespace cannot replace the bundled skills subject'
+        bundled = model.schema_inputs[AGENT_SKILLS_SCHEMA_INPUT.reference]
+        assert bundled == AGENT_SKILLS_SCHEMA_INPUT, (
+            'the repository namespace cannot replace the bundled skills subject'
+        )
         repository_frontmatter = tuple(
             schema_input
             for schema_input in model.schema_inputs.values()
             if schema_input.reference.kind is SchemaKind.FRONTMATTER
-            and schema_input.origin != SKILL_SCHEMA_INPUT.origin
+            and schema_input.origin != AGENT_SKILLS_SCHEMA_INPUT.origin
         )
         assert len(repository_frontmatter) == 2, 'both repository layers retain their own frontmatter inputs'
 

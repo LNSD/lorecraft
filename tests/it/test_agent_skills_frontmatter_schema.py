@@ -1,7 +1,7 @@
 """The committed skill frontmatter schema is a JSON Schema every skill this repository carries passes.
 
 `docs/schemas/skill-frontmatter.spec.json` is rendered by `just gen` from `SkillFrontmatter`, the pydantic model
-`SkillFrontmatterSchema` holds each `SKILL.md` to, so the schema and the check cannot disagree about a shape;
+`AgentSkillsFrontmatterSchema` holds each `SKILL.md` to, so the schema and the check cannot disagree about a shape;
 CI's `gen-check` job keeps the committed file current. What is left to hold is the file an editor reads: that it
 is a well-formed schema, and that it accepts every skill this repository writes, as the check does.
 """
@@ -14,7 +14,7 @@ from typing import Final
 import pytest
 from jsonschema import Draft202012Validator
 
-from lorecraft.project.schemas import SKILL_FRONTMATTER_SCHEMA
+from lorecraft.project.schemas import AGENT_SKILLS_FRONTMATTER_SCHEMA
 from lorecraft.project.syntax import Frontmatter, parse_frontmatter
 
 REPOSITORY_ROOT: Final[Path] = Path(__file__).resolve().parents[2]
@@ -45,8 +45,8 @@ def _every_empty(found: Mapping[str, Sized]) -> bool:
 
 
 @pytest.mark.it
-class TestSkillFrontmatterSchema:
-    def test_skill_frontmatter_schema_when_checked_against_the_metaschema_is_well_formed(self) -> None:
+class TestAgentSkillsFrontmatterSchema:
+    def test_agent_skills_frontmatter_schema_when_checked_against_the_metaschema_is_well_formed(self) -> None:
         #: Given
         schema = json.loads(SCHEMA_FILE.read_text(encoding='utf-8'))
 
@@ -56,7 +56,7 @@ class TestSkillFrontmatterSchema:
         #: Then
         assert schema['$schema'] == 'https://json-schema.org/draft/2020-12/schema', 'the schema names its dialect'
 
-    def test_skill_frontmatter_schema_with_every_repository_skill_accepts_it(
+    def test_agent_skills_frontmatter_schema_with_every_repository_skill_accepts_it(
         self, validator: Draft202012Validator
     ) -> None:
         #: Given
@@ -88,7 +88,7 @@ class TestSkillFrontmatterSchema:
         data = {name: node.data for name, node in frontmatters.items() if isinstance(node, Frontmatter)}
 
         #: When
-        problems = {name: SKILL_FRONTMATTER_SCHEMA.validate(value) for name, value in data.items()}
+        problems = {name: AGENT_SKILLS_FRONTMATTER_SCHEMA.validate(value) for name, value in data.items()}
 
         #: Then
         assert data, 'the repository carries skills, so the comparison is not vacuous'

@@ -6,6 +6,7 @@ problems both frontmatter schemas report, each placed on the line it is reported
 first stop matching an outline.
 """
 
+from .agent_skills_schema import AGENT_SKILLS_FRONTMATTER_SCHEMA
 from .document_facts import (
     DocumentTitle,
     TitleConstraint,
@@ -60,11 +61,10 @@ from .schema_problems import (
     SchemaSource,
     StructureSpecSchema,
     field_line,
+    locate_agent_skills_schema_problems,
     locate_schema_problems,
-    locate_skill_schema_problems,
 )
 from .section_name import SectionName
-from .skill import SKILL_FRONTMATTER_SCHEMA
 from .skill_fields import (
     AllowedTool,
     AllowedTools,
@@ -153,7 +153,7 @@ __all__: list[str] = [
     'EmptySkillNameError',
     'OverlongSkillNameError',
     'InvalidSkillNameFormatError',
-    'SKILL_FRONTMATTER_SCHEMA',
+    'AGENT_SKILLS_FRONTMATTER_SCHEMA',
     'SkillField',
     'SkillFieldValue',
     'SkillFields',
@@ -185,7 +185,7 @@ __all__: list[str] = [
     'LocatedProblem',
     'SchemaProblems',
     'locate_schema_problems',
-    'locate_skill_schema_problems',
+    'locate_agent_skills_schema_problems',
     'DocumentEnd',
     'ExpectedSection',
     'LeftOver',
