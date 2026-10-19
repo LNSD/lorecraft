@@ -21,7 +21,7 @@ from lorecraft.project.syntax import Heading, SectionHeading, section_headings
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Subdiagnostic
-from lorecraft.rules.subject import BySpec, Facet, Gate, QueriedItemRule
+from lorecraft.rules.subject import ByMetaSpec, Gate, MetaSpecPart, QueriedItemRule
 
 from .__ruleset__ import GROUP_ID, example_note, spec_note
 
@@ -221,8 +221,8 @@ class EmptySection(QueriedItemRule[EmptySectionFacts]):
     SINCE: ClassVar[Release] = Release('0.3.0')
     GATES: ClassVar[Mapping[ItemKind, Gate]] = MappingProxyType(
         {
-            ItemKind.DOCUMENT: BySpec(Facet.STRUCTURE),
-            ItemKind.SKILL_ENTRY: BySpec(Facet.STRUCTURE, requires_loaded_layer=True),
+            ItemKind.DOCUMENT: ByMetaSpec(MetaSpecPart.STRUCTURE),
+            ItemKind.SKILL_ENTRY: ByMetaSpec(MetaSpecPart.STRUCTURE, requires_loaded_layer=True),
         }
     )
 

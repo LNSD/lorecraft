@@ -11,7 +11,7 @@ from lorecraft.project.query import CountPrimitives, ItemQuery, item_token_count
 from lorecraft.project.syntax import LineNumber, TokenCount
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
-from lorecraft.rules.subject import BySpec, Facet, Gate, QueriedItemRule
+from lorecraft.rules.subject import ByMetaSpec, Gate, MetaSpecPart, QueriedItemRule
 
 from ..groups import SAMPLE
 
@@ -40,7 +40,7 @@ class AnyTokens(QueriedItemRule[TokenCount]):
     SINCE: ClassVar[Release] = Release('1.0.0')
     GATES: ClassVar[Mapping[ItemKind, Gate]] = MappingProxyType(
         {
-            ItemKind.DOCUMENT: BySpec(Facet.BUDGET),
+            ItemKind.DOCUMENT: ByMetaSpec(MetaSpecPart.BUDGET),
         }
     )
 

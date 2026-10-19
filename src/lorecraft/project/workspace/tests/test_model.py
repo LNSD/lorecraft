@@ -18,9 +18,9 @@ from lorecraft.project.corpus import CorpusName
 from lorecraft.project.document import DocumentRef, InvalidSpecificationNameError, MisplacedSpecificationError, SpecRef
 from lorecraft.project.item import (
     DocumentOrigin,
-    ItemFacet,
     ItemKind,
     MarkdownItemRef,
+    MetaSpecPart,
     SkillEntryOrigin,
     SpecificationOrigin,
 )
@@ -899,9 +899,9 @@ class TestWorkspaceModel:
         assert descriptor.origin.schema_paths == (SPECS_DIR / PathComponent.parse('code.spec.json'),), (
             'the corpus schema is the one that governs frontmatter findings'
         )
-        assert descriptor.active_facets == frozenset(
-            {ItemFacet.MARKDOWN, ItemFacet.FRONTMATTER, ItemFacet.STRUCTURE}
-        ), 'a corpus structure specification activates structure and its frontmatter alongside Markdown checks'
+        assert descriptor.governed_parts == frozenset({MetaSpecPart.FRONTMATTER, MetaSpecPart.STRUCTURE}), (
+            'a corpus structure specification activates structure and its frontmatter alongside Markdown checks'
+        )
 
     def test_describe_item_for_a_layered_document_keeps_every_schema_in_order(self) -> None:
         #: Given
@@ -1422,7 +1422,7 @@ class TestSpecifications:
         assert descriptor.ref == MarkdownItemRef(ref.path), 'the logical ref is also the report path'
         assert descriptor.read_location == ResolvedPath(ref.path), 'the file is read where it is listed'
         assert descriptor.link_base == DocumentDirectory(SPECS_DIR), 'links are read from docs/__meta__'
-        assert descriptor.active_facets == frozenset({ItemFacet.STRUCTURE, ItemFacet.MARKDOWN}), (
+        assert descriptor.governed_parts == frozenset({MetaSpecPart.STRUCTURE}), (
             'the package governs a specification, so the structure and the Markdown checks are active'
         )
 

@@ -48,7 +48,7 @@ relative to it. `docs/` and `docs/__meta__/` must be [real directories](workspac
 ### The Subjects
 
 Checks every workspace doc/spec, skill/resource and escaping symlink. Package governs specs; `LINK005` and `LINK006` judge them too.
-Shared skills once; subjects and diagnostics follow path order. Name-matched budgets: skills 10000; code 6500; docs/feat 3500. Specs forbid empty sections, allow any outline; task-shaped headings guide review. Resources lack facets.
+Shared skills once; subjects and diagnostics follow path order. Name-matched budgets: skills 10000; code 6500; docs/feat 3500. Resources with no governed meta spec parts are ungoverned.
 ### One Run, One Snapshot
 
 Rules read one snapshot; meta specs load before subjects. A failed structure file gets one diagnostic; governed docs are skipped,

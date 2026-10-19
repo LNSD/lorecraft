@@ -14,10 +14,10 @@ database, never a branch here.
 Subject decoding precedes rule judgment. Each subject is decoded once: one that does not decode is reported as
 `UndecodableSubject`, whatever the table enables, and no rule sees it. A decoded item is then judged group by
 group: for each group of enabled rules that applies to its kind, the runner checks the rule's gate, runs the rules
-whose gates admit the item, and records an ungoverned gate as coverage rather than a diagnostic. A rule over a
+whose gates admit the item, and records an ungoverned meta spec part as coverage rather than a diagnostic. A rule over a
 Markdown file judges a document when its structure specification is loaded, alongside rules gated by a named
-specification facet. A document in no corpus, or in one that states no structure specification, has no specification
-gate admitted, and no such rule is run over it. Package checks judge skill entries independently of corpus
+meta spec part. A document in no corpus, or in one that states no structure specification, has no such part
+governed, and no such rule is run over it. Package checks judge skill entries independently of corpus
 governance. Package Markdown checks judge resources independently of corpus governance. A rule over a skill's file
 judges every `SKILL.md` and every resource, and never a document. The database answers only what a rule's query reads,
 so a value no enabled rule reads is never computed.
@@ -49,7 +49,7 @@ from typing import assert_never, cast
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.corpus import CorpusDirectoryRef, ReservedCorpusDirectory
 from lorecraft.project.database import Database, ItemText
-from lorecraft.project.item import ItemFacet, ItemKind, MarkdownItemDescriptor, MarkdownItemRef
+from lorecraft.project.item import ItemKind, MarkdownItemDescriptor, MarkdownItemRef, MetaSpecPart
 from lorecraft.project.query import ItemQuery
 from lorecraft.project.skill import OutsideSymlink, SymlinkRef
 from lorecraft.project.workspace.model import Governance, WorkspaceModel
@@ -61,10 +61,9 @@ from lorecraft.rules.report import (
     RuleDiagnostic,
 )
 from lorecraft.rules.subject import (
+    ByMetaSpec,
     ByPackage,
     BySchema,
-    BySpec,
-    Facet,
     ItemRule,
     Queried,
     QueriedCorpusDirectoryRule,
@@ -90,19 +89,19 @@ def judge_item(database: Database, source: ItemText, table: RuleTable) -> Checke
     governance = database.item_governance(descriptor.ref)
     model = database.model()
     diagnostics: list[Diagnostic] = []
-    ungoverned: list[Facet] = []
+    ungoverned: list[MetaSpecPart] = []
 
-    # Specification facets follow `Facet` order, then package/schema rules; unmet gates become coverage.
-    for facet in (*Facet, None):
+    # Meta spec parts follow `MetaSpecPart` order, then package/schema rules; unmet gates become coverage.
+    for part in (*MetaSpecPart, None):
         rules = tuple(
             enabled
-            for enabled in table.item_rules(descriptor.kind, facet)
+            for enabled in table.item_rules(descriptor.kind, part)
             if judges(enabled.rule, descriptor, governance, model)
         )
         if not rules:
             continue
-        if facet is not None and ItemFacet(facet.value) not in descriptor.active_facets:
-            ungoverned.append(facet)
+        if part is not None and part not in descriptor.governed_parts:
+            ungoverned.append(part)
             continue
         diagnostics.extend(
             _located(descriptor.ref.path, rules, lambda rule: _judged_item(rule, database, descriptor.ref))
@@ -130,7 +129,7 @@ def judges(
     if gate is None:
         return False
     match gate:
-        case BySpec(_, requires_loaded_layer):
+        case ByMetaSpec(_, requires_loaded_layer):
             if descriptor.kind is ItemKind.SKILL_ENTRY and requires_loaded_layer:
                 return bool(descriptor.governance_corpus) and governance is not None and not governance.failed_layers()
             return True

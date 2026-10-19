@@ -7,7 +7,7 @@ from typing import ClassVar, Self
 from lorecraft.project.item import ItemKind
 from lorecraft.project.query import ItemQuery, Query, SymlinkPrimitives
 from lorecraft.project.schemas import TitleFacts, title_facts
-from lorecraft.rules.subject import BySpec, Facet, Gate, QueriedItemRule
+from lorecraft.rules.subject import ByMetaSpec, Gate, MetaSpecPart, QueriedItemRule
 
 
 class WrongQuery(QueriedItemRule[int]):
@@ -15,7 +15,7 @@ class WrongQuery(QueriedItemRule[int]):
 
     GATES: ClassVar[Mapping[ItemKind, Gate]] = MappingProxyType(
         {
-            ItemKind.DOCUMENT: BySpec(Facet.STRUCTURE),
+            ItemKind.DOCUMENT: ByMetaSpec(MetaSpecPart.STRUCTURE),
         }
     )
 
@@ -40,7 +40,7 @@ class WrongSubjectQuery(QueriedItemRule[int]):
 
     GATES: ClassVar[Mapping[ItemKind, Gate]] = MappingProxyType(
         {
-            ItemKind.DOCUMENT: BySpec(Facet.STRUCTURE),
+            ItemKind.DOCUMENT: ByMetaSpec(MetaSpecPart.STRUCTURE),
         }
     )
 

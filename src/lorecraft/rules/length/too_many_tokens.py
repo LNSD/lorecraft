@@ -20,7 +20,7 @@ from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Here, Label, Note, Subdiagnostic
 from lorecraft.rules.overrun import Overrun, find_overrun
-from lorecraft.rules.subject import BySpec, Facet, Gate, QueriedItemRule
+from lorecraft.rules.subject import ByMetaSpec, Gate, MetaSpecPart, QueriedItemRule
 
 from .__ruleset__ import GROUP_ID, spec_note
 
@@ -140,8 +140,8 @@ class TooManyTokens(QueriedItemRule[TokenFacts]):
     SINCE: ClassVar[Release] = Release('0.3.0')
     GATES: ClassVar[Mapping[ItemKind, Gate]] = MappingProxyType(
         {
-            ItemKind.DOCUMENT: BySpec(Facet.BUDGET),
-            ItemKind.SKILL_ENTRY: BySpec(Facet.BUDGET, requires_loaded_layer=True),
+            ItemKind.DOCUMENT: ByMetaSpec(MetaSpecPart.BUDGET),
+            ItemKind.SKILL_ENTRY: ByMetaSpec(MetaSpecPart.BUDGET, requires_loaded_layer=True),
         }
     )
 

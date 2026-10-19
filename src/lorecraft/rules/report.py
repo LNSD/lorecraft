@@ -13,8 +13,8 @@ that order as the fields it compares, and `diagnostic_order` builds it as the so
 
 Each subject the runner checks, a document, a meta specification, a skill or a skill's resource, gets one report,
 and either kind of report gives its diagnostics as `diagnostics`. A `CheckedItem` decoded, and holds its
-diagnostics, in their output order however it is built, and the specification facets no meta spec governs it for.
-A skill entry has package checks independent of corpus governance, while a resource has no meta-spec structure
+diagnostics, in their output order however it is built, and the meta spec parts no meta spec governs it for. A
+skill entry has package checks independent of corpus governance, while a resource has no meta-spec structure
 governance. An
 `UndecodableSubject` did not decode,
 so no rule judged it: it holds its ref and where the bytes stopped being UTF-8, and its one diagnostic, the engine's,
@@ -38,7 +38,7 @@ from typing import assert_never
 from lorecraft.core.num import UnsignedInt
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.document import DocumentRef, SpecRef
-from lorecraft.project.item import MarkdownItemRef
+from lorecraft.project.item import MarkdownItemRef, MetaSpecPart
 from lorecraft.project.skill import SkillAliasRef, SkillRef, SkillResourceRef
 from lorecraft.rules.engine.invalid_utf8 import InvalidUtf8
 from lorecraft.vfs import Utf8Failure
@@ -46,7 +46,6 @@ from lorecraft.vfs import Utf8Failure
 from .declaration import EngineCondition, Rule
 from .identity import Severity
 from .location import Here, WholeSubject
-from .subject import Facet
 
 
 @dataclass(frozen=True, slots=True)
@@ -151,20 +150,20 @@ class CheckedItem:
     """A Markdown item that decoded, so the enabled rules judged everything it is governed for.
 
     A document, a skill's `SKILL.md` and a skill's resource are reported alike. Only a rule over a document is gated
-    on a specification facet beyond the checks the package always activates for a skill file, so a skill file's
-    report holds no ungoverned facet by construction, and only a document's can.
+    on a meta spec part beyond the checks the package always activates for a skill file, so a skill file's
+    report holds no ungoverned part by construction, and only a document's can.
 
     Attributes:
         ref: The item the rules judged, at the path its diagnostics are reported at.
         diagnostics: Every occurrence the rules found in it, in the order `diagnostic_order` sorts them into,
             whatever order they are given in; empty when it holds to every rule.
-        ungoverned: The specification facets an enabled rule reads that no meta spec governs the item for, in the order
+        ungoverned: The meta spec parts an enabled rule reads that no meta spec governs the item for, in the order
             the runner reads them; no rule that reads one judged the item.
     """
 
     ref: MarkdownItemRef
     diagnostics: tuple[Diagnostic, ...]
-    ungoverned: tuple[Facet, ...] = ()
+    ungoverned: tuple[MetaSpecPart, ...] = ()
 
     def __post_init__(self) -> None:
         """Sort the diagnostics into their output order, so a report holds them in it however it is built."""

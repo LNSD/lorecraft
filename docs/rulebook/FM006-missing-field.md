@@ -22,7 +22,7 @@ a `then`, leaves the field's `properties` to the schema around it, so nothing is
 
 ## Why is this bad?
 
-An agent chooses which document or skill to load from its frontmatter alone, so a field left out is a fact the
+An agent chooses which document or skill to load from its frontmatter alone, so a field left out is information the
 agent never sees and cannot choose by.
 
 ## Example

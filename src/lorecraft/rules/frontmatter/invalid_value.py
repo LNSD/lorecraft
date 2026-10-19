@@ -23,7 +23,7 @@ from lorecraft.project.schemas import (
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Here, Label, Note, Subdiagnostic
-from lorecraft.rules.subject import BySpec, Facet, Gate, QueriedItemRule
+from lorecraft.rules.subject import ByMetaSpec, Gate, MetaSpecPart, QueriedItemRule
 
 from .__ruleset__ import (
     GROUP_ID,
@@ -108,8 +108,8 @@ class InvalidValue(QueriedItemRule[tuple[SchemaProblems, ...]]):
     SINCE: ClassVar[Release] = Release('0.3.0')
     GATES: ClassVar[Mapping[ItemKind, Gate]] = MappingProxyType(
         {
-            ItemKind.DOCUMENT: BySpec(Facet.FRONTMATTER),
-            ItemKind.SKILL_ENTRY: BySpec(Facet.FRONTMATTER),
+            ItemKind.DOCUMENT: ByMetaSpec(MetaSpecPart.FRONTMATTER),
+            ItemKind.SKILL_ENTRY: ByMetaSpec(MetaSpecPart.FRONTMATTER),
         }
     )
 

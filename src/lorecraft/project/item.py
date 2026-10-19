@@ -5,7 +5,7 @@ location and origin metadata needed by consumers without reading the item's text
 """
 
 from dataclasses import dataclass
-from enum import Enum
+from enum import Enum, StrEnum
 from typing import assert_never
 
 from lorecraft.core.error import Error
@@ -46,14 +46,17 @@ class ItemKind(Enum):
     SPECIFICATION = 'specification'
 
 
-class ItemFacet(Enum):
-    """Kinds of checks a model may activate for an item."""
+class MetaSpecPart(StrEnum):
+    """A part of a meta specification that may govern checks of an item."""
 
     FRONTMATTER = 'frontmatter'
+    """The item's frontmatter: a loaded structure layer states a frontmatter schema."""
     STRUCTURE = 'structure'
+    """The item's structure: a loaded corpus layer states a structure file."""
     OUTLINE = 'outline'
+    """The item's sections: a loaded structure layer states an outline."""
     BUDGET = 'budget'
-    MARKDOWN = 'markdown'
+    """The item's length in tokens: a loaded structure layer sets a token budget."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -126,9 +129,9 @@ class MarkdownItemDescriptor:
         governance_corpus: Corpus whose specifications govern the item, when it belongs to one; empty otherwise.
         aspect_name: Listed name matched against namespace specifications, when it belongs to a corpus; retained as
             provenance for skills and resources.
-        active_facets: Checks enabled for this item. The package's skill checks activate skill-entry frontmatter and
-            structure checks, independently of corpus governance. A meta specification is active for structure and
-            Markdown checks; a resource activates the structure and Markdown checks.
+        governed_parts: Parts that activate checks for this item. The package's skill checks activate skill-entry
+            frontmatter and structure checks, independently of corpus governance. A meta specification and a resource
+            activate the structure part.
     """
 
     ref: MarkdownItemRef
@@ -137,7 +140,7 @@ class MarkdownItemDescriptor:
     origin: ItemOrigin
     governance_corpus: str
     aspect_name: str
-    active_facets: frozenset[ItemFacet]
+    governed_parts: frozenset[MetaSpecPart]
 
     @property
     def kind(self) -> ItemKind:

@@ -13,7 +13,7 @@ from lorecraft.project.query import ItemQuery, Primitives, item_corpus
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Note, Subdiagnostic
-from lorecraft.rules.subject import BySpec, Facet, Gate, QueriedItemRule
+from lorecraft.rules.subject import ByMetaSpec, Gate, MetaSpecPart, QueriedItemRule
 
 from .__ruleset__ import GROUP_ID
 from .queries import linked_documents
@@ -100,7 +100,7 @@ class MutualLink(QueriedItemRule[MutualLinkFacts]):
     SINCE: ClassVar[Release] = Release('0.4.0')
     GATES: ClassVar[Mapping[ItemKind, Gate]] = MappingProxyType(
         {
-            ItemKind.DOCUMENT: BySpec(Facet.STRUCTURE),
+            ItemKind.DOCUMENT: ByMetaSpec(MetaSpecPart.STRUCTURE),
         }
     )
 

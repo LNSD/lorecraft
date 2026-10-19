@@ -10,8 +10,8 @@ that opens it. A rule over its being there reports a document once, with `spec` 
 meta spec. A pattern a meta spec sets on the title is that meta spec's own, so a title
 failing it is reported once per meta spec setting it, as a section is.
 
-The rules over the headings are governed by `Facet.STRUCTURE`, so they judge every document whose corpus states a
-structure file; the rules over where the sections stop matching an outline are governed by `Facet.OUTLINE`,
+The rules over the headings are governed by `MetaSpecPart.STRUCTURE`, so they judge every document whose corpus states a
+structure file; the rules over where the sections stop matching an outline are governed by `MetaSpecPart.OUTLINE`,
 so they judge only a document some outline governs.
 """
 
