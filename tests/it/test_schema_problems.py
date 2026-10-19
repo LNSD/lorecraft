@@ -17,7 +17,7 @@ from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.jsonschema import JsonType
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
-from lorecraft.project.database import Database, ItemText, PrimitiveRead, QueryRead
+from lorecraft.project.database import Database, ItemText, PrimitiveRead, Read
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.item import ItemReadError, MarkdownItemRef
 from lorecraft.project.schemas import (
@@ -196,9 +196,9 @@ class TestSchemaProblems:
         assert second is first, 'the schemas are applied once per database, then shared by every rule'
         assert database.query_reads(schema_problems_query, source.ref) == frozenset(
             {
-                QueryRead(PrimitiveRead.ITEM_ORIGIN, source.ref),
-                QueryRead(PrimitiveRead.ITEM_GOVERNANCE, source.ref),
-                QueryRead(PrimitiveRead.FRONTMATTER, source.ref),
+                Read(PrimitiveRead.ITEM_ORIGIN, source.ref),
+                Read(PrimitiveRead.ITEM_GOVERNANCE, source.ref),
+                Read(PrimitiveRead.FRONTMATTER, source.ref),
             }
         ), 'the query cache records the raw facts the schema analysis depends on'
         assert database.frontmatter_call_count == 1, 'the frontmatter is read once, for the first call'
@@ -371,8 +371,8 @@ class TestSkillSchemaProblems:
         #: Then
         assert second is first, "a skill's fields are parsed once per database, then shared by every rule"
         assert {
-            QueryRead('frontmatter', source.ref),
-            QueryRead('item_origin', source.ref),
+            Read('frontmatter', source.ref),
+            Read('item_origin', source.ref),
         } <= database.query_reads(skill_fields_query, source.ref)
         assert set(first) == {SkillField.NAME, SkillField.ALLOWED_TOOLS}, 'each written, conforming field is kept'
 
@@ -387,8 +387,8 @@ class TestSkillSchemaProblems:
         #: Then
         assert owner == DocumentFrontmatterOwner(AspectFilename.parse('python-typing'), CORPUS_SPEC)
         assert {
-            QueryRead('item_origin', source.ref),
-            QueryRead('item_governance', source.ref),
+            Read('item_origin', source.ref),
+            Read('item_governance', source.ref),
         } <= database.query_reads(frontmatter_owner_query, source.ref)
 
     def test_frontmatter_owner_query_with_a_skill_entry_reads_its_origin(self) -> None:
@@ -401,7 +401,7 @@ class TestSkillSchemaProblems:
 
         #: Then
         assert owner == SkillFrontmatterOwner(PathComponent.parse('review'), None)
-        assert QueryRead('item_origin', source.ref) in database.query_reads(frontmatter_owner_query, source.ref)
+        assert Read('item_origin', source.ref) in database.query_reads(frontmatter_owner_query, source.ref)
 
     def test_skill_schema_problems_called_twice_returns_the_first_answer(self) -> None:
         #: Given

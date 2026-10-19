@@ -4,11 +4,16 @@ from pathlib import Path
 
 import pytest
 
+from lorecraft.core.path import RootRelativePath
 from lorecraft.project.corpus import CorpusDirectoryRef, CorpusName
-from lorecraft.project.database import Database, PrimitiveRead
+from lorecraft.project.database import Database, PrimitiveRead, Read
+from lorecraft.project.item import MarkdownItemRef
 from lorecraft.project.layout import SNAPSHOT_SCOPE
-from lorecraft.project.query import CorpusDirectoryPrimitives, SymlinkPrimitives
+from lorecraft.project.query import CorpusDirectoryPrimitives, Primitives, SchemaPrimitives, SymlinkPrimitives
+from lorecraft.project.schemas.skill import SKILL_SCHEMA_REFERENCE
 from lorecraft.project.skill import SymlinkRef
+from lorecraft.project.syntax import Heading
+from lorecraft.schemas import SchemaInput, SchemaReference
 from lorecraft.vfs import RootExit, take_snapshot
 
 
@@ -20,6 +25,16 @@ def _symlink_exit(primitives: SymlinkPrimitives) -> RootExit:
 def _reserved_corpus(primitives: CorpusDirectoryPrimitives) -> CorpusName:
     """The reserved name recorded for a corpus directory subject."""
     return primitives.reserved_corpus()
+
+
+def _item_headings(primitives: Primitives) -> tuple[Heading, ...]:
+    """The headings read from a Markdown item subject."""
+    return primitives.headings()
+
+
+def _schema_input(primitives: SchemaPrimitives) -> SchemaInput:
+    """The immutable input read from a schema subject."""
+    return primitives.schema_input()
 
 
 def _database(root: Path) -> Database:
@@ -44,7 +59,36 @@ def _database(root: Path) -> Database:
 
 
 @pytest.mark.unit
-class TestSubjectQueryReads:
+class TestSubjectReads:
+    def test_query_records_a_markdown_item_subject_primitive(self, tmp_path: Path) -> None:
+        #: Given
+        database = _database(tmp_path)
+        ref = MarkdownItemRef(RootRelativePath.parse('docs/code/source.md'))
+
+        #: When
+        headings = database.query(_item_headings, ref)
+
+        #: Then
+        assert len(headings) == 1, f'the query returns the source heading, got {headings}'
+        assert database.query_reads(_item_headings, ref) == {Read(PrimitiveRead.HEADINGS, ref)}, (
+            'the read key retains the Markdown item subject'
+        )
+
+    def test_query_records_a_schema_subject_primitive(self, tmp_path: Path) -> None:
+        #: Given
+        database = _database(tmp_path)
+        ref: SchemaReference = SKILL_SCHEMA_REFERENCE
+        expected = database.model().schema_inputs[ref]
+
+        #: When
+        schema = database.query(_schema_input, ref)
+
+        #: Then
+        assert schema == expected, 'the query returns the schema input identified by its subject'
+        assert database.query_reads(_schema_input, ref) == {Read(PrimitiveRead.SCHEMA_INPUT, ref)}, (
+            'the read key retains the typed schema subject'
+        )
+
     def test_query_records_a_symlink_subject_primitive(self, tmp_path: Path) -> None:
         #: Given
         database = _database(tmp_path)
@@ -56,7 +100,7 @@ class TestSubjectQueryReads:
 
         #: Then
         assert exit_point == symlink.leaves_at, 'the query returns the symlink exit recorded by the model'
-        assert database.query_reads(_symlink_exit, ref) == {PrimitiveRead.SYMLINK_LEAVES_AT}, (
+        assert database.query_reads(_symlink_exit, ref) == {Read(PrimitiveRead.SYMLINK_LEAVES_AT, ref)}, (
             'the read set identifies the symlink primitive'
         )
 
@@ -71,6 +115,6 @@ class TestSubjectQueryReads:
 
         #: Then
         assert corpus == directory.corpus, 'the query returns the reserved corpus named by the model'
-        assert database.query_reads(_reserved_corpus, ref) == {PrimitiveRead.RESERVED_CORPUS}, (
+        assert database.query_reads(_reserved_corpus, ref) == {Read(PrimitiveRead.RESERVED_CORPUS, ref)}, (
             'the read set identifies the reserved-corpus primitive'
         )

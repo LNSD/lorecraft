@@ -20,7 +20,7 @@ from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.project.aspect import AspectFilename, AspectNamespace
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.document import DocumentRef
-from lorecraft.project.item import DocumentOrigin, SkillEntryOrigin
+from lorecraft.project.item import DocumentOrigin, MarkdownItemRef, SkillEntryOrigin
 from lorecraft.project.layout import DOCS_DIR, SPECS_DIR
 from lorecraft.project.link_target import (
     DocumentDirectory,
@@ -29,7 +29,7 @@ from lorecraft.project.link_target import (
     LinkTargetEntry,
     SkillRoot,
 )
-from lorecraft.project.query import CorpusDirectoryQuery, Query, SubjectQuery, SymlinkQuery
+from lorecraft.project.query import CorpusDirectoryQuery, Query, SchemaQuery, SubjectQuery, SymlinkQuery
 from lorecraft.project.schemas import (
     CorpusSpecName,
     NamespaceSpecName,
@@ -57,6 +57,7 @@ from lorecraft.project.syntax import (
 from lorecraft.project.workspace import Corpus, CorpusNamespace, CorpusSpec, Governance, NamespaceSpec
 from lorecraft.rules.declaration import Rule
 from lorecraft.rules.subject import CorpusDirectoryRule, ItemRule, Queried, SymlinkRule
+from lorecraft.schemas import SchemaReference
 from lorecraft.vfs import ResolvedPath, RootExit
 
 _DEFAULT_FILENAME: Final[str] = 'setup'
@@ -436,6 +437,14 @@ class FakeSymlinkDatabase:
         """The answer of a declared query over the symlink, read through this fake's primitives."""
         return query(self)
 
+    def query_at[T](self, ref: MarkdownItemRef, query: Query[T]) -> T:
+        """Cross-item reads are outside the symlink fake's declared facts."""
+        raise AssertionError(f'no item query is available for {ref}')
+
+    def query_schema[T](self, ref: SchemaReference, query: SchemaQuery[T]) -> T:
+        """Schema reads are outside the symlink fake's declared facts."""
+        raise AssertionError(f'no schema query is available for {ref}')
+
 
 class FakeCorpusDirectoryDatabase:
     """A directory under `docs/` that takes a reserved corpus's name, as the test states."""
@@ -459,6 +468,14 @@ class FakeCorpusDirectoryDatabase:
     def query[T](self, query: CorpusDirectoryQuery[T]) -> T:
         """The answer of a declared query over the directory, read through this fake's primitives."""
         return query(self)
+
+    def query_at[T](self, ref: MarkdownItemRef, query: Query[T]) -> T:
+        """Cross-item reads are outside the directory fake's declared facts."""
+        raise AssertionError(f'no item query is available for {ref}')
+
+    def query_schema[T](self, ref: SchemaReference, query: SchemaQuery[T]) -> T:
+        """Schema reads are outside the directory fake's declared facts."""
+        raise AssertionError(f'no schema query is available for {ref}')
 
 
 class _Queryable(Protocol):
