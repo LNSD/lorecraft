@@ -13,11 +13,11 @@ database, never a branch here.
 
 Subject decoding precedes rule judgment. Each subject is decoded once: one that does not decode is reported as
 `UndecodableSubject`, whatever the table enables, and no rule sees it. A decoded item is then judged group by
-group: for each group of enabled rules that applies to its kind, the runner checks the rule's gate, runs the rules
+group: for each group of enabled rules that applies to its item type, the runner checks the rule's gate, runs the rules
 whose gates admit the item, and records an ungoverned meta spec part as coverage rather than a diagnostic. A rule over a
 Markdown file judges a document when its structure file is loaded, alongside rules gated by a named
 meta spec part. A document in no corpus, or in one that states no structure file, has no such part
-governed, and no such rule is run over it. `Always` checks judge only the explicitly mapped kinds, independently of
+governed, and no such rule is run over it. `Always` checks judge only the explicitly mapped item types, independently of
 corpus governance. Markdown checks over resources are `Always`-gated, so they judge resources independently of corpus
 governance. A rule over a skill entrypoint
 judges every `SKILL.md` and every resource, and never a document. The database answers only what a rule's query reads,
@@ -76,7 +76,7 @@ def judge_item(database: Database, source: ItemText, table: RuleTable) -> Checke
     """Run enabled rules over a decoded document, meta spec, skill or resource.
 
     A mode decodes the item and decides what a layer that failed to load means for it; this judges it against the
-    gates applicable to its kind. A rule judges an item only when its gate admits that item; an applicable enabled
+    gates applicable to its item type. A rule judges an item only when its gate admits that item; an applicable enabled
     rule whose gate is not met is recorded as coverage. Nothing here asks where the item came from, so registering a
     rule under a new base needs no branch.
 
@@ -93,7 +93,7 @@ def judge_item(database: Database, source: ItemText, table: RuleTable) -> Checke
     # Meta spec parts follow `MetaSpecPart` order, then `Always`/schema rules; unmet gates become coverage.
     for part in (*MetaSpecPart, None):
         rules = tuple(
-            enabled for enabled in table.item_rules(descriptor.kind, part) if judges(enabled.rule, descriptor, model)
+            enabled for enabled in table.item_rules(descriptor.type, part) if judges(enabled.rule, descriptor, model)
         )
         if not rules:
             continue
@@ -116,10 +116,10 @@ def judges(
 
     Args:
         rule: The queried rule whose gate is being checked.
-        descriptor: The item kind and origin metadata used by the gate.
+        descriptor: The item type and origin metadata used by the gate.
         model: The workspace state used to check registered schema gates.
     """
-    gate = rule.APPLIES_TO.get(descriptor.kind)
+    gate = rule.APPLIES_TO.get(descriptor.type)
     if gate is None:
         return False
     match gate:

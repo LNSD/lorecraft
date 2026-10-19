@@ -1,10 +1,10 @@
 """The query-backed rules over items and layout subjects, with their closed eligibility gates.
 
 Every rule over an item derives from `QueriedItemRule[Facts]`, names its `ItemQuery[Facts]`, and declares an
-`APPLIES_TO` mapping for the item kinds it judges. `WhenMetaSpec` requires a loaded layer to state the named part;
-`Always` admits the kind wherever it appears in the rule's mapping, and `WhenSchema` admits a kind only when the
-named schema is registered.
-A kind absent from the mapping is inapplicable. These declarations let the runner and rule table use one explicit
+`APPLIES_TO` mapping for the item types it judges. `WhenMetaSpec` requires a loaded layer to state the named part;
+`Always` admits the item type wherever it appears in the rule's mapping, and `WhenSchema` admits an item type only when
+the named schema is registered.
+An item type absent from the mapping is inapplicable. These declarations let the runner and rule table use one explicit
 contract while the rule itself judges only query facts.
 
 A layout entry is not an item: `QueriedSymlinkRule` covers links in the skill layout and
@@ -12,7 +12,7 @@ A layout entry is not an item: `QueriedSymlinkRule` covers links in the skill la
 the entry subject, since an occurrence points at the entry itself and not at a line of Markdown.
 
 Rules in each group declare their own applicability alongside their codes and queries. Shared document and skill rules
-name both kinds explicitly; Markdown checks can combine structure requirements for corpus items with `Always` for
+name both item types explicitly; Markdown checks can combine structure requirements for corpus items with `Always` for
 skill files, and schema-dependent skill checks name their registered schema directly.
 """
 
@@ -22,7 +22,7 @@ from dataclasses import dataclass
 from types import MappingProxyType
 from typing import ClassVar, Self
 
-from lorecraft.project.item import ItemKind, MetaSpecPart
+from lorecraft.project.item import ItemType, MetaSpecPart
 from lorecraft.project.query import (
     CorpusDirectoryQuery,
     ItemQuery,
@@ -46,12 +46,12 @@ class WhenMetaSpec:
 
 @dataclass(frozen=True, slots=True)
 class Always:
-    """A gate for an item kind governed independently of a structure layer."""
+    """A gate for an item type governed independently of a structure layer."""
 
 
 @dataclass(frozen=True, slots=True)
 class WhenSchema:
-    """A gate for an item kind when its governing schema is registered.
+    """A gate for an item type when its governing schema is registered.
 
     Attributes:
         schema: The registered schema that governs the item for this rule.
@@ -91,13 +91,13 @@ class Queried[Facts, QueryType](Rule, ABC):
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class QueriedItemRule[Facts](Queried[Facts, ItemQuery[Facts]], ContentRule):
-    """The base of a rule over items that declares each kind and gate it judges.
+    """The base of a rule over items that declares each item type and gate it judges.
 
-    The rule names its query and declares its complete `APPLIES_TO` mapping. Item kinds absent from that mapping are
+    The rule names its query and declares its complete `APPLIES_TO` mapping. Item types absent from that mapping are
     never judged. Layout rules use their separate queried bases because their query primitives differ.
     """
 
-    APPLIES_TO: ClassVar[Mapping[ItemKind, Gate]] = MappingProxyType({})
+    APPLIES_TO: ClassVar[Mapping[ItemType, Gate]] = MappingProxyType({})
 
     @classmethod
     @abstractmethod

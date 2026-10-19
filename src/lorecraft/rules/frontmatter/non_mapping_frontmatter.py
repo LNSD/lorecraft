@@ -9,7 +9,7 @@ from lorecraft.core.path import RootRelativePath
 
 # The module, not its classes: this rule's own name is the syntax's `NonMappingFrontmatter`.
 from lorecraft.project import syntax
-from lorecraft.project.item import ItemKind
+from lorecraft.project.item import ItemType
 from lorecraft.project.query import ItemQuery
 from lorecraft.project.schemas import FrontmatterOwner
 from lorecraft.rules.collector import rule
@@ -85,10 +85,10 @@ class NonMappingFrontmatter(QueriedItemRule[FrontmatterFacts]):
     NAME: ClassVar[RuleName] = RuleName('non-mapping-frontmatter')
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('0.3.0')
-    APPLIES_TO: ClassVar[Mapping[ItemKind, Gate]] = MappingProxyType(
+    APPLIES_TO: ClassVar[Mapping[ItemType, Gate]] = MappingProxyType(
         {
-            ItemKind.DOCUMENT: WhenMetaSpec(MetaSpecPart.FRONTMATTER),
-            ItemKind.SKILL_ENTRYPOINT: WhenMetaSpec(MetaSpecPart.FRONTMATTER),
+            ItemType.DOCUMENT: WhenMetaSpec(MetaSpecPart.FRONTMATTER),
+            ItemType.SKILL_ENTRYPOINT: WhenMetaSpec(MetaSpecPart.FRONTMATTER),
         }
     )
 

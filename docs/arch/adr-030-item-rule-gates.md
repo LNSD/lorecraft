@@ -1,6 +1,6 @@
 ---
 name: "adr-030-item-rule-gates"
-description: "Item rules declare the kinds they judge and the meta-spec part or schema condition that gates each kind. Load when changing item-rule applicability, meta-spec governance parts, or their coverage."
+description: "Item rules declare the item types they judge and the meta-spec part or schema condition that gates each item type. Load when changing item-rule applicability, meta-spec governance parts, or their coverage."
 type: "adr"
 status: "proposed"
 ---
@@ -18,10 +18,10 @@ status: "proposed"
 ## Context
 
 The rules engine has several queried item bases with the same query and judgement shape. Their inheritance encodes
-which items they judge and what must govern an item before judgement. The runner reconstructs those declarations with
+which item types they judge and what must govern an item before judgement. The runner reconstructs those declarations with
 `issubclass` checks, a meta-spec-part lookup, and exceptions for the Agent Skills floor and a loaded skills corpus
 layer. `RuleTable` repeats the class hierarchy to fill per-base partitions and meta-spec-part indexes. A rule that
-applies to more than one kind may use either a document-and-skill base or a frontmatter base, so applicability is
+applies to more than one item type may use either a document-and-skill base or a frontmatter base, so applicability is
 split across different vocabulary and inheritance paths.
 
 This implicit contract makes adding or moving a rule a coordinated change to the base hierarchy, runner and table.
@@ -31,7 +31,7 @@ keep layout subjects separate because their primitives and query subjects differ
 
 ## Decision
 
-1. **Item rules declare a gate for each item kind they judge.** Define one `MetaSpecPart` enum in `project`,
+1. **Item rules declare a gate for each item type they judge.** Define one `MetaSpecPart` enum in `project`,
    replacing `Facet` and `ItemFacet`, with `FRONTMATTER`, `STRUCTURE`, `OUTLINE` and `BUDGET`; drop `MARKDOWN`.
    Their serialized values (`frontmatter`, `structure`, `outline`, `budget`) and coverage labels stay unchanged.
    Define a closed gate union with three immutable values:
@@ -53,17 +53,17 @@ keep layout subjects separate because their primitives and query subjects differ
    ```
 
    `WhenMetaSpec(part)` identifies the part a rule reads from meta specs. The runner uses it to select the item bucket
-   and to report `ungoverned` coverage when a loaded layer does not state that part. `Always()` means the item kind
+   and to report `ungoverned` coverage when a loaded layer does not state that part. `Always()` means the item type
    listed in `APPLIES_TO` is admitted independently of a per-item meta-spec declaration. This replaces `ByPackage()`,
-   whose name suggested a repository-wide scope even though it only admitted the kind explicitly mapped by the rule.
+   whose name suggested a repository-wide scope even though it only admitted the item type explicitly mapped by the rule.
    `WhenSchema(schema)` means the named schema is registered and therefore governs the item for this rule. These
    gates do not alter a rule's query or judgement.
 
 2. **One queried item base owns the declaration.** Every item rule derives from `QueriedItemRule[Facts]`, which keeps
    the typed `query() -> ItemQuery[Facts]` and `judge(facts)` contract and declares a class-level mapping
-   `APPLIES_TO: Mapping[ItemKind, Gate]`. `ItemQuery[Facts]` is the query over `ItemPrimitives` that returns
-   `Facts`; the shared `Query[P, Facts]` type names the primitive group explicitly. A missing kind means the rule never
-   judges that kind. Each rule writes its full mapping explicitly; no preset base encodes a default or preserves the old
+   `APPLIES_TO: Mapping[ItemType, Gate]`. `ItemQuery[Facts]` is the query over `ItemPrimitives` that returns
+   `Facts`; the shared `Query[P, Facts]` type names the primitive group explicitly. A missing item type means the rule never
+   judges that item type. Each rule writes its full mapping explicitly; no preset base encodes a default or preserves the old
    item-base names. A rule applying to both documents and skills declares both keys, even when they use the
    same gate.
 
@@ -77,7 +77,7 @@ keep layout subjects separate because their primitives and query subjects differ
    inactive part. This is a vocabulary for applicability, not a central list of which rules exist.
 
 3. **Governance follows loaded layers.** `governed_parts` contains only the parts stated by loaded layers, for every
-   item kind; no part is forced active. Rules applied to `SPECIFICATION` items use `Always()`. A skill rule
+   item type; no part is forced active. Rules applied to `SPECIFICATION` items use `Always()`. A skill rule
    gated by a part uses plain `WhenMetaSpec(part)`, just as a document rule does: a skills layer stating the part is the
    condition for judging. Skill checks independent of a meta-spec part use `Always()`. `requires_loaded_layer` is
    removed. When a skills layer fails, skills follow the mode's skip policy in
@@ -90,26 +90,26 @@ keep layout subjects separate because their primitives and query subjects differ
    fourth gate solely for the skills-corpus condition.
 
 4. **Schema-backed eligibility is explicit.** A rule whose applicability depends on a registered schema uses
-   `WhenSchema` for that kind. In particular, the Agent Skills floor is represented by the registered
+   `WhenSchema` for that item type. In particular, the Agent Skills floor is represented by the registered
    `SchemaReference` used by the name-mismatch rule; there is no runner exception or synthetic governance part for
    it. If a schema is not registered, the gate does not admit the rule. Schema registration and resolution remain
    governed by the schema registry design in ADR-028.
 
 5. **The runner has one item eligibility predicate.** `judges(rule, descriptor, governance, model)` looks up the
-   descriptor's kind in `rule.APPLIES_TO` and evaluates the gate: an `Always` gate admits the mapped item kind, a schema gate requires the schema to be registered in the model, and a meta-spec gate identifies the part whose coverage the runner
+   descriptor's type in `rule.APPLIES_TO` and evaluates the gate: an `Always` gate admits the mapped item type, a schema gate requires the schema to be registered in the model, and a meta-spec gate identifies the part whose coverage the runner
    tracks. No gate forces a skills-corpus layer to be loaded; failed-layer handling follows the mode's skip policy.
    The match is exhaustive over `Gate` and closes with `assert_never`. A missing mapping entry returns false. The runner has no `governing_facet` helper, `ItemQueriedRule` union, base-specific branch or Agent Skills floor exception.
 
    Eligibility and coverage remain distinct. When an applicable `WhenMetaSpec` gate names a part absent from the
    descriptor's `governed_parts`, the runner records `ungoverned` coverage and does not judge it. This includes skill
-   frontmatter when the built-in schema is opted out and no repository schema activates the part. A rule whose kind
+   frontmatter when the built-in schema is opted out and no repository schema activates the part. A rule whose item type
    is absent from `APPLIES_TO` or a schema gate whose schema is unregistered is skipped silently. The runner reads the gate
    both to select rules and to record coverage; `judges` does not replace that behavior.
 
    The runner still owns evaluation order, decoding, diagnostics and rule judgement.
 
 6. **The table indexes items from declared gates.** `RuleTable` partitions rules into item, symlink and corpus
-   directory groups, with one item index keyed by `(ItemKind, MetaSpecPart)` where part-specific selection is
+   directory groups, with one item index keyed by `(ItemType, MetaSpecPart)` where part-specific selection is
    needed.
    Building the table reads `APPLIES_TO`, rather than branching on a rule's base class. It keeps enabled rules and their
    severity and preserves registry order. Layout groups remain typed separately and do not acquire item gates.
@@ -121,17 +121,17 @@ keep layout subjects separate because their primitives and query subjects differ
 
 8. **Layout rules keep subject-specific queried bases.** `QueriedSymlinkRule` and
    `QueriedCorpusDirectoryRule` directly provide the rule bases, with query types `Query[SymlinkPrimitives, Facts]`
-   and `Query[CorpusDirectoryPrimitives, Facts]`. A layout subject is not an item kind, and combining those bases
+   and `Query[CorpusDirectoryPrimitives, Facts]`. A layout subject is not an item type, and combining those bases
    with `QueriedItemRule` would weaken the per-subject typing required by ADR-027 and ADR-029.
 
 ## Consequences
 
 - A rule's applicability can be read from its declaration, while its query remains typed by its facts. Adding an
-  item kind to a rule requires an explicit gate instead of a new inheritance path or runner branch.
+  item type to a rule requires an explicit gate instead of a new inheritance path or runner branch.
 - The runner and table derive eligibility and indexes from the same mapping. This removes their duplicated
   interpretation of the item-base hierarchy and makes missing gate cases visible at registry load.
 - `WhenMetaSpec`, `Always`, and `WhenSchema` remain distinct. Schema-backed cases follow registry presence, while
-  `Always` admits only the item kinds named in `APPLIES_TO` without requiring a per-item meta-spec declaration.
+  `Always` admits only the item types named in `APPLIES_TO` without requiring a per-item meta-spec declaration.
 - Skills without a skills-corpus layer appear in coverage as ungoverned for the parts enabled rules need;
   readers can see missing governance instead of mistaking silence for coverage.
 - Existing judgement behavior and rule-case diagnostics remain the compatibility boundary. This decision changes
@@ -142,13 +142,13 @@ keep layout subjects separate because their primitives and query subjects differ
 
 - **Keep the existing bases and add attributes to each.** This would leave inheritance as a second applicability
   vocabulary, so callers could disagree about which declaration controls dispatch.
-- **Use separate per-kind booleans or part fields.** This duplicates combinations across bases and cannot express
+- **Use separate per-item-type booleans or part fields.** This duplicates combinations across bases and cannot express
   registry-backed schema eligibility without another special case.
 - **Add a `BySkillsCorpus(part)` gate.** This would preserve the current silent skip for skills without a
   loaded skills corpus, but it would make skills-corpus presence a separate eligibility concept. Coverage is meant
   to expose ungoverned parts, so the simpler `WhenMetaSpec(part)` gate is preferred.
 - **Fold layout subjects into the item base.** Layout records have different primitive contracts and are not item
-  kinds; a common base would erase the query-to-subject typing the engine relies on.
+  types; a common base would erase the query-to-subject typing the engine relies on.
 
 ## References
 

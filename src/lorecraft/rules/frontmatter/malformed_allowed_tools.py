@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from types import MappingProxyType
 from typing import ClassVar, Self, assert_never
 
-from lorecraft.project.item import ItemKind
+from lorecraft.project.item import ItemType
 from lorecraft.project.query import ItemQuery
 from lorecraft.project.schemas import AllowedTool, CommaSeparated, MalformedEntry, NotATool, UnbalancedParentheses
 from lorecraft.rules.collector import rule
@@ -75,7 +75,7 @@ class MalformedAllowedTools(QueriedItemRule[AllowedToolsField | None]):
     NAME: ClassVar[RuleName] = RuleName('malformed-allowed-tools')
     LEVEL: ClassVar[Level] = Level.WARN
     SINCE: ClassVar[Release] = Release('0.3.0')
-    APPLIES_TO: ClassVar[Mapping[ItemKind, Gate]] = MappingProxyType({ItemKind.SKILL_ENTRYPOINT: Always()})
+    APPLIES_TO: ClassVar[Mapping[ItemType, Gate]] = MappingProxyType({ItemType.SKILL_ENTRYPOINT: Always()})
 
     spec: None = None
     problem: MalformedAllowedToolsProblem

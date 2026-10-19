@@ -7,7 +7,7 @@ from typing import ClassVar, Self, assert_never
 from urllib.parse import unquote
 
 from lorecraft.core.path import RootRelativePath
-from lorecraft.project.item import ItemKind
+from lorecraft.project.item import ItemType
 from lorecraft.project.link_target import (
     DocumentDirectory,
     EscapingTarget,
@@ -152,12 +152,12 @@ class BrokenLink(QueriedItemRule[tuple[MissingTarget, ...]]):
     NAME: ClassVar[RuleName] = RuleName('broken-link')
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('0.3.0')
-    APPLIES_TO: ClassVar[Mapping[ItemKind, Gate]] = MappingProxyType(
+    APPLIES_TO: ClassVar[Mapping[ItemType, Gate]] = MappingProxyType(
         {
-            ItemKind.DOCUMENT: WhenMetaSpec(MetaSpecPart.STRUCTURE),
-            ItemKind.META_SPEC: Always(),
-            ItemKind.SKILL_ENTRYPOINT: Always(),
-            ItemKind.SKILL_RESOURCE: Always(),
+            ItemType.DOCUMENT: WhenMetaSpec(MetaSpecPart.STRUCTURE),
+            ItemType.META_SPEC: Always(),
+            ItemType.SKILL_ENTRYPOINT: Always(),
+            ItemType.SKILL_RESOURCE: Always(),
         }
     )
 

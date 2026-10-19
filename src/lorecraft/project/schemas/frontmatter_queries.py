@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.path import PathComponent
 from lorecraft.project.aspect import AspectFilename
-from lorecraft.project.item import SkillEntrypointOrigin, WrongItemKindError
+from lorecraft.project.item import SkillEntrypointOrigin, WrongItemTypeError
 from lorecraft.project.query import item_frontmatter, item_name
 from lorecraft.project.schemas.agent_skills_schema import agent_skills_frontmatter_schema
 from lorecraft.project.schemas.frontmatter_owner import (
@@ -31,7 +31,7 @@ def owner_of_frontmatter(primitives: GovernancePrimitives) -> FrontmatterOwner:
     """The document or skill whose frontmatter the item opens, from its descriptor and governance.
 
     Raises:
-        WrongItemKindError: If the item is not a skill or a document whose corpus states a structure spec.
+        WrongItemTypeError: If the item is not a skill or a document whose corpus states a structure spec.
     """
     name = primitives.query(item_name)
     governance = primitives.governance()
@@ -41,7 +41,7 @@ def owner_of_frontmatter(primitives: GovernancePrimitives) -> FrontmatterOwner:
             return DocumentFrontmatterOwner(filename=name, spec=structure.path)
     origin = primitives.origin()
     if not isinstance(origin, SkillEntrypointOrigin):
-        raise WrongItemKindError('a document whose corpus states a structure specification')
+        raise WrongItemTypeError('a document whose corpus states a structure specification')
     return SkillFrontmatterOwner(
         directory_name=PathComponent.parse(primitives.item_listed_name()), link_target=origin.link_target
     )

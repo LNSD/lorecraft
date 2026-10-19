@@ -7,7 +7,7 @@ from typing import ClassVar, Self
 from urllib.parse import unquote
 
 from lorecraft.project.aspect import AspectName
-from lorecraft.project.item import ItemKind
+from lorecraft.project.item import ItemType
 from lorecraft.project.link_target import ExtensionLink as LinkToExtension
 from lorecraft.project.link_target import extension_links_of
 from lorecraft.project.query import ItemQuery, item_name, item_parse
@@ -103,10 +103,10 @@ class ExtensionLink(QueriedItemRule[ExtensionLinkFacts]):
     NAME: ClassVar[RuleName] = RuleName('extension-link')
     LEVEL: ClassVar[Level] = Level.WARN
     SINCE: ClassVar[Release] = Release('0.4.0')
-    APPLIES_TO: ClassVar[Mapping[ItemKind, Gate]] = MappingProxyType(
+    APPLIES_TO: ClassVar[Mapping[ItemType, Gate]] = MappingProxyType(
         {
-            ItemKind.DOCUMENT: WhenMetaSpec(MetaSpecPart.STRUCTURE),
-            ItemKind.META_SPEC: Always(),
+            ItemType.DOCUMENT: WhenMetaSpec(MetaSpecPart.STRUCTURE),
+            ItemType.META_SPEC: Always(),
         }
     )
 

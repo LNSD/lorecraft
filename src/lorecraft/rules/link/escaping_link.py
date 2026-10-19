@@ -6,7 +6,7 @@ from types import MappingProxyType
 from typing import ClassVar, Self, assert_never
 from urllib.parse import unquote
 
-from lorecraft.project.item import ItemKind
+from lorecraft.project.item import ItemType
 from lorecraft.project.link_target import EscapingTarget, LinkTarget
 from lorecraft.project.query import ItemQuery, item_parse
 from lorecraft.project.syntax import (
@@ -110,10 +110,10 @@ class EscapingLink(QueriedItemRule[tuple[Link, ...]]):
     NAME: ClassVar[RuleName] = RuleName('escaping-link')
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('0.3.0')
-    APPLIES_TO: ClassVar[Mapping[ItemKind, Gate]] = MappingProxyType(
+    APPLIES_TO: ClassVar[Mapping[ItemType, Gate]] = MappingProxyType(
         {
-            ItemKind.SKILL_ENTRYPOINT: Always(),
-            ItemKind.SKILL_RESOURCE: Always(),
+            ItemType.SKILL_ENTRYPOINT: Always(),
+            ItemType.SKILL_RESOURCE: Always(),
         }
     )
 

@@ -6,7 +6,7 @@ from types import MappingProxyType
 from typing import ClassVar, Protocol, Self
 
 from lorecraft.core.path import RootRelativePath
-from lorecraft.project.item import ItemKind
+from lorecraft.project.item import ItemType
 from lorecraft.project.query import (
     CountPrimitives,
     GovernancePrimitives,
@@ -66,9 +66,9 @@ class OverHalfBudget(QueriedItemRule[BudgetFacts]):
     NAME: ClassVar[RuleName] = RuleName('over-half-budget')
     LEVEL: ClassVar[Level] = Level.WARN
     SINCE: ClassVar[Release] = Release('1.0.0')
-    APPLIES_TO: ClassVar[Mapping[ItemKind, Gate]] = MappingProxyType(
+    APPLIES_TO: ClassVar[Mapping[ItemType, Gate]] = MappingProxyType(
         {
-            ItemKind.DOCUMENT: WhenMetaSpec(MetaSpecPart.BUDGET),
+            ItemType.DOCUMENT: WhenMetaSpec(MetaSpecPart.BUDGET),
         }
     )
 

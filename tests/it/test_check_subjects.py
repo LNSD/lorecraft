@@ -30,7 +30,7 @@ from lorecraft.engine import check_subjects
 from lorecraft.jsonschema import JsonType
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.database import Database
-from lorecraft.project.item import ItemKind, ItemRef
+from lorecraft.project.item import ItemRef, ItemType
 from lorecraft.project.layout import SNAPSHOT_SCOPE
 from lorecraft.project.link_target import DocumentDirectory, SkillRoot
 from lorecraft.project.query import (
@@ -282,8 +282,8 @@ class OverHalfBudget(QueriedItemRule[BudgetFacts]):
     NAME: ClassVar[RuleName] = RuleName('over-half-budget')
     LEVEL: ClassVar[Level] = Level.WARN
     SINCE: ClassVar[Release] = Release('1.0.0')
-    APPLIES_TO: ClassVar[Mapping[ItemKind, Gate]] = MappingProxyType(
-        {ItemKind.DOCUMENT: WhenMetaSpec(MetaSpecPart.BUDGET)}
+    APPLIES_TO: ClassVar[Mapping[ItemType, Gate]] = MappingProxyType(
+        {ItemType.DOCUMENT: WhenMetaSpec(MetaSpecPart.BUDGET)}
     )
 
     spec: RootRelativePath
@@ -322,8 +322,8 @@ class EmptyDocument(QueriedItemRule[TokenCount]):
     NAME: ClassVar[RuleName] = RuleName('empty-document')
     LEVEL: ClassVar[Level] = Level.ALLOW
     SINCE: ClassVar[Release] = Release('1.0.0')
-    APPLIES_TO: ClassVar[Mapping[ItemKind, Gate]] = MappingProxyType(
-        {ItemKind.DOCUMENT: WhenMetaSpec(MetaSpecPart.BUDGET)}
+    APPLIES_TO: ClassVar[Mapping[ItemType, Gate]] = MappingProxyType(
+        {ItemType.DOCUMENT: WhenMetaSpec(MetaSpecPart.BUDGET)}
     )
 
     def message(self) -> str:
@@ -359,8 +359,8 @@ class AnyTokens(QueriedItemRule[TokenCount]):
     NAME: ClassVar[RuleName] = RuleName('any-tokens')
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('1.0.0')
-    APPLIES_TO: ClassVar[Mapping[ItemKind, Gate]] = MappingProxyType(
-        {ItemKind.DOCUMENT: WhenMetaSpec(MetaSpecPart.BUDGET)}
+    APPLIES_TO: ClassVar[Mapping[ItemType, Gate]] = MappingProxyType(
+        {ItemType.DOCUMENT: WhenMetaSpec(MetaSpecPart.BUDGET)}
     )
 
     token_count: int

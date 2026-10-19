@@ -5,7 +5,7 @@ import pytest
 from lib.primitives import StructurePrimitives
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
-from lorecraft.project.item import DocumentOrigin, WrongItemKindError
+from lorecraft.project.item import DocumentOrigin, WrongItemTypeError
 
 from ..frontmatter_queries import owner_of_frontmatter
 
@@ -23,6 +23,6 @@ class TestFrontmatterOwnerQuery:
 
         #: When / Then
         with pytest.raises(
-            WrongItemKindError, match='expected a document whose corpus states a structure specification'
+            WrongItemTypeError, match='expected a document whose corpus states a structure specification'
         ):
             owner_of_frontmatter(primitives)

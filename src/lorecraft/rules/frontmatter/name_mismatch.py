@@ -6,7 +6,7 @@ from types import MappingProxyType
 from typing import ClassVar, Self, assert_never
 
 from lorecraft.core.path import ROOT, RootRelativePath
-from lorecraft.project.item import ItemKind
+from lorecraft.project.item import ItemType
 from lorecraft.project.layout import DOCUMENT_SUFFIX
 from lorecraft.project.query import ItemQuery
 from lorecraft.project.schemas import (
@@ -150,10 +150,10 @@ class NameMismatch(QueriedItemRule[FrontmatterFacts]):
     NAME: ClassVar[RuleName] = RuleName('name-mismatch')
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('0.3.0')
-    APPLIES_TO: ClassVar[Mapping[ItemKind, Gate]] = MappingProxyType(
+    APPLIES_TO: ClassVar[Mapping[ItemType, Gate]] = MappingProxyType(
         {
-            ItemKind.DOCUMENT: WhenMetaSpec(MetaSpecPart.FRONTMATTER),
-            ItemKind.SKILL_ENTRYPOINT: WhenSchema(AGENT_SKILLS_SCHEMA_REFERENCE),
+            ItemType.DOCUMENT: WhenMetaSpec(MetaSpecPart.FRONTMATTER),
+            ItemType.SKILL_ENTRYPOINT: WhenSchema(AGENT_SKILLS_SCHEMA_REFERENCE),
         }
     )
 

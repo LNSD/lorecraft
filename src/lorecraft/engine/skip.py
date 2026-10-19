@@ -12,7 +12,7 @@ from typing import assert_never
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.corpus import ReservedCorpusDirectory
 from lorecraft.project.database import Database, ItemText, Undecodable
-from lorecraft.project.item import ItemKind, ItemRef, MetaSpecPart
+from lorecraft.project.item import ItemRef, ItemType, MetaSpecPart
 from lorecraft.project.layout import DOCS_DIR
 from lorecraft.project.skill import (
     OutsideSymlink,
@@ -94,8 +94,8 @@ def _check_item(
 ) -> SubjectReport:
     """Decode one item subject through the item queries, then judge it if it decoded and no failed layer skips it.
 
-    Every item kind is decoded the same way, by its common reference. A missing file is reported by the read error of
-    its kind; a meta spec has none, so it raises the item's own. A document is skipped when a failed layer
+    Every item type is decoded the same way, by its common reference. A missing file is reported by the read error of
+    its type; a meta spec has none, so it raises the item's own. A document is skipped when a failed layer
     governs it; a skill retains its Agent Skills checks. Resources have no corpus governance, and
     meta specs have no corpus governance.
 
@@ -121,8 +121,8 @@ def _check_item(
         case Undecodable():
             return UndecodableSubject(item, source.failure)
         case ItemText():
-            match source.descriptor.kind:
-                case ItemKind.DOCUMENT:
+            match source.descriptor.type:
+                case ItemType.DOCUMENT:
                     # Governance is a lookup in the model, never a rule, so a skipped item reads nothing else.
                     governance = database.item_governance(item)
                     if governance is not None:
@@ -135,17 +135,17 @@ def _check_item(
                                 (first.path, *(layer.path for layer in others)),
                                 SkipReason.FAILED_STRUCTURE,
                             )
-                case ItemKind.SKILL_ENTRYPOINT:
+                case ItemType.SKILL_ENTRYPOINT:
                     governance = database.item_governance(item)
                     if governance is not None and governance.failed_layers():
                         table = table.without_item_meta_spec_gates(
-                            ItemKind.SKILL_ENTRYPOINT,
+                            ItemType.SKILL_ENTRYPOINT,
                             frozenset({MetaSpecPart.STRUCTURE, MetaSpecPart.OUTLINE, MetaSpecPart.BUDGET}),
                         )
-                case ItemKind.META_SPEC | ItemKind.SKILL_RESOURCE:
-                    pass  # neither kind is skipped by a failed corpus layer
+                case ItemType.META_SPEC | ItemType.SKILL_RESOURCE:
+                    pass  # neither item type is skipped by a failed corpus layer
                 case _:
-                    assert_never(source.descriptor.kind)
+                    assert_never(source.descriptor.type)
             return judge_item(database, source, table)
         case _:
             assert_never(source)

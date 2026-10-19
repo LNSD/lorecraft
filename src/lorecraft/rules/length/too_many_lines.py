@@ -6,7 +6,7 @@ from types import MappingProxyType
 from typing import ClassVar, Final, Self
 
 from lorecraft.core.num import NonZeroUnsignedInt
-from lorecraft.project.item import ItemKind
+from lorecraft.project.item import ItemType
 from lorecraft.project.query import CountPrimitives, ItemQuery, item_line_count
 from lorecraft.project.syntax import LineCount, LineNumber
 from lorecraft.rules.collector import rule
@@ -103,7 +103,7 @@ class TooManyLines(QueriedItemRule[LineCount]):
     NAME: ClassVar[RuleName] = RuleName('too-many-lines')
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('0.3.0')
-    APPLIES_TO: ClassVar[Mapping[ItemKind, Gate]] = MappingProxyType({ItemKind.SKILL_ENTRYPOINT: Always()})
+    APPLIES_TO: ClassVar[Mapping[ItemType, Gate]] = MappingProxyType({ItemType.SKILL_ENTRYPOINT: Always()})
 
     spec: None = None
     overrun: Overrun

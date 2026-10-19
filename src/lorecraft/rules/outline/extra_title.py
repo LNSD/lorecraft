@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from types import MappingProxyType
 from typing import ClassVar, Self
 
-from lorecraft.project.item import ItemKind
+from lorecraft.project.item import ItemType
 from lorecraft.project.query import ItemQuery, SyntaxPrimitives, item_parse
 from lorecraft.project.syntax import Heading
 from lorecraft.rules.collector import rule
@@ -97,10 +97,10 @@ class ExtraTitle(QueriedItemRule[tuple[Heading, ...]]):
     NAME: ClassVar[RuleName] = RuleName('extra-title')
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('0.3.0')
-    APPLIES_TO: ClassVar[Mapping[ItemKind, Gate]] = MappingProxyType(
+    APPLIES_TO: ClassVar[Mapping[ItemType, Gate]] = MappingProxyType(
         {
-            ItemKind.DOCUMENT: WhenMetaSpec(MetaSpecPart.STRUCTURE),
-            ItemKind.SKILL_ENTRYPOINT: WhenMetaSpec(MetaSpecPart.STRUCTURE),
+            ItemType.DOCUMENT: WhenMetaSpec(MetaSpecPart.STRUCTURE),
+            ItemType.SKILL_ENTRYPOINT: WhenMetaSpec(MetaSpecPart.STRUCTURE),
         }
     )
 

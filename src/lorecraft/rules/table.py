@@ -2,7 +2,7 @@
 
 The table is built once per run, before any subject is checked. It pairs each enabled rule with the severity of its
 occurrences. Rules left off by their default level or a run selection are absent; removed rules and engine
-conditions are not enabled rules. Item rules are indexed once by item kind and optional meta spec part, while
+conditions are not enabled rules. Item rules are indexed once by item type and optional meta spec part, while
 rules over layout symlinks and reserved-corpus directories keep separate partitions. A rule's closed gate declaration
 determines which index buckets contain it. Only queried rules can be indexed, so each rule in a bucket has a query
 for the runner to resolve.
@@ -12,7 +12,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any, Self, assert_never
 
-from lorecraft.project.item import ItemKind, MetaSpecPart
+from lorecraft.project.item import ItemType, MetaSpecPart
 
 from .declaration import Rule
 from .identity import Level, Severity
@@ -62,9 +62,9 @@ type QueriedItem = QueriedItemRule[Any]
 
 
 class RuleTable:
-    """The enabled rules of one run, indexed by item kind and meta spec part, plus separate layout partitions."""
+    """The enabled rules of one run, indexed by item type and meta spec part, plus separate layout partitions."""
 
-    _item_rules: dict[tuple[ItemKind, MetaSpecPart | None], tuple[EnabledRule[QueriedItem], ...]]
+    _item_rules: dict[tuple[ItemType, MetaSpecPart | None], tuple[EnabledRule[QueriedItem], ...]]
     _symlink_rules: tuple[EnabledRule[QueriedSymlinkRule[Any]], ...]
     _corpus_directory_rules: tuple[EnabledRule[QueriedCorpusDirectoryRule[Any]], ...]
 
@@ -77,7 +77,7 @@ class RuleTable:
         Raises:
             UnknownRuleBaseError: If a rule has no supported query base or an item rule has no gates.
         """
-        item_rules: dict[tuple[ItemKind, MetaSpecPart | None], list[EnabledRule[QueriedItem]]] = {}
+        item_rules: dict[tuple[ItemType, MetaSpecPart | None], list[EnabledRule[QueriedItem]]] = {}
         symlink_rules: list[EnabledRule[QueriedSymlinkRule[Any]]] = []
         corpus_directory_rules: list[EnabledRule[QueriedCorpusDirectoryRule[Any]]] = []
         for rule_class in sorted(severities, key=_printed_code):
@@ -89,7 +89,7 @@ class RuleTable:
                 if not rule_class.APPLIES_TO:
                     raise UnknownRuleBaseError(rule_class)
                 enabled = EnabledRule(rule_class, severities[rule_class])
-                for kind, gate in rule_class.APPLIES_TO.items():
+                for item_type, gate in rule_class.APPLIES_TO.items():
                     match gate:
                         case WhenMetaSpec(part):
                             part_key = part
@@ -97,7 +97,7 @@ class RuleTable:
                             part_key = None
                         case _:
                             assert_never(gate)
-                    item_rules.setdefault((kind, part_key), []).append(enabled)
+                    item_rules.setdefault((item_type, part_key), []).append(enabled)
             else:
                 raise UnknownRuleBaseError(rule_class)
         self._item_rules = {key: tuple(rules) for key, rules in item_rules.items()}
@@ -124,17 +124,17 @@ class RuleTable:
                 severities[rule_class] = severity
         return cls(severities)
 
-    def item_rules(self, kind: ItemKind, part: MetaSpecPart | None) -> tuple[EnabledRule[QueriedItem], ...]:
-        """Each enabled item rule gated for this kind and meta spec part, in code order.
+    def item_rules(self, item_type: ItemType, part: MetaSpecPart | None) -> tuple[EnabledRule[QueriedItem], ...]:
+        """Each enabled item rule gated for this item type and meta spec part, in code order.
 
         Args:
-            kind: The item kind to look up.
+            item_type: The item type to look up.
             part: The active meta spec part, or `None` for `Always` and schema gates.
         """
-        return self._item_rules.get((kind, part), ())
+        return self._item_rules.get((item_type, part), ())
 
-    def without_item_meta_spec_gates(self, kind: ItemKind, parts: frozenset[MetaSpecPart]) -> Self:
-        """Return a table without selected meta spec gates for one item kind.
+    def without_item_meta_spec_gates(self, item_type: ItemType, parts: frozenset[MetaSpecPart]) -> Self:
+        """Return a table without selected meta spec gates for one item type.
 
         A mode uses this when that item's governing layer failed to load. `Always` and schema gates remain active.
         """
@@ -145,7 +145,7 @@ class RuleTable:
         severities.update({enabled.rule: enabled.severity for enabled in self._corpus_directory_rules})
         retained: dict[type[Rule], Severity] = {}
         for rule, severity in severities.items():
-            gate = rule.APPLIES_TO.get(kind) if issubclass(rule, QueriedItemRule) else None
+            gate = rule.APPLIES_TO.get(item_type) if issubclass(rule, QueriedItemRule) else None
             if not isinstance(gate, WhenMetaSpec) or gate.part not in parts:
                 retained[rule] = severity
         return type(self)(retained)

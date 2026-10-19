@@ -95,7 +95,7 @@ class EmptySection(QueriedItemRule[SectionFacts]):
     NAME: ClassVar[RuleName] = RuleName('empty-section')
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('0.3.0')
-    APPLIES_TO: ClassVar[Mapping[ItemKind, Gate]] = {ItemKind.DOCUMENT: WhenMetaSpec(MetaSpecPart.STRUCTURE)}
+    APPLIES_TO: ClassVar[Mapping[ItemType, Gate]] = {ItemType.DOCUMENT: WhenMetaSpec(MetaSpecPart.STRUCTURE)}
 
     spec: RootRelativePath
     section: str
@@ -112,11 +112,11 @@ class EmptySection(QueriedItemRule[SectionFacts]):
   as [adr-010-diagnostics](adr-010-diagnostics.md) states, and the meta spec file that states the rule, or none
   for a rule the package states. A rule over a subject with lines carries the line; one over a layout entry
   carries none.
-- **An item rule declares its applicability.** Every item rule names its query and maps each kind it judges to a gate.
+- **An item rule declares its applicability.** Every item rule names its query and maps each item type it judges to a gate.
   A gate names the meta spec part, unconditional admission or registered schema that permits the rule to run. Shared query facts let
-  one rule judge several item kinds without a separate base for each kind.
+  one rule judge several item types without a separate base for each kind.
 - **A rule over a document declares the meta spec part it reads** in `APPLIES_TO`, so the runner gates it on governance;
-  the registry rejects an item rule with no gates. The skills, their files and the skill layout receive checks according to each rule's explicit kind mapping.
+  the registry rejects an item rule with no gates. The skills, their files and the skill layout receive checks according to each rule's explicit item-type mapping.
 - **`judge` returns `tuple[Self, ...]`**, so a rule can only report its own occurrence, and the type checker
   rejects one that reports another's. That needs no type parameter anywhere in the engine.
 - **The message is rendered from the fields.** The corpus, the field and the section travel as data, not as

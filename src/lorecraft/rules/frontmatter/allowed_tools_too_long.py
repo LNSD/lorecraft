@@ -6,7 +6,7 @@ from types import MappingProxyType
 from typing import ClassVar, Final, Self
 
 from lorecraft.core.num import NonZeroUnsignedInt, UnsignedInt
-from lorecraft.project.item import ItemKind
+from lorecraft.project.item import ItemType
 from lorecraft.project.query import ItemQuery
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
@@ -72,7 +72,7 @@ class AllowedToolsTooLong(QueriedItemRule[AllowedToolsField | None]):
     NAME: ClassVar[RuleName] = RuleName('allowed-tools-too-long')
     LEVEL: ClassVar[Level] = Level.WARN
     SINCE: ClassVar[Release] = Release('0.3.0')
-    APPLIES_TO: ClassVar[Mapping[ItemKind, Gate]] = MappingProxyType({ItemKind.SKILL_ENTRYPOINT: Always()})
+    APPLIES_TO: ClassVar[Mapping[ItemType, Gate]] = MappingProxyType({ItemType.SKILL_ENTRYPOINT: Always()})
 
     spec: None = None
     overrun: Overrun

@@ -1,4 +1,4 @@
-"""The rule table: enabled rules, their severity and their item-kind and meta spec part index."""
+"""The rule table: enabled rules, their severity and their item-type and meta spec part index."""
 
 from types import MappingProxyType
 from typing import Final
@@ -6,7 +6,7 @@ from typing import Final
 import pytest
 
 from lorecraft import rules
-from lorecraft.project.item import ItemKind
+from lorecraft.project.item import ItemType
 from lorecraft.rules.corpus.reserved_corpus_overlap import ReservedCorpusOverlap
 from lorecraft.rules.frontmatter.duplicate_key import DuplicateKey
 from lorecraft.rules.frontmatter.name_mismatch import NameMismatch
@@ -55,7 +55,7 @@ class TestRuleTableFromRegistry:
         table = RuleTable.from_registry(registry, EVERY_RULE)
 
         #: Then
-        assert table.item_rules(ItemKind.DOCUMENT, MetaSpecPart.BUDGET) == enabled, (
+        assert table.item_rules(ItemType.DOCUMENT, MetaSpecPart.BUDGET) == enabled, (
             'the rules above allow are enabled, in code order; the removed rule and the condition are not rules'
         )
 
@@ -67,7 +67,7 @@ class TestRuleTableFromRegistry:
         table = RuleTable.from_registry(registry, EVERY_RULE)
 
         #: Then
-        assert table.item_rules(ItemKind.DOCUMENT, MetaSpecPart.BUDGET) == (
+        assert table.item_rules(ItemType.DOCUMENT, MetaSpecPart.BUDGET) == (
             EnabledRule(OverHalfBudget, Severity.WARNING),
         ), 'a rule at warn reports warnings'
 
@@ -79,7 +79,7 @@ class TestRuleTableFromRegistry:
         table = RuleTable.from_registry(registry, EVERY_RULE)
 
         #: Then
-        assert table.item_rules(ItemKind.DOCUMENT, MetaSpecPart.BUDGET) == (EnabledRule(AnyTokens, Severity.ERROR),), (
+        assert table.item_rules(ItemType.DOCUMENT, MetaSpecPart.BUDGET) == (EnabledRule(AnyTokens, Severity.ERROR),), (
             'a rule at deny reports errors'
         )
 
@@ -91,7 +91,7 @@ class TestRuleTableFromRegistry:
         table = RuleTable.from_registry(registry, EVERY_RULE)
 
         #: Then
-        assert table.item_rules(ItemKind.DOCUMENT, MetaSpecPart.BUDGET) == (), (
+        assert table.item_rules(ItemType.DOCUMENT, MetaSpecPart.BUDGET) == (), (
             'a rule at allow is not in the table, so it never runs'
         )
 
@@ -117,7 +117,7 @@ class TestRuleTableFromRegistry:
         table = RuleTable.from_registry(registry, EVERY_RULE)
 
         #: Then
-        assert table.item_rules(ItemKind.DOCUMENT, MetaSpecPart.OUTLINE) == (
+        assert table.item_rules(ItemType.DOCUMENT, MetaSpecPart.OUTLINE) == (
             EnabledRule(MissingSection, Severity.ERROR),
             EnabledRule(SectionOutOfOrder, Severity.ERROR),
             EnabledRule(UnexpectedSection, Severity.ERROR),
@@ -158,7 +158,7 @@ class TestRuleTableFromRegistryWithASelection:
         table = RuleTable.from_registry(registry, selection)
 
         #: Then
-        assert table.item_rules(ItemKind.DOCUMENT, MetaSpecPart.BUDGET) == (EnabledRule(AnyTokens, Severity.ERROR),), (
+        assert table.item_rules(ItemType.DOCUMENT, MetaSpecPart.BUDGET) == (EnabledRule(AnyTokens, Severity.ERROR),), (
             'a selected rule is enabled at its level, and the rules not selected are left out'
         )
 
@@ -172,7 +172,7 @@ class TestRuleTableFromRegistryWithASelection:
         table = RuleTable.from_registry(registry, selection)
 
         #: Then
-        assert table.item_rules(ItemKind.DOCUMENT, MetaSpecPart.BUDGET) == (EnabledRule(AnyTokens, Severity.ERROR),), (
+        assert table.item_rules(ItemType.DOCUMENT, MetaSpecPart.BUDGET) == (EnabledRule(AnyTokens, Severity.ERROR),), (
             'an ignored rule is left out of a selected group'
         )
 
@@ -186,7 +186,7 @@ class TestRuleTableFromRegistryWithASelection:
         table = RuleTable.from_registry(registry, selection)
 
         #: Then
-        assert table.item_rules(ItemKind.DOCUMENT, MetaSpecPart.BUDGET) == (EnabledRule(AnyTokens, Severity.ERROR),), (
+        assert table.item_rules(ItemType.DOCUMENT, MetaSpecPart.BUDGET) == (EnabledRule(AnyTokens, Severity.ERROR),), (
             'the code, more specific than the group ignored, keeps its rule, and the group leaves the rest out'
         )
 
@@ -198,7 +198,7 @@ class TestRuleTableFromRegistryWithASelection:
         table = RuleTable.from_registry(registry, selection)
 
         #: Then
-        assert table.item_rules(ItemKind.DOCUMENT, MetaSpecPart.BUDGET) == (), (
+        assert table.item_rules(ItemType.DOCUMENT, MetaSpecPart.BUDGET) == (), (
             'a selection never enables a rule at allow'
         )
 
@@ -262,7 +262,7 @@ class TestRuleTable:
         table = RuleTable(severities)
 
         #: Then
-        assert table.item_rules(ItemKind.DOCUMENT, MetaSpecPart.BUDGET) == (
+        assert table.item_rules(ItemType.DOCUMENT, MetaSpecPart.BUDGET) == (
             EnabledRule(OverHalfBudget, Severity.WARNING),
             EnabledRule(AnyTokens, Severity.ERROR),
         ), 'a partition is in code order, whatever is given, each rule with the severity given for it'
@@ -273,7 +273,7 @@ class TestRuleTable:
         table = RuleTable(severities)
 
         #: When
-        governed = table.item_rules(ItemKind.DOCUMENT, MetaSpecPart.BUDGET)
+        governed = table.item_rules(ItemType.DOCUMENT, MetaSpecPart.BUDGET)
 
         #: Then
         assert governed == (EnabledRule(TooManyTokens, Severity.ERROR),), (
@@ -286,7 +286,7 @@ class TestRuleTable:
         table = RuleTable(severities)
 
         #: When
-        governed = table.item_rules(ItemKind.DOCUMENT, MetaSpecPart.OUTLINE)
+        governed = table.item_rules(ItemType.DOCUMENT, MetaSpecPart.OUTLINE)
 
         #: Then
         assert governed == (), 'a rule over a document is run under no meta spec part but the one it declares'
@@ -299,7 +299,7 @@ class TestRuleTable:
         table = RuleTable(severities)
 
         #: When
-        governed = table.item_rules(ItemKind.DOCUMENT, MetaSpecPart.FRONTMATTER)
+        governed = table.item_rules(ItemType.DOCUMENT, MetaSpecPart.FRONTMATTER)
 
         #: Then
         assert governed == (EnabledRule(NameMismatch, Severity.WARNING),), (
@@ -312,7 +312,7 @@ class TestRuleTable:
         table = RuleTable(severities)
 
         #: When
-        governed = table.item_rules(ItemKind.DOCUMENT, MetaSpecPart.STRUCTURE)
+        governed = table.item_rules(ItemType.DOCUMENT, MetaSpecPart.STRUCTURE)
 
         #: Then
         assert governed == (), 'a rule over the frontmatter is run over a document under no other meta spec part'
@@ -325,8 +325,8 @@ class TestRuleTable:
         table = RuleTable(severities)
 
         #: Then
-        assert table.item_rules(ItemKind.DOCUMENT, MetaSpecPart.FRONTMATTER) == (), 'no document rule reads frontmatter'
-        assert table.item_rules(ItemKind.SKILL_ENTRYPOINT, MetaSpecPart.FRONTMATTER) == (), (
+        assert table.item_rules(ItemType.DOCUMENT, MetaSpecPart.FRONTMATTER) == (), 'no document rule reads frontmatter'
+        assert table.item_rules(ItemType.SKILL_ENTRYPOINT, MetaSpecPart.FRONTMATTER) == (), (
             'no skill rule reads frontmatter'
         )
 
@@ -336,7 +336,7 @@ class TestRuleTable:
         table = RuleTable(severities)
 
         #: When
-        outline_rules = table.item_rules(ItemKind.DOCUMENT, MetaSpecPart.OUTLINE)
+        outline_rules = table.item_rules(ItemType.DOCUMENT, MetaSpecPart.OUTLINE)
 
         #: Then
         assert outline_rules == (EnabledRule(MissingSection, Severity.WARNING),), (
@@ -372,7 +372,7 @@ class TestRuleTableItemIndex:
         #: Given
         registry = Registry.load(rules)
         expected = {
-            (ItemKind.DOCUMENT, MetaSpecPart.FRONTMATTER): (
+            (ItemType.DOCUMENT, MetaSpecPart.FRONTMATTER): (
                 'FM001',
                 'FM002',
                 'FM003',
@@ -386,7 +386,7 @@ class TestRuleTableItemIndex:
                 'FM013',
                 'FM014',
             ),
-            (ItemKind.DOCUMENT, MetaSpecPart.STRUCTURE): (
+            (ItemType.DOCUMENT, MetaSpecPart.STRUCTURE): (
                 'LEN003',
                 'LEN004',
                 'LEN005',
@@ -403,9 +403,9 @@ class TestRuleTableItemIndex:
                 'OUT005',
                 'OUT009',
             ),
-            (ItemKind.DOCUMENT, MetaSpecPart.OUTLINE): ('OUT006', 'OUT007', 'OUT008'),
-            (ItemKind.DOCUMENT, MetaSpecPart.BUDGET): ('LEN001',),
-            (ItemKind.SKILL_ENTRYPOINT, None): (
+            (ItemType.DOCUMENT, MetaSpecPart.OUTLINE): ('OUT006', 'OUT007', 'OUT008'),
+            (ItemType.DOCUMENT, MetaSpecPart.BUDGET): ('LEN001',),
+            (ItemType.SKILL_ENTRYPOINT, None): (
                 'FM004',
                 'FM011',
                 'FM012',
@@ -415,7 +415,7 @@ class TestRuleTableItemIndex:
                 'LINK003',
                 'LINK004',
             ),
-            (ItemKind.SKILL_ENTRYPOINT, MetaSpecPart.FRONTMATTER): (
+            (ItemType.SKILL_ENTRYPOINT, MetaSpecPart.FRONTMATTER): (
                 'FM001',
                 'FM002',
                 'FM003',
@@ -428,7 +428,7 @@ class TestRuleTableItemIndex:
                 'FM013',
                 'FM014',
             ),
-            (ItemKind.SKILL_ENTRYPOINT, MetaSpecPart.STRUCTURE): (
+            (ItemType.SKILL_ENTRYPOINT, MetaSpecPart.STRUCTURE): (
                 'LEN003',
                 'LEN004',
                 'LEN005',
@@ -439,26 +439,32 @@ class TestRuleTableItemIndex:
                 'OUT005',
                 'OUT009',
             ),
-            (ItemKind.SKILL_ENTRYPOINT, MetaSpecPart.OUTLINE): ('OUT006', 'OUT007', 'OUT008'),
-            (ItemKind.SKILL_ENTRYPOINT, MetaSpecPart.BUDGET): ('LEN001',),
-            (ItemKind.SKILL_RESOURCE, None): ('LINK001', 'LINK002', 'LINK003', 'LINK004'),
-            (ItemKind.META_SPEC, None): ('LINK001', 'LINK002', 'LINK003', 'LINK005', 'LINK006'),
+            (ItemType.SKILL_ENTRYPOINT, MetaSpecPart.OUTLINE): ('OUT006', 'OUT007', 'OUT008'),
+            (ItemType.SKILL_ENTRYPOINT, MetaSpecPart.BUDGET): ('LEN001',),
+            (ItemType.SKILL_RESOURCE, None): ('LINK001', 'LINK002', 'LINK003', 'LINK004'),
+            (ItemType.META_SPEC, None): ('LINK001', 'LINK002', 'LINK003', 'LINK005', 'LINK006'),
         }
 
         #: When
         table = RuleTable.from_registry(registry, EVERY_RULE)
 
         #: Then
-        for (kind, part), codes in expected.items():
-            actual = tuple(str(enabled.rule.CODE) for enabled in table.item_rules(kind, part))
-            assert actual == codes, f'{kind.value} {part or "package"} index contains its declared rules in code order'
+        for (item_type, part), codes in expected.items():
+            actual = tuple(str(enabled.rule.CODE) for enabled in table.item_rules(item_type, part))
+            assert actual == codes, (
+                f'{item_type.value} {part or "always"} index contains its declared rules in code order'
+            )
 
     def test_empty_table_has_no_rules_in_any_item_index(self) -> None:
         #: Given
         table = RuleTable({})
 
         #: When
-        indexes = {(kind, part): table.item_rules(kind, part) for kind in ItemKind for part in (None, *MetaSpecPart)}
+        indexes = {
+            (item_type, part): table.item_rules(item_type, part)
+            for item_type in ItemType
+            for part in (None, *MetaSpecPart)
+        }
 
         #: Then
         assert all(not rules for rules in indexes.values()), 'an empty severity map leaves every item gate bucket empty'
@@ -472,10 +478,10 @@ class TestRuleTableItemIndex:
         table = RuleTable(severities)
 
         #: Then
-        assert table.item_rules(ItemKind.DOCUMENT, MetaSpecPart.BUDGET) == expected, (
+        assert table.item_rules(ItemType.DOCUMENT, MetaSpecPart.BUDGET) == expected, (
             'the document budget gate indexes its rule'
         )
-        assert table.item_rules(ItemKind.DOCUMENT, MetaSpecPart.OUTLINE) == (), (
+        assert table.item_rules(ItemType.DOCUMENT, MetaSpecPart.OUTLINE) == (), (
             'a different meta spec part has no budget rule'
         )
 
@@ -488,10 +494,10 @@ class TestRuleTableItemIndex:
         table = RuleTable(severities)
 
         #: Then
-        assert table.item_rules(ItemKind.SKILL_ENTRYPOINT, None) == expected, (
-            'Always and schema gates use the item-kind and schema indexes'
+        assert table.item_rules(ItemType.SKILL_ENTRYPOINT, None) == expected, (
+            'Always and schema gates use the item-type and schema indexes'
         )
-        assert table.item_rules(ItemKind.SKILL_ENTRYPOINT, MetaSpecPart.FRONTMATTER) == (), (
+        assert table.item_rules(ItemType.SKILL_ENTRYPOINT, MetaSpecPart.FRONTMATTER) == (), (
             'schema gates do not use a meta spec part index'
         )
 
@@ -504,7 +510,7 @@ class TestRuleTableItemIndex:
         table = RuleTable(severities)
 
         #: Then
-        assert table.item_rules(ItemKind.SKILL_ENTRYPOINT, MetaSpecPart.FRONTMATTER) == expected, (
+        assert table.item_rules(ItemType.SKILL_ENTRYPOINT, MetaSpecPart.FRONTMATTER) == expected, (
             'skill frontmatter rules use the active frontmatter meta spec part'
         )
 

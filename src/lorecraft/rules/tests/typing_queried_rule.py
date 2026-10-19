@@ -4,7 +4,7 @@ from collections.abc import Mapping
 from types import MappingProxyType
 from typing import ClassVar, Self
 
-from lorecraft.project.item import ItemKind
+from lorecraft.project.item import ItemType
 from lorecraft.project.query import ItemQuery, Query, SymlinkPrimitives
 from lorecraft.project.schemas import TitleFacts, title_facts
 from lorecraft.rules.subject import Gate, MetaSpecPart, QueriedItemRule, WhenMetaSpec
@@ -13,9 +13,9 @@ from lorecraft.rules.subject import Gate, MetaSpecPart, QueriedItemRule, WhenMet
 class WrongQuery(QueriedItemRule[int]):
     """Judges an `int` but names a query that returns `TitleFacts`."""
 
-    APPLIES_TO: ClassVar[Mapping[ItemKind, Gate]] = MappingProxyType(
+    APPLIES_TO: ClassVar[Mapping[ItemType, Gate]] = MappingProxyType(
         {
-            ItemKind.DOCUMENT: WhenMetaSpec(MetaSpecPart.STRUCTURE),
+            ItemType.DOCUMENT: WhenMetaSpec(MetaSpecPart.STRUCTURE),
         }
     )
 
@@ -38,9 +38,9 @@ def symlink_depth(_: SymlinkPrimitives) -> int:
 class WrongSubjectQuery(QueriedItemRule[int]):
     """An item rule naming a symlink query, which the type checker must reject."""
 
-    APPLIES_TO: ClassVar[Mapping[ItemKind, Gate]] = MappingProxyType(
+    APPLIES_TO: ClassVar[Mapping[ItemType, Gate]] = MappingProxyType(
         {
-            ItemKind.DOCUMENT: WhenMetaSpec(MetaSpecPart.STRUCTURE),
+            ItemType.DOCUMENT: WhenMetaSpec(MetaSpecPart.STRUCTURE),
         }
     )
 

@@ -78,7 +78,7 @@ class MissingSection(QueriedItemRule[MissingSectionFacts]):
     """..."""
 
     CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 6)
-    APPLIES_TO: ClassVar[Mapping[ItemKind, Gate]] = {ItemKind.DOCUMENT: WhenMetaSpec(MetaSpecPart.STRUCTURE)}
+    APPLIES_TO: ClassVar[Mapping[ItemType, Gate]] = {ItemType.DOCUMENT: WhenMetaSpec(MetaSpecPart.STRUCTURE)}
     ...
     spec: RootRelativePath
     section: SectionName
