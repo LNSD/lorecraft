@@ -6,7 +6,7 @@ refs) and configuration (decoded specs and immutable raw schema inputs), never d
 the document repository and is read on demand through a `DocumentRef`, and the model reads no `SKILL.md`.
 
 Governance is the one computation the model owns. A document is governed by its corpus spec first, then by
-every namespace spec whose namespace matches its filename, broad to narrow. A skill entry is governed by the
+every namespace spec whose namespace matches its filename, broad to narrow. A skill is governed by the
 reserved `skills` corpus and its listed directory name. A namespace spec narrows a base; it never supplies one, so a
 corpus spec that states no rule of one kind, a structure specification or a frontmatter schema, leaves the item
 ungoverned for that kind whatever the namespace specs carry.
@@ -40,7 +40,7 @@ from lorecraft.project.item import (
     ItemRef,
     MetaSpecOrigin,
     MetaSpecPart,
-    SkillEntryOrigin,
+    SkillOrigin,
     SkillResourceOrigin,
     UnlistedItemError,
 )
@@ -124,7 +124,7 @@ type Spec = CorpusSpec | NamespaceSpec
 
 @dataclass(frozen=True, slots=True)
 class Governance:
-    """The specs that govern one document or skill entry, broad to narrow.
+    """The specs that govern one document or skill, broad to narrow.
 
     A layer whose structure file failed to load is held as it is, with its `FailedStructure`. The queries below read
     only the layers that loaded; `failed_layers` names the others, so a consumer decides what a failed layer means.
@@ -136,7 +136,7 @@ class Governance:
     Attributes:
         ref: The governed document, or None when a listed name that is no valid filename stem, such as a skill's
             directory name, was matched.
-        corpus_spec: The corpus spec that governs every document or skill entry in it.
+        corpus_spec: The corpus spec that governs every document or skill in it.
         namespace_specs: Every namespace spec whose namespace matches the name, broad to narrow.
     """
 
@@ -399,7 +399,8 @@ class WorkspaceModel:
             resource listing.
         load_failures: Every unit of the declaration that could not be read or used, each once, in the order the
             loader met them: a structure file, whose `FailedStructure` also stands in its layer, a corpus directory,
-            a skills directory, a skill entry or a `SKILL.md`, and a `docs/` or `docs/__meta__/` that cannot be
+            a skills directory, a listed skill directory or a `SKILL.md`,
+            and a `docs/` or `docs/__meta__/` that cannot be
             listed. Nothing a failure touches is in the model beyond that record; every other unit is loaded.
         schema_inputs: Immutable raw schema inputs keyed by typed reference; parsed structure specs remain in layers.
     """
@@ -604,14 +605,14 @@ class WorkspaceModel:
         return corpus.governance(ref.filename)
 
     def skill_governance(self, ref: SkillRef) -> Governance | None:
-        """The specs governing a skill entry's listed name, or None when no skills corpus is declared."""
+        """The specs governing a skill's listed name, or None when no skills corpus is declared."""
         corpus = self.skills_corpus
         if corpus is None:
             return None
         return corpus.governance(ref.entry.value)
 
     def find_item(self, ref: ItemRef) -> ResolvedItem | None:
-        """The descriptor of the document or skill entry the model lists at this reference, or None.
+        """The descriptor of the document or skill the model lists at this reference, or None.
 
         Scans the model's documents and skills, so it answers a lookup by reference; a caller holding a document or
         skill ref resolves it with `resolve_item` and never calls this once per item.
@@ -631,7 +632,7 @@ class WorkspaceModel:
         return None
 
     def describe_item(self, ref: DocumentRef | SkillRef | MetaSpecRef) -> ItemDescriptor:
-        """Resolve the shared location and origin metadata for a document or skill entry.
+        """Resolve the shared location and origin metadata for a document or skill.
 
         The existing references remain accepted by repositories and database queries. This descriptor is the
         common model contract for callers that need to handle either kind without classifying its origin.
@@ -667,7 +668,7 @@ class WorkspaceModel:
         by the reserved `skills` corpus and matching namespaces; resources remain outside corpus governance.
 
         Args:
-            ref: Document, skill entry or meta spec to resolve, whether or not the model lists a document's
+            ref: Document, skill or meta spec to resolve, whether or not the model lists a document's
                 corpus, or a common ref naming a document. The package governs a meta spec, so it resolves with
                 no governance and the structure and Markdown checks active.
 
@@ -699,7 +700,7 @@ class WorkspaceModel:
                     ref=ItemRef(ref.path),
                     read_location=location.file_resolves_to,
                     link_base=SkillRoot(ref.directory),
-                    origin=SkillEntryOrigin(expected_name=str(ref.entry), link_target=link_target),
+                    origin=SkillOrigin(expected_name=str(ref.entry), link_target=link_target),
                     governance_corpus=(SKILLS_CORPUS_NAME if governance is not None else ''),
                     aspect_name=str(ref.entry),
                     governed_parts=frozenset(parts),

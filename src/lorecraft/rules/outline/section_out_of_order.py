@@ -104,7 +104,7 @@ class SectionOutOfOrder(QueriedItemRule[tuple[OutlineDivergenceSpec, ...]]):
     GATES: ClassVar[Mapping[ItemKind, Gate]] = MappingProxyType(
         {
             ItemKind.DOCUMENT: ByMetaSpec(MetaSpecPart.OUTLINE),
-            ItemKind.SKILL_ENTRY: ByMetaSpec(MetaSpecPart.OUTLINE, requires_loaded_layer=True),
+            ItemKind.SKILL: ByMetaSpec(MetaSpecPart.OUTLINE, requires_loaded_layer=True),
         }
     )
 

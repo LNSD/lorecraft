@@ -121,7 +121,7 @@ Scenario: A corpus that cannot be listed
 
 ```gherkin
 Scenario: A skill that cannot be resolved
-  Given a skills directory where one skill entry is a link that cannot be resolved
+  Given a skills directory where one skill is a link that cannot be resolved
   When the writer checks the workspace
   Then an error diagnostic is reported at that entry
   And every other skill and every document is checked
@@ -152,7 +152,7 @@ Scenario: Checked against the meta specs that loaded
   SYSTEM SHALL report one error diagnostic on that file, naming what is wrong, and go on checking.
 - **FR-003:** IF a corpus directory cannot be listed, THEN THE SYSTEM SHALL report one error diagnostic at that
   directory and check every other corpus.
-- **FR-004:** IF a skills directory, a skill entry or a skill's main file cannot be listed or resolved, THEN THE
+- **FR-004:** IF a skills directory, a skill or a skill's main file cannot be listed or resolved, THEN THE
   SYSTEM SHALL report one error diagnostic at its path and check every other skill and every document.
 - **FR-005:** IF the documentation root or the meta spec directory cannot be listed, THEN THE SYSTEM SHALL stop
   the run with an error naming the directory, as it does when the root cannot be found, since nothing can be
@@ -203,7 +203,7 @@ Scenario: Checked against the meta specs that loaded
 ## Key Entities
 
 - **Load failure:** Part of the declaration that could not be read or used: a structure file, a corpus directory, a
-  skills directory, a skill entry or a skill's main file. It has a place, a condition and a code.
+  skills directory, a skill or a skill's main file. It has a place, a condition and a code.
 - **Skipped subject:** A document that a check run did not judge because a meta spec governing it failed to load. It
   is coverage, never a diagnostic.
 - **Partial result:** A document's diagnostics in the LSP-style mode, judged against only the governing meta specs

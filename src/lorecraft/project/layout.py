@@ -26,7 +26,8 @@ def _skills_scan_roots() -> list[ScanRoot]:  # pragma: no mutate block
     A skills directory is read with no depth limit: the directory itself, each skill directory in it, and every
     file and directory inside a skill, at any depth, since a skill carries references, scripts and assets beside
     its `SKILL.md`. Links are followed, since an agent's skills directory is commonly a link to another one, a
-    skill entry a link to where the skill's files live, a `SKILL.md` a link to where its text lives, and an entry
+    listed skill directory may link to where the skill's files live, a `SKILL.md` a link to where its text lives,
+    and an entry
     inside a skill a link to a file or a directory elsewhere in the repository.
     """
     scan_roots: list[ScanRoot] = []

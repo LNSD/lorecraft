@@ -103,7 +103,7 @@ class TooManyLines(QueriedItemRule[LineCount]):
     NAME: ClassVar[RuleName] = RuleName('too-many-lines')
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('0.3.0')
-    GATES: ClassVar[Mapping[ItemKind, Gate]] = MappingProxyType({ItemKind.SKILL_ENTRY: ByPackage()})
+    GATES: ClassVar[Mapping[ItemKind, Gate]] = MappingProxyType({ItemKind.SKILL: ByPackage()})
 
     spec: None = None
     overrun: Overrun

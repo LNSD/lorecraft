@@ -292,7 +292,7 @@ class _ItemPrimitives(_Reads[ItemRef, '_ItemPrimitives']):
         """The typed name of the document or specification the item extends, from the names the model lists.
 
         A document's base is looked for among the documents of its corpus, a specification's among the specifications;
-        `None` for any other item or one that is not UTF-8. A skill entry extends nothing: its name is its directory's,
+        `None` for any other item or one that is not UTF-8. A skill extends nothing: its name is its directory's,
         which no hyphenated prefix continues.
         """
         source = self._database.item_text(self._ref)
@@ -354,7 +354,7 @@ class Database:
         self._scope_index: ScopeIndex | None = None
         self._unreported_docs_refusals: FrozenMapping[RootRelativePath, RefusedRecord] | None = None
         # The unified family's caches, keyed by the common reference: the one implementation of every document and
-        # skill entry or resource query.
+        # skill or resource query.
         self._items: dict[ItemRef, ResolvedItem] = {}
         self._item_texts: dict[ItemRef, ItemText | Undecodable] = {}
         self._item_link_targets: dict[ItemRef, Mapping[NormalisedLinkPath, LinkTargetEntry]] = {}

@@ -103,7 +103,7 @@ class InvalidFrontmatter(QueriedItemRule[tuple[SchemaProblems, ...]]):
     GATES: ClassVar[Mapping[ItemKind, Gate]] = MappingProxyType(
         {
             ItemKind.DOCUMENT: ByMetaSpec(MetaSpecPart.FRONTMATTER),
-            ItemKind.SKILL_ENTRY: ByMetaSpec(MetaSpecPart.FRONTMATTER),
+            ItemKind.SKILL: ByMetaSpec(MetaSpecPart.FRONTMATTER),
         }
     )
 

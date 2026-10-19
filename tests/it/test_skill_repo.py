@@ -510,7 +510,7 @@ class TestRepositoryListSkills:
         target = PurePosixPath(tmp_path / 'elsewhere' / 'review')
         assert listing == SkillsListing(
             skills=(), outside_symlinks=(OutsideSymlink(entry, RootExit(entry, target)),)
-        ), 'a skill entry leading outside the root is no skill, and is recorded where it leaves'
+        ), 'a skill leading outside the root is no skill, and is recorded where it leaves'
 
     def test_list_skills_with_no_skills_directory_returns_empty(self, tmp_path: Path, repository: Repository) -> None:
         #: Given

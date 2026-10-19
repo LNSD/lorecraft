@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.path import PathComponent
 from lorecraft.project.aspect import AspectFilename
-from lorecraft.project.item import DocumentOrigin, SkillEntryOrigin, WrongItemKindError
+from lorecraft.project.item import DocumentOrigin, SkillOrigin, WrongItemKindError
 from lorecraft.project.query import item_frontmatter
 from lorecraft.project.schemas.agent_skills_schema import agent_skills_frontmatter_schema
 from lorecraft.project.schemas.frontmatter_owner import (
@@ -31,11 +31,11 @@ def owner_of_frontmatter(primitives: GovernancePrimitives) -> FrontmatterOwner:
     """The document or skill whose frontmatter the item opens, from origin metadata and governance.
 
     Raises:
-        WrongItemKindError: If the item is not a skill entry or a document whose corpus states a structure spec.
+        WrongItemKindError: If the item is not a skill or a document whose corpus states a structure spec.
     """
     origin = primitives.item_origin()
     match origin:
-        case SkillEntryOrigin():
+        case SkillOrigin():
             return SkillFrontmatterOwner(
                 directory_name=PathComponent.parse(origin.expected_name), link_target=origin.link_target
             )
@@ -50,8 +50,8 @@ def owner_of_frontmatter(primitives: GovernancePrimitives) -> FrontmatterOwner:
 
 
 def parsed_skill_fields(primitives: ItemPrimitives) -> SkillFields:
-    """The independently parsed fields of a skill entry; empty for every other item."""
-    if not isinstance(primitives.item_origin(), SkillEntryOrigin):
+    """The independently parsed fields of a skill; empty for every other item."""
+    if not isinstance(primitives.item_origin(), SkillOrigin):
         return FrozenMapping({})
     return parse_skill_fields(primitives.query(item_frontmatter))
 
@@ -68,7 +68,7 @@ def frontmatter_schema_problems(primitives: ItemPrimitives) -> tuple[SchemaProbl
     origin = primitives.item_origin()
     governance = primitives.item_governance()
     schemas = governance.frontmatter_schemas() if governance is not None else ()
-    if isinstance(origin, SkillEntryOrigin):
+    if isinstance(origin, SkillOrigin):
         frontmatter = primitives.query(item_frontmatter)
         floor_present = False
         try:

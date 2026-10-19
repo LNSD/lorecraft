@@ -105,7 +105,7 @@ def unreported_refusals(
     """The refusals no load failure of the model reports, keyed by path, in the order `refusals` is given.
 
     A refused listing is reported by the failure of the directory that could not be listed, a refused read by the
-    failure of the structure file, and a refused inspection by the failure of the skills directory, skill entry or
+    failure of the structure file, and a refused inspection by the failure of the skills directory, skill or
     `SKILL.md` that names the entry it stopped at.
 
     Args:

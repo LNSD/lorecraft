@@ -12,7 +12,7 @@ components: "module:lorecraft.cli,module:lorecraft.project"
 
 `lorecraft inspect` shows what a repository declares: each corpus under `docs/`, its meta specs and
 documents, then agent skills directories and the skills each agent reads. It shows governing specs for
-documents; skill entries have no `governed_by` entry. The skills heading notes the built-in schema opt-out
+documents; skills have no `governed_by` entry. The skills heading notes the built-in schema opt-out
 only when active. It answers why a document is or is not checked and which agents see a skill, without
 running a check.
 
@@ -81,7 +81,7 @@ commas or colons. It holds `root`, and `corpora`, each with `name`, `directory`,
 (each a `stem`, which is the meta spec name, and its `files`), and `documents` as `path` and `governed_by`.
 For each document, `governed_by` lists the files of each governing meta spec, broad to narrow, so a reader
 opens its specs without mapping a name to its files. Skill objects have no `governed_by` field because
-the reserved `skills` corpus does not govern skill entries. `root` is absolute, and every other path is
+the reserved `skills` corpus does not govern skills. `root` is absolute, and every other path is
 root-relative.
 
 The compact form is intentional for tools that consume JSON. Pipe `lorecraft inspect --format json | jq .`

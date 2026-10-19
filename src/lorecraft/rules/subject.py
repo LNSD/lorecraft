@@ -10,7 +10,7 @@ A layout entry is not an item: `SymlinkRule` covers links in the skill layout an
 reserved-corpus directories. They derive from `LayoutRule`, and their queried forms keep separate primitive and query
 types, since an occurrence points at the entry itself and not at a line of Markdown.
 
-Rules in each group declare their own gates alongside their codes and queries. Shared document and skill-entry rules
+Rules in each group declare their own gates alongside their codes and queries. Shared document and skill rules
 name both kinds explicitly; Markdown checks can combine structure gates for corpus items with package gates for skill
 files, and schema-dependent skill checks name their registered schema directly.
 """
@@ -34,7 +34,7 @@ class ByMetaSpec:
 
     Attributes:
         part: The meta spec part a loaded structure layer must state for the rule to judge the item.
-        requires_loaded_layer: Whether a skill entry also requires loaded corpus governance for this rule.
+        requires_loaded_layer: Whether a skill also requires loaded corpus governance for this rule.
     """
 
     part: MetaSpecPart

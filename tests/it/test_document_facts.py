@@ -1,6 +1,6 @@
 """The document-fact queries of the database, for one governed document.
 
-Each query is computed once per database, a fresh one included; a skill entry has no document facts.
+Each query is computed once per database, a fresh one included; a skill has no document facts.
 """
 
 from pathlib import Path
@@ -263,7 +263,7 @@ class TestDocumentFactQueries:
         facts = database.query(extension_link_facts, SKILL)
 
         #: Then
-        assert facts.links == (), 'a skill entry is no document'
+        assert facts.links == (), 'a skill is no document'
 
 
 @pytest.mark.it
@@ -350,7 +350,7 @@ class TestDocumentLinks:
         links = database.query(_document_links, SKILL)
 
         #: Then
-        assert links == (), 'a skill entry links to no document of the layout'
+        assert links == (), 'a skill links to no document of the layout'
 
     def test_mutual_link_facts_holds_the_corpus_and_reads_only_what_it_names(self, tmp_path: Path) -> None:
         #: Given

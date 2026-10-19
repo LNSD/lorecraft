@@ -151,7 +151,7 @@ class EngineCondition(ABC):
 
     A condition never derives from this class directly, but from the base of the subject it is about: a
     `FileCondition` for a file the engine read, an `EntryCondition` for a path whose content it has not read, such as
-    a directory, a skill entry or a file it could not read, which points at no line.
+    a directory, a listed skill directory or a file it could not read, which points at no line.
 
     Attributes:
         CODE: The condition's code, in the engine's group, such as `LC001`.
@@ -206,7 +206,7 @@ class FileCondition(EngineCondition):
 class EntryCondition(EngineCondition):
     """A condition of a path whose content the engine has not read, so it points at no line.
 
-    Such a path is a directory, a skill entry, or a file the engine could not read.
+    Such a path is a directory, a listed skill directory, or a file the engine could not read.
 
     Its labels and sub-diagnostics can only point at another file.
     """

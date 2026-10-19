@@ -144,7 +144,7 @@ class UnlistableSkillsDirectory:
 
 @dataclass(frozen=True, slots=True)
 class UnresolvableSkillEntry:
-    """The operating system refused a lookup while a symlinked skill entry was followed.
+    """The operating system refused a lookup while a symlinked skill was followed.
 
     Attributes:
         refusal: Why the operating system refused the lookup.
@@ -155,7 +155,7 @@ class UnresolvableSkillEntry:
 
 @dataclass(frozen=True, slots=True)
 class UninspectableSkillEntry:
-    """A symlinked skill entry leads to no directory, and where its chain goes could not be inspected.
+    """A symlinked skill directory leads to no directory, and where its chain goes could not be inspected.
 
     Attributes:
         failed_at: The entry that could not be inspected, which may be one on the way.
@@ -171,7 +171,7 @@ class UnlistableSkillDirectory:
     """A skill's directory exists but cannot be listed to look for its `SKILL.md`.
 
     Attributes:
-        failed_at: The resolved directory that could not be listed, which the skill entry may be a link to.
+        failed_at: The resolved directory that could not be listed, which the listed skill directory may lead to.
         refusal: Why the operating system refused the listing.
     """
 
@@ -184,7 +184,7 @@ class UnresolvableSkillFile:
     """The operating system refused a lookup while a symlinked `SKILL.md` was followed.
 
     Attributes:
-        failed_at: The `SKILL.md` at its resolved directory, which the skill entry may be a link to.
+        failed_at: The `SKILL.md` at its resolved directory, which the listed skill directory may lead to.
         refusal: Why the operating system refused the lookup.
     """
 
@@ -197,7 +197,7 @@ class UninspectableSkillFile:
     """A symlinked `SKILL.md` leads to no file, and where its chain goes could not be inspected.
 
     Attributes:
-        skill_file: The `SKILL.md` at its resolved directory, which the skill entry may be a link to.
+        skill_file: The `SKILL.md` at its resolved directory, which the listed skill directory may lead to.
         failed_at: The entry that could not be inspected, which may be one on the way.
         refusal: Why the operating system refused the inspection.
     """
@@ -229,7 +229,8 @@ class LoadFailure:
 
     Attributes:
         path: Root-relative path of the unit where the declaration reaches it: a structure file, a directory, a
-            skills directory as an agent declares it, a skill entry or the `SKILL.md` of one. A condition that
+            skills directory as an agent declares it, a listed skill directory or the `SKILL.md` of one. A condition
+            that
             happens at the place a link leads to keeps that place in its `failed_at`.
         condition: What failed there.
     """

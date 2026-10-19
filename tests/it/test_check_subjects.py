@@ -958,7 +958,7 @@ class TestCheckSubjects:
         assert isinstance(reports[0], CheckedItem), 'the skill is a checked item'
         assert [diagnostic.occurrence.spec for diagnostic in reports[0].diagnostics] == [
             RootRelativePath.parse('docs/__meta__/skills.spec.json')
-        ], 'the skill entry is checked against the reserved corpus budget'
+        ], 'the skill is checked against the reserved corpus budget'
 
     def test_check_subjects_with_a_skill_breaking_its_corpus_structure_reports_the_governing_spec(self) -> None:
         #: Given

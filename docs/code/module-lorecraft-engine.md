@@ -27,13 +27,13 @@ returns at its subject, as a diagnostic of `lorecraft.rules.report`.
   subject is a Markdown item, symlink or corpus directory; each kind follows the same query and judgment path. A
   query is owned by its rule group unless another group needs it, when it is promoted to `lorecraft.project.query`;
   the runner resolves that shared query for both groups through the same database. A
-  document, skill entry or skill resource is decoded by each mode's entry point, so its policy comes after decoding,
+  document, skill or skill resource is decoded by each mode's entry point, so its policy comes after decoding,
   and `judge_item` judges any of them through one facet loop
   over the descriptor's active facets. A rule runs over an item of a kind it applies to, and only when the item is governed
   for the facet the rule reads; each facet an applicable rule reads that the item is not governed for is recorded as
   coverage. A rule over a Markdown file runs over a document governed for its structure, a skill's `SKILL.md` and
   each resource handed over as a subject of its own. A resource has no corpus structure governance, while package
-  Markdown checks still run; a skill entry's package checks run independently of corpus governance.
+  Markdown checks still run; a skill's package checks run independently of corpus governance.
 - One entry point per mode: `skip.py` gives documents governed by a failed layer no rule, and
   skips skill files whose docs target was refused. An LSP-style partial mode is future work.
 - `skip.py` wraps an item read failure in the kind-specific error declared by the document or skill repository. A
@@ -65,7 +65,7 @@ returns at its subject, as a diagnostic of `lorecraft.rules.report`.
   through a separate direct path.
 - A rule returns occurrences that name no subject. The run attaches the subject's path, as a diagnostic.
 - A load failure is reported once, at its own path, and never once per subject it touches; a document a failed layer
-  governs is coverage, never a diagnostic. A skill entry still receives its Agent Skills checks.
+  governs is coverage, never a diagnostic. A skill still receives its Agent Skills checks.
 - A skill file whose docs target was refused is coverage at its own path; the refusal is reported at the target.
 - A run's results are not cached. Every rule runs again every time, and never sees the store of persisted results.
 - The shared runner holds no mode's policy. A new mode is a new entry point that edits neither `runner.py` nor
@@ -131,7 +131,7 @@ Before committing code, verify:
 - [ ] A mode's policy sits in that mode's own entry point; `runner.py` takes no policy parameter and no callback
 - [ ] A new load-failure condition is reported by `load_failures.py`, whose match stays exhaustive, and a skipped
   document names each failed layer's structure file
-- [ ] A document, skill entry or resource is decoded by each mode's entry point, so its policy comes after decoding; the
+- [ ] A document, skill or resource is decoded by each mode's entry point, so its policy comes after decoding; the
   item is asked for by its common reference, and failed corpus governance can skip documents or suppress skill
   corpus rules while preserving the Agent Skills floor; `runner.py`
   decodes nothing

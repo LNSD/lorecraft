@@ -47,7 +47,7 @@ class TestGates:
         expected = MappingProxyType(
             {
                 ItemKind.DOCUMENT: ByMetaSpec(MetaSpecPart.BUDGET),
-                ItemKind.SKILL_ENTRY: ByMetaSpec(MetaSpecPart.BUDGET, requires_loaded_layer=True),
+                ItemKind.SKILL: ByMetaSpec(MetaSpecPart.BUDGET, requires_loaded_layer=True),
             }
         )
 
@@ -64,7 +64,7 @@ class TestGates:
             {
                 ItemKind.DOCUMENT: ByMetaSpec(MetaSpecPart.STRUCTURE),
                 ItemKind.META_SPEC: ByMetaSpec(MetaSpecPart.STRUCTURE),
-                ItemKind.SKILL_ENTRY: ByPackage(),
+                ItemKind.SKILL: ByPackage(),
                 ItemKind.SKILL_RESOURCE: ByPackage(),
             }
         )
@@ -81,7 +81,7 @@ class TestGates:
         expected = ByMetaSpec(MetaSpecPart.FRONTMATTER)
 
         #: When
-        gate = rule.GATES[ItemKind.SKILL_ENTRY]
+        gate = rule.GATES[ItemKind.SKILL]
 
         #: Then
         assert gate == expected, 'skill frontmatter rules follow the active frontmatter meta spec part'
@@ -92,7 +92,7 @@ class TestGates:
         expected = BySchema(AGENT_SKILLS_SCHEMA_REFERENCE)
 
         #: When
-        gate = rule.GATES[ItemKind.SKILL_ENTRY]
+        gate = rule.GATES[ItemKind.SKILL]
 
         #: Then
         assert gate == expected, 'the skill name rule requires the registered Agent Skills schema'
@@ -116,7 +116,7 @@ class TestGateApplicability:
     def test_corpus_rule_with_skill_entry_applies_to_skill_entries(self) -> None:
         #: Given
         rule = TooManyTokens
-        expected = ItemKind.SKILL_ENTRY
+        expected = ItemKind.SKILL
 
         #: When
         kinds = rule.GATES
@@ -127,7 +127,7 @@ class TestGateApplicability:
     def test_package_rule_with_skill_entry_applies_to_skill_entries(self) -> None:
         #: Given
         rule = TooManyLines
-        expected = ItemKind.SKILL_ENTRY
+        expected = ItemKind.SKILL
 
         #: When
         kinds = rule.GATES

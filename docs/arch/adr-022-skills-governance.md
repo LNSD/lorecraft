@@ -1,6 +1,6 @@
 ---
 name: "adr-022-skills-governance"
-description: "Bring skill entry documents into reserved-corpus governance with a built-in schema, independent repository layers and bounded contradiction detection. Load when implementing skills corpus loading, governance, checking or inspection"
+description: "Bring skill documents into reserved-corpus governance with a built-in schema, independent repository layers and bounded contradiction detection. Load when implementing skills corpus loading, governance, checking or inspection"
 type: "adr"
 status: "proposed"
 ---
@@ -15,7 +15,7 @@ status: "proposed"
 
 ## Context
 
-[prd-020](prd-020-skills-corpus.md) requires repository rules for skill entry documents without inventing a
+[prd-020](prd-020-skills-corpus.md) requires repository rules for skill documents without inventing a
 second meta spec language. Today the workspace loads document corpora from meta spec names and
 directories under docs/, while skill frontmatter answers to a fixed schema. Document contexts receive their
 governing layers; skill contexts have no repository layers.

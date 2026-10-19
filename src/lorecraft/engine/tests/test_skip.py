@@ -112,7 +112,7 @@ class TestCheckSubjectsOverASkillEntry:
 
         #: Then
         assert reports == (judge_item(database, source, table),), (
-            'a skill entry goes through the same decode, skip policy and runner entry as a document'
+            'a skill goes through the same decode, skip policy and runner entry as a document'
         )
 
     def test_check_subjects_with_an_undecodable_skill_entry_reports_it_undecodable(self) -> None:
@@ -146,7 +146,7 @@ class TestCheckSubjectsOverASkillEntry:
 
         #: Then
         assert len(reports) == 1, 'the entry point reports the one skill it was given'
-        assert isinstance(reports[0], CheckedItem), 'a failed layer leaves the skill entry available for package checks'
+        assert isinstance(reports[0], CheckedItem), 'a failed layer leaves the skill available for package checks'
         assert [str(diagnostic.occurrence.CODE) for diagnostic in reports[0].diagnostics] == ['FM006'], (
             'the Agent Skills floor still reports its missing description'
         )
