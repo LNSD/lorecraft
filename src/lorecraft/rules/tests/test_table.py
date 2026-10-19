@@ -372,6 +372,7 @@ class TestRuleTableItemIndex:
         #: Given
         registry = Registry.load(rules)
         expected = {
+            (ItemType.DOCUMENT, None): ('LINK001', 'LINK002', 'LINK003'),
             (ItemType.DOCUMENT, MetaSpecPart.FRONTMATTER): (
                 'FM001',
                 'FM002',
@@ -390,9 +391,6 @@ class TestRuleTableItemIndex:
                 'LEN003',
                 'LEN004',
                 'LEN005',
-                'LINK001',
-                'LINK002',
-                'LINK003',
                 'LINK005',
                 'LINK006',
                 'LINK007',

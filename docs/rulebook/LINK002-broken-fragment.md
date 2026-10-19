@@ -12,8 +12,8 @@ A link to a heading of the same Markdown file names a heading the file does not 
 ## What it does
 
 Checks for links and images whose destination is a fragment alone, such as `#usage`, naming none of the
-headings of the file that holds them, in every Markdown file the checks read: a document whose corpus states a
-structure file, a skill's `SKILL.md` and each Markdown file inside the skill. No meta spec key
+headings of the file that holds them, in every Markdown file the checks read: every document, a skill's `SKILL.md`
+and each Markdown file inside the skill. No meta spec key
 states the rule: every such file is held to it.
 
 A fragment names a heading by its anchor, as GitHub derives it, whatever the case it is written in: `#Usage`

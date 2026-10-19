@@ -62,7 +62,7 @@ class TestGates:
         rule = BrokenLink
         expected = MappingProxyType(
             {
-                ItemType.DOCUMENT: WhenMetaSpec(MetaSpecPart.STRUCTURE),
+                ItemType.DOCUMENT: Always(),
                 ItemType.META_SPEC: Always(),
                 ItemType.SKILL_ENTRYPOINT: Always(),
                 ItemType.SKILL_RESOURCE: Always(),
@@ -73,7 +73,7 @@ class TestGates:
         gates = rule.APPLIES_TO
 
         #: Then
-        assert gates == expected, 'Markdown rules use structure for corpus items and Always gates for skill entrypoints'
+        assert gates == expected, 'link rules use Always gates for every Markdown item type'
 
     def test_frontmatter_rule_with_skill_entry_uses_frontmatter_part(self) -> None:
         #: Given
