@@ -1,9 +1,12 @@
 """`OUT006`: a document lacks a section its outline requires."""
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
+from types import MappingProxyType
 from typing import ClassVar, Self, assert_never
 
 from lorecraft.core.path import RootRelativePath
+from lorecraft.project.item import ItemKind
 from lorecraft.project.query import ItemQuery
 from lorecraft.project.schemas import (
     AbsentSection,
@@ -17,14 +20,14 @@ from lorecraft.project.syntax import LineNumber, SectionHeading
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Here, Label, Subdiagnostic
-from lorecraft.rules.subject import Facet, QueriedDocumentSkillRule
+from lorecraft.rules.subject import BySpec, Facet, Gate, QueriedItemRule
 
 from .__ruleset__ import GROUP_ID, example_note, outline_divergences, spec_note
 
 
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
-class MissingSection(QueriedDocumentSkillRule[tuple[OutlineDivergenceSpec, ...]]):
+class MissingSection(QueriedItemRule[tuple[OutlineDivergenceSpec, ...]]):
     """A document lacks a section its outline requires.
 
     ## What it does
@@ -96,6 +99,12 @@ class MissingSection(QueriedDocumentSkillRule[tuple[OutlineDivergenceSpec, ...]]
     NAME: ClassVar[RuleName] = RuleName('missing-section')
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('0.3.0')
+    GATES: ClassVar[Mapping[ItemKind, Gate]] = MappingProxyType(
+        {
+            ItemKind.DOCUMENT: BySpec(Facet.OUTLINE),
+            ItemKind.SKILL_ENTRY: BySpec(Facet.OUTLINE, requires_loaded_layer=True),
+        }
+    )
     GOVERNED_BY: ClassVar[Facet] = Facet.OUTLINE
 
     spec: RootRelativePath

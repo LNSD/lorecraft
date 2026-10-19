@@ -1,9 +1,12 @@
 """`OUT007`: a section the outline names is written out of the order the outline sets."""
 
+from collections.abc import Mapping
 from dataclasses import dataclass
+from types import MappingProxyType
 from typing import ClassVar, Self, assert_never
 
 from lorecraft.core.path import RootRelativePath
+from lorecraft.project.item import ItemKind
 from lorecraft.project.query import ItemQuery
 from lorecraft.project.schemas import (
     AbsentSection,
@@ -16,14 +19,14 @@ from lorecraft.project.schemas import (
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Here, Label, Subdiagnostic
-from lorecraft.rules.subject import Facet, QueriedDocumentSkillRule
+from lorecraft.rules.subject import BySpec, Facet, Gate, QueriedItemRule
 
 from .__ruleset__ import GROUP_ID, outline_divergences, spec_note
 
 
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
-class SectionOutOfOrder(QueriedDocumentSkillRule[tuple[OutlineDivergenceSpec, ...]]):
+class SectionOutOfOrder(QueriedItemRule[tuple[OutlineDivergenceSpec, ...]]):
     """A section the outline names is written out of the order the outline sets.
 
     ## What it does
@@ -98,6 +101,12 @@ class SectionOutOfOrder(QueriedDocumentSkillRule[tuple[OutlineDivergenceSpec, ..
     NAME: ClassVar[RuleName] = RuleName('section-out-of-order')
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('0.3.0')
+    GATES: ClassVar[Mapping[ItemKind, Gate]] = MappingProxyType(
+        {
+            ItemKind.DOCUMENT: BySpec(Facet.OUTLINE),
+            ItemKind.SKILL_ENTRY: BySpec(Facet.OUTLINE, requires_loaded_layer=True),
+        }
+    )
     GOVERNED_BY: ClassVar[Facet] = Facet.OUTLINE
 
     spec: RootRelativePath

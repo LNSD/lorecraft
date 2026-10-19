@@ -19,7 +19,7 @@ from lorecraft.project.syntax import Frontmatter, InvalidYamlFrontmatter, Missin
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Here, Label, Note, Subdiagnostic
-from lorecraft.rules.subject import BySchema, BySpec, Facet, Gate, QueriedFrontmatterRule
+from lorecraft.rules.subject import BySchema, BySpec, Facet, Gate, QueriedItemRule
 from lorecraft.schemas.agent_skills_frontmatter import (
     EmptySkillNameError,
     InvalidSkillNameFormatError,
@@ -80,7 +80,7 @@ def _link_notes(owner: SkillFrontmatterOwner) -> tuple[Note, ...]:
 
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
-class NameMismatch(QueriedFrontmatterRule[FrontmatterFacts]):
+class NameMismatch(QueriedItemRule[FrontmatterFacts]):
     """A frontmatter `name` differs from the name its document or skill is found under.
 
     ## What it does
