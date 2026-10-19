@@ -2,7 +2,7 @@
 
 A glossary of documentation framework terminology used throughout Lorecraft.
 
-Lorecraft governs two kinds of document: a [meta spec](#meta-spec) states the rules, and a [spec](#spec) follows them. One word names one thing: where an older name is still in use, an entry gives it as an alias or a former name. **Code rule** and **feat doc** are the principal names everywhere. **Code spec** and **feat spec** are their generic synonyms.
+Lorecraft governs two kinds of document: a [meta spec](#meta-spec) states the rules, and a [spec](#spec) follows them. One word names one thing: where an older name is still in use, an entry gives it as an alias or a former name. **Code rule** and **feat doc** are the principal names everywhere. **Code spec** and **feat spec** are their generic synonyms. In `project` code, a meta spec is called a *spec* (`CorpusSpec`, `NamespaceSpec`), and a spec is called a *document* (`DocumentRef`); this is an alias used by that model.
 
 ## Specs and collections
 
@@ -46,6 +46,50 @@ A reusable set of agent instructions, sometimes with supporting scripts.
 
 A Markdown file inside an [agent skill](#agent-skill) other than its top-level `SKILL.md`, at any depth, such as a reference the skill loads on demand. It is named where an agent reaches it, through any symlink inside the skill, and located at the [resolved](#resolved-path) file that path leads to.
 
+### Item
+
+A governed Markdown file: a [document](#spec), [meta spec](#meta-spec), [skill](#agent-skill), or [resource](#resource). The project model calls its identity an `ItemRef`, describes it with an `ItemDescriptor`, and classifies it by an [item kind](#item-kind).
+
+### Item kind
+
+Which kind of [item](#item) a governed Markdown file is: `DOCUMENT`, `META_SPEC`, `SKILL`, or `SKILL_RESOURCE`.
+
+### Entry
+
+An entry is an item in a directory listing. **Layout entry** names a special kind of entry; the word alone does not mean a skill's `SKILL.md`.
+
+### Layout entry
+
+A skill-layout symlink that leaves the repository, or a reserved-corpus directory. The project model identifies these as `OutsideSymlinkRef` and `ReservedCorpusDirectoryRef`, and holds their [records](#record) as `OutsideSymlink` and `ReservedCorpusDirectory`.
+
+### Subject
+
+What a rule judges: an [item](#item) or a [layout entry](#layout-entry). The code uses one `SubjectRef` for this identity.
+
+### Query target
+
+What a query is keyed by: a [subject](#subject) or a schema. The code calls this identity `QueryTargetRef`.
+
+### Ref
+
+A logical identity for a thing where it is listed or reached. A ref carries no content and is never resolved; the suffix `Ref` always means this. Distinguish an [item ref](#item-ref) from an [origin ref](#origin-ref), a [layout entry](#layout-entry)'s ref, and a schema ref.
+
+### Item ref
+
+The identity of an [item](#item) outside the `project` model: `ItemRef`.
+
+### Origin ref
+
+A validated, per-kind identity inside `project`, one-to-one with an origin. `DocumentRef` corresponds to `DocumentOrigin`, `MetaSpecRef` to `MetaSpecOrigin`, `SkillRef` to `SkillOrigin`, and `SkillResourceRef` to `SkillResourceOrigin`. These are distinct from the `ItemRef` that crosses the project-model boundary. Only item refs, layout refs, and schema refs cross that boundary, as [ADR-023](arch/adr-023.md) requires.
+
+### Location
+
+A ref together with the resolved path it leads to; the code uses `…Location` and `resolves_to` for this pairing.
+
+### Record
+
+What the snapshot holds for a [layout entry](#layout-entry), such as an `OutsideSymlink` or `ReservedCorpusDirectory`.
+
 ## Metadata and meta specs
 
 ### Frontmatter
@@ -74,7 +118,7 @@ The part of a name after its corpus: in `docs/code/python-fn.md`, or the [meta s
 
 ### Facet
 
-What a spec's name adds to a namespace that matches it: name = namespace + facet. The name `python-typing` is the namespace `python` plus the facet `typing`. A facet is relative to the namespace chosen: `python-typing-unreachable` has the facet `typing-unreachable` under `python`, and would have `unreachable` under a `python-typing` namespace. It is empty when the namespace is the whole name.
+What a spec's name adds to a namespace that matches it: name = namespace + facet. The name `python-typing` is the namespace `python` plus the facet `typing`. A facet is relative to the namespace chosen: `python-typing-unreachable` has the facet `typing-unreachable` under `python`, and would have `unreachable` under a `python-typing` namespace. It is empty when the namespace is the whole name. No code type uses the word *facet*.
 
 ### Components
 
@@ -109,6 +153,54 @@ The maximum prose words one section of a document may hold, its subsections incl
 ### Token budget
 
 The maximum tokens a whole document file may hold, frontmatter, code and tables included, as set by the `tokens` key of a structure file and checked by `lorecraft check` as `LEN001`. It keeps the document cheap to load; tokens are OpenAI's `o200k_base`, counted the same whichever agent reads the document.
+
+### Layer
+
+One meta spec in an item's governance chain. A [failed layer](#failed-layer) is one whose structure file did not load.
+
+### Failed layer
+
+A layer whose structure file failed to load; `Governance.failed_layers()` reports these layers.
+
+### Meta-spec part
+
+One kind of rule a meta spec can state for an item: frontmatter schema, structure file, outline, or token budget. The code names these `MetaSpecPart`.
+
+### Governed parts
+
+The parts a loaded layer states for an item, recorded as `ItemDescriptor.governed_parts`.
+
+### Governs
+
+A meta spec governs a corpus, namespace, package, or registered schema when it provides the authority for checks on that target.
+
+### Gate
+
+For each item kind, the authority a rule needs before judging it. `GATES` names these requirements; `ByMetaSpec`, `ByPackage`, and `BySchema` name the corresponding authorities.
+
+### Ungoverned
+
+A gated part that no layer states. `CheckedItem.ungoverned` records these parts.
+
+### Coverage
+
+The report of ungoverned gated parts and subjects skipped because their required authority is unavailable.
+
+### Primitive
+
+One read of model state, represented by an `ItemPrimitives` protocol.
+
+### Primitive group
+
+A protocol grouping related primitives, such as `SyntaxPrimitives`.
+
+### Facts
+
+Only the values returned by a rule's query and passed to `judge`, represented by `Facts` or a specific type such as `TitleFacts`.
+
+### Origin metadata
+
+What an item descriptor records about where an item came from, represented by `ItemOrigin`.
 
 ## Toolkit internals
 
