@@ -49,7 +49,7 @@ from typing import assert_never, cast
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.corpus import CorpusDirectoryRef, ReservedCorpusDirectory
 from lorecraft.project.database import Database, ItemText
-from lorecraft.project.item import ItemKind, MarkdownItemDescriptor, MarkdownItemRef, MetaSpecPart
+from lorecraft.project.item import ItemDescriptor, ItemKind, MarkdownItemRef, MetaSpecPart
 from lorecraft.project.query import ItemQuery
 from lorecraft.project.skill import OutsideSymlink, SymlinkRef
 from lorecraft.project.workspace.model import Governance, WorkspaceModel
@@ -112,7 +112,7 @@ def judge_item(database: Database, source: ItemText, table: RuleTable) -> Checke
 
 def judges(
     rule: type[QueriedItem],
-    descriptor: MarkdownItemDescriptor,
+    descriptor: ItemDescriptor,
     governance: Governance | None,
     model: WorkspaceModel,
 ) -> bool:

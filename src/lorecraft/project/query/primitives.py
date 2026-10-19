@@ -1,7 +1,7 @@
 """The primitives a query reads, grouped by the model state they come from.
 
 A primitive is one method; protocol groups organize them by what they answer about an item, so a query can declare
-the state it needs. `Primitives` composes those groups with the memoized `query` operation.
+the state it needs. `ItemPrimitives` composes those groups with the memoized `query` operation.
 Schema subjects have their own parameterless query family over immutable inputs retained by the workspace model.
 """
 
@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING, Protocol
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.corpus.directory import CorpusDirectoryRef
-from lorecraft.project.item import ItemOrigin, MarkdownItemDescriptor, MarkdownItemRef
+from lorecraft.project.item import ItemDescriptor, ItemOrigin, MarkdownItemRef
 from lorecraft.project.link_target import LinkBase, LinkTargetEntry
 from lorecraft.project.skill.outside import SymlinkRef
 from lorecraft.project.syntax import (
@@ -27,10 +27,10 @@ if TYPE_CHECKING:
     from lorecraft.project.workspace import Governance
 
 type Query[P, T] = Callable[[P], T]
-type ItemQuery[T] = Query[Primitives, T]
-type SubjectRef = MarkdownItemRef | SymlinkRef | CorpusDirectoryRef | SchemaReference
+type ItemQuery[T] = Query[ItemPrimitives, T]
+type QueryTargetRef = MarkdownItemRef | SymlinkRef | CorpusDirectoryRef | SchemaReference
 type SubjectQuery[T] = (
-    Query[Primitives, T]
+    Query[ItemPrimitives, T]
     | Query[SymlinkPrimitives, T]
     | Query[CorpusDirectoryPrimitives, T]
     | Query[SchemaPrimitives, T]
@@ -64,7 +64,7 @@ class SchemaReads(Protocol):
 class DecodedText(Protocol):
     """The raw text state every decoded item witness exposes to a query."""
 
-    descriptor: MarkdownItemDescriptor
+    descriptor: ItemDescriptor
     text: str
 
 
@@ -76,7 +76,7 @@ class SchemaPrimitives(QueryPrimitives['SchemaPrimitives'], SchemaReads, Protoco
         ...
 
 
-class SyntaxPrimitives(QueryPrimitives['Primitives'], Protocol):
+class SyntaxPrimitives(QueryPrimitives['ItemPrimitives'], Protocol):
     """Raw decoded text from which syntax and counts are derived."""
 
     def item_text(self) -> DecodedText | None:
@@ -88,7 +88,7 @@ class SyntaxPrimitives(QueryPrimitives['Primitives'], Protocol):
 CountPrimitives = SyntaxPrimitives
 
 
-class GovernancePrimitives(QueryPrimitives['Primitives'], Protocol):
+class GovernancePrimitives(QueryPrimitives['ItemPrimitives'], Protocol):
     """What governs the item and what it is named: its specifications, schemas, owner and place among the documents."""
 
     def item_origin(self) -> ItemOrigin:
@@ -112,7 +112,7 @@ class TitlePrimitives(SyntaxPrimitives, GovernancePrimitives, Protocol):
     """The syntax and structure state used to derive a document's title."""
 
 
-class LinkResolutionPrimitives(QueryPrimitives['Primitives'], Protocol):
+class LinkResolutionPrimitives(QueryPrimitives['ItemPrimitives'], Protocol):
     """What the snapshot holds where the item's links point."""
 
     def link_targets(self) -> Mapping[NormalisedLinkPath, LinkTargetEntry]:
@@ -124,7 +124,7 @@ class LinkResolutionPrimitives(QueryPrimitives['Primitives'], Protocol):
         ...
 
 
-class Primitives(
+class ItemPrimitives(
     ItemReads,
     SchemaReads,
     SyntaxPrimitives,

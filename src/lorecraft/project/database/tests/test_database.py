@@ -14,7 +14,7 @@ from lorecraft.project.database import Database, Read
 from lorecraft.project.item import ItemReadError, MarkdownItemRef, UnlistedItemError
 from lorecraft.project.query import (
     CorpusDirectoryPrimitives,
-    Primitives,
+    ItemPrimitives,
     SchemaPrimitives,
     SymlinkPrimitives,
     item_parse,
@@ -170,23 +170,23 @@ def _read_set_mutations(*roots: Path) -> tuple[tuple[Path, ...], tuple[str, ...]
     return files, tuple(violations)
 
 
-def _inner(primitives: Primitives) -> tuple[Heading, ...]:
+def _inner(primitives: ItemPrimitives) -> tuple[Heading, ...]:
     """Return the item's headings as a declared query."""
     return primitives.query(item_parse).headings
 
 
-def _outer(primitives: Primitives) -> tuple[Heading, ...]:
+def _outer(primitives: ItemPrimitives) -> tuple[Heading, ...]:
     """Return the inner query's answer as a declared query."""
     return primitives.query(_inner)
 
 
-def _assign_raw_read(primitives: Primitives) -> None:
+def _assign_raw_read(primitives: ItemPrimitives) -> None:
     """Try to add the removed mutable read attribute."""
     attribute = 'read'
     setattr(primitives, attribute, set())
 
 
-def _replace_unrelated_slot(primitives: Primitives) -> None:
+def _replace_unrelated_slot(primitives: ItemPrimitives) -> None:
     """Try to replace storage through a guessed, un-mangled slot name."""
     slot_name = '_' + 'reads'
     object.__setattr__(primitives, slot_name, set())
@@ -226,12 +226,12 @@ def _read_set_bypass_examples() -> str:
     )
 
 
-def _reads_another_item(primitives: Primitives) -> tuple[Heading, ...]:
+def _reads_another_item(primitives: ItemPrimitives) -> tuple[Heading, ...]:
     """Read headings from another item through the primitive query interface."""
     return primitives.query_at(TARGET, _inner)
 
 
-def _reads_unreadable_item(primitives: Primitives) -> tuple[Heading, ...]:
+def _reads_unreadable_item(primitives: ItemPrimitives) -> tuple[Heading, ...]:
     """Read another item while treating an unreadable item as empty."""
     try:
         return primitives.query_at(TARGET, _inner)
@@ -244,7 +244,7 @@ def _schema_document(primitives: SchemaPrimitives) -> FrozenMapping[str, Frozen]
     return primitives.schema_input().document
 
 
-def _reads_schema(primitives: Primitives) -> FrozenMapping[str, Frozen]:
+def _reads_schema(primitives: ItemPrimitives) -> FrozenMapping[str, Frozen]:
     """Read one schema through the database's typed subject query."""
     return primitives.query_schema(SCHEMA, _schema_document)
 
@@ -259,7 +259,7 @@ def _schema_reads_base(primitives: SchemaPrimitives) -> str:
     return primitives.query_schema(SCHEMA_BASE, _schema_identity)
 
 
-def _schema_catches_missing(primitives: Primitives) -> str | None:
+def _schema_catches_missing(primitives: ItemPrimitives) -> str | None:
     """Catch a missing schema query so its attempted dependency remains observable."""
     try:
         return primitives.query_schema(SCHEMA_MISSING, _schema_identity)

@@ -12,10 +12,10 @@ from .outline_alignment import OutlineAlignmentSpec, align_outlines
 
 if TYPE_CHECKING:
     # Type-only: `lorecraft.project.query` imports this package, so a runtime import here would be a cycle.
-    from lorecraft.project.query import Primitives
+    from lorecraft.project.query import ItemPrimitives
 
 
-def outline_alignment(primitives: Primitives) -> tuple[OutlineAlignmentSpec, ...]:
+def outline_alignment(primitives: ItemPrimitives) -> tuple[OutlineAlignmentSpec, ...]:
     """Which outline entry each of the document's H2 sections falls in, for each specification that governs it.
 
     One entry per structure specification that governs the document, in the order the specifications apply, one that

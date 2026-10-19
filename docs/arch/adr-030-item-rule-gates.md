@@ -59,7 +59,7 @@ keep layout subjects separate because their primitives and query subjects differ
 
 2. **One queried item base owns the declaration.** Every item rule derives from `QueriedItemRule[Facts]`, which keeps
    the typed `query() -> ItemQuery[Facts]` and `judge(facts)` contract and declares a class-level mapping
-   `GATES: Mapping[ItemKind, Gate]`. `ItemQuery[Facts]` is the query over `Primitives` that returns `Facts`; the
+   `GATES: Mapping[ItemKind, Gate]`. `ItemQuery[Facts]` is the query over `ItemPrimitives` that returns `Facts`; the
    shared `Query[P, Facts]` type names the primitive group explicitly. A missing kind means the rule never judges
    that kind. Each rule writes its full mapping explicitly; no preset base encodes a default or preserves the old
    item-base names. A rule applying to both documents and skill entries declares both keys, even when they use the

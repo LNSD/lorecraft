@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from typing import ClassVar, Self
 
-from lorecraft.project.query import ItemQuery, Primitives
+from lorecraft.project.query import ItemPrimitives, ItemQuery
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.subject import QueriedItemRule
@@ -11,7 +11,7 @@ from lorecraft.rules.subject import QueriedItemRule
 from ..groups import SAMPLE
 
 
-def _nothing(primitives: Primitives) -> None:
+def _nothing(primitives: ItemPrimitives) -> None:
     """The query of a rule that reads nothing.
 
     Args:

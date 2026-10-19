@@ -22,7 +22,7 @@ from types import MappingProxyType
 from typing import ClassVar, Self
 
 from lorecraft.project.item import ItemKind, MetaSpecPart
-from lorecraft.project.query import CorpusDirectoryPrimitives, ItemQuery, Primitives, Query, SymlinkPrimitives
+from lorecraft.project.query import CorpusDirectoryPrimitives, ItemPrimitives, ItemQuery, Query, SymlinkPrimitives
 from lorecraft.schemas.types import SchemaReference
 
 from .declaration import ContentRule, LayoutRule, Rule
@@ -72,7 +72,7 @@ class ItemRule(ContentRule):
 
 
 type SubjectQuery[Facts] = (
-    Query[Primitives, Facts] | Query[SymlinkPrimitives, Facts] | Query[CorpusDirectoryPrimitives, Facts]
+    Query[ItemPrimitives, Facts] | Query[SymlinkPrimitives, Facts] | Query[CorpusDirectoryPrimitives, Facts]
 )
 
 

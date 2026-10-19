@@ -9,7 +9,7 @@ from urllib.parse import unquote
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.item import ItemKind
 from lorecraft.project.link_target import DocumentLink
-from lorecraft.project.query import ItemQuery, Primitives, item_corpus
+from lorecraft.project.query import ItemPrimitives, ItemQuery, item_corpus
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Note, Subdiagnostic
@@ -32,7 +32,7 @@ class MutualLinkFacts:
     links: tuple[DocumentLink, ...]
 
 
-def mutual_link_facts(primitives: Primitives) -> MutualLinkFacts:
+def mutual_link_facts(primitives: ItemPrimitives) -> MutualLinkFacts:
     """The document's corpus and its links to other documents. Raises nothing.
 
     A query: it reads the document's corpus and its links with their back links and nothing else.

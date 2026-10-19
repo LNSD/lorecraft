@@ -12,7 +12,7 @@ database that built it, which no type records, so it never leaves the run that a
 
 from dataclasses import dataclass
 
-from lorecraft.project.item import MarkdownItemDescriptor, MarkdownItemRef
+from lorecraft.project.item import ItemDescriptor, MarkdownItemRef
 from lorecraft.vfs import Utf8Failure
 
 
@@ -25,7 +25,7 @@ class ItemText:
         text: The whole file, frontmatter included.
     """
 
-    descriptor: MarkdownItemDescriptor
+    descriptor: ItemDescriptor
     text: str
 
     @property

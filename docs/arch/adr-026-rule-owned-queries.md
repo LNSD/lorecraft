@@ -26,9 +26,9 @@ Furthermore, context objects acted as leaky intermediaries: rules took subject c
 `SkillContext`) exposing internal project model types (`Governance`, `StructureSpec`, `ParsedDocument`) directly into
 the rules layer. When query rules were first introduced, `QueriedDocumentRule.check(context)` merely forwarded to
 `context.query(cls.query())`, preserving context adapters in the evaluation path instead of letting the engine runner
-coordinate database query resolution and rule judgment directly. Core query abstractions (`Query` and `Primitives`)
+coordinate database query resolution and rule judgment directly. Core query abstractions (`Query` and `ItemPrimitives`)
 also resided in `lorecraft.project.schemas`, coupling syntax, links, and length rules to the schema validation
-subpackage, while `Primitives` gathered disparate model capabilities into a single monolithic protocol.
+subpackage, while `ItemPrimitives` gathered disparate model capabilities into a single monolithic protocol.
 
 Each query also stated its own carry-over by hand, in prose, as the primitive it is "kept whenever" is kept. Nothing
 checked that the prose matched what the query read. A database query still states it, as it reads an input; a declared
@@ -48,7 +48,7 @@ query a rule owns now takes its carry-over from what it read.
 3. **Core query types live in `lorecraft.project.query`.** The `Query[T]` callable signature and the model primitive
    protocols are defined in `lorecraft.project.query` rather than `schemas`, making query definitions available across
    all project facets without coupling them to schema validation.
-4. **Primitives are segregated into cohesive facets.** Rather than a single monolithic protocol, model primitives are
+4. **ItemPrimitives are segregated into cohesive facets.** Rather than a single monolithic protocol, model primitives are
    composed of focused protocols (syntax ASTs, token and line counts, governance specifications, frontmatter blocks,
    and link resolution targets). The database primitive reader implements the composite interface, allowing queries
    and unit test primitives to depend only on the facets they read.

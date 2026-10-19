@@ -17,7 +17,7 @@ from lorecraft.project.item import MarkdownItemRef, UnlistedItemError
 from lorecraft.project.layout import SNAPSHOT_SCOPE
 from lorecraft.project.link_target import DocumentLink
 from lorecraft.project.query import (
-    Primitives,
+    ItemPrimitives,
     item_corpus,
     item_name,
     item_parse,
@@ -72,22 +72,22 @@ def _decoded(database: Database) -> ItemText:
     return source
 
 
-def _anchors(primitives: Primitives) -> frozenset[Anchor]:
+def _anchors(primitives: ItemPrimitives) -> frozenset[Anchor]:
     """The anchor of every heading of the item's parse."""
     return primitives.query(item_parse).anchors
 
 
-def _item_name(primitives: Primitives) -> AspectFilename | SpecName | None:
+def _item_name(primitives: ItemPrimitives) -> AspectFilename | SpecName | None:
     """The typed filename of the item."""
     return primitives.query(item_name)
 
 
-def _item_corpus(primitives: Primitives) -> CorpusName | None:
+def _item_corpus(primitives: ItemPrimitives) -> CorpusName | None:
     """The typed corpus of the item."""
     return primitives.query(item_corpus)
 
 
-def _document_base(primitives: Primitives) -> AspectFilename | SpecName | None:
+def _document_base(primitives: ItemPrimitives) -> AspectFilename | SpecName | None:
     """The typed name of the document or specification the item extends."""
     return primitives.item_base()
 
@@ -284,7 +284,7 @@ class TestDocumentFactReads:
         }, 'the carry-over names each primitive and the item read'
 
 
-def _document_links(primitives: Primitives) -> tuple[DocumentLink, ...]:
+def _document_links(primitives: ItemPrimitives) -> tuple[DocumentLink, ...]:
     """The links to another document the item holds."""
     return primitives.query(linked_documents)
 
