@@ -6,11 +6,21 @@ reaches the model, so what a query read is what its answer depends on: a databas
 revision whenever every primitive it read is kept, and a query never reads the snapshot.
 """
 
+from .item_facts import (
+    item_corpus,
+    item_frontmatter,
+    item_line_count,
+    item_name,
+    item_parse,
+    item_structure_specs,
+    item_token_count,
+)
 from .linked_paths import linked_paths
 from .primitives import (
     CorpusDirectoryPrimitives,
     CorpusDirectoryQuery,
     CountPrimitives,
+    DecodedText,
     GovernancePrimitives,
     ItemReads,
     LinkResolutionPrimitives,
@@ -32,6 +42,7 @@ __all__: list[str] = [
     'CorpusDirectoryPrimitives',
     'CorpusDirectoryQuery',
     'CountPrimitives',
+    'DecodedText',
     'GovernancePrimitives',
     'ItemReads',
     'LinkResolutionPrimitives',
@@ -48,4 +59,11 @@ __all__: list[str] = [
     'SyntaxPrimitives',
     'TitlePrimitives',
     'linked_paths',
+    'item_corpus',
+    'item_frontmatter',
+    'item_line_count',
+    'item_name',
+    'item_parse',
+    'item_structure_specs',
+    'item_token_count',
 ]

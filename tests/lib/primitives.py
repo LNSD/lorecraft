@@ -10,7 +10,7 @@ from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.item import DocumentOrigin, ItemOrigin, MarkdownItemRef
 from lorecraft.project.link_target import DocumentLink, LinkBase, LinkTargetEntry
-from lorecraft.project.query import Query, SchemaQuery
+from lorecraft.project.query import DecodedText, Query, SchemaQuery
 from lorecraft.project.schemas import SpecName, StructureSpec
 from lorecraft.project.syntax import (
     Anchor,
@@ -84,6 +84,10 @@ class StructurePrimitives:
     def item_governance(self) -> Governance | None:
         """The governance this was built with."""
         return self.governance_value
+
+    def item_text(self) -> DecodedText | None:
+        """Standalone test facts have no decoded witness."""
+        return None
 
     def structure_specs(self) -> tuple[StructureSpec, ...]:
         """The specifications this was built with."""

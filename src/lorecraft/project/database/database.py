@@ -390,6 +390,12 @@ class _ItemPrimitives(_Reads[MarkdownItemRef, '_ItemPrimitives']):
         return self._database._item(self._ref).descriptor.origin
 
     @primitive
+    def item_text(self) -> ItemText | None:
+        """The decoded witness of this subject, or none when its bytes are not UTF-8."""
+        source = self._database.item_text(self._ref)
+        return source if isinstance(source, ItemText) else None
+
+    @primitive
     def item_governance(self) -> Governance | None:
         """The model's governance of the item."""
         return self._database.item_governance(self._ref)

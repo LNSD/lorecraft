@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING, Protocol
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.corpus.directory import CorpusDirectoryRef
-from lorecraft.project.item import ItemOrigin, MarkdownItemRef
+from lorecraft.project.item import ItemOrigin, MarkdownItemDescriptor, MarkdownItemRef
 from lorecraft.project.link_target import LinkBase, LinkTargetEntry
 from lorecraft.project.skill.outside import SymlinkRef
 from lorecraft.project.syntax import (
@@ -66,6 +66,13 @@ class SchemaReads(Protocol):
         ...
 
 
+class DecodedText(Protocol):
+    """The raw text facts every decoded item witness exposes to a query."""
+
+    descriptor: MarkdownItemDescriptor
+    text: str
+
+
 class SchemaPrimitives(QueryPrimitives['SchemaPrimitives'], SchemaReads, Protocol):
     """The immutable input for one typed schema subject."""
 
@@ -76,6 +83,10 @@ class SchemaPrimitives(QueryPrimitives['SchemaPrimitives'], SchemaReads, Protoco
 
 class SyntaxPrimitives(Protocol):
     """What the item's parse holds: its headings, anchors, links and frontmatter block."""
+
+    def item_text(self) -> DecodedText | None:
+        """The decoded witness of this subject, or none when its bytes are not UTF-8."""
+        ...
 
     def headings(self) -> tuple[Heading, ...]:
         """The headings of the item's parse, in document order."""
