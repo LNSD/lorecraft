@@ -7,13 +7,13 @@ from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.item import ItemReadError, MarkdownItemRef
 from lorecraft.project.link_target import DocumentDirectory, DocumentLink, document_links_of
-from lorecraft.project.query import Primitives, item_name, linked_paths
+from lorecraft.project.query import ItemPrimitives, item_name, linked_paths
 from lorecraft.project.workspace.model import find_document_at
 
 logger = logging.getLogger(__name__)
 
 
-def linked_documents(primitives: Primitives) -> tuple[DocumentLink, ...]:
+def linked_documents(primitives: ItemPrimitives) -> tuple[DocumentLink, ...]:
     """The links to other documents and whether each destination links back. Raises nothing.
 
     Paths and destination answers are queries, so cross-item dependencies are recorded by ref.

@@ -12,7 +12,7 @@ from lorecraft.project.item import MarkdownItemRef
 from lorecraft.project.layout import SNAPSHOT_SCOPE
 from lorecraft.project.query import (
     CorpusDirectoryPrimitives,
-    Primitives,
+    ItemPrimitives,
     SchemaPrimitives,
     SymlinkPrimitives,
     item_parse,
@@ -34,12 +34,12 @@ def _reserved_corpus(primitives: CorpusDirectoryPrimitives) -> CorpusName:
     return primitives.reserved_corpus()
 
 
-def _item_headings(primitives: Primitives) -> tuple[Heading, ...]:
+def _item_headings(primitives: ItemPrimitives) -> tuple[Heading, ...]:
     """The headings read from a Markdown item subject."""
     return primitives.query(item_parse).headings
 
 
-def _read_only_lookup(primitives: Primitives) -> object:
+def _read_only_lookup(primitives: ItemPrimitives) -> object:
     """Fetch a primitive method without invoking it."""
     return primitives.item_text
 

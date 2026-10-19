@@ -36,7 +36,7 @@ from lorecraft.project.corpus import (
 from lorecraft.project.document import DocumentRef, SpecRef
 from lorecraft.project.item import (
     DocumentOrigin,
-    MarkdownItemDescriptor,
+    ItemDescriptor,
     MarkdownItemRef,
     MetaSpecPart,
     SkillEntryOrigin,
@@ -366,7 +366,7 @@ class ResolvedItem:
         governance: The governing specs, or `None` when none governs the item.
     """
 
-    descriptor: MarkdownItemDescriptor
+    descriptor: ItemDescriptor
     governance: Governance | None
 
 
@@ -630,7 +630,7 @@ class WorkspaceModel:
                 return self.resolve_item(specification)
         return None
 
-    def describe_item(self, ref: DocumentRef | SkillRef | SpecRef) -> MarkdownItemDescriptor:
+    def describe_item(self, ref: DocumentRef | SkillRef | SpecRef) -> ItemDescriptor:
         """Resolve the shared location and origin metadata for a document or skill entry.
 
         The existing references remain accepted by repositories and database queries. This descriptor is the
@@ -649,7 +649,7 @@ class WorkspaceModel:
             location: Resource to resolve, as its skill's resource listing locates it.
         """
         skill = location.ref.skill
-        descriptor = MarkdownItemDescriptor(
+        descriptor = ItemDescriptor(
             ref=MarkdownItemRef(location.ref.path),
             read_location=location.resolves_to,
             link_base=SkillRoot(skill.directory),
@@ -695,7 +695,7 @@ class WorkspaceModel:
                     parts.add(MetaSpecPart.OUTLINE)
                 if governance is not None and any(spec.tokens is not None for spec in governance.structure_specs()):
                     parts.add(MetaSpecPart.BUDGET)
-                descriptor = MarkdownItemDescriptor(
+                descriptor = ItemDescriptor(
                     ref=MarkdownItemRef(ref.path),
                     read_location=location.file_resolves_to,
                     link_base=SkillRoot(ref.directory),
@@ -706,7 +706,7 @@ class WorkspaceModel:
                 )
                 return ResolvedItem(descriptor, governance)
             case SpecRef():
-                descriptor = MarkdownItemDescriptor(
+                descriptor = ItemDescriptor(
                     ref=MarkdownItemRef(ref.path),
                     read_location=ResolvedPath(ref.path),
                     link_base=DocumentDirectory(SPECS_DIR),
@@ -737,7 +737,7 @@ class WorkspaceModel:
             parts.add(MetaSpecPart.OUTLINE)
         if governance is not None and any(spec.tokens is not None for spec in governance.structure_specs()):
             parts.add(MetaSpecPart.BUDGET)
-        descriptor = MarkdownItemDescriptor(
+        descriptor = ItemDescriptor(
             ref=item,
             read_location=ResolvedPath(document.path),
             link_base=DocumentDirectory(RootRelativePath(document.path.value.parent)),

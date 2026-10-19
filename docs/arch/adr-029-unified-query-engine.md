@@ -52,8 +52,8 @@ proposal or expand its schema policy.
    a declared parse query. It reuses that query through the database rather than restoring a parse-method cache.
 
 2. **D2 — One read key always names a subject.** Use one frozen
-   `Read(source: PrimitiveRead | query, subject: SubjectRef)` for primitive and declared-query dependencies.
-   `SubjectRef` covers Markdown-item, schema, symlink and corpus-directory references. A bare primitive enum,
+   `Read(source: PrimitiveRead | query, subject: QueryTargetRef)` for primitive and declared-query dependencies.
+   `QueryTargetRef` covers Markdown-item, schema, symlink and corpus-directory references. A bare primitive enum,
    schema-only read record or subject-specific tuple is not a second key shape. This replaces `QueryRead`,
    `SchemaInputRead` and the `ReadKey` / `QueryKey` unions. A memoized query's identity uses the same query-and-subject
    shape. Nested reads retain their source subject, including schema and cross-item dependencies; the enclosing

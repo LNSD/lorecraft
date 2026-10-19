@@ -1,6 +1,6 @@
 """What a query reads and what it is: a pure function over the primitives of one subject.
 
-A query is a plain function from `Primitives` to the value it derives, such as a document's title. A rule declares
+A query is a plain function from `ItemPrimitives` to the value it derives, such as a document's title. A rule declares
 the queries it needs and a database memoizes each by the function and the item. The primitives are the only way a query
 reaches the model, so what a query read is what its answer depends on: a database can keep the answer for the next
 revision whenever every primitive it read is kept, and a query never reads the snapshot.
@@ -21,16 +21,16 @@ from .primitives import (
     CountPrimitives,
     DecodedText,
     GovernancePrimitives,
+    ItemPrimitives,
     ItemQuery,
     ItemReads,
     LinkResolutionPrimitives,
-    Primitives,
     Query,
     QueryPrimitives,
+    QueryTargetRef,
     SchemaPrimitives,
     SchemaReads,
     SubjectQuery,
-    SubjectRef,
     SymlinkPrimitives,
     SyntaxPrimitives,
     TitlePrimitives,
@@ -44,13 +44,13 @@ __all__: list[str] = [
     'ItemQuery',
     'ItemReads',
     'LinkResolutionPrimitives',
-    'Primitives',
+    'ItemPrimitives',
     'Query',
     'QueryPrimitives',
     'SchemaPrimitives',
     'SchemaReads',
     'SubjectQuery',
-    'SubjectRef',
+    'QueryTargetRef',
     'SymlinkPrimitives',
     'SyntaxPrimitives',
     'TitlePrimitives',

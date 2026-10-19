@@ -21,7 +21,7 @@ from lorecraft.project.item import ItemOrigin, ItemReadError, MarkdownItemRef, S
 from lorecraft.project.layout import SNAPSHOT_SCOPE
 from lorecraft.project.link_target import EscapingTarget, LinkTarget, PathLookup
 from lorecraft.project.query import (
-    Primitives,
+    ItemPrimitives,
     item_corpus,
     item_frontmatter,
     item_line_count,
@@ -84,22 +84,22 @@ def _decoded(database: Database, ref: MarkdownItemRef) -> ItemText:
     return source
 
 
-def _item_origin(primitives: Primitives) -> ItemOrigin:
+def _item_origin(primitives: ItemPrimitives) -> ItemOrigin:
     """The item's model-resolved origin, which does not require decoded text."""
     return primitives.item_origin()
 
 
-def _item_name(primitives: Primitives) -> AspectFilename | SpecName | None:
+def _item_name(primitives: ItemPrimitives) -> AspectFilename | SpecName | None:
     """The item's decoded name, when it has one."""
     return primitives.query(item_name)
 
 
-def _item_corpus(primitives: Primitives) -> CorpusName | None:
+def _item_corpus(primitives: ItemPrimitives) -> CorpusName | None:
     """The item's decoded corpus, when it is a document."""
     return primitives.query(item_corpus)
 
 
-def _item_base(primitives: Primitives) -> AspectFilename | SpecName | None:
+def _item_base(primitives: ItemPrimitives) -> AspectFilename | SpecName | None:
     """The item's decoded base name, when it has one."""
     return primitives.item_base()
 

@@ -2,10 +2,10 @@
 
 from lorecraft.project.link_target import DocumentDirectory, LinkedDocument, linked_files_of
 from lorecraft.project.query.item_facts import item_parse
-from lorecraft.project.query.primitives import Primitives
+from lorecraft.project.query.primitives import ItemPrimitives
 
 
-def linked_paths(primitives: Primitives) -> tuple[LinkedDocument, ...]:
+def linked_paths(primitives: ItemPrimitives) -> tuple[LinkedDocument, ...]:
     """The existing Markdown files a document links to, in link order. Raises nothing.
 
     A skill entry or resource has no document links. The result records the resolved root-relative path, so a query

@@ -118,7 +118,7 @@ type ItemOrigin = DocumentOrigin | SkillEntryOrigin | SkillResourceOrigin | Spec
 
 
 @dataclass(frozen=True, slots=True)
-class MarkdownItemDescriptor:
+class ItemDescriptor:
     """Model-resolved locations and origin metadata for a Markdown item.
 
     Attributes:

@@ -9,13 +9,13 @@ from abc import abstractmethod
 from dataclasses import dataclass
 from typing import NoReturn, Self
 
-from lorecraft.project.query import ItemQuery, Primitives
+from lorecraft.project.query import ItemPrimitives, ItemQuery
 
 from ..declaration import ContentRule, LayoutRule
 from ..subject import Queried
 
 
-def _unqueried(primitives: Primitives) -> NoReturn:
+def _unqueried(primitives: ItemPrimitives) -> NoReturn:
     """Stand in for a query, which no test of a sample rule runs."""
     raise NotImplementedError('a sample rule is judged on facts the test hands it')
 

@@ -51,11 +51,11 @@ from lorecraft.project.link_target import (
 )
 from lorecraft.project.query import (
     CorpusDirectoryPrimitives,
+    ItemPrimitives,
     ItemQuery,
-    Primitives,
     Query,
+    QueryTargetRef,
     SchemaPrimitives,
-    SubjectRef,
     SymlinkPrimitives,
     item_parse,
 )
@@ -116,7 +116,7 @@ class Read:
     """
 
     source: str | Callable[..., object]
-    subject: SubjectRef
+    subject: QueryTargetRef
 
 
 class _PrimitiveReadRecorder(Protocol):
@@ -133,7 +133,7 @@ class _HasRecordedReads(Protocol):
     def _recorded_reads(self) -> frozenset[Read]: ...
 
 
-class _Reads[R: SubjectRef, P: _HasRecordedReads](metaclass=ABCMeta):
+class _Reads[R: QueryTargetRef, P: _HasRecordedReads](metaclass=ABCMeta):
     """One subject's raw primitives, private read recorder, and memoized query composition."""
 
     __slots__ = ('__reads', '_database', '_ref')
@@ -642,7 +642,7 @@ class Database:
         return self._item(ref).governance
 
     @overload
-    def query[T](self, query: Query[Primitives, T], ref: MarkdownItemRef) -> T: ...  # noqa: D102 — implementation documents the overload
+    def query[T](self, query: Query[ItemPrimitives, T], ref: MarkdownItemRef) -> T: ...  # noqa: D102 — implementation documents the overload
 
     @overload
     def query[T](self, query: Query[SymlinkPrimitives, T], ref: SymlinkRef) -> T: ...  # noqa: D102 — implementation documents the overload
@@ -702,7 +702,7 @@ class Database:
 
     def query_reads(
         self,
-        query: Query[Primitives, object]
+        query: Query[ItemPrimitives, object]
         | Query[SymlinkPrimitives, object]
         | Query[CorpusDirectoryPrimitives, object]
         | Query[SchemaPrimitives, object],
