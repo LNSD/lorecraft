@@ -42,17 +42,24 @@ Within a corpus, a name's **base** is the longest existing name it continues wit
 
 A reusable set of agent instructions, sometimes with supporting scripts.
 
+### Skill entrypoint
+
+The top-level `SKILL.md` file inside an [agent skill](#agent-skill), which an agent reads to load the skill's
+instructions. It is a governed [item](#item) with kind `SKILL_ENTRYPOINT`.
+
 ### Resource
 
 A Markdown file inside an [agent skill](#agent-skill) other than its top-level `SKILL.md`, at any depth, such as a reference the skill loads on demand. It is named where an agent reaches it, through any symlink inside the skill, and located at the [resolved](#resolved-path) file that path leads to.
 
 ### Item
 
-A governed Markdown file: a [document](#spec), [meta spec](#meta-spec), [skill](#agent-skill), or [resource](#resource). The project model calls its identity an `ItemRef`, describes it with an `ItemDescriptor`, and classifies it by an [item kind](#item-kind).
+A governed Markdown file: a [document](#spec), [meta spec](#meta-spec), [skill entrypoint](#skill-entrypoint), or
+[resource](#resource). The project model calls its identity an `ItemRef`, describes it with an `ItemDescriptor`, and
+classifies it by an [item kind](#item-kind).
 
 ### Item kind
 
-Which kind of [item](#item) a governed Markdown file is: `DOCUMENT`, `META_SPEC`, `SKILL`, or `SKILL_RESOURCE`.
+Which kind of [item](#item) a governed Markdown file is: `DOCUMENT`, `META_SPEC`, `SKILL_ENTRYPOINT`, or `SKILL_RESOURCE`.
 
 ### Entry
 
@@ -80,7 +87,7 @@ The identity of an [item](#item) outside the `project` model: `ItemRef`.
 
 ### Origin ref
 
-A validated, per-kind identity inside `project`, one-to-one with an origin. `DocumentRef` corresponds to `DocumentOrigin`, `MetaSpecRef` to `MetaSpecOrigin`, `SkillRef` to `SkillOrigin`, and `SkillResourceRef` to `SkillResourceOrigin`. These are distinct from the `ItemRef` that crosses the project-model boundary. Only item refs, layout refs, and schema refs cross that boundary, as [ADR-023](arch/adr-023.md) requires.
+A validated, per-kind identity inside `project`, one-to-one with an origin. `DocumentRef` corresponds to `DocumentOrigin`, `MetaSpecRef` to `MetaSpecOrigin`, `SkillRef` to `SkillEntrypointOrigin`, and `SkillResourceRef` to `SkillResourceOrigin`. These are distinct from the `ItemRef` that crosses the project-model boundary. Only item refs, layout refs, and schema refs cross that boundary, as [ADR-023](arch/adr-023.md) requires.
 
 ### Location
 

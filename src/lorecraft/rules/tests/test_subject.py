@@ -47,7 +47,7 @@ class TestGates:
         expected = MappingProxyType(
             {
                 ItemKind.DOCUMENT: ByMetaSpec(MetaSpecPart.BUDGET),
-                ItemKind.SKILL: ByMetaSpec(MetaSpecPart.BUDGET, requires_loaded_layer=True),
+                ItemKind.SKILL_ENTRYPOINT: ByMetaSpec(MetaSpecPart.BUDGET, requires_loaded_layer=True),
             }
         )
 
@@ -64,7 +64,7 @@ class TestGates:
             {
                 ItemKind.DOCUMENT: ByMetaSpec(MetaSpecPart.STRUCTURE),
                 ItemKind.META_SPEC: ByMetaSpec(MetaSpecPart.STRUCTURE),
-                ItemKind.SKILL: ByPackage(),
+                ItemKind.SKILL_ENTRYPOINT: ByPackage(),
                 ItemKind.SKILL_RESOURCE: ByPackage(),
             }
         )
@@ -73,7 +73,9 @@ class TestGates:
         gates = rule.GATES
 
         #: Then
-        assert gates == expected, 'Markdown rules use structure for corpus items and package gates for skill files'
+        assert gates == expected, (
+            'Markdown rules use structure for corpus items and package gates for skill entrypoints'
+        )
 
     def test_frontmatter_rule_with_skill_entry_uses_frontmatter_part(self) -> None:
         #: Given
@@ -81,7 +83,7 @@ class TestGates:
         expected = ByMetaSpec(MetaSpecPart.FRONTMATTER)
 
         #: When
-        gate = rule.GATES[ItemKind.SKILL]
+        gate = rule.GATES[ItemKind.SKILL_ENTRYPOINT]
 
         #: Then
         assert gate == expected, 'skill frontmatter rules follow the active frontmatter meta spec part'
@@ -92,7 +94,7 @@ class TestGates:
         expected = BySchema(AGENT_SKILLS_SCHEMA_REFERENCE)
 
         #: When
-        gate = rule.GATES[ItemKind.SKILL]
+        gate = rule.GATES[ItemKind.SKILL_ENTRYPOINT]
 
         #: Then
         assert gate == expected, 'the skill name rule requires the registered Agent Skills schema'
@@ -116,21 +118,21 @@ class TestGateApplicability:
     def test_corpus_rule_with_skill_entry_applies_to_skill_entries(self) -> None:
         #: Given
         rule = TooManyTokens
-        expected = ItemKind.SKILL
+        expected = ItemKind.SKILL_ENTRYPOINT
 
         #: When
         kinds = rule.GATES
 
         #: Then
-        assert expected in kinds, 'corpus rules declare a gate for skill entries as well as documents'
+        assert expected in kinds, 'corpus rules declare a gate for skill entrypoints as well as documents'
 
     def test_package_rule_with_skill_entry_applies_to_skill_entries(self) -> None:
         #: Given
         rule = TooManyLines
-        expected = ItemKind.SKILL
+        expected = ItemKind.SKILL_ENTRYPOINT
 
         #: When
         kinds = rule.GATES
 
         #: Then
-        assert expected in kinds, 'package skill rules declare a gate for skill entries'
+        assert expected in kinds, 'package skill rules declare a gate for skill entrypoints'

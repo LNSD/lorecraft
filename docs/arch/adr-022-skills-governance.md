@@ -1,6 +1,6 @@
 ---
 name: "adr-022-skills-governance"
-description: "Bring skill documents into reserved-corpus governance with a built-in schema, independent repository layers and bounded contradiction detection. Load when implementing skills corpus loading, governance, checking or inspection"
+description: "Bring skill entrypoints into reserved-corpus governance with a built-in schema, independent repository layers and bounded contradiction detection. Load when implementing skills corpus loading, governance, checking or inspection"
 type: "adr"
 status: "proposed"
 ---
@@ -15,7 +15,7 @@ status: "proposed"
 
 ## Context
 
-[prd-020](prd-020-skills-corpus.md) requires repository rules for skill documents without inventing a
+[prd-020](prd-020-skills-corpus.md) requires repository rules for skill entrypoints without inventing a
 second meta spec language. Today the workspace loads document corpora from meta spec names and
 directories under docs/, while skill frontmatter answers to a fixed schema. Document contexts receive their
 governing layers; skill contexts have no repository layers.
@@ -30,7 +30,7 @@ they do not require a general schema compatibility prover.
 
 ## Decision
 
-### A Reserved Corpus Has Skill Entries as Its Members
+### A Reserved Corpus Has Skill Entrypoints as Its Members
 
 The project model recognises skills as a reserved corpus independently of a docs/skills/ directory (FR-001).
 Its repository meta specs use the same prose and .spec.json file types as document corpora. It loads
@@ -138,7 +138,7 @@ It does not create a second matching algorithm or require a docs/skills/ directo
 
 ## Consequences
 
-- Skill documents gain repository frontmatter, outline and length rules without changing the document
+- Skill entrypoints gain repository frontmatter, outline and length rules without changing the document
   specification dialect or allowing narrower layers to erase broader constraints.
 - Existing skills diagnostics and identity must survive the migration. Generated schema output alone is not
   evidence of that compatibility: representative existing findings must remain unchanged with no skills meta spec.

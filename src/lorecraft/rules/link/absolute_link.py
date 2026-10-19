@@ -98,7 +98,7 @@ class AbsoluteLink(QueriedItemRule[tuple[Link, ...]]):
         {
             ItemKind.DOCUMENT: ByMetaSpec(MetaSpecPart.STRUCTURE),
             ItemKind.META_SPEC: ByMetaSpec(MetaSpecPart.STRUCTURE),
-            ItemKind.SKILL: ByPackage(),
+            ItemKind.SKILL_ENTRYPOINT: ByPackage(),
             ItemKind.SKILL_RESOURCE: ByPackage(),
         }
     )
@@ -114,7 +114,8 @@ class AbsoluteLink(QueriedItemRule[tuple[Link, ...]]):
     def children(self) -> tuple[Subdiagnostic, ...]:
         """Say how to spell the link instead.
 
-        A document's relative link is read from its own directory and a skill file's from the skill root, so the help
+        A document's relative link is read from its own directory and a skill entrypoint's from the skill root, so
+        the help
         names neither: it holds for any Markdown file.
         """
         return (Help('link by a relative path, which holds wherever the files are placed'),)

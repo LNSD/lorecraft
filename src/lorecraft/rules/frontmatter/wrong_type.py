@@ -104,7 +104,7 @@ class WrongType(QueriedItemRule[tuple[SchemaProblems, ...]]):
     GATES: ClassVar[Mapping[ItemKind, Gate]] = MappingProxyType(
         {
             ItemKind.DOCUMENT: ByMetaSpec(MetaSpecPart.FRONTMATTER),
-            ItemKind.SKILL: ByMetaSpec(MetaSpecPart.FRONTMATTER),
+            ItemKind.SKILL_ENTRYPOINT: ByMetaSpec(MetaSpecPart.FRONTMATTER),
         }
     )
 

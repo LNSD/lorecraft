@@ -17,7 +17,7 @@ from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.database import Database, ItemText, Read, Undecodable
 from lorecraft.project.document import DocumentRef
-from lorecraft.project.item import ItemOrigin, ItemReadError, ItemRef, SkillOrigin, UnlistedItemError
+from lorecraft.project.item import ItemOrigin, ItemReadError, ItemRef, SkillEntrypointOrigin, UnlistedItemError
 from lorecraft.project.layout import SNAPSHOT_SCOPE
 from lorecraft.project.link_target import EscapingTarget, LinkTarget, PathLookup
 from lorecraft.project.query import (
@@ -144,7 +144,7 @@ class TestItemQueries:
         base = database.query(_item_base, REVIEW)
 
         #: Then
-        assert isinstance(origin, SkillOrigin), "the resolved item's origin survives invalid text"
+        assert isinstance(origin, SkillEntrypointOrigin), "the resolved item's origin survives invalid text"
         assert origin.expected_name == 'review', 'the origin keeps the listed skill name'
         assert (name, corpus, base) == (None, None, None), 'content-derived facts are empty without decoded text'
 

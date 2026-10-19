@@ -51,7 +51,7 @@ are the package's own, each must be complete, and no reader branches on which on
 
 ```python
 # ❌ Bad — `assert_never` is a type error over a protocol even with every kind listed, so the catch-all written
-# instead took `AgentFile`, added later, and every agent file was reported as a skill file
+# instead took `AgentFile`, added later, and every agent file was reported as a skill entrypoint
 from pathlib import PurePosixPath
 from typing import Protocol
 
@@ -70,9 +70,9 @@ def describe(file: CheckedFile) -> str:
         case CorpusDocument(corpus=corpus):
             return f'{corpus} document {file.path}'
         case SkillFile(skill=skill):
-            return f'{skill} skill file {file.path}'
+            return f'{skill} skill entrypoint {file.path}'
         case _:
-            return f'skill file {file.path}'
+            return f'skill entrypoint {file.path}'
 ```
 
 ```python
@@ -108,7 +108,7 @@ def describe(file: CheckedFile) -> str:
         case CorpusDocument(corpus=corpus):
             return f'{corpus} document {file.path}'
         case SkillFile(skill=skill):
-            return f'{skill} skill file {file.path}'
+            return f'{skill} skill entrypoint {file.path}'
         case _:
             assert_never(file)
 

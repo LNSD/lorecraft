@@ -1,6 +1,7 @@
 """`FM002`, `invalid-yaml`, over a document's or a skill's frontmatter.
 
-Every case is a document or a `SKILL.md` written as text, read through a fake database that parses its frontmatter as
+Every case is a document or a skill entrypoint (`SKILL.md`) written as text, read through a fake database that
+parses its frontmatter as
 the real parser does; no file is read from disk.
 """
 

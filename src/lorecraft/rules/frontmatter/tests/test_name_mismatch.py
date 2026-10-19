@@ -1,6 +1,7 @@
 """`FM004`, `name-mismatch`, over a document's or a skill's frontmatter.
 
-Every case is a document or a `SKILL.md` written as text, read through a fake database that parses its frontmatter as
+Every case is a document or a skill entrypoint (`SKILL.md`) written as text, read through a fake database that
+parses its frontmatter as
 the real parser does; no file is read from disk. The name a document is held to is the fake's filename, `setup`, and
 the name a skill is held to the directory the fake lists it under, `review`.
 """

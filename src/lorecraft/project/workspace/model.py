@@ -40,7 +40,7 @@ from lorecraft.project.item import (
     ItemRef,
     MetaSpecOrigin,
     MetaSpecPart,
-    SkillOrigin,
+    SkillEntrypointOrigin,
     SkillResourceOrigin,
     UnlistedItemError,
 )
@@ -389,7 +389,7 @@ class WorkspaceModel:
             `documents()` does not list it. The locations, not the refs, record where each link leads, so two models
             differ when a link is retargeted even though every ref is the same.
         skills_corpus: The reserved `skills` corpus, available to its own specification checks, or None when no
-            `skills` spec exists. It governs skill entries but not resources; no directory
+            `skills` spec exists. It governs skill entrypoints but not resources; no directory
             under `docs/` backs it.
         overlapping_directories: The directories under `docs/` that take a reserved corpus's name, which the model
             ignores: none of their documents is listed.
@@ -664,7 +664,7 @@ class WorkspaceModel:
     def resolve_item(self, ref: DocumentRef | ItemRef | SkillRef | MetaSpecRef) -> ResolvedItem:
         """Resolve an item's descriptor together with the specs governing it, finding the governance once.
 
-        A corpus document is governed by the specs of its corpus and matching namespaces. Skill entries are governed
+        A corpus document is governed by the specs of its corpus and matching namespaces. Skill entrypoints are governed
         by the reserved `skills` corpus and matching namespaces; resources remain outside corpus governance.
 
         Args:
@@ -700,7 +700,7 @@ class WorkspaceModel:
                     ref=ItemRef(ref.path),
                     read_location=location.file_resolves_to,
                     link_base=SkillRoot(ref.directory),
-                    origin=SkillOrigin(expected_name=str(ref.entry), link_target=link_target),
+                    origin=SkillEntrypointOrigin(expected_name=str(ref.entry), link_target=link_target),
                     governance_corpus=(SKILLS_CORPUS_NAME if governance is not None else ''),
                     aspect_name=str(ref.entry),
                     governed_parts=frozenset(parts),

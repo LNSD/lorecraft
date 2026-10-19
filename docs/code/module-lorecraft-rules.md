@@ -192,7 +192,7 @@ class SectionTooManyWords(QueriedItemRule[Facts]):
 
     GATES = {
         ItemKind.DOCUMENT: ByMetaSpec(MetaSpecPart.STRUCTURE),
-        ItemKind.SKILL: ByMetaSpec(MetaSpecPart.STRUCTURE, requires_loaded_layer=True),
+        ItemKind.SKILL_ENTRYPOINT: ByMetaSpec(MetaSpecPart.STRUCTURE, requires_loaded_layer=True),
     }
 ```
 

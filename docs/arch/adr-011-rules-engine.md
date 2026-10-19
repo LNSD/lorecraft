@@ -137,7 +137,7 @@ for what several kinds share: any one Markdown file, one of a skill's files, and
 skill alike. A rule over a document declares the facet it reads in `GOVERNED_BY`: a frontmatter schema, the structure
 file its corpus states, an outline, or a token budget. A rule over the frontmatter inherits the frontmatter facet from
 its base, so the runner gates it on a document as it gates a rule over a document, and a skill is governed for it by
-the package. A rule over a Markdown file judges a document under its structure, and every skill file, which the
+the package. A rule over a Markdown file judges a document under its structure, and every skill entrypoint, which the
 package governs; a rule over a skill's file or a layout entry declares no facet. A rule over a shared analysis
 filters its own problem type out of the one answer the query gives; a selection from a value the facts already hold,
 such as the first H1, is a helper beside the parse tree.

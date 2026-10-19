@@ -307,7 +307,7 @@ class TestRenderGovernedSkills:
             '└── skills (2)',
             '    ├── .agents/skills/code-rules [codex]',
             '    └── .agents/skills/review [codex]',
-        ], 'the skills corpus does not govern its skill entries'
+        ], 'the skills corpus does not govern skill entrypoints'
 
     def test_render_json_with_a_skills_corpus_does_not_list_governance_for_skills(self) -> None:
         #: Given

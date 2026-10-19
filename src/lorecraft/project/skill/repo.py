@@ -27,7 +27,7 @@ from collections import deque
 from dataclasses import dataclass
 from typing import assert_never
 
-from lorecraft.agents import SKILL_ENTRY, SKILL_ENTRY_FILENAME
+from lorecraft.agents import SKILL_ENTRYPOINT, SKILL_ENTRYPOINT_FILENAME
 from lorecraft.core.error import Error
 from lorecraft.core.path import ROOT, RootRelativePath
 from lorecraft.project.layout import DOCS_DIR
@@ -189,7 +189,7 @@ class SkillDirListError(Error):
     def __init__(self, directory: RootRelativePath, *, source: DirListFailure) -> None:
         self.directory = directory
         self.source = source
-        super().__init__(f'cannot look for {SKILL_ENTRY_FILENAME} in {directory}')
+        super().__init__(f'cannot look for {SKILL_ENTRYPOINT_FILENAME} in {directory}')
         self.__cause__ = source
 
 
@@ -485,7 +485,7 @@ class Repository:
                 )
             case RootExit():
                 # Named under the entry, as the skill would have been, not under the directory it leads to.
-                return OutsideSymlink(directory / SKILL_ENTRY, skill_file)
+                return OutsideSymlink(directory / SKILL_ENTRYPOINT, skill_file)
             case None:
                 return None
             case _:
@@ -613,9 +613,9 @@ class Repository:
         except DIR_LIST_FAILURES as exc:
             raise SkillDirListError(directory, source=exc) from exc
 
-        skill_file = directory / SKILL_ENTRY
+        skill_file = directory / SKILL_ENTRYPOINT
         for entry in entries:
-            if entry.name != SKILL_ENTRY:
+            if entry.name != SKILL_ENTRYPOINT:
                 continue
             match entry.kind:
                 case EntryKind.FILE:

@@ -22,7 +22,7 @@ from dataclasses import dataclass
 from functools import total_ordering
 from typing import Final, Self
 
-from lorecraft.agents import SKILL_ENTRY, SKILL_ENTRY_FILENAME
+from lorecraft.agents import SKILL_ENTRYPOINT, SKILL_ENTRYPOINT_FILENAME
 from lorecraft.core.error import Error
 from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.project.layout import DOCUMENT_SUFFIX
@@ -86,7 +86,7 @@ class SkillRelativePath:
         return RootRelativePath(directory.value / self.value.value)
 
 
-_SKILL_ENTRY_PATH: Final[SkillRelativePath] = SkillRelativePath.parse(SKILL_ENTRY_FILENAME)
+_SKILL_ENTRYPOINT_PATH: Final[SkillRelativePath] = SkillRelativePath.parse(SKILL_ENTRYPOINT_FILENAME)
 """The skill's own top-level `SKILL.md`, spelled from the skill's directory."""
 
 
@@ -100,7 +100,7 @@ def _is_resource_path(path: SkillRelativePath) -> bool:
     name = path.name
     if name is None or not name.has_suffix(DOCUMENT_SUFFIX):
         return False
-    return path != _SKILL_ENTRY_PATH
+    return path != _SKILL_ENTRYPOINT_PATH
 
 
 @total_ordering
@@ -141,7 +141,7 @@ class SkillRef:
     @property
     def path(self) -> RootRelativePath:
         """Root-relative `<directory>/SKILL.md`; the report path in findings."""
-        return self.directory / SKILL_ENTRY
+        return self.directory / SKILL_ENTRYPOINT
 
     def find_resource(self, path: SkillRelativePath) -> SkillResourceRef | None:
         """The resource of this skill an agent reaches at `path`, or `None` when a file there is no resource.
@@ -190,7 +190,7 @@ class NotASkillResourceError(Error):
         self.path = path
         super().__init__(
             f"{str(path)!r} is not a skill resource: it must name a `{DOCUMENT_SUFFIX}` file other than the skill's "
-            f'own top-level {SKILL_ENTRY_FILENAME}'
+            f'own top-level {SKILL_ENTRYPOINT_FILENAME}'
         )
 
 

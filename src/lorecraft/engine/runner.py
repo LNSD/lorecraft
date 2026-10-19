@@ -17,8 +17,8 @@ group: for each group of enabled rules that applies to its kind, the runner chec
 whose gates admit the item, and records an ungoverned meta spec part as coverage rather than a diagnostic. A rule over a
 Markdown file judges a document when its structure specification is loaded, alongside rules gated by a named
 meta spec part. A document in no corpus, or in one that states no structure specification, has no such part
-governed, and no such rule is run over it. Package checks judge skill entries independently of corpus
-governance. Package Markdown checks judge resources independently of corpus governance. A rule over a skill's file
+governed, and no such rule is run over it. Package checks judge skill entrypoints independently of corpus
+governance. Package Markdown checks judge resources independently of corpus governance. A rule over a skill entrypoint
 judges every `SKILL.md` and every resource, and never a document. The database answers only what a rule's query reads,
 so a value no enabled rule reads is never computed.
 
@@ -26,7 +26,8 @@ The subjects are those of `skip.Subject`, which defines and dispatches them: doc
 skills' resources and layout entries. A decoded document, skill or resource
 is judged by the one entry `judge_item`; a layout entry has a function of its own, so a subject kind without one is a
 type error. A document is handed over as its ref, and a skill as the `SkillLocation` the
-model hands out for it, since a rule over a skill may read where its directory leads. A skill is its `SKILL.md`,
+model hands out for it, since a rule over a skill may read where its directory leads. A skill entrypoint is the
+`SKILL.md`,
 decoded and reported at that path, under its ref. A resource is a subject of its own, handed over as the
 `SkillResourceLocation` its skill's resource listing gives, since only that listing locates its file: it is decoded at
 the file it leads to, and reported under its ref, at the path an agent reaches it by, through the same item queries.
@@ -130,7 +131,7 @@ def judges(
         return False
     match gate:
         case ByMetaSpec(_, requires_loaded_layer):
-            if descriptor.kind is ItemKind.SKILL and requires_loaded_layer:
+            if descriptor.kind is ItemKind.SKILL_ENTRYPOINT and requires_loaded_layer:
                 return bool(descriptor.governance_corpus) and governance is not None and not governance.failed_layers()
             return True
         case ByPackage():

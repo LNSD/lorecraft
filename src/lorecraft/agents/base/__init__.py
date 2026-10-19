@@ -9,8 +9,8 @@ from .agents_md import UNIVERSAL_PROJECT_AGENTS_MD_FILE, ProjectAgentsMdFiles, U
 from .name import AgentName
 from .scope import ProjectPath, UserPath
 from .skills import (
-    SKILL_ENTRY,
-    SKILL_ENTRY_FILENAME,
+    SKILL_ENTRYPOINT,
+    SKILL_ENTRYPOINT_FILENAME,
     UNIVERSAL_PROJECT_SKILLS_DIR,
     UNIVERSAL_USER_SKILLS_DIR,
     ProjectSkillsDirs,
@@ -26,8 +26,8 @@ __all__: list[str] = [
     'UserSkillsDirs',
     'UNIVERSAL_PROJECT_SKILLS_DIR',
     'UNIVERSAL_USER_SKILLS_DIR',
-    'SKILL_ENTRY',
-    'SKILL_ENTRY_FILENAME',
+    'SKILL_ENTRYPOINT',
+    'SKILL_ENTRYPOINT_FILENAME',
     'ProjectAgentsMdFiles',
     'UserAgentsMdFiles',
     'UNIVERSAL_PROJECT_AGENTS_MD_FILE',

@@ -10,10 +10,10 @@ reads nothing: resolving it against a repository or a home directory belongs to 
 agent lets an environment variable move its home configuration directory, the default location is what is
 declared.
 
-A skill is `<skills directory>/<skill name>/SKILL.md`: a directory directly inside a skills directory, named
-for the skill, holding the entry document an agent enters it through. Nothing else is a skill: not a directory
+A skill is the directory `<skills directory>/<skill name>/`, named for the skill and holding the skill
+entrypoint `SKILL.md` that an agent reads first. Nothing else is a skill: not a directory
 without that document, not one nested deeper, and not one outside every skills directory. The Agent Skills
-specification fixes the entry document's filename, https://agentskills.io/specification, so it is declared once
+specification fixes the skill entrypoint's filename, https://agentskills.io/specification, so it is declared once
 here and no agent states its own.
 """
 
@@ -37,9 +37,9 @@ UNIVERSAL_PROJECT_SKILLS_DIR: Final[ProjectPath] = ProjectPath(RootRelativePath.
 UNIVERSAL_USER_SKILLS_DIR: Final[UserPath] = UserPath(RootRelativePath.parse('.agents/skills'))
 """The canonical user skills directory, `~/.agents/skills`, shared by every agent that reads it as it is."""
 
-SKILL_ENTRY_FILENAME: Final[str] = 'SKILL.md'
-"""The canonical filename of a skill's entry document: the file directly inside a skill directory that makes it
+SKILL_ENTRYPOINT_FILENAME: Final[str] = 'SKILL.md'
+"""The canonical filename of a skill entrypoint: the file directly inside a skill directory that makes it
 a skill, and the one an agent loads first. The same for every agent and in both scopes."""
 
-SKILL_ENTRY: Final[PathComponent] = PathComponent.parse(SKILL_ENTRY_FILENAME)
-"""`SKILL_ENTRY_FILENAME` as a path component, for joining the entry document onto a skill directory."""
+SKILL_ENTRYPOINT: Final[PathComponent] = PathComponent.parse(SKILL_ENTRYPOINT_FILENAME)
+"""`SKILL_ENTRYPOINT_FILENAME` as a path component, for joining the skill entrypoint onto a skill directory."""

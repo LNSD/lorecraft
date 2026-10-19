@@ -10,7 +10,7 @@ from typing import assert_never
 
 import typer
 
-from lorecraft.agents import SKILL_ENTRY_FILENAME
+from lorecraft.agents import SKILL_ENTRYPOINT_FILENAME
 from lorecraft.core.error import Error
 from lorecraft.core.path import RootRelativePath
 from lorecraft.jsonschema import DIALECT
@@ -191,7 +191,7 @@ def _failure_text(failure: LoadFailure) -> _FailureText:
             return _FailureText(f'cannot resolve skill entry {path}', (f'cannot inspect entry {failed_at}: {refusal}',))
         case UnlistableSkillDirectory(failed_at=failed_at, refusal=refusal):
             return _FailureText(
-                f'cannot look for {SKILL_ENTRY_FILENAME} in {failed_at}', (_cannot_list(failed_at, refusal),)
+                f'cannot look for {SKILL_ENTRYPOINT_FILENAME} in {failed_at}', (_cannot_list(failed_at, refusal),)
             )
         case UnresolvableSkillFile(failed_at=failed_at, refusal=refusal):
             return _FailureText(f'cannot resolve {failed_at}', (f'cannot resolve file {failed_at}: {refusal}',))

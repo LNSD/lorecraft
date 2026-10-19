@@ -6,7 +6,7 @@ carry-over rules. Declared queries run through `query(query, ref)`, which memoiz
 item values such as parsing, frontmatter, counts and structure specifications are declared in `lorecraft.project.query`
 and derive from raw primitive state.
 
-The item family shares `ItemRef` across documents, skill entries and resources. Resource references are
+The item family shares `ItemRef` across documents, skill entrypoints and resources. Resource references are
 registered from their skill's listing; documents not listed by the model can still be resolved from their corpus and
 filename. A new database is created for each snapshot, and no derived value is cached across databases here.
 
@@ -630,7 +630,7 @@ class Database:
         """The specifications that govern an item, resolved by the model on the first call for its ref.
 
         A layer whose structure file failed to load is held as the failed structure the model recorded, in the order
-        the layers apply. Skill entries use the reserved `skills` corpus; resources have no corpus governance.
+        the layers apply. Skill entrypoints use the reserved `skills` corpus; resources have no corpus governance.
         `None` when no specification governs the item.
 
         Args:

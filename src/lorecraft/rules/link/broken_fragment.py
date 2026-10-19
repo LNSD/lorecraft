@@ -128,7 +128,7 @@ class BrokenFragment(QueriedItemRule[BrokenFragmentFacts]):
         {
             ItemKind.DOCUMENT: ByMetaSpec(MetaSpecPart.STRUCTURE),
             ItemKind.META_SPEC: ByMetaSpec(MetaSpecPart.STRUCTURE),
-            ItemKind.SKILL: ByPackage(),
+            ItemKind.SKILL_ENTRYPOINT: ByPackage(),
             ItemKind.SKILL_RESOURCE: ByPackage(),
         }
     )

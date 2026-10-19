@@ -9,12 +9,12 @@ paths are `RootRelativePath` values, typed `ProjectPath` when relative to the re
 
 The surface is the registry and what holds for every agent: another layer iterates the agents and reads each
 one's aspects from its `Agent` record, and names no agent and no agent's constant itself. The set of agents
-and each agent's constants stay inside this layer. `SKILL_ENTRY_FILENAME`, and `SKILL_ENTRY` as a path
+and each agent's constants stay inside this layer. `SKILL_ENTRYPOINT_FILENAME`, and `SKILL_ENTRYPOINT` as a path
 component, are the exception that is not one: the specification fixes it, so no agent states it and there is
 no record to read it from.
 """
 
-from lorecraft.agents.base import SKILL_ENTRY, SKILL_ENTRY_FILENAME, Agent, AgentName
+from lorecraft.agents.base import SKILL_ENTRYPOINT, SKILL_ENTRYPOINT_FILENAME, Agent, AgentName
 
 from .registry import iter_agents
 
@@ -22,6 +22,6 @@ __all__: list[str] = [
     'Agent',
     'AgentName',
     'iter_agents',
-    'SKILL_ENTRY',
-    'SKILL_ENTRY_FILENAME',
+    'SKILL_ENTRYPOINT',
+    'SKILL_ENTRYPOINT_FILENAME',
 ]

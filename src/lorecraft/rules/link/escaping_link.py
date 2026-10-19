@@ -112,7 +112,7 @@ class EscapingLink(QueriedItemRule[tuple[Link, ...]]):
     SINCE: ClassVar[Release] = Release('0.3.0')
     GATES: ClassVar[Mapping[ItemKind, Gate]] = MappingProxyType(
         {
-            ItemKind.SKILL: ByPackage(),
+            ItemKind.SKILL_ENTRYPOINT: ByPackage(),
             ItemKind.SKILL_RESOURCE: ByPackage(),
         }
     )
