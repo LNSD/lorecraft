@@ -6,23 +6,23 @@ from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.path import RootRelativePath
 from lorecraft.schemas import (
     BundledOrigin,
-    DuplicateSchemaReferenceError,
+    DuplicateSchemaRefError,
     EmptyBundledOriginIdentityError,
     EmptyRepositoryLayerError,
-    EmptySchemaReferenceIdentityError,
+    EmptySchemaRefIdentityError,
     RepositoryOrigin,
     SchemaInput,
     SchemaKind,
     SchemaOriginMismatchError,
-    SchemaReference,
-    SchemaReferenceError,
+    SchemaRef,
+    SchemaRefError,
     SchemaRegistry,
 )
 
 
 def _repository_schema(identity: str, kind: SchemaKind = SchemaKind.STRUCTURE) -> SchemaInput:
     return SchemaInput(
-        reference=SchemaReference(kind, identity),
+        reference=SchemaRef(kind, identity),
         origin=RepositoryOrigin(RootRelativePath.parse(f'docs/{identity}.yaml'), 'global'),
         document=FrozenMapping.from_plain({'type': 'object'}),
     )
@@ -44,10 +44,10 @@ class TestSchemaRegistry:
     def test_resolve_with_unknown_reference_raises(self) -> None:
         #: Given
         registry = SchemaRegistry.from_inputs(())
-        reference = SchemaReference(SchemaKind.FRONTMATTER, 'guide')
+        reference = SchemaRef(SchemaKind.FRONTMATTER, 'guide')
 
         #: When
-        with pytest.raises(SchemaReferenceError) as exc_info:
+        with pytest.raises(SchemaRefError) as exc_info:
             registry.resolve(reference)
 
         #: Then
@@ -58,7 +58,7 @@ class TestSchemaRegistry:
         schema_input = _repository_schema('base')
 
         #: When
-        with pytest.raises(DuplicateSchemaReferenceError) as exc_info:
+        with pytest.raises(DuplicateSchemaRefError) as exc_info:
             SchemaRegistry.from_inputs((schema_input, schema_input))
 
         #: Then
@@ -67,7 +67,7 @@ class TestSchemaRegistry:
     @pytest.mark.parametrize('kind', [SchemaKind.STRUCTURE, SchemaKind.FRONTMATTER])
     def test_bundled_origin_can_back_any_schema_kind(self, kind: SchemaKind) -> None:
         #: Given
-        reference = SchemaReference(kind, 'agent-skills')
+        reference = SchemaRef(kind, 'agent-skills')
         origin = BundledOrigin('agent-skills')
         document = FrozenMapping.from_plain({'type': 'object'})
 
@@ -83,7 +83,7 @@ class TestSchemaRegistry:
 
     def test_bundled_input_with_different_origin_identity_raises(self) -> None:
         #: Given
-        reference = SchemaReference(SchemaKind.STRUCTURE, 'agent-skills')
+        reference = SchemaRef(SchemaKind.STRUCTURE, 'agent-skills')
         origin = BundledOrigin('other-builtin')
         document = FrozenMapping.from_plain({'type': 'object'})
 
@@ -108,15 +108,15 @@ class TestSchemaRegistry:
 
 
 @pytest.mark.unit
-class TestSchemaReference:
+class TestSchemaRef:
     def test_reference_with_empty_identity_raises_typed_error(self) -> None:
         #: Given
         kind = SchemaKind.STRUCTURE
         identity = ''
 
         #: When
-        with pytest.raises(EmptySchemaReferenceIdentityError) as exc_info:
-            SchemaReference(kind, identity)
+        with pytest.raises(EmptySchemaRefIdentityError) as exc_info:
+            SchemaRef(kind, identity)
 
         #: Then
         assert exc_info.value.kind is kind, 'the refusal identifies the schema kind'

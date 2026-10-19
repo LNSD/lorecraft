@@ -142,7 +142,7 @@ class UntypedFrontmatterSchema:
 
 
 @dataclass(frozen=True, slots=True)
-class UnresolvableFrontmatterSchemaRef:
+class UnresolvableFrontmatterSchemaRefKeyword:
     """A schema inside the structure file's frontmatter schema holds a `$ref` that does not resolve inside it.
 
     The reference names a location the schema does not hold, or another resource, which is never fetched.
@@ -155,7 +155,7 @@ class UnresolvableFrontmatterSchemaRef:
 
 
 @dataclass(frozen=True, slots=True)
-class CyclicFrontmatterSchemaRef:
+class CyclicFrontmatterSchemaRefKeyword:
     """A `$ref` in the structure file's frontmatter schema leads back to its own schema with no keyword in between.
 
     Such a schema never reaches a keyword that reads the document, so validating one would recurse without end.
@@ -189,7 +189,7 @@ type StructureSpecFailure = (
     | InvalidFrontmatterSchema
     | IdentifiedFrontmatterSchema
     | ForeignFrontmatterDialect
-    | UnresolvableFrontmatterSchemaRef
-    | CyclicFrontmatterSchemaRef
+    | UnresolvableFrontmatterSchemaRefKeyword
+    | CyclicFrontmatterSchemaRefKeyword
     | UntypedFrontmatterSchema
 )

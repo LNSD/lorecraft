@@ -5,11 +5,9 @@ from typing import Final
 from lorecraft.core.mapping import FrozenMapping
 
 from .agent_skills_frontmatter import SkillFrontmatter
-from .types import BundledOrigin, SchemaInput, SchemaKind, SchemaReference
+from .types import BundledOrigin, SchemaInput, SchemaKind, SchemaRef
 
-AGENT_SKILLS_SCHEMA_REFERENCE: Final[SchemaReference] = SchemaReference(
-    SchemaKind.FRONTMATTER, 'builtin:agent-skills-frontmatter'
-)
+AGENT_SKILLS_SCHEMA_REFERENCE: Final[SchemaRef] = SchemaRef(SchemaKind.FRONTMATTER, 'builtin:agent-skills-frontmatter')
 """The stable schema subject for the bundled Agent Skills frontmatter floor."""
 
 AGENT_SKILLS_SCHEMA_INPUT: Final[SchemaInput] = SchemaInput(
@@ -20,7 +18,7 @@ AGENT_SKILLS_SCHEMA_INPUT: Final[SchemaInput] = SchemaInput(
 """The Agent Skills schema's JSON Schema representation, identity and bundled provenance."""
 
 
-def register_builtin_schemas(schema_inputs: dict[SchemaReference, SchemaInput]) -> None:
+def register_builtin_schemas(schema_inputs: dict[SchemaRef, SchemaInput]) -> None:
     """Register the bundled schema inputs enabled for this workspace.
 
     Args:

@@ -15,7 +15,7 @@ class SchemaKind(StrEnum):
     FRONTMATTER = 'frontmatter'
 
 
-class EmptySchemaReferenceIdentityError(Error):
+class EmptySchemaRefIdentityError(Error):
     """A schema reference has no stable identity.
 
     Attributes:
@@ -64,12 +64,12 @@ class EmptyBundledOriginIdentityError(Error):
 
 
 @dataclass(frozen=True, slots=True, order=True)
-class SchemaReference:
+class SchemaRef:
     """A stable, kind-scoped schema identity independent of paths and JSON Schema `$id`.
 
     Attributes:
         kind: The schema's role: structure or frontmatter.
-        identity: A stable identity within `kind`; empty values raise `EmptySchemaReferenceIdentityError`.
+        identity: A stable identity within `kind`; empty values raise `EmptySchemaRefIdentityError`.
     """
 
     kind: SchemaKind
@@ -79,10 +79,10 @@ class SchemaReference:
         """Reject an empty source identity.
 
         Raises:
-            EmptySchemaReferenceIdentityError: If `identity` is empty.
+            EmptySchemaRefIdentityError: If `identity` is empty.
         """
         if not self.identity:
-            raise EmptySchemaReferenceIdentityError(self.kind, self.identity)
+            raise EmptySchemaRefIdentityError(self.kind, self.identity)
 
 
 @dataclass(frozen=True, slots=True)
@@ -139,10 +139,10 @@ class SchemaOriginMismatchError(Error):
         origin: The bundled origin whose identity differs from the reference.
     """
 
-    reference: SchemaReference
+    reference: SchemaRef
     origin: SchemaOrigin
 
-    def __init__(self, reference: SchemaReference, origin: SchemaOrigin) -> None:
+    def __init__(self, reference: SchemaRef, origin: SchemaOrigin) -> None:
         self.reference = reference
         self.origin = origin
         super().__init__(f'origin does not match schema reference {reference.kind.value}:{reference.identity}')
@@ -161,7 +161,7 @@ class SchemaInput:
         document: The immutable JSON mapping used by schema-backed entries.
     """
 
-    reference: SchemaReference
+    reference: SchemaRef
     origin: SchemaOrigin
     document: FrozenMapping[str, Frozen]
 

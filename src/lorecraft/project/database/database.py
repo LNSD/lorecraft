@@ -79,7 +79,7 @@ from lorecraft.project.syntax import (
     split_lines,
 )
 from lorecraft.project.workspace import Governance, ResolvedItem, WorkspaceModel, load_model, unreported_refusals
-from lorecraft.schemas import SchemaInput, SchemaReference, SchemaReferenceError
+from lorecraft.schemas import SchemaInput, SchemaRef, SchemaRefError
 from lorecraft.vfs import (
     FILE_READ_FAILURES,
     RefusedRecord,
@@ -179,19 +179,19 @@ class _Reads[R: QueryTargetRef, P: _HasRecordedReads](metaclass=ABCMeta):
         target = _ItemPrimitives(self._database, ref)
         return self._compose(key, target, query)
 
-    def query_schema[T](self, ref: SchemaReference, query: Query[SchemaPrimitives, T]) -> T:
+    def query_schema[T](self, ref: SchemaRef, query: Query[SchemaPrimitives, T]) -> T:
         """Read a schema query and include its dependencies."""
         key = Read(query, ref)
         target = _ReadSchemaPrimitives(self._database, ref)
         return self._compose(key, target, query)
 
 
-class _ReadSchemaPrimitives(_Reads[SchemaReference, '_ReadSchemaPrimitives']):
+class _ReadSchemaPrimitives(_Reads[SchemaRef, '_ReadSchemaPrimitives']):
     """The immutable input of one schema subject, recorded under its typed reference."""
 
     __slots__ = ()
 
-    def _fresh(self, ref: SchemaReference) -> _ReadSchemaPrimitives:
+    def _fresh(self, ref: SchemaRef) -> _ReadSchemaPrimitives:
         return _ReadSchemaPrimitives(self._database, ref)
 
     def schema_input(self) -> SchemaInput:
@@ -323,7 +323,7 @@ class Database:
     Declared queries in `lorecraft.project.query` derive item values from raw primitive state. Other declared queries,
     including `parsed_skill_fields`, `owner_of_frontmatter` and `frontmatter_schema_problems`, run through `query(query,
     ref)`, which memoizes each answer and its reads. Schema queries use the same cache keyed by `(query,
-    SchemaReference)` and read immutable inputs from the model.
+    SchemaRef)` and read immutable inputs from the model.
 
     The item family is keyed by `ItemRef`. A resource's
     reference is registered from its listing by `resource_item(location)`. A document outside the model's listing is
@@ -651,12 +651,12 @@ class Database:
     def query[T](self, query: Query[CorpusDirectoryPrimitives, T], ref: CorpusDirectoryRef) -> T: ...  # noqa: D102 — implementation documents the overload
 
     @overload
-    def query[T](self, query: Query[SchemaPrimitives, T], ref: SchemaReference) -> T: ...  # noqa: D102 — implementation documents the overload
+    def query[T](self, query: Query[SchemaPrimitives, T], ref: SchemaRef) -> T: ...  # noqa: D102 — implementation documents the overload
 
     def query[T](
         self,
         query: Callable[..., T],
-        ref: ItemRef | SymlinkRef | CorpusDirectoryRef | SchemaReference,
+        ref: ItemRef | SymlinkRef | CorpusDirectoryRef | SchemaRef,
     ) -> T:
         """The memoized answer of a declared query over a typed subject.
 
@@ -671,7 +671,7 @@ class Database:
 
         Raises:
             UnlistedItemError: If the subject ref is not listed by the model or a skill resource listing.
-            SchemaReferenceError: If the schema subject is not present in the loaded model.
+            SchemaRefError: If the schema subject is not present in the loaded model.
         """
         match ref:
             case ItemRef():
@@ -680,7 +680,7 @@ class Database:
                 primitives = _ReadSymlinkPrimitives(self, ref)
             case CorpusDirectoryRef():
                 primitives = _ReadCorpusDirectoryPrimitives(self, ref)
-            case SchemaReference():
+            case SchemaRef():
                 primitives = _ReadSchemaPrimitives(self, ref)
             case _:
                 assert_never(ref)
@@ -706,7 +706,7 @@ class Database:
         | Query[SymlinkPrimitives, object]
         | Query[CorpusDirectoryPrimitives, object]
         | Query[SchemaPrimitives, object],
-        ref: ItemRef | SymlinkRef | CorpusDirectoryRef | SchemaReference,
+        ref: ItemRef | SymlinkRef | CorpusDirectoryRef | SchemaRef,
     ) -> frozenset[Read]:
         """The typed read keys recorded for a query; public so nested queries avoid private-cache access.
 
@@ -720,11 +720,11 @@ class Database:
         """Find dependencies for one read key, with no overload correlation to recover."""
         return self._queries[key][1] if key in self._queries else frozenset()
 
-    def _schema_input(self, reference: SchemaReference) -> SchemaInput:
+    def _schema_input(self, reference: SchemaRef) -> SchemaInput:
         """Resolve a loaded schema input without adding a second cache."""
         schema_input = self._model.schema_inputs.get(reference)
         if schema_input is None:
-            raise SchemaReferenceError(reference)
+            raise SchemaRefError(reference)
         return schema_input
 
     def _outside_symlink(self, ref: SymlinkRef) -> OutsideSymlink:

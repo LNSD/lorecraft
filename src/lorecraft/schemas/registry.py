@@ -5,33 +5,33 @@ from typing import Self
 
 from lorecraft.core.error import Error
 
-from .types import SchemaInput, SchemaReference
+from .types import SchemaInput, SchemaRef
 
 
-class SchemaReferenceError(Error):
+class SchemaRefError(Error):
     """A reference is absent from a schema registry.
 
     Attributes:
         reference: The requested identity.
     """
 
-    reference: SchemaReference
+    reference: SchemaRef
 
-    def __init__(self, reference: SchemaReference) -> None:
+    def __init__(self, reference: SchemaRef) -> None:
         self.reference = reference
         super().__init__(f'no schema is registered for {reference.kind.value}:{reference.identity}')
 
 
-class DuplicateSchemaReferenceError(Error):
+class DuplicateSchemaRefError(Error):
     """Two inputs claim the same schema identity.
 
     Attributes:
         reference: The duplicated identity.
     """
 
-    reference: SchemaReference
+    reference: SchemaRef
 
-    def __init__(self, reference: SchemaReference) -> None:
+    def __init__(self, reference: SchemaRef) -> None:
         self.reference = reference
         super().__init__(f'schema reference {reference.kind.value}:{reference.identity} is registered more than once')
 
@@ -48,10 +48,10 @@ class SchemaRegistry:
 
     def __post_init__(self) -> None:
         """Reject ambiguous registry identities."""
-        seen: set[SchemaReference] = set()
+        seen: set[SchemaRef] = set()
         for schema_input in self.inputs:
             if schema_input.reference in seen:
-                raise DuplicateSchemaReferenceError(schema_input.reference)
+                raise DuplicateSchemaRefError(schema_input.reference)
             seen.add(schema_input.reference)
 
     @classmethod
@@ -59,9 +59,9 @@ class SchemaRegistry:
         """Build a registry from the immutable inputs already present in a loaded model."""
         return cls(inputs)
 
-    def resolve(self, reference: SchemaReference) -> SchemaInput:
+    def resolve(self, reference: SchemaRef) -> SchemaInput:
         """Return the input for `reference`, or raise when the loaded model has no such input."""
         for schema_input in self.inputs:
             if schema_input.reference == reference:
                 return schema_input
-        raise SchemaReferenceError(reference)
+        raise SchemaRefError(reference)

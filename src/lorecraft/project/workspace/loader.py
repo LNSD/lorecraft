@@ -70,7 +70,7 @@ from lorecraft.project.skill import (
     SkillsDirListError,
 )
 from lorecraft.project.skill import Repository as SkillRepository
-from lorecraft.schemas import RepositoryOrigin, SchemaInput, SchemaKind, SchemaReference
+from lorecraft.schemas import RepositoryOrigin, SchemaInput, SchemaKind, SchemaRef
 from lorecraft.schemas.builtin import AGENT_SKILLS_SCHEMA_REFERENCE, register_builtin_schemas
 from lorecraft.vfs import (
     DIR_LIST_FAILURES,
@@ -176,7 +176,7 @@ def load_workspace(
         builtin_skills_schema: Whether to pre-register the Agent Skills floor schema.
     """
     failures: list[LoadFailure] = []
-    schema_inputs: dict[SchemaReference, SchemaInput] = {}
+    schema_inputs: dict[SchemaRef, SchemaInput] = {}
     if builtin_skills_schema:
         register_builtin_schemas(schema_inputs)
     spec_paths = _list_spec_paths(schemas, failures)
@@ -316,7 +316,7 @@ def _load_corpus(
     files: _CorpusFiles,
     filenames: list[AspectFilename],
     failures: list[LoadFailure],
-    schema_inputs: dict[SchemaReference, SchemaInput],
+    schema_inputs: dict[SchemaRef, SchemaInput],
 ) -> Corpus:
     """Decode the corpus spec and its namespace specs; a structure file that fails stands in its layer.
 
@@ -369,7 +369,7 @@ def _load_structure(
     schemas: SchemaRepository,
     structure_file: StructureSpecFile | None,
     failures: list[LoadFailure],
-    schema_inputs: dict[SchemaReference, SchemaInput],
+    schema_inputs: dict[SchemaRef, SchemaInput],
 ) -> StructureSpec | FailedStructure | None:
     """Decode the structure JSON at one specification name into a structure specification.
 
@@ -406,7 +406,7 @@ def _load_structure(
     except json.JSONDecodeError:
         document = None
     if isinstance(document, dict):
-        structure_ref = SchemaReference(SchemaKind.STRUCTURE, identity)
+        structure_ref = SchemaRef(SchemaKind.STRUCTURE, identity)
         schema_inputs[structure_ref] = SchemaInput(structure_ref, origin, FrozenMapping.from_plain(document))
     # Parsing is the check, and it raises nothing: text that is not JSON in the structure dialect, a title pattern
     # that does not compile, a frontmatter schema that cannot be held and rules that are not usable each come back
@@ -415,7 +415,7 @@ def _load_structure(
         if parsed.frontmatter is not None:
             frontmatter_document = document.get('frontmatter') if isinstance(document, dict) else None
             if isinstance(frontmatter_document, dict):
-                frontmatter_ref = SchemaReference(SchemaKind.FRONTMATTER, identity)
+                frontmatter_ref = SchemaRef(SchemaKind.FRONTMATTER, identity)
                 schema_inputs[frontmatter_ref] = SchemaInput(
                     frontmatter_ref, origin, FrozenMapping.from_plain(frontmatter_document)
                 )

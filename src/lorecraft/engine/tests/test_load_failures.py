@@ -10,7 +10,7 @@ from lorecraft.project.corpus import CorpusName
 from lorecraft.project.schemas import CorpusSpecName, SectionName, StructureSpecProblem
 from lorecraft.project.workspace import (
     AdjacentAnyRuns,
-    CyclicFrontmatterSchemaRef,
+    CyclicFrontmatterSchemaRefKeyword,
     EmptyStructureSpec,
     ForbiddenOutlineSections,
     ForeignFrontmatterDialect,
@@ -32,7 +32,7 @@ from lorecraft.project.workspace import (
     UnlistableSkillsDirectory,
     UnreadableStructureFile,
     UnrecordedStructureFile,
-    UnresolvableFrontmatterSchemaRef,
+    UnresolvableFrontmatterSchemaRefKeyword,
     UnresolvableSkillEntry,
     UnresolvableSkillFile,
     UnresolvableSkillsDirectory,
@@ -317,26 +317,26 @@ class TestReportLoadFailures:
 
     def test_report_load_failures_with_an_unresolvable_frontmatter_schema_ref_reports_the_reference(self) -> None:
         #: Given
-        condition = UnresolvableFrontmatterSchemaRef('#/$defs/missing')
+        condition = UnresolvableFrontmatterSchemaRefKeyword('#/$defs/missing')
 
         #: When
         occurrence = _condition_of(condition)
 
         #: Then
         assert occurrence == unusable_structure_file.UnusableStructureFile(
-            cause=unusable_structure_file.UnresolvableFrontmatterSchemaRef(ref="'#/$defs/missing'")
+            cause=unusable_structure_file.UnresolvableFrontmatterSchemaRefKeyword(ref="'#/$defs/missing'")
         ), 'the condition holds what `$ref` named'
 
     def test_report_load_failures_with_a_cyclic_frontmatter_schema_ref_reports_the_reference(self) -> None:
         #: Given
-        condition = CyclicFrontmatterSchemaRef('#')
+        condition = CyclicFrontmatterSchemaRefKeyword('#')
 
         #: When
         occurrence = _condition_of(condition)
 
         #: Then
         assert occurrence == unusable_structure_file.UnusableStructureFile(
-            cause=unusable_structure_file.CyclicFrontmatterSchemaRef(ref="'#'")
+            cause=unusable_structure_file.CyclicFrontmatterSchemaRefKeyword(ref="'#'")
         ), 'the condition holds what `$ref` named'
 
     def test_report_load_failures_with_an_untyped_frontmatter_schema_reports_it(self) -> None:

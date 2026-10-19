@@ -3,7 +3,7 @@
 from lorecraft.project.schemas.structure_failure import (
     AdjacentAnyRuns,
     ContradictorySkillField,
-    CyclicFrontmatterSchemaRef,
+    CyclicFrontmatterSchemaRefKeyword,
     EmptyStructureSpec,
     ForbiddenOutlineSections,
     ForeignFrontmatterDialect,
@@ -13,7 +13,7 @@ from lorecraft.project.schemas.structure_failure import (
     RepeatedForbiddenSections,
     RepeatedOutlineSections,
     UndecodableStructureSpec,
-    UnresolvableFrontmatterSchemaRef,
+    UnresolvableFrontmatterSchemaRefKeyword,
     UntypedFrontmatterSchema,
 )
 
@@ -71,8 +71,8 @@ __all__: list[str] = [
     'InvalidFrontmatterSchema',
     'IdentifiedFrontmatterSchema',
     'ForeignFrontmatterDialect',
-    'UnresolvableFrontmatterSchemaRef',
-    'CyclicFrontmatterSchemaRef',
+    'UnresolvableFrontmatterSchemaRefKeyword',
+    'CyclicFrontmatterSchemaRefKeyword',
     'UntypedFrontmatterSchema',
     'UnlistableDirectory',
     'UnlistableCorpusDirectory',

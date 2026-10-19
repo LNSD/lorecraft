@@ -48,7 +48,7 @@ from lorecraft.project.workspace import (
     UnlistableSkillDirectory,
     UnlistableSkillsDirectory,
     UnreadableStructureFile,
-    UnresolvableFrontmatterSchemaRef,
+    UnresolvableFrontmatterSchemaRefKeyword,
     UnresolvableSkillEntry,
     UnresolvableSkillFile,
     UnresolvableSkillsDirectory,
@@ -1473,7 +1473,7 @@ class TestLoadWorkspaceFailures:
 
         #: Then
         failed = _failed_structure(model, CODE)
-        assert failed.failure == UnresolvableFrontmatterSchemaRef('#/$defs/missing'), (
+        assert failed.failure == UnresolvableFrontmatterSchemaRefKeyword('#/$defs/missing'), (
             'a dangling reference is a load failure, not a crash when a document is validated'
         )
         assert model.load_failures == (LoadFailure(failed.path, failed.failure),), (
@@ -1494,7 +1494,7 @@ class TestLoadWorkspaceFailures:
 
         #: Then
         failed = _failed_structure(model, CODE)
-        assert failed.failure == UnresolvableFrontmatterSchemaRef('https://example.com/name.json'), (
+        assert failed.failure == UnresolvableFrontmatterSchemaRefKeyword('https://example.com/name.json'), (
             'a remote reference is a load failure'
         )
 
