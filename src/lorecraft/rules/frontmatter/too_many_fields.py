@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from typing import ClassVar, Self, assert_never
 
 from lorecraft.core.path import RootRelativePath
-from lorecraft.project.query import Query
+from lorecraft.project.query import ItemQuery
 from lorecraft.project.schemas import (
     BlockProblem,
     FieldCount,
@@ -22,7 +22,7 @@ from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Here, Label, Subdiagnostic
 from lorecraft.rules.subject import QueriedFrontmatterRule
 
-from .__ruleset__ import GROUP_ID, schema_note, schema_problems, schema_spec
+from .__ruleset__ import GROUP_ID, frontmatter_schema_problems, schema_note, schema_spec
 
 
 @rule
@@ -120,9 +120,9 @@ class TooManyFields(QueriedFrontmatterRule[tuple[SchemaProblems, ...]]):
         return tuple(parts)
 
     @classmethod
-    def query(cls) -> Query[tuple[SchemaProblems, ...]]:
+    def query(cls) -> ItemQuery[tuple[SchemaProblems, ...]]:
         """What each schema that governs the subject rejects in its frontmatter."""
-        return schema_problems
+        return frontmatter_schema_problems
 
     @classmethod
     def judge(cls, facts: tuple[SchemaProblems, ...], /) -> tuple[Self, ...]:

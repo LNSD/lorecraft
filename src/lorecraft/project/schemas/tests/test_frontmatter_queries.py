@@ -5,12 +5,12 @@ import pytest
 from lib.primitives import StructurePrimitives
 from lorecraft.project.item import DocumentOrigin, WrongItemKindError
 
-from ..frontmatter_queries import frontmatter_owner_query
+from ..frontmatter_queries import owner_of_frontmatter
 
 
 @pytest.mark.unit
 class TestFrontmatterOwnerQuery:
-    def test_frontmatter_owner_query_with_a_document_without_corpus_structure_raises_typed_error(self) -> None:
+    def test_owner_of_frontmatter_with_a_document_without_corpus_structure_raises_typed_error(self) -> None:
         #: Given
         primitives = StructurePrimitives(
             (),
@@ -21,4 +21,4 @@ class TestFrontmatterOwnerQuery:
         with pytest.raises(
             WrongItemKindError, match='expected a document whose corpus states a structure specification'
         ):
-            frontmatter_owner_query(primitives)
+            owner_of_frontmatter(primitives)

@@ -12,8 +12,9 @@ from lorecraft.project.item import DocumentOrigin, ItemOrigin, MarkdownItemRef
 from lorecraft.project.link_target import DocumentLink, LinkBase, LinkTargetEntry
 from lorecraft.project.query import (
     DecodedText,
+    ItemQuery,
     Query,
-    SchemaQuery,
+    SchemaPrimitives,
     item_corpus,
     item_frontmatter,
     item_line_count,
@@ -47,7 +48,7 @@ class _BundledAgentSkillsSchemaPrimitives:
         """The immutable bundled Agent Skills schema input."""
         return AGENT_SKILLS_SCHEMA_INPUT
 
-    def query_schema[T](self, ref: SchemaReference, query: SchemaQuery[T]) -> T:
+    def query_schema[T](self, ref: SchemaReference, query: Query[SchemaPrimitives, T]) -> T:
         """Standalone rule tests do not expose nested schema subjects."""
         raise NotImplementedError(f'standalone primitives cannot read nested schema {ref}')
 
@@ -149,7 +150,7 @@ class StructurePrimitives:
         """The block this was built with."""
         return self.frontmatter_node
 
-    def query[T](self, query: Query[T]) -> T:
+    def query[T](self, query: ItemQuery[T]) -> T:
         """The answer of the query over these same primitives."""
         if query is linked_documents:
             return cast('T', self.document_link_list)
@@ -169,11 +170,11 @@ class StructurePrimitives:
             return self.token_total
         return query(self)
 
-    def query_at[T](self, ref: MarkdownItemRef, query: Query[T]) -> T:
+    def query_at[T](self, ref: MarkdownItemRef, query: ItemQuery[T]) -> T:
         """No other item is available to this standalone primitive value."""
         raise NotImplementedError('standalone primitives cannot read another item')
 
-    def query_schema[T](self, ref: SchemaReference, query: SchemaQuery[T]) -> T:
+    def query_schema[T](self, ref: SchemaReference, query: Query[SchemaPrimitives, T]) -> T:
         """Answer only the bundled skills subject for standalone skill rule tests."""
         if ref != AGENT_SKILLS_SCHEMA_REFERENCE:
             raise NotImplementedError(f'standalone primitives cannot read schema {ref}')

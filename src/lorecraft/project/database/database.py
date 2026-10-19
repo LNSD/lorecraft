@@ -50,11 +50,13 @@ from lorecraft.project.link_target import (
     link_targets_of,
 )
 from lorecraft.project.query import (
-    CorpusDirectoryQuery,
+    CorpusDirectoryPrimitives,
+    ItemQuery,
+    Primitives,
     Query,
-    SchemaQuery,
+    SchemaPrimitives,
     SubjectRef,
-    SymlinkQuery,
+    SymlinkPrimitives,
     item_parse,
 )
 from lorecraft.project.schemas import (
@@ -171,13 +173,13 @@ class _Reads[R: SubjectRef, P: _HasRecordedReads](metaclass=ABCMeta):
         target = self._fresh(self._ref)
         return self._compose(key, target, query)
 
-    def query_at[T](self, ref: MarkdownItemRef, query: Query[T]) -> T:
+    def query_at[T](self, ref: MarkdownItemRef, query: ItemQuery[T]) -> T:
         """Read an item query and include its dependencies."""
         key = Read(query, ref)
         target = _ItemPrimitives(self._database, ref)
         return self._compose(key, target, query)
 
-    def query_schema[T](self, ref: SchemaReference, query: SchemaQuery[T]) -> T:
+    def query_schema[T](self, ref: SchemaReference, query: Query[SchemaPrimitives, T]) -> T:
         """Read a schema query and include its dependencies."""
         key = Read(query, ref)
         target = _ReadSchemaPrimitives(self._database, ref)
@@ -319,7 +321,7 @@ class Database:
     scope. Their carry-over rules are stated by their methods.
 
     Declared queries in `lorecraft.project.query` derive item facts from raw primitive state. Other declared queries,
-    including `skill_fields_query`, `frontmatter_owner_query` and `schema_problems_query`, run through `query(query,
+    including `parsed_skill_fields`, `owner_of_frontmatter` and `frontmatter_schema_problems`, run through `query(query,
     ref)`, which memoizes each answer and its reads. Schema queries use the same cache keyed by `(query,
     SchemaReference)` and read immutable inputs from the model.
 
@@ -640,16 +642,16 @@ class Database:
         return self._item(ref).governance
 
     @overload
-    def query[T](self, query: Query[T], ref: MarkdownItemRef) -> T: ...  # noqa: D102 — implementation documents the overload
+    def query[T](self, query: Query[Primitives, T], ref: MarkdownItemRef) -> T: ...  # noqa: D102 — implementation documents the overload
 
     @overload
-    def query[T](self, query: SymlinkQuery[T], ref: SymlinkRef) -> T: ...  # noqa: D102 — implementation documents the overload
+    def query[T](self, query: Query[SymlinkPrimitives, T], ref: SymlinkRef) -> T: ...  # noqa: D102 — implementation documents the overload
 
     @overload
-    def query[T](self, query: CorpusDirectoryQuery[T], ref: CorpusDirectoryRef) -> T: ...  # noqa: D102 — implementation documents the overload
+    def query[T](self, query: Query[CorpusDirectoryPrimitives, T], ref: CorpusDirectoryRef) -> T: ...  # noqa: D102 — implementation documents the overload
 
     @overload
-    def query[T](self, query: SchemaQuery[T], ref: SchemaReference) -> T: ...  # noqa: D102 — implementation documents the overload
+    def query[T](self, query: Query[SchemaPrimitives, T], ref: SchemaReference) -> T: ...  # noqa: D102 — implementation documents the overload
 
     def query[T](
         self,
@@ -700,7 +702,10 @@ class Database:
 
     def query_reads(
         self,
-        query: Query[object] | SymlinkQuery[object] | CorpusDirectoryQuery[object] | SchemaQuery[object],
+        query: Query[Primitives, object]
+        | Query[SymlinkPrimitives, object]
+        | Query[CorpusDirectoryPrimitives, object]
+        | Query[SchemaPrimitives, object],
         ref: MarkdownItemRef | SymlinkRef | CorpusDirectoryRef | SchemaReference,
     ) -> frozenset[Read]:
         """The typed read keys recorded for a query; public so nested queries avoid private-cache access.

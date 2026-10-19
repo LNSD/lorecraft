@@ -7,7 +7,7 @@ from lorecraft.core.path import PathComponent
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.item import DocumentOrigin, SkillEntryOrigin, WrongItemKindError
 from lorecraft.project.query import item_frontmatter
-from lorecraft.project.schemas.agent_skills_schema import agent_skills_frontmatter_schema_query
+from lorecraft.project.schemas.agent_skills_schema import agent_skills_frontmatter_schema
 from lorecraft.project.schemas.frontmatter_owner import (
     DocumentFrontmatterOwner,
     FrontmatterOwner,
@@ -27,7 +27,7 @@ if TYPE_CHECKING:
     from lorecraft.project.query import GovernancePrimitives, Primitives
 
 
-def frontmatter_owner_query(primitives: 'GovernancePrimitives') -> FrontmatterOwner:
+def owner_of_frontmatter(primitives: 'GovernancePrimitives') -> FrontmatterOwner:
     """The document or skill whose frontmatter the item opens, from origin facts and governance.
 
     Raises:
@@ -49,14 +49,14 @@ def frontmatter_owner_query(primitives: 'GovernancePrimitives') -> FrontmatterOw
             raise WrongItemKindError('a document or a skill entry')
 
 
-def skill_fields_query(primitives: 'Primitives') -> SkillFields:
+def parsed_skill_fields(primitives: 'Primitives') -> SkillFields:
     """The independently parsed fields of a skill entry; empty for every other item."""
     if not isinstance(primitives.item_origin(), SkillEntryOrigin):
         return FrozenMapping({})
     return parse_skill_fields(primitives.query(item_frontmatter))
 
 
-def schema_problems_query(primitives: 'Primitives') -> tuple[SchemaProblems, ...]:
+def frontmatter_schema_problems(primitives: 'Primitives') -> tuple[SchemaProblems, ...]:
     """What each applicable frontmatter schema rejects, with skill floor problems before corpus problems.
 
     Args:
@@ -72,7 +72,7 @@ def schema_problems_query(primitives: 'Primitives') -> tuple[SchemaProblems, ...
         frontmatter = primitives.query(item_frontmatter)
         floor_present = False
         try:
-            floor_schema = primitives.query_schema(AGENT_SKILLS_SCHEMA_REFERENCE, agent_skills_frontmatter_schema_query)
+            floor_schema = primitives.query_schema(AGENT_SKILLS_SCHEMA_REFERENCE, agent_skills_frontmatter_schema)
         except SchemaReferenceError:
             floor = ()
         else:

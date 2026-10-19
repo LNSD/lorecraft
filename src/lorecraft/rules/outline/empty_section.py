@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import ClassVar, Protocol, Self, assert_never
 
 from lorecraft.core.path import RootRelativePath
-from lorecraft.project.query import GovernancePrimitives, Query, SyntaxPrimitives, item_parse, item_structure_specs
+from lorecraft.project.query import GovernancePrimitives, ItemQuery, SyntaxPrimitives, item_parse, item_structure_specs
 from lorecraft.project.schemas import (
     AnyRunAlignment,
     NamedAlignment,
@@ -66,7 +66,7 @@ class EmptySectionFacts:
 class _GovernanceSyntaxPrimitives(GovernancePrimitives, SyntaxPrimitives, Protocol):
     """The primitives the queries below read."""
 
-    def query[T](self, query: Query[T]) -> T:
+    def query[T](self, query: ItemQuery[T]) -> T:
         """The memoized answer of another query over this item."""
         ...
 
@@ -251,7 +251,7 @@ class EmptySection(QueriedDocumentSkillRule[EmptySectionFacts]):
         return tuple(parts)
 
     @classmethod
-    def query(cls) -> Query[EmptySectionFacts]:
+    def query(cls) -> ItemQuery[EmptySectionFacts]:
         """The specifications that forbid empty sections and the empty headings with their roles."""
         return empty_section_facts
 

@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import ClassVar, Self
 
 from lorecraft.core.num import NonZeroUnsignedInt
-from lorecraft.project.query import CountPrimitives, Query, item_token_count
+from lorecraft.project.query import CountPrimitives, ItemQuery, item_token_count
 from lorecraft.project.syntax import LineNumber, TokenCount
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
@@ -38,7 +38,7 @@ class EmptyDocument(QueriedDocumentRule[TokenCount]):
         return 'document is empty'
 
     @classmethod
-    def query(cls) -> Query[TokenCount]:
+    def query(cls) -> ItemQuery[TokenCount]:
         """The tokens in the document's whole file."""
         return _token_count
 

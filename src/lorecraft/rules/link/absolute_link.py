@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import ClassVar, Self, assert_never
 from urllib.parse import unquote
 
-from lorecraft.project.query import Query, SyntaxPrimitives, item_parse
+from lorecraft.project.query import ItemQuery, SyntaxPrimitives, item_parse
 from lorecraft.project.syntax import (
     AbsoluteDestination,
     ExternalDestination,
@@ -109,7 +109,7 @@ class AbsoluteLink(QueriedMarkdownRule[tuple[Link, ...]]):
         return (Help('link by a relative path, which holds wherever the files are placed'),)
 
     @classmethod
-    def query(cls) -> Query[tuple[Link, ...]]:
+    def query(cls) -> ItemQuery[tuple[Link, ...]]:
         """The links whose destination starts with `/`."""
         return absolute_links
 

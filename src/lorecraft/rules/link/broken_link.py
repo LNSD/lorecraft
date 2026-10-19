@@ -13,7 +13,7 @@ from lorecraft.project.link_target import (
     PathLookup,
     SkillRoot,
 )
-from lorecraft.project.query import Query, item_parse
+from lorecraft.project.query import ItemQuery, item_parse
 from lorecraft.project.syntax import (
     AbsoluteDestination,
     ExternalDestination,
@@ -181,7 +181,7 @@ class BrokenLink(QueriedMarkdownRule[tuple[MissingTarget, ...]]):
                 assert_never(self.base)
 
     @classmethod
-    def query(cls) -> Query[tuple[MissingTarget, ...]]:
+    def query(cls) -> ItemQuery[tuple[MissingTarget, ...]]:
         """The relative links whose target holds nothing."""
         return missing_targets
 

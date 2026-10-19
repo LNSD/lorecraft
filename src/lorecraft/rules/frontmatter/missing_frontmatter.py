@@ -7,7 +7,7 @@ from lorecraft.core.path import RootRelativePath
 
 # The module, not its classes: this rule's own name is the syntax's `MissingFrontmatter`.
 from lorecraft.project import syntax
-from lorecraft.project.query import Query
+from lorecraft.project.query import ItemQuery
 from lorecraft.project.schemas import DocumentFrontmatterOwner, FrontmatterOwner, SkillFrontmatterOwner
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
@@ -121,7 +121,7 @@ class MissingFrontmatter(QueriedFrontmatterRule[FrontmatterFacts]):
         return tuple(parts)
 
     @classmethod
-    def query(cls) -> Query[FrontmatterFacts]:
+    def query(cls) -> ItemQuery[FrontmatterFacts]:
         """The frontmatter block and whose it is."""
         return frontmatter_facts
 

@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import ClassVar, Self, assert_never
 from urllib.parse import unquote
 
-from lorecraft.project.query import Query, SyntaxPrimitives, item_parse
+from lorecraft.project.query import ItemQuery, SyntaxPrimitives, item_parse
 from lorecraft.project.syntax import (
     AbsoluteDestination,
     Anchor,
@@ -139,7 +139,7 @@ class BrokenFragment(QueriedMarkdownRule[BrokenFragmentFacts]):
         return (Note('this file has no headings'),)
 
     @classmethod
-    def query(cls) -> Query[BrokenFragmentFacts]:
+    def query(cls) -> ItemQuery[BrokenFragmentFacts]:
         """The fragment-only links naming no heading of the file."""
         return broken_fragments
 

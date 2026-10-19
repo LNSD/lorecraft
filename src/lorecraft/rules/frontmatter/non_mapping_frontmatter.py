@@ -7,7 +7,7 @@ from lorecraft.core.path import RootRelativePath
 
 # The module, not its classes: this rule's own name is the syntax's `NonMappingFrontmatter`.
 from lorecraft.project import syntax
-from lorecraft.project.query import Query
+from lorecraft.project.query import ItemQuery
 from lorecraft.project.schemas import FrontmatterOwner
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
@@ -101,7 +101,7 @@ class NonMappingFrontmatter(QueriedFrontmatterRule[FrontmatterFacts]):
         return (spec_note(self.owner), Help('write the block as `key: value` lines'))
 
     @classmethod
-    def query(cls) -> Query[FrontmatterFacts]:
+    def query(cls) -> ItemQuery[FrontmatterFacts]:
         """The frontmatter block and whose it is."""
         return frontmatter_facts
 

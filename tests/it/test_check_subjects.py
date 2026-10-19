@@ -36,7 +36,7 @@ from lorecraft.project.link_target import DocumentDirectory, SkillRoot
 from lorecraft.project.query import (
     CountPrimitives,
     GovernancePrimitives,
-    Query,
+    ItemQuery,
     item_frontmatter,
     item_line_count,
     item_parse,
@@ -61,7 +61,7 @@ from lorecraft.project.schemas import (
     TitlePattern,
     UnknownFieldProblem,
     WrongTypeProblem,
-    schema_problems_query,
+    frontmatter_schema_problems,
 )
 from lorecraft.project.skill import (
     SkillLocation,
@@ -286,7 +286,7 @@ class OverHalfBudget(QueriedDocumentRule[BudgetFacts]):
         return f'over half the budget ({self.token_count} of {self.budget})'
 
     @classmethod
-    def query(cls) -> Query[BudgetFacts]:
+    def query(cls) -> ItemQuery[BudgetFacts]:
         """The document's token count and the budgets that govern it."""
         return _budget_facts
 
@@ -320,7 +320,7 @@ class EmptyDocument(QueriedDocumentRule[TokenCount]):
         return 'document is empty'
 
     @classmethod
-    def query(cls) -> Query[TokenCount]:
+    def query(cls) -> ItemQuery[TokenCount]:
         """The tokens in the document's whole file."""
         return _token_count
 
@@ -357,7 +357,7 @@ class AnyTokens(QueriedDocumentRule[TokenCount]):
         return f'document counted ({self.token_count} tokens)'
 
     @classmethod
-    def query(cls) -> Query[TokenCount]:
+    def query(cls) -> ItemQuery[TokenCount]:
         """The tokens in the document's whole file."""
         return _token_count
 
@@ -394,7 +394,7 @@ class CountingDatabase(Database):
         self.parsed_frontmatters: list[MarkdownItemRef] = []
         self.parsed_documents: list[MarkdownItemRef] = []
 
-    def query[T](self, query: Query[T], ref: MarkdownItemRef) -> T:
+    def query[T](self, query: ItemQuery[T], ref: MarkdownItemRef) -> T:
         """Record each declared per-item fact query before evaluating it."""
         if query is item_token_count:
             self.counted_tokens.append(ref)
@@ -1362,8 +1362,8 @@ class TestCheckSubjects:
 
         #: Then
         assert database.parsed_frontmatters == [], 'no enabled rule reads the frontmatter, so it is never parsed'
-        assert database.query_reads(schema_problems_query, MarkdownItemRef(GUIDE.path)) == frozenset()
-        assert database.query_reads(schema_problems_query, MarkdownItemRef(REVIEW_FILE)) == frozenset()
+        assert database.query_reads(frontmatter_schema_problems, MarkdownItemRef(GUIDE.path)) == frozenset()
+        assert database.query_reads(frontmatter_schema_problems, MarkdownItemRef(REVIEW_FILE)) == frozenset()
 
     def test_check_subjects_with_no_frontmatter_schema_never_parses_a_document_frontmatter(
         self, package_table: RuleTable
@@ -1588,7 +1588,7 @@ class TestCheckSubjects:
             ),
         ), 'each schema is applied on its own, and each problem names the specification whose schema found it'
 
-    def test_check_subjects_with_no_frontmatter_schema_reports_the_schema_problems_as_ungoverned(
+    def test_check_subjects_with_no_frontmatter_schema_reports_the_frontmatter_schema_problems_as_ungoverned(
         self, package_table: RuleTable
     ) -> None:
         #: Given
@@ -1645,8 +1645,8 @@ class TestCheckSubjects:
         check_subjects(database, subjects, table)
 
         #: Then
-        assert database.query_reads(schema_problems_query, MarkdownItemRef(GUIDE.path)) == frozenset()
-        assert database.query_reads(schema_problems_query, MarkdownItemRef(REVIEW_FILE)) == frozenset()
+        assert database.query_reads(frontmatter_schema_problems, MarkdownItemRef(GUIDE.path)) == frozenset()
+        assert database.query_reads(frontmatter_schema_problems, MarkdownItemRef(REVIEW_FILE)) == frozenset()
 
     def test_check_subjects_with_a_document_without_its_title_reports_missing_title(
         self, package_table: RuleTable

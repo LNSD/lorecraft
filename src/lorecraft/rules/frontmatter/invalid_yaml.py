@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from typing import ClassVar, Self, assert_never
 
 from lorecraft.core.path import RootRelativePath
-from lorecraft.project.query import Query
+from lorecraft.project.query import ItemQuery
 from lorecraft.project.schemas import FrontmatterOwner
 from lorecraft.project.syntax import (
     FIRST_LINE,
@@ -127,7 +127,7 @@ class InvalidYaml(QueriedFrontmatterRule[FrontmatterFacts]):
         return (Help(self.help), spec_note(self.owner))
 
     @classmethod
-    def query(cls) -> Query[FrontmatterFacts]:
+    def query(cls) -> ItemQuery[FrontmatterFacts]:
         """The frontmatter block and whose it is."""
         return frontmatter_facts
 

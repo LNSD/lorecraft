@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from typing import ClassVar, Self
 
-from lorecraft.project.query import Query, SyntaxPrimitives, item_parse
+from lorecraft.project.query import ItemQuery, SyntaxPrimitives, item_parse
 from lorecraft.project.syntax import Heading, HeadingLevel, LineNumber, find_title
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
@@ -107,7 +107,7 @@ class TitleNotFirst(QueriedDocumentSkillRule[tuple[Heading, ...]]):
         return (Help('move the title above every section'),)
 
     @classmethod
-    def query(cls) -> Query[tuple[Heading, ...]]:
+    def query(cls) -> ItemQuery[tuple[Heading, ...]]:
         """The headings of the document."""
         return headings
 

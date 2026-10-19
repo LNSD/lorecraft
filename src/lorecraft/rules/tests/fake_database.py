@@ -29,7 +29,14 @@ from lorecraft.project.link_target import (
     LinkTargetEntry,
     SkillRoot,
 )
-from lorecraft.project.query import CorpusDirectoryQuery, Query, SchemaQuery, SubjectQuery, SymlinkQuery
+from lorecraft.project.query import (
+    CorpusDirectoryPrimitives,
+    ItemQuery,
+    Query,
+    SchemaPrimitives,
+    SubjectQuery,
+    SymlinkPrimitives,
+)
 from lorecraft.project.schemas import (
     CorpusSpecName,
     NamespaceSpecName,
@@ -253,7 +260,7 @@ class FakeDocumentDatabase:
         """The tokens in the document's whole text, as the real tokenizer counts them."""
         return count_tokens(self._text)
 
-    def query[T](self, query: Query[T]) -> T:
+    def query[T](self, query: ItemQuery[T]) -> T:
         """The answer of a declared query over the governing meta specs, as the real database finds it."""
         return query(
             StructurePrimitives(
@@ -308,7 +315,7 @@ class FakeSkillDatabase:
         """The skill's frontmatter block, as the real parser reads it."""
         return parse_frontmatter(self._text)
 
-    def query[T](self, query: Query[T]) -> T:
+    def query[T](self, query: ItemQuery[T]) -> T:
         """The answer of a declared query over the skill, as the real database finds it."""
         return query(
             StructurePrimitives(
@@ -376,7 +383,7 @@ class FakeSkillResourceDatabase:
         self._skill_directory = skill_directory
         self._link_targets = link_targets
 
-    def query[T](self, query: Query[T]) -> T:
+    def query[T](self, query: ItemQuery[T]) -> T:
         """The answer of a declared query over the resource, as the real database finds it."""
         return query(_markdown_primitives(self._text, SkillRoot(self._skill_directory), self._link_targets))
 
@@ -407,7 +414,7 @@ class FakeDocumentMarkdownDatabase:
         self._directory = directory
         self._link_targets = link_targets
 
-    def query[T](self, query: Query[T]) -> T:
+    def query[T](self, query: ItemQuery[T]) -> T:
         """The answer of a declared query over the document, as the real database finds it."""
         return query(_markdown_primitives(self._text, DocumentDirectory(self._directory), self._link_targets))
 
@@ -433,15 +440,15 @@ class FakeSymlinkDatabase:
         """Where the chain leaves the repository, as the test stated it."""
         return self._leaves_at
 
-    def query[T](self, query: SymlinkQuery[T]) -> T:
+    def query[T](self, query: Query[SymlinkPrimitives, T]) -> T:
         """The answer of a declared query over the symlink, read through this fake's primitives."""
         return query(self)
 
-    def query_at[T](self, ref: MarkdownItemRef, query: Query[T]) -> T:
+    def query_at[T](self, ref: MarkdownItemRef, query: ItemQuery[T]) -> T:
         """Cross-item reads are outside the symlink fake's declared facts."""
         raise AssertionError(f'no item query is available for {ref}')
 
-    def query_schema[T](self, ref: SchemaReference, query: SchemaQuery[T]) -> T:
+    def query_schema[T](self, ref: SchemaReference, query: Query[SchemaPrimitives, T]) -> T:
         """Schema reads are outside the symlink fake's declared facts."""
         raise AssertionError(f'no schema query is available for {ref}')
 
@@ -465,15 +472,15 @@ class FakeCorpusDirectoryDatabase:
         """The reserved corpus the directory takes, as the test stated it."""
         return self._corpus
 
-    def query[T](self, query: CorpusDirectoryQuery[T]) -> T:
+    def query[T](self, query: Query[CorpusDirectoryPrimitives, T]) -> T:
         """The answer of a declared query over the directory, read through this fake's primitives."""
         return query(self)
 
-    def query_at[T](self, ref: MarkdownItemRef, query: Query[T]) -> T:
+    def query_at[T](self, ref: MarkdownItemRef, query: ItemQuery[T]) -> T:
         """Cross-item reads are outside the directory fake's declared facts."""
         raise AssertionError(f'no item query is available for {ref}')
 
-    def query_schema[T](self, ref: SchemaReference, query: SchemaQuery[T]) -> T:
+    def query_schema[T](self, ref: SchemaReference, query: Query[SchemaPrimitives, T]) -> T:
         """Schema reads are outside the directory fake's declared facts."""
         raise AssertionError(f'no schema query is available for {ref}')
 
@@ -481,7 +488,7 @@ class FakeCorpusDirectoryDatabase:
 class _Queryable(Protocol):
     """A fake that answers a declared query over its subject."""
 
-    def query[T](self, query: Query[T]) -> T:
+    def query[T](self, query: ItemQuery[T]) -> T:
         """The answer of the query over the fake's subject."""
         ...
 
@@ -512,15 +519,15 @@ def judged(rule: type[Rule], database: object) -> tuple[Rule, ...]:
     query = queried.query()
     if isinstance(database, FakeSymlinkDatabase):
         # SAFETY: the fake database variant determines the matching query protocol for this branch
-        facts = database.query(cast('SymlinkQuery[object]', query))
+        facts = database.query(cast('Query[SymlinkPrimitives, object]', query))
     elif isinstance(database, FakeCorpusDirectoryDatabase):
         # SAFETY: the fake database variant determines the matching query protocol for this branch
-        facts = database.query(cast('CorpusDirectoryQuery[object]', query))
+        facts = database.query(cast('Query[CorpusDirectoryPrimitives, object]', query))
     else:
         # SAFETY: remaining overload is the item database, whose protocol exposes query(Query)
         item_database = cast('_Queryable', database)
         # SAFETY: remaining overload is the item database, whose query method accepts Query
-        item_query = cast('Query[object]', query)
+        item_query = cast('ItemQuery[object]', query)
         facts = item_database.query(item_query)
     # SAFETY: judge returns the rules represented by the declared queried rule class
     return cast('tuple[Rule, ...]', queried.judge(facts))

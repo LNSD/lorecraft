@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import ClassVar, Final, Self
 
 from lorecraft.core.num import NonZeroUnsignedInt
-from lorecraft.project.query import CountPrimitives, Query, item_line_count
+from lorecraft.project.query import CountPrimitives, ItemQuery, item_line_count
 from lorecraft.project.syntax import LineCount, LineNumber
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
@@ -128,7 +128,7 @@ class TooManyLines(QueriedSkillRule[LineCount]):
         )
 
     @classmethod
-    def query(cls) -> Query[LineCount]:
+    def query(cls) -> ItemQuery[LineCount]:
         """The lines in the skill's whole `SKILL.md`."""
         return skill_line_count
 

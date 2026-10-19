@@ -1,4 +1,4 @@
-"""The `schema_problems_query` and `skill_fields_query`, for one decoded document or skill.
+"""The `frontmatter_schema_problems` and `parsed_skill_fields`, for one decoded document or skill.
 
 A document's schemas come from the model's governance and a skill's Agent Skills check is independent of corpus
 governance, so the queries
@@ -34,9 +34,9 @@ from lorecraft.project.schemas import (
     StructureSpecSchema,
     UnknownFieldProblem,
     WrongTypeProblem,
-    frontmatter_owner_query,
-    schema_problems_query,
-    skill_fields_query,
+    frontmatter_schema_problems,
+    owner_of_frontmatter,
+    parsed_skill_fields,
 )
 from lorecraft.project.skill import SkillRef
 from lorecraft.project.syntax import LineNumber
@@ -147,7 +147,9 @@ def _unreadable_database(snapshot: Snapshot, ref: MarkdownItemRef) -> Database:
 
 @pytest.mark.it
 class TestSchemaProblems:
-    def test_schema_problems_of_a_governed_document_holds_each_schema_problems_on_their_lines(self) -> None:
+    def test_frontmatter_schema_problems_of_a_governed_document_holds_each_frontmatter_schema_problems_on_their_lines(
+        self,
+    ) -> None:
         #: Given
         # `description` is on line 3 and of the wrong type; `status` is missing, so it is on no line
         typing = b'---\nname: python-typing\ndescription: 3\n---\n# Typing\n'
@@ -155,7 +157,7 @@ class TestSchemaProblems:
         source = _document_text(database, TYPING)
 
         #: When
-        found = database.query(schema_problems_query, source.ref)
+        found = database.query(frontmatter_schema_problems, source.ref)
 
         #: Then
         assert found == (
@@ -181,19 +183,19 @@ class TestSchemaProblems:
             ),
         ), 'the governing schemas come from the model, the frontmatter from its query, each problem on its line'
 
-    def test_schema_problems_called_twice_returns_the_first_answer(self) -> None:
+    def test_frontmatter_schema_problems_called_twice_returns_the_first_answer(self) -> None:
         #: Given
         typing = b'---\nname: python-typing\n---\n# Typing\n'
         database = FrontmatterReadingDatabase.from_snapshot(_snapshot(REQUIRE_STATUS, REQUIRE_OWNER, typing=typing))
         source = _document_text(database, TYPING)
-        first = database.query(schema_problems_query, source.ref)
+        first = database.query(frontmatter_schema_problems, source.ref)
 
         #: When
-        second = database.query(schema_problems_query, source.ref)
+        second = database.query(frontmatter_schema_problems, source.ref)
 
         #: Then
         assert second is first, 'the schemas are applied once per database, then shared by every rule'
-        assert database.query_reads(schema_problems_query, source.ref) == frozenset(
+        assert database.query_reads(frontmatter_schema_problems, source.ref) == frozenset(
             {
                 Read('item_origin', source.ref),
                 Read('item_governance', source.ref),
@@ -203,7 +205,7 @@ class TestSchemaProblems:
         ), 'the query cache records the raw facts the schema analysis depends on'
         assert database.frontmatter_call_count == 1, 'the frontmatter is read once, for the first call'
 
-    def test_schema_problems_with_no_frontmatter_schema_holds_none(self) -> None:
+    def test_frontmatter_schema_problems_with_no_frontmatter_schema_holds_none(self) -> None:
         #: Given
         # the namespace states a schema, but a namespace narrows the corpus, which states none
         database = Database.from_snapshot(
@@ -212,12 +214,12 @@ class TestSchemaProblems:
         source = _document_text(database, TYPING)
 
         #: When
-        found = database.query(schema_problems_query, source.ref)
+        found = database.query(frontmatter_schema_problems, source.ref)
 
         #: Then
         assert found == (), 'no corpus schema states a frontmatter schema, so no schema is applied'
 
-    def test_schema_problems_with_no_frontmatter_schema_never_reads_the_frontmatter(self) -> None:
+    def test_frontmatter_schema_problems_with_no_frontmatter_schema_never_reads_the_frontmatter(self) -> None:
         #: Given
         # the namespace states a schema, but a namespace narrows the corpus, which states none
         database = FrontmatterReadingDatabase.from_snapshot(
@@ -226,27 +228,27 @@ class TestSchemaProblems:
         source = _document_text(database, TYPING)
 
         #: When
-        database.query(schema_problems_query, source.ref)
+        database.query(frontmatter_schema_problems, source.ref)
 
         #: Then
         assert database.frontmatter_call_count == 0, (
             'the schemas are read first, so a document no schema governs never has its block read'
         )
 
-    def test_schema_problems_with_a_document_without_a_block_holds_none(self) -> None:
+    def test_frontmatter_schema_problems_with_a_document_without_a_block_holds_none(self) -> None:
         #: Given
         database = Database.from_snapshot(_snapshot(REQUIRE_STATUS, STRING_DESCRIPTION, typing=b'# Typing\n'))
         source = _document_text(database, TYPING)
 
         #: When
-        found = database.query(schema_problems_query, source.ref)
+        found = database.query(frontmatter_schema_problems, source.ref)
 
         #: Then
         assert found == (), (
             'the document is governed, but no schema can hold a missing block: the block rules report it'
         )
 
-    def test_schema_problems_with_a_document_in_no_corpus_holds_none(self) -> None:
+    def test_frontmatter_schema_problems_with_a_document_in_no_corpus_holds_none(self) -> None:
         #: Given
         # the code corpus states a schema, but `docs/blog/` has no corpus spec, so the model holds no `blog` corpus
         snapshot = from_tree(
@@ -261,24 +263,24 @@ class TestSchemaProblems:
         source = _document_text(database, DocumentRef(CorpusName.parse('blog'), AspectFilename.parse('launch')))
 
         #: When
-        found = database.query(schema_problems_query, source.ref)
+        found = database.query(frontmatter_schema_problems, source.ref)
 
         #: Then
         assert found == (), 'no specification governs a document in no corpus the model holds'
 
-    def test_schema_problems_for_an_undecodable_document_are_empty(self) -> None:
+    def test_frontmatter_schema_problems_for_an_undecodable_document_are_empty(self) -> None:
         #: Given
         snapshot = _snapshot(REQUIRE_STATUS, STRING_DESCRIPTION, typing=b'\xff')
         database = Database.from_snapshot(snapshot)
         ref = MarkdownItemRef(TYPING.path)
 
         #: When
-        found = database.query(schema_problems_query, ref)
+        found = database.query(frontmatter_schema_problems, ref)
 
         #: Then
         assert found == (), 'an undecodable document has no frontmatter facts to check'
 
-    def test_schema_problems_propagate_an_unreadable_document(self) -> None:
+    def test_frontmatter_schema_problems_propagate_an_unreadable_document(self) -> None:
         #: Given
         ref = MarkdownItemRef(TYPING.path)
         snapshot = _snapshot(REQUIRE_STATUS, STRING_DESCRIPTION, typing=b'---\nname: python-typing\n---\n# Typing\n')
@@ -286,7 +288,7 @@ class TestSchemaProblems:
 
         #: When
         with pytest.raises(ItemReadError) as raised:
-            database.query(schema_problems_query, ref)
+            database.query(frontmatter_schema_problems, ref)
 
         #: Then
         assert raised.value.ref == ref, 'schema analysis preserves the unreadable item identity'
@@ -294,14 +296,14 @@ class TestSchemaProblems:
 
 @pytest.mark.it
 class TestSkillSchemaProblems:
-    def test_skill_schema_problems_of_a_skill_are_independent_of_the_skills_corpus(self) -> None:
+    def test_skill_frontmatter_schema_problems_of_a_skill_are_independent_of_the_skills_corpus(self) -> None:
         #: Given
         review = b'---\nname: review\nextra: y\n---\n# Review\n'
         database = Database.from_snapshot(_snapshot(REQUIRE_STATUS, STRING_DESCRIPTION, typing=b'', review=review))
         source = _skill_text(database, REVIEW)
 
         #: When
-        found = database.query(schema_problems_query, source.ref)
+        found = database.query(frontmatter_schema_problems, source.ref)
 
         #: Then
         assert found == (
@@ -345,7 +347,7 @@ class TestSkillSchemaProblems:
             ),
         ), 'the package skill check applies independently of any skills-corpus schemas'
 
-    def test_skill_schema_problems_with_a_skill_with_no_frontmatter_holds_none(self) -> None:
+    def test_skill_frontmatter_schema_problems_with_a_skill_with_no_frontmatter_holds_none(self) -> None:
         #: Given
         database = Database.from_snapshot(
             _snapshot(REQUIRE_STATUS, STRING_DESCRIPTION, typing=b'', review=b'# Review\n')
@@ -353,20 +355,20 @@ class TestSkillSchemaProblems:
         source = _skill_text(database, REVIEW)
 
         #: When
-        found = database.query(schema_problems_query, source.ref)
+        found = database.query(frontmatter_schema_problems, source.ref)
 
         #: Then
         assert found == (), 'no schema can hold a missing block: the block rules report it'
 
-    def test_skill_fields_called_twice_returns_the_first_answer(self) -> None:
+    def test_parsed_skill_fields_called_twice_returns_the_first_answer(self) -> None:
         #: Given
         review = b'---\nname: review\nallowed-tools: Read\n---\n# Review\n'
         database = Database.from_snapshot(_snapshot(REQUIRE_STATUS, STRING_DESCRIPTION, typing=b'', review=review))
         source = _skill_text(database, REVIEW)
-        first = database.query(skill_fields_query, source.ref)
+        first = database.query(parsed_skill_fields, source.ref)
 
         #: When
-        second = database.query(skill_fields_query, source.ref)
+        second = database.query(parsed_skill_fields, source.ref)
 
         #: Then
         assert second is first, "a skill's fields are parsed once per database, then shared by every rule"
@@ -374,61 +376,61 @@ class TestSkillSchemaProblems:
             Read(item_frontmatter, source.ref),
             Read('item_text', source.ref),
             Read('item_origin', source.ref),
-        } <= database.query_reads(skill_fields_query, source.ref)
+        } <= database.query_reads(parsed_skill_fields, source.ref)
         assert set(first) == {SkillField.NAME, SkillField.ALLOWED_TOOLS}, 'each written, conforming field is kept'
 
-    def test_frontmatter_owner_query_with_a_document_reads_its_origin_and_governance(self) -> None:
+    def test_owner_of_frontmatter_with_a_document_reads_its_origin_and_governance(self) -> None:
         #: Given
         database = Database.from_snapshot(_snapshot(REQUIRE_STATUS, STRING_DESCRIPTION, typing=b'', review=b''))
         source = _document_text(database, TYPING)
 
         #: When
-        owner = database.query(frontmatter_owner_query, source.ref)
+        owner = database.query(owner_of_frontmatter, source.ref)
 
         #: Then
         assert owner == DocumentFrontmatterOwner(AspectFilename.parse('python-typing'), CORPUS_SPEC)
         assert {
             Read('item_origin', source.ref),
             Read('item_governance', source.ref),
-        } <= database.query_reads(frontmatter_owner_query, source.ref)
+        } <= database.query_reads(owner_of_frontmatter, source.ref)
 
-    def test_frontmatter_owner_query_with_a_skill_entry_reads_its_origin(self) -> None:
+    def test_owner_of_frontmatter_with_a_skill_entry_reads_its_origin(self) -> None:
         #: Given
         database = Database.from_snapshot(_snapshot(REQUIRE_STATUS, STRING_DESCRIPTION, typing=b'', review=b''))
         source = _skill_text(database, REVIEW)
 
         #: When
-        owner = database.query(frontmatter_owner_query, source.ref)
+        owner = database.query(owner_of_frontmatter, source.ref)
 
         #: Then
         assert owner == SkillFrontmatterOwner(PathComponent.parse('review'), None)
-        assert Read('item_origin', source.ref) in database.query_reads(frontmatter_owner_query, source.ref)
+        assert Read('item_origin', source.ref) in database.query_reads(owner_of_frontmatter, source.ref)
 
-    def test_skill_schema_problems_called_twice_returns_the_first_answer(self) -> None:
+    def test_skill_frontmatter_schema_problems_called_twice_returns_the_first_answer(self) -> None:
         #: Given
         review = b'---\nname: review\nextra: y\n---\n# Review\n'
         database = Database.from_snapshot(_snapshot(REQUIRE_STATUS, STRING_DESCRIPTION, typing=b'', review=review))
         source = _skill_text(database, REVIEW)
-        first = database.query(schema_problems_query, source.ref)
+        first = database.query(frontmatter_schema_problems, source.ref)
 
         #: When
-        second = database.query(schema_problems_query, source.ref)
+        second = database.query(frontmatter_schema_problems, source.ref)
 
         #: Then
         assert second is first, 'a skill is held to the specification once per database, then shared by every rule'
 
-    def test_skill_fields_for_an_undecodable_skill_are_empty(self) -> None:
+    def test_parsed_skill_fields_for_an_undecodable_skill_are_empty(self) -> None:
         #: Given
         database = Database.from_snapshot(_snapshot(REQUIRE_STATUS, STRING_DESCRIPTION, typing=b'', review=b'\xff'))
         ref = MarkdownItemRef(REVIEW.path)
 
         #: When
-        fields = database.query(skill_fields_query, ref)
+        fields = database.query(parsed_skill_fields, ref)
 
         #: Then
         assert fields == {}, 'an undecodable skill has no parsed frontmatter fields'
 
-    def test_skill_fields_propagate_an_unreadable_skill(self) -> None:
+    def test_parsed_skill_fields_propagate_an_unreadable_skill(self) -> None:
         #: Given
         ref = MarkdownItemRef(REVIEW.path)
         snapshot = _snapshot(
@@ -438,7 +440,7 @@ class TestSkillSchemaProblems:
 
         #: When
         with pytest.raises(ItemReadError) as raised:
-            database.query(skill_fields_query, ref)
+            database.query(parsed_skill_fields, ref)
 
         #: Then
         assert raised.value.ref == ref, 'skill field parsing preserves the unreadable item identity'

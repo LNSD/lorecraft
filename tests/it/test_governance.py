@@ -3,7 +3,7 @@
 The query reads the model, so it is tested over a database opened on an in-memory snapshot: a document a corpus and
 a namespace specification govern, and one in a corpus the model lacks. That a run computes the governance once is
 counted at the one place it is computed, `Corpus.governance`, while every reader of it runs: the runner's facet gate,
-the rules' queries, `schema_problems` and `outline_divergences`.
+the rules' queries, `frontmatter_schema_problems` and `outline_divergences`.
 """
 
 from dataclasses import replace

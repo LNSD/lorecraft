@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from typing import ClassVar, Self, assert_never
 
-from lorecraft.project.query import Query
+from lorecraft.project.query import ItemQuery
 from lorecraft.project.schemas import AllowedTool, CommaSeparated, MalformedEntry, NotATool, UnbalancedParentheses
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
@@ -108,7 +108,7 @@ class MalformedAllowedTools(QueriedSkillRule[AllowedToolsField | None]):
         return (ALLOWED_TOOLS_NOTE, Help(fix))
 
     @classmethod
-    def query(cls) -> Query[AllowedToolsField | None]:
+    def query(cls) -> ItemQuery[AllowedToolsField | None]:
         """The `allowed-tools` field and its line."""
         return allowed_tools_field
 

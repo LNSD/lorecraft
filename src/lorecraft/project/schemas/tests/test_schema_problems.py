@@ -102,7 +102,7 @@ class TestFieldLine:
 
 @pytest.mark.unit
 class TestLocateSchemaProblems:
-    def test_locate_with_two_schemas_holds_each_schema_problems_in_the_order_given(self) -> None:
+    def test_locate_with_two_schemas_holds_each_frontmatter_schema_problems_in_the_order_given(self) -> None:
         #: Given
         # each schema requires a field the frontmatter lacks, so each finds one problem on line 1
         frontmatter = parse_frontmatter('---\nname: python-typing\n---\n# Typing\n')

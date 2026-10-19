@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from typing import ClassVar, Self
 
-from lorecraft.project.query import Query
+from lorecraft.project.query import ItemQuery
 from lorecraft.project.schemas import TitleFacts, title_facts
 from lorecraft.project.syntax import FIRST_LINE
 from lorecraft.rules.collector import rule
@@ -83,7 +83,7 @@ class MissingTitle(QueriedDocumentSkillRule[TitleFacts]):
         return (Help('open the document with an H1 title, `# <title>`'),)
 
     @classmethod
-    def query(cls) -> Query[TitleFacts]:
+    def query(cls) -> ItemQuery[TitleFacts]:
         """The title and the title checks of the document."""
         return title_facts
 
