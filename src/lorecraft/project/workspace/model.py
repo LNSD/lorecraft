@@ -48,7 +48,7 @@ from lorecraft.project.layout import DOCS_DIR, DOCUMENT_SUFFIX, SPECS_DIR
 from lorecraft.project.link_target import DocumentDirectory, SkillRoot
 from lorecraft.project.schemas import CorpusSpecName, NamespaceSpecName, StatedFrontmatterSchema, StructureSpec
 from lorecraft.project.skill import OutsideSymlink, SkillLocation, SkillRef, SkillResourceLocation, SkillsDir
-from lorecraft.schemas import SchemaInput, SchemaReference
+from lorecraft.schemas import SchemaInput, SchemaRef
 from lorecraft.schemas.builtin import AGENT_SKILLS_SCHEMA_REFERENCE
 from lorecraft.vfs import ResolvedPath
 
@@ -412,7 +412,7 @@ class WorkspaceModel:
     load_failures: tuple[LoadFailure, ...]
     skills_corpus: Corpus | None = None
     overlapping_directories: frozenset[ReservedCorpusDirectory] = frozenset()
-    schema_inputs: FrozenMapping[SchemaReference, SchemaInput] = FrozenMapping({})
+    schema_inputs: FrozenMapping[SchemaRef, SchemaInput] = FrozenMapping({})
 
     def __post_init__(self) -> None:
         """Keep a key from naming something other than its value, which the lookups read the key alone to answer.

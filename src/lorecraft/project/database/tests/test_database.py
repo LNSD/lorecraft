@@ -29,17 +29,17 @@ from lorecraft.schemas import (
     BundledOrigin,
     SchemaInput,
     SchemaKind,
-    SchemaReference,
-    SchemaReferenceError,
+    SchemaRef,
+    SchemaRefError,
 )
 from lorecraft.schemas.builtin import AGENT_SKILLS_SCHEMA_INPUT, AGENT_SKILLS_SCHEMA_REFERENCE
 from lorecraft.vfs import OsRefusal, RefusedRead, RootExit, Snapshot, SnapshotRecords
 
 GUIDE: ItemRef = ItemRef(RootRelativePath.parse('docs/code/guide.md'))
 TARGET: ItemRef = ItemRef(RootRelativePath.parse('docs/feat/target.md'))
-SCHEMA: SchemaReference = SchemaReference(SchemaKind.FRONTMATTER, 'agent-skills')
-SCHEMA_BASE: SchemaReference = SchemaReference(SchemaKind.STRUCTURE, 'skills-base')
-SCHEMA_MISSING: SchemaReference = SchemaReference(SchemaKind.STRUCTURE, 'missing')
+SCHEMA: SchemaRef = SchemaRef(SchemaKind.FRONTMATTER, 'agent-skills')
+SCHEMA_BASE: SchemaRef = SchemaRef(SchemaKind.STRUCTURE, 'skills-base')
+SCHEMA_MISSING: SchemaRef = SchemaRef(SchemaKind.STRUCTURE, 'missing')
 
 
 _DATABASE_SOURCE = Path('src/lorecraft/project/database/database.py')
@@ -263,7 +263,7 @@ def _schema_catches_missing(primitives: ItemPrimitives) -> str | None:
     """Catch a missing schema query so its attempted dependency remains observable."""
     try:
         return primitives.query_schema(SCHEMA_MISSING, _schema_identity)
-    except SchemaReferenceError:
+    except SchemaRefError:
         return None
 
 

@@ -1,31 +1,31 @@
 """Typed schema identities, provenance, immutable inputs and pure registry lookup."""
 
-from .registry import DuplicateSchemaReferenceError, SchemaReferenceError, SchemaRegistry
+from .registry import DuplicateSchemaRefError, SchemaRefError, SchemaRegistry
 from .types import (
     BundledOrigin,
     EmptyBundledOriginIdentityError,
     EmptyRepositoryLayerError,
-    EmptySchemaReferenceIdentityError,
+    EmptySchemaRefIdentityError,
     RepositoryOrigin,
     SchemaInput,
     SchemaKind,
     SchemaOrigin,
     SchemaOriginMismatchError,
-    SchemaReference,
+    SchemaRef,
 )
 
 __all__: list[str] = [
     'BundledOrigin',
-    'DuplicateSchemaReferenceError',
+    'DuplicateSchemaRefError',
     'EmptyBundledOriginIdentityError',
     'EmptyRepositoryLayerError',
-    'EmptySchemaReferenceIdentityError',
+    'EmptySchemaRefIdentityError',
     'RepositoryOrigin',
     'SchemaInput',
     'SchemaKind',
     'SchemaOriginMismatchError',
     'SchemaOrigin',
-    'SchemaReference',
-    'SchemaReferenceError',
+    'SchemaRef',
+    'SchemaRefError',
     'SchemaRegistry',
 ]

@@ -15,7 +15,7 @@ from lorecraft.core.path import RootRelativePath
 from lorecraft.project.schemas.structure_failure import (
     AdjacentAnyRuns,
     ContradictorySkillField,
-    CyclicFrontmatterSchemaRef,
+    CyclicFrontmatterSchemaRefKeyword,
     EmptyStructureSpec,
     ForbiddenOutlineSections,
     ForeignFrontmatterDialect,
@@ -25,7 +25,7 @@ from lorecraft.project.schemas.structure_failure import (
     RepeatedForbiddenSections,
     RepeatedOutlineSections,
     UndecodableStructureSpec,
-    UnresolvableFrontmatterSchemaRef,
+    UnresolvableFrontmatterSchemaRefKeyword,
     UntypedFrontmatterSchema,
 )
 from lorecraft.vfs import OsRefusal, RefusedInspect, RefusedListing, RefusedRead, RefusedRecord
@@ -144,8 +144,8 @@ def unreported_refusals(
                 | InvalidFrontmatterSchema()
                 | IdentifiedFrontmatterSchema()
                 | ForeignFrontmatterDialect()
-                | UnresolvableFrontmatterSchemaRef()
-                | CyclicFrontmatterSchemaRef()
+                | UnresolvableFrontmatterSchemaRefKeyword()
+                | CyclicFrontmatterSchemaRefKeyword()
                 | UntypedFrontmatterSchema()
                 | UnresolvableSkillsDirectory()
                 | UnresolvableSkillEntry()

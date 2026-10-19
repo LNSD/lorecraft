@@ -19,7 +19,7 @@ from lorecraft.project.skill.outside import SymlinkRef
 from lorecraft.project.syntax import (
     NormalisedLinkPath,
 )
-from lorecraft.schemas import SchemaInput, SchemaReference
+from lorecraft.schemas import SchemaInput, SchemaRef
 from lorecraft.vfs import RootExit
 
 if TYPE_CHECKING:
@@ -28,7 +28,7 @@ if TYPE_CHECKING:
 
 type Query[P, T] = Callable[[P], T]
 type ItemQuery[T] = Query[ItemPrimitives, T]
-type QueryTargetRef = ItemRef | SymlinkRef | CorpusDirectoryRef | SchemaReference
+type QueryTargetRef = ItemRef | SymlinkRef | CorpusDirectoryRef | SchemaRef
 type SubjectQuery[T] = (
     Query[ItemPrimitives, T]
     | Query[SymlinkPrimitives, T]
@@ -56,7 +56,7 @@ class ItemReads(Protocol):
 class SchemaReads(Protocol):
     """Cross-subject queries whose target is a schema."""
 
-    def query_schema[T](self, ref: SchemaReference, query: Query[SchemaPrimitives, T]) -> T:
+    def query_schema[T](self, ref: SchemaRef, query: Query[SchemaPrimitives, T]) -> T:
         """Read a schema query by reference and record the typed dependency."""
         ...
 

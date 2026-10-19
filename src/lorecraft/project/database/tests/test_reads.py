@@ -19,7 +19,7 @@ from lorecraft.project.query import (
 )
 from lorecraft.project.skill import SymlinkRef
 from lorecraft.project.syntax import Heading
-from lorecraft.schemas import SchemaInput, SchemaReference
+from lorecraft.schemas import SchemaInput, SchemaRef
 from lorecraft.schemas.builtin import AGENT_SKILLS_SCHEMA_REFERENCE
 from lorecraft.vfs import RootExit, take_snapshot
 
@@ -124,7 +124,7 @@ class TestSubjectReads:
     def test_query_records_a_schema_subject_primitive(self, tmp_path: Path) -> None:
         #: Given
         database = _database(tmp_path)
-        ref: SchemaReference = AGENT_SKILLS_SCHEMA_REFERENCE
+        ref: SchemaRef = AGENT_SKILLS_SCHEMA_REFERENCE
         expected = database.model().schema_inputs[ref]
 
         #: When

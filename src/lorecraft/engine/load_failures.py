@@ -126,13 +126,13 @@ def _occurrence_of(failure: workspace.LoadFailure) -> EngineCondition | Unlistab
             return unusable_structure_file.UnusableStructureFile(
                 cause=unusable_structure_file.ForeignFrontmatterDialect(dialect=repr(dialect))
             )
-        case workspace.UnresolvableFrontmatterSchemaRef(ref=ref):
+        case workspace.UnresolvableFrontmatterSchemaRefKeyword(ref=ref):
             return unusable_structure_file.UnusableStructureFile(
-                cause=unusable_structure_file.UnresolvableFrontmatterSchemaRef(ref=repr(ref))
+                cause=unusable_structure_file.UnresolvableFrontmatterSchemaRefKeyword(ref=repr(ref))
             )
-        case workspace.CyclicFrontmatterSchemaRef(ref=ref):
+        case workspace.CyclicFrontmatterSchemaRefKeyword(ref=ref):
             return unusable_structure_file.UnusableStructureFile(
-                cause=unusable_structure_file.CyclicFrontmatterSchemaRef(ref=repr(ref))
+                cause=unusable_structure_file.CyclicFrontmatterSchemaRefKeyword(ref=repr(ref))
             )
         case workspace.UntypedFrontmatterSchema():
             return unusable_structure_file.UnusableStructureFile(

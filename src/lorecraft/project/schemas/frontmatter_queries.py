@@ -20,7 +20,7 @@ from lorecraft.project.schemas.schema_problems import (
     locate_schema_problems,
 )
 from lorecraft.project.schemas.skill_fields import SkillFields, parse_skill_fields
-from lorecraft.schemas import SchemaReferenceError
+from lorecraft.schemas import SchemaRefError
 from lorecraft.schemas.builtin import AGENT_SKILLS_SCHEMA_REFERENCE
 
 if TYPE_CHECKING:
@@ -73,7 +73,7 @@ def frontmatter_schema_problems(primitives: ItemPrimitives) -> tuple[SchemaProbl
         floor_present = False
         try:
             floor_schema = primitives.query_schema(AGENT_SKILLS_SCHEMA_REFERENCE, agent_skills_frontmatter_schema)
-        except SchemaReferenceError:
+        except SchemaRefError:
             floor = ()
         else:
             floor_present = True

@@ -4,7 +4,7 @@ import pytest
 
 from lorecraft.schemas import (
     SchemaInput,
-    SchemaReference,
+    SchemaRef,
 )
 from lorecraft.schemas.builtin import (
     AGENT_SKILLS_SCHEMA_INPUT,
@@ -17,7 +17,7 @@ from lorecraft.schemas.builtin import (
 class TestRegisterBuiltinSchemas:
     def test_register_adds_the_bundled_agent_skills_input(self) -> None:
         #: Given
-        schema_inputs: dict[SchemaReference, SchemaInput] = {}
+        schema_inputs: dict[SchemaRef, SchemaInput] = {}
 
         #: When
         register_builtin_schemas(schema_inputs)

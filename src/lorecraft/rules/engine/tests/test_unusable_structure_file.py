@@ -9,7 +9,7 @@ from lorecraft.rules.location import Help, Note, WholeSubject
 
 from ..unusable_structure_file import (
     AdjacentAnyRuns,
-    CyclicFrontmatterSchemaRef,
+    CyclicFrontmatterSchemaRefKeyword,
     ForbiddenOutlineSection,
     ForeignFrontmatterDialect,
     IdentifiedFrontmatterSchema,
@@ -17,7 +17,7 @@ from ..unusable_structure_file import (
     InvalidTitlePattern,
     RepeatedForbiddenSection,
     RepeatedOutlineSection,
-    UnresolvableFrontmatterSchemaRef,
+    UnresolvableFrontmatterSchemaRefKeyword,
     UntypedFrontmatterSchema,
     UnusableStructureFile,
 )
@@ -257,7 +257,7 @@ class TestUnusableStructureFile:
 
     def test_message_of_unresolvable_frontmatter_schema_ref_names_the_case(self) -> None:
         #: Given
-        occurrence = UnusableStructureFile(cause=UnresolvableFrontmatterSchemaRef(ref="'#/$defs/missing'"))
+        occurrence = UnusableStructureFile(cause=UnresolvableFrontmatterSchemaRefKeyword(ref="'#/$defs/missing'"))
 
         #: When
         message = occurrence.message()
@@ -269,7 +269,7 @@ class TestUnusableStructureFile:
 
     def test_children_of_unresolvable_frontmatter_schema_ref_say_how_to_fix_it_and_what_was_found(self) -> None:
         #: Given
-        occurrence = UnusableStructureFile(cause=UnresolvableFrontmatterSchemaRef(ref="'#/$defs/missing'"))
+        occurrence = UnusableStructureFile(cause=UnresolvableFrontmatterSchemaRefKeyword(ref="'#/$defs/missing'"))
 
         #: When
         children = occurrence.children()
@@ -282,7 +282,7 @@ class TestUnusableStructureFile:
 
     def test_message_of_cyclic_frontmatter_schema_ref_names_the_case(self) -> None:
         #: Given
-        occurrence = UnusableStructureFile(cause=CyclicFrontmatterSchemaRef(ref="'#'"))
+        occurrence = UnusableStructureFile(cause=CyclicFrontmatterSchemaRefKeyword(ref="'#'"))
 
         #: When
         message = occurrence.message()
@@ -294,7 +294,7 @@ class TestUnusableStructureFile:
 
     def test_children_of_cyclic_frontmatter_schema_ref_say_how_to_fix_it_and_what_was_found(self) -> None:
         #: Given
-        occurrence = UnusableStructureFile(cause=CyclicFrontmatterSchemaRef(ref="'#'"))
+        occurrence = UnusableStructureFile(cause=CyclicFrontmatterSchemaRefKeyword(ref="'#'"))
 
         #: When
         children = occurrence.children()

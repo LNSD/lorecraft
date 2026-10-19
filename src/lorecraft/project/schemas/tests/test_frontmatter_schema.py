@@ -27,11 +27,11 @@ from ..frontmatter_problem import (
 )
 from ..frontmatter_schema import FrontmatterSchema
 from ..structure_failure import (
-    CyclicFrontmatterSchemaRef,
+    CyclicFrontmatterSchemaRefKeyword,
     ForeignFrontmatterDialect,
     IdentifiedFrontmatterSchema,
     InvalidFrontmatterSchema,
-    UnresolvableFrontmatterSchemaRef,
+    UnresolvableFrontmatterSchemaRefKeyword,
     UntypedFrontmatterSchema,
 )
 
@@ -160,7 +160,7 @@ class TestFrontmatterSchema:
         failure = FrontmatterSchema.parse(mapping)
 
         #: Then
-        assert failure == UnresolvableFrontmatterSchemaRef('#/$defs/missing'), (
+        assert failure == UnresolvableFrontmatterSchemaRefKeyword('#/$defs/missing'), (
             'a reference to a location the schema lacks is refused at load, not when a document is validated'
         )
 
@@ -176,7 +176,7 @@ class TestFrontmatterSchema:
         failure = FrontmatterSchema.parse(mapping)
 
         #: Then
-        assert failure == UnresolvableFrontmatterSchemaRef('https://example.com/name.json'), (
+        assert failure == UnresolvableFrontmatterSchemaRefKeyword('https://example.com/name.json'), (
             'a remote reference is refused, never fetched'
         )
 
@@ -189,7 +189,9 @@ class TestFrontmatterSchema:
         failure = FrontmatterSchema.parse(mapping)
 
         #: Then
-        assert failure == CyclicFrontmatterSchemaRef('#'), 'a reference that only leads back to itself is refused'
+        assert failure == CyclicFrontmatterSchemaRefKeyword('#'), (
+            'a reference that only leads back to itself is refused'
+        )
 
     def test_parse_with_a_ref_cycle_through_definitions_returns_cyclic_frontmatter_schema_ref(self) -> None:
         #: Given
@@ -204,7 +206,7 @@ class TestFrontmatterSchema:
         failure = FrontmatterSchema.parse(mapping)
 
         #: Then
-        assert failure == CyclicFrontmatterSchemaRef('#/$defs/a'), 'a cycle through applicators is refused'
+        assert failure == CyclicFrontmatterSchemaRefKeyword('#/$defs/a'), 'a cycle through applicators is refused'
 
     def test_parse_with_a_ref_cycle_through_dependent_schemas_returns_cyclic_frontmatter_schema_ref(self) -> None:
         #: Given
@@ -215,7 +217,7 @@ class TestFrontmatterSchema:
         failure = FrontmatterSchema.parse(mapping)
 
         #: Then
-        assert failure == CyclicFrontmatterSchemaRef('#'), 'a dependent schema applies to the same value'
+        assert failure == CyclicFrontmatterSchemaRefKeyword('#'), 'a dependent schema applies to the same value'
 
     def test_parse_with_an_unused_ref_cycle_in_defs_returns_cyclic_frontmatter_schema_ref(self) -> None:
         #: Given
@@ -229,7 +231,7 @@ class TestFrontmatterSchema:
         failure = FrontmatterSchema.parse(mapping)
 
         #: Then
-        assert isinstance(failure, CyclicFrontmatterSchemaRef), 'a cycle nothing refers to is still refused'
+        assert isinstance(failure, CyclicFrontmatterSchemaRefKeyword), 'a cycle nothing refers to is still refused'
 
     def test_parse_with_a_recursive_ref_below_properties_returns_the_schema(self) -> None:
         #: Given
@@ -296,7 +298,7 @@ class TestFrontmatterSchema:
         failure = FrontmatterSchema.parse(mapping)
 
         #: Then
-        assert failure == UnresolvableFrontmatterSchemaRef('#/required/0'), (
+        assert failure == UnresolvableFrontmatterSchemaRefKeyword('#/required/0'), (
             'a reference that finds a value that is not a schema is refused'
         )
 
@@ -309,7 +311,9 @@ class TestFrontmatterSchema:
         failure = FrontmatterSchema.parse(mapping)
 
         #: Then
-        assert failure == UnresolvableFrontmatterSchemaRef('#/$defs/missing'), 'a dynamic reference is held to the same'
+        assert failure == UnresolvableFrontmatterSchemaRefKeyword('#/$defs/missing'), (
+            'a dynamic reference is held to the same'
+        )
 
     def test_parse_with_a_remote_dynamic_ref_returns_unresolvable_frontmatter_schema_ref(self) -> None:
         #: Given
@@ -323,7 +327,7 @@ class TestFrontmatterSchema:
         failure = FrontmatterSchema.parse(mapping)
 
         #: Then
-        assert failure == UnresolvableFrontmatterSchemaRef('https://example.com/name.json'), (
+        assert failure == UnresolvableFrontmatterSchemaRefKeyword('https://example.com/name.json'), (
             'a remote dynamic reference is refused, never fetched'
         )
 

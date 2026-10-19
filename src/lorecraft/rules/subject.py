@@ -23,7 +23,7 @@ from typing import ClassVar, Self
 
 from lorecraft.project.item import ItemKind, MetaSpecPart
 from lorecraft.project.query import CorpusDirectoryPrimitives, ItemPrimitives, ItemQuery, Query, SymlinkPrimitives
-from lorecraft.schemas.types import SchemaReference
+from lorecraft.schemas.types import SchemaRef
 
 from .declaration import ContentRule, LayoutRule, Rule
 
@@ -54,7 +54,7 @@ class BySchema:
         schema: The registered schema that governs the item for this rule.
     """
 
-    schema: SchemaReference
+    schema: SchemaRef
 
 
 type Gate = ByMetaSpec | ByPackage | BySchema

@@ -25,7 +25,7 @@ layer owns its validator and problem translation. Its import layer sits below `l
 - Structure and frontmatter schema kinds, references, repository and bundled origins, and immutable schema inputs.
 - The bundled Agent Skills frontmatter model, its value types, and the input and registration function rendered from it.
 - In-memory lookup of an input by its typed reference.
-- `EmptySchemaReferenceIdentityError`, `EmptyRepositoryLayerError` and `EmptyBundledOriginIdentityError` carry rejected identity values.
+- `EmptySchemaRefIdentityError`, `EmptyRepositoryLayerError` and `EmptyBundledOriginIdentityError` carry rejected identity values.
 - `SchemaOriginMismatchError` carries a reference and bundled origin with different identities; registry lookups have typed missing and duplicate reference errors.
 
 ## Belongs Elsewhere
@@ -52,7 +52,7 @@ layer owns its validator and problem translation. Its import layer sits below `l
 
 ```python
 # ❌ Bad — registry resolution reaches the live tree, so the same loaded model can answer differently later
-def resolve(reference: SchemaReference, root: Path) -> SchemaInput:
+def resolve(reference: SchemaRef, root: Path) -> SchemaInput:
     return parse_schema((root / reference.identity).read_text())
 ```
 
@@ -66,10 +66,10 @@ schema_input = registry.resolve(reference)
 
 Before committing code, verify:
 
-- [ ] Schema identity includes both kind and stable identity; empty identities raise `EmptySchemaReferenceIdentityError`
+- [ ] Schema identity includes both kind and stable identity; empty identities raise `EmptySchemaRefIdentityError`
 - [ ] Inputs preserve immutable document values and provenance independently of kind; bundled origin identities must match their references
 - [ ] Empty repository layers and bundled identities raise typed Lorecraft errors with their input values attached
-- [ ] Lookup is deterministic and refuses missing identities; registry construction refuses duplicate references with `DuplicateSchemaReferenceError`
+- [ ] Lookup is deterministic and refuses missing identities; registry construction refuses duplicate references with `DuplicateSchemaRefError`
 - [ ] No registry operation reads files, resolves external resources or memoizes results
 - [ ] No import points to project queries, database or workspace loading
 

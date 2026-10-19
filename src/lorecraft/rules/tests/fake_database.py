@@ -64,7 +64,7 @@ from lorecraft.project.syntax import (
 from lorecraft.project.workspace import Corpus, CorpusNamespace, CorpusSpec, Governance, NamespaceSpec
 from lorecraft.rules.declaration import Rule
 from lorecraft.rules.subject import CorpusDirectoryRule, ItemRule, Queried, SymlinkRule
-from lorecraft.schemas import SchemaReference
+from lorecraft.schemas import SchemaRef
 from lorecraft.vfs import ResolvedPath, RootExit
 
 _DEFAULT_FILENAME: Final[str] = 'setup'
@@ -450,7 +450,7 @@ class FakeSymlinkDatabase:
         """Cross-item reads are outside the symlink fake's declared facts."""
         raise AssertionError(f'no item query is available for {ref}')
 
-    def query_schema[T](self, ref: SchemaReference, query: Query[SchemaPrimitives, T]) -> T:
+    def query_schema[T](self, ref: SchemaRef, query: Query[SchemaPrimitives, T]) -> T:
         """Schema reads are outside the symlink fake's declared facts."""
         raise AssertionError(f'no schema query is available for {ref}')
 
@@ -482,7 +482,7 @@ class FakeCorpusDirectoryDatabase:
         """Cross-item reads are outside the directory fake's declared facts."""
         raise AssertionError(f'no item query is available for {ref}')
 
-    def query_schema[T](self, ref: SchemaReference, query: Query[SchemaPrimitives, T]) -> T:
+    def query_schema[T](self, ref: SchemaRef, query: Query[SchemaPrimitives, T]) -> T:
         """Schema reads are outside the directory fake's declared facts."""
         raise AssertionError(f'no schema query is available for {ref}')
 

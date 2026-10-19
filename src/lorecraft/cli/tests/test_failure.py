@@ -15,7 +15,7 @@ from lorecraft.project.schemas import (
 )
 from lorecraft.project.workspace import (
     AdjacentAnyRuns,
-    CyclicFrontmatterSchemaRef,
+    CyclicFrontmatterSchemaRefKeyword,
     EmptyStructureSpec,
     ForbiddenOutlineSections,
     ForeignFrontmatterDialect,
@@ -36,7 +36,7 @@ from lorecraft.project.workspace import (
     UnlistableSkillsDirectory,
     UnreadableStructureFile,
     UnrecordedStructureFile,
-    UnresolvableFrontmatterSchemaRef,
+    UnresolvableFrontmatterSchemaRefKeyword,
     UnresolvableSkillEntry,
     UnresolvableSkillFile,
     UnresolvableSkillsDirectory,
@@ -333,7 +333,7 @@ class TestReportLoadFailure:
         self, capsys: pytest.CaptureFixture[str]
     ) -> None:
         #: Given
-        failure = LoadFailure(_PATH, UnresolvableFrontmatterSchemaRef('#/$defs/missing'))
+        failure = LoadFailure(_PATH, UnresolvableFrontmatterSchemaRefKeyword('#/$defs/missing'))
         expected = (
             'error: invalid structure schema docs/__meta__/code.spec.json: '
             "frontmatter schema holds a $ref '#/$defs/missing' that does not resolve inside it\n"
@@ -349,7 +349,7 @@ class TestReportLoadFailure:
         self, capsys: pytest.CaptureFixture[str]
     ) -> None:
         #: Given
-        failure = LoadFailure(_PATH, CyclicFrontmatterSchemaRef('#'))
+        failure = LoadFailure(_PATH, CyclicFrontmatterSchemaRefKeyword('#'))
         expected = (
             'error: invalid structure schema docs/__meta__/code.spec.json: '
             "frontmatter schema holds a $ref '#' that leads back to itself with no keyword in between\n"

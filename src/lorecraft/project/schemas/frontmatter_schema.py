@@ -76,11 +76,11 @@ from .schema_guidance import (
     value_text,
 )
 from .structure_failure import (
-    CyclicFrontmatterSchemaRef,
+    CyclicFrontmatterSchemaRefKeyword,
     ForeignFrontmatterDialect,
     IdentifiedFrontmatterSchema,
     InvalidFrontmatterSchema,
-    UnresolvableFrontmatterSchemaRef,
+    UnresolvableFrontmatterSchemaRefKeyword,
     UntypedFrontmatterSchema,
 )
 
@@ -88,8 +88,8 @@ type FrontmatterSchemaFailure = (
     InvalidFrontmatterSchema
     | IdentifiedFrontmatterSchema
     | ForeignFrontmatterDialect
-    | UnresolvableFrontmatterSchemaRef
-    | CyclicFrontmatterSchemaRef
+    | UnresolvableFrontmatterSchemaRefKeyword
+    | CyclicFrontmatterSchemaRefKeyword
     | UntypedFrontmatterSchema
 )
 """A reason a structure specification's `frontmatter` schema cannot be held."""
@@ -136,9 +136,9 @@ class FrontmatterSchema:
             case SchemaUsesForeignDialect(dialect):
                 return ForeignFrontmatterDialect(dialect)
             case SchemaHasUnresolvableReference(reference):
-                return UnresolvableFrontmatterSchemaRef(reference)
+                return UnresolvableFrontmatterSchemaRefKeyword(reference)
             case SchemaHasSameInstanceReferenceCycle(reference):
-                return CyclicFrontmatterSchemaRef(reference)
+                return CyclicFrontmatterSchemaRefKeyword(reference)
             case None:
                 pass
             case _:

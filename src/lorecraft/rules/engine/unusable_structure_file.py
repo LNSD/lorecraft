@@ -96,7 +96,7 @@ class UntypedFrontmatterSchema:
 
 
 @dataclass(frozen=True, slots=True)
-class UnresolvableFrontmatterSchemaRef:
+class UnresolvableFrontmatterSchemaRefKeyword:
     """The frontmatter schema, or a schema inside it, holds a `$ref` that does not resolve inside it.
 
     Attributes:
@@ -107,7 +107,7 @@ class UnresolvableFrontmatterSchemaRef:
 
 
 @dataclass(frozen=True, slots=True)
-class CyclicFrontmatterSchemaRef:
+class CyclicFrontmatterSchemaRefKeyword:
     """A `$ref` in the frontmatter schema leads back to its own schema with no keyword in between.
 
     Attributes:
@@ -126,8 +126,8 @@ type Cause = (
     | InvalidFrontmatterSchema
     | IdentifiedFrontmatterSchema
     | ForeignFrontmatterDialect
-    | UnresolvableFrontmatterSchemaRef
-    | CyclicFrontmatterSchemaRef
+    | UnresolvableFrontmatterSchemaRefKeyword
+    | CyclicFrontmatterSchemaRefKeyword
     | UntypedFrontmatterSchema
     | ContradictorySkillFieldFailure
 )
@@ -447,9 +447,9 @@ class UnusableStructureFile(FileCondition):
                 return 'frontmatter schema carries $id'
             case ForeignFrontmatterDialect():
                 return 'frontmatter schema names another JSON Schema dialect'
-            case UnresolvableFrontmatterSchemaRef():
+            case UnresolvableFrontmatterSchemaRefKeyword():
                 return 'frontmatter schema holds a $ref that does not resolve inside it'
-            case CyclicFrontmatterSchemaRef():
+            case CyclicFrontmatterSchemaRefKeyword():
                 return 'frontmatter schema holds a $ref that leads back to itself with no keyword in between'
             case UntypedFrontmatterSchema():
                 return 'frontmatter schema does not state "type": "object" at its root'
@@ -487,12 +487,12 @@ class UnusableStructureFile(FileCondition):
                     Help(f'name {DIALECT}, or leave $schema out'),
                     Note(f'$schema holds {dialect}'),
                 )
-            case UnresolvableFrontmatterSchemaRef(ref=ref):
+            case UnresolvableFrontmatterSchemaRefKeyword(ref=ref):
                 return (
                     Help('point every $ref at a location inside the frontmatter schema, such as #/$defs/name'),
                     Note(f'$ref holds {ref}'),
                 )
-            case CyclicFrontmatterSchemaRef(ref=ref):
+            case CyclicFrontmatterSchemaRefKeyword(ref=ref):
                 return (
                     Help('point the $ref at a schema that states a keyword before it refers back'),
                     Note(f'$ref holds {ref}'),
