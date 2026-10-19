@@ -26,9 +26,10 @@ import logging
 from abc import ABCMeta, abstractmethod
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
+from enum import StrEnum
 from functools import wraps
 from types import FunctionType
-from typing import Concatenate, Protocol, Self, assert_never, cast, overload
+from typing import Protocol, Self, assert_never, cast, overload
 
 from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.path import RootRelativePath
@@ -36,6 +37,7 @@ from lorecraft.project.aspect import AspectFilename, AspectName
 from lorecraft.project.corpus import CorpusName, ReservedCorpusDirectory, ReservedCorpusDirectoryRef
 from lorecraft.project.document import MetaSpecRef
 from lorecraft.project.item import (
+    ItemDescriptor,
     ItemOrigin,
     ItemReadError,
     ItemRef,
@@ -57,12 +59,7 @@ from lorecraft.project.query import (
     SymlinkQuery,
     item_parse,
 )
-from lorecraft.project.schemas import (
-    CorpusSpecName,
-    NamespaceSpecName,
-    SpecName,
-    parse_spec_name,
-)
+from lorecraft.project.schemas import CorpusSpecName, NamespaceSpecName, SpecName, parse_spec_name
 from lorecraft.project.skill import (
     OutsideSymlink,
     OutsideSymlinkRef,
@@ -94,17 +91,33 @@ from lorecraft.vfs import (
 from .text import ItemText, Undecodable
 
 
-def primitive[S: '_PrimitiveReadRecorder', **P, T](
-    method: FunctionType,
-) -> Callable[Concatenate[S, P], T]:
+def primitive[S: '_PrimitiveReadRecorder', T](method: FunctionType) -> Callable[[S], T]:
     """Record a primitive read when its method is called, preserving its exact signature."""
+    source = PrimitiveRead(method.__name__)
 
     @wraps(method)
-    def wrapper(self: S, *args: P.args, **kwargs: P.kwargs) -> T:
-        self._record(self._read_key(method.__name__))
-        return method(self, *args, **kwargs)
+    def wrapper(self: S) -> T:
+        self._record(self._read_key(source))
+        return method(self)
 
     return wrapper
+
+
+class PrimitiveRead(StrEnum):
+    """A closed identity for every primitive input query."""
+
+    SCHEMA_INPUT = 'schema_input'
+    LEAVES_AT = 'leaves_at'
+    RESERVED_CORPUS = 'reserved_corpus'
+    ORIGIN = 'origin'
+    ITEM_LISTED_NAME = 'item_listed_name'
+    TEXT = 'text'
+    GOVERNANCE = 'governance'
+    LINK_TARGETS = 'link_targets'
+    LINK_BASE = 'link_base'
+    ITEM_DESCRIPTOR = 'item_descriptor'
+    MODEL = 'model'
+    BASE = 'base'
 
 
 @dataclass(frozen=True)
@@ -115,14 +128,14 @@ class Read:
     the subject-specific arms of `SubjectQuery`; public `Database.query` overloads retain that precision.
     """
 
-    source: str | Callable[..., object]
+    source: PrimitiveRead | Callable[..., object]
     subject: QueryTargetRef
 
 
 class _PrimitiveReadRecorder(Protocol):
     """The subject-qualified recording operations a primitive wrapper calls."""
 
-    def _read_key(self, method_name: str) -> Read: ...
+    def _read_key(self, source: PrimitiveRead) -> Read: ...
 
     def _record(self, *keys: Read) -> None: ...
 
@@ -143,9 +156,9 @@ class _Reads[R: QueryTargetRef, P: _HasRecordedReads](metaclass=ABCMeta):
         self._database = database
         self._ref = ref
 
-    def _read_key(self, method_name: str) -> Read:
-        """Pair a primitive method name with this adapter's subject."""
-        return Read(method_name, self._ref)
+    def _read_key(self, source: PrimitiveRead) -> Read:
+        """Pair a primitive input identity with this adapter's subject."""
+        return Read(source, self._ref)
 
     def _record(self, *keys: Read) -> None:
         """Record primitive or nested-query keys without exposing mutable storage."""
@@ -197,9 +210,9 @@ class _SchemaPrimitives(_Reads[SchemaRef, '_SchemaPrimitives']):
     def _fresh(self, ref: SchemaRef) -> _SchemaPrimitives:
         return _SchemaPrimitives(self._database, ref)
 
+    @primitive
     def schema_input(self) -> SchemaInput:
-        """Resolve the database-owned schema input, recorded by hand rather than as a primitive method."""
-        self._record(Read('schema_input', self._ref))
+        """Resolve the database-owned schema input."""
         return self._database._schema_input(self._ref)
 
 
@@ -262,6 +275,16 @@ class _ItemPrimitives(_Reads[ItemRef, '_ItemPrimitives']):
         return _ItemPrimitives(self._database, ref)
 
     @primitive
+    def item_descriptor(self) -> ItemDescriptor:
+        """The model-resolved descriptor of this item."""
+        return self._database._item(self._ref).descriptor
+
+    @primitive
+    def model(self) -> WorkspaceModel:
+        """The model's declared name hierarchy."""
+        return self._database.model()
+
+    @primitive
     def origin(self) -> ItemOrigin:
         """The model-resolved origin metadata of the item."""
         return self._database._item(self._ref).descriptor.origin
@@ -285,8 +308,7 @@ class _ItemPrimitives(_Reads[ItemRef, '_ItemPrimitives']):
     @primitive
     def link_targets(self) -> Mapping[NormalisedLinkPath, LinkTargetEntry]:
         """What the snapshot holds at each relative link's target; none for an item that is not UTF-8."""
-        self._record(self._read_key('text'))
-        source = self._database.item_text(self._ref)
+        source = self.text()
         return self._database.item_link_targets(source) if isinstance(source, ItemText) else FrozenMapping({})
 
     @primitive

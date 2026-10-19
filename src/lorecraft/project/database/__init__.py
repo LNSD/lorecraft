@@ -5,12 +5,13 @@ the model, the decoded text, the frontmatter, the parse trees, the counts and th
 return a witness of a file's text, `ItemText`, or an `Undecodable` marker, and every per-file query takes the witness.
 """
 
-from .database import Database, Read
+from .database import Database, PrimitiveRead, Read
 from .text import ItemText, Undecodable
 
 __all__: list[str] = [
     'Database',
     'Read',
+    'PrimitiveRead',
     'ItemText',
     'Undecodable',
 ]

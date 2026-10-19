@@ -7,7 +7,7 @@ import pytest
 import lorecraft.project.database.database as database_module
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.corpus import CorpusName, ReservedCorpusDirectoryRef
-from lorecraft.project.database import Database, Read
+from lorecraft.project.database import Database, PrimitiveRead, Read
 from lorecraft.project.item import ItemRef
 from lorecraft.project.layout import SNAPSHOT_SCOPE
 from lorecraft.project.query import (
@@ -54,6 +54,36 @@ def _symlink_reads_item(primitives: SymlinkPrimitives) -> tuple[Heading, ...]:
 def _corpus_directory_reads_item(primitives: CorpusDirectoryPrimitives) -> tuple[Heading, ...]:
     """Read an item query from a corpus-directory query."""
     return primitives.query_at(ItemRef(RootRelativePath.parse('docs/code/source.md')), _item_headings)
+
+
+def _item_origin(primitives: ItemPrimitives) -> object:
+    """The origin held by the model."""
+    return primitives.origin()
+
+
+def _item_listed_name(primitives: ItemPrimitives) -> str:
+    """The listed name held by the model."""
+    return primitives.item_listed_name()
+
+
+def _item_governance(primitives: ItemPrimitives) -> object:
+    """The governance held by the model."""
+    return primitives.governance()
+
+
+def _item_text(primitives: ItemPrimitives) -> object:
+    """The decoded text input."""
+    return primitives.text()
+
+
+def _item_base_primitive(primitives: ItemPrimitives) -> object:
+    """The base held by the item descriptor and model."""
+    return primitives.base()
+
+
+def _link_targets(primitives: ItemPrimitives) -> object:
+    """The paths reached from links in the item's decoded text."""
+    return primitives.link_targets()
 
 
 def _read_only_lookup(primitives: ItemPrimitives) -> object:
@@ -106,7 +136,7 @@ class TestSubjectReads:
         #: Then
         for adapter_name in adapters:
             adapter = getattr(database_module, adapter_name)
-            for name in _primitive_methods(adapter, excluded={'schema_input', 'query', 'query_at'}):
+            for name in _primitive_methods(adapter, excluded={'query', 'query_at', 'query_schema'}):
                 assert getattr(adapter, name).__wrapped__.__name__ == name, (
                     f'{adapter_name}.{name} records its read before calling the primitive'
                 )
@@ -134,9 +164,82 @@ class TestSubjectReads:
 
         #: Then
         assert len(headings) == 1, f'the query returns the source heading, got {headings}'
-        assert database.query_reads(_item_headings, ref) == {Read(item_parse, ref), Read('text', ref)}, (
+        assert database.query_reads(_item_headings, ref) == {Read(item_parse, ref), Read(PrimitiveRead.TEXT, ref)}, (
             'the read key retains the Markdown item subject'
         )
+
+    def test_origin_primitive_records_only_its_own_input(self, tmp_path: Path) -> None:
+        #: Given
+        database = _database(tmp_path)
+        ref = ItemRef(RootRelativePath.parse('docs/code/source.md'))
+
+        #: When
+        database.query(_item_origin, ref)
+
+        #: Then
+        assert database.query_reads(_item_origin, ref) == {Read(PrimitiveRead.ORIGIN, ref)}, (
+            'a raw primitive records only the input it answers'
+        )
+
+    def test_item_listed_name_primitive_records_only_its_own_input(self, tmp_path: Path) -> None:
+        #: Given
+        database = _database(tmp_path)
+        ref = ItemRef(RootRelativePath.parse('docs/code/source.md'))
+
+        #: When
+        database.query(_item_listed_name, ref)
+
+        #: Then
+        assert database.query_reads(_item_listed_name, ref) == {Read(PrimitiveRead.ITEM_LISTED_NAME, ref)}
+
+    def test_governance_primitive_records_only_its_own_input(self, tmp_path: Path) -> None:
+        #: Given
+        database = _database(tmp_path)
+        ref = ItemRef(RootRelativePath.parse('docs/code/source.md'))
+
+        #: When
+        database.query(_item_governance, ref)
+
+        #: Then
+        assert database.query_reads(_item_governance, ref) == {Read(PrimitiveRead.GOVERNANCE, ref)}
+
+    def test_text_primitive_records_only_its_own_input(self, tmp_path: Path) -> None:
+        #: Given
+        database = _database(tmp_path)
+        ref = ItemRef(RootRelativePath.parse('docs/code/source.md'))
+
+        #: When
+        database.query(_item_text, ref)
+
+        #: Then
+        assert database.query_reads(_item_text, ref) == {Read(PrimitiveRead.TEXT, ref)}
+
+    def test_base_primitive_records_its_typed_input(self, tmp_path: Path) -> None:
+        #: Given
+        database = _database(tmp_path)
+        ref = ItemRef(RootRelativePath.parse('docs/code/source.md'))
+
+        #: When
+        database.query(_item_base_primitive, ref)
+
+        #: Then
+        assert database.query_reads(_item_base_primitive, ref) == {Read(PrimitiveRead.BASE, ref)}, (
+            'the base primitive records its own typed input'
+        )
+
+    def test_query_records_text_as_link_targets_dependency(self, tmp_path: Path) -> None:
+        #: Given
+        database = _database(tmp_path)
+        ref = ItemRef(RootRelativePath.parse('docs/code/source.md'))
+
+        #: When
+        database.query(_link_targets, ref)
+
+        #: Then
+        assert database.query_reads(_link_targets, ref) == {
+            Read(PrimitiveRead.LINK_TARGETS, ref),
+            Read(PrimitiveRead.TEXT, ref),
+        }, 'link targets read the item text through its own primitive'
 
     def test_query_records_a_schema_subject_primitive(self, tmp_path: Path) -> None:
         #: Given
@@ -149,7 +252,7 @@ class TestSubjectReads:
 
         #: Then
         assert schema == expected, 'the query returns the schema input identified by its subject'
-        assert database.query_reads(_schema_input, ref) == {Read('schema_input', ref)}, (
+        assert database.query_reads(_schema_input, ref) == {Read(PrimitiveRead.SCHEMA_INPUT, ref)}, (
             'the read key retains the typed schema subject'
         )
 
@@ -164,7 +267,7 @@ class TestSubjectReads:
 
         #: Then
         assert exit_point == symlink.leaves_at, 'the query returns the symlink exit recorded by the model'
-        assert database.query_reads(_symlink_exit, ref) == {Read('leaves_at', ref)}, (
+        assert database.query_reads(_symlink_exit, ref) == {Read(PrimitiveRead.LEAVES_AT, ref)}, (
             'the read set identifies the symlink primitive'
         )
 
@@ -179,7 +282,7 @@ class TestSubjectReads:
 
         #: Then
         assert corpus == directory.corpus, 'the query returns the reserved corpus named by the model'
-        assert database.query_reads(_reserved_corpus, ref) == {Read('reserved_corpus', ref)}, (
+        assert database.query_reads(_reserved_corpus, ref) == {Read(PrimitiveRead.RESERVED_CORPUS, ref)}, (
             'the read set identifies the reserved-corpus primitive'
         )
 
@@ -198,9 +301,9 @@ class TestSubjectReads:
         assert corpora == directory.corpus, 'query_at reads the typed corpus-directory subject'
         assert database.query_reads(_reads_layout_subjects, item) == {
             Read(_symlink_exit, OutsideSymlinkRef(symlink.path)),
-            Read('leaves_at', OutsideSymlinkRef(symlink.path)),
+            Read(PrimitiveRead.LEAVES_AT, OutsideSymlinkRef(symlink.path)),
             Read(_reserved_corpus, ReservedCorpusDirectoryRef(directory.path)),
-            Read('reserved_corpus', ReservedCorpusDirectoryRef(directory.path)),
+            Read(PrimitiveRead.RESERVED_CORPUS, ReservedCorpusDirectoryRef(directory.path)),
         }, 'each nested read keeps its target subject'
 
     def test_query_at_composes_item_queries_from_layout_subjects(self, tmp_path: Path) -> None:
@@ -219,7 +322,7 @@ class TestSubjectReads:
         assert tuple(heading.text for heading in from_directory) == ('Source',), (
             'the corpus-directory query reads the item'
         )
-        expected = {Read(_item_headings, item), Read(item_parse, item), Read('text', item)}
+        expected = {Read(_item_headings, item), Read(item_parse, item), Read(PrimitiveRead.TEXT, item)}
         assert database.query_reads(_symlink_reads_item, symlink) == expected, 'symlink reads retain item dependencies'
         assert database.query_reads(_corpus_directory_reads_item, directory) == expected, (
             'corpus-directory reads retain item dependencies'
