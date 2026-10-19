@@ -9,7 +9,7 @@ import pytest
 from lib.tree import from_tree
 from lorecraft.core.mapping import Frozen, FrozenMapping
 from lorecraft.core.path import RootRelativePath
-from lorecraft.project.corpus import CorpusDirectoryRef, CorpusName, ReservedCorpusDirectory
+from lorecraft.project.corpus import CorpusName, ReservedCorpusDirectory, ReservedCorpusDirectoryRef
 from lorecraft.project.database import Database, Read
 from lorecraft.project.item import ItemReadError, ItemRef, UnlistedItemError
 from lorecraft.project.query import (
@@ -23,7 +23,7 @@ from lorecraft.project.schemas.agent_skills_schema import (
     AGENT_SKILLS_FRONTMATTER_SCHEMA,
     agent_skills_frontmatter_schema,
 )
-from lorecraft.project.skill import OutsideSymlink, SymlinkRef
+from lorecraft.project.skill import OutsideSymlink, OutsideSymlinkRef
 from lorecraft.project.syntax import Heading
 from lorecraft.schemas import (
     BundledOrigin,
@@ -531,7 +531,7 @@ class TestReads:
             calls += 1
             return primitives.leaves_at()
 
-        ref = SymlinkRef(path)
+        ref = OutsideSymlinkRef(path)
 
         #: When
         first = database.query(query, ref)
@@ -556,7 +556,7 @@ class TestReads:
             calls += 1
             return primitives.reserved_corpus()
 
-        ref = CorpusDirectoryRef(path)
+        ref = ReservedCorpusDirectoryRef(path)
 
         #: When
         first = database.query(query, ref)
@@ -571,7 +571,7 @@ class TestReads:
     def test_query_over_an_unlisted_symlink_raises_unlisted_item_error(self) -> None:
         #: Given
         database = Database.from_snapshot(from_tree({}))
-        ref = SymlinkRef(RootRelativePath.parse('.agents/skills/missing'))
+        ref = OutsideSymlinkRef(RootRelativePath.parse('.agents/skills/missing'))
 
         #: When
         with pytest.raises(UnlistedItemError) as raised:
@@ -583,7 +583,7 @@ class TestReads:
     def test_query_over_an_unlisted_corpus_directory_raises_unlisted_item_error(self) -> None:
         #: Given
         database = Database.from_snapshot(from_tree({}))
-        ref = CorpusDirectoryRef(RootRelativePath.parse('docs/skills'))
+        ref = ReservedCorpusDirectoryRef(RootRelativePath.parse('docs/skills'))
 
         #: When
         with pytest.raises(UnlistedItemError) as raised:

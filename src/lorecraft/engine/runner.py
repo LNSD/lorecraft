@@ -22,7 +22,7 @@ governance. Package Markdown checks judge resources independently of corpus gove
 judges every `SKILL.md` and every resource, and never a document. The database answers only what a rule's query reads,
 so a value no enabled rule reads is never computed.
 
-The subjects are those of `skip.Subject`, which defines and dispatches them: documents, specifications, skills,
+The subjects are those of `skip.CheckedSubject`, which defines and dispatches them: documents, specifications, skills,
 skills' resources and layout entries. A decoded document, skill or resource
 is judged by the one entry `judge_item`; a layout entry has a function of its own, so a subject kind without one is a
 type error. A document is handed over as its ref, and a skill as the `SkillLocation` the
@@ -34,9 +34,9 @@ the file it leads to, and reported under its ref, at the path an agent reaches i
 The runner never lists a skill's resources itself, so a skill handed over judges its `SKILL.md` alone.
 
 A layout entry is one symlink of the skill layout whose chain leaves the repository, represented by its typed
-`SymlinkRef`, or a directory under `docs/` named like a reserved corpus, represented by its typed
-`CorpusDirectoryRef`. The caller collects the entries its selection covers as it chooses every other subject, from
-queries: the model's `outside_symlinks`, for a skills directory, an entry in one or an entry's `SKILL.md`, its
+`OutsideSymlinkRef`, or a directory under `docs/` named like a reserved corpus, represented by its typed
+`ReservedCorpusDirectoryRef`. The caller collects the entries its selection covers, as it chooses every other subject,
+from queries: the model's `outside_symlinks`, for a skills directory, an entry in one or an entry's `SKILL.md`, its
 `sorted_overlapping_directories`, for a reserved-corpus directory, and the `skill_resources` listing of each skill it
 checks whole, for a symlink inside that skill. Each is reported at the path an agent reaches it by, in the order given
 like every subject. An entry has no text, so it is never decoded, and the package governs the layout, so it is never
@@ -48,11 +48,11 @@ from collections.abc import Callable
 from typing import assert_never, cast
 
 from lorecraft.core.path import RootRelativePath
-from lorecraft.project.corpus import CorpusDirectoryRef, ReservedCorpusDirectory
+from lorecraft.project.corpus import ReservedCorpusDirectory, ReservedCorpusDirectoryRef
 from lorecraft.project.database import Database, ItemText
 from lorecraft.project.item import ItemDescriptor, ItemKind, ItemRef, MetaSpecPart
 from lorecraft.project.query import ItemQuery
-from lorecraft.project.skill import OutsideSymlink, SymlinkRef
+from lorecraft.project.skill import OutsideSymlink, OutsideSymlinkRef
 from lorecraft.project.workspace.model import Governance, WorkspaceModel
 from lorecraft.rules.declaration import Rule
 from lorecraft.rules.report import (
@@ -157,7 +157,7 @@ def _judged_item[Facts](
 
 
 def _judged_symlink[Facts](
-    rule: type[QueriedSymlinkRule[Facts]], database: Database, ref: SymlinkRef
+    rule: type[QueriedSymlinkRule[Facts]], database: Database, ref: OutsideSymlinkRef
 ) -> tuple[Rule, ...]:
     """Judge one symlink rule from the answer of its memoized query.
 
@@ -170,7 +170,7 @@ def _judged_symlink[Facts](
 
 
 def _judged_corpus_directory[Facts](
-    rule: type[QueriedCorpusDirectoryRule[Facts]], database: Database, ref: CorpusDirectoryRef
+    rule: type[QueriedCorpusDirectoryRule[Facts]], database: Database, ref: ReservedCorpusDirectoryRef
 ) -> tuple[Rule, ...]:
     """Judge one corpus-directory rule from the answer of its memoized query.
 
@@ -216,14 +216,14 @@ def check_layout_entry(
             diagnostics = _located(
                 entry.path,
                 table.symlink_rules,
-                lambda rule: _judged_symlink(rule, database, SymlinkRef(symlink.path)),
+                lambda rule: _judged_symlink(rule, database, OutsideSymlinkRef(symlink.path)),
             )
         case ReservedCorpusDirectory():
             directory = entry
             diagnostics = _located(
                 entry.path,
                 table.corpus_directory_rules,
-                lambda rule: _judged_corpus_directory(rule, database, CorpusDirectoryRef(directory.path)),
+                lambda rule: _judged_corpus_directory(rule, database, ReservedCorpusDirectoryRef(directory.path)),
             )
         case _:
             assert_never(entry)

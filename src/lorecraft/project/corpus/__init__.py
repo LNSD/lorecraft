@@ -1,6 +1,6 @@
 """Validated names for documentation corpora."""
 
-from .directory import CorpusDirectoryRef, ReservedCorpusDirectory
+from .directory import ReservedCorpusDirectory, ReservedCorpusDirectoryRef
 from .name import (
     RESERVED_CORPUS_NAME,
     SKILLS_CORPUS_NAME,
@@ -18,5 +18,5 @@ __all__: list[str] = [
     'InvalidCorpusNameCharacterError',
     'ReservedCorpusNameError',
     'ReservedCorpusDirectory',
-    'CorpusDirectoryRef',
+    'ReservedCorpusDirectoryRef',
 ]

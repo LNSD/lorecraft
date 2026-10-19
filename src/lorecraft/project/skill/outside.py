@@ -14,7 +14,7 @@ from lorecraft.vfs import RootExit
 
 
 @dataclass(frozen=True, slots=True, order=True)
-class SymlinkRef:
+class OutsideSymlinkRef:
     """The path identifying one symlink subject in the workspace model.
 
     Attributes:

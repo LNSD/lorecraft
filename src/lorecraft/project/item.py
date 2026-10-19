@@ -10,9 +10,9 @@ from typing import assert_never
 
 from lorecraft.core.error import Error
 from lorecraft.core.path import RootRelativePath
-from lorecraft.project.corpus import CorpusDirectoryRef
+from lorecraft.project.corpus import ReservedCorpusDirectoryRef
 from lorecraft.project.link_target import LinkBase
-from lorecraft.project.skill import SymlinkRef
+from lorecraft.project.skill import OutsideSymlinkRef
 from lorecraft.vfs import FileReadFailure, ResolvedPath, UnrecordedFileError
 
 
@@ -27,7 +27,7 @@ class ItemRef:
     path: RootRelativePath
 
 
-type SubjectRef = ItemRef | SymlinkRef | CorpusDirectoryRef
+type SubjectRef = ItemRef | OutsideSymlinkRef | ReservedCorpusDirectoryRef
 
 
 class WrongItemKindError(TypeError):

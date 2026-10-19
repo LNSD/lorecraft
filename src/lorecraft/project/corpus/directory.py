@@ -8,7 +8,7 @@ from .name import CorpusName
 
 
 @dataclass(frozen=True, slots=True, order=True)
-class CorpusDirectoryRef:
+class ReservedCorpusDirectoryRef:
     """The path identifying one reserved-corpus directory subject in the workspace model.
 
     Attributes:

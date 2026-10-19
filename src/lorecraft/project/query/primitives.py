@@ -12,10 +12,10 @@ from typing import TYPE_CHECKING, Protocol
 
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
-from lorecraft.project.corpus.directory import CorpusDirectoryRef
+from lorecraft.project.corpus.directory import ReservedCorpusDirectoryRef
 from lorecraft.project.item import ItemDescriptor, ItemOrigin, ItemRef
 from lorecraft.project.link_target import LinkBase, LinkTargetEntry
-from lorecraft.project.skill.outside import SymlinkRef
+from lorecraft.project.skill.outside import OutsideSymlinkRef
 from lorecraft.project.syntax import (
     NormalisedLinkPath,
 )
@@ -28,7 +28,7 @@ if TYPE_CHECKING:
 
 type Query[P, T] = Callable[[P], T]
 type ItemQuery[T] = Query[ItemPrimitives, T]
-type QueryTargetRef = ItemRef | SymlinkRef | CorpusDirectoryRef | SchemaRef
+type QueryTargetRef = ItemRef | OutsideSymlinkRef | ReservedCorpusDirectoryRef | SchemaRef
 type SubjectQuery[T] = (
     Query[ItemPrimitives, T]
     | Query[SymlinkPrimitives, T]

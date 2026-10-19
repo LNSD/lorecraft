@@ -13,11 +13,11 @@ and the exit codes.
 """
 
 from .load_failures import LoadFailureReports, UnlistableRoot, report_load_failures
-from .skip import Subject, check_subjects
+from .skip import CheckedSubject, check_subjects
 
 __all__: list[str] = [
     'LoadFailureReports',
-    'Subject',
+    'CheckedSubject',
     'UnlistableRoot',
     'check_subjects',
     'report_load_failures',
