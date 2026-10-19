@@ -25,13 +25,11 @@ query and hands it the facts sits above in `lorecraft.engine`; the query is answ
 
 - A value that identifies a rule: a release, a group's prefix and title, a code, a name, an alias code, a level, and
   the severity an engine condition fixes.
-- A rule base binds the subject kinds a rule judges and where its occurrences point. A queried rule combines `Queried`
-  with its subject-kind base and names the query whose facts `judge` receives; `QueriedDocumentSkillRule` lets a corpus
-  rule judge both documents and skill entries.
-  `MarkdownRule` covers documents, skill entries and resources; `SkillFileRule` covers skill entries and resources,
-  never documents. Document rules declare the facet they read, and `governing_facet` states the facet gating the rule.
-  Markdown rules use `Facet.STRUCTURE` for documents and run on skill Markdown independently of corpus governance.
-  Layout rules cover skill symlinks and reserved-corpus directories, with occurrences at the entry itself.
+- An item rule derives from `QueriedItemRule`, names its typed query, and declares a gate for every item kind it
+  judges. `BySpec`, `ByPackage`, and `BySchema` keep structure, package and registered-schema eligibility distinct.
+  A missing kind is inapplicable, and a rule with no gates is rejected while the registry loads. Layout rules keep
+  their separate queried bases for skill symlinks and reserved-corpus directories, with occurrences at the entry
+  itself.
 - A removed rule, the decorator that registers a declaration and the registry.
 - The rule index, `lorecraft.rules.index`: identity as plain tuples and strings, with the lookups the command
   line's edge needs, importing only `typing`; generated from the registry, never a source of rules.
@@ -68,7 +66,8 @@ query and hands it the facts sits above in `lorecraft.engine`; the query is answ
 - The registry is built once, with `Registry.load`, where a command starts, and passed down; nothing below imports
   an instance or memoizes one.
 - A code bound twice, a declaration left incomplete, a group with no title, a code numbered out of range, or a
-  code in a group its kind may not use is a defect in this package, raised when it loads, never the user's fault.
+  code in a group its kind may not use, or an item rule with no gates is a defect in this package, raised when it
+  loads, never the user's fault.
 - The `LC` group holds engine conditions alone, each coded with an `EngineCode`, which names no other group.
 - A release, a rule name, a group's prefix, an alias code's linter and upstream code, and a code prefix are
   value objects a user's input will also build, so a malformed one raises an `Error`, whoever wrote it.
@@ -79,7 +78,7 @@ query and hands it the facts sits above in `lorecraft.engine`; the query is answ
 # ❌ Bad — the rule asks the database for the headings itself: it imports the database, which the import
 # contracts refuse, and a test of one heading rule now needs a whole revision
 @rule
-class EmptySection(DocumentRule):
+class EmptySection(ItemRule):
     @classmethod
     def check(cls, database: Database, source: DocumentText) -> tuple[Self, ...]:
         occurrences: list[Self] = []
@@ -92,9 +91,12 @@ class EmptySection(DocumentRule):
 ```
 
 ```python
-# ✅ Good — the rule names its query and judges the facts it returns; the query is memoized by the database
+# ✅ Good — the rule declares its gate, names its query and judges the facts it returns; the query is memoized
+# by the database
 @rule
-class EmptySection(QueriedDocumentRule[EmptySectionFacts]):
+class EmptySection(QueriedItemRule[EmptySectionFacts]):
+    GATES = {ItemKind.DOCUMENT: BySpec(Facet.STRUCTURE)}
+
     @classmethod
     def query(cls) -> Query[EmptySectionFacts]:
         return empty_section_facts
@@ -168,7 +170,7 @@ meta specs, not this package.
 
 ```python
 # ❌ Bad — the page describes the machinery: which parser counts, not whether a code block counts
-class WordCap(QueriedDocumentRule[Facts]):
+class WordCap(QueriedItemRule[Facts]):
     """Compares each section's word count from the Markdown parser with its outline entry's cap.
 
     ## What it does
@@ -179,7 +181,7 @@ class WordCap(QueriedDocumentRule[Facts]):
 
 ```python
 # ✅ Good — the name states what is wrong, and the page speaks of the user's section and meta spec
-class SectionTooManyWords(QueriedDocumentRule[Facts]):
+class SectionTooManyWords(QueriedItemRule[Facts]):
     """A section is longer than its word cap allows.
 
     ## What it does
@@ -187,6 +189,11 @@ class SectionTooManyWords(QueriedDocumentRule[Facts]):
     Checks for sections longer than the `words` cap their outline entry sets in the structure file.
     Subsections count toward it; fenced code blocks and table rows do not.
     """
+
+    GATES = {
+        ItemKind.DOCUMENT: BySpec(Facet.STRUCTURE),
+        ItemKind.SKILL_ENTRY: BySpec(Facet.STRUCTURE, requires_loaded_layer=True),
+    }
 ```
 
 ## Checklist
@@ -194,7 +201,7 @@ class SectionTooManyWords(QueriedDocumentRule[Facts]):
 Before committing:
 
 - [ ] Nothing added to `lorecraft.rules` reads the disk, a view, a query or configuration
-- [ ] A rule names its query; `judge(facts)` returns subject-free occurrences. Document rules declare `GOVERNED_BY`.
+- [ ] An item rule names its query and a gate for every item kind; `judge(facts)` returns subject-free occurrences.
 - [ ] Reuse an existing query before recomputing; promote cross-group queries to `lorecraft.project.query`.
 - [ ] Each `@rule` declaration appears once in a module in its group's subpackage
 - [ ] Decoding, queries, rule execution and rendering stay out of this package

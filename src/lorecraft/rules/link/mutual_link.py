@@ -1,16 +1,19 @@
 """`LINK007`: two documents of different corpora link to each other."""
 
+from collections.abc import Mapping
 from dataclasses import dataclass
+from types import MappingProxyType
 from typing import ClassVar, Self
 from urllib.parse import unquote
 
 from lorecraft.project.corpus import CorpusName
+from lorecraft.project.item import ItemKind
 from lorecraft.project.link_target import DocumentLink
 from lorecraft.project.query import ItemQuery, Primitives, item_corpus
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Note, Subdiagnostic
-from lorecraft.rules.subject import Facet, QueriedDocumentRule
+from lorecraft.rules.subject import BySpec, Facet, Gate, QueriedItemRule
 
 from .__ruleset__ import GROUP_ID
 from .queries import linked_documents
@@ -42,7 +45,7 @@ def mutual_link_facts(primitives: Primitives) -> MutualLinkFacts:
 
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
-class MutualLink(QueriedDocumentRule[MutualLinkFacts]):
+class MutualLink(QueriedItemRule[MutualLinkFacts]):
     """Two documents of different corpora link to each other.
 
     ## What it does
@@ -95,7 +98,11 @@ class MutualLink(QueriedDocumentRule[MutualLinkFacts]):
     NAME: ClassVar[RuleName] = RuleName('mutual-link')
     LEVEL: ClassVar[Level] = Level.WARN
     SINCE: ClassVar[Release] = Release('0.4.0')
-    GOVERNED_BY: ClassVar[Facet] = Facet.STRUCTURE
+    GATES: ClassVar[Mapping[ItemKind, Gate]] = MappingProxyType(
+        {
+            ItemKind.DOCUMENT: BySpec(Facet.STRUCTURE),
+        }
+    )
 
     spec: None = None
     url: str

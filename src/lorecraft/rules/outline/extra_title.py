@@ -103,7 +103,6 @@ class ExtraTitle(QueriedItemRule[tuple[Heading, ...]]):
             ItemKind.SKILL_ENTRY: BySpec(Facet.STRUCTURE, requires_loaded_layer=True),
         }
     )
-    GOVERNED_BY: ClassVar[Facet] = Facet.STRUCTURE
 
     spec: None = None
     first_title: Heading

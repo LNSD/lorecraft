@@ -1,9 +1,12 @@
 """`LINK001`: a link in a Markdown file starts at a filesystem root."""
 
+from collections.abc import Mapping
 from dataclasses import dataclass
+from types import MappingProxyType
 from typing import ClassVar, Self, assert_never
 from urllib.parse import unquote
 
+from lorecraft.project.item import ItemKind
 from lorecraft.project.query import ItemQuery, SyntaxPrimitives, item_parse
 from lorecraft.project.syntax import (
     AbsoluteDestination,
@@ -15,7 +18,7 @@ from lorecraft.project.syntax import (
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Subdiagnostic
-from lorecraft.rules.subject import QueriedMarkdownRule
+from lorecraft.rules.subject import ByPackage, BySpec, Facet, Gate, QueriedItemRule
 
 from .__ruleset__ import GROUP_ID
 
@@ -43,7 +46,7 @@ def absolute_links(primitives: SyntaxPrimitives) -> tuple[Link, ...]:
 
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
-class AbsoluteLink(QueriedMarkdownRule[tuple[Link, ...]]):
+class AbsoluteLink(QueriedItemRule[tuple[Link, ...]]):
     """A link in a Markdown file starts at a filesystem root.
 
     ## What it does
@@ -91,6 +94,14 @@ class AbsoluteLink(QueriedMarkdownRule[tuple[Link, ...]]):
     NAME: ClassVar[RuleName] = RuleName('absolute-link')
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('0.3.0')
+    GATES: ClassVar[Mapping[ItemKind, Gate]] = MappingProxyType(
+        {
+            ItemKind.DOCUMENT: BySpec(Facet.STRUCTURE),
+            ItemKind.SPECIFICATION: BySpec(Facet.STRUCTURE),
+            ItemKind.SKILL_ENTRY: ByPackage(),
+            ItemKind.SKILL_RESOURCE: ByPackage(),
+        }
+    )
 
     spec: None = None
     url: str

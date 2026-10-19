@@ -107,7 +107,6 @@ class SectionOutOfOrder(QueriedItemRule[tuple[OutlineDivergenceSpec, ...]]):
             ItemKind.SKILL_ENTRY: BySpec(Facet.OUTLINE, requires_loaded_layer=True),
         }
     )
-    GOVERNED_BY: ClassVar[Facet] = Facet.OUTLINE
 
     spec: RootRelativePath
     section: str

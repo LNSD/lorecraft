@@ -1,10 +1,13 @@
 """`LINK003`: a relative link names nothing the repository holds where it is read from."""
 
+from collections.abc import Mapping
 from dataclasses import dataclass
+from types import MappingProxyType
 from typing import ClassVar, Self, assert_never
 from urllib.parse import unquote
 
 from lorecraft.core.path import RootRelativePath
+from lorecraft.project.item import ItemKind
 from lorecraft.project.link_target import (
     DocumentDirectory,
     EscapingTarget,
@@ -24,7 +27,7 @@ from lorecraft.project.syntax import (
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Note, Subdiagnostic
-from lorecraft.rules.subject import QueriedMarkdownRule
+from lorecraft.rules.subject import ByPackage, BySpec, Facet, Gate, QueriedItemRule
 
 from .__ruleset__ import GROUP_ID, SKILL_NOTE, SyntaxLinkResolutionPrimitives
 
@@ -92,7 +95,7 @@ def missing_targets(primitives: SyntaxLinkResolutionPrimitives) -> tuple[Missing
 
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
-class BrokenLink(QueriedMarkdownRule[tuple[MissingTarget, ...]]):
+class BrokenLink(QueriedItemRule[tuple[MissingTarget, ...]]):
     """A relative link names nothing the repository holds.
 
     ## What it does
@@ -149,6 +152,14 @@ class BrokenLink(QueriedMarkdownRule[tuple[MissingTarget, ...]]):
     NAME: ClassVar[RuleName] = RuleName('broken-link')
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('0.3.0')
+    GATES: ClassVar[Mapping[ItemKind, Gate]] = MappingProxyType(
+        {
+            ItemKind.DOCUMENT: BySpec(Facet.STRUCTURE),
+            ItemKind.SPECIFICATION: BySpec(Facet.STRUCTURE),
+            ItemKind.SKILL_ENTRY: ByPackage(),
+            ItemKind.SKILL_RESOURCE: ByPackage(),
+        }
+    )
 
     spec: None = None
     url: str

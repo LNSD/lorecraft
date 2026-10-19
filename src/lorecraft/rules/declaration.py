@@ -2,9 +2,8 @@
 
 A rule is one class. The class is the declaration and the judgment: its code, name, default level, the
 release it is stable since and its documentation, as class attributes and the docstring, and the `query` and
-`judge` classmethods that derive and judge the facts of its subject. Each subject kind has a base deriving from
-`ContentRule` or `LayoutRule`; a queried rule combines `Queried` with that base, so a rule picks its subject by
-picking its base.
+`judge` classmethods that derive and judge the facts of its subject. A queried item rule declares its eligible item
+kinds and gates on `QueriedItemRule`; layout rules keep their subject-specific bases and query types.
 A retired rule is a `RemovedRule`, which is not a `Rule`, so it can never be built as one or reported. What the
 engine itself reports about a subject, such as a file that does not decode, is an `EngineCondition`: declared
 and rendered like a rule, but with an `EngineCode`, a fixed `Severity` in place of a level, and no judgment. It derives

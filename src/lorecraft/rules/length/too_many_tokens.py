@@ -144,7 +144,6 @@ class TooManyTokens(QueriedItemRule[TokenFacts]):
             ItemKind.SKILL_ENTRY: BySpec(Facet.BUDGET, requires_loaded_layer=True),
         }
     )
-    GOVERNED_BY: ClassVar[Facet] = Facet.BUDGET
 
     spec: RootRelativePath
     overrun: Overrun

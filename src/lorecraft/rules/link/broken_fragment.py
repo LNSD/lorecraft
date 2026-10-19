@@ -1,9 +1,12 @@
 """`LINK002`: a link to a heading of the same Markdown file names a heading the file does not have."""
 
+from collections.abc import Mapping
 from dataclasses import dataclass
+from types import MappingProxyType
 from typing import ClassVar, Self, assert_never
 from urllib.parse import unquote
 
+from lorecraft.project.item import ItemKind
 from lorecraft.project.query import ItemQuery, SyntaxPrimitives, item_parse
 from lorecraft.project.syntax import (
     AbsoluteDestination,
@@ -16,7 +19,7 @@ from lorecraft.project.syntax import (
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Note, Subdiagnostic
-from lorecraft.rules.subject import QueriedMarkdownRule
+from lorecraft.rules.subject import ByPackage, BySpec, Facet, Gate, QueriedItemRule
 
 from .__ruleset__ import GROUP_ID
 
@@ -67,7 +70,7 @@ def broken_fragments(primitives: SyntaxPrimitives) -> BrokenFragmentFacts:
 
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
-class BrokenFragment(QueriedMarkdownRule[BrokenFragmentFacts]):
+class BrokenFragment(QueriedItemRule[BrokenFragmentFacts]):
     """A link to a heading of the same Markdown file names a heading the file does not have.
 
     ## What it does
@@ -121,6 +124,14 @@ class BrokenFragment(QueriedMarkdownRule[BrokenFragmentFacts]):
     NAME: ClassVar[RuleName] = RuleName('broken-fragment')
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('0.3.0')
+    GATES: ClassVar[Mapping[ItemKind, Gate]] = MappingProxyType(
+        {
+            ItemKind.DOCUMENT: BySpec(Facet.STRUCTURE),
+            ItemKind.SPECIFICATION: BySpec(Facet.STRUCTURE),
+            ItemKind.SKILL_ENTRY: ByPackage(),
+            ItemKind.SKILL_RESOURCE: ByPackage(),
+        }
+    )
 
     spec: None = None
     url: str
