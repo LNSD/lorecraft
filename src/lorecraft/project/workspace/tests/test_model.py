@@ -897,11 +897,12 @@ class TestWorkspaceModel:
         assert descriptor.link_base == DocumentDirectory(RootRelativePath.parse('docs/code')), (
             'document links use their directory'
         )
-        assert descriptor.governance_corpus == 'code', 'the model derives document governance from the corpus path'
-        assert descriptor.aspect_name == 'logging', 'the model derives the aspect from the filename'
+        assert descriptor.corpus == CorpusName.parse('code'), (
+            'the model derives document governance from the corpus path'
+        )
+        assert descriptor.name == AspectFilename.parse('logging'), 'the model derives the aspect from the filename'
         assert isinstance(descriptor.origin, DocumentOrigin), 'the descriptor retains document provenance'
-        assert descriptor.origin.expected_name == 'logging', 'frontmatter expects the filename stem'
-        assert descriptor.origin.schema_paths == (SPECS_DIR / PathComponent.parse('code.spec.json'),), (
+        assert descriptor.schema_paths == (SPECS_DIR / PathComponent.parse('code.spec.json'),), (
             'the corpus schema is the one that governs frontmatter findings'
         )
         assert descriptor.governed_parts == frozenset({MetaSpecPart.FRONTMATTER, MetaSpecPart.STRUCTURE}), (
@@ -925,7 +926,7 @@ class TestWorkspaceModel:
 
         #: Then
         assert isinstance(descriptor.origin, DocumentOrigin), 'the descriptor retains document provenance'
-        assert descriptor.origin.schema_paths == (
+        assert descriptor.schema_paths == (
             SPECS_DIR / PathComponent.parse('code.spec.json'),
             SPECS_DIR / PathComponent.parse('code-python.spec.json'),
         ), 'the corpus and namespace schemas are both carried, broad to narrow'
@@ -957,8 +958,26 @@ class TestWorkspaceModel:
         assert isinstance(after.origin, SkillEntrypointOrigin), 'the descriptor retains skill-specific origin facts'
         assert after.kind is ItemKind.SKILL_ENTRYPOINT
         assert after.kind.value == 'skill-entry', 'the serialized kind remains unchanged'
-        assert after.origin.expected_name == 'audit', 'frontmatter expects the listed directory name'
+        assert after.name == AspectFilename.parse('audit'), 'the descriptor retains the typed skill name'
         assert after.origin.link_target == moved.resolves_to, 'the retargeted directory remains available for notes'
+
+    def test_describe_item_for_a_skill_with_an_invalid_aspect_name_keeps_its_listed_name(self) -> None:
+        #: Given
+        location = _regular_skill('.agents/skills/1skill')
+        model = WorkspaceModel(
+            corpora=FrozenMapping({}),
+            skills_dirs=frozenset(),
+            skill_locations=FrozenMapping({location.ref: location}),
+            outside_symlinks=FrozenMapping({}),
+            load_failures=(),
+        )
+
+        #: When
+        descriptor = model.describe_item(location.ref)
+
+        #: Then
+        assert descriptor.name is None, 'a skill directory need not follow the aspect-name format'
+        assert descriptor.listed_name == '1skill', 'the model keeps the original skill directory name'
 
     def test_skills_with_three_skills_returns_their_refs_in_directory_order(self, skills_model: WorkspaceModel) -> None:
         #: Given
@@ -1423,9 +1442,7 @@ class TestSpecifications:
 
         #: Then
         assert descriptor.kind is ItemKind.META_SPEC, 'the origin makes it a specification'
-        assert descriptor.origin == MetaSpecOrigin(expected_name='feat-cli', corpus='feat'), (
-            'the origin carries the specification name and the corpus its first segment names'
-        )
+        assert descriptor.origin == MetaSpecOrigin(), 'the origin carries no facts already present in the descriptor'
         assert descriptor.ref == ItemRef(ref.path), 'the logical ref is also the report path'
         assert descriptor.read_location == ResolvedPath(ref.path), 'the file is read where it is listed'
         assert descriptor.link_base == DocumentDirectory(SPECS_DIR), 'links are read from docs/__meta__'

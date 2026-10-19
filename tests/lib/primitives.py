@@ -86,13 +86,17 @@ class StructurePrimitives:
     base_name: AspectFilename | SpecName | None = None
     document_link_list: tuple[DocumentLink, ...] = ()
     corpus: CorpusName | None = None
-    origin_value: ItemOrigin = DocumentOrigin(expected_name='setup', corpus='guide', schema_paths=())
+    origin_value: ItemOrigin = DocumentOrigin()
     governance_value: Governance | None = None
     builtin_schema: bool = True
 
     def origin(self) -> ItemOrigin:
         """The origin this was built with."""
         return self.origin_value
+
+    def item_listed_name(self) -> str:
+        """The original name this was built with."""
+        return str(self.name or self.base_name or '')
 
     def text(self) -> DecodedText | None:
         """Standalone test facts have no decoded witness; derived answers are supplied below."""

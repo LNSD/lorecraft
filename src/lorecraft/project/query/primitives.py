@@ -95,6 +95,10 @@ class GovernancePrimitives(QueryPrimitives['ItemPrimitives'], Protocol):
         """The model's origin metadata for this item, including its expected name and provenance."""
         ...
 
+    def item_listed_name(self) -> str:
+        """The descriptor's original name, used for frontmatter ownership."""
+        ...
+
     def governance(self) -> Governance | None:
         """The governance of this item, or none when it has no corpus governance."""
         ...

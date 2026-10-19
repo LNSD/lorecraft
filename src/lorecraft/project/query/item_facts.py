@@ -5,9 +5,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from lorecraft.core.num import UnsignedInt
-from lorecraft.project.aspect import AspectFilename
+from lorecraft.project.aspect import AspectFilename, AspectName
 from lorecraft.project.corpus import CorpusName
-from lorecraft.project.item import DocumentOrigin, MetaSpecOrigin
 from lorecraft.project.syntax import (
     FrontmatterNode,
     LineCount,
@@ -56,23 +55,15 @@ def item_structure_specs(primitives: ItemPrimitives) -> tuple[StructureSpec, ...
     return governance.structure_specs() if governance is not None else ()
 
 
-def item_name(primitives: ItemPrimitives) -> AspectFilename | SpecName | None:
-    """The typed name declared by this item's origin, when it has readable text."""
+def item_name(primitives: ItemPrimitives) -> AspectFilename | AspectName | SpecName | None:
+    """The typed name declared by this item's descriptor, when it has readable text."""
     source = primitives.text()
     if source is None:
         return None
-    origin = source.descriptor.origin
-    if isinstance(origin, DocumentOrigin):
-        return AspectFilename.parse(origin.expected_name)
-    if isinstance(origin, MetaSpecOrigin):
-        from lorecraft.project.schemas.name import parse_spec_name
-
-        return parse_spec_name(origin.expected_name)
-    return None
+    return source.descriptor.name
 
 
 def item_corpus(primitives: ItemPrimitives) -> CorpusName | None:
-    """The typed corpus declared by a readable document item."""
+    """The typed corpus declared by this item's descriptor, when it has readable text."""
     source = primitives.text()
-    origin = source.descriptor.origin if source is not None else None
-    return CorpusName.parse(origin.corpus) if isinstance(origin, DocumentOrigin) else None
+    return source.descriptor.corpus if source is not None else None

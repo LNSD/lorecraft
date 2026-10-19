@@ -17,7 +17,12 @@ from typing import Any, Final, Protocol, cast, overload
 from lib.primitives import StructurePrimitives
 from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.path import PathComponent, RootRelativePath
-from lorecraft.project.aspect import AspectFilename, AspectNamespace
+from lorecraft.project.aspect import (
+    AspectFilename,
+    AspectNamespace,
+    EmptyAspectNameError,
+    InvalidAspectNameCharacterError,
+)
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.item import DocumentOrigin, ItemRef, SkillEntrypointOrigin
@@ -75,6 +80,14 @@ _DEFAULT_DIRECTORY_NAME: Final[str] = 'review'
 
 _SKILLS_DIRECTORY: Final[RootRelativePath] = RootRelativePath.parse('.agents/skills')
 """The skills directory a fake skill is listed in."""
+
+
+def _skill_aspect_filename(entry: str) -> AspectFilename | None:
+    """Return the skill entry as an aspect filename when its name has that format."""
+    try:
+        return AspectFilename.parse(entry)
+    except EmptyAspectNameError, InvalidAspectNameCharacterError:
+        return None
 
 
 def structure_spec_path(name: str) -> RootRelativePath:
@@ -277,9 +290,7 @@ class FakeDocumentDatabase:
                 base_name=self._base_name(),
                 document_link_list=self._document_links,
                 corpus=self._ref.corpus,
-                origin_value=DocumentOrigin(
-                    expected_name=str(self._ref.filename), corpus=str(self._ref.corpus), schema_paths=()
-                ),
+                origin_value=DocumentOrigin(),
                 governance_value=self._governance,
             )
         )
@@ -324,9 +335,8 @@ class FakeSkillDatabase:
                 link_base_value=SkillRoot(_SKILLS_DIRECTORY / self._directory_name),
                 line_total=count_lines(self._text),
                 frontmatter_node=self.frontmatter(),
-                origin_value=SkillEntrypointOrigin(
-                    expected_name=str(self._directory_name), link_target=self._link_target
-                ),
+                name=_skill_aspect_filename(str(self._directory_name)),
+                origin_value=SkillEntrypointOrigin(link_target=self._link_target),
             )
         )
 

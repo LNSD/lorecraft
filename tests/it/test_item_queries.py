@@ -145,7 +145,6 @@ class TestItemQueries:
 
         #: Then
         assert isinstance(origin, SkillEntrypointOrigin), "the resolved item's origin survives invalid text"
-        assert origin.expected_name == 'review', 'the origin keeps the listed skill name'
         assert (name, corpus, base) == (None, None, None), 'content-derived facts are empty without decoded text'
 
     def test_item_queries_called_twice_return_the_first_answer(self) -> None:

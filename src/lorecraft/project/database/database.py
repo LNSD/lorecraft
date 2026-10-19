@@ -32,15 +32,13 @@ from typing import Concatenate, Protocol, Self, assert_never, cast, overload
 
 from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.path import RootRelativePath
-from lorecraft.project.aspect import AspectFilename
+from lorecraft.project.aspect import AspectFilename, AspectName
 from lorecraft.project.corpus import CorpusName, ReservedCorpusDirectory, ReservedCorpusDirectoryRef
 from lorecraft.project.document import MetaSpecRef
 from lorecraft.project.item import (
-    DocumentOrigin,
     ItemOrigin,
     ItemReadError,
     ItemRef,
-    MetaSpecOrigin,
     UnlistedItemError,
 )
 from lorecraft.project.layout import DOCS_DIR, SPECS_DIR, reject_linked_layout
@@ -60,6 +58,8 @@ from lorecraft.project.query import (
     item_parse,
 )
 from lorecraft.project.schemas import (
+    CorpusSpecName,
+    NamespaceSpecName,
     SpecName,
     parse_spec_name,
 )
@@ -264,6 +264,11 @@ class _ItemPrimitives(_Reads[ItemRef, '_ItemPrimitives']):
         return self._database._item(self._ref).descriptor.origin
 
     @primitive
+    def item_listed_name(self) -> str:
+        """The descriptor's original name, used for frontmatter ownership."""
+        return self._database._item(self._ref).descriptor.listed_name
+
+    @primitive
     def text(self) -> ItemText | None:
         """The decoded witness of this subject, or none when its bytes are not UTF-8."""
         source = self._database.item_text(self._ref)
@@ -296,16 +301,23 @@ class _ItemPrimitives(_Reads[ItemRef, '_ItemPrimitives']):
         which no hyphenated prefix continues.
         """
         source = self._database.item_text(self._ref)
-        origin = source.descriptor.origin if isinstance(source, ItemText) else None
-        # Keep this dispatch: documents and specifications inherit within separate model hierarchies; skills do not.
-        match origin:
-            case DocumentOrigin():
-                corpus = self._database.model().find_corpus(CorpusName.parse(origin.corpus))
-                if corpus is None:
-                    return None
-                base = corpus.document_base(AspectFilename.parse(origin.expected_name))
-                return None if base is None else base.filename
-            case MetaSpecOrigin():
+        if not isinstance(source, ItemText):
+            return None
+        descriptor = source.descriptor
+        if isinstance(descriptor.name, AspectName):
+            return None
+        if isinstance(descriptor.name, AspectFilename):
+            if descriptor.corpus is None:
+                return None
+            corpus = self._database.model().find_corpus(descriptor.corpus)
+            if corpus is None:
+                return None
+            base = corpus.document_base(descriptor.name)
+            return None if base is None else base.filename
+        if descriptor.name is None:
+            return None
+        match descriptor.name:
+            case CorpusSpecName() | NamespaceSpecName():
                 base_spec = self._database.model().find_specification_base(MetaSpecRef(self._ref.path))
                 return None if base_spec is None else parse_spec_name(base_spec.name)
             case _:

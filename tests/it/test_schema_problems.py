@@ -21,7 +21,7 @@ from lorecraft.project.corpus import CorpusName
 from lorecraft.project.database import Database, ItemText, Read
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.item import ItemReadError, ItemRef
-from lorecraft.project.query import item_frontmatter
+from lorecraft.project.query import item_frontmatter, item_name
 from lorecraft.project.schemas import (
     AgentSkillsSchema,
     DocumentFrontmatterOwner,
@@ -379,7 +379,7 @@ class TestSkillSchemaProblems:
         } <= database.query_reads(parsed_skill_fields, source.ref)
         assert set(first) == {SkillField.NAME, SkillField.ALLOWED_TOOLS}, 'each written, conforming field is kept'
 
-    def test_owner_of_frontmatter_with_a_document_reads_its_origin_and_governance(self) -> None:
+    def test_owner_of_frontmatter_with_a_document_reads_its_name_and_governance(self) -> None:
         #: Given
         database = Database.from_snapshot(_snapshot(REQUIRE_STATUS, STRING_DESCRIPTION, typing=b'', review=b''))
         source = _document_text(database, TYPING)
@@ -390,7 +390,7 @@ class TestSkillSchemaProblems:
         #: Then
         assert owner == DocumentFrontmatterOwner(AspectFilename.parse('python-typing'), CORPUS_SPEC)
         assert {
-            Read('origin', source.ref),
+            Read(item_name, source.ref),
             Read('governance', source.ref),
         } <= database.query_reads(owner_of_frontmatter, source.ref)
 

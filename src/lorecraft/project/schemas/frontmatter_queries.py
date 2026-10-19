@@ -5,8 +5,8 @@ from typing import TYPE_CHECKING
 from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.path import PathComponent
 from lorecraft.project.aspect import AspectFilename
-from lorecraft.project.item import DocumentOrigin, SkillEntrypointOrigin, WrongItemKindError
-from lorecraft.project.query import item_frontmatter
+from lorecraft.project.item import SkillEntrypointOrigin, WrongItemKindError
+from lorecraft.project.query import item_frontmatter, item_name
 from lorecraft.project.schemas.agent_skills_schema import agent_skills_frontmatter_schema
 from lorecraft.project.schemas.frontmatter_owner import (
     DocumentFrontmatterOwner,
@@ -28,25 +28,23 @@ if TYPE_CHECKING:
 
 
 def owner_of_frontmatter(primitives: GovernancePrimitives) -> FrontmatterOwner:
-    """The document or skill whose frontmatter the item opens, from origin metadata and governance.
+    """The document or skill whose frontmatter the item opens, from its descriptor and governance.
 
     Raises:
         WrongItemKindError: If the item is not a skill or a document whose corpus states a structure spec.
     """
+    name = primitives.query(item_name)
+    governance = primitives.governance()
+    if isinstance(name, AspectFilename) and governance is not None:
+        structure = governance.corpus_structure()
+        if structure is not None:
+            return DocumentFrontmatterOwner(filename=name, spec=structure.path)
     origin = primitives.origin()
-    match origin:
-        case SkillEntrypointOrigin():
-            return SkillFrontmatterOwner(
-                directory_name=PathComponent.parse(origin.expected_name), link_target=origin.link_target
-            )
-        case DocumentOrigin():
-            governance = primitives.governance()
-            structure = governance.corpus_structure() if governance is not None else None
-            if structure is None:
-                raise WrongItemKindError('a document whose corpus states a structure specification')
-            return DocumentFrontmatterOwner(filename=AspectFilename.parse(origin.expected_name), spec=structure.path)
-        case _:
-            raise WrongItemKindError('a document or a skill entrypoint')
+    if not isinstance(origin, SkillEntrypointOrigin):
+        raise WrongItemKindError('a document whose corpus states a structure specification')
+    return SkillFrontmatterOwner(
+        directory_name=PathComponent.parse(primitives.item_listed_name()), link_target=origin.link_target
+    )
 
 
 def parsed_skill_fields(primitives: ItemPrimitives) -> SkillFields:

@@ -6,6 +6,7 @@ from types import MappingProxyType
 from typing import ClassVar, Self
 from urllib.parse import unquote
 
+from lorecraft.project.aspect import AspectName
 from lorecraft.project.item import ItemKind
 from lorecraft.project.link_target import ExtensionLink as LinkToExtension
 from lorecraft.project.link_target import extension_links_of
@@ -42,7 +43,7 @@ def extension_link_facts(primitives: GovernanceSyntaxLinkResolutionPrimitives) -
     """
     name = primitives.query(item_name)
     base = primitives.link_base()
-    if name is None or base is None:
+    if name is None or isinstance(name, AspectName) or base is None:
         return ExtensionLinkFacts(base='', links=())
     links = extension_links_of(primitives.query(item_parse).links, primitives.link_targets(), base, name)
     return ExtensionLinkFacts(base=f'{name}.md', links=links)

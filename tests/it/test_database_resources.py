@@ -12,6 +12,7 @@ import pytest
 from lib.database import listed_item
 from lib.tree import from_tree
 from lorecraft.core.path import RootRelativePath
+from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.database import Database, ItemText
 from lorecraft.project.item import ItemKind, ItemRef, SkillResourceOrigin, UnlistedItemError
 from lorecraft.project.skill import OutsideSymlinkRef, SkillResourceLocation
@@ -126,9 +127,10 @@ class TestResourceItems:
         assert owners == [SkillResourceOrigin('review'), SkillResourceOrigin('deploy')], (
             f'each resource inherits its own skill as owner, got {owners}'
         )
-        assert [source.descriptor.aspect_name for source in sources] == ['review', 'deploy'], (
-            'the skill name records provenance, not corpus governance'
-        )
+        assert [source.descriptor.name for source in sources] == [
+            AspectFilename.parse('review'),
+            AspectFilename.parse('deploy'),
+        ], 'the descriptor keeps the containing skill name'
 
     def test_item_text_of_a_retargeted_resource_symlink_keeps_the_ref_and_moves_the_location(self) -> None:
         #: Given
