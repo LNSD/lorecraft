@@ -1,6 +1,6 @@
 ---
 name: "adr-023-governed-items"
-description: "Unify corpus documents, skill entries and skill resources behind one governed-item reference and model-resolved descriptor across the project model, database and rules engine. Load when changing document or skill references, governance resolution, database per-file or analysis queries, or runner subject dispatch"
+description: "Unify corpus documents, skills and skill resources behind one governed-item reference and model-resolved descriptor across the project model, database and rules engine. Load when changing document or skill references, governance resolution, database per-file or analysis queries, or runner subject dispatch"
 type: "adr"
 status: "accepted"
 ---
@@ -24,8 +24,7 @@ detection work.
 In the current architecture, documents under `docs/`, skill documents (`SKILL.md`) and Markdown resources inside
 skills travel through three parallel representations above the project model:
 
-- Separate reference types identify corpus documents by corpus and filename stem, skill entries by skills directory and
-  listed entry name, and skill resources by owning skill and skill-relative path.
+- Separate reference types identify corpus documents by corpus and filename stem, skills by their listed directory name, and skill resources by owning skill and skill-relative path.
 - Governance resolution accepts only corpus document references.
 - The database maintains separate decode witnesses, caches and query methods for decoding, frontmatter parsing,
   Markdown parsing, line counting, schema validation and relative-link target lookup across the three kinds.
@@ -79,10 +78,10 @@ The project model is the only layer that classifies a Markdown item's origin:
 Name-chain ordering and prefix matching are shared with the project model's meta spec and document hierarchy
 derivation rather than reimplemented in the database, runner or rules.
 
-### Hierarchical Governance for Skill Entries and Resources
+### Hierarchical Governance for Skills and Resources
 
-The reserved `skills` corpus is loaded and its meta specs are checked, but does not govern skill entries or
-resources. Package skill checks remain active for skill entries; corpus governance is deferred to LORE-324.
+The reserved `skills` corpus is loaded and its meta specs are checked, but does not govern skills or
+resources. Package skill checks remain active for skills; corpus governance is deferred to LORE-324.
 
 A Markdown resource inside a skill has no corpus governance. The model activates Markdown checks only for resources;
 no skills-corpus schema or structure spec applies.
@@ -98,7 +97,7 @@ The database and rules engine consume the common reference and descriptor unifor
   relative-link target resolution each have one query implementation taking the common decode witness and reading the
   descriptor's link base.
 - **Unified governance and analysis queries:** `item_governance(ref)` resolves ordered layers for corpus documents;
-  skill entries and resources have no corpus governance. Schema validation and outline analysis read
+  skills and resources have no corpus governance. Schema validation and outline analysis read
   `item_governance(ref)` and the per-file queries, keeping their results whenever those inputs compare equal
   ([adr-015](adr-015-database.md)).
 - **One content runner loop:** the engine decodes the item once, applies the mode's failed-layer policy whenever an
@@ -110,14 +109,14 @@ The database and rules engine consume the common reference and descriptor unifor
 Unifying the internal pipeline changes no user-visible contract outside what [prd-020](prd-020-skills-corpus.md)
 requires:
 
-- With no repository `skills` meta spec and the built-in schema enabled, skill entries and resources produce the
+- With no repository `skills` meta spec and the built-in schema enabled, skills and resources produce the
   exact diagnostics, notes, severity and sort order they produce today (`FR-013`).
 - `lorecraft inspect` renders corpus documents and skills, without reporting corpus governance for skills.
 
 ## Consequences
 
 - **One pipeline for every governed Markdown file.** New frontmatter, outline, budget or Markdown rules apply to corpus
-  documents, skill entries and (when enabled) skill resources without adding per-kind database queries, context
+  documents, skills and (when enabled) skill resources without adding per-kind database queries, context
   adapters or runner loops (`FR-005`, `FR-010`).
 - **Broader initial refactor, smaller surface afterwards.** Replacing the three reference and witness families touches
   the project model, database, context protocols, runner and report types together, and removes the parallel query and
@@ -148,11 +147,11 @@ requires:
 
 Before committing code, verify:
 
-- [ ] Above the project model, corpus documents, skill entries and skill resources use one governed-item reference type
+- [ ] Above the project model, corpus documents, skills and skill resources use one governed-item reference type
   and one decode witness type
 - [ ] The project model resolves each item's read location, report path, link base, frontmatter owner metadata,
   governance identity and active facets once
-- [ ] Logical identity stays separate from resolved symlink location for documents, skill entries and skill resources
+- [ ] Logical identity stays separate from resolved symlink location for documents, skills and skill resources
   alike, and skill resource discovery remains lazy through the skill resource listing
 - [ ] Skill resources have no corpus governance under this decision; defer any resource governance identity and
   governed resource facets to LORE-324.

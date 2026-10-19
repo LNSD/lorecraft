@@ -62,24 +62,23 @@ keep layout subjects separate because their primitives and query subjects differ
    `GATES: Mapping[ItemKind, Gate]`. `ItemQuery[Facts]` is the query over `ItemPrimitives` that returns `Facts`; the
    shared `Query[P, Facts]` type names the primitive group explicitly. A missing kind means the rule never judges
    that kind. Each rule writes its full mapping explicitly; no preset base encodes a default or preserves the old
-   item-base names. A rule applying to both documents and skill entries declares both keys, even when they use the
+   item-base names. A rule applying to both documents and skills declares both keys, even when they use the
    same gate.
 
    The mapping can express the existing cases directly: an ordinary document rule governed by part `p` declares
-   `{DOCUMENT: ByMetaSpec(p)}`; a package-only skill check declares `{SKILL: ByPackage()}`; and a rule shared by documents and
-   skill entries declares a gate for each. A Markdown rule uses `ByMetaSpec(STRUCTURE)` for ordinary documents and
-   `ByPackage()` for `SPECIFICATION`, `SKILL` and `SKILL_RESOURCE`. A frontmatter rule uses
-   `ByMetaSpec(FRONTMATTER)` for documents and skill
-   entries, except `name_mismatch`, whose skill gate is `BySchema` of the registered Agent Skills floor
-   `SchemaReference`. When the floor is opted out, the frontmatter part remains a coverage gate on skill entries
-   and is reported as `ungoverned`; the rules do not judge that inactive part. This is a vocabulary for
-   applicability, not a central list of which rules exist.
+   `{DOCUMENT: ByMetaSpec(p)}`; a package-only skill check declares `{SKILL: ByPackage()}`; and a rule shared by
+   documents and skills declares a gate for each. A Markdown rule uses `ByMetaSpec(STRUCTURE)` for ordinary
+   documents and `ByPackage()` for `SPECIFICATION`, `SKILL` and `SKILL_RESOURCE`. A frontmatter rule uses
+   `ByMetaSpec(FRONTMATTER)` for documents and skills, except `name_mismatch`, whose skill gate is
+   `BySchema` of the registered Agent Skills floor `SchemaReference`. When the floor is opted out, the
+   frontmatter part remains a coverage gate on skills and is reported as `ungoverned`; the rules do not judge that
+   inactive part. This is a vocabulary for applicability, not a central list of which rules exist.
 
 3. **Governance follows loaded layers.** `governed_parts` contains only the parts stated by loaded layers, for every
    item kind; no part is forced active. Rules applied to `SPECIFICATION` items use `ByPackage()`. A skill rule
    gated by a part uses plain `ByMetaSpec(part)`, just as a document rule does: a skills layer stating the part is the
    condition for judging. Package-only skill checks keep `ByPackage()`. `requires_loaded_layer` is removed. When a
-   skills layer fails, skill entries follow the mode's skip policy in
+   skills layer fails, skills follow the mode's skip policy in
    `engine/skip.py`, rather than handling failed-layer state in `judges`.
 
    A skill with no skills-corpus layer is reported as `ungoverned` for `STRUCTURE`, `OUTLINE` and `BUDGET`
@@ -132,7 +131,7 @@ keep layout subjects separate because their primitives and query subjects differ
   interpretation of the item-base hierarchy and makes missing gate cases visible at registry load.
 - Meta-spec, package and schema gates remain distinct. Schema-backed cases follow registry presence, while
   package-governed kinds do not need artificial meta-spec parts.
-- Skill entries without a skills-corpus layer appear in coverage as ungoverned for the parts enabled rules need;
+- Skills without a skills-corpus layer appear in coverage as ungoverned for the parts enabled rules need;
   readers can see missing governance instead of mistaking silence for coverage.
 - Existing judgement behavior and rule-case diagnostics remain the compatibility boundary. This decision changes
   how eligibility is declared and selected, not rule queries, findings, severity, or diagnostic output.
@@ -144,7 +143,7 @@ keep layout subjects separate because their primitives and query subjects differ
   vocabulary, so callers could disagree about which declaration controls dispatch.
 - **Use separate per-kind booleans or part fields.** This duplicates combinations across bases and cannot express
   registry-backed schema eligibility without another special case.
-- **Add a `BySkillsCorpus(part)` gate.** This would preserve the current silent skip for skill entries without a
+- **Add a `BySkillsCorpus(part)` gate.** This would preserve the current silent skip for skills without a
   loaded skills corpus, but it would make skills-corpus presence a separate eligibility concept. Coverage is meant
   to expose ungoverned parts, so the simpler `ByMetaSpec(part)` gate is preferred.
 - **Fold layout subjects into the item base.** Layout records have different primitive contracts and are not item

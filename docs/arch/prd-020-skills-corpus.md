@@ -26,10 +26,10 @@ lets a repository write rules for its skills the way it writes them for its docu
   every skill in `.agents/skills/` by the skill's name, with no directory under `docs/` to hold them.
 - Namespace meta specs, `skills-<namespace>`, that govern the skills named `<namespace>` or `<namespace>-*`, and
   layer on the corpus meta spec and on each other as every namespace meta spec does.
-- Context-specific sub-specs that declare the checks applicable to skill entries and to skill resources
+- Context-specific sub-specs that declare the checks applicable to skills and to skill resources
   independently.
 - The Agent Skills specification's rules published as a built-in skills schema, generated as documentation, that
-  the `skills` corpus extends by default for skill entries.
+  the `skills` corpus extends by default for skills.
 - A repository that opts out of the built-in schema governs its skills by its own `skills` meta spec alone.
 - One `lorecraft check` run applies both, and `lorecraft inspect` shows which meta specs govern a skill and its
   resources.
@@ -224,7 +224,7 @@ Scenario: A skill resource breaks a resource check
 
 ```gherkin
 Scenario: Entry-only checks do not apply to resources
-  Given a skills meta spec requiring the name frontmatter field for skill entries
+  Given a skills meta spec requiring the name frontmatter field for skills
   And a skill resource without frontmatter
   When the maintainer checks the workspace
   Then no finding names the resource for a missing name field
@@ -287,7 +287,7 @@ Scenario: Inspecting a skill resource
   sub-spec declares the checks applicable to a specific context.
 - **FR-022:** WHERE a skills meta spec defines a resource sub-spec, THE SYSTEM SHALL hold all discovered
   Markdown resources in that skill to the checks declared by that sub-spec.
-- **FR-023:** THE SYSTEM SHALL NOT apply checks declared for skill entries to skill resources unless also declared
+- **FR-023:** THE SYSTEM SHALL NOT apply checks declared for skills to skill resources unless also declared
   in the resource sub-spec.
 - **FR-024:** THE SYSTEM SHALL govern each discovered Markdown resource by the meta spec that governs its
   containing skill.
@@ -313,7 +313,7 @@ Scenario: Inspecting a skill resource
 
 ## Key Entities
 
-- **Skills corpus:** The reserved corpus whose documents are skill entries and Markdown resources, found by the
+- **Skills corpus:** The reserved corpus whose documents are skills and Markdown resources, found by the
   agents' skills directories rather than by a directory under `docs/`.
 - **Skills meta spec:** A meta spec named `skills` or `skills-<namespace>`, in the same directory and with the same
   files as any other.

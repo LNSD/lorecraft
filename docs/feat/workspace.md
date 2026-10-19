@@ -33,10 +33,10 @@ repository works from.
 - **Document**: A Markdown file directly inside a corpus directory.
 - **Workspace model**: The corpora, their meta specs and their documents, as found in one snapshot.
 - **Skills corpus**: The reserved `skills` corpus loads specs from `docs/__meta__/skills.*` and checks
-  those specification files as specifications. It does not govern skill entries or resources; the corpus
+  those specification files as specifications. It does not govern skills or resources; the corpus
   remains separate from skills until LORE-324. It has no `docs/skills/` directory. Skills are not documents.
 - **Overlapping corpus**: A `docs/skills/` directory is ignored, including its documents. The model records this name overlap, and `lorecraft check` reports it as the
-  [`COR001` warning](../rulebook/COR001-reserved-corpus-overlap.md). Skill entries retain their package
+  [`COR001` warning](../rulebook/COR001-reserved-corpus-overlap.md). Skills retain their package
   checks, and resources retain package Markdown checks; neither receives corpus governance. Skill specs do
   not change which rules check a `SKILL.md`.
 

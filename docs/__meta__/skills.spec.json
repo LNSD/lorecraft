@@ -1,6 +1,6 @@
 {
   "$schema": "../schemas/structure.spec.json",
-  "description": "Machine-checkable half of skills.md: skill entries may use their own section outline, have no empty sections and fit within a whole-file budget. The 10000-token ceiling leaves room for a detailed workflow while bounding the context cost of any one entry.",
+  "description": "Machine-checkable half of skills.md: skills may use their own section outline, have no empty sections and fit within a whole-file budget. The 10000-token ceiling leaves room for a detailed workflow while bounding the context cost of any one skill.",
   "empty_sections": "forbidden",
   "tokens": 10000,
   "outline": [{ "any": true }]

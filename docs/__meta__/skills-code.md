@@ -1,6 +1,6 @@
 ---
 name: "skills-code"
-description: "Additional writing rules for code workflow skills. Load when creating or editing a code-* skill entry"
+description: "Additional writing rules for code workflow skills. Load when creating or editing a code-* skill"
 type: "meta"
 scope: "global"
 ---
@@ -32,4 +32,4 @@ workflows focused. It applies in addition to the base budget.
 
 ## References
 
-- [skills](skills.md) - Extends: Base rules for every skill entry
+- [skills](skills.md) - Extends: Base rules for every skill

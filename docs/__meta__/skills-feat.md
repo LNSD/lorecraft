@@ -1,6 +1,6 @@
 ---
 name: "skills-feat"
-description: "Additional writing rules for feature-document skills. Load when creating or editing a feat-* skill entry"
+description: "Additional writing rules for feature-document skills. Load when creating or editing a feat-* skill"
 type: "meta"
 scope: "global"
 ---
@@ -28,4 +28,4 @@ every skill. It applies in addition to the base budget.
 
 ## References
 
-- [skills](skills.md) - Extends: Base rules for every skill entry
+- [skills](skills.md) - Extends: Base rules for every skill
