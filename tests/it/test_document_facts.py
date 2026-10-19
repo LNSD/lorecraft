@@ -16,7 +16,7 @@ from lorecraft.project.database import Database, ItemText, Read
 from lorecraft.project.item import MarkdownItemRef, UnlistedItemError
 from lorecraft.project.layout import SNAPSHOT_SCOPE
 from lorecraft.project.link_target import DocumentLink
-from lorecraft.project.query import Primitives, linked_paths
+from lorecraft.project.query import Primitives, item_parse, item_structure_specs, linked_paths
 from lorecraft.project.schemas import CorpusSpecName, SpecName, title_facts
 from lorecraft.project.syntax import Anchor, LineNumber
 from lorecraft.rules.length.too_many_tokens import token_facts
@@ -66,7 +66,7 @@ def _decoded(database: Database) -> ItemText:
 
 def _anchors(primitives: Primitives) -> frozenset[Anchor]:
     """The anchor of every heading of the item's parse."""
-    return primitives.anchors()
+    return primitives.query(item_parse).anchors
 
 
 def _item_name(primitives: Primitives) -> AspectFilename | SpecName | None:
@@ -94,7 +94,7 @@ class TestMarkdownPrimitives:
         anchors = database.query(_anchors, GUIDE)
 
         #: Then
-        assert anchors == database.item_parse(_decoded(database)).anchors, "the anchors are the parse's own"
+        assert anchors == database.query(item_parse, _decoded(database).ref).anchors, "the anchors are the parse's own"
         assert len(anchors) == 3, 'the title and the two sections each take an anchor'
 
     def test_item_name_with_a_document_returns_its_typed_filename(self, tmp_path: Path) -> None:
@@ -266,8 +266,10 @@ class TestDocumentFactReads:
 
         #: Then
         assert database.query_reads(title_facts, GUIDE) == {
-            Read('structure_specs', GUIDE),
-            Read('headings', GUIDE),
+            Read(item_structure_specs, GUIDE),
+            Read('item_governance', GUIDE),
+            Read(item_parse, GUIDE),
+            Read('item_text', GUIDE),
         }, 'the carry-over names each primitive and the item read'
 
 

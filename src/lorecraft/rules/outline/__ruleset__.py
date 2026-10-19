@@ -18,7 +18,7 @@ so they judge only a document some outline governs.
 from typing import Final
 
 from lorecraft.core.path import RootRelativePath
-from lorecraft.project.query import Primitives
+from lorecraft.project.query import Primitives, item_line_count
 from lorecraft.project.schemas import OutlineDivergenceSpec, SectionName, match_outlines, outline_alignment
 from lorecraft.rules.identity import RuleGroup, RuleGroupPrefix
 from lorecraft.rules.location import Elsewhere, Note
@@ -61,5 +61,5 @@ def outline_divergences(primitives: Primitives) -> tuple[OutlineDivergenceSpec, 
     """
     alignments = primitives.query(outline_alignment)
     if any(alignment.outline for alignment in alignments):
-        return match_outlines(alignments, primitives.line_count())
+        return match_outlines(alignments, primitives.query(item_line_count))
     return ()

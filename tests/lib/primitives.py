@@ -10,7 +10,15 @@ from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.item import DocumentOrigin, ItemOrigin, MarkdownItemRef
 from lorecraft.project.link_target import DocumentLink, LinkBase, LinkTargetEntry
-from lorecraft.project.query import DecodedText, Query, SchemaQuery, item_frontmatter
+from lorecraft.project.query import (
+    DecodedText,
+    Query,
+    SchemaQuery,
+    item_frontmatter,
+    item_line_count,
+    item_parse,
+    item_structure_specs,
+)
 from lorecraft.project.schemas import SpecName, StructureSpec
 from lorecraft.project.syntax import (
     Anchor,
@@ -20,6 +28,7 @@ from lorecraft.project.syntax import (
     Link,
     MissingFrontmatter,
     NormalisedLinkPath,
+    ParsedDocument,
     TokenCount,
 )
 from lorecraft.project.workspace import Governance
@@ -143,6 +152,12 @@ class StructurePrimitives:
             return cast('T', self.document_link_list)
         if query is item_frontmatter:
             return self.frontmatter_node
+        if query is item_line_count:
+            return self.line_total
+        if query is item_parse:
+            return ParsedDocument(self.heading_list, self.anchor_set, self.link_list)
+        if query is item_structure_specs:
+            return self.specs
         return query(self)
 
     def query_at[T](self, ref: MarkdownItemRef, query: Query[T]) -> T:
