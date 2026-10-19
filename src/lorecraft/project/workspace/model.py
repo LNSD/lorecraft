@@ -33,15 +33,15 @@ from lorecraft.project.corpus import (
     ReservedCorpusDirectory,
     ReservedCorpusNameError,
 )
-from lorecraft.project.document import DocumentRef, SpecRef
+from lorecraft.project.document import DocumentRef, MetaSpecRef
 from lorecraft.project.item import (
     DocumentOrigin,
     ItemDescriptor,
     ItemRef,
+    MetaSpecOrigin,
     MetaSpecPart,
     SkillEntryOrigin,
     SkillResourceOrigin,
-    SpecificationOrigin,
     UnlistedItemError,
 )
 from lorecraft.project.layout import DOCS_DIR, DOCUMENT_SUFFIX, SPECS_DIR
@@ -484,24 +484,24 @@ class WorkspaceModel:
                 return ref
         return None
 
-    def specifications(self) -> tuple[SpecRef, ...]:
-        """Every meta specification, a Markdown file of a corpus or namespace spec, sorted by path; no README."""
+    def specifications(self) -> tuple[MetaSpecRef, ...]:
+        """Every meta spec, a Markdown file of a corpus or namespace spec, sorted by path; no README."""
         specs: list[Spec] = []
         for corpus in (*self.sorted_corpora, *([self.skills_corpus] if self.skills_corpus is not None else [])):
             specs.append(corpus.corpus_spec)
             specs.extend(corpus.namespace_specs)
-        refs: set[SpecRef] = set()
+        refs: set[MetaSpecRef] = set()
         for spec in specs:
             for file in spec.files:
                 if file.value.name.endswith(DOCUMENT_SUFFIX) and file.parent == SPECS_DIR:
-                    refs.add(SpecRef(file))
+                    refs.add(MetaSpecRef(file))
         return tuple(sorted(refs))
 
-    def find_specification_base(self, ref: SpecRef) -> SpecRef | None:
-        """The meta specification this one extends: the narrowest whose name continues into this one's, or `None`.
+    def find_specification_base(self, ref: MetaSpecRef) -> MetaSpecRef | None:
+        """The meta spec this one extends: the narrowest whose name continues into this one's, or `None`.
 
         Args:
-            ref: The specification whose base is wanted.
+            ref: The meta spec whose base is wanted.
         """
         by_name = {spec.name: spec for spec in self.specifications()}
         base = find_narrowest_ancestor(ref.name, by_name)
@@ -630,7 +630,7 @@ class WorkspaceModel:
                 return self.resolve_item(specification)
         return None
 
-    def describe_item(self, ref: DocumentRef | SkillRef | SpecRef) -> ItemDescriptor:
+    def describe_item(self, ref: DocumentRef | SkillRef | MetaSpecRef) -> ItemDescriptor:
         """Resolve the shared location and origin metadata for a document or skill entry.
 
         The existing references remain accepted by repositories and database queries. This descriptor is the
@@ -660,15 +660,15 @@ class WorkspaceModel:
         )
         return ResolvedItem(descriptor, None)
 
-    def resolve_item(self, ref: DocumentRef | ItemRef | SkillRef | SpecRef) -> ResolvedItem:
+    def resolve_item(self, ref: DocumentRef | ItemRef | SkillRef | MetaSpecRef) -> ResolvedItem:
         """Resolve an item's descriptor together with the specs governing it, finding the governance once.
 
         A corpus document is governed by the specs of its corpus and matching namespaces. Skill entries are governed
         by the reserved `skills` corpus and matching namespaces; resources remain outside corpus governance.
 
         Args:
-            ref: Document, skill entry or meta specification to resolve, whether or not the model lists a document's
-                corpus, or a common ref naming a document. The package governs a specification, so it resolves with
+            ref: Document, skill entry or meta spec to resolve, whether or not the model lists a document's
+                corpus, or a common ref naming a document. The package governs a meta spec, so it resolves with
                 no governance and the structure and Markdown checks active.
 
         Raises:
@@ -705,12 +705,12 @@ class WorkspaceModel:
                     governed_parts=frozenset(parts),
                 )
                 return ResolvedItem(descriptor, governance)
-            case SpecRef():
+            case MetaSpecRef():
                 descriptor = ItemDescriptor(
                     ref=ItemRef(ref.path),
                     read_location=ResolvedPath(ref.path),
                     link_base=DocumentDirectory(SPECS_DIR),
-                    origin=SpecificationOrigin(expected_name=ref.name, corpus=ref.corpus),
+                    origin=MetaSpecOrigin(expected_name=ref.name, corpus=ref.corpus),
                     governance_corpus=ref.corpus,
                     aspect_name=ref.name,
                     governed_parts=frozenset({MetaSpecPart.STRUCTURE}),

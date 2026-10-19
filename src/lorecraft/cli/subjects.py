@@ -14,7 +14,7 @@ from lorecraft.core.path import RootRelativePath
 from lorecraft.engine import Subject
 from lorecraft.project.corpus import ReservedCorpusDirectory
 from lorecraft.project.database import Database
-from lorecraft.project.document import DocumentRef, SpecRef
+from lorecraft.project.document import DocumentRef, MetaSpecRef
 from lorecraft.project.skill import OutsideSymlink, RefusedSkillAlias, SkillLocation, SkillResourceLocation
 
 
@@ -54,7 +54,7 @@ def _report_path(subject: Subject) -> RootRelativePath:
         subject: The document, specification, skill, resource or layout entry whose report is placed.
     """
     match subject:
-        case DocumentRef() | SpecRef():
+        case DocumentRef() | MetaSpecRef():
             return subject.path
         case SkillLocation():
             return subject.ref.path

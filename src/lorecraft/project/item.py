@@ -43,11 +43,11 @@ class ItemKind(Enum):
     DOCUMENT = 'document'
     SKILL_ENTRY = 'skill-entry'
     SKILL_RESOURCE = 'skill-resource'
-    SPECIFICATION = 'specification'
+    META_SPEC = 'specification'
 
 
 class MetaSpecPart(StrEnum):
-    """A part of a meta specification that may govern checks of an item."""
+    """A part of a meta spec that may govern checks of an item."""
 
     FRONTMATTER = 'frontmatter'
     """The item's frontmatter: a loaded structure layer states a frontmatter schema."""
@@ -102,11 +102,11 @@ class SkillResourceOrigin:
 
 
 @dataclass(frozen=True, slots=True)
-class SpecificationOrigin:
-    """Origin metadata for a meta specification, a Markdown file of `docs/__meta__/`.
+class MetaSpecOrigin:
+    """Origin metadata for a meta spec, a Markdown file of `docs/__meta__/`.
 
     Attributes:
-        expected_name: Specification name, the file's stem, such as `feat-cli`.
+        expected_name: Meta spec name, the file's stem, such as `feat-cli`.
         corpus: Corpus the specification belongs to, the first segment of its name.
     """
 
@@ -114,7 +114,7 @@ class SpecificationOrigin:
     corpus: str
 
 
-type ItemOrigin = DocumentOrigin | SkillEntryOrigin | SkillResourceOrigin | SpecificationOrigin
+type ItemOrigin = DocumentOrigin | SkillEntryOrigin | SkillResourceOrigin | MetaSpecOrigin
 
 
 @dataclass(frozen=True, slots=True)
@@ -126,11 +126,11 @@ class ItemDescriptor:
         read_location: Snapshot path from which the item's text is read.
         link_base: Where the item's relative Markdown links are read from, with the climb bound of that base.
         origin: Expected-name and provenance metadata specific to the item's origin.
-        governance_corpus: Corpus whose specifications govern the item, when it belongs to one; empty otherwise.
-        aspect_name: Listed name matched against namespace specifications, when it belongs to a corpus; retained as
+        governance_corpus: Corpus whose meta specs govern the item, when it belongs to one; empty otherwise.
+        aspect_name: Listed name matched against namespace meta specs, when it belongs to a corpus; retained as
             provenance for skills and resources.
         governed_parts: Parts that activate checks for this item. The package's skill checks activate skill-entry
-            frontmatter and structure checks, independently of corpus governance. A meta specification and a resource
+            frontmatter and structure checks, independently of corpus governance. A meta spec and a resource
             activate the structure part.
     """
 
@@ -152,8 +152,8 @@ class ItemDescriptor:
                 return ItemKind.SKILL_ENTRY
             case SkillResourceOrigin():
                 return ItemKind.SKILL_RESOURCE
-            case SpecificationOrigin():
-                return ItemKind.SPECIFICATION
+            case MetaSpecOrigin():
+                return ItemKind.META_SPEC
             case _:
                 assert_never(self.origin)
 

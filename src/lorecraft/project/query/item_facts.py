@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 from lorecraft.core.num import UnsignedInt
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
-from lorecraft.project.item import DocumentOrigin, SpecificationOrigin
+from lorecraft.project.item import DocumentOrigin, MetaSpecOrigin
 from lorecraft.project.syntax import (
     FrontmatterNode,
     LineCount,
@@ -64,7 +64,7 @@ def item_name(primitives: ItemPrimitives) -> AspectFilename | SpecName | None:
     origin = source.descriptor.origin
     if isinstance(origin, DocumentOrigin):
         return AspectFilename.parse(origin.expected_name)
-    if isinstance(origin, SpecificationOrigin):
+    if isinstance(origin, MetaSpecOrigin):
         from lorecraft.project.schemas.name import parse_spec_name
 
         return parse_spec_name(origin.expected_name)

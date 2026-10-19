@@ -14,7 +14,7 @@ from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.database import Database
-from lorecraft.project.document import DocumentRef, SpecRef
+from lorecraft.project.document import DocumentRef, MetaSpecRef
 from lorecraft.project.layout import SNAPSHOT_SCOPE, SPECS_DIR
 from lorecraft.project.skill import (
     OutsideSymlink,
@@ -45,13 +45,13 @@ def _write(root: Path, relative: str, text: str = '') -> Path:
     return path
 
 
-def _specification(name: str) -> SpecRef:
+def _specification(name: str) -> MetaSpecRef:
     """The meta specification `docs/__meta__/<name>.md`.
 
     Args:
         name: The specification's name without its `.md` suffix.
     """
-    return SpecRef(SPECS_DIR / PathComponent.parse(f'{name}.md'))
+    return MetaSpecRef(SPECS_DIR / PathComponent.parse(f'{name}.md'))
 
 
 def _document(corpus: str, filename: str) -> DocumentRef:

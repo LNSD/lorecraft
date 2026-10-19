@@ -97,7 +97,7 @@ class AbsoluteLink(QueriedItemRule[tuple[Link, ...]]):
     GATES: ClassVar[Mapping[ItemKind, Gate]] = MappingProxyType(
         {
             ItemKind.DOCUMENT: ByMetaSpec(MetaSpecPart.STRUCTURE),
-            ItemKind.SPECIFICATION: ByMetaSpec(MetaSpecPart.STRUCTURE),
+            ItemKind.META_SPEC: ByMetaSpec(MetaSpecPart.STRUCTURE),
             ItemKind.SKILL_ENTRY: ByPackage(),
             ItemKind.SKILL_RESOURCE: ByPackage(),
         }

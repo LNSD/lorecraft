@@ -27,7 +27,7 @@ from lorecraft.core.error import Error
 from lorecraft.core.path import RootRelativePath
 from lorecraft.engine import UnlistableRoot, check_subjects, report_load_failures
 from lorecraft.project.database import Database
-from lorecraft.project.document import DocumentRef, SpecRef
+from lorecraft.project.document import DocumentRef, MetaSpecRef
 from lorecraft.project.layout import DECLARATION, DOCS_DIR, SNAPSHOT_SCOPE
 from lorecraft.project.workspace import WorkspaceModel, reject_unreported_refusals
 from lorecraft.rules.engine import RefusedOperation
@@ -148,7 +148,7 @@ def _reports_or_status(model: WorkspaceModel) -> tuple[RunReport, ...] | ExitSta
 
 
 def _refusal_reports(
-    refusals: Mapping[RootRelativePath, RefusedRecord], documents: Mapping[RootRelativePath, DocumentRef | SpecRef]
+    refusals: Mapping[RootRelativePath, RefusedRecord], documents: Mapping[RootRelativePath, DocumentRef | MetaSpecRef]
 ) -> tuple[RunReport, ...]:
     """Report retained refusals under `docs/`, keeping unreadable documents and meta specifications as subjects.
 

@@ -317,7 +317,7 @@ Scenario: Inspecting a skill resource
   agents' skills directories rather than by a directory under `docs/`.
 - **Skills meta spec:** A meta spec named `skills` or `skills-<namespace>`, in the same directory and with the same
   files as any other.
-- **Context-specific sub-spec:** A sub-specification declared within a skills meta spec defining checks for a
+- **Context-specific sub-spec:** A sub-spec declared within a skills meta spec defining checks for a
   specific item context (such as skill entry or skill resource).
 - **Skill resource:** A Markdown file contained within a skill's directory other than its top-level `SKILL.md`.
 - **Built-in skills schema:** The Agent Skills specification's rules, stated as a schema that ships with the tool.
@@ -345,4 +345,4 @@ Scenario: Inspecting a skill resource
 
 ## References
 
-- [prd-008-structured-checks](prd-008-structured-checks.md) - Related: The structured checks that judge a skill against its specifications
+- [prd-008-structured-checks](prd-008-structured-checks.md) - Related: The structured checks that judge a skill against its meta specs
