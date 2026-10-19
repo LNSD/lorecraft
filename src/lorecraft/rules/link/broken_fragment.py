@@ -19,7 +19,7 @@ from lorecraft.project.syntax import (
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Note, Subdiagnostic
-from lorecraft.rules.subject import Always, Gate, MetaSpecPart, QueriedItemRule, WhenMetaSpec
+from lorecraft.rules.subject import Always, Gate, QueriedItemRule
 
 from .__ruleset__ import GROUP_ID
 
@@ -76,8 +76,8 @@ class BrokenFragment(QueriedItemRule[BrokenFragmentFacts]):
     ## What it does
 
     Checks for links and images whose destination is a fragment alone, such as `#usage`, naming none of the
-    headings of the file that holds them, in every Markdown file the checks read: a document whose corpus states a
-    structure file, a skill's `SKILL.md` and each Markdown file inside the skill. No meta spec key
+    headings of the file that holds them, in every Markdown file the checks read: every document, a skill's `SKILL.md`
+    and each Markdown file inside the skill. No meta spec key
     states the rule: every such file is held to it.
 
     A fragment names a heading by its anchor, as GitHub derives it, whatever the case it is written in: `#Usage`
@@ -126,7 +126,7 @@ class BrokenFragment(QueriedItemRule[BrokenFragmentFacts]):
     SINCE: ClassVar[Release] = Release('0.3.0')
     APPLIES_TO: ClassVar[Mapping[ItemType, Gate]] = MappingProxyType(
         {
-            ItemType.DOCUMENT: WhenMetaSpec(MetaSpecPart.STRUCTURE),
+            ItemType.DOCUMENT: Always(),
             ItemType.META_SPEC: Always(),
             ItemType.SKILL_ENTRYPOINT: Always(),
             ItemType.SKILL_RESOURCE: Always(),

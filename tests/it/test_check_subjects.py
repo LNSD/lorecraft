@@ -2235,7 +2235,7 @@ class TestCheckSubjects:
             ),
         ), 'a link is judged whether or not the frontmatter parses, so a broken block hides no link diagnostic'
 
-    def test_check_subjects_with_a_markdown_rule_over_a_corpus_stating_no_structure_specification_reports_it_ungoverned(
+    def test_check_subjects_with_an_always_link_rule_over_a_corpus_without_structure_reports_the_link(
         self,
     ) -> None:
         #: Given
@@ -2256,9 +2256,13 @@ class TestCheckSubjects:
         reports = check_subjects(database, (GUIDE,), table)
 
         #: Then
-        assert reports == (CheckedItem(ItemRef(GUIDE.path), diagnostics=(), ungoverned=(MetaSpecPart.STRUCTURE,)),), (
-            'a rule over a Markdown file judges a document only under its structure, which is coverage when ungoverned'
-        )
+        occurrence = AbsoluteLink(line=LineNumber(NonZeroUnsignedInt(3)), url='/setup.md')
+        assert reports == (
+            CheckedItem(
+                ItemRef(GUIDE.path),
+                diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
+            ),
+        ), 'an Always link rule judges the document even when its corpus has no structure specification'
 
     def test_check_subjects_with_a_fragment_missing_from_a_document_reports_broken_fragment_on_its_line(
         self, package_table: RuleTable

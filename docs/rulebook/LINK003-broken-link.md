@@ -11,9 +11,9 @@ A relative link names nothing the repository holds.
 
 ## What it does
 
-Checks for links and images whose relative path leads to nothing, in every Markdown file the checks read: a
-document whose corpus states a structure file, a skill's `SKILL.md` and each Markdown file inside the
-skill. A path names a file or a directory, and any symlink on the way to it is followed. No meta spec key
+Checks for links and images whose relative path leads to nothing, in every Markdown file the checks read:
+every document, a skill's `SKILL.md` and each Markdown file inside the skill. A path names a file or a
+directory, and any symlink on the way to it is followed. No meta spec key
 states the rule: every such file is held to it.
 
 Where the path is read from depends on the file. In a document, it is read from the document's own directory,

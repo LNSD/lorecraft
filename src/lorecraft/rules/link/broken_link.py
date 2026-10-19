@@ -27,7 +27,7 @@ from lorecraft.project.syntax import (
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Note, Subdiagnostic
-from lorecraft.rules.subject import Always, Gate, MetaSpecPart, QueriedItemRule, WhenMetaSpec
+from lorecraft.rules.subject import Always, Gate, QueriedItemRule
 
 from .__ruleset__ import GROUP_ID, SKILL_NOTE, SyntaxLinkResolutionPrimitives
 
@@ -100,9 +100,9 @@ class BrokenLink(QueriedItemRule[tuple[MissingTarget, ...]]):
 
     ## What it does
 
-    Checks for links and images whose relative path leads to nothing, in every Markdown file the checks read: a
-    document whose corpus states a structure file, a skill's `SKILL.md` and each Markdown file inside the
-    skill. A path names a file or a directory, and any symlink on the way to it is followed. No meta spec key
+    Checks for links and images whose relative path leads to nothing, in every Markdown file the checks read:
+    every document, a skill's `SKILL.md` and each Markdown file inside the skill. A path names a file or a
+    directory, and any symlink on the way to it is followed. No meta spec key
     states the rule: every such file is held to it.
 
     Where the path is read from depends on the file. In a document, it is read from the document's own directory,
@@ -154,7 +154,7 @@ class BrokenLink(QueriedItemRule[tuple[MissingTarget, ...]]):
     SINCE: ClassVar[Release] = Release('0.3.0')
     APPLIES_TO: ClassVar[Mapping[ItemType, Gate]] = MappingProxyType(
         {
-            ItemType.DOCUMENT: WhenMetaSpec(MetaSpecPart.STRUCTURE),
+            ItemType.DOCUMENT: Always(),
             ItemType.META_SPEC: Always(),
             ItemType.SKILL_ENTRYPOINT: Always(),
             ItemType.SKILL_RESOURCE: Always(),
