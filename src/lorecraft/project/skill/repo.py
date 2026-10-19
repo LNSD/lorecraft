@@ -41,7 +41,6 @@ from lorecraft.vfs import (
     DirListFailure,
     DirResolveFailure,
     EntryKind,
-    FileReadFailure,
     FileResolveFailure,
     FileSystem,
     RecordedDirListError,
@@ -216,24 +215,6 @@ class SkillFileResolveError(Error):
         self.__cause__ = source
 
 
-class SkillReadError(Error):
-    """A skill listed in the model cannot be read: its `SKILL.md` is missing or unreadable.
-
-    Attributes:
-        ref: The skill whose `SKILL.md` could not be read.
-        source: The failure to read the file.
-    """
-
-    ref: SkillRef
-    source: FileReadFailure | UnrecordedFileError
-
-    def __init__(self, ref: SkillRef, *, source: FileReadFailure | UnrecordedFileError) -> None:
-        self.ref = ref
-        self.source = source
-        super().__init__(f'cannot read skill {ref.path}')
-        self.__cause__ = source
-
-
 class SkillDecodeError(Error):
     """A skill's `SKILL.md` is not UTF-8; the check reports this as a finding.
 
@@ -301,24 +282,6 @@ class SkillResourcesSymlinkResolveError(Error):
         self.resource = resource
         self.source = source
         super().__init__(f'cannot resolve symlink {symlink} for the resources of skill {skill.directory}')
-        self.__cause__ = source
-
-
-class SkillResourceReadError(Error):
-    """A skill's resource cannot be read: the file its location records is missing or unreadable.
-
-    Attributes:
-        ref: The resource that could not be read.
-        source: The failure to read it.
-    """
-
-    ref: SkillResourceRef
-    source: FileReadFailure | UnrecordedFileError
-
-    def __init__(self, ref: SkillResourceRef, *, source: FileReadFailure | UnrecordedFileError) -> None:
-        self.ref = ref
-        self.source = source
-        super().__init__(f'cannot read resource {ref.path} of skill {ref.skill.directory}')
         self.__cause__ = source
 
 
@@ -499,14 +462,16 @@ class Repository:
 
         Raises:
             SkillDecodeError: If the file is not UTF-8.
-            SkillReadError: If the file is missing or unreadable.
         """
         try:
             text = self._fs.read_text(ref.path)
         except TextDecodeError as exc:
             raise SkillDecodeError(ref, source=exc) from exc
         except (*FILE_READ_FAILURES, UnrecordedFileError) as exc:
-            raise SkillReadError(ref, source=exc) from exc
+            # Local to avoid the project/item.py to project.skill import cycle.
+            from lorecraft.project.item import ItemReadError, ItemRef
+
+            raise ItemReadError(ItemRef(ref.path), source=exc) from exc
         return Skill(ref, text)
 
     def list_skill_resources(self, location: SkillLocation) -> SkillResourceListing:
@@ -555,14 +520,16 @@ class Repository:
 
         Raises:
             SkillResourceDecodeError: If the resource is not UTF-8.
-            SkillResourceReadError: If the resource's file is missing or unreadable.
         """
         try:
             text = self._fs.read_text(location.resolves_to)
         except TextDecodeError as exc:
             raise SkillResourceDecodeError(location.ref, source=exc) from exc
         except (*FILE_READ_FAILURES, UnrecordedFileError) as exc:
-            raise SkillResourceReadError(location.ref, source=exc) from exc
+            # Local to avoid the project/item.py to project.skill import cycle.
+            from lorecraft.project.item import ItemReadError, ItemRef
+
+            raise ItemReadError(ItemRef(location.ref.path), source=exc) from exc
         return SkillResource(location.ref, text)
 
     def _find_entry_dir(self, entry: RootRelativePath) -> ResolvedPath | None:

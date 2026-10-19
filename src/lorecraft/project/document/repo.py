@@ -15,13 +15,13 @@ from dataclasses import dataclass
 from lorecraft.core.error import Error
 from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.project.corpus import CorpusName
+from lorecraft.project.item import ItemReadError, ItemRef
 from lorecraft.project.layout import DOCS_DIR, DOCUMENT_SUFFIX
 from lorecraft.vfs import (
     DIR_LIST_FAILURES,
     FILE_READ_FAILURES,
     DirListFailure,
     EntryKind,
-    FileReadFailure,
     FileSystem,
     TextDecodeError,
     UnrecordedFileError,
@@ -71,24 +71,6 @@ class CorpusListError(Error):
         self.corpus = corpus
         self.source = source
         super().__init__(f'cannot list the documents of corpus {corpus}')
-        self.__cause__ = source
-
-
-class DocumentReadError(Error):
-    """A document listed in the model cannot be read: the file is missing or unreadable.
-
-    Attributes:
-        ref: The document that could not be read.
-        source: The failure to read its file.
-    """
-
-    ref: DocumentRef
-    source: FileReadFailure | UnrecordedFileError
-
-    def __init__(self, ref: DocumentRef, *, source: FileReadFailure | UnrecordedFileError) -> None:
-        self.ref = ref
-        self.source = source
-        super().__init__(f'cannot read document {ref.path}')
         self.__cause__ = source
 
 
@@ -178,12 +160,11 @@ class Repository:
 
         Raises:
             DocumentDecodeError: If the file is not UTF-8.
-            DocumentReadError: If the file is missing or unreadable.
         """
         try:
             text = self._fs.read_text(ref.path)
         except TextDecodeError as exc:
             raise DocumentDecodeError(ref, source=exc) from exc
         except (*FILE_READ_FAILURES, UnrecordedFileError) as exc:
-            raise DocumentReadError(ref, source=exc) from exc
+            raise ItemReadError(ItemRef(ref.path), source=exc) from exc
         return Document(ref, text)

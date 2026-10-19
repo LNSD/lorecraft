@@ -217,4 +217,11 @@ def check_layout_entry(
         case _:
             assert_never(entry)
 
-    return CheckedLayoutEntry(entry.path, diagnostics=tuple(diagnostics))
+    match entry:
+        case OutsideSymlink():
+            ref = OutsideSymlinkRef(entry.path)
+        case ReservedCorpusDirectory():
+            ref = ReservedCorpusDirectoryRef(entry.path)
+        case _:
+            assert_never(entry)
+    return CheckedLayoutEntry(ref, diagnostics=tuple(diagnostics))

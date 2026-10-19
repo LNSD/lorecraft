@@ -13,6 +13,7 @@ import pytest
 
 from lib.tree import FileTree, from_tree
 from lorecraft.core.path import PathComponent, RootRelativePath
+from lorecraft.project.item import ItemReadError, ItemRef
 from lorecraft.vfs import (
     EntryRecord,
     ResolvedPath,
@@ -31,7 +32,6 @@ from ..repo import (
     SkillResource,
     SkillResourceDecodeError,
     SkillResourceListing,
-    SkillResourceReadError,
 )
 
 SKILLS_DIR: Final[str] = '.agents/skills'
@@ -502,8 +502,8 @@ class TestRepositoryGetSkillResource:
         location = _resource('references/a.md')
 
         #: When
-        with pytest.raises(SkillResourceReadError) as exc_info:
+        with pytest.raises(ItemReadError) as exc_info:
             repository.get_skill_resource(location)
 
         #: Then
-        assert exc_info.value.ref == location.ref, 'the error names the resource that could not be read'
+        assert exc_info.value.ref == ItemRef(location.ref.path), 'the error names the resource that could not be read'

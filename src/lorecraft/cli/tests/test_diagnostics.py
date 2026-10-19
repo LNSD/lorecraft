@@ -16,6 +16,7 @@ from lorecraft.project.corpus import CorpusName
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.item import ItemRef
 from lorecraft.project.schemas import DocumentEnd, DocumentFrontmatterOwner, SectionName
+from lorecraft.project.skill import OutsideSymlinkRef
 from lorecraft.project.syntax import LineNumber, SectionHeading, WordCount
 from lorecraft.rules.engine.malformed_structure_file import FormatViolated, MalformedStructureFile
 from lorecraft.rules.frontmatter.duplicate_key import DuplicateKey
@@ -109,7 +110,7 @@ def _every_kind_of_report() -> tuple[RunReport, ...]:
             diagnostics=(RuleDiagnostic(check.path, missing_usage, Severity.ERROR),),
             ungoverned=(MetaSpecPart.FRONTMATTER, MetaSpecPart.BUDGET),
         ),
-        CheckedLayoutEntry(review, diagnostics=(RuleDiagnostic(review, outside, Severity.ERROR),)),
+        CheckedLayoutEntry(OutsideSymlinkRef(review), diagnostics=(RuleDiagnostic(review, outside, Severity.ERROR),)),
         UndecodableSubject(ItemRef(_document('code', 'latin').path), _latin_failure()),
         CheckedItem(
             ItemRef(a.path),

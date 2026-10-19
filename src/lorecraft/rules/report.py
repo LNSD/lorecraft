@@ -19,11 +19,11 @@ governance. An
 `UndecodableSubject` did not decode,
 so no rule judged it: it holds its `ItemRef` and where the bytes stopped being UTF-8, and its one diagnostic,
 the engine's,
-is built from them, at the subject's path. An `UnreadableDocument` could not be read at all, so it holds its document
-item ref and the engine's unreadable-path condition, and counts as a subject. A layout
+is built from them, at the subject's path. An `UnreadableItem` could not be read at all, so it holds its item ref
+and the engine's unreadable-path condition, and counts as a subject. A layout
 entry, one symlink of the skill layout whose chain leaves the repository or a directory under `docs/` named like a
 reserved corpus, has no text to decode and no meta spec to be
-ungoverned by, so it gets a report of its own, a `CheckedLayoutEntry`: its path and its diagnostics, in their output
+ungoverned by, so it gets a report of its own, a `CheckedLayoutEntry`: its ref and its diagnostics, in their output
 order.
 
 Two reports come from what failed to load, never from a rule. A `SkippedSubject` is a document decoded and not judged,
@@ -39,8 +39,9 @@ from typing import assert_never
 
 from lorecraft.core.num import UnsignedInt
 from lorecraft.core.path import RootRelativePath
+from lorecraft.project.corpus import ReservedCorpusDirectoryRef
 from lorecraft.project.item import ItemRef, MetaSpecPart
-from lorecraft.project.skill import SkillAliasRef
+from lorecraft.project.skill import OutsideSymlinkRef, SkillAliasRef
 from lorecraft.rules.engine.invalid_utf8 import InvalidUtf8
 from lorecraft.vfs import Utf8Failure
 
@@ -141,11 +142,6 @@ def diagnostic_order(diagnostic: Diagnostic) -> DiagnosticOrder:
     )
 
 
-# A subject the runner checks: a document, a meta specification, a skill, whose report path is its `SKILL.md`, or a
-# skill's resource, whose report path is where an agent reaches it.
-type SubjectRef = ItemRef | SkillAliasRef
-
-
 @dataclass(frozen=True, slots=True)
 class CheckedItem:
     """A Markdown item that decoded, so the enabled rules judged everything it is governed for.
@@ -185,7 +181,7 @@ class UndecodableSubject:
         failure: Where the file's bytes first stop being UTF-8, and why.
     """
 
-    ref: SubjectRef
+    ref: ItemRef
     failure: Utf8Failure
 
     @property
@@ -195,8 +191,8 @@ class UndecodableSubject:
 
 
 @dataclass(frozen=True, slots=True)
-class UnreadableDocument:
-    """A governed document or meta spec that could not be read, still counted as a subject with its `LC002`.
+class UnreadableItem:
+    """A governed item that could not be read, still counted as a subject with its `LC002`.
 
     Attributes:
         ref: The item whose bytes the snapshot could not read.
@@ -208,7 +204,7 @@ class UnreadableDocument:
 
     @property
     def diagnostics(self) -> tuple[EngineDiagnostic]:
-        """The unreadable-path diagnostic at the document's path."""
+        """The unreadable-path diagnostic at the item's path."""
         return (EngineDiagnostic(self.ref.path, self.occurrence),)
 
 
@@ -221,14 +217,12 @@ class CheckedLayoutEntry:
     it is never ungoverned.
 
     Attributes:
-        path: Where the entry is reached, the path its diagnostics are reported at. For a symlink: a skills directory
-            as declared, an entry in one, that entry's `SKILL.md`, or a path inside a skill, under the skill's entry.
-            For a directory: its path under `docs/`.
+        ref: The layout entry whose path is reported.
         diagnostics: Every occurrence the rules found at the entry, in the order `diagnostic_order` sorts them into,
             whatever order they are given in.
     """
 
-    path: RootRelativePath
+    ref: OutsideSymlinkRef | ReservedCorpusDirectoryRef
     diagnostics: tuple[Diagnostic, ...]
 
     def __post_init__(self) -> None:
@@ -260,7 +254,7 @@ class SkippedSubject:
         reason: Whether a failed structure layer or a refused path prevented checking.
     """
 
-    ref: SubjectRef
+    ref: ItemRef | SkillAliasRef
     failed_layers: tuple[RootRelativePath, *tuple[RootRelativePath, ...]]
     reason: SkipReason
 
@@ -293,7 +287,7 @@ class LoadFailureReport:
 
 # What the runner reports for one subject: what the rules found in it, that it did not decode, what they found at a
 # layout entry, or that a failed layer of a meta spec kept them from judging a document.
-type SubjectReport = CheckedItem | UndecodableSubject | UnreadableDocument | CheckedLayoutEntry | SkippedSubject
+type SubjectReport = CheckedItem | UndecodableSubject | UnreadableItem | CheckedLayoutEntry | SkippedSubject
 
 # What a run hands its output: a report per subject, and one per unit of the declaration that failed to load, which is
 # no subject and is filed at its own path.

@@ -258,7 +258,7 @@ class EngineDiagnostic:
 
 
 type Diagnostic = RuleDiagnostic | EngineDiagnostic
-type SubjectReport = CheckedItem | UndecodableSubject | CheckedLayoutEntry | SkippedSubject
+type SubjectReport = CheckedItem | UndecodableSubject | UnreadableItem | CheckedLayoutEntry | SkippedSubject
 ```
 
 - **A diagnostic holds its occurrence** and copies none of its fields. The code, the message, the labels, the
@@ -272,8 +272,8 @@ type SubjectReport = CheckedItem | UndecodableSubject | CheckedLayoutEntry | Ski
   `InvalidUtf8` (`LC001`) at its path, since no rule judged it.
 - **Coverage records missing meta spec parts only.** Package and schema checks are not reported as ungoverned parts;
   a `CheckedItem` for a skill entrypoint or document may carry ungoverned parts when no governing layer states them.
-- **A layout entry is reported by its path, and has no coverage.** It is not a document, a skill or a resource, so
-  it has no subject reference, and no meta spec governs it, so it can never be ungoverned. Its diagnostics take the
+- **A layout entry is reported by its ref, and has no coverage.** It is not a document, a skill or a resource, so
+  it has no item reference, and no meta spec governs it, so it can never be ungoverned. Its diagnostics take the
   same shape as every other subject's.
 - **Order is a documented output contract** (FR-018), the established linters' source order grouped by file:
   1. the subject's root-relative POSIX path, compared by code point, never by locale and never by how the paths

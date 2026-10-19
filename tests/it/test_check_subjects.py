@@ -64,6 +64,7 @@ from lorecraft.project.schemas import (
     frontmatter_schema_problems,
 )
 from lorecraft.project.skill import (
+    SkillAliasRef,
     SkillLocation,
     SkillRef,
     SkillRelativePath,
@@ -118,7 +119,6 @@ from lorecraft.rules.registry import Registry
 from lorecraft.rules.report import (
     CheckedItem,
     RuleDiagnostic,
-    SubjectRef,
     SubjectReport,
     UndecodableSubject,
 )
@@ -555,7 +555,7 @@ def sample_table() -> RuleTable:
     )
 
 
-def _refs(reports: tuple[SubjectReport, ...]) -> list[SubjectRef | ItemRef]:
+def _refs(reports: tuple[SubjectReport, ...]) -> list[ItemRef | SkillAliasRef]:
     """The document, skill or resource each report is about, every report's, in the order the reports are given.
 
     Args:
