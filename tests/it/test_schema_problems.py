@@ -7,6 +7,7 @@ ungoverned one, one without a block, and a skill. How each problem is found and 
 `locate_schema_problems`'s, tested on its own beside it.
 """
 
+from collections.abc import Callable
 from typing import Final
 
 import pytest
@@ -20,6 +21,7 @@ from lorecraft.project.corpus import CorpusName
 from lorecraft.project.database import Database, ItemText, Read
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.item import ItemReadError, MarkdownItemRef
+from lorecraft.project.query import item_frontmatter
 from lorecraft.project.schemas import (
     AgentSkillsSchema,
     DocumentFrontmatterOwner,
@@ -37,7 +39,7 @@ from lorecraft.project.schemas import (
     skill_fields_query,
 )
 from lorecraft.project.skill import SkillRef
-from lorecraft.project.syntax import FrontmatterNode, LineNumber
+from lorecraft.project.syntax import LineNumber
 from lorecraft.project.workspace import WorkspaceModel
 from lorecraft.vfs import OsRefusal, RefusedRead, ResolvedPath, Snapshot, SnapshotRecords, VirtualFileSystem
 
@@ -80,14 +82,11 @@ class FrontmatterReadingDatabase(Database):
         super().__init__(fs, model)
         self.frontmatter_call_count = 0
 
-    def item_frontmatter(self, source: ItemText) -> FrontmatterNode:
-        """Record the document, then read its frontmatter.
-
-        Args:
-            source: The decoded document whose frontmatter is read, recorded by its ref first.
-        """
-        self.frontmatter_call_count += 1
-        return super().item_frontmatter(source)
+    def _memo_query[T](self, key: Read, answer: Callable[[], T], reads: Callable[[], frozenset[Read]]) -> T:
+        """Record frontmatter query evaluations, then memoize them as usual."""
+        if key.source is item_frontmatter:
+            self.frontmatter_call_count += 1
+        return super()._memo_query(key, answer, reads)
 
 
 def _snapshot(corpus_spec: bytes, namespace_spec: bytes, *, typing: bytes, review: bytes = b'') -> Snapshot:
@@ -198,7 +197,8 @@ class TestSchemaProblems:
             {
                 Read('item_origin', source.ref),
                 Read('item_governance', source.ref),
-                Read('frontmatter', source.ref),
+                Read(item_frontmatter, source.ref),
+                Read('item_text', source.ref),
             }
         ), 'the query cache records the raw facts the schema analysis depends on'
         assert database.frontmatter_call_count == 1, 'the frontmatter is read once, for the first call'
@@ -371,7 +371,8 @@ class TestSkillSchemaProblems:
         #: Then
         assert second is first, "a skill's fields are parsed once per database, then shared by every rule"
         assert {
-            Read('frontmatter', source.ref),
+            Read(item_frontmatter, source.ref),
+            Read('item_text', source.ref),
             Read('item_origin', source.ref),
         } <= database.query_reads(skill_fields_query, source.ref)
         assert set(first) == {SkillField.NAME, SkillField.ALLOWED_TOOLS}, 'each written, conforming field is kept'

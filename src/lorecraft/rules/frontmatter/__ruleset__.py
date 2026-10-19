@@ -21,7 +21,7 @@ from dataclasses import dataclass
 from typing import Final, assert_never
 
 from lorecraft.core.path import RootRelativePath
-from lorecraft.project.query import Primitives
+from lorecraft.project.query import Primitives, item_frontmatter
 from lorecraft.project.schemas import (
     AgentSkillsSchema,
     AllowedTools,
@@ -64,7 +64,7 @@ def frontmatter_facts(primitives: Primitives) -> FrontmatterFacts:
     Args:
         primitives: The model state of the document or the skill.
     """
-    return FrontmatterFacts(primitives.frontmatter(), primitives.query(frontmatter_owner_query))
+    return FrontmatterFacts(primitives.query(item_frontmatter), primitives.query(frontmatter_owner_query))
 
 
 @dataclass(frozen=True, slots=True)
@@ -86,7 +86,7 @@ def allowed_tools_field(primitives: Primitives) -> AllowedToolsField | None:
     Args:
         primitives: The model state of the skill.
     """
-    frontmatter = primitives.frontmatter()
+    frontmatter = primitives.query(item_frontmatter)
     if not isinstance(frontmatter, Frontmatter):
         return None
     tools = primitives.query(skill_fields_query).get(SkillField.ALLOWED_TOOLS)

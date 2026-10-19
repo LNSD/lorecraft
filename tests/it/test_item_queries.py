@@ -4,6 +4,7 @@ A document and a skill entry decode to one witness type and are asked the same p
 questions; each answer is computed on demand and kept for the database's lifetime. Every snapshot is built in memory.
 """
 
+from collections.abc import Callable
 from pathlib import Path
 from typing import Final
 
@@ -14,14 +15,22 @@ from lib.tree import from_tree
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
-from lorecraft.project.database import Database, ItemText, Undecodable
+from lorecraft.project.database import Database, ItemText, Read, Undecodable
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.item import ItemOrigin, ItemReadError, MarkdownItemRef, SkillEntryOrigin, UnlistedItemError
 from lorecraft.project.layout import SNAPSHOT_SCOPE
 from lorecraft.project.link_target import EscapingTarget, LinkTarget, PathLookup
-from lorecraft.project.query import Primitives
+from lorecraft.project.query import (
+    Primitives,
+    item_corpus,
+    item_frontmatter,
+    item_line_count,
+    item_name,
+    item_parse,
+    item_token_count,
+)
 from lorecraft.project.schemas import SpecName, outline_alignment, schema_problems_query
-from lorecraft.project.syntax import FrontmatterNode, NormalisedLinkPath, ParsedDocument
+from lorecraft.project.syntax import NormalisedLinkPath
 from lorecraft.project.workspace import WorkspaceModel
 from lorecraft.vfs import Snapshot, VirtualFileSystem, take_snapshot
 
@@ -46,23 +55,13 @@ class TracingDatabase(Database):
         super().__init__(fs, model)
         self.computed: list[str] = []
 
-    def item_frontmatter(self, source: ItemText) -> FrontmatterNode:
-        """Record the frontmatter query, then answer it.
-
-        Args:
-            source: The decoded item whose frontmatter is read.
-        """
-        self.computed.append('frontmatter')
-        return super().item_frontmatter(source)
-
-    def item_parse(self, source: ItemText) -> ParsedDocument:
-        """Record the parse query, then answer it.
-
-        Args:
-            source: The decoded item that is parsed.
-        """
-        self.computed.append('parse')
-        return super().item_parse(source)
+    def _memo_query[T](self, key: Read, answer: Callable[[], T], reads: Callable[[], frozenset[Read]]) -> T:
+        """Record per-item query evaluations, then memoize them as usual."""
+        if key.source is item_frontmatter:
+            self.computed.append('frontmatter')
+        elif key.source is item_parse:
+            self.computed.append('parse')
+        return super()._memo_query(key, answer, reads)
 
 
 def _snapshot(guide: bytes = GUIDE_TEXT, skill: bytes = LINKS) -> Snapshot:
@@ -92,12 +91,12 @@ def _item_origin(primitives: Primitives) -> ItemOrigin:
 
 def _item_name(primitives: Primitives) -> AspectFilename | SpecName | None:
     """The item's decoded name, when it has one."""
-    return primitives.item_name()
+    return primitives.query(item_name)
 
 
 def _item_corpus(primitives: Primitives) -> CorpusName | None:
     """The item's decoded corpus, when it is a document."""
-    return primitives.item_corpus()
+    return primitives.query(item_corpus)
 
 
 def _item_base(primitives: Primitives) -> AspectFilename | SpecName | None:
@@ -156,10 +155,16 @@ class TestItemQueries:
 
         #: Then
         assert database.item_text(GUIDE) is source, 'the decode is memoized by the common ref'
-        assert database.item_parse(source) is database.item_parse(source), 'the parse is memoized'
-        assert database.item_frontmatter(source) is database.item_frontmatter(source), 'the frontmatter is memoized'
-        assert database.item_line_count(source) is database.item_line_count(source), 'the line count is memoized'
-        assert database.item_token_count(source) is database.item_token_count(source), 'the token count is memoized'
+        assert database.query(item_parse, source.ref) is database.query(item_parse, source.ref), 'the parse is memoized'
+        assert database.query(item_frontmatter, source.ref) is database.query(item_frontmatter, source.ref), (
+            'the frontmatter is memoized'
+        )
+        assert database.query(item_line_count, source.ref) is database.query(item_line_count, source.ref), (
+            'the line count is memoized'
+        )
+        assert database.query(item_token_count, source.ref) is database.query(item_token_count, source.ref), (
+            'the token count is memoized'
+        )
 
     def test_item_schema_problems_with_only_the_frontmatter_demanded_leaves_the_parse_uncomputed(self) -> None:
         #: Given
