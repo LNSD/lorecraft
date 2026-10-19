@@ -956,7 +956,7 @@ class Database:
         if key not in self._queries:
             result = answer()
             self._queries[key] = (result, reads())
-        # SAFETY: the key is created with this query's result type and identifies this cached answer.
+        # SAFETY: _memo_query is the only writer and stores answer() under its query's key.
         return cast('T', self._queries[key][0])
 
     def query_reads(

@@ -45,13 +45,12 @@ just like an item's.
 """
 
 from collections.abc import Callable
-from typing import assert_never, cast, overload
+from typing import assert_never
 
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.corpus import CorpusDirectoryRef, ReservedCorpusDirectory
 from lorecraft.project.database import Database, ItemText
 from lorecraft.project.item import ItemFacet, ItemKind, MarkdownItemDescriptor, MarkdownItemRef
-from lorecraft.project.query import CorpusDirectoryQuery, Query, SubjectQuery, SymlinkQuery
 from lorecraft.project.skill import OutsideSymlink, SymlinkRef
 from lorecraft.rules.declaration import Rule
 from lorecraft.rules.report import (
@@ -64,7 +63,6 @@ from lorecraft.rules.subject import (
     Facet,
     FrontmatterRule,
     ItemRule,
-    Queried,
     QueriedCorpusDirectoryRule,
     QueriedDocumentRule,
     QueriedDocumentSkillRule,
@@ -120,7 +118,7 @@ def judge_item(database: Database, source: ItemText, table: RuleTable) -> Checke
             continue
         for rules in partitions:
             diagnostics.extend(
-                _located(descriptor.ref.path, rules, lambda rule: _judged(rule, database, descriptor.ref))
+                _located(descriptor.ref.path, rules, lambda rule: _judged_item(rule, database, descriptor.ref))
             )
 
     return CheckedItem(descriptor.ref, diagnostics=tuple(diagnostics), ungoverned=tuple(ungoverned))
@@ -170,48 +168,44 @@ type ItemQueriedRule[Facts] = (
 )
 
 
-@overload
-def _judged[Facts](
+def _judged_item[Facts](
     rule: type[ItemQueriedRule[Facts]], database: Database, ref: MarkdownItemRef
-) -> tuple[Rule, ...]: ...
-
-
-@overload
-def _judged[Facts](rule: type[QueriedSymlinkRule[Facts]], database: Database, ref: SymlinkRef) -> tuple[Rule, ...]: ...
-
-
-@overload
-def _judged[Facts](
-    rule: type[QueriedCorpusDirectoryRule[Facts]], database: Database, ref: CorpusDirectoryRef
-) -> tuple[Rule, ...]: ...
-
-
-def _judged[Facts](
-    rule: type[Queried[Facts, SubjectQuery[Facts]]],
-    database: Database,
-    ref: MarkdownItemRef | SymlinkRef | CorpusDirectoryRef,
 ) -> tuple[Rule, ...]:
-    """Every occurrence of one rule over a subject, from the facts of its memoized query.
+    """Judge one item rule from the facts of its memoized query.
 
     Args:
         rule: The rule to run.
         database: The revision the query is resolved from.
-        ref: The typed subject judged by the rule.
+        ref: The Markdown item whose query the database resolves.
     """
-    query = rule.query()
-    match ref:
-        case MarkdownItemRef():
-            # SAFETY: Markdown item rules expose Query, selected by this typed reference variant
-            facts = database.query(cast('Query[Facts]', query), ref)
-        case SymlinkRef():
-            # SAFETY: symlink rules expose SymlinkQuery, selected by this typed reference variant
-            facts = database.query(cast('SymlinkQuery[Facts]', query), ref)
-        case CorpusDirectoryRef():
-            # SAFETY: corpus-directory rules expose CorpusDirectoryQuery, selected by this typed reference variant
-            facts = database.query(cast('CorpusDirectoryQuery[Facts]', query), ref)
-        case _:
-            assert_never(ref)
+    facts = database.query(rule.query(), ref)
     return rule.judge(facts)
+
+
+def _judged_symlink[Facts](
+    rule: type[QueriedSymlinkRule[Facts]], database: Database, ref: SymlinkRef
+) -> tuple[Rule, ...]:
+    """Judge one symlink rule from the facts of its memoized query.
+
+    Args:
+        rule: The rule to run.
+        database: The revision the query is resolved from.
+        ref: The symlink whose query the database resolves.
+    """
+    return rule.judge(database.query(rule.query(), ref))
+
+
+def _judged_corpus_directory[Facts](
+    rule: type[QueriedCorpusDirectoryRule[Facts]], database: Database, ref: CorpusDirectoryRef
+) -> tuple[Rule, ...]:
+    """Judge one corpus-directory rule from the facts of its memoized query.
+
+    Args:
+        rule: The rule to run.
+        database: The revision the query is resolved from.
+        ref: The corpus directory whose query the database resolves.
+    """
+    return rule.judge(database.query(rule.query(), ref))
 
 
 def _located[R: Rule](
@@ -246,14 +240,16 @@ def check_layout_entry(
         case OutsideSymlink():
             symlink = entry
             diagnostics = _located(
-                entry.path, table.symlink_rules, lambda rule: _judged(rule, database, SymlinkRef(symlink.path))
+                entry.path,
+                table.symlink_rules,
+                lambda rule: _judged_symlink(rule, database, SymlinkRef(symlink.path)),
             )
         case ReservedCorpusDirectory():
             directory = entry
             diagnostics = _located(
                 entry.path,
                 table.corpus_directory_rules,
-                lambda rule: _judged(rule, database, CorpusDirectoryRef(directory.path)),
+                lambda rule: _judged_corpus_directory(rule, database, CorpusDirectoryRef(directory.path)),
             )
         case _:
             assert_never(entry)
