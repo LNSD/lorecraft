@@ -36,7 +36,7 @@ query and hands it the facts sits above in `lorecraft.engine`; the query is answ
 - An engine condition: what the engine reports before any rule runs, such as an undecodable file.
   Declared and rendered like a rule, with an `EngineCode` in group `LC`, a fixed severity, no `judge`; it
   derives from `FileCondition` or `EntryCondition`.
-- The one-run selection, rule table and report, each stated in its module docstring.
+- The one-run selection, rule table and ItemRef report, except refused aliases use SkillAliasRef.
 - A rule group, as a subpackage: `__ruleset__.py` declares its `GROUP_ID` and shared values, `__init__.py` holds
   only the docstring, and each rule has its module. `identity.py` declares the `LC` group as `ENGINE_GROUP` for
   `EngineCode` and re-exports it as `GROUP_ID`.
@@ -47,9 +47,9 @@ query and hands it the facts sits above in `lorecraft.engine`; the query is answ
 
 | Code that… | Belongs in |
 |---|---|
-| Answers or memoizes a query over one revision, decoding a subject included | `lorecraft.project` |
-| Runs the rules over a subject, and files each occurrence as a diagnostic | `lorecraft.engine` |
-| Prints, renders a report, or sets an exit code | `lorecraft.cli` |
+| Owns origin refs and answers queries over one revision | `lorecraft.project` |
+| Runs rules on ItemRef and files occurrences as diagnostics | `lorecraft.engine` |
+| Renders model listings from origin refs; prints reports and exit codes | `lorecraft.cli` |
 | Parses text, or decodes a meta spec | `lorecraft.project` |
 | Reads the disk | `lorecraft.vfs` |
 

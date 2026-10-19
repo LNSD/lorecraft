@@ -14,6 +14,7 @@ import pytest
 from lib.tree import from_tree
 from lorecraft import rules
 from lorecraft.core.mapping import FrozenMapping
+from lorecraft.core.path import RootRelativePath
 from lorecraft.engine import check_subjects
 from lorecraft.project.aspect import AspectFilename, AspectNamespace
 from lorecraft.project.corpus import CorpusName
@@ -27,13 +28,15 @@ from lorecraft.rules.selection import AllRules, RuleSelection
 from lorecraft.rules.table import RuleTable
 from lorecraft.vfs import Snapshot
 
-TYPING: Final[DocumentRef] = DocumentRef(CorpusName.parse('code'), AspectFilename.parse('python-typing'))
+TYPING: Final[ItemRef] = ItemRef(RootRelativePath.parse('docs/code/python-typing.md'))
+TYPING_DOCUMENT: Final[DocumentRef] = DocumentRef(CorpusName.parse('code'), AspectFilename.parse('python-typing'))
 """A document of corpus `code` its `python` namespace governs too."""
 
-ASYNC: Final[DocumentRef] = DocumentRef(CorpusName.parse('code'), AspectFilename.parse('python-async'))
+ASYNC: Final[ItemRef] = ItemRef(RootRelativePath.parse('docs/code/python-async.md'))
+ASYNC_DOCUMENT: Final[DocumentRef] = DocumentRef(CorpusName.parse('code'), AspectFilename.parse('python-async'))
 """A second document of corpus `code`, its `python` namespace governing it too."""
 
-UNLISTED: Final[DocumentRef] = DocumentRef(CorpusName.parse('blog'), AspectFilename.parse('launch'))
+UNLISTED: Final[ItemRef] = ItemRef(RootRelativePath.parse('docs/blog/launch.md'))
 """A document of a corpus the snapshot holds no specification of."""
 
 CORPUS_SPEC: Final[bytes] = (
@@ -93,7 +96,7 @@ class TestGovernance:
             CorpusSpecName(code),
             NamespaceSpecName(code, AspectNamespace.parse('python')),
         ], 'the corpus spec and the `python` namespace spec govern the document'
-        assert governance == database.model().find_governance(TYPING), 'the query answers what the model finds'
+        assert governance == database.model().find_governance(TYPING_DOCUMENT), 'the query answers what the model finds'
 
     def test_governance_with_a_document_in_a_corpus_the_model_lacks_holds_none(self) -> None:
         #: Given
@@ -122,7 +125,7 @@ class TestGovernance:
         assert corpus is not None, 'the snapshot declares corpus `code`'
         other_filename = AspectFilename.parse('other')
         with_other_document = replace(corpus, filenames=corpus.filenames | {other_filename})
-        filename = TYPING.filename
+        filename = TYPING_DOCUMENT.filename
 
         #: When
         governance = corpus.governance(filename)
@@ -139,7 +142,7 @@ class TestGovernance:
         namespace = AspectNamespace.parse('rust')
         other_namespaces = FrozenMapping({**corpus.namespaces, namespace: CorpusNamespace(files=(), structure=None)})
         with_other_namespace = replace(corpus, namespaces=other_namespaces)
-        filename = TYPING.filename
+        filename = TYPING_DOCUMENT.filename
 
         #: When
         governance = corpus.governance(filename)
@@ -175,7 +178,7 @@ class TestRunComputesGovernanceOnce:
 
         #: Then
         assert len(reports) == 2, 'both documents are checked'
-        assert computed == [TYPING.filename, ASYNC.filename], (
+        assert computed == [TYPING_DOCUMENT.filename, ASYNC_DOCUMENT.filename], (
             'the facet gate, the queries and the schema and outline analyses all read the one query, so each '
             'document is governed once however many readers ask'
         )

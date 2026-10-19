@@ -7,14 +7,11 @@ import pytest
 from lib.tree import from_tree
 from lorecraft import rules
 from lorecraft.core.path import PathComponent, RootRelativePath
-from lorecraft.project.aspect import AspectFilename
-from lorecraft.project.corpus import CorpusName
 from lorecraft.project.database import Database, ItemText
-from lorecraft.project.document import DocumentRef, MetaSpecRef
 from lorecraft.project.item import ItemRef, MetaSpecPart
 from lorecraft.project.layout import SPECS_DIR
 from lorecraft.rules.registry import Registry
-from lorecraft.rules.report import CheckedItem, SkippedSubject, UndecodableSubject
+from lorecraft.rules.report import CheckedItem, SkippedSubject, SkipReason, UndecodableSubject
 from lorecraft.rules.selection import AllRules, RuleSelection
 from lorecraft.rules.table import RuleTable
 from lorecraft.vfs import OsRefusal, RefusedRead
@@ -22,7 +19,7 @@ from lorecraft.vfs import OsRefusal, RefusedRead
 from ..runner import judge_item
 from ..skip import check_subjects
 
-TYPING: Final[DocumentRef] = DocumentRef(CorpusName.parse('code'), AspectFilename.parse('python-typing'))
+TYPING: Final[ItemRef] = ItemRef(RootRelativePath.parse('docs/code/python-typing.md'))
 """A document of corpus `code`, whose structure file governs its frontmatter and its outline."""
 
 CORPUS_SPEC: Final[bytes] = (
@@ -34,7 +31,7 @@ DOCUMENT: Final[bytes] = b'---\nname: python-typing\n---\n\n# Typing\n\n## Rule\
 """A document with a frontmatter block, a title and the section `Rule`."""
 
 
-LOGGING: Final[DocumentRef] = DocumentRef(CorpusName.parse('code'), AspectFilename.parse('logging'))
+LOGGING: Final[ItemRef] = ItemRef(RootRelativePath.parse('docs/code/logging.md'))
 """A document of corpus `code` no namespace spec of the corpus governs."""
 
 CODE_SPEC_PATH: Final[RootRelativePath] = RootRelativePath.parse('docs/__meta__/code.spec.json')
@@ -221,8 +218,8 @@ class TestCheckSubjectsWithAFailedLayer:
 
         #: Then
         assert reports == (
-            SkippedSubject(TYPING, failed_layers=(CODE_SPEC_PATH,)),
-            SkippedSubject(LOGGING, failed_layers=(CODE_SPEC_PATH,)),
+            SkippedSubject(TYPING, (CODE_SPEC_PATH,), SkipReason.FAILED_STRUCTURE),
+            SkippedSubject(LOGGING, (CODE_SPEC_PATH,), SkipReason.FAILED_STRUCTURE),
         ), 'the corpus spec governs every document, so none is judged from the layers that loaded'
 
     def test_check_subjects_with_a_failed_namespace_spec_skips_only_the_documents_it_governs(self) -> None:
@@ -241,7 +238,7 @@ class TestCheckSubjectsWithAFailedLayer:
 
         #: Then
         assert reports == (
-            SkippedSubject(TYPING, failed_layers=(PYTHON_SPEC_PATH,)),
+            SkippedSubject(TYPING, (PYTHON_SPEC_PATH,), SkipReason.FAILED_STRUCTURE),
             judged,
         ), 'the document the namespace governs is skipped; the other is judged as if nothing had failed'
 
@@ -257,7 +254,7 @@ class TestCheckSubjectsWithAFailedLayer:
         reports = check_subjects(database, [TYPING], table)
 
         #: Then
-        assert reports == (SkippedSubject(TYPING, failed_layers=(CODE_SPEC_PATH, PYTHON_SPEC_PATH)),), (
+        assert reports == (SkippedSubject(TYPING, (CODE_SPEC_PATH, PYTHON_SPEC_PATH), SkipReason.FAILED_STRUCTURE),), (
             'every failed layer that governs the document is named, the corpus spec first'
         )
 
@@ -287,12 +284,12 @@ class TestCheckSubjectsWithAFailedLayer:
         reports = check_subjects(database, [TYPING], no_rules)
 
         #: Then
-        assert reports == (SkippedSubject(TYPING, failed_layers=(CODE_SPEC_PATH,)),), (
+        assert reports == (SkippedSubject(TYPING, (CODE_SPEC_PATH,), SkipReason.FAILED_STRUCTURE),), (
             'a document is skipped for what governs it, not for what the run enables, so it is never read as clean'
         )
 
 
-CODE_SPECIFICATION: Final[MetaSpecRef] = MetaSpecRef(SPECS_DIR / PathComponent.parse('code.md'))
+CODE_SPECIFICATION: Final[ItemRef] = ItemRef(SPECS_DIR / PathComponent.parse('code.md'))
 """The prose of the meta spec of corpus `code`."""
 
 
