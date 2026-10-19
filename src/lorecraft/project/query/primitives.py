@@ -23,7 +23,7 @@ from lorecraft.schemas import SchemaInput, SchemaRef
 from lorecraft.vfs import RootExit
 
 if TYPE_CHECKING:
-    from lorecraft.project.schemas.name import SpecName
+    from lorecraft.project.document import DocumentRef, MetaSpecRef
     from lorecraft.project.workspace import Governance
 
 type Query[P, T] = Callable[[P], T]
@@ -58,8 +58,30 @@ class QueryPrimitives[P](Protocol):
 class DecodedText(Protocol):
     """The raw text state every decoded item witness exposes to a query."""
 
-    descriptor: ItemDescriptor
-    text: str
+    @property
+    def text(self) -> str:
+        """The decoded file text."""
+        ...
+
+
+class NameHierarchy(Protocol):
+    """The name lookups an item base query derives from."""
+
+    def find_corpus(self, name: CorpusName) -> NameHierarchyCorpus | None:
+        """Find a corpus in the model's document hierarchy."""
+        ...
+
+    def find_specification_base(self, ref: MetaSpecRef) -> MetaSpecRef | None:
+        """Find the nearest declared specification ancestor."""
+        ...
+
+
+class NameHierarchyCorpus(Protocol):
+    """The document-name lookup retained by one corpus in the model."""
+
+    def document_base(self, filename: AspectFilename) -> DocumentRef | None:
+        """Find the nearest declared document ancestor."""
+        ...
 
 
 class SchemaPrimitives(QueryPrimitives['SchemaPrimitives'], Protocol):
@@ -97,12 +119,20 @@ class GovernancePrimitives(QueryPrimitives['ItemPrimitives'], Protocol):
         """The governance of this item, or none when it has no corpus governance."""
         ...
 
-    def base(self) -> AspectFilename | SpecName | None:
-        """The typed name of the document or specification the item extends, looked for among the names the model lists.
 
-        A document's base is the narrowest document of its corpus whose name its own continues after a hyphen, a
-        specification's the narrowest specification; `None` when it has none, and for any other item.
-        """
+class NameHierarchyPrimitives(Protocol):
+    """The raw descriptor and model hierarchy used to derive an item's base."""
+
+    def text(self) -> DecodedText | None:
+        """The decoded witness of this subject, or none when its bytes are not UTF-8."""
+        ...
+
+    def item_descriptor(self) -> ItemDescriptor:
+        """The model-resolved raw descriptor of this item."""
+        ...
+
+    def model(self) -> NameHierarchy:
+        """The model's raw name hierarchy."""
         ...
 
 
@@ -125,6 +155,7 @@ class LinkResolutionPrimitives(QueryPrimitives['ItemPrimitives'], Protocol):
 class ItemPrimitives(
     SyntaxPrimitives,
     GovernancePrimitives,
+    NameHierarchyPrimitives,
     LinkResolutionPrimitives,
     QueryPrimitives['ItemPrimitives'],
     Protocol,

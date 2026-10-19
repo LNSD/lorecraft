@@ -7,6 +7,7 @@ revision whenever every primitive it read is kept, and a query never reads the s
 """
 
 from .item_facts import (
+    item_base,
     item_corpus,
     item_frontmatter,
     item_line_count,
@@ -25,6 +26,7 @@ from .primitives import (
     ItemPrimitives,
     ItemQuery,
     LinkResolutionPrimitives,
+    NameHierarchyPrimitives,
     Query,
     QueryPrimitives,
     QueryTargetRef,
@@ -45,6 +47,7 @@ __all__: list[str] = [
     'GovernancePrimitives',
     'ItemQuery',
     'LinkResolutionPrimitives',
+    'NameHierarchyPrimitives',
     'ItemPrimitives',
     'Query',
     'QueryPrimitives',
@@ -58,6 +61,7 @@ __all__: list[str] = [
     'TitlePrimitives',
     'linked_paths',
     'item_corpus',
+    'item_base',
     'item_frontmatter',
     'item_line_count',
     'item_name',
