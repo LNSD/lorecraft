@@ -420,7 +420,7 @@ def _answer(call: Callable[[RootRelativePath], object], path: RootRelativePath) 
     """
     try:
         return call(path)
-    except (FileReadError, UnrecordedFileError):
+    except FileReadError, UnrecordedFileError:
         return UNREADABLE_FILE
     except _DECLARED_FAILURES as exc:
         failure: (

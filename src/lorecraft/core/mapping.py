@@ -182,7 +182,7 @@ class FrozenMapping[K, V](Mapping[K, V]):
         return validate_dict(value)
 
     def _to_dict_for_pydantic(
-        self: 'FrozenMapping[str, Frozen]', serialize_dict: SerializerFunctionWrapHandler
+        self: FrozenMapping[str, Frozen], serialize_dict: SerializerFunctionWrapHandler
     ) -> object:
         """The mapping written as the `dict` it was read as, by the `dict` schema's own serializer.
 
@@ -192,7 +192,7 @@ class FrozenMapping[K, V](Mapping[K, V]):
         return serialize_dict(self.to_plain())
 
     @classmethod
-    def from_plain(cls, mapping: 'Mapping[str, Plain]') -> 'FrozenMapping[str, Frozen]':
+    def from_plain(cls, mapping: Mapping[str, Plain]) -> FrozenMapping[str, Frozen]:
         """A copy of a decoded mapping with every value frozen all the way down.
 
         Every mapping inside it becomes a `FrozenMapping` and every list a tuple. Any other value is a scalar and is
@@ -219,7 +219,7 @@ class FrozenMapping[K, V](Mapping[K, V]):
         # the class is read with.
         return FrozenMapping(frozen)
 
-    def to_plain(self: 'FrozenMapping[str, Frozen]') -> 'dict[str, Plain]':
+    def to_plain(self: FrozenMapping[str, Frozen]) -> dict[str, Plain]:
         """A `dict` copy of a frozen mapping with every value turned back into plain data, as `_to_plain_value` does.
 
         The one way frozen data leaves for code that reads only plain containers: `lorecraft.jsonschema` and strict

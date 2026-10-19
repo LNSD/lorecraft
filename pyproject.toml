@@ -22,7 +22,7 @@ license-files = ["LICENSE-MIT", "LICENSE-APACHE"]
 authors = [
     { name = "Lorenzo Delgado", email = "lnsdev@proton.me" },
 ]
-requires-python = ">=3.12"
+requires-python = ">=3.14"
 keywords = [
     "agents",
     "agent-skills",
@@ -37,8 +37,6 @@ classifiers = [
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3 :: Only",
-    "Programming Language :: Python :: 3.12",
-    "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
     "Topic :: Documentation",
     "Topic :: Software Development :: Documentation",
@@ -166,7 +164,7 @@ also_copy = ["docs/schemas", "docs/__meta__", ".agents/skills", "skills"]
 
 [tool.ruff]
 line-length = 120
-target-version = "py312"
+target-version = "py314"
 src = [
     "src",
     "gen/src",
@@ -220,7 +218,7 @@ root = [
     # A unit test pins text output through `lib.snapshot`, which pytest imports from here through `pythonpath`.
     "tests",
 ]
-python-version = "3.12"
+python-version = "3.14"
 
 # A warning fails the check as an error does, so a new one cannot land unnoticed.
 [tool.ty.terminal]

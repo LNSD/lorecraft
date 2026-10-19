@@ -57,7 +57,7 @@
   },
   ignoreDeps: [
     // Ignore python: pep621 reads `requires-python` as a dependency, but the
-    // >=3.12 floor is a deliberate support decision, not something to bump on a
+    // >=3.14 floor is a deliberate support decision, not something to bump on a
     // release of the interpreter.
     'python',
   ],

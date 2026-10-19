@@ -731,7 +731,7 @@ def _escaped_separator(problem: str) -> str | None:
         return None
     try:
         character = ast.literal_eval(problem[len(prefix) :])
-    except (ValueError, SyntaxError):
+    except ValueError, SyntaxError:
         return None
     return character if isinstance(character, str) and character in LINE_SEPARATORS else None
 

@@ -238,7 +238,7 @@ class UnknownRuleKeyError(Error):
 class AllSelector:
     """The selector `ALL`: every rule."""
 
-    def to_rule_selector(self, registry: 'Registry') -> 'RuleSelector':
+    def to_rule_selector(self, registry: Registry) -> RuleSelector:
         """The rule-side selector of every rule.
 
         Args:
@@ -263,7 +263,7 @@ class GroupSelector:
 
     prefix: str
 
-    def to_rule_selector(self, registry: 'Registry') -> 'RuleSelector':
+    def to_rule_selector(self, registry: Registry) -> RuleSelector:
         """The rule-side group this prefix names.
 
         Args:
@@ -288,7 +288,7 @@ class CodePrefixSelector:
     group_prefix: str
     digits: str
 
-    def to_rule_selector(self, registry: 'Registry') -> 'RuleSelector':
+    def to_rule_selector(self, registry: Registry) -> RuleSelector:
         """The rule-side code prefix.
 
         Args:
@@ -324,7 +324,7 @@ class CodeSelector:
         if not 1 <= self.number <= _MAX_CODE_NUMBER:
             raise CodeNumberOutOfRangeError(self.number)
 
-    def to_rule_code(self, registry: 'Registry') -> 'RuleCode':
+    def to_rule_code(self, registry: Registry) -> RuleCode:
         """The rule-side code.
 
         Args:
@@ -334,7 +334,7 @@ class CodeSelector:
 
         return RuleCode(_require_group(registry, self.group_prefix), self.number)
 
-    def to_rule_selector(self, registry: 'Registry') -> 'RuleSelector':
+    def to_rule_selector(self, registry: Registry) -> RuleSelector:
         """The rule-side code, which selects its rule.
 
         Args:
@@ -359,7 +359,7 @@ class AliasSelector:
     alias: str
     code: CodeSelector
 
-    def to_rule_selector(self, registry: 'Registry') -> 'RuleSelector':
+    def to_rule_selector(self, registry: Registry) -> RuleSelector:
         """The rule-side code of the rule the alias code names.
 
         Args:
@@ -470,7 +470,7 @@ class RuleKey:
             raise UnknownRuleKeyError(raw)
         raise MalformedRuleKeyError(raw)
 
-    def to_declaration(self, registry: 'Registry') -> 'RuleDeclaration':
+    def to_declaration(self, registry: Registry) -> RuleDeclaration:
         """The rule, removed rule or engine condition the key names.
 
         Args:
@@ -569,7 +569,7 @@ def _split_code(code: str, rule_index: RuleIndex) -> CodeSelector:
     return CodeSelector(code[: -rule_index.CODE_DIGITS], int(code[-rule_index.CODE_DIGITS :]))
 
 
-def _require_group(registry: 'Registry', prefix: str) -> 'RuleGroup':
+def _require_group(registry: Registry, prefix: str) -> RuleGroup:
     """The registry's group with this prefix, which the index held.
 
     Args:

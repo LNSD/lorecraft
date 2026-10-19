@@ -47,27 +47,6 @@ class RootNotFoundError(Error):
         super().__init__('cannot find repository root: no parent contains docs/__meta__/')
 
 
-class RootCandidateInspectError(Error):
-    """A directory on the way up from the start cannot be inspected for `docs/__meta__/`.
-
-    Attributes:
-        candidate: The directory whose `docs/__meta__/` could not be inspected.
-        refusal: Why the operating system refused the inspection.
-        source: The operating system's failure.
-    """
-
-    candidate: Path
-    refusal: OsRefusal
-    source: OSError
-
-    def __init__(self, candidate: Path, refusal: OsRefusal, *, source: OSError) -> None:
-        self.candidate = candidate
-        self.refusal = refusal
-        self.source = source
-        super().__init__(f'cannot find repository root: cannot inspect {candidate}')
-        self.__cause__ = source
-
-
 class InvalidRootError(Error):
     """An explicit root is not an existing directory.
 
@@ -82,27 +61,6 @@ class InvalidRootError(Error):
         super().__init__(f'{path} is not an existing directory')
 
 
-class RootInspectError(Error):
-    """An explicit root cannot be inspected to learn whether it is a directory.
-
-    Attributes:
-        path: The root, resolved.
-        refusal: Why the operating system refused the inspection.
-        source: The operating system's failure.
-    """
-
-    path: Path
-    refusal: OsRefusal
-    source: OSError
-
-    def __init__(self, path: Path, refusal: OsRefusal, *, source: OSError) -> None:
-        self.path = path
-        self.refusal = refusal
-        self.source = source
-        super().__init__(f'cannot inspect root {path}')
-        self.__cause__ = source
-
-
 def get_root(start: Path) -> Path:
     """The first of `start` and its parents holding `docs/__meta__/` as a directory, resolved.
 
@@ -111,19 +69,11 @@ def get_root(start: Path) -> Path:
 
     Raises:
         RootNotFoundError: If no directory from `start` upward holds `docs/__meta__/`.
-        RootCandidateInspectError: If the operating system refuses to inspect a directory on the way up.
     """
     # A relative start has parents that stop at `.`, so resolve first to climb the resolved directory tree.
     resolved = start.resolve()
     for candidate in (resolved, *resolved.parents):
-        try:
-            holds_specs = disk_location(candidate, SPECS_DIR).is_dir()
-        except OSError as exc:
-            # Through Python 3.13, `is_dir` answers False only for ENOENT, ENOTDIR, EBADF and ELOOP and raises any
-            # other failure, a PermissionError under an unsearchable parent for one; 3.14 answers False for every
-            # failure. Raised here, it is a failure of this search, not a bare OSError for the command.
-            raise RootCandidateInspectError(candidate, OsRefusal.from_error(exc), source=exc) from exc
-        if holds_specs:
+        if disk_location(candidate, SPECS_DIR).is_dir():
             return candidate
     raise RootNotFoundError(start)
 
@@ -136,15 +86,10 @@ def resolve_root(path: Path) -> Path:
 
     Raises:
         InvalidRootError: If the resolved path is not an existing directory.
-        RootInspectError: If the operating system refuses to inspect it.
     """
     resolved = path.resolve()
-    try:
-        is_directory = resolved.is_dir()
-    except OSError as exc:
-        # As in `get_root`: through Python 3.13 `is_dir` raises a failure other than absence, where 3.14 answers False.
-        raise RootInspectError(resolved, OsRefusal.from_error(exc), source=exc) from exc
-    if not is_directory:
+    # Python 3.14's `is_dir` treats an uninspectable path as not a directory.
+    if not resolved.is_dir():
         raise InvalidRootError(resolved)
     return resolved
 
@@ -158,9 +103,7 @@ def establish_root(root: Path | None) -> Path:
     Raises:
         WorkingDirectoryReadError: If no root is given and the working directory cannot be read.
         RootNotFoundError: If no root is given and no directory upward holds docs/__meta__/.
-        RootCandidateInspectError: If no root is given and a directory upward cannot be inspected.
         InvalidRootError: If the given root is not an existing directory.
-        RootInspectError: If the given root cannot be inspected.
     """
     if root is not None:
         return resolve_root(root)

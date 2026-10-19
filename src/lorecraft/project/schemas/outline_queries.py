@@ -15,7 +15,7 @@ if TYPE_CHECKING:
     from lorecraft.project.query import Primitives
 
 
-def outline_alignment(primitives: 'Primitives') -> tuple[OutlineAlignmentSpec, ...]:
+def outline_alignment(primitives: Primitives) -> tuple[OutlineAlignmentSpec, ...]:
     """Which outline entry each of the document's H2 sections falls in, for each specification that governs it.
 
     One entry per structure specification that governs the document, in the order the specifications apply, one that

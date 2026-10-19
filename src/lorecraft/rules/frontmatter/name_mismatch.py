@@ -50,7 +50,7 @@ def _is_skill_name(name: str) -> bool:
     """
     try:
         SkillName.parse(name)
-    except (EmptySkillNameError, OverlongSkillNameError, InvalidSkillNameFormatError):
+    except EmptySkillNameError, OverlongSkillNameError, InvalidSkillNameFormatError:
         return False
     return True
 

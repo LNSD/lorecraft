@@ -1,8 +1,5 @@
 """Establishing the workspace root: discovery upward from a start directory, an explicit root, and either."""
 
-import os
-import sys
-from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
@@ -12,29 +9,12 @@ from lorecraft.vfs import OsRefusal
 
 from ..root import (
     InvalidRootError,
-    RootCandidateInspectError,
-    RootInspectError,
     RootNotFoundError,
     WorkingDirectoryReadError,
     establish_root,
     get_root,
     resolve_root,
 )
-
-
-@pytest.fixture(scope='function')
-def directory_under_a_locked_parent(tmp_path: Path) -> Iterator[Path]:
-    """A directory whose parent refuses search, so nothing below it can be inspected; unlocked afterwards.
-
-    Args:
-        tmp_path: The test's temporary directory, under which the locked parent is created.
-    """
-    locked = tmp_path / 'locked'
-    directory = locked / 'sub'
-    directory.mkdir(parents=True)
-    locked.chmod(0o000)
-    yield directory
-    locked.chmod(0o700)
 
 
 @pytest.mark.unit
@@ -91,25 +71,6 @@ class TestGetRoot:
         assert type(exc_info.value).__bases__ == (Error,), 'the variant derives from Error directly, not a family'
         assert exc_info.value.start == start, 'the error retains where the search began'
 
-    @pytest.mark.skipif(os.geteuid() == 0, reason='root ignores directory permissions')
-    @pytest.mark.skipif(sys.version_info >= (3, 14), reason="Python 3.14's is_dir answers False for every failure")
-    def test_get_root_with_a_start_under_a_locked_parent_raises_root_candidate_inspect_error(
-        self, directory_under_a_locked_parent: Path
-    ) -> None:
-        #: Given
-        start = directory_under_a_locked_parent
-
-        #: When
-        with pytest.raises(RootCandidateInspectError) as exc_info:
-            get_root(start)
-
-        #: Then
-        assert type(exc_info.value).__bases__ == (Error,), 'the variant derives from Error directly, not a family'
-        assert exc_info.value.candidate == start.resolve(), 'the error names the first directory it could not inspect'
-        assert exc_info.value.refusal is OsRefusal.PERMISSION_DENIED, 'a locked parent is a refused permission'
-        assert isinstance(exc_info.value.source, PermissionError), 'the error keeps the operating system failure'
-        assert exc_info.value.__cause__ is exc_info.value.source, 'the operating system failure is the cause'
-
 
 @pytest.mark.unit
 class TestResolveRoot:
@@ -148,25 +109,6 @@ class TestResolveRoot:
 
         #: Then
         assert resolved == tmp_path.resolve(), 'resolution removes parent segments from an existing directory'
-
-    @pytest.mark.skipif(os.geteuid() == 0, reason='root ignores directory permissions')
-    @pytest.mark.skipif(sys.version_info >= (3, 14), reason="Python 3.14's is_dir answers False for every failure")
-    def test_resolve_root_with_a_directory_under_a_locked_parent_raises_root_inspect_error(
-        self, directory_under_a_locked_parent: Path
-    ) -> None:
-        #: Given
-        path = directory_under_a_locked_parent
-
-        #: When
-        with pytest.raises(RootInspectError) as exc_info:
-            resolve_root(path)
-
-        #: Then
-        assert type(exc_info.value).__bases__ == (Error,), 'the variant derives from Error directly, not a family'
-        assert exc_info.value.path == path.resolve(), 'the error identifies the root it could not inspect'
-        assert exc_info.value.refusal is OsRefusal.PERMISSION_DENIED, 'a locked parent is a refused permission'
-        assert isinstance(exc_info.value.source, PermissionError), 'the error keeps the operating system failure'
-        assert exc_info.value.__cause__ is exc_info.value.source, 'the operating system failure is the cause'
 
 
 @pytest.mark.unit

@@ -145,7 +145,7 @@ class RootRelativePath:
         """The path with POSIX separators, such as `docs/code/a.md`, as findings and the workspace tree print it."""
         return str(self.value)
 
-    def __truediv__(self, other: 'PathComponent | RootRelativePath') -> 'RootRelativePath':
+    def __truediv__(self, other: PathComponent | RootRelativePath) -> RootRelativePath:
         """This path joined with `other`, so the result stays under the root.
 
         Args:
@@ -170,19 +170,19 @@ class RootRelativePath:
         return self.value.parts
 
     @property
-    def parent(self) -> 'RootRelativePath':
+    def parent(self) -> RootRelativePath:
         """The directory holding this path; the root is its own parent."""
         return RootRelativePath(self.value.parent)
 
     @property
-    def parents(self) -> tuple['RootRelativePath', ...]:
+    def parents(self) -> tuple[RootRelativePath, ...]:
         """Every ancestor, nearest first and the root last; `()` for the root."""
         ancestors: list[RootRelativePath] = []
         for ancestor in self.value.parents:
             ancestors.append(RootRelativePath(ancestor))
         return tuple(ancestors)
 
-    def is_relative_to(self, other: 'RootRelativePath') -> bool:
+    def is_relative_to(self, other: RootRelativePath) -> bool:
         """True when this path is `other` or lies under it; every path lies under the root.
 
         Args:

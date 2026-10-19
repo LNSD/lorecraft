@@ -19,7 +19,7 @@ from that: spell annotations in the one modern form so they read uniformly, anno
 claim is there to check, and never write an annotation you have not verified against the body. A green
 checker on a vague annotation is not a pass.
 
-`requires-python = ">=3.12"`, so there is no compatibility argument for the legacy spellings.
+`requires-python = ">=3.14"`, so there is no compatibility argument for the legacy spellings.
 
 Naming of the annotated things is owned by [python-naming](python-naming.md). How a record's fields are
 declared and defaulted is owned by [python-dataclasses](python-dataclasses.md). The prose that documents a

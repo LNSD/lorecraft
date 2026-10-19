@@ -76,7 +76,7 @@ AGENT_SKILLS_FRONTMATTER_SCHEMA: Final[AgentSkillsFrontmatterSchema] = AgentSkil
 """The Agent Skills specification every skill's frontmatter is held to."""
 
 
-def agent_skills_frontmatter_schema(primitives: 'SchemaPrimitives') -> AgentSkillsFrontmatterSchema:
+def agent_skills_frontmatter_schema(primitives: SchemaPrimitives) -> AgentSkillsFrontmatterSchema:
     """The Pydantic schema for the bundled Agent Skills subject, obtained through its registry input."""
     primitives.schema_input()
     return AGENT_SKILLS_FRONTMATTER_SCHEMA

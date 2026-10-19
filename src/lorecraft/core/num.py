@@ -71,15 +71,15 @@ class NonZeroUnsignedInt:
         """The number in decimal digits, formatted as an integer is: `f'{number:>3}'` pads it to 3 columns."""
         return format(self.value, format_spec)
 
-    def as_unsigned(self) -> 'UnsignedInt':
+    def as_unsigned(self) -> UnsignedInt:
         """The same number as an `UnsignedInt`, to compare or combine it with one."""
         return UnsignedInt(self.value)
 
-    def successor(self) -> 'NonZeroUnsignedInt':
+    def successor(self) -> NonZeroUnsignedInt:
         """The number one above this one."""
         return NonZeroUnsignedInt(self.value + 1)
 
-    def between(self, earlier: 'NonZeroUnsignedInt') -> 'UnsignedInt':
+    def between(self, earlier: NonZeroUnsignedInt) -> UnsignedInt:
         """How many whole numbers lie strictly between `earlier` and this number: 0 for two that are adjacent.
 
         Args:
@@ -197,7 +197,7 @@ class UnsignedInt:
         """The number in decimal digits, formatted as an integer is: `f'{number:>3}'` pads it to 3 columns."""
         return format(self.value, format_spec)
 
-    def __add__(self, other: 'UnsignedInt') -> 'UnsignedInt':
+    def __add__(self, other: UnsignedInt) -> UnsignedInt:
         """The sum of two numbers, which is again a number of at least 0."""
         return UnsignedInt(self.value + other.value)
 
@@ -220,7 +220,7 @@ class UnsignedInt:
         """
         return NonZeroUnsignedInt(self.value - cap.as_unsigned().value)
 
-    def minus(self, other: NonZeroUnsignedInt) -> 'UnsignedInt | None':
+    def minus(self, other: NonZeroUnsignedInt) -> UnsignedInt | None:
         """The number left after taking `other` away, or `None` when `other` is more than this number holds.
 
         Args:

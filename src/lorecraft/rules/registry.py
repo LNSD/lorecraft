@@ -196,10 +196,10 @@ class AbstractRuleError(RuntimeError):
         missing: The names of the methods it leaves abstract, in name order.
     """
 
-    declaration: type[Rule] | type[EngineCondition]
+    declaration: type[Rule | EngineCondition]
     missing: tuple[str, ...]
 
-    def __init__(self, declaration: type[Rule] | type[EngineCondition], missing: tuple[str, ...]) -> None:
+    def __init__(self, declaration: type[Rule | EngineCondition], missing: tuple[str, ...]) -> None:
         self.declaration = declaration
         self.missing = missing
         super().__init__(
@@ -214,9 +214,9 @@ class RuleInEngineGroupError(RuntimeError):
         declaration: The rule class or removed rule.
     """
 
-    declaration: type[Rule] | type[RemovedRule]
+    declaration: type[Rule | RemovedRule]
 
-    def __init__(self, declaration: type[Rule] | type[RemovedRule]) -> None:
+    def __init__(self, declaration: type[Rule | RemovedRule]) -> None:
         self.declaration = declaration
         super().__init__(
             f'rule {declaration.__qualname__} has the code {str(declaration.CODE)!r}, in the engine group '
