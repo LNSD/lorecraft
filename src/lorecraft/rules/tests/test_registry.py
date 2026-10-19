@@ -227,7 +227,7 @@ class TestRegistryLoad:
         assert exc_info.value.declaration is Unreplaced, 'the error names the removed rule missing the attribute'
         assert exc_info.value.attribute == 'REPLACED_BY', 'the error names the attribute it leaves unbound'
 
-    def test_load_with_a_document_rule_without_a_facet_raises_unset_rule_attribute_error(self) -> None:
+    def test_load_with_an_item_rule_without_gates_raises_unset_rule_attribute_error(self) -> None:
         #: Given
         package = unset_facet
 
@@ -236,8 +236,8 @@ class TestRegistryLoad:
             Registry.load(package)
 
         #: Then
-        assert exc_info.value.declaration is Unfaceted, 'the error names the rule over a document missing its facet'
-        assert exc_info.value.attribute == 'GOVERNED_BY', 'the error names the attribute it leaves unbound'
+        assert exc_info.value.declaration is Unfaceted, 'the error names the item rule missing its gate'
+        assert exc_info.value.attribute == 'GATES', 'the error names the missing applicability declaration'
 
     def test_load_with_one_prefix_given_two_titles_raises_conflicting_rule_group_error(self) -> None:
         #: Given

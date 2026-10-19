@@ -109,8 +109,8 @@ class TestAppliesTo:
 
         #: Then
         assert item_rules, 'the registry includes rules over items'
-        assert all(rule.APPLIES_TO for rule in item_rules), 'each item rule applies to at least one kind'
-        assert all(rule.APPLIES_TO <= frozenset(ItemKind) for rule in item_rules), 'each rule names known item kinds'
+        assert all(rule.GATES for rule in item_rules), 'each item rule applies to at least one kind'
+        assert all(set(rule.GATES) <= set(ItemKind) for rule in item_rules), 'each rule names known item kinds'
 
     def test_corpus_rule_with_skill_entry_applies_to_skill_entries(self) -> None:
         #: Given
@@ -118,10 +118,10 @@ class TestAppliesTo:
         expected = ItemKind.SKILL_ENTRY
 
         #: When
-        kinds = rule.APPLIES_TO
+        kinds = rule.GATES
 
         #: Then
-        assert expected in kinds, 'corpus rules apply to skill entries as well as documents'
+        assert expected in kinds, 'corpus rules declare a gate for skill entries as well as documents'
 
     def test_package_rule_with_skill_entry_applies_to_skill_entries(self) -> None:
         #: Given
@@ -129,7 +129,7 @@ class TestAppliesTo:
         expected = ItemKind.SKILL_ENTRY
 
         #: When
-        kinds = rule.APPLIES_TO
+        kinds = rule.GATES
 
         #: Then
-        assert expected in kinds, 'package skill rules apply to skill entries'
+        assert expected in kinds, 'package skill rules declare a gate for skill entries'
