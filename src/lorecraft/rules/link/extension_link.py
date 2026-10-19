@@ -1,6 +1,8 @@
 """`LINK005`: a document links to a document that extends it."""
 
+from collections.abc import Mapping
 from dataclasses import dataclass
+from types import MappingProxyType
 from typing import ClassVar, Self
 from urllib.parse import unquote
 
@@ -11,7 +13,7 @@ from lorecraft.project.query import ItemQuery, item_name, item_parse
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Note, Subdiagnostic
-from lorecraft.rules.subject import Facet, QueriedDocumentRule
+from lorecraft.rules.subject import BySpec, Facet, Gate, QueriedItemRule
 
 from .__ruleset__ import GROUP_ID, GovernanceSyntaxLinkResolutionPrimitives
 
@@ -48,7 +50,7 @@ def extension_link_facts(primitives: GovernanceSyntaxLinkResolutionPrimitives) -
 
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
-class ExtensionLink(QueriedDocumentRule[ExtensionLinkFacts]):
+class ExtensionLink(QueriedItemRule[ExtensionLinkFacts]):
     """A document links to a document that extends it.
 
     ## What it does
@@ -100,8 +102,12 @@ class ExtensionLink(QueriedDocumentRule[ExtensionLinkFacts]):
     NAME: ClassVar[RuleName] = RuleName('extension-link')
     LEVEL: ClassVar[Level] = Level.WARN
     SINCE: ClassVar[Release] = Release('0.4.0')
-    GOVERNED_BY: ClassVar[Facet] = Facet.STRUCTURE
-    APPLIES_TO: ClassVar[frozenset[ItemKind]] = frozenset({ItemKind.DOCUMENT, ItemKind.SPECIFICATION})
+    GATES: ClassVar[Mapping[ItemKind, Gate]] = MappingProxyType(
+        {
+            ItemKind.DOCUMENT: BySpec(Facet.STRUCTURE),
+            ItemKind.SPECIFICATION: BySpec(Facet.STRUCTURE),
+        }
+    )
 
     spec: None = None
     url: str

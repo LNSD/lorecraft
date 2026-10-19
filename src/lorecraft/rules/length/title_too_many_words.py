@@ -76,7 +76,6 @@ class TitleTooManyWords(QueriedItemRule[TitleFacts]):
             ItemKind.SKILL_ENTRY: BySpec(Facet.STRUCTURE, requires_loaded_layer=True),
         }
     )
-    GOVERNED_BY: ClassVar[Facet] = Facet.STRUCTURE
 
     spec: RootRelativePath
     overrun: Overrun

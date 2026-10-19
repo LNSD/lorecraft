@@ -13,8 +13,10 @@ and opens the database on a scan of it instead.
 """
 
 import re
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
+from types import MappingProxyType
 from typing import ClassVar, Final, Protocol, Self
 
 import pytest
@@ -30,7 +32,7 @@ from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.database import Database
 from lorecraft.project.document import DocumentRef
-from lorecraft.project.item import MarkdownItemRef
+from lorecraft.project.item import ItemKind, MarkdownItemRef
 from lorecraft.project.layout import SNAPSHOT_SCOPE
 from lorecraft.project.link_target import DocumentDirectory, SkillRoot
 from lorecraft.project.query import (
@@ -123,7 +125,7 @@ from lorecraft.rules.report import (
     UndecodableSubject,
 )
 from lorecraft.rules.selection import AllRules, RuleSelection
-from lorecraft.rules.subject import Facet, QueriedDocumentRule
+from lorecraft.rules.subject import BySpec, Facet, Gate, QueriedItemRule
 from lorecraft.rules.table import RuleTable
 from lorecraft.vfs import (
     ByteOffset,
@@ -262,7 +264,7 @@ def _token_count(primitives: CountPrimitives) -> TokenCount:
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
-class OverHalfBudget(QueriedDocumentRule[BudgetFacts]):
+class OverHalfBudget(QueriedItemRule[BudgetFacts]):
     """A sample rule at `warn`: a document holds more than half the tokens a budget allows.
 
     Attributes:
@@ -275,7 +277,7 @@ class OverHalfBudget(QueriedDocumentRule[BudgetFacts]):
     NAME: ClassVar[RuleName] = RuleName('over-half-budget')
     LEVEL: ClassVar[Level] = Level.WARN
     SINCE: ClassVar[Release] = Release('1.0.0')
-    GOVERNED_BY: ClassVar[Facet] = Facet.BUDGET
+    GATES: ClassVar[Mapping[ItemKind, Gate]] = MappingProxyType({ItemKind.DOCUMENT: BySpec(Facet.BUDGET)})
 
     spec: RootRelativePath
     token_count: int
@@ -306,14 +308,14 @@ class OverHalfBudget(QueriedDocumentRule[BudgetFacts]):
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
-class EmptyDocument(QueriedDocumentRule[TokenCount]):
+class EmptyDocument(QueriedItemRule[TokenCount]):
     """A sample rule at `allow`: a document holds no token at all."""
 
     CODE: ClassVar[RuleCode] = RuleCode(SAMPLE, 2)
     NAME: ClassVar[RuleName] = RuleName('empty-document')
     LEVEL: ClassVar[Level] = Level.ALLOW
     SINCE: ClassVar[Release] = Release('1.0.0')
-    GOVERNED_BY: ClassVar[Facet] = Facet.BUDGET
+    GATES: ClassVar[Mapping[ItemKind, Gate]] = MappingProxyType({ItemKind.DOCUMENT: BySpec(Facet.BUDGET)})
 
     def message(self) -> str:
         """Name the condition."""
@@ -337,7 +339,7 @@ class EmptyDocument(QueriedDocumentRule[TokenCount]):
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
-class AnyTokens(QueriedDocumentRule[TokenCount]):
+class AnyTokens(QueriedItemRule[TokenCount]):
     """A sample rule at `deny` that fires once on every document a budget governs, whatever its token count.
 
     Attributes:
@@ -348,7 +350,7 @@ class AnyTokens(QueriedDocumentRule[TokenCount]):
     NAME: ClassVar[RuleName] = RuleName('any-tokens')
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('1.0.0')
-    GOVERNED_BY: ClassVar[Facet] = Facet.BUDGET
+    GATES: ClassVar[Mapping[ItemKind, Gate]] = MappingProxyType({ItemKind.DOCUMENT: BySpec(Facet.BUDGET)})
 
     token_count: int
 

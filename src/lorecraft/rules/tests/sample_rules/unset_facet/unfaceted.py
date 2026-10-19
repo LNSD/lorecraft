@@ -1,4 +1,4 @@
-"""A sample rule over a document that declares no facet, so the runner could never tell when to run it."""
+"""A sample item rule with no gate, so the registry must reject it as inapplicable."""
 
 from dataclasses import dataclass
 from typing import ClassVar, Self

@@ -105,7 +105,6 @@ class MissingSection(QueriedItemRule[tuple[OutlineDivergenceSpec, ...]]):
             ItemKind.SKILL_ENTRY: BySpec(Facet.OUTLINE, requires_loaded_layer=True),
         }
     )
-    GOVERNED_BY: ClassVar[Facet] = Facet.OUTLINE
 
     spec: RootRelativePath
     # Reported at the section it should precede, or else at the document's last line, so it is derived from `before`

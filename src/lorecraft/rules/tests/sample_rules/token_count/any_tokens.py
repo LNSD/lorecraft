@@ -1,14 +1,17 @@
 """A sample rule at `deny` over the token count, which fires on every document a budget governs."""
 
+from collections.abc import Mapping
 from dataclasses import dataclass
+from types import MappingProxyType
 from typing import ClassVar, Self
 
 from lorecraft.core.num import NonZeroUnsignedInt
+from lorecraft.project.item import ItemKind
 from lorecraft.project.query import CountPrimitives, ItemQuery, item_token_count
 from lorecraft.project.syntax import LineNumber, TokenCount
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
-from lorecraft.rules.subject import Facet, QueriedDocumentRule
+from lorecraft.rules.subject import BySpec, Facet, Gate, QueriedItemRule
 
 from ..groups import SAMPLE
 
@@ -24,7 +27,7 @@ def _token_count(primitives: CountPrimitives) -> TokenCount:
 
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
-class AnyTokens(QueriedDocumentRule[TokenCount]):
+class AnyTokens(QueriedItemRule[TokenCount]):
     """A sample rule that fires once on every document a budget governs, whatever its token count.
 
     Attributes:
@@ -35,7 +38,11 @@ class AnyTokens(QueriedDocumentRule[TokenCount]):
     NAME: ClassVar[RuleName] = RuleName('any-tokens')
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('1.0.0')
-    GOVERNED_BY: ClassVar[Facet] = Facet.BUDGET
+    GATES: ClassVar[Mapping[ItemKind, Gate]] = MappingProxyType(
+        {
+            ItemKind.DOCUMENT: BySpec(Facet.BUDGET),
+        }
+    )
 
     token_count: int
 

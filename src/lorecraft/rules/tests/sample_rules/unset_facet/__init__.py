@@ -1,1 +1,1 @@
-"""A rules package the registry rejects: a rule over a document declares no facet it reads."""
+"""A rules package the registry rejects: an item rule declares no gates."""

@@ -1,9 +1,12 @@
 """`LINK004`: a relative link in a skill's file climbs above the skill root."""
 
+from collections.abc import Mapping
 from dataclasses import dataclass
+from types import MappingProxyType
 from typing import ClassVar, Self, assert_never
 from urllib.parse import unquote
 
+from lorecraft.project.item import ItemKind
 from lorecraft.project.link_target import EscapingTarget, LinkTarget
 from lorecraft.project.query import ItemQuery, item_parse
 from lorecraft.project.syntax import (
@@ -16,7 +19,7 @@ from lorecraft.project.syntax import (
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Subdiagnostic
-from lorecraft.rules.subject import QueriedSkillFileRule
+from lorecraft.rules.subject import ByPackage, Gate, QueriedItemRule
 
 from .__ruleset__ import GROUP_ID, SKILL_NOTE, SyntaxLinkResolutionPrimitives
 
@@ -55,7 +58,7 @@ def escaping_links(primitives: SyntaxLinkResolutionPrimitives) -> tuple[Link, ..
 
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
-class EscapingLink(QueriedSkillFileRule[tuple[Link, ...]]):
+class EscapingLink(QueriedItemRule[tuple[Link, ...]]):
     """A relative link in a skill's file climbs above the skill root.
 
     ## What it does
@@ -107,6 +110,12 @@ class EscapingLink(QueriedSkillFileRule[tuple[Link, ...]]):
     NAME: ClassVar[RuleName] = RuleName('escaping-link')
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('0.3.0')
+    GATES: ClassVar[Mapping[ItemKind, Gate]] = MappingProxyType(
+        {
+            ItemKind.SKILL_ENTRY: ByPackage(),
+            ItemKind.SKILL_RESOURCE: ByPackage(),
+        }
+    )
 
     spec: None = None
     url: str

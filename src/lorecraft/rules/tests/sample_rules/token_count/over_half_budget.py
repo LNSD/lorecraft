@@ -1,9 +1,12 @@
 """A sample rule at `warn` over the token count: a document holds more than half the tokens a budget allows."""
 
+from collections.abc import Mapping
 from dataclasses import dataclass
+from types import MappingProxyType
 from typing import ClassVar, Protocol, Self
 
 from lorecraft.core.path import RootRelativePath
+from lorecraft.project.item import ItemKind
 from lorecraft.project.query import (
     CountPrimitives,
     GovernancePrimitives,
@@ -14,7 +17,7 @@ from lorecraft.project.query import (
 from lorecraft.project.syntax import FIRST_LINE, TokenCount
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
-from lorecraft.rules.subject import Facet, QueriedDocumentRule
+from lorecraft.rules.subject import BySpec, Facet, Gate, QueriedItemRule
 
 from ..groups import SAMPLE
 
@@ -50,7 +53,7 @@ def _budget_facts(primitives: _GovernanceCountPrimitives) -> BudgetFacts:
 
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
-class OverHalfBudget(QueriedDocumentRule[BudgetFacts]):
+class OverHalfBudget(QueriedItemRule[BudgetFacts]):
     """A document holds more than half the tokens a budget allows.
 
     Attributes:
@@ -63,7 +66,11 @@ class OverHalfBudget(QueriedDocumentRule[BudgetFacts]):
     NAME: ClassVar[RuleName] = RuleName('over-half-budget')
     LEVEL: ClassVar[Level] = Level.WARN
     SINCE: ClassVar[Release] = Release('1.0.0')
-    GOVERNED_BY: ClassVar[Facet] = Facet.BUDGET
+    GATES: ClassVar[Mapping[ItemKind, Gate]] = MappingProxyType(
+        {
+            ItemKind.DOCUMENT: BySpec(Facet.BUDGET),
+        }
+    )
 
     spec: RootRelativePath
     token_count: int

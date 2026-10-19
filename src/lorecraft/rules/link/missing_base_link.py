@@ -1,6 +1,8 @@
 """`LINK006`: a document that extends another does not link to it under References."""
 
+from collections.abc import Mapping
 from dataclasses import dataclass
+from types import MappingProxyType
 from typing import ClassVar, Final, Self
 
 from lorecraft.core.path import RootRelativePath
@@ -11,7 +13,7 @@ from lorecraft.project.syntax import FIRST_LINE, LineNumber, RelativeDestination
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Note, Subdiagnostic
-from lorecraft.rules.subject import Facet, QueriedDocumentRule
+from lorecraft.rules.subject import BySpec, Facet, Gate, QueriedItemRule
 
 from .__ruleset__ import GROUP_ID, GovernanceSyntaxLinkResolutionPrimitives
 
@@ -71,7 +73,7 @@ def missing_base(primitives: GovernanceSyntaxLinkResolutionPrimitives) -> Missin
 
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
-class MissingBaseLink(QueriedDocumentRule[MissingBase | None]):
+class MissingBaseLink(QueriedItemRule[MissingBase | None]):
     """A document that extends another does not link to it under References.
 
     ## What it does
@@ -127,8 +129,12 @@ class MissingBaseLink(QueriedDocumentRule[MissingBase | None]):
     NAME: ClassVar[RuleName] = RuleName('missing-base-link')
     LEVEL: ClassVar[Level] = Level.WARN
     SINCE: ClassVar[Release] = Release('0.4.0')
-    GOVERNED_BY: ClassVar[Facet] = Facet.STRUCTURE
-    APPLIES_TO: ClassVar[frozenset[ItemKind]] = frozenset({ItemKind.DOCUMENT, ItemKind.SPECIFICATION})
+    GATES: ClassVar[Mapping[ItemKind, Gate]] = MappingProxyType(
+        {
+            ItemKind.DOCUMENT: BySpec(Facet.STRUCTURE),
+            ItemKind.SPECIFICATION: BySpec(Facet.STRUCTURE),
+        }
+    )
 
     spec: None = None
     base: str

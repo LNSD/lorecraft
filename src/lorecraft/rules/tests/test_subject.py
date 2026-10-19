@@ -99,7 +99,7 @@ class TestGates:
 
 
 @pytest.mark.unit
-class TestAppliesTo:
+class TestGateApplicability:
     def test_registered_item_rules_with_known_kinds_apply_to_items(self) -> None:
         #: Given
         registered_rules = Registry.load(rules).rules
@@ -109,6 +109,7 @@ class TestAppliesTo:
 
         #: Then
         assert item_rules, 'the registry includes rules over items'
+        assert all('GATES' in rule.__dict__ for rule in item_rules), 'each registered item rule declares its own gates'
         assert all(rule.GATES for rule in item_rules), 'each item rule applies to at least one kind'
         assert all(set(rule.GATES) <= set(ItemKind) for rule in item_rules), 'each rule names known item kinds'
 
