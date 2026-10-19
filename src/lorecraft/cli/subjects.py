@@ -11,14 +11,14 @@ same revision in the same order however the model or a listing orders them.
 from typing import assert_never
 
 from lorecraft.core.path import RootRelativePath
-from lorecraft.engine import Subject
+from lorecraft.engine import CheckedSubject
 from lorecraft.project.corpus import ReservedCorpusDirectory
 from lorecraft.project.database import Database
 from lorecraft.project.document import DocumentRef, MetaSpecRef
 from lorecraft.project.skill import OutsideSymlink, RefusedSkillAlias, SkillLocation, SkillResourceLocation
 
 
-def select_workspace(database: Database) -> tuple[Subject, ...]:
+def select_workspace(database: Database) -> tuple[CheckedSubject, ...]:
     """Every subject of the workspace, each once, sorted by its report path, compared by code point.
 
     Nothing is deduplicated here, since nothing can repeat: the model lists each skill, each symlink leading outside
@@ -31,7 +31,7 @@ def select_workspace(database: Database) -> tuple[Subject, ...]:
             resources, aliases and symlinks inside it.
     """
     model = database.model()
-    subjects: list[Subject] = []
+    subjects: list[CheckedSubject] = []
     subjects.extend(model.documents())
     subjects.extend(model.specifications())
     for location in model.sorted_skill_locations:
@@ -47,7 +47,7 @@ def select_workspace(database: Database) -> tuple[Subject, ...]:
     return tuple(sorted(subjects, key=lambda subject: str(_report_path(subject))))
 
 
-def _report_path(subject: Subject) -> RootRelativePath:
+def _report_path(subject: CheckedSubject) -> RootRelativePath:
     """The path a subject's report is filed at: a skill's is its `SKILL.md`, a layout entry's where it is reached.
 
     Args:

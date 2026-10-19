@@ -14,7 +14,7 @@ import pytest
 
 from lorecraft import rules
 from lorecraft.core.path import RootRelativePath
-from lorecraft.engine import Subject, check_subjects
+from lorecraft.engine import CheckedSubject, check_subjects
 from lorecraft.project.database import Database
 from lorecraft.project.item import ItemRef
 from lorecraft.project.layout import SNAPSHOT_SCOPE
@@ -43,13 +43,13 @@ def _write(root: Path, relative: str, data: bytes) -> None:
     path.write_bytes(data)
 
 
-def _layout_subjects(database: Database) -> tuple[Subject, ...]:
+def _layout_subjects(database: Database) -> tuple[CheckedSubject, ...]:
     """Every layout entry of the snapshot: the model's, then each skill's resource listing's, in the skills' order.
 
     Args:
         database: Database over the snapshot whose skill layout is checked.
     """
-    subjects: list[Subject] = list(database.model().sorted_outside_symlinks)
+    subjects: list[CheckedSubject] = list(database.model().sorted_outside_symlinks)
     for location in database.model().sorted_skill_locations:
         subjects.extend(database.skill_resources(location).outside_symlinks)
     return tuple(subjects)
@@ -256,7 +256,7 @@ class TestCheckSubjectsLayout:
         database = Database.from_snapshot(take_snapshot(root, SNAPSHOT_SCOPE))
         location = database.model().find_skill_location(RootRelativePath.parse('.agents/skills/review'))
         assert location is not None, 'the model lists the skill .agents/skills/review'
-        subjects: tuple[Subject, ...] = (*_layout_subjects(database), location)
+        subjects: tuple[CheckedSubject, ...] = (*_layout_subjects(database), location)
 
         #: When
         reports = check_subjects(database, subjects, package_table)

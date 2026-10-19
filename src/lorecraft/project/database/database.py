@@ -33,7 +33,7 @@ from typing import Concatenate, Protocol, Self, assert_never, cast, overload
 from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectFilename
-from lorecraft.project.corpus import CorpusDirectoryRef, CorpusName, ReservedCorpusDirectory
+from lorecraft.project.corpus import CorpusName, ReservedCorpusDirectory, ReservedCorpusDirectoryRef
 from lorecraft.project.document import MetaSpecRef
 from lorecraft.project.item import (
     DocumentOrigin,
@@ -65,13 +65,13 @@ from lorecraft.project.schemas import (
 )
 from lorecraft.project.skill import (
     OutsideSymlink,
+    OutsideSymlinkRef,
     SkillLocation,
     SkillRef,
     SkillResourceListing,
     SkillResourceLocation,
     SkillResourcesListError,
     SkillResourcesSymlinkResolveError,
-    SymlinkRef,
 )
 from lorecraft.project.skill import Repository as SkillRepository
 from lorecraft.project.syntax import (
@@ -200,12 +200,12 @@ class _ReadSchemaPrimitives(_Reads[SchemaRef, '_ReadSchemaPrimitives']):
         return self._database._schema_input(self._ref)
 
 
-class _ReadSymlinkPrimitives(_Reads[SymlinkRef, '_ReadSymlinkPrimitives']):
+class _ReadSymlinkPrimitives(_Reads[OutsideSymlinkRef, '_ReadSymlinkPrimitives']):
     """The primitive reads of one symlink subject, recorded with typed keys."""
 
     __slots__ = ()
 
-    def _fresh(self, ref: SymlinkRef) -> _ReadSymlinkPrimitives:
+    def _fresh(self, ref: OutsideSymlinkRef) -> _ReadSymlinkPrimitives:
         return _ReadSymlinkPrimitives(self._database, ref)
 
     @primitive
@@ -214,12 +214,12 @@ class _ReadSymlinkPrimitives(_Reads[SymlinkRef, '_ReadSymlinkPrimitives']):
         return self._database._outside_symlink(self._ref).leaves_at
 
 
-class _ReadCorpusDirectoryPrimitives(_Reads[CorpusDirectoryRef, '_ReadCorpusDirectoryPrimitives']):
+class _ReadCorpusDirectoryPrimitives(_Reads[ReservedCorpusDirectoryRef, '_ReadCorpusDirectoryPrimitives']):
     """The primitive reads of one reserved-corpus directory subject, recorded with typed keys."""
 
     __slots__ = ()
 
-    def _fresh(self, ref: CorpusDirectoryRef) -> _ReadCorpusDirectoryPrimitives:
+    def _fresh(self, ref: ReservedCorpusDirectoryRef) -> _ReadCorpusDirectoryPrimitives:
         return _ReadCorpusDirectoryPrimitives(self._database, ref)
 
     @primitive
@@ -645,10 +645,10 @@ class Database:
     def query[T](self, query: Query[ItemPrimitives, T], ref: ItemRef) -> T: ...  # noqa: D102 — implementation documents the overload
 
     @overload
-    def query[T](self, query: Query[SymlinkPrimitives, T], ref: SymlinkRef) -> T: ...  # noqa: D102 — implementation documents the overload
+    def query[T](self, query: Query[SymlinkPrimitives, T], ref: OutsideSymlinkRef) -> T: ...  # noqa: D102 — implementation documents the overload
 
     @overload
-    def query[T](self, query: Query[CorpusDirectoryPrimitives, T], ref: CorpusDirectoryRef) -> T: ...  # noqa: D102 — implementation documents the overload
+    def query[T](self, query: Query[CorpusDirectoryPrimitives, T], ref: ReservedCorpusDirectoryRef) -> T: ...  # noqa: D102 — implementation documents the overload
 
     @overload
     def query[T](self, query: Query[SchemaPrimitives, T], ref: SchemaRef) -> T: ...  # noqa: D102 — implementation documents the overload
@@ -656,7 +656,7 @@ class Database:
     def query[T](
         self,
         query: Callable[..., T],
-        ref: ItemRef | SymlinkRef | CorpusDirectoryRef | SchemaRef,
+        ref: ItemRef | OutsideSymlinkRef | ReservedCorpusDirectoryRef | SchemaRef,
     ) -> T:
         """The memoized answer of a declared query over a typed subject.
 
@@ -676,9 +676,9 @@ class Database:
         match ref:
             case ItemRef():
                 primitives = _ItemPrimitives(self, ref)
-            case SymlinkRef():
+            case OutsideSymlinkRef():
                 primitives = _ReadSymlinkPrimitives(self, ref)
-            case CorpusDirectoryRef():
+            case ReservedCorpusDirectoryRef():
                 primitives = _ReadCorpusDirectoryPrimitives(self, ref)
             case SchemaRef():
                 primitives = _ReadSchemaPrimitives(self, ref)
@@ -706,7 +706,7 @@ class Database:
         | Query[SymlinkPrimitives, object]
         | Query[CorpusDirectoryPrimitives, object]
         | Query[SchemaPrimitives, object],
-        ref: ItemRef | SymlinkRef | CorpusDirectoryRef | SchemaRef,
+        ref: ItemRef | OutsideSymlinkRef | ReservedCorpusDirectoryRef | SchemaRef,
     ) -> frozenset[Read]:
         """The typed read keys recorded for a query; public so nested queries avoid private-cache access.
 
@@ -727,7 +727,7 @@ class Database:
             raise SchemaRefError(reference)
         return schema_input
 
-    def _outside_symlink(self, ref: SymlinkRef) -> OutsideSymlink:
+    def _outside_symlink(self, ref: OutsideSymlinkRef) -> OutsideSymlink:
         """Find one symlink by its typed subject reference, including a skill resource link."""
         found = self._model.outside_symlinks.get(ref.path)
         if found is not None:
@@ -738,7 +738,7 @@ class Database:
                     return outside
         raise UnlistedItemError(ref)
 
-    def _reserved_corpus_directory(self, ref: CorpusDirectoryRef) -> ReservedCorpusDirectory:
+    def _reserved_corpus_directory(self, ref: ReservedCorpusDirectoryRef) -> ReservedCorpusDirectory:
         """Find one reserved-corpus directory by its typed subject reference."""
         found = next((entry for entry in self._model.overlapping_directories if entry.path == ref.path), None)
         if found is None:

@@ -6,7 +6,7 @@ import pytest
 
 import lorecraft.project.database.database as database_module
 from lorecraft.core.path import RootRelativePath
-from lorecraft.project.corpus import CorpusDirectoryRef, CorpusName
+from lorecraft.project.corpus import CorpusName, ReservedCorpusDirectoryRef
 from lorecraft.project.database import Database, Read
 from lorecraft.project.item import ItemRef
 from lorecraft.project.layout import SNAPSHOT_SCOPE
@@ -17,7 +17,7 @@ from lorecraft.project.query import (
     SymlinkPrimitives,
     item_parse,
 )
-from lorecraft.project.skill import SymlinkRef
+from lorecraft.project.skill import OutsideSymlinkRef
 from lorecraft.project.syntax import Heading
 from lorecraft.schemas import SchemaInput, SchemaRef
 from lorecraft.schemas.builtin import AGENT_SKILLS_SCHEMA_REFERENCE
@@ -140,7 +140,7 @@ class TestSubjectReads:
         #: Given
         database = _database(tmp_path)
         symlink = database.model().sorted_outside_symlinks[0]
-        ref = SymlinkRef(symlink.path)
+        ref = OutsideSymlinkRef(symlink.path)
 
         #: When
         exit_point = database.query(_symlink_exit, ref)
@@ -155,7 +155,7 @@ class TestSubjectReads:
         #: Given
         database = _database(tmp_path)
         directory = database.model().sorted_overlapping_directories[0]
-        ref = CorpusDirectoryRef(directory.path)
+        ref = ReservedCorpusDirectoryRef(directory.path)
 
         #: When
         corpus = database.query(_reserved_corpus, ref)

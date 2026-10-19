@@ -33,7 +33,7 @@ from .runner import check_layout_entry, judge_item
 
 # A subject `check_subjects` dispatches: a document, a meta specification, a skill, a resource, a refused skill alias,
 # or a layout entry. Each report holds its ref or the path an agent reaches the symlink by.
-type Subject = (
+type CheckedSubject = (
     DocumentRef
     | MetaSpecRef
     | SkillLocation
@@ -48,7 +48,7 @@ type ReportedRef = DocumentRef | MetaSpecRef | SkillRef | SkillResourceRef
 
 def check_subjects(
     database: Database,
-    subjects: Iterable[Subject],
+    subjects: Iterable[CheckedSubject],
     table: RuleTable,
     refusals: Mapping[RootRelativePath, RefusedRecord] | None = None,
 ) -> tuple[SubjectReport, ...]:
