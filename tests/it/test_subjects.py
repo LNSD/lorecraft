@@ -16,10 +16,8 @@ from lorecraft.project.item import ItemRef
 from lorecraft.project.layout import SNAPSHOT_SCOPE, SPECS_DIR
 from lorecraft.project.skill import (
     OutsideSymlink,
-    SkillLocation,
     SkillRef,
     SkillRelativePath,
-    SkillResourceLocation,
     SkillResourceRef,
 )
 from lorecraft.vfs import ResolvedPath, RootExit, take_snapshot
@@ -62,28 +60,24 @@ def _document(corpus: str, filename: str) -> ItemRef:
     return ItemRef(RootRelativePath.parse(f'docs/{corpus}/{filename}.md'))
 
 
-def _skill(ref: SkillRef) -> SkillLocation:
-    """The skill at `ref`, in a regular directory, so located where its ref names it.
+def _skill(ref: SkillRef) -> ItemRef:
+    """The skill's entrypoint, reported at the path an agent reaches.
 
     Args:
-        ref: Where the skill's directory sits, which is also where it resolves.
+        ref: Where the skill's directory sits.
     """
-    return SkillLocation(
-        ref,
-        resolves_to=ResolvedPath(ref.directory),
-        file_resolves_to=ResolvedPath(ref.directory / PathComponent.parse('SKILL.md')),
-    )
+    return ItemRef(ref.path)
 
 
-def _resource(skill: SkillRef, path: str) -> SkillResourceLocation:
-    """The resource at `path` inside `skill`, in a regular directory, so located where its ref names it.
+def _resource(skill: SkillRef, path: str) -> ItemRef:
+    """The resource at `path` inside `skill`, identified by its report path.
 
     Args:
         skill: The skill the resource belongs to.
         path: The resource, spelled from the skill's directory.
     """
     ref = SkillResourceRef(skill, SkillRelativePath.parse(path))
-    return SkillResourceLocation(ref, resolves_to=ResolvedPath(ref.path))
+    return ItemRef(ref.path)
 
 
 def _outside(path: str, target: Path) -> OutsideSymlink:

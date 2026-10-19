@@ -463,6 +463,16 @@ def _location(database: Database, ref: SkillRef) -> SkillLocation:
     return location
 
 
+def _item(database: Database, location: SkillLocation | SkillResourceLocation) -> ItemRef:
+    """The common reference for a skill or resource listed by the database.
+
+    Args:
+        database: The revision listing the item.
+        location: The model or resource listing's origin-specific location.
+    """
+    return ItemRef(location.ref.path)
+
+
 def _resources(database: Database, ref: SkillRef) -> tuple[SkillResourceLocation, ...]:
     """The resources of a skill the test wrote, each located as the database's listing of the skill gives it.
 
@@ -567,7 +577,7 @@ class TestCheckSubjects:
             f'---\nname: review\ndescription: Review a change.\nallowed-tools: {value}\n---\n'.encode(),
         )
         database = Database.from_snapshot(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
-        subjects = (_location(database, REVIEW),)
+        subjects = (_item(database, _location(database, REVIEW)),)
 
         #: When
         reports = check_subjects(database, subjects, package_table)
@@ -606,7 +616,7 @@ class TestCheckSubjects:
             b'---\nname: review\ndescription: Review a change.\nallowed-tools: Read, Grep\n---\n',
         )
         database = Database.from_snapshot(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
-        subjects = (_location(database, REVIEW),)
+        subjects = (_item(database, _location(database, REVIEW)),)
 
         #: When
         reports = check_subjects(database, subjects, package_table)
@@ -932,7 +942,7 @@ class TestCheckSubjects:
     ) -> None:
         #: Given
         database = Database.from_snapshot(_snapshot(_budget(1000), guide=GUIDE_TEXT.encode(), review=_skill_of(501)))
-        subjects = (_location(database, REVIEW),)
+        subjects = (_item(database, _location(database, REVIEW)),)
 
         #: When
         reports = check_subjects(database, subjects, package_table)
@@ -965,7 +975,7 @@ class TestCheckSubjects:
         table = RuleTable({TooManyTokens: Severity.ERROR})
 
         #: When
-        reports = check_subjects(database, (_location(database, REVIEW),), table)
+        reports = check_subjects(database, (_item(database, _location(database, REVIEW)),), table)
 
         #: Then
         assert len(reports) == 1, 'the skill has one report'
@@ -995,7 +1005,7 @@ class TestCheckSubjects:
         table = RuleTable({ForbiddenSection: Severity.ERROR})
 
         #: When
-        reports = check_subjects(database, (_location(database, REVIEW),), table)
+        reports = check_subjects(database, (_item(database, _location(database, REVIEW)),), table)
 
         #: Then
         assert len(reports) == 1, 'the skill has one report'
@@ -1017,7 +1027,7 @@ class TestCheckSubjects:
         records: dict[RootRelativePath, EntryRecord] = dict(shipped.records)
         records[RootRelativePath.parse('.agents/skills/review')] = SymlinkRecord(PurePosixPath('../../skills/review'))
         database = Database.from_snapshot(Snapshot(SnapshotRecords(records)))
-        subjects = (_location(database, REVIEW),)
+        subjects = (_item(database, _location(database, REVIEW)),)
 
         #: When
         reports = check_subjects(database, subjects, package_table)
@@ -1036,7 +1046,7 @@ class TestCheckSubjects:
     def test_check_subjects_with_a_skill_at_the_line_budget_reports_it_clean(self, package_table: RuleTable) -> None:
         #: Given
         database = Database.from_snapshot(_snapshot(_budget(1000), guide=GUIDE_TEXT.encode(), review=_skill_of(500)))
-        subjects = (_location(database, REVIEW),)
+        subjects = (_item(database, _location(database, REVIEW)),)
 
         #: When
         reports = check_subjects(database, subjects, package_table)
@@ -1051,7 +1061,7 @@ class TestCheckSubjects:
         database = Database.from_snapshot(
             _snapshot(_budget(1000), guide=GUIDE_TEXT.encode(), review=b'---\nname: caf\xe9\n---\n')
         )
-        subjects = (_location(database, REVIEW),)
+        subjects = (_item(database, _location(database, REVIEW)),)
 
         #: When
         reports = check_subjects(database, subjects, package_table)
@@ -1066,7 +1076,7 @@ class TestCheckSubjects:
     ) -> None:
         #: Given
         database = Database.from_snapshot(_snapshot(_budget(1000), guide=GUIDE_TEXT.encode()))
-        subjects = (GUIDE, _location(database, REVIEW), INTRO)
+        subjects = (GUIDE, _item(database, _location(database, REVIEW)), INTRO)
 
         #: When
         reports = check_subjects(database, subjects, package_table)
@@ -1094,7 +1104,7 @@ class TestCheckSubjects:
         )
         severities: dict[type[Rule], Severity] = {TooManyTokens: Severity.ERROR}
         table = RuleTable(severities)
-        subjects = (_location(database, REVIEW),)
+        subjects = (_item(database, _location(database, REVIEW)),)
 
         #: When
         check_subjects(database, subjects, table)
@@ -1215,7 +1225,7 @@ class TestCheckSubjects:
     ) -> None:
         #: Given
         database = Database.from_snapshot(_snapshot(_budget(1000), guide=GUIDE_TEXT.encode(), review=b'# Review\n'))
-        subjects = (_location(database, REVIEW),)
+        subjects = (_item(database, _location(database, REVIEW)),)
 
         #: When
         reports = check_subjects(database, subjects, package_table)
@@ -1236,7 +1246,7 @@ class TestCheckSubjects:
         #: Given
         review = '---\nname: [review\n---\n'
         database = Database.from_snapshot(_snapshot(_budget(1000), guide=GUIDE_TEXT.encode(), review=review.encode()))
-        subjects = (_location(database, REVIEW),)
+        subjects = (_item(database, _location(database, REVIEW)),)
 
         #: When
         reports = check_subjects(database, subjects, package_table)
@@ -1262,7 +1272,7 @@ class TestCheckSubjects:
         database = Database.from_snapshot(
             _snapshot(_budget(1000), guide=GUIDE_TEXT.encode(), review=b'---\n- review\n---\n')
         )
-        subjects = (_location(database, REVIEW),)
+        subjects = (_item(database, _location(database, REVIEW)),)
 
         #: When
         reports = check_subjects(database, subjects, package_table)
@@ -1286,7 +1296,7 @@ class TestCheckSubjects:
                 review=b'---\nname: code-review\ndescription: Review a change.\n---\n',
             )
         )
-        subjects = (_location(database, REVIEW),)
+        subjects = (_item(database, _location(database, REVIEW)),)
 
         #: When
         reports = check_subjects(database, subjects, package_table)
@@ -1310,7 +1320,7 @@ class TestCheckSubjects:
                 review=b'---\nname: review\nname: review\ndescription: Review a change.\n---\n',
             )
         )
-        subjects = (_location(database, REVIEW),)
+        subjects = (_item(database, _location(database, REVIEW)),)
 
         #: When
         reports = check_subjects(database, subjects, package_table)
@@ -1349,7 +1359,7 @@ class TestCheckSubjects:
             PurePosixPath('../../skills/code-review')
         )
         database = Database.from_snapshot(Snapshot(SnapshotRecords(records)))
-        subjects = (_location(database, REVIEW),)
+        subjects = (_item(database, _location(database, REVIEW)),)
 
         #: When
         reports = check_subjects(database, subjects, package_table)
@@ -1378,7 +1388,7 @@ class TestCheckSubjects:
         )
         severities: dict[type[Rule], Severity] = {TooManyTokens: Severity.ERROR, TooManyLines: Severity.ERROR}
         table = RuleTable(severities)
-        subjects = (GUIDE, _location(database, REVIEW))
+        subjects = (GUIDE, _item(database, _location(database, REVIEW)))
 
         #: When
         check_subjects(database, subjects, table)
@@ -1394,7 +1404,7 @@ class TestCheckSubjects:
         #: Given
         # no specification states a frontmatter schema, but the package governs every skill's frontmatter
         database = CountingDatabase.from_snapshot(_snapshot(_budget(1000), guide=GUIDE_TEXT.encode()))
-        subjects = (GUIDE, _location(database, REVIEW), INTRO)
+        subjects = (GUIDE, _item(database, _location(database, REVIEW)), INTRO)
 
         #: When
         check_subjects(database, subjects, package_table)
@@ -1510,7 +1520,7 @@ class TestCheckSubjects:
         # no description, an empty compatibility, a metadata that is not a mapping, and a key it does not define
         review = b'---\nname: review\ncompatibility: ""\nmetadata: z\nextra: y\n---\n# Review\n'
         database = Database.from_snapshot(_snapshot(_budget(1000), guide=GUIDE_TEXT.encode(), review=review))
-        subjects = (_location(database, REVIEW),)
+        subjects = (_item(database, _location(database, REVIEW)),)
 
         #: When
         reports = check_subjects(database, subjects, package_table)
@@ -1663,7 +1673,7 @@ class TestCheckSubjects:
             DuplicateKey: Severity.ERROR,
         }
         table = RuleTable(severities)
-        subjects = (GUIDE, _location(database, REVIEW))
+        subjects = (GUIDE, _item(database, _location(database, REVIEW)))
 
         #: When
         check_subjects(database, subjects, table)
@@ -2070,7 +2080,7 @@ class TestCheckSubjects:
         #: Given
         review = REVIEW_FRONTMATTER + b'# Review\n\nRead [the diff](/tmp/diff.md).\n'
         database = Database.from_snapshot(_snapshot(_budget(1000), guide=GUIDE_TEXT.encode(), review=review))
-        subjects = (_location(database, REVIEW),)
+        subjects = (_item(database, _location(database, REVIEW)),)
 
         #: When
         reports = check_subjects(database, subjects, package_table)
@@ -2104,7 +2114,7 @@ class TestCheckSubjects:
         )
         database = Database.from_snapshot(snapshot)
         guide = SkillResourceRef(REVIEW, SkillRelativePath.parse('references/deep/guide.md'))
-        subjects = _resources(database, REVIEW)
+        subjects = tuple(_item(database, item) for item in _resources(database, REVIEW))
 
         #: When
         reports = check_subjects(database, subjects, package_table)
@@ -2138,7 +2148,10 @@ class TestCheckSubjects:
         database = Database.from_snapshot(snapshot)
         first = SkillResourceRef(REVIEW, SkillRelativePath.parse('references/a.md'))
         second = SkillResourceRef(REVIEW, SkillRelativePath.parse('references/b.md'))
-        subjects = (_location(database, REVIEW), *_resources(database, REVIEW))
+        subjects = (
+            _item(database, _location(database, REVIEW)),
+            *(_item(database, item) for item in _resources(database, REVIEW)),
+        )
 
         #: When
         reports = check_subjects(database, subjects, package_table)
@@ -2166,7 +2179,7 @@ class TestCheckSubjects:
         )
         database = Database.from_snapshot(snapshot)
         cafe = SkillResourceRef(REVIEW, SkillRelativePath.parse('references/cafe.md'))
-        subjects = _resources(database, REVIEW)
+        subjects = tuple(_item(database, item) for item in _resources(database, REVIEW))
 
         #: When
         reports = check_subjects(database, subjects, package_table)
@@ -2191,7 +2204,10 @@ class TestCheckSubjects:
         )
         database = Database.from_snapshot(snapshot)
         resource = SkillResourceRef(REVIEW, SkillRelativePath.parse('references/a.md'))
-        subjects = (_location(database, REVIEW), *_resources(database, REVIEW))
+        subjects = (
+            _item(database, _location(database, REVIEW)),
+            *(_item(database, item) for item in _resources(database, REVIEW)),
+        )
 
         #: When
         reports = check_subjects(database, subjects, package_table)
@@ -2212,7 +2228,7 @@ class TestCheckSubjects:
         #: Given
         review = '---\nname: [review\n---\nRead [x](/x.md).\n'
         database = Database.from_snapshot(_snapshot(_budget(1000), guide=GUIDE_TEXT.encode(), review=review.encode()))
-        subjects = (_location(database, REVIEW),)
+        subjects = (_item(database, _location(database, REVIEW)),)
 
         #: When
         reports = check_subjects(database, subjects, package_table)
@@ -2290,7 +2306,7 @@ class TestCheckSubjects:
         #: Given
         review = REVIEW_FRONTMATTER + b'# Review\n\nFollow [the steps](#steps).\n'
         database = Database.from_snapshot(_snapshot(_budget(1000), guide=GUIDE_TEXT.encode(), review=review))
-        subjects = (_location(database, REVIEW),)
+        subjects = (_item(database, _location(database, REVIEW)),)
 
         #: When
         reports = check_subjects(database, subjects, package_table)
@@ -2317,7 +2333,10 @@ class TestCheckSubjects:
         )
         database = Database.from_snapshot(snapshot)
         checklist = SkillResourceRef(REVIEW, SkillRelativePath.parse('references/checklist.md'))
-        subjects = (_location(database, REVIEW), *_resources(database, REVIEW))
+        subjects = (
+            _item(database, _location(database, REVIEW)),
+            *(_item(database, item) for item in _resources(database, REVIEW)),
+        )
 
         #: When
         reports = check_subjects(database, subjects, package_table)
@@ -2356,7 +2375,10 @@ class TestCheckSubjects:
         database = Database.from_snapshot(snapshot)
         a = SkillResourceRef(REVIEW, SkillRelativePath.parse('references/a.md'))
         guide = SkillResourceRef(REVIEW, SkillRelativePath.parse('references/deep/guide.md'))
-        subjects = (_location(database, REVIEW), *_resources(database, REVIEW))
+        subjects = (
+            _item(database, _location(database, REVIEW)),
+            *(_item(database, item) for item in _resources(database, REVIEW)),
+        )
 
         #: When
         reports = check_subjects(database, subjects, package_table)
@@ -2420,7 +2442,7 @@ class TestCheckSubjects:
         records[RootRelativePath.parse('.agents/skills/review')] = SymlinkRecord(PurePosixPath('../../skills/review'))
         database = Database.from_snapshot(Snapshot(SnapshotRecords(records)))
         a = SkillResourceRef(REVIEW, SkillRelativePath.parse('references/a.md'))
-        subjects = _resources(database, REVIEW)
+        subjects = tuple(_item(database, item) for item in _resources(database, REVIEW))
 
         #: When
         reports = check_subjects(database, subjects, package_table)
@@ -2441,7 +2463,7 @@ class TestCheckSubjects:
         #: Given
         review = REVIEW_FRONTMATTER + b'See [the skill](../../skills/review/SKILL.md).\n'
         database = Database.from_snapshot(_snapshot(_budget(1000), guide=GUIDE_TEXT.encode(), review=review))
-        subjects = (_location(database, REVIEW),)
+        subjects = (_item(database, _location(database, REVIEW)),)
 
         #: When
         reports = check_subjects(database, subjects, package_table)
@@ -2541,7 +2563,7 @@ class TestCheckSubjectsBrokenLink:
         )
         _write(tmp_path, '.agents/skills/review/scripts/run.py')
         database = Database.from_snapshot(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
-        subjects = (_location(database, REVIEW),)
+        subjects = (_item(database, _location(database, REVIEW)),)
 
         #: When
         reports = check_subjects(database, subjects, broken_link_table)
@@ -2569,7 +2591,9 @@ class TestCheckSubjectsBrokenLink:
         resources = _resources(database, REVIEW)
 
         #: When
-        reports = check_subjects(database, resources, broken_link_table)
+        reports = check_subjects(
+            database, tuple(_item(database, resource) for resource in resources), broken_link_table
+        )
 
         #: Then
         guide = '.agents/skills/review/references/deep/guide.md'
@@ -2593,7 +2617,7 @@ class TestCheckSubjectsBrokenLink:
         _write(tmp_path, 'shared/guides/d.md', b'# D\n')
         (tmp_path / '.agents' / 'skills' / 'review' / 'guides').symlink_to('../../../shared/guides')
         database = Database.from_snapshot(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
-        subjects = (_location(database, REVIEW),)
+        subjects = (_item(database, _location(database, REVIEW)),)
 
         #: When
         reports = check_subjects(database, subjects, broken_link_table)
@@ -2620,7 +2644,7 @@ class TestCheckSubjectsBrokenLink:
         (tmp_path / '.agents' / 'skills' / 'review').symlink_to('../../skills/review')
         database = Database.from_snapshot(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
         resources = _resources(database, REVIEW)
-        subjects = (_location(database, REVIEW), *resources)
+        subjects = (_item(database, _location(database, REVIEW)), *(_item(database, item) for item in resources))
 
         #: When
         reports = check_subjects(database, subjects, broken_link_table)
@@ -2648,7 +2672,7 @@ class TestCheckSubjectsBrokenLink:
         )
         _write(tmp_path, '.agents/skills/review/references/a.md', b'# A\n')
         database = Database.from_snapshot(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
-        subjects = (_location(database, REVIEW),)
+        subjects = (_item(database, _location(database, REVIEW)),)
 
         #: When
         reports = check_subjects(database, subjects, broken_link_table)

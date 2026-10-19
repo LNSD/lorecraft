@@ -15,7 +15,7 @@ from lorecraft.engine import CheckedSubject
 from lorecraft.project.corpus import ReservedCorpusDirectory
 from lorecraft.project.database import Database
 from lorecraft.project.item import ItemRef
-from lorecraft.project.skill import OutsideSymlink, RefusedSkillAlias, SkillLocation, SkillResourceLocation
+from lorecraft.project.skill import OutsideSymlink, RefusedSkillAlias
 
 
 def select_workspace(database: Database) -> tuple[CheckedSubject, ...]:
@@ -35,9 +35,9 @@ def select_workspace(database: Database) -> tuple[CheckedSubject, ...]:
     subjects.extend(ItemRef(ref.path) for ref in model.documents())
     subjects.extend(ItemRef(ref.path) for ref in model.specifications())
     for location in model.sorted_skill_locations:
-        subjects.append(location)
+        subjects.append(ItemRef(location.ref.path))
         listing = database.skill_resources(location)
-        subjects.extend(listing.resources)
+        subjects.extend(ItemRef(resource.ref.path) for resource in listing.resources)
         subjects.extend(listing.outside_symlinks)
         subjects.extend(listing.refused_aliases)
     subjects.extend(model.sorted_outside_symlinks)
@@ -48,18 +48,14 @@ def select_workspace(database: Database) -> tuple[CheckedSubject, ...]:
 
 
 def _report_path(subject: CheckedSubject) -> RootRelativePath:
-    """The path a subject's report is filed at: a skill's is its `SKILL.md`, a layout entry's where it is reached.
+    """The path a subject's report is filed at: an item or layout entry's path.
 
     Args:
-        subject: The document, specification, skill, resource or layout entry whose report is placed.
+        subject: The item or layout entry whose report is placed.
     """
     match subject:
         case ItemRef():
             return subject.path
-        case SkillLocation():
-            return subject.ref.path
-        case SkillResourceLocation():
-            return subject.ref.path
         case RefusedSkillAlias():
             return subject.ref.path
         case OutsideSymlink() | ReservedCorpusDirectory():

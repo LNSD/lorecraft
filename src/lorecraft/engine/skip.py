@@ -14,12 +14,7 @@ from lorecraft.project.corpus import ReservedCorpusDirectory
 from lorecraft.project.database import Database, ItemText, Undecodable
 from lorecraft.project.item import ItemRef, ItemType, MetaSpecPart
 from lorecraft.project.layout import DOCS_DIR
-from lorecraft.project.skill import (
-    OutsideSymlink,
-    RefusedSkillAlias,
-    SkillLocation,
-    SkillResourceLocation,
-)
+from lorecraft.project.skill import OutsideSymlink, RefusedSkillAlias
 from lorecraft.rules.report import SkippedSubject, SkipReason, SubjectReport, UndecodableSubject
 from lorecraft.rules.table import RuleTable
 from lorecraft.vfs import RefusedRead, RefusedRecord
@@ -28,9 +23,7 @@ from .runner import check_layout_entry, judge_item
 
 # A subject `check_subjects` dispatches: a document, a meta spec, a skill, a resource, a refused skill alias,
 # or a layout entry. Each report holds its ref or the path an agent reaches the symlink by.
-type CheckedSubject = (
-    ItemRef | SkillLocation | SkillResourceLocation | OutsideSymlink | ReservedCorpusDirectory | RefusedSkillAlias
-)
+type CheckedSubject = ItemRef | OutsideSymlink | ReservedCorpusDirectory | RefusedSkillAlias
 
 
 def check_subjects(
@@ -58,20 +51,10 @@ def check_subjects(
     reports: list[SubjectReport] = []
     for subject in subjects:
         match subject:
-            case ItemRef() as ref if isinstance(refusals.get(ref.path), RefusedRead):
-                continue  # the unreadable-document report is already in the caller's reports
-            case SkillLocation() as location if _is_refused_docs_path(location.file_resolves_to, refusals):
-                reports.append(
-                    SkippedSubject(ItemRef(location.ref.path), (location.file_resolves_to,), SkipReason.REFUSED_PATH)
-                )
-            case SkillResourceLocation() as location if _is_refused_docs_path(location.resolves_to, refusals):
-                reports.append(
-                    SkippedSubject(ItemRef(location.ref.path), (location.resolves_to,), SkipReason.REFUSED_PATH)
-                )
+            case ItemRef() as ref:
+                reports.extend(_check_item(database, ref, table, refusals))
             case RefusedSkillAlias(ref=ref, refused_at=path):
                 reports.append(SkippedSubject(ref, (path,), SkipReason.REFUSED_PATH))
-            case ItemRef() | SkillLocation() | SkillResourceLocation():
-                reports.append(_check_item(database, subject, table))
             case OutsideSymlink() | ReservedCorpusDirectory():
                 reports.append(check_layout_entry(subject, database, table))
             case _:
@@ -90,8 +73,11 @@ def _is_refused_docs_path(path: RootRelativePath, refusals: Mapping[RootRelative
 
 
 def _check_item(
-    database: Database, subject: ItemRef | SkillLocation | SkillResourceLocation, table: RuleTable
-) -> SubjectReport:
+    database: Database,
+    item: ItemRef,
+    table: RuleTable,
+    refusals: Mapping[RootRelativePath, RefusedRecord],
+) -> tuple[SubjectReport, ...]:
     """Decode one item subject through the item queries, then judge it if it decoded and no failed layer skips it.
 
     Every item type is decoded the same way, by its common reference. A missing file is reported by the read error of
@@ -101,25 +87,22 @@ def _check_item(
 
     Args:
         database: The revision the item is read from.
-        subject: The document, meta spec, skill or resource to check.
+        item: The document, meta spec, skill or resource to check by its common reference.
         table: The rules the run enables.
+        refusals: Paths in the snapshot the run could not read.
 
     Raises:
         ItemReadError: If the item is missing from the snapshot; a decode failure is a diagnostic.
     """
-    match subject:
-        case ItemRef():
-            item = subject
-        case SkillLocation():
-            item = ItemRef(subject.ref.path)
-        case SkillResourceLocation():
-            item = ItemRef(subject.ref.path)
-        case _:
-            assert_never(subject)
+    if isinstance(refusals.get(item.path), RefusedRead):
+        return ()  # the unreadable-item report is already in the caller's reports
+    descriptor = database.item_descriptor(item)
+    if _is_refused_docs_path(descriptor.read_location, refusals):
+        return (SkippedSubject(item, (descriptor.read_location,), SkipReason.REFUSED_PATH),)
     source = database.item_text(item)
     match source:
         case Undecodable():
-            return UndecodableSubject(item, source.failure)
+            return (UndecodableSubject(item, source.failure),)
         case ItemText():
             match source.descriptor.type:
                 case ItemType.DOCUMENT:
@@ -130,10 +113,12 @@ def _check_item(
                         if failed_layers:
                             # `SkippedSubject` requires a first path, so the first failed layer is split from the rest.
                             first, *others = failed_layers
-                            return SkippedSubject(
-                                item,
-                                (first.path, *(layer.path for layer in others)),
-                                SkipReason.FAILED_STRUCTURE,
+                            return (
+                                SkippedSubject(
+                                    item,
+                                    (first.path, *(layer.path for layer in others)),
+                                    SkipReason.FAILED_STRUCTURE,
+                                ),
                             )
                 case ItemType.SKILL_ENTRYPOINT:
                     governance = database.item_governance(item)
@@ -146,6 +131,6 @@ def _check_item(
                     pass  # neither item type is skipped by a failed corpus layer
                 case _:
                     assert_never(source.descriptor.type)
-            return judge_item(database, source, table)
+            return (judge_item(database, source, table),)
         case _:
             assert_never(source)
