@@ -100,7 +100,7 @@ class TestSkillRef:
 
         #: Then
         assert path == RootRelativePath.parse('.agents/skills/review/SKILL.md'), (
-            'the skill file is always SKILL.md, directly inside the skill directory'
+            'the skill entrypoint is always SKILL.md, directly inside the skill directory'
         )
 
     def test_sorted_with_refs_in_two_skills_directories_returns_them_in_directory_order(self) -> None:
@@ -188,7 +188,7 @@ class TestSkillResourceRef:
             SkillResourceRef(skill, path)
 
         #: Then
-        assert exc_info.value.path == path, 'the record refuses the skill file'
+        assert exc_info.value.path == path, 'the record refuses the skill entrypoint'
 
     def test_init_with_the_skill_directory_as_the_path_raises_not_a_skill_resource_error(self) -> None:
         #: Given

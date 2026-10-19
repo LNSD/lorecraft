@@ -28,7 +28,7 @@ from typing import assert_never
 
 from pydantic import JsonValue
 
-from lorecraft.agents import SKILL_ENTRY, iter_agents
+from lorecraft.agents import SKILL_ENTRYPOINT, iter_agents
 from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.project.aspect import (
@@ -579,7 +579,7 @@ def _list_skill_locations(
                 failures.append(LoadFailure(entry_path, condition))
                 continue
             except SkillFileResolveError as exc:
-                skill_file_path = entry_path / SKILL_ENTRY
+                skill_file_path = entry_path / SKILL_ENTRYPOINT
                 match exc.source:
                     case FileResolveError():
                         condition = UnresolvableSkillFile(exc.skill_file, exc.source.refusal)

@@ -1,6 +1,7 @@
 """`FM010`, `invalid-frontmatter`, over the problems the frontmatter schemas find in a subject's frontmatter.
 
-Every case is a document or a `SKILL.md` written as text, read through a fake database that holds it to its schemas as
+Every case is a document or a skill entrypoint (`SKILL.md`) written as text, read through a fake database that
+holds it to its schemas as
 the real analysis does, under structure files decoded from JSON; no file is read from disk.
 
 The `check` cases use documents because the Agent Skills specification places every problem it finds on a field, so a

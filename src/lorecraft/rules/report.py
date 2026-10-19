@@ -150,7 +150,7 @@ class CheckedItem:
     """A Markdown item that decoded, so the enabled rules judged everything it is governed for.
 
     A document, a skill's `SKILL.md` and a skill's resource are reported alike. Only a rule over a document is gated
-    on a meta spec part beyond the checks the package always activates for a skill file, so a skill file's
+    on a meta spec part beyond the checks the package always activates for a skill entrypoint, so a skill entrypoint's
     report holds no ungoverned part by construction, and only a document's can.
 
     Attributes:
@@ -176,7 +176,7 @@ class CheckedItem:
 class UndecodableSubject:
     """A subject whose file is not UTF-8, so no rule judged it; it reports the engine's one diagnostic.
 
-    A skill's file is its `SKILL.md`, and a resource's is reported where an agent reaches it.
+    A skill entrypoint is its `SKILL.md`, and a resource's is reported where an agent reaches it.
 
     Attributes:
         ref: The document, meta spec, skill or resource whose file did not decode, and the path its diagnostic

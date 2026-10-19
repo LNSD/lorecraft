@@ -35,7 +35,7 @@ returns at its subject, as a diagnostic of `lorecraft.rules.report`.
   each resource handed over as a subject of its own. A resource has no corpus structure governance, while package
   Markdown checks still run; a skill's package checks run independently of corpus governance.
 - One entry point per mode: `skip.py` gives documents governed by a failed layer no rule, and
-  skips skill files whose docs target was refused. An LSP-style partial mode is future work.
+  skips skill entrypoints whose docs target was refused. An LSP-style partial mode is future work.
 - `skip.py` wraps an item read failure in the kind-specific error declared by the document or skill repository. A
   specification has no kind-specific read error, so its `ItemReadError` propagates unchanged.
 - The report of each load failure the model lists (`load_failures.py`): the engine condition of its kind, filed
@@ -66,7 +66,7 @@ returns at its subject, as a diagnostic of `lorecraft.rules.report`.
 - A rule returns occurrences that name no subject. The run attaches the subject's path, as a diagnostic.
 - A load failure is reported once, at its own path, and never once per subject it touches; a document a failed layer
   governs is coverage, never a diagnostic. A skill still receives its Agent Skills checks.
-- A skill file whose docs target was refused is coverage at its own path; the refusal is reported at the target.
+- A skill entrypoint whose docs target was refused is coverage at its own path; the refusal is reported at the target.
 - A run's results are not cached. Every rule runs again every time, and never sees the store of persisted results.
 - The shared runner holds no mode's policy. A new mode is a new entry point that edits neither `runner.py` nor
   another mode's entry point.

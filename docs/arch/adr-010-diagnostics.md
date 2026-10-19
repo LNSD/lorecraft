@@ -269,7 +269,7 @@ type SubjectReport = CheckedItem | UndecodableSubject | CheckedLayoutEntry | Ski
   diagnostic carries one of two severities.
 - **An undecodable subject has one diagnostic and no coverage**, which the union states: the engine's
   `InvalidUtf8` (`LC001`) at its path, since no rule judged it.
-- **A skill file has no coverage either.** The package governs every skill and resource for every facet, so a
+- **A skill entrypoint has no coverage either.** The package governs every skill and resource for every facet, so a
   `CheckedItem` for a skill holds no ungoverned facets; a `CheckedItem` for a document may hold them.
 - **A layout entry is reported by its path, and has no coverage.** It is not a document, a skill or a resource, so
   it has no subject reference, and no meta spec governs it, so it can never be ungoverned. Its diagnostics take the

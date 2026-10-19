@@ -37,7 +37,7 @@ query a rule owns now takes its carry-over from what it read.
 ## Decision
 
 1. **A rule names its query and judges pure facts.** A rule derives from `QueriedDocumentRule[Facts]` (or the
-   corresponding queried base for skills, markdown files, skill files, or frontmatter) and returns its query from
+   corresponding queried base for skills, markdown files, skill entrypoints, or frontmatter) and returns its query from
    `query()`, a `Query[Facts]`. A queried rule defines no `check(context)` method: it exposes only `query()` and
    `judge(facts)`.
 2. **The runner coordinates query resolution directly.** The rules engine runner (`lorecraft.engine.runner`) resolves

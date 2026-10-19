@@ -38,10 +38,10 @@ class WrongItemKindError(TypeError):
 
 
 class ItemKind(Enum):
-    """The kinds of governed Markdown item a rule may apply to."""
+    """The kinds of governed Markdown file a rule may apply to."""
 
     DOCUMENT = 'document'
-    SKILL = 'skill-entry'
+    SKILL_ENTRYPOINT = 'skill-entry'
     SKILL_RESOURCE = 'skill-resource'
     META_SPEC = 'specification'
 
@@ -75,8 +75,8 @@ class DocumentOrigin:
 
 
 @dataclass(frozen=True, slots=True)
-class SkillOrigin:
-    """Origin metadata for a listed skill.
+class SkillEntrypointOrigin:
+    """Origin metadata for a skill entrypoint.
 
     Attributes:
         expected_name: Listed directory name the skill's frontmatter name is checked against.
@@ -114,7 +114,7 @@ class MetaSpecOrigin:
     corpus: str
 
 
-type ItemOrigin = DocumentOrigin | SkillOrigin | SkillResourceOrigin | MetaSpecOrigin
+type ItemOrigin = DocumentOrigin | SkillEntrypointOrigin | SkillResourceOrigin | MetaSpecOrigin
 
 
 @dataclass(frozen=True, slots=True)
@@ -129,7 +129,7 @@ class ItemDescriptor:
         governance_corpus: Corpus whose meta specs govern the item, when it belongs to one; empty otherwise.
         aspect_name: Listed name matched against namespace meta specs, when it belongs to a corpus; retained as
             provenance for skills and resources.
-        governed_parts: Parts that activate checks for this item. The package's skill checks activate skill
+        governed_parts: Parts that activate checks for this item. The package's skill-entrypoint checks activate its
             frontmatter and structure checks, independently of corpus governance. A meta spec and a resource
             activate the structure part.
     """
@@ -148,8 +148,8 @@ class ItemDescriptor:
         match self.origin:
             case DocumentOrigin():
                 return ItemKind.DOCUMENT
-            case SkillOrigin():
-                return ItemKind.SKILL
+            case SkillEntrypointOrigin():
+                return ItemKind.SKILL_ENTRYPOINT
             case SkillResourceOrigin():
                 return ItemKind.SKILL_RESOURCE
             case MetaSpecOrigin():

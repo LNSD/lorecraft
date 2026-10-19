@@ -27,7 +27,7 @@ from lorecraft.project.item import (
     ItemRef,
     MetaSpecOrigin,
     MetaSpecPart,
-    SkillOrigin,
+    SkillEntrypointOrigin,
 )
 from lorecraft.project.layout import SPECS_DIR
 from lorecraft.project.link_target import DocumentDirectory, SkillRoot
@@ -954,7 +954,9 @@ class TestWorkspaceModel:
         assert before.link_base == after.link_base == SkillRoot(AUDIT.ref.directory), (
             'skill links use the listed skill root'
         )
-        assert isinstance(after.origin, SkillOrigin), 'the descriptor retains skill-specific origin facts'
+        assert isinstance(after.origin, SkillEntrypointOrigin), 'the descriptor retains skill-specific origin facts'
+        assert after.kind is ItemKind.SKILL_ENTRYPOINT
+        assert after.kind.value == 'skill-entry', 'the serialized kind remains unchanged'
         assert after.origin.expected_name == 'audit', 'frontmatter expects the listed directory name'
         assert after.origin.link_target == moved.resolves_to, 'the retargeted directory remains available for notes'
 

@@ -1,6 +1,6 @@
 ---
 name: "prd-020-skills-corpus"
-description: "A reserved skills corpus in the meta spec directory that governs every agent skill's entry document and Markdown resources by the skill's name, layered on the Agent Skills specification, so a repository can state its own rules for its skills as it does for its documents"
+description: "A reserved skills corpus in the meta spec directory that governs every agent skill's entrypoint and Markdown resources by the skill's name, layered on the Agent Skills specification, so a repository can state its own rules for its skills as it does for its documents"
 type: "prd"
 status: "draft"
 ---
@@ -219,7 +219,7 @@ Scenario: A skill resource breaks a resource check
   And a skill holding a Markdown resource exceeding that budget
   When the maintainer checks the workspace
   Then a finding names the resource and the exceeded budget
-  And no finding names the skill's entry document
+  And no finding names the skill's entrypoint
 ```
 
 ```gherkin

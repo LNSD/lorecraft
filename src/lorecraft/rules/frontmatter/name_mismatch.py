@@ -153,7 +153,7 @@ class NameMismatch(QueriedItemRule[FrontmatterFacts]):
     GATES: ClassVar[Mapping[ItemKind, Gate]] = MappingProxyType(
         {
             ItemKind.DOCUMENT: ByMetaSpec(MetaSpecPart.FRONTMATTER),
-            ItemKind.SKILL: BySchema(AGENT_SKILLS_SCHEMA_REFERENCE),
+            ItemKind.SKILL_ENTRYPOINT: BySchema(AGENT_SKILLS_SCHEMA_REFERENCE),
         }
     )
 

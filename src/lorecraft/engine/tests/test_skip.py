@@ -139,7 +139,7 @@ class TestCheckSubjectsOverASkillEntry:
         database = Database.from_snapshot(snapshot)
         location = database.model().sorted_skill_locations[0]
         item = ItemRef(location.ref.path)
-        assert database.item_governance(item) is not None, 'the reserved skills corpus governs skill entries'
+        assert database.item_governance(item) is not None, 'the reserved skills corpus governs skill entrypoints'
 
         #: When
         reports = check_subjects(database, [location], _all_rules())

@@ -16,12 +16,12 @@ status: "accepted"
 
 ## Context
 
-[prd-020](prd-020-skills-corpus.md) brings skill documents into the meta spec model through the reserved
+[prd-020](prd-020-skills-corpus.md) brings skill entrypoints into the meta spec model through the reserved
 `skills` corpus (`FR-001` through `FR-007`, `FR-009` through `FR-011`, `FR-018`, `NFR-001`), and
 [adr-022](adr-022-skills-governance.md) settles how `skills` layers, the built-in schema and bounded contradiction
 detection work.
 
-In the current architecture, documents under `docs/`, skill documents (`SKILL.md`) and Markdown resources inside
+In the current architecture, documents under `docs/`, skill entrypoints (`SKILL.md`) and Markdown resources inside
 skills travel through three parallel representations above the project model:
 
 - Separate reference types identify corpus documents by corpus and filename stem, skills by their listed directory name, and skill resources by owning skill and skill-relative path.

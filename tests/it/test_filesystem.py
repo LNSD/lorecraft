@@ -2415,7 +2415,7 @@ class TestVirtualFileSystemMatchesDisk:
         #: Then
         assert actual == expected, 'a linked scope root the scan does not follow is a link on both'
 
-    # find_file: a skill file, one reached through a linked skill, and a directory.
+    # find_file: a skill entrypoint, one reached through a linked skill, and a directory.
 
     def test_find_file_over_a_snapshot_with_a_skill_file_agrees_with_disk(self, parity_tree: Path) -> None:
         #: Given
