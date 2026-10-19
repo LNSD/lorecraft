@@ -41,12 +41,20 @@ valid JSON.
 
 ## The Reserved `skills` Corpus
 
-`skills` is the one corpus name with no directory under `docs/`. Its documents are the skills in the agents' skills
+`skills` is a reserved corpus name with no directory under `docs/`. Its documents are the skills in the agents' skills
 directories, and a skill's name is its listed directory name. `skills` governs every skill; `skills-<namespace>`
 governs the skills whose name equals the namespace or continues it with a hyphen, so `skills-code` matches `code-rules`
 and `code-rules-check`, and layers on `skills` as any namespace does, with aspect files at the same names. A
 `skills-<namespace>` without a `skills` meta spec narrows nothing. `lorecraft inspect` lists the meta specs governing
 each skill. A `docs/skills/` directory is reported by the `COR001` rule, a warning by default, and ignored: none of its documents is checked.
+
+## The Reserved `meta` Corpus
+
+`meta` is a reserved corpus name with no directory under `docs/`. It governs every meta spec in `docs/__meta__/`.
+`meta.spec.json` is the corpus meta spec, governing all meta spec items. `meta-<corpus>.spec.json` is the namespace
+meta spec governing the meta specs whose name equals `<corpus>` or starts with `<corpus>-`, so `meta-feat` governs
+`feat.md` and `feat-cli.md`. Meta spec gates follow the same rules as document gates. A `docs/meta/` directory is
+reported by the `COR001` rule and ignored.
 
 ## A Meta Spec and Its Checks
 

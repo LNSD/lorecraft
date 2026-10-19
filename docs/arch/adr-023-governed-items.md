@@ -38,9 +38,9 @@ governance lookup, failed-layer skipping, facet gating and coverage reporting ac
 
 ### One Governed-Item Reference and Model-Resolved Descriptor
 
-Every governed Markdown subject—a document in a `docs/` corpus, a skill's `SKILL.md`, or a Markdown resource inside a
-skill—is identified above the project model by one owned reference type and paired with a descriptor resolved by the
-project model.
+Every governed Markdown subject—a document in a `docs/` corpus, a meta spec in `docs/__meta__/`, a skill's `SKILL.md`,
+or a Markdown resource inside a skill—is identified above the project model by one owned reference type and paired
+with a descriptor resolved by the project model.
 
 The reference carries the item's logical identity where it is listed, never its resolved target path
 ([adr-003](adr-003-project-model.md)). Retargeting a symlink changes the resolved location in the descriptor while
@@ -69,6 +69,8 @@ layout subject category ([adr-011](adr-011-rules-engine.md)).
 The project model is the only layer that classifies a Markdown item's origin:
 
 - A corpus document derives its corpus and aspect name from its `docs/<corpus>/<name>.md` path.
+- A meta spec in `docs/__meta__/` derives its subject corpus from its filename prefix and is governed by the reserved
+  `meta` corpus.
 - A skill derives its aspect name from the skill's listed directory name in `.agents/skills/`; its package
   checks are independent of corpus governance. The reserved corpus does not govern the entry until LORE-324.
 - A skill resource is discovered lazily through its skill's resource listing rather than by an eager workspace-wide
@@ -78,7 +80,10 @@ The project model is the only layer that classifies a Markdown item's origin:
 Name-chain ordering and prefix matching are shared with the project model's meta spec and document hierarchy
 derivation rather than reimplemented in the database, runner or rules.
 
-### Hierarchical Governance for Skills and Resources
+### Hierarchical Governance for Meta Specs, Skills and Resources
+
+The reserved `meta` corpus governs every meta spec in `docs/__meta__/`: `meta.spec.json` provides corpus governance
+and `meta-<corpus>.spec.json` provides namespace governance. Meta spec rules declare the same gates as document rules.
 
 The reserved `skills` corpus is loaded and its meta specs are checked, but does not govern skills or
 resources. Package skill checks remain active for skills; corpus governance is deferred to LORE-324.
@@ -96,13 +101,14 @@ The database and rules engine consume the common reference and descriptor unifor
 - **Unified per-file and cross-file queries:** frontmatter parsing, Markdown parsing, line counting, token counting and
   relative-link target resolution each have one query implementation taking the common decode witness and reading the
   descriptor's link base.
-- **Unified governance and analysis queries:** `item_governance(ref)` resolves ordered layers for corpus documents;
-  skills and resources have no corpus governance. Schema validation and outline analysis read
-  `item_governance(ref)` and the per-file queries, keeping their results whenever those inputs compare equal
-  ([adr-015](adr-015-database.md)).
-- **One content runner loop:** the engine decodes the item once, applies the mode's failed-layer policy whenever an
-  active governing layer failed to load, gates enabled rules by the descriptor's active and governed facets, and
-  produces one checked content report carrying diagnostics and ungoverned facets (`FR-005`, `FR-010`, `FR-018`).
+- **Unified governance and analysis queries:** `item_governance(ref)` resolves ordered layers for corpus documents
+  and meta specs in `docs/__meta__/`; skills and resources have no corpus governance. Schema validation and outline
+  analysis read `item_governance(ref)` and the per-file queries, keeping their results whenever those inputs compare
+  equal ([adr-015](adr-015-database.md)).
+- **One content runner loop:** the engine decodes the item once, applies the uniform partial check policy whenever an
+  active governing layer failed to load (suppressing `ByMetaSpec` gates while running `ByPackage` and `BySchema`
+  checks), gates enabled rules by declared gates and governed parts, and produces one checked content report carrying
+  diagnostics and ungoverned parts (`FR-005`, `FR-010`, `FR-018`).
 
 ### Diagnostic and Inspection Compatibility
 

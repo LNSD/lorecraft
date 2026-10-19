@@ -8,7 +8,7 @@ Lorecraft governs two kinds of document: a [meta spec](#meta-spec) states the ru
 
 ### Corpus
 
-A collection of specs of one kind under `docs/`, such as `docs/code/` or `docs/feat/`. A corpus is governed by its [corpus meta spec](#corpus-meta-spec), and the kind of spec it holds is named after it.
+A collection of specs of one kind under `docs/`, such as `docs/code/` or `docs/feat/`. A corpus is governed by its [corpus meta spec](#corpus-meta-spec), and the kind of spec it holds is named after it. A **reserved corpus** (`skills`, `meta`) has no directory under `docs/`: `skills` governs agent skills, and `meta` governs meta spec items in `docs/__meta__/`.
 
 ### Spec
 
@@ -87,7 +87,7 @@ The identity of an [item](#item) outside the `project` model: `ItemRef`.
 
 ### Origin ref
 
-A validated, per-kind identity inside `project`, one-to-one with an origin. `DocumentRef` corresponds to `DocumentOrigin`, `MetaSpecRef` to `MetaSpecOrigin`, `SkillRef` to `SkillEntrypointOrigin`, and `SkillResourceRef` to `SkillResourceOrigin`. These are distinct from the `ItemRef` that crosses the project-model boundary. Only item refs, layout refs, and schema refs cross that boundary, as [ADR-023](arch/adr-023.md) requires.
+A validated, per-kind identity inside `project`, one-to-one with an origin. `DocumentRef` corresponds to `DocumentOrigin`, `MetaSpecRef` to `MetaSpecOrigin`, `SkillRef` to `SkillEntrypointOrigin`, and `SkillResourceRef` to `SkillResourceOrigin`. In `MetaSpecOrigin`, `corpus` records the specification's subject category (the first segment of its stem), while `governance_corpus` on the descriptor records the governing corpus (`meta`). These are distinct from the `ItemRef` that crosses the project-model boundary. Only item refs, layout refs, and schema refs cross that boundary, as [ADR-023](arch/adr-023.md) requires.
 
 ### Location
 
@@ -167,7 +167,7 @@ One meta spec in an item's governance chain. A [failed layer](#failed-layer) is 
 
 ### Failed layer
 
-A layer whose structure file failed to load; `Governance.failed_layers()` reports these layers.
+A layer whose structure file failed to load; `Governance.failed_layers()` reports these layers. Under the partial check policy, a failed layer suppresses every `ByMetaSpec` gate while `ByPackage` and `BySchema` gates continue to run, and the suppressed parts are reported in coverage.
 
 ### Meta-spec part
 
