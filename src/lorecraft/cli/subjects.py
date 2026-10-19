@@ -14,7 +14,7 @@ from lorecraft.core.path import RootRelativePath
 from lorecraft.engine import CheckedSubject
 from lorecraft.project.corpus import ReservedCorpusDirectory
 from lorecraft.project.database import Database
-from lorecraft.project.document import DocumentRef, MetaSpecRef
+from lorecraft.project.item import ItemRef
 from lorecraft.project.skill import OutsideSymlink, RefusedSkillAlias, SkillLocation, SkillResourceLocation
 
 
@@ -32,8 +32,8 @@ def select_workspace(database: Database) -> tuple[CheckedSubject, ...]:
     """
     model = database.model()
     subjects: list[CheckedSubject] = []
-    subjects.extend(model.documents())
-    subjects.extend(model.specifications())
+    subjects.extend(ItemRef(ref.path) for ref in model.documents())
+    subjects.extend(ItemRef(ref.path) for ref in model.specifications())
     for location in model.sorted_skill_locations:
         subjects.append(location)
         listing = database.skill_resources(location)
@@ -54,7 +54,7 @@ def _report_path(subject: CheckedSubject) -> RootRelativePath:
         subject: The document, specification, skill, resource or layout entry whose report is placed.
     """
     match subject:
-        case DocumentRef() | MetaSpecRef():
+        case ItemRef():
             return subject.path
         case SkillLocation():
             return subject.ref.path

@@ -30,6 +30,7 @@ from lorecraft.rules.report import (
     RuleDiagnostic,
     RunReport,
     SkippedSubject,
+    SkipReason,
     UndecodableSubject,
 )
 from lorecraft.rules.subject import MetaSpecPart
@@ -109,7 +110,7 @@ def _every_kind_of_report() -> tuple[RunReport, ...]:
             ungoverned=(MetaSpecPart.FRONTMATTER, MetaSpecPart.BUDGET),
         ),
         CheckedLayoutEntry(review, diagnostics=(RuleDiagnostic(review, outside, Severity.ERROR),)),
-        UndecodableSubject(_document('code', 'latin'), _latin_failure()),
+        UndecodableSubject(ItemRef(_document('code', 'latin').path), _latin_failure()),
         CheckedItem(
             ItemRef(a.path),
             diagnostics=(
@@ -416,7 +417,7 @@ class TestRenderCoverage:
         a = _document('code', 'a')
         reports: tuple[RunReport, ...] = (
             CheckedItem(ItemRef(a.path), diagnostics=(), ungoverned=()),
-            UndecodableSubject(_document('code', 'latin'), _latin_failure()),
+            UndecodableSubject(ItemRef(_document('code', 'latin').path), _latin_failure()),
         )
 
         #: When
@@ -683,14 +684,14 @@ def _reports_of_a_failed_meta_spec() -> tuple[RunReport, ...]:
     """
     malformed = MalformedStructureFile(cause=FormatViolated(problems=('max_tokens: Extra inputs are not permitted',)))
     return (
-        SkippedSubject(_document('code', 'b'), failed_layers=(_CODE_SPEC,)),
+        SkippedSubject(ItemRef(_document('code', 'b').path), (_CODE_SPEC,), SkipReason.FAILED_STRUCTURE),
         LoadFailureReport(_CODE_SPEC, malformed),
         CheckedItem(
             ItemRef(_document('feat', 'check').path),
             diagnostics=(),
             ungoverned=(MetaSpecPart.BUDGET,),
         ),
-        SkippedSubject(_document('code', 'a'), failed_layers=(_CODE_SPEC,)),
+        SkippedSubject(ItemRef(_document('code', 'a').path), (_CODE_SPEC,), SkipReason.FAILED_STRUCTURE),
     )
 
 
@@ -715,7 +716,9 @@ class TestRenderLoadFailures:
     def test_render_coverage_with_a_document_skipped_for_two_layers_names_both_files(self) -> None:
         #: Given
         both = (_CODE_SPEC, RootRelativePath.parse('docs/__meta__/code-python.spec.json'))
-        reports: tuple[RunReport, ...] = (SkippedSubject(_document('code', 'python-typing'), both),)
+        reports: tuple[RunReport, ...] = (
+            SkippedSubject(ItemRef(_document('code', 'python-typing').path), both, SkipReason.FAILED_STRUCTURE),
+        )
 
         #: When
         text = render_coverage(reports)
@@ -725,6 +728,22 @@ class TestRenderLoadFailures:
             'docs/code/python-typing.md: skipped, governed by a structure file that failed to load: '
             'docs/__meta__/code.spec.json, docs/__meta__/code-python.spec.json'
         ), 'each failed layer is named, corpus spec first'
+
+    def test_render_coverage_with_a_refused_docs_path_names_the_refusal(self) -> None:
+        #: Given
+        report = SkippedSubject(
+            ItemRef(_document('skills', 'review').path),
+            (RootRelativePath.parse('docs/__meta__/code.spec.json'),),
+            SkipReason.REFUSED_PATH,
+        )
+
+        #: When
+        text = render_coverage((report,))
+
+        #: Then
+        assert text == (
+            'docs/skills/review.md: skipped, depends on a refused docs path: docs/__meta__/code.spec.json'
+        ), 'a refused docs target keeps its distinct coverage explanation'
 
     def test_render_summary_with_a_load_failure_counts_its_error_and_no_subject_for_it(self) -> None:
         #: Given

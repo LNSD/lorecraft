@@ -37,8 +37,7 @@ returns at its subject, as a diagnostic of `lorecraft.rules.report`.
 - One entry point per mode: `skip.py` gives documents governed by a failed layer no rule, suppresses skill corpus
   rules for failed skill layers while retaining package and schema checks, and skips skill entrypoints whose docs
   target was refused. An LSP-style partial mode is future work.
-- `skip.py` wraps an item read failure in the kind-specific error declared by the document or skill repository. A
-  specification has no kind-specific read error, so its `ItemReadError` propagates unchanged.
+- `skip.py` propagates the project's common `ItemReadError` for a missing item.
 - The report of each load failure the model lists (`load_failures.py`): the engine condition of its kind, filed
   once at the failure's path, whatever the configuration and the selection. A `docs/` or `docs/__meta__/` that
   cannot be listed comes back as `UnlistableRoot` instead of a report. Which failure stops a run is the command's
@@ -55,6 +54,7 @@ returns at its subject, as a diagnostic of `lorecraft.rules.report`.
 | Adds a project query, a query promoted for cross-group reuse, a decode witness, or a carry-over rule | `lorecraft.project` |
 | Parses text, decodes a meta spec, or builds the model | `lorecraft.project` |
 | Reads the disk | `lorecraft.vfs` |
+| Resolves origin refs; engine reports use `ItemRef`, while CLI listings retain origins | `lorecraft.project` / `lorecraft.cli` |
 
 ## Invariants
 

@@ -61,6 +61,7 @@ once in `lorecraft.project.layout` and read from there by every other module.
 | Runs the rules over the query results | `lorecraft.engine` |
 | Declares what a run reports about what the rules find | `lorecraft.rules` |
 | Chooses which documents a run checks, or prints anything | `lorecraft.cli` |
+| Keeps origin refs; engine and rules report by `ItemRef`; CLI renders model listings from origins | `lorecraft.project` / `lorecraft.cli` |
 
 ## Invariants
 

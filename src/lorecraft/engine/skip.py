@@ -12,20 +12,15 @@ from typing import assert_never
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.corpus import ReservedCorpusDirectory
 from lorecraft.project.database import Database, ItemText, Undecodable
-from lorecraft.project.document import DocumentReadError, DocumentRef, MetaSpecRef
-from lorecraft.project.item import ItemKind, ItemReadError, ItemRef, MetaSpecPart
+from lorecraft.project.item import ItemKind, ItemRef, MetaSpecPart
 from lorecraft.project.layout import DOCS_DIR
 from lorecraft.project.skill import (
     OutsideSymlink,
     RefusedSkillAlias,
     SkillLocation,
-    SkillReadError,
-    SkillRef,
     SkillResourceLocation,
-    SkillResourceReadError,
-    SkillResourceRef,
 )
-from lorecraft.rules.report import SkippedSubject, SubjectReport, UndecodableSubject
+from lorecraft.rules.report import SkippedSubject, SkipReason, SubjectReport, UndecodableSubject
 from lorecraft.rules.table import RuleTable
 from lorecraft.vfs import RefusedRead, RefusedRecord
 
@@ -34,16 +29,8 @@ from .runner import check_layout_entry, judge_item
 # A subject `check_subjects` dispatches: a document, a meta specification, a skill, a resource, a refused skill alias,
 # or a layout entry. Each report holds its ref or the path an agent reaches the symlink by.
 type CheckedSubject = (
-    DocumentRef
-    | MetaSpecRef
-    | SkillLocation
-    | SkillResourceLocation
-    | OutsideSymlink
-    | ReservedCorpusDirectory
-    | RefusedSkillAlias
+    ItemRef | SkillLocation | SkillResourceLocation | OutsideSymlink | ReservedCorpusDirectory | RefusedSkillAlias
 )
-
-type ReportedRef = DocumentRef | MetaSpecRef | SkillRef | SkillResourceRef
 
 
 def check_subjects(
@@ -64,25 +51,26 @@ def check_subjects(
         refusals: Docs paths the snapshot refused, whose diagnostics the caller reports; empty by default.
 
     Raises:
-        DocumentReadError: If a document is missing from the snapshot; a decode failure is a diagnostic.
-        SkillReadError: If a skill's `SKILL.md` is missing from the snapshot; a decode failure is a diagnostic.
-        SkillResourceReadError: If a resource is missing from the snapshot; a decode failure is a diagnostic.
-        ItemReadError: If a specification is missing from the snapshot; a decode failure is a diagnostic.
+        ItemReadError: If an item is missing from the snapshot; a decode failure is a diagnostic.
     """
     if refusals is None:
         refusals = {}
     reports: list[SubjectReport] = []
     for subject in subjects:
         match subject:
-            case DocumentRef() | MetaSpecRef() as ref if isinstance(refusals.get(ref.path), RefusedRead):
+            case ItemRef() as ref if isinstance(refusals.get(ref.path), RefusedRead):
                 continue  # the unreadable-document report is already in the caller's reports
             case SkillLocation() as location if _is_refused_docs_path(location.file_resolves_to, refusals):
-                reports.append(SkippedSubject(location.ref, (location.file_resolves_to,)))
+                reports.append(
+                    SkippedSubject(ItemRef(location.ref.path), (location.file_resolves_to,), SkipReason.REFUSED_PATH)
+                )
             case SkillResourceLocation() as location if _is_refused_docs_path(location.resolves_to, refusals):
-                reports.append(SkippedSubject(location.ref, (location.resolves_to,)))
+                reports.append(
+                    SkippedSubject(ItemRef(location.ref.path), (location.resolves_to,), SkipReason.REFUSED_PATH)
+                )
             case RefusedSkillAlias(ref=ref, refused_at=path):
-                reports.append(SkippedSubject(ref, (path,)))
-            case DocumentRef() | MetaSpecRef() | SkillLocation() | SkillResourceLocation():
+                reports.append(SkippedSubject(ref, (path,), SkipReason.REFUSED_PATH))
+            case ItemRef() | SkillLocation() | SkillResourceLocation():
                 reports.append(_check_item(database, subject, table))
             case OutsideSymlink() | ReservedCorpusDirectory():
                 reports.append(check_layout_entry(subject, database, table))
@@ -102,7 +90,7 @@ def _is_refused_docs_path(path: RootRelativePath, refusals: Mapping[RootRelative
 
 
 def _check_item(
-    database: Database, subject: DocumentRef | MetaSpecRef | SkillLocation | SkillResourceLocation, table: RuleTable
+    database: Database, subject: ItemRef | SkillLocation | SkillResourceLocation, table: RuleTable
 ) -> SubjectReport:
     """Decode one item subject through the item queries, then judge it if it decoded and no failed layer skips it.
 
@@ -117,44 +105,24 @@ def _check_item(
         table: The rules the run enables.
 
     Raises:
-        DocumentReadError: If the document is missing from the snapshot; a decode failure is a diagnostic.
-        SkillReadError: If a skill's `SKILL.md` is missing from the snapshot; a decode failure is a diagnostic.
-        SkillResourceReadError: If a resource is missing from the snapshot; a decode failure is a diagnostic.
-        ItemReadError: If a specification is missing from the snapshot; a decode failure is a diagnostic.
+        ItemReadError: If the item is missing from the snapshot; a decode failure is a diagnostic.
     """
     match subject:
-        case DocumentRef() | MetaSpecRef():
-            ref: ReportedRef = subject
-            item = ItemRef(subject.path)
+        case ItemRef():
+            item = subject
         case SkillLocation():
-            ref = subject.ref
-            item = ItemRef(ref.path)
+            item = ItemRef(subject.ref.path)
         case SkillResourceLocation():
-            ref = subject.ref
             item = database.resource_item(subject)
         case _:
             assert_never(subject)
-    try:
-        source = database.item_text(item)
-    except ItemReadError as exc:
-        # The command reports a missing file by the error of its kind.
-        match ref:
-            case DocumentRef():
-                raise DocumentReadError(ref, source=exc.source) from exc
-            case SkillRef():
-                raise SkillReadError(ref, source=exc.source) from exc
-            case SkillResourceRef():
-                raise SkillResourceReadError(ref, source=exc.source) from exc
-            case MetaSpecRef():
-                raise
-            case _:
-                assert_never(ref)
+    source = database.item_text(item)
     match source:
         case Undecodable():
-            return UndecodableSubject(ref, source.failure)
+            return UndecodableSubject(item, source.failure)
         case ItemText():
-            match ref:
-                case DocumentRef():
+            match source.descriptor.kind:
+                case ItemKind.DOCUMENT:
                     # Governance is a lookup in the model, never a rule, so a skipped item reads nothing else.
                     governance = database.item_governance(item)
                     if governance is not None:
@@ -162,18 +130,22 @@ def _check_item(
                         if failed_layers:
                             # `SkippedSubject` requires a first path, so the first failed layer is split from the rest.
                             first, *others = failed_layers
-                            return SkippedSubject(ref, (first.path, *(layer.path for layer in others)))
-                case SkillRef():
+                            return SkippedSubject(
+                                item,
+                                (first.path, *(layer.path for layer in others)),
+                                SkipReason.FAILED_STRUCTURE,
+                            )
+                case ItemKind.SKILL_ENTRYPOINT:
                     governance = database.item_governance(item)
                     if governance is not None and governance.failed_layers():
                         table = table.without_item_meta_spec_gates(
                             ItemKind.SKILL_ENTRYPOINT,
                             frozenset({MetaSpecPart.STRUCTURE, MetaSpecPart.OUTLINE, MetaSpecPart.BUDGET}),
                         )
-                case MetaSpecRef() | SkillResourceRef():
+                case ItemKind.META_SPEC | ItemKind.SKILL_RESOURCE:
                     pass  # specs are package governed; resources have no corpus governance
                 case _:
-                    assert_never(ref)
+                    assert_never(source.descriptor.kind)
             return judge_item(database, source, table)
         case _:
             assert_never(source)

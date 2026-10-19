@@ -11,10 +11,8 @@ import pytest
 
 from lorecraft.cli.subjects import select_workspace
 from lorecraft.core.path import PathComponent, RootRelativePath
-from lorecraft.project.aspect import AspectFilename
-from lorecraft.project.corpus import CorpusName
 from lorecraft.project.database import Database
-from lorecraft.project.document import DocumentRef, MetaSpecRef
+from lorecraft.project.item import ItemRef
 from lorecraft.project.layout import SNAPSHOT_SCOPE, SPECS_DIR
 from lorecraft.project.skill import (
     OutsideSymlink,
@@ -45,23 +43,23 @@ def _write(root: Path, relative: str, text: str = '') -> Path:
     return path
 
 
-def _specification(name: str) -> MetaSpecRef:
+def _specification(name: str) -> ItemRef:
     """The meta specification `docs/__meta__/<name>.md`.
 
     Args:
         name: The specification's name without its `.md` suffix.
     """
-    return MetaSpecRef(SPECS_DIR / PathComponent.parse(f'{name}.md'))
+    return ItemRef(SPECS_DIR / PathComponent.parse(f'{name}.md'))
 
 
-def _document(corpus: str, filename: str) -> DocumentRef:
+def _document(corpus: str, filename: str) -> ItemRef:
     """The document `docs/<corpus>/<filename>.md`.
 
     Args:
         corpus: The corpus directory's name.
         filename: The file's name without its `.md` suffix.
     """
-    return DocumentRef(CorpusName.parse(corpus), AspectFilename.parse(filename))
+    return ItemRef(RootRelativePath.parse(f'docs/{corpus}/{filename}.md'))
 
 
 def _skill(ref: SkillRef) -> SkillLocation:

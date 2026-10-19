@@ -17,9 +17,10 @@ diagnostics, in their output order however it is built, and the meta spec parts 
 skill has package checks independent of corpus governance, while a resource has no meta-spec structure
 governance. An
 `UndecodableSubject` did not decode,
-so no rule judged it: it holds its ref and where the bytes stopped being UTF-8, and its one diagnostic, the engine's,
+so no rule judged it: it holds its `ItemRef` and where the bytes stopped being UTF-8, and its one diagnostic,
+the engine's,
 is built from them, at the subject's path. An `UnreadableDocument` could not be read at all, so it holds its document
-or meta spec ref and the engine's unreadable-path condition, and counts as a subject. A layout
+item ref and the engine's unreadable-path condition, and counts as a subject. A layout
 entry, one symlink of the skill layout whose chain leaves the repository or a directory under `docs/` named like a
 reserved corpus, has no text to decode and no meta spec to be
 ungoverned by, so it gets a report of its own, a `CheckedLayoutEntry`: its path and its diagnostics, in their output
@@ -33,13 +34,13 @@ in the same total order as every other diagnostic.
 """
 
 from dataclasses import dataclass
+from enum import Enum
 from typing import assert_never
 
 from lorecraft.core.num import UnsignedInt
 from lorecraft.core.path import RootRelativePath
-from lorecraft.project.document import DocumentRef, MetaSpecRef
 from lorecraft.project.item import ItemRef, MetaSpecPart
-from lorecraft.project.skill import SkillAliasRef, SkillRef, SkillResourceRef
+from lorecraft.project.skill import SkillAliasRef
 from lorecraft.rules.engine.invalid_utf8 import InvalidUtf8
 from lorecraft.vfs import Utf8Failure
 
@@ -142,7 +143,7 @@ def diagnostic_order(diagnostic: Diagnostic) -> DiagnosticOrder:
 
 # A subject the runner checks: a document, a meta specification, a skill, whose report path is its `SKILL.md`, or a
 # skill's resource, whose report path is where an agent reaches it.
-type SubjectRef = DocumentRef | SkillRef | SkillResourceRef | SkillAliasRef | MetaSpecRef
+type SubjectRef = ItemRef | SkillAliasRef
 
 
 @dataclass(frozen=True, slots=True)
@@ -179,7 +180,7 @@ class UndecodableSubject:
     A skill entrypoint is its `SKILL.md`, and a resource's is reported where an agent reaches it.
 
     Attributes:
-        ref: The document, meta spec, skill or resource whose file did not decode, and the path its diagnostic
+        ref: The item whose file did not decode, and the path its diagnostic
             is reported at.
         failure: Where the file's bytes first stop being UTF-8, and why.
     """
@@ -198,11 +199,11 @@ class UnreadableDocument:
     """A governed document or meta spec that could not be read, still counted as a subject with its `LC002`.
 
     Attributes:
-        ref: The document or meta spec whose bytes the snapshot could not read.
+        ref: The item whose bytes the snapshot could not read.
         occurrence: The engine condition explaining the unreadable path.
     """
 
-    ref: DocumentRef | MetaSpecRef
+    ref: ItemRef
     occurrence: EngineCondition
 
     @property
@@ -237,6 +238,13 @@ class CheckedLayoutEntry:
         object.__setattr__(self, 'diagnostics', tuple(sorted(self.diagnostics, key=diagnostic_order)))
 
 
+class SkipReason(Enum):
+    """Why a subject was not judged."""
+
+    FAILED_STRUCTURE = 'failed-structure'
+    REFUSED_PATH = 'refused-path'
+
+
 @dataclass(frozen=True, slots=True)
 class SkippedSubject:
     """A document or skill alias no rule judged because a path it depends on could not be read.
@@ -249,10 +257,12 @@ class SkippedSubject:
     Attributes:
         ref: The document, skill or alias path that was not judged.
         failed_layers: Paths of failed structure layers or refused docs targets that prevented checking.
+        reason: Whether a failed structure layer or a refused path prevented checking.
     """
 
     ref: SubjectRef
     failed_layers: tuple[RootRelativePath, *tuple[RootRelativePath, ...]]
+    reason: SkipReason
 
     @property
     def diagnostics(self) -> tuple[()]:

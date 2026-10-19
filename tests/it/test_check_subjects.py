@@ -29,9 +29,7 @@ from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.engine import check_subjects
 from lorecraft.jsonschema import JsonType
 from lorecraft.project.aspect import AspectFilename
-from lorecraft.project.corpus import CorpusName
 from lorecraft.project.database import Database
-from lorecraft.project.document import DocumentRef
 from lorecraft.project.item import ItemKind, ItemRef
 from lorecraft.project.layout import SNAPSHOT_SCOPE
 from lorecraft.project.link_target import DocumentDirectory, SkillRoot
@@ -141,10 +139,10 @@ from lorecraft.vfs import (
     take_snapshot,
 )
 
-GUIDE: Final[DocumentRef] = DocumentRef(CorpusName.parse('code'), AspectFilename.parse('guide'))
+GUIDE: Final[ItemRef] = ItemRef(RootRelativePath.parse('docs/code/guide.md'))
 """A document of corpus `code`."""
 
-INTRO: Final[DocumentRef] = DocumentRef(CorpusName.parse('code'), AspectFilename.parse('intro'))
+INTRO: Final[ItemRef] = ItemRef(RootRelativePath.parse('docs/code/intro.md'))
 """A second document of corpus `code`."""
 
 REVIEW: Final[SkillRef] = SkillRef(
@@ -658,7 +656,7 @@ class TestCheckSubjects:
                 }
             }
         )
-        typing = DocumentRef(CorpusName.parse('code'), AspectFilename.parse('python-typing'))
+        typing = ItemRef(RootRelativePath.parse('docs/code/python-typing.md'))
         severities: dict[type[Rule], Severity] = {TooManyTokens: Severity.ERROR}
         table = RuleTable(severities)
         database = Database.from_snapshot(snapshot)
@@ -735,7 +733,7 @@ class TestCheckSubjects:
             }
         )
         database = Database.from_snapshot(snapshot)
-        launch = DocumentRef(CorpusName.parse('blog'), AspectFilename.parse('launch'))
+        launch = ItemRef(RootRelativePath.parse('docs/blog/launch.md'))
 
         #: When
         reports = check_subjects(database, (launch,), package_table)
@@ -1053,7 +1051,7 @@ class TestCheckSubjects:
         reports = check_subjects(database, subjects, package_table)
 
         #: Then
-        assert reports == (UndecodableSubject(REVIEW, _CAFE_NAME_FAILURE),), (
+        assert reports == (UndecodableSubject(ItemRef(REVIEW.path), _CAFE_NAME_FAILURE),), (
             'a skill whose SKILL.md is not UTF-8 is judged by no rule'
         )
 
@@ -1421,7 +1419,7 @@ class TestCheckSubjects:
                 }
             }
         )
-        typing = DocumentRef(CorpusName.parse('code'), AspectFilename.parse('python-typing'))
+        typing = ItemRef(RootRelativePath.parse('docs/code/python-typing.md'))
         database = Database.from_snapshot(snapshot)
 
         #: When
@@ -1580,7 +1578,7 @@ class TestCheckSubjects:
             }
         )
         database = Database.from_snapshot(snapshot)
-        typing = DocumentRef(CorpusName.parse('code'), AspectFilename.parse('python-typing'))
+        typing = ItemRef(RootRelativePath.parse('docs/code/python-typing.md'))
 
         #: When
         reports = check_subjects(database, (typing,), package_table)
@@ -2168,7 +2166,7 @@ class TestCheckSubjects:
         reports = check_subjects(database, subjects, package_table)
 
         #: Then
-        assert reports == (UndecodableSubject(cafe, _CAFE_TITLE_FAILURE),), (
+        assert reports == (UndecodableSubject(ItemRef(cafe.path), _CAFE_TITLE_FAILURE),), (
             'a resource that is not UTF-8 is judged by no rule'
         )
 
@@ -2195,7 +2193,7 @@ class TestCheckSubjects:
         #: Then
         occurrence = AbsoluteLink(line=LineNumber(NonZeroUnsignedInt(1)), url='/x.md')
         assert reports == (
-            UndecodableSubject(REVIEW, _CAFE_NAME_FAILURE),
+            UndecodableSubject(ItemRef(REVIEW.path), _CAFE_NAME_FAILURE),
             CheckedItem(
                 ItemRef(resource.path),
                 diagnostics=(RuleDiagnostic(resource.path, occurrence, Severity.ERROR),),

@@ -22,6 +22,7 @@ from ..report import (
     LoadFailureReport,
     RuleDiagnostic,
     SkippedSubject,
+    SkipReason,
     UndecodableSubject,
     diagnostic_order,
 )
@@ -272,7 +273,7 @@ class TestCheckedLayoutEntry:
 class TestUndecodableSubject:
     def test_diagnostics_of_an_undecodable_subject_are_invalid_utf8_at_its_path(self) -> None:
         #: Given
-        subject = UndecodableSubject(DocumentRef(CorpusName.parse('code'), AspectFilename.parse('latin')), _failure(4))
+        subject = UndecodableSubject(ItemRef(RootRelativePath.parse('docs/code/latin.md')), _failure(4))
 
         #: When
         diagnostics = subject.diagnostics
@@ -284,9 +285,7 @@ class TestUndecodableSubject:
 
     def test_diagnostics_of_an_undecodable_skill_are_invalid_utf8_at_its_skill_file(self) -> None:
         #: Given
-        subject = UndecodableSubject(
-            SkillRef(ResolvedPath(RootRelativePath.parse('.agents/skills')), PathComponent.parse('review')), _failure(4)
-        )
+        subject = UndecodableSubject(ItemRef(RootRelativePath.parse('.agents/skills/review/SKILL.md')), _failure(4))
 
         #: When
         diagnostics = subject.diagnostics
@@ -303,9 +302,9 @@ class TestUndecodableSubject:
 class TestSkippedSubject:
     def test_diagnostics_of_a_skipped_subject_are_none(self) -> None:
         #: Given
-        ref = DocumentRef(CorpusName.parse('code'), AspectFilename.parse('a'))
+        ref = ItemRef(RootRelativePath.parse('docs/code/a.md'))
         structure_file = RootRelativePath.parse('docs/__meta__/code.spec.json')
-        subject = SkippedSubject(ref, failed_layers=(structure_file,))
+        subject = SkippedSubject(ref, (structure_file,), SkipReason.FAILED_STRUCTURE)
 
         #: When
         diagnostics = subject.diagnostics
