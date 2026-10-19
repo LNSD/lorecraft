@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import ClassVar, Self, assert_never
 from urllib.parse import unquote
 
-from lorecraft.project.query import Query, SyntaxPrimitives
+from lorecraft.project.query import Query, SyntaxPrimitives, item_parse
 from lorecraft.project.syntax import (
     AbsoluteDestination,
     ExternalDestination,
@@ -29,7 +29,7 @@ def absolute_links(primitives: SyntaxPrimitives) -> tuple[Link, ...]:
         primitives: The model state of the Markdown file.
     """
     absolute: list[Link] = []
-    for link in primitives.links():
+    for link in primitives.query(item_parse).links:
         destination = link.to_destination()
         match destination:
             case AbsoluteDestination():

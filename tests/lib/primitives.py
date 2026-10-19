@@ -14,10 +14,13 @@ from lorecraft.project.query import (
     DecodedText,
     Query,
     SchemaQuery,
+    item_corpus,
     item_frontmatter,
     item_line_count,
+    item_name,
     item_parse,
     item_structure_specs,
+    item_token_count,
 )
 from lorecraft.project.schemas import SpecName, StructureSpec
 from lorecraft.project.syntax import (
@@ -158,6 +161,12 @@ class StructurePrimitives:
             return ParsedDocument(self.heading_list, self.anchor_set, self.link_list)
         if query is item_structure_specs:
             return self.specs
+        if query is item_corpus:
+            return self.corpus
+        if query is item_name:
+            return self.name
+        if query is item_token_count:
+            return self.token_total
         return query(self)
 
     def query_at[T](self, ref: MarkdownItemRef, query: Query[T]) -> T:

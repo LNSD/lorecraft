@@ -13,7 +13,7 @@ from lorecraft.project.link_target import (
     PathLookup,
     SkillRoot,
 )
-from lorecraft.project.query import Query
+from lorecraft.project.query import Query, item_parse
 from lorecraft.project.syntax import (
     AbsoluteDestination,
     ExternalDestination,
@@ -57,7 +57,7 @@ def missing_targets(primitives: SyntaxLinkResolutionPrimitives) -> tuple[Missing
         return ()
     targets = primitives.link_targets()
     missing: list[MissingTarget] = []
-    for link in primitives.links():
+    for link in primitives.query(item_parse).links:
         destination = link.to_destination()
         match destination:
             case RelativeDestination():
