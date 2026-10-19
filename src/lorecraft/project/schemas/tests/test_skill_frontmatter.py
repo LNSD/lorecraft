@@ -423,7 +423,7 @@ class TestSkillCompatibility:
         #: Then
         assert compatibility.value == raw, 'the text is kept'
 
-    def test_parse_with_a_blank_note_raises_empty_skill_compatibility(self) -> None:
+    def test_parse_with_a_blank_note_raises_empty_agent_skills_compatibility(self) -> None:
         #: Given
         raw = ' \n'
 
@@ -435,7 +435,7 @@ class TestSkillCompatibility:
         assert isinstance(exc_info.value.source, ValidationError), 'the broken rule is kept as the source'
         assert exc_info.value.source is exc_info.value.__cause__, 'the broken rule is the cause'
 
-    def test_parse_with_a_note_over_the_limit_raises_skill_compatibility_too_long(self) -> None:
+    def test_parse_with_a_note_over_the_limit_raises_agent_skills_compatibility_too_long(self) -> None:
         #: Given
         raw = 'x' * 501
 

@@ -4,7 +4,7 @@ This is the one declaration of its fields.
 
 The specification is https://agentskills.io/specification. `SkillFrontmatter` states its six fields and the
 limits it puts on them, and nothing else: an extension some agent reads beyond them, such as Claude Code's
-`argument-hint`, is not a field here. `SkillFrontmatterSchema` holds a document's frontmatter to it, so a
+`argument-hint`, is not a field here. `AgentSkillsFrontmatterSchema` holds a document's frontmatter to it, so a
 skill that passes has this shape exactly. And `just gen` renders it into
 `docs/schemas/skill-frontmatter.spec.json`, the JSON Schema an editor validates the frontmatter against while it
 is written, so the editor and the check hold a skill to the same declaration.
@@ -63,13 +63,15 @@ from lorecraft.core.mapping import FrozenMapping
 # `PydanticCustomError` takes only a literal string. `value_object_error_type` reads them back. `SkillName` raises a
 # format fault under `skill_name_format`, and its other faults under `skill_name`, so that a reader can tell the
 # format fault apart.
-type ValueObjectErrorType = Literal['skill_name', 'skill_name_format', 'skill_description', 'skill_compatibility']
+type ValueObjectErrorType = Literal[
+    'skill_name', 'skill_name_format', 'skill_description', 'agent_skills_compatibility'
+]
 """The pydantic error types the value objects raise their rejections under."""
 
 _NAME_ERROR_TYPE: Final[ValueObjectErrorType] = 'skill_name'
 _NAME_FORMAT_ERROR_TYPE: Final[ValueObjectErrorType] = 'skill_name_format'
 _DESCRIPTION_ERROR_TYPE: Final[ValueObjectErrorType] = 'skill_description'
-_COMPATIBILITY_ERROR_TYPE: Final[ValueObjectErrorType] = 'skill_compatibility'
+_COMPATIBILITY_ERROR_TYPE: Final[ValueObjectErrorType] = 'agent_skills_compatibility'
 
 
 def value_object_error_type(detail: ErrorDetails) -> ValueObjectErrorType | None:
@@ -81,7 +83,7 @@ def value_object_error_type(detail: ErrorDetails) -> ValueObjectErrorType | None
         detail: One entry of a pydantic `ValidationError`; only the error types the value objects raise yield a type.
     """
     match detail['type']:
-        case 'skill_name' | 'skill_name_format' | 'skill_description' | 'skill_compatibility' as error_type:
+        case 'skill_name' | 'skill_name_format' | 'skill_description' | 'agent_skills_compatibility' as error_type:
             return error_type
         case _:
             return None

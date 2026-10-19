@@ -20,6 +20,7 @@ from lorecraft.project.syntax import (
     NonMappingFrontmatter,
 )
 
+from .agent_skills_schema import AGENT_SKILLS_FRONTMATTER_SCHEMA, AgentSkillsFrontmatterSchema
 from .frontmatter_problem import (
     BlockProblem,
     FrontmatterProblem,
@@ -29,7 +30,6 @@ from .frontmatter_problem import (
     WrongTypeProblem,
 )
 from .frontmatter_schema import StatedFrontmatterSchema
-from .skill import SKILL_FRONTMATTER_SCHEMA, SkillFrontmatterSchema
 
 
 @dataclass(frozen=True, slots=True)
@@ -114,8 +114,8 @@ def locate_schema_problems(
     return tuple(found)
 
 
-def locate_skill_schema_problems(
-    frontmatter: FrontmatterNode, schema: SkillFrontmatterSchema = SKILL_FRONTMATTER_SCHEMA
+def locate_agent_skills_schema_problems(
+    frontmatter: FrontmatterNode, schema: AgentSkillsFrontmatterSchema = AGENT_SKILLS_FRONTMATTER_SCHEMA
 ) -> tuple[SchemaProblems, ...]:
     """What the Agent Skills specification rejects in a skill's frontmatter, each problem on its line. Raises nothing.
 

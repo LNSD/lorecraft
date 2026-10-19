@@ -13,12 +13,11 @@ from lorecraft.project.corpus import CorpusDirectoryRef, CorpusName, ReservedCor
 from lorecraft.project.database import Database, Read
 from lorecraft.project.item import ItemReadError, MarkdownItemRef, UnlistedItemError
 from lorecraft.project.query import CorpusDirectoryPrimitives, Primitives, SchemaPrimitives, SymlinkPrimitives
-from lorecraft.project.schemas.skill import (
-    SKILL_FRONTMATTER_SCHEMA,
-    SKILL_SCHEMA_INPUT,
-    SKILL_SCHEMA_REFERENCE,
-    skill_frontmatter_schema_query,
+from lorecraft.project.schemas.agent_skills_schema import (
+    AGENT_SKILLS_FRONTMATTER_SCHEMA,
+    agent_skills_frontmatter_schema_query,
 )
+from lorecraft.project.schemas.builtin import AGENT_SKILLS_SCHEMA_INPUT, AGENT_SKILLS_SCHEMA_REFERENCE
 from lorecraft.project.skill import OutsideSymlink, SymlinkRef
 from lorecraft.project.syntax import Heading
 from lorecraft.schemas import BundledOrigin, SchemaInput, SchemaKind, SchemaReference, SchemaReferenceError
@@ -263,15 +262,15 @@ class TestReads:
         database = _database()
 
         #: When
-        schema = database.query(skill_frontmatter_schema_query, SKILL_SCHEMA_REFERENCE)
+        schema = database.query(agent_skills_frontmatter_schema_query, AGENT_SKILLS_SCHEMA_REFERENCE)
 
         #: Then
-        assert schema is SKILL_FRONTMATTER_SCHEMA, 'the schema query preserves the Pydantic validator instance'
-        assert database.model().schema_inputs[SKILL_SCHEMA_REFERENCE] == SKILL_SCHEMA_INPUT, (
+        assert schema is AGENT_SKILLS_FRONTMATTER_SCHEMA, 'the schema query preserves the Pydantic validator instance'
+        assert database.model().schema_inputs[AGENT_SKILLS_SCHEMA_REFERENCE] == AGENT_SKILLS_SCHEMA_INPUT, (
             'the loaded model exposes the built-in schema with bundled provenance'
         )
-        assert database.query_reads(skill_frontmatter_schema_query, SKILL_SCHEMA_REFERENCE) == {
-            Read('schema_input', SKILL_SCHEMA_REFERENCE)
+        assert database.query_reads(agent_skills_frontmatter_schema_query, AGENT_SKILLS_SCHEMA_REFERENCE) == {
+            Read('schema_input', AGENT_SKILLS_SCHEMA_REFERENCE)
         }, 'the built-in schema query records its typed registry input dependency'
 
     def test_schema_query_memoizes_by_reference_and_records_its_input(self) -> None:

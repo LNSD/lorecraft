@@ -22,8 +22,8 @@ from ..schema_problems import (
     SchemaProblems,
     StructureSpecSchema,
     field_line,
+    locate_agent_skills_schema_problems,
     locate_schema_problems,
-    locate_skill_schema_problems,
 )
 from ..spec_file import SpecFileType, StructureSpecFile, spec_filename
 from ..structure import StructureSchema, StructureSpec
@@ -221,13 +221,13 @@ class TestLocateSchemaProblems:
 
 
 @pytest.mark.unit
-class TestLocateSkillSchemaProblems:
+class TestLocateAgentSkillsSchemaProblems:
     def test_locate_with_a_skill_holds_the_agent_skills_problems_on_their_lines(self) -> None:
         #: Given
         frontmatter = parse_frontmatter('---\nname: review\ndescription: [a]\nextra: y\n---\n# Review\n')
 
         #: When
-        found = locate_skill_schema_problems(frontmatter)
+        found = locate_agent_skills_schema_problems(frontmatter)
 
         #: Then
         assert found == (
@@ -278,7 +278,7 @@ class TestLocateSkillSchemaProblems:
         frontmatter = parse_frontmatter('# Review\n')
 
         #: When
-        found = locate_skill_schema_problems(frontmatter)
+        found = locate_agent_skills_schema_problems(frontmatter)
 
         #: Then
         assert found == (), 'no schema can hold a missing block: the block rules report it'

@@ -11,7 +11,7 @@ from lorecraft.project.database import Database, Read
 from lorecraft.project.item import MarkdownItemRef
 from lorecraft.project.layout import SNAPSHOT_SCOPE
 from lorecraft.project.query import CorpusDirectoryPrimitives, Primitives, SchemaPrimitives, SymlinkPrimitives
-from lorecraft.project.schemas.skill import SKILL_SCHEMA_REFERENCE
+from lorecraft.project.schemas.builtin import AGENT_SKILLS_SCHEMA_REFERENCE
 from lorecraft.project.skill import SymlinkRef
 from lorecraft.project.syntax import Heading
 from lorecraft.schemas import SchemaInput, SchemaReference
@@ -118,7 +118,7 @@ class TestSubjectReads:
     def test_query_records_a_schema_subject_primitive(self, tmp_path: Path) -> None:
         #: Given
         database = _database(tmp_path)
-        ref: SchemaReference = SKILL_SCHEMA_REFERENCE
+        ref: SchemaReference = AGENT_SKILLS_SCHEMA_REFERENCE
         expected = database.model().schema_inputs[ref]
 
         #: When

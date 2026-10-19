@@ -58,8 +58,8 @@ from lorecraft.project.schemas import (
     parse_spec_file,
 )
 from lorecraft.project.schemas import Repository as SchemaRepository
-from lorecraft.project.schemas.skill import SKILL_SCHEMA_INPUT
-from lorecraft.project.schemas.skill_compatibility import skill_schema_contradictions
+from lorecraft.project.schemas.agent_skills_compatibility import agent_skills_schema_contradictions
+from lorecraft.project.schemas.builtin import register_builtin_schemas
 from lorecraft.project.schemas.structure_failure import ContradictorySkillField
 from lorecraft.project.skill import (
     OutsideSymlink,
@@ -176,7 +176,8 @@ def load_workspace(
         builtin_skills_schema: Whether to apply the Agent Skills floor and preflight skills schemas for contradictions.
     """
     failures: list[LoadFailure] = []
-    schema_inputs: dict[SchemaReference, SchemaInput] = {SKILL_SCHEMA_INPUT.reference: SKILL_SCHEMA_INPUT}
+    schema_inputs: dict[SchemaReference, SchemaInput] = {}
+    register_builtin_schemas(schema_inputs)
     spec_paths = _list_spec_paths(schemas, failures)
     corpus_directories = _list_corpus_directories(documents, failures)
 
@@ -203,7 +204,7 @@ def load_workspace(
                 [],
                 failures,
                 schema_inputs,
-                check_skill_compatibility=builtin_skills_schema,
+                check_agent_skills_compatibility=builtin_skills_schema,
             )
             continue
         if not has_directory:
@@ -318,7 +319,7 @@ def _load_corpus(
     failures: list[LoadFailure],
     schema_inputs: dict[SchemaReference, SchemaInput],
     *,
-    check_skill_compatibility: bool = False,
+    check_agent_skills_compatibility: bool = False,
 ) -> Corpus:
     """Decode the corpus spec and its namespace specs; a structure file that fails stands in its layer.
 
@@ -329,14 +330,18 @@ def _load_corpus(
         filenames: Stems of the documents listed in the corpus directory, which the corpus lists by filename.
         failures: The load failures so far; each structure file that fails is appended.
         schema_inputs: Raw inputs collected from the structure files.
-        check_skill_compatibility: Whether to reject layers contradicting the built-in skill field rules.
+        check_agent_skills_compatibility: Whether to reject layers contradicting the built-in skill field rules.
     """
     corpus_spec_name = CorpusSpecName(corpus_name)
     corpus_spec = CorpusSpec(
         name=corpus_spec_name,
         files=_sorted_paths(files.spec),
         structure=_load_structure(
-            schemas, files.spec.structure, failures, schema_inputs, check_skill_compatibility=check_skill_compatibility
+            schemas,
+            files.spec.structure,
+            failures,
+            schema_inputs,
+            check_agent_skills_compatibility=check_agent_skills_compatibility,
         ),
     )
 
@@ -352,7 +357,7 @@ def _load_corpus(
                 namespace_files.structure,
                 failures,
                 schema_inputs,
-                check_skill_compatibility=check_skill_compatibility,
+                check_agent_skills_compatibility=check_agent_skills_compatibility,
             ),
         )
 
@@ -377,7 +382,7 @@ def _load_structure(
     failures: list[LoadFailure],
     schema_inputs: dict[SchemaReference, SchemaInput],
     *,
-    check_skill_compatibility: bool = False,
+    check_agent_skills_compatibility: bool = False,
 ) -> StructureSpec | FailedStructure | None:
     """Decode the structure JSON at one specification name into a structure specification.
 
@@ -386,7 +391,8 @@ def _load_structure(
         structure_file: The name's structure file, or None when the name has none; the prose is never decoded.
         failures: The load failures so far; a structure file that cannot be read or used is appended.
         schema_inputs: Raw inputs collected by typed reference.
-        check_skill_compatibility: Whether to check direct required-field constraints against the built-in schema.
+        check_agent_skills_compatibility: Whether to check direct required-field constraints against the built-in
+            schema.
 
     Returns:
         The structure specification, the failed structure standing in its place when the file cannot be read or
@@ -428,8 +434,8 @@ def _load_structure(
                 schema_inputs[frontmatter_ref] = SchemaInput(
                     frontmatter_ref, origin, FrozenMapping.from_plain(frontmatter_document)
                 )
-        if check_skill_compatibility and parsed.frontmatter is not None:
-            contradictions = skill_schema_contradictions(parsed.frontmatter.schema.to_plain())
+        if check_agent_skills_compatibility and parsed.frontmatter is not None:
+            contradictions = agent_skills_schema_contradictions(parsed.frontmatter.schema.to_plain())
             if contradictions:
                 return _record_failed_structure(
                     failures,

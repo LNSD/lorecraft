@@ -6,6 +6,8 @@ from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.path import PathComponent
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.item import DocumentOrigin, SkillEntryOrigin, WrongItemKindError
+from lorecraft.project.schemas.agent_skills_schema import agent_skills_frontmatter_schema_query
+from lorecraft.project.schemas.builtin import AGENT_SKILLS_SCHEMA_REFERENCE
 from lorecraft.project.schemas.frontmatter_owner import (
     DocumentFrontmatterOwner,
     FrontmatterOwner,
@@ -14,10 +16,9 @@ from lorecraft.project.schemas.frontmatter_owner import (
 from lorecraft.project.schemas.schema_problems import (
     MissingFieldProblem,
     SchemaProblems,
+    locate_agent_skills_schema_problems,
     locate_schema_problems,
-    locate_skill_schema_problems,
 )
-from lorecraft.project.schemas.skill import SKILL_SCHEMA_REFERENCE, skill_frontmatter_schema_query
 from lorecraft.project.schemas.skill_fields import SkillFields, parse_skill_fields
 
 if TYPE_CHECKING:
@@ -67,8 +68,8 @@ def schema_problems_query(primitives: 'Primitives') -> tuple[SchemaProblems, ...
     schemas = governance.frontmatter_schemas() if governance is not None else ()
     if isinstance(origin, SkillEntryOrigin) and primitives.builtin_skills_schema():
         frontmatter = primitives.frontmatter()
-        floor_schema = primitives.query_schema(SKILL_SCHEMA_REFERENCE, skill_frontmatter_schema_query)
-        floor = locate_skill_schema_problems(frontmatter, floor_schema)
+        floor_schema = primitives.query_schema(AGENT_SKILLS_SCHEMA_REFERENCE, agent_skills_frontmatter_schema_query)
+        floor = locate_agent_skills_schema_problems(frontmatter, floor_schema)
         governed = locate_schema_problems(frontmatter, schemas) if schemas else ()
         floor_missing = {
             (located.line, located.problem.field)

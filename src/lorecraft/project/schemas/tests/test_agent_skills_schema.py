@@ -10,6 +10,7 @@ import pytest
 from lorecraft.core.mapping import FrozenMapping, Plain
 from lorecraft.jsonschema import JsonType
 
+from ..agent_skills_schema import AGENT_SKILLS_FRONTMATTER_SCHEMA
 from ..frontmatter_problem import (
     FieldGuidance,
     InvalidValueProblem,
@@ -19,7 +20,6 @@ from ..frontmatter_problem import (
     UnknownFieldProblem,
     WrongTypeProblem,
 )
-from ..skill import SKILL_FRONTMATTER_SCHEMA
 from ..skill_frontmatter import SKILL_NAME_PATTERN
 
 NAME_GUIDANCE: Final[FieldGuidance] = FieldGuidance(
@@ -70,7 +70,7 @@ SPECIFIED_FIELDS: Final[tuple[str, ...]] = (
 
 
 @pytest.mark.unit
-class TestSkillFrontmatterSchemaValidate:
+class TestAgentSkillsFrontmatterSchemaValidate:
     def test_validate_with_every_field_returns_no_problems(self) -> None:
         #: Given
         data: dict[str, Plain] = {
@@ -84,7 +84,7 @@ class TestSkillFrontmatterSchemaValidate:
         mapping = FrozenMapping.from_plain(data)
 
         #: When
-        problems = SKILL_FRONTMATTER_SCHEMA.validate(mapping)
+        problems = AGENT_SKILLS_FRONTMATTER_SCHEMA.validate(mapping)
 
         #: Then
         assert problems == (), 'a frontmatter with every field, each valid, conforms'
@@ -95,7 +95,7 @@ class TestSkillFrontmatterSchemaValidate:
         mapping = FrozenMapping.from_plain(data)
 
         #: When
-        problems = SKILL_FRONTMATTER_SCHEMA.validate(mapping)
+        problems = AGENT_SKILLS_FRONTMATTER_SCHEMA.validate(mapping)
 
         #: Then
         assert problems == (
@@ -109,7 +109,7 @@ class TestSkillFrontmatterSchemaValidate:
         mapping = FrozenMapping.from_plain(data)
 
         #: When
-        problems = SKILL_FRONTMATTER_SCHEMA.validate(mapping)
+        problems = AGENT_SKILLS_FRONTMATTER_SCHEMA.validate(mapping)
 
         #: Then
         assert problems == (
@@ -126,7 +126,7 @@ class TestSkillFrontmatterSchemaValidate:
         mapping = FrozenMapping.from_plain(data)
 
         #: When
-        problems = SKILL_FRONTMATTER_SCHEMA.validate(mapping)
+        problems = AGENT_SKILLS_FRONTMATTER_SCHEMA.validate(mapping)
 
         #: Then
         assert problems == (
@@ -141,7 +141,7 @@ class TestSkillFrontmatterSchemaValidate:
         mapping = FrozenMapping.from_plain(data)
 
         #: When
-        problems = SKILL_FRONTMATTER_SCHEMA.validate(mapping)
+        problems = AGENT_SKILLS_FRONTMATTER_SCHEMA.validate(mapping)
 
         #: Then
         assert problems == (
@@ -160,7 +160,7 @@ class TestSkillFrontmatterSchemaValidate:
         mapping = FrozenMapping.from_plain(data)
 
         #: When
-        problems = SKILL_FRONTMATTER_SCHEMA.validate(mapping)
+        problems = AGENT_SKILLS_FRONTMATTER_SCHEMA.validate(mapping)
 
         #: Then
         assert problems == (
@@ -175,7 +175,7 @@ class TestSkillFrontmatterSchemaValidate:
         mapping = FrozenMapping.from_plain(data)
 
         #: When
-        problems = SKILL_FRONTMATTER_SCHEMA.validate(mapping)
+        problems = AGENT_SKILLS_FRONTMATTER_SCHEMA.validate(mapping)
 
         #: Then
         assert problems == (
@@ -189,7 +189,7 @@ class TestSkillFrontmatterSchemaValidate:
         mapping = FrozenMapping.from_plain(data)
 
         #: When
-        problems = SKILL_FRONTMATTER_SCHEMA.validate(mapping)
+        problems = AGENT_SKILLS_FRONTMATTER_SCHEMA.validate(mapping)
 
         #: Then
         assert problems == (
@@ -207,7 +207,7 @@ class TestSkillFrontmatterSchemaValidate:
         mapping = FrozenMapping.from_plain(data)
 
         #: When
-        problems = SKILL_FRONTMATTER_SCHEMA.validate(mapping)
+        problems = AGENT_SKILLS_FRONTMATTER_SCHEMA.validate(mapping)
 
         #: Then
         assert problems == (
@@ -226,7 +226,7 @@ class TestSkillFrontmatterSchemaValidate:
         mapping = FrozenMapping.from_plain(data)
 
         #: When
-        problems = SKILL_FRONTMATTER_SCHEMA.validate(mapping)
+        problems = AGENT_SKILLS_FRONTMATTER_SCHEMA.validate(mapping)
 
         #: Then
         assert problems == (
@@ -245,7 +245,7 @@ class TestSkillFrontmatterSchemaValidate:
         mapping = FrozenMapping.from_plain(data)
 
         #: When
-        problems = SKILL_FRONTMATTER_SCHEMA.validate(mapping)
+        problems = AGENT_SKILLS_FRONTMATTER_SCHEMA.validate(mapping)
 
         #: Then
         assert problems == (
@@ -263,7 +263,7 @@ class TestSkillFrontmatterSchemaValidate:
         mapping = FrozenMapping.from_plain(data)
 
         #: When
-        problems = SKILL_FRONTMATTER_SCHEMA.validate(mapping)
+        problems = AGENT_SKILLS_FRONTMATTER_SCHEMA.validate(mapping)
 
         #: Then
         assert problems == (
@@ -281,7 +281,7 @@ class TestSkillFrontmatterSchemaValidate:
         mapping = FrozenMapping.from_plain(data)
 
         #: When
-        problems = SKILL_FRONTMATTER_SCHEMA.validate(mapping)
+        problems = AGENT_SKILLS_FRONTMATTER_SCHEMA.validate(mapping)
 
         #: Then
         assert problems == (

@@ -152,7 +152,7 @@ class FrontmatterSchema:
     def validate(self, data: FrozenMapping[str, Frozen]) -> tuple[FrontmatterProblem, ...]:
         """Hold one decoded frontmatter to the schema. Pure: raises nothing.
 
-        The messages are `jsonschema`'s own, unlike `SkillFrontmatterSchema`'s: the schema is the
+        The messages are `jsonschema`'s own, unlike `AgentSkillsFrontmatterSchema`'s: the schema is the
         repository's, so the validator's wording names constraints its authors wrote. Three errors `jsonschema`
         reports on the whole block are split instead, in its own wording: an absent required field, each field
         `additionalProperties` does not allow, and each field `unevaluatedProperties` rejects get a problem of
