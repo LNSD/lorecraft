@@ -80,8 +80,8 @@ once in `lorecraft.project.layout` and read from there by every other module.
   package function. Its typed read set includes query and subject reference, making cross-item dependencies explicit.
   Reuse an existing query rather than recomputing its answer. A value drawn from several files is its own query, with
   its carry-over rule in its docstring.
-- A per-file query takes its decode query's witness, never a bare ref, is keyed by the ref, and carries over only
-  when the next revision locates the ref at the same file with unchanged bytes. Only the database builds a witness.
+- A per-file input query takes its decode query's witness, never a bare ref. A declared content query reads that
+  witness through its raw text primitive and is keyed by the item's ref. Only the database builds a witness.
 - Nothing derived from a snapshot is cached outside a database, or across revisions but by a carry-over rule. The
   database alone reads and writes the store of persisted results, through the store the Composition package hands it.
 - A broken document is a value the parse returns, not an exception. A unit the loader cannot load is a recorded
@@ -110,8 +110,8 @@ def load_corpus(view: TreeView, corpus: CorpusId) -> Corpus:
 Before committing code, verify:
 
 - [ ] Every new read in `lorecraft.project` goes through a view
-- [ ] A new database query reads one input or states its own carry-over rule in its docstring, and takes a witness,
-      not a bare ref, for a file's content; a declared query a rule owns states none
+- [ ] A new input query reads one input or states its own carry-over rule in its docstring, and takes a witness,
+      not a bare ref, for a file's content; a declared query a rule owns reads its inputs through primitives
 - [ ] Database queries are keyed by a subject reference for Markdown items, symlinks, corpus directories and
       schemas; cross-subject query reads retain the typed pair `(query, ref)`
 - [ ] A new derived query reads no view, only other queries, and passes what it read to one function of the
