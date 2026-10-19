@@ -7,7 +7,7 @@ from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.document import DocumentRef
-from lorecraft.project.item import MarkdownItemRef
+from lorecraft.project.item import ItemRef
 from lorecraft.project.skill import SkillRef
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.engine.invalid_utf8 import InvalidUtf8
@@ -228,7 +228,7 @@ class TestCheckedItemOfSkillFile:
         )
 
         #: When
-        subject = CheckedItem(MarkdownItemRef(ref.path), diagnostics=(later, earlier))
+        subject = CheckedItem(ItemRef(ref.path), diagnostics=(later, earlier))
 
         #: Then
         assert subject.diagnostics == (earlier, later), 'a report holds its diagnostics in output order, however built'
@@ -247,7 +247,7 @@ class TestCheckedItemOfDocument:
         )
 
         #: When
-        subject = CheckedItem(MarkdownItemRef(ref.path), diagnostics=(later, earlier), ungoverned=())
+        subject = CheckedItem(ItemRef(ref.path), diagnostics=(later, earlier), ungoverned=())
 
         #: Then
         assert subject.diagnostics == (earlier, later), 'a report holds its diagnostics in output order, however built'

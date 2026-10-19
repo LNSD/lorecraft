@@ -19,7 +19,7 @@ from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.database import Database, ItemText, Read
 from lorecraft.project.document import DocumentRef
-from lorecraft.project.item import MarkdownItemRef
+from lorecraft.project.item import ItemRef
 from lorecraft.project.query import item_line_count, item_parse
 from lorecraft.project.schemas import (
     AbsentSection,
@@ -98,7 +98,7 @@ class ParsingDatabase(Database):
             model: The workspace model loaded through the view.
         """
         super().__init__(fs, model)
-        self.parsed: list[MarkdownItemRef] = []
+        self.parsed: list[ItemRef] = []
 
     def _memo_query[T](self, key: Read, answer: Callable[[], T], reads: Callable[[], frozenset[Read]]) -> T:
         """Record parse query evaluations, then memoize them as usual."""
@@ -142,7 +142,7 @@ def _document_text(database: Database, ref: DocumentRef) -> ItemText:
         database: The database the document is decoded by.
         ref: A document whose bytes are UTF-8.
     """
-    source = database.item_text(MarkdownItemRef(ref.path))
+    source = database.item_text(ItemRef(ref.path))
     assert isinstance(source, ItemText), f'{ref.path} was written as UTF-8, so it decodes'
     return source
 
@@ -183,7 +183,7 @@ class TestOutlineDivergences:
 
         #: Then
         assert second is first, 'the outlines are matched once per database, then shared by every rule'
-        assert database.parsed == [MarkdownItemRef(TYPING.path)], 'the document is parsed once, for the first call'
+        assert database.parsed == [ItemRef(TYPING.path)], 'the document is parsed once, for the first call'
 
     def test_outline_divergences_with_two_specifications_holds_only_those_stating_an_outline(self) -> None:
         #: Given
@@ -244,7 +244,7 @@ class TestOutlineDivergences:
 
     def test_outline_divergences_query_reads_the_line_count_only_when_an_outline_is_stated(self) -> None:
         #: Given
-        ref = MarkdownItemRef(TYPING.path)
+        ref = ItemRef(TYPING.path)
         outlined = Database.from_snapshot(_snapshot(b'{"outline": [{"section": "Rule"}]}', None, RULE_ASIDE_CHECKLIST))
         unoutlined = Database.from_snapshot(_snapshot(b'{"empty_sections": "forbidden"}', None, RULE_ASIDE_CHECKLIST))
 
@@ -266,7 +266,7 @@ class TestOutlineDivergences:
         #: Given
         outline = b'{"outline": [{"section": "Rule"}, {"any": true}, {"section": "Checklist"}]}'
         database = Database.from_snapshot(_snapshot(outline, None, RULE_ASIDE_CHECKLIST))
-        ref = MarkdownItemRef(TYPING.path)
+        ref = ItemRef(TYPING.path)
         aligned: list[int] = []
         monkeypatch.setattr(outline_queries_module, 'align_outlines', _counting(aligned))
         database.query(outline_divergences, ref)
@@ -283,7 +283,7 @@ class TestOutlineDivergences:
         #: Given
         outline = b'{"outline": [{"section": "Rule"}, {"any": true}, {"section": "Checklist"}]}'
         database = Database.from_snapshot(_snapshot(outline, None, RULE_ASIDE_CHECKLIST))
-        ref = MarkdownItemRef(TYPING.path)
+        ref = ItemRef(TYPING.path)
         aligned: list[int] = []
         monkeypatch.setattr(outline_queries_module, 'align_outlines', _counting(aligned))
         database.query(outline_alignment, ref)

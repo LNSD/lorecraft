@@ -16,7 +16,7 @@ status: "accepted"
 ## Context
 
 Rule queries currently describe Markdown items well: the runner resolves each parameterless query with a
-`MarkdownItemRef`, and the database memoizes the answer by query and item. Layout rules over symlinks and corpus
+`ItemRef`, and the database memoizes the answer by query and item. Layout rules over symlinks and corpus
 directories take a separate path, however. The runner judges those records directly, and their rule bases duplicate
 the query and judgment contract rather than extending the common `Queried` base. The query model therefore depends
 on which kind of subject happens to be judged.

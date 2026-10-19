@@ -38,7 +38,7 @@ from typing import assert_never
 from lorecraft.core.num import UnsignedInt
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.document import DocumentRef, SpecRef
-from lorecraft.project.item import MarkdownItemRef, MetaSpecPart
+from lorecraft.project.item import ItemRef, MetaSpecPart
 from lorecraft.project.skill import SkillAliasRef, SkillRef, SkillResourceRef
 from lorecraft.rules.engine.invalid_utf8 import InvalidUtf8
 from lorecraft.vfs import Utf8Failure
@@ -161,7 +161,7 @@ class CheckedItem:
             the runner reads them; no rule that reads one judged the item.
     """
 
-    ref: MarkdownItemRef
+    ref: ItemRef
     diagnostics: tuple[Diagnostic, ...]
     ungoverned: tuple[MetaSpecPart, ...] = ()
 

@@ -8,7 +8,7 @@ from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.num import UnsignedInt
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
-from lorecraft.project.item import DocumentOrigin, ItemOrigin, MarkdownItemRef
+from lorecraft.project.item import DocumentOrigin, ItemOrigin, ItemRef
 from lorecraft.project.link_target import DocumentLink, LinkBase, LinkTargetEntry
 from lorecraft.project.query import (
     DecodedText,
@@ -170,7 +170,7 @@ class StructurePrimitives:
             return self.token_total
         return query(self)
 
-    def query_at[T](self, ref: MarkdownItemRef, query: ItemQuery[T]) -> T:
+    def query_at[T](self, ref: ItemRef, query: ItemQuery[T]) -> T:
         """No other item is available to this standalone primitive value."""
         raise NotImplementedError('standalone primitives cannot read another item')
 

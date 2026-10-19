@@ -37,7 +37,7 @@ from lorecraft.project.document import DocumentRef, SpecRef
 from lorecraft.project.item import (
     DocumentOrigin,
     ItemDescriptor,
-    MarkdownItemRef,
+    ItemRef,
     MetaSpecPart,
     SkillEntryOrigin,
     SkillResourceOrigin,
@@ -55,7 +55,7 @@ from lorecraft.vfs import ResolvedPath
 from .failure import FailedStructure, LoadFailure
 
 
-def find_document_at(ref: MarkdownItemRef) -> DocumentRef | None:
+def find_document_at(ref: ItemRef) -> DocumentRef | None:
     """The document represented by a ref's path, or None when it is not a valid document path.
 
     Args:
@@ -610,7 +610,7 @@ class WorkspaceModel:
             return None
         return corpus.governance(ref.entry.value)
 
-    def find_item(self, ref: MarkdownItemRef) -> ResolvedItem | None:
+    def find_item(self, ref: ItemRef) -> ResolvedItem | None:
         """The descriptor of the document or skill entry the model lists at this reference, or None.
 
         Scans the model's documents and skills, so it answers a lookup by reference; a caller holding a document or
@@ -650,7 +650,7 @@ class WorkspaceModel:
         """
         skill = location.ref.skill
         descriptor = ItemDescriptor(
-            ref=MarkdownItemRef(location.ref.path),
+            ref=ItemRef(location.ref.path),
             read_location=location.resolves_to,
             link_base=SkillRoot(skill.directory),
             origin=SkillResourceOrigin(skill_entry=str(skill.entry)),
@@ -660,7 +660,7 @@ class WorkspaceModel:
         )
         return ResolvedItem(descriptor, None)
 
-    def resolve_item(self, ref: DocumentRef | MarkdownItemRef | SkillRef | SpecRef) -> ResolvedItem:
+    def resolve_item(self, ref: DocumentRef | ItemRef | SkillRef | SpecRef) -> ResolvedItem:
         """Resolve an item's descriptor together with the specs governing it, finding the governance once.
 
         A corpus document is governed by the specs of its corpus and matching namespaces. Skill entries are governed
@@ -675,13 +675,13 @@ class WorkspaceModel:
             UnlistedItemError: If a common ref does not name a valid document path.
         """
         match ref:
-            case MarkdownItemRef():
+            case ItemRef():
                 document = find_document_at(ref)
                 if document is None:
                     raise UnlistedItemError(ref)
                 return self._resolve_document_item(ref, document)
             case DocumentRef():
-                return self._resolve_document_item(MarkdownItemRef(ref.path), ref)
+                return self._resolve_document_item(ItemRef(ref.path), ref)
             case SkillRef():
                 location = self.skill_locations[ref]
                 link_target = location.resolves_to if location.resolves_to != ref.directory else None
@@ -696,7 +696,7 @@ class WorkspaceModel:
                 if governance is not None and any(spec.tokens is not None for spec in governance.structure_specs()):
                     parts.add(MetaSpecPart.BUDGET)
                 descriptor = ItemDescriptor(
-                    ref=MarkdownItemRef(ref.path),
+                    ref=ItemRef(ref.path),
                     read_location=location.file_resolves_to,
                     link_base=SkillRoot(ref.directory),
                     origin=SkillEntryOrigin(expected_name=str(ref.entry), link_target=link_target),
@@ -707,7 +707,7 @@ class WorkspaceModel:
                 return ResolvedItem(descriptor, governance)
             case SpecRef():
                 descriptor = ItemDescriptor(
-                    ref=MarkdownItemRef(ref.path),
+                    ref=ItemRef(ref.path),
                     read_location=ResolvedPath(ref.path),
                     link_base=DocumentDirectory(SPECS_DIR),
                     origin=SpecificationOrigin(expected_name=ref.name, corpus=ref.corpus),
@@ -719,7 +719,7 @@ class WorkspaceModel:
             case _:
                 assert_never(ref)
 
-    def _resolve_document_item(self, item: MarkdownItemRef, document: DocumentRef) -> ResolvedItem:
+    def _resolve_document_item(self, item: ItemRef, document: DocumentRef) -> ResolvedItem:
         """Resolve a document using its common identity and validated corpus and filename.
 
         Args:

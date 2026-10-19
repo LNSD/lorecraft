@@ -11,7 +11,7 @@ from lorecraft.core.mapping import Frozen, FrozenMapping
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.corpus import CorpusDirectoryRef, CorpusName, ReservedCorpusDirectory
 from lorecraft.project.database import Database, Read
-from lorecraft.project.item import ItemReadError, MarkdownItemRef, UnlistedItemError
+from lorecraft.project.item import ItemReadError, ItemRef, UnlistedItemError
 from lorecraft.project.query import (
     CorpusDirectoryPrimitives,
     ItemPrimitives,
@@ -35,8 +35,8 @@ from lorecraft.schemas import (
 from lorecraft.schemas.builtin import AGENT_SKILLS_SCHEMA_INPUT, AGENT_SKILLS_SCHEMA_REFERENCE
 from lorecraft.vfs import OsRefusal, RefusedRead, RootExit, Snapshot, SnapshotRecords
 
-GUIDE: MarkdownItemRef = MarkdownItemRef(RootRelativePath.parse('docs/code/guide.md'))
-TARGET: MarkdownItemRef = MarkdownItemRef(RootRelativePath.parse('docs/feat/target.md'))
+GUIDE: ItemRef = ItemRef(RootRelativePath.parse('docs/code/guide.md'))
+TARGET: ItemRef = ItemRef(RootRelativePath.parse('docs/feat/target.md'))
 SCHEMA: SchemaReference = SchemaReference(SchemaKind.FRONTMATTER, 'agent-skills')
 SCHEMA_BASE: SchemaReference = SchemaReference(SchemaKind.STRUCTURE, 'skills-base')
 SCHEMA_MISSING: SchemaReference = SchemaReference(SchemaKind.STRUCTURE, 'missing')

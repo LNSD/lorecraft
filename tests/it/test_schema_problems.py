@@ -20,7 +20,7 @@ from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.database import Database, ItemText, Read
 from lorecraft.project.document import DocumentRef
-from lorecraft.project.item import ItemReadError, MarkdownItemRef
+from lorecraft.project.item import ItemReadError, ItemRef
 from lorecraft.project.query import item_frontmatter
 from lorecraft.project.schemas import (
     AgentSkillsSchema,
@@ -121,7 +121,7 @@ def _document_text(database: Database, ref: DocumentRef) -> ItemText:
         database: The database the document is decoded by.
         ref: A document whose bytes are UTF-8.
     """
-    source = database.item_text(MarkdownItemRef(ref.path))
+    source = database.item_text(ItemRef(ref.path))
     assert isinstance(source, ItemText), f'{ref.path} was written as UTF-8, so it decodes'
     return source
 
@@ -133,12 +133,12 @@ def _skill_text(database: Database, ref: SkillRef) -> ItemText:
         database: The database the `SKILL.md` is decoded by.
         ref: A skill whose `SKILL.md` bytes are UTF-8.
     """
-    source = database.item_text(MarkdownItemRef(ref.path))
+    source = database.item_text(ItemRef(ref.path))
     assert isinstance(source, ItemText), f'{ref.path} was written as UTF-8, so it decodes'
     return source
 
 
-def _unreadable_database(snapshot: Snapshot, ref: MarkdownItemRef) -> Database:
+def _unreadable_database(snapshot: Snapshot, ref: ItemRef) -> Database:
     """A database snapshot whose listed item is refused by the operating system."""
     records = dict(snapshot.records)
     records[ref.path] = RefusedRead(OsRefusal.PERMISSION_DENIED)
@@ -272,7 +272,7 @@ class TestSchemaProblems:
         #: Given
         snapshot = _snapshot(REQUIRE_STATUS, STRING_DESCRIPTION, typing=b'\xff')
         database = Database.from_snapshot(snapshot)
-        ref = MarkdownItemRef(TYPING.path)
+        ref = ItemRef(TYPING.path)
 
         #: When
         found = database.query(frontmatter_schema_problems, ref)
@@ -282,7 +282,7 @@ class TestSchemaProblems:
 
     def test_frontmatter_schema_problems_propagate_an_unreadable_document(self) -> None:
         #: Given
-        ref = MarkdownItemRef(TYPING.path)
+        ref = ItemRef(TYPING.path)
         snapshot = _snapshot(REQUIRE_STATUS, STRING_DESCRIPTION, typing=b'---\nname: python-typing\n---\n# Typing\n')
         database = _unreadable_database(snapshot, ref)
 
@@ -422,7 +422,7 @@ class TestSkillSchemaProblems:
     def test_parsed_skill_fields_for_an_undecodable_skill_are_empty(self) -> None:
         #: Given
         database = Database.from_snapshot(_snapshot(REQUIRE_STATUS, STRING_DESCRIPTION, typing=b'', review=b'\xff'))
-        ref = MarkdownItemRef(REVIEW.path)
+        ref = ItemRef(REVIEW.path)
 
         #: When
         fields = database.query(parsed_skill_fields, ref)
@@ -432,7 +432,7 @@ class TestSkillSchemaProblems:
 
     def test_parsed_skill_fields_propagate_an_unreadable_skill(self) -> None:
         #: Given
-        ref = MarkdownItemRef(REVIEW.path)
+        ref = ItemRef(REVIEW.path)
         snapshot = _snapshot(
             REQUIRE_STATUS, STRING_DESCRIPTION, typing=b'', review=b'---\nname: review\n---\n# Review\n'
         )

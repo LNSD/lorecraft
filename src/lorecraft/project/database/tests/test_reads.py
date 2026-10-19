@@ -8,7 +8,7 @@ import lorecraft.project.database.database as database_module
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.corpus import CorpusDirectoryRef, CorpusName
 from lorecraft.project.database import Database, Read
-from lorecraft.project.item import MarkdownItemRef
+from lorecraft.project.item import ItemRef
 from lorecraft.project.layout import SNAPSHOT_SCOPE
 from lorecraft.project.query import (
     CorpusDirectoryPrimitives,
@@ -97,7 +97,7 @@ class TestSubjectReads:
     def test_fetching_a_primitive_method_without_calling_it_records_nothing(self, tmp_path: Path) -> None:
         #: Given
         database = _database(tmp_path)
-        ref = MarkdownItemRef(RootRelativePath.parse('docs/code/source.md'))
+        ref = ItemRef(RootRelativePath.parse('docs/code/source.md'))
 
         #: When
         database.query(_read_only_lookup, ref)
@@ -110,7 +110,7 @@ class TestSubjectReads:
     def test_query_records_a_markdown_item_subject_primitive(self, tmp_path: Path) -> None:
         #: Given
         database = _database(tmp_path)
-        ref = MarkdownItemRef(RootRelativePath.parse('docs/code/source.md'))
+        ref = ItemRef(RootRelativePath.parse('docs/code/source.md'))
 
         #: When
         headings = database.query(_item_headings, ref)

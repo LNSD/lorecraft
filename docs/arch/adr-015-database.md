@@ -101,7 +101,7 @@ class FailedStructure:
 
 @dataclass(frozen=True, slots=True)
 class Governance:
-    ref: MarkdownItemRef
+    ref: ItemRef
     corpus_spec: CorpusSpec          # its `structure` may be a FailedStructure
     namespace_specs: tuple[NamespaceSpec, ...]
 

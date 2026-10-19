@@ -5,7 +5,7 @@ import logging
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
-from lorecraft.project.item import ItemReadError, MarkdownItemRef
+from lorecraft.project.item import ItemReadError, ItemRef
 from lorecraft.project.link_target import DocumentDirectory, DocumentLink, document_links_of
 from lorecraft.project.query import ItemPrimitives, item_name, linked_paths
 from lorecraft.project.workspace.model import find_document_at
@@ -30,13 +30,13 @@ def linked_documents(primitives: ItemPrimitives) -> tuple[DocumentLink, ...]:
     documents: dict[RootRelativePath, tuple[CorpusName, AspectFilename]] = {
         link.path: (document.corpus, document.filename)
         for link in linked
-        if (document := find_document_at(MarkdownItemRef(link.path))) is not None
+        if (document := find_document_at(ItemRef(link.path))) is not None
     }
     back_links = {}
     for link in linked:
         if link.path not in documents or link.path == source:
             continue
-        ref = MarkdownItemRef(link.path)
+        ref = ItemRef(link.path)
         try:
             paths = primitives.query_at(ref, linked_paths)
         except ItemReadError:

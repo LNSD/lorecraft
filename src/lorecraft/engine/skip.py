@@ -13,7 +13,7 @@ from lorecraft.core.path import RootRelativePath
 from lorecraft.project.corpus import ReservedCorpusDirectory
 from lorecraft.project.database import Database, ItemText, Undecodable
 from lorecraft.project.document import DocumentReadError, DocumentRef, SpecRef
-from lorecraft.project.item import ItemReadError, MarkdownItemRef
+from lorecraft.project.item import ItemReadError, ItemRef
 from lorecraft.project.layout import DOCS_DIR
 from lorecraft.project.skill import (
     OutsideSymlink,
@@ -125,10 +125,10 @@ def _check_item(
     match subject:
         case DocumentRef() | SpecRef():
             ref: ReportedRef = subject
-            item = MarkdownItemRef(subject.path)
+            item = ItemRef(subject.path)
         case SkillLocation():
             ref = subject.ref
-            item = MarkdownItemRef(ref.path)
+            item = ItemRef(ref.path)
         case SkillResourceLocation():
             ref = subject.ref
             item = database.resource_item(subject)
