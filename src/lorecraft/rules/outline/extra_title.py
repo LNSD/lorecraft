@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from typing import ClassVar, Self
 
-from lorecraft.project.query import Query, SyntaxPrimitives, item_parse
+from lorecraft.project.query import ItemQuery, SyntaxPrimitives, item_parse
 from lorecraft.project.syntax import Heading
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
@@ -112,7 +112,7 @@ class ExtraTitle(QueriedDocumentSkillRule[tuple[Heading, ...]]):
         return (Help('make it an H2 section, or move it into a document of its own'),)
 
     @classmethod
-    def query(cls) -> Query[tuple[Heading, ...]]:
+    def query(cls) -> ItemQuery[tuple[Heading, ...]]:
         """The H1 headings of the document."""
         return titles
 

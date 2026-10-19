@@ -5,7 +5,7 @@ from typing import ClassVar, Final, Self, assert_never
 
 from lorecraft.core.path import RootRelativePath
 from lorecraft.jsonschema import JsonType
-from lorecraft.project.query import Query
+from lorecraft.project.query import ItemQuery
 from lorecraft.project.schemas import (
     BlockProblem,
     InvalidValueProblem,
@@ -131,7 +131,7 @@ class WrongType(QueriedFrontmatterRule[tuple[SchemaProblems, ...]]):
         return tuple(parts)
 
     @classmethod
-    def query(cls) -> Query[tuple[SchemaProblems, ...]]:
+    def query(cls) -> ItemQuery[tuple[SchemaProblems, ...]]:
         """What each schema that governs the subject rejects in its frontmatter."""
         return schema_problems
 

@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import ClassVar, Final, Self, assert_never
 
 from lorecraft.core.path import RootRelativePath
-from lorecraft.project.query import Query
+from lorecraft.project.query import ItemQuery
 from lorecraft.project.schemas import (
     AnyRunAlignment,
     NamedAlignment,
@@ -151,7 +151,7 @@ class SectionTooManyWords(QueriedDocumentSkillRule[tuple[OutlineAlignmentSpec, .
         return (spec_note(self.spec), _SPLIT_HELP, _cap_source_note(self.cap_source, self.section))
 
     @classmethod
-    def query(cls) -> Query[tuple[OutlineAlignmentSpec, ...]]:
+    def query(cls) -> ItemQuery[tuple[OutlineAlignmentSpec, ...]]:
         """The alignment of the document's sections to each outline that governs it."""
         return outline_alignment
 

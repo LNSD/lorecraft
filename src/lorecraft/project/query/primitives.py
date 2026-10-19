@@ -27,6 +27,7 @@ if TYPE_CHECKING:
     from lorecraft.project.workspace import Governance
 
 type Query[T] = Callable[[Primitives], T]
+type ItemQuery[T] = Query[T]
 type SameSubjectQuery[P, T] = Callable[[P], T]
 type SymlinkQuery[T] = Callable[[SymlinkPrimitives], T]
 type CorpusDirectoryQuery[T] = Callable[[CorpusDirectoryPrimitives], T]
@@ -46,7 +47,7 @@ class QueryPrimitives[P](Protocol):
 class ItemReads(Protocol):
     """Cross-subject queries whose target is a Markdown item."""
 
-    def query_at[T](self, ref: MarkdownItemRef, query: Query[T]) -> T:
+    def query_at[T](self, ref: MarkdownItemRef, query: ItemQuery[T]) -> T:
         """Read an item query by reference and record the typed dependency."""
         ...
 

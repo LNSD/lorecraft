@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import ClassVar, Final, Self
 
 from lorecraft.core.num import NonZeroUnsignedInt, UnsignedInt
-from lorecraft.project.query import Query
+from lorecraft.project.query import ItemQuery
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Here, Label, Note, Subdiagnostic
@@ -96,7 +96,7 @@ class AllowedToolsTooLong(QueriedSkillRule[AllowedToolsField | None]):
         )
 
     @classmethod
-    def query(cls) -> Query[AllowedToolsField | None]:
+    def query(cls) -> ItemQuery[AllowedToolsField | None]:
         """The `allowed-tools` field and its line."""
         return allowed_tools_field
 

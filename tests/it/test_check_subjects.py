@@ -36,7 +36,7 @@ from lorecraft.project.link_target import DocumentDirectory, SkillRoot
 from lorecraft.project.query import (
     CountPrimitives,
     GovernancePrimitives,
-    Query,
+    ItemQuery,
     item_frontmatter,
     item_line_count,
     item_parse,
@@ -286,7 +286,7 @@ class OverHalfBudget(QueriedDocumentRule[BudgetFacts]):
         return f'over half the budget ({self.token_count} of {self.budget})'
 
     @classmethod
-    def query(cls) -> Query[BudgetFacts]:
+    def query(cls) -> ItemQuery[BudgetFacts]:
         """The document's token count and the budgets that govern it."""
         return _budget_facts
 
@@ -320,7 +320,7 @@ class EmptyDocument(QueriedDocumentRule[TokenCount]):
         return 'document is empty'
 
     @classmethod
-    def query(cls) -> Query[TokenCount]:
+    def query(cls) -> ItemQuery[TokenCount]:
         """The tokens in the document's whole file."""
         return _token_count
 
@@ -357,7 +357,7 @@ class AnyTokens(QueriedDocumentRule[TokenCount]):
         return f'document counted ({self.token_count} tokens)'
 
     @classmethod
-    def query(cls) -> Query[TokenCount]:
+    def query(cls) -> ItemQuery[TokenCount]:
         """The tokens in the document's whole file."""
         return _token_count
 
@@ -394,7 +394,7 @@ class CountingDatabase(Database):
         self.parsed_frontmatters: list[MarkdownItemRef] = []
         self.parsed_documents: list[MarkdownItemRef] = []
 
-    def query[T](self, query: Query[T], ref: MarkdownItemRef) -> T:
+    def query[T](self, query: ItemQuery[T], ref: MarkdownItemRef) -> T:
         """Record each declared per-item fact query before evaluating it."""
         if query is item_token_count:
             self.counted_tokens.append(ref)

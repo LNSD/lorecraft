@@ -6,7 +6,7 @@ from urllib.parse import unquote
 
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.link_target import DocumentLink
-from lorecraft.project.query import Primitives, Query, item_corpus
+from lorecraft.project.query import ItemQuery, Primitives, item_corpus
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Note, Subdiagnostic
@@ -116,7 +116,7 @@ class MutualLink(QueriedDocumentRule[MutualLinkFacts]):
         )
 
     @classmethod
-    def query(cls) -> Query[MutualLinkFacts]:
+    def query(cls) -> ItemQuery[MutualLinkFacts]:
         """The corpus of the document and its links to other documents."""
         return mutual_link_facts
 

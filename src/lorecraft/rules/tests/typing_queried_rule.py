@@ -2,7 +2,7 @@
 
 from typing import Self
 
-from lorecraft.project.query import Query, SymlinkPrimitives, SymlinkQuery
+from lorecraft.project.query import ItemQuery, SymlinkPrimitives, SymlinkQuery
 from lorecraft.project.schemas import TitleFacts, title_facts
 from lorecraft.rules.subject import QueriedDocumentRule
 
@@ -11,7 +11,7 @@ class WrongQuery(QueriedDocumentRule[int]):
     """Judges an `int` but names a query that returns `TitleFacts`."""
 
     @classmethod
-    def query(cls) -> Query[TitleFacts]:  # ty: ignore[invalid-method-override]
+    def query(cls) -> ItemQuery[TitleFacts]:  # ty: ignore[invalid-method-override]
         """The query, of the wrong type."""
         return title_facts
 

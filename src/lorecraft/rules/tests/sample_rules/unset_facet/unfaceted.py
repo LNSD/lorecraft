@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from typing import ClassVar, Self
 
-from lorecraft.project.query import Primitives, Query
+from lorecraft.project.query import ItemQuery, Primitives
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.subject import QueriedDocumentRule
@@ -34,7 +34,7 @@ class Unfaceted(QueriedDocumentRule[None]):
         return 'never reported'
 
     @classmethod
-    def query(cls) -> Query[None]:
+    def query(cls) -> ItemQuery[None]:
         """No fact: the rule reads nothing."""
         return _nothing
 

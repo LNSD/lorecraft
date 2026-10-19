@@ -5,7 +5,13 @@ from typing import ClassVar, Protocol, Self
 
 from lorecraft.core.num import NonZeroUnsignedInt, UnsignedInt
 from lorecraft.core.path import RootRelativePath
-from lorecraft.project.query import CountPrimitives, GovernancePrimitives, Query, item_structure_specs, item_token_count
+from lorecraft.project.query import (
+    CountPrimitives,
+    GovernancePrimitives,
+    ItemQuery,
+    item_structure_specs,
+    item_token_count,
+)
 from lorecraft.project.syntax import FIRST_LINE, TokenCount
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
@@ -154,7 +160,7 @@ class TooManyTokens(QueriedDocumentSkillRule[TokenFacts]):
         )
 
     @classmethod
-    def query(cls) -> Query[TokenFacts]:
+    def query(cls) -> ItemQuery[TokenFacts]:
         """The token budgets of the document and its token count."""
         return token_facts
 

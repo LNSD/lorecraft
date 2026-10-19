@@ -6,7 +6,7 @@ from typing import ClassVar, Final, Self
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.item import ItemKind
 from lorecraft.project.link_target import DocumentDirectory, LinkTarget
-from lorecraft.project.query import Query, item_name, item_parse
+from lorecraft.project.query import ItemQuery, item_name, item_parse
 from lorecraft.project.syntax import FIRST_LINE, LineNumber, RelativeDestination, find_title
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
@@ -146,7 +146,7 @@ class MissingBaseLink(QueriedDocumentRule[MissingBase | None]):
         )
 
     @classmethod
-    def query(cls) -> Query[MissingBase | None]:
+    def query(cls) -> ItemQuery[MissingBase | None]:
         """The base the document does not link under References, when it has one."""
         return missing_base
 

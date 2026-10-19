@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from typing import ClassVar, Self, assert_never
 
 from lorecraft.core.path import RootRelativePath
-from lorecraft.project.query import Query
+from lorecraft.project.query import ItemQuery
 from lorecraft.project.schemas import (
     AbsentSection,
     DocumentEnd,
@@ -162,7 +162,7 @@ class MissingSection(QueriedDocumentSkillRule[tuple[OutlineDivergenceSpec, ...]]
         return tuple(parts)
 
     @classmethod
-    def query(cls) -> Query[tuple[OutlineDivergenceSpec, ...]]:
+    def query(cls) -> ItemQuery[tuple[OutlineDivergenceSpec, ...]]:
         """The outline divergences of the document, one for each outline that governs it."""
         return outline_divergences
 
