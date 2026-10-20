@@ -1,12 +1,12 @@
-"""Run checks over workspace subjects, skipping files whose required input was refused.
+"""Run checks over workspace subjects, applying failed-layer policy after decoding.
 
-A document governed by a meta spec that failed to load cannot be called clean from only the layers that loaded. It is
-decoded first, and a decoded document is skipped with the failed structure paths. A skill still receives its
-Agent Skills checks when a corpus layer fails; rules that depend on the corpus are suppressed by the runner. A skill
-or resource whose resolved docs target was refused is skipped; the refusal itself is reported at its target.
+A failed governing layer suppresses meta-spec-gated rules for any decoded item, while package and schema rules still
+run. The suppressed parts appear as coverage. An item or skill alias whose resolved docs target was refused is
+reported as skipped; the refusal itself is reported at its target.
 """
 
 from collections.abc import Iterable, Mapping
+from dataclasses import replace
 from typing import assert_never
 
 from lorecraft.core.path import RootRelativePath
@@ -15,15 +15,28 @@ from lorecraft.project.database import Database, ItemText, Undecodable
 from lorecraft.project.item import ItemRef, ItemType, MetaSpecPart
 from lorecraft.project.layout import DOCS_DIR
 from lorecraft.project.skill import OutsideSymlink, RefusedSkillAlias
-from lorecraft.rules.report import SkippedSubject, SkipReason, SubjectReport, UndecodableSubject
-from lorecraft.rules.table import RuleTable
+from lorecraft.rules.report import CheckedItem, SkippedSubject, SubjectReport, UndecodableSubject
+from lorecraft.rules.table import EnabledRule, QueriedItem, RuleTable
 from lorecraft.vfs import RefusedRead, RefusedRecord
 
-from .runner import check_layout_entry, judge_item
+from .runner import ItemRuleLookup, check_layout_entry, judge_item
 
 # A subject `check_subjects` dispatches: a document, a meta spec, a skill, a resource, a refused skill alias,
 # or a layout entry. Each report holds its ref or the path an agent reaches the symlink by.
 type CheckedSubject = ItemRef | OutsideSymlink | ReservedCorpusDirectory | RefusedSkillAlias
+
+
+class _WithoutMetaSpecRules(ItemRuleLookup):
+    """A check run's view of the table when a governing layer failed."""
+
+    def __init__(self, table: RuleTable) -> None:
+        self._table = table
+
+    def item_rules(self, item_type: ItemType, part: MetaSpecPart | None) -> tuple[EnabledRule[QueriedItem], ...]:
+        """Keep always and schema rules while hiding every meta-spec-gated rule."""
+        if part is not None:
+            return ()
+        return self._table.item_rules(item_type, part)
 
 
 def check_subjects(
@@ -51,10 +64,12 @@ def check_subjects(
     reports: list[SubjectReport] = []
     for subject in subjects:
         match subject:
+            case ItemRef() as ref if isinstance(refusals.get(ref.path), RefusedRead):
+                continue  # the unreadable-document report is already in the caller's reports
             case ItemRef() as ref:
                 reports.extend(_check_item(database, ref, table, refusals))
             case RefusedSkillAlias(ref=ref, refused_at=path):
-                reports.append(SkippedSubject(ref, (path,), SkipReason.REFUSED_PATH))
+                reports.append(SkippedSubject(ref, (path,)))
             case OutsideSymlink() | ReservedCorpusDirectory():
                 reports.append(check_layout_entry(subject, database, table))
             case _:
@@ -78,12 +93,11 @@ def _check_item(
     table: RuleTable,
     refusals: Mapping[RootRelativePath, RefusedRecord],
 ) -> tuple[SubjectReport, ...]:
-    """Decode one item subject through the item queries, then judge it if it decoded and no failed layer skips it.
+    """Decode one item and judge it, suppressing meta-spec gates when a governing layer failed.
 
     Every item type is decoded the same way, by its common reference. A missing file is reported by the read error of
-    its type; a meta spec has none, so it raises the item's own. A document is skipped when a failed layer
-    governs it; a skill retains its Agent Skills checks. Resources have no corpus governance, and
-    meta specs have no corpus governance.
+    its type; a meta spec has none, so it raises the item's own. Failed layers suppress meta-spec gates for every
+    governed item type but do not suppress package or schema gates.
 
     Args:
         database: The revision the item is read from.
@@ -94,43 +108,26 @@ def _check_item(
     Raises:
         ItemReadError: If the item is missing from the snapshot; a decode failure is a diagnostic.
     """
-    if isinstance(refusals.get(item.path), RefusedRead):
-        return ()  # the unreadable-item report is already in the caller's reports
     descriptor = database.item_descriptor(item)
     if _is_refused_docs_path(descriptor.read_location, refusals):
-        return (SkippedSubject(item, (descriptor.read_location,), SkipReason.REFUSED_PATH),)
+        return (SkippedSubject(item, (descriptor.read_location,)),)
     source = database.item_text(item)
     match source:
         case Undecodable():
             return (UndecodableSubject(item, source.failure),)
         case ItemText():
-            match source.descriptor.type:
-                case ItemType.DOCUMENT | ItemType.META_SPEC:
-                    # Governance is a lookup in the model, never a rule, so a skipped item reads nothing else.
-                    governance = database.item_governance(item)
-                    if governance is not None:
-                        failed_layers = governance.failed_layers()
-                        if failed_layers:
-                            # `SkippedSubject` requires a first path, so the first failed layer is split from the rest.
-                            first, *others = failed_layers
-                            return (
-                                SkippedSubject(
-                                    item,
-                                    (first.path, *(layer.path for layer in others)),
-                                    SkipReason.FAILED_STRUCTURE,
-                                ),
-                            )
-                case ItemType.SKILL_ENTRYPOINT:
-                    governance = database.item_governance(item)
-                    if governance is not None and governance.failed_layers():
-                        table = table.without_item_meta_spec_gates(
-                            ItemType.SKILL_ENTRYPOINT,
-                            frozenset({MetaSpecPart.STRUCTURE, MetaSpecPart.OUTLINE, MetaSpecPart.BUDGET}),
-                        )
-                case ItemType.SKILL_RESOURCE:
-                    pass  # resources have no corpus governance
-                case _:
-                    assert_never(source.descriptor.type)
+            governance = database.item_governance(item)
+            failed_layers = () if governance is None else governance.failed_layers()
+            if failed_layers:
+                return (_judge_after_failed_layer(database, source, table),)
             return (judge_item(database, source, table),)
         case _:
             assert_never(source)
+
+
+def _judge_after_failed_layer(database: Database, source: ItemText, table: RuleTable) -> CheckedItem:
+    """Judge the item with meta-spec gates hidden and report their enabled parts as coverage."""
+    report = judge_item(database, source, _WithoutMetaSpecRules(table))
+    suppressed = {part for part in MetaSpecPart if table.item_rules(source.descriptor.type, part)}
+    ungoverned = suppressed | set(report.ungoverned)
+    return replace(report, ungoverned=tuple(part for part in MetaSpecPart if part in ungoverned))

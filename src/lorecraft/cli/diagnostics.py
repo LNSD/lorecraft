@@ -4,8 +4,8 @@ Pure: the subject reports arrive as values, and each function returns the text a
 reads the disk or writes to a stream. The diagnostics as text for a person are drawn by `diagnostic_text`. As short
 lines, one per diagnostic, they are what a command prints on stdout for a tool to match; the coverage lines and the
 summaries are what it prints on stderr; as JSON, one compact document carries the diagnostics, the summary and the
-coverage. The coverage lists a subject for which no meta spec part is governed and a document skipped because a
-structure file that governs it failed to load, with that file.
+coverage. The coverage lists subjects with ungoverned or failed-layer-suppressed meta spec parts, and subjects skipped
+because a docs path they depend on was refused.
 
 Every diagnostic of every report is printed in the order `diagnostic_order` states, whatever order the reports
 arrive in, so one revision always prints the same output. A short line reads, with the line left out for a subject
@@ -28,7 +28,6 @@ from lorecraft.rules.report import (
     LoadFailureReport,
     RunReport,
     SkippedSubject,
-    SkipReason,
     UndecodableSubject,
     UnreadableItem,
 )
@@ -126,14 +125,13 @@ class _SummaryJson(BaseModel):
 
 
 class _CoverageJson(BaseModel):
-    """One subject an enabled rule could not judge: for want of a specification governing it, or skipped.
+    """One subject with ungoverned or failed-layer-suppressed meta spec parts, or skipped.
 
     Attributes:
         path: The subject.
-        ungoverned: The meta spec parts no specification governs it for, in the order its report holds them; none
-            for a skipped subject.
-        skipped_by: The structure files that govern the subject and failed to load, in layer order, the corpus's
-            first; none for a subject that was judged.
+        ungoverned: The meta spec parts no specification governs it for, or which a failed layer suppresses;
+            in report order, and none for a skipped subject.
+        skipped_by: Refused docs paths the subject depends on; empty for a subject that was judged.
     """
 
     model_config = ConfigDict(frozen=True)
@@ -184,11 +182,11 @@ def render_short(reports: tuple[RunReport, ...]) -> str:
 def render_coverage(reports: tuple[RunReport, ...]) -> str:
     """One line per subject no rule judged for some meta spec part or at all, in path order.
 
-    A checked document with a meta spec part no specification governs reads `{path}: ungoverned for {facets}`,
-    with the parts comma-separated in report order. A document skipped because a governing structure file
-    failed to load reads `{path}: skipped, governed by a structure file that failed to load: {files}`, the files
-    comma-separated in layer order. A subject that did not decode and a layout entry are never ungoverned or skipped,
-    so they never print one.
+    A checked item with an ungoverned or failed-layer-suppressed meta spec part reads
+    `{path}: ungoverned for {facets}`, with the parts comma-separated in report order. A subject skipped because a
+    path was refused reads `{path}: skipped, depends on a refused docs path: {files}`, the files comma-separated in
+    layer order. A subject that did not decode and a layout entry are never ungoverned or skipped, so they never print
+    one.
 
     Args:
         reports: One report per subject the run checked, in any order.
@@ -203,13 +201,8 @@ def render_coverage(reports: tuple[RunReport, ...]) -> str:
                 facets = ', '.join(subject.ungoverned)
                 lines.append(f'{subject.ref.path}: ungoverned for {facets}')
             case SkippedSubject():
-                files = ', '.join(str(path) for path in subject.failed_layers)
-                if subject.reason is SkipReason.FAILED_STRUCTURE:
-                    lines.append(
-                        f'{subject.ref.path}: skipped, governed by a structure file that failed to load: {files}'
-                    )
-                else:
-                    lines.append(f'{subject.ref.path}: skipped, depends on a refused docs path: {files}')
+                files = ', '.join(str(path) for path in subject.refused_paths)
+                lines.append(f'{subject.ref.path}: skipped, depends on a refused docs path: {files}')
             case _:
                 assert_never(subject)
     return '\n'.join(lines)
@@ -280,10 +273,10 @@ def render_json(reports: tuple[RunReport, ...]) -> str:
                     facets.append(facet)
                 coverage.append(_CoverageJson(path=str(subject.ref.path), ungoverned=facets, skipped_by=[]))
             case SkippedSubject():
-                failed_layers: list[str] = []
-                for path in subject.failed_layers:
-                    failed_layers.append(str(path))
-                coverage.append(_CoverageJson(path=str(subject.ref.path), ungoverned=[], skipped_by=failed_layers))
+                refused_paths: list[str] = []
+                for path in subject.refused_paths:
+                    refused_paths.append(str(path))
+                coverage.append(_CoverageJson(path=str(subject.ref.path), ungoverned=[], skipped_by=refused_paths))
             case _:
                 assert_never(subject)
     document = _ReportJson(

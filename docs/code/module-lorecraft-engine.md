@@ -34,9 +34,10 @@ returns at its subject, as a diagnostic of `lorecraft.rules.report`.
   coverage. A rule over a Markdown file runs over a document governed for its structure, a skill's `SKILL.md` and
   each resource handed over as a subject of its own. A resource has no corpus structure governance, while `Always`
   Markdown checks still run; a skill's explicitly mapped `Always` checks run independently of corpus governance.
-- One entry point per mode: `skip.py` gives documents and meta specs governed by a failed layer no rule, suppresses skill corpus
-  rules for failed skill layers while retaining package and schema checks, and skips skill entrypoints whose docs
-  target was refused. An LSP-style partial mode is future work.
+- One entry point per mode: `skip.py` applies failed-layer policy after decoding: every failed governing layer
+  suppresses all `WhenMetaSpec` gates for every item kind, while `Always` and `WhenSchema` gates still run. The
+  suppressed parts appear in coverage. A refused docs target skips the affected item or skill alias. An LSP-style
+  partial mode is future work.
 - `skip.py` propagates the project's common `ItemReadError` for a missing item.
 - The report of each load failure the model lists (`load_failures.py`): the engine condition of its kind, filed
   once at the failure's path, whatever the configuration and the selection. A `docs/` or `docs/__meta__/` that
@@ -65,8 +66,8 @@ returns at its subject, as a diagnostic of `lorecraft.rules.report`.
 - Markdown items, symlinks and corpus directories use the same queried-rule dispatch; no layout subject is judged
   through a separate direct path.
 - A rule returns occurrences that name no subject. The run attaches the subject's path, as a diagnostic.
-- A load failure is reported once, at its own path, and never once per subject it touches; a document or meta spec a
-  failed layer governs is coverage, never a diagnostic. A skill still receives its Agent Skills checks.
+- A load failure is reported once, at its own path, and never once per subject it touches; failed layers suppress
+  meta-spec-gated checks as coverage on decoded items, never as a whole-subject skip.
 - A skill entrypoint whose docs target was refused is coverage at its own path; the refusal is reported at the target.
 - A run's results are not cached. Every rule runs again every time, and never sees the store of persisted results.
 - The shared runner holds no mode's policy. A new mode is a new entry point that edits neither `runner.py` nor
@@ -130,11 +131,11 @@ Before committing code, verify:
 - [ ] A run attaches the subject's path to each occurrence; an occurrence names no subject
 - [ ] Nothing added takes a snapshot or sets an exit code
 - [ ] A mode's policy sits in that mode's own entry point; `runner.py` takes no policy parameter and no callback
-- [ ] A new load-failure condition is reported by `load_failures.py`, whose match stays exhaustive, and a skipped
-  document names each failed layer's structure file
+- [ ] A new load-failure condition is reported by `load_failures.py`, whose match stays exhaustive; failed layers
+  suppress all meta-spec gates across item kinds while preserving `Always` and `WhenSchema` checks
 - [ ] A document, skill or resource is decoded by each mode's entry point, so its policy comes after decoding; the
-  item is asked for by its common reference, and failed corpus governance can skip documents or suppress skill
-  corpus rules while preserving package and schema checks; `runner.py`
+  item is asked for by its common reference, and failed corpus governance suppresses meta-spec rules while
+  preserving package and schema checks; `runner.py`
   decodes nothing
 - [ ] `judge_item` asks a rule its item types and meta spec part, never its base; only building the report matches on the item type
 - [ ] Nothing here imports `lorecraft.cli` or `typer`

@@ -50,7 +50,7 @@ relative to it. `docs/` and `docs/__meta__/` must be [real directories](workspac
 Checks docs/specs, skills/resources and escaping symlinks. `LINK001`–`LINK003` check all documents, meta specs and skills, including documents without a corpus structure file. `LINK005`–`LINK007` require the structure meta spec; `LINK005` and `LINK006` also check meta specs. Prose specs in `docs/__meta__/` are subjects in reserved `meta`; their frontmatter, outline and length rules apply. Without `meta.spec.json`, each reports `ungoverned for frontmatter, structure, outline, budget`. Shared skills once; subjects and diagnostics follow path order. Budgets: skills 10000; code 6500; docs/feat 3500. Without a skills-corpus layer, skills are ungoverned for structure, outline and budget; resources without governed parts are ungoverned.
 ### One Run, One Snapshot
 
-Rules read one snapshot; meta specs load first. A failed structure file gets one diagnostic; governed docs are skipped, others checked. A failed skills-corpus layer skips structure, outline and budget; package and schema checks continue. `LC001` skips invalid UTF-8. Diagnostics and coverage use the actual `.spec.json` name.
+One snapshot, meta specs first. A failed structure file yields a diagnostic. Failed layers suppress every meta-spec rule on items; package and schema rules and `Always` links still run. Suppressed parts appear as `ungoverned for ...`. `LC001` invalid UTF-8 is unjudged. Diagnostics and coverage use the actual `.spec.json` name.
 ### Selecting Rules
 
 `--select` and `--ignore` take comma-separated or repeated selectors: `ALL`, a group prefix (`OUT`), a code
@@ -114,7 +114,7 @@ error[OUT006]: missing required section `Checklist`
   = help: The items a reviewer verifies before committing a change the rule document governs.
 ```
 
-On stderr, `text` prints coverage, counts per code prefix and `checked N subject(s): ...` (including unreadable specs). Skipped coverage names failed structure files, corpus first.
+On stderr, `text` prints coverage, counts per code prefix and `checked N subject(s): ...` (including unreadable specs). Refused paths appear in skipped coverage.
 One subject, two errors:
 
 ```text
@@ -131,7 +131,7 @@ labels, help and notes; `text` order and exit status are retained. Stderr has co
 docs/code/logging.md:1: error[OUT006]: missing required section `Checklist`
 ```
 
-In `json`, stdout is one compact line; stderr holds selection warnings. In text order, `diagnostics` lists `path`, nullable `line`, `severity`, `code`, `name`, `message`, `labels` and `children`. `summary` counts subjects/errors/warnings; load failures are errors, not subjects. `coverage` lists `path`, ungoverned parts and failed structure files in `skipped_by`:
+In `json`, stdout is one compact line; stderr holds selection warnings. In text order, `diagnostics` lists `path`, nullable `line`, `severity`, `code`, `name`, `message`, `labels` and `children`. `summary` counts subjects/errors/warnings; load failures are errors, not subjects. `coverage` lists `path`, ungoverned parts and refused paths in `skipped_by`:
 
 ```json
 {"diagnostics":[{"path":"docs/notes/broken.md","line":4,"severity":"error","code":"LC001","name":"invalid-utf8","message":"file is not valid UTF-8","labels":[{"path":"docs/notes/broken.md","line":4,"text":"0xE9 at byte offset 31 starts a character the next byte does not continue"}],"children":[{"kind":"help","text":"save the file as UTF-8","path":null,"line":null}]}],"summary":{"subjects":3,"errors":1,"warnings":0},"coverage":[{"path":"docs/notes/todo.md","ungoverned":["outline","budget"],"skipped_by":[]}]}

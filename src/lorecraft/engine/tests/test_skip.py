@@ -11,7 +11,7 @@ from lorecraft.project.database import Database, ItemText
 from lorecraft.project.item import ItemRef, MetaSpecPart
 from lorecraft.project.layout import SPECS_DIR
 from lorecraft.rules.registry import Registry
-from lorecraft.rules.report import CheckedItem, SkippedSubject, SkipReason, UndecodableSubject
+from lorecraft.rules.report import CheckedItem, UndecodableSubject
 from lorecraft.rules.selection import AllRules, RuleSelection
 from lorecraft.rules.table import RuleTable
 from lorecraft.vfs import OsRefusal, RefusedRead
@@ -143,8 +143,8 @@ class TestCheckSubjectsOverASkillEntry:
         #: Then
         assert len(reports) == 1, 'the entry point reports the one skill it was given'
         assert isinstance(reports[0], CheckedItem), 'a failed layer leaves the skill available for `Always` checks'
-        assert [str(diagnostic.occurrence.CODE) for diagnostic in reports[0].diagnostics] == ['FM006'], (
-            'the Agent Skills floor still reports its missing description'
+        assert [str(diagnostic.occurrence.CODE) for diagnostic in reports[0].diagnostics] == [], (
+            'the failed layer suppresses the frontmatter-gated required-field rule'
         )
 
     def test_check_subjects_with_a_loaded_skills_layer_without_a_structure_file_reports_structure_ungoverned(
@@ -205,7 +205,7 @@ class TestCheckSubjectsOverASkillEntry:
 
 @pytest.mark.unit
 class TestCheckSubjectsWithAFailedLayer:
-    def test_check_subjects_with_a_failed_corpus_spec_skips_each_document_of_the_corpus(self) -> None:
+    def test_check_subjects_with_a_failed_corpus_spec_reports_partial_coverage_for_each_document(self) -> None:
         #: Given
         database = _database_with(
             {'code.spec.json': STATES_NO_RULE, 'code-python.spec.json': CORPUS_SPEC},
@@ -217,12 +217,13 @@ class TestCheckSubjectsWithAFailedLayer:
         reports = check_subjects(database, [TYPING, LOGGING], table)
 
         #: Then
+        suppressed = (MetaSpecPart.FRONTMATTER, MetaSpecPart.STRUCTURE, MetaSpecPart.OUTLINE, MetaSpecPart.BUDGET)
         assert reports == (
-            SkippedSubject(TYPING, (CODE_SPEC_PATH,), SkipReason.FAILED_STRUCTURE),
-            SkippedSubject(LOGGING, (CODE_SPEC_PATH,), SkipReason.FAILED_STRUCTURE),
-        ), 'the corpus spec governs every document, so none is judged from the layers that loaded'
+            CheckedItem(TYPING, diagnostics=(), ungoverned=suppressed),
+            CheckedItem(LOGGING, diagnostics=(), ungoverned=suppressed),
+        ), 'enabled meta-spec parts are suppressed while package and schema checks remain eligible'
 
-    def test_check_subjects_with_a_failed_namespace_spec_skips_only_the_documents_it_governs(self) -> None:
+    def test_check_subjects_with_a_failed_namespace_spec_suppresses_only_the_document_it_governs(self) -> None:
         #: Given
         database = _database_with(
             {'code.spec.json': CORPUS_SPEC, 'code-python.spec.json': STATES_NO_RULE},
@@ -232,17 +233,21 @@ class TestCheckSubjectsWithAFailedLayer:
         logging_text = database.item_text(ItemRef(LOGGING.path))
         assert isinstance(logging_text, ItemText), 'the document is UTF-8, so it decodes'
         judged = judge_item(database, logging_text, table)
+        typing_text = database.item_text(TYPING)
+        assert isinstance(typing_text, ItemText), 'the document is UTF-8, so it decodes'
+        typing_judged = judge_item(database, typing_text, table)
 
         #: When
         reports = check_subjects(database, [TYPING, LOGGING], table)
 
         #: Then
+        suppressed = (MetaSpecPart.FRONTMATTER, MetaSpecPart.STRUCTURE, MetaSpecPart.OUTLINE, MetaSpecPart.BUDGET)
         assert reports == (
-            SkippedSubject(TYPING, (PYTHON_SPEC_PATH,), SkipReason.FAILED_STRUCTURE),
+            CheckedItem(TYPING, diagnostics=typing_judged.diagnostics, ungoverned=suppressed),
             judged,
-        ), 'the document the namespace governs is skipped; the other is judged as if nothing had failed'
+        ), 'the governed document reports suppressed parts; the other is judged normally'
 
-    def test_check_subjects_with_two_failed_layers_names_both_in_layer_order(self) -> None:
+    def test_check_subjects_with_two_failed_layers_reports_each_suppressed_part_once(self) -> None:
         #: Given
         database = _database_with(
             {'code.spec.json': STATES_NO_RULE, 'code-python.spec.json': STATES_NO_RULE},
@@ -254,8 +259,9 @@ class TestCheckSubjectsWithAFailedLayer:
         reports = check_subjects(database, [TYPING], table)
 
         #: Then
-        assert reports == (SkippedSubject(TYPING, (CODE_SPEC_PATH, PYTHON_SPEC_PATH), SkipReason.FAILED_STRUCTURE),), (
-            'every failed layer that governs the document is named, the corpus spec first'
+        suppressed = (MetaSpecPart.FRONTMATTER, MetaSpecPart.STRUCTURE, MetaSpecPart.OUTLINE, MetaSpecPart.BUDGET)
+        assert reports == (CheckedItem(TYPING, diagnostics=(), ungoverned=suppressed),), (
+            'coverage lists the suppressed parts once, rather than layer paths'
         )
 
     def test_check_subjects_with_a_failed_layer_still_reports_a_document_that_does_not_decode(self) -> None:
@@ -275,7 +281,7 @@ class TestCheckSubjectsWithAFailedLayer:
             'the document is decoded first, so a file that does not decode is reported as it is without a failure'
         )
 
-    def test_check_subjects_with_a_failed_layer_skips_the_document_whatever_rules_the_table_enables(self) -> None:
+    def test_check_subjects_with_a_failed_layer_and_no_enabled_rules_has_no_coverage(self) -> None:
         #: Given
         database = _database_with({'code.spec.json': STATES_NO_RULE}, {'python-typing.md': DOCUMENT})
         no_rules = RuleTable.from_registry(Registry.load(rules), RuleSelection(select=frozenset(), ignore=frozenset()))
@@ -284,9 +290,7 @@ class TestCheckSubjectsWithAFailedLayer:
         reports = check_subjects(database, [TYPING], no_rules)
 
         #: Then
-        assert reports == (SkippedSubject(TYPING, (CODE_SPEC_PATH,), SkipReason.FAILED_STRUCTURE),), (
-            'a document is skipped for what governs it, not for what the run enables, so it is never read as clean'
-        )
+        assert reports == (CheckedItem(TYPING, diagnostics=()),), 'only enabled suppressed parts appear in coverage'
 
 
 CODE_SPECIFICATION: Final[ItemRef] = ItemRef(SPECS_DIR / PathComponent.parse('code.md'))
