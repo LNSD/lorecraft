@@ -12,6 +12,7 @@ import pytest
 
 from lorecraft.agents import AgentName
 from lorecraft.core.mapping import FrozenMapping
+from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.project.aspect import AspectFilename, AspectNamespace
 from lorecraft.project.corpus import CorpusName
@@ -138,6 +139,7 @@ def _spec_files(
             outline=(),
             forbidden=(),
             tokens=None,
+            lines=None,
             frontmatter=frontmatter_schema,
             frontmatter_schema_ref=(SchemaRef(SchemaKind.FRONTMATTER, str(spec_name)) if frontmatter else None),
         )
@@ -970,6 +972,26 @@ class TestWorkspaceModel:
         assert descriptor.governed_parts == frozenset({MetaSpecPart.FRONTMATTER, MetaSpecPart.STRUCTURE}), (
             'a corpus structure specification activates structure and its frontmatter alongside Markdown checks'
         )
+
+    def test_describe_item_with_a_line_budget_marks_the_budget_governed(
+        self, two_corpora_model: WorkspaceModel
+    ) -> None:
+        #: Given
+        corpus = two_corpora_model.corpora[CODE]
+        assert isinstance(corpus.corpus_spec.structure, StructureSpec), 'the corpus has a parsed structure spec'
+        structured = replace(
+            corpus.corpus_spec, structure=replace(corpus.corpus_spec.structure, lines=NonZeroUnsignedInt(1))
+        )
+        model = replace(
+            two_corpora_model,
+            corpora=FrozenMapping({**two_corpora_model.corpora, CODE: replace(corpus, corpus_spec=structured)}),
+        )
+
+        #: When
+        descriptor = model.describe_item(_ref('code', 'logging'))
+
+        #: Then
+        assert MetaSpecPart.BUDGET in descriptor.governed_parts, 'a declared line cap governs the budget part'
 
     def test_describe_item_for_a_layered_document_keeps_every_schema_in_order(self) -> None:
         #: Given

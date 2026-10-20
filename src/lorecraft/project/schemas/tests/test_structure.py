@@ -142,6 +142,7 @@ class TestStructureSpecParse:
             ),
             forbidden=(SectionName('Changelog'),),
             tokens=NonZeroUnsignedInt(5000),
+            lines=None,
             frontmatter=FrontmatterSchema(schema=FrozenMapping.from_plain({'type': 'object', 'required': ['name']})),
         ), 'every field is read into its typed rule, and an entry without `words` has no cap'
 
@@ -417,6 +418,29 @@ class TestStructureSpecParse:
         #: Then
         assert structure_spec.tokens == NonZeroUnsignedInt(4000), (
             'a token budget is a rule, so a file stating only it is usable'
+        )
+
+    def test_parse_with_only_a_line_budget_returns_a_structure_spec_with_that_budget(self) -> None:
+        #: Given
+        schema = StructureSchema('{"lines": 500}')
+
+        #: When
+        structure_spec = _parse_usable(schema)
+
+        #: Then
+        assert structure_spec.lines == NonZeroUnsignedInt(500), 'a line budget is a usable structure rule'
+
+    def test_parse_with_a_line_budget_of_zero_returns_undecodable_structure_spec(self) -> None:
+        #: Given
+        schema = StructureSchema('{"lines": 0}')
+
+        #: When
+        failure = StructureSpec.parse(SPEC_FILE, schema)
+
+        #: Then
+        assert isinstance(failure, UndecodableStructureSpec), 'a line budget must be positive'
+        assert failure.problems == (StructureSpecProblem(('lines',), 'must be at least 1, got 0'),), (
+            f'the problem names the rejected field, got {failure.problems}'
         )
 
     def test_parse_with_a_token_budget_of_zero_returns_undecodable_structure_spec(self) -> None:

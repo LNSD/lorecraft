@@ -402,7 +402,7 @@ class TestRuleTableItemIndex:
                 'OUT009',
             ),
             (ItemType.DOCUMENT, MetaSpecPart.OUTLINE): ('OUT006', 'OUT007', 'OUT008'),
-            (ItemType.DOCUMENT, MetaSpecPart.BUDGET): ('LEN001',),
+            (ItemType.DOCUMENT, MetaSpecPart.BUDGET): ('LEN001', 'LEN002'),
             (ItemType.SKILL_ENTRYPOINT, None): (
                 'FM011',
                 'FM012',
@@ -470,7 +470,7 @@ class TestRuleTableItemIndex:
                 'OUT009',
             ),
             (ItemType.META_SPEC, MetaSpecPart.OUTLINE): ('OUT006', 'OUT007', 'OUT008'),
-            (ItemType.META_SPEC, MetaSpecPart.BUDGET): ('LEN001',),
+            (ItemType.META_SPEC, MetaSpecPart.BUDGET): ('LEN001', 'LEN002'),
         }
 
         #: When

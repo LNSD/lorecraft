@@ -201,6 +201,7 @@ class StructureFile(_StructureFileModel):
                 {
                     'description': 'Section structure, word caps and token budget for a rule document in docs/code/.',
                     'tokens': 5000,
+                    'lines': 500,
                     'frontmatter': _code_frontmatter_example(),
                     'empty_sections': 'forbidden',
                     'outline': _code_outline_example(),
@@ -224,6 +225,8 @@ class StructureFile(_StructureFileModel):
     """The token budget: the most tokens the whole file may cost an agent that loads it, frontmatter, code and
     tables included; no budget when absent. Counted with OpenAI's `o200k_base` encoding, the same whichever agent
     reads the document."""
+    lines: NonZeroUnsignedInt | None = Field(default=None, examples=[500])
+    """The line budget for the whole file, frontmatter, code and blank lines included; no budget when absent."""
     # The field's JSON Schema is written out rather than rendered: pydantic would render a dict of JSON values as any
     # object, where an editor should check that the value is a JSON Schema describing an object. The value is held
     # frozen all the way down, so the model is hashable.
