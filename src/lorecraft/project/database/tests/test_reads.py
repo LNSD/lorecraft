@@ -62,9 +62,9 @@ def _item_origin(primitives: ItemPrimitives) -> object:
     return primitives.origin()
 
 
-def _item_listed_name(primitives: ItemPrimitives) -> str:
+def _listed_name(primitives: ItemPrimitives) -> str:
     """The listed name held by the model."""
-    return primitives.item_listed_name()
+    return primitives.listed_name()
 
 
 def _item_governance(primitives: ItemPrimitives) -> object:
@@ -77,9 +77,9 @@ def _item_text(primitives: ItemPrimitives) -> object:
     return primitives.text()
 
 
-def _item_descriptor(primitives: ItemPrimitives) -> object:
+def _descriptor(primitives: ItemPrimitives) -> object:
     """The item's model-resolved descriptor."""
-    return primitives.item_descriptor()
+    return primitives.descriptor()
 
 
 def _item_model(primitives: ItemPrimitives) -> object:
@@ -196,16 +196,16 @@ class TestSubjectReads:
             'a raw primitive records only the input it answers'
         )
 
-    def test_item_listed_name_primitive_records_only_its_own_input(self, tmp_path: Path) -> None:
+    def test_listed_name_primitive_records_only_its_own_input(self, tmp_path: Path) -> None:
         #: Given
         database = _database(tmp_path)
         ref = ItemRef(RootRelativePath.parse('docs/code/source.md'))
 
         #: When
-        database.query(_item_listed_name, ref)
+        database.query(_listed_name, ref)
 
         #: Then
-        assert database.query_reads(_item_listed_name, ref) == {Read(PrimitiveRead.ITEM_LISTED_NAME, ref)}
+        assert database.query_reads(_listed_name, ref) == {Read(PrimitiveRead.LISTED_NAME, ref)}
 
     def test_governance_primitive_records_only_its_own_input(self, tmp_path: Path) -> None:
         #: Given
@@ -229,16 +229,16 @@ class TestSubjectReads:
         #: Then
         assert database.query_reads(_item_text, ref) == {Read(PrimitiveRead.TEXT, ref)}
 
-    def test_item_descriptor_primitive_records_only_its_own_input(self, tmp_path: Path) -> None:
+    def test_descriptor_primitive_records_only_its_own_input(self, tmp_path: Path) -> None:
         #: Given
         database = _database(tmp_path)
         ref = ItemRef(RootRelativePath.parse('docs/code/source.md'))
 
         #: When
-        database.query(_item_descriptor, ref)
+        database.query(_descriptor, ref)
 
         #: Then
-        assert database.query_reads(_item_descriptor, ref) == {Read(PrimitiveRead.ITEM_DESCRIPTOR, ref)}
+        assert database.query_reads(_descriptor, ref) == {Read(PrimitiveRead.DESCRIPTOR, ref)}
 
     def test_model_primitive_records_only_its_own_input(self, tmp_path: Path) -> None:
         #: Given
@@ -263,7 +263,7 @@ class TestSubjectReads:
         assert database.query_reads(_link_base, ref) == {
             Read(PrimitiveRead.LINK_BASE, ref),
             Read(PrimitiveRead.TEXT, ref),
-            Read(PrimitiveRead.ITEM_DESCRIPTOR, ref),
+            Read(PrimitiveRead.DESCRIPTOR, ref),
         }
 
     def test_item_base_records_document_hierarchy_inputs(self, tmp_path: Path) -> None:
@@ -277,7 +277,7 @@ class TestSubjectReads:
         #: Then
         assert database.query_reads(item_base, ref) == {
             Read(PrimitiveRead.TEXT, ref),
-            Read(PrimitiveRead.ITEM_DESCRIPTOR, ref),
+            Read(PrimitiveRead.DESCRIPTOR, ref),
             Read(PrimitiveRead.MODEL, ref),
         }
 
@@ -292,7 +292,7 @@ class TestSubjectReads:
         #: Then
         assert database.query_reads(item_base, ref) == {
             Read(PrimitiveRead.TEXT, ref),
-            Read(PrimitiveRead.ITEM_DESCRIPTOR, ref),
+            Read(PrimitiveRead.DESCRIPTOR, ref),
             Read(PrimitiveRead.MODEL, ref),
         }
 

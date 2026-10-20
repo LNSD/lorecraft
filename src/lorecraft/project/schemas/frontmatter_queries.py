@@ -53,7 +53,7 @@ def owner_of_frontmatter(primitives: GovernancePrimitives) -> FrontmatterOwner:
     origin = primitives.origin()
     if isinstance(origin, SkillEntrypointOrigin):
         return SkillFrontmatterOwner(
-            directory_name=PathComponent.parse(primitives.item_listed_name()), link_target=origin.link_target
+            directory_name=PathComponent.parse(primitives.listed_name()), link_target=origin.link_target
         )
     name = primitives.query(item_name)
     governance = primitives.governance()
@@ -64,9 +64,7 @@ def owner_of_frontmatter(primitives: GovernancePrimitives) -> FrontmatterOwner:
     if isinstance(origin, MetaSpecOrigin) and governance is not None:
         structure = governance.corpus_structure()
         if structure is not None:
-            return DocumentFrontmatterOwner(
-                filename=parse_spec_name(primitives.item_listed_name()), spec=structure.path
-            )
+            return DocumentFrontmatterOwner(filename=parse_spec_name(primitives.listed_name()), spec=structure.path)
     raise WrongItemTypeError('a document or meta specification whose corpus states a structure specification')
 
 
@@ -86,7 +84,7 @@ def frontmatter_schema_problems(primitives: ItemPrimitives) -> tuple[SchemaProbl
     Returns:
         One entry per applicable schema, in order; none when no schema applies or frontmatter cannot be held to one.
     """
-    refs = primitives.item_descriptor().frontmatter_schema_refs
+    refs = primitives.descriptor().frontmatter_schema_refs
     if not refs:
         return ()
     frontmatter = primitives.query(item_frontmatter)

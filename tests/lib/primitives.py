@@ -7,7 +7,7 @@ from typing import cast
 from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.num import UnsignedInt
 from lorecraft.core.path import RootRelativePath
-from lorecraft.project.aspect import AspectFilename
+from lorecraft.project.aspect import AspectFilename, AspectName
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.document import DocumentRef, MetaSpecRef
 from lorecraft.project.item import (
@@ -118,7 +118,7 @@ class StructurePrimitives:
         """The origin this was built with."""
         return self.origin_value
 
-    def item_descriptor(self) -> ItemDescriptor:
+    def descriptor(self) -> ItemDescriptor:
         """The descriptor synthesized from this standalone test value."""
         name = self.name
         corpus = self.corpus
@@ -137,7 +137,6 @@ class StructurePrimitives:
             name,
             str(name or self.base_name or ''),
             corpus,
-            (),
             schema_refs,
             frozenset(),
         )
@@ -154,13 +153,22 @@ class StructurePrimitives:
         """Standalone rule fixtures do not model specification hierarchies."""
         return None
 
+    def name_base(
+        self, corpus: CorpusName | None, name: AspectFilename | AspectName | SpecName | None
+    ) -> AspectFilename | SpecName | None:
+        """Return the supplied document base for the fixture's corpus and typed name."""
+        if corpus != self.corpus or not isinstance(name, AspectFilename):
+            return None
+        base = self.document_base(name)
+        return None if base is None else base.filename
+
     def document_base(self, filename: AspectFilename) -> DocumentRef | None:
         """Return the base explicitly supplied by a standalone document fixture."""
         if self.base_name is None:
             return None
         return DocumentRef(self.corpus or CorpusName.parse('guide'), self.base_name)
 
-    def item_listed_name(self) -> str:
+    def listed_name(self) -> str:
         """The original name this was built with."""
         return str(self.name or self.base_name or '')
 

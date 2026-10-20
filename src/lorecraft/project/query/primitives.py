@@ -10,7 +10,7 @@ from __future__ import annotations
 from collections.abc import Callable, Mapping
 from typing import TYPE_CHECKING, Protocol, overload
 
-from lorecraft.project.aspect import AspectFilename
+from lorecraft.project.aspect import AspectFilename, AspectName
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.corpus.directory import ReservedCorpusDirectoryRef
 from lorecraft.project.item import ItemDescriptor, ItemOrigin, ItemRef
@@ -24,6 +24,7 @@ from lorecraft.vfs import RootExit
 
 if TYPE_CHECKING:
     from lorecraft.project.document import DocumentRef, MetaSpecRef
+    from lorecraft.project.schemas.name import SpecName
     from lorecraft.project.workspace import Governance
 
 type Query[P, T] = Callable[[P], T]
@@ -75,6 +76,12 @@ class NameHierarchy(Protocol):
         """Find the nearest declared specification ancestor."""
         ...
 
+    def name_base(
+        self, corpus: CorpusName | None, name: AspectFilename | AspectName | SpecName | None
+    ) -> AspectFilename | SpecName | None:
+        """Find an item's typed base name in the hierarchy declared by its descriptor."""
+        ...
+
 
 class NameHierarchyCorpus(Protocol):
     """The document-name lookup retained by one corpus in the model."""
@@ -111,7 +118,7 @@ class GovernancePrimitives(QueryPrimitives['ItemPrimitives'], Protocol):
         """The model's origin metadata for this item, including its expected name and provenance."""
         ...
 
-    def item_listed_name(self) -> str:
+    def listed_name(self) -> str:
         """The descriptor's original name, used for frontmatter ownership."""
         ...
 
@@ -131,7 +138,7 @@ class NameHierarchyPrimitives(Protocol):
         """The decoded witness of this subject, or none when its bytes are not UTF-8."""
         ...
 
-    def item_descriptor(self) -> ItemDescriptor:
+    def descriptor(self) -> ItemDescriptor:
         """The model-resolved raw descriptor of this item."""
         ...
 

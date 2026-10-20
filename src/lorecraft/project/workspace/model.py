@@ -22,6 +22,7 @@ from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.project.aspect import (
     AspectFilename,
+    AspectName,
     AspectNamespace,
     EmptyAspectNameError,
     InvalidAspectNameCharacterError,
@@ -48,7 +49,13 @@ from lorecraft.project.item import (
 )
 from lorecraft.project.layout import DOCS_DIR, DOCUMENT_SUFFIX, SPECS_DIR
 from lorecraft.project.link_target import DocumentDirectory, SkillRoot
-from lorecraft.project.schemas import CorpusSpecName, NamespaceSpecName, StatedFrontmatterSchema, parse_spec_name
+from lorecraft.project.schemas import (
+    CorpusSpecName,
+    NamespaceSpecName,
+    SpecName,
+    StatedFrontmatterSchema,
+    parse_spec_name,
+)
 from lorecraft.project.schemas.structure import StructureSpec
 from lorecraft.project.skill import (
     OutsideSymlink,
@@ -58,7 +65,7 @@ from lorecraft.project.skill import (
     SkillResourceRef,
     SkillsDir,
 )
-from lorecraft.schemas import RepositoryOrigin, SchemaInput, SchemaKind, SchemaRef
+from lorecraft.schemas import SchemaInput, SchemaKind, SchemaRef
 from lorecraft.schemas.builtin import AGENT_SKILLS_SCHEMA_REFERENCE
 from lorecraft.vfs import ResolvedPath
 
@@ -634,6 +641,24 @@ class WorkspaceModel:
         base = find_narrowest_ancestor(ref.name, by_name)
         return None if base is None else by_name[base]
 
+    def name_base(
+        self, corpus: CorpusName | None, name: AspectFilename | AspectName | SpecName | None
+    ) -> AspectFilename | SpecName | None:
+        """Find the typed ancestor of a descriptor name in its declared corpus hierarchy."""
+        if corpus is None or name is None:
+            return None
+        if isinstance(name, AspectFilename):
+            found = self.find_corpus(corpus)
+            base = found.document_base(name) if found is not None else None
+            return None if base is None else base.filename
+        if isinstance(name, (CorpusSpecName, NamespaceSpecName)):
+            ref = next((spec for spec in self.specifications() if spec.name == str(name)), None)
+            if ref is None:
+                return None
+            base = self.find_specification_base(ref)
+            return None if base is None else parse_spec_name(base.name)
+        return None
+
     def skills(self) -> tuple[SkillRef, ...]:
         """Every ref of a skill in the agents' skills directories, in directory order."""
         return tuple(sorted(self.skill_locations))
@@ -785,7 +810,7 @@ class WorkspaceModel:
         if location.ref != ref:
             raise ValueError(f'resource location for {location.ref} does not resolve {ref}')
         skill = ref.skill
-        descriptor = ItemDescriptor(
+        return self._describe(
             ref=ItemRef(ref.path),
             read_location=location.resolves_to,
             link_base=SkillRoot(skill.directory),
@@ -793,11 +818,9 @@ class WorkspaceModel:
             name=_skill_aspect_filename(str(skill.entry)),
             listed_name=str(skill.entry),
             corpus=None,
-            schema_paths=(),
+            governance=None,
             frontmatter_schema_refs=(),
-            governed_parts=frozenset(),
         )
-        return ResolvedItem(descriptor, None)
 
     @staticmethod
     def _governed_parts(
@@ -816,6 +839,34 @@ class WorkspaceModel:
         ):
             parts.add(MetaSpecPart.BUDGET)
         return frozenset(parts)
+
+    @classmethod
+    def _describe(
+        cls,
+        *,
+        ref: ItemRef,
+        read_location: ResolvedPath,
+        link_base: DocumentDirectory | SkillRoot,
+        origin: DocumentOrigin | SkillEntrypointOrigin | SkillResourceOrigin | MetaSpecOrigin,
+        name: AspectFilename | AspectName | SpecName | None,
+        listed_name: str,
+        corpus: CorpusName | None,
+        governance: Governance | None,
+        frontmatter_schema_refs: tuple[SchemaRef, ...],
+    ) -> ResolvedItem:
+        """Build every governed-item descriptor from its listing and governing inputs."""
+        descriptor = ItemDescriptor(
+            ref=ref,
+            read_location=read_location,
+            link_base=link_base,
+            origin=origin,
+            name=name,
+            listed_name=listed_name,
+            corpus=corpus,
+            frontmatter_schema_refs=frontmatter_schema_refs,
+            governed_parts=cls._governed_parts(governance, frontmatter_schema_refs),
+        )
+        return ResolvedItem(descriptor, governance)
 
     def resolve_item(self, ref: DocumentRef | ItemRef | SkillRef | MetaSpecRef) -> ResolvedItem:
         """Resolve an item's descriptor together with the specs governing it, finding the governance once.
@@ -846,13 +897,7 @@ class WorkspaceModel:
                 schema_refs = (
                     (AGENT_SKILLS_SCHEMA_REFERENCE,) if AGENT_SKILLS_SCHEMA_REFERENCE in self.schema_inputs else ()
                 ) + (governance.applicable_frontmatter_schema_refs() if governance is not None else ())
-                schema_paths = tuple(
-                    schema_input.origin.path
-                    for ref in schema_refs
-                    if isinstance((schema_input := self.schema_inputs[ref]).origin, RepositoryOrigin)
-                )
-                parts = self._governed_parts(governance, schema_refs)
-                descriptor = ItemDescriptor(
+                return self._describe(
                     ref=ItemRef(ref.path),
                     read_location=location.file_resolves_to,
                     link_base=SkillRoot(ref.directory),
@@ -860,18 +905,13 @@ class WorkspaceModel:
                     name=_skill_aspect_filename(str(ref.entry)),
                     listed_name=str(ref.entry),
                     corpus=CorpusName.parse(SKILLS_CORPUS_NAME) if governance is not None else None,
-                    schema_paths=schema_paths,
+                    governance=governance,
                     frontmatter_schema_refs=schema_refs,
-                    governed_parts=parts,
                 )
-                return ResolvedItem(descriptor, governance)
             case MetaSpecRef():
                 governance = self.meta_governance(ref)
-                schemas = governance.frontmatter_schemas() if governance is not None else ()
                 schema_refs = governance.applicable_frontmatter_schema_refs() if governance is not None else ()
-                schema_paths = tuple(schema.spec for schema in schemas)
-                parts = self._governed_parts(governance, schema_refs)
-                descriptor = ItemDescriptor(
+                return self._describe(
                     ref=ItemRef(ref.path),
                     read_location=ResolvedPath(ref.path),
                     link_base=DocumentDirectory(SPECS_DIR),
@@ -879,11 +919,9 @@ class WorkspaceModel:
                     name=parse_spec_name(ref.name),
                     listed_name=ref.name,
                     corpus=CorpusName.parse(META_CORPUS_NAME),
-                    schema_paths=schema_paths,
+                    governance=governance,
                     frontmatter_schema_refs=schema_refs,
-                    governed_parts=parts,
                 )
-                return ResolvedItem(descriptor, governance)
             case _:
                 assert_never(ref)
 
@@ -896,13 +934,7 @@ class WorkspaceModel:
         """
         governance = self.find_governance(document)
         schema_refs = governance.applicable_frontmatter_schema_refs() if governance is not None else ()
-        schema_paths = tuple(
-            schema_input.origin.path
-            for ref in schema_refs
-            if isinstance((schema_input := self.schema_inputs[ref]).origin, RepositoryOrigin)
-        )
-        parts = self._governed_parts(governance, schema_refs)
-        descriptor = ItemDescriptor(
+        return self._describe(
             ref=item,
             read_location=ResolvedPath(document.path),
             link_base=DocumentDirectory(RootRelativePath(document.path.value.parent)),
@@ -910,8 +942,6 @@ class WorkspaceModel:
             name=document.filename,
             listed_name=str(document.filename),
             corpus=document.corpus,
-            schema_paths=schema_paths,
+            governance=governance,
             frontmatter_schema_refs=schema_refs,
-            governed_parts=parts,
         )
-        return ResolvedItem(descriptor, governance)

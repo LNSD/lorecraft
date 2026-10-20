@@ -107,13 +107,13 @@ class PrimitiveRead(StrEnum):
     LEAVES_AT = 'leaves_at'
     RESERVED_CORPUS = 'reserved_corpus'
     ORIGIN = 'origin'
-    ITEM_LISTED_NAME = 'item_listed_name'
+    LISTED_NAME = 'listed_name'
     TEXT = 'text'
     GOVERNANCE = 'governance'
     SCHEMA_INPUTS = 'schema_inputs'
     LINK_TARGETS = 'link_targets'
     LINK_BASE = 'link_base'
-    ITEM_DESCRIPTOR = 'item_descriptor'
+    DESCRIPTOR = 'descriptor'
     MODEL = 'model'
 
 
@@ -272,7 +272,7 @@ class _ItemPrimitives(_Reads[ItemRef, '_ItemPrimitives']):
         return _ItemPrimitives(self._database, ref)
 
     @primitive
-    def item_descriptor(self) -> ItemDescriptor:
+    def descriptor(self) -> ItemDescriptor:
         """The model-resolved descriptor of this item."""
         return self._database._item(self._ref).descriptor
 
@@ -287,7 +287,7 @@ class _ItemPrimitives(_Reads[ItemRef, '_ItemPrimitives']):
         return self._database._item(self._ref).descriptor.origin
 
     @primitive
-    def item_listed_name(self) -> str:
+    def listed_name(self) -> str:
         """The descriptor's original name, used for frontmatter ownership."""
         return self._database._item(self._ref).descriptor.listed_name
 
@@ -317,7 +317,7 @@ class _ItemPrimitives(_Reads[ItemRef, '_ItemPrimitives']):
     def link_base(self) -> LinkBase | None:
         """Where the item's relative links are read from."""
         source = self.text()
-        return self.item_descriptor().link_base if source is not None else None
+        return self.descriptor().link_base if source is not None else None
 
 
 class Database:
