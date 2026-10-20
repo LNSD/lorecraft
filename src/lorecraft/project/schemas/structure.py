@@ -15,6 +15,7 @@ structure specification is not JSON Schema. It is this small dialect, whose fiel
       "title": {"words": 8, "chars": 60, "pattern": "^[A-Z]"},
       "empty_sections": "forbidden",
       "tokens": 5000,
+      "lines": 500,
       "frontmatter": {"type": "object", "required": ["name"], "properties": {"name": {"type": "string"}}},
       "outline": [
         {"section": "Table of Contents", "optional": true},
@@ -45,6 +46,8 @@ finding quotes it.
 - `tokens` is the token budget: the most tokens the whole file may hold, frontmatter, code and tables
   included, since that is what loading it costs an agent. The count is `o200k_base`, the same whichever agent
   reads it. The budget check applies it, not the structure check: it reads the raw file, not the parse tree.
+- `lines` is the line budget: the most lines the whole file may hold, frontmatter, code and blank lines
+  included. The count uses the project's CommonMark line endings.
 - `frontmatter` is a Draft 2020-12 JSON Schema the document's frontmatter must satisfy. Unlike the rest of the
   file it is JSON Schema, not the dialect: a frontmatter is a mapping, which JSON Schema states well. Its root must
   say `"type": "object"` outright, and no schema in it, at any depth, may carry `$id` or name another dialect
@@ -272,6 +275,7 @@ class StructureSpec:
         forbidden: Sections that must not appear at all, each named once.
         tokens: The token budget: the most tokens the whole file may hold, frontmatter, code and tables
             included, or None for no budget.
+        lines: The line budget for the whole file, frontmatter and blank lines included, or None for no budget.
         frontmatter: The JSON Schema a document's frontmatter must satisfy, or None when the specification states
             none.
     """
@@ -283,6 +287,7 @@ class StructureSpec:
     forbidden: tuple[SectionName, ...]
     tokens: NonZeroUnsignedInt | None
     frontmatter: FrontmatterSchema | None
+    lines: NonZeroUnsignedInt | None = None
     frontmatter_schema_ref: SchemaRef | None = None
 
     @property
@@ -347,6 +352,7 @@ class StructureSpec:
             outline=tuple(outline),
             forbidden=structure_file.forbidden,
             tokens=structure_file.tokens,
+            lines=structure_file.lines,
             frontmatter=frontmatter,
         )
         rule_failure = _rule_failure(spec)
@@ -387,6 +393,7 @@ def _rule_failure(spec: StructureSpec) -> StructureSpecRuleFailure | None:
         spec.title is None
         and not spec.forbid_empty_sections
         and spec.tokens is None
+        and spec.lines is None
         and spec.frontmatter is None
         and not spec.outline
         and not spec.forbidden

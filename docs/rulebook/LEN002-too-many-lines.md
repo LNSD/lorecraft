@@ -1,59 +1,26 @@
 ---
 name: "LEN002-too-many-lines"
-description: "A skill's `SKILL.md` is longer than the Agent Skills specification allows"
+description: "An item is longer than a governing line budget"
 code: "LEN002"
 since: "0.3.0"
 ---
 
 # too-many-lines (LEN002)
 
-A skill's `SKILL.md` is longer than the Agent Skills specification allows.
+An item is longer than a governing line budget.
 
 ## What it does
 
-Checks for skills whose `SKILL.md` holds more than 500 lines, the budget the Agent Skills specification sets.
-The whole file counts: frontmatter, blank lines and code blocks as much as prose. A file of exactly 500 lines
-is within the budget. No meta spec in the repository sets or changes it.
+Checks each `lines` budget set by the item's governing structure files. A document or meta spec with no line
+budget is not counted. A skill without a structure line budget keeps the 500-line Agent Skills default.
+
+The whole file counts: frontmatter, blank lines and code as much as prose. A file exactly at its budget fits;
+the first line after it is reported.
 
 ## Why is this bad?
 
-An agent loads the whole `SKILL.md` every time the skill activates, so every line of it is spent on every
-activation, whether that activation needs it or not.
-
-## Example
-
-`.agents/skills/review/SKILL.md`, at 612 lines:
-
-```markdown
----
-name: review
-description: Review a change before it is merged.
----
-
-# Review
-
-Read the diff, then walk the checklist below.
-
-## Checklist
-
-<!-- ... 601 more lines, one subsection per kind of change -->
-```
+An agent loads the whole file, so every line uses context whether or not the current task needs it.
 
 ## Use instead
 
-Move what most activations do not need into a file under `references/`, and say when to read it:
-
-```markdown
----
-name: review
-description: Review a change before it is merged.
----
-
-# Review
-
-Read the diff, then walk the checklist below.
-
-## Checklist
-
-Read [the checklist](references/checklist.md) for the kind of change under review.
-```
+Split material into a linked document, or into a skill resource under `references/` for skills.

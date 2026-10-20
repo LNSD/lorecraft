@@ -32,7 +32,7 @@ Checks docs against meta specs, skills against the Agent Skills spec; broken rul
   They sort by path, location, severity, code and message.
 - **Line**: A line ends only at `\n`, at `\r\n` as one break, or at a lone `\r`. Vertical tab, form feed, U+0085,
   U+2028 and U+2029 stay within a line. Findings and source excerpts use these lines.
-- **Governed**: `structure` needs a corpus structure file, `frontmatter` a schema, `outline`/`budget` an applying file's outline/`tokens`;
+- **Governed**: `structure` needs a corpus structure file, `frontmatter` a schema, `outline` an applying file's outline, and `budget` a `tokens` or `lines` declaration;
   a rule over an ungoverned part does not run (coverage, not a diagnostic).
 - **Frontmatter format**: The [accepted YAML subset](frontmatter.md), decoded to JSON values; `FM002` names
   refused constructs and syntax errors, while `FM005` reports repeated keys.
@@ -47,7 +47,7 @@ relative to it. `docs/` and `docs/__meta__/` must be [real directories](workspac
 
 ### The Subjects
 
-Checks docs/specs, skills/resources and escaping symlinks. `LINK001`–`LINK003` check all documents, meta specs and skills, including documents without a corpus structure file. `LINK005`–`LINK007` require the structure meta spec; `LINK005` and `LINK006` also check meta specs. Prose specs in `docs/__meta__/` are subjects in reserved `meta`; their frontmatter, outline and length rules apply. Without `meta.spec.json`, each reports `ungoverned for frontmatter, structure, outline, budget`. Shared skills once; subjects and diagnostics follow path order. Budgets: skills 10000; code 6500; docs/feat 3500. Without a skills-corpus layer, skills are ungoverned for structure, outline and budget; resources without governed parts are ungoverned.
+Checks docs/specs, skills/resources and escaping symlinks. `LINK001`–`LINK003` check documents, meta specs and skills, even without a corpus structure file. `LINK005`–`LINK007` require the structure meta spec; `LINK005` and `LINK006` also check meta specs. Prose specs in `docs/__meta__/` are subjects in reserved `meta`; their frontmatter, outline and length rules apply. Without `meta.spec.json`, each reports `ungoverned for frontmatter, structure, outline, budget`. Subjects and diagnostics follow path order. Resources without governed parts are ungoverned.
 ### One Run, One Snapshot
 
 One snapshot, meta specs first. A failed structure file yields a diagnostic. Failed layers suppress every meta-spec rule on items; package and schema rules and `Always` links still run. Suppressed parts appear as `ungoverned for ...`. `LC001` invalid UTF-8 is unjudged. Diagnostics and coverage use the actual `.spec.json` name.
@@ -169,7 +169,7 @@ JSON paths must be UTF-8; non-ASCII text is direct, not escaped.
 |------|---------------|
 | `FM` | Frontmatter checks use applicable schemas; the bundled skills schema is optional. `FM004` compares skill names with listed directories. `FM001` missing-frontmatter, `FM002` invalid-yaml, `FM003` non-mapping-frontmatter, `FM004` name-mismatch, `FM005` duplicate-key, `FM006` missing-field, `FM007` unknown-field (a warning), `FM008` wrong-type, `FM009` invalid-value, `FM010` invalid-frontmatter, `FM011` malformed-allowed-tools (a warning; pattern whitespace stays intact), `FM012` allowed-tools-too-long (a warning over 500 characters), `FM013` too-many-fields (`maxProperties`, an error), `FM014` too-few-fields (`minProperties`, an error) |
 | `OUT` | Outline checks: a document's H1 title and sections against its structure files. `OUT001` missing-title, `OUT002` extra-title, `OUT003` title-not-first, `OUT004` empty-section, `OUT005` forbidden-section, `OUT006` missing-section, `OUT007` section-out-of-order, `OUT008` unexpected-section, `OUT009` invalid-title |
-| `LEN` | Length limits: a document's tokens, a section's or its title's words or characters, a `SKILL.md`'s lines. `LEN001` too-many-tokens, `LEN002` too-many-lines, `LEN003` section-too-many-words, `LEN004` title-too-many-words, `LEN005` title-too-long |
+| `LEN` | Length limits: a document's tokens or declared lines budget, a section's or its title's words or characters, and a `SKILL.md`'s default lines limit. `LEN001` too-many-tokens, `LEN002` too-many-lines, `LEN003` section-too-many-words, `LEN004` title-too-many-words, `LEN005` title-too-long |
 | `LINK` | Links in structured documents and skills. `LINK001` absolute, `LINK002` broken fragment, `LINK003` broken, `LINK004` escaping, `LINK005` extension-link (link to same-directory name extension; warning; also checks meta specs), `LINK006` missing-base-link (an extension omits its nearest existing document or meta spec ancestor under `References`; warning; also checks meta specs), `LINK007` mutual-link (documents in different corpora link each other; warning) |
 | `COR` | Corpus layout checks: `COR001` reserved-corpus-overlap, a directory under `docs/` has a reserved corpus name such as `skills`; warning by default. It can be selected or ignored by code or group. |
 | `LAY` | Skill layout checks: `LAY001` escaping-symlink, a symlink an agent reaches whose chain leaves the repository |

@@ -1,119 +1,102 @@
-"""`LEN002`: a skill's `SKILL.md` is longer than the Agent Skills specification's line budget."""
+"""`LEN002`: an item is longer than its line budget allows."""
 
 from collections.abc import Mapping
 from dataclasses import dataclass
 from types import MappingProxyType
-from typing import ClassVar, Final, Self
+from typing import ClassVar, Final, Protocol, Self
 
-from lorecraft.core.num import NonZeroUnsignedInt
-from lorecraft.project.item import ItemType
-from lorecraft.project.query import CountPrimitives, ItemQuery, item_line_count
+from lorecraft.core.num import NonZeroUnsignedInt, UnsignedInt
+from lorecraft.core.path import RootRelativePath
+from lorecraft.project.item import ItemType, MetaSpecPart, SkillEntrypointOrigin
+from lorecraft.project.query import GovernancePrimitives, ItemQuery, item_line_count, item_structure_specs
 from lorecraft.project.syntax import LineCount, LineNumber
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
+from lorecraft.rules.length.__ruleset__ import GROUP_ID, spec_note
 from lorecraft.rules.location import Help, Here, Label, Note, Subdiagnostic
 from lorecraft.rules.overrun import Overrun, find_overrun
-from lorecraft.rules.subject import Always, Gate, QueriedItemRule
-
-from .__ruleset__ import GROUP_ID
+from lorecraft.rules.subject import Always, Gate, QueriedItemRule, WhenMetaSpec
 
 _LINE_BUDGET: Final[NonZeroUnsignedInt] = NonZeroUnsignedInt(500)
-"""The most lines a `SKILL.md` may hold, frontmatter included.
-
-The specification says "Keep your main `SKILL.md` under 500 lines"
-(https://agentskills.io/specification#progressive-disclosure); a file of exactly 500 lines is within it, and
-its line 501 is the first past the budget.
-"""
-
-_FIRST_LINE_PAST_BUDGET: Final[LineNumber] = LineNumber(_LINE_BUDGET.successor())
-"""Where an occurrence is reported: the first line the budget does not allow."""
+"""The fallback limit for skills until their bundled structure layer supplies it."""
 
 
-def skill_line_count(primitives: CountPrimitives) -> LineCount:
-    """The lines in the skill's whole `SKILL.md`, frontmatter, code and blank lines included. Raises nothing.
+@dataclass(frozen=True, slots=True)
+class LineBudget:
+    """A line limit set by a governing structure specification."""
 
-    A query over the line count alone.
+    spec: RootRelativePath | None
+    lines: NonZeroUnsignedInt
 
-    Args:
-        primitives: The model state of the skill.
-    """
-    return primitives.query(item_line_count)
+
+@dataclass(frozen=True, slots=True)
+class LineFacts:
+    """The file's line count and each line limit that governs it."""
+
+    count: LineCount
+    budgets: tuple[LineBudget, ...]
+
+
+class _LinePrimitives(GovernancePrimitives, Protocol):
+    """Primitives needed to derive a line count and its governing limits."""
+
+
+def line_facts(primitives: _LinePrimitives) -> LineFacts:
+    """Read structure line budgets, counting only when a limit applies."""
+    budgets = tuple(
+        LineBudget(spec.path, spec.lines) for spec in primitives.query(item_structure_specs) if spec.lines is not None
+    )
+    is_skill = isinstance(primitives.origin(), SkillEntrypointOrigin)
+    if is_skill and not budgets:
+        count = primitives.query(item_line_count)
+        return LineFacts(count, (LineBudget(None, _LINE_BUDGET),))
+    count = primitives.query(item_line_count) if budgets else LineCount(UnsignedInt(0))
+    return LineFacts(count, budgets)
 
 
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
-class TooManyLines(QueriedItemRule[LineCount]):
-    """A skill's `SKILL.md` is longer than the Agent Skills specification allows.
+class TooManyLines(QueriedItemRule[LineFacts]):
+    """An item is longer than a governing line budget.
 
     ## What it does
 
-    Checks for skills whose `SKILL.md` holds more than 500 lines, the budget the Agent Skills specification sets.
-    The whole file counts: frontmatter, blank lines and code blocks as much as prose. A file of exactly 500 lines
-    is within the budget. No meta spec in the repository sets or changes it.
+    Checks each `lines` budget set by the item's governing structure files. A document or meta spec with no line
+    budget is not counted. A skill without a structure line budget keeps the 500-line Agent Skills default.
+
+    The whole file counts: frontmatter, blank lines and code as much as prose. A file exactly at its budget fits;
+    the first line after it is reported.
 
     ## Why is this bad?
 
-    An agent loads the whole `SKILL.md` every time the skill activates, so every line of it is spent on every
-    activation, whether that activation needs it or not.
-
-    ## Example
-
-    `.agents/skills/review/SKILL.md`, at 612 lines:
-
-    ```markdown
-    ---
-    name: review
-    description: Review a change before it is merged.
-    ---
-
-    # Review
-
-    Read the diff, then walk the checklist below.
-
-    ## Checklist
-
-    <!-- ... 601 more lines, one subsection per kind of change -->
-    ```
+    An agent loads the whole file, so every line uses context whether or not the current task needs it.
 
     ## Use instead
 
-    Move what most activations do not need into a file under `references/`, and say when to read it:
-
-    ```markdown
-    ---
-    name: review
-    description: Review a change before it is merged.
-    ---
-
-    # Review
-
-    Read the diff, then walk the checklist below.
-
-    ## Checklist
-
-    Read [the checklist](references/checklist.md) for the kind of change under review.
-    ```
-
-    Attributes:
-        spec: Always `None`: the package states the rule, after the Agent Skills specification.
-        overrun: The lines in the skill's whole `SKILL.md` against the budget; always past it, so line 501 exists.
+    Split material into a linked document, or into a skill resource under `references/` for skills.
     """
 
     CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 2)
     NAME: ClassVar[RuleName] = RuleName('too-many-lines')
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('0.3.0')
-    APPLIES_TO: ClassVar[Mapping[ItemType, Gate]] = MappingProxyType({ItemType.SKILL_ENTRYPOINT: Always()})
+    APPLIES_TO: ClassVar[Mapping[ItemType, Gate]] = MappingProxyType(
+        {
+            ItemType.DOCUMENT: WhenMetaSpec(MetaSpecPart.BUDGET),
+            ItemType.META_SPEC: WhenMetaSpec(MetaSpecPart.BUDGET),
+            ItemType.SKILL_ENTRYPOINT: Always(),
+        }
+    )
 
-    spec: None = None
+    spec: RootRelativePath | None = None
     overrun: Overrun
 
     def message(self) -> str:
-        """Name the lines found against the budget they exceed."""
+        """Name the line count and the budget it exceeds."""
         return f'too many lines ({self.overrun.count} > {self.overrun.cap})'
 
     def labels(self) -> tuple[Label, ...]:
-        """Mark where the budget ends, and how many lines the file runs past it."""
+        """Mark the first line past the budget and the number of excess lines."""
         return (
             Label(
                 Here(self.line),
@@ -122,28 +105,37 @@ class TooManyLines(QueriedItemRule[LineCount]):
         )
 
     def children(self) -> tuple[Subdiagnostic, ...]:
-        """Say where the budget comes from, and where to move the lines over it."""
+        """Point to the governing specification or explain the default skill limit."""
+        if self.spec is None:
+            return (
+                Note(f'the Agent Skills specification keeps a SKILL.md to at most {self.overrun.cap} lines'),
+                Help(
+                    'move what most activations do not need into files under references/, and say in SKILL.md when '
+                    'to read each'
+                ),
+            )
         return (
-            Note(f'the Agent Skills specification keeps a SKILL.md to at most {self.overrun.cap} lines'),
-            Help(
-                'move what most activations do not need into files under references/, and say in SKILL.md when to '
-                'read each'
-            ),
+            spec_note(self.spec),
+            Help('split the file or move material into a document of its own and link to it'),
         )
 
     @classmethod
-    def query(cls) -> ItemQuery[LineCount]:
-        """The lines in the skill's whole `SKILL.md`."""
-        return skill_line_count
+    def query(cls) -> ItemQuery[LineFacts]:
+        """The line limits that apply to the item and its whole-file line count."""
+        return line_facts
 
     @classmethod
-    def judge(cls, facts: LineCount, /) -> tuple[Self, ...]:
-        """The one occurrence, on the first line past the budget, when the `SKILL.md` runs over it; none otherwise.
-
-        Args:
-            facts: The lines in the skill's whole `SKILL.md`.
-        """
-        overrun = find_overrun(facts, _LINE_BUDGET)
-        if overrun is None:
-            return ()
-        return (cls(line=_FIRST_LINE_PAST_BUDGET, overrun=overrun),)
+    def judge(cls, facts: LineFacts, /) -> tuple[Self, ...]:
+        """One occurrence for each line budget the item exceeds."""
+        occurrences: list[Self] = []
+        for budget in facts.budgets:
+            overrun = find_overrun(facts.count, budget.lines)
+            if overrun is not None:
+                occurrences.append(
+                    cls(
+                        spec=budget.spec,
+                        line=LineNumber(budget.lines.successor()),
+                        overrun=overrun,
+                    )
+                )
+        return tuple(occurrences)

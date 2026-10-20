@@ -12,7 +12,12 @@ from lib.overruns import overrun
 from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.location import Help, Here, Label, Note
-from lorecraft.rules.tests.fake_database import FakeSkillDatabase, judged
+from lorecraft.rules.tests.fake_database import (
+    FakeDocumentDatabase,
+    FakeSkillDatabase,
+    judged,
+    structure_spec_path,
+)
 
 from ..too_many_lines import TooManyLines
 
@@ -52,6 +57,22 @@ class TestTooManyLines:
 
         #: Then
         assert occurrences == (), 'the budget is the most lines allowed, so a SKILL.md of exactly 500 lines fits it'
+
+    def test_check_with_a_document_over_its_structure_line_budget_reports_the_budget(self) -> None:
+        #: Given
+        subject = FakeDocumentDatabase('# Guide\n' + 'line\n' * 899, corpus='code', structure='{"lines": 50}')
+
+        #: When
+        occurrences = judged(TooManyLines, subject)
+
+        #: Then
+        assert occurrences == (
+            TooManyLines(
+                spec=structure_spec_path('code'),
+                line=LineNumber(NonZeroUnsignedInt(51)),
+                overrun=overrun(900, 50),
+            ),
+        ), 'a document over its structure line budget reports the limit and its source'
 
     def test_message_names_the_lines_and_the_budget(self) -> None:
         #: Given

@@ -810,7 +810,9 @@ class WorkspaceModel:
             parts.add(MetaSpecPart.STRUCTURE)
         if governance is not None and governance.outline_specs():
             parts.add(MetaSpecPart.OUTLINE)
-        if governance is not None and any(spec.tokens is not None for spec in governance.structure_specs()):
+        if governance is not None and any(
+            spec.tokens is not None or spec.lines is not None for spec in governance.structure_specs()
+        ):
             parts.add(MetaSpecPart.BUDGET)
         return frozenset(parts)
 

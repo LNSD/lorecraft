@@ -232,6 +232,7 @@
         ],
         "type": "object"
       },
+      "lines": 500,
       "outline": [
         {
           "any": true,
@@ -300,6 +301,22 @@
       "description": "The token budget: the most tokens the whole file may cost an agent that loads it, frontmatter, code and tables included; no budget when absent. Counted with OpenAI's `o200k_base` encoding, the same whichever agent reads the document.",
       "examples": [
         5000
+      ]
+    },
+    "lines": {
+      "anyOf": [
+        {
+          "minimum": 1,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "The line budget for the whole file, frontmatter, code and blank lines included; no budget when absent.",
+      "examples": [
+        500
       ]
     },
     "frontmatter": {
