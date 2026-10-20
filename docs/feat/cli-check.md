@@ -44,7 +44,7 @@ relative to it. `docs/` and `docs/__meta__/` must be [real directories](workspac
 
 ### The Subjects
 
-Checks docs/specs, skills/resources and escaping symlinks. `LINK001`–`LINK003` check documents, meta specs and skills, even without a corpus structure file. `LINK005`–`LINK007` require the structure meta spec; `LINK005` and `LINK006` also check meta specs. Prose specs in `docs/__meta__/` are subjects in reserved `meta`; their frontmatter, outline and length rules apply. Without `meta.spec.json`, each reports `ungoverned for frontmatter, structure, outline, budget`. Subjects and diagnostics follow path order. Resources without governed parts are ungoverned.
+Checks docs/specs, skills/resources and escaping symlinks. `LINK001`–`LINK003` check documents, meta specs and skills without a corpus structure file. `LINK004` reports a relative link climbing above its link base: repository root for documents and meta specs, skill root for skills and resources. Links within that bound are not escaping. `LINK005`–`LINK007` require the structure meta spec; `LINK005` and `LINK006` also check meta specs. Prose specs in `docs/__meta__/` are subjects in reserved `meta`; frontmatter, outline and length rules apply. Without `meta.spec.json`, each reports `ungoverned for frontmatter, structure, outline, budget`. Subjects and diagnostics follow path order. Ungoverned resources are reported as such.
 ### One Run, One Snapshot
 
 One snapshot, meta specs first. A failed structure file yields a diagnostic. Failed layers suppress meta-spec gates; `Always`, schema and link gates still run. Suppressed parts appear as `ungoverned for ...`. `LC001` invalid UTF-8 is unjudged. Diagnostics and coverage use the actual `.spec.json` name.

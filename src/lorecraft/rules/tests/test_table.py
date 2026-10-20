@@ -372,7 +372,7 @@ class TestRuleTableItemIndex:
         #: Given
         registry = Registry.load(rules)
         expected = {
-            (ItemType.DOCUMENT, None): ('LINK001', 'LINK002', 'LINK003'),
+            (ItemType.DOCUMENT, None): ('LINK001', 'LINK002', 'LINK003', 'LINK004'),
             (ItemType.DOCUMENT, MetaSpecPart.FRONTMATTER): (
                 'FM001',
                 'FM002',
@@ -440,7 +440,7 @@ class TestRuleTableItemIndex:
             (ItemType.SKILL_ENTRYPOINT, MetaSpecPart.OUTLINE): ('OUT006', 'OUT007', 'OUT008'),
             (ItemType.SKILL_ENTRYPOINT, MetaSpecPart.BUDGET): ('LEN001',),
             (ItemType.SKILL_RESOURCE, None): ('LINK001', 'LINK002', 'LINK003', 'LINK004'),
-            (ItemType.META_SPEC, None): ('LINK001', 'LINK002', 'LINK003'),
+            (ItemType.META_SPEC, None): ('LINK001', 'LINK002', 'LINK003', 'LINK004'),
             (ItemType.META_SPEC, MetaSpecPart.FRONTMATTER): (
                 'FM001',
                 'FM002',

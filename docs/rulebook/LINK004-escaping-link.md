@@ -1,50 +1,44 @@
 ---
 name: "LINK004-escaping-link"
-description: "A relative link in a skill's file climbs above the skill root"
+description: "A relative link climbs above the bound of its link base"
 code: "LINK004"
 since: "0.3.0"
 ---
 
 # escaping-link (LINK004)
 
-A relative link in a skill's file climbs above the skill root.
+A relative link climbs above the bound of its link base.
 
 ## What it does
 
-Checks for relative links and images in a skill's `SKILL.md` and in each Markdown file inside the skill whose
-path, read from the skill root, leads above it. The Agent Skills specification has every file of a skill name
-another by its path from the skill root, wherever the file lies: in `references/guide.md`, `SKILL.md` names the
-skill's own `SKILL.md`, and `../SKILL.md` leads out of the skill. No meta spec key states the rule: every
-skill is held to it.
+Checks relative links and images in documents, meta specs and skills. Documents and meta specs read links from
+their own directory and may climb within the repository, but not above its root. Skills and resources read links
+from the skill root and may not climb above that root.
 
-The path alone decides, never where the skill lies in the repository: `../../skills/review/SKILL.md` leaves the
-skill even when it leads back into it. A path that climbs and comes back down inside the skill, such as
-`references/../SKILL.md`, stays inside. A URL with a scheme, an absolute link and a link to a heading of the same
-file spell no relative path, so none of them is reported. A document is never judged: its links are read from
-its own directory, and may climb out of it.
+A path that climbs and comes back down inside its bound stays inside. A URL with a scheme, an absolute link, or
+a fragment-only link spells no relative path, so none is reported.
 
 ## Why is this bad?
 
-A skill is installed on its own, wherever an agent keeps its skills, and carries only its own files. A link
-above the skill root points at a file the installed skill does not carry, so an agent that follows it reads
-nothing, or a file that happens to lie there.
+A link above its base's bound names a path the project cannot reliably provide. Skills may be installed
+independently; documents and meta specs cannot name paths outside the repository snapshot.
 
 ## Example
 
-`.agents/skills/review/references/checklist.md`:
+`docs/guide/setup.md`:
 
 ```markdown
 # Checklist
 
-Start from [the review steps](../SKILL.md).
+Start from [the repository file](../../../outside.md).
 ```
 
 ## Use instead
 
-Name the file by its path from the skill root:
+Keep the link within its base's bound:
 
 ```markdown
 # Checklist
 
-Start from [the review steps](SKILL.md).
+Start from [the repository file](../code/guide.md).
 ```
