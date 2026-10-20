@@ -32,7 +32,7 @@ skills travel through three parallel representations above the project model:
   a skill or a skill resource.
 
 Extending that split to support `skills` repository layers (`FR-005`) and later governed skill resources would duplicate
-governance lookup, failed-layer skipping, facet gating and coverage reporting across parallel pipelines.
+governance lookup, failed-layer skipping, meta spec part gating and coverage reporting across parallel pipelines.
 
 ## Decision
 
@@ -58,8 +58,7 @@ was discovered:
 - **Frontmatter owner metadata:** the expected `name` value, whether it comes from a document stem or a listed skill
   directory, any resolved symlink target needed for diagnostic notes, and the governing schema provenance required to
   preserve existing frontmatter findings (`FR-013`).
-- **Governance target and active facets:** the corpus and aspect name used to resolve governing layers, together with
-  the check facets active for the item (`FR-005`, `FR-014`).
+- **Governance target and governed meta spec parts:** the corpus and aspect name used to resolve governing layers, together with the meta spec parts that govern the item (`FR-005`, `FR-014`).
 
 Layout symlinks that leave the repository have no Markdown content and no corpus governance; they remain a separate
 layout subject category ([adr-011](adr-011-rules-engine.md)).
@@ -71,8 +70,8 @@ The project model is the only layer that classifies a Markdown item's origin:
 - A corpus document derives its corpus and aspect name from its `docs/<corpus>/<name>.md` path.
 - A meta spec in `docs/__meta__/` derives its subject corpus from its filename prefix and is governed by the reserved
   `meta` corpus.
-- A skill derives its aspect name from the skill's listed directory name in `.agents/skills/`; its package
-  checks are independent of corpus governance. The reserved corpus does not govern the entry until LORE-324.
+- A skill derives its aspect name from its listed directory name in `.agents/skills/`. Its package checks remain
+  independent of the skill entrypoint's governance by the reserved `skills` corpus.
 - A skill resource is discovered lazily through its skill's resource listing rather than by an eager workspace-wide
   walk when the model opens ([adr-003](adr-003-project-model.md), [adr-015](adr-015-database.md)). When listed, it
   yields the same common reference and descriptor shape as any other Markdown item.
@@ -85,8 +84,8 @@ derivation rather than reimplemented in the database, runner or rules.
 The reserved `meta` corpus governs every meta spec in `docs/__meta__/`: `meta.spec.json` provides corpus governance
 and `meta-<corpus>.spec.json` provides namespace governance. Meta spec rules declare the same gates as document rules.
 
-The reserved `skills` corpus is loaded and its meta specs are checked, but does not govern skills or
-resources. Package skill checks remain active for skills; corpus governance is deferred to LORE-324.
+The reserved `skills` corpus governs skill entrypoints. Package skill checks remain active independently of
+that corpus governance. Skill resources have no corpus governance and retain their package Markdown checks.
 
 A Markdown resource inside a skill has no corpus governance. The model activates Markdown checks only for resources;
 no skills-corpus schema or structure spec applies.
@@ -101,12 +100,11 @@ The database and rules engine consume the common reference and descriptor unifor
 - **Unified per-file and cross-file queries:** frontmatter parsing, Markdown parsing, line counting, token counting and
   relative-link target resolution each have one query implementation taking the common decode witness and reading the
   descriptor's link base.
-- **Unified governance and analysis queries:** `item_governance(ref)` resolves ordered layers for corpus documents
-  and meta specs in `docs/__meta__/`; skills and resources have no corpus governance. Schema validation and outline
-  analysis read `item_governance(ref)` and the per-file queries, keeping their results whenever those inputs compare
+- **Unified governance and analysis queries:** `item_governance(ref)` resolves ordered layers for corpus documents and meta specs in `docs/__meta__/`, and for skill entrypoints through the
+  reserved `skills` corpus; resources have no corpus governance. Schema validation and outline analysis read `item_governance(ref)` and the per-file queries, keeping their results whenever those inputs compare
   equal ([adr-015](adr-015-database.md)).
 - **One content runner loop:** the engine decodes the item once, applies the uniform partial check policy whenever an
-  active governing layer failed to load (suppressing `ByMetaSpec` gates while running `ByPackage` and `BySchema`
+  active governing layer failed to load (suppressing `WhenMetaSpec` gates while running `Always` and `WhenSchema`
   checks), gates enabled rules by declared gates and governed parts, and produces one checked content report carrying
   diagnostics and ungoverned parts (`FR-005`, `FR-010`, `FR-018`).
 
@@ -128,8 +126,8 @@ requires:
   the project model, database, context protocols, runner and report types together, and removes the parallel query and
   dispatch code that would otherwise grow with `skills` governance.
 - **Resource governance is pre-wired without premature activation.** Skill resources share the reference, witness and
-  hierarchical skill-governance link now, while `FR-014` remains respected because resource check facets stay inactive
-  until resource governance rules are specified.
+  hierarchical skill-governance link now, while `FR-014` remains respected because resource meta spec parts remain inactive until resource governance is specified; package Markdown checks
+  remain active.
 - **What stays true:** scope is declared rather than inferred from content ([adr-003](adr-003-project-model.md));
   logical identity is separate from resolved file location; the database opens with its model and computes per-file and
   analysis queries lazily ([adr-015](adr-015-database.md)); layers apply independently by conjunction
@@ -156,15 +154,15 @@ Before committing code, verify:
 - [ ] Above the project model, corpus documents, skills and skill resources use one governed-item reference type
   and one decode witness type
 - [ ] The project model resolves each item's read location, report path, link base, frontmatter owner metadata,
-  governance identity and active facets once
+  governance identity and governed meta spec parts once
 - [ ] Logical identity stays separate from resolved symlink location for documents, skills and skill resources
   alike, and skill resource discovery remains lazy through the skill resource listing
 - [ ] Skill resources have no corpus governance under this decision; defer any resource governance identity and
-  governed resource facets to LORE-324.
+  governed resource meta spec parts until a resource governance decision is made.
 - [ ] The database provides one decode, per-file, analysis and link-target query family for governed Markdown items,
   with analyses depending on `item_governance(ref)` rather than the whole model
 - [ ] The rules engine runs one content-item check loop that decodes once, applies failed-layer policy, gates rules by
-  active governed facets and records ungoverned facets uniformly
+  governed meta spec parts and records ungoverned parts uniformly
 - [ ] Existing diagnostics, notes, ordering, exit codes and `inspect` shapes remain unchanged when no repository
   `skills` meta spec is present
 

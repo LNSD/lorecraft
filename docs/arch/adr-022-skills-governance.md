@@ -57,9 +57,9 @@ Repository schema findings identify the repository layer; built-in findings reta
 and wording wherever FR-013 requires compatibility.
 
 The floor schema enters as the first entry in a skill's applicable frontmatter schema tuple and is queried through
-the schema registry (`query_schema`). Each schema in the tuple is evaluated by one common locator, and missing-field
+the schema registry (`query_at(schema_ref, schema_query)`). Each schema in the tuple is evaluated by one common locator, and missing-field
 deduplication applies progressively across any earlier schemas in the tuple rather than through a skills-only
-branch. Frontmatter rules (including directory name matching) gate uniformly on `ByMetaSpec(FRONTMATTER)` whenever
+branch. Frontmatter rules (including directory name matching) gate uniformly on `WhenMetaSpec(FRONTMATTER)` whenever
 the tuple is non-empty.
 
 One declaration supplies the built-in field constraints, the representation exposed as the built-in schema,
@@ -188,7 +188,7 @@ It does not create a second matching algorithm or require a docs/skills/ directo
 - [ ] A detected contradiction names the faulty meta spec and fails check even when no skill exists
 - [ ] A reserved docs corpus is excluded and reported once, warning by default and promoted to error by `--error <selectors>`
 - [ ] Inspection reports the same governing layers the checker uses, with honest built-in provenance
-- [ ] The floor schema is queried via `query_schema` as the first entry in the skill's applicable frontmatter schema tuple
+- [ ] The floor schema is queried via `query_at(schema_ref, schema_query)` as the first entry in the skill's applicable frontmatter schema tuple
 - [ ] Missing-field deduplication operates progressively across earlier schemas in the applicable tuple
 
 ## References
