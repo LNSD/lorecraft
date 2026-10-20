@@ -1304,11 +1304,10 @@ class TestCheckCommand:
         ), 'the specification that cannot be used is a diagnostic at it, under its code'
         assert result.stderr == (
             'docs/__meta__/code.md: ungoverned for frontmatter, structure, outline, budget\n'
-            'docs/code/logging.md: skipped, governed by a structure file that failed to load: '
-            'docs/__meta__/code.spec.json\n'
+            'docs/code/logging.md: ungoverned for frontmatter, structure, outline, budget\n'
             'LC  1 error\n'
             'checked 2 subject(s): 1 error(s), 0 warning(s)\n'
-        ), 'the document it governs is listed as skipped, and the run is not clean'
+        ), 'the governed document is reported as a partial check, and the run is not clean'
 
     @pytest.mark.skipif(os.geteuid() == 0, reason='root ignores file permissions')
     def test_check_with_an_unreadable_document_reports_lc002_and_exits_one(self, workspace: Path) -> None:

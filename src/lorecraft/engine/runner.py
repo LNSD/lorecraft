@@ -46,12 +46,12 @@ just like an item's.
 """
 
 from collections.abc import Callable
-from typing import assert_never
+from typing import Protocol, assert_never
 
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.corpus import ReservedCorpusDirectory, ReservedCorpusDirectoryRef
 from lorecraft.project.database import Database, ItemText
-from lorecraft.project.item import ItemDescriptor, ItemRef, MetaSpecPart
+from lorecraft.project.item import ItemDescriptor, ItemRef, ItemType, MetaSpecPart
 from lorecraft.project.skill import OutsideSymlink, OutsideSymlinkRef
 from lorecraft.project.workspace.model import WorkspaceModel
 from lorecraft.rules.declaration import Rule
@@ -72,7 +72,18 @@ from lorecraft.rules.subject import (
 from lorecraft.rules.table import EnabledRule, QueriedItem, RuleTable
 
 
-def judge_item(database: Database, source: ItemText, table: RuleTable) -> CheckedItem:
+class ItemRuleLookup(Protocol):
+    """The item-rule lookup the shared judge needs from a run's rule table."""
+
+    def item_rules(self, item_type: ItemType, part: MetaSpecPart | None) -> tuple[EnabledRule[QueriedItem], ...]:
+        """Each enabled rule for an item type and optional meta-spec part."""
+
+
+def judge_item(
+    database: Database,
+    source: ItemText,
+    table: ItemRuleLookup,
+) -> CheckedItem:
     """Run enabled rules over a decoded document, meta spec, skill or resource.
 
     A mode decodes the item and decides what a layer that failed to load means for it; this judges it against the

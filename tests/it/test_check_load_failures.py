@@ -1,8 +1,8 @@
 """`lorecraft check` over a workspace that partly fails to load: each failure reported where it is, the rest checked.
 
-A meta spec that cannot be used is an error diagnostic at its structure file, under a code of its own, and every
-document it governs is listed in coverage as skipped, never reported as clean; every document it does not govern is
-checked as if nothing had failed. Each test writes a small workspace of two corpora, `code` and `feat`, with one
+A meta spec that cannot be used is an error diagnostic at its structure file, under a code of its own, and the
+meta-spec parts it would govern are reported as partial coverage while package and schema checks continue. Each test
+writes a small workspace of two corpora, `code` and `feat`, with one
 namespace meta spec in `code`, breaks one structure file, and runs the command through Typer's `CliRunner`.
 
 Failures the operating system refuses are not here: a refusal while the snapshot is taken stops the run, so a check
@@ -268,7 +268,9 @@ class TestCheckWithAFailedMetaSpec:
         assert _severities_at(document, 'docs/feat/check.md') == ['error'], 'it is reported as an error'
         assert exit_code == 1, 'the run fails with the status for findings'
 
-    def test_check_with_a_failed_namespace_spec_lists_each_document_it_governs_as_skipped(self, tmp_path: Path) -> None:
+    def test_check_with_a_failed_namespace_spec_reports_partial_coverage_for_each_document_it_governs(
+        self, tmp_path: Path
+    ) -> None:
         #: Given
         root = _build_workspace(tmp_path, python_spec=STATES_NO_RULE, logging=LOGGING_WITHOUT_RULE)
 
@@ -279,10 +281,10 @@ class TestCheckWithAFailedMetaSpec:
         coverage = _coverage(document)
         assert coverage['docs/code/python-typing.md'] == {
             'path': 'docs/code/python-typing.md',
-            'ungoverned': [],
-            'skipped_by': [STRUCTURE_FILE_OF_PYTHON],
-        }, 'the document the namespace governs is skipped, naming the failed meta spec'
-        assert _codes_at(document, 'docs/code/python-typing.md') == [], 'no rule judged the skipped document'
+            'ungoverned': ['frontmatter', 'structure', 'outline', 'budget'],
+            'skipped_by': [],
+        }, 'the affected meta-spec parts are reported, while non-meta-spec rules can judge the item'
+        assert _codes_at(document, 'docs/code/python-typing.md') == [], 'the failed namespace gates are suppressed'
         assert coverage['docs/code/logging.md']['skipped_by'] == [], 'the other document is judged, not skipped'
         assert _codes_at(document, 'docs/code/logging.md') == ['OUT006'], (
             "the corpus's other documents are checked against the corpus meta spec"
@@ -294,7 +296,7 @@ class TestCheckWithAFailedMetaSpec:
         assert _severities_at(document, STRUCTURE_FILE_OF_PYTHON) == ['error'], 'it is reported as an error'
         assert exit_code == 1, 'the run fails with the status for findings'
 
-    def test_check_with_a_failed_corpus_spec_skips_every_document_of_the_corpus_though_its_namespaces_load(
+    def test_check_with_a_failed_corpus_spec_reports_partial_coverage_for_every_document_it_governs(
         self, tmp_path: Path
     ) -> None:
         #: Given
@@ -305,13 +307,17 @@ class TestCheckWithAFailedMetaSpec:
 
         #: Then
         coverage = _coverage(document)
-        assert coverage['docs/code/python-typing.md']['skipped_by'] == [STRUCTURE_FILE_OF_CODE], (
-            'the corpus meta spec governs each document, so a document its namespace also governs is skipped for it'
-        )
-        assert coverage['docs/code/logging.md']['skipped_by'] == [STRUCTURE_FILE_OF_CODE], 'the whole corpus is skipped'
-        assert _codes_at(document, 'docs/code/logging.md') == [], 'no rule judged a skipped document'
+        assert coverage['docs/code/python-typing.md']['ungoverned'] == [
+            'frontmatter',
+            'structure',
+            'outline',
+            'budget',
+        ], 'the failed corpus gates suppress meta-spec rules while package-level checks still run'
+        assert coverage['docs/code/logging.md']['ungoverned'] == ['frontmatter', 'structure', 'outline', 'budget']
+        assert coverage['docs/code/logging.md']['skipped_by'] == []
+        assert _codes_at(document, 'docs/code/logging.md') == [], 'the structure-gated findings are suppressed'
 
-    def test_check_with_two_failed_layers_names_both_for_the_document_they_govern(self, tmp_path: Path) -> None:
+    def test_check_with_two_failed_layers_reports_suppressed_parts_once(self, tmp_path: Path) -> None:
         #: Given
         root = _build_workspace(tmp_path, code_spec=STATES_NO_RULE, python_spec=STATES_NO_RULE)
 
@@ -319,10 +325,12 @@ class TestCheckWithAFailedMetaSpec:
         _exit_code, document = _check_json(root)
 
         #: Then
-        assert _coverage(document)['docs/code/python-typing.md']['skipped_by'] == [
-            STRUCTURE_FILE_OF_CODE,
-            STRUCTURE_FILE_OF_PYTHON,
-        ], 'each failed layer is named, corpus spec first'
+        assert _coverage(document)['docs/code/python-typing.md']['ungoverned'] == [
+            'frontmatter',
+            'structure',
+            'outline',
+            'budget',
+        ], 'each suppressed part appears once even when multiple layers failed'
 
     def test_check_with_a_failed_meta_spec_reports_each_failure_once_whatever_it_governs(self, tmp_path: Path) -> None:
         #: Given
@@ -338,7 +346,7 @@ class TestCheckWithAFailedMetaSpec:
         )
         assert _codes(engine) == ['LC003'], 'it is the failure the file has'
 
-    def test_check_with_a_failed_meta_spec_prints_each_skipped_document_in_the_coverage(self, tmp_path: Path) -> None:
+    def test_check_with_a_failed_meta_spec_prints_suppressed_parts_in_coverage(self, tmp_path: Path) -> None:
         #: Given
         root = _build_workspace(tmp_path, python_spec=STATES_NO_RULE)
         app = build_app()
@@ -353,10 +361,9 @@ class TestCheckWithAFailedMetaSpec:
             'the failure is one line at its structure file'
         )
         assert _has_finding(lines, 'docs/feat/check.md', 'error', 'OUT006'), 'the other findings are printed with it'
-        assert (
-            'docs/code/python-typing.md: skipped, governed by a structure file that failed to load: '
-            f'{STRUCTURE_FILE_OF_PYTHON}'
-        ) in result.stderr, 'the skipped document is listed in coverage with the file that caused it'
+        assert 'docs/code/python-typing.md: ungoverned for frontmatter, structure, outline, budget' in result.stderr, (
+            'the checked item lists the parts whose rules the failed layer suppressed'
+        )
         assert result.exit_code == 1, 'the run fails with the status for findings'
 
 
@@ -435,12 +442,8 @@ class TestCheckLeavesWhatAFailureDoesNotTouchAsItWas:
         assert _codes_at(document, 'docs/code/logging.md') == ['OUT006'], 'what no failure touches is still checked'
         assert _severities_at(document, 'docs/code/logging.md') == ['error'], 'it is reported as an error'
         coverage = _coverage(document)
-        assert coverage['docs/code/python-typing.md']['skipped_by'] == [STRUCTURE_FILE_OF_PYTHON], (
-            'the namespace spec failed, so the document it governs is skipped'
-        )
-        assert coverage['docs/feat/check.md']['skipped_by'] == [STRUCTURE_FILE_OF_FEAT], (
-            'the corpus spec failed, so the document it governs is skipped'
-        )
+        assert coverage['docs/code/python-typing.md']['ungoverned'] == ['frontmatter', 'structure', 'outline', 'budget']
+        assert coverage['docs/feat/check.md']['ungoverned'] == ['frontmatter', 'structure', 'outline', 'budget']
         assert exit_code == 1, 'no failure inside the declaration stops the run'
 
     def test_check_with_the_outline_group_selected_still_reports_a_load_failure(self, tmp_path: Path) -> None:

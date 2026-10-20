@@ -701,7 +701,7 @@ class TestCheckCommand:
         assert result.returncode == 1, result.stderr
         assert result.stdout == expected, 'the specification that cannot be used is a diagnostic at it'
 
-    def test_check_with_an_invalid_specification_lists_what_it_governs_as_skipped_on_stderr(
+    def test_check_with_an_invalid_specification_lists_what_it_governs_as_ungoverned_on_stderr(
         self, snapshot: SnapshotAssertion, invalid_spec_root: Path
     ) -> None:
         #: Given
@@ -713,7 +713,7 @@ class TestCheckCommand:
 
         #: Then
         assert result.returncode == 1, result.stderr
-        assert result.stderr == expected, 'the document it governs is skipped in coverage, never reported as clean'
+        assert result.stderr == expected, 'the partial check reports every suppressed meta-spec part in coverage'
 
 
 @pytest.mark.e2e

@@ -31,7 +31,6 @@ from lorecraft.rules.report import (
     RuleDiagnostic,
     RunReport,
     SkippedSubject,
-    SkipReason,
     UndecodableSubject,
 )
 from lorecraft.rules.subject import MetaSpecPart
@@ -679,26 +678,35 @@ class TestRenderJson:
 def _reports_of_a_failed_meta_spec() -> tuple[RunReport, ...]:
     """A run where the structure file of corpus `code` is malformed, handed over out of path order.
 
-    - `docs/code/b.md` and `docs/code/a.md` are skipped, since the corpus's structure file failed to load.
+    - `docs/code/b.md` and `docs/code/a.md` have their structure-gated rules suppressed, since the corpus's structure
+      file failed to load.
     - `docs/feat/check.md` is checked, ungoverned for its budget, and holds no diagnostic.
     - The structure file's failure is reported once, at the file, as a report of its own.
     """
     malformed = MalformedStructureFile(cause=FormatViolated(problems=('max_tokens: Extra inputs are not permitted',)))
     return (
-        SkippedSubject(ItemRef(_document('code', 'b').path), (_CODE_SPEC,), SkipReason.FAILED_STRUCTURE),
+        CheckedItem(
+            ItemRef(_document('code', 'b').path),
+            diagnostics=(),
+            ungoverned=(MetaSpecPart.STRUCTURE, MetaSpecPart.OUTLINE),
+        ),
         LoadFailureReport(_CODE_SPEC, malformed),
         CheckedItem(
             ItemRef(_document('feat', 'check').path),
             diagnostics=(),
             ungoverned=(MetaSpecPart.BUDGET,),
         ),
-        SkippedSubject(ItemRef(_document('code', 'a').path), (_CODE_SPEC,), SkipReason.FAILED_STRUCTURE),
+        CheckedItem(
+            ItemRef(_document('code', 'a').path),
+            diagnostics=(),
+            ungoverned=(MetaSpecPart.STRUCTURE, MetaSpecPart.OUTLINE),
+        ),
     )
 
 
 @pytest.mark.unit
 class TestRenderLoadFailures:
-    def test_render_coverage_with_skipped_subjects_names_each_failed_structure_file_in_path_order(self) -> None:
+    def test_render_coverage_with_failed_layer_lists_suppressed_parts_in_path_order(self) -> None:
         #: Given
         reports = _reports_of_a_failed_meta_spec()
 
@@ -707,35 +715,16 @@ class TestRenderLoadFailures:
 
         #: Then
         assert text == (
-            'docs/code/a.md: skipped, governed by a structure file that failed to load: '
-            'docs/__meta__/code.spec.json\n'
-            'docs/code/b.md: skipped, governed by a structure file that failed to load: '
-            'docs/__meta__/code.spec.json\n'
+            'docs/code/a.md: ungoverned for structure, outline\n'
+            'docs/code/b.md: ungoverned for structure, outline\n'
             'docs/feat/check.md: ungoverned for budget'
-        ), 'a skipped document is a coverage line beside the ungoverned ones, with the file that caused it'
-
-    def test_render_coverage_with_a_document_skipped_for_two_layers_names_both_files(self) -> None:
-        #: Given
-        both = (_CODE_SPEC, RootRelativePath.parse('docs/__meta__/code-python.spec.json'))
-        reports: tuple[RunReport, ...] = (
-            SkippedSubject(ItemRef(_document('code', 'python-typing').path), both, SkipReason.FAILED_STRUCTURE),
-        )
-
-        #: When
-        text = render_coverage(reports)
-
-        #: Then
-        assert text == (
-            'docs/code/python-typing.md: skipped, governed by a structure file that failed to load: '
-            'docs/__meta__/code.spec.json, docs/__meta__/code-python.spec.json'
-        ), 'each failed layer is named, corpus spec first'
+        ), 'suppressed parts are coverage lines beside ungoverned parts'
 
     def test_render_coverage_with_a_refused_docs_path_names_the_refusal(self) -> None:
         #: Given
         report = SkippedSubject(
             ItemRef(_document('skills', 'review').path),
             (RootRelativePath.parse('docs/__meta__/code.spec.json'),),
-            SkipReason.REFUSED_PATH,
         )
 
         #: When
@@ -755,7 +744,7 @@ class TestRenderLoadFailures:
 
         #: Then
         assert text == 'checked 3 subject(s): 1 error(s), 0 warning(s)', (
-            'the two skipped documents and the checked one are subjects; the failure is an error, not a subject'
+            'all three decoded documents are subjects; the failure is an error, not a subject'
         )
 
     def test_render_short_with_a_load_failure_prints_one_line_at_its_path(self) -> None:
@@ -768,7 +757,7 @@ class TestRenderLoadFailures:
         #: Then
         assert text == (
             'docs/__meta__/code.spec.json: error[LC003]: structure file does not follow the structure format'
-        ), 'the failure is one line at the structure file, and the skipped documents hold no diagnostic'
+        ), 'the failure is one line at the structure file'
 
     def test_render_prefix_summary_with_a_load_failure_counts_it_under_the_engine_group(self) -> None:
         #: Given
@@ -795,7 +784,7 @@ class TestRenderLoadFailures:
             '  = note: max_tokens: Extra inputs are not permitted'
         ), 'the failure is drawn like any diagnostic of a whole file, with each problem as a note after the help'
 
-    def test_render_json_with_skipped_subjects_lists_each_with_its_failed_structure_files(self) -> None:
+    def test_render_json_with_failed_layers_lists_suppressed_parts_in_coverage(self) -> None:
         #: Given
         reports = _reports_of_a_failed_meta_spec()
 
@@ -806,10 +795,10 @@ class TestRenderLoadFailures:
         document = json.loads(text)
         assert document['summary'] == {'subjects': 3, 'errors': 1, 'warnings': 0}, 'the failure is no subject'
         assert document['coverage'] == [
-            {'path': 'docs/code/a.md', 'ungoverned': [], 'skipped_by': ['docs/__meta__/code.spec.json']},
-            {'path': 'docs/code/b.md', 'ungoverned': [], 'skipped_by': ['docs/__meta__/code.spec.json']},
+            {'path': 'docs/code/a.md', 'ungoverned': ['structure', 'outline'], 'skipped_by': []},
+            {'path': 'docs/code/b.md', 'ungoverned': ['structure', 'outline'], 'skipped_by': []},
             {'path': 'docs/feat/check.md', 'ungoverned': ['budget'], 'skipped_by': []},
-        ], 'a skipped document names the files that caused it, and a judged one names none'
+        ], 'failed-layer-suppressed parts and ungoverned parts share the coverage field'
         assert document['diagnostics'] == [
             {
                 'path': 'docs/__meta__/code.spec.json',

@@ -21,8 +21,6 @@ from ..report import (
     EngineDiagnostic,
     LoadFailureReport,
     RuleDiagnostic,
-    SkippedSubject,
-    SkipReason,
     UndecodableSubject,
     diagnostic_order,
 )
@@ -297,21 +295,6 @@ class TestUndecodableSubject:
                 RootRelativePath.parse('.agents/skills/review/SKILL.md'), InvalidUtf8(failure=_failure(4))
             ),
         ), "a skill's one diagnostic is the engine's, at its SKILL.md, the file that did not decode"
-
-
-@pytest.mark.unit
-class TestSkippedSubject:
-    def test_diagnostics_of_a_skipped_subject_are_none(self) -> None:
-        #: Given
-        ref = ItemRef(RootRelativePath.parse('docs/code/a.md'))
-        structure_file = RootRelativePath.parse('docs/__meta__/code.spec.json')
-        subject = SkippedSubject(ref, (structure_file,), SkipReason.FAILED_STRUCTURE)
-
-        #: When
-        diagnostics = subject.diagnostics
-
-        #: Then
-        assert diagnostics == (), 'a skipped document is coverage; the failure is reported at its structure file'
 
 
 @pytest.mark.unit
