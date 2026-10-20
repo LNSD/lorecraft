@@ -1,0 +1,11 @@
+.agents/skills/alpha/SKILL.md: ungoverned for structure, outline, budget
+.agents/skills/beta/SKILL.md: ungoverned for structure, outline, budget
+.agents/skills/gamma/SKILL.md: ungoverned for structure, outline, budget
+.claude/skills/alpha/SKILL.md: ungoverned for structure, outline, budget
+.claude/skills/beta/SKILL.md: ungoverned for structure, outline, budget
+.claude/skills/gamma/SKILL.md: ungoverned for structure, outline, budget
+docs/__meta__/code-python.md: ungoverned for frontmatter, structure, outline, budget
+docs/__meta__/code.md: ungoverned for frontmatter, structure, outline, budget
+docs/code: not checked (symlink)
+FM  2 errors
+checked 8 subject(s): 2 error(s), 0 warning(s)

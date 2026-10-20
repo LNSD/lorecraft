@@ -1012,3 +1012,38 @@ class TestLinkedLayoutSnapshots:
         assert result.returncode == 2, result.stderr
         assert result.stdout == '', 'no model is drawn for a layout the snapshot could not read'
         assert result.stderr == expected, 'the error naming the linked directory matches the reviewed snapshot'
+
+
+@pytest.mark.e2e
+class TestUncheckedDocsSymlinks:
+    def test_check_ignores_a_top_level_symlink_that_is_not_a_corpus(self, tmp_path: Path) -> None:
+        root = tmp_path / 'workspace'
+        shutil.copytree(WORKSPACE_FIXTURE, root)
+        (root / 'docs' / 'README.md').symlink_to('code.md')
+
+        result = run_cli('check', '--root', str(root))
+
+        assert 'docs/README.md: not checked (symlink)' not in result.stderr
+
+    def test_check_reports_a_linked_corpus_as_coverage(self, tmp_path: Path, snapshot: SnapshotAssertion) -> None:
+        root = tmp_path / 'workspace'
+        shutil.copytree(WORKSPACE_FIXTURE, root)
+        shutil.rmtree(root / 'docs' / 'code')
+        (root / 'docs' / 'code').symlink_to(WORKSPACE_FIXTURE / 'docs' / 'code', target_is_directory=True)
+
+        result = run_cli('check', '--root', str(root))
+        expected = snapshot.use_extension(TextSnapshotExtension)
+
+        assert result.returncode == 1, result.stdout + result.stderr
+        assert result.stderr == expected, 'the linked corpus appears in coverage without a diagnostic'
+
+    def test_check_reports_a_linked_document_as_coverage(self, tmp_path: Path, snapshot: SnapshotAssertion) -> None:
+        root = tmp_path / 'workspace'
+        shutil.copytree(WORKSPACE_FIXTURE, root)
+        (root / 'docs' / 'code' / 'linked.md').symlink_to(root / 'docs' / 'code' / 'python-typing.md')
+
+        result = run_cli('check', '--root', str(root))
+        expected = snapshot.use_extension(TextSnapshotExtension)
+
+        assert result.returncode == 1, result.stdout + result.stderr
+        assert result.stderr == expected, 'the linked document appears in coverage without a diagnostic'

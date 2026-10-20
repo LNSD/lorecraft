@@ -86,12 +86,13 @@ class TestRepositoryListCorpusDirectories:
         (tmp_path / 'docs' / 'architecture.md').write_text('', encoding='utf-8')
 
         #: When
-        directories = repository.list_corpus_directories()
+        directories, dropped = repository.list_corpus_directories()
 
         #: Then
         assert directories == frozenset({PathComponent.parse('code'), PathComponent.parse('feat')}), (
             'directories are listed and a file directly under docs/ is dropped'
         )
+        assert dropped == (), 'ordinary docs files are not reported as symlinked corpora'
 
     def test_list_corpus_directories_with_a_symlinked_directory_leaves_it_out(
         self, tmp_path: Path, repository: Repository
@@ -101,12 +102,24 @@ class TestRepositoryListCorpusDirectories:
         (tmp_path / 'docs' / 'rules').symlink_to(tmp_path / 'docs' / 'code')
 
         #: When
-        directories = repository.list_corpus_directories()
+        directories, dropped = repository.list_corpus_directories()
 
         #: Then
         assert directories == frozenset({PathComponent.parse('code')}), (
             'a symlinked directory is no corpus, whatever it leads to'
         )
+        assert dropped == (RootRelativePath.parse('docs/rules'),), 'the valid corpus name is retained as coverage'
+
+    def test_list_corpus_directories_with_a_non_corpus_symlink_drops_it(
+        self, tmp_path: Path, repository: Repository
+    ) -> None:
+        (tmp_path / 'docs').mkdir()
+        (tmp_path / 'docs' / 'README.md').symlink_to('code.md')
+
+        directories, dropped = repository.list_corpus_directories()
+
+        assert directories == frozenset()
+        assert dropped == (), 'a Markdown filename does not name a corpus directory'
 
     def test_list_corpus_directories_with_no_docs_directory_returns_empty(
         self, tmp_path: Path, repository: Repository
@@ -116,11 +129,12 @@ class TestRepositoryListCorpusDirectories:
         missing_docs = tmp_path / 'docs'
 
         #: When
-        directories = repository.list_corpus_directories()
+        directories, dropped = repository.list_corpus_directories()
 
         #: Then
         assert not missing_docs.exists(), 'the case turns on docs/ being absent'
         assert directories == frozenset(), 'a root without docs/ has no corpora rather than failing'
+        assert dropped == ()
 
     @pytest.mark.skipif(os.geteuid() == 0, reason='root ignores directory permissions')
     def test_list_corpus_directories_with_an_unreadable_docs_raises_list_dir_error(
@@ -147,12 +161,13 @@ class TestRepositoryListDocuments:
         corpus = CorpusName.parse('code')
 
         #: When
-        documents = repository.list_documents(corpus)
+        documents, dropped = repository.list_documents(corpus)
 
         #: Then
         assert documents == (DocumentFile(RootRelativePath.parse('docs/code/logging.md'), 'logging'),), (
             'a subdirectory inside a corpus is not a document and is not descended into'
         )
+        assert dropped == ()
 
     def test_list_documents_with_a_txt_file_ignores_it(self, code_dir: Path, repository: Repository) -> None:
         #: Given
@@ -161,12 +176,13 @@ class TestRepositoryListDocuments:
         corpus = CorpusName.parse('code')
 
         #: When
-        documents = repository.list_documents(corpus)
+        documents, dropped = repository.list_documents(corpus)
 
         #: Then
         assert documents == (DocumentFile(RootRelativePath.parse('docs/code/logging.md'), 'logging'),), (
             'only .md entries are documents'
         )
+        assert dropped == ()
 
     def test_list_documents_with_a_symlinked_document_leaves_it_out(
         self, code_dir: Path, repository: Repository
@@ -177,12 +193,13 @@ class TestRepositoryListDocuments:
         corpus = CorpusName.parse('code')
 
         #: When
-        documents = repository.list_documents(corpus)
+        documents, dropped = repository.list_documents(corpus)
 
         #: Then
         assert documents == (DocumentFile(RootRelativePath.parse('docs/code/logging.md'), 'logging'),), (
             'a symlinked .md is no document, whatever it leads to'
         )
+        assert dropped == (RootRelativePath.parse('docs/code/alias.md'),)
 
     def test_list_documents_with_a_readme_returns_its_stem_unvalidated(
         self, code_dir: Path, repository: Repository
@@ -192,12 +209,13 @@ class TestRepositoryListDocuments:
         corpus = CorpusName.parse('code')
 
         #: When
-        documents = repository.list_documents(corpus)
+        documents, dropped = repository.list_documents(corpus)
 
         #: Then
         assert documents == (DocumentFile(RootRelativePath.parse('docs/code/README.md'), 'README'),), (
             'the stem is listed as spelled; whether it is a valid name is decided above the repository'
         )
+        assert dropped == ()
 
     def test_list_documents_with_a_missing_corpus_directory_returns_empty(
         self, tmp_path: Path, repository: Repository
@@ -207,10 +225,11 @@ class TestRepositoryListDocuments:
         corpus = CorpusName.parse('feat')
 
         #: When
-        documents = repository.list_documents(corpus)
+        documents, dropped = repository.list_documents(corpus)
 
         #: Then
         assert documents == (), 'a missing corpus directory lists as nothing rather than failing'
+        assert dropped == ()
 
     @pytest.mark.skipif(os.geteuid() == 0, reason='root ignores directory permissions')
     def test_list_documents_with_an_unreadable_corpus_directory_raises_corpus_list_error(

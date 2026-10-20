@@ -114,7 +114,7 @@ error[OUT006]: missing required section `Checklist`
   = help: The items a reviewer verifies before committing a change the rule document governs.
 ```
 
-On stderr, `text` prints coverage, counts per code prefix and `checked N subject(s): ...` (including unreadable specs). Refused paths appear in skipped coverage.
+On stderr, `text` prints coverage, counts per code prefix and `checked N subject(s): ...` (including unreadable specs). Refused paths appear in skipped coverage. Symlinked corpora and `.md` entries appear as `path: not checked (symlink)`; links are not followed, diagnosed or counted.
 One subject, two errors:
 
 ```text
@@ -131,10 +131,10 @@ labels, help and notes; `text` order and exit status are retained. Stderr has co
 docs/code/logging.md:1: error[OUT006]: missing required section `Checklist`
 ```
 
-In `json`, stdout is one compact line; stderr holds selection warnings. In text order, `diagnostics` lists `path`, nullable `line`, `severity`, `code`, `name`, `message`, `labels` and `children`. `summary` counts subjects/errors/warnings; load failures are errors, not subjects. `coverage` lists `path`, ungoverned parts and refused paths in `skipped_by`:
+In `json`, stdout is one compact line; stderr holds selection warnings. In text order, `diagnostics` lists `path`, nullable `line`, `severity`, `code`, `name`, `message`, `labels` and `children`. `summary` counts subjects/errors/warnings; load failures are errors, not subjects. `coverage` lists `path`, ungoverned parts and refused paths in `skipped_by`; unchecked links add `unchecked: true`:
 
 ```json
-{"diagnostics":[{"path":"docs/notes/broken.md","line":4,"severity":"error","code":"LC001","name":"invalid-utf8","message":"file is not valid UTF-8","labels":[{"path":"docs/notes/broken.md","line":4,"text":"0xE9 at byte offset 31 starts a character the next byte does not continue"}],"children":[{"kind":"help","text":"save the file as UTF-8","path":null,"line":null}]}],"summary":{"subjects":3,"errors":1,"warnings":0},"coverage":[{"path":"docs/notes/todo.md","ungoverned":["outline","budget"],"skipped_by":[]}]}
+{"diagnostics":[],"summary":{"subjects":0,"errors":0,"warnings":0},"coverage":[{"path":"docs/code/linked.md","ungoverned":[],"skipped_by":[],"unchecked":true}]}
 ```
 
 JSON paths must be UTF-8; non-ASCII text is direct, not escaped.
