@@ -52,9 +52,10 @@ was discovered:
 - **Logical reference and report path:** the root-relative path reported in diagnostics and coverage (`FR-010`,
   `NFR-001`).
 - **Resolved file location:** the snapshot path that decoding reads ([adr-003](adr-003-project-model.md)).
-- **Link base:** the directory from which relative Markdown links resolve and climb bounds are checked—the document's
-  own directory for a corpus document, and the skill root for both a skill's `SKILL.md` and any resource inside that
-  skill ([adr-011](adr-011-rules-engine.md)).
+- **Link resolution base and climb bound:** relative Markdown links resolve from the document's own directory for a
+  corpus document or meta spec, and from the skill root for a skill's `SKILL.md` or resource. The climb bound is the
+  repository root for documents and meta specs, and the skill root for skills and resources; crossing it is the
+  `LINK004` condition described by [adr-010](adr-010-diagnostics.md) ([adr-011](adr-011-rules-engine.md)).
 - **Frontmatter owner metadata:** the expected `name` value, whether it comes from a document stem or a listed skill
   directory, any resolved symlink target needed for diagnostic notes, and the governing schema provenance required to
   preserve existing frontmatter findings (`FR-013`).
@@ -108,10 +109,19 @@ The database and rules engine consume the common reference and descriptor unifor
   checks), gates enabled rules by declared gates and governed parts, and produces one checked content report carrying
   diagnostics and ungoverned parts (`FR-005`, `FR-010`, `FR-018`).
 
+### Refused Reads and Unchecked Documentation Symlinks
+
+- **One refused-read report shape:** when a read of any Markdown item is refused, the engine reports
+  `SkippedSubject(REFUSED_PATH)`. The command line renders that result; refused documents and meta specs continue to
+  produce the `LC002` diagnostic users receive today.
+- **An unchecked symlink under `docs/` is coverage:** until corpus-directory symlinks are followed, a symlinked
+  corpus directory or document that is not checked is visible in coverage. It is not a diagnostic and does not add
+  a separate engine condition.
+
 ### Diagnostic and Inspection Compatibility
 
-Unifying the internal pipeline changes no user-visible contract outside what [prd-020](prd-020-skills-corpus.md)
-requires:
+The pipeline preserves the existing user-visible contract outside what [prd-020](prd-020-skills-corpus.md) requires,
+except for the link-bound diagnostic and unchecked-symlink coverage decisions above:
 
 - With no repository `skills` meta spec and the built-in schema enabled, skills and resources produce the
   exact diagnostics, notes, severity and sort order they produce today (`FR-013`).
@@ -163,8 +173,15 @@ Before committing code, verify:
   with analyses depending on `item_governance(ref)` rather than the whole model
 - [ ] The rules engine runs one content-item check loop that decodes once, applies failed-layer policy, gates rules by
   governed meta spec parts and records ungoverned parts uniformly
-- [ ] Existing diagnostics, notes, ordering, exit codes and `inspect` shapes remain unchanged when no repository
-  `skills` meta spec is present
+- [ ] Relative links resolve from each item's declared resolution base and are checked against the repository-root
+  bound for documents and meta specs or the skill-root bound for skills and resources
+- [ ] A refused read of any governed Markdown item is represented in the engine as `SkippedSubject(REFUSED_PATH)`,
+  and the CLI retains `LC002` rendering for refused documents and meta specs
+- [ ] An unchecked symlink under `docs/` appears in coverage rather than as a diagnostic or a separate engine
+  condition until corpus-directory symlinks are followed
+- [ ] With no repository `skills` meta spec, the unified pipeline preserves existing diagnostics, notes, ordering,
+  exit codes and `inspect` shapes, except for the link-bound diagnostics and unchecked-symlink coverage specified
+  above
 
 ## References
 
@@ -172,6 +189,7 @@ Before committing code, verify:
   through `FR-011`, `FR-013`, `FR-014`, `FR-018`, `NFR-001`) that unified governed-item handling serves
 - [adr-003](adr-003-project-model.md) - Supersedes in part: Origin-specific reference representation;
   declared scope and identity-versus-location separation remain in force
+- [adr-010](adr-010-diagnostics.md) - Related: One diagnostic condition for link-bound escapes
 - [adr-011](adr-011-rules-engine.md) - Supersedes in part: Per-kind content references, decode witnesses and
   runner loops; lazy queries and levels after detection remain in force
 - [adr-015](adr-015-database.md) - Supersedes in part: Per-kind decode, analysis and link-target query
