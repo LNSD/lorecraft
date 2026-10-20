@@ -21,7 +21,7 @@ once in `lorecraft.project.layout` and read from there by every other module.
 
 ## Belongs Here
 
-- The project model and loader built from listings and meta specs, including reserved `meta` and `skills` corpora.
+- The project model and loader built from listings and meta specs, including reserved corpora.
 - A repository that lists entries, reads text through a view, and decides what an entry is.
 - Decoding meta specs into rules proved usable at build time.
 - The parse tree, token count and line count: pure functions of document text. The tree derives from the values

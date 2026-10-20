@@ -41,6 +41,7 @@ from lorecraft.project.item import (
     DocumentOrigin,
     ItemDescriptor,
     ItemRef,
+    ItemType,
     MetaSpecOrigin,
     MetaSpecPart,
     SkillEntrypointOrigin,
@@ -65,8 +66,7 @@ from lorecraft.project.skill import (
     SkillResourceRef,
     SkillsDir,
 )
-from lorecraft.schemas import SchemaInput, SchemaKind, SchemaRef
-from lorecraft.schemas.builtin import AGENT_SKILLS_SCHEMA_REFERENCE
+from lorecraft.schemas import BundledOrigin, SchemaInput, SchemaKind, SchemaRef
 from lorecraft.vfs import ResolvedPath
 
 from .failure import FailedStructure, LoadFailure
@@ -227,6 +227,28 @@ class NamespaceSpec:
 
 
 type Spec = CorpusSpec | NamespaceSpec
+
+
+@dataclass(frozen=True, slots=True)
+class BuiltinMetaSpecLayer:
+    """A builtin source of schema inputs and governance parts for selected item kinds.
+
+    Attributes:
+        origin: Stable identity of the builtin layer.
+        applies_to: Item kinds the layer governs, independently of repository corpora.
+        schema_inputs: Immutable schemas the layer contributes to the workspace registry.
+        parts: Additional meta spec parts the layer states, such as a structure budget.
+    """
+
+    origin: BundledOrigin
+    applies_to: frozenset[ItemType]
+    schema_inputs: tuple[SchemaInput, ...]
+    parts: frozenset[MetaSpecPart] = frozenset()
+
+    @property
+    def schema_refs(self) -> tuple[SchemaRef, ...]:
+        """Schema identities in declaration order."""
+        return tuple(schema_input.reference for schema_input in self.schema_inputs)
 
 
 @dataclass(frozen=True, slots=True)
@@ -536,6 +558,7 @@ class WorkspaceModel:
     overlapping_directories: frozenset[ReservedCorpusDirectory] = frozenset()
     unchecked_symlinks: tuple[RootRelativePath, ...] = ()
     schema_inputs: FrozenMapping[SchemaRef, SchemaInput] = FrozenMapping({})
+    builtin_layers: tuple[BuiltinMetaSpecLayer, ...] = ()
 
     def __post_init__(self) -> None:
         """Keep a key from naming something other than its value, which the lookups read the key alone to answer.
@@ -768,6 +791,19 @@ class WorkspaceModel:
             return None
         return self.meta_corpus.governance(ref.name)
 
+    def builtin_layers_for(self, item_type: ItemType) -> tuple[BuiltinMetaSpecLayer, ...]:
+        """Builtin layers applicable to an item kind, in registration order."""
+        return tuple(layer for layer in self.builtin_layers if item_type in layer.applies_to)
+
+    def _builtin_frontmatter_refs(self, item_type: ItemType) -> tuple[SchemaRef, ...]:
+        """Frontmatter schemas contributed by builtin layers, in registration order."""
+        return tuple(
+            reference
+            for layer in self.builtin_layers_for(item_type)
+            for reference in layer.schema_refs
+            if reference.kind is SchemaKind.FRONTMATTER
+        )
+
     def find_item(self, ref: ItemRef) -> ResolvedItem | None:
         """The descriptor of the document or skill the model lists at this reference, or None.
 
@@ -824,10 +860,14 @@ class WorkspaceModel:
 
     @staticmethod
     def _governed_parts(
-        governance: Governance | None, schema_refs: tuple[SchemaRef, ...] = ()
+        governance: Governance | None,
+        schema_refs: tuple[SchemaRef, ...] = (),
+        builtin_layers: tuple[BuiltinMetaSpecLayer, ...] = (),
     ) -> frozenset[MetaSpecPart]:
         """The meta spec parts named by loaded layers and the item's applicable schema inputs."""
         parts: set[MetaSpecPart] = set()
+        for layer in builtin_layers:
+            parts.update(layer.parts)
         if any(reference.kind is SchemaKind.FRONTMATTER for reference in schema_refs):
             parts.add(MetaSpecPart.FRONTMATTER)
         if governance is not None and governance.corpus_structure() is not None:
@@ -853,6 +893,7 @@ class WorkspaceModel:
         corpus: CorpusName | None,
         governance: Governance | None,
         frontmatter_schema_refs: tuple[SchemaRef, ...],
+        builtin_layers: tuple[BuiltinMetaSpecLayer, ...] = (),
     ) -> ResolvedItem:
         """Build every governed-item descriptor from its listing and governing inputs."""
         descriptor = ItemDescriptor(
@@ -864,7 +905,7 @@ class WorkspaceModel:
             listed_name=listed_name,
             corpus=corpus,
             frontmatter_schema_refs=frontmatter_schema_refs,
-            governed_parts=cls._governed_parts(governance, frontmatter_schema_refs),
+            governed_parts=cls._governed_parts(governance, frontmatter_schema_refs, builtin_layers),
         )
         return ResolvedItem(descriptor, governance)
 
@@ -894,9 +935,10 @@ class WorkspaceModel:
                 location = self.skill_locations[ref]
                 link_target = location.resolves_to if location.resolves_to != ref.directory else None
                 governance = self.skill_governance(ref)
-                schema_refs = (
-                    (AGENT_SKILLS_SCHEMA_REFERENCE,) if AGENT_SKILLS_SCHEMA_REFERENCE in self.schema_inputs else ()
-                ) + (governance.applicable_frontmatter_schema_refs() if governance is not None else ())
+                builtin_layers = self.builtin_layers_for(ItemType.SKILL_ENTRYPOINT)
+                schema_refs = self._builtin_frontmatter_refs(ItemType.SKILL_ENTRYPOINT) + (
+                    governance.applicable_frontmatter_schema_refs() if governance is not None else ()
+                )
                 return self._describe(
                     ref=ItemRef(ref.path),
                     read_location=location.file_resolves_to,
@@ -907,10 +949,14 @@ class WorkspaceModel:
                     corpus=CorpusName.parse(SKILLS_CORPUS_NAME) if governance is not None else None,
                     governance=governance,
                     frontmatter_schema_refs=schema_refs,
+                    builtin_layers=builtin_layers,
                 )
             case MetaSpecRef():
                 governance = self.meta_governance(ref)
-                schema_refs = governance.applicable_frontmatter_schema_refs() if governance is not None else ()
+                builtin_layers = self.builtin_layers_for(ItemType.META_SPEC)
+                schema_refs = self._builtin_frontmatter_refs(ItemType.META_SPEC) + (
+                    governance.applicable_frontmatter_schema_refs() if governance is not None else ()
+                )
                 return self._describe(
                     ref=ItemRef(ref.path),
                     read_location=ResolvedPath(ref.path),
@@ -921,6 +967,7 @@ class WorkspaceModel:
                     corpus=CorpusName.parse(META_CORPUS_NAME),
                     governance=governance,
                     frontmatter_schema_refs=schema_refs,
+                    builtin_layers=builtin_layers,
                 )
             case _:
                 assert_never(ref)
@@ -933,7 +980,10 @@ class WorkspaceModel:
             document: The validated corpus and filename the item path names.
         """
         governance = self.find_governance(document)
-        schema_refs = governance.applicable_frontmatter_schema_refs() if governance is not None else ()
+        builtin_layers = self.builtin_layers_for(ItemType.DOCUMENT)
+        schema_refs = self._builtin_frontmatter_refs(ItemType.DOCUMENT) + (
+            governance.applicable_frontmatter_schema_refs() if governance is not None else ()
+        )
         return self._describe(
             ref=item,
             read_location=ResolvedPath(document.path),
@@ -944,4 +994,5 @@ class WorkspaceModel:
             corpus=document.corpus,
             governance=governance,
             frontmatter_schema_refs=schema_refs,
+            builtin_layers=builtin_layers,
         )

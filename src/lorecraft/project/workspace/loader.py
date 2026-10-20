@@ -40,6 +40,7 @@ from lorecraft.project.aspect import (
 from lorecraft.project.corpus import META_CORPUS_NAME, SKILLS_CORPUS_NAME, CorpusName, ReservedCorpusDirectory
 from lorecraft.project.document import CorpusListError, MetaSpecRef
 from lorecraft.project.document import Repository as DocumentRepository
+from lorecraft.project.item import ItemType
 from lorecraft.project.layout import DOCS_DIR, SPECS_DIR
 from lorecraft.project.schemas import (
     CorpusSpecName,
@@ -70,8 +71,15 @@ from lorecraft.project.skill import (
     SkillsDirListError,
 )
 from lorecraft.project.skill import Repository as SkillRepository
-from lorecraft.schemas import RepositoryOrigin, SchemaInput, SchemaKind, SchemaRef
-from lorecraft.schemas.builtin import AGENT_SKILLS_SCHEMA_REFERENCE, register_builtin_schemas
+from lorecraft.schemas import (
+    BundledOrigin,
+    DuplicateSchemaRefError,
+    RepositoryOrigin,
+    SchemaInput,
+    SchemaKind,
+    SchemaRef,
+)
+from lorecraft.schemas.builtin import AGENT_SKILLS_SCHEMA_INPUT, AGENT_SKILLS_SCHEMA_REFERENCE
 from lorecraft.vfs import (
     DIR_LIST_FAILURES,
     ROOT_EXIT_WALK_FAILURES,
@@ -108,7 +116,7 @@ from .failure import (
     UnresolvableSkillFile,
     UnresolvableSkillsDirectory,
 )
-from .model import Corpus, CorpusNamespace, CorpusSpec, WorkspaceModel, namespace_order_key
+from .model import BuiltinMetaSpecLayer, Corpus, CorpusNamespace, CorpusSpec, WorkspaceModel, namespace_order_key
 
 
 @dataclass(slots=True)
@@ -161,8 +169,9 @@ def load_workspace(
     skills: SkillRepository,
     *,
     builtin_skills_schema: bool = True,
+    builtin_layers: tuple[BuiltinMetaSpecLayer, ...] = (),
 ) -> WorkspaceModel:
-    """Build the workspace model of the snapshot; it raises nothing for the declaration.
+    """Build the workspace model of the snapshot; invalid repository declarations are recorded, not raised.
 
     Parse the spec filenames, keep corpus specs whose docs/<corpus>/ is a directory, list the Markdown files
     directly inside each, build a structure specification from every spec that has one, and find the agents' skills
@@ -174,11 +183,30 @@ def load_workspace(
         documents: Repository the corpus directories and their Markdown files are listed from.
         skills: Repository the agents' skills directories are resolved and their skills listed from.
         builtin_skills_schema: Whether to pre-register the Agent Skills floor schema.
+        builtin_layers: Additional builtin layers registered before repository layers.
+
+    Raises:
+        DuplicateSchemaRefError: If builtin layers register the same schema reference, a caller programming error.
     """
     failures: list[LoadFailure] = []
     schema_inputs: dict[SchemaRef, SchemaInput] = {}
+    registered_layers = list(builtin_layers)
     if builtin_skills_schema:
-        register_builtin_schemas(schema_inputs)
+        origin = AGENT_SKILLS_SCHEMA_INPUT.origin
+        assert isinstance(origin, BundledOrigin), 'the pre-registered Agent Skills schema has a builtin origin'
+        registered_layers.insert(
+            0,
+            BuiltinMetaSpecLayer(
+                origin,
+                frozenset({ItemType.SKILL_ENTRYPOINT}),
+                (AGENT_SKILLS_SCHEMA_INPUT,),
+            ),
+        )
+    for layer in registered_layers:
+        for schema_input in layer.schema_inputs:
+            if schema_input.reference in schema_inputs:
+                raise DuplicateSchemaRefError(schema_input.reference)
+            schema_inputs[schema_input.reference] = schema_input
     spec_paths = _list_spec_paths(schemas, failures)
     corpus_directories, dropped_corpora = _list_corpus_directories(documents, failures)
     unchecked_symlinks: list[RootRelativePath] = list(dropped_corpora)
@@ -248,10 +276,16 @@ def load_workspace(
         overlapping_directories=frozenset(overlapping_directories),
         unchecked_symlinks=tuple(sorted(set(unchecked_symlinks), key=str)),
         schema_inputs=FrozenMapping(schema_inputs),
+        builtin_layers=tuple(registered_layers),
     )
 
 
-def load_model(fs: FileSystem, *, builtin_skills_schema: bool = True) -> WorkspaceModel:
+def load_model(
+    fs: FileSystem,
+    *,
+    builtin_skills_schema: bool = True,
+    builtin_layers: tuple[BuiltinMetaSpecLayer, ...] = (),
+) -> WorkspaceModel:
     """Wire one filesystem view into the three repositories and load the workspace model through them.
 
     The view decides where the model comes from: a view of the disk reads it as it is at each call,
@@ -261,11 +295,18 @@ def load_model(fs: FileSystem, *, builtin_skills_schema: bool = True) -> Workspa
     Args:
         fs: View of the repository the model is loaded from, rooted at the workspace root.
         builtin_skills_schema: Whether to pre-register the Agent Skills floor schema.
+        builtin_layers: Additional builtin layers registered before repository layers.
     """
     schemas = SchemaRepository(fs, SPECS_DIR)
     documents = DocumentRepository(fs)
     skills = SkillRepository(fs)
-    return load_workspace(schemas, documents, skills, builtin_skills_schema=builtin_skills_schema)
+    return load_workspace(
+        schemas,
+        documents,
+        skills,
+        builtin_skills_schema=builtin_skills_schema,
+        builtin_layers=builtin_layers,
+    )
 
 
 def _list_spec_paths(schemas: SchemaRepository, failures: list[LoadFailure]) -> list[RootRelativePath]:

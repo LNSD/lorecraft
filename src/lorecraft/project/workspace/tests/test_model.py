@@ -50,6 +50,7 @@ from lorecraft.vfs import ResolvedPath, RootExit
 
 from ..failure import FailedStructure
 from ..model import (
+    BuiltinMetaSpecLayer,
     Corpus,
     CorpusKeyMismatchError,
     CorpusNamespace,
@@ -989,6 +990,36 @@ class TestWorkspaceModel:
 
         #: Then
         assert MetaSpecPart.BUDGET in descriptor.governed_parts, 'a declared line cap governs the budget part'
+
+    def test_describe_item_applies_builtin_layer_before_repository_layers(
+        self, two_corpora_model: WorkspaceModel
+    ) -> None:
+        #: Given
+        origin = BundledOrigin('builtin:test-layer')
+        reference = SchemaRef(SchemaKind.STRUCTURE, origin.identity)
+        schema_input = SchemaInput(reference, origin, FrozenMapping.from_plain({'lines': 50}))
+        layer = BuiltinMetaSpecLayer(
+            origin,
+            frozenset({ItemType.DOCUMENT}),
+            (schema_input,),
+            frozenset({MetaSpecPart.BUDGET}),
+        )
+        model = replace(
+            two_corpora_model,
+            schema_inputs=FrozenMapping({**two_corpora_model.schema_inputs, reference: schema_input}),
+            builtin_layers=(layer,),
+        )
+
+        #: When
+        descriptor = model.describe_item(_ref('code', 'logging'))
+
+        #: Then
+        governance = model.find_governance(_ref('code', 'logging'))
+        assert model.builtin_layers_for(ItemType.DOCUMENT) == (layer,), 'the item kind selects its builtin layer'
+        assert governance is not None, 'the repository corpus governs the document'
+        assert governance.specs() == (model.corpora[CODE].corpus_spec,), 'repository governance remains available'
+        assert MetaSpecPart.BUDGET in descriptor.governed_parts, 'the builtin layer contributes its declared parts'
+        assert two_corpora_model.builtin_layers_for(ItemType.DOCUMENT) == (), 'layers can be omitted'
 
     def test_describe_item_for_a_layered_document_keeps_every_schema_in_order(self) -> None:
         #: Given
