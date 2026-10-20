@@ -2396,7 +2396,11 @@ class TestCheckSubjects:
                 diagnostics=(
                     RuleDiagnostic(
                         REVIEW_FILE,
-                        EscapingLink(line=LineNumber(NonZeroUnsignedInt(7)), url='../../docs/guide.md'),
+                        EscapingLink(
+                            line=LineNumber(NonZeroUnsignedInt(7)),
+                            url='../../docs/guide.md',
+                            base=SkillRoot(RootRelativePath.parse('.agents/skills/review')),
+                        ),
                         Severity.ERROR,
                     ),
                 ),
@@ -2406,11 +2410,21 @@ class TestCheckSubjects:
                 ItemRef(a.path),
                 diagnostics=(
                     RuleDiagnostic(
-                        a.path, EscapingLink(line=LineNumber(NonZeroUnsignedInt(1)), url='../a.md'), Severity.ERROR
+                        a.path,
+                        EscapingLink(
+                            line=LineNumber(NonZeroUnsignedInt(1)),
+                            url='../a.md',
+                            base=SkillRoot(RootRelativePath.parse('.agents/skills/review')),
+                        ),
+                        Severity.ERROR,
                     ),
                     RuleDiagnostic(
                         a.path,
-                        EscapingLink(line=LineNumber(NonZeroUnsignedInt(3)), url='../../flow.png'),
+                        EscapingLink(
+                            line=LineNumber(NonZeroUnsignedInt(3)),
+                            url='../../flow.png',
+                            base=SkillRoot(RootRelativePath.parse('.agents/skills/review')),
+                        ),
                         Severity.ERROR,
                     ),
                 ),
@@ -2420,7 +2434,11 @@ class TestCheckSubjects:
                 diagnostics=(
                     RuleDiagnostic(
                         guide.path,
-                        EscapingLink(line=LineNumber(NonZeroUnsignedInt(3)), url='../SKILL.md'),
+                        EscapingLink(
+                            line=LineNumber(NonZeroUnsignedInt(3)),
+                            url='../SKILL.md',
+                            base=SkillRoot(RootRelativePath.parse('.agents/skills/review')),
+                        ),
                         Severity.ERROR,
                     ),
                 ),
@@ -2454,7 +2472,11 @@ class TestCheckSubjects:
         reports = check_subjects(database, subjects, package_table)
 
         #: Then
-        occurrence = EscapingLink(line=LineNumber(NonZeroUnsignedInt(1)), url='../SKILL.md')
+        occurrence = EscapingLink(
+            line=LineNumber(NonZeroUnsignedInt(1)),
+            url='../SKILL.md',
+            base=SkillRoot(RootRelativePath.parse('.agents/skills/review')),
+        )
         resource_path = RootRelativePath.parse('.agents/skills/review/references/a.md')
         assert reports == (
             CheckedItem(
@@ -2475,7 +2497,11 @@ class TestCheckSubjects:
         reports = check_subjects(database, subjects, package_table)
 
         #: Then
-        occurrence = EscapingLink(line=LineNumber(NonZeroUnsignedInt(5)), url='../../skills/review/SKILL.md')
+        occurrence = EscapingLink(
+            line=LineNumber(NonZeroUnsignedInt(5)),
+            url='../../skills/review/SKILL.md',
+            base=SkillRoot(RootRelativePath.parse('.agents/skills/review')),
+        )
         assert reports == (
             CheckedItem(
                 ItemRef(REVIEW.path),

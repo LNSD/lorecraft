@@ -21,10 +21,10 @@ as Markdown renders it. In a skill, it is read from the skill root, whichever fi
 as the Agent Skills specification has it: a link in `references/guide.md` to `SKILL.md` is `SKILL.md`.
 
 A fragment or a query after the path is ignored, and a `..` cancels the directory written before it. A URL with
-a scheme, an absolute link and a fragment-only link name no relative path, so they are not reported. Neither is
-a link in a skill that climbs above the skill root, which `LINK004` reports, nor one in a document that climbs
-above the repository, nor one leading into a directory the checks do not read, such as `../src/main.py` from a
-document: whether it names something cannot be told.
+a scheme, an absolute link and a fragment-only link name no relative path, so they are not reported. A link that
+climbs past its bound (above the skill root in a skill, or above the repository root in a document or meta spec)
+is not a broken target; `LINK004` reports it. Neither is a link leading into a directory the checks do not read,
+such as `../src/main.py` from a document: whether it names something cannot be told.
 
 ## Why is this bad?
 

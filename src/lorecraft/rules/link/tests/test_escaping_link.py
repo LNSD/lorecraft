@@ -9,10 +9,10 @@ import pytest
 from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.core.path import RootRelativePath
-from lorecraft.project.link_target import EscapingTarget, LinkTarget, PathLookup
+from lorecraft.project.link_target import DocumentDirectory, EscapingTarget, LinkTarget, PathLookup, SkillRoot
 from lorecraft.project.syntax import LineNumber, NormalisedLinkPath
 from lorecraft.rules.location import Help, Note
-from lorecraft.rules.tests.fake_database import FakeSkillResourceDatabase, judged
+from lorecraft.rules.tests.fake_database import FakeDocumentMarkdownDatabase, FakeSkillResourceDatabase, judged
 
 from ..escaping_link import EscapingLink
 
@@ -39,6 +39,39 @@ def _inside(url: str, path: str) -> FrozenMapping[NormalisedLinkPath, LinkTarget
 
 @pytest.mark.unit
 class TestEscapingLink:
+    def test_check_with_a_meta_spec_link_climbing_above_the_repository_root_reports_it(self) -> None:
+        #: Given
+        path = '../../../outside.md'
+        base = DocumentDirectory(RootRelativePath.parse('docs/__meta__'))
+        subject = FakeDocumentMarkdownDatabase(
+            f'[outside]({path})\n', directory=base.directory, link_targets=_escaping(path)
+        )
+
+        #: When
+        occurrences = judged(EscapingLink, subject)
+
+        #: Then
+        assert occurrences == (EscapingLink(line=LineNumber(NonZeroUnsignedInt(1)), url=path, base=base),), (
+            'meta spec links use the repository-root bound like document links'
+        )
+
+    def test_check_with_a_document_link_climbing_above_the_repository_root_reports_it(self) -> None:
+        #: Given
+        path = '../../../outside.md'
+        subject = FakeDocumentMarkdownDatabase(f'[outside]({path})\n', link_targets=_escaping(path))
+
+        #: When
+        occurrences = judged(EscapingLink, subject)
+
+        #: Then
+        assert occurrences == (
+            EscapingLink(
+                line=LineNumber(NonZeroUnsignedInt(1)),
+                url=path,
+                base=DocumentDirectory(RootRelativePath.parse('docs/guide')),
+            ),
+        ), 'a document link may climb within the repository, but not above its root'
+
     def test_check_with_a_link_climbing_above_the_skill_root_reports_it_on_its_line(self) -> None:
         #: Given
         subject = FakeSkillResourceDatabase(
@@ -49,9 +82,13 @@ class TestEscapingLink:
         occurrences = judged(EscapingLink, subject)
 
         #: Then
-        assert occurrences == (EscapingLink(line=LineNumber(NonZeroUnsignedInt(3)), url='../SKILL.md'),), (
-            'a path read from the skill root that climbs above it is one occurrence, on the line of the link'
-        )
+        assert occurrences == (
+            EscapingLink(
+                line=LineNumber(NonZeroUnsignedInt(3)),
+                url='../SKILL.md',
+                base=SkillRoot(RootRelativePath.parse('.agents/skills/review')),
+            ),
+        ), 'a path read from the skill root that climbs above it is one occurrence, on the line of the link'
 
     def test_check_with_a_link_back_in_by_the_repository_path_reports_it(self) -> None:
         #: Given
@@ -64,7 +101,11 @@ class TestEscapingLink:
 
         #: Then
         assert occurrences == (
-            EscapingLink(line=LineNumber(NonZeroUnsignedInt(1)), url='../../skills/review/SKILL.md'),
+            EscapingLink(
+                line=LineNumber(NonZeroUnsignedInt(1)),
+                url='../../skills/review/SKILL.md',
+                base=SkillRoot(RootRelativePath.parse('.agents/skills/review')),
+            ),
         ), 'the path alone decides, so a link out and back in by where the skill lies in the repository escapes'
 
     def test_check_with_an_image_climbing_above_the_skill_root_reports_it(self) -> None:
@@ -75,9 +116,13 @@ class TestEscapingLink:
         occurrences = judged(EscapingLink, subject)
 
         #: Then
-        assert occurrences == (EscapingLink(line=LineNumber(NonZeroUnsignedInt(1)), url='../../flow.png'),), (
-            "an image's source is read from the skill root like a link's"
-        )
+        assert occurrences == (
+            EscapingLink(
+                line=LineNumber(NonZeroUnsignedInt(1)),
+                url='../../flow.png',
+                base=SkillRoot(RootRelativePath.parse('.agents/skills/review')),
+            ),
+        ), "an image's source is read from the skill root like a link's"
 
     def test_check_with_percent_encoded_dots_climbing_above_the_skill_root_reports_it(self) -> None:
         #: Given
@@ -87,9 +132,13 @@ class TestEscapingLink:
         occurrences = judged(EscapingLink, subject)
 
         #: Then
-        assert occurrences == (EscapingLink(line=LineNumber(NonZeroUnsignedInt(1)), url='%2E%2E/a%20b.md'),), (
-            'the path is percent-decoded before it is read, so encoded dots climb above the skill root as `..` does'
-        )
+        assert occurrences == (
+            EscapingLink(
+                line=LineNumber(NonZeroUnsignedInt(1)),
+                url='%2E%2E/a%20b.md',
+                base=SkillRoot(RootRelativePath.parse('.agents/skills/review')),
+            ),
+        ), 'the path is percent-decoded before it is read, so encoded dots climb above the skill root as `..` does'
 
     def test_check_with_a_link_climbing_and_coming_back_inside_reports_nothing(self) -> None:
         #: Given
@@ -149,7 +198,11 @@ class TestEscapingLink:
     def test_message_with_a_percent_encoded_destination_shows_it_decoded(self) -> None:
         #: Given
         # The destination of `[x](<../a b.md>)`, as the parser percent-encodes it.
-        occurrence = EscapingLink(line=LineNumber(NonZeroUnsignedInt(1)), url='../a%20b.md')
+        occurrence = EscapingLink(
+            line=LineNumber(NonZeroUnsignedInt(1)),
+            url='../a%20b.md',
+            base=SkillRoot(RootRelativePath.parse('.agents/skills/review')),
+        )
 
         #: When
         message = occurrence.message()
@@ -159,9 +212,29 @@ class TestEscapingLink:
             'the message shows the destination as the author wrote it'
         )
 
+    def test_message_with_a_document_base_names_the_repository_root(self) -> None:
+        #: Given
+        occurrence = EscapingLink(
+            line=LineNumber(NonZeroUnsignedInt(1)),
+            url='../../../outside.md',
+            base=DocumentDirectory(RootRelativePath.parse('docs/guide')),
+        )
+
+        #: When
+        message = occurrence.message()
+
+        #: Then
+        assert message == '`../../../outside.md` leaves the repository root', (
+            'the diagnostic names the bound of a document link base'
+        )
+
     def test_children_say_to_link_inside_the_skill_from_its_root(self) -> None:
         #: Given
-        occurrence = EscapingLink(line=LineNumber(NonZeroUnsignedInt(1)), url='../SKILL.md')
+        occurrence = EscapingLink(
+            line=LineNumber(NonZeroUnsignedInt(1)),
+            url='../SKILL.md',
+            base=SkillRoot(RootRelativePath.parse('.agents/skills/review')),
+        )
 
         #: When
         children = occurrence.children()
@@ -171,3 +244,19 @@ class TestEscapingLink:
             Note("the Agent Skills specification reads a skill's relative links from the skill root"),
             Help('link a file inside the skill, relative to the skill root'),
         ), 'the specification note comes first, then a help saying to name a file by its path from the skill root'
+
+    def test_children_with_a_document_base_give_help_without_a_skill_note(self) -> None:
+        #: Given
+        occurrence = EscapingLink(
+            line=LineNumber(NonZeroUnsignedInt(1)),
+            url='../../../outside.md',
+            base=DocumentDirectory(RootRelativePath.parse('docs/guide')),
+        )
+
+        #: When
+        children = occurrence.children()
+
+        #: Then
+        assert children == (Help('link a file inside the repository'),), (
+            'documents use repository guidance and do not receive the Agent Skills note'
+        )

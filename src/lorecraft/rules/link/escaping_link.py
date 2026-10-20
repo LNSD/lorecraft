@@ -1,4 +1,4 @@
-"""`LINK004`: a relative link in a skill's file climbs above the skill root."""
+"""`LINK004`: a relative link climbs above the bound of its link base."""
 
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -7,7 +7,7 @@ from typing import ClassVar, Self, assert_never
 from urllib.parse import unquote
 
 from lorecraft.project.item import ItemType
-from lorecraft.project.link_target import EscapingTarget, LinkTarget
+from lorecraft.project.link_target import DocumentDirectory, EscapingTarget, LinkBase, LinkTarget, SkillRoot
 from lorecraft.project.query import ItemQuery, item_parse
 from lorecraft.project.syntax import (
     AbsoluteDestination,
@@ -24,18 +24,21 @@ from lorecraft.rules.subject import Always, Gate, QueriedItemRule
 from .__ruleset__ import GROUP_ID, SKILL_NOTE, SyntaxLinkResolutionPrimitives
 
 
-def escaping_links(primitives: SyntaxLinkResolutionPrimitives) -> tuple[Link, ...]:
-    """The relative links of a skill's file whose path climbs above the skill root, in file order.
+def escaping_links(primitives: SyntaxLinkResolutionPrimitives) -> tuple[tuple[Link, LinkBase], ...]:
+    """The relative links whose path climbs above the bound of their link base, in file order.
 
     A query: it reads the item's links and their targets and nothing else.
 
     Args:
-        primitives: The model state of the skill's file.
+        primitives: The model state of a Markdown item's file and link base.
     """
+    base = primitives.link_base()
+    if base is None:
+        return ()
     targets = primitives.link_targets()
-    escaping: list[Link] = []
+    escaping: list[tuple[Link, LinkBase]] = []
     for link in primitives.query(item_parse).links:
-        # The link target decides whether the path climbs past the skill root.
+        # The link target records whether the path climbs past this item's link-base bound.
         destination = link.to_destination()
         match destination:
             case RelativeDestination():
@@ -47,8 +50,8 @@ def escaping_links(primitives: SyntaxLinkResolutionPrimitives) -> tuple[Link, ..
                 assert_never(destination)
         match entry:
             case EscapingTarget():
-                escaping.append(link)
-            # An entry inside the skill, or none.
+                escaping.append((link, base))
+            # A target inside the link base's bound, or none.
             case LinkTarget() | None:
                 continue
             case _:
@@ -58,88 +61,92 @@ def escaping_links(primitives: SyntaxLinkResolutionPrimitives) -> tuple[Link, ..
 
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
-class EscapingLink(QueriedItemRule[tuple[Link, ...]]):
-    """A relative link in a skill's file climbs above the skill root.
+class EscapingLink(QueriedItemRule[tuple[tuple[Link, LinkBase], ...]]):
+    """A relative link climbs above the bound of its link base.
 
     ## What it does
 
-    Checks for relative links and images in a skill's `SKILL.md` and in each Markdown file inside the skill whose
-    path, read from the skill root, leads above it. The Agent Skills specification has every file of a skill name
-    another by its path from the skill root, wherever the file lies: in `references/guide.md`, `SKILL.md` names the
-    skill's own `SKILL.md`, and `../SKILL.md` leads out of the skill. No meta spec key states the rule: every
-    skill is held to it.
+    Checks relative links and images in documents, meta specs and skills. Documents and meta specs read links from
+    their own directory and may climb within the repository, but not above its root. Skills and resources read links
+    from the skill root and may not climb above that root.
 
-    The path alone decides, never where the skill lies in the repository: `../../skills/review/SKILL.md` leaves the
-    skill even when it leads back into it. A path that climbs and comes back down inside the skill, such as
-    `references/../SKILL.md`, stays inside. A URL with a scheme, an absolute link and a link to a heading of the same
-    file spell no relative path, so none of them is reported. A document is never judged: its links are read from
-    its own directory, and may climb out of it.
+    A path that climbs and comes back down inside its bound stays inside. A URL with a scheme, an absolute link, or
+    a fragment-only link spells no relative path, so none is reported.
 
     ## Why is this bad?
 
-    A skill is installed on its own, wherever an agent keeps its skills, and carries only its own files. A link
-    above the skill root points at a file the installed skill does not carry, so an agent that follows it reads
-    nothing, or a file that happens to lie there.
+    A link above its base's bound names a path the project cannot reliably provide. Skills may be installed
+    independently; documents and meta specs cannot name paths outside the repository snapshot.
 
     ## Example
 
-    `.agents/skills/review/references/checklist.md`:
+    `docs/guide/setup.md`:
 
     ```markdown
     # Checklist
 
-    Start from [the review steps](../SKILL.md).
+    Start from [the repository file](../../../outside.md).
     ```
 
     ## Use instead
 
-    Name the file by its path from the skill root:
+    Keep the link within its base's bound:
 
     ```markdown
     # Checklist
 
-    Start from [the review steps](SKILL.md).
+    Start from [the repository file](../code/guide.md).
     ```
 
     Attributes:
-        spec: Always `None`: the package states the rule, after the Agent Skills specification.
+        spec: Always `None`: the package states the rule.
         url: The link's destination as the Markdown parser encodes it, which the message shows percent-decoded.
+        base: The link base defining the bound the destination climbs above.
     """
 
     CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 4)
     NAME: ClassVar[RuleName] = RuleName('escaping-link')
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('0.3.0')
-    APPLIES_TO: ClassVar[Mapping[ItemType, Gate]] = MappingProxyType(
-        {
-            ItemType.SKILL_ENTRYPOINT: Always(),
-            ItemType.SKILL_RESOURCE: Always(),
-        }
-    )
+    APPLIES_TO: ClassVar[Mapping[ItemType, Gate]] = MappingProxyType({item_type: Always() for item_type in ItemType})
 
     spec: None = None
     url: str
+    base: LinkBase
 
     def message(self) -> str:
-        """Name the destination, percent-decoded as the author wrote it."""
+        """Name the destination and the bound it leaves, percent-decoded as the author wrote it."""
         # The parser percent-encodes a destination, so `[x](<../a b>)` arrives as `../a%20b`; the message shows
         # `../a b`.
-        return f'`{unquote(self.url)}` leaves the skill root'
+        match self.base:
+            case SkillRoot():
+                bound = 'skill root'
+            case DocumentDirectory():
+                bound = 'repository root'
+            case _:
+                assert_never(self.base)
+        return f'`{unquote(self.url)}` leaves the {bound}'
 
     def children(self) -> tuple[Subdiagnostic, ...]:
-        """Point at the meta spec that reads the link from the skill root, then say how to name the file."""
-        return (SKILL_NOTE, Help('link a file inside the skill, relative to the skill root'))
+        """Point at the governing link base, then say how to name the file."""
+        match self.base:
+            case SkillRoot():
+                return (SKILL_NOTE, Help('link a file inside the skill, relative to the skill root'))
+            case DocumentDirectory():
+                return (Help('link a file inside the repository'),)
+            case _:
+                assert_never(self.base)
 
     @classmethod
-    def query(cls) -> ItemQuery[tuple[Link, ...]]:
-        """The relative links whose path climbs above the skill root."""
+    def query(cls) -> ItemQuery[tuple[tuple[Link, LinkBase], ...]]:
+        """The relative links whose path climbs above the bound of their link base."""
         return escaping_links
 
     @classmethod
-    def judge(cls, facts: tuple[Link, ...], /) -> tuple[Self, ...]:
-        """One occurrence for each relative link whose path climbs above the skill root, on its line, in file order.
+    def judge(cls, facts: tuple[tuple[Link, LinkBase], ...], /) -> tuple[Self, ...]:
+        """One occurrence for each relative link whose path climbs above its base's bound, on its line, in file order.
 
         Args:
-            facts: The escaping links of the skill's file.
+            facts: The escaping links and their link bases.
         """
-        return tuple(cls(line=link.line, url=link.url) for link in facts)
+        return tuple(cls(line=link.line, url=link.url, base=base) for link, base in facts)
