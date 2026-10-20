@@ -21,20 +21,21 @@ once in `lorecraft.project.layout` and read from there by every other module.
 
 ## Belongs Here
 
-- The project model and loader built from listings and meta specs, including the directory-less `skills` corpus.
-- A repository that lists entries or reads text through a view, and decides what an entry is.
+- The project model and loader built from listings and meta specs, including reserved `meta` and `skills` corpora.
+- A repository that lists entries, reads text through a view, and decides what an entry is.
 - Decoding meta specs into rules proved usable at build time.
 - The parse tree, token count and line count: pure functions of document text. The tree derives from the values
   `lorecraft.markdown` returns; `document` maps its line and link values into the project model and decodes raw
   frontmatter.
-- Shared queries over a document's raw syntax and governance primitives: frontmatter violations mapped to
+- Shared queries over an item's raw syntax and governance primitives: frontmatter violations mapped to
   project-owned problems on field lines, skill fields, and frontmatter ownership, or where sections first stop
   matching an outline. It finds facts
   several rules read; whether and how one is reported is a rule's.
 - A document's, a skill's or a skill resource's identity, kept apart from its content and from where its symlinks
   lead.
-- The common reference and model-resolved descriptor for documents and skills, including location, origin,
-  governance target and governed meta spec parts. The reserved `skills` corpus governs skills, but not resources.
+- The common reference and model-resolved descriptor for documents, meta specs and skills, including location, origin,
+  governance target and governed meta spec parts. The reserved `meta` corpus governs meta specs; `skills` governs
+  skills, but not resources.
 - Turning a Markdown link's destination into a root-relative path, from its document's directory or its skill's
   root, and what the snapshot holds there.
 - `lorecraft.project.query`: raw-state primitives and queries promoted for cross-group use. A promoted query gives

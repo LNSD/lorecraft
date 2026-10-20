@@ -919,7 +919,8 @@ class TestCheckCommand:
         assert result.stdout == expected, 'the unknown-field warning matches the reviewed snapshot'
         assert result.stderr == (
             '.agents/skills/review/SKILL.md: ungoverned for structure, outline, budget\n'
-            'FM  1 warning\nchecked 1 subject(s): 0 error(s), 1 warning(s)\n'
+            'docs/__meta__/code.md: ungoverned for frontmatter, structure, outline, budget\n'
+            'FM  1 warning\nchecked 2 subject(s): 0 error(s), 1 warning(s)\n'
         ), 'a warning is counted apart'
 
     def test_check_with_an_ungoverned_document_prints_its_coverage_on_stderr(self, tmp_path: Path) -> None:
@@ -1302,6 +1303,7 @@ class TestCheckCommand:
             '  = note: 5 is not valid under any of the given schemas\n'
         ), 'the specification that cannot be used is a diagnostic at it, under its code'
         assert result.stderr == (
+            'docs/__meta__/code.md: ungoverned for frontmatter, structure, outline, budget\n'
             'docs/code/logging.md: skipped, governed by a structure file that failed to load: '
             'docs/__meta__/code.spec.json\n'
             'LC  1 error\n'

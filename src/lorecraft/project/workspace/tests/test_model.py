@@ -44,11 +44,23 @@ from lorecraft.project.schemas import (
     spec_filename,
 )
 from lorecraft.project.skill import OutsideSymlink, SkillLocation, SkillRef, SkillsDir
-from lorecraft.schemas import RepositoryOrigin, SchemaInput, SchemaKind, SchemaRef
+from lorecraft.schemas import BundledOrigin, RepositoryOrigin, SchemaInput, SchemaKind, SchemaRef
 from lorecraft.vfs import ResolvedPath, RootExit
 
 from ..failure import FailedStructure
-from ..model import Corpus, CorpusNamespace, CorpusSpec, NamespaceSpec, WorkspaceModel, namespace_order_key
+from ..model import (
+    Corpus,
+    CorpusKeyMismatchError,
+    CorpusNamespace,
+    CorpusSpec,
+    MetaCorpusNameMismatchError,
+    NamespaceSpec,
+    OutsideSymlinkPathMismatchError,
+    SchemaInputReferenceMismatchError,
+    SkillLocationRefMismatchError,
+    WorkspaceModel,
+    namespace_order_key,
+)
 
 CODE: Final[CorpusName] = CorpusName.parse('code')
 FEAT: Final[CorpusName] = CorpusName.parse('feat')
@@ -768,7 +780,7 @@ def skills_model() -> WorkspaceModel:
 
 @pytest.mark.unit
 class TestWorkspaceModel:
-    def test_construction_with_a_corpus_under_another_corpus_name_raises_value_error(
+    def test_construction_with_a_corpus_under_another_corpus_name_raises_corpus_key_mismatch(
         self, two_corpora_model: WorkspaceModel
     ) -> None:
         #: Given
@@ -776,28 +788,41 @@ class TestWorkspaceModel:
         corpora = FrozenMapping({FEAT: code})
 
         #: When
-        with pytest.raises(ValueError) as exc_info:
+        with pytest.raises(CorpusKeyMismatchError) as exc_info:
             replace(two_corpora_model, corpora=corpora)
 
         #: Then
-        assert str(FEAT) in str(exc_info.value), 'the error names the key the corpus was filed under'
-        assert str(CODE) in str(exc_info.value), 'the error names the corpus the key holds'
+        assert exc_info.value.key == FEAT, 'the error retains the key the corpus was filed under'
+        assert exc_info.value.value == CODE, 'the error retains the corpus name the key holds'
 
-    def test_construction_with_a_skill_under_another_skill_ref_raises_value_error(
+    def test_construction_with_a_non_meta_corpus_in_the_meta_slot_raises_meta_corpus_name_mismatch(
+        self, two_corpora_model: WorkspaceModel
+    ) -> None:
+        #: Given
+        code = two_corpora_model.corpora[CODE]
+
+        #: When
+        with pytest.raises(MetaCorpusNameMismatchError) as exc_info:
+            replace(two_corpora_model, meta_corpus=code)
+
+        #: Then
+        assert exc_info.value.value == CODE, 'the error retains the name held in the reserved meta slot'
+
+    def test_construction_with_a_skill_under_another_skill_ref_raises_skill_location_ref_mismatch(
         self, skills_model: WorkspaceModel
     ) -> None:
         #: Given
         locations = FrozenMapping({REVIEW.ref: AUDIT})
 
         #: When
-        with pytest.raises(ValueError) as exc_info:
+        with pytest.raises(SkillLocationRefMismatchError) as exc_info:
             replace(skills_model, skill_locations=locations)
 
         #: Then
-        assert str(REVIEW.ref.directory) in str(exc_info.value), 'the error names the key the skill was filed under'
-        assert str(AUDIT.ref.directory) in str(exc_info.value), 'the error names the skill the key holds'
+        assert exc_info.value.key == REVIEW.ref, 'the error retains the key the skill was filed under'
+        assert exc_info.value.value == AUDIT.ref, 'the error retains the skill ref the key holds'
 
-    def test_construction_with_a_symlink_under_another_path_raises_value_error(
+    def test_construction_with_a_symlink_under_another_path_raises_outside_symlink_path_mismatch(
         self, skills_model: WorkspaceModel
     ) -> None:
         #: Given
@@ -807,12 +832,28 @@ class TestWorkspaceModel:
         outside_symlinks = FrozenMapping({other: outside})
 
         #: When
-        with pytest.raises(ValueError) as exc_info:
+        with pytest.raises(OutsideSymlinkPathMismatchError) as exc_info:
             replace(skills_model, outside_symlinks=outside_symlinks)
 
         #: Then
-        assert str(other) in str(exc_info.value), 'the error names the key the symlink was filed under'
-        assert str(entry) in str(exc_info.value), 'the error names the path the symlink is at'
+        assert exc_info.value.key == other, 'the error retains the key the symlink was filed under'
+        assert exc_info.value.value == entry, 'the error retains the path where the symlink is located'
+
+    def test_construction_with_a_schema_input_under_another_ref_raises_schema_input_reference_mismatch(
+        self, two_corpora_model: WorkspaceModel
+    ) -> None:
+        #: Given
+        key = SchemaRef(SchemaKind.STRUCTURE, 'key')
+        reference = SchemaRef(SchemaKind.STRUCTURE, 'value')
+        schema_input = SchemaInput(reference, BundledOrigin(reference.identity), FrozenMapping({}))
+
+        #: When
+        with pytest.raises(SchemaInputReferenceMismatchError) as exc_info:
+            replace(two_corpora_model, schema_inputs=FrozenMapping({key: schema_input}))
+
+        #: Then
+        assert exc_info.value.key == key, 'the error retains the lookup key'
+        assert exc_info.value.value == reference, 'the error retains the input reference'
 
     def test_find_corpus_with_a_listed_name_returns_that_corpus(self, two_corpora_model: WorkspaceModel) -> None:
         #: Given
@@ -1469,11 +1510,41 @@ class TestSpecifications:
         #: Then
         assert descriptor.type is ItemType.META_SPEC, 'the origin makes it a specification'
         assert descriptor.type.value == 'meta-spec', 'the serialized item type uses the glossary name'
-        assert descriptor.origin == MetaSpecOrigin(), 'the origin carries no facts already present in the descriptor'
+        assert descriptor.origin == MetaSpecOrigin('feat'), 'the origin records the specification subject category'
         assert descriptor.ref == ItemRef(ref.path), 'the logical ref is also the report path'
         assert descriptor.read_location == ResolvedPath(ref.path), 'the file is read where it is listed'
         assert descriptor.link_base == DocumentDirectory(SPECS_DIR), 'links are read from docs/__meta__'
-        assert descriptor.governed_parts == frozenset(), 'package governance does not activate a meta spec part'
+        assert descriptor.governed_parts == frozenset(), 'an absent meta corpus leaves the item ungoverned'
+
+    def test_describe_item_for_a_specification_resolves_the_reserved_meta_corpus(
+        self, two_corpora_model: WorkspaceModel
+    ) -> None:
+        #: Given
+        meta_spec = _corpus_spec('meta', structure=True)
+        namespace = _namespace_spec('meta-feat')
+        meta_corpus = Corpus(
+            corpus_spec=meta_spec,
+            namespaces=FrozenMapping(
+                {namespace.name.namespace: CorpusNamespace(files=namespace.files, structure=namespace.structure)}
+            ),
+            filenames=frozenset(),
+        )
+        ref = _spec_ref('feat-cli')
+        model = replace(two_corpora_model, meta_corpus=meta_corpus, listed_specifications=(ref,))
+
+        #: When
+        resolved = model.resolve_item(ref)
+
+        #: Then
+        assert resolved.governance is not None, 'the reserved meta corpus governs meta specs'
+        assert tuple(str(spec.name) for spec in resolved.governance.specs()) == ('meta', 'meta-feat'), (
+            'the corpus and matching namespace layers apply broad to narrow'
+        )
+        assert resolved.descriptor.corpus == CorpusName.parse('meta'), 'the descriptor records the governing corpus'
+        assert resolved.descriptor.governed_parts == frozenset({MetaSpecPart.FRONTMATTER, MetaSpecPart.STRUCTURE}), (
+            'the shared governed-parts function resolves the layers active parts'
+        )
+        assert resolved.descriptor.origin == MetaSpecOrigin('feat'), 'origin records the spec subject category'
 
     def test_find_item_with_a_listed_specification_returns_its_descriptor(
         self, two_corpora_model: WorkspaceModel

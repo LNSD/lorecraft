@@ -12,6 +12,9 @@ RESERVED_CORPUS_NAME: Final[str] = '__meta__'
 SKILLS_CORPUS_NAME: Final[str] = 'skills'
 """The corpus whose documents are the skills the agents read, not a directory under docs/."""
 
+META_CORPUS_NAME: Final[str] = 'meta'
+"""The corpus whose documents are the meta specs under docs/__meta__/."""
+
 
 class EmptyCorpusNameError(Error):
     """A corpus name is empty."""

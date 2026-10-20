@@ -47,10 +47,10 @@ relative to it. `docs/` and `docs/__meta__/` must be [real directories](workspac
 
 ### The Subjects
 
-Checks docs/specs, skills/resources and escaping symlinks. `LINK001`–`LINK003` check all documents, meta specs and skills, including documents without a corpus structure file. `LINK005`–`LINK007` require the structure meta spec; `LINK005` and `LINK006` also check meta specs. Shared skills once; subjects and diagnostics follow path order. Budgets: skills 10000; code 6500; docs/feat 3500. Without a skills-corpus layer, skills are ungoverned for structure, outline and budget; resources without governed parts are ungoverned.
+Checks docs/specs, skills/resources and escaping symlinks. `LINK001`–`LINK003` check all documents, meta specs and skills, including documents without a corpus structure file. `LINK005`–`LINK007` require the structure meta spec; `LINK005` and `LINK006` also check meta specs. Prose specs in `docs/__meta__/` are subjects in reserved `meta`; their frontmatter, outline and length rules apply. Without `meta.spec.json`, each reports `ungoverned for frontmatter, structure, outline, budget`. Shared skills once; subjects and diagnostics follow path order. Budgets: skills 10000; code 6500; docs/feat 3500. Without a skills-corpus layer, skills are ungoverned for structure, outline and budget; resources without governed parts are ungoverned.
 ### One Run, One Snapshot
 
-Rules read one snapshot; meta specs load first. A failed structure file gets one diagnostic; governed docs are skipped, others checked. A failed skills-corpus layer skips structure, outline and budget; package and schema checks continue. `LC001` skips invalid UTF-8. Diagnostics use the actual `.spec.json` name.
+Rules read one snapshot; meta specs load first. A failed structure file gets one diagnostic; governed docs are skipped, others checked. A failed skills-corpus layer skips structure, outline and budget; package and schema checks continue. `LC001` skips invalid UTF-8. Diagnostics and coverage use the actual `.spec.json` name.
 ### Selecting Rules
 
 `--select` and `--ignore` take comma-separated or repeated selectors: `ALL`, a group prefix (`OUT`), a code
@@ -67,7 +67,7 @@ Invalid selectors exit `2`; aliases and `allow` rules warn.
 | `--no-builtin-skills-schema` | unset | — | Do not apply the bundled Agent Skills schema or its contradiction preflight; repository schemas still apply |
 | `--root <path>`    | nearest of working directory and parents holding `docs/__meta__/` | — | The repository root, as [Root Discovery](#root-discovery) describes |
 | `--format <text\|short\|json>` | `text` | — | The output format, as [Output](#output) describes |
-| `--color <WHEN>` | `auto` | [`NO_COLOR`](https://no-color.org/), [`FORCE_COLOR`](https://force-color.org/) | Control when colored output is used. `auto`: colour when stdout is an interactive terminal, unless `NO_COLOR` is set; `FORCE_COLOR` forces it. `always`: colour even when stdout is not a terminal. `never`: no colour. Only the `text` format is coloured. |
+| `--color <WHEN>` | `auto` | [`NO_COLOR`](https://no-color.org/), [`FORCE_COLOR`](https://force-color.org/) | Only `text` is colored. `auto`: nonempty `FORCE_COLOR` enables even when piped; else nonempty `NO_COLOR` disables; otherwise stdout's TTY state applies. Empty is unset; any nonempty value, even `0`, is set. Explicit `always`/`never` wins. Errors bold red; warnings bold yellow; messages bold; gutter/location markers bold blue. |
 | `--select <selectors>` | `ALL` | — | Run only these rules, as [Selecting Rules](#selecting-rules) describes |
 | `--ignore <selectors>` | none | — | Skip these rules |
 
@@ -89,16 +89,15 @@ lorecraft check --select OUT006 --ignore OUT
 lorecraft check --select OUT00
 ```
 
-`--no-builtin-skills-schema` skips the bundled schema and contradiction preflight; repository schemas still
-apply, so `FM004` can run. For skills, it expects the listed directory name; its guidance never renames
-`SKILL.md`. Without a repository schema, skill frontmatter has no schema diagnostics and is reported ungoverned.
-Without a skills-corpus layer, other parts are ungoverned too:
-`.agents/skills/review/SKILL.md: ungoverned for structure, outline, budget`; with opt-out, frontmatter joins that line.
-Excluding required `name`/`description` fails; indirect or cross-layer constraints are unchecked.
+`--no-builtin-skills-schema` skips the bundled schema and contradiction preflight; repository schemas still apply, so
+`FM004` can run. It expects the listed directory name and never guides renaming `SKILL.md`. Without a repository
+schema, skill frontmatter has no diagnostics and is ungoverned; with opt-out, it adds `ungoverned for frontmatter`
+to the coverage line (exit `0`), including for malformed/missing frontmatter or mismatched names. See [The Subjects](#the-subjects)
+for other ungoverned parts. Excluding required `name`/`description` fails; indirect and cross-layer constraints are unchecked.
 
 ### Output
 
-In `text`, diagnostics go to stdout, separated by blank lines. Headers give severity, code and message, then numbered source and labels. Reported lines have solid underlines, other labels dotted; nearby lines group and distant lines use ellipses. `:::` points to another file. Help and notes use `= help:` and `= note:`. Single-line help/notes wrap to terminal width (100 columns when piped; piped output ignores `COLUMNS`); multi-line text keeps breaks. Lone `\r` notes draw separately.
+In `text`, stdout has blank-line-separated diagnostics with severity, code, message, numbered source and labels. Reported lines underline solid; other labels dotted. Nearby lines group; distant lines use ellipses; `:::` points to another file. Help/notes use `= help:`/`= note:`. Single-line help/notes wrap to terminal width (100 piped, ignoring `COLUMNS`); multi-line breaks and lone `\r` notes stay separate.
 
 Check output (stdout):
 
@@ -162,7 +161,7 @@ JSON paths must be UTF-8; non-ASCII text is direct, not escaped.
   A UTF-8 byte order mark is omitted from excerpted line 1, so its underline spans only the visible text.
   The gutter uses `| ^ - .` without UTF-8 output.
 - Skills without `docs/__meta__/` need `--root`.
-- A check covers what a machine decides; review judges whether a section says what it should.
+- Checks cover machine decisions; review judges what a section says.
 
 ## Findings
 
@@ -181,7 +180,7 @@ JSON paths must be UTF-8; non-ASCII text is direct, not escaped.
 Each reported structure-file failure appears once at that file.
 `LC001` points to the first invalid byte; `LC002`, `LC003` and `LC004` are whole-file diagnostics that give
 their help before their notes.
-`LC002` covers unreadable meta specs and documents, unknown files, and unlistable nested `docs/` directories.
+`LC002` covers unreadable specs/docs, unknown files and unlistable nested directories.
 Unreadable specifications and documents get an unreadable-path diagnostic and count as subjects; unknown paths do
 not. Coverage skips and counts resource or `SKILL.md`
 aliases at their paths, naming the refused target; `LC002` stays at target. Sibling resources and unaffected subjects
@@ -203,18 +202,18 @@ validator's wording. `FM012` to `FM014` and the `LEN` rules label the amount pas
 
 ## Code References
 
-- `src/lorecraft/cli/commands/check.py` - Declares the command and parses selectors
-- `src/lorecraft/cli/check_run.py` - Runs rules and sets the exit status
+- `src/lorecraft/cli/commands/check.py` - Command and selectors
+- `src/lorecraft/cli/check_run.py` - Rule run and exit status
 - `src/lorecraft/cli/root.py` - Root discovery
-- `src/lorecraft/cli/subjects.py` - Selects subjects
-- `src/lorecraft/cli/rule_arguments.py` - `SelectorValue.parse` validates selectors against the rule index
-- `src/lorecraft/cli/rule_selection.py` - Converts selectors and reports selection warnings
-- `src/lorecraft/cli/diagnostics.py` - Renders short diagnostics, JSON, coverage and summaries
-- `src/lorecraft/cli/diagnostic_text.py` - Draws the full text diagnostics
-- `src/lorecraft/cli/sources.py` - Reads the source lines used by the text output
-- `src/lorecraft/cli/terminal.py` - Chooses text output style
-- `src/lorecraft/cli/output.py` - Declares output and colour choices
-- `src/lorecraft/engine/skip.py` - Runs every enabled rule over each subject
-- `src/lorecraft/rules/table.py` - The rules a run enables, each with its severity
-- `src/lorecraft/rules/selection.py` - The selection that filters the rule table
+- `src/lorecraft/cli/subjects.py` - Subject selection
+- `src/lorecraft/cli/rule_arguments.py` - Selector validation
+- `src/lorecraft/cli/rule_selection.py` - Selection and warnings
+- `src/lorecraft/cli/diagnostics.py` - Short/JSON output, coverage and summaries
+- `src/lorecraft/cli/diagnostic_text.py` - Full text renderer
+- `src/lorecraft/cli/sources.py` - Source lines
+- `src/lorecraft/cli/terminal.py` - Text style
+- `src/lorecraft/cli/output.py` - Output and color choices
+- `src/lorecraft/engine/skip.py` - Rules over subjects
+- `src/lorecraft/rules/table.py` - Enabled rules and severity
+- `src/lorecraft/rules/selection.py` - Rule filtering
 - `src/lorecraft/rules/` - The rules, one module each, in a package per group

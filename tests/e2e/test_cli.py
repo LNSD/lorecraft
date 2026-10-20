@@ -457,6 +457,8 @@ class TestCheckCommand:
             '.agents/skills/alpha/SKILL.md: ungoverned for structure, outline, budget\n'
             '.agents/skills/beta/SKILL.md: ungoverned for structure, outline, budget\n'
             '.agents/skills/gamma/SKILL.md: ungoverned for structure, outline, budget\n'
+            'docs/__meta__/code-python.md: ungoverned for frontmatter, structure, outline, budget\n'
+            'docs/__meta__/code.md: ungoverned for frontmatter, structure, outline, budget\n'
             'FM   3 errors\nLEN  1 error\nOUT  5 errors\nchecked 7 subject(s): 9 error(s), 0 warning(s)\n'
         ), 'every document and skill of the fixture is checked, and each is governed'
 
@@ -883,6 +885,27 @@ class TestWorkspaceDefaults:
         assert result.stderr == 'checked 1 subject(s): 0 error(s), 0 warning(s)\n', (
             'the one document written is the one checked, governed for every facet'
         )
+
+    def test_check_with_a_meta_spec_missing_a_required_field_fails(self, tmp_path: Path, faker: Faker) -> None:
+        #: Given
+        meta_structure = {
+            'frontmatter': {'type': 'object', 'required': ['required-field']},
+            'outline': [{'section': 'Required'}],
+            'tokens': 1,
+        }
+        workspace = Workspace(
+            specs=[Spec('meta', structure=meta_structure), Spec('code', prose='---\nname: code\n---\n\n# Code\n')]
+        )
+        root = workspace.write(tmp_path, faker)
+
+        #: When
+        result = run_cli('check', '--root', str(root))
+
+        #: Then
+        assert result.returncode == 1, result.stderr
+        assert 'FM006' in result.stdout, 'the missing required frontmatter field is checked on a meta spec'
+        assert 'OUT006' in result.stdout, 'the required outline section is checked on a meta spec'
+        assert 'LEN001' in result.stdout, 'the token budget is checked on a meta spec'
 
 
 @pytest.fixture(scope='function')

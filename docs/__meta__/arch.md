@@ -108,3 +108,7 @@ status: "{{status}}"
 - [ ] The document cites no issue or pull request, in References or inline, and names work not yet done by what
   it is
 - [ ] A renumbered document has every citation of it updated
+
+## References
+
+- [meta](meta.md) - Extends: Base meta corpus specification

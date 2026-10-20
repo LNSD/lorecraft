@@ -654,3 +654,7 @@ Run `just check-docs` before committing, and read this checklist against the doc
 cover frontmatter, section outline and length, and nothing else. Reference direction, whether a Summary
 actually summarizes, and whether a document has one subject are judgment calls that stay with the author and
 the reviewer.
+
+## References
+
+- [meta](meta.md) - Extends: Base meta corpus specification

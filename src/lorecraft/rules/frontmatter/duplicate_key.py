@@ -97,6 +97,7 @@ class DuplicateKey(QueriedItemRule[FrontmatterFacts]):
     APPLIES_TO: ClassVar[Mapping[ItemType, Gate]] = MappingProxyType(
         {
             ItemType.DOCUMENT: WhenMetaSpec(MetaSpecPart.FRONTMATTER),
+            ItemType.META_SPEC: WhenMetaSpec(MetaSpecPart.FRONTMATTER),
             ItemType.SKILL_ENTRYPOINT: WhenMetaSpec(MetaSpecPart.FRONTMATTER),
         }
     )

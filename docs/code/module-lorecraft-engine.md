@@ -10,8 +10,8 @@ scope: "pkg:lorecraft.engine"
 ## Responsibility
 
 Run the rules over one revision's subjects, and report what failed to load. It changes when the way a subject is
-judged changes, when check mode skips a subject whose docs target was refused, when a mode's policy for a document
-governed by a failed layer changes, or when a load failure is reported differently.
+judged changes, when check mode skips a subject whose docs target was refused, when a mode's policy for a document or
+meta spec governed by a failed layer changes, or when a load failure is reported differently.
 
 ## Role
 
@@ -34,7 +34,7 @@ returns at its subject, as a diagnostic of `lorecraft.rules.report`.
   coverage. A rule over a Markdown file runs over a document governed for its structure, a skill's `SKILL.md` and
   each resource handed over as a subject of its own. A resource has no corpus structure governance, while `Always`
   Markdown checks still run; a skill's explicitly mapped `Always` checks run independently of corpus governance.
-- One entry point per mode: `skip.py` gives documents governed by a failed layer no rule, suppresses skill corpus
+- One entry point per mode: `skip.py` gives documents and meta specs governed by a failed layer no rule, suppresses skill corpus
   rules for failed skill layers while retaining package and schema checks, and skips skill entrypoints whose docs
   target was refused. An LSP-style partial mode is future work.
 - `skip.py` propagates the project's common `ItemReadError` for a missing item.
@@ -65,8 +65,8 @@ returns at its subject, as a diagnostic of `lorecraft.rules.report`.
 - Markdown items, symlinks and corpus directories use the same queried-rule dispatch; no layout subject is judged
   through a separate direct path.
 - A rule returns occurrences that name no subject. The run attaches the subject's path, as a diagnostic.
-- A load failure is reported once, at its own path, and never once per subject it touches; a document a failed layer
-  governs is coverage, never a diagnostic. A skill still receives its Agent Skills checks.
+- A load failure is reported once, at its own path, and never once per subject it touches; a document or meta spec a
+  failed layer governs is coverage, never a diagnostic. A skill still receives its Agent Skills checks.
 - A skill entrypoint whose docs target was refused is coverage at its own path; the refusal is reported at the target.
 - A run's results are not cached. Every rule runs again every time, and never sees the store of persisted results.
 - The shared runner holds no mode's policy. A new mode is a new entry point that edits neither `runner.py` nor

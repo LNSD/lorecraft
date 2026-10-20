@@ -37,8 +37,8 @@ from lorecraft.project.aspect import (
     EmptyAspectNameError,
     InvalidAspectNameCharacterError,
 )
-from lorecraft.project.corpus import SKILLS_CORPUS_NAME, CorpusName, ReservedCorpusDirectory
-from lorecraft.project.document import CorpusListError
+from lorecraft.project.corpus import META_CORPUS_NAME, SKILLS_CORPUS_NAME, CorpusName, ReservedCorpusDirectory
+from lorecraft.project.document import CorpusListError, MetaSpecRef
 from lorecraft.project.document import Repository as DocumentRepository
 from lorecraft.project.layout import DOCS_DIR, SPECS_DIR
 from lorecraft.project.schemas import (
@@ -183,9 +183,18 @@ def load_workspace(
     corpus_directories = _list_corpus_directories(documents, failures)
 
     groups = _group_spec_files(spec_paths)
+    listed_specifications = tuple(
+        sorted(
+            MetaSpecRef(file.path)
+            for group in groups.values()
+            for named_files in (group.spec, *group.namespaces.values())
+            for file in named_files.prose
+        )
+    )
 
     corpora: dict[CorpusName, Corpus] = {}
     skills_corpus: Corpus | None = None
+    meta_corpus: Corpus | None = None
     overlapping_directories: set[ReservedCorpusDirectory] = set()
     for corpus_name in sorted(groups, key=str):
         files = groups[corpus_name]
@@ -193,12 +202,12 @@ def load_workspace(
             # A namespace spec narrows a corpus spec; without one there is nothing to narrow.
             continue
         has_directory = PathComponent.parse(str(corpus_name)) in corpus_directories
-        if str(corpus_name) == SKILLS_CORPUS_NAME:
-            # The skills are this corpus's documents, so it needs no directory; one that exists is ignored.
+        if str(corpus_name) in {META_CORPUS_NAME, SKILLS_CORPUS_NAME}:
+            # Reserved corpora have no documents directory; their items come from another repository listing.
             if has_directory:
                 directory = DOCS_DIR / PathComponent.parse(str(corpus_name))
                 overlapping_directories.add(ReservedCorpusDirectory(directory, corpus_name))
-            skills_corpus = _load_corpus(
+            reserved = _load_corpus(
                 schemas,
                 corpus_name,
                 files,
@@ -206,6 +215,10 @@ def load_workspace(
                 failures,
                 schema_inputs,
             )
+            if str(corpus_name) == META_CORPUS_NAME:
+                meta_corpus = reserved
+            else:
+                skills_corpus = reserved
             continue
         if not has_directory:
             # A corpus is a regular directory under docs/; a missing or linked one has no documents to list.
@@ -228,6 +241,8 @@ def load_workspace(
         # Two agents declaring one skills directory meet its failure twice; it is one failure at one path.
         load_failures=tuple(dict.fromkeys(failures)),
         skills_corpus=skills_corpus,
+        meta_corpus=meta_corpus,
+        listed_specifications=listed_specifications,
         overlapping_directories=frozenset(overlapping_directories),
         schema_inputs=FrozenMapping(schema_inputs),
     )

@@ -152,6 +152,7 @@ class NameMismatch(QueriedItemRule[FrontmatterFacts]):
         {
             ItemType.DOCUMENT: WhenMetaSpec(MetaSpecPart.FRONTMATTER),
             ItemType.SKILL_ENTRYPOINT: WhenMetaSpec(MetaSpecPart.FRONTMATTER),
+            ItemType.META_SPEC: WhenMetaSpec(MetaSpecPart.FRONTMATTER),
         }
     )
 

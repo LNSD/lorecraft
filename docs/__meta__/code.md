@@ -717,3 +717,7 @@ Before committing a code spec:
 
 `just check-docs` decides the frontmatter, section and length items; read the rest of this checklist by hand,
 together with every `code-<namespace>.md` meta spec that matches the document's name.
+
+## References
+
+- [meta](meta.md) - Extends: Base meta corpus specification

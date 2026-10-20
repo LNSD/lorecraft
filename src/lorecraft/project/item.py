@@ -96,7 +96,9 @@ class SkillResourceOrigin:
 
 @dataclass(frozen=True, slots=True)
 class MetaSpecOrigin:
-    """A meta spec, a Markdown file of `docs/__meta__/`."""
+    """A meta spec, carrying the corpus its specification governs."""
+
+    corpus: str
 
 
 type ItemOrigin = DocumentOrigin | SkillEntrypointOrigin | SkillResourceOrigin | MetaSpecOrigin

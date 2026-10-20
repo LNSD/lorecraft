@@ -109,6 +109,7 @@ class UnexpectedSection(QueriedItemRule[tuple[OutlineDivergenceSpec, ...]]):
     APPLIES_TO: ClassVar[Mapping[ItemType, Gate]] = MappingProxyType(
         {
             ItemType.DOCUMENT: WhenMetaSpec(MetaSpecPart.OUTLINE),
+            ItemType.META_SPEC: WhenMetaSpec(MetaSpecPart.OUTLINE),
             ItemType.SKILL_ENTRYPOINT: WhenMetaSpec(MetaSpecPart.OUTLINE),
         }
     )

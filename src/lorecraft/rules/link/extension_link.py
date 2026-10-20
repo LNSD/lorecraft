@@ -14,7 +14,7 @@ from lorecraft.project.query import ItemQuery, item_name, item_parse
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Note, Subdiagnostic
-from lorecraft.rules.subject import Always, Gate, MetaSpecPart, QueriedItemRule, WhenMetaSpec
+from lorecraft.rules.subject import Gate, MetaSpecPart, QueriedItemRule, WhenMetaSpec
 
 from .__ruleset__ import GROUP_ID, GovernanceSyntaxLinkResolutionPrimitives
 
@@ -106,7 +106,7 @@ class ExtensionLink(QueriedItemRule[ExtensionLinkFacts]):
     APPLIES_TO: ClassVar[Mapping[ItemType, Gate]] = MappingProxyType(
         {
             ItemType.DOCUMENT: WhenMetaSpec(MetaSpecPart.STRUCTURE),
-            ItemType.META_SPEC: Always(),
+            ItemType.META_SPEC: WhenMetaSpec(MetaSpecPart.STRUCTURE),
         }
     )
 

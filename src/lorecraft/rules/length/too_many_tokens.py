@@ -141,6 +141,7 @@ class TooManyTokens(QueriedItemRule[TokenFacts]):
     APPLIES_TO: ClassVar[Mapping[ItemType, Gate]] = MappingProxyType(
         {
             ItemType.DOCUMENT: WhenMetaSpec(MetaSpecPart.BUDGET),
+            ItemType.META_SPEC: WhenMetaSpec(MetaSpecPart.BUDGET),
             ItemType.SKILL_ENTRYPOINT: WhenMetaSpec(MetaSpecPart.BUDGET),
         }
     )

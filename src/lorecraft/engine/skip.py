@@ -105,7 +105,7 @@ def _check_item(
             return (UndecodableSubject(item, source.failure),)
         case ItemText():
             match source.descriptor.type:
-                case ItemType.DOCUMENT:
+                case ItemType.DOCUMENT | ItemType.META_SPEC:
                     # Governance is a lookup in the model, never a rule, so a skipped item reads nothing else.
                     governance = database.item_governance(item)
                     if governance is not None:
@@ -127,8 +127,8 @@ def _check_item(
                             ItemType.SKILL_ENTRYPOINT,
                             frozenset({MetaSpecPart.STRUCTURE, MetaSpecPart.OUTLINE, MetaSpecPart.BUDGET}),
                         )
-                case ItemType.META_SPEC | ItemType.SKILL_RESOURCE:
-                    pass  # neither item type is skipped by a failed corpus layer
+                case ItemType.SKILL_RESOURCE:
+                    pass  # resources have no corpus governance
                 case _:
                     assert_never(source.descriptor.type)
             return (judge_item(database, source, table),)

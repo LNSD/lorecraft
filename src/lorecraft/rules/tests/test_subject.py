@@ -29,6 +29,25 @@ class TestGates:
         assert all(rule.APPLIES_TO for rule in item_rules), 'each registered item rule declares at least one gate'
         assert all(set(rule.APPLIES_TO) <= set(ItemType) for rule in item_rules), 'each gate names a known item type'
 
+    def test_meta_spec_rule_gate_matches_its_document_gate(self) -> None:
+        #: Given
+        registered_rules = Registry.load(rules).rules
+        document_rules = tuple(
+            rule
+            for rule in registered_rules
+            if issubclass(rule, QueriedItemRule) and ItemType.DOCUMENT in rule.APPLIES_TO
+        )
+
+        #: When
+        gate_pairs = tuple(
+            (rule.APPLIES_TO.get(ItemType.META_SPEC), rule.APPLIES_TO[ItemType.DOCUMENT]) for rule in document_rules
+        )
+
+        #: Then
+        assert all(meta_gate == document_gate for meta_gate, document_gate in gate_pairs), (
+            'each rule judges meta specs under the same gate as documents'
+        )
+
     def test_document_rule_with_budget_part_uses_meta_spec_gate(self) -> None:
         #: Given
         rule = TooManyTokens
@@ -46,6 +65,7 @@ class TestGates:
         expected = MappingProxyType(
             {
                 ItemType.DOCUMENT: WhenMetaSpec(MetaSpecPart.BUDGET),
+                ItemType.META_SPEC: WhenMetaSpec(MetaSpecPart.BUDGET),
                 ItemType.SKILL_ENTRYPOINT: WhenMetaSpec(MetaSpecPart.BUDGET),
             }
         )

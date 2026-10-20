@@ -222,6 +222,7 @@ class EmptySection(QueriedItemRule[EmptySectionFacts]):
     APPLIES_TO: ClassVar[Mapping[ItemType, Gate]] = MappingProxyType(
         {
             ItemType.DOCUMENT: WhenMetaSpec(MetaSpecPart.STRUCTURE),
+            ItemType.META_SPEC: WhenMetaSpec(MetaSpecPart.STRUCTURE),
             ItemType.SKILL_ENTRYPOINT: WhenMetaSpec(MetaSpecPart.STRUCTURE),
         }
     )

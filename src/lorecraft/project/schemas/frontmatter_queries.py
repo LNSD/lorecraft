@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.path import PathComponent
 from lorecraft.project.aspect import AspectFilename
-from lorecraft.project.item import SkillEntrypointOrigin, WrongItemTypeError
+from lorecraft.project.item import MetaSpecOrigin, SkillEntrypointOrigin, WrongItemTypeError
 from lorecraft.project.query import item_frontmatter, item_name
 from lorecraft.project.schemas.agent_skills_schema import (
     agent_skills_frontmatter_schema,
@@ -18,6 +18,7 @@ from lorecraft.project.schemas.frontmatter_owner import (
 )
 from lorecraft.project.schemas.frontmatter_problem import MissingFieldProblem
 from lorecraft.project.schemas.frontmatter_schema import FrontmatterSchema
+from lorecraft.project.schemas.name import parse_spec_name
 from lorecraft.project.schemas.schema_problems import (
     SchemaProblems,
     locate_agent_skills_schema_problems,
@@ -43,10 +44,11 @@ def repository_frontmatter_schema(primitives: SchemaPrimitives) -> FrontmatterSc
 
 
 def owner_of_frontmatter(primitives: GovernancePrimitives) -> FrontmatterOwner:
-    """The document or skill whose frontmatter the item opens, from its descriptor and governance.
+    """The document, meta specification or skill whose frontmatter the item opens, from its descriptor and governance.
 
     Raises:
-        WrongItemTypeError: If the item is not a skill or a document whose corpus states a structure spec.
+        WrongItemTypeError: If the item is not a skill or a document or meta specification whose corpus states a
+            structure spec.
     """
     origin = primitives.origin()
     if isinstance(origin, SkillEntrypointOrigin):
@@ -59,7 +61,13 @@ def owner_of_frontmatter(primitives: GovernancePrimitives) -> FrontmatterOwner:
         structure = governance.corpus_structure()
         if structure is not None:
             return DocumentFrontmatterOwner(filename=name, spec=structure.path)
-    raise WrongItemTypeError('a document whose corpus states a structure specification')
+    if isinstance(origin, MetaSpecOrigin) and governance is not None:
+        structure = governance.corpus_structure()
+        if structure is not None:
+            return DocumentFrontmatterOwner(
+                filename=parse_spec_name(primitives.item_listed_name()), spec=structure.path
+            )
+    raise WrongItemTypeError('a document or meta specification whose corpus states a structure specification')
 
 
 def parsed_skill_fields(primitives: ItemPrimitives) -> SkillFields:
