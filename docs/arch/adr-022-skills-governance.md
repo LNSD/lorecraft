@@ -45,9 +45,10 @@ by the model and ordered broad to narrow, using the same namespace ordering as d
 FR-004). Namespace layers still require the repository corpus meta spec at the skills name; they do not
 become standalone corpora merely because a built-in schema exists.
 
-Only SKILL.md receives these repository layers (FR-014). Resource discovery and existing link checks remain
-separate: this design neither assigns resources a skills namespace nor removes their existing checks.
-The skills/ directory is not a second discovery root for the reserved corpus.
+Only SKILL.md receives these repository layers (FR-014). Skill resources remain outside meta-spec
+governance (including repository structure files and floor schemas); resource discovery and existing link
+and syntax checks remain active independently under package rules. Specifying resource-specific rules or
+governance models remains deferred for future exploration. The skills/ directory is not a second discovery root for the reserved corpus.
 
 ### A Built-in Layer Supplies the Default Floor
 
@@ -180,7 +181,7 @@ It does not create a second matching algorithm or require a docs/skills/ directo
 ## Checklist
 
 - [ ] Skills governance uses the listed skill name and existing namespace matching, never the resolved target name
-- [ ] Skills meta specs load without docs/skills/ and apply only to SKILL.md
+- [ ] Skills meta specs load without docs/skills/ and apply only to SKILL.md; skill resources remain outside meta-spec governance
 - [ ] Every layer applies independently, with one declaration supplying built-in constraints and generated docs
 - [ ] A skill with no repository skills meta spec retains the existing findings under the default setting
 - [ ] The opt-out affects check and inspect alike and allows ungoverned skills without an error

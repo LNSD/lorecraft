@@ -85,10 +85,12 @@ The reserved `meta` corpus governs every meta spec in `docs/__meta__/`: `meta.sp
 and `meta-<corpus>.spec.json` provides namespace governance. Meta spec rules declare the same gates as document rules.
 
 The reserved `skills` corpus governs skill entrypoints. Package skill checks remain active independently of
-that corpus governance. Skill resources have no corpus governance and retain their package Markdown checks.
+that corpus governance. Skill resources remain outside meta-spec governance and have no corpus governance; they retain
+package link and syntax checks.
 
-A Markdown resource inside a skill has no corpus governance. The model activates Markdown checks only for resources;
-no skills-corpus schema or structure spec applies.
+A Markdown resource inside a skill is not governed by meta specs or floor schemas. The model activates package Markdown
+checks only for resources; no skills-corpus schema or structure spec applies, leaving resource-specific rule models
+open for future exploration.
 
 ### One Decode Witness, Query Family and Runner Pipeline
 
@@ -125,9 +127,10 @@ requires:
 - **Broader initial refactor, smaller surface afterwards.** Replacing the three reference and witness families touches
   the project model, database, context protocols, runner and report types together, and removes the parallel query and
   dispatch code that would otherwise grow with `skills` governance.
-- **Resource governance is pre-wired without premature activation.** Skill resources share the reference, witness and
-  hierarchical skill-governance link now, while `FR-014` remains respected because resource meta spec parts remain inactive until resource governance is specified; package Markdown checks
-  remain active.
+- **Skill resources remain ungoverned by meta specs.** Skill resources share the unified reference and witness
+  machinery, while remaining entirely outside meta-spec governance. Repository structure files, frontmatter schemas,
+  and floor schemas do not govern skill resources; only package link and syntax checks remain active. Any potential
+  resource-specific governance model remains deferred for future exploration.
 - **What stays true:** scope is declared rather than inferred from content ([adr-003](adr-003-project-model.md));
   logical identity is separate from resolved file location; the database opens with its model and computes per-file and
   analysis queries lazily ([adr-015](adr-015-database.md)); layers apply independently by conjunction
@@ -157,8 +160,8 @@ Before committing code, verify:
   governance identity and governed meta spec parts once
 - [ ] Logical identity stays separate from resolved symlink location for documents, skills and skill resources
   alike, and skill resource discovery remains lazy through the skill resource listing
-- [ ] Skill resources have no corpus governance under this decision; defer any resource governance identity and
-  governed resource meta spec parts until a resource governance decision is made.
+- [ ] Skill resources remain outside meta-spec governance and have no corpus governance, retaining only package
+  link and syntax checks; resource-specific governance models remain deferred for future exploration.
 - [ ] The database provides one decode, per-file, analysis and link-target query family for governed Markdown items,
   with analyses depending on `item_governance(ref)` rather than the whole model
 - [ ] The rules engine runs one content-item check loop that decodes once, applies failed-layer policy, gates rules by
