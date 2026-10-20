@@ -71,7 +71,7 @@ The project model is the only layer that classifies a Markdown item's origin:
 - A corpus document derives its corpus and aspect name from its `docs/<corpus>/<name>.md` path.
 - A meta spec in `docs/__meta__/` derives its subject corpus from its filename prefix and is governed by the reserved
   `meta` corpus.
-- A skill derives its aspect name from its listed directory name in `.agents/skills/`. Its package checks remain
+- A skill derives its aspect name from its listed directory name in `.agents/skills/`. Its `Always` checks remain
   independent of the skill entrypoint's governance by the reserved `skills` corpus.
 - A skill resource is discovered lazily through its skill's resource listing rather than by an eager workspace-wide
   walk when the model opens ([adr-003](adr-003-project-model.md), [adr-015](adr-015-database.md)). When listed, it
@@ -85,11 +85,11 @@ derivation rather than reimplemented in the database, runner or rules.
 The reserved `meta` corpus governs every meta spec in `docs/__meta__/`: `meta.spec.json` provides corpus governance
 and `meta-<corpus>.spec.json` provides namespace governance. Meta spec rules declare the same gates as document rules.
 
-The reserved `skills` corpus governs skill entrypoints. Package skill checks remain active independently of
+The reserved `skills` corpus governs skill entrypoints. `Always` skill checks remain active independently of
 that corpus governance. Skill resources remain outside meta-spec governance and have no corpus governance; they retain
-package link and syntax checks.
+`Always` link and syntax checks.
 
-A Markdown resource inside a skill is not governed by meta specs or floor schemas. The model activates package Markdown
+A Markdown resource inside a skill is not governed by meta specs or floor schemas. The model activates `Always` Markdown
 checks only for resources; no skills-corpus schema or structure spec applies, leaving resource-specific rule models
 open for future exploration.
 
@@ -139,7 +139,7 @@ except for the link-bound diagnostic and unchecked-symlink coverage decisions ab
   dispatch code that would otherwise grow with `skills` governance.
 - **Skill resources remain ungoverned by meta specs.** Skill resources share the unified reference and witness
   machinery, while remaining entirely outside meta-spec governance. Repository structure files, frontmatter schemas,
-  and floor schemas do not govern skill resources; only package link and syntax checks remain active. Any potential
+  and floor schemas do not govern skill resources; only `Always` link and syntax checks remain active. Any potential
   resource-specific governance model remains deferred for future exploration.
 - **What stays true:** scope is declared rather than inferred from content ([adr-003](adr-003-project-model.md));
   logical identity is separate from resolved file location; the database opens with its model and computes per-file and

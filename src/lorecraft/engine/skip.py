@@ -1,6 +1,6 @@
 """Run checks over workspace subjects, applying failed-layer policy after decoding.
 
-A failed governing layer suppresses meta-spec-gated rules for any decoded item, while package and schema rules still
+A failed governing layer suppresses meta-spec-gated rules for any decoded item, while `Always` and schema rules still
 run. The suppressed parts appear as coverage. An item or skill alias whose resolved docs target was refused is
 reported as skipped; the refusal itself is reported at its target.
 """
@@ -95,9 +95,9 @@ def _check_item(
 ) -> tuple[SubjectReport, ...]:
     """Decode one item and judge it, suppressing meta-spec gates when a governing layer failed.
 
-    Every item type is decoded the same way, by its common reference. A missing file is reported by the read error of
-    its type; a meta spec has none, so it raises the item's own. Failed layers suppress meta-spec gates for every
-    governed item type but do not suppress package or schema gates.
+    Every item type is decoded the same way, by its common reference. A missing file raises the common item read
+    error. Failed layers suppress meta-spec gates for every governed item type but do not suppress `Always` or schema
+    gates.
 
     Args:
         database: The revision the item is read from.

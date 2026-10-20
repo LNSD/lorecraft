@@ -50,7 +50,7 @@ relative to it. `docs/` and `docs/__meta__/` must be [real directories](workspac
 Checks docs/specs, skills/resources and escaping symlinks. `LINK001`–`LINK003` check all documents, meta specs and skills, including documents without a corpus structure file. `LINK005`–`LINK007` require the structure meta spec; `LINK005` and `LINK006` also check meta specs. Prose specs in `docs/__meta__/` are subjects in reserved `meta`; their frontmatter, outline and length rules apply. Without `meta.spec.json`, each reports `ungoverned for frontmatter, structure, outline, budget`. Shared skills once; subjects and diagnostics follow path order. Budgets: skills 10000; code 6500; docs/feat 3500. Without a skills-corpus layer, skills are ungoverned for structure, outline and budget; resources without governed parts are ungoverned.
 ### One Run, One Snapshot
 
-One snapshot, meta specs first. A failed structure file yields a diagnostic. Failed layers suppress every meta-spec rule on items; package and schema rules and `Always` links still run. Suppressed parts appear as `ungoverned for ...`. `LC001` invalid UTF-8 is unjudged. Diagnostics and coverage use the actual `.spec.json` name.
+One snapshot, meta specs first. A failed structure file yields a diagnostic. Failed layers suppress meta-spec gates; `Always`, schema and link gates still run. Suppressed parts appear as `ungoverned for ...`. `LC001` invalid UTF-8 is unjudged. Diagnostics and coverage use the actual `.spec.json` name.
 ### Selecting Rules
 
 `--select` and `--ignore` take comma-separated or repeated selectors: `ALL`, a group prefix (`OUT`), a code
