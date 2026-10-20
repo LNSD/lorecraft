@@ -17,6 +17,7 @@ from dataclasses import InitVar, dataclass, field
 from typing import assert_never
 
 from lorecraft.agents import AgentName
+from lorecraft.core.error import Error
 from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.project.aspect import (
@@ -26,6 +27,7 @@ from lorecraft.project.aspect import (
     InvalidAspectNameCharacterError,
 )
 from lorecraft.project.corpus import (
+    META_CORPUS_NAME,
     SKILLS_CORPUS_NAME,
     CorpusName,
     EmptyCorpusNameError,
@@ -61,6 +63,88 @@ from lorecraft.schemas.builtin import AGENT_SKILLS_SCHEMA_REFERENCE
 from lorecraft.vfs import ResolvedPath
 
 from .failure import FailedStructure, LoadFailure
+
+
+class CorpusKeyMismatchError(Error):
+    """A corpus mapping key differs from the corpus name it holds.
+
+    Attributes:
+        key: The name used to file the corpus.
+        value: The corpus's declared name.
+    """
+
+    key: CorpusName
+    value: CorpusName
+
+    def __init__(self, key: CorpusName, value: CorpusName) -> None:
+        self.key = key
+        self.value = value
+        super().__init__(f'corpora key {key} holds the corpus {value}')
+
+
+class MetaCorpusNameMismatchError(Error):
+    """The reserved meta corpus slot holds a corpus with another name.
+
+    Attributes:
+        value: The name declared by the corpus in the reserved slot.
+    """
+
+    value: CorpusName
+
+    def __init__(self, value: CorpusName) -> None:
+        self.value = value
+        super().__init__(f'meta_corpus holds the corpus {value}')
+
+
+class SkillLocationRefMismatchError(Error):
+    """A skill location mapping key differs from the skill ref it holds.
+
+    Attributes:
+        key: The ref used to file the skill location.
+        value: The ref declared by the skill location.
+    """
+
+    key: SkillRef
+    value: SkillRef
+
+    def __init__(self, key: SkillRef, value: SkillRef) -> None:
+        self.key = key
+        self.value = value
+        super().__init__(f'skill_locations key {key.directory} holds the skill {value.directory}')
+
+
+class OutsideSymlinkPathMismatchError(Error):
+    """An outside symlink mapping key differs from the path it holds.
+
+    Attributes:
+        key: The path used to file the symlink.
+        value: The path at which the symlink was found.
+    """
+
+    key: RootRelativePath
+    value: RootRelativePath
+
+    def __init__(self, key: RootRelativePath, value: RootRelativePath) -> None:
+        self.key = key
+        self.value = value
+        super().__init__(f'outside_symlinks key {key} holds the symlink at {value}')
+
+
+class SchemaInputReferenceMismatchError(Error):
+    """A schema-input mapping key differs from the reference it holds.
+
+    Attributes:
+        key: The ref used to file the schema input.
+        value: The reference declared by the schema input.
+    """
+
+    key: SchemaRef
+    value: SchemaRef
+
+    def __init__(self, key: SchemaRef, value: SchemaRef) -> None:
+        self.key = key
+        self.value = value
+        super().__init__(f'schema_inputs key {key} holds input {value}')
 
 
 def find_document_at(ref: ItemRef) -> DocumentRef | None:
@@ -417,6 +501,9 @@ class WorkspaceModel:
         skills_corpus: The reserved `skills` corpus, available to its own specification checks, or None when no
             `skills` spec exists. It governs skill entrypoints but not resources; no directory
             under `docs/` backs it.
+        meta_corpus: The reserved `meta` corpus governing meta spec items, or None when no `meta` spec exists.
+        listed_specifications: Every valid prose spec file in `docs/__meta__/`, including specs whose document corpus
+            is absent.
         overlapping_directories: The directories under `docs/` that take a reserved corpus's name, which the model
             ignores: none of their documents is listed.
         outside_symlinks: Every skills directory an agent declares, entry in a resolved skills directory, and
@@ -437,6 +524,8 @@ class WorkspaceModel:
     outside_symlinks: FrozenMapping[RootRelativePath, OutsideSymlink]
     load_failures: tuple[LoadFailure, ...]
     skills_corpus: Corpus | None = None
+    meta_corpus: Corpus | None = None
+    listed_specifications: tuple[MetaSpecRef, ...] = ()
     overlapping_directories: frozenset[ReservedCorpusDirectory] = frozenset()
     schema_inputs: FrozenMapping[SchemaRef, SchemaInput] = FrozenMapping({})
 
@@ -444,21 +533,26 @@ class WorkspaceModel:
         """Keep a key from naming something other than its value, which the lookups read the key alone to answer.
 
         Raises:
-            ValueError: If a key of `corpora`, `skill_locations` or `outside_symlinks` is not its value's own name,
-                ref or path.
+            CorpusKeyMismatchError: If a `corpora` key differs from its value's name.
+            MetaCorpusNameMismatchError: If `meta_corpus` does not use the reserved meta name.
+            SkillLocationRefMismatchError: If a `skill_locations` key differs from its value's ref.
+            OutsideSymlinkPathMismatchError: If an `outside_symlinks` key differs from its value's path.
+            SchemaInputReferenceMismatchError: If a `schema_inputs` key differs from its value's ref.
         """
         for name, corpus in self.corpora.items():
             if name != corpus.name:
-                raise ValueError(f'corpora key {name} holds the corpus {corpus.name}')
+                raise CorpusKeyMismatchError(name, corpus.name)
+        if self.meta_corpus is not None and self.meta_corpus.name.value != META_CORPUS_NAME:
+            raise MetaCorpusNameMismatchError(self.meta_corpus.name)
         for ref, location in self.skill_locations.items():
             if ref != location.ref:
-                raise ValueError(f'skill_locations key {ref.directory} holds the skill {location.ref.directory}')
+                raise SkillLocationRefMismatchError(ref, location.ref)
         for path, outside in self.outside_symlinks.items():
             if path != outside.path:
-                raise ValueError(f'outside_symlinks key {path} holds the symlink at {outside.path}')
+                raise OutsideSymlinkPathMismatchError(path, outside.path)
         for ref, schema_input in self.schema_inputs.items():
             if ref != schema_input.reference:
-                raise ValueError(f'schema_inputs key {ref} holds input {schema_input.reference}')
+                raise SchemaInputReferenceMismatchError(ref, schema_input.reference)
 
     @property
     def sorted_corpora(self) -> tuple[Corpus, ...]:
@@ -514,7 +608,11 @@ class WorkspaceModel:
     def specifications(self) -> tuple[MetaSpecRef, ...]:
         """Every meta spec, a Markdown file of a corpus or namespace spec, sorted by path; no README."""
         specs: list[Spec] = []
-        for corpus in (*self.sorted_corpora, *([self.skills_corpus] if self.skills_corpus is not None else [])):
+        for corpus in (
+            *self.sorted_corpora,
+            *([self.skills_corpus] if self.skills_corpus is not None else []),
+            *([self.meta_corpus] if self.meta_corpus is not None else []),
+        ):
             specs.append(corpus.corpus_spec)
             specs.extend(corpus.namespace_specs)
         refs: set[MetaSpecRef] = set()
@@ -522,6 +620,7 @@ class WorkspaceModel:
             for file in spec.files:
                 if file.value.name.endswith(DOCUMENT_SUFFIX) and file.parent == SPECS_DIR:
                     refs.add(MetaSpecRef(file))
+        refs.update(self.listed_specifications)
         return tuple(sorted(refs))
 
     def find_specification_base(self, ref: MetaSpecRef) -> MetaSpecRef | None:
@@ -637,6 +736,12 @@ class WorkspaceModel:
             return None
         return corpus.governance(ref.entry.value)
 
+    def meta_governance(self, ref: MetaSpecRef) -> Governance | None:
+        """The meta specs governing a meta spec item, or None when no `meta` corpus is declared."""
+        if self.meta_corpus is None:
+            return None
+        return self.meta_corpus.governance(ref.name)
+
     def find_item(self, ref: ItemRef) -> ResolvedItem | None:
         """The descriptor of the document or skill the model lists at this reference, or None.
 
@@ -713,12 +818,12 @@ class WorkspaceModel:
         """Resolve an item's descriptor together with the specs governing it, finding the governance once.
 
         A corpus document is governed by the specs of its corpus and matching namespaces. Skill entrypoints are governed
-        by the reserved `skills` corpus and matching namespaces; resources remain outside corpus governance.
+        by the reserved `skills` corpus and matching namespaces; meta specs are governed by the reserved `meta` corpus.
+        Resources remain outside corpus governance.
 
         Args:
-            ref: Document, skill or meta spec to resolve, whether or not the model lists a document's
-                corpus, or a common ref naming a document. A meta spec has no corpus governance, so only package
-                checks apply to its Markdown.
+            ref: Document, skill or meta spec to resolve, whether or not the model lists a document's corpus, or a
+                common ref naming a document.
 
         Raises:
             UnlistedItemError: If a common ref does not name a valid document path.
@@ -758,19 +863,24 @@ class WorkspaceModel:
                 )
                 return ResolvedItem(descriptor, governance)
             case MetaSpecRef():
+                governance = self.meta_governance(ref)
+                schemas = governance.frontmatter_schemas() if governance is not None else ()
+                schema_refs = governance.applicable_frontmatter_schema_refs() if governance is not None else ()
+                schema_paths = tuple(schema.spec for schema in schemas)
+                parts = self._governed_parts(governance, schema_refs)
                 descriptor = ItemDescriptor(
                     ref=ItemRef(ref.path),
                     read_location=ResolvedPath(ref.path),
                     link_base=DocumentDirectory(SPECS_DIR),
-                    origin=MetaSpecOrigin(),
+                    origin=MetaSpecOrigin(ref.corpus),
                     name=parse_spec_name(ref.name),
                     listed_name=ref.name,
-                    corpus=CorpusName.parse(ref.corpus),
-                    schema_paths=(),
-                    frontmatter_schema_refs=(),
-                    governed_parts=frozenset(),
+                    corpus=CorpusName.parse(META_CORPUS_NAME),
+                    schema_paths=schema_paths,
+                    frontmatter_schema_refs=schema_refs,
+                    governed_parts=parts,
                 )
-                return ResolvedItem(descriptor, None)
+                return ResolvedItem(descriptor, governance)
             case _:
                 assert_never(ref)
 

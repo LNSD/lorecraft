@@ -38,3 +38,7 @@ skill directory.
 - [ ] The entry stays within its whole-file budget, including frontmatter and examples
 - [ ] Repository rules do not repeat a built-in Agent Skills requirement
 - [ ] Namespace-specific instructions apply to a real group of skill names
+
+## References
+
+- [meta](meta.md) - Extends: Base meta corpus specification

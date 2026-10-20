@@ -11,9 +11,10 @@ from ..frontmatter_queries import owner_of_frontmatter
 
 
 @pytest.mark.unit
-class TestFrontmatterOwnerQuery:
-    def test_owner_of_frontmatter_with_a_document_without_corpus_structure_raises_typed_error(self) -> None:
+class TestOwnerOfFrontmatter:
+    def test_owner_of_frontmatter_with_a_document_without_corpus_structure_raises_wrong_item_type_error(self) -> None:
         #: Given
+        expected_error = WrongItemTypeError
         primitives = StructurePrimitives(
             (),
             origin_value=DocumentOrigin(),
@@ -21,8 +22,9 @@ class TestFrontmatterOwnerQuery:
             corpus=CorpusName.parse('guide'),
         )
 
-        #: When / Then
-        with pytest.raises(
-            WrongItemTypeError, match='expected a document whose corpus states a structure specification'
-        ):
+        #: When
+        with pytest.raises(expected_error) as exc_info:
             owner_of_frontmatter(primitives)
+
+        #: Then
+        assert exc_info.type is expected_error, 'a document without a structure spec raises the exact typed error'

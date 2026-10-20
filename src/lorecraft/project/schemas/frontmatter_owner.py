@@ -4,21 +4,23 @@ from dataclasses import dataclass
 
 from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.project.aspect import AspectFilename
+from lorecraft.project.schemas.name import SpecName
 from lorecraft.vfs import ResolvedPath
 
 
 @dataclass(frozen=True, slots=True)
 class DocumentFrontmatterOwner:
-    """A document whose frontmatter a schema governs: the name its frontmatter must carry, and where it is governed.
+    """A document or meta specification whose frontmatter a schema governs, and where it is governed.
 
     Attributes:
-        filename: The document's filename, without its extension, which its frontmatter `name` must equal.
-        spec: The structure specification of the document's corpus, whose frontmatter schema makes the document
-            governed for its frontmatter. A namespace's schema only narrows the corpus's, so this one file is
-            always the specification that states every rule over the block.
+        filename: The listed name, without its extension, which its frontmatter `name` must equal. A document has
+            an aspect filename; a meta specification has its typed specification name.
+        spec: The structure specification of the document or meta specification's corpus, whose frontmatter schema
+            makes the item governed for its frontmatter. A namespace's schema only narrows the corpus's, so this one
+            file is always the specification that states every rule over the block.
     """
 
-    filename: AspectFilename
+    filename: AspectFilename | SpecName
     spec: RootRelativePath
 
 
