@@ -6,7 +6,7 @@ status: "experimental"
 components: "module:lorecraft.project"
 ---
 
-# Specification Files
+# Meta Spec Files
 
 ## Summary
 

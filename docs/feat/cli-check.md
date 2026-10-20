@@ -156,7 +156,7 @@ JSON paths must be UTF-8; non-ASCII text is direct, not escaped.
   all exit 0. LINK007 puts `help` before `note`.
   `COR001` is selectable; if its level makes it an error, the run exits 1.
 - A whole subject, such as a layout entry, shows `--> path` without an excerpt. Unreadable source appears as
-  `= at path:line: text`. Excerpts are available for documents, `SKILL.md` files, skill resources and specification
+  `= at path:line: text`. Excerpts are available for documents, `SKILL.md` files, skill resources and meta spec
   files directly in `docs/__meta__/`; other paths have none.
   A UTF-8 byte order mark is omitted from excerpted line 1, so its underline spans only the visible text.
   The gutter uses `| ^ - .` without UTF-8 output.
@@ -170,7 +170,7 @@ JSON paths must be UTF-8; non-ASCII text is direct, not escaped.
 | `FM` | Frontmatter checks use applicable schemas; the bundled skills schema is optional. `FM004` compares skill names with listed directories. `FM001` missing-frontmatter, `FM002` invalid-yaml, `FM003` non-mapping-frontmatter, `FM004` name-mismatch, `FM005` duplicate-key, `FM006` missing-field, `FM007` unknown-field (a warning), `FM008` wrong-type, `FM009` invalid-value, `FM010` invalid-frontmatter, `FM011` malformed-allowed-tools (a warning; pattern whitespace stays intact), `FM012` allowed-tools-too-long (a warning over 500 characters), `FM013` too-many-fields (`maxProperties`, an error), `FM014` too-few-fields (`minProperties`, an error) |
 | `OUT` | Outline checks: a document's H1 title and sections against its structure files. `OUT001` missing-title, `OUT002` extra-title, `OUT003` title-not-first, `OUT004` empty-section, `OUT005` forbidden-section, `OUT006` missing-section, `OUT007` section-out-of-order, `OUT008` unexpected-section, `OUT009` invalid-title |
 | `LEN` | Length limits: a document's tokens, a section's or its title's words or characters, a `SKILL.md`'s lines. `LEN001` too-many-tokens, `LEN002` too-many-lines, `LEN003` section-too-many-words, `LEN004` title-too-many-words, `LEN005` title-too-long |
-| `LINK` | Links in structured documents and skills. `LINK001` absolute, `LINK002` broken fragment, `LINK003` broken, `LINK004` escaping, `LINK005` extension-link (link to same-directory name extension; warning; also checks specs), `LINK006` missing-base-link (an extension omits its nearest existing document or specification ancestor under `References`; warning; also checks specs), `LINK007` mutual-link (documents in different corpora link each other; warning) |
+| `LINK` | Links in structured documents and skills. `LINK001` absolute, `LINK002` broken fragment, `LINK003` broken, `LINK004` escaping, `LINK005` extension-link (link to same-directory name extension; warning; also checks meta specs), `LINK006` missing-base-link (an extension omits its nearest existing document or meta spec ancestor under `References`; warning; also checks meta specs), `LINK007` mutual-link (documents in different corpora link each other; warning) |
 | `COR` | Corpus layout checks: `COR001` reserved-corpus-overlap, a directory under `docs/` has a reserved corpus name such as `skills`; warning by default. It can be selected or ignored by code or group. |
 | `LAY` | Skill layout checks: `LAY001` escaping-symlink, a symlink an agent reaches whose chain leaves the repository |
 | `LC` | Engine conditions are errors with no level; selection and configuration cannot turn them off. `LC001` invalid-utf8 reports a file that cannot be decoded, including a structure file; `LC002` unreadable-path reports a workspace path the run cannot read, list or follow; `LC003` malformed-structure-file reports a structure file that breaks the format or states no rule; `LC004` unusable-structure-file reports a well-formed structure file with rules that repeat, contradict each other or cannot be applied. |
@@ -180,8 +180,8 @@ JSON paths must be UTF-8; non-ASCII text is direct, not escaped.
 Each reported structure-file failure appears once at that file.
 `LC001` points to the first invalid byte; `LC002`, `LC003` and `LC004` are whole-file diagnostics that give
 their help before their notes.
-`LC002` covers unreadable specs/docs, unknown files and unlistable nested directories.
-Unreadable specifications and documents get an unreadable-path diagnostic and count as subjects; unknown paths do
+`LC002` covers unreadable paths, unknown files and unlistable nested directories.
+Unreadable meta spec files and documents get an unreadable-path diagnostic and count as subjects; unknown paths do
 not. Coverage skips and counts resource or `SKILL.md`
 aliases at their paths, naming the refused target; `LC002` stays at target. Sibling resources and unaffected subjects
 continue; all formats exit 1. A directory alias is reported at its path, never at the skill's `SKILL.md`.

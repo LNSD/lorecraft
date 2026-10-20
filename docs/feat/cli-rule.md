@@ -73,7 +73,7 @@ LC001    invalid-utf8              error  A file is not valid UTF-8.
 LC002    unreadable-path           error  A path cannot be read.
 LC003    malformed-structure-file  error  A structure file does not follow the structure format, or states no rule.
 LC004    unusable-structure-file   error  A structure file follows the structure format and states rules that cannot be applied.
-OUT004   empty-section             deny   A section holds no content, under a structure specification that forbids empty sections.
+OUT004   empty-section             deny   A section holds no content, under a structure file that forbids empty sections.
 ```
 
 ### Default Levels
@@ -98,14 +98,14 @@ the same text. This is the start of one, with its sections cut at `…`:
 ```text
 ---
 name: "OUT004-empty-section"
-description: "A section holds no content, under a structure specification that forbids empty sections"
+description: "A section holds no content, under a structure file that forbids empty sections"
 code: "OUT004"
 since: "0.3.0"
 ---
 
 # empty-section (OUT004)
 
-A section holds no content, under a structure specification that forbids empty sections.
+A section holds no content, under a structure file that forbids empty sections.
 
 ## What it does
 

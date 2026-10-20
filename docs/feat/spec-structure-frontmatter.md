@@ -101,7 +101,7 @@ skips the documents it governs, and exits `1`. `lorecraft inspect` still stops w
 ## Code References
 
 - `src/lorecraft/project/schemas/frontmatter_schema.py` - The frontmatter schema and its checks on load
-- `src/lorecraft/project/schemas/structure.py` - Reads the `frontmatter` key, and refuses a specification whose schema
+- `src/lorecraft/project/schemas/structure.py` - Reads the `frontmatter` key, and refuses a structure file whose schema
   fails those checks
 - `src/lorecraft/project/schemas/structure_file.py` - The key's shape in the published editor schema
 - `src/lorecraft/rules/frontmatter/` - The `FM` rules that apply the schemas to a document's frontmatter
