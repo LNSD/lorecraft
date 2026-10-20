@@ -1,6 +1,6 @@
 ---
 name: "cli-check"
-description: "The lorecraft check command: every rule over every document and skill of the workspace, root discovery, selecting and ignoring rules by code or prefix, the rule groups and their codes, the text and JSON output, and the 0/1/2 exit status. Load when running the documentation and skill checks, wiring them into CI or a pre-commit hook, running some rules only, matching on a rule code, or parsing their output"
+description: "The lorecraft check command: workspace checks, rule selection, findings and exit status, plus the builtin Agent Skills floor and opt-out. Load when running checks, selecting rules, parsing output or disabling Agent Skills checks"
 type: "feature"
 status: "experimental"
 components: "module:lorecraft.cli,module:lorecraft.engine,module:lorecraft.rules"
@@ -10,7 +10,7 @@ components: "module:lorecraft.cli,module:lorecraft.engine,module:lorecraft.rules
 
 ## Summary
 
-Checks docs against meta specs and skills against the Agent Skills spec; load failures are diagnostics, refused item reads are `LC002`, errors exit `1`.
+Checks docs against meta specs and skills against the builtin Agent Skills floor; load failures are diagnostics, refused item reads are `LC002`, errors exit `1`.
 
 ## Table of Contents
 
@@ -44,10 +44,10 @@ relative to it. `docs/` and `docs/__meta__/` must be [real directories](workspac
 
 ### The Subjects
 
-Checks docs/specs, skills/resources and escaping symlinks. `LINK001`–`LINK003` check documents, meta specs and skills without a corpus structure file. `LINK004` reports a relative link climbing above its link base: repository root for documents and meta specs, skill root for skills and resources. Links within that bound are not escaping. `LINK005`–`LINK007` require the structure meta spec; `LINK005` and `LINK006` also check meta specs. Prose specs in `docs/__meta__/` are subjects in reserved `meta`; frontmatter, outline and length rules apply. Without `meta.spec.json`, each reports `ungoverned for frontmatter, structure, outline, budget`. Subjects and diagnostics follow path order. Ungoverned resources are reported as such.
+The builtin Agent Skills specification validates skill frontmatter and sets the 500-line limit before repository layers; repository line budgets apply independently. A malformed repository skills spec leaves builtin frontmatter and line checks active, reporting only repository structure and outline parts as ungoverned. `LEN002` names the builtin Agent Skills specification and directs skill authors to `references/`. `LINK001`–`LINK003` check documents, meta specs and skills without a corpus structure file. `LINK004` reports a relative link climbing above its link base: repository root for documents and meta specs, skill root for skills and resources. `LINK005`–`LINK007` require the structure meta spec. Prose specs in `docs/__meta__/` are subjects in reserved `meta`; without `meta.spec.json`, each reports `ungoverned for frontmatter, structure, outline, budget`. Ungoverned resources are reported as such.
 ### One Run, One Snapshot
 
-One snapshot, meta specs first. A failed structure file yields a diagnostic. Failed layers suppress meta-spec gates; `Always`, schema and link gates still run. Suppressed parts appear as `ungoverned for ...`. `LC001` invalid UTF-8 is unjudged. Diagnostics and coverage use the actual `.spec.json` name.
+One snapshot, meta specs first. A failed structure file yields a diagnostic. Failed repository layers suppress that repository's meta-spec gates; `Always` gates and the builtin floor still run. Suppressed parts appear as `ungoverned for ...`. `LC001` invalid UTF-8 is unjudged. Diagnostics and coverage use the actual `.spec.json` name.
 ### Selecting Rules
 
 `--select` and `--ignore` take comma-separated or repeated selectors: `ALL`, a group prefix (`OUT`), code
@@ -61,14 +61,14 @@ Invalid selectors exit `2`; aliases and `allow` rules warn.
 
 | Argument or option | Default | Env var | Description |
 |--------------------|---------|---------|-------------|
-| `--no-builtin-skills-schema` | unset | — | Do not apply the bundled Agent Skills schema or its contradiction preflight; repository schemas still apply |
+| `--no-agent-skills-spec` (`--no-builtin-skills-schema` alias) | unset | — | Disable the builtin Agent Skills specification for `check` and `inspect`; skills' `frontmatter` and `budget` are ungoverned |
 | `--root <path>`    | nearest of working directory and parents holding `docs/__meta__/` | — | The repository root, as [Root Discovery](#root-discovery) describes |
 | `--format <text\|short\|json>` | `text` | — | The output format, as [Output](#output) describes |
 | `--color <WHEN>` | `auto` | [`NO_COLOR`](https://no-color.org/), [`FORCE_COLOR`](https://force-color.org/) | Only `text` is colored. `auto`: nonempty `FORCE_COLOR` enables even when piped; else nonempty `NO_COLOR` disables; otherwise stdout's TTY state applies. Empty is unset; any nonempty value, even `0`, is set. Explicit `always`/`never` wins. Errors bold red; warnings bold yellow; messages bold; gutter/location markers bold blue. |
 | `--select <selectors>` | `ALL` | — | Run only these rules, as [Selecting Rules](#selecting-rules) describes |
 | `--ignore <selectors>` | none | — | Skip these rules |
 
-An unlisted `--format` or `--color` exits `2`. An explicit `--color always` or `--color never` wins. Under `auto`, non-empty `FORCE_COLOR` enables colour even when piped; otherwise non-empty `NO_COLOR` disables it; otherwise colour follows whether stdout is a terminal. Empty variables are unset; any non-empty value, including `0`, is set. Enabled colours: errors bold red, warnings bold yellow, messages bold, gutter and location markers bold blue.
+Invalid `--format` or `--color` values exit `2`; color precedence and values are described in the table.
 
 ## Usage
 
@@ -86,11 +86,13 @@ lorecraft check --select OUT006 --ignore OUT
 lorecraft check --select OUT00
 ```
 
-`--no-builtin-skills-schema` skips the bundled schema and contradiction preflight; repository schemas still apply, so
-`FM004` can run. It expects the listed directory name and never guides renaming `SKILL.md`. Without repository
-schema, skill frontmatter has no diagnostics; with opt-out, coverage says `ungoverned for frontmatter` (exit `0`),
-even for malformed/missing frontmatter or mismatched names. See [The Subjects](#the-subjects). Excluding required
-`name`/`description` fails; indirect and cross-layer constraints are unchecked.
+By default, the builtin Agent Skills specification checks skill frontmatter and the 500-line whole-file budget.
+`--no-agent-skills-spec` disables it in `check` and `inspect`; `--no-builtin-skills-schema` remains an alias.
+Opted-out skills report `frontmatter` and `budget` as ungoverned. In inspect JSON, the opt-out adds
+`"agent_skills_spec": false`; text marks the skills section `Agent Skills spec disabled`.
+
+`allowed-tools` format and length checks run only when skill frontmatter is governed. `escaping_link` remains
+unconditional for skill entrypoints and resources, including when the builtin specification is disabled.
 
 ### Output
 
@@ -161,7 +163,7 @@ JSON paths must be UTF-8; Unicode is unescaped.
 
 | Rule | Reported when |
 |------|---------------|
-| `FM` | Frontmatter checks use applicable schemas; the bundled skills schema is optional. `FM004` compares skill names with listed directories. `FM001` missing-frontmatter, `FM002` invalid-yaml, `FM003` non-mapping-frontmatter, `FM004` name-mismatch, `FM005` duplicate-key, `FM006` missing-field, `FM007` unknown-field (a warning), `FM008` wrong-type, `FM009` invalid-value, `FM010` invalid-frontmatter, `FM011` malformed-allowed-tools (a warning; pattern whitespace stays intact), `FM012` allowed-tools-too-long (a warning over 500 characters), `FM013` too-many-fields (`maxProperties`, an error), `FM014` too-few-fields (`minProperties`, an error) |
+| `FM` | Frontmatter checks use applicable schemas; the builtin skills schema is optional. `FM004` compares skill names with listed directories. `FM001` missing-frontmatter, `FM002` invalid-yaml, `FM003` non-mapping-frontmatter, `FM004` name-mismatch, `FM005` duplicate-key, `FM006` missing-field, `FM007` unknown-field (a warning), `FM008` wrong-type, `FM009` invalid-value, `FM010` invalid-frontmatter, `FM011` malformed-allowed-tools (a warning; pattern whitespace stays intact), `FM012` allowed-tools-too-long (a warning over 500 characters), `FM013` too-many-fields (`maxProperties`, an error), `FM014` too-few-fields (`minProperties`, an error) |
 | `OUT` | Outline checks: a document's H1 title and sections against its structure files. `OUT001` missing-title, `OUT002` extra-title, `OUT003` title-not-first, `OUT004` empty-section, `OUT005` forbidden-section, `OUT006` missing-section, `OUT007` section-out-of-order, `OUT008` unexpected-section, `OUT009` invalid-title |
 | `LEN` | Length limits: a document's tokens or declared lines budget, a section's or its title's words or characters, and a `SKILL.md`'s default lines limit. `LEN001` too-many-tokens, `LEN002` too-many-lines, `LEN003` section-too-many-words, `LEN004` title-too-many-words, `LEN005` title-too-long |
 | `LINK` | Links in structured documents and skills. `LINK001` absolute, `LINK002` broken fragment, `LINK003` broken, `LINK004` escaping, `LINK005` extension-link (link to same-directory name extension; warning; also checks meta specs), `LINK006` missing-base-link (an extension omits its nearest existing document or meta spec ancestor under `References`; warning; also checks meta specs), `LINK007` mutual-link (documents in different corpora link each other; warning) |
