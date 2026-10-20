@@ -199,7 +199,7 @@ class TestCheckSubjectsOverASkillEntry:
         assert isinstance(report, CheckedItem), 'a failed layer suppresses none of a resource, which it does not govern'
         assert report.ungoverned == (), 'resource checks are not gated by corpus governance'
         assert [type(item.occurrence).__name__ for item in report.diagnostics] == ['AbsoluteLink', 'AbsoluteLink'], (
-            'package Markdown checks continue to judge a resource'
+            '`Always` Markdown checks continue to judge a resource'
         )
 
 

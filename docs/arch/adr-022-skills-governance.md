@@ -47,7 +47,7 @@ become standalone corpora merely because a built-in schema exists.
 
 Only SKILL.md receives these repository layers (FR-014). Skill resources remain outside meta-spec
 governance (including repository structure files and floor schemas); resource discovery and existing link
-and syntax checks remain active independently under package rules. Specifying resource-specific rules or
+and syntax checks remain active independently under `Always` gates. Specifying resource-specific rules or
 governance models remains deferred for future exploration. The skills/ directory is not a second discovery root for the reserved corpus.
 
 ### A Built-in Layer Supplies the Default Floor

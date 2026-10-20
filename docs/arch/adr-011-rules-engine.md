@@ -148,7 +148,7 @@ resource walk decide that a chain leaves, from the link targets the scan recorde
 inside is no entry. `SymlinkPrimitives` and `CorpusDirectoryPrimitives` state where the chain leaves, a fact and never a
 verdict, from the record those queries returned. A rule over an entry derives from `QueriedSymlinkRule` or
 `QueriedCorpusDirectoryRule`, and only words the finding, at the path an agent reaches the
-symlink by. A symlink has no text, so it is never decoded, and package rules cover the layout, so it is never ungoverned.
+symlink by. A symlink has no text, so it is never decoded, and `Always` rules cover the layout, so it is never ungoverned.
 
 ### A Subject's Status Comes Before Any Rule
 

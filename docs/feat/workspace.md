@@ -36,8 +36,7 @@ repository works from.
   checks those files as meta specs. It does not govern skills or resources; the corpus
   remains separate from skills until LORE-324. It has no `docs/skills/` directory. Skills are not documents.
 - **Overlapping corpus**: A `docs/skills/` directory is ignored, including its documents. The model records this name overlap, and `lorecraft check` reports it as the
-  [`COR001` warning](../rulebook/COR001-reserved-corpus-overlap.md). Skills retain their package
-  checks, and resources retain package Markdown checks; neither receives corpus governance. Skill specs do
+  [`COR001` warning](../rulebook/COR001-reserved-corpus-overlap.md). Skills retain their `Always` checks, and resources retain `Always` Markdown checks; neither receives corpus governance. Skill specs do
   not change which rules check a `SKILL.md`.
 
 ## Architecture
