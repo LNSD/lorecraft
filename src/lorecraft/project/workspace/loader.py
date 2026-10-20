@@ -180,7 +180,8 @@ def load_workspace(
     if builtin_skills_schema:
         register_builtin_schemas(schema_inputs)
     spec_paths = _list_spec_paths(schemas, failures)
-    corpus_directories = _list_corpus_directories(documents, failures)
+    corpus_directories, dropped_corpora = _list_corpus_directories(documents, failures)
+    unchecked_symlinks: list[RootRelativePath] = list(dropped_corpora)
 
     groups = _group_spec_files(spec_paths)
     listed_specifications = tuple(
@@ -223,7 +224,8 @@ def load_workspace(
         if not has_directory:
             # A corpus is a regular directory under docs/; a missing or linked one has no documents to list.
             continue
-        filenames = _list_document_filenames(documents, corpus_name, failures)
+        filenames, dropped_documents = _list_document_filenames(documents, corpus_name, failures)
+        unchecked_symlinks.extend(dropped_documents)
         corpora[corpus_name] = _load_corpus(schemas, corpus_name, files, filenames, failures, schema_inputs)
 
     skills_dirs, outside_skills_dirs = _load_skills_dirs(skills, failures)
@@ -244,6 +246,7 @@ def load_workspace(
         meta_corpus=meta_corpus,
         listed_specifications=listed_specifications,
         overlapping_directories=frozenset(overlapping_directories),
+        unchecked_symlinks=tuple(sorted(set(unchecked_symlinks), key=str)),
         schema_inputs=FrozenMapping(schema_inputs),
     )
 
@@ -279,18 +282,24 @@ def _list_spec_paths(schemas: SchemaRepository, failures: list[LoadFailure]) -> 
         return []
 
 
-def _list_corpus_directories(documents: DocumentRepository, failures: list[LoadFailure]) -> frozenset[PathComponent]:
-    """The names of the regular directories under docs/, or none when docs/ cannot be listed, which is then recorded.
+def _list_corpus_directories(
+    documents: DocumentRepository, failures: list[LoadFailure]
+) -> tuple[frozenset[PathComponent], tuple[RootRelativePath, ...]]:
+    """The regular corpus directories and symlinked corpus paths under docs/, or none on a listing failure.
 
     Args:
         documents: Repository docs/ is listed from.
         failures: The load failures so far; a directory that cannot be listed is appended.
+
+    Returns:
+        A pair: regular corpus directory names, then symlinked paths whose names are valid corpus names. Both are
+        empty when docs/ cannot be listed.
     """
     try:
         return documents.list_corpus_directories()
     except DIR_LIST_FAILURES as exc:
         failures.append(LoadFailure(exc.path, UnlistableDirectory(exc.refusal)))
-        return frozenset()
+        return frozenset(), ()
 
 
 def _group_spec_files(spec_paths: list[RootRelativePath]) -> dict[CorpusName, _CorpusFiles]:
@@ -463,7 +472,7 @@ def _record_failed_structure(
 
 def _list_document_filenames(
     documents: DocumentRepository, corpus_name: CorpusName, failures: list[LoadFailure]
-) -> list[AspectFilename]:
+) -> tuple[list[AspectFilename], tuple[RootRelativePath, ...]]:
     """The stems of the validly named Markdown files the repository lists in the corpus; the rest are left out.
 
     A corpus directory that cannot be listed holds no document, and the failure is recorded.
@@ -472,12 +481,16 @@ def _list_document_filenames(
         documents: Repository the corpus directory is listed from.
         corpus_name: Corpus whose directory is listed.
         failures: The load failures so far; a directory that cannot be listed is appended.
+
+    Returns:
+        A pair: valid document filenames, then paths of symlinked `.md` entries. Both are empty when the corpus
+        directory cannot be listed.
     """
     try:
-        document_files = documents.list_documents(corpus_name)
+        document_files, dropped_symlinks = documents.list_documents(corpus_name)
     except CorpusListError as exc:
         failures.append(LoadFailure(exc.source.path, UnlistableCorpusDirectory(exc.corpus, exc.source.refusal)))
-        return []
+        return [], ()
 
     filenames: list[AspectFilename] = []
     for document_file in document_files:
@@ -486,7 +499,7 @@ def _list_document_filenames(
         except EmptyAspectNameError, InvalidAspectNameCharacterError:
             continue
         filenames.append(filename)
-    return filenames
+    return filenames, dropped_symlinks
 
 
 def _load_skills_dirs(

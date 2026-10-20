@@ -34,7 +34,7 @@ from lorecraft.rules.engine import RefusedOperation
 from lorecraft.rules.engine.unreadable_path import Refused, UnreadablePath
 from lorecraft.rules.identity import Severity
 from lorecraft.rules.registry import Registry
-from lorecraft.rules.report import LoadFailureReport, RunReport, UnreadableItem
+from lorecraft.rules.report import LoadFailureReport, RunReport, UncheckedSymlink, UnreadableItem
 from lorecraft.rules.table import RuleTable, selected_rules_left_off
 from lorecraft.vfs import RefusedInspect, RefusedListing, RefusedRead, RefusedRecord, take_snapshot
 
@@ -107,6 +107,7 @@ def run_check(
         reports = (
             *load_failure_reports,
             *refusal_reports,
+            *(UncheckedSymlink(path) for path in model.unchecked_symlinks),
             *check_subjects(database, subjects, table, all_docs_refusals),
         )
     except Error as exc:

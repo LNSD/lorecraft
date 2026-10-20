@@ -28,6 +28,7 @@ from lorecraft.rules.report import (
     LoadFailureReport,
     RunReport,
     SkippedSubject,
+    UncheckedSymlink,
     UndecodableSubject,
     UnreadableItem,
 )
@@ -139,6 +140,7 @@ class _CoverageJson(BaseModel):
     path: str
     ungoverned: list[str]
     skipped_by: list[str]
+    unchecked: bool = False
 
 
 class _ReportJson(BaseModel):
@@ -203,6 +205,8 @@ def render_coverage(reports: tuple[RunReport, ...]) -> str:
             case SkippedSubject():
                 files = ', '.join(str(path) for path in subject.refused_paths)
                 lines.append(f'{subject.ref.path}: skipped, depends on a refused docs path: {files}')
+            case UncheckedSymlink():
+                lines.append(f'{subject.path}: not checked (symlink)')
             case _:
                 assert_never(subject)
     return '\n'.join(lines)
@@ -277,6 +281,8 @@ def render_json(reports: tuple[RunReport, ...]) -> str:
                 for path in subject.refused_paths:
                     refused_paths.append(str(path))
                 coverage.append(_CoverageJson(path=str(subject.ref.path), ungoverned=[], skipped_by=refused_paths))
+            case UncheckedSymlink():
+                coverage.append(_CoverageJson(path=str(subject.path), ungoverned=[], skipped_by=[], unchecked=True))
             case _:
                 assert_never(subject)
     document = _ReportJson(
@@ -284,22 +290,24 @@ def render_json(reports: tuple[RunReport, ...]) -> str:
         summary=_SummaryJson(subjects=_count_subjects(reports), errors=severities.errors, warnings=severities.warnings),
         coverage=coverage,
     )
-    return document.model_dump_json()
+    return document.model_dump_json(exclude_defaults=True)
 
 
-def _coverage_subjects(reports: tuple[RunReport, ...]) -> list[CheckedItem | SkippedSubject]:
+def _coverage_subjects(reports: tuple[RunReport, ...]) -> list[CheckedItem | SkippedSubject | UncheckedSymlink]:
     """The checked documents with ungoverned meta spec parts and skipped ones, compared by path code point.
 
     Args:
         reports: One report per subject the run checked, in any order.
     """
-    subjects: list[CheckedItem | SkippedSubject] = []
+    subjects: list[CheckedItem | SkippedSubject | UncheckedSymlink] = []
     for report in reports:
         match report:
             case CheckedItem():
                 if report.ungoverned:
                     subjects.append(report)
             case SkippedSubject():
+                subjects.append(report)
+            case UncheckedSymlink():
                 subjects.append(report)
             case UndecodableSubject() | UnreadableItem() | CheckedLayoutEntry() | LoadFailureReport():
                 # None was judged in part: one never decoded, a layout entry has no
@@ -308,7 +316,9 @@ def _coverage_subjects(reports: tuple[RunReport, ...]) -> list[CheckedItem | Ski
             case _:
                 assert_never(report)
     # A path compares as its string, the way `DiagnosticOrder.path` does, so both outputs share one path order.
-    return sorted(subjects, key=lambda subject: str(subject.ref.path))
+    return sorted(
+        subjects, key=lambda subject: str(subject.path if isinstance(subject, UncheckedSymlink) else subject.ref.path)
+    )
 
 
 def _count_subjects(reports: tuple[RunReport, ...]) -> int:
@@ -322,6 +332,8 @@ def _count_subjects(reports: tuple[RunReport, ...]) -> int:
         match report:
             case CheckedItem() | UndecodableSubject() | UnreadableItem() | CheckedLayoutEntry() | SkippedSubject():
                 count += 1
+            case UncheckedSymlink():
+                pass
             case LoadFailureReport():
                 pass  # filed at a unit of the declaration, not at a subject
             case _:

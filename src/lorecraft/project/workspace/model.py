@@ -527,6 +527,7 @@ class WorkspaceModel:
     meta_corpus: Corpus | None = None
     listed_specifications: tuple[MetaSpecRef, ...] = ()
     overlapping_directories: frozenset[ReservedCorpusDirectory] = frozenset()
+    unchecked_symlinks: tuple[RootRelativePath, ...] = ()
     schema_inputs: FrozenMapping[SchemaRef, SchemaInput] = FrozenMapping({})
 
     def __post_init__(self) -> None:

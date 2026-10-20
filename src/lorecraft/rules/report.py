@@ -252,6 +252,18 @@ class SkippedSubject:
 
 
 @dataclass(frozen=True, slots=True)
+class UncheckedSymlink:
+    """A symlink under docs/ that was deliberately not followed or checked."""
+
+    path: RootRelativePath
+
+    @property
+    def diagnostics(self) -> tuple[()]:
+        """No diagnostic: the symlink is listed only as unchecked coverage."""
+        return ()
+
+
+@dataclass(frozen=True, slots=True)
 class LoadFailureReport:
     """One unit of the declaration that failed to load, reported once at its own path.
 
@@ -274,7 +286,9 @@ class LoadFailureReport:
 
 # What the runner reports for one subject: what the rules found in it, that it did not decode, what they found at a
 # layout entry, or that an item or skill alias depends on a refused docs path.
-type SubjectReport = CheckedItem | UndecodableSubject | UnreadableItem | CheckedLayoutEntry | SkippedSubject
+type SubjectReport = (
+    CheckedItem | UndecodableSubject | UnreadableItem | CheckedLayoutEntry | SkippedSubject | UncheckedSymlink
+)
 
 # What a run hands its output: a report per subject, and one per unit of the declaration that failed to load, which is
 # no subject and is filed at its own path.

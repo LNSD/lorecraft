@@ -14,7 +14,7 @@ from dataclasses import dataclass
 
 from lorecraft.core.error import Error
 from lorecraft.core.path import PathComponent, RootRelativePath
-from lorecraft.project.corpus import CorpusName
+from lorecraft.project.corpus import CorpusName, InvalidCorpusNameCharacterError, ReservedCorpusNameError
 from lorecraft.project.item import ItemReadError, ItemRef
 from lorecraft.project.layout import DOCS_DIR, DOCUMENT_SUFFIX
 from lorecraft.vfs import (
@@ -103,11 +103,14 @@ class Repository:
         """
         self._fs = fs
 
-    def list_corpus_directories(self) -> frozenset[PathComponent]:
+    def list_corpus_directories(self) -> tuple[frozenset[PathComponent], tuple[RootRelativePath, ...]]:
         """The names of the regular directories directly under docs/; a missing docs/ lists none.
 
-        Files are dropped silently: a Markdown file directly under docs/ belongs to no corpus. So are symlinks:
-        a corpus is a regular directory.
+        Files are dropped. Symlinked entries whose names parse as corpus names are returned apart; they are not
+        followed.
+
+        Returns:
+            A pair: regular corpus directory names, then paths of symlinked entries with valid corpus names.
 
         Raises:
             DirListError: If docs/ cannot be listed, on disk.
@@ -117,19 +120,29 @@ class Repository:
         entries = self._fs.list_dir(DOCS_DIR)
 
         names: set[PathComponent] = set()
+        dropped_symlinks: list[RootRelativePath] = []
         for entry in entries:
             if entry.kind is EntryKind.DIRECTORY:
                 names.add(entry.name)
-        return frozenset(names)
+            elif entry.kind is EntryKind.SYMLINK:
+                try:
+                    CorpusName.parse(str(entry.name))
+                except InvalidCorpusNameCharacterError, ReservedCorpusNameError:
+                    continue
+                dropped_symlinks.append(DOCS_DIR / entry.name)
+        return frozenset(names), tuple(dropped_symlinks)
 
-    def list_documents(self, corpus: CorpusName) -> tuple[DocumentFile, ...]:
+    def list_documents(self, corpus: CorpusName) -> tuple[tuple[DocumentFile, ...], tuple[RootRelativePath, ...]]:
         """Regular `.md` files directly inside docs/<corpus>/, sorted by name.
 
-        Subdirectories, non-`.md` entries and symlinks are dropped silently: a document is a regular file.
-        A missing directory lists as nothing.
+        Subdirectories and non-`.md` entries are dropped. Symlinked `.md` entries are returned apart and not
+        followed. A missing directory lists as nothing.
 
         Args:
             corpus: Corpus whose directory under docs/ is listed; the directory need not exist.
+
+        Returns:
+            A pair: regular Markdown files, then paths of symlinked `.md` entries.
 
         Raises:
             CorpusListError: If the directory cannot be listed.
@@ -142,7 +155,11 @@ class Repository:
             raise CorpusListError(corpus, source=exc) from exc
 
         documents: list[DocumentFile] = []
+        dropped_symlinks: list[RootRelativePath] = []
         for entry in entries:
+            if entry.kind is EntryKind.SYMLINK and str(entry.name).endswith(DOCUMENT_SUFFIX):
+                dropped_symlinks.append(corpus_dir / entry.name)
+                continue
             if entry.kind is not EntryKind.FILE:
                 continue
             filename = str(entry.name)
@@ -150,7 +167,7 @@ class Repository:
                 continue
             stem = filename.removesuffix(DOCUMENT_SUFFIX)
             documents.append(DocumentFile(corpus_dir / entry.name, stem))
-        return tuple(documents)
+        return tuple(documents), tuple(dropped_symlinks)
 
     def get_document(self, ref: DocumentRef) -> Document:
         """Read one document's text.
