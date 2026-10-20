@@ -11,6 +11,7 @@ import pytest
 from lib.overruns import overrun
 from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.project.syntax import LineNumber
+from lorecraft.rules.length.__ruleset__ import spec_note
 from lorecraft.rules.location import Help, Here, Label, Note
 from lorecraft.rules.tests.fake_database import (
     FakeDocumentDatabase,
@@ -18,8 +19,11 @@ from lorecraft.rules.tests.fake_database import (
     judged,
     structure_spec_path,
 )
+from lorecraft.schemas import BundledOrigin
 
 from ..too_many_lines import TooManyLines
+
+SKILLS_SPEC_ORIGIN: Final[BundledOrigin] = BundledOrigin('builtin:agent-skills-frontmatter')
 
 FRONTMATTER: Final[str] = '---\nname: review\ndescription: Review a change before it is merged.\n---\n'
 """A frontmatter of four lines."""
@@ -44,9 +48,13 @@ class TestTooManyLines:
         occurrences = judged(TooManyLines, subject)
 
         #: Then
-        assert occurrences == (TooManyLines(line=LineNumber(NonZeroUnsignedInt(501)), overrun=overrun(501, 500)),), (
-            'a SKILL.md one line over the budget is one occurrence, on line 501, the first line past it'
-        )
+        assert occurrences == (
+            TooManyLines(
+                spec=SKILLS_SPEC_ORIGIN,
+                line=LineNumber(NonZeroUnsignedInt(501)),
+                overrun=overrun(501, 500),
+            ),
+        ), 'a SKILL.md one line over the budget is one occurrence, on line 501, the first line past it'
 
     def test_check_with_a_skill_at_the_budget_reports_nothing(self) -> None:
         #: Given
@@ -76,7 +84,9 @@ class TestTooManyLines:
 
     def test_message_names_the_lines_and_the_budget(self) -> None:
         #: Given
-        occurrence = TooManyLines(line=LineNumber(NonZeroUnsignedInt(501)), overrun=overrun(612, 500))
+        occurrence = TooManyLines(
+            spec=SKILLS_SPEC_ORIGIN, line=LineNumber(NonZeroUnsignedInt(501)), overrun=overrun(612, 500)
+        )
 
         #: When
         message = occurrence.message()
@@ -86,7 +96,9 @@ class TestTooManyLines:
 
     def test_message_with_an_overrun_of_another_cap_names_that_cap(self) -> None:
         #: Given
-        occurrence = TooManyLines(line=LineNumber(NonZeroUnsignedInt(501)), overrun=overrun(700, 600))
+        occurrence = TooManyLines(
+            spec=SKILLS_SPEC_ORIGIN, line=LineNumber(NonZeroUnsignedInt(501)), overrun=overrun(700, 600)
+        )
 
         #: When
         message = occurrence.message()
@@ -96,7 +108,9 @@ class TestTooManyLines:
 
     def test_labels_mark_where_the_budget_ends_and_the_lines_past_it(self) -> None:
         #: Given
-        occurrence = TooManyLines(line=LineNumber(NonZeroUnsignedInt(501)), overrun=overrun(612, 500))
+        occurrence = TooManyLines(
+            spec=SKILLS_SPEC_ORIGIN, line=LineNumber(NonZeroUnsignedInt(501)), overrun=overrun(612, 500)
+        )
 
         #: When
         labels = occurrence.labels()
@@ -108,16 +122,34 @@ class TestTooManyLines:
 
     def test_children_name_the_budget_and_say_where_to_move_the_lines(self) -> None:
         #: Given
-        occurrence = TooManyLines(line=LineNumber(NonZeroUnsignedInt(501)), overrun=overrun(612, 500))
+        occurrence = TooManyLines(
+            spec=SKILLS_SPEC_ORIGIN, line=LineNumber(NonZeroUnsignedInt(501)), overrun=overrun(612, 500)
+        )
 
         #: When
         children = occurrence.children()
 
         #: Then
         assert children == (
-            Note('the Agent Skills specification keeps a SKILL.md to at most 500 lines'),
+            spec_note(SKILLS_SPEC_ORIGIN),
             Help(
-                'move what most activations do not need into files under references/, and say in SKILL.md when to '
-                'read each'
+                'move what most activations do not need into files under `references/`, and say in SKILL.md '
+                'when to read each'
             ),
-        ), 'a note names where the budget comes from, and a help where to move the lines over it'
+        ), 'the diagnostic names the builtin limit and points to skill resources'
+
+    def test_children_name_another_builtin_origin_without_misattributing_it(self) -> None:
+        #: Given
+        occurrence = TooManyLines(
+            spec=BundledOrigin('builtin:other-floor'),
+            line=LineNumber(NonZeroUnsignedInt(51)),
+            overrun=overrun(60, 50),
+        )
+
+        #: When
+        children = occurrence.children()
+
+        #: Then
+        assert children[0] == Note("the limit is set by the builtin specification 'builtin:other-floor'"), (
+            'a different builtin origin is not attributed to Agent Skills'
+        )

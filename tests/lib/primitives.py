@@ -46,15 +46,15 @@ from lorecraft.project.syntax import (
 )
 from lorecraft.project.workspace import Governance
 from lorecraft.rules.link.queries import linked_documents
-from lorecraft.schemas import RepositoryOrigin, SchemaInput, SchemaRef
+from lorecraft.schemas import BundledOrigin, RepositoryOrigin, SchemaInput, SchemaRef
 from lorecraft.schemas.builtin import AGENT_SKILLS_SCHEMA_INPUT, AGENT_SKILLS_SCHEMA_REFERENCE
 
 
-class _BundledAgentSkillsSchemaPrimitives:
-    """Schema primitives for standalone rule tests; only the bundled skills subject is available."""
+class _BuiltinAgentSkillsSchemaPrimitives:
+    """Schema primitives for standalone rule tests; only the builtin skills subject is available."""
 
     def schema_input(self) -> SchemaInput:
-        """The immutable bundled Agent Skills schema input."""
+        """The immutable builtin Agent Skills schema input."""
         return AGENT_SKILLS_SCHEMA_INPUT
 
     def query_at[T](self, ref: QueryTargetRef, query: Callable[..., T]) -> T:
@@ -114,6 +114,7 @@ class StructurePrimitives:
     governance_value: Governance | None = None
     builtin_schema: bool = True
     schema_inputs_value: Mapping[SchemaRef, SchemaInput] | None = None
+    builtin_specs: tuple[StructureSpec, ...] = ()
 
     def descriptor(self) -> ItemDescriptor:
         """The descriptor synthesized from this standalone test value."""
@@ -197,7 +198,7 @@ class StructurePrimitives:
     def query_at[T](self, ref: QueryTargetRef, query: Callable[..., T]) -> T:
         """Resolve a standalone schema subject from this fixture's schema inputs."""
         if ref == AGENT_SKILLS_SCHEMA_REFERENCE:
-            return query(_BundledAgentSkillsSchemaPrimitives())
+            return query(_BuiltinAgentSkillsSchemaPrimitives())
         if isinstance(ref, SchemaRef):
             schema_input = self.schema_inputs().get(ref)
             if schema_input is not None:
@@ -206,7 +207,17 @@ class StructurePrimitives:
 
     def structure_specs(self) -> tuple[StructureSpec, ...]:
         """The specifications this was built with."""
-        return self.specs
+        return (*self.builtin_specs, *self.specs)
+
+    def builtin_structure_specs(self) -> tuple[StructureSpec, ...]:
+        """The builtin specifications this was built with."""
+        return self.builtin_specs
+
+    def builtin_structure_sources(self) -> tuple[tuple[BundledOrigin, StructureSpec], ...]:
+        """The builtin specifications and origin supplied by these rule fixtures."""
+        origin = AGENT_SKILLS_SCHEMA_INPUT.origin
+        assert isinstance(origin, BundledOrigin), 'the fixture uses the builtin Agent Skills layer'
+        return tuple((origin, spec) for spec in self.builtin_specs)
 
     def headings(self) -> tuple[Heading, ...]:
         """The headings this was built with."""
@@ -263,7 +274,7 @@ class StructurePrimitives:
         if query is item_parse:
             return ParsedDocument(self.heading_list, self.anchor_set, self.link_list)
         if query is item_structure_specs:
-            return self.specs
+            return (*self.builtin_specs, *self.specs)
         if query is item_corpus:
             return self.corpus
         if query is item_name:

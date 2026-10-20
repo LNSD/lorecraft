@@ -75,7 +75,8 @@ repository constraint leaves the built-in constraint in force. Omitting a repeat
 (FR-007, FR-020). Constraints that all layers enforce are not reinterpreted as overrides.
 
 The structure dialect supplies frontmatter, outline, word limits and token/line budgets for skill entries (FR-005).
-The structure specification dialect adds a `lines` budget beside `tokens`. The builtin Agent Skills structure file
+An applicable frontmatter schema supplies `FRONTMATTER` governance; a structure specification with `tokens` or
+`lines` supplies `BUDGET`. The structure specification dialect adds a `lines` budget beside `tokens`. The builtin Agent Skills structure file
 declares a line limit of 500 lines (`too_many_lines`), counting the entire file and reporting from line 501.
 Repository layers can tighten the line limit (e.g. `lines: 300`) but can never relax or waive the floor's 500-line cap.
 When the builtin floor is active, skills are governed for `FRONTMATTER` and `BUDGET`. Coverage records which parts
@@ -97,8 +98,8 @@ lorecraft --no-agent-skills-spec inspect
 The option has no environment-variable counterpart and no repository configuration in this change.
 A task recipe or CI command can persist the explicit flag.
 
-With the option enabled, the entire builtin floor layer—its frontmatter schema, line budget, and tool constraints—is
-omitted. Repository skills meta specs apply on their own (FR-009). With no repository skills specification, skills are
+When `--no-agent-skills-spec` is passed, the entire builtin floor layer—its frontmatter schema, line budget, and
+tool constraints—is omitted. Repository skills meta specs apply on their own (FR-009). With no repository skills specification, skills are
 reported as ungoverned for `FRONTMATTER`, `STRUCTURE`, `OUTLINE`, and `BUDGET` without an error (FR-018).
 The option changes meta-spec floor governance; it does not disable discovery, I/O diagnostics or unrelated link checks
 such as `escaping_link`.
@@ -129,9 +130,10 @@ built-in rule, even in a workspace with no skills (FR-008). It is an unusable la
 failed-layer model: check reports the error and fails (FR-019); inspect follows its existing behaviour for
 an unusable meta spec. It is not repeated as a contradiction finding on every skill.
 
-A consumer skips governed subjects under a failed layer according to its existing failed-layer policy.
-Disabling the builtin floor removes only this compatibility analysis, not validation of the repository
-meta spec's own syntax, structure dialect, and usability.
+A failed repository skills layer is reported as an error and its repository-provided meta-spec gates are suppressed.
+The builtin floor remains active: its frontmatter and budget rules still judge skills, and coverage marks only
+repository-only parts as ungoverned. Disabling the builtin floor removes only this compatibility analysis, not
+validation of the repository meta spec's own syntax, structure dialect, and usability.
 
 ### Reserved Docs Names Are Reported and Excluded
 
@@ -150,7 +152,8 @@ The reserved name remains reserved when the builtin floor is disabled.
 
 Inspect exposes repository skills layers in broad-to-narrow order and identifies whether the builtin floor layer
 is enabled (FR-011). Its text and machine-readable views derive from the same model used by check, reflecting
-the active floor layer across frontmatter and budget coverage.
+the active floor layer across frontmatter and budget coverage. When opted out, inspect JSON includes
+`agent_skills_spec: false`; the default-enabled state omits that key.
 It does not create a second matching algorithm or require a docs/skills/ directory.
 
 ## Consequences
@@ -204,6 +207,7 @@ It does not create a second matching algorithm or require a docs/skills/ directo
 - [ ] The builtin Agent Skills floor supplies a builtin meta-spec layer (frontmatter schema, tool constraints, and 500-line budget)
 - [ ] The structure specification dialect supports `lines` budget alongside `tokens`
 - [ ] A skill with no repository skills meta spec retains the existing findings under the default setting
+- [ ] A failed repository skills layer suppresses only repository-only gates; the builtin floor remains active
 - [ ] The opt-out `--no-agent-skills-spec` disables the entire builtin floor layer, affects check and inspect alike, and allows ungoverned skills without an error
 - [ ] Compatibility analysis covers only the stated direct required-field constraints and is disabled by opt-out
 - [ ] A detected contradiction names the faulty meta spec and fails check even when no skill exists

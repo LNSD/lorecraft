@@ -134,13 +134,13 @@ class _WorkspaceJson(BaseModel):
             and directory, sorted by agent then path; two agents reading one directory share a `resolves_to`.
         skills: Every skill directly inside a directory an entry of `agent_skills_dirs` resolves to, each once, sorted
             by its directory.
-        builtin_skills_schema: False when the root command opts out; None for the default, omitted from JSON.
+        agent_skills_spec: False when the root command opts out; None for the default, omitted from JSON.
     """
 
     model_config = ConfigDict(frozen=True)
 
     root: str
-    builtin_skills_schema: Literal[False] | None
+    agent_skills_spec: Literal[False] | None
     corpora: list[_CorpusJson]
     agent_skills_dirs: list[_AgentSkillsDirJson]
     skills: list[_SkillJson]
@@ -174,7 +174,7 @@ def render_json(root: Path, model: WorkspaceModel) -> str:
     """Encode the model as one compact JSON document, the root beside one key per section.
 
     The keys are `root`, `corpora`, `agent_skills_dirs` and `skills`; when opted out, it also carries
-    `builtin_skills_schema: false`.
+    `agent_skills_spec: false`.
 
     Args:
         root: The workspace root, written under the `root` key.
@@ -195,7 +195,7 @@ def render_json(root: Path, model: WorkspaceModel) -> str:
         skills.append(_SkillJson(path=str(ref.path), agents=list(model.skill_agents(ref))))
     document = _WorkspaceJson(
         root=str(root),
-        builtin_skills_schema=False if AGENT_SKILLS_SCHEMA_REFERENCE not in model.schema_inputs else None,
+        agent_skills_spec=False if AGENT_SKILLS_SCHEMA_REFERENCE not in model.schema_inputs else None,
         corpora=corpora,
         agent_skills_dirs=skills_dirs,
         skills=skills,
@@ -278,7 +278,7 @@ def _skills_section(model: WorkspaceModel) -> _Line:
     for ref in model.skills():
         agents = model.skill_agents(ref)
         lines.append(_Line(f'{ref.directory} [{", ".join(agents)}]'))
-    opt_out = '; Agent Skills schema disabled' if AGENT_SKILLS_SCHEMA_REFERENCE not in model.schema_inputs else ''
+    opt_out = '; Agent Skills spec disabled' if AGENT_SKILLS_SCHEMA_REFERENCE not in model.schema_inputs else ''
     return _Line(f'skills ({len(model.skill_locations)}{opt_out})', tuple(lines))
 
 

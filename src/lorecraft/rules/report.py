@@ -147,7 +147,7 @@ class CheckedItem:
     """A Markdown item that decoded, so the enabled rules judged everything it is governed for.
 
     A document, a skill's `SKILL.md` and a skill's resource are reported alike. Any item can have meta-spec parts
-    that are ungoverned or suppressed after a layer fails; package and schema gates still run.
+    that are ungoverned or suppressed after a layer fails; `Always` gates still run.
 
     Attributes:
         ref: The item the rules judged, at the path its diagnostics are reported at.

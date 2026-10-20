@@ -17,10 +17,10 @@ class GlobalOptions:
     """Options shared by every command in one invocation.
 
     Attributes:
-        builtin_skills_schema: Whether the Agent Skills floor is enabled for this invocation.
+        agent_skills_spec: Whether the Agent Skills floor is enabled for this invocation.
     """
 
-    builtin_skills_schema: bool
+    agent_skills_spec: bool
 
 
 _HELP: Final[str] = "Check a repository's agent-facing documentation: rule documents, feature docs and skills."
@@ -79,10 +79,14 @@ def _root(
             help='Show the version and exit.',
         ),
     ] = False,
-    no_builtin_skills_schema: Annotated[
+    no_agent_skills_spec: Annotated[
         bool,
-        typer.Option('--no-builtin-skills-schema', help='Do not apply the built-in Agent Skills schema.'),
+        typer.Option(
+            '--no-agent-skills-spec',
+            '--no-builtin-skills-schema',
+            help='Do not apply the builtin Agent Skills specification.',
+        ),
     ] = False,
 ) -> None:
     """Store global options for subcommands."""
-    ctx.obj = GlobalOptions(builtin_skills_schema=not no_builtin_skills_schema)
+    ctx.obj = GlobalOptions(agent_skills_spec=not no_agent_skills_spec)

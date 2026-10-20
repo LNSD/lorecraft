@@ -270,6 +270,6 @@ class TestCheckSubjectsLayout:
             CheckedItem(
                 ItemRef(RootRelativePath.parse('.agents/skills/review/SKILL.md')),
                 diagnostics=(),
-                ungoverned=(MetaSpecPart.STRUCTURE, MetaSpecPart.OUTLINE, MetaSpecPart.BUDGET),
+                ungoverned=(MetaSpecPart.STRUCTURE, MetaSpecPart.OUTLINE),
             ),
         ), 'a layout entry and a skill share one run, each reported in the order given'

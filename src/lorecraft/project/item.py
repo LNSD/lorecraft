@@ -61,7 +61,7 @@ class MetaSpecPart(StrEnum):
     OUTLINE = 'outline'
     """The item's sections: a loaded structure layer states an outline."""
     BUDGET = 'budget'
-    """The item's length in tokens: a loaded structure layer sets a token budget."""
+    """The item's whole-file token or line length: a loaded structure layer sets a budget."""
 
 
 @dataclass(frozen=True, slots=True)

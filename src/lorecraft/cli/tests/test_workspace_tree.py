@@ -331,7 +331,7 @@ class TestRenderGovernedSkills:
         text = render_text(Path('/work'), model)
 
         #: Then
-        assert text.splitlines()[-3] == '└── skills (2; Agent Skills schema disabled)', (
+        assert text.splitlines()[-3] == '└── skills (2; Agent Skills spec disabled)', (
             'the tree identifies the nondefault opt-out and is silent for the default'
         )
 
@@ -343,5 +343,5 @@ class TestRenderGovernedSkills:
         document = json.loads(render_json(Path('/work'), model))
 
         #: Then
-        assert document.get('builtin_skills_schema') is False, 'JSON marks the opt-out when it is active'
-        assert 'Agent Skills schema' not in json.dumps(document), 'JSON has no schema status when enabled'
+        assert document.get('agent_skills_spec') is False, 'JSON marks the opt-out when it is active'
+        assert 'Agent Skills specification' not in json.dumps(document), 'JSON has no status when enabled'

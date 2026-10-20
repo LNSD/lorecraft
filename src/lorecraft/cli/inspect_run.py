@@ -19,13 +19,13 @@ from .output import ExitStatus, OutputFormat
 from .workspace_tree import render_json, render_text
 
 
-def run_inspect(root: Path, output_format: OutputFormat, *, builtin_skills_schema: bool = True) -> ExitStatus | None:
+def run_inspect(root: Path, output_format: OutputFormat, *, agent_skills_spec: bool = True) -> ExitStatus | None:
     """Print the workspace model of `root`; the body of `lorecraft inspect`.
 
     Args:
         root: The workspace root, already resolved by the command's argument.
         output_format: How to print the model, already resolved from `--format` and the `--json` alias.
-        builtin_skills_schema: Whether to pre-register the Agent Skills floor schema.
+        agent_skills_spec: Whether to register the builtin Agent Skills floor layer.
 
     Returns:
         `ExitStatus.FAILURE` when the scan or the load fails, which the command handler exits with; `None` when the
@@ -35,9 +35,7 @@ def run_inspect(root: Path, output_format: OutputFormat, *, builtin_skills_schem
         # Under `docs/` the snapshot never reads through a symlink, so a linked `docs/` or `docs/__meta__/`
         # would draw a model with no corpora. `from_snapshot` refuses it instead of printing it as if the root declared
         # nothing.
-        model = Database.from_snapshot(
-            take_snapshot(root, SNAPSHOT_SCOPE), builtin_skills_schema=builtin_skills_schema
-        ).model()
+        model = Database.from_snapshot(take_snapshot(root, SNAPSHOT_SCOPE), agent_skills_spec=agent_skills_spec).model()
         # Until a load failure is reported as one, a model that recorded one is no model to print.
         status = report_first_load_failure(model)
     except Error as exc:

@@ -24,7 +24,6 @@ from .subject import (
     QueriedItemRule,
     QueriedSymlinkRule,
     WhenMetaSpec,
-    WhenSchema,
 )
 
 
@@ -93,7 +92,7 @@ class RuleTable:
                     match gate:
                         case WhenMetaSpec(part):
                             part_key = part
-                        case Always() | WhenSchema():
+                        case Always():
                             part_key = None
                         case _:
                             assert_never(gate)
@@ -129,7 +128,7 @@ class RuleTable:
 
         Args:
             item_type: The item type to look up.
-            part: The active meta spec part, or `None` for `Always` and schema gates.
+            part: The active meta spec part, or `None` for `Always` gates.
         """
         return self._item_rules.get((item_type, part), ())
 

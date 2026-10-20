@@ -68,6 +68,7 @@ from lorecraft.project.syntax import (
     section_headings,
 )
 from lorecraft.project.workspace import Corpus, CorpusNamespace, CorpusSpec, Governance, NamespaceSpec
+from lorecraft.project.workspace.builtin import AGENT_SKILLS_STRUCTURE_SPEC
 from lorecraft.rules.declaration import Rule
 from lorecraft.rules.subject import Queried, QueriedCorpusDirectoryRule, QueriedItemRule, QueriedSymlinkRule
 from lorecraft.schemas import RepositoryOrigin, SchemaInput, SchemaKind, SchemaRef
@@ -356,6 +357,7 @@ class FakeSkillDatabase:
         return query(
             StructurePrimitives(
                 (),
+                builtin_specs=(AGENT_SKILLS_STRUCTURE_SPEC,),
                 link_list=parse_document(self._text).links,
                 link_base_value=SkillRoot(_SKILLS_DIRECTORY / self._directory_name),
                 line_total=count_lines(self._text),

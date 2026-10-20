@@ -20,11 +20,12 @@ from lorecraft.project.skill.outside import OutsideSymlinkRef
 from lorecraft.project.syntax import (
     NormalisedLinkPath,
 )
-from lorecraft.schemas import SchemaInput, SchemaRef
+from lorecraft.schemas import BundledOrigin, SchemaInput, SchemaRef
 from lorecraft.vfs import RootExit
 
 if TYPE_CHECKING:
     from lorecraft.project.schemas.name import SpecName
+    from lorecraft.project.schemas.structure import StructureSpec
     from lorecraft.project.workspace import Governance
 
 type Query[P, T] = Callable[[P], T]
@@ -101,6 +102,14 @@ class GovernancePrimitives(QueryPrimitives['ItemPrimitives'], Protocol):
 
     def governance(self) -> Governance | None:
         """The governance of this item, or none when it has no corpus governance."""
+        ...
+
+    def builtin_structure_specs(self) -> tuple[StructureSpec, ...]:
+        """Structure specifications supplied by builtin layers that govern this item."""
+        ...
+
+    def builtin_structure_sources(self) -> tuple[tuple[BundledOrigin, StructureSpec], ...]:
+        """Builtin structure specifications with their source layer."""
         ...
 
 

@@ -8,10 +8,11 @@ import pytest
 
 from lib.tree import from_tree
 from lorecraft.core.mapping import Frozen, FrozenMapping
+from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.corpus import CorpusName, ReservedCorpusDirectory, ReservedCorpusDirectoryRef
 from lorecraft.project.database import Database, PrimitiveRead, Read
-from lorecraft.project.item import ItemReadError, ItemRef, UnlistedItemError
+from lorecraft.project.item import ItemReadError, ItemRef, ItemType, UnlistedItemError
 from lorecraft.project.query import (
     CorpusDirectoryPrimitives,
     ItemPrimitives,
@@ -269,7 +270,7 @@ def _schema_catches_missing(primitives: ItemPrimitives) -> str | None:
 
 @pytest.mark.unit
 class TestReads:
-    def test_builtin_skills_schema_uses_a_bundled_registry_subject(self) -> None:
+    def test_builtin_skills_schema_and_structure_are_builtin(self) -> None:
         #: Given
         database = _database()
 
@@ -279,7 +280,10 @@ class TestReads:
         #: Then
         assert schema is AGENT_SKILLS_FRONTMATTER_SCHEMA, 'the schema query preserves the Pydantic validator instance'
         assert database.model().schema_inputs[AGENT_SKILLS_SCHEMA_REFERENCE] == AGENT_SKILLS_SCHEMA_INPUT, (
-            'the loaded model exposes the built-in schema with bundled provenance'
+            'the loaded model exposes the built-in schema with builtin provenance'
+        )
+        assert database.model().builtin_structure_specs_for(ItemType.SKILL_ENTRYPOINT)[0].lines == NonZeroUnsignedInt(
+            500
         )
         assert database.query_reads(agent_skills_frontmatter_schema, AGENT_SKILLS_SCHEMA_REFERENCE) == {
             Read(PrimitiveRead.SCHEMA_INPUT, AGENT_SKILLS_SCHEMA_REFERENCE)

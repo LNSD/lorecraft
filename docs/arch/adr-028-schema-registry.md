@@ -67,7 +67,9 @@ are interchangeable.
 8. **Applicability remains a project concern.** Project queries determine which typed schema references apply to
    an item or layer from the loaded model's governance data, then compose the corresponding schema queries. The
    registry resolves a reference to its input and kind; it does not duplicate namespace matching, governed-item
-   discovery, failed-layer policy, or outline and budget computations.
+   discovery, failed-layer policy, or outline and budget computations. The model derives `FRONTMATTER` from applicable
+   frontmatter schemas and `BUDGET` from structure specifications that declare `tokens` or `lines`; parsed structure
+   values and these governance facts remain project-owned.
 9. **Built-in skill behavior remains compatible.** The skills floor is represented by a builtin-origin meta-spec
    layer (supplying both frontmatter schema input and structure specification input) and participates in the same
    lookup and dependency model. Its current Pydantic validation, finding wording, independent application beside
@@ -83,12 +85,11 @@ are interchangeable.
     The global opt-out (`--no-agent-skills-spec`, with `--no-builtin-skills-schema` retained as an alias)
     is achieved by omitting the pre-registered floor layer from the loaded model's inputs. When omitted, the active
     registry and model contain no entry for the floor layer; absence is a normal model state rather than an error.
-12. **Boolean flag plumbing is eliminated across downstream layers.** Because the presence or absence of the floor
-    layer is fully captured by the inputs and governance records in the loaded model, `check_skill_compatibility` and
-    `builtin_skills_schema` boolean parameters are removed from `loader.py`, `model.py`, `database.py`,
-    `primitives.py`, and `runner.py`. Downstream layers (database query primitives, frontmatter queries, engine rule
-    runners, inspect command formatting) determine whether the floor applies by querying presence of the floor
-    layer and its governance facts in the model rather than inspecting a propagated boolean flag.
+12. **The invocation opt-out is consumed while building the workspace model.** The root flags
+    `--no-agent-skills-spec` and its alias `--no-builtin-skills-schema` set `agent_skills_spec`; check and inspect pass
+    that setting through database snapshot construction to workspace loading, which either pre-registers or omits the
+    floor layer. After construction, rule eligibility and schema queries use the loaded inputs and governance facts, not
+    a propagated flag. Inspect JSON reports an opted-out model with `agent_skills_spec: false` and omits that key by default.
 13. **Bounded compatibility preflight is a project-owned operation.** During loader bootstrap, when the pre-registered
     floor layer is present, a project schema operation (`project/schemas`) evaluates candidate repository skills
     layers against the active floor schema reference using ADR-022's bounded direct-field analysis (`name` and
@@ -175,8 +176,8 @@ owned by the project model domain.
   registry/database bootstrap cycle. It also means loader parsing and database schema queries have distinct roles
   that must be documented and tested at their boundary.
 - Pre-registering the Agent Skills floor layer into the loaded model makes opt-out a simple omission of the
-  builtin inputs at the bootstrap edge, eliminating redundant boolean plumbing across loader, model, database, and
-  engine layers.
+  builtin inputs at workspace bootstrap. The `agent_skills_spec` setting is carried from the CLI through check or
+  inspect to that bootstrap boundary; rule execution then uses the model's registered inputs and governance facts.
 - Bounded contradiction preflight remains owned by the project schema layer; the pure registry remains unaware of
   governance policy or failure recording.
 - Explicit kind and origin make the model more verbose but prevent a structure dialect from being mistaken for
@@ -223,7 +224,8 @@ owned by the project model domain.
 - [ ] Built-in skills use registry resolution with builtin origin and preserve ADR-022 validation behavior,
       diagnostics, independent layers, opt-out, bounded preflight, and duplicate-field suppression
 - [ ] The Agent Skills floor layer is pre-registered during bootstrap and omitted when opting out via
-      `--no-agent-skills-spec` (or `--no-builtin-skills-schema`), without propagating boolean flags downstream
+      `--no-agent-skills-spec` (or `--no-builtin-skills-schema`); inspect JSON includes `agent_skills_spec: false`
+      only when opted out, and rule execution uses the loaded model rather than the CLI setting
 - [ ] Bounded compatibility preflight is executed by a project-owned operation against the pre-registered floor
       schema input and reported to the loader's failed-structure records, keeping `lorecraft.schemas` free of
       project governance and failure policy

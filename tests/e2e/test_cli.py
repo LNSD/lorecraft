@@ -454,9 +454,9 @@ class TestCheckCommand:
         assert result.returncode == 1, result.stderr
         assert result.stdout == expected, 'the diagnostics found from the working directory match the snapshot'
         assert result.stderr == (
-            '.agents/skills/alpha/SKILL.md: ungoverned for structure, outline, budget\n'
-            '.agents/skills/beta/SKILL.md: ungoverned for structure, outline, budget\n'
-            '.agents/skills/gamma/SKILL.md: ungoverned for structure, outline, budget\n'
+            '.agents/skills/alpha/SKILL.md: ungoverned for structure, outline\n'
+            '.agents/skills/beta/SKILL.md: ungoverned for structure, outline\n'
+            '.agents/skills/gamma/SKILL.md: ungoverned for structure, outline\n'
             'docs/__meta__/code-python.md: ungoverned for frontmatter, structure, outline, budget\n'
             'docs/__meta__/code.md: ungoverned for frontmatter, structure, outline, budget\n'
             'FM   3 errors\nLEN  1 error\nOUT  5 errors\nchecked 7 subject(s): 9 error(s), 0 warning(s)\n'
@@ -529,7 +529,7 @@ class TestCheckCommand:
         assert result.returncode == 1, result.stderr
         assert result.stdout == expected, 'the undecodable file, the broken link and the symlink match the snapshot'
         assert result.stderr == (
-            '.agents/skills/review/SKILL.md: ungoverned for structure, outline, budget\n'
+            '.agents/skills/review/SKILL.md: ungoverned for structure, outline\n'
             'docs/notes/todo.md: ungoverned for outline, budget\n'
             'LAY   1 error\nLC    1 error\nLINK  1 error\n'
             'checked 5 subject(s): 3 error(s), 0 warning(s)\n'
@@ -623,7 +623,7 @@ class TestCheckCommand:
             'coverage': [
                 {
                     'path': '.agents/skills/review/SKILL.md',
-                    'ungoverned': ['structure', 'outline', 'budget'],
+                    'ungoverned': ['structure', 'outline'],
                     'cause': None,
                     'skipped_by': [],
                 },
@@ -779,9 +779,29 @@ class TestWorkspaceDefaults:
         assert result.returncode == 0, result.stdout
         assert result.stdout == '', 'a skill whose every field but its name is generated has nothing to report'
         assert result.stderr == (
-            '.agents/skills/review/SKILL.md: ungoverned for structure, outline, budget\n'
+            '.agents/skills/review/SKILL.md: ungoverned for structure, outline\n'
             'checked 1 subject(s): 0 error(s), 0 warning(s)\n'
         ), 'the one skill written is the one checked'
+
+    def test_opt_out_disables_the_whole_floor_and_reports_both_parts_ungoverned(
+        self, tmp_path: Path, faker: Faker
+    ) -> None:
+        #: Given
+        skill = Skill(
+            'review', frontmatter=RawFrontmatter('name: review\ndescription: Review.\n'), body='# Review\n' * 501
+        )
+        root = Workspace(skills=[skill]).write(tmp_path, faker)
+
+        #: When
+        result = run_cli('--no-agent-skills-spec', 'check', '--root', str(root))
+
+        #: Then
+        assert result.returncode == 0, result.stdout
+        assert 'LEN002' not in result.stdout, 'opt-out disables the builtin line budget'
+        assert result.stderr == (
+            '.agents/skills/review/SKILL.md: ungoverned for frontmatter, structure, outline, budget\n'
+            'checked 1 subject(s): 0 error(s), 0 warning(s)\n'
+        ), 'both frontmatter and budget coverage are ungoverned without the floor'
 
     def test_check_rejects_a_skills_schema_that_contradicts_a_builtin_rule(self, tmp_path: Path, faker: Faker) -> None:
         #: Given
@@ -814,6 +834,30 @@ class TestWorkspaceDefaults:
             '.agents/skills/review/SKILL.md: ungoverned for frontmatter, structure, outline, budget\n'
             'checked 1 subject(s): 0 error(s), 0 warning(s)\n'
         ), 'the opted-out frontmatter facet is reported as ungoverned, as on main'
+
+    def test_broken_skills_structure_keeps_the_builtin_floor_active(self, tmp_path: Path, faker: Faker) -> None:
+        #: Given
+        frontmatter = RawFrontmatter('name: review\ndescription: Review.\nallowed-tools: Read,Write\n')
+        skill = Skill('review', frontmatter=frontmatter, body='# Review\n' * 1203)
+        workspace = Workspace(
+            files=[File('docs/__meta__/skills.spec.json', '{"lines": "x"}')],
+            skills=[skill],
+        )
+        root = workspace.write(tmp_path, faker)
+
+        #: When
+        result = run_cli('check', '--root', str(root))
+
+        #: Then
+        assert result.returncode == 1, 'the malformed repository structure fails the check'
+        assert 'error[LC003]: structure file does not follow the structure format' in result.stdout
+        assert 'error[LEN002]: too many lines (1208 > 500)' in result.stdout
+        assert 'the limit is set by the builtin Agent Skills specification' in result.stdout
+        assert 'move what most activations do not need into files under `references/`' in result.stdout
+        assert 'warning[FM011]: `allowed-tools` is not a list of tool entries' in result.stdout
+        assert 'ungoverned for structure, outline' in result.stderr, (
+            'only repository structure and outline checks are suppressed; builtin floor coverage remains governed'
+        )
 
     @pytest.mark.parametrize(
         ('frontmatter', 'case'),
@@ -889,7 +933,7 @@ class TestWorkspaceDefaults:
         root = Workspace().write(tmp_path, faker)
 
         #: When
-        result = run_cli('--no-builtin-skills-schema', 'inspect', str(root), '--format', 'json')
+        result = run_cli('--no-agent-skills-spec', 'inspect', str(root), '--format', 'json')
 
         #: Then
         assert result.returncode == 0, result.stderr

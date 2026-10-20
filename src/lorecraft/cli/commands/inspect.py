@@ -58,7 +58,7 @@ def inspect(
     status = run_inspect(
         root,
         _resolve_format(output_format, as_json=as_json),
-        builtin_skills_schema=options.builtin_skills_schema,
+        agent_skills_spec=options.agent_skills_spec,
     )
     if status is not None:
         raise typer.Exit(code=status)

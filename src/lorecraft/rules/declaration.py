@@ -16,6 +16,7 @@ from typing import ClassVar
 
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.syntax import LineNumber
+from lorecraft.schemas import BundledOrigin
 
 from .identity import AliasCode, EngineCode, Level, Release, RuleCode, RuleName, Severity
 from .location import (
@@ -43,7 +44,7 @@ class Rule(ABC):
     `ContentRule` or `LayoutRule`.
 
     Attributes:
-        spec: The structure file that states the rule, or None for a rule the package itself states.
+        spec: The structure file or builtin origin that states the rule, or None when the package states it.
         CODE: The rule's code, such as `OUT002`.
         NAME: The rule's kebab-case name, such as `empty-section`.
         LEVEL: The level the rule runs at when nothing configures it.
@@ -57,7 +58,7 @@ class Rule(ABC):
     SINCE: ClassVar[Release]
     ALIASES: ClassVar[tuple[AliasCode, ...]] = ()
 
-    spec: RootRelativePath | None
+    spec: RootRelativePath | BundledOrigin | None
 
     @abstractmethod
     def message(self) -> str:

@@ -233,6 +233,8 @@ class TestOutlineAlignment:
         #: Then
         assert database.query_reads(outline_alignment, ItemRef(TYPING.path)) == {
             Read(item_structure_specs, ItemRef(TYPING.path)),
+            Read(PrimitiveRead.BUILTIN_STRUCTURE_SPECS, ItemRef(TYPING.path)),
+            Read(PrimitiveRead.DESCRIPTOR, ItemRef(TYPING.path)),
             Read(PrimitiveRead.GOVERNANCE, ItemRef(TYPING.path)),
             Read(item_parse, ItemRef(TYPING.path)),
             Read(PrimitiveRead.TEXT, ItemRef(TYPING.path)),

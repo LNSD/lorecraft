@@ -25,15 +25,16 @@ from .runner import ItemRuleLookup, check_layout_entry, judge_item
 type CheckedSubject = ItemRef | OutsideSymlink | ReservedCorpusDirectory | RefusedSkillAlias
 
 
-class _WithoutMetaSpecRules(ItemRuleLookup):
-    """A check run's view of the table when a governing layer failed."""
+class _WithoutRepositoryMetaSpecRules(ItemRuleLookup):
+    """A check run's view of the table when a repository layer failed."""
 
-    def __init__(self, table: RuleTable) -> None:
+    def __init__(self, table: RuleTable, builtin_parts: frozenset[MetaSpecPart]) -> None:
         self._table = table
+        self._builtin_parts = builtin_parts
 
     def item_rules(self, item_type: ItemType, part: MetaSpecPart | None) -> tuple[EnabledRule[QueriedItem], ...]:
-        """Keep always and schema rules while hiding every meta-spec-gated rule."""
-        if part is not None:
+        """Keep unconditional and builtin rules while hiding rules from failed repository layers."""
+        if part is not None and part not in self._builtin_parts:
             return ()
         return self._table.item_rules(item_type, part)
 
@@ -92,9 +93,9 @@ def _check_item(
 ) -> tuple[SubjectReport, ...]:
     """Decode one item and judge it, suppressing meta-spec gates when a governing layer failed.
 
-    Every item type is decoded the same way, by its common reference. A missing file raises the common item read
-    error. Failed layers suppress meta-spec gates for every governed item type but do not suppress `Always` or schema
-    gates.
+    Every item type is decoded the same way, by its common reference. A missing file raises the item's read error;
+    meta specs have no distinct missing-file error, so their item read error propagates. Failed layers suppress
+    meta-spec gates for every governed item type but do not suppress `Always` or schema gates.
 
     Args:
         database: The revision the item is read from.
@@ -123,8 +124,11 @@ def _check_item(
 
 
 def _judge_after_failed_layer(database: Database, source: ItemText, table: RuleTable) -> CheckedItem:
-    """Judge the item with meta-spec gates hidden and report their enabled parts as coverage."""
-    report = judge_item(database, source, _WithoutMetaSpecRules(table))
-    suppressed = {part for part in MetaSpecPart if table.item_rules(source.descriptor.type, part)}
+    """Keep the builtin floor while hiding failed repository layers, and report their parts as coverage."""
+    builtin_parts = database.model().builtin_parts_for(source.descriptor.type)
+    report = judge_item(database, source, _WithoutRepositoryMetaSpecRules(table, builtin_parts))
+    suppressed = {
+        part for part in MetaSpecPart if part not in builtin_parts and table.item_rules(source.descriptor.type, part)
+    }
     ungoverned = suppressed | set(report.ungoverned)
     return replace(report, ungoverned=tuple(part for part in MetaSpecPart if part in ungoverned))
