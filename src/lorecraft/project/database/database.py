@@ -36,7 +36,6 @@ from lorecraft.core.path import RootRelativePath
 from lorecraft.project.corpus import CorpusName, ReservedCorpusDirectory, ReservedCorpusDirectoryRef
 from lorecraft.project.item import (
     ItemDescriptor,
-    ItemOrigin,
     ItemReadError,
     ItemRef,
     UnlistedItemError,
@@ -50,6 +49,7 @@ from lorecraft.project.link_target import (
 from lorecraft.project.query import (
     CorpusDirectoryQuery,
     ItemQuery,
+    NameHierarchy,
     Query,
     QueryTargetRef,
     SchemaQuery,
@@ -107,15 +107,12 @@ class PrimitiveRead(StrEnum):
     SCHEMA_INPUT = 'schema_input'
     LEAVES_AT = 'leaves_at'
     RESERVED_CORPUS = 'reserved_corpus'
-    ORIGIN = 'origin'
-    LISTED_NAME = 'listed_name'
     TEXT = 'text'
     GOVERNANCE = 'governance'
-    SCHEMA_INPUTS = 'schema_inputs'
     LINK_TARGETS = 'link_targets'
     LINK_BASE = 'link_base'
     DESCRIPTOR = 'descriptor'
-    MODEL = 'model'
+    NAME_HIERARCHY = 'name_hierarchy'
 
 
 @dataclass(frozen=True)
@@ -278,19 +275,11 @@ class _ItemPrimitives(_Reads[ItemRef, '_ItemPrimitives']):
         return self._database._item(self._ref).descriptor
 
     @primitive
-    def model(self) -> WorkspaceModel:
-        """The model's declared name hierarchy."""
-        return self._database.model()
-
-    @primitive
-    def origin(self) -> ItemOrigin:
-        """The model-resolved origin metadata of the item."""
-        return self._database._item(self._ref).descriptor.origin
-
-    @primitive
-    def listed_name(self) -> str:
-        """The descriptor's original name, used for frontmatter ownership."""
-        return self._database._item(self._ref).descriptor.listed_name
+    def name_hierarchy(self) -> NameHierarchy:
+        """The nearest name ancestor this item can return as its base."""
+        descriptor = self.descriptor()
+        model = self._database.model()
+        return NameHierarchy(base_name=model.name_base(descriptor.corpus, descriptor.name))
 
     @primitive
     def text(self) -> ItemText | None:
@@ -302,11 +291,6 @@ class _ItemPrimitives(_Reads[ItemRef, '_ItemPrimitives']):
     def governance(self) -> Governance | None:
         """The model's governance of the item."""
         return self._database.item_governance(self._ref)
-
-    @primitive
-    def schema_inputs(self) -> Mapping[SchemaRef, SchemaInput]:
-        """The immutable schema inputs retained by the loaded model."""
-        return self._database.model().schema_inputs
 
     @primitive
     def link_targets(self) -> Mapping[NormalisedLinkPath, LinkTargetEntry]:

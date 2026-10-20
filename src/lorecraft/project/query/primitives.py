@@ -8,12 +8,13 @@ Schema subjects have their own parameterless query family over immutable inputs 
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Protocol, overload
 
-from lorecraft.project.aspect import AspectFilename, AspectName
+from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.corpus.directory import ReservedCorpusDirectoryRef
-from lorecraft.project.item import ItemDescriptor, ItemOrigin, ItemRef
+from lorecraft.project.item import ItemDescriptor, ItemRef
 from lorecraft.project.link_target import LinkBase, LinkTargetEntry
 from lorecraft.project.skill.outside import OutsideSymlinkRef
 from lorecraft.project.syntax import (
@@ -23,7 +24,6 @@ from lorecraft.schemas import SchemaInput, SchemaRef
 from lorecraft.vfs import RootExit
 
 if TYPE_CHECKING:
-    from lorecraft.project.document import DocumentRef, MetaSpecRef
     from lorecraft.project.schemas.name import SpecName
     from lorecraft.project.workspace import Governance
 
@@ -65,30 +65,11 @@ class DecodedText(Protocol):
         ...
 
 
-class NameHierarchy(Protocol):
-    """The name lookups an item base query derives from."""
+@dataclass(frozen=True, slots=True)
+class NameHierarchy:
+    """The one typed base name an item base query can return."""
 
-    def find_corpus(self, name: CorpusName) -> NameHierarchyCorpus | None:
-        """Find a corpus in the model's document hierarchy."""
-        ...
-
-    def find_specification_base(self, ref: MetaSpecRef) -> MetaSpecRef | None:
-        """Find the nearest declared specification ancestor."""
-        ...
-
-    def name_base(
-        self, corpus: CorpusName | None, name: AspectFilename | AspectName | SpecName | None
-    ) -> AspectFilename | SpecName | None:
-        """Find an item's typed base name in the hierarchy declared by its descriptor."""
-        ...
-
-
-class NameHierarchyCorpus(Protocol):
-    """The document-name lookup retained by one corpus in the model."""
-
-    def document_base(self, filename: AspectFilename) -> DocumentRef | None:
-        """Find the nearest declared document ancestor."""
-        ...
+    base_name: AspectFilename | SpecName | None = None
 
 
 class SchemaPrimitives(QueryPrimitives['SchemaPrimitives'], Protocol):
@@ -114,20 +95,12 @@ CountPrimitives = SyntaxPrimitives
 class GovernancePrimitives(QueryPrimitives['ItemPrimitives'], Protocol):
     """What governs the item and what it is named: its specifications, schemas, owner and place among the documents."""
 
-    def origin(self) -> ItemOrigin:
-        """The model's origin metadata for this item, including its expected name and provenance."""
-        ...
-
-    def listed_name(self) -> str:
-        """The descriptor's original name, used for frontmatter ownership."""
+    def descriptor(self) -> ItemDescriptor:
+        """The model-resolved descriptor, the single primitive for descriptor facts."""
         ...
 
     def governance(self) -> Governance | None:
         """The governance of this item, or none when it has no corpus governance."""
-        ...
-
-    def schema_inputs(self) -> Mapping[SchemaRef, SchemaInput]:
-        """The immutable schema inputs loaded for the workspace."""
         ...
 
 
@@ -142,8 +115,8 @@ class NameHierarchyPrimitives(Protocol):
         """The model-resolved raw descriptor of this item."""
         ...
 
-    def model(self) -> NameHierarchy:
-        """The model's raw name hierarchy."""
+    def name_hierarchy(self) -> NameHierarchy:
+        """The name hierarchy used to find this item's declared base."""
         ...
 
 

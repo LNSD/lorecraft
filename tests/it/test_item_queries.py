@@ -87,7 +87,7 @@ def _decoded(database: Database, ref: ItemRef) -> ItemText:
 
 def _item_origin(primitives: ItemPrimitives) -> ItemOrigin:
     """The item's model-resolved origin, which does not require decoded text."""
-    return primitives.origin()
+    return primitives.descriptor().origin
 
 
 def _item_name(primitives: ItemPrimitives) -> AspectFilename | SpecName | None:
