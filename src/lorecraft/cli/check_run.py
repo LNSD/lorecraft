@@ -100,7 +100,9 @@ def run_check(
         reportable_refusals: dict[RootRelativePath, RefusedRecord] = {}
         unreported_non_item_refusals: dict[RootRelativePath, RefusedRecord] = {}
         for path, refusal in refusals.items():
-            if path in docs_refusals or path in item_refusals:
+            if path in item_refusals:
+                continue
+            if path in docs_refusals:
                 reportable_refusals[path] = refusal
             elif not path.is_relative_to(DOCS_DIR):
                 unreported_non_item_refusals[path] = refusal
@@ -153,10 +155,10 @@ def _reports_or_status(model: WorkspaceModel) -> tuple[RunReport, ...] | ExitSta
 
 
 def _refusal_reports(refusals: dict[RootRelativePath, RefusedRecord]) -> tuple[RunReport, ...]:
-    """Report docs refusals and item reads as load failures; the engine reports each skipped subject separately.
+    """Report refused docs paths as load failures; item reads are represented by skipped subjects.
 
     Args:
-        refusals: Docs refusals and item reads the workspace model has not already reported as load failures.
+        refusals: Docs refusals the workspace model has not already reported as load failures.
     """
     reports: list[RunReport] = []
     for path, refusal in refusals.items():

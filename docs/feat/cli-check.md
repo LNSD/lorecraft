@@ -10,7 +10,7 @@ components: "module:lorecraft.cli,module:lorecraft.engine,module:lorecraft.rules
 
 ## Summary
 
-Checks docs against meta specs and skills against the Agent Skills spec; load failures are diagnostics, refused item reads are `LC002`, errors exit `1`.
+Checks docs against meta specs and skills against the Agent Skills spec; refused item reads appear as skipped coverage, `LC002` reports non-item load failures, and errors exit `1`.
 
 ## Table of Contents
 
@@ -111,7 +111,7 @@ error[OUT006]: missing required section `Checklist`
   = help: The items a reviewer verifies before committing a change the rule document governs.
 ```
 
-On stderr, `text` prints coverage, counts per code prefix and `checked N subject(s): ...` (including unreadable specs). Coverage marks an item whose own read was refused as `skipped, read refused at: <path>`; a subject blocked by a refused docs dependency is `skipped, depends on a refused docs path: <path>`. Refused reads of documents, meta specs, skill entrypoints and Markdown resources produce `LC002`. Other refused skill files remain scan-blocking errors and exit `2`. Symlinked corpora and `.md` entries appear as `path: not checked (symlink)`; links are not followed, diagnosed or counted.
+On stderr, `text` prints coverage, counts per code prefix and `checked N subject(s): ...` (including unreadable specs). Coverage marks a refused item read as `skipped, read refused at: <path>`; a subject blocked by a refused docs dependency is `skipped, depends on a refused docs path: <path>`. Refused reads of documents, meta specs, skill entrypoints and Markdown resources appear as skipped coverage alone, without `LC002`. `LC002` remains for refused non-item paths. Other refused skill files remain scan-blocking errors and exit `2`. Symlinked corpora and `.md` entries appear as `path: not checked (symlink)`; links are not followed, diagnosed or counted.
 Example: one subject, two errors.
 
 ```text
@@ -128,7 +128,7 @@ labels, help and notes; `text` order and exit status are retained. Stderr has co
 docs/code/logging.md:1: error[OUT006]: missing required section `Checklist`
 ```
 
-In `json`, stdout is one compact line; stderr holds selection warnings. In text order, `diagnostics` lists `path`, nullable `line`, `severity`, `code`, `name`, `message`, `labels` and `children`. `summary` counts subjects/errors/warnings; load failures are errors, not subjects. `coverage` lists `path`, `ungoverned`, `cause` and refused paths in `skipped_by`. `cause` is `refused-path` when the subject's own read was refused, `refused-dependency` when a refused docs path blocks it, and `null` when it was checked; unchecked symlinks add `unchecked: true`:
+In `json`, stdout is one compact line; stderr holds selection warnings. It contains `diagnostics` (in text order), `summary` and `coverage`. Load failures are errors, not subjects. Coverage lists `path`, `ungoverned`, `cause` and refused paths in `skipped_by`; `cause` is `refused-path`, `refused-dependency` or `null`; unchecked symlinks add `unchecked: true`:
 
 ```json
 {"diagnostics":[{"path":"docs/notes/broken.md","line":4,"severity":"error","code":"LC001","name":"invalid-utf8","message":"file is not valid UTF-8","labels":[{"path":"docs/notes/broken.md","line":4,"text":"0xE9 at byte offset 31 starts a character the next byte does not continue"}],"children":[{"kind":"help","text":"save the file as UTF-8","path":null,"line":null}]}],"summary":{"subjects":3,"errors":1,"warnings":0},"coverage":[{"path":"docs/notes/todo.md","ungoverned":["outline","budget"],"cause":null,"skipped_by":[]},{"path":"docs/code/guide.md","ungoverned":[],"cause":"refused-path","skipped_by":["docs/code/guide.md"]},{"path":"docs/code/linked.md","ungoverned":[],"cause":null,"skipped_by":[],"unchecked":true}]}
@@ -141,7 +141,7 @@ JSON paths must be UTF-8; Unicode is unescaped.
 | Code | Meaning |
 |------|---------|
 | `0`  | No diagnostic is an error; warnings and ungoverned parts do not count |
-| `1`  | An error diagnostic, including a failed meta spec or unreadable `docs/` path (`LC002`) |
+| `1`  | An error diagnostic, including a non-item load failure (`LC002`) |
 | `2`  | No root; unlistable `docs/` or `docs/__meta__/`; scan-blocking refusal outside reported item reads; changed snapshot entry; invalid selection or usage. A refused non-item file inside a skill scan reports `error: cannot snapshot file <path>: permission denied` without a `caused by:` line or absolute path. Errors print to stderr; selector usage errors follow [cli](cli.md) |
 
 ## Limitations
@@ -173,7 +173,7 @@ JSON paths must be UTF-8; Unicode is unescaped.
 
 Each reported structure-file failure appears once at that file.
  `LC001` points to the first invalid byte; `LC002`–`LC004` are whole-file diagnostics with help before notes.
-`LC002` covers unreadable paths, unknown files and unlistable nested directories. Unreadable meta specs and documents count as subjects; unknown paths do not. Resource and `SKILL.md` aliases appear in coverage at their paths, naming the refused target; `LC002` stays at the target. Sibling resources and unaffected subjects continue. A directory alias appears at its path, never at the skill's `SKILL.md`.
+`LC002` covers non-item load failures such as unreadable unknown paths and unlistable nested directories. Refused item reads appear as skipped coverage alone; they do not add an `LC002` diagnostic. Unknown paths do not count as subjects. Resource and `SKILL.md` aliases appear in coverage at their paths, naming the refused target. Sibling resources and unaffected subjects continue. A directory alias appears at its path, never at the skill's `SKILL.md`.
 
 `FM008` ends with a schema example; `FM009` labels malformed skill names with their pattern. `FM010` reports whole-block constraints without a label; its note gives the validator's wording. `FM012`–`FM014` and `LEN` label the amount over the limit.
 
