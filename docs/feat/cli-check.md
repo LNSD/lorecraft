@@ -156,8 +156,8 @@ JSON paths must be UTF-8; non-ASCII text is direct, not escaped.
   all exit 0. LINK007 puts `help` before `note`.
   `COR001` is selectable; if its level makes it an error, the run exits 1.
 - A whole subject, such as a layout entry, shows `--> path` without an excerpt. Unreadable source appears as
-  `= at path:line: text`. Excerpts are available for documents, `SKILL.md` files, skill resources and meta spec
-  files directly in `docs/__meta__/`; other paths have none.
+  `= at path:line: text`. Excerpts are available for documents, `SKILL.md`, resources and meta spec
+  files in `docs/__meta__/`; other paths have none.
   A UTF-8 byte order mark is omitted from excerpted line 1, so its underline spans only the visible text.
   The gutter uses `| ^ - .` without UTF-8 output.
 - Skills without `docs/__meta__/` need `--root`.
