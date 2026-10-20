@@ -58,24 +58,23 @@ ancestors has the scan read that ancestor's whole subtree once, and ends there.
 
 
 def _is_declared_file(path: RootRelativePath) -> bool:
-    """Whether `path` is under `docs/`, whose unreadability the database exposes for the command to report.
+    """Whether the snapshot should keep a refused read rather than aborting.
 
-    The loader reads meta specs and governed documents; later checks also read unknown files and files reached through
-    skill links. Retaining every docs refusal lets the model or database report it without aborting the scan.
+    Every regular file the fixed snapshot scope reaches is an input to the command. Retain refused reads from the
+    scope; the database identifies item reads, and the command rejects the others.
 
     Args:
         path: The root-relative, resolved path of a regular file the scan reads.
     """
-    return path.is_relative_to(DOCS_DIR) and path != DOCS_DIR
+    return True
 
 
 DECLARATION: Final[Declaration] = Declaration(is_file=_is_declared_file)
 """Which regular files a snapshot keeps unreadable instead of stopping the scan.
 
-Every file under `docs/` is retained, including user-provided schemas, spec documents, governed documents and files
-no corpus names. The model records refusals it encounters while loading; the database exposes other docs refusals to
-the command as diagnostics. Directory refusals and refused entries on followed skill-link chains are retained by the
-snapshot as well. A refusal outside `docs/` that the model does not report remains a scan-blocking error.
+Every regular file read in the fixed snapshot scope is retained. The database identifies item refusals for the
+engine; refusals of other files are still rejected by the command. Directory refusals and refused entries on followed
+skill-link chains are retained by the snapshot as well.
 """
 
 

@@ -645,8 +645,13 @@ class TestRenderJson:
             ],
             'summary': {'subjects': 5, 'errors': 4, 'warnings': 1},
             'coverage': [
-                {'path': 'docs/arch/adr.md', 'ungoverned': ['structure'], 'skipped_by': []},
-                {'path': 'docs/feat/check.md', 'ungoverned': ['frontmatter', 'budget'], 'skipped_by': []},
+                {'path': 'docs/arch/adr.md', 'ungoverned': ['structure'], 'cause': None, 'skipped_by': []},
+                {
+                    'path': 'docs/feat/check.md',
+                    'ungoverned': ['frontmatter', 'budget'],
+                    'cause': None,
+                    'skipped_by': [],
+                },
             ],
         }
 
@@ -795,9 +800,9 @@ class TestRenderLoadFailures:
         document = json.loads(text)
         assert document['summary'] == {'subjects': 3, 'errors': 1, 'warnings': 0}, 'the failure is no subject'
         assert document['coverage'] == [
-            {'path': 'docs/code/a.md', 'ungoverned': ['structure', 'outline'], 'skipped_by': []},
-            {'path': 'docs/code/b.md', 'ungoverned': ['structure', 'outline'], 'skipped_by': []},
-            {'path': 'docs/feat/check.md', 'ungoverned': ['budget'], 'skipped_by': []},
+            {'path': 'docs/code/a.md', 'ungoverned': ['structure', 'outline'], 'cause': None, 'skipped_by': []},
+            {'path': 'docs/code/b.md', 'ungoverned': ['structure', 'outline'], 'cause': None, 'skipped_by': []},
+            {'path': 'docs/feat/check.md', 'ungoverned': ['budget'], 'cause': None, 'skipped_by': []},
         ], 'failed-layer-suppressed parts and ungoverned parts share the coverage field'
         assert document['diagnostics'] == [
             {

@@ -19,21 +19,22 @@ resource has no meta-spec structure governance. An
 `UndecodableSubject` did not decode,
 so no rule judged it: it holds its `ItemRef` and where the bytes stopped being UTF-8, and its one diagnostic,
 the engine's,
-is built from them, at the subject's path. An `UnreadableItem` could not be read at all, so it holds its item ref
-and the engine's unreadable-path condition, and counts as a subject. A layout
+is built from them, at the subject's path. A layout
 entry, one symlink of the skill layout whose chain leaves the repository or a directory under `docs/` named like a
 reserved corpus, has no text to decode and no meta spec to be
 ungoverned by, so it gets a report of its own, a `CheckedLayoutEntry`: its ref and its diagnostics, in their output
 order.
 
-Two reports come from what failed to load, never from a rule. A `SkippedSubject` is an item or skill alias that
-depends on a refused docs path: it holds no diagnostic and is listed in coverage with the refused path. Failed
-governing layers are reported as partial checks, with suppressed meta-spec parts listed as ungoverned coverage. A
+Two reports come from what failed to load, never from a rule. A `SkippedSubject` holds an item or skill alias that
+could not be judged because its read or a docs dependency was refused; it holds no diagnostic and is listed in
+coverage. Failed governing layers are reported as partial checks, with suppressed meta-spec parts listed as
+ungoverned coverage. A
 `LoadFailureReport` is the failure itself, filed at its own path with the one diagnostic of its engine condition,
 whatever the configuration and the selection, in the same total order as every other diagnostic.
 """
 
 from dataclasses import dataclass
+from enum import StrEnum
 from typing import assert_never
 
 from lorecraft.core.num import UnsignedInt
@@ -189,24 +190,6 @@ class UndecodableSubject:
 
 
 @dataclass(frozen=True, slots=True)
-class UnreadableItem:
-    """A governed item that could not be read, still counted as a subject with its `LC002`.
-
-    Attributes:
-        ref: The item whose bytes the snapshot could not read.
-        occurrence: The engine condition explaining the unreadable path.
-    """
-
-    ref: ItemRef
-    occurrence: EngineCondition
-
-    @property
-    def diagnostics(self) -> tuple[EngineDiagnostic]:
-        """The unreadable-path diagnostic at the item's path."""
-        return (EngineDiagnostic(self.ref.path, self.occurrence),)
-
-
-@dataclass(frozen=True, slots=True)
 class CheckedLayoutEntry:
     """A layout entry the enabled rules judged.
 
@@ -230,20 +213,30 @@ class CheckedLayoutEntry:
         object.__setattr__(self, 'diagnostics', tuple(sorted(self.diagnostics, key=diagnostic_order)))
 
 
+class SkipCause(StrEnum):
+    """Why the engine did not judge a subject."""
+
+    REFUSED_PATH = 'refused-path'
+    REFUSED_DEPENDENCY = 'refused-dependency'
+
+
 @dataclass(frozen=True, slots=True)
 class SkippedSubject:
-    """An item or skill alias no rule judged because a docs path it depends on was refused.
+    """An item or skill alias no rule judged because its read or a docs dependency was refused.
 
-    A refused directory alias is reported at its alias path, while its owning skill remains a separate subject. It is
-    coverage, never a diagnostic: it holds none, and the refusal is reported at the refused path.
+    A refused item read is reported by the CLI at the item path. A refused dependency is reported at its target, while
+    the skipped subject remains visible in coverage. A refused directory alias is reported at its alias path, while
+    its owning skill remains a separate subject.
 
     Attributes:
         ref: The document, skill or alias path that was not judged.
-        refused_paths: Docs paths whose refusal prevented checking.
+        refused_paths: Paths whose refusal prevented checking.
+        cause: Whether the subject's own read was refused or it depends on another refused path.
     """
 
     ref: ItemRef | SkillAliasRef
     refused_paths: tuple[RootRelativePath, *tuple[RootRelativePath, ...]]
+    cause: SkipCause = SkipCause.REFUSED_DEPENDENCY
 
     @property
     def diagnostics(self) -> tuple[()]:
@@ -285,10 +278,8 @@ class LoadFailureReport:
 
 
 # What the runner reports for one subject: what the rules found in it, that it did not decode, what they found at a
-# layout entry, or that an item or skill alias depends on a refused docs path.
-type SubjectReport = (
-    CheckedItem | UndecodableSubject | UnreadableItem | CheckedLayoutEntry | SkippedSubject | UncheckedSymlink
-)
+# layout entry, that an item or skill alias could not be judged, or an unchecked docs symlink.
+type SubjectReport = CheckedItem | UndecodableSubject | CheckedLayoutEntry | SkippedSubject | UncheckedSymlink
 
 # What a run hands its output: a report per subject, and one per unit of the declaration that failed to load, which is
 # no subject and is filed at its own path.

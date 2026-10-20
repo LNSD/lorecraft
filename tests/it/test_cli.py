@@ -57,6 +57,7 @@ UNKNOWN_FIELD_SKILL_MD: Final[str] = '---\nname: review\ndescription: Review a c
 SKILL_COVERAGE: Final[dict[str, object]] = {
     'path': '.agents/skills/review/SKILL.md',
     'ungoverned': ['structure', 'outline', 'budget'],
+    'cause': None,
     'skipped_by': [],
 }
 
@@ -1155,7 +1156,7 @@ class TestCheckCommand:
             'summary': {'subjects': 3, 'errors': 1, 'warnings': 1},
             'coverage': [
                 SKILL_COVERAGE,
-                {'path': 'docs/code/guide.md', 'ungoverned': ['outline', 'budget'], 'skipped_by': []},
+                {'path': 'docs/code/guide.md', 'ungoverned': ['outline', 'budget'], 'cause': None, 'skipped_by': []},
             ],
         }, f'the document holds every diagnostic, the summary and the coverage, got {result.stdout!r}'
 

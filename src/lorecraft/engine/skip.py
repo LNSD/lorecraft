@@ -1,8 +1,8 @@
 """Run checks over workspace subjects, applying failed-layer policy after decoding.
 
 A failed governing layer suppresses meta-spec-gated rules for any decoded item, while `Always` and schema rules still
-run. The suppressed parts appear as coverage. An item or skill alias whose resolved docs target was refused is
-reported as skipped; the refusal itself is reported at its target.
+run. The suppressed parts appear as coverage. An item whose read was refused, or an item or skill alias whose docs
+dependency was refused, is reported as skipped; the refusal itself is reported at its target.
 """
 
 from collections.abc import Iterable, Mapping
@@ -13,9 +13,8 @@ from lorecraft.core.path import RootRelativePath
 from lorecraft.project.corpus import ReservedCorpusDirectory
 from lorecraft.project.database import Database, ItemText, Undecodable
 from lorecraft.project.item import ItemRef, ItemType, MetaSpecPart
-from lorecraft.project.layout import DOCS_DIR
 from lorecraft.project.skill import OutsideSymlink, RefusedSkillAlias
-from lorecraft.rules.report import CheckedItem, SkippedSubject, SubjectReport, UndecodableSubject
+from lorecraft.rules.report import CheckedItem, SkipCause, SkippedSubject, SubjectReport, UndecodableSubject
 from lorecraft.rules.table import EnabledRule, QueriedItem, RuleTable
 from lorecraft.vfs import RefusedRead, RefusedRecord
 
@@ -54,7 +53,7 @@ def check_subjects(
             entry is a symlink whose chain leaves the repository or a directory named like a reserved corpus, as the
             database's model or a skill's resource listing records it.
         table: The rules the run enables, each with its severity.
-        refusals: Docs paths the snapshot refused, whose diagnostics the caller reports; empty by default.
+        refusals: Snapshot paths the caller reports as refused reads or docs dependencies; empty by default.
 
     Raises:
         ItemReadError: If an item is missing from the snapshot; a decode failure is a diagnostic.
@@ -64,12 +63,10 @@ def check_subjects(
     reports: list[SubjectReport] = []
     for subject in subjects:
         match subject:
-            case ItemRef() as ref if isinstance(refusals.get(ref.path), RefusedRead):
-                continue  # the unreadable-document report is already in the caller's reports
             case ItemRef() as ref:
                 reports.extend(_check_item(database, ref, table, refusals))
             case RefusedSkillAlias(ref=ref, refused_at=path):
-                reports.append(SkippedSubject(ref, (path,)))
+                reports.append(SkippedSubject(ref, (path,), SkipCause.REFUSED_DEPENDENCY))
             case OutsideSymlink() | ReservedCorpusDirectory():
                 reports.append(check_layout_entry(subject, database, table))
             case _:
@@ -77,14 +74,14 @@ def check_subjects(
     return tuple(reports)
 
 
-def _is_refused_docs_path(path: RootRelativePath, refusals: Mapping[RootRelativePath, RefusedRecord]) -> bool:
-    """Whether a subject resolves to a refused path under `docs/`.
+def _is_refused_path(path: RootRelativePath, refusals: Mapping[RootRelativePath, RefusedRecord]) -> bool:
+    """Whether a subject resolves to a refused read path.
 
     Args:
         path: The resolved file path the subject depends on.
         refusals: Snapshot refusals keyed by their root-relative path.
     """
-    return path.is_relative_to(DOCS_DIR) and refusals.get(path) is not None
+    return isinstance(refusals.get(path), RefusedRead)
 
 
 def _check_item(
@@ -109,8 +106,8 @@ def _check_item(
         ItemReadError: If the item is missing from the snapshot; a decode failure is a diagnostic.
     """
     descriptor = database.item_descriptor(item)
-    if _is_refused_docs_path(descriptor.read_location, refusals):
-        return (SkippedSubject(item, (descriptor.read_location,)),)
+    if _is_refused_path(descriptor.read_location, refusals):
+        return (SkippedSubject(item, (descriptor.read_location,), SkipCause.REFUSED_PATH),)
     source = database.item_text(item)
     match source:
         case Undecodable():

@@ -11,7 +11,7 @@ from lorecraft.project.database import Database, ItemText
 from lorecraft.project.item import ItemRef, MetaSpecPart
 from lorecraft.project.layout import SPECS_DIR
 from lorecraft.rules.registry import Registry
-from lorecraft.rules.report import CheckedItem, UndecodableSubject
+from lorecraft.rules.report import CheckedItem, SkipCause, SkippedSubject, UndecodableSubject
 from lorecraft.rules.selection import AllRules, RuleSelection
 from lorecraft.rules.table import RuleTable
 from lorecraft.vfs import OsRefusal, RefusedRead
@@ -330,7 +330,7 @@ class TestCheckSubjectsOverASpecification:
         assert len(reports) == 1, 'the entry point reports the one specification it was given'
         assert isinstance(reports[0], UndecodableSubject), 'a specification that is not UTF-8 is reported undecodable'
 
-    def test_check_subjects_with_a_refused_read_of_the_specification_adds_no_report_of_its_own(self) -> None:
+    def test_check_subjects_with_a_refused_read_of_the_specification_reports_it_as_skipped(self) -> None:
         #: Given
         database = _database_with({'code.md': b'# Code\n'}, {})
         refusals = {CODE_SPECIFICATION.path: RefusedRead(OsRefusal.PERMISSION_DENIED)}
@@ -339,7 +339,9 @@ class TestCheckSubjectsOverASpecification:
         reports = check_subjects(database, [CODE_SPECIFICATION], _all_rules(), refusals)
 
         #: Then
-        assert reports == (), 'the unreadable-path report is already in the caller reports, as for a document'
+        assert reports == (SkippedSubject(CODE_SPECIFICATION, (CODE_SPECIFICATION.path,), SkipCause.REFUSED_PATH),), (
+            'the engine uses the refused-path result for a meta spec, as for every other item type'
+        )
 
     def test_check_subjects_with_a_failed_layer_of_its_corpus_still_judges_the_specification(self) -> None:
         #: Given
