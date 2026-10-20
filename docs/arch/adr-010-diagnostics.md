@@ -43,6 +43,10 @@ not change between two runs over the same revision.
 5. **Only the command line prints.** A rule returns its occurrences as values, the run locates them into
    diagnostics, and the command line alone renders them and chooses the exit code. A problem in a subject is a
    diagnostic and the run goes on; only what stops Lorecraft from judging at all is raised.
+6. **A link escaping its applicable bound is one rule condition.** `LINK004` reports that condition for every
+   governed Markdown item, using one code for repository-root escapes in documents and meta specs and skill-root
+   escapes in skills and their resources. Its message names the link-bound escape; typed context may identify the
+   bound crossed.
 
 ## Design
 
@@ -337,6 +341,8 @@ Before committing code, verify:
 
 - [ ] A rule's `message()` names the condition and never branches; context reaches the diagnostic through typed
   fields and `labels()` and `children()`, never as prose built in `check`
+- [ ] `LINK004` reports relative links that cross the applicable bound for documents, meta specs, skills and
+  skill resources as the same link-bound escape condition
 - [ ] Guidance a meta spec states reaches `children()` through the context, and the rule does not restate it
 - [ ] A layout rule's labels and sub-diagnostics are the `Entry*` types, and no location is read by `getattr`
 - [ ] A diagnostic holds its occurrence and copies none of its fields; an engine diagnostic's severity is its
@@ -356,6 +362,7 @@ Before committing code, verify:
 - [prd-008-structured-checks](prd-008-structured-checks.md) - Source: The requirements this design answers
 - [adr-009-rules](adr-009-rules.md) - Foundation: The rule class that renders a diagnostic, and the glossary
 - [adr-011-rules-engine](adr-011-rules-engine.md) - Related: The run that locates occurrences into diagnostics
+- [adr-023](adr-023-governed-items.md) - Related: The item-specific link resolution bases and escape bounds
 - [adr-001-snapshot-model](adr-001-snapshot-model.md) - Related: The model and the package roles
 - [adr-007-findings](adr-007-findings.md) - Supersedes: Violations, findings and failures
 - [adr-015-database](adr-015-database.md) - Related: Load failures reported as engine diagnostics that exit 1
