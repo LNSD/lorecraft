@@ -282,6 +282,7 @@ class TestCheckWithAFailedMetaSpec:
         assert coverage['docs/code/python-typing.md'] == {
             'path': 'docs/code/python-typing.md',
             'ungoverned': ['frontmatter', 'structure', 'outline', 'budget'],
+            'cause': None,
             'skipped_by': [],
         }, 'the affected meta-spec parts are reported, while non-meta-spec rules can judge the item'
         assert _codes_at(document, 'docs/code/python-typing.md') == [], 'the failed namespace gates are suppressed'

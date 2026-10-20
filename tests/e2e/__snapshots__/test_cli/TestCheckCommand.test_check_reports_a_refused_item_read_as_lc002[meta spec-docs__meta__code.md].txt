@@ -1,0 +1,4 @@
+error[LC002]: path cannot be read
+ --> docs/__meta__/code.md
+  = help: make the path, and what it links to, accessible to the process that runs the check
+  = note: cannot read docs/__meta__/code.md: permission denied

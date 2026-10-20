@@ -76,6 +76,7 @@ from lorecraft.project.workspace import Governance, ResolvedItem, WorkspaceModel
 from lorecraft.schemas import SchemaInput, SchemaRef, SchemaRefError
 from lorecraft.vfs import (
     FILE_READ_FAILURES,
+    RefusedRead,
     RefusedRecord,
     RootExit,
     ScopeIndex,
@@ -336,9 +337,9 @@ class Database:
     The item family is keyed by `ItemRef`. A resource is resolved from its reference through its skill's listing. A
     document outside the model's listing is still resolved from its corpus and filename. `from_snapshot(snapshot)`
     starts a fresh database; it carries no cached values from another revision.
-    The snapshot questions are `source_lines(path)`, `refusals()` and `unreported_docs_refusals()`: the first two are
-    answered on each call; the last is cached for this database's lifetime and recomputed from the next revision's
-    refusals and model failures. The declared query `query(query, ref)` memoizes its answer and read set;
+    Snapshot questions `source_lines(path)` and `refusals()` are answered on each call; the derived refusal sets are
+    cached for this database's lifetime and recomputed from the next revision's refusals and model failures. The
+    declared query `query(query, ref)` memoizes its answer and read set;
     `query_reads(query, ref)` holds typed reads and is empty before that query runs.
     """
 
@@ -360,6 +361,7 @@ class Database:
         # `None` until the first link-target query, so the index is built only for a run that asks.
         self._scope_index: ScopeIndex | None = None
         self._unreported_docs_refusals: FrozenMapping[RootRelativePath, RefusedRecord] | None = None
+        self._unreported_item_refusals: FrozenMapping[RootRelativePath, RefusedRead] | None = None
         # The unified family's caches, keyed by the common reference: the one implementation of every document and
         # skill or resource query.
         self._items: dict[ItemRef, ResolvedItem] = {}
@@ -753,7 +755,7 @@ class Database:
             raise UnlistedItemError(ref)
         return found
 
-    # Snapshot questions: `refusals` is read on each call; `unreported_docs_refusals` is memoized for this database.
+    # Snapshot questions: `refusals` is read on each call; the derived refusal sets are memoized for this database.
 
     def refusals(self) -> dict[RootRelativePath, RefusedRecord]:
         """Every access the operating system refused the scan and the snapshot kept, keyed by path in path order."""
@@ -773,3 +775,31 @@ class Database:
             }
             self._unreported_docs_refusals = FrozenMapping(refusals)
         return self._unreported_docs_refusals
+
+    def unreported_item_refusals(self) -> Mapping[RootRelativePath, RefusedRead]:
+        """Snapshot reads refused at an item path and not already reported by the workspace model.
+
+        Item paths come from the model's documents and specifications, each skill entrypoint and every listed
+        resource. A resource's resolved read location, rather than its alias path, is compared with the snapshot.
+        The result is derived from the snapshot and model and cached for this database's lifetime.
+        """
+        if self._unreported_item_refusals is None:
+            item_refs = {ItemRef(ref.path) for ref in (*self._model.documents(), *self._model.specifications())}
+            refusals = unreported_refusals(self.refusals(), self._model)
+            for location in self._model.sorted_skill_locations:
+                item_refs.add(ItemRef(location.ref.path))
+                try:
+                    listing = self.skill_resources(location)
+                except SkillResourcesListError, SkillResourcesSymlinkResolveError:
+                    # The model and command report a refused listing or link separately; no resource read paths are
+                    # available for this skill.
+                    continue
+                item_refs.update(ItemRef(resource.ref.path) for resource in listing.resources)
+            item_paths = {self.item_descriptor(ref).read_location for ref in item_refs}
+            refusals = {
+                path: refusal
+                for path, refusal in refusals.items()
+                if path in item_paths and isinstance(refusal, RefusedRead)
+            }
+            self._unreported_item_refusals = FrozenMapping(refusals)
+        return self._unreported_item_refusals

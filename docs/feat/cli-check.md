@@ -10,7 +10,7 @@ components: "module:lorecraft.cli,module:lorecraft.engine,module:lorecraft.rules
 
 ## Summary
 
-Checks docs against meta specs, skills against the Agent Skills spec; broken rules/load failures are diagnostics (`FM001`), errors exit `1`.
+Checks docs against meta specs and skills against the Agent Skills spec; load failures are diagnostics, refused item reads are `LC002`, errors exit `1`.
 
 ## Table of Contents
 
@@ -25,24 +25,21 @@ Checks docs against meta specs, skills against the Agent Skills spec; broken rul
 
 ## Key Concepts
 
-- **Subject**: What a rule judges: a document, a skill by its `SKILL.md`, a resource of a skill (any other
-  Markdown file inside it), or a symlink of the skill layout leading outside the repository.
-- **Rule**: One judgment of a subject, with a code and kebab-case name. Its default level is `deny` or `warn`.
-- **Diagnostic**: One occurrence: a path, optional line, severity, code, message, labels, help and notes.
-  They sort by path, location, severity, code and message.
-- **Line**: A line ends only at `\n`, at `\r\n` as one break, or at a lone `\r`. Vertical tab, form feed, U+0085,
-  U+2028 and U+2029 stay within a line. Findings and source excerpts use these lines.
-- **Governed**: `structure` needs a corpus structure file, `frontmatter` a schema, `outline` an applying file's outline, and `budget` a `tokens` or `lines` declaration;
-  a rule over an ungoverned part does not run (coverage, not a diagnostic).
-- **Frontmatter format**: The [accepted YAML subset](frontmatter.md), decoded to JSON values; `FM002` names
-  refused constructs and syntax errors, while `FM005` reports repeated keys.
+- **Subject**: A document, skill `SKILL.md`, Markdown skill resource, or skill-layout symlink leading outside the repository.
+- **Rule**: A judgment of a subject with a code, kebab-case name and default level (`deny` or `warn`).
+- **Diagnostic**: An occurrence with path, optional line, severity, code, message, labels, help and notes; sorted by path and location, then severity, code and message.
+- **Line**: Lines end at `\n`, `\r\n` or lone `\r`; findings and excerpts use these breaks.
+- **Governed**: `structure` needs a corpus structure file, `frontmatter` a schema, `outline`/`budget` an applying file's outline/`tokens`;
+  Ungoverned parts appear in coverage, not diagnostics.
+- **Frontmatter format**: The [accepted YAML subset](frontmatter.md), decoded to JSON values; `FM002` names refused
+  constructs and syntax errors, while `FM005` reports repeated keys.
 
 ## Architecture
 
 ### Root Discovery
 
 Without `--root`, the root is the nearest of the working directory and its parents holding `docs/__meta__/`.
-With `--root`, the given directory must exist. The root is resolved with symlinks followed; output paths are
+With `--root`, the given directory must exist. The root resolves symlinks; output paths are
 relative to it. `docs/` and `docs/__meta__/` must be [real directories](workspace.md#one-snapshot).
 
 ### The Subjects
@@ -53,8 +50,8 @@ Checks docs/specs, skills/resources and escaping symlinks. `LINK001`–`LINK003`
 One snapshot, meta specs first. A failed structure file yields a diagnostic. Failed layers suppress meta-spec gates; `Always`, schema and link gates still run. Suppressed parts appear as `ungoverned for ...`. `LC001` invalid UTF-8 is unjudged. Diagnostics and coverage use the actual `.spec.json` name.
 ### Selecting Rules
 
-`--select` and `--ignore` take comma-separated or repeated selectors: `ALL`, a group prefix (`OUT`), a code
-prefix (`OUT0`), a rule code (`OUT006`) or its alias. Selectors are case-sensitive; without `--select`, all run.
+`--select` and `--ignore` take comma-separated or repeated selectors: `ALL`, a group prefix (`OUT`), code
+prefix (`OUT0`), rule code (`OUT006`) or alias. Selectors are case-sensitive; without `--select`, all run.
 
 The most specific selector decides; `--ignore` wins ties.
 
@@ -90,14 +87,14 @@ lorecraft check --select OUT00
 ```
 
 `--no-builtin-skills-schema` skips the bundled schema and contradiction preflight; repository schemas still apply, so
-`FM004` can run. It expects the listed directory name and never guides renaming `SKILL.md`. Without a repository
-schema, skill frontmatter has no diagnostics and is ungoverned; with opt-out, it adds `ungoverned for frontmatter`
-to the coverage line (exit `0`), including for malformed/missing frontmatter or mismatched names. See [The Subjects](#the-subjects)
-for other ungoverned parts. Excluding required `name`/`description` fails; indirect and cross-layer constraints are unchecked.
+`FM004` can run. It expects the listed directory name and never guides renaming `SKILL.md`. Without repository
+schema, skill frontmatter has no diagnostics; with opt-out, coverage says `ungoverned for frontmatter` (exit `0`),
+even for malformed/missing frontmatter or mismatched names. See [The Subjects](#the-subjects). Excluding required
+`name`/`description` fails; indirect and cross-layer constraints are unchecked.
 
 ### Output
 
-In `text`, stdout has blank-line-separated diagnostics with severity, code, message, numbered source and labels. Reported lines underline solid; other labels dotted. Nearby lines group; distant lines use ellipses; `:::` points to another file. Help/notes use `= help:`/`= note:`. Single-line help/notes wrap to terminal width (100 piped, ignoring `COLUMNS`); multi-line breaks and lone `\r` notes stay separate.
+In `text`, stdout has blank-line-separated diagnostics with severity, code, message, numbered source and labels. Reported lines underline solid; other labels dotted. Nearby lines group, distant lines use ellipses; `:::` points to another file. Help/notes use `= help:`/`= note:`. Single-line help/notes wrap at 100 columns when piped; multiline breaks and lone `\r` notes stay separate.
 
 Check output (stdout):
 
@@ -114,8 +111,8 @@ error[OUT006]: missing required section `Checklist`
   = help: The items a reviewer verifies before committing a change the rule document governs.
 ```
 
-On stderr, `text` prints coverage, counts per code prefix and `checked N subject(s): ...` (including unreadable specs). Refused paths appear in skipped coverage. Symlinked corpora and `.md` entries appear as `path: not checked (symlink)`; links are not followed, diagnosed or counted.
-One subject, two errors:
+On stderr, `text` prints coverage, counts per code prefix and `checked N subject(s): ...` (including unreadable specs). Coverage marks an item whose own read was refused as `skipped, read refused at: <path>`; a subject blocked by a refused docs dependency is `skipped, depends on a refused docs path: <path>`. Refused reads of documents, meta specs, skill entrypoints and Markdown resources produce `LC002`. Other refused skill files remain scan-blocking errors and exit `2`. Symlinked corpora and `.md` entries appear as `path: not checked (symlink)`; links are not followed, diagnosed or counted.
+Example: one subject, two errors.
 
 ```text
 FM   1 error
@@ -125,19 +122,19 @@ checked 1 subject(s): 2 error(s), 0 warning(s)
 
 In `short`, stdout has one diagnostic per line:
 `path:line: severity[code]: message`, or `path: severity[code]: message` for a whole file. It omits
-labels, help and notes; `text` order and exit status are retained. Stderr has coverage and the overall count, without prefix counts. For example:
+labels, help and notes; `text` order and exit status are retained. Stderr has coverage and the overall count. For example:
 
 ```text
 docs/code/logging.md:1: error[OUT006]: missing required section `Checklist`
 ```
 
-In `json`, stdout is one compact line; stderr holds selection warnings. In text order, `diagnostics` lists `path`, nullable `line`, `severity`, `code`, `name`, `message`, `labels` and `children`. `summary` counts subjects/errors/warnings; load failures are errors, not subjects. `coverage` lists `path`, ungoverned parts and refused paths in `skipped_by`; unchecked links add `unchecked: true`:
+In `json`, stdout is one compact line; stderr holds selection warnings. In text order, `diagnostics` lists `path`, nullable `line`, `severity`, `code`, `name`, `message`, `labels` and `children`. `summary` counts subjects/errors/warnings; load failures are errors, not subjects. `coverage` lists `path`, `ungoverned`, `cause` and refused paths in `skipped_by`. `cause` is `refused-path` when the subject's own read was refused, `refused-dependency` when a refused docs path blocks it, and `null` when it was checked; unchecked symlinks add `unchecked: true`:
 
 ```json
-{"diagnostics":[],"summary":{"subjects":0,"errors":0,"warnings":0},"coverage":[{"path":"docs/code/linked.md","ungoverned":[],"skipped_by":[],"unchecked":true}]}
+{"diagnostics":[{"path":"docs/notes/broken.md","line":4,"severity":"error","code":"LC001","name":"invalid-utf8","message":"file is not valid UTF-8","labels":[{"path":"docs/notes/broken.md","line":4,"text":"0xE9 at byte offset 31 starts a character the next byte does not continue"}],"children":[{"kind":"help","text":"save the file as UTF-8","path":null,"line":null}]}],"summary":{"subjects":3,"errors":1,"warnings":0},"coverage":[{"path":"docs/notes/todo.md","ungoverned":["outline","budget"],"cause":null,"skipped_by":[]},{"path":"docs/code/guide.md","ungoverned":[],"cause":"refused-path","skipped_by":["docs/code/guide.md"]},{"path":"docs/code/linked.md","ungoverned":[],"cause":null,"skipped_by":[],"unchecked":true}]}
 ```
 
-JSON paths must be UTF-8; non-ASCII text is direct, not escaped.
+JSON paths must be UTF-8; Unicode is unescaped.
 
 ### Exit Status
 
@@ -145,21 +142,18 @@ JSON paths must be UTF-8; non-ASCII text is direct, not escaped.
 |------|---------|
 | `0`  | No diagnostic is an error; warnings and ungoverned parts do not count |
 | `1`  | An error diagnostic, including a failed meta spec or unreadable `docs/` path (`LC002`) |
-| `2`  | No root; unlistable `docs/` or `docs/__meta__/`; scan-blocking refusal outside `docs/` (including skill-directory/link refusals); changed snapshot entry; invalid selection or usage. Errors print to stderr; selector usage errors follow [cli](cli.md) |
+| `2`  | No root; unlistable `docs/` or `docs/__meta__/`; scan-blocking refusal outside reported item reads; changed snapshot entry; invalid selection or usage. A refused non-item file inside a skill scan reports `error: cannot snapshot file <path>: permission denied` without a `caused by:` line or absolute path. Errors print to stderr; selector usage errors follow [cli](cli.md) |
 
 ## Limitations
 
-- Rules use their default level; selection only narrows the run.
+- Rules use default levels; selection only narrows the run.
 - Warnings do not fail the run: [`FM007`](../rulebook/FM007-unknown-field.md),
   [`LINK005`](../rulebook/LINK005-extension-link.md), [`LINK006`](../rulebook/LINK006-missing-base-link.md),
   [`LINK007`](../rulebook/LINK007-mutual-link.md) or [`COR001`](../rulebook/COR001-reserved-corpus-overlap.md),
-  all exit 0. LINK007 puts `help` before `note`.
+  all exit 0. LINK007 puts help before note.
   `COR001` is selectable; if its level makes it an error, the run exits 1.
-- A whole subject, such as a layout entry, shows `--> path` without an excerpt. Unreadable source appears as
-  `= at path:line: text`. Excerpts are available for documents, `SKILL.md`, resources and meta spec
-  files in `docs/__meta__/`; other paths have none.
-  A UTF-8 byte order mark is omitted from excerpted line 1, so its underline spans only the visible text.
-  The gutter uses `| ^ - .` without UTF-8 output.
+- A whole subject shows `--> path` without an excerpt. Unreadable source appears as `= at path:line: text`;
+  excerpts cover documents, skills, resources and meta specs. A BOM is omitted from excerpted line 1.
 - Skills without `docs/__meta__/` need `--root`.
 - Checks cover machine decisions; review judges what a section says.
 
@@ -175,21 +169,13 @@ JSON paths must be UTF-8; non-ASCII text is direct, not escaped.
 | `LAY` | Skill layout checks: `LAY001` escaping-symlink, a symlink an agent reaches whose chain leaves the repository |
 | `LC` | Engine conditions are errors with no level; selection and configuration cannot turn them off. `LC001` invalid-utf8 reports a file that cannot be decoded, including a structure file; `LC002` unreadable-path reports a workspace path the run cannot read, list or follow; `LC003` malformed-structure-file reports a structure file that breaks the format or states no rule; `LC004` unusable-structure-file reports a well-formed structure file with rules that repeat, contradict each other or cannot be applied. |
 
-`LINK005`–`LINK007` check the reference direction stated in [spec](spec.md#references-point-to-the-base).
+`LINK005`–`LINK007` check reference direction in [spec](spec.md#references-point-to-the-base).
 
 Each reported structure-file failure appears once at that file.
-`LC001` points to the first invalid byte; `LC002`, `LC003` and `LC004` are whole-file diagnostics that give
-their help before their notes.
-`LC002` covers unreadable paths, unknown files and unlistable nested directories.
-Unreadable meta spec files and documents get an unreadable-path diagnostic and count as subjects; unknown paths do
-not. Coverage skips and counts resource or `SKILL.md`
-aliases at their paths, naming the refused target; `LC002` stays at target. Sibling resources and unaffected subjects
-continue; all formats exit 1. A directory alias is reported at its path, never at the skill's `SKILL.md`.
-Refusals outside `docs/` (including skill-directory and skill-link refusals) exit 2.
+ `LC001` points to the first invalid byte; `LC002`–`LC004` are whole-file diagnostics with help before notes.
+`LC002` covers unreadable paths, unknown files and unlistable nested directories. Unreadable meta specs and documents count as subjects; unknown paths do not. Resource and `SKILL.md` aliases appear in coverage at their paths, naming the refused target; `LC002` stays at the target. Sibling resources and unaffected subjects continue. A directory alias appears at its path, never at the skill's `SKILL.md`.
 
-`FM008` ends with the field's example when the schema gives one. `FM009` labels malformed skill names with
-their pattern. `FM010` reports other whole-block constraints with one message and no label; its note gives the
-validator's wording. `FM012` to `FM014` and the `LEN` rules label the amount past the limit.
+`FM008` ends with a schema example; `FM009` labels malformed skill names with their pattern. `FM010` reports whole-block constraints without a label; its note gives the validator's wording. `FM012`–`FM014` and `LEN` label the amount over the limit.
 
 ## References
 

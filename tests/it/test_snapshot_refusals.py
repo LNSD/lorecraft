@@ -763,7 +763,9 @@ class TestCheckOverARefusalNoLoadFailureReports:
         }, 'the load failure reports the unreadable meta spec once'
         assert report['summary']['subjects'] == 5, 'the refused resource remains in the subject count'
         assert any(
-            item['path'] == '.agents/skills/commit/guide.md' and item['skipped_by'] == ['docs/__meta__/code.spec.json']
+            item['path'] == '.agents/skills/commit/guide.md'
+            and item['skipped_by'] == ['docs/__meta__/code.spec.json']
+            and item['cause'] == 'refused-path'
             for item in report['coverage']
         ), 'the resource alias remains visible as skipped coverage'
 

@@ -462,6 +462,46 @@ class TestCheckCommand:
             'FM   3 errors\nLEN  1 error\nOUT  5 errors\nchecked 7 subject(s): 9 error(s), 0 warning(s)\n'
         ), 'every document and skill of the fixture is checked, and each is governed'
 
+    @pytest.mark.parametrize(
+        ('kind', 'target'),
+        [
+            ('document', 'docs/code/guide.md'),
+            ('meta spec', 'docs/__meta__/code.md'),
+            ('skill entrypoint', '.agents/skills/review/SKILL.md'),
+            ('resource', '.agents/skills/review/references/guide.md'),
+        ],
+    )
+    def test_check_reports_a_refused_item_read_as_lc002(
+        self,
+        kind: str,
+        target: str,
+        snapshot: SnapshotAssertion,
+        tmp_path: Path,
+        faker: Faker,
+    ) -> None:
+        #: Given
+        expected = snapshot.use_extension(TextSnapshotExtension)
+        workspace = Workspace(
+            specs=[Spec('code', prose='# Code\n')],
+            documents=[Document('code', 'guide')],
+            skills=[Skill('review', references={'guide.md': '# Guide\n'})],
+        )
+        root = workspace.write(tmp_path / 'repository', faker)
+        refused_path = root / target
+        if not hasattr(os, 'geteuid') or os.geteuid() == 0:
+            pytest.skip('permission bits do not refuse reads when the test process is root')
+        refused_path.chmod(0)
+        arguments = ('check', '--root', str(root))
+
+        #: When
+        result = run_cli(*arguments)
+
+        #: Then
+        assert result.returncode == 1, result.stderr
+        assert result.stdout == expected, f'the refused {kind} is reported as LC002'
+        assert 'error[LC002]: path cannot be read' in result.stdout
+        assert f'--> {target}' in result.stdout
+
     def test_check_without_a_root_in_a_subdirectory_of_the_workspace_fixture_checks_the_whole_workspace(self) -> None:
         #: Given
         from_the_root = run_cli('check', cwd=WORKSPACE_FIXTURE)
@@ -584,9 +624,15 @@ class TestCheckCommand:
                 {
                     'path': '.agents/skills/review/SKILL.md',
                     'ungoverned': ['structure', 'outline', 'budget'],
+                    'cause': None,
                     'skipped_by': [],
                 },
-                {'path': 'docs/notes/todo.md', 'ungoverned': ['outline', 'budget'], 'skipped_by': []},
+                {
+                    'path': 'docs/notes/todo.md',
+                    'ungoverned': ['outline', 'budget'],
+                    'cause': None,
+                    'skipped_by': [],
+                },
             ],
         }, f'the document holds every diagnostic, the summary and the coverage, got {result.stdout!r}'
 

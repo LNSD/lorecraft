@@ -1,0 +1,4 @@
+error[LC002]: path cannot be read
+ --> .agents/skills/review/references/guide.md
+  = help: make the path, and what it links to, accessible to the process that runs the check
+  = note: cannot read .agents/skills/review/references/guide.md: permission denied

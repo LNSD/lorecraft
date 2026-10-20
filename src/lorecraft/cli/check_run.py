@@ -6,9 +6,10 @@ opens the database over it, stops when `docs/` or `docs/__meta__/` could not be 
 workspace, builds the rule table from the rules and the selection, and hands the database, the subjects and the
 table to the runner, beside the reports for retained refusals and units that failed to load; what comes back is
 rendered by `diagnostics` and decides the exit code. A file that does not decode, a load failure, or a retained
-refusal under `docs/` is a diagnostic, and a run that reports one exits 1. Subjects whose resolved files have a
-retained docs refusal are skipped because that path already has a diagnostic. A refusal outside `docs/` that the
-model does not report, or an `Error` escaping the flow, is reported here and exits 2; unlistable `docs/` and
+refusal under `docs/` or at an item read is a diagnostic, and a run that reports one exits 1. Subjects whose reads
+or docs dependencies have a retained refusal are skipped because that path already has a diagnostic. A refusal
+outside a known item read or `docs/` that the model does not report, or an `Error` escaping the flow, is reported
+here and exits 2; unlistable `docs/` and
 `docs/__meta__/` also exit 2. A selection that holds an alias code, or names a rule its level leaves off, is warned
 of on stderr, and the run goes on.
 
@@ -16,7 +17,6 @@ It lives apart from `commands/check.py` so that importing the command, which `--
 import the rules engine: the command imports this module only when it runs.
 """
 
-from collections.abc import Mapping
 from pathlib import Path
 from typing import assert_never
 
@@ -27,14 +27,13 @@ from lorecraft.core.error import Error
 from lorecraft.core.path import RootRelativePath
 from lorecraft.engine import UnlistableRoot, check_subjects, report_load_failures
 from lorecraft.project.database import Database
-from lorecraft.project.item import ItemRef
 from lorecraft.project.layout import DECLARATION, DOCS_DIR, SNAPSHOT_SCOPE
 from lorecraft.project.workspace import WorkspaceModel, reject_unreported_refusals
 from lorecraft.rules.engine import RefusedOperation
 from lorecraft.rules.engine.unreadable_path import Refused, UnreadablePath
 from lorecraft.rules.identity import Severity
 from lorecraft.rules.registry import Registry
-from lorecraft.rules.report import LoadFailureReport, RunReport, UncheckedSymlink, UnreadableItem
+from lorecraft.rules.report import LoadFailureReport, RunReport, UncheckedSymlink
 from lorecraft.rules.table import RuleTable, selected_rules_left_off
 from lorecraft.vfs import RefusedInspect, RefusedListing, RefusedRead, RefusedRecord, take_snapshot
 
@@ -97,18 +96,23 @@ def run_check(
             return load_failure_reports
         refusals = database.refusals()
         docs_refusals = database.unreported_docs_refusals()
-        all_docs_refusals = {path: refusal for path, refusal in refusals.items() if path.is_relative_to(DOCS_DIR)}
-        non_docs_refusals = {path: refusal for path, refusal in refusals.items() if not path.is_relative_to(DOCS_DIR)}
-        reject_unreported_refusals(non_docs_refusals, model)
-        documents = {ref.path: ItemRef(ref.path) for ref in (*model.documents(), *model.specifications())}
-        refusal_reports = _refusal_reports(docs_refusals, documents)
+        item_refusals = database.unreported_item_refusals()
+        reportable_refusals: dict[RootRelativePath, RefusedRecord] = {}
+        unreported_non_item_refusals: dict[RootRelativePath, RefusedRecord] = {}
+        for path, refusal in refusals.items():
+            if path in docs_refusals or path in item_refusals:
+                reportable_refusals[path] = refusal
+            elif not path.is_relative_to(DOCS_DIR):
+                unreported_non_item_refusals[path] = refusal
+        refusal_reports = _refusal_reports(reportable_refusals)
+        reject_unreported_refusals(unreported_non_item_refusals, model)
         subjects = select_workspace(database)
         table = RuleTable.from_registry(registry, parsed.selection)
         reports = (
             *load_failure_reports,
             *refusal_reports,
             *(UncheckedSymlink(path) for path in model.unchecked_symlinks),
-            *check_subjects(database, subjects, table, all_docs_refusals),
+            *check_subjects(database, subjects, table, refusals),
         )
     except Error as exc:
         report_failure(exc)
@@ -148,14 +152,11 @@ def _reports_or_status(model: WorkspaceModel) -> tuple[RunReport, ...] | ExitSta
             assert_never(load_failures)
 
 
-def _refusal_reports(
-    refusals: Mapping[RootRelativePath, RefusedRecord], documents: Mapping[RootRelativePath, ItemRef]
-) -> tuple[RunReport, ...]:
-    """Report retained refusals under `docs/`, keeping unreadable documents and meta specifications as subjects.
+def _refusal_reports(refusals: dict[RootRelativePath, RefusedRecord]) -> tuple[RunReport, ...]:
+    """Report docs refusals and item reads as load failures; the engine reports each skipped subject separately.
 
     Args:
-        refusals: Docs refusals the model has not already reported as load failures.
-        documents: Governed documents and meta specifications keyed by path, used to preserve their subject counts.
+        refusals: Docs refusals and item reads the workspace model has not already reported as load failures.
     """
     reports: list[RunReport] = []
     for path, refusal in refusals.items():
@@ -169,11 +170,7 @@ def _refusal_reports(
             case _:
                 assert_never(refusal)
         occurrence = UnreadablePath(failed_at=path, cause=Refused(operation, reason))
-        document = documents.get(path)
-        if isinstance(refusal, RefusedRead) and document is not None:
-            reports.append(UnreadableItem(document, occurrence))
-        else:
-            reports.append(LoadFailureReport(path, occurrence))
+        reports.append(LoadFailureReport(path, occurrence))
     return tuple(reports)
 
 

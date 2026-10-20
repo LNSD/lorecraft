@@ -5,7 +5,7 @@ reads the disk or writes to a stream. The diagnostics as text for a person are d
 lines, one per diagnostic, they are what a command prints on stdout for a tool to match; the coverage lines and the
 summaries are what it prints on stderr; as JSON, one compact document carries the diagnostics, the summary and the
 coverage. The coverage lists subjects with ungoverned or failed-layer-suppressed meta spec parts, and subjects skipped
-because a docs path they depend on was refused.
+because their own read or a docs dependency was refused.
 
 Every diagnostic of every report is printed in the order `diagnostic_order` states, whatever order the reports
 arrive in, so one revision always prints the same output. A short line reads, with the line left out for a subject
@@ -27,10 +27,10 @@ from lorecraft.rules.report import (
     Diagnostic,
     LoadFailureReport,
     RunReport,
+    SkipCause,
     SkippedSubject,
     UncheckedSymlink,
     UndecodableSubject,
-    UnreadableItem,
 )
 
 from .diagnostic_parts import (
@@ -132,13 +132,15 @@ class _CoverageJson(BaseModel):
         path: The subject.
         ungoverned: The meta spec parts no specification governs it for, or which a failed layer suppresses;
             in report order, and none for a skipped subject.
-        skipped_by: Refused docs paths the subject depends on; empty for a subject that was judged.
+        cause: Why the subject was skipped, or None for a subject that was judged.
+        skipped_by: Refused paths the subject depends on; empty for a subject that was judged.
     """
 
     model_config = ConfigDict(frozen=True)
 
     path: str
     ungoverned: list[str]
+    cause: SkipCause | None
     skipped_by: list[str]
     unchecked: bool = False
 
@@ -186,9 +188,10 @@ def render_coverage(reports: tuple[RunReport, ...]) -> str:
 
     A checked item with an ungoverned or failed-layer-suppressed meta spec part reads
     `{path}: ungoverned for {facets}`, with the parts comma-separated in report order. A subject skipped because a
-    path was refused reads `{path}: skipped, depends on a refused docs path: {files}`, the files comma-separated in
-    layer order. A subject that did not decode and a layout entry are never ungoverned or skipped, so they never print
-    one.
+    refused read reads `{path}: skipped, read refused at: {files}`; a refused dependency reads
+    `{path}: skipped, depends on a refused docs path: {files}`. Files are comma-separated in path or layer order,
+    respectively. A subject that did not decode and a layout entry are never ungoverned or skipped, so they never
+    print one.
 
     Args:
         reports: One report per subject the run checked, in any order.
@@ -204,7 +207,10 @@ def render_coverage(reports: tuple[RunReport, ...]) -> str:
                 lines.append(f'{subject.ref.path}: ungoverned for {facets}')
             case SkippedSubject():
                 files = ', '.join(str(path) for path in subject.refused_paths)
-                lines.append(f'{subject.ref.path}: skipped, depends on a refused docs path: {files}')
+                if subject.cause is SkipCause.REFUSED_PATH:
+                    lines.append(f'{subject.ref.path}: skipped, read refused at: {files}')
+                else:
+                    lines.append(f'{subject.ref.path}: skipped, depends on a refused docs path: {files}')
             case UncheckedSymlink():
                 lines.append(f'{subject.path}: not checked (symlink)')
             case _:
@@ -275,14 +281,23 @@ def render_json(reports: tuple[RunReport, ...]) -> str:
                 facets: list[str] = []
                 for facet in subject.ungoverned:
                     facets.append(facet)
-                coverage.append(_CoverageJson(path=str(subject.ref.path), ungoverned=facets, skipped_by=[]))
+                coverage.append(_CoverageJson(path=str(subject.ref.path), ungoverned=facets, cause=None, skipped_by=[]))
             case SkippedSubject():
                 refused_paths: list[str] = []
                 for path in subject.refused_paths:
                     refused_paths.append(str(path))
-                coverage.append(_CoverageJson(path=str(subject.ref.path), ungoverned=[], skipped_by=refused_paths))
+                coverage.append(
+                    _CoverageJson(
+                        path=str(subject.ref.path),
+                        ungoverned=[],
+                        cause=subject.cause,
+                        skipped_by=refused_paths,
+                    )
+                )
             case UncheckedSymlink():
-                coverage.append(_CoverageJson(path=str(subject.path), ungoverned=[], skipped_by=[], unchecked=True))
+                coverage.append(
+                    _CoverageJson(path=str(subject.path), ungoverned=[], cause=None, skipped_by=[], unchecked=True)
+                )
             case _:
                 assert_never(subject)
     document = _ReportJson(
@@ -309,7 +324,7 @@ def _coverage_subjects(reports: tuple[RunReport, ...]) -> list[CheckedItem | Ski
                 subjects.append(report)
             case UncheckedSymlink():
                 subjects.append(report)
-            case UndecodableSubject() | UnreadableItem() | CheckedLayoutEntry() | LoadFailureReport():
+            case UndecodableSubject() | CheckedLayoutEntry() | LoadFailureReport():
                 # None was judged in part: one never decoded, a layout entry has no
                 # specification, and a load failure is no subject.
                 pass
@@ -330,7 +345,7 @@ def _count_subjects(reports: tuple[RunReport, ...]) -> int:
     count = 0
     for report in reports:
         match report:
-            case CheckedItem() | UndecodableSubject() | UnreadableItem() | CheckedLayoutEntry() | SkippedSubject():
+            case CheckedItem() | UndecodableSubject() | CheckedLayoutEntry() | SkippedSubject():
                 count += 1
             case UncheckedSymlink():
                 pass
