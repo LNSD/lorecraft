@@ -1,13 +1,13 @@
 ---
 name: "feat"
-description: "Feature documentation corpus meta spec. Load when creating or editing feat specs in docs/feat/"
+description: "Feature documentation corpus spec. Load when creating or editing feat docs in docs/feat/"
 type: "meta"
 scope: "global"
 ---
 
 # Feature Documentation Format
 
-**MANDATORY for ALL feat specs in `docs/feat/`**
+**MANDATORY for ALL feat docs in `docs/feat/`**
 
 ## Table of Contents
 
@@ -24,11 +24,11 @@ scope: "global"
 
 ## 1. Core Principles
 
-The corpus in `docs/feat/` is **the feature documentation**; a single member of it is a **feat spec**.
-A feat spec describes something this toolkit provides — a check, a meta spec dialect, a corpus, a
+The corpus in `docs/feat/` is **the feature documentation**; a single member of it is a **feat doc**.
+A feat doc describes something this toolkit provides — a check, a spec dialect, a corpus, a
 command surface — at the level a reader needs to use it, not at the level a reader needs to modify it.
 It documents behavior a user or an agent can invoke or observe. Internal architecture, libraries and
-registries without such a surface belong in `docs/code/` or `docs/arch/`, and get no feat spec; an internal
+registries without such a surface belong in `docs/code/` or `docs/arch/`, and get no feat doc; an internal
 schema registry is one example.
 
 ### The Corpus Grows With Features
@@ -36,21 +36,21 @@ schema registry is one example.
 `docs/feat/` may begin empty, but each implemented feature is documented there in the change that ships it.
 The corpus describes existing behavior; it does not reserve names for planned features.
 
-Do not seed the corpus with documents for features that do not exist. A feat spec describing
-unimplemented behaviour is indistinguishable from a feat spec describing broken behaviour.
+Do not seed the corpus with documents for features that do not exist. A feat doc describing
+unimplemented behaviour is indistinguishable from a feat doc describing broken behaviour.
 
-### Feat Specs Are Authoritative
+### Feat Docs Are Authoritative
 
 **CRITICAL**: Feature documentation is the **ground truth** for what a feature should do.
 
-- If a feat spec exists, the implementation **MUST** align with it
+- If a feat doc exists, the implementation **MUST** align with it
 - If code behaves differently than documented, the code is wrong OR the document must be updated
-- Engineers **MUST** keep feat specs accurate - outdated documents are unacceptable
-- When implementation changes, update the feat spec in the same change
+- Engineers **MUST** keep feat docs accurate - outdated documents are unacceptable
+- When implementation changes, update the feat doc in the same change
 
 ### Describe Behaviour, Not Implementation
 
-Feat specs describe **what** a feature does and **why** it exists at an architectural level. They are
+Feat docs describe **what** a feature does and **why** it exists at an architectural level. They are
 not meant to document implementation internals — instead, they reference source files and let the code speak
 for itself.
 
@@ -60,13 +60,13 @@ for itself.
   reference instead
 
 The dividing line is who the reader is. Someone deciding whether a check will accept their document reads a
-feat spec; someone changing how that check walks an outline reads the module. A feat spec that
+feat doc; someone changing how that check walks an outline reads the module. A feat doc that
 transcribes the walk has taken on a second reason to change and will drift from the module on the first
 refactor.
 
 ### One Document, One Subject
 
-**A feat spec has exactly one reason to change.** Split by subject, not by size: a document that
+**A feat doc has exactly one reason to change.** Split by subject, not by size: a document that
 covers both the frontmatter schema and the section outline is rewritten whenever either changes, and neither
 change can be reviewed on its own.
 
@@ -74,7 +74,7 @@ Decide a document's home by asking what would force it to be rewritten:
 
 | The document changes when…                 | It belongs in…                             |
 |--------------------------------------------|--------------------------------------------|
-| A meta spec dialect gains or drops a field | The document for that dialect              |
+| A spec dialect gains or drops a field | The document for that dialect              |
 | A check's findings change wording or rule  | The document for that check                |
 | The command surface changes                | The document for that command surface      |
 | A corpus's layout changes                  | The document for that corpus               |
@@ -82,20 +82,20 @@ Decide a document's home by asking what would force it to be rewritten:
 Siblings **link**; they do not restate. A behaviour documented twice has two places to rot and no authority
 when they disagree.
 
-### Feat Specs Describe What Exists
+### Feat Docs Describe What Exists
 
-A feat spec describes behaviour that **exists in this repository**, not behaviour that is planned.
+A feat doc describes behaviour that **exists in this repository**, not behaviour that is planned.
 
 - Do not document a flag, a field, or an exit code the toolkit does not have
 - Do not carry a "coming soon" section; an unbuilt feature has no document
 - If a document claims a capability the code lacks, one of the two is a bug — fix the code or delete the
   claim in the same change
 
-### A Document's Path Selects Its Meta Specs
+### A Document's Path Selects Its Specs
 
-Nothing registers a feat spec with a meta spec: the document's own path resolves them.
+Nothing registers a feat doc with a spec: the document's own path resolves them.
 
-**This meta spec is the base layer.** It governs every document at `docs/feat/<name>.md`, through two
+**This spec is the base layer.** It governs every document at `docs/feat/<name>.md`, through two
 files in `docs/__meta__/`:
 
 | File | Governs | Read by |
@@ -112,15 +112,15 @@ leaves optional, narrow a field, or tighten a cap, and it cannot release a docum
 says. Add a layer when a naming group genuinely shares rules the rest of the corpus does not; a rule that
 holds for one group stays out of this file rather than becoming a condition inside it.
 
-The per-type section rules in [§4](#4-document-structure) have no machine-checkable form: a meta spec
+The per-type section rules in [§4](#4-document-structure) have no machine-checkable form: a spec
 file is selected by the document's path, never by its `type`, and `feat.spec.json` asks no questions
 about the document it is applied to. They are checked by review against the [checklist](#8-checklist).
 
 The rules run together as `just check-docs`. Read the relationship in either direction from the shell:
 
 ```bash
-ls docs/feat/*.md       # from a meta spec, the documents it governs
-ls docs/__meta__/feat*  # from a document, the meta specs that govern it
+ls docs/feat/*.md       # from a spec, the documents it governs
+ls docs/__meta__/feat*  # from a document, the specs that govern it
 ```
 
 **Prose and schema are one rule set in two forms.** When a rule here changes, change the JSON companion in
@@ -128,12 +128,12 @@ the same commit, or the corpus starts accepting what this document forbids.
 
 ### Discoverability Through Frontmatter
 
-Feat specs use YAML frontmatter for lazy loading - agents query frontmatter to determine which
+Feat docs use YAML frontmatter for lazy loading - agents query frontmatter to determine which
 documents to load based on the question in front of them, rather than reading the corpus up front.
 
 ### Avoid Context Bloat
 
-Keep feat specs focused and concise. Agent entrypoint documents should NOT hardcode feature lists -
+Keep feat docs focused and concise. Agent entrypoint documents should NOT hardcode feature lists -
 use dynamic discovery instead. A word written here is paid for on every task that touches the subject, which
 is what [§6](#6-word-caps-and-token-budget) puts a number on.
 
@@ -144,7 +144,7 @@ is what [§6](#6-word-caps-and-token-budget) puts a number on.
 The rules in this section are held in machine-checkable form under the `frontmatter` key of
 [feat.spec.json](feat.spec.json), which `just check-docs` runs against every document in the corpus.
 
-**CRITICAL**: Every feat spec MUST begin with valid YAML frontmatter:
+**CRITICAL**: Every feat doc MUST begin with valid YAML frontmatter:
 
 ```yaml
 ---
@@ -169,7 +169,7 @@ it — so this one is verified by reading.
 | `description` | YES      | Single line, succinct             | Discovery-optimized description (see guidelines below)              |
 | `type`        | YES      | `meta`, `feature`, or `component` | Document classification (see Type Definitions below)                |
 | `status`      | YES      | enum                              | Maturity level: `stable`, `experimental`, `unstable`, `development` |
-| `components`  | YES      | Prefixed, comma-separated         | Related modules, skills and meta specs, each with a type prefix     |
+| `components`  | YES      | Prefixed, comma-separated         | Related modules, skills and specs, each with a type prefix     |
 
 ### Type Definitions
 
@@ -180,7 +180,7 @@ it — so this one is verified by reading.
 | `component` | Documents a software component | Internal architecture, requires Code References section |
 
 **meta documents:**
-- Describe a domain or capability group, such as the meta spec files under `docs/__meta__/`
+- Describe a domain or capability group, such as the spec files under `docs/__meta__/`
 - Provide conceptual foundation and terminology
 - MUST NOT carry a Usage or a Code References section (concrete usage and code live in its extensions)
 
@@ -191,7 +191,7 @@ it — so this one is verified by reading.
 - May link to related features, to the components that implement them, and to its base
 
 **component documents:**
-- Describe an internal building block — a module, a subpackage, a meta spec dialect's reader
+- Describe an internal building block — a module, a subpackage, a spec dialect's reader
 - Focus on architecture, responsibilities, and integration
 - MUST include a Code References section with source files
 - May link to related components, to features, and to its base
@@ -236,12 +236,12 @@ these three prefixes:
 |-----------|--------------------------------------------------|--------------------------------|---------------------------|
 | `module:` | A top-level package of `lorecraft`               | `lorecraft.<package>`          | `module:lorecraft.engine` |
 | `skill:`  | A skill directory                                | kebab-case                     | `skill:docs-rules-check`  |
-| `spec:`   | A meta spec name under `docs/__meta__/`          | kebab-case, extensions dropped | `spec:feat`               |
+| `spec:`   | A spec name under `docs/__meta__/`          | kebab-case, extensions dropped | `spec:feat`               |
 
 A `module:` entry names a top-level package and nothing deeper: `src/lorecraft/engine/runner.py` is
 `module:lorecraft.engine`. The modules inside a package are renamed and split as its code changes, while the
 package a feature lives in is not, so a deeper entry goes stale on a refactor that leaves the feature alone. The
-Code References section names the files. A `spec:` entry names the meta spec, not one of its files:
+Code References section names the files. A `spec:` entry names the spec, not one of its files:
 `spec:feat` stands for `feat.md` and every `feat.*.json` beside it.
 
 **Example:**
@@ -256,7 +256,7 @@ would encode.
 
 ### Description Guidelines
 
-Write descriptions optimized for dynamic discovery. Unlike skills, which are executed, feat specs are
+Write descriptions optimized for dynamic discovery. Unlike skills, which are executed, feat docs are
 loaded to answer questions and to navigate the repository. Your description must answer two questions:
 
 1. **What does this document explain?** - List the specific capabilities or concepts covered
@@ -277,7 +277,7 @@ loaded to answer questions and to navigate the repository. Your description must
 
 ### Discovery Command
 
-The discovery command extracts the frontmatter fields of every feat spec for lazy loading:
+The discovery command extracts the frontmatter fields of every feat doc for lazy loading:
 
 ```bash
 grep -m 4 -E '^(description|type|status|components):' docs/feat/*.md
@@ -297,9 +297,9 @@ found by one glob.
 
 ### Examples by Domain
 
-**Meta spec features:**
+**Spec features:**
 ```
-spec                              # Meta: the meta spec files under docs/__meta__/
+spec                              # Meta: the spec files under docs/__meta__/
 └── spec-structure                # The structure file, its layers and its editor schema
     ├── spec-structure-budget       # Its word caps and token budget
     ├── spec-structure-frontmatter  # Its frontmatter key, JSON Schema
@@ -318,7 +318,7 @@ document in such a domain.
 4. **Match filename** - The `name` field must match the filename (minus .md)
 5. **Alphabetical grouping** - Related features sort together
 6. **Flat directory** - Every document lives at the root of `docs/feat/`; the hierarchy is in the name, not
-   in subdirectories, because the meta spec layers resolve on the filename, and the checks ignore a file
+   in subdirectories, because the spec layers resolve on the filename, and the checks ignore a file
    placed in a subdirectory rather than report it
 
 ### Benefits
@@ -363,7 +363,7 @@ Different document types have different required sections:
 6. **Configuration** - Options, defaults, and where they are read from
 7. **Usage** - How to invoke the feature, with examples that run
 8. **Limitations** - Known constraints
-9. **References** - Cross-references to other feat specs, and to the PRD and ADRs the feature comes from
+9. **References** - Cross-references to other feat docs, and to the PRD and ADRs the feature comes from
 10. **Code References** - The source files behind the feature: references into the code, not an explanation
     of it. Each entry is one line, never wrapped, however long, so a path and its note stay one grep hit
 
@@ -400,18 +400,18 @@ Use a simple list, with the relationship named before the description:
 **Relationship types:** `Dependency`, `Alternative`, `Related`, `Extended by`, `Base`, `Source`
 
 `Source` names a PRD or an ADR in `docs/arch/` that the feature comes from. The link goes one way: no
-architecture document links a feat spec, so a feat spec never expects one to name it back. What the feat spec
+architecture document links a feat doc, so a feat doc never expects one to name it back. What the feat doc
 describes is what shipped; the PRD and ADRs record what was required and decided before it did.
 
-**No feat spec cites an issue or a pull request**, under References or inline, by link or by number. An issue
-tracks work, and a feat spec describes what exists; what a feature does is stated in the feat spec itself.
+**No feat doc cites an issue or a pull request**, under References or inline, by link or by number. An issue
+tracks work, and a feat doc describes what exists; what a feature does is stated in the feat doc itself.
 
 ### Reference Direction Rules
 
 A document's **base** is the document whose name is the longest hyphen-delimited prefix of its own name that
 exists in the corpus, and the document is an **extension** of it: `spec-structure.md` is the base of
 `spec-structure-frontmatter.md`, and `spec.md` the base of `spec-structure.md`.
-The shorter name is always the base, the rule a meta spec's namespace follows once its corpus prefix is
+The shorter name is always the base, the rule a spec's namespace follows once its corpus prefix is
 set aside. A base is usually a `meta` document, but a `feature` can be the base of the features that extend
 it, when what it documents works on its own and each extension adds to it.
 
@@ -432,7 +432,7 @@ Reference rules depend on document type:
 - The References section
 - Inline links in prose
 - Links in Architecture diagrams or tables
-- Any markdown link `[text](file.md)` pointing to a feat spec
+- Any markdown link `[text](file.md)` pointing to a feat doc
 
 **Rationale**: the direction and its reason are stated once, in [References Point to the Base](../feat/spec.md#references-point-to-the-base).
 
@@ -460,7 +460,7 @@ Direction is a judgment the checker does not make. It is on the author, and on r
 
 ### DON'T
 
-- Mention how lorecraft is developed: no `just` recipe, CI job or contributor skill. A feat spec is
+- Mention how lorecraft is developed: no `just` recipe, CI job or contributor skill. A feat doc is
   read by someone using lorecraft, and what a contributor runs lives in `AGENTS.md` and the skills. The CLI
   overview may mention `uv tool run lorecraft` or its `uvx lorecraft` alias for on-demand use, and `uv run lorecraft`
   for a uv project that declares Lorecraft as a dependency
@@ -478,12 +478,12 @@ Direction is a judgment the checker does not make. It is on the author, and on r
 
 ## 6. Word Caps and Token Budget
 
-A feat spec is loaded into an agent's context on demand, and read by people too. Two measures in
+A feat doc is loaded into an agent's context on demand, and read by people too. Two measures in
 [feat.spec.json](feat.spec.json) keep it fit for both, and `lorecraft check`, run by `just check-docs`,
 reports what is over. A namespace layer can only tighten them.
 
 **Word caps keep each section concise**, for the person reading it. A word is whitespace-delimited text outside fenced code blocks and outside table rows. Code and tables cost no
-words: they are the examples and the reference material a feat spec exists to hold, and charging for
+words: they are the examples and the reference material a feat doc exists to hold, and charging for
 them would push an author toward prose where a table is clearer. Table of Contents, References and
 Code References carry no cap — each is a list of links whose length is a function of the document, not a
 choice.
@@ -500,7 +500,7 @@ or replace a paragraph with the table it was describing.
 
 ## 7. Template
 
-Use this template when creating a new feat spec:
+Use this template when creating a new feat doc:
 
 ````markdown
 ---
@@ -588,7 +588,7 @@ self-explanatory.}}
 
 ## 8. Checklist
 
-Before committing a feat spec:
+Before committing a feat doc:
 
 ### Frontmatter
 

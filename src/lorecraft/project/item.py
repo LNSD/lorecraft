@@ -48,11 +48,11 @@ class ItemType(Enum):
     DOCUMENT = 'document'
     SKILL_ENTRYPOINT = 'skill-entrypoint'
     SKILL_RESOURCE = 'skill-resource'
-    META_SPEC = 'meta-spec'
+    SPEC = 'spec'
 
 
-class MetaSpecPart(StrEnum):
-    """A part of a meta spec that may govern checks of an item."""
+class SpecPart(StrEnum):
+    """A part of a spec that may govern checks of an item."""
 
     FRONTMATTER = 'frontmatter'
     """The item's frontmatter: a loaded structure layer states a frontmatter schema."""
@@ -95,13 +95,13 @@ class SkillResourceOrigin:
 
 
 @dataclass(frozen=True, slots=True)
-class MetaSpecOrigin:
-    """A meta spec, carrying the corpus its specification governs."""
+class SpecOrigin:
+    """A spec, carrying the corpus its specification governs."""
 
     corpus: str
 
 
-type ItemOrigin = DocumentOrigin | SkillEntrypointOrigin | SkillResourceOrigin | MetaSpecOrigin
+type ItemOrigin = DocumentOrigin | SkillEntrypointOrigin | SkillResourceOrigin | SpecOrigin
 
 
 @dataclass(frozen=True, slots=True)
@@ -115,9 +115,9 @@ class ItemDescriptor:
         origin: Provenance metadata specific to the item's origin.
         name: Typed name in the hierarchy used to find its base.
         listed_name: Original spelling retained for frontmatter ownership diagnostics.
-        corpus: Typed corpus whose meta specs govern the item, or none.
+        corpus: Typed corpus whose specs govern the item, or none.
         frontmatter_schema_refs: Applicable frontmatter schema registry subjects, broad to narrow.
-        governed_parts: Meta spec parts stated by loaded layers that govern this item.
+        governed_parts: Spec parts stated by loaded layers that govern this item.
     """
 
     ref: ItemRef
@@ -129,7 +129,7 @@ class ItemDescriptor:
     listed_name: str
     corpus: CorpusName | None
     frontmatter_schema_refs: tuple[SchemaRef, ...]
-    governed_parts: frozenset[MetaSpecPart]
+    governed_parts: frozenset[SpecPart]
 
     @property
     def type(self) -> ItemType:
@@ -141,8 +141,8 @@ class ItemDescriptor:
                 return ItemType.SKILL_ENTRYPOINT
             case SkillResourceOrigin():
                 return ItemType.SKILL_RESOURCE
-            case MetaSpecOrigin():
-                return ItemType.META_SPEC
+            case SpecOrigin():
+                return ItemType.SPEC
             case _:
                 assert_never(self.origin)
 

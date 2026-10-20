@@ -68,7 +68,7 @@ are interchangeable.
    an item or layer from the loaded model's governance data, then compose the corresponding schema queries. The
    registry resolves a reference to its input and kind; it does not duplicate namespace matching, governed-item
    discovery, failed-layer policy, or outline and budget computations.
-9. **Built-in skill behavior remains compatible.** The skills floor is represented by a bundled-origin meta-spec
+9. **Built-in skill behavior remains compatible.** The skills floor is represented by a bundled-origin spec
    layer (supplying both frontmatter schema input and structure specification input) and participates in the same
    lookup and dependency model. Its current Pydantic validation, finding wording, independent application beside
    repository layers, global opt-out, bounded contradiction preflight, declarative line budget (`lines: 500`),
@@ -108,8 +108,8 @@ are interchangeable.
     (JSON Schema for repository schemas and Pydantic for the Agent Skills floor) produce uniform `FrontmatterProblem`
     instances and do not obstruct shared location or progressive deduplication.
 16. **Frontmatter governance and rule gates are uniform across all item kinds.** An item is governed for
-    `MetaSpecPart.FRONTMATTER` exactly when its applicable frontmatter schema tuple is non-empty. Every frontmatter
-    rule, including `name_mismatch`, declares `WhenMetaSpec(MetaSpecPart.FRONTMATTER)` for every governed item kind.
+    `SpecPart.FRONTMATTER` exactly when its applicable frontmatter schema tuple is non-empty. Every frontmatter
+    rule, including `name_mismatch`, declares `WhenSpec(SpecPart.FRONTMATTER)` for every governed item kind.
     `name_mismatch` is treated as a general invariant of Lorecraft-governed frontmatter: when an item's frontmatter is
     governed by any schema, a written string `name` must equal the item's aspect name (its filename for documents, or
     its directory name for skills). `WhenSchema` is no longer used by frontmatter rules.
@@ -192,7 +192,7 @@ owned by the project model domain.
   branches from `frontmatter_schema_problems`.
 - Progressive missing-field deduplication across earlier schemas in the tuple generalizes floor-only suppression
   to any combination of bundled and repository layers.
-- Gating all frontmatter rules on `WhenMetaSpec(FRONTMATTER)` establishes complete gate homogeneity across item kinds
+- Gating all frontmatter rules on `WhenSpec(FRONTMATTER)` establishes complete gate homogeneity across item kinds
   and removes `WhenSchema` from frontmatter rules.
 - Bundled structure governance supplies a declarative line budget for skills (`lines: 500`) without moving parsed
   structure specifications into the schema registry, preserving project domain ownership of structure facts.
@@ -231,8 +231,8 @@ owned by the project model domain.
       for both bundled floor schemas and repository layers
 - [ ] Frontmatter schema problems are located by one locator that deduplicates missing-field findings progressively
       across earlier schemas in the tuple
-- [ ] `MetaSpecPart.FRONTMATTER` is governed exactly when an item's applicable frontmatter schema tuple is non-empty,
-      and all frontmatter rules use `WhenMetaSpec(FRONTMATTER)` for every governed item kind
+- [ ] `SpecPart.FRONTMATTER` is governed exactly when an item's applicable frontmatter schema tuple is non-empty,
+      and all frontmatter rules use `WhenSpec(FRONTMATTER)` for every governed item kind
 - [ ] Schema subject identities and read sets can be compared across database revisions by a future `advance`
       implementation; this ADR does not implement advancement
 - [ ] Internal schema references do not enable external JSON Schema resources or change current dialect and

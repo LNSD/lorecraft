@@ -36,15 +36,15 @@ from lorecraft.project.corpus import (
     ReservedCorpusDirectory,
     ReservedCorpusNameError,
 )
-from lorecraft.project.document import DocumentRef, MetaSpecRef
+from lorecraft.project.document import DocumentRef, SpecRef
 from lorecraft.project.item import (
     DocumentOrigin,
     ItemDescriptor,
     ItemRef,
-    MetaSpecOrigin,
-    MetaSpecPart,
     SkillEntrypointOrigin,
     SkillResourceOrigin,
+    SpecOrigin,
+    SpecPart,
     UnlistedItemError,
 )
 from lorecraft.project.layout import DOCS_DIR, DOCUMENT_SUFFIX, SPECS_DIR
@@ -508,7 +508,7 @@ class WorkspaceModel:
         skills_corpus: The reserved `skills` corpus, available to its own specification checks, or None when no
             `skills` spec exists. It governs skill entrypoints but not resources; no directory
             under `docs/` backs it.
-        meta_corpus: The reserved `meta` corpus governing meta spec items, or None when no `meta` spec exists.
+        meta_corpus: The reserved `meta` corpus governing spec items, or None when no `meta` spec exists.
         listed_specifications: Every valid prose spec file in `docs/__meta__/`, including specs whose document corpus
             is absent.
         overlapping_directories: The directories under `docs/` that take a reserved corpus's name, which the model
@@ -532,7 +532,7 @@ class WorkspaceModel:
     load_failures: tuple[LoadFailure, ...]
     skills_corpus: Corpus | None = None
     meta_corpus: Corpus | None = None
-    listed_specifications: tuple[MetaSpecRef, ...] = ()
+    listed_specifications: tuple[SpecRef, ...] = ()
     overlapping_directories: frozenset[ReservedCorpusDirectory] = frozenset()
     unchecked_symlinks: tuple[RootRelativePath, ...] = ()
     schema_inputs: FrozenMapping[SchemaRef, SchemaInput] = FrozenMapping({})
@@ -613,8 +613,8 @@ class WorkspaceModel:
                 return ref
         return None
 
-    def specifications(self) -> tuple[MetaSpecRef, ...]:
-        """Every meta spec, a Markdown file of a corpus or namespace spec, sorted by path; no README."""
+    def specifications(self) -> tuple[SpecRef, ...]:
+        """The Markdown file of every corpus and namespace spec, sorted by path; no README."""
         specs: list[Spec] = []
         for corpus in (
             *self.sorted_corpora,
@@ -623,19 +623,19 @@ class WorkspaceModel:
         ):
             specs.append(corpus.corpus_spec)
             specs.extend(corpus.namespace_specs)
-        refs: set[MetaSpecRef] = set()
+        refs: set[SpecRef] = set()
         for spec in specs:
             for file in spec.files:
                 if file.value.name.endswith(DOCUMENT_SUFFIX) and file.parent == SPECS_DIR:
-                    refs.add(MetaSpecRef(file))
+                    refs.add(SpecRef(file))
         refs.update(self.listed_specifications)
         return tuple(sorted(refs))
 
-    def find_specification_base(self, ref: MetaSpecRef) -> MetaSpecRef | None:
-        """The meta spec this one extends: the narrowest whose name continues into this one's, or `None`.
+    def find_specification_base(self, ref: SpecRef) -> SpecRef | None:
+        """The spec this one extends: the narrowest whose name continues into this one's, or `None`.
 
         Args:
-            ref: The meta spec whose base is wanted.
+            ref: The spec whose base is wanted.
         """
         by_name = {spec.name: spec for spec in self.specifications()}
         base = find_narrowest_ancestor(ref.name, by_name)
@@ -762,8 +762,8 @@ class WorkspaceModel:
             return None
         return corpus.governance(ref.entry.value)
 
-    def meta_governance(self, ref: MetaSpecRef) -> Governance | None:
-        """The meta specs governing a meta spec item, or None when no `meta` corpus is declared."""
+    def meta_governance(self, ref: SpecRef) -> Governance | None:
+        """The meta specs governing a spec item, or None when no `meta` corpus is declared."""
         if self.meta_corpus is None:
             return None
         return self.meta_corpus.governance(ref.name)
@@ -788,7 +788,7 @@ class WorkspaceModel:
                 return self.resolve_item(specification)
         return None
 
-    def describe_item(self, ref: DocumentRef | SkillRef | MetaSpecRef) -> ItemDescriptor:
+    def describe_item(self, ref: DocumentRef | SkillRef | SpecRef) -> ItemDescriptor:
         """Resolve the shared location and origin metadata for a document or skill.
 
         The existing references remain accepted by repositories and database queries. This descriptor is the
@@ -823,21 +823,19 @@ class WorkspaceModel:
         )
 
     @staticmethod
-    def _governed_parts(
-        governance: Governance | None, schema_refs: tuple[SchemaRef, ...] = ()
-    ) -> frozenset[MetaSpecPart]:
-        """The meta spec parts named by loaded layers and the item's applicable schema inputs."""
-        parts: set[MetaSpecPart] = set()
+    def _governed_parts(governance: Governance | None, schema_refs: tuple[SchemaRef, ...] = ()) -> frozenset[SpecPart]:
+        """The spec parts named by loaded layers and the item's applicable schema inputs."""
+        parts: set[SpecPart] = set()
         if any(reference.kind is SchemaKind.FRONTMATTER for reference in schema_refs):
-            parts.add(MetaSpecPart.FRONTMATTER)
+            parts.add(SpecPart.FRONTMATTER)
         if governance is not None and governance.corpus_structure() is not None:
-            parts.add(MetaSpecPart.STRUCTURE)
+            parts.add(SpecPart.STRUCTURE)
         if governance is not None and governance.outline_specs():
-            parts.add(MetaSpecPart.OUTLINE)
+            parts.add(SpecPart.OUTLINE)
         if governance is not None and any(
             spec.tokens is not None or spec.lines is not None for spec in governance.structure_specs()
         ):
-            parts.add(MetaSpecPart.BUDGET)
+            parts.add(SpecPart.BUDGET)
         return frozenset(parts)
 
     @classmethod
@@ -847,7 +845,7 @@ class WorkspaceModel:
         ref: ItemRef,
         read_location: ResolvedPath,
         link_base: DocumentDirectory | SkillRoot,
-        origin: DocumentOrigin | SkillEntrypointOrigin | SkillResourceOrigin | MetaSpecOrigin,
+        origin: DocumentOrigin | SkillEntrypointOrigin | SkillResourceOrigin | SpecOrigin,
         name: AspectFilename | AspectName | SpecName | None,
         listed_name: str,
         corpus: CorpusName | None,
@@ -868,15 +866,15 @@ class WorkspaceModel:
         )
         return ResolvedItem(descriptor, governance)
 
-    def resolve_item(self, ref: DocumentRef | ItemRef | SkillRef | MetaSpecRef) -> ResolvedItem:
+    def resolve_item(self, ref: DocumentRef | ItemRef | SkillRef | SpecRef) -> ResolvedItem:
         """Resolve an item's descriptor together with the specs governing it, finding the governance once.
 
         A corpus document is governed by the specs of its corpus and matching namespaces. Skill entrypoints are governed
-        by the reserved `skills` corpus and matching namespaces; meta specs are governed by the reserved `meta` corpus.
+        by the reserved `skills` corpus and matching namespaces; specs are governed by the reserved `meta` corpus.
         Resources remain outside corpus governance.
 
         Args:
-            ref: Document, skill or meta spec to resolve, whether or not the model lists a document's corpus, or a
+            ref: Document, skill or spec to resolve, whether or not the model lists a document's corpus, or a
                 common ref naming a document.
 
         Raises:
@@ -908,14 +906,14 @@ class WorkspaceModel:
                     governance=governance,
                     frontmatter_schema_refs=schema_refs,
                 )
-            case MetaSpecRef():
+            case SpecRef():
                 governance = self.meta_governance(ref)
                 schema_refs = governance.applicable_frontmatter_schema_refs() if governance is not None else ()
                 return self._describe(
                     ref=ItemRef(ref.path),
                     read_location=ResolvedPath(ref.path),
                     link_base=DocumentDirectory(SPECS_DIR),
-                    origin=MetaSpecOrigin(ref.corpus),
+                    origin=SpecOrigin(ref.corpus),
                     name=parse_spec_name(ref.name),
                     listed_name=ref.name,
                     corpus=CorpusName.parse(META_CORPUS_NAME),

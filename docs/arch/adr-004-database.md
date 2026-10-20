@@ -48,7 +48,7 @@ result is an immutable value. The queries are layered:
 - **Structure**: the project model, the index of the scope the snapshot was taken of, a document's governance,
   `governance(ref)`, what the model states governs one document, and a skill's resource
   listing, the Markdown files inside a skill beside its `SKILL.md` and its symlinks that lead outside the root. They read listings, symlink targets, the
-  declared scope and meta specs, never a document's content: an edit to a document's text leaves them valid,
+  declared scope and specs, never a document's content: an edit to a document's text leaves them valid,
   and a retargeted symlink on the way to a skill does not. A resource listing reads only the listings and symlink
   targets its skill's walk reaches, so a change the walk does not reach leaves it valid. A document's governance is
   kept whenever it is recomputed equal, so a model change that leaves it equal leaves valid every query that reads it.

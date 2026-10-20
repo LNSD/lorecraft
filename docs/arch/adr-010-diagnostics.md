@@ -22,7 +22,7 @@ the shapes are the decision.
 
 Before this record, a check returned violations whose message is free text, with notes built as strings inside the
 check. The run located them into findings, collected them per check into a report type per subject kind, and
-ordered them as the paths were given and the checks happened to state them. A document no meta spec governs
+ordered them as the paths were given and the checks happened to state them. A document no spec governs
 printed in the shape of a rule. [adr-007-findings](adr-007-findings.md) stated that contract, and Lorecraft v0.2
 shipped it.
 
@@ -39,12 +39,12 @@ not change between two runs over the same revision.
 2. **One report per subject**, and one diagnostic shape for every subject kind. A diagnostic holds its occurrence.
 3. **The order is a contract**, total over one revision: path, location, severity, code, message.
 4. **Only a rule's occurrence is a rule diagnostic.** A file that cannot be decoded is an engine diagnostic, a
-   subject no meta spec governs is coverage, and what stops a run is a failure: none of them takes a level.
+   subject no spec governs is coverage, and what stops a run is a failure: none of them takes a level.
 5. **Only the command line prints.** A rule returns its occurrences as values, the run locates them into
    diagnostics, and the command line alone renders them and chooses the exit code. A problem in a subject is a
    diagnostic and the run goes on; only what stops Lorecraft from judging at all is raised.
 6. **A link escaping its applicable bound is one rule condition.** `LINK004` reports that condition for every
-   governed Markdown item, using one code for repository-root escapes in documents and meta specs and skill-root
+   governed Markdown item, using one code for repository-root escapes in documents and specs and skill-root
    escapes in skills and their resources. Its message names the link-bound escape; typed context may identify the
    bound crossed.
 
@@ -82,12 +82,12 @@ class MissingSection(QueriedItemRule[MissingSectionFacts]):
     """..."""
 
     CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 6)
-    APPLIES_TO: ClassVar[Mapping[ItemType, Gate]] = {ItemType.DOCUMENT: WhenMetaSpec(MetaSpecPart.STRUCTURE)}
+    APPLIES_TO: ClassVar[Mapping[ItemType, Gate]] = {ItemType.DOCUMENT: WhenSpec(SpecPart.STRUCTURE)}
     ...
     spec: RootRelativePath
     section: SectionName
     before: str | None                # the heading it should precede; None at the end, reported at the last line
-    description: str | None           # the meta spec's guidance, through the context
+    description: str | None           # the spec's guidance, through the context
     example: str | None
 
     def message(self) -> str:
@@ -119,7 +119,7 @@ class WholeSubject:            # a subject without lines, such as a layout entry
 
 
 @dataclass(frozen=True, slots=True)
-class Elsewhere:               # another file: the meta spec, a link's target, a first definition
+class Elsewhere:               # another file: the spec, a link's target, a first definition
     path: RootRelativePath
     line: int | None = None
 
@@ -220,8 +220,8 @@ class LayoutRule(Rule):         # the base of the rule base over a layout entry
 - **Context is data, never prose built in `check`.** An occurrence stores what the check saw, and the methods turn
   it into text. A persisted or machine-read diagnostic keeps the structured values, and the text can always be
   rendered again from them.
-- **The meta spec authors its own guidance.** An outline entry's description and example reach the
-  occurrence through the context, and `children()` presents them; the rule writes no guidance a meta spec
+- **The spec authors its own guidance.** An outline entry's description and example reach the
+  occurrence through the context, and `children()` presents them; the rule writes no guidance a spec
   states.
 - **An occurrence still names no subject.** `Here` is a line of the subject, and `WholeSubject` the subject itself;
   the runner adds the path. `Elsewhere` names another file. Ranged locations, when they come, widen `Here` and
@@ -266,7 +266,7 @@ type SubjectReport = CheckedItem | UndecodableSubject | UnreadableItem | Checked
 ```
 
 - **A diagnostic holds its occurrence** and copies none of its fields. The code, the message, the labels, the
-  help and notes, and the meta spec reach the text and the machine-readable output through it (FR-017).
+  help and notes, and the spec reach the text and the machine-readable output through it (FR-017).
 - **An engine diagnostic's severity cannot be set.** It is read from the condition's class, so an engine
   condition reported at a severity its class does not fix cannot be built. Renderers and the order take the one
   name `Diagnostic`, and read the same attributes on both kinds.
@@ -274,10 +274,10 @@ type SubjectReport = CheckedItem | UndecodableSubject | UnreadableItem | Checked
   diagnostic carries one of two severities.
 - **An undecodable subject has one diagnostic and no coverage**, which the union states: the engine's
   `InvalidUtf8` (`LC001`) at its path, since no rule judged it.
-- **Coverage records missing meta spec parts only.** Package and schema checks are not reported as ungoverned parts;
+- **Coverage records missing spec parts only.** Package and schema checks are not reported as ungoverned parts;
   a `CheckedItem` for a skill entrypoint or document may carry ungoverned parts when no governing layer states them.
 - **A layout entry is reported by its ref, and has no coverage.** It is not a document, a skill or a resource, so
-  it has no item reference, and no meta spec governs it, so it can never be ungoverned. Its diagnostics take the
+  it has no item reference, and no spec governs it, so it can never be ungoverned. Its diagnostics take the
   same shape as every other subject's.
 - **Order is a documented output contract** (FR-018), the established linters' source order grouped by file:
   1. the subject's root-relative POSIX path, compared by code point, never by locale and never by how the paths
@@ -341,9 +341,9 @@ Before committing code, verify:
 
 - [ ] A rule's `message()` names the condition and never branches; context reaches the diagnostic through typed
   fields and `labels()` and `children()`, never as prose built in `check`
-- [ ] `LINK004` reports relative links that cross the applicable bound for documents, meta specs, skills and
+- [ ] `LINK004` reports relative links that cross the applicable bound for documents, specs, skills and
   skill resources as the same link-bound escape condition
-- [ ] Guidance a meta spec states reaches `children()` through the context, and the rule does not restate it
+- [ ] Guidance a spec states reaches `children()` through the context, and the rule does not restate it
 - [ ] A layout rule's labels and sub-diagnostics are the `Entry*` types, and no location is read by `getattr`
 - [ ] A diagnostic holds its occurrence and copies none of its fields; an engine diagnostic's severity is its
   condition's

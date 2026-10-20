@@ -1,17 +1,17 @@
 ---
 name: "code-python-typing"
-description: "Responsibility of the `docs/code/python-typing*.md` code specs: standard Python typing practices and idioms, and what belongs in a neighbouring group instead. Load when creating or editing a python-typing document in docs/code/, or deciding whether a typing rule belongs there"
+description: "Responsibility of the `docs/code/python-typing*.md` code rules: standard Python typing practices and idioms, and what belongs in a neighbouring group instead. Load when creating or editing a python-typing document in docs/code/, or deciding whether a typing rule belongs there"
 type: "meta"
 scope: "global"
 ---
 
-# Python Typing Code Spec Responsibility
+# Python Typing Code Rule Responsibility
 
 **The `python-typing-*` group has one responsibility: the standard Python typing practices and idioms this
 project writes.** A document belongs in the group when its subject is what the code tells the type system, or
 what `ty` proves from it.
 
-This meta spec narrows [code-python](code-python.md). It adds no template: a `python-typing-*` document keeps the
+This spec narrows [code-python](code-python.md). It adds no template: a `python-typing-*` document keeps the
 python structure, its doctrine paragraph, numbered rule sections, Checklist and References. What it adds is the
 boundary of the group, so a typing rule has one home and a rule about something else does not settle there
 because it mentions a type.
@@ -72,4 +72,4 @@ Before committing a `python-typing-*` document, verify:
 
 ## References
 
-- [code-python](code-python.md) - Extends: Python convention template that this meta spec narrows
+- [code-python](code-python.md) - Extends: Python convention template that this spec narrows

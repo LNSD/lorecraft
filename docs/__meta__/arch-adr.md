@@ -5,11 +5,11 @@ type: "meta"
 scope: "global"
 ---
 
-# Architecture Decision Record Meta Spec
+# Architecture Decision Record Spec
 
 **Applies to every document in `docs/arch/` named `adr-*.md`.** The namespace also matches a bare `adr.md`, and no
 such file may exist: every ADR is about one decision, and its name says which. It is a namespace layer on the
-[arch](arch.md) corpus meta spec, and states only what it adds to it. Its machine-checkable half is
+[arch](arch.md) corpus spec, and states only what it adds to it. Its machine-checkable half is
 [arch-adr.spec.json](arch-adr.spec.json), applied on its own beside the corpus file.
 
 An ADR states **how** something is built and **why**: the context that forced a decision, the decision, and what
@@ -61,7 +61,7 @@ The same rule of acceptance applies, and only the replacement names the older re
 > Analysis rows of the role table below. The rest of this record binds code.
 ```
 
-**An accepted ADR binds code.** It binds like any code spec in `docs/code/`: agents load it by its `description`, so the
+**An accepted ADR binds code.** It binds like any code rule in `docs/code/`: agents load it by its `description`, so the
 description ends with a trigger clause, `Load when …`, naming the work it governs, and a `## Checklist` of
 `- [ ]` items, one per verifiable statement, is what a code review walks. A `proposed` ADR is the design its
 implementation is built to, and it binds code only once that implementation has landed and the ADR is accepted.
@@ -81,8 +81,8 @@ document, as the corpus states. No section has a word cap and the file has no to
 
 An ADR may name languages, libraries, modules and types: how a thing is built is what it records. It states the
 design, not an inventory: which rules, commands, fields or files exist and how many is the code's to say, and an ADR
-that lists them goes stale with the next one added. An ADR never links a feat spec, though a feat spec may link
-the ADR: what shipped is described once, in `docs/feat/`, and a decision stays true whatever the feat spec says.
+that lists them goes stale with the next one added. An ADR never links a feat doc, though a feat doc may link
+the ADR: what shipped is described once, in `docs/feat/`, and a decision stays true whatever the feat doc says.
 
 An ADR cites no issue, as the [arch](arch.md#4-cross-references) corpus states for every document. It comes from
 the PRD it answers and the records it builds on, and cites those; what was settled on an issue is stated in the
@@ -131,9 +131,9 @@ status: "proposed"
   and its replacement names the record and the parts in a callout after its title and under References
 - [ ] An `accepted` ADR's description ends with a `Load when …` trigger, and it carries a checklist when it
   states something code can be checked against
-- [ ] The ADR states the design, lists no inventory of rules, commands, fields or files, and links no feat spec
+- [ ] The ADR states the design, lists no inventory of rules, commands, fields or files, and links no feat doc
 - [ ] An `accepted` ADR's implementation has landed
 
 ## References
 
-- [arch](arch.md) - Extends: Base architecture corpus meta spec
+- [arch](arch.md) - Extends: Base architecture corpus spec

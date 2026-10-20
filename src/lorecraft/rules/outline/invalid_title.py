@@ -12,7 +12,7 @@ from lorecraft.project.schemas import TitleFacts, TitlePattern, title_facts
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Here, Label, Subdiagnostic
-from lorecraft.rules.subject import Gate, MetaSpecPart, QueriedItemRule, WhenMetaSpec
+from lorecraft.rules.subject import Gate, QueriedItemRule, SpecPart, WhenSpec
 
 from .__ruleset__ import GROUP_ID, spec_note
 
@@ -29,7 +29,7 @@ class InvalidTitle(QueriedItemRule[TitleFacts]):
     that must hold the whole title anchors itself with `^` and `$`. Only the document's first H1 is its title, and a
     document with no title is not reported here.
 
-    A document that more than one meta spec governs, such as a corpus and a namespace, must keep its title to
+    A document that more than one spec governs, such as a corpus and a namespace, must keep its title to
     every pattern they set, and is reported once for each pattern the title does not match.
 
     ## Why is this bad?
@@ -73,9 +73,9 @@ class InvalidTitle(QueriedItemRule[TitleFacts]):
     SINCE: ClassVar[Release] = Release('0.3.0')
     APPLIES_TO: ClassVar[Mapping[ItemType, Gate]] = MappingProxyType(
         {
-            ItemType.DOCUMENT: WhenMetaSpec(MetaSpecPart.STRUCTURE),
-            ItemType.META_SPEC: WhenMetaSpec(MetaSpecPart.STRUCTURE),
-            ItemType.SKILL_ENTRYPOINT: WhenMetaSpec(MetaSpecPart.STRUCTURE),
+            ItemType.DOCUMENT: WhenSpec(SpecPart.STRUCTURE),
+            ItemType.SPEC: WhenSpec(SpecPart.STRUCTURE),
+            ItemType.SKILL_ENTRYPOINT: WhenSpec(SpecPart.STRUCTURE),
         }
     )
 
@@ -92,7 +92,7 @@ class InvalidTitle(QueriedItemRule[TitleFacts]):
         return (Label(Here(self.line), f'does not match `{self.pattern}`'),)
 
     def children(self) -> tuple[Subdiagnostic, ...]:
-        """Point at the meta spec that sets the pattern."""
+        """Point at the spec that sets the pattern."""
         return (spec_note(self.spec),)
 
     @classmethod
@@ -104,7 +104,7 @@ class InvalidTitle(QueriedItemRule[TitleFacts]):
     def judge(cls, facts: TitleFacts, /) -> tuple[Self, ...]:
         """One occurrence, at the title's heading, for each pattern on the title that it does not match.
 
-        The patterns are taken in the order their meta specs apply; a document with no title is held to none.
+        The patterns are taken in the order their specs apply; a document with no title is held to none.
 
         Args:
             facts: The document's title and the title checks each governing specification states.

@@ -15,7 +15,7 @@ functionality.
 
 Verifies a feat doc against the code: does the documented behaviour actually exist, and is it tested?
 For the *declared* maturity of a feature, which is a frontmatter field rather than a fact about the code,
-use `/feat-status`. For whether the spec has the right frontmatter, sections and length — its **form** rather
+use `/feat-status`. For whether the feat doc has the right frontmatter, sections and length — its **form** rather
 than its **truth** — use `/docs-rules-check`, which runs the checks `just check-docs` wires up.
 
 Use this skill when:
@@ -37,7 +37,7 @@ Features can be implemented in many forms - not just functions. Verify ALL docum
 | **Structure file dialect** | Frontmatter schema keys, section-outline keys | Which keys the checker actually enforces |
 | **Reporter contracts** | Text and JSON finding output | Field names, severity vocabulary, stream |
 | **Data flows** | Corpus discovery → parse → check → report | Components involved, data transformations |
-| **Configuration** | `pyproject.toml` settings, meta spec file locations | Config keys, defaults, validation |
+| **Configuration** | `pyproject.toml` settings, spec file locations | Config keys, defaults, validation |
 | **Components** | Checker modules, the check registry | Initialization, lifecycle, interactions |
 
 ### 1. Functionality Verification
@@ -97,7 +97,7 @@ Extract from the feat doc:
 - File paths from the Architecture and Code References sections
 
 `docs/__meta__/feat.md` fixes which sections a feat doc of each type carries, so read it when a section you
-expect is absent: a `meta` spec has no Usage section by design, and its concrete usage lives in its children.
+expect is absent: a `meta` feat doc has no Usage section by design, and its concrete usage lives in its children.
 
 ### Step 2: Verify Production Code
 

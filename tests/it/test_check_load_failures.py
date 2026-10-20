@@ -1,9 +1,9 @@
 """`lorecraft check` over a workspace that partly fails to load: each failure reported where it is, the rest checked.
 
-A meta spec that cannot be used is an error diagnostic at its structure file, under a code of its own, and the
-meta-spec parts it would govern are reported as partial coverage while package and schema checks continue. Each test
+A spec that cannot be used is an error diagnostic at its structure file, under a code of its own, and the
+spec parts it would govern are reported as partial coverage while package and schema checks continue. Each test
 writes a small workspace of two corpora, `code` and `feat`, with one
-namespace meta spec in `code`, breaks one structure file, and runs the command through Typer's `CliRunner`.
+namespace spec in `code`, breaks one structure file, and runs the command through Typer's `CliRunner`.
 
 Failures the operating system refuses are not here: a refusal while the snapshot is taken stops the run, so a check
 run has none to report. Those refusals are in `test_snapshot_refusals`.
@@ -38,13 +38,13 @@ STATES_NO_RULE: Final[str] = '{}'
 """A structure file that follows the format and states no rule."""
 
 TYPING: Final[str] = '# Typing\n\n## Rule\n\nAnnotate every signature.\n\n## Checklist\n\nCheck it.\n'
-"""A document of the `python` namespace that holds to both meta specs."""
+"""A document of the `python` namespace that holds to both specs."""
 
 LOGGING_WITHOUT_RULE: Final[str] = '# Logging\n\n## Notes\n\nLog at the edge.\n'
 """A document no namespace governs, which lacks the `Rule` section its corpus asks for."""
 
 LOGGING: Final[str] = '# Logging\n\n## Rule\n\nLog at the edge.\n'
-"""A document no namespace governs that holds to its corpus's meta spec."""
+"""A document no namespace governs that holds to its corpus's spec."""
 
 CHECK_WITHOUT_USAGE: Final[str] = '# Check\n\n## Overview\n\nRun it.\n'
 """A document of corpus `feat` that lacks the `Usage` section its corpus asks for."""
@@ -65,7 +65,7 @@ def _build_workspace(
     feat_spec: str | bytes = FEAT_SPEC,
     logging: str = LOGGING,
 ) -> Path:
-    """Write the two corpora and their meta specs under `root`, each file as the case sets it, and return `root`.
+    """Write the two corpora and their specs under `root`, each file as the case sets it, and return `root`.
 
     Args:
         root: The directory to write the repository into.
@@ -227,7 +227,7 @@ def _coverage_of(coverage: dict[str, dict[str, object]], paths: list[str]) -> di
 
 
 @pytest.mark.it
-class TestCheckWithAFailedMetaSpec:
+class TestCheckWithAFailedSpec:
     def test_check_with_a_contradictory_structure_file_reports_it_and_checks_the_other_corpus(
         self, tmp_path: Path
     ) -> None:
@@ -284,11 +284,11 @@ class TestCheckWithAFailedMetaSpec:
             'ungoverned': ['frontmatter', 'structure', 'outline', 'budget'],
             'cause': None,
             'skipped_by': [],
-        }, 'the affected meta-spec parts are reported, while non-meta-spec rules can judge the item'
+        }, 'the affected spec parts are reported, while rules no spec part gates can judge the item'
         assert _codes_at(document, 'docs/code/python-typing.md') == [], 'the failed namespace gates are suppressed'
         assert coverage['docs/code/logging.md']['skipped_by'] == [], 'the other document is judged, not skipped'
         assert _codes_at(document, 'docs/code/logging.md') == ['OUT006'], (
-            "the corpus's other documents are checked against the corpus meta spec"
+            "the corpus's other documents are checked against the corpus spec"
         )
         assert _severities_at(document, 'docs/code/logging.md') == ['error'], 'a missing section is an error'
         assert _codes_at(document, STRUCTURE_FILE_OF_PYTHON) == ['LC003'], (
@@ -313,7 +313,7 @@ class TestCheckWithAFailedMetaSpec:
             'structure',
             'outline',
             'budget',
-        ], 'the failed corpus gates suppress meta-spec rules while package-level checks still run'
+        ], 'the failed corpus gates suppress spec rules while package-level checks still run'
         assert coverage['docs/code/logging.md']['ungoverned'] == ['frontmatter', 'structure', 'outline', 'budget']
         assert coverage['docs/code/logging.md']['skipped_by'] == []
         assert _codes_at(document, 'docs/code/logging.md') == [], 'the structure-gated findings are suppressed'
@@ -333,7 +333,7 @@ class TestCheckWithAFailedMetaSpec:
             'budget',
         ], 'each suppressed part appears once even when multiple layers failed'
 
-    def test_check_with_a_failed_meta_spec_reports_each_failure_once_whatever_it_governs(self, tmp_path: Path) -> None:
+    def test_check_with_a_failed_spec_reports_each_failure_once_whatever_it_governs(self, tmp_path: Path) -> None:
         #: Given
         root = _build_workspace(tmp_path, code_spec=STATES_NO_RULE)
 
@@ -347,7 +347,7 @@ class TestCheckWithAFailedMetaSpec:
         )
         assert _codes(engine) == ['LC003'], 'it is the failure the file has'
 
-    def test_check_with_a_failed_meta_spec_prints_suppressed_parts_in_coverage(self, tmp_path: Path) -> None:
+    def test_check_with_a_failed_spec_prints_suppressed_parts_in_coverage(self, tmp_path: Path) -> None:
         #: Given
         root = _build_workspace(tmp_path, python_spec=STATES_NO_RULE)
         app = build_app()
@@ -370,7 +370,7 @@ class TestCheckWithAFailedMetaSpec:
 
 @pytest.mark.it
 class TestCheckWithALoadFailureAndNothingElseWrong:
-    def test_check_with_a_failed_meta_spec_and_clean_documents_never_exits_successfully(self, tmp_path: Path) -> None:
+    def test_check_with_a_failed_spec_and_clean_documents_never_exits_successfully(self, tmp_path: Path) -> None:
         #: Given
         root = _build_workspace(tmp_path, python_spec=STATES_NO_RULE, feat_spec='{"tokens": 4000}')
 
@@ -383,7 +383,7 @@ class TestCheckWithALoadFailureAndNothingElseWrong:
             'the failure is the one error, and it is no subject'
         )
 
-    def test_check_with_every_meta_spec_loading_and_clean_documents_exits_successfully(self, tmp_path: Path) -> None:
+    def test_check_with_every_spec_loading_and_clean_documents_exits_successfully(self, tmp_path: Path) -> None:
         #: Given
         root = _build_workspace(tmp_path, feat_spec='{"tokens": 4000}')
 
@@ -414,7 +414,7 @@ class TestCheckLeavesWhatAFailureDoesNotTouchAsItWas:
 
         #: Then
         assert _codes_at(broken, 'docs/code/logging.md') == _codes_at(fixed, 'docs/code/logging.md'), (
-            'a document the failed meta spec does not govern gets what it gets with the meta spec fixed'
+            'a document the failed spec does not govern gets what it gets with the spec fixed'
         )
         assert _codes_at(broken, 'docs/feat/check.md') == _codes_at(fixed, 'docs/feat/check.md'), (
             'so does a document of another corpus'
@@ -505,7 +505,7 @@ class TestCheckWithAnUnlistableMetaDirectory:
         result = runner.invoke(app, arguments)
 
         #: Then
-        assert result.exit_code == 2, 'with no meta spec known nothing can be checked, so the run is an error'
+        assert result.exit_code == 2, 'with no spec known nothing can be checked, so the run is an error'
         assert result.stdout == '', 'and no report is printed, since one would read as a clean result'
         assert 'error: cannot list directory docs/__meta__: permission denied' in result.stderr, (
             'the directory is printed as a failure, as it is when the root cannot be found'

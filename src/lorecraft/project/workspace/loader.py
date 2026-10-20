@@ -17,7 +17,7 @@ model; nothing it leaves out fails the run.
 
 The loader is total over the declaration: it reads each unit on its own, a structure file, a corpus directory, a
 skills directory, a skill or a `SKILL.md`, and a unit that fails is recorded in the model as a load failure
-while the loader goes on with the next one. A structure file that fails stands in its meta spec layer as a
+while the loader goes on with the next one. A structure file that fails stands in its spec layer as a
 `FailedStructure` and is listed too. Each repository still raises its own error variant; the loader catches the
 variants of one unit, keeps the details they carry and drops the exception. Nothing here logs.
 """
@@ -38,7 +38,7 @@ from lorecraft.project.aspect import (
     InvalidAspectNameCharacterError,
 )
 from lorecraft.project.corpus import META_CORPUS_NAME, SKILLS_CORPUS_NAME, CorpusName, ReservedCorpusDirectory
-from lorecraft.project.document import CorpusListError, MetaSpecRef
+from lorecraft.project.document import CorpusListError, SpecRef
 from lorecraft.project.document import Repository as DocumentRepository
 from lorecraft.project.layout import DOCS_DIR, SPECS_DIR
 from lorecraft.project.schemas import (
@@ -186,7 +186,7 @@ def load_workspace(
     groups = _group_spec_files(spec_paths)
     listed_specifications = tuple(
         sorted(
-            MetaSpecRef(file.path)
+            SpecRef(file.path)
             for group in groups.values()
             for named_files in (group.spec, *group.namespaces.values())
             for file in named_files.prose

@@ -19,7 +19,7 @@ from lorecraft.project.schemas import (
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Here, Label, Subdiagnostic
-from lorecraft.rules.subject import Gate, MetaSpecPart, QueriedItemRule, WhenMetaSpec
+from lorecraft.rules.subject import Gate, QueriedItemRule, SpecPart, WhenSpec
 
 from .__ruleset__ import GROUP_ID, outline_divergences, spec_note
 
@@ -36,7 +36,7 @@ class UnexpectedSection(QueriedItemRule[tuple[OutlineDivergenceSpec, ...]]):
     the outline expects a section the document only writes further down, or after the outline's end.
 
     Only the first place a document stops following its outline is reported, since every section after it is
-    compared with an entry it was never meant to match. A document that more than one meta spec governs, such
+    compared with an entry it was never meant to match. A document that more than one spec governs, such
     as a corpus and a namespace, must follow each outline, and is reported once for each it breaks.
 
     ## Why is this bad?
@@ -108,9 +108,9 @@ class UnexpectedSection(QueriedItemRule[tuple[OutlineDivergenceSpec, ...]]):
     SINCE: ClassVar[Release] = Release('0.3.0')
     APPLIES_TO: ClassVar[Mapping[ItemType, Gate]] = MappingProxyType(
         {
-            ItemType.DOCUMENT: WhenMetaSpec(MetaSpecPart.OUTLINE),
-            ItemType.META_SPEC: WhenMetaSpec(MetaSpecPart.OUTLINE),
-            ItemType.SKILL_ENTRYPOINT: WhenMetaSpec(MetaSpecPart.OUTLINE),
+            ItemType.DOCUMENT: WhenSpec(SpecPart.OUTLINE),
+            ItemType.SPEC: WhenSpec(SpecPart.OUTLINE),
+            ItemType.SKILL_ENTRYPOINT: WhenSpec(SpecPart.OUTLINE),
         }
     )
 
@@ -143,7 +143,7 @@ class UnexpectedSection(QueriedItemRule[tuple[OutlineDivergenceSpec, ...]]):
                 assert_never(placement)
 
     def children(self) -> tuple[Subdiagnostic, ...]:
-        """Point at the meta spec whose outline does not allow the section, and say where its content goes."""
+        """Point at the spec whose outline does not allow the section, and say where its content goes."""
         return (spec_note(self.spec), Help('move its content under a section the outline names, or remove it'))
 
     @classmethod

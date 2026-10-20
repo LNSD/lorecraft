@@ -4,30 +4,30 @@ A diagnostic locates an occurrence at the path of the subject it was found in, w
 at, and it comes in one of two kinds. A `RuleDiagnostic` holds a rule's occurrence at the severity the rule table
 enables the rule at. An `EngineDiagnostic` holds an engine condition's occurrence, and reads its severity from the
 condition's class rather than holding one, so it can never carry another. Either holds its occurrence and copies
-none of its fields, so its code, message, labels, help and notes, and meta spec reach any output through the
+none of its fields, so its code, message, labels, help and notes, and spec reach any output through the
 occurrence alone.
 
 The order is an output contract, total over one revision, so one revision always prints the same diagnostics in
 the same order: by path, then primary location, then severity, then code, then message. `DiagnosticOrder` states
 that order as the fields it compares, and `diagnostic_order` builds it as the sort key.
 
-Each subject the runner checks, a document, a meta spec, a skill or a skill's resource, gets one report,
+Each subject the runner checks, a document, a spec, a skill or a skill's resource, gets one report,
 and either kind of report gives its diagnostics as `diagnostics`. A `CheckedItem` decoded, and holds its
-diagnostics, in their output order however it is built, and meta spec parts it was not checked for because they were
+diagnostics, in their output order however it is built, and spec parts it was not checked for because they were
 ungoverned or suppressed by a failed layer. A skill has `Always` checks independent of corpus governance, while a
-resource has no meta-spec structure governance. An
+resource has no spec structure governance. An
 `UndecodableSubject` did not decode,
 so no rule judged it: it holds its `ItemRef` and where the bytes stopped being UTF-8, and its one diagnostic,
 the engine's,
 is built from them, at the subject's path. A layout
 entry, one symlink of the skill layout whose chain leaves the repository or a directory under `docs/` named like a
-reserved corpus, has no text to decode and no meta spec to be
+reserved corpus, has no text to decode and no spec to be
 ungoverned by, so it gets a report of its own, a `CheckedLayoutEntry`: its ref and its diagnostics, in their output
 order.
 
 Two reports come from what failed to load, never from a rule. A `SkippedSubject` holds an item or skill alias that
 could not be judged because its read or a docs dependency was refused; it holds no diagnostic and is listed in
-coverage. Failed governing layers are reported as partial checks, with suppressed meta-spec parts listed as
+coverage. Failed governing layers are reported as partial checks, with suppressed spec parts listed as
 ungoverned coverage. A
 `LoadFailureReport` is the failure itself, filed at its own path with the one diagnostic of its engine condition,
 whatever the configuration and the selection, in the same total order as every other diagnostic.
@@ -40,7 +40,7 @@ from typing import assert_never
 from lorecraft.core.num import UnsignedInt
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.corpus import ReservedCorpusDirectoryRef
-from lorecraft.project.item import ItemRef, MetaSpecPart
+from lorecraft.project.item import ItemRef, SpecPart
 from lorecraft.project.skill import OutsideSymlinkRef, SkillAliasRef
 from lorecraft.rules.engine.invalid_utf8 import InvalidUtf8
 from lorecraft.vfs import Utf8Failure
@@ -146,20 +146,20 @@ def diagnostic_order(diagnostic: Diagnostic) -> DiagnosticOrder:
 class CheckedItem:
     """A Markdown item that decoded, so the enabled rules judged everything it is governed for.
 
-    A document, a skill's `SKILL.md` and a skill's resource are reported alike. Any item can have meta-spec parts
+    A document, a skill's `SKILL.md` and a skill's resource are reported alike. Any item can have spec parts
     that are ungoverned or suppressed after a layer fails; package and schema gates still run.
 
     Attributes:
         ref: The item the rules judged, at the path its diagnostics are reported at.
         diagnostics: Every occurrence the rules found in it, in the order `diagnostic_order` sorts them into,
             whatever order they are given in; empty when it holds to every rule.
-        ungoverned: The meta spec parts an enabled rule reads that no meta spec governs the item for, or that a failed
+        ungoverned: The spec parts an enabled rule reads that no spec governs the item for, or that a failed
             governing layer suppressed, in the order the runner reads them; no rule that reads one judged the item.
     """
 
     ref: ItemRef
     diagnostics: tuple[Diagnostic, ...]
-    ungoverned: tuple[MetaSpecPart, ...] = ()
+    ungoverned: tuple[SpecPart, ...] = ()
 
     def __post_init__(self) -> None:
         """Sort the diagnostics into their output order, so a report holds them in it however it is built."""

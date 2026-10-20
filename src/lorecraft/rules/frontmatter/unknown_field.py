@@ -20,7 +20,7 @@ from lorecraft.project.schemas import (
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Here, Label, Note, Subdiagnostic
-from lorecraft.rules.subject import Gate, MetaSpecPart, QueriedItemRule, WhenMetaSpec
+from lorecraft.rules.subject import Gate, QueriedItemRule, SpecPart, WhenSpec
 
 from .__ruleset__ import GROUP_ID, schema_note, schema_problems, schema_spec
 
@@ -36,7 +36,7 @@ class UnknownField(QueriedItemRule[tuple[SchemaProblems, ...]]):
     neither names in `properties` nor matches in `patternProperties`, when the schema sets `additionalProperties`
     to `false`, or that no keyword of the schema evaluates, when it sets `unevaluatedProperties` to `false`; and
     for skills whose frontmatter holds a field the Agent Skills specification does not define. A document that
-    several meta specs govern is reported once for each schema that does not define the field.
+    several specs govern is reported once for each schema that does not define the field.
 
     The fields the schema defines are listed as a note: the `properties` of the schema that holds the keyword, or
     the fields of the Agent Skills specification. A schema that composes others with `allOf` or `$ref` may
@@ -99,9 +99,9 @@ class UnknownField(QueriedItemRule[tuple[SchemaProblems, ...]]):
     SINCE: ClassVar[Release] = Release('0.3.0')
     APPLIES_TO: ClassVar[Mapping[ItemType, Gate]] = MappingProxyType(
         {
-            ItemType.DOCUMENT: WhenMetaSpec(MetaSpecPart.FRONTMATTER),
-            ItemType.META_SPEC: WhenMetaSpec(MetaSpecPart.FRONTMATTER),
-            ItemType.SKILL_ENTRYPOINT: WhenMetaSpec(MetaSpecPart.FRONTMATTER),
+            ItemType.DOCUMENT: WhenSpec(SpecPart.FRONTMATTER),
+            ItemType.SPEC: WhenSpec(SpecPart.FRONTMATTER),
+            ItemType.SKILL_ENTRYPOINT: WhenSpec(SpecPart.FRONTMATTER),
         }
     )
 

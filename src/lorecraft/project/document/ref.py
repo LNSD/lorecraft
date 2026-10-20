@@ -44,7 +44,7 @@ class DocumentRef:
 
 
 class MisplacedSpecificationError(Error):
-    """A path is no Markdown file directly inside the meta spec directory, so it names no meta spec.
+    """A path is no Markdown file directly inside the spec directory, so it names no spec.
 
     Attributes:
         path: Root-relative path that was refused.
@@ -64,11 +64,11 @@ type ParseSpecFileError = (
 
 
 class InvalidSpecificationNameError(Error):
-    """A Markdown file of the meta spec directory has a name no meta spec can take.
+    """A Markdown file of the spec directory has a name no spec can take.
 
     Attributes:
         path: Root-relative path that was refused, such as `docs/__meta__/README.md`.
-        source: Why the meta spec filename parser refuses the name.
+        source: Why the spec filename parser refuses the name.
     """
 
     path: RootRelativePath
@@ -77,29 +77,29 @@ class InvalidSpecificationNameError(Error):
     def __init__(self, path: RootRelativePath, *, source: ParseSpecFileError) -> None:
         self.path = path
         self.source = source
-        super().__init__(f'{path} is no meta spec name')
+        super().__init__(f'{path} is no spec name')
         self.__cause__ = source
 
 
 @dataclass(frozen=True, slots=True, order=True)
-class MetaSpecRef:
-    """A meta spec's identity in the workspace model: a Markdown file of `docs/__meta__/`.
+class SpecRef:
+    """A spec's identity in the workspace model: a Markdown file of `docs/__meta__/`.
 
     Attributes:
-        path: Root-relative `docs/__meta__/<meta spec name>.md`; the report path in findings.
+        path: Root-relative `docs/__meta__/<spec name>.md`; the report path in findings.
     """
 
     path: RootRelativePath
 
     def __post_init__(self) -> None:
-        """Refuse a path that is no prose meta spec directly inside `docs/__meta__/`.
+        """Refuse a path that is no prose spec directly inside `docs/__meta__/`.
 
-        The filename is held to the one parser of meta spec filenames, so `README.md` or `code.bad.md` is no
-        meta spec here, as it is none to the model.
+        The filename is held to the one parser of spec filenames, so `README.md` or `code.bad.md` is no
+        spec here, as it is none to the model.
 
         Raises:
             MisplacedSpecificationError: If the path is elsewhere or is not a `.md` file.
-            InvalidSpecificationNameError: If the file's name is no meta spec name.
+            InvalidSpecificationNameError: If the file's name is no spec name.
         """
         if self.path.parent != SPECS_DIR or not self.path.value.name.endswith(DOCUMENT_SUFFIX):
             raise MisplacedSpecificationError(self.path)
@@ -116,10 +116,10 @@ class MetaSpecRef:
 
     @property
     def name(self) -> str:
-        """The meta spec name: the file's stem, such as `feat-cli`."""
+        """The spec name: the file's stem, such as `feat-cli`."""
         return self.path.value.name.removesuffix(DOCUMENT_SUFFIX)
 
     @property
     def corpus(self) -> str:
-        """The corpus the meta spec belongs to: the first hyphen-delimited segment of its name."""
+        """The corpus the spec belongs to: the first hyphen-delimited segment of its name."""
         return self.name.split('-', 1)[0]

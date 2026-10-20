@@ -15,12 +15,12 @@ Checks for H2 sections whose heading text is one of the names a document's struc
 `forbidden`. Only H2 headings are sections: a title or a deeper heading of the same text is not reported. Every
 occurrence is reported, so a forbidden section written twice is reported twice.
 
-A document that more than one meta spec governs, such as a corpus and a namespace, is reported once for
-each meta spec that forbids the section.
+A document that more than one spec governs, such as a corpus and a namespace, is reported once for
+each spec that forbids the section.
 
 ## Why is this bad?
 
-A meta spec forbids a section because what it would hold belongs elsewhere, or nowhere: a changelog kept in
+A spec forbids a section because what it would hold belongs elsewhere, or nowhere: a changelog kept in
 the version history, or a history of the document that an agent reads as a current rule. Written anyway, the
 section is read as part of the document.
 

@@ -1,6 +1,6 @@
 """Document identity and the repository that lists corpora and reads document text."""
 
-from .ref import DocumentRef, InvalidSpecificationNameError, MetaSpecRef, MisplacedSpecificationError
+from .ref import DocumentRef, InvalidSpecificationNameError, MisplacedSpecificationError, SpecRef
 from .repo import (
     CorpusListError,
     Document,
@@ -11,7 +11,7 @@ from .repo import (
 
 __all__: list[str] = [
     'DocumentRef',
-    'MetaSpecRef',
+    'SpecRef',
     'InvalidSpecificationNameError',
     'MisplacedSpecificationError',
     'Document',

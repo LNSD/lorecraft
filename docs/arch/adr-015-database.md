@@ -32,8 +32,8 @@ runs, so the laziness buys nothing.
 
 [prd-014](prd-014-resilient-model-loading.md) asks for the opposite of a load that fails as a whole: each failure
 reported where it happened, and everything it does not touch checked (FR-001 to FR-009). It also asks for one model
-that serves two consumers. A check run skips a document governed by a failed meta spec (FR-010). An LSP-style mode
-checks it against the meta specs that loaded and labels the result partial (FR-012).
+that serves two consumers. A check run skips a document governed by a failed spec (FR-010). An LSP-style mode
+checks it against the specs that loaded and labels the result partial (FR-012).
 
 ## Decision
 
@@ -76,7 +76,7 @@ design states the gap rather than guard it, as [adr-011](adr-011-rules-engine.md
    declaration also retains unreadable regular files under `docs/`; the database exposes refusals not represented
    by model load failures as a query result, so check and future workspace consumers can report them without a
    second scan. Neither `load_model` nor any query raises a model-load error (FR-009).
-2. **A failure is recorded per meta spec layer.** A corpus meta spec or a namespace meta spec whose structure file
+2. **A failure is recorded per spec layer.** A corpus spec or a namespace spec whose structure file
    fails holds the failure where it would hold its structure: `structure: StructureSpec | FailedStructure | None`. So
    a document's governance holds each layer as loaded or failed, in the layer order
    [adr-016](adr-016-specifications.md) fixes.
@@ -124,10 +124,10 @@ Names in the sketches are illustrative; the shapes are the decision.
    as `LC002`; it remains a subject even though no rule can read it. A refusal on a skill link the snapshot follows
    to reach a skill unit still exits 2, since no model load failure or declared-document refusal stands for it yet
    (prd-014 Edge Cases).
-4. **A documentation root or meta spec directory that cannot be listed stops the run** (FR-005). The model still
+4. **A documentation root or spec directory that cannot be listed stops the run** (FR-005). The model still
    records it as a value, a load failure like any other, so the database is opened and nothing raises. The command
    reads it before selecting any subject, prints it as a failure and exits 2, as it does when the root cannot be
-   found. With no corpus and no meta spec known, a report over what remained would read as a clean result for a
+   found. With no corpus and no spec known, a report over what remained would read as a clean result for a
    workspace that was never checked. The command makes this choice, not the model, so the LSP-style mode can still
    open the database and report the failure in its own way.
 
@@ -164,7 +164,7 @@ model is loaded when the database is opened; every other query is computed on fi
 - **Structure**: the project model, the index of the scope the snapshot was taken of, a document's governance,
   `item_governance(ref)`, what the model states governs one document, and a skill's resource listing, the Markdown files
   inside a skill beside its `SKILL.md` and its symlinks that lead outside the root. They read listings, symlink
-  targets, the declared scope and meta specs, never a document's content: an edit to a document's text leaves them
+  targets, the declared scope and specs, never a document's content: an edit to a document's text leaves them
   valid, and a retargeted symlink on the way to a skill does not. A resource listing reads only the listings and
   symlink targets its skill's walk reaches, so a change the walk does not reach leaves it valid. A document's
   governance is kept whenever it is recomputed equal, a failed layer compared by its recorded failure, so a model
@@ -211,13 +211,13 @@ their analyses without being looked at again.
 - **The per-document `Raises:` blocks shrink.** The model's load errors leave every query that reads the model or
   a document's governance, the runner and the subject selection. `model()` and `load_model` raise
   nothing for the declaration. `Database.from_snapshot` raises only the linked-layout refusal.
-- **A broken meta spec no longer stops a check run.** It is an error diagnostic on its structure file, and the
+- **A broken spec no longer stops a check run.** It is an error diagnostic on its structure file, and the
   documents it governs are skipped and listed in coverage.
 - **Two other records change with this one, so no two accepted records contradict each other.**
-  [adr-006](adr-006-specifications.md) says a meta spec that cannot be loaded is a failure of the run. It is
+  [adr-006](adr-006-specifications.md) says a spec that cannot be loaded is a failure of the run. It is
   restated in [adr-016](adr-016-specifications.md), which supersedes it and was accepted together with this record.
   [adr-010](adr-010-diagnostics.md) keeps its decision; its example of a failure that exits 2 is now a `docs/` that
-  cannot be listed instead of a meta spec that cannot be loaded.
+  cannot be listed instead of a spec that cannot be loaded.
 - **Every caller opens the database.** The two commands and the tests that build a database call
   `Database.from_snapshot`, and nothing reads the model before it.
 - **The loader catches what it reads, unit by unit.** Each repository still raises its own error variant. The loader
@@ -247,7 +247,7 @@ their analyses without being looked at again.
 | Deferred | What the design keeps open |
 |---|---|
 | The partial policy | An entry point of its own in the engine reads the same governance and judges the layers that loaded (prd-014 FR-012); nothing below it, and nothing it shares with the check run, changes |
-| The last good meta spec | `advance` may keep the previous revision's loaded structure beside a new failure in the same layer, and a result checked against it is labelled so (prd-014 FR-013) |
+| The last good spec | `advance` may keep the previous revision's loaded structure beside a new failure in the same layer, and a result checked against it is labelled so (prd-014 FR-013) |
 | `advance(snapshot)` | Reserved, not built: it would carry the model over or load it again by its carry-over rule, and is the only other way to get a database |
 
 ## Checklist
@@ -257,10 +257,10 @@ Before committing code, verify:
 - [ ] A database is obtained only from `Database.from_snapshot` or `advance`, and its model is never optional
 - [ ] `model()`, `load_model` and every query raise no model-load error; a failure inside the declaration is a
   record in the model
-- [ ] A load failure is recorded per meta spec layer, and listed once on the model with its path and condition
+- [ ] A load failure is recorded per spec layer, and listed once on the model with its path and condition
 - [ ] A recorded failure is a frozen record of facts in a closed union, never an exception, and compares by value
 - [ ] Each load failure is reported once, as an engine diagnostic at its own path, with a fixed error severity
-- [ ] A documentation root or meta spec directory that cannot be listed is recorded like any load failure, and the
+- [ ] A documentation root or spec directory that cannot be listed is recorded like any load failure, and the
   check command, not the model, turns it into a failure that exits 2 before any subject is selected
 - [ ] Neither the model nor the database decides skip or partial; the check run's entry point skips an item with a
   failed layer and lists it in coverage
@@ -281,7 +281,7 @@ Before committing code, verify:
 - [adr-001-snapshot-model](adr-001-snapshot-model.md) - Related: The model and the package roles
 - [adr-002-vfs](adr-002-vfs.md) - Related: The snapshot the database wraps
 - [adr-005-incremental](adr-005-incremental.md) - Related: What a query's result, and a recorded failure, carries over
-- [adr-016-specifications](adr-016-specifications.md) - Related: The layers a failure is recorded per, and a meta
+- [adr-016-specifications](adr-016-specifications.md) - Related: The layers a failure is recorded per, and a
   spec that cannot be loaded as a failed layer
 - [adr-006-specifications](adr-006-specifications.md) - Related: The record adr-016 supersedes
 - [adr-009-rules](adr-009-rules.md) - Related: The engine conditions a load failure is reported as
@@ -290,5 +290,5 @@ Before committing code, verify:
 - [adr-012-database-derivation](adr-012-database-derivation.md) - Related: The package the database lives in
 - [error-types](../code/error-types.md) - Foundation: Why load failures are not grouped under a base class
 - [pattern-memoization](../code/pattern-memoization.md) - Foundation: How a query is memoized
-- [adr-025](adr-025-name-chain-model.md) - Related: Meta spec and document hierarchies exposed on the workspace
+- [adr-025](adr-025-name-chain-model.md) - Related: Spec and document hierarchies exposed on the workspace
   model

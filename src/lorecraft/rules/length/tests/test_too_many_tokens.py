@@ -44,7 +44,7 @@ def _budget(tokens: int) -> str:
     """A structure file that sets a token budget and nothing else.
 
     Args:
-        tokens: The most tokens the meta spec lets a document it governs hold; at least 1.
+        tokens: The most tokens the spec lets a document it governs hold; at least 1.
     """
     return f'{{"tokens": {tokens}}}'
 

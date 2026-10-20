@@ -16,8 +16,8 @@ Checks for headings whose section holds nothing, in documents whose structure fi
 end of the document; a deeper heading opens a subsection, which is content. Every heading counts, whatever its
 level: an empty title and an empty subsection are reported like any other section.
 
-A document that more than one meta spec governs, such as a corpus and a namespace, is reported once for
-each meta spec that forbids empty sections.
+A document that more than one spec governs, such as a corpus and a namespace, is reported once for
+each spec that forbids empty sections.
 
 The help follows the section: under the title it asks for the document's content, under a section the outline
 requires it asks for what the entry describes, with the entry's first example, and under any other it asks to

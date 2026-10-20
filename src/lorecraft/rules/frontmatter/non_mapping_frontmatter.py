@@ -15,7 +15,7 @@ from lorecraft.project.schemas import FrontmatterOwner
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Subdiagnostic
-from lorecraft.rules.subject import Gate, MetaSpecPart, QueriedItemRule, WhenMetaSpec
+from lorecraft.rules.subject import Gate, QueriedItemRule, SpecPart, WhenSpec
 
 from .__ruleset__ import GROUP_ID, FrontmatterFacts, frontmatter_facts, owner_spec, spec_note
 
@@ -78,7 +78,7 @@ class NonMappingFrontmatter(QueriedItemRule[FrontmatterFacts]):
     Attributes:
         spec: The structure file that governs the owner's frontmatter, derived from `owner`, so no caller states
             one that disagrees with it.
-        owner: The document or the skill whose frontmatter is not a mapping, and so which meta spec governs it.
+        owner: The document or the skill whose frontmatter is not a mapping, and so which spec governs it.
     """
 
     CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 3)
@@ -87,9 +87,9 @@ class NonMappingFrontmatter(QueriedItemRule[FrontmatterFacts]):
     SINCE: ClassVar[Release] = Release('0.3.0')
     APPLIES_TO: ClassVar[Mapping[ItemType, Gate]] = MappingProxyType(
         {
-            ItemType.DOCUMENT: WhenMetaSpec(MetaSpecPart.FRONTMATTER),
-            ItemType.META_SPEC: WhenMetaSpec(MetaSpecPart.FRONTMATTER),
-            ItemType.SKILL_ENTRYPOINT: WhenMetaSpec(MetaSpecPart.FRONTMATTER),
+            ItemType.DOCUMENT: WhenSpec(SpecPart.FRONTMATTER),
+            ItemType.SPEC: WhenSpec(SpecPart.FRONTMATTER),
+            ItemType.SKILL_ENTRYPOINT: WhenSpec(SpecPart.FRONTMATTER),
         }
     )
 
@@ -107,7 +107,7 @@ class NonMappingFrontmatter(QueriedItemRule[FrontmatterFacts]):
         return 'frontmatter is not a YAML mapping'
 
     def children(self) -> tuple[Subdiagnostic, ...]:
-        """Name the meta spec that governs the frontmatter, and say what a mapping looks like."""
+        """Name the spec that governs the frontmatter, and say what a mapping looks like."""
         return (spec_note(self.owner), Help('write the block as `key: value` lines'))
 
     @classmethod

@@ -88,7 +88,7 @@ def run_check(
             take_snapshot(establish_root(root), SNAPSHOT_SCOPE, declaration=DECLARATION),
             builtin_skills_schema=builtin_skills_schema,
         )
-        # With no corpus and no meta spec known, nothing can be checked, so this stops before any subject is selected.
+        # With no corpus and no spec known, nothing can be checked, so this stops before any subject is selected.
         # Every other failure the model recorded is reported below, as a diagnostic.
         model = database.model()
         load_failure_reports = _reports_or_status(model)

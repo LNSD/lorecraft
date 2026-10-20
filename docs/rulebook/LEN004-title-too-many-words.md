@@ -15,7 +15,7 @@ Checks for an H1 title longer than the `words` cap its structure file sets on `t
 those of the title's own text, counted as a section's prose words are: each whitespace-delimited token is one.
 Only the document's first H1 is its title, and a document with no title is not reported here.
 
-A document that more than one meta spec governs, such as a corpus and a namespace, must keep its title
+A document that more than one spec governs, such as a corpus and a namespace, must keep its title
 within every cap they set, and is reported once for each cap the title exceeds.
 
 ## Why is this bad?

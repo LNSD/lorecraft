@@ -1,6 +1,6 @@
 {
   "$schema": "../schemas/structure.spec.json",
-  "description": "Narrows meta.spec.json for feat.md and feat-*.md in docs/__meta__; meta.spec.json is applied as well. The prose authority is docs/__meta__/meta-feat.md. It adds no key: the family has the structure of every meta spec.",
+  "description": "Narrows meta.spec.json for feat.md and feat-*.md in docs/__meta__; meta.spec.json is applied as well. The prose authority is docs/__meta__/meta-feat.md. It adds no key: the family has the structure of every spec.",
   "frontmatter": {
     "type": "object",
     "properties": {

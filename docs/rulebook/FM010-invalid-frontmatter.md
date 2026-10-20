@@ -15,7 +15,7 @@ Checks for documents whose frontmatter breaks a constraint their structure file'
 schema sets on the block rather than on one field. It is reported on line 1, since it concerns no one field. A
 block with fewer fields than `minProperties` requires is reported by `too-few-fields`, and one with more than
 `maxProperties` allows by `too-many-fields`. A skill's frontmatter is reported here only when the Agent Skills
-meta spec rejects it without naming a field.
+spec rejects it without naming a field.
 
 A constraint that names a key is not the block's: a key `propertyNames` rejects, and a field whose
 `dependentRequired` fields are missing, are reported by `invalid-value` on that key's line.

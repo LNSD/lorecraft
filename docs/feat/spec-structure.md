@@ -1,6 +1,6 @@
 ---
 name: "spec-structure"
-description: "The structure file: <name>.spec.json as the machine-checkable half of a meta spec, its $schema and description keys, how a namespace file adds to the corpus file, what is refused on load, and editor validation with docs/schemas/structure.spec.json. Load when creating a structure file or one is reported invalid"
+description: "The structure file: <name>.spec.json as the machine-checkable half of a spec, its $schema and description keys, how a namespace file adds to the corpus file, what is refused on load, and editor validation with docs/schemas/structure.spec.json. Load when creating a structure file or one is reported invalid"
 type: "feature"
 status: "experimental"
 components: "module:lorecraft.project,spec:feat,spec:code"
@@ -10,7 +10,7 @@ components: "module:lorecraft.project,spec:feat,spec:code"
 
 ## Summary
 
-A `<name>.spec.json` file holds the rules of a meta spec that a check can decide, for the documents
+A `<name>.spec.json` file holds the rules of a spec that a check can decide, for the documents
 its name governs. It is a small JSON dialect: each key states one kind of rule, every key is optional, and a
 check reads only the keys it applies. A generated JSON Schema of the dialect lets an editor validate a file as
 it is written.
@@ -101,7 +101,7 @@ The `$schema` key works in the structure file; its value points the editor at th
 
 ## References
 
-- [spec](spec.md) - Base: meta spec names, file types and how layers apply
+- [spec](spec.md) - Base: spec names, file types and how layers apply
 - [cli-check](cli-check.md) - Related: the command whose rules read a structure file
 
 ## Code References

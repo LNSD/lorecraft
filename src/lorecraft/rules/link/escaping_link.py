@@ -66,7 +66,7 @@ class EscapingLink(QueriedItemRule[tuple[tuple[Link, LinkBase], ...]]):
 
     ## What it does
 
-    Checks relative links and images in documents, meta specs and skills. Documents and meta specs read links from
+    Checks relative links and images in documents, specs and skills. Documents and specs read links from
     their own directory and may climb within the repository, but not above its root. Skills and resources read links
     from the skill root and may not climb above that root.
 
@@ -76,7 +76,7 @@ class EscapingLink(QueriedItemRule[tuple[tuple[Link, LinkBase], ...]]):
     ## Why is this bad?
 
     A link above its base's bound names a path the project cannot reliably provide. Skills may be installed
-    independently; documents and meta specs cannot name paths outside the repository snapshot.
+    independently; documents and specs cannot name paths outside the repository snapshot.
 
     ## Example
 

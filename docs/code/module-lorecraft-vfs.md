@@ -35,7 +35,7 @@ and the package never knows why those directories matter or what the files in th
 | Names `docs/`, a skills directory or any other fixed directory | `lorecraft.project.layout` |
 | Decides which directories a snapshot reads | `lorecraft.project.layout`, as the scope it declares |
 | Builds a snapshot or a view by hand, for a test only | `tests/lib` |
-| Decides what an entry is to Lorecraft: a document, a meta spec, a skill | `lorecraft.project` |
+| Decides what an entry is to Lorecraft: a document, a spec, a skill | `lorecraft.project` |
 | Parses the text of a file | `lorecraft.project` |
 | Keeps a value derived from a file for the snapshot's lifetime | `lorecraft.project` |
 | Finds the workspace root, or maps a command-line argument onto it | `lorecraft.cli` |

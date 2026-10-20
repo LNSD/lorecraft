@@ -9,7 +9,7 @@ from lorecraft.core.num import UnsignedInt
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectFilename, AspectName
 from lorecraft.project.corpus import CorpusName
-from lorecraft.project.document import DocumentRef, MetaSpecRef
+from lorecraft.project.document import DocumentRef, SpecRef
 from lorecraft.project.item import (
     DocumentOrigin,
     ItemDescriptor,
@@ -147,7 +147,7 @@ class StructurePrimitives:
         """Return this item's hierarchy only for the corpus the test supplied."""
         return self if self.corpus == name else None
 
-    def find_specification_base(self, ref: MetaSpecRef) -> MetaSpecRef | None:
+    def find_specification_base(self, ref: SpecRef) -> SpecRef | None:
         """Standalone rule fixtures do not model specification hierarchies."""
         return None
 

@@ -24,7 +24,7 @@ valid. A change that breaks this shape can leave every finding right and still m
 review holds it to the accepted ADRs in `docs/arch/` rather than to the tests.
 
 Each layer of the model has a document of its own: the snapshot, the project model, the database, and incremental
-computation across revisions. Two more cover how meta specs govern documents and what a check reports.
+computation across revisions. Two more cover how specs govern documents and what a check reports.
 
 Two words are kept apart throughout: a **symlink** is a link in the filesystem, which the snapshot records and the
 Input package follows, and a **Markdown link** is a link node in a document's parse tree.
@@ -69,4 +69,4 @@ Before committing code, verify:
 - [principle-single-responsibility](../code/principle-single-responsibility.md) - Foundation: One role per package is
   one reason to change per package
 - [adr-015-database](adr-015-database.md) - Related: Revisions, the view and the queries
-- [adr-016-specifications](adr-016-specifications.md) - Related: How meta specs govern documents
+- [adr-016-specifications](adr-016-specifications.md) - Related: How specs govern documents

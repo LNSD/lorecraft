@@ -39,7 +39,7 @@ class MalformedStructureFile(FileCondition):
     Checks for structure files that are not a usable statement of the structure format, in one of two ways: the file
     is not JSON, or is JSON that holds a key the format does not define, a value of the wrong type or a count below
     one; or the file is in the format and states no rule, so it would check nothing.
-    Such a file is reported once, at the file, and every document its meta spec governs is listed as skipped in
+    Such a file is reported once, at the file, and every document its spec governs is listed as skipped in
     coverage, with no rule run over it: a document that was not checked is never reported as clean. Every document
     the file does not govern is checked as if the file were fixed.
 

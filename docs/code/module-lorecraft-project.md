@@ -1,6 +1,6 @@
 ---
 name: "module-lorecraft-project"
-description: "The lorecraft.project package's responsibility, role, boundary and invariants: the project model, meta specs and parse trees derived through a view, and the database of one revision that memoizes them. Load when adding or moving code in lorecraft.project, adding a meta spec dialect, a parse-tree node or a query, or deciding whether code derives a value or judges one"
+description: "The lorecraft.project package's responsibility, role, boundary and invariants: the project model, specs and parse trees derived through a view, and the database of one revision that memoizes them. Load when adding or moving code in lorecraft.project, adding a spec dialect, a parse-tree node or a query, or deciding whether code derives a value or judges one"
 type: "pkg"
 scope: "pkg:lorecraft.project"
 ---
@@ -10,7 +10,7 @@ scope: "pkg:lorecraft.project"
 ## Responsibility
 
 Derive what a repository declares from a view of it. It changes when what a repository can declare, or what is
-derived from it, changes: the meta spec dialect, the shape of a document and its parse tree, or a query.
+derived from it, changes: the spec dialect, the shape of a document and its parse tree, or a query.
 
 ## Role
 
@@ -21,9 +21,9 @@ once in `lorecraft.project.layout` and read from there by every other module.
 
 ## Belongs Here
 
-- The project model and loader built from listings and meta specs, including reserved `meta` and `skills` corpora.
+- The project model and loader built from listings and specs, including reserved `meta` and `skills` corpora.
 - A repository that lists entries, reads text through a view, and decides what an entry is.
-- Decoding meta specs into rules proved usable at build time.
+- Decoding specs into rules proved usable at build time.
 - The parse tree, token count and line count: pure functions of document text. The tree derives from the values
   `lorecraft.markdown` returns; `document` maps its line and link values into the project model and decodes raw
   frontmatter.
@@ -33,8 +33,8 @@ once in `lorecraft.project.layout` and read from there by every other module.
   several rules read; whether and how one is reported is a rule's.
 - A document's, a skill's or a skill resource's identity, kept apart from its content and from where its symlinks
   lead.
-- The common reference and model-resolved descriptor for documents, meta specs and skills, including location, origin,
-  governance target and governed meta spec parts. The reserved `meta` corpus governs meta specs; `skills` governs
+- The common reference and model-resolved descriptor for documents, specs and skills, including location, origin,
+  governance target and governed spec parts. The reserved `meta` corpus governs specs; `skills` governs
   skills, but not resources.
 - Turning a Markdown link's destination into a root-relative path, from its document's directory or its skill's
   root, and what the snapshot holds there.
@@ -68,12 +68,12 @@ once in `lorecraft.project.layout` and read from there by every other module.
 
 - Every read goes through a view: the one a function is handed, or the one the database builds over its snapshot.
   Nothing here reads a workspace file, lists a directory or resolves a symlink by itself.
-- The model holds structure and configuration: corpora, meta specs, document and skill refs, common Markdown item
+- The model holds structure and configuration: corpora, specs, document and skill refs, common Markdown item
   descriptors, and where each skill's symlinks lead. It never holds a document's content, and the loader never
   reads one.
 - A parse tree, a token count and a line count read one document's text and nothing else, and return immutable
   values. No third-party parser type leaves the package.
-- A shared analysis reads the parsed values and the meta specs it is handed, never a view, and returns
+- A shared analysis reads the parsed values and the specs it is handed, never a view, and returns
   immutable values.
 - A frontmatter schema maps owned JSON Schema violation facts to `FrontmatterProblem` values with project guidance; it
   never reads validator records.
@@ -138,7 +138,7 @@ Before committing code, verify:
 - [adr-005-incremental](../arch/adr-005-incremental.md) - Foundation: The carry-over rule and persisted results
 - [adr-003-project-model](../arch/adr-003-project-model.md) - Foundation: Declared scope against captured content, identity
   against location
-- [adr-016-specifications](../arch/adr-016-specifications.md) - Foundation: Meta specs decoded and proved usable at load
+- [adr-016-specifications](../arch/adr-016-specifications.md) - Foundation: Specs decoded and proved usable at load
 - [adr-002-vfs](../arch/adr-002-vfs.md) - Foundation: Every read of the workspace goes through the snapshot
 - [adr-010-diagnostics](../arch/adr-010-diagnostics.md) - Foundation: A broken document is a diagnostic, not a failure
 - [adr-017-yaml-parser](../arch/adr-017-yaml-parser.md) - Foundation: Frontmatter parsed with a pure-Python YAML parser

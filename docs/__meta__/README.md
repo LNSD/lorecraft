@@ -1,42 +1,42 @@
 # Meta Documentation
 
-This directory holds the corpus meta specs for `docs/`. Nothing here is registered anywhere: a file's own
-name says what it governs, and a document's own path says which files govern it.
+This directory holds the specs for `docs/`, and the meta specs governing them. Nothing here is registered
+anywhere: a file's own name says what it governs, and a document's own path says which files govern it.
 
-## What a Meta Spec Name Matches
+## What a Spec Name Matches
 
-A **meta spec name** is a filename here with its pattern's suffix stripped: `code`, `code-principle`. It is
+A **spec name** is a filename here with its pattern's suffix stripped: `code`, `code-principle`. It is
 read as `<corpus>` or `<corpus>-<namespace>`. The corpus names a directory under `docs/`; the namespace names a
 group of documents inside it. A directory under `docs/` is a corpus only when a file at its name exists here:
 
-| Meta spec name | Matches | Because |
+| Spec name | Matches | Because |
 |---|---|---|
-| `<corpus>` | The directory `docs/<corpus>/` and every document directly in it; a subdirectory inside a corpus is ignored, not checked | A corpus is a flat directory that a meta spec name here names |
+| `<corpus>` | The directory `docs/<corpus>/` and every document directly in it; a subdirectory inside a corpus is ignored, not checked | A corpus is a flat directory that a spec name here names |
 | `<corpus>-<namespace>` | The documents `docs/<corpus>/<namespace>.md` and `docs/<corpus>/<namespace>-*.md` | A namespace matches a name that equals it or continues it with a hyphen; it may span several hyphenated words, so `code-python-errors` matches `python-errors.md` and `python-errors-*.md` but not `python-errorsx.md` |
 
 So `code` matches all of `docs/code/`, and `code-principle` matches the subset named `principle.md` or
 `principle-*.md`, `docs/code/principle-least-surprise.md` among them. A document is governed by its corpus
-meta spec always, and by every narrower meta spec whose name matches, applied broad to narrow. Those
-meta specs **layer**: each is a whole set of rules applied on its own, so a narrower one states only what it
+spec always, and by every narrower spec whose name matches, applied broad to narrow. Those
+specs **layer**: each is a whole set of rules applied on its own, so a narrower one states only what it
 adds, and it cannot escape what a broader one already said. That is what a narrower one is for: a rule that holds
 for a group but not the corpus goes there, and stays out of the corpus file rather than becoming a condition
 inside it. Read either direction from the shell:
 
 ```bash
 ls docs/<corpus>/<namespace>.md docs/<corpus>/<namespace>-*.md   # from a name here, the documents it matches
-ls docs/__meta__/<corpus>*                                        # from a corpus, the meta specs governing it
+ls docs/__meta__/<corpus>*                                        # from a corpus, the specs governing it
 ```
 
-**A namespace is a group only once a meta spec name here names it.** `docs/code/` holds documents under
-several namespaces; those no `<corpus>-<namespace>` name matches are governed by the corpus meta spec alone,
+**A namespace is a group only once a spec name here names it.** `docs/code/` holds documents under
+several namespaces; those no `<corpus>-<namespace>` name matches are governed by the corpus spec alone,
 which is the normal case and not a gap to fill: `tests-*` and `logging` answer to `code.*` and nothing else. Add a
-namespace meta spec when a group's members genuinely share rules the rest of the corpus does not, and the
-group's documents then answer to both. A namespace meta spec whose corpus has no meta spec of its own
+namespace spec when a group's members genuinely share rules the rest of the corpus does not, and the
+group's documents then answer to both. A namespace spec whose corpus has no spec of its own
 narrows nothing and is ignored.
 
 The matching is by name and nothing else. A file added here starts governing the moment its name resolves, and
-a group renamed under `docs/` stops matching the meta spec name it used to, so rename the meta spec in
-the same change. A meta spec whose namespace no longer matches any document still loads, and still must be
+a group renamed under `docs/` stops matching the spec name it used to, so rename the spec in
+the same change. A spec whose namespace no longer matches any document still loads, and still must be
 valid JSON.
 
 ## The Reserved `skills` Corpus
@@ -45,24 +45,24 @@ valid JSON.
 directories, and a skill's name is its listed directory name. `skills` governs every skill; `skills-<namespace>`
 governs the skills whose name equals the namespace or continues it with a hyphen, so `skills-code` matches `code-rules`
 and `code-rules-check`, and layers on `skills` as any namespace does, with aspect files at the same names. A
-`skills-<namespace>` without a `skills` meta spec narrows nothing. `lorecraft inspect` lists the meta specs governing
+`skills-<namespace>` without a `skills` spec narrows nothing. `lorecraft inspect` lists the specs governing
 each skill. A `docs/skills/` directory is reported by the `COR001` rule, a warning by default, and ignored: none of its documents is checked.
 
 ## The Reserved `meta` Corpus
 
-`meta` is a reserved corpus name with no directory under `docs/`. It governs every meta spec in `docs/__meta__/`.
-`meta.spec.json` is the corpus meta spec, governing all meta spec items. `meta-<corpus>.spec.json` is the namespace
-meta spec governing the meta specs whose name equals `<corpus>` or starts with `<corpus>-`, so `meta-feat` governs
-`feat.md` and `feat-cli.md`. Meta spec gates follow the same rules as document gates. A `docs/meta/` directory is
-reported by the `COR001` rule and ignored.
+`meta` is a reserved corpus name with no directory under `docs/`. It governs every spec in `docs/__meta__/`, and
+its own specs are the **meta specs**: `meta` is the corpus meta spec, governing all spec items, and `meta-<corpus>`
+is a namespace meta spec governing the specs whose name equals `<corpus>` or starts with
+`<corpus>-`, so `meta-feat` governs `feat.md` and `feat-cli.md`. Spec gates follow the same rules as document
+gates. A `docs/meta/` directory is reported by the `COR001` rule and ignored.
 
-## A Meta Spec and Its Checks
+## A Spec and Its Checks
 
-`<name>.md` holds a meta spec in prose, and a reader is its audience. Beside it, the rules of that
-meta spec that a machine can decide are held again as data, in a file at the same meta spec name:
+`<name>.md` holds a spec in prose, and a reader is its audience. Beside it, the rules of that
+spec that a machine can decide are held again as data, in a file at the same spec name:
 
 ```
-docs/__meta__/<name>.md          the meta spec, in prose
+docs/__meta__/<name>.md          the spec, in prose
 docs/__meta__/<name>.spec.json   the structure file: the rules a check can decide
 lorecraft check                  the rules, each reading its own keys from the structure files
 ```
@@ -75,7 +75,7 @@ schema. `lorecraft check` enforces the caps with the section outline through the
 global `tokens` key as `LEN001`, which reads the raw file rather than its parse, and the global `frontmatter` key
 through the `FM` rules.
 
-**The filename is the whole binding.** The meta spec name says which documents a file governs, the pattern
+**The filename is the whole binding.** The spec name says which documents a file governs, the pattern
 that claims it says which rules read it, each its own keys, and a rule needs no list of the files it applies
 to — it derives them from the document's own path. Adding a rule is adding the keys it reads, or a file type
 with its pattern and its dialect; nothing here has to be edited to know about it. To see the files that exist,
@@ -98,23 +98,23 @@ Four rules hold for every machine-checkable file, whatever it checks:
 - **The prose is the authority; the JSON is the same rules in a form a check can apply.** They are one rule
   set in two forms — change both in the same commit. Nothing detects the drift when they disagree: the prose
   keeps saying one thing while the check enforces another, and whichever a reader consulted last wins.
-- **A file at a corpus meta spec name governs every document in that corpus.** `code.spec.json`
+- **A file at a corpus spec name governs every document in that corpus.** `code.spec.json`
   covers all of `docs/code/`.
-- **A file at a namespace meta spec name narrows the corpus file**, applying to the documents whose name
-  the namespace matches. Several namespace meta specs can match one document; all apply, broadest first, so
-  a namespace file states only what it adds, and a rule written once at the corpus meta spec name cannot be
+- **A file at a namespace spec name narrows the corpus file**, applying to the documents whose name
+  the namespace matches. Several namespace specs can match one document; all apply, broadest first, so
+  a namespace file states only what it adds, and a rule written once at the corpus spec name cannot be
   escaped by a namespace file that forgets to restate it. A namespace file never governs alone: without
   `<corpus>.spec.json` its rules are unchecked for the whole corpus.
 - **An absent file leaves its rules unchecked**, and its documents are reported as unvalidated rather than
   as failures. A corpus is governed one check at a time. The same holds for the `frontmatter` key: without it
   in `<corpus>.spec.json`, frontmatter is unchecked for the whole corpus, whatever a namespace file says.
-  A file that is present but cannot be decoded is not a finding: the checker loads every meta spec in
+  A file that is present but cannot be decoded is not a finding: the checker loads every spec in
   this directory before it reads a document, and one broken file stops the whole run. This README is not a
-  meta spec, so the workspace model leaves it out.
+  spec, so the workspace model leaves it out.
 
 ## Discovering What Is Here
 
-This file does not list the meta specs. The naming convention above resolves any of them from a document's
+This file does not list the specs. The naming convention above resolves any of them from a document's
 own path, and an inventory here would be a second source of truth that goes stale on the first file that
 lands. To see what is here, read the directory:
 

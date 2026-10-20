@@ -21,7 +21,7 @@ from lorecraft.project.schemas import SpecName
 from lorecraft.project.schemas.structure_failure import StructureSpecFailure
 from lorecraft.vfs import OsRefusal, Utf8Failure
 
-# The conditions of a structure file, which stands in its meta spec layer as a `FailedStructure`.
+# The conditions of a structure file, which stands in its spec layer as a `FailedStructure`.
 
 
 @dataclass(frozen=True, slots=True)
@@ -83,7 +83,7 @@ class FailedStructure:
 
 @dataclass(frozen=True, slots=True)
 class UnlistableDirectory:
-    """`docs/` or `docs/__meta__/` exists but cannot be listed, so no corpus and no meta spec is known from it.
+    """`docs/` or `docs/__meta__/` exists but cannot be listed, so no corpus and no spec is known from it.
 
     Attributes:
         refusal: Why the operating system refused the listing.

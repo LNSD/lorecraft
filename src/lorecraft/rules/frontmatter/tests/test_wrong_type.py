@@ -33,10 +33,10 @@ NAMESPACE_SPEC: Final[RootRelativePath] = structure_spec_path('guide-setup')
 """Where a namespace structure file under the same corpus lies."""
 
 CORPUS_SOURCE: Final[StructureSpecSchema] = StructureSpecSchema(spec=CORPUS_SPEC)
-"""The schema the corpus meta spec states."""
+"""The schema the corpus spec states."""
 
 NAMESPACE_SOURCE: Final[StructureSpecSchema] = StructureSpecSchema(spec=NAMESPACE_SPEC)
-"""The schema the namespace meta spec states."""
+"""The schema the namespace spec states."""
 
 AGENT_SKILLS_SOURCE: Final[AgentSkillsSchema] = AgentSkillsSchema()
 """The schema the Agent Skills specification states, which governs a skill."""

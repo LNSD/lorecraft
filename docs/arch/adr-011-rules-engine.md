@@ -17,7 +17,7 @@ built: [adr-009](adr-009-rules.md) how a rule is declared and identified, [adr-0
 rule reports and how it reaches the user, and [adr-011](adr-011-rules-engine.md) how a run judges subjects.
 Requirement identifiers such as `FR-009` cite the PRD, and the terms are those of [adr-009's
 glossary](adr-009-rules.md#glossary). Names of types, modules, codes and prefixes in the sketches are illustrative;
-the shapes are the decision. Which rules exist, and which base and meta spec part each declares, is the registry's and the
+the shapes are the decision. Which rules exist, and which base and spec part each declares, is the registry's and the
 rulebook's to say, never this record's.
 
 ## Context
@@ -38,15 +38,15 @@ What it replaces is everything around the checks:
 
 ## Decision
 
-1. **A rule names its query and judges the facts it returns** and, over a document, declares the meta spec part it is
+1. **A rule names its query and judges the facts it returns** and, over a document, declares the spec part it is
    governed for. A rule may walk the parse tree its facts hold, but a pass over a file's raw text or a schema
    is a query, and so is a walk several rules share. A helper that only selects from a value the facts already
    hold, such as the first H1 among the parsed headings, is not such a walk, so it stays a function beside the parse
    tree. An analysis several rules share is a query of the database, never a rule with several codes.
 2. **One runner** resolves each rule's query for a subject through the database and hands the facts to the rule's
    judgement, with one hand-written branch per subject kind. A query asks the database only for what a rule reads.
-3. **A subject's status is the engine's, not a rule's.** Whether a file decodes, and whether a meta spec
-   governs each meta spec part, is resolved before any rule runs.
+3. **A subject's status is the engine's, not a rule's.** Whether a file decodes, and whether a spec
+   governs each spec part, is resolved before any rule runs.
 4. **Levels are applied after detection.** The configuration is an input of the revision, and a rule's result
    never depends on it.
 5. **The engine is efficient within one revision**, caching in memory and persisting nothing across runs.
@@ -68,7 +68,7 @@ per run            configuration (a query of the revision) ──▶ levels
                    rule table = registry × levels × selection
                      · enabled rules only (allow and filtered-out rules are absent)
                      · each with its severity
-                     · partitioned by base, a document's rules also by meta spec part, in code order
+                     · partitioned by base, a document's rules also by spec part, in code order
                      · a bad configuration is raised here, before any subject
                        │
                        ▼
@@ -76,8 +76,8 @@ per run            configuration (a query of the revision) ──▶ levels
                      for each subject:
                        decode → witness, or an undecodable engine diagnostic
                        decode once; each rule's query runs over the item
-                       for each meta spec part an enabled rule over a document declares:
-                         governed or ungoverned, from the meta specs
+                       for each spec part an enabled rule over a document declares:
+                         governed or ungoverned, from the specs
                          for each rule in that partition: rule.judge(facts of rule.query()) → occurrences
                        locate the occurrences into diagnostics with the table's severities
                        │
@@ -112,12 +112,12 @@ many rules read it, so a scan two rules need is a query. A new fact is one query
 is derived from the primitives it read: that is where a new cost enters and is reviewed, and the runner never changes for it.
 
 **A shared analysis is a query.** Schema validation and outline matching each find several conditions in one
-pass. Each is a pure function of the revision's per-file queries and the meta specs that govern the subject, so
+pass. Each is a pure function of the revision's per-file queries and the specs that govern the subject, so
 it is memoized on the database like any other query, with its own carry-over rule: `item_schema_problems` is kept
 whenever the frontmatter is and, for a document, the model is, and
 `outline_divergences` whenever the parse and the line count are and the model is. It is computed once per subject,
 as a tuple of typed problems, however many rules ask for it, and only when an enabled rule reads it and a
-meta spec governs the subject for it, so an ungoverned subject never pays for it. Each condition is then a rule
+spec governs the subject for it, so an ungoverned subject never pays for it. Each condition is then a rule
 that projects its own problem type into its occurrences. The analysis finds problems, never diagnostics: levels are
 applied after detection, so no diagnostic is cached and a rule's result still is not.
 
@@ -133,11 +133,11 @@ Nothing a rule reads is left outside a query contract.
 
 **A subject's facts are the query's.** `lorecraft.project.query` declares the primitives a query reads as focused
 protocols. Each queried item rule types its query and judgement by the facts it returns, then declares applicable item
-types and their gates in `APPLIES_TO`. A gate names the meta spec part, unconditional admission or registered schema that admits the rule.
+types and their gates in `APPLIES_TO`. A gate names the spec part, unconditional admission or registered schema that admits the rule.
 A document rule may require frontmatter schema, structure, outline or token-budget governance. Frontmatter rules
 state a gate for each item type they judge. A document's Markdown checks use its structure part; skill entrypoints
 and resources receive `Always` Markdown checks. A skill's Agent Skills floor is a schema gate, while its other
-meta spec parts come from the reserved `skills` corpus. A resource has no corpus governance. A rule over a shared
+spec parts come from the reserved `skills` corpus. A resource has no corpus governance. A rule over a shared
 analysis filters its problem type from the one answer its query returns; a selection from facts already held, such as
 the first H1, is a helper beside the parse tree.
 
@@ -155,14 +155,14 @@ symlink by. A symlink has no text, so it is never decoded, and `Always` rules co
 - **Readable or undecodable.** A file is decoded once, as a query value: its text, or an undecodable marker,
   cached like any result. The runner decodes every selected subject, whatever the levels. That is the one read
   NFR-003 does not gate, so that FR-020 holds under any configuration.
-- **Governed or ungoverned, per meta spec part.** Governance comes from the model, which computes it once. A document can be
+- **Governed or ungoverned, per spec part.** Governance comes from the model, which computes it once. A document can be
   governed for its frontmatter and ungoverned for its outline. The runner runs a rule over a document or over the
-  frontmatter only when the document is governed for the rule's meta spec part, and records each meta spec part an enabled rule reads
+  frontmatter only when the document is governed for the rule's spec part, and records each spec part an enabled rule reads
   that it is not governed for. Package and schema gates remain independent of a skill entrypoint's corpus governance; a resource has no corpus
   governance and receives `Always` checks.
 - **Undecodable is an engine diagnostic**, not a rule (FR-020). It has a fixed code under the engine's prefix
   and a rulebook page, and no level. It always fails the run, and a configuration that names its code fails.
-- **Ungoverned is coverage**, not a diagnostic (FR-019). It describes the meta specs, not the subject.
+- **Ungoverned is coverage**, not a diagnostic (FR-019). It describes the specs, not the subject.
 
 Decoding is a type boundary, as it is in established linters, which report a file they cannot read as the
 engine's diagnostic and hand their rules only a value that exists after a successful read. Three traits are
@@ -187,8 +187,8 @@ Python's types bound what this proves, and the design states the two gaps rather
 
 The runner takes the database, the selected subjects and a rule table. The table is built once per run from the
 registry and the resolved levels: the enabled rules, partitioned by base, in code order, and a document's rules
-also by meta spec part. Each partition holds every enabled rule beside its severity, so a rule the runner holds always
-has one. For a document, the runner runs, for each meta spec part an enabled document rule declares, and the
+also by spec part. Each partition holds every enabled rule beside its severity, so a rule the runner holds always
+has one. For a document, the runner runs, for each spec part an enabled document rule declares, and the
 frontmatter part when a frontmatter rule is enabled, those rules' queries and judgements, or records the part as
 ungoverned; the Markdown rules run beside the `STRUCTURE` rules. For a skill, it runs every
 frontmatter rule, then every skill rule, every Markdown rule and every skill-file rule. For a resource, it
@@ -200,9 +200,9 @@ diagnostics.
 def judge_item(database: Database, source: ItemText, table: RuleTable) -> CheckedItem:
     descriptor = source.descriptor
     diagnostics: list[Diagnostic] = []
-    ungoverned: list[MetaSpecPart] = []
+    ungoverned: list[SpecPart] = []
 
-    for part in (*MetaSpecPart, None):
+    for part in (*SpecPart, None):
         partitions = [
             _reading(partition, descriptor, part)
             for partition in (
@@ -213,7 +213,7 @@ def judge_item(database: Database, source: ItemText, table: RuleTable) -> Checke
                 table.skill_file_rules,
             )
         ]
-        if not any(partitions):  # a meta spec part no applicable enabled rule reads is never looked at
+        if not any(partitions):  # a spec part no applicable enabled rule reads is never looked at
             continue
         if part is not None and part not in descriptor.governed_parts:
             ungoverned.append(part)
@@ -273,7 +273,7 @@ def judge_item(database: Database, source: ItemText, table: RuleTable) -> Checke
 - **Detection never reads the configuration.** Two rules that overlap are made disjoint in their own logic. The
   name rule compares `name` only when it is a string, so a missing or mistyped `name` belongs to the schema
   rule alone (FR-022).
-- **A rule's options are meta spec data**, read through the primitives its query reads: a line length or a list marker style is
+- **A rule's options are spec data**, read through the primitives its query reads: a line length or a list marker style is
   stated beside the outline and caps, so corpora can differ. The established linters read rule options from
   their settings; this design departs from them because a rule that read the configuration would break the
   invariant above.
@@ -301,7 +301,7 @@ def judge_item(database: Database, source: ItemText, table: RuleTable) -> Checke
 
 | Piece | Package |
 |---|---|
-| Rule classes and removed rules, the registry, the rule groups and their rules, item-rule gates by kind and meta spec part | `lorecraft.rules` |
+| Rule classes and removed rules, the registry, the rule groups and their rules, item-rule gates by kind and spec part | `lorecraft.rules` |
 | The rule table, the report types, the selection's rule-side types, level resolution | `lorecraft.rules` |
 | The runner, which resolves each rule's query and hands the facts to its judgement | `lorecraft.engine` |
 | Each mode's policy for a document a failed layer governs: skip for the check run, partial for the LSP-style mode | `lorecraft.engine` |
@@ -333,7 +333,7 @@ Two measurements keep that true:
 
 - **Before and after**, for NFR-002 and its margin over v0.2. The comparison is the median of repeated
   runs of both on one machine, with the noise stated; where it is close, the stages are timed apart on this
-  repository: start-up, the snapshot, meta spec loading, decoding, parsing, token counting, schema validation, the
+  repository: start-up, the snapshot, spec loading, decoding, parsing, token counting, schema validation, the
   rules and the rendering. Query counts show that no query is computed twice for a subject. Start-up is kept apart
   from the engine, so a command that runs no rule loads none of it.
 - **At scale.** The cost per added rule stays small and flat: many synthetic rules over the existing queries add
@@ -354,14 +354,14 @@ A more elaborate engine waits for a profile that asks for one.
   short tuples, and loops over them on its own. One base per subject kind, which the runner matches on, stays typed
   and readable.
 - **Undecodable and ungoverned as rules.** A rule can be turned off. A file that cannot be read must not be,
-  and a missing meta spec is not a fact about the document.
+  and a missing spec is not a fact about the document.
 - **Caching a subject's diagnostics as a query.** Not needed while rules are cheap and a run is one revision.
 
 ## Consequences
 
 - **The per-check subcommands go.** One `check` command runs every rule over the workspace, and over the files
   and directories it is given once selection by path lands.
-- **Specs change in the same change**, since each states something this design makes untrue:
+- **Documents change in the same change**, since each states something this design makes untrue:
   [module-lorecraft-engine](../code/module-lorecraft-engine.md) (the runner) and
   [adr-015-database](adr-015-database.md) (decoding as a value, cross-file queries).
 - **A projecting rule is thin.** A schema rule is a few lines over a problem type, and the validation it
@@ -386,7 +386,7 @@ The PRD defers the IDE-like, long-lived mode. The design builds none of it and c
 | Rejecting a superseded revision's results | One report reads one revision; a diagnostic names no revision-bound object; the long-lived mode's own entry point abandons a superseded revision, and the shared runner does not change |
 | Warm starts | No store is built: caching is in memory, for one revision. Query results stay persistable data, the new queries included, and the registry stays out of them, so the store of [adr-005-incremental](adr-005-incremental.md) is an addition. A cross-file query's carry-over rule names the paths it looked up; recording them waits for the store or for the next revision's carry-over |
 | Cached diagnostics | Levels are applied after detection, so a cached result would not depend on the configuration |
-| Inline suppression | Its shape is fixed, its syntax Lorecraft's own and modelled on the HTML-comment directives of the Markdown linters, with no compatibility with theirs: `<!-- lorecraft-disable CODE … -->` and `lorecraft-enable` around a block, and `lorecraft-disable-line`, `lorecraft-disable-next-line` and `lorecraft-disable-file`. A directive names its codes, never none, and never a name; an alias code resolves to its rule's code, with a warning. There is no state capture and no in-file configuration: options are meta spec data and levels are the repository's. The directives are a per-file query, applied after detection where levels are. A directive naming an unknown code, or one that suppressed nothing, is an engine diagnostic, and no engine diagnostic can be suppressed |
+| Inline suppression | Its shape is fixed, its syntax Lorecraft's own and modelled on the HTML-comment directives of the Markdown linters, with no compatibility with theirs: `<!-- lorecraft-disable CODE … -->` and `lorecraft-enable` around a block, and `lorecraft-disable-line`, `lorecraft-disable-next-line` and `lorecraft-disable-file`. A directive names its codes, never none, and never a name; an alias code resolves to its rule's code, with a warning. There is no state capture and no in-file configuration: options are spec data and levels are the repository's. The directives are a per-file query, applied after detection where levels are. A directive naming an unknown code, or one that suppressed nothing, is an engine diagnostic, and no engine diagnostic can be suppressed |
 | Parallel checking | Output order is sorted, never completion order; the cache is still filled from one thread; the loop is the entry point's, and the shared runner does not change |
 | Level options on the command line | Rustc-style flags that set a rule's level for one run, over the configuration's, reopen the no-level-option rule above, designed with the configuration |
 
@@ -399,7 +399,7 @@ Before committing code, verify:
   rule, reached through a query a rule names, and never a rule with several codes
 - [ ] A new rule joins its base's partition through the registry, and the runner does not change for it
 - [ ] Every per-file query takes the decode witness, and only the database builds one
-- [ ] A file that cannot be decoded is an engine diagnostic and a meta spec part no governing layer states is coverage, both
+- [ ] A file that cannot be decoded is an engine diagnostic and a spec part no governing layer states is coverage, both
   resolved before any rule runs
 - [ ] A rule at `allow` is not in the rule table, and a selection only filters it, never enabling a rule
 - [ ] Neither a rule nor its detection reads the configuration or the selection; levels apply after detection

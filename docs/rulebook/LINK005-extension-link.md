@@ -13,8 +13,8 @@ A document links to a document that extends it.
 
 Checks for links and images in a document whose target lies in the same directory and whose filename continues
 the document's own name after a hyphen: `cli.md` linking to `cli-check.md`, or `feat.md` to `feat-cli.md`. The
-check reads every corpus and every meta spec of `docs/__meta__/`. No meta spec key states the rule:
-every document of a corpus that states a structure file, and every meta spec, is held to it.
+check reads every corpus and every spec of `docs/__meta__/`. No spec key states the rule:
+every document of a corpus that states a structure file, and every spec, is held to it.
 
 A document whose name is continued by another is that document's base, and the other is its extension. The
 extension names its base; the base never links to what extends it. Only a link to an existing file is

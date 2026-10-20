@@ -60,7 +60,7 @@ class UnreadablePath(EntryCondition):
     Four refusals are not reported under this code, and each stops the run with an error naming the path and exit
     status 2: a `docs/` or `docs/__meta__/` that cannot be listed, since with it nothing can be checked; a
     document, or any other file the check reads, that cannot be read, including a regular `SKILL.md`; a symlink
-    whose target cannot be read; and a directory that nothing loads, such as one under `docs/` that no meta spec
+    whose target cannot be read; and a directory that nothing loads, such as one under `docs/` that no spec
     names or one inside a skill, that cannot be listed.
 
     It has no level, so no configuration turns it off, and it is always reported as an error.

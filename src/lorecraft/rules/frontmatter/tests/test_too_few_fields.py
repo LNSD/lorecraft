@@ -25,10 +25,10 @@ NAMESPACE_SPEC: Final[RootRelativePath] = structure_spec_path('guide-setup')
 """Where a namespace structure file under the same corpus lies."""
 
 CORPUS_SOURCE: Final[StructureSpecSchema] = StructureSpecSchema(spec=CORPUS_SPEC)
-"""The schema the corpus meta spec states."""
+"""The schema the corpus spec states."""
 
 NAMESPACE_SOURCE: Final[StructureSpecSchema] = StructureSpecSchema(spec=NAMESPACE_SPEC)
-"""The schema the namespace meta spec states."""
+"""The schema the namespace spec states."""
 
 MIN_PROPERTIES: Final[str] = '{"frontmatter": {"type": "object", "minProperties": 3}}'
 """A structure file whose frontmatter schema requires at least three fields."""

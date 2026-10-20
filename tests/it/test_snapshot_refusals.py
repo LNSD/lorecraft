@@ -125,15 +125,15 @@ def tree_with_refused_resource_alias(tree: Path, lock: Callable[[Path], None]) -
 
 
 @pytest.fixture(scope='function')
-def tree_with_refused_meta_spec_alias(tree: Path, lock: Callable[[Path], None]) -> Path:
-    """A skill resource linked to an unreadable meta spec.
+def tree_with_refused_spec_alias(tree: Path, lock: Callable[[Path], None]) -> Path:
+    """A skill resource linked to an unreadable spec.
 
     Args:
         tree: The base repository to extend.
-        lock: Fixture that makes the meta spec unreadable for the scan.
+        lock: Fixture that makes the spec unreadable for the scan.
     """
-    meta_spec = tree / 'docs' / '__meta__' / 'code.spec.json'
-    lock(meta_spec)
+    spec = tree / 'docs' / '__meta__' / 'code.spec.json'
+    lock(spec)
     (tree / '.agents' / 'skills' / 'commit' / 'guide.md').symlink_to('../../../docs/__meta__/code.spec.json')
     return tree
 
@@ -746,21 +746,21 @@ class TestVirtualFileSystemOverARefusal:
 @pytest.mark.it
 @pytest.mark.skipif(os.geteuid() == 0, reason='root ignores file and directory permissions')
 class TestCheckOverARefusalNoLoadFailureReports:
-    def test_check_with_a_resource_alias_to_an_unreadable_meta_spec_reports_once_and_exits_one(
-        self, tree_with_refused_meta_spec_alias: Path
+    def test_check_with_a_resource_alias_to_an_unreadable_spec_reports_once_and_exits_one(
+        self, tree_with_refused_spec_alias: Path
     ) -> None:
         #: Given
         app = build_app()
 
         #: When
-        result = runner.invoke(app, ['check', '--root', str(tree_with_refused_meta_spec_alias), '--format', 'json'])
+        result = runner.invoke(app, ['check', '--root', str(tree_with_refused_spec_alias), '--format', 'json'])
 
         #: Then
         assert result.exit_code == 1, result.output
         report = json.loads(result.stdout)
         assert {(item['path'], item['code']) for item in report['diagnostics']} == {
             ('docs/__meta__/code.spec.json', 'LC002'),
-        }, 'the load failure reports the unreadable meta spec once'
+        }, 'the load failure reports the unreadable spec once'
         assert report['summary']['subjects'] == 5, 'the refused resource remains in the subject count'
         assert any(
             item['path'] == '.agents/skills/commit/guide.md'
@@ -948,7 +948,7 @@ class TestCheckOverARefusalNoLoadFailureReports:
             'the run also checks readable documents after the refusal'
         )
 
-    def test_check_with_a_directory_under_docs_no_meta_spec_names_reports_lc002(
+    def test_check_with_a_directory_under_docs_no_spec_names_reports_lc002(
         self, tree: Path, lock: Callable[[Path], None]
     ) -> None:
         #: Given

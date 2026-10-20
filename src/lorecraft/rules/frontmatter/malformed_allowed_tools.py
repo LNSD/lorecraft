@@ -96,7 +96,7 @@ class MalformedAllowedTools(QueriedItemRule[AllowedToolsField | None]):
                 assert_never(problem)
 
     def children(self) -> tuple[Subdiagnostic, ...]:
-        """Point at the meta spec and give the correction for this entry."""
+        """Point at the spec and give the correction for this entry."""
         problem = self.problem
         match problem:
             case EmptyValue():

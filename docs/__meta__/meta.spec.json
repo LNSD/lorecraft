@@ -1,6 +1,6 @@
 {
   "$schema": "../schemas/structure.spec.json",
-  "description": "The machine-checkable half of docs/__meta__/meta.md: the frontmatter every meta spec carries, one H1 title first, no empty section, and References closing the document.",
+  "description": "The machine-checkable half of docs/__meta__/meta.md: the frontmatter every spec carries, one H1 title first, no empty section, and References closing the document.",
   "empty_sections": "forbidden",
   "frontmatter": {
     "type": "object",
@@ -10,12 +10,12 @@
       "name": {
         "type": "string",
         "pattern": "^[a-z]+(?:-[a-z0-9]+)*$",
-        "description": "The meta spec name: the filename minus .md. See docs/__meta__/meta.md#3-naming-and-frontmatter."
+        "description": "The spec name: the filename minus .md. See docs/__meta__/meta.md#3-naming-and-frontmatter."
       },
       "description": {
         "type": "string",
         "minLength": 1,
-        "description": "One sentence: what the meta spec governs, then when to load it."
+        "description": "One sentence: what the spec governs, then when to load it."
       },
       "type": { "const": "meta" },
       "scope": { "const": "global" }
@@ -25,7 +25,7 @@
     { "any": true },
     {
       "section": "References",
-      "description": "The meta specs the document extends or relates to, each with its relation."
+      "description": "The specs the document extends or relates to, each with its relation."
     }
   ]
 }

@@ -16,9 +16,9 @@ document of its corpus whose name the document's name continues after a hyphen: 
 `python-fn-unchecked`, even when `python-fn-unchecked` sits two names below it. A document with no such name
 has no base and is not judged. The link must lead to the base's file, and lie between the `References` heading
 and the next heading of its level or above, so a link in the text or under `External References` does not count.
-A meta spec of `docs/__meta__/` is judged the same way, its base looked for among the specifications.
-No meta spec key states the rule: every document of a corpus that states a structure file, and every meta
-specification, is held to it.
+A spec of `docs/__meta__/` is judged the same way, its base looked for among the specifications.
+No spec key states the rule: every document of a corpus that states a structure file, and every spec, is held
+to it.
 
 The finding is reported on the `References` heading, or on the title when the document has no such section.
 

@@ -49,13 +49,13 @@ The `title` key's `words` and `chars` are positive integers. `words` counts whit
 H1's text; `chars` counts its code points, excluding the `#` marker. Inline Markdown markup is stripped; inline
 HTML remains and counts toward both limits. Only the first H1 is measured; a missing title is reported as missing,
 never over a cap. A title over a cap is `LEN004 title-too-many-words` or `LEN005 title-too-long`, at its heading,
-once per meta spec that sets it: corpus and namespace caps apply independently.
+once per spec that sets it: corpus and namespace caps apply independently.
 
 Its `pattern` is a Python `re` expression that the title's text must match. It is matched as
 JSON Schema's `pattern` is, searched for anywhere in the text, so `^[A-Z]` asks only for a capital first letter, and a
 pattern that must hold the whole title anchors itself with `^` and `$`. Only the first H1 is matched, and a document
 with no title is reported as missing one alone. A title that does not match is `OUT009 invalid-title`, at its
-heading, once per meta spec that sets a pattern. Each key may be set alone, and each applies on its own: the
+heading, once per spec that sets a pattern. Each key may be set alone, and each applies on its own: the
 two caps are upper bounds and never conflict, but a `pattern` that only titles longer than a cap can match, such as
 `{"chars": 40, "pattern": "^.{60,}$"}`, fails every governed document, and is not refused on load.
 
@@ -68,7 +68,7 @@ A named entry may carry two more optional keys, which `any` entries never take:
 
 They change no rule. When a required section is absent, the diagnostic carries the description and the first
 example as a help and a note, as [cli-check](cli-check.md#output) describes. The other examples serve a reader
-of the meta spec, as JSON Schema's `examples` do.
+of the spec, as JSON Schema's `examples` do.
 
 ## Usage
 

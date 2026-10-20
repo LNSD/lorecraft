@@ -13,7 +13,7 @@ from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Here, Label, Subdiagnostic
 from lorecraft.rules.overrun import Overrun, find_overrun
-from lorecraft.rules.subject import Gate, MetaSpecPart, QueriedItemRule, WhenMetaSpec
+from lorecraft.rules.subject import Gate, QueriedItemRule, SpecPart, WhenSpec
 
 from .__ruleset__ import GROUP_ID, TITLE_HELP, spec_note
 
@@ -29,7 +29,7 @@ class TitleTooManyWords(QueriedItemRule[TitleFacts]):
     those of the title's own text, counted as a section's prose words are: each whitespace-delimited token is one.
     Only the document's first H1 is its title, and a document with no title is not reported here.
 
-    A document that more than one meta spec governs, such as a corpus and a namespace, must keep its title
+    A document that more than one spec governs, such as a corpus and a namespace, must keep its title
     within every cap they set, and is reported once for each cap the title exceeds.
 
     ## Why is this bad?
@@ -72,9 +72,9 @@ class TitleTooManyWords(QueriedItemRule[TitleFacts]):
     SINCE: ClassVar[Release] = Release('0.3.0')
     APPLIES_TO: ClassVar[Mapping[ItemType, Gate]] = MappingProxyType(
         {
-            ItemType.DOCUMENT: WhenMetaSpec(MetaSpecPart.STRUCTURE),
-            ItemType.META_SPEC: WhenMetaSpec(MetaSpecPart.STRUCTURE),
-            ItemType.SKILL_ENTRYPOINT: WhenMetaSpec(MetaSpecPart.STRUCTURE),
+            ItemType.DOCUMENT: WhenSpec(SpecPart.STRUCTURE),
+            ItemType.SPEC: WhenSpec(SpecPart.STRUCTURE),
+            ItemType.SKILL_ENTRYPOINT: WhenSpec(SpecPart.STRUCTURE),
         }
     )
 
@@ -90,7 +90,7 @@ class TitleTooManyWords(QueriedItemRule[TitleFacts]):
         return (Label(Here(self.line), f'words over the cap: {self.overrun.excess}'),)
 
     def children(self) -> tuple[Subdiagnostic, ...]:
-        """Point at the meta spec that sets the cap, then say what a title holds."""
+        """Point at the spec that sets the cap, then say what a title holds."""
         return (spec_note(self.spec), TITLE_HELP)
 
     @classmethod
@@ -102,7 +102,7 @@ class TitleTooManyWords(QueriedItemRule[TitleFacts]):
     def judge(cls, facts: TitleFacts, /) -> tuple[Self, ...]:
         """One occurrence, at the title's heading, for each cap on the title that it exceeds.
 
-        The caps are taken in the order their meta specs apply; a document with no title is held to none.
+        The caps are taken in the order their specs apply; a document with no title is held to none.
 
         Args:
             facts: The document's title and the title checks each governing specification states.

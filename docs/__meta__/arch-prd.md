@@ -5,17 +5,17 @@ type: "meta"
 scope: "global"
 ---
 
-# Product Requirements Document Meta Spec
+# Product Requirements Document Spec
 
 **Applies to every document in `docs/arch/` named `prd-*.md`.** The namespace also matches a bare `prd.md`, and
 no such file may exist: every PRD is about one feature, and its name says which. It is a namespace layer on the
-[arch](arch.md) corpus meta spec, and states only what it adds to it. Its machine-checkable half is
+[arch](arch.md) corpus spec, and states only what it adds to it. Its machine-checkable half is
 [arch-prd.spec.json](arch-prd.spec.json), applied on its own beside the corpus file.
 
 A PRD states **what** a feature must do and **why**, and nothing about **how**. Its reader is an agent or a
 person who will build the feature without a follow-up conversation, so every requirement is explicit, numbered
 and checkable. How the feature is built goes in a design document, and each decision taken while building it
-goes in a decision record; the PRD links them. What shipped goes in the feat spec, which links the PRD; the PRD
+goes in a decision record; the PRD links them. What shipped goes in the feat doc, which links the PRD; the PRD
 never links it back, as the [arch](arch.md#4-cross-references) corpus states after [References Point to the Base](../feat/spec.md#references-point-to-the-base).
 
 ## 1. Naming
@@ -89,18 +89,18 @@ For example:
 As a writer adopting Lorecraft, I want every ungoverned document reported, so that I know which ones no check
 reads.
 
-**Independent test:** Check a workspace that holds documents and no meta spec.
+**Independent test:** Check a workspace that holds documents and no spec.
 
 ```gherkin
-Scenario: No corpus has a meta spec
-  Given a workspace with no meta spec
+Scenario: No corpus has a spec
+  Given a workspace with no spec
   When the writer checks it
   Then every document is reported as unvalidated
 ```
 
 ```gherkin
-Scenario: One corpus has a meta spec
-  Given a workspace where only the code corpus has a meta spec
+Scenario: One corpus has a spec
+  Given a workspace where only the code corpus has a spec
   When the writer checks it
   Then only the documents outside the code corpus are reported as unvalidated
 ```
@@ -110,11 +110,11 @@ A story that names the implementation, or whose outcome the user cannot see, is 
 
 ````markdown
 <!-- ❌ Bad — names the implementation, has no benefit, and its outcome is internal -->
-As a developer, I want the loader to cache parsed meta specs.
+As a developer, I want the loader to cache parsed specs.
 
 ```gherkin
-Scenario: A meta spec is read twice
-  Given a loaded meta spec
+Scenario: A spec is read twice
+  Given a loaded spec
   When it is read again
   Then the cache is hit
 ```
@@ -137,7 +137,7 @@ item that opens with its identifier: `FR-` for a functional requirement, which i
 `NFR-` for a non-functional one, which is how well it does it. The two series are numbered separately, from `001`.
 
 **Identifiers are stable.** `FR-003` keeps its number when `FR-002` is removed, and a removed number is never
-reused, so that design documents, decision records, tests and feat specs can cite a requirement by its
+reused, so that design documents, decision records, tests and feat docs can cite a requirement by its
 identifier.
 
 **One pattern per requirement.** Each requirement follows one of the EARS (Easy Approach to Requirements
@@ -154,9 +154,9 @@ Syntax) patterns, and the keyword that opens it says when it applies:
 For example:
 
 - **FR-001:** THE SYSTEM SHALL report every finding with the path of the document it was found in.
-- **FR-002:** WHEN a user checks a workspace that holds no meta spec, THE SYSTEM SHALL report every document
+- **FR-002:** WHEN a user checks a workspace that holds no spec, THE SYSTEM SHALL report every document
   as unvalidated.
-- **FR-003:** WHILE any meta spec cannot be loaded, THE SYSTEM SHALL check no document.
+- **FR-003:** WHILE any spec cannot be loaded, THE SYSTEM SHALL check no document.
 - **FR-004:** IF a document's frontmatter cannot be parsed, THEN THE SYSTEM SHALL report one finding for it and
   go on to the next document.
 - **FR-005:** WHERE the user asks for machine-readable output, THE SYSTEM SHALL write each finding as one record.
@@ -271,9 +271,9 @@ Scenario: {{Short title}}
 - [ ] Every success criterion is measurable
 - [ ] Every `[NEEDS CLARIFICATION]` marker is listed under Open Questions, and an `approved` PRD has none
 - [ ] An `approved` PRD's implementation has landed
-- [ ] The PRD links no feat spec, whatever its status
+- [ ] The PRD links no feat doc, whatever its status
 - [ ] The PRD cites no issue, under References or inline, and names deferred work by what it is
 
 ## References
 
-- [arch](arch.md) - Extends: Base architecture corpus meta spec
+- [arch](arch.md) - Extends: Base architecture corpus spec

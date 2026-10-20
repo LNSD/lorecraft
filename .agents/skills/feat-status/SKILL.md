@@ -14,7 +14,7 @@ the `status` field from feat doc frontmatter and organizes features by maturity.
 
 Reports the maturity **declared** in each feat doc's frontmatter. It does not read code, so a feature
 documented as `stable` and never implemented still reports `stable`; confirming that the code matches the
-spec is a manual read, and no skill here covers it.
+feat doc is a manual read, and no skill here covers it.
 
 Use this skill when:
 - User asks "What's the project status?"
@@ -65,7 +65,7 @@ experimental (2)
 │ Name         │ Type      │ Description                                           │
 ├──────────────┼───────────┼───────────────────────────────────────────────────────┤
 │ skill-check  │ feature   │ Skills checked against the Agent Skills specification │
-│ spec-dialect │ component │ Namespace meta specs narrowing the corpus meta spec   │
+│ spec-dialect │ component │ Namespace specs narrowing the corpus spec             │
 └──────────────┴───────────┴───────────────────────────────────────────────────────┘
 
 Summary: 3 stable, 2 experimental (5 total)

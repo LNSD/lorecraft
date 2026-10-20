@@ -80,7 +80,7 @@ suggestion written in prose.
 The first is a move. The second is the invalid state the move made unrepresentable, which is the part
 worth protecting from a well-meaning future edit.
 
-**The pattern namespace meta spec's structure file and schema landed under `docs/__meta__/`.**
+**The pattern namespace spec's structure file and schema landed under `docs/__meta__/`.**
 
 | | |
 |---|---|
@@ -88,7 +88,7 @@ worth protecting from a well-meaning future edit.
 | After | `docs(meta): make a pattern code rule fail a check instead of a reviewer` |
 
 The first lists two filenames. The second says what moved out of human review and into a gate, which is
-the whole reason a meta spec exists.
+the whole reason a spec exists.
 
 **A command that validates skills against the Agent Skills specification.**
 

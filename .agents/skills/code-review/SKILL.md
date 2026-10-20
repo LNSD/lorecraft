@@ -45,7 +45,7 @@ Review for security vulnerabilities:
 The `principle-*` code rules are the design principles, and the `/code-rules` catalog states each one in full — work
 from the catalog rather than a list here, which would cover a subset and go stale on the next edit.
 
-Judge the change against all of them. Read a full principle spec when you need to *argue* a finding: the
+Judge the change against all of them. Read a full principle code rule when you need to *argue* a finding: the
 examples and the Pragmatism Caveat are what separate a violation from a deliberate, documented exception, and
 a principle finding that ignores the caveat will be rejected.
 
@@ -79,7 +79,7 @@ Verify compliance with the project's error handling standards.
 Verify backwards compatibility is maintained:
 - A changed public dataclass field — a rename, a removed default, a narrowed type — breaks every caller that
   constructs it by keyword
-- A tightened frontmatter schema or structure file that specs already in a consuming repository cannot
+- A tightened frontmatter schema or structure file that documents already in a consuming repository cannot
   satisfy, turning a clean corpus into a wall of findings
 - A renamed check identifier, or a changed finding shape, that a caller parsing the output depends on
 - A renamed or removed public name in a package `__init__.py`
@@ -87,7 +87,7 @@ Verify backwards compatibility is maintained:
 ### 6. Code Rule Compliance
 
 Run `/code-rules-check`, forcing its fan-out path regardless of diff size: one agent per group of code rules,
-spawned in a single message, each applying its specs' `## Checklist` items to the diff. That skill owns the
+spawned in a single message, each applying its code rules' `## Checklist` items to the diff. That skill owns the
 procedure — which code rules govern a change, how groups are derived, and the report format. Do not restate
 the code rules here; they change when `docs/code/` changes.
 
@@ -123,7 +123,7 @@ Ensure documentation is up-to-date:
 - `README.md` and `docs/` reflect current behaviour, and the `justfile` recipes they quote still exist
 - `AGENTS.md` marks planned things as planned: a section that calls something "planned, not created" must be
   updated in the same change that creates it
-- A new or changed check is reflected in the meta spec it enforces, under `docs/__meta__/` — the
+- A new or changed check is reflected in the spec it enforces, under `docs/__meta__/` — the
   requirement a check applies and the prose stating it change together
 
 ### 10. Dead Code
@@ -143,9 +143,9 @@ Look for inconsistencies between comments and code:
 
 ### 12. Code Rule Validation
 
-If the change touches `docs/code/` or `docs/__meta__/`, check the code rules against the meta specs that govern
-them: the corpus meta spec `docs/__meta__/code.md`, narrowed by the `code-<prefix>.md` namespace meta spec for
-the spec's prefix. No checker is wired up, so this is done by reading.
+If the change touches `docs/code/` or `docs/__meta__/`, check the code rules against the specs that govern
+them: the corpus spec `docs/__meta__/code.md`, narrowed by the `code-<prefix>.md` namespace spec for
+the code rule's prefix. No checker is wired up, so this is done by reading.
 
 ## Notes
 
