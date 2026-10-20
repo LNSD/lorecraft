@@ -1,6 +1,6 @@
 ---
 name: "adr-030-item-rule-gates"
-description: "Item rules declare the item types they judge and the meta-spec part or schema condition that gates each item type. Load when changing item-rule applicability, meta-spec governance parts, or their coverage."
+description: "Item rules declare the item types they judge and the meta-spec part condition that gates each item type. Load when changing item-rule applicability, meta-spec governance parts, or their coverage."
 type: "adr"
 status: "proposed"
 ---
@@ -34,7 +34,7 @@ keep layout subjects separate because their primitives and query subjects differ
 1. **Item rules declare a gate for each item type they judge.** Define one `MetaSpecPart` enum in `project`,
    replacing `Facet` and `ItemFacet`, with `FRONTMATTER`, `STRUCTURE`, `OUTLINE` and `BUDGET`; drop `MARKDOWN`.
    Their serialized values (`frontmatter`, `structure`, `outline`, `budget`) and coverage labels stay unchanged.
-   Define a closed gate union with three immutable values:
+   Define a closed gate union with two immutable values:
 
    ```python
    @dataclass(frozen=True, slots=True)
@@ -45,19 +45,14 @@ keep layout subjects separate because their primitives and query subjects differ
    class Always:
        pass
 
-   @dataclass(frozen=True, slots=True)
-   class WhenSchema:
-       schema: SchemaReference
-
-   type Gate = WhenMetaSpec | Always | WhenSchema
+   type Gate = WhenMetaSpec | Always
    ```
 
    `WhenMetaSpec(part)` identifies the part a rule reads from meta specs. The runner uses it to select the item bucket
    and to report `ungoverned` coverage when a loaded layer does not state that part. `Always()` means the item type
    listed in `APPLIES_TO` is admitted independently of a per-item meta-spec declaration. This replaces `ByPackage()`,
    whose name suggested a repository-wide scope even though it only admitted the item type explicitly mapped by the rule.
-   `WhenSchema(schema)` means the named schema is registered and therefore governs the item for this rule. These
-   gates do not alter a rule's query or judgement.
+   These gates do not alter a rule's query or judgement.
 
 2. **One queried item base owns the declaration.** Every item rule derives from `QueriedItemRule[Facts]`, which keeps
    the typed `query() -> ItemQuery[Facts]` and `judge(facts)` contract and declares a class-level mapping
@@ -67,26 +62,19 @@ keep layout subjects separate because their primitives and query subjects differ
    item-base names. A rule applying to both documents and skills declares both keys, even when they use the
    same gate.
 
-   The mapping can express the existing cases directly: an ordinary document rule governed by part `p` declares
-   `{DOCUMENT: WhenMetaSpec(p)}`; a skill check independent of meta-spec parts declares
-   `{SKILL_ENTRYPOINT: Always()}`; and a rule shared by documents and skills declares a gate for each. A Markdown rule uses `WhenMetaSpec(STRUCTURE)` for ordinary
-   documents and `Always()` for `SPECIFICATION`, `SKILL` and `SKILL_RESOURCE`. A frontmatter rule uses
-   `WhenMetaSpec(FRONTMATTER)` for documents and skills, except `name_mismatch`, whose skill gate is
-   `WhenSchema` of the registered Agent Skills floor `SchemaReference`. When the floor is opted out, the
-   `{DOCUMENT: WhenMetaSpec(p)}`; a skill check independent of meta-spec parts declares
-   `{SKILL_ENTRYPOINT: Always()}`; and a rule shared by documents and skills declares a gate for each. Markdown
-   syntax link checks (`broken_link`, `broken_fragment`, `absolute_link`) use `Always()` for all item types, documents
-   included. Corpus naming convention checks (`missing_base_link`, `extension_link`, `mutual_link`) remain
-   `WhenMetaSpec(STRUCTURE)` for documents. Meta spec items are governed by the reserved `meta` corpus and declare the
-   same gates as document items. A frontmatter rule uses `WhenMetaSpec(FRONTMATTER)` for documents, meta specs and
-   skills, except `name_mismatch`, whose skill gate is `WhenSchema` of the registered Agent Skills floor
-   `SchemaReference`. When the floor is opted out, the
-   frontmatter part remains a coverage gate on skills and is reported as `ungoverned`; the rules do not judge that
-   inactive part. This is a vocabulary for applicability, not a central list of which rules exist.
+   The mapping expresses applicability directly across item types:
+   - An ordinary document rule governed by part `p` declares `{DOCUMENT: WhenMetaSpec(p)}`.
+   - Meta spec items in `docs/__meta__/` are governed by the reserved `meta` corpus and declare the same gates as document items.
+   - Markdown syntax link checks (`broken_link`, `broken_fragment`, `absolute_link`) use `Always()` for all item types, documents and skills included.
+   - Link containment (`escaping_link`) uses `Always()` for `DOCUMENT`, `META_SPEC`, `SKILL_ENTRYPOINT`, and `SKILL_RESOURCE`, enforcing containment as an unconditional invariant.
+   - Corpus naming convention checks (`missing_base_link`, `extension_link`, `mutual_link`) remain `WhenMetaSpec(STRUCTURE)` for documents.
+   - Frontmatter rules, including `name_mismatch` (per ADR-028 Decision 16), declare `WhenMetaSpec(FRONTMATTER)` for documents, meta specs, and skills.
+   - Declarative skill floor rules declare meta-spec gates: `too_many_lines` declares `{SKILL_ENTRYPOINT: WhenMetaSpec(BUDGET)}`, and bundled tool constraints (`allowed_tools_too_long`, `malformed_allowed_tools`) declare `{SKILL_ENTRYPOINT: WhenMetaSpec(FRONTMATTER)}`.
+   - When the bundled floor is opted out and no repository layer states the part, the corresponding meta-spec part is reported under coverage as `ungoverned` and the gated rules do not judge the item.
 
-3. **Governance follows loaded layers.** `governed_parts` contains only the parts stated by loaded layers, for every
+3. **Governance follows loaded layers.** `governed_parts` contains only the parts stated by loaded layers (bundled floor and repository layers), for every
    item type; no part is forced active. Rules applied to `SPECIFICATION` items use `Always()`. A skill rule
-   gated by a part uses plain `WhenMetaSpec(part)`, just as a document rule does: a skills layer stating the part is the
+   gated by a part uses plain `WhenMetaSpec(part)`, just as a document rule does: an active layer stating the part is the
    condition for judging. Skill checks independent of a meta-spec part use `Always()`. `requires_loaded_layer` is
    removed. When a skills layer fails, skills follow the mode's skip policy in
    `engine/skip.py`, rather than handling failed-layer state in `judges`.
@@ -97,31 +85,35 @@ keep layout subjects separate because their primitives and query subjects differ
    `'meta'`. Rules applied to `META_SPEC` items declare the same gates as document rules.
 
    When any governing layer fails to load, Lorecraft applies a uniform partial check policy across all item types:
-   the failed layer suppresses every `WhenMetaSpec` gate, while `Always` and `WhenSchema` gates still run. The
+   the failed layer suppresses every `WhenMetaSpec` gate, while `Always` gates still run. The
    suppressed meta-spec parts are reported under coverage, rather than skipping the subject entirely.
 
-   A skill with no skills-corpus layer is reported as `ungoverned` for `STRUCTURE`, `OUTLINE` and `BUDGET`
-   when enabled rules read those parts. Coverage therefore exposes missing governance instead of silently skipping
-   the entry. This is the recommended behavior because coverage describes what is ungoverned, as it does for
-   documents. The alternative, a separate skills-corpus gate, would preserve today's silent skip but introduce a
-   fourth gate solely for the skills-corpus condition.
+   When the bundled Agent Skills floor is active, skills are governed for `FRONTMATTER` and `BUDGET`.
+   A skill with no repository skills-corpus layer is reported as `ungoverned` for `STRUCTURE` and `OUTLINE`
+   when enabled rules read those parts. When the bundled floor is opted out via `--no-agent-skills-spec` and no repository
+   skills layer provides them, `FRONTMATTER` and `BUDGET` are also reported as `ungoverned`. Coverage therefore exposes
+   missing governance instead of silently skipping the entry.
 
-4. **Schema-backed eligibility is explicit.** A rule whose applicability depends on a registered schema uses
-   `WhenSchema` for that item type. In particular, the Agent Skills floor is represented by the registered
-   `SchemaReference` used by the name-mismatch rule; there is no runner exception or synthetic governance part for
-   it. If a schema is not registered, the gate does not admit the rule. Schema registration and resolution remain
-   governed by the schema registry design in ADR-028.
+4. **Schema and budget eligibility is governed by MetaSpecPart.** Applicable schema and structure constraints enter
+   through the loaded layers and are queried via `MetaSpecPart` gates (`WhenMetaSpec(FRONTMATTER)` and `WhenMetaSpec(BUDGET)`).
+   `WhenSchema` is retired: the Agent Skills floor is no longer a special runner or schema-reference case, but a bundled
+   meta-spec layer whose presence activates `FRONTMATTER` and `BUDGET` governance. If a part is not governed across loaded
+   layers, the gate does not admit the rule and coverage reports the part as `ungoverned`. Schema registration and resolution
+   remain governed by the schema registry design in ADR-028.
 
 5. **The runner has one item eligibility predicate.** `judges(rule, descriptor, governance, model)` looks up the
-   descriptor's type in `rule.APPLIES_TO` and evaluates the gate: an `Always` gate admits the mapped item type, a schema gate requires the schema to be registered in the model, and a meta-spec gate identifies the part whose coverage the runner
-   tracks. No gate forces a skills-corpus layer to be loaded; failed-layer handling follows the mode's skip policy.
-   The match is exhaustive over `Gate` and closes with `assert_never`. A missing mapping entry returns false. The runner has no `governing_facet` helper, `ItemQueriedRule` union, base-specific branch or Agent Skills floor exception.
+   descriptor's type in `rule.APPLIES_TO` and evaluates the gate: an `Always` gate admits the mapped item type, and a
+   `WhenMetaSpec` gate identifies the part whose presence in `descriptor.governed_parts` admits the rule and whose absence
+   the runner tracks as `ungoverned` coverage. No gate forces a skills-corpus layer to be loaded; failed-layer handling
+   follows the mode's skip policy. The match is exhaustive over `Gate` (`WhenMetaSpec | Always`) and closes with `assert_never`.
+   A missing mapping entry returns false. The runner has no `governing_facet` helper, `ItemQueriedRule` union, base-specific
+   branch or Agent Skills floor exception.
 
    Eligibility and coverage remain distinct. When an applicable `WhenMetaSpec` gate names a part absent from the
    descriptor's `governed_parts`, the runner records `ungoverned` coverage and does not judge it. This includes skill
-   frontmatter when the built-in schema is opted out and no repository schema activates the part. A rule whose item type
-   is absent from `APPLIES_TO` or a schema gate whose schema is unregistered is skipped silently. The runner reads the gate
-   both to select rules and to record coverage; `judges` does not replace that behavior.
+   frontmatter and budget when the bundled floor is opted out and no repository layer activates those parts. A rule whose
+   item type is absent from `APPLIES_TO` is skipped silently. The runner reads the gate both to select rules and to record
+   coverage; `judges` does not replace that behavior.
 
    The runner still owns evaluation order, decoding, diagnostics and rule judgement.
 
@@ -147,18 +139,24 @@ keep layout subjects separate because their primitives and query subjects differ
   item type to a rule requires an explicit gate instead of a new inheritance path or runner branch.
 - The runner and table derive eligibility and indexes from the same mapping. This removes their duplicated
   interpretation of the item-base hierarchy and makes missing gate cases visible at registry load.
-- `WhenMetaSpec`, `Always`, and `WhenSchema` remain distinct. Schema-backed cases follow registry presence, while
-  `Always` admits only the item types named in `APPLIES_TO` without requiring a per-item meta-spec declaration.
+- `WhenMetaSpec` and `Always` form a closed, two-member gate union. `WhenSchema` is retired because the bundled
+  Agent Skills floor is an active meta-spec layer whose frontmatter and budget constraints gate on `WhenMetaSpec`,
+  and `Always` admits only the item types named in `APPLIES_TO` without requiring a per-item meta-spec declaration.
 - Meta specs in `docs/__meta__/` are governed by the reserved `meta` corpus; `meta.spec.json` and namespace layers
   `meta-<corpus>.spec.json` apply to meta spec items with the same gate semantics as corpus documents.
 - Markdown syntax link checks run for all item types, ensuring link integrity across documents and
   skills without requiring structure files.
+- Link containment (`escaping_link`) remains an unconditional `Always` invariant across documents, meta specs,
+  skill entrypoints, and skill resources.
 - A failed governing layer applies a uniform partial check policy across all item types: meta-spec gates are
-  suppressed and reported under coverage while `Always` and schema gates still execute.
-- Skills without a skills-corpus layer appear in coverage as ungoverned for the parts enabled rules need;
-  readers can see missing governance instead of mistaking silence for coverage.
-- Existing judgement behavior and rule-case diagnostics remain the compatibility boundary. This decision changes
-  how eligibility is declared and selected, not rule queries, findings, severity, or diagnostic output.
+  suppressed and reported under coverage while `Always` gates still execute.
+- When the bundled floor is active, skills are governed for `FRONTMATTER` and `BUDGET`; `STRUCTURE` and `OUTLINE`
+  appear as ungoverned when no repository skills layer states them. When the floor is opted out via
+  `--no-agent-skills-spec`, `FRONTMATTER` and `BUDGET` also appear in coverage as ungoverned, making missing governance
+  transparent instead of mistaking silence for coverage.
+- Existing judgement behavior and rule-case diagnostics remain the compatibility boundary. Moving formerly
+  hardcoded floor checks (`too_many_lines`, tool constraints) into declarative meta-spec rules preserves their
+  diagnostic findings, warning severity, and attribution.
 - Layout rules retain their distinct types and dispatch because their subjects do not share item primitives.
 
 ## Alternatives Considered
@@ -170,8 +168,23 @@ keep layout subjects separate because their primitives and query subjects differ
 - **Add a `BySkillsCorpus(part)` gate.** This would preserve the current silent skip for skills without a
   loaded skills corpus, but it would make skills-corpus presence a separate eligibility concept. Coverage is meant
   to expose ungoverned parts, so the simpler `WhenMetaSpec(part)` gate is preferred.
+- **Retain `WhenSchema` alongside `WhenMetaSpec`.** Rejected: since the floor supplies a bundled meta-spec layer
+  with both frontmatter schema and line limits, gating on `WhenMetaSpec(FRONTMATTER)` and `WhenMetaSpec(BUDGET)`
+  unifies skill and document governance and leaves no consumers for `WhenSchema`.
 - **Fold layout subjects into the item base.** Layout records have different primitive contracts and are not item
   types; a common base would erase the query-to-subject typing the engine relies on.
+
+## Checklist
+
+- [ ] Item rules declare applicability via `APPLIES_TO: Mapping[ItemType, Gate]` using `WhenMetaSpec` or `Always`
+- [ ] `WhenSchema` is retired, leaving `Gate = WhenMetaSpec | Always`
+- [ ] `name_mismatch`, `allowed_tools_too_long`, and `malformed_allowed_tools` gate on `WhenMetaSpec(FRONTMATTER)`
+- [ ] `too_many_lines` gates on `WhenMetaSpec(BUDGET)`
+- [ ] `escaping_link` gates on `Always()` for documents, meta specs, skill entrypoints, and skill resources
+- [ ] Failed governing layers suppress `WhenMetaSpec` gates while `Always` gates continue to run
+- [ ] When the bundled floor is active, skills declare `FRONTMATTER` and `BUDGET` governance
+- [ ] When the bundled floor is opted out and no repository layer provides them, `FRONTMATTER` and `BUDGET` are reported as ungoverned under coverage
+- [ ] Runner and rule table derive item eligibility and indexes directly from `APPLIES_TO` without runner exceptions
 
 ## References
 
