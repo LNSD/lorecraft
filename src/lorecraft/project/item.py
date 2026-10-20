@@ -114,9 +114,8 @@ class ItemDescriptor:
         link_base: Where the item's relative Markdown links are read from, with the climb bound of that base.
         origin: Provenance metadata specific to the item's origin.
         name: Typed name in the hierarchy used to find its base.
-        listed_name: Original name used by governance and frontmatter ownership.
+        listed_name: Original spelling retained for frontmatter ownership diagnostics.
         corpus: Typed corpus whose meta specs govern the item, or none.
-        schema_paths: Repository paths of governing frontmatter schemas, broad to narrow; bundled schemas have no path.
         frontmatter_schema_refs: Applicable frontmatter schema registry subjects, broad to narrow.
         governed_parts: Meta spec parts stated by loaded layers that govern this item.
     """
@@ -126,9 +125,9 @@ class ItemDescriptor:
     link_base: LinkBase
     origin: ItemOrigin
     name: AspectName | AspectFilename | SpecName | None
+    # Frontmatter ownership diagnostics need the original spelling even when `name` cannot be parsed.
     listed_name: str
     corpus: CorpusName | None
-    schema_paths: tuple[RootRelativePath, ...]
     frontmatter_schema_refs: tuple[SchemaRef, ...]
     governed_parts: frozenset[MetaSpecPart]
 

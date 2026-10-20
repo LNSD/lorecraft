@@ -7,7 +7,6 @@ from typing import TYPE_CHECKING
 from lorecraft.core.num import UnsignedInt
 from lorecraft.project.aspect import AspectFilename, AspectName
 from lorecraft.project.corpus import CorpusName
-from lorecraft.project.item import ItemType
 from lorecraft.project.syntax import (
     FrontmatterNode,
     LineCount,
@@ -60,39 +59,22 @@ def item_name(primitives: NameHierarchyPrimitives) -> AspectFilename | AspectNam
     """The typed name declared by this item's descriptor when its text decodes."""
     if primitives.text() is None:
         return None
-    return primitives.item_descriptor().name
+    return primitives.descriptor().name
 
 
 def item_corpus(primitives: NameHierarchyPrimitives) -> CorpusName | None:
     """The typed corpus declared by this item's descriptor when its text decodes."""
     if primitives.text() is None:
         return None
-    return primitives.item_descriptor().corpus
+    return primitives.descriptor().corpus
 
 
 def item_base(primitives: NameHierarchyPrimitives) -> AspectFilename | SpecName | None:
     """The nearest existing document or specification name this item extends.
 
-    A document's base is looked for among its corpus's documents, a meta spec's among the specifications; `None` for
-    any other item or one that is not UTF-8.
+    The base is looked for among the item's corpus names; `None` when it has no name or is not UTF-8.
     """
     if primitives.text() is None:
         return None
-    descriptor = primitives.item_descriptor()
-    model = primitives.model()
-    if isinstance(descriptor.name, AspectFilename):
-        if descriptor.corpus is None:
-            return None
-        corpus = model.find_corpus(descriptor.corpus)
-        if corpus is None:
-            return None
-        base = corpus.document_base(descriptor.name)
-        return None if base is None else base.filename
-    if descriptor.type is ItemType.META_SPEC:
-        # These imports stay local to avoid a cycle through the document query modules.
-        from lorecraft.project.document import MetaSpecRef
-        from lorecraft.project.schemas.name import parse_spec_name
-
-        base_spec = model.find_specification_base(MetaSpecRef(descriptor.ref.path))
-        return None if base_spec is None else parse_spec_name(base_spec.name)
-    return None
+    descriptor = primitives.descriptor()
+    return primitives.model().name_base(descriptor.corpus, descriptor.name)

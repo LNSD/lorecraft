@@ -254,7 +254,7 @@ class TestDocumentFactQueries:
             Read(PrimitiveRead.LINK_TARGETS, GUIDE),
             Read(PrimitiveRead.LINK_BASE, GUIDE),
             Read(item_name, GUIDE),
-            Read(PrimitiveRead.ITEM_DESCRIPTOR, GUIDE),
+            Read(PrimitiveRead.DESCRIPTOR, GUIDE),
         }, 'derived carry-over'
 
     def test_query_extension_link_facts_of_a_skill_entry_holds_no_link(self, tmp_path: Path) -> None:
@@ -378,9 +378,9 @@ class TestDocumentLinks:
             Read(linked_paths, OTHER_GUIDE),
             Read(item_parse, OTHER_GUIDE),
             Read(PrimitiveRead.TEXT, OTHER_GUIDE),
-            Read(PrimitiveRead.ITEM_DESCRIPTOR, GUIDE),
-            Read(PrimitiveRead.ITEM_DESCRIPTOR, FEATURE),
-            Read(PrimitiveRead.ITEM_DESCRIPTOR, OTHER_GUIDE),
+            Read(PrimitiveRead.DESCRIPTOR, GUIDE),
+            Read(PrimitiveRead.DESCRIPTOR, FEATURE),
+            Read(PrimitiveRead.DESCRIPTOR, OTHER_GUIDE),
         } | {
             Read(primitive, ref)
             for ref in (FEATURE, OTHER_GUIDE)

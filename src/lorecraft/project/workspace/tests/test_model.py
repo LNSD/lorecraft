@@ -963,9 +963,6 @@ class TestWorkspaceModel:
         )
         assert descriptor.name == AspectFilename.parse('logging'), 'the model derives the aspect from the filename'
         assert isinstance(descriptor.origin, DocumentOrigin), 'the descriptor retains document provenance'
-        assert descriptor.schema_paths == (SPECS_DIR / PathComponent.parse('code.spec.json'),), (
-            'the corpus schema is the one that governs frontmatter findings'
-        )
         assert descriptor.frontmatter_schema_refs == (SchemaRef(SchemaKind.FRONTMATTER, 'code'),), (
             'the descriptor retains the loader identity used for frontmatter governance and diagnostics'
         )
@@ -1011,10 +1008,6 @@ class TestWorkspaceModel:
 
         #: Then
         assert isinstance(descriptor.origin, DocumentOrigin), 'the descriptor retains document provenance'
-        assert descriptor.schema_paths == (
-            SPECS_DIR / PathComponent.parse('code.spec.json'),
-            SPECS_DIR / PathComponent.parse('code-python.spec.json'),
-        ), 'the corpus and namespace schemas are both carried, broad to narrow'
         assert descriptor.frontmatter_schema_refs == (
             SchemaRef(SchemaKind.FRONTMATTER, 'code'),
             SchemaRef(SchemaKind.FRONTMATTER, 'code-python'),
