@@ -11,17 +11,16 @@ A frontmatter `name` differs from the name its document or skill is found under.
 
 ## What it does
 
-Checks for documents whose structure file sets a `frontmatter` schema and whose `name` differs from
-their filename without its extension, and for skills whose `name` differs from the name of their directory,
-as the Agent Skills specification requires. A skill's directory is named as an agent lists it in its skills
-directory: when that directory is a link to a directory named otherwise, the listed name is the one expected.
+Checks for governed items whose `name` differs from the filename or directory name they are found under. A
+skill's directory is named as an agent lists it in its skills directory: when that directory is a link to a
+directory named otherwise, the listed name is the one expected.
 
 Only a `name` written as a string is compared. A `name` that is missing or of another type is the schema's to
 report, so a document whose schema does not require `name` may leave it out.
 
-No schema key states the rule: the package holds a document's `name` to its filename, and the Agent Skills
-specification holds a skill's to its directory name. The rename of a skill's directory is offered only for a
-`name` that specification accepts.
+The name comparison applies when a frontmatter schema governs the item, whether the schema comes from a
+structure specification or from the Agent Skills specification. The rename of a skill's directory is offered
+only when its `name` matches the Agent Skills name format.
 
 ## Why is this bad?
 
