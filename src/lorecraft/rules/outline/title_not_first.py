@@ -11,7 +11,7 @@ from lorecraft.project.syntax import Heading, HeadingLevel, LineNumber, find_tit
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Here, Label, Subdiagnostic
-from lorecraft.rules.subject import Gate, MetaSpecPart, QueriedItemRule, WhenMetaSpec
+from lorecraft.rules.subject import Gate, QueriedItemRule, SpecPart, WhenSpec
 
 from .__ruleset__ import GROUP_ID
 
@@ -35,14 +35,14 @@ class TitleNotFirst(QueriedItemRule[tuple[Heading, ...]]):
     ## What it does
 
     Checks for documents whose first heading is not a `#` H1, and reports that first heading. Every document a
-    structure file governs is held to it, with no key to state it: the meta spec need not mention the
+    structure file governs is held to it, with no key to state it: the spec need not mention the
     title at all. Only a heading at the top level of the document counts: one inside a list or a blockquote does
     not.
 
     A document with no H1 title is not reported here, whatever its headings: it is missing its title, which
     `missing-title` reports, and adding one fixes both.
 
-    A document that more than one meta spec governs, such as a corpus and a namespace, is reported once.
+    A document that more than one spec governs, such as a corpus and a namespace, is reported once.
 
     ## Why is this bad?
 
@@ -93,9 +93,9 @@ class TitleNotFirst(QueriedItemRule[tuple[Heading, ...]]):
     SINCE: ClassVar[Release] = Release('0.3.0')
     APPLIES_TO: ClassVar[Mapping[ItemType, Gate]] = MappingProxyType(
         {
-            ItemType.DOCUMENT: WhenMetaSpec(MetaSpecPart.STRUCTURE),
-            ItemType.META_SPEC: WhenMetaSpec(MetaSpecPart.STRUCTURE),
-            ItemType.SKILL_ENTRYPOINT: WhenMetaSpec(MetaSpecPart.STRUCTURE),
+            ItemType.DOCUMENT: WhenSpec(SpecPart.STRUCTURE),
+            ItemType.SPEC: WhenSpec(SpecPart.STRUCTURE),
+            ItemType.SKILL_ENTRYPOINT: WhenSpec(SpecPart.STRUCTURE),
         }
     )
 

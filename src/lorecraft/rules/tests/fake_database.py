@@ -92,10 +92,10 @@ def _skill_aspect_filename(entry: str) -> AspectFilename | None:
 
 
 def structure_spec_path(name: str) -> RootRelativePath:
-    """Where the structure file at a meta spec name lies, such as `docs/__meta__/guide.spec.json`.
+    """Where the structure file at a spec name lies, such as `docs/__meta__/guide.spec.json`.
 
     Args:
-        name: The meta spec name, such as `guide` or `guide-cli`.
+        name: The spec name, such as `guide` or `guide-cli`.
 
     Raises:
         EmptyCorpusNameError: If the corpus token is empty.
@@ -142,7 +142,7 @@ def section_in(text: str, heading_text: str) -> SectionHeading:
 
 
 def namespace_spec(corpus: str, namespace: str, structure: str) -> NamespaceSpec:
-    """A namespace's meta spec, with its structure file decoded from JSON by the real decoder.
+    """A namespace's spec, with its structure file decoded from JSON by the real decoder.
 
     Args:
         corpus: The corpus the namespace narrows, such as `guide`.
@@ -160,10 +160,10 @@ def namespace_spec(corpus: str, namespace: str, structure: str) -> NamespaceSpec
 
 
 def _files(spec_name: SpecName) -> tuple[RootRelativePath, ...]:
-    """The files at a meta spec name, sorted: its prose, then its structure file.
+    """The files at a spec name, sorted: its prose, then its structure file.
 
     Args:
-        spec_name: The meta spec name.
+        spec_name: The spec name.
     """
     return (
         SPECS_DIR / PathComponent.parse(spec_filename(spec_name, SpecFileType.PROSE)),
@@ -175,7 +175,7 @@ def _decode_structure(spec_name: SpecName, structure: str) -> StructureSpec:
     """A structure file decoded from its JSON by the real decoder.
 
     Args:
-        spec_name: The meta spec name the file lies at.
+        spec_name: The spec name the file lies at.
         structure: The structure file's JSON.
     """
     file = StructureSpecFile(
@@ -210,10 +210,10 @@ def structure_spec(spec_name: str, text: str) -> StructureSpec:
 
 
 class FakeDocumentDatabase:
-    """A document a test writes as text, governed by the meta specs the test states.
+    """A document a test writes as text, governed by the specs the test states.
 
-    The governance is set by hand, as the model would find it: the corpus's meta spec first, then each
-    namespace's the test lists, broad to narrow. The meta specs are built through a `Corpus`, as the model builds
+    The governance is set by hand, as the model would find it: the corpus's spec first, then each
+    namespace's the test lists, broad to narrow. The specs are built through a `Corpus`, as the model builds
     them, so a namespace the filename does not match is refused rather than dropped.
     """
 
@@ -236,14 +236,14 @@ class FakeDocumentDatabase:
         siblings: tuple[str, ...] = (),
         document_links: tuple[DocumentLink, ...] = (),
     ) -> None:
-        """Hold the document's text and the meta specs that govern it.
+        """Hold the document's text and the specs that govern it.
 
         Args:
             text: The document's whole text, frontmatter included.
-            corpus: The document's corpus, which is its meta spec name, such as `guide`.
+            corpus: The document's corpus, which is its spec name, such as `guide`.
             structure: The JSON of the corpus's structure file; a document's structure exists only for a
                 corpus that states one.
-            namespaces: The namespace meta specs that govern the document, broad to narrow, as `namespace_spec`
+            namespaces: The namespace specs that govern the document, broad to narrow, as `namespace_spec`
                 builds them.
             filename: The document's filename, without its extension; `setup`, or `<namespace>-setup` for the
                 narrowest namespace listed, which every namespace listed then governs.
@@ -288,7 +288,7 @@ class FakeDocumentDatabase:
         return count_tokens(self._text)
 
     def query[T](self, query: ItemQuery[T]) -> T:
-        """The answer of a declared query over the governing meta specs, as the real database finds it."""
+        """The answer of a declared query over the governing specs, as the real database finds it."""
         return query(
             StructurePrimitives(
                 self._governance.structure_specs(),

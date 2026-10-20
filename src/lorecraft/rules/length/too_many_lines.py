@@ -7,7 +7,7 @@ from typing import ClassVar, Final, Protocol, Self
 
 from lorecraft.core.num import NonZeroUnsignedInt, UnsignedInt
 from lorecraft.core.path import RootRelativePath
-from lorecraft.project.item import ItemType, MetaSpecPart, SkillEntrypointOrigin
+from lorecraft.project.item import ItemType, SkillEntrypointOrigin, SpecPart
 from lorecraft.project.query import GovernancePrimitives, ItemQuery, item_line_count, item_structure_specs
 from lorecraft.project.syntax import LineCount, LineNumber
 from lorecraft.rules.collector import rule
@@ -15,7 +15,7 @@ from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.length.__ruleset__ import GROUP_ID, spec_note
 from lorecraft.rules.location import Help, Here, Label, Note, Subdiagnostic
 from lorecraft.rules.overrun import Overrun, find_overrun
-from lorecraft.rules.subject import Always, Gate, QueriedItemRule, WhenMetaSpec
+from lorecraft.rules.subject import Always, Gate, QueriedItemRule, WhenSpec
 
 _LINE_BUDGET: Final[NonZeroUnsignedInt] = NonZeroUnsignedInt(500)
 """The fallback limit for skills until their bundled structure layer supplies it."""
@@ -61,7 +61,7 @@ class TooManyLines(QueriedItemRule[LineFacts]):
 
     ## What it does
 
-    Checks each `lines` budget set by the item's governing structure files. A document or meta spec with no line
+    Checks each `lines` budget set by the item's governing structure files. A document or spec with no line
     budget is not counted. A skill without a structure line budget keeps the 500-line Agent Skills default.
 
     The whole file counts: frontmatter, blank lines and code as much as prose. A file exactly at its budget fits;
@@ -82,8 +82,8 @@ class TooManyLines(QueriedItemRule[LineFacts]):
     SINCE: ClassVar[Release] = Release('0.3.0')
     APPLIES_TO: ClassVar[Mapping[ItemType, Gate]] = MappingProxyType(
         {
-            ItemType.DOCUMENT: WhenMetaSpec(MetaSpecPart.BUDGET),
-            ItemType.META_SPEC: WhenMetaSpec(MetaSpecPart.BUDGET),
+            ItemType.DOCUMENT: WhenSpec(SpecPart.BUDGET),
+            ItemType.SPEC: WhenSpec(SpecPart.BUDGET),
             ItemType.SKILL_ENTRYPOINT: Always(),
         }
     )

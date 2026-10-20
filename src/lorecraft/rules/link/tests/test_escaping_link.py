@@ -39,7 +39,7 @@ def _inside(url: str, path: str) -> FrozenMapping[NormalisedLinkPath, LinkTarget
 
 @pytest.mark.unit
 class TestEscapingLink:
-    def test_check_with_a_meta_spec_link_climbing_above_the_repository_root_reports_it(self) -> None:
+    def test_check_with_a_spec_link_climbing_above_the_repository_root_reports_it(self) -> None:
         #: Given
         path = '../../../outside.md'
         base = DocumentDirectory(RootRelativePath.parse('docs/__meta__'))
@@ -52,7 +52,7 @@ class TestEscapingLink:
 
         #: Then
         assert occurrences == (EscapingLink(line=LineNumber(NonZeroUnsignedInt(1)), url=path, base=base),), (
-            'meta spec links use the repository-root bound like document links'
+            'spec links use the repository-root bound like document links'
         )
 
     def test_check_with_a_document_link_climbing_above_the_repository_root_reports_it(self) -> None:

@@ -18,7 +18,7 @@ from lorecraft.project.schemas import (
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Subdiagnostic
-from lorecraft.rules.subject import Gate, MetaSpecPart, QueriedItemRule, WhenMetaSpec
+from lorecraft.rules.subject import Gate, QueriedItemRule, SpecPart, WhenSpec
 
 from .__ruleset__ import GROUP_ID, spec_note
 
@@ -34,12 +34,12 @@ class ForbiddenSection(QueriedItemRule[tuple[OutlineAlignmentSpec, ...]]):
     `forbidden`. Only H2 headings are sections: a title or a deeper heading of the same text is not reported. Every
     occurrence is reported, so a forbidden section written twice is reported twice.
 
-    A document that more than one meta spec governs, such as a corpus and a namespace, is reported once for
-    each meta spec that forbids the section.
+    A document that more than one spec governs, such as a corpus and a namespace, is reported once for
+    each spec that forbids the section.
 
     ## Why is this bad?
 
-    A meta spec forbids a section because what it would hold belongs elsewhere, or nowhere: a changelog kept in
+    A spec forbids a section because what it would hold belongs elsewhere, or nowhere: a changelog kept in
     the version history, or a history of the document that an agent reads as a current rule. Written anyway, the
     section is read as part of the document.
 
@@ -90,9 +90,9 @@ class ForbiddenSection(QueriedItemRule[tuple[OutlineAlignmentSpec, ...]]):
     SINCE: ClassVar[Release] = Release('0.3.0')
     APPLIES_TO: ClassVar[Mapping[ItemType, Gate]] = MappingProxyType(
         {
-            ItemType.DOCUMENT: WhenMetaSpec(MetaSpecPart.STRUCTURE),
-            ItemType.META_SPEC: WhenMetaSpec(MetaSpecPart.STRUCTURE),
-            ItemType.SKILL_ENTRYPOINT: WhenMetaSpec(MetaSpecPart.STRUCTURE),
+            ItemType.DOCUMENT: WhenSpec(SpecPart.STRUCTURE),
+            ItemType.SPEC: WhenSpec(SpecPart.STRUCTURE),
+            ItemType.SKILL_ENTRYPOINT: WhenSpec(SpecPart.STRUCTURE),
         }
     )
 
@@ -104,7 +104,7 @@ class ForbiddenSection(QueriedItemRule[tuple[OutlineAlignmentSpec, ...]]):
         return f'section `{self.section}` is forbidden'
 
     def children(self) -> tuple[Subdiagnostic, ...]:
-        """Point at the meta spec that forbids the section, and say to remove it."""
+        """Point at the spec that forbids the section, and say to remove it."""
         return (spec_note(self.spec), Help('remove the section'))
 
     @classmethod
@@ -114,9 +114,9 @@ class ForbiddenSection(QueriedItemRule[tuple[OutlineAlignmentSpec, ...]]):
 
     @classmethod
     def judge(cls, facts: tuple[OutlineAlignmentSpec, ...], /) -> tuple[Self, ...]:
-        """One occurrence, at its heading, for each forbidden H2 section under each meta spec that forbids it.
+        """One occurrence, at its heading, for each forbidden H2 section under each spec that forbids it.
 
-        The meta specs are taken in the order they apply, and the headings of each in document order.
+        The specs are taken in the order they apply, and the headings of each in document order.
 
         Args:
             facts: The answer of the rule's query.

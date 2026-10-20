@@ -13,7 +13,7 @@ from lorecraft.project.syntax import FIRST_LINE, LineNumber, RelativeDestination
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Note, Subdiagnostic
-from lorecraft.rules.subject import Gate, MetaSpecPart, QueriedItemRule, WhenMetaSpec
+from lorecraft.rules.subject import Gate, QueriedItemRule, SpecPart, WhenSpec
 
 from .__ruleset__ import GROUP_ID, GovernanceSyntaxLinkResolutionPrimitives
 
@@ -83,9 +83,9 @@ class MissingBaseLink(QueriedItemRule[MissingBase | None]):
     `python-fn-unchecked`, even when `python-fn-unchecked` sits two names below it. A document with no such name
     has no base and is not judged. The link must lead to the base's file, and lie between the `References` heading
     and the next heading of its level or above, so a link in the text or under `External References` does not count.
-    A meta spec of `docs/__meta__/` is judged the same way, its base looked for among the specifications.
-    No meta spec key states the rule: every document of a corpus that states a structure file, and every meta
-    specification, is held to it.
+    A spec of `docs/__meta__/` is judged the same way, its base looked for among the specifications.
+    No spec key states the rule: every document of a corpus that states a structure file, and every spec, is held
+    to it.
 
     The finding is reported on the `References` heading, or on the title when the document has no such section.
 
@@ -131,8 +131,8 @@ class MissingBaseLink(QueriedItemRule[MissingBase | None]):
     SINCE: ClassVar[Release] = Release('0.4.0')
     APPLIES_TO: ClassVar[Mapping[ItemType, Gate]] = MappingProxyType(
         {
-            ItemType.DOCUMENT: WhenMetaSpec(MetaSpecPart.STRUCTURE),
-            ItemType.META_SPEC: WhenMetaSpec(MetaSpecPart.STRUCTURE),
+            ItemType.DOCUMENT: WhenSpec(SpecPart.STRUCTURE),
+            ItemType.SPEC: WhenSpec(SpecPart.STRUCTURE),
         }
     )
 

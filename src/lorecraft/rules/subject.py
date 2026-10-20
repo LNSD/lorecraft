@@ -1,7 +1,7 @@
 """The query-backed rules over items and layout subjects, with their closed eligibility gates.
 
 Every rule over an item derives from `QueriedItemRule[Facts]`, names its `ItemQuery[Facts]`, and declares an
-`APPLIES_TO` mapping for the item types it judges. `WhenMetaSpec` requires a loaded layer to state the named part;
+`APPLIES_TO` mapping for the item types it judges. `WhenSpec` requires a loaded layer to state the named part;
 `Always` admits the item type wherever it appears in the rule's mapping, and `WhenSchema` admits an item type only when
 the named schema is registered.
 An item type absent from the mapping is inapplicable. These declarations let the runner and rule table use one explicit
@@ -22,7 +22,7 @@ from dataclasses import dataclass
 from types import MappingProxyType
 from typing import ClassVar, Self
 
-from lorecraft.project.item import ItemType, MetaSpecPart
+from lorecraft.project.item import ItemType, SpecPart
 from lorecraft.project.query import (
     CorpusDirectoryQuery,
     ItemQuery,
@@ -34,14 +34,14 @@ from .declaration import ContentRule, LayoutRule, Rule
 
 
 @dataclass(frozen=True, slots=True)
-class WhenMetaSpec:
-    """A gate for a meta spec part a loaded layer may govern.
+class WhenSpec:
+    """A gate for a spec part a loaded layer may govern.
 
     Attributes:
-        part: The meta spec part a loaded layer must state for the rule to judge the item.
+        part: The spec part a loaded layer must state for the rule to judge the item.
     """
 
-    part: MetaSpecPart
+    part: SpecPart
 
 
 @dataclass(frozen=True, slots=True)
@@ -60,7 +60,7 @@ class WhenSchema:
     schema: SchemaRef
 
 
-type Gate = WhenMetaSpec | Always | WhenSchema
+type Gate = WhenSpec | Always | WhenSchema
 
 
 class Queried[Facts, QueryType](Rule, ABC):

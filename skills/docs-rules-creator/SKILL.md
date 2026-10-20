@@ -1,15 +1,15 @@
 ---
 name: docs-rules-creator
-description: Write or change the Lorecraft meta specs in docs/__meta__/ for any corpus under docs/ - a meta spec's prose, and its structure file for frontmatter schema, section outline, word caps and token budget. Use when adopting Lorecraft in a repository, adding a corpus or a namespace, adding a frontmatter field or a required section, changing a word cap or token budget, or fixing a meta spec that fails to load or that /docs-rules-check reported. Not for writing the specs a meta spec governs, see /docs-rules; not for reviewing a meta spec, see /docs-rules-check
+description: Write or change the Lorecraft specs in docs/__meta__/ for any corpus under docs/ - a spec's prose, and its structure file for frontmatter schema, section outline, word caps and token budget. Use when adopting Lorecraft in a repository, adding a corpus or a namespace, adding a frontmatter field or a required section, changing a word cap or token budget, or fixing a spec that fails to load or that /docs-rules-check reported. Not for writing the documents a spec governs, see /docs-rules; not for reviewing a spec, see /docs-rules-check
 compatibility: Requires the lorecraft command, on PATH or run through uvx lorecraft, or uv run lorecraft in a uv project that declares Lorecraft as a dependency
 allowed-tools: Bash(lorecraft check*) Bash(lorecraft inspect*) Bash(uvx lorecraft *) Bash(uv run lorecraft *) Bash(grep *) Bash(ls docs/*)
 ---
 
 # Docs Rules Creator
 
-A meta spec is the set of conventions for one group of documents under `docs/` — code rules (code specs), feat docs (feat specs), or any
+A spec is the set of conventions for one group of documents under `docs/` — code rules, feat docs, or any
 other corpus — kept in `docs/__meta__/` as a prose file and the machine-checkable file beside it. This skill is
-the **writing path** for meta specs: the files, their names, and the dialect the checks read.
+the **writing path** for specs: the files, their names, and the dialect the checks read.
 `/docs-rules-check` is the review pass that validates the result.
 
 The sections below are summaries. The authorities are Lorecraft's guides, and each section says which to read:
@@ -35,26 +35,26 @@ docs/__meta__/<name>.spec.json        the section outline, word caps, tokens bud
 
 What a file is comes from its **file type**, which a file name **pattern** claims: `*.md` claims the prose and
 `*.spec.json` the structure file. A file's extension is only what follows its last dot, and a
-`<name>.<token>.json` that no pattern claims is not a meta spec file: it is left out, not read.
+`<name>.<token>.json` that no pattern claims is not a spec file: it is left out, not read.
 
-A **meta spec name**, the filename with its pattern's suffix stripped, is `<corpus>` or `<corpus>-<namespace>`.
+A **spec name**, the filename with its pattern's suffix stripped, is `<corpus>` or `<corpus>-<namespace>`.
 The corpus names a directory `docs/<corpus>/` and never holds a hyphen, so the first hyphen ends it;
 [spec](https://github.com/LNSD/lorecraft/blob/main/docs/feat/spec.md#filenames) and
 [workspace](https://github.com/LNSD/lorecraft/blob/main/docs/feat/workspace.md#corpora) give the characters each part
 may hold. The namespace names a group of documents in it: `code-python` governs `docs/code/python.md` and
 `docs/code/python-*.md`. Nothing registers a file; its name is the whole binding. A directory under `docs/` becomes a
-corpus the moment a file at its meta spec name exists.
+corpus the moment a file at its spec name exists.
 
-**Layers only add.** A spec answers to its corpus meta spec, then to every namespace meta spec
+**Layers only add.** A document answers to its corpus spec, then to every namespace spec
 matching its name, broad to narrow, each applied on its own. So a namespace file states only what it adds, and
 cannot relax what the corpus file says. A namespace file never governs alone: without a structure file at the
-corpus meta spec name, the whole corpus is left unchecked, and without the `frontmatter` key in it, its
+corpus spec name, the whole corpus is left unchecked, and without the `frontmatter` key in it, its
 frontmatter is. A namespace `tokens` or outline still applies once that file exists.
 [spec](https://github.com/LNSD/lorecraft/blob/main/docs/feat/spec.md#base-and-extension) states it.
 
 **A base never names its extensions.** `code.md` does not mention `code-python.md` or its JSON, in its
 references, its description, or inline; the extension names its base. Adding or removing a namespace then never
-edits the corpus meta spec.
+edits the corpus spec.
 
 ## 2. The prose comes first
 
@@ -62,7 +62,7 @@ edits the corpus meta spec.
 prose, then the JSON to match, in the same change: nothing detects drift between them. A requirement in prose that no
 JSON file holds is unchecked; say in the prose which requirements a reader must verify by hand.
 
-A corpus meta spec that works with `/docs-rules` and `/docs-rules-check` covers, in order:
+A corpus spec that works with `/docs-rules` and `/docs-rules-check` covers, in order:
 
 1. What the corpus holds — the kind of claim its documents make, so a writer can choose the corpus.
 2. Frontmatter: each field, its vocabulary, and whether it is required.
@@ -74,7 +74,7 @@ A corpus meta spec that works with `/docs-rules` and `/docs-rules-check` covers,
 8. **A checklist** of `- [ ]` items, each verifiable by reading a document. `/docs-rules-check` walks it for
    everything the checks cannot decide, so a requirement missing from it is not checked by anyone.
 
-A namespace meta spec states only what it adds to its base, and links to it.
+A namespace spec states only what it adds to its base, and links to it.
 
 ## 3. The frontmatter schema
 
@@ -104,7 +104,7 @@ examples, and what is refused on load;
 For editor validation, copy [the dialect's
 schema](https://github.com/LNSD/lorecraft/blob/main/docs/schemas/structure.spec.json) to
 `docs/schemas/structure.spec.json` and set `"$schema": "../schemas/structure.spec.json"` in each structure file.
-`docs/schemas/` has no meta spec, so it is not a corpus.
+`docs/schemas/` has no spec, so it is not a corpus.
 
 Pick caps and a budget from the documents that exist: set them so today's good documents pass with room, and
 say in the prose why each number is what it is. Never raise one to silence a finding; move or cut the content.
@@ -114,30 +114,30 @@ say in the prose why each number is what it is. Never raise one to silence a fin
 **Adopt Lorecraft, or add a corpus.** Create `docs/<corpus>/`, then `docs/__meta__/<corpus>.md`, then
 `<corpus>.spec.json` with a key for each requirement you want checked. A requirement without its key there is unchecked
 for the whole corpus, unless a namespace file states it; the `frontmatter` key is unchecked without it there.
-Write the first spec only after the files exist, then follow `/docs-rules` for it. If the repository has an agent
+Write the first document only after the files exist, then follow `/docs-rules` for it. If the repository has an agent
 guide, name the corpus there, and whether its documents are binding.
 
-**Add a namespace.** Only when a group's specs genuinely share conventions the rest of the corpus does not: a
+**Add a namespace.** Only when a group's documents genuinely share conventions the rest of the corpus does not: a
 prefix alone is not a reason. Create `<corpus>-<namespace>.md` and, when it adds a checkable requirement, its structure file.
 
 **Govern skills.** The corpus name `skills` is reserved: its documents are the skills the agents list, not files under
 `docs/skills/`. Create `docs/__meta__/skills.md` for every skill and `skills-<namespace>.md` for the skills named
 `<namespace>` or `<namespace>-*`; they layer like any namespace, match the skill's directory name, and a namespace file
 without `skills.md` is ignored. Do not create `docs/skills/`: `lorecraft check` warns (rule `COR001`, a warning unless a level is set) and checks none of it.
-Run `lorecraft inspect` to see which meta specs govern each skill.
+Run `lorecraft inspect` to see which specs govern each skill.
 
 **Change a requirement.** Edit the prose, then the JSON, then run the checks and fix what the change breaks in existing
 documents in the same change, or say why they are left.
 
-**Rename a group.** Rename the meta spec with the specs: a meta spec whose namespace matches nothing
+**Rename a group.** Rename the spec with the documents: a spec whose namespace matches nothing
 still loads, and governs nothing.
 
 ## 6. Verify
 
 ```bash
-lorecraft inspect   # loads every meta spec; exit 2 names a file that cannot be loaded
-lorecraft check     # applies them to every document; exit 1 reports a meta spec that cannot be loaded; exit 2 is invalid input or an unlistable root
+lorecraft inspect   # loads every spec; exit 2 names a file that cannot be loaded
+lorecraft check     # applies them to every document; exit 1 reports a spec that cannot be loaded; exit 2 is invalid input or an unlistable root
 ```
 
-Check in the tree that each spec shows the meta spec names you meant, then run `/docs-rules-check` for
+Check in the tree that each document shows the spec names you meant, then run `/docs-rules-check` for
 the review pass: prose against JSON, resolution, and the documents the change breaks.

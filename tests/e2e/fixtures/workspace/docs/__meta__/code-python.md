@@ -2,4 +2,4 @@
 
 ## References
 
-- [code](code.md) - Extends: Base code corpus meta spec
+- [code](code.md) - Extends: Base code corpus spec

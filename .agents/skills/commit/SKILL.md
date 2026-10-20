@@ -364,7 +364,7 @@ A change to modules directly in `src/lorecraft/` scopes to `lorecraft`.
 | Scope | Covers |
 |---|---|
 | `docs(code)` | code rules under `docs/code/` |
-| `docs(meta)` | meta specs under `docs/__meta__/` |
+| `docs(meta)` | specs under `docs/__meta__/` |
 | `docs(feat)` | feat docs under `docs/feat/` |
 | `docs` | documentation outside those named corpora when a narrower scope adds useful information |
 | `skills` | `skills/`, `.agents/skills/`, and the `.claude/skills` symlink |

@@ -107,4 +107,4 @@ class TestMutualLink:
         assert children == (
             Help('keep the link in the document that builds on the other, and remove it from `a.md` or here'),
             Note('documents of two corpora link one way: the one that builds on the other links it'),
-        ), 'the fix leads, as no meta spec does, and the note states the direction after it'
+        ), 'the fix leads, as no spec does, and the note states the direction after it'

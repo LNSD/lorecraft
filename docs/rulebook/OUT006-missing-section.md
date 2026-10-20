@@ -18,7 +18,7 @@ end of the document when no section follows. The entry's `description` is shown 
 
 Only the first place a document stops following its outline is reported, since every section after it is
 compared with an entry it was never meant to match; a section that is only written further down is out of
-order, not missing. A document that more than one meta spec governs, such as a corpus and a namespace,
+order, not missing. A document that more than one spec governs, such as a corpus and a namespace,
 must follow each outline, and is reported once for each it breaks.
 
 ## Why is this bad?

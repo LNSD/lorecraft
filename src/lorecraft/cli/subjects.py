@@ -1,9 +1,9 @@
 """Choose the subjects a run of the rules engine checks: the whole workspace one revision holds.
 
-A subject is a document, a meta specification, a skill, a resource of a skill, a refused skill alias, or a layout
+A subject is a document, a spec, a skill, a resource of a skill, a refused skill alias, or a layout
 entry: a symlink of the skill layout whose chain leaves the repository, or a directory under `docs/` named like a
 reserved corpus. The workspace is every one of them the model or a skill's resource listing gives: each document, each
-meta specification, each skill whole, which is its `SKILL.md`, every resource and refused alias, every symlink that
+spec, each skill whole, which is its `SKILL.md`, every resource and refused alias, every symlink that
 leads outside and every such directory. The subjects are sorted by the path each is reported at, so a run reports the
 same revision in the same order however the model or a listing orders them.
 """
@@ -26,7 +26,7 @@ def select_workspace(database: Database) -> tuple[CheckedSubject, ...]:
     model's symlinks are the skills directories, entries and `SKILL.md` files, never one inside a skill.
 
     Args:
-        database: The revision whose model lists the documents, the meta specifications, the skills, the symlinks
+        database: The revision whose model lists the documents, the specs, the skills, the symlinks
             leading outside and the reserved-corpus directories, and whose resource listing of each skill gives its
             resources, aliases and symlinks inside it.
     """

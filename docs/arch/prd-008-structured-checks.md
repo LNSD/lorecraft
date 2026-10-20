@@ -154,7 +154,7 @@ Scenario: A sample rule
   kebab-case name.
 - **FR-010:** THE SYSTEM SHALL show a diagnostic's code in the text and in the machine-readable output.
 - **FR-011:** THE SYSTEM SHALL keep the same set of codes whatever corpora a repository declares, the corpus,
-  the field and the governing meta spec travelling as data of the diagnostic.
+  the field and the governing spec travelling as data of the diagnostic.
 - **FR-012:** THE SYSTEM SHALL give one code to each condition a rule reports.
 - **FR-013:** THE SYSTEM SHALL name each prefix after the mechanism that states its rules, never after a
   document, a skill or a resource.
@@ -163,10 +163,10 @@ Scenario: A sample rule
   and the code that replaces it.
 - **FR-016:** THE SYSTEM SHALL report every subject kind in one shape, presented per file.
 - **FR-017:** THE SYSTEM SHALL report each diagnostic with its code, severity, location, message, notes and the
-  meta spec it comes from.
+  spec it comes from.
 - **FR-018:** THE SYSTEM SHALL order a report by file path, then by location, then by severity, then by code,
   then by message.
-- **FR-019:** THE SYSTEM SHALL report a subject no meta spec governs as coverage, not as a diagnostic.
+- **FR-019:** THE SYSTEM SHALL report a subject no spec governs as coverage, not as a diagnostic.
 - **FR-020:** IF a file cannot be decoded, THEN THE SYSTEM SHALL report one diagnostic for it, under a fixed
   code, and fail the run whatever the configuration.
 - **FR-021:** WHERE the user asks for machine-readable output, THE SYSTEM SHALL write one document holding the
@@ -210,7 +210,7 @@ Scenario: A sample rule
 - **Level:** How a rule is configured: `allow` hides its diagnostics, `warn` reports them as warnings, `deny`
   reports them as errors, which fail the run.
 - **Diagnostic:** One rule's occurrence at a location in a subject, reported as an error or a warning.
-- **Coverage:** Which subjects were checked, and which no meta spec governs.
+- **Coverage:** Which subjects were checked, and which no spec governs.
 - **Revision:** The workspace as it stands at one moment; a change produces the next one.
 
 ## Success Criteria
@@ -229,7 +229,7 @@ Scenario: A sample rule
 - A user of today's checks accepts changed output and commands, given a documented migration.
 - The rules of later milestones read inputs of the kinds the ported rules already read, or add one new kind
   at a time.
-- A meta spec's layers reach a rule by conjunction: each governing meta spec applies on its own, and a rule
+- A spec's layers reach a rule by conjunction: each governing spec applies on its own, and a rule
   reports each one a subject breaks.
 
 ## References

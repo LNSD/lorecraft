@@ -32,14 +32,14 @@ class ReservedCorpusOverlap(QueriedCorpusDirectoryRule[CorpusName]):
     ## What it does
 
     Checks for a directory directly under `docs/` named like a reserved corpus, such as `docs/skills/` beside a
-    `skills` meta spec. The `skills` corpus has no directory: its documents are the skills of the agents' skills
-    directories, governed by the `skills` and `skills-<namespace>` meta specs of `docs/__meta__/`. The directory is
+    `skills` spec. The `skills` corpus has no directory: its documents are the skills of the agents' skills
+    directories, governed by the `skills` and `skills-<namespace>` specs of `docs/__meta__/`. The directory is
     reported once, at its path, and ignored: none of the documents inside it is checked. The package states the rule;
-    no meta spec sets or changes it.
+    no spec sets or changes it.
 
     ## Why is this bad?
 
-    The documents in the directory look governed, since a meta spec carries their corpus name, yet no rule is run
+    The documents in the directory look governed, since a spec carries their corpus name, yet no rule is run
     over them, so a violation there goes unreported.
 
     ## Example
@@ -48,7 +48,7 @@ class ReservedCorpusOverlap(QueriedCorpusDirectoryRule[CorpusName]):
 
     ## Use instead
 
-    Move the documents to a corpus with another name, such as `docs/guides/`, and give that corpus a meta spec:
+    Move the documents to a corpus with another name, such as `docs/guides/`, and give that corpus a spec:
 
     ```console
     $ mv docs/skills docs/guides

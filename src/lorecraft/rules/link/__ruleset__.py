@@ -1,7 +1,7 @@
-"""What the `LINK` group's rules share: the group, and the note naming the meta spec that reads a skill's links.
+"""What the `LINK` group's rules share: the group, and the note naming the spec that reads a skill's links.
 
 A relative link in a skill's file is read from the skill root, not from the file's own directory, as the Agent Skills
-meta spec has it. The Agent Skills specification is no file in the repository: the package states it. The rules
+spec has it. The Agent Skills specification is no file in the repository: the package states it. The rules
 that depend on it, the ones over where a link leads, say so through `SKILL_NOTE`.
 """
 
@@ -17,7 +17,7 @@ its resources."""
 
 
 SKILL_NOTE: Final[Note] = Note("the Agent Skills specification reads a skill's relative links from the skill root")
-"""The note naming the meta spec that has a skill's relative links read from the skill root."""
+"""The note naming the spec that has a skill's relative links read from the skill root."""
 
 
 class SyntaxLinkResolutionPrimitives(SyntaxPrimitives, LinkResolutionPrimitives, Protocol):

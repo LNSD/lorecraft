@@ -10,12 +10,12 @@ from lorecraft.vfs import ResolvedPath
 
 @dataclass(frozen=True, slots=True)
 class DocumentFrontmatterOwner:
-    """A document or meta specification whose frontmatter a schema governs, and where it is governed.
+    """A document or spec whose frontmatter a schema governs, and where it is governed.
 
     Attributes:
         filename: The listed name, without its extension, which its frontmatter `name` must equal. A document has
-            an aspect filename; a meta specification has its typed specification name.
-        spec: The structure specification of the document or meta specification's corpus, whose frontmatter schema
+            an aspect filename; a spec has its typed specification name.
+        spec: The structure specification of the document or spec's corpus, whose frontmatter schema
             makes the item governed for its frontmatter. A namespace's schema only narrows the corpus's, so this one
             file is always the specification that states every rule over the block.
     """

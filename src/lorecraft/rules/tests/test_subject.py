@@ -12,7 +12,7 @@ from lorecraft.rules.length.too_many_lines import TooManyLines
 from lorecraft.rules.length.too_many_tokens import TooManyTokens
 from lorecraft.rules.link.broken_link import BrokenLink
 from lorecraft.rules.registry import Registry
-from lorecraft.rules.subject import Always, MetaSpecPart, QueriedItemRule, WhenMetaSpec
+from lorecraft.rules.subject import Always, QueriedItemRule, SpecPart, WhenSpec
 
 
 @pytest.mark.unit
@@ -29,7 +29,7 @@ class TestGates:
         assert all(rule.APPLIES_TO for rule in item_rules), 'each registered item rule declares at least one gate'
         assert all(set(rule.APPLIES_TO) <= set(ItemType) for rule in item_rules), 'each gate names a known item type'
 
-    def test_meta_spec_rule_gate_matches_its_document_gate(self) -> None:
+    def test_spec_rule_gate_matches_its_document_gate(self) -> None:
         #: Given
         registered_rules = Registry.load(rules).rules
         document_rules = tuple(
@@ -40,33 +40,33 @@ class TestGates:
 
         #: When
         gate_pairs = tuple(
-            (rule.APPLIES_TO.get(ItemType.META_SPEC), rule.APPLIES_TO[ItemType.DOCUMENT]) for rule in document_rules
+            (rule.APPLIES_TO.get(ItemType.SPEC), rule.APPLIES_TO[ItemType.DOCUMENT]) for rule in document_rules
         )
 
         #: Then
         assert all(meta_gate == document_gate for meta_gate, document_gate in gate_pairs), (
-            'each rule judges meta specs under the same gate as documents'
+            'each rule judges specs under the same gate as documents'
         )
 
-    def test_document_rule_with_budget_part_uses_meta_spec_gate(self) -> None:
+    def test_document_rule_with_budget_part_uses_spec_gate(self) -> None:
         #: Given
         rule = TooManyTokens
-        expected = WhenMetaSpec(MetaSpecPart.BUDGET)
+        expected = WhenSpec(SpecPart.BUDGET)
 
         #: When
         gate = rule.APPLIES_TO[ItemType.DOCUMENT]
 
         #: Then
-        assert gate == expected, 'the document budget rule requires its declared meta spec part'
+        assert gate == expected, 'the document budget rule requires its declared spec part'
 
-    def test_document_and_skill_rule_with_budget_part_uses_both_meta_spec_gates(self) -> None:
+    def test_document_and_skill_rule_with_budget_part_uses_both_spec_gates(self) -> None:
         #: Given
         rule = TooManyTokens
         expected = MappingProxyType(
             {
-                ItemType.DOCUMENT: WhenMetaSpec(MetaSpecPart.BUDGET),
-                ItemType.META_SPEC: WhenMetaSpec(MetaSpecPart.BUDGET),
-                ItemType.SKILL_ENTRYPOINT: WhenMetaSpec(MetaSpecPart.BUDGET),
+                ItemType.DOCUMENT: WhenSpec(SpecPart.BUDGET),
+                ItemType.SPEC: WhenSpec(SpecPart.BUDGET),
+                ItemType.SKILL_ENTRYPOINT: WhenSpec(SpecPart.BUDGET),
             }
         )
 
@@ -74,7 +74,7 @@ class TestGates:
         gates = rule.APPLIES_TO
 
         #: Then
-        assert gates == expected, 'the shared budget rule requires its meta spec part and loaded layer for skills'
+        assert gates == expected, 'the shared budget rule requires its spec part and loaded layer for skills'
 
     def test_markdown_rule_with_item_types_uses_spec_and_always_gates(self) -> None:
         #: Given
@@ -82,7 +82,7 @@ class TestGates:
         expected = MappingProxyType(
             {
                 ItemType.DOCUMENT: Always(),
-                ItemType.META_SPEC: Always(),
+                ItemType.SPEC: Always(),
                 ItemType.SKILL_ENTRYPOINT: Always(),
                 ItemType.SKILL_RESOURCE: Always(),
             }
@@ -97,18 +97,18 @@ class TestGates:
     def test_frontmatter_rule_with_skill_entry_uses_frontmatter_part(self) -> None:
         #: Given
         rule = DuplicateKey
-        expected = WhenMetaSpec(MetaSpecPart.FRONTMATTER)
+        expected = WhenSpec(SpecPart.FRONTMATTER)
 
         #: When
         gate = rule.APPLIES_TO[ItemType.SKILL_ENTRYPOINT]
 
         #: Then
-        assert gate == expected, 'skill frontmatter rules follow the active frontmatter meta spec part'
+        assert gate == expected, 'skill frontmatter rules follow the active frontmatter spec part'
 
     def test_name_mismatch_with_skill_entry_uses_frontmatter_part(self) -> None:
         #: Given
         rule = NameMismatch
-        expected = WhenMetaSpec(MetaSpecPart.FRONTMATTER)
+        expected = WhenSpec(SpecPart.FRONTMATTER)
 
         #: When
         gate = rule.APPLIES_TO[ItemType.SKILL_ENTRYPOINT]

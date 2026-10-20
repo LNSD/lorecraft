@@ -13,7 +13,7 @@ from lorecraft.project.query import ItemPrimitives, ItemQuery, item_corpus
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Note, Subdiagnostic
-from lorecraft.rules.subject import Gate, MetaSpecPart, QueriedItemRule, WhenMetaSpec
+from lorecraft.rules.subject import Gate, QueriedItemRule, SpecPart, WhenSpec
 
 from .__ruleset__ import GROUP_ID
 from .queries import linked_documents
@@ -53,7 +53,7 @@ class MutualLink(QueriedItemRule[MutualLinkFacts]):
     Checks for a link from a document to a document of another corpus, `docs/<corpus>/<name>.md`, that links back to
     it. Both documents are reported, each on its own link, so either side sees the finding. A link to a document of
     the same corpus, to a file that is no document, to a missing file or to the document itself is not reported. No
-    meta spec key states the rule: every document of a corpus that states a structure file is held to it.
+    spec key states the rule: every document of a corpus that states a structure file is held to it.
 
     ## Why is this bad?
 
@@ -100,8 +100,8 @@ class MutualLink(QueriedItemRule[MutualLinkFacts]):
     SINCE: ClassVar[Release] = Release('0.4.0')
     APPLIES_TO: ClassVar[Mapping[ItemType, Gate]] = MappingProxyType(
         {
-            ItemType.DOCUMENT: WhenMetaSpec(MetaSpecPart.STRUCTURE),
-            ItemType.META_SPEC: WhenMetaSpec(MetaSpecPart.STRUCTURE),
+            ItemType.DOCUMENT: WhenSpec(SpecPart.STRUCTURE),
+            ItemType.SPEC: WhenSpec(SpecPart.STRUCTURE),
         }
     )
 
@@ -115,7 +115,7 @@ class MutualLink(QueriedItemRule[MutualLinkFacts]):
         return f'`{unquote(self.url)}` leads to `{self.corpus}/{self.filename}`, which links back to this document'
 
     def children(self) -> tuple[Subdiagnostic, ...]:
-        """Say what to do first, as no meta spec leads, then that documents of two corpora link one way."""
+        """Say what to do first, as no spec leads, then that documents of two corpora link one way."""
         return (
             Help(
                 f'keep the link in the document that builds on the other, and remove it from `{self.filename}` or here'

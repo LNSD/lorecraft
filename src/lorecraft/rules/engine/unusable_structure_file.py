@@ -155,7 +155,7 @@ class UnusableStructureFile(FileCondition):
     twice, a forbidden section the outline names, two `any` runs side by side, a title pattern that does not compile,
     or a frontmatter schema that is invalid, carries `$id`, names another dialect, holds a `$ref` that does not
     resolve inside it or that leads back to itself with no keyword in between, or states no object type. Such a file
-    is reported once, at the file, and every document its meta spec governs is listed as skipped in coverage, with no
+    is reported once, at the file, and every document its spec governs is listed as skipped in coverage, with no
     rule run over it: a document that was not checked is never reported as clean. Every document the file does not
     govern is checked as if the file were fixed.
 

@@ -19,7 +19,7 @@ from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Here, Label, Note, Subdiagnostic
 from lorecraft.rules.overrun import Overrun, find_overrun
-from lorecraft.rules.subject import Gate, MetaSpecPart, QueriedItemRule, WhenMetaSpec
+from lorecraft.rules.subject import Gate, QueriedItemRule, SpecPart, WhenSpec
 
 from .__ruleset__ import GROUP_ID, spec_note
 
@@ -73,7 +73,7 @@ class SectionTooManyWords(QueriedItemRule[tuple[OutlineAlignmentSpec, ...]]):
     falls in. The cap covers the section's subsections too. Only prose counts: fenced code blocks, table rows and
     headings do not.
 
-    A document that more than one meta spec governs, such as a corpus and a namespace, must keep each section
+    A document that more than one spec governs, such as a corpus and a namespace, must keep each section
     within every cap they set, and is reported once for each cap a section exceeds.
 
     ## Why is this bad?
@@ -130,9 +130,9 @@ class SectionTooManyWords(QueriedItemRule[tuple[OutlineAlignmentSpec, ...]]):
     SINCE: ClassVar[Release] = Release('0.3.0')
     APPLIES_TO: ClassVar[Mapping[ItemType, Gate]] = MappingProxyType(
         {
-            ItemType.DOCUMENT: WhenMetaSpec(MetaSpecPart.STRUCTURE),
-            ItemType.META_SPEC: WhenMetaSpec(MetaSpecPart.STRUCTURE),
-            ItemType.SKILL_ENTRYPOINT: WhenMetaSpec(MetaSpecPart.STRUCTURE),
+            ItemType.DOCUMENT: WhenSpec(SpecPart.STRUCTURE),
+            ItemType.SPEC: WhenSpec(SpecPart.STRUCTURE),
+            ItemType.SKILL_ENTRYPOINT: WhenSpec(SpecPart.STRUCTURE),
         }
     )
 
@@ -156,7 +156,7 @@ class SectionTooManyWords(QueriedItemRule[tuple[OutlineAlignmentSpec, ...]]):
         )
 
     def children(self) -> tuple[Subdiagnostic, ...]:
-        """Point at the meta spec that sets the cap, say how to shorten the section, and whose cap it is."""
+        """Point at the spec that sets the cap, say how to shorten the section, and whose cap it is."""
         return (spec_note(self.spec), _SPLIT_HELP, _cap_source_note(self.cap_source, self.section))
 
     @classmethod
@@ -168,7 +168,7 @@ class SectionTooManyWords(QueriedItemRule[tuple[OutlineAlignmentSpec, ...]]):
     def judge(cls, facts: tuple[OutlineAlignmentSpec, ...], /) -> tuple[Self, ...]:
         """One occurrence, at its heading, for each section over each cap that applies to it.
 
-        The meta specs are taken in the order they apply, and the sections of each in document order. A section
+        The specs are taken in the order they apply, and the sections of each in document order. A section
         takes the cap of the outline entry it is aligned to, which may be none; one aligned to nothing has no cap.
 
         Args:

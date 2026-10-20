@@ -19,16 +19,16 @@ from lorecraft.project.corpus import CorpusName
 from lorecraft.project.document import (
     DocumentRef,
     InvalidSpecificationNameError,
-    MetaSpecRef,
     MisplacedSpecificationError,
+    SpecRef,
 )
 from lorecraft.project.item import (
     DocumentOrigin,
     ItemRef,
     ItemType,
-    MetaSpecOrigin,
-    MetaSpecPart,
     SkillEntrypointOrigin,
+    SpecOrigin,
+    SpecPart,
 )
 from lorecraft.project.layout import SPECS_DIR
 from lorecraft.project.link_target import DocumentDirectory, SkillRoot
@@ -966,7 +966,7 @@ class TestWorkspaceModel:
         assert descriptor.frontmatter_schema_refs == (SchemaRef(SchemaKind.FRONTMATTER, 'code'),), (
             'the descriptor retains the loader identity used for frontmatter governance and diagnostics'
         )
-        assert descriptor.governed_parts == frozenset({MetaSpecPart.FRONTMATTER, MetaSpecPart.STRUCTURE}), (
+        assert descriptor.governed_parts == frozenset({SpecPart.FRONTMATTER, SpecPart.STRUCTURE}), (
             'a corpus structure specification activates structure and its frontmatter alongside Markdown checks'
         )
 
@@ -988,7 +988,7 @@ class TestWorkspaceModel:
         descriptor = model.describe_item(_ref('code', 'logging'))
 
         #: Then
-        assert MetaSpecPart.BUDGET in descriptor.governed_parts, 'a declared line cap governs the budget part'
+        assert SpecPart.BUDGET in descriptor.governed_parts, 'a declared line cap governs the budget part'
 
     def test_describe_item_for_a_layered_document_keeps_every_schema_in_order(self) -> None:
         #: Given
@@ -1306,8 +1306,8 @@ class TestDocumentRef:
         )
 
 
-def _spec_ref(name: str) -> MetaSpecRef:
-    return MetaSpecRef(SPECS_DIR / PathComponent.parse(f'{name}.md'))
+def _spec_ref(name: str) -> SpecRef:
+    return SpecRef(SPECS_DIR / PathComponent.parse(f'{name}.md'))
 
 
 @pytest.mark.unit
@@ -1468,7 +1468,7 @@ class TestSpecifications:
     def test_spec_ref_outside_the_meta_directory_raises_misplaced_specification_error(self) -> None:
         #: When
         with pytest.raises(MisplacedSpecificationError) as exc_info:
-            MetaSpecRef(RootRelativePath.parse('docs/code/logging.md'))
+            SpecRef(RootRelativePath.parse('docs/code/logging.md'))
 
         #: Then
         assert exc_info.value.path == RootRelativePath.parse('docs/code/logging.md'), 'the error names the path refused'
@@ -1476,7 +1476,7 @@ class TestSpecifications:
     def test_spec_ref_with_a_readme_raises_invalid_specification_name_error(self) -> None:
         #: When
         with pytest.raises(InvalidSpecificationNameError) as exc_info:
-            MetaSpecRef(SPECS_DIR / PathComponent.parse('README.md'))
+            SpecRef(SPECS_DIR / PathComponent.parse('README.md'))
 
         #: Then
         assert exc_info.value.path == SPECS_DIR / PathComponent.parse('README.md'), (
@@ -1486,7 +1486,7 @@ class TestSpecifications:
     def test_spec_ref_with_a_dotted_name_raises_invalid_specification_name_error(self) -> None:
         #: When
         with pytest.raises(InvalidSpecificationNameError) as exc_info:
-            MetaSpecRef(SPECS_DIR / PathComponent.parse('code.bad.md'))
+            SpecRef(SPECS_DIR / PathComponent.parse('code.bad.md'))
 
         #: Then
         assert 'code.bad.md' in str(exc_info.value), (
@@ -1496,7 +1496,7 @@ class TestSpecifications:
     def test_spec_ref_with_a_trailing_hyphen_raises_invalid_specification_name_error(self) -> None:
         #: When
         with pytest.raises(InvalidSpecificationNameError) as exc_info:
-            MetaSpecRef(SPECS_DIR / PathComponent.parse('code-.md'))
+            SpecRef(SPECS_DIR / PathComponent.parse('code-.md'))
 
         #: Then
         assert exc_info.value.path == SPECS_DIR / PathComponent.parse('code-.md'), (
@@ -1506,7 +1506,7 @@ class TestSpecifications:
     def test_spec_ref_with_an_uppercase_namespace_raises_invalid_specification_name_error(self) -> None:
         #: When
         with pytest.raises(InvalidSpecificationNameError) as exc_info:
-            MetaSpecRef(SPECS_DIR / PathComponent.parse('code-Upper.md'))
+            SpecRef(SPECS_DIR / PathComponent.parse('code-Upper.md'))
 
         #: Then
         assert 'code-Upper.md' in str(exc_info.value), (
@@ -1523,9 +1523,9 @@ class TestSpecifications:
         descriptor = two_corpora_model.describe_item(ref)
 
         #: Then
-        assert descriptor.type is ItemType.META_SPEC, 'the origin makes it a specification'
-        assert descriptor.type.value == 'meta-spec', 'the serialized item type uses the glossary name'
-        assert descriptor.origin == MetaSpecOrigin('feat'), 'the origin records the specification subject category'
+        assert descriptor.type is ItemType.SPEC, 'the origin makes it a specification'
+        assert descriptor.type.value == 'spec', 'the serialized item type uses the glossary name'
+        assert descriptor.origin == SpecOrigin('feat'), 'the origin records the specification subject category'
         assert descriptor.ref == ItemRef(ref.path), 'the logical ref is also the report path'
         assert descriptor.read_location == ResolvedPath(ref.path), 'the file is read where it is listed'
         assert descriptor.link_base == DocumentDirectory(SPECS_DIR), 'links are read from docs/__meta__'
@@ -1551,15 +1551,15 @@ class TestSpecifications:
         resolved = model.resolve_item(ref)
 
         #: Then
-        assert resolved.governance is not None, 'the reserved meta corpus governs meta specs'
+        assert resolved.governance is not None, 'the reserved meta corpus governs specs'
         assert tuple(str(spec.name) for spec in resolved.governance.specs()) == ('meta', 'meta-feat'), (
             'the corpus and matching namespace layers apply broad to narrow'
         )
         assert resolved.descriptor.corpus == CorpusName.parse('meta'), 'the descriptor records the governing corpus'
-        assert resolved.descriptor.governed_parts == frozenset({MetaSpecPart.FRONTMATTER, MetaSpecPart.STRUCTURE}), (
+        assert resolved.descriptor.governed_parts == frozenset({SpecPart.FRONTMATTER, SpecPart.STRUCTURE}), (
             'the shared governed-parts function resolves the layers active parts'
         )
-        assert resolved.descriptor.origin == MetaSpecOrigin('feat'), 'origin records the spec subject category'
+        assert resolved.descriptor.origin == SpecOrigin('feat'), 'origin records the spec subject category'
 
     def test_find_item_with_a_listed_specification_returns_its_descriptor(
         self, two_corpora_model: WorkspaceModel

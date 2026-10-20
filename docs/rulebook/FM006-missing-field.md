@@ -13,7 +13,7 @@ A frontmatter lacks a field its schema requires.
 
 Checks for documents whose frontmatter lacks a field the `required` list of their structure file's
 `frontmatter` schema names, and for skills whose frontmatter lacks a field the Agent Skills specification
-requires, `name` or `description`. A document that several meta specs govern, such as a corpus and a
+requires, `name` or `description`. A document that several specs govern, such as a corpus and a
 namespace, is held to each schema they state, and is reported once for each schema that requires the field.
 
 What the schema states about the field is shown as the help to write it: its `description`, the values its

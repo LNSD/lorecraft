@@ -12,10 +12,10 @@ A document a structure file governs carries no H1 title.
 ## What it does
 
 Checks for documents with no `#` H1 heading. Every document a structure file governs is held to it,
-with no key to state it: the meta spec need not mention the title at all. Only a heading at the top level
+with no key to state it: the spec need not mention the title at all. Only a heading at the top level
 of the document counts: one inside a list or a blockquote does not.
 
-A document that more than one meta spec governs, such as a corpus and a namespace, is reported once.
+A document that more than one spec governs, such as a corpus and a namespace, is reported once.
 
 ## Why is this bad?
 

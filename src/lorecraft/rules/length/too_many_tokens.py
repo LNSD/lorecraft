@@ -20,7 +20,7 @@ from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Here, Label, Note, Subdiagnostic
 from lorecraft.rules.overrun import Overrun, find_overrun
-from lorecraft.rules.subject import Gate, MetaSpecPart, QueriedItemRule, WhenMetaSpec
+from lorecraft.rules.subject import Gate, QueriedItemRule, SpecPart, WhenSpec
 
 from .__ruleset__ import GROUP_ID, spec_note
 
@@ -82,7 +82,7 @@ class TooManyTokens(QueriedItemRule[TokenFacts]):
     Checks for documents longer than the token budget their structure file sets with its `tokens` key.
     The whole file counts: frontmatter, code blocks and tables as much as prose.
 
-    A document that more than one meta spec governs, such as a corpus and a namespace, must fit every budget
+    A document that more than one spec governs, such as a corpus and a namespace, must fit every budget
     they set, and is reported once for each budget it exceeds.
 
     ## Why is this bad?
@@ -129,7 +129,7 @@ class TooManyTokens(QueriedItemRule[TokenFacts]):
     ```
 
     Attributes:
-        spec: The structure file that sets the exceeded budget; never `None`, since a meta spec sets
+        spec: The structure file that sets the exceeded budget; never `None`, since a spec sets
             every budget.
         overrun: The tokens in the document's whole file against the budget they exceed.
     """
@@ -140,9 +140,9 @@ class TooManyTokens(QueriedItemRule[TokenFacts]):
     SINCE: ClassVar[Release] = Release('0.3.0')
     APPLIES_TO: ClassVar[Mapping[ItemType, Gate]] = MappingProxyType(
         {
-            ItemType.DOCUMENT: WhenMetaSpec(MetaSpecPart.BUDGET),
-            ItemType.META_SPEC: WhenMetaSpec(MetaSpecPart.BUDGET),
-            ItemType.SKILL_ENTRYPOINT: WhenMetaSpec(MetaSpecPart.BUDGET),
+            ItemType.DOCUMENT: WhenSpec(SpecPart.BUDGET),
+            ItemType.SPEC: WhenSpec(SpecPart.BUDGET),
+            ItemType.SKILL_ENTRYPOINT: WhenSpec(SpecPart.BUDGET),
         }
     )
 
@@ -158,7 +158,7 @@ class TooManyTokens(QueriedItemRule[TokenFacts]):
         return (Label(Here(self.line), f'tokens over the budget: {self.overrun.excess}'),)
 
     def children(self) -> tuple[Subdiagnostic, ...]:
-        """Point at the meta spec that sets the budget, say how to cut tokens, and how they are counted."""
+        """Point at the spec that sets the budget, say how to cut tokens, and how they are counted."""
         return (
             spec_note(self.spec),
             Help(
@@ -175,9 +175,9 @@ class TooManyTokens(QueriedItemRule[TokenFacts]):
 
     @classmethod
     def judge(cls, facts: TokenFacts, /) -> tuple[Self, ...]:
-        """One occurrence for each budget the document exceeds, in the order the meta specs apply.
+        """One occurrence for each budget the document exceeds, in the order the specs apply.
 
-        A meta spec that sets no budget holds the document to none.
+        A spec that sets no budget holds the document to none.
 
         Args:
             facts: The budgets that govern the document and the tokens in its whole file.

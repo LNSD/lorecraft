@@ -19,7 +19,7 @@ from lorecraft.project.schemas import (
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Here, Label, Subdiagnostic
-from lorecraft.rules.subject import Gate, MetaSpecPart, QueriedItemRule, WhenMetaSpec
+from lorecraft.rules.subject import Gate, QueriedItemRule, SpecPart, WhenSpec
 
 from .__ruleset__ import GROUP_ID, outline_divergences, spec_note
 
@@ -37,7 +37,7 @@ class SectionOutOfOrder(QueriedItemRule[tuple[OutlineDivergenceSpec, ...]]):
     outline matched, once nothing in the outline is left to place it.
 
     Only the first place a document stops following its outline is reported, since every section after it is
-    compared with an entry it was never meant to match. A document that more than one meta spec governs, such
+    compared with an entry it was never meant to match. A document that more than one spec governs, such
     as a corpus and a namespace, must follow each outline, and is reported once for each it breaks.
 
     ## Why is this bad?
@@ -103,9 +103,9 @@ class SectionOutOfOrder(QueriedItemRule[tuple[OutlineDivergenceSpec, ...]]):
     SINCE: ClassVar[Release] = Release('0.3.0')
     APPLIES_TO: ClassVar[Mapping[ItemType, Gate]] = MappingProxyType(
         {
-            ItemType.DOCUMENT: WhenMetaSpec(MetaSpecPart.OUTLINE),
-            ItemType.META_SPEC: WhenMetaSpec(MetaSpecPart.OUTLINE),
-            ItemType.SKILL_ENTRYPOINT: WhenMetaSpec(MetaSpecPart.OUTLINE),
+            ItemType.DOCUMENT: WhenSpec(SpecPart.OUTLINE),
+            ItemType.SPEC: WhenSpec(SpecPart.OUTLINE),
+            ItemType.SKILL_ENTRYPOINT: WhenSpec(SpecPart.OUTLINE),
         }
     )
 
@@ -139,9 +139,9 @@ class SectionOutOfOrder(QueriedItemRule[tuple[OutlineDivergenceSpec, ...]]):
                 assert_never(placement)
 
     def children(self) -> tuple[Subdiagnostic, ...]:
-        """Point at the meta spec whose outline sets the order, then say to move the section the outline expects.
+        """Point at the spec whose outline sets the order, then say to move the section the outline expects.
 
-        A section left over has none to move, so the meta spec note is all it gives.
+        A section left over has none to move, so the spec note is all it gives.
         """
         placement = self.placement
         match placement:

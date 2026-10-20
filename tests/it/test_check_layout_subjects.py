@@ -16,7 +16,7 @@ from lorecraft import rules
 from lorecraft.core.path import RootRelativePath
 from lorecraft.engine import CheckedSubject, check_subjects
 from lorecraft.project.database import Database
-from lorecraft.project.item import ItemRef, MetaSpecPart
+from lorecraft.project.item import ItemRef, SpecPart
 from lorecraft.project.layout import SNAPSHOT_SCOPE
 from lorecraft.project.skill import OutsideSymlinkRef
 from lorecraft.rules.identity import Severity
@@ -270,6 +270,6 @@ class TestCheckSubjectsLayout:
             CheckedItem(
                 ItemRef(RootRelativePath.parse('.agents/skills/review/SKILL.md')),
                 diagnostics=(),
-                ungoverned=(MetaSpecPart.STRUCTURE, MetaSpecPart.OUTLINE, MetaSpecPart.BUDGET),
+                ungoverned=(SpecPart.STRUCTURE, SpecPart.OUTLINE, SpecPart.BUDGET),
             ),
         ), 'a layout entry and a skill share one run, each reported in the order given'

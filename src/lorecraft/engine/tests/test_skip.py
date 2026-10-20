@@ -8,7 +8,7 @@ from lib.tree import from_tree
 from lorecraft import rules
 from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.project.database import Database, ItemText
-from lorecraft.project.item import ItemRef, MetaSpecPart
+from lorecraft.project.item import ItemRef, SpecPart
 from lorecraft.project.layout import SPECS_DIR
 from lorecraft.rules.registry import Registry
 from lorecraft.rules.report import CheckedItem, SkipCause, SkippedSubject, UndecodableSubject
@@ -42,7 +42,7 @@ STATES_NO_RULE: Final[bytes] = b'{}'
 
 
 def _database_with(files: dict[str, bytes], documents: dict[str, bytes]) -> Database:
-    """A database over corpus `code` holding the given meta spec files and documents.
+    """A database over corpus `code` holding the given spec files and documents.
 
     Args:
         files: The files of `docs/__meta__/`, by name.
@@ -170,7 +170,7 @@ class TestCheckSubjectsOverASkillEntry:
 
         #: Then
         assert isinstance(report, CheckedItem), 'the loaded skills layer lets `Always` checks run'
-        assert MetaSpecPart.STRUCTURE in report.ungoverned, 'no structure file means structure rules are ungoverned'
+        assert SpecPart.STRUCTURE in report.ungoverned, 'no structure file means structure rules are ungoverned'
 
     def test_check_subjects_with_a_failed_corpus_layer_still_judges_a_resource_for_markdown_checks_only(self) -> None:
         #: Given
@@ -217,11 +217,11 @@ class TestCheckSubjectsWithAFailedLayer:
         reports = check_subjects(database, [TYPING, LOGGING], table)
 
         #: Then
-        suppressed = (MetaSpecPart.FRONTMATTER, MetaSpecPart.STRUCTURE, MetaSpecPart.OUTLINE, MetaSpecPart.BUDGET)
+        suppressed = (SpecPart.FRONTMATTER, SpecPart.STRUCTURE, SpecPart.OUTLINE, SpecPart.BUDGET)
         assert reports == (
             CheckedItem(TYPING, diagnostics=(), ungoverned=suppressed),
             CheckedItem(LOGGING, diagnostics=(), ungoverned=suppressed),
-        ), 'enabled meta-spec parts are suppressed while package and schema checks remain eligible'
+        ), 'enabled spec parts are suppressed while package and schema checks remain eligible'
 
     def test_check_subjects_with_a_failed_namespace_spec_suppresses_only_the_document_it_governs(self) -> None:
         #: Given
@@ -241,7 +241,7 @@ class TestCheckSubjectsWithAFailedLayer:
         reports = check_subjects(database, [TYPING, LOGGING], table)
 
         #: Then
-        suppressed = (MetaSpecPart.FRONTMATTER, MetaSpecPart.STRUCTURE, MetaSpecPart.OUTLINE, MetaSpecPart.BUDGET)
+        suppressed = (SpecPart.FRONTMATTER, SpecPart.STRUCTURE, SpecPart.OUTLINE, SpecPart.BUDGET)
         assert reports == (
             CheckedItem(TYPING, diagnostics=typing_judged.diagnostics, ungoverned=suppressed),
             judged,
@@ -259,7 +259,7 @@ class TestCheckSubjectsWithAFailedLayer:
         reports = check_subjects(database, [TYPING], table)
 
         #: Then
-        suppressed = (MetaSpecPart.FRONTMATTER, MetaSpecPart.STRUCTURE, MetaSpecPart.OUTLINE, MetaSpecPart.BUDGET)
+        suppressed = (SpecPart.FRONTMATTER, SpecPart.STRUCTURE, SpecPart.OUTLINE, SpecPart.BUDGET)
         assert reports == (CheckedItem(TYPING, diagnostics=(), ungoverned=suppressed),), (
             'coverage lists the suppressed parts once, rather than layer paths'
         )
@@ -294,7 +294,7 @@ class TestCheckSubjectsWithAFailedLayer:
 
 
 CODE_SPECIFICATION: Final[ItemRef] = ItemRef(SPECS_DIR / PathComponent.parse('code.md'))
-"""The prose of the meta spec of corpus `code`."""
+"""The prose of the spec of corpus `code`."""
 
 
 @pytest.mark.unit
@@ -340,7 +340,7 @@ class TestCheckSubjectsOverASpecification:
 
         #: Then
         assert reports == (SkippedSubject(CODE_SPECIFICATION, (CODE_SPECIFICATION.path,), SkipCause.REFUSED_PATH),), (
-            'the engine uses the refused-path result for a meta spec, as for every other item type'
+            'the engine uses the refused-path result for a spec, as for every other item type'
         )
 
     def test_check_subjects_with_a_failed_layer_of_its_corpus_still_judges_the_specification(self) -> None:
@@ -351,4 +351,4 @@ class TestCheckSubjectsOverASpecification:
         (report,) = check_subjects(database, [CODE_SPECIFICATION], _all_rules())
 
         #: Then
-        assert isinstance(report, CheckedItem), 'failed corpus layers do not skip a meta spec'
+        assert isinstance(report, CheckedItem), 'failed corpus layers do not skip a spec'

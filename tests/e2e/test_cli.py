@@ -466,7 +466,7 @@ class TestCheckCommand:
         ('kind', 'target'),
         [
             ('document', 'docs/code/guide.md'),
-            ('meta spec', 'docs/__meta__/code.md'),
+            ('spec', 'docs/__meta__/code.md'),
             ('skill entrypoint', '.agents/skills/review/SKILL.md'),
             ('resource', '.agents/skills/review/references/guide.md'),
         ],
@@ -759,7 +759,7 @@ class TestCheckCommand:
 
         #: Then
         assert result.returncode == 1, result.stderr
-        assert result.stderr == expected, 'the partial check reports every suppressed meta-spec part in coverage'
+        assert result.stderr == expected, 'the partial check reports every suppressed spec part in coverage'
 
 
 @pytest.mark.e2e
@@ -932,7 +932,7 @@ class TestWorkspaceDefaults:
             'the one document written is the one checked, governed for every facet'
         )
 
-    def test_check_with_a_meta_spec_missing_a_required_field_fails(self, tmp_path: Path, faker: Faker) -> None:
+    def test_check_with_a_spec_missing_a_required_field_fails(self, tmp_path: Path, faker: Faker) -> None:
         #: Given
         meta_structure = {
             'frontmatter': {'type': 'object', 'required': ['required-field']},
@@ -949,9 +949,9 @@ class TestWorkspaceDefaults:
 
         #: Then
         assert result.returncode == 1, result.stderr
-        assert 'FM006' in result.stdout, 'the missing required frontmatter field is checked on a meta spec'
-        assert 'OUT006' in result.stdout, 'the required outline section is checked on a meta spec'
-        assert 'LEN001' in result.stdout, 'the token budget is checked on a meta spec'
+        assert 'FM006' in result.stdout, 'the missing required frontmatter field is checked on a spec'
+        assert 'OUT006' in result.stdout, 'the required outline section is checked on a spec'
+        assert 'LEN001' in result.stdout, 'the token budget is checked on a spec'
 
 
 @pytest.fixture(scope='function')

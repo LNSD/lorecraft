@@ -33,7 +33,7 @@ from lorecraft.rules.report import (
     SkippedSubject,
     UndecodableSubject,
 )
-from lorecraft.rules.subject import MetaSpecPart
+from lorecraft.rules.subject import SpecPart
 from lorecraft.vfs import ByteOffset, RootExit, Utf8Failure, Utf8Line, Utf8Reason
 
 from ..diagnostic_text import SourceLines, SourceText, TextStyle, render_text
@@ -107,7 +107,7 @@ def _every_kind_of_report() -> tuple[RunReport, ...]:
         CheckedItem(
             ItemRef(check.path),
             diagnostics=(RuleDiagnostic(check.path, missing_usage, Severity.ERROR),),
-            ungoverned=(MetaSpecPart.FRONTMATTER, MetaSpecPart.BUDGET),
+            ungoverned=(SpecPart.FRONTMATTER, SpecPart.BUDGET),
         ),
         CheckedLayoutEntry(OutsideSymlinkRef(review), diagnostics=(RuleDiagnostic(review, outside, Severity.ERROR),)),
         UndecodableSubject(ItemRef(_document('code', 'latin').path), _latin_failure()),
@@ -122,7 +122,7 @@ def _every_kind_of_report() -> tuple[RunReport, ...]:
         CheckedItem(
             ItemRef(_document('arch', 'adr').path),
             diagnostics=(),
-            ungoverned=(MetaSpecPart.STRUCTURE,),
+            ungoverned=(SpecPart.STRUCTURE,),
         ),
     )
 
@@ -680,7 +680,7 @@ class TestRenderJson:
         }, 'an empty run still writes every key'
 
 
-def _reports_of_a_failed_meta_spec() -> tuple[RunReport, ...]:
+def _reports_of_a_failed_spec() -> tuple[RunReport, ...]:
     """A run where the structure file of corpus `code` is malformed, handed over out of path order.
 
     - `docs/code/b.md` and `docs/code/a.md` have their structure-gated rules suppressed, since the corpus's structure
@@ -693,18 +693,18 @@ def _reports_of_a_failed_meta_spec() -> tuple[RunReport, ...]:
         CheckedItem(
             ItemRef(_document('code', 'b').path),
             diagnostics=(),
-            ungoverned=(MetaSpecPart.STRUCTURE, MetaSpecPart.OUTLINE),
+            ungoverned=(SpecPart.STRUCTURE, SpecPart.OUTLINE),
         ),
         LoadFailureReport(_CODE_SPEC, malformed),
         CheckedItem(
             ItemRef(_document('feat', 'check').path),
             diagnostics=(),
-            ungoverned=(MetaSpecPart.BUDGET,),
+            ungoverned=(SpecPart.BUDGET,),
         ),
         CheckedItem(
             ItemRef(_document('code', 'a').path),
             diagnostics=(),
-            ungoverned=(MetaSpecPart.STRUCTURE, MetaSpecPart.OUTLINE),
+            ungoverned=(SpecPart.STRUCTURE, SpecPart.OUTLINE),
         ),
     )
 
@@ -713,7 +713,7 @@ def _reports_of_a_failed_meta_spec() -> tuple[RunReport, ...]:
 class TestRenderLoadFailures:
     def test_render_coverage_with_failed_layer_lists_suppressed_parts_in_path_order(self) -> None:
         #: Given
-        reports = _reports_of_a_failed_meta_spec()
+        reports = _reports_of_a_failed_spec()
 
         #: When
         text = render_coverage(reports)
@@ -742,7 +742,7 @@ class TestRenderLoadFailures:
 
     def test_render_summary_with_a_load_failure_counts_its_error_and_no_subject_for_it(self) -> None:
         #: Given
-        reports = _reports_of_a_failed_meta_spec()
+        reports = _reports_of_a_failed_spec()
 
         #: When
         text = render_summary(reports)
@@ -754,7 +754,7 @@ class TestRenderLoadFailures:
 
     def test_render_short_with_a_load_failure_prints_one_line_at_its_path(self) -> None:
         #: Given
-        reports = _reports_of_a_failed_meta_spec()
+        reports = _reports_of_a_failed_spec()
 
         #: When
         text = render_short(reports)
@@ -766,7 +766,7 @@ class TestRenderLoadFailures:
 
     def test_render_prefix_summary_with_a_load_failure_counts_it_under_the_engine_group(self) -> None:
         #: Given
-        reports = _reports_of_a_failed_meta_spec()
+        reports = _reports_of_a_failed_spec()
 
         #: When
         text = render_prefix_summary(reports)
@@ -776,7 +776,7 @@ class TestRenderLoadFailures:
 
     def test_render_text_with_a_load_failure_draws_it_at_the_structure_file_with_its_notes(self) -> None:
         #: Given
-        reports = _reports_of_a_failed_meta_spec()
+        reports = _reports_of_a_failed_spec()
 
         #: When
         text = render_text(reports, {}, _PLAIN)
@@ -791,7 +791,7 @@ class TestRenderLoadFailures:
 
     def test_render_json_with_failed_layers_lists_suppressed_parts_in_coverage(self) -> None:
         #: Given
-        reports = _reports_of_a_failed_meta_spec()
+        reports = _reports_of_a_failed_spec()
 
         #: When
         text = render_json(reports)

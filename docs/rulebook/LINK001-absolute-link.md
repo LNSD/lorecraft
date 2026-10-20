@@ -13,7 +13,7 @@ A link in a Markdown file starts at a filesystem root.
 
 Checks for links and images whose destination starts with `/`, as written or once percent-decoded, so
 `%2Fetc/x.md` is reported too, in every Markdown file the checks read: every document, a skill's `SKILL.md`
-and each Markdown file inside the skill. No meta spec key states the rule: every such file is held to it.
+and each Markdown file inside the skill. No spec key states the rule: every such file is held to it.
 
 A URL with a scheme, such as `https://example.com/setup`, does not start with `/`, and neither does a link to a
 heading of the same file, such as `#usage`, so neither is reported.

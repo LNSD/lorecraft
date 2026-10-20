@@ -7,11 +7,11 @@ allowed-tools: Bash(grep *) Bash(ls docs/*)
 
 # Code Rules
 
-A repository that uses Lorecraft keeps its code rules (also called code specs), the conventions for how its code
-is written, as a corpus in `docs/code/`, one convention or topic per spec. This skill loads only their frontmatter, and you
+A repository that uses Lorecraft keeps its code rules (also called code rules), the conventions for how its code
+is written, as a corpus in `docs/code/`, one convention or topic per code rule. This skill loads only their frontmatter, and you
 choose what to read from it. Selecting well is the whole job: read what the task needs, nothing more.
 
-If `docs/code/` does not exist, say so: the repository has no code rules to load. Its corpus meta spec, if one
+If `docs/code/` does not exist, say so: the repository has no code rules to load. Its corpus spec, if one
 exists, is `docs/__meta__/code.md`; `/docs-rules-creator` sets one up.
 
 ## 1. The catalog
@@ -30,7 +30,7 @@ a code rule does: it states how the code is built. List them too, and treat only
 grep -m 4 -E '^(description|status):' docs/arch/adr-*.md
 ```
 
-Each `description` says what its document covers and, where the corpus meta spec asks for one, a trigger
+Each `description` says what its document covers and, where the corpus spec asks for one, a trigger
 clause — `Load when …` or similar — naming the situations the document governs. Other fields, such as `type`
 or `scope`, are whatever `docs/__meta__/code.md` defines; read its frontmatter section once if their meaning is
 not obvious.

@@ -32,7 +32,7 @@ from lorecraft.rules.report import LoadFailureReport
 class UnlistableRoot:
     """A `docs/` or `docs/__meta__/` the model could not list, which no report stands for: the command stops the run.
 
-    With neither a corpus nor a meta spec known, a report over what remained would read as a clean result for a
+    With neither a corpus nor a spec known, a report over what remained would read as a clean result for a
     workspace that was never checked.
 
     Attributes:

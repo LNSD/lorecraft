@@ -33,9 +33,9 @@ For this decision, a large dependency is a parser- or validator-style engine who
 
 4. **Return values owned by Lorecraft.** Values crossing the wrapper boundary are immutable, frozen values declared by Lorecraft. Failures cross as structured facts or typed errors with the information callers need; they do not cross as engine exceptions, error objects, or messages that callers must parse. An engine's message may be retained as opaque text only when the wrapper owns that field and callers treat it as opaque.
 
-5. **Keep engine assumptions at the boundary.** Format dialects, accepted syntax, normalization, validator selection, ordering, defaults, and other engine-specific behaviour are decided in the wrapper. Each assumption is documented in that wrapper's `module-*` code spec and pinned by tests owned by the wrapper. Callers consume the wrapper's contract and do not repeat the engine's interpretation.
+5. **Keep engine assumptions at the boundary.** Format dialects, accepted syntax, normalization, validator selection, ordering, defaults, and other engine-specific behaviour are decided in the wrapper. Each assumption is documented in that wrapper's `module-*` code rule and pinned by tests owned by the wrapper. Callers consume the wrapper's contract and do not repeat the engine's interpretation.
 
-6. **Check the wrapper as a module, not just as an import filter.** Each wrapper has a `docs/code/module-lorecraft-<name>.md` code spec with a verifiable checklist. The import-linter contracts prove the import boundary; the checklist and wrapper tests prove the value, error, and behaviour boundary. An accepted ADR does not replace either check.
+6. **Check the wrapper as a module, not just as an import filter.** Each wrapper has a `docs/code/module-lorecraft-<name>.md` code rule with a verifiable checklist. The import-linter contracts prove the import boundary; the checklist and wrapper tests prove the value, error, and behaviour boundary. An accepted ADR does not replace either check.
 
 7. **Apply the rule to three engine seams.** The intended package boundaries are `lorecraft.yaml` for YAML parsing with ruamel.yaml, `lorecraft.jsonschema` for JSON Schema validation with jsonschema and referencing, and `lorecraft.markdown` for Markdown parsing with wenmode.
 
@@ -44,7 +44,7 @@ For this decision, a large dependency is a parser- or validator-style engine who
 ## Consequences
 
 - An engine upgrade should normally change one wrapper and the tests that pin its assumptions. Callers continue to depend on Lorecraft values and structured results.
-- Each wrapper costs a peer layer, whole-package forbidden-import contracts for its engine, a protected contract for any private grammar module, a module code spec, and tests for the behaviour callers rely on. Those artefacts make the boundary visible and reviewable.
+- Each wrapper costs a peer layer, whole-package forbidden-import contracts for its engine, a protected contract for any private grammar module, a module code rule, and tests for the behaviour callers rely on. Those artefacts make the boundary visible and reviewable.
 - The sibling `layers` contract proves that wrappers cannot import one another. Whole-package `forbidden` contracts contain external engines; a `protected` contract limits direct imports of an internal grammar module to its wrapper and descendants, including when a caller is in the root package. A module checklist and tests remain necessary because import contracts cannot prove what values or semantics cross an API.
 - Base dependencies such as pydantic remain available to the Lorecraft layers that build and declare Lorecraft-owned values. They are not subject to the wrapper-layer rule.
 - This record governs boundaries only. It does not choose a parser, validator, Markdown dialect, or user-visible interpretation; those decisions belong in the relevant wrapper and its architecture or code documents.
@@ -58,8 +58,8 @@ For this decision, a large dependency is a parser- or validator-style engine who
 - [ ] The protected contract permits imports from the wrapper and its descendants, rejects direct imports from other packages including the root package, and leaves indirect access through the public wrapper available.
 - [ ] Whole-package `forbidden` contracts contain external engines; the protected contract, not a `forbidden` contract, enforces the private grammar boundary.
 - [ ] Values and errors crossing a wrapper boundary are Lorecraft-owned immutable values or structured facts; callers do not inspect engine types, exceptions, error trees, or messages.
-- [ ] Engine-specific assumptions are stated in the wrapper's `module-*` code spec and pinned by tests owned by the wrapper.
-- [ ] Each wrapper has a module code spec whose checklist makes its boundary verifiable.
+- [ ] Engine-specific assumptions are stated in the wrapper's `module-*` code rule and pinned by tests owned by the wrapper.
+- [ ] Each wrapper has a module code rule whose checklist makes its boundary verifiable.
 - [ ] The wrapper boundaries are `lorecraft.yaml` for YAML parsing with ruamel.yaml, `lorecraft.jsonschema` for JSON Schema validation with jsonschema and referencing, and `lorecraft.markdown` for Markdown parsing with wenmode.
 - [ ] The YAML parser choice remains the one in ADR-017.
 - [ ] Base dependencies such as pydantic, which `lorecraft.core` builds Lorecraft's own values on, remain outside this wrapper rule.

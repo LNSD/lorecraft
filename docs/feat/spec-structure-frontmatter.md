@@ -27,9 +27,9 @@ value is JSON Schema Draft 2020-12 itself, so any editor and any JSON Schema too
 
 - **Frontmatter schema**: The value of the `frontmatter` key; its root describes the frontmatter as one
   object, and must say `"type": "object"` outright.
-- **Corpus schema**: The frontmatter schema at the corpus meta spec name, which states the whole field set,
+- **Corpus schema**: The frontmatter schema at the corpus spec name, which states the whole field set,
   usually with `required` and `additionalProperties: false`. Without it the corpus's frontmatter is unchecked.
-- **Namespace schema**: A frontmatter schema at a namespace meta spec name. It is applied beside the corpus
+- **Namespace schema**: A frontmatter schema at a namespace spec name. It is applied beside the corpus
   schema, never in place of it, so it states only the constraints it adds.
 
 ## Usage

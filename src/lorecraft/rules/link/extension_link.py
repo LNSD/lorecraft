@@ -14,7 +14,7 @@ from lorecraft.project.query import ItemQuery, item_name, item_parse
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Note, Subdiagnostic
-from lorecraft.rules.subject import Gate, MetaSpecPart, QueriedItemRule, WhenMetaSpec
+from lorecraft.rules.subject import Gate, QueriedItemRule, SpecPart, WhenSpec
 
 from .__ruleset__ import GROUP_ID, GovernanceSyntaxLinkResolutionPrimitives
 
@@ -58,8 +58,8 @@ class ExtensionLink(QueriedItemRule[ExtensionLinkFacts]):
 
     Checks for links and images in a document whose target lies in the same directory and whose filename continues
     the document's own name after a hyphen: `cli.md` linking to `cli-check.md`, or `feat.md` to `feat-cli.md`. The
-    check reads every corpus and every meta spec of `docs/__meta__/`. No meta spec key states the rule:
-    every document of a corpus that states a structure file, and every meta spec, is held to it.
+    check reads every corpus and every spec of `docs/__meta__/`. No spec key states the rule:
+    every document of a corpus that states a structure file, and every spec, is held to it.
 
     A document whose name is continued by another is that document's base, and the other is its extension. The
     extension names its base; the base never links to what extends it. Only a link to an existing file is
@@ -105,8 +105,8 @@ class ExtensionLink(QueriedItemRule[ExtensionLinkFacts]):
     SINCE: ClassVar[Release] = Release('0.4.0')
     APPLIES_TO: ClassVar[Mapping[ItemType, Gate]] = MappingProxyType(
         {
-            ItemType.DOCUMENT: WhenMetaSpec(MetaSpecPart.STRUCTURE),
-            ItemType.META_SPEC: WhenMetaSpec(MetaSpecPart.STRUCTURE),
+            ItemType.DOCUMENT: WhenSpec(SpecPart.STRUCTURE),
+            ItemType.SPEC: WhenSpec(SpecPart.STRUCTURE),
         }
     )
 

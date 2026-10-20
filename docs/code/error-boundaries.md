@@ -28,7 +28,7 @@ accident, and its name says nothing about a caller's mistake.
 
 The test is who fixes it. A change to the code is a defect and raises a built-in; a change to the files a
 command read is an `Error`. The command line turns an `Error` into a message and an exit status, which is right
-for a malformed meta spec and wrong for a bug: a defect raised as an `Error` is reported as the user's fault,
+for a malformed spec and wrong for a bug: a defect raised as an `Error` is reported as the user's fault,
 with no traceback to locate the call.
 
 A value object's invariant raises its variant, whoever constructs the value
@@ -104,7 +104,7 @@ type that carries the guarantee, or the lookup to return `None` for the case
 # ❌ Bad — the callee's ValueError copied up with a precondition only prose carries; a ref from an older
 # revision, whose corpus was deleted, ended the whole run on a case the caller had promised away
 def check_documents(db: AnalysisDb, refs: tuple[DocumentRef, ...]) -> tuple[SubjectReport, ...]:
-    """Check each document against the meta specs that govern it.
+    """Check each document against the specs that govern it.
 
     Raises:
         ValueError: If a ref's corpus is not one the model lists (refs from the model never trigger it).
@@ -126,7 +126,7 @@ for ref in refs:
 ```
 
 ```python
-# ❌ Bad — the record takes any meta spec file and refuses the wrong kind at run time, so a loader that
+# ❌ Bad — the record takes any spec file and refuses the wrong kind at run time, so a loader that
 # handed it a prose file type-checked cleanly and failed in the middle of a corpus check
 @dataclass(frozen=True, slots=True)
 class OutlineSpec:
@@ -149,14 +149,14 @@ class OutlineSpec:
 # nothing is left to raise
 @dataclass(frozen=True, slots=True)
 class ProseFile:
-    """A meta spec file of prose rules."""
+    """A spec file of prose rules."""
 
     path: Path
 
 
 @dataclass(frozen=True, slots=True)
 class OutlineFile:
-    """A meta spec file holding a section outline."""
+    """A spec file holding a section outline."""
 
     path: Path
 

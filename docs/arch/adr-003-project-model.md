@@ -14,7 +14,7 @@ status: "accepted"
 
 ## Context
 
-The project model is what a repository declares: its corpora, meta specs, specs and skills. It answers
+The project model is what a repository declares: its corpora, specs, documents and skills. It answers
 from the declaration and the structure of the snapshot, never from what a document says.
 
 ## Decision
@@ -70,6 +70,6 @@ Before committing code, verify:
 
 - [adr-001-snapshot-model](adr-001-snapshot-model.md) - Related: The model and the package roles
 - [adr-005-incremental](adr-005-incremental.md) - Related: Why location decides whether a result carries over
-- [adr-016-specifications](adr-016-specifications.md) - Related: Meta specs and governance restated, which supersedes adr-006
-- [adr-025](adr-025-name-chain-model.md) - Related: Meta spec and document name chains derived from declared names
+- [adr-016-specifications](adr-016-specifications.md) - Related: Specs and governance restated, which supersedes adr-006
+- [adr-025](adr-025-name-chain-model.md) - Related: Spec and document name chains derived from declared names
   and listings

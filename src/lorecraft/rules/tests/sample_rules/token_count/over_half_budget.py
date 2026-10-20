@@ -17,7 +17,7 @@ from lorecraft.project.query import (
 from lorecraft.project.syntax import FIRST_LINE, TokenCount
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
-from lorecraft.rules.subject import Gate, MetaSpecPart, QueriedItemRule, WhenMetaSpec
+from lorecraft.rules.subject import Gate, QueriedItemRule, SpecPart, WhenSpec
 
 from ..groups import SAMPLE
 
@@ -68,7 +68,7 @@ class OverHalfBudget(QueriedItemRule[BudgetFacts]):
     SINCE: ClassVar[Release] = Release('1.0.0')
     APPLIES_TO: ClassVar[Mapping[ItemType, Gate]] = MappingProxyType(
         {
-            ItemType.DOCUMENT: WhenMetaSpec(MetaSpecPart.BUDGET),
+            ItemType.DOCUMENT: WhenSpec(SpecPart.BUDGET),
         }
     )
 

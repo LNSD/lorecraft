@@ -77,7 +77,7 @@ class BrokenFragment(QueriedItemRule[BrokenFragmentFacts]):
 
     Checks for links and images whose destination is a fragment alone, such as `#usage`, naming none of the
     headings of the file that holds them, in every Markdown file the checks read: every document, a skill's `SKILL.md`
-    and each Markdown file inside the skill. No meta spec key
+    and each Markdown file inside the skill. No spec key
     states the rule: every such file is held to it.
 
     A fragment names a heading by its anchor, as GitHub derives it, whatever the case it is written in: `#Usage`
@@ -127,7 +127,7 @@ class BrokenFragment(QueriedItemRule[BrokenFragmentFacts]):
     APPLIES_TO: ClassVar[Mapping[ItemType, Gate]] = MappingProxyType(
         {
             ItemType.DOCUMENT: Always(),
-            ItemType.META_SPEC: Always(),
+            ItemType.SPEC: Always(),
             ItemType.SKILL_ENTRYPOINT: Always(),
             ItemType.SKILL_RESOURCE: Always(),
         }

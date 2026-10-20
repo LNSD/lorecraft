@@ -2,7 +2,7 @@
 
 A scan given a declaration keeps every directory it cannot list, every entry on a followed chain it cannot inspect,
 and every structure file it cannot read, instead of stopping at it. The loader turns the ones it meets into load
-failures. A directory no meta spec names, or one inside a skill that nothing lists, is never met: left alone, its
+failures. A directory no spec names, or one inside a skill that nothing lists, is never met: left alone, its
 refusal would pass unreported where the scan used to stop. This module finds those, and raises the first as the
 scan raised it, so that the command stops as it did.
 """

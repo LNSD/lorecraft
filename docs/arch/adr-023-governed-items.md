@@ -16,7 +16,7 @@ status: "accepted"
 
 ## Context
 
-[prd-020](prd-020-skills-corpus.md) brings skill entrypoints into the meta spec model through the reserved
+[prd-020](prd-020-skills-corpus.md) brings skill entrypoints into the spec model through the reserved
 `skills` corpus (`FR-001` through `FR-007`, `FR-009` through `FR-011`, `FR-018`, `NFR-001`), and
 [adr-022](adr-022-skills-governance.md) settles how `skills` layers, the built-in schema and bounded contradiction
 detection work.
@@ -32,13 +32,13 @@ skills travel through three parallel representations above the project model:
   a skill or a skill resource.
 
 Extending that split to support `skills` repository layers (`FR-005`) and later governed skill resources would duplicate
-governance lookup, failed-layer skipping, meta spec part gating and coverage reporting across parallel pipelines.
+governance lookup, failed-layer skipping, spec part gating and coverage reporting across parallel pipelines.
 
 ## Decision
 
 ### One Governed-Item Reference and Model-Resolved Descriptor
 
-Every governed Markdown subject—a document in a `docs/` corpus, a meta spec in `docs/__meta__/`, a skill's `SKILL.md`,
+Every governed Markdown subject—a document in a `docs/` corpus, a spec in `docs/__meta__/`, a skill's `SKILL.md`,
 or a Markdown resource inside a skill—is identified above the project model by one owned reference type and paired
 with a descriptor resolved by the project model.
 
@@ -53,13 +53,13 @@ was discovered:
   `NFR-001`).
 - **Resolved file location:** the snapshot path that decoding reads ([adr-003](adr-003-project-model.md)).
 - **Link resolution base and climb bound:** relative Markdown links resolve from the document's own directory for a
-  corpus document or meta spec, and from the skill root for a skill's `SKILL.md` or resource. The climb bound is the
-  repository root for documents and meta specs, and the skill root for skills and resources; crossing it is the
+  corpus document or spec, and from the skill root for a skill's `SKILL.md` or resource. The climb bound is the
+  repository root for documents and specs, and the skill root for skills and resources; crossing it is the
   `LINK004` condition described by [adr-010](adr-010-diagnostics.md) ([adr-011](adr-011-rules-engine.md)).
 - **Frontmatter owner metadata:** the expected `name` value, whether it comes from a document stem or a listed skill
   directory, any resolved symlink target needed for diagnostic notes, and the governing schema provenance required to
   preserve existing frontmatter findings (`FR-013`).
-- **Governance target and governed meta spec parts:** the corpus and aspect name used to resolve governing layers, together with the meta spec parts that govern the item (`FR-005`, `FR-014`).
+- **Governance target and governed spec parts:** the corpus and aspect name used to resolve governing layers, together with the spec parts that govern the item (`FR-005`, `FR-014`).
 
 Layout symlinks that leave the repository have no Markdown content and no corpus governance; they remain a separate
 layout subject category ([adr-011](adr-011-rules-engine.md)).
@@ -69,7 +69,7 @@ layout subject category ([adr-011](adr-011-rules-engine.md)).
 The project model is the only layer that classifies a Markdown item's origin:
 
 - A corpus document derives its corpus and aspect name from its `docs/<corpus>/<name>.md` path.
-- A meta spec in `docs/__meta__/` derives its subject corpus from its filename prefix and is governed by the reserved
+- A spec in `docs/__meta__/` derives its subject corpus from its filename prefix and is governed by the reserved
   `meta` corpus.
 - A skill derives its aspect name from its listed directory name in `.agents/skills/`. Its `Always` checks remain
   independent of the skill entrypoint's governance by the reserved `skills` corpus.
@@ -77,19 +77,20 @@ The project model is the only layer that classifies a Markdown item's origin:
   walk when the model opens ([adr-003](adr-003-project-model.md), [adr-015](adr-015-database.md)). When listed, it
   yields the same common reference and descriptor shape as any other Markdown item.
 
-Name-chain ordering and prefix matching are shared with the project model's meta spec and document hierarchy
+Name-chain ordering and prefix matching are shared with the project model's spec and document hierarchy
 derivation rather than reimplemented in the database, runner or rules.
 
-### Hierarchical Governance for Meta Specs, Skills and Resources
+### Hierarchical Governance for Specs, Skills and Resources
 
-The reserved `meta` corpus governs every meta spec in `docs/__meta__/`: `meta.spec.json` provides corpus governance
-and `meta-<corpus>.spec.json` provides namespace governance. Meta spec rules declare the same gates as document rules.
+The reserved `meta` corpus governs every spec in `docs/__meta__/` through its meta specs: `meta.spec.json`
+provides corpus governance and `meta-<corpus>.spec.json` provides namespace governance. Spec rules declare the same
+gates as document rules.
 
 The reserved `skills` corpus governs skill entrypoints. `Always` skill checks remain active independently of
-that corpus governance. Skill resources remain outside meta-spec governance and have no corpus governance; they retain
+that corpus governance. Skill resources remain outside spec governance and have no corpus governance; they retain
 `Always` link and syntax checks.
 
-A Markdown resource inside a skill is not governed by meta specs or floor schemas. The model activates `Always` Markdown
+A Markdown resource inside a skill is not governed by specs or floor schemas. The model activates `Always` Markdown
 checks only for resources; no skills-corpus schema or structure spec applies, leaving resource-specific rule models
 open for future exploration.
 
@@ -103,11 +104,11 @@ The database and rules engine consume the common reference and descriptor unifor
 - **Unified per-file and cross-file queries:** frontmatter parsing, Markdown parsing, line counting, token counting and
   relative-link target resolution each have one query implementation taking the common decode witness and reading the
   descriptor's link base.
-- **Unified governance and analysis queries:** `item_governance(ref)` resolves ordered layers for corpus documents and meta specs in `docs/__meta__/`, and for skill entrypoints through the
+- **Unified governance and analysis queries:** `item_governance(ref)` resolves ordered layers for corpus documents and specs in `docs/__meta__/`, and for skill entrypoints through the
   reserved `skills` corpus; resources have no corpus governance. Schema validation and outline analysis read `item_governance(ref)` and the per-file queries, keeping their results whenever those inputs compare
   equal ([adr-015](adr-015-database.md)).
 - **One content runner loop:** the engine decodes the item once, applies the uniform partial check policy whenever an
-  active governing layer failed to load (suppressing `WhenMetaSpec` gates while running `Always` and `WhenSchema`
+  active governing layer failed to load (suppressing `WhenSpec` gates while running `Always` and `WhenSchema`
   checks), gates enabled rules by declared gates and governed parts, and produces one checked content report carrying
   diagnostics and ungoverned parts (`FR-005`, `FR-010`, `FR-018`).
 
@@ -125,7 +126,7 @@ The database and rules engine consume the common reference and descriptor unifor
 The pipeline preserves the existing user-visible contract outside what [prd-020](prd-020-skills-corpus.md) requires,
 except for the link-bound diagnostic and unchecked-symlink coverage decisions above:
 
-- With no repository `skills` meta spec and the built-in schema enabled, skills and resources produce the
+- With no repository `skills` spec and the built-in schema enabled, skills and resources produce the
   exact diagnostics, notes, severity and sort order they produce today (`FR-013`).
 - `lorecraft inspect` renders corpus documents and skills, without reporting corpus governance for skills.
 
@@ -137,8 +138,8 @@ except for the link-bound diagnostic and unchecked-symlink coverage decisions ab
 - **Broader initial refactor, smaller surface afterwards.** Replacing the three reference and witness families touches
   the project model, database, context protocols, runner and report types together, and removes the parallel query and
   dispatch code that would otherwise grow with `skills` governance.
-- **Skill resources remain ungoverned by meta specs.** Skill resources share the unified reference and witness
-  machinery, while remaining entirely outside meta-spec governance. Repository structure files, frontmatter schemas,
+- **Skill resources remain ungoverned by specs.** Skill resources share the unified reference and witness
+  machinery, while remaining entirely outside spec governance. Repository structure files, frontmatter schemas,
   and floor schemas do not govern skill resources; only `Always` link and syntax checks remain active. Any potential
   resource-specific governance model remains deferred for future exploration.
 - **What stays true:** scope is declared rather than inferred from content ([adr-003](adr-003-project-model.md));
@@ -156,7 +157,7 @@ except for the link-bound diagnostic and unchecked-symlink coverage decisions ab
   types while normalizing consumer calls. Rejected: cache keys, witnesses and reports still require a cross-variant
   identity and descriptor contract, and keeping three reference types above the project model leaks origin
   classification past the boundary meant to encapsulate it.
-- **Match governed skill resources by their own filename stems instead of their owning skill.** Lets a meta spec
+- **Match governed skill resources by their own filename stems instead of their owning skill.** Lets a spec
   target a resource filename across skills. Rejected: a skill is a unit whose resources exist to support its entry, so
   the `skills` corpus establishes governance hierarchically from the containing skill.
 
@@ -167,22 +168,22 @@ Before committing code, verify:
 - [ ] Above the project model, corpus documents, skills and skill resources use one governed-item reference type
   and one decode witness type
 - [ ] The project model resolves each item's read location, report path, link base, frontmatter owner metadata,
-  governance identity and governed meta spec parts once
+  governance identity and governed spec parts once
 - [ ] Logical identity stays separate from resolved symlink location for documents, skills and skill resources
   alike, and skill resource discovery remains lazy through the skill resource listing
-- [ ] Skill resources remain outside meta-spec governance and have no corpus governance, retaining only package
+- [ ] Skill resources remain outside spec governance and have no corpus governance, retaining only package
   link and syntax checks; resource-specific governance models remain deferred for future exploration.
 - [ ] The database provides one decode, per-file, analysis and link-target query family for governed Markdown items,
   with analyses depending on `item_governance(ref)` rather than the whole model
 - [ ] The rules engine runs one content-item check loop that decodes once, applies failed-layer policy, gates rules by
-  governed meta spec parts and records ungoverned parts uniformly
+  governed spec parts and records ungoverned parts uniformly
 - [ ] Relative links resolve from each item's declared resolution base and are checked against the repository-root
-  bound for documents and meta specs or the skill-root bound for skills and resources
+  bound for documents and specs or the skill-root bound for skills and resources
 - [ ] A refused read of any governed Markdown item is represented in the engine as `SkippedSubject(REFUSED_PATH)`,
   and the CLI emits an `LC002` diagnostic for every refused item read
 - [ ] An unchecked symlink under `docs/` appears in coverage rather than as a diagnostic or a separate engine
   condition until corpus-directory symlinks are followed
-- [ ] With no repository `skills` meta spec, the unified pipeline preserves existing diagnostics, notes, ordering,
+- [ ] With no repository `skills` spec, the unified pipeline preserves existing diagnostics, notes, ordering,
   exit codes and `inspect` shapes, except for the link-bound diagnostics and unchecked-symlink coverage specified
   above
 

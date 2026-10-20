@@ -123,7 +123,7 @@ from lorecraft.rules.report import (
     UndecodableSubject,
 )
 from lorecraft.rules.selection import AllRules, RuleSelection
-from lorecraft.rules.subject import Gate, MetaSpecPart, QueriedItemRule, WhenMetaSpec
+from lorecraft.rules.subject import Gate, QueriedItemRule, SpecPart, WhenSpec
 from lorecraft.rules.table import RuleTable
 from lorecraft.vfs import (
     ByteOffset,
@@ -179,10 +179,10 @@ _CAFE_NAME_FAILURE: Final[Utf8Failure] = Utf8Failure(
 REVIEW_FILE: Final[RootRelativePath] = RootRelativePath.parse('.agents/skills/review/SKILL.md')
 """Where `REVIEW` is reported: its `SKILL.md`, under the skills directory an agent lists it in."""
 
-SKILL_UNGOVERNED: Final[tuple[MetaSpecPart, ...]] = (
-    MetaSpecPart.STRUCTURE,
-    MetaSpecPart.OUTLINE,
-    MetaSpecPart.BUDGET,
+SKILL_UNGOVERNED: Final[tuple[SpecPart, ...]] = (
+    SpecPart.STRUCTURE,
+    SpecPart.OUTLINE,
+    SpecPart.BUDGET,
 )
 """The skills corpus is absent, so its structure, outline and budget parts are ungoverned."""
 
@@ -282,9 +282,7 @@ class OverHalfBudget(QueriedItemRule[BudgetFacts]):
     NAME: ClassVar[RuleName] = RuleName('over-half-budget')
     LEVEL: ClassVar[Level] = Level.WARN
     SINCE: ClassVar[Release] = Release('1.0.0')
-    APPLIES_TO: ClassVar[Mapping[ItemType, Gate]] = MappingProxyType(
-        {ItemType.DOCUMENT: WhenMetaSpec(MetaSpecPart.BUDGET)}
-    )
+    APPLIES_TO: ClassVar[Mapping[ItemType, Gate]] = MappingProxyType({ItemType.DOCUMENT: WhenSpec(SpecPart.BUDGET)})
 
     spec: RootRelativePath
     token_count: int
@@ -322,9 +320,7 @@ class EmptyDocument(QueriedItemRule[TokenCount]):
     NAME: ClassVar[RuleName] = RuleName('empty-document')
     LEVEL: ClassVar[Level] = Level.ALLOW
     SINCE: ClassVar[Release] = Release('1.0.0')
-    APPLIES_TO: ClassVar[Mapping[ItemType, Gate]] = MappingProxyType(
-        {ItemType.DOCUMENT: WhenMetaSpec(MetaSpecPart.BUDGET)}
-    )
+    APPLIES_TO: ClassVar[Mapping[ItemType, Gate]] = MappingProxyType({ItemType.DOCUMENT: WhenSpec(SpecPart.BUDGET)})
 
     def message(self) -> str:
         """Name the condition."""
@@ -359,9 +355,7 @@ class AnyTokens(QueriedItemRule[TokenCount]):
     NAME: ClassVar[RuleName] = RuleName('any-tokens')
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('1.0.0')
-    APPLIES_TO: ClassVar[Mapping[ItemType, Gate]] = MappingProxyType(
-        {ItemType.DOCUMENT: WhenMetaSpec(MetaSpecPart.BUDGET)}
-    )
+    APPLIES_TO: ClassVar[Mapping[ItemType, Gate]] = MappingProxyType({ItemType.DOCUMENT: WhenSpec(SpecPart.BUDGET)})
 
     token_count: int
 
@@ -651,7 +645,7 @@ class TestCheckSubjects:
             CheckedItem(
                 ItemRef(GUIDE.path),
                 diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
-                ungoverned=(MetaSpecPart.FRONTMATTER, MetaSpecPart.OUTLINE),
+                ungoverned=(SpecPart.FRONTMATTER, SpecPart.OUTLINE),
             ),
         ), 'LEN001 runs at deny, so a document over its budget carries its occurrence as an error'
 
@@ -711,7 +705,7 @@ class TestCheckSubjects:
             CheckedItem(
                 ItemRef(GUIDE.path),
                 diagnostics=(),
-                ungoverned=(MetaSpecPart.FRONTMATTER, MetaSpecPart.OUTLINE),
+                ungoverned=(SpecPart.FRONTMATTER, SpecPart.OUTLINE),
             ),
         ), 'a document within its budget has no diagnostic, and no frontmatter schema governs it'
 
@@ -728,9 +722,9 @@ class TestCheckSubjects:
                 ItemRef(GUIDE.path),
                 diagnostics=(),
                 ungoverned=(
-                    MetaSpecPart.FRONTMATTER,
-                    MetaSpecPart.OUTLINE,
-                    MetaSpecPart.BUDGET,
+                    SpecPart.FRONTMATTER,
+                    SpecPart.OUTLINE,
+                    SpecPart.BUDGET,
                 ),
             ),
         ), 'no specification sets a budget or a frontmatter schema, which is coverage, not a diagnostic'
@@ -760,10 +754,10 @@ class TestCheckSubjects:
                 ItemRef(launch.path),
                 diagnostics=(),
                 ungoverned=(
-                    MetaSpecPart.FRONTMATTER,
-                    MetaSpecPart.STRUCTURE,
-                    MetaSpecPart.OUTLINE,
-                    MetaSpecPart.BUDGET,
+                    SpecPart.FRONTMATTER,
+                    SpecPart.STRUCTURE,
+                    SpecPart.OUTLINE,
+                    SpecPart.BUDGET,
                 ),
             ),
         ), 'no specification governs a document in no corpus the model holds, which is coverage, not a diagnostic'
@@ -784,7 +778,7 @@ class TestCheckSubjects:
         reports = check_subjects(database, (GUIDE,), table)
 
         #: Then
-        assert reports == (CheckedItem(ItemRef(GUIDE.path), diagnostics=(), ungoverned=(MetaSpecPart.BUDGET,)),), (
+        assert reports == (CheckedItem(ItemRef(GUIDE.path), diagnostics=(), ungoverned=(SpecPart.BUDGET,)),), (
             'a document whose corpus states no structure specification is governed for no facet'
         )
 
@@ -820,7 +814,7 @@ class TestCheckSubjects:
         reports = check_subjects(database, (GUIDE,), table)
 
         #: Then
-        assert reports == (CheckedItem(ItemRef(GUIDE.path), diagnostics=(), ungoverned=(MetaSpecPart.STRUCTURE,)),), (
+        assert reports == (CheckedItem(ItemRef(GUIDE.path), diagnostics=(), ungoverned=(SpecPart.STRUCTURE,)),), (
             'the length rules over sections and the title read the structure facet, recorded once as ungoverned'
         )
         assert database.parsed_documents == [], 'no query is run for it, so it is never parsed'
@@ -1086,13 +1080,13 @@ class TestCheckSubjects:
             CheckedItem(
                 ItemRef(GUIDE.path),
                 diagnostics=(),
-                ungoverned=(MetaSpecPart.FRONTMATTER, MetaSpecPart.OUTLINE),
+                ungoverned=(SpecPart.FRONTMATTER, SpecPart.OUTLINE),
             ),
             CheckedItem(ItemRef(REVIEW.path), diagnostics=(), ungoverned=SKILL_UNGOVERNED),
             CheckedItem(
                 ItemRef(INTRO.path),
                 diagnostics=(),
-                ungoverned=(MetaSpecPart.FRONTMATTER, MetaSpecPart.OUTLINE),
+                ungoverned=(SpecPart.FRONTMATTER, SpecPart.OUTLINE),
             ),
         ), 'documents and skills share one run, each reported in the order given'
 
@@ -1127,7 +1121,7 @@ class TestCheckSubjects:
             CheckedItem(
                 ItemRef(GUIDE.path),
                 diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
-                ungoverned=(MetaSpecPart.OUTLINE, MetaSpecPart.BUDGET),
+                ungoverned=(SpecPart.OUTLINE, SpecPart.BUDGET),
             ),
         ), 'FM001 runs at deny over a document a frontmatter schema governs, under its corpus specification'
 
@@ -1151,7 +1145,7 @@ class TestCheckSubjects:
             CheckedItem(
                 ItemRef(GUIDE.path),
                 diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
-                ungoverned=(MetaSpecPart.OUTLINE, MetaSpecPart.BUDGET),
+                ungoverned=(SpecPart.OUTLINE, SpecPart.BUDGET),
             ),
         ), 'FM002 runs at deny, at the line the YAML parser stopped on'
 
@@ -1170,7 +1164,7 @@ class TestCheckSubjects:
             CheckedItem(
                 ItemRef(GUIDE.path),
                 diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
-                ungoverned=(MetaSpecPart.OUTLINE, MetaSpecPart.BUDGET),
+                ungoverned=(SpecPart.OUTLINE, SpecPart.BUDGET),
             ),
         ), 'FM003 runs at deny over a block that reads as YAML but is not a mapping'
 
@@ -1189,7 +1183,7 @@ class TestCheckSubjects:
             CheckedItem(
                 ItemRef(GUIDE.path),
                 diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
-                ungoverned=(MetaSpecPart.OUTLINE, MetaSpecPart.BUDGET),
+                ungoverned=(SpecPart.OUTLINE, SpecPart.BUDGET),
             ),
         ), 'FM004 runs at deny over a document whose `name` is not its filename'
 
@@ -1216,7 +1210,7 @@ class TestCheckSubjects:
             CheckedItem(
                 ItemRef(GUIDE.path),
                 diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
-                ungoverned=(MetaSpecPart.OUTLINE, MetaSpecPart.BUDGET),
+                ungoverned=(SpecPart.OUTLINE, SpecPart.BUDGET),
             ),
         ), 'FM005 runs at deny over a key written again, at the later occurrence'
 
@@ -1446,7 +1440,7 @@ class TestCheckSubjects:
             CheckedItem(
                 ItemRef(typing.path),
                 diagnostics=(),
-                ungoverned=(MetaSpecPart.FRONTMATTER, MetaSpecPart.OUTLINE),
+                ungoverned=(SpecPart.FRONTMATTER, SpecPart.OUTLINE),
             ),
         ), 'a namespace schema narrows a corpus schema and cannot supply one, so no rule over the frontmatter runs'
 
@@ -1506,7 +1500,7 @@ class TestCheckSubjects:
                     RuleDiagnostic(GUIDE.path, invalid_value, Severity.ERROR),
                     RuleDiagnostic(GUIDE.path, too_few_fields, Severity.ERROR),
                 ),
-                ungoverned=(MetaSpecPart.OUTLINE, MetaSpecPart.BUDGET),
+                ungoverned=(SpecPart.OUTLINE, SpecPart.BUDGET),
             ),
         ), (
             'FM006, FM008, FM009 and FM014 run at deny and FM007 at warn, each on its own problem, on its field line '
@@ -1618,7 +1612,7 @@ class TestCheckSubjects:
                     RuleDiagnostic(typing.path, status, Severity.ERROR),
                     RuleDiagnostic(typing.path, owner, Severity.ERROR),
                 ),
-                ungoverned=(MetaSpecPart.OUTLINE, MetaSpecPart.BUDGET),
+                ungoverned=(SpecPart.OUTLINE, SpecPart.BUDGET),
             ),
         ), 'each schema is applied on its own, and each problem names the specification whose schema found it'
 
@@ -1636,7 +1630,7 @@ class TestCheckSubjects:
             CheckedItem(
                 ItemRef(GUIDE.path),
                 diagnostics=(),
-                ungoverned=(MetaSpecPart.FRONTMATTER, MetaSpecPart.OUTLINE),
+                ungoverned=(SpecPart.FRONTMATTER, SpecPart.OUTLINE),
             ),
         ), 'no specification states a frontmatter schema, which is coverage, not a diagnostic'
 
@@ -1655,7 +1649,7 @@ class TestCheckSubjects:
             CheckedItem(
                 ItemRef(GUIDE.path),
                 diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
-                ungoverned=(MetaSpecPart.OUTLINE, MetaSpecPart.BUDGET),
+                ungoverned=(SpecPart.OUTLINE, SpecPart.BUDGET),
             ),
         ), 'FM003 alone reports a block that is not a mapping: it is held to no schema, so no schema rule fires'
 
@@ -1699,9 +1693,9 @@ class TestCheckSubjects:
                 ItemRef(GUIDE.path),
                 diagnostics=(RuleDiagnostic(GUIDE.path, missing, Severity.ERROR),),
                 ungoverned=(
-                    MetaSpecPart.FRONTMATTER,
-                    MetaSpecPart.OUTLINE,
-                    MetaSpecPart.BUDGET,
+                    SpecPart.FRONTMATTER,
+                    SpecPart.OUTLINE,
+                    SpecPart.BUDGET,
                 ),
             ),
         ), (
@@ -1728,9 +1722,9 @@ class TestCheckSubjects:
                 ItemRef(GUIDE.path),
                 diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
                 ungoverned=(
-                    MetaSpecPart.FRONTMATTER,
-                    MetaSpecPart.OUTLINE,
-                    MetaSpecPart.BUDGET,
+                    SpecPart.FRONTMATTER,
+                    SpecPart.OUTLINE,
+                    SpecPart.BUDGET,
                 ),
             ),
         ), 'OUT002 runs at deny over a document a structure specification governs, at the title after the first'
@@ -1755,9 +1749,9 @@ class TestCheckSubjects:
                 ItemRef(GUIDE.path),
                 diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
                 ungoverned=(
-                    MetaSpecPart.FRONTMATTER,
-                    MetaSpecPart.OUTLINE,
-                    MetaSpecPart.BUDGET,
+                    SpecPart.FRONTMATTER,
+                    SpecPart.OUTLINE,
+                    SpecPart.BUDGET,
                 ),
             ),
         ), 'OUT003 runs at deny over a document a structure specification governs, at the heading opening it'
@@ -1776,9 +1770,9 @@ class TestCheckSubjects:
                 ItemRef(GUIDE.path),
                 diagnostics=(),
                 ungoverned=(
-                    MetaSpecPart.FRONTMATTER,
-                    MetaSpecPart.OUTLINE,
-                    MetaSpecPart.BUDGET,
+                    SpecPart.FRONTMATTER,
+                    SpecPart.OUTLINE,
+                    SpecPart.BUDGET,
                 ),
             ),
         ), 'a document carrying its title is governed for its headings, and clean'
@@ -1800,9 +1794,9 @@ class TestCheckSubjects:
                 ItemRef(GUIDE.path),
                 diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
                 ungoverned=(
-                    MetaSpecPart.FRONTMATTER,
-                    MetaSpecPart.OUTLINE,
-                    MetaSpecPart.BUDGET,
+                    SpecPart.FRONTMATTER,
+                    SpecPart.OUTLINE,
+                    SpecPart.BUDGET,
                 ),
             ),
         ), 'OUT004 runs at deny over a document whose specification forbids empty sections, at the empty heading'
@@ -1822,9 +1816,9 @@ class TestCheckSubjects:
                 ItemRef(GUIDE.path),
                 diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
                 ungoverned=(
-                    MetaSpecPart.FRONTMATTER,
-                    MetaSpecPart.OUTLINE,
-                    MetaSpecPart.BUDGET,
+                    SpecPart.FRONTMATTER,
+                    SpecPart.OUTLINE,
+                    SpecPart.BUDGET,
                 ),
             ),
         ), 'OUT005 runs at deny over a document whose specification forbids a section, at the forbidden heading'
@@ -1851,7 +1845,7 @@ class TestCheckSubjects:
             CheckedItem(
                 ItemRef(GUIDE.path),
                 diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
-                ungoverned=(MetaSpecPart.FRONTMATTER, MetaSpecPart.BUDGET),
+                ungoverned=(SpecPart.FRONTMATTER, SpecPart.BUDGET),
             ),
         ), 'LEN003 runs at deny over a document whose specification caps a section, at the section over its cap'
 
@@ -1872,9 +1866,9 @@ class TestCheckSubjects:
                 ItemRef(GUIDE.path),
                 diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
                 ungoverned=(
-                    MetaSpecPart.FRONTMATTER,
-                    MetaSpecPart.OUTLINE,
-                    MetaSpecPart.BUDGET,
+                    SpecPart.FRONTMATTER,
+                    SpecPart.OUTLINE,
+                    SpecPart.BUDGET,
                 ),
             ),
         ), 'LEN004 runs at deny over a document whose specification caps the title, at the title over its cap'
@@ -1896,9 +1890,9 @@ class TestCheckSubjects:
                 ItemRef(GUIDE.path),
                 diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
                 ungoverned=(
-                    MetaSpecPart.FRONTMATTER,
-                    MetaSpecPart.OUTLINE,
-                    MetaSpecPart.BUDGET,
+                    SpecPart.FRONTMATTER,
+                    SpecPart.OUTLINE,
+                    SpecPart.BUDGET,
                 ),
             ),
         ), 'LEN005 runs at deny over a document whose specification caps the title, at the title over its cap'
@@ -1925,9 +1919,9 @@ class TestCheckSubjects:
                 ItemRef(GUIDE.path),
                 diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
                 ungoverned=(
-                    MetaSpecPart.FRONTMATTER,
-                    MetaSpecPart.OUTLINE,
-                    MetaSpecPart.BUDGET,
+                    SpecPart.FRONTMATTER,
+                    SpecPart.OUTLINE,
+                    SpecPart.BUDGET,
                 ),
             ),
         ), 'OUT009 runs at deny over a document whose specification sets a title pattern, at the title failing it'
@@ -1969,7 +1963,7 @@ class TestCheckSubjects:
             CheckedItem(
                 ItemRef(GUIDE.path),
                 diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
-                ungoverned=(MetaSpecPart.FRONTMATTER, MetaSpecPart.BUDGET),
+                ungoverned=(SpecPart.FRONTMATTER, SpecPart.BUDGET),
             ),
         ), 'OUT006 runs at deny over a document lacking a section its outline requires, at its last line'
 
@@ -1993,7 +1987,7 @@ class TestCheckSubjects:
             CheckedItem(
                 ItemRef(GUIDE.path),
                 diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
-                ungoverned=(MetaSpecPart.FRONTMATTER, MetaSpecPart.BUDGET),
+                ungoverned=(SpecPart.FRONTMATTER, SpecPart.BUDGET),
             ),
         ), 'OUT007 runs at deny over a document writing a section where its outline places another, at its heading'
 
@@ -2017,7 +2011,7 @@ class TestCheckSubjects:
             CheckedItem(
                 ItemRef(GUIDE.path),
                 diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
-                ungoverned=(MetaSpecPart.FRONTMATTER, MetaSpecPart.BUDGET),
+                ungoverned=(SpecPart.FRONTMATTER, SpecPart.BUDGET),
             ),
         ), 'OUT008 runs at deny over a document writing a section its outline does not name, at its heading'
 
@@ -2036,7 +2030,7 @@ class TestCheckSubjects:
             CheckedItem(
                 ItemRef(GUIDE.path),
                 diagnostics=(),
-                ungoverned=(MetaSpecPart.FRONTMATTER, MetaSpecPart.BUDGET),
+                ungoverned=(SpecPart.FRONTMATTER, SpecPart.BUDGET),
             ),
         ), 'a document whose sections match its outline is governed for its outline, and clean'
 
@@ -2070,7 +2064,7 @@ class TestCheckSubjects:
             CheckedItem(
                 ItemRef(GUIDE.path),
                 diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
-                ungoverned=(MetaSpecPart.FRONTMATTER, MetaSpecPart.OUTLINE),
+                ungoverned=(SpecPart.FRONTMATTER, SpecPart.OUTLINE),
             ),
         ), 'LINK001 runs at deny over a document its structure specification governs, on the line of the link'
 
@@ -2284,7 +2278,7 @@ class TestCheckSubjects:
                 ),
                 ungoverned=(),
             ),
-        ), 'Markdown syntax link rules judge documents independently of meta-spec structure'
+        ), 'Markdown syntax link rules judge documents independently of spec structure'
 
     def test_check_subjects_with_a_fragment_missing_from_a_document_reports_broken_fragment_on_its_line(
         self, package_table: RuleTable
@@ -2302,7 +2296,7 @@ class TestCheckSubjects:
             CheckedItem(
                 ItemRef(GUIDE.path),
                 diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
-                ungoverned=(MetaSpecPart.FRONTMATTER, MetaSpecPart.OUTLINE),
+                ungoverned=(SpecPart.FRONTMATTER, SpecPart.OUTLINE),
             ),
         ), "LINK002 runs at deny over a document, reporting the fragment its own headings lack and not the title's"
 
@@ -2525,7 +2519,7 @@ class TestCheckSubjects:
             CheckedItem(
                 ItemRef(GUIDE.path),
                 diagnostics=(),
-                ungoverned=(MetaSpecPart.FRONTMATTER, MetaSpecPart.OUTLINE),
+                ungoverned=(SpecPart.FRONTMATTER, SpecPart.OUTLINE),
             ),
         ), "a document's links are read from its own directory, so no rule over a skill's file judges them"
 

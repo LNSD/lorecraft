@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.path import PathComponent
 from lorecraft.project.aspect import AspectFilename
-from lorecraft.project.item import MetaSpecOrigin, SkillEntrypointOrigin, WrongItemTypeError
+from lorecraft.project.item import SkillEntrypointOrigin, SpecOrigin, WrongItemTypeError
 from lorecraft.project.query import item_frontmatter, item_name
 from lorecraft.project.schemas.agent_skills_schema import (
     agent_skills_frontmatter_schema,
@@ -44,10 +44,10 @@ def repository_frontmatter_schema(primitives: SchemaPrimitives) -> FrontmatterSc
 
 
 def owner_of_frontmatter(primitives: GovernancePrimitives) -> FrontmatterOwner:
-    """The document, meta specification or skill whose frontmatter the item opens, from its descriptor and governance.
+    """The document, spec or skill whose frontmatter the item opens, from its descriptor and governance.
 
     Raises:
-        WrongItemTypeError: If the item is not a skill or a document or meta specification whose corpus states a
+        WrongItemTypeError: If the item is not a skill or a document or spec whose corpus states a
             structure spec.
     """
     descriptor = primitives.descriptor()
@@ -62,11 +62,11 @@ def owner_of_frontmatter(primitives: GovernancePrimitives) -> FrontmatterOwner:
         structure = governance.corpus_structure()
         if structure is not None:
             return DocumentFrontmatterOwner(filename=name, spec=structure.path)
-    if isinstance(origin, MetaSpecOrigin) and governance is not None:
+    if isinstance(origin, SpecOrigin) and governance is not None:
         structure = governance.corpus_structure()
         if structure is not None:
             return DocumentFrontmatterOwner(filename=parse_spec_name(descriptor.listed_name), spec=structure.path)
-    raise WrongItemTypeError('a document or meta specification whose corpus states a structure specification')
+    raise WrongItemTypeError('a document or spec whose corpus states a structure specification')
 
 
 def parsed_skill_fields(primitives: ItemPrimitives) -> SkillFields:

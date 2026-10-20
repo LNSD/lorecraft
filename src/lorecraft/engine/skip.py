@@ -1,6 +1,6 @@
 """Run checks over workspace subjects, applying failed-layer policy after decoding.
 
-A failed governing layer suppresses meta-spec-gated rules for any decoded item, while `Always` and schema rules still
+A failed governing layer suppresses spec-gated rules for any decoded item, while `Always` and schema rules still
 run. The suppressed parts appear as coverage. An item whose read was refused, or an item or skill alias whose docs
 dependency was refused, is reported as skipped; the refusal itself is reported at its target.
 """
@@ -12,7 +12,7 @@ from typing import assert_never
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.corpus import ReservedCorpusDirectory
 from lorecraft.project.database import Database, ItemText, Undecodable
-from lorecraft.project.item import ItemRef, ItemType, MetaSpecPart
+from lorecraft.project.item import ItemRef, ItemType, SpecPart
 from lorecraft.project.skill import OutsideSymlink, RefusedSkillAlias
 from lorecraft.rules.report import CheckedItem, SkipCause, SkippedSubject, SubjectReport, UndecodableSubject
 from lorecraft.rules.table import EnabledRule, QueriedItem, RuleTable
@@ -20,19 +20,19 @@ from lorecraft.vfs import RefusedRead, RefusedRecord
 
 from .runner import ItemRuleLookup, check_layout_entry, judge_item
 
-# A subject `check_subjects` dispatches: a document, a meta spec, a skill, a resource, a refused skill alias,
+# A subject `check_subjects` dispatches: a document, a spec, a skill, a resource, a refused skill alias,
 # or a layout entry. Each report holds its ref or the path an agent reaches the symlink by.
 type CheckedSubject = ItemRef | OutsideSymlink | ReservedCorpusDirectory | RefusedSkillAlias
 
 
-class _WithoutMetaSpecRules(ItemRuleLookup):
+class _WithoutSpecRules(ItemRuleLookup):
     """A check run's view of the table when a governing layer failed."""
 
     def __init__(self, table: RuleTable) -> None:
         self._table = table
 
-    def item_rules(self, item_type: ItemType, part: MetaSpecPart | None) -> tuple[EnabledRule[QueriedItem], ...]:
-        """Keep always and schema rules while hiding every meta-spec-gated rule."""
+    def item_rules(self, item_type: ItemType, part: SpecPart | None) -> tuple[EnabledRule[QueriedItem], ...]:
+        """Keep always and schema rules while hiding every spec-gated rule."""
         if part is not None:
             return ()
         return self._table.item_rules(item_type, part)
@@ -44,12 +44,12 @@ def check_subjects(
     table: RuleTable,
     refusals: Mapping[RootRelativePath, RefusedRecord] | None = None,
 ) -> tuple[SubjectReport, ...]:
-    """Run the table's rules over each document, meta spec, skill, resource and layout entry, and report each.
+    """Run the table's rules over each document, spec, skill, resource and layout entry, and report each.
 
     Args:
-        database: The revision the subjects are read from; its model decides which meta specs govern each.
-        subjects: The documents, meta specs, skills, resources and layout entries to check; a document in no
-            corpus the database's model holds is ungoverned for every gate a meta spec governs, and a layout
+        database: The revision the subjects are read from; its model decides which specs govern each.
+        subjects: The documents, specs, skills, resources and layout entries to check; a document in no
+            corpus the database's model holds is ungoverned for every gate a spec governs, and a layout
             entry is a symlink whose chain leaves the repository or a directory named like a reserved corpus, as the
             database's model or a skill's resource listing records it.
         table: The rules the run enables, each with its severity.
@@ -90,15 +90,15 @@ def _check_item(
     table: RuleTable,
     refusals: Mapping[RootRelativePath, RefusedRecord],
 ) -> tuple[SubjectReport, ...]:
-    """Decode one item and judge it, suppressing meta-spec gates when a governing layer failed.
+    """Decode one item and judge it, suppressing spec gates when a governing layer failed.
 
     Every item type is decoded the same way, by its common reference. A missing file raises the common item read
-    error. Failed layers suppress meta-spec gates for every governed item type but do not suppress `Always` or schema
+    error. Failed layers suppress spec gates for every governed item type but do not suppress `Always` or schema
     gates.
 
     Args:
         database: The revision the item is read from.
-        item: The document, meta spec, skill or resource to check by its common reference.
+        item: The document, spec, skill or resource to check by its common reference.
         table: The rules the run enables.
         refusals: Paths in the snapshot the run could not read.
 
@@ -123,8 +123,8 @@ def _check_item(
 
 
 def _judge_after_failed_layer(database: Database, source: ItemText, table: RuleTable) -> CheckedItem:
-    """Judge the item with meta-spec gates hidden and report their enabled parts as coverage."""
-    report = judge_item(database, source, _WithoutMetaSpecRules(table))
-    suppressed = {part for part in MetaSpecPart if table.item_rules(source.descriptor.type, part)}
+    """Judge the item with spec gates hidden and report their enabled parts as coverage."""
+    report = judge_item(database, source, _WithoutSpecRules(table))
+    suppressed = {part for part in SpecPart if table.item_rules(source.descriptor.type, part)}
     ungoverned = suppressed | set(report.ungoverned)
-    return replace(report, ungoverned=tuple(part for part in MetaSpecPart if part in ungoverned))
+    return replace(report, ungoverned=tuple(part for part in SpecPart if part in ungoverned))

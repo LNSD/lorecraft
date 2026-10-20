@@ -20,7 +20,7 @@ from lorecraft.project.syntax import (
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Here, Label, Subdiagnostic
-from lorecraft.rules.subject import Gate, MetaSpecPart, QueriedItemRule, WhenMetaSpec
+from lorecraft.rules.subject import Gate, QueriedItemRule, SpecPart, WhenSpec
 
 from .__ruleset__ import GROUP_ID, FrontmatterFacts, frontmatter_facts, owner_spec, spec_note
 
@@ -85,7 +85,7 @@ class InvalidYaml(QueriedItemRule[FrontmatterFacts]):
     Attributes:
         spec: The structure file that governs the owner's frontmatter, derived from `owner`, so no caller states
             one that disagrees with it.
-        owner: The document or the skill whose frontmatter is not YAML, and so which meta spec governs it.
+        owner: The document or the skill whose frontmatter is not YAML, and so which spec governs it.
         problem: What is wrong with the YAML, in lorecraft's words.
         stopped_at: The line the YAML reader stopped on, which the occurrence is reported at; or `None` when it
             cannot be known, and the occurrence is reported at the line that opens the block.
@@ -98,9 +98,9 @@ class InvalidYaml(QueriedItemRule[FrontmatterFacts]):
     SINCE: ClassVar[Release] = Release('0.3.0')
     APPLIES_TO: ClassVar[Mapping[ItemType, Gate]] = MappingProxyType(
         {
-            ItemType.DOCUMENT: WhenMetaSpec(MetaSpecPart.FRONTMATTER),
-            ItemType.META_SPEC: WhenMetaSpec(MetaSpecPart.FRONTMATTER),
-            ItemType.SKILL_ENTRYPOINT: WhenMetaSpec(MetaSpecPart.FRONTMATTER),
+            ItemType.DOCUMENT: WhenSpec(SpecPart.FRONTMATTER),
+            ItemType.SPEC: WhenSpec(SpecPart.FRONTMATTER),
+            ItemType.SKILL_ENTRYPOINT: WhenSpec(SpecPart.FRONTMATTER),
         }
     )
 
@@ -115,7 +115,7 @@ class InvalidYaml(QueriedItemRule[FrontmatterFacts]):
     help: str | None = None
 
     def __post_init__(self) -> None:
-        """Derive the reported line from where the YAML reader stopped, and the meta spec from the owner."""
+        """Derive the reported line from where the YAML reader stopped, and the spec from the owner."""
         # The dataclass is frozen, so the field a rule derives is set the one way a frozen dataclass allows.
         object.__setattr__(self, 'line', FIRST_LINE if self.stopped_at is None else self.stopped_at)
         object.__setattr__(self, 'spec', owner_spec(self.owner))
@@ -131,7 +131,7 @@ class InvalidYaml(QueriedItemRule[FrontmatterFacts]):
         return (Label(Here(self.line), self.problem),)
 
     def children(self) -> tuple[Subdiagnostic, ...]:
-        """Name what to do about the problem, where there is one, and the meta spec that governs the frontmatter."""
+        """Name what to do about the problem, where there is one, and the spec that governs the frontmatter."""
         if self.help is None:
             return (spec_note(self.owner),)
         return (Help(self.help), spec_note(self.owner))

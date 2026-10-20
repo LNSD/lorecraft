@@ -1,11 +1,11 @@
 ---
 name: "code-package"
-description: "Structure template for `docs/code/package-*.md` code specs, one per package, each stating what the package is for, whether it is built and published, which packages may import it and which it may import, and the invariants that keep it so. Load when creating or editing a package document in docs/code/, or adding a package to the repository"
+description: "Structure template for `docs/code/package-*.md` code rules, one per package, each stating what the package is for, whether it is built and published, which packages may import it and which it may import, and the invariants that keep it so. Load when creating or editing a package document in docs/code/, or adding a package to the repository"
 type: "meta"
 scope: "global"
 ---
 
-# Package Code Spec Template
+# Package Code Rule Template
 
 **MANDATORY structure for ALL `docs/code/package-*.md` documents**
 
@@ -14,7 +14,7 @@ which ones are private, and which way imports may run between them. It is writte
 package who must decide where it goes and what it may import, and for a reviewer deciding whether a
 change crosses that line.
 
-## Why a Package Has a Code Spec Beside Its Module Specs
+## Why a Package Has a Code Rule Beside Its Module Documents
 
 A [code-module](code-module.md) document defends one layer inside the import package: what may enter it, and
 which neighbouring layer takes the rest. A package is the level above. Its question is not which layer holds a
@@ -39,7 +39,7 @@ code it exercises.
 
 ## Structure
 
-Every package code spec contains the following sections in order.
+Every package code rule contains the following sections in order.
 
 ### Frontmatter (required)
 
@@ -142,4 +142,4 @@ scope: "pkg:{{import_package}}"
 
 ## References
 
-- [code](code.md) - Extends: Base code corpus meta spec
+- [code](code.md) - Extends: Base code corpus spec

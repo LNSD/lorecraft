@@ -14,7 +14,7 @@ Two documents of different corpora link to each other.
 Checks for a link from a document to a document of another corpus, `docs/<corpus>/<name>.md`, that links back to
 it. Both documents are reported, each on its own link, so either side sees the finding. A link to a document of
 the same corpus, to a file that is no document, to a missing file or to the document itself is not reported. No
-meta spec key states the rule: every document of a corpus that states a structure file is held to it.
+spec key states the rule: every document of a corpus that states a structure file is held to it.
 
 ## Why is this bad?
 

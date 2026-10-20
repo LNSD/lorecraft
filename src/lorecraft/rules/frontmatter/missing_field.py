@@ -20,7 +20,7 @@ from lorecraft.project.schemas import (
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Subdiagnostic
-from lorecraft.rules.subject import Gate, MetaSpecPart, QueriedItemRule, WhenMetaSpec
+from lorecraft.rules.subject import Gate, QueriedItemRule, SpecPart, WhenSpec
 
 from .__ruleset__ import (
     GROUP_ID,
@@ -41,7 +41,7 @@ class MissingField(QueriedItemRule[tuple[SchemaProblems, ...]]):
 
     Checks for documents whose frontmatter lacks a field the `required` list of their structure file's
     `frontmatter` schema names, and for skills whose frontmatter lacks a field the Agent Skills specification
-    requires, `name` or `description`. A document that several meta specs govern, such as a corpus and a
+    requires, `name` or `description`. A document that several specs govern, such as a corpus and a
     namespace, is held to each schema they state, and is reported once for each schema that requires the field.
 
     What the schema states about the field is shown as the help to write it: its `description`, the values its
@@ -102,9 +102,9 @@ class MissingField(QueriedItemRule[tuple[SchemaProblems, ...]]):
     SINCE: ClassVar[Release] = Release('0.3.0')
     APPLIES_TO: ClassVar[Mapping[ItemType, Gate]] = MappingProxyType(
         {
-            ItemType.DOCUMENT: WhenMetaSpec(MetaSpecPart.FRONTMATTER),
-            ItemType.META_SPEC: WhenMetaSpec(MetaSpecPart.FRONTMATTER),
-            ItemType.SKILL_ENTRYPOINT: WhenMetaSpec(MetaSpecPart.FRONTMATTER),
+            ItemType.DOCUMENT: WhenSpec(SpecPart.FRONTMATTER),
+            ItemType.SPEC: WhenSpec(SpecPart.FRONTMATTER),
+            ItemType.SKILL_ENTRYPOINT: WhenSpec(SpecPart.FRONTMATTER),
         }
     )
 

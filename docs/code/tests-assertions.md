@@ -62,7 +62,7 @@ assert occurrences == (
         kept_line=LineNumber(NonZeroUnsignedInt(3)),
     ),
 ), 'a key written twice is one occurrence, on the line that repeats it'
-assert report.diagnostics == (), 'a document that conforms to its meta specs carries no diagnostic'
+assert report.diagnostics == (), 'a document that conforms to its specs carries no diagnostic'
 ```
 
 ## 3. Project Only When the Sequence Is the Fact

@@ -22,7 +22,7 @@ from lorecraft.project.schemas import (
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Label, Note, Subdiagnostic
-from lorecraft.rules.subject import Gate, MetaSpecPart, QueriedItemRule, WhenMetaSpec
+from lorecraft.rules.subject import Gate, QueriedItemRule, SpecPart, WhenSpec
 
 from .__ruleset__ import GROUP_ID, schema_note, schema_problems, schema_spec
 
@@ -38,7 +38,7 @@ class InvalidFrontmatter(QueriedItemRule[tuple[SchemaProblems, ...]]):
     schema sets on the block rather than on one field. It is reported on line 1, since it concerns no one field. A
     block with fewer fields than `minProperties` requires is reported by `too-few-fields`, and one with more than
     `maxProperties` allows by `too-many-fields`. A skill's frontmatter is reported here only when the Agent Skills
-    meta spec rejects it without naming a field.
+    spec rejects it without naming a field.
 
     A constraint that names a key is not the block's: a key `propertyNames` rejects, and a field whose
     `dependentRequired` fields are missing, are reported by `invalid-value` on that key's line.
@@ -102,9 +102,9 @@ class InvalidFrontmatter(QueriedItemRule[tuple[SchemaProblems, ...]]):
     SINCE: ClassVar[Release] = Release('0.3.0')
     APPLIES_TO: ClassVar[Mapping[ItemType, Gate]] = MappingProxyType(
         {
-            ItemType.DOCUMENT: WhenMetaSpec(MetaSpecPart.FRONTMATTER),
-            ItemType.META_SPEC: WhenMetaSpec(MetaSpecPart.FRONTMATTER),
-            ItemType.SKILL_ENTRYPOINT: WhenMetaSpec(MetaSpecPart.FRONTMATTER),
+            ItemType.DOCUMENT: WhenSpec(SpecPart.FRONTMATTER),
+            ItemType.SPEC: WhenSpec(SpecPart.FRONTMATTER),
+            ItemType.SKILL_ENTRYPOINT: WhenSpec(SpecPart.FRONTMATTER),
         }
     )
 

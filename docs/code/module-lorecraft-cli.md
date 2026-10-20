@@ -47,7 +47,7 @@ process: the arguments, the working directory, standard output and the exit code
 |---|---|
 | Decides whether a document or a skill breaks a rule | `lorecraft.rules`, run by `lorecraft.engine` |
 | Memoizes anything derived from the snapshot | `lorecraft.project` |
-| Parses a document, or decides which meta spec governs it | `lorecraft.project` |
+| Parses a document, or decides which spec governs it | `lorecraft.project` |
 | Reads a file or lists a directory under the workspace root | `lorecraft.vfs` |
 | Writes a committed generated file that no command prints | `lorecraft_gen`, as `package-lorecraft-gen` states |
 

@@ -20,7 +20,7 @@ from lorecraft.project.syntax import LineNumber, SectionHeading
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Here, Label, Subdiagnostic
-from lorecraft.rules.subject import Gate, MetaSpecPart, QueriedItemRule, WhenMetaSpec
+from lorecraft.rules.subject import Gate, QueriedItemRule, SpecPart, WhenSpec
 
 from .__ruleset__ import GROUP_ID, example_note, outline_divergences, spec_note
 
@@ -39,7 +39,7 @@ class MissingSection(QueriedItemRule[tuple[OutlineDivergenceSpec, ...]]):
 
     Only the first place a document stops following its outline is reported, since every section after it is
     compared with an entry it was never meant to match; a section that is only written further down is out of
-    order, not missing. A document that more than one meta spec governs, such as a corpus and a namespace,
+    order, not missing. A document that more than one spec governs, such as a corpus and a namespace,
     must follow each outline, and is reported once for each it breaks.
 
     ## Why is this bad?
@@ -101,9 +101,9 @@ class MissingSection(QueriedItemRule[tuple[OutlineDivergenceSpec, ...]]):
     SINCE: ClassVar[Release] = Release('0.3.0')
     APPLIES_TO: ClassVar[Mapping[ItemType, Gate]] = MappingProxyType(
         {
-            ItemType.DOCUMENT: WhenMetaSpec(MetaSpecPart.OUTLINE),
-            ItemType.META_SPEC: WhenMetaSpec(MetaSpecPart.OUTLINE),
-            ItemType.SKILL_ENTRYPOINT: WhenMetaSpec(MetaSpecPart.OUTLINE),
+            ItemType.DOCUMENT: WhenSpec(SpecPart.OUTLINE),
+            ItemType.SPEC: WhenSpec(SpecPart.OUTLINE),
+            ItemType.SKILL_ENTRYPOINT: WhenSpec(SpecPart.OUTLINE),
         }
     )
 
@@ -159,9 +159,9 @@ class MissingSection(QueriedItemRule[tuple[OutlineDivergenceSpec, ...]]):
                 assert_never(before)
 
     def children(self) -> tuple[Subdiagnostic, ...]:
-        """Point at the meta spec, then give the entry's description and its first example, when it states them.
+        """Point at the spec, then give the entry's description and its first example, when it states them.
 
-        Any further examples are for a reader of the meta spec, not repeated on every occurrence.
+        Any further examples are for a reader of the spec, not repeated on every occurrence.
         """
         parts: list[Subdiagnostic] = [spec_note(self.spec)]
         if self.description is not None:

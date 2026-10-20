@@ -48,15 +48,15 @@ shorter still: the checker reports errors and warnings, and they act on them.
 | **Cause** | One case of an engine condition, such as which rule of a structure file cannot be applied: a type in the condition's closed union, held as data of its occurrence |
 | **Subject** | What is checked: a document, a skill, a skill resource or a layout entry |
 | **Facts** | What a rule's query returns for one decoded subject, a pure function of the primitives it reads, each a query of the database |
-| **Meta-spec part** | What part of an item a rule reads from its governing meta specs and declares in its gate |
+| **Spec part** | What part of an item a rule reads from its governing specs and declares in its gate |
 | **Diagnostic** | An occurrence located at a subject's path, with a severity |
 | **Level** | `allow`, `warn` or `deny`: how a rule is configured |
 | **Severity** | `error` or `warning`: what a diagnostic carries, and what a user acts on |
 | **Label** | Text attached to a location: the primary label says what is wrong there, a secondary one points at a related place |
 | **Help**, **note** | A sub-diagnostic: help says how to fix this occurrence, a note gives the context that explains it. Either may point at a location |
-| **Location** | A line in the subject, the whole subject when it has no lines, or a place in another file, such as the meta spec. The runner supplies the subject's path |
+| **Location** | A line in the subject, the whole subject when it has no lines, or a place in another file, such as the spec. The runner supplies the subject's path |
 | **Engine diagnostic** | A diagnostic no rule produced: an engine condition's occurrence, or a warning about the configuration |
-| **Coverage** | Which meta-spec parts of a subject no governing layer states. Never a diagnostic |
+| **Coverage** | Which spec parts of a subject no governing layer states. Never a diagnostic |
 | **Failure** | What stops Lorecraft from judging at all: raised, and exit code 2 |
 
 ## Decision
@@ -95,7 +95,7 @@ class EmptySection(QueriedItemRule[SectionFacts]):
     NAME: ClassVar[RuleName] = RuleName('empty-section')
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('0.3.0')
-    APPLIES_TO: ClassVar[Mapping[ItemType, Gate]] = {ItemType.DOCUMENT: WhenMetaSpec(MetaSpecPart.STRUCTURE)}
+    APPLIES_TO: ClassVar[Mapping[ItemType, Gate]] = {ItemType.DOCUMENT: WhenSpec(SpecPart.STRUCTURE)}
 
     spec: RootRelativePath
     section: str
@@ -109,13 +109,13 @@ class EmptySection(QueriedItemRule[SectionFacts]):
 ```
 
 - **An instance is one occurrence.** It carries the data of its condition and the context its diagnostic needs,
-  as [adr-010-diagnostics](adr-010-diagnostics.md) states, and the meta spec file that states the rule, or none
+  as [adr-010-diagnostics](adr-010-diagnostics.md) states, and the spec file that states the rule, or none
   for a rule the package states. A rule over a subject with lines carries the line; one over a layout entry
   carries none.
 - **An item rule declares its applicability.** Every item rule names its query and maps each item type it judges to a gate.
-  A gate names the meta spec part, unconditional admission or registered schema that permits the rule to run. Shared query facts let
+  A gate names the spec part, unconditional admission or registered schema that permits the rule to run. Shared query facts let
   one rule judge several item types without a separate base for each kind.
-- **A rule over a document declares the meta spec part it reads** in `APPLIES_TO`, so the runner gates it on governance;
+- **A rule over a document declares the spec part it reads** in `APPLIES_TO`, so the runner gates it on governance;
   the registry rejects an item rule with no gates. The skills, their files and the skill layout receive checks according to each rule's explicit item-type mapping.
 - **`judge` returns `tuple[Self, ...]`**, so a rule can only report its own occurrence, and the type checker
   rejects one that reports another's. That needs no type parameter anywhere in the engine.
@@ -175,9 +175,9 @@ instance is one occurrence of it.
   a rule names, never a change to the runner. Which upstream rules are ported is decided
   rule by rule, outside this design.
 - **Documents and skills share the frontmatter codes.** The governing schema and the name the subject is found
-  under are data of the facts, so one rule serves both, and a later meta spec for skills retires no code.
+  under are data of the facts, so one rule serves both, and a later spec for skills retires no code.
 - **The set of codes is fixed by the package** (FR-011). A schema field never creates a code.
-- **Codes identify the engine's rules alone.** A code spec under `docs/code/`, or any other document that states a
+- **Codes identify the engine's rules alone.** A code rule under `docs/code/`, or any other document that states a
   convention, keeps its kebab-case name and never takes a code.
 - **Life cycle is a type.** A rule in service is a rule class, with the release it is stable since. A retired rule
   becomes a `RemovedRule`: its code, its name, the release that removed it, its replacement and its docstring,
@@ -228,11 +228,11 @@ that uses Lorecraft, and every word of it is generated from the rules' classes.
 - **The pages are named by code, then name**, so a listing sorts in code order and each file says what its rule
   is. An alias code has no page: the rule's page lists it, and the lookup resolves it.
 - **A generator writes the pages**, and the generation check fails on a stale one. Nothing in the rulebook is
-  written by hand, and no meta spec governs it.
+  written by hand, and no spec governs it.
 - **The listing is the index of the rulebook**, and the command line is the other: it lists every rule in code
   order, and prints one page by code, by name or by alias (FR-029), from the same rendering function, so a user
   without this repository reads the same text.
-- **Feat specs link to a page** and restate no rule.
+- **Feat docs link to a page** and restate no rule.
 
 ### Tests
 
@@ -258,8 +258,8 @@ that uses Lorecraft, and every word of it is generated from the rules' classes.
   shape. Class and function are then two declarations tied at runtime: a rule in service can lack its check, and a
   removed rule is still a violation that can be built. The classmethod rejects the first at load, makes the second
   unrepresentable, and removes the engine's only type parameter.
-- **"Lint" for the engine's unit, keeping "rule" for what a meta spec or a code spec states.** Not chosen: a
-  user acts on errors and warnings, and code rules, the alias of code specs, are the only other "rules" they meet,
+- **"Lint" for the engine's unit, keeping "rule" for what a spec or a code rule states.** Not chosen: a
+  user acts on errors and warnings, and code rules, the alias of code rules, are the only other "rules" they meet,
   which the context tells apart.
 - **An absorbed rule keeps its upstream code**, in a group per upstream linter, as some established linters do.
   Not chosen: a condition two absorbed linters check needs two groups and a choice between their codes, rules sit
@@ -268,7 +268,7 @@ that uses Lorecraft, and every word of it is generated from the rules' classes.
   thousands of rules from upstream numbering, which Lorecraft does not have.
 - **One code per identifier of v0.2, the condition as data.** Fewer codes, and a `message()` that branches on a kind
   field. Linters that take this shape do so because a rule's options carry the user's specification, so the rule
-  must be one. Here the meta spec is data the rule reads, a rule takes no options, and the prefix already gives the
+  must be one. Here the spec is data the rule reads, a rule takes no options, and the prefix already gives the
   coarse handle. The coarse code would only cost a page that explains several fixes, conditions that cannot be
   configured apart, and the kind field [python-typing](../code/python-typing.md) rules out. An engine condition
   takes this shape, with a closed union of cause types in place of a kind field: it cannot be configured, so the

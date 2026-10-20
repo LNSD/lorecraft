@@ -8,7 +8,7 @@ allowed-tools: Bash(just gen*) Bash(just sync) Bash(git status *) Bash(git diff 
 # Code Generation Skill
 
 Some files in this repository are generated and committed: the JSON Schemas under `docs/schemas/`, which
-editors validate the meta spec files against, the rulebook pages under `docs/rulebook/`, one per rule
+editors validate the spec files against, the rulebook pages under `docs/rulebook/`, one per rule
 code, and the rule index, `src/lorecraft/rules/index.py`, the identity of every rule as strings and tuples. Each is
 rendered from what the package declares, so a change to it leaves the committed file stale until it
 is regenerated.
@@ -52,7 +52,7 @@ git diff docs/schemas docs/rulebook src/lorecraft/rules/index.py
 ```
 
 A description that reads badly in the diff reads badly in an editor too: fix the docstring, not the output. A
-rulebook page is generated output too: fix its rule's docstring and regenerate, never the page. No meta spec
+rulebook page is generated output too: fix its rule's docstring and regenerate, never the page. No spec
 governs the pages, so `just check-docs` does not read them; `gen-check` keeps them current.
 
 ## Rules

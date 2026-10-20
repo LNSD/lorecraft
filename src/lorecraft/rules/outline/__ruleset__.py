@@ -1,17 +1,17 @@
-"""What the `OUT` group's rules share: the group, and the notes naming a meta spec and giving an example.
+"""What the `OUT` group's rules share: the group, and the notes naming a spec and giving an example.
 
 A document's sections are governed by every structure file that governs the document, each on its own: a
-document governed by a corpus and a namespace meta spec is reported once for each one it breaks. Every rule of
-the group says which meta spec an occurrence breaks through `spec_note`, so two occurrences from two
-meta specs read apart.
+document governed by a corpus and a namespace spec is reported once for each one it breaks. Every rule of
+the group says which spec an occurrence breaks through `spec_note`, so two occurrences from two
+specs read apart.
 
-The title is the exception: no meta spec states it, since every governed document carries exactly one H1 title
+The title is the exception: no spec states it, since every governed document carries exactly one H1 title
 that opens it. A rule over its being there reports a document once, with `spec` `None` and no note pointing at a
-meta spec. A pattern a meta spec sets on the title is that meta spec's own, so a title
-failing it is reported once per meta spec setting it, as a section is.
+spec. A pattern a spec sets on the title is that spec's own, so a title
+failing it is reported once per spec setting it, as a section is.
 
-The rules over the headings are governed by `MetaSpecPart.STRUCTURE`, so they judge every document whose corpus states a
-structure file; the rules over where the sections stop matching an outline are governed by `MetaSpecPart.OUTLINE`,
+The rules over the headings are governed by `SpecPart.STRUCTURE`, so they judge every document whose corpus states a
+structure file; the rules over where the sections stop matching an outline are governed by `SpecPart.OUTLINE`,
 so they judge only a document some outline governs.
 """
 
@@ -40,7 +40,7 @@ def spec_note(spec: RootRelativePath) -> Note:
 def example_note(section: SectionName, example: str) -> Note:
     """The note giving a section's example, written under the section's heading as a document would write it.
 
-    The example is the outline entry's, printed as the meta spec wrote it.
+    The example is the outline entry's, printed as the spec wrote it.
 
     Args:
         section: The name the outline entry gives the section the example is for.

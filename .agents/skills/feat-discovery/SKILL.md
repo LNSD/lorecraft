@@ -8,16 +8,16 @@ allowed-tools: Bash(awk *) Read
 # Feature Discovery
 
 Lazy-loads this repository's feat docs from `docs/feat/` against a user query, by matching YAML
-frontmatter before reading any spec in full.
+frontmatter before reading any feat doc in full.
 
 ## When to Use
 
 - The user asks "what is X?", "how does X work?", or what the toolkit can do
-- The user names a part of the toolkit - a check, a meta spec, a command - and wants the
+- The user names a part of the toolkit - a check, a spec, a command - and wants the
   context behind it
 - Before implementing a feature, to find out what already exists
 
-Sibling skills: `/feat-status` for the maturity each spec declares, `/docs-rules-check` for whether a
+Sibling skills: `/feat-status` for the maturity each feat doc declares, `/docs-rules-check` for whether a
 document is well-formed, `/code-rules` for how to write the code.
 
 ## Prefetched Feature Catalog
@@ -31,13 +31,13 @@ The frontmatter of all feat docs (loaded at skill start):
 
 **An empty catalog is an answer, not a failure.** It means no feature has been written up in this
 repository yet. Say the corpus is empty, answer from the code and from `AGENTS.md`, and do not rerun the
-command or go hunting for the specs somewhere else.
+command or go hunting for the feat docs somewhere else.
 
 ## Workflow
 
 1. **Match** the user's query against the prefetched catalog using the fields below.
-2. **Load** matched specs with the Read tool: `docs/feat/<name>.md`.
-3. **Follow cross-references** in each spec's "References" section and load those too when relevant.
+2. **Load** matched feat docs with the Read tool: `docs/feat/<name>.md`.
+3. **Follow cross-references** in each feat doc's "References" section and load those too when relevant.
 
 ## Query Matching
 
@@ -45,15 +45,15 @@ Compare query against frontmatter fields:
 
 - `name` - exact or partial match (e.g. "budget-check", "spec-dialect")
 - `description` - semantic match (e.g. "frontmatter" -> the frontmatter check, "too long" -> the length budget)
-- `components` - the identifiers a spec lists for the parts of the toolkit it covers: a checker module,
-  a command surface, a meta spec. The corpus meta spec, `docs/__meta__/feat.md`, fixes that
+- `components` - the identifiers a feat doc lists for the parts of the toolkit it covers: a checker module,
+  a command surface, a spec. The corpus spec, `docs/__meta__/feat.md`, fixes that
   vocabulary; match on the identifier itself rather than on its prefix.
 
 Load multiple feat docs when:
 
 - The query spans several features
 - Features cross-reference each other (`References` section)
-- The user is working where two of them meet - a check and the meta spec it enforces
+- The user is working where two of them meet - a check and the spec it enforces
 
 ## When NOT to Use
 
@@ -64,7 +64,7 @@ Load multiple feat docs when:
 | whether a document is well-formed | `/docs-rules-check` |
 | how mature a feature is | `/feat-status` |
 
-Whether the code actually does what a feat doc says is no skill's job here: read the spec and the
+Whether the code actually does what a feat doc says is no skill's job here: read the feat doc and the
 code and compare them by hand.
 
 Simple file edits that do not need feature context need no discovery at all.

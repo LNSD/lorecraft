@@ -165,7 +165,7 @@ def outline_sections(self, corpus: str) -> list[str]:
 ```python
 # ✅ Good — a declared degrade boundary; the docstring is part of the contract
 def check_corpus_status(self) -> CorpusStatus:
-    """Report whether the corpus and its meta spec can be loaded.
+    """Report whether the corpus and its spec can be loaded.
 
     Never raises: any failure reaching this method is reported as an unloadable status
     so a calling report receives an answer rather than an exception.
@@ -229,7 +229,7 @@ A reviewer classifies each `except` block:
 
 The last case is worse than an unhandled exception. An unhandled failure is loud and gets fixed; a swallowed
 one turns a corpus full of broken documents into a clean-looking report, and the defect is found weeks later
-when an agent follows a code spec that was never actually checked.
+when an agent follows a code rule that was never actually checked.
 
 A test is held to the same table. A harness that turns an outcome into a value it can compare catches the
 operation's declared variants ([§2](#2-catch-a-union-by-its-variants)) and binds them to the operation's union,
@@ -285,7 +285,7 @@ def check_document(self, path: Path) -> int:
 ```python
 # ✅ Good — the degraded outcome is in the contract and is distinguishable from success
 def check_document(self, path: Path) -> DocumentOutcome:
-    """Check a document against its corpus meta spec.
+    """Check a document against its corpus spec.
 
     Never raises for a checker failure: the outcome is reported so a corpus run can
     decide whether to continue or stop.

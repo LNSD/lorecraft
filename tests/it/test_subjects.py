@@ -42,7 +42,7 @@ def _write(root: Path, relative: str, text: str = '') -> Path:
 
 
 def _specification(name: str) -> ItemRef:
-    """The meta specification `docs/__meta__/<name>.md`.
+    """The specification `docs/__meta__/<name>.md`.
 
     Args:
         name: The specification's name without its `.md` suffix.

@@ -7,7 +7,7 @@ allowed-tools: Bash(git diff *) Bash(git status *) Bash(git merge-base *) Bash(g
 
 # Code Rules Check
 
-Verifies that a changeset follows the code rules (also called code specs) in `docs/code/`. This is a **compliance check, not a
+Verifies that a changeset follows the code rules (also called code rules) in `docs/code/`. This is a **compliance check, not a
 review**: it does not hunt bugs, question the design, or assess security.
 
 One question only: **does this code follow the code rules that govern it?**
@@ -36,21 +36,21 @@ does, and its checklist is checked the same way; one in any other status does no
 
 Select by what the diff **contains**, not by what the task was about. Walk the hunks and, for each construct
 in them — a signature, an exception handler, an import, a docstring, a test, a log line — find the code rules
-whose trigger clause names it. Prefer the most specific spec in a group, and one scoped to the changed
-package or directory over a global one. Read every match. Principle specs, whose descriptions state their
+whose trigger clause names it. Prefer the most specific code rule in a group, and one scoped to the changed
+package or directory over a global one. Read every match. Principle code rules, whose descriptions state their
 principles, are in scope without being read in full.
 
 ## 3. The check
 
 **Each code rule's checklist is the check surface** — its conventions restated as verifiable statements. Walk
-every item against every changed hunk it applies to. Where a spec has no checklist, walk its conventions.
+every item against every changed hunk it applies to. Where a code rule has no checklist, walk its conventions.
 
 Do this inline when the selection is small, which it usually is: one piece of work touches a few groups of code rules,
-and the specs are often already in context from `/code-rules`.
+and the code rules are often already in context from `/code-rules`.
 
 **Fan out only when the selection exceeds about four groups**, or the diff spans several packages, and
-only if you can run subagents. Then give each agent one group's spec paths, the diff command, the
-instruction to apply those specs' checklists, and the report format below. Deduplicate what comes back:
+only if you can run subagents. Then give each agent one group's code rule paths, the diff command, the
+instruction to apply those code rules' checklists, and the report format below. Deduplicate what comes back:
 two groups flagging one line are reported once, citing both.
 
 ## 4. Report

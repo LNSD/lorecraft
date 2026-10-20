@@ -1,6 +1,6 @@
 ---
 name: "prd-020-skills-corpus"
-description: "A reserved skills corpus in the meta spec directory that governs every agent skill's entrypoint and Markdown resources by the skill's name, layered on the Agent Skills specification, so a repository can state its own rules for its skills as it does for its documents"
+description: "A reserved skills corpus in the spec directory that governs every agent skill's entrypoint and Markdown resources by the skill's name, layered on the Agent Skills specification, so a repository can state its own rules for its skills as it does for its documents"
 type: "prd"
 status: "draft"
 ---
@@ -10,7 +10,7 @@ status: "draft"
 ## Problem
 
 A repository that keeps agent skills beside its documents can state rules for its documents and cannot state
-rules for its skills. Under `docs/`, a meta spec says what every document in a corpus, or in a group of it, must
+rules for its skills. Under `docs/`, a spec says what every document in a corpus, or in a group of it, must
 hold: its frontmatter, its sections, its word caps and its token budget, and `lorecraft check` holds each
 document to them. A skill's `SKILL.md` is held to the Agent Skills specification and to nothing else. Those rules
 are built in: a maintainer cannot read them as a schema, cannot add to them, and cannot say that every `code-*`
@@ -22,16 +22,16 @@ lets a repository write rules for its skills the way it writes them for its docu
 
 ## Goals
 
-- One reserved corpus, `skills`, whose meta spec governs the `SKILL.md` and discovered Markdown resources of
+- One reserved corpus, `skills`, whose spec governs the `SKILL.md` and discovered Markdown resources of
   every skill in `.agents/skills/` by the skill's name, with no directory under `docs/` to hold them.
-- Namespace meta specs, `skills-<namespace>`, that govern the skills named `<namespace>` or `<namespace>-*`, and
-  layer on the corpus meta spec and on each other as every namespace meta spec does.
+- Namespace specs, `skills-<namespace>`, that govern the skills named `<namespace>` or `<namespace>-*`, and
+  layer on the corpus spec and on each other as every namespace spec does.
 - Context-specific sub-specs that declare the checks applicable to skills and to skill resources
   independently.
 - The Agent Skills specification's rules published as a built-in skills schema, generated as documentation, that
   the `skills` corpus extends by default for skills.
-- A repository that opts out of the built-in schema governs its skills by its own `skills` meta spec alone.
-- One `lorecraft check` run applies both, and `lorecraft inspect` shows which meta specs govern a skill and its
+- A repository that opts out of the built-in schema governs its skills by its own `skills` spec alone.
+- One `lorecraft check` run applies both, and `lorecraft inspect` shows which specs govern a skill and its
   resources.
 
 ## Non-Goals
@@ -49,8 +49,8 @@ lets a repository write rules for its skills the way it writes them for its docu
 - **Changes to the Agent Skills specification.** The built-in schema states it as it is.
 - **Complete compatibility analysis.** Contradiction detection covers the explicit required-field constraints
   listed in FR-008; arbitrary combinations of rules are still enforced against skills, without a promise to
-  identify every impossible meta spec in advance.
-- **New kinds of check.** A skills meta spec carries the same keys any meta spec does; a check a document cannot
+  identify every impossible spec in advance.
+- **New kinds of check.** A skills spec carries the same keys any spec does; a check a document cannot
   have, a skill cannot have either.
 - **How corpora under `docs/` are matched.** They match as they do today.
 
@@ -61,20 +61,20 @@ lets a repository write rules for its skills the way it writes them for its docu
 As a maintainer of a repository's skills, I want to state rules that every skill must follow, so that each new
 skill is held to the repository's conventions without a reviewer remembering them.
 
-**Independent test:** Add a `skills` meta spec that requires a frontmatter field, and check a workspace with one
+**Independent test:** Add a `skills` spec that requires a frontmatter field, and check a workspace with one
 skill that sets it and one that does not.
 
 ```gherkin
 Scenario: A skill breaks a rule of the skills corpus
-  Given a skills meta spec that requires every skill to set a frontmatter field
+  Given a skills spec that requires every skill to set a frontmatter field
   And a skill that does not set it
   When the maintainer checks the workspace
   Then a finding names that skill and the missing field
 ```
 
 ```gherkin
-Scenario: No skills meta spec
-  Given a workspace with skills and no skills meta spec
+Scenario: No skills spec
+  Given a workspace with skills and no skills spec
   When the maintainer checks the workspace
   Then each skill is held to the Agent Skills specification alone, as before
 ```
@@ -84,12 +84,12 @@ Scenario: No skills meta spec
 As a maintainer, I want to state rules for the skills that share a name prefix, so that a group such as the
 `code-*` skills carries what the rest do not need.
 
-**Independent test:** Add a `skills-code` meta spec that requires a section, and check one `code-*` skill and one
+**Independent test:** Add a `skills-code` spec that requires a section, and check one `code-*` skill and one
 `feat-*` skill, neither of which has it.
 
 ```gherkin
 Scenario: A namespace governs only its skills
-  Given a skills-code meta spec that requires a section
+  Given a skills-code spec that requires a section
   And the skills code-rules and feat-status, neither with that section
   When the maintainer checks the workspace
   Then a finding names code-rules
@@ -98,10 +98,10 @@ Scenario: A namespace governs only its skills
 
 ```gherkin
 Scenario: Namespaces layer
-  Given a skills meta spec and a skills-code meta spec
+  Given a skills spec and a skills-code spec
   And a skill named code-rules-check
   When the maintainer checks the workspace
-  Then the skill is held to the rules of both meta specs
+  Then the skill is held to the rules of both specs
 ```
 
 ### US-3: The specification is the floor (P1)
@@ -109,24 +109,24 @@ Scenario: Namespaces layer
 As a maintainer, I want my skills rules to add to the Agent Skills specification and never weaken it, so that a
 skill that passes the check still loads in every agent.
 
-**Independent test:** Write a skills meta spec that requires a non-text description, and check the workspace
+**Independent test:** Write a skills spec that requires a non-text description, and check the workspace
 without any skills.
 
 ```gherkin
-Scenario: A skills meta spec contradicts the specification
-  Given a skills meta spec that requires a non-text description
+Scenario: A skills spec contradicts the specification
+  Given a skills spec that requires a non-text description
   And a workspace with no skills
   When the maintainer checks the workspace
-  Then the check fails with a finding that names the skills meta spec and the contradicted rule
+  Then the check fails with a finding that names the skills spec and the contradicted rule
 ```
 
 ```gherkin
 Scenario: An extension does not repeat a built-in requirement
-  Given a skills meta spec that adds a description constraint without repeating that description is required
+  Given a skills spec that adds a description constraint without repeating that description is required
   And a skill that omits its description
   When the maintainer checks the workspace
   Then a finding names the skill for its missing description
-  And no contradiction finding names the meta spec for the omitted requirement
+  And no contradiction finding names the spec for the omitted requirement
 ```
 
 ### US-4: Opting out of the built-in schema (P3)
@@ -139,7 +139,7 @@ that I can still check them against the rules I choose.
 ```gherkin
 Scenario: The built-in schema is switched off
   Given a workspace that opts out of the built-in skills schema
-  And a skill that breaks a built-in rule and none of the skills meta spec's rules
+  And a skill that breaks a built-in rule and none of the skills spec's rules
   When the maintainer checks the workspace
   Then no finding names that skill
 ```
@@ -147,7 +147,7 @@ Scenario: The built-in schema is switched off
 ```gherkin
 Scenario: Opting out of skills governance
   Given a workspace that opts out of the built-in skills schema
-  And no skills meta spec
+  And no skills spec
   When the maintainer checks the workspace
   Then each skill is reported as ungoverned
   And the check reports no error
@@ -155,20 +155,20 @@ Scenario: Opting out of skills governance
 
 ### US-5: What governs a skill (P2)
 
-As a maintainer, I want to see which meta specs govern a skill, so that I know where a finding's rule comes from.
+As a maintainer, I want to see which specs govern a skill, so that I know where a finding's rule comes from.
 
-**Independent test:** Inspect a workspace with a `skills` and a `skills-code` meta spec.
+**Independent test:** Inspect a workspace with a `skills` and a `skills-code` spec.
 
 ```gherkin
 Scenario: Inspecting a skill
-  Given a skills meta spec and a skills-code meta spec
+  Given a skills spec and a skills-code spec
   When the maintainer inspects the workspace
   Then the skill code-rules is shown governed by skills and skills-code, broad to narrow
 ```
 
 ### US-6: The built-in rules as a schema (P2)
 
-As a maintainer writing a skills meta spec, I want to read the rules my skills already follow, so that I extend
+As a maintainer writing a skills spec, I want to read the rules my skills already follow, so that I extend
 them rather than restate them.
 
 **Independent test:** Open the generated documentation for the built-in skills schema.
@@ -185,12 +185,12 @@ Scenario: Reading the built-in schema
 As a writer, I want to be told when a directory under `docs/` takes a reserved corpus name, so that I know why
 its documents are not checked.
 
-**Independent test:** Add a `docs/skills/` directory with one document beside a `skills` meta spec, and check
+**Independent test:** Add a `docs/skills/` directory with one document beside a `skills` spec, and check
 the workspace.
 
 ```gherkin
 Scenario: A docs corpus overlaps the reserved skills corpus
-  Given a skills meta spec
+  Given a skills spec
   And a docs/skills/ directory holding a document
   When the writer checks the workspace
   Then a warning names docs/skills/ as overlapping the reserved skills corpus
@@ -200,7 +200,7 @@ Scenario: A docs corpus overlaps the reserved skills corpus
 ```gherkin
 Scenario: The overlap is configured as an error
   Given a workspace that configures the overlap report as an error
-  And a docs/skills/ directory beside a skills meta spec
+  And a docs/skills/ directory beside a skills spec
   When the writer checks the workspace
   Then the check fails with an error that names docs/skills/
 ```
@@ -210,12 +210,12 @@ Scenario: The overlap is configured as an error
 As a maintainer of a repository's skills, I want to state rules for Markdown resources inside a skill, so that
 reference guides and supporting documents follow structure and budget conventions.
 
-**Independent test:** Add a `skills` meta spec declaring resource checks and check a skill with a compliant
+**Independent test:** Add a `skills` spec declaring resource checks and check a skill with a compliant
 `SKILL.md` and a non-compliant resource.
 
 ```gherkin
 Scenario: A skill resource breaks a resource check
-  Given a skills meta spec that limits resource token budget
+  Given a skills spec that limits resource token budget
   And a skill holding a Markdown resource exceeding that budget
   When the maintainer checks the workspace
   Then a finding names the resource and the exceeded budget
@@ -224,7 +224,7 @@ Scenario: A skill resource breaks a resource check
 
 ```gherkin
 Scenario: Entry-only checks do not apply to resources
-  Given a skills meta spec requiring the name frontmatter field for skills
+  Given a skills spec requiring the name frontmatter field for skills
   And a skill resource without frontmatter
   When the maintainer checks the workspace
   Then no finding names the resource for a missing name field
@@ -232,44 +232,44 @@ Scenario: Entry-only checks do not apply to resources
 
 ### US-9: Inspecting a skill's resources (P2)
 
-As a maintainer, I want to inspect a skill's resources, so that I see which meta specs govern them.
+As a maintainer, I want to inspect a skill's resources, so that I see which specs govern them.
 
-**Independent test:** Inspect a workspace containing a skill with Markdown resources and a `skills` meta spec.
+**Independent test:** Inspect a workspace containing a skill with Markdown resources and a `skills` spec.
 
 ```gherkin
 Scenario: Inspecting a skill resource
-  Given a skills meta spec and a skill holding a Markdown resource
+  Given a skills spec and a skill holding a Markdown resource
   When the maintainer inspects the workspace
-  Then the resource is shown governed by the skills meta spec that governs its containing skill
+  Then the resource is shown governed by the skills spec that governs its containing skill
 ```
 
 ## Requirements
 
 - **FR-001:** THE SYSTEM SHALL treat `skills` as a reserved corpus name whose documents are the `SKILL.md` and
   discovered Markdown resources of every skill in `.agents/skills/`, not documents under `docs/skills/`.
-- **FR-002:** WHERE a `skills` meta spec exists, THE SYSTEM SHALL hold every skill's `SKILL.md` to it.
-- **FR-003:** WHERE a `skills-<namespace>` meta spec exists, THE SYSTEM SHALL hold to it every skill whose name
+- **FR-002:** WHERE a `skills` spec exists, THE SYSTEM SHALL hold every skill's `SKILL.md` to it.
+- **FR-003:** WHERE a `skills-<namespace>` spec exists, THE SYSTEM SHALL hold to it every skill whose name
   equals `<namespace>` or continues it with a hyphen.
-- **FR-004:** THE SYSTEM SHALL apply the meta specs that govern a skill by conjunction, broad to narrow, as it does
+- **FR-004:** THE SYSTEM SHALL apply the specs that govern a skill by conjunction, broad to narrow, as it does
   for a document under `docs/`.
-- **FR-005:** THE SYSTEM SHALL apply to a skill every kind of check a meta spec can carry for a document: its
+- **FR-005:** THE SYSTEM SHALL apply to a skill every kind of check a spec can carry for a document: its
   frontmatter schema, its section outline, its word caps and its token budget.
 - **FR-006:** THE SYSTEM SHALL hold every skill to a built-in skills schema that states the Agent Skills
   specification's rules.
-- **FR-007:** WHILE the built-in skills schema is in force, THE SYSTEM SHALL apply the `skills` meta spec as an
+- **FR-007:** WHILE the built-in skills schema is in force, THE SYSTEM SHALL apply the `skills` spec as an
   extension of it.
 - **FR-008:** WHILE the built-in skills schema is in force, THE SYSTEM SHALL report a finding naming a skills
-  meta spec and the contradicted built-in rule when that meta spec directly forbids either required field
+  spec and the contradicted built-in rule when that spec directly forbids either required field
   (`name` or `description`), excludes text for it, gives it an impossible length range against the built-in
   bounds, or limits it to finite values none of which meets the built-in field rules and the direct type and
   length constraints.
 - **FR-009:** WHERE a workspace opts out of the built-in skills schema, THE SYSTEM SHALL hold its skills to its
-  skills meta specs alone.
+  skills specs alone.
 - **FR-010:** WHEN a user checks a workspace, THE SYSTEM SHALL check its skills and its documents in the same run.
 - **FR-011:** WHEN a user inspects a workspace, THE SYSTEM SHALL show, for each skill and its discovered resources,
-  the meta specs that govern it, broad to narrow.
+  the specs that govern it, broad to narrow.
 - **FR-012:** THE SYSTEM SHALL publish the built-in skills schema as generated documentation.
-- **FR-013:** WHERE no skills meta spec exists and the built-in schema is in force, THE SYSTEM SHALL report on
+- **FR-013:** WHERE no skills spec exists and the built-in schema is in force, THE SYSTEM SHALL report on
   every skill exactly the findings it reports today.
 - **FR-014:** THE SYSTEM SHALL read no file inside a skill other than its `SKILL.md` and discovered Markdown
   resources for this corpus.
@@ -278,29 +278,29 @@ Scenario: Inspecting a skill resource
 - **FR-016:** WHILE a corpus under `docs/` overlaps a reserved corpus, THE SYSTEM SHALL check none of its documents.
 - **FR-017:** WHERE a workspace configures the overlap report as an error, THE SYSTEM SHALL fail the check when a
   corpus under `docs/` overlaps a reserved corpus.
-- **FR-018:** WHERE a workspace opts out of the built-in skills schema and has no skills meta spec, THE SYSTEM
-  SHALL report its skills as ungoverned, as it reports a document no meta spec governs, and report no error.
+- **FR-018:** WHERE a workspace opts out of the built-in skills schema and has no skills spec, THE SYSTEM
+  SHALL report its skills as ungoverned, as it reports a document no spec governs, and report no error.
 - **FR-019:** IF a contradiction described by FR-008 is found, THEN THE SYSTEM SHALL fail the check.
-- **FR-020:** THE SYSTEM SHALL allow a skills meta spec to omit constraints that the built-in schema enforces
+- **FR-020:** THE SYSTEM SHALL allow a skills spec to omit constraints that the built-in schema enforces
   independently.
-- **FR-021:** THE SYSTEM SHALL support defining context-specific sub-specs in a skills meta spec, where each
+- **FR-021:** THE SYSTEM SHALL support defining context-specific sub-specs in a skills spec, where each
   sub-spec declares the checks applicable to a specific context.
-- **FR-022:** WHERE a skills meta spec defines a resource sub-spec, THE SYSTEM SHALL hold all discovered
+- **FR-022:** WHERE a skills spec defines a resource sub-spec, THE SYSTEM SHALL hold all discovered
   Markdown resources in that skill to the checks declared by that sub-spec.
 - **FR-023:** THE SYSTEM SHALL NOT apply checks declared for skills to skill resources unless also declared
   in the resource sub-spec.
-- **FR-024:** THE SYSTEM SHALL govern each discovered Markdown resource by the meta spec that governs its
+- **FR-024:** THE SYSTEM SHALL govern each discovered Markdown resource by the spec that governs its
   containing skill.
 - **FR-025:** WHERE token budget checks apply to skill resources, THE SYSTEM SHALL enforce token budgets per
   resource file.
-- **NFR-001:** THE SYSTEM SHALL name each skills meta spec, and each finding against a skill, with the same
+- **NFR-001:** THE SYSTEM SHALL name each skills spec, and each finding against a skill, with the same
   vocabulary of corpus, namespace and facet it uses for documents.
 
 ## Edge Cases
 
 - A `docs/skills/` directory exists. It is reported as overlapping the reserved corpus and ignored (FR-015,
   FR-016).
-- A `skills-<namespace>` meta spec matches no skill. It still loads and must be valid, as any namespace meta spec
+- A `skills-<namespace>` spec matches no skill. It still loads and must be valid, as any namespace spec
   that matches no document.
 - A skill's name and a longer namespace both match, as `code-rules-check` under `skills-code` and
   `skills-code-rules`. Both govern it, the shorter first.
@@ -308,41 +308,41 @@ Scenario: Inspecting a skill resource
   checks as today, but are not governed by the skills corpus.
 - Contradictions expressed through indirect or conditional rules, patterns, optional fields, or interactions
   between repository layers are outside FR-008's detection boundary. They still apply when checking skills.
-- A workspace opts out of the built-in schema and has no `skills` meta spec. Its skills are ungoverned, with no
+- A workspace opts out of the built-in schema and has no `skills` spec. Its skills are ungoverned, with no
   error: that is how a workspace opts out of skills governance (FR-018).
 
 ## Key Entities
 
 - **Skills corpus:** The reserved corpus whose documents are skills and Markdown resources, found by the
   agents' skills directories rather than by a directory under `docs/`.
-- **Skills meta spec:** A meta spec named `skills` or `skills-<namespace>`, in the same directory and with the same
+- **Skills spec:** A spec named `skills` or `skills-<namespace>`, in the same directory and with the same
   files as any other.
-- **Context-specific sub-spec:** A sub-spec declared within a skills meta spec defining checks for a
+- **Context-specific sub-spec:** A sub-spec declared within a skills spec defining checks for a
   specific item context (such as skill or skill resource).
 - **Skill resource:** A Markdown file contained within a skill's directory other than its top-level `SKILL.md`.
 - **Built-in skills schema:** The Agent Skills specification's rules, stated as a schema that ships with the tool.
-  The `skills` meta spec extends it unless the workspace opts out.
+  The `skills` spec extends it unless the workspace opts out.
 - **Skill name:** The name of the skill's directory, read as the aspect a namespace and a facet split, as a
   document's name is.
 
 ## Success Criteria
 
-- **SC-001:** This repository governs its own skills with a `skills` meta spec and the `skills-code`,
-  `skills-docs` and `skills-feat` namespace meta specs, and `lorecraft check` passes on it.
-- **SC-002:** A workspace with no skills meta spec reports the same findings on its skills before and after the
+- **SC-001:** This repository governs its own skills with a `skills` spec and the `skills-code`,
+  `skills-docs` and `skills-feat` namespace specs, and `lorecraft check` passes on it.
+- **SC-002:** A workspace with no skills spec reports the same findings on its skills before and after the
   feature.
 - **SC-003:** Every frontmatter rule the check applies to a skill appears in the built-in schema's generated
   documentation.
-- **SC-004:** For every skill in this repository, `lorecraft inspect` lists the same governing meta specs a
+- **SC-004:** For every skill in this repository, `lorecraft inspect` lists the same governing specs a
   reader derives from the skill's name, including for its resources.
 - **SC-005:** Markdown resources in a skill are checked against declared resource checks without triggering
   entry-specific frontmatter checks.
 
 ## Assumptions
 
-- Namespace meta specs layer by conjunction for every corpus.
+- Namespace specs layer by conjunction for every corpus.
 - A skill is a directory in a skills directory holding a `SKILL.md`, and its name is that directory's name.
 
 ## References
 
-- [prd-008-structured-checks](prd-008-structured-checks.md) - Related: The structured checks that judge a skill against its meta specs
+- [prd-008-structured-checks](prd-008-structured-checks.md) - Related: The structured checks that judge a skill against its specs

@@ -180,30 +180,30 @@ protocol no longer says which implementation runs which copy.
 
 ```python
 # ❌ Bad — `DiskSpecs` inherited the default `first_line`; a cache satisfying the protocol structurally wrote
-# its own that skipped blank lines, and the two disagreed on every meta spec opening with one
+# its own that skipped blank lines, and the two disagreed on every spec opening with one
 from pathlib import Path
 from typing import Protocol
 
 
 class SpecSource(Protocol):
-    """Where meta specs are read from."""
+    """Where specs are read from."""
 
     def load(self, name: str) -> str:
-        """The text of the meta spec `name`."""
+        """The text of the spec `name`."""
 
     def first_line(self, name: str) -> str:
-        """The first line of the meta spec `name`."""
+        """The first line of the spec `name`."""
         return self.load(name).splitlines()[0]
 
 
 class DiskSpecs(SpecSource):
-    """Meta specs read from a directory."""
+    """Specs read from a directory."""
 
     def __init__(self, root: Path) -> None:
         self.root = root
 
     def load(self, name: str) -> str:
-        """Read the meta spec `name` under the root."""
+        """Read the spec `name` under the root."""
         return (self.root / name).read_text(encoding='utf-8')
 ```
 
@@ -213,14 +213,14 @@ from typing import Protocol
 
 
 class SpecSource(Protocol):
-    """Where meta specs are read from."""
+    """Where specs are read from."""
 
     def load(self, name: str) -> str:
-        """The text of the meta spec `name`."""
+        """The text of the spec `name`."""
 
 
 def first_line(source: SpecSource, name: str) -> str:
-    """The first line of the meta spec `name`, whichever source holds it."""
+    """The first line of the spec `name`, whichever source holds it."""
     return source.load(name).splitlines()[0]
 ```
 
@@ -240,10 +240,10 @@ from typing import Protocol, runtime_checkable
 
 @runtime_checkable
 class SpecSource(Protocol):
-    """Where meta specs are read from."""
+    """Where specs are read from."""
 
     def load(self, name: str) -> str:
-        """The text of the meta spec `name`."""
+        """The text of the spec `name`."""
 
 
 def register_source(sources: dict[str, SpecSource], name: str, candidate: object) -> None:
@@ -260,10 +260,10 @@ from typing import Protocol
 
 
 class SpecSource(Protocol):
-    """Where meta specs are read from."""
+    """Where specs are read from."""
 
     def load(self, name: str) -> str:
-        """The text of the meta spec `name`."""
+        """The text of the spec `name`."""
 
 
 def register_source(sources: dict[str, SpecSource], name: str, source: SpecSource) -> None:

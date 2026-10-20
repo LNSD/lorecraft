@@ -11,7 +11,7 @@ scope: "pkg:lorecraft.engine"
 
 Run the rules over one revision's subjects, and report what failed to load. It changes when the way a subject is
 judged changes, when check mode skips a subject whose docs target was refused, when a mode's policy for a document or
-meta spec governed by a failed layer changes, or when a load failure is reported differently.
+spec governed by a failed layer changes, or when a load failure is reported differently.
 
 ## Role
 
@@ -22,20 +22,20 @@ returns at its subject, as a diagnostic of `lorecraft.rules.report`.
 
 ## Belongs Here
 
-- The shared runner (`runner.py`): the governance lookup, meta spec part gating, running the table's rules over a
+- The shared runner (`runner.py`): the governance lookup, spec part gating, running the table's rules over a
   subject through their queries, and building its report. A rule query is resolved for its subject, whether that
   subject is a Markdown item, symlink or corpus directory; each kind follows the same query and judgment path. A
   query is owned by its rule group unless another group needs it, when it is promoted to `lorecraft.project.query`;
   the runner resolves that shared query for both groups through the same database. A
   document, skill or skill resource is decoded by each mode's entry point, so its policy comes after decoding,
-  and `judge_item` judges any of them through one loop over meta spec parts and `Always` gates. A rule runs over an item
+  and `judge_item` judges any of them through one loop over spec parts and `Always` gates. A rule runs over an item
   of a type it applies to, and only when the item is governed for the part the rule reads; each part an applicable
   rule reads that the item is not governed for is recorded as
   coverage. A rule over a Markdown file runs over a document governed for its structure, a skill's `SKILL.md` and
   each resource handed over as a subject of its own. A resource has no corpus structure governance, while `Always`
   Markdown checks still run; a skill's explicitly mapped `Always` checks run independently of corpus governance.
 - One entry point per mode: `skip.py` applies failed-layer policy after decoding: every failed governing layer
-  suppresses all `WhenMetaSpec` gates for every item kind, while `Always` and `WhenSchema` gates still run. The
+  suppresses all `WhenSpec` gates for every item kind, while `Always` and `WhenSchema` gates still run. The
   suppressed parts appear in coverage. A refused docs target skips the affected item or skill alias. An LSP-style
   partial mode is future work.
 - `skip.py` propagates the project's common `ItemReadError` for a missing item.
@@ -53,7 +53,7 @@ returns at its subject, as a diagnostic of `lorecraft.rules.report`.
 | Declares a rule, its identity or its group, or the base a rule derives from | `lorecraft.rules` |
 | Builds the rule table, applies a level or a one-run selection, or declares what a run reports | `lorecraft.rules` |
 | Adds a project query, a query promoted for cross-group reuse, a decode witness, or a carry-over rule | `lorecraft.project` |
-| Parses text, decodes a meta spec, or builds the model | `lorecraft.project` |
+| Parses text, decodes a spec, or builds the model | `lorecraft.project` |
 | Reads the disk | `lorecraft.vfs` |
 | Resolves origin refs; engine reports use `ItemRef`, while CLI listings retain origins | `lorecraft.project` / `lorecraft.cli` |
 
@@ -67,7 +67,7 @@ returns at its subject, as a diagnostic of `lorecraft.rules.report`.
   through a separate direct path.
 - A rule returns occurrences that name no subject. The run attaches the subject's path, as a diagnostic.
 - A load failure is reported once, at its own path, and never once per subject it touches; failed layers suppress
-  meta-spec-gated checks as coverage on decoded items, never as a whole-subject skip.
+  spec-gated checks as coverage on decoded items, never as a whole-subject skip.
 - A skill entrypoint whose docs target was refused is coverage at its own path; the refusal is reported at the target.
 - A run's results are not cached. Every rule runs again every time, and never sees the store of persisted results.
 - The shared runner holds no mode's policy. A new mode is a new entry point that edits neither `runner.py` nor
@@ -80,15 +80,15 @@ returns at its subject, as a diagnostic of `lorecraft.rules.report`.
 ```python
 # ❌ Bad — the run hands a rule the database: the rule can read any document, so nothing bounds what a change
 # to one file invalidates, and a unit test needs a whole snapshot to test a rule about one heading
-for enabled in table.item_rules(source.descriptor.type, MetaSpecPart.OUTLINE):
+for enabled in table.item_rules(source.descriptor.type, SpecPart.OUTLINE):
     for occurrence in enabled.rule.check_in(database, source):
         diagnostics.append(RuleDiagnostic(source.ref.path, occurrence, enabled.severity))
 ```
 
 ```python
 # ✅ Good — the run resolves the rule's query and hands the rule its facts; a unit test hands it a literal
-if MetaSpecPart.OUTLINE in source.descriptor.governed_parts:
-    for enabled in table.item_rules(source.descriptor.type, MetaSpecPart.OUTLINE):
+if SpecPart.OUTLINE in source.descriptor.governed_parts:
+    for enabled in table.item_rules(source.descriptor.type, SpecPart.OUTLINE):
         facts = database.query(enabled.rule.query(), source.ref)
         for occurrence in enabled.rule.judge(facts):
             diagnostics.append(RuleDiagnostic(source.ref.path, occurrence, enabled.severity))
@@ -132,12 +132,12 @@ Before committing code, verify:
 - [ ] Nothing added takes a snapshot or sets an exit code
 - [ ] A mode's policy sits in that mode's own entry point; `runner.py` takes no policy parameter and no callback
 - [ ] A new load-failure condition is reported by `load_failures.py`, whose match stays exhaustive; failed layers
-  suppress all meta-spec gates across item kinds while preserving `Always` and `WhenSchema` checks
+  suppress all spec gates across item kinds while preserving `Always` and `WhenSchema` checks
 - [ ] A document, skill or resource is decoded by each mode's entry point, so its policy comes after decoding; the
-  item is asked for by its common reference, and failed corpus governance suppresses meta-spec rules while
+  item is asked for by its common reference, and failed corpus governance suppresses spec rules while
   preserving package and schema checks; `runner.py`
   decodes nothing
-- [ ] `judge_item` asks a rule its item types and meta spec part, never its base; only building the report matches on the item type
+- [ ] `judge_item` asks a rule its item types and spec part, never its base; only building the report matches on the item type
 - [ ] Nothing here imports `lorecraft.cli` or `typer`
 
 ## References

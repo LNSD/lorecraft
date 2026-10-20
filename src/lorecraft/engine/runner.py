@@ -1,7 +1,7 @@
 """The rules engine's shared runner: every enabled rule over a subject, through one rule table.
 
 This is what every mode of the engine shares: the governance lookup, gate evaluation, and running
-the table's rules over a subject into its report. It holds no mode's policy. A document, meta spec, skill
+the table's rules over a subject into its report. It holds no mode's policy. A document, spec, skill
 and resource are decoded by each mode's own entry point beside this module, `skip.check_subjects` for the check run,
 so that its policy for an item a failed layer governs comes after decoding; the entry point hands the decoded item to
 `judge_item` and the other subjects to the functions here.
@@ -14,16 +14,16 @@ database, never a branch here.
 Subject decoding precedes rule judgment. Each subject is decoded once: one that does not decode is reported as
 `UndecodableSubject`, whatever the table enables, and no rule sees it. A decoded item is then judged group by
 group: for each group of enabled rules that applies to its item type, the runner checks the rule's gate, runs the rules
-whose gates admit the item, and records an ungoverned meta spec part as coverage rather than a diagnostic. A rule over a
+whose gates admit the item, and records an ungoverned spec part as coverage rather than a diagnostic. A rule over a
 Markdown file judges a document when its structure file is loaded, alongside rules gated by a named
-meta spec part. A document in no corpus, or in one that states no structure file, has no such part
+spec part. A document in no corpus, or in one that states no structure file, has no such part
 governed, and no such rule is run over it. `Always` checks judge only the explicitly mapped item types, independently of
 corpus governance. Markdown checks over resources are `Always`-gated, so they judge resources independently of corpus
 governance. A rule over a skill entrypoint
 judges every `SKILL.md` and every resource, and never a document. The database answers only what a rule's query reads,
 so a value no enabled rule reads is never computed.
 
-The subjects are those of `skip.CheckedSubject`, which defines and dispatches them: documents, meta specs, skills,
+The subjects are those of `skip.CheckedSubject`, which defines and dispatches them: documents, specs, skills,
 skills' resources and layout entries. A decoded document, skill or resource
 is judged by the one entry `judge_item`; a layout entry has a function of its own, so a subject kind without one is a
 type error. A document is handed over as its ref, and a skill as the `SkillLocation` the
@@ -51,7 +51,7 @@ from typing import Protocol, assert_never
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.corpus import ReservedCorpusDirectory, ReservedCorpusDirectoryRef
 from lorecraft.project.database import Database, ItemText
-from lorecraft.project.item import ItemDescriptor, ItemRef, ItemType, MetaSpecPart
+from lorecraft.project.item import ItemDescriptor, ItemRef, ItemType, SpecPart
 from lorecraft.project.skill import OutsideSymlink, OutsideSymlinkRef
 from lorecraft.project.workspace.model import WorkspaceModel
 from lorecraft.rules.declaration import Rule
@@ -66,8 +66,8 @@ from lorecraft.rules.subject import (
     QueriedCorpusDirectoryRule,
     QueriedItemRule,
     QueriedSymlinkRule,
-    WhenMetaSpec,
     WhenSchema,
+    WhenSpec,
 )
 from lorecraft.rules.table import EnabledRule, QueriedItem, RuleTable
 
@@ -75,8 +75,8 @@ from lorecraft.rules.table import EnabledRule, QueriedItem, RuleTable
 class ItemRuleLookup(Protocol):
     """The item-rule lookup the shared judge needs from a run's rule table."""
 
-    def item_rules(self, item_type: ItemType, part: MetaSpecPart | None) -> tuple[EnabledRule[QueriedItem], ...]:
-        """Each enabled rule for an item type and optional meta-spec part."""
+    def item_rules(self, item_type: ItemType, part: SpecPart | None) -> tuple[EnabledRule[QueriedItem], ...]:
+        """Each enabled rule for an item type and optional spec part."""
 
 
 def judge_item(
@@ -84,7 +84,7 @@ def judge_item(
     source: ItemText,
     table: ItemRuleLookup,
 ) -> CheckedItem:
-    """Run enabled rules over a decoded document, meta spec, skill or resource.
+    """Run enabled rules over a decoded document, spec, skill or resource.
 
     A mode decodes the item and decides what a layer that failed to load means for it; this judges it against the
     gates applicable to its item type. A rule judges an item only when its gate admits that item; an applicable enabled
@@ -99,10 +99,10 @@ def judge_item(
     descriptor = source.descriptor
     model = database.model()
     diagnostics: list[Diagnostic] = []
-    ungoverned: list[MetaSpecPart] = []
+    ungoverned: list[SpecPart] = []
 
-    # Meta spec parts follow `MetaSpecPart` order, then `Always`/schema rules; unmet gates become coverage.
-    for part in (*MetaSpecPart, None):
+    # Spec parts follow `SpecPart` order, then `Always`/schema rules; unmet gates become coverage.
+    for part in (*SpecPart, None):
         rules = tuple(
             enabled for enabled in table.item_rules(descriptor.type, part) if judges(enabled.rule, descriptor, model)
         )
@@ -134,7 +134,7 @@ def judges(
     if gate is None:
         return False
     match gate:
-        case WhenMetaSpec():
+        case WhenSpec():
             return True
         case Always():
             return True

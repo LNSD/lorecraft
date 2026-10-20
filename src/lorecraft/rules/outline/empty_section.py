@@ -21,7 +21,7 @@ from lorecraft.project.syntax import Heading, SectionHeading, section_headings
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Subdiagnostic
-from lorecraft.rules.subject import Gate, MetaSpecPart, QueriedItemRule, WhenMetaSpec
+from lorecraft.rules.subject import Gate, QueriedItemRule, SpecPart, WhenSpec
 
 from .__ruleset__ import GROUP_ID, example_note, spec_note
 
@@ -125,10 +125,10 @@ def _role_of(
 
 
 def _find_required_entry(alignments: tuple[OutlineAlignmentSpec, ...], section: SectionHeading) -> SectionEntry | None:
-    """The first outline entry, across the meta specs, that requires a section.
+    """The first outline entry, across the specs, that requires a section.
 
-    The entry may come from a meta spec other than the one that forbids empty sections: a namespace can require
-    what its corpus leaves out. `None` comes back when no meta spec aligns the section to an entry that
+    The entry may come from a spec other than the one that forbids empty sections: a namespace can require
+    what its corpus leaves out. `None` comes back when no spec aligns the section to an entry that
     requires it.
 
     Args:
@@ -161,8 +161,8 @@ class EmptySection(QueriedItemRule[EmptySectionFacts]):
     end of the document; a deeper heading opens a subsection, which is content. Every heading counts, whatever its
     level: an empty title and an empty subsection are reported like any other section.
 
-    A document that more than one meta spec governs, such as a corpus and a namespace, is reported once for
-    each meta spec that forbids empty sections.
+    A document that more than one spec governs, such as a corpus and a namespace, is reported once for
+    each spec that forbids empty sections.
 
     The help follows the section: under the title it asks for the document's content, under a section the outline
     requires it asks for what the entry describes, with the entry's first example, and under any other it asks to
@@ -211,7 +211,7 @@ class EmptySection(QueriedItemRule[EmptySectionFacts]):
         spec: The structure file that forbids empty sections.
         section: The text of the heading whose section is empty.
         role: What the empty heading is: `EmptyTitle` for the document's title, its first H1, as a later H1 is not;
-            the outline entry that requires it, for an H2 that an outline of a meta spec governing the document
+            the outline entry that requires it, for an H2 that an outline of a spec governing the document
             names without `"optional": true`; or `OtherSection` for any other section.
     """
 
@@ -221,9 +221,9 @@ class EmptySection(QueriedItemRule[EmptySectionFacts]):
     SINCE: ClassVar[Release] = Release('0.3.0')
     APPLIES_TO: ClassVar[Mapping[ItemType, Gate]] = MappingProxyType(
         {
-            ItemType.DOCUMENT: WhenMetaSpec(MetaSpecPart.STRUCTURE),
-            ItemType.META_SPEC: WhenMetaSpec(MetaSpecPart.STRUCTURE),
-            ItemType.SKILL_ENTRYPOINT: WhenMetaSpec(MetaSpecPart.STRUCTURE),
+            ItemType.DOCUMENT: WhenSpec(SpecPart.STRUCTURE),
+            ItemType.SPEC: WhenSpec(SpecPart.STRUCTURE),
+            ItemType.SKILL_ENTRYPOINT: WhenSpec(SpecPart.STRUCTURE),
         }
     )
 
@@ -236,7 +236,7 @@ class EmptySection(QueriedItemRule[EmptySectionFacts]):
         return f'section `{self.section}` is empty'
 
     def children(self) -> tuple[Subdiagnostic, ...]:
-        """Point at the meta spec that forbids empty sections, then give the help that fits the section.
+        """Point at the spec that forbids empty sections, then give the help that fits the section.
 
         The title is told to hold the document's content, and a required section to hold what its entry
         describes, followed by the entry's first example when it gives one; any other section may be omitted.
@@ -266,13 +266,13 @@ class EmptySection(QueriedItemRule[EmptySectionFacts]):
 
     @classmethod
     def judge(cls, facts: EmptySectionFacts, /) -> tuple[Self, ...]:
-        """One occurrence, at its heading, for each empty section under each meta spec that forbids them.
+        """One occurrence, at its heading, for each empty section under each spec that forbids them.
 
-        The meta specs are taken in the order they apply, and the headings of each in document order. An H2 the
-        meta spec's outline requires carries its entry, for the help to describe.
+        The specs are taken in the order they apply, and the headings of each in document order. An H2 the
+        spec's outline requires carries its entry, for the help to describe.
 
         Args:
-            facts: The meta specs that forbid empty sections and the empty headings, each with its role.
+            facts: The specs that forbid empty sections and the empty headings, each with its role.
         """
         return tuple(
             cls(spec=spec, line=empty.heading.line, section=empty.heading.text, role=empty.role)

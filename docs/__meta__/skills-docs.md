@@ -13,8 +13,8 @@ creation and review workflows.
 ## Documentation Workflows
 
 Tell the agent how to find the governing documentation rules before it writes or reviews a document. Keep the
-writing path, validation path and meta-spec creation path distinct; route each to its corresponding skill when a
-task crosses those boundaries. A skill may summarize a necessary step, but the repository's meta specs remain the
+writing path, validation path and spec creation path distinct; route each to its corresponding skill when a
+task crosses those boundaries. A skill may summarize a necessary step, but the repository's specs remain the
 authority for document content.
 
 The 3500-token limit keeps a documentation workflow focused while leaving room for examples and edge cases. It
@@ -22,9 +22,9 @@ applies in addition to the base budget.
 
 ## Checklist
 
-- [ ] A documentation task resolves the governing meta specs before editing
+- [ ] A documentation task resolves the governing specs before editing
 - [ ] Creation and review workflows direct the agent to the right operation
-- [ ] Document conventions link to their meta spec instead of competing with it
+- [ ] Document conventions link to their spec instead of competing with it
 
 ## References
 

@@ -16,7 +16,7 @@ pattern is matched as JSON Schema's `pattern` is: it is searched for anywhere in
 that must hold the whole title anchors itself with `^` and `$`. Only the document's first H1 is its title, and a
 document with no title is not reported here.
 
-A document that more than one meta spec governs, such as a corpus and a namespace, must keep its title to
+A document that more than one spec governs, such as a corpus and a namespace, must keep its title to
 every pattern they set, and is reported once for each pattern the title does not match.
 
 ## Why is this bad?

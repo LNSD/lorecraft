@@ -10,7 +10,7 @@ components: "module:lorecraft.cli,module:lorecraft.engine,module:lorecraft.rules
 
 ## Summary
 
-Checks docs against meta specs and skills against the Agent Skills spec; load failures are diagnostics, refused item reads are `LC002`, errors exit `1`.
+Checks docs against specs and skills against the Agent Skills spec; load failures are diagnostics, refused item reads are `LC002`, errors exit `1`.
 
 ## Table of Contents
 
@@ -44,10 +44,10 @@ relative to it. `docs/` and `docs/__meta__/` must be [real directories](workspac
 
 ### The Subjects
 
-Checks docs/specs, skills/resources and escaping symlinks. `LINK001`–`LINK003` check documents, meta specs and skills without a corpus structure file. `LINK004` reports a relative link climbing above its link base: repository root for documents and meta specs, skill root for skills and resources. Links within that bound are not escaping. `LINK005`–`LINK007` require the structure meta spec; `LINK005` and `LINK006` also check meta specs. Prose specs in `docs/__meta__/` are subjects in reserved `meta`; frontmatter, outline and length rules apply. Without `meta.spec.json`, each reports `ungoverned for frontmatter, structure, outline, budget`. Subjects and diagnostics follow path order. Ungoverned resources are reported as such.
+Checks docs/specs, skills/resources and escaping symlinks. `LINK001`–`LINK003` check documents, specs and skills without a corpus structure file. `LINK004` reports a relative link climbing above its link base: repository root for documents and specs, skill root for skills and resources. Links within that bound are not escaping. `LINK005`–`LINK007` require the structure spec; `LINK005` and `LINK006` also check specs. Prose specs in `docs/__meta__/` are subjects in reserved `meta`; frontmatter, outline and length rules apply. Without `meta.spec.json`, each reports `ungoverned for frontmatter, structure, outline, budget`. Subjects and diagnostics follow path order. Ungoverned resources are reported as such.
 ### One Run, One Snapshot
 
-One snapshot, meta specs first. A failed structure file yields a diagnostic. Failed layers suppress meta-spec gates; `Always`, schema and link gates still run. Suppressed parts appear as `ungoverned for ...`. `LC001` invalid UTF-8 is unjudged. Diagnostics and coverage use the actual `.spec.json` name.
+One snapshot, specs first. A failed structure file yields a diagnostic. Failed layers suppress spec gates; `Always`, schema and link gates still run. Suppressed parts appear as `ungoverned for ...`. `LC001` invalid UTF-8 is unjudged. Diagnostics and coverage use the actual `.spec.json` name.
 ### Selecting Rules
 
 `--select` and `--ignore` take comma-separated or repeated selectors: `ALL`, a group prefix (`OUT`), code
@@ -111,7 +111,7 @@ error[OUT006]: missing required section `Checklist`
   = help: The items a reviewer verifies before committing a change the rule document governs.
 ```
 
-On stderr, `text` prints coverage, counts per code prefix and `checked N subject(s): ...` (including unreadable specs). Coverage marks an item whose own read was refused as `skipped, read refused at: <path>`; a subject blocked by a refused docs dependency is `skipped, depends on a refused docs path: <path>`. Refused reads of documents, meta specs, skill entrypoints and Markdown resources produce `LC002`. Other refused skill files remain scan-blocking errors and exit `2`. Symlinked corpora and `.md` entries appear as `path: not checked (symlink)`; links are not followed, diagnosed or counted.
+On stderr, `text` prints coverage, counts per code prefix and `checked N subject(s): ...` (including unreadable specs). Coverage marks an item whose own read was refused as `skipped, read refused at: <path>`; a subject blocked by a refused docs dependency is `skipped, depends on a refused docs path: <path>`. Refused reads of documents, specs, skill entrypoints and Markdown resources produce `LC002`. Other refused skill files remain scan-blocking errors and exit `2`. Symlinked corpora and `.md` entries appear as `path: not checked (symlink)`; links are not followed, diagnosed or counted.
 Example: one subject, two errors.
 
 ```text
@@ -141,7 +141,7 @@ JSON paths must be UTF-8; Unicode is unescaped.
 | Code | Meaning |
 |------|---------|
 | `0`  | No diagnostic is an error; warnings and ungoverned parts do not count |
-| `1`  | An error diagnostic, including a failed meta spec or unreadable `docs/` path (`LC002`) |
+| `1`  | An error diagnostic, including a failed spec or unreadable `docs/` path (`LC002`) |
 | `2`  | No root; unlistable `docs/` or `docs/__meta__/`; scan-blocking refusal outside reported item reads; changed snapshot entry; invalid selection or usage. A refused non-item file inside a skill scan reports `error: cannot snapshot file <path>: permission denied` without a `caused by:` line or absolute path. Errors print to stderr; selector usage errors follow [cli](cli.md) |
 
 ## Limitations
@@ -153,7 +153,7 @@ JSON paths must be UTF-8; Unicode is unescaped.
   all exit 0. LINK007 puts help before note.
   `COR001` is selectable; if its level makes it an error, the run exits 1.
 - A whole subject shows `--> path` without an excerpt. Unreadable source appears as `= at path:line: text`;
-  excerpts cover documents, skills, resources and meta specs. A BOM is omitted from excerpted line 1.
+  excerpts cover documents, skills, resources and specs. A BOM is omitted from excerpted line 1.
 - Skills without `docs/__meta__/` need `--root`.
 - Checks cover machine decisions; review judges what a section says.
 
@@ -164,7 +164,7 @@ JSON paths must be UTF-8; Unicode is unescaped.
 | `FM` | Frontmatter checks use applicable schemas; the bundled skills schema is optional. `FM004` compares skill names with listed directories. `FM001` missing-frontmatter, `FM002` invalid-yaml, `FM003` non-mapping-frontmatter, `FM004` name-mismatch, `FM005` duplicate-key, `FM006` missing-field, `FM007` unknown-field (a warning), `FM008` wrong-type, `FM009` invalid-value, `FM010` invalid-frontmatter, `FM011` malformed-allowed-tools (a warning; pattern whitespace stays intact), `FM012` allowed-tools-too-long (a warning over 500 characters), `FM013` too-many-fields (`maxProperties`, an error), `FM014` too-few-fields (`minProperties`, an error) |
 | `OUT` | Outline checks: a document's H1 title and sections against its structure files. `OUT001` missing-title, `OUT002` extra-title, `OUT003` title-not-first, `OUT004` empty-section, `OUT005` forbidden-section, `OUT006` missing-section, `OUT007` section-out-of-order, `OUT008` unexpected-section, `OUT009` invalid-title |
 | `LEN` | Length limits: a document's tokens or declared lines budget, a section's or its title's words or characters, and a `SKILL.md`'s default lines limit. `LEN001` too-many-tokens, `LEN002` too-many-lines, `LEN003` section-too-many-words, `LEN004` title-too-many-words, `LEN005` title-too-long |
-| `LINK` | Links in structured documents and skills. `LINK001` absolute, `LINK002` broken fragment, `LINK003` broken, `LINK004` escaping, `LINK005` extension-link (link to same-directory name extension; warning; also checks meta specs), `LINK006` missing-base-link (an extension omits its nearest existing document or meta spec ancestor under `References`; warning; also checks meta specs), `LINK007` mutual-link (documents in different corpora link each other; warning) |
+| `LINK` | Links in structured documents and skills. `LINK001` absolute, `LINK002` broken fragment, `LINK003` broken, `LINK004` escaping, `LINK005` extension-link (link to same-directory name extension; warning; also checks specs), `LINK006` missing-base-link (an extension omits its nearest existing document or spec ancestor under `References`; warning; also checks specs), `LINK007` mutual-link (documents in different corpora link each other; warning) |
 | `COR` | Corpus layout checks: `COR001` reserved-corpus-overlap, a directory under `docs/` has a reserved corpus name such as `skills`; warning by default. It can be selected or ignored by code or group. |
 | `LAY` | Skill layout checks: `LAY001` escaping-symlink, a symlink an agent reaches whose chain leaves the repository |
 | `LC` | Engine conditions are errors with no level; selection and configuration cannot turn them off. `LC001` invalid-utf8 reports a file that cannot be decoded, including a structure file; `LC002` unreadable-path reports a workspace path the run cannot read, list or follow; `LC003` malformed-structure-file reports a structure file that breaks the format or states no rule; `LC004` unusable-structure-file reports a well-formed structure file with rules that repeat, contradict each other or cannot be applied. |
@@ -173,7 +173,7 @@ JSON paths must be UTF-8; Unicode is unescaped.
 
 Each reported structure-file failure appears once at that file.
  `LC001` points to the first invalid byte; `LC002`–`LC004` are whole-file diagnostics with help before notes.
-`LC002` covers unreadable paths, unknown files and unlistable nested directories. Unreadable meta specs and documents count as subjects; unknown paths do not. Resource and `SKILL.md` aliases appear in coverage at their paths, naming the refused target; `LC002` stays at the target. Sibling resources and unaffected subjects continue. A directory alias appears at its path, never at the skill's `SKILL.md`.
+`LC002` covers unreadable paths, unknown files and unlistable nested directories. Unreadable specs and documents count as subjects; unknown paths do not. Resource and `SKILL.md` aliases appear in coverage at their paths, naming the refused target; `LC002` stays at the target. Sibling resources and unaffected subjects continue. A directory alias appears at its path, never at the skill's `SKILL.md`.
 
 `FM008` ends with a schema example; `FM009` labels malformed skill names with their pattern. `FM010` reports whole-block constraints without a label; its note gives the validator's wording. `FM012`–`FM014` and `LEN` label the amount over the limit.
 
@@ -181,7 +181,7 @@ Each reported structure-file failure appears once at that file.
 
 - [cli](cli.md) - Base: the command line and the options every command shares
 - [workspace](workspace.md) - Dependency: the documents, skills and snapshot the command reads
-- [spec](spec.md#references-point-to-the-base) - Dependency: the meta spec files the rules read and their reference direction
+- [spec](spec.md#references-point-to-the-base) - Dependency: the spec files the rules read and their reference direction
 - [frontmatter](frontmatter.md) - Related: the values the block accepts and the `FM002` and `FM005` findings
 - [cli-inspect](cli-inspect.md) - Related: shows the subjects this command checks
 - [cli-rule](cli-rule.md) - Related: prints the page of a rule by the code a diagnostic prints

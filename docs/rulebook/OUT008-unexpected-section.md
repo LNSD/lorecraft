@@ -16,7 +16,7 @@ no `{"any": true}` entry of the outline covers. The section is reported where it
 the outline expects a section the document only writes further down, or after the outline's end.
 
 Only the first place a document stops following its outline is reported, since every section after it is
-compared with an entry it was never meant to match. A document that more than one meta spec governs, such
+compared with an entry it was never meant to match. A document that more than one spec governs, such
 as a corpus and a namespace, must follow each outline, and is reported once for each it breaks.
 
 ## Why is this bad?

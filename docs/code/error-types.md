@@ -32,7 +32,7 @@ built-in.
 ## 1. Every Expected Failure Derives From `Error`
 
 A failure a caller is expected to report derives directly from the package's shared `Error` base, and from
-nothing else: input that cannot be read, a meta spec that does not parse, an argument outside every corpus.
+nothing else: input that cannot be read, a spec that does not parse, an argument outside every corpus.
 `Error` is the boundary the command line catches to report a failure and exit with its status. A domain error
 outside it escapes as a traceback, and one deriving from a built-in is caught by every handler written for that
 built-in. A defect in the code raises a built-in instead ([error-boundaries](error-boundaries.md)).
@@ -44,15 +44,15 @@ not a base class.
 
 ```python
 # ❌ Bad — a decode failure is a kind of read failure, so the handler for unreadable files also took every
-# non-UTF-8 meta spec, and the check reported each one as a permission problem
+# non-UTF-8 spec, and the check reported each one as a permission problem
 class SpecDecodeError(SpecReadError):
-    """A meta spec file's bytes are not UTF-8."""
+    """A spec file's bytes are not UTF-8."""
 ```
 
 ```python
 # ✅ Good — siblings, each caught only where it is named
 class SpecDecodeError(Error):
-    """A meta spec file's bytes are not UTF-8."""
+    """A spec file's bytes are not UTF-8."""
 ```
 
 ## 2. Each Way to Fail Is a Class of Its Own
@@ -100,7 +100,7 @@ raises makes every exhaustive handler carry a case that cannot happen.
 
 ```python
 # ❌ Bad — two readers raise one class, so the loader that calls both reported a failed outline read as a
-# failed meta spec read
+# failed spec read
 def read_spec(path: Path) -> str: ...     # raises SpecReadError
 def read_outline(path: Path) -> str: ...  # raises SpecReadError too
 ```
@@ -131,7 +131,7 @@ type-checks because every member has it.
 # ❌ Bad — an open family: a subclass added in another module joined it, and every handler written for
 # "every way fetch_spec fails" stopped covering them without a warning
 class FetchSpecError(Error):
-    """Reading a meta spec failed."""
+    """Reading a spec failed."""
 ```
 
 ```python
@@ -162,10 +162,10 @@ raise SpecDecodeError(f'{path} is not UTF-8')
 ```python
 # ✅ Good — values in, one message out, every value readable as an attribute
 class SpecDecodeError(Error):
-    """A meta spec file's bytes are not UTF-8.
+    """A spec file's bytes are not UTF-8.
 
     Attributes:
-        path: The meta spec file.
+        path: The spec file.
         source: The decoder's failure, which locates the first byte that does not decode.
     """
 

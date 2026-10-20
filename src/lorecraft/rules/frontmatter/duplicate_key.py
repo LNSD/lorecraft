@@ -19,7 +19,7 @@ from lorecraft.project.syntax import (
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Here, Label, Note, Subdiagnostic
-from lorecraft.rules.subject import Gate, MetaSpecPart, QueriedItemRule, WhenMetaSpec
+from lorecraft.rules.subject import Gate, QueriedItemRule, SpecPart, WhenSpec
 
 from .__ruleset__ import GROUP_ID, FrontmatterFacts, frontmatter_facts, owner_spec, spec_note
 
@@ -84,7 +84,7 @@ class DuplicateKey(QueriedItemRule[FrontmatterFacts]):
     Attributes:
         spec: The structure file that governs the owner's frontmatter, derived from `owner`, so no caller states
             one that disagrees with it.
-        owner: The document or the skill whose frontmatter repeats the key, and so which meta spec governs it.
+        owner: The document or the skill whose frontmatter repeats the key, and so which spec governs it.
         key: The key written again, as decoded.
         first_line: The line the key's first occurrence in its mapping is written on.
         kept_line: The line of the key's last occurrence in its mapping, whose value the reader keeps.
@@ -96,9 +96,9 @@ class DuplicateKey(QueriedItemRule[FrontmatterFacts]):
     SINCE: ClassVar[Release] = Release('0.3.0')
     APPLIES_TO: ClassVar[Mapping[ItemType, Gate]] = MappingProxyType(
         {
-            ItemType.DOCUMENT: WhenMetaSpec(MetaSpecPart.FRONTMATTER),
-            ItemType.META_SPEC: WhenMetaSpec(MetaSpecPart.FRONTMATTER),
-            ItemType.SKILL_ENTRYPOINT: WhenMetaSpec(MetaSpecPart.FRONTMATTER),
+            ItemType.DOCUMENT: WhenSpec(SpecPart.FRONTMATTER),
+            ItemType.SPEC: WhenSpec(SpecPart.FRONTMATTER),
+            ItemType.SKILL_ENTRYPOINT: WhenSpec(SpecPart.FRONTMATTER),
         }
     )
 
@@ -133,7 +133,7 @@ class DuplicateKey(QueriedItemRule[FrontmatterFacts]):
         )
 
     def children(self) -> tuple[Subdiagnostic, ...]:
-        """Name the meta spec, the key to write once, and the line whose value is read, unless it is this one."""
+        """Name the spec, the key to write once, and the line whose value is read, unless it is this one."""
         parts: list[Subdiagnostic] = [
             spec_note(self.owner),
             Help(f'write {self.key!r} once, with the value meant'),

@@ -15,7 +15,7 @@ from lorecraft.project.schemas import DocumentFrontmatterOwner, FrontmatterOwner
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Here, Label, Note, Subdiagnostic
-from lorecraft.rules.subject import Gate, MetaSpecPart, QueriedItemRule, WhenMetaSpec
+from lorecraft.rules.subject import Gate, QueriedItemRule, SpecPart, WhenSpec
 
 from .__ruleset__ import GROUP_ID, FrontmatterFacts, frontmatter_facts, owner_spec, spec_note
 
@@ -78,7 +78,7 @@ class MissingFrontmatter(QueriedItemRule[FrontmatterFacts]):
     Attributes:
         spec: The structure file that governs the owner's frontmatter, derived from `owner`, so no caller states
             one that disagrees with it.
-        owner: The document or the skill that opens with no block. It says which meta spec governs the subject,
+        owner: The document or the skill that opens with no block. It says which spec governs the subject,
             and for a skill the directory name its `name` must equal, which the example shows.
     """
 
@@ -88,9 +88,9 @@ class MissingFrontmatter(QueriedItemRule[FrontmatterFacts]):
     SINCE: ClassVar[Release] = Release('0.3.0')
     APPLIES_TO: ClassVar[Mapping[ItemType, Gate]] = MappingProxyType(
         {
-            ItemType.DOCUMENT: WhenMetaSpec(MetaSpecPart.FRONTMATTER),
-            ItemType.META_SPEC: WhenMetaSpec(MetaSpecPart.FRONTMATTER),
-            ItemType.SKILL_ENTRYPOINT: WhenMetaSpec(MetaSpecPart.FRONTMATTER),
+            ItemType.DOCUMENT: WhenSpec(SpecPart.FRONTMATTER),
+            ItemType.SPEC: WhenSpec(SpecPart.FRONTMATTER),
+            ItemType.SKILL_ENTRYPOINT: WhenSpec(SpecPart.FRONTMATTER),
         }
     )
 
@@ -115,7 +115,7 @@ class MissingFrontmatter(QueriedItemRule[FrontmatterFacts]):
         return (Label(Here(self.line), 'a `---` delimited block is expected here'),)
 
     def children(self) -> tuple[Subdiagnostic, ...]:
-        """Name the meta spec, say how to open the block, and for a skill show the fields it opens with."""
+        """Name the spec, say how to open the block, and for a skill show the fields it opens with."""
         owner = self.owner
         parts: list[Subdiagnostic] = [
             spec_note(owner),

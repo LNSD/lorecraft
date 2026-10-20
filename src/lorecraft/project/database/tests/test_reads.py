@@ -303,7 +303,7 @@ class TestSubjectReads:
             Read(PrimitiveRead.NAME_HIERARCHY, ref),
         }
 
-    def test_item_base_records_meta_spec_hierarchy_inputs(self, tmp_path: Path) -> None:
+    def test_item_base_records_spec_hierarchy_inputs(self, tmp_path: Path) -> None:
         #: Given
         database = _database(tmp_path)
         ref = ItemRef(RootRelativePath.parse('docs/__meta__/code-python.md'))
