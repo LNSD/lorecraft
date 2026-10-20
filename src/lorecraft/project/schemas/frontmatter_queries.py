@@ -50,10 +50,11 @@ def owner_of_frontmatter(primitives: GovernancePrimitives) -> FrontmatterOwner:
         WrongItemTypeError: If the item is not a skill or a document or meta specification whose corpus states a
             structure spec.
     """
-    origin = primitives.origin()
+    descriptor = primitives.descriptor()
+    origin = descriptor.origin
     if isinstance(origin, SkillEntrypointOrigin):
         return SkillFrontmatterOwner(
-            directory_name=PathComponent.parse(primitives.listed_name()), link_target=origin.link_target
+            directory_name=PathComponent.parse(descriptor.listed_name), link_target=origin.link_target
         )
     name = primitives.query(item_name)
     governance = primitives.governance()
@@ -64,13 +65,13 @@ def owner_of_frontmatter(primitives: GovernancePrimitives) -> FrontmatterOwner:
     if isinstance(origin, MetaSpecOrigin) and governance is not None:
         structure = governance.corpus_structure()
         if structure is not None:
-            return DocumentFrontmatterOwner(filename=parse_spec_name(primitives.listed_name()), spec=structure.path)
+            return DocumentFrontmatterOwner(filename=parse_spec_name(descriptor.listed_name), spec=structure.path)
     raise WrongItemTypeError('a document or meta specification whose corpus states a structure specification')
 
 
 def parsed_skill_fields(primitives: ItemPrimitives) -> SkillFields:
     """The independently parsed fields of a skill; empty for every other item."""
-    if not isinstance(primitives.origin(), SkillEntrypointOrigin):
+    if not isinstance(primitives.descriptor().origin, SkillEntrypointOrigin):
         return FrozenMapping({})
     return parse_skill_fields(primitives.query(item_frontmatter))
 

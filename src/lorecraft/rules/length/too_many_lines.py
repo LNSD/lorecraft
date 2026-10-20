@@ -46,7 +46,7 @@ def line_facts(primitives: _LinePrimitives) -> LineFacts:
     budgets = tuple(
         LineBudget(spec.path, spec.lines) for spec in primitives.query(item_structure_specs) if spec.lines is not None
     )
-    is_skill = isinstance(primitives.origin(), SkillEntrypointOrigin)
+    is_skill = isinstance(primitives.descriptor().origin, SkillEntrypointOrigin)
     if is_skill and not budgets:
         count = primitives.query(item_line_count)
         return LineFacts(count, (LineBudget(None, _LINE_BUDGET),))

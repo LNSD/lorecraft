@@ -1,10 +1,12 @@
 """Typed read keys for symlink and reserved-corpus directory queries."""
 
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
 
 import lorecraft.project.database.database as database_module
+from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.corpus import CorpusName, ReservedCorpusDirectoryRef
 from lorecraft.project.database import Database, PrimitiveRead, Read
@@ -57,22 +59,22 @@ def _corpus_directory_reads_item(primitives: CorpusDirectoryPrimitives) -> tuple
     return primitives.query_at(ItemRef(RootRelativePath.parse('docs/code/source.md')), _item_headings)
 
 
-def _item_origin(primitives: ItemPrimitives) -> object:
+def _descriptor_origin(primitives: ItemPrimitives) -> object:
     """The origin held by the model."""
-    return primitives.origin()
+    return primitives.descriptor().origin
 
 
-def _listed_name(primitives: ItemPrimitives) -> str:
+def _descriptor_listed_name(primitives: ItemPrimitives) -> str:
     """The listed name held by the model."""
-    return primitives.listed_name()
+    return primitives.descriptor().listed_name
 
 
-def _item_governance(primitives: ItemPrimitives) -> object:
+def _governance(primitives: ItemPrimitives) -> object:
     """The governance held by the model."""
     return primitives.governance()
 
 
-def _item_text(primitives: ItemPrimitives) -> object:
+def _text(primitives: ItemPrimitives) -> object:
     """The decoded text input."""
     return primitives.text()
 
@@ -82,9 +84,9 @@ def _descriptor(primitives: ItemPrimitives) -> object:
     return primitives.descriptor()
 
 
-def _item_model(primitives: ItemPrimitives) -> object:
-    """The workspace model used by item queries."""
-    return primitives.model()
+def _name_hierarchy(primitives: ItemPrimitives) -> object:
+    """The name ancestor specific to this item."""
+    return primitives.name_hierarchy()
 
 
 def _link_base(primitives: ItemPrimitives) -> object:
@@ -179,33 +181,34 @@ class TestSubjectReads:
 
         #: Then
         assert len(headings) == 1, f'the query returns the source heading, got {headings}'
-        assert database.query_reads(_item_headings, ref) == {Read(item_parse, ref), Read(PrimitiveRead.TEXT, ref)}, (
-            'the read key retains the Markdown item subject'
-        )
+        assert database.query_reads(_item_headings, ref) == {
+            Read(item_parse, ref),
+            Read(PrimitiveRead.TEXT, ref),
+        }, 'the read key retains the Markdown item subject'
 
-    def test_origin_primitive_records_only_its_own_input(self, tmp_path: Path) -> None:
+    def test_descriptor_origin_reads_the_descriptor_primitive(self, tmp_path: Path) -> None:
         #: Given
         database = _database(tmp_path)
         ref = ItemRef(RootRelativePath.parse('docs/code/source.md'))
 
         #: When
-        database.query(_item_origin, ref)
+        database.query(_descriptor_origin, ref)
 
         #: Then
-        assert database.query_reads(_item_origin, ref) == {Read(PrimitiveRead.ORIGIN, ref)}, (
-            'a raw primitive records only the input it answers'
+        assert database.query_reads(_descriptor_origin, ref) == {Read(PrimitiveRead.DESCRIPTOR, ref)}, (
+            'the origin is read through the descriptor primitive'
         )
 
-    def test_listed_name_primitive_records_only_its_own_input(self, tmp_path: Path) -> None:
+    def test_descriptor_listed_name_reads_the_descriptor_primitive(self, tmp_path: Path) -> None:
         #: Given
         database = _database(tmp_path)
         ref = ItemRef(RootRelativePath.parse('docs/code/source.md'))
 
         #: When
-        database.query(_listed_name, ref)
+        database.query(_descriptor_listed_name, ref)
 
         #: Then
-        assert database.query_reads(_listed_name, ref) == {Read(PrimitiveRead.LISTED_NAME, ref)}
+        assert database.query_reads(_descriptor_listed_name, ref) == {Read(PrimitiveRead.DESCRIPTOR, ref)}
 
     def test_governance_primitive_records_only_its_own_input(self, tmp_path: Path) -> None:
         #: Given
@@ -213,10 +216,10 @@ class TestSubjectReads:
         ref = ItemRef(RootRelativePath.parse('docs/code/source.md'))
 
         #: When
-        database.query(_item_governance, ref)
+        database.query(_governance, ref)
 
         #: Then
-        assert database.query_reads(_item_governance, ref) == {Read(PrimitiveRead.GOVERNANCE, ref)}
+        assert database.query_reads(_governance, ref) == {Read(PrimitiveRead.GOVERNANCE, ref)}
 
     def test_text_primitive_records_only_its_own_input(self, tmp_path: Path) -> None:
         #: Given
@@ -224,10 +227,10 @@ class TestSubjectReads:
         ref = ItemRef(RootRelativePath.parse('docs/code/source.md'))
 
         #: When
-        database.query(_item_text, ref)
+        database.query(_text, ref)
 
         #: Then
-        assert database.query_reads(_item_text, ref) == {Read(PrimitiveRead.TEXT, ref)}
+        assert database.query_reads(_text, ref) == {Read(PrimitiveRead.TEXT, ref)}
 
     def test_descriptor_primitive_records_only_its_own_input(self, tmp_path: Path) -> None:
         #: Given
@@ -240,16 +243,35 @@ class TestSubjectReads:
         #: Then
         assert database.query_reads(_descriptor, ref) == {Read(PrimitiveRead.DESCRIPTOR, ref)}
 
-    def test_model_primitive_records_only_its_own_input(self, tmp_path: Path) -> None:
+    def test_name_hierarchy_primitive_records_only_its_own_input(self, tmp_path: Path) -> None:
         #: Given
         database = _database(tmp_path)
         ref = ItemRef(RootRelativePath.parse('docs/code/source.md'))
 
         #: When
-        database.query(_item_model, ref)
+        database.query(_name_hierarchy, ref)
 
         #: Then
-        assert database.query_reads(_item_model, ref) == {Read(PrimitiveRead.MODEL, ref)}
+        assert database.query_reads(_name_hierarchy, ref) == {
+            Read(PrimitiveRead.NAME_HIERARCHY, ref),
+            Read(PrimitiveRead.DESCRIPTOR, ref),
+        }
+
+    def test_name_hierarchy_is_unchanged_by_an_unrelated_schema_change(self, tmp_path: Path) -> None:
+        #: Given
+        original = _database(tmp_path / 'original')
+        changed = _database(tmp_path / 'changed')
+        ref = ItemRef(RootRelativePath.parse('docs/code/guide-more.md'))
+        original_model = original.model()
+        changed._model = replace(changed.model(), schema_inputs=FrozenMapping({}))
+        assert original_model.schema_inputs != changed.model().schema_inputs, 'the model has unrelated schema changes'
+
+        #: When
+        original_hierarchy = original.query(_name_hierarchy, ref)
+        changed_hierarchy = changed.query(_name_hierarchy, ref)
+
+        #: Then
+        assert changed_hierarchy == original_hierarchy, "a schema change does not alter the item's name hierarchy"
 
     def test_link_base_primitive_records_its_decoded_inputs(self, tmp_path: Path) -> None:
         #: Given
@@ -278,7 +300,7 @@ class TestSubjectReads:
         assert database.query_reads(item_base, ref) == {
             Read(PrimitiveRead.TEXT, ref),
             Read(PrimitiveRead.DESCRIPTOR, ref),
-            Read(PrimitiveRead.MODEL, ref),
+            Read(PrimitiveRead.NAME_HIERARCHY, ref),
         }
 
     def test_item_base_records_meta_spec_hierarchy_inputs(self, tmp_path: Path) -> None:
@@ -293,7 +315,7 @@ class TestSubjectReads:
         assert database.query_reads(item_base, ref) == {
             Read(PrimitiveRead.TEXT, ref),
             Read(PrimitiveRead.DESCRIPTOR, ref),
-            Read(PrimitiveRead.MODEL, ref),
+            Read(PrimitiveRead.NAME_HIERARCHY, ref),
         }
 
     def test_query_records_text_as_link_targets_dependency(self, tmp_path: Path) -> None:

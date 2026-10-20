@@ -76,5 +76,5 @@ def item_base(primitives: NameHierarchyPrimitives) -> AspectFilename | SpecName 
     """
     if primitives.text() is None:
         return None
-    descriptor = primitives.descriptor()
-    return primitives.model().name_base(descriptor.corpus, descriptor.name)
+    hierarchy = primitives.name_hierarchy()
+    return hierarchy.base_name

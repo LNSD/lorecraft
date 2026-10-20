@@ -122,7 +122,7 @@ that projects its own problem type into its occurrences. The analysis finds prob
 applied after detection, so no diagnostic is cached and a rule's result still is not.
 
 **A cross-file fact is a query.** The link-target states are a query keyed by the subject's ref, one per kind of
-Markdown file, read as the `item_link_targets` primitive: what the snapshot holds at the target of each relative link,
+Markdown file, read as the `link_targets` primitive: what the snapshot holds at the target of each relative link,
 present, missing or outside the scope the scan read, with the root-relative path it was looked up at, keyed by the
 link's normalised relative path. Each link is read from the file's `link_base` primitive, the skill root for any file
 of a skill and the document's own directory for a document, and a link climbing past that bound has no entry. A

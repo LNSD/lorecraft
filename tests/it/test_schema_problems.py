@@ -367,7 +367,7 @@ class TestSkillSchemaProblems:
         assert {
             Read(item_frontmatter, source.ref),
             Read(PrimitiveRead.TEXT, source.ref),
-            Read(PrimitiveRead.ORIGIN, source.ref),
+            Read(PrimitiveRead.DESCRIPTOR, source.ref),
         } <= database.query_reads(parsed_skill_fields, source.ref)
         assert set(first) == {SkillField.NAME, SkillField.ALLOWED_TOOLS}, 'each written, conforming field is kept'
 
@@ -396,7 +396,7 @@ class TestSkillSchemaProblems:
 
         #: Then
         assert owner == SkillFrontmatterOwner(PathComponent.parse('review'), None)
-        assert Read(PrimitiveRead.ORIGIN, source.ref) in database.query_reads(owner_of_frontmatter, source.ref)
+        assert Read(PrimitiveRead.DESCRIPTOR, source.ref) in database.query_reads(owner_of_frontmatter, source.ref)
 
     def test_skill_frontmatter_schema_problems_called_twice_returns_the_first_answer(self) -> None:
         #: Given

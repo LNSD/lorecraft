@@ -195,9 +195,9 @@ The report of ungoverned gated parts and subjects skipped because their required
 
 ### Primitive
 
-One read of subject state, represented by a method on a subject's primitives protocol. Primitive names omit the
-subject kind when it is implicit: item methods use names such as `text`, `origin`, `governance` and `base`, while
-link-specific methods use `link_targets` and `link_base`.
+One read of subject state, represented by a method on a subject's primitives protocol. Item primitives carry no
+subject prefix because they sit on the item-scoped primitives protocol; for example, `text`, `governance` and
+`descriptor`.
 
 ### Primitive group
 

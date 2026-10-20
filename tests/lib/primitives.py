@@ -21,6 +21,7 @@ from lorecraft.project.link_target import DocumentDirectory, DocumentLink, LinkB
 from lorecraft.project.query import (
     DecodedText,
     ItemQuery,
+    NameHierarchy,
     QueryTargetRef,
     item_base,
     item_corpus,
@@ -114,10 +115,6 @@ class StructurePrimitives:
     builtin_schema: bool = True
     schema_inputs_value: Mapping[SchemaRef, SchemaInput] | None = None
 
-    def origin(self) -> ItemOrigin:
-        """The origin this was built with."""
-        return self.origin_value
-
     def descriptor(self) -> ItemDescriptor:
         """The descriptor synthesized from this standalone test value."""
         name = self.name
@@ -141,9 +138,10 @@ class StructurePrimitives:
             frozenset(),
         )
 
-    def model(self) -> StructurePrimitives:
-        """The minimal name hierarchy available to standalone rule tests."""
-        return self
+    def name_hierarchy(self) -> NameHierarchy:
+        """The name ancestor this standalone item fixture supplies."""
+        base_name = self.base_name if isinstance(self.base_name, AspectFilename | SpecName) else None
+        return NameHierarchy(base_name=base_name)
 
     def find_corpus(self, name: CorpusName) -> StructurePrimitives | None:
         """Return this item's hierarchy only for the corpus the test supplied."""
@@ -167,10 +165,6 @@ class StructurePrimitives:
         if self.base_name is None:
             return None
         return DocumentRef(self.corpus or CorpusName.parse('guide'), self.base_name)
-
-    def listed_name(self) -> str:
-        """The original name this was built with."""
-        return str(self.name or self.base_name or '')
 
     def text(self) -> DecodedText | None:
         """Standalone test facts have no decoded witness; derived answers are supplied below."""
