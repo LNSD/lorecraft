@@ -24,6 +24,7 @@ from lorecraft.project.aspect import AspectFilename, AspectNamespace
 from lorecraft.project.corpus import CorpusName, ReservedCorpusDirectory
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.document import Repository as DocumentRepository
+from lorecraft.project.item import ItemType
 from lorecraft.project.layout import SNAPSHOT_SCOPE, SPECS_DIR
 from lorecraft.project.schemas import CorpusSpecName, NamespaceSpecName, SectionName, StructureSpec
 from lorecraft.project.schemas import Repository as SchemaRepository
@@ -31,6 +32,7 @@ from lorecraft.project.skill import OutsideSymlink, SkillLocation, SkillRef, Ski
 from lorecraft.project.skill import Repository as SkillRepository
 from lorecraft.project.workspace import (
     AdjacentAnyRuns,
+    BuiltinMetaSpecLayer,
     EmptyStructureSpec,
     FailedStructure,
     ForbiddenOutlineSections,
@@ -57,7 +59,7 @@ from lorecraft.project.workspace import (
     load_model,
     load_workspace,
 )
-from lorecraft.schemas import SchemaKind
+from lorecraft.schemas import BundledOrigin, SchemaInput, SchemaKind, SchemaRef
 from lorecraft.schemas.builtin import AGENT_SKILLS_SCHEMA_INPUT
 from lorecraft.vfs import OsRefusal, ResolvedPath, RootExit, VirtualFileSystem, take_snapshot
 
@@ -806,7 +808,41 @@ class TestLoadWorkspaceEdgeCases:
             outside_symlinks=FrozenMapping({}),
             load_failures=(),
             schema_inputs=FrozenMapping({AGENT_SKILLS_SCHEMA_INPUT.reference: AGENT_SKILLS_SCHEMA_INPUT}),
+            builtin_layers=(
+                BuiltinMetaSpecLayer(
+                    BundledOrigin('builtin:agent-skills-frontmatter'),
+                    frozenset({ItemType.SKILL_ENTRYPOINT}),
+                    (AGENT_SKILLS_SCHEMA_INPUT,),
+                ),
+            ),
         ), 'a root without docs/ is an empty workspace'
+
+    def test_load_workspace_registers_additional_builtin_layer_inputs(
+        self, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
+    ) -> None:
+        #: Given
+        origin = BundledOrigin('builtin:test-layer')
+        reference = SchemaRef(SchemaKind.STRUCTURE, origin.identity)
+        schema_input = SchemaInput(reference, origin, FrozenMapping.from_plain({'lines': 50}))
+        layer = BuiltinMetaSpecLayer(origin, frozenset({ItemType.DOCUMENT}), (schema_input,))
+
+        #: When
+        model = load_workspace(schemas, documents, skills, builtin_layers=(layer,))
+
+        #: Then
+        assert model.schema_inputs[reference] == schema_input, 'the loader registers builtin inputs in the model'
+        assert model.builtin_layers[-1] == layer, 'additional layers follow the pre-registered builtin layer'
+
+    def test_load_workspace_can_omit_pre_registered_builtin_layers(
+        self, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
+    ) -> None:
+        #: Given
+        #: When
+        model = load_workspace(schemas, documents, skills, builtin_skills_schema=False)
+
+        #: Then
+        assert model.builtin_layers == (), 'an invocation can omit the pre-registered builtin layer'
+        assert model.schema_inputs == FrozenMapping({}), 'omitting the layer omits its inputs too'
 
 
 def _outside(path: str, target: Path) -> OutsideSymlink:
@@ -1029,16 +1065,16 @@ class TestSchemaInputRegistration:
                 if ref.kind is SchemaKind.FRONTMATTER and schema_input.origin == structure.origin
             )
         ]
-        bundled = model.schema_inputs[AGENT_SKILLS_SCHEMA_INPUT.reference]
+        builtin = model.schema_inputs[AGENT_SKILLS_SCHEMA_INPUT.reference]
         assert structure.document == FrozenMapping.from_plain(json.loads(text))
         assert structure.origin.path == RootRelativePath.parse('docs/__meta__/code.spec.json')
         assert frontmatter.origin == structure.origin, 'the embedded JSON Schema retains its specification layer'
         assert frontmatter.reference.identity == structure.reference.identity, (
             'both inputs identify their governing layer'
         )
-        assert bundled == AGENT_SKILLS_SCHEMA_INPUT, 'the Agent Skills floor is registered with bundled provenance'
+        assert builtin == AGENT_SKILLS_SCHEMA_INPUT, 'the Agent Skills floor is registered with builtin provenance'
 
-    def test_load_workspace_with_agent_skills_namespace_keeps_bundled_subject_distinct(
+    def test_load_workspace_with_agent_skills_namespace_keeps_builtin_subject_distinct(
         self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
     ) -> None:
         #: Given
@@ -1051,9 +1087,9 @@ class TestSchemaInputRegistration:
         model = load_workspace(schemas, documents, skills)
 
         #: Then
-        bundled = model.schema_inputs[AGENT_SKILLS_SCHEMA_INPUT.reference]
-        assert bundled == AGENT_SKILLS_SCHEMA_INPUT, (
-            'the repository namespace cannot replace the bundled skills subject'
+        builtin = model.schema_inputs[AGENT_SKILLS_SCHEMA_INPUT.reference]
+        assert builtin == AGENT_SKILLS_SCHEMA_INPUT, (
+            'the repository namespace cannot replace the builtin skills subject'
         )
         repository_frontmatter = tuple(
             schema_input

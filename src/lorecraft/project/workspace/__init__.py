@@ -37,6 +37,7 @@ from .failure import (
 )
 from .loader import load_model, load_workspace
 from .model import (
+    BuiltinMetaSpecLayer,
     Corpus,
     CorpusKeyMismatchError,
     CorpusNamespace,
@@ -60,6 +61,7 @@ from .refusals import (
 )
 
 __all__: list[str] = [
+    'BuiltinMetaSpecLayer',
     'ResolvedItem',
     'WorkspaceModel',
     'CorpusKeyMismatchError',
