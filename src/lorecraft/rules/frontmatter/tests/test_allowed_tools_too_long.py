@@ -7,8 +7,10 @@ import pytest
 
 from lib.overruns import overrun
 from lorecraft.core.num import NonZeroUnsignedInt
+from lorecraft.project.item import ItemType, MetaSpecPart
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.location import Help, Here, Label, Note
+from lorecraft.rules.subject import WhenMetaSpec
 from lorecraft.rules.tests.fake_database import FakeSkillDatabase, judged
 
 from ..allowed_tools_too_long import AllowedToolsTooLong
@@ -60,6 +62,9 @@ LIST_ALLOWED_TOOLS: Final[str] = dedent("""\
 
 @pytest.mark.unit
 class TestAllowedToolsTooLong:
+    def test_rule_is_gated_by_builtin_frontmatter(self) -> None:
+        assert AllowedToolsTooLong.APPLIES_TO[ItemType.SKILL_ENTRYPOINT] == WhenMetaSpec(MetaSpecPart.FRONTMATTER)
+
     def test_check_with_a_value_of_zero_characters_reports_nothing(self) -> None:
         #: Given
         value = ''

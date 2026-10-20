@@ -59,9 +59,9 @@ class TestGates:
         #: Then
         assert gate == expected, 'the document budget rule requires its declared meta spec part'
 
-    def test_document_and_skill_rule_with_budget_part_uses_both_meta_spec_gates(self) -> None:
+    def test_line_budget_rule_uses_meta_spec_gates_for_skills(self) -> None:
         #: Given
-        rule = TooManyTokens
+        rule = TooManyLines
         expected = MappingProxyType(
             {
                 ItemType.DOCUMENT: WhenMetaSpec(MetaSpecPart.BUDGET),
@@ -74,7 +74,7 @@ class TestGates:
         gates = rule.APPLIES_TO
 
         #: Then
-        assert gates == expected, 'the shared budget rule requires its meta spec part and loaded layer for skills'
+        assert gates == expected, 'the builtin skill line budget is governed through the budget part'
 
     def test_markdown_rule_with_item_types_uses_spec_and_always_gates(self) -> None:
         #: Given

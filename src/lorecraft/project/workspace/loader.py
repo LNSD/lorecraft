@@ -98,6 +98,7 @@ from lorecraft.vfs import (
     UnrecordedFileError,
 )
 
+from .builtin import AGENT_SKILLS_STRUCTURE_SPEC
 from .failure import (
     FailedStructure,
     LoadFailure,
@@ -168,7 +169,7 @@ def load_workspace(
     documents: DocumentRepository,
     skills: SkillRepository,
     *,
-    builtin_skills_schema: bool = True,
+    agent_skills_spec: bool = True,
     builtin_layers: tuple[BuiltinMetaSpecLayer, ...] = (),
 ) -> WorkspaceModel:
     """Build the workspace model of the snapshot; invalid repository declarations are recorded, not raised.
@@ -182,7 +183,7 @@ def load_workspace(
         schemas: Repository the specification files are listed and read from.
         documents: Repository the corpus directories and their Markdown files are listed from.
         skills: Repository the agents' skills directories are resolved and their skills listed from.
-        builtin_skills_schema: Whether to pre-register the Agent Skills floor schema.
+        agent_skills_spec: Whether to register the builtin Agent Skills floor layer.
         builtin_layers: Additional builtin layers registered before repository layers.
 
     Raises:
@@ -191,7 +192,7 @@ def load_workspace(
     failures: list[LoadFailure] = []
     schema_inputs: dict[SchemaRef, SchemaInput] = {}
     registered_layers = list(builtin_layers)
-    if builtin_skills_schema:
+    if agent_skills_spec:
         origin = AGENT_SKILLS_SCHEMA_INPUT.origin
         assert isinstance(origin, BundledOrigin), 'the pre-registered Agent Skills schema has a builtin origin'
         registered_layers.insert(
@@ -200,6 +201,8 @@ def load_workspace(
                 origin,
                 frozenset({ItemType.SKILL_ENTRYPOINT}),
                 (AGENT_SKILLS_SCHEMA_INPUT,),
+                frozenset(),
+                (AGENT_SKILLS_STRUCTURE_SPEC,),
             ),
         )
     for layer in registered_layers:
@@ -283,7 +286,7 @@ def load_workspace(
 def load_model(
     fs: FileSystem,
     *,
-    builtin_skills_schema: bool = True,
+    agent_skills_spec: bool = True,
     builtin_layers: tuple[BuiltinMetaSpecLayer, ...] = (),
 ) -> WorkspaceModel:
     """Wire one filesystem view into the three repositories and load the workspace model through them.
@@ -294,7 +297,7 @@ def load_model(
 
     Args:
         fs: View of the repository the model is loaded from, rooted at the workspace root.
-        builtin_skills_schema: Whether to pre-register the Agent Skills floor schema.
+        agent_skills_spec: Whether to register the builtin Agent Skills floor layer.
         builtin_layers: Additional builtin layers registered before repository layers.
     """
     schemas = SchemaRepository(fs, SPECS_DIR)
@@ -304,7 +307,7 @@ def load_model(
         schemas,
         documents,
         skills,
-        builtin_skills_schema=builtin_skills_schema,
+        agent_skills_spec=agent_skills_spec,
         builtin_layers=builtin_layers,
     )
 

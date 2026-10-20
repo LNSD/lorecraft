@@ -24,9 +24,7 @@ once in `lorecraft.project.layout` and read from there by every other module.
 - The project model and loader built from listings and meta specs, including reserved corpora.
 - A repository that lists entries, reads text through a view, and decides what an entry is.
 - Decoding meta specs into rules proved usable at build time.
-- The parse tree, token count and line count: pure functions of document text. The tree derives from the values
-  `lorecraft.markdown` returns; `document` maps its line and link values into the project model and decodes raw
-  frontmatter.
+- Parse trees, token and line counts, and project-owned decoding of Markdown structure and frontmatter.
 - Shared queries over an item's raw syntax and governance primitives: frontmatter violations mapped to
   project-owned problems on field lines, skill fields, and frontmatter ownership, or where sections first stop
   matching an outline. It finds facts
@@ -36,6 +34,7 @@ once in `lorecraft.project.layout` and read from there by every other module.
 - The common reference and model-resolved descriptor for documents, meta specs and skills, including location, origin,
   governance target and governed meta spec parts. The reserved `meta` corpus governs meta specs; `skills` governs
   skills, but not resources.
+- Builtin meta-spec layers and their structure specs, applied before repository governance to the item kinds they name.
 - Turning a Markdown link's destination into a root-relative path, from its document's directory or its skill's
   root, and what the snapshot holds there.
 - `lorecraft.project.query`: raw-state primitives and queries promoted for cross-group use. A promoted query gives

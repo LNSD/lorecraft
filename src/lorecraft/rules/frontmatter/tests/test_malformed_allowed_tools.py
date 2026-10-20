@@ -6,8 +6,10 @@ from typing import Final
 import pytest
 
 from lorecraft.core.num import NonZeroUnsignedInt
+from lorecraft.project.item import ItemType, MetaSpecPart
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.location import Help, Here, Label, Note
+from lorecraft.rules.subject import WhenMetaSpec
 from lorecraft.rules.tests.fake_database import FakeSkillDatabase, judged
 
 from ..malformed_allowed_tools import (
@@ -43,6 +45,9 @@ def _skill_allowing(value: str) -> FakeSkillDatabase:
 
 @pytest.mark.unit
 class TestMalformedAllowedTools:
+    def test_rule_is_gated_by_builtin_frontmatter(self) -> None:
+        assert MalformedAllowedTools.APPLIES_TO[ItemType.SKILL_ENTRYPOINT] == WhenMetaSpec(MetaSpecPart.FRONTMATTER)
+
     def test_check_with_comma_separator_reports_the_bad_entry_and_accepts_pattern_comma(self) -> None:
         #: Given
         text = dedent("""\

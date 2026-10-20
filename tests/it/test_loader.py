@@ -59,6 +59,7 @@ from lorecraft.project.workspace import (
     load_model,
     load_workspace,
 )
+from lorecraft.project.workspace.builtin import AGENT_SKILLS_STRUCTURE_SPEC
 from lorecraft.schemas import BundledOrigin, SchemaInput, SchemaKind, SchemaRef
 from lorecraft.schemas.builtin import AGENT_SKILLS_SCHEMA_INPUT
 from lorecraft.vfs import OsRefusal, ResolvedPath, RootExit, VirtualFileSystem, take_snapshot
@@ -813,6 +814,8 @@ class TestLoadWorkspaceEdgeCases:
                     BundledOrigin('builtin:agent-skills-frontmatter'),
                     frozenset({ItemType.SKILL_ENTRYPOINT}),
                     (AGENT_SKILLS_SCHEMA_INPUT,),
+                    frozenset(),
+                    (AGENT_SKILLS_STRUCTURE_SPEC,),
                 ),
             ),
         ), 'a root without docs/ is an empty workspace'
@@ -838,7 +841,7 @@ class TestLoadWorkspaceEdgeCases:
     ) -> None:
         #: Given
         #: When
-        model = load_workspace(schemas, documents, skills, builtin_skills_schema=False)
+        model = load_workspace(schemas, documents, skills, agent_skills_spec=False)
 
         #: Then
         assert model.builtin_layers == (), 'an invocation can omit the pre-registered builtin layer'

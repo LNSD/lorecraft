@@ -56,7 +56,7 @@ def run_check(
     color: ColorChoice,
     select: list[SelectorValue] | None,
     ignore: list[SelectorValue] | None,
-    builtin_skills_schema: bool = True,
+    agent_skills_spec: bool = True,
 ) -> ExitStatus | None:
     """Run the rules over the workspace and write the report; the body of `lorecraft check`.
 
@@ -66,7 +66,7 @@ def run_check(
         color: When to emphasise the text format with colour.
         select: The `--select` values, already parsed and confirmed against the rule index.
         ignore: The `--ignore` values, already parsed and confirmed against the rule index.
-        builtin_skills_schema: Whether to pre-register the Agent Skills floor schema.
+        agent_skills_spec: Whether to register the builtin Agent Skills floor layer.
 
     Returns:
         `ExitStatus.FINDINGS` when any diagnostic is an error, `ExitStatus.FAILURE` for invalid input, an
@@ -86,7 +86,7 @@ def run_check(
         # report success.
         database = Database.from_snapshot(
             take_snapshot(establish_root(root), SNAPSHOT_SCOPE, declaration=DECLARATION),
-            builtin_skills_schema=builtin_skills_schema,
+            agent_skills_spec=agent_skills_spec,
         )
         # With no corpus and no meta spec known, nothing can be checked, so this stops before any subject is selected.
         # Every other failure the model recorded is reported below, as a diagnostic.

@@ -125,6 +125,7 @@ from lorecraft.rules.report import (
 from lorecraft.rules.selection import AllRules, RuleSelection
 from lorecraft.rules.subject import Gate, MetaSpecPart, QueriedItemRule, WhenMetaSpec
 from lorecraft.rules.table import RuleTable
+from lorecraft.schemas import BundledOrigin
 from lorecraft.vfs import (
     ByteOffset,
     EntryRecord,
@@ -182,9 +183,8 @@ REVIEW_FILE: Final[RootRelativePath] = RootRelativePath.parse('.agents/skills/re
 SKILL_UNGOVERNED: Final[tuple[MetaSpecPart, ...]] = (
     MetaSpecPart.STRUCTURE,
     MetaSpecPart.OUTLINE,
-    MetaSpecPart.BUDGET,
 )
-"""The skills corpus is absent, so its structure, outline and budget parts are ungoverned."""
+"""The builtin floor governs frontmatter and budget, while the skills corpus is absent."""
 
 OBJECT_SCHEMA: Final[bytes] = b'{"frontmatter": {"type": "object"}}'
 """A corpus structure specification whose frontmatter schema accepts any mapping, and which sets no budget."""
@@ -948,7 +948,11 @@ class TestCheckSubjects:
         reports = check_subjects(database, subjects, package_table)
 
         #: Then
-        occurrence = TooManyLines(line=LineNumber(NonZeroUnsignedInt(501)), overrun=overrun(501, 500))
+        occurrence = TooManyLines(
+            spec=BundledOrigin('builtin:agent-skills-frontmatter'),
+            line=LineNumber(NonZeroUnsignedInt(501)),
+            overrun=overrun(501, 500),
+        )
         skill_file = RootRelativePath.parse('.agents/skills/review/SKILL.md')
         assert reports == (
             CheckedItem(
@@ -1033,7 +1037,11 @@ class TestCheckSubjects:
         reports = check_subjects(database, subjects, package_table)
 
         #: Then
-        occurrence = TooManyLines(line=LineNumber(NonZeroUnsignedInt(501)), overrun=overrun(501, 500))
+        occurrence = TooManyLines(
+            spec=BundledOrigin('builtin:agent-skills-frontmatter'),
+            line=LineNumber(NonZeroUnsignedInt(501)),
+            overrun=overrun(501, 500),
+        )
         skill_file = RootRelativePath.parse('.agents/skills/review/SKILL.md')
         assert reports == (
             CheckedItem(

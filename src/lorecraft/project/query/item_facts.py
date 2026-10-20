@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from lorecraft.core.num import UnsignedInt
+from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectFilename, AspectName
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.syntax import (
@@ -18,6 +19,7 @@ from lorecraft.project.syntax import (
     parse_document,
     parse_frontmatter,
 )
+from lorecraft.schemas import BundledOrigin
 
 if TYPE_CHECKING:
     from lorecraft.project.query import ItemPrimitives, NameHierarchyPrimitives
@@ -50,9 +52,20 @@ def item_line_count(primitives: ItemPrimitives) -> LineCount:
 
 
 def item_structure_specs(primitives: ItemPrimitives) -> tuple[StructureSpec, ...]:
-    """The structure specifications of the item's governance, if any."""
+    """The builtin and repository structure specifications governing the item, broad to narrow."""
     governance = primitives.governance()
-    return governance.structure_specs() if governance is not None else ()
+    repository_specs = governance.structure_specs() if governance is not None else ()
+    return (*primitives.builtin_structure_specs(), *repository_specs)
+
+
+def item_structure_sources(
+    primitives: ItemPrimitives,
+) -> tuple[tuple[BundledOrigin | RootRelativePath, StructureSpec], ...]:
+    """The builtin or repository source of each governing structure specification."""
+    governance = primitives.governance()
+    builtin = primitives.builtin_structure_sources()
+    repository = governance.structure_specs() if governance is not None else ()
+    return (*builtin, *((spec.path, spec) for spec in repository))
 
 
 def item_name(primitives: NameHierarchyPrimitives) -> AspectFilename | AspectName | SpecName | None:

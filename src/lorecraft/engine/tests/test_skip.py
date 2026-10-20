@@ -143,8 +143,8 @@ class TestCheckSubjectsOverASkillEntry:
         #: Then
         assert len(reports) == 1, 'the entry point reports the one skill it was given'
         assert isinstance(reports[0], CheckedItem), 'a failed layer leaves the skill available for `Always` checks'
-        assert [str(diagnostic.occurrence.CODE) for diagnostic in reports[0].diagnostics] == [], (
-            'the failed layer suppresses the frontmatter-gated required-field rule'
+        assert [str(diagnostic.occurrence.CODE) for diagnostic in reports[0].diagnostics] == ['FM006'], (
+            'the failed repository layer leaves builtin Agent Skills frontmatter checks active'
         )
 
     def test_check_subjects_with_a_loaded_skills_layer_without_a_structure_file_reports_structure_ungoverned(

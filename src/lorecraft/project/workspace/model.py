@@ -237,13 +237,30 @@ class BuiltinMetaSpecLayer:
         origin: Stable identity of the builtin layer.
         applies_to: Item kinds the layer governs, independently of repository corpora.
         schema_inputs: Immutable schemas the layer contributes to the workspace registry.
-        parts: Additional meta spec parts the layer states, such as a structure budget.
+        structure_specs: Structure specifications the layer contributes before repository specifications.
+        parts: Additional meta spec parts that have no schema or structure declaration.
     """
 
     origin: BundledOrigin
     applies_to: frozenset[ItemType]
     schema_inputs: tuple[SchemaInput, ...]
     parts: frozenset[MetaSpecPart] = frozenset()
+    structure_specs: tuple[StructureSpec, ...] = ()
+
+    def __post_init__(self) -> None:
+        """Reject parts already derived from this layer's schema or structure declarations."""
+        overlap = self.parts & self.derived_parts()
+        if overlap:
+            raise ValueError(f'builtin parts are already declared by schemas or structures: {overlap}')
+
+    def derived_parts(self) -> frozenset[MetaSpecPart]:
+        """Parts implied by this layer's schema and structure declarations."""
+        derived: set[MetaSpecPart] = set()
+        if any(schema.reference.kind is SchemaKind.FRONTMATTER for schema in self.schema_inputs):
+            derived.add(MetaSpecPart.FRONTMATTER)
+        if any(spec.tokens is not None or spec.lines is not None for spec in self.structure_specs):
+            derived.add(MetaSpecPart.BUDGET)
+        return frozenset(derived)
 
     @property
     def schema_refs(self) -> tuple[SchemaRef, ...]:
@@ -804,6 +821,27 @@ class WorkspaceModel:
             if reference.kind is SchemaKind.FRONTMATTER
         )
 
+    def builtin_structure_specs_for(self, item_type: ItemType) -> tuple[StructureSpec, ...]:
+        """Structure specifications supplied by applicable builtin layers, in registration order."""
+        return tuple(structure for layer in self.builtin_layers_for(item_type) for structure in layer.structure_specs)
+
+    def builtin_structure_sources_for(self, item_type: ItemType) -> tuple[tuple[BundledOrigin, StructureSpec], ...]:
+        """Builtin structure specifications with the layer that supplies each one."""
+        return tuple(
+            (layer.origin, structure)
+            for layer in self.builtin_layers_for(item_type)
+            for structure in layer.structure_specs
+        )
+
+    def builtin_parts_for(self, item_type: ItemType) -> frozenset[MetaSpecPart]:
+        """Parts applicable builtin layers govern, deriving any part named by their schemas or structures."""
+        return self._builtin_parts(self.builtin_layers_for(item_type))
+
+    @staticmethod
+    def _builtin_parts(layers: tuple[BuiltinMetaSpecLayer, ...]) -> frozenset[MetaSpecPart]:
+        parts = {part for layer in layers for part in (*layer.parts, *layer.derived_parts())}
+        return frozenset(parts)
+
     def find_item(self, ref: ItemRef) -> ResolvedItem | None:
         """The descriptor of the document or skill the model lists at this reference, or None.
 
@@ -867,15 +905,17 @@ class WorkspaceModel:
         """The meta spec parts named by loaded layers and the item's applicable schema inputs."""
         parts: set[MetaSpecPart] = set()
         for layer in builtin_layers:
-            parts.update(layer.parts)
-        if any(reference.kind is SchemaKind.FRONTMATTER for reference in schema_refs):
+            parts.update(layer.parts | layer.derived_parts())
+        builtin_refs = {reference for layer in builtin_layers for reference in layer.schema_refs}
+        if any(reference.kind is SchemaKind.FRONTMATTER for reference in schema_refs if reference not in builtin_refs):
             parts.add(MetaSpecPart.FRONTMATTER)
         if governance is not None and governance.corpus_structure() is not None:
             parts.add(MetaSpecPart.STRUCTURE)
         if governance is not None and governance.outline_specs():
             parts.add(MetaSpecPart.OUTLINE)
-        if governance is not None and any(
-            spec.tokens is not None or spec.lines is not None for spec in governance.structure_specs()
+        if any(
+            spec.tokens is not None or spec.lines is not None
+            for spec in (governance.structure_specs() if governance else ())
         ):
             parts.add(MetaSpecPart.BUDGET)
         return frozenset(parts)

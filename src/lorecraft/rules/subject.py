@@ -2,8 +2,7 @@
 
 Every rule over an item derives from `QueriedItemRule[Facts]`, names its `ItemQuery[Facts]`, and declares an
 `APPLIES_TO` mapping for the item types it judges. `WhenMetaSpec` requires a loaded layer to state the named part;
-`Always` admits the item type wherever it appears in the rule's mapping, and `WhenSchema` admits an item type only when
-the named schema is registered.
+`Always` admits the item type wherever it appears in the rule's mapping.
 An item type absent from the mapping is inapplicable. These declarations let the runner and rule table use one explicit
 contract while the rule itself judges only query facts.
 
@@ -13,7 +12,7 @@ the entry subject, since an occurrence points at the entry itself and not at a l
 
 Rules in each group declare their own applicability alongside their codes and queries. Shared document and skill rules
 name both item types explicitly; Markdown checks can combine structure requirements for corpus items with `Always` for
-skill files, and schema-dependent skill checks name their registered schema directly.
+skill files.
 """
 
 from abc import ABC, abstractmethod
@@ -28,7 +27,6 @@ from lorecraft.project.query import (
     ItemQuery,
     SymlinkQuery,
 )
-from lorecraft.schemas.types import SchemaRef
 
 from .declaration import ContentRule, LayoutRule, Rule
 
@@ -49,18 +47,7 @@ class Always:
     """A gate for an item type governed independently of a structure layer."""
 
 
-@dataclass(frozen=True, slots=True)
-class WhenSchema:
-    """A gate for an item type when its governing schema is registered.
-
-    Attributes:
-        schema: The registered schema that governs the item for this rule.
-    """
-
-    schema: SchemaRef
-
-
-type Gate = WhenMetaSpec | Always | WhenSchema
+type Gate = WhenMetaSpec | Always
 
 
 class Queried[Facts, QueryType](Rule, ABC):

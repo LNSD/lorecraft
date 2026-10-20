@@ -182,7 +182,7 @@ class TestItemQueries:
 
     def test_item_outline_alignment_of_an_ungoverned_skill_entry_reads_no_parse(self) -> None:
         #: Given
-        database = TracingDatabase.from_snapshot(_snapshot())
+        database = TracingDatabase.from_snapshot(_snapshot(), agent_skills_spec=False)
         source = _decoded(database, REVIEW)
 
         #: When

@@ -57,6 +57,7 @@ from lorecraft.project.query import (
     SymlinkQuery,
     item_parse,
 )
+from lorecraft.project.schemas.structure import StructureSpec
 from lorecraft.project.skill import (
     OutsideSymlink,
     OutsideSymlinkRef,
@@ -73,7 +74,7 @@ from lorecraft.project.syntax import (
     split_lines,
 )
 from lorecraft.project.workspace import Governance, ResolvedItem, WorkspaceModel, load_model, unreported_refusals
-from lorecraft.schemas import SchemaInput, SchemaRef, SchemaRefError
+from lorecraft.schemas import BundledOrigin, SchemaInput, SchemaRef, SchemaRefError
 from lorecraft.vfs import (
     FILE_READ_FAILURES,
     RefusedRead,
@@ -109,6 +110,8 @@ class PrimitiveRead(StrEnum):
     RESERVED_CORPUS = 'reserved_corpus'
     TEXT = 'text'
     GOVERNANCE = 'governance'
+    BUILTIN_STRUCTURE_SPECS = 'builtin_structure_specs'
+    BUILTIN_STRUCTURE_SOURCES = 'builtin_structure_sources'
     LINK_TARGETS = 'link_targets'
     LINK_BASE = 'link_base'
     DESCRIPTOR = 'descriptor'
@@ -293,6 +296,18 @@ class _ItemPrimitives(_Reads[ItemRef, '_ItemPrimitives']):
         return self._database.item_governance(self._ref)
 
     @primitive
+    def builtin_structure_specs(self) -> tuple[StructureSpec, ...]:
+        """Builtin structure specifications applicable to the item's resolved type."""
+        descriptor = self.descriptor()
+        return self._database.model().builtin_structure_specs_for(descriptor.type)
+
+    @primitive
+    def builtin_structure_sources(self) -> tuple[tuple[BundledOrigin, StructureSpec], ...]:
+        """Builtin structures and their source layers for the item's type."""
+        descriptor = self.descriptor()
+        return self._database.model().builtin_structure_sources_for(descriptor.type)
+
+    @primitive
     def link_targets(self) -> Mapping[NormalisedLinkPath, LinkTargetEntry]:
         """What the snapshot holds at each relative link's target; none for an item that is not UTF-8."""
         source = self.text()
@@ -358,7 +373,7 @@ class Database:
         self._skill_resources: dict[SkillRef, SkillResourceListing] = {}
 
     @classmethod
-    def from_snapshot(cls, snapshot: Snapshot, *, builtin_skills_schema: bool = True) -> Self:
+    def from_snapshot(cls, snapshot: Snapshot, *, agent_skills_spec: bool = True) -> Self:
         """Build the database of one snapshot: build its view, refuse a linked layout and load its model.
 
         The one way to get a database. The model is the one structure value loaded here; every other query is still
@@ -375,14 +390,14 @@ class Database:
 
         Args:
             snapshot: The frozen state every query reads; kept for the database's lifetime and never changed.
-            builtin_skills_schema: Whether to pre-register the Agent Skills floor schema.
+            agent_skills_spec: Whether to register the builtin Agent Skills floor layer.
 
         Raises:
             LinkedLayoutError: If `docs/` is a symlink, or else if `docs/__meta__/` is one.
         """
         fs = VirtualFileSystem(snapshot)
         reject_linked_layout(fs)
-        return cls(fs, load_model(fs, builtin_skills_schema=builtin_skills_schema))
+        return cls(fs, load_model(fs, agent_skills_spec=agent_skills_spec))
 
     # Input query: the model is loaded once from the snapshot.
 

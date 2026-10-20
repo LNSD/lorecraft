@@ -3,29 +3,28 @@
 from collections.abc import Mapping
 from dataclasses import dataclass
 from types import MappingProxyType
-from typing import ClassVar, Final, Protocol, Self
+from typing import ClassVar, Protocol, Self
 
 from lorecraft.core.num import NonZeroUnsignedInt, UnsignedInt
 from lorecraft.core.path import RootRelativePath
-from lorecraft.project.item import ItemType, MetaSpecPart, SkillEntrypointOrigin
-from lorecraft.project.query import GovernancePrimitives, ItemQuery, item_line_count, item_structure_specs
+from lorecraft.project.item import ItemType, MetaSpecPart
+from lorecraft.project.query import GovernancePrimitives, ItemQuery, item_line_count
+from lorecraft.project.query.item_facts import item_structure_sources
 from lorecraft.project.syntax import LineCount, LineNumber
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.length.__ruleset__ import GROUP_ID, spec_note
-from lorecraft.rules.location import Help, Here, Label, Note, Subdiagnostic
+from lorecraft.rules.location import Help, Here, Label, Subdiagnostic
 from lorecraft.rules.overrun import Overrun, find_overrun
-from lorecraft.rules.subject import Always, Gate, QueriedItemRule, WhenMetaSpec
-
-_LINE_BUDGET: Final[NonZeroUnsignedInt] = NonZeroUnsignedInt(500)
-"""The fallback limit for skills until their bundled structure layer supplies it."""
+from lorecraft.rules.subject import Gate, QueriedItemRule, WhenMetaSpec
+from lorecraft.schemas import BundledOrigin
 
 
 @dataclass(frozen=True, slots=True)
 class LineBudget:
     """A line limit set by a governing structure specification."""
 
-    spec: RootRelativePath | None
+    spec: RootRelativePath | BundledOrigin
     lines: NonZeroUnsignedInt
 
 
@@ -44,12 +43,10 @@ class _LinePrimitives(GovernancePrimitives, Protocol):
 def line_facts(primitives: _LinePrimitives) -> LineFacts:
     """Read structure line budgets, counting only when a limit applies."""
     budgets = tuple(
-        LineBudget(spec.path, spec.lines) for spec in primitives.query(item_structure_specs) if spec.lines is not None
+        LineBudget(source, spec.lines)
+        for source, spec in primitives.query(item_structure_sources)
+        if spec.lines is not None
     )
-    is_skill = isinstance(primitives.descriptor().origin, SkillEntrypointOrigin)
-    if is_skill and not budgets:
-        count = primitives.query(item_line_count)
-        return LineFacts(count, (LineBudget(None, _LINE_BUDGET),))
     count = primitives.query(item_line_count) if budgets else LineCount(UnsignedInt(0))
     return LineFacts(count, budgets)
 
@@ -61,8 +58,8 @@ class TooManyLines(QueriedItemRule[LineFacts]):
 
     ## What it does
 
-    Checks each `lines` budget set by the item's governing structure files. A document or meta spec with no line
-    budget is not counted. A skill without a structure line budget keeps the 500-line Agent Skills default.
+    Checks each `lines` budget set by the item's governing structure files. An item with no line budget is not
+    counted; the builtin Agent Skills structure layer sets skills' default limit to 500 lines.
 
     The whole file counts: frontmatter, blank lines and code as much as prose. A file exactly at its budget fits;
     the first line after it is reported.
@@ -73,7 +70,8 @@ class TooManyLines(QueriedItemRule[LineFacts]):
 
     ## Use instead
 
-    Split material into a linked document, or into a skill resource under `references/` for skills.
+    Split material into a linked document. For skills, move material most activations do not need into a resource
+    under `references/`, and say in `SKILL.md` when to read each resource.
     """
 
     CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 2)
@@ -84,11 +82,11 @@ class TooManyLines(QueriedItemRule[LineFacts]):
         {
             ItemType.DOCUMENT: WhenMetaSpec(MetaSpecPart.BUDGET),
             ItemType.META_SPEC: WhenMetaSpec(MetaSpecPart.BUDGET),
-            ItemType.SKILL_ENTRYPOINT: Always(),
+            ItemType.SKILL_ENTRYPOINT: WhenMetaSpec(MetaSpecPart.BUDGET),
         }
     )
 
-    spec: RootRelativePath | None = None
+    spec: RootRelativePath | BundledOrigin
     overrun: Overrun
 
     def message(self) -> str:
@@ -105,13 +103,13 @@ class TooManyLines(QueriedItemRule[LineFacts]):
         )
 
     def children(self) -> tuple[Subdiagnostic, ...]:
-        """Point to the governing specification or explain the default skill limit."""
-        if self.spec is None:
+        """Point to the governing specification."""
+        if isinstance(self.spec, BundledOrigin):
             return (
-                Note(f'the Agent Skills specification keeps a SKILL.md to at most {self.overrun.cap} lines'),
+                spec_note(self.spec),
                 Help(
-                    'move what most activations do not need into files under references/, and say in SKILL.md when '
-                    'to read each'
+                    'move what most activations do not need into files under `references/`, and say in SKILL.md '
+                    'when to read each'
                 ),
             )
         return (

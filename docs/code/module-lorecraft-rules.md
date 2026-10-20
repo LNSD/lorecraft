@@ -26,7 +26,7 @@ query and hands it the facts sits above in `lorecraft.engine`; the query is answ
 - A value that identifies a rule: a release, a group's prefix and title, a code, a name, an alias code, a level, and
   the severity an engine condition fixes.
 - An item rule derives from `QueriedItemRule`, names its typed query, and declares a gate for every item type it
-  judges. `WhenMetaSpec`, `Always`, and `WhenSchema` keep structure, unconditional and registered-schema eligibility distinct.
+  judges. `WhenMetaSpec` and `Always` keep governed and unconditional eligibility distinct.
   A missing item type is inapplicable, and a rule with no gates is rejected while the registry loads. Layout rules use
   their separate queried bases for skill symlinks and reserved-corpus directories, with occurrences at the entry
   itself.
@@ -127,16 +127,12 @@ A rule is named for what is wrong, as the established linters name theirs, so it
 - **`message()` states the condition in lowercase, without a trailing period**, with the value found against the
   limit in parentheses where there is one: `too many tokens (5200 > 4000)`. It names no path and no meta spec, and
   never branches on a plural.
-- **`children()` points a `Note` at the meta spec** that states the rule, at `Elsewhere(spec)`, so two
-  occurrences from two meta specs read apart. A rule every governed document is held to, with no key stating
-  it, points its `Note` at the corpus's structure file that governs the document, unless no schema in
-  that file states the rule either, as for a document's `name` held to its filename: that rule carries no
-  `Note` pointing at a schema, and says in its own words what it requires. A title rule, held to by every governed
-  document, has `spec` `None` and carries no meta spec `Note`. A rule the package
-  itself states has `spec` `None`: its `Note` names the external specification that sets the limit in its text,
-  with no `at`. A rule over an Agent Skills field names the Agent Skills specification in a
-  group-level `Note`, written once in the group's `__ruleset__.py` and placed first in `children()`. A rule the
-  package states that no external specification sets carries no meta spec `Note`.
+- **`children()` points a `Note` at the rule's source**: `Elsewhere(spec)` for repository structures, or an
+  origin note for builtin ones. A rule held by every governed document but unstated by a key names the corpus
+  structure file, unless no structure schema states it (for example, a document name held to its filename), when
+  it says its requirement without a `Note`. Title rules have no `Note`. Package rules name an external standard
+  without a location; Agent Skills field rules share one group-level note, first in `children()`. `LEN002` uses
+  builtin-origin provenance for the Agent Skills cap and keeps skills-specific `references/` help.
 - **A `Help` gives the fix for this occurrence** when its fields make it concrete, such as the description an
   outline gives a section the document lacks. A limit's message already names the value found against it, so a
   `Help` restating the difference adds nothing; a `Label` places the overrun at a line, and may state the amount

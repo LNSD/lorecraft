@@ -1021,6 +1021,49 @@ class TestWorkspaceModel:
         assert MetaSpecPart.BUDGET in descriptor.governed_parts, 'the builtin layer contributes its declared parts'
         assert two_corpora_model.builtin_layers_for(ItemType.DOCUMENT) == (), 'layers can be omitted'
 
+    def test_builtin_layer_rejects_a_budget_part_also_derived_from_its_structure(
+        self, two_corpora_model: WorkspaceModel
+    ) -> None:
+        #: Given
+        structure = two_corpora_model.corpora[CODE].corpus_spec.structure
+        assert isinstance(structure, StructureSpec), 'the corpus holds a usable structure specification'
+        structure = replace(structure, lines=NonZeroUnsignedInt(50))
+
+        #: When
+        with pytest.raises(ValueError, match='already declared') as failure:
+            BuiltinMetaSpecLayer(
+                BundledOrigin('builtin:test-budget'),
+                frozenset({ItemType.DOCUMENT}),
+                (),
+                frozenset({MetaSpecPart.BUDGET}),
+                (structure,),
+            )
+
+        #: Then
+        assert 'budget' in str(failure.value), 'a structure-backed budget cannot also be declared manually'
+
+    def test_builtin_layer_derives_parts_from_its_schema_and_structure(self, two_corpora_model: WorkspaceModel) -> None:
+        #: Given
+        origin = BundledOrigin('builtin:test-derived-parts')
+        reference = SchemaRef(SchemaKind.FRONTMATTER, origin.identity)
+        schema_input = SchemaInput(reference, origin, FrozenMapping.from_plain({'type': 'object'}))
+        structure = two_corpora_model.corpora[CODE].corpus_spec.structure
+        assert isinstance(structure, StructureSpec), 'the corpus holds a usable structure specification'
+        layer = BuiltinMetaSpecLayer(
+            origin,
+            frozenset({ItemType.DOCUMENT}),
+            (schema_input,),
+            structure_specs=(replace(structure, lines=NonZeroUnsignedInt(50)),),
+        )
+
+        #: When
+        parts = layer.derived_parts()
+
+        #: Then
+        assert parts == frozenset({MetaSpecPart.FRONTMATTER, MetaSpecPart.BUDGET}), (
+            'schema and structure declarations derive their governed parts in one place'
+        )
+
     def test_describe_item_for_a_layered_document_keeps_every_schema_in_order(self) -> None:
         #: Given
         code = _code_corpus(_corpus_spec('code'), (_code_namespace('python'),))

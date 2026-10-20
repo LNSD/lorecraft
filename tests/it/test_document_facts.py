@@ -213,6 +213,8 @@ class TestDocumentFactQueries:
         assert database.query_reads(token_facts, GUIDE) == {
             Read(item_structure_specs, GUIDE),
             Read(PrimitiveRead.GOVERNANCE, GUIDE),
+            Read(PrimitiveRead.BUILTIN_STRUCTURE_SPECS, GUIDE),
+            Read(PrimitiveRead.DESCRIPTOR, GUIDE),
             Read(item_token_count, GUIDE),
             Read(PrimitiveRead.TEXT, GUIDE),
         }, 'derived carry-over names each primitive and the item read'
@@ -281,6 +283,8 @@ class TestDocumentFactReads:
         assert database.query_reads(title_facts, GUIDE) == {
             Read(item_structure_specs, GUIDE),
             Read(PrimitiveRead.GOVERNANCE, GUIDE),
+            Read(PrimitiveRead.BUILTIN_STRUCTURE_SPECS, GUIDE),
+            Read(PrimitiveRead.DESCRIPTOR, GUIDE),
             Read(item_parse, GUIDE),
             Read(PrimitiveRead.TEXT, GUIDE),
         }, 'the carry-over names each primitive and the item read'
