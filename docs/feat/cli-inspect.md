@@ -12,9 +12,9 @@ components: "module:lorecraft.cli,module:lorecraft.project"
 
 `lorecraft inspect` shows what a repository declares: each corpus under `docs/`, its specs and
 documents, then agent skills directories and the skills each agent reads. It shows governing specs for
-documents; skills have no `governed_by` entry. The skills heading notes the built-in schema opt-out
-only when active. It answers why a document is or is not checked and which agents see a skill, without
-running a check.
+documents; skills have no `governed_by` entry. The skills heading notes the builtin Agent Skills
+specification opt-out only when active. It answers why a document is or is not checked and which agents
+see a skill, without running a check.
 
 ## Table of Contents
 
@@ -57,9 +57,11 @@ lorecraft inspect
 # The model of another root, as JSON
 lorecraft inspect ../other-repo --format json
 
-# Show the built-in schema opt-out
-lorecraft --no-builtin-skills-schema inspect
+# Show the builtin Agent Skills specification opt-out
+lorecraft --no-agent-skills-spec inspect
 ```
+
+`--no-builtin-skills-schema` is a compatibility alias for `--no-agent-skills-spec`.
 
 ### Output
 
@@ -107,12 +109,13 @@ or to a directory elsewhere in the repository, is listed where the agent finds i
     └── .agents/skills/docs-rules [claude-code, codex]
 ```
 
-By default the text heading reads `skills (N)`. With `--no-builtin-skills-schema`, it reads
-`skills (N; Agent Skills schema disabled)`.
+By default the text heading reads `skills (N)`. With `--no-agent-skills-spec` (or its
+`--no-builtin-skills-schema` alias), it reads `skills (N; Agent Skills schema disabled)`.
 
 In the JSON these are `agent_skills_dirs`, each with `agent`, `path` and `resolves_to`, and `skills`, each with
 the `path` of its `SKILL.md` and its `agents`. Skill objects do not include `governed_by`. The top-level
-`builtin_skills_schema` field is omitted by default; with `--no-builtin-skills-schema`, it is `false`.
+`builtin_skills_schema` field is omitted by default; with `--no-agent-skills-spec` (or the compatibility alias), it is
+`false`. The option changes only this opt-out indication; the rest of the inspect text and JSON output is unchanged.
 
 A root with no `docs/__meta__/` prints a model with no corpora, a root with no skills directory one with no
 skills, and both exit `0`.
@@ -133,7 +136,7 @@ error: invalid structure schema docs/__meta__/feat.spec.json: Invalid JSON: key 
 - A skill is shown as found, not as valid: `inspect` does not read a `SKILL.md`;
   [check](cli-check.md) does.
 - A skill entry that is a symlink does not show where it leads.
-- Repository skill corpus specs are not included in inspect output; only an active built-in schema opt-out
+- Repository skill corpus specs are not included in inspect output; only an active builtin specification opt-out
   is shown.
 - A `docs/skills/` directory is ignored; its overlap with the reserved `skills` corpus is recorded but has no
   diagnostic yet.
