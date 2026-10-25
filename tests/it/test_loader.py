@@ -59,7 +59,7 @@ from lorecraft.project.workspace import (
     load_model,
     load_workspace,
 )
-from lorecraft.project.workspace.builtin import AGENT_SKILLS_SPEC_LAYER
+from lorecraft.project.workspace.builtin import AGENT_SKILLS_SPEC_LAYER as SKILLS_LAYER
 from lorecraft.schemas import BuiltinOrigin, SchemaInput, SchemaKind, SchemaRef
 from lorecraft.schemas.builtin import AGENT_SKILLS_SCHEMA_INPUT
 from lorecraft.vfs import OsRefusal, ResolvedPath, RootExit, VirtualFileSystem, take_snapshot
@@ -332,7 +332,7 @@ class TestLoadWorkspaceAmp:
         _amp_tree(tmp_path)
 
         #: When
-        model = load_workspace(schemas, documents, skills)
+        model = load_workspace(schemas, documents, skills, builtin_layers=(SKILLS_LAYER,))
 
         #: Then
         assert _corpus_names(model) == (CODE, FEAT), (
@@ -352,7 +352,7 @@ class TestLoadWorkspaceAmp:
         _amp_tree(tmp_path)
 
         #: When
-        model = load_workspace(schemas, documents, skills)
+        model = load_workspace(schemas, documents, skills, builtin_layers=(SKILLS_LAYER,))
 
         #: Then
         assert _namespaces(model, CODE) == ('crate', 'pattern', 'principle', 'rust'), (
@@ -367,7 +367,7 @@ class TestLoadWorkspaceAmp:
         _amp_tree(tmp_path)
 
         #: When
-        model = load_workspace(schemas, documents, skills)
+        model = load_workspace(schemas, documents, skills, builtin_layers=(SKILLS_LAYER,))
 
         #: Then
         code = model.find_corpus(CODE)
@@ -390,7 +390,7 @@ class TestLoadWorkspaceMono:
         _mono_tree(tmp_path)
 
         #: When
-        model = load_workspace(schemas, documents, skills)
+        model = load_workspace(schemas, documents, skills, builtin_layers=(SKILLS_LAYER,))
 
         #: Then
         assert _corpus_names(model) == (CODE,), 'a corpus spec without docs/<corpus>/ creates no corpus'
@@ -402,7 +402,7 @@ class TestLoadWorkspaceMono:
         _mono_tree(tmp_path)
 
         #: When
-        model = load_workspace(schemas, documents, skills)
+        model = load_workspace(schemas, documents, skills, builtin_layers=(SKILLS_LAYER,))
 
         #: Then
         ref = model.find_document(RootRelativePath.parse('docs/code/rust-errors-handling.md'))
@@ -422,7 +422,7 @@ class TestLoadWorkspaceTools:
         _tools_tree(tmp_path)
 
         #: When
-        model = load_workspace(schemas, documents, skills)
+        model = load_workspace(schemas, documents, skills, builtin_layers=(SKILLS_LAYER,))
 
         #: Then
         assert _corpus_names(model) == (CODE,), 'docs/schemas/ has no spec'
@@ -438,7 +438,7 @@ class TestLoadWorkspaceAmpup:
         _ampup_tree(tmp_path)
 
         #: When
-        model = load_workspace(schemas, documents, skills)
+        model = load_workspace(schemas, documents, skills, builtin_layers=(SKILLS_LAYER,))
 
         #: Then
         assert model.sorted_corpora == (), 'a namespace spec creates no corpus on its own'
@@ -454,7 +454,7 @@ class TestLoadWorkspaceLorecraft:
         _lorecraft_tree(tmp_path)
 
         #: When
-        model = load_workspace(schemas, documents, skills)
+        model = load_workspace(schemas, documents, skills, builtin_layers=(SKILLS_LAYER,))
 
         #: Then
         assert _corpus_names(model) == (CODE, FEAT), 'docs/assets/ has no spec'
@@ -472,7 +472,7 @@ class TestLoadWorkspaceLorecraft:
         _lorecraft_tree(tmp_path)
 
         #: When
-        model = load_workspace(schemas, documents, skills)
+        model = load_workspace(schemas, documents, skills, builtin_layers=(SKILLS_LAYER,))
 
         #: Then
         assert _namespaces(model, FEAT) == ('cli',), 'feat-cli narrows the feat corpus'
@@ -490,7 +490,7 @@ class TestLoadWorkspaceEdgeCases:
         )
 
         #: When
-        model = load_workspace(schemas, documents, skills)
+        model = load_workspace(schemas, documents, skills, builtin_layers=(SKILLS_LAYER,))
 
         #: Then
         assert _corpus_names(model) == (CODE,), 'only the real corpus loads'
@@ -503,7 +503,7 @@ class TestLoadWorkspaceEdgeCases:
         _write_tree(tmp_path, prose=('api-v1', 'code'), schemas=(), documents=('api/users.md', 'code/logging.md'))
 
         #: When
-        model = load_workspace(schemas, documents, skills)
+        model = load_workspace(schemas, documents, skills, builtin_layers=(SKILLS_LAYER,))
 
         #: Then
         assert _corpus_names(model) == (CODE,), (
@@ -518,7 +518,7 @@ class TestLoadWorkspaceEdgeCases:
         _write_tree(tmp_path, prose=('agent', 'code'), schemas=(), documents=('code/logging.md',))
 
         #: When
-        model = load_workspace(schemas, documents, skills)
+        model = load_workspace(schemas, documents, skills, builtin_layers=(SKILLS_LAYER,))
 
         #: Then
         assert _corpus_names(model) == (CODE,), 'skipping a corpus with no directory still loads every corpus after it'
@@ -530,7 +530,7 @@ class TestLoadWorkspaceEdgeCases:
         _write_tree(tmp_path, prose=('code',), schemas=(), documents=('code/logging.md', 'code/sub/x.md'))
 
         #: When
-        model = load_workspace(schemas, documents, skills)
+        model = load_workspace(schemas, documents, skills, builtin_layers=(SKILLS_LAYER,))
 
         #: Then
         assert _document_paths(model) == ('docs/code/logging.md',), 'a subdirectory of a corpus is not listed'
@@ -542,7 +542,7 @@ class TestLoadWorkspaceEdgeCases:
         _write_tree(tmp_path, prose=('code',), schemas=('code.headers.json',), documents=('code/logging.md',))
 
         #: When
-        model = load_workspace(schemas, documents, skills)
+        model = load_workspace(schemas, documents, skills, builtin_layers=(SKILLS_LAYER,))
 
         #: Then
         code = model.find_corpus(CODE)
@@ -558,7 +558,7 @@ class TestLoadWorkspaceEdgeCases:
         _write_tree(tmp_path, prose=('feat',), schemas=('feat.feature.spec.json',), documents=('feat/admin.md',))
 
         #: When
-        model = load_workspace(schemas, documents, skills)
+        model = load_workspace(schemas, documents, skills, builtin_layers=(SKILLS_LAYER,))
 
         #: Then
         feat = model.find_corpus(FEAT)
@@ -574,7 +574,7 @@ class TestLoadWorkspaceEdgeCases:
         _write_tree(tmp_path, prose=(), schemas=('feat.feature.spec.json',), documents=('feat/admin.md',))
 
         #: When
-        model = load_workspace(schemas, documents, skills)
+        model = load_workspace(schemas, documents, skills, builtin_layers=(SKILLS_LAYER,))
 
         #: Then
         assert model.sorted_corpora == (), 'a file at a dotted stem does not establish a corpus'
@@ -586,7 +586,7 @@ class TestLoadWorkspaceEdgeCases:
         _write_tree(tmp_path, prose=('code', 'code-Python'), schemas=(), documents=('code/logging.md',))
 
         #: When
-        model = load_workspace(schemas, documents, skills)
+        model = load_workspace(schemas, documents, skills, builtin_layers=(SKILLS_LAYER,))
 
         #: Then
         assert _namespaces(model, CODE) == (), 'the misnamed stem narrows nothing'
@@ -598,7 +598,7 @@ class TestLoadWorkspaceEdgeCases:
         _write_tree(tmp_path, prose=('code',), schemas=('README.spec.json',), documents=('code/logging.md',))
 
         #: When
-        model = load_workspace(schemas, documents, skills)
+        model = load_workspace(schemas, documents, skills, builtin_layers=(SKILLS_LAYER,))
 
         #: Then
         assert _corpus_names(model) == (CODE,), 'the misnamed JSON file makes no corpus'
@@ -611,7 +611,7 @@ class TestLoadWorkspaceEdgeCases:
         _write_tree(tmp_path, prose=('code',), schemas=('code.header.json',), documents=('code/logging.md',))
 
         #: When
-        model = load_workspace(schemas, documents, skills)
+        model = load_workspace(schemas, documents, skills, builtin_layers=(SKILLS_LAYER,))
 
         #: Then
         corpus = model.find_corpus(CODE)
@@ -631,7 +631,7 @@ class TestLoadWorkspaceEdgeCases:
         path = SPECS_DIR / PathComponent.parse('code.spec.json')
 
         #: When
-        model = load_workspace(schemas, documents, skills)
+        model = load_workspace(schemas, documents, skills, builtin_layers=(SKILLS_LAYER,))
 
         #: Then
         corpus = model.find_corpus(CODE)
@@ -649,7 +649,7 @@ class TestLoadWorkspaceEdgeCases:
         _write_tree(tmp_path, prose=('code',), schemas=('code.spec.json',), documents=('code/logging.md',))
 
         #: When
-        model = load_workspace(schemas, documents, skills)
+        model = load_workspace(schemas, documents, skills, builtin_layers=(SKILLS_LAYER,))
 
         #: Then
         ref = model.find_document(RootRelativePath.parse('docs/code/logging.md'))
@@ -667,7 +667,7 @@ class TestLoadWorkspaceEdgeCases:
         _write_tree(tmp_path, prose=('code',), schemas=('code.spec.json',), documents=('code/logging.md',))
 
         #: When
-        model = load_workspace(schemas, documents, skills)
+        model = load_workspace(schemas, documents, skills, builtin_layers=(SKILLS_LAYER,))
 
         #: Then
         corpus = model.find_corpus(CODE)
@@ -683,7 +683,7 @@ class TestLoadWorkspaceEdgeCases:
         _write_tree(tmp_path, prose=('code',), schemas=('code.structure.json',), documents=('code/logging.md',))
 
         #: When
-        model = load_workspace(schemas, documents, skills)
+        model = load_workspace(schemas, documents, skills, builtin_layers=(SKILLS_LAYER,))
 
         #: Then
         corpus = model.find_corpus(CODE)
@@ -702,7 +702,7 @@ class TestLoadWorkspaceEdgeCases:
         _write(tmp_path, 'docs/__meta__/code.structure.json', '{"frontmatter": {"type": "nonsense"}}')
 
         #: When
-        model = load_workspace(schemas, documents, skills)
+        model = load_workspace(schemas, documents, skills, builtin_layers=(SKILLS_LAYER,))
 
         #: Then
         corpus = model.find_corpus(CODE)
@@ -728,7 +728,7 @@ class TestLoadWorkspaceEdgeCases:
         )
 
         #: When
-        model = load_workspace(schemas, documents, skills)
+        model = load_workspace(schemas, documents, skills, builtin_layers=(SKILLS_LAYER,))
 
         #: Then
         assert _namespaces(model, CODE) == ('pattern', 'python', 'python-errors', 'a-b-c'), (
@@ -742,7 +742,7 @@ class TestLoadWorkspaceEdgeCases:
         _write_tree(tmp_path, prose=('code', 'code-python'), schemas=(), documents=('code/logging.md',))
 
         #: When
-        model = load_workspace(schemas, documents, skills)
+        model = load_workspace(schemas, documents, skills, builtin_layers=(SKILLS_LAYER,))
 
         #: Then
         code = model.find_corpus(CODE)
@@ -760,7 +760,7 @@ class TestLoadWorkspaceEdgeCases:
         (tmp_path / 'docs' / 'code' / 'alias.md').symlink_to(tmp_path / 'docs' / 'code' / 'logging.md')
 
         #: When
-        model = load_workspace(schemas, documents, skills)
+        model = load_workspace(schemas, documents, skills, builtin_layers=(SKILLS_LAYER,))
 
         #: Then
         assert _document_paths(model) == ('docs/code/logging.md',), 'the symlink is not a document'
@@ -772,7 +772,7 @@ class TestLoadWorkspaceEdgeCases:
         _write_tree(tmp_path, prose=('code',), schemas=(), documents=('code/logging.md', 'code/README.md'))
 
         #: When
-        model = load_workspace(schemas, documents, skills)
+        model = load_workspace(schemas, documents, skills, builtin_layers=(SKILLS_LAYER,))
 
         #: Then
         assert _document_paths(model) == ('docs/code/logging.md',), 'the misnamed file is not a document'
@@ -785,7 +785,7 @@ class TestLoadWorkspaceEdgeCases:
         (tmp_path / 'docs' / 'rules').symlink_to(tmp_path / 'docs' / 'code')
 
         #: When
-        model = load_workspace(schemas, documents, skills)
+        model = load_workspace(schemas, documents, skills, builtin_layers=(SKILLS_LAYER,))
 
         #: Then
         assert _corpus_names(model) == (CODE,), 'the symlinked directory is no corpus'
@@ -798,7 +798,7 @@ class TestLoadWorkspaceEdgeCases:
         missing_docs = tmp_path / 'docs'
 
         #: When
-        model = load_workspace(schemas, documents, skills)
+        model = load_workspace(schemas, documents, skills, builtin_layers=(SKILLS_LAYER,))
 
         #: Then
         assert not missing_docs.exists(), 'the case turns on docs/ being absent'
@@ -809,7 +809,7 @@ class TestLoadWorkspaceEdgeCases:
             outside_symlinks=FrozenMapping({}),
             load_failures=(),
             schema_inputs=FrozenMapping({AGENT_SKILLS_SCHEMA_INPUT.reference: AGENT_SKILLS_SCHEMA_INPUT}),
-            builtin_layers=(AGENT_SKILLS_SPEC_LAYER,),
+            builtin_layers=(SKILLS_LAYER,),
         ), 'a root without docs/ is an empty workspace'
 
     def test_load_workspace_registers_additional_builtin_layer_inputs(
@@ -826,7 +826,7 @@ class TestLoadWorkspaceEdgeCases:
         )
 
         #: When
-        model = load_workspace(schemas, documents, skills, builtin_layers=(AGENT_SKILLS_SPEC_LAYER, layer))
+        model = load_workspace(schemas, documents, skills, builtin_layers=(SKILLS_LAYER, layer))
 
         #: Then
         assert model.schema_inputs[reference] == schema_input, 'the loader registers builtin inputs in the model'
@@ -876,7 +876,7 @@ class TestLoadWorkspaceSkills:
         (tmp_path / '.agents' / 'skills' / 'x').symlink_to(outside / 'x')
 
         #: When
-        model = load_workspace(schemas, documents, skills)
+        model = load_workspace(schemas, documents, skills, builtin_layers=(SKILLS_LAYER,))
 
         #: Then
         assert model.sorted_outside_symlinks == (
@@ -902,7 +902,7 @@ class TestLoadWorkspaceSkills:
         (tmp_path / '.agents' / 'skills' / 'x').symlink_to(outside / 'x')
 
         #: When
-        model = load_workspace(schemas, documents, skills)
+        model = load_workspace(schemas, documents, skills, builtin_layers=(SKILLS_LAYER,))
 
         #: Then
         assert model.sorted_skill_locations == (), 'neither leads to a skill inside the repository'
@@ -924,7 +924,7 @@ class TestLoadWorkspaceSkills:
         (tmp_path / '.claude' / 'skills').symlink_to('../.agents')
 
         #: When
-        model = load_workspace(schemas, documents, skills)
+        model = load_workspace(schemas, documents, skills, builtin_layers=(SKILLS_LAYER,))
 
         #: Then
         assert model.sorted_outside_symlinks == (_outside('.agents/skills/SKILL.md', outside / 'x.md'),), (
@@ -939,7 +939,7 @@ class TestLoadWorkspaceSkills:
         _write(tmp_path, '.agents/skills/commit/SKILL.md')
 
         #: When
-        model = load_workspace(schemas, documents, skills)
+        model = load_workspace(schemas, documents, skills, builtin_layers=(SKILLS_LAYER,))
 
         #: Then
         assert model.sorted_skill_locations == (
@@ -955,7 +955,7 @@ class TestLoadWorkspaceSkills:
         _write(tmp_path, '.agents/skills/review/SKILL.md')
 
         #: When
-        model = load_workspace(schemas, documents, skills)
+        model = load_workspace(schemas, documents, skills, builtin_layers=(SKILLS_LAYER,))
 
         #: Then
         assert _document_paths(model) == ('docs/code/logging.md',), 'a skill belongs to no corpus'
@@ -967,7 +967,7 @@ class TestLoadWorkspaceSkills:
         _write(tmp_path, '.agents/skills/review/SKILL.md')
 
         #: When
-        model = load_workspace(schemas, documents, skills)
+        model = load_workspace(schemas, documents, skills, builtin_layers=(SKILLS_LAYER,))
 
         #: Then
         assert model.sorted_skills_dirs == (
@@ -983,7 +983,7 @@ class TestLoadWorkspaceSkills:
         (tmp_path / '.claude' / 'skills').symlink_to('../.agents/skills')
 
         #: When
-        model = load_workspace(schemas, documents, skills)
+        model = load_workspace(schemas, documents, skills, builtin_layers=(SKILLS_LAYER,))
 
         #: Then
         assert model.sorted_skills_dirs == (
@@ -999,7 +999,7 @@ class TestLoadWorkspaceSkills:
         _write(tmp_path, '.claude/skills/commit/SKILL.md')
 
         #: When
-        model = load_workspace(schemas, documents, skills)
+        model = load_workspace(schemas, documents, skills, builtin_layers=(SKILLS_LAYER,))
 
         #: Then
         assert model.sorted_skill_locations == (
@@ -1018,7 +1018,7 @@ class TestLoadWorkspaceSkills:
         (tmp_path / '.claude' / 'skills').symlink_to('../.agents/skills/claude')
 
         #: When
-        model = load_workspace(schemas, documents, skills)
+        model = load_workspace(schemas, documents, skills, builtin_layers=(SKILLS_LAYER,))
 
         #: Then
         assert model.sorted_skill_locations == (
@@ -1035,7 +1035,7 @@ class TestLoadWorkspaceSkills:
         missing_skills_dir = tmp_path / '.agents' / 'skills'
 
         #: When
-        model = load_workspace(schemas, documents, skills)
+        model = load_workspace(schemas, documents, skills, builtin_layers=(SKILLS_LAYER,))
 
         #: Then
         assert not missing_skills_dir.exists(), 'the case turns on the skills directories being absent'
@@ -1053,7 +1053,7 @@ class TestSchemaInputRegistration:
         (tmp_path / 'docs' / 'code').mkdir(parents=True)
 
         #: When
-        model = load_workspace(schemas, documents, skills)
+        model = load_workspace(schemas, documents, skills, builtin_layers=(SKILLS_LAYER,))
 
         #: Then
         structure = model.schema_inputs[next(ref for ref in model.schema_inputs if ref.kind is SchemaKind.STRUCTURE)]
@@ -1083,7 +1083,7 @@ class TestSchemaInputRegistration:
         (tmp_path / 'docs' / 'agent').mkdir(parents=True)
 
         #: When
-        model = load_workspace(schemas, documents, skills)
+        model = load_workspace(schemas, documents, skills, builtin_layers=(SKILLS_LAYER,))
 
         #: Then
         builtin = model.schema_inputs[AGENT_SKILLS_SCHEMA_INPUT.reference]
@@ -1110,7 +1110,7 @@ class TestLoadModel:
         filesystem = VirtualFileSystem(snapshot)
 
         #: When
-        model = load_model(filesystem)
+        model = load_model(filesystem, builtin_layers=(SKILLS_LAYER,))
 
         #: Then
         assert model.sorted_skill_locations == (_skill_location('.agents/skills/review'),), (
@@ -1128,7 +1128,7 @@ class TestLoadModel:
         filesystem = VirtualFileSystem(snapshot)
 
         #: When
-        model = load_model(filesystem)
+        model = load_model(filesystem, builtin_layers=(SKILLS_LAYER,))
 
         #: Then
         assert model.sorted_skill_locations == (
@@ -1144,7 +1144,7 @@ class TestLoadModel:
         filesystem = VirtualFileSystem(snapshot)
 
         #: When
-        model = load_model(filesystem)
+        model = load_model(filesystem, builtin_layers=(SKILLS_LAYER,))
 
         #: Then
         assert model.sorted_skill_locations == (
@@ -1162,7 +1162,7 @@ class TestLoadModel:
         filesystem = VirtualFileSystem(snapshot)
 
         #: When
-        model = load_model(filesystem)
+        model = load_model(filesystem, builtin_layers=(SKILLS_LAYER,))
 
         #: Then
         assert model.sorted_skill_locations == (_skill_location('skills/review'),), (
@@ -1177,7 +1177,7 @@ class TestLoadModel:
         fs = DiskFileSystem(tmp_path)
 
         #: When
-        model = load_model(fs)
+        model = load_model(fs, builtin_layers=(SKILLS_LAYER,))
 
         #: Then
         assert model.sorted_skill_locations == (
@@ -1239,7 +1239,7 @@ class TestLoadWorkspaceFailures:
         path = SPECS_DIR / PathComponent.parse('code.spec.json')
 
         #: When
-        model = load_workspace(schemas, documents, skills)
+        model = load_workspace(schemas, documents, skills, builtin_layers=(SKILLS_LAYER,))
 
         #: Then
         failed = _failed_structure(model, CODE)
@@ -1268,7 +1268,7 @@ class TestLoadWorkspaceFailures:
         path = SPECS_DIR / PathComponent.parse('code.spec.json')
 
         #: When
-        model = load_workspace(schemas, documents, skills)
+        model = load_workspace(schemas, documents, skills, builtin_layers=(SKILLS_LAYER,))
 
         #: Then
         failed = _failed_structure(model, CODE)
@@ -1302,7 +1302,7 @@ class TestLoadWorkspaceFailures:
         self._write_structure_file_tree(tmp_path, '{}')
 
         #: When
-        model = load_workspace(schemas, documents, skills)
+        model = load_workspace(schemas, documents, skills, builtin_layers=(SKILLS_LAYER,))
 
         #: Then
         failed = _failed_structure(model, CODE)
@@ -1324,7 +1324,7 @@ class TestLoadWorkspaceFailures:
         self._write_structure_file_tree(tmp_path, '{"outline": [{"section": "Usage"}, {"section": "Usage"}]}')
 
         #: When
-        model = load_workspace(schemas, documents, skills)
+        model = load_workspace(schemas, documents, skills, builtin_layers=(SKILLS_LAYER,))
 
         #: Then
         failed = _failed_structure(model, CODE)
@@ -1346,7 +1346,7 @@ class TestLoadWorkspaceFailures:
         self._write_structure_file_tree(tmp_path, '{"forbidden": ["Changelog", "Changelog"]}')
 
         #: When
-        model = load_workspace(schemas, documents, skills)
+        model = load_workspace(schemas, documents, skills, builtin_layers=(SKILLS_LAYER,))
 
         #: Then
         failed = _failed_structure(model, CODE)
@@ -1368,7 +1368,7 @@ class TestLoadWorkspaceFailures:
         self._write_structure_file_tree(tmp_path, '{"outline": [{"section": "Usage"}], "forbidden": ["Usage"]}')
 
         #: When
-        model = load_workspace(schemas, documents, skills)
+        model = load_workspace(schemas, documents, skills, builtin_layers=(SKILLS_LAYER,))
 
         #: Then
         failed = _failed_structure(model, CODE)
@@ -1390,7 +1390,7 @@ class TestLoadWorkspaceFailures:
         self._write_structure_file_tree(tmp_path, '{"outline": [{"any": true}, {"any": true}]}')
 
         #: When
-        model = load_workspace(schemas, documents, skills)
+        model = load_workspace(schemas, documents, skills, builtin_layers=(SKILLS_LAYER,))
 
         #: Then
         failed = _failed_structure(model, CODE)
@@ -1410,7 +1410,7 @@ class TestLoadWorkspaceFailures:
         self._write_structure_file_tree(tmp_path, '{"title": {"pattern": "("}}')
 
         #: When
-        model = load_workspace(schemas, documents, skills)
+        model = load_workspace(schemas, documents, skills, builtin_layers=(SKILLS_LAYER,))
 
         #: Then
         failed = _failed_structure(model, CODE)
@@ -1432,7 +1432,7 @@ class TestLoadWorkspaceFailures:
         self._write_structure_file_tree(tmp_path, '{"frontmatter": {"type": "nonsense"}}')
 
         #: When
-        model = load_workspace(schemas, documents, skills)
+        model = load_workspace(schemas, documents, skills, builtin_layers=(SKILLS_LAYER,))
 
         #: Then
         failed = _failed_structure(model, CODE)
@@ -1456,7 +1456,7 @@ class TestLoadWorkspaceFailures:
         )
 
         #: When
-        model = load_workspace(schemas, documents, skills)
+        model = load_workspace(schemas, documents, skills, builtin_layers=(SKILLS_LAYER,))
 
         #: Then
         failed = _failed_structure(model, CODE)
@@ -1480,7 +1480,7 @@ class TestLoadWorkspaceFailures:
         )
 
         #: When
-        model = load_workspace(schemas, documents, skills)
+        model = load_workspace(schemas, documents, skills, builtin_layers=(SKILLS_LAYER,))
 
         #: Then
         failed = _failed_structure(model, CODE)
@@ -1504,7 +1504,7 @@ class TestLoadWorkspaceFailures:
         )
 
         #: When
-        model = load_workspace(schemas, documents, skills)
+        model = load_workspace(schemas, documents, skills, builtin_layers=(SKILLS_LAYER,))
 
         #: Then
         failed = _failed_structure(model, CODE)
@@ -1525,7 +1525,7 @@ class TestLoadWorkspaceFailures:
         )
 
         #: When
-        model = load_workspace(schemas, documents, skills)
+        model = load_workspace(schemas, documents, skills, builtin_layers=(SKILLS_LAYER,))
 
         #: Then
         failed = _failed_structure(model, CODE)
@@ -1540,7 +1540,7 @@ class TestLoadWorkspaceFailures:
         self._write_structure_file_tree(tmp_path, '{"frontmatter": {"properties": {}}}')
 
         #: When
-        model = load_workspace(schemas, documents, skills)
+        model = load_workspace(schemas, documents, skills, builtin_layers=(SKILLS_LAYER,))
 
         #: Then
         failed = _failed_structure(model, CODE)
@@ -1567,7 +1567,7 @@ class TestLoadWorkspaceFailures:
         )
 
         #: When
-        model = load_workspace(schemas, documents, skills)
+        model = load_workspace(schemas, documents, skills, builtin_layers=(SKILLS_LAYER,))
 
         #: Then
         assert _failed_structure(model, CODE).failure == RepeatedOutlineSections(
@@ -1586,7 +1586,7 @@ class TestLoadWorkspaceFailures:
         )
 
         #: When
-        model = load_workspace(schemas, documents, skills)
+        model = load_workspace(schemas, documents, skills, builtin_layers=(SKILLS_LAYER,))
 
         #: Then
         assert _failed_structure(model, CODE).failure == ForeignFrontmatterDialect(
@@ -1602,7 +1602,7 @@ class TestLoadWorkspaceFailures:
         path = SPECS_DIR / PathComponent.parse('code-python.spec.json')
 
         #: When
-        model = load_workspace(schemas, documents, skills)
+        model = load_workspace(schemas, documents, skills, builtin_layers=(SKILLS_LAYER,))
 
         #: Then
         ref = model.find_document(RootRelativePath.parse('docs/code/python-typing.md'))
@@ -1628,7 +1628,7 @@ class TestLoadWorkspaceFailures:
         _write(tmp_path, 'docs/__meta__/code-python-errors.spec.json', 'not json')
 
         #: When
-        model = load_workspace(schemas, documents, skills)
+        model = load_workspace(schemas, documents, skills, builtin_layers=(SKILLS_LAYER,))
 
         #: Then
         assert _failure_paths(model) == (
@@ -1655,7 +1655,7 @@ class TestLoadWorkspaceFailures:
         lock(tmp_path / 'docs' / 'code')
 
         #: When
-        model = load_workspace(schemas, documents, skills)
+        model = load_workspace(schemas, documents, skills, builtin_layers=(SKILLS_LAYER,))
 
         #: Then
         assert model.load_failures == (
@@ -1684,7 +1684,7 @@ class TestLoadWorkspaceFailures:
         lock(tmp_path / 'docs')
 
         #: When
-        model = load_workspace(schemas, documents, skills)
+        model = load_workspace(schemas, documents, skills, builtin_layers=(SKILLS_LAYER,))
 
         #: Then
         refusal = OsRefusal.PERMISSION_DENIED
@@ -1708,7 +1708,7 @@ class TestLoadWorkspaceFailures:
         lock(tmp_path / 'docs' / '__meta__')
 
         #: When
-        model = load_workspace(schemas, documents, skills)
+        model = load_workspace(schemas, documents, skills, builtin_layers=(SKILLS_LAYER,))
 
         #: Then
         assert model.load_failures == (LoadFailure(SPECS_DIR, UnlistableDirectory(OsRefusal.PERMISSION_DENIED)),), (
@@ -1731,7 +1731,7 @@ class TestLoadWorkspaceFailures:
         lock(tmp_path / '.agents' / 'skills')
 
         #: When
-        model = load_workspace(schemas, documents, skills)
+        model = load_workspace(schemas, documents, skills, builtin_layers=(SKILLS_LAYER,))
 
         #: Then
         assert model.load_failures == (
@@ -1760,7 +1760,7 @@ class TestLoadWorkspaceFailures:
         lock(tmp_path / 'shared')
 
         #: When
-        model = load_workspace(schemas, documents, skills)
+        model = load_workspace(schemas, documents, skills, builtin_layers=(SKILLS_LAYER,))
 
         #: Then
         assert model.load_failures == (
@@ -1785,7 +1785,7 @@ class TestLoadWorkspaceFailures:
         lock(tmp_path / 'shared')
 
         #: When
-        model = load_workspace(schemas, documents, skills)
+        model = load_workspace(schemas, documents, skills, builtin_layers=(SKILLS_LAYER,))
 
         #: Then
         assert model.load_failures == (
@@ -1815,7 +1815,7 @@ class TestLoadWorkspaceFailures:
         lock(tmp_path / 'texts')
 
         #: When
-        model = load_workspace(schemas, documents, skills)
+        model = load_workspace(schemas, documents, skills, builtin_layers=(SKILLS_LAYER,))
 
         #: Then
         assert model.load_failures == (
@@ -1843,7 +1843,7 @@ class TestLoadWorkspaceFailures:
         lock(tmp_path / '.agents' / 'skills' / 'review')
 
         #: When
-        model = load_workspace(schemas, documents, skills)
+        model = load_workspace(schemas, documents, skills, builtin_layers=(SKILLS_LAYER,))
 
         #: Then
         assert model.load_failures == (
@@ -1873,7 +1873,7 @@ class TestLoadWorkspaceFailures:
         refusal = OsRefusal.PERMISSION_DENIED
 
         #: When
-        model = load_workspace(schemas, documents, skills)
+        model = load_workspace(schemas, documents, skills, builtin_layers=(SKILLS_LAYER,))
 
         #: Then
         assert model.load_failures == (
@@ -1897,7 +1897,7 @@ class TestLoadWorkspaceFailures:
         lock(tmp_path / 'shared' / 'skills')
 
         #: When
-        model = load_workspace(schemas, documents, skills)
+        model = load_workspace(schemas, documents, skills, builtin_layers=(SKILLS_LAYER,))
 
         #: Then
         assert model.load_failures == (
@@ -1916,11 +1916,11 @@ class TestLoadWorkspaceFailures:
             _write_tree(root, prose=('code',), schemas=(), documents=('code/logging.md',))
             _write(root, 'docs/__meta__/code.spec.json', 'not json')
         ref = DocumentRef(CODE, AspectFilename.parse('logging'))
-        first = load_model(DiskFileSystem(tmp_path)).find_governance(ref)
+        first = load_model(DiskFileSystem(tmp_path), builtin_layers=(SKILLS_LAYER,)).find_governance(ref)
         filesystem = DiskFileSystem(other)
 
         #: When
-        model = load_model(filesystem)
+        model = load_model(filesystem, builtin_layers=(SKILLS_LAYER,))
 
         #: Then
         second = model.find_governance(ref)
@@ -1936,11 +1936,11 @@ class TestLoadWorkspaceFailures:
             _write_tree(root, prose=('code',), schemas=(), documents=('code/logging.md',))
             _write(root, 'docs/__meta__/code.spec.json', content)
         ref = DocumentRef(CODE, AspectFilename.parse('logging'))
-        first = load_model(DiskFileSystem(tmp_path)).find_governance(ref)
+        first = load_model(DiskFileSystem(tmp_path), builtin_layers=(SKILLS_LAYER,)).find_governance(ref)
         filesystem = DiskFileSystem(other)
 
         #: When
-        model = load_model(filesystem)
+        model = load_model(filesystem, builtin_layers=(SKILLS_LAYER,))
 
         #: Then
         second = model.find_governance(ref)
@@ -1957,7 +1957,7 @@ class TestLoadWorkspaceSkillsCorpus:
         _write(tmp_path, '.agents/skills/code-rules/SKILL.md')
 
         #: When
-        model = load_workspace(schemas, documents, skills)
+        model = load_workspace(schemas, documents, skills, builtin_layers=(SKILLS_LAYER,))
 
         #: Then
         assert model.skills_corpus is not None, 'the skills corpus needs no directory under docs/'
@@ -1971,7 +1971,7 @@ class TestLoadWorkspaceSkillsCorpus:
         _write_tree(tmp_path, prose=('skills',), schemas=(), documents=('skills/notes.md',))
 
         #: When
-        model = load_workspace(schemas, documents, skills)
+        model = load_workspace(schemas, documents, skills, builtin_layers=(SKILLS_LAYER,))
 
         #: Then
         assert model.sorted_overlapping_directories == (
