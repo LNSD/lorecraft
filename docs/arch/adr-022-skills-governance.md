@@ -1,6 +1,6 @@
 ---
 name: "adr-022-skills-governance"
-description: "Bring skill entrypoints into reserved-corpus governance with a bundled spec floor layer, independent repository layers and bounded contradiction detection. Load when implementing skills corpus loading, governance, checking or inspection"
+description: "Bring skill entrypoints into reserved-corpus governance with a builtin spec floor layer, independent repository layers and bounded contradiction detection. Load when implementing skills corpus loading, governance, checking or inspection"
 type: "adr"
 status: "proposed"
 ---
@@ -53,7 +53,7 @@ governance models remains deferred for future exploration. The skills/ directory
 ### A Built-in Layer Supplies the Default Floor
 
 The built-in Agent Skills floor is an explicit source of governance, followed by the repository corpus layer and
-matching namespace layers. It is a bundled spec layer under bundled origin rather than a fabricated repository
+matching namespace layers. It is a builtin spec layer under builtin origin rather than a fabricated repository
 file path, supplying both frontmatter and structure inputs. Repository layer findings identify the repository layer;
 built-in findings retain their current provenance and wording wherever FR-013 requires compatibility.
 
@@ -66,8 +66,8 @@ the tuple is non-empty.
 One declaration supplies the built-in field constraints, the representation exposed as the built-in schema,
 and its generated documentation. No hand-maintained copy of those constraints is introduced.
 Rules needing a skill's identity, such as its name matching its directory, remain rules rather than pretending
-that a field schema can see a path. Bundled tool constraints (`allowed_tools_too_long` and `malformed_allowed_tools`)
-are declared as part of the bundled floor under `FRONTMATTER`, preserving their warning severity and Lorecraft
+that a field schema can see a path. Builtin tool constraints (`allowed_tools_too_long` and `malformed_allowed_tools`)
+are declared as part of the builtin floor under `FRONTMATTER`, preserving their warning severity and Lorecraft
 recommendation attribution.
 
 Each governing layer applies independently; there is no merged effective schema or structure specification. An absent
@@ -75,16 +75,16 @@ repository constraint leaves the built-in constraint in force. Omitting a repeat
 (FR-007, FR-020). Constraints that all layers enforce are not reinterpreted as overrides.
 
 The structure dialect supplies frontmatter, outline, word limits and token/line budgets for skill entries (FR-005).
-The structure specification dialect adds a `lines` budget beside `tokens`. The bundled Agent Skills structure file
+The structure specification dialect adds a `lines` budget beside `tokens`. The builtin Agent Skills structure file
 declares a line limit of 500 lines (`too_many_lines`), counting the entire file and reporting from line 501.
 Repository layers can tighten the line limit (e.g. `lines: 300`) but can never relax or waive the floor's 500-line cap.
-When the bundled floor is active, skills are governed for `FRONTMATTER` and `BUDGET`. Coverage records which parts
+When the builtin floor is active, skills are governed for `FRONTMATTER` and `BUDGET`. Coverage records which parts
 are ungoverned, just as it does for documents.
 
 ### The Opt-out Is Global and Explicit
 
 The root CLI option `--no-agent-skills-spec` (with `--no-builtin-skills-schema` retained as an alias) disables the entire
-bundled Agent Skills floor layer and the compatibility analysis against it. The default is enabled. The setting is passed
+builtin Agent Skills floor layer and the compatibility analysis against it. The default is enabled. The setting is passed
 into workspace governance for both check and inspect, so the two commands describe and enforce the same choice.
 
 Examples:
@@ -97,7 +97,7 @@ lorecraft --no-agent-skills-spec inspect
 The option has no environment-variable counterpart and no repository configuration in this change.
 A task recipe or CI command can persist the explicit flag.
 
-With the option enabled, the entire bundled floor layer—its frontmatter schema, line budget, and tool constraints—is
+With the option enabled, the entire builtin floor layer—its frontmatter schema, line budget, and tool constraints—is
 omitted. Repository skills specs apply on their own (FR-009). With no repository skills specification, skills are
 reported as ungoverned for `FRONTMATTER`, `STRUCTURE`, `OUTLINE`, and `BUDGET` without an error (FR-018).
 The option changes spec floor governance; it does not disable discovery, I/O diagnostics or unrelated link checks
@@ -105,7 +105,7 @@ such as `escaping_link`.
 
 ### Contradiction Detection Is Bounded
 
-While the bundled Agent Skills floor is enabled, the project model examines each repository skills layer's direct
+While the builtin Agent Skills floor is enabled, the project model examines each repository skills layer's direct
 frontmatter.properties.name and frontmatter.properties.description constraints. Both fields are required
 by the built-in schema, so an impossible constraint on either cannot be avoided by omitting the field.
 Adding a declarative line budget does not expand contradiction detection into a general structural constraint prover:
@@ -130,7 +130,7 @@ failed-layer model: check reports the error and fails (FR-019); inspect follows 
 an unusable spec. It is not repeated as a contradiction finding on every skill.
 
 A consumer skips governed subjects under a failed layer according to its existing failed-layer policy.
-Disabling the bundled floor removes only this compatibility analysis, not validation of the repository
+Disabling the builtin floor removes only this compatibility analysis, not validation of the repository
 spec's own syntax, structure dialect, and usability.
 
 ### Reserved Docs Names Are Reported and Excluded
@@ -144,11 +144,11 @@ The overlap is promoted to an error, making check fail (FR-017), with a general 
 only the matching rules that are already enabled: it never enables an ignored rule, and unrelated warnings keep
 their severity. A dedicated overlap option and a global `--warnings-as-errors` switch are rejected: the first adds
 a bespoke surface for one rule, the second makes every warning fatal.
-The reserved name remains reserved when the bundled floor is disabled.
+The reserved name remains reserved when the builtin floor is disabled.
 
 ### Inspection Reads the Same Governance
 
-Inspect exposes repository skills layers in broad-to-narrow order and identifies whether the bundled floor layer
+Inspect exposes repository skills layers in broad-to-narrow order and identifies whether the builtin floor layer
 is enabled (FR-011). Its text and machine-readable views derive from the same model used by check, reflecting
 the active floor layer across frontmatter and budget coverage.
 It does not create a second matching algorithm or require a docs/skills/ directory.
@@ -157,7 +157,7 @@ It does not create a second matching algorithm or require a docs/skills/ directo
 
 - Skill entrypoints gain repository frontmatter, outline, token, and line rules. The structure dialect adds
   `lines` alongside `tokens` without allowing narrower layers to erase broader constraints.
-- Existing skills diagnostics and identity survive the migration. Generated schema output and bundled structure
+- Existing skills diagnostics and identity survive the migration. Generated schema output and builtin structure
   definitions preserve representative existing findings when no repository skills spec is present.
 - Skills may be governed without a physical corpus directory. Code that assumes every corpus maps to a docs/
   path must distinguish the reserved corpus rather than constructing a nonexistent document path.
@@ -166,7 +166,7 @@ It does not create a second matching algorithm or require a docs/skills/ directo
 - The bounded analysis catches common impossible required-field constraints before any skills exist.
   More involved contradictions and line-budget interactions can remain hidden until a skill exercises them; this is an explicit limit.
 - The opt-out deliberately permits skills outside the built-in standard and even ungoverned skills, omitting the
-  entire bundled floor layer (frontmatter schema, line budget, and tool constraints). It is visible per invocation
+  entire builtin floor layer (frontmatter schema, line budget, and tool constraints). It is visible per invocation
   rather than inherited from an environment variable.
 - A docs/skills/ directory loses ordinary document-corpus semantics. Its overlap diagnostic explains why its
   documents are unchecked; making that diagnostic an error does not make those documents governed.
@@ -175,7 +175,7 @@ It does not create a second matching algorithm or require a docs/skills/ directo
 - Progressive missing-field deduplication across earlier schemas in the tuple preserves the guarantee that an
   absent field required by both floor and repository layers is reported once, without treating the floor as an
   architectural exception.
-- Bundled tool constraints (`allowed_tools_too_long`, `malformed_allowed_tools`) and line limit (`too_many_lines`)
+- Builtin tool constraints (`allowed_tools_too_long`, `malformed_allowed_tools`) and line limit (`too_many_lines`)
   execute as declarative spec-governed rules under `WhenSpec(FRONTMATTER)` and `WhenSpec(BUDGET)`,
   rather than unconditional ad-hoc checks.
 - Link escaping checks (`escaping_link`) remain an invariant check under `Always()`, ensuring skill resources and
@@ -201,10 +201,10 @@ It does not create a second matching algorithm or require a docs/skills/ directo
 - [ ] Skills governance uses the listed skill name and existing namespace matching, never the resolved target name
 - [ ] Skills specs load without docs/skills/ and apply only to SKILL.md; skill resources remain outside spec governance
 - [ ] Every layer applies independently, with one declaration supplying built-in constraints and generated docs
-- [ ] The bundled Agent Skills floor supplies a bundled spec layer (frontmatter schema, tool constraints, and 500-line budget)
+- [ ] The builtin Agent Skills floor supplies a builtin spec layer (frontmatter schema, tool constraints, and 500-line budget)
 - [ ] The structure specification dialect supports `lines` budget alongside `tokens`
 - [ ] A skill with no repository skills spec retains the existing findings under the default setting
-- [ ] The opt-out `--no-agent-skills-spec` disables the entire bundled floor layer, affects check and inspect alike, and allows ungoverned skills without an error
+- [ ] The opt-out `--no-agent-skills-spec` disables the entire builtin floor layer, affects check and inspect alike, and allows ungoverned skills without an error
 - [ ] Compatibility analysis covers only the stated direct required-field constraints and is disabled by opt-out
 - [ ] A detected contradiction names the faulty spec and fails check even when no skill exists
 - [ ] A reserved docs corpus is excluded and reported once, warning by default and promoted to error by `--error <selectors>`

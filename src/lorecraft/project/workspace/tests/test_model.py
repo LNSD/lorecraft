@@ -45,7 +45,7 @@ from lorecraft.project.schemas import (
     spec_filename,
 )
 from lorecraft.project.skill import OutsideSymlink, SkillLocation, SkillRef, SkillsDir
-from lorecraft.schemas import BundledOrigin, RepositoryOrigin, SchemaInput, SchemaKind, SchemaRef
+from lorecraft.schemas import BuiltinOrigin, RepositoryOrigin, SchemaInput, SchemaKind, SchemaRef
 from lorecraft.vfs import ResolvedPath, RootExit
 
 from ..failure import FailedStructure
@@ -847,7 +847,7 @@ class TestWorkspaceModel:
         #: Given
         key = SchemaRef(SchemaKind.STRUCTURE, 'key')
         reference = SchemaRef(SchemaKind.STRUCTURE, 'value')
-        schema_input = SchemaInput(reference, BundledOrigin(reference.identity), FrozenMapping({}))
+        schema_input = SchemaInput(reference, BuiltinOrigin(reference.identity), FrozenMapping({}))
 
         #: When
         with pytest.raises(SchemaInputReferenceMismatchError) as exc_info:

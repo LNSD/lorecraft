@@ -5,9 +5,9 @@ import pytest
 from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.path import RootRelativePath
 from lorecraft.schemas import (
-    BundledOrigin,
+    BuiltinOrigin,
     DuplicateSchemaRefError,
-    EmptyBundledOriginIdentityError,
+    EmptyBuiltinOriginIdentityError,
     EmptyRepositoryLayerError,
     EmptySchemaRefIdentityError,
     RepositoryOrigin,
@@ -65,10 +65,10 @@ class TestSchemaRegistry:
         assert exc_info.value.reference == schema_input.reference, 'the refusal identifies the collision'
 
     @pytest.mark.parametrize('kind', [SchemaKind.STRUCTURE, SchemaKind.FRONTMATTER])
-    def test_bundled_origin_can_back_any_schema_kind(self, kind: SchemaKind) -> None:
+    def test_builtin_origin_can_back_any_schema_kind(self, kind: SchemaKind) -> None:
         #: Given
         reference = SchemaRef(kind, 'agent-skills')
-        origin = BundledOrigin('agent-skills')
+        origin = BuiltinOrigin('agent-skills')
         document = FrozenMapping.from_plain({'type': 'object'})
 
         #: When
@@ -79,12 +79,12 @@ class TestSchemaRegistry:
         )
 
         #: Then
-        assert schema_input.origin is origin, 'bundled provenance needs no repository path'
+        assert schema_input.origin is origin, 'builtin provenance needs no repository path'
 
-    def test_bundled_input_with_different_origin_identity_raises(self) -> None:
+    def test_builtin_input_with_different_origin_identity_raises(self) -> None:
         #: Given
         reference = SchemaRef(SchemaKind.STRUCTURE, 'agent-skills')
-        origin = BundledOrigin('other-builtin')
+        origin = BuiltinOrigin('other-builtin')
         document = FrozenMapping.from_plain({'type': 'object'})
 
         #: When
@@ -140,14 +140,14 @@ class TestRepositoryOrigin:
 
 
 @pytest.mark.unit
-class TestBundledOrigin:
+class TestBuiltinOrigin:
     def test_origin_with_empty_identity_raises_typed_error(self) -> None:
         #: Given
         identity = ''
 
         #: When
-        with pytest.raises(EmptyBundledOriginIdentityError) as exc_info:
-            BundledOrigin(identity)
+        with pytest.raises(EmptyBuiltinOriginIdentityError) as exc_info:
+            BuiltinOrigin(identity)
 
         #: Then
-        assert exc_info.value.identity == identity, 'the refusal preserves the empty bundled identity'
+        assert exc_info.value.identity == identity, 'the refusal preserves the empty builtin identity'

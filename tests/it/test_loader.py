@@ -1029,16 +1029,16 @@ class TestSchemaInputRegistration:
                 if ref.kind is SchemaKind.FRONTMATTER and schema_input.origin == structure.origin
             )
         ]
-        bundled = model.schema_inputs[AGENT_SKILLS_SCHEMA_INPUT.reference]
+        builtin = model.schema_inputs[AGENT_SKILLS_SCHEMA_INPUT.reference]
         assert structure.document == FrozenMapping.from_plain(json.loads(text))
         assert structure.origin.path == RootRelativePath.parse('docs/__meta__/code.spec.json')
         assert frontmatter.origin == structure.origin, 'the embedded JSON Schema retains its specification layer'
         assert frontmatter.reference.identity == structure.reference.identity, (
             'both inputs identify their governing layer'
         )
-        assert bundled == AGENT_SKILLS_SCHEMA_INPUT, 'the Agent Skills floor is registered with bundled provenance'
+        assert builtin == AGENT_SKILLS_SCHEMA_INPUT, 'the Agent Skills floor is registered with builtin provenance'
 
-    def test_load_workspace_with_agent_skills_namespace_keeps_bundled_subject_distinct(
+    def test_load_workspace_with_agent_skills_namespace_keeps_builtin_subject_distinct(
         self, tmp_path: Path, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
     ) -> None:
         #: Given
@@ -1051,9 +1051,9 @@ class TestSchemaInputRegistration:
         model = load_workspace(schemas, documents, skills)
 
         #: Then
-        bundled = model.schema_inputs[AGENT_SKILLS_SCHEMA_INPUT.reference]
-        assert bundled == AGENT_SKILLS_SCHEMA_INPUT, (
-            'the repository namespace cannot replace the bundled skills subject'
+        builtin = model.schema_inputs[AGENT_SKILLS_SCHEMA_INPUT.reference]
+        assert builtin == AGENT_SKILLS_SCHEMA_INPUT, (
+            'the repository namespace cannot replace the builtin skills subject'
         )
         repository_frontmatter = tuple(
             schema_input

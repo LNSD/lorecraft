@@ -26,7 +26,7 @@ from lorecraft.project.schemas.agent_skills_schema import (
 from lorecraft.project.skill import OutsideSymlink, OutsideSymlinkRef
 from lorecraft.project.syntax import Heading
 from lorecraft.schemas import (
-    BundledOrigin,
+    BuiltinOrigin,
     SchemaInput,
     SchemaKind,
     SchemaRef,
@@ -269,7 +269,7 @@ def _schema_catches_missing(primitives: ItemPrimitives) -> str | None:
 
 @pytest.mark.unit
 class TestReads:
-    def test_builtin_skills_schema_uses_a_bundled_registry_subject(self) -> None:
+    def test_builtin_skills_schema_uses_a_builtin_registry_subject(self) -> None:
         #: Given
         database = _database()
 
@@ -279,7 +279,7 @@ class TestReads:
         #: Then
         assert schema is AGENT_SKILLS_FRONTMATTER_SCHEMA, 'the schema query preserves the Pydantic validator instance'
         assert database.model().schema_inputs[AGENT_SKILLS_SCHEMA_REFERENCE] == AGENT_SKILLS_SCHEMA_INPUT, (
-            'the loaded model exposes the built-in schema with bundled provenance'
+            'the loaded model exposes the built-in schema with builtin provenance'
         )
         assert database.query_reads(agent_skills_frontmatter_schema, AGENT_SKILLS_SCHEMA_REFERENCE) == {
             Read(PrimitiveRead.SCHEMA_INPUT, AGENT_SKILLS_SCHEMA_REFERENCE)
@@ -290,7 +290,7 @@ class TestReads:
         database = _database()
         schema_input = SchemaInput(
             SCHEMA,
-            BundledOrigin(SCHEMA.identity),
+            BuiltinOrigin(SCHEMA.identity),
             FrozenMapping.from_plain({'type': 'object'}),
         )
         database._model = replace(database.model(), schema_inputs=FrozenMapping({SCHEMA: schema_input}))
@@ -311,7 +311,7 @@ class TestReads:
         database = _database()
         schema_input = SchemaInput(
             SCHEMA,
-            BundledOrigin(SCHEMA.identity),
+            BuiltinOrigin(SCHEMA.identity),
             FrozenMapping.from_plain({'type': 'object'}),
         )
         database._model = replace(database.model(), schema_inputs=FrozenMapping({SCHEMA: schema_input}))
@@ -331,12 +331,12 @@ class TestReads:
         database = _database()
         schema_base = SchemaInput(
             SCHEMA_BASE,
-            BundledOrigin(SCHEMA_BASE.identity),
+            BuiltinOrigin(SCHEMA_BASE.identity),
             FrozenMapping.from_plain({'type': 'object'}),
         )
         schema = SchemaInput(
             SCHEMA,
-            BundledOrigin(SCHEMA.identity),
+            BuiltinOrigin(SCHEMA.identity),
             FrozenMapping.from_plain({'type': 'object'}),
         )
         database._model = replace(
@@ -358,7 +358,7 @@ class TestReads:
         database = _database()
         schema = SchemaInput(
             SCHEMA,
-            BundledOrigin(SCHEMA.identity),
+            BuiltinOrigin(SCHEMA.identity),
             FrozenMapping.from_plain({'type': 'object'}),
         )
         database._model = replace(database.model(), schema_inputs=FrozenMapping({SCHEMA: schema}))

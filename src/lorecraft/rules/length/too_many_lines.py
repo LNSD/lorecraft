@@ -18,7 +18,7 @@ from lorecraft.rules.overrun import Overrun, find_overrun
 from lorecraft.rules.subject import Always, Gate, QueriedItemRule, WhenSpec
 
 _LINE_BUDGET: Final[NonZeroUnsignedInt] = NonZeroUnsignedInt(500)
-"""The fallback limit for skills until their bundled structure layer supplies it."""
+"""The fallback limit for skills until their builtin structure layer supplies it."""
 
 
 @dataclass(frozen=True, slots=True)

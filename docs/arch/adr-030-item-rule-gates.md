@@ -69,10 +69,10 @@ keep layout subjects separate because their primitives and query subjects differ
    - Link containment (`escaping_link`) uses `Always()` for `DOCUMENT`, `SPEC`, `SKILL_ENTRYPOINT`, and `SKILL_RESOURCE`, enforcing containment as an unconditional invariant.
    - Corpus naming convention checks (`missing_base_link`, `extension_link`, `mutual_link`) remain `WhenSpec(STRUCTURE)` for documents.
    - Frontmatter rules, including `name_mismatch` (per ADR-028 Decision 16), declare `WhenSpec(FRONTMATTER)` for documents, specs, and skills.
-   - Declarative skill floor rules declare spec gates: `too_many_lines` declares `{SKILL_ENTRYPOINT: WhenSpec(BUDGET)}`, and bundled tool constraints (`allowed_tools_too_long`, `malformed_allowed_tools`) declare `{SKILL_ENTRYPOINT: WhenSpec(FRONTMATTER)}`.
-   - When the bundled floor is opted out and no repository layer states the part, the corresponding spec part is reported under coverage as `ungoverned` and the gated rules do not judge the item.
+   - Declarative skill floor rules declare spec gates: `too_many_lines` declares `{SKILL_ENTRYPOINT: WhenSpec(BUDGET)}`, and builtin tool constraints (`allowed_tools_too_long`, `malformed_allowed_tools`) declare `{SKILL_ENTRYPOINT: WhenSpec(FRONTMATTER)}`.
+   - When the builtin floor is opted out and no repository layer states the part, the corresponding spec part is reported under coverage as `ungoverned` and the gated rules do not judge the item.
 
-3. **Governance follows loaded layers.** `governed_parts` contains only the parts stated by loaded layers (bundled floor and repository layers), for every
+3. **Governance follows loaded layers.** `governed_parts` contains only the parts stated by loaded layers (builtin floor and repository layers), for every
    item type; no part is forced active. Rules applied to `SPECIFICATION` items use `Always()`. A skill rule
    gated by a part uses plain `WhenSpec(part)`, just as a document rule does: an active layer stating the part is the
    condition for judging. Skill checks independent of a spec part use `Always()`. `requires_loaded_layer` is
@@ -88,15 +88,15 @@ keep layout subjects separate because their primitives and query subjects differ
    the failed layer suppresses every `WhenSpec` gate, while `Always` gates still run. The
    suppressed spec parts are reported under coverage, rather than skipping the subject entirely.
 
-   When the bundled Agent Skills floor is active, skills are governed for `FRONTMATTER` and `BUDGET`.
+   When the builtin Agent Skills floor is active, skills are governed for `FRONTMATTER` and `BUDGET`.
    A skill with no repository skills-corpus layer is reported as `ungoverned` for `STRUCTURE` and `OUTLINE`
-   when enabled rules read those parts. When the bundled floor is opted out via `--no-agent-skills-spec` and no repository
+   when enabled rules read those parts. When the builtin floor is opted out via `--no-agent-skills-spec` and no repository
    skills layer provides them, `FRONTMATTER` and `BUDGET` are also reported as `ungoverned`. Coverage therefore exposes
    missing governance instead of silently skipping the entry.
 
 4. **Schema and budget eligibility is governed by SpecPart.** Applicable schema and structure constraints enter
    through the loaded layers and are queried via `SpecPart` gates (`WhenSpec(FRONTMATTER)` and `WhenSpec(BUDGET)`).
-   `WhenSchema` is retired: the Agent Skills floor is no longer a special runner or schema-reference case, but a bundled
+   `WhenSchema` is retired: the Agent Skills floor is no longer a special runner or schema-reference case, but a builtin
    spec layer whose presence activates `FRONTMATTER` and `BUDGET` governance. If a part is not governed across loaded
    layers, the gate does not admit the rule and coverage reports the part as `ungoverned`. Schema registration and resolution
    remain governed by the schema registry design in ADR-028.
@@ -111,7 +111,7 @@ keep layout subjects separate because their primitives and query subjects differ
 
    Eligibility and coverage remain distinct. When an applicable `WhenSpec` gate names a part absent from the
    descriptor's `governed_parts`, the runner records `ungoverned` coverage and does not judge it. This includes skill
-   frontmatter and budget when the bundled floor is opted out and no repository layer activates those parts. A rule whose
+   frontmatter and budget when the builtin floor is opted out and no repository layer activates those parts. A rule whose
    item type is absent from `APPLIES_TO` is skipped silently. The runner reads the gate both to select rules and to record
    coverage; `judges` does not replace that behavior.
 
@@ -139,7 +139,7 @@ keep layout subjects separate because their primitives and query subjects differ
   item type to a rule requires an explicit gate instead of a new inheritance path or runner branch.
 - The runner and table derive eligibility and indexes from the same mapping. This removes their duplicated
   interpretation of the item-base hierarchy and makes missing gate cases visible at registry load.
-- `WhenSpec` and `Always` form a closed, two-member gate union. `WhenSchema` is retired because the bundled
+- `WhenSpec` and `Always` form a closed, two-member gate union. `WhenSchema` is retired because the builtin
   Agent Skills floor is an active spec layer whose frontmatter and budget constraints gate on `WhenSpec`,
   and `Always` admits only the item types named in `APPLIES_TO` without requiring a per-item spec declaration.
 - Specs in `docs/__meta__/` are governed by the reserved `meta` corpus; `meta.spec.json` and namespace layers
@@ -150,7 +150,7 @@ keep layout subjects separate because their primitives and query subjects differ
   skill entrypoints, and skill resources.
 - A failed governing layer applies a uniform partial check policy across all item types: spec gates are
   suppressed and reported under coverage while `Always` gates still execute.
-- When the bundled floor is active, skills are governed for `FRONTMATTER` and `BUDGET`; `STRUCTURE` and `OUTLINE`
+- When the builtin floor is active, skills are governed for `FRONTMATTER` and `BUDGET`; `STRUCTURE` and `OUTLINE`
   appear as ungoverned when no repository skills layer states them. When the floor is opted out via
   `--no-agent-skills-spec`, `FRONTMATTER` and `BUDGET` also appear in coverage as ungoverned, making missing governance
   transparent instead of mistaking silence for coverage.
@@ -168,7 +168,7 @@ keep layout subjects separate because their primitives and query subjects differ
 - **Add a `BySkillsCorpus(part)` gate.** This would preserve the current silent skip for skills without a
   loaded skills corpus, but it would make skills-corpus presence a separate eligibility concept. Coverage is meant
   to expose ungoverned parts, so the simpler `WhenSpec(part)` gate is preferred.
-- **Retain `WhenSchema` alongside `WhenSpec`.** Rejected: since the floor supplies a bundled spec layer
+- **Retain `WhenSchema` alongside `WhenSpec`.** Rejected: since the floor supplies a builtin spec layer
   with both frontmatter schema and line limits, gating on `WhenSpec(FRONTMATTER)` and `WhenSpec(BUDGET)`
   unifies skill and document governance and leaves no consumers for `WhenSchema`.
 - **Fold layout subjects into the item base.** Layout records have different primitive contracts and are not item
@@ -182,8 +182,8 @@ keep layout subjects separate because their primitives and query subjects differ
 - [ ] `too_many_lines` gates on `WhenSpec(BUDGET)`
 - [ ] `escaping_link` gates on `Always()` for documents, specs, skill entrypoints, and skill resources
 - [ ] Failed governing layers suppress `WhenSpec` gates while `Always` gates continue to run
-- [ ] When the bundled floor is active, skills declare `FRONTMATTER` and `BUDGET` governance
-- [ ] When the bundled floor is opted out and no repository layer provides them, `FRONTMATTER` and `BUDGET` are reported as ungoverned under coverage
+- [ ] When the builtin floor is active, skills declare `FRONTMATTER` and `BUDGET` governance
+- [ ] When the builtin floor is opted out and no repository layer provides them, `FRONTMATTER` and `BUDGET` are reported as ungoverned under coverage
 - [ ] Runner and rule table derive item eligibility and indexes directly from `APPLIES_TO` without runner exceptions
 
 ## References

@@ -1,4 +1,4 @@
-"""Bundled schemas registered in a workspace model."""
+"""Builtin schemas registered in a workspace model."""
 
 import pytest
 
@@ -15,7 +15,7 @@ from lorecraft.schemas.builtin import (
 
 @pytest.mark.unit
 class TestRegisterBuiltinSchemas:
-    def test_register_adds_the_bundled_agent_skills_input(self) -> None:
+    def test_register_adds_the_builtin_agent_skills_input(self) -> None:
         #: Given
         schema_inputs: dict[SchemaRef, SchemaInput] = {}
 
@@ -24,5 +24,5 @@ class TestRegisterBuiltinSchemas:
 
         #: Then
         assert schema_inputs == {AGENT_SKILLS_SCHEMA_REFERENCE: AGENT_SKILLS_SCHEMA_INPUT}, (
-            'the bundled Agent Skills schema is registered with its stable identity and input'
+            'the builtin Agent Skills schema is registered with its stable identity and input'
         )

@@ -135,7 +135,7 @@ A feat doc's maturity label: `development`, `unstable`, `experimental`, or `stab
 
 ### Machine-checkable companion
 
-A JSON file of a spec, beside its prose, that holds the rules a checker can decide: the structure file, `<name>.spec.json`, holding the section structure with its word caps, the token budget and the frontmatter schema. Formerly *structure specification*. The bundled Agent Skills frontmatter schema ref is identified in code by `AGENT_SKILLS_SCHEMA_REFERENCE`, an accepted alias for that schema reference.
+A JSON file of a spec, beside its prose, that holds the rules a checker can decide: the structure file, `<name>.spec.json`, holding the section structure with its word caps, the token budget and the frontmatter schema. Formerly *structure specification*. The builtin Agent Skills frontmatter schema ref is identified in code by `AGENT_SKILLS_SCHEMA_REFERENCE`, an accepted alias for that schema reference.
 
 ### File type
 
