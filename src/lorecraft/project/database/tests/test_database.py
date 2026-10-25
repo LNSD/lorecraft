@@ -27,7 +27,7 @@ from lorecraft.project.skill import OutsideSymlink, OutsideSymlinkRef
 from lorecraft.project.syntax import Heading
 from lorecraft.project.workspace.builtin import AGENT_SKILLS_SPEC_LAYER as SKILLS_LAYER
 from lorecraft.schemas import (
-    BuiltinOrigin,
+    RepositoryOrigin,
     SchemaInput,
     SchemaKind,
     SchemaRef,
@@ -292,10 +292,10 @@ class TestReads:
         database = _database()
         schema_input = SchemaInput(
             SCHEMA,
-            BuiltinOrigin(SCHEMA.identity),
+            RepositoryOrigin(RootRelativePath.parse('docs/test.json'), 'test'),
             FrozenMapping.from_plain({'type': 'object'}),
         )
-        database._model = replace(database.model(), schema_inputs=FrozenMapping({SCHEMA: schema_input}))
+        database._model = replace(database.model(), repository_schema_inputs=FrozenMapping({SCHEMA: schema_input}))
 
         #: When
         first = database.query(_schema_document, SCHEMA)
@@ -313,10 +313,10 @@ class TestReads:
         database = _database()
         schema_input = SchemaInput(
             SCHEMA,
-            BuiltinOrigin(SCHEMA.identity),
+            RepositoryOrigin(RootRelativePath.parse('docs/test.json'), 'test'),
             FrozenMapping.from_plain({'type': 'object'}),
         )
-        database._model = replace(database.model(), schema_inputs=FrozenMapping({SCHEMA: schema_input}))
+        database._model = replace(database.model(), repository_schema_inputs=FrozenMapping({SCHEMA: schema_input}))
 
         #: When
         result = database.query(_reads_schema, GUIDE)
@@ -333,16 +333,16 @@ class TestReads:
         database = _database()
         schema_base = SchemaInput(
             SCHEMA_BASE,
-            BuiltinOrigin(SCHEMA_BASE.identity),
+            RepositoryOrigin(RootRelativePath.parse('docs/test-base.json'), 'test'),
             FrozenMapping.from_plain({'type': 'object'}),
         )
         schema = SchemaInput(
             SCHEMA,
-            BuiltinOrigin(SCHEMA.identity),
+            RepositoryOrigin(RootRelativePath.parse('docs/test.json'), 'test'),
             FrozenMapping.from_plain({'type': 'object'}),
         )
         database._model = replace(
-            database.model(), schema_inputs=FrozenMapping({SCHEMA: schema, SCHEMA_BASE: schema_base})
+            database.model(), repository_schema_inputs=FrozenMapping({SCHEMA: schema, SCHEMA_BASE: schema_base})
         )
 
         #: When
@@ -360,10 +360,10 @@ class TestReads:
         database = _database()
         schema = SchemaInput(
             SCHEMA,
-            BuiltinOrigin(SCHEMA.identity),
+            RepositoryOrigin(RootRelativePath.parse('docs/test.json'), 'test'),
             FrozenMapping.from_plain({'type': 'object'}),
         )
-        database._model = replace(database.model(), schema_inputs=FrozenMapping({SCHEMA: schema}))
+        database._model = replace(database.model(), repository_schema_inputs=FrozenMapping({SCHEMA: schema}))
 
         #: When
         result = database.query(_schema_catches_missing, GUIDE)

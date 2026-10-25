@@ -71,13 +71,11 @@ from lorecraft.project.skill import (
 )
 from lorecraft.project.skill import Repository as SkillRepository
 from lorecraft.schemas import (
-    DuplicateSchemaRefError,
     RepositoryOrigin,
     SchemaInput,
     SchemaKind,
     SchemaRef,
 )
-from lorecraft.schemas.builtin import AGENT_SKILLS_SCHEMA_REFERENCE
 from lorecraft.vfs import (
     DIR_LIST_FAILURES,
     ROOT_EXIT_WALK_FAILURES,
@@ -114,7 +112,15 @@ from .failure import (
     UnresolvableSkillFile,
     UnresolvableSkillsDirectory,
 )
-from .model import BuiltinSpecLayer, Corpus, CorpusNamespace, CorpusSpec, WorkspaceModel, namespace_order_key
+from .model import (
+    BuiltinSpecLayer,
+    Corpus,
+    CorpusNamespace,
+    CorpusSpec,
+    WorkspaceModel,
+    agent_skills_floor_enabled,
+    namespace_order_key,
+)
 
 
 @dataclass(slots=True)
@@ -186,11 +192,7 @@ def load_workspace(
     """
     failures: list[LoadFailure] = []
     schema_inputs: dict[SchemaRef, SchemaInput] = {}
-    for layer in builtin_layers:
-        for schema_input in layer.registered_schema_inputs:
-            if schema_input.reference in schema_inputs:
-                raise DuplicateSchemaRefError(schema_input.reference)
-            schema_inputs[schema_input.reference] = schema_input
+    skills_floor_enabled = agent_skills_floor_enabled(builtin_layers)
     spec_paths = _list_spec_paths(schemas, failures)
     corpus_directories, dropped_corpora = _list_corpus_directories(documents, failures)
     unchecked_symlinks: list[RootRelativePath] = list(dropped_corpora)
@@ -227,6 +229,7 @@ def load_workspace(
                 [],
                 failures,
                 schema_inputs,
+                skills_floor_enabled,
             )
             if str(corpus_name) == META_CORPUS_NAME:
                 meta_corpus = reserved
@@ -238,7 +241,9 @@ def load_workspace(
             continue
         filenames, dropped_documents = _list_document_filenames(documents, corpus_name, failures)
         unchecked_symlinks.extend(dropped_documents)
-        corpora[corpus_name] = _load_corpus(schemas, corpus_name, files, filenames, failures, schema_inputs)
+        corpora[corpus_name] = _load_corpus(
+            schemas, corpus_name, files, filenames, failures, schema_inputs, skills_floor_enabled
+        )
 
     skills_dirs, outside_skills_dirs = _load_skills_dirs(skills, failures)
     skill_locations, outside_entries = _list_skill_locations(skills, skills_dirs, failures)
@@ -259,7 +264,7 @@ def load_workspace(
         listed_specifications=listed_specifications,
         overlapping_directories=frozenset(overlapping_directories),
         unchecked_symlinks=tuple(sorted(set(unchecked_symlinks), key=str)),
-        schema_inputs=FrozenMapping(schema_inputs),
+        repository_schema_inputs=FrozenMapping(schema_inputs),
         builtin_layers=builtin_layers,
     )
 
@@ -363,6 +368,7 @@ def _load_corpus(
     filenames: list[AspectFilename],
     failures: list[LoadFailure],
     schema_inputs: dict[SchemaRef, SchemaInput],
+    skills_floor_enabled: bool,
 ) -> Corpus:
     """Decode the corpus spec and its namespace specs; a structure file that fails stands in its layer.
 
@@ -372,13 +378,14 @@ def _load_corpus(
         files: Specification files at the corpus spec's name and at each of its namespace specs' names.
         filenames: Stems of the documents listed in the corpus directory, which the corpus lists by filename.
         failures: The load failures so far; each structure file that fails is appended.
-        schema_inputs: Raw inputs collected from the structure files.
+        schema_inputs: Raw repository inputs collected from the structure files.
+        skills_floor_enabled: Whether the builtin Agent Skills floor is enabled.
     """
     corpus_spec_name = CorpusSpecName(corpus_name)
     corpus_spec = CorpusSpec(
         name=corpus_spec_name,
         files=_sorted_paths(files.spec),
-        structure=_load_structure(schemas, files.spec.structure, failures, schema_inputs),
+        structure=_load_structure(schemas, files.spec.structure, failures, schema_inputs, skills_floor_enabled),
     )
 
     # The corpus orders its namespace specs itself; they are decoded broad to narrow too, so that of two broken
@@ -393,6 +400,7 @@ def _load_corpus(
                 namespace_files.structure,
                 failures,
                 schema_inputs,
+                skills_floor_enabled,
             ),
         )
 
@@ -416,6 +424,7 @@ def _load_structure(
     structure_file: StructureSpecFile | None,
     failures: list[LoadFailure],
     schema_inputs: dict[SchemaRef, SchemaInput],
+    skills_floor_enabled: bool,
 ) -> StructureSpec | FailedStructure | None:
     """Decode the structure JSON at one specification name into a structure specification.
 
@@ -423,7 +432,8 @@ def _load_structure(
         schemas: Repository the structure specification is read from.
         structure_file: The name's structure file, or None when the name has none; the prose is never decoded.
         failures: The load failures so far; a structure file that cannot be read or used is appended.
-        schema_inputs: Raw inputs collected by typed reference.
+        schema_inputs: Raw repository inputs collected by typed reference.
+        skills_floor_enabled: Whether the builtin Agent Skills floor is enabled.
 
     Returns:
         The structure specification, the failed structure standing in its place when the file cannot be read or
@@ -466,7 +476,7 @@ def _load_structure(
                     frontmatter_ref, origin, FrozenMapping.from_plain(frontmatter_document)
                 )
                 parsed = replace(parsed, frontmatter_schema_ref=frontmatter_ref)
-        if AGENT_SKILLS_SCHEMA_REFERENCE in schema_inputs and parsed.frontmatter is not None:
+        if skills_floor_enabled and parsed.frontmatter is not None:
             contradictions = agent_skills_schema_contradictions(parsed.frontmatter.schema.to_plain())
             if contradictions:
                 return _record_failed_structure(

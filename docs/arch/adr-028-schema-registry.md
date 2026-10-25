@@ -80,9 +80,9 @@ are interchangeable.
     force. Registry resolution is local to loaded repository inputs and builtin definitions.
 11. **The Agent Skills floor enters through one typed layer.** A module-level `BuiltinSpecLayer` supplies the builtin
     Agent Skills frontmatter schema input during workspace loading. The root CLI option selects whether that layer is
-    included in the tuple passed to the loader. The loader registers each enabled layer’s schema inputs in the model
-    registry in layer order. An omitted layer contributes neither its schema input nor its governance facts. When opted
-    out, the active registry and model contain no entry for the floor layer; absence is a normal model state rather than
+    included in the tuple passed to the loader. The loaded model derives its builtin schema registry entries from its
+    layers, so a layer and its schema inputs cannot disagree. When opted out, the active registry and model contain no
+    entry for the floor layer; absence is a normal model state rather than
     an error.
 12. **Boolean plumbing stops at the CLI option.** `load_workspace`, `load_model` and `Database.from_snapshot` receive
     the enabled layer tuple rather than a `builtin_skills_schema` boolean. Downstream layers (database query

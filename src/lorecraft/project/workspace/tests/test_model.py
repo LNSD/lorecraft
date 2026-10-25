@@ -45,7 +45,14 @@ from lorecraft.project.schemas import (
     spec_filename,
 )
 from lorecraft.project.skill import OutsideSymlink, SkillLocation, SkillRef, SkillsDir
-from lorecraft.schemas import BuiltinOrigin, RepositoryOrigin, SchemaInput, SchemaKind, SchemaRef
+from lorecraft.schemas import (
+    BuiltinOrigin,
+    DuplicateSchemaRefError,
+    RepositoryOrigin,
+    SchemaInput,
+    SchemaKind,
+    SchemaRef,
+)
 from lorecraft.vfs import ResolvedPath, RootExit
 
 from ..failure import FailedStructure
@@ -58,6 +65,7 @@ from ..model import (
     InvalidBuiltinFrontmatterSchemaError,
     MetaCorpusNameMismatchError,
     NamespaceSpec,
+    NonRepositorySchemaInputOriginError,
     OutsideSymlinkPathMismatchError,
     SchemaInputReferenceMismatchError,
     SkillLocationRefMismatchError,
@@ -687,7 +695,7 @@ def two_corpora_model() -> WorkspaceModel:
         skill_locations=FrozenMapping({}),
         outside_symlinks=FrozenMapping({}),
         load_failures=(),
-        schema_inputs=_schema_inputs(code, feat),
+        repository_schema_inputs=_schema_inputs(code, feat),
     )
 
 
@@ -849,15 +857,34 @@ class TestWorkspaceModel:
         #: Given
         key = SchemaRef(SchemaKind.STRUCTURE, 'key')
         reference = SchemaRef(SchemaKind.STRUCTURE, 'value')
-        schema_input = SchemaInput(reference, BuiltinOrigin(reference.identity), FrozenMapping({}))
+        schema_input = SchemaInput(
+            reference,
+            RepositoryOrigin(RootRelativePath.parse('docs/test.json'), 'test'),
+            FrozenMapping({}),
+        )
 
         #: When
         with pytest.raises(SchemaInputReferenceMismatchError) as exc_info:
-            replace(two_corpora_model, schema_inputs=FrozenMapping({key: schema_input}))
+            replace(two_corpora_model, repository_schema_inputs=FrozenMapping({key: schema_input}))
 
         #: Then
         assert exc_info.value.key == key, 'the error retains the lookup key'
         assert exc_info.value.value == reference, 'the error retains the input reference'
+
+    def test_construction_with_a_builtin_schema_input_as_repository_input_is_rejected(
+        self, two_corpora_model: WorkspaceModel
+    ) -> None:
+        #: Given
+        reference = SchemaRef(SchemaKind.STRUCTURE, 'builtin:test')
+        schema_input = SchemaInput(reference, BuiltinOrigin(reference.identity), FrozenMapping({}))
+
+        #: When
+        with pytest.raises(NonRepositorySchemaInputOriginError) as exc_info:
+            replace(two_corpora_model, repository_schema_inputs=FrozenMapping({reference: schema_input}))
+
+        #: Then
+        assert exc_info.value.reference == reference, 'the error identifies the misplaced schema input'
+        assert exc_info.value.origin == schema_input.origin, 'the error retains its builtin provenance'
 
     def test_find_corpus_with_a_listed_name_returns_that_corpus(self, two_corpora_model: WorkspaceModel) -> None:
         #: Given
@@ -1033,6 +1060,79 @@ class TestWorkspaceModel:
         #: Then
         assert SpecPart.BUDGET in descriptor.governed_parts, 'a declared line cap governs the budget part'
 
+    def test_describe_item_places_builtin_frontmatter_before_repository_layers(
+        self, two_corpora_model: WorkspaceModel
+    ) -> None:
+        #: Given
+        origin = BuiltinOrigin('builtin:test-layer')
+        reference = SchemaRef(SchemaKind.FRONTMATTER, origin.identity)
+        schema_input = SchemaInput(reference, origin, FrozenMapping.from_plain({'type': 'object'}))
+        layer = BuiltinSpecLayer(
+            origin,
+            frozenset({ItemType.DOCUMENT}),
+            frontmatter_schema=schema_input,
+        )
+        model = replace(two_corpora_model, builtin_layers=(layer,))
+
+        #: When
+        descriptor = model.describe_item(_ref('code', 'logging'))
+
+        #: Then
+        governance = model.find_governance(_ref('code', 'logging'))
+        assert model.builtin_layers_for(ItemType.DOCUMENT) == (layer,), 'the item kind selects its builtin layer'
+        assert model.schema_inputs[reference] == schema_input, 'the registry derives builtin inputs from its layers'
+        assert governance is not None, 'the repository corpus governs the document'
+        assert descriptor.frontmatter_schema_refs == (reference, *governance.applicable_frontmatter_schema_refs()), (
+            'the builtin frontmatter schema precedes the repository layers'
+        )
+
+    def test_model_rejects_a_schema_ref_repeated_by_builtin_layers(self, two_corpora_model: WorkspaceModel) -> None:
+        #: Given
+        origin = BuiltinOrigin('builtin:test-layer')
+        reference = SchemaRef(SchemaKind.FRONTMATTER, origin.identity)
+        schema_input = SchemaInput(reference, origin, FrozenMapping.from_plain({'type': 'object'}))
+        layer = BuiltinSpecLayer(
+            origin,
+            frozenset({ItemType.DOCUMENT}),
+            frontmatter_schema=schema_input,
+        )
+
+        #: When
+        with pytest.raises(DuplicateSchemaRefError) as exc_info:
+            replace(two_corpora_model, builtin_layers=(layer, layer))
+
+        #: Then
+        assert exc_info.value.reference == reference, 'the refusal identifies the repeated builtin schema'
+
+    def test_model_rejects_a_repository_schema_that_shadows_a_builtin_layer(
+        self, two_corpora_model: WorkspaceModel
+    ) -> None:
+        #: Given
+        origin = BuiltinOrigin('builtin:test-layer')
+        reference = SchemaRef(SchemaKind.FRONTMATTER, origin.identity)
+        schema_input = SchemaInput(reference, origin, FrozenMapping.from_plain({'type': 'object'}))
+        repository_input = SchemaInput(
+            reference,
+            RepositoryOrigin(RootRelativePath.parse('docs/test.json'), 'test'),
+            FrozenMapping.from_plain({'type': 'object'}),
+        )
+        layer = BuiltinSpecLayer(
+            origin,
+            frozenset({ItemType.DOCUMENT}),
+            frontmatter_schema=schema_input,
+        )
+
+        #: When
+        with pytest.raises(DuplicateSchemaRefError) as exc_info:
+            replace(
+                two_corpora_model,
+                builtin_layers=(layer,),
+                repository_schema_inputs=FrozenMapping({reference: repository_input}),
+            )
+
+        #: Then
+        assert exc_info.value.reference == reference, 'the refusal identifies the conflicting schema'
+
     def test_describe_item_for_a_layered_document_keeps_every_schema_in_order(self) -> None:
         #: Given
         code = _code_corpus(_corpus_spec('code'), (_code_namespace('python'),))
@@ -1043,7 +1143,7 @@ class TestWorkspaceModel:
             skill_locations=FrozenMapping({}),
             outside_symlinks=FrozenMapping({}),
             load_failures=(),
-            schema_inputs=_schema_inputs(code),
+            repository_schema_inputs=_schema_inputs(code),
         )
 
         #: When
@@ -1573,6 +1673,51 @@ class TestSpecifications:
         assert descriptor.read_location == ResolvedPath(ref.path), 'the file is read where it is listed'
         assert descriptor.link_base == DocumentDirectory(SPECS_DIR), 'links are read from docs/__meta__'
         assert descriptor.governed_parts == frozenset(), 'an absent meta corpus leaves the item ungoverned'
+
+    def test_describe_item_for_a_specification_applies_builtin_layers_before_meta_layers(self) -> None:
+        #: Given
+        meta_spec = _corpus_spec('meta', structure=True)
+        meta_corpus = Corpus(
+            corpus_spec=meta_spec,
+            namespaces=FrozenMapping({}),
+            filenames=frozenset(),
+        )
+        ref = _spec_ref('feat-cli')
+        builtin_reference = SchemaRef(SchemaKind.FRONTMATTER, 'builtin:spec-floor')
+        builtin_input = SchemaInput(
+            builtin_reference,
+            BuiltinOrigin(builtin_reference.identity),
+            FrozenMapping({}),
+        )
+        layer = BuiltinSpecLayer(
+            BuiltinOrigin('builtin:spec-layer'),
+            frozenset({ItemType.SPEC}),
+            frontmatter_schema=builtin_input,
+        )
+        model = replace(
+            WorkspaceModel(
+                corpora=FrozenMapping({}),
+                skills_dirs=frozenset(),
+                skill_locations=FrozenMapping({}),
+                outside_symlinks=FrozenMapping({}),
+                load_failures=(),
+                meta_corpus=meta_corpus,
+                listed_specifications=(ref,),
+            ),
+            builtin_layers=(layer,),
+        )
+
+        #: When
+        descriptor = model.describe_item(ref)
+
+        #: Then
+        assert descriptor.frontmatter_schema_refs == (
+            builtin_reference,
+            SchemaRef(SchemaKind.FRONTMATTER, 'meta'),
+        ), 'the builtin schema is first, followed by the meta corpus schema'
+        assert descriptor.governed_parts == frozenset({SpecPart.FRONTMATTER, SpecPart.STRUCTURE}), (
+            'the builtin frontmatter schema and meta structure govern their corresponding parts'
+        )
 
     def test_describe_item_for_a_specification_resolves_the_reserved_meta_corpus(
         self, two_corpora_model: WorkspaceModel

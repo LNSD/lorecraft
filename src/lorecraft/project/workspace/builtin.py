@@ -3,12 +3,12 @@
 from typing import Final
 
 from lorecraft.project.item import ItemType
-from lorecraft.schemas.builtin import AGENT_SKILLS_SCHEMA_INPUT, AGENT_SKILLS_SCHEMA_ORIGIN
+from lorecraft.schemas.builtin import AGENT_SKILLS_LAYER_ORIGIN, AGENT_SKILLS_SCHEMA_INPUT
 
 from .model import BuiltinSpecLayer
 
 AGENT_SKILLS_SPEC_LAYER: Final[BuiltinSpecLayer] = BuiltinSpecLayer(
-    AGENT_SKILLS_SCHEMA_ORIGIN,
+    AGENT_SKILLS_LAYER_ORIGIN,
     frozenset({ItemType.SKILL_ENTRYPOINT}),
     frontmatter_schema=AGENT_SKILLS_SCHEMA_INPUT,
 )

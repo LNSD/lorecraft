@@ -11,7 +11,10 @@ AGENT_SKILLS_SCHEMA_REFERENCE: Final[SchemaRef] = SchemaRef(SchemaKind.FRONTMATT
 """The stable schema subject for the builtin Agent Skills frontmatter floor."""
 
 AGENT_SKILLS_SCHEMA_ORIGIN: Final[BuiltinOrigin] = BuiltinOrigin('builtin:agent-skills-frontmatter')
-"""The stable builtin identity shared by the Agent Skills schema and specification layer."""
+"""The stable builtin identity of the Agent Skills frontmatter schema."""
+
+AGENT_SKILLS_LAYER_ORIGIN: Final[BuiltinOrigin] = BuiltinOrigin('builtin:agent-skills')
+"""The stable identity of the Agent Skills specification layer."""
 
 AGENT_SKILLS_SCHEMA_INPUT: Final[SchemaInput] = SchemaInput(
     AGENT_SKILLS_SCHEMA_REFERENCE,
