@@ -471,7 +471,7 @@ class TestCheckCommand:
             ('resource', '.agents/skills/review/references/guide.md'),
         ],
     )
-    def test_check_reports_a_refused_item_read_as_lc002(
+    def test_check_reports_a_refused_item_read_as_skipped_coverage(
         self,
         kind: str,
         target: str,
@@ -497,10 +497,10 @@ class TestCheckCommand:
         result = run_cli(*arguments)
 
         #: Then
-        assert result.returncode == 1, result.stderr
-        assert result.stdout == expected, f'the refused {kind} is reported as LC002'
-        assert 'error[LC002]: path cannot be read' in result.stdout
-        assert f'--> {target}' in result.stdout
+        assert result.returncode == 0, result.stderr
+        assert result.stdout == expected, f'the refused {kind} is represented by skipped coverage alone'
+        assert 'error[LC002]: path cannot be read' not in result.stdout
+        assert f'{target}: skipped, read refused at: {target}' in result.stderr
 
     def test_check_without_a_root_in_a_subdirectory_of_the_workspace_fixture_checks_the_whole_workspace(self) -> None:
         #: Given

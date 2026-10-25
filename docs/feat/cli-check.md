@@ -10,7 +10,7 @@ components: "module:lorecraft.cli,module:lorecraft.engine,module:lorecraft.rules
 
 ## Summary
 
-Checks docs against specs and skills against the Agent Skills spec; load failures are diagnostics, refused item reads are `LC002`, errors exit `1`.
+Checks docs against specs and skills against the Agent Skills spec; refused items are skipped, non-item docs failures are `LC002`.
 
 ## Table of Contents
 
@@ -111,7 +111,7 @@ error[OUT006]: missing required section `Checklist`
   = help: The items a reviewer verifies before committing a change the rule document governs.
 ```
 
-On stderr, `text` prints coverage, counts per code prefix and `checked N subject(s): ...` (including unreadable specs). Coverage marks an item whose own read was refused as `skipped, read refused at: <path>`; a subject blocked by a refused docs dependency is `skipped, depends on a refused docs path: <path>`. Refused reads of documents, specs, skill entrypoints and Markdown resources produce `LC002`. Other refused skill files remain scan-blocking errors and exit `2`. Symlinked corpora and `.md` entries appear as `path: not checked (symlink)`; links are not followed, diagnosed or counted.
+On stderr, `text` prints coverage, counts per code prefix and `checked N subject(s): ...` (including unreadable specs). Refused items are `skipped, read refused at: <path>`; subjects blocked by refused docs dependencies are `skipped, depends on a refused docs path: <path>`. Refused document and spec reads produce `LC002`; a refused non-item docs path keeps `LC002` even when a skill item aliases it, and that item is also skipped. Other refused skill files remain scan-blocking errors and exit `2`. Symlinked corpora and `.md` entries appear as `path: not checked (symlink)`; links are not followed, diagnosed or counted.
 Example: one subject, two errors.
 
 ```text
@@ -173,7 +173,7 @@ JSON paths must be UTF-8; Unicode is unescaped.
 
 Each reported structure-file failure appears once at that file.
  `LC001` points to the first invalid byte; `LC002`–`LC004` are whole-file diagnostics with help before notes.
-`LC002` covers unreadable paths, unknown files and unlistable nested directories. Unreadable specs and documents count as subjects; unknown paths do not. Resource and `SKILL.md` aliases appear in coverage at their paths, naming the refused target; `LC002` stays at the target. Sibling resources and unaffected subjects continue. A directory alias appears at its path, never at the skill's `SKILL.md`.
+`LC002` covers unreadable paths, unknown files and unlistable nested directories. Unreadable specs and documents count as subjects; unknown paths do not. Resource and `SKILL.md` aliases appear in coverage at their paths, naming the refused target; non-item targets keep `LC002`, and the aliasing item is skipped. Sibling resources and unaffected subjects continue. A directory alias appears at its path, never at the skill's `SKILL.md`.
 
 `FM008` ends with a schema example; `FM009` labels malformed skill names with their pattern. `FM010` reports whole-block constraints without a label; its note gives the validator's wording. `FM012`–`FM014` and `LEN` label the amount over the limit.
 

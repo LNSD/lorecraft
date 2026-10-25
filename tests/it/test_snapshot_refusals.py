@@ -781,9 +781,11 @@ class TestCheckOverARefusalNoLoadFailureReports:
 
         #: Then
         assert result.exit_code == 1, result.output
-        assert all(
-            value in result.stdout for value in ('docs/code/locked.json', 'LC002', 'docs/code/broken.md', 'LC001')
-        ), 'text output keeps both diagnostics when a skill resource aliases the refused docs file'
+        assert 'docs/code/locked.json' in result.stdout, 'the refused non-item path remains diagnosed'
+        assert 'LC002' in result.stdout, 'text output reports the refused non-item path'
+        assert 'docs/code/broken.md' in result.stdout, 'the invalid document remains diagnosed'
+        assert 'LC001' in result.stdout, 'the invalid document keeps its rule code'
+        assert '.agents/skills/commit/guide.md: skipped, read refused at: docs/code/locked.json' in result.stderr
 
     def test_check_with_a_resource_alias_and_short_format_preserves_both_diagnostics(
         self, tree_with_refused_resource_alias: Path
@@ -797,9 +799,11 @@ class TestCheckOverARefusalNoLoadFailureReports:
 
         #: Then
         assert result.exit_code == 1, result.output
-        assert all(
-            value in result.stdout for value in ('docs/code/locked.json', 'LC002', 'docs/code/broken.md', 'LC001')
-        ), 'short output keeps both diagnostics when a skill resource aliases the refused docs file'
+        assert 'docs/code/locked.json' in result.stdout, 'the refused non-item path remains diagnosed'
+        assert 'LC002' in result.stdout, 'short output reports the refused non-item path'
+        assert 'docs/code/broken.md' in result.stdout, 'the invalid document remains diagnosed'
+        assert 'LC001' in result.stdout, 'the invalid document keeps its rule code'
+        assert '.agents/skills/commit/guide.md: skipped, read refused at: docs/code/locked.json' in result.stderr
 
     def test_check_with_a_resource_alias_and_json_format_preserves_both_diagnostics(
         self, tree_with_refused_resource_alias: Path
@@ -817,10 +821,12 @@ class TestCheckOverARefusalNoLoadFailureReports:
         assert {(item['path'], item['code']) for item in report['diagnostics']} == {
             ('docs/code/locked.json', 'LC002'),
             ('docs/code/broken.md', 'LC001'),
-        }, 'JSON output reports each failure exactly at its refused or invalid document path'
+        }, 'JSON output reports both the refused non-item path and the invalid document'
         assert report['summary']['subjects'] == 6, 'the skipped resource remains a counted subject'
         assert any(
-            item['path'] == '.agents/skills/commit/guide.md' and item['skipped_by'] == ['docs/code/locked.json']
+            item['path'] == '.agents/skills/commit/guide.md'
+            and item['skipped_by'] == ['docs/code/locked.json']
+            and item['cause'] == 'refused-path'
             for item in report['coverage']
         ), 'JSON coverage names the resource and the refused target'
 
@@ -836,9 +842,11 @@ class TestCheckOverARefusalNoLoadFailureReports:
 
         #: Then
         assert result.exit_code == 1, result.output
-        assert all(
-            value in result.stdout for value in ('docs/code/locked.json', 'LC002', 'docs/code/broken.md', 'LC001')
-        ), 'text output keeps both diagnostics when a skill SKILL.md aliases the refused docs file'
+        assert 'docs/code/locked.json' in result.stdout, 'the refused non-item path remains diagnosed'
+        assert 'LC002' in result.stdout, 'text output reports the refused non-item path'
+        assert 'docs/code/broken.md' in result.stdout, 'the invalid document remains diagnosed'
+        assert 'LC001' in result.stdout, 'the invalid document keeps its rule code'
+        assert '.agents/skills/commit/SKILL.md: skipped, read refused at: docs/code/locked.json' in result.stderr
 
     def test_check_with_a_skill_file_alias_and_short_format_preserves_both_diagnostics(
         self, tree_with_refused_skill_file_alias: Path
@@ -852,9 +860,11 @@ class TestCheckOverARefusalNoLoadFailureReports:
 
         #: Then
         assert result.exit_code == 1, result.output
-        assert all(
-            value in result.stdout for value in ('docs/code/locked.json', 'LC002', 'docs/code/broken.md', 'LC001')
-        ), 'short output keeps both diagnostics when a skill SKILL.md aliases the refused docs file'
+        assert 'docs/code/locked.json' in result.stdout, 'the refused non-item path remains diagnosed'
+        assert 'LC002' in result.stdout, 'short output reports the refused non-item path'
+        assert 'docs/code/broken.md' in result.stdout, 'the invalid document remains diagnosed'
+        assert 'LC001' in result.stdout, 'the invalid document keeps its rule code'
+        assert '.agents/skills/commit/SKILL.md: skipped, read refused at: docs/code/locked.json' in result.stderr
 
     def test_check_with_a_skill_file_alias_and_json_format_preserves_both_diagnostics(
         self, tree_with_refused_skill_file_alias: Path
@@ -872,10 +882,12 @@ class TestCheckOverARefusalNoLoadFailureReports:
         assert {(item['path'], item['code']) for item in report['diagnostics']} == {
             ('docs/code/locked.json', 'LC002'),
             ('docs/code/broken.md', 'LC001'),
-        }, 'JSON output reports each failure exactly at its refused or invalid document path'
+        }, 'JSON output reports both the refused non-item path and the invalid document'
         assert report['summary']['subjects'] == 5, 'the skipped skill remains a counted subject'
         assert any(
-            item['path'] == '.agents/skills/commit/SKILL.md' and item['skipped_by'] == ['docs/code/locked.json']
+            item['path'] == '.agents/skills/commit/SKILL.md'
+            and item['skipped_by'] == ['docs/code/locked.json']
+            and item['cause'] == 'refused-path'
             for item in report['coverage']
         ), 'JSON coverage names the skill and the refused target'
 
