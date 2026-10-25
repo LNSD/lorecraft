@@ -108,8 +108,7 @@ The database and rules engine consume the common reference and descriptor unifor
   reserved `skills` corpus; resources have no corpus governance. Schema validation and outline analysis read `item_governance(ref)` and the per-file queries, keeping their results whenever those inputs compare
   equal ([adr-015](adr-015-database.md)).
 - **One content runner loop:** the engine decodes the item once, applies the uniform partial check policy whenever an
-  active governing layer failed to load (suppressing `WhenSpec` gates while running `Always` and `WhenSchema`
-  checks), gates enabled rules by declared gates and governed parts, and produces one checked content report carrying
+  active governing layer failed to load (suppressing `WhenSpec` gates while running `Always` checks), gates enabled rules by declared gates and governed parts, and produces one checked content report carrying
   diagnostics and ungoverned parts (`FR-005`, `FR-010`, `FR-018`).
 
 ### Refused Reads and Unchecked Documentation Symlinks

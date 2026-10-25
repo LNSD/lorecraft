@@ -26,8 +26,9 @@ query and hands it the facts sits above in `lorecraft.engine`; the query is answ
 - A value that identifies a rule: a release, a group's prefix and title, a code, a name, an alias code, a level, and
   the severity an engine condition fixes.
 - An item rule derives from `QueriedItemRule`, names its typed query, and declares a gate for every item type it
-  judges. `WhenSpec`, `Always`, and `WhenSchema` keep structure, unconditional and registered-schema eligibility distinct.
-  A missing item type is inapplicable, and a rule with no gates is rejected while the registry loads. Layout rules use
+  judges. `WhenSpec` and `Always` are the complete gate vocabulary: a part must be governed for the item, or the
+  rule is unconditional for that mapped type. A missing item type is inapplicable, and a rule with no gates is rejected
+  while the registry loads. Layout rules use
   their separate queried bases for skill symlinks and reserved-corpus directories, with occurrences at the entry
   itself.
 - A removed rule, the decorator that registers a declaration and the registry.
