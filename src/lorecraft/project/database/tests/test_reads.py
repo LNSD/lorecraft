@@ -22,6 +22,7 @@ from lorecraft.project.query import (
 )
 from lorecraft.project.skill import OutsideSymlinkRef
 from lorecraft.project.syntax import Heading
+from lorecraft.project.workspace.builtin import AGENT_SKILLS_SPEC_LAYER as SKILLS_LAYER
 from lorecraft.schemas import SchemaInput, SchemaRef
 from lorecraft.schemas.builtin import AGENT_SKILLS_SCHEMA_REFERENCE
 from lorecraft.vfs import RootExit, take_snapshot
@@ -131,7 +132,7 @@ def _database(root: Path) -> Database:
     skill_links = root / '.agents' / 'skills'
     skill_links.mkdir(parents=True)
     (skill_links / 'outside').symlink_to(outside, target_is_directory=True)
-    return Database.from_snapshot(take_snapshot(root, SNAPSHOT_SCOPE))
+    return Database.from_snapshot(take_snapshot(root, SNAPSHOT_SCOPE), builtin_layers=(SKILLS_LAYER,))
 
 
 def _primitive_methods(adapter: type[object], *, excluded: set[str]) -> frozenset[str]:
