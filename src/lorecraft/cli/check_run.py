@@ -29,6 +29,8 @@ from lorecraft.engine import UnlistableRoot, check_subjects, report_load_failure
 from lorecraft.project.database import Database
 from lorecraft.project.layout import DECLARATION, DOCS_DIR, SNAPSHOT_SCOPE
 from lorecraft.project.workspace import WorkspaceModel, reject_unreported_refusals
+from lorecraft.project.workspace.builtin import AGENT_SKILLS_SPEC_LAYER
+from lorecraft.project.workspace.model import BuiltinSpecLayer
 from lorecraft.rules.engine import RefusedOperation
 from lorecraft.rules.engine.unreadable_path import Refused, UnreadablePath
 from lorecraft.rules.identity import Severity
@@ -56,7 +58,7 @@ def run_check(
     color: ColorChoice,
     select: list[SelectorValue] | None,
     ignore: list[SelectorValue] | None,
-    builtin_skills_schema: bool = True,
+    builtin_layers: tuple[BuiltinSpecLayer, ...] = (AGENT_SKILLS_SPEC_LAYER,),
 ) -> ExitStatus | None:
     """Run the rules over the workspace and write the report; the body of `lorecraft check`.
 
@@ -66,7 +68,7 @@ def run_check(
         color: When to emphasise the text format with colour.
         select: The `--select` values, already parsed and confirmed against the rule index.
         ignore: The `--ignore` values, already parsed and confirmed against the rule index.
-        builtin_skills_schema: Whether to pre-register the Agent Skills floor schema.
+        builtin_layers: The builtin specification layers enabled for this run.
 
     Returns:
         `ExitStatus.FINDINGS` when any diagnostic is an error, `ExitStatus.FAILURE` for invalid input, an
@@ -86,7 +88,7 @@ def run_check(
         # report success.
         database = Database.from_snapshot(
             take_snapshot(establish_root(root), SNAPSHOT_SCOPE, declaration=DECLARATION),
-            builtin_skills_schema=builtin_skills_schema,
+            builtin_layers=builtin_layers,
         )
         # With no corpus and no spec known, nothing can be checked, so this stops before any subject is selected.
         # Every other failure the model recorded is reported below, as a diagnostic.

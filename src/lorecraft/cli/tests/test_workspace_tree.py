@@ -14,7 +14,7 @@ from lorecraft.project.corpus import CorpusName
 from lorecraft.project.schemas import CorpusSpecName
 from lorecraft.project.skill import SkillLocation, SkillRef, SkillsDir
 from lorecraft.project.workspace import Corpus, CorpusNamespace, CorpusSpec, WorkspaceModel
-from lorecraft.schemas.builtin import AGENT_SKILLS_SCHEMA_INPUT, AGENT_SKILLS_SCHEMA_REFERENCE
+from lorecraft.project.workspace.builtin import AGENT_SKILLS_SPEC_LAYER
 from lorecraft.vfs import ResolvedPath
 
 from ..workspace_tree import render_json, render_text
@@ -43,7 +43,7 @@ def _code_model() -> WorkspaceModel:
         skill_locations=FrozenMapping({}),
         outside_symlinks=FrozenMapping({}),
         load_failures=(),
-        schema_inputs=FrozenMapping({AGENT_SKILLS_SCHEMA_REFERENCE: AGENT_SKILLS_SCHEMA_INPUT}),
+        builtin_layers=(AGENT_SKILLS_SPEC_LAYER,),
     )
 
 
@@ -87,7 +87,7 @@ def _empty_model() -> WorkspaceModel:
         skill_locations=FrozenMapping({}),
         outside_symlinks=FrozenMapping({}),
         load_failures=(),
-        schema_inputs=FrozenMapping({AGENT_SKILLS_SCHEMA_REFERENCE: AGENT_SKILLS_SCHEMA_INPUT}),
+        builtin_layers=(AGENT_SKILLS_SPEC_LAYER,),
     )
 
 
@@ -107,7 +107,7 @@ def _skills_model() -> WorkspaceModel:
         skill_locations=FrozenMapping({commit.ref: commit, review.ref: review}),
         outside_symlinks=FrozenMapping({}),
         load_failures=(),
-        schema_inputs=FrozenMapping({AGENT_SKILLS_SCHEMA_REFERENCE: AGENT_SKILLS_SCHEMA_INPUT}),
+        builtin_layers=(AGENT_SKILLS_SPEC_LAYER,),
     )
 
 
@@ -142,7 +142,7 @@ def _governed_skills_model() -> WorkspaceModel:
         outside_symlinks=FrozenMapping({}),
         load_failures=(),
         skills_corpus=corpus,
-        schema_inputs=FrozenMapping({AGENT_SKILLS_SCHEMA_REFERENCE: AGENT_SKILLS_SCHEMA_INPUT}),
+        builtin_layers=(AGENT_SKILLS_SPEC_LAYER,),
     )
 
 
@@ -325,7 +325,7 @@ class TestRenderGovernedSkills:
 
     def test_render_text_with_the_builtin_schema_opted_out_shows_only_the_opt_out(self) -> None:
         #: Given
-        model = replace(_skills_model(), schema_inputs=FrozenMapping({}))
+        model = replace(_skills_model(), builtin_layers=())
 
         #: When
         text = render_text(Path('/work'), model)
@@ -337,7 +337,7 @@ class TestRenderGovernedSkills:
 
     def test_render_json_with_the_builtin_schema_opted_out_reports_only_the_opt_out(self) -> None:
         #: Given
-        model = replace(_skills_model(), schema_inputs=FrozenMapping({}))
+        model = replace(_skills_model(), builtin_layers=())
 
         #: When
         document = json.loads(render_json(Path('/work'), model))

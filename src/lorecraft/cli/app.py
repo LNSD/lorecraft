@@ -3,13 +3,18 @@
 It declares options shared by every invocation and delegates commands to the registry.
 """
 
+from __future__ import annotations
+
 from dataclasses import dataclass
-from typing import Annotated, Final
+from typing import TYPE_CHECKING, Annotated, Final
 
 import typer
 
 from .registry import mount
 from .version import short_version
+
+if TYPE_CHECKING:
+    from lorecraft.project.workspace.model import BuiltinSpecLayer
 
 
 @dataclass(frozen=True, slots=True)
@@ -17,10 +22,10 @@ class GlobalOptions:
     """Options shared by every command in one invocation.
 
     Attributes:
-        builtin_skills_schema: Whether the Agent Skills floor is enabled for this invocation.
+        builtin_layers: The builtin specification layers enabled for this invocation.
     """
 
-    builtin_skills_schema: bool
+    builtin_layers: tuple[BuiltinSpecLayer, ...]
 
 
 _HELP: Final[str] = "Check a repository's agent-facing documentation: rule documents, feature docs and skills."
@@ -85,4 +90,7 @@ def _root(
     ] = False,
 ) -> None:
     """Store global options for subcommands."""
-    ctx.obj = GlobalOptions(builtin_skills_schema=not no_builtin_skills_schema)
+    from lorecraft.project.workspace.builtin import AGENT_SKILLS_SPEC_LAYER
+
+    builtin_layers = () if no_builtin_skills_schema else (AGENT_SKILLS_SPEC_LAYER,)
+    ctx.obj = GlobalOptions(builtin_layers=builtin_layers)

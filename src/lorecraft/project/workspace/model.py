@@ -41,6 +41,7 @@ from lorecraft.project.item import (
     DocumentOrigin,
     ItemDescriptor,
     ItemRef,
+    ItemType,
     SkillEntrypointOrigin,
     SkillResourceOrigin,
     SpecOrigin,
@@ -65,7 +66,7 @@ from lorecraft.project.skill import (
     SkillResourceRef,
     SkillsDir,
 )
-from lorecraft.schemas import SchemaInput, SchemaKind, SchemaRef
+from lorecraft.schemas import BuiltinOrigin, SchemaInput, SchemaKind, SchemaRef
 from lorecraft.schemas.builtin import AGENT_SKILLS_SCHEMA_REFERENCE
 from lorecraft.vfs import ResolvedPath
 
@@ -154,6 +155,20 @@ class SchemaInputReferenceMismatchError(Error):
         super().__init__(f'schema_inputs key {key} holds input {value}')
 
 
+class InvalidBuiltinFrontmatterSchemaError(Error):
+    """A builtin layer's frontmatter schema field holds another schema kind.
+
+    Attributes:
+        reference: The wrongly typed schema reference.
+    """
+
+    reference: SchemaRef
+
+    def __init__(self, reference: SchemaRef) -> None:
+        self.reference = reference
+        super().__init__(f'builtin frontmatter schema must have FRONTMATTER kind, got {reference.kind.value}')
+
+
 def find_document_at(ref: ItemRef) -> DocumentRef | None:
     """The document represented by a ref's path, or None when it is not a valid document path.
 
@@ -227,6 +242,38 @@ class NamespaceSpec:
 
 
 type Spec = CorpusSpec | NamespaceSpec
+
+
+@dataclass(frozen=True, slots=True)
+class BuiltinSpecLayer:
+    """A builtin source of frontmatter schema for selected item kinds.
+
+    Attributes:
+        origin: Stable identity of the builtin layer.
+        applies_to: Item kinds the layer governs, independently of repository corpora.
+        frontmatter_schema: Optional frontmatter schema the layer contributes to the workspace registry.
+    """
+
+    origin: BuiltinOrigin
+    applies_to: frozenset[ItemType]
+    frontmatter_schema: SchemaInput | None = None
+
+    def __post_init__(self) -> None:
+        """Keep the typed schema field limited to frontmatter inputs."""
+        if self.frontmatter_schema is not None and self.frontmatter_schema.reference.kind is not SchemaKind.FRONTMATTER:
+            raise InvalidBuiltinFrontmatterSchemaError(self.frontmatter_schema.reference)
+
+    @property
+    def schema_refs(self) -> tuple[SchemaRef, ...]:
+        """Schema identities in declaration order."""
+        return tuple(schema_input.reference for schema_input in self.registered_schema_inputs)
+
+    @property
+    def registered_schema_inputs(self) -> tuple[SchemaInput, ...]:
+        """The schema inputs registered by this layer, derived from its content fields."""
+        if self.frontmatter_schema is None:
+            return ()
+        return (self.frontmatter_schema,)
 
 
 @dataclass(frozen=True, slots=True)
@@ -522,7 +569,8 @@ class WorkspaceModel:
             a skills directory, a listed skill directory or a `SKILL.md`,
             and a `docs/` or `docs/__meta__/` that cannot be
             listed. Nothing a failure touches is in the model beyond that record; every other unit is loaded.
-        schema_inputs: Immutable raw schema inputs keyed by typed reference; parsed structure specs remain in layers.
+        schema_inputs: Immutable schema inputs keyed by typed reference; parsed structure specs remain in layers.
+        builtin_layers: Enabled builtin schema inputs and governance parts, in registration order.
     """
 
     corpora: FrozenMapping[CorpusName, Corpus]
@@ -536,6 +584,7 @@ class WorkspaceModel:
     overlapping_directories: frozenset[ReservedCorpusDirectory] = frozenset()
     unchecked_symlinks: tuple[RootRelativePath, ...] = ()
     schema_inputs: FrozenMapping[SchemaRef, SchemaInput] = FrozenMapping({})
+    builtin_layers: tuple[BuiltinSpecLayer, ...] = ()
 
     def __post_init__(self) -> None:
         """Keep a key from naming something other than its value, which the lookups read the key alone to answer.
@@ -545,7 +594,7 @@ class WorkspaceModel:
             MetaCorpusNameMismatchError: If `meta_corpus` does not use the reserved meta name.
             SkillLocationRefMismatchError: If a `skill_locations` key differs from its value's ref.
             OutsideSymlinkPathMismatchError: If an `outside_symlinks` key differs from its value's path.
-            SchemaInputReferenceMismatchError: If a `schema_inputs` key differs from its value's ref.
+            SchemaInputReferenceMismatchError: If a schema input key differs from its value's ref.
         """
         for name, corpus in self.corpora.items():
             if name != corpus.name:
@@ -768,6 +817,24 @@ class WorkspaceModel:
             return None
         return self.meta_corpus.governance(ref.name)
 
+    def builtin_layers_for(self, item_type: ItemType) -> tuple[BuiltinSpecLayer, ...]:
+        """Builtin layers applicable to an item kind, in registration order."""
+        return tuple(layer for layer in self.builtin_layers if item_type in layer.applies_to)
+
+    @property
+    def agent_skills_floor_enabled(self) -> bool:
+        """Whether the builtin Agent Skills frontmatter floor is registered."""
+        return any(AGENT_SKILLS_SCHEMA_REFERENCE in layer.schema_refs for layer in self.builtin_layers)
+
+    def _builtin_frontmatter_refs(self, item_type: ItemType) -> tuple[SchemaRef, ...]:
+        """Frontmatter schemas contributed by builtin layers, in registration order."""
+        return tuple(
+            reference
+            for layer in self.builtin_layers_for(item_type)
+            for reference in layer.schema_refs
+            if reference.kind is SchemaKind.FRONTMATTER
+        )
+
     def find_item(self, ref: ItemRef) -> ResolvedItem | None:
         """The descriptor of the document or skill the model lists at this reference, or None.
 
@@ -823,7 +890,11 @@ class WorkspaceModel:
         )
 
     @staticmethod
-    def _governed_parts(governance: Governance | None, schema_refs: tuple[SchemaRef, ...] = ()) -> frozenset[SpecPart]:
+    def _governed_parts(
+        governance: Governance | None,
+        schema_refs: tuple[SchemaRef, ...] = (),
+        builtin_layers: tuple[BuiltinSpecLayer, ...] = (),
+    ) -> frozenset[SpecPart]:
         """The spec parts named by loaded layers and the item's applicable schema inputs."""
         parts: set[SpecPart] = set()
         if any(reference.kind is SchemaKind.FRONTMATTER for reference in schema_refs):
@@ -851,6 +922,7 @@ class WorkspaceModel:
         corpus: CorpusName | None,
         governance: Governance | None,
         frontmatter_schema_refs: tuple[SchemaRef, ...],
+        builtin_layers: tuple[BuiltinSpecLayer, ...] = (),
     ) -> ResolvedItem:
         """Build every governed-item descriptor from its listing and governing inputs."""
         descriptor = ItemDescriptor(
@@ -862,7 +934,7 @@ class WorkspaceModel:
             listed_name=listed_name,
             corpus=corpus,
             frontmatter_schema_refs=frontmatter_schema_refs,
-            governed_parts=cls._governed_parts(governance, frontmatter_schema_refs),
+            governed_parts=cls._governed_parts(governance, frontmatter_schema_refs, builtin_layers),
         )
         return ResolvedItem(descriptor, governance)
 
@@ -892,9 +964,10 @@ class WorkspaceModel:
                 location = self.skill_locations[ref]
                 link_target = location.resolves_to if location.resolves_to != ref.directory else None
                 governance = self.skill_governance(ref)
-                schema_refs = (
-                    (AGENT_SKILLS_SCHEMA_REFERENCE,) if AGENT_SKILLS_SCHEMA_REFERENCE in self.schema_inputs else ()
-                ) + (governance.applicable_frontmatter_schema_refs() if governance is not None else ())
+                builtin_layers = self.builtin_layers_for(ItemType.SKILL_ENTRYPOINT)
+                schema_refs = self._builtin_frontmatter_refs(ItemType.SKILL_ENTRYPOINT) + (
+                    governance.applicable_frontmatter_schema_refs() if governance is not None else ()
+                )
                 return self._describe(
                     ref=ItemRef(ref.path),
                     read_location=location.file_resolves_to,
@@ -905,6 +978,7 @@ class WorkspaceModel:
                     corpus=CorpusName.parse(SKILLS_CORPUS_NAME) if governance is not None else None,
                     governance=governance,
                     frontmatter_schema_refs=schema_refs,
+                    builtin_layers=builtin_layers,
                 )
             case SpecRef():
                 governance = self.meta_governance(ref)
@@ -931,7 +1005,10 @@ class WorkspaceModel:
             document: The validated corpus and filename the item path names.
         """
         governance = self.find_governance(document)
-        schema_refs = governance.applicable_frontmatter_schema_refs() if governance is not None else ()
+        builtin_layers = self.builtin_layers_for(ItemType.DOCUMENT)
+        schema_refs = self._builtin_frontmatter_refs(ItemType.DOCUMENT) + (
+            governance.applicable_frontmatter_schema_refs() if governance is not None else ()
+        )
         return self._describe(
             ref=item,
             read_location=ResolvedPath(document.path),
@@ -942,4 +1019,5 @@ class WorkspaceModel:
             corpus=document.corpus,
             governance=governance,
             frontmatter_schema_refs=schema_refs,
+            builtin_layers=builtin_layers,
         )

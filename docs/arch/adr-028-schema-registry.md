@@ -37,10 +37,10 @@ are interchangeable.
    them by a Lorecraft-owned schema reference. A reference identifies the schema kind and stable source identity;
    it does not depend on an invented filesystem path or on a JSON Schema `$id`.
 2. **Schema kinds remain explicit.** Registry entries distinguish at least repository structure-schema inputs,
-   frontmatter JSON Schema inputs, and builtin built-in schema inputs. A structure schema is not a frontmatter
+   frontmatter JSON Schema inputs, and builtin schema inputs. A structure schema is not a frontmatter
    JSON Schema. Parsed `StructureSpec` values and outline, budget, or other domain facts are not registry entries.
 3. **Origin is part of each registry entry.** Repository entries retain their repository path and governing layer
-   identity. Builtin entries carry a builtin origin and stable built-in identity. Built-ins use the same registry
+   identity. Builtin entries carry the existing `BuiltinOrigin` provenance and stable builtin identity. Built-ins use the same registry
    lookup and query path as repository schemas; they are ordinary schemas distinguished by their origin, not by
    being user-provided.
 4. **The registry package owns schema vocabulary and pure schema operations, not project queries.** Types such as
@@ -78,17 +78,16 @@ are interchangeable.
 10. **Schema references do not expand JSON Schema resource policy.** An internal registry reference is not a
     JSON Schema `$id`. Existing restrictions on external references, dialects, and resource boundaries remain in
     force. Registry resolution is local to loaded repository inputs and builtin definitions.
-11. **The Agent Skills floor layer enters via bootstrap pre-registration.** Pre-registration supplies the builtin
-    Agent Skills floor inputs (its frontmatter schema input and structure specification input) during workspace model loading.
-    The global opt-out (`--no-agent-skills-spec`, with `--no-builtin-skills-schema` retained as an alias)
-    is achieved by omitting the pre-registered floor layer from the loaded model's inputs. When omitted, the active
-    registry and model contain no entry for the floor layer; absence is a normal model state rather than an error.
-12. **Boolean flag plumbing is eliminated across downstream layers.** Because the presence or absence of the floor
-    layer is fully captured by the inputs and governance records in the loaded model, `check_skill_compatibility` and
-    `builtin_skills_schema` boolean parameters are removed from `loader.py`, `model.py`, `database.py`,
-    `primitives.py`, and `runner.py`. Downstream layers (database query primitives, frontmatter queries, engine rule
-    runners, inspect command formatting) determine whether the floor applies by querying presence of the floor
-    layer and its governance facts in the model rather than inspecting a propagated boolean flag.
+11. **The Agent Skills floor enters through one typed layer.** A module-level `BuiltinSpecLayer` supplies the builtin
+    Agent Skills frontmatter schema input during workspace loading. The root CLI option selects whether that layer is
+    included in the tuple passed to the loader. The loader registers each enabled layer’s schema inputs in the model
+    registry in layer order. An omitted layer contributes neither its schema input nor its governance facts. When opted
+    out, the active registry and model contain no entry for the floor layer; absence is a normal model state rather than
+    an error.
+12. **Boolean plumbing stops at the CLI option.** `load_workspace`, `load_model` and `Database.from_snapshot` receive
+    the enabled layer tuple rather than a `builtin_skills_schema` boolean. Downstream layers (database query
+    primitives, frontmatter queries, engine rule runners, inspect command formatting) determine whether the floor
+    applies from the enabled layer and its governance facts in the model rather than inspecting a propagated flag.
 13. **Bounded compatibility preflight is a project-owned operation.** During loader bootstrap, when the pre-registered
     floor layer is present, a project schema operation (`project/schemas`) evaluates candidate repository skills
     layers against the active floor schema reference using ADR-022's bounded direct-field analysis (`name` and
