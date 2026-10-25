@@ -402,9 +402,6 @@ class TestRuleTableItemIndex:
             (ItemType.DOCUMENT, SpecPart.OUTLINE): ('OUT006', 'OUT007', 'OUT008'),
             (ItemType.DOCUMENT, SpecPart.BUDGET): ('LEN001', 'LEN002'),
             (ItemType.SKILL_ENTRYPOINT, None): (
-                'FM011',
-                'FM012',
-                'LEN002',
                 'LINK001',
                 'LINK002',
                 'LINK003',
@@ -421,6 +418,8 @@ class TestRuleTableItemIndex:
                 'FM008',
                 'FM009',
                 'FM010',
+                'FM011',
+                'FM012',
                 'FM013',
                 'FM014',
             ),
@@ -436,7 +435,7 @@ class TestRuleTableItemIndex:
                 'OUT009',
             ),
             (ItemType.SKILL_ENTRYPOINT, SpecPart.OUTLINE): ('OUT006', 'OUT007', 'OUT008'),
-            (ItemType.SKILL_ENTRYPOINT, SpecPart.BUDGET): ('LEN001',),
+            (ItemType.SKILL_ENTRYPOINT, SpecPart.BUDGET): ('LEN001', 'LEN002'),
             (ItemType.SKILL_RESOURCE, None): ('LINK001', 'LINK002', 'LINK003', 'LINK004'),
             (ItemType.SPEC, None): ('LINK001', 'LINK002', 'LINK003', 'LINK004'),
             (ItemType.SPEC, SpecPart.FRONTMATTER): (

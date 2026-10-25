@@ -57,6 +57,7 @@ from lorecraft.project.query import (
     SymlinkQuery,
     item_parse,
 )
+from lorecraft.project.schemas.structure import BuiltinLineBudget, StructureSpec
 from lorecraft.project.skill import (
     OutsideSymlink,
     OutsideSymlinkRef,
@@ -74,7 +75,7 @@ from lorecraft.project.syntax import (
 )
 from lorecraft.project.workspace import Governance, ResolvedItem, WorkspaceModel, load_model, unreported_refusals
 from lorecraft.project.workspace.model import BuiltinSpecLayer
-from lorecraft.schemas import SchemaInput, SchemaRef, SchemaRefError
+from lorecraft.schemas import BuiltinOrigin, SchemaInput, SchemaRef, SchemaRefError
 from lorecraft.vfs import (
     FILE_READ_FAILURES,
     RefusedRead,
@@ -110,6 +111,7 @@ class PrimitiveRead(StrEnum):
     RESERVED_CORPUS = 'reserved_corpus'
     TEXT = 'text'
     GOVERNANCE = 'governance'
+    STRUCTURE_SOURCES = 'structure_sources'
     LINK_TARGETS = 'link_targets'
     LINK_BASE = 'link_base'
     DESCRIPTOR = 'descriptor'
@@ -292,6 +294,17 @@ class _ItemPrimitives(_Reads[ItemRef, '_ItemPrimitives']):
     def governance(self) -> Governance | None:
         """The model's governance of the item."""
         return self._database.item_governance(self._ref)
+
+    @primitive
+    def structure_sources(
+        self,
+    ) -> tuple[tuple[RootRelativePath | BuiltinOrigin, BuiltinLineBudget | StructureSpec], ...]:
+        """Builtin structure sources first, then repository specs in governance order."""
+        descriptor = self.descriptor()
+        builtin = self._database.model().builtin_structure_sources_for(descriptor.type)
+        governance = self.governance()
+        repository = tuple((spec.path, spec) for spec in governance.structure_specs()) if governance is not None else ()
+        return (*builtin, *repository)
 
     @primitive
     def link_targets(self) -> Mapping[NormalisedLinkPath, LinkTargetEntry]:

@@ -11,6 +11,7 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Protocol, overload
 
+from lorecraft.core.path import RootRelativePath
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.corpus.directory import ReservedCorpusDirectoryRef
@@ -20,11 +21,12 @@ from lorecraft.project.skill.outside import OutsideSymlinkRef
 from lorecraft.project.syntax import (
     NormalisedLinkPath,
 )
-from lorecraft.schemas import SchemaInput, SchemaRef
+from lorecraft.schemas import BuiltinOrigin, SchemaInput, SchemaRef
 from lorecraft.vfs import RootExit
 
 if TYPE_CHECKING:
     from lorecraft.project.schemas.name import SpecName
+    from lorecraft.project.schemas.structure import BuiltinLineBudget, StructureSpec
     from lorecraft.project.workspace import Governance
 
 type Query[P, T] = Callable[[P], T]
@@ -101,6 +103,12 @@ class GovernancePrimitives(QueryPrimitives['ItemPrimitives'], Protocol):
 
     def governance(self) -> Governance | None:
         """The governance of this item, or none when it has no corpus governance."""
+        ...
+
+    def structure_sources(
+        self,
+    ) -> tuple[tuple[RootRelativePath | BuiltinOrigin, BuiltinLineBudget | StructureSpec], ...]:
+        """Builtin structure sources first, then repository specs in governance order."""
         ...
 
 

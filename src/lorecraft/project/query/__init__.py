@@ -13,6 +13,7 @@ from .item_facts import (
     item_line_count,
     item_name,
     item_parse,
+    item_structure_sources,
     item_structure_specs,
     item_token_count,
 )
@@ -69,5 +70,6 @@ __all__: list[str] = [
     'item_name',
     'item_parse',
     'item_structure_specs',
+    'item_structure_sources',
     'item_token_count',
 ]

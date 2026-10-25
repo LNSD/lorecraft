@@ -26,7 +26,7 @@ from lorecraft.project.aspect import (
 )
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.document import DocumentRef
-from lorecraft.project.item import DocumentOrigin, SkillEntrypointOrigin
+from lorecraft.project.item import DocumentOrigin, ItemDescriptor, SkillEntrypointOrigin
 from lorecraft.project.layout import DOCS_DIR, SPECS_DIR
 from lorecraft.project.link_target import (
     DocumentDirectory,
@@ -37,11 +37,14 @@ from lorecraft.project.link_target import (
 )
 from lorecraft.project.query import (
     CorpusDirectoryPrimitives,
+    DecodedText,
     ItemQuery,
+    NameHierarchy,
     Query,
     QueryTargetRef,
     SubjectQuery,
     SymlinkPrimitives,
+    item_structure_sources,
 )
 from lorecraft.project.schemas import (
     CorpusSpecName,
@@ -54,6 +57,7 @@ from lorecraft.project.schemas import (
     parse_spec_name,
     spec_filename,
 )
+from lorecraft.project.schemas.structure import BuiltinLineBudget
 from lorecraft.project.syntax import (
     FrontmatterNode,
     Heading,
@@ -68,9 +72,10 @@ from lorecraft.project.syntax import (
     section_headings,
 )
 from lorecraft.project.workspace import Corpus, CorpusNamespace, CorpusSpec, Governance, NamespaceSpec
+from lorecraft.project.workspace.builtin import AGENT_SKILLS_LINE_BUDGET, AGENT_SKILLS_SPEC_LAYER
 from lorecraft.rules.declaration import Rule
 from lorecraft.rules.subject import Queried, QueriedCorpusDirectoryRule, QueriedItemRule, QueriedSymlinkRule
-from lorecraft.schemas import RepositoryOrigin, SchemaInput, SchemaKind, SchemaRef
+from lorecraft.schemas import BuiltinOrigin, RepositoryOrigin, SchemaInput, SchemaKind, SchemaRef
 from lorecraft.vfs import ResolvedPath, RootExit
 
 _DEFAULT_FILENAME: Final[str] = 'setup'
@@ -81,6 +86,58 @@ _DEFAULT_DIRECTORY_NAME: Final[str] = 'review'
 
 _SKILLS_DIRECTORY: Final[RootRelativePath] = RootRelativePath.parse('.agents/skills')
 """The skills directory a fake skill is listed in."""
+
+
+class _BudgetedPrimitives:
+    """A standalone skill's source-aware query primitives, including its builtin line budget."""
+
+    def __init__(
+        self,
+        primitives: StructurePrimitives,
+        builtin_sources: tuple[tuple[BuiltinOrigin, BuiltinLineBudget | StructureSpec], ...],
+    ) -> None:
+        self._primitives = primitives
+        self._builtin_sources = builtin_sources
+
+    def query[T](self, query: ItemQuery[T]) -> T:
+        """Run a nested item query over the same source-aware primitive set."""
+        if query is item_structure_sources:
+            return query(self)
+        return self._primitives.query(query)
+
+    def query_at[T](self, ref: QueryTargetRef, query: Callable[..., T]) -> T:
+        """Resolve a cross-subject query through the underlying standalone primitives."""
+        return self._primitives.query_at(ref, query)
+
+    def text(self) -> DecodedText | None:
+        """The skill's decoded text witness."""
+        return self._primitives.text()
+
+    def descriptor(self) -> ItemDescriptor:
+        """The descriptor synthesized for this skill fixture."""
+        return self._primitives.descriptor()
+
+    def governance(self) -> Governance | None:
+        """The repository governance supplied by this fixture."""
+        return self._primitives.governance()
+
+    def structure_sources(
+        self,
+    ) -> tuple[tuple[RootRelativePath | BuiltinOrigin, BuiltinLineBudget | StructureSpec], ...]:
+        """Builtin budgets first, then repository structure specifications."""
+        return (*self._builtin_sources, *self._primitives.structure_sources())
+
+    def name_hierarchy(self) -> NameHierarchy:
+        """The name hierarchy synthesized for this skill fixture."""
+        return self._primitives.name_hierarchy()
+
+    def link_targets(self) -> Mapping[NormalisedLinkPath, LinkTargetEntry]:
+        """The link targets supplied by this fixture."""
+        return self._primitives.link_targets()
+
+    def link_base(self) -> LinkBase | None:
+        """The root from which this skill's relative links are resolved."""
+        return self._primitives.link_base()
 
 
 def _skill_aspect_filename(entry: str) -> AspectFilename | None:
@@ -332,9 +389,15 @@ class FakeSkillDatabase:
     _text: str
     _directory_name: PathComponent
     _link_target: ResolvedPath | None
+    _builtin_structure_sources: tuple[tuple[BuiltinOrigin, BuiltinLineBudget | StructureSpec], ...]
 
     def __init__(
-        self, text: str, *, directory_name: str = _DEFAULT_DIRECTORY_NAME, link_target: ResolvedPath | None = None
+        self,
+        text: str,
+        *,
+        directory_name: str = _DEFAULT_DIRECTORY_NAME,
+        link_target: ResolvedPath | None = None,
+        builtin_structure_sources: tuple[tuple[BuiltinOrigin, BuiltinLineBudget | StructureSpec], ...] | None = None,
     ) -> None:
         """Hold the skill's `SKILL.md` text, and where the skill is listed.
 
@@ -342,10 +405,16 @@ class FakeSkillDatabase:
             text: The whole `SKILL.md`, frontmatter included.
             directory_name: The name of the skill's directory as an agent lists it.
             link_target: The resolved directory the listed directory leads to when it is a link, or `None`.
+            builtin_structure_sources: Builtin structure sources enabled for the fake skill.
         """
         self._text = text
         self._directory_name = PathComponent.parse(directory_name)
         self._link_target = link_target
+        self._builtin_structure_sources = (
+            builtin_structure_sources
+            if builtin_structure_sources is not None
+            else ((AGENT_SKILLS_SPEC_LAYER.origin, BuiltinLineBudget(AGENT_SKILLS_LINE_BUDGET)),)
+        )
 
     def frontmatter(self) -> FrontmatterNode:
         """The skill's frontmatter block, as the real parser reads it."""
@@ -354,14 +423,17 @@ class FakeSkillDatabase:
     def query[T](self, query: ItemQuery[T]) -> T:
         """The answer of a declared query over the skill, as the real database finds it."""
         return query(
-            StructurePrimitives(
-                (),
-                link_list=parse_document(self._text).links,
-                link_base_value=SkillRoot(_SKILLS_DIRECTORY / self._directory_name),
-                line_total=count_lines(self._text),
-                frontmatter_node=self.frontmatter(),
-                name=_skill_aspect_filename(str(self._directory_name)),
-                origin_value=SkillEntrypointOrigin(link_target=self._link_target),
+            _BudgetedPrimitives(
+                StructurePrimitives(
+                    (),
+                    link_list=parse_document(self._text).links,
+                    link_base_value=SkillRoot(_SKILLS_DIRECTORY / self._directory_name),
+                    line_total=count_lines(self._text),
+                    frontmatter_node=self.frontmatter(),
+                    name=_skill_aspect_filename(str(self._directory_name)),
+                    origin_value=SkillEntrypointOrigin(link_target=self._link_target),
+                ),
+                self._builtin_structure_sources,
             )
         )
 

@@ -259,6 +259,13 @@ type OutlineEntry = SectionEntry | AnySections
 
 
 @dataclass(frozen=True, slots=True)
+class BuiltinLineBudget:
+    """A line budget a builtin layer supplies without a repository specification file."""
+
+    lines: NonZeroUnsignedInt
+
+
+@dataclass(frozen=True, slots=True)
 class StructureSpec:
     """One structure specification's rules, proved usable.
 

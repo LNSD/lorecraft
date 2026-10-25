@@ -56,7 +56,7 @@ UNKNOWN_FIELD_SKILL_MD: Final[str] = '---\nname: review\ndescription: Review a c
 
 SKILL_COVERAGE: Final[dict[str, object]] = {
     'path': '.agents/skills/review/SKILL.md',
-    'ungoverned': ['structure', 'outline', 'budget'],
+    'ungoverned': ['structure', 'outline'],
     'cause': None,
     'skipped_by': [],
 }
@@ -726,7 +726,7 @@ class TestCheckCommand:
         assert result.exit_code == 0, 'the recommendation does not fail the run'
         assert result.stdout == expected_text, 'the warning text matches the reviewed snapshot'
         assert result.stderr == (
-            '.agents/skills/review/SKILL.md: ungoverned for structure, outline, budget\n'
+            '.agents/skills/review/SKILL.md: ungoverned for structure, outline\n'
             'FM  1 warning\nchecked 1 subject(s): 0 error(s), 1 warning(s)\n'
         ), 'the warning is counted, under its code prefix'
 
@@ -802,7 +802,7 @@ class TestCheckCommand:
         assert result.exit_code == 0, result.output
         assert result.stdout == expected_text, 'the warning text matches the reviewed snapshot'
         assert result.stderr == (
-            '.agents/skills/review/SKILL.md: ungoverned for structure, outline, budget\n'
+            '.agents/skills/review/SKILL.md: ungoverned for structure, outline\n'
             'FM  1 warning\nchecked 1 subject(s): 0 error(s), 1 warning(s)\n'
         ), 'the warning is counted under its code prefix and does not fail the run'
 
@@ -919,7 +919,7 @@ class TestCheckCommand:
         assert result.exit_code == 0, result.output
         assert result.stdout == expected, 'the unknown-field warning matches the reviewed snapshot'
         assert result.stderr == (
-            '.agents/skills/review/SKILL.md: ungoverned for structure, outline, budget\n'
+            '.agents/skills/review/SKILL.md: ungoverned for structure, outline\n'
             'docs/__meta__/code.md: ungoverned for frontmatter, structure, outline, budget\n'
             'FM  1 warning\nchecked 2 subject(s): 0 error(s), 1 warning(s)\n'
         ), 'a warning is counted apart'

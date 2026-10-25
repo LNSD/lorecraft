@@ -454,9 +454,9 @@ class TestCheckCommand:
         assert result.returncode == 1, result.stderr
         assert result.stdout == expected, 'the diagnostics found from the working directory match the snapshot'
         assert result.stderr == (
-            '.agents/skills/alpha/SKILL.md: ungoverned for structure, outline, budget\n'
-            '.agents/skills/beta/SKILL.md: ungoverned for structure, outline, budget\n'
-            '.agents/skills/gamma/SKILL.md: ungoverned for structure, outline, budget\n'
+            '.agents/skills/alpha/SKILL.md: ungoverned for structure, outline\n'
+            '.agents/skills/beta/SKILL.md: ungoverned for structure, outline\n'
+            '.agents/skills/gamma/SKILL.md: ungoverned for structure, outline\n'
             'docs/__meta__/code-python.md: ungoverned for frontmatter, structure, outline, budget\n'
             'docs/__meta__/code.md: ungoverned for frontmatter, structure, outline, budget\n'
             'FM   3 errors\nLEN  1 error\nOUT  5 errors\nchecked 7 subject(s): 9 error(s), 0 warning(s)\n'
@@ -529,7 +529,7 @@ class TestCheckCommand:
         assert result.returncode == 1, result.stderr
         assert result.stdout == expected, 'the undecodable file, the broken link and the symlink match the snapshot'
         assert result.stderr == (
-            '.agents/skills/review/SKILL.md: ungoverned for structure, outline, budget\n'
+            '.agents/skills/review/SKILL.md: ungoverned for structure, outline\n'
             'docs/notes/todo.md: ungoverned for outline, budget\n'
             'LAY   1 error\nLC    1 error\nLINK  1 error\n'
             'checked 5 subject(s): 3 error(s), 0 warning(s)\n'
@@ -623,7 +623,7 @@ class TestCheckCommand:
             'coverage': [
                 {
                     'path': '.agents/skills/review/SKILL.md',
-                    'ungoverned': ['structure', 'outline', 'budget'],
+                    'ungoverned': ['structure', 'outline'],
                     'cause': None,
                     'skipped_by': [],
                 },
@@ -779,7 +779,7 @@ class TestWorkspaceDefaults:
         assert result.returncode == 0, result.stdout
         assert result.stdout == '', 'a skill whose every field but its name is generated has nothing to report'
         assert result.stderr == (
-            '.agents/skills/review/SKILL.md: ungoverned for structure, outline, budget\n'
+            '.agents/skills/review/SKILL.md: ungoverned for structure, outline\n'
             'checked 1 subject(s): 0 error(s), 0 warning(s)\n'
         ), 'the one skill written is the one checked'
 
