@@ -12,7 +12,6 @@ import typer
 from lorecraft.core.error import Error
 from lorecraft.project.database import Database
 from lorecraft.project.layout import SNAPSHOT_SCOPE
-from lorecraft.project.workspace.builtin import AGENT_SKILLS_SPEC_LAYER
 from lorecraft.project.workspace.model import BuiltinSpecLayer
 from lorecraft.vfs import take_snapshot
 
@@ -25,7 +24,7 @@ def run_inspect(
     root: Path,
     output_format: OutputFormat,
     *,
-    builtin_layers: tuple[BuiltinSpecLayer, ...] = (AGENT_SKILLS_SPEC_LAYER,),
+    builtin_layers: tuple[BuiltinSpecLayer, ...],
 ) -> ExitStatus | None:
     """Print the workspace model of `root`; the body of `lorecraft inspect`.
 

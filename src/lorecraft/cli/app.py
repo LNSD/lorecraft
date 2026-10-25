@@ -90,6 +90,7 @@ def _root(
     ] = False,
 ) -> None:
     """Store global options for subcommands."""
+    # Keep project imports out of --version and --help startup paths.
     from lorecraft.project.workspace.builtin import AGENT_SKILLS_SPEC_LAYER
 
     builtin_layers = () if no_builtin_skills_schema else (AGENT_SKILLS_SPEC_LAYER,)

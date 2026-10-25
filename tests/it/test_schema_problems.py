@@ -41,6 +41,7 @@ from lorecraft.project.schemas import (
 from lorecraft.project.skill import SkillRef
 from lorecraft.project.syntax import LineNumber
 from lorecraft.project.workspace import WorkspaceModel
+from lorecraft.project.workspace.builtin import AGENT_SKILLS_SPEC_LAYER as SKILLS_LAYER
 from lorecraft.vfs import OsRefusal, RefusedRead, ResolvedPath, Snapshot, SnapshotRecords, VirtualFileSystem
 
 TYPING: Final[DocumentRef] = DocumentRef(CorpusName.parse('code'), AspectFilename.parse('python-typing'))
@@ -142,7 +143,7 @@ def _unreadable_database(snapshot: Snapshot, ref: ItemRef) -> Database:
     """A database snapshot whose listed item is refused by the operating system."""
     records = dict(snapshot.records)
     records[ref.path] = RefusedRead(OsRefusal.PERMISSION_DENIED)
-    return Database.from_snapshot(Snapshot(SnapshotRecords(records), snapshot.scope))
+    return Database.from_snapshot(Snapshot(SnapshotRecords(records), snapshot.scope), builtin_layers=(SKILLS_LAYER,))
 
 
 @pytest.mark.it
@@ -153,7 +154,9 @@ class TestSchemaProblems:
         #: Given
         # `description` is on line 3 and of the wrong type; `status` is missing, so it is on no line
         typing = b'---\nname: python-typing\ndescription: 3\n---\n# Typing\n'
-        database = Database.from_snapshot(_snapshot(REQUIRE_STATUS, STRING_DESCRIPTION, typing=typing))
+        database = Database.from_snapshot(
+            _snapshot(REQUIRE_STATUS, STRING_DESCRIPTION, typing=typing), builtin_layers=(SKILLS_LAYER,)
+        )
         source = _document_text(database, TYPING)
 
         #: When
@@ -186,7 +189,9 @@ class TestSchemaProblems:
     def test_frontmatter_schema_problems_called_twice_returns_the_first_answer(self) -> None:
         #: Given
         typing = b'---\nname: python-typing\n---\n# Typing\n'
-        database = FrontmatterReadingDatabase.from_snapshot(_snapshot(REQUIRE_STATUS, REQUIRE_OWNER, typing=typing))
+        database = FrontmatterReadingDatabase.from_snapshot(
+            _snapshot(REQUIRE_STATUS, REQUIRE_OWNER, typing=typing), builtin_layers=(SKILLS_LAYER,)
+        )
         source = _document_text(database, TYPING)
         first = database.query(frontmatter_schema_problems, source.ref)
 
@@ -201,7 +206,8 @@ class TestSchemaProblems:
         #: Given
         # the corpus structure has no frontmatter schema, and the namespace schema cannot govern by itself
         database = Database.from_snapshot(
-            _snapshot(b'{"tokens": 40}', STRING_DESCRIPTION, typing=b'---\ndescription: 3\n---\n')
+            _snapshot(b'{"tokens": 40}', STRING_DESCRIPTION, typing=b'---\ndescription: 3\n---\n'),
+            builtin_layers=(SKILLS_LAYER,),
         )
         source = _document_text(database, TYPING)
 
@@ -215,7 +221,8 @@ class TestSchemaProblems:
         #: Given
         # the corpus structure has no frontmatter schema, and the namespace schema cannot govern by itself
         database = FrontmatterReadingDatabase.from_snapshot(
-            _snapshot(b'{"tokens": 40}', STRING_DESCRIPTION, typing=b'---\ndescription: 3\n---\n')
+            _snapshot(b'{"tokens": 40}', STRING_DESCRIPTION, typing=b'---\ndescription: 3\n---\n'),
+            builtin_layers=(SKILLS_LAYER,),
         )
         source = _document_text(database, TYPING)
 
@@ -229,7 +236,10 @@ class TestSchemaProblems:
 
     def test_frontmatter_schema_problems_with_a_document_without_a_block_holds_none(self) -> None:
         #: Given
-        database = Database.from_snapshot(_snapshot(REQUIRE_STATUS, STRING_DESCRIPTION, typing=b'# Typing\n'))
+        database = Database.from_snapshot(
+            _snapshot(REQUIRE_STATUS, STRING_DESCRIPTION, typing=b'# Typing\n'),
+            builtin_layers=(SKILLS_LAYER,),
+        )
         source = _document_text(database, TYPING)
 
         #: When
@@ -251,7 +261,7 @@ class TestSchemaProblems:
                 }
             }
         )
-        database = Database.from_snapshot(snapshot)
+        database = Database.from_snapshot(snapshot, builtin_layers=(SKILLS_LAYER,))
         source = _document_text(database, DocumentRef(CorpusName.parse('blog'), AspectFilename.parse('launch')))
 
         #: When
@@ -263,7 +273,7 @@ class TestSchemaProblems:
     def test_frontmatter_schema_problems_for_an_undecodable_document_are_empty(self) -> None:
         #: Given
         snapshot = _snapshot(REQUIRE_STATUS, STRING_DESCRIPTION, typing=b'\xff')
-        database = Database.from_snapshot(snapshot)
+        database = Database.from_snapshot(snapshot, builtin_layers=(SKILLS_LAYER,))
         ref = ItemRef(TYPING.path)
 
         #: When
@@ -291,7 +301,10 @@ class TestSkillSchemaProblems:
     def test_skill_frontmatter_schema_problems_of_a_skill_are_independent_of_the_skills_corpus(self) -> None:
         #: Given
         review = b'---\nname: review\nextra: y\n---\n# Review\n'
-        database = Database.from_snapshot(_snapshot(REQUIRE_STATUS, STRING_DESCRIPTION, typing=b'', review=review))
+        database = Database.from_snapshot(
+            _snapshot(REQUIRE_STATUS, STRING_DESCRIPTION, typing=b'', review=review),
+            builtin_layers=(SKILLS_LAYER,),
+        )
         source = _skill_text(database, REVIEW)
 
         #: When
@@ -342,7 +355,8 @@ class TestSkillSchemaProblems:
     def test_skill_frontmatter_schema_problems_with_a_skill_with_no_frontmatter_holds_none(self) -> None:
         #: Given
         database = Database.from_snapshot(
-            _snapshot(REQUIRE_STATUS, STRING_DESCRIPTION, typing=b'', review=b'# Review\n')
+            _snapshot(REQUIRE_STATUS, STRING_DESCRIPTION, typing=b'', review=b'# Review\n'),
+            builtin_layers=(SKILLS_LAYER,),
         )
         source = _skill_text(database, REVIEW)
 
@@ -355,7 +369,10 @@ class TestSkillSchemaProblems:
     def test_parsed_skill_fields_called_twice_returns_the_first_answer(self) -> None:
         #: Given
         review = b'---\nname: review\nallowed-tools: Read\n---\n# Review\n'
-        database = Database.from_snapshot(_snapshot(REQUIRE_STATUS, STRING_DESCRIPTION, typing=b'', review=review))
+        database = Database.from_snapshot(
+            _snapshot(REQUIRE_STATUS, STRING_DESCRIPTION, typing=b'', review=review),
+            builtin_layers=(SKILLS_LAYER,),
+        )
         source = _skill_text(database, REVIEW)
         first = database.query(parsed_skill_fields, source.ref)
 
@@ -373,7 +390,10 @@ class TestSkillSchemaProblems:
 
     def test_owner_of_frontmatter_with_a_document_reads_its_name_and_governance(self) -> None:
         #: Given
-        database = Database.from_snapshot(_snapshot(REQUIRE_STATUS, STRING_DESCRIPTION, typing=b'', review=b''))
+        database = Database.from_snapshot(
+            _snapshot(REQUIRE_STATUS, STRING_DESCRIPTION, typing=b'', review=b''),
+            builtin_layers=(SKILLS_LAYER,),
+        )
         source = _document_text(database, TYPING)
 
         #: When
@@ -388,7 +408,10 @@ class TestSkillSchemaProblems:
 
     def test_owner_of_frontmatter_with_a_skill_entry_reads_its_origin(self) -> None:
         #: Given
-        database = Database.from_snapshot(_snapshot(REQUIRE_STATUS, STRING_DESCRIPTION, typing=b'', review=b''))
+        database = Database.from_snapshot(
+            _snapshot(REQUIRE_STATUS, STRING_DESCRIPTION, typing=b'', review=b''),
+            builtin_layers=(SKILLS_LAYER,),
+        )
         source = _skill_text(database, REVIEW)
 
         #: When
@@ -401,7 +424,10 @@ class TestSkillSchemaProblems:
     def test_skill_frontmatter_schema_problems_called_twice_returns_the_first_answer(self) -> None:
         #: Given
         review = b'---\nname: review\nextra: y\n---\n# Review\n'
-        database = Database.from_snapshot(_snapshot(REQUIRE_STATUS, STRING_DESCRIPTION, typing=b'', review=review))
+        database = Database.from_snapshot(
+            _snapshot(REQUIRE_STATUS, STRING_DESCRIPTION, typing=b'', review=review),
+            builtin_layers=(SKILLS_LAYER,),
+        )
         source = _skill_text(database, REVIEW)
         first = database.query(frontmatter_schema_problems, source.ref)
 
@@ -413,7 +439,10 @@ class TestSkillSchemaProblems:
 
     def test_parsed_skill_fields_for_an_undecodable_skill_are_empty(self) -> None:
         #: Given
-        database = Database.from_snapshot(_snapshot(REQUIRE_STATUS, STRING_DESCRIPTION, typing=b'', review=b'\xff'))
+        database = Database.from_snapshot(
+            _snapshot(REQUIRE_STATUS, STRING_DESCRIPTION, typing=b'', review=b'\xff'),
+            builtin_layers=(SKILLS_LAYER,),
+        )
         ref = ItemRef(REVIEW.path)
 
         #: When

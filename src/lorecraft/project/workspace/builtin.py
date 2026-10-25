@@ -1,4 +1,4 @@
-"""Builtin specification layers enabled by default."""
+"""Builtin specification layers shipped with Lorecraft."""
 
 from typing import Final
 

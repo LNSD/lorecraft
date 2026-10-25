@@ -73,7 +73,6 @@ from lorecraft.project.syntax import (
     split_lines,
 )
 from lorecraft.project.workspace import Governance, ResolvedItem, WorkspaceModel, load_model, unreported_refusals
-from lorecraft.project.workspace.builtin import AGENT_SKILLS_SPEC_LAYER
 from lorecraft.project.workspace.model import BuiltinSpecLayer
 from lorecraft.schemas import SchemaInput, SchemaRef, SchemaRefError
 from lorecraft.vfs import (
@@ -364,7 +363,7 @@ class Database:
         cls,
         snapshot: Snapshot,
         *,
-        builtin_layers: tuple[BuiltinSpecLayer, ...] = (AGENT_SKILLS_SPEC_LAYER,),
+        builtin_layers: tuple[BuiltinSpecLayer, ...],
     ) -> Self:
         """Build the database of one snapshot: build its view, refuse a linked layout and load its model.
 

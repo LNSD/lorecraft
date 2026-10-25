@@ -19,6 +19,7 @@ from lorecraft.project.database import Database
 from lorecraft.project.item import ItemRef, SpecPart
 from lorecraft.project.layout import SNAPSHOT_SCOPE
 from lorecraft.project.skill import OutsideSymlinkRef
+from lorecraft.project.workspace.builtin import AGENT_SKILLS_SPEC_LAYER as SKILLS_LAYER
 from lorecraft.rules.identity import Severity
 from lorecraft.rules.layout.escaping_symlink import EscapingSymlink
 from lorecraft.rules.registry import Registry
@@ -108,7 +109,7 @@ class TestCheckSubjectsLayout:
         elsewhere = root.parent / 'elsewhere'
         (root / '.claude').mkdir()
         (root / '.claude' / 'skills').symlink_to(elsewhere)
-        database = Database.from_snapshot(take_snapshot(root, SNAPSHOT_SCOPE))
+        database = Database.from_snapshot(take_snapshot(root, SNAPSHOT_SCOPE), builtin_layers=(SKILLS_LAYER,))
         subjects = _layout_subjects(database)
 
         #: When
@@ -127,7 +128,7 @@ class TestCheckSubjectsLayout:
         target = root.parent / 'elsewhere' / 'x'
         (root / '.agents' / 'skills').mkdir(parents=True)
         (root / '.agents' / 'skills' / 'x').symlink_to(target)
-        database = Database.from_snapshot(take_snapshot(root, SNAPSHOT_SCOPE))
+        database = Database.from_snapshot(take_snapshot(root, SNAPSHOT_SCOPE), builtin_layers=(SKILLS_LAYER,))
         subjects = _layout_subjects(database)
 
         #: When
@@ -146,7 +147,7 @@ class TestCheckSubjectsLayout:
         target = root.parent / 'elsewhere' / 'x.md'
         (root / '.agents' / 'skills' / 'review').mkdir(parents=True)
         (root / '.agents' / 'skills' / 'review' / 'SKILL.md').symlink_to(target)
-        database = Database.from_snapshot(take_snapshot(root, SNAPSHOT_SCOPE))
+        database = Database.from_snapshot(take_snapshot(root, SNAPSHOT_SCOPE), builtin_layers=(SKILLS_LAYER,))
         subjects = _layout_subjects(database)
 
         #: When
@@ -165,7 +166,7 @@ class TestCheckSubjectsLayout:
         target = root.parent / 'elsewhere' / 'x'
         _write(root, '.agents/skills/review/SKILL.md', CLEAN_SKILL_MD)
         (root / '.agents' / 'skills' / 'review' / 'references').symlink_to(target)
-        database = Database.from_snapshot(take_snapshot(root, SNAPSHOT_SCOPE))
+        database = Database.from_snapshot(take_snapshot(root, SNAPSHOT_SCOPE), builtin_layers=(SKILLS_LAYER,))
         subjects = _layout_subjects(database)
 
         #: When
@@ -185,7 +186,7 @@ class TestCheckSubjectsLayout:
         (root / '.agents' / 'skills').mkdir(parents=True)
         (root / '.agents' / 'skills' / 'x').symlink_to('../../hop/x')
         (root / 'hop').symlink_to(elsewhere)
-        database = Database.from_snapshot(take_snapshot(root, SNAPSHOT_SCOPE))
+        database = Database.from_snapshot(take_snapshot(root, SNAPSHOT_SCOPE), builtin_layers=(SKILLS_LAYER,))
         subjects = _layout_subjects(database)
 
         #: When
@@ -203,7 +204,7 @@ class TestCheckSubjectsLayout:
         root = repository_beside_elsewhere
         _write(root, '.agents/skills/review/SKILL.md', CLEAN_SKILL_MD)
         (root / '.agents' / 'skills' / 'review' / 'shared').symlink_to('../../../../elsewhere/x')
-        database = Database.from_snapshot(take_snapshot(root, SNAPSHOT_SCOPE))
+        database = Database.from_snapshot(take_snapshot(root, SNAPSHOT_SCOPE), builtin_layers=(SKILLS_LAYER,))
         subjects = _layout_subjects(database)
 
         #: When
@@ -222,7 +223,7 @@ class TestCheckSubjectsLayout:
         _write(root, '.agents/skills/review/SKILL.md', CLEAN_SKILL_MD)
         (root / '.agents' / 'skills' / 'gone').symlink_to('../../skills/gone')
         (root / '.agents' / 'skills' / 'review' / 'references').symlink_to('../../../missing')
-        database = Database.from_snapshot(take_snapshot(root, SNAPSHOT_SCOPE))
+        database = Database.from_snapshot(take_snapshot(root, SNAPSHOT_SCOPE), builtin_layers=(SKILLS_LAYER,))
         subjects = _layout_subjects(database)
 
         #: When
@@ -239,7 +240,7 @@ class TestCheckSubjectsLayout:
         _write(root, '.agents/skills/review/SKILL.md', CLEAN_SKILL_MD)
         (root / '.claude').mkdir()
         (root / '.claude' / 'skills').symlink_to('../.agents/skills')
-        database = Database.from_snapshot(take_snapshot(root, SNAPSHOT_SCOPE))
+        database = Database.from_snapshot(take_snapshot(root, SNAPSHOT_SCOPE), builtin_layers=(SKILLS_LAYER,))
         subjects = _layout_subjects(database)
 
         #: When
@@ -256,7 +257,7 @@ class TestCheckSubjectsLayout:
         target = root.parent / 'elsewhere' / 'x'
         _write(root, '.agents/skills/review/SKILL.md', CLEAN_SKILL_MD)
         (root / '.agents' / 'skills' / 'review' / 'references').symlink_to(target)
-        database = Database.from_snapshot(take_snapshot(root, SNAPSHOT_SCOPE))
+        database = Database.from_snapshot(take_snapshot(root, SNAPSHOT_SCOPE), builtin_layers=(SKILLS_LAYER,))
         location = database.model().find_skill_location(RootRelativePath.parse('.agents/skills/review'))
         assert location is not None, 'the model lists the skill .agents/skills/review'
         subjects: tuple[CheckedSubject, ...] = (*_layout_subjects(database), ItemRef(location.ref.path))
