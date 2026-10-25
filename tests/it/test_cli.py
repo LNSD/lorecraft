@@ -1311,7 +1311,7 @@ class TestCheckCommand:
         ), 'the governed document is reported as a partial check, and the run is not clean'
 
     @pytest.mark.skipif(os.geteuid() == 0, reason='root ignores file permissions')
-    def test_check_with_an_unreadable_document_reports_lc002_and_exits_one(self, workspace: Path) -> None:
+    def test_check_with_an_unreadable_document_reports_skipped_coverage_and_exits_zero(self, workspace: Path) -> None:
         #: Given
         baseline = runner.invoke(build_app(), ['check', '--root', str(workspace), '--format', 'json'])
         baseline_subjects = json.loads(baseline.stdout)['summary']['subjects']
@@ -1323,11 +1323,12 @@ class TestCheckCommand:
         result = runner.invoke(app, arguments)
 
         #: Then
-        assert result.exit_code == 1, result.output
+        assert result.exit_code == 0, result.output
         document = json.loads(result.stdout)
+        assert not document['diagnostics'], 'the refused document read has no diagnostic'
         assert any(
-            item['path'] == 'docs/code/logging.md' and item['code'] == 'LC002' for item in document['diagnostics']
-        )
+            item['path'] == 'docs/code/logging.md' and item['cause'] == 'refused-path' for item in document['coverage']
+        ), 'the refused document remains visible as skipped coverage'
         assert document['summary']['subjects'] == baseline_subjects, 'the unreadable document remains a subject'
 
     @pytest.mark.skipif(os.geteuid() == 0, reason='root ignores file permissions')
@@ -1349,14 +1350,19 @@ class TestCheckCommand:
         result = runner.invoke(app, ['check', '--root', str(workspace), '--format', 'json'])
 
         #: Then
-        assert result.exit_code == 1, result.stderr
+        assert result.exit_code == 0, result.stderr
         report = json.loads(result.stdout)
         diagnostics = {(item['path'], item['code']) for item in report['diagnostics']}
-        assert ('docs/code/logging.md', 'LC002') in diagnostics, 'the unreadable destination is still reported'
+        assert ('docs/code/logging.md', 'LC002') not in diagnostics, 'the unreadable item destination is not diagnosed'
         assert report['summary']['subjects'] > 0, 'the check returns its report instead of aborting'
+        assert any(
+            item['path'] == 'docs/code/logging.md' and item['cause'] == 'refused-path' for item in report['coverage']
+        ), 'the unreadable destination remains visible as skipped coverage'
 
     @pytest.mark.skipif(os.geteuid() == 0, reason='root ignores file permissions')
-    def test_check_with_an_unreadable_specification_reports_lc002_and_exits_one(self, workspace: Path) -> None:
+    def test_check_with_an_unreadable_specification_reports_skipped_coverage_and_exits_zero(
+        self, workspace: Path
+    ) -> None:
         #: Given
         baseline = runner.invoke(build_app(), ['check', '--root', str(workspace), '--format', 'json'])
         baseline_subjects = json.loads(baseline.stdout)['summary']['subjects']
@@ -1368,11 +1374,12 @@ class TestCheckCommand:
         result = runner.invoke(app, arguments)
 
         #: Then
-        assert result.exit_code == 1, result.output
+        assert result.exit_code == 0, result.output
         document = json.loads(result.stdout)
+        assert not document['diagnostics'], 'the refused specification read has no diagnostic'
         assert any(
-            item['path'] == 'docs/__meta__/code.md' and item['code'] == 'LC002' for item in document['diagnostics']
-        ), 'the unreadable specification is reported under LC002 at its path'
+            item['path'] == 'docs/__meta__/code.md' and item['cause'] == 'refused-path' for item in document['coverage']
+        ), 'the refused specification remains visible as skipped coverage'
         assert document['summary']['subjects'] == baseline_subjects, 'the unreadable specification remains a subject'
 
     def test_check_with_a_linked_specs_directory_exits_as_invalid_input(self, linked_specs_workspace: Path) -> None:
