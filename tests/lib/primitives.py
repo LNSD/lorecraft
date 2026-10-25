@@ -46,7 +46,7 @@ from lorecraft.project.syntax import (
 )
 from lorecraft.project.workspace import Governance
 from lorecraft.rules.link.queries import linked_documents
-from lorecraft.schemas import RepositoryOrigin, SchemaInput, SchemaRef
+from lorecraft.schemas import BuiltinOrigin, RepositoryOrigin, SchemaInput, SchemaRef
 from lorecraft.schemas.builtin import AGENT_SKILLS_SCHEMA_INPUT, AGENT_SKILLS_SCHEMA_REFERENCE
 
 
@@ -112,6 +112,7 @@ class StructurePrimitives:
     corpus: CorpusName | None = None
     origin_value: ItemOrigin = DocumentOrigin()
     governance_value: Governance | None = None
+    builtin_structure_sources: tuple[tuple[RootRelativePath | BuiltinOrigin, StructureSpec], ...] = ()
     builtin_schema: bool = True
     schema_inputs_value: Mapping[SchemaRef, SchemaInput] | None = None
 
@@ -207,6 +208,15 @@ class StructurePrimitives:
     def structure_specs(self) -> tuple[StructureSpec, ...]:
         """The specifications this was built with."""
         return self.specs
+
+    def structure_sources(self) -> tuple[tuple[RootRelativePath | BuiltinOrigin, StructureSpec], ...]:
+        """Builtin structure specs first, then repository specs broad to narrow."""
+        repository_sources = (
+            tuple((spec.path, spec) for spec in self.governance_value.structure_specs())
+            if self.governance_value is not None
+            else ()
+        )
+        return (*self.builtin_structure_sources, *repository_sources)
 
     def headings(self) -> tuple[Heading, ...]:
         """The headings this was built with."""
