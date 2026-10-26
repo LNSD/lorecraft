@@ -37,11 +37,14 @@ from .snapshot import (
     SymlinkRecord,
 )
 from .view import (
+    AbsoluteSymlinkTarget,
     DirEntry,
     EntryKind,
     OsRefusal,
+    RelativeSymlinkTarget,
     ResolvedPath,
     RootExit,
+    SymlinkTarget,
 )
 
 
@@ -467,7 +470,7 @@ class _DiskEntries:
         """
         return find_lstat_kind(self._root, path)
 
-    def find_link_target(self, path: RootRelativePath) -> PurePosixPath | None:
+    def find_link_target(self, path: RootRelativePath) -> SymlinkTarget | None:
         """Read the target of the symlink at `path` and record it; `None` when it vanished.
 
         Args:
@@ -642,7 +645,7 @@ def _find_file_bytes(root: Path, path: RootRelativePath) -> bytes | None:
 
 
 # Public for `tests/lib/disk.py`: the disk view there reads the way the scan does, through these.
-def find_symlink_target(root: Path, path: RootRelativePath) -> PurePosixPath | None:
+def find_symlink_target(root: Path, path: RootRelativePath) -> SymlinkTarget | None:
     """A listed symlink's target as `os.readlink` returns it; `None` when it vanished after the listing.
 
     An absolute target under the root comes back relative to the link's directory; see
@@ -664,7 +667,7 @@ def find_symlink_target(root: Path, path: RootRelativePath) -> PurePosixPath | N
     return _spell_relative_if_under_root(root, path, target)
 
 
-def _spell_relative_if_under_root(root: Path, link: RootRelativePath, target: PurePosixPath) -> PurePosixPath:
+def _spell_relative_if_under_root(root: Path, link: RootRelativePath, target: PurePosixPath) -> SymlinkTarget:
     """Rewrite an absolute `target` naming a path under the root relative to the directory of `link`.
 
     A snapshot does not record where the root sits, so the virtual view cannot follow an absolute target,
@@ -683,13 +686,13 @@ def _spell_relative_if_under_root(root: Path, link: RootRelativePath, target: Pu
         target: The link's target as `os.readlink` returned it.
     """
     if not target.is_absolute():
-        return target
+        return RelativeSymlinkTarget(target)
     root_spellings = (PurePosixPath(os.path.abspath(root)), PurePosixPath(os.path.realpath(root)))
     for root_spelling in root_spellings:
         if target.is_relative_to(root_spelling):
             climb_to_root = ['..'] * len(link.parent.parts)
-            return PurePosixPath(*climb_to_root, *target.relative_to(root_spelling).parts)
-    return target
+            return RelativeSymlinkTarget(PurePosixPath(*climb_to_root, *target.relative_to(root_spelling).parts))
+    return AbsoluteSymlinkTarget(target)
 
 
 # Public for `tests/lib/disk.py`: the disk view there reads the way the scan does, through these.

@@ -6,7 +6,7 @@ the errors the operating system raises are pinned by the integration tier.
 """
 
 from collections.abc import Mapping
-from pathlib import Path, PurePosixPath
+from pathlib import PurePosixPath
 from typing import Final
 
 import pytest
@@ -45,7 +45,7 @@ REVIEW: Final[SkillLocation] = SkillLocation(
 """A skill in a regular directory, whose `SKILL.md` is no symlink."""
 
 
-def _target(raw: str | Path | PurePosixPath) -> SymlinkTarget:
+def _target(raw: str) -> SymlinkTarget:
     """Wrap a target written as it would be by `os.readlink`."""
     target = PurePosixPath(raw)
     if target.is_absolute():
@@ -82,7 +82,7 @@ def _repository(files: Mapping[str, bytes], symlinks: Mapping[str, str]) -> Repo
     """
     records: dict[RootRelativePath, EntryRecord] = dict(from_tree(_file_tree(files)).records)
     for path, target in symlinks.items():
-        records[RootRelativePath.parse(path)] = SymlinkRecord(PurePosixPath(target))
+        records[RootRelativePath.parse(path)] = SymlinkRecord(_target(target))
     return Repository(VirtualFileSystem(Snapshot(SnapshotRecords(records))))
 
 

@@ -34,7 +34,7 @@ from .root_expansion import (
 )
 from .scan_root import ScanRoot
 from .snapshot import Snapshot
-from .view import EntryKind, ResolvedPath, RootExit
+from .view import EntryKind, ResolvedPath, RootExit, SymlinkTarget, classify_symlink_target
 
 
 class ScopeIndex:
@@ -116,7 +116,7 @@ class _RecordedLinks:
             targets: Every link the snapshot recorded, with its target, `Snapshot.symlink_targets`; kept, not copied.
             climbed_directories: Every directory the scan climbed out of, `Snapshot.climbed_directories`.
         """
-        self._targets = targets
+        self._targets = {path: classify_symlink_target(target) for path, target in targets.items()}
         # A climbed directory exists, and a recorded link sits in one, so each of them and its ancestors exist.
         known_directories: set[RootRelativePath] = set()
         for directory in climbed_directories:
@@ -143,7 +143,7 @@ class _RecordedLinks:
             return EntryKind.SYMLINK
         return EntryKind.DIRECTORY
 
-    def find_link_target(self, path: RootRelativePath) -> PurePosixPath | None:
+    def find_link_target(self, path: RootRelativePath) -> SymlinkTarget | None:
         """The recorded target of the link at `path`; see `EntryLookup.find_link_target`.
 
         Args:

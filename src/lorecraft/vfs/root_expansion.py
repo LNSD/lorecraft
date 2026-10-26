@@ -16,7 +16,6 @@ recorded.
 """
 
 from dataclasses import dataclass
-from pathlib import PurePosixPath
 from typing import Final, Protocol, assert_never
 
 from lorecraft.core.error import Unreachable
@@ -29,7 +28,7 @@ from .view import (
     RelativeSymlinkTarget,
     ResolvedPath,
     RootExit,
-    classify_symlink_target,
+    SymlinkTarget,
 )
 
 _MAX_LINKS: Final[int] = 40
@@ -54,7 +53,7 @@ class EntryLookup(Protocol):
         """
         ...
 
-    def find_link_target(self, path: RootRelativePath) -> PurePosixPath | None:
+    def find_link_target(self, path: RootRelativePath) -> SymlinkTarget | None:
         """Read the target of the symlink at `path`; `None` when it is gone.
 
         The disk implementation records each target it reads in the links of the scan, so reading is not free
@@ -190,15 +189,14 @@ def find_destination(
                 links_followed += 1
                 if not follow_links or links_followed > _MAX_LINKS:
                     return None
-                exit_target = classify_symlink_target(target)
-                last_link = RootExit(ResolvedPath(candidate), exit_target)
-                match exit_target:
+                last_link = RootExit(ResolvedPath(candidate), target)
+                match target:
                     case AbsoluteSymlinkTarget():
                         return last_link
                     case RelativeSymlinkTarget(target=relative_target):
                         remaining = list(relative_target.parts) + remaining
                     case _:
-                        assert_never(exit_target)
+                        assert_never(target)
             case _:
                 assert_never(kind)
     return ResolvedDirectory(resolved)

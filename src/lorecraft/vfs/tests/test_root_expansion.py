@@ -6,7 +6,7 @@ agree through them is covered in `tests/it/test_filesystem.py`.
 """
 
 from collections.abc import Mapping
-from pathlib import Path, PurePosixPath
+from pathlib import PurePosixPath
 
 import pytest
 
@@ -24,7 +24,7 @@ from ..scan_root import ScanRoot
 from ..view import AbsoluteSymlinkTarget, EntryKind, RelativeSymlinkTarget, ResolvedPath, RootExit, SymlinkTarget
 
 
-def _target(raw: str | Path | PurePosixPath) -> SymlinkTarget:
+def _target(raw: str) -> SymlinkTarget:
     """Wrap a target written as it would be by `os.readlink`."""
     target = PurePosixPath(raw)
     if target.is_absolute():
@@ -73,11 +73,11 @@ class _FakeTree:
             self._kinds[_path(raw)] = EntryKind.OTHER
         for raw in gone_links:
             self._kinds[_path(raw)] = EntryKind.SYMLINK
-        self._targets: dict[RootRelativePath, PurePosixPath] = {}
+        self._targets: dict[RootRelativePath, SymlinkTarget] = {}
         if links is not None:
             for raw, target in links.items():
                 self._kinds[_path(raw)] = EntryKind.SYMLINK
-                self._targets[_path(raw)] = PurePosixPath(target)
+                self._targets[_path(raw)] = _target(target)
         self._unclimbable: set[RootRelativePath] = set()
         for raw in unclimbable:
             self._unclimbable.add(_path(raw))
@@ -90,7 +90,7 @@ class _FakeTree:
         """
         return self._kinds.get(path)
 
-    def find_link_target(self, path: RootRelativePath) -> PurePosixPath | None:
+    def find_link_target(self, path: RootRelativePath) -> SymlinkTarget | None:
         """The target the test gave the link at `path`; `None` for a link that vanished.
 
         Args:

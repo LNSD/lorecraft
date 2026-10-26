@@ -27,7 +27,15 @@ from ..snapshot import (
     SnapshotRecords,
     SymlinkRecord,
 )
-from ..view import OsRefusal
+from ..view import AbsoluteSymlinkTarget, OsRefusal, RelativeSymlinkTarget, SymlinkTarget
+
+
+def _target(raw: str) -> SymlinkTarget:
+    """Wrap a target written as it would be by `os.readlink`."""
+    target = PurePosixPath(raw)
+    if target.is_absolute():
+        return AbsoluteSymlinkTarget(target)
+    return RelativeSymlinkTarget(target)
 
 
 def _snapshot(records: Mapping[str, EntryRecord], *, scope: tuple[ScanRoot, ...] = ()) -> Snapshot:
@@ -54,7 +62,7 @@ def _docs_link(name: str, target: str) -> Snapshot:
         {
             '.': DirectoryRecord(listed=True),
             'docs': DirectoryRecord(listed=True),
-            f'docs/{name}': SymlinkRecord(PurePosixPath(target)),
+            f'docs/{name}': SymlinkRecord(_target(target)),
         }
     )
 
@@ -68,7 +76,7 @@ def _linked_skill(leads_to: Mapping[str, EntryRecord]) -> Snapshot:
     return _snapshot(
         {
             '.agents/skills': DirectoryRecord(listed=True),
-            '.agents/skills/review': SymlinkRecord(PurePosixPath('../../skills/review')),
+            '.agents/skills/review': SymlinkRecord(_target('../../skills/review')),
             **leads_to,
         }
     )
@@ -83,7 +91,7 @@ def _linked_skill_file(data: bytes) -> Snapshot:
     return _snapshot(
         {
             '.agents/skills': DirectoryRecord(listed=True),
-            '.agents/skills/SKILL.md': SymlinkRecord(PurePosixPath('../../REVIEW.md')),
+            '.agents/skills/SKILL.md': SymlinkRecord(_target('../../REVIEW.md')),
             'REVIEW.md': FileRecord(data),
         }
     )
@@ -374,14 +382,12 @@ class TestDiff:
         old = _snapshot(
             {
                 'skills': DirectoryRecord(listed=True),
-                'skills/x': SymlinkRecord(PurePosixPath('../c/tmp/../d')),
+                'skills/x': SymlinkRecord(_target('../c/tmp/../d')),
                 'c/tmp': DirectoryRecord(climbed=True),
                 'c/d': DirectoryRecord(listed=True),
             }
         )
-        new = _snapshot(
-            {'skills': DirectoryRecord(listed=True), 'skills/x': SymlinkRecord(PurePosixPath('../c/tmp/../d'))}
-        )
+        new = _snapshot({'skills': DirectoryRecord(listed=True), 'skills/x': SymlinkRecord(_target('../c/tmp/../d'))})
         expected = {
             RootRelativePath.parse('c/tmp'): ChangeKind.DELETED,
             RootRelativePath.parse('c/d'): ChangeKind.DELETED,

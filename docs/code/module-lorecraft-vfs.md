@@ -46,8 +46,8 @@ and the package never knows why those directories matter or what the files in th
   symlink's target or another entry, and never a handle, a stat result or an mtime, so two snapshots compare and
   hash structurally. A listing is derived from the records, never stored beside them, so no path has two kinds.
 - Every path crossing the boundary is root-relative. The root is joined to a path only inside this package, and
-  every answer leaves root-relative again. A symlink's target is the one exception: it is kept as written, an
-  unresolved `PurePosixPath`, because it may point outside the root.
+  every answer leaves root-relative again. A symlink's target is the one exception: its unresolved target is a
+  `RelativeSymlinkTarget` that may climb with `..`, or an `AbsoluteSymlinkTarget` that is outside the root.
 - Code above reads through the view contract and never names a concrete view, except the code that builds one.
   For every operation of the contract, and every path whose symlinks stay under the root, the snapshot view
   answers as the disk view does. A question only one view can answer stays off the contract, on that view, and
@@ -76,7 +76,7 @@ Before committing code, verify:
 - [ ] A new snapshot field is immutable and holds no handle, stat result or mtime
 - [ ] What a scan sees at a path is one record of `EntryRecord`; no listing or index is stored beside the records
 - [ ] Every new argument and answer is root-relative, and no `Path` crosses the boundary; a symlink's target
-      stays an unresolved `PurePosixPath`
+      uses the relative or absolute wrapper and stays unresolved
 - [ ] A new contract operation answers alike on both views for paths under the root; one only a single view can
       answer lives on that view, off the contract
 

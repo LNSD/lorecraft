@@ -15,7 +15,15 @@ from lorecraft.core.path import RootRelativePath
 
 from ..disk import ChangedSnapshotEntryError, SnapshotRecorder, disk_location
 from ..snapshot import DirectoryRecord, FileRecord, SymlinkRecord
-from ..view import EntryKind
+from ..view import AbsoluteSymlinkTarget, EntryKind, RelativeSymlinkTarget, SymlinkTarget
+
+
+def _target(raw: str) -> SymlinkTarget:
+    """Wrap a target written as it would be by `os.readlink`."""
+    target = PurePosixPath(raw)
+    if target.is_absolute():
+        return AbsoluteSymlinkTarget(target)
+    return RelativeSymlinkTarget(target)
 
 
 def _path(raw: str) -> RootRelativePath:
@@ -127,18 +135,18 @@ class TestSnapshotRecorder:
     def test_record_with_a_link_read_again_with_another_target_keeps_the_last_read(self) -> None:
         #: Given
         recorder = SnapshotRecorder()
-        recorder.record(_path('skills/x'), SymlinkRecord(PurePosixPath('a')))
+        recorder.record(_path('skills/x'), SymlinkRecord(_target('a')))
 
         path = _path('skills/x')
 
-        record = SymlinkRecord(PurePosixPath('b'))
+        record = SymlinkRecord(_target('b'))
 
         #: When
 
         recorder.record(path, record)
 
         #: Then
-        assert recorder.to_records() == FrozenMapping({_path('skills/x'): SymlinkRecord(PurePosixPath('b'))}), (
+        assert recorder.to_records() == FrozenMapping({_path('skills/x'): SymlinkRecord(_target('b'))}), (
             'a link retargeted between two reads keeps its last target, and the scan goes on'
         )
 
@@ -148,7 +156,7 @@ class TestSnapshotRecorder:
         recorder = SnapshotRecorder()
         recorder.record(_path('docs/code'), DirectoryRecord())
         path = _path('docs/code')
-        record = SymlinkRecord(PurePosixPath('elsewhere'))
+        record = SymlinkRecord(_target('elsewhere'))
 
         #: When
         with pytest.raises(ChangedSnapshotEntryError) as exc_info:

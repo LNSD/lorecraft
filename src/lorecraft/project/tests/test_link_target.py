@@ -14,6 +14,7 @@ from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.syntax import LineNumber, Link
 from lorecraft.vfs import EntryRecord, ScopeIndex, Snapshot, SnapshotRecords, SymlinkRecord, VirtualFileSystem
+from lorecraft.vfs.view import AbsoluteSymlinkTarget, RelativeSymlinkTarget, SymlinkTarget
 
 from ..layout import SNAPSHOT_SCOPE
 from ..link_target import (
@@ -31,6 +32,14 @@ REVIEW_ROOT: Final[SkillRoot] = SkillRoot(RootRelativePath.parse('.agents/skills
 
 GUIDE_DIRECTORY: Final[DocumentDirectory] = DocumentDirectory(RootRelativePath.parse('docs/guide'))
 """Where the links of a document of corpus `guide` are read from."""
+
+
+def _target(raw: str) -> SymlinkTarget:
+    """Wrap a target written as it would be by `os.readlink`."""
+    target = PurePosixPath(raw)
+    if target.is_absolute():
+        return AbsoluteSymlinkTarget(target)
+    return RelativeSymlinkTarget(target)
 
 
 def _tree() -> FileTree:
@@ -57,7 +66,7 @@ def _snapshot(*links: tuple[str, str]) -> Snapshot:
     """
     records: dict[RootRelativePath, EntryRecord] = dict(from_tree(_tree()).records)
     for path, target in links:
-        records[RootRelativePath.parse(path)] = SymlinkRecord(PurePosixPath(target))
+        records[RootRelativePath.parse(path)] = SymlinkRecord(_target(target))
     return Snapshot(SnapshotRecords(records), scope=SNAPSHOT_SCOPE)
 
 
