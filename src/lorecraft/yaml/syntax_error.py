@@ -19,7 +19,7 @@ from dataclasses import dataclass
 from types import MappingProxyType
 from typing import Final
 
-from lorecraft.core.lines import split_lines
+from lorecraft.core.lines import LineOffset, split_lines
 from lorecraft.core.num import UnsignedInt
 
 from .position import LINE_SEPARATORS
@@ -81,19 +81,6 @@ def _mark_of(position: YamlPosition | None) -> _Mark | None:
     return _Mark(position.line.value - 1, position.column.value - 1)
 
 
-def _check_line(line: int | None) -> None:
-    """Refuse a negative line, which no line of the text is.
-
-    Args:
-        line: The line a kind carries, counted from 0, or None when the parser marks none.
-
-    Raises:
-        NegativeIntError: If the line is below 0.
-    """
-    if line is not None:
-        UnsignedInt(line)
-
-
 @dataclass(frozen=True, slots=True)
 class NotKeyOrItem:
     """A line is neither `key: value` nor `- item`.
@@ -102,11 +89,7 @@ class NotKeyOrItem:
         line: The line the writer fixes, counted from 0, or None when the parser marks none.
     """
 
-    line: int | None
-
-    def __post_init__(self) -> None:
-        """Refuse a negative line."""
-        _check_line(self.line)
+    line: LineOffset | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -117,11 +100,7 @@ class UnclosedQuote:
         line: The line the quote opens on, counted from 0, or None when the parser marks none.
     """
 
-    line: int | None
-
-    def __post_init__(self) -> None:
-        """Refuse a negative line."""
-        _check_line(self.line)
+    line: LineOffset | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -134,11 +113,7 @@ class SeparatorEscape:
     """
 
     separator: str
-    line: int | None
-
-    def __post_init__(self) -> None:
-        """Refuse a negative line."""
-        _check_line(self.line)
+    line: LineOffset | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -151,11 +126,7 @@ class UnknownEscape:
     """
 
     escape: str
-    line: int
-
-    def __post_init__(self) -> None:
-        """Refuse a negative line."""
-        _check_line(self.line)
+    line: LineOffset
 
 
 @dataclass(frozen=True, slots=True)
@@ -168,11 +139,7 @@ class UnstartableCharacter:
     """
 
     character: str
-    line: int | None
-
-    def __post_init__(self) -> None:
-        """Refuse a negative line."""
-        _check_line(self.line)
+    line: LineOffset | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -187,11 +154,7 @@ class ColonInValue:
 
     key: str
     value: str
-    line: int
-
-    def __post_init__(self) -> None:
-        """Refuse a negative line."""
-        _check_line(self.line)
+    line: LineOffset
 
 
 @dataclass(frozen=True, slots=True)
@@ -206,11 +169,7 @@ class IndentedUnderText:
 
     key: str
     parent: str
-    line: int
-
-    def __post_init__(self) -> None:
-        """Refuse a negative line."""
-        _check_line(self.line)
+    line: LineOffset
 
 
 @dataclass(frozen=True, slots=True)
@@ -221,11 +180,7 @@ class MatchesNoLevel:
         line: The line, counted from 0, or None when the parser marks none.
     """
 
-    line: int | None
-
-    def __post_init__(self) -> None:
-        """Refuse a negative line."""
-        _check_line(self.line)
+    line: LineOffset | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -238,11 +193,7 @@ class ClosesNothing:
     """
 
     bracket: str
-    line: int | None
-
-    def __post_init__(self) -> None:
-        """Refuse a negative line."""
-        _check_line(self.line)
+    line: LineOffset | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -253,11 +204,7 @@ class TextAfterQuote:
         line: The line, counted from 0.
     """
 
-    line: int
-
-    def __post_init__(self) -> None:
-        """Refuse a negative line."""
-        _check_line(self.line)
+    line: LineOffset
 
 
 @dataclass(frozen=True, slots=True)
@@ -270,11 +217,7 @@ class TextAfterCollection:
     """
 
     bracket: str
-    line: int
-
-    def __post_init__(self) -> None:
-        """Refuse a negative line."""
-        _check_line(self.line)
+    line: LineOffset
 
 
 @dataclass(frozen=True, slots=True)
@@ -285,11 +228,7 @@ class TabIndent:
         line: The line, counted from 0, or None when the parser marks none.
     """
 
-    line: int | None
-
-    def __post_init__(self) -> None:
-        """Refuse a negative line."""
-        _check_line(self.line)
+    line: LineOffset | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -300,11 +239,7 @@ class TabInLine:
         line: The line, counted from 0, or None when the parser marks none.
     """
 
-    line: int | None
-
-    def __post_init__(self) -> None:
-        """Refuse a negative line."""
-        _check_line(self.line)
+    line: LineOffset | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -315,11 +250,7 @@ class UnreadableBlock:
         line: The line the parser marked, counted from 0, or None when it marks none.
     """
 
-    line: int | None
-
-    def __post_init__(self) -> None:
-        """Refuse a negative line."""
-        _check_line(self.line)
+    line: LineOffset | None
 
 
 type YamlSyntaxError = (
@@ -365,15 +296,16 @@ def classify_syntax_error(error: ParserError, block: str) -> YamlSyntaxError:
         block: The text the parser read.
     """
     kind = _classify(error, block)
+    line = None if kind.line is None else kind.line.value
     if isinstance(kind, UnreadableBlock):
         logger.debug(
             'yaml syntax error unclassified',
-            extra={'fields': {'problem': _template(error.problem), 'line': kind.line}},
+            extra={'fields': {'problem': _template(error.problem), 'line': line}},
         )
     else:
         logger.debug(
             'yaml syntax error classified',
-            extra={'fields': {'kind': type(kind).__name__, 'line': getattr(kind, 'line', None)}},
+            extra={'fields': {'kind': type(kind).__name__, 'line': line}},
         )
     return kind
 
@@ -409,7 +341,7 @@ def _classify(error: ParserError, block: str) -> YamlSyntaxError:
     if problem == "could not find expected ':'":
         return _not_key_or_item(_line_of(context_mark or mark))
     if context.startswith('while scanning a quoted scalar') and problem.startswith('found unexpected end'):
-        return UnclosedQuote(_line_of(context_mark or mark))
+        return UnclosedQuote(_line_offset_or_none(_line_of(context_mark or mark)))
     if 'quoted scalar' in context and problem.startswith(('found unknown escape', 'expected escape sequence')):
         separator = _escaped_separator(problem)
         if separator is not None:
@@ -457,13 +389,23 @@ def _line_of(mark: _Mark | None) -> int | None:
     return None if mark is None else mark.line
 
 
+def _line_offset(line: int) -> LineOffset:
+    """Wrap a zero-based parser line at the syntax-kind boundary."""
+    return LineOffset(UnsignedInt(line))
+
+
+def _line_offset_or_none(line: int | None) -> LineOffset | None:
+    """Wrap a zero-based parser line when a mark exists."""
+    return None if line is None else _line_offset(line)
+
+
 def _unreadable(line: int | None) -> UnreadableBlock:
     """The kind for an error no kind of the table matches, reported on the line the parser marked.
 
     Args:
         line: The line, counted from 0, or None when the parser marks none.
     """
-    return UnreadableBlock(line)
+    return UnreadableBlock(_line_offset_or_none(line))
 
 
 def _text(lines: list[str], line: int) -> str:
@@ -482,7 +424,7 @@ def _not_key_or_item(line: int | None) -> NotKeyOrItem:
     Args:
         line: The line, counted from 0, or None when the parser marks none.
     """
-    return NotKeyOrItem(line)
+    return NotKeyOrItem(_line_offset_or_none(line))
 
 
 def _is_key_line(text: str) -> bool:
@@ -547,7 +489,7 @@ def _indented_under_text(lines: list[str], line: int, key: str) -> IndentedUnder
             # A `key:` with no value opens a block, so a line under it is a child, not a mistake.
             return None
         parent = _key_of_line(text)
-        return IndentedUnderText(key, parent, line)
+        return IndentedUnderText(key, parent, _line_offset(line))
     return None
 
 
@@ -582,7 +524,7 @@ def _matches_no_level(line: int | None) -> MatchesNoLevel:
     Args:
         line: The line, counted from 0, or None when the parser marks none.
     """
-    return MatchesNoLevel(line)
+    return MatchesNoLevel(_line_offset_or_none(line))
 
 
 def _misplaced_colon(mark: _Mark | None, lines: list[str]) -> YamlSyntaxError:
@@ -600,7 +542,7 @@ def _misplaced_colon(mark: _Mark | None, lines: list[str]) -> YamlSyntaxError:
         return _cannot_start_value(':', mark)
     if ': ' in before:
         key, _, value = text.strip().partition(': ')
-        return ColonInValue(key, value, mark.line)
+        return ColonInValue(key, value, _line_offset(mark.line))
     under_text = _indented_under_text(lines, mark.line, before.strip())
     if under_text is not None:
         return under_text
@@ -653,9 +595,9 @@ def _text_after_value(mark: _Mark | None, lines: list[str]) -> YamlSyntaxError:
     if mark is not None:
         before = _text(lines, mark.line)[: mark.column].rstrip()
         if before.endswith(('"', "'")):
-            return TextAfterQuote(mark.line)
+            return TextAfterQuote(_line_offset(mark.line))
         if before.endswith((']', '}')):
-            return TextAfterCollection(before[-1], mark.line)
+            return TextAfterCollection(before[-1], _line_offset(mark.line))
         if _below_block_scalar(mark.line, lines):
             return _bad_indent(mark, lines)
     return _unreadable(_line_of(mark))
@@ -668,7 +610,7 @@ def _closes_nothing(bracket: str, mark: _Mark | None) -> ClosesNothing:
         bracket: The `]` or `}` as written.
         mark: Where the parser found it.
     """
-    return ClosesNothing(bracket, _line_of(mark))
+    return ClosesNothing(bracket, _line_offset_or_none(_line_of(mark)))
 
 
 def _below_block_scalar(line: int, lines: list[str]) -> bool:
@@ -699,7 +641,7 @@ def _cannot_start_value(character: str, mark: _Mark | None) -> UnstartableCharac
         character: The character, shown in the label.
         mark: Where the scanner found it.
     """
-    return UnstartableCharacter(character, _line_of(mark))
+    return UnstartableCharacter(character, _line_offset_or_none(_line_of(mark)))
 
 
 def _unstartable_character(problem: str, mark: _Mark | None, lines: list[str]) -> YamlSyntaxError:
@@ -713,8 +655,8 @@ def _unstartable_character(problem: str, mark: _Mark | None, lines: list[str]) -
     if "'\\t'" in problem:
         text = _text(lines, mark.line) if mark is not None else ''
         if text.lstrip(' ').startswith('\t'):
-            return TabIndent(_line_of(mark))
-        return TabInLine(_line_of(mark))
+            return TabIndent(_line_offset_or_none(_line_of(mark)))
+        return TabInLine(_line_offset_or_none(_line_of(mark)))
     if "'" not in problem:
         return _unreadable(_line_of(mark))
     return _cannot_start_value(problem.split("'")[1], mark)
@@ -743,7 +685,7 @@ def _separator_escape(separator: str, mark: _Mark | None) -> SeparatorEscape:
         separator: The separator the backslash is written before.
         mark: Where the scanner found it.
     """
-    return SeparatorEscape(separator, _line_of(mark))
+    return SeparatorEscape(separator, _line_offset_or_none(_line_of(mark)))
 
 
 def _unknown_escape(mark: _Mark | None, lines: list[str]) -> YamlSyntaxError:
@@ -767,4 +709,4 @@ def _unknown_escape(mark: _Mark | None, lines: list[str]) -> YamlSyntaxError:
             break
         escape_end += 1
     escape = text[start:escape_end]
-    return UnknownEscape(escape, mark.line)
+    return UnknownEscape(escape, _line_offset(mark.line))
