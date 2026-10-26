@@ -25,12 +25,12 @@ from lorecraft.rules.layout.escaping_symlink import EscapingSymlink
 from lorecraft.rules.length.too_many_tokens import TooManyTokens
 from lorecraft.rules.outline.missing_section import MissingSection
 from lorecraft.rules.report import (
+    BlockedSubject,
     CheckedItem,
     CheckedLayoutEntry,
     LoadFailureReport,
     RuleDiagnostic,
     RunReport,
-    SkippedSubject,
     UndecodableSubject,
 )
 from lorecraft.rules.subject import SpecPart
@@ -727,7 +727,7 @@ class TestRenderLoadFailures:
 
     def test_render_coverage_with_a_refused_docs_path_names_the_refusal(self) -> None:
         #: Given
-        report = SkippedSubject(
+        report = BlockedSubject(
             ItemRef(_document('skills', 'review').path),
             (RootRelativePath.parse('docs/__meta__/code.spec.json'),),
         )

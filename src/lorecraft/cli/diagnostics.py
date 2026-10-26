@@ -22,13 +22,13 @@ from pydantic import BaseModel, ConfigDict
 from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.rules.identity import Severity
 from lorecraft.rules.report import (
+    BlockedSubject,
     CheckedItem,
     CheckedLayoutEntry,
     Diagnostic,
     LoadFailureReport,
+    RefusedSubject,
     RunReport,
-    SkipCause,
-    SkippedSubject,
     UncheckedSymlink,
     UndecodableSubject,
 )
@@ -140,7 +140,7 @@ class _CoverageJson(BaseModel):
 
     path: str
     ungoverned: list[str]
-    cause: SkipCause | None
+    cause: Literal['refused-path', 'refused-dependency'] | None
     skipped_by: list[str]
     unchecked: bool = False
 
@@ -205,12 +205,11 @@ def render_coverage(reports: tuple[RunReport, ...]) -> str:
             case CheckedItem():
                 facets = ', '.join(subject.ungoverned)
                 lines.append(f'{subject.ref.path}: ungoverned for {facets}')
-            case SkippedSubject():
+            case RefusedSubject():
+                lines.append(f'{subject.ref.path}: skipped, read refused at: {subject.path}')
+            case BlockedSubject():
                 files = ', '.join(str(path) for path in subject.refused_paths)
-                if subject.cause is SkipCause.REFUSED_PATH:
-                    lines.append(f'{subject.ref.path}: skipped, read refused at: {files}')
-                else:
-                    lines.append(f'{subject.ref.path}: skipped, depends on a refused docs path: {files}')
+                lines.append(f'{subject.ref.path}: skipped, depends on a refused docs path: {files}')
             case UncheckedSymlink():
                 lines.append(f'{subject.path}: not checked (symlink)')
             case _:
@@ -282,7 +281,16 @@ def render_json(reports: tuple[RunReport, ...]) -> str:
                 for facet in subject.ungoverned:
                     facets.append(facet)
                 coverage.append(_CoverageJson(path=str(subject.ref.path), ungoverned=facets, cause=None, skipped_by=[]))
-            case SkippedSubject():
+            case RefusedSubject():
+                coverage.append(
+                    _CoverageJson(
+                        path=str(subject.ref.path),
+                        ungoverned=[],
+                        cause='refused-path',
+                        skipped_by=[str(subject.path)],
+                    )
+                )
+            case BlockedSubject():
                 refused_paths: list[str] = []
                 for path in subject.refused_paths:
                     refused_paths.append(str(path))
@@ -290,7 +298,7 @@ def render_json(reports: tuple[RunReport, ...]) -> str:
                     _CoverageJson(
                         path=str(subject.ref.path),
                         ungoverned=[],
-                        cause=subject.cause,
+                        cause='refused-dependency',
                         skipped_by=refused_paths,
                     )
                 )
@@ -308,19 +316,21 @@ def render_json(reports: tuple[RunReport, ...]) -> str:
     return document.model_dump_json(exclude_defaults=True)
 
 
-def _coverage_subjects(reports: tuple[RunReport, ...]) -> list[CheckedItem | SkippedSubject | UncheckedSymlink]:
+def _coverage_subjects(
+    reports: tuple[RunReport, ...],
+) -> list[CheckedItem | RefusedSubject | BlockedSubject | UncheckedSymlink]:
     """The checked documents with ungoverned spec parts and skipped ones, compared by path code point.
 
     Args:
         reports: One report per subject the run checked, in any order.
     """
-    subjects: list[CheckedItem | SkippedSubject | UncheckedSymlink] = []
+    subjects: list[CheckedItem | RefusedSubject | BlockedSubject | UncheckedSymlink] = []
     for report in reports:
         match report:
             case CheckedItem():
                 if report.ungoverned:
                     subjects.append(report)
-            case SkippedSubject():
+            case RefusedSubject() | BlockedSubject():
                 subjects.append(report)
             case UncheckedSymlink():
                 subjects.append(report)
@@ -345,7 +355,7 @@ def _count_subjects(reports: tuple[RunReport, ...]) -> int:
     count = 0
     for report in reports:
         match report:
-            case CheckedItem() | UndecodableSubject() | CheckedLayoutEntry() | SkippedSubject():
+            case CheckedItem() | UndecodableSubject() | CheckedLayoutEntry() | RefusedSubject() | BlockedSubject():
                 count += 1
             case UncheckedSymlink():
                 pass

@@ -14,7 +14,7 @@ from lorecraft.project.corpus import ReservedCorpusDirectory
 from lorecraft.project.database import Database, ItemText, Undecodable
 from lorecraft.project.item import ItemRef, ItemType, SpecPart
 from lorecraft.project.skill import OutsideSymlink, RefusedSkillAlias
-from lorecraft.rules.report import CheckedItem, SkipCause, SkippedSubject, SubjectReport, UndecodableSubject
+from lorecraft.rules.report import BlockedSubject, CheckedItem, RefusedSubject, SubjectReport, UndecodableSubject
 from lorecraft.rules.table import EnabledRule, QueriedItem, RuleTable
 from lorecraft.vfs import RefusedRead, RefusedRecord
 
@@ -66,7 +66,7 @@ def check_subjects(
             case ItemRef() as ref:
                 reports.extend(_check_item(database, ref, table, refusals))
             case RefusedSkillAlias(ref=ref, refused_at=path):
-                reports.append(SkippedSubject(ref, (path,), SkipCause.REFUSED_DEPENDENCY))
+                reports.append(BlockedSubject(ref, (path,)))
             case OutsideSymlink() | ReservedCorpusDirectory():
                 reports.append(check_layout_entry(subject, database, table))
             case _:
@@ -107,7 +107,7 @@ def _check_item(
     """
     descriptor = database.item_descriptor(item)
     if _is_refused_path(descriptor.read_location, refusals):
-        return (SkippedSubject(item, (descriptor.read_location,), SkipCause.REFUSED_PATH),)
+        return (RefusedSubject(item, descriptor.read_location),)
     source = database.item_text(item)
     match source:
         case Undecodable():

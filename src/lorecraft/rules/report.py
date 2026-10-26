@@ -25,16 +25,16 @@ reserved corpus, has no text to decode and no spec to be
 ungoverned by, so it gets a report of its own, a `CheckedLayoutEntry`: its ref and its diagnostics, in their output
 order.
 
-Two reports come from what failed to load, never from a rule. A `SkippedSubject` holds an item or skill alias that
-could not be judged because its read or a docs dependency was refused; it holds no diagnostic and is listed in
-coverage. Failed governing layers are reported as partial checks, with suppressed spec parts listed as
+Three reports come from what failed to load, never from a rule. A `RefusedSubject` holds an item whose own read was
+refused, and a `BlockedSubject` holds an item or skill alias that could not be judged because a docs dependency was
+refused; neither holds a diagnostic, and both are listed in coverage. Failed governing layers are reported as partial
+checks, with suppressed spec parts listed as
 ungoverned coverage. A
 `LoadFailureReport` is the failure itself, filed at its own path with the one diagnostic of its engine condition,
 whatever the configuration and the selection, in the same total order as every other diagnostic.
 """
 
 from dataclasses import dataclass
-from enum import StrEnum
 from typing import assert_never
 
 from lorecraft.core.num import UnsignedInt
@@ -213,34 +213,39 @@ class CheckedLayoutEntry:
         object.__setattr__(self, 'diagnostics', tuple(sorted(self.diagnostics, key=diagnostic_order)))
 
 
-class SkipCause(StrEnum):
-    """Why the engine did not judge a subject."""
+@dataclass(frozen=True, slots=True)
+class RefusedSubject:
+    """An item whose own read was refused, so no rule judged it.
 
-    REFUSED_PATH = 'refused-path'
-    REFUSED_DEPENDENCY = 'refused-dependency'
+    Attributes:
+        ref: The document, skill or resource whose read was refused.
+        path: The refused path, equal to the subject's read location.
+    """
+
+    ref: ItemRef
+    path: RootRelativePath
+
+    @property
+    def diagnostics(self) -> tuple[()]:
+        """None: the subject was not judged, and the refusal is reported at its own path."""
+        return ()
 
 
 @dataclass(frozen=True, slots=True)
-class SkippedSubject:
-    """An item or skill alias no rule judged because its read or a docs dependency was refused.
-
-    A refused item read is reported by the CLI at the item path. A refused dependency is reported at its target, while
-    the skipped subject remains visible in coverage. A refused directory alias is reported at its alias path, while
-    its owning skill remains a separate subject.
+class BlockedSubject:
+    """An item or skill alias no rule judged because a docs dependency was refused.
 
     Attributes:
         ref: The document, skill or alias path that was not judged.
-        refused_paths: Paths whose refusal prevented checking.
-        cause: Whether the subject's own read was refused or it depends on another refused path.
+        refused_paths: Non-empty paths whose refusal prevented checking.
     """
 
     ref: ItemRef | SkillAliasRef
     refused_paths: tuple[RootRelativePath, *tuple[RootRelativePath, ...]]
-    cause: SkipCause = SkipCause.REFUSED_DEPENDENCY
 
     @property
     def diagnostics(self) -> tuple[()]:
-        """None: the subject was not judged, and the failure is reported at its own path."""
+        """None: the subject was not judged, and the failure is reported at its target path."""
         return ()
 
 
@@ -279,7 +284,9 @@ class LoadFailureReport:
 
 # What the runner reports for one subject: what the rules found in it, that it did not decode, what they found at a
 # layout entry, that an item or skill alias could not be judged, or an unchecked docs symlink.
-type SubjectReport = CheckedItem | UndecodableSubject | CheckedLayoutEntry | SkippedSubject | UncheckedSymlink
+type SubjectReport = (
+    CheckedItem | UndecodableSubject | CheckedLayoutEntry | RefusedSubject | BlockedSubject | UncheckedSymlink
+)
 
 # What a run hands its output: a report per subject, and one per unit of the declaration that failed to load, which is
 # no subject and is filed at its own path.
