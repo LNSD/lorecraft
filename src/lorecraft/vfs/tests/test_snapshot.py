@@ -6,7 +6,7 @@ the SYMLINK and OTHER entries a scan would record are written out by hand. The s
 """
 
 from collections.abc import Mapping
-from pathlib import Path, PurePosixPath
+from pathlib import PurePosixPath
 from types import MappingProxyType
 from typing import Final
 
@@ -44,7 +44,7 @@ from ..view import (
 ROOT: Final[RootRelativePath] = RootRelativePath.parse('.')
 
 
-def _target(raw: str | Path | PurePosixPath) -> SymlinkTarget:
+def _target(raw: str) -> SymlinkTarget:
     """Wrap a target written as it would be by `os.readlink`."""
     target = PurePosixPath(raw)
     if target.is_absolute():
@@ -77,19 +77,19 @@ def _skills_snapshot() -> Snapshot:
             '.agents/skills': DirectoryRecord(listed=True),
             '.agents/skills/alpha': DirectoryRecord(listed=True),
             '.agents/skills/alpha/SKILL.md': FileRecord(b'---\nname: alpha\n---\n'),
-            '.agents/skills/beta': SymlinkRecord(PurePosixPath('alpha')),
-            '.claude/skills': SymlinkRecord(PurePosixPath('../.agents/skills')),
+            '.agents/skills/beta': SymlinkRecord(_target('alpha')),
+            '.claude/skills': SymlinkRecord(_target('../.agents/skills')),
             'docs': DirectoryRecord(listed=True),
             'docs/code': DirectoryRecord(listed=True),
             'docs/code/a.md': FileRecord(b'# A\n'),
-            'docs/code/above': SymlinkRecord(PurePosixPath('../../..')),
-            'docs/code/absolute': SymlinkRecord(PurePosixPath('/srv/docs')),
-            'docs/code/dangling': SymlinkRecord(PurePosixPath('missing')),
-            'docs/code/linked.md': SymlinkRecord(PurePosixPath('a.md')),
-            'docs/code/loop': SymlinkRecord(PurePosixPath('loop')),
+            'docs/code/above': SymlinkRecord(_target('../../..')),
+            'docs/code/absolute': SymlinkRecord(_target('/srv/docs')),
+            'docs/code/dangling': SymlinkRecord(_target('missing')),
+            'docs/code/linked.md': SymlinkRecord(_target('a.md')),
+            'docs/code/loop': SymlinkRecord(_target('loop')),
             'docs/code/pipe': OtherRecord(),
             'docs/code/sub': DirectoryRecord(),
-            'docs/code/up': SymlinkRecord(PurePosixPath('../..')),
+            'docs/code/up': SymlinkRecord(_target('../..')),
         }
     )
 
@@ -104,11 +104,11 @@ def _climbing_chain_records() -> dict[str, EntryRecord]:
         'c/d': DirectoryRecord(listed=True),
         'c/tmp': DirectoryRecord(climbed=True),
         'skills': DirectoryRecord(listed=True, climbed=True),
-        'skills/far': SymlinkRecord(PurePosixPath('../c/tmp/../d')),
-        'skills/inner': SymlinkRecord(PurePosixPath('../a/tmp')),
-        'skills/l': SymlinkRecord(PurePosixPath('../a/tmp/../b')),
-        'skills/m': SymlinkRecord(PurePosixPath('../a/b')),
-        'skills/nested': SymlinkRecord(PurePosixPath('inner/..')),
+        'skills/far': SymlinkRecord(_target('../c/tmp/../d')),
+        'skills/inner': SymlinkRecord(_target('../a/tmp')),
+        'skills/l': SymlinkRecord(_target('../a/tmp/../b')),
+        'skills/m': SymlinkRecord(_target('../a/b')),
+        'skills/nested': SymlinkRecord(_target('inner/..')),
     }
 
 
@@ -137,7 +137,7 @@ def _climbing_chain_snapshot() -> Snapshot:
 FILE_BEHIND_A_LINK: Final[Mapping[str, EntryRecord]] = MappingProxyType(
     {
         '.agents/skills': DirectoryRecord(listed=True),
-        '.agents/skills/SKILL.md': SymlinkRecord(PurePosixPath('../../REVIEW.md')),
+        '.agents/skills/SKILL.md': SymlinkRecord(_target('../../REVIEW.md')),
         'REVIEW.md': FileRecord(b'---\n'),
     }
 )
@@ -170,10 +170,8 @@ class TestSnapshotEquality:
     def test_snapshots_of_records_taken_in_another_order_compare_equal(self) -> None:
         #: Given
         # `link-10` sorts before `link-2`, so numeric order is not path order
-        numeric = _snapshot({f'link-{index}': SymlinkRecord(PurePosixPath('real')) for index in range(12)})
-        by_path = _snapshot(
-            {f'link-{index}': SymlinkRecord(PurePosixPath('real')) for index in sorted(range(12), key=str)}
-        )
+        numeric = _snapshot({f'link-{index}': SymlinkRecord(_target('real')) for index in range(12)})
+        by_path = _snapshot({f'link-{index}': SymlinkRecord(_target('real')) for index in sorted(range(12), key=str)})
 
         #: When
         equal = numeric == by_path
@@ -250,7 +248,7 @@ class TestSnapshotSymlinkTargets:
 
     def test_symlink_targets_of_links_recorded_out_of_path_order_returns_them_in_path_order(self) -> None:
         #: Given
-        snapshot = _snapshot({'z': SymlinkRecord(PurePosixPath('a')), 'a': SymlinkRecord(PurePosixPath('z'))})
+        snapshot = _snapshot({'z': SymlinkRecord(_target('a')), 'a': SymlinkRecord(_target('z'))})
 
         #: When
         targets = snapshot.symlink_targets()
@@ -321,7 +319,7 @@ class TestSnapshotRecords:
     def test_init_with_a_record_below_a_symlink_raises_value_error(self) -> None:
         #: Given
         records: dict[RootRelativePath, EntryRecord] = {
-            RootRelativePath.parse('a'): SymlinkRecord(PurePosixPath('x')),
+            RootRelativePath.parse('a'): SymlinkRecord(_target('x')),
             RootRelativePath.parse('a/b'): FileRecord(b'b'),
         }
 
@@ -992,9 +990,9 @@ class TestVirtualFileSystemFindDir:
         # link-0 leads to real and each later link to the one before it, so link-39 heads a chain of 40 links,
         # as many as the kernel follows
         records: dict[str, EntryRecord] = {'real': DirectoryRecord(listed=True)}
-        records['link-0'] = SymlinkRecord(PurePosixPath('real'))
+        records['link-0'] = SymlinkRecord(_target('real'))
         for index in range(1, 40):
-            records[f'link-{index}'] = SymlinkRecord(PurePosixPath(f'link-{index - 1}'))
+            records[f'link-{index}'] = SymlinkRecord(_target(f'link-{index - 1}'))
         virtual = VirtualFileSystem(_snapshot(records))
         path = RootRelativePath.parse('link-39')
 

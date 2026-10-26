@@ -5,7 +5,7 @@ structure specification paths standing in for the files the loader would have re
 """
 
 from dataclasses import replace
-from pathlib import Path, PurePosixPath
+from pathlib import PurePosixPath
 from typing import Final
 
 import pytest
@@ -78,7 +78,7 @@ CODE: Final[CorpusName] = CorpusName.parse('code')
 FEAT: Final[CorpusName] = CorpusName.parse('feat')
 
 
-def _target(raw: str | Path | PurePosixPath) -> SymlinkTarget:
+def _target(raw: str) -> SymlinkTarget:
     """Wrap a target written as it would be by `os.readlink`."""
     target = PurePosixPath(raw)
     if target.is_absolute():

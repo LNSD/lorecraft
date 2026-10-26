@@ -58,7 +58,7 @@ _PRIVATE_READ_NAMES = {'_record', '_reads', '__reads', '_Reads__reads'}
 _REFLECTION_CALLS = {'getattr', 'setattr', 'vars'}
 
 
-def _target(raw: str | Path | PurePosixPath) -> SymlinkTarget:
+def _target(raw: str) -> SymlinkTarget:
     """Wrap a target written as it would be by `os.readlink`."""
     target = PurePosixPath(raw)
     if target.is_absolute():

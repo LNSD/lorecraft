@@ -12,8 +12,17 @@ from lib.tree import from_tree
 from lorecraft.core.error import Error
 from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.vfs import Snapshot, SnapshotRecords, SymlinkRecord, VirtualFileSystem
+from lorecraft.vfs.view import AbsoluteSymlinkTarget, RelativeSymlinkTarget, SymlinkTarget
 
 from ..layout import DOCS_DIR, SPECS_DIR, LinkedLayoutError, reject_linked_layout
+
+
+def _target(raw: str) -> SymlinkTarget:
+    """Wrap a target written as it would be by `os.readlink`."""
+    target = PurePosixPath(raw)
+    if target.is_absolute():
+        return AbsoluteSymlinkTarget(target)
+    return RelativeSymlinkTarget(target)
 
 
 def _view_with_link(path: RootRelativePath, target: str) -> VirtualFileSystem:
@@ -23,7 +32,7 @@ def _view_with_link(path: RootRelativePath, target: str) -> VirtualFileSystem:
         path: Where the symlink sits in the snapshot.
         target: Where the symlink points, spelled as the link text.
     """
-    return VirtualFileSystem(Snapshot(SnapshotRecords({path: SymlinkRecord(PurePosixPath(target))})))
+    return VirtualFileSystem(Snapshot(SnapshotRecords({path: SymlinkRecord(_target(target))})))
 
 
 @pytest.mark.unit

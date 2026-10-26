@@ -1,7 +1,7 @@
 """The rules engine's subject reports rendered as text and as JSON, from hand-built reports of real occurrences."""
 
 import json
-from pathlib import Path, PurePosixPath
+from pathlib import PurePosixPath
 from typing import Final
 
 import pytest
@@ -58,7 +58,7 @@ _CODE_OWNER: Final[DocumentFrontmatterOwner] = DocumentFrontmatterOwner(
 _PLAIN: Final[TextStyle] = TextStyle(color=False, unicode=True, width=80)
 
 
-def _target(raw: str | Path | PurePosixPath) -> SymlinkTarget:
+def _target(raw: str) -> SymlinkTarget:
     """Wrap a target written as it would be by `os.readlink`."""
     target = PurePosixPath(raw)
     if target.is_absolute():

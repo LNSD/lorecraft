@@ -21,7 +21,7 @@ from lorecraft.core.path import RootRelativePath
 from ..scan_root import ScanRoot
 from ..scope import ScopeIndex, _RecordedLinks
 from ..snapshot import DirectoryRecord, EntryRecord, Snapshot, SnapshotRecords, SymlinkRecord
-from ..view import EntryKind
+from ..view import AbsoluteSymlinkTarget, EntryKind, RelativeSymlinkTarget, SymlinkTarget
 
 DOCS: Final[RootRelativePath] = RootRelativePath.parse('docs')
 AGENTS_SKILLS: Final[RootRelativePath] = RootRelativePath.parse('.agents/skills')
@@ -35,6 +35,14 @@ SCOPE: Final[tuple[ScanRoot, ...]] = (
 
 # The same skills directory one level deep through its links, where a followed link costs the depth it uses up.
 DEPTH_ONE_SCOPE: Final[tuple[ScanRoot, ...]] = (ScanRoot(AGENTS_SKILLS, depth=UnsignedInt(1), follow_links=True),)
+
+
+def _target(raw: str) -> SymlinkTarget:
+    """Wrap a target written as it would be by `os.readlink`."""
+    target = PurePosixPath(raw)
+    if target.is_absolute():
+        return AbsoluteSymlinkTarget(target)
+    return RelativeSymlinkTarget(target)
 
 
 def _path(raw: str) -> RootRelativePath:
@@ -58,7 +66,7 @@ def _snapshot_of_links(
     """
     records: dict[RootRelativePath, EntryRecord] = {}
     for path, target in links.items():
-        records[_path(path)] = SymlinkRecord(PurePosixPath(target))
+        records[_path(path)] = SymlinkRecord(_target(target))
     for directory in climbed_directories:
         records[_path(directory)] = DirectoryRecord(climbed=True)
     return Snapshot(SnapshotRecords(records), scope=scope)

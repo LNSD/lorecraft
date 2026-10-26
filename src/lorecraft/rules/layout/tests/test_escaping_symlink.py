@@ -4,7 +4,7 @@ The rule only words where the chain leaves, which the scan decides, so every cas
 symlink that stays inside the repository is no layout entry, and the runner's integration tests hold that near miss.
 """
 
-from pathlib import Path, PurePosixPath
+from pathlib import PurePosixPath
 
 import pytest
 
@@ -17,7 +17,7 @@ from lorecraft.vfs.view import AbsoluteSymlinkTarget, RelativeSymlinkTarget, Sym
 from ..escaping_symlink import EscapingSymlink
 
 
-def _target(raw: str | Path | PurePosixPath) -> SymlinkTarget:
+def _target(raw: str) -> SymlinkTarget:
     """Wrap a target written as it would be by `os.readlink`."""
     target = PurePosixPath(raw)
     if target.is_absolute():

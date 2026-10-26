@@ -19,6 +19,7 @@ from lorecraft.core.path import ROOT, RootRelativePath
 from .root_expansion import ResolvedDirectory, ResolvedFile, find_destination
 from .scan_root import ScanRoot
 from .view import (
+    AbsoluteSymlinkTarget,
     DirEntry,
     EntryKind,
     FileSystem,
@@ -31,9 +32,12 @@ from .view import (
     RecordedFileReadPathError,
     RecordedFileResolveError,
     RecordedRootExitWalkError,
+    RelativeSymlinkTarget,
     ResolvedPath,
     RootExit,
+    SymlinkTarget,
     UnrecordedFileError,
+    classify_symlink_target,
     decode_text,
 )
 
@@ -88,11 +92,16 @@ class SymlinkRecord:
 
     Attributes:
         target: The target, unresolved: relative to the link's own directory, or absolute and outside the
-            root. A plain `PurePosixPath`, not a `RootRelativePath`: it is spelled from the link's
-            directory and may climb with `..`, which only a walk through the link interprets.
+            root. A `RelativeSymlinkTarget` or `AbsoluteSymlinkTarget`, not a `RootRelativePath`: it is
+            spelled from the link's directory and may climb with `..`, which only a walk through the link interprets.
     """
 
-    target: PurePosixPath
+    target: SymlinkTarget
+
+    def __post_init__(self) -> None:
+        """Normalize a legacy raw path into its absolute or relative case."""
+        if isinstance(self.target, PurePosixPath):
+            object.__setattr__(self, 'target', classify_symlink_target(self.target))
 
     @property
     def kind(self) -> EntryKind:
@@ -272,7 +281,13 @@ class Snapshot:
         for path, record in self.records.items():
             match record:
                 case SymlinkRecord(target=target):
-                    targets[path] = target
+                    match target:
+                        case AbsoluteSymlinkTarget(target=path_target) | RelativeSymlinkTarget(target=path_target):
+                            targets[path] = path_target
+                        case PurePosixPath():
+                            targets[path] = target
+                        case _:
+                            assert_never(target)
                 case (
                     DirectoryRecord()
                     | FileRecord()
@@ -625,7 +640,7 @@ class _SnapshotEntries:
         Args:
             snapshot: The recorded state the walks see; read once, never changed.
         """
-        self._targets = snapshot.symlink_targets()
+        self._targets = {path: classify_symlink_target(target) for path, target in snapshot.symlink_targets().items()}
         self._kinds: dict[RootRelativePath, EntryKind] = {}
         # An entry the scan could not inspect has no kind: `find_kind` raises its refusal before it answers one.
         self._uninspectable: dict[RootRelativePath, OsRefusal] = {}
@@ -671,7 +686,7 @@ class _SnapshotEntries:
             raise RecordedEntryInspectError(path, refusal)
         return self._kinds.get(path)
 
-    def find_link_target(self, path: RootRelativePath) -> PurePosixPath | None:
+    def find_link_target(self, path: RootRelativePath) -> SymlinkTarget | None:
         """The recorded target of the link at `path`; see `EntryLookup.find_link_target`.
 
         Args:
