@@ -9,6 +9,7 @@ import pytest
 from lib.tree import from_tree
 from lorecraft.core.mapping import Frozen, FrozenMapping
 from lorecraft.core.path import RootRelativePath
+from lorecraft.core.text import NonEmptyStr
 from lorecraft.project.corpus import CorpusName, ReservedCorpusDirectory, ReservedCorpusDirectoryRef
 from lorecraft.project.database import Database, PrimitiveRead, Read
 from lorecraft.project.item import ItemReadError, ItemRef, UnlistedItemError
@@ -48,9 +49,9 @@ from lorecraft.vfs import (
 
 GUIDE: ItemRef = ItemRef(RootRelativePath.parse('docs/code/guide.md'))
 TARGET: ItemRef = ItemRef(RootRelativePath.parse('docs/feat/target.md'))
-SCHEMA: SchemaRef = SchemaRef(SchemaKind.FRONTMATTER, 'agent-skills')
-SCHEMA_BASE: SchemaRef = SchemaRef(SchemaKind.STRUCTURE, 'skills-base')
-SCHEMA_MISSING: SchemaRef = SchemaRef(SchemaKind.STRUCTURE, 'missing')
+SCHEMA: SchemaRef = SchemaRef(SchemaKind.FRONTMATTER, NonEmptyStr.parse('agent-skills'))
+SCHEMA_BASE: SchemaRef = SchemaRef(SchemaKind.STRUCTURE, NonEmptyStr.parse('skills-base'))
+SCHEMA_MISSING: SchemaRef = SchemaRef(SchemaKind.STRUCTURE, NonEmptyStr.parse('missing'))
 
 
 _DATABASE_SOURCE = Path('src/lorecraft/project/database/database.py')
@@ -271,7 +272,7 @@ def _reads_schema(primitives: ItemPrimitives) -> FrozenMapping[str, Frozen]:
 
 def _schema_identity(primitives: SchemaPrimitives) -> str:
     """Read the stable identity of one schema subject."""
-    return primitives.schema_input().reference.identity
+    return primitives.schema_input().reference.identity.value
 
 
 def _schema_reads_base(primitives: SchemaPrimitives) -> str:
@@ -310,7 +311,7 @@ class TestReads:
         database = _database()
         schema_input = RepositorySchemaInput(
             SCHEMA,
-            RepositoryOrigin(RootRelativePath.parse('docs/test.json'), 'test'),
+            RepositoryOrigin(RootRelativePath.parse('docs/test.json'), NonEmptyStr.parse('test')),
             FrozenMapping.from_plain({'type': 'object'}),
         )
         database._model = replace(database.model(), repository_schema_inputs=(schema_input,))
@@ -331,7 +332,7 @@ class TestReads:
         database = _database()
         schema_input = RepositorySchemaInput(
             SCHEMA,
-            RepositoryOrigin(RootRelativePath.parse('docs/test.json'), 'test'),
+            RepositoryOrigin(RootRelativePath.parse('docs/test.json'), NonEmptyStr.parse('test')),
             FrozenMapping.from_plain({'type': 'object'}),
         )
         database._model = replace(database.model(), repository_schema_inputs=(schema_input,))
@@ -351,12 +352,12 @@ class TestReads:
         database = _database()
         schema_base = RepositorySchemaInput(
             SCHEMA_BASE,
-            RepositoryOrigin(RootRelativePath.parse('docs/test-base.json'), 'test'),
+            RepositoryOrigin(RootRelativePath.parse('docs/test-base.json'), NonEmptyStr.parse('test')),
             FrozenMapping.from_plain({'type': 'object'}),
         )
         schema = RepositorySchemaInput(
             SCHEMA,
-            RepositoryOrigin(RootRelativePath.parse('docs/test.json'), 'test'),
+            RepositoryOrigin(RootRelativePath.parse('docs/test.json'), NonEmptyStr.parse('test')),
             FrozenMapping.from_plain({'type': 'object'}),
         )
         database._model = replace(database.model(), repository_schema_inputs=(schema, schema_base))
@@ -365,7 +366,7 @@ class TestReads:
         identity = database.query(_schema_reads_base, SCHEMA)
 
         #: Then
-        assert identity == SCHEMA_BASE.identity, 'a schema query can compose facts from its base schema'
+        assert identity == SCHEMA_BASE.identity.value, 'a schema query can compose facts from its base schema'
         assert database.query_reads(_schema_reads_base, SCHEMA) == {
             Read(_schema_identity, SCHEMA_BASE),
             Read(PrimitiveRead.SCHEMA_INPUT, SCHEMA_BASE),
@@ -376,7 +377,7 @@ class TestReads:
         database = _database()
         schema = RepositorySchemaInput(
             SCHEMA,
-            RepositoryOrigin(RootRelativePath.parse('docs/test.json'), 'test'),
+            RepositoryOrigin(RootRelativePath.parse('docs/test.json'), NonEmptyStr.parse('test')),
             FrozenMapping.from_plain({'type': 'object'}),
         )
         database._model = replace(database.model(), repository_schema_inputs=(schema,))

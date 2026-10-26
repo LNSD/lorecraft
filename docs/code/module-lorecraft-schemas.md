@@ -26,7 +26,7 @@ layer owns its validator and problem translation. Its import layer sits below `l
   `FrontmatterSchemaInput` fixes the kind for builtin frontmatter layers.
 - The builtin Agent Skills frontmatter model, its value types, and the input and registration function rendered from it.
 - In-memory lookup of an input by its typed reference.
-- `EmptySchemaRefIdentityError`, `EmptyRepositoryLayerError` and `EmptyBuiltinOriginIdentityError` carry rejected identity values.
+- Schema identities and provenance layers use `NonEmptyStr`, which raises `EmptyStrError` for empty values.
 - Builtin schema inputs derive their typed reference from the kind and builtin origin identity; repository inputs retain their typed reference and repository provenance. Registry construction has a typed duplicate-reference error and resolution a typed missing-reference error.
 
 ## Belongs Elsewhere
@@ -41,7 +41,7 @@ layer owns its validator and problem translation. Its import layer sits below `l
 ## Invariants
 
 - Values are immutable and references identify a schema kind and stable source identity, never an invented path or `$id`.
-- Empty identity and layer fields raise their operation-specific Lorecraft errors with the rejected values attached.
+- Schema identities and provenance layers use `NonEmptyStr`; empty values raise the shared `EmptyStrError`.
 - Structure and frontmatter are the only schema kinds; either kind may have repository or builtin provenance. Parsed structure specifications are not registry inputs.
 - Repository origins retain a root-relative path and governing layer; builtin origins retain a stable identity and no fabricated path.
 - A builtin schema input's reference derives from its kind and builtin origin identity, so its identity is stored once; repository schema references and their provenance remain distinct.
@@ -68,9 +68,9 @@ schema_input = registry.resolve(reference)
 
 Before committing code, verify:
 
-- [ ] Schema identity includes both kind and stable identity; empty identities raise `EmptySchemaRefIdentityError`
+- [ ] Schema identity includes both kind and stable identity, held as `NonEmptyStr`
 - [ ] Inputs preserve immutable document values and provenance; builtin references derive from schema kind and builtin origin identity
-- [ ] Empty repository layers and builtin identities raise typed Lorecraft errors with their input values attached
+- [ ] Empty repository layers and builtin identities are refused by `NonEmptyStr` with `EmptyStrError`
 - [ ] Lookup is deterministic and refuses missing identities; registry construction refuses duplicate references with `DuplicateSchemaRefError`
 - [ ] No registry operation reads files, resolves external resources or memoizes results
 - [ ] No import points to project queries, database or workspace loading

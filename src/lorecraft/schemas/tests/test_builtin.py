@@ -3,6 +3,7 @@
 import pytest
 
 from lorecraft.core.mapping import FrozenMapping
+from lorecraft.core.text import NonEmptyStr
 from lorecraft.schemas import BuiltinOrigin, FrontmatterSchemaInput, SchemaKind, SchemaRef
 from lorecraft.schemas.builtin import (
     AGENT_SKILLS_SCHEMA_INPUT,
@@ -14,14 +15,14 @@ from lorecraft.schemas.builtin import (
 class TestBuiltinSchemaInput:
     def test_frontmatter_schema_input_has_a_fixed_frontmatter_kind(self) -> None:
         #: Given
-        schema_input = FrontmatterSchemaInput(BuiltinOrigin('builtin:test'), FrozenMapping({}))
+        schema_input = FrontmatterSchemaInput(BuiltinOrigin(NonEmptyStr.parse('builtin:test')), FrozenMapping({}))
 
         #: When
         reference = schema_input.reference
 
         #: Then
         assert schema_input.kind is SchemaKind.FRONTMATTER, 'the input cannot declare another schema kind'
-        assert reference == SchemaRef(SchemaKind.FRONTMATTER, 'builtin:test'), (
+        assert reference == SchemaRef(SchemaKind.FRONTMATTER, NonEmptyStr.parse('builtin:test')), (
             'the reference uses the fixed kind and supplied builtin identity'
         )
 

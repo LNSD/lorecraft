@@ -4,13 +4,11 @@ import pytest
 
 from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.path import RootRelativePath
+from lorecraft.core.text import NonEmptyStr
 from lorecraft.schemas import (
     BuiltinOrigin,
     BuiltinSchemaInput,
     DuplicateSchemaRefError,
-    EmptyBuiltinOriginIdentityError,
-    EmptyRepositoryLayerError,
-    EmptySchemaRefIdentityError,
     RepositoryOrigin,
     RepositorySchemaInput,
     SchemaInput,
@@ -23,13 +21,12 @@ from lorecraft.schemas import (
 
 def _repository_schema(identity: str, kind: SchemaKind = SchemaKind.STRUCTURE) -> SchemaInput:
     return RepositorySchemaInput(
-        reference=SchemaRef(kind, identity),
-        origin=RepositoryOrigin(RootRelativePath.parse(f'docs/{identity}.yaml'), 'global'),
+        reference=SchemaRef(kind, NonEmptyStr.parse(identity)),
+        origin=RepositoryOrigin(RootRelativePath.parse(f'docs/{identity}.yaml'), NonEmptyStr.parse('global')),
         document=FrozenMapping.from_plain({'type': 'object'}),
     )
 
 
-@pytest.mark.unit
 class TestSchemaRegistry:
     def test_resolve_with_registered_reference_returns_input(self) -> None:
         #: Given
@@ -48,7 +45,7 @@ class TestSchemaRegistry:
     def test_resolve_with_unknown_reference_raises(self) -> None:
         #: Given
         registry = SchemaRegistry.from_inputs(())
-        reference = SchemaRef(SchemaKind.FRONTMATTER, 'guide')
+        reference = SchemaRef(SchemaKind.FRONTMATTER, NonEmptyStr.parse('guide'))
 
         #: When
         with pytest.raises(SchemaRefError) as exc_info:
@@ -72,7 +69,7 @@ class TestSchemaRegistry:
     def test_builtin_origin_can_back_any_schema_kind(self, kind: SchemaKind) -> None:
         #: Given
         identity = 'agent-skills'
-        origin = BuiltinOrigin(identity)
+        origin = BuiltinOrigin(NonEmptyStr.parse(identity))
         document = FrozenMapping.from_plain({'type': 'object'})
 
         #: When
@@ -88,7 +85,7 @@ class TestSchemaRegistry:
     def test_builtin_input_derives_its_reference_from_its_origin(self) -> None:
         #: Given
         kind = SchemaKind.STRUCTURE
-        origin = BuiltinOrigin('agent-skills')
+        origin = BuiltinOrigin(NonEmptyStr.parse('agent-skills'))
         document = FrozenMapping.from_plain({'type': 'object'})
 
         #: When
@@ -108,48 +105,13 @@ class TestSchemaRegistry:
         #: Then
         assert references_differ, 'kind is part of schema identity'
 
-
-@pytest.mark.unit
-class TestSchemaRef:
-    def test_reference_with_empty_identity_raises_typed_error(self) -> None:
+    def test_schema_references_sort_by_identity(self) -> None:
         #: Given
-        kind = SchemaKind.STRUCTURE
-        identity = ''
+        later = SchemaRef(SchemaKind.FRONTMATTER, NonEmptyStr.parse('b'))
+        earlier = SchemaRef(SchemaKind.FRONTMATTER, NonEmptyStr.parse('a'))
 
         #: When
-        with pytest.raises(EmptySchemaRefIdentityError) as exc_info:
-            SchemaRef(kind, identity)
+        references = sorted((later, earlier))
 
         #: Then
-        assert exc_info.value.kind is kind, 'the refusal identifies the schema kind'
-        assert exc_info.value.identity == identity, 'the refusal preserves the empty identity'
-
-
-@pytest.mark.unit
-class TestRepositoryOrigin:
-    def test_origin_with_empty_layer_raises_typed_error(self) -> None:
-        #: Given
-        path = RootRelativePath.parse('docs/structure.yaml')
-        layer = ''
-
-        #: When
-        with pytest.raises(EmptyRepositoryLayerError) as exc_info:
-            RepositoryOrigin(path, layer)
-
-        #: Then
-        assert exc_info.value.path == path, 'the refusal identifies the repository input'
-        assert exc_info.value.layer == layer, 'the refusal preserves the empty layer'
-
-
-@pytest.mark.unit
-class TestBuiltinOrigin:
-    def test_origin_with_empty_identity_raises_typed_error(self) -> None:
-        #: Given
-        identity = ''
-
-        #: When
-        with pytest.raises(EmptyBuiltinOriginIdentityError) as exc_info:
-            BuiltinOrigin(identity)
-
-        #: Then
-        assert exc_info.value.identity == identity, 'the refusal preserves the empty builtin identity'
+        assert references == [earlier, later], 'references with the same kind sort by their identity'
