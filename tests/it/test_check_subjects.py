@@ -139,6 +139,7 @@ from lorecraft.vfs import (
     VirtualFileSystem,
     take_snapshot,
 )
+from lorecraft.vfs.view import AbsoluteSymlinkTarget, RelativeSymlinkTarget, SymlinkTarget
 
 GUIDE: Final[ItemRef] = ItemRef(RootRelativePath.parse('docs/code/guide.md'))
 """A document of corpus `code`."""
@@ -234,6 +235,14 @@ METADATA_GUIDANCE: Final[FieldGuidance] = FieldGuidance(
 
 SAMPLE: Final[RuleGroup] = RuleGroup(RuleGroupPrefix('SMP'), 'Sample rules')
 """The group of the sample rules this module declares."""
+
+
+def _target(raw: str | PurePosixPath | Path) -> SymlinkTarget:
+    """Wrap a target written as it would be by `os.readlink`."""
+    target = PurePosixPath(raw)
+    if target.is_absolute():
+        return AbsoluteSymlinkTarget(target)
+    return RelativeSymlinkTarget(target)
 
 
 @dataclass(frozen=True, slots=True)
@@ -1127,7 +1136,7 @@ class TestCheckSubjects:
         # and the SKILL.md at the resolved path it leads to.
         shipped = from_tree({'.agents': {'skills': {}}, 'skills': {'review': {'SKILL.md': _skill_of(501)}}})
         records: dict[RootRelativePath, EntryRecord] = dict(shipped.records)
-        records[RootRelativePath.parse('.agents/skills/review')] = SymlinkRecord(PurePosixPath('../../skills/review'))
+        records[RootRelativePath.parse('.agents/skills/review')] = SymlinkRecord(_target('../../skills/review'))
         database = Database.from_snapshot(Snapshot(SnapshotRecords(records)), builtin_layers=(SKILLS_LAYER,))
         subjects = (_item(database, _location(database, REVIEW)),)
 
@@ -1483,9 +1492,7 @@ class TestCheckSubjects:
             }
         )
         records: dict[RootRelativePath, EntryRecord] = dict(shipped.records)
-        records[RootRelativePath.parse('.agents/skills/review')] = SymlinkRecord(
-            PurePosixPath('../../skills/code-review')
-        )
+        records[RootRelativePath.parse('.agents/skills/review')] = SymlinkRecord(_target('../../skills/code-review'))
         database = Database.from_snapshot(Snapshot(SnapshotRecords(records)), builtin_layers=(SKILLS_LAYER,))
         subjects = (_item(database, _location(database, REVIEW)),)
 
@@ -2633,7 +2640,7 @@ class TestCheckSubjects:
             }
         )
         records: dict[RootRelativePath, EntryRecord] = dict(shipped.records)
-        records[RootRelativePath.parse('.agents/skills/review')] = SymlinkRecord(PurePosixPath('../../skills/review'))
+        records[RootRelativePath.parse('.agents/skills/review')] = SymlinkRecord(_target('../../skills/review'))
         database = Database.from_snapshot(Snapshot(SnapshotRecords(records)), builtin_layers=(SKILLS_LAYER,))
         a = SkillResourceRef(REVIEW, SkillRelativePath.parse('references/a.md'))
         subjects = tuple(_item(database, item) for item in _resources(database, REVIEW))

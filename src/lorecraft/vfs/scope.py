@@ -19,7 +19,6 @@ the links alone, so it is kept apart from the question: a `ScopeIndex` expands t
 of paths.
 """
 
-from pathlib import PurePosixPath
 from typing import Literal, assert_never
 
 from lorecraft.core.error import Unreachable
@@ -34,7 +33,7 @@ from .root_expansion import (
 )
 from .scan_root import ScanRoot
 from .snapshot import Snapshot
-from .view import EntryKind, ResolvedPath, RootExit, SymlinkTarget, classify_symlink_target
+from .view import EntryKind, ResolvedPath, RootExit, SymlinkTarget
 
 
 class ScopeIndex:
@@ -108,7 +107,7 @@ class _RecordedLinks:
     """
 
     def __init__(
-        self, targets: dict[RootRelativePath, PurePosixPath], climbed_directories: tuple[RootRelativePath, ...]
+        self, targets: dict[RootRelativePath, SymlinkTarget], climbed_directories: tuple[RootRelativePath, ...]
     ) -> None:
         """Index the recorded links by path, and the directories known to exist.
 
@@ -116,7 +115,7 @@ class _RecordedLinks:
             targets: Every link the snapshot recorded, with its target, `Snapshot.symlink_targets`; kept, not copied.
             climbed_directories: Every directory the scan climbed out of, `Snapshot.climbed_directories`.
         """
-        self._targets = {path: classify_symlink_target(target) for path, target in targets.items()}
+        self._targets = targets
         # A climbed directory exists, and a recorded link sits in one, so each of them and its ancestors exist.
         known_directories: set[RootRelativePath] = set()
         for directory in climbed_directories:

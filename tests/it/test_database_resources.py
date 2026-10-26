@@ -5,7 +5,7 @@ the package's Markdown checks remain active alongside resource structure checks.
 """
 
 from collections.abc import Mapping
-from pathlib import PurePosixPath
+from pathlib import Path, PurePosixPath
 
 import pytest
 
@@ -26,6 +26,15 @@ from lorecraft.vfs import (
     SnapshotRecords,
     SymlinkRecord,
 )
+from lorecraft.vfs.view import AbsoluteSymlinkTarget, RelativeSymlinkTarget, SymlinkTarget
+
+
+def _target(raw: str | PurePosixPath | Path) -> SymlinkTarget:
+    """Wrap a target written as it would be by `os.readlink`."""
+    target = PurePosixPath(raw)
+    if target.is_absolute():
+        return AbsoluteSymlinkTarget(target)
+    return RelativeSymlinkTarget(target)
 
 
 def _resources(database: Database, skill: str) -> tuple[SkillResourceLocation, ...]:
@@ -74,7 +83,7 @@ class TestResourceItems:
                     '.agents/skills': DirectoryRecord(listed=True),
                     '.agents/skills/review': DirectoryRecord(listed=True),
                     '.agents/skills/review/SKILL.md': FileRecord(b'# Review\n'),
-                    '.agents/skills/review/outside.md': SymlinkRecord(PurePosixPath('../../../../outside.md')),
+                    '.agents/skills/review/outside.md': SymlinkRecord(_target('../../../../outside.md')),
                 }
             ),
             builtin_layers=(SKILLS_LAYER,),
@@ -146,7 +155,7 @@ class TestResourceItems:
                         '.agents/skills': DirectoryRecord(listed=True),
                         '.agents/skills/review': DirectoryRecord(listed=True),
                         '.agents/skills/review/SKILL.md': FileRecord(b'# R\n'),
-                        '.agents/skills/review/guide.md': SymlinkRecord(PurePosixPath(f'../../../shared/{target}.md')),
+                        '.agents/skills/review/guide.md': SymlinkRecord(_target(f'../../../shared/{target}.md')),
                         'shared': DirectoryRecord(listed=True),
                         'shared/a.md': FileRecord(b'a\n'),
                         'shared/b.md': FileRecord(b'b\n'),

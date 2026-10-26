@@ -22,14 +22,7 @@ from lorecraft.core.error import Unreachable
 from lorecraft.core.path import ROOT, PathComponent, RootRelativePath
 
 from .scan_root import ScanRoot
-from .view import (
-    AbsoluteSymlinkTarget,
-    EntryKind,
-    RelativeSymlinkTarget,
-    ResolvedPath,
-    RootExit,
-    SymlinkTarget,
-)
+from .view import AbsoluteSymlinkTarget, EntryKind, RelativeSymlinkTarget, ResolvedPath, RootExit, SymlinkTarget
 
 _MAX_LINKS: Final[int] = 40
 """Links followed before a chain counts as a loop; Linux's MAXSYMLINKS, past which the disk reports ELOOP.

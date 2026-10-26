@@ -33,7 +33,7 @@ CLEAN_SKILL_MD: Final[bytes] = b'---\nname: review\ndescription: Review a change
 """A `SKILL.md` the skill `review` passes every other rule with."""
 
 
-def _target(raw: str | Path | PurePosixPath) -> SymlinkTarget:
+def _target(raw: str | PurePosixPath | Path) -> SymlinkTarget:
     """Wrap a target written as it would be by `os.readlink`."""
     target = PurePosixPath(raw)
     if target.is_absolute():

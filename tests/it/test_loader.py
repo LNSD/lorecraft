@@ -62,8 +62,16 @@ from lorecraft.project.workspace import (
 from lorecraft.project.workspace.builtin import AGENT_SKILLS_SPEC_LAYER as SKILLS_LAYER
 from lorecraft.schemas import BuiltinOrigin, SchemaInput, SchemaKind, SchemaRef
 from lorecraft.schemas.builtin import AGENT_SKILLS_SCHEMA_INPUT
-from lorecraft.vfs import OsRefusal, ResolvedPath, RootExit, VirtualFileSystem, take_snapshot
-from lorecraft.vfs.view import AbsoluteSymlinkTarget, RelativeSymlinkTarget, SymlinkTarget
+from lorecraft.vfs import (
+    AbsoluteSymlinkTarget,
+    OsRefusal,
+    RelativeSymlinkTarget,
+    ResolvedPath,
+    RootExit,
+    SymlinkTarget,
+    VirtualFileSystem,
+    take_snapshot,
+)
 
 CLAUDE: Final[AgentName] = AgentName('claude-code')
 CODEX: Final[AgentName] = AgentName('codex')
@@ -113,14 +121,6 @@ def skills(tmp_path: Path) -> SkillRepository:
         tmp_path: Directory the repository reads through a real filesystem, as the repository root.
     """
     return SkillRepository(DiskFileSystem(tmp_path))
-
-
-def _target(raw: str | Path | PurePosixPath) -> SymlinkTarget:
-    """Wrap a target written as it would be by `os.readlink`."""
-    target = PurePosixPath(raw)
-    if target.is_absolute():
-        return AbsoluteSymlinkTarget(target)
-    return RelativeSymlinkTarget(target)
 
 
 def _write(root: Path, relative: str, text: str = '') -> None:
@@ -330,6 +330,14 @@ def _failure_paths(model: WorkspaceModel) -> tuple[RootRelativePath, ...]:
         model: Loaded workspace model whose load failures are listed.
     """
     return tuple(failure.path for failure in model.load_failures)
+
+
+def _target(raw: str | PurePosixPath | Path) -> SymlinkTarget:
+    """Wrap a target written as it would be by `os.readlink`."""
+    target = PurePosixPath(raw)
+    if target.is_absolute():
+        return AbsoluteSymlinkTarget(target)
+    return RelativeSymlinkTarget(target)
 
 
 @pytest.mark.it
