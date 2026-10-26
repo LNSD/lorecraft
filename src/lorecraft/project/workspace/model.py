@@ -64,7 +64,6 @@ from lorecraft.project.skill import (
     SkillLocation,
     SkillRef,
     SkillResourceLocation,
-    SkillResourceRef,
     SkillsDir,
 )
 from lorecraft.schemas import (
@@ -885,7 +884,7 @@ class WorkspaceModel:
         """
         return self.resolve_item(ref).descriptor
 
-    def resolve_resource(self, ref: SkillResourceRef, location: SkillResourceLocation) -> ResolvedItem:
+    def resolve_resource(self, location: SkillResourceLocation) -> ResolvedItem:
         """Resolve a skill resource ref's descriptor without corpus governance.
 
         The model lists no resource: only the skill's resource listing locates one, so the caller hands the location
@@ -893,11 +892,9 @@ class WorkspaceModel:
         identity. No skills-corpus schema or structure spec applies; only its Markdown checks are active.
 
         Args:
-            ref: Resource identity, as an agent reaches it inside the skill.
             location: The matching resource location from its skill's listing.
         """
-        if location.ref != ref:
-            raise ValueError(f'resource location for {location.ref} does not resolve {ref}')
+        ref = location.ref
         skill = ref.skill
         return self._describe(
             ref=ItemRef(ref.path),
