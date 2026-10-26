@@ -783,6 +783,183 @@ class TestCheckCommand:
 
 
 @pytest.mark.e2e
+class TestGovernanceCoverage:
+    def test_check_applies_skills_namespace_spec_to_matching_skill_namespaces(
+        self, tmp_path: Path, faker: Faker
+    ) -> None:
+        #: Given
+        workspace = Workspace(
+            specs=[
+                Spec('skills', structure={'frontmatter': {'type': 'object'}}),
+                Spec('skills-review', structure={'frontmatter': {'type': 'object', 'required': ['owner']}}),
+            ],
+            skills=[Skill('review-a', frontmatter=RawFrontmatter('name: review-a\ndescription: Review\n'))],
+        )
+        root = workspace.write(tmp_path, faker)
+
+        #: When
+        result = run_cli('check', '--root', str(root))
+
+        #: Then
+        assert result.returncode == 1, result.stderr
+        assert 'missing required field `owner`' in result.stdout, 'the matching namespace spec governs the skill'
+
+    def test_check_does_not_apply_a_skills_namespace_spec_to_an_unmatched_name(
+        self, tmp_path: Path, faker: Faker
+    ) -> None:
+        #: Given
+        workspace = Workspace(
+            specs=[
+                Spec('skills', structure={'frontmatter': {'type': 'object'}}),
+                Spec('skills-review', structure={'frontmatter': {'type': 'object', 'required': ['owner']}}),
+            ],
+            skills=[Skill('writing', frontmatter=RawFrontmatter('name: writing\ndescription: Writing\n'))],
+        )
+        root = workspace.write(tmp_path, faker)
+
+        #: When
+        result = run_cli('check', '--root', str(root))
+
+        #: Then
+        assert result.returncode == 0, result.stdout
+        assert 'owner' not in result.stdout, 'the review namespace does not govern unrelated skills'
+
+    def test_check_does_not_govern_skill_resources_with_skill_frontmatter_specs(
+        self, tmp_path: Path, faker: Faker
+    ) -> None:
+        #: Given
+        workspace = Workspace(
+            specs=[Spec('skills', structure={'frontmatter': {'type': 'object', 'required': ['owner']}})],
+            skills=[Skill('review', references={'guide.md': '---\nname: guide\n---\n# Guide\n'})],
+        )
+        root = workspace.write(tmp_path, faker)
+
+        #: When
+        result = run_cli('check', '--root', str(root))
+
+        #: Then
+        assert result.returncode == 1, result.stderr
+        assert '.agents/skills/review/references/guide.md' not in result.stdout, (
+            'resources have no skills frontmatter gate'
+        )
+        assert 'missing required field `owner`' in result.stdout, 'the entrypoint remains governed'
+
+    def test_check_reports_a_reserved_skills_corpus(self, tmp_path: Path, faker: Faker) -> None:
+        #: Given
+        workspace = Workspace(
+            files=[File('docs/skills/guide.md', '# Guide\n')],
+            specs=[Spec('skills', structure={'frontmatter': {'type': 'object'}})],
+        )
+        root = workspace.write(tmp_path, faker)
+
+        #: When
+        result = run_cli('check', '--root', str(root))
+
+        #: Then
+        assert result.returncode == 0, result.stderr
+        assert 'warning[LC101]' in result.stdout, 'docs/skills is reserved for skill entrypoints'
+        assert 'docs/skills/guide.md' not in result.stdout, 'reserved-corpus contents are not checked as documents'
+
+    def test_check_reports_links_when_a_document_spec_fails_to_load(self, tmp_path: Path, faker: Faker) -> None:
+        #: Given
+        workspace = Workspace(
+            specs=[Spec('code', structure={'frontmatter': {'type': 5}})],
+            documents=[Document('code', 'guide', body='# Guide\n\n[Outside](../../../outside.md)\n')],
+        )
+        root = workspace.write(tmp_path, faker)
+
+        #: When
+        result = run_cli('check', '--root', str(root))
+
+        #: Then
+        assert result.returncode == 1, result.stderr
+        assert 'LC504' in result.stdout, 'Always link rules still run while spec-gated checks are suppressed'
+        assert 'LC5xx  1 error' in result.stderr, 'the Always finding is counted with the failed-layer finding'
+
+    def test_check_keeps_link_rules_when_the_skills_floor_is_opted_out(self, tmp_path: Path, faker: Faker) -> None:
+        #: Given
+        workspace = Workspace(skills=[Skill('review', body='# Review\n\n[Outside](../../../../outside.md)\n')])
+        root = workspace.write(tmp_path, faker)
+
+        #: When
+        result = run_cli('--no-agent-skills-spec', 'check', '--root', str(root))
+
+        #: Then
+        assert result.returncode == 1, result.stderr
+        assert 'LC504' in result.stdout, 'link rules are independent of the builtin skills layer'
+
+    def test_check_deduplicates_a_missing_field_reported_by_two_skill_layers(
+        self, tmp_path: Path, faker: Faker
+    ) -> None:
+        #: Given
+        workspace = Workspace(
+            specs=[
+                Spec('skills', structure={'frontmatter': {'type': 'object', 'required': ['description']}}),
+                Spec('skills-review', structure={'frontmatter': {'type': 'object', 'required': ['description']}}),
+            ],
+            skills=[Skill('review-a', frontmatter=RawFrontmatter('name: review-a\n'))],
+        )
+        root = workspace.write(tmp_path, faker)
+
+        #: When
+        result = run_cli('check', '--root', str(root))
+
+        #: Then
+        assert result.returncode == 1, result.stderr
+        assert result.stdout.count('missing required field `description`') == 1, (
+            'the same absent field is reported once across governing layers'
+        )
+
+    def test_check_uses_the_frontmatter_name_rule_for_documents(self, tmp_path: Path, faker: Faker) -> None:
+        #: Given
+        workspace = Workspace(
+            specs=[Spec('code')],
+            documents=[Document('code', 'guide', frontmatter=RawFrontmatter('name: another\ndescription: Guide\n'))],
+        )
+        root = workspace.write(tmp_path, faker)
+
+        #: When
+        result = run_cli('check', '--root', str(root), '--select', 'LC204')
+
+        #: Then
+        assert result.returncode == 1, result.stderr
+        assert 'LC204' in result.stdout, 'a document frontmatter name must match its file name'
+
+    def test_check_uses_the_frontmatter_name_rule_for_specs(self, tmp_path: Path, faker: Faker) -> None:
+        #: Given
+        workspace = Workspace(
+            specs=[
+                Spec('meta', structure={'frontmatter': {'type': 'object'}}),
+                Spec(
+                    'code',
+                    prose='---\nname: another\ndescription: Code specification\n---\n\n# Code\n',
+                ),
+            ],
+            documents=[Document('code', 'guide')],
+        )
+        root = workspace.write(tmp_path, faker)
+
+        #: When
+        result = run_cli('check', '--root', str(root), '--select', 'LC204')
+
+        #: Then
+        assert result.returncode == 1, result.stderr
+        assert 'LC204' in result.stdout, 'a specification frontmatter name must match the spec file name'
+
+    def test_check_runs_link_rules_without_a_structure_file(self, tmp_path: Path, faker: Faker) -> None:
+        #: Given
+        workspace = Workspace(skills=[Skill('review', body='# Review\n\n[Outside](../../../outside.md)\n')])
+        root = workspace.write(tmp_path, faker)
+
+        #: When
+        result = run_cli('check', '--root', str(root))
+
+        #: Then
+        assert result.returncode == 1, result.stderr
+        assert 'LC504' in result.stdout, 'Always link rules do not require a structure file'
+
+
+@pytest.mark.e2e
 class TestWorkspaceDefaults:
     # Every test that writes a workspace sets only the fields its case turns on, and relies on the rest being clean.
 
@@ -1036,6 +1213,7 @@ class TestWorkspaceDefaults:
         #: Then
         assert result.returncode == 0, result.stdout
         assert result.stdout == '', 'the opt-out disables every built-in skill finding'
+        assert 'LC402' not in result.stdout, 'the opt-out disables the builtin line-budget finding'
         assert 'ungoverned for frontmatter, structure, outline, budget' in result.stderr
 
     def test_check_rejects_both_skills_opt_out_flags_as_a_usage_error(self) -> None:
