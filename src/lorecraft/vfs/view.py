@@ -45,6 +45,46 @@ class EntryKind(StrEnum):
 
 
 @dataclass(frozen=True, slots=True)
+class AbsoluteSymlinkTarget:
+    """An absolute symlink target outside the workspace root.
+
+    Attributes:
+        target: An unresolved absolute path outside the root.
+    """
+
+    target: PurePosixPath
+
+    def __str__(self) -> str:
+        """Keep the target's diagnostic spelling visible."""
+        return str(self.target)
+
+
+@dataclass(frozen=True, slots=True)
+class RelativeSymlinkTarget:
+    """A target relative to its link's directory; it may climb with `..`.
+
+    Attributes:
+        target: An unresolved relative path from the link's directory; it may climb with `..`.
+    """
+
+    target: PurePosixPath
+
+    def __str__(self) -> str:
+        """Keep the target's diagnostic spelling visible."""
+        return str(self.target)
+
+
+type SymlinkTarget = AbsoluteSymlinkTarget | RelativeSymlinkTarget
+
+
+def classify_symlink_target(target: PurePosixPath) -> SymlinkTarget:
+    """Name whether an unresolved target is absolute or relative from its spelling."""
+    if target.is_absolute():
+        return AbsoluteSymlinkTarget(target)
+    return RelativeSymlinkTarget(target)
+
+
+@dataclass(frozen=True, slots=True)
 class DirEntry:
     """One entry of a listed directory.
 
@@ -74,7 +114,7 @@ class RootExit:
     """
 
     link: ResolvedPath
-    target: PurePosixPath
+    target: SymlinkTarget
 
 
 class OsRefusal(StrEnum):

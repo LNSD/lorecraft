@@ -41,6 +41,7 @@ from lorecraft.vfs import (
     RecordedFileReadPathError,
     RecordedFileResolveError,
     RecordedRootExitWalkError,
+    ResolvedPath,
     RootExit,
     RootExitWalkError,
     ScanRoot,
@@ -59,12 +60,15 @@ from lorecraft.vfs import (
     take_snapshot,
 )
 from lorecraft.vfs.view import (
+    AbsoluteSymlinkTarget,
     DirListFailure,
     DirResolveFailure,
     EntryInspectFailure,
     FileReadFailure,
     FileResolveFailure,
+    RelativeSymlinkTarget,
     RootExitWalkFailure,
+    SymlinkTarget,
 )
 
 DOCS_DIR: Final[RootRelativePath] = RootRelativePath.parse('docs')
@@ -339,6 +343,14 @@ def chain_of_40_links(tmp_path: Path) -> str:
         (tmp_path / f'link-{index}').symlink_to(target)
         target = f'link-{index}'
     return target
+
+
+def _target(raw: str | Path | PurePosixPath) -> SymlinkTarget:
+    """Wrap a target written as it would be by `os.readlink`."""
+    target = PurePosixPath(raw)
+    if target.is_absolute():
+        return AbsoluteSymlinkTarget(target)
+    return RelativeSymlinkTarget(target)
 
 
 def _snapshot(records: Mapping[str, EntryRecord], *, scope: tuple[ScanRoot, ...]) -> Snapshot:
@@ -3286,10 +3298,10 @@ class TestVirtualFileSystemMatchesDiskThroughClimbingLinks:
         actual = _answer(virtual.find_root_exit, path)
 
         #: Then
-        assert actual == RootExit(RootRelativePath.parse('skills/out'), PurePosixPath('../a/tmp/../../..')), (
+        assert actual == RootExit(ResolvedPath(RootRelativePath.parse('skills/out')), _target('../a/tmp/../../..')), (
             'snapshot view: both walks climb above the root at skills/out, after stepping into a/tmp'
         )
-        assert expected == RootExit(RootRelativePath.parse('skills/out'), PurePosixPath('../a/tmp/../../..')), (
+        assert expected == RootExit(ResolvedPath(RootRelativePath.parse('skills/out')), _target('../a/tmp/../../..')), (
             'disk: both walks climb above the root at skills/out, after stepping into a/tmp'
         )
 
@@ -3359,10 +3371,10 @@ class TestPlainRootWalksItsLinksForTheRecord:
         actual = _answer(virtual.find_root_exit, path)
 
         #: Then
-        assert actual == RootExit(RootRelativePath.parse('docs/out'), PurePosixPath('../src/../../..')), (
+        assert actual == RootExit(ResolvedPath(RootRelativePath.parse('docs/out')), _target('../src/../../..')), (
             'snapshot view: the scan recorded the climb out of src/, so both walks leave the root at docs/out'
         )
-        assert expected == RootExit(RootRelativePath.parse('docs/out'), PurePosixPath('../src/../../..')), (
+        assert expected == RootExit(ResolvedPath(RootRelativePath.parse('docs/out')), _target('../src/../../..')), (
             'disk: the scan recorded the climb out of src/, so both walks leave the root at docs/out'
         )
 
@@ -3806,7 +3818,7 @@ class TestDiskFileSystemFindRootExit:
         leaves_at = filesystem.find_root_exit(path)
 
         #: Then
-        assert leaves_at == RootExit(path, PurePosixPath(leaving_tree.parent / 'elsewhere')), (
+        assert leaves_at == RootExit(ResolvedPath(path), _target(leaving_tree.parent / 'elsewhere')), (
             'the link leaves the root, with its target as read'
         )
 
@@ -3821,7 +3833,9 @@ class TestDiskFileSystemFindRootExit:
         leaves_at = filesystem.find_root_exit(path)
 
         #: Then
-        assert leaves_at == RootExit(path, PurePosixPath('../../../elsewhere')), 'the third `..` climbs above the root'
+        assert leaves_at == RootExit(ResolvedPath(path), _target('../../../elsewhere')), (
+            'the third `..` climbs above the root'
+        )
 
     def test_find_root_exit_with_a_chain_leaving_through_another_link_returns_that_link(
         self, leaving_tree: Path
@@ -3834,9 +3848,9 @@ class TestDiskFileSystemFindRootExit:
         leaves_at = filesystem.find_root_exit(path)
 
         #: Then
-        assert leaves_at == RootExit(RootRelativePath.parse('hop'), PurePosixPath(leaving_tree.parent / 'elsewhere')), (
-            'the chain leaves the root at hop, not at the link it started from'
-        )
+        assert leaves_at == RootExit(
+            ResolvedPath(RootRelativePath.parse('hop')), _target(leaving_tree.parent / 'elsewhere')
+        ), 'the chain leaves the root at hop, not at the link it started from'
 
     def test_find_root_exit_with_a_link_inside_the_root_returns_none(self, leaving_tree: Path) -> None:
         #: Given

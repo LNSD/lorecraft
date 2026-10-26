@@ -41,6 +41,7 @@ from lorecraft.vfs import (
     RootExit,
     TextDecodeError,
 )
+from lorecraft.vfs.view import AbsoluteSymlinkTarget, RelativeSymlinkTarget, SymlinkTarget
 
 UNIVERSAL_DIR: Final[RootRelativePath] = RootRelativePath.parse('.agents/skills')
 UNIVERSAL_RESOLVED: Final[ResolvedPath] = ResolvedPath(UNIVERSAL_DIR)
@@ -94,6 +95,14 @@ def locked_skill_dir(universal_dir: Path) -> Iterator[Path]:
     directory.chmod(0o000)
     yield directory
     directory.chmod(0o700)
+
+
+def _target(raw: str | Path | PurePosixPath) -> SymlinkTarget:
+    """Wrap a target written as it would be by `os.readlink`."""
+    target = PurePosixPath(raw)
+    if target.is_absolute():
+        return AbsoluteSymlinkTarget(target)
+    return RelativeSymlinkTarget(target)
 
 
 def _write_skill(directory: Path) -> None:
@@ -476,7 +485,8 @@ class TestRepositoryListSkills:
         #: Then
         skill_file = UNIVERSAL_DIR / PathComponent.parse('review') / PathComponent.parse('SKILL.md')
         assert listing == SkillsListing(
-            skills=(), outside_symlinks=(OutsideSymlink(skill_file, RootExit(skill_file, PurePosixPath(outside))),)
+            skills=(),
+            outside_symlinks=(OutsideSymlink(skill_file, RootExit(ResolvedPath(skill_file), _target(outside))),),
         ), 'a SKILL.md whose text lives outside the root is no skill, and is recorded where it leaves'
 
     def test_list_skills_with_a_dangling_skill_entry_leaves_it_out(
@@ -509,7 +519,7 @@ class TestRepositoryListSkills:
         entry = UNIVERSAL_DIR / PathComponent.parse('review')
         target = PurePosixPath(tmp_path / 'elsewhere' / 'review')
         assert listing == SkillsListing(
-            skills=(), outside_symlinks=(OutsideSymlink(entry, RootExit(entry, target)),)
+            skills=(), outside_symlinks=(OutsideSymlink(entry, RootExit(ResolvedPath(entry), _target(target))),)
         ), 'a skill leading outside the root is no skill, and is recorded where it leaves'
 
     def test_list_skills_with_no_skills_directory_returns_empty(self, tmp_path: Path, repository: Repository) -> None:

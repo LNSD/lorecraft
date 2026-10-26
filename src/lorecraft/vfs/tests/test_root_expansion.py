@@ -6,7 +6,7 @@ agree through them is covered in `tests/it/test_filesystem.py`.
 """
 
 from collections.abc import Mapping
-from pathlib import PurePosixPath
+from pathlib import Path, PurePosixPath
 
 import pytest
 
@@ -21,7 +21,15 @@ from ..root_expansion import (
     find_listed_scan_root,
 )
 from ..scan_root import ScanRoot
-from ..view import EntryKind, ResolvedPath, RootExit
+from ..view import AbsoluteSymlinkTarget, EntryKind, RelativeSymlinkTarget, ResolvedPath, RootExit, SymlinkTarget
+
+
+def _target(raw: str | Path | PurePosixPath) -> SymlinkTarget:
+    """Wrap a target written as it would be by `os.readlink`."""
+    target = PurePosixPath(raw)
+    if target.is_absolute():
+        return AbsoluteSymlinkTarget(target)
+    return RelativeSymlinkTarget(target)
 
 
 def _path(raw: str) -> RootRelativePath:
@@ -196,7 +204,7 @@ class TestFindDestination:
         leads_to = find_destination(path, tree, follow_links=True)
 
         #: Then
-        assert leads_to == RootExit(ResolvedPath(_path('docs')), PurePosixPath('/srv/docs')), (
+        assert leads_to == RootExit(ResolvedPath(_path('docs')), _target('/srv/docs')), (
             'an absolute target is outside the root'
         )
 
@@ -208,7 +216,7 @@ class TestFindDestination:
         leads_to = find_destination(path, tree, follow_links=True)
 
         #: Then
-        assert leads_to == RootExit(ResolvedPath(_path('docs')), PurePosixPath('../docs')), (
+        assert leads_to == RootExit(ResolvedPath(_path('docs')), _target('../docs')), (
             'a target above the root is outside it'
         )
 
@@ -220,7 +228,7 @@ class TestFindDestination:
         leads_to = find_destination(path, tree, follow_links=True)
 
         #: Then
-        assert leads_to == RootExit(ResolvedPath(_path('a/l')), PurePosixPath('../../outside')), (
+        assert leads_to == RootExit(ResolvedPath(_path('a/l')), _target('../../outside')), (
             'climbing out of the link directory to the root and once more leaves the root'
         )
 
@@ -232,7 +240,7 @@ class TestFindDestination:
         leads_to = find_destination(path, tree, follow_links=True)
 
         #: Then
-        assert leads_to == RootExit(ResolvedPath(_path('hop')), PurePosixPath('/srv/team')), (
+        assert leads_to == RootExit(ResolvedPath(_path('hop')), _target('/srv/team')), (
             'the exit is the link the chain leaves through, not the one it started at'
         )
 
@@ -307,7 +315,7 @@ class TestFindDestination:
         leads_to = find_destination(path, tree, follow_links=True)
 
         #: Then
-        assert leads_to == RootExit(ResolvedPath(_path('a/x')), PurePosixPath('tmp/../../..')), (
+        assert leads_to == RootExit(ResolvedPath(_path('a/x')), _target('tmp/../../..')), (
             'past the root is outside it, whatever directories the chain stepped into on the way'
         )
 

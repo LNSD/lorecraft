@@ -63,6 +63,7 @@ from lorecraft.project.workspace.builtin import AGENT_SKILLS_SPEC_LAYER as SKILL
 from lorecraft.schemas import BuiltinOrigin, SchemaInput, SchemaKind, SchemaRef
 from lorecraft.schemas.builtin import AGENT_SKILLS_SCHEMA_INPUT
 from lorecraft.vfs import OsRefusal, ResolvedPath, RootExit, VirtualFileSystem, take_snapshot
+from lorecraft.vfs.view import AbsoluteSymlinkTarget, RelativeSymlinkTarget, SymlinkTarget
 
 CLAUDE: Final[AgentName] = AgentName('claude-code')
 CODEX: Final[AgentName] = AgentName('codex')
@@ -112,6 +113,14 @@ def skills(tmp_path: Path) -> SkillRepository:
         tmp_path: Directory the repository reads through a real filesystem, as the repository root.
     """
     return SkillRepository(DiskFileSystem(tmp_path))
+
+
+def _target(raw: str | Path | PurePosixPath) -> SymlinkTarget:
+    """Wrap a target written as it would be by `os.readlink`."""
+    target = PurePosixPath(raw)
+    if target.is_absolute():
+        return AbsoluteSymlinkTarget(target)
+    return RelativeSymlinkTarget(target)
 
 
 def _write(root: Path, relative: str, text: str = '') -> None:
@@ -851,7 +860,7 @@ def _outside(path: str, target: Path) -> OutsideSymlink:
         target: Its absolute target outside the root.
     """
     symlink = RootRelativePath.parse(path)
-    return OutsideSymlink(symlink, RootExit(symlink, PurePosixPath(target)))
+    return OutsideSymlink(symlink, RootExit(ResolvedPath(symlink), _target(target)))
 
 
 @pytest.mark.it

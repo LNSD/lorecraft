@@ -6,7 +6,7 @@ the errors the operating system raises are pinned by the integration tier.
 """
 
 from collections.abc import Mapping
-from pathlib import PurePosixPath
+from pathlib import Path, PurePosixPath
 from typing import Final
 
 import pytest
@@ -24,6 +24,7 @@ from lorecraft.vfs import (
     TextDecodeError,
     VirtualFileSystem,
 )
+from lorecraft.vfs.view import AbsoluteSymlinkTarget, RelativeSymlinkTarget, SymlinkTarget
 
 from ..outside import OutsideSymlink
 from ..ref import SkillLocation, SkillRef, SkillRelativePath, SkillResourceLocation, SkillResourceRef
@@ -42,6 +43,14 @@ REVIEW: Final[SkillLocation] = SkillLocation(
     file_resolves_to=ResolvedPath(RootRelativePath.parse(f'{SKILL}/SKILL.md')),
 )
 """A skill in a regular directory, whose `SKILL.md` is no symlink."""
+
+
+def _target(raw: str | Path | PurePosixPath) -> SymlinkTarget:
+    """Wrap a target written as it would be by `os.readlink`."""
+    target = PurePosixPath(raw)
+    if target.is_absolute():
+        return AbsoluteSymlinkTarget(target)
+    return RelativeSymlinkTarget(target)
 
 
 def _file_tree(files: Mapping[str, bytes]) -> FileTree:
@@ -86,7 +95,8 @@ def _outside(path: str, link: str, target: str) -> OutsideSymlink:
         target: That link's target, as recorded.
     """
     return OutsideSymlink(
-        RootRelativePath.parse(path), RootExit(ResolvedPath(RootRelativePath.parse(link)), PurePosixPath(target))
+        RootRelativePath.parse(path),
+        RootExit(ResolvedPath(RootRelativePath.parse(link)), _target(target)),
     )
 
 
