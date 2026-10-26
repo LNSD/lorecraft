@@ -39,7 +39,7 @@ shorter still: the checker reports errors and warnings, and they act on them.
 |---|---|
 | **Rule** | What a user reads about and configures: a code, a name, a default level and a rulebook page. In the code it is one class, its declaration and its check |
 | **Occurrence** | One instance of a rule: where it fired, with the data of that place; names no subject |
-| **Rule code**, **rule name** | Such as `OUT004` and `empty-section`. A code is a rule group's prefix and a number |
+| **Rule code**, **rule name** | Such as `LC304` and `empty-section`. A code is a rule group's prefix and a number |
 | **Rule group** | The rules one mechanism states, under one prefix and title |
 | **Rulebook** | The reference manual of the engine's rules, one page per code, generated from the rules' classes |
 | **Alias code** | An upstream linter's code for a rule Lorecraft absorbed, such as `MD040`. A rule's code is always Lorecraft's; an alias code only points to it |

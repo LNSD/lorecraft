@@ -198,7 +198,7 @@ class TestRenderText:
 
         #: Then
         assert '\x1b[31m\x1b[1merror[LC205]\x1b[0m' in text, 'an error is bold red'
-        assert '\x1b[33m\x1b[1mwarning[LEN001]\x1b[0m' in text, 'a warning is bold yellow'
+        assert '\x1b[33m\x1b[1mwarning[LC401]\x1b[0m' in text, 'a warning is bold yellow'
         assert '\x1b[34m\x1b[1m-->\x1b[0m' in text, 'the location arrow is bold blue'
 
     def test_render_text_with_a_source_opening_with_a_byte_order_mark_underlines_the_visible_text(self) -> None:
@@ -347,7 +347,7 @@ class TestRenderText:
 
         #: Then
         assert text == (
-            'error[OUT006]: missing required section `Usage`\n'
+            'error[LC306]: missing required section `Usage`\n'
             ' --> docs/feat/guide.md:9\n'
             '  = at docs/feat/guide.md:9: expected `Usage` before the end of the document\n'
             ' ::: docs/__meta__/feat.spec.json\n'
@@ -401,10 +401,10 @@ class TestRenderShort:
         #: Then
         assert text == (
             '.agents/skills/review: error[LC102]: symlink leads outside the repository\n'
-            'docs/code/a.md:1: warning[LEN001]: too many tokens (2400 > 2000)\n'
+            'docs/code/a.md:1: warning[LC401]: too many tokens (2400 > 2000)\n'
             "docs/code/a.md:3: error[LC205]: duplicate key 'name'\n"
             'docs/code/latin.md:4: error[LC001]: file is not valid UTF-8\n'
-            'docs/feat/check.md:5: error[OUT006]: missing required section `Usage`'
+            'docs/feat/check.md:5: error[LC306]: missing required section `Usage`'
         ), 'a line holds the place, the severity, the code and the message, and the layout entry has no line'
 
     def test_render_short_with_no_report_prints_nothing(self) -> None:
@@ -481,7 +481,7 @@ class TestRenderPrefixSummary:
         text = render_prefix_summary(reports)
 
         #: Then
-        assert text == ('LC0xx  1 error\nLC1xx  1 error\nLC2xx  1 error\nLEN    1 warning\nOUT    1 error'), (
+        assert text == ('LC0xx  1 error\nLC1xx  1 error\nLC2xx  1 error\nLC3xx  1 error\nLC4xx  1 warning'), (
             'each prefix is listed in order with its errors and warnings, each singular for one'
         )
 
@@ -594,7 +594,7 @@ class TestRenderJson:
                     'path': 'docs/code/a.md',
                     'line': 1,
                     'severity': 'warning',
-                    'code': 'LEN001',
+                    'code': 'LC401',
                     'name': 'too-many-tokens',
                     'message': 'too many tokens (2400 > 2000)',
                     'labels': [{'path': 'docs/code/a.md', 'line': 1, 'text': 'tokens over the budget: 400'}],
@@ -666,7 +666,7 @@ class TestRenderJson:
                     'path': 'docs/feat/check.md',
                     'line': 5,
                     'severity': 'error',
-                    'code': 'OUT006',
+                    'code': 'LC306',
                     'name': 'missing-section',
                     'message': 'missing required section `Usage`',
                     'labels': [{'path': 'docs/feat/check.md', 'line': 5, 'text': 'expected `Usage` before `Options`'}],

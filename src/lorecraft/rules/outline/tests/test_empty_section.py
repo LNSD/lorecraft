@@ -1,4 +1,4 @@
-"""`OUT004`, `empty-section`, over a document's headings.
+"""`LC304`, `empty-section`, over a document's headings.
 
 Every case is a document written as text, read through a fake database that parses it as the real parser does, under
 structure files decoded from JSON; no document is read from disk.

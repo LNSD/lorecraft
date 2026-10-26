@@ -93,7 +93,7 @@ def _parse_docstring(docstring: str | None) -> _RuleDoc:
 
 
 def page_name(declaration: RuleDeclaration) -> str:
-    """The name of a rule's page without `.md`: its code, then its name, such as `OUT004-empty-section`.
+    """The name of a rule's page without `.md`: its code, then its name, such as `LC304-empty-section`.
 
     The code comes first so a listing of the directory sorts in code order, and the name is what the file says the
     rule is. It is the page's frontmatter `name` too.

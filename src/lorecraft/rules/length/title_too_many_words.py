@@ -1,4 +1,4 @@
-"""`LEN004`: a document's title holds more words than its word cap allows."""
+"""`LC404`: a document's title holds more words than its word cap allows."""
 
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -66,7 +66,7 @@ class TitleTooManyWords(QueriedItemRule[TitleFacts]):
         overrun: The words of the title's text against the cap they exceed.
     """
 
-    CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 4)
+    CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 404)
     NAME: ClassVar[RuleName] = RuleName('title-too-many-words')
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('0.3.0')

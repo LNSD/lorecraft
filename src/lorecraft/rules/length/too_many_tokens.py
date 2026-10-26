@@ -1,4 +1,4 @@
-"""`LEN001`: a document is longer than its token budget allows."""
+"""`LC401`: a document is longer than its token budget allows."""
 
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -134,7 +134,7 @@ class TooManyTokens(QueriedItemRule[TokenFacts]):
         overrun: The tokens in the document's whole file against the budget they exceed.
     """
 
-    CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 1)
+    CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 401)
     NAME: ClassVar[RuleName] = RuleName('too-many-tokens')
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('0.3.0')

@@ -1,4 +1,4 @@
-"""`OUT007`: a section the outline names is written out of the order the outline sets."""
+"""`LC307`: a section the outline names is written out of the order the outline sets."""
 
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -97,7 +97,7 @@ class SectionOutOfOrder(QueriedItemRule[tuple[OutlineDivergenceSpec, ...]]):
             repeats when it is written twice.
     """
 
-    CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 7)
+    CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 307)
     NAME: ClassVar[RuleName] = RuleName('section-out-of-order')
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('0.3.0')

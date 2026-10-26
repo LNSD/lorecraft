@@ -671,7 +671,7 @@ class TestRuleCommand:
     def test_rule_with_a_code_prints_the_rules_page(self) -> None:
         #: Given
         app = build_app()
-        arguments = ['rule', 'OUT004']
+        arguments = ['rule', 'LC304']
         expected = render_page(EmptySection)
 
         #: When
@@ -945,7 +945,7 @@ class TestCheckCommand:
         #: Then
         assert result.exit_code == 1, result.output
         assert result.stdout == expected, 'the frontmatter and outline diagnostics match the reviewed snapshot'
-        assert result.stderr == 'LC2xx  1 error\nOUT    1 error\nchecked 1 subject(s): 2 error(s), 0 warning(s)\n', (
+        assert result.stderr == 'LC2xx  1 error\nLC3xx  1 error\nchecked 1 subject(s): 2 error(s), 0 warning(s)\n', (
             'the summary counts both errors'
         )
 
@@ -1025,7 +1025,7 @@ class TestCheckCommand:
         assert result.exit_code == 1, result.output
         assert result.stdout == (
             'docs/code/guide.md:1: error[LC201]: no `---` delimited frontmatter block\n'
-            'docs/code/guide.md:1: error[OUT006]: missing required section `Checklist`\n'
+            'docs/code/guide.md:1: error[LC306]: missing required section `Checklist`\n'
         ), 'a diagnostic is one line without labels, help or notes, and `--color always` does not colour it'
         assert result.stderr == 'checked 1 subject(s): 2 error(s), 0 warning(s)\n', (
             'the short format counts the run overall, with no breakdown by prefix'
@@ -1252,7 +1252,7 @@ class TestCheckCommand:
                     'path': 'docs/code/guide.md',
                     'line': 1,
                     'severity': 'error',
-                    'code': 'OUT006',
+                    'code': 'LC306',
                     'name': 'missing-section',
                     'message': 'missing required section `Checklist`',
                     'labels': [
@@ -1313,7 +1313,7 @@ class TestCheckCommand:
 
         #: Then
         assert result.exit_code == 1, result.output
-        assert result.stderr == 'LC2xx  1 error\nOUT    1 error\nchecked 1 subject(s): 2 error(s), 0 warning(s)\n', (
+        assert result.stderr == 'LC2xx  1 error\nLC3xx  1 error\nchecked 1 subject(s): 2 error(s), 0 warning(s)\n', (
             'the root found above the working directory is checked whole'
         )
 
@@ -1631,11 +1631,11 @@ class TestCheckSelection:
         app = build_app()
         result = runner.invoke(
             app,
-            ['check', '--root', str(two_group_root), '--select', 'LC201, OUT006', '--format', 'json'],
+            ['check', '--root', str(two_group_root), '--select', 'LC201, LC306', '--format', 'json'],
         )
 
         assert result.exit_code == 1, result.output
-        assert [item['code'] for item in json.loads(result.stdout)['diagnostics']] == ['LC201', 'OUT006']
+        assert [item['code'] for item in json.loads(result.stdout)['diagnostics']] == ['LC201', 'LC306']
 
 
 @pytest.mark.it

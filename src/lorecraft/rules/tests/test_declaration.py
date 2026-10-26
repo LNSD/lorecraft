@@ -443,23 +443,23 @@ class TestRuleCode:
 
     def test_str_with_a_one_digit_number_pads_it_to_three_digits(self) -> None:
         #: Given
-        code = RuleCode(RuleGroup(RuleGroupPrefix('OUT'), 'Outline'), 2)
+        code = RuleCode(RuleGroup(RuleGroupPrefix('LC'), 'Outline'), 302)
 
         #: When
         printed = str(code)
 
         #: Then
-        assert printed == 'OUT002', "a code prints as its group's prefix and three digits"
+        assert printed == 'LC302', "a code prints as its group's prefix and three digits"
 
     def test_str_with_the_largest_number_prints_it_unpadded(self) -> None:
         #: Given
-        code = RuleCode(RuleGroup(RuleGroupPrefix('OUT'), 'Outline'), 999)
+        code = RuleCode(RuleGroup(RuleGroupPrefix('LC'), 'Outline'), 999)
 
         #: When
         printed = str(code)
 
         #: Then
-        assert printed == 'OUT999', 'a three-digit number needs no padding'
+        assert printed == 'LC999', 'a three-digit number needs no padding'
 
     def test_rule_code_with_number_zero_raises_rule_number_out_of_range_error(self) -> None:
         #: Given

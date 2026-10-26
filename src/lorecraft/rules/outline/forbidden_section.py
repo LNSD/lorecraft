@@ -1,4 +1,4 @@
-"""`OUT005`: a section a structure file forbids appears in the document."""
+"""`LC305`: a section a structure file forbids appears in the document."""
 
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -84,7 +84,7 @@ class ForbiddenSection(QueriedItemRule[tuple[OutlineAlignmentSpec, ...]]):
         section: The text of the forbidden section's heading.
     """
 
-    CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 5)
+    CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 305)
     NAME: ClassVar[RuleName] = RuleName('forbidden-section')
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('0.3.0')

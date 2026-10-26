@@ -151,11 +151,11 @@ One occurrence of a rule, located at the root-relative path of the subject it wa
 
 ### Word cap
 
-The maximum prose words one section of a document may hold, its subsections included, as set by a `words` key on an outline entry of a structure file and checked by `lorecraft check` as `LEN003`. It keeps the section concise; code and tables are not counted.
+The maximum prose words one section of a document may hold, its subsections included, as set by a `words` key on an outline entry of a structure file and checked by `lorecraft check` as `LC403`. It keeps the section concise; code and tables are not counted.
 
 ### Token budget
 
-The maximum tokens a whole document file may hold, frontmatter, code and tables included, as set by the `tokens` key of a structure file and checked by `lorecraft check` as `LEN001`. It keeps the document cheap to load; tokens are OpenAI's `o200k_base`, counted the same whichever agent reads the document.
+The maximum tokens a whole document file may hold, frontmatter, code and tables included, as set by the `tokens` key of a structure file and checked by `lorecraft check` as `LC401`. It keeps the document cheap to load; tokens are OpenAI's `o200k_base`, counted the same whichever agent reads the document.
 
 ### Layer
 

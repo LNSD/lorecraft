@@ -249,7 +249,7 @@ that is neither `trigger/` nor `near_miss/`. A change that adds
 a rule adds both cases in the same change, and a change that alters what a rule reports updates the cases it moves.
 
 ```
-tests/it/rule_cases/OUT004/
+tests/it/rule_cases/LC304/
     trigger/empty-section/{root/, expected.json}
     near_miss/section-holding-only-a-subsection/{root/, expected.json}
 ```

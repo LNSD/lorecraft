@@ -71,8 +71,8 @@ What a file here is comes from its **file type**, which a file name **pattern** 
 and `*.spec.json` the structure file. A file's extension is only what follows its last dot, so
 `code.spec.json` is a JSON file that the structure file type claims. The structure file is the one
 machine-checkable file type: it carries the section rules, the word caps, the token budget and the frontmatter
-schema. `lorecraft check` enforces the caps with the section outline through the `OUT` and `LEN` rules, the
-global `tokens` key as `LEN001`, which reads the raw file rather than its parse, and the global `frontmatter` key
+schema. `lorecraft check` enforces the caps with the section outline through the `LC3xx` and `LC4xx` rules, the
+global `tokens` key as `LC401`, which reads the raw file rather than its parse, and the global `frontmatter` key
 through the frontmatter rules (`LC2xx`).
 
 **The filename is the whole binding.** The spec name says which documents a file governs, the pattern

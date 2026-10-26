@@ -1,4 +1,4 @@
-"""`OUT004`: a section holds no content, under a structure file that forbids empty sections."""
+"""`LC304`: a section holds no content, under a structure file that forbids empty sections."""
 
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -217,7 +217,7 @@ class EmptySection(QueriedItemRule[EmptySectionFacts]):
             names without `"optional": true`; or `OtherSection` for any other section.
     """
 
-    CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 4)
+    CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 304)
     NAME: ClassVar[RuleName] = RuleName('empty-section')
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('0.3.0')

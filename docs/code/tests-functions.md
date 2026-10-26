@@ -93,13 +93,13 @@ Two pytest idioms and where they fall:
 # ✅ Good — one call under When, and Then only asserts
 def test_parse_with_a_known_code_returns_the_key_as_written(self) -> None:
     #: Given
-    raw = 'OUT004'
+    raw = 'LC304'
 
     #: When
     key = RuleKey.parse(raw)
 
     #: Then
-    assert key.text == 'OUT004'
+    assert key.text == 'LC304'
 ```
 
 ```python

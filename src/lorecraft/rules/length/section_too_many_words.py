@@ -1,4 +1,4 @@
-"""`LEN003`: a section of a document holds more prose words than its word cap allows."""
+"""`LC403`: a section of a document holds more prose words than its word cap allows."""
 
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -124,7 +124,7 @@ class SectionTooManyWords(QueriedItemRule[tuple[OutlineAlignmentSpec, ...]]):
         cap_source: Whether the cap is the section's own entry's or that of the `any` run it falls in.
     """
 
-    CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 3)
+    CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 403)
     NAME: ClassVar[RuleName] = RuleName('section-too-many-words')
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('0.3.0')

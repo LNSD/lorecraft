@@ -1,0 +1,14 @@
+[
+  {
+    "path": "docs/guide/setup.md",
+    "line": 5,
+    "severity": "error",
+    "code": "LC302"
+  },
+  {
+    "path": "docs/guide/setup.md",
+    "line": 9,
+    "severity": "error",
+    "code": "LC302"
+  }
+]

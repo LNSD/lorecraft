@@ -1,4 +1,4 @@
-"""What the `OUT` group's rules share: the group, and the notes naming a spec and giving an example.
+"""What the `LC3xx` group's rules share: the group, and the notes naming a spec and giving an example.
 
 A document's sections are governed by every structure file that governs the document, each on its own: a
 document governed by a corpus and a namespace spec is reported once for each one it breaks. Every rule of
@@ -23,7 +23,7 @@ from lorecraft.project.schemas import OutlineDivergenceSpec, SectionName, match_
 from lorecraft.rules.identity import RuleGroup, RuleGroupPrefix
 from lorecraft.rules.location import Elsewhere, Note
 
-GROUP_ID: Final[RuleGroup] = RuleGroup(RuleGroupPrefix('OUT'), 'Outline checks')
+GROUP_ID: Final[RuleGroup] = RuleGroup(RuleGroupPrefix('LC'), 'Outline checks', range(300, 310))
 """The group of the rules over a document's sections, as a structure file states them, and over its H1
 title, which every governed document carries without a key stating it."""
 

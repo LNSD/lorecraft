@@ -1,4 +1,4 @@
-"""`OUT009`: a document's title does not match the pattern its structure file holds it to."""
+"""`LC309`: a document's title does not match the pattern its structure file holds it to."""
 
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -67,7 +67,7 @@ class InvalidTitle(QueriedItemRule[TitleFacts]):
         pattern: The pattern the title does not match, which prints exactly as written.
     """
 
-    CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 9)
+    CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 309)
     NAME: ClassVar[RuleName] = RuleName('invalid-title')
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('0.3.0')

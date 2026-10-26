@@ -9,7 +9,7 @@ error[LC201]: no `---` delimited frontmatter block
   = note: the frontmatter schema is set here
   = help: open the file with a `---` line, the fields, and a closing `---` line
 
-error[OUT006]: missing required section `Checklist`
+error[LC306]: missing required section `Checklist`
  --> docs/code/guide.md:1
   │
 1 │ # No frontmatter

@@ -1,4 +1,4 @@
-"""`OUT009`, `invalid-title`, over the pattern a document's title must match.
+"""`LC309`, `invalid-title`, over the pattern a document's title must match.
 
 Every case is a document written as text, read through a fake database that parses it as the real parser does, under
 structure files decoded from JSON; no document is read from disk.

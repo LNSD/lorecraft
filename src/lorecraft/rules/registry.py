@@ -260,7 +260,7 @@ class Registry:
         """The rule with this code, name or alias code, or None when no rule has it.
 
         Args:
-            key: A code as printed, such as `OUT002`, a name, such as `empty-section`, or an alias code, such as
+            key: A code as printed, such as `LC302`, a name, such as `empty-section`, or an alias code, such as
                 `MD040`.
         """
         return self._by_key.get(key)

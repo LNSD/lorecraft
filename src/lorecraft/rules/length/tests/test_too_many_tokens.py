@@ -1,4 +1,4 @@
-"""`LEN001`, `too-many-tokens`, over a document's whole-file token count.
+"""`LC401`, `too-many-tokens`, over a document's whole-file token count.
 
 Every case is a document written as text, read through a fake database that counts its tokens as the real tokenizer
 does, under structure files decoded from JSON; no document is read from disk.

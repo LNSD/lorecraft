@@ -78,7 +78,7 @@ the whole value ([§2](#2-compare-the-whole-value)) or unfold it ([§4](#4-one-f
 # ✅ Good — the order across several diagnostics is the fact, and the projection states it in one literal
 assert [
     (diagnostic_order(diagnostic).location, str(diagnostic.occurrence.CODE)) for diagnostic in report.diagnostics
-] == [(1, 'OUT005'), (5, 'OUT004')], 'diagnostics are ordered by line, then by code'
+] == [(1, 'LC305'), (5, 'LC304')], 'diagnostics are ordered by line, then by code'
 ```
 
 ## 4. One Fact Per Assertion
