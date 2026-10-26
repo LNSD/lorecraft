@@ -118,6 +118,7 @@ from .model import (
     CorpusNamespace,
     CorpusSpec,
     MetaCorpus,
+    SkillsCorpus,
     WorkspaceModel,
     agent_skills_floor_enabled,
     namespace_order_key,
@@ -209,7 +210,7 @@ def load_workspace(
     )
 
     corpora: dict[CorpusName, Corpus] = {}
-    skills_corpus: Corpus | None = None
+    skills_corpus: SkillsCorpus | None = None
     meta_corpus: MetaCorpus | None = None
     overlapping_directories: set[ReservedCorpusDirectory] = set()
     for corpus_name in sorted(groups, key=str):
@@ -235,7 +236,7 @@ def load_workspace(
             if str(corpus_name) == META_CORPUS_NAME:
                 meta_corpus = MetaCorpus.from_corpus(reserved)
             else:
-                skills_corpus = reserved
+                skills_corpus = SkillsCorpus.from_corpus(reserved)
             continue
         if not has_directory:
             # A corpus is a regular directory under docs/; a missing or linked one has no documents to list.

@@ -77,6 +77,7 @@ from ..model import (
     DuplicateSkillLocationRefError,
     MetaCorpus,
     NamespaceSpec,
+    SkillsCorpus,
     WorkspaceModel,
     namespace_order_key,
 )
@@ -817,6 +818,18 @@ class TestWorkspaceModel:
 
         #: Then
         assert meta_corpus.name == CorpusName.parse('meta'), 'the meta corpus name is fixed regardless of its source'
+
+    def test_skills_corpus_from_another_corpus_keeps_the_reserved_name(self, two_corpora_model: WorkspaceModel) -> None:
+        #: Given
+        corpus = two_corpora_model.corpora[CODE]
+
+        #: When
+        skills_corpus = SkillsCorpus.from_corpus(corpus)
+
+        #: Then
+        assert skills_corpus.name == CorpusName.parse('skills'), (
+            'the skills corpus name is fixed regardless of its source'
+        )
 
     def test_resolve_resource_uses_the_ref_from_its_location(self) -> None:
         #: Given
@@ -1696,7 +1709,9 @@ class TestSpecifications:
 
     def test_specifications_lists_the_prose_of_the_skills_spec(self) -> None:
         #: Given
-        skills = Corpus(corpus_spec=_corpus_spec('skills'), namespaces=FrozenMapping({}), filenames=frozenset())
+        skills = SkillsCorpus.from_corpus(
+            Corpus(corpus_spec=_corpus_spec('skills'), namespaces=FrozenMapping({}), filenames=frozenset())
+        )
         model = WorkspaceModel(
             corpus_values=frozenset(),
             skills_dirs=frozenset(),
@@ -1714,7 +1729,7 @@ class TestSpecifications:
 
     def test_skill_governance_with_a_skills_corpus_returns_matching_layers(self) -> None:
         #: Given
-        skills = Corpus(
+        skills = SkillsCorpus(
             corpus_spec=_corpus_spec('skills'),
             namespaces=FrozenMapping(
                 {

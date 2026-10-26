@@ -21,8 +21,8 @@ once in `lorecraft.project.layout` and read from there by every other module.
 
 ## Belongs Here
 
-- The project model and loader built from listings and specs, including reserved `meta` and `skills` corpora. Its
-  meta slot takes `MetaCorpus`; builtin frontmatter takes `FrontmatterSchemaInput`.
+- The project model and loader, including reserved `meta` and `skills` corpora. Its
+  meta and skills slots take `MetaCorpus` and `SkillsCorpus`; builtin frontmatter takes `FrontmatterSchemaInput`.
 - A repository that lists entries, reads text through a view, and classifies entries.
 - Decoding specs into rules proved usable at build time.
 - The parse tree, token and line counts: pure functions of text. The tree derives from the values

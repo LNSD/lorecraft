@@ -48,6 +48,7 @@ from .model import (
     MetaCorpus,
     NamespaceSpec,
     ResolvedItem,
+    SkillsCorpus,
     Spec,
     WorkspaceModel,
 )
@@ -64,6 +65,7 @@ __all__: list[str] = [
     'ResolvedItem',
     'WorkspaceModel',
     'MetaCorpus',
+    'SkillsCorpus',
     'DuplicateCorpusNameError',
     'DuplicateSkillLocationRefError',
     'DuplicateOutsideSymlinkPathError',
