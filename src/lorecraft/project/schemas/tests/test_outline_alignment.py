@@ -287,9 +287,10 @@ class TestOutlineAlignmentSpecAlignedSection:
         aligned = alignment.aligned_section(aside)
 
         #: Then
+        assert aligned is not None, 'the document section has an alignment'
         assert aligned.section.line == aside.line, 'the aligned section holds the heading it was found by'
 
-    def test_aligned_section_with_a_section_of_another_document_raises(self) -> None:
+    def test_aligned_section_with_a_section_of_another_document_returns_none(self) -> None:
         #: Given
         document = parse_document(RULE_ASIDE_CHECKLIST)
         structure_spec = _structure_spec('code', '{"outline": [{"section": "Rule"}, {"any": true}]}')
@@ -297,8 +298,7 @@ class TestOutlineAlignmentSpecAlignedSection:
         stray = section_headings(parse_document('\n' * 99 + '## Stray\n').headings)[0]
 
         #: When
-        with pytest.raises(ValueError, match='no section of the aligned document') as exc_info:
-            alignment.aligned_section(stray)
+        aligned = alignment.aligned_section(stray)
 
         #: Then
-        assert exc_info.type is ValueError, 'a section of another document is refused as a bad value'
+        assert aligned is None, 'a line absent from the aligned document has no alignment'
