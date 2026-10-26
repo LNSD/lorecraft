@@ -462,6 +462,42 @@ class TestCheckCommand:
             'LC2xx  3 errors\nLC3xx  5 errors\nLC4xx  1 error\nchecked 7 subject(s): 9 error(s), 0 warning(s)\n'
         ), 'every document and skill of the fixture is checked, and each is governed'
 
+    def test_check_reports_a_refused_structure_file_as_lc002(self, tmp_path: Path, faker: Faker) -> None:
+        #: Given
+        workspace = Workspace(specs=[Spec('code')], documents=[Document('code', 'guide')])
+        root = workspace.write(tmp_path, faker)
+        if not hasattr(os, 'geteuid') or os.geteuid() == 0:
+            pytest.skip('permission bits do not refuse reads when the test process is root')
+        (root / 'docs' / '__meta__' / 'code.spec.json').chmod(0)
+
+        #: When
+        try:
+            result = run_cli('check', '--root', str(root))
+        finally:
+            (root / 'docs' / '__meta__' / 'code.spec.json').chmod(0o644)
+
+        #: Then
+        assert result.returncode == 1, result.stderr
+        assert 'LC002' in result.stdout, 'a refused structure specification remains a load diagnostic'
+
+    def test_check_reports_a_refused_corpus_directory_as_lc002(self, tmp_path: Path, faker: Faker) -> None:
+        #: Given
+        workspace = Workspace(specs=[Spec('code')], documents=[Document('code', 'guide')])
+        root = workspace.write(tmp_path, faker)
+        if not hasattr(os, 'geteuid') or os.geteuid() == 0:
+            pytest.skip('permission bits do not refuse reads when the test process is root')
+        (root / 'docs' / 'code').chmod(0)
+
+        #: When
+        try:
+            result = run_cli('check', '--root', str(root))
+        finally:
+            (root / 'docs' / 'code').chmod(0o755)
+
+        #: Then
+        assert result.returncode == 1, result.stderr
+        assert 'LC002' in result.stdout, 'a refused corpus listing remains a load diagnostic'
+
     @pytest.mark.parametrize(
         ('kind', 'target'),
         [
@@ -494,13 +530,59 @@ class TestCheckCommand:
         arguments = ('check', '--root', str(root))
 
         #: When
-        result = run_cli(*arguments)
+        try:
+            result = run_cli(*arguments)
+        finally:
+            refused_path.chmod(0o644)
 
         #: Then
         assert result.returncode == 0, result.stderr
         assert result.stdout == expected, f'the refused {kind} is represented by skipped coverage alone'
         assert 'error[LC002]: path cannot be read' not in result.stdout
         assert f'{target}: skipped, read refused at: {target}' in result.stderr
+
+    def test_check_reports_a_refused_document_in_short_format(self, tmp_path: Path, faker: Faker) -> None:
+        #: Given
+        root = Workspace(specs=[Spec('code')], documents=[Document('code', 'guide')]).write(tmp_path, faker)
+        if not hasattr(os, 'geteuid') or os.geteuid() == 0:
+            pytest.skip('permission bits do not refuse reads when the test process is root')
+        (root / 'docs' / 'code' / 'guide.md').chmod(0)
+
+        #: When
+        try:
+            result = run_cli('check', '--root', str(root), '--format', 'short')
+        finally:
+            (root / 'docs' / 'code' / 'guide.md').chmod(0o644)
+
+        #: Then
+        assert result.returncode == 0, result.stderr
+        assert result.stdout == '', 'a refused document produces coverage instead of a diagnostic in short format'
+        assert 'docs/code/guide.md: skipped, read refused at: docs/code/guide.md' in result.stderr
+
+    def test_check_reports_a_refused_document_in_json_coverage(self, tmp_path: Path, faker: Faker) -> None:
+        #: Given
+        root = Workspace(specs=[Spec('code')], documents=[Document('code', 'guide')]).write(tmp_path, faker)
+        if not hasattr(os, 'geteuid') or os.geteuid() == 0:
+            pytest.skip('permission bits do not refuse reads when the test process is root')
+        (root / 'docs' / 'code' / 'guide.md').chmod(0)
+
+        #: When
+        try:
+            result = run_cli('check', '--root', str(root), '--format', 'json')
+            document = json.loads(result.stdout)
+        finally:
+            (root / 'docs' / 'code' / 'guide.md').chmod(0o644)
+
+        #: Then
+        assert result.returncode == 0, result.stderr
+        assert document['coverage'] == [
+            {
+                'path': 'docs/code/guide.md',
+                'ungoverned': [],
+                'cause': 'refused-path',
+                'skipped_by': ['docs/code/guide.md'],
+            }
+        ], 'JSON records a refused item read as skipped coverage'
 
     def test_check_without_a_root_in_a_subdirectory_of_the_workspace_fixture_checks_the_whole_workspace(self) -> None:
         #: Given
@@ -1216,6 +1298,42 @@ class TestWorkspaceDefaults:
         assert 'LC402' not in result.stdout, 'the opt-out disables the builtin line-budget finding'
         assert 'ungoverned for frontmatter, structure, outline, budget' in result.stderr
 
+    def test_check_suppresses_the_floor_budget_when_a_repository_skills_layer_fails(
+        self, tmp_path: Path, faker: Faker
+    ) -> None:
+        #: Given
+        workspace = Workspace(
+            specs=[Spec('skills', structure={'frontmatter': {'type': 5}})],
+            skills=[Skill('review', body='# Review\n\n' + 'step\n' * 500)],
+        )
+        root = workspace.write(tmp_path, faker)
+
+        #: When
+        result = run_cli('check', '--root', str(root))
+
+        #: Then
+        assert result.returncode == 1, result.stderr
+        assert 'LC004' in result.stdout, 'the unusable repository layer is reported'
+        assert 'LEN002' not in result.stdout, 'the failed layer suppresses all WhenSpec budget rules'
+
+    def test_check_opt_out_keeps_a_failed_repository_skills_layer_reported(self, tmp_path: Path, faker: Faker) -> None:
+        #: Given
+        workspace = Workspace(
+            specs=[Spec('skills', structure={'frontmatter': {'type': 5}})],
+            skills=[
+                Skill('review', frontmatter=RawFrontmatter('name: review\n'), body='# Review\n\n' + 'step\n' * 500)
+            ],
+        )
+        root = workspace.write(tmp_path, faker)
+
+        #: When
+        result = run_cli('--no-agent-skills-spec', 'check', '--root', str(root))
+
+        #: Then
+        assert result.returncode == 1, result.stderr
+        assert 'LC004' in result.stdout, 'opting out does not hide an unusable repository spec'
+        assert 'LEN002' not in result.stdout, 'the failed layer suppresses the opted-out floor budget too'
+
     def test_check_rejects_both_skills_opt_out_flags_as_a_usage_error(self) -> None:
         #: Given
         arguments = ('--no-agent-skills-spec', '--no-builtin-skills-schema', 'check')
@@ -1276,6 +1394,29 @@ class TestWorkspaceDefaults:
         #: Then
         assert result.returncode == 0, result.stderr
         assert 'LC212' in result.stdout, 'the builtin floor reports an oversized allowed-tools value'
+
+    def test_check_keeps_long_allowed_tools_rule_with_repository_frontmatter_and_floor_opted_out(
+        self, tmp_path: Path, faker: Faker
+    ) -> None:
+        #: Given
+        tools = ' '.join(f'tool-{index}' for index in range(100))
+        workspace = Workspace(
+            specs=[Spec('skills', structure={'frontmatter': {'type': 'object'}})],
+            skills=[
+                Skill(
+                    'review',
+                    frontmatter=RawFrontmatter(f'name: review\ndescription: Review\nallowed-tools: {tools}\n'),
+                )
+            ],
+        )
+        root = workspace.write(tmp_path, faker)
+
+        #: When
+        result = run_cli('--no-agent-skills-spec', 'check', '--select', 'LC212', '--root', str(root))
+
+        #: Then
+        assert result.returncode == 0, result.stderr
+        assert 'LC212' in result.stdout, 'the repository frontmatter gate keeps the long-value rule active'
 
     def test_check_keeps_allowed_tools_rules_with_repository_frontmatter_and_floor_opted_out(
         self, tmp_path: Path, faker: Faker
@@ -1468,6 +1609,55 @@ class TestUncheckedDocsSymlinks:
 
         assert result.returncode == 1, result.stdout + result.stderr
         assert result.stderr == expected, 'the linked corpus appears in coverage under full group labels'
+
+    def test_check_reports_a_linked_corpus_as_unchecked_in_json(self, tmp_path: Path) -> None:
+        #: Given
+        root = tmp_path / 'workspace'
+        shutil.copytree(WORKSPACE_FIXTURE, root)
+        shutil.rmtree(root / 'docs' / 'code')
+        (root / 'docs' / 'code').symlink_to(WORKSPACE_FIXTURE / 'docs' / 'code', target_is_directory=True)
+
+        #: When
+        result = run_cli('check', '--root', str(root), '--format', 'json')
+        document = json.loads(result.stdout)
+
+        #: Then
+        assert result.returncode == 1, result.stderr
+        assert {
+            'path': 'docs/code',
+            'ungoverned': [],
+            'cause': None,
+            'skipped_by': [],
+            'unchecked': True,
+        } in document['coverage'], 'JSON identifies the linked corpus as unchecked'
+
+    def test_check_reports_a_dangling_document_link_as_unchecked(self, tmp_path: Path) -> None:
+        #: Given
+        root = tmp_path / 'workspace'
+        shutil.copytree(WORKSPACE_FIXTURE, root)
+        (root / 'docs' / 'code' / 'dangling.md').symlink_to('missing.md')
+
+        #: When
+        result = run_cli('check', '--root', str(root))
+
+        #: Then
+        assert result.returncode == 1, result.stdout + result.stderr
+        assert 'docs/code/dangling.md: not checked (symlink)' in result.stderr
+
+    def test_check_reports_a_document_link_leaving_the_repository_as_unchecked(self, tmp_path: Path) -> None:
+        #: Given
+        root = tmp_path / 'workspace'
+        shutil.copytree(WORKSPACE_FIXTURE, root)
+        outside = tmp_path / 'outside.md'
+        outside.write_text('# Outside\n', encoding='utf-8')
+        (root / 'docs' / 'code' / 'outside.md').symlink_to(outside)
+
+        #: When
+        result = run_cli('check', '--root', str(root))
+
+        #: Then
+        assert result.returncode == 1, result.stdout + result.stderr
+        assert 'docs/code/outside.md: not checked (symlink)' in result.stderr
 
     def test_check_reports_a_linked_document_as_coverage(self, tmp_path: Path, snapshot: SnapshotAssertion) -> None:
         root = tmp_path / 'workspace'
