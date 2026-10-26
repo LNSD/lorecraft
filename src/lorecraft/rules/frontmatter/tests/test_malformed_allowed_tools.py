@@ -1,4 +1,4 @@
-"""`FM011`, `malformed-allowed-tools`, over a skill's `allowed-tools` frontmatter field."""
+"""`LC211`, `malformed-allowed-tools`, over a skill's `allowed-tools` frontmatter field."""
 
 from textwrap import dedent
 from typing import Final

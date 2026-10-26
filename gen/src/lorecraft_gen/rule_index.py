@@ -16,7 +16,7 @@ from typing import Final, assert_never
 
 from lorecraft import rules
 from lorecraft.rules.declaration import EngineCondition, RemovedRule, Rule, RuleDeclaration
-from lorecraft.rules.identity import ENGINE_GROUP_PREFIX, RuleCode
+from lorecraft.rules.identity import RuleCode
 from lorecraft.rules.registry import Registry
 
 _DEFAULT_OUTDIR: Final[Path] = Path('src/lorecraft/rules')
@@ -42,9 +42,6 @@ from typing import Final, NamedTuple
 CODE_DIGITS: Final[int] = {code_digits}
 """How many digits end a code, after its group's prefix."""
 
-ENGINE_GROUP_PREFIX: Final[str] = {engine_group_prefix!r}
-"""The prefix reserved for engine conditions."""
-
 class RuleRow(NamedTuple):
     """One active rule and its aliases."""
 
@@ -69,8 +66,7 @@ class ConditionRow(NamedTuple):
 type RuleIndexRow = RuleRow | RemovedRuleRow | ConditionRow
 '''
 
-# The lookups, which read the two tuples above them. A group of removed rules alone is not in `GROUPS`, as the
-# registry does not find it by its prefix: nothing in it could be selected.
+# The lookup reads the rule rows above it.
 _LOOKUPS: Final[str] = '''
 
 def find(key: str) -> RuleIndexRow | None:
@@ -87,33 +83,7 @@ def find(key: str) -> RuleIndexRow | None:
     return None
 
 
-def find_group_title(prefix: str) -> str | None:
-    """The title of the group with this prefix, or None when no rule in service nor condition is in it.
-
-    The prefix is matched as spelled, so text no prefix could be, such as `out`, is not an error: no group has it.
-
-    Args:
-        prefix: A group's prefix, such as `OUT`.
-    """
-    for group_prefix, title in GROUPS:
-        if group_prefix == prefix:
-            return title
-    return None
 '''
-
-
-def build_groups(registry: Registry) -> tuple[tuple[str, str], ...]:
-    """The `(prefix, title)` of every group a rule in service or an engine condition is in, in prefix order.
-
-    Args:
-        registry: The registry to derive the groups from.
-    """
-    titles: dict[str, str] = {}
-    for declaration in registry.rules:
-        if not issubclass(declaration, RemovedRule):
-            group = declaration.CODE.group
-            titles[str(group.prefix)] = group.title
-    return tuple(sorted(titles.items()))
 
 
 def render_rows(registry: Registry) -> tuple[str, ...]:
@@ -125,28 +95,13 @@ def render_rows(registry: Registry) -> tuple[str, ...]:
     return tuple(_render_row(declaration) for declaration in registry.rules)
 
 
-def render_module(groups: tuple[tuple[str, str], ...], rows: tuple[str, ...]) -> str:
-    """The Python module that declares these groups and rows, and the functions that look them up.
+def render_module(rows: tuple[str, ...]) -> str:
+    """The Python module that declares rows and the lookup function.
 
     The text is not formatted: `write_rule_index` runs the formatter over the file it writes.
-
-    Args:
-        groups: The `(prefix, title)` pairs, in prefix order.
-        rows: The rule rows, in code order.
     """
     lines = [
-        _PREAMBLE.format(code_digits=RuleCode.DIGITS, engine_group_prefix=ENGINE_GROUP_PREFIX),
-        'GROUPS: Final[tuple[tuple[str, str], ...]] = (',
-        '    # prefix, title',
-    ]
-    lines += [
-        f'    (ENGINE_GROUP_PREFIX, {title!r}),' if prefix == ENGINE_GROUP_PREFIX else f'    {group!r},'
-        for group in groups
-        for prefix, title in (group,)
-    ]
-    lines += [
-        ')',
-        '',
+        _PREAMBLE.format(code_digits=RuleCode.DIGITS),
         'RULES: Final[tuple[RuleIndexRow, ...]] = (',
     ]
     lines += [f'    {row}' for row in rows]
@@ -190,7 +145,7 @@ def write_rule_index(outdir: Path) -> Path:
     """
     registry = Registry.load(rules)
     path = outdir / _FILENAME
-    path.write_text(render_module(build_groups(registry), render_rows(registry)), encoding='utf-8')
+    path.write_text(render_module(render_rows(registry)), encoding='utf-8')
     subprocess.run([sys.executable, '-m', 'ruff', 'format', '--quiet', str(path)], check=True)
     return path
 

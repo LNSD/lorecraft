@@ -14,7 +14,7 @@ from lorecraft.rules.location import WholeSubject
 class Unworded(EntryCondition):
     """A sample condition that cannot be reported: it does not implement `message`."""
 
-    CODE: ClassVar[EngineCode] = EngineCode(904)
+    CODE: ClassVar[EngineCode] = EngineCode(94)
     NAME: ClassVar[RuleName] = RuleName('unworded')
     SINCE: ClassVar[Release] = Release('1.0.0')
     SEVERITY: ClassVar[Severity] = Severity.ERROR

@@ -1,4 +1,4 @@
-"""`FM006`: a frontmatter lacks a field its schema requires."""
+"""`LC206`: a frontmatter lacks a field its schema requires."""
 
 from collections.abc import Mapping
 from dataclasses import dataclass, field
@@ -96,7 +96,7 @@ class MissingField(QueriedItemRule[tuple[SchemaProblems, ...]]):
         problem: The field the schema requires and the frontmatter lacks, with what the schema states about it.
     """
 
-    CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 6)
+    CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 206)
     NAME: ClassVar[RuleName] = RuleName('missing-field')
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('0.3.0')

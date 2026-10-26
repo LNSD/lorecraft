@@ -1,4 +1,4 @@
-"""`FM012`, `allowed-tools-too-long`, over a skill's whole allowed-tools value."""
+"""`LC212`, `allowed-tools-too-long`, over a skill's whole allowed-tools value."""
 
 from textwrap import dedent
 from typing import Final

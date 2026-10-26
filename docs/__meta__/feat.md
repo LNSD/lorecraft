@@ -393,7 +393,7 @@ Use a simple list, with the relationship named before the description:
 
 - [cli](cli.md) - Base: the command line this command belongs to
 - [workspace](workspace.md) - Dependency: the documents and skills it checks
-- [spec-structure-frontmatter](spec-structure-frontmatter.md) - Related: the dialect its `FM` rules read
+- [spec-structure-frontmatter](spec-structure-frontmatter.md) - Related: the dialect its frontmatter rules (`LC2xx`) read
 - [prd-008](../arch/prd-008-structured-checks.md) - Source: the requirements the command answers
 ```
 

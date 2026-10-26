@@ -1,4 +1,4 @@
-"""`FM013`: a frontmatter holds more fields than its schema allows."""
+"""`LC213`: a frontmatter holds more fields than its schema allows."""
 
 from collections.abc import Mapping
 from dataclasses import dataclass, field
@@ -90,7 +90,7 @@ class TooManyFields(QueriedItemRule[tuple[SchemaProblems, ...]]):
         description: What the schema says the block describes, as it wrote it, or `None` when it states none.
     """
 
-    CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 13)
+    CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 213)
     NAME: ClassVar[RuleName] = RuleName('too-many-fields')
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('0.3.0')

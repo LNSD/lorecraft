@@ -282,8 +282,8 @@ coverage gap for that tier even when it exists. Note it as one.
 **Scenario**: Verify `docs/feat/cli-check.md`
 
 1. **Parse doc** - Extract documented capabilities:
-   - The rule codes its Findings table lists, each with its name, such as `FM001` missing-frontmatter
-   - `FM007` reported as a warning, every other rule as an error
+   - The rule codes its Findings table lists, each with its name, such as `LC201` missing-frontmatter
+   - `LC207` reported as a warning, every other rule as an error
    - The exit statuses: 0 with warnings alone, 1 on any error, 2 when the run cannot start
 
 2. **Verify implementation** - Read files from the Code References section:

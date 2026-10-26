@@ -80,7 +80,7 @@ class RuleCase:
     """One case on disk.
 
     Attributes:
-        code: The rule code the case belongs to, such as `FM001`.
+        code: The rule code the case belongs to, such as `LC201`.
         kind: `trigger` or `near_miss`.
         name: The case's directory name.
         directory: The case's directory, holding `root/` and `expected.json`.
@@ -93,7 +93,7 @@ class RuleCase:
 
     @property
     def id(self) -> str:
-        """The case as a test is named after it: `FM001/trigger/document-without-frontmatter`."""
+        """The case as a test is named after it: `LC201/trigger/document-without-frontmatter`."""
         return f'{self.code}/{self.kind}/{self.name}'
 
     def expected(self) -> list[ExpectedDiagnostic]:

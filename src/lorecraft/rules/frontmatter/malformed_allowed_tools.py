@@ -1,4 +1,4 @@
-"""`FM011`: a skill's `allowed-tools` is not a list of tool entries."""
+"""`LC211`: a skill's `allowed-tools` is not a list of tool entries."""
 
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -71,7 +71,7 @@ class MalformedAllowedTools(QueriedItemRule[AllowedToolsField | None]):
             with the entry exactly as read from the field.
     """
 
-    CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 11)
+    CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 211)
     NAME: ClassVar[RuleName] = RuleName('malformed-allowed-tools')
     LEVEL: ClassVar[Level] = Level.WARN
     SINCE: ClassVar[Release] = Release('0.3.0')

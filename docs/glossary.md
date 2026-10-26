@@ -143,7 +143,7 @@ What a file in `docs/__meta__/` is, claimed by a file name pattern: `*.md` claim
 
 ### Rule
 
-One judgment `lorecraft check` makes of a subject, a document, a spec, a skill, a resource of a skill or a symlink of the skill layout, identified by a code in a group named by its prefix, such as `FM001`, and a kebab-case name, such as `missing-frontmatter`. A rule over a document reads the keys of a machine-checkable companion, and runs only when the document is governed for what it reads. "Rule" names a check and nothing else: a [code rule](#code-rule) is a document, not a check.
+One judgment `lorecraft check` makes of a subject, a document, a spec, a skill, a resource of a skill or a symlink of the skill layout, identified by a code in a group named by its prefix, such as `LC201`, and a kebab-case name, such as `missing-frontmatter`. A rule over a document reads the keys of a machine-checkable companion, and runs only when the document is governed for what it reads. "Rule" names a check and nothing else: a [code rule](#code-rule) is a document, not a check.
 
 ### Diagnostic
 

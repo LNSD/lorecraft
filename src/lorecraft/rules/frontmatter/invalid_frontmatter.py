@@ -1,4 +1,4 @@
-"""`FM010`: a frontmatter breaks a constraint its schema sets on the whole block."""
+"""`LC210`: a frontmatter breaks a constraint its schema sets on the whole block."""
 
 from collections.abc import Mapping
 from dataclasses import dataclass, field
@@ -96,7 +96,7 @@ class InvalidFrontmatter(QueriedItemRule[tuple[SchemaProblems, ...]]):
         problem: The constraint over the whole block that the frontmatter breaks, with the number of fields it holds.
     """
 
-    CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 10)
+    CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 210)
     NAME: ClassVar[RuleName] = RuleName('invalid-frontmatter')
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('0.3.0')

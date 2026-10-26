@@ -1,4 +1,4 @@
-"""`FM001`: a document or a skill does not open with a frontmatter block."""
+"""`LC201`: a document or a skill does not open with a frontmatter block."""
 
 from collections.abc import Mapping
 from dataclasses import dataclass, field
@@ -82,7 +82,7 @@ class MissingFrontmatter(QueriedItemRule[FrontmatterFacts]):
             and for a skill the directory name its `name` must equal, which the example shows.
     """
 
-    CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 1)
+    CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 201)
     NAME: ClassVar[RuleName] = RuleName('missing-frontmatter')
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('0.3.0')

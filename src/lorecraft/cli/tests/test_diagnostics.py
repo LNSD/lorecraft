@@ -197,7 +197,7 @@ class TestRenderText:
         text = render_text(reports, sources, style)
 
         #: Then
-        assert '\x1b[31m\x1b[1merror[FM005]\x1b[0m' in text, 'an error is bold red'
+        assert '\x1b[31m\x1b[1merror[LC205]\x1b[0m' in text, 'an error is bold red'
         assert '\x1b[33m\x1b[1mwarning[LEN001]\x1b[0m' in text, 'a warning is bold yellow'
         assert '\x1b[34m\x1b[1m-->\x1b[0m' in text, 'the location arrow is bold blue'
 
@@ -400,9 +400,9 @@ class TestRenderShort:
 
         #: Then
         assert text == (
-            '.agents/skills/review: error[LAY001]: symlink leads outside the repository\n'
+            '.agents/skills/review: error[LC102]: symlink leads outside the repository\n'
             'docs/code/a.md:1: warning[LEN001]: too many tokens (2400 > 2000)\n'
-            "docs/code/a.md:3: error[FM005]: duplicate key 'name'\n"
+            "docs/code/a.md:3: error[LC205]: duplicate key 'name'\n"
             'docs/code/latin.md:4: error[LC001]: file is not valid UTF-8\n'
             'docs/feat/check.md:5: error[OUT006]: missing required section `Usage`'
         ), 'a line holds the place, the severity, the code and the message, and the layout entry has no line'
@@ -481,7 +481,7 @@ class TestRenderPrefixSummary:
         text = render_prefix_summary(reports)
 
         #: Then
-        assert text == ('FM   1 error\nLAY  1 error\nLC   1 error\nLEN  1 warning\nOUT  1 error'), (
+        assert text == ('LC0xx  1 error\nLC1xx  1 error\nLC2xx  1 error\nLEN    1 warning\nOUT    1 error'), (
             'each prefix is listed in order with its errors and warnings, each singular for one'
         )
 
@@ -568,7 +568,7 @@ class TestRenderJson:
                     'path': '.agents/skills/review',
                     'line': None,
                     'severity': 'error',
-                    'code': 'LAY001',
+                    'code': 'LC102',
                     'name': 'escaping-symlink',
                     'message': 'symlink leads outside the repository',
                     'labels': [],
@@ -629,7 +629,7 @@ class TestRenderJson:
                     'path': 'docs/code/a.md',
                     'line': 3,
                     'severity': 'error',
-                    'code': 'FM005',
+                    'code': 'LC205',
                     'name': 'duplicate-key',
                     'message': "duplicate key 'name'",
                     'labels': [
@@ -819,7 +819,7 @@ class TestRenderLoadFailures:
         text = render_prefix_summary(reports)
 
         #: Then
-        assert text == 'LC  1 error', 'a load failure is an engine diagnostic, so it is counted under `LC`'
+        assert text == 'LC0xx  1 error', 'a load failure is an engine diagnostic, so it is counted under its code range'
 
     def test_render_text_with_a_load_failure_draws_it_at_the_structure_file_with_its_notes(self) -> None:
         #: Given

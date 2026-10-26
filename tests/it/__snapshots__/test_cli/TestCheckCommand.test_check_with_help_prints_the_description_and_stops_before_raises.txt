@@ -38,13 +38,12 @@
 │                                    never: no colour.                         │
 │                                    Only the text format is coloured.         │
 │                                    [default: auto]                           │
-│ --select        <selectors>        Run only these rules: codes, code or      │
-│                                    group prefixes, or ALL, comma-separated   │
-│                                    or repeated. Defaults to ALL.             │
-│ --ignore        <selectors>        Skip these rules, unless a more specific  │
-│                                    selector selects them: codes, code or     │
-│                                    group prefixes, or ALL, comma-separated   │
-│                                    or repeated. Defaults to none.            │
+│ --select        <selectors>        Run only these rules: full rule codes,    │
+│                                    alias codes, or ALL, comma-separated or   │
+│                                    repeated. Defaults to ALL.                │
+│ --ignore        <selectors>        Skip these rules: full rule codes, alias  │
+│                                    codes, or ALL, comma-separated or         │
+│                                    repeated. Defaults to none.               │
 │ --help                             Show this message and exit.               │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 

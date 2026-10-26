@@ -14,7 +14,7 @@ from lorecraft.rules.location import WholeSubject
 class SampleCondition(EntryCondition):
     """A sample condition the engine would report about a whole subject."""
 
-    CODE: ClassVar[EngineCode] = EngineCode(900)
+    CODE: ClassVar[EngineCode] = EngineCode(90)
     NAME: ClassVar[RuleName] = RuleName('sample-condition')
     SINCE: ClassVar[Release] = Release('1.0.0')
     SEVERITY: ClassVar[Severity] = Severity.WARNING

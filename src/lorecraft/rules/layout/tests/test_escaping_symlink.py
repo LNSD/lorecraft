@@ -1,4 +1,4 @@
-"""`LAY001`, `escaping-symlink`, over one symlink of the skill layout whose chain leaves the repository.
+"""`LC102`, `escaping-symlink`, over one symlink of the skill layout whose chain leaves the repository.
 
 The rule only words where the chain leaves, which the scan decides, so every case here is a fake layout entry; a
 symlink that stays inside the repository is no layout entry, and the runner's integration tests hold that near miss.

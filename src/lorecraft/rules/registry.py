@@ -7,7 +7,7 @@ and the rule index left out, and keeps the declarations whose module lies in tha
 so a test that walks a package of sample rules sees only those, and the package's own registry never sees them.
 
 The registry is package data: it reads no workspace and is not a query. A rejection, a code, a name or an alias
-code bound twice, a removed rule replaced by a rule not held by the registry, a prefix given two groups, a class
+code bound twice, a removed rule replaced by a rule not held by the registry, a class
 attribute left unbound, or a rule or a condition still abstract, is a defect in `lorecraft.rules`, never in the
 user's repository, so it raises a `RuntimeError` whose traceback locates the declaration.
 
@@ -23,7 +23,7 @@ import inspect
 import pkgutil
 from collections.abc import Iterable
 from types import ModuleType
-from typing import Final, Self, TypeIs, assert_never
+from typing import Final, Self, assert_never
 
 from .collector import declared_rules
 from .declaration import (
@@ -35,9 +35,6 @@ from .declaration import (
     RuleDeclaration,
 )
 from .identity import (
-    EngineGroup,
-    RuleGroup,
-    RuleGroupPrefix,
     RuleName,
 )
 from .subject import QueriedItemRule
@@ -77,29 +74,6 @@ class UnsetRuleAttributeError(RuntimeError):
         self.declaration = declaration
         self.attribute = attribute
         super().__init__(f'declaration {declaration.__qualname__} does not bind {attribute}')
-
-
-class ConflictingRuleGroupError(RuntimeError):
-    """Two declarations give one prefix two different groups, so the prefix has no single title.
-
-    Attributes:
-        prefix: The prefix declared twice.
-        first: The declaration whose group bound the prefix first.
-        second: The declaration whose group differs from it.
-    """
-
-    prefix: RuleGroupPrefix
-    first: RuleDeclaration
-    second: RuleDeclaration
-
-    def __init__(self, prefix: RuleGroupPrefix, first: RuleDeclaration, second: RuleDeclaration) -> None:
-        self.prefix = prefix
-        self.first = first
-        self.second = second
-        super().__init__(
-            f'rule group {str(prefix)!r} of {second.__qualname__} is titled {second.CODE.group.title!r}, but '
-            f'{first.__qualname__} titles it {first.CODE.group.title!r}'
-        )
 
 
 class DuplicateRuleCodeError(RuntimeError):
@@ -213,7 +187,6 @@ class Registry:
     _rules: tuple[RuleDeclaration, ...]
     _rules_in_service: tuple[type[Rule], ...]
     _by_key: dict[str, RuleDeclaration]
-    _groups: dict[str, RuleGroup | EngineGroup]
 
     def __init__(self, declarations: Iterable[RuleDeclaration]) -> None:
         """Index the declarations, rejecting any the registry cannot hold.
@@ -229,7 +202,6 @@ class Registry:
                 `APPLIES_TO` on a queried item rule.
             AbstractRuleError: If a rule class or an engine condition is still abstract.
             DuplicateRuleCodeError: If a code is bound twice.
-            ConflictingRuleGroupError: If two codes give one prefix two different groups.
             UnknownReplacementError: If a removed rule is replaced by a rule this registry does not hold.
             DuplicateRuleNameError: If a name is bound twice.
             DuplicateAliasCodeError: If an alias code is bound twice, or is already bound as a code or a name.
@@ -243,9 +215,7 @@ class Registry:
         self._rules_in_service = tuple(sorted(rule_classes, key=_printed_code))
         self._by_key = {}
         _index_codes(self._rules, self._by_key)
-        _reject_conflicting_groups(self._rules)
         _reject_unknown_replacements(removed_rules, self._by_key)
-        self._groups = _index_groups(rule_classes, conditions)
 
         _index_names(self._rules, self._by_key)
         _index_alias_codes(rule_classes, self._by_key)
@@ -262,7 +232,6 @@ class Registry:
                 `APPLIES_TO` on a queried item rule.
             AbstractRuleError: If a rule class or an engine condition declared in the package is still abstract.
             DuplicateRuleCodeError: If a code is bound twice.
-            ConflictingRuleGroupError: If two codes give one prefix two different groups.
             UnknownReplacementError: If a removed rule is replaced by a rule this registry does not hold.
             DuplicateRuleNameError: If a name is bound twice.
             DuplicateAliasCodeError: If an alias code is bound twice, or is already bound as a code or a name.
@@ -295,25 +264,6 @@ class Registry:
                 `MD040`.
         """
         return self._by_key.get(key)
-
-    def find_group(self, prefix: str) -> RuleGroup | EngineGroup | None:
-        """The group with this prefix, or None when no rule in service nor engine condition belongs to one with it.
-
-        The prefix is looked up as text, as `find` looks up a code, so text no prefix could be, such as `out`, is not
-        an error: no group has it.
-
-        Args:
-            prefix: A group's prefix as spelled, such as `OUT`.
-        """
-        return self._groups.get(prefix)
-
-    def is_engine_group(self, group: RuleGroup | EngineGroup) -> TypeIs[EngineGroup]:
-        """Whether a group is the engine's, reserved for engine conditions, which every run reports.
-
-        Args:
-            group: A group the registry found, such as by `find_group`.
-        """
-        return isinstance(group, EngineGroup)
 
 
 def _import_modules(package: ModuleType, index_module: str) -> None:
@@ -471,43 +421,6 @@ def _index_codes(declarations: tuple[RuleDeclaration, ...], by_key: dict[str, Ru
         if first is not None:
             raise DuplicateRuleCodeError(code, first, declaration)
         by_key[code] = declaration
-
-
-def _index_groups(
-    rule_classes: tuple[type[Rule], ...],
-    conditions: tuple[type[EngineCondition], ...],
-) -> dict[str, RuleGroup | EngineGroup]:
-    """Key each group a run could select by its prefix.
-
-    A group whose every code is a removed rule holds nothing a run could select, so it is not found by its prefix.
-    The key is the prefix as text: `find_group` looks up what a user typed, which need not be a valid prefix.
-
-    Args:
-        rule_classes: The rules in service.
-        conditions: The engine conditions.
-    """
-    return {str(declaration.CODE.group.prefix): declaration.CODE.group for declaration in (*rule_classes, *conditions)}
-
-
-def _reject_conflicting_groups(declarations: tuple[RuleDeclaration, ...]) -> None:
-    """Reject two declarations that give one prefix two different groups.
-
-    Args:
-        declarations: The declarations to compare, in code order.
-
-    Raises:
-        ConflictingRuleGroupError: If a prefix has two groups, naming the declaration that bound it first.
-    """
-    groups: dict[RuleGroupPrefix, tuple[RuleGroup, RuleDeclaration]] = {}
-    for declaration in declarations:
-        group = declaration.CODE.group
-        if isinstance(group, EngineGroup):
-            continue
-        bound = groups.get(group.prefix)
-        if bound is None:
-            groups[group.prefix] = (group, declaration)
-        elif bound[0] != group:
-            raise ConflictingRuleGroupError(group.prefix, bound[1], declaration)
 
 
 def _reject_unknown_replacements(

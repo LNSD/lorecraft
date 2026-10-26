@@ -161,9 +161,9 @@ Scenario: A duplicate in a nested mapping
 
 - **Plain frontmatter:** The format of FR-001 to FR-006: what a frontmatter block may hold.
 - **Refused construct:** A construct outside the format, reported on its line by name (FR-007 to FR-013, FR-016).
-- **Invalid-YAML diagnostic:** The `FM002 invalid-yaml` diagnostic, reported for a block that is outside the
+- **Invalid-YAML diagnostic:** The `LC202 invalid-yaml` diagnostic, reported for a block that is outside the
   format or cannot be read.
-- **Duplicate-key diagnostic:** The `FM005 duplicate-key` diagnostic, reported for a key written twice at any
+- **Duplicate-key diagnostic:** The `LC205 duplicate-key` diagnostic, reported for a key written twice at any
   depth (FR-014).
 
 ## Success Criteria

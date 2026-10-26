@@ -1,4 +1,4 @@
-"""`FM008`: a frontmatter field's value is of a type its schema does not accept."""
+"""`LC208`: a frontmatter field's value is of a type its schema does not accept."""
 
 from collections.abc import Mapping
 from dataclasses import dataclass, field
@@ -97,7 +97,7 @@ class WrongType(QueriedItemRule[tuple[SchemaProblems, ...]]):
         problem: The field whose value is of the wrong type, with the types the schema expects and the type found.
     """
 
-    CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 8)
+    CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 208)
     NAME: ClassVar[RuleName] = RuleName('wrong-type')
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('0.3.0')

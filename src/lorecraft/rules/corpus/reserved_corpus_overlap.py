@@ -1,4 +1,4 @@
-"""`COR001`: a directory under `docs/` has the name of a reserved corpus."""
+"""`LC101`: a directory under `docs/` has the name of a reserved corpus."""
 
 from dataclasses import dataclass
 from typing import ClassVar, Self
@@ -59,7 +59,7 @@ class ReservedCorpusOverlap(QueriedCorpusDirectoryRule[CorpusName]):
         corpus: The reserved corpus name the directory takes.
     """
 
-    CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 1)
+    CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 101)
     NAME: ClassVar[RuleName] = RuleName('reserved-corpus-overlap')
     LEVEL: ClassVar[Level] = Level.WARN
     SINCE: ClassVar[Release] = Release('0.4.0')

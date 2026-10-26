@@ -1,6 +1,6 @@
 ---
 name: "frontmatter"
-description: "The frontmatter format, accepted values, refused YAML constructs and diagnostic wording. Load when writing frontmatter or investigating FM002 and FM005 findings"
+description: "The frontmatter format, accepted values, refused YAML constructs and diagnostic wording. Load when writing frontmatter or investigating LC202 and LC205 findings"
 type: "feature"
 status: "experimental"
 components: "module:lorecraft.project,module:lorecraft.rules"
@@ -11,7 +11,7 @@ components: "module:lorecraft.project,module:lorecraft.rules"
 ## Summary
 
 A document's opening `---` block holds a block mapping of metadata. Lorecraft reads a small, stated part of
-YAML 1.2 into JSON values. `FM002` names a construct the format refuses or explains a syntax error; `FM005`
+YAML 1.2 into JSON values. `LC202` names a construct the format refuses or explains a syntax error; `LC205`
 reports a key written twice in the same mapping, including a nested one.
 
 ## Table of Contents
@@ -30,7 +30,7 @@ reports a key written twice in the same mapping, including a nested one.
 - **Block mapping**: The top level of the frontmatter, with one `key: value` entry per line.
 - **Flow collection**: A list in `[]` or a mapping in `{}`. Here it stays on one line and holds only scalars.
 - **Plain scalar**: An unquoted value, read by YAML 1.2's core schema when its whole text matches a core value.
-- **Refusal**: An `FM002 invalid-yaml` finding on the line of a construct outside this format. Its label begins
+- **Refusal**: An `LC202 invalid-yaml` finding on the line of a construct outside this format. Its label begins
   `found` and ends `which frontmatter does not allow`.
 
 ## Usage
@@ -76,8 +76,8 @@ text must be kept.
 
 ## Limitations
 
-- A block sequence, scalar or empty block at the top level is `FM003 non-mapping-frontmatter`.
-- A flow collection at the top level is `FM002`, even when it contains a mapping.
+- A block sequence, scalar or empty block at the top level is `LC203 non-mapping-frontmatter`.
+- A flow collection at the top level is `LC202`, even when it contains a mapping.
 - The format excludes YAML constructs used to share nodes or choose custom types; write the value directly.
 - Applicable frontmatter schemas are checked from broader to narrower governance layers. A missing-field
   diagnostic is reported only once when multiple schemas require the same field. Frontmatter rules, including
@@ -87,7 +87,7 @@ text must be kept.
 
 ## Refused Constructs
 
-Each of these is `FM002` on its [document line](cli-check.md#key-concepts). The label is
+Each of these is `LC202` on its [document line](cli-check.md#key-concepts). The label is
 `found <what>, which frontmatter does not allow`;
 `<what>` is as shown below. The first refused construct in the block is reported.
 
@@ -116,7 +116,7 @@ A question mark within a plain scalar in a flow sequence, such as `[what?]`, is 
 
 ## Syntax Errors
 
-Malformed syntax is also `FM002`. Its main message is `frontmatter is not valid YAML`. Lorecraft labels the
+Malformed syntax is also `LC202`. Its main message is `frontmatter is not valid YAML`. Lorecraft labels the
 document line to fix and gives help for a recognized error. An unclosed quote is reported where it opens. Labels and
 help for the recognized kinds are:
 
@@ -142,7 +142,7 @@ A malformed anchor, alias or tag is named as a refusal without help. An error no
 
 ## Repeated Keys
 
-`FM005 duplicate-key` reports each later occurrence of a key in one mapping, at any depth. It covers block
+`LC205 duplicate-key` reports each later occurrence of a key in one mapping, at any depth. It covers block
 and flow mappings, including mappings in list items. The finding is on the later key's document line, labelled
 `written again here`, and points to the first occurrence with `first written here` when it is on another
 line. On a single-line flow mapping, only `written again here` appears.
@@ -163,5 +163,5 @@ When another later value replaces a reported value, a note at the last occurrenc
 
 - `src/lorecraft/project/syntax/frontmatter.py` - Decodes the frontmatter block and records refused constructs and repeated keys
 - `src/lorecraft/yaml/syntax_error.py` - Describes syntax and character errors
-- `src/lorecraft/rules/frontmatter/invalid_yaml.py` - Reports `FM002`
-- `src/lorecraft/rules/frontmatter/duplicate_key.py` - Reports `FM005`
+- `src/lorecraft/rules/frontmatter/invalid_yaml.py` - Reports `LC202`
+- `src/lorecraft/rules/frontmatter/duplicate_key.py` - Reports `LC205`

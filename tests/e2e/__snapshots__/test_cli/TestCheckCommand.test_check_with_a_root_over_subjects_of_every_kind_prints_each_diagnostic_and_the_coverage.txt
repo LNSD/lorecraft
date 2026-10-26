@@ -8,7 +8,7 @@ error[LINK003]: `references/missing.md` names nothing
   = help: link a file or a directory the skill holds, relative to the skill root
   = note: read from the skill root, it names `.agents/skills/review/references/missing.md`
 
-error[LAY001]: symlink leads outside the repository
+error[LC102]: symlink leads outside the repository
  --> .agents/skills/review/shared
   = help: a `..` on the chain climbs above the repository root; move what it links to into the
           repository

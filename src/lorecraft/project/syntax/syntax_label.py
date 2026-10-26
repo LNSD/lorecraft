@@ -1,4 +1,4 @@
-"""What a syntax error is called in lorecraft's words, as `FM002` reports it.
+"""What a syntax error is called in lorecraft's words, as `LC202` reports it.
 
 `lorecraft.yaml` classifies a parser's error into one of adr-019's kinds and never words it; this module words each
 kind with a label, a help and the line the writer fixes, and a refused control character the same way.

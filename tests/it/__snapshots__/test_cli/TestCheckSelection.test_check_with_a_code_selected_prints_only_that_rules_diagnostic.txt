@@ -1,9 +1,0 @@
-error[OUT006]: missing required section `Checklist`
- --> docs/code/guide.md:1
-  │
-1 │ # No frontmatter
-  │ ──────────────── expected `Checklist` before the end of the document
-  │
- ::: docs/__meta__/code.spec.json
-  │
-  = note: the document structure is set here

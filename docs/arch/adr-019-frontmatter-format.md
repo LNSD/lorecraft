@@ -1,6 +1,6 @@
 ---
 name: "adr-019-frontmatter-format"
-description: "The frontmatter format: the closed list of YAML 1.2 constructs a frontmatter block may hold, what each reads as, and the refusal, as FM002 on its line, of every construct the list does not name, decided by lorecraft from the tokens and events it reads; a syntax error is FM002 in lorecraft's own words, classified from the parser's error; a key written twice at any depth is FM005. Load when changing what frontmatter accepts or refuses, or the diagnostics frontmatter.py or anything under src/lorecraft/yaml/ reports for its syntax"
+description: "The frontmatter format: the closed list of YAML 1.2 constructs a frontmatter block may hold, what each reads as, and the refusal, as LC202 on its line, of every construct the list does not name, decided by lorecraft from the tokens and events it reads; a syntax error is LC202 in lorecraft's own words, classified from the parser's error; a key written twice at any depth is LC205. Load when changing what frontmatter accepts or refuses, or the diagnostics frontmatter.py or anything under src/lorecraft/yaml/ reports for its syntax"
 type: "adr"
 status: "accepted"
 ---
@@ -60,9 +60,9 @@ Four rules settle what YAML 1.2 leaves open, or where the parser reads YAML diff
 whichever parser reads the block.
 
 1. **A line ends only at `\n`, `\r\n` or a lone `\r`**, as lorecraft's line rule says for every document. U+0085,
-   U+2028 and U+2029 are not line ends: outside a quoted scalar each is `FM002` on its line (see Syntax errors), and
+   U+2028 and U+2029 are not line ends: outside a quoted scalar each is `LC202` on its line (see Syntax errors), and
    inside a single- or double-quoted scalar each is text, with the spaces around it kept, so a `---` or `...` after
-   one stays in the value. The line numbers `FM002` reports count only these line ends.
+   one stays in the value. The line numbers `LC202` reports count only these line ends.
 2. **A tab is never whitespace between tokens, in a flow collection too.** A tab that indents a line and a tab
    between tokens, as in `a: b⇥# c` or `[b,⇥c]`, are each a syntax error. A tab inside a quoted scalar or a block
    scalar's text is text.
@@ -74,7 +74,7 @@ whichever parser reads the block.
 
 ### Refused
 
-Each is `FM002` on its line, worded `found <what>, which frontmatter does not allow`.
+Each is `LC202` on its line, worded `found <what>, which frontmatter does not allow`.
 
 | Construct | Example | FR |
 |---|---|---|
@@ -94,12 +94,12 @@ Each is `FM002` on its line, worded `found <what>, which frontmatter does not al
 
 Everything the Accepted table does not list is refused the same way. A block that is in block style but not a
 mapping at the top, such as a block sequence, a single scalar or an empty block, stays
-`FM003 non-mapping-frontmatter`, as today.
+`LC203 non-mapping-frontmatter`, as today.
 
 ### Syntax errors
 
 A block written only with accepted constructs can still be broken: a bad indent, an unclosed quote, a tab. Each is
-`FM002`, worded by `lorecraft.project`, never by the parser. `lorecraft.yaml` classifies the parser's error into
+`LC202`, worded by `lorecraft.project`, never by the parser. `lorecraft.yaml` classifies the parser's error into
 one of the typed kinds below before returning it. Parser problem and context texts, their positions and the block's
 text may be used inside that package to classify the error; none of the parser's message text crosses its public
 boundary. `SyntaxErrorProblem` carries a `YamlSyntaxError` typed sum, with one frozen dataclass per kind and a
@@ -144,15 +144,15 @@ parser text; every syntax-error probe is held to a kind, so the fallback stays a
 1. **A frontmatter block holds only the constructs the Specification accepts**, and the docstring of
    `frontmatter.py` states that list (FR-001 to FR-004, FR-006).
 2. **Plain scalars resolve by YAML 1.2's core schema, as before**, as the Specification states (FR-005).
-3. **Every construct the Specification refuses, and every one it does not list, is `FM002 invalid-yaml` on the line
+3. **Every construct the Specification refuses, and every one it does not list, is `LC202 invalid-yaml` on the line
    it is written on**, worded `found <what>, which frontmatter does not allow`, where `<what>` names the construct
    (FR-007 to FR-013, FR-016). The first such construct in the block is the one reported.
 4. **lorecraft refuses each construct from the tokens and events it reads**, never by relying on a parser's grammar
    to reject it, so the format holds whichever parser produces the stream.
-5. **A key written twice in one mapping is `FM005 duplicate-key`, at any depth** (FR-014), block or flow, reported
+5. **A key written twice in one mapping is `LC205 duplicate-key`, at any depth** (FR-014), block or flow, reported
    on the later key's line and pointing back at the first. The block still decodes, the later value standing, so
    its other fields are still read and checked.
-6. **A syntax error inside the subset is `FM002`, worded by lorecraft, never by the parser** (FR-015). Each error
+6. **A syntax error inside the subset is `LC202`, worded by lorecraft, never by the parser** (FR-015). Each error
    is classified inside `lorecraft.yaml` into a typed kind of the Specification's Syntax errors table. Its
    `SyntaxErrorProblem` returns that kind, the line to fix and the facts the label and help quote, never parser
    problem or context text. `lorecraft.project` maps the kind to that label and help and the block position to the
@@ -182,11 +182,11 @@ parser text; every syntax-error probe is held to a kind, so the fallback stays a
   internals (`<block end>`, `simple key`), say nothing of the fix, and change with the parser.
 - **Keep today's wording, rewritten into PyYAML's.** No message changes. Not chosen: it keeps a rewrite table and
   tests against PyYAML, the parser-copying code this format removes, and still names parser internals.
-- **Report a nested duplicate as `FM002`, keeping `FM005` for the top level.** No nested key positions to track.
+- **Report a nested duplicate as `LC202`, keeping `LC205` for the top level.** No nested key positions to track.
   Not chosen: one mistake would carry two codes, and a duplicate inside a nested mapping would make the whole block
   unreadable, hiding `name`, `description` and every schema check.
-- **Report every duplicate as `FM002`**, refused by the format like any other construct. Not chosen: it retires
-  `FM005`, a published code; every duplicate would hide the whole block; and its level could no longer be set apart
+- **Report every duplicate as `LC202`**, refused by the format like any other construct. Not chosen: it retires
+  `LC205`, a published code; every duplicate would hide the whole block; and its level could no longer be set apart
   from a syntax error's.
 - **Keep the YAML 1.1 reading PyYAML was matched with**: the version pin, U+0085, U+2028 and U+2029 as line breaks,
   and the block-scalar and tab rules, all written into this record. No output changes. Not chosen: it keeps a
@@ -201,24 +201,24 @@ parser text; every syntax-error probe is held to a kind, so the fallback stays a
 
 ## Consequences
 
-- **Some blocks that read before are now `FM002`**: those using a construct the Specification refuses. None is in
+- **Some blocks that read before are now `LC202`**: those using a construct the Specification refuses. None is in
   lorecraft's own repository. Each is reported on its line, with what to remove named.
 - **A nested duplicate key is now reported**, where its last value used to win silently.
-- **Every `FM002` syntax-error message changes**, to lorecraft's label and a help line. For an unclosed quote the
+- **Every `LC202` syntax-error message changes**, to lorecraft's label and a help line. For an unclosed quote the
   line moves to where the quote opens, and for a line that is not `key: value` to that line, both where the writer
   fixes it.
 - **`lorecraft.yaml` owns the classification**: it alone interprets parser error texts to pick a typed kind, so a
   parser upgrade that rewords an error can move it to the fallback. The pinned parser and a test per kind catch
   that before release. Parser-specific changes stay inside that package; `lorecraft.project` owns the diagnostic
   wording and consumes structured facts without learning the parser's vocabulary.
-- **A U+0085, U+2028 or U+2029 outside quotes is now `FM002`**, where the block used to split its line there. These
+- **A U+0085, U+2028 or U+2029 outside quotes is now `LC202`**, where the block used to split its line there. These
   characters are rarely written on purpose, and the help says what to write instead.
 - **The parser code in `frontmatter.py` shrinks**: the directive and version handling, the YAML 1.1 line breaks, the
   scanner overrides that only copied PyYAML and the wording table go. The event walking, the core-schema resolution
   and the refusals stay, joined by the new ones, and the scanner overrides that stay, in `yaml/basic_yaml.py`, each hold
   one of the rules of frontmatter's own.
 - **Each row of the Specification has a test of its own**: an accepted row decodes to what the table says, and a
-  refused row is `FM002` on its line next to a near miss the format accepts (NFR-002).
+  refused row is `LC202` on its line next to a near miss the format accepts (NFR-002).
 - **What stays true**: the four outcomes of decoding a block, and the value every block inside the subset decodes
   to (NFR-001).
 
@@ -229,12 +229,12 @@ parser text; every syntax-error probe is held to a kind, so the fallback stays a
 - [ ] Plain scalars resolve by YAML 1.2's core schema, with `.inf` and `.nan` read as strings
 - [ ] The parser, in `yaml/basic_yaml.py`, reads YAML 1.2, and each rule of frontmatter's own has a test; no other
   override bends its grammar
-- [ ] `FM002` line numbers count a line end only at `\n`, `\r\n` or a lone `\r`
-- [ ] Each refused row of the Specification is `FM002` on its line, worded `found <what>, which frontmatter does not
+- [ ] `LC202` line numbers count a line end only at `\n`, `\r\n` or a lone `\r`
+- [ ] Each refused row of the Specification is `LC202` on its line, worded `found <what>, which frontmatter does not
   allow`, with a test that triggers it and a near miss that does not
 - [ ] Each refusal is decided from the token or event stream, not from a parser error
-- [ ] A key written twice in a mapping at any depth is `FM005` on the later key's line, pointing back at the first
-- [ ] Each kind of the Syntax errors table has a test: its example is `FM002` with that kind's label and help, on
+- [ ] A key written twice in a mapping at any depth is `LC205` on the later key's line, pointing back at the first
+- [ ] Each kind of the Syntax errors table has a test: its example is `LC202` with that kind's label and help, on
   the line the table names
 - [ ] Each Syntax errors kind has a frozen typed value in `lorecraft.yaml`, carrying its position and the facts
   its label and help need; the fallback carries a position when known and no parser message

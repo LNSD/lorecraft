@@ -1,4 +1,4 @@
-error[FM002]: frontmatter is not valid YAML
+error[LC202]: frontmatter is not valid YAML
  --> docs/code/guide.md:3
   │
 3 │ 2026: launch

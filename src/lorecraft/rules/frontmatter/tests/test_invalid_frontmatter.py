@@ -1,4 +1,4 @@
-"""`FM010`, `invalid-frontmatter`, over the problems the frontmatter schemas find in a subject's frontmatter.
+"""`LC210`, `invalid-frontmatter`, over the problems the frontmatter schemas find in a subject's frontmatter.
 
 Every case is a document or a skill entrypoint (`SKILL.md`) written as text, read through a fake database that
 holds it to its schemas as

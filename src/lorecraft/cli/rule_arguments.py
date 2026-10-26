@@ -18,11 +18,10 @@ would have to read at every construction, and a unit test of a conversion builds
 the index does not hold. Code builds them from `parse` alone. `CodeSelector` alone guards its number's range, which
 needs no index.
 
-A selector is, as in ruff, `ALL`, a group's prefix such as `OUT`, a prefix of a code with one or two of its digits
-such as `OUT0`, a rule's code such as `OUT006`, or an alias code, which a rule declares: it is one exactly when the
-index finds a rule for it. A rule's name, an engine condition, the engine's group and a removed rule are refused,
-since none can narrow a run. `rule [RULE]` takes a code, a name or an alias code, of a rule in service, a removed
-rule or an engine condition alike. Everything is matched as spelled.
+A selector is `ALL`, a rule's full code such as `OUT006`, or an alias code, which a rule declares: it is one
+exactly when the index finds a rule for it. A rule's name, an engine condition, the engine's group and a removed
+rule are refused, since none can narrow a run. `rule [RULE]` takes a code, a name or an alias code, of a rule in
+service, a removed rule or an engine condition alike. Everything is matched as spelled.
 """
 
 from dataclasses import dataclass
@@ -31,20 +30,17 @@ from typing import TYPE_CHECKING, Final, Protocol, Self
 
 from lorecraft.core.error import Error
 from lorecraft.rules import index
-from lorecraft.rules.index import ConditionRow, RemovedRuleRow, RuleIndexRow, RuleRow
+from lorecraft.rules.index import ConditionRow, RemovedRuleRow, RuleIndexRow
 
 if TYPE_CHECKING:
     # Type-only: importing the rule side here would load the rules engine when the command line starts.
     from lorecraft.rules.declaration import RuleDeclaration
-    from lorecraft.rules.identity import RuleCode, RuleGroup
+    from lorecraft.rules.identity import RuleCode
     from lorecraft.rules.registry import Registry
     from lorecraft.rules.selection import RuleSelector
 
 _ALL: Final[str] = 'ALL'
 """The selector for every rule; no group may take it as its prefix."""
-
-_MAX_CODE_NUMBER: Final[int] = 10**index.CODE_DIGITS - 1
-"""The largest number a code holds: the one with every digit a 9."""
 
 _NAME_CHARACTERS: Final[str] = ascii_lowercase + digits + '-'
 """What a rule's name is made of, apart from its hyphens' places."""
@@ -75,31 +71,11 @@ class MalformedSelectorError(Error):
 
     def __init__(self, text: str) -> None:
         self.text = text
-        super().__init__(
-            f'{text!r} is no selector: write ALL, a group prefix such as OUT, a code prefix such as OUT0, or a rule '
-            'code such as OUT004'
-        )
-
-
-class CodeNumberOutOfRangeError(ValueError):
-    """A code selector was built with a number outside 1 to 999, so it would not print as three digits.
-
-    A number comes from the rule index, never from what a user types, so one outside the range is a defect in the
-    code that built the selector, not a failure of the command line (error-boundaries §1).
-
-    Attributes:
-        number: The rejected number.
-    """
-
-    number: int
-
-    def __init__(self, number: int) -> None:
-        self.number = number
-        super().__init__(f'number must be from 1 to {_MAX_CODE_NUMBER}, got {number}')
+        super().__init__(f'{text!r} is no selector: write ALL, a full rule code such as LC101, or an alias code')
 
 
 class UnknownSelectorError(Error):
-    """A selector is well formed and names nothing: no group, code prefix, code nor alias code of a rule has it.
+    """A selector is well formed and names nothing: no full rule code or alias code of a rule has it.
 
     Attributes:
         text: The selector as typed, whitespace stripped.
@@ -109,7 +85,7 @@ class UnknownSelectorError(Error):
 
     def __init__(self, text: str) -> None:
         self.text = text
-        super().__init__(f'{text!r} is no rule code or prefix')
+        super().__init__(f'{text!r} is no rule code or alias code')
 
 
 class RuleNameSelectorError(Error):
@@ -168,22 +144,6 @@ class RemovedRuleSelectorError(Error):
         )
 
 
-class IndexGroupNotInRegistryError(RuntimeError):
-    """The rule index lists a group the registry does not hold, so the generated index is out of date.
-
-    It is a defect of the repository, not the user's input: the CI `gen-check` job holds the two equal.
-
-    Attributes:
-        prefix: The group's prefix, which the index lists.
-    """
-
-    prefix: str
-
-    def __init__(self, prefix: str) -> None:
-        self.prefix = prefix
-        super().__init__(f'the rule index lists group {prefix!r}, which the registry does not hold: run `just gen`')
-
-
 class IndexRuleNotInRegistryError(RuntimeError):
     """The rule index lists a rule the registry does not hold, so the generated index is out of date.
 
@@ -212,7 +172,7 @@ class MalformedRuleKeyError(Error):
     def __init__(self, text: str) -> None:
         self.text = text
         super().__init__(
-            f'{text!r} is no rule code, name or alias code: write a code such as OUT004 or a name such as empty-section'
+            f'{text!r} is no rule code, name or alias code: write a code such as LC101 or a name such as empty-section'
         )
 
 
@@ -250,97 +210,27 @@ class AllSelector:
 
 
 @dataclass(frozen=True, slots=True)
-class GroupSelector:
-    """A group's prefix, such as `OUT`: every rule of the group.
-
-    Attributes:
-        prefix: The group's prefix, which the index has.
-    """
-
-    prefix: str
-
-    def to_rule_selector(self, registry: Registry) -> RuleSelector:
-        """The rule-side group this prefix names.
-
-        Args:
-            registry: Every rule, which holds the group.
-        """
-        return _require_group(registry, self.prefix)
-
-    def __str__(self) -> str:
-        """The selector as typed: the group's prefix."""
-        return self.prefix
-
-
-@dataclass(frozen=True, slots=True)
-class CodePrefixSelector:
-    """The start of some codes of one group, such as `OUT0`: a group's prefix and one or two of a code's digits.
-
-    Attributes:
-        group_prefix: The prefix of the group whose codes it starts, which the index has.
-        digits: One or two ASCII digits that start the code of a rule in service.
-    """
-
-    group_prefix: str
-    digits: str
-
-    def to_rule_selector(self, registry: Registry) -> RuleSelector:
-        """The rule-side code prefix.
-
-        Args:
-            registry: Every rule, which holds the group.
-        """
-        from lorecraft.rules.selection import RuleCodePrefix
-
-        return RuleCodePrefix(_require_group(registry, self.group_prefix), self.digits)
-
-    def __str__(self) -> str:
-        """The selector as typed: the group's prefix, then the digits."""
-        return f'{self.group_prefix}{self.digits}'
-
-
-@dataclass(frozen=True, slots=True)
 class CodeSelector:
-    """A rule's code, such as `OUT006`: its group's prefix and its number.
+    """A full rule code confirmed by the index."""
 
-    Attributes:
-        group_prefix: The prefix of the rule's group.
-        number: The rule's number in its group, from 1 to 999.
-    """
-
-    group_prefix: str
-    number: int
-
-    def __post_init__(self) -> None:
-        """Reject a number that would not print as three digits.
-
-        Raises:
-            CodeNumberOutOfRangeError: If the number is outside 1 to 999.
-        """
-        if not 1 <= self.number <= _MAX_CODE_NUMBER:
-            raise CodeNumberOutOfRangeError(self.number)
+    code: str
 
     def to_rule_code(self, registry: Registry) -> RuleCode:
-        """The rule-side code.
+        """The rule-side code the registry holds."""
+        from lorecraft.rules.declaration import Rule
 
-        Args:
-            registry: Every rule, which holds the group.
-        """
-        from lorecraft.rules.identity import RuleCode
-
-        return RuleCode(_require_group(registry, self.group_prefix), self.number)
+        declaration = registry.find(self.code)
+        if declaration is None or not issubclass(declaration, Rule):
+            raise IndexRuleNotInRegistryError(self.code)
+        return declaration.CODE
 
     def to_rule_selector(self, registry: Registry) -> RuleSelector:
-        """The rule-side code, which selects its rule.
-
-        Args:
-            registry: Every rule, which holds the group.
-        """
+        """The rule-side code, which selects its rule."""
         return self.to_rule_code(registry)
 
     def __str__(self) -> str:
-        """The selector as typed: the group's prefix, then the number zero-padded to three digits."""
-        return f'{self.group_prefix}{self.number:0{index.CODE_DIGITS}d}'
+        """The full code as typed."""
+        return self.code
 
 
 @dataclass(frozen=True, slots=True)
@@ -368,17 +258,12 @@ class AliasSelector:
         return self.alias
 
 
-type RuleSelectorArgument = AllSelector | GroupSelector | CodePrefixSelector | CodeSelector | AliasSelector
+type RuleSelectorArgument = AllSelector | CodeSelector | AliasSelector
 """What one selector of `--select` or `--ignore` parses to."""
 
 
 class RuleIndex(Protocol):
     """What parsing reads of the rule index: `lorecraft.rules.index` is one, and a unit test passes a small table."""
-
-    @property
-    def CODE_DIGITS(self) -> int:  # noqa: N802
-        """How many digits end a code, after its group's prefix."""
-        ...
 
     @property
     def RULES(self) -> tuple[RuleIndexRow, ...]:  # noqa: N802
@@ -387,10 +272,6 @@ class RuleIndex(Protocol):
 
     def find(self, key: str, /) -> RuleIndexRow | None:
         """The row whose code, name or alias code is `key`, or None when none is."""
-        ...
-
-    def find_group_title(self, prefix: str, /) -> str | None:
-        """The title of the group with this prefix, or None when none has it."""
         ...
 
 
@@ -415,7 +296,7 @@ class SelectorValue:
         Raises:
             EmptySelectorError: If the value holds an empty selector.
             MalformedSelectorError: If a selector has the shape of no selector.
-            UnknownSelectorError: If a selector is well formed and names nothing.
+            UnknownSelectorError: If a selector names no rule.
             RuleNameSelectorError: If a selector is a rule's name.
             EngineSelectorError: If a selector names an engine condition or the engine's group.
             RemovedRuleSelectorError: If a selector names a removed rule.
@@ -460,7 +341,7 @@ class RuleKey:
         """
         if rule_index.find(raw) is not None:
             return cls(raw)
-        if _has_code_shape(raw, rule_index) or _has_name_shape(raw):
+        if _has_code_shape(raw) or _has_name_shape(raw):
             raise UnknownRuleKeyError(raw)
         raise MalformedRuleKeyError(raw)
 
@@ -486,8 +367,7 @@ class RuleKey:
 def _parse_selector(text: str, rule_index: RuleIndex) -> RuleSelectorArgument:
     """Parse one selector, whitespace stripped and not empty.
 
-    `ALL` is read first, then what the index finds by code, name or alias code, and last the shapes of a group and of
-    a code prefix, which the index cannot find.
+    `ALL` is read first, then what the index finds by full code, name or alias code.
 
     Args:
         text: The selector as typed.
@@ -495,7 +375,7 @@ def _parse_selector(text: str, rule_index: RuleIndex) -> RuleSelectorArgument:
 
     Raises:
         MalformedSelectorError: If it has the shape of no selector.
-        UnknownSelectorError: If it is well formed and names nothing.
+        UnknownSelectorError: If it names no rule.
         RuleNameSelectorError: If it is a rule's name.
         EngineSelectorError: If it names an engine condition or the engine's group.
         RemovedRuleSelectorError: If it names a removed rule.
@@ -504,7 +384,9 @@ def _parse_selector(text: str, rule_index: RuleIndex) -> RuleSelectorArgument:
         return AllSelector()
     row = rule_index.find(text)
     if row is None:
-        return _parse_prefix(text, rule_index)
+        if text and all(character in ascii_uppercase or character in digits for character in text):
+            raise UnknownSelectorError(text)
+        raise MalformedSelectorError(text)
 
     code, name = row.code, row.name
     if isinstance(row, ConditionRow):
@@ -513,112 +395,21 @@ def _parse_selector(text: str, rule_index: RuleIndex) -> RuleSelectorArgument:
         raise RemovedRuleSelectorError(text, code)
     if text == name:
         raise RuleNameSelectorError(text, code)
-    selector = _split_code(code, rule_index)
+    selector = CodeSelector(code)
     if text == code:
         return selector
     return AliasSelector(text, selector)
 
 
-def _parse_prefix(text: str, rule_index: RuleIndex) -> GroupSelector | CodePrefixSelector:
-    """Parse a selector the index has no rule for into a group's prefix, or the prefix of some of its codes.
-
-    The selector splits before its trailing digits: what precedes them must be a group's prefix in form, and then
-    in the index, and the digits, when there are any, one or two that start a rule in service's code. Three digits
-    would be a whole code, which the index did not find.
-
-    Args:
-        text: The selector, which is neither `ALL` nor any rule's code, name or alias code.
-        rule_index: The rule index to read.
-
-    Raises:
-        MalformedSelectorError: If it is not a group prefix followed by up to three digits.
-        UnknownSelectorError: If no group has the prefix, or no rule in service's code starts with it.
-        EngineSelectorError: If the prefix is the engine's group's.
-    """
-    group_prefix = text.rstrip(digits)
-    number_digits = text[len(group_prefix) :]
-    if not _is_group_prefix(group_prefix) or len(number_digits) > rule_index.CODE_DIGITS:
-        raise MalformedSelectorError(text)
-    if len(number_digits) == rule_index.CODE_DIGITS and int(number_digits) == 0:
-        raise MalformedSelectorError(text)
-
-    if rule_index.find_group_title(group_prefix) is None:
-        raise UnknownSelectorError(text)
-    if _is_engine_group(group_prefix, rule_index):
-        raise EngineSelectorError(text)
-    if not number_digits:
-        return GroupSelector(group_prefix)
-    if len(number_digits) == rule_index.CODE_DIGITS or not _starts_a_rule_in_service(text, rule_index):
-        raise UnknownSelectorError(text)
-    return CodePrefixSelector(group_prefix, number_digits)
-
-
-def _split_code(code: str, rule_index: RuleIndex) -> CodeSelector:
-    """Split a code as the index prints it into its group's prefix and its number.
-
-    Args:
-        code: A rule's code, such as `OUT006`.
-        rule_index: The rule index to read.
-    """
-    return CodeSelector(code[: -rule_index.CODE_DIGITS], int(code[-rule_index.CODE_DIGITS :]))
-
-
-def _require_group(registry: Registry, prefix: str) -> RuleGroup:
-    """The registry's group with this prefix, which the index held.
-
-    Args:
-        registry: Every rule.
-        prefix: A group's prefix the index has.
-
-    Raises:
-        IndexGroupNotInRegistryError: If the registry has no such group, which the index held.
-    """
-    group = registry.find_group(prefix)
-    if group is None or registry.is_engine_group(group):
-        raise IndexGroupNotInRegistryError(prefix)
-    return group
-
-
-def _is_group_prefix(text: str) -> bool:
-    """Whether the text has the shape of a group's prefix: uppercase ASCII letters, and not `ALL`.
-
-    Args:
-        text: The word of a selector or rule argument to classify.
-    """
-    return bool(text) and text != _ALL and all(character in ascii_uppercase for character in text)
-
-
-def _is_engine_group(prefix: str, rule_index: RuleIndex) -> bool:
-    """Whether every row of the group with this prefix is an engine condition.
-
-    Args:
-        prefix: The prefix of a group the index has.
-        rule_index: The rule index to read.
-    """
-    kinds = {type(row) for row in rule_index.RULES if row.code[: -rule_index.CODE_DIGITS] == prefix}
-    return kinds == {ConditionRow}
-
-
-def _starts_a_rule_in_service(prefix: str, rule_index: RuleIndex) -> bool:
-    """Whether the code of some rule in service starts with this text; a removed rule's or a condition's does not count.
-
-    Args:
-        prefix: The start of a code, such as `OUT0`.
-        rule_index: The rule index to read.
-    """
-    return any(isinstance(row, RuleRow) and row.code.startswith(prefix) for row in rule_index.RULES)
-
-
-def _has_code_shape(text: str, rule_index: RuleIndex) -> bool:
-    """Whether the text has the shape of a rule's code: a group's prefix and three digits, 001 to 999.
-
-    Args:
-        text: The word of a selector or rule argument to classify.
-        rule_index: The rule index to read.
-    """
-    group_prefix = text.rstrip(digits)
-    number_digits = text[len(group_prefix) :]
-    return _is_group_prefix(group_prefix) and len(number_digits) == rule_index.CODE_DIGITS and int(number_digits) != 0
+def _has_code_shape(text: str) -> bool:
+    """Whether text has an uppercase prefix followed by exactly three digits."""
+    split = len(text) - index.CODE_DIGITS
+    return (
+        split > 0
+        and all(character in ascii_uppercase for character in text[:split])
+        and all(character in digits for character in text[split:])
+        and int(text[split:]) > 0
+    )
 
 
 def _has_name_shape(text: str) -> bool:

@@ -23,8 +23,7 @@ query and hands it the facts sits above in `lorecraft.engine`; the query is answ
 
 ## Belongs Here
 
-- Rule identity: release, group, code, name, alias, level and severity. Rule codes take `RuleGroup`; engine
-  conditions use `EngineGroup`.
+- Rule identity: release, group, code, name, alias, level and severity. `LC1xx` identifies workspace checks, `LC2xx` frontmatter checks, and `LC0xx` engine conditions. Their codes share the `LC` prefix and use the full three-digit number.
 - An item rule derives from `QueriedItemRule`, names its typed query, and declares a gate for every item type it
   judges. `WhenSpec` and `Always` are the complete gate vocabulary: a part must be governed for the item, or the
   rule is unconditional for that mapped type. A missing item type is inapplicable. `APPLIES_TO` is a required class
@@ -35,7 +34,7 @@ query and hands it the facts sits above in `lorecraft.engine`; the query is answ
 - The rule index, `lorecraft.rules.index`: identity as plain tuples and strings, with the lookups the command
   line's edge needs, importing only `typing`; generated from the registry, never a source of rules.
 - An engine condition: what the engine reports before any rule runs, such as an undecodable file.
-  Declared and rendered like a rule, with an `EngineCode` in group `LC`, a fixed severity, no `judge`; it
+  Declared and rendered like a rule, with an `EngineCode` in the `LC0xx` range, a fixed severity, no `judge`; it
   derives from `FileCondition` or `EntryCondition`.
 - The one-run selection, rule table and ItemRef report, except refused aliases use SkillAliasRef.
 - A rule group, as a subpackage: `__ruleset__.py` declares its `GROUP_ID` and shared values, `__init__.py` holds
@@ -69,8 +68,7 @@ query and hands it the facts sits above in `lorecraft.engine`; the query is answ
 - A code bound twice, a declaration left incomplete, a group with no title, a code numbered out of range, a code
   in a group its type may not use, or a queried item rule with no `APPLIES_TO` declaration is a defect here, raised
   when it loads, never the user's fault.
-- The `LC` group holds engine conditions alone, each coded with an `EngineCode`, which names no other group.
-- A release, a rule name, a group's prefix, an alias code's linter and upstream code, and a code prefix are
+- A release, a rule name, an alias code's linter and upstream code are
   value objects a user's input will also build, so a malformed one raises an `Error`, whoever wrote it.
 
 ## Examples

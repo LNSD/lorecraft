@@ -101,7 +101,7 @@ agent following a skill, a contributor reading a code rule. Their vocabulary is 
 vocabulary.
 
 - **Visible names are fine; internal names are not the story.** A command, an option, a rule code such as
-  `FM004`, a diagnostic's text, a path in the user's repository, a document name: the
+  `LC204`, a diagnostic's text, a path in the user's repository, a document name: the
   user sees these, so they make a bullet concrete. A function, a class, a module or a test file the user
   never sees belongs in the message only when the mechanism is the point, and then with what it buys.
 - **Concrete over abstract.** A summary is right when a reader who never saw the issue could reproduce

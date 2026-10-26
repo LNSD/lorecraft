@@ -1,4 +1,4 @@
-error[FM001]: no `---` delimited frontmatter block
+error[LC201]: no `---` delimited frontmatter block
  --> docs/code/guide.md:1
   │
 1 │ # No frontmatter

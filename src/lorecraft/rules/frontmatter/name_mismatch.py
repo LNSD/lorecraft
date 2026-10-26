@@ -1,4 +1,4 @@
-"""`FM004`: a frontmatter `name` differs from the name its document or skill is found under."""
+"""`LC204`: a frontmatter `name` differs from the name its document or skill is found under."""
 
 from collections.abc import Mapping
 from dataclasses import dataclass, field
@@ -144,7 +144,7 @@ class NameMismatch(QueriedItemRule[FrontmatterFacts]):
         name: The `name` the frontmatter writes.
     """
 
-    CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 4)
+    CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 204)
     NAME: ClassVar[RuleName] = RuleName('name-mismatch')
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('0.3.0')

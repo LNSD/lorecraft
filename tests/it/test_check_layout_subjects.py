@@ -3,7 +3,7 @@
 A layout entry is a symlink of the skill layout whose chain leaves the repository, as the model's loader and the walk
 over a skill's resources find it. The tests hand the runner every entry the run would choose with no path given: the
 model's, a skills directory, an entry in one or an entry's `SKILL.md`, then each skill's resource listing's, a symlink
-inside that skill. The package's own registry runs `LAY001` over each, the rule that reports a symlink whose chain
+inside that skill. The package's own registry runs `LC102` over each, the rule that reports a symlink whose chain
 leaves the repository.
 """
 

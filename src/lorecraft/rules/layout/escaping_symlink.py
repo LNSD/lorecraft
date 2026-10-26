@@ -1,4 +1,4 @@
-"""`LAY001`: a symlink an agent follows in the skill layout leads outside the repository."""
+"""`LC102`: a symlink an agent follows in the skill layout leads outside the repository."""
 
 from dataclasses import dataclass
 from typing import ClassVar, Self
@@ -67,7 +67,7 @@ class EscapingSymlink(QueriedSymlinkRule[RootExit]):
             recorded it: the symlink itself when it links straight out, or another link on its chain.
     """
 
-    CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 1)
+    CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 102)
     NAME: ClassVar[RuleName] = RuleName('escaping-symlink')
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('0.3.0')

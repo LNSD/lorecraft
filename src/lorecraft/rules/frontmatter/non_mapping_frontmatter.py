@@ -1,4 +1,4 @@
-"""`FM003`: a frontmatter block is valid YAML, but not a mapping."""
+"""`LC203`: a frontmatter block is valid YAML, but not a mapping."""
 
 from collections.abc import Mapping
 from dataclasses import dataclass, field
@@ -81,7 +81,7 @@ class NonMappingFrontmatter(QueriedItemRule[FrontmatterFacts]):
         owner: The document or the skill whose frontmatter is not a mapping, and so which spec governs it.
     """
 
-    CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 3)
+    CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 203)
     NAME: ClassVar[RuleName] = RuleName('non-mapping-frontmatter')
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('0.3.0')

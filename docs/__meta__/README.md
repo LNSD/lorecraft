@@ -46,7 +46,7 @@ directories, and a skill's name is its listed directory name. `skills` governs e
 governs the skills whose name equals the namespace or continues it with a hyphen, so `skills-code` matches `code-rules`
 and `code-rules-check`, and layers on `skills` as any namespace does, with aspect files at the same names. A
 `skills-<namespace>` without a `skills` spec narrows nothing. `lorecraft inspect` lists the specs governing
-each skill. A `docs/skills/` directory is reported by the `COR001` rule, a warning by default, and ignored: none of its documents is checked.
+each skill. A `docs/skills/` directory is reported by the `LC101` rule, a warning by default, and ignored: none of its documents is checked.
 
 ## The Reserved `meta` Corpus
 
@@ -54,7 +54,7 @@ each skill. A `docs/skills/` directory is reported by the `COR001` rule, a warni
 its own specs are the **meta specs**: `meta` is the corpus meta spec, governing all spec items, and `meta-<corpus>`
 is a namespace meta spec governing the specs whose name equals `<corpus>` or starts with
 `<corpus>-`, so `meta-feat` governs `feat.md` and `feat-cli.md`. Spec gates follow the same rules as document
-gates. A `docs/meta/` directory is reported by the `COR001` rule and ignored.
+gates. A `docs/meta/` directory is reported by the `LC101` rule and ignored.
 
 ## A Spec and Its Checks
 
@@ -73,7 +73,7 @@ and `*.spec.json` the structure file. A file's extension is only what follows it
 machine-checkable file type: it carries the section rules, the word caps, the token budget and the frontmatter
 schema. `lorecraft check` enforces the caps with the section outline through the `OUT` and `LEN` rules, the
 global `tokens` key as `LEN001`, which reads the raw file rather than its parse, and the global `frontmatter` key
-through the `FM` rules.
+through the frontmatter rules (`LC2xx`).
 
 **The filename is the whole binding.** The spec name says which documents a file governs, the pattern
 that claims it says which rules read it, each its own keys, and a rule needs no list of the files it applies

@@ -11,12 +11,9 @@ from lorecraft.rules.tests.sample_rules import valid as valid_rules
 from ..rule_arguments import (
     AliasSelector,
     AllSelector,
-    CodeNumberOutOfRangeError,
-    CodePrefixSelector,
     CodeSelector,
     EmptySelectorError,
     EngineSelectorError,
-    GroupSelector,
     IndexRuleNotInRegistryError,
     MalformedRuleKeyError,
     MalformedSelectorError,
@@ -32,8 +29,6 @@ from ..rule_arguments import (
 class SampleIndex:
     """A small rule index: two groups, and a rule with an alias code and a removed rule."""
 
-    CODE_DIGITS: Final[int] = 3
-    GROUPS: Final[tuple[tuple[str, str], ...]] = (('LC', 'Engine conditions'), ('OUT', 'Outline checks'))
     RULES: Final[tuple[RuleIndexRow, ...]] = (
         ConditionRow('LC001', 'invalid-utf8', 'error'),
         RuleRow('OUT004', 'empty-section', 'deny', ('MD040',)),
@@ -51,57 +46,16 @@ class SampleIndex:
             None,
         )
 
-    def find_group_title(self, prefix: str, /) -> str | None:
-        return next((title for group_prefix, title in self.GROUPS if group_prefix == prefix), None)
-
 
 SAMPLE_INDEX: Final[SampleIndex] = SampleIndex()
 
 
 @pytest.mark.unit
-class TestCodeSelector:
-    def test_init_with_a_zero_number_raises_code_number_out_of_range_error(self) -> None:
-        #: Given
-        number = 0
-
-        #: When
-        with pytest.raises(CodeNumberOutOfRangeError) as exc_info:
-            CodeSelector('OUT', number)
-
-        #: Then
-        assert 'number' in str(exc_info.value), 'the error names the field'
-        assert '0' in str(exc_info.value), 'the error names the rejected value'
-
-    def test_init_with_a_number_above_999_raises_code_number_out_of_range_error(self) -> None:
-        #: Given
-        number = 1000
-
-        #: When
-        with pytest.raises(CodeNumberOutOfRangeError) as exc_info:
-            CodeSelector('OUT', number)
-
-        #: Then
-        assert 'number' in str(exc_info.value), 'the error names the field'
-        assert '1000' in str(exc_info.value), 'the error names the rejected value'
-
-    def test_init_with_a_negative_number_raises_code_number_out_of_range_error(self) -> None:
-        #: Given
-        number = -1
-
-        #: When
-        with pytest.raises(CodeNumberOutOfRangeError) as exc_info:
-            CodeSelector('OUT', number)
-
-        #: Then
-        assert 'number' in str(exc_info.value), 'the error names the field'
-        assert '-1' in str(exc_info.value), 'the error names the rejected value'
-
-
 @pytest.mark.unit
 class TestSelectorValueParse:
     def test_parse_with_each_form_parses_the_form(self) -> None:
         #: Given
-        raw = 'ALL,OUT,OUT0,OUT00,OUT004,MD040'
+        raw = 'ALL,OUT004,MD040'
 
         #: When
         parsed = SelectorValue.parse(raw, SAMPLE_INDEX)
@@ -110,13 +64,10 @@ class TestSelectorValueParse:
         assert parsed == SelectorValue(
             (
                 AllSelector(),
-                GroupSelector('OUT'),
-                CodePrefixSelector('OUT', '0'),
-                CodePrefixSelector('OUT', '00'),
-                CodeSelector('OUT', 4),
-                AliasSelector('MD040', CodeSelector('OUT', 4)),
+                CodeSelector('OUT004'),
+                AliasSelector('MD040', CodeSelector('OUT004')),
             )
-        ), 'ALL, a group, a code prefix of one and of two digits, a code and an alias code each parse to their form'
+        ), 'ALL, a full code and an alias code each parse to their form'
 
     def test_parse_with_whitespace_around_selectors_strips_it(self) -> None:
         #: Given
@@ -126,7 +77,7 @@ class TestSelectorValueParse:
         parsed = SelectorValue.parse(raw, SAMPLE_INDEX)
 
         #: Then
-        assert parsed == SelectorValue((CodeSelector('OUT', 4), CodeSelector('OUT', 6))), (
+        assert parsed == SelectorValue((CodeSelector('OUT004'), CodeSelector('OUT006'))), (
             'each selector of a value is stripped, in the order typed'
         )
 
@@ -161,7 +112,7 @@ class TestSelectorValueParse:
             SelectorValue.parse(raw, SAMPLE_INDEX)
 
         #: Then
-        assert exc_info.value.text == 'out', 'a group prefix is matched as spelled'
+        assert exc_info.value.text == 'out', 'lowercase selector syntax is malformed'
 
     def test_parse_with_a_hyphen_after_the_group_raises_malformed_selector_error(self) -> None:
         #: Given
@@ -172,14 +123,14 @@ class TestSelectorValueParse:
             SelectorValue.parse(raw, SAMPLE_INDEX)
 
         #: Then
-        assert exc_info.value.text == 'OUT-1', 'a group is followed by digits only'
+        assert exc_info.value.text == 'OUT-1', 'hyphens do not form a selector'
 
     def test_parse_with_four_digits_raises_malformed_selector_error(self) -> None:
         #: Given
         raw = 'OUT1234'
 
         #: When
-        with pytest.raises(MalformedSelectorError) as exc_info:
+        with pytest.raises(UnknownSelectorError) as exc_info:
             SelectorValue.parse(raw, SAMPLE_INDEX)
 
         #: Then
@@ -190,22 +141,22 @@ class TestSelectorValueParse:
         raw = 'OUT000'
 
         #: When
-        with pytest.raises(MalformedSelectorError) as exc_info:
+        with pytest.raises(UnknownSelectorError) as exc_info:
             SelectorValue.parse(raw, SAMPLE_INDEX)
 
         #: Then
-        assert exc_info.value.text == 'OUT000', 'a code is numbered from 001'
+        assert exc_info.value.text == 'OUT000', 'a full code with no indexed rule is unknown'
 
     def test_parse_with_digits_after_all_raises_malformed_selector_error(self) -> None:
         #: Given
         raw = 'ALL1'
 
         #: When
-        with pytest.raises(MalformedSelectorError) as exc_info:
+        with pytest.raises(UnknownSelectorError) as exc_info:
             SelectorValue.parse(raw, SAMPLE_INDEX)
 
         #: Then
-        assert exc_info.value.text == 'ALL1', 'ALL is no group prefix, so it takes no digits'
+        assert exc_info.value.text == 'ALL1', 'a well-shaped but unknown selector is unknown'
 
     def test_parse_with_an_underscored_name_raises_malformed_selector_error(self) -> None:
         #: Given
@@ -216,18 +167,18 @@ class TestSelectorValueParse:
             SelectorValue.parse(raw, SAMPLE_INDEX)
 
         #: Then
-        assert exc_info.value.text == 'Empty_Section', 'a selector of no form is malformed'
+        assert exc_info.value.text == 'Empty_Section', 'underscores do not form a selector'
 
     def test_parse_with_only_digits_raises_malformed_selector_error(self) -> None:
         #: Given
         raw = '123'
 
         #: When
-        with pytest.raises(MalformedSelectorError) as exc_info:
+        with pytest.raises(UnknownSelectorError) as exc_info:
             SelectorValue.parse(raw, SAMPLE_INDEX)
 
         #: Then
-        assert exc_info.value.text == '123', 'digits with no group before them are no selector'
+        assert exc_info.value.text == '123', 'a well-shaped but unknown selector is unknown'
 
     def test_parse_with_whitespace_inside_a_code_raises_malformed_selector_error(self) -> None:
         #: Given
@@ -373,27 +324,27 @@ class TestSelectorValueParse:
         assert exc_info.value.code == 'OUT004', 'the error carries the code to write instead'
         assert 'OUT004' in str(exc_info.value), 'the message names the code to write instead'
 
-    def test_parse_with_the_engine_group_raises_engine_selector_error(self) -> None:
+    def test_parse_with_the_engine_prefix_raises_unknown_selector_error(self) -> None:
         #: Given
         raw = 'LC'
 
         #: When
-        with pytest.raises(EngineSelectorError) as exc_info:
+        with pytest.raises(UnknownSelectorError) as exc_info:
             SelectorValue.parse(raw, SAMPLE_INDEX)
 
         #: Then
-        assert exc_info.value.text == 'LC', "the engine group's prefix cannot be selected"
+        assert exc_info.value.text == 'LC', 'the shared code prefix is not a selector'
 
-    def test_parse_with_an_engine_code_prefix_raises_engine_selector_error(self) -> None:
+    def test_parse_with_an_engine_code_prefix_raises_unknown_selector_error(self) -> None:
         #: Given
         raw = 'LC9'
 
         #: When
-        with pytest.raises(EngineSelectorError) as exc_info:
+        with pytest.raises(UnknownSelectorError) as exc_info:
             SelectorValue.parse(raw, SAMPLE_INDEX)
 
         #: Then
-        assert exc_info.value.text == 'LC9', 'a prefix of engine condition codes cannot be selected'
+        assert exc_info.value.text == 'LC9', 'a partial code is not a selector'
 
     def test_parse_with_an_engine_code_raises_engine_selector_error(self) -> None:
         #: Given
@@ -448,10 +399,8 @@ class TestSelectorValueStr:
         value = SelectorValue(
             (
                 AllSelector(),
-                GroupSelector('OUT'),
-                CodePrefixSelector('OUT', '00'),
-                CodeSelector('OUT', 4),
-                AliasSelector('MD040', CodeSelector('OUT', 4)),
+                CodeSelector('OUT004'),
+                AliasSelector('MD040', CodeSelector('OUT004')),
             )
         )
 
@@ -459,7 +408,7 @@ class TestSelectorValueStr:
         text = str(value)
 
         #: Then
-        assert text == 'ALL,OUT,OUT00,OUT004,MD040', 'each selector prints as typed, a code zero-padded'
+        assert text == 'ALL,OUT004,MD040', 'each selector prints as typed, a code zero-padded'
 
 
 @pytest.mark.unit

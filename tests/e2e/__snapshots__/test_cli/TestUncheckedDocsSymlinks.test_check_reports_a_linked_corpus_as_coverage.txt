@@ -7,5 +7,5 @@
 docs/__meta__/code-python.md: ungoverned for frontmatter, structure, outline, budget
 docs/__meta__/code.md: ungoverned for frontmatter, structure, outline, budget
 docs/code: not checked (symlink)
-FM  2 errors
+LC2xx  2 errors
 checked 8 subject(s): 2 error(s), 0 warning(s)

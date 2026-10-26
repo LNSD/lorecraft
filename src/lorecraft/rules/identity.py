@@ -16,9 +16,6 @@ from typing import ClassVar, Final, Self
 
 from lorecraft.core.error import Error
 
-ENGINE_GROUP_PREFIX: Final[str] = 'LC'
-"""The prefix reserved for engine conditions."""
-
 
 class MalformedReleaseError(Error):
     """A release is not three runs of ASCII digits joined by dots.
@@ -302,12 +299,12 @@ class ReservedRuleGroupPrefixError(Error):
 
 @dataclass(frozen=True, slots=True)
 class RuleGroupPrefix:
-    """A rule group's prefix, which starts the code of every rule in the group, such as `OUT`.
+    """A rule group's prefix, which starts the code of every rule in the group, such as `LC`.
 
     A valid prefix:
 
     - Is not empty.
-    - Holds only uppercase ASCII letters.
+    - Is an uppercase legacy prefix, or the shared `LC` prefix.
     - Is not `ALL`, the selector for every rule.
 
     Parsing preserves the spelling.
@@ -328,7 +325,7 @@ class RuleGroupPrefix:
         Raises:
             EmptyRuleGroupPrefixError: If it is empty.
             InvalidRuleGroupPrefixCharacterError: If it holds a character other than an uppercase ASCII letter.
-            ReservedRuleGroupPrefixError: If it is `ALL` or `LC`, a reserved prefix.
+            ReservedRuleGroupPrefixError: If it is `ALL`.
         """
         return cls(raw)
 
@@ -338,15 +335,20 @@ class RuleGroupPrefix:
         Raises:
             EmptyRuleGroupPrefixError: If it is empty.
             InvalidRuleGroupPrefixCharacterError: If it holds a character other than an uppercase ASCII letter.
-            ReservedRuleGroupPrefixError: If it is `ALL` or `LC`, a reserved prefix.
+            ReservedRuleGroupPrefixError: If it is `ALL`.
         """
         if not self.value:
             raise EmptyRuleGroupPrefixError()
         for position, character in enumerate(self.value):
-            if character not in ascii_uppercase:
+            if character not in ascii_uppercase and character not in digits:
                 raise InvalidRuleGroupPrefixCharacterError(self.value, position)
-        if self.value in {ALL_RULES_SELECTOR, ENGINE_GROUP_PREFIX}:
+        if self.value == ALL_RULES_SELECTOR:
             raise ReservedRuleGroupPrefixError(self.value)
+        if not all(character in ascii_uppercase for character in self.value):
+            raise InvalidRuleGroupPrefixCharacterError(
+                self.value,
+                next(position for position, character in enumerate(self.value) if character not in ascii_uppercase),
+            )
 
     def __str__(self) -> str:
         """The prefix exactly as supplied."""
@@ -369,15 +371,17 @@ class EmptyRuleGroupTitleError(ValueError):
 
 @dataclass(frozen=True, slots=True)
 class RuleGroup:
-    """The rules one mechanism states, under one prefix and title, such as `OUT` for a structure's outline.
+    """The rules one mechanism states, under a shared code prefix and a reader-facing title.
 
     Attributes:
         prefix: The prefix that starts the code of every rule in the group.
         title: What the group covers, for a reader; not empty.
+        code_range: The valid three-digit code numbers for this group, when its prefix is shared.
     """
 
     prefix: RuleGroupPrefix
     title: str
+    code_range: range | None = None
 
     def __post_init__(self) -> None:
         """Reject an empty title.
@@ -399,6 +403,7 @@ class EngineGroup:
 
     prefix: str
     title: str
+    code_range: range
 
 
 class RuleNumberOutOfRangeError(ValueError):
@@ -420,42 +425,44 @@ class RuleNumberOutOfRangeError(ValueError):
 
 @dataclass(frozen=True, slots=True)
 class RuleCode:
-    """A rule's code: its group and its number, printed as the prefix and three digits, such as `OUT002`.
+    """A rule's code: its group and its number, printed as the prefix and number, such as `LC201`.
 
     The prefix is the group's, so a code whose prefix disagrees with its group cannot be written.
 
     Attributes:
         group: The group the rule belongs to.
-        number: The rule's number in its group, from 1 to 999.
+        number: The rule's full three-digit code number, from 1 to 999.
     """
 
     DIGITS: ClassVar[int] = 3
+    DIGITS_MAX: ClassVar[int] = 10**DIGITS - 1
     """How many digits end a printed code, after its group's prefix."""
 
     group: RuleGroup
     number: int
 
     def __post_init__(self) -> None:
-        """Reject a number that would not print as three digits.
+        """Reject a number that would not fit the group's code range.
 
         Raises:
-            RuleNumberOutOfRangeError: If the number is outside 1 to 999.
+            RuleNumberOutOfRangeError: If the number is outside the group's range.
         """
-        if not 1 <= self.number <= 999:
+        code_range = self.group.code_range
+        if not 1 <= self.number <= self.DIGITS_MAX or code_range is not None and self.number not in code_range:
             raise RuleNumberOutOfRangeError(self.group, self.number)
 
     def __str__(self) -> str:
-        """The code as output prints it: the group's prefix, then the number zero-padded to three digits."""
+        """The code as output prints it: the group's prefix, then its three-digit number."""
         return f'{self.group.prefix}{self.number:0{self.DIGITS}d}'
 
 
-ENGINE_GROUP: Final[EngineGroup] = EngineGroup(ENGINE_GROUP_PREFIX, 'Engine conditions')
+ENGINE_GROUP: Final[EngineGroup] = EngineGroup('LC', 'Engine conditions', range(1, 100))
 """The group reserved for engine conditions, represented by the distinct `EngineGroup` type."""
 
 
 @dataclass(frozen=True, slots=True)
 class EngineCode:
-    """An engine condition's code: a number in the engine's group, printed as `LC` and three digits, such as `LC001`.
+    """An engine condition's code: a number in the engine's group, printed as three digits, such as `LC001`.
 
     It has no group to choose, so a condition's code can only be in the engine's group, and a code of any other
     group is a type error where a condition declares it.
@@ -472,7 +479,7 @@ class EngineCode:
         Raises:
             RuleNumberOutOfRangeError: If the number is outside 1 to 999.
         """
-        if not 1 <= self.number <= 999:
+        if self.number not in ENGINE_GROUP.code_range:
             raise RuleNumberOutOfRangeError(ENGINE_GROUP, self.number)
 
     @property
@@ -482,7 +489,7 @@ class EngineCode:
 
     def __str__(self) -> str:
         """The code as output prints it: the engine's prefix, then the number zero-padded to three digits."""
-        return f'{ENGINE_GROUP.prefix}{self.number:03d}'
+        return f'{ENGINE_GROUP.prefix}{self.number:0{RuleCode.DIGITS}d}'
 
 
 class EmptyLinterNameError(Error):

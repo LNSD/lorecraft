@@ -165,7 +165,7 @@ class TestRuleTableFromRegistryWithASelection:
         self, registry: Registry
     ) -> None:
         #: Given
-        selection = RuleSelection(select=frozenset({SAMPLE}), ignore=frozenset({RuleCode(SAMPLE, 1)}))
+        selection = RuleSelection(select=frozenset({AllRules()}), ignore=frozenset({RuleCode(SAMPLE, 1)}))
 
         #: When
         table = RuleTable.from_registry(registry, selection)
@@ -173,13 +173,13 @@ class TestRuleTableFromRegistryWithASelection:
         #: Then
         assert table.item_rules(ItemType.DOCUMENT, WhenSpec(SpecPart.BUDGET)) == (
             EnabledRule(AnyTokens, Severity.ERROR),
-        ), 'an ignored rule is left out of a selected group'
+        ), 'an ignored exact code is left out while other selected rules still run'
 
     def test_from_registry_with_a_code_selected_and_its_group_ignored_enables_that_rule_alone(
         self, registry: Registry
     ) -> None:
         #: Given
-        selection = RuleSelection(select=frozenset({RuleCode(SAMPLE, 3)}), ignore=frozenset({SAMPLE}))
+        selection = RuleSelection(select=frozenset({RuleCode(SAMPLE, 3)}), ignore=frozenset({AllRules()}))
 
         #: When
         table = RuleTable.from_registry(registry, selection)
@@ -187,7 +187,7 @@ class TestRuleTableFromRegistryWithASelection:
         #: Then
         assert table.item_rules(ItemType.DOCUMENT, WhenSpec(SpecPart.BUDGET)) == (
             EnabledRule(AnyTokens, Severity.ERROR),
-        ), 'the code, more specific than the group ignored, keeps its rule, and the group leaves the rest out'
+        ), 'an all-rules ignore wins over an exact code selection'
 
     def test_from_registry_with_a_rule_at_allow_selected_leaves_it_out(self, registry: Registry) -> None:
         #: Given
@@ -220,13 +220,13 @@ class TestSelectedRulesLeftOff:
         self, registry: Registry
     ) -> None:
         #: Given
-        selection = RuleSelection(select=frozenset({SAMPLE}), ignore=frozenset())
+        selection = RuleSelection(select=frozenset({AllRules()}), ignore=frozenset())
 
         #: When
         left_off = selected_rules_left_off(registry, selection)
 
         #: Then
-        assert left_off == (), 'a group selected names none of its rules, so its rules at allow are not warned of'
+        assert left_off == (), 'rules at allow are not reported as left off when every rule is selected'
 
     def test_selected_rules_left_off_with_a_rule_at_allow_selected_and_ignored_returns_nothing(
         self, registry: Registry
@@ -375,18 +375,18 @@ class TestRuleTableItemIndex:
         expected = {
             (ItemType.DOCUMENT, Always()): ('LINK001', 'LINK002', 'LINK003', 'LINK004'),
             (ItemType.DOCUMENT, WhenSpec(SpecPart.FRONTMATTER)): (
-                'FM001',
-                'FM002',
-                'FM003',
-                'FM004',
-                'FM005',
-                'FM006',
-                'FM007',
-                'FM008',
-                'FM009',
-                'FM010',
-                'FM013',
-                'FM014',
+                'LC201',
+                'LC202',
+                'LC203',
+                'LC204',
+                'LC205',
+                'LC206',
+                'LC207',
+                'LC208',
+                'LC209',
+                'LC210',
+                'LC213',
+                'LC214',
             ),
             (ItemType.DOCUMENT, WhenSpec(SpecPart.STRUCTURE)): (
                 'LEN003',
@@ -411,20 +411,20 @@ class TestRuleTableItemIndex:
                 'LINK004',
             ),
             (ItemType.SKILL_ENTRYPOINT, WhenSpec(SpecPart.FRONTMATTER)): (
-                'FM001',
-                'FM002',
-                'FM003',
-                'FM004',
-                'FM005',
-                'FM006',
-                'FM007',
-                'FM008',
-                'FM009',
-                'FM010',
-                'FM011',
-                'FM012',
-                'FM013',
-                'FM014',
+                'LC201',
+                'LC202',
+                'LC203',
+                'LC204',
+                'LC205',
+                'LC206',
+                'LC207',
+                'LC208',
+                'LC209',
+                'LC210',
+                'LC211',
+                'LC212',
+                'LC213',
+                'LC214',
             ),
             (ItemType.SKILL_ENTRYPOINT, WhenSpec(SpecPart.STRUCTURE)): (
                 'LEN003',
@@ -442,18 +442,18 @@ class TestRuleTableItemIndex:
             (ItemType.SKILL_RESOURCE, Always()): ('LINK001', 'LINK002', 'LINK003', 'LINK004'),
             (ItemType.SPEC, Always()): ('LINK001', 'LINK002', 'LINK003', 'LINK004'),
             (ItemType.SPEC, WhenSpec(SpecPart.FRONTMATTER)): (
-                'FM001',
-                'FM002',
-                'FM003',
-                'FM004',
-                'FM005',
-                'FM006',
-                'FM007',
-                'FM008',
-                'FM009',
-                'FM010',
-                'FM013',
-                'FM014',
+                'LC201',
+                'LC202',
+                'LC203',
+                'LC204',
+                'LC205',
+                'LC206',
+                'LC207',
+                'LC208',
+                'LC209',
+                'LC210',
+                'LC213',
+                'LC214',
             ),
             (ItemType.SPEC, WhenSpec(SpecPart.STRUCTURE)): (
                 'LEN003',
