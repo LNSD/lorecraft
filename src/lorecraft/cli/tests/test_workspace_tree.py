@@ -13,7 +13,7 @@ from lorecraft.project.aspect import AspectFilename, AspectNamespace
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.schemas import CorpusSpecName
 from lorecraft.project.skill import SkillLocation, SkillRef, SkillsDir
-from lorecraft.project.workspace import Corpus, CorpusNamespace, CorpusSpec, WorkspaceModel
+from lorecraft.project.workspace import Corpus, CorpusNamespace, CorpusSpec, SkillsCorpus, WorkspaceModel
 from lorecraft.project.workspace.builtin import AGENT_SKILLS_SPEC_LAYER
 from lorecraft.vfs import ResolvedPath
 
@@ -114,7 +114,7 @@ def _skills_model() -> WorkspaceModel:
 def _governed_skills_model() -> WorkspaceModel:
     """The skills model with a `skills` corpus and a `skills-code` namespace, which only `code-rules` matches."""
     skills = CorpusName.parse('skills')
-    corpus = Corpus(
+    corpus = SkillsCorpus(
         corpus_spec=CorpusSpec(name=CorpusSpecName(skills), files=(_path('docs/__meta__/skills.md'),), structure=None),
         namespaces=FrozenMapping(
             {

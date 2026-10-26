@@ -499,6 +499,21 @@ class MetaCorpus(Corpus):
 
 
 @dataclass(frozen=True, slots=True)
+class SkillsCorpus(Corpus):
+    """The reserved skills corpus, with a name fixed by the workspace model."""
+
+    @classmethod
+    def from_corpus(cls, corpus: Corpus) -> Self:
+        """Build the skills-corpus value from the reserved corpus's contents."""
+        return cls(corpus.corpus_spec, corpus.namespaces, corpus.filenames)
+
+    @property
+    def name(self) -> CorpusName:
+        """The fixed reserved skills corpus name."""
+        return CorpusName.parse(SKILLS_CORPUS_NAME)
+
+
+@dataclass(frozen=True, slots=True)
 class ResolvedItem:
     """A listed item's descriptor and the specifications governing it, resolved together.
 
@@ -533,7 +548,7 @@ class WorkspaceModel:
             `resolves_to`.
         skill_location_values: Every distinct skill location, stored without an order.
         skill_locations: Every skill location, keyed by ref and inserted in ref order.
-        skills_corpus: The reserved `skills` corpus, available to its own specification checks, or None when no
+        skills_corpus: The `SkillsCorpus`, available to its own specification checks, or None when no
             `skills` spec exists. It governs skill entrypoints but not resources; no directory
             under `docs/` backs it.
         meta_corpus: The reserved `meta` corpus governing spec items, or None when no `meta` spec exists.
@@ -558,7 +573,7 @@ class WorkspaceModel:
     skill_location_values: frozenset[SkillLocation]
     outside_symlink_values: frozenset[OutsideSymlink]
     load_failures: tuple[LoadFailure, ...]
-    skills_corpus: Corpus | None = None
+    skills_corpus: SkillsCorpus | None = None
     meta_corpus: MetaCorpus | None = None
     listed_specifications: tuple[SpecRef, ...] = ()
     overlapping_directories: frozenset[ReservedCorpusDirectory] = frozenset()
