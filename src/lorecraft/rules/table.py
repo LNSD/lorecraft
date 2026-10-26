@@ -16,6 +16,7 @@ from lorecraft.project.item import ItemType
 
 from .declaration import Rule
 from .identity import Level, Severity
+from .level_resolution import ResolvedLevels
 from .registry import Registry
 from .selection import RuleSelection
 from .subject import (
@@ -96,12 +97,18 @@ class RuleTable:
         self._corpus_directory_rules = tuple(corpus_directory_rules)
 
     @classmethod
-    def from_registry(cls, registry: Registry, selection: RuleSelection) -> Self:
-        """Enable each selected in-service rule at its default level, leaving allow-level rules out.
+    def from_registry(
+        cls,
+        registry: Registry,
+        selection: RuleSelection,
+        levels: ResolvedLevels | None = None,
+    ) -> Self:
+        """Enable each selected in-service rule at its resolved level, leaving allow-level rules out.
 
         Args:
             registry: The rules the run may enable; removed rules and engine conditions are left out.
             selection: The rules this run keeps; a rule it leaves out is not enabled.
+            levels: Optional overrides, ordered from lowest to highest precedence.
 
         Raises:
             UnknownRuleBaseError: If an enabled rule has no supported query base.
@@ -110,7 +117,8 @@ class RuleTable:
         for rule_class in registry.rules_in_service:
             if not selection.is_kept(rule_class.CODE):
                 continue
-            severity = _default_severity(rule_class.LEVEL)
+            level = rule_class.LEVEL if levels is None else levels.level_for(rule_class.CODE, rule_class.LEVEL)
+            severity = _default_severity(level)
             if severity is not None:
                 severities[rule_class] = severity
         return cls(severities)

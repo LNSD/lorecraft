@@ -88,6 +88,26 @@ class EngineDiagnostic:
 type Diagnostic = RuleDiagnostic | EngineDiagnostic
 
 
+def elevate_warnings(diagnostics: tuple[Diagnostic, ...], deny_warnings: bool) -> tuple[Diagnostic, ...]:
+    """Return diagnostics with rule warnings elevated to errors when the run denies warnings.
+
+    Escalation happens after detection and applies only to rule diagnostics. Engine conditions keep their fixed
+    severity, and occurrences are never presented with run options.
+
+    Args:
+        diagnostics: Findings already produced by rules and engine conditions.
+        deny_warnings: Whether `-D warnings` was requested for this run.
+    """
+    if not deny_warnings:
+        return diagnostics
+    return tuple(
+        RuleDiagnostic(item.path, item.occurrence, Severity.ERROR)
+        if isinstance(item, RuleDiagnostic) and item.severity is Severity.WARNING
+        else item
+        for item in diagnostics
+    )
+
+
 @dataclass(frozen=True, slots=True, order=True)
 class DiagnosticOrder:
     """Where a diagnostic sorts in a report; its fields compare in the order they are declared.
