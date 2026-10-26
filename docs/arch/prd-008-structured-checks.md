@@ -175,16 +175,14 @@ Scenario: A sample rule
   they are declared to.
 - **FR-023:** THE SYSTEM SHALL give every rule a default level: `allow`, `warn` or `deny`, and report a
   condition of the engine itself, such as an undecodable file, as an `error` that no level changes.
-- **FR-024:** WHERE a configuration sets a level by code or by prefix, THE SYSTEM SHALL apply it, a code's own
-  setting winning over its prefix's.
-- **FR-025:** IF a configuration names an unknown code, prefix or level, THEN THE SYSTEM SHALL fail with an
-  error naming it, before checking.
-- **FR-026:** THE SYSTEM SHALL count warnings and errors apart, and fail the run only on an error.
+- **FR-024:** WHERE a configuration or the command line sets a level by code or by flag, THE SYSTEM SHALL apply it, a code's own setting winning over `ALL`.
+- **FR-025:** IF a configuration or the command line names an unknown code, prefix or level, or conflicting levels for one rule, THEN THE SYSTEM SHALL fail with an error naming it, before checking.
+- **FR-026:** THE SYSTEM SHALL count warnings and errors apart, and fail the run on errors, or when `-D warnings` is passed and any warning is reported.
 - **FR-027:** THE SYSTEM SHALL report no diagnostic of a rule whose level is `allow`.
 - **FR-028:** THE SYSTEM SHALL publish a reference page per rule, generated from the rule's own declaration:
   its code, name, the release it is stable since, what it checks, and how to fix it.
 - **FR-029:** WHEN a user asks for a rule by code or name, THE SYSTEM SHALL print that rule's reference page.
-- **NFR-001:** THE SYSTEM SHALL produce identical output for the same workspace revision and configuration.
+- **NFR-001:** THE SYSTEM SHALL produce identical output for the same workspace revision, configuration and command line.
 - **NFR-002:** THE SYSTEM SHALL check this repository, with no path, no more than 10% slower than v0.2 does,
   measured as the median of repeated runs of both on one machine.
 - **NFR-003:** THE SYSTEM SHALL read only what the selected subjects' enabled rules need.
