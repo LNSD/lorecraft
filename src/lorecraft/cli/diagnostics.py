@@ -270,7 +270,7 @@ def render_summary(reports: tuple[RunReport, ...]) -> str:
 def render_prefix_summary(reports: tuple[RunReport, ...]) -> str:
     """One line per rule code range or legacy prefix that reported, with its errors and warnings, in prefix order.
 
-    A line reads `{group}  {errors}, {warnings}`, each count left out when it is zero, such as `LC3xx  2 errors, 1
+    A line reads `{group}  {errors}, {warnings}`, each count left out when it is zero, such as `LC5xx  2 errors, 1
     warning`.
 
     Args:

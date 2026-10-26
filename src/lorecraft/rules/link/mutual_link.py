@@ -1,4 +1,4 @@
-"""`LINK007`: two documents of different corpora link to each other."""
+"""`LC507`: two documents of different corpora link to each other."""
 
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -94,7 +94,7 @@ class MutualLink(QueriedItemRule[MutualLinkFacts]):
         filename: The filename, with its extension, of the document the link leads to.
     """
 
-    CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 7)
+    CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 507)
     NAME: ClassVar[RuleName] = RuleName('mutual-link')
     LEVEL: ClassVar[Level] = Level.WARN
     SINCE: ClassVar[Release] = Release('0.4.0')

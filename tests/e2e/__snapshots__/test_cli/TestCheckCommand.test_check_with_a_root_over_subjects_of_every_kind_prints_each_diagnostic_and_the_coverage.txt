@@ -1,4 +1,4 @@
-error[LINK003]: `references/missing.md` names nothing
+error[LC503]: `references/missing.md` names nothing
  --> .agents/skills/review/references/guide.md:3
   │
 3 │ Read [the steps](references/missing.md).

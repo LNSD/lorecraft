@@ -1,4 +1,4 @@
-"""`LINK004`, `escaping-link`, over the relative links of one of a skill's Markdown files.
+"""`LC504`, `escaping-link`, over the relative links of one of a skill's Markdown files.
 
 Every case is a skill's file written as text and parsed by the real parser, through a fake database; the rule
 reads what any of a skill's files has, so a `SKILL.md` is judged the same way.
@@ -192,7 +192,7 @@ class TestEscapingLink:
         occurrences = judged(EscapingLink, subject)
 
         #: Then
-        assert occurrences == (), 'an absolute link spells no relative path; it is LINK001, not this rule'
+        assert occurrences == (), 'an absolute link spells no relative path; it is LC501, not this rule'
 
     def test_check_with_a_fragment_only_link_reports_nothing(self) -> None:
         #: Given

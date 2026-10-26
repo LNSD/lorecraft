@@ -76,13 +76,13 @@ RULES: Final[tuple[RuleIndexRow, ...]] = (
     RuleRow('LC403', 'section-too-many-words', 'deny', ()),
     RuleRow('LC404', 'title-too-many-words', 'deny', ()),
     RuleRow('LC405', 'title-too-long', 'deny', ()),
-    RuleRow('LINK001', 'absolute-link', 'deny', ()),
-    RuleRow('LINK002', 'broken-fragment', 'deny', ()),
-    RuleRow('LINK003', 'broken-link', 'deny', ()),
-    RuleRow('LINK004', 'escaping-link', 'deny', ()),
-    RuleRow('LINK005', 'extension-link', 'warn', ()),
-    RuleRow('LINK006', 'missing-base-link', 'warn', ()),
-    RuleRow('LINK007', 'mutual-link', 'warn', ()),
+    RuleRow('LC501', 'absolute-link', 'deny', ()),
+    RuleRow('LC502', 'broken-fragment', 'deny', ()),
+    RuleRow('LC503', 'broken-link', 'deny', ()),
+    RuleRow('LC504', 'escaping-link', 'deny', ()),
+    RuleRow('LC505', 'extension-link', 'warn', ()),
+    RuleRow('LC506', 'missing-base-link', 'warn', ()),
+    RuleRow('LC507', 'mutual-link', 'warn', ()),
 )
 
 

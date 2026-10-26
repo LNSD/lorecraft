@@ -137,7 +137,7 @@ frontmatter included. In every Markdown file of the skill it reports a link that
 the skill root, that names nothing the skill holds, or whose `#fragment` names no heading of its own file. It
 reports a symlink an agent would follow out of the repository, wherever it sits in the skill layout.
 [check](https://github.com/LNSD/lorecraft/blob/main/docs/feat/cli-check.md#findings) lists the rule groups and their
-codes: `LC2xx` for the frontmatter, `LC402` for the line budget, `LINK` for the links and `LC102` for a symlink.
+codes: `LC2xx` for the frontmatter, `LC402` for the line budget, `LC5xx` for the links and `LC102` for a symlink.
 
 ```bash
 lorecraft check                  # every document and every skill of the workspace

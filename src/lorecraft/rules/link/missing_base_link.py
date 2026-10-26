@@ -1,4 +1,4 @@
-"""`LINK006`: a document that extends another does not link to it under References."""
+"""`LC506`: a document that extends another does not link to it under References."""
 
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -132,7 +132,7 @@ class MissingBaseLink(QueriedItemRule[MissingBase | None]):
         extension: The filename, with its extension, of the document that holds no link to it.
     """
 
-    CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 6)
+    CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 506)
     NAME: ClassVar[RuleName] = RuleName('missing-base-link')
     LEVEL: ClassVar[Level] = Level.WARN
     SINCE: ClassVar[Release] = Release('0.4.0')

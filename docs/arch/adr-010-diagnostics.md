@@ -43,7 +43,7 @@ not change between two runs over the same revision.
 5. **Only the command line prints.** A rule returns its occurrences as values, the run locates them into
    diagnostics, and the command line alone renders them and chooses the exit code. A problem in a subject is a
    diagnostic and the run goes on; only what stops Lorecraft from judging at all is raised.
-6. **A link escaping its applicable bound is one rule condition.** `LINK004` reports that condition for every
+6. **A link escaping its applicable bound is one rule condition.** `LC504` reports that condition for every
    governed Markdown item, using one code for repository-root escapes in documents and specs and skill-root
    escapes in skills and their resources. Its message names the link-bound escape; typed context may identify the
    bound crossed.
@@ -341,7 +341,7 @@ Before committing code, verify:
 
 - [ ] A rule's `message()` names the condition and never branches; context reaches the diagnostic through typed
   fields and `labels()` and `children()`, never as prose built in `check`
-- [ ] `LINK004` reports relative links that cross the applicable bound for documents, specs, skills and
+- [ ] `LC504` reports relative links that cross the applicable bound for documents, specs, skills and
   skill resources as the same link-bound escape condition
 - [ ] Guidance a spec states reaches `children()` through the context, and the rule does not restate it
 - [ ] A layout rule's labels and sub-diagnostics are the `Entry*` types, and no location is read by `getattr`

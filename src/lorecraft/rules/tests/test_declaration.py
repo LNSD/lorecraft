@@ -418,7 +418,7 @@ class TestRuleGroupPrefix:
 class TestRuleGroup:
     def test_rule_group_with_an_empty_title_raises_empty_rule_group_title_error(self) -> None:
         #: Given
-        prefix = RuleGroupPrefix('OUT')
+        prefix = RuleGroupPrefix('LC')
 
         #: When
         with pytest.raises(EmptyRuleGroupTitleError) as exc_info:

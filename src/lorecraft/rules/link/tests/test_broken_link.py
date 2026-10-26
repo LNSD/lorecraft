@@ -1,4 +1,4 @@
-"""`LINK003`, `broken-link`, over the relative links of one Markdown file and what the snapshot holds at each target.
+"""`LC503`, `broken-link`, over the relative links of one Markdown file and what the snapshot holds at each target.
 
 Every case is a Markdown file written as text and parsed by the real parser, through a fake database: a skill's
 resource, whose links are read from the skill root, or a document, whose links are read from its own directory. What
@@ -118,7 +118,7 @@ class TestBrokenLink:
 
         #: Then
         assert occurrences == (), (
-            'a link climbing above the skill root belongs to `LINK004`, so it is not judged as broken'
+            'a link climbing above the skill root belongs to `LC504`, so it is not judged as broken'
         )
 
     def test_check_with_links_spelling_no_relative_path_reports_nothing(self) -> None:

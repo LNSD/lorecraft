@@ -55,7 +55,7 @@ was discovered:
 - **Link resolution base and climb bound:** relative Markdown links resolve from the document's own directory for a
   corpus document or spec, and from the skill root for a skill's `SKILL.md` or resource. The climb bound is the
   repository root for documents and specs, and the skill root for skills and resources; crossing it is the
-  `LINK004` condition described by [adr-010](adr-010-diagnostics.md) ([adr-011](adr-011-rules-engine.md)).
+  `LC504` condition described by [adr-010](adr-010-diagnostics.md) ([adr-011](adr-011-rules-engine.md)).
 - **Frontmatter owner metadata:** the expected `name` value, whether it comes from a document stem or a listed skill
   directory, any resolved symlink target needed for diagnostic notes, and the governing schema provenance required to
   preserve existing frontmatter findings (`FR-013`).

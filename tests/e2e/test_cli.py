@@ -531,7 +531,7 @@ class TestCheckCommand:
         assert result.stderr == (
             '.agents/skills/review/SKILL.md: ungoverned for structure, outline\n'
             'docs/notes/todo.md: ungoverned for outline, budget\n'
-            'LC0xx  1 error\nLC1xx  1 error\nLINK   1 error\n'
+            'LC0xx  1 error\nLC1xx  1 error\nLC5xx  1 error\n'
             'checked 5 subject(s): 3 error(s), 0 warning(s)\n'
         ), 'the coverage line and the summary go to stderr'
 
@@ -551,7 +551,7 @@ class TestCheckCommand:
                     'path': '.agents/skills/review/references/guide.md',
                     'line': 3,
                     'severity': 'error',
-                    'code': 'LINK003',
+                    'code': 'LC503',
                     'name': 'broken-link',
                     'message': '`references/missing.md` names nothing',
                     'labels': [],
@@ -751,7 +751,7 @@ class TestCheckCommand:
 
         #: Then
         assert result.returncode == 1, result.stderr
-        assert result.stdout == expected, 'the LINK003 note resolves the resource from foo on every run'
+        assert result.stdout == expected, 'the LC503 note resolves the resource from foo on every run'
 
     def test_check_with_an_invalid_specification_prints_it_as_a_diagnostic_on_stdout(
         self, snapshot: SnapshotAssertion, invalid_spec_root: Path

@@ -8,7 +8,7 @@ skill's file; a registry of sample rules over a document's token count, declared
 runner, with no edit to it.
 
 A snapshot built in memory scans nothing, so no path is in its scope and no link is looked up in it. A test that
-needs a path in scope, such as those of `LINK003`, which judges what a link names, writes a tree under `tmp_path`
+needs a path in scope, such as those of `LC503`, which judges what a link names, writes a tree under `tmp_path`
 and opens the database on a scan of it instead.
 """
 
@@ -2240,7 +2240,7 @@ class TestCheckSubjects:
                 diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
                 ungoverned=(SpecPart.FRONTMATTER, SpecPart.OUTLINE),
             ),
-        ), 'LINK001 runs at deny over a document its structure specification governs, on the line of the link'
+        ), 'LC501 runs at deny over a document its structure specification governs, on the line of the link'
 
     def test_check_subjects_with_an_absolute_link_in_a_skill_file_reports_absolute_link_at_its_skill_file(
         self, package_table: RuleTable
@@ -2264,7 +2264,7 @@ class TestCheckSubjects:
                 diagnostics=(RuleDiagnostic(REVIEW_FILE, occurrence, Severity.ERROR),),
                 ungoverned=SKILL_UNGOVERNED,
             ),
-        ), "LINK001 runs at deny over a skill's SKILL.md, on the line of the link, counted from the file's first line"
+        ), "LC501 runs at deny over a skill's SKILL.md, on the line of the link, counted from the file's first line"
 
     def test_check_subjects_with_an_absolute_link_in_a_nested_resource_reports_it_where_an_agent_reaches_it(
         self, package_table: RuleTable
@@ -2298,7 +2298,7 @@ class TestCheckSubjects:
                 ItemRef(guide.path),
                 diagnostics=(RuleDiagnostic(resource_path, occurrence, Severity.ERROR),),
             ),
-        ), 'LINK001 runs at deny over a resource, reported at the path an agent reaches it by, on the line of the link'
+        ), 'LC501 runs at deny over a resource, reported at the path an agent reaches it by, on the line of the link'
 
     def test_check_subjects_with_a_skill_and_its_resources_reports_each_as_its_own_subject(
         self, package_table: RuleTable
@@ -2478,7 +2478,7 @@ class TestCheckSubjects:
                 diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
                 ungoverned=(SpecPart.FRONTMATTER, SpecPart.OUTLINE),
             ),
-        ), "LINK002 runs at deny over a document, reporting the fragment its own headings lack and not the title's"
+        ), "LC502 runs at deny over a document, reporting the fragment its own headings lack and not the title's"
 
     def test_check_subjects_with_a_fragment_missing_from_a_skill_file_reports_broken_fragment_at_its_skill_file(
         self, package_table: RuleTable
@@ -2502,7 +2502,7 @@ class TestCheckSubjects:
                 diagnostics=(RuleDiagnostic(REVIEW_FILE, occurrence, Severity.ERROR),),
                 ungoverned=SKILL_UNGOVERNED,
             ),
-        ), "LINK002 runs at deny over a skill's SKILL.md, on the line of the link"
+        ), "LC502 runs at deny over a skill's SKILL.md, on the line of the link"
 
     def test_check_subjects_with_a_fragment_only_the_skill_file_has_reports_it_missing_from_the_resource(
         self, package_table: RuleTable
@@ -2736,7 +2736,7 @@ def _write_code_corpus(root: Path, guide: bytes) -> None:
 
 
 def _broken_in_skill(path: str, line: int, url: str) -> RuleDiagnostic:
-    """The `LINK003` diagnostic of a link in a file of `REVIEW`, read from the skill root.
+    """The `LC503` diagnostic of a link in a file of `REVIEW`, read from the skill root.
 
     The link names its target by a normalised path, so the target is that path under the skill root.
 
@@ -2756,7 +2756,7 @@ def _broken_in_skill(path: str, line: int, url: str) -> RuleDiagnostic:
 
 @pytest.fixture(scope='module')
 def broken_link_table() -> RuleTable:
-    """The rule table enabling `LINK003` alone, as an error; immutable, so shared by the module."""
+    """The rule table enabling `LC503` alone, as an error; immutable, so shared by the module."""
     severities: dict[type[Rule], Severity] = {BrokenLink: Severity.ERROR}
     return RuleTable(severities)
 

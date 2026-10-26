@@ -1,4 +1,4 @@
-"""`LINK004`: a relative link climbs above the bound of its link base."""
+"""`LC504`: a relative link climbs above the bound of its link base."""
 
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -62,7 +62,7 @@ def escaping_links(primitives: SyntaxLinkResolutionPrimitives) -> tuple[tuple[Li
                 match error:
                     case EscapingTarget():
                         escaping.append((link, base))
-                    # Neither outcome climbs past its bound; LINK003 judges missing targets.
+                    # Neither outcome climbs past its bound; LC503 judges missing targets.
                     case MissingTarget() | OutsideScopeTarget():
                         continue
                     case _:
@@ -120,7 +120,7 @@ class EscapingLink(QueriedItemRule[tuple[tuple[Link, LinkBase], ...]]):
         base: The link base defining the bound the destination climbs above.
     """
 
-    CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 4)
+    CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 504)
     NAME: ClassVar[RuleName] = RuleName('escaping-link')
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('0.3.0')
