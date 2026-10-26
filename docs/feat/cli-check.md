@@ -44,14 +44,14 @@ relative to it. `docs/` and `docs/__meta__/` must be [real directories](workspac
 
 ### The Subjects
 
-Checks docs/specs, skills/resources and escaping symlinks. `LINK001`–`LINK003` check documents, specs and skills without a corpus structure file. `LINK004` reports a relative link climbing above its link base: repository root for documents and specs, skill root for skills and resources. Links within that bound are not escaping. `LINK005`–`LINK007` require the structure spec; `LINK005` and `LINK006` also check specs. Prose specs in `docs/__meta__/` are subjects in reserved `meta`; frontmatter, outline and length rules apply. Without `meta.spec.json`, each reports `ungoverned for frontmatter, structure, outline, budget`. Subjects and diagnostics follow path order. Ungoverned resources are reported as such.
+Checks docs/specs, skills/resources and escaping symlinks. `LC501`–`LC503` check documents, specs and skills without a corpus structure file. `LC504` reports a relative link climbing above its link base: repository root for documents and specs, skill root for skills and resources. Links within that bound are not escaping. `LC505`–`LC507` require the structure spec; `LC505` and `LC506` also check specs. Prose specs in `docs/__meta__/` are subjects in reserved `meta`; frontmatter, outline and length rules apply. Without `meta.spec.json`, each reports `ungoverned for frontmatter, structure, outline, budget`. Subjects and diagnostics follow path order. Ungoverned resources are reported as such.
 ### One Run, One Snapshot
 
 One snapshot, specs first. A failed structure file yields a diagnostic. Failed layers suppress spec gates; `Always`, schema and link gates still run. Suppressed parts appear as `ungoverned for ...`. `LC001` invalid UTF-8 is unjudged. Diagnostics and coverage use the actual `.spec.json` name.
 ### Selecting Rules
 
 `--select`/`--ignore` accept `ALL`, a full code or alias, comma-separated or repeated. Selectors are case-sensitive;
-without `--select`, all rules run. Former group prefixes and partial codes (`OUT`, `OUT0`, `LINK`, `LC1`, `LC2`, `LC20`) are
+without `--select`, all rules run. Prefix selectors (`OUT`, `OUT0`, `LINK`, `LC1`, `LC2`, `LC20`) are
 unknown and exit `2` (`'<selector>' is no rule code or alias code`). `--ignore` wins ties; aliases and selected
 `allow` rules warn.
 
@@ -78,7 +78,7 @@ lorecraft check --root ../other-repo --format json
 lorecraft check --format short
 
 lorecraft check --select LC206,LC403
-lorecraft check --ignore LINK003
+lorecraft check --ignore LC503
 
 lorecraft check --select LC306 --ignore LC301
 ```
@@ -145,9 +145,9 @@ JSON paths must be UTF-8; Unicode is unescaped.
 
 - Rules use default levels; selection only narrows the run.
 - Warnings do not fail the run: [`LC207`](../rulebook/LC207-unknown-field.md),
-  [`LINK005`](../rulebook/LINK005-extension-link.md), [`LINK006`](../rulebook/LINK006-missing-base-link.md),
-  [`LINK007`](../rulebook/LINK007-mutual-link.md) or [`LC101`](../rulebook/LC101-reserved-corpus-overlap.md),
-  all exit 0. LINK007 puts help before note.
+  [`LC505`](../rulebook/LC505-extension-link.md), [`LC506`](../rulebook/LC506-missing-base-link.md),
+  [`LC507`](../rulebook/LC507-mutual-link.md) or [`LC101`](../rulebook/LC101-reserved-corpus-overlap.md),
+  all exit 0. LC507 puts help before note.
   `LC101` is selectable; if its level makes it an error, the run exits 1.
 - A whole subject shows `--> path` without an excerpt. Unreadable source appears as `= at path:line: text`;
   excerpts cover documents, skills, resources and specs. A BOM is omitted from excerpted line 1.
@@ -163,9 +163,9 @@ JSON paths must be UTF-8; Unicode is unescaped.
 | `LC2xx` | Frontmatter checks use applicable schemas, including the builtin Agent Skills specification by default. `LC204` compares skill names with listed directories. `LC201` missing-frontmatter, `LC202` invalid-yaml, `LC203` non-mapping-frontmatter, `LC204` name-mismatch, `LC205` duplicate-key, `LC206` missing-field, `LC207` unknown-field (a warning), `LC208` wrong-type, `LC209` invalid-value, `LC210` invalid-frontmatter, `LC211` malformed-allowed-tools (a warning; pattern whitespace stays intact), `LC212` allowed-tools-too-long (a warning over 500 characters), `LC213` too-many-fields (`maxProperties`, an error), `LC214` too-few-fields (`minProperties`, an error) |
 | `LC3xx` | Outline checks: a document's H1 title and sections against its structure files. `LC301` missing-title, `LC302` extra-title, `LC303` title-not-first, `LC304` empty-section, `LC305` forbidden-section, `LC306` missing-section, `LC307` section-out-of-order, `LC308` unexpected-section, `LC309` invalid-title |
 | `LC4xx` | Length limits: a document's tokens or declared lines budget, a section's or its title's words or characters, and the builtin Agent Skills layer's 500-line skill cap. `LC401` too-many-tokens, `LC402` too-many-lines, `LC403` section-too-many-words, `LC404` title-too-many-words, `LC405` title-too-long |
-| `LINK` | Links in structured documents and skills. `LINK001` absolute, `LINK002` broken fragment, `LINK003` broken, `LINK004` escaping, `LINK005` extension-link (link to same-directory name extension; warning; also checks specs), `LINK006` missing-base-link (an extension omits its nearest existing document or spec ancestor under `References`; warning; also checks specs), `LINK007` mutual-link (documents in different corpora link each other; warning) |
+| `LC5xx` | Links in structured documents and skills. `LC501` absolute, `LC502` broken fragment, `LC503` broken, `LC504` escaping, `LC505` extension-link (link to same-directory name extension; warning; also checks specs), `LC506` missing-base-link (an extension omits its nearest existing document or spec ancestor under `References`; warning; also checks specs), `LC507` mutual-link (documents in different corpora link each other; warning) |
 
-`LINK005`–`LINK007` check reference direction in [spec](spec.md#references-point-to-the-base).
+`LC505`–`LC507` check reference direction in [spec](spec.md#references-point-to-the-base).
 
 Each reported structure-file failure appears once at that file.
  `LC001` points to the first invalid byte; `LC002`–`LC004` are whole-file diagnostics with help before notes.

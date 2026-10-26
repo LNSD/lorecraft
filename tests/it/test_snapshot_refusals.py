@@ -908,7 +908,7 @@ class TestCheckOverARefusalNoLoadFailureReports:
         assert {(item['path'], item['code']) for item in report['diagnostics']} == {
             ('docs/code/sub/x.md', 'LC002'),
             ('docs/code/broken.md', 'LC001'),
-            ('.agents/skills/commit/references/guide.md', 'LINK001'),
+            ('.agents/skills/commit/references/guide.md', 'LC501'),
         }, 'the refusal, invalid document and unaffected sibling resource remain diagnosed'
         assert report['summary']['subjects'] == 6, 'the skipped resource and its unaffected sibling remain counted'
         assert any(
@@ -931,7 +931,7 @@ class TestCheckOverARefusalNoLoadFailureReports:
         assert result.exit_code == 1, result.output
         report = json.loads(result.stdout)
         assert any(item['code'] == 'LC002' for item in report['diagnostics'])
-        assert ('.agents/skills/commit/SKILL.md', 'LINK001') in {
+        assert ('.agents/skills/commit/SKILL.md', 'LC501') in {
             (item['path'], item['code']) for item in report['diagnostics']
         }, 'the skill itself is still checked'
         assert report['summary']['subjects'] == 6, 'the refused directory alias is one subject beside the skill'

@@ -106,7 +106,7 @@ spec, and each diagnostic names the spec it breaks.
 ### References Point to the Base
 
 An extension names its base; a base names none of its extensions, in references or inline. Across corpora, the
-document that builds on another links to it, and the other does not link back. `LINK005`, `LINK006` and `LINK007`
+document that builds on another links to it, and the other does not link back. `LC505`, `LC506` and `LC507`
 check these directions. For a spec, the rule also covers its JSON files. A base is written without knowing
 what extends it, so adding, renaming or removing an extension never edits the base or leaves a list to go stale.
 

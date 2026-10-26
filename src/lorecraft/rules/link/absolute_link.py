@@ -1,4 +1,4 @@
-"""`LINK001`: a link in a Markdown file starts at a filesystem root."""
+"""`LC501`: a link in a Markdown file starts at a filesystem root."""
 
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -89,7 +89,7 @@ class AbsoluteLink(QueriedItemRule[tuple[Link, ...]]):
         url: The link's destination as the Markdown parser encodes it, which the message shows percent-decoded.
     """
 
-    CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 1)
+    CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 501)
     NAME: ClassVar[RuleName] = RuleName('absolute-link')
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('0.3.0')

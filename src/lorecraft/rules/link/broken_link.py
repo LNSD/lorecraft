@@ -1,4 +1,4 @@
-"""`LINK003`: a relative link names nothing the repository holds where it is read from."""
+"""`LC503`: a relative link names nothing the repository holds where it is read from."""
 
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -85,7 +85,7 @@ def missing_targets(primitives: SyntaxLinkResolutionPrimitives) -> tuple[BrokenT
                 match error:
                     case MissingTarget(path=path):
                         missing.append(BrokenTarget(link, base, path))
-                    # The target is outside scope, or LINK004 reports that it escapes.
+                    # The target is outside scope, or LC504 reports that it escapes.
                     case OutsideScopeTarget() | EscapingTarget():
                         continue
                     case _:
@@ -117,7 +117,7 @@ class BrokenLink(QueriedItemRule[tuple[BrokenTarget, ...]]):
     A fragment or a query after the path is ignored, and a `..` cancels the directory written before it. A URL with
     a scheme, an absolute link and a fragment-only link name no relative path, so they are not reported. A link that
     climbs past its bound (above the skill root in a skill, or above the repository root in a document or spec)
-    is not a broken target; `LINK004` reports it. Neither is a link leading into a directory the checks do not read,
+    is not a broken target; `LC504` reports it. Neither is a link leading into a directory the checks do not read,
     such as `../src/main.py` from a document: whether it names something cannot be told.
 
     ## Why is this bad?
@@ -153,7 +153,7 @@ class BrokenLink(QueriedItemRule[tuple[BrokenTarget, ...]]):
         target: The root-relative path the link names once read from its base, which the snapshot holds nothing at.
     """
 
-    CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 3)
+    CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 503)
     NAME: ClassVar[RuleName] = RuleName('broken-link')
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('0.3.0')

@@ -1,1 +1,1 @@
-"""Unit tests for the `LINK` group's rules, co-located with the modules they test."""
+"""Unit tests for the `LC5xx` group's rules, co-located with the modules they test."""

@@ -1,4 +1,4 @@
-error[LINK003]: `missing.md` names nothing
+error[LC503]: `missing.md` names nothing
  --> .agents/skills/inner/foo/ref.md:3
   │
 3 │ Read [the missing file](missing.md).

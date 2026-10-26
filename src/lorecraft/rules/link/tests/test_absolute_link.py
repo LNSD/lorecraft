@@ -1,4 +1,4 @@
-"""`LINK001`, `absolute-link`, over the links of one Markdown file.
+"""`LC501`, `absolute-link`, over the links of one Markdown file.
 
 Every case is a Markdown file written as text and parsed by the real parser, through a fake database; the rule
 reads what any Markdown file has, so a document and a `SKILL.md` are judged the same way.

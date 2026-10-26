@@ -1,4 +1,4 @@
-"""`LINK002`, `broken-fragment`, over the fragment-only links of one Markdown file and its own headings.
+"""`LC502`, `broken-fragment`, over the fragment-only links of one Markdown file and its own headings.
 
 Every case is a Markdown file written as text and parsed by the real parser, through a fake database; the rule
 reads what any Markdown file has, so a document and a `SKILL.md` are judged the same way.

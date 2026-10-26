@@ -1,4 +1,4 @@
-"""`LINK005`: a document links to a document that extends it."""
+"""`LC505`: a document links to a document that extends it."""
 
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -74,7 +74,7 @@ class ExtensionLink(QueriedItemRule[ExtensionLinkFacts | NotExtensionDocument]):
 
     A document whose name is continued by another is that document's base, and the other is its extension. The
     extension names its base; the base never links to what extends it. Only a link to an existing file is
-    reported, as a link to nothing is `LINK003`'s. A URL with a scheme, an absolute link and a fragment-only link
+    reported, as a link to nothing is `LC503`'s. A URL with a scheme, an absolute link and a fragment-only link
     spell no relative path, so none of them is reported.
 
     ## Why is this bad?
@@ -110,7 +110,7 @@ class ExtensionLink(QueriedItemRule[ExtensionLinkFacts | NotExtensionDocument]):
         base: The filename, with its extension, of the document that holds the link, which `extension` continues.
     """
 
-    CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 5)
+    CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 505)
     NAME: ClassVar[RuleName] = RuleName('extension-link')
     LEVEL: ClassVar[Level] = Level.WARN
     SINCE: ClassVar[Release] = Release('0.4.0')

@@ -235,4 +235,4 @@ Scenario: A sample rule
 ## References
 
 - [prd-014-resilient-model-loading](prd-014-resilient-model-loading.md) - Related: Load failures reported under codes and coverage
-- [prd-018-frontmatter-format](prd-018-frontmatter-format.md) - Related: The frontmatter format the `FM` codes judge
+- [prd-018-frontmatter-format](prd-018-frontmatter-format.md) - Related: The frontmatter format the `LC2xx` codes judge

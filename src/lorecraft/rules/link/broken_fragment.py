@@ -1,4 +1,4 @@
-"""`LINK002`: a link to a heading of the same Markdown file names a heading the file does not have."""
+"""`LC502`: a link to a heading of the same Markdown file names a heading the file does not have."""
 
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -120,7 +120,7 @@ class BrokenFragment(QueriedItemRule[BrokenFragmentFacts]):
         has_headings: Whether the file has any heading, which a note says when it has none: no fragment can name one.
     """
 
-    CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 2)
+    CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 502)
     NAME: ClassVar[RuleName] = RuleName('broken-fragment')
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('0.3.0')

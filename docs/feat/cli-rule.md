@@ -83,8 +83,8 @@ run. `LC001`–`LC004` are engine conditions, not rules; they are always reporte
 
 | Default level | Rule codes |
 |---------------|------------|
-| `deny` | `LC102`, `LC201`, `LC202`, `LC203`, `LC204`, `LC205`, `LC206`, `LC208`, `LC209`, `LC210`, `LC213`, `LC214`, `LC301`, `LC302`, `LC303`, `LC304`, `LC305`, `LC306`, `LC307`, `LC308`, `LC309`, `LC401`, `LC402`, `LC403`, `LC404`, `LC405`, `LINK001`, `LINK002`, `LINK003`, `LINK004` |
-| `warn` | `LC101`, `LC207`, `LC211`, `LC212`, `LINK005`, `LINK006`, `LINK007` |
+| `deny` | `LC102`, `LC201`, `LC202`, `LC203`, `LC204`, `LC205`, `LC206`, `LC208`, `LC209`, `LC210`, `LC213`, `LC214`, `LC301`, `LC302`, `LC303`, `LC304`, `LC305`, `LC306`, `LC307`, `LC308`, `LC309`, `LC401`, `LC402`, `LC403`, `LC404`, `LC405`, `LC501`, `LC502`, `LC503`, `LC504` |
+| `warn` | `LC101`, `LC207`, `LC211`, `LC212`, `LC505`, `LC506`, `LC507` |
 
 The `LC002` page covers unreadable structure files, unlistable corpus and skills directories, skills
 that cannot be listed or resolved, and `SKILL.md` links that cannot be followed. A regular `SKILL.md` whose

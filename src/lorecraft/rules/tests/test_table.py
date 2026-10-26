@@ -373,7 +373,7 @@ class TestRuleTableItemIndex:
         #: Given
         registry = Registry.load(rules)
         expected = {
-            (ItemType.DOCUMENT, Always()): ('LINK001', 'LINK002', 'LINK003', 'LINK004'),
+            (ItemType.DOCUMENT, Always()): ('LC501', 'LC502', 'LC503', 'LC504'),
             (ItemType.DOCUMENT, WhenSpec(SpecPart.FRONTMATTER)): (
                 'LC201',
                 'LC202',
@@ -398,17 +398,17 @@ class TestRuleTableItemIndex:
                 'LC403',
                 'LC404',
                 'LC405',
-                'LINK005',
-                'LINK006',
-                'LINK007',
+                'LC505',
+                'LC506',
+                'LC507',
             ),
             (ItemType.DOCUMENT, WhenSpec(SpecPart.OUTLINE)): ('LC306', 'LC307', 'LC308'),
             (ItemType.DOCUMENT, WhenSpec(SpecPart.BUDGET)): ('LC401', 'LC402'),
             (ItemType.SKILL_ENTRYPOINT, Always()): (
-                'LINK001',
-                'LINK002',
-                'LINK003',
-                'LINK004',
+                'LC501',
+                'LC502',
+                'LC503',
+                'LC504',
             ),
             (ItemType.SKILL_ENTRYPOINT, WhenSpec(SpecPart.FRONTMATTER)): (
                 'LC201',
@@ -439,8 +439,8 @@ class TestRuleTableItemIndex:
             ),
             (ItemType.SKILL_ENTRYPOINT, WhenSpec(SpecPart.OUTLINE)): ('LC306', 'LC307', 'LC308'),
             (ItemType.SKILL_ENTRYPOINT, WhenSpec(SpecPart.BUDGET)): ('LC401', 'LC402'),
-            (ItemType.SKILL_RESOURCE, Always()): ('LINK001', 'LINK002', 'LINK003', 'LINK004'),
-            (ItemType.SPEC, Always()): ('LINK001', 'LINK002', 'LINK003', 'LINK004'),
+            (ItemType.SKILL_RESOURCE, Always()): ('LC501', 'LC502', 'LC503', 'LC504'),
+            (ItemType.SPEC, Always()): ('LC501', 'LC502', 'LC503', 'LC504'),
             (ItemType.SPEC, WhenSpec(SpecPart.FRONTMATTER)): (
                 'LC201',
                 'LC202',
@@ -465,9 +465,9 @@ class TestRuleTableItemIndex:
                 'LC403',
                 'LC404',
                 'LC405',
-                'LINK005',
-                'LINK006',
-                'LINK007',
+                'LC505',
+                'LC506',
+                'LC507',
             ),
             (ItemType.SPEC, WhenSpec(SpecPart.OUTLINE)): ('LC306', 'LC307', 'LC308'),
             (ItemType.SPEC, WhenSpec(SpecPart.BUDGET)): ('LC401', 'LC402'),
