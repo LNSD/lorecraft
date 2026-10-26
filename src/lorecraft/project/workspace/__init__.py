@@ -39,7 +39,6 @@ from .loader import load_model, load_workspace
 from .model import (
     BuiltinSpecLayer,
     Corpus,
-    CorpusKeyMismatchError,
     CorpusNamespace,
     CorpusSpec,
     Governance,
@@ -63,7 +62,6 @@ __all__: list[str] = [
     'BuiltinSpecLayer',
     'ResolvedItem',
     'WorkspaceModel',
-    'CorpusKeyMismatchError',
     'MetaCorpusNameMismatchError',
     'SkillLocationRefMismatchError',
     'OutsideSymlinkPathMismatchError',

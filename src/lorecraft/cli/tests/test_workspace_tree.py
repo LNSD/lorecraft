@@ -38,7 +38,7 @@ def _code_model() -> WorkspaceModel:
         filenames=frozenset({AspectFilename.parse('logging'), AspectFilename.parse('python-typing')}),
     )
     return WorkspaceModel(
-        corpora=FrozenMapping({code: corpus}),
+        corpus_values=frozenset({corpus}),
         skills_dirs=frozenset(),
         skill_locations=FrozenMapping({}),
         outside_symlinks=FrozenMapping({}),
@@ -82,7 +82,7 @@ def _code_model_document() -> dict[str, object]:
 
 def _empty_model() -> WorkspaceModel:
     return WorkspaceModel(
-        corpora=FrozenMapping({}),
+        corpus_values=frozenset(),
         skills_dirs=frozenset(),
         skill_locations=FrozenMapping({}),
         outside_symlinks=FrozenMapping({}),
@@ -97,7 +97,7 @@ def _skills_model() -> WorkspaceModel:
     commit = _regular_skill('.agents/skills/commit')
     review = _regular_skill('.agents/skills/review')
     return WorkspaceModel(
-        corpora=FrozenMapping({}),
+        corpus_values=frozenset(),
         skills_dirs=frozenset(
             {
                 SkillsDir(agent=AgentName('claude-code'), path=_path('.claude/skills'), resolves_to=universal),
@@ -128,7 +128,7 @@ def _governed_skills_model() -> WorkspaceModel:
     rules = _regular_skill('.agents/skills/code-rules')
     review = _regular_skill('.agents/skills/review')
     return WorkspaceModel(
-        corpora=FrozenMapping({}),
+        corpus_values=frozenset(),
         skills_dirs=frozenset(
             {
                 SkillsDir(

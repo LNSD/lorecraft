@@ -61,9 +61,9 @@ from ..failure import FailedStructure
 from ..model import (
     BuiltinSpecLayer,
     Corpus,
-    CorpusKeyMismatchError,
     CorpusNamespace,
     CorpusSpec,
+    DuplicateCorpusNameError,
     InvalidBuiltinFrontmatterSchemaError,
     MetaCorpusNameMismatchError,
     NamespaceSpec,
@@ -698,7 +698,7 @@ def two_corpora_model() -> WorkspaceModel:
         filenames=frozenset({AspectFilename.parse('cli-check')}),
     )
     return WorkspaceModel(
-        corpora=FrozenMapping({code.name: code, feat.name: feat}),
+        corpus_values=frozenset({code, feat}),
         skills_dirs=frozenset(),
         skill_locations=FrozenMapping({}),
         outside_symlinks=FrozenMapping({}),
@@ -732,7 +732,7 @@ def _model_of_corpora(*names: str) -> WorkspaceModel:
         Corpus(corpus_spec=_corpus_spec(name), namespaces=FrozenMapping({}), filenames=frozenset()) for name in names
     ]
     return WorkspaceModel(
-        corpora=FrozenMapping({corpus.name: corpus for corpus in corpora}),
+        corpus_values=frozenset(corpora),
         skills_dirs=frozenset(),
         skill_locations=FrozenMapping({}),
         outside_symlinks=FrozenMapping({}),
@@ -781,7 +781,7 @@ def skills_model() -> WorkspaceModel:
     """
     universal = ResolvedPath(RootRelativePath.parse('.agents/skills'))
     return WorkspaceModel(
-        corpora=FrozenMapping({}),
+        corpus_values=frozenset(),
         skills_dirs=frozenset(
             {
                 SkillsDir(
@@ -800,20 +800,72 @@ def skills_model() -> WorkspaceModel:
 
 @pytest.mark.unit
 class TestWorkspaceModel:
-    def test_construction_with_a_corpus_under_another_corpus_name_raises_corpus_key_mismatch(
+    def test_corpus_values_derive_the_lookup_by_name(self, two_corpora_model: WorkspaceModel) -> None:
+        #: Given
+        model = two_corpora_model
+
+        #: When
+        corpora = model.corpora
+
+        #: Then
+        assert model.corpus_values == frozenset({corpora[CODE], corpora[FEAT]}), (
+            'the model stores each corpus value once without an order'
+        )
+        assert corpora == FrozenMapping({CODE: corpora[CODE], FEAT: corpora[FEAT]}), (
+            'the lookup is keyed by each corpus value name'
+        )
+
+    def test_replacing_corpus_values_rebuilds_the_lookup(self, two_corpora_model: WorkspaceModel) -> None:
+        #: Given
+        feat = two_corpora_model.corpora[FEAT]
+
+        #: When
+        model = replace(two_corpora_model, corpus_values=frozenset({feat}))
+
+        #: Then
+        assert model.find_corpus(FEAT) == feat, 'the replacement corpus is available under its own name'
+        assert model.find_corpus(CODE) is None, 'the replaced corpus is absent from the derived lookup'
+
+    def test_corpus_values_with_the_same_name_raise_duplicate_corpus_name(self) -> None:
+        #: Given
+        first = Corpus(corpus_spec=_corpus_spec('code'), namespaces=FrozenMapping({}), filenames=frozenset())
+        second = replace(first, filenames=frozenset({AspectFilename.parse('python-typing')}))
+
+        #: When
+        with pytest.raises(DuplicateCorpusNameError) as exc_info:
+            replace(_model_of_corpora('code'), corpus_values=frozenset({first, second}))
+
+        #: Then
+        assert exc_info.value.name == CODE, 'the typed failure identifies the repeated corpus name'
+
+    def test_corpus_values_with_the_same_members_compare_equal_regardless_of_construction_order(
         self, two_corpora_model: WorkspaceModel
     ) -> None:
         #: Given
-        code = two_corpora_model.corpora[CODE]
-        corpora = FrozenMapping({FEAT: code})
+        model = two_corpora_model
+        reversed_corpora = frozenset(reversed(tuple(model.corpus_values)))
 
         #: When
-        with pytest.raises(CorpusKeyMismatchError) as exc_info:
-            replace(two_corpora_model, corpora=corpora)
+        reordered_model = replace(model, corpus_values=reversed_corpora)
 
         #: Then
-        assert exc_info.value.key == FEAT, 'the error retains the key the corpus was filed under'
-        assert exc_info.value.value == CODE, 'the error retains the corpus name the key holds'
+        assert reordered_model == model, 'corpus construction order does not affect workspace model equality'
+
+    def test_corpora_lookup_order_is_sorted_for_differently_ordered_values(
+        self, two_corpora_model: WorkspaceModel
+    ) -> None:
+        #: Given
+        model = two_corpora_model
+        reordered_values = frozenset(reversed(tuple(model.corpus_values)))
+
+        #: When
+        reordered_model = replace(model, corpus_values=reordered_values)
+
+        #: Then
+        assert tuple(model.corpora) == (CODE, FEAT), 'corpora keys are inserted in sorted name order'
+        assert tuple(reordered_model.corpora) == tuple(model.corpora), (
+            'the derived corpus lookup order is independent of input set iteration'
+        )
 
     def test_construction_with_a_non_meta_corpus_in_the_meta_slot_raises_meta_corpus_name_mismatch(
         self, two_corpora_model: WorkspaceModel
@@ -980,7 +1032,7 @@ class TestWorkspaceModel:
         schema_input = SchemaInput(reference, origin, FrozenMapping.from_plain({'type': 'object'}))
         layer = BuiltinSpecLayer(origin, frozenset({ItemType.SKILL_ENTRYPOINT}), schema_input)
         model = WorkspaceModel(
-            corpora=FrozenMapping({}),
+            corpus_values=frozenset(),
             skills_dirs=frozenset(),
             skill_locations=FrozenMapping({location.ref: location}),
             outside_symlinks=FrozenMapping({}),
@@ -1024,7 +1076,7 @@ class TestWorkspaceModel:
         )
         model = replace(
             two_corpora_model,
-            corpora=FrozenMapping({**two_corpora_model.corpora, CODE: replace(corpus, corpus_spec=structured)}),
+            corpus_values=frozenset({replace(corpus, corpus_spec=structured), two_corpora_model.corpora[FEAT]}),
         )
 
         #: When
@@ -1112,7 +1164,7 @@ class TestWorkspaceModel:
         code = _code_corpus(_corpus_spec('code'), (_code_namespace('python'),))
         code = replace(code, filenames=frozenset({AspectFilename.parse('python-typing')}))
         model = WorkspaceModel(
-            corpora=FrozenMapping({code.name: code}),
+            corpus_values=frozenset({code}),
             skills_dirs=frozenset(),
             skill_locations=FrozenMapping({}),
             outside_symlinks=FrozenMapping({}),
@@ -1164,7 +1216,7 @@ class TestWorkspaceModel:
         #: Given
         location = _regular_skill('.agents/skills/1skill')
         model = WorkspaceModel(
-            corpora=FrozenMapping({}),
+            corpus_values=frozenset(),
             skills_dirs=frozenset(),
             skill_locations=FrozenMapping({location.ref: location}),
             outside_symlinks=FrozenMapping({}),
@@ -1438,7 +1490,7 @@ class TestSpecifications:
         )
         feat = Corpus(corpus_spec=_corpus_spec('feat'), namespaces=FrozenMapping({}), filenames=frozenset())
         model = WorkspaceModel(
-            corpora=FrozenMapping({feat.name: feat, code.name: code}),
+            corpus_values=frozenset({feat, code}),
             skills_dirs=frozenset(),
             skill_locations=FrozenMapping({}),
             outside_symlinks=FrozenMapping({}),
@@ -1461,7 +1513,7 @@ class TestSpecifications:
             filenames=frozenset(),
         )
         model = WorkspaceModel(
-            corpora=FrozenMapping({code.name: code}),
+            corpus_values=frozenset({code}),
             skills_dirs=frozenset(),
             skill_locations=FrozenMapping({}),
             outside_symlinks=FrozenMapping({}),
@@ -1480,7 +1532,7 @@ class TestSpecifications:
         #: Given
         code = Corpus(corpus_spec=_corpus_spec('code'), namespaces=FrozenMapping({}), filenames=frozenset())
         model = WorkspaceModel(
-            corpora=FrozenMapping({code.name: code}),
+            corpus_values=frozenset({code}),
             skills_dirs=frozenset(),
             skill_locations=FrozenMapping({}),
             outside_symlinks=FrozenMapping({}),
@@ -1535,7 +1587,7 @@ class TestSpecifications:
         #: Given
         skills = Corpus(corpus_spec=_corpus_spec('skills'), namespaces=FrozenMapping({}), filenames=frozenset())
         model = WorkspaceModel(
-            corpora=FrozenMapping({}),
+            corpus_values=frozenset(),
             skills_dirs=frozenset(),
             skill_locations=FrozenMapping({}),
             outside_symlinks=FrozenMapping({}),
@@ -1565,7 +1617,7 @@ class TestSpecifications:
         )
         location = _regular_skill('.agents/skills/code-rules')
         model = WorkspaceModel(
-            corpora=FrozenMapping({}),
+            corpus_values=frozenset(),
             skills_dirs=frozenset(),
             skill_locations=FrozenMapping({location.ref: location}),
             outside_symlinks=FrozenMapping({}),
@@ -1671,7 +1723,7 @@ class TestSpecifications:
         )
         model = replace(
             WorkspaceModel(
-                corpora=FrozenMapping({}),
+                corpus_values=frozenset(),
                 skills_dirs=frozenset(),
                 skill_locations=FrozenMapping({}),
                 outside_symlinks=FrozenMapping({}),

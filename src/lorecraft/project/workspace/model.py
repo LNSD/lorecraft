@@ -81,23 +81,6 @@ from lorecraft.vfs import ResolvedPath
 from .failure import FailedStructure, LoadFailure
 
 
-class CorpusKeyMismatchError(Error):
-    """A corpus mapping key differs from the corpus name it holds.
-
-    Attributes:
-        key: The name used to file the corpus.
-        value: The corpus's declared name.
-    """
-
-    key: CorpusName
-    value: CorpusName
-
-    def __init__(self, key: CorpusName, value: CorpusName) -> None:
-        self.key = key
-        self.value = value
-        super().__init__(f'corpora key {key} holds the corpus {value}')
-
-
 class MetaCorpusNameMismatchError(Error):
     """The reserved meta corpus slot holds a corpus with another name.
 
@@ -110,6 +93,20 @@ class MetaCorpusNameMismatchError(Error):
     def __init__(self, value: CorpusName) -> None:
         self.value = value
         super().__init__(f'meta_corpus holds the corpus {value}')
+
+
+class DuplicateCorpusNameError(Error):
+    """Two corpus values in a workspace model have the same name.
+
+    Attributes:
+        name: The corpus name repeated by the values.
+    """
+
+    name: CorpusName
+
+    def __init__(self, name: CorpusName) -> None:
+        self.name = name
+        super().__init__(f'more than one corpus is named {name}')
 
 
 class SkillLocationRefMismatchError(Error):
@@ -536,11 +533,13 @@ class ResolvedItem:
 class WorkspaceModel:
     """Immutable snapshot of structure and config; holds no root path and no document content.
 
-    Every collection but `load_failures` holds each of its members once and has no order of its own: the `sorted_*`
-    properties list them in the order a consumer reads them in. Repository schema inputs are stored once and their
-    keyed view is derived from their references.
+    Corpus values, skill locations, and outside symlinks are unordered collections with unique keys; the `sorted_*`
+    properties list them in the order a consumer reads them in. Other ordered collections preserve the order named
+    by their fields below. Corpus values and repository schema inputs are stored once, with their keyed views derived
+    from their own identities.
 
     Attributes:
+        corpus_values: Every distinct corpus value; `corpora` is derived by corpus name.
         corpora: Every corpus, by name.
         skills_dirs: Every project skills directory an agent reads that the repository has, one record per
             agent and directory. Two agents reading one resolved directory are two records with the same
@@ -572,7 +571,7 @@ class WorkspaceModel:
         schema_inputs: Derived registry combining builtin layer inputs before repository inputs.
     """
 
-    corpora: FrozenMapping[CorpusName, Corpus]
+    corpus_values: frozenset[Corpus]
     skills_dirs: frozenset[SkillsDir]
     skill_locations: FrozenMapping[SkillRef, SkillLocation]
     outside_symlinks: FrozenMapping[RootRelativePath, OutsideSymlink]
@@ -584,22 +583,26 @@ class WorkspaceModel:
     unchecked_symlinks: tuple[RootRelativePath, ...] = ()
     repository_schema_inputs: tuple[RepositorySchemaInput, ...] = ()
     builtin_layers: tuple[BuiltinSpecLayer, ...] = ()
+    corpora: FrozenMapping[CorpusName, Corpus] = field(init=False, default=FrozenMapping({}))
     # Derived from builtin_layers and repository_schema_inputs, never passed in; replace() recomputes it.
     schema_inputs: FrozenMapping[SchemaRef, SchemaInput] = field(init=False, default=FrozenMapping({}))
 
     def __post_init__(self) -> None:
-        """Check the reserved meta corpus and derive the schema lookup from its source values.
+        """Derive the corpus and schema lookups, and check the reserved meta corpus.
 
         Raises:
-            CorpusKeyMismatchError: If a `corpora` key differs from its value's name.
             MetaCorpusNameMismatchError: If `meta_corpus` does not use the reserved meta name.
+            DuplicateCorpusNameError: If two corpus values have the same name.
             SkillLocationRefMismatchError: If a `skill_locations` key differs from its value's ref.
             OutsideSymlinkPathMismatchError: If an `outside_symlinks` key differs from its value's path.
             DuplicateSchemaRefError: If builtin layers or repository inputs repeat a schema reference.
         """
-        for name, corpus in self.corpora.items():
-            if name != corpus.name:
-                raise CorpusKeyMismatchError(name, corpus.name)
+        corpora: dict[CorpusName, Corpus] = {}
+        for corpus in sorted(self.corpus_values, key=lambda value: str(value.name)):
+            if corpus.name in corpora:
+                raise DuplicateCorpusNameError(corpus.name)
+            corpora[corpus.name] = corpus
+        object.__setattr__(self, 'corpora', FrozenMapping(corpora))
         if self.meta_corpus is not None and self.meta_corpus.name.value != META_CORPUS_NAME:
             raise MetaCorpusNameMismatchError(self.meta_corpus.name)
         for ref, location in self.skill_locations.items():

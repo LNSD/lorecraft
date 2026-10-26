@@ -74,7 +74,7 @@ def _model(*failures: LoadFailure) -> WorkspaceModel:
         failures: The load failures the model lists, in order.
     """
     return WorkspaceModel(
-        corpora=FrozenMapping({}),
+        corpus_values=frozenset(),
         skills_dirs=frozenset(),
         skill_locations=FrozenMapping({}),
         outside_symlinks=FrozenMapping({}),
