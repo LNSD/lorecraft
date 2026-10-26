@@ -24,6 +24,7 @@ from ..report import (
     RuleDiagnostic,
     UndecodableSubject,
     diagnostic_order,
+    elevate_warnings,
 )
 from .sample_rules.rendered_message.long_line import LongLine
 from .sample_rules.token_count.sample_condition import SampleCondition
@@ -213,6 +214,44 @@ class TestEngineDiagnostic:
 
         #: Then
         assert severity is Severity.WARNING, "an engine diagnostic reports at its condition class's `SEVERITY`"
+
+
+@pytest.mark.unit
+class TestElevateWarnings:
+    def test_elevate_warnings_with_enabled_flag_converts_rule_warning_to_error(self) -> None:
+        #: Given
+        path = RootRelativePath.parse('docs/code/a.md')
+        diagnostic = RuleDiagnostic(path, UppercaseEntry(spec=None), Severity.WARNING)
+
+        #: When
+        elevated = elevate_warnings((diagnostic,), deny_warnings=True)
+
+        #: Then
+        assert elevated == (RuleDiagnostic(path, UppercaseEntry(spec=None), Severity.ERROR),), (
+            '`-D warnings` makes a detected rule warning fail the run'
+        )
+
+    def test_elevate_warnings_with_flag_off_preserves_rule_warning(self) -> None:
+        #: Given
+        diagnostic = RuleDiagnostic(
+            RootRelativePath.parse('docs/code/a.md'), UppercaseEntry(spec=None), Severity.WARNING
+        )
+
+        #: When
+        elevated = elevate_warnings((diagnostic,), deny_warnings=False)
+
+        #: Then
+        assert elevated == (diagnostic,), 'without `-D warnings`, findings retain their resolved severity'
+
+    def test_elevate_warnings_with_engine_warning_keeps_its_fixed_severity(self) -> None:
+        #: Given
+        diagnostic = EngineDiagnostic(RootRelativePath.parse('docs/code/a.md'), SampleCondition())
+
+        #: When
+        elevated = elevate_warnings((diagnostic,), deny_warnings=True)
+
+        #: Then
+        assert elevated == (diagnostic,), 'engine conditions keep the severity fixed by their declaration'
 
 
 @pytest.mark.unit

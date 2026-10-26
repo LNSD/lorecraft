@@ -18,7 +18,8 @@ from lorecraft.rules.outline.section_out_of_order import SectionOutOfOrder
 from lorecraft.rules.outline.unexpected_section import UnexpectedSection
 
 from ..declaration import Rule
-from ..identity import RuleCode, Severity
+from ..identity import Level, RuleCode, Severity
+from ..level_resolution import LevelSource, ResolvedLevels
 from ..registry import Registry
 from ..selection import AllRules, RuleSelection
 from ..subject import Always, SpecPart, WhenSpec
@@ -43,6 +44,34 @@ def registry() -> Registry:
 
 @pytest.mark.unit
 class TestRuleTableFromRegistry:
+    def test_from_registry_with_allow_override_leaves_default_warn_rule_out(self) -> None:
+        #: Given
+        registry = Registry((OverHalfBudget,))
+        settings: LevelSource = {OverHalfBudget.CODE: Level.ALLOW}
+        levels = ResolvedLevels.from_sources((settings,))
+
+        #: When
+        table = RuleTable.from_registry(registry, EVERY_RULE, levels)
+
+        #: Then
+        assert table.item_rules(ItemType.DOCUMENT, WhenSpec(SpecPart.BUDGET)) == (), (
+            'an allow override removes a rule whose default level is warn'
+        )
+
+    def test_from_registry_with_deny_override_reports_default_warn_rule_as_error(self) -> None:
+        #: Given
+        registry = Registry((OverHalfBudget,))
+        settings: LevelSource = {OverHalfBudget.CODE: Level.DENY}
+        levels = ResolvedLevels.from_sources((settings,))
+
+        #: When
+        table = RuleTable.from_registry(registry, EVERY_RULE, levels)
+
+        #: Then
+        assert table.item_rules(ItemType.DOCUMENT, WhenSpec(SpecPart.BUDGET)) == (
+            EnabledRule(OverHalfBudget, Severity.ERROR),
+        ), 'a deny override changes a default warn rule to error severity'
+
     def test_from_registry_with_rules_at_every_level_partitions_the_enabled_ones_in_code_order(
         self, registry: Registry
     ) -> None:
