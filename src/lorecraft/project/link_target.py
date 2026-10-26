@@ -5,24 +5,22 @@ specification reads it from the skill root, the skill directory where an agent r
 a document, it is read from the document's own directory, as Markdown renders it. `LinkBase` states which.
 
 `link_targets_of` joins each link's relative path to that directory and looks the result up through a view: a file, a
-directory, missing, or in a directory the scan never read, so the snapshot cannot tell. Each entry keeps the
-root-relative path
-it joined beside the lookup, so a reader says where a link really leads. It is part of the revision's state, never a
-judgment: whether a missing target makes a link broken is a rule's to decide. A link spelling no relative path has no
-entry. One that climbs past its bound has an `EscapingTarget` instead of a `LinkTarget`: above the skill root in a
-file of a skill, which names nothing the skill carries once it is installed elsewhere, or above the repository root in
-a document, which names nothing the snapshot can hold.
+directory, missing, or in a directory the scan never read, so the snapshot cannot tell. Each valid entry holds the
+file or directory found, including its root-relative path. Each failure entry wraps the reason the link has no valid
+target. These values are part of the revision's state, never a judgment: whether a missing target makes a link broken
+is a rule's to decide. A link spelling no relative path has no entry. One that climbs past its bound wraps an
+`EscapingTarget`: above the skill root in a file of a skill, which names nothing the skill carries once installed
+elsewhere, or above the repository root in a document, which names nothing the snapshot can hold.
 """
 
 import posixpath
 from collections.abc import Mapping
 from dataclasses import dataclass
-from enum import Enum
 from pathlib import PurePosixPath
 from typing import TYPE_CHECKING, assert_never
 
 from lorecraft.core.mapping import FrozenMapping
-from lorecraft.core.path import RootRelativePath
+from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.layout import DOCUMENT_SUFFIX
@@ -72,32 +70,62 @@ class DocumentDirectory:
 type LinkBase = SkillRoot | DocumentDirectory
 
 
-class PathLookup(Enum):
-    """What the snapshot holds at a root-relative path."""
+@dataclass(frozen=True, slots=True)
+class FileTarget:
+    """A relative link that leads to a file held by the snapshot."""
 
-    FILE = 'file'
-    """A file the snapshot holds, reached through any symlink on the way."""
-    DIRECTORY = 'directory'
-    """A directory the snapshot holds, reached through any symlink on the way."""
-    MISSING = 'missing'
-    """Nothing the snapshot holds, in a directory the scan read: no entry, or a symlink that dangles or leads to
-    nothing it holds."""
-    OUTSIDE_SCOPE = 'outside scope'
-    """A path in a directory the scan never read, so the snapshot cannot tell what is there."""
+    path: RootRelativePath
+
+
+@dataclass(frozen=True, slots=True)
+class DirectoryTarget:
+    """A relative link that leads to a directory held by the snapshot."""
+
+    path: RootRelativePath
+
+
+@dataclass(frozen=True, slots=True)
+class MissingTarget:
+    """A relative link that leads to nothing in a directory the scan read."""
+
+    path: RootRelativePath
+
+
+@dataclass(frozen=True, slots=True)
+class OutsideScopeTarget:
+    """A relative link whose destination is in a directory the scan never read."""
+
+    path: RootRelativePath
+
+
+type LookedUpTarget = FileTarget | DirectoryTarget
+"""A valid path found in the snapshot."""
+
+
+type PathLookupError = MissingTarget | OutsideScopeTarget
+"""A path lookup that found no valid file or directory."""
+
+
+@dataclass(frozen=True, slots=True)
+class LookupFailure:
+    """Why a path in the snapshot is not a valid file or directory.
+
+    Attributes:
+        error: The lookup outcome that prevents a valid file or directory result.
+    """
+
+    error: PathLookupError
 
 
 @dataclass(frozen=True, slots=True)
 class LinkTarget:
-    """Where a relative link leads, read from its base, and what the snapshot holds there.
+    """A valid file or directory where a relative link leads.
 
     Attributes:
-        path: The root-relative path the link names once joined to its base, which differs from the path as written
-            when the link is read from a directory other than its own file's.
-        lookup: What the snapshot holds at `path`.
+        target: The valid file or directory found at the path the link names once joined to its base.
     """
 
-    path: RootRelativePath
-    lookup: PathLookup
+    target: LookedUpTarget
 
 
 @dataclass(frozen=True, slots=True)
@@ -109,9 +137,46 @@ class EscapingTarget:
     """
 
 
-# What a relative link leads to: a path the snapshot can be asked about, or none at all. A union of two records rather
-# than one with a flag, so an escaping link can never carry a path or a lookup.
-type LinkTargetEntry = LinkTarget | EscapingTarget
+# A lookup error is distinct from the file and directory values a successful lookup returns.
+type LinkTargetError = PathLookupError | EscapingTarget
+"""A relative link outcome that does not name a valid file or directory target."""
+
+
+@dataclass(frozen=True, slots=True)
+class LinkTargetFailure:
+    """Why a relative link does not lead to a valid file or directory.
+
+    Attributes:
+        error: The lookup or path-join outcome that prevents a valid target.
+    """
+
+    error: LinkTargetError
+
+
+type LinkTargetEntry = LinkTarget | LinkTargetFailure
+"""A valid relative link target or a wrapper holding its failure."""
+
+
+@dataclass(frozen=True, slots=True)
+class JoinedPath:
+    """The root-relative path a link names after joining it to its base.
+
+    Attributes:
+        path: The root-relative path the link names.
+    """
+
+    path: RootRelativePath
+
+
+@dataclass(frozen=True, slots=True)
+class JoinFailure:
+    """Why a relative link cannot be joined inside its link-base bound.
+
+    Attributes:
+        error: The bound the link climbs past.
+    """
+
+    error: EscapingTarget
 
 
 def link_targets_of(
@@ -139,16 +204,25 @@ def link_targets_of(
                 continue
             case _:
                 assert_never(destination)
-        path = _joined_path(normalised.path, base)
-        if path is None:
-            targets[normalised] = EscapingTarget()
-        else:
-            targets[normalised] = LinkTarget(path=path, lookup=_look_up(path, view, scope))
+        joined = _joined_path(normalised.path, base)
+        match joined:
+            case JoinedPath(path=path):
+                match _look_up(path, view, scope):
+                    case FileTarget() | DirectoryTarget() as target:
+                        targets[normalised] = LinkTarget(target=target)
+                    case LookupFailure(error=error):
+                        targets[normalised] = LinkTargetFailure(error=error)
+                    case _ as result:
+                        assert_never(result)
+            case JoinFailure(error=error):
+                targets[normalised] = LinkTargetFailure(error=error)
+            case _:
+                assert_never(joined)
     return FrozenMapping(targets)
 
 
-def _joined_path(normalised: PurePosixPath, base: LinkBase) -> RootRelativePath | None:
-    """The root-relative path a link's normalised relative path names, read from the base, or `None` past its bound.
+def _joined_path(normalised: PurePosixPath, base: LinkBase) -> JoinedPath | JoinFailure:
+    """The root-relative path a link names, or a wrapper holding its bound error.
 
     The path was normalised lexically, so a `..` cancels the component written before it, never one a symlink there
     would lead to.
@@ -165,15 +239,15 @@ def _joined_path(normalised: PurePosixPath, base: LinkBase) -> RootRelativePath 
             # skill's directory first: a link that climbs out and back in by the repository's own path, such as
             # `../../skills/review/SKILL.md`, depends on where the skill is installed, so it escapes too.
             if _climbs_above(normalised):
-                return None
-            return base.directory / RootRelativePath(normalised)
+                return JoinFailure(EscapingTarget())
+            return JoinedPath(base.directory / RootRelativePath(normalised))
         case DocumentDirectory():
             # Joined before normalising again, so a `..` may climb out of the document's directory, as Markdown
             # renders it, but a path climbing above the repository root names nothing the snapshot can hold.
             joined = PurePosixPath(posixpath.normpath(f'{base.directory}/{normalised}'))
             if _climbs_above(joined):
-                return None
-            return RootRelativePath(joined)
+                return JoinFailure(EscapingTarget())
+            return JoinedPath(RootRelativePath(joined))
         case _:
             assert_never(base)
 
@@ -190,8 +264,8 @@ def _climbs_above(normalised: PurePosixPath) -> bool:
     return normalised.parts[:1] == ('..',)
 
 
-def _look_up(path: RootRelativePath, view: FileSystem, scope: ScopeIndex) -> PathLookup:
-    """What the snapshot holds at a path, or that the scan never read the directory it sits in.
+def _look_up(path: RootRelativePath, view: FileSystem, scope: ScopeIndex) -> LookedUpTarget | LookupFailure:
+    """What the snapshot holds at a path, or a wrapper for why it cannot be found.
 
     Args:
         path: The path to look up, relative to the repository root.
@@ -201,12 +275,12 @@ def _look_up(path: RootRelativePath, view: FileSystem, scope: ScopeIndex) -> Pat
     # Scope first: a path in a directory the scan never read holds nothing in the snapshot whatever is on disk, so
     # the view alone would call it missing.
     if not scope.is_in_scope(path):
-        return PathLookup.OUTSIDE_SCOPE
+        return LookupFailure(OutsideScopeTarget(path))
     if view.find_dir(path) is not None:
-        return PathLookup.DIRECTORY
+        return DirectoryTarget(path)
     if view.find_file(path) is not None:
-        return PathLookup.FILE
-    return PathLookup.MISSING
+        return FileTarget(path)
+    return LookupFailure(MissingTarget(path))
 
 
 @dataclass(frozen=True, slots=True)
@@ -221,7 +295,7 @@ class ExtensionLink:
 
     line: LineNumber
     url: str
-    extension: str
+    extension: PathComponent
 
 
 def extension_links_of(
@@ -249,12 +323,12 @@ def extension_links_of(
         if not isinstance(destination, RelativeDestination):
             continue
         entry = targets.get(destination.path)
-        if not isinstance(entry, LinkTarget) or entry.lookup is not PathLookup.FILE:
+        if not isinstance(entry, LinkTarget) or not isinstance(entry.target, FileTarget):
             continue
-        name = entry.path.name
-        if entry.path.parent == base.directory and name is not None and name.has_suffix(DOCUMENT_SUFFIX):
-            if str(name).startswith(prefix):
-                found.append(ExtensionLink(line=link.line, url=link.url, extension=str(name)))
+        name = entry.target.path.name
+        if entry.target.path.parent == base.directory and name is not None and name.has_suffix(DOCUMENT_SUFFIX):
+            if name.value.startswith(prefix):
+                found.append(ExtensionLink(line=link.line, url=link.url, extension=name))
     return tuple(found)
 
 
@@ -293,11 +367,11 @@ def linked_files_of(
         if not isinstance(destination, RelativeDestination):
             continue
         entry = targets.get(destination.path)
-        if not isinstance(entry, LinkTarget) or entry.lookup is not PathLookup.FILE:
+        if not isinstance(entry, LinkTarget) or not isinstance(entry.target, FileTarget):
             continue
-        name = entry.path.name
+        name = entry.target.path.name
         if name is not None and name.has_suffix('.md'):
-            found.append(LinkedDocument(line=link.line, url=link.url, path=entry.path))
+            found.append(LinkedDocument(line=link.line, url=link.url, path=entry.target.path))
     return tuple(found)
 
 
@@ -328,7 +402,7 @@ def has_link_to(targets: Mapping[NormalisedLinkPath, LinkTargetEntry], path: Roo
         path: The root-relative path to look for.
     """
     return any(
-        isinstance(entry, LinkTarget) and entry.lookup is PathLookup.FILE and entry.path == path
+        isinstance(entry, LinkTarget) and isinstance(entry.target, FileTarget) and entry.target.path == path
         for entry in targets.values()
     )
 

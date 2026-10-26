@@ -10,7 +10,7 @@ import pytest
 from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.core.path import RootRelativePath
-from lorecraft.project.link_target import LinkTarget, LinkTargetEntry, PathLookup
+from lorecraft.project.link_target import FileTarget, LinkTarget, LinkTargetEntry
 from lorecraft.project.syntax import LineNumber, NormalisedLinkPath
 from lorecraft.rules.location import Help, Note
 from lorecraft.rules.tests.fake_database import DEFAULT_DOCUMENT_DIRECTORY, FakeDocumentDatabase, judged
@@ -31,7 +31,7 @@ def _document(
         targets: For each link's normalised path, the root-relative path of the file it leads to.
     """
     entries: dict[NormalisedLinkPath, LinkTargetEntry] = {
-        NormalisedLinkPath.parse(url): LinkTarget(path=RootRelativePath.parse(path), lookup=PathLookup.FILE)
+        NormalisedLinkPath.parse(url): LinkTarget(target=FileTarget(RootRelativePath.parse(path)))
         for url, path in (targets or {}).items()
     }
     return FakeDocumentDatabase(
