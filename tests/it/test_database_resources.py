@@ -16,6 +16,7 @@ from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.database import Database, ItemText
 from lorecraft.project.item import ItemRef, ItemType, SkillResourceOrigin, UnlistedItemError
 from lorecraft.project.skill import OutsideSymlinkRef, SkillResourceLocation
+from lorecraft.project.workspace.builtin import AGENT_SKILLS_SPEC_LAYER as SKILLS_LAYER
 from lorecraft.vfs import (
     DirectoryRecord,
     EntryRecord,
@@ -51,7 +52,8 @@ class TestResourceItems:
     def test_item_text_resolves_a_resource_ref_on_a_fresh_database(self) -> None:
         #: Given
         database = Database.from_snapshot(
-            from_tree({'.agents': {'skills': {'review': {'SKILL.md': b'# R\n', 'guide.md': b'Read me.\n'}}}})
+            from_tree({'.agents': {'skills': {'review': {'SKILL.md': b'# R\n', 'guide.md': b'Read me.\n'}}}}),
+            builtin_layers=(SKILLS_LAYER,),
         )
 
         #: When
@@ -74,7 +76,8 @@ class TestResourceItems:
                     '.agents/skills/review/SKILL.md': FileRecord(b'# Review\n'),
                     '.agents/skills/review/outside.md': SymlinkRecord(PurePosixPath('../../../../outside.md')),
                 }
-            )
+            ),
+            builtin_layers=(SKILLS_LAYER,),
         )
 
         #: When
@@ -88,7 +91,7 @@ class TestResourceItems:
         snapshot = from_tree(
             {'.agents': {'skills': {'review': {'SKILL.md': b'# Review\n', 'guides': {'a.md': b'[b](guides/b.md)\n'}}}}}
         )
-        database = Database.from_snapshot(snapshot)
+        database = Database.from_snapshot(snapshot, builtin_layers=(SKILLS_LAYER,))
         (location,) = _resources(database, 'review')
 
         #: When
@@ -116,7 +119,7 @@ class TestResourceItems:
                 }
             }
         )
-        database = Database.from_snapshot(snapshot)
+        database = Database.from_snapshot(snapshot, builtin_layers=(SKILLS_LAYER,))
 
         #: When
         sources = [_text(database, _resources(database, skill)[0]) for skill in ('review', 'deploy')]
@@ -148,7 +151,8 @@ class TestResourceItems:
                         'shared/a.md': FileRecord(b'a\n'),
                         'shared/b.md': FileRecord(b'b\n'),
                     }
-                )
+                ),
+                builtin_layers=(SKILLS_LAYER,),
             )
 
         #: When
@@ -179,7 +183,7 @@ class TestResourceItems:
                 }
             }
         )
-        database = Database.from_snapshot(snapshot)
+        database = Database.from_snapshot(snapshot, builtin_layers=(SKILLS_LAYER,))
         location = _resources(database, 'review')[0]
 
         #: When
@@ -195,7 +199,8 @@ class TestResourceItems:
     def test_item_with_a_resource_ref_still_refuses_it_as_unlisted(self) -> None:
         #: Given
         database = Database.from_snapshot(
-            from_tree({'.agents': {'skills': {'review': {'SKILL.md': b'# R\n', 'a.md': b'a\n'}}}})
+            from_tree({'.agents': {'skills': {'review': {'SKILL.md': b'# R\n', 'a.md': b'a\n'}}}}),
+            builtin_layers=(SKILLS_LAYER,),
         )
         location = _resources(database, 'review')[0]
         ref = ItemRef(location.ref.path)
@@ -207,7 +212,8 @@ class TestResourceItems:
     def test_item_text_of_an_unlisted_path_inside_a_skill_raises_unlisted(self) -> None:
         #: Given
         database = Database.from_snapshot(
-            from_tree({'.agents': {'skills': {'review': {'SKILL.md': b'# R\n', 'a.md': b'a\n'}}}})
+            from_tree({'.agents': {'skills': {'review': {'SKILL.md': b'# R\n', 'a.md': b'a\n'}}}}),
+            builtin_layers=(SKILLS_LAYER,),
         )
 
         #: When / Then
@@ -217,7 +223,8 @@ class TestResourceItems:
     def test_listing_a_skill_stays_lazy_until_a_resource_is_asked_for(self) -> None:
         #: Given
         database = Database.from_snapshot(
-            from_tree({'.agents': {'skills': {'review': {'SKILL.md': b'# R\n', 'a.md': b'a\n'}}}})
+            from_tree({'.agents': {'skills': {'review': {'SKILL.md': b'# R\n', 'a.md': b'a\n'}}}}),
+            builtin_layers=(SKILLS_LAYER,),
         )
 
         #: When

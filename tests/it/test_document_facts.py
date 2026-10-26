@@ -28,6 +28,7 @@ from lorecraft.project.query import (
 )
 from lorecraft.project.schemas import CorpusSpecName, SpecName, title_facts
 from lorecraft.project.syntax import Anchor, LineNumber
+from lorecraft.project.workspace.builtin import AGENT_SKILLS_SPEC_LAYER as SKILLS_LAYER
 from lorecraft.rules.length.too_many_tokens import token_facts
 from lorecraft.rules.link.extension_link import extension_link_facts
 from lorecraft.rules.link.mutual_link import mutual_link_facts
@@ -97,7 +98,7 @@ def _document_base(primitives: ItemPrimitives) -> AspectFilename | SpecName | No
 class TestMarkdownPrimitives:
     def test_anchors_with_a_document_returns_the_anchors_of_its_parse(self, tmp_path: Path) -> None:
         #: Given
-        database = Database.from_snapshot(_snapshot(tmp_path))
+        database = Database.from_snapshot(_snapshot(tmp_path), builtin_layers=(SKILLS_LAYER,))
 
         #: When
         anchors = database.query(_anchors, GUIDE)
@@ -108,7 +109,7 @@ class TestMarkdownPrimitives:
 
     def test_item_name_with_a_document_returns_its_typed_filename(self, tmp_path: Path) -> None:
         #: Given
-        database = Database.from_snapshot(_snapshot(tmp_path))
+        database = Database.from_snapshot(_snapshot(tmp_path), builtin_layers=(SKILLS_LAYER,))
 
         #: When
         name = database.query(_item_name, GUIDE)
@@ -118,7 +119,7 @@ class TestMarkdownPrimitives:
 
     def test_item_corpus_with_a_document_returns_its_typed_corpus(self, tmp_path: Path) -> None:
         #: Given
-        database = Database.from_snapshot(_snapshot(tmp_path))
+        database = Database.from_snapshot(_snapshot(tmp_path), builtin_layers=(SKILLS_LAYER,))
 
         #: When
         corpus = database.query(_item_corpus, GUIDE)
@@ -128,7 +129,7 @@ class TestMarkdownPrimitives:
 
     def test_item_base_with_a_specification_returns_its_typed_spec_name(self, tmp_path: Path) -> None:
         #: Given
-        database = Database.from_snapshot(_snapshot(tmp_path))
+        database = Database.from_snapshot(_snapshot(tmp_path), builtin_layers=(SKILLS_LAYER,))
 
         #: When
         base = database.query(_document_base, SPEC_MD)
@@ -138,7 +139,7 @@ class TestMarkdownPrimitives:
 
     def test_document_base_with_an_extension_returns_the_document_its_name_continues(self, tmp_path: Path) -> None:
         #: Given
-        database = Database.from_snapshot(_snapshot(tmp_path))
+        database = Database.from_snapshot(_snapshot(tmp_path), builtin_layers=(SKILLS_LAYER,))
 
         #: When
         base = database.query(_document_base, GUIDE_MORE)
@@ -148,7 +149,7 @@ class TestMarkdownPrimitives:
 
     def test_document_base_with_a_document_no_other_precedes_returns_none(self, tmp_path: Path) -> None:
         #: Given
-        database = Database.from_snapshot(_snapshot(tmp_path))
+        database = Database.from_snapshot(_snapshot(tmp_path), builtin_layers=(SKILLS_LAYER,))
 
         #: When
         base = database.query(_document_base, GUIDE)
@@ -158,7 +159,7 @@ class TestMarkdownPrimitives:
 
     def test_document_base_with_a_skill_returns_none(self, tmp_path: Path) -> None:
         #: Given
-        database = Database.from_snapshot(_snapshot(tmp_path))
+        database = Database.from_snapshot(_snapshot(tmp_path), builtin_layers=(SKILLS_LAYER,))
 
         #: When
         base = database.query(_document_base, SKILL)
@@ -171,7 +172,7 @@ class TestMarkdownPrimitives:
 class TestDocumentFactQueries:
     def test_item_title_facts_called_twice_returns_the_first_answer(self, tmp_path: Path) -> None:
         #: Given
-        database = Database.from_snapshot(_snapshot(tmp_path))
+        database = Database.from_snapshot(_snapshot(tmp_path), builtin_layers=(SKILLS_LAYER,))
         first = database.query(title_facts, GUIDE)
 
         #: When
@@ -184,7 +185,7 @@ class TestDocumentFactQueries:
         self, tmp_path: Path
     ) -> None:
         #: Given
-        database = Database.from_snapshot(_snapshot(tmp_path))
+        database = Database.from_snapshot(_snapshot(tmp_path), builtin_layers=(SKILLS_LAYER,))
 
         #: When
         constraints = database.query(title_facts, GUIDE).constraints
@@ -194,7 +195,7 @@ class TestDocumentFactQueries:
 
     def test_item_title_facts_of_an_unlisted_path_raises_unlisted_item_error(self, tmp_path: Path) -> None:
         #: Given
-        database = Database.from_snapshot(_snapshot(tmp_path))
+        database = Database.from_snapshot(_snapshot(tmp_path), builtin_layers=(SKILLS_LAYER,))
 
         #: When / Then
         with pytest.raises(UnlistedItemError):
@@ -202,7 +203,7 @@ class TestDocumentFactQueries:
 
     def test_query_token_facts_holds_the_budget_and_counts_the_file(self, tmp_path: Path) -> None:
         #: Given
-        database = Database.from_snapshot(_snapshot(tmp_path))
+        database = Database.from_snapshot(_snapshot(tmp_path), builtin_layers=(SKILLS_LAYER,))
 
         #: When
         facts = database.query(token_facts, GUIDE)
@@ -219,7 +220,7 @@ class TestDocumentFactQueries:
 
     def test_query_empty_section_facts_holds_the_forbidding_file_and_the_empty_section(self, tmp_path: Path) -> None:
         #: Given
-        database = Database.from_snapshot(_snapshot(tmp_path))
+        database = Database.from_snapshot(_snapshot(tmp_path), builtin_layers=(SKILLS_LAYER,))
 
         #: When
         facts = database.query(empty_section_facts, GUIDE)
@@ -231,7 +232,7 @@ class TestDocumentFactQueries:
 
     def test_query_of_an_unlisted_path_raises_unlisted_item_error(self, tmp_path: Path) -> None:
         #: Given
-        database = Database.from_snapshot(_snapshot(tmp_path))
+        database = Database.from_snapshot(_snapshot(tmp_path), builtin_layers=(SKILLS_LAYER,))
 
         #: When / Then
         with pytest.raises(UnlistedItemError):
@@ -239,7 +240,7 @@ class TestDocumentFactQueries:
 
     def test_query_extension_link_facts_holds_the_link_to_the_existing_extension_only(self, tmp_path: Path) -> None:
         #: Given
-        database = Database.from_snapshot(_snapshot(tmp_path))
+        database = Database.from_snapshot(_snapshot(tmp_path), builtin_layers=(SKILLS_LAYER,))
 
         #: When
         facts = database.query(extension_link_facts, GUIDE)
@@ -259,7 +260,7 @@ class TestDocumentFactQueries:
 
     def test_query_extension_link_facts_of_a_skill_entry_holds_no_link(self, tmp_path: Path) -> None:
         #: Given
-        database = Database.from_snapshot(_snapshot(tmp_path))
+        database = Database.from_snapshot(_snapshot(tmp_path), builtin_layers=(SKILLS_LAYER,))
 
         #: When
         facts = database.query(extension_link_facts, SKILL)
@@ -272,7 +273,7 @@ class TestDocumentFactQueries:
 class TestDocumentFactReads:
     def test_query_reads_only_the_primitives_the_query_names(self, tmp_path: Path) -> None:
         #: Given
-        database = Database.from_snapshot(_snapshot(tmp_path))
+        database = Database.from_snapshot(_snapshot(tmp_path), builtin_layers=(SKILLS_LAYER,))
 
         #: When
         database.query(title_facts, GUIDE)
@@ -310,7 +311,7 @@ class TestDocumentLinks:
 
     def test_document_links_holds_each_linked_document_with_its_corpus_and_back_link(self, tmp_path: Path) -> None:
         #: Given
-        database = Database.from_snapshot(self._snapshot(tmp_path))
+        database = Database.from_snapshot(self._snapshot(tmp_path), builtin_layers=(SKILLS_LAYER,))
 
         #: When
         links = database.query(_document_links, GUIDE)
@@ -335,7 +336,7 @@ class TestDocumentLinks:
 
     def test_document_links_called_twice_returns_the_first_answer(self, tmp_path: Path) -> None:
         #: Given
-        database = Database.from_snapshot(self._snapshot(tmp_path))
+        database = Database.from_snapshot(self._snapshot(tmp_path), builtin_layers=(SKILLS_LAYER,))
         first = database.query(_document_links, GUIDE)
 
         #: When
@@ -346,7 +347,7 @@ class TestDocumentLinks:
 
     def test_document_links_of_a_skill_entry_holds_none(self, tmp_path: Path) -> None:
         #: Given
-        database = Database.from_snapshot(_snapshot(tmp_path))
+        database = Database.from_snapshot(_snapshot(tmp_path), builtin_layers=(SKILLS_LAYER,))
 
         #: When
         links = database.query(_document_links, SKILL)
@@ -356,7 +357,7 @@ class TestDocumentLinks:
 
     def test_mutual_link_facts_holds_the_corpus_and_reads_only_what_it_names(self, tmp_path: Path) -> None:
         #: Given
-        database = Database.from_snapshot(self._snapshot(tmp_path))
+        database = Database.from_snapshot(self._snapshot(tmp_path), builtin_layers=(SKILLS_LAYER,))
 
         #: When
         facts = database.query(mutual_link_facts, GUIDE)

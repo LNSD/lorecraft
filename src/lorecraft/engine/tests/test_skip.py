@@ -10,6 +10,7 @@ from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.project.database import Database, ItemText
 from lorecraft.project.item import ItemRef, SpecPart
 from lorecraft.project.layout import SPECS_DIR
+from lorecraft.project.workspace.builtin import AGENT_SKILLS_SPEC_LAYER as SKILLS_LAYER
 from lorecraft.rules.registry import Registry
 from lorecraft.rules.report import CheckedItem, SkipCause, SkippedSubject, UndecodableSubject
 from lorecraft.rules.selection import AllRules, RuleSelection
@@ -49,7 +50,7 @@ def _database_with(files: dict[str, bytes], documents: dict[str, bytes]) -> Data
         documents: The files of `docs/code/`, by name.
     """
     snapshot = from_tree({'docs': {'__meta__': files, 'code': documents}})
-    return Database.from_snapshot(snapshot)
+    return Database.from_snapshot(snapshot, builtin_layers=(SKILLS_LAYER,))
 
 
 def _all_rules() -> RuleTable:
@@ -69,7 +70,7 @@ def _database() -> Database:
             }
         }
     )
-    return Database.from_snapshot(snapshot)
+    return Database.from_snapshot(snapshot, builtin_layers=(SKILLS_LAYER,))
 
 
 @pytest.mark.unit
@@ -97,7 +98,7 @@ class TestCheckSubjectsOverASkillEntry:
     def test_check_subjects_with_a_skill_entry_reports_what_the_shared_runner_judges(self) -> None:
         #: Given
         snapshot = from_tree({'.agents': {'skills': {'review': {'SKILL.md': b'---\nname: review\n---\n\n# Review\n'}}}})
-        database = Database.from_snapshot(snapshot)
+        database = Database.from_snapshot(snapshot, builtin_layers=(SKILLS_LAYER,))
         table = _all_rules()
         location = database.model().sorted_skill_locations[0]
         source = database.item_text(ItemRef(location.ref.path))
@@ -114,7 +115,7 @@ class TestCheckSubjectsOverASkillEntry:
     def test_check_subjects_with_an_undecodable_skill_entry_reports_it_undecodable(self) -> None:
         #: Given
         snapshot = from_tree({'.agents': {'skills': {'review': {'SKILL.md': b'\xff\xfe'}}}})
-        database = Database.from_snapshot(snapshot)
+        database = Database.from_snapshot(snapshot, builtin_layers=(SKILLS_LAYER,))
         location = database.model().sorted_skill_locations[0]
 
         #: When
@@ -132,7 +133,7 @@ class TestCheckSubjectsOverASkillEntry:
                 '.agents': {'skills': {'review': {'SKILL.md': b'---\nname: review\n---\n\n# Review\n'}}},
             }
         )
-        database = Database.from_snapshot(snapshot)
+        database = Database.from_snapshot(snapshot, builtin_layers=(SKILLS_LAYER,))
         location = database.model().sorted_skill_locations[0]
         item = ItemRef(location.ref.path)
         assert database.item_governance(item) is not None, 'the reserved skills corpus governs skill entrypoints'
@@ -157,7 +158,7 @@ class TestCheckSubjectsOverASkillEntry:
                 '.agents': {'skills': {'review': {'SKILL.md': b'---\nname: review\n---\n\n# Review\n'}}},
             }
         )
-        database = Database.from_snapshot(snapshot)
+        database = Database.from_snapshot(snapshot, builtin_layers=(SKILLS_LAYER,))
         location = database.model().sorted_skill_locations[0]
         source = database.item_text(ItemRef(location.ref.path))
         assert isinstance(source, ItemText), 'the skill is UTF-8, so it decodes'
@@ -187,7 +188,7 @@ class TestCheckSubjectsOverASkillEntry:
                 },
             }
         )
-        database = Database.from_snapshot(snapshot)
+        database = Database.from_snapshot(snapshot, builtin_layers=(SKILLS_LAYER,))
         (location,) = database.skill_resources(database.model().sorted_skill_locations[0]).resources
         item = ItemRef(location.ref.path)
         assert database.item_governance(item) is None, 'the skills corpus does not govern resources'

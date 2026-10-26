@@ -25,6 +25,7 @@ from lorecraft.project.schemas.agent_skills_schema import (
 )
 from lorecraft.project.skill import OutsideSymlink, OutsideSymlinkRef
 from lorecraft.project.syntax import Heading
+from lorecraft.project.workspace.builtin import AGENT_SKILLS_SPEC_LAYER as SKILLS_LAYER
 from lorecraft.schemas import (
     BuiltinOrigin,
     SchemaInput,
@@ -202,7 +203,8 @@ def _database() -> Database:
                     'code': {'guide.md': b'# Guide\n'},
                 }
             }
-        )
+        ),
+        builtin_layers=(SKILLS_LAYER,),
     )
 
 
@@ -422,7 +424,8 @@ class TestReads:
         database = Database.from_snapshot(
             from_tree(
                 {'docs': {'__meta__': {'code.md': b'# Code\n', 'code.spec.json': b'{}'}, 'code': {'guide.md': b''}}}
-            )
+            ),
+            builtin_layers=(SKILLS_LAYER,),
         )
 
         #: When
@@ -456,7 +459,8 @@ class TestReads:
                         'feat': {'target.md': b'# Target\n'},
                     }
                 }
-            )
+            ),
+            builtin_layers=(SKILLS_LAYER,),
         )
 
         #: When
@@ -480,7 +484,8 @@ class TestReads:
                         'feat': {'target.md': b'# Target\n'},
                     }
                 }
-            )
+            ),
+            builtin_layers=(SKILLS_LAYER,),
         )
 
         #: When
@@ -507,7 +512,9 @@ class TestReads:
         )
         records = dict(snapshot.records)
         records[TARGET.path] = RefusedRead(OsRefusal.PERMISSION_DENIED)
-        database = Database.from_snapshot(Snapshot(SnapshotRecords(records), scope=snapshot.scope))
+        database = Database.from_snapshot(
+            Snapshot(SnapshotRecords(records), scope=snapshot.scope), builtin_layers=(SKILLS_LAYER,)
+        )
 
         #: When
         headings = database.query(_reads_unreadable_item, GUIDE)
@@ -520,7 +527,7 @@ class TestReads:
 
     def test_query_memoizes_symlink_subjects_and_records_their_primitive(self) -> None:
         #: Given
-        database = Database.from_snapshot(from_tree({}))
+        database = Database.from_snapshot(from_tree({}), builtin_layers=(SKILLS_LAYER,))
         path = RootRelativePath.parse('.agents/skills/outside')
         outside = OutsideSymlink(path, RootExit(path, PurePosixPath('/outside')))
         database._model = replace(database.model(), outside_symlinks=FrozenMapping({path: outside}))
@@ -547,7 +554,7 @@ class TestReads:
 
     def test_query_memoizes_corpus_directory_subjects_and_records_their_primitive(self) -> None:
         #: Given
-        database = Database.from_snapshot(from_tree({}))
+        database = Database.from_snapshot(from_tree({}), builtin_layers=(SKILLS_LAYER,))
         path = RootRelativePath.parse('docs/skills')
         directory = ReservedCorpusDirectory(path, CorpusName.parse('skills'))
         database._model = replace(database.model(), overlapping_directories=frozenset({directory}))
@@ -574,7 +581,7 @@ class TestReads:
 
     def test_query_over_an_unlisted_symlink_raises_unlisted_item_error(self) -> None:
         #: Given
-        database = Database.from_snapshot(from_tree({}))
+        database = Database.from_snapshot(from_tree({}), builtin_layers=(SKILLS_LAYER,))
         ref = OutsideSymlinkRef(RootRelativePath.parse('.agents/skills/missing'))
 
         #: When
@@ -586,7 +593,7 @@ class TestReads:
 
     def test_query_over_an_unlisted_corpus_directory_raises_unlisted_item_error(self) -> None:
         #: Given
-        database = Database.from_snapshot(from_tree({}))
+        database = Database.from_snapshot(from_tree({}), builtin_layers=(SKILLS_LAYER,))
         ref = ReservedCorpusDirectoryRef(RootRelativePath.parse('docs/skills'))
 
         #: When
