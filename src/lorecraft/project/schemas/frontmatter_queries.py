@@ -45,7 +45,6 @@ def read_schema_input(primitives: SchemaPrimitives) -> SchemaInput:
 def repository_frontmatter_schema(primitives: SchemaPrimitives) -> FrontmatterSchema:
     """The checked repository frontmatter schema from its registry input."""
     schema_input = primitives.schema_input()
-    assert isinstance(schema_input.document, FrozenMapping)
     return FrontmatterSchema(schema_input.document)
 
 

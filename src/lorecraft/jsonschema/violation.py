@@ -2,17 +2,24 @@
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+from typing import NewType
 
 from lorecraft.core.mapping import Frozen, FrozenMapping, Plain
 
 from .schema_keyword import Keyword
 
+InstancePath = NewType('InstancePath', tuple[str | int, ...])
+"""The path through the instance to the value a violation concerns."""
+
+SchemaPath = NewType('SchemaPath', tuple[str | int, ...])
+"""The path through the schema to the keyword that failed."""
+
 
 @dataclass(frozen=True, slots=True)
 class MissingRequiredProperties:
-    """The required property names absent from the object that failed validation."""
+    """A required property name absent from the object that failed validation."""
 
-    fields: tuple[str, ...]
+    field: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -25,9 +32,9 @@ class DependentProperty:
 
 @dataclass(frozen=True, slots=True)
 class MissingDependentProperties:
-    """The missing dependencies for the dependent properties written in the instance."""
+    """A missing dependency of a dependent property written in the instance."""
 
-    dependencies: tuple[DependentProperty, ...]
+    dependency: DependentProperty
 
 
 @dataclass(frozen=True, slots=True)
@@ -35,6 +42,15 @@ class AdditionalProperties:
     """The instance properties refused by `additionalProperties`."""
 
     fields: tuple[str, ...]
+
+    def __post_init__(self) -> None:
+        """Refuse the impossible case where no additional property was rejected.
+
+        Raises:
+            ValueError: If there is no rejected field.
+        """
+        if not self.fields:
+            raise ValueError('additionalProperties must reject at least one field')
 
 
 @dataclass(frozen=True, slots=True)
@@ -78,17 +94,12 @@ class Violation:
 
     message: str
     keyword: Keyword
-    path: tuple[str | int, ...]
-    schema_path: tuple[str | int, ...]
+    path: InstancePath
+    schema_path: SchemaPath
     instance: Frozen
     schema: Frozen
     evaluated_properties: frozenset[str]
     facts: tuple[ViolationFact, ...] = ()
-
-    def __post_init__(self) -> None:
-        """Copy plain containers into deeply immutable values."""
-        object.__setattr__(self, 'instance', _freeze(self.instance))
-        object.__setattr__(self, 'schema', _freeze(self.schema))
 
 
 def _freeze(value: Plain) -> Frozen:

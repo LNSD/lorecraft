@@ -410,7 +410,7 @@ class TestCheckedSchema:
         #: Given
         schema: dict[str, Plain] = {'properties': {'child': {'required': ['x']}}}
         instance: Plain = {'child': {}, 'x': 1}
-        expected = (MissingRequiredProperties(('x',)),)
+        expected = (MissingRequiredProperties('x'),)
         checked = _checked(schema)
 
         #: When
@@ -426,7 +426,7 @@ class TestCheckedSchema:
             'properties': {'child': {'dependentRequired': {'x': ['y']}}},
         }
         instance: Plain = {'child': {'x': 1}, 'x': 1, 'y': 1}
-        expected = (MissingDependentProperties((DependentProperty('x', 'y'),)),)
+        expected = (MissingDependentProperties(DependentProperty('x', 'y')),)
         checked = _checked(schema)
 
         #: When
@@ -472,7 +472,7 @@ class TestCheckedSchema:
         #: Given
         schema: dict[str, Plain] = {'items': {'required': ['x']}}
         instance: Plain = [{}, {'x': 1}]
-        expected = (MissingRequiredProperties(('x',)),)
+        expected = (MissingRequiredProperties('x'),)
         checked = _checked(schema)
 
         #: When
@@ -486,7 +486,7 @@ class TestCheckedSchema:
         #: Given
         schema: dict[str, Plain] = {'items': {'dependentRequired': {'x': ['y']}}}
         instance: Plain = [{'x': 1}, {'x': 1, 'y': 1}]
-        expected = (MissingDependentProperties((DependentProperty('x', 'y'),)),)
+        expected = (MissingDependentProperties(DependentProperty('x', 'y')),)
         checked = _checked(schema)
 
         #: When
@@ -532,7 +532,7 @@ class TestCheckedSchema:
         #: Given
         schema: dict[str, Plain] = {'properties': {'propertyNames': {'required': ['x']}}}
         instance: Plain = {'propertyNames': {}}
-        expected = (MissingRequiredProperties(('x',)),)
+        expected = (MissingRequiredProperties('x'),)
         checked = _checked(schema)
 
         #: When
@@ -549,7 +549,7 @@ class TestCheckedSchema:
             'properties': {'child': {'$ref': '#/$defs/propertyNames'}},
         }
         instance: Plain = {'child': {}}
-        expected = (MissingRequiredProperties(('x',)),)
+        expected = (MissingRequiredProperties('x'),)
         checked = _checked(schema)
 
         #: When
@@ -615,8 +615,8 @@ class TestCheckedSchema:
 
         #: Then
         assert _facts(violations) == (
-            (MissingRequiredProperties(('x',)),),
-            (MissingRequiredProperties(('y',)),),
+            (MissingRequiredProperties('x'),),
+            (MissingRequiredProperties('y'),),
         ), 'each violation names only its own missing field'
 
     def test_validate_with_two_missing_dependencies_narrows_each_fact_to_its_own_pair(self) -> None:
@@ -630,8 +630,8 @@ class TestCheckedSchema:
 
         #: Then
         assert _facts(violations) == (
-            (MissingDependentProperties((DependentProperty('x', 'y'),)),),
-            (MissingDependentProperties((DependentProperty('x', 'z'),)),),
+            (MissingDependentProperties(DependentProperty('x', 'y')),),
+            (MissingDependentProperties(DependentProperty('x', 'z')),),
         ), 'each violation names only its own missing pair'
 
 

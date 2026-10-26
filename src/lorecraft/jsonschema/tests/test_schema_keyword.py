@@ -5,6 +5,7 @@ from jsonschema import Draft202012Validator
 from jsonschema.exceptions import ValidationError as SchemaValidationError
 
 from lorecraft.core.mapping import Plain
+from lorecraft.core.num import UnsignedInt
 
 from ..json_type import JsonType
 from ..schema_keyword import (
@@ -144,7 +145,7 @@ class TestKeywordOf:
         keyword = _keyword(schema, instance)
 
         #: Then
-        assert keyword == MinPropertiesKeyword(2), 'minProperties holds its limit'
+        assert keyword == MinPropertiesKeyword(UnsignedInt(2)), 'minProperties holds its limit'
 
     def test_keyword_of_with_max_properties_returns_the_limit(self) -> None:
         #: Given
@@ -155,7 +156,7 @@ class TestKeywordOf:
         keyword = _keyword(schema, instance)
 
         #: Then
-        assert keyword == MaxPropertiesKeyword(0), 'maxProperties holds its limit'
+        assert keyword == MaxPropertiesKeyword(UnsignedInt(0)), 'maxProperties holds its limit'
 
     def test_keyword_of_with_any_other_keyword_returns_other(self) -> None:
         #: Given

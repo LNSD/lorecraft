@@ -24,9 +24,11 @@ from .schema_keyword import (
 from .violation import (
     AdditionalProperties,
     DependentProperty,
+    InstancePath,
     InvalidPropertyName,
     MissingDependentProperties,
     MissingRequiredProperties,
+    SchemaPath,
     UnevaluatedProperties,
     Violation,
     ViolationFact,
@@ -82,8 +84,8 @@ def _violation(validator: SchemaValidator, error: ValidationError, root_instance
     return Violation(
         error.message,
         keyword,
-        tuple(error.path),
-        tuple(error.relative_schema_path),
+        InstancePath(tuple(error.path)),
+        SchemaPath(tuple(error.relative_schema_path)),
         _freeze(error.instance),
         _freeze(schema),
         evaluated,
@@ -104,13 +106,13 @@ def _facts(
         case RequiredKeyword(fields):
             # `jsonschema` reports one violation per missing field, worded for that field alone.
             return tuple(
-                MissingRequiredProperties((field,))
+                MissingRequiredProperties(field)
                 for field in fields
                 if field not in instance and required_message(field) == error.message
             )
         case DependentRequiredKeyword(dependencies):
             return tuple(
-                MissingDependentProperties((DependentProperty(field, dependency),))
+                MissingDependentProperties(DependentProperty(field, dependency))
                 for field, needs in dependencies
                 if field in instance
                 for dependency in needs
