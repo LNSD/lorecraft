@@ -3,10 +3,15 @@
 from dataclasses import replace
 from typing import TYPE_CHECKING
 
+from lorecraft.core.error import Error
 from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.path import PathComponent
 from lorecraft.project.aspect import AspectFilename
-from lorecraft.project.item import SkillEntrypointOrigin, SpecOrigin, WrongItemTypeError
+from lorecraft.project.item import (
+    ItemDescriptor,
+    SkillEntrypointOrigin,
+    WrongItemTypeError,
+)
 from lorecraft.project.query import item_frontmatter, item_name
 from lorecraft.project.schemas.agent_skills_schema import (
     agent_skills_frontmatter_schema,
@@ -18,14 +23,15 @@ from lorecraft.project.schemas.frontmatter_owner import (
 )
 from lorecraft.project.schemas.frontmatter_problem import MissingFieldProblem
 from lorecraft.project.schemas.frontmatter_schema import FrontmatterSchema
-from lorecraft.project.schemas.name import parse_spec_name
+from lorecraft.project.schemas.name import CorpusSpecName, NamespaceSpecName
 from lorecraft.project.schemas.schema_problems import (
     SchemaProblems,
     locate_agent_skills_schema_problems,
     locate_repository_schema_problems,
 )
 from lorecraft.project.schemas.skill_fields import SkillFields, parse_skill_fields
-from lorecraft.schemas import BuiltinOrigin, RepositoryOrigin, SchemaInput
+from lorecraft.schemas import RepositoryOrigin, SchemaInput, SchemaKind
+from lorecraft.schemas.builtin import AGENT_SKILLS_SCHEMA_REFERENCE
 
 if TYPE_CHECKING:
     from lorecraft.project.query import GovernancePrimitives, ItemPrimitives, SchemaPrimitives
@@ -43,6 +49,16 @@ def repository_frontmatter_schema(primitives: SchemaPrimitives) -> FrontmatterSc
     return FrontmatterSchema(schema_input.document)
 
 
+def _skill_entrypoint_origin(descriptor: ItemDescriptor) -> SkillEntrypointOrigin | None:
+    """The descriptor's skill entrypoint origin, or none for a resource under that skill root.
+
+    An entrypoint has `SkillEntrypointOrigin`; a resource has `SkillResourceOrigin`. `SkillRoot` is also a resource's
+    link base, so it cannot identify the entrypoint whose frontmatter the owner query describes.
+    """
+    origin = descriptor.origin
+    return origin if isinstance(origin, SkillEntrypointOrigin) else None
+
+
 def owner_of_frontmatter(primitives: GovernancePrimitives) -> FrontmatterOwner:
     """The document, spec or skill whose frontmatter the item opens, from its descriptor and governance.
 
@@ -51,27 +67,26 @@ def owner_of_frontmatter(primitives: GovernancePrimitives) -> FrontmatterOwner:
             structure spec.
     """
     descriptor = primitives.descriptor()
-    origin = descriptor.origin
-    if isinstance(origin, SkillEntrypointOrigin):
+    origin = _skill_entrypoint_origin(descriptor)
+    if origin is not None:
         return SkillFrontmatterOwner(
             directory_name=PathComponent.parse(descriptor.listed_name), link_target=origin.link_target
         )
     name = primitives.query(item_name)
+    if name is None and isinstance(descriptor.name, CorpusSpecName | NamespaceSpecName):
+        name = descriptor.name
     governance = primitives.governance()
-    if isinstance(name, AspectFilename) and governance is not None:
+    if isinstance(name, AspectFilename | CorpusSpecName | NamespaceSpecName) and governance is not None:
         structure = governance.corpus_structure()
         if structure is not None:
             return DocumentFrontmatterOwner(filename=name, spec=structure.path)
-    if isinstance(origin, SpecOrigin) and governance is not None:
-        structure = governance.corpus_structure()
-        if structure is not None:
-            return DocumentFrontmatterOwner(filename=parse_spec_name(descriptor.listed_name), spec=structure.path)
     raise WrongItemTypeError('a document or spec whose corpus states a structure specification')
 
 
 def parsed_skill_fields(primitives: ItemPrimitives) -> SkillFields:
-    """The independently parsed fields of a skill; empty for every other item."""
-    if not isinstance(primitives.descriptor().origin, SkillEntrypointOrigin):
+    """The independently parsed fields of a skill with a frontmatter schema; empty otherwise."""
+    descriptor = primitives.descriptor()
+    if _skill_entrypoint_origin(descriptor) is None or not descriptor.frontmatter_schema_refs:
         return FrozenMapping({})
     return parse_skill_fields(primitives.query(item_frontmatter))
 
@@ -84,6 +99,10 @@ def frontmatter_schema_problems(primitives: ItemPrimitives) -> tuple[SchemaProbl
 
     Returns:
         One entry per applicable schema, in order; none when no schema applies or frontmatter cannot be held to one.
+
+    Raises:
+        UnhandledFrontmatterSchemaInputError: If an applicable input is not a frontmatter schema or has unsupported
+            provenance.
     """
     refs = primitives.descriptor().frontmatter_schema_refs
     if not refs:
@@ -93,12 +112,14 @@ def frontmatter_schema_problems(primitives: ItemPrimitives) -> tuple[SchemaProbl
     earlier_missing: set[tuple[int, str]] = set()
     for reference in refs:
         schema = primitives.query_at(reference, read_schema_input)
-        if isinstance(schema.origin, BuiltinOrigin):
+        if schema.reference.kind is not SchemaKind.FRONTMATTER:
+            raise UnhandledFrontmatterSchemaInputError(schema)
+        if schema.reference == AGENT_SKILLS_SCHEMA_REFERENCE:
             schema = primitives.query_at(reference, agent_skills_frontmatter_schema)
             located = locate_agent_skills_schema_problems(frontmatter, schema)
         else:
             if not isinstance(schema.origin, RepositoryOrigin):
-                continue
+                raise UnhandledFrontmatterSchemaInputError(schema)
             repository_schema = primitives.query_at(reference, repository_frontmatter_schema)
             located = locate_repository_schema_problems(frontmatter, repository_schema, schema.origin.path)
         problems = tuple(
@@ -116,3 +137,17 @@ def frontmatter_schema_problems(primitives: ItemPrimitives) -> tuple[SchemaProbl
             if isinstance(problem.problem, MissingFieldProblem)
         )
     return tuple(found)
+
+
+class UnhandledFrontmatterSchemaInputError(Error):
+    """A registered frontmatter subject has no validator for its kind and provenance.
+
+    Attributes:
+        schema: The schema input whose kind or provenance no validator handles.
+    """
+
+    schema: SchemaInput
+
+    def __init__(self, schema: SchemaInput) -> None:
+        self.schema = schema
+        super().__init__(f'no frontmatter validator handles {schema.reference.kind.value}:{schema.reference.identity}')
