@@ -73,7 +73,7 @@ keep layout subjects separate because their primitives and query subjects differ
    - When the builtin floor is opted out and no repository layer states the part, the corresponding spec part is reported under coverage as `ungoverned` and the gated rules do not judge the item.
 
 3. **Governance follows loaded layers.** `governed_parts` contains only the parts stated by loaded layers (builtin floor and repository layers), for every
-   item type; no part is forced active. Rules applied to `SPECIFICATION` items use `Always()`. A skill rule
+   item type; no part is forced active. A skill rule
    gated by a part uses plain `WhenSpec(part)`, just as a document rule does: an active layer stating the part is the
    condition for judging. Skill checks independent of a spec part use `Always()`. `requires_loaded_layer` is
    removed. When a skills layer fails, skills follow the mode's skip policy in
