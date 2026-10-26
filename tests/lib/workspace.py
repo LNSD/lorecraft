@@ -131,11 +131,13 @@ class Spec:
             written when it is unset rather than a generated value: no check reads the prose, so a specification
             without one is as clean as one with it. A structure finding still cites `<name>.md`, so a snapshot of
             one pins a file the root does not hold unless the test sets this.
+        include_structure: Whether to write the structure JSON file; false represents a prose-only spec.
     """
 
     name: str
     structure: Mapping[str, object] | None = None
     prose: str | None = None
+    include_structure: bool = True
 
     def _render(self, faker: Faker) -> dict[PurePosixPath, str]:
         """Every file of the specification, each root-relative path to its text.
@@ -147,7 +149,9 @@ class Spec:
         if structure is None:
             structure = generated.spec_structure(faker)
 
-        files = {_SPECS_DIRECTORY / f'{self.name}.spec.json': json.dumps(structure, indent=2) + '\n'}
+        files: dict[PurePosixPath, str] = {}
+        if self.include_structure:
+            files[_SPECS_DIRECTORY / f'{self.name}.spec.json'] = json.dumps(structure, indent=2) + '\n'
         if self.prose is not None:
             files[_SPECS_DIRECTORY / f'{self.name}.md'] = self.prose
         return files
