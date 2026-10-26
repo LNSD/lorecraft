@@ -16,6 +16,9 @@ from typing import ClassVar, Final, Self
 
 from lorecraft.core.error import Error
 
+ENGINE_GROUP_PREFIX: Final[str] = 'LC'
+"""The prefix reserved for engine conditions."""
+
 
 class MalformedReleaseError(Error):
     """A release is not three runs of ASCII digits joined by dots.
@@ -283,7 +286,7 @@ class InvalidRuleGroupPrefixCharacterError(Error):
 
 
 class ReservedRuleGroupPrefixError(Error):
-    """A rule group's prefix is `ALL`, the selector for every rule, so selecting the group would select them all.
+    """A rule group's prefix is reserved for the selector or the engine.
 
     Attributes:
         value: The rejected prefix.
@@ -293,7 +296,8 @@ class ReservedRuleGroupPrefixError(Error):
 
     def __init__(self, value: str) -> None:
         self.value = value
-        super().__init__(f'rule group prefix {value!r} is reserved: it selects every rule')
+        reason = 'it selects every rule' if value == ALL_RULES_SELECTOR else 'it belongs to engine conditions'
+        super().__init__(f'rule group prefix {value!r} is reserved: {reason}')
 
 
 @dataclass(frozen=True, slots=True)
@@ -324,7 +328,7 @@ class RuleGroupPrefix:
         Raises:
             EmptyRuleGroupPrefixError: If it is empty.
             InvalidRuleGroupPrefixCharacterError: If it holds a character other than an uppercase ASCII letter.
-            ReservedRuleGroupPrefixError: If it is `ALL`, the selector for every rule.
+            ReservedRuleGroupPrefixError: If it is `ALL` or `LC`, a reserved prefix.
         """
         return cls(raw)
 
@@ -334,14 +338,14 @@ class RuleGroupPrefix:
         Raises:
             EmptyRuleGroupPrefixError: If it is empty.
             InvalidRuleGroupPrefixCharacterError: If it holds a character other than an uppercase ASCII letter.
-            ReservedRuleGroupPrefixError: If it is `ALL`, the selector for every rule.
+            ReservedRuleGroupPrefixError: If it is `ALL` or `LC`, a reserved prefix.
         """
         if not self.value:
             raise EmptyRuleGroupPrefixError()
         for position, character in enumerate(self.value):
             if character not in ascii_uppercase:
                 raise InvalidRuleGroupPrefixCharacterError(self.value, position)
-        if self.value == ALL_RULES_SELECTOR:
+        if self.value in {ALL_RULES_SELECTOR, ENGINE_GROUP_PREFIX}:
             raise ReservedRuleGroupPrefixError(self.value)
 
     def __str__(self) -> str:
@@ -389,6 +393,14 @@ class RuleGroup:
             raise EmptyRuleGroupTitleError(self.prefix)
 
 
+@dataclass(frozen=True, slots=True)
+class EngineGroup:
+    """The group reserved for engine conditions, which rule declarations cannot use."""
+
+    prefix: str
+    title: str
+
+
 class RuleNumberOutOfRangeError(ValueError):
     """A rule's number is outside 1 to 999, so it would not print as three digits.
 
@@ -397,10 +409,10 @@ class RuleNumberOutOfRangeError(ValueError):
         number: The rejected number.
     """
 
-    group: RuleGroup
+    group: RuleGroup | EngineGroup
     number: int
 
-    def __init__(self, group: RuleGroup, number: int) -> None:
+    def __init__(self, group: RuleGroup | EngineGroup, number: int) -> None:
         self.group = group
         self.number = number
         super().__init__(f'rule number {number} in group {str(group.prefix)!r} is outside 1 to 999')
@@ -437,9 +449,8 @@ class RuleCode:
         return f'{self.group.prefix}{self.number:0{self.DIGITS}d}'
 
 
-ENGINE_GROUP: Final[RuleGroup] = RuleGroup(RuleGroupPrefix('LC'), 'Engine conditions')
-"""The group reserved for engine conditions: only an `EngineCode` is in it, and the registry rejects, as the package
-loads, a rule or a removed rule with a code in it."""
+ENGINE_GROUP: Final[EngineGroup] = EngineGroup(ENGINE_GROUP_PREFIX, 'Engine conditions')
+"""The group reserved for engine conditions, represented by the distinct `EngineGroup` type."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -465,7 +476,7 @@ class EngineCode:
             raise RuleNumberOutOfRangeError(ENGINE_GROUP, self.number)
 
     @property
-    def group(self) -> RuleGroup:
+    def group(self) -> EngineGroup:
         """The engine's group, always."""
         return ENGINE_GROUP
 

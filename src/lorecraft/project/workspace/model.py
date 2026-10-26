@@ -14,7 +14,7 @@ ungoverned for that kind whatever the namespace specs carry.
 
 from collections.abc import Iterable
 from dataclasses import InitVar, dataclass, field
-from typing import assert_never
+from typing import Self, assert_never
 
 from lorecraft.agents import AgentName
 from lorecraft.core.error import Error
@@ -69,6 +69,7 @@ from lorecraft.project.skill import (
 from lorecraft.schemas import (
     BuiltinOrigin,
     DuplicateSchemaRefError,
+    FrontmatterSchemaInput,
     RepositorySchemaInput,
     SchemaInput,
     SchemaKind,
@@ -78,20 +79,6 @@ from lorecraft.schemas.builtin import AGENT_SKILLS_LAYER_ORIGIN
 from lorecraft.vfs import ResolvedPath
 
 from .failure import FailedStructure, LoadFailure
-
-
-class MetaCorpusNameMismatchError(Error):
-    """The reserved meta corpus slot holds a corpus with another name.
-
-    Attributes:
-        value: The name declared by the corpus in the reserved slot.
-    """
-
-    value: CorpusName
-
-    def __init__(self, value: CorpusName) -> None:
-        self.value = value
-        super().__init__(f'meta_corpus holds the corpus {value}')
 
 
 class DuplicateCorpusNameError(Error):
@@ -134,20 +121,6 @@ class DuplicateOutsideSymlinkPathError(Error):
     def __init__(self, path: RootRelativePath) -> None:
         self.path = path
         super().__init__(f'more than one outside symlink has path {path}')
-
-
-class InvalidBuiltinFrontmatterSchemaError(Error):
-    """A builtin layer's frontmatter schema field holds another schema kind.
-
-    Attributes:
-        reference: The wrongly typed schema reference.
-    """
-
-    reference: SchemaRef
-
-    def __init__(self, reference: SchemaRef) -> None:
-        self.reference = reference
-        super().__init__(f'builtin frontmatter schema must have FRONTMATTER kind, got {reference.kind.value}')
 
 
 def agent_skills_floor_enabled(builtin_layers: tuple[BuiltinSpecLayer, ...]) -> bool:
@@ -243,13 +216,8 @@ class BuiltinSpecLayer:
 
     origin: BuiltinOrigin
     applies_to: frozenset[ItemType]
-    frontmatter_schema: SchemaInput | None = None
+    frontmatter_schema: FrontmatterSchemaInput | None = None
     lines: NonZeroUnsignedInt | None = None
-
-    def __post_init__(self) -> None:
-        """Keep the typed schema field limited to frontmatter inputs."""
-        if self.frontmatter_schema is not None and self.frontmatter_schema.reference.kind is not SchemaKind.FRONTMATTER:
-            raise InvalidBuiltinFrontmatterSchemaError(self.frontmatter_schema.reference)
 
     @property
     def schema_refs(self) -> tuple[SchemaRef, ...]:
@@ -510,6 +478,27 @@ class Corpus:
 
 
 @dataclass(frozen=True, slots=True)
+class MetaCorpus(Corpus):
+    """The reserved meta corpus, with a name fixed by the workspace model.
+
+    Attributes:
+        corpus_spec: The reserved corpus spec, possibly prose only.
+        namespaces: The namespace specs narrowing the reserved corpus.
+        filenames: The Markdown files listed for the corpus; empty for the reserved meta corpus.
+    """
+
+    @classmethod
+    def from_corpus(cls, corpus: Corpus) -> Self:
+        """Build the meta-corpus value from the reserved corpus's contents."""
+        return cls(corpus.corpus_spec, corpus.namespaces, corpus.filenames)
+
+    @property
+    def name(self) -> CorpusName:
+        """The fixed reserved meta corpus name."""
+        return CorpusName.parse(META_CORPUS_NAME)
+
+
+@dataclass(frozen=True, slots=True)
 class ResolvedItem:
     """A listed item's descriptor and the specifications governing it, resolved together.
 
@@ -570,7 +559,7 @@ class WorkspaceModel:
     outside_symlink_values: frozenset[OutsideSymlink]
     load_failures: tuple[LoadFailure, ...]
     skills_corpus: Corpus | None = None
-    meta_corpus: Corpus | None = None
+    meta_corpus: MetaCorpus | None = None
     listed_specifications: tuple[SpecRef, ...] = ()
     overlapping_directories: frozenset[ReservedCorpusDirectory] = frozenset()
     unchecked_symlinks: tuple[RootRelativePath, ...] = ()
@@ -586,7 +575,6 @@ class WorkspaceModel:
         """Derive the corpus, skill and symlink lookups, and check the reserved meta corpus.
 
         Raises:
-            MetaCorpusNameMismatchError: If `meta_corpus` does not use the reserved meta name.
             DuplicateCorpusNameError: If two corpus values have the same name.
             DuplicateSkillLocationRefError: If two skill locations have the same ref.
             DuplicateOutsideSymlinkPathError: If two outside symlinks have the same path.
@@ -610,8 +598,6 @@ class WorkspaceModel:
                 raise DuplicateOutsideSymlinkPathError(outside.path)
             outside_symlinks[outside.path] = outside
         object.__setattr__(self, 'outside_symlinks', FrozenMapping(outside_symlinks))
-        if self.meta_corpus is not None and self.meta_corpus.name.value != META_CORPUS_NAME:
-            raise MetaCorpusNameMismatchError(self.meta_corpus.name)
         schema_inputs: dict[SchemaRef, SchemaInput] = {}
         for layer in self.builtin_layers:
             for schema_input in layer.registered_schema_inputs:

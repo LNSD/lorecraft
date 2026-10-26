@@ -21,10 +21,11 @@ once in `lorecraft.project.layout` and read from there by every other module.
 
 ## Belongs Here
 
-- The project model and loader built from listings and specs, including reserved `meta` and `skills` corpora.
-- A repository that lists entries, reads text through a view, and decides what an entry is.
+- The project model and loader built from listings and specs, including reserved `meta` and `skills` corpora. Its
+  meta slot takes `MetaCorpus`; builtin frontmatter takes `FrontmatterSchemaInput`.
+- A repository that lists entries, reads text through a view, and classifies entries.
 - Decoding specs into rules proved usable at build time.
-- The parse tree, token count and line count: pure functions of document text. The tree derives from the values
+- The parse tree, token and line counts: pure functions of text. The tree derives from the values
   `lorecraft.markdown` returns; `document` maps its line and link values into the project model and decodes raw
   frontmatter.
 - Shared queries over an item's raw syntax and governance primitives: frontmatter violations mapped to

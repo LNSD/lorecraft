@@ -14,6 +14,9 @@ from typing import Final, NamedTuple
 CODE_DIGITS: Final[int] = 3
 """How many digits end a code, after its group's prefix."""
 
+ENGINE_GROUP_PREFIX: Final[str] = 'LC'
+"""The prefix reserved for engine conditions."""
+
 
 class RuleRow(NamedTuple):
     """One active rule and its aliases."""
@@ -46,7 +49,7 @@ GROUPS: Final[tuple[tuple[str, str], ...]] = (
     ('COR', 'Corpus directory checks'),
     ('FM', 'Frontmatter checks'),
     ('LAY', 'Skill layout checks'),
-    ('LC', 'Engine conditions'),
+    (ENGINE_GROUP_PREFIX, 'Engine conditions'),
     ('LEN', 'Length limits'),
     ('LINK', 'Links in Markdown files'),
     ('OUT', 'Outline checks'),

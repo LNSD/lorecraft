@@ -117,6 +117,7 @@ from .model import (
     Corpus,
     CorpusNamespace,
     CorpusSpec,
+    MetaCorpus,
     WorkspaceModel,
     agent_skills_floor_enabled,
     namespace_order_key,
@@ -209,7 +210,7 @@ def load_workspace(
 
     corpora: dict[CorpusName, Corpus] = {}
     skills_corpus: Corpus | None = None
-    meta_corpus: Corpus | None = None
+    meta_corpus: MetaCorpus | None = None
     overlapping_directories: set[ReservedCorpusDirectory] = set()
     for corpus_name in sorted(groups, key=str):
         files = groups[corpus_name]
@@ -232,7 +233,7 @@ def load_workspace(
                 skills_floor_enabled,
             )
             if str(corpus_name) == META_CORPUS_NAME:
-                meta_corpus = reserved
+                meta_corpus = MetaCorpus.from_corpus(reserved)
             else:
                 skills_corpus = reserved
             continue

@@ -171,4 +171,22 @@ class BuiltinSchemaInput:
         return SchemaRef(self.kind, self.origin.identity)
 
 
-type SchemaInput = RepositorySchemaInput | BuiltinSchemaInput
+@dataclass(frozen=True, slots=True)
+class FrontmatterSchemaInput:
+    """A builtin schema input whose kind is fixed to frontmatter."""
+
+    origin: BuiltinOrigin
+    document: FrozenMapping[str, Frozen]
+
+    @property
+    def kind(self) -> SchemaKind:
+        """The schema's fixed role."""
+        return SchemaKind.FRONTMATTER
+
+    @property
+    def reference(self) -> SchemaRef:
+        """The typed frontmatter identity derived from its builtin origin."""
+        return SchemaRef(SchemaKind.FRONTMATTER, self.origin.identity)
+
+
+type SchemaInput = RepositorySchemaInput | BuiltinSchemaInput | FrontmatterSchemaInput

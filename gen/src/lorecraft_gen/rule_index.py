@@ -16,7 +16,7 @@ from typing import Final, assert_never
 
 from lorecraft import rules
 from lorecraft.rules.declaration import EngineCondition, RemovedRule, Rule, RuleDeclaration
-from lorecraft.rules.identity import RuleCode
+from lorecraft.rules.identity import ENGINE_GROUP_PREFIX, RuleCode
 from lorecraft.rules.registry import Registry
 
 _DEFAULT_OUTDIR: Final[Path] = Path('src/lorecraft/rules')
@@ -41,6 +41,9 @@ from typing import Final, NamedTuple
 
 CODE_DIGITS: Final[int] = {code_digits}
 """How many digits end a code, after its group's prefix."""
+
+ENGINE_GROUP_PREFIX: Final[str] = {engine_group_prefix!r}
+"""The prefix reserved for engine conditions."""
 
 class RuleRow(NamedTuple):
     """One active rule and its aliases."""
@@ -132,11 +135,15 @@ def render_module(groups: tuple[tuple[str, str], ...], rows: tuple[str, ...]) ->
         rows: The rule rows, in code order.
     """
     lines = [
-        _PREAMBLE.format(code_digits=RuleCode.DIGITS),
+        _PREAMBLE.format(code_digits=RuleCode.DIGITS, engine_group_prefix=ENGINE_GROUP_PREFIX),
         'GROUPS: Final[tuple[tuple[str, str], ...]] = (',
         '    # prefix, title',
     ]
-    lines += [f'    {group!r},' for group in groups]
+    lines += [
+        f'    (ENGINE_GROUP_PREFIX, {title!r}),' if prefix == ENGINE_GROUP_PREFIX else f'    {group!r},'
+        for group in groups
+        for prefix, title in (group,)
+    ]
     lines += [
         ')',
         '',

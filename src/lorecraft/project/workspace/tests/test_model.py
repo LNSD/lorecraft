@@ -56,8 +56,8 @@ from lorecraft.project.skill import (
 )
 from lorecraft.schemas import (
     BuiltinOrigin,
-    BuiltinSchemaInput,
     DuplicateSchemaRefError,
+    FrontmatterSchemaInput,
     RepositoryOrigin,
     RepositorySchemaInput,
     SchemaKind,
@@ -75,8 +75,7 @@ from ..model import (
     DuplicateCorpusNameError,
     DuplicateOutsideSymlinkPathError,
     DuplicateSkillLocationRefError,
-    InvalidBuiltinFrontmatterSchemaError,
-    MetaCorpusNameMismatchError,
+    MetaCorpus,
     NamespaceSpec,
     WorkspaceModel,
     namespace_order_key,
@@ -809,6 +808,16 @@ def skills_model() -> WorkspaceModel:
 
 @pytest.mark.unit
 class TestWorkspaceModel:
+    def test_meta_corpus_from_another_corpus_keeps_the_reserved_name(self, two_corpora_model: WorkspaceModel) -> None:
+        #: Given
+        corpus = two_corpora_model.corpora[CODE]
+
+        #: When
+        meta_corpus = MetaCorpus.from_corpus(corpus)
+
+        #: Then
+        assert meta_corpus.name == CorpusName.parse('meta'), 'the meta corpus name is fixed regardless of its source'
+
     def test_resolve_resource_uses_the_ref_from_its_location(self) -> None:
         #: Given
         ref = SkillResourceRef(REVIEW.ref, SkillRelativePath.parse('references/guide.md'))
@@ -895,19 +904,6 @@ class TestWorkspaceModel:
         assert tuple(reordered_model.corpora) == tuple(model.corpora), (
             'the derived corpus lookup order is independent of input set iteration'
         )
-
-    def test_construction_with_a_non_meta_corpus_in_the_meta_slot_raises_meta_corpus_name_mismatch(
-        self, two_corpora_model: WorkspaceModel
-    ) -> None:
-        #: Given
-        code = two_corpora_model.corpora[CODE]
-
-        #: When
-        with pytest.raises(MetaCorpusNameMismatchError) as exc_info:
-            replace(two_corpora_model, meta_corpus=code)
-
-        #: Then
-        assert exc_info.value.value == CODE, 'the error retains the name held in the reserved meta slot'
 
     def test_skill_location_values_derive_the_lookup_by_ref(self, skills_model: WorkspaceModel) -> None:
         #: Given
@@ -1161,8 +1157,7 @@ class TestWorkspaceModel:
         #: Given
         location = _regular_skill('.agents/skills/audit')
         origin = BuiltinOrigin('builtin:test-layer')
-        reference = SchemaRef(SchemaKind.FRONTMATTER, origin.identity)
-        schema_input = BuiltinSchemaInput(reference.kind, origin, FrozenMapping.from_plain({'type': 'object'}))
+        schema_input = FrontmatterSchemaInput(origin, FrozenMapping.from_plain({'type': 'object'}))
         layer = BuiltinSpecLayer(origin, frozenset({ItemType.SKILL_ENTRYPOINT}), schema_input)
         model = WorkspaceModel(
             corpus_values=frozenset(),
@@ -1180,23 +1175,6 @@ class TestWorkspaceModel:
         assert descriptor.governed_parts == frozenset({SpecPart.FRONTMATTER}), (
             'a builtin frontmatter schema governs the frontmatter part'
         )
-
-    def test_builtin_layer_rejects_a_non_frontmatter_schema_input(self) -> None:
-        #: Given
-        origin = BuiltinOrigin('builtin:test-layer')
-        reference = SchemaRef(SchemaKind.STRUCTURE, origin.identity)
-        schema_input = BuiltinSchemaInput(reference.kind, origin, FrozenMapping.from_plain({'lines': 50}))
-
-        #: When
-        with pytest.raises(InvalidBuiltinFrontmatterSchemaError) as exc_info:
-            BuiltinSpecLayer(
-                origin,
-                frozenset({ItemType.DOCUMENT}),
-                frontmatter_schema=schema_input,
-            )
-
-        #: Then
-        assert exc_info.value.reference == reference, 'the error identifies the schema kind the layer cannot hold'
 
     def test_describe_item_with_a_line_budget_marks_the_budget_governed(
         self, two_corpora_model: WorkspaceModel
@@ -1224,7 +1202,7 @@ class TestWorkspaceModel:
         #: Given
         origin = BuiltinOrigin('builtin:test-layer')
         reference = SchemaRef(SchemaKind.FRONTMATTER, origin.identity)
-        schema_input = BuiltinSchemaInput(reference.kind, origin, FrozenMapping.from_plain({'type': 'object'}))
+        schema_input = FrontmatterSchemaInput(origin, FrozenMapping.from_plain({'type': 'object'}))
         layer = BuiltinSpecLayer(
             origin,
             frozenset({ItemType.DOCUMENT}),
@@ -1249,7 +1227,7 @@ class TestWorkspaceModel:
         #: Given
         origin = BuiltinOrigin('builtin:test-layer')
         reference = SchemaRef(SchemaKind.FRONTMATTER, origin.identity)
-        schema_input = BuiltinSchemaInput(reference.kind, origin, FrozenMapping.from_plain({'type': 'object'}))
+        schema_input = FrontmatterSchemaInput(origin, FrozenMapping.from_plain({'type': 'object'}))
         layer = BuiltinSpecLayer(
             origin,
             frozenset({ItemType.DOCUMENT}),
@@ -1269,7 +1247,7 @@ class TestWorkspaceModel:
         #: Given
         origin = BuiltinOrigin('builtin:test-layer')
         reference = SchemaRef(SchemaKind.FRONTMATTER, origin.identity)
-        schema_input = BuiltinSchemaInput(reference.kind, origin, FrozenMapping.from_plain({'type': 'object'}))
+        schema_input = FrontmatterSchemaInput(origin, FrozenMapping.from_plain({'type': 'object'}))
         repository_input = RepositorySchemaInput(
             reference,
             RepositoryOrigin(RootRelativePath.parse('docs/test.json'), 'test'),
@@ -1843,8 +1821,7 @@ class TestSpecifications:
         )
         ref = _spec_ref('feat-cli')
         builtin_reference = SchemaRef(SchemaKind.FRONTMATTER, 'builtin:spec-floor')
-        builtin_input = BuiltinSchemaInput(
-            builtin_reference.kind,
+        builtin_input = FrontmatterSchemaInput(
             BuiltinOrigin(builtin_reference.identity),
             FrozenMapping({}),
         )
@@ -1861,7 +1838,7 @@ class TestSpecifications:
                 skill_location_values=frozenset(),
                 outside_symlink_values=frozenset(),
                 load_failures=(),
-                meta_corpus=meta_corpus,
+                meta_corpus=MetaCorpus.from_corpus(meta_corpus),
                 listed_specifications=(ref,),
             ),
             builtin_layers=(layer,),
@@ -1893,7 +1870,9 @@ class TestSpecifications:
             filenames=frozenset(),
         )
         ref = _spec_ref('feat-cli')
-        model = replace(two_corpora_model, meta_corpus=meta_corpus, listed_specifications=(ref,))
+        model = replace(
+            two_corpora_model, meta_corpus=MetaCorpus.from_corpus(meta_corpus), listed_specifications=(ref,)
+        )
 
         #: When
         resolved = model.resolve_item(ref)
