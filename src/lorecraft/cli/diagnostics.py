@@ -17,7 +17,7 @@ with no lines, such as a layout entry or a file that did not decode:
 from dataclasses import dataclass
 from typing import Literal, assert_never
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, model_serializer
 
 from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.rules.identity import Severity
@@ -125,24 +125,61 @@ class _SummaryJson(BaseModel):
     warnings: int
 
 
-class _CoverageJson(BaseModel):
-    """One subject with ungoverned or failed-layer-suppressed spec parts, or skipped.
+class _UngovernedJson(BaseModel):
+    """A judged subject with spec parts no specification governs, or a failed layer suppresses.
 
     Attributes:
         path: The subject.
-        ungoverned: The spec parts no specification governs it for, or which a failed layer suppresses;
-            in report order, and none for a skipped subject.
-        cause: Why the subject was skipped, or None for a subject that was judged.
-        skipped_by: Refused paths the subject depends on; empty for a subject that was judged.
+        ungoverned: The spec parts, in report order.
     """
 
     model_config = ConfigDict(frozen=True)
 
     path: str
     ungoverned: list[str]
-    cause: Literal['refused-path', 'refused-dependency'] | None
+
+    @model_serializer(mode='plain')
+    def _serialize(self) -> dict[str, object]:
+        """Keep the published coverage keys and order while omitting them from this case's model."""
+        return {'path': self.path, 'ungoverned': self.ungoverned, 'cause': None, 'skipped_by': []}
+
+
+class _SkippedJson(BaseModel):
+    """A subject skipped because its own read or a documentation dependency was refused.
+
+    Attributes:
+        path: The subject.
+        cause: Why the subject was skipped.
+        skipped_by: The refused paths, in path or layer order.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    path: str
+    cause: Literal['refused-path', 'refused-dependency']
     skipped_by: list[str]
-    unchecked: bool = False
+
+    @model_serializer(mode='plain')
+    def _serialize(self) -> dict[str, object]:
+        """Keep the published coverage keys and order while omitting them from this case's model."""
+        return {'path': self.path, 'ungoverned': [], 'cause': self.cause, 'skipped_by': self.skipped_by}
+
+
+class _UncheckedJson(BaseModel):
+    """A symlink that the run deliberately did not follow or check.
+
+    Attributes:
+        path: The symlink.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    path: str
+
+    @model_serializer(mode='plain')
+    def _serialize(self) -> dict[str, object]:
+        """Keep the published coverage keys and order while omitting them from this case's model."""
+        return {'path': self.path, 'ungoverned': [], 'cause': None, 'skipped_by': [], 'unchecked': True}
 
 
 class _ReportJson(BaseModel):
@@ -159,7 +196,7 @@ class _ReportJson(BaseModel):
 
     diagnostics: list[_DiagnosticJson]
     summary: _SummaryJson
-    coverage: list[_CoverageJson]
+    coverage: list[_UngovernedJson | _SkippedJson | _UncheckedJson]
 
 
 def render_short(reports: tuple[RunReport, ...]) -> str:
@@ -273,19 +310,18 @@ def render_json(reports: tuple[RunReport, ...]) -> str:
     for diagnostic in diagnostics:
         diagnostic_objects.append(_json_diagnostic(diagnostic))
     severities = _count_severities(diagnostics)
-    coverage: list[_CoverageJson] = []
+    coverage: list[_UngovernedJson | _SkippedJson | _UncheckedJson] = []
     for subject in _coverage_subjects(reports):
         match subject:
             case CheckedItem():
                 facets: list[str] = []
                 for facet in subject.ungoverned:
                     facets.append(facet)
-                coverage.append(_CoverageJson(path=str(subject.ref.path), ungoverned=facets, cause=None, skipped_by=[]))
+                coverage.append(_UngovernedJson(path=str(subject.ref.path), ungoverned=facets))
             case RefusedSubject():
                 coverage.append(
-                    _CoverageJson(
+                    _SkippedJson(
                         path=str(subject.ref.path),
-                        ungoverned=[],
                         cause='refused-path',
                         skipped_by=[str(subject.path)],
                     )
@@ -295,17 +331,14 @@ def render_json(reports: tuple[RunReport, ...]) -> str:
                 for path in subject.refused_paths:
                     refused_paths.append(str(path))
                 coverage.append(
-                    _CoverageJson(
+                    _SkippedJson(
                         path=str(subject.ref.path),
-                        ungoverned=[],
                         cause='refused-dependency',
                         skipped_by=refused_paths,
                     )
                 )
             case UncheckedSymlink():
-                coverage.append(
-                    _CoverageJson(path=str(subject.path), ungoverned=[], cause=None, skipped_by=[], unchecked=True)
-                )
+                coverage.append(_UncheckedJson(path=str(subject.path)))
             case _:
                 assert_never(subject)
     document = _ReportJson(
