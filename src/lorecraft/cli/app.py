@@ -84,14 +84,27 @@ def _root(
             help='Show the version and exit.',
         ),
     ] = False,
+    no_agent_skills_spec: Annotated[
+        bool,
+        typer.Option(
+            '--no-agent-skills-spec',
+            help='Do not apply the builtin Agent Skills specification and skill floor.',
+        ),
+    ] = False,
     no_builtin_skills_schema: Annotated[
         bool,
-        typer.Option('--no-builtin-skills-schema', help='Do not apply the built-in Agent Skills schema.'),
+        typer.Option(
+            '--no-builtin-skills-schema',
+            hidden=True,
+            help='Deprecated alias for --no-agent-skills-spec.',
+        ),
     ] = False,
 ) -> None:
     """Store global options for subcommands."""
+    if no_agent_skills_spec and no_builtin_skills_schema:
+        raise typer.BadParameter('give only one of --no-agent-skills-spec and --no-builtin-skills-schema')
     # Keep project imports out of --version and --help startup paths.
     from lorecraft.project.workspace.builtin import AGENT_SKILLS_SPEC_LAYER
 
-    builtin_layers = () if no_builtin_skills_schema else (AGENT_SKILLS_SPEC_LAYER,)
+    builtin_layers = () if no_agent_skills_spec or no_builtin_skills_schema else (AGENT_SKILLS_SPEC_LAYER,)
     ctx.obj = GlobalOptions(builtin_layers=builtin_layers)

@@ -31,8 +31,8 @@ process: the arguments, the working directory, standard output and the exit code
 - Registering commands so a new one is a new module.
 - Declaring global options in `app.py` and passing their invocation values to commands through the root context.
 - Rendering diagnostics and the model as text, short lines or compact JSON, and choosing the exit code.
-- `inspect` shows corpora and skill locations without restating default built-in Agent Skills governance; it reports
-  the opt-out only when `--no-builtin-skills-schema` disables that default.
+- `inspect` shows corpora and skill locations without restating default builtin Agent Skills governance; it reports
+  the opt-out only when `--no-agent-skills-spec` or its `--no-builtin-skills-schema` alias disables that default.
 - Asking the process about the terminal it prints to — encoding and width — and reading the colour variables of its
   environment once into a typed value, and asking the database for the source lines an excerpt shows, so the
   renderers stay pure.

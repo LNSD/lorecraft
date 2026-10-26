@@ -5,10 +5,10 @@
  and skills.                                                                    
                                                                                 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --version                   -V        Show the version and exit.             │
-│ --no-builtin-skills-schema            Do not apply the built-in Agent Skills │
-│                                       schema.                                │
-│ --help                                Show this message and exit.            │
+│ --version               -V        Show the version and exit.                 │
+│ --no-agent-skills-spec            Do not apply the builtin Agent Skills      │
+│                                   specification and skill floor.             │
+│ --help                            Show this message and exit.                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Commands ───────────────────────────────────────────────────────────────────╮
 │ check    Check every document and skill of the workspace: frontmatter,       │
