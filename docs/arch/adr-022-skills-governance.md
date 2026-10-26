@@ -54,8 +54,9 @@ governance models remains deferred for future exploration. The skills/ directory
 
 The built-in Agent Skills floor is an explicit source of governance, followed by the repository corpus layer and
 matching namespace layers. It is a builtin spec layer under a builtin origin rather than a fabricated repository
-file path, supplying both frontmatter and structure inputs. Repository layer findings identify the repository layer;
-built-in findings retain their current provenance and wording wherever FR-013 requires compatibility.
+file path, supplying a frontmatter schema input and a builtin line budget. Repository layer findings identify
+the repository layer; built-in findings retain their current provenance and wording wherever FR-013 requires
+compatibility.
 
 The floor schema enters as the first entry in a skill's applicable frontmatter schema tuple and is queried through
 the schema registry (`query_at(schema_ref, schema_query)`). Each schema in the tuple is evaluated by one common locator, and missing-field
@@ -75,7 +76,7 @@ repository constraint leaves the built-in constraint in force. Omitting a repeat
 (FR-007, FR-020). Constraints that all layers enforce are not reinterpreted as overrides.
 
 The structure dialect supplies frontmatter, outline, word limits and token/line budgets for skill entries (FR-005).
-The structure specification dialect adds a `lines` budget beside `tokens`. The builtin Agent Skills structure file
+The structure specification dialect adds a `lines` budget beside `tokens`. The builtin Agent Skills floor layer
 declares a line limit of 500 lines (`too_many_lines`), counting the entire file and reporting from line 501.
 Repository layers can tighten the line limit (e.g. `lines: 300`) but can never relax or waive the floor's 500-line cap.
 When the builtin floor is active, skills are governed for `FRONTMATTER` and `BUDGET`. Coverage records which parts
@@ -97,11 +98,12 @@ lorecraft --no-agent-skills-spec inspect
 The option has no environment-variable counterpart and no repository configuration in this change.
 A task recipe or CI command can persist the explicit flag.
 
-With the option enabled, the entire builtin floor layer—its frontmatter schema, line budget, and tool constraints—is
-omitted. Repository skills specs apply on their own (FR-009). With no repository skills specification, skills are
-reported as ungoverned for `FRONTMATTER`, `STRUCTURE`, `OUTLINE`, and `BUDGET` without an error (FR-018).
-The option changes spec floor governance; it does not disable discovery, I/O diagnostics or unrelated link checks
-such as `escaping_link`.
+With the option enabled, the builtin floor layer—its frontmatter schema and line budget—is omitted.
+Repository skills specs apply on their own (FR-009); tool-constraint rules (`allowed_tools_too_long` and
+`malformed_allowed_tools`) continue to run under any repository skills layer that states `frontmatter`.
+With no repository skills specification, skills are reported as ungoverned for `FRONTMATTER`, `STRUCTURE`, `OUTLINE`,
+and `BUDGET` without an error (FR-018). The option changes spec floor governance; it does not disable discovery,
+I/O diagnostics or unrelated link checks such as `escaping_link`.
 
 ### Contradiction Detection Is Bounded
 
@@ -157,8 +159,8 @@ It does not create a second matching algorithm or require a docs/skills/ directo
 
 - Skill entrypoints gain repository frontmatter, outline, token, and line rules. The structure dialect adds
   `lines` alongside `tokens` without allowing narrower layers to erase broader constraints.
-- Existing skills diagnostics and identity survive the migration. Generated schema output and builtin structure
-  definitions preserve representative existing findings when no repository skills spec is present.
+- Existing skills diagnostics and identity survive the migration. Generated schema output and the builtin line
+  budget preserve representative existing findings when no repository skills spec is present.
 - Skills may be governed without a physical corpus directory. Code that assumes every corpus maps to a docs/
   path must distinguish the reserved corpus rather than constructing a nonexistent document path.
 - Built-in origin and repository origin must both be representable in governance and inspection without
@@ -166,8 +168,9 @@ It does not create a second matching algorithm or require a docs/skills/ directo
 - The bounded analysis catches common impossible required-field constraints before any skills exist.
   More involved contradictions and line-budget interactions can remain hidden until a skill exercises them; this is an explicit limit.
 - The opt-out deliberately permits skills outside the built-in standard and even ungoverned skills, omitting the
-  entire builtin floor layer (frontmatter schema, line budget, and tool constraints). It is visible per invocation
-  rather than inherited from an environment variable.
+  builtin floor layer (its frontmatter schema and line budget) while tool-constraint rules continue to run under
+  any repository skills layer stating `frontmatter`. It is visible per invocation rather than inherited from an
+  environment variable.
 - A docs/skills/ directory loses ordinary document-corpus semantics. Its overlap diagnostic explains why its
   documents are unchecked; making that diagnostic an error does not make those documents governed.
 - Reading the floor schema through the schema registry unifies skills and document frontmatter validation into one
@@ -201,7 +204,7 @@ It does not create a second matching algorithm or require a docs/skills/ directo
 - [ ] Skills governance uses the listed skill name and existing namespace matching, never the resolved target name
 - [ ] Skills specs load without docs/skills/ and apply only to SKILL.md; skill resources remain outside spec governance
 - [ ] Every layer applies independently, with one declaration supplying built-in constraints and generated docs
-- [ ] The builtin Agent Skills floor supplies a builtin spec layer (frontmatter schema, tool constraints, and 500-line budget)
+- [ ] The builtin Agent Skills floor supplies a builtin spec layer (frontmatter schema input and 500-line budget)
 - [ ] The structure specification dialect supports `lines` budget alongside `tokens`
 - [ ] A skill with no repository skills spec retains the existing findings under the default setting
 - [ ] The opt-out `--no-agent-skills-spec` disables the entire builtin floor layer, affects check and inspect alike, and allows ungoverned skills without an error
