@@ -47,6 +47,7 @@ from .diagnostic_parts import (
     FilePlace,
     LineMark,
     Mark,
+    PrimaryLineMark,
     WholeFileMark,
     child_kind,
     diagnostic_marks,
@@ -202,15 +203,18 @@ def _diagnostic_lines(diagnostic: Diagnostic, sources: SourceLines, style: TextS
         )
 
         # A label whose source is not at hand is told under the place it is in, with no excerpt.
-        excerpted: list[LineMark] = []
+        excerpted: list[LineMark | PrimaryLineMark] = []
         for mark in group:
             match mark:
-                case LineMark() if _has_source(mark, sources):
+                case LineMark() | PrimaryLineMark() if _has_source(mark, sources):
                     excerpted.append(mark)
-                case LineMark() | WholeFileMark() if mark.text:
+                case LineMark() | PrimaryLineMark() if mark.text is not None:
+                    equals = _paint(style, '=', fg='blue', bold=True)
+                    lines.append(f'{lead}{equals} at {format_place(mark.place)}: {mark.text.value}')
+                case WholeFileMark() if mark.text:
                     equals = _paint(style, '=', fg='blue', bold=True)
                     lines.append(f'{lead}{equals} at {format_place(mark.place)}: {mark.text}')
-                case LineMark() | WholeFileMark():
+                case LineMark() | PrimaryLineMark() | WholeFileMark():
                     # An unlabelled mark with no source says nothing beyond the place already named above.
                     pass
                 case _:
@@ -256,7 +260,7 @@ def _line_order(mark: Mark) -> UnsignedInt:
     match mark:
         case WholeFileMark():
             return UnsignedInt(0)
-        case LineMark():
+        case LineMark() | PrimaryLineMark():
             return mark.line.as_unsigned()
         case _:
             assert_never(mark)
@@ -270,7 +274,7 @@ def _first_line(group: list[Mark]) -> LineNumber | None:
     """
     for mark in group:
         match mark:
-            case LineMark():
+            case LineMark() | PrimaryLineMark():
                 return mark.line
             case WholeFileMark():
                 pass
@@ -279,7 +283,7 @@ def _first_line(group: list[Mark]) -> LineNumber | None:
     return None
 
 
-def _has_source(mark: LineMark, sources: SourceLines) -> bool:
+def _has_source(mark: LineMark | PrimaryLineMark, sources: SourceLines) -> bool:
     """True when the line a mark points at can be excerpted.
 
     Args:
@@ -300,9 +304,9 @@ def _gutter_width(marks: list[Mark], sources: SourceLines) -> int:
     width = 1
     for mark in marks:
         match mark:
-            case LineMark() if _has_source(mark, sources):
+            case LineMark() | PrimaryLineMark() if _has_source(mark, sources):
                 width = max(width, len(f'{mark.line}'))
-            case LineMark() | WholeFileMark():
+            case LineMark() | PrimaryLineMark() | WholeFileMark():
                 pass
             case _:
                 assert_never(mark)
@@ -310,7 +314,7 @@ def _gutter_width(marks: list[Mark], sources: SourceLines) -> int:
 
 
 def _excerpt_lines(
-    marks: list[LineMark],
+    marks: list[LineMark | PrimaryLineMark],
     source: SourceText,
     drawing: _Drawing,
 ) -> list[str]:
@@ -321,7 +325,7 @@ def _excerpt_lines(
         source: The lines of the file.
         drawing: What the excerpt is drawn with.
     """
-    marks_by_line: dict[LineNumber, list[LineMark]] = {}
+    marks_by_line: dict[LineNumber, list[LineMark | PrimaryLineMark]] = {}
     for mark in marks:
         marks_by_line.setdefault(mark.line, []).append(mark)
 
@@ -345,7 +349,7 @@ def _excerpt_lines(
         lines.append(_source_line(line, source, drawing))
         text = source.line(line).expandtabs(_TAB_WIDTH).rstrip()
         # The line the diagnostic is reported at is underlined before any other line's label.
-        for mark in sorted(line_marks, key=lambda mark: not mark.primary):
+        for mark in sorted(line_marks, key=lambda mark: not isinstance(mark, PrimaryLineMark)):
             lines.append(_underline(mark, text, drawing))
         previous = number
     return lines
@@ -363,7 +367,7 @@ def _source_line(number: LineNumber, source: SourceText, drawing: _Drawing) -> s
     return f'{gutter} {source.line(number).expandtabs(_TAB_WIDTH)}'.rstrip()
 
 
-def _underline(mark: LineMark, text: str, drawing: _Drawing) -> str:
+def _underline(mark: LineMark | PrimaryLineMark, text: str, drawing: _Drawing) -> str:
     """The line under a source line that underlines the text of it and says what the mark labels.
 
     The underline spans the line's text, from its first character that is not a blank to its last; a blank line is
@@ -379,7 +383,7 @@ def _underline(mark: LineMark, text: str, drawing: _Drawing) -> str:
     end = len(text)
     if end <= start:
         start, end = 0, 1
-    if mark.primary:
+    if isinstance(mark, PrimaryLineMark):
         glyph, color = glyphs.primary, _severity_color(drawing.severity)
     else:
         glyph, color = glyphs.secondary, 'blue'
@@ -388,7 +392,7 @@ def _underline(mark: LineMark, text: str, drawing: _Drawing) -> str:
     underline = _paint(style, glyph * (end - start), fg=color, bold=True)
     label = ''
     if mark.text:
-        label = ' ' + _paint(style, mark.text, fg=color, bold=True)
+        label = ' ' + _paint(style, mark.text.value, fg=color, bold=True)
     return f'{gutter} {" " * start}{underline}{label}'
 
 

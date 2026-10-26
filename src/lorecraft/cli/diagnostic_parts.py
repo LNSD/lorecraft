@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from typing import Literal, assert_never
 
 from lorecraft.core.path import RootRelativePath
+from lorecraft.core.text import NonEmptyStr
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.location import (
     Elsewhere,
@@ -43,15 +44,32 @@ class LineMark:
     Attributes:
         path: The file the mark is in.
         line: The line it points at.
-        text: What the mark says about the line; empty for a line a help or note points at, or the primary line of a
-            diagnostic whose rule gives it no label.
-        primary: True for the line the diagnostic is reported at, which text output underlines apart from the others.
+        text: A non-empty label for the line, or None when it has no label.
     """
 
     path: RootRelativePath
     line: LineNumber
-    text: str
-    primary: bool
+    text: NonEmptyStr | None
+
+    @property
+    def place(self) -> FilePlace:
+        """The file and line the mark is on."""
+        return FilePlace(self.path, self.line)
+
+
+@dataclass(frozen=True, slots=True)
+class PrimaryLineMark:
+    """The line a diagnostic is reported at, drawn apart from its other marks in text output.
+
+    Attributes:
+        path: The file the mark is in.
+        line: The line it points at.
+        text: A non-empty label for the line, or None when it has no label.
+    """
+
+    path: RootRelativePath
+    line: LineNumber
+    text: NonEmptyStr | None
 
     @property
     def place(self) -> FilePlace:
@@ -77,7 +95,7 @@ class WholeFileMark:
         return FilePlace(self.path, None)
 
 
-type Mark = LineMark | WholeFileMark
+type Mark = LineMark | PrimaryLineMark | WholeFileMark
 
 
 def ordered_diagnostics(reports: tuple[RunReport, ...]) -> list[Diagnostic]:
@@ -187,9 +205,12 @@ def diagnostic_marks(diagnostic: Diagnostic) -> list[Mark]:
             continue
         is_primary = at.path == subject and at.line == reported_at
         primary_marked = primary_marked or is_primary
-        marks.append(LineMark(at.path, at.line, label.text, is_primary))
+        if is_primary:
+            marks.append(PrimaryLineMark(at.path, at.line, _non_empty_label(label.text)))
+        else:
+            marks.append(LineMark(at.path, at.line, _non_empty_label(label.text)))
     if reported_at is not None and not primary_marked:
-        marks.insert(0, LineMark(subject, reported_at, '', True))
+        marks.insert(0, PrimaryLineMark(subject, reported_at, None))
 
     for child in occurrence.children():
         at = child_place(subject, child)
@@ -201,7 +222,7 @@ def diagnostic_marks(diagnostic: Diagnostic) -> list[Mark]:
         if at.line is None:
             marks.append(WholeFileMark(at.path, ''))
         else:
-            marks.append(LineMark(at.path, at.line, '', False))
+            marks.append(LineMark(at.path, at.line, None))
     return marks
 
 
@@ -217,9 +238,16 @@ def _already_points_at(mark: Mark, at: FilePlace) -> bool:
     if at.line is None:
         return True
     match mark:
-        case LineMark():
+        case LineMark() | PrimaryLineMark():
             return mark.line == at.line
         case WholeFileMark():
             return False
         case _:
             assert_never(mark)
+
+
+def _non_empty_label(text: str) -> NonEmptyStr | None:
+    """Return a non-empty label value, or None for an empty label."""
+    if not text:
+        return None
+    return NonEmptyStr.parse(text)
