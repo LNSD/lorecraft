@@ -138,6 +138,8 @@ def _find_required_entry(alignments: tuple[OutlineAlignmentSpec, ...], section: 
     """
     for alignment in alignments:
         aligned = alignment.aligned_section(section)
+        if aligned is None:
+            continue
         match aligned:
             case NamedAlignment():
                 if not aligned.entry.optional:

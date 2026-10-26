@@ -84,20 +84,20 @@ class OutlineAlignmentSpec:
     outline: tuple[OutlineEntry, ...]
     sections: tuple[AlignedSection, ...]
 
-    def aligned_section(self, section: SectionHeading) -> AlignedSection:
+    def aligned_section(self, section: SectionHeading) -> AlignedSection | None:
         """The aligned section a section heading opens.
 
         Args:
             section: An H2 section of the document these sections were aligned for.
 
-        Raises:
-            ValueError: If `section` is no section of that document.
+        Returns:
+            The aligned section with the same line number, or `None` if no section has that line.
         """
         for aligned in self.sections:
             # Compared by line, as two headings never start on the same one.
             if aligned.section.line == section.line:
                 return aligned
-        raise ValueError(f'the heading at line {section.line} is no section of the aligned document')
+        return None
 
 
 def align_outlines(
@@ -137,7 +137,7 @@ def _align_sections(structure_spec: StructureSpec, sections: tuple[SectionHeadin
     """
     outline = structure_spec.outline
     forbidden = structure_spec.forbidden
-    last_named_at = -1  # the outline index of the last named section passed; -1 before any
+    last_named_at: int | None = None
     aligned: list[AlignedSection] = []
     for section in sections:
         named = _find_named_alignment(outline, section)
@@ -188,14 +188,14 @@ def _find_named_alignment(
     return None
 
 
-def _find_run(outline: tuple[OutlineEntry, ...], *, after: int) -> AnySections | None:
+def _find_run(outline: tuple[OutlineEntry, ...], *, after: int | None) -> AnySections | None:
     """The first `any` run past outline index `after`, or `None` when there is none. Raises nothing.
 
     Args:
         outline: The entries to search, in outline order.
-        after: Outline index of the last named section passed, exclusive; -1 searches from the start.
+        after: Outline index of the last named section passed, exclusive; `None` searches from the start.
     """
-    for entry in outline[after + 1 :]:
+    for entry in outline[0 if after is None else after + 1 :]:
         match entry:
             case AnySections():
                 return entry
