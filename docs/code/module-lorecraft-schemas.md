@@ -23,6 +23,7 @@ layer owns its validator and problem translation. Its import layer sits below `l
 ## Belongs Here
 
 - Structure and frontmatter schema kinds, references, repository and builtin origins, and immutable schema inputs.
+  `FrontmatterSchemaInput` fixes the kind for builtin frontmatter layers.
 - The builtin Agent Skills frontmatter model, its value types, and the input and registration function rendered from it.
 - In-memory lookup of an input by its typed reference.
 - `EmptySchemaRefIdentityError`, `EmptyRepositoryLayerError` and `EmptyBuiltinOriginIdentityError` carry rejected identity values.
@@ -44,6 +45,7 @@ layer owns its validator and problem translation. Its import layer sits below `l
 - Structure and frontmatter are the only schema kinds; either kind may have repository or builtin provenance. Parsed structure specifications are not registry inputs.
 - Repository origins retain a root-relative path and governing layer; builtin origins retain a stable identity and no fabricated path.
 - A builtin schema input's reference derives from its kind and builtin origin identity, so its identity is stored once; repository schema references and their provenance remain distinct.
+- A `FrontmatterSchemaInput` always derives a `FRONTMATTER` reference and cannot carry a structure kind.
 - The builtin Agent Skills input carries the model-rendered JSON Schema as registry data, while schema queries return its Pydantic validator; do not substitute JSON Schema validation or infer equivalent diagnostic behavior from that document.
 - Registry resolution examines only the supplied immutable inputs. It performs no filesystem or external resource reads and holds no mutable cache.
 - This package imports no project database, query, workspace-loading or filesystem modules.

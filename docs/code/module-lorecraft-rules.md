@@ -23,8 +23,8 @@ query and hands it the facts sits above in `lorecraft.engine`; the query is answ
 
 ## Belongs Here
 
-- A value that identifies a rule: a release, a group's prefix and title, a code, a name, an alias code, a level, and
-  the severity an engine condition fixes.
+- Rule identity: release, group, code, name, alias, level and severity. Rule codes take `RuleGroup`; engine
+  conditions use `EngineGroup`.
 - An item rule derives from `QueriedItemRule`, names its typed query, and declares a gate for every item type it
   judges. `WhenSpec` and `Always` are the complete gate vocabulary: a part must be governed for the item, or the
   rule is unconditional for that mapped type. A missing item type is inapplicable. `APPLIES_TO` is a required class
@@ -39,7 +39,7 @@ query and hands it the facts sits above in `lorecraft.engine`; the query is answ
   derives from `FileCondition` or `EntryCondition`.
 - The one-run selection, rule table and ItemRef report, except refused aliases use SkillAliasRef.
 - A rule group, as a subpackage: `__ruleset__.py` declares its `GROUP_ID` and shared values, `__init__.py` holds
-  only the docstring, and each rule has its module. `identity.py` declares the `LC` group as `ENGINE_GROUP` for
+  only the docstring, and each rule has its module. `identity.py` declares the `LC` `EngineGroup` as `ENGINE_GROUP` for
   `EngineCode` and re-exports it as `GROUP_ID`.
 - Group queries live in a group-level query module. Promote one to `lorecraft.project.query` when another group
   needs it, sharing its memoized `(query, subject)` answer. A `judge` names its parameter `facts`.

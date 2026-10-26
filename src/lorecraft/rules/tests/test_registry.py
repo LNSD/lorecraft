@@ -55,7 +55,6 @@ from ..registry import (
     DuplicateRuleCodeError,
     DuplicateRuleNameError,
     Registry,
-    RuleInEngineGroupError,
     UnknownReplacementError,
     UnsetRuleAttributeError,
 )
@@ -69,8 +68,6 @@ from .sample_rules import (
     duplicate_name,
     import_failure,
     index_named_module,
-    removed_rule_in_engine,
-    rule_in_engine,
     token_count,
     unknown_replacement,
     unset_attribute,
@@ -89,8 +86,6 @@ from .sample_rules.duplicate_code.second import SecondRule
 from .sample_rules.duplicate_name.shared import InService, Retired
 from .sample_rules.groups import LAYOUT, SAMPLE
 from .sample_rules.index_named_module.group.index import IndexNamed
-from .sample_rules.removed_rule_in_engine.retired import RetiredTrespasser
-from .sample_rules.rule_in_engine.trespassing import Trespassing
 from .sample_rules.token_count.any_tokens import AnyTokens
 from .sample_rules.token_count.empty_document import EmptyDocument
 from .sample_rules.token_count.over_half_budget import OverHalfBudget
@@ -299,28 +294,6 @@ class TestRegistryLoad:
         #: Then
         assert exc_info.value.declaration is Unworded, 'the error names the abstract condition'
         assert exc_info.value.missing == ('message',), 'the error names the method it does not implement'
-
-    def test_load_with_a_rule_in_the_engine_group_raises_rule_in_engine_group_error(self) -> None:
-        #: Given
-        package = rule_in_engine
-
-        #: When
-        with pytest.raises(RuleInEngineGroupError) as exc_info:
-            Registry.load(package)
-
-        #: Then
-        assert exc_info.value.declaration is Trespassing, 'the error names the rule in the engine group'
-
-    def test_load_with_a_removed_rule_in_the_engine_group_raises_rule_in_engine_group_error(self) -> None:
-        #: Given
-        package = removed_rule_in_engine
-
-        #: When
-        with pytest.raises(RuleInEngineGroupError) as exc_info:
-            Registry.load(package)
-
-        #: Then
-        assert exc_info.value.declaration is RetiredTrespasser, 'the error names the removed rule in the engine group'
 
     def test_load_with_a_removed_rule_replaced_by_an_undeclared_code_raises_unknown_replacement_error(self) -> None:
         #: Given

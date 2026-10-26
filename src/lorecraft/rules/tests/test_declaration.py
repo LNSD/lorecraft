@@ -20,6 +20,7 @@ from ..identity import (
     EmptyRuleNameError,
     EmptyUpstreamCodeError,
     EngineCode,
+    EngineGroup,
     InvalidRuleGroupPrefixCharacterError,
     InvalidRuleNameCharacterError,
     InvalidUpstreamCodeCharacterError,
@@ -401,6 +402,17 @@ class TestRuleGroupPrefix:
 
         #: Then
         assert exc_info.value.value == raw, 'direct construction checks the same reservation'
+
+    def test_parse_with_engine_prefix_raises_reserved_rule_group_prefix_error(self) -> None:
+        #: Given
+        raw = 'LC'
+
+        #: When
+        with pytest.raises(ReservedRuleGroupPrefixError) as exc_info:
+            RuleGroupPrefix.parse(raw)
+
+        #: Then
+        assert exc_info.value.value == raw, 'the engine prefix is reserved for engine conditions'
 
 
 @pytest.mark.unit
@@ -785,6 +797,7 @@ class TestEngineCode:
 
         #: Then
         assert group == ENGINE_GROUP, 'an engine code names no group, so it is always the engine group'
+        assert type(group) is EngineGroup, 'the engine group has its own type and cannot be a rule group'
 
     def test_engine_code_with_a_number_out_of_range_raises_rule_number_out_of_range_error(self) -> None:
         #: Given

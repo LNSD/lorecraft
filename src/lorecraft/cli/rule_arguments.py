@@ -574,7 +574,7 @@ def _require_group(registry: Registry, prefix: str) -> RuleGroup:
         IndexGroupNotInRegistryError: If the registry has no such group, which the index held.
     """
     group = registry.find_group(prefix)
-    if group is None:
+    if group is None or registry.is_engine_group(group):
         raise IndexGroupNotInRegistryError(prefix)
     return group
 

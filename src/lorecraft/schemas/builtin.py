@@ -5,13 +5,12 @@ from typing import Final
 from lorecraft.core.mapping import FrozenMapping
 
 from .agent_skills_frontmatter import SkillFrontmatter
-from .types import BuiltinOrigin, BuiltinSchemaInput, SchemaKind, SchemaRef
+from .types import BuiltinOrigin, FrontmatterSchemaInput, SchemaRef
 
 AGENT_SKILLS_LAYER_ORIGIN: Final[BuiltinOrigin] = BuiltinOrigin('builtin:agent-skills')
 """The stable identity of the Agent Skills specification layer."""
 
-AGENT_SKILLS_SCHEMA_INPUT: Final[BuiltinSchemaInput] = BuiltinSchemaInput(
-    SchemaKind.FRONTMATTER,
+AGENT_SKILLS_SCHEMA_INPUT: Final[FrontmatterSchemaInput] = FrontmatterSchemaInput(
     BuiltinOrigin('builtin:agent-skills-frontmatter'),
     FrozenMapping.from_plain(SkillFrontmatter.model_json_schema()),
 )

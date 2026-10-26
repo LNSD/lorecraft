@@ -3,11 +3,10 @@
 from enum import StrEnum
 from typing import Final
 
-from lorecraft.rules.identity import ENGINE_GROUP, RuleGroup
+from lorecraft.rules.identity import ENGINE_GROUP, EngineGroup
 
-GROUP_ID: Final[RuleGroup] = ENGINE_GROUP
-"""The group reserved for engine conditions: a condition's `EngineCode` is always in it, and the registry rejects, as
-the package loads, a rule or a removed rule inside it."""
+GROUP_ID: Final[EngineGroup] = ENGINE_GROUP
+"""The group reserved for engine conditions, carried only by `EngineCode`."""
 
 
 class RefusedOperation(StrEnum):
