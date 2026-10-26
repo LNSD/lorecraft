@@ -3,7 +3,6 @@
 from dataclasses import dataclass
 from typing import ClassVar, assert_never
 
-from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.collector import rule
 from lorecraft.rules.declaration import FileCondition
@@ -63,7 +62,7 @@ class InvalidUtf8(FileCondition):
 
     def primary(self) -> Here:
         """The line of the first byte that does not decode."""
-        return Here(LineNumber(NonZeroUnsignedInt(self.failure.line)))
+        return Here(LineNumber(self.failure.line))
 
     def labels(self) -> tuple[Label, ...]:
         """Name the bytes that do not decode, where they sit in the file, and why the decoder rejected them."""

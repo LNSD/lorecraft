@@ -20,6 +20,7 @@ import pytest
 
 from lib.database import find_file, is_in_scope
 from lib.tree import from_tree
+from lorecraft.core.lines import Line
 from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.num import NonZeroUnsignedInt, UnsignedInt
 from lorecraft.core.path import PathComponent, RootRelativePath
@@ -49,7 +50,6 @@ from lorecraft.vfs import (
     SnapshotRecords,
     SymlinkRecord,
     Utf8Failure,
-    Utf8Line,
     Utf8Reason,
     take_snapshot,
 )
@@ -508,8 +508,8 @@ class TestDatabase:
 
         #: Then
         failure = Utf8Failure(
-            line=Utf8Line(2),
-            offset=ByteOffset(13),
+            line=Line(NonZeroUnsignedInt(2)),
+            offset=ByteOffset(UnsignedInt(13)),
             invalid=b'\xff',
             reason=Utf8Reason.INVALID_START_BYTE,
         )
@@ -772,8 +772,8 @@ class TestDatabase:
 
         #: Then
         failure = Utf8Failure(
-            line=Utf8Line(2),
-            offset=ByteOffset(13),
+            line=Line(NonZeroUnsignedInt(2)),
+            offset=ByteOffset(UnsignedInt(13)),
             invalid=b'\xe9',
             reason=Utf8Reason.INVALID_CONTINUATION_BYTE,
         )

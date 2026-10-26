@@ -8,23 +8,10 @@ plain data, a persisted result keeps it.
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import NewType, Self
+from typing import Self
 
-from lorecraft.core.lines import line_at
-
-Utf8Line = NewType('Utf8Line', int)
-"""A line number in a file's bytes, counted as `lorecraft.core.lines` counts a line, at least 1.
-
-`Utf8Failure` enforces the minimum at construction.
-
-Only keeps the line apart from a `ByteOffset`: `Utf8Line(0)` constructs, and `Utf8Failure` refuses it.
-"""
-
-ByteOffset = NewType('ByteOffset', int)
-"""An offset into a file's bytes, from 0, never negative; `Utf8Failure` enforces it at construction.
-
-Only keeps the offset apart from a `Utf8Line`: `ByteOffset(-1)` constructs, and `Utf8Failure` refuses it.
-"""
+from lorecraft.core.lines import ByteOffset, Line, line_at
+from lorecraft.core.num import UnsignedInt
 
 
 class Utf8Reason(Enum):
@@ -57,7 +44,7 @@ class Utf8Failure:
     """Where a file's bytes first stop being UTF-8, and why.
 
     Raises:
-        ValueError: If `line` is below 1, `offset` is negative or `invalid` is empty.
+        ValueError: If `invalid` is empty.
 
     Attributes:
         line: The line the first invalid byte is on, at least 1, counted as `lorecraft.core.lines` counts a line,
@@ -67,17 +54,13 @@ class Utf8Failure:
         reason: Why the decoder rejected them.
     """
 
-    line: Utf8Line
+    line: Line
     offset: ByteOffset
     invalid: bytes
     reason: Utf8Reason
 
     def __post_init__(self) -> None:
-        """Refuse a failure that names no line, a byte before the file or no byte at all."""
-        if self.line < 1:
-            raise ValueError(f'line must be at least 1, got {self.line}')
-        if self.offset < 0:
-            raise ValueError(f'offset must not be negative, got {self.offset}')
+        """Refuse a failure with no invalid byte."""
         if not self.invalid:
             raise ValueError(f'invalid must not be empty, got {self.invalid!r}')
 
@@ -89,8 +72,8 @@ class Utf8Failure:
             error: The failure of decoding a file's bytes as UTF-8.
         """
         return cls(
-            line=Utf8Line(line_at(error.object, error.start)),
-            offset=ByteOffset(error.start),
+            line=line_at(error.object, ByteOffset(UnsignedInt(error.start))),
+            offset=ByteOffset(UnsignedInt(error.start)),
             invalid=error.object[error.start : error.end],
             reason=Utf8Reason(error.reason),
         )

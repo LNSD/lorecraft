@@ -35,7 +35,7 @@ from .snapshot import (
     SymlinkRecord,
     VirtualFileSystem,
 )
-from .utf8_failure import ByteOffset, Utf8Failure, Utf8Line, Utf8Reason
+from .utf8_failure import ByteOffset, Utf8Failure, Utf8Reason
 from .view import (
     DIR_LIST_FAILURES,
     DIR_RESOLVE_FAILURES,
@@ -108,7 +108,6 @@ __all__: list[str] = [
     'TextDecodeError',
     'ByteOffset',
     'Utf8Failure',
-    'Utf8Line',
     'Utf8Reason',
     'EntryInspectError',
     'RootExitWalkError',

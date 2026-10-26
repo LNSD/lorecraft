@@ -24,6 +24,7 @@ import pytest
 from lib.overruns import overrun
 from lib.tree import from_tree
 from lorecraft import rules
+from lorecraft.core.lines import Line
 from lorecraft.core.num import NonZeroUnsignedInt, UnsignedInt
 from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.engine import check_subjects
@@ -134,7 +135,6 @@ from lorecraft.vfs import (
     SnapshotRecords,
     SymlinkRecord,
     Utf8Failure,
-    Utf8Line,
     Utf8Reason,
     VirtualFileSystem,
     take_snapshot,
@@ -168,12 +168,18 @@ REVIEW_OWNER: Final[SkillFrontmatterOwner] = SkillFrontmatterOwner(
 """The frontmatter owner of `REVIEW`, listed under its own name and not a link."""
 
 _CAFE_TITLE_FAILURE: Final[Utf8Failure] = Utf8Failure(
-    line=Utf8Line(1), offset=ByteOffset(5), invalid=b'\xe9', reason=Utf8Reason.INVALID_CONTINUATION_BYTE
+    line=Line(NonZeroUnsignedInt(1)),
+    offset=ByteOffset(UnsignedInt(5)),
+    invalid=b'\xe9',
+    reason=Utf8Reason.INVALID_CONTINUATION_BYTE,
 )
 """Where `# Caf\xe9\n` stops being UTF-8: the Latin-1 `é`, on the first line, followed by a line feed."""
 
 _CAFE_NAME_FAILURE: Final[Utf8Failure] = Utf8Failure(
-    line=Utf8Line(2), offset=ByteOffset(13), invalid=b'\xe9', reason=Utf8Reason.INVALID_CONTINUATION_BYTE
+    line=Line(NonZeroUnsignedInt(2)),
+    offset=ByteOffset(UnsignedInt(13)),
+    invalid=b'\xe9',
+    reason=Utf8Reason.INVALID_CONTINUATION_BYTE,
 )
 """Where `---\nname: caf\xe9\n---\n` stops being UTF-8: the Latin-1 `é` in the frontmatter's second line."""
 

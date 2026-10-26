@@ -20,7 +20,7 @@ A wenmode upgrade that changes the plugin is caught there, not here.
 import re
 from bisect import bisect_left
 from dataclasses import dataclass
-from typing import Final, Literal, NewType
+from typing import Final, Literal
 
 from wenmode import Wenmode
 from wenmode.nodes import Code, Html, Image, Node, Parent, Position
@@ -30,9 +30,10 @@ from wenmode.nodes import Literal as LiteralNode
 from wenmode.plugins import frontmatter
 
 from lorecraft.core.error import Unreachable
-from lorecraft.core.lines import newline_offsets
+from lorecraft.core.lines import Line, TextOffset, newline_offsets
+from lorecraft.core.num import NonZeroUnsignedInt, UnsignedInt
 
-MarkdownLine = NewType('MarkdownLine', int)
+MarkdownLine = Line
 """A one-based document line, counted by the line breaks `lorecraft.core.lines` defines."""
 
 type HeadingLevel = Literal[1, 2, 3, 4, 5, 6]
@@ -264,7 +265,7 @@ def _code_spans(node: Node) -> list[Position]:
 
 
 def _collect_headings_and_links(
-    newlines: tuple[int, ...],
+    newlines: tuple[TextOffset, ...],
     top_level: set[int],
     node: Node,
     headings: dict[int, MarkdownHeading],
@@ -357,7 +358,7 @@ def _plain_text_node(node: Node) -> str:
     return identifier if isinstance(identifier, str) else ''
 
 
-def _line(newlines: tuple[int, ...], span: Position) -> MarkdownLine:
+def _line(newlines: tuple[TextOffset, ...], span: Position) -> MarkdownLine:
     r"""The document line a node's span starts on, a block's or an inline's alike.
 
     wenmode reports a node's position as a character offset into the text; every line before the offset ends in
@@ -368,7 +369,8 @@ def _line(newlines: tuple[int, ...], span: Position) -> MarkdownLine:
         newlines: The offset where each line break in the document's text starts, as `newline_offsets` returns them.
         span: Where the node to locate sits, as `_position` reads it.
     """
-    return MarkdownLine(bisect_left(newlines, span.start) + 1)
+    offset = TextOffset(UnsignedInt(span.start))
+    return Line(NonZeroUnsignedInt(bisect_left(newlines, offset) + 1))
 
 
 def _position(node: Node) -> Position:

@@ -2,7 +2,8 @@
 
 import pytest
 
-from lorecraft.core.num import NonZeroUnsignedInt
+from lorecraft.core.lines import ByteOffset, Line
+from lorecraft.core.num import NonZeroUnsignedInt, UnsignedInt
 from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
@@ -12,7 +13,7 @@ from lorecraft.project.skill import OutsideSymlinkRef, SkillRef
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.engine.invalid_utf8 import InvalidUtf8
 from lorecraft.rules.engine.malformed_structure_file import MalformedStructureFile, NoRuleStated
-from lorecraft.vfs import ByteOffset, ResolvedPath, Utf8Failure, Utf8Line, Utf8Reason
+from lorecraft.vfs import ResolvedPath, Utf8Failure, Utf8Reason
 
 from ..identity import Severity
 from ..report import (
@@ -33,8 +34,8 @@ from .sample_rules.valid.uppercase_entry import UppercaseEntry
 
 def _failure(line: int) -> Utf8Failure:
     return Utf8Failure(
-        line=Utf8Line(line),
-        offset=ByteOffset(31),
+        line=Line(NonZeroUnsignedInt(line)),
+        offset=ByteOffset(UnsignedInt(31)),
         invalid=b'\xe9',
         reason=Utf8Reason.INVALID_CONTINUATION_BYTE,
     )

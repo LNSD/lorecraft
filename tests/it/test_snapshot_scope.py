@@ -13,7 +13,8 @@ from typing import Final, assert_never
 import pytest
 
 from lib.database import find_file, is_in_scope
-from lorecraft.core.num import NonZeroUnsignedInt
+from lorecraft.core.lines import Line
+from lorecraft.core.num import NonZeroUnsignedInt, UnsignedInt
 from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.project.database import Database, ItemText, Undecodable
 from lorecraft.project.item import ItemRef
@@ -38,7 +39,6 @@ from lorecraft.vfs import (
     Snapshot,
     SymlinkRecord,
     Utf8Failure,
-    Utf8Line,
     Utf8Reason,
     take_snapshot,
 )
@@ -421,8 +421,8 @@ class TestDatabaseSkillResources:
 
         #: Then
         failure = Utf8Failure(
-            line=Utf8Line(1),
-            offset=ByteOffset(3),
+            line=Line(NonZeroUnsignedInt(1)),
+            offset=ByteOffset(UnsignedInt(3)),
             invalid=b'\xe9',
             reason=Utf8Reason.INVALID_CONTINUATION_BYTE,
         )
