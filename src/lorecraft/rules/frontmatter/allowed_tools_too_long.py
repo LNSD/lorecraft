@@ -1,4 +1,4 @@
-"""`FM012`: a skill's `allowed-tools` value exceeds Lorecraft's recommended length."""
+"""`LC212`: a skill's `allowed-tools` value exceeds Lorecraft's recommended length."""
 
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -68,7 +68,7 @@ class AllowedToolsTooLong(QueriedItemRule[AllowedToolsField | None]):
         overrun: The characters in the whole `allowed-tools` value against the recommended length.
     """
 
-    CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 12)
+    CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 212)
     NAME: ClassVar[RuleName] = RuleName('allowed-tools-too-long')
     LEVEL: ClassVar[Level] = Level.WARN
     SINCE: ClassVar[Release] = Release('0.3.0')

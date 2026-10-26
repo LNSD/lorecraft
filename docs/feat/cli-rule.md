@@ -68,7 +68,7 @@ A removed rule shows `removed` in place of a level, and an engine condition the 
 since it has no level. The listing includes `LC001` through `LC004`; this excerpt shows entries from it:
 
 ```text
-FM007    unknown-field             warn   A frontmatter holds a field its schema does not define.
+LC207    unknown-field             warn   A frontmatter holds a field its schema does not define.
 LC001    invalid-utf8              error  A file is not valid UTF-8.
 LC002    unreadable-path           error  A path cannot be read.
 LC003    malformed-structure-file  error  A structure file does not follow the structure format, or states no rule.
@@ -83,8 +83,8 @@ run. `LC001`–`LC004` are engine conditions, not rules; they are always reporte
 
 | Default level | Rule codes |
 |---------------|------------|
-| `deny` | `FM001`, `FM002`, `FM003`, `FM004`, `FM005`, `FM006`, `FM008`, `FM009`, `FM010`, `FM013`, `FM014`, `LAY001`, `LEN001`, `LEN002`, `LEN003`, `LEN004`, `LEN005`, `LINK001`, `LINK002`, `LINK003`, `LINK004`, `OUT001`, `OUT002`, `OUT003`, `OUT004`, `OUT005`, `OUT006`, `OUT007`, `OUT008`, `OUT009` |
-| `warn` | `FM007`, `FM011`, `FM012`, `LINK005`, `LINK006`, `LINK007` |
+| `deny` | `LC201`, `LC202`, `LC203`, `LC204`, `LC205`, `LC206`, `LC208`, `LC209`, `LC210`, `LC213`, `LC214`, `LC102`, `LEN001`, `LEN002`, `LEN003`, `LEN004`, `LEN005`, `LINK001`, `LINK002`, `LINK003`, `LINK004`, `OUT001`, `OUT002`, `OUT003`, `OUT004`, `OUT005`, `OUT006`, `OUT007`, `OUT008`, `OUT009` |
+| `warn` | `LC207`, `LC211`, `LC212`, `LINK005`, `LINK006`, `LINK007` |
 
 The `LC002` page covers unreadable structure files, unlistable corpus and skills directories, skills
 that cannot be listed or resolved, and `SKILL.md` links that cannot be followed. A regular `SKILL.md` whose
@@ -122,8 +122,8 @@ Checks for headings whose section holds nothing, …
 ## Limitations
 
 - The command finds a rule by exact match: it offers no search and no suggestion for a mistyped code.
-- It prints the page of one rule at a time. A group's prefix, such as `OUT`, is a selector of
-  [check](cli-check.md#selecting-rules) and names no page.
+- It prints the page of one rule at a time. A code range groups rules for reading but names no page;
+  [check](cli-check.md#selecting-rules) accepts only `ALL`, a full rule code or an alias code.
 
 ## References
 

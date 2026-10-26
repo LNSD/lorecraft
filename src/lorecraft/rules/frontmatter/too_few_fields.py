@@ -1,4 +1,4 @@
-"""`FM014`: a frontmatter holds fewer fields than its schema requires."""
+"""`LC214`: a frontmatter holds fewer fields than its schema requires."""
 
 from collections.abc import Mapping
 from dataclasses import dataclass, field
@@ -90,7 +90,7 @@ class TooFewFields(QueriedItemRule[tuple[SchemaProblems, ...]]):
         description: What the schema says the block describes, as it wrote it, or `None` when it states none.
     """
 
-    CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 14)
+    CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 214)
     NAME: ClassVar[RuleName] = RuleName('too-few-fields')
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('0.3.0')

@@ -1,4 +1,4 @@
-"""`FM001`, `missing-frontmatter`, over a document's or a skill's frontmatter.
+"""`LC201`, `missing-frontmatter`, over a document's or a skill's frontmatter.
 
 Every case is a document or a skill entrypoint (`SKILL.md`) written as text, read through a fake database that
 parses its frontmatter as

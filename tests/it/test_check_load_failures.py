@@ -140,7 +140,7 @@ def _engine_diagnostics(document: dict[str, object]) -> list[dict[str, str]]:
     """
     diagnostics = document['diagnostics']
     assert isinstance(diagnostics, list), 'the diagnostics of the run are a list'
-    return [item for item in diagnostics if item['code'].startswith('LC')]
+    return [item for item in diagnostics if item['code'].startswith('LC0')]
 
 
 @pytest.fixture(scope='function')
@@ -447,12 +447,12 @@ class TestCheckLeavesWhatAFailureDoesNotTouchAsItWas:
         assert coverage['docs/feat/check.md']['ungoverned'] == ['frontmatter', 'structure', 'outline', 'budget']
         assert exit_code == 1, 'no failure inside the declaration stops the run'
 
-    def test_check_with_the_outline_group_selected_still_reports_a_load_failure(self, tmp_path: Path) -> None:
+    def test_check_with_one_outline_code_selected_still_reports_a_load_failure(self, tmp_path: Path) -> None:
         #: Given
         root = _build_workspace(tmp_path, python_spec=STATES_NO_RULE)
 
         #: When
-        exit_code, document = _check_json(root, '--select', 'OUT')
+        exit_code, document = _check_json(root, '--select', 'OUT006')
 
         #: Then
         assert _codes_at(document, STRUCTURE_FILE_OF_PYTHON) == ['LC003'], (
@@ -461,12 +461,12 @@ class TestCheckLeavesWhatAFailureDoesNotTouchAsItWas:
         assert _severities_at(document, STRUCTURE_FILE_OF_PYTHON) == ['error'], 'it is reported as an error'
         assert exit_code == 1, 'the run fails with the status for findings'
 
-    def test_check_with_the_frontmatter_group_selected_still_reports_a_load_failure(self, tmp_path: Path) -> None:
+    def test_check_with_one_frontmatter_code_selected_still_reports_a_load_failure(self, tmp_path: Path) -> None:
         #: Given
         root = _build_workspace(tmp_path, python_spec=STATES_NO_RULE)
 
         #: When
-        exit_code, document = _check_json(root, '--select', 'FM')
+        exit_code, document = _check_json(root, '--select', 'LC201')
 
         #: Then
         assert _codes_at(document, STRUCTURE_FILE_OF_PYTHON) == ['LC003'], (

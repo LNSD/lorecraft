@@ -39,7 +39,7 @@ skills` reads the skills where agents list them, so it checks a linked skill onc
 A repository states its own rules for skills in the reserved `skills` corpus of `docs/__meta__/`: `skills` governs every
 skill, and `skills-<namespace>` the skills named `<namespace>` or `<namespace>-*`, layered broad to narrow as for
 documents. They match the skill's listed directory name and need no `docs/skills/`. `lorecraft inspect` lists the
-ones that govern each skill under it. A `docs/skills/` directory is ignored and reported by the `COR001` rule, a warning by default.
+ones that govern each skill under it. A `docs/skills/` directory is ignored and reported by the `LC101` rule, a warning by default.
 
 ## 2. Frontmatter
 
@@ -55,8 +55,8 @@ anchors, aliases or tags: a value containing `: ` must be quoted, and a value co
 | `metadata` | No | A map from string keys to string values. Quote numbers (`version: "1.0"`) and join lists with spaces |
 | `allowed-tools` | No | A space-separated string of pre-approved tools. `lorecraft check` warns on malformed entries and values over 500 characters, a Lorecraft recommendation rather than an upstream limit. Pattern whitespace stays intact. Experimental: support varies between agents |
 
-No other field is allowed: `lorecraft check` holds every skill to these six and reports anything else as `FM007`
-`unknown-field`, including a field one agent reads, such as `model` or `argument-hint`. `FM007` is a warning, so
+No other field is allowed: `lorecraft check` holds every skill to these six and reports anything else as `LC207`
+`unknown-field`, including a field one agent reads, such as `model` or `argument-hint`. `LC207` is a warning, so
 the run still exits 0: treat a `warning` at a skill path as a finding to fix, not a pass.
 
 **The `description` is the only part of the skill an agent reads before deciding to load it**, so it carries
@@ -137,12 +137,12 @@ frontmatter included. In every Markdown file of the skill it reports a link that
 the skill root, that names nothing the skill holds, or whose `#fragment` names no heading of its own file. It
 reports a symlink an agent would follow out of the repository, wherever it sits in the skill layout.
 [check](https://github.com/LNSD/lorecraft/blob/main/docs/feat/cli-check.md#findings) lists the rule groups and their
-codes: `FM` for the frontmatter, `LEN002` for the line budget, `LINK` for the links and `LAY001` for a symlink.
+codes: `LC2xx` for the frontmatter, `LEN002` for the line budget, `LINK` for the links and `LC102` for a symlink.
 
 ```bash
 lorecraft check                  # every document and every skill of the workspace
 lorecraft check --format json    # machine-readable
-lorecraft check --select FM      # one group's rules, by prefix, while fixing them; never the gate
+lorecraft check --select LC201  # one rule while fixing it; never the gate
 lorecraft check --help           # options and exit codes
 ```
 

@@ -1,4 +1,4 @@
-"""`FM009`: a frontmatter field's value breaks a constraint its schema sets."""
+"""`LC209`: a frontmatter field's value breaks a constraint its schema sets."""
 
 from collections.abc import Mapping
 from dataclasses import dataclass, field
@@ -102,7 +102,7 @@ class InvalidValue(QueriedItemRule[tuple[SchemaProblems, ...]]):
         problem: The field whose value breaks the constraint, with what the schema states about it.
     """
 
-    CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 9)
+    CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 209)
     NAME: ClassVar[RuleName] = RuleName('invalid-value')
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('0.3.0')

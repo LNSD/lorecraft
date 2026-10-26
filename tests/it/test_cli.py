@@ -774,7 +774,7 @@ class TestCheckCommand:
         assert result.stdout == expected_text, 'the warning text matches the reviewed snapshot'
         assert result.stderr == (
             '.agents/skills/review/SKILL.md: ungoverned for structure, outline\n'
-            'FM  1 warning\nchecked 1 subject(s): 0 error(s), 1 warning(s)\n'
+            'LC2xx  1 warning\nchecked 1 subject(s): 0 error(s), 1 warning(s)\n'
         ), 'the warning is counted, under its code prefix'
 
     def test_check_with_overlong_allowed_tools_and_json_format_reports_the_warning_and_exits_zero(
@@ -795,7 +795,7 @@ class TestCheckCommand:
                     'path': '.agents/skills/review/SKILL.md',
                     'line': 4,
                     'severity': 'warning',
-                    'code': 'FM012',
+                    'code': 'LC212',
                     'name': 'allowed-tools-too-long',
                     'message': '`allowed-tools` value too long (501 > 500)',
                     'labels': [
@@ -850,7 +850,7 @@ class TestCheckCommand:
         assert result.stdout == expected_text, 'the warning text matches the reviewed snapshot'
         assert result.stderr == (
             '.agents/skills/review/SKILL.md: ungoverned for structure, outline\n'
-            'FM  1 warning\nchecked 1 subject(s): 0 error(s), 1 warning(s)\n'
+            'LC2xx  1 warning\nchecked 1 subject(s): 0 error(s), 1 warning(s)\n'
         ), 'the warning is counted under its code prefix and does not fail the run'
 
     def test_check_with_malformed_allowed_tools_and_json_format_reports_the_warning_and_exits_zero(
@@ -871,7 +871,7 @@ class TestCheckCommand:
                     'path': '.agents/skills/review/SKILL.md',
                     'line': 4,
                     'severity': 'warning',
-                    'code': 'FM011',
+                    'code': 'LC211',
                     'name': 'malformed-allowed-tools',
                     'message': '`allowed-tools` is not a list of tool entries',
                     'labels': [
@@ -945,7 +945,7 @@ class TestCheckCommand:
         #: Then
         assert result.exit_code == 1, result.output
         assert result.stdout == expected, 'the frontmatter and outline diagnostics match the reviewed snapshot'
-        assert result.stderr == 'FM   1 error\nOUT  1 error\nchecked 1 subject(s): 2 error(s), 0 warning(s)\n', (
+        assert result.stderr == 'LC2xx  1 error\nOUT    1 error\nchecked 1 subject(s): 2 error(s), 0 warning(s)\n', (
             'the summary counts both errors'
         )
 
@@ -968,7 +968,7 @@ class TestCheckCommand:
         assert result.stderr == (
             '.agents/skills/review/SKILL.md: ungoverned for structure, outline\n'
             'docs/__meta__/code.md: ungoverned for frontmatter, structure, outline, budget\n'
-            'FM  1 warning\nchecked 2 subject(s): 0 error(s), 1 warning(s)\n'
+            'LC2xx  1 warning\nchecked 2 subject(s): 0 error(s), 1 warning(s)\n'
         ), 'a warning is counted apart'
 
     def test_check_with_an_ungoverned_document_prints_its_coverage_on_stderr(self, tmp_path: Path) -> None:
@@ -1007,7 +1007,7 @@ class TestCheckCommand:
             '  = at docs/code/guide.md:1: 0xFF at byte offset 0 cannot start a character\n'
             '  = help: save the file as UTF-8\n'
         ), 'a file that does not decode is reported at the line of its first invalid byte, with the bytes and the fix'
-        assert result.stderr == 'LC  1 error\nchecked 1 subject(s): 1 error(s), 0 warning(s)\n', (
+        assert result.stderr == 'LC0xx  1 error\nchecked 1 subject(s): 1 error(s), 0 warning(s)\n', (
             'the engine error is counted under its code prefix'
         )
 
@@ -1024,7 +1024,7 @@ class TestCheckCommand:
         #: Then
         assert result.exit_code == 1, result.output
         assert result.stdout == (
-            'docs/code/guide.md:1: error[FM001]: no `---` delimited frontmatter block\n'
+            'docs/code/guide.md:1: error[LC201]: no `---` delimited frontmatter block\n'
             'docs/code/guide.md:1: error[OUT006]: missing required section `Checklist`\n'
         ), 'a diagnostic is one line without labels, help or notes, and `--color always` does not colour it'
         assert result.stderr == 'checked 1 subject(s): 2 error(s), 0 warning(s)\n', (
@@ -1155,7 +1155,7 @@ class TestCheckCommand:
                     'path': '.agents/skills/review/SKILL.md',
                     'line': 4,
                     'severity': 'warning',
-                    'code': 'FM007',
+                    'code': 'LC207',
                     'name': 'unknown-field',
                     'message': 'unknown field `version`',
                     'labels': [
@@ -1227,7 +1227,7 @@ class TestCheckCommand:
                     'path': 'docs/code/guide.md',
                     'line': 1,
                     'severity': 'error',
-                    'code': 'FM001',
+                    'code': 'LC201',
                     'name': 'missing-frontmatter',
                     'message': 'no `---` delimited frontmatter block',
                     'labels': [
@@ -1313,7 +1313,7 @@ class TestCheckCommand:
 
         #: Then
         assert result.exit_code == 1, result.output
-        assert result.stderr == 'FM   1 error\nOUT  1 error\nchecked 1 subject(s): 2 error(s), 0 warning(s)\n', (
+        assert result.stderr == 'LC2xx  1 error\nOUT    1 error\nchecked 1 subject(s): 2 error(s), 0 warning(s)\n', (
             'the root found above the working directory is checked whole'
         )
 
@@ -1353,7 +1353,7 @@ class TestCheckCommand:
         assert result.stderr == (
             'docs/__meta__/code.md: ungoverned for frontmatter, structure, outline, budget\n'
             'docs/code/logging.md: ungoverned for frontmatter, structure, outline, budget\n'
-            'LC  1 error\n'
+            'LC0xx  1 error\n'
             'checked 2 subject(s): 1 error(s), 0 warning(s)\n'
         ), 'the governed document is reported as a partial check, and the run is not clean'
 
@@ -1611,395 +1611,31 @@ class TestCheckCommand:
 
 @pytest.mark.it
 class TestCheckSelection:
-    # The document carries no frontmatter and no Checklist, so the whole run reports FM001 and OUT006, one of each
-    # group; each case selects or ignores some of them.
-
-    def test_check_with_a_prefix_selected_prints_only_that_groups_diagnostics(
-        self, two_group_root: Path, snapshot: SnapshotAssertion
-    ) -> None:
-        #: Given
+    def test_check_with_a_full_code_selected_prints_only_that_rule(self, two_group_root: Path) -> None:
         app = build_app()
-        expected = snapshot.use_extension(TextSnapshotExtension)
-        arguments = ['check', '--root', str(two_group_root), '--select', 'FM']
+        result = runner.invoke(app, ['check', '--root', str(two_group_root), '--select', 'LC201', '--format', 'json'])
 
-        #: When
-        result = runner.invoke(app, arguments)
-
-        #: Then
         assert result.exit_code == 1, result.output
-        assert result.stdout == expected, 'the frontmatter diagnostic alone matches the reviewed snapshot'
-        assert result.stderr == 'FM  1 error\nchecked 1 subject(s): 1 error(s), 0 warning(s)\n', (
-            'the outline rule did not run'
+        assert [item['code'] for item in json.loads(result.stdout)['diagnostics']] == ['LC201']
+
+    @pytest.mark.parametrize('selector', ['OUT', 'OUT0', 'LC1', 'LC2', 'LC20'])
+    def test_check_rejects_group_and_partial_code_selectors(self, two_group_root: Path, selector: str) -> None:
+        app = build_app()
+        result = runner.invoke(app, ['check', '--root', str(two_group_root), '--select', selector])
+
+        assert result.exit_code == 2, result.output
+        assert result.stdout == ''
+        assert f"'{selector}' is no rule code or alias code" in usage_error_message(result.stderr)
+
+    def test_check_accepts_all_and_comma_separated_full_codes(self, two_group_root: Path) -> None:
+        app = build_app()
+        result = runner.invoke(
+            app,
+            ['check', '--root', str(two_group_root), '--select', 'LC201, OUT006', '--format', 'json'],
         )
 
-    def test_check_with_a_code_selected_prints_only_that_rules_diagnostic(
-        self, two_group_root: Path, snapshot: SnapshotAssertion
-    ) -> None:
-        #: Given
-        app = build_app()
-        expected = snapshot.use_extension(TextSnapshotExtension)
-        arguments = ['check', '--root', str(two_group_root), '--select', 'OUT006']
-
-        #: When
-        result = runner.invoke(app, arguments)
-
-        #: Then
         assert result.exit_code == 1, result.output
-        assert result.stdout == expected, 'the outline diagnostic alone matches the reviewed snapshot'
-        assert result.stderr == 'OUT  1 error\nchecked 1 subject(s): 1 error(s), 0 warning(s)\n', 'no other rule ran'
-
-    def test_check_with_a_prefix_ignored_runs_every_other_rule(
-        self, two_group_root: Path, snapshot: SnapshotAssertion
-    ) -> None:
-        #: Given
-        app = build_app()
-        expected = snapshot.use_extension(TextSnapshotExtension)
-        arguments = ['check', '--root', str(two_group_root), '--ignore', 'FM']
-
-        #: When
-        result = runner.invoke(app, arguments)
-
-        #: Then
-        assert result.exit_code == 1, result.output
-        assert result.stdout == expected, 'the outline diagnostic alone matches the reviewed snapshot'
-        assert result.stderr == 'OUT  1 error\nchecked 1 subject(s): 1 error(s), 0 warning(s)\n', (
-            'the outline rule still runs'
-        )
-
-    def test_check_with_a_code_selected_and_its_group_ignored_runs_that_rule(
-        self, two_group_root: Path, snapshot: SnapshotAssertion
-    ) -> None:
-        #: Given
-        app = build_app()
-        expected = snapshot.use_extension(TextSnapshotExtension)
-        arguments = ['check', '--root', str(two_group_root), '--select', 'OUT006', '--ignore', 'OUT']
-
-        #: When
-        result = runner.invoke(app, arguments)
-
-        #: Then
-        assert result.exit_code == 1, result.output
-        assert result.stdout == expected, (
-            'the code, more specific than its group, runs its rule; it matches the snapshot'
-        )
-        assert result.stderr == 'OUT  1 error\nchecked 1 subject(s): 1 error(s), 0 warning(s)\n', 'no other rule ran'
-
-    def test_check_with_all_selected_and_a_prefix_ignored_runs_every_other_rule(
-        self, two_group_root: Path, snapshot: SnapshotAssertion
-    ) -> None:
-        #: Given
-        app = build_app()
-        expected = snapshot.use_extension(TextSnapshotExtension)
-        arguments = ['check', '--root', str(two_group_root), '--select', 'ALL', '--ignore', 'OUT']
-
-        #: When
-        result = runner.invoke(app, arguments)
-
-        #: Then
-        assert result.exit_code == 1, result.output
-        assert result.stdout == expected, 'the frontmatter diagnostic alone matches the reviewed snapshot'
-        assert result.stderr == 'FM  1 error\nchecked 1 subject(s): 1 error(s), 0 warning(s)\n', (
-            'the outline rules did not run'
-        )
-
-    def test_check_with_a_prefix_selected_and_ignored_runs_no_rule_of_it(self, two_group_root: Path) -> None:
-        #: Given
-        app = build_app()
-        arguments = ['check', '--root', str(two_group_root), '--select', 'FM', '--ignore', 'FM']
-
-        #: When
-        result = runner.invoke(app, arguments)
-
-        #: Then
-        assert result.exit_code == 0, result.output
-        assert result.stdout == '', 'ignoring wins over selecting when both are as specific'
-        assert result.stderr == 'checked 1 subject(s): 0 error(s), 0 warning(s)\n', 'the run still checks the subject'
-
-    def test_check_with_a_code_prefix_selected_and_its_group_ignored_runs_the_rules_it_starts(
-        self, two_group_root: Path, snapshot: SnapshotAssertion
-    ) -> None:
-        #: Given
-        app = build_app()
-        expected = snapshot.use_extension(TextSnapshotExtension)
-        arguments = ['check', '--root', str(two_group_root), '--select', 'OUT0', '--ignore', 'OUT']
-
-        #: When
-        result = runner.invoke(app, arguments)
-
-        #: Then
-        assert result.exit_code == 1, result.output
-        assert result.stdout == expected, (
-            'the code prefix, more specific than its group, runs the rules it starts; it matches the snapshot'
-        )
-        assert result.stderr == 'OUT  1 error\nchecked 1 subject(s): 1 error(s), 0 warning(s)\n', 'no other rule ran'
-
-    def test_check_with_a_code_prefix_selected_and_json_format_prints_the_rules_it_starts(
-        self, two_group_root: Path
-    ) -> None:
-        #: Given
-        app = build_app()
-        arguments = ['check', '--root', str(two_group_root), '--select', 'OUT0', '--format', 'json']
-
-        #: When
-        result = runner.invoke(app, arguments)
-
-        #: Then
-        assert result.exit_code == 1, result.output
-        assert result.stderr == '', 'a selection with nothing to warn of writes nothing beside the document'
-        assert json.loads(result.stdout) == {
-            'diagnostics': [
-                {
-                    'path': 'docs/code/guide.md',
-                    'line': 1,
-                    'severity': 'error',
-                    'code': 'OUT006',
-                    'name': 'missing-section',
-                    'message': 'missing required section `Checklist`',
-                    'labels': [
-                        {
-                            'path': 'docs/code/guide.md',
-                            'line': 1,
-                            'text': 'expected `Checklist` before the end of the document',
-                        }
-                    ],
-                    'children': [
-                        {
-                            'kind': 'note',
-                            'text': 'the document structure is set here',
-                            'path': 'docs/__meta__/code.spec.json',
-                            'line': None,
-                        }
-                    ],
-                },
-            ],
-            'summary': {'subjects': 1, 'errors': 1, 'warnings': 0},
-            'coverage': [],
-        }, f'the document holds the diagnostic of the rule the prefix starts alone, got {result.stdout!r}'
-
-    def test_check_with_a_code_prefix_starting_no_rule_exits_two_before_checking(self, two_group_root: Path) -> None:
-        #: Given
-        app = build_app()
-        selection = ['--select', 'OUT9']
-        arguments = ['check', '--root', str(two_group_root), *selection]
-
-        #: When
-        result = runner.invoke(app, arguments)
-
-        #: Then
-        assert result.exit_code == 2, result.output
-        assert result.stdout == '', 'no subject is checked'
-        assert "Invalid value for '--select': 'OUT9' is no rule code or prefix" in usage_error_message(result.stderr), (
-            'a code prefix no rule starts is named'
-        )
-
-    def test_check_with_repeated_and_comma_separated_selections_selects_each(self, two_group_root: Path) -> None:
-        #: Given
-        app = build_app()
-        arguments = ['check', '--root', str(two_group_root), '--select', 'LEN, FM001', '--select', 'OUT006']
-
-        #: When
-        result = runner.invoke(app, arguments)
-
-        #: Then
-        assert result.exit_code == 1, result.output
-        assert result.stderr == 'FM   1 error\nOUT  1 error\nchecked 1 subject(s): 2 error(s), 0 warning(s)\n', (
-            'the selectors of every value add up: the frontmatter and the outline rule both run'
-        )
-
-    def test_check_with_a_selection_and_json_format_prints_one_document(self, two_group_root: Path) -> None:
-        #: Given
-        app = build_app()
-        arguments = ['check', '--root', str(two_group_root), '--select', 'FM', '--format', 'json']
-
-        #: When
-        result = runner.invoke(app, arguments)
-
-        #: Then
-        assert result.exit_code == 1, result.output
-        assert result.stderr == '', 'a selection with nothing to warn of writes nothing beside the document'
-        assert json.loads(result.stdout) == {
-            'diagnostics': [
-                {
-                    'path': 'docs/code/guide.md',
-                    'line': 1,
-                    'severity': 'error',
-                    'code': 'FM001',
-                    'name': 'missing-frontmatter',
-                    'message': 'no `---` delimited frontmatter block',
-                    'labels': [
-                        {'path': 'docs/code/guide.md', 'line': 1, 'text': 'a `---` delimited block is expected here'},
-                    ],
-                    'children': [
-                        {
-                            'kind': 'note',
-                            'text': 'the frontmatter schema is set here',
-                            'path': 'docs/__meta__/code.spec.json',
-                            'line': None,
-                        },
-                        {
-                            'kind': 'help',
-                            'text': 'open the file with a `---` line, the fields, and a closing `---` line',
-                            'path': None,
-                            'line': None,
-                        },
-                    ],
-                },
-            ],
-            'summary': {'subjects': 1, 'errors': 1, 'warnings': 0},
-            'coverage': [],
-        }, f"the document holds the selected rule's diagnostic alone, got {result.stdout!r}"
-
-    def test_check_with_an_unknown_prefix_exits_two_before_checking(self, two_group_root: Path) -> None:
-        #: Given
-        app = build_app()
-        selection = ['--select', 'XYZ']
-        arguments = ['check', '--root', str(two_group_root), *selection]
-
-        #: When
-        result = runner.invoke(app, arguments)
-
-        #: Then
-        assert result.exit_code == 2, result.output
-        assert result.stdout == '', 'no subject is checked'
-        assert "Invalid value for '--select': 'XYZ' is no rule code or prefix" in usage_error_message(result.stderr), (
-            'a selector no rule or group has is named'
-        )
-
-    def test_check_with_an_unknown_code_ignored_exits_two_before_checking(self, two_group_root: Path) -> None:
-        #: Given
-        app = build_app()
-        selection = ['--ignore', 'FM999']
-        arguments = ['check', '--root', str(two_group_root), *selection]
-
-        #: When
-        result = runner.invoke(app, arguments)
-
-        #: Then
-        assert result.exit_code == 2, result.output
-        assert result.stdout == '', 'no subject is checked'
-        assert "Invalid value for '--ignore': 'FM999' is no rule code or prefix" in usage_error_message(
-            result.stderr
-        ), 'an ignored code no rule has is named, under its option'
-
-    def test_check_with_a_rule_name_exits_two_before_checking(self, two_group_root: Path) -> None:
-        #: Given
-        app = build_app()
-        selection = ['--select', 'missing-frontmatter']
-        arguments = ['check', '--root', str(two_group_root), *selection]
-
-        #: When
-        result = runner.invoke(app, arguments)
-
-        #: Then
-        assert result.exit_code == 2, result.output
-        assert result.stdout == '', 'no subject is checked'
-        assert (
-            "Invalid value for '--select': 'missing-frontmatter' is a rule name; select the rule by its code, FM001"
-            in usage_error_message(result.stderr)
-        ), 'a name is refused, naming the code to write instead'
-
-    def test_check_with_the_engine_condition_code_ignored_exits_two_before_checking(self, two_group_root: Path) -> None:
-        #: Given
-        app = build_app()
-        selection = ['--ignore', 'LC001']
-        arguments = ['check', '--root', str(two_group_root), *selection]
-
-        #: When
-        result = runner.invoke(app, arguments)
-
-        #: Then
-        assert result.exit_code == 2, result.output
-        assert result.stdout == '', 'no subject is checked'
-        assert (
-            "Invalid value for '--ignore': 'LC001' names engine conditions, which are always reported and cannot be "
-            'selected or ignored'
-        ) in usage_error_message(result.stderr), (
-            'a file that does not decode is always reported, so its code cannot be ignored'
-        )
-
-    def test_check_with_the_engine_prefix_exits_two_before_checking(self, two_group_root: Path) -> None:
-        #: Given
-        app = build_app()
-        selection = ['--select', 'LC']
-        arguments = ['check', '--root', str(two_group_root), *selection]
-
-        #: When
-        result = runner.invoke(app, arguments)
-
-        #: Then
-        assert result.exit_code == 2, result.output
-        assert result.stdout == '', 'no subject is checked'
-        assert (
-            "Invalid value for '--select': 'LC' names engine conditions, which are always reported and cannot be "
-            'selected or ignored'
-        ) in usage_error_message(result.stderr), "the engine group's prefix cannot be selected"
-
-    def test_check_with_a_trailing_comma_exits_two_before_checking(self, two_group_root: Path) -> None:
-        #: Given
-        app = build_app()
-        selection = ['--select', 'FM,']
-        arguments = ['check', '--root', str(two_group_root), *selection]
-
-        #: When
-        result = runner.invoke(app, arguments)
-
-        #: Then
-        assert result.exit_code == 2, result.output
-        assert result.stdout == '', 'no subject is checked'
-        assert "Invalid value for '--select': 'FM,' holds an empty selector" in usage_error_message(result.stderr), (
-            'an empty selector is refused, naming the value typed'
-        )
-
-    def test_check_with_a_malformed_selector_exits_two_before_the_root_is_read(self, tmp_path: Path) -> None:
-        #: Given
-        app = build_app()
-        # The root does not exist: reading it would be a different failure, so the selector is refused first.
-        arguments = ['check', '--root', str(tmp_path / 'missing'), '--select', 'out']
-
-        #: When
-        result = runner.invoke(app, arguments)
-
-        #: Then
-        assert result.exit_code == 2, result.output
-        assert result.stdout == '', 'no subject is checked'
-        assert _starts_with(usage_error_message(result.stderr), 'Usage: lorecraft check'), (
-            'the failure is a usage error'
-        )
-        assert "Invalid value for '--select': 'out' is no selector" in usage_error_message(result.stderr), (
-            'a selector of no form is malformed, and refused while the command line is parsed'
-        )
-
-    def test_check_with_a_malformed_ignored_code_exits_two_with_a_usage_error_message(
-        self, two_group_root: Path
-    ) -> None:
-        #: Given
-        app = build_app()
-        selection = ['--ignore', 'OUT-1']
-        arguments = ['check', '--root', str(two_group_root), *selection]
-
-        #: When
-        result = runner.invoke(app, arguments)
-
-        #: Then
-        assert result.exit_code == 2, result.output
-        assert "Invalid value for '--ignore': 'OUT-1' is no selector" in usage_error_message(result.stderr), (
-            'a malformed ignored value is named, under its option'
-        )
-
-    def test_check_with_an_unknown_alias_code_exits_two_with_a_usage_error_message(self, two_group_root: Path) -> None:
-        #: Given
-        app = build_app()
-        selection = ['--select', 'MD999']
-        arguments = ['check', '--root', str(two_group_root), *selection]
-
-        #: When
-        result = runner.invoke(app, arguments)
-
-        #: Then
-        assert result.exit_code == 2, result.output
-        assert "Invalid value for '--select': 'MD999' is no rule code or prefix" in usage_error_message(
-            result.stderr
-        ), 'an alias code no rule declares is unknown'
+        assert [item['code'] for item in json.loads(result.stdout)['diagnostics']] == ['LC201', 'OUT006']
 
 
 @pytest.mark.it

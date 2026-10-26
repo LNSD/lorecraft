@@ -1,4 +1,4 @@
-error[FM004]: `name` is 'alpha', which is not the name it is found under
+error[LC204]: `name` is 'alpha', which is not the name it is found under
  --> .agents/skills/beta/SKILL.md:2
   │
 2 │ name: alpha
@@ -9,7 +9,7 @@ error[FM004]: `name` is 'alpha', which is not the name it is found under
   = help: or rename the skill directory to 'alpha'
   = note: 'beta' is a link to '.agents/skills/alpha'
 
-error[FM001]: no `---` delimited frontmatter block
+error[LC201]: no `---` delimited frontmatter block
  --> docs/code/logging.md:1
   │
 1 │ # Logging
@@ -50,7 +50,7 @@ error[OUT006]: missing required section `Checklist`
           - [ ] No logger is stored as `self.logger` or any other instance or class attribute
           - [ ] Every log call inside an `except` block uses `logger.exception(...)`
 
-error[FM001]: no `---` delimited frontmatter block
+error[LC201]: no `---` delimited frontmatter block
  --> docs/code/python-typing.md:1
   │
 1 │ # Python typing

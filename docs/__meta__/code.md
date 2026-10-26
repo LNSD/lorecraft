@@ -159,7 +159,7 @@ Keep code rules focused and concise. Agent entrypoint docs should NOT hardcode l
 
 This section is the operative rule, and the `frontmatter` key of [code.spec.json](code.spec.json)
 beside it is the same rule in a form a checker applies — `lorecraft check` validates every document's
-frontmatter against it with the `FM` rules, and `just check-docs` runs that over this corpus. A document is additionally
+frontmatter against it with the frontmatter rules (`LC2xx`), and `just check-docs` runs that over this corpus. A document is additionally
 narrowed by every `code-<namespace>.md` spec whose namespace matches its name
 ([§1](#1-core-principles)); the narrowing adds to what this section requires and never relaxes it.
 

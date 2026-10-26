@@ -1,4 +1,4 @@
-error[LAY001]: symlink leads outside the repository
+error[LC102]: symlink leads outside the repository
  --> .agents/skills/review
   = help: an absolute target resolves differently in every checkout; move what
           it links to into the repository
@@ -18,7 +18,7 @@ warning[LEN001]: too many tokens (2400 > 2000)
   = note: tokens are counted as o200k_base over the whole file: frontmatter,
           code blocks and tables included
 
-error[FM005]: duplicate key 'name'
+error[LC205]: duplicate key 'name'
  --> docs/code/a.md:3
   │
 2 │ name: a

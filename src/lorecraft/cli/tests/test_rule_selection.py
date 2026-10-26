@@ -6,18 +6,15 @@ import pytest
 
 from lorecraft.rules.identity import RuleCode
 from lorecraft.rules.registry import Registry
-from lorecraft.rules.selection import AllRules, RuleCodePrefix, RuleSelection
+from lorecraft.rules.selection import AllRules, RuleSelection
 from lorecraft.rules.tests.sample_rules import valid as valid_rules
-from lorecraft.rules.tests.sample_rules.groups import LAYOUT, SAMPLE
+from lorecraft.rules.tests.sample_rules.groups import SAMPLE
 from lorecraft.rules.tests.sample_rules.valid.outline.empty_line import EmptyLine
 
 from ..rule_arguments import (
     AliasSelector,
     AllSelector,
-    CodePrefixSelector,
     CodeSelector,
-    GroupSelector,
-    IndexGroupNotInRegistryError,
     SelectorValue,
 )
 from ..rule_selection import (
@@ -30,7 +27,6 @@ from ..rule_selection import (
 
 SMP001: Final[RuleCode] = RuleCode(SAMPLE, 1)
 SMP002: Final[RuleCode] = RuleCode(SAMPLE, 2)
-LAYS001: Final[RuleCode] = RuleCode(LAYOUT, 1)
 
 EVERY_RULE: Final[RuleSelection] = RuleSelection(select=frozenset({AllRules()}), ignore=frozenset())
 """The selection of a run given neither `--select` nor `--ignore`: every rule is kept."""
@@ -54,41 +50,40 @@ class TestBuildRuleSelection:
         #: Then
         assert parsed == ParsedRuleSelection(EVERY_RULE, ()), 'no option keeps every rule, and warns of nothing'
 
-    def test_build_rule_selection_with_a_code_and_a_group_selects_both(self, registry: Registry) -> None:
+    def test_build_rule_selection_with_a_full_code_selects_that_rule(self, registry: Registry) -> None:
         #: Given
-        select = [SelectorValue((CodeSelector('SMP', 2), GroupSelector('LAYS')))]
+        select = [SelectorValue((CodeSelector('SMP002'),))]
 
         #: When
         parsed = build_rule_selection(registry, select=select, ignore=None)
 
         #: Then
-        assert parsed.selection == RuleSelection(select=frozenset({SMP002, LAYOUT}), ignore=frozenset()), (
-            'a code converts to the rule-side code, and a group prefix to its group'
+        assert parsed.selection == RuleSelection(select=frozenset({SMP002}), ignore=frozenset()), (
+            'a full code converts to the rule-side code'
         )
 
     def test_build_rule_selection_with_repeated_values_selects_each_selector(self, registry: Registry) -> None:
         #: Given
         select = [
-            SelectorValue((CodeSelector('SMP', 1), CodeSelector('SMP', 2))),
-            SelectorValue((CodeSelector('LAYS', 1),)),
+            SelectorValue((CodeSelector('SMP001'), CodeSelector('SMP002'))),
         ]
 
         #: When
         parsed = build_rule_selection(registry, select=select, ignore=None)
 
         #: Then
-        assert parsed.selection.select == frozenset({SMP001, SMP002, LAYS001}), 'the selectors of every value add up'
+        assert parsed.selection.select == frozenset({SMP001, SMP002}), 'the selectors of every value add up'
 
     def test_build_rule_selection_with_only_ignore_selects_every_rule_but_the_ignored(self, registry: Registry) -> None:
         #: Given
-        ignore = [SelectorValue((GroupSelector('SMP'),))]
+        ignore = [SelectorValue((CodeSelector('SMP001'),))]
 
         #: When
         parsed = build_rule_selection(registry, select=None, ignore=ignore)
 
         #: Then
-        assert parsed.selection == RuleSelection(select=frozenset({AllRules()}), ignore=frozenset({SAMPLE})), (
-            'an ignore alone leaves every rule selected, and names what is left out'
+        assert parsed.selection == RuleSelection(select=frozenset({AllRules()}), ignore=frozenset({SMP001})), (
+            'an ignore alone leaves every rule selected except the exact code'
         )
 
     def test_build_rule_selection_with_all_selected_and_ignored_converts_all_in_both(self, registry: Registry) -> None:
@@ -103,25 +98,11 @@ class TestBuildRuleSelection:
             RuleSelection(select=frozenset({AllRules()}), ignore=frozenset({AllRules()})), ()
         ), 'ALL is the selector for every rule, in either option'
 
-    def test_build_rule_selection_with_code_prefixes_converts_each_to_its_group_and_digits(
-        self, registry: Registry
-    ) -> None:
-        #: Given
-        select = [SelectorValue((CodePrefixSelector('SMP', '0'), CodePrefixSelector('SMP', '00')))]
-
-        #: When
-        parsed = build_rule_selection(registry, select=select, ignore=None)
-
-        #: Then
-        assert parsed.selection.select == frozenset({RuleCodePrefix(SAMPLE, '0'), RuleCodePrefix(SAMPLE, '00')}), (
-            'a code prefix converts to the rule-side prefix of the registry group'
-        )
-
     def test_build_rule_selection_with_an_alias_code_selects_its_rule_and_records_the_alias(
         self, registry: Registry
     ) -> None:
         #: Given
-        select = [SelectorValue((AliasSelector('MD009', CodeSelector('SMP', 2)),))]
+        select = [SelectorValue((AliasSelector('MD009', CodeSelector('SMP002')),))]
 
         #: When
         parsed = build_rule_selection(registry, select=select, ignore=None)
@@ -134,7 +115,7 @@ class TestBuildRuleSelection:
 
     def test_build_rule_selection_with_an_alias_code_ignored_records_it_under_ignore(self, registry: Registry) -> None:
         #: Given
-        ignore = [SelectorValue((AliasSelector('MD009', CodeSelector('SMP', 2)),))]
+        ignore = [SelectorValue((AliasSelector('MD009', CodeSelector('SMP002')),))]
 
         #: When
         parsed = build_rule_selection(registry, select=None, ignore=ignore)
@@ -143,19 +124,6 @@ class TestBuildRuleSelection:
         assert parsed.aliases == (AliasCodeSelected(SelectionOption.IGNORE, 'MD009', SMP002),), (
             'the alias code is recorded under the option it was given to'
         )
-
-    def test_build_rule_selection_with_a_group_the_registry_lacks_raises_index_group_not_in_registry_error(
-        self, registry: Registry
-    ) -> None:
-        #: Given
-        select = [SelectorValue((GroupSelector('ZZZ'),))]
-
-        #: When
-        with pytest.raises(IndexGroupNotInRegistryError) as exc_info:
-            build_rule_selection(registry, select=select, ignore=None)
-
-        #: Then
-        assert exc_info.value.prefix == 'ZZZ', 'a group the index holds and the registry lacks is a stale index'
 
 
 @pytest.mark.unit

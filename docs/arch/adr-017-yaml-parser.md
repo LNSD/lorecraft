@@ -14,7 +14,7 @@ defines and refuses the rest of from the tokens and events lorecraft reads. This
 produces those tokens and events.
 
 `src/lorecraft/project/syntax/frontmatter.py` drove PyYAML's (`pyyaml>=6.0,<7`) low-level reader, scanner and parser
-and built the value from the event stream itself; it never called `yaml.safe_load`. `FM002 invalid-yaml` reports a
+and built the value from the event stream itself; it never called `yaml.safe_load`. `LC202 invalid-yaml` reports a
 syntax error on the line the parser names.
 
 That path is PyYAML's pure-Python code, so the libyaml C extension is never used. It still ships: PyYAML is
@@ -29,7 +29,7 @@ The candidates were compared on lorecraft's own corpus: every `*.md` under `docs
 | | PyYAML 6.0.3, pure path | ruamel.yaml 0.19.1, pure | strictyaml 1.7.3 | Hand-written subset parser |
 |---|---|---|---|---|
 | Events with line marks | Yes | Yes; identical to PyYAML's on every corpus block | No; document API only | If written |
-| `FM002` line | Baseline | Same on every syntax-error probe | Crashes on a control character | Must be re-proved |
+| `LC202` line | Baseline | Same on every syntax-error probe | Crashes on a control character | Must be re-proved |
 | Parse time, corpus | 25.8 ms | 33.7 ms (1.3×) | 111.3 ms (4.3×) | Not measured |
 | Import cost | +9.3 ms | +10.8 ms | +19.4 ms | ≈0 |
 | Distribution | Platform wheels with a C extension | One `py3-none-any` wheel; `clib` is an optional extra | Three packages, vendors ruamel.yaml 0.16 | None |
@@ -46,10 +46,10 @@ every option.
    the block writes. `frontmatter.py` maps that tree onto frontmatter.
 2. **The parser reads the format adr-019 defines, and does not define it.** What is accepted, what is refused and how
    a refusal is worded are adr-019's; this record adds no rule about the format.
-3. **Every problem the parser meets in a block is `FM002`, never a crash.** `read_yaml` returns it as a `YamlProblem`,
+3. **Every problem the parser meets in a block is `LC202`, never a crash.** `read_yaml` returns it as a `YamlProblem`,
    and classifies a syntax error inside `lorecraft.yaml` into a typed kind defined by adr-019.
    `SyntaxErrorProblem` carries that kind and the facts needed to word it, including the position of the line to
-   fix; it exposes no parser problem or context text. `lorecraft.project` maps the kind to adr-019's `FM002` label
+   fix; it exposes no parser problem or context text. `lorecraft.project` maps the kind to adr-019's `LC202` label
    and help without interpreting parser messages or repeating classification. No ruamel.yaml type leaves
    `lorecraft.yaml`. Where its scanner would let a plain `ValueError` escape, it is never reached that way: a `\U` escape above `U+10FFFF`
    is a refused construct, as adr-019's Refused table words it, and a directive is refused at its `%` before its
@@ -106,7 +106,7 @@ every option.
 - [ ] `frontmatter.py` and `yaml/basic_yaml.py` state no format rule of their own beyond adr-019's
 - [ ] The switch's pull request records that, inside adr-019's format, the events on the corpus match PyYAML's in
   type, value, style and line
-- [ ] A `\U` escape above `U+10FFFF` and a directive with an over-long version number are `FM002` on their line, not
+- [ ] A `\U` escape above `U+10FFFF` and a directive with an over-long version number are `LC202` on their line, not
   an exception
 
 ## References

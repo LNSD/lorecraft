@@ -459,7 +459,7 @@ class TestCheckCommand:
             '.agents/skills/gamma/SKILL.md: ungoverned for structure, outline\n'
             'docs/__meta__/code-python.md: ungoverned for frontmatter, structure, outline, budget\n'
             'docs/__meta__/code.md: ungoverned for frontmatter, structure, outline, budget\n'
-            'FM   3 errors\nLEN  1 error\nOUT  5 errors\nchecked 7 subject(s): 9 error(s), 0 warning(s)\n'
+            'LC2xx  3 errors\nLEN    1 error\nOUT    5 errors\nchecked 7 subject(s): 9 error(s), 0 warning(s)\n'
         ), 'every document and skill of the fixture is checked, and each is governed'
 
     @pytest.mark.parametrize(
@@ -531,7 +531,7 @@ class TestCheckCommand:
         assert result.stderr == (
             '.agents/skills/review/SKILL.md: ungoverned for structure, outline\n'
             'docs/notes/todo.md: ungoverned for outline, budget\n'
-            'LAY   1 error\nLC    1 error\nLINK  1 error\n'
+            'LC0xx  1 error\nLC1xx  1 error\nLINK   1 error\n'
             'checked 5 subject(s): 3 error(s), 0 warning(s)\n'
         ), 'the coverage line and the summary go to stderr'
 
@@ -580,7 +580,7 @@ class TestCheckCommand:
                     'path': '.agents/skills/review/shared',
                     'line': None,
                     'severity': 'error',
-                    'code': 'LAY001',
+                    'code': 'LC102',
                     'name': 'escaping-symlink',
                     'message': 'symlink leads outside the repository',
                     'labels': [],
@@ -636,22 +636,20 @@ class TestCheckCommand:
             ],
         }, f'the document holds every diagnostic, the summary and the coverage, got {result.stdout!r}'
 
-    def test_check_with_rules_selected_and_ignored_prints_only_the_kept_rules_and_the_engine_diagnostics(
+    def test_check_with_a_group_selector_exits_two_with_a_usage_error(
         self, snapshot: SnapshotAssertion, mixed_root: Path
     ) -> None:
         #: Given
         expected = snapshot.use_extension(TextSnapshotExtension)
-        arguments = ('check', '--root', str(mixed_root), '--select', 'LINK,LAY001', '--ignore', 'LINK003')
+        arguments = ('check', '--root', str(mixed_root), '--select', 'LINK,LC102', '--ignore', 'LINK003')
 
         #: When
         result = run_cli(*arguments)
 
         #: Then
-        assert result.returncode == 1, result.stderr
-        assert result.stdout == expected, 'the symlink and the undecodable file match the snapshot, the broken link not'
-        assert result.stderr == 'LAY  1 error\nLC   1 error\nchecked 5 subject(s): 2 error(s), 0 warning(s)\n', (
-            'no rule over a document runs, so no part of one is reported ungoverned'
-        )
+        assert result.returncode == 2, result.stderr
+        assert result.stdout == '', 'a rejected group selector prints no diagnostics'
+        assert usage_error_message(result.stderr) == expected, 'the group selector is named in the usage error'
 
     def test_check_with_an_unknown_selector_prints_a_usage_error_and_exits_two(
         self, snapshot: SnapshotAssertion, mixed_root: Path
@@ -781,7 +779,7 @@ class TestCheckCommand:
 
         #: Then
         assert result.returncode == 1, result.stderr
-        assert result.stderr == expected, 'the partial check reports every suppressed spec part in coverage'
+        assert result.stderr == expected, 'the full rule range label is shown in coverage'
 
 
 @pytest.mark.e2e
@@ -896,7 +894,7 @@ class TestWorkspaceDefaults:
         #: Then
         assert result.returncode == 1, result.stdout
         assert 'missing required field `owner`' in result.stdout, 'the repository schema remains active'
-        assert 'error[FM004]' in result.stdout, 'the repository schema governs the skill name rule'
+        assert 'error[LC204]' in result.stdout, 'the repository schema governs the skill name rule'
         assert "a skill's `name` must match its directory name" in result.stdout, (
             'the name guidance identifies the skill directory as the expected name'
         )
@@ -971,7 +969,7 @@ class TestWorkspaceDefaults:
 
         #: Then
         assert result.returncode == 1, result.stderr
-        assert 'FM006' in result.stdout, 'the missing required frontmatter field is checked on a spec'
+        assert 'LC206' in result.stdout, 'the missing required frontmatter field is checked on a spec'
         assert 'OUT006' in result.stdout, 'the required outline section is checked on a spec'
         assert 'LEN001' in result.stdout, 'the token budget is checked on a spec'
 
@@ -1103,7 +1101,7 @@ class TestUncheckedDocsSymlinks:
         expected = snapshot.use_extension(TextSnapshotExtension)
 
         assert result.returncode == 1, result.stdout + result.stderr
-        assert result.stderr == expected, 'the linked corpus appears in coverage without a diagnostic'
+        assert result.stderr == expected, 'the linked corpus appears in coverage under full group labels'
 
     def test_check_reports_a_linked_document_as_coverage(self, tmp_path: Path, snapshot: SnapshotAssertion) -> None:
         root = tmp_path / 'workspace'
@@ -1114,4 +1112,4 @@ class TestUncheckedDocsSymlinks:
         expected = snapshot.use_extension(TextSnapshotExtension)
 
         assert result.returncode == 1, result.stdout + result.stderr
-        assert result.stderr == expected, 'the linked document appears in coverage without a diagnostic'
+        assert result.stderr == expected, 'the linked document appears in coverage under full group labels'

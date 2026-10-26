@@ -1,4 +1,4 @@
-"""What a refused YAML construct is called in lorecraft's words, as `FM002` reports it.
+"""What a refused YAML construct is called in lorecraft's words, as `LC202` reports it.
 
 `lorecraft.yaml` names each construct the subset leaves out as a type and never words it; this module words each as
 `found <construct>, which frontmatter does not allow`, and a line separator as the character the block holds.

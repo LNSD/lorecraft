@@ -1,4 +1,4 @@
-"""`COR001`, `reserved-corpus-overlap`, over one directory under `docs/` that takes a reserved corpus's name.
+"""`LC101`, `reserved-corpus-overlap`, over one directory under `docs/` that takes a reserved corpus's name.
 
 The model decides which directories overlap, so every case here is a fake directory entry; a directory with an
 ordinary corpus name is no entry, and the rule cases hold that near miss.
@@ -23,7 +23,7 @@ class TestReservedCorpusOverlap:
         code, level = str(rule.CODE), rule.LEVEL
 
         #: Then
-        assert (code, level) == ('COR001', Level.WARN), 'the overlap is a rule that defaults to a warning'
+        assert (code, level) == ('LC101', Level.WARN), 'the overlap is a rule that defaults to a warning'
 
     def test_check_with_a_directory_taking_a_reserved_name_reports_it_naming_the_corpus(self) -> None:
         #: Given

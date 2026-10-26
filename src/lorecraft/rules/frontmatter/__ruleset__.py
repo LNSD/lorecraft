@@ -1,4 +1,4 @@
-"""What the `FM` group's rules share: the group and the schemas governing each subject's frontmatter.
+"""What the `LC2xx` group's rules share: the group and the schemas governing each subject's frontmatter.
 
 A document's and a skill's frontmatter block is governed by the ordered schema inputs available to it. Rules over
 both subject kinds declare a gate for each and judge either kind through the shared query facts. The frontmatter
@@ -40,7 +40,7 @@ from lorecraft.project.syntax import Frontmatter, FrontmatterNode, LineNumber
 from lorecraft.rules.identity import RuleGroup, RuleGroupPrefix
 from lorecraft.rules.location import Elsewhere, Help, Note
 
-GROUP_ID: Final[RuleGroup] = RuleGroup(RuleGroupPrefix('FM'), 'Frontmatter checks')
+GROUP_ID: Final[RuleGroup] = RuleGroup(RuleGroupPrefix('LC'), 'Frontmatter checks', range(200, 300))
 """The group of the rules over a subject's frontmatter: the block itself, and the schema that governs it."""
 
 

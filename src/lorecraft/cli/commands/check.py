@@ -80,7 +80,7 @@ def check(
             '--select',
             metavar='<selectors>',
             parser=_parse_selectors,
-            help='Run only these rules: codes, code or group prefixes, or ALL, comma-separated or repeated. Defaults '
+            help='Run only these rules: full rule codes, alias codes, or ALL, comma-separated or repeated. Defaults '
             'to ALL.',
         ),
     ] = None,
@@ -90,8 +90,8 @@ def check(
             '--ignore',
             metavar='<selectors>',
             parser=_parse_selectors,
-            help='Skip these rules, unless a more specific selector selects them: codes, code or group prefixes, or '
-            'ALL, comma-separated or repeated. Defaults to none.',
+            help='Skip these rules: full rule codes, alias codes, or ALL, comma-separated or repeated. '
+            'Defaults to none.',
         ),
     ] = None,
 ) -> None:

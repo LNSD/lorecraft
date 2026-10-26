@@ -1,4 +1,4 @@
-"""A count that is past its cap: the value the length rules and `FM012` each hold in place of a count and a cap.
+"""A count that is past its cap: the value the length rules and `LC212` each hold in place of a count and a cap.
 
 It lives with the rules, not in `lorecraft.core.num`, because "past a cap" is what a check reports, not a number
 that is generic over the domain.

@@ -1,4 +1,4 @@
-"""`FM004`, `name-mismatch`, over a document's or a skill's frontmatter.
+"""`LC204`, `name-mismatch`, over a document's or a skill's frontmatter.
 
 Every case is a document or a skill entrypoint (`SKILL.md`) written as text, read through a fake database that
 parses its frontmatter as
@@ -276,7 +276,7 @@ class TestNameMismatch:
         assert children == (
             Note("a skill's `name` must match its directory name"),
             Help("set `name` to 'review'"),
-        ), 'a directory renamed to a name FM009 rejects would trade this finding for that one, so it is not offered'
+        ), 'a directory renamed to a name LC209 rejects would trade this finding for that one, so it is not offered'
 
     def test_children_with_a_skill_linked_to_the_root_name_the_repository_root(self) -> None:
         #: Given

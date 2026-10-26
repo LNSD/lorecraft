@@ -57,7 +57,7 @@ token budget. Do not check those by hand.
 ```bash
 lorecraft check                              # every rule over every document and skill, one read of the tree
 lorecraft check --format json                # machine-readable
-lorecraft check --select OUT                 # one group's rules, by prefix, while fixing them; never the gate
+lorecraft check --select LC201              # one rule while fixing it; never the gate
 ```
 
 The run covers the whole workspace; read the diagnostics for the documents the change touches. A diagnostic prints as
@@ -65,11 +65,11 @@ The run covers the whole workspace; read the diagnostics for the documents the c
 `children` in JSON; for a missing section they say what it holds and show a sample, so read them before fixing it.
 Exit `0` means no error, warnings included, `1` at least one error, a spec that cannot be loaded included — §6 covers that one — and `2` invalid input or
 selectors, or that the root or `docs/__meta__/` cannot be listed. A `<path>: ungoverned for <parts>` line on stderr is not a
-failure; report the document as unvalidated for those parts. The rule groups and their codes, `FM` frontmatter, `OUT`
+failure; report the document as unvalidated for those parts. The rule groups and their codes, `LC2xx` frontmatter, `OUT`
 outline, `LEN` length, `LINK` links, are listed in
 [check](https://github.com/LNSD/lorecraft/blob/main/docs/feat/cli-check.md#findings).
 
-The run checks every agent skill too. A diagnostic at a skill's path, or a `LAY` one, is about a skill, not a
+The run checks every agent skill too. A diagnostic at a skill's path, or an `LC1xx` one, is about a skill, not a
 document, and falls outside this review.
 
 A word cap or budget diagnostic on a section the change added to blocks, like any other error. One on a section

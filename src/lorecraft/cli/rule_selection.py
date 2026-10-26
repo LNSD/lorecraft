@@ -2,7 +2,7 @@
 
 The command line has already parsed each value into its selectors and confirmed them against the rule index
 (`rule_arguments`), so this module only converts: each selector turns itself into the rule-side `AllRules`,
-`RuleGroup`, `RuleCodePrefix` or `RuleCode`, and the registry holds each group and code, since the CI `gen-check`
+`RuleCode`, and the registry holds each group and code, since the CI `gen-check`
 job holds the index equal to it. An alias code resolves to its rule's code with a warning naming the code to write.
 
 What a selection cannot do is warned of on stderr, and the run goes on.
@@ -23,9 +23,7 @@ from lorecraft.rules.selection import AllRules, RuleSelection, RuleSelector
 from .rule_arguments import (
     AliasSelector,
     AllSelector,
-    CodePrefixSelector,
     CodeSelector,
-    GroupSelector,
     SelectorValue,
 )
 
@@ -113,7 +111,7 @@ def _convert_values(
             match selector:
                 case AliasSelector():
                     aliases.append(AliasCodeSelected(option, selector.alias, selector.code.to_rule_code(registry)))
-                case AllSelector() | GroupSelector() | CodePrefixSelector() | CodeSelector():
+                case AllSelector() | CodeSelector():
                     pass  # no alias code to warn of
                 case _:
                     assert_never(selector)

@@ -13,7 +13,7 @@ components: "module:lorecraft.project,module:lorecraft.engine,spec:feat,spec:cod
 The `frontmatter` key of a `<name>.spec.json` file states the frontmatter rules of the documents its name
 governs, as a JSON Schema the frontmatter mapping must satisfy. Unlike the rest of the structure dialect, its
 value is JSON Schema Draft 2020-12 itself, so any editor and any JSON Schema tool reads it.
-`lorecraft check` applies it with the `FM` rules, as it applies the `tokens` key of the same file.
+`lorecraft check` applies it with the `LC2xx` rules, as it applies the `tokens` key of the same file.
 
 ## Table of Contents
 
@@ -90,7 +90,7 @@ skips the documents it governs, and exits `1`. `lorecraft inspect` still stops w
 ## Limitations
 
 - The schema sees the parsed YAML, so how a value is written, such as whether it is quoted, is invisible to it.
-- That `name` matches the filename is a rule of its own, `FM004`, not of any schema, and holds wherever a
+- That `name` matches the filename is a rule of its own, `LC204`, not of any schema, and holds wherever a
   frontmatter schema governs.
 
 ## References
@@ -104,4 +104,4 @@ skips the documents it governs, and exits `1`. `lorecraft inspect` still stops w
 - `src/lorecraft/project/schemas/structure.py` - Reads the `frontmatter` key, and refuses a structure file whose schema
   fails those checks
 - `src/lorecraft/project/schemas/structure_file.py` - The key's shape in the published editor schema
-- `src/lorecraft/rules/frontmatter/` - The `FM` rules that apply the schemas to a document's frontmatter
+- `src/lorecraft/rules/frontmatter/` - The `LC2xx` rules that apply the schemas to a document's frontmatter

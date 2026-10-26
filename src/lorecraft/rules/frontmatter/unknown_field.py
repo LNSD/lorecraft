@@ -1,4 +1,4 @@
-"""`FM007`: a frontmatter holds a field its schema does not define."""
+"""`LC207`: a frontmatter holds a field its schema does not define."""
 
 from collections.abc import Mapping
 from dataclasses import dataclass, field
@@ -93,7 +93,7 @@ class UnknownField(QueriedItemRule[tuple[SchemaProblems, ...]]):
         problem: The field the schema does not define, with the fields it does.
     """
 
-    CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 7)
+    CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 207)
     NAME: ClassVar[RuleName] = RuleName('unknown-field')
     LEVEL: ClassVar[Level] = Level.WARN
     SINCE: ClassVar[Release] = Release('0.3.0')

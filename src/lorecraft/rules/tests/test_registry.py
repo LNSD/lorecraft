@@ -47,10 +47,9 @@ from lorecraft.rules.outline.section_out_of_order import SectionOutOfOrder
 from lorecraft.rules.outline.title_not_first import TitleNotFirst
 from lorecraft.rules.outline.unexpected_section import UnexpectedSection
 
-from ..identity import RuleGroupPrefix, RuleName
+from ..identity import RuleName
 from ..registry import (
     AbstractRuleError,
-    ConflictingRuleGroupError,
     DuplicateAliasCodeError,
     DuplicateRuleCodeError,
     DuplicateRuleNameError,
@@ -62,7 +61,6 @@ from .sample_rules import (
     abstract_condition,
     abstract_rule,
     alias_as_code,
-    conflicting_group,
     duplicate_alias,
     duplicate_code,
     duplicate_name,
@@ -84,7 +82,6 @@ from .sample_rules.duplicate_alias.aliased import FirstAliased, SecondAliased
 from .sample_rules.duplicate_code.first import FirstRule
 from .sample_rules.duplicate_code.second import SecondRule
 from .sample_rules.duplicate_name.shared import InService, Retired
-from .sample_rules.groups import LAYOUT, SAMPLE
 from .sample_rules.index_named_module.group.index import IndexNamed
 from .sample_rules.token_count.any_tokens import AnyTokens
 from .sample_rules.token_count.empty_document import EmptyDocument
@@ -234,19 +231,6 @@ class TestRegistryLoad:
         assert exc_info.value.declaration is Unfaceted, 'the error names the item rule missing its applicability'
         assert exc_info.value.attribute == 'APPLIES_TO', 'the error names the unbound applicability declaration'
 
-    def test_load_with_one_prefix_given_two_titles_raises_conflicting_rule_group_error(self) -> None:
-        #: Given
-        package = conflicting_group
-
-        #: When
-        with pytest.raises(ConflictingRuleGroupError) as exc_info:
-            Registry.load(package)
-
-        #: Then
-        assert exc_info.value.prefix == RuleGroupPrefix('SMP'), 'the error names the prefix given two groups'
-        assert exc_info.value.first is Titled, 'the rule earlier in code order bound the prefix first'
-        assert exc_info.value.second is Retitled, 'the later rule gave it another title'
-
     def test_registry_with_a_duplicate_code_and_a_conflicting_group_raises_duplicate_rule_code_error(self) -> None:
         #: Given
         # Titled and FirstRule share SMP001, and Retitled gives the prefix SMP another title
@@ -390,93 +374,6 @@ class TestRegistryRulesInService:
 
 
 @pytest.mark.unit
-class TestRegistryFindGroup:
-    def test_find_group_with_a_prefix_returns_its_group(self, registry: Registry) -> None:
-        #: Given
-        prefix = 'SMP'
-
-        #: When
-        found = registry.find_group(prefix)
-
-        #: Then
-        assert found == SAMPLE, 'a prefix finds the group its rules are declared in'
-
-    def test_find_group_with_the_prefix_of_a_rule_in_a_subpackage_returns_its_group(self, registry: Registry) -> None:
-        #: Given
-        prefix = 'LAYS'
-
-        #: When
-        found = registry.find_group(prefix)
-
-        #: Then
-        assert found == LAYOUT, 'every group a declaration is in is found, wherever the declaration is'
-
-    def test_find_group_with_a_code_returns_none(self, registry: Registry) -> None:
-        #: Given
-        prefix = 'SMP002'
-
-        #: When
-        found = registry.find_group(prefix)
-
-        #: Then
-        assert found is None, 'a code is no prefix'
-
-    def test_find_group_with_an_unknown_prefix_returns_none(self, registry: Registry) -> None:
-        #: Given
-        prefix = 'XYZ'
-
-        #: When
-        found = registry.find_group(prefix)
-
-        #: Then
-        assert found is None, 'a prefix no declaration is in finds nothing'
-
-    def test_find_group_with_text_no_prefix_could_be_returns_none(self, registry: Registry) -> None:
-        #: Given
-        prefix = 'smp'
-
-        #: When
-        found = registry.find_group(prefix)
-
-        #: Then
-        assert found is None, 'text out of the prefix format finds nothing, rather than failing'
-
-    def test_find_group_with_the_prefix_of_removed_rules_alone_returns_none(self) -> None:
-        #: Given
-        registry = Registry((Retired,))
-
-        #: When
-        found = registry.find_group('SMP')
-
-        #: Then
-        assert found is None, 'a group with no rule in service holds nothing a run could select'
-
-
-@pytest.mark.unit
-class TestRegistryIsEngineGroup:
-    def test_is_engine_group_with_the_engine_conditions_group_returns_true(self) -> None:
-        #: Given
-        group = InvalidUtf8.CODE.group
-        registry = Registry.load(rules)
-
-        #: When
-        is_engine = registry.is_engine_group(group)
-
-        #: Then
-        assert is_engine, 'the group every engine condition is in is the engine group'
-
-    def test_is_engine_group_with_a_rule_group_returns_false(self, registry: Registry) -> None:
-        #: Given
-        group = SAMPLE
-
-        #: When
-        is_engine = registry.is_engine_group(group)
-
-        #: Then
-        assert not is_engine, "a rule's group is not the engine group"
-
-
-@pytest.mark.unit
 class TestPackageRegistry:
     def test_load_with_the_package_rules_holds_them_in_code_order(self) -> None:
         #: Given
@@ -487,7 +384,12 @@ class TestPackageRegistry:
 
         #: Then
         assert loaded.rules == (
+            InvalidUtf8,
+            UnreadablePath,
+            MalformedStructureFile,
+            UnusableStructureFile,
             ReservedCorpusOverlap,
+            EscapingSymlink,
             MissingFrontmatter,
             InvalidYaml,
             NonMappingFrontmatter,
@@ -502,11 +404,6 @@ class TestPackageRegistry:
             AllowedToolsTooLong,
             TooManyFields,
             TooFewFields,
-            EscapingSymlink,
-            InvalidUtf8,
-            UnreadablePath,
-            MalformedStructureFile,
-            UnusableStructureFile,
             TooManyTokens,
             TooManyLines,
             SectionTooManyWords,

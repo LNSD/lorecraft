@@ -43,7 +43,7 @@ query a rule owns now takes its carry-over from what it read.
 2. **The runner coordinates query resolution directly.** The rules engine runner (`lorecraft.engine.runner`) resolves
    each rule's query through `database.query(rule.query(), ref)` and hands `rule.judge(facts)` the returned facts. No
    context object is instantiated: every rule names a query, and the subject context protocols are retired. The rules
-   over layout entries, COR001 and LAY001, are queried rules too: the runner hands each the facts of its query over the
+   over layout entries, LC101 and LC102, are queried rules too: the runner hands each the facts of its query over the
    record of its entry (`_judged_symlink`, `_judged_directory`).
 3. **Core query types live in `lorecraft.project.query`.** The `Query[T]` callable signature and the model primitive
    protocols are defined in `lorecraft.project.query` rather than `schemas`, making query definitions available across
@@ -72,7 +72,7 @@ query a rule owns now takes its carry-over from what it read.
 - The engine runner owns the orchestration of database query fetching and rule judgment, fulfilling true unidirectional
   dependency flow: `engine` imports `rules` and `project`, while `rules` never touches `engine` or `database`.
 - The context protocols (`DocumentContext`, `SkillContext`, `DatabaseItemContext`) are removed, with no exception. The
-  rules over layout entries, COR001 and LAY001, read the record of their entry through a query like any other rule;
+  rules over layout entries, LC101 and LC102, read the record of their entry through a query like any other rule;
   the record is one the model already holds, so there is nothing to memoize and no Markdown item to key a query by.
 - Query abstractions are cleanly decoupled from `lorecraft.project.schemas`.
 - The facts are typed by the rule's type argument, and `query()` is checked against it: a rule whose query returns
@@ -89,7 +89,7 @@ Before committing code, verify:
   takes no subject context
 - [ ] The runner resolves a rule's query through `database.query(rule.query(), ref)` and hands the facts to the
   rule's `judge`, with no context object built for it
-- [ ] The rules over layout entries, COR001 and LAY001, are queried rules too: the runner hands each the facts of its
+- [ ] The rules over layout entries, LC101 and LC102, are queried rules too: the runner hands each the facts of its
   query over the record of its entry, and no query for them is keyed by a Markdown item
 - [ ] A query is a pure function over the primitive facets it takes, and never reads the snapshot, a file or another
   query's cache

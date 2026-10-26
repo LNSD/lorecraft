@@ -1,4 +1,4 @@
-warning[FM007]: unknown field `version`
+warning[LC207]: unknown field `version`
  --> .agents/skills/review/SKILL.md:4
   │
 4 │ version: 2

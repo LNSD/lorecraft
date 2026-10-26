@@ -1,4 +1,4 @@
-"""`FM002`: a frontmatter block is not valid YAML."""
+"""`LC202`: a frontmatter block is not valid YAML."""
 
 from collections.abc import Mapping
 from dataclasses import dataclass, field
@@ -92,7 +92,7 @@ class InvalidYaml(QueriedItemRule[FrontmatterFacts]):
         help: What to do about it, where the problem has a fix to name.
     """
 
-    CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 2)
+    CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 202)
     NAME: ClassVar[RuleName] = RuleName('invalid-yaml')
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('0.3.0')

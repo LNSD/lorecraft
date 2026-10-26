@@ -1,4 +1,4 @@
-"""`FM005`: a frontmatter key is written more than once in one mapping."""
+"""`LC205`: a frontmatter key is written more than once in one mapping."""
 
 from collections.abc import Mapping
 from dataclasses import dataclass, field
@@ -90,7 +90,7 @@ class DuplicateKey(QueriedItemRule[FrontmatterFacts]):
         kept_line: The line of the key's last occurrence in its mapping, whose value the reader keeps.
     """
 
-    CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 5)
+    CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 205)
     NAME: ClassVar[RuleName] = RuleName('duplicate-key')
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('0.3.0')

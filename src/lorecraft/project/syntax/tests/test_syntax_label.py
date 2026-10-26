@@ -1,4 +1,4 @@
-"""Wording the syntax error kinds of `lorecraft.yaml` with the label and help `FM002` reports."""
+"""Wording the syntax error kinds of `lorecraft.yaml` with the label and help `LC202` reports."""
 
 import pytest
 

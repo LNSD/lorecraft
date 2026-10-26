@@ -298,6 +298,16 @@ class TestRuleName:
 
 @pytest.mark.unit
 class TestRuleGroupPrefix:
+    def test_parse_with_an_lc_group_prefix_returns_the_prefix(self) -> None:
+        #: Given
+        raw = 'LC'
+
+        #: When
+        prefix = RuleGroupPrefix.parse(raw)
+
+        #: Then
+        assert str(prefix) == raw, 'all new rule groups share the LC prefix'
+
     def test_parse_with_uppercase_letters_returns_the_prefix(self) -> None:
         #: Given
         raw = 'OUT'
@@ -403,17 +413,6 @@ class TestRuleGroupPrefix:
         #: Then
         assert exc_info.value.value == raw, 'direct construction checks the same reservation'
 
-    def test_parse_with_engine_prefix_raises_reserved_rule_group_prefix_error(self) -> None:
-        #: Given
-        raw = 'LC'
-
-        #: When
-        with pytest.raises(ReservedRuleGroupPrefixError) as exc_info:
-            RuleGroupPrefix.parse(raw)
-
-        #: Then
-        assert exc_info.value.value == raw, 'the engine prefix is reserved for engine conditions'
-
 
 @pytest.mark.unit
 class TestRuleGroup:
@@ -432,6 +431,16 @@ class TestRuleGroup:
 
 @pytest.mark.unit
 class TestRuleCode:
+    def test_str_with_a_rule_code_prints_one_three_digit_number(self) -> None:
+        #: Given
+        code = RuleCode(RuleGroup(RuleGroupPrefix('LC'), 'Frontmatter checks'), 201)
+
+        #: When
+        printed = str(code)
+
+        #: Then
+        assert printed == 'LC201', 'the group digit is part of the full three-digit code number'
+
     def test_str_with_a_one_digit_number_pads_it_to_three_digits(self) -> None:
         #: Given
         code = RuleCode(RuleGroup(RuleGroupPrefix('OUT'), 'Outline'), 2)
@@ -799,7 +808,7 @@ class TestEngineCode:
         assert group == ENGINE_GROUP, 'an engine code names no group, so it is always the engine group'
         assert type(group) is EngineGroup, 'the engine group has its own type and cannot be a rule group'
 
-    def test_engine_code_with_a_number_out_of_range_raises_rule_number_out_of_range_error(self) -> None:
+    def test_engine_code_with_a_number_over_999_raises_rule_number_out_of_range_error(self) -> None:
         #: Given
         number = 1000
 

@@ -47,7 +47,7 @@
       "section": "Summary",
       "words": 80,
       "description": "Two to four sentences expanding on the frontmatter description: what the feature does, why it exists and its primary use.",
-      "examples": ["`lorecraft check` checks the whole workspace in one run: every document under `docs/` against the specs\nin `docs/__meta__/`, and every agent skill against the Agent Skills specification. Each rule has a code, such as\n`FM001`, in a group named by its prefix. It prints a diagnostic per rule broken, and exits `1` when any is an error."]
+      "examples": ["`lorecraft check` checks the whole workspace in one run: every document under `docs/` against the specs\nin `docs/__meta__/`, and every agent skill against the Agent Skills specification. Each rule has a code, such as\n`LC201`, in a group named by its prefix. It prints a diagnostic per rule broken, and exits `1` when any is an error."]
     },
     {
       "section": "Table of Contents",
@@ -80,7 +80,7 @@
       "words": 400,
       "description": "How to invoke the feature, with working examples in fenced blocks: the command a reader types and what it prints. Required for a feature document, forbidden for a meta document.",
       "examples": [
-        "```bash\n# Every rule over the workspace around the working directory\nlorecraft check\n\n# Another repository, as JSON\nlorecraft check --root ../other-repo --format json\n```\n\nA document with no frontmatter, under a corpus whose structure file states a frontmatter schema:\n\n```text\ndocs/code/guide.md:1: error[FM001]: no `---` delimited frontmatter block\n  = note: the frontmatter schema is set here (docs/__meta__/code.spec.json)\nchecked 1 subject(s): 1 error(s), 0 warning(s)\n```",
+        "```bash\n# Every rule over the workspace around the working directory\nlorecraft check\n\n# Another repository, as JSON\nlorecraft check --root ../other-repo --format json\n```\n\nA document with no frontmatter, under a corpus whose structure file states a frontmatter schema:\n\n```text\ndocs/code/guide.md:1: error[LC201]: no `---` delimited frontmatter block\n  = note: the frontmatter schema is set here (docs/__meta__/code.spec.json)\nchecked 1 subject(s): 1 error(s), 0 warning(s)\n```",
         "### Caps and a Budget\n\n```json\n{\n  \"$schema\": \"../schemas/structure.spec.json\",\n  \"tokens\": 5000,\n  \"outline\": [\n    { \"any\": true, \"words\": 350 },\n    { \"section\": \"Checklist\", \"words\": 250 },\n    { \"section\": \"References\", \"optional\": true }\n  ]\n}\n```\n\nEach section a document names for itself holds at most 350 words, `Checklist` at most 250, and `References`\nis not capped. The whole file holds at most 5000 tokens."
       ]
     },

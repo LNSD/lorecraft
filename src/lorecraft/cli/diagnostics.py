@@ -11,7 +11,7 @@ Every diagnostic of every report is printed in the order `diagnostic_order` stat
 arrive in, so one revision always prints the same output. A short line reads, with the line left out for a subject
 with no lines, such as a layout entry or a file that did not decode:
 
-    docs/code/a.md:3: error[FM005]: duplicate key 'name'
+    docs/code/a.md:3: error[LC205]: duplicate key 'name'
 """
 
 from dataclasses import dataclass
@@ -89,7 +89,7 @@ class _DiagnosticJson(BaseModel):
         path: The subject the diagnostic was found in.
         line: The line it is reported at, or None when it concerns the whole subject.
         severity: `error` or `warning`.
-        code: The code of the rule or engine condition, such as `FM005`.
+        code: The code of the rule or engine condition, such as `LC205`.
         name: The kebab-case name of the rule or engine condition, such as `duplicate-key`.
         message: What is wrong, on one line.
         labels: The labelled locations, in the order the occurrence gives them.
@@ -268,9 +268,9 @@ def render_summary(reports: tuple[RunReport, ...]) -> str:
 
 
 def render_prefix_summary(reports: tuple[RunReport, ...]) -> str:
-    """One line per code prefix that reported, with its errors and warnings, in prefix order.
+    """One line per rule code range or legacy prefix that reported, with its errors and warnings, in prefix order.
 
-    A line reads `{prefix}  {errors}, {warnings}`, each count left out when it is zero, such as `OUT  2 errors, 1
+    A line reads `{group}  {errors}, {warnings}`, each count left out when it is zero, such as `OUT  2 errors, 1
     warning`.
 
     Args:
@@ -281,7 +281,10 @@ def render_prefix_summary(reports: tuple[RunReport, ...]) -> str:
     """
     by_prefix: dict[str, list[Diagnostic]] = {}
     for diagnostic in ordered_diagnostics(reports):
-        by_prefix.setdefault(str(diagnostic.occurrence.CODE.group.prefix), []).append(diagnostic)
+        group = diagnostic.occurrence.CODE.group
+        code_range = group.code_range
+        label = str(group.prefix) if code_range is None else f'{group.prefix}{code_range.start // 100}xx'
+        by_prefix.setdefault(label, []).append(diagnostic)
 
     prefix_width = max((len(prefix) for prefix in by_prefix), default=0)
     lines: list[str] = []

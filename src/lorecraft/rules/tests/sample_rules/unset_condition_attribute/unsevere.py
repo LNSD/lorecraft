@@ -14,7 +14,7 @@ from lorecraft.rules.location import WholeSubject
 class Unsevere(EntryCondition):
     """A sample condition that leaves `SEVERITY` unbound."""
 
-    CODE: ClassVar[EngineCode] = EngineCode(903)
+    CODE: ClassVar[EngineCode] = EngineCode(93)
     NAME: ClassVar[RuleName] = RuleName('unsevere')
     SINCE: ClassVar[Release] = Release('1.0.0')
 

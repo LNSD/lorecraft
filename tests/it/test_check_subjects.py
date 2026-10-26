@@ -578,17 +578,17 @@ class TestCheckSubjects:
     @pytest.mark.parametrize(
         ('floor_enabled', 'skills_spec', 'expected_codes', 'expected_ungoverned'),
         (
-            (True, None, ('FM011', 'FM012', 'LEN002'), ()),
+            (True, None, ('LC211', 'LC212', 'LEN002'), ()),
             (
                 True,
                 b'{"lines":300,"frontmatter":{"type":"object"}}',
-                ('FM011', 'FM012', 'LEN002', 'LEN002'),
+                ('LC211', 'LC212', 'LEN002', 'LEN002'),
                 (),
             ),
             (
                 False,
                 b'{"lines":400,"frontmatter":{"type":"object"}}',
-                ('FM011', 'FM012', 'LEN002'),
+                ('LC211', 'LC212', 'LEN002'),
                 (),
             ),
             (
@@ -720,7 +720,7 @@ class TestCheckSubjects:
                 diagnostics=(RuleDiagnostic(skill_file, occurrence, Severity.WARNING),),
                 ungoverned=SKILL_UNGOVERNED,
             ),
-        ), 'the registry runs FM011 over a skill and reports the warning at its listed path and field line'
+        ), 'the registry runs LC211 over a skill and reports the warning at its listed path and field line'
 
     def test_check_subjects_with_a_document_over_its_budget_reports_the_token_budget_as_an_error(
         self, package_table: RuleTable
@@ -1249,7 +1249,7 @@ class TestCheckSubjects:
                 diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
                 ungoverned=(SpecPart.OUTLINE, SpecPart.BUDGET),
             ),
-        ), 'FM001 runs at deny over a document a frontmatter schema governs, under its corpus specification'
+        ), 'LC201 runs at deny over a document a frontmatter schema governs, under its corpus specification'
 
     def test_check_subjects_with_a_document_whose_block_is_not_yaml_reports_invalid_yaml(
         self, package_table: RuleTable
@@ -1275,7 +1275,7 @@ class TestCheckSubjects:
                 diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
                 ungoverned=(SpecPart.OUTLINE, SpecPart.BUDGET),
             ),
-        ), 'FM002 runs at deny, at the line the YAML parser stopped on'
+        ), 'LC202 runs at deny, at the line the YAML parser stopped on'
 
     def test_check_subjects_with_a_document_whose_block_is_a_list_reports_non_mapping_frontmatter(
         self, package_table: RuleTable
@@ -1296,7 +1296,7 @@ class TestCheckSubjects:
                 diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
                 ungoverned=(SpecPart.OUTLINE, SpecPart.BUDGET),
             ),
-        ), 'FM003 runs at deny over a block that reads as YAML but is not a mapping'
+        ), 'LC203 runs at deny over a block that reads as YAML but is not a mapping'
 
     def test_check_subjects_with_a_document_named_otherwise_reports_name_mismatch(
         self, package_table: RuleTable
@@ -1318,7 +1318,7 @@ class TestCheckSubjects:
                 diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
                 ungoverned=(SpecPart.OUTLINE, SpecPart.BUDGET),
             ),
-        ), 'FM004 runs at deny over a document whose `name` is not its filename'
+        ), 'LC204 runs at deny over a document whose `name` is not its filename'
 
     def test_check_subjects_with_a_document_repeating_a_key_reports_duplicate_key(
         self, package_table: RuleTable
@@ -1346,7 +1346,7 @@ class TestCheckSubjects:
                 diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
                 ungoverned=(SpecPart.OUTLINE, SpecPart.BUDGET),
             ),
-        ), 'FM005 runs at deny over a key written again, at the later occurrence'
+        ), 'LC205 runs at deny over a key written again, at the later occurrence'
 
     def test_check_subjects_with_a_skill_without_a_block_reports_missing_frontmatter(
         self, package_table: RuleTable
@@ -1369,7 +1369,7 @@ class TestCheckSubjects:
                 diagnostics=(RuleDiagnostic(REVIEW_FILE, occurrence, Severity.ERROR),),
                 ungoverned=SKILL_UNGOVERNED,
             ),
-        ), 'every skill is governed for its frontmatter, so FM001 needs no specification in the repository'
+        ), 'every skill is governed for its frontmatter, so LC201 needs no specification in the repository'
 
     def test_check_subjects_with_a_skill_whose_block_is_not_yaml_reports_invalid_yaml(
         self, package_table: RuleTable
@@ -1397,7 +1397,7 @@ class TestCheckSubjects:
                 diagnostics=(RuleDiagnostic(REVIEW_FILE, occurrence, Severity.ERROR),),
                 ungoverned=SKILL_UNGOVERNED,
             ),
-        ), 'FM002 runs at deny over a skill, at the line the YAML parser stopped on'
+        ), 'LC202 runs at deny over a skill, at the line the YAML parser stopped on'
 
     def test_check_subjects_with_a_skill_whose_block_is_a_list_reports_non_mapping_frontmatter(
         self, package_table: RuleTable
@@ -1420,7 +1420,7 @@ class TestCheckSubjects:
                 diagnostics=(RuleDiagnostic(REVIEW_FILE, occurrence, Severity.ERROR),),
                 ungoverned=SKILL_UNGOVERNED,
             ),
-        ), 'FM003 runs at deny over a skill whose block is not a mapping'
+        ), 'LC203 runs at deny over a skill whose block is not a mapping'
 
     def test_check_subjects_with_a_skill_named_otherwise_reports_name_mismatch(self, package_table: RuleTable) -> None:
         #: Given
@@ -1445,7 +1445,7 @@ class TestCheckSubjects:
                 diagnostics=(RuleDiagnostic(REVIEW_FILE, occurrence, Severity.ERROR),),
                 ungoverned=SKILL_UNGOVERNED,
             ),
-        ), 'FM004 runs at deny over a skill whose `name` is not its directory name'
+        ), 'LC204 runs at deny over a skill whose `name` is not its directory name'
 
     def test_check_subjects_with_a_skill_repeating_a_key_reports_duplicate_key(self, package_table: RuleTable) -> None:
         #: Given
@@ -1476,7 +1476,7 @@ class TestCheckSubjects:
                 diagnostics=(RuleDiagnostic(REVIEW_FILE, occurrence, Severity.ERROR),),
                 ungoverned=SKILL_UNGOVERNED,
             ),
-        ), 'FM005 runs at deny over a skill that writes a key again'
+        ), 'LC205 runs at deny over a skill that writes a key again'
 
     def test_check_subjects_with_a_linked_skill_named_for_its_target_reports_where_the_link_leads(
         self, package_table: RuleTable
@@ -1647,7 +1647,7 @@ class TestCheckSubjects:
                 ungoverned=(SpecPart.OUTLINE, SpecPart.BUDGET),
             ),
         ), (
-            'FM006, FM008, FM009 and FM014 run at deny and FM007 at warn, each on its own problem, on its field line '
+            'LC206, LC208, LC209 and LC214 run at deny and LC207 at warn, each on its own problem, on its field line '
             'or line 1, naming the specification'
         )
 
@@ -1802,7 +1802,7 @@ class TestCheckSubjects:
                 diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
                 ungoverned=(SpecPart.OUTLINE, SpecPart.BUDGET),
             ),
-        ), 'FM003 alone reports a block that is not a mapping: it is held to no schema, so no schema rule fires'
+        ), 'LC203 alone reports a block that is not a mapping: it is held to no schema, so no schema rule fires'
 
     def test_check_subjects_with_only_the_block_rules_enabled_never_holds_the_frontmatter_to_a_schema(self) -> None:
         #: Given

@@ -14,9 +14,6 @@ from typing import Final, NamedTuple
 CODE_DIGITS: Final[int] = 3
 """How many digits end a code, after its group's prefix."""
 
-ENGINE_GROUP_PREFIX: Final[str] = 'LC'
-"""The prefix reserved for engine conditions."""
-
 
 class RuleRow(NamedTuple):
     """One active rule and its aliases."""
@@ -44,38 +41,27 @@ class ConditionRow(NamedTuple):
 
 type RuleIndexRow = RuleRow | RemovedRuleRow | ConditionRow
 
-GROUPS: Final[tuple[tuple[str, str], ...]] = (
-    # prefix, title
-    ('COR', 'Corpus directory checks'),
-    ('FM', 'Frontmatter checks'),
-    ('LAY', 'Skill layout checks'),
-    (ENGINE_GROUP_PREFIX, 'Engine conditions'),
-    ('LEN', 'Length limits'),
-    ('LINK', 'Links in Markdown files'),
-    ('OUT', 'Outline checks'),
-)
-
 RULES: Final[tuple[RuleIndexRow, ...]] = (
-    RuleRow('COR001', 'reserved-corpus-overlap', 'warn', ()),
-    RuleRow('FM001', 'missing-frontmatter', 'deny', ()),
-    RuleRow('FM002', 'invalid-yaml', 'deny', ()),
-    RuleRow('FM003', 'non-mapping-frontmatter', 'deny', ()),
-    RuleRow('FM004', 'name-mismatch', 'deny', ()),
-    RuleRow('FM005', 'duplicate-key', 'deny', ()),
-    RuleRow('FM006', 'missing-field', 'deny', ()),
-    RuleRow('FM007', 'unknown-field', 'warn', ()),
-    RuleRow('FM008', 'wrong-type', 'deny', ()),
-    RuleRow('FM009', 'invalid-value', 'deny', ()),
-    RuleRow('FM010', 'invalid-frontmatter', 'deny', ()),
-    RuleRow('FM011', 'malformed-allowed-tools', 'warn', ()),
-    RuleRow('FM012', 'allowed-tools-too-long', 'warn', ()),
-    RuleRow('FM013', 'too-many-fields', 'deny', ()),
-    RuleRow('FM014', 'too-few-fields', 'deny', ()),
-    RuleRow('LAY001', 'escaping-symlink', 'deny', ()),
     ConditionRow('LC001', 'invalid-utf8', 'error'),
     ConditionRow('LC002', 'unreadable-path', 'error'),
     ConditionRow('LC003', 'malformed-structure-file', 'error'),
     ConditionRow('LC004', 'unusable-structure-file', 'error'),
+    RuleRow('LC101', 'reserved-corpus-overlap', 'warn', ()),
+    RuleRow('LC102', 'escaping-symlink', 'deny', ()),
+    RuleRow('LC201', 'missing-frontmatter', 'deny', ()),
+    RuleRow('LC202', 'invalid-yaml', 'deny', ()),
+    RuleRow('LC203', 'non-mapping-frontmatter', 'deny', ()),
+    RuleRow('LC204', 'name-mismatch', 'deny', ()),
+    RuleRow('LC205', 'duplicate-key', 'deny', ()),
+    RuleRow('LC206', 'missing-field', 'deny', ()),
+    RuleRow('LC207', 'unknown-field', 'warn', ()),
+    RuleRow('LC208', 'wrong-type', 'deny', ()),
+    RuleRow('LC209', 'invalid-value', 'deny', ()),
+    RuleRow('LC210', 'invalid-frontmatter', 'deny', ()),
+    RuleRow('LC211', 'malformed-allowed-tools', 'warn', ()),
+    RuleRow('LC212', 'allowed-tools-too-long', 'warn', ()),
+    RuleRow('LC213', 'too-many-fields', 'deny', ()),
+    RuleRow('LC214', 'too-few-fields', 'deny', ()),
     RuleRow('LEN001', 'too-many-tokens', 'deny', ()),
     RuleRow('LEN002', 'too-many-lines', 'deny', ()),
     RuleRow('LEN003', 'section-too-many-words', 'deny', ()),
@@ -111,18 +97,4 @@ def find(key: str) -> RuleIndexRow | None:
     for row in RULES:
         if key == row.code or key == row.name or isinstance(row, RuleRow) and key in row.aliases:
             return row
-    return None
-
-
-def find_group_title(prefix: str) -> str | None:
-    """The title of the group with this prefix, or None when no rule in service nor condition is in it.
-
-    The prefix is matched as spelled, so text no prefix could be, such as `out`, is not an error: no group has it.
-
-    Args:
-        prefix: A group's prefix, such as `OUT`.
-    """
-    for group_prefix, title in GROUPS:
-        if group_prefix == prefix:
-            return title
     return None
