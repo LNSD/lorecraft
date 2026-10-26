@@ -69,12 +69,11 @@ are interchangeable.
    registry resolves a reference to its input and kind; it does not duplicate namespace matching, governed-item
    discovery, failed-layer policy, or outline and budget computations.
 9. **Built-in skill behavior remains compatible.** The skills floor is represented by a builtin-origin spec
-   layer (supplying both frontmatter schema input and structure specification input) and participates in the same
+   layer (supplying a frontmatter schema input and a builtin line budget) and participates in the same
    lookup and dependency model. Its current Pydantic validation, finding wording, independent application beside
-   repository layers, global opt-out, bounded contradiction preflight, declarative line budget (`lines: 500`),
-   and duplicate-field suppression remain as specified by ADR-022. A later change may unify validator backends
-   only with evidence that accepted values and diagnostics are preserved; generated JSON Schema alone is not
-   such evidence.
+   repository layers, global opt-out, bounded contradiction preflight, builtin line budget of 500 lines, and
+   duplicate-field suppression remain as specified by ADR-022. A later change may unify validator backends only with
+   evidence that accepted values and diagnostics are preserved; generated JSON Schema alone is not such evidence.
 10. **Schema references do not expand JSON Schema resource policy.** An internal registry reference is not a
     JSON Schema `$id`. Existing restrictions on external references, dialects, and resource boundaries remain in
     force. Registry resolution is local to loaded repository inputs and builtin definitions.
@@ -121,7 +120,7 @@ The intended flow is:
 workspace FileSystem
         │ reads repository schemas & structure files
         │
-builtin Agent Skills floor layer (schema + structure)
+builtin Agent Skills floor layer (schema + line budget)
         │ pre-registered at bootstrap (omitted if opted out)
         ▼
 project preflight ── bounded contradiction check ──► loader records failed layers
@@ -136,7 +135,7 @@ Database ── memoized schema query(schema subject) ──► schema facts
 ```
 
 The diagram separates ownership. The loader supplies immutable raw inputs and project governance data, pre-registering
-the builtin floor layer (its frontmatter schema and structure specification) unless opted out. Project-owned preflight
+the builtin floor layer (its frontmatter schema and line budget) unless opted out. Project-owned preflight
 evaluates candidate skills layers against the pre-registered floor before recording failed layers. Schema queries produce
 memoized derived facts. Item queries record dependencies on the schema subjects they actually read. Downstream query and
 engine consumers test model and registry presence instead of carrying boolean flags. The registry is a lookup and type
