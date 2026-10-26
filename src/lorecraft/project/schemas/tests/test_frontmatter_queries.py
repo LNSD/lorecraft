@@ -9,6 +9,7 @@ import pytest
 from lib.primitives import StructurePrimitives
 from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.path import PathComponent
+from lorecraft.core.text import NonEmptyStr
 from lorecraft.project.aspect import AspectFilename
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.item import DocumentOrigin, ItemDescriptor, SkillEntrypointOrigin, WrongItemTypeError
@@ -107,10 +108,10 @@ class TestFrontmatterSchemaProblems:
         self, kind: SchemaKind, identity: str, builtin_origin: bool
     ) -> None:
         #: Given
-        reference = SchemaRef(kind, identity)
+        reference = SchemaRef(kind, NonEmptyStr.parse(identity))
         schema: SchemaInput
         if builtin_origin:
-            schema = BuiltinSchemaInput(reference.kind, BuiltinOrigin(identity), FrozenMapping({}))
+            schema = BuiltinSchemaInput(reference.kind, BuiltinOrigin(NonEmptyStr.parse(identity)), FrozenMapping({}))
         else:
             # SAFETY: The test supplies an origin outside the closed runtime variants to exercise the query boundary.
             schema = RepositorySchemaInput(

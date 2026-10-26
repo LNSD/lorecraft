@@ -14,6 +14,7 @@ from lorecraft.agents import AgentName
 from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.core.path import PathComponent, RootRelativePath
+from lorecraft.core.text import NonEmptyStr
 from lorecraft.project.aspect import AspectFilename, AspectNamespace
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.document import (
@@ -168,7 +169,9 @@ def _spec_files(
             tokens=None,
             lines=None,
             frontmatter=frontmatter_schema,
-            frontmatter_schema_ref=(SchemaRef(SchemaKind.FRONTMATTER, str(spec_name)) if frontmatter else None),
+            frontmatter_schema_ref=(
+                SchemaRef(SchemaKind.FRONTMATTER, NonEmptyStr.parse(str(spec_name))) if frontmatter else None
+            ),
         )
         files.append(path)
     return tuple(sorted(files, key=str)), structure_spec
@@ -726,7 +729,7 @@ def _schema_inputs(*corpora: Corpus) -> tuple[RepositorySchemaInput, ...]:
                 governance.applicable_frontmatter_schema_refs(), governance.frontmatter_schemas(), strict=True
             ):
                 inputs[reference] = RepositorySchemaInput(
-                    reference, RepositoryOrigin(schema.spec, str(schema.spec)), schema.schema.schema
+                    reference, RepositoryOrigin(schema.spec, NonEmptyStr.parse(str(schema.spec))), schema.schema.schema
                 )
     return tuple(inputs.values())
 
@@ -1159,7 +1162,7 @@ class TestWorkspaceModel:
         )
         assert descriptor.name == AspectFilename.parse('logging'), 'the model derives the aspect from the filename'
         assert isinstance(descriptor.origin, DocumentOrigin), 'the descriptor retains document provenance'
-        assert descriptor.frontmatter_schema_refs == (SchemaRef(SchemaKind.FRONTMATTER, 'code'),), (
+        assert descriptor.frontmatter_schema_refs == (SchemaRef(SchemaKind.FRONTMATTER, NonEmptyStr.parse('code')),), (
             'the descriptor retains the loader identity used for frontmatter governance and diagnostics'
         )
         assert descriptor.governed_parts == frozenset({SpecPart.FRONTMATTER, SpecPart.STRUCTURE}), (
@@ -1169,7 +1172,7 @@ class TestWorkspaceModel:
     def test_describe_item_derives_builtin_frontmatter_governance_from_its_schema(self) -> None:
         #: Given
         location = _regular_skill('.agents/skills/audit')
-        origin = BuiltinOrigin('builtin:test-layer')
+        origin = BuiltinOrigin(NonEmptyStr.parse('builtin:test-layer'))
         schema_input = FrontmatterSchemaInput(origin, FrozenMapping.from_plain({'type': 'object'}))
         layer = BuiltinSpecLayer(origin, frozenset({ItemType.SKILL_ENTRYPOINT}), schema_input)
         model = WorkspaceModel(
@@ -1213,7 +1216,7 @@ class TestWorkspaceModel:
         self, two_corpora_model: WorkspaceModel
     ) -> None:
         #: Given
-        origin = BuiltinOrigin('builtin:test-layer')
+        origin = BuiltinOrigin(NonEmptyStr.parse('builtin:test-layer'))
         reference = SchemaRef(SchemaKind.FRONTMATTER, origin.identity)
         schema_input = FrontmatterSchemaInput(origin, FrozenMapping.from_plain({'type': 'object'}))
         layer = BuiltinSpecLayer(
@@ -1238,7 +1241,7 @@ class TestWorkspaceModel:
 
     def test_model_rejects_a_schema_ref_repeated_by_builtin_layers(self, two_corpora_model: WorkspaceModel) -> None:
         #: Given
-        origin = BuiltinOrigin('builtin:test-layer')
+        origin = BuiltinOrigin(NonEmptyStr.parse('builtin:test-layer'))
         reference = SchemaRef(SchemaKind.FRONTMATTER, origin.identity)
         schema_input = FrontmatterSchemaInput(origin, FrozenMapping.from_plain({'type': 'object'}))
         layer = BuiltinSpecLayer(
@@ -1258,12 +1261,12 @@ class TestWorkspaceModel:
         self, two_corpora_model: WorkspaceModel
     ) -> None:
         #: Given
-        origin = BuiltinOrigin('builtin:test-layer')
+        origin = BuiltinOrigin(NonEmptyStr.parse('builtin:test-layer'))
         reference = SchemaRef(SchemaKind.FRONTMATTER, origin.identity)
         schema_input = FrontmatterSchemaInput(origin, FrozenMapping.from_plain({'type': 'object'}))
         repository_input = RepositorySchemaInput(
             reference,
-            RepositoryOrigin(RootRelativePath.parse('docs/test.json'), 'test'),
+            RepositoryOrigin(RootRelativePath.parse('docs/test.json'), NonEmptyStr.parse('test')),
             FrozenMapping.from_plain({'type': 'object'}),
         )
         layer = BuiltinSpecLayer(
@@ -1302,8 +1305,8 @@ class TestWorkspaceModel:
         #: Then
         assert isinstance(descriptor.origin, DocumentOrigin), 'the descriptor retains document provenance'
         assert descriptor.frontmatter_schema_refs == (
-            SchemaRef(SchemaKind.FRONTMATTER, 'code'),
-            SchemaRef(SchemaKind.FRONTMATTER, 'code-python'),
+            SchemaRef(SchemaKind.FRONTMATTER, NonEmptyStr.parse('code')),
+            SchemaRef(SchemaKind.FRONTMATTER, NonEmptyStr.parse('code-python')),
         ), 'the same registry refs carry the corpus and namespace schema order'
 
     def test_describe_item_for_a_linked_skill_keeps_logical_identity_when_read_target_changes(
@@ -1835,13 +1838,13 @@ class TestSpecifications:
             filenames=frozenset(),
         )
         ref = _spec_ref('feat-cli')
-        builtin_reference = SchemaRef(SchemaKind.FRONTMATTER, 'builtin:spec-floor')
+        builtin_reference = SchemaRef(SchemaKind.FRONTMATTER, NonEmptyStr.parse('builtin:spec-floor'))
         builtin_input = FrontmatterSchemaInput(
             BuiltinOrigin(builtin_reference.identity),
             FrozenMapping({}),
         )
         layer = BuiltinSpecLayer(
-            BuiltinOrigin('builtin:spec-layer'),
+            BuiltinOrigin(NonEmptyStr.parse('builtin:spec-layer')),
             frozenset({ItemType.SPEC}),
             frontmatter_schema=builtin_input,
             lines=NonZeroUnsignedInt(500),
@@ -1865,7 +1868,7 @@ class TestSpecifications:
         #: Then
         assert descriptor.frontmatter_schema_refs == (
             builtin_reference,
-            SchemaRef(SchemaKind.FRONTMATTER, 'meta'),
+            SchemaRef(SchemaKind.FRONTMATTER, NonEmptyStr.parse('meta')),
         ), 'the builtin schema is first, followed by the meta corpus schema'
         assert descriptor.governed_parts == frozenset({SpecPart.FRONTMATTER, SpecPart.STRUCTURE, SpecPart.BUDGET}), (
             'the builtin line budget and meta structure govern their corresponding parts'

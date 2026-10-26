@@ -31,6 +31,7 @@ from pydantic import JsonValue
 from lorecraft.agents import SKILL_ENTRYPOINT, iter_agents
 from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.path import PathComponent, RootRelativePath
+from lorecraft.core.text import NonEmptyStr
 from lorecraft.project.aspect import (
     AspectFilename,
     AspectNamespace,
@@ -456,7 +457,7 @@ def _load_structure(
                 assert_never(exc.source)
         return _record_failed_structure(failures, structure_file.path, failure)
     parsed = StructureSpec.parse(structure_file, StructureSchema(text))
-    identity = str(structure_file.name)
+    identity = NonEmptyStr.parse(str(structure_file.name))
     origin = RepositoryOrigin(structure_file.path, identity)
     try:
         document: JsonValue = json.loads(text)

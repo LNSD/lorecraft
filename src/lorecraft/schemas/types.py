@@ -3,9 +3,9 @@
 from dataclasses import dataclass
 from enum import StrEnum
 
-from lorecraft.core.error import Error
 from lorecraft.core.mapping import Frozen, FrozenMapping
 from lorecraft.core.path import RootRelativePath
+from lorecraft.core.text import NonEmptyStr
 
 
 class SchemaKind(StrEnum):
@@ -15,74 +15,17 @@ class SchemaKind(StrEnum):
     FRONTMATTER = 'frontmatter'
 
 
-class EmptySchemaRefIdentityError(Error):
-    """A schema reference has no stable identity.
-
-    Attributes:
-        kind: The kind whose reference identity was empty.
-        identity: The rejected identity.
-    """
-
-    kind: SchemaKind
-    identity: str
-
-    def __init__(self, kind: SchemaKind, identity: str) -> None:
-        self.kind = kind
-        self.identity = identity
-        super().__init__(f'a {kind.value} schema reference identity must not be empty')
-
-
-class EmptyRepositoryLayerError(Error):
-    """A repository schema origin has no governing layer.
-
-    Attributes:
-        path: The repository path whose origin omitted its layer.
-        layer: The rejected layer identity.
-    """
-
-    path: RootRelativePath
-    layer: str
-
-    def __init__(self, path: RootRelativePath, layer: str) -> None:
-        self.path = path
-        self.layer = layer
-        super().__init__(f'repository schema layer for {path} must not be empty')
-
-
-class EmptyBuiltinOriginIdentityError(Error):
-    """A builtin schema origin has no stable identity.
-
-    Attributes:
-        identity: The rejected built-in identity.
-    """
-
-    identity: str
-
-    def __init__(self, identity: str) -> None:
-        self.identity = identity
-        super().__init__('a builtin schema identity must not be empty')
-
-
 @dataclass(frozen=True, slots=True, order=True)
 class SchemaRef:
     """A stable, kind-scoped schema identity independent of paths and JSON Schema `$id`.
 
     Attributes:
         kind: The schema's role: structure or frontmatter.
-        identity: A stable identity within `kind`; empty values raise `EmptySchemaRefIdentityError`.
+        identity: A stable, non-empty identity within `kind`.
     """
 
     kind: SchemaKind
-    identity: str
-
-    def __post_init__(self) -> None:
-        """Reject an empty source identity.
-
-        Raises:
-            EmptySchemaRefIdentityError: If `identity` is empty.
-        """
-        if not self.identity:
-            raise EmptySchemaRefIdentityError(self.kind, self.identity)
+    identity: NonEmptyStr
 
 
 @dataclass(frozen=True, slots=True)
@@ -91,20 +34,11 @@ class RepositoryOrigin:
 
     Attributes:
         path: The repository-relative path from which the input was acquired.
-        layer: The governance layer that owns the input; empty values raise `EmptyRepositoryLayerError`.
+        layer: The non-empty governance layer that owns the input.
     """
 
     path: RootRelativePath
-    layer: str
-
-    def __post_init__(self) -> None:
-        """Reject missing repository-layer provenance.
-
-        Raises:
-            EmptyRepositoryLayerError: If `layer` is empty.
-        """
-        if not self.layer:
-            raise EmptyRepositoryLayerError(self.path, self.layer)
+    layer: NonEmptyStr
 
 
 @dataclass(frozen=True, slots=True)
@@ -112,20 +46,10 @@ class BuiltinOrigin:
     """Stable identity for a builtin schema or layer, without a fabricated path.
 
     Attributes:
-        identity: The builtin identity; schema inputs derive their reference from it. Empty values raise
-            `EmptyBuiltinOriginIdentityError`.
+        identity: The non-empty builtin identity; schema inputs derive their reference from it.
     """
 
-    identity: str
-
-    def __post_init__(self) -> None:
-        """Reject an empty builtin identity.
-
-        Raises:
-            EmptyBuiltinOriginIdentityError: If `identity` is empty.
-        """
-        if not self.identity:
-            raise EmptyBuiltinOriginIdentityError(self.identity)
+    identity: NonEmptyStr
 
 
 type SchemaOrigin = RepositoryOrigin | BuiltinOrigin
