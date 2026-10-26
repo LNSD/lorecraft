@@ -23,7 +23,14 @@ from lorecraft.core.error import Unreachable
 from lorecraft.core.path import ROOT, PathComponent, RootRelativePath
 
 from .scan_root import ScanRoot
-from .view import EntryKind, ResolvedPath, RootExit
+from .view import (
+    AbsoluteSymlinkTarget,
+    EntryKind,
+    RelativeSymlinkTarget,
+    ResolvedPath,
+    RootExit,
+    classify_symlink_target,
+)
 
 _MAX_LINKS: Final[int] = 40
 """Links followed before a chain counts as a loop; Linux's MAXSYMLINKS, past which the disk reports ELOOP.
@@ -183,10 +190,15 @@ def find_destination(
                 links_followed += 1
                 if not follow_links or links_followed > _MAX_LINKS:
                     return None
-                last_link = RootExit(ResolvedPath(candidate), target)
-                if target.is_absolute():
-                    return last_link
-                remaining = list(target.parts) + remaining
+                exit_target = classify_symlink_target(target)
+                last_link = RootExit(ResolvedPath(candidate), exit_target)
+                match exit_target:
+                    case AbsoluteSymlinkTarget():
+                        return last_link
+                    case RelativeSymlinkTarget(target=relative_target):
+                        remaining = list(relative_target.parts) + remaining
+                    case _:
+                        assert_never(exit_target)
             case _:
                 assert_never(kind)
     return ResolvedDirectory(resolved)

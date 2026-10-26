@@ -8,7 +8,7 @@ from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import EntryHelp, EntryNote, EntrySubdiagnostic
 from lorecraft.rules.subject import QueriedSymlinkRule
-from lorecraft.vfs import RootExit
+from lorecraft.vfs import AbsoluteSymlinkTarget, RootExit
 
 from .__ruleset__ import GROUP_ID
 
@@ -81,7 +81,7 @@ class EscapingSymlink(QueriedSymlinkRule[RootExit]):
 
     def children(self) -> tuple[EntrySubdiagnostic, ...]:
         """Say what to do about the target, then name the link the chain leaves through and its target."""
-        if self.leaves_at.target.is_absolute():
+        if isinstance(self.leaves_at.target, AbsoluteSymlinkTarget):
             help_text = (
                 'an absolute target resolves differently in every checkout; move what it links to into the repository'
             )

@@ -34,7 +34,17 @@ from lorecraft.schemas import (
     SchemaRefError,
 )
 from lorecraft.schemas.builtin import AGENT_SKILLS_SCHEMA_INPUT, AGENT_SKILLS_SCHEMA_REFERENCE
-from lorecraft.vfs import OsRefusal, RefusedRead, ResolvedPath, RootExit, Snapshot, SnapshotRecords
+from lorecraft.vfs import (
+    AbsoluteSymlinkTarget,
+    OsRefusal,
+    RefusedRead,
+    RelativeSymlinkTarget,
+    ResolvedPath,
+    RootExit,
+    Snapshot,
+    SnapshotRecords,
+    SymlinkTarget,
+)
 
 GUIDE: ItemRef = ItemRef(RootRelativePath.parse('docs/code/guide.md'))
 TARGET: ItemRef = ItemRef(RootRelativePath.parse('docs/feat/target.md'))
@@ -46,6 +56,14 @@ SCHEMA_MISSING: SchemaRef = SchemaRef(SchemaKind.STRUCTURE, 'missing')
 _DATABASE_SOURCE = Path('src/lorecraft/project/database/database.py')
 _PRIVATE_READ_NAMES = {'_record', '_reads', '__reads', '_Reads__reads'}
 _REFLECTION_CALLS = {'getattr', 'setattr', 'vars'}
+
+
+def _target(raw: str | Path | PurePosixPath) -> SymlinkTarget:
+    """Wrap a target written as it would be by `os.readlink`."""
+    target = PurePosixPath(raw)
+    if target.is_absolute():
+        return AbsoluteSymlinkTarget(target)
+    return RelativeSymlinkTarget(target)
 
 
 def _enclosing_class(node: ast.AST, parents: dict[ast.AST, ast.AST]) -> ast.ClassDef | None:
@@ -529,7 +547,7 @@ class TestReads:
         #: Given
         database = Database.from_snapshot(from_tree({}), builtin_layers=(SKILLS_LAYER,))
         path = RootRelativePath.parse('.agents/skills/outside')
-        outside = OutsideSymlink(path, RootExit(ResolvedPath(path), PurePosixPath('/outside')))
+        outside = OutsideSymlink(path, RootExit(ResolvedPath(path), _target('/outside')))
         database._model = replace(database.model(), outside_symlinks=FrozenMapping({path: outside}))
         calls = 0
 

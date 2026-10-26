@@ -26,10 +26,19 @@ from lorecraft.rules.registry import Registry
 from lorecraft.rules.report import CheckedItem, CheckedLayoutEntry, RuleDiagnostic
 from lorecraft.rules.selection import AllRules, RuleSelection
 from lorecraft.rules.table import RuleTable
-from lorecraft.vfs import RootExit, take_snapshot
+from lorecraft.vfs import ResolvedPath, RootExit, take_snapshot
+from lorecraft.vfs.view import AbsoluteSymlinkTarget, RelativeSymlinkTarget, SymlinkTarget
 
 CLEAN_SKILL_MD: Final[bytes] = b'---\nname: review\ndescription: Review a change\n---\n'
 """A `SKILL.md` the skill `review` passes every other rule with."""
+
+
+def _target(raw: str | Path | PurePosixPath) -> SymlinkTarget:
+    """Wrap a target written as it would be by `os.readlink`."""
+    target = PurePosixPath(raw)
+    if target.is_absolute():
+        return AbsoluteSymlinkTarget(target)
+    return RelativeSymlinkTarget(target)
 
 
 def _write(root: Path, relative: str, data: bytes) -> None:
@@ -66,7 +75,7 @@ def _outside_report(path: str, link: str, target: Path | str) -> CheckedLayoutEn
         target: That link's target, as the scan read it.
     """
     entry = RootRelativePath.parse(path)
-    occurrence = EscapingSymlink(leaves_at=RootExit(RootRelativePath.parse(link), PurePosixPath(target)))
+    occurrence = EscapingSymlink(leaves_at=RootExit(ResolvedPath(RootRelativePath.parse(link)), _target(target)))
     return CheckedLayoutEntry(
         OutsideSymlinkRef(entry), diagnostics=(RuleDiagnostic(entry, occurrence, Severity.ERROR),)
     )

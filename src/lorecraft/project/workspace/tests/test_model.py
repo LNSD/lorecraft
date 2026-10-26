@@ -5,7 +5,7 @@ structure specification paths standing in for the files the loader would have re
 """
 
 from dataclasses import replace
-from pathlib import PurePosixPath
+from pathlib import Path, PurePosixPath
 from typing import Final
 
 import pytest
@@ -54,6 +54,7 @@ from lorecraft.schemas import (
     SchemaRef,
 )
 from lorecraft.vfs import ResolvedPath, RootExit
+from lorecraft.vfs.view import AbsoluteSymlinkTarget, RelativeSymlinkTarget, SymlinkTarget
 
 from ..failure import FailedStructure
 from ..model import (
@@ -75,6 +76,14 @@ from ..model import (
 
 CODE: Final[CorpusName] = CorpusName.parse('code')
 FEAT: Final[CorpusName] = CorpusName.parse('feat')
+
+
+def _target(raw: str | Path | PurePosixPath) -> SymlinkTarget:
+    """Wrap a target written as it would be by `os.readlink`."""
+    target = PurePosixPath(raw)
+    if target.is_absolute():
+        return AbsoluteSymlinkTarget(target)
+    return RelativeSymlinkTarget(target)
 
 
 def _corpus_spec(name: str, *, frontmatter: bool = True, structure: bool = False) -> CorpusSpec:
@@ -840,7 +849,7 @@ class TestWorkspaceModel:
         #: Given
         entry = RootRelativePath.parse('.agents/skills/x')
         other = RootRelativePath.parse('.agents/skills/y')
-        outside = OutsideSymlink(entry, RootExit(ResolvedPath(entry), PurePosixPath('/opt/team-skills/x')))
+        outside = OutsideSymlink(entry, RootExit(ResolvedPath(entry), _target('/opt/team-skills/x')))
         outside_symlinks = FrozenMapping({other: outside})
 
         #: When
@@ -1348,7 +1357,7 @@ class TestWorkspaceModel:
     ) -> None:
         #: Given
         entry = RootRelativePath.parse('.agents/skills/x')
-        outside = OutsideSymlink(entry, RootExit(ResolvedPath(entry), PurePosixPath('/opt/team-skills/x')))
+        outside = OutsideSymlink(entry, RootExit(ResolvedPath(entry), _target('/opt/team-skills/x')))
         model = replace(skills_model, outside_symlinks=FrozenMapping({outside.path: outside}))
 
         #: When
@@ -1362,7 +1371,7 @@ class TestWorkspaceModel:
     ) -> None:
         #: Given
         entry = RootRelativePath.parse('.agents/skills/x')
-        outside = OutsideSymlink(entry, RootExit(ResolvedPath(entry), PurePosixPath('/opt/team-skills/x')))
+        outside = OutsideSymlink(entry, RootExit(ResolvedPath(entry), _target('/opt/team-skills/x')))
         model = replace(skills_model, outside_symlinks=FrozenMapping({outside.path: outside}))
         below = entry / PathComponent.parse('SKILL.md')
 

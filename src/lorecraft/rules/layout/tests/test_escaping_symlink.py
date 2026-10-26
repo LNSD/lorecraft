@@ -4,7 +4,7 @@ The rule only words where the chain leaves, which the scan decides, so every cas
 symlink that stays inside the repository is no layout entry, and the runner's integration tests hold that near miss.
 """
 
-from pathlib import PurePosixPath
+from pathlib import Path, PurePosixPath
 
 import pytest
 
@@ -12,8 +12,17 @@ from lorecraft.core.path import RootRelativePath
 from lorecraft.rules.location import EntryHelp, EntryNote, WholeSubject
 from lorecraft.rules.tests.fake_database import FakeSymlinkDatabase, judged
 from lorecraft.vfs import ResolvedPath, RootExit
+from lorecraft.vfs.view import AbsoluteSymlinkTarget, RelativeSymlinkTarget, SymlinkTarget
 
 from ..escaping_symlink import EscapingSymlink
+
+
+def _target(raw: str | Path | PurePosixPath) -> SymlinkTarget:
+    """Wrap a target written as it would be by `os.readlink`."""
+    target = PurePosixPath(raw)
+    if target.is_absolute():
+        return AbsoluteSymlinkTarget(target)
+    return RelativeSymlinkTarget(target)
 
 
 @pytest.mark.unit
@@ -21,7 +30,7 @@ class TestEscapingSymlink:
     def test_check_with_a_symlink_linking_straight_out_reports_it_leaving_through_itself(self) -> None:
         #: Given
         leaves_at = RootExit(
-            ResolvedPath(RootRelativePath.parse('.agents/skills/review')), PurePosixPath('/home/alex/review')
+            ResolvedPath(RootRelativePath.parse('.agents/skills/review')), _target('/home/alex/review')
         )
         subject = FakeSymlinkDatabase(leaves_at)
 
@@ -36,7 +45,7 @@ class TestEscapingSymlink:
     def test_check_with_a_chain_leaving_through_a_later_link_reports_that_link(self) -> None:
         #: Given
         # `.agents/skills/review -> ../../hop/review`, and `hop -> /home/alex`
-        leaves_at = RootExit(ResolvedPath(RootRelativePath.parse('hop')), PurePosixPath('/home/alex'))
+        leaves_at = RootExit(ResolvedPath(RootRelativePath.parse('hop')), _target('/home/alex'))
         subject = FakeSymlinkDatabase(leaves_at)
 
         #: When
@@ -50,7 +59,8 @@ class TestEscapingSymlink:
     def test_check_with_a_link_climbing_above_the_root_reports_its_relative_target(self) -> None:
         #: Given
         leaves_at = RootExit(
-            ResolvedPath(RootRelativePath.parse('.agents/skills/review/shared')), PurePosixPath('../../../../x')
+            ResolvedPath(RootRelativePath.parse('.agents/skills/review/shared')),
+            _target('../../../../x'),
         )
         subject = FakeSymlinkDatabase(leaves_at)
 
@@ -65,7 +75,7 @@ class TestEscapingSymlink:
     def test_primary_points_at_the_whole_entry(self) -> None:
         #: Given
         occurrence = EscapingSymlink(
-            leaves_at=RootExit(ResolvedPath(RootRelativePath.parse('hop')), PurePosixPath('/home/alex'))
+            leaves_at=RootExit(ResolvedPath(RootRelativePath.parse('hop')), _target('/home/alex'))
         )
 
         #: When
@@ -77,7 +87,7 @@ class TestEscapingSymlink:
     def test_message_names_the_condition(self) -> None:
         #: Given
         occurrence = EscapingSymlink(
-            leaves_at=RootExit(ResolvedPath(RootRelativePath.parse('hop')), PurePosixPath('/home/alex'))
+            leaves_at=RootExit(ResolvedPath(RootRelativePath.parse('hop')), _target('/home/alex'))
         )
 
         #: When
@@ -89,7 +99,7 @@ class TestEscapingSymlink:
     def test_children_with_an_absolute_target_say_it_resolves_differently_in_every_checkout(self) -> None:
         #: Given
         occurrence = EscapingSymlink(
-            leaves_at=RootExit(ResolvedPath(RootRelativePath.parse('hop')), PurePosixPath('/home/alex'))
+            leaves_at=RootExit(ResolvedPath(RootRelativePath.parse('hop')), _target('/home/alex'))
         )
 
         #: When
@@ -106,7 +116,7 @@ class TestEscapingSymlink:
     def test_children_with_a_relative_target_say_it_climbs_above_the_root(self) -> None:
         #: Given
         occurrence = EscapingSymlink(
-            leaves_at=RootExit(ResolvedPath(RootRelativePath.parse('hop')), PurePosixPath('../../x'))
+            leaves_at=RootExit(ResolvedPath(RootRelativePath.parse('hop')), _target('../../x'))
         )
 
         #: When
@@ -123,9 +133,7 @@ class TestEscapingSymlink:
     def test_children_with_a_relative_target_without_a_climb_blame_the_chain_not_the_named_link(self) -> None:
         #: Given
         # `inner -> sub`, and `shared -> inner/../../../x`: the named link is `inner`, whose target climbs nothing
-        occurrence = EscapingSymlink(
-            leaves_at=RootExit(ResolvedPath(RootRelativePath.parse('inner')), PurePosixPath('sub'))
-        )
+        occurrence = EscapingSymlink(leaves_at=RootExit(ResolvedPath(RootRelativePath.parse('inner')), _target('sub')))
 
         #: When
         children = occurrence.children()

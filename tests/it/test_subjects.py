@@ -22,10 +22,19 @@ from lorecraft.project.skill import (
 )
 from lorecraft.project.workspace.builtin import AGENT_SKILLS_SPEC_LAYER as SKILLS_LAYER
 from lorecraft.vfs import ResolvedPath, RootExit, take_snapshot
+from lorecraft.vfs.view import AbsoluteSymlinkTarget, RelativeSymlinkTarget, SymlinkTarget
 
 REVIEW: Final[SkillRef] = SkillRef(
     ResolvedPath(RootRelativePath.parse('.agents/skills')), PathComponent.parse('review')
 )
+
+
+def _target(raw: str | Path | PurePosixPath) -> SymlinkTarget:
+    """Wrap a target written as it would be by `os.readlink`."""
+    target = PurePosixPath(raw)
+    if target.is_absolute():
+        return AbsoluteSymlinkTarget(target)
+    return RelativeSymlinkTarget(target)
 
 
 def _write(root: Path, relative: str, text: str = '') -> Path:
@@ -89,7 +98,7 @@ def _outside(path: str, target: Path) -> OutsideSymlink:
         target: The link's target, as written.
     """
     entry = RootRelativePath.parse(path)
-    return OutsideSymlink(entry, leaves_at=RootExit(entry, PurePosixPath(target)))
+    return OutsideSymlink(entry, leaves_at=RootExit(ResolvedPath(entry), _target(target)))
 
 
 @pytest.mark.it

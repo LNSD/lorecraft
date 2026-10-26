@@ -1,7 +1,7 @@
 """The rules engine's subject reports rendered as text and as JSON, from hand-built reports of real occurrences."""
 
 import json
-from pathlib import PurePosixPath
+from pathlib import Path, PurePosixPath
 from typing import Final
 
 import pytest
@@ -35,7 +35,15 @@ from lorecraft.rules.report import (
     UndecodableSubject,
 )
 from lorecraft.rules.subject import SpecPart
-from lorecraft.vfs import ResolvedPath, RootExit, Utf8Failure, Utf8Reason
+from lorecraft.vfs import (
+    AbsoluteSymlinkTarget,
+    RelativeSymlinkTarget,
+    ResolvedPath,
+    RootExit,
+    SymlinkTarget,
+    Utf8Failure,
+    Utf8Reason,
+)
 
 from ..diagnostic_text import SourceLines, SourceText, TextStyle, render_text
 from ..diagnostics import render_coverage, render_json, render_prefix_summary, render_short, render_summary
@@ -48,6 +56,14 @@ _CODE_OWNER: Final[DocumentFrontmatterOwner] = DocumentFrontmatterOwner(
 
 
 _PLAIN: Final[TextStyle] = TextStyle(color=False, unicode=True, width=80)
+
+
+def _target(raw: str | Path | PurePosixPath) -> SymlinkTarget:
+    """Wrap a target written as it would be by `os.readlink`."""
+    target = PurePosixPath(raw)
+    if target.is_absolute():
+        return AbsoluteSymlinkTarget(target)
+    return RelativeSymlinkTarget(target)
 
 
 def _sources() -> SourceLines:
@@ -100,7 +116,7 @@ def _every_kind_of_report() -> tuple[RunReport, ...]:
         example='Run `lorecraft check` from the repository root:\n\n```console\n$ lorecraft check\n```',
     )
     review = RootRelativePath.parse('.agents/skills/review')
-    outside = EscapingSymlink(leaves_at=RootExit(ResolvedPath(review), PurePosixPath('/home/alex/review')))
+    outside = EscapingSymlink(leaves_at=RootExit(ResolvedPath(review), _target('/home/alex/review')))
     a = _document('code', 'a')
     duplicate_name = DuplicateKey(owner=_CODE_OWNER, line=_line(3), key='name', first_line=_line(2), kept_line=_line(3))
     over_budget = TooManyTokens(spec=_CODE_SPEC, line=_line(1), overrun=overrun(2400, 2000))

@@ -6,7 +6,7 @@ the SYMLINK and OTHER entries a scan would record are written out by hand. The s
 """
 
 from collections.abc import Mapping
-from pathlib import PurePosixPath
+from pathlib import Path, PurePosixPath
 from types import MappingProxyType
 from typing import Final
 
@@ -29,9 +29,27 @@ from ..snapshot import (
     SymlinkRecord,
     VirtualFileSystem,
 )
-from ..view import DirEntry, EntryKind, ResolvedPath, RootExit, TextDecodeError, UnrecordedFileError
+from ..view import (
+    AbsoluteSymlinkTarget,
+    DirEntry,
+    EntryKind,
+    RelativeSymlinkTarget,
+    ResolvedPath,
+    RootExit,
+    SymlinkTarget,
+    TextDecodeError,
+    UnrecordedFileError,
+)
 
 ROOT: Final[RootRelativePath] = RootRelativePath.parse('.')
+
+
+def _target(raw: str | Path | PurePosixPath) -> SymlinkTarget:
+    """Wrap a target written as it would be by `os.readlink`."""
+    target = PurePosixPath(raw)
+    if target.is_absolute():
+        return AbsoluteSymlinkTarget(target)
+    return RelativeSymlinkTarget(target)
 
 
 def _snapshot(records: Mapping[str, EntryRecord], *, scope: tuple[ScanRoot, ...] = ()) -> Snapshot:
@@ -1316,9 +1334,7 @@ class TestVirtualFileSystemFindRootExit:
         leaves_at = virtual.find_root_exit(path)
 
         #: Then
-        assert leaves_at == RootExit(ResolvedPath(path), PurePosixPath('/srv/docs')), (
-            'an absolute target is outside the root'
-        )
+        assert leaves_at == RootExit(ResolvedPath(path), _target('/srv/docs')), 'an absolute target is outside the root'
 
     def test_find_root_exit_with_a_link_climbing_above_the_root_returns_it_and_its_target(self) -> None:
         #: Given
@@ -1329,9 +1345,7 @@ class TestVirtualFileSystemFindRootExit:
         leaves_at = virtual.find_root_exit(path)
 
         #: Then
-        assert leaves_at == RootExit(ResolvedPath(path), PurePosixPath('../../..')), (
-            'the third `..` climbs above the root'
-        )
+        assert leaves_at == RootExit(ResolvedPath(path), _target('../../..')), 'the third `..` climbs above the root'
 
     def test_find_root_exit_through_a_link_leading_out_returns_that_link(self) -> None:
         #: Given
@@ -1343,7 +1357,7 @@ class TestVirtualFileSystemFindRootExit:
 
         #: Then
         assert leaves_at == RootExit(
-            ResolvedPath(RootRelativePath.parse('docs/code/absolute')), PurePosixPath('/srv/docs')
+            ResolvedPath(RootRelativePath.parse('docs/code/absolute')), _target('/srv/docs')
         ), 'a path past a link leading out leaves the root at that link'
 
     def test_find_root_exit_with_a_link_leading_inside_returns_none(self) -> None:
