@@ -115,7 +115,11 @@ The database and rules engine consume the common reference and descriptor unifor
 
 - **One refused-read report shape:** when a read of any Markdown item is refused, the engine reports
   `RefusedSubject`. The command line renders only the skipped item and its refused path in coverage;
-  `LC002` is reserved for refused reads that are not governed item reads.
+  `LC002` is reserved for refused reads that are not governed item reads. A refused read of any governed item
+  (document, spec, `SKILL.md`, resource) makes `check` exit 2, the same as `LC002` for a refused `.spec.json` or
+  directory: the check could not run fully, as distinct from a finding (exit 1). The engine still reports
+  `RefusedSubject`; only the command line maps it to the exit status, so a future long-running (editor) mode can show
+  it as a notice without failing.
 - **An unchecked symlink under `docs/` is coverage:** until corpus-directory symlinks are followed, a symlinked
   corpus directory or document that is not checked is visible in coverage. It is not a diagnostic and does not add
   a separate engine condition.
@@ -123,7 +127,7 @@ The database and rules engine consume the common reference and descriptor unifor
 ### Diagnostic and Inspection Compatibility
 
 The pipeline preserves the existing user-visible contract outside what [prd-020](prd-020-skills-corpus.md) requires,
-except for the link-bound diagnostic and unchecked-symlink coverage decisions above:
+except for the link-bound diagnostic, unchecked-symlink coverage, and refused-read exit status decisions above:
 
 - With no repository `skills` spec and the built-in schema enabled, skills and resources produce the
   exact diagnostics, notes, severity and sort order they produce today (`FR-013`).
@@ -183,8 +187,8 @@ Before committing code, verify:
 - [ ] An unchecked symlink under `docs/` appears in coverage rather than as a diagnostic or a separate engine
   condition until corpus-directory symlinks are followed
 - [ ] With no repository `skills` spec, the unified pipeline preserves existing diagnostics, notes, ordering,
-  exit codes and `inspect` shapes, except for the link-bound diagnostics and unchecked-symlink coverage specified
-  above
+  exit codes and `inspect` shapes, except for the link-bound diagnostics, unchecked-symlink coverage, and refused-read
+  exit status specified above
 
 ## References
 
