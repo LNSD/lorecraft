@@ -192,6 +192,8 @@ Before committing code, verify:
 
 ## References
 
+- [prd-014](prd-014-resilient-model-loading.md) - Related: Resilient model loading requirements updated for the
+  unified partial check policy
 - [prd-020](prd-020-skills-corpus.md) - Source: The skills corpus requirements (`FR-001` through `FR-007`, `FR-009`
   through `FR-011`, `FR-013`, `FR-014`, `FR-018`, `NFR-001`) that unified governed-item handling serves
 - [adr-003](adr-003-project-model.md) - Supersedes in part: Origin-specific reference representation;

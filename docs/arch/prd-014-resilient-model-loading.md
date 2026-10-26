@@ -28,8 +28,8 @@ needs it. The same workspace has to serve two consumers:
 - A failure to load part of the workspace is reported as a diagnostic at the place it happened, under a code of its
   own.
 - Everything a load failure does not touch is checked exactly as it would be with no failure.
-- In a check run, a document that a failed spec would govern is skipped and listed in coverage with the reason,
-  never reported as clean.
+- In a check run, a document that a failed spec would govern undergoes a partial check: spec-gated rules are
+  suppressed, always-run checks still execute, and the suppressed parts are reported as ungoverned, never reported as clean.
 - In the LSP-style mode, such a document is checked against the specs that did load, and its result is labelled
   partial.
 - What stops a run outright stays limited to what makes checking impossible: finding the root, reading a path
@@ -81,8 +81,9 @@ Scenario: A structure file that cannot be read
 
 ### US-2: Know what was not checked, and why (P1)
 
-As a maintainer, I want every document skipped because of a load failure listed in coverage with the spec that
-failed, so that a passing check never means a document was checked when it was not.
+As a maintainer, I want every document affected by a load failure checked with a partial check that suppresses
+spec-gated rules while running always-run checks, with the suppressed parts reported as ungoverned and naming the
+failed spec, so that a passing check never means a document was checked when it was not.
 
 **Independent test:** Check a workspace where a namespace spec that governs some documents of a corpus fails
 to load.
@@ -91,8 +92,8 @@ to load.
 Scenario: A failed namespace spec
   Given a corpus whose namespace spec for one namespace fails to load
   When the maintainer checks the workspace
-  Then each document in that namespace is listed in coverage as skipped, naming the failed spec
-  And no diagnostic of any rule is reported for those documents
+  Then each document in that namespace is reported in coverage as ungoverned for the suppressed spec parts, naming the failed spec
+  And always-run checks still run over those documents
   And the corpus's other documents are checked against the corpus spec
 ```
 
@@ -100,7 +101,7 @@ Scenario: A failed namespace spec
 Scenario: Coverage in machine-readable output
   Given a workspace where a spec fails to load
   When the maintainer checks it with machine-readable output
-  Then the coverage lists each skipped document with the reason and the failed spec
+  Then the coverage lists the ungoverned parts for each affected document with the reason and the failed spec
 ```
 
 ### US-3: An unreadable corpus or skill is reported where it is (P2)
@@ -164,9 +165,10 @@ Scenario: Checked against the specs that loaded
   it reports a file that cannot be decoded ([prd-008](prd-008-structured-checks.md) FR-020).
 - **FR-009:** THE SYSTEM SHALL check every subject that no load failure touches as it would with no load failure.
 - **FR-010:** WHILE a check run judges a document that a spec which failed to load would govern, THE SYSTEM
-  SHALL run no rule over the document and list it in coverage as skipped.
-- **FR-011:** THE SYSTEM SHALL report each skipped document with the reason and each spec whose failure caused
-  it, in the text and in the machine-readable output ([prd-008](prd-008-structured-checks.md) FR-019, FR-021).
+  SHALL suppress spec-gated rules over the document, run always-run checks, and report the suppressed parts
+  in coverage as ungoverned ([adr-023](adr-023-governed-items.md)).
+- **FR-011:** THE SYSTEM SHALL report each affected document with the reason and each spec whose failure caused
+  the suppression, in the text and in the machine-readable output ([prd-008](prd-008-structured-checks.md) FR-019, FR-021).
 - **FR-012:** WHERE the LSP-style mode judges a document that a spec which failed to load would govern, THE
   SYSTEM SHALL check the document against every governing spec that loaded, and label the result partial,
   naming each spec that failed.
@@ -184,15 +186,15 @@ Scenario: Checked against the specs that loaded
 
 ## Edge Cases
 
-- **A corpus spec fails while its namespace specs load.** Every document of the corpus is skipped
-  (FR-010), since the corpus spec governs each one.
+- **A corpus spec fails while its namespace specs load.** Every document of the corpus undergoes a partial
+  check (FR-010), since the corpus spec governs each one.
 - **A document's corpus cannot be listed.** The document is not known to the run, so it is neither checked nor listed
-  as skipped. The diagnostic at the directory stands for it (FR-003).
+  in coverage. The diagnostic at the directory stands for it (FR-003).
 - **A skills directory two agents declare cannot be listed.** It is one failure at one path, reported once (FR-006).
 - **A structure file fails in two ways.** It is reported under the first condition its loading meets. A second
   condition shows once the first is fixed.
-- **A failed spec governs no document.** Its diagnostic is still reported, and coverage lists no skipped
-  document for it.
+- **A failed spec governs no document.** Its diagnostic is still reported, and coverage lists no ungoverned
+  parts for it.
 - **A link on the way to a unit of the declaration cannot be followed.** A symlink whose target the run cannot
   read, or an entry it cannot inspect on a link chain it follows, still stops the run with an error, since no load
   failure stands for it yet. It is the one refusal inside the declaration that SC-005 excepts besides FR-005.
@@ -204,11 +206,11 @@ Scenario: Checked against the specs that loaded
 
 - **Load failure:** Part of the declaration that could not be read or used: a structure file, a corpus directory, a
   skills directory, a skill or a skill's main file. It has a place, a condition and a code.
-- **Skipped subject:** A document that a check run did not judge because a spec governing it failed to load. It
-  is coverage, never a diagnostic.
+- **Partial check:** A check run over a document whose governing spec failed to load, suppressing spec-gated rules
+  while executing always-run checks and reporting suppressed parts as ungoverned.
 - **Partial result:** A document's diagnostics in the LSP-style mode, judged against only the governing specs
   that loaded, and labelled with the ones that did not.
-- **Consumer policy:** What a consumer does with a document whose governing specs include a failed one: skip it
+- **Consumer policy:** What a consumer does with a document whose governing specs include a failed one: partial check
   (a check run) or judge it partially (the LSP-style mode).
 
 ## Success Criteria
@@ -216,8 +218,8 @@ Scenario: Checked against the specs that loaded
 - **SC-001:** In a workspace with one failed spec, every document it does not govern gets exactly the
   diagnostics it gets with that spec fixed.
 - **SC-002:** A check run over a workspace with any load failure never exits successfully.
-- **SC-003:** Every document a failed spec would govern is listed as skipped in coverage, and none of them is
-  reported with a rule's diagnostic.
+- **SC-003:** Every document a failed spec would govern undergoes a partial check whose suppressed parts are
+  reported as ungoverned in coverage, and spec-gated rules are not run over it.
 - **SC-004:** Every load-failure code has a reference page, a triggering case and a near miss.
 - **SC-005:** No failure inside the declaration stops a check run, except a documentation root or spec
   directory that cannot be listed (FR-005), and a link on the way to a unit of the declaration that cannot be
@@ -226,10 +228,12 @@ Scenario: Checked against the specs that loaded
 ## Assumptions
 
 - A spec's layers apply by conjunction, so a document governed by a
-  failed layer cannot be called clean from the layers that loaded. That is why a check run skips it.
+  failed layer cannot be called clean from the layers that loaded. That is why a check run treats its gated parts as
+  ungoverned.
 - The LSP-style mode reads the same model as a check run, and differs only in what it does with a document whose
   governing specs include a failed one.
 
 ## References
 
 - [prd-008](prd-008-structured-checks.md) - Foundation: The codes, coverage and output shape this PRD builds on
+- [adr-023](adr-023-governed-items.md) - Decision: Unified partial check policy suppressing spec-gated rules under a failed layer
