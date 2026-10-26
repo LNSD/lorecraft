@@ -60,7 +60,7 @@ from lorecraft.project.workspace import (
     load_workspace,
 )
 from lorecraft.project.workspace.builtin import AGENT_SKILLS_SPEC_LAYER as SKILLS_LAYER
-from lorecraft.schemas import BuiltinOrigin, SchemaInput, SchemaKind, SchemaRef
+from lorecraft.schemas import BuiltinOrigin, BuiltinSchemaInput, SchemaKind, SchemaRef
 from lorecraft.schemas.builtin import AGENT_SKILLS_SCHEMA_INPUT
 from lorecraft.vfs import (
     AbsoluteSymlinkTarget,
@@ -834,7 +834,7 @@ class TestLoadWorkspaceEdgeCases:
         #: Given
         origin = BuiltinOrigin('builtin:test-layer')
         reference = SchemaRef(SchemaKind.FRONTMATTER, origin.identity)
-        schema_input = SchemaInput(reference, origin, FrozenMapping.from_plain({'type': 'object'}))
+        schema_input = BuiltinSchemaInput(reference.kind, origin, FrozenMapping.from_plain({'type': 'object'}))
         layer = BuiltinSpecLayer(
             origin,
             frozenset({ItemType.DOCUMENT}),

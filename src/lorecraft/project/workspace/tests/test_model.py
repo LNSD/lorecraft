@@ -47,10 +47,10 @@ from lorecraft.project.schemas import (
 from lorecraft.project.skill import OutsideSymlink, SkillLocation, SkillRef, SkillsDir
 from lorecraft.schemas import (
     BuiltinOrigin,
+    BuiltinSchemaInput,
     DuplicateSchemaRefError,
     RepositoryOrigin,
     RepositorySchemaInput,
-    SchemaInput,
     SchemaKind,
     SchemaRef,
 )
@@ -1133,7 +1133,7 @@ class TestWorkspaceModel:
         location = _regular_skill('.agents/skills/audit')
         origin = BuiltinOrigin('builtin:test-layer')
         reference = SchemaRef(SchemaKind.FRONTMATTER, origin.identity)
-        schema_input = SchemaInput(reference, origin, FrozenMapping.from_plain({'type': 'object'}))
+        schema_input = BuiltinSchemaInput(reference.kind, origin, FrozenMapping.from_plain({'type': 'object'}))
         layer = BuiltinSpecLayer(origin, frozenset({ItemType.SKILL_ENTRYPOINT}), schema_input)
         model = WorkspaceModel(
             corpus_values=frozenset(),
@@ -1156,7 +1156,7 @@ class TestWorkspaceModel:
         #: Given
         origin = BuiltinOrigin('builtin:test-layer')
         reference = SchemaRef(SchemaKind.STRUCTURE, origin.identity)
-        schema_input = SchemaInput(reference, origin, FrozenMapping.from_plain({'lines': 50}))
+        schema_input = BuiltinSchemaInput(reference.kind, origin, FrozenMapping.from_plain({'lines': 50}))
 
         #: When
         with pytest.raises(InvalidBuiltinFrontmatterSchemaError) as exc_info:
@@ -1195,7 +1195,7 @@ class TestWorkspaceModel:
         #: Given
         origin = BuiltinOrigin('builtin:test-layer')
         reference = SchemaRef(SchemaKind.FRONTMATTER, origin.identity)
-        schema_input = SchemaInput(reference, origin, FrozenMapping.from_plain({'type': 'object'}))
+        schema_input = BuiltinSchemaInput(reference.kind, origin, FrozenMapping.from_plain({'type': 'object'}))
         layer = BuiltinSpecLayer(
             origin,
             frozenset({ItemType.DOCUMENT}),
@@ -1220,7 +1220,7 @@ class TestWorkspaceModel:
         #: Given
         origin = BuiltinOrigin('builtin:test-layer')
         reference = SchemaRef(SchemaKind.FRONTMATTER, origin.identity)
-        schema_input = SchemaInput(reference, origin, FrozenMapping.from_plain({'type': 'object'}))
+        schema_input = BuiltinSchemaInput(reference.kind, origin, FrozenMapping.from_plain({'type': 'object'}))
         layer = BuiltinSpecLayer(
             origin,
             frozenset({ItemType.DOCUMENT}),
@@ -1240,7 +1240,7 @@ class TestWorkspaceModel:
         #: Given
         origin = BuiltinOrigin('builtin:test-layer')
         reference = SchemaRef(SchemaKind.FRONTMATTER, origin.identity)
-        schema_input = SchemaInput(reference, origin, FrozenMapping.from_plain({'type': 'object'}))
+        schema_input = BuiltinSchemaInput(reference.kind, origin, FrozenMapping.from_plain({'type': 'object'}))
         repository_input = RepositorySchemaInput(
             reference,
             RepositoryOrigin(RootRelativePath.parse('docs/test.json'), 'test'),
@@ -1814,8 +1814,8 @@ class TestSpecifications:
         )
         ref = _spec_ref('feat-cli')
         builtin_reference = SchemaRef(SchemaKind.FRONTMATTER, 'builtin:spec-floor')
-        builtin_input = SchemaInput(
-            builtin_reference,
+        builtin_input = BuiltinSchemaInput(
+            builtin_reference.kind,
             BuiltinOrigin(builtin_reference.identity),
             FrozenMapping({}),
         )

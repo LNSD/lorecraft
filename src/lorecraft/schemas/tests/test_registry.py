@@ -6,14 +6,15 @@ from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.path import RootRelativePath
 from lorecraft.schemas import (
     BuiltinOrigin,
+    BuiltinSchemaInput,
     DuplicateSchemaRefError,
     EmptyBuiltinOriginIdentityError,
     EmptyRepositoryLayerError,
     EmptySchemaRefIdentityError,
     RepositoryOrigin,
+    RepositorySchemaInput,
     SchemaInput,
     SchemaKind,
-    SchemaOriginMismatchError,
     SchemaRef,
     SchemaRefError,
     SchemaRegistry,
@@ -21,7 +22,7 @@ from lorecraft.schemas import (
 
 
 def _repository_schema(identity: str, kind: SchemaKind = SchemaKind.STRUCTURE) -> SchemaInput:
-    return SchemaInput(
+    return RepositorySchemaInput(
         reference=SchemaRef(kind, identity),
         origin=RepositoryOrigin(RootRelativePath.parse(f'docs/{identity}.yaml'), 'global'),
         document=FrozenMapping.from_plain({'type': 'object'}),
@@ -40,6 +41,9 @@ class TestSchemaRegistry:
 
         #: Then
         assert resolved is schema_input, 'resolution returns the loaded immutable input'
+        assert registry.inputs == FrozenMapping({schema_input.reference: schema_input}), (
+            'registry inputs are keyed by their typed references'
+        )
 
     def test_resolve_with_unknown_reference_raises(self) -> None:
         #: Given
@@ -67,13 +71,13 @@ class TestSchemaRegistry:
     @pytest.mark.parametrize('kind', [SchemaKind.STRUCTURE, SchemaKind.FRONTMATTER])
     def test_builtin_origin_can_back_any_schema_kind(self, kind: SchemaKind) -> None:
         #: Given
-        reference = SchemaRef(kind, 'agent-skills')
-        origin = BuiltinOrigin('agent-skills')
+        identity = 'agent-skills'
+        origin = BuiltinOrigin(identity)
         document = FrozenMapping.from_plain({'type': 'object'})
 
         #: When
-        schema_input = SchemaInput(
-            reference=reference,
+        schema_input = BuiltinSchemaInput(
+            kind=kind,
             origin=origin,
             document=document,
         )
@@ -81,19 +85,17 @@ class TestSchemaRegistry:
         #: Then
         assert schema_input.origin is origin, 'builtin provenance needs no repository path'
 
-    def test_builtin_input_with_different_origin_identity_raises(self) -> None:
+    def test_builtin_input_derives_its_reference_from_its_origin(self) -> None:
         #: Given
-        reference = SchemaRef(SchemaKind.STRUCTURE, 'agent-skills')
-        origin = BuiltinOrigin('other-builtin')
+        kind = SchemaKind.STRUCTURE
+        origin = BuiltinOrigin('agent-skills')
         document = FrozenMapping.from_plain({'type': 'object'})
 
         #: When
-        with pytest.raises(SchemaOriginMismatchError) as exc_info:
-            SchemaInput(reference=reference, origin=origin, document=document)
+        schema_input = BuiltinSchemaInput(kind=kind, origin=origin, document=document)
 
         #: Then
-        assert exc_info.value.reference == reference, 'the refusal identifies the mismatched reference'
-        assert exc_info.value.origin == origin, 'the refusal preserves the mismatched origin'
+        assert schema_input.reference == SchemaRef(kind, origin.identity), 'the reference uses the origin identity once'
 
     def test_schema_kinds_remain_distinct_for_the_same_identity(self) -> None:
         #: Given
