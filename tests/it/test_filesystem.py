@@ -20,6 +20,7 @@ from lorecraft.core.error import Error
 from lorecraft.core.num import UnsignedInt
 from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.vfs import (
+    AbsoluteSymlinkTarget,
     ChangeKind,
     DirectoryRecord,
     DirEntry,
@@ -41,6 +42,7 @@ from lorecraft.vfs import (
     RecordedFileReadPathError,
     RecordedFileResolveError,
     RecordedRootExitWalkError,
+    RelativeSymlinkTarget,
     ResolvedPath,
     RootExit,
     RootExitWalkError,
@@ -53,6 +55,7 @@ from lorecraft.vfs import (
     SnapshotLinkReadError,
     SnapshotRecords,
     SymlinkRecord,
+    SymlinkTarget,
     TextDecodeError,
     UnrecordedFileError,
     VirtualFileSystem,
@@ -60,16 +63,22 @@ from lorecraft.vfs import (
     take_snapshot,
 )
 from lorecraft.vfs.view import (
-    AbsoluteSymlinkTarget,
     DirListFailure,
     DirResolveFailure,
     EntryInspectFailure,
     FileReadFailure,
     FileResolveFailure,
-    RelativeSymlinkTarget,
     RootExitWalkFailure,
-    SymlinkTarget,
 )
+
+
+def _target(raw: str | PurePosixPath | Path) -> SymlinkTarget:
+    """Wrap a target written as it would be by `os.readlink`."""
+    target = PurePosixPath(raw)
+    if target.is_absolute():
+        return AbsoluteSymlinkTarget(target)
+    return RelativeSymlinkTarget(target)
+
 
 DOCS_DIR: Final[RootRelativePath] = RootRelativePath.parse('docs')
 
@@ -343,14 +352,6 @@ def chain_of_40_links(tmp_path: Path) -> str:
         (tmp_path / f'link-{index}').symlink_to(target)
         target = f'link-{index}'
     return target
-
-
-def _target(raw: str | Path | PurePosixPath) -> SymlinkTarget:
-    """Wrap a target written as it would be by `os.readlink`."""
-    target = PurePosixPath(raw)
-    if target.is_absolute():
-        return AbsoluteSymlinkTarget(target)
-    return RelativeSymlinkTarget(target)
 
 
 def _snapshot(records: Mapping[str, EntryRecord], *, scope: tuple[ScanRoot, ...]) -> Snapshot:
@@ -1164,7 +1165,7 @@ class TestTakeSnapshot:
             {
                 'docs': DirectoryRecord(listed=True),
                 'docs/a.md': FileRecord(b'# A\n'),
-                'docs/linked.md': SymlinkRecord(PurePosixPath('a.md')),
+                'docs/linked.md': SymlinkRecord(_target('a.md')),
             },
             scope=SNAPSHOT_SCOPE,
         ), 'the link is an entry with its target recorded, and no bytes are read through it'
@@ -1213,7 +1214,7 @@ class TestTakeSnapshot:
                 '.agents/skills/alpha': DirectoryRecord(listed=True),
                 '.agents/skills/alpha/SKILL.md': FileRecord(b'---\n'),
                 '.claude': DirectoryRecord(listed=True, climbed=True),
-                '.claude/skills': SymlinkRecord(PurePosixPath('../.agents/skills')),
+                '.claude/skills': SymlinkRecord(_target('../.agents/skills')),
             },
             scope=SNAPSHOT_SCOPE,
         ), 'the linked agent directory is one link, its chain walked for the record; its skills are listed once'
@@ -1228,7 +1229,7 @@ class TestTakeSnapshot:
         snapshot = take_snapshot(root, SNAPSHOT_SCOPE)
 
         #: Then
-        assert snapshot.symlink_targets() == {RootRelativePath.parse('docs/absolute'): PurePosixPath('../docs/code')}, (
+        assert snapshot.symlink_targets() == {RootRelativePath.parse('docs/absolute'): _target('../docs/code')}, (
             'an absolute target spelled through the alias is recorded from the link'
         )
 
@@ -1242,7 +1243,7 @@ class TestTakeSnapshot:
         snapshot = take_snapshot(root, SNAPSHOT_SCOPE)
 
         #: Then
-        assert snapshot.symlink_targets() == {RootRelativePath.parse('docs/absolute'): PurePosixPath('../docs/code')}, (
+        assert snapshot.symlink_targets() == {RootRelativePath.parse('docs/absolute'): _target('../docs/code')}, (
             'an absolute target spelled through the real root is recorded from the link'
         )
 
@@ -1258,7 +1259,7 @@ class TestTakeSnapshot:
         snapshot = take_snapshot(tmp_path, SNAPSHOT_SCOPE)
 
         #: Then
-        assert snapshot.symlink_targets() == {RootRelativePath.parse('docs/outside'): PurePosixPath(outside)}, (
+        assert snapshot.symlink_targets() == {RootRelativePath.parse('docs/outside'): _target(outside)}, (
             'an absolute target outside the root is recorded as the disk returned it'
         )
 
@@ -1320,7 +1321,7 @@ class TestTakeSnapshot:
         assert snapshot == _snapshot(
             {
                 '.claude': DirectoryRecord(climbed=True),
-                '.claude/skills': SymlinkRecord(PurePosixPath('../skills')),
+                '.claude/skills': SymlinkRecord(_target('../skills')),
                 'skills': DirectoryRecord(listed=True),
                 'skills/review': DirectoryRecord(listed=True),
                 'skills/review/SKILL.md': FileRecord(b'---\n'),
@@ -1344,7 +1345,7 @@ class TestTakeSnapshot:
             {
                 '.agents': DirectoryRecord(climbed=True),
                 '.agents/skills': DirectoryRecord(listed=True, climbed=True),
-                '.agents/skills/review': SymlinkRecord(PurePosixPath('../../skills/review')),
+                '.agents/skills/review': SymlinkRecord(_target('../../skills/review')),
                 'skills/review': DirectoryRecord(listed=True),
                 'skills/review/SKILL.md': FileRecord(b'---\n'),
             },
@@ -1369,7 +1370,7 @@ class TestTakeSnapshot:
             {
                 '.agents': DirectoryRecord(climbed=True),
                 '.agents/skills': DirectoryRecord(listed=True, climbed=True),
-                '.agents/skills/review': SymlinkRecord(PurePosixPath('../../skills/review')),
+                '.agents/skills/review': SymlinkRecord(_target('../../skills/review')),
             },
             scope=scope,
         ), 'a linked entry costs depth as a directory entry does, so at depth 0 it is recorded and not entered'
@@ -1389,8 +1390,8 @@ class TestTakeSnapshot:
         assert snapshot == _snapshot(
             {
                 '.claude': DirectoryRecord(climbed=True),
-                '.claude/skills': SymlinkRecord(PurePosixPath('../current')),
-                'current': SymlinkRecord(PurePosixPath('skills')),
+                '.claude/skills': SymlinkRecord(_target('../current')),
+                'current': SymlinkRecord(_target('skills')),
                 'skills': DirectoryRecord(listed=True),
                 'skills/review': DirectoryRecord(),
             },
@@ -1414,7 +1415,7 @@ class TestTakeSnapshot:
         assert snapshot == _snapshot(
             {
                 '.agents/skills': DirectoryRecord(listed=True),
-                '.agents/skills/review': SymlinkRecord(PurePosixPath(outside)),
+                '.agents/skills/review': SymlinkRecord(_target(outside)),
             },
             scope=scope,
         ), 'a link leading outside the root is recorded, and nothing outside the root is read'
@@ -1434,7 +1435,7 @@ class TestTakeSnapshot:
         assert snapshot == _snapshot(
             {
                 '.agents/skills': DirectoryRecord(listed=True),
-                '.agents/skills/loop': SymlinkRecord(PurePosixPath('loop')),
+                '.agents/skills/loop': SymlinkRecord(_target('loop')),
             },
             scope=scope,
         ), 'a link that leads back to itself ends the walk instead of the scan never returning'
@@ -1456,7 +1457,7 @@ class TestTakeSnapshot:
             {
                 '.agents': DirectoryRecord(climbed=True),
                 '.agents/skills': DirectoryRecord(listed=True, climbed=True),
-                '.agents/skills/SKILL.md': SymlinkRecord(PurePosixPath('../../REVIEW.md')),
+                '.agents/skills/SKILL.md': SymlinkRecord(_target('../../REVIEW.md')),
                 'REVIEW.md': FileRecord(b'---\n'),
             },
             scope=scope,
@@ -1479,7 +1480,7 @@ class TestTakeSnapshot:
         assert snapshot == _snapshot(
             {
                 '.agents/skills': DirectoryRecord(listed=True),
-                '.agents/skills/SKILL.md': SymlinkRecord(PurePosixPath(outside)),
+                '.agents/skills/SKILL.md': SymlinkRecord(_target(outside)),
             },
             scope=scope,
         ), 'a link leading outside the root is recorded, and no bytes outside the root are read'
@@ -1503,7 +1504,7 @@ class TestTakeSnapshot:
             {
                 '.agents': DirectoryRecord(climbed=True),
                 '.agents/skills': DirectoryRecord(listed=True, climbed=True),
-                '.agents/skills/review': SymlinkRecord(PurePosixPath('../../skills/tmp/../review')),
+                '.agents/skills/review': SymlinkRecord(_target('../../skills/tmp/../review')),
                 'skills/review': DirectoryRecord(listed=True),
                 'skills/review/SKILL.md': FileRecord(b'---\n'),
                 'skills/tmp': DirectoryRecord(climbed=True),
@@ -1529,7 +1530,7 @@ class TestTakeSnapshot:
         assert snapshot == _snapshot(
             {
                 'docs': DirectoryRecord(listed=True, climbed=True),
-                'docs/shared': SymlinkRecord(PurePosixPath('../shared')),
+                'docs/shared': SymlinkRecord(_target('../shared')),
                 'shared': DirectoryRecord(listed=True),
                 'shared/a.md': FileRecord(b'# A\n'),
             },
@@ -1601,7 +1602,7 @@ class TestTakeSnapshot:
             {
                 '.agents': DirectoryRecord(climbed=True),
                 '.agents/skills': DirectoryRecord(listed=True, climbed=True),
-                '.agents/skills/review': SymlinkRecord(PurePosixPath('../../skills/review')),
+                '.agents/skills/review': SymlinkRecord(_target('../../skills/review')),
                 'skills/review': DirectoryRecord(listed=True),
                 'skills/review/references': DirectoryRecord(),
             },
@@ -1626,12 +1627,12 @@ class TestTakeSnapshot:
             {
                 '.agents': DirectoryRecord(climbed=True),
                 '.agents/skills': DirectoryRecord(listed=True, climbed=True),
-                '.agents/skills/review': SymlinkRecord(PurePosixPath('../../skills/review')),
+                '.agents/skills/review': SymlinkRecord(_target('../../skills/review')),
                 'shared/references': DirectoryRecord(listed=True),
                 'shared/references/guide.md': FileRecord(b'# Guide\n'),
                 'skills': DirectoryRecord(climbed=True),
                 'skills/review': DirectoryRecord(listed=True, climbed=True),
-                'skills/review/references': SymlinkRecord(PurePosixPath('../../shared/references')),
+                'skills/review/references': SymlinkRecord(_target('../../shared/references')),
             },
             scope=scope,
         ), 'a directory reached through a followed link has its own links followed as well'
@@ -1655,7 +1656,7 @@ class TestTakeSnapshot:
             {
                 '.agents': DirectoryRecord(climbed=True),
                 '.agents/skills': DirectoryRecord(listed=True, climbed=True),
-                '.agents/skills/review': SymlinkRecord(PurePosixPath('../../tmp/../skills/review')),
+                '.agents/skills/review': SymlinkRecord(_target('../../tmp/../skills/review')),
             },
             scope=scope,
         ), 'a `..` after a missing directory is no step at all, so the link leads nowhere and nothing is listed'
@@ -1722,7 +1723,7 @@ class TestTakeSnapshot:
                 'shared/deep/b.md': FileRecord(b'# B\n'),
                 'skills': DirectoryRecord(listed=True, climbed=True),
                 'skills/x': DirectoryRecord(listed=True, climbed=True),
-                'skills/x/refs': SymlinkRecord(PurePosixPath('../../shared')),
+                'skills/x/refs': SymlinkRecord(_target('../../shared')),
             },
             scope=scope,
         ), 'the link inside a skill is followed, and the directory it leads to is listed with no depth limit'
@@ -1745,7 +1746,7 @@ class TestTakeSnapshot:
                 'skills': DirectoryRecord(listed=True),
                 'skills/x': DirectoryRecord(listed=True, climbed=True),
                 'skills/x/SKILL.md': FileRecord(b'---\n'),
-                'skills/x/up': SymlinkRecord(PurePosixPath('..')),
+                'skills/x/up': SymlinkRecord(_target('..')),
             },
             scope=scope,
         ), 'the link leads back to skills/, already listed with no limit, so the scan ends instead of looping'
@@ -1767,9 +1768,9 @@ class TestTakeSnapshot:
         assert snapshot == _snapshot(
             {
                 'a': DirectoryRecord(listed=True, climbed=True),
-                'a/to-b': SymlinkRecord(PurePosixPath('../b')),
+                'a/to-b': SymlinkRecord(_target('../b')),
                 'b': DirectoryRecord(listed=True, climbed=True),
-                'b/to-a': SymlinkRecord(PurePosixPath('../a')),
+                'b/to-a': SymlinkRecord(_target('../a')),
             },
             scope=scope,
         ), 'a/ leads to b/ and b/ back to a/, already listed with no limit, so the scan ends'
@@ -1790,7 +1791,7 @@ class TestTakeSnapshot:
             {
                 'skills': DirectoryRecord(listed=True),
                 'skills/x': DirectoryRecord(listed=True),
-                'skills/x/self': SymlinkRecord(PurePosixPath('self')),
+                'skills/x/self': SymlinkRecord(_target('self')),
             },
             scope=scope,
         ), 'a link to itself leads nowhere, so it is recorded and nothing is listed through it'
@@ -3351,8 +3352,8 @@ class TestPlainRootWalksItsLinksForTheRecord:
                 'docs/code': DirectoryRecord(listed=True, climbed=True),
                 'docs/feat': DirectoryRecord(listed=True),
                 'docs/feat/a.md': FileRecord(b'# A\n'),
-                'docs/linked': SymlinkRecord(PurePosixPath('code/../feat')),
-                'docs/out': SymlinkRecord(PurePosixPath('../src/../../..')),
+                'docs/linked': SymlinkRecord(_target('code/../feat')),
+                'docs/out': SymlinkRecord(_target('../src/../../..')),
                 'src': DirectoryRecord(climbed=True),
             },
             scope=PLAIN_DOCS_SCOPE,

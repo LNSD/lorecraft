@@ -53,12 +53,21 @@ from lorecraft.vfs import (
     Utf8Reason,
     take_snapshot,
 )
+from lorecraft.vfs.view import AbsoluteSymlinkTarget, RelativeSymlinkTarget, SymlinkTarget
 
 GUIDE: Final[DocumentRef] = DocumentRef(CorpusName.parse('code'), AspectFilename.parse('guide'))
 PYTHON_GUIDE: Final[DocumentRef] = DocumentRef(CorpusName.parse('code'), AspectFilename.parse('python-guide'))
 REVIEW: Final[SkillRef] = SkillRef(
     ResolvedPath(RootRelativePath.parse('.agents/skills')), PathComponent.parse('review')
 )
+
+
+def _target(raw: str | PurePosixPath | Path) -> SymlinkTarget:
+    """Wrap a target written as it would be by `os.readlink`."""
+    target = PurePosixPath(raw)
+    if target.is_absolute():
+        return AbsoluteSymlinkTarget(target)
+    return RelativeSymlinkTarget(target)
 
 
 def _snapshot(guide: bytes) -> Snapshot:
@@ -191,11 +200,11 @@ def _climbing_chain_snapshot() -> Snapshot:
             'c/d/SKILL.md': FileRecord(b'---\nname: d\n---\n'),
             'c/tmp': DirectoryRecord(climbed=True),
             'skills': DirectoryRecord(listed=True, climbed=True),
-            'skills/far': SymlinkRecord(PurePosixPath('../c/tmp/../d')),
-            'skills/l': SymlinkRecord(PurePosixPath('../a/tmp/../b')),
-            'skills/m': SymlinkRecord(PurePosixPath('../a/b')),
-            'skills/n': SymlinkRecord(PurePosixPath('../a/missing/../b')),
-            'skills/out': SymlinkRecord(PurePosixPath('../a/tmp/../../..')),
+            'skills/far': SymlinkRecord(_target('../c/tmp/../d')),
+            'skills/l': SymlinkRecord(_target('../a/tmp/../b')),
+            'skills/m': SymlinkRecord(_target('../a/b')),
+            'skills/n': SymlinkRecord(_target('../a/missing/../b')),
+            'skills/out': SymlinkRecord(_target('../a/tmp/../../..')),
         },
         scope=(
             ScanRoot(RootRelativePath.parse('skills'), depth=UnsignedInt(1), follow_links=True),
@@ -231,7 +240,7 @@ class TestDatabase:
         #: Given
         # What a scan records for a `docs -> documentation` link: the link on the way to the scope root, and
         # nothing behind it.
-        snapshot = _snapshot_of({'docs': SymlinkRecord(PurePosixPath('documentation'))})
+        snapshot = _snapshot_of({'docs': SymlinkRecord(_target('documentation'))})
 
         #: When
         with pytest.raises(LinkedLayoutError) as exc_info:
@@ -413,7 +422,7 @@ class TestDatabase:
         # The skills root follows links, so the link adds skills/review to what the scan lists; the first question
         # builds the expanded scope the database keeps, and the second is answered from it.
         snapshot = _snapshot_of(
-            {'.agents/skills/review': SymlinkRecord(PurePosixPath('../../skills/review'))},
+            {'.agents/skills/review': SymlinkRecord(_target('../../skills/review'))},
             scope=(ScanRoot(RootRelativePath.parse('.agents/skills'), depth=UnsignedInt(1), follow_links=True),),
         )
         database = Database.from_snapshot(snapshot, builtin_layers=(SKILLS_LAYER,))
@@ -831,7 +840,7 @@ class TestDatabase:
         records: dict[RootRelativePath, EntryRecord] = dict(shipped.records)
         records[RootRelativePath.parse('.agents')] = DirectoryRecord(listed=True, climbed=True)
         records[RootRelativePath.parse('.agents/skills')] = DirectoryRecord(listed=True, climbed=True)
-        records[RootRelativePath.parse('.agents/skills/review')] = SymlinkRecord(PurePosixPath('../../skills/review'))
+        records[RootRelativePath.parse('.agents/skills/review')] = SymlinkRecord(_target('../../skills/review'))
         database = Database.from_snapshot(Snapshot(SnapshotRecords(records)), builtin_layers=(SKILLS_LAYER,))
         source = _skill_text(database, REVIEW)
 

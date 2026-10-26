@@ -2,7 +2,7 @@
 
 import errno
 import os
-from pathlib import Path, PurePosixPath
+from pathlib import Path
 from typing import assert_never
 
 from lorecraft.core.path import RootRelativePath
@@ -21,6 +21,7 @@ from lorecraft.vfs import (
     RootExitWalkError,
     SnapshotEntryInspectError,
     SnapshotLinkReadError,
+    SymlinkTarget,
     disk_location,
 )
 from lorecraft.vfs.disk import find_listing, find_lstat_kind, find_symlink_target, kind_of_mode
@@ -220,7 +221,7 @@ class _ViewDiskEntries:
         """
         return find_lstat_kind(self._root, path)
 
-    def find_link_target(self, path: RootRelativePath) -> PurePosixPath | None:
+    def find_link_target(self, path: RootRelativePath) -> SymlinkTarget | None:
         """Read the target of the symlink at `path`; `None` when it vanished.
 
         Args:

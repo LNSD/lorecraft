@@ -236,14 +236,14 @@ class TestSnapshotSymlinkTargets:
 
         #: Then
         assert targets == {
-            RootRelativePath.parse('.agents/skills/beta'): PurePosixPath('alpha'),
-            RootRelativePath.parse('.claude/skills'): PurePosixPath('../.agents/skills'),
-            RootRelativePath.parse('docs/code/above'): PurePosixPath('../../..'),
-            RootRelativePath.parse('docs/code/absolute'): PurePosixPath('/srv/docs'),
-            RootRelativePath.parse('docs/code/dangling'): PurePosixPath('missing'),
-            RootRelativePath.parse('docs/code/linked.md'): PurePosixPath('a.md'),
-            RootRelativePath.parse('docs/code/loop'): PurePosixPath('loop'),
-            RootRelativePath.parse('docs/code/up'): PurePosixPath('../..'),
+            RootRelativePath.parse('.agents/skills/beta'): _target('alpha'),
+            RootRelativePath.parse('.claude/skills'): _target('../.agents/skills'),
+            RootRelativePath.parse('docs/code/above'): _target('../../..'),
+            RootRelativePath.parse('docs/code/absolute'): _target('/srv/docs'),
+            RootRelativePath.parse('docs/code/dangling'): _target('missing'),
+            RootRelativePath.parse('docs/code/linked.md'): _target('a.md'),
+            RootRelativePath.parse('docs/code/loop'): _target('loop'),
+            RootRelativePath.parse('docs/code/up'): _target('../..'),
         }, 'every symlink record, an entry of a listing or a link met on the way to a scope root, and no other'
 
     def test_symlink_targets_of_links_recorded_out_of_path_order_returns_them_in_path_order(self) -> None:

@@ -31,13 +31,16 @@ from lorecraft.project.syntax import LineNumber
 from lorecraft.project.syntax import Link as MarkdownLink
 from lorecraft.project.workspace.builtin import AGENT_SKILLS_SPEC_LAYER as SKILLS_LAYER
 from lorecraft.vfs import (
+    AbsoluteSymlinkTarget,
     ByteOffset,
     DirectoryRecord,
     FileRecord,
     OtherRecord,
+    RelativeSymlinkTarget,
     ResolvedPath,
     Snapshot,
     SymlinkRecord,
+    SymlinkTarget,
     Utf8Failure,
     Utf8Reason,
     take_snapshot,
@@ -159,6 +162,14 @@ def skill_tree(tmp_path: Path) -> Path:
     return root
 
 
+def _target(raw: str | PurePosixPath | Path) -> SymlinkTarget:
+    """Wrap a target written as it would be by `os.readlink`."""
+    target = PurePosixPath(raw)
+    if target.is_absolute():
+        return AbsoluteSymlinkTarget(target)
+    return RelativeSymlinkTarget(target)
+
+
 @pytest.mark.it
 class TestSnapshotScopeInsideASkill:
     def test_take_snapshot_with_a_skill_reads_every_file_at_any_depth(self, skill_tree: Path) -> None:
@@ -189,7 +200,7 @@ class TestSnapshotScopeInsideASkill:
         snapshot = take_snapshot(skill_tree, SNAPSHOT_SCOPE)
 
         #: Then
-        assert snapshot.records[RootRelativePath.parse(f'{SKILL}/outside')] == SymlinkRecord(PurePosixPath(outside)), (
+        assert snapshot.records[RootRelativePath.parse(f'{SKILL}/outside')] == SymlinkRecord(_target(outside)), (
             'the link outside the repository is recorded as it is, absolute, and nothing behind it is read'
         )
 
@@ -201,7 +212,7 @@ class TestSnapshotScopeInsideASkill:
         snapshot = take_snapshot(skill_tree, SNAPSHOT_SCOPE)
 
         #: Then
-        assert snapshot.records[link] == SymlinkRecord(PurePosixPath('..')), (
+        assert snapshot.records[link] == SymlinkRecord(_target('..')), (
             'the link back to the skill directory is recorded, and the scan ends rather than looping through it'
         )
 

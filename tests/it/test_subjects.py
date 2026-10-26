@@ -29,7 +29,7 @@ REVIEW: Final[SkillRef] = SkillRef(
 )
 
 
-def _target(raw: str | Path | PurePosixPath) -> SymlinkTarget:
+def _target(raw: str | PurePosixPath | Path) -> SymlinkTarget:
     """Wrap a target written as it would be by `os.readlink`."""
     target = PurePosixPath(raw)
     if target.is_absolute():

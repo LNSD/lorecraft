@@ -9,7 +9,6 @@ share this module because the view is built from the snapshot's records and answ
 
 from collections.abc import Mapping
 from dataclasses import dataclass
-from pathlib import PurePosixPath
 from typing import assert_never
 
 from lorecraft.core.error import Error
@@ -19,7 +18,6 @@ from lorecraft.core.path import ROOT, RootRelativePath
 from .root_expansion import ResolvedDirectory, ResolvedFile, find_destination
 from .scan_root import ScanRoot
 from .view import (
-    AbsoluteSymlinkTarget,
     DirEntry,
     EntryKind,
     FileSystem,
@@ -32,12 +30,10 @@ from .view import (
     RecordedFileReadPathError,
     RecordedFileResolveError,
     RecordedRootExitWalkError,
-    RelativeSymlinkTarget,
     ResolvedPath,
     RootExit,
     SymlinkTarget,
     UnrecordedFileError,
-    classify_symlink_target,
     decode_text,
 )
 
@@ -97,11 +93,6 @@ class SymlinkRecord:
     """
 
     target: SymlinkTarget
-
-    def __post_init__(self) -> None:
-        """Normalize a legacy raw path into its absolute or relative case."""
-        if isinstance(self.target, PurePosixPath):
-            object.__setattr__(self, 'target', classify_symlink_target(self.target))
 
     @property
     def kind(self) -> EntryKind:
@@ -275,19 +266,13 @@ class Snapshot:
     # Defaults to empty: a snapshot built by hand scanned nothing, so it declares no scope.
     scope: tuple[ScanRoot, ...] = ()
 
-    def symlink_targets(self) -> dict[RootRelativePath, PurePosixPath]:
+    def symlink_targets(self) -> dict[RootRelativePath, SymlinkTarget]:
         """Every recorded symlink's target, keyed by the link's path in path order; what the scope query follows."""
-        targets: dict[RootRelativePath, PurePosixPath] = {}
+        targets: dict[RootRelativePath, SymlinkTarget] = {}
         for path, record in self.records.items():
             match record:
                 case SymlinkRecord(target=target):
-                    match target:
-                        case AbsoluteSymlinkTarget(target=path_target) | RelativeSymlinkTarget(target=path_target):
-                            targets[path] = path_target
-                        case PurePosixPath():
-                            targets[path] = target
-                        case _:
-                            assert_never(target)
+                    targets[path] = target
                 case (
                     DirectoryRecord()
                     | FileRecord()
@@ -640,7 +625,7 @@ class _SnapshotEntries:
         Args:
             snapshot: The recorded state the walks see; read once, never changed.
         """
-        self._targets = {path: classify_symlink_target(target) for path, target in snapshot.symlink_targets().items()}
+        self._targets = snapshot.symlink_targets()
         self._kinds: dict[RootRelativePath, EntryKind] = {}
         # An entry the scan could not inspect has no kind: `find_kind` raises its refusal before it answers one.
         self._uninspectable: dict[RootRelativePath, OsRefusal] = {}

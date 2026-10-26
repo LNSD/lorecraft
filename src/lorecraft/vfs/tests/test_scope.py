@@ -481,7 +481,7 @@ class TestScopeIndex:
 class TestRecordedLinksFindKind:
     def test_find_kind_with_a_recorded_link_returns_symlink(self) -> None:
         #: Given
-        recorded = _RecordedLinks({_path('.agents/skills/linked'): PurePosixPath('../../docs')}, ())
+        recorded = _RecordedLinks({_path('.agents/skills/linked'): _target('../../docs')}, ())
         path = _path('.agents/skills/linked')
 
         #: When
@@ -492,7 +492,7 @@ class TestRecordedLinksFindKind:
 
     def test_find_kind_with_a_path_below_a_recorded_link_returns_directory(self) -> None:
         #: Given
-        recorded = _RecordedLinks({_path('.agents/skills/linked'): PurePosixPath('../../docs')}, ())
+        recorded = _RecordedLinks({_path('.agents/skills/linked'): _target('../../docs')}, ())
         path = _path('.agents/skills/linked/inner')
 
         #: When
@@ -503,7 +503,7 @@ class TestRecordedLinksFindKind:
 
     def test_find_kind_with_a_path_nothing_recorded_returns_directory(self) -> None:
         #: Given
-        recorded = _RecordedLinks({_path('.agents/skills/linked'): PurePosixPath('../../docs')}, ())
+        recorded = _RecordedLinks({_path('.agents/skills/linked'): _target('../../docs')}, ())
         path = _path('docs/nope')
 
         #: When

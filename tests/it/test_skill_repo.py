@@ -49,6 +49,14 @@ UNIVERSAL_RESOLVED: Final[ResolvedPath] = ResolvedPath(UNIVERSAL_DIR)
 CLAUDE_DIR: Final[RootRelativePath] = RootRelativePath.parse('.claude/skills')
 
 
+def _target(raw: str | PurePosixPath | Path) -> SymlinkTarget:
+    """Wrap a target written as it would be by `os.readlink`."""
+    target = PurePosixPath(raw)
+    if target.is_absolute():
+        return AbsoluteSymlinkTarget(target)
+    return RelativeSymlinkTarget(target)
+
+
 @pytest.fixture(scope='function')
 def repository(tmp_path: Path) -> Repository:
     """A repository over the temporary root; no skills directory exists until a test creates it.
@@ -95,14 +103,6 @@ def locked_skill_dir(universal_dir: Path) -> Iterator[Path]:
     directory.chmod(0o000)
     yield directory
     directory.chmod(0o700)
-
-
-def _target(raw: str | Path | PurePosixPath) -> SymlinkTarget:
-    """Wrap a target written as it would be by `os.readlink`."""
-    target = PurePosixPath(raw)
-    if target.is_absolute():
-        return AbsoluteSymlinkTarget(target)
-    return RelativeSymlinkTarget(target)
 
 
 def _write_skill(directory: Path) -> None:
@@ -517,9 +517,9 @@ class TestRepositoryListSkills:
 
         #: Then
         entry = UNIVERSAL_DIR / PathComponent.parse('review')
-        target = PurePosixPath(tmp_path / 'elsewhere' / 'review')
+        target = _target(tmp_path / 'elsewhere' / 'review')
         assert listing == SkillsListing(
-            skills=(), outside_symlinks=(OutsideSymlink(entry, RootExit(ResolvedPath(entry), _target(target))),)
+            skills=(), outside_symlinks=(OutsideSymlink(entry, RootExit(ResolvedPath(entry), target)),)
         ), 'a skill leading outside the root is no skill, and is recorded where it leaves'
 
     def test_list_skills_with_no_skills_directory_returns_empty(self, tmp_path: Path, repository: Repository) -> None:

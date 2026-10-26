@@ -77,13 +77,6 @@ class RelativeSymlinkTarget:
 type SymlinkTarget = AbsoluteSymlinkTarget | RelativeSymlinkTarget
 
 
-def classify_symlink_target(target: PurePosixPath) -> SymlinkTarget:
-    """Name whether an unresolved target is absolute or relative from its spelling."""
-    if target.is_absolute():
-        return AbsoluteSymlinkTarget(target)
-    return RelativeSymlinkTarget(target)
-
-
 @dataclass(frozen=True, slots=True)
 class DirEntry:
     """One entry of a listed directory.
