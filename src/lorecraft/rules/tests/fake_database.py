@@ -18,6 +18,7 @@ from typing import Any, Final, Protocol, cast, overload
 from lib.primitives import StructurePrimitives
 from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.path import PathComponent, RootRelativePath
+from lorecraft.core.text import NonEmptyStr
 from lorecraft.project.aspect import (
     AspectFilename,
     AspectNamespace,
@@ -241,7 +242,7 @@ def _decode_structure(spec_name: SpecName, structure: str) -> StructureSpec:
     spec = StructureSpec.parse(file, StructureSchema(structure))
     assert isinstance(spec, StructureSpec), f'a test states a usable structure specification, got {spec!r}'
     if spec.frontmatter is not None:
-        reference = SchemaRef(SchemaKind.FRONTMATTER, str(spec_name))
+        reference = SchemaRef(SchemaKind.FRONTMATTER, NonEmptyStr.parse(str(spec_name)))
         return replace(spec, frontmatter_schema_ref=reference)
     return spec
 
@@ -253,7 +254,7 @@ def _schema_inputs(governance: Governance) -> FrozenMapping[SchemaRef, SchemaInp
         governance.applicable_frontmatter_schema_refs(), governance.frontmatter_schemas(), strict=True
     ):
         inputs[reference] = RepositorySchemaInput(
-            reference, RepositoryOrigin(schema.spec, 'test'), schema.schema.schema
+            reference, RepositoryOrigin(schema.spec, NonEmptyStr.parse('test')), schema.schema.schema
         )
     return FrozenMapping(inputs)
 
