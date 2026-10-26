@@ -16,6 +16,7 @@ from .schema_inspection import (
 from .schema_keyword import (
     AdditionalPropertiesKeyword,
     ConstKeyword,
+    Dependency,
     DependentRequiredKeyword,
     EnumKeyword,
     Keyword,
@@ -46,6 +47,7 @@ __all__: list[str] = [
     'AdditionalPropertiesKeyword',
     'ConstKeyword',
     'DependentRequiredKeyword',
+    'Dependency',
     'EnumKeyword',
     'Keyword',
     'MaxPropertiesKeyword',

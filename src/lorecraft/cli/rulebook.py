@@ -130,17 +130,26 @@ def render_listing(registry: Registry) -> str:
     Args:
         registry: The registry to list.
     """
-    rows: list[tuple[str, str, str, str]] = []
+    rows: list[_ListingRow] = []
     for declaration in registry.rules:
         summary = _parse_docstring(declaration.__doc__).summary
-        rows.append((str(declaration.CODE), str(declaration.NAME), _level_column(declaration), summary))
-    code_width = max((len(code) for code, _, _, _ in rows), default=0)
-    name_width = max((len(name) for _, name, _, _ in rows), default=0)
-    level_width = max((len(level) for _, _, level, _ in rows), default=0)
+        rows.append(_ListingRow(str(declaration.CODE), str(declaration.NAME), _level_column(declaration), summary))
+    code_width = max((len(row.code) for row in rows), default=0)
+    name_width = max((len(row.name) for row in rows), default=0)
+    level_width = max((len(row.level) for row in rows), default=0)
     return '\n'.join(
-        f'{code:<{code_width}}  {name:<{name_width}}  {level:<{level_width}}  {summary}'
-        for code, name, level, summary in rows
+        f'{row.code:<{code_width}}  {row.name:<{name_width}}  {row.level:<{level_width}}  {row.summary}' for row in rows
     )
+
+
+@dataclass(frozen=True, slots=True)
+class _ListingRow:
+    """The code, name, level and summary columns of one listing line."""
+
+    code: str
+    name: str
+    level: str
+    summary: str
 
 
 def _level_column(declaration: RuleDeclaration) -> str:

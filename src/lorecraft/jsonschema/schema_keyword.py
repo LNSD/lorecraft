@@ -39,6 +39,19 @@ class RequiredKeyword:
 
 
 @dataclass(frozen=True, slots=True)
+class Dependency:
+    """One field and the fields it requires, in the order the keyword names them.
+
+    Attributes:
+        field: The field whose presence triggers the requirement.
+        requires: The fields that must also be present.
+    """
+
+    field: str
+    requires: tuple[str, ...]
+
+
+@dataclass(frozen=True, slots=True)
 class DependentRequiredKeyword:
     """`dependentRequired`: a field written requires other fields to be written.
 
@@ -46,7 +59,7 @@ class DependentRequiredKeyword:
         dependencies: For each field, the fields it requires, in the order the keyword names them.
     """
 
-    dependencies: tuple[tuple[str, tuple[str, ...]], ...]
+    dependencies: tuple[Dependency, ...]
 
 
 @dataclass(frozen=True, slots=True)
@@ -214,7 +227,7 @@ def _names(value: object) -> tuple[str, ...] | None:
     return tuple(names)
 
 
-def _dependencies(value: object) -> tuple[tuple[str, tuple[str, ...]], ...] | None:
+def _dependencies(value: object) -> tuple[Dependency, ...] | None:
     """The fields each field of a `dependentRequired` value requires, or `None` when the value is not that shape.
 
     Args:
@@ -222,10 +235,10 @@ def _dependencies(value: object) -> tuple[tuple[str, tuple[str, ...]], ...] | No
     """
     if not isinstance(value, dict):
         return None
-    dependencies: list[tuple[str, tuple[str, ...]]] = []
+    dependencies: list[Dependency] = []
     for field, required in value.items():
         names = _names(required)
         if not isinstance(field, str) or names is None:
             return None
-        dependencies.append((field, names))
+        dependencies.append(Dependency(field, names))
     return tuple(dependencies)

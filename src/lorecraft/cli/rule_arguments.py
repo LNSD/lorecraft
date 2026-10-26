@@ -27,10 +27,11 @@ rule or an engine condition alike. Everything is matched as spelled.
 
 from dataclasses import dataclass
 from string import ascii_lowercase, ascii_uppercase, digits
-from typing import TYPE_CHECKING, Final, Literal, Protocol, Self
+from typing import TYPE_CHECKING, Final, Protocol, Self
 
 from lorecraft.core.error import Error
 from lorecraft.rules import index
+from lorecraft.rules.index import ConditionRow, RemovedRuleRow, RuleIndexRow, RuleRow
 
 if TYPE_CHECKING:
     # Type-only: importing the rule side here would load the rules engine when the command line starts.
@@ -44,11 +45,6 @@ _ALL: Final[str] = 'ALL'
 
 _MAX_CODE_NUMBER: Final[int] = 10**index.CODE_DIGITS - 1
 """The largest number a code holds: the one with every digit a 9."""
-
-_RULE_KIND: Final[str] = 'rule'
-_REMOVED_KIND: Final[str] = 'removed'
-_CONDITION_KIND: Final[str] = 'condition'
-"""The kinds of the index's rows, as its `kind` column spells them."""
 
 _NAME_CHARACTERS: Final[str] = ascii_lowercase + digits + '-'
 """What a rule's name is made of, apart from its hyphens' places."""
@@ -385,13 +381,11 @@ class RuleIndex(Protocol):
         ...
 
     @property
-    def RULES(self) -> tuple[tuple[str, str, Literal['rule', 'removed', 'condition'], str, tuple[str, ...]], ...]:  # noqa: N802
-        """Every rule's code, name, kind, level or severity, and alias codes."""
+    def RULES(self) -> tuple[RuleIndexRow, ...]:  # noqa: N802
+        """Every rule, removed rule and engine condition, as a typed record."""
         ...
 
-    def find(
-        self, key: str, /
-    ) -> tuple[str, str, Literal['rule', 'removed', 'condition'], str, tuple[str, ...]] | None:
+    def find(self, key: str, /) -> RuleIndexRow | None:
         """The row whose code, name or alias code is `key`, or None when none is."""
         ...
 
@@ -512,10 +506,10 @@ def _parse_selector(text: str, rule_index: RuleIndex) -> RuleSelectorArgument:
     if row is None:
         return _parse_prefix(text, rule_index)
 
-    code, name, kind, _level, _aliases = row
-    if kind == _CONDITION_KIND:
+    code, name = row.code, row.name
+    if isinstance(row, ConditionRow):
         raise EngineSelectorError(text)
-    if kind == _REMOVED_KIND:
+    if isinstance(row, RemovedRuleRow):
         raise RemovedRuleSelectorError(text, code)
     if text == name:
         raise RuleNameSelectorError(text, code)
@@ -601,10 +595,8 @@ def _is_engine_group(prefix: str, rule_index: RuleIndex) -> bool:
         prefix: The prefix of a group the index has.
         rule_index: The rule index to read.
     """
-    kinds = {
-        kind for code, _name, kind, _level, _aliases in rule_index.RULES if code[: -rule_index.CODE_DIGITS] == prefix
-    }
-    return kinds == {_CONDITION_KIND}
+    kinds = {type(row) for row in rule_index.RULES if row.code[: -rule_index.CODE_DIGITS] == prefix}
+    return kinds == {ConditionRow}
 
 
 def _starts_a_rule_in_service(prefix: str, rule_index: RuleIndex) -> bool:
@@ -614,9 +606,7 @@ def _starts_a_rule_in_service(prefix: str, rule_index: RuleIndex) -> bool:
         prefix: The start of a code, such as `OUT0`.
         rule_index: The rule index to read.
     """
-    return any(
-        kind == _RULE_KIND and code.startswith(prefix) for code, _name, kind, _level, _aliases in rule_index.RULES
-    )
+    return any(isinstance(row, RuleRow) and row.code.startswith(prefix) for row in rule_index.RULES)
 
 
 def _has_code_shape(text: str, rule_index: RuleIndex) -> bool:

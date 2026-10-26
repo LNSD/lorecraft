@@ -130,6 +130,14 @@ class Read:
     subject: QueryTargetRef
 
 
+@dataclass(frozen=True, slots=True)
+class MemoEntry:
+    """One cached query answer and the typed reads used to derive it."""
+
+    answer: object
+    reads: frozenset[Read]
+
+
 class _PrimitiveReadRecorder(Protocol):
     """The subject-qualified recording operations a primitive wrapper calls."""
 
@@ -367,7 +375,7 @@ class Database:
         self._item_link_targets: dict[ItemRef, Mapping[NormalisedLinkPath, LinkTargetEntry]] = {}
         # Declared queries: the answer by the function and the item, with the primitive and cross-item query keys
         # it read.
-        self._queries: dict[Read, tuple[object, frozenset[Read]]] = {}
+        self._queries: dict[Read, MemoEntry] = {}
         # Each skill's resource listing, found on the first call.
         self._skill_resources: dict[SkillRef, SkillResourceListing] = {}
 
@@ -709,9 +717,9 @@ class Database:
         """Memoize one declared query and its recorded reads."""
         if key not in self._queries:
             result = answer()
-            self._queries[key] = (result, reads())
+            self._queries[key] = MemoEntry(result, reads())
         # SAFETY: _memo_query is the only writer and stores answer() under its query's key.
-        return cast('T', self._queries[key][0])
+        return cast('T', self._queries[key].answer)
 
     def query_reads(
         self,
@@ -728,7 +736,7 @@ class Database:
 
     def _query_reads(self, key: Read) -> frozenset[Read]:
         """Find dependencies for one read key, with no overload correlation to recover."""
-        return self._queries[key][1] if key in self._queries else frozenset()
+        return self._queries[key].reads if key in self._queries else frozenset()
 
     def _schema_input(self, reference: SchemaRef) -> SchemaInput:
         """Resolve a loaded schema input without adding a second cache."""
