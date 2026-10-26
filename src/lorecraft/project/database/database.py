@@ -73,6 +73,8 @@ from lorecraft.project.syntax import (
     split_lines,
 )
 from lorecraft.project.workspace import Governance, ResolvedItem, WorkspaceModel, load_model, unreported_refusals
+from lorecraft.project.workspace.builtin import AGENT_SKILLS_SPEC_LAYER
+from lorecraft.project.workspace.model import BuiltinSpecLayer
 from lorecraft.schemas import SchemaInput, SchemaRef, SchemaRefError
 from lorecraft.vfs import (
     FILE_READ_FAILURES,
@@ -358,7 +360,12 @@ class Database:
         self._skill_resources: dict[SkillRef, SkillResourceListing] = {}
 
     @classmethod
-    def from_snapshot(cls, snapshot: Snapshot, *, builtin_skills_schema: bool = True) -> Self:
+    def from_snapshot(
+        cls,
+        snapshot: Snapshot,
+        *,
+        builtin_layers: tuple[BuiltinSpecLayer, ...] = (AGENT_SKILLS_SPEC_LAYER,),
+    ) -> Self:
         """Build the database of one snapshot: build its view, refuse a linked layout and load its model.
 
         The one way to get a database. The model is the one structure value loaded here; every other query is still
@@ -375,14 +382,14 @@ class Database:
 
         Args:
             snapshot: The frozen state every query reads; kept for the database's lifetime and never changed.
-            builtin_skills_schema: Whether to pre-register the Agent Skills floor schema.
+            builtin_layers: The builtin specification layers enabled for this snapshot.
 
         Raises:
             LinkedLayoutError: If `docs/` is a symlink, or else if `docs/__meta__/` is one.
         """
         fs = VirtualFileSystem(snapshot)
         reject_linked_layout(fs)
-        return cls(fs, load_model(fs, builtin_skills_schema=builtin_skills_schema))
+        return cls(fs, load_model(fs, builtin_layers=builtin_layers))
 
     # Input query: the model is loaded once from the snapshot.
 

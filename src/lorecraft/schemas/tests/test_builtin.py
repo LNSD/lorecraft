@@ -2,27 +2,23 @@
 
 import pytest
 
-from lorecraft.schemas import (
-    SchemaInput,
-    SchemaRef,
-)
+from lorecraft.schemas import BuiltinOrigin
 from lorecraft.schemas.builtin import (
     AGENT_SKILLS_SCHEMA_INPUT,
     AGENT_SKILLS_SCHEMA_REFERENCE,
-    register_builtin_schemas,
 )
 
 
 @pytest.mark.unit
-class TestRegisterBuiltinSchemas:
-    def test_register_adds_the_builtin_agent_skills_input(self) -> None:
+class TestBuiltinSchemaInput:
+    def test_agent_skills_input_has_its_stable_reference_and_builtin_origin(self) -> None:
         #: Given
-        schema_inputs: dict[SchemaRef, SchemaInput] = {}
+        schema_input = AGENT_SKILLS_SCHEMA_INPUT
 
         #: When
-        register_builtin_schemas(schema_inputs)
-
         #: Then
-        assert schema_inputs == {AGENT_SKILLS_SCHEMA_REFERENCE: AGENT_SKILLS_SCHEMA_INPUT}, (
-            'the builtin Agent Skills schema is registered with its stable identity and input'
+        assert schema_input.reference == AGENT_SKILLS_SCHEMA_REFERENCE, 'the input uses its declared reference'
+        assert isinstance(schema_input.origin, BuiltinOrigin), 'the input declares builtin provenance'
+        assert schema_input.origin.identity == AGENT_SKILLS_SCHEMA_REFERENCE.identity, (
+            'the input provenance matches its stable identity'
         )

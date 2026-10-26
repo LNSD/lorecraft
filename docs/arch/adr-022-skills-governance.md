@@ -53,7 +53,7 @@ governance models remains deferred for future exploration. The skills/ directory
 ### A Built-in Layer Supplies the Default Floor
 
 The built-in Agent Skills floor is an explicit source of governance, followed by the repository corpus layer and
-matching namespace layers. It is a builtin spec layer under builtin origin rather than a fabricated repository
+matching namespace layers. It is a builtin spec layer under a builtin origin rather than a fabricated repository
 file path, supplying both frontmatter and structure inputs. Repository layer findings identify the repository layer;
 built-in findings retain their current provenance and wording wherever FR-013 requires compatibility.
 

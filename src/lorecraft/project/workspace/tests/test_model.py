@@ -50,10 +50,12 @@ from lorecraft.vfs import ResolvedPath, RootExit
 
 from ..failure import FailedStructure
 from ..model import (
+    BuiltinSpecLayer,
     Corpus,
     CorpusKeyMismatchError,
     CorpusNamespace,
     CorpusSpec,
+    InvalidBuiltinFrontmatterSchemaError,
     MetaCorpusNameMismatchError,
     NamespaceSpec,
     OutsideSymlinkPathMismatchError,
@@ -969,6 +971,47 @@ class TestWorkspaceModel:
         assert descriptor.governed_parts == frozenset({SpecPart.FRONTMATTER, SpecPart.STRUCTURE}), (
             'a corpus structure specification activates structure and its frontmatter alongside Markdown checks'
         )
+
+    def test_describe_item_derives_builtin_frontmatter_governance_from_its_schema(self) -> None:
+        #: Given
+        location = _regular_skill('.agents/skills/audit')
+        origin = BuiltinOrigin('builtin:test-layer')
+        reference = SchemaRef(SchemaKind.FRONTMATTER, origin.identity)
+        schema_input = SchemaInput(reference, origin, FrozenMapping.from_plain({'type': 'object'}))
+        layer = BuiltinSpecLayer(origin, frozenset({ItemType.SKILL_ENTRYPOINT}), schema_input)
+        model = WorkspaceModel(
+            corpora=FrozenMapping({}),
+            skills_dirs=frozenset(),
+            skill_locations=FrozenMapping({location.ref: location}),
+            outside_symlinks=FrozenMapping({}),
+            load_failures=(),
+            builtin_layers=(layer,),
+        )
+
+        #: When
+        descriptor = model.describe_item(location.ref)
+
+        #: Then
+        assert descriptor.governed_parts == frozenset({SpecPart.FRONTMATTER}), (
+            'a builtin frontmatter schema governs the frontmatter part'
+        )
+
+    def test_builtin_layer_rejects_a_non_frontmatter_schema_input(self) -> None:
+        #: Given
+        origin = BuiltinOrigin('builtin:test-layer')
+        reference = SchemaRef(SchemaKind.STRUCTURE, origin.identity)
+        schema_input = SchemaInput(reference, origin, FrozenMapping.from_plain({'lines': 50}))
+
+        #: When
+        with pytest.raises(InvalidBuiltinFrontmatterSchemaError) as exc_info:
+            BuiltinSpecLayer(
+                origin,
+                frozenset({ItemType.DOCUMENT}),
+                frontmatter_schema=schema_input,
+            )
+
+        #: Then
+        assert exc_info.value.reference == reference, 'the error identifies the schema kind the layer cannot hold'
 
     def test_describe_item_with_a_line_budget_marks_the_budget_governed(
         self, two_corpora_model: WorkspaceModel

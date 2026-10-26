@@ -70,8 +70,13 @@ from lorecraft.project.skill import (
     SkillsDirListError,
 )
 from lorecraft.project.skill import Repository as SkillRepository
-from lorecraft.schemas import RepositoryOrigin, SchemaInput, SchemaKind, SchemaRef
-from lorecraft.schemas.builtin import AGENT_SKILLS_SCHEMA_REFERENCE, register_builtin_schemas
+from lorecraft.schemas import (
+    DuplicateSchemaRefError,
+    RepositoryOrigin,
+    SchemaInput,
+    SchemaKind,
+    SchemaRef,
+)
 from lorecraft.vfs import (
     DIR_LIST_FAILURES,
     ROOT_EXIT_WALK_FAILURES,
@@ -90,6 +95,7 @@ from lorecraft.vfs import (
     UnrecordedFileError,
 )
 
+from .builtin import AGENT_SKILLS_SPEC_LAYER
 from .failure import (
     FailedStructure,
     LoadFailure,
@@ -108,7 +114,7 @@ from .failure import (
     UnresolvableSkillFile,
     UnresolvableSkillsDirectory,
 )
-from .model import Corpus, CorpusNamespace, CorpusSpec, WorkspaceModel, namespace_order_key
+from .model import BuiltinSpecLayer, Corpus, CorpusNamespace, CorpusSpec, WorkspaceModel, namespace_order_key
 
 
 @dataclass(slots=True)
@@ -160,9 +166,9 @@ def load_workspace(
     documents: DocumentRepository,
     skills: SkillRepository,
     *,
-    builtin_skills_schema: bool = True,
+    builtin_layers: tuple[BuiltinSpecLayer, ...] = (AGENT_SKILLS_SPEC_LAYER,),
 ) -> WorkspaceModel:
-    """Build the workspace model of the snapshot; it raises nothing for the declaration.
+    """Build the workspace model of the snapshot; invalid repository declarations are recorded, not raised.
 
     Parse the spec filenames, keep corpus specs whose docs/<corpus>/ is a directory, list the Markdown files
     directly inside each, build a structure specification from every spec that has one, and find the agents' skills
@@ -173,12 +179,18 @@ def load_workspace(
         schemas: Repository the specification files are listed and read from.
         documents: Repository the corpus directories and their Markdown files are listed from.
         skills: Repository the agents' skills directories are resolved and their skills listed from.
-        builtin_skills_schema: Whether to pre-register the Agent Skills floor schema.
+        builtin_layers: The builtin specification layers enabled for this workspace.
+
+    Raises:
+        DuplicateSchemaRefError: If enabled builtin layers or repository specs repeat a schema reference.
     """
     failures: list[LoadFailure] = []
     schema_inputs: dict[SchemaRef, SchemaInput] = {}
-    if builtin_skills_schema:
-        register_builtin_schemas(schema_inputs)
+    for layer in builtin_layers:
+        for schema_input in layer.registered_schema_inputs:
+            if schema_input.reference in schema_inputs:
+                raise DuplicateSchemaRefError(schema_input.reference)
+            schema_inputs[schema_input.reference] = schema_input
     spec_paths = _list_spec_paths(schemas, failures)
     corpus_directories, dropped_corpora = _list_corpus_directories(documents, failures)
     unchecked_symlinks: list[RootRelativePath] = list(dropped_corpora)
@@ -215,6 +227,7 @@ def load_workspace(
                 [],
                 failures,
                 schema_inputs,
+                builtin_layers,
             )
             if str(corpus_name) == META_CORPUS_NAME:
                 meta_corpus = reserved
@@ -226,7 +239,9 @@ def load_workspace(
             continue
         filenames, dropped_documents = _list_document_filenames(documents, corpus_name, failures)
         unchecked_symlinks.extend(dropped_documents)
-        corpora[corpus_name] = _load_corpus(schemas, corpus_name, files, filenames, failures, schema_inputs)
+        corpora[corpus_name] = _load_corpus(
+            schemas, corpus_name, files, filenames, failures, schema_inputs, builtin_layers
+        )
 
     skills_dirs, outside_skills_dirs = _load_skills_dirs(skills, failures)
     skill_locations, outside_entries = _list_skill_locations(skills, skills_dirs, failures)
@@ -248,10 +263,15 @@ def load_workspace(
         overlapping_directories=frozenset(overlapping_directories),
         unchecked_symlinks=tuple(sorted(set(unchecked_symlinks), key=str)),
         schema_inputs=FrozenMapping(schema_inputs),
+        builtin_layers=builtin_layers,
     )
 
 
-def load_model(fs: FileSystem, *, builtin_skills_schema: bool = True) -> WorkspaceModel:
+def load_model(
+    fs: FileSystem,
+    *,
+    builtin_layers: tuple[BuiltinSpecLayer, ...] = (AGENT_SKILLS_SPEC_LAYER,),
+) -> WorkspaceModel:
     """Wire one filesystem view into the three repositories and load the workspace model through them.
 
     The view decides where the model comes from: a view of the disk reads it as it is at each call,
@@ -260,12 +280,17 @@ def load_model(fs: FileSystem, *, builtin_skills_schema: bool = True) -> Workspa
 
     Args:
         fs: View of the repository the model is loaded from, rooted at the workspace root.
-        builtin_skills_schema: Whether to pre-register the Agent Skills floor schema.
+        builtin_layers: The builtin specification layers enabled for this workspace.
     """
     schemas = SchemaRepository(fs, SPECS_DIR)
     documents = DocumentRepository(fs)
     skills = SkillRepository(fs)
-    return load_workspace(schemas, documents, skills, builtin_skills_schema=builtin_skills_schema)
+    return load_workspace(
+        schemas,
+        documents,
+        skills,
+        builtin_layers=builtin_layers,
+    )
 
 
 def _list_spec_paths(schemas: SchemaRepository, failures: list[LoadFailure]) -> list[RootRelativePath]:
@@ -341,6 +366,7 @@ def _load_corpus(
     filenames: list[AspectFilename],
     failures: list[LoadFailure],
     schema_inputs: dict[SchemaRef, SchemaInput],
+    builtin_layers: tuple[BuiltinSpecLayer, ...],
 ) -> Corpus:
     """Decode the corpus spec and its namespace specs; a structure file that fails stands in its layer.
 
@@ -351,12 +377,13 @@ def _load_corpus(
         filenames: Stems of the documents listed in the corpus directory, which the corpus lists by filename.
         failures: The load failures so far; each structure file that fails is appended.
         schema_inputs: Raw inputs collected from the structure files.
+        builtin_layers: The enabled layers used by compatibility checks during structure loading.
     """
     corpus_spec_name = CorpusSpecName(corpus_name)
     corpus_spec = CorpusSpec(
         name=corpus_spec_name,
         files=_sorted_paths(files.spec),
-        structure=_load_structure(schemas, files.spec.structure, failures, schema_inputs),
+        structure=_load_structure(schemas, files.spec.structure, failures, schema_inputs, builtin_layers),
     )
 
     # The corpus orders its namespace specs itself; they are decoded broad to narrow too, so that of two broken
@@ -371,6 +398,7 @@ def _load_corpus(
                 namespace_files.structure,
                 failures,
                 schema_inputs,
+                builtin_layers,
             ),
         )
 
@@ -394,6 +422,7 @@ def _load_structure(
     structure_file: StructureSpecFile | None,
     failures: list[LoadFailure],
     schema_inputs: dict[SchemaRef, SchemaInput],
+    builtin_layers: tuple[BuiltinSpecLayer, ...],
 ) -> StructureSpec | FailedStructure | None:
     """Decode the structure JSON at one specification name into a structure specification.
 
@@ -402,6 +431,7 @@ def _load_structure(
         structure_file: The name's structure file, or None when the name has none; the prose is never decoded.
         failures: The load failures so far; a structure file that cannot be read or used is appended.
         schema_inputs: Raw inputs collected by typed reference.
+        builtin_layers: The enabled builtin layers.
 
     Returns:
         The structure specification, the failed structure standing in its place when the file cannot be read or
@@ -444,7 +474,7 @@ def _load_structure(
                     frontmatter_ref, origin, FrozenMapping.from_plain(frontmatter_document)
                 )
                 parsed = replace(parsed, frontmatter_schema_ref=frontmatter_ref)
-        if AGENT_SKILLS_SCHEMA_REFERENCE in schema_inputs and parsed.frontmatter is not None:
+        if AGENT_SKILLS_SPEC_LAYER in builtin_layers and parsed.frontmatter is not None:
             contradictions = agent_skills_schema_contradictions(parsed.frontmatter.schema.to_plain())
             if contradictions:
                 return _record_failed_structure(

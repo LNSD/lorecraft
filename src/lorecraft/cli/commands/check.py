@@ -125,7 +125,7 @@ def check(
         color=color,
         select=select,
         ignore=ignore,
-        builtin_skills_schema=options.builtin_skills_schema,
+        builtin_layers=options.builtin_layers,
     )
     if status is not None:
         raise typer.Exit(code=status)

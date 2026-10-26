@@ -24,6 +24,7 @@ from lorecraft.project.aspect import AspectFilename, AspectNamespace
 from lorecraft.project.corpus import CorpusName, ReservedCorpusDirectory
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.document import Repository as DocumentRepository
+from lorecraft.project.item import ItemType
 from lorecraft.project.layout import SNAPSHOT_SCOPE, SPECS_DIR
 from lorecraft.project.schemas import CorpusSpecName, NamespaceSpecName, SectionName, StructureSpec
 from lorecraft.project.schemas import Repository as SchemaRepository
@@ -31,6 +32,7 @@ from lorecraft.project.skill import OutsideSymlink, SkillLocation, SkillRef, Ski
 from lorecraft.project.skill import Repository as SkillRepository
 from lorecraft.project.workspace import (
     AdjacentAnyRuns,
+    BuiltinSpecLayer,
     EmptyStructureSpec,
     FailedStructure,
     ForbiddenOutlineSections,
@@ -57,7 +59,8 @@ from lorecraft.project.workspace import (
     load_model,
     load_workspace,
 )
-from lorecraft.schemas import SchemaKind
+from lorecraft.project.workspace.builtin import AGENT_SKILLS_SPEC_LAYER
+from lorecraft.schemas import BuiltinOrigin, SchemaInput, SchemaKind, SchemaRef
 from lorecraft.schemas.builtin import AGENT_SKILLS_SCHEMA_INPUT
 from lorecraft.vfs import OsRefusal, ResolvedPath, RootExit, VirtualFileSystem, take_snapshot
 
@@ -806,7 +809,39 @@ class TestLoadWorkspaceEdgeCases:
             outside_symlinks=FrozenMapping({}),
             load_failures=(),
             schema_inputs=FrozenMapping({AGENT_SKILLS_SCHEMA_INPUT.reference: AGENT_SKILLS_SCHEMA_INPUT}),
+            builtin_layers=(AGENT_SKILLS_SPEC_LAYER,),
         ), 'a root without docs/ is an empty workspace'
+
+    def test_load_workspace_registers_additional_builtin_layer_inputs(
+        self, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
+    ) -> None:
+        #: Given
+        origin = BuiltinOrigin('builtin:test-layer')
+        reference = SchemaRef(SchemaKind.FRONTMATTER, origin.identity)
+        schema_input = SchemaInput(reference, origin, FrozenMapping.from_plain({'type': 'object'}))
+        layer = BuiltinSpecLayer(
+            origin,
+            frozenset({ItemType.DOCUMENT}),
+            frontmatter_schema=schema_input,
+        )
+
+        #: When
+        model = load_workspace(schemas, documents, skills, builtin_layers=(AGENT_SKILLS_SPEC_LAYER, layer))
+
+        #: Then
+        assert model.schema_inputs[reference] == schema_input, 'the loader registers builtin inputs in the model'
+        assert model.builtin_layers[-1] == layer, 'enabled builtin layers keep their registration order'
+
+    def test_load_workspace_can_omit_pre_registered_builtin_layers(
+        self, schemas: SchemaRepository, documents: DocumentRepository, skills: SkillRepository
+    ) -> None:
+        #: Given
+        #: When
+        model = load_workspace(schemas, documents, skills, builtin_layers=())
+
+        #: Then
+        assert model.builtin_layers == (), 'an invocation can omit the pre-registered builtin layer'
+        assert model.schema_inputs == FrozenMapping({}), 'omitting the layer omits its inputs too'
 
 
 def _outside(path: str, target: Path) -> OutsideSymlink:
