@@ -40,8 +40,8 @@ def _code_model() -> WorkspaceModel:
     return WorkspaceModel(
         corpus_values=frozenset({corpus}),
         skills_dirs=frozenset(),
-        skill_locations=FrozenMapping({}),
-        outside_symlinks=FrozenMapping({}),
+        skill_location_values=frozenset(),
+        outside_symlink_values=frozenset(),
         load_failures=(),
         builtin_layers=(AGENT_SKILLS_SPEC_LAYER,),
     )
@@ -84,8 +84,8 @@ def _empty_model() -> WorkspaceModel:
     return WorkspaceModel(
         corpus_values=frozenset(),
         skills_dirs=frozenset(),
-        skill_locations=FrozenMapping({}),
-        outside_symlinks=FrozenMapping({}),
+        skill_location_values=frozenset(),
+        outside_symlink_values=frozenset(),
         load_failures=(),
         builtin_layers=(AGENT_SKILLS_SPEC_LAYER,),
     )
@@ -104,8 +104,8 @@ def _skills_model() -> WorkspaceModel:
                 SkillsDir(agent=AgentName('codex'), path=universal, resolves_to=universal),
             }
         ),
-        skill_locations=FrozenMapping({commit.ref: commit, review.ref: review}),
-        outside_symlinks=FrozenMapping({}),
+        skill_location_values=frozenset({commit, review}),
+        outside_symlink_values=frozenset(),
         load_failures=(),
         builtin_layers=(AGENT_SKILLS_SPEC_LAYER,),
     )
@@ -138,8 +138,8 @@ def _governed_skills_model() -> WorkspaceModel:
                 )
             }
         ),
-        skill_locations=FrozenMapping({rules.ref: rules, review.ref: review}),
-        outside_symlinks=FrozenMapping({}),
+        skill_location_values=frozenset({rules, review}),
+        outside_symlink_values=frozenset(),
         load_failures=(),
         skills_corpus=corpus,
         builtin_layers=(AGENT_SKILLS_SPEC_LAYER,),

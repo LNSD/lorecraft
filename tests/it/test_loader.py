@@ -822,8 +822,8 @@ class TestLoadWorkspaceEdgeCases:
         assert model == WorkspaceModel(
             corpus_values=frozenset(),
             skills_dirs=frozenset(),
-            skill_locations=FrozenMapping({}),
-            outside_symlinks=FrozenMapping({}),
+            skill_location_values=frozenset(),
+            outside_symlink_values=frozenset(),
             load_failures=(),
             builtin_layers=(SKILLS_LAYER,),
         ), 'a root without docs/ is an empty workspace'

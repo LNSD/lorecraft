@@ -733,6 +733,28 @@ class TestCheckCommand:
         assert result.returncode == 1, result.stderr
         assert result.stdout == expected, 'the absolute link in the SKILL.md and in the resource match the snapshot'
 
+    def test_check_with_a_nested_skill_behind_an_alias_names_its_missing_resource_from_the_deepest_skill(
+        self, snapshot: SnapshotAssertion, tmp_path: Path, faker: Faker
+    ) -> None:
+        #: Given
+        expected = snapshot.use_extension(TextSnapshotExtension)
+        workspace = Workspace(
+            files=[
+                File('.agents/skills/inner/foo/SKILL.md', '---\nname: foo\ndescription: Nested skill\n---\n'),
+                File('.agents/skills/inner/foo/ref.md', '# Reference\n\nRead [the missing file](missing.md).\n'),
+            ],
+            links=[Link('.claude/skills', '../.agents/skills/inner')],
+        )
+        root = workspace.write(tmp_path, faker)
+        arguments = ('check', '--root', str(root))
+
+        #: When
+        result = run_cli(*arguments)
+
+        #: Then
+        assert result.returncode == 1, result.stderr
+        assert result.stdout == expected, 'the LINK003 note resolves the resource from foo on every run'
+
     def test_check_with_an_invalid_specification_prints_it_as_a_diagnostic_on_stdout(
         self, snapshot: SnapshotAssertion, invalid_spec_root: Path
     ) -> None:

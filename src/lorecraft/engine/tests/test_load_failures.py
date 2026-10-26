@@ -5,7 +5,6 @@ from typing import Final
 import pytest
 
 from lorecraft.core.lines import ByteOffset, Line
-from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.num import NonZeroUnsignedInt, UnsignedInt
 from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.project.corpus import CorpusName
@@ -76,8 +75,8 @@ def _model(*failures: LoadFailure) -> WorkspaceModel:
     return WorkspaceModel(
         corpus_values=frozenset(),
         skills_dirs=frozenset(),
-        skill_locations=FrozenMapping({}),
-        outside_symlinks=FrozenMapping({}),
+        skill_location_values=frozenset(),
+        outside_symlink_values=frozenset(),
         load_failures=tuple(failures),
     )
 

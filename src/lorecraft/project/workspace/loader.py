@@ -247,16 +247,15 @@ def load_workspace(
 
     skills_dirs, outside_skills_dirs = _load_skills_dirs(skills, failures)
     skill_locations, outside_entries = _list_skill_locations(skills, skills_dirs, failures)
-    # Keyed by path: when one resolved skills directory is an entry of another, the same `<entry>/SKILL.md` symlink
-    # is reached twice, as the outer listing's entry `SKILL.md` and as an entry of the inner listing.
-    outside_by_path: dict[RootRelativePath, OutsideSymlink] = {}
-    for outside in outside_skills_dirs + outside_entries:
-        outside_by_path[outside.path] = outside
+    # When one resolved skills directory is an entry of another, the same `<entry>/SKILL.md` symlink is reached twice,
+    # as the outer listing's entry `SKILL.md` and as an entry of the inner listing. Equal values collapse in the set;
+    # conflicting values at one path are rejected by the model.
+    outside_symlink_values = frozenset(outside_skills_dirs + outside_entries)
     return WorkspaceModel(
         corpus_values=frozenset(corpora.values()),
         skills_dirs=frozenset(skills_dirs),
-        skill_locations=FrozenMapping({location.ref: location for location in skill_locations}),
-        outside_symlinks=FrozenMapping(outside_by_path),
+        skill_location_values=frozenset(skill_locations),
+        outside_symlink_values=outside_symlink_values,
         # Two agents declaring one skills directory meet its failure twice; it is one failure at one path.
         load_failures=tuple(dict.fromkeys(failures)),
         skills_corpus=skills_corpus,

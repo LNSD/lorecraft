@@ -5,7 +5,6 @@ from typing import Final
 import pytest
 
 from lorecraft.core.error import Error
-from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.corpus import CorpusName
 from lorecraft.project.schemas import (
@@ -536,8 +535,8 @@ class TestExitOnLoadFailure:
         model = WorkspaceModel(
             corpus_values=frozenset(),
             skills_dirs=frozenset(),
-            skill_locations=FrozenMapping({}),
-            outside_symlinks=FrozenMapping({}),
+            skill_location_values=frozenset(),
+            outside_symlink_values=frozenset(),
             load_failures=(),
         )
 
@@ -556,8 +555,8 @@ class TestExitOnLoadFailure:
         model = WorkspaceModel(
             corpus_values=frozenset(),
             skills_dirs=frozenset(),
-            skill_locations=FrozenMapping({}),
-            outside_symlinks=FrozenMapping({}),
+            skill_location_values=frozenset(),
+            outside_symlink_values=frozenset(),
             load_failures=(first, second),
         )
 
