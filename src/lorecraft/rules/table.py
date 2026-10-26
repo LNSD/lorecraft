@@ -23,7 +23,6 @@ from .subject import (
     QueriedCorpusDirectoryRule,
     QueriedItemRule,
     QueriedSymlinkRule,
-    WhenSchema,
     WhenSpec,
 )
 
@@ -93,7 +92,7 @@ class RuleTable:
                     match gate:
                         case WhenSpec(part):
                             part_key = part
-                        case Always() | WhenSchema():
+                        case Always():
                             part_key = None
                         case _:
                             assert_never(gate)

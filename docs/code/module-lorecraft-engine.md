@@ -34,8 +34,8 @@ returns at its subject, as a diagnostic of `lorecraft.rules.report`.
   coverage. A rule over a Markdown file runs over a document governed for its structure, a skill's `SKILL.md` and
   each resource handed over as a subject of its own. A resource has no corpus structure governance, while `Always`
   Markdown checks still run; a skill's explicitly mapped `Always` checks run independently of corpus governance.
-- One entry point per mode: `skip.py` applies failed-layer policy after decoding: every failed governing layer
-  suppresses all `WhenSpec` gates for every item kind, while `Always` and `WhenSchema` gates still run. The
+- One entry point per mode: `skip.py` applies failed-layer policy after decoding: failed governing layers suppress
+  spec-part gates, while `Always` checks still run. The
   suppressed parts appear in coverage. A refused docs target skips the affected item or skill alias. An LSP-style
   partial mode is future work.
 - `skip.py` propagates the project's common `ItemReadError` for a missing item.
@@ -132,7 +132,7 @@ Before committing code, verify:
 - [ ] Nothing added takes a snapshot or sets an exit code
 - [ ] A mode's policy sits in that mode's own entry point; `runner.py` takes no policy parameter and no callback
 - [ ] A new load-failure condition is reported by `load_failures.py`, whose match stays exhaustive; failed layers
-  suppress all spec gates across item kinds while preserving `Always` and `WhenSchema` checks
+  suppress spec-part gates across item kinds while preserving `Always` checks
 - [ ] A document, skill or resource is decoded by each mode's entry point, so its policy comes after decoding; the
   item is asked for by its common reference, and failed corpus governance suppresses spec rules while
   preserving package and schema checks; `runner.py`

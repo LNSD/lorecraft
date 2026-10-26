@@ -53,7 +53,6 @@ from lorecraft.project.corpus import ReservedCorpusDirectory, ReservedCorpusDire
 from lorecraft.project.database import Database, ItemText
 from lorecraft.project.item import ItemDescriptor, ItemRef, ItemType, SpecPart
 from lorecraft.project.skill import OutsideSymlink, OutsideSymlinkRef
-from lorecraft.project.workspace.model import WorkspaceModel
 from lorecraft.rules.declaration import Rule
 from lorecraft.rules.report import (
     CheckedItem,
@@ -66,7 +65,6 @@ from lorecraft.rules.subject import (
     QueriedCorpusDirectoryRule,
     QueriedItemRule,
     QueriedSymlinkRule,
-    WhenSchema,
     WhenSpec,
 )
 from lorecraft.rules.table import EnabledRule, QueriedItem, RuleTable
@@ -97,14 +95,13 @@ def judge_item(
         table: The rules the run enables.
     """
     descriptor = source.descriptor
-    model = database.model()
     diagnostics: list[Diagnostic] = []
     ungoverned: list[SpecPart] = []
 
-    # Spec parts follow `SpecPart` order, then `Always`/schema rules; unmet gates become coverage.
+    # Spec parts follow `SpecPart` order, then `Always` rules; unmet gates become coverage.
     for part in (*SpecPart, None):
         rules = tuple(
-            enabled for enabled in table.item_rules(descriptor.type, part) if judges(enabled.rule, descriptor, model)
+            enabled for enabled in table.item_rules(descriptor.type, part) if judges(enabled.rule, descriptor)
         )
         if not rules:
             continue
@@ -121,14 +118,12 @@ def judge_item(
 def judges(
     rule: type[QueriedItem],
     descriptor: ItemDescriptor,
-    model: WorkspaceModel,
 ) -> bool:
-    """Whether the rule's gate admits this item and any required governance source.
+    """Whether the rule's gate admits this item.
 
     Args:
         rule: The queried rule whose gate is being checked.
         descriptor: The item type and origin metadata used by the gate.
-        model: The workspace state used to check registered schema gates.
     """
     gate = rule.APPLIES_TO.get(descriptor.type)
     if gate is None:
@@ -138,8 +133,6 @@ def judges(
             return True
         case Always():
             return True
-        case WhenSchema(schema):
-            return schema in model.schema_inputs
         case _:
             assert_never(gate)
 

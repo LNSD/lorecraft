@@ -179,7 +179,7 @@ A spec governs a corpus, namespace, package, or registered schema when it provid
 
 ### Gate
 
-For each item type, the condition a rule requires before judging it. `APPLIES_TO` names these requirements; `WhenMetaSpec`, `Always`, and `WhenSchema` name the corresponding authorities.
+For each item type, the condition a rule requires before judging it. `APPLIES_TO` names these requirements; `WhenSpec` requires a governing part, and `Always` admits the mapped type independently of spec governance.
 
 ### Ungoverned
 
