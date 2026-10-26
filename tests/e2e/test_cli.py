@@ -1042,6 +1042,302 @@ class TestGovernanceCoverage:
 
 
 @pytest.mark.e2e
+class TestRemainingGovernanceRules:
+    def test_meta_namespace_spec_matches_its_corpus_and_hyphen_extensions_only(
+        self, tmp_path: Path, faker: Faker
+    ) -> None:
+        #: Given
+        workspace = Workspace(
+            specs=[
+                Spec('meta', structure={'frontmatter': {'type': 'object'}}),
+                Spec('meta-code', structure={'frontmatter': {'type': 'object', 'required': ['owner']}}),
+                Spec('code', prose='---\nname: code\n---\n\n# Code\n'),
+                Spec('code-python', prose='---\nname: code-python\n---\n\n# Python\n'),
+                Spec('codez', prose='---\nname: codez\n---\n\n# Code Z\n'),
+            ]
+        )
+        root = workspace.write(tmp_path, faker)
+
+        #: When
+        result = run_cli('check', '--root', str(root), '--select', 'LC206')
+
+        #: Then
+        assert result.returncode == 1, result.stderr
+        assert 'docs/__meta__/code.md' in result.stdout, 'the corpus-name spec is governed by meta-code'
+        assert 'docs/__meta__/code-python.md' in result.stdout, 'the hyphen extension is governed by meta-code'
+        assert 'docs/__meta__/codez.md' not in result.stdout, 'a name without the hyphen boundary is excluded'
+
+    def test_failed_meta_layer_suppresses_spec_parts_but_keeps_link_rules(self, tmp_path: Path, faker: Faker) -> None:
+        #: Given
+        links = '[Absolute](/outside.md) [Fragment](#missing) [Missing](missing.md) [Escape](../../../outside.md)'
+        workspace = Workspace(
+            specs=[
+                Spec('meta', structure={'outline': 'bad'}, prose=f'# Meta\n\n{links}\n'),
+                Spec('code', prose=f'# Code\n\n{links}\n', include_structure=False),
+            ]
+        )
+        root = workspace.write(tmp_path, faker)
+
+        #: When
+        result = run_cli('check', '--root', str(root))
+
+        #: Then
+        assert result.returncode == 1, result.stderr
+        for code in ('LC501', 'LC502', 'LC503', 'LC504'):
+            assert code in result.stdout, f'{code} remains active under a failed meta layer'
+        assert 'LC003' in result.stdout, 'the failed meta structure is reported'
+        for name in ('meta', 'code'):
+            assert f'docs/__meta__/{name}.md: ungoverned for frontmatter, structure, outline, budget' in result.stderr
+
+    def test_failed_meta_namespace_layer_suppresses_spec_parts_but_keeps_link_rules(
+        self, tmp_path: Path, faker: Faker
+    ) -> None:
+        #: Given
+        links = '[Absolute](/outside.md) [Missing](missing.md) [Escape](../../../outside.md)'
+        workspace = Workspace(
+            specs=[
+                Spec('meta', prose='# Meta\n'),
+                Spec('meta-code', structure={'outline': 'bad'}, prose='# Meta Code\n'),
+                Spec('meta-python', prose='# Meta Python\n'),
+                Spec('code', prose=f'# Code\n\n{links}\n', include_structure=False),
+                Spec('code-python', prose='# Code Python\n'),
+            ]
+        )
+        root = workspace.write(tmp_path, faker)
+
+        #: When
+        result = run_cli('check', '--root', str(root))
+
+        #: Then
+        assert result.returncode == 1, result.stderr
+        for code in ('LC501', 'LC503', 'LC504'):
+            assert code in result.stdout, f'{code} remains active under a failed meta-code layer'
+        assert 'LC003' in result.stdout, 'the failed meta structure is reported'
+        assert 'docs/__meta__/code.md: ungoverned for frontmatter, structure, outline, budget' in result.stderr
+        assert 'docs/__meta__/code-python.md: ungoverned for frontmatter, structure, outline, budget' in result.stderr
+        for name in ('meta', 'meta-code', 'meta-python'):
+            assert f'docs/__meta__/{name}.md: ungoverned for' not in result.stderr
+
+    def test_skills_namespace_extends_its_base_without_repeating_required_fields(
+        self, tmp_path: Path, faker: Faker
+    ) -> None:
+        #: Given
+        workspace = Workspace(
+            specs=[
+                Spec('skills', structure={'frontmatter': {'type': 'object', 'required': ['description']}}),
+                Spec(
+                    'skills-review',
+                    structure={'frontmatter': {'type': 'object', 'properties': {'owner': {'type': 'string'}}}},
+                ),
+            ],
+            skills=[Skill('review-a', frontmatter=RawFrontmatter('name: review-a\n'))],
+        )
+        root = workspace.write(tmp_path, faker)
+
+        #: When
+        result = run_cli('check', '--root', str(root))
+
+        #: Then
+        assert result.returncode == 1, result.stderr
+        assert 'missing required field `description`' in result.stdout, 'the namespace keeps its base required field'
+
+    def test_link001_to_link003_run_on_a_document_without_a_structure_file(self, tmp_path: Path, faker: Faker) -> None:
+        #: Given
+        body = '# Guide\n\n[Absolute](/outside.md) [Fragment](#missing) [Missing](missing.md)\n'
+        workspace = Workspace(
+            specs=[Spec('code', prose='# Code\n', include_structure=False)],
+            documents=[
+                Document('code', 'guide', body=body + '[Extension](guide-extra.md) [Other](../guide-extra/start.md)\n'),
+                Document('code', 'guide-extra', body='# Extra\n'),
+                Document('guide', 'start', body='# Start\n\n[Guide](../code/guide.md)\n'),
+            ],
+        )
+        root = workspace.write(tmp_path, faker)
+
+        #: When
+        result = run_cli('check', '--root', str(root), '--select', 'LC501,LC502,LC503,LC505,LC506,LC507')
+
+        #: Then
+        assert result.returncode == 1, result.stderr
+        for code in ('LC501', 'LC502', 'LC503'):
+            assert code in result.stdout, f'{code} runs on a document without a structure file'
+        for code in ('LC505', 'LC506', 'LC507'):
+            assert code not in result.stdout, f'{code} stays gated without a structure file'
+
+    def test_link001_to_link003_run_on_a_spec_without_a_structure_file(self, tmp_path: Path, faker: Faker) -> None:
+        #: Given
+        body = '# Code\n\n[Absolute](/outside.md) [Fragment](#missing) [Missing](missing.md)\n'
+        workspace = Workspace(specs=[Spec('code', prose=body, include_structure=False)])
+        root = workspace.write(tmp_path, faker)
+
+        #: When
+        result = run_cli('check', '--root', str(root), '--select', 'LC501,LC502,LC503')
+
+        #: Then
+        assert result.returncode == 1, result.stderr
+        for code in ('LC501', 'LC502', 'LC503'):
+            assert code in result.stdout, f'{code} runs on a spec without a structure file'
+
+    def test_link005_and_link006_run_for_documents_with_structure_files(self, tmp_path: Path, faker: Faker) -> None:
+        #: Given
+        workspace = Workspace(
+            specs=[Spec('code')],
+            documents=[
+                Document('code', 'guide', body='# Guide\n\n[Extension](guide-extra.md)\n'),
+                Document('code', 'guide-extra', body='# Extra\n'),
+            ],
+        )
+        root = workspace.write(tmp_path, faker)
+
+        #: When
+        result = run_cli('check', '--root', str(root), '--select', 'LC505,LC506')
+
+        #: Then
+        assert result.returncode == 0, result.stderr
+        assert 'LC505' in result.stdout, 'a base cannot link to its extension when governed by structure'
+        assert 'LC506' in result.stdout, 'an extension must link to its base when governed by structure'
+
+    def test_link007_runs_for_mutually_linked_documents_with_structure_files(
+        self, tmp_path: Path, faker: Faker
+    ) -> None:
+        #: Given
+        workspace = Workspace(
+            specs=[Spec('code'), Spec('guide')],
+            documents=[
+                Document('code', 'rules', body='# Rules\n\n[Guide](../guide/start.md)\n'),
+                Document('guide', 'start', body='# Start\n\n[Rules](../code/rules.md)\n'),
+            ],
+        )
+        root = workspace.write(tmp_path, faker)
+
+        #: When
+        result = run_cli('check', '--root', str(root), '--select', 'LC507')
+
+        #: Then
+        assert result.returncode == 0, result.stderr
+        assert result.stdout.count('LC507') == 2, 'both sides of a cross-corpus cycle are reported'
+
+    def test_link004_runs_on_spec_prose(self, tmp_path: Path, faker: Faker) -> None:
+        #: Given
+        workspace = Workspace(
+            specs=[Spec('code', prose='# Code\n\n[Escape](../../../outside.md)\n', include_structure=False)]
+        )
+        root = workspace.write(tmp_path, faker)
+
+        #: When
+        result = run_cli('check', '--root', str(root), '--select', 'LC504')
+
+        #: Then
+        assert result.returncode == 1, result.stderr
+        assert 'LC504' in result.stdout, 'spec prose uses the same repository link bound'
+
+    def test_link004_runs_on_a_skill_resource(self, tmp_path: Path, faker: Faker) -> None:
+        #: Given
+        workspace = Workspace(
+            skills=[
+                Skill('review', references={'guide.md': '# Guide\n\n[Escape](../../outside.md) [Missing](#missing)\n'})
+            ]
+        )
+        root = workspace.write(tmp_path, faker)
+
+        #: When
+        result = run_cli('check', '--root', str(root), '--select', 'LC502,LC504')
+
+        #: Then
+        assert result.returncode == 1, result.stderr
+        assert 'LC502' in result.stdout, 'fragment checks apply to resources too'
+        assert 'LC504' in result.stdout, 'resources use their skill root as the link bound'
+
+    def test_lc004_reports_a_skill_schema_that_excludes_the_required_field_type(
+        self, tmp_path: Path, faker: Faker
+    ) -> None:
+        #: Given
+        workspace = Workspace(
+            specs=[
+                Spec(
+                    'skills', structure={'frontmatter': {'type': 'object', 'properties': {'name': {'type': 'integer'}}}}
+                )
+            ],
+            skills=[Skill('review')],
+        )
+        root = workspace.write(tmp_path, faker)
+
+        #: When
+        result = run_cli('check', '--root', str(root))
+
+        #: Then
+        assert result.returncode == 1, result.stderr
+        assert 'LC004' in result.stdout, 'a non-string name schema contradicts the Agent Skills floor'
+
+    def test_lc004_reports_a_skill_schema_that_excludes_the_required_field_length(
+        self, tmp_path: Path, faker: Faker
+    ) -> None:
+        #: Given
+        workspace = Workspace(
+            specs=[
+                Spec(
+                    'skills',
+                    structure={
+                        'frontmatter': {
+                            'type': 'object',
+                            'properties': {'description': {'type': 'string', 'minLength': 1025}},
+                        }
+                    },
+                )
+            ],
+            skills=[Skill('review')],
+        )
+        root = workspace.write(tmp_path, faker)
+
+        #: When
+        result = run_cli('check', '--root', str(root))
+
+        #: Then
+        assert result.returncode == 1, result.stderr
+        assert 'LC004' in result.stdout, 'a description length outside the floor range is a contradiction'
+
+    def test_lc004_reports_a_skill_schema_enum_with_no_valid_name(self, tmp_path: Path, faker: Faker) -> None:
+        #: Given
+        workspace = Workspace(
+            specs=[
+                Spec(
+                    'skills',
+                    structure={'frontmatter': {'type': 'object', 'properties': {'name': {'enum': ['INVALID']}}}},
+                )
+            ],
+            skills=[Skill('review')],
+        )
+        root = workspace.write(tmp_path, faker)
+
+        #: When
+        result = run_cli('check', '--root', str(root))
+
+        #: Then
+        assert result.returncode == 1, result.stderr
+        assert 'LC004' in result.stdout, 'an enum with no valid Agent Skills name is a contradiction'
+
+    def test_opt_out_skips_lc004_for_a_contradictory_skills_schema(self, tmp_path: Path, faker: Faker) -> None:
+        #: Given
+        workspace = Workspace(
+            specs=[
+                Spec(
+                    'skills', structure={'frontmatter': {'type': 'object', 'properties': {'name': {'type': 'integer'}}}}
+                )
+            ],
+            skills=[Skill('review')],
+        )
+        root = workspace.write(tmp_path, faker)
+
+        #: When
+        result = run_cli('--no-agent-skills-spec', 'check', '--root', str(root))
+
+        #: Then
+        assert result.returncode == 1, result.stderr
+        assert 'LC004' not in result.stdout, 'the builtin compatibility preflight is disabled with the floor'
+        assert 'LC208' in result.stdout, 'the repository schema still validates skill frontmatter'
+
+
+@pytest.mark.e2e
 class TestWorkspaceDefaults:
     # Every test that writes a workspace sets only the fields its case turns on, and relies on the rest being clean.
 
@@ -1314,7 +1610,7 @@ class TestWorkspaceDefaults:
         #: Then
         assert result.returncode == 1, result.stderr
         assert 'LC004' in result.stdout, 'the unusable repository layer is reported'
-        assert 'LEN002' not in result.stdout, 'the failed layer suppresses all WhenSpec budget rules'
+        assert 'LC402' not in result.stdout, 'the failed layer suppresses all WhenSpec budget rules'
 
     def test_check_opt_out_keeps_a_failed_repository_skills_layer_reported(self, tmp_path: Path, faker: Faker) -> None:
         #: Given
@@ -1332,7 +1628,7 @@ class TestWorkspaceDefaults:
         #: Then
         assert result.returncode == 1, result.stderr
         assert 'LC004' in result.stdout, 'opting out does not hide an unusable repository spec'
-        assert 'LEN002' not in result.stdout, 'the failed layer suppresses the opted-out floor budget too'
+        assert 'LC402' not in result.stdout, 'the failed layer suppresses the opted-out floor budget too'
 
     def test_check_rejects_both_skills_opt_out_flags_as_a_usage_error(self) -> None:
         #: Given
