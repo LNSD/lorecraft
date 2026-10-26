@@ -45,7 +45,7 @@ def rule(
         typer.Argument(
             metavar='[RULE]',
             parser=_RuleKeyParser(),
-            help='A rule by its code, its name or an alias code, such as OUT004 or empty-section. Without it, every '
+            help='A rule by its code, its name or an alias code, such as LC304 or empty-section. Without it, every '
             'rule is listed.',
         ),
     ] = None,

@@ -20,7 +20,7 @@ error[LC201]: no `---` delimited frontmatter block
   = note: the frontmatter schema is set here
   = help: open the file with a `---` line, the fields, and a closing `---` line
 
-error[OUT004]: section `Logging` is empty
+error[LC304]: section `Logging` is empty
  --> docs/code/logging.md:1
   │
 1 │ # Logging
@@ -31,7 +31,7 @@ error[OUT004]: section `Logging` is empty
   = note: the document structure is set here
   = help: write the document's content under its title
 
-error[OUT006]: missing required section `Checklist`
+error[LC306]: missing required section `Checklist`
  --> docs/code/logging.md:1
   │
 1 │ # Logging
@@ -61,21 +61,7 @@ error[LC201]: no `---` delimited frontmatter block
   = note: the frontmatter schema is set here
   = help: open the file with a `---` line, the fields, and a closing `---` line
 
-error[LEN001]: too many tokens (4 > 3)
- --> docs/code/python-typing.md:1
-  │
-1 │ # Python typing
-  │ ─────────────── tokens over the budget: 1
-  │
- ::: docs/__meta__/code-python.spec.json
-  │
-  = note: the limit is set here
-  = help: split the document, or move what an agent needs only some of the time into a document of
-          its own and link to it
-  = note: tokens are counted as o200k_base over the whole file: frontmatter, code blocks and tables
-          included
-
-error[OUT004]: section `Python typing` is empty
+error[LC304]: section `Python typing` is empty
  --> docs/code/python-typing.md:1
   │
 1 │ # Python typing
@@ -86,7 +72,7 @@ error[OUT004]: section `Python typing` is empty
   = note: the document structure is set here
   = help: write the document's content under its title
 
-error[OUT006]: missing required section `Checklist`
+error[LC306]: missing required section `Checklist`
  --> docs/code/python-typing.md:1
   │
 1 │ # Python typing
@@ -105,7 +91,7 @@ error[OUT006]: missing required section `Checklist`
           - [ ] No logger is stored as `self.logger` or any other instance or class attribute
           - [ ] Every log call inside an `except` block uses `logger.exception(...)`
 
-error[OUT006]: missing required section `References`
+error[LC306]: missing required section `References`
  --> docs/code/python-typing.md:1
   │
 1 │ # Python typing
@@ -115,3 +101,17 @@ error[OUT006]: missing required section `References`
   │
   = note: the document structure is set here
   = help: Links to the documents this one builds on.
+
+error[LC401]: too many tokens (4 > 3)
+ --> docs/code/python-typing.md:1
+  │
+1 │ # Python typing
+  │ ─────────────── tokens over the budget: 1
+  │
+ ::: docs/__meta__/code-python.spec.json
+  │
+  = note: the limit is set here
+  = help: split the document, or move what an agent needs only some of the time into a document of
+          its own and link to it
+  = note: tokens are counted as o200k_base over the whole file: frontmatter, code blocks and tables
+          included

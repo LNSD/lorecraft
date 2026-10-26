@@ -1,4 +1,4 @@
-"""`OUT001`: a document a structure file governs carries no H1 title."""
+"""`LC301`: a document a structure file governs carries no H1 title."""
 
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -69,7 +69,7 @@ class MissingTitle(QueriedItemRule[TitleFacts]):
         spec: Always `None`: the package states the rule.
     """
 
-    CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 1)
+    CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 301)
     NAME: ClassVar[RuleName] = RuleName('missing-title')
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('0.3.0')

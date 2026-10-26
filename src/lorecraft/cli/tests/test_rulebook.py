@@ -133,7 +133,7 @@ class TestPageName:
         name = page_name(declaration)
 
         #: Then
-        assert name == 'OUT004-empty-section', 'the code comes first so the listing sorts in code order'
+        assert name == 'LC304-empty-section', 'the code comes first so the listing sorts in code order'
 
 
 @pytest.mark.unit
@@ -148,12 +148,12 @@ class TestRenderPage:
         #: Then
         assert page.startswith(
             '---\n'
-            'name: "OUT004-empty-section"\n'
+            'name: "LC304-empty-section"\n'
             'description: "A section holds no content, under a structure file that forbids empty sections"\n'
-            'code: "OUT004"\n'
+            'code: "LC304"\n'
             'since: "0.3.0"\n'
             '---\n\n'
-            '# empty-section (OUT004)\n\n'
+            '# empty-section (LC304)\n\n'
             'A section holds no content, under a structure file that forbids empty sections.\n\n'
             '## What it does\n\n'
             'Checks for headings whose section holds nothing'

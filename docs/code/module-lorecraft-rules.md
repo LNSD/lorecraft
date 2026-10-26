@@ -23,7 +23,7 @@ query and hands it the facts sits above in `lorecraft.engine`; the query is answ
 
 ## Belongs Here
 
-- Rule identity: release, group, code, name, alias, level and severity. `LC1xx` identifies workspace checks, `LC2xx` frontmatter checks, and `LC0xx` engine conditions. Their codes share the `LC` prefix and use the full three-digit number.
+- Rule identity: release, group, code, name, alias, level and severity. The shared `LC` prefix has `LC0xx` engine, `LC1xx` workspace, `LC2xx` frontmatter, `LC3xx` outline and `LC4xx` length codes; `LINK` still covers Markdown links.
 - An item rule derives from `QueriedItemRule`, names its typed query, and declares a gate for every item type it
   judges. `WhenSpec` and `Always` are the complete gate vocabulary: a part must be governed for the item, or the
   rule is unconditional for that mapped type. A missing item type is inapplicable. `APPLIES_TO` is a required class

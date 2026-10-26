@@ -1,4 +1,4 @@
-"""`LEN005`: a document's title holds more characters than its character cap allows."""
+"""`LC405`: a document's title holds more characters than its character cap allows."""
 
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -67,7 +67,7 @@ class TitleTooLong(QueriedItemRule[TitleFacts]):
         overrun: The characters of the title's text against the cap they exceed.
     """
 
-    CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 5)
+    CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 405)
     NAME: ClassVar[RuleName] = RuleName('title-too-long')
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('0.3.0')

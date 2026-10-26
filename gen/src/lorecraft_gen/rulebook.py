@@ -19,7 +19,7 @@ from lorecraft.rules.registry import Registry
 
 _DEFAULT_OUTDIR: Final[Path] = Path('docs/rulebook')
 
-# The file name `page_name` gives a rule's page, such as `OUT004-empty-section.md`.
+# The file name `page_name` gives a rule's page, such as `LC304-empty-section.md`.
 _PAGE_FILENAME: Final[re.Pattern[str]] = re.compile(r'[A-Z]+[0-9]+-[a-z0-9-]+\.md')
 
 

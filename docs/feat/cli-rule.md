@@ -11,7 +11,7 @@ components: "module:lorecraft.cli,module:lorecraft.rules"
 ## Summary
 
 `lorecraft rule` prints what a rule checks, why it matters and how to fix it, for a user who has only the installed
-package. `lorecraft rule OUT006` prints the page of that rule, and a bare `lorecraft rule` lists every rule in code
+package. `lorecraft rule LC306` prints the page of that rule, and a bare `lorecraft rule` lists every rule in code
 order. The page is the one in `docs/rulebook/`, rendered by the same function from the rule's docstring.
 
 ## Table of Contents
@@ -38,7 +38,7 @@ order. The page is the one in `docs/rulebook/`, rendered by the same function fr
 
 | Argument or option | Default | Description |
 |--------------------|---------|-------------|
-| `[RULE]`           | none: list every rule | A rule by its code, its name or an alias code, such as `OUT006` or `missing-section` |
+| `[RULE]`           | none: list every rule | A rule by its code, its name or an alias code, such as `LC306` or `missing-section` |
 
 The rules are part of the package, so the command reads no workspace and takes no `--root`. A code, a name and an
 alias code are matched exactly, with their case; surrounding whitespace is not removed. A key may name a rule in
@@ -53,7 +53,7 @@ page is printed.
 lorecraft rule
 
 # A rule's page, by its code or by its name
-lorecraft rule OUT004
+lorecraft rule LC304
 lorecraft rule empty-section
 
 # The page for paths that cannot be read, by code or name
@@ -73,7 +73,7 @@ LC001    invalid-utf8              error  A file is not valid UTF-8.
 LC002    unreadable-path           error  A path cannot be read.
 LC003    malformed-structure-file  error  A structure file does not follow the structure format, or states no rule.
 LC004    unusable-structure-file   error  A structure file follows the structure format and states rules that cannot be applied.
-OUT004   empty-section             deny   A section holds no content, under a structure file that forbids empty sections.
+LC304    empty-section             deny   A section holds no content, under a structure file that forbids empty sections.
 ```
 
 ### Default Levels
@@ -83,8 +83,8 @@ run. `LC001`–`LC004` are engine conditions, not rules; they are always reporte
 
 | Default level | Rule codes |
 |---------------|------------|
-| `deny` | `LC201`, `LC202`, `LC203`, `LC204`, `LC205`, `LC206`, `LC208`, `LC209`, `LC210`, `LC213`, `LC214`, `LC102`, `LEN001`, `LEN002`, `LEN003`, `LEN004`, `LEN005`, `LINK001`, `LINK002`, `LINK003`, `LINK004`, `OUT001`, `OUT002`, `OUT003`, `OUT004`, `OUT005`, `OUT006`, `OUT007`, `OUT008`, `OUT009` |
-| `warn` | `LC207`, `LC211`, `LC212`, `LINK005`, `LINK006`, `LINK007` |
+| `deny` | `LC102`, `LC201`, `LC202`, `LC203`, `LC204`, `LC205`, `LC206`, `LC208`, `LC209`, `LC210`, `LC213`, `LC214`, `LC301`, `LC302`, `LC303`, `LC304`, `LC305`, `LC306`, `LC307`, `LC308`, `LC309`, `LC401`, `LC402`, `LC403`, `LC404`, `LC405`, `LINK001`, `LINK002`, `LINK003`, `LINK004` |
+| `warn` | `LC101`, `LC207`, `LC211`, `LC212`, `LINK005`, `LINK006`, `LINK007` |
 
 The `LC002` page covers unreadable structure files, unlistable corpus and skills directories, skills
 that cannot be listed or resolved, and `SKILL.md` links that cannot be followed. A regular `SKILL.md` whose
@@ -97,13 +97,13 @@ the same text. This is the start of one, with its sections cut at `…`:
 
 ```text
 ---
-name: "OUT004-empty-section"
+name: "LC304-empty-section"
 description: "A section holds no content, under a structure file that forbids empty sections"
-code: "OUT004"
+code: "LC304"
 since: "0.3.0"
 ---
 
-# empty-section (OUT004)
+# empty-section (LC304)
 
 A section holds no content, under a structure file that forbids empty sections.
 

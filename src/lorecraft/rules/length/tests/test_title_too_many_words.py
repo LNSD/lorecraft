@@ -1,4 +1,4 @@
-"""`LEN004`, `title-too-many-words`, over the word cap of a document's title.
+"""`LC404`, `title-too-many-words`, over the word cap of a document's title.
 
 Every case is a document written as text, read through a fake database that parses it as the real parser does, under
 structure files decoded from JSON; no document is read from disk.

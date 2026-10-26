@@ -77,7 +77,7 @@ If it needs a corpus that does not exist yet, that is a new spec: use `/docs-rul
    ```
 
    It checks the whole workspace, so a new document that breaks a neighbour shows too. Read the diagnostics
-   for the files you wrote. A missing-section diagnostic (`OUT006`) carries `= help:` and `= note:` lines
+   for the files you wrote. A missing-section diagnostic (`LC306`) carries `= help:` and `= note:` lines
    describing the section and showing an example; follow them.
 
    A section over its word cap or a document over its token budget is moved or cut, not compressed: the

@@ -1,4 +1,4 @@
-"""`LEN002`: an item is longer than its line budget allows."""
+"""`LC402`: an item is longer than its line budget allows."""
 
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -77,7 +77,7 @@ class TooManyLines(QueriedItemRule[LineFacts]):
     Split material into a linked document, or into a skill resource under `references/` for skills.
     """
 
-    CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 2)
+    CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 402)
     NAME: ClassVar[RuleName] = RuleName('too-many-lines')
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('0.3.0')

@@ -578,17 +578,17 @@ class TestCheckSubjects:
     @pytest.mark.parametrize(
         ('floor_enabled', 'skills_spec', 'expected_codes', 'expected_ungoverned'),
         (
-            (True, None, ('LC211', 'LC212', 'LEN002'), ()),
+            (True, None, ('LC211', 'LC212', 'LC402'), ()),
             (
                 True,
                 b'{"lines":300,"frontmatter":{"type":"object"}}',
-                ('LC211', 'LC212', 'LEN002', 'LEN002'),
+                ('LC211', 'LC212', 'LC402', 'LC402'),
                 (),
             ),
             (
                 False,
                 b'{"lines":400,"frontmatter":{"type":"object"}}',
-                ('LC211', 'LC212', 'LEN002'),
+                ('LC211', 'LC212', 'LC402'),
                 (),
             ),
             (
@@ -743,7 +743,7 @@ class TestCheckSubjects:
                 diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
                 ungoverned=(SpecPart.FRONTMATTER, SpecPart.OUTLINE),
             ),
-        ), 'LEN001 runs at deny, so a document over its budget carries its occurrence as an error'
+        ), 'LC401 runs at deny, so a document over its budget carries its occurrence as an error'
 
     def test_check_subjects_with_a_document_over_a_corpus_and_a_namespace_budget_reports_both(self) -> None:
         #: Given
@@ -1067,7 +1067,7 @@ class TestCheckSubjects:
                 diagnostics=(RuleDiagnostic(skill_file, occurrence, Severity.ERROR),),
                 ungoverned=SKILL_UNGOVERNED,
             ),
-        ), 'LEN002 runs at deny, so a skill over the budget carries its occurrence as an error, at its SKILL.md'
+        ), 'LC402 runs at deny, so a skill over the budget carries its occurrence as an error, at its SKILL.md'
 
     def test_check_subjects_with_a_skill_over_the_corpus_token_budget_reports_the_layered_budget(self) -> None:
         #: Given
@@ -1853,8 +1853,8 @@ class TestCheckSubjects:
                 ),
             ),
         ), (
-            'OUT001 runs at deny over a document a structure specification governs, under that specification, and '
-            'OUT003 leaves the untitled document to it'
+            'LC301 runs at deny over a document a structure specification governs, under that specification, and '
+            'LC303 leaves the untitled document to it'
         )
 
     def test_check_subjects_with_a_document_carrying_a_second_title_reports_extra_title(
@@ -1881,7 +1881,7 @@ class TestCheckSubjects:
                     SpecPart.BUDGET,
                 ),
             ),
-        ), 'OUT002 runs at deny over a document a structure specification governs, at the title after the first'
+        ), 'LC302 runs at deny over a document a structure specification governs, at the title after the first'
 
     def test_check_subjects_with_a_document_opening_with_a_section_reports_title_not_first(
         self, package_table: RuleTable
@@ -1908,7 +1908,7 @@ class TestCheckSubjects:
                     SpecPart.BUDGET,
                 ),
             ),
-        ), 'OUT003 runs at deny over a document a structure specification governs, at the heading opening it'
+        ), 'LC303 runs at deny over a document a structure specification governs, at the heading opening it'
 
     def test_check_subjects_with_a_document_carrying_its_title_reports_it_clean(self, package_table: RuleTable) -> None:
         #: Given
@@ -1957,7 +1957,7 @@ class TestCheckSubjects:
                     SpecPart.BUDGET,
                 ),
             ),
-        ), 'OUT004 runs at deny over a document whose specification forbids empty sections, at the empty heading'
+        ), 'LC304 runs at deny over a document whose specification forbids empty sections, at the empty heading'
 
     def test_check_subjects_with_a_forbidden_section_reports_forbidden_section(self, package_table: RuleTable) -> None:
         #: Given
@@ -1981,7 +1981,7 @@ class TestCheckSubjects:
                     SpecPart.BUDGET,
                 ),
             ),
-        ), 'OUT005 runs at deny over a document whose specification forbids a section, at the forbidden heading'
+        ), 'LC305 runs at deny over a document whose specification forbids a section, at the forbidden heading'
 
     def test_check_subjects_with_a_section_over_its_word_cap_reports_section_too_many_words(
         self, package_table: RuleTable
@@ -2010,7 +2010,7 @@ class TestCheckSubjects:
                 diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
                 ungoverned=(SpecPart.FRONTMATTER, SpecPart.BUDGET),
             ),
-        ), 'LEN003 runs at deny over a document whose specification caps a section, at the section over its cap'
+        ), 'LC403 runs at deny over a document whose specification caps a section, at the section over its cap'
 
     def test_check_subjects_with_a_title_over_its_word_cap_reports_title_too_many_words(
         self, package_table: RuleTable
@@ -2036,7 +2036,7 @@ class TestCheckSubjects:
                     SpecPart.BUDGET,
                 ),
             ),
-        ), 'LEN004 runs at deny over a document whose specification caps the title, at the title over its cap'
+        ), 'LC404 runs at deny over a document whose specification caps the title, at the title over its cap'
 
     def test_check_subjects_with_a_title_over_its_character_cap_reports_title_too_long(
         self, package_table: RuleTable
@@ -2062,7 +2062,7 @@ class TestCheckSubjects:
                     SpecPart.BUDGET,
                 ),
             ),
-        ), 'LEN005 runs at deny over a document whose specification caps the title, at the title over its cap'
+        ), 'LC405 runs at deny over a document whose specification caps the title, at the title over its cap'
 
     def test_check_subjects_with_a_title_failing_its_pattern_reports_invalid_title(
         self, package_table: RuleTable
@@ -2093,7 +2093,7 @@ class TestCheckSubjects:
                     SpecPart.BUDGET,
                 ),
             ),
-        ), 'OUT009 runs at deny over a document whose specification sets a title pattern, at the title failing it'
+        ), 'LC309 runs at deny over a document whose specification sets a title pattern, at the title failing it'
 
     def test_check_subjects_with_no_enabled_rule_over_the_headings_never_parses_the_document(self) -> None:
         #: Given
@@ -2135,7 +2135,7 @@ class TestCheckSubjects:
                 diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
                 ungoverned=(SpecPart.FRONTMATTER, SpecPart.BUDGET),
             ),
-        ), 'OUT006 runs at deny over a document lacking a section its outline requires, at its last line'
+        ), 'LC306 runs at deny over a document lacking a section its outline requires, at its last line'
 
     def test_check_subjects_with_a_document_writing_a_section_out_of_order_reports_section_out_of_order(
         self, package_table: RuleTable
@@ -2159,7 +2159,7 @@ class TestCheckSubjects:
                 diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
                 ungoverned=(SpecPart.FRONTMATTER, SpecPart.BUDGET),
             ),
-        ), 'OUT007 runs at deny over a document writing a section where its outline places another, at its heading'
+        ), 'LC307 runs at deny over a document writing a section where its outline places another, at its heading'
 
     def test_check_subjects_with_a_document_writing_a_section_its_outline_does_not_name_reports_unexpected_section(
         self, package_table: RuleTable
@@ -2183,7 +2183,7 @@ class TestCheckSubjects:
                 diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
                 ungoverned=(SpecPart.FRONTMATTER, SpecPart.BUDGET),
             ),
-        ), 'OUT008 runs at deny over a document writing a section its outline does not name, at its heading'
+        ), 'LC308 runs at deny over a document writing a section its outline does not name, at its heading'
 
     def test_check_subjects_with_a_document_following_its_outline_reports_it_clean(
         self, package_table: RuleTable

@@ -6,7 +6,7 @@ reads the disk, the terminal or the environment. The caller decides the `TextSty
 The diagnostics are printed in the order `diagnostic_order` states, an empty line between two of them. One diagnostic
 reads, as `docs/arch/adr-010-diagnostics.md` lays it out:
 
-    error[OUT006]: missing required section `Usage`
+    error[LC306]: missing required section `Usage`
       --> docs/feat/cli-check.md:12
        │
     12 │ ## Options

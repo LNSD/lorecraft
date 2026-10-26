@@ -1,4 +1,4 @@
-"""`OUT007`, `section-out-of-order`, over where a document's sections first stop matching their outlines.
+"""`LC307`, `section-out-of-order`, over where a document's sections first stop matching their outlines.
 
 Every case is a document written as text, read through a fake database that parses it and matches it against its
 outlines as the real parser and matcher do, under structure files decoded from JSON; no document is read from

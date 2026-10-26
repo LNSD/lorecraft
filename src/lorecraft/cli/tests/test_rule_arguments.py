@@ -31,8 +31,8 @@ class SampleIndex:
 
     RULES: Final[tuple[RuleIndexRow, ...]] = (
         ConditionRow('LC001', 'invalid-utf8', 'error'),
-        RuleRow('OUT004', 'empty-section', 'deny', ('MD040',)),
-        RuleRow('OUT006', 'missing-section', 'deny', ()),
+        RuleRow('LC304', 'empty-section', 'deny', ('MD040',)),
+        RuleRow('LC306', 'missing-section', 'deny', ()),
         RemovedRuleRow('OUT010', 'retired-rule'),
     )
 
@@ -55,7 +55,7 @@ SAMPLE_INDEX: Final[SampleIndex] = SampleIndex()
 class TestSelectorValueParse:
     def test_parse_with_each_form_parses_the_form(self) -> None:
         #: Given
-        raw = 'ALL,OUT004,MD040'
+        raw = 'ALL,LC304,MD040'
 
         #: When
         parsed = SelectorValue.parse(raw, SAMPLE_INDEX)
@@ -64,33 +64,33 @@ class TestSelectorValueParse:
         assert parsed == SelectorValue(
             (
                 AllSelector(),
-                CodeSelector('OUT004'),
-                AliasSelector('MD040', CodeSelector('OUT004')),
+                CodeSelector('LC304'),
+                AliasSelector('MD040', CodeSelector('LC304')),
             )
         ), 'ALL, a full code and an alias code each parse to their form'
 
     def test_parse_with_whitespace_around_selectors_strips_it(self) -> None:
         #: Given
-        raw = ' OUT004 , OUT006'
+        raw = ' LC304 , LC306'
 
         #: When
         parsed = SelectorValue.parse(raw, SAMPLE_INDEX)
 
         #: Then
-        assert parsed == SelectorValue((CodeSelector('OUT004'), CodeSelector('OUT006'))), (
+        assert parsed == SelectorValue((CodeSelector('LC304'), CodeSelector('LC306'))), (
             'each selector of a value is stripped, in the order typed'
         )
 
     def test_parse_with_a_trailing_comma_raises_empty_selector_error(self) -> None:
         #: Given
-        raw = 'OUT004,'
+        raw = 'LC304,'
 
         #: When
         with pytest.raises(EmptySelectorError) as exc_info:
             SelectorValue.parse(raw, SAMPLE_INDEX)
 
         #: Then
-        assert exc_info.value.value == 'OUT004,', 'the error names the value as typed'
+        assert exc_info.value.value == 'LC304,', 'the error names the value as typed'
 
     def test_parse_with_an_empty_value_raises_empty_selector_error(self) -> None:
         #: Given
@@ -105,7 +105,7 @@ class TestSelectorValueParse:
 
     def test_parse_with_a_lowercase_group_raises_malformed_selector_error(self) -> None:
         #: Given
-        raw = 'OUT006,out'
+        raw = 'LC306,out'
 
         #: When
         with pytest.raises(MalformedSelectorError) as exc_info:
@@ -248,14 +248,14 @@ class TestSelectorValueParse:
 
     def test_parse_with_a_code_of_a_group_that_no_rule_numbers_raises_unknown_selector_error(self) -> None:
         #: Given
-        raw = 'OUT007'
+        raw = 'LC307'
 
         #: When
         with pytest.raises(UnknownSelectorError) as exc_info:
             SelectorValue.parse(raw, SAMPLE_INDEX)
 
         #: Then
-        assert exc_info.value.text == 'OUT007', 'a well-formed code of a group that has no such number is unknown'
+        assert exc_info.value.text == 'LC307', 'a well-formed code of a group that has no such number is unknown'
 
     def test_parse_with_a_code_no_rule_has_raises_unknown_selector_error(self) -> None:
         #: Given
@@ -321,8 +321,8 @@ class TestSelectorValueParse:
             SelectorValue.parse(raw, SAMPLE_INDEX)
 
         #: Then
-        assert exc_info.value.code == 'OUT004', 'the error carries the code to write instead'
-        assert 'OUT004' in str(exc_info.value), 'the message names the code to write instead'
+        assert exc_info.value.code == 'LC304', 'the error carries the code to write instead'
+        assert 'LC304' in str(exc_info.value), 'the message names the code to write instead'
 
     def test_parse_with_the_engine_prefix_raises_unknown_selector_error(self) -> None:
         #: Given
@@ -399,8 +399,8 @@ class TestSelectorValueStr:
         value = SelectorValue(
             (
                 AllSelector(),
-                CodeSelector('OUT004'),
-                AliasSelector('MD040', CodeSelector('OUT004')),
+                CodeSelector('LC304'),
+                AliasSelector('MD040', CodeSelector('LC304')),
             )
         )
 
@@ -408,20 +408,20 @@ class TestSelectorValueStr:
         text = str(value)
 
         #: Then
-        assert text == 'ALL,OUT004,MD040', 'each selector prints as typed, a code zero-padded'
+        assert text == 'ALL,LC304,MD040', 'each selector prints as typed, a code zero-padded'
 
 
 @pytest.mark.unit
 class TestRuleKeyParse:
     def test_parse_with_a_code_returns_the_key(self) -> None:
         #: Given
-        raw = 'OUT004'
+        raw = 'LC304'
 
         #: When
         parsed = RuleKey.parse(raw, SAMPLE_INDEX)
 
         #: Then
-        assert parsed == RuleKey('OUT004'), 'a code the index has is a key'
+        assert parsed == RuleKey('LC304'), 'a code the index has is a key'
 
     def test_parse_with_a_name_returns_the_key(self) -> None:
         #: Given
@@ -531,14 +531,14 @@ class TestRuleKeyParse:
 
     def test_parse_with_a_leading_space_raises_malformed_rule_key_error(self) -> None:
         #: Given
-        raw = ' OUT004'
+        raw = ' LC304'
 
         #: When
         with pytest.raises(MalformedRuleKeyError) as exc_info:
             RuleKey.parse(raw, SAMPLE_INDEX)
 
         #: Then
-        assert exc_info.value.text == ' OUT004', 'the argument is matched as typed, with no whitespace stripped'
+        assert exc_info.value.text == ' LC304', 'the argument is matched as typed, with no whitespace stripped'
 
     def test_parse_with_a_code_of_a_group_no_rule_has_raises_unknown_rule_key_error(self) -> None:
         #: Given
@@ -614,11 +614,11 @@ class TestRuleKeyToDeclaration:
     def test_to_declaration_with_a_key_the_registry_lacks_raises_index_rule_not_in_registry_error(self) -> None:
         #: Given
         registry = Registry.load(valid_rules)
-        key = RuleKey('OUT004')
+        key = RuleKey('LC304')
 
         #: When
         with pytest.raises(IndexRuleNotInRegistryError) as exc_info:
             key.to_declaration(registry)
 
         #: Then
-        assert exc_info.value.key == 'OUT004', 'a key the index holds and the registry lacks is a stale index'
+        assert exc_info.value.key == 'LC304', 'a key the index holds and the registry lacks is a stale index'

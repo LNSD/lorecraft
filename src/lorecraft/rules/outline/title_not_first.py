@@ -1,4 +1,4 @@
-"""`OUT003`: a document a structure file governs opens with a heading other than its H1 title."""
+"""`LC303`: a document a structure file governs opens with a heading other than its H1 title."""
 
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -87,7 +87,7 @@ class TitleNotFirst(QueriedItemRule[tuple[Heading, ...]]):
         title_line: The line of the document's H1 title, which the heading above it should follow.
     """
 
-    CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 3)
+    CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 303)
     NAME: ClassVar[RuleName] = RuleName('title-not-first')
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('0.3.0')

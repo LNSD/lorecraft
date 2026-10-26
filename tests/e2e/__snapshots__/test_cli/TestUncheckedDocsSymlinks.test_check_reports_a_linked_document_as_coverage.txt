@@ -8,6 +8,6 @@ docs/__meta__/code-python.md: ungoverned for frontmatter, structure, outline, bu
 docs/__meta__/code.md: ungoverned for frontmatter, structure, outline, budget
 docs/code/linked.md: not checked (symlink)
 LC2xx  4 errors
-LEN    1 error
-OUT    5 errors
+LC3xx  5 errors
+LC4xx  1 error
 checked 10 subject(s): 10 error(s), 0 warning(s)

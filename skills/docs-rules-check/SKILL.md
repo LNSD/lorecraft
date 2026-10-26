@@ -65,8 +65,8 @@ The run covers the whole workspace; read the diagnostics for the documents the c
 `children` in JSON; for a missing section they say what it holds and show a sample, so read them before fixing it.
 Exit `0` means no error, warnings included, `1` at least one error, a spec that cannot be loaded included — §6 covers that one — and `2` invalid input or
 selectors, or that the root or `docs/__meta__/` cannot be listed. A `<path>: ungoverned for <parts>` line on stderr is not a
-failure; report the document as unvalidated for those parts. The rule groups and their codes, `LC2xx` frontmatter, `OUT`
-outline, `LEN` length, `LINK` links, are listed in
+failure; report the document as unvalidated for those parts. The rule groups and their codes, `LC2xx` frontmatter, `LC3xx`
+outline, `LC4xx` length, `LINK` links, are listed in
 [check](https://github.com/LNSD/lorecraft/blob/main/docs/feat/cli-check.md#findings).
 
 The run checks every agent skill too. A diagnostic at a skill's path, or an `LC1xx` one, is about a skill, not a

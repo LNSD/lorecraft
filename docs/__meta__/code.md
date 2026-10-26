@@ -145,11 +145,11 @@ Keep code rules focused and concise. Agent entrypoint docs should NOT hardcode l
 
 [code.spec.json](code.spec.json) makes "focused and concise" decidable with two measures:
 
-- **Word caps keep each section concise**, enforced by `lorecraft check` as `LEN003`. One caps an optional `Rule` section, one every other section of the
+- **Word caps keep each section concise**, enforced by `lorecraft check` as `LC403`. One caps an optional `Rule` section, one every other section of the
   document's own, and one the `Checklist`. A word is a whitespace-delimited token of prose; fenced code and table
   rows are not counted, so an example costs no words. A section's cap covers its H3 subsections. A section over
   its cap is split or moved, not compressed.
-- **A token budget keeps the document cheap to load**, enforced by `lorecraft check` as `LEN001`. It covers the whole file, frontmatter, code and tables
+- **A token budget keeps the document cheap to load**, enforced by `lorecraft check` as `LC401`. It covers the whole file, frontmatter, code and tables
   included, since an agent pays for every character it reads, and counts OpenAI's `o200k_base` tokens, the same
   whichever agent reads the document. A document over it is split, or its examples trimmed.
 
@@ -402,7 +402,7 @@ Code rules may reference other code rules to establish relationships. Cross-refe
 
 [code.spec.json](code.spec.json) beside this file holds the outline below in machine-checkable
 form, together with the word caps and token budget of [§1](#1-core-principles). `lorecraft check` applies the
-outline with the `OUT` rules, and the caps and the budget with the `LEN` rules. A
+outline with the `LC3xx` rules, and the caps and the budget with the `LC4xx` rules. A
 document that a namespace spec matches takes its section outline from the narrowest
 `code-<namespace>.md` spec that matches its name instead of the general shape below; the general
 shape governs every document no namespace spec matches, `error-*`, `tests-*` and `logging` today

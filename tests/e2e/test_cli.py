@@ -459,7 +459,7 @@ class TestCheckCommand:
             '.agents/skills/gamma/SKILL.md: ungoverned for structure, outline\n'
             'docs/__meta__/code-python.md: ungoverned for frontmatter, structure, outline, budget\n'
             'docs/__meta__/code.md: ungoverned for frontmatter, structure, outline, budget\n'
-            'LC2xx  3 errors\nLEN    1 error\nOUT    5 errors\nchecked 7 subject(s): 9 error(s), 0 warning(s)\n'
+            'LC2xx  3 errors\nLC3xx  5 errors\nLC4xx  1 error\nchecked 7 subject(s): 9 error(s), 0 warning(s)\n'
         ), 'every document and skill of the fixture is checked, and each is governed'
 
     @pytest.mark.parametrize(
@@ -970,8 +970,8 @@ class TestWorkspaceDefaults:
         #: Then
         assert result.returncode == 1, result.stderr
         assert 'LC206' in result.stdout, 'the missing required frontmatter field is checked on a spec'
-        assert 'OUT006' in result.stdout, 'the required outline section is checked on a spec'
-        assert 'LEN001' in result.stdout, 'the token budget is checked on a spec'
+        assert 'LC306' in result.stdout, 'the required outline section is checked on a spec'
+        assert 'LC401' in result.stdout, 'the token budget is checked on a spec'
 
 
 @pytest.fixture(scope='function')

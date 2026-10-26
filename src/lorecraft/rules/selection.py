@@ -47,7 +47,7 @@ class RuleSelection:
         ignored = _most_specific_match(self.ignore, code)
         if ignored is None:
             return True
-        # An ignore as specific as the select wins, so `--select OUT004 --ignore OUT004` keeps no such rule.
+        # An ignore as specific as the select wins, so `--select LC304 --ignore LC304` keeps no such rule.
         return selected > ignored
 
 

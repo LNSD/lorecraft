@@ -242,7 +242,7 @@ class TestCheckWithAFailedSpec:
             'an error diagnostic is reported on the invalid structure file, under its code'
         )
         assert _severities_at(document, STRUCTURE_FILE_OF_CODE) == ['error'], 'it is reported as an error'
-        assert _codes_at(document, 'docs/feat/check.md') == ['OUT006'], (
+        assert _codes_at(document, 'docs/feat/check.md') == ['LC306'], (
             'the document of the other corpus gets the diagnostic it gets with no broken file'
         )
         assert _severities_at(document, 'docs/feat/check.md') == ['error'], 'it is reported as an error'
@@ -262,7 +262,7 @@ class TestCheckWithAFailedSpec:
             'a structure file that does not decode is reported as any file that does not decode'
         )
         assert _severities_at(document, STRUCTURE_FILE_OF_CODE) == ['error'], 'it is reported as an error'
-        assert _codes_at(document, 'docs/feat/check.md') == ['OUT006'], (
+        assert _codes_at(document, 'docs/feat/check.md') == ['LC306'], (
             'every corpus the file does not govern is checked'
         )
         assert _severities_at(document, 'docs/feat/check.md') == ['error'], 'it is reported as an error'
@@ -287,7 +287,7 @@ class TestCheckWithAFailedSpec:
         }, 'the affected spec parts are reported, while rules no spec part gates can judge the item'
         assert _codes_at(document, 'docs/code/python-typing.md') == [], 'the failed namespace gates are suppressed'
         assert coverage['docs/code/logging.md']['skipped_by'] == [], 'the other document is judged, not skipped'
-        assert _codes_at(document, 'docs/code/logging.md') == ['OUT006'], (
+        assert _codes_at(document, 'docs/code/logging.md') == ['LC306'], (
             "the corpus's other documents are checked against the corpus spec"
         )
         assert _severities_at(document, 'docs/code/logging.md') == ['error'], 'a missing section is an error'
@@ -361,7 +361,7 @@ class TestCheckWithAFailedSpec:
         assert f'{STRUCTURE_FILE_OF_PYTHON}: error[LC003]: structure file states no rule' in lines, (
             'the failure is one line at its structure file'
         )
-        assert _has_finding(lines, 'docs/feat/check.md', 'error', 'OUT006'), 'the other findings are printed with it'
+        assert _has_finding(lines, 'docs/feat/check.md', 'error', 'LC306'), 'the other findings are printed with it'
         assert 'docs/code/python-typing.md: ungoverned for frontmatter, structure, outline, budget' in result.stderr, (
             'the checked item lists the parts whose rules the failed layer suppressed'
         )
@@ -440,7 +440,7 @@ class TestCheckLeavesWhatAFailureDoesNotTouchAsItWas:
         assert _severities_at(document, STRUCTURE_FILE_OF_PYTHON) == ['error'], 'it is reported as an error'
         assert _codes_at(document, STRUCTURE_FILE_OF_FEAT) == ['LC001'], 'the corpus spec that is not UTF-8 is reported'
         assert _severities_at(document, STRUCTURE_FILE_OF_FEAT) == ['error'], 'it is reported as an error'
-        assert _codes_at(document, 'docs/code/logging.md') == ['OUT006'], 'what no failure touches is still checked'
+        assert _codes_at(document, 'docs/code/logging.md') == ['LC306'], 'what no failure touches is still checked'
         assert _severities_at(document, 'docs/code/logging.md') == ['error'], 'it is reported as an error'
         coverage = _coverage(document)
         assert coverage['docs/code/python-typing.md']['ungoverned'] == ['frontmatter', 'structure', 'outline', 'budget']
@@ -452,7 +452,7 @@ class TestCheckLeavesWhatAFailureDoesNotTouchAsItWas:
         root = _build_workspace(tmp_path, python_spec=STATES_NO_RULE)
 
         #: When
-        exit_code, document = _check_json(root, '--select', 'OUT006')
+        exit_code, document = _check_json(root, '--select', 'LC306')
 
         #: Then
         assert _codes_at(document, STRUCTURE_FILE_OF_PYTHON) == ['LC003'], (
@@ -480,7 +480,7 @@ class TestCheckLeavesWhatAFailureDoesNotTouchAsItWas:
         root = _build_workspace(tmp_path, python_spec=STATES_NO_RULE)
 
         #: When
-        exit_code, document = _check_json(root, '--select', 'LEN001')
+        exit_code, document = _check_json(root, '--select', 'LC401')
 
         #: Then
         assert _codes_at(document, STRUCTURE_FILE_OF_PYTHON) == ['LC003'], (

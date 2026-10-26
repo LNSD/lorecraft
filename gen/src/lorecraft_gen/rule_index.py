@@ -75,7 +75,7 @@ def find(key: str) -> RuleIndexRow | None:
     A row is a rule, removed rule or engine condition record.
 
     Args:
-        key: A code as printed, such as `OUT004`, a name, such as `empty-section`, or an alias code, such as `MD040`.
+        key: A code as printed, such as `LC304`, a name, such as `empty-section`, or an alias code, such as `MD040`.
     """
     for row in RULES:
         if key == row.code or key == row.name or isinstance(row, RuleRow) and key in row.aliases:

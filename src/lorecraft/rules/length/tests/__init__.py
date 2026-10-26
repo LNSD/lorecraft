@@ -1,1 +1,1 @@
-"""Unit tests for the `LEN` group's rules, co-located with the modules they test."""
+"""Unit tests for the `LC4xx` group's rules, co-located with the modules they test."""

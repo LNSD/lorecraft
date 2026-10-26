@@ -48,13 +48,13 @@ Every key is optional. An outline entry may also cap its section's words, as
 The `title` key's `words` and `chars` are positive integers. `words` counts whitespace-delimited tokens of the
 H1's text; `chars` counts its code points, excluding the `#` marker. Inline Markdown markup is stripped; inline
 HTML remains and counts toward both limits. Only the first H1 is measured; a missing title is reported as missing,
-never over a cap. A title over a cap is `LEN004 title-too-many-words` or `LEN005 title-too-long`, at its heading,
+never over a cap. A title over a cap is `LC404 title-too-many-words` or `LC405 title-too-long`, at its heading,
 once per spec that sets it: corpus and namespace caps apply independently.
 
 Its `pattern` is a Python `re` expression that the title's text must match. It is matched as
 JSON Schema's `pattern` is, searched for anywhere in the text, so `^[A-Z]` asks only for a capital first letter, and a
 pattern that must hold the whole title anchors itself with `^` and `$`. Only the first H1 is matched, and a document
-with no title is reported as missing one alone. A title that does not match is `OUT009 invalid-title`, at its
+with no title is reported as missing one alone. A title that does not match is `LC309 invalid-title`, at its
 heading, once per spec that sets a pattern. Each key may be set alone, and each applies on its own: the
 two caps are upper bounds and never conflict, but a `pattern` that only titles longer than a cap can match, such as
 `{"chars": 40, "pattern": "^.{60,}$"}`, fails every governed document, and is not refused on load.
@@ -154,7 +154,7 @@ whitespace at either end, or spans two lines: no heading's text could match it.
 - `src/lorecraft/project/schemas/structure_file.py` - The shape of the outline keys
 - `src/lorecraft/project/schemas/section_name.py` - The section name an outline entry and `forbidden` hold
 - `src/lorecraft/project/schemas/structure.py` - Turns the keys into rules, and refuses an unusable outline
-- `src/lorecraft/rules/outline/` - The `OUT` rules that apply the title, outline, empty and forbidden keys
-- `src/lorecraft/rules/length/title_too_many_words.py` - Reports a title over its word cap as `LEN004`
-- `src/lorecraft/rules/length/title_too_long.py` - Reports a title over its character cap as `LEN005`
-- `src/lorecraft/rules/outline/invalid_title.py` - Reports a title failing its pattern as `OUT009`
+- `src/lorecraft/rules/outline/` - The `LC3xx` rules that apply the title, outline, empty and forbidden keys
+- `src/lorecraft/rules/length/title_too_many_words.py` - Reports a title over its word cap as `LC404`
+- `src/lorecraft/rules/length/title_too_long.py` - Reports a title over its character cap as `LC405`
+- `src/lorecraft/rules/outline/invalid_title.py` - Reports a title failing its pattern as `LC309`

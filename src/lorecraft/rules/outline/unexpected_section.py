@@ -1,4 +1,4 @@
-"""`OUT008`: a section the outline does not name, in a place the outline does not allow one."""
+"""`LC308`: a section the outline does not name, in a place the outline does not allow one."""
 
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -102,7 +102,7 @@ class UnexpectedSection(QueriedItemRule[tuple[OutlineDivergenceSpec, ...]]):
             after it.
     """
 
-    CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 8)
+    CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 308)
     NAME: ClassVar[RuleName] = RuleName('unexpected-section')
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('0.3.0')

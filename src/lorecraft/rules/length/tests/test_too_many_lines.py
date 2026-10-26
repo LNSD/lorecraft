@@ -1,4 +1,4 @@
-"""`LEN002`, `too-many-lines`, over a skill's whole-`SKILL.md` line count.
+"""`LC402`, `too-many-lines`, over a skill's whole-`SKILL.md` line count.
 
 Every case is a `SKILL.md` written as text, read through a fake database that counts its lines as the real counter
 does; no skill is read from disk.

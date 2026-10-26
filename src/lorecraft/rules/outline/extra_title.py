@@ -1,4 +1,4 @@
-"""`OUT002`: a document a structure file governs carries more than one H1 title."""
+"""`LC302`: a document a structure file governs carries more than one H1 title."""
 
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -93,7 +93,7 @@ class ExtraTitle(QueriedItemRule[tuple[Heading, ...]]):
         first_title: The document's first H1 heading, its own title.
     """
 
-    CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 2)
+    CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 302)
     NAME: ClassVar[RuleName] = RuleName('extra-title')
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('0.3.0')

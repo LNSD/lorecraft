@@ -13,7 +13,7 @@ components: "module:lorecraft.project,module:lorecraft.engine,spec:feat,spec:cod
 A `<name>.spec.json` file limits governed documents with word caps and whole-file token and line budgets. Each
 governing line budget is checked independently, so a document over more than one limit gets a finding for each.
 Skills also receive the builtin 500-line cap alongside repository skill budgets; repository budgets may tighten it,
-but cannot raise it. `lorecraft check` reports token overruns as `LEN001` and line overruns as `LEN002`.
+but cannot raise it. `lorecraft check` reports token overruns as `LC401` and line overruns as `LC402`.
 
 ## Table of Contents
 
@@ -48,7 +48,7 @@ but cannot raise it. `lorecraft check` reports token overruns as `LEN001` and li
 
 Each is optional: an entry without `words` caps nothing, and a file without `tokens` or `lines` sets no whole-file
 budget. Skills have a builtin 500-line budget by default, even when no repository budget is declared. A repository `skills-*`
-budget can lower that cap but cannot raise it; each exceeded budget currently produces its own `LEN002` finding.
+budget can lower that cap but cannot raise it; each exceeded budget currently produces its own `LC402` finding.
 The outline entries a cap sits on are the ones [spec-structure-outline](spec-structure-outline.md) describes.
 
 ## Usage
@@ -110,6 +110,6 @@ Beyond what [spec-structure](spec-structure.md#refused-on-load) refuses for any 
 - `src/lorecraft/project/schemas/structure_file.py` - The shape of the `words`, `tokens` and `lines` keys
 - `src/lorecraft/core/num.py` - The non-zero unsigned integer each key holds, which refuses a value below `1`
 - `src/lorecraft/project/schemas/structure.py` - Turns the keys into rules
-- `src/lorecraft/rules/length/section_too_many_words.py` - Reports a section over its word cap as `LEN003`
-- `src/lorecraft/rules/length/too_many_tokens.py` - Reports a document over its token budget as `LEN001`
-- `src/lorecraft/rules/length/too_many_lines.py` - Reports an item over a governing line budget as `LEN002`
+- `src/lorecraft/rules/length/section_too_many_words.py` - Reports a section over its word cap as `LC403`
+- `src/lorecraft/rules/length/too_many_tokens.py` - Reports a document over its token budget as `LC401`
+- `src/lorecraft/rules/length/too_many_lines.py` - Reports an item over a governing line budget as `LC402`

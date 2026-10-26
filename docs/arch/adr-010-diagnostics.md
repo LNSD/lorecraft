@@ -56,7 +56,7 @@ A diagnostic tells the writer what is wrong, where, why, and how to fix this occ
 established compilers' and linters' diagnostics:
 
 ```text
-error[OUT006]: missing required section `Usage`
+error[LC306]: missing required section `Usage`
   --> docs/feat/cli-check.md:12
    │
 12 │ ## Options

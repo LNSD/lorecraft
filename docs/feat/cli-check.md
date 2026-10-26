@@ -51,7 +51,7 @@ One snapshot, specs first. A failed structure file yields a diagnostic. Failed l
 ### Selecting Rules
 
 `--select`/`--ignore` accept `ALL`, a full code or alias, comma-separated or repeated. Selectors are case-sensitive;
-without `--select`, all rules run. Groups and partial codes (`OUT`, `OUT0`, `LINK`, `LC1`, `LC2`, `LC20`) are
+without `--select`, all rules run. Former group prefixes and partial codes (`OUT`, `OUT0`, `LINK`, `LC1`, `LC2`, `LC20`) are
 unknown and exit `2` (`'<selector>' is no rule code or alias code`). `--ignore` wins ties; aliases and selected
 `allow` rules warn.
 
@@ -77,15 +77,15 @@ lorecraft check --root ../other-repo --format json
 
 lorecraft check --format short
 
-lorecraft check --select LC206,LEN003
+lorecraft check --select LC206,LC403
 lorecraft check --ignore LINK003
 
-lorecraft check --select OUT006 --ignore OUT001
+lorecraft check --select LC306 --ignore LC301
 ```
 
 `--no-builtin-skills-schema` is a compatibility alias. `LC204` compares `name` with the skill directory; it never
 suggests renaming `SKILL.md`. Without a repository skills spec, opt-out reports `ungoverned for frontmatter, budget`
-(exit `0`) even for malformed frontmatter or mismatched names; `LEN002`, `LC211` and `LC212` do not run. Default
+(exit `0`) even for malformed frontmatter or mismatched names; `LC402`, `LC211` and `LC212` do not run. Default
 skill coverage omits `budget`. Excluding required `name`/`description` fails; indirect and cross-layer constraints
 are unchecked. See [The Subjects](#the-subjects) and [structure budgets](spec-structure-budget.md).
 
@@ -96,7 +96,7 @@ In `text`, stdout has blank-line-separated diagnostics with severity, code, mess
 Check output (stdout):
 
 ```text
-error[OUT006]: missing required section `Checklist`
+error[LC306]: missing required section `Checklist`
  --> docs/code/logging.md:1
   │
 1 │ # Logging
@@ -113,7 +113,7 @@ Example: one subject, two errors.
 
 ```text
 LC2xx  1 error
-OUT    1 error
+LC3xx  1 error
 checked 1 subject(s): 2 error(s), 0 warning(s)
 ```
 
@@ -122,7 +122,7 @@ In `short`, stdout has one diagnostic per line:
 labels, help and notes; `text` order and exit status are retained. Stderr has coverage and the overall count. For example:
 
 ```text
-docs/code/logging.md:1: error[OUT006]: missing required section `Checklist`
+docs/code/logging.md:1: error[LC306]: missing required section `Checklist`
 ```
 
 In `json`, stdout is one compact line; stderr holds selection warnings. In text order, `diagnostics` lists `path`, nullable `line`, `severity`, `code`, `name`, `message`, `labels` and `children`. `summary` counts subjects/errors/warnings; load failures are errors, not subjects. `coverage` lists `path`, `ungoverned`, `cause` and refused paths in `skipped_by`. `cause` is `refused-path` when the subject's own read was refused, `refused-dependency` when a refused docs path blocks it, and `null` when it was checked; unchecked symlinks add `unchecked: true`:
@@ -158,12 +158,12 @@ JSON paths must be UTF-8; Unicode is unescaped.
 
 | Rule | Reported when |
 |------|---------------|
-| `LC2xx` | Frontmatter checks use applicable schemas, including the builtin Agent Skills specification by default. `LC204` compares skill names with listed directories. `LC201` missing-frontmatter, `LC202` invalid-yaml, `LC203` non-mapping-frontmatter, `LC204` name-mismatch, `LC205` duplicate-key, `LC206` missing-field, `LC207` unknown-field (a warning), `LC208` wrong-type, `LC209` invalid-value, `LC210` invalid-frontmatter, `LC211` malformed-allowed-tools (a warning; pattern whitespace stays intact), `LC212` allowed-tools-too-long (a warning over 500 characters), `LC213` too-many-fields (`maxProperties`, an error), `LC214` too-few-fields (`minProperties`, an error) |
-| `OUT` | Outline checks: a document's H1 title and sections against its structure files. `OUT001` missing-title, `OUT002` extra-title, `OUT003` title-not-first, `OUT004` empty-section, `OUT005` forbidden-section, `OUT006` missing-section, `OUT007` section-out-of-order, `OUT008` unexpected-section, `OUT009` invalid-title |
-| `LEN` | Length limits: a document's tokens or declared lines budget, a section's or its title's words or characters, and the builtin Agent Skills layer's 500-line skill cap. `LEN001` too-many-tokens, `LEN002` too-many-lines, `LEN003` section-too-many-words, `LEN004` title-too-many-words, `LEN005` title-too-long |
-| `LINK` | Links in structured documents and skills. `LINK001` absolute, `LINK002` broken fragment, `LINK003` broken, `LINK004` escaping, `LINK005` extension-link (link to same-directory name extension; warning; also checks specs), `LINK006` missing-base-link (an extension omits its nearest existing document or spec ancestor under `References`; warning; also checks specs), `LINK007` mutual-link (documents in different corpora link each other; warning) |
-| `LC1xx` | Workspace checks: `LC101` reserved-corpus-overlap, a directory under `docs/` has a reserved corpus name such as `skills`; warning by default. `LC102` escaping-symlink, a symlink an agent reaches whose chain leaves the repository. Select or ignore either by its full code. |
 | `LC0xx` | Engine conditions are errors with no level; selection and configuration cannot turn them off. `LC001` invalid-utf8 reports a file that cannot be decoded, including a structure file; `LC002` unreadable-path reports a workspace path the run cannot read, list or follow; `LC003` malformed-structure-file reports a structure file that breaks the format or states no rule; `LC004` unusable-structure-file reports a well-formed structure file with rules that repeat, contradict each other or cannot be applied. |
+| `LC1xx` | Workspace checks: `LC101` reserved-corpus-overlap, a directory under `docs/` has a reserved corpus name such as `skills`; warning by default. `LC102` escaping-symlink, a symlink an agent reaches whose chain leaves the repository. Select or ignore either by its full code. |
+| `LC2xx` | Frontmatter checks use applicable schemas, including the builtin Agent Skills specification by default. `LC204` compares skill names with listed directories. `LC201` missing-frontmatter, `LC202` invalid-yaml, `LC203` non-mapping-frontmatter, `LC204` name-mismatch, `LC205` duplicate-key, `LC206` missing-field, `LC207` unknown-field (a warning), `LC208` wrong-type, `LC209` invalid-value, `LC210` invalid-frontmatter, `LC211` malformed-allowed-tools (a warning; pattern whitespace stays intact), `LC212` allowed-tools-too-long (a warning over 500 characters), `LC213` too-many-fields (`maxProperties`, an error), `LC214` too-few-fields (`minProperties`, an error) |
+| `LC3xx` | Outline checks: a document's H1 title and sections against its structure files. `LC301` missing-title, `LC302` extra-title, `LC303` title-not-first, `LC304` empty-section, `LC305` forbidden-section, `LC306` missing-section, `LC307` section-out-of-order, `LC308` unexpected-section, `LC309` invalid-title |
+| `LC4xx` | Length limits: a document's tokens or declared lines budget, a section's or its title's words or characters, and the builtin Agent Skills layer's 500-line skill cap. `LC401` too-many-tokens, `LC402` too-many-lines, `LC403` section-too-many-words, `LC404` title-too-many-words, `LC405` title-too-long |
+| `LINK` | Links in structured documents and skills. `LINK001` absolute, `LINK002` broken fragment, `LINK003` broken, `LINK004` escaping, `LINK005` extension-link (link to same-directory name extension; warning; also checks specs), `LINK006` missing-base-link (an extension omits its nearest existing document or spec ancestor under `References`; warning; also checks specs), `LINK007` mutual-link (documents in different corpora link each other; warning) |
 
 `LINK005`–`LINK007` check reference direction in [spec](spec.md#references-point-to-the-base).
 
@@ -171,7 +171,7 @@ Each reported structure-file failure appears once at that file.
  `LC001` points to the first invalid byte; `LC002`–`LC004` are whole-file diagnostics with help before notes.
 `LC002` covers unreadable paths, unknown files and unlistable nested directories. Unreadable specs and documents count as subjects; unknown paths do not. Resource and `SKILL.md` aliases appear in coverage at their paths, naming the refused target; non-item targets keep `LC002`, and the aliasing item is skipped. Sibling resources and unaffected subjects continue. A directory alias appears at its path, never at the skill's `SKILL.md`.
 
-`LC208` ends with a schema example; `LC209` labels malformed skill names with their pattern. `LC210` reports whole-block constraints without a label; its note gives the validator's wording. `LC212`–`LC214` and `LEN` label the amount over the limit.
+`LC208` ends with a schema example; `LC209` labels malformed skill names with their pattern. `LC210` reports whole-block constraints without a label; its note gives the validator's wording. `LC212`–`LC214` and `LC4xx` label the amount over the limit.
 
 ## References
 

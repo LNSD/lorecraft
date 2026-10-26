@@ -1,4 +1,4 @@
-"""`OUT006`: a document lacks a section its outline requires."""
+"""`LC306`: a document lacks a section its outline requires."""
 
 from collections.abc import Mapping
 from dataclasses import dataclass, field
@@ -95,7 +95,7 @@ class MissingSection(QueriedItemRule[tuple[OutlineDivergenceSpec, ...]]):
         example: The first sample of the section's body the outline entry gives, or `None` when it gives none.
     """
 
-    CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 6)
+    CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 306)
     NAME: ClassVar[RuleName] = RuleName('missing-section')
     LEVEL: ClassVar[Level] = Level.DENY
     SINCE: ClassVar[Release] = Release('0.3.0')

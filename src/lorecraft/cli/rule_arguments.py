@@ -18,7 +18,7 @@ would have to read at every construction, and a unit test of a conversion builds
 the index does not hold. Code builds them from `parse` alone. `CodeSelector` alone guards its number's range, which
 needs no index.
 
-A selector is `ALL`, a rule's full code such as `OUT006`, or an alias code, which a rule declares: it is one
+A selector is `ALL`, a rule's full code such as `LC306`, or an alias code, which a rule declares: it is one
 exactly when the index finds a rule for it. A rule's name, an engine condition, the engine's group and a removed
 rule are refused, since none can narrow a run. `rule [RULE]` takes a code, a name or an alias code, of a rule in
 service, a removed rule or an engine condition alike. Everything is matched as spelled.

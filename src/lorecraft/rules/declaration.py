@@ -44,7 +44,7 @@ class Rule(ABC):
 
     Attributes:
         spec: The structure file that states the rule, or None for a rule the package itself states.
-        CODE: The rule's code, such as `OUT002`.
+        CODE: The rule's code, such as `LC302`.
         NAME: The rule's kebab-case name, such as `empty-section`.
         LEVEL: The level the rule runs at when nothing configures it.
         SINCE: The release the rule is stable since.

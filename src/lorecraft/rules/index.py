@@ -62,11 +62,20 @@ RULES: Final[tuple[RuleIndexRow, ...]] = (
     RuleRow('LC212', 'allowed-tools-too-long', 'warn', ()),
     RuleRow('LC213', 'too-many-fields', 'deny', ()),
     RuleRow('LC214', 'too-few-fields', 'deny', ()),
-    RuleRow('LEN001', 'too-many-tokens', 'deny', ()),
-    RuleRow('LEN002', 'too-many-lines', 'deny', ()),
-    RuleRow('LEN003', 'section-too-many-words', 'deny', ()),
-    RuleRow('LEN004', 'title-too-many-words', 'deny', ()),
-    RuleRow('LEN005', 'title-too-long', 'deny', ()),
+    RuleRow('LC301', 'missing-title', 'deny', ()),
+    RuleRow('LC302', 'extra-title', 'deny', ()),
+    RuleRow('LC303', 'title-not-first', 'deny', ()),
+    RuleRow('LC304', 'empty-section', 'deny', ()),
+    RuleRow('LC305', 'forbidden-section', 'deny', ()),
+    RuleRow('LC306', 'missing-section', 'deny', ()),
+    RuleRow('LC307', 'section-out-of-order', 'deny', ()),
+    RuleRow('LC308', 'unexpected-section', 'deny', ()),
+    RuleRow('LC309', 'invalid-title', 'deny', ()),
+    RuleRow('LC401', 'too-many-tokens', 'deny', ()),
+    RuleRow('LC402', 'too-many-lines', 'deny', ()),
+    RuleRow('LC403', 'section-too-many-words', 'deny', ()),
+    RuleRow('LC404', 'title-too-many-words', 'deny', ()),
+    RuleRow('LC405', 'title-too-long', 'deny', ()),
     RuleRow('LINK001', 'absolute-link', 'deny', ()),
     RuleRow('LINK002', 'broken-fragment', 'deny', ()),
     RuleRow('LINK003', 'broken-link', 'deny', ()),
@@ -74,15 +83,6 @@ RULES: Final[tuple[RuleIndexRow, ...]] = (
     RuleRow('LINK005', 'extension-link', 'warn', ()),
     RuleRow('LINK006', 'missing-base-link', 'warn', ()),
     RuleRow('LINK007', 'mutual-link', 'warn', ()),
-    RuleRow('OUT001', 'missing-title', 'deny', ()),
-    RuleRow('OUT002', 'extra-title', 'deny', ()),
-    RuleRow('OUT003', 'title-not-first', 'deny', ()),
-    RuleRow('OUT004', 'empty-section', 'deny', ()),
-    RuleRow('OUT005', 'forbidden-section', 'deny', ()),
-    RuleRow('OUT006', 'missing-section', 'deny', ()),
-    RuleRow('OUT007', 'section-out-of-order', 'deny', ()),
-    RuleRow('OUT008', 'unexpected-section', 'deny', ()),
-    RuleRow('OUT009', 'invalid-title', 'deny', ()),
 )
 
 
@@ -92,7 +92,7 @@ def find(key: str) -> RuleIndexRow | None:
     A row is a rule, removed rule or engine condition record.
 
     Args:
-        key: A code as printed, such as `OUT004`, a name, such as `empty-section`, or an alias code, such as `MD040`.
+        key: A code as printed, such as `LC304`, a name, such as `empty-section`, or an alias code, such as `MD040`.
     """
     for row in RULES:
         if key == row.code or key == row.name or isinstance(row, RuleRow) and key in row.aliases:
