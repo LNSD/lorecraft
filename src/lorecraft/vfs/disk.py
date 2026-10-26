@@ -40,6 +40,7 @@ from .view import (
     DirEntry,
     EntryKind,
     OsRefusal,
+    ResolvedPath,
     RootExit,
 )
 
@@ -187,7 +188,7 @@ class Declaration:
             or a link, which no file name decides.
     """
 
-    is_file: Callable[[RootRelativePath], bool]
+    is_file: Callable[[ResolvedPath], bool]
 
 
 def take_snapshot(root: Path, scope: tuple[ScanRoot, ...], *, declaration: Declaration | None = None) -> Snapshot:
@@ -300,7 +301,7 @@ def take_snapshot(root: Path, scope: tuple[ScanRoot, ...], *, declaration: Decla
                     try:
                         data = _find_file_bytes(root, path)
                     except SnapshotFileReadError as exc:
-                        if declaration is None or not declaration.is_file(path):
+                        if declaration is None or not declaration.is_file(ResolvedPath(path)):
                             raise
                         recorder.record(path, RefusedRead(exc.refusal))
                         continue

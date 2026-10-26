@@ -840,7 +840,7 @@ class TestWorkspaceModel:
         #: Given
         entry = RootRelativePath.parse('.agents/skills/x')
         other = RootRelativePath.parse('.agents/skills/y')
-        outside = OutsideSymlink(entry, RootExit(entry, PurePosixPath('/opt/team-skills/x')))
+        outside = OutsideSymlink(entry, RootExit(ResolvedPath(entry), PurePosixPath('/opt/team-skills/x')))
         outside_symlinks = FrozenMapping({other: outside})
 
         #: When
@@ -1348,7 +1348,7 @@ class TestWorkspaceModel:
     ) -> None:
         #: Given
         entry = RootRelativePath.parse('.agents/skills/x')
-        outside = OutsideSymlink(entry, RootExit(entry, PurePosixPath('/opt/team-skills/x')))
+        outside = OutsideSymlink(entry, RootExit(ResolvedPath(entry), PurePosixPath('/opt/team-skills/x')))
         model = replace(skills_model, outside_symlinks=FrozenMapping({outside.path: outside}))
 
         #: When
@@ -1362,7 +1362,7 @@ class TestWorkspaceModel:
     ) -> None:
         #: Given
         entry = RootRelativePath.parse('.agents/skills/x')
-        outside = OutsideSymlink(entry, RootExit(entry, PurePosixPath('/opt/team-skills/x')))
+        outside = OutsideSymlink(entry, RootExit(ResolvedPath(entry), PurePosixPath('/opt/team-skills/x')))
         model = replace(skills_model, outside_symlinks=FrozenMapping({outside.path: outside}))
         below = entry / PathComponent.parse('SKILL.md')
 

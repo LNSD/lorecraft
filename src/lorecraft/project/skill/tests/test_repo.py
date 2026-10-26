@@ -85,7 +85,9 @@ def _outside(path: str, link: str, target: str) -> OutsideSymlink:
         link: The link the chain leaves the root through, at its resolved path.
         target: That link's target, as recorded.
     """
-    return OutsideSymlink(RootRelativePath.parse(path), RootExit(RootRelativePath.parse(link), PurePosixPath(target)))
+    return OutsideSymlink(
+        RootRelativePath.parse(path), RootExit(ResolvedPath(RootRelativePath.parse(link)), PurePosixPath(target))
+    )
 
 
 def _resource(path: str, *, resolves_to: str | None = None) -> SkillResourceLocation:

@@ -165,9 +165,9 @@ class RootRelativePath:
         return PathComponent(self.value.name)
 
     @property
-    def parts(self) -> tuple[str, ...]:
+    def parts(self) -> tuple[PathComponent, ...]:
         """The components from the root down; `()` for the root."""
-        return self.value.parts
+        return tuple(PathComponent(part) for part in self.value.parts)
 
     @property
     def parent(self) -> RootRelativePath:

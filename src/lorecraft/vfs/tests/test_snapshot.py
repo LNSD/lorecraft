@@ -13,6 +13,7 @@ from typing import Final
 import pytest
 
 from lib.tree import from_tree
+from lorecraft.core.error import Error
 from lorecraft.core.num import UnsignedInt
 from lorecraft.core.path import PathComponent, RootRelativePath
 
@@ -21,13 +22,14 @@ from ..snapshot import (
     DirectoryRecord,
     EntryRecord,
     FileRecord,
+    InvalidSnapshotTreeError,
     OtherRecord,
     Snapshot,
     SnapshotRecords,
     SymlinkRecord,
     VirtualFileSystem,
 )
-from ..view import DirEntry, EntryKind, RootExit, TextDecodeError, UnrecordedFileError
+from ..view import DirEntry, EntryKind, ResolvedPath, RootExit, TextDecodeError, UnrecordedFileError
 
 ROOT: Final[RootRelativePath] = RootRelativePath.parse('.')
 
@@ -282,7 +284,7 @@ class TestSnapshotClimbedDirectories:
 
 @pytest.mark.unit
 class TestSnapshotRecords:
-    def test_init_with_a_record_below_a_file_raises_value_error(self) -> None:
+    def test_init_with_a_record_below_a_file_raises_typed_error(self) -> None:
         #: Given
         records: dict[RootRelativePath, EntryRecord] = {
             RootRelativePath.parse('a'): FileRecord(b'a'),
@@ -290,12 +292,13 @@ class TestSnapshotRecords:
         }
 
         #: When
-        with pytest.raises(ValueError) as exc_info:
+        with pytest.raises(InvalidSnapshotTreeError) as exc_info:
             SnapshotRecords(records)
 
         #: Then
         assert 'a/b' in str(exc_info.value), 'the message names the path that is recorded below'
         assert 'FILE' in str(exc_info.value), 'the message names the path above and the kind it is recorded as'
+        assert isinstance(exc_info.value, Error), 'the failure belongs to Lorecraft error hierarchy'
 
     def test_init_with_a_record_below_a_symlink_raises_value_error(self) -> None:
         #: Given
@@ -305,7 +308,7 @@ class TestSnapshotRecords:
         }
 
         #: When
-        with pytest.raises(ValueError) as exc_info:
+        with pytest.raises(InvalidSnapshotTreeError) as exc_info:
             SnapshotRecords(records)
 
         #: Then
@@ -320,7 +323,7 @@ class TestSnapshotRecords:
         }
 
         #: When
-        with pytest.raises(ValueError) as exc_info:
+        with pytest.raises(InvalidSnapshotTreeError) as exc_info:
             SnapshotRecords(records)
 
         #: Then
@@ -336,7 +339,7 @@ class TestSnapshotRecords:
         }
 
         #: When
-        with pytest.raises(ValueError) as exc_info:
+        with pytest.raises(InvalidSnapshotTreeError) as exc_info:
             SnapshotRecords(records)
 
         #: Then
@@ -1313,7 +1316,9 @@ class TestVirtualFileSystemFindRootExit:
         leaves_at = virtual.find_root_exit(path)
 
         #: Then
-        assert leaves_at == RootExit(path, PurePosixPath('/srv/docs')), 'an absolute target is outside the root'
+        assert leaves_at == RootExit(ResolvedPath(path), PurePosixPath('/srv/docs')), (
+            'an absolute target is outside the root'
+        )
 
     def test_find_root_exit_with_a_link_climbing_above_the_root_returns_it_and_its_target(self) -> None:
         #: Given
@@ -1324,7 +1329,9 @@ class TestVirtualFileSystemFindRootExit:
         leaves_at = virtual.find_root_exit(path)
 
         #: Then
-        assert leaves_at == RootExit(path, PurePosixPath('../../..')), 'the third `..` climbs above the root'
+        assert leaves_at == RootExit(ResolvedPath(path), PurePosixPath('../../..')), (
+            'the third `..` climbs above the root'
+        )
 
     def test_find_root_exit_through_a_link_leading_out_returns_that_link(self) -> None:
         #: Given
@@ -1335,9 +1342,9 @@ class TestVirtualFileSystemFindRootExit:
         leaves_at = virtual.find_root_exit(path)
 
         #: Then
-        assert leaves_at == RootExit(RootRelativePath.parse('docs/code/absolute'), PurePosixPath('/srv/docs')), (
-            'a path past a link leading out leaves the root at that link'
-        )
+        assert leaves_at == RootExit(
+            ResolvedPath(RootRelativePath.parse('docs/code/absolute')), PurePosixPath('/srv/docs')
+        ), 'a path past a link leading out leaves the root at that link'
 
     def test_find_root_exit_with_a_link_leading_inside_returns_none(self) -> None:
         #: Given

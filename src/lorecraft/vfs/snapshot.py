@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from pathlib import PurePosixPath
 from typing import assert_never
 
+from lorecraft.core.error import Error
 from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.path import ROOT, RootRelativePath
 
@@ -171,6 +172,20 @@ type EntryRecord = DirectoryRecord | FileRecord | SymlinkRecord | OtherRecord | 
 """What a snapshot recorded at one path: one record per path, so a path never has two kinds."""
 
 
+class InvalidSnapshotTreeError(Error):
+    """A snapshot record is below a recorded path that is not a directory."""
+
+    path: RootRelativePath
+    ancestor: RootRelativePath
+    kind: EntryKind
+
+    def __init__(self, path: RootRelativePath, ancestor: RootRelativePath, kind: EntryKind) -> None:
+        self.path = path
+        self.ancestor = ancestor
+        self.kind = kind
+        super().__init__(f'{path} is recorded below {ancestor}, which is recorded as {kind.name}')
+
+
 class SnapshotRecords(FrozenMapping[RootRelativePath, EntryRecord]):
     """The records of one snapshot, keyed by path, never holding a record below a path that is no directory.
 
@@ -180,7 +195,7 @@ class SnapshotRecords(FrozenMapping[RootRelativePath, EntryRecord]):
     built by hand cannot either. An ancestor that is not recorded is a directory too, and needs no record.
 
     Raises:
-        ValueError: If a record is below a path recorded as a file, a symlink or another entry that is no
+        InvalidSnapshotTreeError: If a record is below a path recorded as a file, a symlink or another entry that is no
             directory; the message names both paths.
     """
 
@@ -203,7 +218,7 @@ class SnapshotRecords(FrozenMapping[RootRelativePath, EntryRecord]):
             while ancestor not in checked:
                 above = self.get(ancestor)
                 if above is not None and above.kind is not EntryKind.DIRECTORY:
-                    raise ValueError(f'{path} is recorded below {ancestor}, which is recorded as {above.kind.name}')
+                    raise InvalidSnapshotTreeError(path, ancestor, above.kind)
                 checked.add(ancestor)
                 if ancestor == ROOT:
                     break

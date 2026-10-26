@@ -196,7 +196,9 @@ class TestFindDestination:
         leads_to = find_destination(path, tree, follow_links=True)
 
         #: Then
-        assert leads_to == RootExit(_path('docs'), PurePosixPath('/srv/docs')), 'an absolute target is outside the root'
+        assert leads_to == RootExit(ResolvedPath(_path('docs')), PurePosixPath('/srv/docs')), (
+            'an absolute target is outside the root'
+        )
 
     def test_find_destination_with_a_target_climbing_above_the_root_returns_the_link_as_the_exit(self) -> None:
         #: Given
@@ -206,7 +208,9 @@ class TestFindDestination:
         leads_to = find_destination(path, tree, follow_links=True)
 
         #: Then
-        assert leads_to == RootExit(_path('docs'), PurePosixPath('../docs')), 'a target above the root is outside it'
+        assert leads_to == RootExit(ResolvedPath(_path('docs')), PurePosixPath('../docs')), (
+            'a target above the root is outside it'
+        )
 
     def test_find_destination_with_a_link_deeper_down_climbing_above_the_root_returns_it_as_the_exit(self) -> None:
         #: Given
@@ -216,7 +220,7 @@ class TestFindDestination:
         leads_to = find_destination(path, tree, follow_links=True)
 
         #: Then
-        assert leads_to == RootExit(_path('a/l'), PurePosixPath('../../outside')), (
+        assert leads_to == RootExit(ResolvedPath(_path('a/l')), PurePosixPath('../../outside')), (
             'climbing out of the link directory to the root and once more leaves the root'
         )
 
@@ -228,7 +232,7 @@ class TestFindDestination:
         leads_to = find_destination(path, tree, follow_links=True)
 
         #: Then
-        assert leads_to == RootExit(_path('hop'), PurePosixPath('/srv/team')), (
+        assert leads_to == RootExit(ResolvedPath(_path('hop')), PurePosixPath('/srv/team')), (
             'the exit is the link the chain leaves through, not the one it started at'
         )
 
@@ -303,7 +307,7 @@ class TestFindDestination:
         leads_to = find_destination(path, tree, follow_links=True)
 
         #: Then
-        assert leads_to == RootExit(_path('a/x'), PurePosixPath('tmp/../../..')), (
+        assert leads_to == RootExit(ResolvedPath(_path('a/x')), PurePosixPath('tmp/../../..')), (
             'past the root is outside it, whatever directories the chain stepped into on the way'
         )
 
