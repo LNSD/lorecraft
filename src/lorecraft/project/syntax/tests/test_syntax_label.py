@@ -2,7 +2,8 @@
 
 import pytest
 
-from lorecraft.core.num import NonZeroUnsignedInt
+from lorecraft.core.lines import LineOffset
+from lorecraft.core.num import NonZeroUnsignedInt, UnsignedInt
 from lorecraft.yaml.problem import ControlCharacterProblem
 from lorecraft.yaml.syntax_error import (
     ClosesNothing,
@@ -31,7 +32,7 @@ _ESCAPE_HELP = 'Write `\\\\` for a backslash, or use single quotes'
 class TestDescribeSyntaxError:
     def test_describe_syntax_error_with_a_line_that_is_no_key_or_item_returns_the_key_or_item_wording(self) -> None:
         #: Given
-        kind = NotKeyOrItem(2)
+        kind = NotKeyOrItem(LineOffset(UnsignedInt(2)))
 
         #: When
         problem = describe_syntax_error(kind)
@@ -43,7 +44,7 @@ class TestDescribeSyntaxError:
 
     def test_describe_syntax_error_with_an_unclosed_quote_returns_the_quote_wording(self) -> None:
         #: Given
-        kind = UnclosedQuote(1)
+        kind = UnclosedQuote(LineOffset(UnsignedInt(1)))
 
         #: When
         problem = describe_syntax_error(kind)
@@ -55,7 +56,7 @@ class TestDescribeSyntaxError:
 
     def test_describe_syntax_error_with_a_backslash_before_a_separator_returns_its_code_point(self) -> None:
         #: Given
-        kind = SeparatorEscape('\x85', 0)
+        kind = SeparatorEscape('\x85', LineOffset(UnsignedInt(0)))
 
         #: When
         problem = describe_syntax_error(kind)
@@ -67,7 +68,7 @@ class TestDescribeSyntaxError:
 
     def test_describe_syntax_error_with_an_unknown_escape_returns_the_escape_as_written(self) -> None:
         #: Given
-        kind = UnknownEscape('\\u12', 0)
+        kind = UnknownEscape('\\u12', LineOffset(UnsignedInt(0)))
 
         #: When
         problem = describe_syntax_error(kind)
@@ -79,7 +80,7 @@ class TestDescribeSyntaxError:
 
     def test_describe_syntax_error_with_a_character_no_value_starts_with_returns_it_between_backticks(self) -> None:
         #: Given
-        kind = UnstartableCharacter('@', 0)
+        kind = UnstartableCharacter('@', LineOffset(UnsignedInt(0)))
 
         #: When
         problem = describe_syntax_error(kind)
@@ -91,7 +92,7 @@ class TestDescribeSyntaxError:
 
     def test_describe_syntax_error_with_a_backtick_that_starts_a_value_returns_it_in_words(self) -> None:
         #: Given
-        kind = UnstartableCharacter('`', 0)
+        kind = UnstartableCharacter('`', LineOffset(UnsignedInt(0)))
 
         #: When
         problem = describe_syntax_error(kind)
@@ -103,7 +104,7 @@ class TestDescribeSyntaxError:
 
     def test_describe_syntax_error_with_a_colon_in_a_value_returns_the_value_quoted(self) -> None:
         #: Given
-        kind = ColonInValue('a', 'b: c', 0)
+        kind = ColonInValue('a', 'b: c', LineOffset(UnsignedInt(0)))
 
         #: When
         problem = describe_syntax_error(kind)
@@ -115,7 +116,7 @@ class TestDescribeSyntaxError:
 
     def test_describe_syntax_error_with_a_colon_in_a_value_with_a_quote_returns_no_quoted_value(self) -> None:
         #: Given
-        kind = ColonInValue('a', 'say "b: c"', 0)
+        kind = ColonInValue('a', 'say "b: c"', LineOffset(UnsignedInt(0)))
 
         #: When
         problem = describe_syntax_error(kind)
@@ -127,7 +128,7 @@ class TestDescribeSyntaxError:
 
     def test_describe_syntax_error_with_a_key_under_a_text_value_returns_both_keys(self) -> None:
         #: Given
-        kind = IndentedUnderText('description', 'name', 1)
+        kind = IndentedUnderText('description', 'name', LineOffset(UnsignedInt(1)))
 
         #: When
         problem = describe_syntax_error(kind)
@@ -139,7 +140,7 @@ class TestDescribeSyntaxError:
 
     def test_describe_syntax_error_with_a_line_that_matches_no_level_returns_the_indentation_wording(self) -> None:
         #: Given
-        kind = MatchesNoLevel(3)
+        kind = MatchesNoLevel(LineOffset(UnsignedInt(3)))
 
         #: When
         problem = describe_syntax_error(kind)
@@ -153,7 +154,7 @@ class TestDescribeSyntaxError:
 
     def test_describe_syntax_error_with_a_bracket_that_closes_nothing_returns_the_bracket(self) -> None:
         #: Given
-        kind = ClosesNothing(']', 0)
+        kind = ClosesNothing(']', LineOffset(UnsignedInt(0)))
 
         #: When
         problem = describe_syntax_error(kind)
@@ -165,7 +166,7 @@ class TestDescribeSyntaxError:
 
     def test_describe_syntax_error_with_text_after_a_closing_quote_returns_the_quote_wording(self) -> None:
         #: Given
-        kind = TextAfterQuote(0)
+        kind = TextAfterQuote(LineOffset(UnsignedInt(0)))
 
         #: When
         problem = describe_syntax_error(kind)
@@ -177,7 +178,7 @@ class TestDescribeSyntaxError:
 
     def test_describe_syntax_error_with_text_after_a_flow_collection_returns_its_closing_bracket(self) -> None:
         #: Given
-        kind = TextAfterCollection('}', 0)
+        kind = TextAfterCollection('}', LineOffset(UnsignedInt(0)))
 
         #: When
         problem = describe_syntax_error(kind)
@@ -189,7 +190,7 @@ class TestDescribeSyntaxError:
 
     def test_describe_syntax_error_with_a_tab_that_indents_a_line_returns_the_indentation_wording(self) -> None:
         #: Given
-        kind = TabIndent(1)
+        kind = TabIndent(LineOffset(UnsignedInt(1)))
 
         #: When
         problem = describe_syntax_error(kind)
@@ -201,7 +202,7 @@ class TestDescribeSyntaxError:
 
     def test_describe_syntax_error_with_a_tab_inside_a_line_returns_the_whitespace_wording(self) -> None:
         #: Given
-        kind = TabInLine(0)
+        kind = TabInLine(LineOffset(UnsignedInt(0)))
 
         #: When
         problem = describe_syntax_error(kind)
@@ -213,7 +214,7 @@ class TestDescribeSyntaxError:
 
     def test_describe_syntax_error_with_an_unreadable_block_returns_the_fallback_with_no_help(self) -> None:
         #: Given
-        kind = UnreadableBlock(0)
+        kind = UnreadableBlock(LineOffset(UnsignedInt(0)))
 
         #: When
         problem = describe_syntax_error(kind)

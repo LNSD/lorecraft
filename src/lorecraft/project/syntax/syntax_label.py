@@ -7,6 +7,7 @@ kind with a label, a help and the line the writer fixes, and a refused control c
 from dataclasses import dataclass
 from typing import assert_never
 
+from lorecraft.core.lines import LineOffset
 from lorecraft.yaml.problem import ControlCharacterProblem
 from lorecraft.yaml.syntax_error import (
     ClosesNothing,
@@ -53,58 +54,60 @@ def describe_syntax_error(error: YamlSyntaxError) -> SyntaxProblem:
             return SyntaxProblem(
                 'this line is not `key: value` or `- item`',
                 'Add `: ` after the key, or quote a value that runs on',
-                line,
+                _line_value(line),
             )
         case UnclosedQuote(line):
             return SyntaxProblem(
-                'this quote is never closed', 'Close it on the line it continues to, or remove it', line
+                'this quote is never closed', 'Close it on the line it continues to, or remove it', _line_value(line)
             )
         case SeparatorEscape(separator, line):
             # The separator is invisible between backticks, so the label names its code point.
             return SyntaxProblem(
                 f'`\\` before U+{ord(separator):04X} is not an escape',
                 'Write `\\\\` for a backslash, or use single quotes',
-                line,
+                _line_value(line),
             )
         case UnknownEscape(escape, line):
             return SyntaxProblem(
-                f'`{escape}` is not an escape', 'Write `\\\\` for a backslash, or use single quotes', line
+                f'`{escape}` is not an escape', 'Write `\\\\` for a backslash, or use single quotes', _line_value(line)
             )
         case UnstartableCharacter(character, line):
             # A backtick is named in words: written between backticks it would close its own quoting.
             named = 'a backtick' if character == '`' else f'`{character}`'
-            return SyntaxProblem(f'a plain value cannot start with {named}', 'Quote the value', line)
+            return SyntaxProblem(f'a plain value cannot start with {named}', 'Quote the value', _line_value(line))
         case ColonInValue(key, value, line):
             quoted = f'`{key}: "{value}"`' if value and '"' not in value else 'it'
-            return SyntaxProblem('this value holds `: `', f'Quote the value: {quoted}', line)
+            return SyntaxProblem('this value holds `: `', f'Quote the value: {quoted}', _line_value(line))
         case IndentedUnderText(key, parent, line):
             return SyntaxProblem(
                 f'`{key}` is indented under `{parent}`, whose value is text',
                 'Align it with the key it belongs beside',
-                line,
+                _line_value(line),
             )
         case MatchesNoLevel(line):
             return SyntaxProblem(
                 "this line's indentation matches no key or item above it",
                 'Indent it like the keys or items it belongs with',
-                line,
+                _line_value(line),
             )
         case ClosesNothing(bracket, line):
-            return SyntaxProblem(f'this `{bracket}` closes nothing', 'Remove it, or quote the value', line)
+            return SyntaxProblem(f'this `{bracket}` closes nothing', 'Remove it, or quote the value', _line_value(line))
         case TextAfterQuote(line):
-            return SyntaxProblem('text follows the closing quote', 'Put the whole value inside the quotes', line)
+            return SyntaxProblem(
+                'text follows the closing quote', 'Put the whole value inside the quotes', _line_value(line)
+            )
         case TextAfterCollection(bracket, line):
             return SyntaxProblem(
                 f'text follows the closing `{bracket}`',
                 'Move the text inside the brackets, or quote the whole value',
-                line,
+                _line_value(line),
             )
         case TabIndent(line):
-            return SyntaxProblem('a tab indents this line', 'Indent with spaces', line)
+            return SyntaxProblem('a tab indents this line', 'Indent with spaces', _line_value(line))
         case TabInLine(line):
-            return SyntaxProblem('a tab is not whitespace here', 'Use spaces', line)
+            return SyntaxProblem('a tab is not whitespace here', 'Use spaces', _line_value(line))
         case UnreadableBlock(line):
-            return SyntaxProblem('the block cannot be read from this line on', None, line)
+            return SyntaxProblem('the block cannot be read from this line on', None, _line_value(line))
         case _:
             assert_never(error)
 
@@ -120,3 +123,8 @@ def describe_control_character(error: ControlCharacterProblem) -> SyntaxProblem:
         'Remove it',
         error.position.line.value - 1,
     )
+
+
+def _line_value(line: LineOffset | None) -> int | None:
+    """Unwrap the zero-based YAML line for the diagnostic value."""
+    return None if line is None else line.value

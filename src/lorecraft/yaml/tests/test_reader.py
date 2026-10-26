@@ -5,7 +5,8 @@ from textwrap import dedent
 
 import pytest
 
-from lorecraft.core.num import NonZeroUnsignedInt
+from lorecraft.core.lines import LineOffset
+from lorecraft.core.num import NonZeroUnsignedInt, UnsignedInt
 
 from ..problem import (
     Alias,
@@ -247,7 +248,9 @@ class TestReadYaml:
         problem = read_yaml(text)
 
         #: Then
-        assert problem == SyntaxErrorProblem(UnknownEscape('\\q', 0)), f'the marks take a column each, got {problem!r}'
+        assert problem == SyntaxErrorProblem(UnknownEscape('\\q', LineOffset(UnsignedInt(0)))), (
+            f'the marks take a column each, got {problem!r}'
+        )
 
     def test_read_yaml_with_a_control_character_after_byte_order_marks_returns_its_character_column(self) -> None:
         #: Given
@@ -267,7 +270,9 @@ class TestReadYaml:
         problem = read_yaml(text)
 
         #: Then
-        assert problem == SyntaxErrorProblem(ColonInValue('a', 'b: c', 0)), f'a second colon is a kind, got {problem!r}'
+        assert problem == SyntaxErrorProblem(ColonInValue('a', 'b: c', LineOffset(UnsignedInt(0)))), (
+            f'a second colon is a kind, got {problem!r}'
+        )
 
     def test_read_yaml_with_an_explicit_key_returns_the_recorded_construct_at_the_key(self) -> None:
         #: Given
@@ -398,7 +403,9 @@ class TestReadYamlLogging:
         problem = read_yaml(text)
 
         #: Then
-        assert problem == SyntaxErrorProblem(UnreadableBlock(0)), 'the parser fails on a bad block scalar header'
+        assert problem == SyntaxErrorProblem(UnreadableBlock(LineOffset(UnsignedInt(0)))), (
+            'the parser fails on a bad block scalar header'
+        )
         fields = _fields(caplog, 'yaml syntax error unclassified')
         assert fields == {'problem': 'expected chomping or indentation indicators', 'line': 0}, (
             'the problem is the parser template, without the character it found'
