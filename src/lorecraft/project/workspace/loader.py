@@ -77,6 +77,7 @@ from lorecraft.schemas import (
     SchemaKind,
     SchemaRef,
 )
+from lorecraft.schemas.builtin import AGENT_SKILLS_SCHEMA_REFERENCE
 from lorecraft.vfs import (
     DIR_LIST_FAILURES,
     ROOT_EXIT_WALK_FAILURES,
@@ -95,7 +96,6 @@ from lorecraft.vfs import (
     UnrecordedFileError,
 )
 
-from .builtin import AGENT_SKILLS_SPEC_LAYER
 from .failure import (
     FailedStructure,
     LoadFailure,
@@ -166,7 +166,7 @@ def load_workspace(
     documents: DocumentRepository,
     skills: SkillRepository,
     *,
-    builtin_layers: tuple[BuiltinSpecLayer, ...] = (AGENT_SKILLS_SPEC_LAYER,),
+    builtin_layers: tuple[BuiltinSpecLayer, ...],
 ) -> WorkspaceModel:
     """Build the workspace model of the snapshot; invalid repository declarations are recorded, not raised.
 
@@ -227,7 +227,6 @@ def load_workspace(
                 [],
                 failures,
                 schema_inputs,
-                builtin_layers,
             )
             if str(corpus_name) == META_CORPUS_NAME:
                 meta_corpus = reserved
@@ -239,9 +238,7 @@ def load_workspace(
             continue
         filenames, dropped_documents = _list_document_filenames(documents, corpus_name, failures)
         unchecked_symlinks.extend(dropped_documents)
-        corpora[corpus_name] = _load_corpus(
-            schemas, corpus_name, files, filenames, failures, schema_inputs, builtin_layers
-        )
+        corpora[corpus_name] = _load_corpus(schemas, corpus_name, files, filenames, failures, schema_inputs)
 
     skills_dirs, outside_skills_dirs = _load_skills_dirs(skills, failures)
     skill_locations, outside_entries = _list_skill_locations(skills, skills_dirs, failures)
@@ -270,7 +267,7 @@ def load_workspace(
 def load_model(
     fs: FileSystem,
     *,
-    builtin_layers: tuple[BuiltinSpecLayer, ...] = (AGENT_SKILLS_SPEC_LAYER,),
+    builtin_layers: tuple[BuiltinSpecLayer, ...],
 ) -> WorkspaceModel:
     """Wire one filesystem view into the three repositories and load the workspace model through them.
 
@@ -366,7 +363,6 @@ def _load_corpus(
     filenames: list[AspectFilename],
     failures: list[LoadFailure],
     schema_inputs: dict[SchemaRef, SchemaInput],
-    builtin_layers: tuple[BuiltinSpecLayer, ...],
 ) -> Corpus:
     """Decode the corpus spec and its namespace specs; a structure file that fails stands in its layer.
 
@@ -377,13 +373,12 @@ def _load_corpus(
         filenames: Stems of the documents listed in the corpus directory, which the corpus lists by filename.
         failures: The load failures so far; each structure file that fails is appended.
         schema_inputs: Raw inputs collected from the structure files.
-        builtin_layers: The enabled layers used by compatibility checks during structure loading.
     """
     corpus_spec_name = CorpusSpecName(corpus_name)
     corpus_spec = CorpusSpec(
         name=corpus_spec_name,
         files=_sorted_paths(files.spec),
-        structure=_load_structure(schemas, files.spec.structure, failures, schema_inputs, builtin_layers),
+        structure=_load_structure(schemas, files.spec.structure, failures, schema_inputs),
     )
 
     # The corpus orders its namespace specs itself; they are decoded broad to narrow too, so that of two broken
@@ -398,7 +393,6 @@ def _load_corpus(
                 namespace_files.structure,
                 failures,
                 schema_inputs,
-                builtin_layers,
             ),
         )
 
@@ -422,7 +416,6 @@ def _load_structure(
     structure_file: StructureSpecFile | None,
     failures: list[LoadFailure],
     schema_inputs: dict[SchemaRef, SchemaInput],
-    builtin_layers: tuple[BuiltinSpecLayer, ...],
 ) -> StructureSpec | FailedStructure | None:
     """Decode the structure JSON at one specification name into a structure specification.
 
@@ -431,7 +424,6 @@ def _load_structure(
         structure_file: The name's structure file, or None when the name has none; the prose is never decoded.
         failures: The load failures so far; a structure file that cannot be read or used is appended.
         schema_inputs: Raw inputs collected by typed reference.
-        builtin_layers: The enabled builtin layers.
 
     Returns:
         The structure specification, the failed structure standing in its place when the file cannot be read or
@@ -474,7 +466,7 @@ def _load_structure(
                     frontmatter_ref, origin, FrozenMapping.from_plain(frontmatter_document)
                 )
                 parsed = replace(parsed, frontmatter_schema_ref=frontmatter_ref)
-        if AGENT_SKILLS_SPEC_LAYER in builtin_layers and parsed.frontmatter is not None:
+        if AGENT_SKILLS_SCHEMA_REFERENCE in schema_inputs and parsed.frontmatter is not None:
             contradictions = agent_skills_schema_contradictions(parsed.frontmatter.schema.to_plain())
             if contradictions:
                 return _record_failed_structure(
