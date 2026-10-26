@@ -20,9 +20,11 @@ from lorecraft.project.syntax import (
 )
 
 if TYPE_CHECKING:
-    from lorecraft.project.query import ItemPrimitives, NameHierarchyPrimitives
+    from lorecraft.core.path import RootRelativePath
+    from lorecraft.project.query import GovernancePrimitives, ItemPrimitives, NameHierarchyPrimitives
     from lorecraft.project.schemas.name import SpecName
-    from lorecraft.project.schemas.structure import StructureSpec
+    from lorecraft.project.schemas.structure import BuiltinLineBudget, StructureSpec
+    from lorecraft.schemas import BuiltinOrigin
 
 
 def item_frontmatter(primitives: ItemPrimitives) -> FrontmatterNode:
@@ -53,6 +55,13 @@ def item_structure_specs(primitives: ItemPrimitives) -> tuple[StructureSpec, ...
     """The structure specifications of the item's governance, if any."""
     governance = primitives.governance()
     return governance.structure_specs() if governance is not None else ()
+
+
+def item_structure_sources(
+    primitives: GovernancePrimitives,
+) -> tuple[tuple[RootRelativePath | BuiltinOrigin, BuiltinLineBudget | StructureSpec], ...]:
+    """The builtin and repository structure specs governing this item, with each source."""
+    return primitives.structure_sources()
 
 
 def item_name(primitives: NameHierarchyPrimitives) -> AspectFilename | AspectName | SpecName | None:

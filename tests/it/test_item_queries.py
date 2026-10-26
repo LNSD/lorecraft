@@ -28,11 +28,14 @@ from lorecraft.project.query import (
     item_line_count,
     item_name,
     item_parse,
+    item_structure_sources,
     item_token_count,
 )
 from lorecraft.project.schemas import SpecName, frontmatter_schema_problems, outline_alignment
+from lorecraft.project.schemas.structure import BuiltinLineBudget
 from lorecraft.project.syntax import NormalisedLinkPath
 from lorecraft.project.workspace import WorkspaceModel
+from lorecraft.project.workspace.builtin import AGENT_SKILLS_LINE_BUDGET
 from lorecraft.project.workspace.builtin import AGENT_SKILLS_SPEC_LAYER as SKILLS_LAYER
 from lorecraft.vfs import Snapshot, VirtualFileSystem, take_snapshot
 
@@ -108,6 +111,37 @@ def _item_base(primitives: ItemPrimitives) -> AspectFilename | SpecName | None:
 
 @pytest.mark.it
 class TestItemQueries:
+    def test_structure_sources_put_builtin_layers_before_repository_layers(self) -> None:
+        #: Given
+        snapshot = from_tree(
+            {
+                'docs': {
+                    '__meta__': {
+                        'skills.md': b'# Skills\n',
+                        'skills.spec.json': b'{"lines":300}',
+                    }
+                },
+                '.agents': {'skills': {'review': {'SKILL.md': SKILL_TEXT}}},
+            }
+        )
+        database = Database.from_snapshot(snapshot, builtin_layers=(SKILLS_LAYER,))
+
+        #: When
+        sources = database.query(item_structure_sources, REVIEW)
+
+        #: Then
+        assert sources[0] == (SKILLS_LAYER.origin, BuiltinLineBudget(AGENT_SKILLS_LINE_BUDGET)), (
+            'the builtin line budget comes first without a repository path'
+        )
+        assert sources[1][0] == RootRelativePath.parse('docs/__meta__/skills.spec.json'), (
+            'repository structure sources follow builtin layers'
+        )
+        assert [
+            structure.lines.value
+            for _, structure in sources
+            if isinstance(structure, BuiltinLineBudget) or structure.lines is not None
+        ] == [500, 300], 'both budgets retain their source order'
+
     def test_item_text_of_a_document_and_a_skill_entry_returns_one_witness_type(self) -> None:
         #: Given
         database = Database.from_snapshot(_snapshot(), builtin_layers=(SKILLS_LAYER,))

@@ -19,6 +19,7 @@ from typing import assert_never
 from lorecraft.agents import AgentName
 from lorecraft.core.error import Error
 from lorecraft.core.mapping import FrozenMapping
+from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.core.path import PathComponent, RootRelativePath
 from lorecraft.project.aspect import (
     AspectFilename,
@@ -57,7 +58,7 @@ from lorecraft.project.schemas import (
     StatedFrontmatterSchema,
     parse_spec_name,
 )
-from lorecraft.project.schemas.structure import StructureSpec
+from lorecraft.project.schemas.structure import BuiltinLineBudget, StructureSpec
 from lorecraft.project.skill import (
     OutsideSymlink,
     SkillLocation,
@@ -275,17 +276,19 @@ type Spec = CorpusSpec | NamespaceSpec
 
 @dataclass(frozen=True, slots=True)
 class BuiltinSpecLayer:
-    """A builtin source of frontmatter schema for selected item kinds.
+    """A builtin source of a frontmatter schema and a line budget for selected item kinds.
 
     Attributes:
         origin: Stable identity of the builtin layer.
         applies_to: Item kinds the layer governs, independently of repository corpora.
         frontmatter_schema: Optional frontmatter schema the layer contributes to the workspace registry.
+        lines: Optional builtin line budget.
     """
 
     origin: BuiltinOrigin
     applies_to: frozenset[ItemType]
     frontmatter_schema: SchemaInput | None = None
+    lines: NonZeroUnsignedInt | None = None
 
     def __post_init__(self) -> None:
         """Keep the typed schema field limited to frontmatter inputs."""
@@ -882,6 +885,14 @@ class WorkspaceModel:
             if reference.kind is SchemaKind.FRONTMATTER
         )
 
+    def builtin_structure_sources_for(self, item_type: ItemType) -> tuple[tuple[BuiltinOrigin, BuiltinLineBudget], ...]:
+        """Line budgets supplied by applicable builtin layers, in registration order."""
+        sources: list[tuple[BuiltinOrigin, BuiltinLineBudget]] = []
+        for layer in self.builtin_layers_for(item_type):
+            if layer.lines is not None:
+                sources.append((layer.origin, BuiltinLineBudget(layer.lines)))
+        return tuple(sources)
+
     def find_item(self, ref: ItemRef) -> ResolvedItem | None:
         """The descriptor of the document or skill the model lists at this reference, or None.
 
@@ -946,6 +957,9 @@ class WorkspaceModel:
         parts: set[SpecPart] = set()
         if any(reference.kind is SchemaKind.FRONTMATTER for reference in schema_refs):
             parts.add(SpecPart.FRONTMATTER)
+        for layer in builtin_layers:
+            if layer.lines is not None:
+                parts.add(SpecPart.BUDGET)
         if governance is not None and governance.corpus_structure() is not None:
             parts.add(SpecPart.STRUCTURE)
         if governance is not None and governance.outline_specs():

@@ -1085,6 +1085,7 @@ class TestWorkspaceModel:
         assert descriptor.frontmatter_schema_refs == (reference, *governance.applicable_frontmatter_schema_refs()), (
             'the builtin frontmatter schema precedes the repository layers'
         )
+        assert SpecPart.BUDGET not in descriptor.governed_parts, 'a builtin layer without lines has no budget part'
 
     def test_model_rejects_a_schema_ref_repeated_by_builtin_layers(self, two_corpora_model: WorkspaceModel) -> None:
         #: Given
@@ -1693,6 +1694,7 @@ class TestSpecifications:
             BuiltinOrigin('builtin:spec-layer'),
             frozenset({ItemType.SPEC}),
             frontmatter_schema=builtin_input,
+            lines=NonZeroUnsignedInt(500),
         )
         model = replace(
             WorkspaceModel(
@@ -1715,8 +1717,8 @@ class TestSpecifications:
             builtin_reference,
             SchemaRef(SchemaKind.FRONTMATTER, 'meta'),
         ), 'the builtin schema is first, followed by the meta corpus schema'
-        assert descriptor.governed_parts == frozenset({SpecPart.FRONTMATTER, SpecPart.STRUCTURE}), (
-            'the builtin frontmatter schema and meta structure govern their corresponding parts'
+        assert descriptor.governed_parts == frozenset({SpecPart.FRONTMATTER, SpecPart.STRUCTURE, SpecPart.BUDGET}), (
+            'the builtin line budget and meta structure govern their corresponding parts'
         )
 
     def test_describe_item_for_a_specification_resolves_the_reserved_meta_corpus(

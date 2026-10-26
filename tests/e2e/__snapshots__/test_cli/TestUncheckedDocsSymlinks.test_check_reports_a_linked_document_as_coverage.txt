@@ -1,9 +1,9 @@
-.agents/skills/alpha/SKILL.md: ungoverned for structure, outline, budget
-.agents/skills/beta/SKILL.md: ungoverned for structure, outline, budget
-.agents/skills/gamma/SKILL.md: ungoverned for structure, outline, budget
-.claude/skills/alpha/SKILL.md: ungoverned for structure, outline, budget
-.claude/skills/beta/SKILL.md: ungoverned for structure, outline, budget
-.claude/skills/gamma/SKILL.md: ungoverned for structure, outline, budget
+.agents/skills/alpha/SKILL.md: ungoverned for structure, outline
+.agents/skills/beta/SKILL.md: ungoverned for structure, outline
+.agents/skills/gamma/SKILL.md: ungoverned for structure, outline
+.claude/skills/alpha/SKILL.md: ungoverned for structure, outline
+.claude/skills/beta/SKILL.md: ungoverned for structure, outline
+.claude/skills/gamma/SKILL.md: ungoverned for structure, outline
 docs/__meta__/code-python.md: ungoverned for frontmatter, structure, outline, budget
 docs/__meta__/code.md: ungoverned for frontmatter, structure, outline, budget
 docs/code/linked.md: not checked (symlink)

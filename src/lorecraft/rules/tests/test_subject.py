@@ -6,7 +6,9 @@ import pytest
 
 from lorecraft import rules
 from lorecraft.project.item import ItemType
+from lorecraft.rules.frontmatter.allowed_tools_too_long import AllowedToolsTooLong
 from lorecraft.rules.frontmatter.duplicate_key import DuplicateKey
+from lorecraft.rules.frontmatter.malformed_allowed_tools import MalformedAllowedTools
 from lorecraft.rules.frontmatter.name_mismatch import NameMismatch
 from lorecraft.rules.length.too_many_lines import TooManyLines
 from lorecraft.rules.length.too_many_tokens import TooManyTokens
@@ -145,13 +147,24 @@ class TestGateApplicability:
         #: Then
         assert expected in item_types, 'corpus rules declare a gate for skill entrypoints as well as documents'
 
-    def test_always_rule_with_skill_entry_applies_to_skill_entries(self) -> None:
+    def test_line_budget_rule_with_skill_entry_uses_the_budget_part(self) -> None:
         #: Given
         rule = TooManyLines
         expected = ItemType.SKILL_ENTRYPOINT
 
+        #: Then
+        assert rule.APPLIES_TO[expected] == WhenSpec(SpecPart.BUDGET), (
+            'skill line budgets run only when an active structure layer sets the budget'
+        )
+
+    def test_allowed_tools_rules_with_skill_entries_use_the_frontmatter_part(self) -> None:
+        #: Given
+        rules_with_frontmatter_gate = (AllowedToolsTooLong, MalformedAllowedTools)
+
         #: When
-        item_types = rule.APPLIES_TO
+        gates = tuple(rule.APPLIES_TO[ItemType.SKILL_ENTRYPOINT] for rule in rules_with_frontmatter_gate)
 
         #: Then
-        assert expected in item_types, 'Always skill rules declare a gate for skill entrypoints'
+        assert gates == (WhenSpec(SpecPart.FRONTMATTER),) * 2, (
+            'tool field rules run only when a builtin or repository layer governs frontmatter'
+        )

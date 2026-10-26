@@ -183,9 +183,8 @@ REVIEW_FILE: Final[RootRelativePath] = RootRelativePath.parse('.agents/skills/re
 SKILL_UNGOVERNED: Final[tuple[SpecPart, ...]] = (
     SpecPart.STRUCTURE,
     SpecPart.OUTLINE,
-    SpecPart.BUDGET,
 )
-"""The skills corpus is absent, so its structure, outline and budget parts are ungoverned."""
+"""The skills corpus is absent; the builtin floor still governs frontmatter and line budgets."""
 
 OBJECT_SCHEMA: Final[bytes] = b'{"frontmatter": {"type": "object"}}'
 """A corpus structure specification whose frontmatter schema accepts any mapping, and which sets no budget."""
@@ -561,6 +560,85 @@ def _refs(reports: tuple[SubjectReport, ...]) -> list[ItemRef | SkillAliasRef]:
 
 @pytest.mark.it
 class TestCheckSubjects:
+    @pytest.mark.parametrize(
+        ('floor_enabled', 'skills_spec', 'expected_codes', 'expected_ungoverned'),
+        (
+            (True, None, ('FM011', 'FM012', 'LEN002'), ()),
+            (
+                True,
+                b'{"lines":300,"frontmatter":{"type":"object"}}',
+                ('FM011', 'FM012', 'LEN002', 'LEN002'),
+                (),
+            ),
+            (
+                False,
+                b'{"lines":400,"frontmatter":{"type":"object"}}',
+                ('FM011', 'FM012', 'LEN002'),
+                (),
+            ),
+            (
+                False,
+                None,
+                (),
+                (SpecPart.FRONTMATTER, SpecPart.BUDGET),
+            ),
+        ),
+        ids=('floor', 'floor-and-repository', 'repository-only', 'no-governance'),
+    )
+    def test_skill_floor_and_repository_layers_gate_budget_and_tool_rules(
+        self,
+        floor_enabled: bool,
+        skills_spec: bytes | None,
+        expected_codes: tuple[str, ...],
+        expected_ungoverned: tuple[SpecPart, ...],
+    ) -> None:
+        #: Given
+        skill = (
+            b'---\nname: review\ndescription: Review a change.\nallowed-tools: '
+            + b'A' * 500
+            + b',\n---\n'
+            + b'Run the next step.\n' * 496
+        )
+        meta = {'skills.md': b'# Skills\n'}
+        if skills_spec is not None:
+            meta['skills.spec.json'] = skills_spec
+        snapshot = from_tree({'docs': {'__meta__': meta}, '.agents': {'skills': {'review': {'SKILL.md': skill}}}})
+        builtin_layers = (SKILLS_LAYER,) if floor_enabled else ()
+        database = Database.from_snapshot(snapshot, builtin_layers=builtin_layers)
+        table = RuleTable(
+            {
+                AllowedToolsTooLong: Severity.WARNING,
+                MalformedAllowedTools: Severity.WARNING,
+                TooManyLines: Severity.ERROR,
+            }
+        )
+
+        #: When
+        reports = check_subjects(database, (_item(database, _location(database, REVIEW)),), table)
+
+        #: Then
+        assert len(reports) == 1, 'the skill receives one checked report'
+        report = reports[0]
+        assert isinstance(report, CheckedItem), 'the skill receives a checked report'
+        assert tuple(str(diagnostic.occurrence.CODE) for diagnostic in report.diagnostics) == expected_codes, (
+            'each rule runs only when a builtin or repository layer states its part'
+        )
+        assert report.ungoverned == expected_ungoverned, (
+            'the absent layer parts appear as coverage when no structure governance exists'
+        )
+        if floor_enabled and skills_spec is not None:
+            line_diagnostics = tuple(
+                diagnostic for diagnostic in report.diagnostics if isinstance(diagnostic.occurrence, TooManyLines)
+            )
+            assert {diagnostic.occurrence.overrun.cap for diagnostic in line_diagnostics} == {
+                NonZeroUnsignedInt(500),
+                NonZeroUnsignedInt(300),
+            }, 'the builtin 500-line cap and tighter repository cap each report their own budget'
+            assert {diagnostic.occurrence.message() for diagnostic in line_diagnostics} == {
+                'too many lines (501 > 500)',
+                'too many lines (501 > 300)',
+            }, 'each line diagnostic names the limit that fired'
+
     def test_check_subjects_with_overlong_malformed_allowed_tools_reports_both_warnings(
         self, tmp_path: Path, package_table: RuleTable
     ) -> None:

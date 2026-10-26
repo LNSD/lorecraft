@@ -12,7 +12,7 @@ An item is longer than a governing line budget.
 ## What it does
 
 Checks each `lines` budget set by the item's governing structure files. A document or spec with no line
-budget is not counted. A skill without a structure line budget keeps the 500-line Agent Skills default.
+budget is not counted. The builtin Agent Skills structure layer sets skills' default limit to 500 lines.
 
 The whole file counts: frontmatter, blank lines and code as much as prose. A file exactly at its budget fits;
 the first line after it is reported.
