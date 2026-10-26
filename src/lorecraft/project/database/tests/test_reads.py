@@ -6,7 +6,6 @@ from pathlib import Path
 import pytest
 
 import lorecraft.project.database.database as database_module
-from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.corpus import CorpusName, ReservedCorpusDirectoryRef
 from lorecraft.project.database import Database, PrimitiveRead, Read
@@ -264,7 +263,7 @@ class TestSubjectReads:
         changed = _database(tmp_path / 'changed')
         ref = ItemRef(RootRelativePath.parse('docs/code/guide-more.md'))
         original_model = original.model()
-        changed._model = replace(changed.model(), repository_schema_inputs=FrozenMapping({}))
+        changed._model = replace(changed.model(), repository_schema_inputs=())
         assert original_model.schema_inputs != changed.model().schema_inputs, 'the model has unrelated schema changes'
 
         #: When

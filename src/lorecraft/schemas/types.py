@@ -173,3 +173,16 @@ class SchemaInput:
         """
         if isinstance(self.origin, BuiltinOrigin) and self.origin.identity != self.reference.identity:
             raise SchemaOriginMismatchError(self.reference, self.origin)
+
+
+@dataclass(frozen=True, slots=True)
+class RepositorySchemaInput(SchemaInput):
+    """A schema input acquired from a repository, whose provenance is repository-only.
+
+    Attributes:
+        reference: The typed schema identity.
+        origin: Repository path and governing layer that supplied the input.
+        document: The immutable JSON mapping used by schema-backed entries.
+    """
+
+    origin: RepositoryOrigin

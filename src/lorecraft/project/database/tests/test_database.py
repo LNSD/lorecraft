@@ -28,7 +28,7 @@ from lorecraft.project.syntax import Heading
 from lorecraft.project.workspace.builtin import AGENT_SKILLS_SPEC_LAYER as SKILLS_LAYER
 from lorecraft.schemas import (
     RepositoryOrigin,
-    SchemaInput,
+    RepositorySchemaInput,
     SchemaKind,
     SchemaRef,
     SchemaRefError,
@@ -308,12 +308,12 @@ class TestReads:
     def test_schema_query_memoizes_by_reference_and_records_its_input(self) -> None:
         #: Given
         database = _database()
-        schema_input = SchemaInput(
+        schema_input = RepositorySchemaInput(
             SCHEMA,
             RepositoryOrigin(RootRelativePath.parse('docs/test.json'), 'test'),
             FrozenMapping.from_plain({'type': 'object'}),
         )
-        database._model = replace(database.model(), repository_schema_inputs=FrozenMapping({SCHEMA: schema_input}))
+        database._model = replace(database.model(), repository_schema_inputs=(schema_input,))
 
         #: When
         first = database.query(_schema_document, SCHEMA)
@@ -329,12 +329,12 @@ class TestReads:
     def test_item_query_records_schema_query_and_schema_reference(self) -> None:
         #: Given
         database = _database()
-        schema_input = SchemaInput(
+        schema_input = RepositorySchemaInput(
             SCHEMA,
             RepositoryOrigin(RootRelativePath.parse('docs/test.json'), 'test'),
             FrozenMapping.from_plain({'type': 'object'}),
         )
-        database._model = replace(database.model(), repository_schema_inputs=FrozenMapping({SCHEMA: schema_input}))
+        database._model = replace(database.model(), repository_schema_inputs=(schema_input,))
 
         #: When
         result = database.query(_reads_schema, GUIDE)
@@ -349,19 +349,17 @@ class TestReads:
     def test_schema_query_records_a_nested_schema_query(self) -> None:
         #: Given
         database = _database()
-        schema_base = SchemaInput(
+        schema_base = RepositorySchemaInput(
             SCHEMA_BASE,
             RepositoryOrigin(RootRelativePath.parse('docs/test-base.json'), 'test'),
             FrozenMapping.from_plain({'type': 'object'}),
         )
-        schema = SchemaInput(
+        schema = RepositorySchemaInput(
             SCHEMA,
             RepositoryOrigin(RootRelativePath.parse('docs/test.json'), 'test'),
             FrozenMapping.from_plain({'type': 'object'}),
         )
-        database._model = replace(
-            database.model(), repository_schema_inputs=FrozenMapping({SCHEMA: schema, SCHEMA_BASE: schema_base})
-        )
+        database._model = replace(database.model(), repository_schema_inputs=(schema, schema_base))
 
         #: When
         identity = database.query(_schema_reads_base, SCHEMA)
@@ -376,12 +374,12 @@ class TestReads:
     def test_item_query_retains_a_missing_schema_read_when_caught(self) -> None:
         #: Given
         database = _database()
-        schema = SchemaInput(
+        schema = RepositorySchemaInput(
             SCHEMA,
             RepositoryOrigin(RootRelativePath.parse('docs/test.json'), 'test'),
             FrozenMapping.from_plain({'type': 'object'}),
         )
-        database._model = replace(database.model(), repository_schema_inputs=FrozenMapping({SCHEMA: schema}))
+        database._model = replace(database.model(), repository_schema_inputs=(schema,))
 
         #: When
         result = database.query(_schema_catches_missing, GUIDE)
