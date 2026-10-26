@@ -61,15 +61,33 @@ lets a repository write rules for its skills the way it writes them for its docu
 As a maintainer of a repository's skills, I want to state rules that every skill must follow, so that each new
 skill is held to the repository's conventions without a reviewer remembering them.
 
-**Independent test:** Add a `skills` spec that requires a frontmatter field, and check a workspace with one
-skill that sets it and one that does not.
+**Independent test:** Add a `skills` spec that requires a `metadata.<field>` frontmatter field, and check a
+workspace with one skill that sets it and one that does not; or check a workspace that opts out of the built-in
+schema with a skill requiring a top-level field.
 
 ```gherkin
 Scenario: A skill breaks a rule of the skills corpus
-  Given a skills spec that requires every skill to set a frontmatter field
+  Given a skills spec that requires every skill to set a metadata field
   And a skill that does not set it
   When the maintainer checks the workspace
   Then a finding names that skill and the missing field
+```
+
+```gherkin
+Scenario: A compliant skill satisfies both layers under metadata
+  Given a skills spec that requires metadata.owner
+  And a skill that sets metadata.owner
+  When the maintainer checks the workspace
+  Then no finding names that skill
+```
+
+```gherkin
+Scenario: Top-level repository fields require opting out of the built-in schema
+  Given a skills spec that requires a top-level field not defined by Agent Skills
+  And a workspace that opts out of the built-in skills schema with --no-agent-skills-spec
+  And a skill that sets that top-level field
+  When the maintainer checks the workspace
+  Then no finding names that skill
 ```
 
 ```gherkin
