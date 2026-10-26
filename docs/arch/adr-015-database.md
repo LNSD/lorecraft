@@ -121,7 +121,7 @@ Names in the sketches are illustrative; the shapes are the decision.
    makes a check run exit 1 (FR-014). What stops the run before any report, such as root discovery, an invalid
    selection, a linked layout or a refusal outside the declaration the snapshot cannot retain, still exits 2
    (FR-015). An unreadable document under `docs/` is retained by the snapshot, exposed by the database and reported
-   as `LC002`; it remains a subject even though no rule can read it. A refusal on a skill link the snapshot follows
+   as skipped in coverage; it remains a subject even though no rule can read it. A refusal on a skill link the snapshot follows
    to reach a skill unit still exits 2, since no model load failure or declared-document refusal stands for it yet
    (prd-014 Edge Cases).
 4. **A documentation root or spec directory that cannot be listed stops the run** (FR-005). The model still
