@@ -109,38 +109,32 @@ class DuplicateCorpusNameError(Error):
         super().__init__(f'more than one corpus is named {name}')
 
 
-class SkillLocationRefMismatchError(Error):
-    """A skill location mapping key differs from the skill ref it holds.
+class DuplicateSkillLocationRefError(Error):
+    """Two skill locations in a workspace model have the same ref.
 
     Attributes:
-        key: The ref used to file the skill location.
-        value: The ref declared by the skill location.
+        ref: The skill ref repeated by the locations.
     """
 
-    key: SkillRef
-    value: SkillRef
+    ref: SkillRef
 
-    def __init__(self, key: SkillRef, value: SkillRef) -> None:
-        self.key = key
-        self.value = value
-        super().__init__(f'skill_locations key {key.directory} holds the skill {value.directory}')
+    def __init__(self, ref: SkillRef) -> None:
+        self.ref = ref
+        super().__init__(f'more than one skill location has ref {ref.directory}')
 
 
-class OutsideSymlinkPathMismatchError(Error):
-    """An outside symlink mapping key differs from the path it holds.
+class DuplicateOutsideSymlinkPathError(Error):
+    """Two outside symlinks in a workspace model have the same path.
 
     Attributes:
-        key: The path used to file the symlink.
-        value: The path at which the symlink was found.
+        path: The path repeated by the outside symlinks.
     """
 
-    key: RootRelativePath
-    value: RootRelativePath
+    path: RootRelativePath
 
-    def __init__(self, key: RootRelativePath, value: RootRelativePath) -> None:
-        self.key = key
-        self.value = value
-        super().__init__(f'outside_symlinks key {key} holds the symlink at {value}')
+    def __init__(self, path: RootRelativePath) -> None:
+        self.path = path
+        super().__init__(f'more than one outside symlink has path {path}')
 
 
 class InvalidBuiltinFrontmatterSchemaError(Error):
@@ -538,17 +532,19 @@ class WorkspaceModel:
     by their fields below. Corpus values and repository schema inputs are stored once, with their keyed views derived
     from their own identities.
 
+    A skill location records where its entry and files resolve, so two models can differ when a link is retargeted
+    even if every skill ref is the same. The reserved `skills` corpus governs skill entrypoints but not resources;
+    `documents()` does not list it. An outside symlink is not a skills directory or a skill in the model; symlinks
+    inside a skill are part of its resource listing.
+
     Attributes:
         corpus_values: Every distinct corpus value; `corpora` is derived by corpus name.
         corpora: Every corpus, by name.
         skills_dirs: Every project skills directory an agent reads that the repository has, one record per
             agent and directory. Two agents reading one resolved directory are two records with the same
             `resolves_to`.
-        skill_locations: The location of every skill directly inside the directories those resolve to,
-            by the skill's ref; `skills()` lists the refs alone, and `skill_agents` says which
-            agents read one. The reserved `skills` corpus governs its frontmatter and structure checks, but
-            `documents()` does not list it. The locations, not the refs, record where each link leads, so two models
-            differ when a link is retargeted even though every ref is the same.
+        skill_location_values: Every distinct skill location, stored without an order.
+        skill_locations: Every skill location, keyed by ref and inserted in ref order.
         skills_corpus: The reserved `skills` corpus, available to its own specification checks, or None when no
             `skills` spec exists. It governs skill entrypoints but not resources; no directory
             under `docs/` backs it.
@@ -557,10 +553,8 @@ class WorkspaceModel:
             is absent.
         overlapping_directories: The directories under `docs/` that take a reserved corpus's name, which the model
             ignores: none of their documents is listed.
-        outside_symlinks: Every skills directory an agent declares, entry in a resolved skills directory, and
-            `SKILL.md` of such an entry, whose symlink chain leaves the repository, by path.
-            None of them is a skills directory or a skill of the model; a symlink inside a skill is in its
-            resource listing.
+        outside_symlink_values: Every distinct outside symlink, stored without an order.
+        outside_symlinks: Every outside symlink, keyed by path and inserted in path order.
         load_failures: Every unit of the declaration that could not be read or used, each once, in the order the
             loader met them: a structure file, whose `FailedStructure` also stands in its layer, a corpus directory,
             a skills directory, a listed skill directory or a `SKILL.md`,
@@ -573,8 +567,8 @@ class WorkspaceModel:
 
     corpus_values: frozenset[Corpus]
     skills_dirs: frozenset[SkillsDir]
-    skill_locations: FrozenMapping[SkillRef, SkillLocation]
-    outside_symlinks: FrozenMapping[RootRelativePath, OutsideSymlink]
+    skill_location_values: frozenset[SkillLocation]
+    outside_symlink_values: frozenset[OutsideSymlink]
     load_failures: tuple[LoadFailure, ...]
     skills_corpus: Corpus | None = None
     meta_corpus: Corpus | None = None
@@ -584,17 +578,19 @@ class WorkspaceModel:
     repository_schema_inputs: tuple[RepositorySchemaInput, ...] = ()
     builtin_layers: tuple[BuiltinSpecLayer, ...] = ()
     corpora: FrozenMapping[CorpusName, Corpus] = field(init=False, default=FrozenMapping({}))
+    skill_locations: FrozenMapping[SkillRef, SkillLocation] = field(init=False, default=FrozenMapping({}))
+    outside_symlinks: FrozenMapping[RootRelativePath, OutsideSymlink] = field(init=False, default=FrozenMapping({}))
     # Derived from builtin_layers and repository_schema_inputs, never passed in; replace() recomputes it.
     schema_inputs: FrozenMapping[SchemaRef, SchemaInput] = field(init=False, default=FrozenMapping({}))
 
     def __post_init__(self) -> None:
-        """Derive the corpus and schema lookups, and check the reserved meta corpus.
+        """Derive the corpus, skill and symlink lookups, and check the reserved meta corpus.
 
         Raises:
             MetaCorpusNameMismatchError: If `meta_corpus` does not use the reserved meta name.
             DuplicateCorpusNameError: If two corpus values have the same name.
-            SkillLocationRefMismatchError: If a `skill_locations` key differs from its value's ref.
-            OutsideSymlinkPathMismatchError: If an `outside_symlinks` key differs from its value's path.
+            DuplicateSkillLocationRefError: If two skill locations have the same ref.
+            DuplicateOutsideSymlinkPathError: If two outside symlinks have the same path.
             DuplicateSchemaRefError: If builtin layers or repository inputs repeat a schema reference.
         """
         corpora: dict[CorpusName, Corpus] = {}
@@ -603,14 +599,20 @@ class WorkspaceModel:
                 raise DuplicateCorpusNameError(corpus.name)
             corpora[corpus.name] = corpus
         object.__setattr__(self, 'corpora', FrozenMapping(corpora))
+        skill_locations: dict[SkillRef, SkillLocation] = {}
+        for location in sorted(self.skill_location_values):
+            if location.ref in skill_locations:
+                raise DuplicateSkillLocationRefError(location.ref)
+            skill_locations[location.ref] = location
+        object.__setattr__(self, 'skill_locations', FrozenMapping(skill_locations))
+        outside_symlinks: dict[RootRelativePath, OutsideSymlink] = {}
+        for outside in sorted(self.outside_symlink_values, key=lambda value: value.path):
+            if outside.path in outside_symlinks:
+                raise DuplicateOutsideSymlinkPathError(outside.path)
+            outside_symlinks[outside.path] = outside
+        object.__setattr__(self, 'outside_symlinks', FrozenMapping(outside_symlinks))
         if self.meta_corpus is not None and self.meta_corpus.name.value != META_CORPUS_NAME:
             raise MetaCorpusNameMismatchError(self.meta_corpus.name)
-        for ref, location in self.skill_locations.items():
-            if ref != location.ref:
-                raise SkillLocationRefMismatchError(ref, location.ref)
-        for path, outside in self.outside_symlinks.items():
-            if path != outside.path:
-                raise OutsideSymlinkPathMismatchError(path, outside.path)
         schema_inputs: dict[SchemaRef, SchemaInput] = {}
         for layer in self.builtin_layers:
             for schema_input in layer.registered_schema_inputs:

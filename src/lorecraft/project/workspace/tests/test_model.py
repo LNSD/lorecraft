@@ -64,11 +64,11 @@ from ..model import (
     CorpusNamespace,
     CorpusSpec,
     DuplicateCorpusNameError,
+    DuplicateOutsideSymlinkPathError,
+    DuplicateSkillLocationRefError,
     InvalidBuiltinFrontmatterSchemaError,
     MetaCorpusNameMismatchError,
     NamespaceSpec,
-    OutsideSymlinkPathMismatchError,
-    SkillLocationRefMismatchError,
     WorkspaceModel,
     namespace_order_key,
 )
@@ -700,8 +700,8 @@ def two_corpora_model() -> WorkspaceModel:
     return WorkspaceModel(
         corpus_values=frozenset({code, feat}),
         skills_dirs=frozenset(),
-        skill_locations=FrozenMapping({}),
-        outside_symlinks=FrozenMapping({}),
+        skill_location_values=frozenset(),
+        outside_symlink_values=frozenset(),
         load_failures=(),
         repository_schema_inputs=_schema_inputs(code, feat),
     )
@@ -734,8 +734,8 @@ def _model_of_corpora(*names: str) -> WorkspaceModel:
     return WorkspaceModel(
         corpus_values=frozenset(corpora),
         skills_dirs=frozenset(),
-        skill_locations=FrozenMapping({}),
-        outside_symlinks=FrozenMapping({}),
+        skill_location_values=frozenset(),
+        outside_symlink_values=frozenset(),
         load_failures=(),
     )
 
@@ -792,8 +792,8 @@ def skills_model() -> WorkspaceModel:
                 SkillsDir(agent=AgentName('codex'), path=universal, resolves_to=universal),
             }
         ),
-        skill_locations=FrozenMapping({location.ref: location for location in (AUDIT, REVIEW, REVIEW_ALIAS)}),
-        outside_symlinks=FrozenMapping({}),
+        skill_location_values=frozenset({AUDIT, REVIEW, REVIEW_ALIAS}),
+        outside_symlink_values=frozenset(),
         load_failures=(),
     )
 
@@ -880,36 +880,140 @@ class TestWorkspaceModel:
         #: Then
         assert exc_info.value.value == CODE, 'the error retains the name held in the reserved meta slot'
 
-    def test_construction_with_a_skill_under_another_skill_ref_raises_skill_location_ref_mismatch(
+    def test_skill_location_values_derive_the_lookup_by_ref(self, skills_model: WorkspaceModel) -> None:
+        #: Given
+        model = skills_model
+
+        #: When
+        locations = model.skill_locations
+
+        #: Then
+        assert model.skill_location_values == frozenset({AUDIT, REVIEW, REVIEW_ALIAS}), (
+            'the model stores each location once without an order'
+        )
+        assert locations == FrozenMapping({location.ref: location for location in model.skill_location_values}), (
+            'the lookup is keyed by each location ref'
+        )
+
+    def test_skill_locations_with_the_same_ref_raise_duplicate_skill_location_ref(self) -> None:
+        #: Given
+        alternate = replace(AUDIT, resolves_to=ResolvedPath(RootRelativePath.parse('skills/another-audit')))
+
+        #: When
+        with pytest.raises(DuplicateSkillLocationRefError) as exc_info:
+            replace(_model_of_corpora(), skill_location_values=frozenset({AUDIT, alternate}))
+
+        #: Then
+        assert exc_info.value.ref == AUDIT.ref, 'the typed failure identifies the repeated skill ref'
+
+    def test_skill_locations_with_the_same_members_compare_equal_regardless_of_construction_order(
         self, skills_model: WorkspaceModel
     ) -> None:
         #: Given
-        locations = FrozenMapping({REVIEW.ref: AUDIT})
+        model = skills_model
+        reversed_locations = frozenset(reversed(tuple(model.skill_location_values)))
 
         #: When
-        with pytest.raises(SkillLocationRefMismatchError) as exc_info:
-            replace(skills_model, skill_locations=locations)
+        reordered_model = replace(model, skill_location_values=reversed_locations)
 
         #: Then
-        assert exc_info.value.key == REVIEW.ref, 'the error retains the key the skill was filed under'
-        assert exc_info.value.value == AUDIT.ref, 'the error retains the skill ref the key holds'
+        assert reordered_model == model, 'skill location construction order does not affect model equality'
 
-    def test_construction_with_a_symlink_under_another_path_raises_outside_symlink_path_mismatch(
+    def test_replacing_skill_location_values_rebuilds_the_lookup(self, skills_model: WorkspaceModel) -> None:
+        #: Given
+        model = replace(skills_model, skill_location_values=frozenset({AUDIT}))
+
+        #: When
+        locations = model.skill_locations
+
+        #: Then
+        assert locations == FrozenMapping({AUDIT.ref: AUDIT}), 'replacement locations are indexed by their own refs'
+
+    def test_outside_symlink_values_derive_the_lookup_by_path(self, skills_model: WorkspaceModel) -> None:
+        #: Given
+        entry = RootRelativePath.parse('.agents/skills/x')
+        outside = OutsideSymlink(entry, RootExit(ResolvedPath(entry), _target('/opt/team-skills/x')))
+        model = replace(skills_model, outside_symlink_values=frozenset({outside}))
+
+        #: When
+        symlinks = model.outside_symlinks
+
+        #: Then
+        assert model.outside_symlink_values == frozenset({outside}), (
+            'the model stores outside symlink values once without an order'
+        )
+        assert symlinks == FrozenMapping({entry: outside}), 'the lookup is keyed by each symlink path'
+
+    def test_outside_symlinks_with_the_same_path_raise_duplicate_outside_symlink_path(self) -> None:
+        #: Given
+        entry = RootRelativePath.parse('.agents/skills/x')
+        first = OutsideSymlink(entry, RootExit(ResolvedPath(entry), _target('/opt/team-skills/x')))
+        second = OutsideSymlink(entry, RootExit(ResolvedPath(entry), _target('/opt/other-skills/x')))
+
+        #: When
+        with pytest.raises(DuplicateOutsideSymlinkPathError) as exc_info:
+            replace(_model_of_corpora(), outside_symlink_values=frozenset({first, second}))
+
+        #: Then
+        assert exc_info.value.path == entry, 'the typed failure identifies the repeated symlink path'
+
+    def test_outside_symlinks_with_the_same_members_compare_equal_regardless_of_construction_order(
         self, skills_model: WorkspaceModel
     ) -> None:
         #: Given
         entry = RootRelativePath.parse('.agents/skills/x')
-        other = RootRelativePath.parse('.agents/skills/y')
         outside = OutsideSymlink(entry, RootExit(ResolvedPath(entry), _target('/opt/team-skills/x')))
-        outside_symlinks = FrozenMapping({other: outside})
+        model = replace(skills_model, outside_symlink_values=frozenset({outside}))
+        reversed_symlinks = frozenset(reversed(tuple(model.outside_symlink_values)))
 
         #: When
-        with pytest.raises(OutsideSymlinkPathMismatchError) as exc_info:
-            replace(skills_model, outside_symlinks=outside_symlinks)
+        reordered_model = replace(model, outside_symlink_values=reversed_symlinks)
 
         #: Then
-        assert exc_info.value.key == other, 'the error retains the key the symlink was filed under'
-        assert exc_info.value.value == entry, 'the error retains the path where the symlink is located'
+        assert reordered_model == model, 'outside symlink construction order does not affect model equality'
+
+    def test_derived_lookup_iteration_is_sorted_for_differently_ordered_values(
+        self, skills_model: WorkspaceModel, two_corpora_model: WorkspaceModel
+    ) -> None:
+        #: Given
+        first_path = RootRelativePath.parse('.agents/skills/a')
+        second_path = RootRelativePath.parse('.agents/skills/z')
+        first = OutsideSymlink(first_path, RootExit(ResolvedPath(first_path), _target('/outside/a')))
+        second = OutsideSymlink(second_path, RootExit(ResolvedPath(second_path), _target('/outside/z')))
+        model = replace(
+            skills_model,
+            corpus_values=two_corpora_model.corpus_values,
+            repository_schema_inputs=two_corpora_model.repository_schema_inputs,
+            outside_symlink_values=frozenset({second, first}),
+        )
+
+        #: When
+        reordered = replace(
+            model,
+            corpus_values=frozenset(reversed(tuple(model.corpus_values))),
+            skill_location_values=frozenset(reversed(tuple(model.skill_location_values))),
+            outside_symlink_values=frozenset(reversed(tuple(model.outside_symlink_values))),
+        )
+
+        #: Then
+        assert tuple(reordered.corpora) == (CODE, FEAT), 'corpus keys are inserted in sorted name order'
+        assert tuple(reordered.skill_locations) == tuple(sorted(model.skill_locations)), (
+            'skill location keys are inserted in sorted ref order'
+        )
+        assert tuple(reordered.outside_symlinks) == (first_path, second_path), (
+            'outside symlink keys are inserted in sorted path order'
+        )
+
+    def test_replacing_outside_symlink_values_rebuilds_the_lookup(self, skills_model: WorkspaceModel) -> None:
+        #: Given
+        entry = RootRelativePath.parse('.agents/skills/x')
+        outside = OutsideSymlink(entry, RootExit(ResolvedPath(entry), _target('/opt/team-skills/x')))
+
+        #: When
+        model = replace(skills_model, outside_symlink_values=frozenset({outside}))
+
+        #: Then
+        assert model.outside_symlinks == FrozenMapping({entry: outside}), 'replacement symlinks use their own paths'
 
     def test_find_corpus_with_a_listed_name_returns_that_corpus(self, two_corpora_model: WorkspaceModel) -> None:
         #: Given
@@ -1034,8 +1138,8 @@ class TestWorkspaceModel:
         model = WorkspaceModel(
             corpus_values=frozenset(),
             skills_dirs=frozenset(),
-            skill_locations=FrozenMapping({location.ref: location}),
-            outside_symlinks=FrozenMapping({}),
+            skill_location_values=frozenset({location}),
+            outside_symlink_values=frozenset(),
             load_failures=(),
             builtin_layers=(layer,),
         )
@@ -1166,8 +1270,8 @@ class TestWorkspaceModel:
         model = WorkspaceModel(
             corpus_values=frozenset({code}),
             skills_dirs=frozenset(),
-            skill_locations=FrozenMapping({}),
-            outside_symlinks=FrozenMapping({}),
+            skill_location_values=frozenset(),
+            outside_symlink_values=frozenset(),
             load_failures=(),
             repository_schema_inputs=_schema_inputs(code),
         )
@@ -1193,7 +1297,7 @@ class TestWorkspaceModel:
         )
         retargeted = replace(
             skills_model,
-            skill_locations=FrozenMapping({location.ref: location for location in (moved, REVIEW, REVIEW_ALIAS)}),
+            skill_location_values=frozenset({moved, REVIEW, REVIEW_ALIAS}),
         )
 
         #: When
@@ -1218,8 +1322,8 @@ class TestWorkspaceModel:
         model = WorkspaceModel(
             corpus_values=frozenset(),
             skills_dirs=frozenset(),
-            skill_locations=FrozenMapping({location.ref: location}),
-            outside_symlinks=FrozenMapping({}),
+            skill_location_values=frozenset({location}),
+            outside_symlink_values=frozenset(),
             load_failures=(),
         )
 
@@ -1253,7 +1357,7 @@ class TestWorkspaceModel:
         )
         other = replace(
             skills_model,
-            skill_locations=FrozenMapping({location.ref: location for location in (retargeted, REVIEW, REVIEW_ALIAS)}),
+            skill_location_values=frozenset({retargeted, REVIEW, REVIEW_ALIAS}),
         )
 
         #: When
@@ -1359,7 +1463,7 @@ class TestWorkspaceModel:
         self, skills_model: WorkspaceModel
     ) -> None:
         #: Given
-        model = replace(skills_model, skill_locations=FrozenMapping({}))
+        model = replace(skills_model, skill_location_values=frozenset())
         resolved_path = ResolvedPath(RootRelativePath.parse('.agents/skills'))
 
         #: When
@@ -1374,7 +1478,7 @@ class TestWorkspaceModel:
         #: Given
         entry = RootRelativePath.parse('.agents/skills/x')
         outside = OutsideSymlink(entry, RootExit(ResolvedPath(entry), _target('/opt/team-skills/x')))
-        model = replace(skills_model, outside_symlinks=FrozenMapping({outside.path: outside}))
+        model = replace(skills_model, outside_symlink_values=frozenset({outside}))
 
         #: When
         found = model.has_outside_symlink(entry)
@@ -1388,7 +1492,7 @@ class TestWorkspaceModel:
         #: Given
         entry = RootRelativePath.parse('.agents/skills/x')
         outside = OutsideSymlink(entry, RootExit(ResolvedPath(entry), _target('/opt/team-skills/x')))
-        model = replace(skills_model, outside_symlinks=FrozenMapping({outside.path: outside}))
+        model = replace(skills_model, outside_symlink_values=frozenset({outside}))
         below = entry / PathComponent.parse('SKILL.md')
 
         #: When
@@ -1492,8 +1596,8 @@ class TestSpecifications:
         model = WorkspaceModel(
             corpus_values=frozenset({feat, code}),
             skills_dirs=frozenset(),
-            skill_locations=FrozenMapping({}),
-            outside_symlinks=FrozenMapping({}),
+            skill_location_values=frozenset(),
+            outside_symlink_values=frozenset(),
             load_failures=(),
         )
 
@@ -1515,8 +1619,8 @@ class TestSpecifications:
         model = WorkspaceModel(
             corpus_values=frozenset({code}),
             skills_dirs=frozenset(),
-            skill_locations=FrozenMapping({}),
-            outside_symlinks=FrozenMapping({}),
+            skill_location_values=frozenset(),
+            outside_symlink_values=frozenset(),
             load_failures=(),
         )
         extension = _spec_ref('code-python-typing')
@@ -1534,8 +1638,8 @@ class TestSpecifications:
         model = WorkspaceModel(
             corpus_values=frozenset({code}),
             skills_dirs=frozenset(),
-            skill_locations=FrozenMapping({}),
-            outside_symlinks=FrozenMapping({}),
+            skill_location_values=frozenset(),
+            outside_symlink_values=frozenset(),
             load_failures=(),
         )
         corpus_specification = _spec_ref('code')
@@ -1589,8 +1693,8 @@ class TestSpecifications:
         model = WorkspaceModel(
             corpus_values=frozenset(),
             skills_dirs=frozenset(),
-            skill_locations=FrozenMapping({}),
-            outside_symlinks=FrozenMapping({}),
+            skill_location_values=frozenset(),
+            outside_symlink_values=frozenset(),
             load_failures=(),
             skills_corpus=skills,
         )
@@ -1619,8 +1723,8 @@ class TestSpecifications:
         model = WorkspaceModel(
             corpus_values=frozenset(),
             skills_dirs=frozenset(),
-            skill_locations=FrozenMapping({location.ref: location}),
-            outside_symlinks=FrozenMapping({}),
+            skill_location_values=frozenset({location}),
+            outside_symlink_values=frozenset(),
             load_failures=(),
             skills_corpus=skills,
         )
@@ -1725,8 +1829,8 @@ class TestSpecifications:
             WorkspaceModel(
                 corpus_values=frozenset(),
                 skills_dirs=frozenset(),
-                skill_locations=FrozenMapping({}),
-                outside_symlinks=FrozenMapping({}),
+                skill_location_values=frozenset(),
+                outside_symlink_values=frozenset(),
                 load_failures=(),
                 meta_corpus=meta_corpus,
                 listed_specifications=(ref,),

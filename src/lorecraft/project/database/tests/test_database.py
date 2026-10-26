@@ -546,7 +546,7 @@ class TestReads:
         database = Database.from_snapshot(from_tree({}), builtin_layers=(SKILLS_LAYER,))
         path = RootRelativePath.parse('.agents/skills/outside')
         outside = OutsideSymlink(path, RootExit(ResolvedPath(path), _target('/outside')))
-        database._model = replace(database.model(), outside_symlinks=FrozenMapping({path: outside}))
+        database._model = replace(database.model(), outside_symlink_values=frozenset({outside}))
         calls = 0
 
         def query(primitives: SymlinkPrimitives) -> RootExit:

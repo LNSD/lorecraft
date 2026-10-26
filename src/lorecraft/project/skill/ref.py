@@ -157,7 +157,7 @@ class SkillRef:
         return SkillResourceRef(self, path)
 
 
-# order=True so a tuple of locations sorts by ref, the order the model lists the skills in.
+# order=True so locations sort by ref, as the model lists the skills.
 @dataclass(frozen=True, slots=True, order=True)
 class SkillLocation:
     """Where one skill's files live, as the snapshot the model was loaded from saw them.

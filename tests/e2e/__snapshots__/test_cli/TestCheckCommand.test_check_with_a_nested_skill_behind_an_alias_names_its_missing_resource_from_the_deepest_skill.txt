@@ -1,0 +1,9 @@
+error[LINK003]: `missing.md` names nothing
+ --> .agents/skills/inner/foo/ref.md:3
+  │
+3 │ Read [the missing file](missing.md).
+  │ ────────────────────────────────────
+  │
+  = note: the Agent Skills specification reads a skill's relative links from the skill root
+  = help: link a file or a directory the skill holds, relative to the skill root
+  = note: read from the skill root, it names `.agents/skills/inner/foo/missing.md`
