@@ -2,11 +2,12 @@
 
 import pytest
 
-from lorecraft.core.num import NonZeroUnsignedInt
+from lorecraft.core.lines import ByteOffset, Line
+from lorecraft.core.num import NonZeroUnsignedInt, UnsignedInt
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.identity import Severity
 from lorecraft.rules.location import Help, Here, Label
-from lorecraft.vfs import ByteOffset, Utf8Failure, Utf8Line, Utf8Reason
+from lorecraft.vfs import Utf8Failure, Utf8Reason
 
 from ..invalid_utf8 import InvalidUtf8
 
@@ -14,8 +15,8 @@ from ..invalid_utf8 import InvalidUtf8
 def _occurrence() -> InvalidUtf8:
     """`é` saved as Latin-1 on line 4, the 32nd byte of the file."""
     failure = Utf8Failure(
-        line=Utf8Line(4),
-        offset=ByteOffset(31),
+        line=Line(NonZeroUnsignedInt(4)),
+        offset=ByteOffset(UnsignedInt(31)),
         invalid=b'\xe9',
         reason=Utf8Reason.INVALID_CONTINUATION_BYTE,
     )
@@ -84,8 +85,8 @@ class TestInvalidUtf8:
     def test_labels_of_an_occurrence_rejecting_several_bytes_name_each(self) -> None:
         #: Given
         failure = Utf8Failure(
-            line=Utf8Line(1),
-            offset=ByteOffset(0),
+            line=Line(NonZeroUnsignedInt(1)),
+            offset=ByteOffset(UnsignedInt(0)),
             invalid=b'\xe2\x82',
             reason=Utf8Reason.UNEXPECTED_END_OF_DATA,
         )
@@ -104,7 +105,12 @@ class TestInvalidUtf8:
 
     def test_labels_of_an_occurrence_with_another_reason_say_only_that_the_bytes_do_not_decode(self) -> None:
         #: Given
-        failure = Utf8Failure(line=Utf8Line(1), offset=ByteOffset(2), invalid=b'\xed', reason=Utf8Reason.OTHER)
+        failure = Utf8Failure(
+            line=Line(NonZeroUnsignedInt(1)),
+            offset=ByteOffset(UnsignedInt(2)),
+            invalid=b'\xed',
+            reason=Utf8Reason.OTHER,
+        )
         occurrence = InvalidUtf8(failure=failure)
 
         #: When

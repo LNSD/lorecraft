@@ -7,6 +7,8 @@ what is counted or numbered from these values is pinned in `test_document`.
 
 import pytest
 
+from lorecraft.core.num import NonZeroUnsignedInt
+
 from ..parser import (
     ContentBlock,
     HeadingLevel,
@@ -20,7 +22,9 @@ from ..parser import (
 
 
 def _heading(level: HeadingLevel, text: str, line: int, *, top_level: bool = True) -> MarkdownHeading:
-    return MarkdownHeading(level=level, text=text, rendered_text=text, line=MarkdownLine(line), top_level=top_level)
+    return MarkdownHeading(
+        level=level, text=text, rendered_text=text, line=MarkdownLine(NonZeroUnsignedInt(line)), top_level=top_level
+    )
 
 
 @pytest.mark.unit
@@ -142,7 +146,11 @@ class TestParseMarkdown:
         #: Then
         assert tree.blocks == (
             MarkdownHeading(
-                level=1, text='Hi <b>x</b> alt', rendered_text='Hi x ', line=MarkdownLine(1), top_level=True
+                level=1,
+                text='Hi <b>x</b> alt',
+                rendered_text='Hi x ',
+                line=MarkdownLine(NonZeroUnsignedInt(1)),
+                top_level=True,
             ),
         ), "the heading block's plain text keeps inline HTML and an image's alt text"
 
@@ -167,9 +175,9 @@ class TestParseMarkdown:
 
         #: Then
         assert tree.links == (
-            MarkdownLink(url='a.md', line=MarkdownLine(1)),
-            MarkdownLink(url='b.md', line=MarkdownLine(3)),
-            MarkdownLink(url='i.png', line=MarkdownLine(3)),
+            MarkdownLink(url='a.md', line=MarkdownLine(NonZeroUnsignedInt(1))),
+            MarkdownLink(url='b.md', line=MarkdownLine(NonZeroUnsignedInt(3))),
+            MarkdownLink(url='i.png', line=MarkdownLine(NonZeroUnsignedInt(3))),
         ), 'a link in a list item is found too, and an image inside a link comes after that link'
 
     def test_parse_markdown_with_crlf_line_endings_returns_each_heading_on_its_document_line(self) -> None:
@@ -196,8 +204,8 @@ class TestParseMarkdown:
 
         #: Then
         assert tree.links == (
-            MarkdownLink(url='a.md', line=MarkdownLine(6)),
-            MarkdownLink(url='b.md', line=MarkdownLine(8)),
+            MarkdownLink(url='a.md', line=MarkdownLine(NonZeroUnsignedInt(6))),
+            MarkdownLink(url='b.md', line=MarkdownLine(NonZeroUnsignedInt(8))),
         ), 'each link after a frontmatter block and CRLF line endings is on its document line'
         assert tree.blocks[-1] == _heading(2, 'Usage', 10), (
             'a heading past several CRLF line endings is on its document line'
@@ -271,7 +279,7 @@ class TestLinkUrlNormalisation:
         tree = parse_markdown(text)
 
         #: Then
-        assert tree.links == (MarkdownLink(url='/a%20b', line=MarkdownLine(1)),), (
+        assert tree.links == (MarkdownLink(url='/a%20b', line=MarkdownLine(NonZeroUnsignedInt(1))),), (
             'a space in the destination is percent-encoded'
         )
 
@@ -283,7 +291,7 @@ class TestLinkUrlNormalisation:
         tree = parse_markdown(text)
 
         #: Then
-        assert tree.links == (MarkdownLink(url='%C3%BC', line=MarkdownLine(1)),), (
+        assert tree.links == (MarkdownLink(url='%C3%BC', line=MarkdownLine(NonZeroUnsignedInt(1))),), (
             'a non-ASCII character is percent-encoded as UTF-8'
         )
 
@@ -295,6 +303,6 @@ class TestLinkUrlNormalisation:
         tree = parse_markdown(text)
 
         #: Then
-        assert tree.links == (MarkdownLink(url='a&b%zz', line=MarkdownLine(1)),), (
+        assert tree.links == (MarkdownLink(url='a&b%zz', line=MarkdownLine(NonZeroUnsignedInt(1))),), (
             'a character reference is decoded, and a malformed escape is kept'
         )

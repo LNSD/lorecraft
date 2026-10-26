@@ -77,7 +77,7 @@ def parse_document(text: str) -> ParsedDocument:
     return ParsedDocument(
         headings=_headings(counted),
         anchors=_anchors(tree.headings),
-        links=tuple(Link(link.url, LineNumber(NonZeroUnsignedInt(link.line))) for link in tree.links),
+        links=tuple(Link(link.url, LineNumber(link.line)) for link in tree.links),
     )
 
 
@@ -116,7 +116,7 @@ def _headings(blocks: tuple[CountedBlock, ...]) -> tuple[Heading, ...]:
                     Heading(
                         level=block.level,
                         text=block.text,
-                        line=LineNumber(NonZeroUnsignedInt(block.line)),
+                        line=LineNumber(block.line),
                         empty=empty,
                         words=_section_words(blocks, index, block.level),
                     )

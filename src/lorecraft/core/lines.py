@@ -10,10 +10,22 @@ import re
 from bisect import bisect_right
 from typing import Final, NewType
 
-from .num import UnsignedInt
+from .num import NonZeroUnsignedInt, UnsignedInt
 
 LineCount = NewType('LineCount', UnsignedInt)
 """How many lines a text holds: a count of lines, never taken for a count of tokens or of words."""
+
+Line = NewType('Line', NonZeroUnsignedInt)
+"""A one-based line number, never taken for another count."""
+
+LineOffset = NewType('LineOffset', UnsignedInt)
+"""A zero-based line offset, for formats that number lines from 0."""
+
+ByteOffset = NewType('ByteOffset', UnsignedInt)
+"""A zero-based offset into bytes, never negative."""
+
+TextOffset = NewType('TextOffset', UnsignedInt)
+"""A zero-based offset into text, never negative."""
 
 _BREAK: Final[re.Pattern[str]] = re.compile(r'\r\n?|\n')
 """A line break in text: a `\\r\\n` pair as one break, a lone `\\r` or a `\\n`."""
@@ -52,7 +64,7 @@ def split_lines(text: str) -> tuple[str, ...]:
     return tuple(lines)
 
 
-def newline_offsets(text: str) -> tuple[int, ...]:
+def newline_offsets(text: str) -> tuple[TextOffset, ...]:
     r"""The offset where each line break in `text` starts, in ascending order.
 
     The line an offset is on is one more than the number of these before it, so a binary search over them locates an
@@ -61,10 +73,10 @@ def newline_offsets(text: str) -> tuple[int, ...]:
     Args:
         text: Text to scan, a whole file.
     """
-    return tuple(match.start() for match in _BREAK.finditer(text))
+    return tuple(TextOffset(UnsignedInt(match.start())) for match in _BREAK.finditer(text))
 
 
-def line_at(text: str | bytes, offset: int) -> int:
+def line_at(text: str | bytes, offset: TextOffset | ByteOffset) -> Line:
     r"""The line `offset` is on, from 1: one more than the number of line breaks that end at or before it.
 
     An offset between the `\r` and the `\n` of a pair is still on the line the pair ends, and the offset of a break's
@@ -80,4 +92,4 @@ def line_at(text: str | bytes, offset: int) -> int:
         ends = [match.end() for match in _BREAK_IN_BYTES.finditer(text)]
     else:
         ends = [match.end() for match in _BREAK.finditer(text)]
-    return bisect_right(ends, offset) + 1
+    return Line(NonZeroUnsignedInt(bisect_right(ends, offset.value) + 1))
