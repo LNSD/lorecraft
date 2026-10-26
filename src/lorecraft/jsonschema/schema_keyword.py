@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from jsonschema.exceptions import ValidationError as SchemaValidationError
 
 from lorecraft.core.mapping import Plain
+from lorecraft.core.num import UnsignedInt
 
 from .json_type import JsonType, JsonTypes
 
@@ -99,7 +100,7 @@ class MinPropertiesKeyword:
         limit: The fewest fields allowed; never negative.
     """
 
-    limit: int
+    limit: UnsignedInt
 
 
 @dataclass(frozen=True, slots=True)
@@ -110,7 +111,7 @@ class MaxPropertiesKeyword:
         limit: The most fields allowed; never negative.
     """
 
-    limit: int
+    limit: UnsignedInt
 
 
 @dataclass(frozen=True, slots=True)
@@ -172,11 +173,11 @@ def keyword_of(error: SchemaValidationError) -> Keyword:
                 return PatternKeyword(value)
         case 'minProperties':
             # A negative limit is no schema a validator accepts, so it is no typed keyword rather than an error.
-            if isinstance(value, int) and value >= 0:
-                return MinPropertiesKeyword(value)
+            if isinstance(value, int) and not isinstance(value, bool) and value >= 0:
+                return MinPropertiesKeyword(UnsignedInt(value))
         case 'maxProperties':
-            if isinstance(value, int) and value >= 0:
-                return MaxPropertiesKeyword(value)
+            if isinstance(value, int) and not isinstance(value, bool) and value >= 0:
+                return MaxPropertiesKeyword(UnsignedInt(value))
     return OtherKeyword()
 
 

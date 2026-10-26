@@ -367,9 +367,9 @@ def _block_constraint(keyword: Keyword) -> BlockLimit:
     """
     match keyword:
         case MinPropertiesKeyword(limit):
-            return MinFields(FieldLimit(UnsignedInt(limit)))
+            return MinFields(FieldLimit(limit))
         case MaxPropertiesKeyword(limit):
-            return MaxFields(FieldLimit(UnsignedInt(limit)))
+            return MaxFields(FieldLimit(limit))
         case (
             TypeKeyword()
             | RequiredKeyword()
