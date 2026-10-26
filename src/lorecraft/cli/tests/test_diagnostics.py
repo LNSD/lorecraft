@@ -30,8 +30,10 @@ from lorecraft.rules.report import (
     CheckedItem,
     CheckedLayoutEntry,
     LoadFailureReport,
+    RefusedSubject,
     RuleDiagnostic,
     RunReport,
+    UncheckedSymlink,
     UndecodableSubject,
 )
 from lorecraft.rules.subject import SpecPart
@@ -508,6 +510,34 @@ class TestRenderJson:
         assert text == json.dumps(document, separators=(',', ':'), ensure_ascii=False), (
             'the document holds no indentation, no line break and no blank after a separator'
         )
+
+    def test_render_json_with_each_coverage_case_keeps_the_published_keys_and_order(self) -> None:
+        #: Given
+        refused_path = RootRelativePath.parse('docs/code/b.md')
+        dependency = RootRelativePath.parse('docs/__meta__/code.spec.json')
+        reports: tuple[RunReport, ...] = (
+            UncheckedSymlink(RootRelativePath.parse('docs/code/d.md')),
+            RefusedSubject(ItemRef(refused_path), refused_path),
+            BlockedSubject(ItemRef(RootRelativePath.parse('docs/code/c.md')), (dependency,)),
+            CheckedItem(
+                ItemRef(RootRelativePath.parse('docs/code/a.md')),
+                diagnostics=(),
+                ungoverned=(SpecPart.STRUCTURE,),
+            ),
+        )
+
+        #: When
+        text = render_json(reports)
+
+        #: Then
+        assert text == (
+            '{"diagnostics":[],"summary":{"subjects":3,"errors":0,"warnings":0},"coverage":['
+            '{"path":"docs/code/a.md","ungoverned":["structure"],"cause":null,"skipped_by":[]},'
+            '{"path":"docs/code/b.md","ungoverned":[],"cause":"refused-path","skipped_by":["docs/code/b.md"]},'
+            '{"path":"docs/code/c.md","ungoverned":[],"cause":"refused-dependency",'
+            '"skipped_by":["docs/__meta__/code.spec.json"]},'
+            '{"path":"docs/code/d.md","ungoverned":[],"cause":null,"skipped_by":[],"unchecked":true}]}'
+        ), 'each typed coverage case retains its byte-for-byte JSON keys and field order'
 
     def test_render_json_with_a_non_ascii_key_writes_it_as_utf8(self) -> None:
         #: Given
