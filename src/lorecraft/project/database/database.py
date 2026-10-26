@@ -562,9 +562,7 @@ class Database:
             if resolved is None:
                 resource = self._resource_location(ref)
                 resolved = (
-                    self._model.resolve_resource(resource.ref, resource)
-                    if resource is not None
-                    else self._model.resolve_item(ref)
+                    self._model.resolve_resource(resource) if resource is not None else self._model.resolve_item(ref)
                 )
             self._items[ref] = resolved
         return resolved

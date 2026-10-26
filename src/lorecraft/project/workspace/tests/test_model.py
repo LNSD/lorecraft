@@ -27,6 +27,7 @@ from lorecraft.project.item import (
     ItemRef,
     ItemType,
     SkillEntrypointOrigin,
+    SkillResourceOrigin,
     SpecOrigin,
     SpecPart,
 )
@@ -44,7 +45,15 @@ from lorecraft.project.schemas import (
     parse_spec_name,
     spec_filename,
 )
-from lorecraft.project.skill import OutsideSymlink, SkillLocation, SkillRef, SkillsDir
+from lorecraft.project.skill import (
+    OutsideSymlink,
+    SkillLocation,
+    SkillRef,
+    SkillRelativePath,
+    SkillResourceLocation,
+    SkillResourceRef,
+    SkillsDir,
+)
 from lorecraft.schemas import (
     BuiltinOrigin,
     BuiltinSchemaInput,
@@ -800,6 +809,26 @@ def skills_model() -> WorkspaceModel:
 
 @pytest.mark.unit
 class TestWorkspaceModel:
+    def test_resolve_resource_uses_the_ref_from_its_location(self) -> None:
+        #: Given
+        ref = SkillResourceRef(REVIEW.ref, SkillRelativePath.parse('references/guide.md'))
+        location = SkillResourceLocation(
+            ref,
+            resolves_to=ResolvedPath(RootRelativePath.parse('shared/guide.md')),
+        )
+        model = _model_of_corpora()
+
+        #: When
+        resolved = model.resolve_resource(location)
+
+        #: Then
+        assert resolved.descriptor.ref == ItemRef(ref.path), 'the resource keeps its listed identity'
+        assert resolved.descriptor.read_location == location.resolves_to, 'the resource reads through its location'
+        assert resolved.descriptor.link_base == SkillRoot(REVIEW.ref.directory), 'resource links use the skill root'
+        assert resolved.descriptor.origin == SkillResourceOrigin(skill_entry=str(REVIEW.ref.entry)), (
+            'the containing skill is recorded as the resource origin'
+        )
+
     def test_corpus_values_derive_the_lookup_by_name(self, two_corpora_model: WorkspaceModel) -> None:
         #: Given
         model = two_corpora_model
