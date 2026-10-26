@@ -808,7 +808,6 @@ class TestLoadWorkspaceEdgeCases:
             skill_locations=FrozenMapping({}),
             outside_symlinks=FrozenMapping({}),
             load_failures=(),
-            schema_inputs=FrozenMapping({AGENT_SKILLS_SCHEMA_INPUT.reference: AGENT_SKILLS_SCHEMA_INPUT}),
             builtin_layers=(SKILLS_LAYER,),
         ), 'a root without docs/ is an empty workspace'
 

@@ -264,7 +264,7 @@ class TestSubjectReads:
         changed = _database(tmp_path / 'changed')
         ref = ItemRef(RootRelativePath.parse('docs/code/guide-more.md'))
         original_model = original.model()
-        changed._model = replace(changed.model(), schema_inputs=FrozenMapping({}))
+        changed._model = replace(changed.model(), repository_schema_inputs=FrozenMapping({}))
         assert original_model.schema_inputs != changed.model().schema_inputs, 'the model has unrelated schema changes'
 
         #: When

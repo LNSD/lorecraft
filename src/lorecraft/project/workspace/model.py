@@ -66,8 +66,15 @@ from lorecraft.project.skill import (
     SkillResourceRef,
     SkillsDir,
 )
-from lorecraft.schemas import BuiltinOrigin, SchemaInput, SchemaKind, SchemaRef
-from lorecraft.schemas.builtin import AGENT_SKILLS_SCHEMA_REFERENCE
+from lorecraft.schemas import (
+    BuiltinOrigin,
+    DuplicateSchemaRefError,
+    RepositoryOrigin,
+    SchemaInput,
+    SchemaKind,
+    SchemaRef,
+)
+from lorecraft.schemas.builtin import AGENT_SKILLS_LAYER_ORIGIN
 from lorecraft.vfs import ResolvedPath
 
 from .failure import FailedStructure, LoadFailure
@@ -167,6 +174,28 @@ class InvalidBuiltinFrontmatterSchemaError(Error):
     def __init__(self, reference: SchemaRef) -> None:
         self.reference = reference
         super().__init__(f'builtin frontmatter schema must have FRONTMATTER kind, got {reference.kind.value}')
+
+
+class NonRepositorySchemaInputOriginError(Error):
+    """A repository schema input has builtin rather than repository provenance.
+
+    Attributes:
+        reference: The schema reference filed under `repository_schema_inputs`.
+        origin: The builtin origin that belongs to a `BuiltinSpecLayer` instead.
+    """
+
+    reference: SchemaRef
+    origin: BuiltinOrigin
+
+    def __init__(self, reference: SchemaRef, origin: BuiltinOrigin) -> None:
+        self.reference = reference
+        self.origin = origin
+        super().__init__(f'repository schema input {reference.kind.value}:{reference.identity} has builtin provenance')
+
+
+def agent_skills_floor_enabled(builtin_layers: tuple[BuiltinSpecLayer, ...]) -> bool:
+    """Whether the enabled layers include the builtin Agent Skills floor."""
+    return any(layer.origin == AGENT_SKILLS_LAYER_ORIGIN for layer in builtin_layers)
 
 
 def find_document_at(ref: ItemRef) -> DocumentRef | None:
@@ -569,8 +598,9 @@ class WorkspaceModel:
             a skills directory, a listed skill directory or a `SKILL.md`,
             and a `docs/` or `docs/__meta__/` that cannot be
             listed. Nothing a failure touches is in the model beyond that record; every other unit is loaded.
-        schema_inputs: Immutable schema inputs keyed by typed reference; parsed structure specs remain in layers.
+        repository_schema_inputs: Raw repository schema inputs keyed by typed reference.
         builtin_layers: Enabled builtin schema inputs and governance parts, in registration order.
+        schema_inputs: Derived registry combining builtin layer inputs before repository inputs.
     """
 
     corpora: FrozenMapping[CorpusName, Corpus]
@@ -583,8 +613,10 @@ class WorkspaceModel:
     listed_specifications: tuple[SpecRef, ...] = ()
     overlapping_directories: frozenset[ReservedCorpusDirectory] = frozenset()
     unchecked_symlinks: tuple[RootRelativePath, ...] = ()
-    schema_inputs: FrozenMapping[SchemaRef, SchemaInput] = FrozenMapping({})
+    repository_schema_inputs: FrozenMapping[SchemaRef, SchemaInput] = FrozenMapping({})
     builtin_layers: tuple[BuiltinSpecLayer, ...] = ()
+    # Derived from builtin_layers and repository_schema_inputs, never passed in; replace() recomputes it.
+    schema_inputs: FrozenMapping[SchemaRef, SchemaInput] = field(init=False, default=FrozenMapping({}))
 
     def __post_init__(self) -> None:
         """Keep a key from naming something other than its value, which the lookups read the key alone to answer.
@@ -595,6 +627,8 @@ class WorkspaceModel:
             SkillLocationRefMismatchError: If a `skill_locations` key differs from its value's ref.
             OutsideSymlinkPathMismatchError: If an `outside_symlinks` key differs from its value's path.
             SchemaInputReferenceMismatchError: If a schema input key differs from its value's ref.
+            NonRepositorySchemaInputOriginError: If repository inputs carry builtin provenance.
+            DuplicateSchemaRefError: If builtin layers or repository inputs repeat a schema reference.
         """
         for name, corpus in self.corpora.items():
             if name != corpus.name:
@@ -607,6 +641,19 @@ class WorkspaceModel:
         for path, outside in self.outside_symlinks.items():
             if path != outside.path:
                 raise OutsideSymlinkPathMismatchError(path, outside.path)
+        schema_inputs: dict[SchemaRef, SchemaInput] = {}
+        for layer in self.builtin_layers:
+            for schema_input in layer.registered_schema_inputs:
+                if schema_input.reference in schema_inputs:
+                    raise DuplicateSchemaRefError(schema_input.reference)
+                schema_inputs[schema_input.reference] = schema_input
+        for ref, schema_input in self.repository_schema_inputs.items():
+            if not isinstance(schema_input.origin, RepositoryOrigin):
+                raise NonRepositorySchemaInputOriginError(ref, schema_input.origin)
+            if ref in schema_inputs:
+                raise DuplicateSchemaRefError(ref)
+            schema_inputs[ref] = schema_input
+        object.__setattr__(self, 'schema_inputs', FrozenMapping(schema_inputs))
         for ref, schema_input in self.schema_inputs.items():
             if ref != schema_input.reference:
                 raise SchemaInputReferenceMismatchError(ref, schema_input.reference)
@@ -823,8 +870,8 @@ class WorkspaceModel:
 
     @property
     def agent_skills_floor_enabled(self) -> bool:
-        """Whether the builtin Agent Skills frontmatter floor is registered."""
-        return any(AGENT_SKILLS_SCHEMA_REFERENCE in layer.schema_refs for layer in self.builtin_layers)
+        """Whether the builtin Agent Skills layer is enabled."""
+        return agent_skills_floor_enabled(self.builtin_layers)
 
     def _builtin_frontmatter_refs(self, item_type: ItemType) -> tuple[SchemaRef, ...]:
         """Frontmatter schemas contributed by builtin layers, in registration order."""
@@ -982,7 +1029,10 @@ class WorkspaceModel:
                 )
             case SpecRef():
                 governance = self.meta_governance(ref)
-                schema_refs = governance.applicable_frontmatter_schema_refs() if governance is not None else ()
+                builtin_layers = self.builtin_layers_for(ItemType.SPEC)
+                schema_refs = self._builtin_frontmatter_refs(ItemType.SPEC) + (
+                    governance.applicable_frontmatter_schema_refs() if governance is not None else ()
+                )
                 return self._describe(
                     ref=ItemRef(ref.path),
                     read_location=ResolvedPath(ref.path),
@@ -993,6 +1043,7 @@ class WorkspaceModel:
                     corpus=CorpusName.parse(META_CORPUS_NAME),
                     governance=governance,
                     frontmatter_schema_refs=schema_refs,
+                    builtin_layers=builtin_layers,
                 )
             case _:
                 assert_never(ref)
