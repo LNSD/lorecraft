@@ -3,12 +3,12 @@
 from collections.abc import Mapping
 from dataclasses import dataclass
 from types import MappingProxyType
-from typing import ClassVar, Final, Self
+from typing import ClassVar, Final, Self, assert_never
 
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.item import ItemType
-from lorecraft.project.link_target import DocumentDirectory, LinkTarget
-from lorecraft.project.query import ItemQuery, item_base, item_name, item_parse
+from lorecraft.project.link_target import LinkTarget
+from lorecraft.project.query import ItemQuery, item_parse
 from lorecraft.project.syntax import FIRST_LINE, LineNumber, RelativeDestination, find_title
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
@@ -16,6 +16,7 @@ from lorecraft.rules.location import Help, Note, Subdiagnostic
 from lorecraft.rules.subject import Gate, QueriedItemRule, SpecPart, WhenSpec
 
 from .__ruleset__ import GROUP_ID, GovernanceSyntaxLinkResolutionPrimitives
+from .queries import ExtensionDocument, NotExtensionDocument, extension_document
 
 _REFERENCES: Final[str] = 'References'
 """The heading of the section that names the documents a document builds on."""
@@ -44,15 +45,21 @@ def missing_base(primitives: GovernanceSyntaxLinkResolutionPrimitives) -> Missin
     Args:
         primitives: The model state of the document.
     """
-    base = primitives.query(item_base)
-    name = primitives.query(item_name)
-    link_base = primitives.link_base()
-    if base is None or name is None or not isinstance(link_base, DocumentDirectory):
-        return None
+    extension_document_result = primitives.query(extension_document)
+    match extension_document_result:
+        case NotExtensionDocument():
+            return None
+        case ExtensionDocument(base=None):
+            return None
+        case ExtensionDocument(base=base) as document:
+            pass
+        case _:
+            assert_never(extension_document_result)
+    name = document.name
     headings = primitives.query(item_parse).headings
     title = find_title(headings)
     references = next((heading for heading in headings if heading.level <= 2 and heading.text == _REFERENCES), None)
-    wanted = link_base.directory / RootRelativePath.parse(f'{base}.md')
+    wanted = document.directory / RootRelativePath.parse(f'{base}.md')
     if references is not None:
         end = next(
             (heading.line for heading in headings if heading.level <= 2 and heading.line > references.line), None
@@ -65,7 +72,7 @@ def missing_base(primitives: GovernanceSyntaxLinkResolutionPrimitives) -> Missin
             if link.line <= references.line or (end is not None and link.line >= end):
                 continue
             entry = targets.get(destination.path)
-            if isinstance(entry, LinkTarget) and entry.path == wanted:
+            if isinstance(entry, LinkTarget) and entry.target.path == wanted:
                 return None
     line: LineNumber = references.line if references is not None else (title.line if title else FIRST_LINE)
     return MissingBase(line=line, base=f'{base}.md', extension=f'{name}.md')

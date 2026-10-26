@@ -19,7 +19,7 @@ from lorecraft.project.database import Database, ItemText, Read, Undecodable
 from lorecraft.project.document import DocumentRef
 from lorecraft.project.item import ItemOrigin, ItemReadError, ItemRef, SkillEntrypointOrigin, UnlistedItemError
 from lorecraft.project.layout import SNAPSHOT_SCOPE
-from lorecraft.project.link_target import EscapingTarget, LinkTarget, PathLookup
+from lorecraft.project.link_target import EscapingTarget, LinkTargetFailure, OutsideScopeTarget
 from lorecraft.project.query import (
     ItemPrimitives,
     item_base,
@@ -249,11 +249,12 @@ class TestItemQueries:
         skill = database.item_link_targets(_decoded(database, REVIEW))
 
         #: Then
-        assert document[up] == LinkTarget(RootRelativePath.parse('docs/up.md'), PathLookup.OUTSIDE_SCOPE), (
+        target_path = RootRelativePath.parse('docs/up.md')
+        assert document[up] == LinkTargetFailure(OutsideScopeTarget(target_path)), (
             'a document climbs from its own directory'
         )
-        assert skill[up] == EscapingTarget(), 'a skill may not climb above its root'
-        assert skill[far] == EscapingTarget(), 'however far'
+        assert skill[up] == LinkTargetFailure(EscapingTarget()), 'a skill may not climb above its root'
+        assert skill[far] == LinkTargetFailure(EscapingTarget()), 'however far'
 
     def test_item_text_after_the_linked_entry_is_retargeted_reads_the_newly_recorded_file(self, tmp_path: Path) -> None:
         #: Given

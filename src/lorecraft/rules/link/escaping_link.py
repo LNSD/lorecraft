@@ -7,7 +7,16 @@ from typing import ClassVar, Self, assert_never
 from urllib.parse import unquote
 
 from lorecraft.project.item import ItemType
-from lorecraft.project.link_target import DocumentDirectory, EscapingTarget, LinkBase, LinkTarget, SkillRoot
+from lorecraft.project.link_target import (
+    DocumentDirectory,
+    EscapingTarget,
+    LinkBase,
+    LinkTarget,
+    LinkTargetFailure,
+    MissingTarget,
+    OutsideScopeTarget,
+    SkillRoot,
+)
 from lorecraft.project.query import ItemQuery, item_parse
 from lorecraft.project.syntax import (
     AbsoluteDestination,
@@ -49,8 +58,15 @@ def escaping_links(primitives: SyntaxLinkResolutionPrimitives) -> tuple[tuple[Li
             case _:
                 assert_never(destination)
         match entry:
-            case EscapingTarget():
-                escaping.append((link, base))
+            case LinkTargetFailure(error=error):
+                match error:
+                    case EscapingTarget():
+                        escaping.append((link, base))
+                    # Neither outcome climbs past its bound; LINK003 judges missing targets.
+                    case MissingTarget() | OutsideScopeTarget():
+                        continue
+                    case _:
+                        assert_never(error)
             # A target inside the link base's bound, or none.
             case LinkTarget() | None:
                 continue

@@ -32,7 +32,7 @@ from lorecraft.project.workspace.builtin import AGENT_SKILLS_SPEC_LAYER as SKILL
 from lorecraft.rules.length.too_many_tokens import token_facts
 from lorecraft.rules.link.extension_link import extension_link_facts
 from lorecraft.rules.link.mutual_link import mutual_link_facts
-from lorecraft.rules.link.queries import linked_documents
+from lorecraft.rules.link.queries import NotExtensionDocument, extension_document, linked_documents
 from lorecraft.rules.outline.empty_section import empty_section_facts
 from lorecraft.vfs import Snapshot, take_snapshot
 
@@ -247,7 +247,9 @@ class TestDocumentFactQueries:
 
         #: Then
         assert facts.base == 'guide.md', 'the document that holds the links'
-        assert [(link.line.value, link.extension) for link in facts.links] == [(7, 'guide-more.md')], 'the existing one'
+        assert [(link.line.value, str(link.extension)) for link in facts.links] == [(7, 'guide-more.md')], (
+            'the existing one'
+        )
         assert database.query(extension_link_facts, GUIDE) is facts, 'the answer is memoized'
         assert database.query_reads(extension_link_facts, GUIDE) == {
             Read(item_parse, GUIDE),
@@ -255,6 +257,9 @@ class TestDocumentFactQueries:
             Read(PrimitiveRead.LINK_TARGETS, GUIDE),
             Read(PrimitiveRead.LINK_BASE, GUIDE),
             Read(item_name, GUIDE),
+            Read(extension_document, GUIDE),
+            Read(item_base, GUIDE),
+            Read(PrimitiveRead.NAME_HIERARCHY, GUIDE),
             Read(PrimitiveRead.DESCRIPTOR, GUIDE),
         }, 'derived carry-over'
 
@@ -266,7 +271,7 @@ class TestDocumentFactQueries:
         facts = database.query(extension_link_facts, SKILL)
 
         #: Then
-        assert facts.links == (), 'a skill is no document'
+        assert facts == NotExtensionDocument(), 'a skill is no document'
 
 
 @pytest.mark.it
@@ -372,6 +377,9 @@ class TestDocumentLinks:
             Read(item_parse, GUIDE),
             Read(PrimitiveRead.LINK_TARGETS, GUIDE),
             Read(linked_documents, GUIDE),
+            Read(extension_document, GUIDE),
+            Read(item_base, GUIDE),
+            Read(PrimitiveRead.NAME_HIERARCHY, GUIDE),
             Read(linked_paths, GUIDE),
             Read(linked_paths, FEATURE),
             Read(item_parse, FEATURE),

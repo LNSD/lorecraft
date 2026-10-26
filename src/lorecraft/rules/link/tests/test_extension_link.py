@@ -11,12 +11,21 @@ from lib.primitives import StructurePrimitives
 from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.core.path import RootRelativePath
-from lorecraft.project.link_target import EscapingTarget, LinkTarget, LinkTargetEntry, PathLookup
+from lorecraft.project.link_target import (
+    DirectoryTarget,
+    EscapingTarget,
+    FileTarget,
+    LinkTarget,
+    LinkTargetEntry,
+    LinkTargetFailure,
+    MissingTarget,
+)
 from lorecraft.project.syntax import LineNumber, NormalisedLinkPath
 from lorecraft.rules.location import Help, Note
 from lorecraft.rules.tests.fake_database import DEFAULT_DOCUMENT_DIRECTORY, FakeDocumentDatabase, judged
 
-from ..extension_link import ExtensionLink, ExtensionLinkFacts, extension_link_facts
+from ..extension_link import ExtensionLink, extension_link_facts
+from ..queries import NotExtensionDocument
 
 STRUCTURE = '{"frontmatter": {"type": "object"}}'
 
@@ -41,7 +50,8 @@ def _present(url: str, directory: RootRelativePath = DEFAULT_DOCUMENT_DIRECTORY)
         url: The link's relative path.
         directory: The directory the path is joined to.
     """
-    return LinkTarget(path=directory / RootRelativePath.parse(url), lookup=PathLookup.FILE)
+    target = directory / RootRelativePath.parse(url)
+    return LinkTarget(FileTarget(target))
 
 
 @pytest.mark.unit
@@ -111,7 +121,7 @@ class TestExtensionLink:
     def test_check_with_a_link_to_a_directory_named_like_an_extension_reports_nothing(self) -> None:
         #: Given
         entry = LinkTarget(
-            path=DEFAULT_DOCUMENT_DIRECTORY / RootRelativePath.parse('setup-extra.md'), lookup=PathLookup.DIRECTORY
+            target=DirectoryTarget(DEFAULT_DOCUMENT_DIRECTORY / RootRelativePath.parse('setup-extra.md')),
         )
         subject = _document('[folder](setup-extra.md/)\n', 'setup-extra.md', entry)
 
@@ -126,7 +136,9 @@ class TestExtensionLink:
         subject = _document(
             '[x](../other/setup-extra.md)\n',
             '../other/setup-extra.md',
-            LinkTarget(path=RootRelativePath.parse('docs/other/setup-extra.md'), lookup=PathLookup.FILE),
+            LinkTarget(
+                target=FileTarget(RootRelativePath.parse('docs/other/setup-extra.md')),
+            ),
         )
 
         #: When
@@ -137,9 +149,7 @@ class TestExtensionLink:
 
     def test_check_with_a_link_to_a_missing_document_reports_nothing(self) -> None:
         #: Given
-        entry = LinkTarget(
-            path=DEFAULT_DOCUMENT_DIRECTORY / RootRelativePath.parse('setup-extra.md'), lookup=PathLookup.MISSING
-        )
+        entry = LinkTargetFailure(MissingTarget(DEFAULT_DOCUMENT_DIRECTORY / RootRelativePath.parse('setup-extra.md')))
         subject = _document('[x](setup-extra.md)\n', 'setup-extra.md', entry)
 
         #: When
@@ -150,7 +160,9 @@ class TestExtensionLink:
 
     def test_check_with_an_escaping_link_reports_nothing(self) -> None:
         #: Given
-        subject = _document('[x](../../../setup-extra.md)\n', '../../../setup-extra.md', EscapingTarget())
+        subject = _document(
+            '[x](../../../setup-extra.md)\n', '../../../setup-extra.md', LinkTargetFailure(EscapingTarget())
+        )
 
         #: When
         occurrences = judged(ExtensionLink, subject)
@@ -178,4 +190,4 @@ class TestExtensionLinkFacts:
         facts = extension_link_facts(StructurePrimitives(()))
 
         #: Then
-        assert facts == ExtensionLinkFacts(base='', links=()), 'no name and no link base'
+        assert facts == NotExtensionDocument(), 'no name and no link base'

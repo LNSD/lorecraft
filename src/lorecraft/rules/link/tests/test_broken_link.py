@@ -6,6 +6,7 @@ the snapshot holds at each link's target is a cross-file state, so the test stat
 normalised relative path; where each link leads is `link_targets_of`'s, tested beside it.
 """
 
+from collections.abc import Callable
 from typing import Final
 
 import pytest
@@ -13,7 +14,17 @@ import pytest
 from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.core.path import RootRelativePath
-from lorecraft.project.link_target import DocumentDirectory, EscapingTarget, LinkTarget, PathLookup, SkillRoot
+from lorecraft.project.link_target import (
+    DocumentDirectory,
+    EscapingTarget,
+    FileTarget,
+    LinkTarget,
+    LinkTargetEntry,
+    LinkTargetFailure,
+    MissingTarget,
+    OutsideScopeTarget,
+    SkillRoot,
+)
 from lorecraft.project.syntax import LineNumber, NormalisedLinkPath
 from lorecraft.rules.location import Help, Note
 from lorecraft.rules.tests.fake_database import (
@@ -34,18 +45,17 @@ DOCUMENT_DIRECTORY: Final[DocumentDirectory] = DocumentDirectory(DEFAULT_DOCUMEN
 
 
 def _targets(
-    base: SkillRoot | DocumentDirectory, path: str, lookup: PathLookup
-) -> FrozenMapping[NormalisedLinkPath, LinkTarget]:
-    """The link targets of a file with one relative path, holding what the snapshot holds where it leads.
+    base: SkillRoot | DocumentDirectory, path: str, build_target: Callable[[RootRelativePath], LinkTargetEntry]
+) -> FrozenMapping[NormalisedLinkPath, LinkTargetEntry]:
+    """The link target of one relative path, held under its normalised destination.
 
     Args:
-        base: Where the file's relative links are read from, which the path is joined to.
+        base: Where the file's relative links are read from.
         path: The link's normalised relative path, as the key of its entry.
-        lookup: What the snapshot holds at the link's target.
+        build_target: The constructor for the valid target or distinct error outcome.
     """
-    return FrozenMapping(
-        {NormalisedLinkPath.parse(path): LinkTarget(path=base.directory / RootRelativePath.parse(path), lookup=lookup)}
-    )
+    target_path = base.directory / RootRelativePath.parse(path)
+    return FrozenMapping({NormalisedLinkPath.parse(path): build_target(target_path)})
 
 
 @pytest.mark.unit
@@ -54,7 +64,7 @@ class TestBrokenLink:
         #: Given
         subject = FakeSkillResourceDatabase(
             '# Guide\n\nSee [a](references/a.md).\n',
-            link_targets=_targets(SKILL_ROOT, 'references/a.md', PathLookup.MISSING),
+            link_targets=_targets(SKILL_ROOT, 'references/a.md', lambda path: LinkTargetFailure(MissingTarget(path))),
         )
 
         #: When
@@ -74,7 +84,7 @@ class TestBrokenLink:
         #: Given
         subject = FakeSkillResourceDatabase(
             '# Guide\n\nSee [a](references/a.md).\n',
-            link_targets=_targets(SKILL_ROOT, 'references/a.md', PathLookup.FILE),
+            link_targets=_targets(SKILL_ROOT, 'references/a.md', lambda path: LinkTarget(FileTarget(path))),
         )
 
         #: When
@@ -87,7 +97,7 @@ class TestBrokenLink:
         #: Given
         subject = FakeSkillResourceDatabase(
             '# Guide\n\nSee [x](shared/x.md).\n',
-            link_targets=_targets(SKILL_ROOT, 'shared/x.md', PathLookup.OUTSIDE_SCOPE),
+            link_targets=_targets(SKILL_ROOT, 'shared/x.md', lambda path: LinkTargetFailure(OutsideScopeTarget(path))),
         )
 
         #: When
@@ -100,7 +110,7 @@ class TestBrokenLink:
         #: Given
         subject = FakeSkillResourceDatabase(
             '# Guide\n\nSee [up](../SKILL.md).\n',
-            link_targets=FrozenMapping({NormalisedLinkPath.parse('../SKILL.md'): EscapingTarget()}),
+            link_targets=FrozenMapping({NormalisedLinkPath.parse('../SKILL.md'): LinkTargetFailure(EscapingTarget())}),
         )
 
         #: When
@@ -127,7 +137,7 @@ class TestBrokenLink:
         #: Given
         subject = FakeSkillResourceDatabase(
             '# Guide\n\nSee [a](references/./a.md).\n',
-            link_targets=_targets(SKILL_ROOT, 'references/a.md', PathLookup.MISSING),
+            link_targets=_targets(SKILL_ROOT, 'references/a.md', lambda path: LinkTargetFailure(MissingTarget(path))),
         )
 
         #: When
@@ -146,7 +156,8 @@ class TestBrokenLink:
     def test_check_with_a_query_after_a_missing_path_reports_the_whole_destination(self) -> None:
         #: Given
         subject = FakeSkillResourceDatabase(
-            '# Guide\n\nSee [b](b.md?raw=1).\n', link_targets=_targets(SKILL_ROOT, 'b.md', PathLookup.MISSING)
+            '# Guide\n\nSee [b](b.md?raw=1).\n',
+            link_targets=_targets(SKILL_ROOT, 'b.md', lambda path: LinkTargetFailure(MissingTarget(path))),
         )
 
         #: When
@@ -166,7 +177,9 @@ class TestBrokenLink:
         #: Given
         subject = FakeDocumentMarkdownDatabase(
             '# Setup\n\nRun [install](install.md) first.\n',
-            link_targets=_targets(DOCUMENT_DIRECTORY, 'install.md', PathLookup.MISSING),
+            link_targets=_targets(
+                DOCUMENT_DIRECTORY, 'install.md', lambda path: LinkTargetFailure(MissingTarget(path))
+            ),
         )
 
         #: When
@@ -186,7 +199,7 @@ class TestBrokenLink:
         #: Given
         subject = FakeDocumentMarkdownDatabase(
             '# Setup\n\nRun [install](install.md) first.\n',
-            link_targets=_targets(DOCUMENT_DIRECTORY, 'install.md', PathLookup.FILE),
+            link_targets=_targets(DOCUMENT_DIRECTORY, 'install.md', lambda path: LinkTarget(FileTarget(path))),
         )
 
         #: When

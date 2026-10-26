@@ -9,7 +9,15 @@ import pytest
 from lorecraft.core.mapping import FrozenMapping
 from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.core.path import RootRelativePath
-from lorecraft.project.link_target import DocumentDirectory, EscapingTarget, LinkTarget, PathLookup, SkillRoot
+from lorecraft.project.link_target import (
+    DocumentDirectory,
+    EscapingTarget,
+    FileTarget,
+    LinkTarget,
+    LinkTargetEntry,
+    LinkTargetFailure,
+    SkillRoot,
+)
 from lorecraft.project.syntax import LineNumber, NormalisedLinkPath
 from lorecraft.rules.location import Help, Note
 from lorecraft.rules.tests.fake_database import FakeDocumentMarkdownDatabase, FakeSkillResourceDatabase, judged
@@ -17,23 +25,24 @@ from lorecraft.rules.tests.fake_database import FakeDocumentMarkdownDatabase, Fa
 from ..escaping_link import EscapingLink
 
 
-def _escaping(url: str) -> FrozenMapping[NormalisedLinkPath, EscapingTarget]:
-    """The link targets of a file whose one link climbs past the skill root, keyed by its normalised path.
+def _escaping(url: str) -> FrozenMapping[NormalisedLinkPath, LinkTargetEntry]:
+    """A file's one escaping-link failure, keyed by its normalised path.
 
     Args:
         url: The link's destination, already percent-decoded and normalised, as the key of its entry.
     """
-    return FrozenMapping({NormalisedLinkPath.parse(url): EscapingTarget()})
+    return FrozenMapping({NormalisedLinkPath.parse(url): LinkTargetFailure(EscapingTarget())})
 
 
-def _inside(url: str, path: str) -> FrozenMapping[NormalisedLinkPath, LinkTarget]:
+def _inside(url: str, path: str) -> FrozenMapping[NormalisedLinkPath, LinkTargetEntry]:
     """The link targets of a file whose one link leads to a path the snapshot holds inside the skill.
 
     Args:
         url: The link's destination, already percent-decoded and normalised, as the key of its entry.
         path: The root-relative path the link names once read from the skill root.
     """
-    target = LinkTarget(path=RootRelativePath.parse(path), lookup=PathLookup.FILE)
+    target_path = RootRelativePath.parse(path)
+    target = LinkTarget(FileTarget(target_path))
     return FrozenMapping({NormalisedLinkPath.parse(url): target})
 
 

@@ -9,11 +9,15 @@ from urllib.parse import unquote
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.item import ItemType
 from lorecraft.project.link_target import (
+    DirectoryTarget,
     DocumentDirectory,
     EscapingTarget,
+    FileTarget,
     LinkBase,
     LinkTarget,
-    PathLookup,
+    LinkTargetFailure,
+    MissingTarget,
+    OutsideScopeTarget,
     SkillRoot,
 )
 from lorecraft.project.query import ItemQuery, item_parse
@@ -33,7 +37,7 @@ from .__ruleset__ import GROUP_ID, SKILL_NOTE, SyntaxLinkResolutionPrimitives
 
 
 @dataclass(frozen=True, slots=True)
-class MissingTarget:
+class BrokenTarget:
     """A relative link whose target the snapshot holds nothing at.
 
     Attributes:
@@ -47,7 +51,7 @@ class MissingTarget:
     target: RootRelativePath
 
 
-def missing_targets(primitives: SyntaxLinkResolutionPrimitives) -> tuple[MissingTarget, ...]:
+def missing_targets(primitives: SyntaxLinkResolutionPrimitives) -> tuple[BrokenTarget, ...]:
     """The relative links of a Markdown file whose target holds nothing, in document order. Raises nothing.
 
     A query: it reads the item's links, their targets and their base and nothing else.
@@ -59,7 +63,7 @@ def missing_targets(primitives: SyntaxLinkResolutionPrimitives) -> tuple[Missing
     if base is None:
         return ()
     targets = primitives.link_targets()
-    missing: list[MissingTarget] = []
+    missing: list[BrokenTarget] = []
     for link in primitives.query(item_parse).links:
         destination = link.to_destination()
         match destination:
@@ -72,19 +76,20 @@ def missing_targets(primitives: SyntaxLinkResolutionPrimitives) -> tuple[Missing
                 assert_never(destination)
         match entry:
             case LinkTarget():
-                match entry.lookup:
-                    case PathLookup.MISSING:
-                        missing.append(MissingTarget(link, base, entry.path))
-                    case PathLookup.FILE | PathLookup.DIRECTORY:
-                        continue
-                    # The scan never read where the path leads, so whether it names anything cannot be told.
-                    case PathLookup.OUTSIDE_SCOPE:
+                match entry.target:
+                    case FileTarget() | DirectoryTarget():
                         continue
                     case _:
-                        assert_never(entry.lookup)
-            # The link climbs past its bound, which `LINK004` reports.
-            case EscapingTarget():
-                continue
+                        assert_never(entry.target)
+            case LinkTargetFailure(error=error):
+                match error:
+                    case MissingTarget(path=path):
+                        missing.append(BrokenTarget(link, base, path))
+                    # The target is outside scope, or LINK004 reports that it escapes.
+                    case OutsideScopeTarget() | EscapingTarget():
+                        continue
+                    case _:
+                        assert_never(error)
             # No entry: the item holds no target for the path.
             case None:
                 continue
@@ -95,7 +100,7 @@ def missing_targets(primitives: SyntaxLinkResolutionPrimitives) -> tuple[Missing
 
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
-class BrokenLink(QueriedItemRule[tuple[MissingTarget, ...]]):
+class BrokenLink(QueriedItemRule[tuple[BrokenTarget, ...]]):
     """A relative link names nothing the repository holds.
 
     ## What it does
@@ -192,12 +197,12 @@ class BrokenLink(QueriedItemRule[tuple[MissingTarget, ...]]):
                 assert_never(self.base)
 
     @classmethod
-    def query(cls) -> ItemQuery[tuple[MissingTarget, ...]]:
+    def query(cls) -> ItemQuery[tuple[BrokenTarget, ...]]:
         """The relative links whose target holds nothing."""
         return missing_targets
 
     @classmethod
-    def judge(cls, facts: tuple[MissingTarget, ...], /) -> tuple[Self, ...]:
+    def judge(cls, facts: tuple[BrokenTarget, ...], /) -> tuple[Self, ...]:
         """One occurrence for each relative link whose target holds nothing in the snapshot, on its line, in order.
 
         Args:

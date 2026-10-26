@@ -3,20 +3,20 @@
 from collections.abc import Mapping
 from dataclasses import dataclass
 from types import MappingProxyType
-from typing import ClassVar, Self
+from typing import ClassVar, Self, assert_never
 from urllib.parse import unquote
 
-from lorecraft.project.aspect import AspectName
 from lorecraft.project.item import ItemType
+from lorecraft.project.link_target import DocumentDirectory, extension_links_of
 from lorecraft.project.link_target import ExtensionLink as LinkToExtension
-from lorecraft.project.link_target import extension_links_of
-from lorecraft.project.query import ItemQuery, item_name, item_parse
+from lorecraft.project.query import ItemQuery, item_parse
 from lorecraft.rules.collector import rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Note, Subdiagnostic
 from lorecraft.rules.subject import Gate, QueriedItemRule, SpecPart, WhenSpec
 
 from .__ruleset__ import GROUP_ID, GovernanceSyntaxLinkResolutionPrimitives
+from .queries import ExtensionDocument, NotExtensionDocument, extension_document
 
 
 @dataclass(frozen=True, slots=True)
@@ -32,7 +32,9 @@ class ExtensionLinkFacts:
     links: tuple[LinkToExtension, ...]
 
 
-def extension_link_facts(primitives: GovernanceSyntaxLinkResolutionPrimitives) -> ExtensionLinkFacts:
+def extension_link_facts(
+    primitives: GovernanceSyntaxLinkResolutionPrimitives,
+) -> ExtensionLinkFacts | NotExtensionDocument:
     """The links of a document to an existing document that extends it. Raises nothing.
 
     A query: it reads the item's links, their targets, their base and its name and nothing else. An item that is not a
@@ -41,17 +43,26 @@ def extension_link_facts(primitives: GovernanceSyntaxLinkResolutionPrimitives) -
     Args:
         primitives: The model state of the document.
     """
-    name = primitives.query(item_name)
-    base = primitives.link_base()
-    if name is None or isinstance(name, AspectName) or base is None:
-        return ExtensionLinkFacts(base='', links=())
-    links = extension_links_of(primitives.query(item_parse).links, primitives.link_targets(), base, name)
-    return ExtensionLinkFacts(base=f'{name}.md', links=links)
+    document = primitives.query(extension_document)
+    match document:
+        case ExtensionDocument():
+            pass
+        case NotExtensionDocument():
+            return document
+        case _:
+            assert_never(document)
+    links = extension_links_of(
+        primitives.query(item_parse).links,
+        primitives.link_targets(),
+        DocumentDirectory(document.directory),
+        document.name,
+    )
+    return ExtensionLinkFacts(base=f'{document.name}.md', links=links)
 
 
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
-class ExtensionLink(QueriedItemRule[ExtensionLinkFacts]):
+class ExtensionLink(QueriedItemRule[ExtensionLinkFacts | NotExtensionDocument]):
     """A document links to a document that extends it.
 
     ## What it does
@@ -127,17 +138,24 @@ class ExtensionLink(QueriedItemRule[ExtensionLinkFacts]):
         )
 
     @classmethod
-    def query(cls) -> ItemQuery[ExtensionLinkFacts]:
+    def query(cls) -> ItemQuery[ExtensionLinkFacts | NotExtensionDocument]:
         """The links of the document to a document that extends it."""
         return extension_link_facts
 
     @classmethod
-    def judge(cls, facts: ExtensionLinkFacts, /) -> tuple[Self, ...]:
+    def judge(cls, facts: ExtensionLinkFacts | NotExtensionDocument, /) -> tuple[Self, ...]:
         """One occurrence for each link to an existing document in the same directory that extends this one.
 
         Args:
             facts: The links to extensions and the filename of the document that holds them.
         """
-        return tuple(
-            cls(line=link.line, url=link.url, extension=link.extension, base=facts.base) for link in facts.links
-        )
+        match facts:
+            case ExtensionLinkFacts():
+                return tuple(
+                    cls(line=link.line, url=link.url, extension=str(link.extension), base=facts.base)
+                    for link in facts.links
+                )
+            case NotExtensionDocument():
+                return ()
+            case _:
+                assert_never(facts)
