@@ -641,7 +641,7 @@ class TestCheckCommand:
     ) -> None:
         #: Given
         expected = snapshot.use_extension(TextSnapshotExtension)
-        arguments = ('check', '--root', str(mixed_root), '--select', 'LINK,LC102', '--ignore', 'LINK003')
+        arguments = ('check', '--root', str(mixed_root), '--select', 'LINK,LC102', '--ignore', 'LC503')
 
         #: When
         result = run_cli(*arguments)
@@ -825,7 +825,7 @@ class TestWorkspaceDefaults:
         root = workspace.write(tmp_path, faker)
 
         #: When
-        result = run_cli('--no-builtin-skills-schema', 'check', '--root', str(root))
+        result = run_cli('--no-agent-skills-spec', 'check', '--root', str(root))
 
         #: Then
         assert result.returncode == 0, result.stdout
@@ -834,6 +834,49 @@ class TestWorkspaceDefaults:
             '.agents/skills/review/SKILL.md: ungoverned for frontmatter, structure, outline, budget\n'
             'checked 1 subject(s): 0 error(s), 0 warning(s)\n'
         ), 'the opted-out frontmatter facet is reported as ungoverned, as on main'
+
+    def test_builtin_floor_warns_on_top_level_repository_fields_but_not_metadata_fields(
+        self, tmp_path: Path, faker: Faker
+    ) -> None:
+        #: Given
+        workspace = Workspace(
+            specs=[
+                Spec(
+                    'skills',
+                    structure={
+                        'frontmatter': {
+                            'type': 'object',
+                            'required': ['owner', 'metadata'],
+                            'properties': {
+                                'owner': {'type': 'string'},
+                                'metadata': {
+                                    'type': 'object',
+                                    'required': ['owner'],
+                                    'properties': {'owner': {'type': 'string'}},
+                                },
+                            },
+                        }
+                    },
+                )
+            ],
+            skills=[
+                Skill(
+                    'review',
+                    frontmatter=RawFrontmatter(
+                        'name: review\ndescription: Review\nowner: team\nmetadata:\n  owner: team\n'
+                    ),
+                )
+            ],
+        )
+        root = workspace.write(tmp_path, faker)
+
+        #: When
+        result = run_cli('check', '--root', str(root))
+
+        #: Then
+        assert result.returncode == 0, result.stderr
+        assert 'warning[LC207]' in result.stdout, 'the builtin floor flags an undeclared top-level owner field'
+        assert 'metadata.owner' not in result.stdout, 'repository metadata fields are allowed by the builtin floor'
 
     @pytest.mark.parametrize(
         ('frontmatter', 'case'),
@@ -851,7 +894,7 @@ class TestWorkspaceDefaults:
         root = Workspace(skills=[Skill('review', frontmatter=frontmatter)]).write(tmp_path, faker)
 
         #: When
-        result = run_cli('--no-builtin-skills-schema', 'check', '--root', str(root))
+        result = run_cli('--no-agent-skills-spec', 'check', '--root', str(root))
 
         #: Then
         assert result.returncode == 0, result.stdout
@@ -868,7 +911,7 @@ class TestWorkspaceDefaults:
         root = Workspace(files=[File('.agents/skills/review/SKILL.md', '# Review\n')]).write(tmp_path, faker)
 
         #: When
-        result = run_cli('--no-builtin-skills-schema', 'check', '--root', str(root))
+        result = run_cli('--no-agent-skills-spec', 'check', '--root', str(root))
 
         #: Then
         assert result.returncode == 0, result.stdout
@@ -889,7 +932,7 @@ class TestWorkspaceDefaults:
         root = workspace.write(tmp_path, faker)
 
         #: When
-        result = run_cli('--no-builtin-skills-schema', 'check', '--root', str(root))
+        result = run_cli('--no-agent-skills-spec', 'check', '--root', str(root))
 
         #: Then
         assert result.returncode == 1, result.stdout
@@ -932,6 +975,151 @@ class TestWorkspaceDefaults:
         assert result.stdout.replace(str(root), _ROOT_PLACEHOLDER) == expected, (
             'the tree identifies the active opt-out and no enabled state'
         )
+
+    def test_check_enforces_the_five_hundred_line_skill_limit(self, tmp_path: Path, faker: Faker) -> None:
+        #: Given
+        body = '# Review\n\n' + 'step\n' * 500
+        root = Workspace(skills=[Skill('review', body=body)]).write(tmp_path, faker)
+
+        #: When
+        result = run_cli('check', '--root', str(root))
+
+        #: Then
+        assert result.returncode == 1, result.stderr
+        assert 'error[LC402]' in result.stdout, 'the built-in 500-line ceiling rejects a 501-line skill'
+        assert '500' in result.stdout, 'the diagnostic names the built-in ceiling'
+
+    def test_check_reports_both_skill_budgets_when_repository_limit_is_tighter(
+        self, tmp_path: Path, faker: Faker
+    ) -> None:
+        #: Given
+        root = Workspace(
+            specs=[Spec('skills', structure={'lines': 300})],
+            skills=[Skill('review', body='# Review\n\n' + 'step\n' * 500)],
+        ).write(tmp_path, faker)
+
+        #: When
+        result = run_cli('check', '--root', str(root))
+
+        #: Then
+        assert result.returncode == 1, result.stderr
+        assert result.stdout.count('error[LC402]') == 2, 'the repository and built-in budgets are both reported'
+
+    def test_check_does_not_allow_a_skills_spec_to_raise_the_builtin_line_limit(
+        self, tmp_path: Path, faker: Faker
+    ) -> None:
+        #: Given
+        root = Workspace(
+            specs=[Spec('skills', structure={'lines': 700})],
+            skills=[Skill('review', body='# Review\n\n' + 'step\n' * 500)],
+        ).write(tmp_path, faker)
+
+        #: When
+        result = run_cli('check', '--root', str(root))
+
+        #: Then
+        assert result.returncode == 1, result.stderr
+        assert 'error[LC402]' in result.stdout, 'a repository cap cannot raise the built-in ceiling'
+
+    def test_check_skill_floor_rules_are_absent_when_the_builtin_layer_is_disabled(
+        self, tmp_path: Path, faker: Faker
+    ) -> None:
+        #: Given
+        body = '# Review\n\n' + 'step\n' * 500
+        root = Workspace(skills=[Skill('review', frontmatter=RawFrontmatter('name: review\n'), body=body)]).write(
+            tmp_path, faker
+        )
+
+        #: When
+        result = run_cli('--no-agent-skills-spec', 'check', '--root', str(root))
+
+        #: Then
+        assert result.returncode == 0, result.stdout
+        assert result.stdout == '', 'the opt-out disables every built-in skill finding'
+        assert 'ungoverned for frontmatter, structure, outline, budget' in result.stderr
+
+    def test_check_rejects_both_skills_opt_out_flags_as_a_usage_error(self) -> None:
+        #: Given
+        arguments = ('--no-agent-skills-spec', '--no-builtin-skills-schema', 'check')
+
+        #: When
+        result = run_cli(*arguments)
+
+        #: Then
+        assert result.returncode == 2, result.stderr
+        assert 'give only one of --no-agent-skills-spec and --no-builtin-skills-schema' in usage_error_message(
+            result.stderr
+        )
+
+    def test_check_accepts_the_hidden_skills_opt_out_alias(self, tmp_path: Path, faker: Faker) -> None:
+        #: Given
+        root = Workspace(skills=[Skill('review', frontmatter=RawFrontmatter('name: review\n'))]).write(tmp_path, faker)
+
+        #: When
+        result = run_cli('--no-builtin-skills-schema', 'check', '--root', str(root))
+
+        #: Then
+        assert result.returncode == 0, result.stdout
+        assert 'missing required field' not in result.stdout
+
+    def test_check_reports_malformed_allowed_tools_on_a_skill(self, tmp_path: Path, faker: Faker) -> None:
+        #: Given
+        root = Workspace(
+            skills=[
+                Skill(
+                    'review',
+                    frontmatter=RawFrontmatter('name: review\ndescription: Review\nallowed-tools: Read, Grep\n'),
+                )
+            ]
+        ).write(tmp_path, faker)
+
+        #: When
+        result = run_cli('check', '--select', 'LC211', '--root', str(root))
+
+        #: Then
+        assert result.returncode == 0, result.stderr
+        assert 'LC211' in result.stdout, 'the builtin floor reports a malformed allowed-tools value'
+
+    def test_check_reports_long_allowed_tools_on_a_skill(self, tmp_path: Path, faker: Faker) -> None:
+        #: Given
+        tools = ' '.join(f'tool-{index}' for index in range(100))
+        root = Workspace(
+            skills=[
+                Skill(
+                    'review',
+                    frontmatter=RawFrontmatter(f'name: review\ndescription: Review\nallowed-tools: {tools}\n'),
+                )
+            ]
+        ).write(tmp_path, faker)
+
+        #: When
+        result = run_cli('check', '--select', 'LC212', '--root', str(root))
+
+        #: Then
+        assert result.returncode == 0, result.stderr
+        assert 'LC212' in result.stdout, 'the builtin floor reports an oversized allowed-tools value'
+
+    def test_check_keeps_allowed_tools_rules_with_repository_frontmatter_and_floor_opted_out(
+        self, tmp_path: Path, faker: Faker
+    ) -> None:
+        #: Given
+        workspace = Workspace(
+            specs=[Spec('skills', structure={'frontmatter': {'type': 'object'}})],
+            skills=[
+                Skill(
+                    'review',
+                    frontmatter=RawFrontmatter('name: review\ndescription: Review\nallowed-tools: Read, Grep\n'),
+                )
+            ],
+        )
+        root = workspace.write(tmp_path, faker)
+
+        #: When
+        result = run_cli('--no-agent-skills-spec', 'check', '--select', 'LC211', '--root', str(root))
+
+        #: Then
+        assert result.returncode == 0, result.stderr
+        assert 'LC211' in result.stdout, 'the repository frontmatter gate keeps the allowed-tools rule active'
 
     def test_check_with_a_default_spec_and_document_reports_no_diagnostic(self, tmp_path: Path, faker: Faker) -> None:
         #: Given
