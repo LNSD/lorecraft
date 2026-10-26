@@ -75,6 +75,12 @@ Each governing layer applies independently; there is no merged effective schema 
 repository constraint leaves the built-in constraint in force. Omitting a repeated required list is therefore allowed
 (FR-007, FR-020). Constraints that all layers enforce are not reinterpreted as overrides.
 
+Because each layer validates independently and no layer suppresses another layer's findings, the builtin Agent Skills
+floor reports `warning[FM007]` on unknown top-level fields even when a repository layer declares or requires them.
+Repository-specific skill fields belong under `metadata` (e.g. `metadata.owner`, required by the repository spec),
+which satisfies both the floor schema and the repository layer. A repository that requires top-level fields opts out of
+the builtin floor using `--no-agent-skills-spec`.
+
 The structure dialect supplies frontmatter, outline, word limits and token/line budgets for skill entries (FR-005).
 The structure specification dialect adds a `lines` budget beside `tokens`. The builtin Agent Skills floor layer
 declares a line limit of 500 lines (`too_many_lines`), counting the entire file and reporting from line 501.
@@ -183,6 +189,8 @@ It does not create a second matching algorithm or require a docs/skills/ directo
   rather than unconditional ad-hoc checks.
 - Link escaping checks (`escaping_link`) remain an invariant check under `Always()`, ensuring skill resources and
   entrypoints do not escape containment regardless of spec floor opt-out.
+- The floor reports `warning[FM007]` on top-level fields declared only by repository layers; custom fields belong
+  under `metadata` unless the repository opts out of the built-in floor.
 
 ## Alternatives Considered
 
@@ -214,6 +222,7 @@ It does not create a second matching algorithm or require a docs/skills/ directo
 - [ ] Inspection reports the same governing layers the checker uses, with honest built-in provenance across frontmatter and budget
 - [ ] The floor schema is queried via `query_at(schema_ref, schema_query)` as the first entry in the skill's applicable frontmatter schema tuple
 - [ ] Missing-field deduplication operates progressively across earlier schemas in the applicable tuple
+- [ ] Unknown top-level fields declared by repository layers receive FM007 from the floor; custom fields belong under metadata or require floor opt-out
 
 ## References
 
