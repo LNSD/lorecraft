@@ -49,8 +49,8 @@ class EmptyRepositoryLayerError(Error):
         super().__init__(f'repository schema layer for {path} must not be empty')
 
 
-class EmptyBundledOriginIdentityError(Error):
-    """A bundled schema origin has no stable identity.
+class EmptyBuiltinOriginIdentityError(Error):
+    """A builtin schema origin has no stable identity.
 
     Attributes:
         identity: The rejected built-in identity.
@@ -60,7 +60,7 @@ class EmptyBundledOriginIdentityError(Error):
 
     def __init__(self, identity: str) -> None:
         self.identity = identity
-        super().__init__('a bundled schema identity must not be empty')
+        super().__init__('a builtin schema identity must not be empty')
 
 
 @dataclass(frozen=True, slots=True, order=True)
@@ -108,35 +108,35 @@ class RepositoryOrigin:
 
 
 @dataclass(frozen=True, slots=True)
-class BundledOrigin:
+class BuiltinOrigin:
     """Stable identity for a schema shipped with Lorecraft, without a fabricated path.
 
     Attributes:
         identity: The built-in identity, which must match the schema reference identity and be non-empty.
-            Empty values raise `EmptyBundledOriginIdentityError`.
+            Empty values raise `EmptyBuiltinOriginIdentityError`.
     """
 
     identity: str
 
     def __post_init__(self) -> None:
-        """Reject an empty bundled identity.
+        """Reject an empty builtin identity.
 
         Raises:
-            EmptyBundledOriginIdentityError: If `identity` is empty.
+            EmptyBuiltinOriginIdentityError: If `identity` is empty.
         """
         if not self.identity:
-            raise EmptyBundledOriginIdentityError(self.identity)
+            raise EmptyBuiltinOriginIdentityError(self.identity)
 
 
-type SchemaOrigin = RepositoryOrigin | BundledOrigin
+type SchemaOrigin = RepositoryOrigin | BuiltinOrigin
 
 
 class SchemaOriginMismatchError(Error):
-    """A bundled origin identity differs from its schema reference identity.
+    """A builtin origin identity differs from its schema reference identity.
 
     Attributes:
-        reference: The schema reference whose bundled origin is inconsistent.
-        origin: The bundled origin whose identity differs from the reference.
+        reference: The schema reference whose builtin origin is inconsistent.
+        origin: The builtin origin whose identity differs from the reference.
     """
 
     reference: SchemaRef
@@ -152,11 +152,11 @@ class SchemaOriginMismatchError(Error):
 class SchemaInput:
     """An immutable schema document and its typed identity and provenance.
 
-    A bundled input's payload for validator-backed entries remains an open question for the skills-floor part.
+    A builtin input's payload for validator-backed entries remains an open question for the skills-floor part.
 
     Attributes:
         reference: The typed schema identity.
-        origin: Repository or bundled provenance, independent of schema kind; bundled identity must match
+        origin: Repository or builtin provenance, independent of schema kind; builtin identity must match
             the reference identity or `SchemaOriginMismatchError` is raised.
         document: The immutable JSON mapping used by schema-backed entries.
     """
@@ -166,10 +166,10 @@ class SchemaInput:
     document: FrozenMapping[str, Frozen]
 
     def __post_init__(self) -> None:
-        """Keep bundled provenance tied to its schema reference.
+        """Keep builtin provenance tied to its schema reference.
 
         Raises:
-            SchemaOriginMismatchError: If bundled origin identity differs from the reference identity.
+            SchemaOriginMismatchError: If builtin origin identity differs from the reference identity.
         """
-        if isinstance(self.origin, BundledOrigin) and self.origin.identity != self.reference.identity:
+        if isinstance(self.origin, BuiltinOrigin) and self.origin.identity != self.reference.identity:
             raise SchemaOriginMismatchError(self.reference, self.origin)

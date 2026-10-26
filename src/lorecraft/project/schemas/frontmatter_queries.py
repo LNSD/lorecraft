@@ -25,7 +25,7 @@ from lorecraft.project.schemas.schema_problems import (
     locate_repository_schema_problems,
 )
 from lorecraft.project.schemas.skill_fields import SkillFields, parse_skill_fields
-from lorecraft.schemas import BundledOrigin, RepositoryOrigin, SchemaInput
+from lorecraft.schemas import BuiltinOrigin, RepositoryOrigin, SchemaInput
 
 if TYPE_CHECKING:
     from lorecraft.project.query import GovernancePrimitives, ItemPrimitives, SchemaPrimitives
@@ -93,7 +93,7 @@ def frontmatter_schema_problems(primitives: ItemPrimitives) -> tuple[SchemaProbl
     earlier_missing: set[tuple[int, str]] = set()
     for reference in refs:
         schema = primitives.query_at(reference, read_schema_input)
-        if isinstance(schema.origin, BundledOrigin):
+        if isinstance(schema.origin, BuiltinOrigin):
             schema = primitives.query_at(reference, agent_skills_frontmatter_schema)
             located = locate_agent_skills_schema_problems(frontmatter, schema)
         else:

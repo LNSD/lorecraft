@@ -72,7 +72,7 @@ The level is chosen from what an operator must do about the line, not from how i
 | Level | For | Examples in this domain |
 |---|---|---|
 | `error` | A failure someone must act on; results at risk | A document was skipped and never checked, a report was abandoned half-written, a spec cannot be loaded |
-| `warning` | Degraded but self-correcting | A schema fell back to the bundled copy, a spec load was retried, a document was re-read with a relaxed parser |
+| `warning` | Degraded but self-correcting | A schema fell back to the builtin copy, a spec load was retried, a document was re-read with a relaxed parser |
 | `info` | Lifecycle and state changes worth one line in production | Corpus opened, a check run started and finished, a report written |
 | `debug` | Diagnostics, off in production | Per-document finding counts, the resolved spec path, the section index built for a document |
 

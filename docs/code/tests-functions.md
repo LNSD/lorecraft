@@ -390,9 +390,9 @@ def test_corpus_check_reports_every_finding() -> None:
 # corpus is this test's own
 @pytest.mark.unit
 def test_check_corpus_with_twelve_malformed_documents_reports_twelve_findings(
-    malformed_corpus: Path, bundled_spec: FormatSpec
+    malformed_corpus: Path, builtin_spec: FormatSpec
 ) -> None:
-    findings = check_corpus(malformed_corpus, bundled_spec)
+    findings = check_corpus(malformed_corpus, builtin_spec)
     assert len(findings) == 12, f'every malformed document should be reported, got {len(findings)}'
 ```
 

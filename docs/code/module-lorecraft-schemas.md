@@ -9,24 +9,24 @@ scope: "pkg:lorecraft.schemas"
 
 ## Responsibility
 
-Provide typed schema identity and provenance, the bundled Agent Skills frontmatter model and input, and pure lookup
+Provide typed schema identity and provenance, the builtin Agent Skills frontmatter model and input, and pure lookup
 for schema inputs already acquired by a workspace loader or shipped with Lorecraft. It changes when a schema
-identity, provenance, bundled schema declaration or immutable input representation changes.
+identity, provenance, builtin schema declaration or immutable input representation changes.
 
 ## Role
 
 **Derivation boundary.** It lets project queries and loaders share schema identity and input values without making
-the registry a loader, query layer or cache. The Agent Skills model renders the bundled input here; the project
+the registry a loader, query layer or cache. The Agent Skills model renders the builtin input here; the project
 layer owns its validator and problem translation. Its import layer sits below `lorecraft.agents` and above
 `lorecraft.vfs`.
 
 ## Belongs Here
 
-- Structure and frontmatter schema kinds, references, repository and bundled origins, and immutable schema inputs.
-- The bundled Agent Skills frontmatter model, its value types, and the input and registration function rendered from it.
+- Structure and frontmatter schema kinds, references, repository and builtin origins, and immutable schema inputs.
+- The builtin Agent Skills frontmatter model, its value types, and the input and registration function rendered from it.
 - In-memory lookup of an input by its typed reference.
-- `EmptySchemaRefIdentityError`, `EmptyRepositoryLayerError` and `EmptyBundledOriginIdentityError` carry rejected identity values.
-- `SchemaOriginMismatchError` carries a reference and bundled origin with different identities; registry lookups have typed missing and duplicate reference errors.
+- `EmptySchemaRefIdentityError`, `EmptyRepositoryLayerError` and `EmptyBuiltinOriginIdentityError` carry rejected identity values.
+- `SchemaOriginMismatchError` carries a reference and builtin origin with different identities; registry lookups have typed missing and duplicate reference errors.
 
 ## Belongs Elsewhere
 
@@ -41,10 +41,10 @@ layer owns its validator and problem translation. Its import layer sits below `l
 
 - Values are immutable and references identify a schema kind and stable source identity, never an invented path or `$id`.
 - Empty identity and layer fields raise their operation-specific Lorecraft errors with the rejected values attached.
-- Structure and frontmatter are the only schema kinds; either kind may have repository or bundled provenance. Parsed structure specifications are not registry inputs.
-- Repository origins retain a root-relative path and governing layer; bundled origins retain a stable identity and no fabricated path.
-- A bundled origin identity must match its schema reference identity so the provenance names the referenced schema, regardless of kind; `SchemaOriginMismatchError` carries this mismatch.
-- The bundled Agent Skills input carries the model-rendered JSON Schema as registry data, while schema queries return its Pydantic validator; do not substitute JSON Schema validation or infer equivalent diagnostic behavior from that document.
+- Structure and frontmatter are the only schema kinds; either kind may have repository or builtin provenance. Parsed structure specifications are not registry inputs.
+- Repository origins retain a root-relative path and governing layer; builtin origins retain a stable identity and no fabricated path.
+- A builtin origin identity must match its schema reference identity so the provenance names the referenced schema, regardless of kind; `SchemaOriginMismatchError` carries this mismatch.
+- The builtin Agent Skills input carries the model-rendered JSON Schema as registry data, while schema queries return its Pydantic validator; do not substitute JSON Schema validation or infer equivalent diagnostic behavior from that document.
 - Registry resolution examines only the supplied immutable inputs. It performs no filesystem or external resource reads and holds no mutable cache.
 - This package imports no project database, query, workspace-loading or filesystem modules.
 
@@ -67,8 +67,8 @@ schema_input = registry.resolve(reference)
 Before committing code, verify:
 
 - [ ] Schema identity includes both kind and stable identity; empty identities raise `EmptySchemaRefIdentityError`
-- [ ] Inputs preserve immutable document values and provenance independently of kind; bundled origin identities must match their references
-- [ ] Empty repository layers and bundled identities raise typed Lorecraft errors with their input values attached
+- [ ] Inputs preserve immutable document values and provenance independently of kind; builtin origin identities must match their references
+- [ ] Empty repository layers and builtin identities raise typed Lorecraft errors with their input values attached
 - [ ] Lookup is deterministic and refuses missing identities; registry construction refuses duplicate references with `DuplicateSchemaRefError`
 - [ ] No registry operation reads files, resolves external resources or memoizes results
 - [ ] No import points to project queries, database or workspace loading

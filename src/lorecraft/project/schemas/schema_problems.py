@@ -138,7 +138,7 @@ def locate_agent_skills_schema_problems(
     Args:
         frontmatter: The frontmatter of the skill's `SKILL.md`, as parsed; a block that is missing, not YAML or not a
             mapping is held to no schema.
-        schema: The Pydantic validator resolved for the bundled Agent Skills registry subject.
+        schema: The Pydantic validator resolved for the builtin Agent Skills registry subject.
 
     Returns:
         One entry, for the Agent Skills specification; none when the block is missing, not YAML or not a mapping,

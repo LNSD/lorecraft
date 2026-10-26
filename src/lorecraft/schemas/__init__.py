@@ -2,8 +2,8 @@
 
 from .registry import DuplicateSchemaRefError, SchemaRefError, SchemaRegistry
 from .types import (
-    BundledOrigin,
-    EmptyBundledOriginIdentityError,
+    BuiltinOrigin,
+    EmptyBuiltinOriginIdentityError,
     EmptyRepositoryLayerError,
     EmptySchemaRefIdentityError,
     RepositoryOrigin,
@@ -15,9 +15,9 @@ from .types import (
 )
 
 __all__: list[str] = [
-    'BundledOrigin',
+    'BuiltinOrigin',
     'DuplicateSchemaRefError',
-    'EmptyBundledOriginIdentityError',
+    'EmptyBuiltinOriginIdentityError',
     'EmptyRepositoryLayerError',
     'EmptySchemaRefIdentityError',
     'RepositoryOrigin',

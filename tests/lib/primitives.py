@@ -50,11 +50,11 @@ from lorecraft.schemas import RepositoryOrigin, SchemaInput, SchemaRef
 from lorecraft.schemas.builtin import AGENT_SKILLS_SCHEMA_INPUT, AGENT_SKILLS_SCHEMA_REFERENCE
 
 
-class _BundledAgentSkillsSchemaPrimitives:
-    """Schema primitives for standalone rule tests; only the bundled skills subject is available."""
+class _BuiltinAgentSkillsSchemaPrimitives:
+    """Schema primitives for standalone rule tests; only the builtin skills subject is available."""
 
     def schema_input(self) -> SchemaInput:
-        """The immutable bundled Agent Skills schema input."""
+        """The immutable builtin Agent Skills schema input."""
         return AGENT_SKILLS_SCHEMA_INPUT
 
     def query_at[T](self, ref: QueryTargetRef, query: Callable[..., T]) -> T:
@@ -197,7 +197,7 @@ class StructurePrimitives:
     def query_at[T](self, ref: QueryTargetRef, query: Callable[..., T]) -> T:
         """Resolve a standalone schema subject from this fixture's schema inputs."""
         if ref == AGENT_SKILLS_SCHEMA_REFERENCE:
-            return query(_BundledAgentSkillsSchemaPrimitives())
+            return query(_BuiltinAgentSkillsSchemaPrimitives())
         if isinstance(ref, SchemaRef):
             schema_input = self.schema_inputs().get(ref)
             if schema_input is not None:
