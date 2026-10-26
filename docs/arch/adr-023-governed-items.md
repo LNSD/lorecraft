@@ -114,7 +114,7 @@ The database and rules engine consume the common reference and descriptor unifor
 ### Refused Reads and Unchecked Documentation Symlinks
 
 - **One refused-read report shape:** when a read of any Markdown item is refused, the engine reports
-  `SkippedSubject(REFUSED_PATH)`. The command line renders only the skipped item and its refused path in coverage;
+  `RefusedSubject`. The command line renders only the skipped item and its refused path in coverage;
   `LC002` is reserved for refused reads that are not governed item reads.
 - **An unchecked symlink under `docs/` is coverage:** until corpus-directory symlinks are followed, a symlinked
   corpus directory or document that is not checked is visible in coverage. It is not a diagnostic and does not add
@@ -178,7 +178,7 @@ Before committing code, verify:
   governed spec parts and records ungoverned parts uniformly
 - [ ] Relative links resolve from each item's declared resolution base and are checked against the repository-root
   bound for documents and meta specs or the skill-root bound for skills and resources
-- [ ] A refused read of any governed Markdown item is represented in the engine as `SkippedSubject(REFUSED_PATH)`;
+- [ ] A refused read of any governed Markdown item is represented in the engine as `RefusedSubject`;
   the CLI reports only the skipped subject in coverage, reserving `LC002` for non-item load failures
 - [ ] An unchecked symlink under `docs/` appears in coverage rather than as a diagnostic or a separate engine
   condition until corpus-directory symlinks are followed

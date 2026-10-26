@@ -12,7 +12,7 @@ from lorecraft.project.item import ItemRef, SpecPart
 from lorecraft.project.layout import SPECS_DIR
 from lorecraft.project.workspace.builtin import AGENT_SKILLS_SPEC_LAYER as SKILLS_LAYER
 from lorecraft.rules.registry import Registry
-from lorecraft.rules.report import CheckedItem, SkipCause, SkippedSubject, UndecodableSubject
+from lorecraft.rules.report import CheckedItem, RefusedSubject, UndecodableSubject
 from lorecraft.rules.selection import AllRules, RuleSelection
 from lorecraft.rules.table import RuleTable
 from lorecraft.vfs import OsRefusal, RefusedRead
@@ -340,7 +340,7 @@ class TestCheckSubjectsOverASpecification:
         reports = check_subjects(database, [CODE_SPECIFICATION], _all_rules(), refusals)
 
         #: Then
-        assert reports == (SkippedSubject(CODE_SPECIFICATION, (CODE_SPECIFICATION.path,), SkipCause.REFUSED_PATH),), (
+        assert reports == (RefusedSubject(CODE_SPECIFICATION, CODE_SPECIFICATION.path),), (
             'the engine uses the refused-path result for a spec, as for every other item type'
         )
 
