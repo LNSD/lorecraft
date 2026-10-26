@@ -72,7 +72,7 @@ from lorecraft.project.skill import (
 from lorecraft.project.skill import Repository as SkillRepository
 from lorecraft.schemas import (
     RepositoryOrigin,
-    SchemaInput,
+    RepositorySchemaInput,
     SchemaKind,
     SchemaRef,
 )
@@ -191,7 +191,7 @@ def load_workspace(
         DuplicateSchemaRefError: If enabled builtin layers or repository specs repeat a schema reference.
     """
     failures: list[LoadFailure] = []
-    schema_inputs: dict[SchemaRef, SchemaInput] = {}
+    schema_inputs: dict[SchemaRef, RepositorySchemaInput] = {}
     skills_floor_enabled = agent_skills_floor_enabled(builtin_layers)
     spec_paths = _list_spec_paths(schemas, failures)
     corpus_directories, dropped_corpora = _list_corpus_directories(documents, failures)
@@ -264,7 +264,7 @@ def load_workspace(
         listed_specifications=listed_specifications,
         overlapping_directories=frozenset(overlapping_directories),
         unchecked_symlinks=tuple(sorted(set(unchecked_symlinks), key=str)),
-        repository_schema_inputs=FrozenMapping(schema_inputs),
+        repository_schema_inputs=tuple(schema_inputs.values()),
         builtin_layers=builtin_layers,
     )
 
@@ -367,7 +367,7 @@ def _load_corpus(
     files: _CorpusFiles,
     filenames: list[AspectFilename],
     failures: list[LoadFailure],
-    schema_inputs: dict[SchemaRef, SchemaInput],
+    schema_inputs: dict[SchemaRef, RepositorySchemaInput],
     skills_floor_enabled: bool,
 ) -> Corpus:
     """Decode the corpus spec and its namespace specs; a structure file that fails stands in its layer.
@@ -423,7 +423,7 @@ def _load_structure(
     schemas: SchemaRepository,
     structure_file: StructureSpecFile | None,
     failures: list[LoadFailure],
-    schema_inputs: dict[SchemaRef, SchemaInput],
+    schema_inputs: dict[SchemaRef, RepositorySchemaInput],
     skills_floor_enabled: bool,
 ) -> StructureSpec | FailedStructure | None:
     """Decode the structure JSON at one specification name into a structure specification.
@@ -463,7 +463,7 @@ def _load_structure(
         document = None
     if isinstance(document, dict):
         structure_ref = SchemaRef(SchemaKind.STRUCTURE, identity)
-        schema_inputs[structure_ref] = SchemaInput(structure_ref, origin, FrozenMapping.from_plain(document))
+        schema_inputs[structure_ref] = RepositorySchemaInput(structure_ref, origin, FrozenMapping.from_plain(document))
     # Parsing is the check, and it raises nothing: text that is not JSON in the structure dialect, a title pattern
     # that does not compile, a frontmatter schema that cannot be held and rules that are not usable each come back
     # as their failure record.
@@ -472,7 +472,7 @@ def _load_structure(
             frontmatter_document = document.get('frontmatter') if isinstance(document, dict) else None
             if isinstance(frontmatter_document, dict):
                 frontmatter_ref = SchemaRef(SchemaKind.FRONTMATTER, identity)
-                schema_inputs[frontmatter_ref] = SchemaInput(
+                schema_inputs[frontmatter_ref] = RepositorySchemaInput(
                     frontmatter_ref, origin, FrozenMapping.from_plain(frontmatter_document)
                 )
                 parsed = replace(parsed, frontmatter_schema_ref=frontmatter_ref)

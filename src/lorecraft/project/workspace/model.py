@@ -70,7 +70,7 @@ from lorecraft.project.skill import (
 from lorecraft.schemas import (
     BuiltinOrigin,
     DuplicateSchemaRefError,
-    RepositoryOrigin,
+    RepositorySchemaInput,
     SchemaInput,
     SchemaKind,
     SchemaRef,
@@ -146,23 +146,6 @@ class OutsideSymlinkPathMismatchError(Error):
         super().__init__(f'outside_symlinks key {key} holds the symlink at {value}')
 
 
-class SchemaInputReferenceMismatchError(Error):
-    """A schema-input mapping key differs from the reference it holds.
-
-    Attributes:
-        key: The ref used to file the schema input.
-        value: The reference declared by the schema input.
-    """
-
-    key: SchemaRef
-    value: SchemaRef
-
-    def __init__(self, key: SchemaRef, value: SchemaRef) -> None:
-        self.key = key
-        self.value = value
-        super().__init__(f'schema_inputs key {key} holds input {value}')
-
-
 class InvalidBuiltinFrontmatterSchemaError(Error):
     """A builtin layer's frontmatter schema field holds another schema kind.
 
@@ -175,23 +158,6 @@ class InvalidBuiltinFrontmatterSchemaError(Error):
     def __init__(self, reference: SchemaRef) -> None:
         self.reference = reference
         super().__init__(f'builtin frontmatter schema must have FRONTMATTER kind, got {reference.kind.value}')
-
-
-class NonRepositorySchemaInputOriginError(Error):
-    """A repository schema input has builtin rather than repository provenance.
-
-    Attributes:
-        reference: The schema reference filed under `repository_schema_inputs`.
-        origin: The builtin origin that belongs to a `BuiltinSpecLayer` instead.
-    """
-
-    reference: SchemaRef
-    origin: BuiltinOrigin
-
-    def __init__(self, reference: SchemaRef, origin: BuiltinOrigin) -> None:
-        self.reference = reference
-        self.origin = origin
-        super().__init__(f'repository schema input {reference.kind.value}:{reference.identity} has builtin provenance')
 
 
 def agent_skills_floor_enabled(builtin_layers: tuple[BuiltinSpecLayer, ...]) -> bool:
@@ -571,8 +537,8 @@ class WorkspaceModel:
     """Immutable snapshot of structure and config; holds no root path and no document content.
 
     Every collection but `load_failures` holds each of its members once and has no order of its own: the `sorted_*`
-    properties list them in the order a consumer reads them in. A mapping's key is its value's own name, ref or
-    path, and construction rejects a key that is not.
+    properties list them in the order a consumer reads them in. Repository schema inputs are stored once and their
+    keyed view is derived from their references.
 
     Attributes:
         corpora: Every corpus, by name.
@@ -601,7 +567,7 @@ class WorkspaceModel:
             a skills directory, a listed skill directory or a `SKILL.md`,
             and a `docs/` or `docs/__meta__/` that cannot be
             listed. Nothing a failure touches is in the model beyond that record; every other unit is loaded.
-        repository_schema_inputs: Raw repository schema inputs keyed by typed reference.
+        repository_schema_inputs: Raw repository inputs, each carrying repository provenance in its type.
         builtin_layers: Enabled builtin schema inputs and governance parts, in registration order.
         schema_inputs: Derived registry combining builtin layer inputs before repository inputs.
     """
@@ -616,21 +582,19 @@ class WorkspaceModel:
     listed_specifications: tuple[SpecRef, ...] = ()
     overlapping_directories: frozenset[ReservedCorpusDirectory] = frozenset()
     unchecked_symlinks: tuple[RootRelativePath, ...] = ()
-    repository_schema_inputs: FrozenMapping[SchemaRef, SchemaInput] = FrozenMapping({})
+    repository_schema_inputs: tuple[RepositorySchemaInput, ...] = ()
     builtin_layers: tuple[BuiltinSpecLayer, ...] = ()
     # Derived from builtin_layers and repository_schema_inputs, never passed in; replace() recomputes it.
     schema_inputs: FrozenMapping[SchemaRef, SchemaInput] = field(init=False, default=FrozenMapping({}))
 
     def __post_init__(self) -> None:
-        """Keep a key from naming something other than its value, which the lookups read the key alone to answer.
+        """Check the reserved meta corpus and derive the schema lookup from its source values.
 
         Raises:
             CorpusKeyMismatchError: If a `corpora` key differs from its value's name.
             MetaCorpusNameMismatchError: If `meta_corpus` does not use the reserved meta name.
             SkillLocationRefMismatchError: If a `skill_locations` key differs from its value's ref.
             OutsideSymlinkPathMismatchError: If an `outside_symlinks` key differs from its value's path.
-            SchemaInputReferenceMismatchError: If a schema input key differs from its value's ref.
-            NonRepositorySchemaInputOriginError: If repository inputs carry builtin provenance.
             DuplicateSchemaRefError: If builtin layers or repository inputs repeat a schema reference.
         """
         for name, corpus in self.corpora.items():
@@ -650,16 +614,11 @@ class WorkspaceModel:
                 if schema_input.reference in schema_inputs:
                     raise DuplicateSchemaRefError(schema_input.reference)
                 schema_inputs[schema_input.reference] = schema_input
-        for ref, schema_input in self.repository_schema_inputs.items():
-            if not isinstance(schema_input.origin, RepositoryOrigin):
-                raise NonRepositorySchemaInputOriginError(ref, schema_input.origin)
-            if ref in schema_inputs:
-                raise DuplicateSchemaRefError(ref)
-            schema_inputs[ref] = schema_input
+        for schema_input in self.repository_schema_inputs:
+            if schema_input.reference in schema_inputs:
+                raise DuplicateSchemaRefError(schema_input.reference)
+            schema_inputs[schema_input.reference] = schema_input
         object.__setattr__(self, 'schema_inputs', FrozenMapping(schema_inputs))
-        for ref, schema_input in self.schema_inputs.items():
-            if ref != schema_input.reference:
-                raise SchemaInputReferenceMismatchError(ref, schema_input.reference)
 
     @property
     def sorted_corpora(self) -> tuple[Corpus, ...]:

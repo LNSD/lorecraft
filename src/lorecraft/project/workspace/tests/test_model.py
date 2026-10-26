@@ -49,6 +49,7 @@ from lorecraft.schemas import (
     BuiltinOrigin,
     DuplicateSchemaRefError,
     RepositoryOrigin,
+    RepositorySchemaInput,
     SchemaInput,
     SchemaKind,
     SchemaRef,
@@ -66,9 +67,7 @@ from ..model import (
     InvalidBuiltinFrontmatterSchemaError,
     MetaCorpusNameMismatchError,
     NamespaceSpec,
-    NonRepositorySchemaInputOriginError,
     OutsideSymlinkPathMismatchError,
-    SchemaInputReferenceMismatchError,
     SkillLocationRefMismatchError,
     WorkspaceModel,
     namespace_order_key,
@@ -708,19 +707,19 @@ def two_corpora_model() -> WorkspaceModel:
     )
 
 
-def _schema_inputs(*corpora: Corpus) -> FrozenMapping[SchemaRef, SchemaInput]:
+def _schema_inputs(*corpora: Corpus) -> tuple[RepositorySchemaInput, ...]:
     """The registry inputs for every frontmatter schema stated by the given corpus layers."""
-    inputs: dict[SchemaRef, SchemaInput] = {}
+    inputs: dict[SchemaRef, RepositorySchemaInput] = {}
     for corpus in corpora:
         for filename in corpus.filenames:
             governance = corpus.governance(filename)
             for reference, schema in zip(
                 governance.applicable_frontmatter_schema_refs(), governance.frontmatter_schemas(), strict=True
             ):
-                inputs[reference] = SchemaInput(
+                inputs[reference] = RepositorySchemaInput(
                     reference, RepositoryOrigin(schema.spec, str(schema.spec)), schema.schema.schema
                 )
-    return FrozenMapping(inputs)
+    return tuple(inputs.values())
 
 
 def _model_of_corpora(*names: str) -> WorkspaceModel:
@@ -859,41 +858,6 @@ class TestWorkspaceModel:
         #: Then
         assert exc_info.value.key == other, 'the error retains the key the symlink was filed under'
         assert exc_info.value.value == entry, 'the error retains the path where the symlink is located'
-
-    def test_construction_with_a_schema_input_under_another_ref_raises_schema_input_reference_mismatch(
-        self, two_corpora_model: WorkspaceModel
-    ) -> None:
-        #: Given
-        key = SchemaRef(SchemaKind.STRUCTURE, 'key')
-        reference = SchemaRef(SchemaKind.STRUCTURE, 'value')
-        schema_input = SchemaInput(
-            reference,
-            RepositoryOrigin(RootRelativePath.parse('docs/test.json'), 'test'),
-            FrozenMapping({}),
-        )
-
-        #: When
-        with pytest.raises(SchemaInputReferenceMismatchError) as exc_info:
-            replace(two_corpora_model, repository_schema_inputs=FrozenMapping({key: schema_input}))
-
-        #: Then
-        assert exc_info.value.key == key, 'the error retains the lookup key'
-        assert exc_info.value.value == reference, 'the error retains the input reference'
-
-    def test_construction_with_a_builtin_schema_input_as_repository_input_is_rejected(
-        self, two_corpora_model: WorkspaceModel
-    ) -> None:
-        #: Given
-        reference = SchemaRef(SchemaKind.STRUCTURE, 'builtin:test')
-        schema_input = SchemaInput(reference, BuiltinOrigin(reference.identity), FrozenMapping({}))
-
-        #: When
-        with pytest.raises(NonRepositorySchemaInputOriginError) as exc_info:
-            replace(two_corpora_model, repository_schema_inputs=FrozenMapping({reference: schema_input}))
-
-        #: Then
-        assert exc_info.value.reference == reference, 'the error identifies the misplaced schema input'
-        assert exc_info.value.origin == schema_input.origin, 'the error retains its builtin provenance'
 
     def test_find_corpus_with_a_listed_name_returns_that_corpus(self, two_corpora_model: WorkspaceModel) -> None:
         #: Given
@@ -1121,7 +1085,7 @@ class TestWorkspaceModel:
         origin = BuiltinOrigin('builtin:test-layer')
         reference = SchemaRef(SchemaKind.FRONTMATTER, origin.identity)
         schema_input = SchemaInput(reference, origin, FrozenMapping.from_plain({'type': 'object'}))
-        repository_input = SchemaInput(
+        repository_input = RepositorySchemaInput(
             reference,
             RepositoryOrigin(RootRelativePath.parse('docs/test.json'), 'test'),
             FrozenMapping.from_plain({'type': 'object'}),
@@ -1137,7 +1101,7 @@ class TestWorkspaceModel:
             replace(
                 two_corpora_model,
                 builtin_layers=(layer,),
-                repository_schema_inputs=FrozenMapping({reference: repository_input}),
+                repository_schema_inputs=(repository_input,),
             )
 
         #: Then
