@@ -10,7 +10,7 @@ components: "module:lorecraft.cli,module:lorecraft.engine,module:lorecraft.rules
 
 ## Summary
 
-Checks docs against specs and skills against the Agent Skills spec; refused items are skipped, non-item docs failures are `LC002`.
+Checks documents and skills against applicable specifications. Refused items are skipped; non-item failures use `LC002`.
 
 ## Table of Contents
 
@@ -61,14 +61,14 @@ Invalid selectors exit `2`; aliases and `allow` rules warn.
 
 | Argument or option | Default | Env var | Description |
 |--------------------|---------|---------|-------------|
-| `--no-builtin-skills-schema` | unset | — | Do not apply the bundled Agent Skills schema or its contradiction preflight; repository schemas still apply |
+| `--no-agent-skills-spec` (`--no-builtin-skills-schema`) | unset | — | Disable the builtin Agent Skills spec and floor, including its contradiction preflight; repository specs still apply |
 | `--root <path>`    | nearest of working directory and parents holding `docs/__meta__/` | — | The repository root, as [Root Discovery](#root-discovery) describes |
 | `--format <text\|short\|json>` | `text` | — | The output format, as [Output](#output) describes |
 | `--color <WHEN>` | `auto` | [`NO_COLOR`](https://no-color.org/), [`FORCE_COLOR`](https://force-color.org/) | Only `text` is colored. `auto`: nonempty `FORCE_COLOR` enables even when piped; else nonempty `NO_COLOR` disables; otherwise stdout's TTY state applies. Empty is unset; any nonempty value, even `0`, is set. Explicit `always`/`never` wins. Errors bold red; warnings bold yellow; messages bold; gutter/location markers bold blue. |
 | `--select <selectors>` | `ALL` | — | Run only these rules, as [Selecting Rules](#selecting-rules) describes |
 | `--ignore <selectors>` | none | — | Skip these rules |
 
-An unlisted `--format` or `--color` exits `2`. An explicit `--color always` or `--color never` wins. Under `auto`, non-empty `FORCE_COLOR` enables colour even when piped; otherwise non-empty `NO_COLOR` disables it; otherwise colour follows whether stdout is a terminal. Empty variables are unset; any non-empty value, including `0`, is set. Enabled colours: errors bold red, warnings bold yellow, messages bold, gutter and location markers bold blue.
+An unlisted `--format` or `--color` exits `2`. Explicit `always`/`never` wins. Under `auto`, non-empty `FORCE_COLOR` enables colour even when piped; otherwise non-empty `NO_COLOR` disables it; otherwise colour follows whether stdout is a terminal. Empty variables are unset; any non-empty value, including `0`, is set.
 
 ## Usage
 
@@ -86,11 +86,11 @@ lorecraft check --select OUT006 --ignore OUT
 lorecraft check --select OUT00
 ```
 
-`--no-builtin-skills-schema` skips the bundled schema and contradiction preflight; repository schemas still apply, so
-`FM004` can run. It expects the listed directory name and never guides renaming `SKILL.md`. Without repository
-schema, skill frontmatter has no diagnostics; with opt-out, coverage says `ungoverned for frontmatter` (exit `0`),
-even for malformed/missing frontmatter or mismatched names. See [The Subjects](#the-subjects). Excluding required
-`name`/`description` fails; indirect and cross-layer constraints are unchecked.
+`--no-builtin-skills-schema` is a compatibility alias. `FM004` compares `name` with the skill directory; it never
+suggests renaming `SKILL.md`. Without a repository skills spec, opt-out reports `ungoverned for frontmatter, budget`
+(exit `0`) even for malformed frontmatter or mismatched names; `LEN002`, `FM011` and `FM012` do not run. Default
+skill coverage omits `budget`. Excluding required `name`/`description` fails; indirect and cross-layer constraints
+are unchecked. See [The Subjects](#the-subjects) and [structure budgets](spec-structure-budget.md).
 
 ### Output
 
@@ -161,9 +161,9 @@ JSON paths must be UTF-8; Unicode is unescaped.
 
 | Rule | Reported when |
 |------|---------------|
-| `FM` | Frontmatter checks use applicable schemas; the bundled skills schema is optional. `FM004` compares skill names with listed directories. `FM001` missing-frontmatter, `FM002` invalid-yaml, `FM003` non-mapping-frontmatter, `FM004` name-mismatch, `FM005` duplicate-key, `FM006` missing-field, `FM007` unknown-field (a warning), `FM008` wrong-type, `FM009` invalid-value, `FM010` invalid-frontmatter, `FM011` malformed-allowed-tools (a warning; pattern whitespace stays intact), `FM012` allowed-tools-too-long (a warning over 500 characters), `FM013` too-many-fields (`maxProperties`, an error), `FM014` too-few-fields (`minProperties`, an error) |
+| `FM` | Frontmatter checks use applicable schemas, including the builtin Agent Skills specification by default. `FM004` compares skill names with listed directories. `FM001` missing-frontmatter, `FM002` invalid-yaml, `FM003` non-mapping-frontmatter, `FM004` name-mismatch, `FM005` duplicate-key, `FM006` missing-field, `FM007` unknown-field (a warning), `FM008` wrong-type, `FM009` invalid-value, `FM010` invalid-frontmatter, `FM011` malformed-allowed-tools (a warning; pattern whitespace stays intact), `FM012` allowed-tools-too-long (a warning over 500 characters), `FM013` too-many-fields (`maxProperties`, an error), `FM014` too-few-fields (`minProperties`, an error) |
 | `OUT` | Outline checks: a document's H1 title and sections against its structure files. `OUT001` missing-title, `OUT002` extra-title, `OUT003` title-not-first, `OUT004` empty-section, `OUT005` forbidden-section, `OUT006` missing-section, `OUT007` section-out-of-order, `OUT008` unexpected-section, `OUT009` invalid-title |
-| `LEN` | Length limits: a document's tokens or declared lines budget, a section's or its title's words or characters, and a `SKILL.md`'s default lines limit. `LEN001` too-many-tokens, `LEN002` too-many-lines, `LEN003` section-too-many-words, `LEN004` title-too-many-words, `LEN005` title-too-long |
+| `LEN` | Length limits: a document's tokens or declared lines budget, a section's or its title's words or characters, and the builtin Agent Skills layer's 500-line skill cap. `LEN001` too-many-tokens, `LEN002` too-many-lines, `LEN003` section-too-many-words, `LEN004` title-too-many-words, `LEN005` title-too-long |
 | `LINK` | Links in structured documents and skills. `LINK001` absolute, `LINK002` broken fragment, `LINK003` broken, `LINK004` escaping, `LINK005` extension-link (link to same-directory name extension; warning; also checks specs), `LINK006` missing-base-link (an extension omits its nearest existing document or spec ancestor under `References`; warning; also checks specs), `LINK007` mutual-link (documents in different corpora link each other; warning) |
 | `COR` | Corpus layout checks: `COR001` reserved-corpus-overlap, a directory under `docs/` has a reserved corpus name such as `skills`; warning by default. It can be selected or ignored by code or group. |
 | `LAY` | Skill layout checks: `LAY001` escaping-symlink, a symlink an agent reaches whose chain leaves the repository |

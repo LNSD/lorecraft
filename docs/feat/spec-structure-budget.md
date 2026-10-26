@@ -12,7 +12,8 @@ components: "module:lorecraft.project,module:lorecraft.engine,spec:feat,spec:cod
 
 A `<name>.spec.json` file limits governed documents with word caps and whole-file token and line budgets. Each
 governing line budget is checked independently, so a document over more than one limit gets a finding for each.
-`lorecraft check` reports token overruns as `LEN001` and line overruns as `LEN002`.
+Skills also receive the builtin 500-line cap alongside repository skill budgets; repository budgets may tighten it,
+but cannot raise it. `lorecraft check` reports token overruns as `LEN001` and line overruns as `LEN002`.
 
 ## Table of Contents
 
@@ -46,8 +47,9 @@ governing line budget is checked independently, so a document over more than one
 | `lines` | top level | integer | The line budget of the whole file |
 
 Each is optional: an entry without `words` caps nothing, and a file without `tokens` or `lines` sets no whole-file
-budget. Skills without a declared line budget keep the 500-line default. The outline entries a cap sits on are the
-ones [spec-structure-outline](spec-structure-outline.md) describes.
+budget. Skills have a builtin 500-line budget by default, even when no repository budget is declared. A repository `skills-*`
+budget can lower that cap but cannot raise it; each exceeded budget currently produces its own `LEN002` finding.
+The outline entries a cap sits on are the ones [spec-structure-outline](spec-structure-outline.md) describes.
 
 ## Usage
 
