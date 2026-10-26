@@ -134,6 +134,7 @@ class TooManyLines(QueriedItemRule[LineFacts]):
             if overrun is not None:
                 occurrences.append(
                     cls(
+                        # The diagnostic renderer's spec note accepts repository paths, not builtin origins.
                         spec=budget.spec if isinstance(budget.spec, RootRelativePath) else None,
                         line=LineNumber(budget.lines.successor()),
                         overrun=overrun,

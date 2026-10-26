@@ -183,7 +183,7 @@ class TestRunComputesGovernanceOnce:
         monkeypatch.setattr(Corpus, 'governance', counting_governance)
 
         #: When
-        reports = check_subjects(database, (ItemRef(TYPING.path), ItemRef(ASYNC.path)), table)
+        reports = check_subjects(database, (ItemRef(TYPING.path), ItemRef(ASYNC.path)), table, {})
 
         #: Then
         assert len(reports) == 2, 'both documents are checked'

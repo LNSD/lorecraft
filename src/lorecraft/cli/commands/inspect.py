@@ -9,7 +9,7 @@ from typing import Annotated
 
 import typer
 
-from ..app import GlobalOptions
+from ..app import global_options
 from ..output import OutputFormat
 from ..registry import register
 
@@ -53,8 +53,7 @@ def inspect(
     # Imported here, not at the top: `inspect_run` imports the workspace model, which `--help` never uses.
     from ..inspect_run import run_inspect
 
-    options = ctx.find_root().obj
-    assert isinstance(options, GlobalOptions), 'the root callback stores global options'
+    options = global_options(ctx)
     status = run_inspect(
         root,
         _resolve_format(output_format, as_json=as_json),

@@ -54,6 +54,20 @@ def main() -> None:
     build_app()()
 
 
+def global_options(ctx: typer.Context) -> GlobalOptions:
+    """Return the options stored by the root callback.
+
+    Args:
+        ctx: A command context in this application.
+
+    Raises:
+        AssertionError: If the root callback did not store its options.
+    """
+    options = ctx.find_root().obj
+    assert isinstance(options, GlobalOptions), 'the root callback stores global options'
+    return options
+
+
 def _show_version(value: bool) -> None:
     """Print the short version and exit, when `--version` was passed.
 

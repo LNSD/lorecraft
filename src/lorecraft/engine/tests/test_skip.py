@@ -85,7 +85,7 @@ class TestCheckSubjects:
         assert isinstance(source, ItemText), 'the document is UTF-8, so it decodes'
 
         #: When
-        reports = check_subjects(database, [TYPING], table)
+        reports = check_subjects(database, [TYPING], table, {})
 
         #: Then
         assert reports == (judge_item(database, source, table),), (
@@ -105,7 +105,7 @@ class TestCheckSubjectsOverASkillEntry:
         assert isinstance(source, ItemText), 'the skill is UTF-8, so it decodes'
 
         #: When
-        reports = check_subjects(database, [ItemRef(location.ref.path)], table)
+        reports = check_subjects(database, [ItemRef(location.ref.path)], table, {})
 
         #: Then
         assert reports == (judge_item(database, source, table),), (
@@ -119,7 +119,7 @@ class TestCheckSubjectsOverASkillEntry:
         location = database.model().sorted_skill_locations[0]
 
         #: When
-        reports = check_subjects(database, [ItemRef(location.ref.path)], _all_rules())
+        reports = check_subjects(database, [ItemRef(location.ref.path)], _all_rules(), {})
 
         #: Then
         assert len(reports) == 1, 'the entry point reports the one skill it was given'
@@ -139,7 +139,7 @@ class TestCheckSubjectsOverASkillEntry:
         assert database.item_governance(item) is not None, 'the reserved skills corpus governs skill entrypoints'
 
         #: When
-        reports = check_subjects(database, [ItemRef(location.ref.path)], _all_rules())
+        reports = check_subjects(database, [ItemRef(location.ref.path)], _all_rules(), {})
 
         #: Then
         assert len(reports) == 1, 'the entry point reports the one skill it was given'
@@ -167,7 +167,7 @@ class TestCheckSubjectsOverASkillEntry:
         assert governance.corpus_structure() is None, 'the corpus layer has no structure file'
 
         #: When
-        (report,) = check_subjects(database, [ItemRef(location.ref.path)], _all_rules())
+        (report,) = check_subjects(database, [ItemRef(location.ref.path)], _all_rules(), {})
 
         #: Then
         assert isinstance(report, CheckedItem), 'the loaded skills layer lets `Always` checks run'
@@ -194,7 +194,7 @@ class TestCheckSubjectsOverASkillEntry:
         assert database.item_governance(item) is None, 'the skills corpus does not govern resources'
 
         #: When
-        (report,) = check_subjects(database, [ItemRef(location.ref.path)], _all_rules())
+        (report,) = check_subjects(database, [ItemRef(location.ref.path)], _all_rules(), {})
 
         #: Then
         assert isinstance(report, CheckedItem), 'a failed layer suppresses none of a resource, which it does not govern'
@@ -215,7 +215,7 @@ class TestCheckSubjectsWithAFailedLayer:
         table = _all_rules()
 
         #: When
-        reports = check_subjects(database, [TYPING, LOGGING], table)
+        reports = check_subjects(database, [TYPING, LOGGING], table, {})
 
         #: Then
         suppressed = (SpecPart.FRONTMATTER, SpecPart.STRUCTURE, SpecPart.OUTLINE, SpecPart.BUDGET)
@@ -239,7 +239,7 @@ class TestCheckSubjectsWithAFailedLayer:
         typing_judged = judge_item(database, typing_text, table)
 
         #: When
-        reports = check_subjects(database, [TYPING, LOGGING], table)
+        reports = check_subjects(database, [TYPING, LOGGING], table, {})
 
         #: Then
         suppressed = (SpecPart.FRONTMATTER, SpecPart.STRUCTURE, SpecPart.OUTLINE, SpecPart.BUDGET)
@@ -257,7 +257,7 @@ class TestCheckSubjectsWithAFailedLayer:
         table = _all_rules()
 
         #: When
-        reports = check_subjects(database, [TYPING], table)
+        reports = check_subjects(database, [TYPING], table, {})
 
         #: Then
         suppressed = (SpecPart.FRONTMATTER, SpecPart.STRUCTURE, SpecPart.OUTLINE, SpecPart.BUDGET)
@@ -274,7 +274,7 @@ class TestCheckSubjectsWithAFailedLayer:
         table = _all_rules()
 
         #: When
-        reports = check_subjects(database, [TYPING], table)
+        reports = check_subjects(database, [TYPING], table, {})
 
         #: Then
         assert len(reports) == 1, 'the one document has one report'
@@ -288,7 +288,7 @@ class TestCheckSubjectsWithAFailedLayer:
         no_rules = RuleTable.from_registry(Registry.load(rules), RuleSelection(select=frozenset(), ignore=frozenset()))
 
         #: When
-        reports = check_subjects(database, [TYPING], no_rules)
+        reports = check_subjects(database, [TYPING], no_rules, {})
 
         #: Then
         assert reports == (CheckedItem(TYPING, diagnostics=()),), 'only enabled suppressed parts appear in coverage'
@@ -308,7 +308,7 @@ class TestCheckSubjectsOverASpecification:
         assert isinstance(source, ItemText), 'the specification is UTF-8, so it decodes'
 
         #: When
-        reports = check_subjects(database, [CODE_SPECIFICATION], table)
+        reports = check_subjects(database, [CODE_SPECIFICATION], table, {})
 
         #: Then
         assert reports == (judge_item(database, source, table),), (
@@ -325,7 +325,7 @@ class TestCheckSubjectsOverASpecification:
         database = _database_with({'code.md': b'\xff\xfe'}, {})
 
         #: When
-        reports = check_subjects(database, [CODE_SPECIFICATION], _all_rules())
+        reports = check_subjects(database, [CODE_SPECIFICATION], _all_rules(), {})
 
         #: Then
         assert len(reports) == 1, 'the entry point reports the one specification it was given'
@@ -349,7 +349,7 @@ class TestCheckSubjectsOverASpecification:
         database = _database_with({'code.md': b'# Code\n', 'code.spec.json': STATES_NO_RULE}, {})
 
         #: When
-        (report,) = check_subjects(database, [CODE_SPECIFICATION], _all_rules())
+        (report,) = check_subjects(database, [CODE_SPECIFICATION], _all_rules(), {})
 
         #: Then
         assert isinstance(report, CheckedItem), 'failed corpus layers do not skip a spec'

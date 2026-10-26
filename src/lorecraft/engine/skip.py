@@ -42,7 +42,7 @@ def check_subjects(
     database: Database,
     subjects: Iterable[CheckedSubject],
     table: RuleTable,
-    refusals: Mapping[RootRelativePath, RefusedRecord] | None = None,
+    refusals: Mapping[RootRelativePath, RefusedRecord],
 ) -> tuple[SubjectReport, ...]:
     """Run the table's rules over each document, spec, skill, resource and layout entry, and report each.
 
@@ -53,13 +53,11 @@ def check_subjects(
             entry is a symlink whose chain leaves the repository or a directory named like a reserved corpus, as the
             database's model or a skill's resource listing records it.
         table: The rules the run enables, each with its severity.
-        refusals: Snapshot paths the caller reports as refused reads or docs dependencies; empty by default.
+        refusals: Snapshot paths the caller reports as refused reads or docs dependencies.
 
     Raises:
         ItemReadError: If an item is missing from the snapshot; a decode failure is a diagnostic.
     """
-    if refusals is None:
-        refusals = {}
     reports: list[SubjectReport] = []
     for subject in subjects:
         match subject:

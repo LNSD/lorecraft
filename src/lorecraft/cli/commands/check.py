@@ -10,7 +10,7 @@ from typing import Annotated
 
 import typer
 
-from ..app import GlobalOptions
+from ..app import global_options
 from ..output import ColorChoice, DiagnosticFormat
 from ..registry import register
 from ..rule_arguments import (
@@ -117,8 +117,7 @@ def check(
     # Imported here, not at the top: `check_run` imports the rules engine, which `--help` and `--version` never use.
     from ..check_run import run_check
 
-    options = ctx.find_root().obj
-    assert isinstance(options, GlobalOptions), 'the root callback stores global options'
+    options = global_options(ctx)
     status = run_check(
         root,
         output_format=output_format,
