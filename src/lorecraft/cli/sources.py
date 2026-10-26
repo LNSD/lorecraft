@@ -10,7 +10,7 @@ from lorecraft.core.path import RootRelativePath
 from lorecraft.project.database import Database
 from lorecraft.rules.report import RunReport
 
-from .diagnostic_parts import LineMark, WholeFileMark, diagnostic_marks, ordered_diagnostics
+from .diagnostic_parts import LineMark, PrimaryLineMark, WholeFileMark, diagnostic_marks, ordered_diagnostics
 from .diagnostic_text import SourceLines, SourceText
 
 
@@ -28,7 +28,7 @@ def read_sources(database: Database, reports: tuple[RunReport, ...]) -> SourceLi
     for diagnostic in ordered_diagnostics(reports):
         for mark in diagnostic_marks(diagnostic):
             match mark:
-                case LineMark():
+                case LineMark() | PrimaryLineMark():
                     paths.add(mark.path)
                 case WholeFileMark():
                     pass
