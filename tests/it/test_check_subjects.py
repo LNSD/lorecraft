@@ -620,7 +620,7 @@ class TestCheckSubjects:
         )
 
         #: When
-        reports = check_subjects(database, (_item(database, _location(database, REVIEW)),), table)
+        reports = check_subjects(database, (_item(database, _location(database, REVIEW)),), table, {})
 
         #: Then
         assert len(reports) == 1, 'the skill receives one checked report'
@@ -659,7 +659,7 @@ class TestCheckSubjects:
         subjects = (_item(database, _location(database, REVIEW)),)
 
         #: When
-        reports = check_subjects(database, subjects, package_table)
+        reports = check_subjects(database, subjects, package_table, {})
 
         #: Then
         skill_file = RootRelativePath.parse('.agents/skills/review/SKILL.md')
@@ -698,7 +698,7 @@ class TestCheckSubjects:
         subjects = (_item(database, _location(database, REVIEW)),)
 
         #: When
-        reports = check_subjects(database, subjects, package_table)
+        reports = check_subjects(database, subjects, package_table, {})
 
         #: Then
         occurrence = MalformedAllowedTools(
@@ -722,7 +722,7 @@ class TestCheckSubjects:
         )
 
         #: When
-        reports = check_subjects(database, (GUIDE,), package_table)
+        reports = check_subjects(database, (GUIDE,), package_table, {})
 
         #: Then
         occurrence = TooManyTokens(
@@ -759,7 +759,7 @@ class TestCheckSubjects:
         database = Database.from_snapshot(snapshot, builtin_layers=(SKILLS_LAYER,))
 
         #: When
-        reports = check_subjects(database, (typing,), table)
+        reports = check_subjects(database, (typing,), table, {})
 
         #: Then
         token_count = count_tokens(typing_text).value
@@ -787,7 +787,7 @@ class TestCheckSubjects:
         )
 
         #: When
-        reports = check_subjects(database, (GUIDE,), package_table)
+        reports = check_subjects(database, (GUIDE,), package_table, {})
 
         #: Then
         assert reports == (
@@ -806,7 +806,7 @@ class TestCheckSubjects:
         )
 
         #: When
-        reports = check_subjects(database, (GUIDE,), package_table)
+        reports = check_subjects(database, (GUIDE,), package_table, {})
 
         #: Then
         assert reports == (
@@ -838,7 +838,7 @@ class TestCheckSubjects:
         launch = ItemRef(RootRelativePath.parse('docs/blog/launch.md'))
 
         #: When
-        reports = check_subjects(database, (launch,), package_table)
+        reports = check_subjects(database, (launch,), package_table, {})
 
         #: Then
         assert reports == (
@@ -867,7 +867,7 @@ class TestCheckSubjects:
         table = RuleTable(severities)
 
         #: When
-        reports = check_subjects(database, (GUIDE,), table)
+        reports = check_subjects(database, (GUIDE,), table, {})
 
         #: Then
         assert reports == (CheckedItem(ItemRef(GUIDE.path), diagnostics=(), ungoverned=(SpecPart.BUDGET,)),), (
@@ -885,7 +885,7 @@ class TestCheckSubjects:
         table = RuleTable(severities)
 
         #: When
-        check_subjects(database, (GUIDE,), table)
+        check_subjects(database, (GUIDE,), table, {})
 
         #: Then
         assert database.counted_tokens == [], 'no query is run for it, so its tokens are never counted'
@@ -903,7 +903,7 @@ class TestCheckSubjects:
         table = RuleTable(severities)
 
         #: When
-        reports = check_subjects(database, (GUIDE,), table)
+        reports = check_subjects(database, (GUIDE,), table, {})
 
         #: Then
         assert reports == (CheckedItem(ItemRef(GUIDE.path), diagnostics=(), ungoverned=(SpecPart.STRUCTURE,)),), (
@@ -918,7 +918,7 @@ class TestCheckSubjects:
         )
 
         #: When
-        reports = check_subjects(database, (GUIDE,), package_table)
+        reports = check_subjects(database, (GUIDE,), package_table, {})
 
         #: Then
         assert reports == (UndecodableSubject(GUIDE, _CAFE_TITLE_FAILURE),), (
@@ -935,7 +935,7 @@ class TestCheckSubjects:
         )
 
         #: When
-        reports = check_subjects(database, (GUIDE,), package_table)
+        reports = check_subjects(database, (GUIDE,), package_table, {})
 
         #: Then
         assert reports == (UndecodableSubject(GUIDE, _CAFE_TITLE_FAILURE),), (
@@ -951,7 +951,7 @@ class TestCheckSubjects:
         )
 
         #: When
-        reports = check_subjects(database, (INTRO, GUIDE), package_table)
+        reports = check_subjects(database, (INTRO, GUIDE), package_table, {})
 
         #: Then
         assert _refs(reports) == [ItemRef(INTRO.path), ItemRef(GUIDE.path)], (
@@ -967,7 +967,7 @@ class TestCheckSubjects:
         table = RuleTable(severities)
 
         #: When
-        check_subjects(database, (GUIDE,), table)
+        check_subjects(database, (GUIDE,), table, {})
 
         #: Then
         assert database.counted_tokens == [], 'no enabled rule reads the token count, so its query is never asked'
@@ -980,7 +980,7 @@ class TestCheckSubjects:
         )
 
         #: When
-        check_subjects(database, (GUIDE,), package_table)
+        check_subjects(database, (GUIDE,), package_table, {})
 
         #: Then
         assert database.counted_tokens == [], (
@@ -997,7 +997,7 @@ class TestCheckSubjects:
         )
 
         #: When
-        reports = check_subjects(database, (GUIDE,), sample_table)
+        reports = check_subjects(database, (GUIDE,), sample_table, {})
 
         #: Then
         over_half = OverHalfBudget(
@@ -1024,7 +1024,7 @@ class TestCheckSubjects:
         database = Database.from_snapshot(_snapshot(_budget(10), guide=b''), builtin_layers=(SKILLS_LAYER,))
 
         #: When
-        reports = check_subjects(database, (GUIDE,), sample_table)
+        reports = check_subjects(database, (GUIDE,), sample_table, {})
 
         #: Then
         any_tokens = AnyTokens(spec=None, line=LineNumber(NonZeroUnsignedInt(1)), token_count=0)
@@ -1047,7 +1047,7 @@ class TestCheckSubjects:
         subjects = (_item(database, _location(database, REVIEW)),)
 
         #: When
-        reports = check_subjects(database, subjects, package_table)
+        reports = check_subjects(database, subjects, package_table, {})
 
         #: Then
         occurrence = TooManyLines(line=LineNumber(NonZeroUnsignedInt(501)), overrun=overrun(501, 500))
@@ -1077,7 +1077,7 @@ class TestCheckSubjects:
         table = RuleTable({TooManyTokens: Severity.ERROR})
 
         #: When
-        reports = check_subjects(database, (_item(database, _location(database, REVIEW)),), table)
+        reports = check_subjects(database, (_item(database, _location(database, REVIEW)),), table, {})
 
         #: Then
         assert len(reports) == 1, 'the skill has one report'
@@ -1107,7 +1107,7 @@ class TestCheckSubjects:
         table = RuleTable({ForbiddenSection: Severity.ERROR})
 
         #: When
-        reports = check_subjects(database, (_item(database, _location(database, REVIEW)),), table)
+        reports = check_subjects(database, (_item(database, _location(database, REVIEW)),), table, {})
 
         #: Then
         assert len(reports) == 1, 'the skill has one report'
@@ -1132,7 +1132,7 @@ class TestCheckSubjects:
         subjects = (_item(database, _location(database, REVIEW)),)
 
         #: When
-        reports = check_subjects(database, subjects, package_table)
+        reports = check_subjects(database, subjects, package_table, {})
 
         #: Then
         occurrence = TooManyLines(line=LineNumber(NonZeroUnsignedInt(501)), overrun=overrun(501, 500))
@@ -1154,7 +1154,7 @@ class TestCheckSubjects:
         subjects = (_item(database, _location(database, REVIEW)),)
 
         #: When
-        reports = check_subjects(database, subjects, package_table)
+        reports = check_subjects(database, subjects, package_table, {})
 
         #: Then
         assert reports == (CheckedItem(ItemRef(REVIEW.path), diagnostics=(), ungoverned=SKILL_UNGOVERNED),), (
@@ -1170,7 +1170,7 @@ class TestCheckSubjects:
         subjects = (_item(database, _location(database, REVIEW)),)
 
         #: When
-        reports = check_subjects(database, subjects, package_table)
+        reports = check_subjects(database, subjects, package_table, {})
 
         #: Then
         assert reports == (UndecodableSubject(ItemRef(REVIEW.path), _CAFE_NAME_FAILURE),), (
@@ -1187,7 +1187,7 @@ class TestCheckSubjects:
         subjects = (GUIDE, _item(database, _location(database, REVIEW)), INTRO)
 
         #: When
-        reports = check_subjects(database, subjects, package_table)
+        reports = check_subjects(database, subjects, package_table, {})
 
         #: Then
         assert reports == (
@@ -1216,7 +1216,7 @@ class TestCheckSubjects:
         subjects = (_item(database, _location(database, REVIEW)),)
 
         #: When
-        check_subjects(database, subjects, table)
+        check_subjects(database, subjects, table, {})
 
         #: Then
         assert database.counted_lines == [], 'no enabled rule reads the line count, so its query is never asked'
@@ -1230,7 +1230,7 @@ class TestCheckSubjects:
         )
 
         #: When
-        reports = check_subjects(database, (GUIDE,), package_table)
+        reports = check_subjects(database, (GUIDE,), package_table, {})
 
         #: Then
         occurrence = MissingFrontmatter(owner=GUIDE_OWNER, line=LineNumber(NonZeroUnsignedInt(1)))
@@ -1252,7 +1252,7 @@ class TestCheckSubjects:
         )
 
         #: When
-        reports = check_subjects(database, (GUIDE,), package_table)
+        reports = check_subjects(database, (GUIDE,), package_table, {})
 
         #: Then
         occurrence = InvalidYaml(
@@ -1277,7 +1277,7 @@ class TestCheckSubjects:
         )
 
         #: When
-        reports = check_subjects(database, (GUIDE,), package_table)
+        reports = check_subjects(database, (GUIDE,), package_table, {})
 
         #: Then
         occurrence = NonMappingFrontmatter(owner=GUIDE_OWNER, line=LineNumber(NonZeroUnsignedInt(1)))
@@ -1299,7 +1299,7 @@ class TestCheckSubjects:
         )
 
         #: When
-        reports = check_subjects(database, (GUIDE,), package_table)
+        reports = check_subjects(database, (GUIDE,), package_table, {})
 
         #: Then
         occurrence = NameMismatch(owner=GUIDE_OWNER, line=LineNumber(NonZeroUnsignedInt(2)), name='setup')
@@ -1321,7 +1321,7 @@ class TestCheckSubjects:
         )
 
         #: When
-        reports = check_subjects(database, (GUIDE,), package_table)
+        reports = check_subjects(database, (GUIDE,), package_table, {})
 
         #: Then
         occurrence = DuplicateKey(
@@ -1350,7 +1350,7 @@ class TestCheckSubjects:
         subjects = (_item(database, _location(database, REVIEW)),)
 
         #: When
-        reports = check_subjects(database, subjects, package_table)
+        reports = check_subjects(database, subjects, package_table, {})
 
         #: Then
         occurrence = MissingFrontmatter(owner=REVIEW_OWNER, line=LineNumber(NonZeroUnsignedInt(1)))
@@ -1374,7 +1374,7 @@ class TestCheckSubjects:
         subjects = (_item(database, _location(database, REVIEW)),)
 
         #: When
-        reports = check_subjects(database, subjects, package_table)
+        reports = check_subjects(database, subjects, package_table, {})
 
         #: Then
         occurrence = InvalidYaml(
@@ -1401,7 +1401,7 @@ class TestCheckSubjects:
         subjects = (_item(database, _location(database, REVIEW)),)
 
         #: When
-        reports = check_subjects(database, subjects, package_table)
+        reports = check_subjects(database, subjects, package_table, {})
 
         #: Then
         occurrence = NonMappingFrontmatter(owner=REVIEW_OWNER, line=LineNumber(NonZeroUnsignedInt(1)))
@@ -1426,7 +1426,7 @@ class TestCheckSubjects:
         subjects = (_item(database, _location(database, REVIEW)),)
 
         #: When
-        reports = check_subjects(database, subjects, package_table)
+        reports = check_subjects(database, subjects, package_table, {})
 
         #: Then
         occurrence = NameMismatch(owner=REVIEW_OWNER, line=LineNumber(NonZeroUnsignedInt(2)), name='code-review')
@@ -1451,7 +1451,7 @@ class TestCheckSubjects:
         subjects = (_item(database, _location(database, REVIEW)),)
 
         #: When
-        reports = check_subjects(database, subjects, package_table)
+        reports = check_subjects(database, subjects, package_table, {})
 
         #: Then
         occurrence = DuplicateKey(
@@ -1490,7 +1490,7 @@ class TestCheckSubjects:
         subjects = (_item(database, _location(database, REVIEW)),)
 
         #: When
-        reports = check_subjects(database, subjects, package_table)
+        reports = check_subjects(database, subjects, package_table, {})
 
         #: Then
         owner = SkillFrontmatterOwner(
@@ -1520,7 +1520,7 @@ class TestCheckSubjects:
         subjects = (GUIDE, _item(database, _location(database, REVIEW)))
 
         #: When
-        check_subjects(database, subjects, table)
+        check_subjects(database, subjects, table, {})
 
         #: Then
         assert database.parsed_frontmatters == [], 'no enabled rule reads the frontmatter, so it is never parsed'
@@ -1538,7 +1538,7 @@ class TestCheckSubjects:
         subjects = (GUIDE, _item(database, _location(database, REVIEW)), INTRO)
 
         #: When
-        check_subjects(database, subjects, package_table)
+        check_subjects(database, subjects, package_table, {})
 
         #: Then
         assert ItemRef(GUIDE.path) not in database.parsed_frontmatters, (
@@ -1570,7 +1570,7 @@ class TestCheckSubjects:
         database = Database.from_snapshot(snapshot, builtin_layers=(SKILLS_LAYER,))
 
         #: When
-        reports = check_subjects(database, (typing,), package_table)
+        reports = check_subjects(database, (typing,), package_table, {})
 
         #: Then
         assert reports == (
@@ -1589,7 +1589,7 @@ class TestCheckSubjects:
         database = Database.from_snapshot(_snapshot(GUIDE_SCHEMA, guide=guide), builtin_layers=(SKILLS_LAYER,))
 
         #: When
-        reports = check_subjects(database, (GUIDE,), package_table)
+        reports = check_subjects(database, (GUIDE,), package_table, {})
 
         #: Then
         line_1 = LineNumber(NonZeroUnsignedInt(1))
@@ -1657,7 +1657,7 @@ class TestCheckSubjects:
         subjects = (_item(database, _location(database, REVIEW)),)
 
         #: When
-        reports = check_subjects(database, subjects, package_table)
+        reports = check_subjects(database, subjects, package_table, {})
 
         #: Then
         line_1 = LineNumber(NonZeroUnsignedInt(1))
@@ -1731,7 +1731,7 @@ class TestCheckSubjects:
         typing = ItemRef(RootRelativePath.parse('docs/code/python-typing.md'))
 
         #: When
-        reports = check_subjects(database, (typing,), package_table)
+        reports = check_subjects(database, (typing,), package_table, {})
 
         #: Then
         line_1 = LineNumber(NonZeroUnsignedInt(1))
@@ -1765,7 +1765,7 @@ class TestCheckSubjects:
         )
 
         #: When
-        reports = check_subjects(database, (GUIDE,), package_table)
+        reports = check_subjects(database, (GUIDE,), package_table, {})
 
         #: Then
         assert reports == (
@@ -1785,7 +1785,7 @@ class TestCheckSubjects:
         )
 
         #: When
-        reports = check_subjects(database, (GUIDE,), package_table)
+        reports = check_subjects(database, (GUIDE,), package_table, {})
 
         #: Then
         occurrence = NonMappingFrontmatter(owner=GUIDE_OWNER, line=LineNumber(NonZeroUnsignedInt(1)))
@@ -1815,7 +1815,7 @@ class TestCheckSubjects:
         subjects = (GUIDE, _item(database, _location(database, REVIEW)))
 
         #: When
-        check_subjects(database, subjects, table)
+        check_subjects(database, subjects, table, {})
 
         #: Then
         assert database.query_reads(frontmatter_schema_problems, ItemRef(GUIDE.path)) == frozenset()
@@ -1831,7 +1831,7 @@ class TestCheckSubjects:
         )
 
         #: When
-        reports = check_subjects(database, (GUIDE,), package_table)
+        reports = check_subjects(database, (GUIDE,), package_table, {})
 
         #: Then
         missing = MissingTitle(line=LineNumber(NonZeroUnsignedInt(1)))
@@ -1859,7 +1859,7 @@ class TestCheckSubjects:
         database = Database.from_snapshot(_snapshot(structure_spec, guide=guide), builtin_layers=(SKILLS_LAYER,))
 
         #: When
-        reports = check_subjects(database, (GUIDE,), package_table)
+        reports = check_subjects(database, (GUIDE,), package_table, {})
 
         #: Then
         first_title = _heading(guide, 'Guide')
@@ -1885,7 +1885,7 @@ class TestCheckSubjects:
         database = Database.from_snapshot(_snapshot(structure_spec, guide=guide), builtin_layers=(SKILLS_LAYER,))
 
         #: When
-        reports = check_subjects(database, (GUIDE,), package_table)
+        reports = check_subjects(database, (GUIDE,), package_table, {})
 
         #: Then
         occurrence = TitleNotFirst(
@@ -1911,7 +1911,7 @@ class TestCheckSubjects:
         )
 
         #: When
-        reports = check_subjects(database, (GUIDE,), package_table)
+        reports = check_subjects(database, (GUIDE,), package_table, {})
 
         #: Then
         assert reports == (
@@ -1934,7 +1934,7 @@ class TestCheckSubjects:
         )
 
         #: When
-        reports = check_subjects(database, (GUIDE,), package_table)
+        reports = check_subjects(database, (GUIDE,), package_table, {})
 
         #: Then
         occurrence = EmptySection(
@@ -1960,7 +1960,7 @@ class TestCheckSubjects:
         )
 
         #: When
-        reports = check_subjects(database, (GUIDE,), package_table)
+        reports = check_subjects(database, (GUIDE,), package_table, {})
 
         #: Then
         occurrence = ForbiddenSection(spec=CODE_SPEC, line=LineNumber(NonZeroUnsignedInt(7)), section='Changelog')
@@ -1987,7 +1987,7 @@ class TestCheckSubjects:
         )
 
         #: When
-        reports = check_subjects(database, (GUIDE,), package_table)
+        reports = check_subjects(database, (GUIDE,), package_table, {})
 
         #: Then
         occurrence = SectionTooManyWords(
@@ -2015,7 +2015,7 @@ class TestCheckSubjects:
         )
 
         #: When
-        reports = check_subjects(database, (GUIDE,), package_table)
+        reports = check_subjects(database, (GUIDE,), package_table, {})
 
         #: Then
         occurrence = TitleTooManyWords(spec=CODE_SPEC, line=LineNumber(NonZeroUnsignedInt(1)), overrun=overrun(4, 3))
@@ -2041,7 +2041,7 @@ class TestCheckSubjects:
         )
 
         #: When
-        reports = check_subjects(database, (GUIDE,), package_table)
+        reports = check_subjects(database, (GUIDE,), package_table, {})
 
         #: Then
         occurrence = TitleTooLong(spec=CODE_SPEC, line=LineNumber(NonZeroUnsignedInt(1)), overrun=overrun(20, 12))
@@ -2067,7 +2067,7 @@ class TestCheckSubjects:
         )
 
         #: When
-        reports = check_subjects(database, (GUIDE,), package_table)
+        reports = check_subjects(database, (GUIDE,), package_table, {})
 
         #: Then
         occurrence = InvalidTitle(
@@ -2098,7 +2098,7 @@ class TestCheckSubjects:
         table = RuleTable(severities)
 
         #: When
-        check_subjects(database, (GUIDE,), table)
+        check_subjects(database, (GUIDE,), table, {})
 
         #: Then
         assert database.parsed_documents == [], 'no enabled rule reads the headings, so the document is never parsed'
@@ -2112,7 +2112,7 @@ class TestCheckSubjects:
         database = Database.from_snapshot(_snapshot(outline, guide=guide), builtin_layers=(SKILLS_LAYER,))
 
         #: When
-        reports = check_subjects(database, (GUIDE,), package_table)
+        reports = check_subjects(database, (GUIDE,), package_table, {})
 
         #: Then
         occurrence = MissingSection(
@@ -2139,7 +2139,7 @@ class TestCheckSubjects:
         database = Database.from_snapshot(_snapshot(outline, guide=guide), builtin_layers=(SKILLS_LAYER,))
 
         #: When
-        reports = check_subjects(database, (GUIDE,), package_table)
+        reports = check_subjects(database, (GUIDE,), package_table, {})
 
         #: Then
         expected = ExpectedSection(name=SectionName.parse('Install'), written_at=_section(guide, 'Install'))
@@ -2163,7 +2163,7 @@ class TestCheckSubjects:
         database = Database.from_snapshot(_snapshot(outline, guide=guide), builtin_layers=(SKILLS_LAYER,))
 
         #: When
-        reports = check_subjects(database, (GUIDE,), package_table)
+        reports = check_subjects(database, (GUIDE,), package_table, {})
 
         #: Then
         expected = ExpectedSection(name=SectionName.parse('Usage'), written_at=_section(guide, 'Usage'))
@@ -2189,7 +2189,7 @@ class TestCheckSubjects:
         )
 
         #: When
-        reports = check_subjects(database, (GUIDE,), package_table)
+        reports = check_subjects(database, (GUIDE,), package_table, {})
 
         #: Then
         assert reports == (
@@ -2210,7 +2210,7 @@ class TestCheckSubjects:
         table = RuleTable(severities)
 
         #: When
-        check_subjects(database, (GUIDE,), table)
+        check_subjects(database, (GUIDE,), table, {})
 
         #: Then
         assert database.parsed_documents == [], 'no enabled rule reads the outline, so the document is never parsed'
@@ -2223,7 +2223,7 @@ class TestCheckSubjects:
         database = Database.from_snapshot(_snapshot(_budget(1000), guide=guide), builtin_layers=(SKILLS_LAYER,))
 
         #: When
-        reports = check_subjects(database, (GUIDE,), package_table)
+        reports = check_subjects(database, (GUIDE,), package_table, {})
 
         #: Then
         occurrence = AbsoluteLink(line=LineNumber(NonZeroUnsignedInt(3)), url='/docs/code/setup.md')
@@ -2247,7 +2247,7 @@ class TestCheckSubjects:
         subjects = (_item(database, _location(database, REVIEW)),)
 
         #: When
-        reports = check_subjects(database, subjects, package_table)
+        reports = check_subjects(database, subjects, package_table, {})
 
         #: Then
         occurrence = AbsoluteLink(line=LineNumber(NonZeroUnsignedInt(7)), url='/tmp/diff.md')
@@ -2281,7 +2281,7 @@ class TestCheckSubjects:
         subjects = tuple(_item(database, item) for item in _resources(database, REVIEW))
 
         #: When
-        reports = check_subjects(database, subjects, package_table)
+        reports = check_subjects(database, subjects, package_table, {})
 
         #: Then
         occurrence = AbsoluteLink(line=LineNumber(NonZeroUnsignedInt(3)), url='/assets/flow.png')
@@ -2318,7 +2318,7 @@ class TestCheckSubjects:
         )
 
         #: When
-        reports = check_subjects(database, subjects, package_table)
+        reports = check_subjects(database, subjects, package_table, {})
 
         #: Then
         occurrence = AbsoluteLink(line=LineNumber(NonZeroUnsignedInt(1)), url='/x.md')
@@ -2346,7 +2346,7 @@ class TestCheckSubjects:
         subjects = tuple(_item(database, item) for item in _resources(database, REVIEW))
 
         #: When
-        reports = check_subjects(database, subjects, package_table)
+        reports = check_subjects(database, subjects, package_table, {})
 
         #: Then
         assert reports == (UndecodableSubject(ItemRef(cafe.path), _CAFE_TITLE_FAILURE),), (
@@ -2374,7 +2374,7 @@ class TestCheckSubjects:
         )
 
         #: When
-        reports = check_subjects(database, subjects, package_table)
+        reports = check_subjects(database, subjects, package_table, {})
 
         #: Then
         occurrence = AbsoluteLink(line=LineNumber(NonZeroUnsignedInt(1)), url='/x.md')
@@ -2398,7 +2398,7 @@ class TestCheckSubjects:
         subjects = (_item(database, _location(database, REVIEW)),)
 
         #: When
-        reports = check_subjects(database, subjects, package_table)
+        reports = check_subjects(database, subjects, package_table, {})
 
         #: Then
         invalid_yaml = InvalidYaml(
@@ -2436,7 +2436,7 @@ class TestCheckSubjects:
         table = RuleTable(severities)
 
         #: When
-        reports = check_subjects(database, (GUIDE,), table)
+        reports = check_subjects(database, (GUIDE,), table, {})
 
         #: Then
         assert reports == (
@@ -2461,7 +2461,7 @@ class TestCheckSubjects:
         database = Database.from_snapshot(_snapshot(_budget(1000), guide=guide), builtin_layers=(SKILLS_LAYER,))
 
         #: When
-        reports = check_subjects(database, (GUIDE,), package_table)
+        reports = check_subjects(database, (GUIDE,), package_table, {})
 
         #: Then
         occurrence = BrokenFragment(line=LineNumber(NonZeroUnsignedInt(3)), url='#install', has_headings=True)
@@ -2485,7 +2485,7 @@ class TestCheckSubjects:
         subjects = (_item(database, _location(database, REVIEW)),)
 
         #: When
-        reports = check_subjects(database, subjects, package_table)
+        reports = check_subjects(database, subjects, package_table, {})
 
         #: Then
         occurrence = BrokenFragment(line=LineNumber(NonZeroUnsignedInt(7)), url='#steps', has_headings=True)
@@ -2515,7 +2515,7 @@ class TestCheckSubjects:
         )
 
         #: When
-        reports = check_subjects(database, subjects, package_table)
+        reports = check_subjects(database, subjects, package_table, {})
 
         #: Then
         occurrence = BrokenFragment(line=LineNumber(NonZeroUnsignedInt(3)), url='#usage', has_headings=True)
@@ -2557,7 +2557,7 @@ class TestCheckSubjects:
         )
 
         #: When
-        reports = check_subjects(database, subjects, package_table)
+        reports = check_subjects(database, subjects, package_table, {})
 
         #: Then
         assert reports == (
@@ -2639,7 +2639,7 @@ class TestCheckSubjects:
         subjects = tuple(_item(database, item) for item in _resources(database, REVIEW))
 
         #: When
-        reports = check_subjects(database, subjects, package_table)
+        reports = check_subjects(database, subjects, package_table, {})
 
         #: Then
         occurrence = EscapingLink(
@@ -2667,7 +2667,7 @@ class TestCheckSubjects:
         subjects = (_item(database, _location(database, REVIEW)),)
 
         #: When
-        reports = check_subjects(database, subjects, package_table)
+        reports = check_subjects(database, subjects, package_table, {})
 
         #: Then
         occurrence = EscapingLink(
@@ -2691,7 +2691,7 @@ class TestCheckSubjects:
         database = Database.from_snapshot(_snapshot(_budget(1000), guide=guide), builtin_layers=(SKILLS_LAYER,))
 
         #: When
-        reports = check_subjects(database, (GUIDE,), package_table)
+        reports = check_subjects(database, (GUIDE,), package_table, {})
 
         #: Then
         assert reports == (
@@ -2771,7 +2771,7 @@ class TestCheckSubjectsBrokenLink:
         subjects = (_item(database, _location(database, REVIEW)),)
 
         #: When
-        reports = check_subjects(database, subjects, broken_link_table)
+        reports = check_subjects(database, subjects, broken_link_table, {})
 
         #: Then
         assert reports == (
@@ -2797,7 +2797,7 @@ class TestCheckSubjectsBrokenLink:
 
         #: When
         reports = check_subjects(
-            database, tuple(_item(database, resource) for resource in resources), broken_link_table
+            database, tuple(_item(database, resource) for resource in resources), broken_link_table, {}
         )
 
         #: Then
@@ -2825,7 +2825,7 @@ class TestCheckSubjectsBrokenLink:
         subjects = (_item(database, _location(database, REVIEW)),)
 
         #: When
-        reports = check_subjects(database, subjects, broken_link_table)
+        reports = check_subjects(database, subjects, broken_link_table, {})
 
         #: Then
         assert reports == (
@@ -2852,7 +2852,7 @@ class TestCheckSubjectsBrokenLink:
         subjects = (_item(database, _location(database, REVIEW)), *(_item(database, item) for item in resources))
 
         #: When
-        reports = check_subjects(database, subjects, broken_link_table)
+        reports = check_subjects(database, subjects, broken_link_table, {})
 
         #: Then
         assert reports == (
@@ -2880,7 +2880,7 @@ class TestCheckSubjectsBrokenLink:
         subjects = (_item(database, _location(database, REVIEW)),)
 
         #: When
-        reports = check_subjects(database, subjects, broken_link_table)
+        reports = check_subjects(database, subjects, broken_link_table, {})
 
         #: Then
         assert reports == (CheckedItem(ItemRef(REVIEW.path), diagnostics=()),), (
@@ -2895,7 +2895,7 @@ class TestCheckSubjectsBrokenLink:
         database = Database.from_snapshot(take_snapshot(tmp_path, SNAPSHOT_SCOPE), builtin_layers=(SKILLS_LAYER,))
 
         #: When
-        reports = check_subjects(database, (GUIDE,), broken_link_table)
+        reports = check_subjects(database, (GUIDE,), broken_link_table, {})
 
         #: Then
         occurrence = BrokenLink(
@@ -2921,7 +2921,7 @@ class TestCheckSubjectsBrokenLink:
         database = Database.from_snapshot(take_snapshot(tmp_path, SNAPSHOT_SCOPE), builtin_layers=(SKILLS_LAYER,))
 
         #: When
-        reports = check_subjects(database, (GUIDE,), broken_link_table)
+        reports = check_subjects(database, (GUIDE,), broken_link_table, {})
 
         #: Then
         assert reports == (CheckedItem(ItemRef(GUIDE.path), diagnostics=(), ungoverned=()),), (
@@ -2937,7 +2937,7 @@ class TestCheckSubjectsBrokenLink:
         database = Database.from_snapshot(take_snapshot(tmp_path, SNAPSHOT_SCOPE), builtin_layers=(SKILLS_LAYER,))
 
         #: When
-        reports = check_subjects(database, (GUIDE,), broken_link_table)
+        reports = check_subjects(database, (GUIDE,), broken_link_table, {})
 
         #: Then
         assert reports == (CheckedItem(ItemRef(GUIDE.path), diagnostics=(), ungoverned=()),), (
@@ -2952,7 +2952,7 @@ class TestCheckSubjectsBrokenLink:
         database = Database.from_snapshot(take_snapshot(tmp_path, SNAPSHOT_SCOPE), builtin_layers=(SKILLS_LAYER,))
 
         #: When
-        reports = check_subjects(database, (GUIDE,), broken_link_table)
+        reports = check_subjects(database, (GUIDE,), broken_link_table, {})
 
         #: Then
         assert reports == (CheckedItem(ItemRef(GUIDE.path), diagnostics=(), ungoverned=()),), (

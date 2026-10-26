@@ -113,7 +113,7 @@ class TestCheckSubjectsLayout:
         subjects = _layout_subjects(database)
 
         #: When
-        reports = check_subjects(database, subjects, package_table)
+        reports = check_subjects(database, subjects, package_table, {})
 
         #: Then
         assert reports == (_outside_report('.claude/skills', '.claude/skills', elsewhere),), (
@@ -132,7 +132,7 @@ class TestCheckSubjectsLayout:
         subjects = _layout_subjects(database)
 
         #: When
-        reports = check_subjects(database, subjects, package_table)
+        reports = check_subjects(database, subjects, package_table, {})
 
         #: Then
         assert reports == (_outside_report('.agents/skills/x', '.agents/skills/x', target),), (
@@ -151,7 +151,7 @@ class TestCheckSubjectsLayout:
         subjects = _layout_subjects(database)
 
         #: When
-        reports = check_subjects(database, subjects, package_table)
+        reports = check_subjects(database, subjects, package_table, {})
 
         #: Then
         assert reports == (
@@ -170,7 +170,7 @@ class TestCheckSubjectsLayout:
         subjects = _layout_subjects(database)
 
         #: When
-        reports = check_subjects(database, subjects, package_table)
+        reports = check_subjects(database, subjects, package_table, {})
 
         #: Then
         assert reports == (
@@ -190,7 +190,7 @@ class TestCheckSubjectsLayout:
         subjects = _layout_subjects(database)
 
         #: When
-        reports = check_subjects(database, subjects, package_table)
+        reports = check_subjects(database, subjects, package_table, {})
 
         #: Then
         assert reports == (_outside_report('.agents/skills/x', 'hop', elsewhere),), (
@@ -208,7 +208,7 @@ class TestCheckSubjectsLayout:
         subjects = _layout_subjects(database)
 
         #: When
-        reports = check_subjects(database, subjects, package_table)
+        reports = check_subjects(database, subjects, package_table, {})
 
         #: Then
         assert reports == (
@@ -227,7 +227,7 @@ class TestCheckSubjectsLayout:
         subjects = _layout_subjects(database)
 
         #: When
-        reports = check_subjects(database, subjects, package_table)
+        reports = check_subjects(database, subjects, package_table, {})
 
         #: Then
         assert reports == (), 'a link dangling inside the repository is not one leading outside it, so none is judged'
@@ -244,7 +244,7 @@ class TestCheckSubjectsLayout:
         subjects = _layout_subjects(database)
 
         #: When
-        reports = check_subjects(database, subjects, package_table)
+        reports = check_subjects(database, subjects, package_table, {})
 
         #: Then
         assert reports == (), 'a skills directory linked to another inside the repository is self-contained'
@@ -263,7 +263,7 @@ class TestCheckSubjectsLayout:
         subjects: tuple[CheckedSubject, ...] = (*_layout_subjects(database), ItemRef(location.ref.path))
 
         #: When
-        reports = check_subjects(database, subjects, package_table)
+        reports = check_subjects(database, subjects, package_table, {})
 
         #: Then
         assert reports == (
