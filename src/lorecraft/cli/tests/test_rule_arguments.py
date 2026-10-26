@@ -1,9 +1,10 @@
 """Parsing the values of `--select`, `--ignore` and `rule [RULE]`, and confirming them against the rule index."""
 
-from typing import Final, Literal
+from typing import Final
 
 import pytest
 
+from lorecraft.rules.index import ConditionRow, RemovedRuleRow, RuleIndexRow, RuleRow
 from lorecraft.rules.registry import Registry
 from lorecraft.rules.tests.sample_rules import valid as valid_rules
 
@@ -27,23 +28,28 @@ from ..rule_arguments import (
     UnknownSelectorError,
 )
 
-type Row = tuple[str, str, Literal['rule', 'removed', 'condition'], str, tuple[str, ...]]
-
 
 class SampleIndex:
     """A small rule index: two groups, and a rule with an alias code and a removed rule."""
 
     CODE_DIGITS: Final[int] = 3
     GROUPS: Final[tuple[tuple[str, str], ...]] = (('LC', 'Engine conditions'), ('OUT', 'Outline checks'))
-    RULES: Final[tuple[Row, ...]] = (
-        ('LC001', 'invalid-utf8', 'condition', 'error', ()),
-        ('OUT004', 'empty-section', 'rule', 'deny', ('MD040',)),
-        ('OUT006', 'missing-section', 'rule', 'deny', ()),
-        ('OUT010', 'retired-rule', 'removed', '', ()),
+    RULES: Final[tuple[RuleIndexRow, ...]] = (
+        ConditionRow('LC001', 'invalid-utf8', 'error'),
+        RuleRow('OUT004', 'empty-section', 'deny', ('MD040',)),
+        RuleRow('OUT006', 'missing-section', 'deny', ()),
+        RemovedRuleRow('OUT010', 'retired-rule'),
     )
 
-    def find(self, key: str, /) -> Row | None:
-        return next((row for row in self.RULES if key in (row[0], row[1], *row[4])), None)
+    def find(self, key: str, /) -> RuleIndexRow | None:
+        return next(
+            (
+                row
+                for row in self.RULES
+                if key in (row.code, row.name) or isinstance(row, RuleRow) and key in row.aliases
+            ),
+            None,
+        )
 
     def find_group_title(self, prefix: str, /) -> str | None:
         return next((title for group_prefix, title in self.GROUPS if group_prefix == prefix), None)

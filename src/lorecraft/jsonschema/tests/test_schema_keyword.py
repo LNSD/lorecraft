@@ -11,6 +11,7 @@ from ..json_type import JsonType
 from ..schema_keyword import (
     AdditionalPropertiesKeyword,
     ConstKeyword,
+    Dependency,
     DependentRequiredKeyword,
     EnumKeyword,
     Keyword,
@@ -79,7 +80,9 @@ class TestKeywordOf:
         keyword = _keyword(schema, instance)
 
         #: Then
-        assert keyword == DependentRequiredKeyword((('a', ('b', 'c')),)), 'each field maps to its dependencies'
+        assert keyword == DependentRequiredKeyword((Dependency('a', ('b', 'c')),)), (
+            'each field maps to its dependencies'
+        )
 
     def test_keyword_of_with_additional_properties_returns_its_variant(self) -> None:
         #: Given

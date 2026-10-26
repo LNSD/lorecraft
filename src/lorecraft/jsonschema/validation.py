@@ -112,11 +112,11 @@ def _facts(
             )
         case DependentRequiredKeyword(dependencies):
             return tuple(
-                MissingDependentProperties(DependentProperty(field, dependency))
-                for field, needs in dependencies
-                if field in instance
-                for dependency in needs
-                if dependency not in instance and dependency_message(field, dependency) == error.message
+                MissingDependentProperties(DependentProperty(dependency.field, required))
+                for dependency in dependencies
+                if dependency.field in instance
+                for required in dependency.requires
+                if required not in instance and dependency_message(dependency.field, required) == error.message
             )
         case AdditionalPropertiesKeyword():
             properties = schema.get('properties', {})

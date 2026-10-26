@@ -309,19 +309,19 @@ def _dependency_problems(
         data: The frontmatter that was validated, as plain data.
     """
     problems: list[FrontmatterProblem] = []
-    for field, dependencies in keyword.dependencies:
-        if field not in data:
+    for dependency in keyword.dependencies:
+        if dependency.field not in data:
             continue
-        for dependency in dependencies:
-            if dependency not in data:
-                message = dependency_message(field, dependency)
+        for required in dependency.requires:
+            if required not in data:
+                message = dependency_message(dependency.field, required)
                 problems.append(
                     InvalidValueProblem(
-                        field,
+                        dependency.field,
                         message,
                         OtherValueConstraint(),
                         reason=schema_reason(_thaw(violation.schema)),
-                        guidance=property_guidance(root_schema, field),
+                        guidance=property_guidance(root_schema, dependency.field),
                     )
                 )
     return problems
