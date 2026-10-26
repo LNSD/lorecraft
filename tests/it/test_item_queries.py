@@ -33,6 +33,7 @@ from lorecraft.project.query import (
 from lorecraft.project.schemas import SpecName, frontmatter_schema_problems, outline_alignment
 from lorecraft.project.syntax import NormalisedLinkPath
 from lorecraft.project.workspace import WorkspaceModel
+from lorecraft.project.workspace.builtin import AGENT_SKILLS_SPEC_LAYER as SKILLS_LAYER
 from lorecraft.vfs import Snapshot, VirtualFileSystem, take_snapshot
 
 GUIDE: Final[ItemRef] = ItemRef(RootRelativePath.parse('docs/code/guide.md'))
@@ -109,7 +110,7 @@ def _item_base(primitives: ItemPrimitives) -> AspectFilename | SpecName | None:
 class TestItemQueries:
     def test_item_text_of_a_document_and_a_skill_entry_returns_one_witness_type(self) -> None:
         #: Given
-        database = Database.from_snapshot(_snapshot())
+        database = Database.from_snapshot(_snapshot(), builtin_layers=(SKILLS_LAYER,))
 
         #: When
         document = database.item_text(GUIDE)
@@ -122,7 +123,7 @@ class TestItemQueries:
 
     def test_item_text_of_a_file_that_is_not_utf8_returns_one_marker_without_per_file_facts(self) -> None:
         #: Given
-        database = Database.from_snapshot(_snapshot(skill=b'---\nname: caf\xe9\n---\n'))
+        database = Database.from_snapshot(_snapshot(skill=b'---\nname: caf\xe9\n---\n'), builtin_layers=(SKILLS_LAYER,))
 
         #: When
         first = database.item_text(REVIEW)
@@ -134,7 +135,7 @@ class TestItemQueries:
 
     def test_item_primitives_answer_undecodable_text_consistently(self) -> None:
         #: Given
-        database = Database.from_snapshot(_snapshot(skill=b'---\nname: caf\xe9\n---\n'))
+        database = Database.from_snapshot(_snapshot(skill=b'---\nname: caf\xe9\n---\n'), builtin_layers=(SKILLS_LAYER,))
         source = database.item_text(REVIEW)
         assert isinstance(source, Undecodable), 'the skill is not UTF-8'
 
@@ -150,7 +151,7 @@ class TestItemQueries:
 
     def test_item_queries_called_twice_return_the_first_answer(self) -> None:
         #: Given
-        database = Database.from_snapshot(_snapshot())
+        database = Database.from_snapshot(_snapshot(), builtin_layers=(SKILLS_LAYER,))
         source = _decoded(database, GUIDE)
 
         #: Then
@@ -170,7 +171,7 @@ class TestItemQueries:
         self,
     ) -> None:
         #: Given
-        database = TracingDatabase.from_snapshot(_snapshot())
+        database = TracingDatabase.from_snapshot(_snapshot(), builtin_layers=(SKILLS_LAYER,))
         source = _decoded(database, GUIDE)
 
         #: When
@@ -182,7 +183,7 @@ class TestItemQueries:
 
     def test_item_outline_alignment_of_an_ungoverned_skill_entry_reads_no_parse(self) -> None:
         #: Given
-        database = TracingDatabase.from_snapshot(_snapshot())
+        database = TracingDatabase.from_snapshot(_snapshot(), builtin_layers=(SKILLS_LAYER,))
         source = _decoded(database, REVIEW)
 
         #: When
@@ -194,7 +195,7 @@ class TestItemQueries:
 
     def test_item_governance_returns_the_models_layers_for_a_document_and_none_for_a_skill_entry(self) -> None:
         #: Given
-        database = Database.from_snapshot(_snapshot())
+        database = Database.from_snapshot(_snapshot(), builtin_layers=(SKILLS_LAYER,))
         document = database.model().find_document(GUIDE.path)
         assert document is not None, 'the model lists the document'
 
@@ -205,7 +206,7 @@ class TestItemQueries:
 
     def test_item_link_targets_read_each_items_own_base_and_climb_bound(self) -> None:
         #: Given
-        database = Database.from_snapshot(_snapshot(guide=LINKS))
+        database = Database.from_snapshot(_snapshot(guide=LINKS), builtin_layers=(SKILLS_LAYER,))
         up = NormalisedLinkPath.parse('../up.md')
         far = NormalisedLinkPath.parse('../../far.md')
 
@@ -228,10 +229,10 @@ class TestItemQueries:
         skills = tmp_path / '.agents' / 'skills'
         skills.mkdir(parents=True)
         (skills / 'review').symlink_to('../../a')
-        before = Database.from_snapshot(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
+        before = Database.from_snapshot(take_snapshot(tmp_path, SNAPSHOT_SCOPE), builtin_layers=(SKILLS_LAYER,))
         (skills / 'review').unlink()
         (skills / 'review').symlink_to('../../b')
-        after = Database.from_snapshot(take_snapshot(tmp_path, SNAPSHOT_SCOPE))
+        after = Database.from_snapshot(take_snapshot(tmp_path, SNAPSHOT_SCOPE), builtin_layers=(SKILLS_LAYER,))
 
         #: When
         old = _decoded(before, REVIEW)
@@ -243,7 +244,7 @@ class TestItemQueries:
 
     def test_item_after_a_compatibility_entry_point_resolved_an_unlisted_document_still_refuses_it(self) -> None:
         #: Given
-        database = Database.from_snapshot(_snapshot())
+        database = Database.from_snapshot(_snapshot(), builtin_layers=(SKILLS_LAYER,))
         unlisted = DocumentRef(CorpusName.parse('other'), AspectFilename.parse('x'))
         assert database.item_governance(ItemRef(unlisted.path)) is None, 'no corpus governs it'
 
@@ -256,7 +257,7 @@ class TestItemQueries:
 
     def test_item_governance_with_a_document_in_a_corpus_the_model_lacks_answers_none(self) -> None:
         #: Given
-        database = Database.from_snapshot(_snapshot())
+        database = Database.from_snapshot(_snapshot(), builtin_layers=(SKILLS_LAYER,))
         unlisted = DocumentRef(CorpusName.parse('other'), AspectFilename.parse('x'))
 
         #: When
@@ -267,7 +268,7 @@ class TestItemQueries:
 
     def test_item_text_with_a_document_the_model_does_not_list_reads_it_from_its_path(self) -> None:
         #: Given
-        database = Database.from_snapshot(_snapshot())
+        database = Database.from_snapshot(_snapshot(), builtin_layers=(SKILLS_LAYER,))
         unlisted = ItemRef(RootRelativePath.parse('docs/code/missing.md'))
 
         #: When
@@ -279,7 +280,7 @@ class TestItemQueries:
 
     def test_item_text_with_a_path_naming_neither_a_document_nor_a_skill_raises_unlisted_item_error(self) -> None:
         #: Given
-        database = Database.from_snapshot(_snapshot())
+        database = Database.from_snapshot(_snapshot(), builtin_layers=(SKILLS_LAYER,))
         elsewhere = ItemRef(RootRelativePath.parse('src/readme.md'))
 
         #: When

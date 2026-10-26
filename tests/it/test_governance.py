@@ -23,6 +23,7 @@ from lorecraft.project.document import DocumentRef
 from lorecraft.project.item import ItemRef
 from lorecraft.project.schemas.name import CorpusSpecName, NamespaceSpecName
 from lorecraft.project.workspace import Corpus, CorpusNamespace, Governance
+from lorecraft.project.workspace.builtin import AGENT_SKILLS_SPEC_LAYER as SKILLS_LAYER
 from lorecraft.rules.registry import Registry
 from lorecraft.rules.selection import AllRules, RuleSelection
 from lorecraft.rules.table import RuleTable
@@ -84,7 +85,7 @@ def _spec_names(governance: Governance) -> list[CorpusSpecName | NamespaceSpecNa
 class TestGovernance:
     def test_governance_with_a_document_in_a_corpus_holds_the_corpus_and_matching_namespace_specs(self) -> None:
         #: Given
-        database = Database.from_snapshot(_snapshot())
+        database = Database.from_snapshot(_snapshot(), builtin_layers=(SKILLS_LAYER,))
 
         #: When
         governance = database.item_governance(ItemRef(TYPING.path))
@@ -100,7 +101,7 @@ class TestGovernance:
 
     def test_governance_with_a_document_in_a_corpus_the_model_lacks_holds_none(self) -> None:
         #: Given
-        database = Database.from_snapshot(_snapshot())
+        database = Database.from_snapshot(_snapshot(), builtin_layers=(SKILLS_LAYER,))
 
         #: When
         governance = database.item_governance(ItemRef(UNLISTED.path))
@@ -110,7 +111,7 @@ class TestGovernance:
 
     def test_governance_called_twice_returns_the_first_answer(self) -> None:
         #: Given
-        database = Database.from_snapshot(_snapshot())
+        database = Database.from_snapshot(_snapshot(), builtin_layers=(SKILLS_LAYER,))
         first = database.item_governance(ItemRef(TYPING.path))
 
         #: When
@@ -121,7 +122,11 @@ class TestGovernance:
 
     def test_governance_across_corpora_differing_only_in_an_unrelated_filename_is_equal(self) -> None:
         #: Given
-        corpus = Database.from_snapshot(_snapshot()).model().find_corpus(CorpusName.parse('code'))
+        corpus = (
+            Database.from_snapshot(_snapshot(), builtin_layers=(SKILLS_LAYER,))
+            .model()
+            .find_corpus(CorpusName.parse('code'))
+        )
         assert corpus is not None, 'the snapshot declares corpus `code`'
         other_filename = AspectFilename.parse('other')
         with_other_document = replace(corpus, filenames=corpus.filenames | {other_filename})
@@ -137,7 +142,11 @@ class TestGovernance:
 
     def test_governance_across_corpora_differing_only_in_a_non_matching_namespace_is_equal(self) -> None:
         #: Given
-        corpus = Database.from_snapshot(_snapshot()).model().find_corpus(CorpusName.parse('code'))
+        corpus = (
+            Database.from_snapshot(_snapshot(), builtin_layers=(SKILLS_LAYER,))
+            .model()
+            .find_corpus(CorpusName.parse('code'))
+        )
         assert corpus is not None, 'the snapshot declares corpus `code`'
         namespace = AspectNamespace.parse('rust')
         other_namespaces = FrozenMapping({**corpus.namespaces, namespace: CorpusNamespace(files=(), structure=None)})
@@ -163,7 +172,7 @@ class TestRunComputesGovernanceOnce:
         table = RuleTable.from_registry(
             Registry.load(rules), RuleSelection(select=frozenset({AllRules()}), ignore=frozenset())
         )
-        database = Database.from_snapshot(_snapshot())
+        database = Database.from_snapshot(_snapshot(), builtin_layers=(SKILLS_LAYER,))
         computed: list[AspectFilename] = []
         original = Corpus.governance
 

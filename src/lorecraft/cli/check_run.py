@@ -29,7 +29,6 @@ from lorecraft.engine import UnlistableRoot, check_subjects, report_load_failure
 from lorecraft.project.database import Database
 from lorecraft.project.layout import DECLARATION, DOCS_DIR, SNAPSHOT_SCOPE
 from lorecraft.project.workspace import WorkspaceModel, reject_unreported_refusals
-from lorecraft.project.workspace.builtin import AGENT_SKILLS_SPEC_LAYER
 from lorecraft.project.workspace.model import BuiltinSpecLayer
 from lorecraft.rules.engine import RefusedOperation
 from lorecraft.rules.engine.unreadable_path import Refused, UnreadablePath
@@ -58,7 +57,7 @@ def run_check(
     color: ColorChoice,
     select: list[SelectorValue] | None,
     ignore: list[SelectorValue] | None,
-    builtin_layers: tuple[BuiltinSpecLayer, ...] = (AGENT_SKILLS_SPEC_LAYER,),
+    builtin_layers: tuple[BuiltinSpecLayer, ...],
 ) -> ExitStatus | None:
     """Run the rules over the workspace and write the report; the body of `lorecraft check`.
 

@@ -28,6 +28,7 @@ from lorecraft.project.schemas import (
 )
 from lorecraft.project.schemas.outline_alignment import AlignedSection
 from lorecraft.project.workspace import WorkspaceModel
+from lorecraft.project.workspace.builtin import AGENT_SKILLS_SPEC_LAYER as SKILLS_LAYER
 from lorecraft.vfs import Snapshot, VirtualFileSystem
 
 TYPING: Final[DocumentRef] = DocumentRef(CorpusName.parse('code'), AspectFilename.parse('python-typing'))
@@ -137,7 +138,9 @@ class TestOutlineAlignment:
     def test_outline_alignment_with_an_outlined_document_aligns_each_section_to_its_entry(self) -> None:
         #: Given
         outline = b'{"outline": [{"section": "Rule"}, {"any": true}, {"section": "Checklist"}]}'
-        database = Database.from_snapshot(_snapshot(outline, None, RULE_ASIDE_CHECKLIST))
+        database = Database.from_snapshot(
+            _snapshot(outline, None, RULE_ASIDE_CHECKLIST), builtin_layers=(SKILLS_LAYER,)
+        )
         source = _document_text(database, TYPING)
 
         #: When
@@ -156,7 +159,9 @@ class TestOutlineAlignment:
     def test_outline_alignment_called_twice_returns_the_first_answer(self) -> None:
         #: Given
         outline = b'{"outline": [{"section": "Rule"}, {"any": true}, {"section": "Checklist"}]}'
-        database = ParsingDatabase.from_snapshot(_snapshot(outline, None, RULE_ASIDE_CHECKLIST))
+        database = ParsingDatabase.from_snapshot(
+            _snapshot(outline, None, RULE_ASIDE_CHECKLIST), builtin_layers=(SKILLS_LAYER,)
+        )
         source = _document_text(database, TYPING)
         first = database.query(outline_alignment, source.ref)
 
@@ -171,7 +176,9 @@ class TestOutlineAlignment:
         #: Given
         corpus_spec = b'{"forbidden": ["Aside"]}'
         namespace_spec = b'{"outline": [{"section": "Rule"}, {"any": true}]}'
-        database = Database.from_snapshot(_snapshot(corpus_spec, namespace_spec, RULE_ASIDE_CHECKLIST))
+        database = Database.from_snapshot(
+            _snapshot(corpus_spec, namespace_spec, RULE_ASIDE_CHECKLIST), builtin_layers=(SKILLS_LAYER,)
+        )
         source = _document_text(database, TYPING)
 
         #: When
@@ -192,7 +199,9 @@ class TestOutlineAlignment:
 
     def test_outline_alignment_with_no_structure_specification_holds_none(self) -> None:
         #: Given
-        database = ParsingDatabase.from_snapshot(_snapshot(None, None, RULE_ASIDE_CHECKLIST))
+        database = ParsingDatabase.from_snapshot(
+            _snapshot(None, None, RULE_ASIDE_CHECKLIST), builtin_layers=(SKILLS_LAYER,)
+        )
         source = _document_text(database, TYPING)
 
         #: When
@@ -213,7 +222,7 @@ class TestOutlineAlignment:
                 }
             }
         )
-        database = Database.from_snapshot(snapshot)
+        database = Database.from_snapshot(snapshot, builtin_layers=(SKILLS_LAYER,))
         source = _document_text(database, DocumentRef(CorpusName.parse('blog'), AspectFilename.parse('launch')))
 
         #: When
@@ -225,7 +234,9 @@ class TestOutlineAlignment:
     def test_outline_alignment_query_reads_only_the_specifications_and_the_headings(self) -> None:
         #: Given
         outline = b'{"outline": [{"section": "Rule"}, {"any": true}, {"section": "Checklist"}]}'
-        database = Database.from_snapshot(_snapshot(outline, None, RULE_ASIDE_CHECKLIST))
+        database = Database.from_snapshot(
+            _snapshot(outline, None, RULE_ASIDE_CHECKLIST), builtin_layers=(SKILLS_LAYER,)
+        )
 
         #: When
         database.query(outline_alignment, ItemRef(TYPING.path))

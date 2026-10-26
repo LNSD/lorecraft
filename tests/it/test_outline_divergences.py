@@ -39,6 +39,7 @@ from lorecraft.project.syntax import (
     section_headings,
 )
 from lorecraft.project.workspace import WorkspaceModel
+from lorecraft.project.workspace.builtin import AGENT_SKILLS_SPEC_LAYER as SKILLS_LAYER
 from lorecraft.rules.outline.__ruleset__ import outline_divergences
 from lorecraft.vfs import Snapshot, VirtualFileSystem
 
@@ -154,7 +155,9 @@ class TestOutlineDivergences:
         outline = (
             b'{"outline": [{"section": "Rule"}, {"any": true}, {"section": "Checklist"}, {"section": "See Also"}]}'
         )
-        database = Database.from_snapshot(_snapshot(outline, None, RULE_ASIDE_CHECKLIST))
+        database = Database.from_snapshot(
+            _snapshot(outline, None, RULE_ASIDE_CHECKLIST), builtin_layers=(SKILLS_LAYER,)
+        )
         source = _document_text(database, TYPING)
 
         #: When
@@ -174,7 +177,9 @@ class TestOutlineDivergences:
     def test_outline_divergences_called_twice_returns_the_first_answer(self) -> None:
         #: Given
         outline = b'{"outline": [{"section": "Rule"}, {"any": true}, {"section": "Checklist"}]}'
-        database = ParsingDatabase.from_snapshot(_snapshot(outline, None, RULE_ASIDE_CHECKLIST))
+        database = ParsingDatabase.from_snapshot(
+            _snapshot(outline, None, RULE_ASIDE_CHECKLIST), builtin_layers=(SKILLS_LAYER,)
+        )
         source = _document_text(database, TYPING)
         first = database.query(outline_divergences, source.ref)
 
@@ -189,7 +194,9 @@ class TestOutlineDivergences:
         #: Given
         corpus_spec = b'{"empty_sections": "forbidden"}'
         namespace_spec = b'{"outline": [{"section": "Rule"}, {"any": true}]}'
-        database = Database.from_snapshot(_snapshot(corpus_spec, namespace_spec, RULE_ASIDE_CHECKLIST))
+        database = Database.from_snapshot(
+            _snapshot(corpus_spec, namespace_spec, RULE_ASIDE_CHECKLIST), builtin_layers=(SKILLS_LAYER,)
+        )
         source = _document_text(database, TYPING)
 
         #: When
@@ -202,7 +209,10 @@ class TestOutlineDivergences:
 
     def test_outline_divergences_with_no_outline_holds_none(self) -> None:
         #: Given
-        database = Database.from_snapshot(_snapshot(b'{"empty_sections": "forbidden"}', None, RULE_ASIDE_CHECKLIST))
+        database = Database.from_snapshot(
+            _snapshot(b'{"empty_sections": "forbidden"}', None, RULE_ASIDE_CHECKLIST),
+            builtin_layers=(SKILLS_LAYER,),
+        )
         source = _document_text(database, TYPING)
 
         #: When
@@ -213,7 +223,9 @@ class TestOutlineDivergences:
 
     def test_outline_divergences_with_no_structure_specification_never_parses_the_document(self) -> None:
         #: Given
-        database = ParsingDatabase.from_snapshot(_snapshot(None, None, RULE_ASIDE_CHECKLIST))
+        database = ParsingDatabase.from_snapshot(
+            _snapshot(None, None, RULE_ASIDE_CHECKLIST), builtin_layers=(SKILLS_LAYER,)
+        )
         source = _document_text(database, TYPING)
 
         #: When
@@ -233,7 +245,7 @@ class TestOutlineDivergences:
                 }
             }
         )
-        database = Database.from_snapshot(snapshot)
+        database = Database.from_snapshot(snapshot, builtin_layers=(SKILLS_LAYER,))
         source = _document_text(database, DocumentRef(CorpusName.parse('blog'), AspectFilename.parse('launch')))
 
         #: When
@@ -245,8 +257,14 @@ class TestOutlineDivergences:
     def test_outline_divergences_query_reads_the_line_count_only_when_an_outline_is_stated(self) -> None:
         #: Given
         ref = ItemRef(TYPING.path)
-        outlined = Database.from_snapshot(_snapshot(b'{"outline": [{"section": "Rule"}]}', None, RULE_ASIDE_CHECKLIST))
-        unoutlined = Database.from_snapshot(_snapshot(b'{"empty_sections": "forbidden"}', None, RULE_ASIDE_CHECKLIST))
+        outlined = Database.from_snapshot(
+            _snapshot(b'{"outline": [{"section": "Rule"}]}', None, RULE_ASIDE_CHECKLIST),
+            builtin_layers=(SKILLS_LAYER,),
+        )
+        unoutlined = Database.from_snapshot(
+            _snapshot(b'{"empty_sections": "forbidden"}', None, RULE_ASIDE_CHECKLIST),
+            builtin_layers=(SKILLS_LAYER,),
+        )
 
         #: When
         outlined.query(outline_divergences, ref)
@@ -265,7 +283,9 @@ class TestOutlineDivergences:
     ) -> None:
         #: Given
         outline = b'{"outline": [{"section": "Rule"}, {"any": true}, {"section": "Checklist"}]}'
-        database = Database.from_snapshot(_snapshot(outline, None, RULE_ASIDE_CHECKLIST))
+        database = Database.from_snapshot(
+            _snapshot(outline, None, RULE_ASIDE_CHECKLIST), builtin_layers=(SKILLS_LAYER,)
+        )
         ref = ItemRef(TYPING.path)
         aligned: list[int] = []
         monkeypatch.setattr(outline_queries_module, 'align_outlines', _counting(aligned))
@@ -282,7 +302,9 @@ class TestOutlineDivergences:
     ) -> None:
         #: Given
         outline = b'{"outline": [{"section": "Rule"}, {"any": true}, {"section": "Checklist"}]}'
-        database = Database.from_snapshot(_snapshot(outline, None, RULE_ASIDE_CHECKLIST))
+        database = Database.from_snapshot(
+            _snapshot(outline, None, RULE_ASIDE_CHECKLIST), builtin_layers=(SKILLS_LAYER,)
+        )
         ref = ItemRef(TYPING.path)
         aligned: list[int] = []
         monkeypatch.setattr(outline_queries_module, 'align_outlines', _counting(aligned))
