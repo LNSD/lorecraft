@@ -7,8 +7,8 @@ and the rule index left out, and keeps the declarations whose module lies in tha
 so a test that walks a package of sample rules sees only those, and the package's own registry never sees them.
 
 The registry is package data: it reads no workspace and is not a query. A rejection, a code, a name or an alias
-code bound twice, a removed rule replaced by a code no rule declares, a prefix given two groups, a class attribute
-left unbound, an item rule with no gates, a rule or a condition still abstract, or a rule with its code in the
+code bound twice, a removed rule replaced by a rule not held by the registry, a prefix given two groups, a class
+attribute left unbound, a rule or a condition still abstract, or a rule with its code in the
 engine's group, is a defect in `lorecraft.rules`, never in the user's repository, so it
 raises a `RuntimeError` whose traceback locates the declaration.
 
@@ -126,7 +126,7 @@ class DuplicateRuleCodeError(RuntimeError):
 
 
 class UnknownReplacementError(RuntimeError):
-    """A removed rule names, as the rule that replaced it, a code that no declaration holds.
+    """A removed rule names a replacement whose code no declaration holds.
 
     Attributes:
         removed_rule: The removed rule.
@@ -136,9 +136,10 @@ class UnknownReplacementError(RuntimeError):
 
     def __init__(self, removed_rule: type[RemovedRule]) -> None:
         self.removed_rule = removed_rule
+        replacement = removed_rule.REPLACED_BY
+        assert replacement is not None
         super().__init__(
-            f'removed rule {removed_rule.__qualname__} is replaced by {removed_rule.REPLACED_BY}, '
-            'which no rule declares'
+            f'removed rule {removed_rule.__qualname__} is replaced by {replacement.CODE}, which no rule declares'
         )
 
 
@@ -244,12 +245,12 @@ class Registry:
 
         Raises:
             UnsetRuleAttributeError: If a declaration leaves a class attribute its kind requires unbound, including
-                an item rule with no gates.
+                `APPLIES_TO` on a queried item rule.
             AbstractRuleError: If a rule class or an engine condition is still abstract.
             RuleInEngineGroupError: If a rule's or a removed rule's code is in the engine's group.
             DuplicateRuleCodeError: If a code is bound twice.
             ConflictingRuleGroupError: If two codes give one prefix two different groups.
-            UnknownReplacementError: If a removed rule is replaced by a code no declaration holds.
+            UnknownReplacementError: If a removed rule is replaced by a rule this registry does not hold.
             DuplicateRuleNameError: If a name is bound twice.
             DuplicateAliasCodeError: If an alias code is bound twice, or is already bound as a code or a name.
         """
@@ -279,12 +280,12 @@ class Registry:
 
         Raises:
             UnsetRuleAttributeError: If a declaration leaves a class attribute its kind requires unbound, including
-                an item rule with no gates.
+                `APPLIES_TO` on a queried item rule.
             AbstractRuleError: If a rule class or an engine condition declared in the package is still abstract.
             RuleInEngineGroupError: If a rule's or a removed rule's code is in the engine's group.
             DuplicateRuleCodeError: If a code is bound twice.
             ConflictingRuleGroupError: If two codes give one prefix two different groups.
-            UnknownReplacementError: If a removed rule is replaced by a code no declaration holds.
+            UnknownReplacementError: If a removed rule is replaced by a rule this registry does not hold.
             DuplicateRuleNameError: If a name is bound twice.
             DuplicateAliasCodeError: If an alias code is bound twice, or is already bound as a code or a name.
             Exception: Whatever a module of the package raises as it is imported, unchanged, since a registry
@@ -444,13 +445,13 @@ def _reject_unbound_attributes_of_kinds(
         conditions: The engine conditions.
 
     Raises:
-        UnsetRuleAttributeError: If a declaration leaves a required attribute unbound.
+        UnsetRuleAttributeError: If a declaration leaves a required attribute unbound, including `APPLIES_TO` on
+            a queried item rule.
     """
     for rule_class in rule_classes:
         _reject_unbound_attributes(rule_class, _RULE_ATTRIBUTES)
-    for rule_class in rule_classes:
-        if issubclass(rule_class, QueriedItemRule) and not rule_class.__dict__.get('APPLIES_TO'):
-            raise UnsetRuleAttributeError(rule_class, 'APPLIES_TO')
+        if issubclass(rule_class, QueriedItemRule):
+            _reject_unbound_attributes(rule_class, ('APPLIES_TO',))
     for removed_rule in removed_rules:
         _reject_unbound_attributes(removed_rule, _REMOVED_RULE_ATTRIBUTES)
     for condition in conditions:
@@ -553,7 +554,7 @@ def _reject_unknown_replacements(
     removed_rules: tuple[type[RemovedRule], ...],
     by_key: dict[str, RuleDeclaration],
 ) -> None:
-    """Reject a removed rule replaced by a code no declaration holds.
+    """Reject a removed rule replaced by a rule this registry does not hold.
 
     Every code is bound by now, so a replacement is checked against all of them, whichever order the rules sit in.
 
@@ -562,11 +563,11 @@ def _reject_unknown_replacements(
         by_key: The declarations by printed code.
 
     Raises:
-        UnknownReplacementError: If a replacement is not a held code.
+        UnknownReplacementError: If a replacement's code is not held by the registry.
     """
     for removed_rule in removed_rules:
         replaced_by = removed_rule.REPLACED_BY
-        if replaced_by is not None and str(replaced_by) not in by_key:
+        if replaced_by is not None and str(replaced_by.CODE) not in by_key:
             raise UnknownReplacementError(removed_rule)
 
 

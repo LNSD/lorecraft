@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import ClassVar, Self
 
 from lorecraft.rules.collector import rule
-from lorecraft.rules.declaration import RemovedRule
+from lorecraft.rules.declaration import RemovedRule, Rule
 from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.tests.sample_subject import SampleLines, SampleLinesRule
 
@@ -42,4 +42,4 @@ class Retired(RemovedRule):
     CODE: ClassVar[RuleCode] = RuleCode(SAMPLE, 2)
     NAME: ClassVar[RuleName] = RuleName('shared-name')
     REMOVED_IN: ClassVar[Release] = Release('1.1.0')
-    REPLACED_BY: ClassVar[RuleCode | None] = None
+    REPLACED_BY: ClassVar[type[Rule] | None] = None

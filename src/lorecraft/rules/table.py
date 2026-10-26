@@ -1,8 +1,8 @@
-"""The rule table: rules a run enables, indexed by the items and spec parts they judge.
+"""The rule table: rules a run enables, indexed by item type and declared gate.
 
 The table is built once per run, before any subject is checked. It pairs each enabled rule with the severity of its
 occurrences. Rules left off by their default level or a run selection are absent; removed rules and engine
-conditions are not enabled rules. Item rules are indexed once by item type and optional spec part, while
+conditions are not enabled rules. Item rules are indexed once by item type and gate, while
 rules over layout symlinks and reserved-corpus directories keep separate partitions. A rule's closed gate declaration
 determines which index buckets contain it. Only queried rules can be indexed, so each rule in a bucket has a query
 for the runner to resolve.
@@ -12,26 +12,24 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any, Self, assert_never
 
-from lorecraft.project.item import ItemType, SpecPart
+from lorecraft.project.item import ItemType
 
 from .declaration import Rule
 from .identity import Level, Severity
 from .registry import Registry
 from .selection import RuleSelection
 from .subject import (
-    Always,
+    Gate,
     QueriedCorpusDirectoryRule,
     QueriedItemRule,
     QueriedSymlinkRule,
-    WhenSpec,
 )
 
 
 class UnknownRuleBaseError(TypeError):
-    """A rule cannot enter the table because it has no supported query base or no item gates.
+    """A rule cannot enter the table because it has no supported query base.
 
-    The rule hierarchy is open. The table rejects rules without a supported queried base, and item rules without
-    declared gates, before any subject is checked.
+    The rule hierarchy is open. The table rejects rules without a supported queried base before any subject is checked.
 
     Attributes:
         rule: The rule class rejected while building the table.
@@ -41,7 +39,7 @@ class UnknownRuleBaseError(TypeError):
 
     def __init__(self, rule: type[Rule]) -> None:
         self.rule = rule
-        super().__init__(f'rule {rule.__qualname__} ({rule.CODE}) has no supported query base or item gates')
+        super().__init__(f'rule {rule.__qualname__} ({rule.CODE}) has no supported query base')
 
 
 @dataclass(frozen=True, slots=True)
@@ -57,14 +55,17 @@ class EnabledRule[R: Rule]:
     severity: Severity
 
 
+# The table combines rules with unrelated query fact types; each rule retains its own query type at dispatch.
 type QueriedItem = QueriedItemRule[Any]
 
 
 class RuleTable:
-    """The enabled rules of one run, indexed by item type and spec part, plus separate layout partitions."""
+    """The enabled rules of one run, indexed by item type and gate, plus separate layout partitions."""
 
-    _item_rules: dict[tuple[ItemType, SpecPart | None], tuple[EnabledRule[QueriedItem], ...]]
+    _item_rules: dict[tuple[ItemType, Gate], tuple[EnabledRule[QueriedItem], ...]]
+    # Layout rules share a partition despite having unrelated query fact types.
     _symlink_rules: tuple[EnabledRule[QueriedSymlinkRule[Any]], ...]
+    # Corpus-directory rules likewise preserve each rule's query type until dispatch.
     _corpus_directory_rules: tuple[EnabledRule[QueriedCorpusDirectoryRule[Any]], ...]
 
     def __init__(self, severities: Mapping[type[Rule], Severity]) -> None:
@@ -74,9 +75,9 @@ class RuleTable:
             severities: Each enabled rule, mapped to the severity its occurrences are reported at.
 
         Raises:
-            UnknownRuleBaseError: If a rule has no supported query base or an item rule has no gates.
+            UnknownRuleBaseError: If a rule has no supported query base.
         """
-        item_rules: dict[tuple[ItemType, SpecPart | None], list[EnabledRule[QueriedItem]]] = {}
+        item_rules: dict[tuple[ItemType, Gate], list[EnabledRule[QueriedItem]]] = {}
         symlink_rules: list[EnabledRule[QueriedSymlinkRule[Any]]] = []
         corpus_directory_rules: list[EnabledRule[QueriedCorpusDirectoryRule[Any]]] = []
         for rule_class in sorted(severities, key=_printed_code):
@@ -85,18 +86,9 @@ class RuleTable:
             elif issubclass(rule_class, QueriedCorpusDirectoryRule):
                 corpus_directory_rules.append(EnabledRule(rule_class, severities[rule_class]))
             elif issubclass(rule_class, QueriedItemRule):
-                if not rule_class.APPLIES_TO:
-                    raise UnknownRuleBaseError(rule_class)
                 enabled = EnabledRule(rule_class, severities[rule_class])
                 for item_type, gate in rule_class.APPLIES_TO.items():
-                    match gate:
-                        case WhenSpec(part):
-                            part_key = part
-                        case Always():
-                            part_key = None
-                        case _:
-                            assert_never(gate)
-                    item_rules.setdefault((item_type, part_key), []).append(enabled)
+                    item_rules.setdefault((item_type, gate), []).append(enabled)
             else:
                 raise UnknownRuleBaseError(rule_class)
         self._item_rules = {key: tuple(rules) for key, rules in item_rules.items()}
@@ -112,7 +104,7 @@ class RuleTable:
             selection: The rules this run keeps; a rule it leaves out is not enabled.
 
         Raises:
-            UnknownRuleBaseError: If an enabled rule has no supported query base or no item gates.
+            UnknownRuleBaseError: If an enabled rule has no supported query base.
         """
         severities: dict[type[Rule], Severity] = {}
         for rule_class in registry.rules_in_service:
@@ -123,14 +115,14 @@ class RuleTable:
                 severities[rule_class] = severity
         return cls(severities)
 
-    def item_rules(self, item_type: ItemType, part: SpecPart | None) -> tuple[EnabledRule[QueriedItem], ...]:
-        """Each enabled item rule gated for this item type and spec part, in code order.
+    def item_rules(self, item_type: ItemType, gate: Gate) -> tuple[EnabledRule[QueriedItem], ...]:
+        """Each enabled item rule gated for this item type and gate, in code order.
 
         Args:
             item_type: The item type to look up.
-            part: The active spec part, or `None` for `Always` and schema gates.
+            gate: The applicability gate declared by a rule.
         """
-        return self._item_rules.get((item_type, part), ())
+        return self._item_rules.get((item_type, gate), ())
 
     @property
     def symlink_rules(self) -> tuple[EnabledRule[QueriedSymlinkRule[Any]], ...]:

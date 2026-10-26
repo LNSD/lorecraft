@@ -62,6 +62,7 @@ from lorecraft.rules.report import (
 )
 from lorecraft.rules.subject import (
     Always,
+    Gate,
     QueriedCorpusDirectoryRule,
     QueriedItemRule,
     QueriedSymlinkRule,
@@ -73,8 +74,8 @@ from lorecraft.rules.table import EnabledRule, QueriedItem, RuleTable
 class ItemRuleLookup(Protocol):
     """The item-rule lookup the shared judge needs from a run's rule table."""
 
-    def item_rules(self, item_type: ItemType, part: SpecPart | None) -> tuple[EnabledRule[QueriedItem], ...]:
-        """Each enabled rule for an item type and optional spec part."""
+    def item_rules(self, item_type: ItemType, gate: Gate) -> tuple[EnabledRule[QueriedItem], ...]:
+        """Each enabled rule for an item type and applicability gate."""
 
 
 def judge_item(
@@ -99,12 +100,13 @@ def judge_item(
     ungoverned: list[SpecPart] = []
 
     # Spec parts follow `SpecPart` order, then `Always` rules; unmet gates become coverage.
-    for part in (*SpecPart, None):
+    for gate in (*(WhenSpec(part) for part in SpecPart), Always()):
         rules = tuple(
-            enabled for enabled in table.item_rules(descriptor.type, part) if judges(enabled.rule, descriptor)
+            enabled for enabled in table.item_rules(descriptor.type, gate) if judges(enabled.rule, descriptor)
         )
         if not rules:
             continue
+        part = gate.part if isinstance(gate, WhenSpec) else None
         if part is not None and part not in descriptor.governed_parts:
             ungoverned.append(part)
             continue

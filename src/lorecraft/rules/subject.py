@@ -18,7 +18,6 @@ skill files.
 from abc import ABC, abstractmethod
 from collections.abc import Mapping
 from dataclasses import dataclass
-from types import MappingProxyType
 from typing import ClassVar, Self
 
 from lorecraft.project.item import ItemType, SpecPart
@@ -84,7 +83,7 @@ class QueriedItemRule[Facts](Queried[Facts, ItemQuery[Facts]], ContentRule):
     never judged. Layout rules use their separate queried bases because their query primitives differ.
     """
 
-    APPLIES_TO: ClassVar[Mapping[ItemType, Gate]] = MappingProxyType({})
+    APPLIES_TO: ClassVar[Mapping[ItemType, Gate]]
 
     @classmethod
     @abstractmethod

@@ -1,4 +1,4 @@
-"""A sample item rule with no gate, so the registry must reject it as inapplicable."""
+"""A sample item rule that leaves its applicability declaration unbound."""
 
 from dataclasses import dataclass
 from typing import ClassVar, Self
@@ -22,7 +22,7 @@ def _nothing(primitives: ItemPrimitives) -> None:
 @rule
 @dataclass(frozen=True, slots=True, kw_only=True)
 class Unfaceted(QueriedItemRule[None]):
-    """A sample rule that never fires, and declares no item gate."""
+    """A sample rule that never fires and leaves `APPLIES_TO` unbound."""
 
     CODE: ClassVar[RuleCode] = RuleCode(SAMPLE, 1)
     NAME: ClassVar[RuleName] = RuleName('unfaceted')

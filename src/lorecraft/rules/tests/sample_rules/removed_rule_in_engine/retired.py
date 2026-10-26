@@ -3,7 +3,7 @@
 from typing import ClassVar
 
 from lorecraft.rules.collector import rule
-from lorecraft.rules.declaration import RemovedRule
+from lorecraft.rules.declaration import RemovedRule, Rule
 from lorecraft.rules.engine.__ruleset__ import GROUP_ID
 from lorecraft.rules.identity import Release, RuleCode, RuleName
 
@@ -15,4 +15,4 @@ class RetiredTrespasser(RemovedRule):
     CODE: ClassVar[RuleCode] = RuleCode(GROUP_ID, 902)
     NAME: ClassVar[RuleName] = RuleName('retired-trespasser')
     REMOVED_IN: ClassVar[Release] = Release('1.1.0')
-    REPLACED_BY: ClassVar[RuleCode | None] = None
+    REPLACED_BY: ClassVar[type[Rule] | None] = None

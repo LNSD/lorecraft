@@ -15,6 +15,7 @@ from lorecraft.project.database import Database, ItemText, Undecodable
 from lorecraft.project.item import ItemRef, ItemType, SpecPart
 from lorecraft.project.skill import OutsideSymlink, RefusedSkillAlias
 from lorecraft.rules.report import BlockedSubject, CheckedItem, RefusedSubject, SubjectReport, UndecodableSubject
+from lorecraft.rules.subject import Gate, WhenSpec
 from lorecraft.rules.table import EnabledRule, QueriedItem, RuleTable
 from lorecraft.vfs import RefusedRead, RefusedRecord
 
@@ -31,11 +32,11 @@ class _WithoutSpecRules(ItemRuleLookup):
     def __init__(self, table: RuleTable) -> None:
         self._table = table
 
-    def item_rules(self, item_type: ItemType, part: SpecPart | None) -> tuple[EnabledRule[QueriedItem], ...]:
+    def item_rules(self, item_type: ItemType, gate: Gate) -> tuple[EnabledRule[QueriedItem], ...]:
         """Keep always and schema rules while hiding every spec-gated rule."""
-        if part is not None:
+        if isinstance(gate, WhenSpec):
             return ()
-        return self._table.item_rules(item_type, part)
+        return self._table.item_rules(item_type, gate)
 
 
 def check_subjects(
@@ -123,6 +124,6 @@ def _check_item(
 def _judge_after_failed_layer(database: Database, source: ItemText, table: RuleTable) -> CheckedItem:
     """Judge the item with spec gates hidden and report their enabled parts as coverage."""
     report = judge_item(database, source, _WithoutSpecRules(table))
-    suppressed = {part for part in SpecPart if table.item_rules(source.descriptor.type, part)}
+    suppressed = {part for part in SpecPart if table.item_rules(source.descriptor.type, WhenSpec(part))}
     ungoverned = suppressed | set(report.ungoverned)
     return replace(report, ungoverned=tuple(part for part in SpecPart if part in ungoverned))
