@@ -534,7 +534,7 @@ class TestExitOnLoadFailure:
     def test_report_first_load_failure_with_no_failure_returns_none(self) -> None:
         #: Given
         model = WorkspaceModel(
-            corpora=FrozenMapping({}),
+            corpus_values=frozenset(),
             skills_dirs=frozenset(),
             skill_locations=FrozenMapping({}),
             outside_symlinks=FrozenMapping({}),
@@ -554,7 +554,7 @@ class TestExitOnLoadFailure:
         first = LoadFailure(RootRelativePath.parse('docs/__meta__'), UnlistableDirectory(_REFUSAL))
         second = LoadFailure(RootRelativePath.parse('docs'), UnlistableDirectory(_REFUSAL))
         model = WorkspaceModel(
-            corpora=FrozenMapping({}),
+            corpus_values=frozenset(),
             skills_dirs=frozenset(),
             skill_locations=FrozenMapping({}),
             outside_symlinks=FrozenMapping({}),

@@ -253,7 +253,7 @@ def load_workspace(
     for outside in outside_skills_dirs + outside_entries:
         outside_by_path[outside.path] = outside
     return WorkspaceModel(
-        corpora=FrozenMapping(corpora),
+        corpus_values=frozenset(corpora.values()),
         skills_dirs=frozenset(skills_dirs),
         skill_locations=FrozenMapping({location.ref: location for location in skill_locations}),
         outside_symlinks=FrozenMapping(outside_by_path),

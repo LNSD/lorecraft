@@ -820,7 +820,7 @@ class TestLoadWorkspaceEdgeCases:
         #: Then
         assert not missing_docs.exists(), 'the case turns on docs/ being absent'
         assert model == WorkspaceModel(
-            corpora=FrozenMapping({}),
+            corpus_values=frozenset(),
             skills_dirs=frozenset(),
             skill_locations=FrozenMapping({}),
             outside_symlinks=FrozenMapping({}),
