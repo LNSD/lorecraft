@@ -109,11 +109,11 @@ class RepositoryOrigin:
 
 @dataclass(frozen=True, slots=True)
 class BuiltinOrigin:
-    """Stable identity for a schema shipped with Lorecraft, without a fabricated path.
+    """Stable identity for a builtin schema or layer, without a fabricated path.
 
     Attributes:
-        identity: The built-in identity, which must match the schema reference identity and be non-empty.
-            Empty values raise `EmptyBuiltinOriginIdentityError`.
+        identity: The builtin identity; schema inputs derive their reference from it. Empty values raise
+            `EmptyBuiltinOriginIdentityError`.
     """
 
     identity: str
@@ -131,52 +131,8 @@ class BuiltinOrigin:
 type SchemaOrigin = RepositoryOrigin | BuiltinOrigin
 
 
-class SchemaOriginMismatchError(Error):
-    """A builtin origin identity differs from its schema reference identity.
-
-    Attributes:
-        reference: The schema reference whose builtin origin is inconsistent.
-        origin: The builtin origin whose identity differs from the reference.
-    """
-
-    reference: SchemaRef
-    origin: SchemaOrigin
-
-    def __init__(self, reference: SchemaRef, origin: SchemaOrigin) -> None:
-        self.reference = reference
-        self.origin = origin
-        super().__init__(f'origin does not match schema reference {reference.kind.value}:{reference.identity}')
-
-
 @dataclass(frozen=True, slots=True)
-class SchemaInput:
-    """An immutable schema document and its typed identity and provenance.
-
-    A builtin input's payload for validator-backed entries remains an open question for the skills-floor part.
-
-    Attributes:
-        reference: The typed schema identity.
-        origin: Repository or builtin provenance, independent of schema kind; builtin identity must match
-            the reference identity or `SchemaOriginMismatchError` is raised.
-        document: The immutable JSON mapping used by schema-backed entries.
-    """
-
-    reference: SchemaRef
-    origin: SchemaOrigin
-    document: FrozenMapping[str, Frozen]
-
-    def __post_init__(self) -> None:
-        """Keep builtin provenance tied to its schema reference.
-
-        Raises:
-            SchemaOriginMismatchError: If builtin origin identity differs from the reference identity.
-        """
-        if isinstance(self.origin, BuiltinOrigin) and self.origin.identity != self.reference.identity:
-            raise SchemaOriginMismatchError(self.reference, self.origin)
-
-
-@dataclass(frozen=True, slots=True)
-class RepositorySchemaInput(SchemaInput):
+class RepositorySchemaInput:
     """A schema input acquired from a repository, whose provenance is repository-only.
 
     Attributes:
@@ -185,4 +141,34 @@ class RepositorySchemaInput(SchemaInput):
         document: The immutable JSON mapping used by schema-backed entries.
     """
 
+    reference: SchemaRef
     origin: RepositoryOrigin
+    document: FrozenMapping[str, Frozen]
+
+    @property
+    def kind(self) -> SchemaKind:
+        """The role carried by the input's reference."""
+        return self.reference.kind
+
+
+@dataclass(frozen=True, slots=True)
+class BuiltinSchemaInput:
+    """A builtin schema document whose stable identity is held by its origin exactly once.
+
+    Attributes:
+        kind: The schema's role: structure or frontmatter.
+        origin: Stable builtin identity, used to derive the typed reference.
+        document: The immutable JSON mapping used by schema-backed entries.
+    """
+
+    kind: SchemaKind
+    origin: BuiltinOrigin
+    document: FrozenMapping[str, Frozen]
+
+    @property
+    def reference(self) -> SchemaRef:
+        """The typed schema identity derived from its kind and builtin origin."""
+        return SchemaRef(self.kind, self.origin.identity)
+
+
+type SchemaInput = RepositorySchemaInput | BuiltinSchemaInput

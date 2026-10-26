@@ -26,7 +26,7 @@ layer owns its validator and problem translation. Its import layer sits below `l
 - The builtin Agent Skills frontmatter model, its value types, and the input and registration function rendered from it.
 - In-memory lookup of an input by its typed reference.
 - `EmptySchemaRefIdentityError`, `EmptyRepositoryLayerError` and `EmptyBuiltinOriginIdentityError` carry rejected identity values.
-- `SchemaOriginMismatchError` carries a reference and builtin origin with different identities; registry lookups have typed missing and duplicate reference errors.
+- Builtin schema inputs derive their typed reference from the kind and builtin origin identity; repository inputs retain their typed reference and repository provenance. Registry construction has a typed duplicate-reference error and resolution a typed missing-reference error.
 
 ## Belongs Elsewhere
 
@@ -43,7 +43,7 @@ layer owns its validator and problem translation. Its import layer sits below `l
 - Empty identity and layer fields raise their operation-specific Lorecraft errors with the rejected values attached.
 - Structure and frontmatter are the only schema kinds; either kind may have repository or builtin provenance. Parsed structure specifications are not registry inputs.
 - Repository origins retain a root-relative path and governing layer; builtin origins retain a stable identity and no fabricated path.
-- A builtin origin identity must match its schema reference identity so the provenance names the referenced schema, regardless of kind; `SchemaOriginMismatchError` carries this mismatch.
+- A builtin schema input's reference derives from its kind and builtin origin identity, so its identity is stored once; repository schema references and their provenance remain distinct.
 - The builtin Agent Skills input carries the model-rendered JSON Schema as registry data, while schema queries return its Pydantic validator; do not substitute JSON Schema validation or infer equivalent diagnostic behavior from that document.
 - Registry resolution examines only the supplied immutable inputs. It performs no filesystem or external resource reads and holds no mutable cache.
 - This package imports no project database, query, workspace-loading or filesystem modules.
@@ -67,7 +67,7 @@ schema_input = registry.resolve(reference)
 Before committing code, verify:
 
 - [ ] Schema identity includes both kind and stable identity; empty identities raise `EmptySchemaRefIdentityError`
-- [ ] Inputs preserve immutable document values and provenance independently of kind; builtin origin identities must match their references
+- [ ] Inputs preserve immutable document values and provenance; builtin references derive from schema kind and builtin origin identity
 - [ ] Empty repository layers and builtin identities raise typed Lorecraft errors with their input values attached
 - [ ] Lookup is deterministic and refuses missing identities; registry construction refuses duplicate references with `DuplicateSchemaRefError`
 - [ ] No registry operation reads files, resolves external resources or memoizes results

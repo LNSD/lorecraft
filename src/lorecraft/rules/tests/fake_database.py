@@ -75,7 +75,7 @@ from lorecraft.project.workspace import Corpus, CorpusNamespace, CorpusSpec, Gov
 from lorecraft.project.workspace.builtin import AGENT_SKILLS_LINE_BUDGET, AGENT_SKILLS_SPEC_LAYER
 from lorecraft.rules.declaration import Rule
 from lorecraft.rules.subject import Queried, QueriedCorpusDirectoryRule, QueriedItemRule, QueriedSymlinkRule
-from lorecraft.schemas import BuiltinOrigin, RepositoryOrigin, SchemaInput, SchemaKind, SchemaRef
+from lorecraft.schemas import BuiltinOrigin, RepositoryOrigin, RepositorySchemaInput, SchemaInput, SchemaKind, SchemaRef
 from lorecraft.vfs import ResolvedPath, RootExit
 
 _DEFAULT_FILENAME: Final[str] = 'setup'
@@ -252,7 +252,9 @@ def _schema_inputs(governance: Governance) -> FrozenMapping[SchemaRef, SchemaInp
     for reference, schema in zip(
         governance.applicable_frontmatter_schema_refs(), governance.frontmatter_schemas(), strict=True
     ):
-        inputs[reference] = SchemaInput(reference, RepositoryOrigin(schema.spec, 'test'), schema.schema.schema)
+        inputs[reference] = RepositorySchemaInput(
+            reference, RepositoryOrigin(schema.spec, 'test'), schema.schema.schema
+        )
     return FrozenMapping(inputs)
 
 

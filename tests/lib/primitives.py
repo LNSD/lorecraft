@@ -46,7 +46,7 @@ from lorecraft.project.syntax import (
 )
 from lorecraft.project.workspace import Governance
 from lorecraft.rules.link.queries import linked_documents
-from lorecraft.schemas import BuiltinOrigin, RepositoryOrigin, SchemaInput, SchemaRef
+from lorecraft.schemas import BuiltinOrigin, RepositoryOrigin, RepositorySchemaInput, SchemaInput, SchemaRef
 from lorecraft.schemas.builtin import AGENT_SKILLS_SCHEMA_INPUT, AGENT_SKILLS_SCHEMA_REFERENCE
 
 
@@ -188,7 +188,9 @@ class StructurePrimitives:
                 self.governance_value.frontmatter_schemas(),
                 strict=True,
             ):
-                inputs[reference] = SchemaInput(reference, RepositoryOrigin(schema.spec, 'test'), schema.schema.schema)
+                inputs[reference] = RepositorySchemaInput(
+                    reference, RepositoryOrigin(schema.spec, 'test'), schema.schema.schema
+                )
         return FrozenMapping(inputs)
 
     def schema_input(self, reference: SchemaRef) -> SchemaInput | None:

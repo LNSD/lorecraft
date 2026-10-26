@@ -17,7 +17,7 @@ class TestBuiltinSchemaInput:
 
         #: When
         #: Then
-        assert schema_input.reference == AGENT_SKILLS_SCHEMA_REFERENCE, 'the input uses its declared reference'
+        assert schema_input.reference == AGENT_SKILLS_SCHEMA_REFERENCE, 'the input derives its reference from origin'
         assert isinstance(schema_input.origin, BuiltinOrigin), 'the input declares builtin provenance'
         assert schema_input.origin.identity == AGENT_SKILLS_SCHEMA_REFERENCE.identity, (
             'the input provenance matches its stable identity'

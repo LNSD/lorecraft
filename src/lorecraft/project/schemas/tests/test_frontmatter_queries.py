@@ -21,13 +21,19 @@ from lorecraft.project.schemas.frontmatter_queries import (
 )
 from lorecraft.project.schemas.skill_fields import SkillField, SkillName
 from lorecraft.project.syntax import parse_frontmatter
-from lorecraft.schemas import BuiltinOrigin, SchemaInput, SchemaKind, SchemaRef
-from lorecraft.schemas.types import SchemaOrigin
+from lorecraft.schemas import (
+    BuiltinOrigin,
+    BuiltinSchemaInput,
+    RepositoryOrigin,
+    RepositorySchemaInput,
+    SchemaInput,
+    SchemaKind,
+    SchemaRef,
+)
 
 from ..frontmatter_queries import owner_of_frontmatter
 
-# SAFETY: the schema query test deliberately supplies an origin outside the closed runtime variants.
-_UNHANDLED_SCHEMA_ORIGIN = cast(SchemaOrigin, object())
+_UNHANDLED_SCHEMA_ORIGIN: object = object()
 
 
 @pytest.mark.unit
@@ -102,8 +108,14 @@ class TestFrontmatterSchemaProblems:
     ) -> None:
         #: Given
         reference = SchemaRef(kind, identity)
-        origin = BuiltinOrigin(identity) if builtin_origin else _UNHANDLED_SCHEMA_ORIGIN
-        schema = SchemaInput(reference, origin, FrozenMapping({}))
+        schema: SchemaInput
+        if builtin_origin:
+            schema = BuiltinSchemaInput(reference.kind, BuiltinOrigin(identity), FrozenMapping({}))
+        else:
+            # SAFETY: The test supplies an origin outside the closed runtime variants to exercise the query boundary.
+            schema = RepositorySchemaInput(
+                reference, cast(RepositoryOrigin, _UNHANDLED_SCHEMA_ORIGIN), FrozenMapping({})
+            )
 
         class UnhandledSchemaPrimitives:
             def schema_input(self) -> SchemaInput:

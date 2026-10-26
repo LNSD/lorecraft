@@ -3,6 +3,7 @@
 from .registry import DuplicateSchemaRefError, SchemaRefError, SchemaRegistry
 from .types import (
     BuiltinOrigin,
+    BuiltinSchemaInput,
     EmptyBuiltinOriginIdentityError,
     EmptyRepositoryLayerError,
     EmptySchemaRefIdentityError,
@@ -11,12 +12,12 @@ from .types import (
     SchemaInput,
     SchemaKind,
     SchemaOrigin,
-    SchemaOriginMismatchError,
     SchemaRef,
 )
 
 __all__: list[str] = [
     'BuiltinOrigin',
+    'BuiltinSchemaInput',
     'DuplicateSchemaRefError',
     'EmptyBuiltinOriginIdentityError',
     'EmptyRepositoryLayerError',
@@ -25,7 +26,6 @@ __all__: list[str] = [
     'RepositorySchemaInput',
     'SchemaInput',
     'SchemaKind',
-    'SchemaOriginMismatchError',
     'SchemaOrigin',
     'SchemaRef',
     'SchemaRefError',
