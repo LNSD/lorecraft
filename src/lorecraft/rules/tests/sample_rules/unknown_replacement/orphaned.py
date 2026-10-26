@@ -3,8 +3,9 @@
 from typing import ClassVar
 
 from lorecraft.rules.collector import rule
-from lorecraft.rules.declaration import RemovedRule
+from lorecraft.rules.declaration import RemovedRule, Rule
 from lorecraft.rules.identity import Release, RuleCode, RuleName
+from lorecraft.rules.tests.sample_rules.valid.trailing_space import TrailingSpace
 
 from ..groups import SAMPLE
 
@@ -16,4 +17,4 @@ class Orphaned(RemovedRule):
     CODE: ClassVar[RuleCode] = RuleCode(SAMPLE, 1)
     NAME: ClassVar[RuleName] = RuleName('orphaned')
     REMOVED_IN: ClassVar[Release] = Release('1.1.0')
-    REPLACED_BY: ClassVar[RuleCode | None] = RuleCode(SAMPLE, 2)
+    REPLACED_BY: ClassVar[type[Rule] | None] = TrailingSpace

@@ -3,10 +3,11 @@
 from typing import ClassVar
 
 from lorecraft.rules.collector import rule
-from lorecraft.rules.declaration import RemovedRule
+from lorecraft.rules.declaration import RemovedRule, Rule
 from lorecraft.rules.identity import Release, RuleCode, RuleName
 
 from ..groups import SAMPLE
+from .trailing_space import TrailingSpace
 
 
 @rule
@@ -16,4 +17,4 @@ class TabIndent(RemovedRule):
     CODE: ClassVar[RuleCode] = RuleCode(SAMPLE, 3)
     NAME: ClassVar[RuleName] = RuleName('tab-indent')
     REMOVED_IN: ClassVar[Release] = Release('1.3.0')
-    REPLACED_BY: ClassVar[RuleCode | None] = RuleCode(SAMPLE, 2)
+    REPLACED_BY: ClassVar[type[Rule] | None] = TrailingSpace

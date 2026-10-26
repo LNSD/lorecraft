@@ -3,10 +3,11 @@
 from typing import ClassVar
 
 from lorecraft.rules.collector import rule
-from lorecraft.rules.declaration import RemovedRule
+from lorecraft.rules.declaration import RemovedRule, Rule
 from lorecraft.rules.identity import Release, RuleCode, RuleName
 
 from ..groups import SAMPLE
+from .over_half_budget import OverHalfBudget
 
 
 @rule
@@ -16,4 +17,4 @@ class NearBudget(RemovedRule):
     CODE: ClassVar[RuleCode] = RuleCode(SAMPLE, 4)
     NAME: ClassVar[RuleName] = RuleName('near-budget')
     REMOVED_IN: ClassVar[Release] = Release('1.1.0')
-    REPLACED_BY: ClassVar[RuleCode | None] = RuleCode(SAMPLE, 1)
+    REPLACED_BY: ClassVar[type[Rule] | None] = OverHalfBudget

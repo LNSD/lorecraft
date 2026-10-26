@@ -131,13 +131,13 @@ class RemovedRule:
         CODE: The code the rule had, never free to reuse.
         NAME: The name the rule had.
         REMOVED_IN: The release that removed the rule.
-        REPLACED_BY: The code of the rule that replaced it, or None when nothing did.
+        REPLACED_BY: The rule that replaced it, or None when nothing did.
     """
 
     CODE: ClassVar[RuleCode]
     NAME: ClassVar[RuleName]
     REMOVED_IN: ClassVar[Release]
-    REPLACED_BY: ClassVar[RuleCode | None]
+    REPLACED_BY: ClassVar[type[Rule] | None]
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

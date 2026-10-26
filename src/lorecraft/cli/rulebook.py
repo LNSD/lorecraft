@@ -194,7 +194,7 @@ def _frontmatter_lines(declaration: RuleDeclaration, summary: str) -> list[str]:
     elif issubclass(declaration, RemovedRule):
         lines.append(f'removed-in: {_quoted(str(declaration.REMOVED_IN))}')
         if declaration.REPLACED_BY is not None:
-            lines.append(f'replaced-by: {_quoted(str(declaration.REPLACED_BY))}')
+            lines.append(f'replaced-by: {_quoted(str(declaration.REPLACED_BY.CODE))}')
     elif issubclass(declaration, EngineCondition):
         lines.append(f'since: {_quoted(str(declaration.SINCE))}')
     else:
