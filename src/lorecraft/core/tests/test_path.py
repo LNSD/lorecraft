@@ -40,6 +40,16 @@ class TestRootRelativePath:
         #: Then
         assert parsed.value == PurePosixPath('docs/code/a.md'), 'a nested file path is kept as written'
 
+    def test_parts_returns_path_components(self) -> None:
+        #: Given
+        path = RootRelativePath.parse('docs/code/a.md')
+
+        #: When
+        parts = path.parts
+
+        #: Then
+        assert parts == (PathComponent('docs'), PathComponent('code'), PathComponent('a.md'))
+
     def test_parse_with_a_dot_directory_returns_it_unchanged(self) -> None:
         #: Given
         valid_path = '.agents/skills'

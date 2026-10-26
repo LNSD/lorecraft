@@ -164,7 +164,8 @@ def find_destination(
             resolved = ResolvedPath(resolved.parent)
             continue
         # A part of a root-relative path or of a link target is never empty, `.` or `..` (handled above), nor holds `/`.
-        candidate = resolved / PathComponent.parse(part)
+        component = part if isinstance(part, PathComponent) else PathComponent.parse(part)
+        candidate = resolved / component
         kind = entries.find_kind(candidate)
         match kind:
             case EntryKind.DIRECTORY:
@@ -182,7 +183,7 @@ def find_destination(
                 links_followed += 1
                 if not follow_links or links_followed > _MAX_LINKS:
                     return None
-                last_link = RootExit(candidate, target)
+                last_link = RootExit(ResolvedPath(candidate), target)
                 if target.is_absolute():
                     return last_link
                 remaining = list(target.parts) + remaining

@@ -73,7 +73,7 @@ class RootExit:
             `..`. Where it climbs above the root, the `..` that does so may come from an earlier link of the chain.
     """
 
-    link: RootRelativePath
+    link: ResolvedPath
     target: PurePosixPath
 
 

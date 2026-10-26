@@ -126,6 +126,7 @@ class FrozenMapping[K, V](Mapping[K, V]):
             handler: Pydantic's schema generator, which builds the `dict` schema the field is read and written as.
         """
         # A field is a JSON object, whose keys are strings, so only the value type is read from the annotation.
+        # Pydantic supplies no value argument for a bare FrozenMapping, which accepts any value.
         value_type = get_args(source)[1] if get_args(source) else Any
         if value_type is Frozen:
             # A model is validated from a JSON document or from the `dict` and `list` a caller builds, and strict
