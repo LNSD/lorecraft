@@ -847,6 +847,283 @@ class TestCheckCommand:
         assert result.stdout == '', 'a rejected level selector prints no diagnostics'
         assert usage_error_message(result.stderr) == expected, 'the invalid prefix is named before root discovery'
 
+    def test_check_with_an_unknown_code_refuses_before_discovering_the_root(self, tmp_path: Path) -> None:
+        #: Given
+        missing_root = tmp_path / 'missing-root'
+        arguments = ('check', '--root', str(missing_root), '-W', 'LC999')
+
+        #: When
+        result = run_cli(*arguments)
+
+        #: Then
+        message = usage_error_message(result.stderr)
+        assert result.returncode == 2, result.stderr
+        assert result.stdout == '', 'an unknown code is rejected before checking'
+        assert 'LC999' in message, 'the usage error names the unknown value'
+        assert '-W' in message, 'the usage error names the flag'
+        assert 'No such file or directory' not in message, 'validation happens before root discovery'
+
+    def test_check_with_a_group_refuses_before_discovering_the_root(self, tmp_path: Path) -> None:
+        #: Given
+        missing_root = tmp_path / 'missing-root'
+        arguments = ('check', '--root', str(missing_root), '-W', 'LC')
+
+        #: When
+        result = run_cli(*arguments)
+
+        #: Then
+        message = usage_error_message(result.stderr)
+        assert result.returncode == 2, result.stderr
+        assert result.stdout == '', 'a group is rejected before checking'
+        assert 'LC' in message, 'the usage error names the group'
+        assert '-W' in message, 'the usage error names the flag'
+        assert 'No such file or directory' not in message, 'validation happens before root discovery'
+
+    def test_check_with_a_rule_name_refuses_before_discovering_the_root(self, tmp_path: Path) -> None:
+        #: Given
+        missing_root = tmp_path / 'missing-root'
+        arguments = ('check', '--root', str(missing_root), '-W', 'empty-section')
+
+        #: When
+        result = run_cli(*arguments)
+
+        #: Then
+        message = usage_error_message(result.stderr)
+        assert result.returncode == 2, result.stderr
+        assert result.stdout == '', 'a rule name is rejected before checking'
+        assert 'empty-section' in message, 'the usage error names the rule name'
+        assert '-W' in message, 'the usage error names the flag'
+        assert 'No such file or directory' not in message, 'validation happens before root discovery'
+
+    def test_check_with_an_engine_condition_refuses_before_discovering_the_root(self, tmp_path: Path) -> None:
+        #: Given
+        missing_root = tmp_path / 'missing-root'
+        arguments = ('check', '--root', str(missing_root), '-W', 'LC001')
+
+        #: When
+        result = run_cli(*arguments)
+
+        #: Then
+        message = usage_error_message(result.stderr)
+        assert result.returncode == 2, result.stderr
+        assert result.stdout == '', 'an engine condition is rejected before checking'
+        assert 'LC001' in message, 'the usage error names the engine condition code'
+        assert '-W' in message, 'the usage error names the flag'
+        assert 'No such file or directory' not in message, 'validation happens before root discovery'
+
+    def test_check_with_an_empty_level_value_refuses_before_discovering_the_root(self, tmp_path: Path) -> None:
+        #: Given
+        missing_root = tmp_path / 'missing-root'
+        arguments = ('check', '--root', str(missing_root), '-W', '')
+
+        #: When
+        result = run_cli(*arguments)
+
+        #: Then
+        message = usage_error_message(result.stderr)
+        assert result.returncode == 2, result.stderr
+        assert result.stdout == '', 'an empty value is rejected before checking'
+        assert "''" in message, 'the usage error names the empty value'
+        assert '-W' in message, 'the usage error names the flag'
+        assert 'No such file or directory' not in message, 'validation happens before root discovery'
+
+    def test_check_with_lowercase_all_refuses_before_discovering_the_root(self, tmp_path: Path) -> None:
+        #: Given
+        missing_root = tmp_path / 'missing-root'
+        arguments = ('check', '--root', str(missing_root), '-W', 'all')
+
+        #: When
+        result = run_cli(*arguments)
+
+        #: Then
+        message = usage_error_message(result.stderr)
+        assert result.returncode == 2, result.stderr
+        assert result.stdout == '', 'lowercase all is rejected before checking'
+        assert 'all' in message, 'the usage error names lowercase all'
+        assert '-W' in message, 'the usage error names the flag'
+        assert 'No such file or directory' not in message, 'validation happens before root discovery'
+
+    def test_check_with_warnings_on_allow_flag_rejects_before_discovering_the_root(self, tmp_path: Path) -> None:
+        #: Given
+        missing_root = tmp_path / 'missing-root'
+        arguments = ('check', '--root', str(missing_root), '-A', 'warnings')
+
+        #: When
+        result = run_cli(*arguments)
+
+        #: Then
+        message = usage_error_message(result.stderr)
+        assert result.returncode == 2, result.stderr
+        assert result.stdout == '', 'warnings is not valid for -A'
+        assert 'warnings' in message, 'the usage error names the reserved value'
+        assert '-A' in message, 'the usage error names the flag'
+        assert 'No such file or directory' not in message, 'validation happens before root discovery'
+
+    def test_check_with_warnings_on_warn_flag_rejects_before_discovering_the_root(self, tmp_path: Path) -> None:
+        #: Given
+        missing_root = tmp_path / 'missing-root'
+        arguments = ('check', '--root', str(missing_root), '-W', 'warnings')
+
+        #: When
+        result = run_cli(*arguments)
+
+        #: Then
+        message = usage_error_message(result.stderr)
+        assert result.returncode == 2, result.stderr
+        assert result.stdout == '', 'warnings is not valid for -W'
+        assert 'warnings' in message, 'the usage error names the reserved value'
+        assert '-W' in message, 'the usage error names the flag'
+        assert 'No such file or directory' not in message, 'validation happens before root discovery'
+
+    def test_check_with_a_repeated_level_for_one_code_reaches_root_discovery(self, tmp_path: Path) -> None:
+        #: Given
+        missing_root = tmp_path / 'missing-root'
+        arguments = ('check', '--root', str(missing_root), '-W', 'LC101', '-W', 'LC101')
+
+        #: When
+        result = run_cli(*arguments)
+
+        #: Then
+        assert 'is not an existing directory' in result.stderr, result.stderr
+        assert 'Error: Invalid value' not in result.stderr, 'a repeated matching level is accepted'
+
+    def test_check_with_all_and_a_specific_code_at_different_levels_reaches_root_discovery(
+        self, tmp_path: Path
+    ) -> None:
+        #: Given
+        root = tmp_path
+        arguments = ('check', '--root', str(root), '-A', 'ALL', '-D', 'LC101')
+
+        #: When
+        result = run_cli(*arguments)
+
+        #: Then
+        assert result.returncode == 0, result.stderr
+        assert 'checked 0 subject(s)' in result.stderr, 'the accepted levels reach the check run'
+        assert 'Invalid value' not in result.stderr, 'a specific code may override ALL at another level'
+
+    def test_check_with_denied_warnings_and_all_allowed_reaches_root_discovery(self, tmp_path: Path) -> None:
+        #: Given
+        root = tmp_path
+        arguments = ('check', '--root', str(root), '-D', 'warnings', '-A', 'ALL')
+
+        #: When
+        result = run_cli(*arguments)
+
+        #: Then
+        assert result.returncode == 0, result.stderr
+        assert 'checked 0 subject(s)' in result.stderr, 'the accepted levels reach the check run'
+        assert 'Invalid value' not in result.stderr, 'warnings and ALL may be assigned together'
+
+    def test_check_with_allow_for_a_warning_rule_silences_it(self, tmp_path: Path, faker: Faker) -> None:
+        #: Given
+        workspace = Workspace(
+            files=[File('docs/skills/guide.md', '# Guide\n')],
+            specs=[Spec('skills', structure={'frontmatter': {'type': 'object'}})],
+        )
+        root = workspace.write(tmp_path, faker)
+        arguments = ('check', '--root', str(root), '-A', 'LC101')
+
+        #: When
+        result = run_cli(*arguments)
+
+        #: Then
+        assert result.returncode == 0, result.stderr
+        assert result.stdout == '', 'allowing LC101 removes its warning from the report'
+
+    def test_check_with_a_code_denied_after_all_is_allowed_uses_the_code_level(
+        self, tmp_path: Path, faker: Faker
+    ) -> None:
+        #: Given
+        workspace = Workspace(
+            files=[File('docs/skills/guide.md', '# Guide\n')],
+            specs=[Spec('skills', structure={'frontmatter': {'type': 'object'}})],
+        )
+        root = workspace.write(tmp_path, faker)
+        arguments = ('check', '--root', str(root), '-A', 'ALL', '-D', 'LC101')
+
+        #: When
+        result = run_cli(*arguments)
+
+        #: Then
+        assert result.returncode == 1, result.stderr
+        assert 'error[LC101]' in result.stdout, 'the specific deny overrides the allow-all setting'
+        assert 'error[LC' not in result.stdout.replace('error[LC101]', ''), 'only the specifically denied rule runs'
+
+    def test_check_with_a_code_denied_before_all_is_allowed_uses_the_code_level(
+        self, tmp_path: Path, faker: Faker
+    ) -> None:
+        #: Given
+        workspace = Workspace(
+            files=[File('docs/skills/guide.md', '# Guide\n')],
+            specs=[Spec('skills', structure={'frontmatter': {'type': 'object'}})],
+        )
+        root = workspace.write(tmp_path, faker)
+        arguments = ('check', '--root', str(root), '-D', 'LC101', '-A', 'ALL')
+
+        #: When
+        result = run_cli(*arguments)
+
+        #: Then
+        assert result.returncode == 1, result.stderr
+        assert 'error[LC101]' in result.stdout, 'the specific deny overrides allow-all in either order'
+        assert 'error[LC' not in result.stdout.replace('error[LC101]', ''), 'only the specifically denied rule runs'
+
+    def test_check_with_denied_warnings_fails_a_run_with_only_warnings(self, tmp_path: Path, faker: Faker) -> None:
+        #: Given
+        workspace = Workspace(
+            files=[File('docs/skills/guide.md', '# Guide\n')],
+            specs=[Spec('skills', structure={'frontmatter': {'type': 'object'}})],
+        )
+        root = workspace.write(tmp_path, faker)
+        arguments = ('check', '--root', str(root), '-D', 'warnings')
+
+        #: When
+        result = run_cli(*arguments)
+
+        #: Then
+        assert result.returncode == 1, result.stderr
+        assert 'error[LC101]' in result.stdout, 'warning elevation makes the warning fail the run'
+        assert 'error[LC' not in result.stdout.replace('error[LC101]', ''), 'the run contains only the warning rule'
+
+    def test_check_with_denied_warnings_notes_command_line_provenance_in_text(
+        self, tmp_path: Path, faker: Faker
+    ) -> None:
+        #: Given
+        workspace = Workspace(
+            files=[File('docs/skills/guide.md', '# Guide\n')],
+            specs=[Spec('skills', structure={'frontmatter': {'type': 'object'}})],
+        )
+        root = workspace.write(tmp_path, faker)
+        arguments = ('check', '--root', str(root), '-D', 'warnings')
+
+        #: When
+        result = run_cli(*arguments)
+
+        #: Then
+        assert result.returncode == 1, result.stderr
+        assert '= note: -D warnings elevated warning to error' in result.stdout, (
+            'the text report explains the command-line severity change'
+        )
+
+    def test_check_with_denied_warnings_reports_cli_level_source_in_json(self, tmp_path: Path, faker: Faker) -> None:
+        #: Given
+        workspace = Workspace(
+            files=[File('docs/skills/guide.md', '# Guide\n')],
+            specs=[Spec('skills', structure={'frontmatter': {'type': 'object'}})],
+        )
+        root = workspace.write(tmp_path, faker)
+        arguments = ('check', '--root', str(root), '-D', 'warnings', '--format', 'json')
+
+        #: When
+        result = run_cli(*arguments)
+        document = json.loads(result.stdout)
+
+        #: Then
+        assert result.returncode == 1, result.stderr
+        assert document['diagnostics'][0]['code'] == 'LC101', 'the JSON report contains the warning rule'
+        assert document['diagnostics'][0]['level_source'] == 'cli', 'the JSON report marks CLI provenance'
+
     def test_check_with_conflicting_code_levels_names_the_canonical_code_before_root_discovery(
         self, snapshot: SnapshotAssertion, tmp_path: Path
     ) -> None:
@@ -878,40 +1155,6 @@ class TestCheckCommand:
         assert result.returncode == 2, result.stderr
         assert result.stdout == '', 'conflicting levels print no diagnostics'
         assert usage_error_message(result.stderr) == expected, 'the conflict names the level flags involved'
-
-    def test_check_with_warnings_on_allow_flag_names_its_reserved_use(
-        self, snapshot: SnapshotAssertion, tmp_path: Path
-    ) -> None:
-        #: Given
-        expected = snapshot.use_extension(TextSnapshotExtension)
-        missing_root = tmp_path / 'missing-root'
-        arguments = ('check', '--root', str(missing_root), '-A', 'warnings')
-
-        #: When
-        result = run_cli(*arguments)
-
-        #: Then
-        assert result.returncode == 2, result.stderr
-        assert result.stdout == '', 'a reserved selector prints no diagnostics'
-        message = usage_error_message(result.stderr)
-        assert message == expected, 'the usage error explains that warnings is reserved for --deny'
-
-    def test_check_with_warnings_on_warn_flag_names_its_reserved_use(
-        self, snapshot: SnapshotAssertion, tmp_path: Path
-    ) -> None:
-        #: Given
-        expected = snapshot.use_extension(TextSnapshotExtension)
-        missing_root = tmp_path / 'missing-root'
-        arguments = ('check', '--root', str(missing_root), '-W', 'warnings')
-
-        #: When
-        result = run_cli(*arguments)
-
-        #: Then
-        assert result.returncode == 2, result.stderr
-        assert result.stdout == '', 'a reserved selector prints no diagnostics'
-        message = usage_error_message(result.stderr)
-        assert message == expected, 'the usage error explains that warnings is reserved for --deny'
 
     def test_check_with_a_key_written_twice_prints_the_duplicate_key_diagnostics(
         self, snapshot: SnapshotAssertion, tmp_path: Path, faker: Faker
