@@ -13,6 +13,8 @@ from pydantic import BaseModel, ConfigDict
 
 from lorecraft.core.error import Unreachable
 from lorecraft.core.path import RootRelativePath
+from lorecraft.project.aspect import AspectFilename
+from lorecraft.project.document import DocumentRef
 from lorecraft.project.skill import SkillsDir
 from lorecraft.project.workspace import Corpus, Spec, WorkspaceModel
 
@@ -48,12 +50,14 @@ class _SpecJson(BaseModel):
     Attributes:
         name: The specification's name.
         files: The specification's files as root-relative paths, sorted.
+        base: The nearest broader specification's name, or None for a root specification.
     """
 
     model_config = ConfigDict(frozen=True)
 
     name: str
     files: list[str]
+    base: str | None
 
 
 class _DocumentJson(BaseModel):
@@ -63,12 +67,14 @@ class _DocumentJson(BaseModel):
         path: The document, as a root-relative path.
         governed_by: Every file of the governing specifications, broad to narrow, each specification's files
             sorted.
+        base_chain: The document paths in its base chain, broadest first, including itself.
     """
 
     model_config = ConfigDict(frozen=True)
 
     path: str
     governed_by: list[str]
+    base_chain: list[str]
 
 
 class _CorpusJson(BaseModel):
@@ -146,9 +152,9 @@ class _WorkspaceJson(BaseModel):
 def render_text(root: Path, model: WorkspaceModel) -> str:
     """Draw the model as a tree headed by the root, one section per part of the model.
 
-    A document is followed by the names of the specs that govern it, broad to narrow. An agent's skills
-    directory is followed by the resolved directory it leads to when it is a link, and a skill by the agents
-    that read it.
+    A spec names its base, and a document shows its governing specs and base chain under separate labels.
+    An agent's skills directory is followed by the resolved directory it leads to when it is a link, and
+    a skill by the agents that read it.
 
     Args:
         root: The workspace root, drawn as the first line.
@@ -158,7 +164,7 @@ def render_text(root: Path, model: WorkspaceModel) -> str:
         The lines, newline-separated, without a trailing newline.
     """
     sections = (
-        _corpora_section(model.sorted_corpora),
+        _corpora_section(model, model.sorted_corpora),
         _skills_dirs_section(model.sorted_skills_dirs),
         _skills_section(model),
     )
@@ -179,7 +185,7 @@ def render_json(root: Path, model: WorkspaceModel) -> str:
     """
     corpora: list[_CorpusJson] = []
     for corpus in model.sorted_corpora:
-        corpora.append(_json_corpus(corpus))
+        corpora.append(_json_corpus(model, corpus))
     skills_dirs: list[_AgentSkillsDirJson] = []
     for skills_dir in model.sorted_skills_dirs:
         skills_dirs.append(
@@ -197,7 +203,8 @@ def render_json(root: Path, model: WorkspaceModel) -> str:
         agent_skills_dirs=skills_dirs,
         skills=skills,
     )
-    return document.model_dump_json(exclude_none=True)
+    excluded = {'agent_skills_spec'} if model.agent_skills_floor_enabled else set()
+    return document.model_dump_json(exclude=excluded)
 
 
 def _draw(nodes: tuple[_Line, ...], prefix: str, lines: list[str]) -> None:
@@ -216,33 +223,39 @@ def _draw(nodes: tuple[_Line, ...], prefix: str, lines: list[str]) -> None:
         _draw(node.children, prefix + indent, lines)
 
 
-def _corpora_section(corpora: tuple[Corpus, ...]) -> _Line:
+def _corpora_section(model: WorkspaceModel, corpora: tuple[Corpus, ...]) -> _Line:
     """`corpora (N)`, then per corpus its specs and its documents.
 
     Args:
+        model: Workspace model whose corpora are drawn.
         corpora: The corpora to draw, in the order the model lists them.
     """
     corpus_lines: list[_Line] = []
     for corpus in corpora:
-        corpus_lines.append(_corpus_line(corpus))
+        corpus_lines.append(_corpus_line(model, corpus))
     return _Line(f'corpora ({len(corpora)})', tuple(corpus_lines))
 
 
-def _corpus_line(corpus: Corpus) -> _Line:
+def _corpus_line(model: WorkspaceModel, corpus: Corpus) -> _Line:
     """One corpus: the directory it reads, its specs and its governed documents.
 
     Args:
+        model: Workspace model that resolves specification bases.
         corpus: Corpus drawn as one line, with its specs and documents as children.
     """
     spec_lines: list[_Line] = []
     for spec in (corpus.corpus_spec, *corpus.namespace_specs):
-        spec_lines.append(_Line(f'{spec.name}: {_file_names(spec.files)}'))
+        base = _spec_base_name(model, spec)
+        spec_lines.append(_Line(f'{spec.name}: {_file_names(spec.files)} [base: {base or "none"}]'))
     parts = [_Line(f'specs ({len(spec_lines)})', tuple(spec_lines))]
 
     document_lines: list[_Line] = []
     for ref in corpus.documents:
         spec_names = _governing_spec_names(corpus.governance(ref.filename).specs())
-        document_lines.append(_Line(f'{ref.path.name} [{", ".join(spec_names)}]'))
+        chain = _document_base_chain_names(corpus, ref.filename)
+        document_lines.append(
+            _Line(f'{ref.path.name} [governed_by: {", ".join(spec_names)}] [base_chain: {", ".join(chain)}]')
+        )
     parts.append(_Line(f'documents ({len(document_lines)})', tuple(document_lines)))
 
     return _Line(f'{corpus.name} ({corpus.directory})', tuple(parts))
@@ -279,19 +292,24 @@ def _skills_section(model: WorkspaceModel) -> _Line:
     return _Line(f'skills ({len(model.skill_locations)}{opt_out})', tuple(lines))
 
 
-def _json_corpus(corpus: Corpus) -> _CorpusJson:
+def _json_corpus(model: WorkspaceModel, corpus: Corpus) -> _CorpusJson:
     """One corpus as a JSON object: its specs, and its documents with the spec files that govern each.
 
     Args:
+        model: Workspace model that resolves specification bases.
         corpus: Corpus whose specs and documents become the object's keys.
     """
     specs: list[_SpecJson] = []
     for spec in (corpus.corpus_spec, *corpus.namespace_specs):
-        specs.append(_SpecJson(name=str(spec.name), files=_paths(spec.files)))
+        specs.append(_SpecJson(name=str(spec.name), files=_paths(spec.files), base=_spec_base_name(model, spec)))
     documents: list[_DocumentJson] = []
     for ref in corpus.documents:
         documents.append(
-            _DocumentJson(path=str(ref.path), governed_by=_governing_files(corpus.governance(ref.filename).specs())),
+            _DocumentJson(
+                path=str(ref.path),
+                governed_by=_governing_files(corpus.governance(ref.filename).specs()),
+                base_chain=_document_base_chain_paths(corpus, ref.filename),
+            ),
         )
     return _CorpusJson(
         name=str(corpus.name),
@@ -299,6 +317,29 @@ def _json_corpus(corpus: Corpus) -> _CorpusJson:
         specs=specs,
         documents=documents,
     )
+
+
+def _spec_base_name(model: WorkspaceModel, spec: Spec) -> str | None:
+    """The broader specification's name, using the workspace model's spec hierarchy.
+
+    Args:
+        model: Workspace model that resolves specification bases.
+        spec: Specification whose base is wanted.
+    """
+    base = model.specification_base(spec.name)
+    return None if base is None else str(base)
+
+
+def _document_base_chain_names(corpus: Corpus, filename: AspectFilename) -> list[str]:
+    """The document base chain as names, broadest first, including the document itself."""
+    document = DocumentRef(corpus=corpus.name, filename=filename)
+    return [str(ref.filename) for ref in (*corpus.document_base_chain(filename), document)]
+
+
+def _document_base_chain_paths(corpus: Corpus, filename: AspectFilename) -> list[str]:
+    """The document base chain as root-relative paths, broadest first, including the document itself."""
+    document = DocumentRef(corpus=corpus.name, filename=filename)
+    return [str(ref.path) for ref in (*corpus.document_base_chain(filename), document)]
 
 
 def _governing_spec_names(specs: tuple[Spec, ...]) -> list[str]:

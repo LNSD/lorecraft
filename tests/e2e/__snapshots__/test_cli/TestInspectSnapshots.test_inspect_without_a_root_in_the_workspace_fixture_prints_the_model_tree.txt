@@ -2,11 +2,11 @@
 ├── corpora (1)
 │   └── code (docs/code)
 │       ├── specs (2)
-│       │   ├── code: code.md, code.spec.json
-│       │   └── code-python: code-python.md, code-python.spec.json
+│       │   ├── code: code.md, code.spec.json [base: none]
+│       │   └── code-python: code-python.md, code-python.spec.json [base: code]
 │       └── documents (2)
-│           ├── logging.md [code]
-│           └── python-typing.md [code, code-python]
+│           ├── logging.md [governed_by: code] [base_chain: logging]
+│           └── python-typing.md [governed_by: code, code-python] [base_chain: python-typing]
 ├── agent skills directories (2)
 │   ├── claude-code: .claude/skills -> .agents/skills
 │   └── codex: .agents/skills

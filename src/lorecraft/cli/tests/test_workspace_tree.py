@@ -35,7 +35,9 @@ def _code_model() -> WorkspaceModel:
     corpus = Corpus(
         corpus_spec=corpus_spec,
         namespaces=FrozenMapping({AspectNamespace.parse('python'): python}),
-        filenames=frozenset({AspectFilename.parse('logging'), AspectFilename.parse('python-typing')}),
+        filenames=frozenset(
+            {AspectFilename.parse('logging'), AspectFilename.parse('python'), AspectFilename.parse('python-typing')}
+        ),
     )
     return WorkspaceModel(
         corpus_values=frozenset({corpus}),
@@ -56,14 +58,28 @@ def _code_model_document() -> dict[str, object]:
                 'name': 'code',
                 'directory': 'docs/code',
                 'specs': [
-                    {'name': 'code', 'files': ['docs/__meta__/code.md']},
+                    {'name': 'code', 'files': ['docs/__meta__/code.md'], 'base': None},
                     {
                         'name': 'code-python',
                         'files': ['docs/__meta__/code-python.md', 'docs/__meta__/code-python.spec.json'],
+                        'base': 'code',
                     },
                 ],
                 'documents': [
-                    {'path': 'docs/code/logging.md', 'governed_by': ['docs/__meta__/code.md']},
+                    {
+                        'path': 'docs/code/logging.md',
+                        'governed_by': ['docs/__meta__/code.md'],
+                        'base_chain': ['docs/code/logging.md'],
+                    },
+                    {
+                        'path': 'docs/code/python.md',
+                        'governed_by': [
+                            'docs/__meta__/code.md',
+                            'docs/__meta__/code-python.md',
+                            'docs/__meta__/code-python.spec.json',
+                        ],
+                        'base_chain': ['docs/code/python.md'],
+                    },
                     {
                         'path': 'docs/code/python-typing.md',
                         'governed_by': [
@@ -71,6 +87,7 @@ def _code_model_document() -> dict[str, object]:
                             'docs/__meta__/code-python.md',
                             'docs/__meta__/code-python.spec.json',
                         ],
+                        'base_chain': ['docs/code/python.md', 'docs/code/python-typing.md'],
                     },
                 ],
             }
@@ -172,11 +189,12 @@ class TestRenderText:
                 '├── corpora (1)',
                 '│   └── code (docs/code)',
                 '│       ├── specs (2)',
-                '│       │   ├── code: code.md',
-                '│       │   └── code-python: code-python.md, code-python.spec.json',
-                '│       └── documents (2)',
-                '│           ├── logging.md [code]',
-                '│           └── python-typing.md [code, code-python]',
+                '│       │   ├── code: code.md [base: none]',
+                '│       │   └── code-python: code-python.md, code-python.spec.json [base: code]',
+                '│       └── documents (3)',
+                '│           ├── logging.md [governed_by: code] [base_chain: logging]',
+                '│           ├── python.md [governed_by: code, code-python] [base_chain: python]',
+                '│           └── python-typing.md [governed_by: code, code-python] [base_chain: python, python-typing]',
                 '├── agent skills directories (0)',
                 '└── skills (0)',
             ]
@@ -188,7 +206,7 @@ class TestRenderText:
 
         #: Then
         assert text == expected, (
-            'a spec names each of its files, and each document names its governing specs, broad to narrow'
+            'each spec names its base, and each document labels governance separately from its broad-first base chain'
         )
 
     def test_render_text_with_an_empty_model_draws_every_section_with_a_zero_count(self) -> None:
@@ -241,7 +259,7 @@ class TestRenderText:
 
 @pytest.mark.unit
 class TestRenderJson:
-    def test_render_json_with_a_code_model_carries_each_spec_and_each_document_with_its_governance(self) -> None:
+    def test_render_json_with_a_code_model_carries_spec_bases_and_document_base_chains(self) -> None:
         #: Given
         model = _code_model()
         root = Path('/work')
@@ -252,7 +270,7 @@ class TestRenderJson:
         #: Then
         document = json.loads(text)
         assert document == _code_model_document(), (
-            'a corpus carries its specs with their files, and each document the files of its governing specs'
+            'each spec carries its base, and each document carries governance and its base chain separately'
         )
 
     def test_render_json_with_a_code_model_prints_one_compact_line(self) -> None:
