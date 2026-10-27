@@ -9,8 +9,9 @@ status: "accepted"
 
 > [!NOTE]
 > Superseded in part: the per-kind content references, decode witnesses and runner loops, and the subject contexts a
-> rule reads its facts through. The text below states the query design in their place, where it spoke of them. The
-> rest of this record binds code.
+> rule reads its facts through; and the command-line level restriction in "Levels, Configuration and Selection" and
+> the selection mechanism (`--select` and `--ignore`). The text below states the query design where it spoke of
+> contexts, and the rest of this record binds code.
 
 This record is one of three that state how the structured checks of [prd-008](prd-008-structured-checks.md) are
 built: [adr-009](adr-009-rules.md) how a rule is declared and identified, [adr-010](adr-010-diagnostics.md) what a
