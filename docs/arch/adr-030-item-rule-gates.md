@@ -11,7 +11,7 @@ status: "proposed"
 > Proposed to supersede in part [adr-009](adr-009-rules.md): the passage requiring document rules to declare
 > `GOVERNED_BY` and treating skills/layout rules as declaring none; [adr-011](adr-011-rules-engine.md): item
 > applicability in “A Subject's Facts Are the Query's” and “A Subject's Status Comes Before Any Rule,” plus the
-> item partitions and facet indexes in “The Runner”; and [adr-026](adr-026-rule-owned-queries.md): decision 1's
+> item partitions and facet indexes in “The Runner”; and [adr-029](adr-029-unified-query-engine.md): decision 1's
 > queried item bases and their matching item-applicability statements in Consequences. Those records stay binding
 > outside these passages, and until this one is accepted.
 
@@ -131,7 +131,7 @@ keep layout subjects separate because their primitives and query subjects differ
 8. **Layout rules keep subject-specific queried bases.** `QueriedSymlinkRule` and
    `QueriedCorpusDirectoryRule` directly provide the rule bases, with query types `Query[SymlinkPrimitives, Facts]`
    and `Query[CorpusDirectoryPrimitives, Facts]`. A layout subject is not an item type, and combining those bases
-   with `QueriedItemRule` would weaken the per-subject typing required by ADR-027 and ADR-029.
+   with `QueriedItemRule` would weaken the per-subject typing required by ADR-029.
 
 ## Consequences
 
@@ -190,8 +190,7 @@ keep layout subjects separate because their primitives and query subjects differ
 
 - [adr-009](adr-009-rules.md) - Supersedes in part: `GOVERNED_BY` declaration and former `ByPackage` passage
 - [adr-011](adr-011-rules-engine.md) - Foundation: Runner orchestration, rule tables and item governance
-- [adr-026](adr-026-rule-owned-queries.md) - Foundation: Typed rule queries and judgements
 - [adr-028](adr-028-schema-registry.md) - Foundation: Registered schema references and resolution
-- [adr-027](adr-027-subject-keyed-queries.md) - Constraint: Subject-specific query types
-- [adr-029](adr-029-unified-query-engine.md) - Constraint: Typed dispatch across subjects
+- [adr-029](adr-029-unified-query-engine.md) - Supersedes in part: Decision 1's queried item bases; constraint:
+  subject-specific query types and typed dispatch
 - [adr-022](adr-022-skills-governance.md) - Foundation: Agent Skills floor governance

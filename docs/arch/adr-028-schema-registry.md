@@ -20,8 +20,8 @@ must not be treated as interchangeable. Parsed structure specifications, and fac
 results, remain owned by their existing project domain.
 
 The accepted database and query decisions establish the constraints for this design. ADR-015 keeps query answers
-and read sets in a database's memoization table and reserves `advance` for a future database lifecycle. ADR-026
-keeps query definitions with the layer that owns their returned values. ADR-027 keys queries by typed subject and
+and read sets in a database's memoization table and reserves `advance` for a future database lifecycle. ADR-029
+keeps query definitions with the layer that owns their returned values, keys queries by typed subject and
 records cross-subject reads as typed query/subject pairs. The registry must fit those rules without becoming a
 second cache or requiring cross-revision advancement now.
 
@@ -241,5 +241,5 @@ owned by the project model domain.
 - [adr-015](adr-015-database.md) - Foundation: Database lifetime, memoization ownership and reserved advancement
 - [adr-022](adr-022-skills-governance.md) - Constraint: Built-in skills origin, validation compatibility and
   governance behavior
-- [adr-026](adr-026-rule-owned-queries.md) - Foundation: Query ownership and database-owned memoization
-- [adr-027](adr-027-subject-keyed-queries.md) - Foundation: Typed query subjects and cross-subject read sets
+- [adr-029](adr-029-unified-query-engine.md) - Foundation: Query ownership, typed query subjects, database-owned
+  memoization and cross-subject read sets
