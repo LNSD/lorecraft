@@ -751,6 +751,54 @@ class TestCheckCommand:
         assert result.stdout == '', 'a run refused before checking prints no document'
         assert usage_error_message(result.stderr) == expected, "the selector is named in Typer's usage error"
 
+    def test_check_with_a_prefix_level_flag_refuses_before_discovering_the_root(
+        self, snapshot: SnapshotAssertion, tmp_path: Path
+    ) -> None:
+        #: Given
+        expected = snapshot.use_extension(TextSnapshotExtension)
+        missing_root = tmp_path / 'missing-root'
+        arguments = ('check', '--root', str(missing_root), '-W', 'LC3')
+
+        #: When
+        result = run_cli(*arguments)
+
+        #: Then
+        assert result.returncode == 2, result.stderr
+        assert result.stdout == '', 'a rejected level selector prints no diagnostics'
+        assert usage_error_message(result.stderr) == expected, 'the invalid prefix is named before root discovery'
+
+    def test_check_with_conflicting_code_levels_names_the_canonical_code_before_root_discovery(
+        self, snapshot: SnapshotAssertion, tmp_path: Path
+    ) -> None:
+        #: Given
+        expected = snapshot.use_extension(TextSnapshotExtension)
+        missing_root = tmp_path / 'missing-root'
+        arguments = ('check', '--root', str(missing_root), '-A', 'LC304', '-D', 'LC304')
+
+        #: When
+        result = run_cli(*arguments)
+
+        #: Then
+        assert result.returncode == 2, result.stderr
+        assert result.stdout == '', 'conflicting levels print no diagnostics'
+        assert usage_error_message(result.stderr) == expected, 'the conflict names canonical code LC304'
+
+    def test_check_with_conflicting_all_levels_names_the_level_flags_before_root_discovery(
+        self, snapshot: SnapshotAssertion, tmp_path: Path
+    ) -> None:
+        #: Given
+        expected = snapshot.use_extension(TextSnapshotExtension)
+        missing_root = tmp_path / 'missing-root'
+        arguments = ('check', '--root', str(missing_root), '-A', 'ALL', '-D', 'ALL')
+
+        #: When
+        result = run_cli(*arguments)
+
+        #: Then
+        assert result.returncode == 2, result.stderr
+        assert result.stdout == '', 'conflicting levels print no diagnostics'
+        assert usage_error_message(result.stderr) == expected, 'the conflict names the level flags involved'
+
     def test_check_with_a_key_written_twice_prints_the_duplicate_key_diagnostics(
         self, snapshot: SnapshotAssertion, tmp_path: Path, faker: Faker
     ) -> None:

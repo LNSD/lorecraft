@@ -10,7 +10,11 @@ from typing import Annotated
 
 import typer
 
+from lorecraft.core.error import Error
+from lorecraft.rules.identity import Level
+
 from ..app import global_options
+from ..level_arguments import InvalidLevelArgumentError, LevelArgument, validate_level_arguments
 from ..output import ColorChoice, DiagnosticFormat
 from ..registry import register
 from ..rule_arguments import (
@@ -45,6 +49,26 @@ def _parse_selectors(value: str) -> SelectorValue:
         RemovedRuleSelectorError,
     ) as exc:
         raise typer.BadParameter(str(exc)) from exc
+
+
+def _parse_level(value: str, level: Level) -> LevelArgument:
+    """Parse one level value while the command line is read."""
+    try:
+        return LevelArgument.parse(value, level)
+    except InvalidLevelArgumentError as exc:
+        raise typer.BadParameter(str(exc)) from exc
+
+
+def _parse_allow(value: str) -> LevelArgument:
+    return _parse_level(value, Level.ALLOW)
+
+
+def _parse_warn(value: str) -> LevelArgument:
+    return _parse_level(value, Level.WARN)
+
+
+def _parse_deny(value: str) -> LevelArgument:
+    return _parse_level(value, Level.DENY)
 
 
 @register('check')
@@ -94,6 +118,32 @@ def check(
             'Defaults to none.',
         ),
     ] = None,
+    allow: Annotated[
+        list[LevelArgument] | None,
+        typer.Option(
+            '-A',
+            '--allow',
+            metavar='<code>',
+            parser=_parse_allow,
+            help='Allow this rule; repeatable, defaults to none.',
+        ),
+    ] = None,
+    warn: Annotated[
+        list[LevelArgument] | None,
+        typer.Option(
+            '-W',
+            '--warn',
+            metavar='<code>',
+            parser=_parse_warn,
+            help='Warn on this rule; repeatable, defaults to none.',
+        ),
+    ] = None,
+    deny: Annotated[
+        list[LevelArgument] | None,
+        typer.Option(
+            '-D', '--deny', metavar='<code>', parser=_parse_deny, help='Deny this rule; repeatable, defaults to none.'
+        ),
+    ] = None,
 ) -> None:
     """Check every document and skill of the workspace: frontmatter, outline, length, links and layout.
 
@@ -105,6 +155,10 @@ def check(
 
     As JSON, one compact document goes to stdout.
 
+    Level flags accept active rule codes, alias codes or ALL; -D also accepts warnings. They are repeatable, reject
+    conflicting assignments, and are validated before the workspace is checked. --select and --ignore filter rules
+    without changing their levels.
+
     --select never enables a rule its level leaves off; each such rule, and each alias code, is warned of on stderr.
 
     Exit 0 when no diagnostic is an error, 1 when any is, such as a spec that failed to load, and 2 for invalid
@@ -114,6 +168,12 @@ def check(
     Raises:
         typer.Exit: With the documented status code for an error diagnostic or invalid input.
     """
+    level_arguments = (*(allow or ()), *(warn or ()), *(deny or ()))
+    try:
+        validate_level_arguments(level_arguments)
+    except Error as exc:
+        raise typer.BadParameter(str(exc), param_hint="'-A' / '-W' / '-D'") from exc
+
     # Imported here, not at the top: `check_run` imports the rules engine, which `--help` and `--version` never use.
     from ..check_run import run_check
 
