@@ -41,7 +41,7 @@ identified, configured and documented the same way, and cheap to add.
   directory, FR-003 to FR-007, is deferred.
 - Setting a rule's level in this release: every rule runs at its default level (FR-023). A repository's
   configuration, FR-015, FR-024 and FR-025, is deferred until its location and format are
-  designed, together with level options on the command line and failing a run on warnings.
+  designed; command-line level options (`-A`, `-W`, `-D`) and warning elevation (`-D warnings`) are specified in [adr-031](adr-031-cli-level-flags.md).
 
 ## User Stories
 
@@ -148,6 +148,9 @@ Scenario: A sample rule
 - **FR-006:** WHEN the paths a user gives overlap, THE SYSTEM SHALL report each subject once.
 - **FR-007:** THE SYSTEM SHALL report a diagnostic about the skill layout only when the paths cover the entry it
   is about.
+> [!NOTE]
+> Superseded in part by [adr-031](adr-031-cli-level-flags.md): level flags (`-A`, `-W`, `-D`) replace `--select` and `--ignore`, filtering runs directly via level assignments (`-A ALL -D <code>`), prefix selectors are not supported, and command-line level options are delivered.
+
 - **FR-008:** WHERE a user selects or ignores rules for one run, by code or by prefix, THE SYSTEM SHALL report
   only the selected rules' diagnostics.
 - **FR-009:** THE SYSTEM SHALL identify every rule by one code, a group prefix and digits, and by one

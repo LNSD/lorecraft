@@ -34,14 +34,14 @@ layers create a catch-22 in which no governed document can satisfy all layers at
   its corpus.
 - Load a matched document's full base chain, from broadest ancestor to the matched document, in the skills that load
   code rules and feature documents.
-- Document that layers apply independently by conjunction without a layer-incompatibility check: when layers in a
-  chain contradict each other, they form a catch-22 in which no governed document can pass every layer at once.
+- Apply layers independently by conjunction without validating layers against each other: checks run layer by
+  layer, broad to narrow, each reporting its own finding.
 
 ## Non-Goals
 
 - **Checking spec or document layers for mutual incompatibility.** Every layer applies on its own by conjunction;
-  analyzing pairs or chains of layers to prove whether any document can satisfy them together is out of scope, and
-  contradictory layers surface instead as a catch-22 on governed documents.
+  analyzing pairs or chains of layers to prove whether any document can satisfy them together is out of scope;
+  checks report each broken layer independently from broad to narrow.
 - **Warning when an extension sets a higher word cap or token budget than its base.** Because every layer is checked on
   its own, the tighter limit of the base still governs; reporting redundant higher limits on the extension is not part
   of this feature.
@@ -136,26 +136,19 @@ Scenario: Loading a matched feature document loads its base chain first
 ### US-4: Hold documents to every governing layer, even when layers contradict (P2)
 
 As a maintainer checking a workspace, I want every governing spec layer applied independently without a separate
-layer-incompatibility prover, and I want the documentation to explain that contradictory layers create a catch-22 on
-governed documents, so that checking stays simple and predictable.
+layer-incompatibility prover, with checks evaluating layers broad to narrow and reporting each broken layer,
+so that checking stays simple and predictable.
 
 **Independent test:** Check a workspace where a namespace spec and its base require mutually exclusive values on a
-document they both govern, and read the documentation on base and extension layering.
+document they both govern.
 
 ```gherkin
-Scenario: Contradictory governing layers produce a catch-22 on a governed document
+Scenario: Contradictory governing layers are checked layer by layer
   Given a corpus spec and a namespace spec that require mutually exclusive values for the same field
   And a document governed by both specs
   When the maintainer checks the workspace
-  Then each broken spec reports its own finding on the document
+  Then each broken spec reports its own finding on the document from broad to narrow
   And no separate layer-incompatibility diagnostic is reported on the specs
-```
-
-```gherkin
-Scenario: The catch-22 of contradictory layers is documented
-  Given the published documentation for spec and document layering
-  When a maintainer reads what happens if an extension contradicts its base
-  Then the documentation states that contradictory layers create a catch-22 where no governed document can satisfy all layers at once
 ```
 
 ## Requirements
@@ -182,8 +175,8 @@ Scenario: The catch-22 of contradictory layers is documented
   ancestor to the matched document.
 - **FR-009:** WHEN a user checks a workspace, THE SYSTEM SHALL apply each governing spec layer independently by
   conjunction without running a compatibility check between layers.
-- **FR-010:** THE SYSTEM SHALL document that contradictory layers in a chain create a catch-22 in which no governed
-  document can satisfy every layer at once.
+- **FR-010:** WHEN governing layers in a chain contradict each other, THE SYSTEM SHALL check them layer by layer from
+  broad to narrow, reporting each broken layer independently.
 - **NFR-001:** THE SYSTEM SHALL derive spec chains, document base chains and document governance from declared
   names and directory listings alone, without reading document contents.
 - **NFR-002:** THE SYSTEM SHALL produce deterministic inspection ordering for spec chains and document base chains
@@ -203,8 +196,8 @@ Scenario: The catch-22 of contradictory layers is documented
 - **A namespace spec matches no document in its corpus.** It still participates in the corpus's spec
   hierarchy and appears in workspace inspection with its base (FR-002, FR-007).
 - **Two governing layers contradict each other.** When no document is governed by both, `lorecraft check` reports no
-  contradiction finding; when a document is governed by both, `lorecraft check` reports whichever layer rules the
-  document breaks, creating a catch-22 until the layers are fixed (FR-009, FR-010).
+  finding; when a document is governed by both, `lorecraft check` checks layer by layer, broad to narrow, reporting each
+  layer's finding independently (FR-009, FR-010).
 
 ## Key Entities
 
@@ -226,8 +219,7 @@ Scenario: The catch-22 of contradictory layers is documented
   longest-existing-hyphen-prefix rule.
 - **SC-002:** `/code-rules` and `/feat-discovery` instruct agents to load the full base chain of any matched document,
   broadest first.
-- **SC-003:** The documentation states the shared name-chain rule once for both hierarchies and explains the catch-22
-  consequence when layers contradict.
+- **SC-003:** The documentation states the shared name-chain rule once for both hierarchies.
 - **SC-004:** `lorecraft check` passes on this repository with zero errors and zero warnings.
 
 ## Assumptions

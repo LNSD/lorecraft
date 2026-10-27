@@ -1,6 +1,6 @@
 ---
 name: "adr-025-name-chain-model"
-description: "Model the spec hierarchy and the document hierarchy of each corpus with one name-chain derivation in the project model, derive governance and document base chains from it, expose both in lorecraft inspect, and document contradictory layers as a catch-22 without a compatibility check. Load when changing how lorecraft.project derives spec chains, document base chains or governance, or how lorecraft inspect renders them"
+description: "Model the spec hierarchy and the document hierarchy of each corpus with one name-chain derivation in the project model, derive governance and document base chains from it, expose both in lorecraft inspect, and let checks evaluate layers broad-to-narrow without cross-layer validation. Load when changing how lorecraft.project derives spec chains, document base chains or governance, or how lorecraft inspect renders them"
 type: "adr"
 status: "proposed"
 ---
@@ -12,9 +12,7 @@ status: "proposed"
 [prd-024](prd-024-shared-name-hierarchy.md) requires one shared name-chain rule across specs and corpus documents
 (`FR-001` through `FR-006`), requires `lorecraft inspect` to expose both the spec hierarchy of each corpus and the
 document base chain of each document alongside its governing specs (`FR-007`), requires `/code-rules` and
-`/feat-discovery` to load a matched document's full base chain (`FR-008`), and requires independent layer checking
-without a cross-layer compatibility prover while documenting that contradictory layers create a catch-22 (`FR-009`,
-`FR-010`).
+`/feat-discovery` to load a matched document's full base chain (`FR-008`), and requires independent layer checking broad to narrow without cross-layer validation (`FR-009`, `FR-010`).
 
 Today [adr-016](adr-016-specifications.md) and [adr-013](adr-013-namespace-extension.md) state that both hierarchies
 layer by conjunction and that a document's base chain is distinct from its governing specs, but `lorecraft.project`
@@ -124,19 +122,17 @@ full base chain in its corpus (`FR-008`). When a task or query selects `<name>.m
 skill resolves every existing hyphen-prefix ancestor `<prefix>.md` in that corpus directory and reads the chain from
 broadest ancestor down to `<name>.md`.
 
-### Independent Layer Evaluation and the Catch-22 of Contradictions
+### Independent Layer Evaluation Without Cross-Layer Validation
 
 Every governing spec layer in `Governance` applies independently by conjunction
 ([adr-016](adr-016-specifications.md), [adr-013](adr-013-namespace-extension.md)). Neither `load_model` nor
 `lorecraft check` compares a namespace spec's frontmatter schema, outline, word caps or token budget against its
 base chain for mutual compatibility (`FR-009`).
 
-When two layers in a chain state mutually exclusive requirements—such as disjoint frontmatter `enum` sets, incompatible
-patterns, or section orders that cannot both hold—they create a catch-22 situation: no document governed by both layers
-can satisfy every layer at once. `lorecraft check` evaluates each layer on its own and reports each broken layer's
-diagnostic on the governed documents (`FR-010`). The feature documentation and spec documentation state this
-catch-22 explicitly so authors know that layer contradictions surface as unsatisfiable governed documents rather than a
-separate spec compatibility diagnostic.
+A contradiction between layers is the user's problem, and Lorecraft never validates layers against each other. Checks
+run layer by layer, broad to narrow, each reporting its own finding; fixing one finding makes the other appear, which
+is how the user learns of the contradiction (`FR-010`). No separate cross-layer compatibility check or catch-22
+documentation is introduced.
 
 ## Consequences
 
@@ -148,9 +144,8 @@ separate spec compatibility diagnostic.
   contract addition on `inspect`; text consumers that depend on the current line format may need to adapt.
 - **Discovery skills read more documents.** `/code-rules` and `/feat-discovery` load every existing base in a matched
   document's chain, which supplies the inherited rules and context at the cost of a longer read (`FR-008`).
-- **No static compatibility prover in `lorecraft check`.** The checker adds no separate mechanism for deciding whether
-  layers are compatible; contradictory layers remain a documented catch-22, and checks report each broken layer on
-  governed documents (`FR-009`, `FR-010`).
+- **No cross-layer validation in `lorecraft check`.** The checker never validates layers against each other; checks
+  run layer by layer, broad to narrow, each reporting its own finding, so fixing one finding reveals the next (`FR-009`, `FR-010`).
 - **What stays true:** scope and chains are derived from declared names and listings without reading document content
   ([adr-003](adr-003-project-model.md), `NFR-001`), load failures remain per-layer values in the model
   ([adr-015](adr-015-database.md)), and every governing layer applies on its own by conjunction
@@ -160,8 +155,8 @@ separate spec compatibility diagnostic.
 
 - **Static layer-compatibility checking at load time or during `lorecraft check`.** Compare each namespace spec's
   frontmatter schema and section outline with its base chain, so a contradiction is reported on the specifications
-  directly. Rejected: the settled behavior keeps each layer independently applicable and documents the catch-22 on
-  governed documents; a separate analysis adds another diagnostic path without changing that rule (`FR-009`, `FR-010`).
+  directly. Rejected: checks evaluate layers broad to narrow without validating layers against each other; a separate analysis
+  adds unnecessary diagnostic machinery (`FR-009`, `FR-010`).
 - **Two independent hierarchy derivations.** Keep a namespace-specific derivation and add a separate document-chain
   walk. This uses the fewest shared abstractions, but duplicates the prefix and ordering rules and can let inspection,
   governance and future checks disagree (`FR-001` through `FR-006`).
