@@ -23,7 +23,8 @@ from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Here, Label, Subdiagnostic
 from lorecraft.rules.subject import Gate, QueriedItemRule, SpecPart, WhenSpec
 
-from .__ruleset__ import GROUP_ID, example_note, schema_note, schema_problems, schema_spec
+from .__ruleset__ import GROUP_ID
+from .queries import example_note, schema_note, schema_problems, schema_spec
 
 _SCALARS_YAML_READS_UNQUOTED: Final[frozenset[JsonType]] = frozenset(
     {JsonType.INTEGER, JsonType.NUMBER, JsonType.BOOLEAN}

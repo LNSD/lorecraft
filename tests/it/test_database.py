@@ -37,7 +37,7 @@ from lorecraft.project.syntax import Frontmatter, Heading, LineNumber, count_tok
 from lorecraft.project.syntax import Link as MarkdownLink
 from lorecraft.project.workspace import EmptyStructureSpec, FailedStructure, LoadFailure
 from lorecraft.project.workspace.builtin import AGENT_SKILLS_SPEC_LAYER as SKILLS_LAYER
-from lorecraft.rules.outline.__ruleset__ import outline_divergences
+from lorecraft.rules.outline.queries import outline_divergences
 from lorecraft.vfs import (
     ByteOffset,
     Declaration,

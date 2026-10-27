@@ -13,7 +13,8 @@ from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Here, Label, Subdiagnostic
 from lorecraft.rules.subject import Gate, QueriedItemRule, SpecPart, WhenSpec
 
-from .__ruleset__ import ALLOWED_TOOLS_NOTE, GROUP_ID, AllowedToolsField, allowed_tools_field
+from .__ruleset__ import GROUP_ID
+from .queries import ALLOWED_TOOLS_NOTE, AllowedToolsField, allowed_tools_field
 
 
 @dataclass(frozen=True, slots=True)

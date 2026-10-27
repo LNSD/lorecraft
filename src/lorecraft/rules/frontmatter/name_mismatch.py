@@ -27,7 +27,8 @@ from lorecraft.schemas.agent_skills_frontmatter import (
     SkillName,
 )
 
-from .__ruleset__ import GROUP_ID, FrontmatterFacts, frontmatter_facts, owner_spec
+from .__ruleset__ import GROUP_ID
+from .queries import FrontmatterFacts, frontmatter_facts, owner_spec
 
 
 def _expected_name(owner: FrontmatterOwner) -> str:
