@@ -1,0 +1,1 @@
+Usage: lorecraft check [OPTIONS] Try 'lorecraft check --help' for help. Error Invalid value for '-W' / '--warn': --warn 'LC3': write a full active rule code, alias code, or ALL

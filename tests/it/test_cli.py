@@ -758,6 +758,34 @@ class TestRuleCommand:
 
 @pytest.mark.it
 class TestCheckCommand:
+    def test_check_with_conflicting_levels_refuses_before_checking_the_root(self) -> None:
+        #: Given
+        app = build_app()
+        arguments = ['check', '--root', '/root-that-does-not-exist', '-A', 'LC304', '-D', 'LC304']
+
+        #: When
+        result = runner.invoke(app, arguments)
+
+        #: Then
+        assert result.exit_code == 2, 'conflicting command-line levels are a usage error'
+        assert 'LC304' in usage_error_message(result.stderr), 'the conflict names its canonical rule code'
+        message = usage_error_message(result.stderr)
+        assert "'allow'" in message, 'the refusal names the first assigned level'
+        assert "'deny'" in message, 'the refusal names the conflicting level'
+        assert "'-A' / '-W' / '-D'" in message, 'the refusal identifies the level flags'
+
+    def test_check_with_invalid_level_value_refuses_before_checking_the_root(self) -> None:
+        #: Given
+        app = build_app()
+        arguments = ['check', '--root', '/root-that-does-not-exist', '-W', 'LC3']
+
+        #: When
+        result = runner.invoke(app, arguments)
+
+        #: Then
+        assert result.exit_code == 2, 'a code prefix is a usage error'
+        assert 'LC3' in usage_error_message(result.stderr), 'the refusal names the invalid value'
+
     def test_check_with_overlong_allowed_tools_warns_and_exits_zero(
         self, overlong_allowed_tools_root: Path, snapshot: SnapshotAssertion
     ) -> None:

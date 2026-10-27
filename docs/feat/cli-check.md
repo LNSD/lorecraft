@@ -1,6 +1,6 @@
 ---
 name: "cli-check"
-description: "The lorecraft check command: workspace checks, root discovery, rule selection by code or alias, text and JSON reports, and exit status. Load when running or scripting checks, selecting rules, or interpreting reports"
+description: "The lorecraft check command: workspace checks, root discovery, rule selection, level flags, text and JSON reports, and exit status. Load when running checks, selecting rules, assigning levels or interpreting reports"
 type: "feature"
 status: "experimental"
 components: "module:lorecraft.cli,module:lorecraft.engine,module:lorecraft.rules"
@@ -50,23 +50,27 @@ Checks docs/specs, skills/resources and escaping symlinks. `LC501`–`LC503` che
 One snapshot, specs first. A failed structure file yields a diagnostic. Failed layers suppress spec gates; `Always`, schema and link gates still run. Suppressed parts appear as `ungoverned for ...`. `LC001` invalid UTF-8 is unjudged. Diagnostics and coverage use the actual `.spec.json` name.
 ### Selecting Rules
 
-`--select`/`--ignore` accept `ALL`, a full code or alias, comma-separated or repeated. Selectors are case-sensitive;
-without `--select`, all rules run. Prefix selectors (`OUT`, `OUT0`, `LINK`, `LC1`, `LC2`, `LC20`) are
-unknown and exit `2` (`'<selector>' is no rule code or alias code`). `--ignore` wins ties; aliases and selected
-`allow` rules warn.
+`--select`/`--ignore` accept case-sensitive `ALL`, full codes or aliases, comma-separated or repeated. Without
+`--select`, all rules run. Prefix selectors are unknown and exit `2`; `--ignore` wins ties, and selected `allow`
+rules warn.
+
+Conflicting-level errors name `-A`, `-W`, `-D`; invalid values exit `2` before root discovery. They do not apply levels.
 
 ## Configuration
 
 | Argument or option | Default | Env var | Description |
 |--------------------|---------|---------|-------------|
-| `--no-agent-skills-spec` (`--no-builtin-skills-schema`) | unset | — | Disable the builtin Agent Skills spec and floor, including its contradiction preflight; repository specs still apply |
+| `--no-agent-skills-spec` (`--no-builtin-skills-schema`) | unset | — | Disable the builtin Agent Skills spec and floor, including contradiction preflight; repository specs still apply |
 | `--root <path>`    | nearest of working directory and parents holding `docs/__meta__/` | — | The repository root, as [Root Discovery](#root-discovery) describes |
 | `--format <text\|short\|json>` | `text` | — | The output format, as [Output](#output) describes |
-| `--color <WHEN>` | `auto` | [`NO_COLOR`](https://no-color.org/), [`FORCE_COLOR`](https://force-color.org/) | Only `text` is colored. `auto`: nonempty `FORCE_COLOR` enables even when piped; else nonempty `NO_COLOR` disables; otherwise stdout's TTY state applies. Empty is unset; any nonempty value, even `0`, is set. Explicit `always`/`never` wins. Errors bold red; warnings bold yellow; messages bold; gutter/location markers bold blue. |
+| `--color <WHEN>` | `auto` | [`NO_COLOR`](https://no-color.org/), [`FORCE_COLOR`](https://force-color.org/) | `text` only. `auto`: nonempty `FORCE_COLOR` enables; else nonempty `NO_COLOR` disables; otherwise stdout's TTY state applies. Empty is unset; any nonempty value, even `0`, is set. Errors red, warnings yellow, messages bold, gutters blue. |
 | `--select <selectors>` | `ALL` | — | Run only these rules, as [Selecting Rules](#selecting-rules) describes |
 | `--ignore <selectors>` | none | — | Skip these rules |
+| `-A`, `--allow <code>` | none | — | Allow a code, alias or `ALL`; repeatable |
+| `-W`, `--warn <code>` | none | — | Warn on a code, alias or `ALL`; repeatable |
+| `-D`, `--deny <code>` | none | — | Deny a code, alias, `ALL` or `warnings`; repeatable |
 
-An unlisted `--format` or `--color` exits `2`. Explicit `always`/`never` wins. Under `auto`, non-empty `FORCE_COLOR` enables colour even when piped; otherwise non-empty `NO_COLOR` disables it; otherwise colour follows whether stdout is a terminal. Empty variables are unset; any non-empty value, including `0`, is set.
+An unlisted `--format` or `--color` exits `2`. Explicit `always`/`never` wins; the table describes the `auto` precedence.
 
 ## Usage
 
@@ -81,6 +85,7 @@ lorecraft check --select LC206,LC403
 lorecraft check --ignore LC503
 
 lorecraft check --select LC306 --ignore LC301
+
 ```
 
 `--no-builtin-skills-schema` is a compatibility alias. `LC204` compares `name` with the skill directory; it never
@@ -93,7 +98,7 @@ are unchecked. See [The Subjects](#the-subjects) and [structure budgets](spec-st
 
 In `text`, stdout has blank-line-separated diagnostics with severity, code, message, numbered source and labels. Reported lines underline solid; other labels dotted. Nearby lines group, distant lines use ellipses; `:::` points to another file. Help/notes use `= help:`/`= note:`. For non-default levels, notes name the winning code or group selector. CLI notes use `-W`/`-D` and say `requested on the command line`; configuration notes identify the `warn`/`deny` level and selector. Default levels add no note.
 
-Check output (stdout):
+Example (stdout):
 
 ```text
 error[LC306]: missing required section `Checklist`
@@ -108,8 +113,7 @@ error[LC306]: missing required section `Checklist`
   = help: The items a reviewer verifies before committing a change the rule document governs.
 ```
 
-On stderr, `text` prints coverage, counts per code group and `checked N subject(s): ...`. Refused items are `skipped, read refused at: <path>`; subjects blocked by refused docs dependencies are `skipped, depends on a refused docs path: <path>`. Refused document and spec reads produce `LC002`; a refused non-item docs path keeps `LC002` even when a skill item aliases it, and that item is also skipped. Other refused skill files remain scan-blocking errors and exit `2`. Symlinked corpora and `.md` entries are not checked; links are not followed or counted.
-Example: one subject, two errors.
+On stderr, `text` prints coverage, counts per code group and `checked N subject(s): ...`. Refused items are `skipped, read refused at: <path>`; subjects blocked by refused docs dependencies are `skipped, depends on a refused docs path: <path>`. Refused document/spec reads produce `LC002`; a refused non-item docs path keeps `LC002` even when a skill item aliases it, and that item is also skipped. Other refused skill files remain scan-blocking errors and exit `2`. Symlinked corpora and `.md` entries are not checked; links are not followed or counted.
 
 ```text
 LC2xx  1 error
