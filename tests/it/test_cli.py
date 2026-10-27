@@ -303,7 +303,7 @@ class TestRootApplication:
         assert result.exit_code == 2, f'a bare invocation is a usage error, got exit {result.exit_code}'
         assert 'Usage:' in result.stdout, 'a bare invocation prints the help rather than nothing'
 
-    def test_check_accepts_each_builtin_skills_opt_out_spelling(self, tmp_path: Path) -> None:
+    def test_check_opt_out_disables_the_default_skill_findings(self, tmp_path: Path) -> None:
         #: Given
         app = build_app()
         skill = tmp_path / '.agents' / 'skills' / 'review' / 'SKILL.md'
@@ -312,42 +312,12 @@ class TestRootApplication:
 
         #: When
         default = runner.invoke(app, ['check', '--root', str(tmp_path)], env=PLAIN_TERMINAL)
-        current = runner.invoke(app, ['--no-agent-skills-spec', 'check', '--root', str(tmp_path)], env=PLAIN_TERMINAL)
-        alias = runner.invoke(app, ['--no-builtin-skills-schema', 'check', '--root', str(tmp_path)], env=PLAIN_TERMINAL)
+        opted_out = runner.invoke(app, ['--no-agent-skills-spec', 'check', '--root', str(tmp_path)], env=PLAIN_TERMINAL)
 
         #: Then
         assert default.exit_code == 1, default.output
-        assert current.exit_code == alias.exit_code == 0, alias.output
-        assert current.stdout == alias.stdout, 'the legacy spelling preserves check output'
-        assert current.stderr == alias.stderr, 'the legacy spelling preserves check diagnostics'
-        assert current.stdout != default.stdout, 'either spelling disables the default skill findings'
-
-    def test_check_refuses_both_builtin_skills_opt_out_spellings(self) -> None:
-        #: Given
-        app = build_app()
-
-        #: When
-        result = runner.invoke(app, ['--no-agent-skills-spec', '--no-builtin-skills-schema', 'check'])
-
-        #: Then
-        assert result.exit_code == 2, 'two spellings of one option are a usage error'
-        assert 'give only one' in result.stderr, 'the usage error explains the duplicate opt-out'
-
-    @pytest.mark.parametrize('format_args', ((), ('--format', 'json')), ids=('text', 'json'))
-    def test_inspect_aliases_keep_the_same_output(self, workspace: Path, format_args: tuple[str, ...]) -> None:
-        #: Given
-        app = build_app()
-        current = runner.invoke(
-            app, ['--no-agent-skills-spec', 'inspect', str(workspace), *format_args], env=PLAIN_TERMINAL
-        )
-        alias = runner.invoke(
-            app, ['--no-builtin-skills-schema', 'inspect', str(workspace), *format_args], env=PLAIN_TERMINAL
-        )
-
-        #: Then
-        assert current.exit_code == alias.exit_code == 0, alias.output
-        assert current.stdout == alias.stdout, 'the legacy spelling preserves inspect output'
-        assert current.stderr == alias.stderr, 'the legacy spelling preserves inspect diagnostics'
+        assert opted_out.exit_code == 0, opted_out.output
+        assert opted_out.stdout != default.stdout, 'the opt-out disables the default skill findings'
 
 
 @pytest.mark.it

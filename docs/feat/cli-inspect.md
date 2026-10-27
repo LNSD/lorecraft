@@ -61,8 +61,8 @@ lorecraft inspect ../other-repo --format json
 lorecraft --no-agent-skills-spec inspect
 ```
 
-`--no-agent-skills-spec` and its alias `--no-builtin-skills-schema` are global options of `lorecraft`, not
-options of `inspect`; [cli](cli.md) documents them. Given after `inspect`, they are a usage error.
+`--no-agent-skills-spec` is a global option of `lorecraft`, not an option of `inspect`; [cli](cli.md) documents
+it. Given after `inspect`, it is a usage error.
 
 ### Output
 
@@ -110,8 +110,7 @@ or to a directory elsewhere in the repository, is listed where the agent finds i
     └── .agents/skills/docs-rules [claude-code, codex]
 ```
 
-By default the text heading reads `skills (N)`. With the global `--no-agent-skills-spec` (or its
-`--no-builtin-skills-schema` alias), it reads `skills (N; Agent Skills schema disabled)`.
+By default the text heading reads `skills (N)`. With the global `--no-agent-skills-spec`, it reads `skills (N; Agent Skills schema disabled)`.
 
 In the JSON these are `agent_skills_dirs`, each with `agent`, `path` and `resolves_to`, and `skills`, each with
 the `path` of its `SKILL.md` and its `agents`. Skill objects do not include `governed_by`. The top-level

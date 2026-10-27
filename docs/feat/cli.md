@@ -65,7 +65,6 @@ one is added.
 |--------------------|---------|-------------|
 | `--version`, `-V`  | off     | Print `lorecraft <version>` and exit `0`, whatever command or arguments follow it; an unknown option of `lorecraft` itself, as in `-V --bogus`, is still a usage error |
 | `--no-agent-skills-spec` | off | Do not apply the builtin Agent Skills specification and skill floor; it applies to `check` and `inspect`, and goes before the command, as in `lorecraft --no-agent-skills-spec check` |
-| `--no-builtin-skills-schema` | off | Hidden, deprecated alias of `--no-agent-skills-spec`; giving both is a usage error, exit `2` |
 
 The version printed is the one the installed package was built with, the same line `lorecraft version` prints.
 

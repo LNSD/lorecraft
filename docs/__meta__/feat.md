@@ -227,6 +227,10 @@ if an interface redesign becomes necessary.
 `status` is not a release note. It states where the feature stands today; it does not narrate how it got
 there, and a version number never appears in it.
 
+A feat doc describes only what a user should use. Deprecated functionality — a deprecated option, alias,
+command or key — does not appear in it, not even marked as deprecated; the release notes carry it until it is
+removed.
+
 ### Component Prefixes (MANDATORY)
 
 The `components` field names the things a change to this feature would touch. Every entry MUST carry one of
@@ -598,6 +602,7 @@ Before committing a feat doc:
 - [ ] `type` is one of: `meta`, `feature`, `component`
 - [ ] `status` is one of: `stable`, `experimental`, `unstable`, `development`
 - [ ] `status` reflects where the feature stands today, and names no version
+- [ ] No deprecated option, alias, command or key appears anywhere in the document
 - [ ] `description` says what it covers and includes a "Load when" clause (no ending period)
 - [ ] `components` entries all use `module:`, `skill:` or `spec:`, spelled as [§2](#2-frontmatter-requirements) requires
 - [ ] Every `module:` entry starts with the import package
