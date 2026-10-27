@@ -163,7 +163,7 @@ One spec in an item's governance chain. A [failed layer](#failed-layer) is one w
 
 ### Failed layer
 
-A layer whose structure file failed to load; `Governance.failed_layers()` reports these layers. Under the partial check policy, a failed layer suppresses every spec gate while `ByPackage` and `BySchema` gates continue to run, and the suppressed parts are reported in coverage.
+A layer whose structure file failed to load; `Governance.failed_layers()` reports these layers. Under the partial check policy, a failed layer suppresses every `WhenSpec` gate while `Always` gates continue to run, and the suppressed parts are reported in coverage.
 
 ### Spec part
 
