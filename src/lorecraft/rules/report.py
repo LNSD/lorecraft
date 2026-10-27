@@ -47,6 +47,7 @@ from lorecraft.vfs import Utf8Failure
 
 from .declaration import EngineCondition, Rule
 from .identity import Severity
+from .level_resolution import LevelOrigin, LevelSelector
 from .location import Here, WholeSubject
 
 
@@ -58,11 +59,15 @@ class RuleDiagnostic:
         path: The subject the occurrence was found in.
         occurrence: The rule's occurrence, which renders the code, the message and everything around it.
         severity: The severity the rule table enables the rule at.
+        level_source: Where the rule's level came from.
+        selector: The code or group prefix that set the level, or None for the default.
     """
 
     path: RootRelativePath
     occurrence: Rule
     severity: Severity
+    level_source: LevelOrigin = 'default'
+    selector: LevelSelector | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -101,7 +106,7 @@ def elevate_warnings(diagnostics: tuple[Diagnostic, ...], deny_warnings: bool) -
     if not deny_warnings:
         return diagnostics
     return tuple(
-        RuleDiagnostic(item.path, item.occurrence, Severity.ERROR)
+        RuleDiagnostic(item.path, item.occurrence, Severity.ERROR, item.level_source, item.selector)
         if isinstance(item, RuleDiagnostic) and item.severity is Severity.WARNING
         else item
         for item in diagnostics

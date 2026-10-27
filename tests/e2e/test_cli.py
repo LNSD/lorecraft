@@ -635,6 +635,7 @@ class TestCheckCommand:
                     'severity': 'error',
                     'code': 'LC503',
                     'name': 'broken-link',
+                    'level_source': 'default',
                     'message': '`references/missing.md` names nothing',
                     'labels': [],
                     'children': [
@@ -664,6 +665,7 @@ class TestCheckCommand:
                     'severity': 'error',
                     'code': 'LC102',
                     'name': 'escaping-symlink',
+                    'level_source': 'default',
                     'message': 'symlink leads outside the repository',
                     'labels': [],
                     'children': [
@@ -690,6 +692,7 @@ class TestCheckCommand:
                     'severity': 'error',
                     'code': 'LC001',
                     'name': 'invalid-utf8',
+                    'level_source': 'default',
                     'message': 'file is not valid UTF-8',
                     'labels': [
                         {

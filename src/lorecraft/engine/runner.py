@@ -188,7 +188,7 @@ def _located[R: Rule](
         judge: Runs one rule of the partition over the subject.
     """
     return [
-        RuleDiagnostic(path, occurrence, enabled.severity)
+        RuleDiagnostic(path, occurrence, enabled.severity, enabled.level_source, enabled.selector)
         for enabled in partition
         for occurrence in judge(enabled.rule)
     ]

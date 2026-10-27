@@ -7,11 +7,28 @@ use when it builds its enabled rules.
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+from typing import Literal
 
 from .identity import Level, RuleCode, RuleGroupPrefix
 
 type LevelSelector = RuleGroupPrefix | RuleCode
 type LevelSource = Mapping[LevelSelector, Level]
+type LevelOrigin = Literal['default', 'config', 'cli']
+
+
+@dataclass(frozen=True, slots=True)
+class LevelResolution:
+    """The chosen level, its origin and the selector that set it.
+
+    Attributes:
+        level: The level that applies to the rule.
+        source: Where the setting came from, or `default` when nothing set it.
+        selector: The exact code or group prefix that matched, or None for a default.
+    """
+
+    level: Level
+    source: LevelOrigin
+    selector: LevelSelector | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -19,12 +36,12 @@ class ResolvedLevels:
     """An ordered stack of configured level sources, from broad settings to local overrides.
 
     Attributes:
-        sources: Configuration, command-line flags and inline directives in that order. A caller may omit
+        sources: The level mappings and their origin, ordered from lowest to highest precedence. A caller may omit
             unavailable sources, but must preserve this order. The rule's default is supplied separately to
             `level_for`.
     """
 
-    sources: tuple[LevelSource, ...]
+    sources: tuple[tuple[LevelOrigin, LevelSource], ...]
 
     @classmethod
     def from_sources(cls, sources: Sequence[LevelSource]) -> ResolvedLevels:
@@ -33,6 +50,11 @@ class ResolvedLevels:
         Args:
             sources: Sources from lowest to highest precedence.
         """
+        return cls(tuple(('config', source) for source in sources))
+
+    @classmethod
+    def from_named_sources(cls, sources: Sequence[tuple[LevelOrigin, LevelSource]]) -> ResolvedLevels:
+        """Hold level sources with their origin, lowest to highest precedence."""
         return cls(tuple(sources))
 
     def level_for(self, code: RuleCode, default: Level) -> Level:
@@ -45,10 +67,12 @@ class ResolvedLevels:
             code: The rule whose level is being resolved.
             default: The level declared by the rule.
         """
-        for source in reversed(self.sources):
-            if code in source:
-                return source[code]
-        for source in reversed(self.sources):
-            if code.group.prefix in source:
-                return source[code.group.prefix]
-        return default
+        return self.resolution_for(code, default).level
+
+    def resolution_for(self, code: RuleCode, default: Level) -> LevelResolution:
+        """Resolve the level and identify the highest-precedence source that set it."""
+        for selector in (code, code.group.prefix):
+            for source, settings in reversed(self.sources):
+                if selector in settings:
+                    return LevelResolution(settings[selector], source, selector)
+        return LevelResolution(default, 'default', None)

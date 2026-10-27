@@ -16,7 +16,7 @@ from lorecraft.project.item import ItemType
 
 from .declaration import Rule
 from .identity import Level, Severity
-from .level_resolution import ResolvedLevels
+from .level_resolution import LevelOrigin, LevelResolution, LevelSelector, ResolvedLevels
 from .registry import Registry
 from .selection import RuleSelection
 from .subject import (
@@ -50,10 +50,14 @@ class EnabledRule[R: Rule]:
     Attributes:
         rule: The rule class to run.
         severity: The severity used for each occurrence.
+        level_source: Where the rule's level came from.
+        selector: The code or group prefix that set the level, or None for the default.
     """
 
     rule: type[R]
     severity: Severity
+    level_source: LevelOrigin = 'default'
+    selector: LevelSelector | None = None
 
 
 # The table combines rules with unrelated query fact types; each rule retains its own query type at dispatch.
@@ -69,11 +73,16 @@ class RuleTable:
     # Corpus-directory rules likewise preserve each rule's query type until dispatch.
     _corpus_directory_rules: tuple[EnabledRule[QueriedCorpusDirectoryRule[Any]], ...]
 
-    def __init__(self, severities: Mapping[type[Rule], Severity]) -> None:
+    def __init__(
+        self,
+        severities: Mapping[type[Rule], Severity],
+        resolutions: Mapping[type[Rule], LevelResolution] | None = None,
+    ) -> None:
         """Hold enabled item rules under their declared gates and preserve layout partitions.
 
         Args:
             severities: Each enabled rule, mapped to the severity its occurrences are reported at.
+            resolutions: The level resolution for each enabled rule.
 
         Raises:
             UnknownRuleBaseError: If a rule has no supported query base.
@@ -83,11 +92,15 @@ class RuleTable:
         corpus_directory_rules: list[EnabledRule[QueriedCorpusDirectoryRule[Any]]] = []
         for rule_class in sorted(severities, key=_printed_code):
             if issubclass(rule_class, QueriedSymlinkRule):
-                symlink_rules.append(EnabledRule(rule_class, severities[rule_class]))
+                symlink_rules.append(
+                    EnabledRule(rule_class, severities[rule_class], *_provenance(resolutions, rule_class))
+                )
             elif issubclass(rule_class, QueriedCorpusDirectoryRule):
-                corpus_directory_rules.append(EnabledRule(rule_class, severities[rule_class]))
+                corpus_directory_rules.append(
+                    EnabledRule(rule_class, severities[rule_class], *_provenance(resolutions, rule_class))
+                )
             elif issubclass(rule_class, QueriedItemRule):
-                enabled = EnabledRule(rule_class, severities[rule_class])
+                enabled = EnabledRule(rule_class, severities[rule_class], *_provenance(resolutions, rule_class))
                 for item_type, gate in rule_class.APPLIES_TO.items():
                     item_rules.setdefault((item_type, gate), []).append(enabled)
             else:
@@ -114,14 +127,21 @@ class RuleTable:
             UnknownRuleBaseError: If an enabled rule has no supported query base.
         """
         severities: dict[type[Rule], Severity] = {}
+        resolutions: dict[type[Rule], LevelResolution] = {}
         for rule_class in registry.rules_in_service:
             if not selection.is_kept(rule_class.CODE):
                 continue
-            level = rule_class.LEVEL if levels is None else levels.level_for(rule_class.CODE, rule_class.LEVEL)
+            resolution = (
+                LevelResolution(rule_class.LEVEL, 'default', None)
+                if levels is None
+                else levels.resolution_for(rule_class.CODE, rule_class.LEVEL)
+            )
+            level = resolution.level
             severity = _default_severity(level)
             if severity is not None:
                 severities[rule_class] = severity
-        return cls(severities)
+                resolutions[rule_class] = resolution
+        return cls(severities, resolutions)
 
     def item_rules(self, item_type: ItemType, gate: Gate) -> tuple[EnabledRule[QueriedItem], ...]:
         """Each enabled item rule gated for this item type and gate, in code order.
@@ -176,6 +196,15 @@ def _default_severity(level: Level) -> Severity | None:
             return Severity.ERROR
         case _:
             assert_never(level)
+
+
+def _provenance(
+    resolutions: Mapping[type[Rule], LevelResolution] | None, rule: type[Rule]
+) -> tuple[LevelOrigin, LevelSelector | None]:
+    if resolutions is None or rule not in resolutions:
+        return 'default', None
+    resolution = resolutions[rule]
+    return resolution.source, resolution.selector
 
 
 def _printed_code(rule: type[Rule]) -> str:

@@ -41,7 +41,7 @@ from lorecraft.core.path import RootRelativePath
 from lorecraft.project.syntax import FIRST_LINE, LineNumber
 from lorecraft.rules.identity import Severity
 from lorecraft.rules.location import EntrySubdiagnostic, Subdiagnostic
-from lorecraft.rules.report import Diagnostic, RunReport
+from lorecraft.rules.report import Diagnostic, RuleDiagnostic, RunReport
 
 from .diagnostic_parts import (
     FilePlace,
@@ -186,6 +186,20 @@ def _diagnostic_lines(diagnostic: Diagnostic, sources: SourceLines, style: TextS
         style, f'{diagnostic.severity}[{occurrence.CODE}]', fg=_severity_color(diagnostic.severity), bold=True
     )
     lines = [header + _paint(style, f': {occurrence.message()}', bold=True)]
+    if isinstance(diagnostic, RuleDiagnostic) and diagnostic.level_source != 'default':
+        selector = occurrence.CODE if diagnostic.selector is None else diagnostic.selector
+        match diagnostic.level_source, diagnostic.severity:
+            case 'cli', Severity.WARNING:
+                note = f'-W {selector} requested on the command line'
+            case 'cli', Severity.ERROR:
+                note = f'-D {selector} requested on the command line'
+            case 'config', Severity.WARNING:
+                note = f'warn level configured for {selector}'
+            case 'config', Severity.ERROR:
+                note = f'deny level configured for {selector}'
+            case _:
+                assert_never((diagnostic.level_source, diagnostic.severity))
+        lines.append(f'  = note: {note}')
 
     marks = diagnostic_marks(diagnostic)
     width = _gutter_width(marks, sources)

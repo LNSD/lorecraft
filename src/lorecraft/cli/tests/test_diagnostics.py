@@ -21,7 +21,7 @@ from lorecraft.project.skill import OutsideSymlinkRef
 from lorecraft.project.syntax import LineNumber, SectionHeading, WordCount
 from lorecraft.rules.engine.malformed_structure_file import FormatViolated, MalformedStructureFile
 from lorecraft.rules.frontmatter.duplicate_key import DuplicateKey
-from lorecraft.rules.identity import Severity
+from lorecraft.rules.identity import RuleGroupPrefix, Severity
 from lorecraft.rules.layout.escaping_symlink import EscapingSymlink
 from lorecraft.rules.length.too_many_tokens import TooManyTokens
 from lorecraft.rules.outline.missing_section import MissingSection
@@ -148,6 +148,56 @@ def _every_kind_of_report() -> tuple[RunReport, ...]:
 
 @pytest.mark.unit
 class TestRenderText:
+    def test_render_text_shows_note_for_non_default_level_source(self) -> None:
+        #: Given
+        guide = _document('feat', 'guide')
+        finding = MissingSection(
+            spec=_FEAT_SPEC,
+            section=SectionName.parse('Usage'),
+            before=DocumentEnd(last_line=_line(9), after=None),
+            description=None,
+            example=None,
+        )
+        reports: tuple[RunReport, ...] = (
+            CheckedItem(
+                ItemRef(guide.path),
+                diagnostics=(RuleDiagnostic(guide.path, finding, Severity.ERROR, 'cli'),),
+            ),
+        )
+
+        #: When
+        text = render_text(reports, {}, _PLAIN)
+
+        #: Then
+        assert '  = note: -D LC306 requested on the command line' in text, (
+            'text diagnostics identify a command-line deny override'
+        )
+
+    def test_render_text_with_a_warn_override_uses_its_flag_and_prefix_selector(self) -> None:
+        #: Given
+        guide = _document('feat', 'guide')
+        finding = MissingSection(
+            spec=_FEAT_SPEC,
+            section=SectionName.parse('Usage'),
+            before=DocumentEnd(last_line=_line(9), after=None),
+            description=None,
+            example=None,
+        )
+        reports: tuple[RunReport, ...] = (
+            CheckedItem(
+                ItemRef(guide.path),
+                diagnostics=(RuleDiagnostic(guide.path, finding, Severity.WARNING, 'cli', RuleGroupPrefix('LC')),),
+            ),
+        )
+
+        #: When
+        text = render_text(reports, {}, _PLAIN)
+
+        #: Then
+        assert '  = note: -W LC requested on the command line' in text, (
+            'text diagnostics use the warn flag and the winning prefix selector'
+        )
+
     def test_render_text_with_every_kind_of_report_matches_the_snapshot(self, snapshot: SnapshotAssertion) -> None:
         #: Given
         reports = _every_kind_of_report()
@@ -568,6 +618,7 @@ class TestRenderJson:
                     'path': '.agents/skills/review',
                     'line': None,
                     'severity': 'error',
+                    'level_source': 'default',
                     'code': 'LC102',
                     'name': 'escaping-symlink',
                     'message': 'symlink leads outside the repository',
@@ -594,6 +645,7 @@ class TestRenderJson:
                     'path': 'docs/code/a.md',
                     'line': 1,
                     'severity': 'warning',
+                    'level_source': 'default',
                     'code': 'LC401',
                     'name': 'too-many-tokens',
                     'message': 'too many tokens (2400 > 2000)',
@@ -629,6 +681,7 @@ class TestRenderJson:
                     'path': 'docs/code/a.md',
                     'line': 3,
                     'severity': 'error',
+                    'level_source': 'default',
                     'code': 'LC205',
                     'name': 'duplicate-key',
                     'message': "duplicate key 'name'",
@@ -650,6 +703,7 @@ class TestRenderJson:
                     'path': 'docs/code/latin.md',
                     'line': 4,
                     'severity': 'error',
+                    'level_source': 'default',
                     'code': 'LC001',
                     'name': 'invalid-utf8',
                     'message': 'file is not valid UTF-8',
@@ -666,6 +720,7 @@ class TestRenderJson:
                     'path': 'docs/feat/check.md',
                     'line': 5,
                     'severity': 'error',
+                    'level_source': 'default',
                     'code': 'LC306',
                     'name': 'missing-section',
                     'message': 'missing required section `Usage`',
@@ -856,6 +911,7 @@ class TestRenderLoadFailures:
                 'path': 'docs/__meta__/code.spec.json',
                 'line': None,
                 'severity': 'error',
+                'level_source': 'default',
                 'code': 'LC003',
                 'name': 'malformed-structure-file',
                 'message': 'structure file does not follow the structure format',
