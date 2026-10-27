@@ -1,6 +1,6 @@
 ---
 name: "cli-check"
-description: "The lorecraft check command: every rule over every document and skill of the workspace, root discovery, selecting and ignoring rules by full code or alias, the rule groups and their codes, the text and JSON output, and the 0/1/2 exit status. Load when running the documentation and skill checks, wiring them into CI or a pre-commit hook, running some rules only, matching on a rule code, or parsing their output"
+description: "The lorecraft check command: workspace checks, root discovery, rule selection by code or alias, text and JSON reports, and exit status. Load when running or scripting checks, selecting rules, or interpreting reports"
 type: "feature"
 status: "experimental"
 components: "module:lorecraft.cli,module:lorecraft.engine,module:lorecraft.rules"
@@ -91,7 +91,7 @@ are unchecked. See [The Subjects](#the-subjects) and [structure budgets](spec-st
 
 ### Output
 
-In `text`, stdout has blank-line-separated diagnostics with severity, code, message, numbered source and labels. Reported lines underline solid; other labels dotted. Nearby lines group, distant lines use ellipses; `:::` points to another file. Help/notes use `= help:`/`= note:`. Single-line help/notes wrap at 100 columns when piped; multiline breaks and lone `\r` notes stay separate.
+In `text`, stdout has blank-line-separated diagnostics with severity, code, message, numbered source and labels. Reported lines underline solid; other labels dotted. Nearby lines group, distant lines use ellipses; `:::` points to another file. Help/notes use `= help:`/`= note:`. For non-default levels, notes name the winning code or group selector. CLI notes use `-W`/`-D` and say `requested on the command line`; configuration notes identify the `warn`/`deny` level and selector. Default levels add no note.
 
 Check output (stdout):
 
@@ -125,13 +125,12 @@ labels, help and notes; `text` order and exit status are retained. Stderr has co
 docs/code/logging.md:1: error[LC306]: missing required section `Checklist`
 ```
 
-In `json`, stdout is one compact line; stderr holds selection warnings. In text order, `diagnostics` lists `path`, nullable `line`, `severity`, `code`, `name`, `message`, `labels` and `children`. `summary` counts subjects/errors/warnings; load failures are errors, not subjects. `coverage` lists `path`, `ungoverned`, `cause` and refused paths in `skipped_by`. `cause` is `refused-path` when the subject's own read was refused, `refused-dependency` when a refused docs path blocks it, and `null` when it was checked; unchecked symlinks add `unchecked: true`:
+In `json`, stdout is one compact line; stderr holds selection warnings. In text order, `diagnostics` lists `path`, nullable `line`, `severity`, `level_source`, `code`, `name`, `message`, `labels` and `children`. `level_source` is always present: `default` when no override applies, `config` when configuration overrides a rule's level. `summary` counts subjects and severities; load failures are errors, not subjects. `coverage` gives each path's `ungoverned`, `cause` (`refused-path`, `refused-dependency` or null) and refused paths in `skipped_by`; unchecked symlinks add `unchecked: true`:
 
 ```json
-{"diagnostics":[{"path":"docs/notes/broken.md","line":4,"severity":"error","code":"LC001","name":"invalid-utf8","message":"file is not valid UTF-8","labels":[{"path":"docs/notes/broken.md","line":4,"text":"0xE9 at byte offset 31 starts a character the next byte does not continue"}],"children":[{"kind":"help","text":"save the file as UTF-8","path":null,"line":null}]}],"summary":{"subjects":3,"errors":1,"warnings":0},"coverage":[{"path":"docs/notes/todo.md","ungoverned":["outline","budget"],"cause":null,"skipped_by":[]},{"path":"docs/code/guide.md","ungoverned":[],"cause":"refused-path","skipped_by":["docs/code/guide.md"]},{"path":"docs/code/linked.md","ungoverned":[],"cause":null,"skipped_by":[],"unchecked":true}]}
+{"diagnostics":[{"path":"docs/notes/broken.md","line":4,"severity":"error","level_source":"default","code":"LC001","name":"invalid-utf8","message":"file is not valid UTF-8","labels":[{"path":"docs/notes/broken.md","line":4,"text":"0xE9 at byte offset 31 starts a character the next byte does not continue"}],"children":[{"kind":"help","text":"save the file as UTF-8","path":null,"line":null}]}],"summary":{"subjects":3,"errors":1,"warnings":0},"coverage":[{"path":"docs/notes/todo.md","ungoverned":["outline","budget"],"cause":null,"skipped_by":[]},{"path":"docs/code/guide.md","ungoverned":[],"cause":"refused-path","skipped_by":["docs/code/guide.md"]},{"path":"docs/code/linked.md","ungoverned":[],"cause":null,"skipped_by":[],"unchecked":true}]}
 ```
 
-JSON paths must be UTF-8; Unicode is unescaped.
 
 ### Exit Status
 

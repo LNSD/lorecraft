@@ -21,6 +21,7 @@ from pydantic import BaseModel, ConfigDict, model_serializer
 
 from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.rules.identity import Severity
+from lorecraft.rules.level_resolution import LevelOrigin
 from lorecraft.rules.report import (
     BlockedSubject,
     CheckedItem,
@@ -28,6 +29,7 @@ from lorecraft.rules.report import (
     Diagnostic,
     LoadFailureReport,
     RefusedSubject,
+    RuleDiagnostic,
     RunReport,
     UncheckedSymlink,
     UndecodableSubject,
@@ -89,6 +91,7 @@ class _DiagnosticJson(BaseModel):
         path: The subject the diagnostic was found in.
         line: The line it is reported at, or None when it concerns the whole subject.
         severity: `error` or `warning`.
+        level_source: `default`, `config` or `cli`, where the diagnostic's level came from.
         code: The code of the rule or engine condition, such as `LC205`.
         name: The kebab-case name of the rule or engine condition, such as `duplicate-key`.
         message: What is wrong, on one line.
@@ -102,6 +105,7 @@ class _DiagnosticJson(BaseModel):
     path: str
     line: NonZeroUnsignedInt | None
     severity: Literal['error', 'warning']
+    level_source: LevelOrigin
     code: str
     name: str
     message: str
@@ -463,6 +467,7 @@ def _json_diagnostic(diagnostic: Diagnostic) -> _DiagnosticJson:
         path=str(diagnostic.path),
         line=primary_line(diagnostic),
         severity=_severity_word(diagnostic.severity),
+        level_source=diagnostic.level_source if isinstance(diagnostic, RuleDiagnostic) else 'default',
         code=str(occurrence.CODE),
         name=str(occurrence.NAME),
         message=occurrence.message(),

@@ -69,7 +69,7 @@ class TestRuleTableFromRegistry:
 
         #: Then
         assert table.item_rules(ItemType.DOCUMENT, WhenSpec(SpecPart.BUDGET)) == (
-            EnabledRule(OverHalfBudget, Severity.ERROR),
+            EnabledRule(OverHalfBudget, Severity.ERROR, 'config', OverHalfBudget.CODE),
         ), 'a deny override changes a default warn rule to error severity'
 
     def test_from_registry_with_rules_at_every_level_partitions_the_enabled_ones_in_code_order(
