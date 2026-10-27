@@ -30,7 +30,9 @@ value is JSON Schema Draft 2020-12 itself, so any editor and any JSON Schema too
 - **Corpus schema**: The frontmatter schema at the corpus spec name, which states the whole field set,
   usually with `required` and `additionalProperties: false`. Without it the corpus's frontmatter is unchecked.
 - **Namespace schema**: A frontmatter schema at a namespace spec name. It is applied beside the corpus
-  schema, never in place of it, so it states only the constraints it adds.
+  schema, never in place of it, so it states only the constraints it adds. Without a corpus schema it is
+  ignored. Skills are the exception: the builtin Agent Skills frontmatter schema applies to a skill with no
+  corpus schema at all.
 
 ## Usage
 
@@ -84,7 +86,7 @@ schema it started from while staying on the same value, through only `$ref`, `$d
 A cycle is refused even where nothing applies it, such as two `$defs` entries that refer to each other and
 nothing else refers to. A reference back to an enclosing schema from below `properties` or `items` applies to a
 smaller value, so a recursive schema such as a tree is accepted. `description` and `$comment` are allowed
-anywhere. For a refused schema, `lorecraft check` reports an error diagnostic at the structure file,
+anywhere. For a refused schema, `lorecraft check` reports an error diagnostic, `LC004`, at the structure file,
 skips the documents it governs, and exits `1`. `lorecraft inspect` still stops with exit `2`.
 
 ## Limitations

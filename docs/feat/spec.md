@@ -50,26 +50,26 @@ hyphen, so the corpus ends at the first hyphen: a corpus of several words is spe
 digits in hyphen-separated words, starting with a letter. A spec name holds no dot. A file whose name
 does not parse, such as `README.md`, `1abc.md`, `feat-2col.md` or a `<name>.<token>.json` that no pattern claims,
 is left out, and so is a namespace spec whose corpus has no file at its own name, or no directory under
-`docs/`. A `<name>.header.json` from before the frontmatter schema moved into the structure file is
-claimed by no pattern, like any other unknown JSON file, so it is left out and not read.
+`docs/`. The reserved corpora `meta` and `skills` load without a directory (`LC101` reports one);
+the `meta` specs govern the spec files. A `<name>.header.json` is claimed by no pattern, so it is left out and not read.
 
 ### Loading
 
-At a spec name, `<name>.spec.json` is the structure file. Other files whose names are not claimed by a
-file type are ignored without a diagnostic when they are readable; unreadable files follow the rules below.
+At a spec name, `<name>.spec.json` is the structure file. Other readable files no file type claims are ignored without a diagnostic.
 
 Every selected structure file is read and validated before any document, from one snapshot. Only selected files
 are read as specs. Invalid JSON or unusable rules are load failures. `check` reports
-these and unreadable structure files (`LC002`) as errors at the file, skips governed documents, checks the rest
+these (`LC001` undecodable, `LC003` malformed, `LC004` unusable) and unreadable structure files (`LC002`) as errors at the file, skips governed documents, checks the rest
 and exits `1`. `inspect` exits `2` on a load failure. `check` reports unreadable files under `docs/` as `LC002`;
 unlistable `docs/` or `docs/__meta__/`, and unreported refusals outside `docs/`, exit `2`.
 
 ### Governed or Not
 
 Each part of a document a rule reads is governed on its own. A namespace spec never stands in for its
-corpus spec: with no corpus structure file, a document is ungoverned for every part. With one, its structure is
+corpus spec: with no corpus structure file, a document is ungoverned for every part, except a skill's frontmatter and 500-line budget, which the
+builtin Agent Skills layer governs. With one, its structure is
 governed whatever keys the files state, its outline or its budget when a structure file that applies states an
-outline or sets `tokens`, and its frontmatter only when the corpus file itself states `frontmatter`. No rule over an
+outline or sets `tokens` or `lines`, and its frontmatter only when the corpus file itself states `frontmatter`. No rule over an
 ungoverned part runs: the part is reported as [coverage](cli-check.md#output), never failed.
 
 ## Limitations

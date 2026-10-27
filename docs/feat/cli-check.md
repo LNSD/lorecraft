@@ -54,7 +54,6 @@ Conflicting-level errors name `-A`, `-W`, `-D`; invalid values exit `2` before r
 
 | Argument or option | Default | Env var | Description |
 |--------------------|---------|---------|-------------|
-| `--no-agent-skills-spec` (`--no-builtin-skills-schema`) | unset | — | Disable the builtin Agent Skills spec and floor, including contradiction preflight; repository specs still apply |
 | `--root <path>`    | nearest of working directory and parents holding `docs/__meta__/` | — | The repository root, as [Root Discovery](#root-discovery) describes |
 | `--format <text\|short\|json>` | `text` | — | The output format, as [Output](#output) describes |
 | `--color <WHEN>` | `auto` | [`NO_COLOR`](https://no-color.org/), [`FORCE_COLOR`](https://force-color.org/) | `text` only. `auto`: nonempty `FORCE_COLOR` enables; else nonempty `NO_COLOR` disables; otherwise stdout's TTY state applies. Empty is unset; any nonempty value, even `0`, is set. Errors red, warnings yellow, messages bold, gutters blue. |
@@ -77,7 +76,8 @@ lorecraft check --format short
 
 ```
 
-`--no-builtin-skills-schema` is a compatibility alias. `LC204` compares `name` with the skill directory; it never
+With the global `--no-agent-skills-spec` ([cli](cli.md)), given before the command, the builtin Agent Skills spec and floor
+are off. `LC204` compares `name` with the skill directory; it never
 suggests renaming `SKILL.md`. Without a repository skills spec, opt-out reports `ungoverned for frontmatter, budget`
 (exit `0`) even for malformed frontmatter or mismatched names; `LC402`, `LC211` and `LC212` do not run. Default
 skill coverage omits `budget`. Excluding required `name`/`description` fails; indirect and cross-layer constraints
@@ -176,6 +176,7 @@ Each reported structure-file failure appears once at that file.
 
 ## Code References
 
+- `src/lorecraft/cli/app.py` - Global `--no-agent-skills-spec`
 - `src/lorecraft/cli/commands/check.py` - Command and level options
 - `src/lorecraft/cli/check_run.py` - Rule run and exit status
 - `src/lorecraft/cli/root.py` - Root discovery

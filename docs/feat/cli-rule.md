@@ -68,18 +68,18 @@ A removed rule shows `removed` in place of a level, and an engine condition the 
 since it has no level. The listing includes `LC001` through `LC004`; this excerpt shows entries from it:
 
 ```text
-LC207    unknown-field             warn   A frontmatter holds a field its schema does not define.
-LC001    invalid-utf8              error  A file is not valid UTF-8.
-LC002    unreadable-path           error  A path cannot be read.
-LC003    malformed-structure-file  error  A structure file does not follow the structure format, or states no rule.
-LC004    unusable-structure-file   error  A structure file follows the structure format and states rules that cannot be applied.
-LC304    empty-section             deny   A section holds no content, under a structure file that forbids empty sections.
+LC001  invalid-utf8              error  A file is not valid UTF-8.
+LC002  unreadable-path           error  A path cannot be read.
+LC003  malformed-structure-file  error  A structure file does not follow the structure format, or states no rule.
+LC004  unusable-structure-file   error  A structure file follows the structure format and states rules that cannot be applied.
+LC207  unknown-field             warn   A frontmatter holds a field its schema does not define.
+LC304  empty-section             deny   A section holds no content, under a structure file that forbids empty sections.
 ```
 
 ### Default Levels
 
-Every rule in the listing has the default level shown here. `allow` rules do not appear because they are not
-run. `LC001`–`LC004` are engine conditions, not rules; they are always reported as errors and have no level.
+Every rule in the listing has the default level shown here.
+`LC001`–`LC004` are engine conditions, not rules; they are always reported as errors and have no level.
 
 | Default level | Rule codes |
 |---------------|------------|

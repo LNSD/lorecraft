@@ -42,7 +42,8 @@ class MissingField(QueriedItemRule[tuple[SchemaProblems, ...]]):
     Checks for documents whose frontmatter lacks a field the `required` list of their structure file's
     `frontmatter` schema names, and for skills whose frontmatter lacks a field the Agent Skills specification
     requires, `name` or `description`. A document that several specs govern, such as a corpus and a
-    namespace, is held to each schema they state, and is reported once for each schema that requires the field.
+    namespace, is held to each schema they state, and a field several of them require is reported once, for the
+    broadest schema that requires it.
 
     What the schema states about the field is shown as the help to write it: its `description`, the values its
     `enum` or `const` allows, and as a note its first `examples` entry. A `required` that sits in a branch, such as
