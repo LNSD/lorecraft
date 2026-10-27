@@ -394,19 +394,6 @@ class DocumentLink:
     has_back_link: bool
 
 
-def has_link_to(targets: Mapping[NormalisedLinkPath, LinkTargetEntry], path: RootRelativePath) -> bool:
-    """Whether any relative link of a file leads to an existing file at a path.
-
-    Args:
-        targets: Where each relative link of the file leads, as `link_targets_of` returns it.
-        path: The root-relative path to look for.
-    """
-    return any(
-        isinstance(entry, LinkTarget) and isinstance(entry.target, FileTarget) and entry.target.path == path
-        for entry in targets.values()
-    )
-
-
 def document_links_of(
     linked: tuple[LinkedDocument, ...],
     source: RootRelativePath,

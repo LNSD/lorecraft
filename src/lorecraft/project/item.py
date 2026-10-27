@@ -88,10 +88,10 @@ class SkillResourceOrigin:
     corpus governance is applied to the resource.
 
     Attributes:
-        skill_entry: Listed directory name of the containing skill.
+        skill_entrypoint: Listed directory name of the containing skill.
     """
 
-    skill_entry: str
+    skill_entrypoint: str
 
 
 @dataclass(frozen=True, slots=True)

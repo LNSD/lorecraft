@@ -937,7 +937,7 @@ class WorkspaceModel:
             ref=ItemRef(ref.path),
             read_location=location.resolves_to,
             link_base=SkillRoot(skill.directory),
-            origin=SkillResourceOrigin(skill_entry=str(skill.entry)),
+            origin=SkillResourceOrigin(skill_entrypoint=str(skill.entry)),
             name=_skill_aspect_filename(str(skill.entry)),
             listed_name=str(skill.entry),
             corpus=None,

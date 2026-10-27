@@ -889,7 +889,7 @@ class TestWorkspaceModel:
         assert resolved.descriptor.ref == ItemRef(ref.path), 'the resource keeps its listed identity'
         assert resolved.descriptor.read_location == location.resolves_to, 'the resource reads through its location'
         assert resolved.descriptor.link_base == SkillRoot(REVIEW.ref.directory), 'resource links use the skill root'
-        assert resolved.descriptor.origin == SkillResourceOrigin(skill_entry=str(REVIEW.ref.entry)), (
+        assert resolved.descriptor.origin == SkillResourceOrigin(skill_entrypoint=str(REVIEW.ref.entry)), (
             'the containing skill is recorded as the resource origin'
         )
 

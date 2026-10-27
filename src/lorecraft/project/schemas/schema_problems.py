@@ -29,7 +29,7 @@ from .frontmatter_problem import (
     UnknownFieldProblem,
     WrongTypeProblem,
 )
-from .frontmatter_schema import FrontmatterSchema, StatedFrontmatterSchema
+from .frontmatter_schema import FrontmatterSchema
 
 
 @dataclass(frozen=True, slots=True)
@@ -77,39 +77,6 @@ class SchemaProblems:
 
     source: SchemaSource
     problems: tuple[LocatedProblem, ...]
-
-
-def locate_schema_problems(
-    frontmatter: FrontmatterNode, schemas: tuple[StatedFrontmatterSchema, ...]
-) -> tuple[SchemaProblems, ...]:
-    """What each applicable schema rejects in frontmatter, each problem on its line. Raises nothing.
-
-    Args:
-        frontmatter: The document's frontmatter, as parsed; a block that is missing, not YAML or not a mapping is held
-            to no schema.
-        schemas: The frontmatter schemas that govern the item, in the order they apply.
-
-    Returns:
-        One entry per schema, in the order given, each naming the structure specification that states it; none when
-        the block is missing, not YAML or not a mapping, which no schema can hold.
-    """
-    match frontmatter:
-        case MissingFrontmatter() | InvalidYamlFrontmatter() | NonMappingFrontmatter():
-            return ()
-        case Frontmatter():
-            pass  # the mapping is held to each schema below
-        case _:
-            assert_never(frontmatter)
-
-    found: list[SchemaProblems] = []
-    for schema in schemas:
-        found.append(
-            SchemaProblems(
-                source=StructureSpecSchema(spec=schema.spec),
-                problems=_located_problems(frontmatter, schema.schema.validate(frontmatter.data)),
-            )
-        )
-    return tuple(found)
 
 
 def locate_repository_schema_problems(

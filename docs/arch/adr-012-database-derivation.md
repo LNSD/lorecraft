@@ -24,7 +24,7 @@ Drawn that way, the line runs through the middle of the database:
 
 - **The queries are derivations of a revision.** The model, the decoded text, the parse tree, the counts and the
   shared analyses are each computed by a function of `lorecraft.project` already: `parse_document`, `count_tokens`,
-  `locate_schema_problems` and `match_outlines` among them. The database only memoizes those functions for one
+  `locate_repository_schema_problems` and `match_outlines` among them. The database only memoizes those functions for one
   snapshot, so it sits with what it memoizes, not with the rules or the run.
 - **The database is check-agnostic.** No query is shaped around a rule or a check, so nothing ties it to the package
   that judges.

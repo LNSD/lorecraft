@@ -1,15 +1,13 @@
 """The rules engine's shared runner: every enabled rule over a subject, through one rule table.
 
-This is what every mode of the engine shares: the governance lookup, gate evaluation, and running
-the table's rules over a subject into its report. It holds no mode's policy. A document, spec, skill
-and resource are decoded by each mode's own entry point beside this module, `skip.check_subjects` for the check run,
-so that its policy for an item a failed layer governs comes after decoding; the entry point hands the decoded item to
-`judge_item` and the other subjects to the functions here.
+This is what the engine shares: the governance lookup, gate evaluation, and running the table's rules over a subject
+into its report. It holds no mode's policy. The check run in `skip.check_subjects` decodes item subjects and applies
+its policy for failed layers before handing decoded items to `judge_item` and layout subjects to the functions here.
 
 The runner never names a rule. A rule joins its base's group in the table through the registry, and the runner
-judges every rule of a group from its query's answer, so adding a rule never edits this module. What it names is
-each subject kind, in one hand-written branch, so the queries stay typed; a new value a rule reads is a query of the
-database, never a branch here.
+judges every rule of a group from its query's answer, so adding a rule never edits this module. The database resolves
+each rule's query for its subject, keeping query typing at that boundary; a new value a rule reads is a query, never
+a runner branch.
 
 Subject decoding precedes rule judgment. Each subject is decoded once: one that does not decode is reported as
 `UndecodableSubject`, whatever the table enables, and no rule sees it. A decoded item is then judged group by
@@ -23,16 +21,13 @@ governance. A rule over a skill entrypoint
 judges every `SKILL.md` and every resource, and never a document. The database answers only what a rule's query reads,
 so a value no enabled rule reads is never computed.
 
-The subjects are those of `skip.CheckedSubject`, which defines and dispatches them: documents, specs, skills,
-skills' resources and layout entries. A decoded document, skill or resource
-is judged by the one entry `judge_item`; a layout entry has a function of its own, so a subject kind without one is a
-type error. A document is handed over as its ref, and a skill as the `SkillLocation` the
-model hands out for it, since a rule over a skill may read where its directory leads. A skill entrypoint is the
-`SKILL.md`,
-decoded and reported at that path, under its ref. A resource is a subject of its own, handed over as the
-`SkillResourceLocation` its skill's resource listing gives, since only that listing locates its file: it is decoded at
-the file it leads to, and reported under its ref, at the path an agent reaches it by, through the same item queries.
-The runner never lists a skill's resources itself, so a skill handed over judges its `SKILL.md` alone.
+The subjects are those of `skip.CheckedSubject`: documents, specs, skills, skill resources and layout entries. A
+decoded document, skill entrypoint or resource is judged by `judge_item`; a layout entry has its own function, so a
+subject kind without one is a type error. An item subject is identified for rule queries and diagnostics by its
+`ItemRef`. A skill entrypoint is its `SKILL.md`; a skill resource is a separate item whose ref is the path an agent
+reaches it by, while its descriptor retains where the snapshot reads it. Each is judged through the same item queries.
+The runner never lists a skill's resources itself, so a skill judges its `SKILL.md` alone. A refused docs alias is
+reported as coverage at the alias's own item ref, while the refusal is reported at its target.
 
 A layout entry is one symlink of the skill layout whose chain leaves the repository, represented by its typed
 `OutsideSymlinkRef`, or a directory under `docs/` named like a reserved corpus, represented by its typed

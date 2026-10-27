@@ -3,8 +3,7 @@
 A document's schemas come from the model's governance and a skill's Agent Skills check is independent of corpus
 governance, so the queries
 are tested over a database opened on an in-memory snapshot: a document governed by a corpus and a namespace schema, an
-ungoverned one, one without a block, and a skill. How each problem is found and placed on its line is
-`locate_schema_problems`'s, tested on its own beside it.
+ungoverned one, one without a block, and a skill. The live query tests also pin problem placement on field lines.
 """
 
 from collections.abc import Callable
