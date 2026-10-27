@@ -21,7 +21,7 @@ from lorecraft.project.skill import OutsideSymlinkRef
 from lorecraft.project.syntax import LineNumber, SectionHeading, WordCount
 from lorecraft.rules.engine.malformed_structure_file import FormatViolated, MalformedStructureFile
 from lorecraft.rules.frontmatter.duplicate_key import DuplicateKey
-from lorecraft.rules.identity import Level, RuleGroupPrefix
+from lorecraft.rules.identity import Level
 from lorecraft.rules.layout.escaping_symlink import EscapingSymlink
 from lorecraft.rules.length.too_many_tokens import TooManyTokens
 from lorecraft.rules.level_resolution import DefaultLevel, ElevatedWarning, OverriddenLevel, WrittenSelector
@@ -234,7 +234,7 @@ class TestRenderText:
             'text diagnostics identify a command-line deny override'
         )
 
-    def test_render_text_with_a_warn_override_uses_its_flag_and_prefix_selector(self) -> None:
+    def test_render_text_with_a_warn_override_uses_its_flag_and_code_selector(self) -> None:
         #: Given
         guide = _document('feat', 'guide')
         finding = MissingSection(
@@ -251,7 +251,7 @@ class TestRenderText:
                     RuleDiagnostic(
                         guide.path,
                         finding,
-                        OverriddenLevel(Level.WARN, 'cli', RuleGroupPrefix('LC')),
+                        OverriddenLevel(Level.WARN, 'cli', EscapingSymlink.CODE),
                     ),
                 ),
             ),
@@ -261,8 +261,8 @@ class TestRenderText:
         text = render_text(reports, {}, _PLAIN)
 
         #: Then
-        assert '  = note: -W LC requested on the command line' in text, (
-            'text diagnostics use the warn flag and the winning prefix selector'
+        assert '  = note: -W LC102 requested on the command line' in text, (
+            'text diagnostics use the warn flag and the winning code selector'
         )
 
     def test_render_text_with_every_kind_of_report_matches_the_snapshot(self, snapshot: SnapshotAssertion) -> None:

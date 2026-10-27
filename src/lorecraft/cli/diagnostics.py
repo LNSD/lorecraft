@@ -272,7 +272,7 @@ def render_summary(reports: tuple[RunReport, ...]) -> str:
 
 
 def render_prefix_summary(reports: tuple[RunReport, ...]) -> str:
-    """One line per rule code range or legacy prefix that reported, with its errors and warnings, in prefix order.
+    """One line per rule code range that reported, with its errors and warnings, in code-range order.
 
     A line reads `{group}  {errors}, {warnings}`, each count left out when it is zero, such as `LC5xx  2 errors, 1
     warning`.
@@ -287,7 +287,7 @@ def render_prefix_summary(reports: tuple[RunReport, ...]) -> str:
     for diagnostic in ordered_diagnostics(reports):
         group = diagnostic.occurrence.CODE.group
         code_range = group.code_range
-        label = str(group.prefix) if code_range is None else f'{group.prefix}{code_range.start // 100}xx'
+        label = f'{group.prefix}{code_range.start // 100}xx'
         by_prefix.setdefault(label, []).append(diagnostic)
 
     prefix_width = max((len(prefix) for prefix in by_prefix), default=0)
