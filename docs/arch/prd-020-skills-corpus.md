@@ -2,7 +2,7 @@
 name: "prd-020-skills-corpus"
 description: "A reserved skills corpus in the spec directory that governs every agent skill's entrypoint by the skill's name, layered on the Agent Skills specification, so a repository can state its own rules for its skills as it does for its documents"
 type: "prd"
-status: "draft"
+status: "approved"
 ---
 
 # Skills Corpus

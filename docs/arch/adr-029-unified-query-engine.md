@@ -17,6 +17,9 @@ status: "accepted"
 > [adr-015-database](adr-015-database.md), “Every Question Is a Query”: the statement that every query is a database
 > method, the per-file and analysis layers' method-based computation, and the stated carry-over of a derived fact.
 > They stay binding for everything else; ADR-015's revision, snapshot, decode and input boundaries remain.
+>
+> Superseded in part: decision 1's queried item bases and the matching item-applicability statements in
+> Consequences. The rest of this record binds code.
 
 ## Context
 

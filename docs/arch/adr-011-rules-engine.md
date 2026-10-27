@@ -10,7 +10,9 @@ status: "accepted"
 > [!NOTE]
 > Superseded in part: the per-kind content references, decode witnesses and runner loops, and the subject contexts a
 > rule reads its facts through; and the command-line level restriction in "Levels, Configuration and Selection" and
-> the selection mechanism (`--select` and `--ignore`). The text below states the query design where it spoke of
+> the selection mechanism (`--select` and `--ignore`); and item applicability in "A Subject's Facts Are the
+> Query's" and "A Subject's Status Comes Before Any Rule", with the item partitions and facet indexes in "The
+> Runner". The text below states the query design where it spoke of
 > contexts, and the rest of this record binds code.
 
 This record is one of three that state how the structured checks of [prd-008](prd-008-structured-checks.md) are

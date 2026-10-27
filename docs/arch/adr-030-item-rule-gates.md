@@ -2,18 +2,18 @@
 name: "adr-030-item-rule-gates"
 description: "Item rules declare the item types they judge and the spec part condition that gates each item type. Load when changing item-rule applicability, spec governance parts, or their coverage."
 type: "adr"
-status: "proposed"
+status: "accepted"
 ---
 
 # Item Rule Applicability
 
 > [!NOTE]
-> Proposed to supersede in part [adr-009](adr-009-rules.md): the passage requiring document rules to declare
+> Supersedes in part [adr-009](adr-009-rules.md): the passage requiring document rules to declare
 > `GOVERNED_BY` and treating skills/layout rules as declaring none; [adr-011](adr-011-rules-engine.md): item
 > applicability in “A Subject's Facts Are the Query's” and “A Subject's Status Comes Before Any Rule,” plus the
 > item partitions and facet indexes in “The Runner”; and [adr-029](adr-029-unified-query-engine.md): decision 1's
 > queried item bases and their matching item-applicability statements in Consequences. Those records stay binding
-> outside these passages, and until this one is accepted.
+> outside these passages.
 
 ## Context
 
@@ -189,7 +189,8 @@ keep layout subjects separate because their primitives and query subjects differ
 ## References
 
 - [adr-009](adr-009-rules.md) - Supersedes in part: `GOVERNED_BY` declaration and former `ByPackage` passage
-- [adr-011](adr-011-rules-engine.md) - Foundation: Runner orchestration, rule tables and item governance
+- [adr-011](adr-011-rules-engine.md) - Supersedes in part: Item applicability, item partitions and facet indexes;
+  foundation: runner orchestration and rule tables
 - [adr-028](adr-028-schema-registry.md) - Foundation: Registered schema references and resolution
 - [adr-029](adr-029-unified-query-engine.md) - Supersedes in part: Decision 1's queried item bases; constraint:
   subject-specific query types and typed dispatch
