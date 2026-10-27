@@ -28,16 +28,18 @@ repository works from.
 - **Root**: The directory that holds `docs/__meta__/`; every path a finding or the model names is relative to
   it, the root itself is printed absolute, and a refused path argument is echoed as typed.
 - **Corpus**: A directory directly under `docs/` whose documents specs govern, named by the
-  directory. The reserved `skills` corpus is the exception: its subjects are agent skills, so it has no
-  directory under `docs/`.
+  directory. The reserved corpora are the exception.
 - **Document**: A Markdown file directly inside a corpus directory.
 - **Workspace model**: The corpora, their specs and their documents, as found in one snapshot.
-- **Skills corpus**: The reserved `skills` corpus loads the spec files at `docs/__meta__/skills.*` and
-  checks those files as specs. It does not govern skills or resources; the corpus
-  remains separate from skills until LORE-324. It has no `docs/skills/` directory. Skills are not documents.
-- **Overlapping corpus**: A `docs/skills/` directory is ignored, including its documents. The model records this name overlap, and `lorecraft check` reports it as the
-  [`LC101` warning](../rulebook/LC101-reserved-corpus-overlap.md). Skills retain their `Always` checks, and resources retain `Always` Markdown checks; neither receives corpus governance. Skill specs do
-  not change which rules check a `SKILL.md`.
+- **Skills corpus**: Reserved, with no directory under `docs/`. Its specs at `docs/__meta__/skills.*` govern
+  each `SKILL.md`, found by the name its skills directory lists it under, and are themselves checked as specs.
+- **Meta corpus**: Reserved, with no directory under `docs/`. Its specs at `docs/__meta__/meta.*` govern the
+  spec files in `docs/__meta__/`, its subjects.
+- **Overlapping corpus**: A `docs/skills/` or `docs/meta/` directory is ignored, with its documents; `check`
+  reports it as the [`LC101` warning](../rulebook/LC101-reserved-corpus-overlap.md).
+- **Agent Skills floor**: A builtin layer of the Agent Skills frontmatter schema and a 500-line budget, applied
+  to a `SKILL.md` before the repository's layers. The global `--no-agent-skills-spec` option in [cli](cli.md)
+  disables it.
 
 ## Architecture
 
@@ -83,7 +85,8 @@ directory in it, and every file and directory inside a skill, at any depth. That
 directory it names is in it even when absent, so a file missing there is missing. Under `docs/` a symlink is recorded, not followed: a path through
 one is in the scope only when it leads where the scope reads anyway. Under a skills directory, and inside a skill, a
 symlink into the repository is followed, to a directory at any depth and to a file for its contents; one leading
-outside the repository is not, and [check](cli-check.md) reports it. The model records where each skill's
+outside the repository is not, and [check](cli-check.md) reports it as
+[`LC102`](../rulebook/LC102-escaping-symlink.md). The model records where each skill's
 directory and `SKILL.md` lead.
 
 `docs/` and `docs/__meta__/` themselves must be real directories. Behind a symlink the snapshot would hold no

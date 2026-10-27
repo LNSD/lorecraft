@@ -130,12 +130,12 @@ and leaves where it sits to the corpus outline by surrounding it with `any` runs
 
 ### Refused on Load
 
-Beyond what [spec-structure](spec-structure.md#refused-on-load) refuses for any file, these keys are refused
-when the outline names a section twice or places two `any` runs side by side, or when `forbidden` names a section
-twice or one the outline names. A `title` stating no check, `{}`, is refused, since it would check nothing, and so
-is an empty `pattern`, which every title matches. A `pattern` that does not compile is refused with an error naming
-the file and the pattern. A section name, in the outline or in `forbidden`, is refused when it is empty, has
-whitespace at either end, or spans two lines: no heading's text could match it.
+Beyond what [spec-structure](spec-structure.md#refused-on-load) refuses for any file, these are refused. `LC004`
+is reported when the outline names a section twice or places two `any` runs side by side, when `forbidden` names a
+section twice or one the outline names, and when a `pattern` does not compile, with the file and the pattern named.
+`LC003` is reported when a `title` states no check, `{}`, since it would check nothing, when a `pattern` is empty,
+since every title matches it, and when a section name, in the outline or in `forbidden`, is empty, has whitespace
+at either end, or spans two lines: no heading's text could match it.
 
 ## Limitations
 

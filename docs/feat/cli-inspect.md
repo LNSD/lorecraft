@@ -57,11 +57,12 @@ lorecraft inspect
 # The model of another root, as JSON
 lorecraft inspect ../other-repo --format json
 
-# Show the builtin Agent Skills specification opt-out
+# Opt out of the builtin Agent Skills specification; a global option, so it goes before inspect
 lorecraft --no-agent-skills-spec inspect
 ```
 
-`--no-builtin-skills-schema` is a compatibility alias for `--no-agent-skills-spec`.
+`--no-agent-skills-spec` and its alias `--no-builtin-skills-schema` are global options of `lorecraft`, not
+options of `inspect`; [cli](cli.md) documents them. Given after `inspect`, they are a usage error.
 
 ### Output
 
@@ -109,13 +110,13 @@ or to a directory elsewhere in the repository, is listed where the agent finds i
     └── .agents/skills/docs-rules [claude-code, codex]
 ```
 
-By default the text heading reads `skills (N)`. With `--no-agent-skills-spec` (or its
+By default the text heading reads `skills (N)`. With the global `--no-agent-skills-spec` (or its
 `--no-builtin-skills-schema` alias), it reads `skills (N; Agent Skills schema disabled)`.
 
 In the JSON these are `agent_skills_dirs`, each with `agent`, `path` and `resolves_to`, and `skills`, each with
 the `path` of its `SKILL.md` and its `agents`. Skill objects do not include `governed_by`. The top-level
-`builtin_skills_schema` field is omitted by default; with `--no-agent-skills-spec` (or the compatibility alias), it is
-`false`. The option changes only this opt-out indication; the rest of the inspect text and JSON output is unchanged.
+`builtin_skills_schema` field is omitted by default; with the global `--no-agent-skills-spec` (or the alias), it is
+`false`. The global option changes only this opt-out indication in `inspect`; the rest of the inspect text and JSON output is unchanged.
 
 A root with no `docs/__meta__/` prints a model with no corpora, a root with no skills directory one with no
 skills, and both exit `0`.

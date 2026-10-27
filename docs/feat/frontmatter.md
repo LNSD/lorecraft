@@ -140,6 +140,9 @@ help for the recognized kinds are:
 A malformed anchor, alias or tag is named as a refusal without help. An error no recognized kind matches gets the label
 `the block cannot be read from this line on`, without parser wording or help.
 
+When the parser gives no line, or the block nests collections too deeply to parse, the label is the problem followed
+by `, somewhere in the block opened here`, on the line that opens the block.
+
 ## Repeated Keys
 
 `LC205 duplicate-key` reports each later occurrence of a key in one mapping, at any depth. It covers block
