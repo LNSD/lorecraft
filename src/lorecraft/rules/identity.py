@@ -307,7 +307,7 @@ class RuleGroupPrefix:
     A valid prefix:
 
     - Is not empty.
-    - Is an uppercase legacy prefix, or the shared `LC` prefix.
+    - Is an uppercase prefix, such as the shared `LC` prefix.
     - Is not `ALL`, the selector for every rule.
 
     Parsing preserves the spelling.
@@ -323,7 +323,7 @@ class RuleGroupPrefix:
         """Return a validated prefix.
 
         Args:
-            raw: Candidate prefix, such as `OUT`.
+            raw: Candidate prefix, such as `LC`.
 
         Raises:
             EmptyRuleGroupPrefixError: If it is empty.
@@ -374,17 +374,17 @@ class EmptyRuleGroupTitleError(ValueError):
 
 @dataclass(frozen=True, slots=True)
 class RuleGroup:
-    """The rules one mechanism states, under a shared code prefix and a reader-facing title.
+    """The rules one mechanism states, under a code prefix, range and reader-facing title.
 
     Attributes:
         prefix: The prefix that starts the code of every rule in the group.
         title: What the group covers, for a reader; not empty.
-        code_range: The valid three-digit code numbers for this group, when its prefix is shared.
+        code_range: The valid three-digit code numbers for this group.
     """
 
     prefix: RuleGroupPrefix
     title: str
-    code_range: range | None = None
+    code_range: range
 
     def __post_init__(self) -> None:
         """Reject an empty title.
@@ -451,7 +451,7 @@ class RuleCode:
             RuleNumberOutOfRangeError: If the number is outside the group's range.
         """
         code_range = self.group.code_range
-        if not 1 <= self.number <= self.DIGITS_MAX or code_range is not None and self.number not in code_range:
+        if not 1 <= self.number <= self.DIGITS_MAX or self.number not in code_range:
             raise RuleNumberOutOfRangeError(self.group, self.number)
 
     def __str__(self) -> str:

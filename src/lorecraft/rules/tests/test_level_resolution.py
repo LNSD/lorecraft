@@ -2,9 +2,10 @@
 
 import pytest
 
-from ..identity import Level, RuleCode, RuleGroupPrefix
+from ..identity import Level, RuleCode
 from ..level_resolution import (
     AllowedLevel,
+    AllRules,
     DefaultLevel,
     LevelSetting,
     LevelSource,
@@ -20,17 +21,17 @@ from .sample_rules.token_count.over_half_budget import OverHalfBudget
 
 @pytest.mark.unit
 class TestResolvedLevels:
-    def test_level_for_with_later_prefix_and_earlier_code_uses_code(self) -> None:
+    def test_level_for_with_later_all_and_earlier_code_uses_code(self) -> None:
         #: Given
         code_level: LevelSource = {AnyTokens.CODE: LevelSetting(Level.DENY)}
-        later_prefix_level: LevelSource = {SAMPLE.prefix: LevelSetting(Level.ALLOW)}
-        levels = ResolvedLevels.from_sources((code_level, later_prefix_level))
+        later_all_level: LevelSource = {AllRules(): LevelSetting(Level.ALLOW)}
+        levels = ResolvedLevels.from_sources((code_level, later_all_level))
 
         #: When
         level = levels.level_for(AnyTokens.CODE, AnyTokens.LEVEL)
 
         #: Then
-        assert level is Level.DENY, 'an exact-code setting beats a prefix from any source'
+        assert level is Level.DENY, 'an exact-code setting beats ALL from any source'
 
     def test_resolution_for_with_an_exact_code_returns_its_source_and_selector(self) -> None:
         #: Given
@@ -45,16 +46,16 @@ class TestResolvedLevels:
             'the winning exact-code setting keeps its source and selector'
         )
 
-    def test_level_for_with_prefix_and_code_in_same_source_uses_code(self) -> None:
+    def test_level_for_with_all_and_code_in_same_source_uses_code(self) -> None:
         #: Given
-        settings: LevelSource = {SAMPLE.prefix: LevelSetting(Level.ALLOW), AnyTokens.CODE: LevelSetting(Level.DENY)}
+        settings: LevelSource = {AllRules(): LevelSetting(Level.ALLOW), AnyTokens.CODE: LevelSetting(Level.DENY)}
         levels = ResolvedLevels.from_sources((settings,))
 
         #: When
         level = levels.level_for(AnyTokens.CODE, Level.WARN)
 
         #: Then
-        assert level is Level.DENY, 'an exact rule code beats its prefix within a source'
+        assert level is Level.DENY, 'an exact rule code beats ALL within a source'
 
     def test_resolution_for_an_allow_default_returns_the_disabled_variant(self) -> None:
         #: Given
@@ -99,31 +100,6 @@ class TestResolvedLevels:
         assert resolution == OverriddenLevel(Level.DENY, 'cli', AnyTokens.CODE), (
             'the chosen level retains its origin and exact selector'
         )
-
-    def test_resolution_for_uses_the_winning_prefix_selector(self) -> None:
-        #: Given
-        cli: LevelSource = {SAMPLE.prefix: LevelSetting(Level.DENY)}
-        levels = ResolvedLevels.from_named_sources((('cli', cli),))
-
-        #: When
-        resolution = levels.resolution_for(AnyTokens.CODE, AnyTokens.LEVEL)
-
-        #: Then
-        assert resolution == OverriddenLevel(Level.DENY, 'cli', SAMPLE.prefix), (
-            'a prefix override retains the prefix the user set'
-        )
-
-    def test_level_for_accepts_prefix_key_for_rule_group(self) -> None:
-        #: Given
-        prefix = RuleGroupPrefix('SMP')
-        settings: LevelSource = {prefix: LevelSetting(Level.WARN)}
-        levels = ResolvedLevels.from_sources((settings,))
-
-        #: When
-        level = levels.level_for(AnyTokens.CODE, Level.ALLOW)
-
-        #: Then
-        assert level is Level.WARN, 'a group prefix applies to every code in that group'
 
     def test_resolution_for_keeps_written_alias_only_as_provenance(self) -> None:
         #: Given

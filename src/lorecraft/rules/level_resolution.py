@@ -1,15 +1,15 @@
 """Resolve a rule's level by selector specificity and source precedence.
 
-Each source maps an exact rule code, group prefix or `ALL` to a level setting. A rule code beats a group prefix, and a
-group prefix beats `ALL`; within one specificity, later sources override earlier ones. Resolution is independent of
-detection: the result is a mapping the rule table uses to build its enabled rules.
+Each source maps an exact rule code or `ALL` to a level setting. A rule code beats `ALL`; within one specificity,
+later sources override earlier ones. Resolution is independent of detection: the result is a mapping the rule table
+uses to build its enabled rules.
 """
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Literal
 
-from .identity import EnabledLevel, Level, RuleCode, RuleGroupPrefix, Severity, severity_for_enabled_level
+from .identity import EnabledLevel, Level, RuleCode, Severity, severity_for_enabled_level
 
 
 @dataclass(frozen=True, slots=True)
@@ -36,7 +36,7 @@ class WrittenSelector:
         return self.spelling
 
 
-type LevelSelector = AllRules | RuleGroupPrefix | RuleCode
+type LevelSelector = AllRules | RuleCode
 type ProvenanceSelector = LevelSelector | WrittenSelector
 type SourceOrigin = Literal['config', 'cli']
 type LevelOrigin = Literal['default'] | SourceOrigin
@@ -151,8 +151,7 @@ class ResolvedLevels:
     def level_for(self, code: RuleCode, default: Level) -> Level:
         """Resolve a rule's level by specificity, then source precedence.
 
-        A rule code beats a group prefix or `ALL` from any source. Group prefixes beat `ALL`; within a specificity,
-        later sources win.
+        A rule code beats `ALL` from any source; within a specificity, later sources win.
 
         Args:
             code: The rule whose level is being resolved.
@@ -172,7 +171,7 @@ class ResolvedLevels:
             code: The rule whose level is being resolved.
             default: The level declared by the rule.
         """
-        for selector in (code, code.group.prefix, AllRules()):
+        for selector in (code, AllRules()):
             for source, settings in reversed(self.sources):
                 if selector in settings:
                     setting = settings[selector]

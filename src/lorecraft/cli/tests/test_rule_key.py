@@ -18,7 +18,7 @@ class SampleIndex:
         ConditionRow('LC001', 'invalid-utf8', 'error'),
         RuleRow('LC304', 'empty-section', 'deny', ('MD040',)),
         RuleRow('LC306', 'missing-section', 'deny', ()),
-        RemovedRuleRow('OUT010', 'retired-rule'),
+        RemovedRuleRow('LC307', 'retired-rule'),
     )
 
     def find(self, key: str, /) -> RuleIndexRow | None:
@@ -70,13 +70,13 @@ class TestRuleKeyParse:
 
     def test_parse_with_a_removed_rules_code_returns_the_key(self) -> None:
         #: Given
-        raw = 'OUT010'
+        raw = 'LC307'
 
         #: When
         parsed = RuleKey.parse(raw, SAMPLE_INDEX)
 
         #: Then
-        assert parsed == RuleKey('OUT010'), 'a removed rule has a page, so its code is a key'
+        assert parsed == RuleKey('LC307'), 'a removed rule has a page, so its code is a key'
 
     def test_parse_with_an_engine_conditions_code_returns_the_key(self) -> None:
         #: Given
@@ -90,25 +90,25 @@ class TestRuleKeyParse:
 
     def test_parse_with_a_hyphen_after_the_group_raises_malformed_rule_key_error(self) -> None:
         #: Given
-        raw = 'OUT-1'
+        raw = 'LC-1'
 
         #: When
         with pytest.raises(MalformedRuleKeyError) as exc_info:
             RuleKey.parse(raw, SAMPLE_INDEX)
 
         #: Then
-        assert exc_info.value.text == 'OUT-1', 'the error names the key that has no form, as typed'
+        assert exc_info.value.text == 'LC-1', 'the error names the key that has no form, as typed'
 
     def test_parse_with_a_group_prefix_raises_malformed_rule_key_error(self) -> None:
         #: Given
-        raw = 'OUT'
+        raw = 'LC'
 
         #: When
         with pytest.raises(MalformedRuleKeyError) as exc_info:
             RuleKey.parse(raw, SAMPLE_INDEX)
 
         #: Then
-        assert exc_info.value.text == 'OUT', 'a group prefix names no page'
+        assert exc_info.value.text == 'LC', 'a group prefix names no page'
 
     def test_parse_with_an_underscored_name_raises_malformed_rule_key_error(self) -> None:
         #: Given
@@ -145,14 +145,14 @@ class TestRuleKeyParse:
 
     def test_parse_with_four_digits_raises_malformed_rule_key_error(self) -> None:
         #: Given
-        raw = 'OUT1234'
+        raw = 'LC1234'
 
         #: When
         with pytest.raises(MalformedRuleKeyError) as exc_info:
             RuleKey.parse(raw, SAMPLE_INDEX)
 
         #: Then
-        assert exc_info.value.text == 'OUT1234', 'a code ends in three digits'
+        assert exc_info.value.text == 'LC1234', 'a code ends in three digits'
 
     def test_parse_with_a_leading_space_raises_malformed_rule_key_error(self) -> None:
         #: Given
@@ -178,14 +178,14 @@ class TestRuleKeyParse:
 
     def test_parse_with_a_code_no_rule_has_raises_unknown_rule_key_error(self) -> None:
         #: Given
-        raw = 'OUT999'
+        raw = 'LC999'
 
         #: When
         with pytest.raises(UnknownRuleKeyError) as exc_info:
             RuleKey.parse(raw, SAMPLE_INDEX)
 
         #: Then
-        assert exc_info.value.text == 'OUT999', 'a well-formed code no rule has is unknown'
+        assert exc_info.value.text == 'LC999', 'a well-formed code no rule has is unknown'
 
     def test_parse_with_a_name_no_rule_has_raises_unknown_rule_key_error(self) -> None:
         #: Given

@@ -234,7 +234,7 @@ METADATA_GUIDANCE: Final[FieldGuidance] = FieldGuidance(
 )
 """What the Agent Skills specification states about a skill's `metadata`."""
 
-SAMPLE: Final[RuleGroup] = RuleGroup(RuleGroupPrefix('SMP'), 'Sample rules')
+SAMPLE: Final[RuleGroup] = RuleGroup(RuleGroupPrefix('SMP'), 'Sample rules', range(1, 100))
 """The group of the sample rules this module declares."""
 
 

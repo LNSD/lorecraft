@@ -4,8 +4,8 @@ from typing import Final
 
 from lorecraft.rules.identity import RuleGroup, RuleGroupPrefix
 
-SAMPLE: Final[RuleGroup] = RuleGroup(RuleGroupPrefix('SMP'), 'Sample rules')
+SAMPLE: Final[RuleGroup] = RuleGroup(RuleGroupPrefix('SMP'), 'Sample rules', range(1, 100))
 """The group of most sample rules."""
 
-LAYOUT: Final[RuleGroup] = RuleGroup(RuleGroupPrefix('LAYS'), 'Sample layout rules')
+LAYOUT: Final[RuleGroup] = RuleGroup(RuleGroupPrefix('LAYS'), 'Sample layout rules', range(1, 100))
 """The group of the sample rules over a layout entry."""

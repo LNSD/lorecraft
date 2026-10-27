@@ -9,7 +9,7 @@ from lorecraft.rules.tests.sample_subject import SampleLines, SampleLinesRule
 
 from ..groups import SAMPLE
 
-RETITLED: Final[RuleGroup] = RuleGroup(SAMPLE.prefix, 'Sample rules under another title')
+RETITLED: Final[RuleGroup] = RuleGroup(SAMPLE.prefix, 'Sample rules under another title', range(1, 100))
 """A second group declared with the prefix of `SAMPLE`."""
 
 

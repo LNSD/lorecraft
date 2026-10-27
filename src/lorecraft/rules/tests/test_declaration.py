@@ -422,7 +422,7 @@ class TestRuleGroup:
 
         #: When
         with pytest.raises(EmptyRuleGroupTitleError) as exc_info:
-            RuleGroup(prefix, '')
+            RuleGroup(prefix, '', range(1, 100))
 
         #: Then
         assert type(exc_info.value).__bases__ == (ValueError,), 'an empty title is a defect in the package'
@@ -433,7 +433,7 @@ class TestRuleGroup:
 class TestRuleCode:
     def test_str_with_a_rule_code_prints_one_three_digit_number(self) -> None:
         #: Given
-        code = RuleCode(RuleGroup(RuleGroupPrefix('LC'), 'Frontmatter checks'), 201)
+        code = RuleCode(RuleGroup(RuleGroupPrefix('LC'), 'Frontmatter checks', range(200, 300)), 201)
 
         #: When
         printed = str(code)
@@ -443,7 +443,7 @@ class TestRuleCode:
 
     def test_str_with_a_one_digit_number_pads_it_to_three_digits(self) -> None:
         #: Given
-        code = RuleCode(RuleGroup(RuleGroupPrefix('LC'), 'Outline'), 302)
+        code = RuleCode(RuleGroup(RuleGroupPrefix('LC'), 'Outline', range(300, 310)), 302)
 
         #: When
         printed = str(code)
@@ -453,7 +453,7 @@ class TestRuleCode:
 
     def test_str_with_the_largest_number_prints_it_unpadded(self) -> None:
         #: Given
-        code = RuleCode(RuleGroup(RuleGroupPrefix('LC'), 'Outline'), 999)
+        code = RuleCode(RuleGroup(RuleGroupPrefix('LC'), 'Outline', range(900, 1000)), 999)
 
         #: When
         printed = str(code)
@@ -483,6 +483,19 @@ class TestRuleCode:
 
         #: Then
         assert exc_info.value.number == number, 'the error keeps the number that would print four digits'
+
+    def test_rule_code_outside_its_group_range_raises_rule_number_out_of_range_error(self) -> None:
+        #: Given
+        group = RuleGroup(RuleGroupPrefix('LC'), 'Frontmatter checks', range(200, 300))
+        number = 301
+
+        #: When
+        with pytest.raises(RuleNumberOutOfRangeError) as exc_info:
+            RuleCode(group, number)
+
+        #: Then
+        assert exc_info.value.group is group, 'the error names the group whose range excludes the code'
+        assert exc_info.value.number == number, "the error keeps the first number after the group's range"
 
 
 @pytest.mark.unit
