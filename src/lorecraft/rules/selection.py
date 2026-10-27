@@ -1,10 +1,10 @@
 """The one-run selection: which rules a run keeps, before the levels decide how each reports.
 
 A selection filters the rule table and nothing else: it never changes a level, so a rule at `allow` stays off
-whatever selects it, and it never reaches a rule or the runner. The command line parses `--select` and `--ignore`
-into one; no `--select` selects `AllRules`, never an empty set.
+whatever selects it, and it never reaches a rule or the runner. The command line parses `--select` into one; no
+`--select` selects `AllRules`, never an empty set. The command line leaves the selection's ignore set empty.
 
-Among the selectors of `--select` and `--ignore` that match a rule, the most specific decides and `--ignore` wins a
+Among the selectors of `--select` that match a rule, the most specific decides and the selection's ignore set wins a
 tie. `ALL` selects every rule; a full rule code selects one.
 """
 
@@ -47,7 +47,7 @@ class RuleSelection:
         ignored = _most_specific_match(self.ignore, code)
         if ignored is None:
             return True
-        # An ignore as specific as the select wins, so `--select LC304 --ignore LC304` keeps no such rule.
+        # An ignore as specific as the select wins, so a code in both sets keeps no such rule.
         return selected > ignored
 
 
@@ -68,7 +68,7 @@ def _is_match(selector: RuleSelector, code: RuleCode) -> bool:
     """Whether a selector names the rule with this code.
 
     Args:
-        selector: One selector of `--select` or `--ignore`.
+        selector: One selector of the selection.
         code: The code of a rule in service.
     """
     match selector:
@@ -84,7 +84,7 @@ def _specificity(selector: RuleSelector) -> int:
     """How specific a selector is: `ALL` ranks 0 and a full rule code ranks 1.
 
     Args:
-        selector: One selector of `--select` or `--ignore`.
+        selector: One selector of the selection.
     """
     match selector:
         case AllRules():

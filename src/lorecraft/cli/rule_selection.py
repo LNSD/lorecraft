@@ -1,4 +1,4 @@
-"""Build the rule selection of one run from the typed values of `--select` and `--ignore`, against the registry.
+"""Build the rule selection of one run from the typed values of `--select`, against the registry.
 
 The command line has already parsed each value into its selectors and confirmed them against the rule index
 (`rule_arguments`), so this module only converts: each selector turns itself into the rule-side `AllRules`,
@@ -10,7 +10,6 @@ What a selection cannot do is warned of on stderr, and the run goes on.
 
 from collections.abc import Sequence
 from dataclasses import dataclass
-from enum import StrEnum
 from typing import assert_never
 
 import typer
@@ -28,54 +27,42 @@ from .rule_arguments import (
 )
 
 
-class SelectionOption(StrEnum):
-    """The option a selector was given to, as the command line spells it."""
-
-    SELECT = '--select'
-    IGNORE = '--ignore'
-
-
 @dataclass(frozen=True, slots=True)
 class AliasCodeSelected:
     """A selector was an alias code, which selects its rule; the run goes on, and the user learns the code to write.
 
     Attributes:
-        option: The option the alias code was given to.
         alias: The alias code, as typed.
         code: The code of the rule it resolved to.
     """
 
-    option: SelectionOption
     alias: str
     code: RuleCode
 
     def message(self) -> str:
         """Name the alias code and the code it resolved to."""
-        return f'{self.option} {self.alias!r} is an alias code of {self.code}; write {self.code} instead'
+        return f'--select {self.alias!r} is an alias code of {self.code}; write {self.code} instead'
 
 
 @dataclass(frozen=True, slots=True)
 class ParsedRuleSelection:
-    """What `--select` and `--ignore` build: the selection, and each alias code they held.
+    """What `--select` builds: the selection, and each alias code it held.
 
     Attributes:
         selection: The rules the run keeps.
-        aliases: Each alias code given, in the order typed, `--select` first.
+        aliases: Each alias code given, in the order typed.
     """
 
     selection: RuleSelection
     aliases: tuple[AliasCodeSelected, ...]
 
 
-def build_rule_selection(
-    registry: Registry, *, select: Sequence[SelectorValue] | None, ignore: Sequence[SelectorValue] | None
-) -> ParsedRuleSelection:
-    """Build the selection of one run from the values of `--select` and `--ignore`.
+def build_rule_selection(registry: Registry, *, select: Sequence[SelectorValue] | None) -> ParsedRuleSelection:
+    """Build the selection of one run from the values of `--select`.
 
     Args:
         registry: Every rule, which holds each group and code the values name.
         select: Each value `--select` was given, or None when it was not, which selects every rule.
-        ignore: Each value `--ignore` was given, or None when it was not, which ignores none.
 
     Raises:
         RuntimeError: If a value names a group or a code the registry does not hold, which the rule index held: the
@@ -84,25 +71,19 @@ def build_rule_selection(
     selected: frozenset[RuleSelector] = frozenset({AllRules()})
     select_aliases: tuple[AliasCodeSelected, ...] = ()
     if select is not None:
-        select_selectors, select_aliases = _convert_values(registry, SelectionOption.SELECT, select)
+        select_selectors, select_aliases = _convert_values(registry, select)
         selected = frozenset(select_selectors)
-    ignored: frozenset[RuleSelector] = frozenset()
-    ignore_aliases: tuple[AliasCodeSelected, ...] = ()
-    if ignore is not None:
-        ignore_selectors, ignore_aliases = _convert_values(registry, SelectionOption.IGNORE, ignore)
-        ignored = frozenset(ignore_selectors)
-    return ParsedRuleSelection(RuleSelection(select=selected, ignore=ignored), select_aliases + ignore_aliases)
+    return ParsedRuleSelection(RuleSelection(select=selected, ignore=frozenset()), select_aliases)
 
 
 def _convert_values(
-    registry: Registry, option: SelectionOption, values: Sequence[SelectorValue]
+    registry: Registry, values: Sequence[SelectorValue]
 ) -> tuple[tuple[RuleSelector, ...], tuple[AliasCodeSelected, ...]]:
-    """Convert every selector of an option's values, in the order typed, with each alias code among them.
+    """Convert every selector of the `--select` values, in the order typed, with each alias code among them.
 
     Args:
         registry: Every rule, which holds each group and code the values name.
-        option: The option the values were given to, named in a warning.
-        values: Each value the option was given.
+        values: Each value `--select` was given.
     """
     selectors: list[RuleSelector] = []
     aliases: list[AliasCodeSelected] = []
@@ -110,7 +91,7 @@ def _convert_values(
         for selector in value.selectors:
             match selector:
                 case AliasSelector():
-                    aliases.append(AliasCodeSelected(option, selector.alias, selector.code.to_rule_code(registry)))
+                    aliases.append(AliasCodeSelected(selector.alias, selector.code.to_rule_code(registry)))
                 case AllSelector() | CodeSelector():
                     pass  # no alias code to warn of
                 case _:
@@ -126,7 +107,7 @@ def print_selection_warnings(parsed: ParsedRuleSelection, left_off: tuple[type[R
     JSON format prints one document.
 
     Args:
-        parsed: The selection built from `--select` and `--ignore`, with each alias code they held.
+        parsed: The selection built from `--select`, with each alias code it held.
         left_off: Each rule the selection names by its code that does not run, since its level is `allow`.
     """
     for alias in parsed.aliases:

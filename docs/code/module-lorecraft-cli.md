@@ -23,7 +23,7 @@ process: the arguments, the working directory, standard output and the exit code
 - Finding the workspace root, from an option or from the working directory.
 - Taking each snapshot, and building the revision every check of a report reads.
 - Selecting the subjects a run checks from the model, and building the rule table it runs.
-- Typing `--select`, `--ignore`, level flags and `rule [RULE]` as the command line's own value objects, parsed and
+- Typing `--select`, level flags and `rule [RULE]` as the command line's own value objects, parsed and
   confirmed against the rule index while the line is read, so a malformed or unknown value is a usage error. They
   import the index and none of the rules engine, and a conversion method builds the rule-side type when a command runs.
 - Building, from those values and the registry, the selection the rule table is made from, and warning on stderr of

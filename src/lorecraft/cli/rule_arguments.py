@@ -1,4 +1,4 @@
-"""The typed values of `--select` and `--ignore`, parsed and confirmed while the command line is read.
+"""The typed values of `--select`, parsed and confirmed while the command line is read.
 
 A value is parsed into the form it has, and that form is confirmed against the rule index, so a command's handler is
 handed a value that names something. Two ways to refuse a value are told apart: **malformed**, which has the shape of
@@ -46,7 +46,7 @@ _NAME_CHARACTERS: Final[str] = ascii_lowercase + digits + '-'
 
 
 class EmptySelectorError(Error):
-    """A value of `--select` or `--ignore` holds an empty selector, such as one left by a trailing comma.
+    """A value of `--select` holds an empty selector, such as one left by a trailing comma.
 
     Attributes:
         value: The value as typed.
@@ -115,9 +115,7 @@ class EngineSelectorError(Error):
 
     def __init__(self, text: str) -> None:
         self.text = text
-        super().__init__(
-            f'{text!r} names engine conditions, which are always reported and cannot be selected or ignored'
-        )
+        super().__init__(f'{text!r} names engine conditions, which are always reported and cannot be selected')
 
 
 class RemovedRuleSelectorError(Error):
@@ -228,7 +226,7 @@ class AliasSelector:
 
 
 type RuleSelectorArgument = AllSelector | CodeSelector | AliasSelector
-"""What one selector of `--select` or `--ignore` parses to."""
+"""What one selector of `--select` parses to."""
 
 
 class RuleIndex(Protocol):
@@ -241,7 +239,7 @@ class RuleIndex(Protocol):
 
 @dataclass(frozen=True, slots=True)
 class SelectorValue:
-    """One value given to `--select` or `--ignore`: the selectors it holds, in the order typed.
+    """One value given to `--select`: the selectors it holds, in the order typed.
 
     Attributes:
         selectors: One or more selectors; a value is split at its commas.
@@ -251,7 +249,7 @@ class SelectorValue:
 
     @classmethod
     def parse(cls, raw: str, rule_index: RuleIndex = index) -> Self:
-        """Parse one value of `--select` or `--ignore` into its selectors, each confirmed against the rule index.
+        """Parse one value of `--select` into its selectors, each confirmed against the rule index.
 
         Args:
             raw: The value as typed: one or more selectors separated by commas, whitespace around each stripped.

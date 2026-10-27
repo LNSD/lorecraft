@@ -1,4 +1,4 @@
-"""Parsing the values of `--select` and `--ignore`, and confirming them against the rule index."""
+"""Parsing the values of `--select` and confirming them against the rule index."""
 
 from typing import Final
 

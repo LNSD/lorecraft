@@ -1645,6 +1645,21 @@ class TestCheckCommand:
 
 @pytest.mark.it
 class TestCheckSelection:
+    def test_check_with_ignore_option_removed_exits_with_a_usage_error(self) -> None:
+        #: Given
+        app = build_app()
+        arguments = ['check', '--ignore', 'LC201']
+
+        #: When
+        result = runner.invoke(app, arguments)
+
+        #: Then
+        assert result.exit_code == 2, result.output
+        assert result.stdout == '', 'an unknown option checks nothing'
+        message = usage_error_message(result.stderr)
+        assert _starts_with(message, 'Usage: lorecraft check'), 'the failure is a usage error'
+        assert '--ignore' in message, 'the usage error names the removed option'
+
     def test_check_with_a_full_code_selected_prints_only_that_rule(self, two_group_root: Path) -> None:
         app = build_app()
         result = runner.invoke(app, ['check', '--root', str(two_group_root), '--select', 'LC201', '--format', 'json'])
