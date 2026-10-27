@@ -44,7 +44,6 @@ see a skill, without running a check.
 |--------------------|---------|-------------|
 | `ROOT`             | `.`     | The workspace root to inspect; it must be an existing directory |
 | `--format`         | `text`  | Output format: `text` draws the tree, `json` prints the model as one JSON object |
-| `--json`           | off     | Deprecated alias of `--format json`, hidden from `--help`; giving it with `--format` is a usage error |
 
 `ROOT` is taken as given: unlike `lorecraft check`, `inspect` does not search the parents for `docs/__meta__/`.
 
@@ -81,7 +80,7 @@ in brackets. An excerpt, from a repository with two feat docs:
 
 With `--format json`, stdout is one compact object on a single line, without indentation or spaces after
 commas or colons. It holds `root`, and `corpora`, each with `name`, `directory`, `specs`
-(each a `stem`, which is the spec name, and its `files`), and `documents` as `path` and `governed_by`.
+(each a `name`, which is the spec name, and its `files`), and `documents` as `path` and `governed_by`.
 For each document, `governed_by` lists the files of each governing spec, broad to narrow, so a reader
 opens its specs without mapping a name to its files. Skill objects have no `governed_by` field because
 the reserved `skills` corpus does not govern skills. `root` is absolute, and every other path is
@@ -110,11 +109,11 @@ or to a directory elsewhere in the repository, is listed where the agent finds i
     └── .agents/skills/docs-rules [claude-code, codex]
 ```
 
-By default the text heading reads `skills (N)`. With the global `--no-agent-skills-spec`, it reads `skills (N; Agent Skills schema disabled)`.
+By default the text heading reads `skills (N)`. With the global `--no-agent-skills-spec`, it reads `skills (N; Agent Skills specification disabled)`.
 
 In the JSON these are `agent_skills_dirs`, each with `agent`, `path` and `resolves_to`, and `skills`, each with
 the `path` of its `SKILL.md` and its `agents`. Skill objects do not include `governed_by`. The top-level
-`builtin_skills_schema` field is omitted by default; with the global `--no-agent-skills-spec` (or the alias), it is
+`agent_skills_spec` field is omitted by default; with the global `--no-agent-skills-spec`, it is
 `false`. The global option changes only this opt-out indication in `inspect`; the rest of the inspect text and JSON output is unchanged.
 
 A root with no `docs/__meta__/` prints a model with no corpora, a root with no skills directory one with no
@@ -125,7 +124,7 @@ skills, and both exit `0`.
 | Code | Meaning |
 |------|---------|
 | `0`  | The model was printed |
-| `2`  | The command could not run: the model could not be loaded (an entry that cannot be read, or that changed kind while read, under `docs/` or a skills directory, a `docs/` or `docs/__meta__/` that is a [symlink](workspace.md#one-snapshot), or a spec file that cannot be decoded or states no usable rules), or a usage error, including a `ROOT` that is not an existing directory, or both `--format` and `--json`. A load error goes to stderr, prefixed `error:` and followed by its causes ([cli](cli.md)) |
+| `2`  | The command could not run: the model could not be loaded (an entry that cannot be read, or that changed kind while read, under `docs/` or a skills directory, a `docs/` or `docs/__meta__/` that is a [symlink](workspace.md#one-snapshot), or a spec file that cannot be decoded or states no usable rules), or a usage error, including a `ROOT` that is not an existing directory. A load error goes to stderr, prefixed `error:` and followed by its causes ([cli](cli.md)) |
 
 ```text
 error: invalid structure schema docs/__meta__/feat.spec.json: Invalid JSON: key must be a string at line 2 column 3

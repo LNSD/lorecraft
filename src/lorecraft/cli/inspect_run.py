@@ -30,7 +30,7 @@ def run_inspect(
 
     Args:
         root: The workspace root, already resolved by the command's argument.
-        output_format: How to print the model, already resolved from `--format` and the `--json` alias.
+        output_format: How to print the model, resolved from `--format` or its text default.
         builtin_layers: The builtin specification layers enabled for this inspection.
 
     Returns:
