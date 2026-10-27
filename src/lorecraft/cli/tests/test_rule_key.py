@@ -8,8 +8,7 @@ from lorecraft.rules.index import ConditionRow, RemovedRuleRow, RuleIndexRow, Ru
 from lorecraft.rules.registry import Registry
 from lorecraft.rules.tests.sample_rules import valid as valid_rules
 
-from ..rule_arguments import IndexRuleNotInRegistryError
-from ..rule_key import MalformedRuleKeyError, RuleKey, UnknownRuleKeyError
+from ..rule_key import IndexRuleNotInRegistryError, MalformedRuleKeyError, RuleKey, UnknownRuleKeyError
 
 
 class SampleIndex:

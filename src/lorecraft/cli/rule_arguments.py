@@ -26,11 +26,13 @@ service, a removed rule or an engine condition alike. Everything is matched as s
 
 from dataclasses import dataclass
 from string import ascii_lowercase, ascii_uppercase, digits
-from typing import TYPE_CHECKING, Final, Protocol, Self
+from typing import TYPE_CHECKING, Final, Self
 
 from lorecraft.core.error import Error
 from lorecraft.rules import index
-from lorecraft.rules.index import ConditionRow, RemovedRuleRow, RuleIndexRow
+from lorecraft.rules.index import ConditionRow, RemovedRuleRow
+
+from .rule_key import IndexRuleNotInRegistryError, RuleIndex
 
 if TYPE_CHECKING:
     # Type-only: importing the rule side here would load the rules engine when the command line starts.
@@ -141,22 +143,6 @@ class RemovedRuleSelectorError(Error):
         )
 
 
-class IndexRuleNotInRegistryError(RuntimeError):
-    """The rule index lists a rule the registry does not hold, so the generated index is out of date.
-
-    It is a defect of the repository, not the user's input: the CI `gen-check` job holds the two equal.
-
-    Attributes:
-        key: The code, name or alias code the index found.
-    """
-
-    key: str
-
-    def __init__(self, key: str) -> None:
-        self.key = key
-        super().__init__(f'the rule index lists {key!r}, which the registry does not hold: run `just gen`')
-
-
 @dataclass(frozen=True, slots=True)
 class AllSelector:
     """The selector `ALL`: every rule."""
@@ -227,14 +213,6 @@ class AliasSelector:
 
 type RuleSelectorArgument = AllSelector | CodeSelector | AliasSelector
 """What one selector of `--select` parses to."""
-
-
-class RuleIndex(Protocol):
-    """What CLI argument parsing reads of the rule index: lookup by code, name or alias."""
-
-    def find(self, key: str, /) -> RuleIndexRow | None:
-        """The row whose code, name or alias code is `key`, or None when none is."""
-        ...
 
 
 @dataclass(frozen=True, slots=True)

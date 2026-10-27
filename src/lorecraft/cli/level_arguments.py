@@ -8,7 +8,7 @@ from lorecraft.rules import index
 from lorecraft.rules.identity import Level, RuleCode
 from lorecraft.rules.index import RuleRow
 
-from .rule_arguments import RuleIndex
+from .rule_key import RuleIndex
 
 
 @dataclass(frozen=True, slots=True)
