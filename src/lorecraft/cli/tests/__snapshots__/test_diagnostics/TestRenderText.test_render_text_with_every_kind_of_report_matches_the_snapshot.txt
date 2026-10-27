@@ -5,6 +5,7 @@ error[LC102]: symlink leads outside the repository
   = note: leaves the repository at .agents/skills/review -> /home/alex/review
 
 warning[LC401]: too many tokens (2400 > 2000)
+  = note: warn level configured for LC401
  --> docs/code/a.md:1
   │
 1 │ ---

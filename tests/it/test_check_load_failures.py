@@ -100,7 +100,7 @@ def _check_json(root: Path, *arguments: str) -> tuple[int, dict[str, object]]:
 
     Args:
         root: The repository to check.
-        arguments: More command-line arguments, such as `--select`.
+        arguments: More command-line arguments, such as level flags.
     """
     result = runner.invoke(build_app(), ['check', '--root', str(root), '--format', 'json', *arguments])
     assert result.exit_code in _RUN_EXIT_CODES, result.output
@@ -447,44 +447,16 @@ class TestCheckLeavesWhatAFailureDoesNotTouchAsItWas:
         assert coverage['docs/feat/check.md']['ungoverned'] == ['frontmatter', 'structure', 'outline', 'budget']
         assert exit_code == 1, 'no failure inside the declaration stops the run'
 
-    def test_check_with_one_outline_code_selected_still_reports_a_load_failure(self, tmp_path: Path) -> None:
+    def test_check_without_selection_still_reports_a_load_failure(self, tmp_path: Path) -> None:
         #: Given
         root = _build_workspace(tmp_path, python_spec=STATES_NO_RULE)
 
         #: When
-        exit_code, document = _check_json(root, '--select', 'LC306')
+        exit_code, document = _check_json(root)
 
         #: Then
         assert _codes_at(document, STRUCTURE_FILE_OF_PYTHON) == ['LC003'], (
-            'no selection turns a load failure off, as none turns off a file that cannot be decoded'
-        )
-        assert _severities_at(document, STRUCTURE_FILE_OF_PYTHON) == ['error'], 'it is reported as an error'
-        assert exit_code == 1, 'the run fails with the status for findings'
-
-    def test_check_with_one_frontmatter_code_selected_still_reports_a_load_failure(self, tmp_path: Path) -> None:
-        #: Given
-        root = _build_workspace(tmp_path, python_spec=STATES_NO_RULE)
-
-        #: When
-        exit_code, document = _check_json(root, '--select', 'LC201')
-
-        #: Then
-        assert _codes_at(document, STRUCTURE_FILE_OF_PYTHON) == ['LC003'], (
-            'no selection turns a load failure off, as none turns off a file that cannot be decoded'
-        )
-        assert _severities_at(document, STRUCTURE_FILE_OF_PYTHON) == ['error'], 'it is reported as an error'
-        assert exit_code == 1, 'the run fails with the status for findings'
-
-    def test_check_with_one_length_rule_selected_still_reports_a_load_failure(self, tmp_path: Path) -> None:
-        #: Given
-        root = _build_workspace(tmp_path, python_spec=STATES_NO_RULE)
-
-        #: When
-        exit_code, document = _check_json(root, '--select', 'LC401')
-
-        #: Then
-        assert _codes_at(document, STRUCTURE_FILE_OF_PYTHON) == ['LC003'], (
-            'no selection turns a load failure off, as none turns off a file that cannot be decoded'
+            'the all-rules default does not turn off a load failure'
         )
         assert _severities_at(document, STRUCTURE_FILE_OF_PYTHON) == ['error'], 'it is reported as an error'
         assert exit_code == 1, 'the run fails with the status for findings'

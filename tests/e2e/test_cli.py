@@ -73,13 +73,9 @@ class TestInstalledCommandLine:
         #: Given
         expected = snapshot.use_extension(TextSnapshotExtension)
         arguments: tuple[str, ...] = ()
-        # What makes Typer force a coloured terminal is removed, so the box is the same wherever the suite runs.
-        forcing_colour = ('FORCE_COLOR', 'GITHUB_ACTIONS', 'PY_COLORS')
-        environment = {key: value for key, value in os.environ.items() if key not in forcing_colour}
-        environment |= {'TERM': 'dumb', 'COLUMNS': '80'}
 
         #: When
-        result = run_cli(*arguments, env=environment)
+        result = run_cli(*arguments)
 
         #: Then
         assert result.returncode == 2, 'a bare invocation is a usage error, not a success'
@@ -434,11 +430,95 @@ def mixed_root(tmp_path: Path, faker: Faker) -> Path:
     return workspace.write(tmp_path / 'repository', faker)
 
 
+@pytest.fixture(scope='function')
+def default_deny_lc102_root(tmp_path: Path, faker: Faker) -> Path:
+    """A root whose only diagnostic is LC102 on a symlink that leaves the repository.
+
+    Args:
+        tmp_path: Directory the repository root is written into.
+        faker: The seeded generator, which fills the valid skill's generated fields.
+    """
+    workspace = Workspace(skills=[Skill('review', links={'shared': '../../../../outside'})])
+    return workspace.write(tmp_path, faker)
+
+
 @pytest.mark.e2e
 class TestCheckCommand:
     # Every diagnostic prints root-relative, so the output is the same in every checkout and nothing is redacted.
     # The fixture's documents carry no frontmatter and its `beta` skill is a link to `alpha` named `alpha`, so a run
     # over it reports errors and exits 1.
+
+    def test_check_help_shows_option_descriptions_without_a_duplicate_args_section(
+        self, snapshot: SnapshotAssertion
+    ) -> None:
+        #: Given
+        expected = snapshot.use_extension(TextSnapshotExtension)
+        arguments = ('check', '--help')
+
+        #: When
+        result = run_cli(*arguments)
+
+        #: Then
+        assert result.returncode == 0, result.stderr
+        assert result.stdout == expected, 'the check help matches the reviewed snapshot'
+        assert 'Args:' not in result.stdout, 'option descriptions are not repeated in an Args section'
+        lines = result.stdout.splitlines()
+        root_option = next(line for line in lines if '--root' in line)
+        format_option = next(line for line in lines if '--format' in line)
+        color_option = next(line for line in lines if '--color' in line)
+        allow_option = next(line for line in lines if '--allow' in line)
+        warn_option = next(line for line in lines if '--warn' in line)
+        deny_option = next(line for line in lines if '--deny' in line)
+        help_option = next(line for line in lines if '--help' in line)
+        assert 'Repository root.' in root_option, 'the root description is beside its option'
+        assert 'Output format:' in format_option, 'the format description is beside its option'
+        assert 'Control when colored output is used.' in color_option, 'the color description is beside its option'
+        assert 'Allow this rule or ALL;' in allow_option, 'the allow description is beside its option'
+        assert 'Warn on this rule or ALL;' in warn_option, 'the warn description is beside its option'
+        assert 'Deny this rule, ALL, or warnings;' in deny_option, 'the deny description is beside its option'
+        assert 'Show this message and exit.' in help_option, 'the help description is beside its option'
+
+    def test_check_with_warn_and_deny_warnings_on_default_deny_lc102_keeps_its_error_level(
+        self, snapshot: SnapshotAssertion, default_deny_lc102_root: Path
+    ) -> None:
+        #: Given
+        expected = snapshot.use_extension(TextSnapshotExtension)
+        arguments = ('check', '--root', str(default_deny_lc102_root), '-W', 'LC102', '-D', 'warnings')
+
+        #: When
+        result = run_cli(*arguments)
+
+        #: Then
+        assert result.returncode == 1, result.stderr
+        assert result.stdout == expected, 'the default-deny diagnostic has no warning-elevation note'
+        assert '-D warnings elevated warning to error' not in result.stdout, 'the default error is not elevated again'
+
+    def test_check_with_warn_and_deny_warnings_on_default_deny_lc102_reports_default_json_provenance(
+        self, snapshot: SnapshotAssertion, default_deny_lc102_root: Path
+    ) -> None:
+        #: Given
+        expected = snapshot.use_extension(JsonTextSnapshotExtension)
+        arguments = (
+            'check',
+            '--root',
+            str(default_deny_lc102_root),
+            '-W',
+            'LC102',
+            '-D',
+            'warnings',
+            '--format',
+            'json',
+        )
+
+        #: When
+        result = run_cli(*arguments)
+        document = json.loads(result.stdout)
+
+        #: Then
+        assert result.returncode == 1, result.stderr
+        assert result.stderr == '', 'the JSON report is the only output'
+        assert result.stdout == expected, 'the JSON report retains default provenance'
+        assert document['diagnostics'][0]['level_source'] == 'default', 'the warning override resets to default'
 
     def test_check_without_a_root_in_the_workspace_fixture_prints_the_diagnostics(
         self, snapshot: SnapshotAssertion
@@ -721,7 +801,7 @@ class TestCheckCommand:
             ],
         }, f'the document holds every diagnostic, the summary and the coverage, got {result.stdout!r}'
 
-    def test_check_with_a_group_selector_exits_two_with_a_usage_error(
+    def test_check_with_a_removed_select_option_refuses_with_usage_error(
         self, snapshot: SnapshotAssertion, mixed_root: Path
     ) -> None:
         #: Given
@@ -733,10 +813,10 @@ class TestCheckCommand:
 
         #: Then
         assert result.returncode == 2, result.stderr
-        assert result.stdout == '', 'a rejected group selector prints no diagnostics'
-        assert usage_error_message(result.stderr) == expected, 'the group selector is named in the usage error'
+        assert result.stdout == '', 'a rejected option prints no diagnostics'
+        assert usage_error_message(result.stderr) == expected, 'the removed --select option is named in the usage error'
 
-    def test_check_with_an_unknown_selector_prints_a_usage_error_and_exits_two(
+    def test_check_with_a_removed_select_option_and_json_refuses_with_usage_error(
         self, snapshot: SnapshotAssertion, mixed_root: Path
     ) -> None:
         #: Given
@@ -748,8 +828,8 @@ class TestCheckCommand:
 
         #: Then
         assert result.returncode == 2, result.stderr
-        assert result.stdout == '', 'a run refused before checking prints no document'
-        assert usage_error_message(result.stderr) == expected, "the selector is named in Typer's usage error"
+        assert result.stdout == '', 'a rejected option prints no document'
+        assert usage_error_message(result.stderr) == expected, 'the removed --select option is named in the usage error'
 
     def test_check_with_a_prefix_level_flag_refuses_before_discovering_the_root(
         self, snapshot: SnapshotAssertion, tmp_path: Path
@@ -798,6 +878,40 @@ class TestCheckCommand:
         assert result.returncode == 2, result.stderr
         assert result.stdout == '', 'conflicting levels print no diagnostics'
         assert usage_error_message(result.stderr) == expected, 'the conflict names the level flags involved'
+
+    def test_check_with_warnings_on_allow_flag_names_its_reserved_use(
+        self, snapshot: SnapshotAssertion, tmp_path: Path
+    ) -> None:
+        #: Given
+        expected = snapshot.use_extension(TextSnapshotExtension)
+        missing_root = tmp_path / 'missing-root'
+        arguments = ('check', '--root', str(missing_root), '-A', 'warnings')
+
+        #: When
+        result = run_cli(*arguments)
+
+        #: Then
+        assert result.returncode == 2, result.stderr
+        assert result.stdout == '', 'a reserved selector prints no diagnostics'
+        message = usage_error_message(result.stderr)
+        assert message == expected, 'the usage error explains that warnings is reserved for --deny'
+
+    def test_check_with_warnings_on_warn_flag_names_its_reserved_use(
+        self, snapshot: SnapshotAssertion, tmp_path: Path
+    ) -> None:
+        #: Given
+        expected = snapshot.use_extension(TextSnapshotExtension)
+        missing_root = tmp_path / 'missing-root'
+        arguments = ('check', '--root', str(missing_root), '-W', 'warnings')
+
+        #: When
+        result = run_cli(*arguments)
+
+        #: Then
+        assert result.returncode == 2, result.stderr
+        assert result.stdout == '', 'a reserved selector prints no diagnostics'
+        message = usage_error_message(result.stderr)
+        assert message == expected, 'the usage error explains that warnings is reserved for --deny'
 
     def test_check_with_a_key_written_twice_prints_the_duplicate_key_diagnostics(
         self, snapshot: SnapshotAssertion, tmp_path: Path, faker: Faker
@@ -1052,7 +1166,7 @@ class TestGovernanceCoverage:
         root = workspace.write(tmp_path, faker)
 
         #: When
-        result = run_cli('check', '--root', str(root), '--select', 'LC204')
+        result = run_cli('check', '--root', str(root))
 
         #: Then
         assert result.returncode == 1, result.stderr
@@ -1073,7 +1187,7 @@ class TestGovernanceCoverage:
         root = workspace.write(tmp_path, faker)
 
         #: When
-        result = run_cli('check', '--root', str(root), '--select', 'LC204')
+        result = run_cli('check', '--root', str(root))
 
         #: Then
         assert result.returncode == 1, result.stderr
@@ -1110,7 +1224,7 @@ class TestRemainingGovernanceRules:
         root = workspace.write(tmp_path, faker)
 
         #: When
-        result = run_cli('check', '--root', str(root), '--select', 'LC206')
+        result = run_cli('check', '--root', str(root))
 
         #: Then
         assert result.returncode == 1, result.stderr
@@ -1206,7 +1320,7 @@ class TestRemainingGovernanceRules:
         root = workspace.write(tmp_path, faker)
 
         #: When
-        result = run_cli('check', '--root', str(root), '--select', 'LC501,LC502,LC503,LC505,LC506,LC507')
+        result = run_cli('check', '--root', str(root))
 
         #: Then
         assert result.returncode == 1, result.stderr
@@ -1222,7 +1336,7 @@ class TestRemainingGovernanceRules:
         root = workspace.write(tmp_path, faker)
 
         #: When
-        result = run_cli('check', '--root', str(root), '--select', 'LC501,LC502,LC503')
+        result = run_cli('check', '--root', str(root))
 
         #: Then
         assert result.returncode == 1, result.stderr
@@ -1241,10 +1355,10 @@ class TestRemainingGovernanceRules:
         root = workspace.write(tmp_path, faker)
 
         #: When
-        result = run_cli('check', '--root', str(root), '--select', 'LC505,LC506')
+        result = run_cli('check', '--root', str(root), '-A', 'ALL', '-D', 'LC505', '-D', 'LC506')
 
         #: Then
-        assert result.returncode == 0, result.stderr
+        assert result.returncode == 1, 'the selected link rules run as errors'
         assert 'LC505' in result.stdout, 'a base cannot link to its extension when governed by structure'
         assert 'LC506' in result.stdout, 'an extension must link to its base when governed by structure'
 
@@ -1262,11 +1376,11 @@ class TestRemainingGovernanceRules:
         root = workspace.write(tmp_path, faker)
 
         #: When
-        result = run_cli('check', '--root', str(root), '--select', 'LC507')
+        result = run_cli('check', '--root', str(root), '-A', 'ALL', '-D', 'LC507')
 
         #: Then
-        assert result.returncode == 0, result.stderr
-        assert result.stdout.count('LC507') == 2, 'both sides of a cross-corpus cycle are reported'
+        assert result.returncode == 1, 'the selected link rule runs as an error'
+        assert result.stdout.count('error[LC507]') == 2, 'both sides of a cross-corpus cycle are reported'
 
     def test_link004_runs_on_spec_prose(self, tmp_path: Path, faker: Faker) -> None:
         #: Given
@@ -1276,7 +1390,7 @@ class TestRemainingGovernanceRules:
         root = workspace.write(tmp_path, faker)
 
         #: When
-        result = run_cli('check', '--root', str(root), '--select', 'LC504')
+        result = run_cli('check', '--root', str(root))
 
         #: Then
         assert result.returncode == 1, result.stderr
@@ -1292,7 +1406,7 @@ class TestRemainingGovernanceRules:
         root = workspace.write(tmp_path, faker)
 
         #: When
-        result = run_cli('check', '--root', str(root), '--select', 'LC502,LC504')
+        result = run_cli('check', '--root', str(root))
 
         #: Then
         assert result.returncode == 1, result.stderr
@@ -1717,7 +1831,7 @@ class TestWorkspaceDefaults:
         ).write(tmp_path, faker)
 
         #: When
-        result = run_cli('check', '--select', 'LC211', '--root', str(root))
+        result = run_cli('check', '--root', str(root))
 
         #: Then
         assert result.returncode == 0, result.stderr
@@ -1736,7 +1850,7 @@ class TestWorkspaceDefaults:
         ).write(tmp_path, faker)
 
         #: When
-        result = run_cli('check', '--select', 'LC212', '--root', str(root))
+        result = run_cli('check', '--root', str(root))
 
         #: Then
         assert result.returncode == 0, result.stderr
@@ -1759,7 +1873,7 @@ class TestWorkspaceDefaults:
         root = workspace.write(tmp_path, faker)
 
         #: When
-        result = run_cli('--no-agent-skills-spec', 'check', '--select', 'LC212', '--root', str(root))
+        result = run_cli('--no-agent-skills-spec', 'check', '--root', str(root))
 
         #: Then
         assert result.returncode == 0, result.stderr
@@ -1781,7 +1895,7 @@ class TestWorkspaceDefaults:
         root = workspace.write(tmp_path, faker)
 
         #: When
-        result = run_cli('--no-agent-skills-spec', 'check', '--select', 'LC211', '--root', str(root))
+        result = run_cli('--no-agent-skills-spec', 'check', '--root', str(root))
 
         #: Then
         assert result.returncode == 0, result.stderr

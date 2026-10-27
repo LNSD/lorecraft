@@ -39,7 +39,8 @@ from lorecraft.core.lines import split_lines
 from lorecraft.core.num import NonZeroUnsignedInt, UnsignedInt
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.syntax import FIRST_LINE, LineNumber
-from lorecraft.rules.identity import Severity
+from lorecraft.rules.identity import Level, Severity
+from lorecraft.rules.level_resolution import DefaultLevel, ElevatedWarning, OverriddenLevel
 from lorecraft.rules.location import EntrySubdiagnostic, Subdiagnostic
 from lorecraft.rules.report import Diagnostic, RuleDiagnostic, RunReport
 
@@ -186,20 +187,10 @@ def _diagnostic_lines(diagnostic: Diagnostic, sources: SourceLines, style: TextS
         style, f'{diagnostic.severity}[{occurrence.CODE}]', fg=_severity_color(diagnostic.severity), bold=True
     )
     lines = [header + _paint(style, f': {occurrence.message()}', bold=True)]
-    if isinstance(diagnostic, RuleDiagnostic) and diagnostic.level_source != 'default':
-        selector = occurrence.CODE if diagnostic.selector is None else diagnostic.selector
-        match diagnostic.level_source, diagnostic.severity:
-            case 'cli', Severity.WARNING:
-                note = f'-W {selector} requested on the command line'
-            case 'cli', Severity.ERROR:
-                note = f'-D {selector} requested on the command line'
-            case 'config', Severity.WARNING:
-                note = f'warn level configured for {selector}'
-            case 'config', Severity.ERROR:
-                note = f'deny level configured for {selector}'
-            case _:
-                assert_never((diagnostic.level_source, diagnostic.severity))
-        lines.append(f'  = note: {note}')
+    if isinstance(diagnostic, RuleDiagnostic):
+        note = _level_note(diagnostic.resolution)
+        if note is not None:
+            lines.append(f'  = note: {note}')
 
     marks = diagnostic_marks(diagnostic)
     width = _gutter_width(marks, sources)
@@ -247,6 +238,31 @@ def _diagnostic_lines(diagnostic: Diagnostic, sources: SourceLines, style: TextS
     if lines[-1] == blank_gutter:
         lines.pop()
     return lines
+
+
+def _level_note(resolution: DefaultLevel | OverriddenLevel | ElevatedWarning) -> str | None:
+    """The provenance note for a rule resolution, or None for its unchanged default.
+
+    Args:
+        resolution: The enabled rule's reporting resolution.
+    """
+    match resolution:
+        case DefaultLevel():
+            return None
+        case ElevatedWarning():
+            return '-D warnings elevated warning to error'
+        case OverriddenLevel(level=level, origin=origin, selector=selector):
+            match (level, origin):
+                case (Level.WARN, 'cli'):
+                    return f'-W {selector} requested on the command line'
+                case (Level.DENY, 'cli'):
+                    return f'-D {selector} requested on the command line'
+                case (Level.WARN, 'config'):
+                    return f'warn level configured for {selector}'
+                case (Level.DENY, 'config'):
+                    return f'deny level configured for {selector}'
+                case _:
+                    assert_never((level, origin))
 
 
 def _group_by_file(subject: RootRelativePath, marks: list[Mark]) -> list[tuple[RootRelativePath, list[Mark]]]:

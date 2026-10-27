@@ -2,15 +2,21 @@
 
 import pytest
 
-from lorecraft.rules.identity import Level, RuleCode
+from lorecraft.cli.rule_key import RuleKey
+from lorecraft.rules.frontmatter.duplicate_key import DuplicateKey
+from lorecraft.rules.identity import Level
 from lorecraft.rules.index import RuleRow
+from lorecraft.rules.level_resolution import WrittenSelector
+from lorecraft.rules.registry import Registry
 
 from ..level_arguments import (
     AllRulesTarget,
     ConflictingLevelArgumentError,
+    DenyWarnings,
+    IndexRuleNotInRegistryError,
     InvalidLevelArgumentError,
     LevelArgument,
-    Warnings,
+    RuleCodeTarget,
     validate_level_arguments,
 )
 
@@ -34,8 +40,9 @@ class TestLevelArgumentParse:
         argument = LevelArgument.parse(raw, Level.DENY)
 
         #: Then
+        assert isinstance(argument, LevelArgument), 'a rule code is an ordinary level argument'
         assert argument.level is Level.DENY, 'the selected level uses the shared enum'
-        assert isinstance(argument.target, RuleCode), 'an active code is represented by its rule identity'
+        assert isinstance(argument.target, RuleCodeTarget), 'an active code retains its canonical text'
         assert str(argument.target) == 'LC101', 'a full rule code retains its canonical identity'
 
     def test_parse_with_alias_returns_the_rule_code(self) -> None:
@@ -46,9 +53,33 @@ class TestLevelArgumentParse:
         argument = LevelArgument.parse(raw, Level.ALLOW, AliasIndex())
 
         #: Then
+        assert isinstance(argument, LevelArgument), 'a code alias is an ordinary level argument'
         assert argument.level is Level.ALLOW, 'the selected level uses the shared enum'
-        assert isinstance(argument.target, RuleCode), 'an alias resolves to its rule identity'
+        assert isinstance(argument.target, RuleCodeTarget), 'an alias resolves to its canonical code text'
         assert str(argument.target) == 'LC304', 'an alias resolves to the canonical rule code'
+        assert argument.target.alias == WrittenSelector(raw), 'the target preserves the alias the user typed'
+
+    def test_target_to_rule_code_builds_the_identity_from_the_runtime_registry(self) -> None:
+        #: Given
+        registry = Registry((DuplicateKey,))
+        target = RuleCodeTarget(RuleKey(str(DuplicateKey.CODE)))
+
+        #: When
+        code = target.to_rule_code(registry)
+
+        #: Then
+        assert code is DuplicateKey.CODE, 'the active rule code is built only after the runtime registry is loaded'
+
+    def test_target_to_rule_code_with_a_missing_declaration_raises_runtime_error(self) -> None:
+        #: Given
+        target = RuleCodeTarget(RuleKey(str(DuplicateKey.CODE)))
+
+        #: When
+        with pytest.raises(IndexRuleNotInRegistryError) as exc_info:
+            target.to_rule_code(Registry(()))
+
+        #: Then
+        assert isinstance(exc_info.value, RuntimeError), 'a stale generated index is a package defect'
 
     def test_parse_with_all_returns_the_reserved_selector(self) -> None:
         #: Given
@@ -68,7 +99,7 @@ class TestLevelArgumentParse:
         argument = LevelArgument.parse(raw, Level.DENY)
 
         #: Then
-        assert argument == LevelArgument(Level.DENY, Warnings()), 'warnings has its own target type'
+        assert argument == DenyWarnings(), 'warnings has its own argument variant'
 
     def test_parse_with_code_prefix_refuses_value(self) -> None:
         #: Given
@@ -146,6 +177,18 @@ class TestLevelArgumentParse:
 
         #: Then
         assert exc_info.value.flag == '--allow', 'the usage error identifies the incompatible flag'
+        assert exc_info.value.reason == 'warnings is reserved for --deny', 'the error explains the reserved selector'
+
+    def test_parse_with_warnings_under_warn_refuses_value(self) -> None:
+        #: Given
+        raw = 'warnings'
+
+        #: When
+        with pytest.raises(InvalidLevelArgumentError) as exc_info:
+            LevelArgument.parse(raw, Level.WARN)
+
+        #: Then
+        assert exc_info.value.reason == 'warnings is reserved for --deny', 'the error names its reserved flag'
 
 
 @pytest.mark.unit
@@ -163,7 +206,7 @@ class TestValidateLevelArguments:
             validate_level_arguments(arguments)
 
         #: Then
-        assert exc_info.value.code == 'LC304', 'the conflict names the canonical rule code'
+        assert str(exc_info.value.target) == 'LC304', 'the conflict names the canonical rule code'
 
     def test_validate_with_same_level_repeated_allows_it(self) -> None:
         #: Given

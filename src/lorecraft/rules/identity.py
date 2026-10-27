@@ -12,7 +12,7 @@ fault.
 from dataclasses import dataclass
 from enum import StrEnum
 from string import ascii_lowercase, ascii_uppercase, digits
-from typing import ClassVar, Final, Self
+from typing import ClassVar, Final, Literal, Self, assert_never
 
 from lorecraft.core.error import Error
 
@@ -253,6 +253,9 @@ class Level(StrEnum):
     """An occurrence of the rule is reported as a warning."""
     DENY = 'deny'
     """An occurrence of the rule is reported as an error."""
+
+
+type EnabledLevel = Literal[Level.WARN, Level.DENY]
 
 
 class EmptyRuleGroupPrefixError(Error):
@@ -643,3 +646,18 @@ class Severity(StrEnum):
     """The diagnostic fails the run."""
     WARNING = 'warning'
     """The diagnostic is reported, and the run still passes."""
+
+
+def severity_for_enabled_level(level: EnabledLevel) -> Severity:
+    """The severity of a rule at a level that enables reporting.
+
+    Args:
+        level: The warning or error level of an enabled rule.
+    """
+    match level:
+        case Level.WARN:
+            return Severity.WARNING
+        case Level.DENY:
+            return Severity.ERROR
+        case _:
+            assert_never(level)

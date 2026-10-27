@@ -142,7 +142,6 @@ codes: `LC2xx` for the frontmatter, `LC402` for the line budget, `LC5xx` for the
 ```bash
 lorecraft check                  # every document and every skill of the workspace
 lorecraft check --format json    # machine-readable
-lorecraft check --select LC201  # one rule while fixing it; never the gate
 lorecraft check --help           # options and exit codes
 ```
 

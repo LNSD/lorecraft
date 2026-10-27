@@ -24,8 +24,8 @@ from lorecraft.project.item import ItemRef
 from lorecraft.project.schemas.name import CorpusSpecName, NamespaceSpecName
 from lorecraft.project.workspace import Corpus, CorpusNamespace, Governance
 from lorecraft.project.workspace.builtin import AGENT_SKILLS_SPEC_LAYER as SKILLS_LAYER
+from lorecraft.rules.level_resolution import ResolvedLevels
 from lorecraft.rules.registry import Registry
-from lorecraft.rules.selection import AllRules, RuleSelection
 from lorecraft.rules.table import RuleTable
 from lorecraft.vfs import Snapshot
 
@@ -169,9 +169,7 @@ class TestRunComputesGovernanceOnce:
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         #: Given
-        table = RuleTable.from_registry(
-            Registry.load(rules), RuleSelection(select=frozenset({AllRules()}), ignore=frozenset())
-        )
+        table = RuleTable.from_registry(Registry.load(rules), ResolvedLevels.from_sources(()))
         database = Database.from_snapshot(_snapshot(), builtin_layers=(SKILLS_LAYER,))
         computed: list[AspectFilename] = []
         original = Corpus.governance

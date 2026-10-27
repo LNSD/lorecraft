@@ -16,8 +16,6 @@ if TYPE_CHECKING:
 class IndexRuleNotInRegistryError(RuntimeError):
     """The rule index lists a rule the registry does not hold, so the generated index is out of date.
 
-    It is a defect of the repository, not the user's input: the CI `gen-check` job holds the two equal.
-
     Attributes:
         key: The code, name or alias code the index found.
     """
@@ -25,6 +23,11 @@ class IndexRuleNotInRegistryError(RuntimeError):
     key: str
 
     def __init__(self, key: str) -> None:
+        """Identify the key absent from the registry.
+
+        Args:
+            key: The code, name or alias the generated index claims is present.
+        """
         self.key = key
         super().__init__(f'the rule index lists {key!r}, which the registry does not hold: run `just gen`')
 

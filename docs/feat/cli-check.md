@@ -1,6 +1,6 @@
 ---
 name: "cli-check"
-description: "The lorecraft check command: workspace checks, root discovery, rule selection, level flags, text and JSON reports, and exit status. Load when running checks, selecting rules, assigning levels or interpreting reports"
+description: "The lorecraft check command: workspace checks, root discovery, level flags, text and JSON reports, and exit status. Load when running checks, setting rule levels or interpreting reports"
 type: "feature"
 status: "experimental"
 components: "module:lorecraft.cli,module:lorecraft.engine,module:lorecraft.rules"
@@ -10,7 +10,7 @@ components: "module:lorecraft.cli,module:lorecraft.engine,module:lorecraft.rules
 
 ## Summary
 
-Checks documents and skills against applicable specifications. Refused items are skipped; non-item failures use `LC002`.
+Checks enabled rules over documents and skills against applicable specifications. `-A`, `-W` and `-D` set rule levels; a specific code can override `-A ALL` to run selected rules. Refused items are skipped; non-item failures use `LC002`.
 
 ## Table of Contents
 
@@ -48,12 +48,7 @@ Checks docs/specs, skills/resources and escaping symlinks. `LC501`–`LC503` che
 ### One Run, One Snapshot
 
 One snapshot, specs first. A failed structure file yields a diagnostic. Failed layers suppress spec gates; `Always`, schema and link gates still run. Suppressed parts appear as `ungoverned for ...`. `LC001` invalid UTF-8 is unjudged. Diagnostics and coverage use the actual `.spec.json` name.
-### Selecting Rules
-
-`--select` is the only filter. It accepts case-sensitive `ALL`, full codes or aliases, comma-separated or repeated;
-omitting it checks all rules. Prefix selectors are unknown and exit `2`; selected `allow` rules warn.
-
-Conflicting-level errors name `-A`, `-W`, `-D`; invalid values exit `2` before root discovery. They do not apply levels.
+Conflicting-level errors name `-A`, `-W`, `-D`; invalid values exit `2` before root discovery. Level flags apply to the rule table: full active codes and alias codes are accepted with `ALL`, and a specific code takes precedence over `ALL` regardless of argument order. Conflicting assignments for one code are usage errors. `-W` or `-D` enables a rule whose default level is `allow`; `-A` leaves it out. With `-A ALL -D <code>`, only the named rules run. `-D warnings` raises every resolved warning to an error after code overrides.
 
 ## Configuration
 
@@ -63,12 +58,13 @@ Conflicting-level errors name `-A`, `-W`, `-D`; invalid values exit `2` before r
 | `--root <path>`    | nearest of working directory and parents holding `docs/__meta__/` | — | The repository root, as [Root Discovery](#root-discovery) describes |
 | `--format <text\|short\|json>` | `text` | — | The output format, as [Output](#output) describes |
 | `--color <WHEN>` | `auto` | [`NO_COLOR`](https://no-color.org/), [`FORCE_COLOR`](https://force-color.org/) | `text` only. `auto`: nonempty `FORCE_COLOR` enables; else nonempty `NO_COLOR` disables; otherwise stdout's TTY state applies. Empty is unset; any nonempty value, even `0`, is set. Errors red, warnings yellow, messages bold, gutters blue. |
-| `--select <selectors>` | `ALL` | — | Run only these rules, as [Selecting Rules](#selecting-rules) describes |
 | `-A`, `--allow <code>` | none | — | Allow a code, alias or `ALL`; repeatable |
 | `-W`, `--warn <code>` | none | — | Warn on a code, alias or `ALL`; repeatable |
 | `-D`, `--deny <code>` | none | — | Deny a code, alias, `ALL` or `warnings`; repeatable |
 
-An unlisted `--format` or `--color` exits `2`. Explicit `always`/`never` wins; the table describes the `auto` precedence.
+`warnings` is reserved for `-D`; using it with `-A` or `-W` exits `2` with a usage error explaining this restriction.
+
+Unlisted `--format` or `--color` exits `2`. Explicit `always`/`never` wins; the table gives `auto` precedence.
 
 ## Usage
 
@@ -79,7 +75,6 @@ lorecraft check --root ../other-repo --format json
 
 lorecraft check --format short
 
-lorecraft check --select LC206,LC403
 ```
 
 `--no-builtin-skills-schema` is a compatibility alias. `LC204` compares `name` with the skill directory; it never
@@ -90,7 +85,7 @@ are unchecked. See [The Subjects](#the-subjects) and [structure budgets](spec-st
 
 ### Output
 
-In `text`, stdout has blank-line-separated diagnostics with severity, code, message, numbered source and labels. Reported lines underline solid; other labels dotted. Nearby lines group, distant lines use ellipses; `:::` points to another file. Help/notes use `= help:`/`= note:`. For non-default levels, notes name the winning code or group selector. CLI notes use `-W`/`-D` and say `requested on the command line`; configuration notes identify the `warn`/`deny` level and selector. Default levels add no note.
+In `text`, stdout has blank-line-separated diagnostics with severity, code, message, source and labels. Reported lines underline solid; other labels dotted. Nearby lines group; distant lines use ellipses; `:::` points to another file. Help/notes use `= help:`/`= note:`. Notes appear only when the effective level differs from the rule default. CLI notes preserve the typed selector, including aliases; warning elevation says `-D warnings elevated warning to error`. Configuration notes name the `warn`/`deny` level and selector.
 
 Example (stdout):
 
@@ -107,7 +102,7 @@ error[LC306]: missing required section `Checklist`
   = help: The items a reviewer verifies before committing a change the rule document governs.
 ```
 
-On stderr, `text` prints coverage, counts per code group and `checked N subject(s): ...`. Refused items are `skipped, read refused at: <path>`; subjects blocked by refused docs dependencies are `skipped, depends on a refused docs path: <path>`. Refused document/spec reads produce `LC002`; a refused non-item docs path keeps `LC002` even when a skill item aliases it, and that item is also skipped. Other refused skill files remain scan-blocking errors and exit `2`. Symlinked corpora and `.md` entries are not checked; links are not followed or counted.
+On stderr, `text` prints coverage, counts per code group and `checked N subject(s): ...`. Refused items are `skipped, read refused at: <path>`; subjects blocked by refused docs dependencies are `skipped, depends on a refused docs path: <path>`. Refused document/spec reads produce `LC002`; a refused non-item docs path keeps `LC002` even when a skill item aliases it, and that item is skipped. Other refused skill files remain scan-blocking errors and exit `2`. Symlinked corpora and `.md` entries are not checked; links are not followed or counted.
 
 ```text
 LC2xx  1 error
@@ -123,7 +118,7 @@ labels, help and notes; `text` order and exit status are retained. Stderr has co
 docs/code/logging.md:1: error[LC306]: missing required section `Checklist`
 ```
 
-In `json`, stdout is one compact line; stderr holds selection warnings. In text order, `diagnostics` lists `path`, nullable `line`, `severity`, `level_source`, `code`, `name`, `message`, `labels` and `children`. `level_source` is always present: `default` when no override applies, `config` when configuration overrides a rule's level. `summary` counts subjects and severities; load failures are errors, not subjects. `coverage` gives each path's `ungoverned`, `cause` (`refused-path`, `refused-dependency` or null) and refused paths in `skipped_by`; unchecked symlinks add `unchecked: true`:
+In `json`, stdout is one compact line; stderr holds command warnings. In text order, `diagnostics` lists `path`, nullable `line`, `severity`, `level_source`, `code`, `name`, `message`, `labels` and `children`. `level_source` is always present: `default` when the effective level equals the rule default, `config` when a configuration level changes it, or `cli` when a command-line level changes it. `-D warnings` sets `level_source` to `cli` when it elevates a warning above its default. `summary` counts subjects and severities; load failures are errors, not subjects. `coverage` gives each path's `ungoverned`, `cause` (`refused-path`, `refused-dependency` or null) and refused paths in `skipped_by`; unchecked symlinks add `unchecked: true`:
 
 ```json
 {"diagnostics":[{"path":"docs/notes/broken.md","line":4,"severity":"error","level_source":"default","code":"LC001","name":"invalid-utf8","message":"file is not valid UTF-8","labels":[{"path":"docs/notes/broken.md","line":4,"text":"0xE9 at byte offset 31 starts a character the next byte does not continue"}],"children":[{"kind":"help","text":"save the file as UTF-8","path":null,"line":null}]}],"summary":{"subjects":3,"errors":1,"warnings":0},"coverage":[{"path":"docs/notes/todo.md","ungoverned":["outline","budget"],"cause":null,"skipped_by":[]},{"path":"docs/code/guide.md","ungoverned":[],"cause":"refused-path","skipped_by":["docs/code/guide.md"]},{"path":"docs/code/linked.md","ungoverned":[],"cause":null,"skipped_by":[],"unchecked":true}]}
@@ -136,27 +131,27 @@ In `json`, stdout is one compact line; stderr holds selection warnings. In text 
 |------|---------|
 | `0`  | No diagnostic is an error; warnings and ungoverned parts do not count |
 | `1`  | An error diagnostic, including a failed spec or unreadable `docs/` path (`LC002`) |
-| `2`  | No root; unlistable `docs/` or `docs/__meta__/`; scan-blocking refusal outside reported item reads; changed snapshot entry; invalid selection or usage. A refused non-item file inside a skill scan reports `error: cannot snapshot file <path>: permission denied` without a `caused by:` line or absolute path. Errors print to stderr; selector usage errors follow [cli](cli.md) |
+| `2`  | No root; unlistable `docs/` or `docs/__meta__/`; scan-blocking refusal outside reported item reads; changed snapshot entry; invalid level value or usage. A refused non-item file inside a skill scan reports `error: cannot snapshot file <path>: permission denied` without a `caused by:` line or absolute path. Errors print to stderr; usage errors follow [cli](cli.md) |
 
 ## Limitations
 
-- Rules use default levels; selection only narrows the run.
+- Comma-separated level values are not supported. Alias codes remain accepted; no alias-code warning is emitted.
 - Warnings do not fail the run: [`LC207`](../rulebook/LC207-unknown-field.md),
   [`LC505`](../rulebook/LC505-extension-link.md), [`LC506`](../rulebook/LC506-missing-base-link.md),
   [`LC507`](../rulebook/LC507-mutual-link.md) or [`LC101`](../rulebook/LC101-reserved-corpus-overlap.md),
   all exit 0. LC507 puts help before note.
-  `LC101` is selectable; if its level makes it an error, the run exits 1.
-- A whole subject shows `--> path` without an excerpt. Unreadable source appears as `= at path:line: text`;
+  `LC101` is warning by default; findings at error level make the run exit 1.
+- A subject shows `--> path` without an excerpt. Unreadable source appears as `= at path:line: text`;
   excerpts cover documents, skills, resources and specs. A BOM is omitted from excerpted line 1.
 - Skills without `docs/__meta__/` need `--root`.
-- Checks cover machine decisions; review judges what a section says.
+- Checks cover machine decisions; review judges meaning.
 
 ## Findings
 
 | Rule | Reported when |
 |------|---------------|
-| `LC0xx` | Engine conditions are errors with no level; selection and configuration cannot turn them off. `LC001` invalid-utf8 reports a file that cannot be decoded, including a structure file; `LC002` unreadable-path reports a workspace path the run cannot read, list or follow; `LC003` malformed-structure-file reports a structure file that breaks the format or states no rule; `LC004` unusable-structure-file reports a well-formed structure file with rules that repeat, contradict each other or cannot be applied. |
-| `LC1xx` | Workspace checks: `LC101` reserved-corpus-overlap, a directory under `docs/` has a reserved corpus name such as `skills`; warning by default. `LC102` escaping-symlink, a symlink an agent reaches whose chain leaves the repository. Select or ignore either by its full code. |
+| `LC0xx` | Engine conditions are errors with no rule level. `LC001` invalid-utf8 reports a file that cannot be decoded, including a structure file; `LC002` unreadable-path reports a workspace path the run cannot read, list or follow; `LC003` malformed-structure-file reports a structure file that breaks the format or states no rule; `LC004` unusable-structure-file reports a well-formed structure file with rules that repeat, contradict each other or cannot be applied. |
+| `LC1xx` | Workspace checks: `LC101` reserved-corpus-overlap, a directory under `docs/` has a reserved corpus name such as `skills`; warning by default. `LC102` escaping-symlink, a symlink an agent reaches whose chain leaves the repository. |
 | `LC2xx` | Frontmatter checks use applicable schemas, including the builtin Agent Skills specification by default. `LC204` compares skill names with listed directories. `LC201` missing-frontmatter, `LC202` invalid-yaml, `LC203` non-mapping-frontmatter, `LC204` name-mismatch, `LC205` duplicate-key, `LC206` missing-field, `LC207` unknown-field (a warning), `LC208` wrong-type, `LC209` invalid-value, `LC210` invalid-frontmatter, `LC211` malformed-allowed-tools (a warning; pattern whitespace stays intact), `LC212` allowed-tools-too-long (a warning over 500 characters), `LC213` too-many-fields (`maxProperties`, an error), `LC214` too-few-fields (`minProperties`, an error) |
 | `LC3xx` | Outline checks: a document's H1 title and sections against its structure files. `LC301` missing-title, `LC302` extra-title, `LC303` title-not-first, `LC304` empty-section, `LC305` forbidden-section, `LC306` missing-section, `LC307` section-out-of-order, `LC308` unexpected-section, `LC309` invalid-title |
 | `LC4xx` | Length limits: a document's tokens or declared lines budget, a section's or its title's words or characters, and the builtin Agent Skills layer's 500-line skill cap. `LC401` too-many-tokens, `LC402` too-many-lines, `LC403` section-too-many-words, `LC404` title-too-many-words, `LC405` title-too-long |
@@ -181,12 +176,10 @@ Each reported structure-file failure appears once at that file.
 
 ## Code References
 
-- `src/lorecraft/cli/commands/check.py` - Command and selectors
+- `src/lorecraft/cli/commands/check.py` - Command and level options
 - `src/lorecraft/cli/check_run.py` - Rule run and exit status
 - `src/lorecraft/cli/root.py` - Root discovery
 - `src/lorecraft/cli/subjects.py` - Subject selection
-- `src/lorecraft/cli/rule_arguments.py` - Selector validation
-- `src/lorecraft/cli/rule_selection.py` - Selection and warnings
 - `src/lorecraft/cli/diagnostics.py` - Short/JSON output, coverage and summaries
 - `src/lorecraft/cli/diagnostic_text.py` - Full text renderer
 - `src/lorecraft/cli/sources.py` - Source lines
@@ -194,5 +187,6 @@ Each reported structure-file failure appears once at that file.
 - `src/lorecraft/cli/output.py` - Output and color choices
 - `src/lorecraft/engine/skip.py` - Rules over subjects
 - `src/lorecraft/rules/table.py` - Enabled rules and severity
-- `src/lorecraft/rules/selection.py` - Rule filtering
+- `src/lorecraft/cli/level_arguments.py` - Level arguments
+- `src/lorecraft/rules/level_resolution.py` - Rule level resolution
 - `src/lorecraft/rules/` - The rules, one module each, in a package per group

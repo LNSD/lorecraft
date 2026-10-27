@@ -9,8 +9,10 @@ import pytest
 REPOSITORY_ROOT: Final[Path] = Path(__file__).resolve().parents[2]
 RULES_PACKAGE: Final[Path] = REPOSITORY_ROOT / 'src' / 'lorecraft' / 'rules'
 
-# The modules that hold levels or apply them: the declaration of `LEVEL`, and the table that maps it to a severity.
-_LEVEL_AWARE_MODULES: Final[frozenset[str]] = frozenset({'declaration.py', 'table.py', 'registry.py'})
+# The modules that declare, resolve or apply levels: the rule declaration, typed default resolution and rule table.
+_LEVEL_AWARE_MODULES: Final[frozenset[str]] = frozenset(
+    {'declaration.py', 'level_resolution.py', 'table.py', 'registry.py'}
+)
 
 
 @pytest.mark.it

@@ -1,8 +1,7 @@
 """The `check` command: run every enabled rule over the whole workspace, and report what the rules found.
 
-The command declares the options and the help text, and parses `--select` against the rule index while
-the command line is read. The flow is in `check_run`, which this module imports only when the command runs, so that
-`--help` and `--version` never import the rules engine.
+The command declares the options and the help text. The flow is in `check_run`, which this module imports only when
+the command runs, so that `--help` and `--version` never import the rules engine.
 """
 
 from pathlib import Path
@@ -14,60 +13,51 @@ from lorecraft.core.error import Error
 from lorecraft.rules.identity import Level
 
 from ..app import global_options
-from ..level_arguments import InvalidLevelArgumentError, LevelArgument, validate_level_arguments
+from ..level_arguments import InvalidLevelArgumentError, LevelArgument, ParsedLevelArgument, validate_level_arguments
 from ..output import ColorChoice, DiagnosticFormat
 from ..registry import register
-from ..rule_arguments import (
-    EmptySelectorError,
-    EngineSelectorError,
-    MalformedSelectorError,
-    RemovedRuleSelectorError,
-    RuleNameSelectorError,
-    SelectorValue,
-    UnknownSelectorError,
-)
 
 
-def _parse_selectors(value: str) -> SelectorValue:
-    """Parse one value of `--select` while the command line is read.
+def _parse_level(value: str, level: Level) -> ParsedLevelArgument:
+    """Parse one level value while the command line is read.
 
     Args:
-        value: The value as typed: one or more selectors separated by commas.
+        value: The selector supplied to the flag.
+        level: The level the flag assigns.
 
     Raises:
-        typer.BadParameter: If the value is empty, malformed or names nothing a run could select, which
-            Typer prints as a usage error naming the option.
+        typer.BadParameter: If the selector is invalid for the flag.
     """
-    try:
-        return SelectorValue.parse(value)
-    except (
-        EmptySelectorError,
-        MalformedSelectorError,
-        UnknownSelectorError,
-        RuleNameSelectorError,
-        EngineSelectorError,
-        RemovedRuleSelectorError,
-    ) as exc:
-        raise typer.BadParameter(str(exc)) from exc
-
-
-def _parse_level(value: str, level: Level) -> LevelArgument:
-    """Parse one level value while the command line is read."""
     try:
         return LevelArgument.parse(value, level)
     except InvalidLevelArgumentError as exc:
         raise typer.BadParameter(str(exc)) from exc
 
 
-def _parse_allow(value: str) -> LevelArgument:
+def _parse_allow(value: str) -> ParsedLevelArgument:
+    """Parse one allow value.
+
+    Args:
+        value: The selector supplied to `-A`.
+    """
     return _parse_level(value, Level.ALLOW)
 
 
-def _parse_warn(value: str) -> LevelArgument:
+def _parse_warn(value: str) -> ParsedLevelArgument:
+    """Parse one warn value.
+
+    Args:
+        value: The selector supplied to `-W`.
+    """
     return _parse_level(value, Level.WARN)
 
 
-def _parse_deny(value: str) -> LevelArgument:
+def _parse_deny(value: str) -> ParsedLevelArgument:
+    """Parse one deny value.
+
+    Args:
+        value: The selector supplied to `-D`.
+    """
     return _parse_level(value, Level.DENY)
 
 
@@ -98,40 +88,34 @@ def check(
             'Only the text format is coloured.',
         ),
     ] = ColorChoice.AUTO,
-    select: Annotated[
-        list[SelectorValue] | None,
-        typer.Option(
-            '--select',
-            metavar='<selectors>',
-            parser=_parse_selectors,
-            help='Run only these rules: full rule codes, alias codes, or ALL, comma-separated or repeated. Defaults '
-            'to ALL.',
-        ),
-    ] = None,
     allow: Annotated[
-        list[LevelArgument] | None,
+        list[ParsedLevelArgument] | None,
         typer.Option(
             '-A',
             '--allow',
-            metavar='<code>',
+            metavar='<selector>',
             parser=_parse_allow,
-            help='Allow this rule; repeatable, defaults to none.',
+            help='Allow this rule or ALL; repeatable, defaults to none.',
         ),
     ] = None,
     warn: Annotated[
-        list[LevelArgument] | None,
+        list[ParsedLevelArgument] | None,
         typer.Option(
             '-W',
             '--warn',
-            metavar='<code>',
+            metavar='<selector>',
             parser=_parse_warn,
-            help='Warn on this rule; repeatable, defaults to none.',
+            help='Warn on this rule or ALL; repeatable, defaults to none.',
         ),
     ] = None,
     deny: Annotated[
-        list[LevelArgument] | None,
+        list[ParsedLevelArgument] | None,
         typer.Option(
-            '-D', '--deny', metavar='<code>', parser=_parse_deny, help='Deny this rule; repeatable, defaults to none.'
+            '-D',
+            '--deny',
+            metavar='<selector>',
+            parser=_parse_deny,
+            help='Deny this rule, ALL, or warnings; repeatable, defaults to none.',
         ),
     ] = None,
 ) -> None:
@@ -145,18 +129,18 @@ def check(
 
     As JSON, one compact document goes to stdout.
 
-    Level flags accept active rule codes, alias codes or ALL; -D also accepts warnings. They are repeatable, reject
-    conflicting assignments, and are validated before the workspace is checked. --select filters rules without
-    changing their levels.
-
-    --select never enables a rule its level leaves off; each such rule, and each alias code, is warned of on stderr.
+    Level flags accept active rule codes, alias codes or ALL; -D also accepts warnings. They apply levels to the
+    rule table, where a specific code overrides ALL. They reject conflicting assignments and are validated before
+    the workspace is checked. -D warnings elevates resolved warnings to errors.
 
     Exit 0 when no diagnostic is an error, 1 when any is, such as a spec that failed to load, and 2 for invalid
     input, or when the root or `docs/__meta__/` cannot be listed.
 
     \f
     Raises:
+        typer.BadParameter: If the level selectors conflict.
         typer.Exit: With the documented status code for an error diagnostic or invalid input.
+        RuntimeError: If rule registration fails or the generated index does not match the registry.
     """
     level_arguments = (*(allow or ()), *(warn or ()), *(deny or ()))
     try:
@@ -172,8 +156,8 @@ def check(
         root,
         output_format=output_format,
         color=color,
-        select=select,
         builtin_layers=options.builtin_layers,
+        level_arguments=level_arguments,
     )
     if status is not None:
         raise typer.Exit(code=status)

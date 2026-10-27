@@ -1,0 +1,1 @@
+Usage: lorecraft check [OPTIONS] Try 'lorecraft check --help' for help. Error No such option: --select

@@ -31,7 +31,7 @@ refused; neither holds a diagnostic, and both are listed in coverage. Failed gov
 checks, with suppressed spec parts listed as
 ungoverned coverage. A
 `LoadFailureReport` is the failure itself, filed at its own path with the one diagnostic of its engine condition,
-whatever the configuration and the selection, in the same total order as every other diagnostic.
+whatever the configured levels, in the same total order as every other diagnostic.
 """
 
 from dataclasses import dataclass
@@ -47,7 +47,7 @@ from lorecraft.vfs import Utf8Failure
 
 from .declaration import EngineCondition, Rule
 from .identity import Severity
-from .level_resolution import LevelOrigin, LevelSelector
+from .level_resolution import ReportingResolution
 from .location import Here, WholeSubject
 
 
@@ -58,16 +58,17 @@ class RuleDiagnostic:
     Attributes:
         path: The subject the occurrence was found in.
         occurrence: The rule's occurrence, which renders the code, the message and everything around it.
-        severity: The severity the rule table enables the rule at.
-        level_source: Where the rule's level came from.
-        selector: The code or group prefix that set the level, or None for the default.
+        resolution: The effective level and its valid provenance variant.
     """
 
     path: RootRelativePath
     occurrence: Rule
-    severity: Severity
-    level_source: LevelOrigin = 'default'
-    selector: LevelSelector | None = None
+    resolution: ReportingResolution
+
+    @property
+    def severity(self) -> Severity:
+        """The severity determined by the reporting resolution variant."""
+        return self.resolution.severity
 
 
 @dataclass(frozen=True, slots=True)
@@ -91,26 +92,6 @@ class EngineDiagnostic:
 # One occurrence located at the subject it was found in, with the severity it is reported at: a rule's, at the
 # severity the run enables the rule at, or an engine condition's, at the severity its class fixes.
 type Diagnostic = RuleDiagnostic | EngineDiagnostic
-
-
-def elevate_warnings(diagnostics: tuple[Diagnostic, ...], deny_warnings: bool) -> tuple[Diagnostic, ...]:
-    """Return diagnostics with rule warnings elevated to errors when the run denies warnings.
-
-    Escalation happens after detection and applies only to rule diagnostics. Engine conditions keep their fixed
-    severity, and occurrences are never presented with run options.
-
-    Args:
-        diagnostics: Findings already produced by rules and engine conditions.
-        deny_warnings: Whether `-D warnings` was requested for this run.
-    """
-    if not deny_warnings:
-        return diagnostics
-    return tuple(
-        RuleDiagnostic(item.path, item.occurrence, Severity.ERROR, item.level_source, item.selector)
-        if isinstance(item, RuleDiagnostic) and item.severity is Severity.WARNING
-        else item
-        for item in diagnostics
-    )
 
 
 @dataclass(frozen=True, slots=True, order=True)

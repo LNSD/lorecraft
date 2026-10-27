@@ -13,9 +13,11 @@ from lorecraft.project.schemas import DocumentFrontmatterOwner
 from lorecraft.project.syntax import LineNumber
 from lorecraft.rules.declaration import ContentRule
 from lorecraft.rules.frontmatter.duplicate_key import DuplicateKey
-from lorecraft.rules.identity import Severity
+from lorecraft.rules.identity import Level
+from lorecraft.rules.level_resolution import DefaultLevel
 from lorecraft.rules.location import Elsewhere, Help, Here, Label
 from lorecraft.rules.report import RuleDiagnostic
+from lorecraft.rules.tests.level_helpers import default_level
 
 from ..diagnostic_parts import (
     FilePlace,
@@ -40,6 +42,8 @@ def _line(number: int) -> LineNumber:
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class _EmptyLabelRule(ContentRule):
+    LEVEL = Level.DENY
+
     def message(self) -> str:
         """Name the test occurrence."""
         return 'empty labels'
@@ -123,7 +127,7 @@ class TestDiagnosticMarks:
     def test_empty_labels_keep_their_marks_and_become_none_text(self) -> None:
         #: Given
         occurrence = _EmptyLabelRule(spec=_SPEC, line=_line(3))
-        diagnostic = RuleDiagnostic(_SUBJECT, occurrence, Severity.ERROR)
+        diagnostic = RuleDiagnostic(_SUBJECT, occurrence, DefaultLevel(default_level(type(occurrence))))
 
         #: When
         marks = diagnostic_marks(diagnostic)
@@ -137,7 +141,7 @@ class TestDiagnosticMarks:
     def test_diagnostic_marks_with_labels_and_children_marks_lines_and_whole_files_apart(self) -> None:
         #: Given
         occurrence = DuplicateKey(owner=_OWNER, line=_line(3), key='name', first_line=_line(2), kept_line=_line(1))
-        diagnostic = RuleDiagnostic(_SUBJECT, occurrence, Severity.ERROR)
+        diagnostic = RuleDiagnostic(_SUBJECT, occurrence, DefaultLevel(default_level(occurrence)))
 
         #: When
         marks = diagnostic_marks(diagnostic)
@@ -153,7 +157,7 @@ class TestDiagnosticMarks:
     def test_diagnostic_marks_with_a_note_at_a_line_already_marked_adds_nothing(self) -> None:
         #: Given
         occurrence = DuplicateKey(owner=_OWNER, line=_line(3), key='name', first_line=_line(2), kept_line=_line(2))
-        diagnostic = RuleDiagnostic(_SUBJECT, occurrence, Severity.ERROR)
+        diagnostic = RuleDiagnostic(_SUBJECT, occurrence, DefaultLevel(default_level(occurrence)))
 
         #: When
         marks = diagnostic_marks(diagnostic)
