@@ -2,16 +2,16 @@
 name: "adr-022-skills-governance"
 description: "Bring skill entrypoints into reserved-corpus governance with a builtin spec floor layer, independent repository layers and bounded contradiction detection. Load when implementing skills corpus loading, governance, checking or inspection"
 type: "adr"
-status: "proposed"
+status: "accepted"
 ---
 
 # Skills Corpus Governance
 
 > [!NOTE]
-> Proposed to supersede in part [adr-016](adr-016-specifications.md): its statements that skills answer only to a
+> Supersedes in part [adr-016](adr-016-specifications.md): its statements that skills answer only to a
 > specification fixed in code and can never be ungoverned, and its absence of schema-contradiction diagnostics
-> for skills. Its document governance and independent-layer model remain unchanged. adr-016 stays binding until
-> this record is accepted.
+> for skills. Its document governance and independent-layer model remain unchanged, and adr-016 stays binding for
+> everything else.
 
 ## Context
 
@@ -227,7 +227,7 @@ It does not create a second matching algorithm or require a docs/skills/ directo
 ## References
 
 - [prd-020](prd-020-skills-corpus.md) - Source: The skills corpus requirements and contradiction-detection boundary
-- [adr-016](adr-016-specifications.md) - Proposed replacement in part: Fixed-only skills governance; independent
+- [adr-016](adr-016-specifications.md) - Supersedes in part: Fixed-only skills governance; independent
   document layers and failed-layer semantics remain in force
 - [adr-023](adr-023-governed-items.md) - Related: Unified governed-item reference, model-resolved descriptor and
   hierarchical resource governance identity

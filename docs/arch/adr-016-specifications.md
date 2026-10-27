@@ -11,6 +11,9 @@ status: "accepted"
 > Supersedes [adr-006-specifications](adr-006-specifications.md): restated unchanged except for what happens to a
 > spec that cannot be loaded, which [adr-015](adr-015-database.md) records as a failed layer instead of a
 > failure of the run. adr-006 binds no code.
+>
+> Superseded in part: the statements that skills answer only to a specification fixed in code and can never be
+> ungoverned, and the absence of schema-contradiction diagnostics for skills. The rest of this record binds code.
 
 ## Context
 

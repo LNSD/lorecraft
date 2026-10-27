@@ -2,7 +2,7 @@
 name: "adr-028-schema-registry"
 description: "Define typed schema inputs and query-visible schema dependencies under `lorecraft.schemas`, with database-owned memoization and builtin floor layers on the normal registry path. Load when adding or changing schema inputs, registry resolution, schema query subjects or schema validation"
 type: "adr"
-status: "proposed"
+status: "accepted"
 ---
 
 # Central Schema Registry

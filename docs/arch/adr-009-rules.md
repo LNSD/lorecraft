@@ -9,8 +9,9 @@ status: "accepted"
 
 > [!NOTE]
 > Superseded in part: how a rule reads the facts it judges, which a queried rule replaces by naming its query and
-> judging the facts it returns. The text below states that design where it spoke of a subject context. The rest of
-> this record binds code.
+> judging the facts it returns; and the requirement that a document rule declare `GOVERNED_BY`, with skills and
+> layout rules declaring none. The text below states the query design where it spoke of a subject context. The rest
+> of this record binds code.
 
 This record is one of three that state how the structured checks of [prd-008](prd-008-structured-checks.md) are
 built: [adr-009](adr-009-rules.md) how a rule is declared and identified, [adr-010](adr-010-diagnostics.md) what a
