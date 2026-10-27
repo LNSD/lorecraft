@@ -373,6 +373,18 @@ def find_narrowest_ancestor(name: str, names: Iterable[str]) -> str | None:
     return max(ancestors, key=lambda candidate: candidate.count('-'))
 
 
+def find_base_chain(name: str, names: Iterable[str]) -> tuple[str, ...]:
+    """Declared ancestors of a name, broadest first, skipping undeclared intermediate names."""
+    remaining = set(names)
+    chain: list[str] = []
+    while (base := find_narrowest_ancestor(name, remaining)) is not None:
+        chain.append(base)
+        remaining.remove(base)
+        name = base
+    chain.reverse()
+    return tuple(chain)
+
+
 def namespace_order_key(namespace: AspectNamespace) -> tuple[int, str]:
     """The broad-to-narrow order of a corpus's namespace specs: segment count first, then value.
 
@@ -460,6 +472,21 @@ class Corpus:
         if narrowest is None:
             return None
         return DocumentRef(corpus=self.name, filename=by_name[narrowest])
+
+    def document_base_chain(self, filename: AspectFilename) -> tuple[DocumentRef, ...]:
+        """Declared document ancestors, broadest first; missing intermediate names are skipped."""
+        by_name = {str(candidate): candidate for candidate in self.filenames}
+        return tuple(
+            DocumentRef(corpus=self.name, filename=by_name[name]) for name in find_base_chain(str(filename), by_name)
+        )
+
+    def document_extensions(self, filename: AspectFilename) -> tuple[DocumentRef, ...]:
+        """Documents whose nearest declared base is this filename, sorted by filename."""
+        return tuple(
+            DocumentRef(corpus=self.name, filename=candidate)
+            for candidate in sorted(self.filenames, key=str)
+            if self.document_base(candidate) == DocumentRef(corpus=self.name, filename=filename)
+        )
 
     @property
     def directory(self) -> RootRelativePath:
@@ -703,6 +730,15 @@ class WorkspaceModel:
         by_name = {spec.name: spec for spec in self.specifications()}
         base = find_narrowest_ancestor(ref.name, by_name)
         return None if base is None else by_name[base]
+
+    def specification_base_chain(self, ref: SpecRef) -> tuple[SpecRef, ...]:
+        """Declared specification ancestors, broadest first; missing names are skipped."""
+        by_name = {spec.name: spec for spec in self.specifications()}
+        return tuple(by_name[name] for name in find_base_chain(ref.name, by_name))
+
+    def specification_extensions(self, ref: SpecRef) -> tuple[SpecRef, ...]:
+        """Specifications whose nearest declared base is this one, sorted by specification name."""
+        return tuple(candidate for candidate in self.specifications() if self.find_specification_base(candidate) == ref)
 
     def name_base(
         self, corpus: CorpusName | None, name: AspectFilename | AspectName | SpecName | None
