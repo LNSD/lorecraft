@@ -7,8 +7,8 @@ well as the installed version and environment; run from a copy of the package ou
 output, `inspect` over a checked-in workspace fixture, and the diagnostics `check` prints over that fixture are
 compared to a reviewed snapshot file under `__snapshots__/`. So are the diagnostics `check` prints for a root holding
 a subject of each kind the fixture lacks (a resource of a skill, a symlink leading outside the repository, a file
-that is not UTF-8, and a document no budget governs, whose coverage goes to stderr), for that root with some rules
-selected and one ignored, for a root whose frontmatter writes a key twice or a key that is not a string, and for a
+that is not UTF-8, and a document no budget governs, whose coverage goes to stderr), for a root checked with
+`-W LC102` and `-D warnings`, for a root whose frontmatter writes a key twice or a key that is not a string, and for a
 skill and a resource each linking to an absolute path; and what `check` and `inspect` print for a root whose `docs/`
 or `docs/__meta__/` is a symlink into that fixture. The JSON document `check` prints is asserted whole, once parsed,
 and a selector `check` cannot use exits 2 before any document is printed. A root written from `lib.workspace`
