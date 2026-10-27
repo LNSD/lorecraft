@@ -2,12 +2,14 @@
 name: "adr-027-subject-keyed-queries"
 description: "One composable query model for every rule subject: each query is parameterless and keyed by its Markdown item, symlink or corpus-directory subject; primitives expose raw model state, derived facts are queries, and cross-item reads are recorded. Queries start in their rule group and move to the project layer when another group needs them. Load when adding or changing a rule query, primitive, subject kind, cross-item read or runner query dispatch"
 type: "adr"
-status: "accepted"
+status: "superseded"
 ---
 
 # Subject-Keyed Queries
 
 > [!NOTE]
+> Superseded. It binds no code.
+>
 > Supersedes in part [adr-026-rule-owned-queries](adr-026-rule-owned-queries.md), decisions 2 and 7: every
 > rule subject uses the same query base and runner path, and the memoization key includes the subject. Decision 6
 > remains binding: a query lives in the layer that owns the value it returns. ADR-026 remains binding for all

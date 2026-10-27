@@ -2,13 +2,13 @@
 name: "adr-031-cli-level-flags"
 description: "Command-line level flags on lorecraft check: -A, -W and -D flags override default and config levels, with specificity precedence and -D warnings elevation. Load when parsing check flags, resolving rule levels or formatting diagnostics"
 type: "adr"
-status: "proposed"
+status: "accepted"
 ---
 
 # Command-Line Level Flags on `lorecraft check`
 
 > [!NOTE]
-> Proposed to supersede in part [adr-011](adr-011-rules-engine.md): the passage in "Levels, Configuration and Selection" stating "There is no level option on the command line: levels live in the configuration alone, so a local run and CI agree on one revision (NFR-001)" and the selection mechanism (`--select` and `--ignore`). That record stays binding outside these passages, and until this record is accepted.
+> Supersedes in part [adr-011](adr-011-rules-engine.md): the passage in "Levels, Configuration and Selection" stating "There is no level option on the command line: levels live in the configuration alone, so a local run and CI agree on one revision (NFR-001)" and the selection mechanism (`--select` and `--ignore`). That record stays binding outside these passages.
 
 This record specifies command-line level flags on `lorecraft check`, superseding the command-line restriction in [adr-011](adr-011-rules-engine.md) and settling the open question of [prd-008](prd-008-structured-checks.md) `FR-026`.
 

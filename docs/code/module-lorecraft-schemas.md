@@ -78,5 +78,5 @@ Before committing code, verify:
 ## References
 
 - [adr-028-schema-registry](../arch/adr-028-schema-registry.md) - Foundation: Schema identities, origins and registry ownership
-- [adr-027-subject-keyed-queries](../arch/adr-027-subject-keyed-queries.md) - Foundation: Typed subject identities and database-owned query reads
+- [adr-029-unified-query-engine](../arch/adr-029-unified-query-engine.md) - Foundation: Typed subject identities and database-owned query reads
 - [principle-single-responsibility](principle-single-responsibility.md) - Foundation: Keep pure lookup separate from loading and validation

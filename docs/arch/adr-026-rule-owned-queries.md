@@ -2,12 +2,14 @@
 name: "adr-026-rule-owned-queries"
 description: "A rule names the query it needs, and the runner resolves it through the database and hands its judgement the typed facts, never a context: queries are pure functions over cohesive primitive facets in lorecraft.project.query, live beside the rule or layer that owns them, and are memoized generically by the database while the runner coordinates evaluation directly. Load when adding a fact a rule reads, adding or changing a query or primitive, or changing how the runner resolves a rule's query"
 type: "adr"
-status: "accepted"
+status: "superseded"
 ---
 
 # Rule-Owned Queries
 
 > [!NOTE]
+> Superseded. It binds no code.
+>
 > Supersedes in part [adr-009-rules](adr-009-rules.md), [adr-011-rules-engine](adr-011-rules-engine.md),
 > [adr-012-database-derivation](adr-012-database-derivation.md) and [adr-015-database](adr-015-database.md): where a
 > fact a rule reads is declared, computed and memoized, how its carry-over is derived, and how a run coordinates rule
