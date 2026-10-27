@@ -1,6 +1,6 @@
 ---
 name: "module-lorecraft-engine"
-description: "The lorecraft.engine package's responsibility, role, boundary and invariants: the shared runner that hands each rule the facts of its query, and each mode's own entry point. Load when adding or moving code in lorecraft.engine, changing how the rules run over a subject, adding a mode of the engine, or deciding how a rule gets its facts"
+description: "The lorecraft.engine package's responsibility, role, boundary and invariants: the shared runner that hands each rule the facts of its query, and the check run that applies its policy. Load when adding or moving code in lorecraft.engine, changing how the rules run over a subject, adding a mode of the engine, or deciding how a rule gets its facts"
 type: "pkg"
 scope: "pkg:lorecraft.engine"
 ---
@@ -10,7 +10,7 @@ scope: "pkg:lorecraft.engine"
 ## Responsibility
 
 Run the rules over one revision's subjects, and report what failed to load. It changes when the way a subject is
-judged changes, when check mode skips a subject whose docs target was refused, when a mode's policy for a document or
+judged changes, when check mode skips a subject whose docs target was refused, when check mode's policy for a document or
 spec governed by a failed layer changes, or when a load failure is reported differently.
 
 ## Role
@@ -27,17 +27,16 @@ returns at its subject, as a diagnostic of `lorecraft.rules.report`.
   subject is a Markdown item, symlink or corpus directory; each kind follows the same query and judgment path. A
   query is owned by its rule group unless another group needs it, when it is promoted to `lorecraft.project.query`;
   the runner resolves that shared query for both groups through the same database. A
-  document, skill or skill resource is decoded by each mode's entry point, so its policy comes after decoding,
-  and `judge_item` judges any of them through one loop over spec parts and `Always` gates. A rule runs over an item
+  document, skill or skill resource is decoded by check mode before its failed-layer policy is applied, and
+  `judge_item` judges any of them through one loop over spec parts and `Always` gates. A rule runs over an item
   of a type it applies to, and only when the item is governed for the part the rule reads; each part an applicable
   rule reads that the item is not governed for is recorded as
   coverage. A rule over a Markdown file runs over a document governed for its structure, a skill's `SKILL.md` and
   each resource handed over as a subject of its own. A resource has no corpus structure governance, while `Always`
   Markdown checks still run; a skill's explicitly mapped `Always` checks run independently of corpus governance.
-- One entry point per mode: `skip.py` applies failed-layer policy after decoding: failed governing layers suppress
-  spec-part gates, while `Always` checks still run. The
-  suppressed parts appear in coverage. A refused docs target skips the affected item or skill alias. An LSP-style
-  partial mode is future work.
+- The check run in `skip.py` applies failed-layer policy after decoding: failed governing layers suppress spec-part
+  gates, while `Always` checks still run. Suppressed parts appear in coverage. A refused docs target skips the
+  affected item or skill alias. An LSP-style partial mode is future work.
 - `skip.py` propagates the project's common `ItemReadError` for a missing item.
 - The report of each load failure the model lists (`load_failures.py`): the engine condition of its kind, filed
   once at the failure's path, whatever the configuration and resolved levels. A `docs/` or `docs/__meta__/` that
@@ -70,8 +69,7 @@ returns at its subject, as a diagnostic of `lorecraft.rules.report`.
   spec-gated checks as coverage on decoded items, never as a whole-subject skip.
 - A skill entrypoint whose docs target was refused is coverage at its own path; the refusal is reported at the target.
 - A run's results are not cached. Every rule runs again every time, and never sees the store of persisted results.
-- The shared runner holds no mode's policy. A new mode is a new entry point that edits neither `runner.py` nor
-  another mode's entry point.
+- The shared runner holds no mode's policy; check mode's policy stays in `skip.py`.
 - Nothing here imports `lorecraft.cli` or `typer`. The layers contract refuses the first and a forbidden contract the
   second, so a long-lived front end reaches the engine without loading the command line.
 
@@ -130,11 +128,10 @@ Before committing code, verify:
 - [ ] A queried Markdown item, symlink or corpus directory is dispatched through the same query and `judge` path
 - [ ] A run attaches the subject's path to each occurrence; an occurrence names no subject
 - [ ] Nothing added takes a snapshot or sets an exit code
-- [ ] A mode's policy sits in that mode's own entry point; `runner.py` takes no policy parameter and no callback
+- [ ] Check mode's failed-layer policy sits in `skip.py`; `runner.py` takes no policy parameter or callback
 - [ ] A new load-failure condition is reported by `load_failures.py`, whose match stays exhaustive; failed layers
   suppress spec-part gates across item kinds while preserving `Always` checks
-- [ ] A document, skill or resource is decoded by each mode's entry point, so its policy comes after decoding; the
-  item is asked for by its common reference, and failed corpus governance suppresses spec rules while
+- [ ] Check mode decodes a document, skill or resource before applying its policy; the item is asked for by its common `ItemRef`, and failed corpus governance suppresses spec rules while
   preserving package and schema checks; `runner.py`
   decodes nothing
 - [ ] `judge_item` asks a rule its item types and spec part, never its base; only building the report matches on the item type

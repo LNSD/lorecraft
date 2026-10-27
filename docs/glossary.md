@@ -41,7 +41,7 @@ instructions. It is a governed [item](#item) with type `SKILL_ENTRYPOINT`.
 
 ### Resource
 
-A Markdown file inside an [agent skill](#agent-skill) other than its top-level `SKILL.md`, at any depth, such as a reference the skill loads on demand. It is named where an agent reaches it, through any symlink inside the skill, and located at the [resolved](#resolved-path) file that path leads to. In code, `SkillResourceOrigin.skill_entry` is an accepted alias for the containing skill's listed directory name.
+A Markdown file inside an [agent skill](#agent-skill) other than its top-level `SKILL.md`, at any depth, such as a reference the skill loads on demand. It is named where an agent reaches it, through any symlink inside the skill, and located at the [resolved](#resolved-path) file that path leads to. In code, `SkillResourceOrigin.skill_entrypoint` holds the containing skill's listed directory name.
 
 ### Item
 

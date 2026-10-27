@@ -62,7 +62,6 @@ from .schema_problems import (
     StructureSpecSchema,
     field_line,
     locate_agent_skills_schema_problems,
-    locate_schema_problems,
 )
 from .section_name import SectionName
 from .skill_fields import (
@@ -170,7 +169,6 @@ __all__: list[str] = [
     'AgentSkillsSchema',
     'LocatedProblem',
     'SchemaProblems',
-    'locate_schema_problems',
     'locate_agent_skills_schema_problems',
     'DocumentEnd',
     'ExpectedSection',

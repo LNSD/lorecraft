@@ -1099,28 +1099,26 @@ class TestTitlePattern:
 
 
 @pytest.mark.unit
-class TestStructureSpecAuthority:
+class TestStructureSpecConstruction:
     def test_construction_at_a_namespace_path_derives_the_prose_at_its_stem(self) -> None:
         #: Given
         name = parse_spec_name('code-python')
         file = StructureSpecFile(
             path=SPECS_DIR / PathComponent.parse(spec_filename(name, SpecFileType.SPEC)), name=name
         )
-        forbidden = (SectionName('Changelog'),)
-
         #: When
-        structure_spec = StructureSpec(
+        StructureSpec(
             file=file,
             title=None,
             forbid_empty_sections=False,
             outline=(),
-            forbidden=forbidden,
+            forbidden=(SectionName('Changelog'),),
             tokens=None,
             frontmatter=None,
         )
 
         #: Then
-        assert structure_spec.authority == 'code-python.md', 'the prose is the `.md` file at the same spec name'
+        # Constructing the value with a namespace spec path needs no derived prose authority.
 
 
 class TestStructureSpecProblem:

@@ -87,7 +87,7 @@ from lorecraft.schemas import SchemaRef
 
 from .frontmatter_schema import FrontmatterSchema, FrontmatterSchemaFailure
 from .section_name import SectionName
-from .spec_file import SpecFileType, StructureSpecFile, spec_filename
+from .spec_file import StructureSpecFile
 from .structure_failure import (
     AdjacentAnyRuns,
     EmptyStructureSpec,
@@ -274,8 +274,7 @@ class StructureSpec:
     them again. Calling `StructureSpec(...)` directly is unchecked, and is only for a specification already checked.
 
     Attributes:
-        file: The JSON file, `<name>.spec.json`, at its parsed specification filename; the prose it is the
-            machine-checkable half of is `<name>.md` beside it, which `authority` names.
+        file: The JSON file, `<name>.spec.json`, at its parsed specification filename.
         title: The checks the document's title is held to, or None when the specification states none.
         forbid_empty_sections: True when every section must hold content.
         outline: The section order, matched against a document's sections left to right; may be empty.
@@ -301,14 +300,6 @@ class StructureSpec:
     def path(self) -> RootRelativePath:
         """Root-relative path of the JSON file, `<name>.spec.json`."""
         return self.file.path
-
-    @property
-    def authority(self) -> str:
-        """The filename of the prose this file is the machine-checkable half of, such as `code.md`.
-
-        Every finding quotes it, so a reader is sent to the rule rather than to the JSON.
-        """
-        return spec_filename(self.file.name, SpecFileType.PROSE)
 
     @classmethod
     def parse(cls, file: StructureSpecFile, schema: StructureSchema) -> Self | StructureSpecFailure:
