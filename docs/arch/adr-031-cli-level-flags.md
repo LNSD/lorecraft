@@ -8,18 +8,18 @@ status: "proposed"
 # Command-Line Level Flags on `lorecraft check`
 
 > [!NOTE]
-> Proposed to supersede in part [adr-011](adr-011-rules-engine.md): the passage in "Levels, Configuration and Selection" stating "There is no level option on the command line: levels live in the configuration alone, so a local run and CI agree on one revision (NFR-001)" and the mention of group and code prefix selectors for `--select` and `--ignore`. That record stays binding outside these passages, and until this record is accepted.
+> Proposed to supersede in part [adr-011](adr-011-rules-engine.md): the passage in "Levels, Configuration and Selection" stating "There is no level option on the command line: levels live in the configuration alone, so a local run and CI agree on one revision (NFR-001)" and the selection mechanism (`--select` and `--ignore`). That record stays binding outside these passages, and until this record is accepted.
 
 This record specifies command-line level flags on `lorecraft check`, superseding the command-line restriction in [adr-011](adr-011-rules-engine.md) and settling the open question of [prd-008](prd-008-structured-checks.md) `FR-026`.
 
 ## Context
 
-Today, `lorecraft check` can filter which rules run via `--select` and `--ignore`, but cannot alter a rule's severity level. Each rule has a default level (`allow`, `warn` or `deny`), and configuration file support is deferred. Without command-line level flags:
+Today, `lorecraft check` cannot alter a rule's severity level. Each rule has a default level (`allow`, `warn` or `deny`), and configuration file support is deferred. Without command-line level flags:
 - A user or CI pipeline cannot make a rule advisory or promote a warning to a hard failure.
 - CI cannot gate on warnings (`-D warnings`) while local development remains lenient.
-- A rule whose default level is `allow` cannot be enabled on the command line, because `--select` only filters and does not change levels.
+- A rule whose default level is `allow` cannot be enabled on the command line.
 
-Additionally, [adr-011](adr-011-rules-engine.md) described `--select` and `--ignore` as accepting group and code prefixes. As settled during rule renumbering, prefixes are not valid selectors; selectors accept only full rule codes, alias codes, and `ALL`. The specification needs to realign with this invariant.
+Additionally, [adr-011](adr-011-rules-engine.md) specified filtering runs via `--select` and `--ignore`. Retaining a parallel filtering mechanism beside level flags creates conflicting semantics and unnecessary surface. Instead, `--select` and `--ignore` are removed: every run checks every enabled rule, and a run is narrowed directly using level flags (`-A ALL -D <code>`).
 
 ## Decision
 
@@ -29,18 +29,18 @@ Additionally, [adr-011](adr-011-rules-engine.md) described `--select` and `--ign
    - Command-line level flags (`-A`/`--allow`, `-W`/`--warn`, `-D`/`--deny`)
    - Inline directives (deferred suppress-only directives, which beat `-D`)
 
-2. **Flags and selectors.** `lorecraft check` takes repeatable, comma-separated level flags:
+2. **Flags and selectors.** `lorecraft check` takes repeatable level flags, each taking exactly one value:
    - `-A`, `--allow`
    - `-W`, `--warn`
    - `-D`, `--deny`
 
-   Accepted selectors follow the `--select` grammar:
+   Accepted selectors are:
    - Full rule code (e.g. `LC201`)
-   - Alias code (resolves to its canonical code with a stderr warning naming the replacement)
+   - Alias code (e.g. `MD040`, resolving silently to its canonical rule code)
    - `ALL` (applies to all rules)
    - `warnings` (reserved selector valid only for `-D`/`--deny`)
 
-   Prefix and group selectors are rejected. `-A warnings` and `-W warnings` are usage errors.
+   Prefix selectors, group selectors, rule names, and comma-separated values are rejected with exit code 2 before any subject is checked. `-A warnings` and `-W warnings` are usage errors. Setting `-W` or `-D` on a rule whose default is `allow` enables the rule, superseding ADR-011's restriction that only configuration files could enable rules.
 
 3. **Command-line precedence.** Precedence among flags on the command line is resolved by specificity, not argument order:
    - A specific rule code overrides `ALL` regardless of flag ordering (e.g. `-D ALL -A LC201` and `-A LC201 -D ALL` both result in `LC201` at `allow` and all other rules at `deny`).
@@ -48,19 +48,13 @@ Additionally, [adr-011](adr-011-rules-engine.md) described `--select` and `--ign
 
 4. **Elevation via `-D warnings`.** `-D warnings` is evaluated after all rule-level overrides are resolved. It raises every resolved diagnostic at `warn` to `error`, causing the run to fail on warnings while preserving the rule's underlying configured level. Settles [prd-008](prd-008-structured-checks.md) `FR-026`.
 
-5. **Interplay with `--select` and `--ignore`.**
-   - Levels resolve first; selection then filters the rule table.
-   - Setting `-W` or `-D` on a rule whose default is `allow` enables the rule. This supersedes ADR-011's restriction that only configuration files could enable rules.
-   - Passing `--select` for a rule left at `allow` produces the existing warning pointing the user to `-W CODE`.
-   - Passing contradictory flags, such as `-D CODE --ignore CODE`, suppresses the rule from running and emits an advisory warning on stderr noting the contradiction.
+5. **Validation.** Unknown, malformed, or invalid selectors (including prefixes, groups, comma-separated values, or `-A warnings`) are usage errors that exit 2 before any subject is checked (satisfying `FR-025`). Selectors are parsed and validated at the CLI boundary into `AllRules | RuleCode | Warnings` alongside the associated `Level`.
 
-6. **Validation.** Unknown, malformed, or invalid selectors (including prefixes, groups, or `-A warnings`) are usage errors that exit 2 before any subject is checked (satisfying `FR-025`). Selectors are parsed and validated at the CLI boundary into `AllRules | RuleCode | Warnings` alongside the associated `Level`.
-
-7. **Provenance in reports.** When a diagnostic's effective level differs from its default level:
-   - Human-readable text output includes an explanatory note (e.g. ``note: `-D LC201` requested on the command line``, or ``note: `-D warnings` elevated warning to error``).
+6. **Provenance in reports.** When a diagnostic's effective level differs from its default level:
+   - Human-readable text output includes an explanatory note naming the flag as the user wrote it (e.g. ``note: `-D MD040` requested on the command line``, or ``note: `-D warnings` elevated warning to error``), while the diagnostic itself carries the canonical Lorecraft code.
    - Machine-readable JSON output includes a `level_source` field (`default | config | cli`).
 
-8. **Invariants kept.** Levels are applied after detection. No rule query or judgement reads CLI flags or levels; rule results remain pure and cacheable across runs.
+7. **Invariants kept.** Levels are applied after detection. No rule query or judgement reads CLI flags or levels; rule results remain pure and cacheable across runs.
 
 ## Non-Goals
 
@@ -68,37 +62,39 @@ Additionally, [adr-011](adr-011-rules-engine.md) described `--select` and `--ign
 - `--force-warn` and `--cap-lints`: Out of scope.
 - Prefix and group selectors: Not supported.
 - Inline directives: Remain suppress-only when introduced; not expanded to level elevation.
+- `--select` and `--ignore`: Removed from `lorecraft check`.
 
 ## Consequences
 
 - Users and CI environments can enforce strict checks (`-D warnings` or `-D ALL`) or selectively enable experimental rules (`-W CODE`) without touching repository configuration.
 - Repeatable flag combinations are deterministic and order-independent due to specificity-based resolution and the rejection of conflicting levels.
-- ADR-011's drift regarding prefix selectors for `--select` and `--ignore` is corrected.
-- Diagnostic output clearly identifies why a rule was reported at a non-default level.
+- The command-line surface is simplified: filtering is achieved through level assignments (`-A ALL -D <CODE>`), removing the redundant `--select` and `--ignore` flags and their interplay.
+- Diagnostic output clearly identifies why a rule was reported at a non-default level, preserving the user's chosen selector identity in provenance notes.
 
 ## Alternatives Considered
 
-- **Argument order precedence (last flag wins).** Used by rustc/Clippy. Rejected because Lorecraft already resolves `--select` and `--ignore` by specificity, and treating conflicting levels on the same rule as an explicit usage error prevents subtle script ordering bugs and mirrors configuration file validation.
+- **Argument order precedence (last flag wins).** Used by rustc/Clippy. Rejected because Lorecraft treats conflicting levels on the same rule as an explicit usage error to prevent subtle script ordering bugs and mirror configuration file validation.
 - **Prefix and group selectors.** Considered to allow blanket configuration like `-D LC2xx`. Rejected in alignment with LORE-500 rule renumbering: selectors only operate on discrete rule codes and `ALL`.
-- **Replacing `--select` entirely with `-A ALL -D <CODE>`.** Rejected because filtering which checks execute and setting severity levels are distinct concerns; retaining `--select` keeps rule filtering decoupled from diagnostic level semantics.
+- **Retaining `--select` and `--ignore` beside level flags.** Rejected because maintaining two parallel ways to include or exclude checks creates ambiguous precedence and confusing warning semantics (such as `-D CODE --ignore CODE`). Narrowing runs via `-A ALL -D <CODE>` is expressive, consistent with compiler workflows, and unifies rule execution with level resolution.
+- **Comma-separated values.** Rejected because comma-separated lists add syntax edge cases and failure modes without providing any capability not already served by repeating the flag.
+- **Deprecation warnings for alias codes.** Rejected because alias codes are permanent compatibility mappings for rules absorbed from upstream linters, not deprecated syntax; stderr is reserved for actual errors and failures.
 
 ## Checklist
 
-- [ ] `lorecraft check` accepts `-A`/`--allow`, `-W`/`--warn`, and `-D`/`--deny` flags taking rule codes, aliases, and `ALL`
+- [ ] `lorecraft check` accepts repeatable `-A`/`--allow`, `-W`/`--warn`, and `-D`/`--deny` flags taking one rule code, alias, or `ALL` each
 - [ ] `-D warnings` is accepted and elevates warnings to errors after detection
 - [ ] Passing `warnings` to `-A` or `-W` exits 2 before subjects are checked
 - [ ] Conflicting levels for the same code on the command line exit 2 before subjects are checked
-- [ ] Selectors are validated at the CLI boundary; unknown codes, prefixes, or groups exit 2
-- [ ] Alias codes resolve to their canonical rule code with a deprecation warning on stderr
+- [ ] Selectors are validated at the CLI boundary; unknown codes, prefixes, groups, or comma-separated values exit 2
+- [ ] Alias codes resolve silently to their canonical rule code without stderr warnings
 - [ ] A rule code override takes precedence over `ALL` regardless of CLI flag order
 - [ ] Setting `-W` or `-D` on a default-`allow` rule enables the rule
-- [ ] Passing contradictory flags (e.g. `-D CODE --ignore CODE`) omits the rule and logs a warning on stderr
-- [ ] Diagnostics with non-default levels carry provenance notes in text and a `level_source` in JSON reports
+- [ ] Diagnostics with non-default levels carry provenance notes in text naming the written flag, and a `level_source` in JSON reports
 - [ ] Rule queries and judgements do not access CLI flags or level state
 
 ## References
 
 - [prd-008](prd-008-structured-checks.md) - Requirements: Settles FR-024, FR-025, FR-026, and NFR-001
-- [adr-011](adr-011-rules-engine.md) - Supersedes in part: CLI level flag restrictions and prefix selector passages
+- [adr-011](adr-011-rules-engine.md) - Supersedes in part: CLI level flag restrictions and selection passages
 - [adr-009](adr-009-rules.md) - Foundation: Rule declarations, codes, and index
 - [adr-010](adr-010-diagnostics.md) - Foundation: Diagnostic reporting and notes
