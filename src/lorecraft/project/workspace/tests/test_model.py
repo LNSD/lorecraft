@@ -479,6 +479,45 @@ class TestCorpus:
         #: Then
         assert base is None, 'a name that only shares letters with another has no base'
 
+    def test_document_base_chain_returns_all_declared_ancestors_broadest_first(self) -> None:
+        #: Given
+        filenames = frozenset(AspectFilename.parse(name) for name in ('python', 'python-fn', 'python-fn-names'))
+        corpus = Corpus(corpus_spec=_corpus_spec('code'), namespaces=FrozenMapping({}), filenames=filenames)
+
+        #: When
+        chain = corpus.document_base_chain(AspectFilename.parse('python-fn-names'))
+
+        #: Then
+        assert chain == (_ref('code', 'python'), _ref('code', 'python-fn')), (
+            'the chain contains every proper ancestor, broadest first'
+        )
+
+    def test_document_base_chain_skips_a_missing_intermediate_name(self) -> None:
+        #: Given
+        filenames = frozenset(AspectFilename.parse(name) for name in ('python', 'python-fn-names'))
+        corpus = Corpus(corpus_spec=_corpus_spec('code'), namespaces=FrozenMapping({}), filenames=filenames)
+
+        #: When
+        chain = corpus.document_base_chain(AspectFilename.parse('python-fn-names'))
+
+        #: Then
+        assert chain == (_ref('code', 'python'),), 'an undeclared intermediate is omitted without stopping the chain'
+
+    def test_document_extensions_returns_only_the_nearest_declared_children(self) -> None:
+        #: Given
+        filenames = frozenset(
+            AspectFilename.parse(name) for name in ('python', 'python-fn', 'python-fn-names', 'python-errors')
+        )
+        corpus = Corpus(corpus_spec=_corpus_spec('code'), namespaces=FrozenMapping({}), filenames=filenames)
+
+        #: When
+        extensions = corpus.document_extensions(AspectFilename.parse('python'))
+
+        #: Then
+        assert extensions == (_ref('code', 'python-errors'), _ref('code', 'python-fn')), (
+            'direct extensions exclude deeper descendants and have deterministic filename order'
+        )
+
     def test_documents_with_filenames_out_of_order_returns_them_sorted_by_filename(self) -> None:
         #: Given
         filenames = frozenset({AspectFilename.parse('python-typing'), AspectFilename.parse('logging')})
@@ -1654,6 +1693,77 @@ class TestSpecifications:
 
         #: Then
         assert base == expected, 'the base is the narrowest specification whose name is continued'
+
+    def test_specification_base_chain_returns_all_declared_ancestors_broadest_first(self) -> None:
+        #: Given
+        code = Corpus(
+            corpus_spec=_corpus_spec('code'),
+            namespaces=FrozenMapping(
+                dict(
+                    (_code_namespace('python'), _code_namespace('python-typing'), _code_namespace('python-typing-deep'))
+                )
+            ),
+            filenames=frozenset(),
+        )
+        model = WorkspaceModel(
+            corpus_values=frozenset({code}),
+            skills_dirs=frozenset(),
+            skill_location_values=frozenset(),
+            outside_symlink_values=frozenset(),
+            load_failures=(),
+        )
+
+        #: When
+        chain = model.specification_base_chain(_spec_ref('code-python-typing-deep'))
+
+        #: Then
+        assert chain == (_spec_ref('code'), _spec_ref('code-python'), _spec_ref('code-python-typing')), (
+            'specification ancestors span the declared hierarchy, broadest first'
+        )
+
+    def test_specification_base_chain_skips_a_missing_intermediate_name(self) -> None:
+        #: Given
+        code = Corpus(
+            corpus_spec=_corpus_spec('code'),
+            namespaces=FrozenMapping(dict((_code_namespace('python'), _code_namespace('python-typing-deep')))),
+            filenames=frozenset(),
+        )
+        model = WorkspaceModel(
+            corpus_values=frozenset({code}),
+            skills_dirs=frozenset(),
+            skill_location_values=frozenset(),
+            outside_symlink_values=frozenset(),
+            load_failures=(),
+        )
+
+        #: When
+        chain = model.specification_base_chain(_spec_ref('code-python-typing-deep'))
+
+        #: Then
+        assert chain == (_spec_ref('code'), _spec_ref('code-python')), (
+            'missing intermediate specs do not break the chain'
+        )
+
+    def test_specification_extensions_returns_only_nearest_children(self) -> None:
+        #: Given
+        code = Corpus(
+            corpus_spec=_corpus_spec('code'),
+            namespaces=FrozenMapping(dict((_code_namespace('python'), _code_namespace('python-typing')))),
+            filenames=frozenset(),
+        )
+        model = WorkspaceModel(
+            corpus_values=frozenset({code}),
+            skills_dirs=frozenset(),
+            skill_location_values=frozenset(),
+            outside_symlink_values=frozenset(),
+            load_failures=(),
+        )
+
+        #: When
+        extensions = model.specification_extensions(_spec_ref('code'))
+
+        #: Then
+        assert extensions == (_spec_ref('code-python'),), 'deeper specifications are not direct extensions'
 
     def test_find_specification_base_of_a_corpus_specification_returns_none(self) -> None:
         #: Given
