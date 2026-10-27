@@ -30,10 +30,6 @@ def inspect(
         OutputFormat | None,
         typer.Option('--format', help='Output format: text or json. Defaults to text.'),
     ] = None,
-    as_json: Annotated[
-        bool,
-        typer.Option('--json', hidden=True, help='Deprecated alias of --format json.'),
-    ] = False,
 ) -> None:
     """Show the workspace model of a root: its corpora, specs and documents, and its agent skills.
 
@@ -44,7 +40,6 @@ def inspect(
 
     \f
     Raises:
-        typer.BadParameter: If both `--format` and `--json` are given.
         typer.Exit: With code 2 when the scan or the load fails: an entry in scope that cannot be read or that
             changes kind while read, a skills directory that cannot be resolved or listed, a `docs/` or
             `docs/__meta__/` that is a symlink, or a structure specification that cannot be decoded or does not
@@ -56,32 +51,8 @@ def inspect(
     options = global_options(ctx)
     status = run_inspect(
         root,
-        _resolve_format(output_format, as_json=as_json),
+        OutputFormat.TEXT if output_format is None else output_format,
         builtin_layers=options.builtin_layers,
     )
     if status is not None:
         raise typer.Exit(code=status)
-
-
-def _resolve_format(output_format: OutputFormat | None, *, as_json: bool) -> OutputFormat:
-    """The format the model is printed in, once the deprecated `--json` alias is read as `--format json`.
-
-    `--json` is kept so scripts written before `--format` keep working. `--format` defaults to `None` so a given one
-    can be told from an absent one, and giving both is refused rather than one silently winning.
-
-    Args:
-        output_format: The `--format` option; `None` when it was not given.
-        as_json: Whether the deprecated `--json` alias was given.
-
-    Raises:
-        typer.BadParameter: If both `--format` and `--json` are given.
-    """
-    if as_json:
-        if output_format is not None:
-            raise typer.BadParameter(
-                'give `--format json` alone; `--json` is its deprecated alias', param_hint="'--json'"
-            )
-        return OutputFormat.JSON
-    if output_format is None:
-        return OutputFormat.TEXT
-    return output_format

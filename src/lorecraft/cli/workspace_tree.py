@@ -46,15 +46,13 @@ class _SpecJson(BaseModel):
     """One specification of a corpus.
 
     Attributes:
-        stem: The specification's name.
+        name: The specification's name.
         files: The specification's files as root-relative paths, sorted.
     """
 
     model_config = ConfigDict(frozen=True)
 
-    # The key is `stem` for the specification name: the JSON is the command's published output, so it keeps the
-    # word the code has since moved away from.
-    stem: str
+    name: str
     files: list[str]
 
 
@@ -133,13 +131,13 @@ class _WorkspaceJson(BaseModel):
             and directory, sorted by agent then path; two agents reading one directory share a `resolves_to`.
         skills: Every skill directly inside a directory an entry of `agent_skills_dirs` resolves to, each once, sorted
             by its directory.
-        builtin_skills_schema: False when the root command opts out; None for the default, omitted from JSON.
+        agent_skills_spec: False when the root command opts out; None for the default, omitted from JSON.
     """
 
     model_config = ConfigDict(frozen=True)
 
     root: str
-    builtin_skills_schema: Literal[False] | None
+    agent_skills_spec: Literal[False] | None
     corpora: list[_CorpusJson]
     agent_skills_dirs: list[_AgentSkillsDirJson]
     skills: list[_SkillJson]
@@ -173,7 +171,7 @@ def render_json(root: Path, model: WorkspaceModel) -> str:
     """Encode the model as one compact JSON document, the root beside one key per section.
 
     The keys are `root`, `corpora`, `agent_skills_dirs` and `skills`; when opted out, it also carries
-    `builtin_skills_schema: false`.
+    `agent_skills_spec: false`.
 
     Args:
         root: The workspace root, written under the `root` key.
@@ -194,7 +192,7 @@ def render_json(root: Path, model: WorkspaceModel) -> str:
         skills.append(_SkillJson(path=str(ref.path), agents=list(model.skill_agents(ref))))
     document = _WorkspaceJson(
         root=str(root),
-        builtin_skills_schema=False if not model.agent_skills_floor_enabled else None,
+        agent_skills_spec=False if not model.agent_skills_floor_enabled else None,
         corpora=corpora,
         agent_skills_dirs=skills_dirs,
         skills=skills,
@@ -277,7 +275,7 @@ def _skills_section(model: WorkspaceModel) -> _Line:
     for ref in model.skills():
         agents = model.skill_agents(ref)
         lines.append(_Line(f'{ref.directory} [{", ".join(agents)}]'))
-    opt_out = '; Agent Skills schema disabled' if not model.agent_skills_floor_enabled else ''
+    opt_out = '; Agent Skills specification disabled' if not model.agent_skills_floor_enabled else ''
     return _Line(f'skills ({len(model.skill_locations)}{opt_out})', tuple(lines))
 
 
@@ -289,7 +287,7 @@ def _json_corpus(corpus: Corpus) -> _CorpusJson:
     """
     specs: list[_SpecJson] = []
     for spec in (corpus.corpus_spec, *corpus.namespace_specs):
-        specs.append(_SpecJson(stem=str(spec.name), files=_paths(spec.files)))
+        specs.append(_SpecJson(name=str(spec.name), files=_paths(spec.files)))
     documents: list[_DocumentJson] = []
     for ref in corpus.documents:
         documents.append(

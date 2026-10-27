@@ -56,9 +56,9 @@ def _code_model_document() -> dict[str, object]:
                 'name': 'code',
                 'directory': 'docs/code',
                 'specs': [
-                    {'stem': 'code', 'files': ['docs/__meta__/code.md']},
+                    {'name': 'code', 'files': ['docs/__meta__/code.md']},
                     {
-                        'stem': 'code-python',
+                        'name': 'code-python',
                         'files': ['docs/__meta__/code-python.md', 'docs/__meta__/code-python.spec.json'],
                     },
                 ],
@@ -331,7 +331,7 @@ class TestRenderGovernedSkills:
         text = render_text(Path('/work'), model)
 
         #: Then
-        assert text.splitlines()[-3] == '└── skills (2; Agent Skills schema disabled)', (
+        assert text.splitlines()[-3] == '└── skills (2; Agent Skills specification disabled)', (
             'the tree identifies the nondefault opt-out and is silent for the default'
         )
 
@@ -343,5 +343,5 @@ class TestRenderGovernedSkills:
         document = json.loads(render_json(Path('/work'), model))
 
         #: Then
-        assert document.get('builtin_skills_schema') is False, 'JSON marks the opt-out when it is active'
-        assert 'Agent Skills schema' not in json.dumps(document), 'JSON has no schema status when enabled'
+        assert document.get('agent_skills_spec') is False, 'JSON marks the opt-out when it is active'
+        assert 'Agent Skills specification' not in json.dumps(document), 'JSON has no specification status by default'
