@@ -221,7 +221,7 @@ owned by the project model domain.
 - [ ] Built-in skills use registry resolution with builtin origin and preserve ADR-022 validation behavior,
       diagnostics, independent layers, opt-out, bounded preflight, and duplicate-field suppression
 - [ ] The Agent Skills floor layer is pre-registered during bootstrap and omitted when opting out via
-      `--no-agent-skills-spec` (or `--no-builtin-skills-schema`), without propagating boolean flags downstream
+      `--no-agent-skills-spec`, without propagating boolean flags downstream
 - [ ] Bounded compatibility preflight is executed by a project-owned operation against the pre-registered floor
       schema input and reported to the loader's failed-structure records, keeping `lorecraft.schemas` free of
       project governance and failure policy

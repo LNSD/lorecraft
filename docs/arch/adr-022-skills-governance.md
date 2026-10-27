@@ -90,7 +90,7 @@ are ungoverned, just as it does for documents.
 
 ### The Opt-out Is Global and Explicit
 
-The root CLI option `--no-agent-skills-spec` (with `--no-builtin-skills-schema` retained as an alias) disables the entire
+The root CLI option `--no-agent-skills-spec` disables the entire
 builtin Agent Skills floor layer and the compatibility analysis against it. The default is enabled. The setting is passed
 into workspace governance for both check and inspect, so the two commands describe and enforce the same choice.
 
@@ -147,11 +147,9 @@ A corpus detected under docs/ with a reserved name is recorded as a layout overl
 document corpus. Its documents receive no skills rules and are not checked (FR-015, FR-016).
 The overlap rule reports the directory once, at warning severity by default.
 
-The overlap is promoted to an error, making check fail (FR-017), with a general check option
-`--error <selectors>`. It reuses the existing rule code and prefix selectors and their validation, and promotes
-only the matching rules that are already enabled: it never enables an ignored rule, and unrelated warnings keep
-their severity. A dedicated overlap option and a global `--warnings-as-errors` switch are rejected: the first adds
-a bespoke surface for one rule, the second makes every warning fatal.
+The overlap is promoted to an error, making check fail (FR-017), with the general check option
+`-D/--deny <rule>`. Setting `-D LC101` promotes the rule to error; prefix selectors and dedicated overlap
+options are rejected.
 The reserved name remains reserved when the builtin floor is disabled.
 
 ### Inspection Reads the Same Governance
@@ -218,7 +216,7 @@ It does not create a second matching algorithm or require a docs/skills/ directo
 - [ ] The opt-out `--no-agent-skills-spec` disables the entire builtin floor layer, affects check and inspect alike, and allows ungoverned skills without an error
 - [ ] Compatibility analysis covers only the stated direct required-field constraints and is disabled by opt-out
 - [ ] A detected contradiction names the faulty spec and fails check even when no skill exists
-- [ ] A reserved docs corpus is excluded and reported once, warning by default and promoted to error by `--error <selectors>`
+- [ ] A reserved docs corpus is excluded and reported once, warning by default and promoted to error by `-D LC101`
 - [ ] Inspection reports the same governing layers the checker uses, with honest built-in provenance across frontmatter and budget
 - [ ] The floor schema is queried via `query_at(schema_ref, schema_query)` as the first entry in the skill's applicable frontmatter schema tuple
 - [ ] Missing-field deduplication operates progressively across earlier schemas in the applicable tuple

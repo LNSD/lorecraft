@@ -69,7 +69,7 @@ keep layout subjects separate because their primitives and query subjects differ
    - Link containment (`escaping_link`) uses `Always()` for `DOCUMENT`, `SPEC`, `SKILL_ENTRYPOINT`, and `SKILL_RESOURCE`, enforcing containment as an unconditional invariant.
    - Corpus naming convention checks (`missing_base_link`, `extension_link`, `mutual_link`) remain `WhenSpec(STRUCTURE)` for documents.
    - Frontmatter rules, including `name_mismatch` (per ADR-028 Decision 16), declare `WhenSpec(FRONTMATTER)` for documents, specs, and skills.
-   - Declarative skill floor rules declare spec gates: `too_many_lines` declares `{SKILL_ENTRYPOINT: WhenSpec(BUDGET)}`, and builtin tool constraints (`allowed_tools_too_long`, `malformed_allowed_tools`) declare `{SKILL_ENTRYPOINT: WhenSpec(FRONTMATTER)}`.
+   - Declarative structure budget rules declare spec gates: `too_many_lines` declares `{DOCUMENT: WhenSpec(BUDGET), SPEC: WhenSpec(BUDGET), SKILL_ENTRYPOINT: WhenSpec(BUDGET)}`, and builtin tool constraints (`allowed_tools_too_long`, `malformed_allowed_tools`) declare `{SKILL_ENTRYPOINT: WhenSpec(FRONTMATTER)}`.
    - When the builtin floor is opted out and no repository layer states the part, the corresponding spec part is reported under coverage as `ungoverned` and the gated rules do not judge the item.
 
 3. **Governance follows loaded layers.** `governed_parts` contains only the parts stated by loaded layers (builtin floor and repository layers), for every
@@ -179,7 +179,7 @@ keep layout subjects separate because their primitives and query subjects differ
 - [ ] Item rules declare applicability via `APPLIES_TO: Mapping[ItemType, Gate]` using `WhenSpec` or `Always`
 - [ ] `WhenSchema` is retired, leaving `Gate = WhenSpec | Always`
 - [ ] `name_mismatch`, `allowed_tools_too_long`, and `malformed_allowed_tools` gate on `WhenSpec(FRONTMATTER)`
-- [ ] `too_many_lines` gates on `WhenSpec(BUDGET)`
+- [ ] `too_many_lines` gates on `WhenSpec(BUDGET)` for documents, specs, and skill entrypoints
 - [ ] `escaping_link` gates on `Always()` for documents, specs, skill entrypoints, and skill resources
 - [ ] Failed governing layers suppress `WhenSpec` gates while `Always` gates continue to run
 - [ ] When the builtin floor is active, skills declare `FRONTMATTER` and `BUDGET` governance
