@@ -39,11 +39,14 @@ not obvious.
 
 Match the task against the trigger clauses, then:
 
-- **Take the most specific match.** A filename prefix is a group: `python-*`, `test-*`. Read the member whose
-  trigger fits — the document on docstrings for a docstring, the one on handling errors for an `except` — not
-  the group's broadest document. Add a broader one only when the task turns on what it owns.
-- **Expect two to four documents.** One is common. More than four means the task is unscoped, or you are
-  matching topics instead of triggers.
+- **Take the most specific match, then load its base chain.** For every hyphen-prefix ancestor of the matched
+  filename, read the corresponding existing `.md` document in `docs/code/`, broadest first. For example, a
+  match to [`python-typing-cast`](https://github.com/LNSD/lorecraft/blob/main/docs/code/python-typing-cast.md)
+  loads the existing [`python-typing`](https://github.com/LNSD/lorecraft/blob/main/docs/code/python-typing.md)
+  ancestor; the `python` ancestor is absent in this corpus. Skip a missing intermediate name and continue with
+  any more specific existing ancestor. The matched document and its base chain count as one selection.
+- **Expect two to four selections.** One is common. A selection includes its matched document and its base
+  chain. More than four means the task is unscoped, or you are matching topics instead of triggers.
 - **Break ties by specificity**: a document scoped to the package or directory being changed over a global
   one, where the frontmatter says which is which.
 - **Read nothing adjacent.** If no trigger matches, say so: a gap in the code rules is worth reporting.
