@@ -20,12 +20,12 @@ from lorecraft.project.item import ItemRef, SpecPart
 from lorecraft.project.layout import SNAPSHOT_SCOPE
 from lorecraft.project.skill import OutsideSymlinkRef
 from lorecraft.project.workspace.builtin import AGENT_SKILLS_SPEC_LAYER as SKILLS_LAYER
-from lorecraft.rules.identity import Severity
 from lorecraft.rules.layout.escaping_symlink import EscapingSymlink
+from lorecraft.rules.level_resolution import DefaultLevel, ResolvedLevels
 from lorecraft.rules.registry import Registry
 from lorecraft.rules.report import CheckedItem, CheckedLayoutEntry, RuleDiagnostic
-from lorecraft.rules.selection import AllRules, RuleSelection
 from lorecraft.rules.table import RuleTable
+from lorecraft.rules.tests.level_helpers import default_level
 from lorecraft.vfs import ResolvedPath, RootExit, take_snapshot
 from lorecraft.vfs.view import AbsoluteSymlinkTarget, RelativeSymlinkTarget, SymlinkTarget
 
@@ -77,16 +77,15 @@ def _outside_report(path: str, link: str, target: Path | str) -> CheckedLayoutEn
     entry = RootRelativePath.parse(path)
     occurrence = EscapingSymlink(leaves_at=RootExit(ResolvedPath(RootRelativePath.parse(link)), _target(target)))
     return CheckedLayoutEntry(
-        OutsideSymlinkRef(entry), diagnostics=(RuleDiagnostic(entry, occurrence, Severity.ERROR),)
+        OutsideSymlinkRef(entry),
+        diagnostics=(RuleDiagnostic(entry, occurrence, DefaultLevel(default_level(occurrence))),),
     )
 
 
 @pytest.fixture(scope='module')
 def package_table() -> RuleTable:
     """The rule table of the package's own rules at their default levels; immutable, so shared by the module."""
-    return RuleTable.from_registry(
-        Registry.load(rules), RuleSelection(select=frozenset({AllRules()}), ignore=frozenset())
-    )
+    return RuleTable.from_registry(Registry.load(rules), ResolvedLevels.from_sources(()))
 
 
 @pytest.fixture(scope='function')

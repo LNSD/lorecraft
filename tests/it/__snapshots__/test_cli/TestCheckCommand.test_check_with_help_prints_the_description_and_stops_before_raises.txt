@@ -16,13 +16,10 @@
  As JSON, one compact document goes to stdout.                                  
                                                                                 
  Level flags accept active rule codes, alias codes or ALL; -D also accepts      
- warnings. They are repeatable, reject                                          
- conflicting assignments, and are validated before the workspace is checked.    
- --select filters rules without                                                 
- changing their levels.                                                         
-                                                                                
- --select never enables a rule its level leaves off; each such rule, and each   
- alias code, is warned of on stderr.                                            
+ warnings. They apply levels to the                                             
+ rule table, where a specific code overrides ALL. They reject conflicting       
+ assignments and are validated before                                           
+ the workspace is checked. -D warnings elevates resolved warnings to errors.    
                                                                                 
  Exit 0 when no diagnostic is an error, 1 when any is, such as a spec that      
  failed to load, and 2 for invalid                                              
@@ -45,15 +42,12 @@
 │                                      never: no colour.                       │
 │                                      Only the text format is coloured.       │
 │                                      [default: auto]                         │
-│ --select          <selectors>        Run only these rules: full rule codes,  │
-│                                      alias codes, or ALL, comma-separated or │
-│                                      repeated. Defaults to ALL.              │
-│ --allow   -A      <code>             Allow this rule; repeatable, defaults   │
-│                                      to none.                                │
-│ --warn    -W      <code>             Warn on this rule; repeatable, defaults │
-│                                      to none.                                │
-│ --deny    -D      <code>             Deny this rule; repeatable, defaults to │
-│                                      none.                                   │
+│ --allow   -A      <selector>         Allow this rule or ALL; repeatable,     │
+│                                      defaults to none.                       │
+│ --warn    -W      <selector>         Warn on this rule or ALL; repeatable,   │
+│                                      defaults to none.                       │
+│ --deny    -D      <selector>         Deny this rule, ALL, or warnings;       │
+│                                      repeatable, defaults to none.           │
 │ --help                               Show this message and exit.             │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 

@@ -1,8 +1,8 @@
 """The rule table: rules a run enables, indexed by item type and declared gate.
 
-The table is built once per run, before any subject is checked. It pairs each enabled rule with the severity of its
-occurrences. Rules left off by their default level or a run selection are absent; removed rules and engine
-conditions are not enabled rules. Item rules are indexed once by item type and gate, while
+The table is built once per run, before any subject is checked. It retains each enabled rule's resolution and derives
+the severity of its occurrences from that level. Rules left off by their default level are absent; removed rules and
+engine conditions are not enabled rules. Item rules are indexed once by item type and gate, while
 rules over layout symlinks and reserved-corpus directories keep separate partitions. A rule's closed gate declaration
 determines which index buckets contain it. Only queried rules can be indexed, so each rule in a bucket has a query
 for the runner to resolve.
@@ -10,15 +10,21 @@ for the runner to resolve.
 
 from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Any, Self, assert_never
+from typing import Any, Self
 
 from lorecraft.project.item import ItemType
 
 from .declaration import Rule
 from .identity import Level, Severity
-from .level_resolution import LevelOrigin, LevelResolution, LevelSelector, ResolvedLevels
+from .level_resolution import (
+    AllowedLevel,
+    DefaultLevel,
+    ElevatedWarning,
+    OverriddenLevel,
+    ReportingResolution,
+    ResolvedLevels,
+)
 from .registry import Registry
-from .selection import RuleSelection
 from .subject import (
     Gate,
     QueriedCorpusDirectoryRule,
@@ -50,14 +56,16 @@ class EnabledRule[R: Rule]:
     Attributes:
         rule: The rule class to run.
         severity: The severity used for each occurrence.
-        level_source: Where the rule's level came from.
-        selector: The code or group prefix that set the level, or None for the default.
+        resolution: The typed source, level and selector that produced the effective level.
     """
 
     rule: type[R]
-    severity: Severity
-    level_source: LevelOrigin = 'default'
-    selector: LevelSelector | None = None
+    resolution: ReportingResolution
+
+    @property
+    def severity(self) -> Severity:
+        """The severity determined by the reporting resolution variant."""
+        return self.resolution.severity
 
 
 # The table combines rules with unrelated query fact types; each rule retains its own query type at dispatch.
@@ -75,13 +83,11 @@ class RuleTable:
 
     def __init__(
         self,
-        severities: Mapping[type[Rule], Severity],
-        resolutions: Mapping[type[Rule], LevelResolution] | None = None,
+        resolutions: Mapping[type[Rule], ReportingResolution],
     ) -> None:
-        """Hold enabled item rules under their declared gates and preserve layout partitions.
+        """Hold resolved rules under their declared gates and preserve layout partitions.
 
         Args:
-            severities: Each enabled rule, mapped to the severity its occurrences are reported at.
             resolutions: The level resolution for each enabled rule.
 
         Raises:
@@ -90,17 +96,13 @@ class RuleTable:
         item_rules: dict[tuple[ItemType, Gate], list[EnabledRule[QueriedItem]]] = {}
         symlink_rules: list[EnabledRule[QueriedSymlinkRule[Any]]] = []
         corpus_directory_rules: list[EnabledRule[QueriedCorpusDirectoryRule[Any]]] = []
-        for rule_class in sorted(severities, key=_printed_code):
+        for rule_class in sorted(resolutions, key=_printed_code):
             if issubclass(rule_class, QueriedSymlinkRule):
-                symlink_rules.append(
-                    EnabledRule(rule_class, severities[rule_class], *_provenance(resolutions, rule_class))
-                )
+                symlink_rules.append(EnabledRule(rule_class, resolutions[rule_class]))
             elif issubclass(rule_class, QueriedCorpusDirectoryRule):
-                corpus_directory_rules.append(
-                    EnabledRule(rule_class, severities[rule_class], *_provenance(resolutions, rule_class))
-                )
+                corpus_directory_rules.append(EnabledRule(rule_class, resolutions[rule_class]))
             elif issubclass(rule_class, QueriedItemRule):
-                enabled = EnabledRule(rule_class, severities[rule_class], *_provenance(resolutions, rule_class))
+                enabled = EnabledRule(rule_class, resolutions[rule_class])
                 for item_type, gate in rule_class.APPLIES_TO.items():
                     item_rules.setdefault((item_type, gate), []).append(enabled)
             else:
@@ -113,35 +115,26 @@ class RuleTable:
     def from_registry(
         cls,
         registry: Registry,
-        selection: RuleSelection,
-        levels: ResolvedLevels | None = None,
+        levels: ResolvedLevels,
+        deny_warnings: bool = False,
     ) -> Self:
-        """Enable each selected in-service rule at its resolved level, leaving allow-level rules out.
+        """Enable each in-service rule at its resolved level, leaving allow-level rules out.
 
         Args:
             registry: The rules the run may enable; removed rules and engine conditions are left out.
-            selection: The rules this run keeps; a rule it leaves out is not enabled.
-            levels: Optional overrides, ordered from lowest to highest precedence.
+            levels: Overrides, ordered from lowest to highest precedence; empty when no levels are configured.
+            deny_warnings: Elevate every resolved warning to an error after resolving explicit levels.
 
         Raises:
             UnknownRuleBaseError: If an enabled rule has no supported query base.
         """
-        severities: dict[type[Rule], Severity] = {}
-        resolutions: dict[type[Rule], LevelResolution] = {}
+        resolutions: dict[type[Rule], ReportingResolution] = {}
         for rule_class in registry.rules_in_service:
-            if not selection.is_kept(rule_class.CODE):
+            resolution = levels.resolution_for(rule_class.CODE, rule_class.LEVEL)
+            if isinstance(resolution, AllowedLevel):
                 continue
-            resolution = (
-                LevelResolution(rule_class.LEVEL, 'default', None)
-                if levels is None
-                else levels.resolution_for(rule_class.CODE, rule_class.LEVEL)
-            )
-            level = resolution.level
-            severity = _default_severity(level)
-            if severity is not None:
-                severities[rule_class] = severity
-                resolutions[rule_class] = resolution
-        return cls(severities, resolutions)
+            resolutions[rule_class] = _reporting_resolution(resolution, rule_class.LEVEL, deny_warnings)
+        return cls(resolutions)
 
     def item_rules(self, item_type: ItemType, gate: Gate) -> tuple[EnabledRule[QueriedItem], ...]:
         """Each enabled item rule gated for this item type and gate, in code order.
@@ -163,50 +156,6 @@ class RuleTable:
         return self._corpus_directory_rules
 
 
-def selected_rules_left_off(registry: Registry, selection: RuleSelection) -> tuple[type[Rule], ...]:
-    """Each selected rule the default level leaves off, in code order.
-
-    Args:
-        registry: The in-service rules available to the run.
-        selection: The selection whose explicit rule codes may name allow-level rules.
-    """
-    left_off: list[type[Rule]] = []
-    for rule_class in registry.rules_in_service:
-        if (
-            rule_class.CODE in selection.select
-            and selection.is_kept(rule_class.CODE)
-            and _default_severity(rule_class.LEVEL) is None
-        ):
-            left_off.append(rule_class)
-    return tuple(left_off)
-
-
-def _default_severity(level: Level) -> Severity | None:
-    """The severity for a running level, or `None` when the level allows the rule off.
-
-    Args:
-        level: The rule's configured default level.
-    """
-    match level:
-        case Level.ALLOW:
-            return None
-        case Level.WARN:
-            return Severity.WARNING
-        case Level.DENY:
-            return Severity.ERROR
-        case _:
-            assert_never(level)
-
-
-def _provenance(
-    resolutions: Mapping[type[Rule], LevelResolution] | None, rule: type[Rule]
-) -> tuple[LevelOrigin, LevelSelector | None]:
-    if resolutions is None or rule not in resolutions:
-        return 'default', None
-    resolution = resolutions[rule]
-    return resolution.source, resolution.selector
-
-
 def _printed_code(rule: type[Rule]) -> str:
     """The rule's printed code, used to order each index bucket.
 
@@ -214,3 +163,26 @@ def _printed_code(rule: type[Rule]) -> str:
         rule: The rule whose printed code determines its position.
     """
     return str(rule.CODE)
+
+
+def _reporting_resolution(
+    resolution: DefaultLevel | OverriddenLevel,
+    declared: Level,
+    deny_warnings: bool,
+) -> ReportingResolution:
+    """Apply warning elevation and restore default provenance when an override resolves to the declared level.
+
+    Args:
+        resolution: The resolved default or override for the rule.
+        declared: The level the rule declares.
+        deny_warnings: Whether warnings are elevated to errors.
+    """
+    if deny_warnings and resolution.level is Level.WARN:
+        if declared is Level.DENY:
+            # A default-deny rule lowered by -W and raised back by -D warnings is its declared default again.
+            return DefaultLevel(Level.DENY)
+        return ElevatedWarning()
+    if resolution.level is declared:
+        # An override equal to the declared level has default provenance.
+        return DefaultLevel(resolution.level)
+    return resolution

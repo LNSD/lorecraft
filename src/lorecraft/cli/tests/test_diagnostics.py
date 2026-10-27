@@ -21,9 +21,10 @@ from lorecraft.project.skill import OutsideSymlinkRef
 from lorecraft.project.syntax import LineNumber, SectionHeading, WordCount
 from lorecraft.rules.engine.malformed_structure_file import FormatViolated, MalformedStructureFile
 from lorecraft.rules.frontmatter.duplicate_key import DuplicateKey
-from lorecraft.rules.identity import RuleGroupPrefix, Severity
+from lorecraft.rules.identity import Level, RuleGroupPrefix
 from lorecraft.rules.layout.escaping_symlink import EscapingSymlink
 from lorecraft.rules.length.too_many_tokens import TooManyTokens
+from lorecraft.rules.level_resolution import DefaultLevel, ElevatedWarning, OverriddenLevel, WrittenSelector
 from lorecraft.rules.outline.missing_section import MissingSection
 from lorecraft.rules.report import (
     BlockedSubject,
@@ -37,6 +38,7 @@ from lorecraft.rules.report import (
     UndecodableSubject,
 )
 from lorecraft.rules.subject import SpecPart
+from lorecraft.rules.tests.level_helpers import default_level
 from lorecraft.vfs import (
     AbsoluteSymlinkTarget,
     RelativeSymlinkTarget,
@@ -125,16 +127,19 @@ def _every_kind_of_report() -> tuple[RunReport, ...]:
     return (
         CheckedItem(
             ItemRef(check.path),
-            diagnostics=(RuleDiagnostic(check.path, missing_usage, Severity.ERROR),),
+            diagnostics=(RuleDiagnostic(check.path, missing_usage, DefaultLevel(default_level(missing_usage))),),
             ungoverned=(SpecPart.FRONTMATTER, SpecPart.BUDGET),
         ),
-        CheckedLayoutEntry(OutsideSymlinkRef(review), diagnostics=(RuleDiagnostic(review, outside, Severity.ERROR),)),
+        CheckedLayoutEntry(
+            OutsideSymlinkRef(review),
+            diagnostics=(RuleDiagnostic(review, outside, DefaultLevel(default_level(outside))),),
+        ),
         UndecodableSubject(ItemRef(_document('code', 'latin').path), _latin_failure()),
         CheckedItem(
             ItemRef(a.path),
             diagnostics=(
-                RuleDiagnostic(a.path, duplicate_name, Severity.ERROR),
-                RuleDiagnostic(a.path, over_budget, Severity.WARNING),
+                RuleDiagnostic(a.path, duplicate_name, DefaultLevel(default_level(duplicate_name))),
+                RuleDiagnostic(a.path, over_budget, OverriddenLevel(Level.WARN, 'config', over_budget.CODE)),
             ),
             ungoverned=(),
         ),
@@ -148,6 +153,62 @@ def _every_kind_of_report() -> tuple[RunReport, ...]:
 
 @pytest.mark.unit
 class TestRenderText:
+    def test_render_text_preserves_the_alias_used_by_a_level_flag(self) -> None:
+        #: Given
+        guide = _document('feat', 'guide')
+        finding = MissingSection(
+            spec=_FEAT_SPEC,
+            section=SectionName.parse('Usage'),
+            before=DocumentEnd(last_line=_line(9), after=None),
+            description=None,
+            example=None,
+        )
+        reports: tuple[RunReport, ...] = (
+            CheckedItem(
+                ItemRef(guide.path),
+                diagnostics=(
+                    RuleDiagnostic(
+                        guide.path,
+                        finding,
+                        OverriddenLevel(Level.DENY, 'cli', WrittenSelector('MD040')),
+                    ),
+                ),
+            ),
+        )
+
+        #: When
+        text = render_text(reports, {}, _PLAIN)
+
+        #: Then
+        assert '  = note: -D MD040 requested on the command line' in text, (
+            'the provenance note preserves the exact alias token passed to the flag'
+        )
+
+    def test_render_text_names_warning_elevation(self) -> None:
+        #: Given
+        guide = _document('feat', 'guide')
+        finding = MissingSection(
+            spec=_FEAT_SPEC,
+            section=SectionName.parse('Usage'),
+            before=DocumentEnd(last_line=_line(9), after=None),
+            description=None,
+            example=None,
+        )
+        reports: tuple[RunReport, ...] = (
+            CheckedItem(
+                ItemRef(guide.path),
+                diagnostics=(RuleDiagnostic(guide.path, finding, ElevatedWarning()),),
+            ),
+        )
+
+        #: When
+        text = render_text(reports, {}, _PLAIN)
+
+        #: Then
+        assert '  = note: -D warnings elevated warning to error' in text, (
+            'text diagnostics explain the post-resolution warning elevation'
+        )
+
     def test_render_text_shows_note_for_non_default_level_source(self) -> None:
         #: Given
         guide = _document('feat', 'guide')
@@ -161,7 +222,7 @@ class TestRenderText:
         reports: tuple[RunReport, ...] = (
             CheckedItem(
                 ItemRef(guide.path),
-                diagnostics=(RuleDiagnostic(guide.path, finding, Severity.ERROR, 'cli'),),
+                diagnostics=(RuleDiagnostic(guide.path, finding, OverriddenLevel(Level.DENY, 'cli', finding.CODE)),),
             ),
         )
 
@@ -186,7 +247,13 @@ class TestRenderText:
         reports: tuple[RunReport, ...] = (
             CheckedItem(
                 ItemRef(guide.path),
-                diagnostics=(RuleDiagnostic(guide.path, finding, Severity.WARNING, 'cli', RuleGroupPrefix('LC')),),
+                diagnostics=(
+                    RuleDiagnostic(
+                        guide.path,
+                        finding,
+                        OverriddenLevel(Level.WARN, 'cli', RuleGroupPrefix('LC')),
+                    ),
+                ),
             ),
         )
 
@@ -312,7 +379,7 @@ class TestRenderText:
         reports: tuple[RunReport, ...] = (
             CheckedItem(
                 ItemRef(guide.path),
-                diagnostics=(RuleDiagnostic(guide.path, missing_usage, Severity.ERROR),),
+                diagnostics=(RuleDiagnostic(guide.path, missing_usage, DefaultLevel(default_level(missing_usage))),),
                 ungoverned=(),
             ),
         )
@@ -338,7 +405,7 @@ class TestRenderText:
         reports: tuple[RunReport, ...] = (
             CheckedItem(
                 ItemRef(guide.path),
-                diagnostics=(RuleDiagnostic(guide.path, missing_usage, Severity.ERROR),),
+                diagnostics=(RuleDiagnostic(guide.path, missing_usage, DefaultLevel(default_level(missing_usage))),),
                 ungoverned=(),
             ),
         )
@@ -362,7 +429,7 @@ class TestRenderText:
         reports: tuple[RunReport, ...] = (
             CheckedItem(
                 ItemRef(guide.path),
-                diagnostics=(RuleDiagnostic(guide.path, missing_usage, Severity.ERROR),),
+                diagnostics=(RuleDiagnostic(guide.path, missing_usage, DefaultLevel(default_level(missing_usage))),),
                 ungoverned=(),
             ),
         )
@@ -387,7 +454,7 @@ class TestRenderText:
         reports: tuple[RunReport, ...] = (
             CheckedItem(
                 ItemRef(guide.path),
-                diagnostics=(RuleDiagnostic(guide.path, missing_usage, Severity.ERROR),),
+                diagnostics=(RuleDiagnostic(guide.path, missing_usage, DefaultLevel(default_level(missing_usage))),),
                 ungoverned=(),
             ),
         )
@@ -424,7 +491,7 @@ class TestRenderText:
         reports: tuple[RunReport, ...] = (
             CheckedItem(
                 ItemRef(guide.path),
-                diagnostics=(RuleDiagnostic(guide.path, missing_usage, Severity.ERROR),),
+                diagnostics=(RuleDiagnostic(guide.path, missing_usage, DefaultLevel(default_level(missing_usage))),),
                 ungoverned=(),
             ),
         )
@@ -598,7 +665,7 @@ class TestRenderJson:
         reports: tuple[RunReport, ...] = (
             CheckedItem(
                 ItemRef(a.path),
-                diagnostics=(RuleDiagnostic(a.path, duplicate_key, Severity.ERROR),),
+                diagnostics=(RuleDiagnostic(a.path, duplicate_key, DefaultLevel(default_level(duplicate_key))),),
                 ungoverned=(),
             ),
         )
@@ -645,7 +712,7 @@ class TestRenderJson:
                     'path': 'docs/code/a.md',
                     'line': 1,
                     'severity': 'warning',
-                    'level_source': 'default',
+                    'level_source': 'config',
                     'code': 'LC401',
                     'name': 'too-many-tokens',
                     'message': 'too many tokens (2400 > 2000)',

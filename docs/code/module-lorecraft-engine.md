@@ -40,7 +40,7 @@ returns at its subject, as a diagnostic of `lorecraft.rules.report`.
   partial mode is future work.
 - `skip.py` propagates the project's common `ItemReadError` for a missing item.
 - The report of each load failure the model lists (`load_failures.py`): the engine condition of its kind, filed
-  once at the failure's path, whatever the configuration and the selection. A `docs/` or `docs/__meta__/` that
+  once at the failure's path, whatever the configuration and resolved levels. A `docs/` or `docs/__meta__/` that
   cannot be listed comes back as `UnlistableRoot` instead of a report. Which failure stops a run is the command's
   choice, never the engine's.
 
@@ -51,7 +51,7 @@ returns at its subject, as a diagnostic of `lorecraft.rules.report`.
 | Takes the snapshot, or chooses which documents or skills to check | `lorecraft.cli` |
 | Prints, writes JSON, or sets an exit code | `lorecraft.cli` |
 | Declares a rule, its identity or its group, or the base a rule derives from | `lorecraft.rules` |
-| Builds the rule table, applies a level or a one-run selection, or declares what a run reports | `lorecraft.rules` |
+| Builds the rule table from the rules and resolved levels, or declares what a run reports | `lorecraft.rules` |
 | Adds a project query, a query promoted for cross-group reuse, a decode witness, or a carry-over rule | `lorecraft.project` |
 | Parses text, decodes a spec, or builds the model | `lorecraft.project` |
 | Reads the disk | `lorecraft.vfs` |

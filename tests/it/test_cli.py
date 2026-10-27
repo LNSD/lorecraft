@@ -47,9 +47,11 @@ CHECKLIST_AND_FRONTMATTER_SPEC: Final[str] = dedent(
     """
 )
 
-# The help is drawn by Rich, which reads the terminal it draws for: under GitHub Actions it emits colour codes, and
-# it wraps at the width it finds. A dumb terminal 80 columns wide draws the same plain text on every machine.
-PLAIN_TERMINAL: Final[Mapping[str, str | None]] = MappingProxyType({'TERM': 'dumb', 'COLUMNS': '80'})
+# The help is drawn by Rich, which reads the terminal it draws for and honours FORCE_COLOR even on a dumb terminal.
+# Fix the width and explicitly disable colour so help snapshots are stable under every CI environment.
+PLAIN_TERMINAL: Final[Mapping[str, str | None]] = MappingProxyType(
+    {'TERM': 'dumb', 'COLUMNS': '80', 'FORCE_COLOR': None, 'NO_COLOR': '1'}
+)
 
 # A `SKILL.md` holding a field the Agent Skills specification does not define, which is a warning and nothing else.
 UNKNOWN_FIELD_SKILL_MD: Final[str] = '---\nname: review\ndescription: Review a change\nversion: 2\n---\n# Review\n'
@@ -758,6 +760,22 @@ class TestRuleCommand:
 
 @pytest.mark.it
 class TestCheckCommand:
+    @pytest.mark.parametrize(('flag', 'long_flag'), [('-A', '--allow'), ('-W', '--warn')])
+    def test_check_with_warnings_on_a_non_deny_flag_names_its_reserved_use(self, flag: str, long_flag: str) -> None:
+        #: Given
+        app = build_app()
+        arguments = ['check', flag, 'warnings']
+
+        #: When
+        result = runner.invoke(app, arguments)
+
+        #: Then
+        assert result.exit_code == 2, 'warnings is invalid for allow and warn level flags'
+        assert result.stdout == '', 'a usage error checks nothing'
+        message = usage_error_message(result.stderr)
+        assert f"Invalid value for '{flag}' / '{long_flag}'" in message, 'the usage error identifies its flag'
+        assert 'warnings is reserved for --deny' in message, 'the usage error explains the reserved selector'
+
     def test_check_with_conflicting_levels_refuses_before_checking_the_root(self) -> None:
         #: Given
         app = build_app()
@@ -863,6 +881,46 @@ class TestCheckCommand:
             'coverage': [SKILL_COVERAGE],
         }, 'JSON labels the excess, notes where the specification states the field, and where the limit comes from'
 
+    def test_check_with_deny_warnings_elevates_and_marks_the_cli_source(
+        self, overlong_allowed_tools_root: Path
+    ) -> None:
+        #: Given
+        app = build_app()
+        arguments = ['check', '--root', str(overlong_allowed_tools_root), '-D', 'warnings', '--format', 'json']
+
+        #: When
+        result = runner.invoke(app, arguments)
+
+        #: Then
+        assert result.exit_code == 1, 'warnings elevated to errors fail the check'
+        diagnostic = json.loads(result.stdout)['diagnostics'][0]
+        assert diagnostic['severity'] == 'error', 'the resolved warning is elevated after level overrides'
+        assert diagnostic['level_source'] == 'cli', 'the JSON identifies command-line provenance'
+
+    def test_check_with_exact_level_and_all_uses_the_exact_code_regardless_of_order(
+        self, overlong_allowed_tools_root: Path
+    ) -> None:
+        #: Given
+        app = build_app()
+        arguments = [
+            'check',
+            '--root',
+            str(overlong_allowed_tools_root),
+            '-D',
+            'ALL',
+            '-A',
+            'LC212',
+            '--format',
+            'json',
+        ]
+
+        #: When
+        result = runner.invoke(app, arguments)
+
+        #: Then
+        assert result.exit_code == 0, 'the exact allow override wins over the broader deny'
+        assert json.loads(result.stdout)['diagnostics'] == [], 'the exact rule is left out of the enabled table'
+
     def test_check_with_malformed_allowed_tools_warns_and_exits_zero(
         self, malformed_allowed_tools_root: Path, snapshot: SnapshotAssertion
     ) -> None:
@@ -942,7 +1000,7 @@ class TestCheckCommand:
 
         #: Then
         assert result.exit_code == 0, result.output
-        assert result.stdout == expected, 'the check help matches the reviewed snapshot, with no docstring section'
+        assert result.stdout == expected, 'the check help matches the reviewed snapshot'
 
     def test_check_with_a_clean_corpus_exits_zero_and_prints_only_the_summary(self, tmp_path: Path) -> None:
         #: Given
@@ -1644,7 +1702,7 @@ class TestCheckCommand:
 
 
 @pytest.mark.it
-class TestCheckSelection:
+class TestCheckRemovedFilters:
     def test_check_with_ignore_option_removed_exits_with_a_usage_error(self) -> None:
         #: Given
         app = build_app()
@@ -1660,31 +1718,20 @@ class TestCheckSelection:
         assert _starts_with(message, 'Usage: lorecraft check'), 'the failure is a usage error'
         assert '--ignore' in message, 'the usage error names the removed option'
 
-    def test_check_with_a_full_code_selected_prints_only_that_rule(self, two_group_root: Path) -> None:
+    def test_check_with_select_option_removed_exits_with_a_usage_error(self) -> None:
+        #: Given
         app = build_app()
-        result = runner.invoke(app, ['check', '--root', str(two_group_root), '--select', 'LC201', '--format', 'json'])
+        arguments = ['check', '--select', 'LC201']
 
-        assert result.exit_code == 1, result.output
-        assert [item['code'] for item in json.loads(result.stdout)['diagnostics']] == ['LC201']
+        #: When
+        result = runner.invoke(app, arguments)
 
-    @pytest.mark.parametrize('selector', ['OUT', 'OUT0', 'LC1', 'LC2', 'LC20'])
-    def test_check_rejects_group_and_partial_code_selectors(self, two_group_root: Path, selector: str) -> None:
-        app = build_app()
-        result = runner.invoke(app, ['check', '--root', str(two_group_root), '--select', selector])
-
+        #: Then
         assert result.exit_code == 2, result.output
-        assert result.stdout == ''
-        assert f"'{selector}' is no rule code or alias code" in usage_error_message(result.stderr)
-
-    def test_check_accepts_all_and_comma_separated_full_codes(self, two_group_root: Path) -> None:
-        app = build_app()
-        result = runner.invoke(
-            app,
-            ['check', '--root', str(two_group_root), '--select', 'LC201, LC306', '--format', 'json'],
-        )
-
-        assert result.exit_code == 1, result.output
-        assert [item['code'] for item in json.loads(result.stdout)['diagnostics']] == ['LC201', 'LC306']
+        assert result.stdout == '', 'an unknown option checks nothing'
+        message = usage_error_message(result.stderr)
+        assert _starts_with(message, 'Usage: lorecraft check'), 'the failure is a usage error'
+        assert '--select' in message, 'the usage error names the removed option'
 
 
 @pytest.mark.it

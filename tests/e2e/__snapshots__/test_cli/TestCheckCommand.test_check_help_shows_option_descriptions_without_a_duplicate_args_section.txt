@@ -1,0 +1,53 @@
+                                                                                
+ Usage: lorecraft check [OPTIONS]                                               
+                                                                                
+ Check every document and skill of the workspace: frontmatter, outline, length, 
+ links and layout.                                                              
+                                                                                
+ As text, each diagnostic is drawn on stdout with its source lines, labels,     
+ help and notes, coloured on a terminal.                                        
+                                                                                
+ As short, each diagnostic is one uncoloured line on stdout: its path and line, 
+ severity, code and message.                                                    
+                                                                                
+ The ungoverned subjects and a summary go to stderr, with the errors and        
+ warnings per code prefix as text.                                              
+                                                                                
+ As JSON, one compact document goes to stdout.                                  
+                                                                                
+ Level flags accept active rule codes, alias codes or ALL; -D also accepts      
+ warnings. They apply levels to the                                             
+ rule table, where a specific code overrides ALL. They reject conflicting       
+ assignments and are validated before                                           
+ the workspace is checked. -D warnings elevates resolved warnings to errors.    
+                                                                                
+ Exit 0 when no diagnostic is an error, 1 when any is, such as a spec that      
+ failed to load, and 2 for invalid                                              
+ input, or when the root or `docs/__meta__/` cannot be listed.                  
+                                                                                
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --root            <path>             Repository root. Defaults to the        │
+│                                      nearest parent containing               │
+│                                      docs/__meta__.                          │
+│ --format          <text|short|json>  Output format: text draws each          │
+│                                      diagnostic in full, short prints one    │
+│                                      line each, json prints one document.    │
+│                                      [default: text]                         │
+│ --color           <WHEN>             Control when colored output is used.    │
+│                                      auto: colour when stdout is an          │
+│                                      interactive terminal, unless NO_COLOR   │
+│                                      is set; FORCE_COLOR forces it.          │
+│                                      always: colour even when stdout is not  │
+│                                      a terminal.                             │
+│                                      never: no colour.                       │
+│                                      Only the text format is coloured.       │
+│                                      [default: auto]                         │
+│ --allow   -A      <selector>         Allow this rule or ALL; repeatable,     │
+│                                      defaults to none.                       │
+│ --warn    -W      <selector>         Warn on this rule or ALL; repeatable,   │
+│                                      defaults to none.                       │
+│ --deny    -D      <selector>         Deny this rule, ALL, or warnings;       │
+│                                      repeatable, defaults to none.           │
+│ --help                               Show this message and exit.             │
+╰──────────────────────────────────────────────────────────────────────────────╯
+

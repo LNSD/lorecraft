@@ -16,6 +16,7 @@ from lorecraft.rules.engine.malformed_structure_file import MalformedStructureFi
 from lorecraft.vfs import ResolvedPath, Utf8Failure, Utf8Reason
 
 from ..identity import Severity
+from ..level_resolution import DefaultLevel, Level, OverriddenLevel
 from ..report import (
     CheckedItem,
     CheckedLayoutEntry,
@@ -24,8 +25,8 @@ from ..report import (
     RuleDiagnostic,
     UndecodableSubject,
     diagnostic_order,
-    elevate_warnings,
 )
+from .level_helpers import default_level
 from .sample_rules.rendered_message.long_line import LongLine
 from .sample_rules.token_count.sample_condition import SampleCondition
 from .sample_rules.valid.outline.empty_line import EmptyLine
@@ -47,8 +48,10 @@ class TestDiagnosticOrder:
     def test_diagnostic_order_with_paths_differing_compares_them_as_posix_strings(self) -> None:
         #: Given
         occurrence = TrailingSpace(spec=None, line=LineNumber(NonZeroUnsignedInt(1)))
-        nested = RuleDiagnostic(RootRelativePath.parse('a/b.md'), occurrence, Severity.ERROR)
-        hyphenated = RuleDiagnostic(RootRelativePath.parse('a-b/c.md'), occurrence, Severity.ERROR)
+        nested = RuleDiagnostic(RootRelativePath.parse('a/b.md'), occurrence, DefaultLevel(default_level(occurrence)))
+        hyphenated = RuleDiagnostic(
+            RootRelativePath.parse('a-b/c.md'), occurrence, DefaultLevel(default_level(occurrence))
+        )
 
         #: When
         ordered = sorted([nested, hyphenated], key=diagnostic_order)
@@ -61,8 +64,12 @@ class TestDiagnosticOrder:
     def test_diagnostic_order_with_paths_differing_in_case_puts_uppercase_first(self) -> None:
         #: Given
         occurrence = TrailingSpace(spec=None, line=LineNumber(NonZeroUnsignedInt(1)))
-        lowercase = RuleDiagnostic(RootRelativePath.parse('docs/a.md'), occurrence, Severity.ERROR)
-        uppercase = RuleDiagnostic(RootRelativePath.parse('docs/B.md'), occurrence, Severity.ERROR)
+        lowercase = RuleDiagnostic(
+            RootRelativePath.parse('docs/a.md'), occurrence, DefaultLevel(default_level(occurrence))
+        )
+        uppercase = RuleDiagnostic(
+            RootRelativePath.parse('docs/B.md'), occurrence, DefaultLevel(default_level(occurrence))
+        )
 
         #: When
         ordered = sorted([lowercase, uppercase], key=diagnostic_order)
@@ -73,8 +80,16 @@ class TestDiagnosticOrder:
     def test_diagnostic_order_with_lines_differing_puts_the_earlier_line_first(self) -> None:
         #: Given
         path = RootRelativePath.parse('docs/a.md')
-        later = RuleDiagnostic(path, TrailingSpace(spec=None, line=LineNumber(NonZeroUnsignedInt(10))), Severity.ERROR)
-        earlier = RuleDiagnostic(path, TrailingSpace(spec=None, line=LineNumber(NonZeroUnsignedInt(2))), Severity.ERROR)
+        later = RuleDiagnostic(
+            path,
+            TrailingSpace(spec=None, line=LineNumber(NonZeroUnsignedInt(10))),
+            DefaultLevel(default_level(TrailingSpace(spec=None, line=LineNumber(NonZeroUnsignedInt(10))))),
+        )
+        earlier = RuleDiagnostic(
+            path,
+            TrailingSpace(spec=None, line=LineNumber(NonZeroUnsignedInt(2))),
+            DefaultLevel(default_level(TrailingSpace(spec=None, line=LineNumber(NonZeroUnsignedInt(2))))),
+        )
 
         #: When
         ordered = sorted([later, earlier], key=diagnostic_order)
@@ -85,8 +100,14 @@ class TestDiagnosticOrder:
     def test_diagnostic_order_with_the_whole_subject_and_a_line_puts_the_whole_subject_first(self) -> None:
         #: Given
         path = RootRelativePath.parse('skills/a')
-        at_line = RuleDiagnostic(path, TrailingSpace(spec=None, line=LineNumber(NonZeroUnsignedInt(1))), Severity.ERROR)
-        whole_subject = RuleDiagnostic(path, UppercaseEntry(spec=None), Severity.WARNING)
+        at_line = RuleDiagnostic(
+            path,
+            TrailingSpace(spec=None, line=LineNumber(NonZeroUnsignedInt(1))),
+            DefaultLevel(default_level(TrailingSpace(spec=None, line=LineNumber(NonZeroUnsignedInt(1))))),
+        )
+        whole_subject = RuleDiagnostic(
+            path, UppercaseEntry(spec=None), DefaultLevel(default_level(UppercaseEntry(spec=None)))
+        )
 
         #: When
         ordered = sorted([at_line, whole_subject], key=diagnostic_order)
@@ -100,8 +121,8 @@ class TestDiagnosticOrder:
         #: Given
         path = RootRelativePath.parse('docs/a.md')
         occurrence = TrailingSpace(spec=None, line=LineNumber(NonZeroUnsignedInt(1)))
-        warning = RuleDiagnostic(path, occurrence, Severity.WARNING)
-        error = RuleDiagnostic(path, occurrence, Severity.ERROR)
+        warning = RuleDiagnostic(path, occurrence, DefaultLevel(default_level(occurrence)))
+        error = RuleDiagnostic(path, occurrence, OverriddenLevel(Level.DENY, 'cli', occurrence.CODE))
 
         #: When
         ordered = sorted([warning, error], key=diagnostic_order)
@@ -112,8 +133,16 @@ class TestDiagnosticOrder:
     def test_diagnostic_order_with_codes_differing_compares_them_as_printed(self) -> None:
         #: Given
         path = RootRelativePath.parse('docs/a.md')
-        second = RuleDiagnostic(path, TrailingSpace(spec=None, line=LineNumber(NonZeroUnsignedInt(1))), Severity.ERROR)
-        first = RuleDiagnostic(path, EmptyLine(spec=None, line=LineNumber(NonZeroUnsignedInt(1))), Severity.ERROR)
+        second = RuleDiagnostic(
+            path,
+            TrailingSpace(spec=None, line=LineNumber(NonZeroUnsignedInt(1))),
+            OverriddenLevel(Level.DENY, 'cli', TrailingSpace.CODE),
+        )
+        first = RuleDiagnostic(
+            path,
+            EmptyLine(spec=None, line=LineNumber(NonZeroUnsignedInt(1))),
+            OverriddenLevel(Level.DENY, 'cli', EmptyLine.CODE),
+        )
 
         #: When
         ordered = sorted([second, first], key=diagnostic_order)
@@ -125,10 +154,14 @@ class TestDiagnosticOrder:
         #: Given
         path = RootRelativePath.parse('docs/a.md')
         ninety = RuleDiagnostic(
-            path, LongLine(spec=None, line=LineNumber(NonZeroUnsignedInt(1)), length=90), Severity.WARNING
+            path,
+            LongLine(spec=None, line=LineNumber(NonZeroUnsignedInt(1)), length=90),
+            DefaultLevel(default_level(LongLine(spec=None, line=LineNumber(NonZeroUnsignedInt(1)), length=90))),
         )
         eighty_one = RuleDiagnostic(
-            path, LongLine(spec=None, line=LineNumber(NonZeroUnsignedInt(1)), length=81), Severity.WARNING
+            path,
+            LongLine(spec=None, line=LineNumber(NonZeroUnsignedInt(1)), length=81),
+            DefaultLevel(default_level(LongLine(spec=None, line=LineNumber(NonZeroUnsignedInt(1)), length=81))),
         )
 
         #: When
@@ -141,17 +174,27 @@ class TestDiagnosticOrder:
         #: Given
         path = RootRelativePath.parse('docs/a.md')
         long_line = RuleDiagnostic(
-            path, LongLine(spec=None, line=LineNumber(NonZeroUnsignedInt(3)), length=81), Severity.WARNING
+            path,
+            LongLine(spec=None, line=LineNumber(NonZeroUnsignedInt(3)), length=81),
+            DefaultLevel(default_level(LongLine(spec=None, line=LineNumber(NonZeroUnsignedInt(3)), length=81))),
         )
         trailing_space = RuleDiagnostic(
-            path, TrailingSpace(spec=None, line=LineNumber(NonZeroUnsignedInt(3))), Severity.ERROR
+            path,
+            TrailingSpace(spec=None, line=LineNumber(NonZeroUnsignedInt(3))),
+            OverriddenLevel(Level.DENY, 'cli', TrailingSpace.CODE),
         )
-        empty_line = RuleDiagnostic(path, EmptyLine(spec=None, line=LineNumber(NonZeroUnsignedInt(3))), Severity.ERROR)
-        whole_subject = RuleDiagnostic(path, UppercaseEntry(spec=None), Severity.ERROR)
+        empty_line = RuleDiagnostic(
+            path,
+            EmptyLine(spec=None, line=LineNumber(NonZeroUnsignedInt(3))),
+            OverriddenLevel(Level.DENY, 'cli', EmptyLine.CODE),
+        )
+        whole_subject = RuleDiagnostic(
+            path, UppercaseEntry(spec=None), DefaultLevel(default_level(UppercaseEntry(spec=None)))
+        )
         next_path = RuleDiagnostic(
             RootRelativePath.parse('docs/b.md'),
             EmptyLine(spec=None, line=LineNumber(NonZeroUnsignedInt(1))),
-            Severity.ERROR,
+            OverriddenLevel(Level.DENY, 'cli', EmptyLine.CODE),
         )
         diagnostics = [long_line, trailing_space, empty_line, whole_subject, next_path]
 
@@ -167,17 +210,27 @@ class TestDiagnosticOrder:
         #: Given
         path = RootRelativePath.parse('docs/a.md')
         long_line = RuleDiagnostic(
-            path, LongLine(spec=None, line=LineNumber(NonZeroUnsignedInt(3)), length=81), Severity.WARNING
+            path,
+            LongLine(spec=None, line=LineNumber(NonZeroUnsignedInt(3)), length=81),
+            DefaultLevel(default_level(LongLine(spec=None, line=LineNumber(NonZeroUnsignedInt(3)), length=81))),
         )
         trailing_space = RuleDiagnostic(
-            path, TrailingSpace(spec=None, line=LineNumber(NonZeroUnsignedInt(3))), Severity.ERROR
+            path,
+            TrailingSpace(spec=None, line=LineNumber(NonZeroUnsignedInt(3))),
+            OverriddenLevel(Level.DENY, 'cli', TrailingSpace.CODE),
         )
-        empty_line = RuleDiagnostic(path, EmptyLine(spec=None, line=LineNumber(NonZeroUnsignedInt(3))), Severity.ERROR)
-        whole_subject = RuleDiagnostic(path, UppercaseEntry(spec=None), Severity.ERROR)
+        empty_line = RuleDiagnostic(
+            path,
+            EmptyLine(spec=None, line=LineNumber(NonZeroUnsignedInt(3))),
+            OverriddenLevel(Level.DENY, 'cli', EmptyLine.CODE),
+        )
+        whole_subject = RuleDiagnostic(
+            path, UppercaseEntry(spec=None), DefaultLevel(default_level(UppercaseEntry(spec=None)))
+        )
         next_path = RuleDiagnostic(
             RootRelativePath.parse('docs/b.md'),
             EmptyLine(spec=None, line=LineNumber(NonZeroUnsignedInt(1))),
-            Severity.ERROR,
+            OverriddenLevel(Level.DENY, 'cli', EmptyLine.CODE),
         )
         diagnostics = [long_line, trailing_space, empty_line, whole_subject, next_path]
         expected = sorted(diagnostics, key=diagnostic_order)
@@ -192,7 +245,11 @@ class TestDiagnosticOrder:
     def test_diagnostic_order_with_an_engine_condition_and_a_rule_sorts_them_by_line(self) -> None:
         #: Given
         path = RootRelativePath.parse('docs/code/a.md')
-        at_line = RuleDiagnostic(path, TrailingSpace(spec=None, line=LineNumber(NonZeroUnsignedInt(2))), Severity.ERROR)
+        at_line = RuleDiagnostic(
+            path,
+            TrailingSpace(spec=None, line=LineNumber(NonZeroUnsignedInt(2))),
+            DefaultLevel(default_level(TrailingSpace(spec=None, line=LineNumber(NonZeroUnsignedInt(2))))),
+        )
         condition = EngineDiagnostic(path, InvalidUtf8(failure=_failure(1)))
 
         #: When
@@ -217,53 +274,19 @@ class TestEngineDiagnostic:
 
 
 @pytest.mark.unit
-class TestElevateWarnings:
-    def test_elevate_warnings_with_enabled_flag_converts_rule_warning_to_error(self) -> None:
-        #: Given
-        path = RootRelativePath.parse('docs/code/a.md')
-        diagnostic = RuleDiagnostic(path, UppercaseEntry(spec=None), Severity.WARNING)
-
-        #: When
-        elevated = elevate_warnings((diagnostic,), deny_warnings=True)
-
-        #: Then
-        assert elevated == (RuleDiagnostic(path, UppercaseEntry(spec=None), Severity.ERROR),), (
-            '`-D warnings` makes a detected rule warning fail the run'
-        )
-
-    def test_elevate_warnings_with_flag_off_preserves_rule_warning(self) -> None:
-        #: Given
-        diagnostic = RuleDiagnostic(
-            RootRelativePath.parse('docs/code/a.md'), UppercaseEntry(spec=None), Severity.WARNING
-        )
-
-        #: When
-        elevated = elevate_warnings((diagnostic,), deny_warnings=False)
-
-        #: Then
-        assert elevated == (diagnostic,), 'without `-D warnings`, findings retain their resolved severity'
-
-    def test_elevate_warnings_with_engine_warning_keeps_its_fixed_severity(self) -> None:
-        #: Given
-        diagnostic = EngineDiagnostic(RootRelativePath.parse('docs/code/a.md'), SampleCondition())
-
-        #: When
-        elevated = elevate_warnings((diagnostic,), deny_warnings=True)
-
-        #: Then
-        assert elevated == (diagnostic,), 'engine conditions keep the severity fixed by their declaration'
-
-
-@pytest.mark.unit
 class TestCheckedItemOfSkillFile:
     def test_checked_skill_file_with_diagnostics_out_of_order_holds_them_in_diagnostic_order(self) -> None:
         #: Given
         ref = SkillRef(ResolvedPath(RootRelativePath.parse('.agents/skills')), PathComponent.parse('review'))
         later = RuleDiagnostic(
-            ref.path, TrailingSpace(spec=None, line=LineNumber(NonZeroUnsignedInt(10))), Severity.ERROR
+            ref.path,
+            TrailingSpace(spec=None, line=LineNumber(NonZeroUnsignedInt(10))),
+            DefaultLevel(default_level(TrailingSpace(spec=None, line=LineNumber(NonZeroUnsignedInt(10))))),
         )
         earlier = RuleDiagnostic(
-            ref.path, TrailingSpace(spec=None, line=LineNumber(NonZeroUnsignedInt(2))), Severity.ERROR
+            ref.path,
+            TrailingSpace(spec=None, line=LineNumber(NonZeroUnsignedInt(2))),
+            DefaultLevel(default_level(TrailingSpace(spec=None, line=LineNumber(NonZeroUnsignedInt(2))))),
         )
 
         #: When
@@ -279,10 +302,14 @@ class TestCheckedItemOfDocument:
         #: Given
         ref = DocumentRef(CorpusName.parse('code'), AspectFilename.parse('a'))
         later = RuleDiagnostic(
-            ref.path, TrailingSpace(spec=None, line=LineNumber(NonZeroUnsignedInt(10))), Severity.ERROR
+            ref.path,
+            TrailingSpace(spec=None, line=LineNumber(NonZeroUnsignedInt(10))),
+            DefaultLevel(default_level(TrailingSpace(spec=None, line=LineNumber(NonZeroUnsignedInt(10))))),
         )
         earlier = RuleDiagnostic(
-            ref.path, TrailingSpace(spec=None, line=LineNumber(NonZeroUnsignedInt(2))), Severity.ERROR
+            ref.path,
+            TrailingSpace(spec=None, line=LineNumber(NonZeroUnsignedInt(2))),
+            DefaultLevel(default_level(TrailingSpace(spec=None, line=LineNumber(NonZeroUnsignedInt(2))))),
         )
 
         #: When
@@ -297,8 +324,10 @@ class TestCheckedLayoutEntry:
     def test_checked_layout_entry_with_diagnostics_out_of_order_holds_them_in_diagnostic_order(self) -> None:
         #: Given
         path = RootRelativePath.parse('.agents/skills/Review')
-        warning = RuleDiagnostic(path, UppercaseEntry(spec=None), Severity.WARNING)
-        error = RuleDiagnostic(path, UppercaseEntry(spec=None), Severity.ERROR)
+        warning = RuleDiagnostic(
+            path, UppercaseEntry(spec=None), DefaultLevel(default_level(UppercaseEntry(spec=None)))
+        )
+        error = RuleDiagnostic(path, UppercaseEntry(spec=None), DefaultLevel(default_level(UppercaseEntry(spec=None))))
 
         #: When
         entry = CheckedLayoutEntry(OutsideSymlinkRef(path), diagnostics=(warning, error))

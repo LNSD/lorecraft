@@ -1,17 +1,15 @@
 """The flow behind `lorecraft check`: run every enabled rule over the whole workspace, and report what the rules found.
 
-This is the composition root of the rules engine. `--select` arrives parsed and confirmed against the rule index; it
-loads the package's rules and builds the selection from them, establishes the root, takes one snapshot,
-opens the database over it, stops when `docs/` or `docs/__meta__/` could not be listed, selects every subject of the
-workspace, builds the rule table from the rules and the selection, and hands the database, the subjects and the
-table to the runner, beside the reports for retained refusals and units that failed to load; what comes back is
-rendered by `diagnostics` and decides the exit code. A file that does not decode, a load failure, or a retained
-refusal under `docs/` or at an item read is a diagnostic, and a run that reports one exits 1. Subjects whose reads
+This is the composition root of the rules engine. It loads the package's rules, establishes the root, takes one
+snapshot, opens the database over it, stops when `docs/` or `docs/__meta__/` could not be listed, selects every
+subject of the workspace, builds the rule table from the rules and the resolved levels, and hands the database, the
+subjects and the table to the runner, beside the reports for retained refusals and units that failed to load; what
+comes back is rendered by `diagnostics` and decides the exit code. Decode failures, load failures and retained
+refusals under `docs/` or at an item read are diagnostics, and a run that reports one exits 1. Subjects whose reads
 or docs dependencies have a retained refusal are skipped because that path already has a diagnostic. A refusal
 outside a known item read or `docs/` that the model does not report, or an `Error` escaping the flow, is reported
 here and exits 2; unlistable `docs/` and
-`docs/__meta__/` also exit 2. A selection that holds an alias code, or names a rule its level leaves off, is warned
-of on stderr, and the run goes on.
+`docs/__meta__/` also exit 2.
 
 It lives apart from `commands/check.py` so that importing the command, which `--help` and `--version` do, does not
 import the rules engine: the command imports this module only when it runs.
@@ -33,18 +31,18 @@ from lorecraft.project.workspace.model import BuiltinSpecLayer
 from lorecraft.rules.engine import RefusedOperation
 from lorecraft.rules.engine.unreadable_path import Refused, UnreadablePath
 from lorecraft.rules.identity import Severity
+from lorecraft.rules.level_resolution import AllRules, LevelSelector, LevelSetting, ResolvedLevels
 from lorecraft.rules.registry import Registry
 from lorecraft.rules.report import LoadFailureReport, RunReport, UncheckedSymlink
-from lorecraft.rules.table import RuleTable, selected_rules_left_off
+from lorecraft.rules.table import RuleTable
 from lorecraft.vfs import RefusedInspect, RefusedListing, RefusedRead, RefusedRecord, take_snapshot
 
 from .diagnostic_text import render_text
 from .diagnostics import render_coverage, render_json, render_prefix_summary, render_short, render_summary
 from .failure import report_failure, report_load_failure
+from .level_arguments import AllRulesTarget, DenyWarnings, LevelArgument, ParsedLevelArgument, RuleCodeTarget
 from .output import ColorChoice, DiagnosticFormat, ExitStatus
 from .root import establish_root
-from .rule_arguments import SelectorValue
-from .rule_selection import build_rule_selection, print_selection_warnings
 from .sources import read_sources
 from .subjects import select_workspace
 from .terminal import detect_text_style, read_color_environment
@@ -55,8 +53,8 @@ def run_check(
     *,
     output_format: DiagnosticFormat,
     color: ColorChoice,
-    select: list[SelectorValue] | None,
     builtin_layers: tuple[BuiltinSpecLayer, ...],
+    level_arguments: tuple[ParsedLevelArgument, ...],
 ) -> ExitStatus | None:
     """Run the rules over the workspace and write the report; the body of `lorecraft check`.
 
@@ -64,8 +62,8 @@ def run_check(
         root: The `--root` option; `None` searches upward from the working directory.
         output_format: How the diagnostics are written.
         color: When to emphasise the text format with colour.
-        select: The `--select` values, already parsed and confirmed against the rule index.
         builtin_layers: The builtin specification layers enabled for this run.
+        level_arguments: The validated command-line level overrides.
 
     Returns:
         `ExitStatus.FINDINGS` when any diagnostic is an error, `ExitStatus.FAILURE` for invalid input, an
@@ -73,13 +71,10 @@ def run_check(
         command handler exits with; `None` otherwise.
 
     Raises:
-        RuntimeError: If the rules cannot be registered, or a selector names a group or a code the registry does not
-            hold, which means the generated index is stale.
+        RuntimeError: If the rules cannot be registered or the index and registry disagree.
     """
     try:
         registry = Registry.load(rules)
-        parsed = build_rule_selection(registry, select=select)
-        print_selection_warnings(parsed, selected_rules_left_off(registry, parsed.selection))
         # Root discovery follows symlinks and the snapshot, under `docs/`, does not, so a linked `docs/__meta__/`
         # passes the first and is empty in the second. `from_snapshot` refuses it, before a run over no documents can
         # report success.
@@ -109,7 +104,7 @@ def run_check(
         refusal_reports = _refusal_reports(reportable_refusals)
         reject_unreported_refusals(unreported_non_item_refusals, model)
         subjects = select_workspace(database)
-        table = RuleTable.from_registry(registry, parsed.selection)
+        table = _build_rule_table(registry, level_arguments)
         reports = (
             *load_failure_reports,
             *refusal_reports,
@@ -132,6 +127,34 @@ def run_check(
     if _has_error(reports):
         return ExitStatus.FINDINGS
     return None
+
+
+def _build_rule_table(registry: Registry, level_arguments: tuple[ParsedLevelArgument, ...]) -> RuleTable:
+    """Build the rule table from CLI level arguments.
+
+    Args:
+        registry: The rules the run may enable.
+        level_arguments: The validated command-line level overrides.
+    """
+    cli_levels: dict[LevelSelector, LevelSetting] = {}
+    deny_warnings = False
+    for argument in level_arguments:
+        match argument:
+            case DenyWarnings():
+                deny_warnings = True
+            case LevelArgument(level=level, target=target):
+                match target:
+                    case AllRulesTarget():
+                        cli_levels[AllRules()] = LevelSetting(level)
+                    case RuleCodeTarget():
+                        code = target.to_rule_code(registry)
+                        cli_levels[code] = LevelSetting(level, target.alias)
+                    case _:
+                        assert_never(target)
+            case _:
+                assert_never(argument)
+    levels = ResolvedLevels.from_named_sources((('cli', cli_levels),))
+    return RuleTable.from_registry(registry, levels, deny_warnings)
 
 
 def _reports_or_status(model: WorkspaceModel) -> tuple[RunReport, ...] | ExitStatus:

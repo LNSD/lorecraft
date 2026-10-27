@@ -15,19 +15,17 @@ its exit codes change.
 ## Role
 
 **Composition.** A command establishes the workspace root, takes a snapshot, selects the subjects of the model,
-hands the selection to an analysis run, and writes what comes back. It is the only package that touches the
-process: the arguments, the working directory, standard output and the exit code.
+hands those subjects and resolved levels to an analysis run, and writes what comes back. It is the only package that
+touches the process: the arguments, the working directory, standard output and the exit code.
 
 ## Belongs Here
 
 - Finding the workspace root, from an option or from the working directory.
 - Taking each snapshot, and building the revision every check of a report reads.
 - Selecting the subjects a run checks from the model, and building the rule table it runs.
-- Typing `--select`, level flags and `rule [RULE]` as the command line's own value objects, parsed and
-  confirmed against the rule index while the line is read, so a malformed or unknown value is a usage error. They
-  import the index and none of the rules engine, and a conversion method builds the rule-side type when a command runs.
-- Building, from those values and the registry, the selection the rule table is made from, and warning on stderr of
-  what a selection cannot do.
+- Typing level flags and `rule [RULE]` as the command line's own value objects, parsed and confirmed against
+  the rule index while the line is read, so a malformed or unknown value is a usage error. They import the index
+  and none of the rules engine, and a conversion method builds the rule-side type when a command runs.
 - Registering commands so a new one is a new module.
 - Declaring global options in `app.py` and passing their invocation values to commands through the root context.
 - Rendering diagnostics and the model as text, short lines or compact JSON, and choosing the exit code.

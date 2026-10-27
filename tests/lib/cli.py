@@ -1,5 +1,6 @@
 """Run the installed `lorecraft` console script, or its `lc` alias, in a subprocess, as a user would."""
 
+import os
 import re
 import subprocess
 import sys
@@ -34,7 +35,8 @@ def run_cli(
     Raises:
         subprocess.TimeoutExpired: If the process runs longer than 30 seconds.
     """
-    return subprocess.run([*_COMMAND, *arguments], capture_output=True, text=True, timeout=30, cwd=cwd, env=env)
+    environment = _cli_environment(env)
+    return subprocess.run([*_COMMAND, *arguments], capture_output=True, text=True, timeout=30, cwd=cwd, env=environment)
 
 
 def run_alias(*arguments: str, cwd: Path | None = None) -> subprocess.CompletedProcess[str]:
@@ -47,7 +49,23 @@ def run_alias(*arguments: str, cwd: Path | None = None) -> subprocess.CompletedP
     Raises:
         subprocess.TimeoutExpired: If the process runs longer than 30 seconds.
     """
-    return subprocess.run([*_ALIAS_COMMAND, *arguments], capture_output=True, text=True, timeout=30, cwd=cwd)
+    environment = _cli_environment(None)
+    return subprocess.run(
+        [*_ALIAS_COMMAND, *arguments], capture_output=True, text=True, timeout=30, cwd=cwd, env=environment
+    )
+
+
+def _cli_environment(env: Mapping[str, str] | None) -> dict[str, str]:
+    """Give CLI subprocesses a fixed terminal independent of the test runner's environment.
+
+    Args:
+        env: The environment the subprocess would otherwise inherit, or the test's explicit environment.
+    """
+    environment = dict(env) if env is not None else dict(os.environ)
+    for variable in ('COLUMNS', 'FORCE_COLOR', 'GITHUB_ACTIONS', 'NO_COLOR', 'PY_COLORS', 'TERM'):
+        environment.pop(variable, None)
+    environment.update({'COLUMNS': '80', 'NO_COLOR': '1', 'TERM': 'dumb'})
+    return environment
 
 
 def usage_error_message(stderr: str) -> str:

@@ -1,6 +1,6 @@
 ---
 name: "module-lorecraft-rules"
-description: "The lorecraft.rules package's responsibility, role, boundary and invariants: how a rule is declared and identified, the rule groups and their rules, a rule as a pure judgment of one subject, and the selection, table and report of a run. Load when adding or moving code in lorecraft.rules, declaring, naming or documenting a rule or a group, changing a run's selection, table or report, or deciding whether code declares a rule or runs one"
+description: "The lorecraft.rules package's responsibility, role, boundary and invariants: how a rule is declared and identified, the rule groups and their rules, a rule as a pure judgment of one subject, and the levels, table and report of a run. Load when adding or moving code in lorecraft.rules, declaring, naming or documenting a rule or a group, changing a run's levels, table or report, or deciding whether code declares a rule or runs one"
 type: "pkg"
 scope: "pkg:lorecraft.rules"
 ---
@@ -11,7 +11,7 @@ scope: "pkg:lorecraft.rules"
 
 Declare the rules a subject is judged by, and how a run enables and reports them. It changes when a
 rule is added, changed or removed, or when what a declaration states changes: a rule's identity, the places
-its occurrences point at, or the query it names. It also changes with a run's selection, table or report.
+its occurrences point at, or the query it names. It also changes with a run's levels, table or report.
 
 ## Role
 
@@ -36,7 +36,7 @@ query and hands it the facts sits above in `lorecraft.engine`; the query is answ
 - An engine condition: what the engine reports before any rule runs, such as an undecodable file.
   Declared and rendered like a rule, with an `EngineCode` in the `LC0xx` range, a fixed severity, no `judge`; it
   derives from `FileCondition` or `EntryCondition`.
-- The one-run selection, rule table and ItemRef report, except refused aliases use SkillAliasRef.
+- The rule table and ItemRef report, except refused aliases use SkillAliasRef.
 - A rule group, as a subpackage: `__ruleset__.py` declares its `GROUP_ID` and shared values, `__init__.py` holds
   only the docstring, and each rule has its module. `identity.py` declares the `LC` `EngineGroup` as `ENGINE_GROUP` for
   `EngineCode` and re-exports it as `GROUP_ID`.

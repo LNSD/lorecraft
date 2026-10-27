@@ -104,6 +104,7 @@ from lorecraft.rules.length.title_too_long import TitleTooLong
 from lorecraft.rules.length.title_too_many_words import TitleTooManyWords
 from lorecraft.rules.length.too_many_lines import TooManyLines
 from lorecraft.rules.length.too_many_tokens import TooManyTokens
+from lorecraft.rules.level_resolution import DefaultLevel, ResolvedLevels
 from lorecraft.rules.link.absolute_link import AbsoluteLink
 from lorecraft.rules.link.broken_fragment import BrokenFragment
 from lorecraft.rules.link.broken_link import BrokenLink
@@ -124,9 +125,9 @@ from lorecraft.rules.report import (
     SubjectReport,
     UndecodableSubject,
 )
-from lorecraft.rules.selection import AllRules, RuleSelection
 from lorecraft.rules.subject import Gate, QueriedItemRule, SpecPart, WhenSpec
 from lorecraft.rules.table import RuleTable
+from lorecraft.rules.tests.level_helpers import default_level
 from lorecraft.vfs import (
     ByteOffset,
     EntryRecord,
@@ -547,9 +548,7 @@ def _budget(tokens: int) -> bytes:
 @pytest.fixture(scope='module')
 def package_table() -> RuleTable:
     """The rule table of the package's own rules at their default levels; immutable, so shared by the module."""
-    return RuleTable.from_registry(
-        Registry.load(rules), RuleSelection(select=frozenset({AllRules()}), ignore=frozenset())
-    )
+    return RuleTable.from_registry(Registry.load(rules), ResolvedLevels.from_sources(()))
 
 
 @pytest.fixture(scope='module')
@@ -559,8 +558,7 @@ def sample_table() -> RuleTable:
     The registry holds the sample rules as it would hold any rule, so they reach the runner through the table alone.
     """
     return RuleTable.from_registry(
-        Registry((OverHalfBudget, EmptyDocument, AnyTokens)),
-        RuleSelection(select=frozenset({AllRules()}), ignore=frozenset()),
+        Registry((OverHalfBudget, EmptyDocument, AnyTokens)), ResolvedLevels.from_sources(())
     )
 
 
@@ -622,10 +620,13 @@ class TestCheckSubjects:
         database = Database.from_snapshot(snapshot, builtin_layers=builtin_layers)
         table = RuleTable(
             {
-                AllowedToolsTooLong: Severity.WARNING,
-                MalformedAllowedTools: Severity.WARNING,
-                TooManyLines: Severity.ERROR,
-            }
+                rule: DefaultLevel(default_level(rule))
+                for rule in {
+                    AllowedToolsTooLong: Severity.WARNING,
+                    MalformedAllowedTools: Severity.WARNING,
+                    TooManyLines: Severity.ERROR,
+                }
+            },
         )
 
         #: When
@@ -682,12 +683,23 @@ class TestCheckSubjects:
                             line=LineNumber(NonZeroUnsignedInt(4)),
                             problem=CommaSeparated(entry=value, suggested='A' * 500),
                         ),
-                        Severity.WARNING,
+                        DefaultLevel(
+                            default_level(
+                                MalformedAllowedTools(
+                                    line=LineNumber(NonZeroUnsignedInt(4)),
+                                    problem=CommaSeparated(entry=value, suggested='A' * 500),
+                                )
+                            )
+                        ),
                     ),
                     RuleDiagnostic(
                         skill_file,
                         AllowedToolsTooLong(line=LineNumber(NonZeroUnsignedInt(4)), overrun=overrun(501, 500)),
-                        Severity.WARNING,
+                        DefaultLevel(
+                            default_level(
+                                AllowedToolsTooLong(line=LineNumber(NonZeroUnsignedInt(4)), overrun=overrun(501, 500))
+                            )
+                        ),
                     ),
                 ),
                 ungoverned=SKILL_UNGOVERNED,
@@ -717,7 +729,7 @@ class TestCheckSubjects:
         assert reports == (
             CheckedItem(
                 ItemRef(REVIEW.path),
-                diagnostics=(RuleDiagnostic(skill_file, occurrence, Severity.WARNING),),
+                diagnostics=(RuleDiagnostic(skill_file, occurrence, DefaultLevel(default_level(occurrence))),),
                 ungoverned=SKILL_UNGOVERNED,
             ),
         ), 'the registry runs LC211 over a skill and reports the warning at its listed path and field line'
@@ -740,7 +752,7 @@ class TestCheckSubjects:
         assert reports == (
             CheckedItem(
                 ItemRef(GUIDE.path),
-                diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
+                diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, DefaultLevel(default_level(occurrence))),),
                 ungoverned=(SpecPart.FRONTMATTER, SpecPart.OUTLINE),
             ),
         ), 'LC401 runs at deny, so a document over its budget carries its occurrence as an error'
@@ -764,7 +776,7 @@ class TestCheckSubjects:
         )
         typing = ItemRef(RootRelativePath.parse('docs/code/python-typing.md'))
         severities: dict[type[Rule], Severity] = {TooManyTokens: Severity.ERROR}
-        table = RuleTable(severities)
+        table = RuleTable({rule: DefaultLevel(default_level(rule)) for rule in severities})
         database = Database.from_snapshot(snapshot, builtin_layers=(SKILLS_LAYER,))
 
         #: When
@@ -782,8 +794,8 @@ class TestCheckSubjects:
             CheckedItem(
                 ItemRef(typing.path),
                 diagnostics=(
-                    RuleDiagnostic(typing.path, corpus_budget, Severity.ERROR),
-                    RuleDiagnostic(typing.path, namespace_budget, Severity.ERROR),
+                    RuleDiagnostic(typing.path, corpus_budget, DefaultLevel(default_level(corpus_budget))),
+                    RuleDiagnostic(typing.path, namespace_budget, DefaultLevel(default_level(namespace_budget))),
                 ),
                 ungoverned=(),
             ),
@@ -873,7 +885,7 @@ class TestCheckSubjects:
         )
         database = Database.from_snapshot(snapshot, builtin_layers=(SKILLS_LAYER,))
         severities: dict[type[Rule], Severity] = {TooManyTokens: Severity.ERROR}
-        table = RuleTable(severities)
+        table = RuleTable({rule: DefaultLevel(default_level(rule)) for rule in severities})
 
         #: When
         reports = check_subjects(database, (GUIDE,), table, {})
@@ -891,7 +903,7 @@ class TestCheckSubjects:
         )
         database = CountingDatabase.from_snapshot(snapshot, builtin_layers=(SKILLS_LAYER,))
         severities: dict[type[Rule], Severity] = {TooManyTokens: Severity.ERROR}
-        table = RuleTable(severities)
+        table = RuleTable({rule: DefaultLevel(default_level(rule)) for rule in severities})
 
         #: When
         check_subjects(database, (GUIDE,), table, {})
@@ -909,7 +921,7 @@ class TestCheckSubjects:
         )
         database = CountingDatabase.from_snapshot(snapshot, builtin_layers=(SKILLS_LAYER,))
         severities: dict[type[Rule], Severity] = {SectionTooManyWords: Severity.ERROR, TitleTooLong: Severity.ERROR}
-        table = RuleTable(severities)
+        table = RuleTable({rule: DefaultLevel(default_level(rule)) for rule in severities})
 
         #: When
         reports = check_subjects(database, (GUIDE,), table, {})
@@ -973,7 +985,7 @@ class TestCheckSubjects:
             _snapshot(_budget(5), guide=GUIDE_TEXT.encode()), builtin_layers=(SKILLS_LAYER,)
         )
         severities: dict[type[Rule], Severity] = {}
-        table = RuleTable(severities)
+        table = RuleTable({rule: DefaultLevel(default_level(rule)) for rule in severities})
 
         #: When
         check_subjects(database, (GUIDE,), table, {})
@@ -1020,8 +1032,8 @@ class TestCheckSubjects:
             CheckedItem(
                 ItemRef(GUIDE.path),
                 diagnostics=(
-                    RuleDiagnostic(GUIDE.path, any_tokens, Severity.ERROR),
-                    RuleDiagnostic(GUIDE.path, over_half, Severity.WARNING),
+                    RuleDiagnostic(GUIDE.path, any_tokens, DefaultLevel(default_level(any_tokens))),
+                    RuleDiagnostic(GUIDE.path, over_half, DefaultLevel(default_level(over_half))),
                 ),
                 ungoverned=(),
             ),
@@ -1040,7 +1052,7 @@ class TestCheckSubjects:
         assert reports == (
             CheckedItem(
                 ItemRef(GUIDE.path),
-                diagnostics=(RuleDiagnostic(GUIDE.path, any_tokens, Severity.ERROR),),
+                diagnostics=(RuleDiagnostic(GUIDE.path, any_tokens, DefaultLevel(default_level(any_tokens))),),
                 ungoverned=(),
             ),
         ), 'a rule at allow is not in the table, so only the enabled rules report'
@@ -1064,7 +1076,7 @@ class TestCheckSubjects:
         assert reports == (
             CheckedItem(
                 ItemRef(REVIEW.path),
-                diagnostics=(RuleDiagnostic(skill_file, occurrence, Severity.ERROR),),
+                diagnostics=(RuleDiagnostic(skill_file, occurrence, DefaultLevel(default_level(occurrence))),),
                 ungoverned=SKILL_UNGOVERNED,
             ),
         ), 'LC402 runs at deny, so a skill over the budget carries its occurrence as an error, at its SKILL.md'
@@ -1083,7 +1095,9 @@ class TestCheckSubjects:
             }
         )
         database = Database.from_snapshot(snapshot, builtin_layers=(SKILLS_LAYER,))
-        table = RuleTable({TooManyTokens: Severity.ERROR})
+        table = RuleTable(
+            {rule: DefaultLevel(default_level(rule)) for rule in {TooManyTokens: Severity.ERROR}},
+        )
 
         #: When
         reports = check_subjects(database, (_item(database, _location(database, REVIEW)),), table, {})
@@ -1113,7 +1127,9 @@ class TestCheckSubjects:
             }
         )
         database = Database.from_snapshot(snapshot, builtin_layers=(SKILLS_LAYER,))
-        table = RuleTable({ForbiddenSection: Severity.ERROR})
+        table = RuleTable(
+            {rule: DefaultLevel(default_level(rule)) for rule in {ForbiddenSection: Severity.ERROR}},
+        )
 
         #: When
         reports = check_subjects(database, (_item(database, _location(database, REVIEW)),), table, {})
@@ -1149,7 +1165,7 @@ class TestCheckSubjects:
         assert reports == (
             CheckedItem(
                 ItemRef(REVIEW.path),
-                diagnostics=(RuleDiagnostic(skill_file, occurrence, Severity.ERROR),),
+                diagnostics=(RuleDiagnostic(skill_file, occurrence, DefaultLevel(default_level(occurrence))),),
                 ungoverned=SKILL_UNGOVERNED,
             ),
         ), 'the SKILL.md is counted where the link leads, and reported under the skills directory, not under skills/'
@@ -1221,7 +1237,7 @@ class TestCheckSubjects:
             builtin_layers=(SKILLS_LAYER,),
         )
         severities: dict[type[Rule], Severity] = {TooManyTokens: Severity.ERROR}
-        table = RuleTable(severities)
+        table = RuleTable({rule: DefaultLevel(default_level(rule)) for rule in severities})
         subjects = (_item(database, _location(database, REVIEW)),)
 
         #: When
@@ -1246,7 +1262,7 @@ class TestCheckSubjects:
         assert reports == (
             CheckedItem(
                 ItemRef(GUIDE.path),
-                diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
+                diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, DefaultLevel(default_level(occurrence))),),
                 ungoverned=(SpecPart.OUTLINE, SpecPart.BUDGET),
             ),
         ), 'LC201 runs at deny over a document a frontmatter schema governs, under its corpus specification'
@@ -1272,7 +1288,7 @@ class TestCheckSubjects:
         assert reports == (
             CheckedItem(
                 ItemRef(GUIDE.path),
-                diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
+                diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, DefaultLevel(default_level(occurrence))),),
                 ungoverned=(SpecPart.OUTLINE, SpecPart.BUDGET),
             ),
         ), 'LC202 runs at deny, at the line the YAML parser stopped on'
@@ -1293,7 +1309,7 @@ class TestCheckSubjects:
         assert reports == (
             CheckedItem(
                 ItemRef(GUIDE.path),
-                diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
+                diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, DefaultLevel(default_level(occurrence))),),
                 ungoverned=(SpecPart.OUTLINE, SpecPart.BUDGET),
             ),
         ), 'LC203 runs at deny over a block that reads as YAML but is not a mapping'
@@ -1315,7 +1331,7 @@ class TestCheckSubjects:
         assert reports == (
             CheckedItem(
                 ItemRef(GUIDE.path),
-                diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
+                diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, DefaultLevel(default_level(occurrence))),),
                 ungoverned=(SpecPart.OUTLINE, SpecPart.BUDGET),
             ),
         ), 'LC204 runs at deny over a document whose `name` is not its filename'
@@ -1343,7 +1359,7 @@ class TestCheckSubjects:
         assert reports == (
             CheckedItem(
                 ItemRef(GUIDE.path),
-                diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
+                diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, DefaultLevel(default_level(occurrence))),),
                 ungoverned=(SpecPart.OUTLINE, SpecPart.BUDGET),
             ),
         ), 'LC205 runs at deny over a key written again, at the later occurrence'
@@ -1366,7 +1382,7 @@ class TestCheckSubjects:
         assert reports == (
             CheckedItem(
                 ItemRef(REVIEW.path),
-                diagnostics=(RuleDiagnostic(REVIEW_FILE, occurrence, Severity.ERROR),),
+                diagnostics=(RuleDiagnostic(REVIEW_FILE, occurrence, DefaultLevel(default_level(occurrence))),),
                 ungoverned=SKILL_UNGOVERNED,
             ),
         ), 'every skill is governed for its frontmatter, so LC201 needs no specification in the repository'
@@ -1394,7 +1410,7 @@ class TestCheckSubjects:
         assert reports == (
             CheckedItem(
                 ItemRef(REVIEW.path),
-                diagnostics=(RuleDiagnostic(REVIEW_FILE, occurrence, Severity.ERROR),),
+                diagnostics=(RuleDiagnostic(REVIEW_FILE, occurrence, DefaultLevel(default_level(occurrence))),),
                 ungoverned=SKILL_UNGOVERNED,
             ),
         ), 'LC202 runs at deny over a skill, at the line the YAML parser stopped on'
@@ -1417,7 +1433,7 @@ class TestCheckSubjects:
         assert reports == (
             CheckedItem(
                 ItemRef(REVIEW.path),
-                diagnostics=(RuleDiagnostic(REVIEW_FILE, occurrence, Severity.ERROR),),
+                diagnostics=(RuleDiagnostic(REVIEW_FILE, occurrence, DefaultLevel(default_level(occurrence))),),
                 ungoverned=SKILL_UNGOVERNED,
             ),
         ), 'LC203 runs at deny over a skill whose block is not a mapping'
@@ -1442,7 +1458,7 @@ class TestCheckSubjects:
         assert reports == (
             CheckedItem(
                 ItemRef(REVIEW.path),
-                diagnostics=(RuleDiagnostic(REVIEW_FILE, occurrence, Severity.ERROR),),
+                diagnostics=(RuleDiagnostic(REVIEW_FILE, occurrence, DefaultLevel(default_level(occurrence))),),
                 ungoverned=SKILL_UNGOVERNED,
             ),
         ), 'LC204 runs at deny over a skill whose `name` is not its directory name'
@@ -1473,7 +1489,7 @@ class TestCheckSubjects:
         assert reports == (
             CheckedItem(
                 ItemRef(REVIEW.path),
-                diagnostics=(RuleDiagnostic(REVIEW_FILE, occurrence, Severity.ERROR),),
+                diagnostics=(RuleDiagnostic(REVIEW_FILE, occurrence, DefaultLevel(default_level(occurrence))),),
                 ungoverned=SKILL_UNGOVERNED,
             ),
         ), 'LC205 runs at deny over a skill that writes a key again'
@@ -1508,7 +1524,7 @@ class TestCheckSubjects:
         assert reports == (
             CheckedItem(
                 ItemRef(REVIEW.path),
-                diagnostics=(RuleDiagnostic(REVIEW_FILE, occurrence, Severity.ERROR),),
+                diagnostics=(RuleDiagnostic(REVIEW_FILE, occurrence, DefaultLevel(default_level(occurrence))),),
                 ungoverned=SKILL_UNGOVERNED,
             ),
         ), 'a skill is held to the name it is listed under, and its occurrence carries where the link leads'
@@ -1523,7 +1539,7 @@ class TestCheckSubjects:
             builtin_layers=(SKILLS_LAYER,),
         )
         severities: dict[type[Rule], Severity] = {TooManyTokens: Severity.ERROR, TooManyLines: Severity.ERROR}
-        table = RuleTable(severities)
+        table = RuleTable({rule: DefaultLevel(default_level(rule)) for rule in severities})
         subjects = (GUIDE, _item(database, _location(database, REVIEW)))
 
         #: When
@@ -1638,11 +1654,11 @@ class TestCheckSubjects:
             CheckedItem(
                 ItemRef(GUIDE.path),
                 diagnostics=(
-                    RuleDiagnostic(GUIDE.path, missing_field, Severity.ERROR),
-                    RuleDiagnostic(GUIDE.path, unknown_field, Severity.WARNING),
-                    RuleDiagnostic(GUIDE.path, wrong_type, Severity.ERROR),
-                    RuleDiagnostic(GUIDE.path, invalid_value, Severity.ERROR),
-                    RuleDiagnostic(GUIDE.path, too_few_fields, Severity.ERROR),
+                    RuleDiagnostic(GUIDE.path, missing_field, DefaultLevel(default_level(missing_field))),
+                    RuleDiagnostic(GUIDE.path, unknown_field, DefaultLevel(default_level(unknown_field))),
+                    RuleDiagnostic(GUIDE.path, wrong_type, DefaultLevel(default_level(wrong_type))),
+                    RuleDiagnostic(GUIDE.path, invalid_value, DefaultLevel(default_level(invalid_value))),
+                    RuleDiagnostic(GUIDE.path, too_few_fields, DefaultLevel(default_level(too_few_fields))),
                 ),
                 ungoverned=(SpecPart.OUTLINE, SpecPart.BUDGET),
             ),
@@ -1707,10 +1723,10 @@ class TestCheckSubjects:
             CheckedItem(
                 ItemRef(REVIEW.path),
                 diagnostics=(
-                    RuleDiagnostic(REVIEW_FILE, missing_field, Severity.ERROR),
-                    RuleDiagnostic(REVIEW_FILE, unknown_field, Severity.WARNING),
-                    RuleDiagnostic(REVIEW_FILE, wrong_type, Severity.ERROR),
-                    RuleDiagnostic(REVIEW_FILE, invalid_value, Severity.ERROR),
+                    RuleDiagnostic(REVIEW_FILE, missing_field, DefaultLevel(default_level(missing_field))),
+                    RuleDiagnostic(REVIEW_FILE, unknown_field, DefaultLevel(default_level(unknown_field))),
+                    RuleDiagnostic(REVIEW_FILE, wrong_type, DefaultLevel(default_level(wrong_type))),
+                    RuleDiagnostic(REVIEW_FILE, invalid_value, DefaultLevel(default_level(invalid_value))),
                 ),
                 ungoverned=SKILL_UNGOVERNED,
             ),
@@ -1756,8 +1772,8 @@ class TestCheckSubjects:
             CheckedItem(
                 ItemRef(typing.path),
                 diagnostics=(
-                    RuleDiagnostic(typing.path, status, Severity.ERROR),
-                    RuleDiagnostic(typing.path, owner, Severity.ERROR),
+                    RuleDiagnostic(typing.path, status, DefaultLevel(default_level(status))),
+                    RuleDiagnostic(typing.path, owner, DefaultLevel(default_level(owner))),
                 ),
                 ungoverned=(SpecPart.OUTLINE, SpecPart.BUDGET),
             ),
@@ -1799,7 +1815,7 @@ class TestCheckSubjects:
         assert reports == (
             CheckedItem(
                 ItemRef(GUIDE.path),
-                diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
+                diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, DefaultLevel(default_level(occurrence))),),
                 ungoverned=(SpecPart.OUTLINE, SpecPart.BUDGET),
             ),
         ), 'LC203 alone reports a block that is not a mapping: it is held to no schema, so no schema rule fires'
@@ -1818,7 +1834,7 @@ class TestCheckSubjects:
             NameMismatch: Severity.ERROR,
             DuplicateKey: Severity.ERROR,
         }
-        table = RuleTable(severities)
+        table = RuleTable({rule: DefaultLevel(default_level(rule)) for rule in severities})
         subjects = (GUIDE, _item(database, _location(database, REVIEW)))
 
         #: When
@@ -1845,7 +1861,7 @@ class TestCheckSubjects:
         assert reports == (
             CheckedItem(
                 ItemRef(GUIDE.path),
-                diagnostics=(RuleDiagnostic(GUIDE.path, missing, Severity.ERROR),),
+                diagnostics=(RuleDiagnostic(GUIDE.path, missing, DefaultLevel(default_level(missing))),),
                 ungoverned=(
                     SpecPart.FRONTMATTER,
                     SpecPart.OUTLINE,
@@ -1874,7 +1890,7 @@ class TestCheckSubjects:
         assert reports == (
             CheckedItem(
                 ItemRef(GUIDE.path),
-                diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
+                diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, DefaultLevel(default_level(occurrence))),),
                 ungoverned=(
                     SpecPart.FRONTMATTER,
                     SpecPart.OUTLINE,
@@ -1901,7 +1917,7 @@ class TestCheckSubjects:
         assert reports == (
             CheckedItem(
                 ItemRef(GUIDE.path),
-                diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
+                diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, DefaultLevel(default_level(occurrence))),),
                 ungoverned=(
                     SpecPart.FRONTMATTER,
                     SpecPart.OUTLINE,
@@ -1950,7 +1966,7 @@ class TestCheckSubjects:
         assert reports == (
             CheckedItem(
                 ItemRef(GUIDE.path),
-                diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
+                diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, DefaultLevel(default_level(occurrence))),),
                 ungoverned=(
                     SpecPart.FRONTMATTER,
                     SpecPart.OUTLINE,
@@ -1974,7 +1990,7 @@ class TestCheckSubjects:
         assert reports == (
             CheckedItem(
                 ItemRef(GUIDE.path),
-                diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
+                diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, DefaultLevel(default_level(occurrence))),),
                 ungoverned=(
                     SpecPart.FRONTMATTER,
                     SpecPart.OUTLINE,
@@ -2007,7 +2023,7 @@ class TestCheckSubjects:
         assert reports == (
             CheckedItem(
                 ItemRef(GUIDE.path),
-                diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
+                diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, DefaultLevel(default_level(occurrence))),),
                 ungoverned=(SpecPart.FRONTMATTER, SpecPart.BUDGET),
             ),
         ), 'LC403 runs at deny over a document whose specification caps a section, at the section over its cap'
@@ -2029,7 +2045,7 @@ class TestCheckSubjects:
         assert reports == (
             CheckedItem(
                 ItemRef(GUIDE.path),
-                diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
+                diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, DefaultLevel(default_level(occurrence))),),
                 ungoverned=(
                     SpecPart.FRONTMATTER,
                     SpecPart.OUTLINE,
@@ -2055,7 +2071,7 @@ class TestCheckSubjects:
         assert reports == (
             CheckedItem(
                 ItemRef(GUIDE.path),
-                diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
+                diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, DefaultLevel(default_level(occurrence))),),
                 ungoverned=(
                     SpecPart.FRONTMATTER,
                     SpecPart.OUTLINE,
@@ -2086,7 +2102,7 @@ class TestCheckSubjects:
         assert reports == (
             CheckedItem(
                 ItemRef(GUIDE.path),
-                diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
+                diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, DefaultLevel(default_level(occurrence))),),
                 ungoverned=(
                     SpecPart.FRONTMATTER,
                     SpecPart.OUTLINE,
@@ -2102,7 +2118,7 @@ class TestCheckSubjects:
             builtin_layers=(SKILLS_LAYER,),
         )
         severities: dict[type[Rule], Severity] = {TooManyTokens: Severity.ERROR}
-        table = RuleTable(severities)
+        table = RuleTable({rule: DefaultLevel(default_level(rule)) for rule in severities})
 
         #: When
         check_subjects(database, (GUIDE,), table, {})
@@ -2132,7 +2148,7 @@ class TestCheckSubjects:
         assert reports == (
             CheckedItem(
                 ItemRef(GUIDE.path),
-                diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
+                diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, DefaultLevel(default_level(occurrence))),),
                 ungoverned=(SpecPart.FRONTMATTER, SpecPart.BUDGET),
             ),
         ), 'LC306 runs at deny over a document lacking a section its outline requires, at its last line'
@@ -2156,7 +2172,7 @@ class TestCheckSubjects:
         assert reports == (
             CheckedItem(
                 ItemRef(GUIDE.path),
-                diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
+                diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, DefaultLevel(default_level(occurrence))),),
                 ungoverned=(SpecPart.FRONTMATTER, SpecPart.BUDGET),
             ),
         ), 'LC307 runs at deny over a document writing a section where its outline places another, at its heading'
@@ -2180,7 +2196,7 @@ class TestCheckSubjects:
         assert reports == (
             CheckedItem(
                 ItemRef(GUIDE.path),
-                diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
+                diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, DefaultLevel(default_level(occurrence))),),
                 ungoverned=(SpecPart.FRONTMATTER, SpecPart.BUDGET),
             ),
         ), 'LC308 runs at deny over a document writing a section its outline does not name, at its heading'
@@ -2214,7 +2230,7 @@ class TestCheckSubjects:
             builtin_layers=(SKILLS_LAYER,),
         )
         severities: dict[type[Rule], Severity] = {TooManyTokens: Severity.ERROR}
-        table = RuleTable(severities)
+        table = RuleTable({rule: DefaultLevel(default_level(rule)) for rule in severities})
 
         #: When
         check_subjects(database, (GUIDE,), table, {})
@@ -2237,7 +2253,7 @@ class TestCheckSubjects:
         assert reports == (
             CheckedItem(
                 ItemRef(GUIDE.path),
-                diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
+                diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, DefaultLevel(default_level(occurrence))),),
                 ungoverned=(SpecPart.FRONTMATTER, SpecPart.OUTLINE),
             ),
         ), 'LC501 runs at deny over a document its structure specification governs, on the line of the link'
@@ -2261,7 +2277,7 @@ class TestCheckSubjects:
         assert reports == (
             CheckedItem(
                 ItemRef(REVIEW.path),
-                diagnostics=(RuleDiagnostic(REVIEW_FILE, occurrence, Severity.ERROR),),
+                diagnostics=(RuleDiagnostic(REVIEW_FILE, occurrence, DefaultLevel(default_level(occurrence))),),
                 ungoverned=SKILL_UNGOVERNED,
             ),
         ), "LC501 runs at deny over a skill's SKILL.md, on the line of the link, counted from the file's first line"
@@ -2296,7 +2312,7 @@ class TestCheckSubjects:
         assert reports == (
             CheckedItem(
                 ItemRef(guide.path),
-                diagnostics=(RuleDiagnostic(resource_path, occurrence, Severity.ERROR),),
+                diagnostics=(RuleDiagnostic(resource_path, occurrence, DefaultLevel(default_level(occurrence))),),
             ),
         ), 'LC501 runs at deny over a resource, reported at the path an agent reaches it by, on the line of the link'
 
@@ -2334,7 +2350,7 @@ class TestCheckSubjects:
             CheckedItem(ItemRef(REVIEW.path), diagnostics=(), ungoverned=SKILL_UNGOVERNED),
             CheckedItem(
                 ItemRef(first.path),
-                diagnostics=(RuleDiagnostic(first_path, occurrence, Severity.ERROR),),
+                diagnostics=(RuleDiagnostic(first_path, occurrence, DefaultLevel(default_level(occurrence))),),
             ),
             CheckedItem(ItemRef(second.path), diagnostics=()),
         ), 'a skill judges its SKILL.md alone, and each resource is reported on its own, in the order given'
@@ -2389,7 +2405,7 @@ class TestCheckSubjects:
             UndecodableSubject(ItemRef(REVIEW.path), _CAFE_NAME_FAILURE),
             CheckedItem(
                 ItemRef(resource.path),
-                diagnostics=(RuleDiagnostic(resource.path, occurrence, Severity.ERROR),),
+                diagnostics=(RuleDiagnostic(resource.path, occurrence, DefaultLevel(default_level(occurrence))),),
             ),
         ), 'each resource is a subject of its own, judged whatever bytes the SKILL.md holds'
 
@@ -2418,8 +2434,8 @@ class TestCheckSubjects:
             CheckedItem(
                 ItemRef(REVIEW.path),
                 diagnostics=(
-                    RuleDiagnostic(REVIEW_FILE, invalid_yaml, Severity.ERROR),
-                    RuleDiagnostic(REVIEW_FILE, absolute_link, Severity.ERROR),
+                    RuleDiagnostic(REVIEW_FILE, invalid_yaml, DefaultLevel(default_level(invalid_yaml))),
+                    RuleDiagnostic(REVIEW_FILE, absolute_link, DefaultLevel(default_level(absolute_link))),
                 ),
                 ungoverned=SKILL_UNGOVERNED,
             ),
@@ -2440,7 +2456,7 @@ class TestCheckSubjects:
         )
         database = Database.from_snapshot(snapshot, builtin_layers=(SKILLS_LAYER,))
         severities: dict[type[Rule], Severity] = {AbsoluteLink: Severity.ERROR}
-        table = RuleTable(severities)
+        table = RuleTable({rule: DefaultLevel(default_level(rule)) for rule in severities})
 
         #: When
         reports = check_subjects(database, (GUIDE,), table, {})
@@ -2453,7 +2469,9 @@ class TestCheckSubjects:
                     RuleDiagnostic(
                         GUIDE.path,
                         AbsoluteLink(line=LineNumber(NonZeroUnsignedInt(3)), url='/setup.md'),
-                        Severity.ERROR,
+                        DefaultLevel(
+                            default_level(AbsoluteLink(line=LineNumber(NonZeroUnsignedInt(3)), url='/setup.md'))
+                        ),
                     ),
                 ),
                 ungoverned=(),
@@ -2475,7 +2493,7 @@ class TestCheckSubjects:
         assert reports == (
             CheckedItem(
                 ItemRef(GUIDE.path),
-                diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
+                diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, DefaultLevel(default_level(occurrence))),),
                 ungoverned=(SpecPart.FRONTMATTER, SpecPart.OUTLINE),
             ),
         ), "LC502 runs at deny over a document, reporting the fragment its own headings lack and not the title's"
@@ -2499,7 +2517,7 @@ class TestCheckSubjects:
         assert reports == (
             CheckedItem(
                 ItemRef(REVIEW.path),
-                diagnostics=(RuleDiagnostic(REVIEW_FILE, occurrence, Severity.ERROR),),
+                diagnostics=(RuleDiagnostic(REVIEW_FILE, occurrence, DefaultLevel(default_level(occurrence))),),
                 ungoverned=SKILL_UNGOVERNED,
             ),
         ), "LC502 runs at deny over a skill's SKILL.md, on the line of the link"
@@ -2531,7 +2549,7 @@ class TestCheckSubjects:
             CheckedItem(ItemRef(REVIEW.path), diagnostics=(), ungoverned=SKILL_UNGOVERNED),
             CheckedItem(
                 ItemRef(checklist.path),
-                diagnostics=(RuleDiagnostic(checklist_path, occurrence, Severity.ERROR),),
+                diagnostics=(RuleDiagnostic(checklist_path, occurrence, DefaultLevel(default_level(occurrence))),),
             ),
         ), "a resource's fragment names one of its own headings, never the SKILL.md's, and is reported where it is"
 
@@ -2578,7 +2596,15 @@ class TestCheckSubjects:
                             url='../../docs/guide.md',
                             base=SkillRoot(RootRelativePath.parse('.agents/skills/review')),
                         ),
-                        Severity.ERROR,
+                        DefaultLevel(
+                            default_level(
+                                EscapingLink(
+                                    line=LineNumber(NonZeroUnsignedInt(7)),
+                                    url='../../docs/guide.md',
+                                    base=SkillRoot(RootRelativePath.parse('.agents/skills/review')),
+                                )
+                            )
+                        ),
                     ),
                 ),
                 ungoverned=SKILL_UNGOVERNED,
@@ -2593,7 +2619,15 @@ class TestCheckSubjects:
                             url='../a.md',
                             base=SkillRoot(RootRelativePath.parse('.agents/skills/review')),
                         ),
-                        Severity.ERROR,
+                        DefaultLevel(
+                            default_level(
+                                EscapingLink(
+                                    line=LineNumber(NonZeroUnsignedInt(1)),
+                                    url='../a.md',
+                                    base=SkillRoot(RootRelativePath.parse('.agents/skills/review')),
+                                )
+                            )
+                        ),
                     ),
                     RuleDiagnostic(
                         a.path,
@@ -2602,7 +2636,15 @@ class TestCheckSubjects:
                             url='../../flow.png',
                             base=SkillRoot(RootRelativePath.parse('.agents/skills/review')),
                         ),
-                        Severity.ERROR,
+                        DefaultLevel(
+                            default_level(
+                                EscapingLink(
+                                    line=LineNumber(NonZeroUnsignedInt(3)),
+                                    url='../../flow.png',
+                                    base=SkillRoot(RootRelativePath.parse('.agents/skills/review')),
+                                )
+                            )
+                        ),
                     ),
                 ),
             ),
@@ -2616,7 +2658,15 @@ class TestCheckSubjects:
                             url='../SKILL.md',
                             base=SkillRoot(RootRelativePath.parse('.agents/skills/review')),
                         ),
-                        Severity.ERROR,
+                        DefaultLevel(
+                            default_level(
+                                EscapingLink(
+                                    line=LineNumber(NonZeroUnsignedInt(3)),
+                                    url='../SKILL.md',
+                                    base=SkillRoot(RootRelativePath.parse('.agents/skills/review')),
+                                )
+                            )
+                        ),
                     ),
                 ),
             ),
@@ -2658,7 +2708,7 @@ class TestCheckSubjects:
         assert reports == (
             CheckedItem(
                 ItemRef(a.path),
-                diagnostics=(RuleDiagnostic(resource_path, occurrence, Severity.ERROR),),
+                diagnostics=(RuleDiagnostic(resource_path, occurrence, DefaultLevel(default_level(occurrence))),),
             ),
         ), 'the resource is read through the linked entry, and reported under the skills directory'
 
@@ -2685,7 +2735,7 @@ class TestCheckSubjects:
         assert reports == (
             CheckedItem(
                 ItemRef(REVIEW.path),
-                diagnostics=(RuleDiagnostic(REVIEW_FILE, occurrence, Severity.ERROR),),
+                diagnostics=(RuleDiagnostic(REVIEW_FILE, occurrence, DefaultLevel(default_level(occurrence))),),
                 ungoverned=SKILL_UNGOVERNED,
             ),
         ), 'the path alone decides, so a link out of the skill and back in by the repository path escapes'
@@ -2751,14 +2801,14 @@ def _broken_in_skill(path: str, line: int, url: str) -> RuleDiagnostic:
         base=SkillRoot(REVIEW.directory),
         target=REVIEW.directory / RootRelativePath.parse(url),
     )
-    return RuleDiagnostic(RootRelativePath.parse(path), occurrence, Severity.ERROR)
+    return RuleDiagnostic(RootRelativePath.parse(path), occurrence, DefaultLevel(default_level(occurrence)))
 
 
 @pytest.fixture(scope='module')
 def broken_link_table() -> RuleTable:
     """The rule table enabling `LC503` alone, as an error; immutable, so shared by the module."""
     severities: dict[type[Rule], Severity] = {BrokenLink: Severity.ERROR}
-    return RuleTable(severities)
+    return RuleTable({rule: DefaultLevel(default_level(rule)) for rule in severities})
 
 
 @pytest.mark.it
@@ -2914,7 +2964,7 @@ class TestCheckSubjectsBrokenLink:
         assert reports == (
             CheckedItem(
                 ItemRef(GUIDE.path),
-                diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, Severity.ERROR),),
+                diagnostics=(RuleDiagnostic(GUIDE.path, occurrence, DefaultLevel(default_level(occurrence))),),
                 ungoverned=(),
             ),
         ), "a link in a document is read from the document's own directory, where nothing is named setup.md"

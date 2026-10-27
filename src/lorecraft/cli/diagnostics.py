@@ -21,15 +21,15 @@ from pydantic import BaseModel, ConfigDict, model_serializer
 
 from lorecraft.core.num import NonZeroUnsignedInt
 from lorecraft.rules.identity import Severity
-from lorecraft.rules.level_resolution import LevelOrigin
+from lorecraft.rules.level_resolution import DefaultLevel, ElevatedWarning, LevelOrigin, OverriddenLevel
 from lorecraft.rules.report import (
     BlockedSubject,
     CheckedItem,
     CheckedLayoutEntry,
     Diagnostic,
+    EngineDiagnostic,
     LoadFailureReport,
     RefusedSubject,
-    RuleDiagnostic,
     RunReport,
     UncheckedSymlink,
     UndecodableSubject,
@@ -467,13 +467,30 @@ def _json_diagnostic(diagnostic: Diagnostic) -> _DiagnosticJson:
         path=str(diagnostic.path),
         line=primary_line(diagnostic),
         severity=_severity_word(diagnostic.severity),
-        level_source=diagnostic.level_source if isinstance(diagnostic, RuleDiagnostic) else 'default',
+        level_source=_level_source(diagnostic),
         code=str(occurrence.CODE),
         name=str(occurrence.NAME),
         message=occurrence.message(),
         labels=labels,
         children=children,
     )
+
+
+def _level_source(diagnostic: Diagnostic) -> LevelOrigin:
+    """The source of a rule's resolved level, or `default` for engine diagnostics.
+
+    Args:
+        diagnostic: The diagnostic to encode.
+    """
+    if isinstance(diagnostic, EngineDiagnostic):
+        return 'default'
+    match diagnostic.resolution:
+        case DefaultLevel():
+            return 'default'
+        case ElevatedWarning():
+            return 'cli'
+        case OverriddenLevel(origin=origin):
+            return origin
 
 
 def _severity_word(severity: Severity) -> Literal['error', 'warning']:

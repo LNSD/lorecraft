@@ -5,7 +5,7 @@ command stops the run on, and no report is made for it.
 
 The model records each failure as plain data and decides no policy (adr-015). This is where a failure becomes
 what a run reports: the engine condition of its kind, in a `LoadFailureReport` filed at the failure's path, so a
-failure is reported once, at its origin, whatever it touches and whatever the configuration and the selection.
+failure is reported once, at its origin, whatever it touches and whatever the configuration and resolved levels.
 
 A condition and the record that stands for it are declared apart, in `lorecraft.rules.engine` and in
 `lorecraft.project.workspace`, and often share a name; the records are read as `workspace.<Record>` and each condition

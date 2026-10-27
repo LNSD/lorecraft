@@ -11,9 +11,9 @@ from lorecraft.project.database import Database, ItemText
 from lorecraft.project.item import ItemRef, SpecPart
 from lorecraft.project.layout import SPECS_DIR
 from lorecraft.project.workspace.builtin import AGENT_SKILLS_SPEC_LAYER as SKILLS_LAYER
+from lorecraft.rules.level_resolution import ResolvedLevels
 from lorecraft.rules.registry import Registry
 from lorecraft.rules.report import CheckedItem, RefusedSubject, UndecodableSubject
-from lorecraft.rules.selection import AllRules, RuleSelection
 from lorecraft.rules.table import RuleTable
 from lorecraft.vfs import OsRefusal, RefusedRead
 
@@ -55,9 +55,7 @@ def _database_with(files: dict[str, bytes], documents: dict[str, bytes]) -> Data
 
 def _all_rules() -> RuleTable:
     """The table with every rule of the package enabled."""
-    return RuleTable.from_registry(
-        Registry.load(rules), RuleSelection(select=frozenset({AllRules()}), ignore=frozenset())
-    )
+    return RuleTable.from_registry(Registry.load(rules), ResolvedLevels.from_sources(()))
 
 
 def _database() -> Database:
@@ -78,9 +76,7 @@ class TestCheckSubjects:
     def test_check_subjects_with_a_document_no_layer_failed_for_reports_what_the_shared_runner_judges(self) -> None:
         #: Given
         database = _database()
-        table = RuleTable.from_registry(
-            Registry.load(rules), RuleSelection(select=frozenset({AllRules()}), ignore=frozenset())
-        )
+        table = RuleTable.from_registry(Registry.load(rules), ResolvedLevels.from_sources(()))
         source = database.item_text(ItemRef(TYPING.path))
         assert isinstance(source, ItemText), 'the document is UTF-8, so it decodes'
 
@@ -285,7 +281,7 @@ class TestCheckSubjectsWithAFailedLayer:
     def test_check_subjects_with_a_failed_layer_and_no_enabled_rules_has_no_coverage(self) -> None:
         #: Given
         database = _database_with({'code.spec.json': STATES_NO_RULE}, {'python-typing.md': DOCUMENT})
-        no_rules = RuleTable.from_registry(Registry.load(rules), RuleSelection(select=frozenset(), ignore=frozenset()))
+        no_rules = RuleTable({})
 
         #: When
         reports = check_subjects(database, [TYPING], no_rules, {})
