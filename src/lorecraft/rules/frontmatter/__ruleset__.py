@@ -22,23 +22,18 @@ from typing import Final, assert_never
 from lorecraft.core.path import RootRelativePath
 from lorecraft.project.query import ItemPrimitives, item_frontmatter
 from lorecraft.project.schemas import (
-    AgentSkillsSchema,
     AllowedTools,
     DocumentFrontmatterOwner,
     FrontmatterOwner,
-    SchemaProblems,
-    SchemaSource,
     SkillField,
     SkillFrontmatterOwner,
-    StructureSpecSchema,
     field_line,
-    frontmatter_schema_problems,
     owner_of_frontmatter,
     parsed_skill_fields,
 )
 from lorecraft.project.syntax import Frontmatter, FrontmatterNode, LineNumber
 from lorecraft.rules.identity import RuleGroup, RuleGroupPrefix
-from lorecraft.rules.location import Elsewhere, Help, Note
+from lorecraft.rules.location import Elsewhere, Note
 
 GROUP_ID: Final[RuleGroup] = RuleGroup(RuleGroupPrefix('LC'), 'Frontmatter checks', range(200, 300))
 """The group of the rules over a subject's frontmatter: the block itself, and the schema that governs it."""
@@ -94,15 +89,6 @@ def allowed_tools_field(primitives: ItemPrimitives) -> AllowedToolsField | None:
     return AllowedToolsField(field_line(frontmatter, SkillField.ALLOWED_TOOLS), tools)
 
 
-def schema_problems(primitives: ItemPrimitives) -> tuple[SchemaProblems, ...]:
-    """What each schema that governs the subject rejects in its frontmatter, the fact the schema rules share.
-
-    Args:
-        primitives: The model state of the document or the skill.
-    """
-    return primitives.query(frontmatter_schema_problems)
-
-
 def owner_spec(owner: FrontmatterOwner) -> RootRelativePath | None:
     """The base structure file that governs the subject's frontmatter, or `None` for a skill.
 
@@ -132,60 +118,6 @@ def spec_note(owner: FrontmatterOwner) -> Note:
             return Note("the Agent Skills specification governs a SKILL.md's frontmatter")
         case _:
             assert_never(owner)
-
-
-def schema_spec(source: SchemaSource) -> RootRelativePath | None:
-    """The structure file that states a frontmatter schema, or `None` for the Agent Skills specification's.
-
-    Args:
-        source: The schema a set of problems was found against.
-    """
-    match source:
-        case StructureSpecSchema():
-            return source.spec
-        case AgentSkillsSchema():
-            # The Agent Skills specification is no file in the repository: the package states it.
-            return None
-        case _:
-            assert_never(source)
-
-
-def schema_note(source: SchemaSource) -> Note:
-    """The note naming where the frontmatter schema that found a problem is stated.
-
-    Args:
-        source: The schema the problem was found against.
-    """
-    match source:
-        case StructureSpecSchema():
-            return Note('the frontmatter schema is set here', at=Elsewhere(source.spec))
-        case AgentSkillsSchema():
-            return Note("the Agent Skills specification states a SKILL.md's frontmatter schema")
-        case _:
-            assert_never(source)
-
-
-def allowed_values_help(values: tuple[str, ...]) -> Help:
-    """The help naming the values a field is restricted to.
-
-    Args:
-        values: The values the schema allows, each as text; there is at least one.
-    """
-    if len(values) == 1:
-        return Help(f'write {values[0]}')
-    return Help(f'write one of: {", ".join(values)}')
-
-
-def example_note(field: str, example: str) -> Note:
-    """The note showing the example a schema gives for a field, as it wrote it.
-
-    The example is a sample of the field to write, so it takes lines of its own, as an outline entry's example does.
-
-    Args:
-        field: The field the example is for.
-        example: The example, as text.
-    """
-    return Note(f'for example:\n{field}: {example}')
 
 
 ALLOWED_TOOLS_NOTE: Final[Note] = Note(

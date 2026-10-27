@@ -25,8 +25,8 @@ from lorecraft.rules.identity import Level, Release, RuleCode, RuleName
 from lorecraft.rules.location import Help, Here, Label, Note, Subdiagnostic
 from lorecraft.rules.subject import Gate, QueriedItemRule, SpecPart, WhenSpec
 
-from .__ruleset__ import (
-    GROUP_ID,
+from .__ruleset__ import GROUP_ID
+from .queries import (
     allowed_values_help,
     example_note,
     schema_note,
