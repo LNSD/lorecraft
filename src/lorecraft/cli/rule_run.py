@@ -9,7 +9,7 @@ import typer
 from lorecraft import rules
 from lorecraft.rules.registry import Registry
 
-from .rule_arguments import RuleKey
+from .rule_key import RuleKey
 from .rulebook import render_listing, render_page
 
 

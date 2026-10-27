@@ -1,19 +1,14 @@
 """The values of `-A`, `-W` and `-D`, confirmed against the rule index at the command line boundary."""
 
 from dataclasses import dataclass
-from typing import Protocol, Self
+from typing import Self
 
 from lorecraft.core.error import Error
 from lorecraft.rules import index
 from lorecraft.rules.identity import Level, RuleCode
 from lorecraft.rules.index import RuleRow
 
-
-class RuleIndex(Protocol):
-    """The command-line rule index, which needs only lookup by code or alias."""
-
-    def find(self, key: str, /) -> index.RuleIndexRow | None:
-        """Return the indexed row for a key, if any."""
+from .rule_arguments import RuleIndex
 
 
 @dataclass(frozen=True, slots=True)
