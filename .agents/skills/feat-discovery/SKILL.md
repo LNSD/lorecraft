@@ -36,7 +36,13 @@ command or go hunting for the feat docs somewhere else.
 ## Workflow
 
 1. **Match** the user's query against the prefetched catalog using the fields below.
-2. **Load** matched feat docs with the Read tool: `docs/feat/<name>.md`.
+2. **Load** each matched feat doc and its base chain. For every hyphen-prefix ancestor of its filename, read
+   the corresponding existing `.md` document in `docs/feat/`, broadest first, then read the matched document.
+   For example, a match to [`spec-structure-outline`](https://github.com/LNSD/lorecraft/blob/main/docs/feat/spec-structure-outline.md)
+   loads [`spec`](https://github.com/LNSD/lorecraft/blob/main/docs/feat/spec.md) and then
+   [`spec-structure`](https://github.com/LNSD/lorecraft/blob/main/docs/feat/spec-structure.md), if those files
+   exist. Skip a missing intermediate name and continue with any more specific existing ancestor. The matched
+   document and its base chain count as one match.
 3. **Follow cross-references** in each feat doc's "References" section and load those too when relevant.
 
 ## Query Matching
