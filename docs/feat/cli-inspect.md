@@ -11,8 +11,9 @@ components: "module:lorecraft.cli,module:lorecraft.project"
 ## Summary
 
 `lorecraft inspect` shows what a repository declares: each corpus under `docs/`, its specs and
-documents, then agent skills directories and the skills each agent reads. It shows governing specs for
-documents; skills have no `governed_by` entry. The skills heading notes the builtin Agent Skills
+documents, then agent skills directories and the skills each agent reads. It shows each spec's base,
+each document's governing specs and base chain. Skills have no `governed_by` or `base_chain` entry. The
+skills heading notes the builtin Agent Skills
 specification opt-out only when active. It answers why a document is or is not checked and which agents
 see a skill, without running a check.
 
@@ -34,6 +35,10 @@ see a skill, without running a check.
 - **Governed by**: The specs whose rules apply to a document, broad to narrow: their names in the
   tree, and every selected file at those names in the JSON. Files appear under their actual names. Skill
   entries have no `governed_by` entry.
+- **Base chain**: The document's declared name ancestors, broadest first, including itself. This is
+  separate from governance: a document can extend another without changing which specs govern it.
+- **Spec base**: The nearest broader specification name, or `null` in JSON (`none` in text) when a spec
+  has no base.
 - **Agent skills directory**: A directory an agent reads skills from, such as `.claude/skills`, shown only when
   the root has it, with the resolved directory it leads to when it is a symlink.
 - **Skill**: A directory directly inside an agent skills directory that holds a `SKILL.md`.
@@ -65,26 +70,25 @@ it. Given after `inspect`, it is a usage error.
 
 ### Output
 
-The text form is a tree on stdout, rooted at the absolute root path. A document's spec names follow it
-in brackets. An excerpt, from a repository with two feat docs:
+The text form is a tree on stdout, rooted at the absolute root path. Each spec shows its base, and each
+document has separate `governed_by` and `base_chain` labels. An excerpt:
 
 ```text
 └── feat (docs/feat)
     ├── specs (2)
-    │   ├── feat: feat.md, feat.spec.json
-    │   └── feat-cli: feat-cli.md, feat-cli.spec.json
+    │   ├── feat: feat.md, feat.spec.json [base: none]
+    │   └── feat-cli: feat-cli.md, feat-cli.spec.json [base: feat]
     └── documents (2)
-        ├── cli.md [feat, feat-cli]
-        └── cli-check.md [feat, feat-cli]
+        ├── cli.md [governed_by: feat, feat-cli] [base_chain: cli]
+        └── cli-check.md [governed_by: feat, feat-cli] [base_chain: cli, cli-check]
 ```
 
 With `--format json`, stdout is one compact object on a single line, without indentation or spaces after
-commas or colons. It holds `root`, and `corpora`, each with `name`, `directory`, `specs`
-(each a `name`, which is the spec name, and its `files`), and `documents` as `path` and `governed_by`.
-For each document, `governed_by` lists the files of each governing spec, broad to narrow, so a reader
-opens its specs without mapping a name to its files. Skill objects have no `governed_by` field because
-the reserved `skills` corpus does not govern skills. `root` is absolute, and every other path is
-root-relative.
+commas or colons. It holds `root` and `corpora`, each with `name`, `directory`, `specs` (each a `name`,
+`files` and `base`), and `documents` as `path`, `governed_by` and `base_chain`. A spec's `base` is its nearest
+broader name or `null`. `governed_by` lists governing spec files broad to narrow; `base_chain` lists
+root-relative document paths broadest first, including itself. Skill objects have neither field. `root` is
+absolute; other paths are root-relative.
 
 The compact form is intentional for tools that consume JSON. Pipe `lorecraft inspect --format json | jq .`
 for an indented view. Non-ASCII text, including paths and the workspace root, is written as UTF-8 characters
@@ -93,7 +97,7 @@ instead of `\uXXXX` escapes. For `--format json`, every path, including the work
 For example, a document entry within that one-line object reads:
 
 ```json
-{"path":"docs/feat/cli-check.md","governed_by":["docs/__meta__/feat.md","docs/__meta__/feat.spec.json","docs/__meta__/feat-cli.md","docs/__meta__/feat-cli.spec.json"]}
+{"path":"docs/feat/cli-check.md","governed_by":["docs/__meta__/feat.md","docs/__meta__/feat.spec.json","docs/__meta__/feat-cli.md","docs/__meta__/feat-cli.spec.json"],"base_chain":["docs/feat/cli.md","docs/feat/cli-check.md"]}
 ```
 
 The skills follow the corpora. An agent skills directory that is a symlink names where it leads, and a
@@ -112,7 +116,7 @@ or to a directory elsewhere in the repository, is listed where the agent finds i
 By default the text heading reads `skills (N)`. With the global `--no-agent-skills-spec`, it reads `skills (N; Agent Skills specification disabled)`.
 
 In the JSON these are `agent_skills_dirs`, each with `agent`, `path` and `resolves_to`, and `skills`, each with
-the `path` of its `SKILL.md` and its `agents`. Skill objects do not include `governed_by`. The top-level
+the `path` of its `SKILL.md` and its `agents`. Skill objects do not include `governed_by` or `base_chain`. The top-level
 `agent_skills_spec` field is omitted by default; with the global `--no-agent-skills-spec`, it is
 `false`. The global option changes only this opt-out indication in `inspect`; the rest of the inspect text and JSON output is unchanged.
 

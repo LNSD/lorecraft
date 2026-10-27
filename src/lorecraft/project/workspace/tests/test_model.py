@@ -1694,6 +1694,38 @@ class TestSpecifications:
         #: Then
         assert base == expected, 'the base is the narrowest specification whose name is continued'
 
+    def test_specification_base_with_a_json_only_intermediate_returns_that_name(self) -> None:
+        #: Given
+        feat = Corpus(
+            corpus_spec=_corpus_spec('feat'),
+            namespaces=FrozenMapping(
+                {
+                    AspectNamespace.parse('cli'): CorpusNamespace(
+                        files=(SPECS_DIR / PathComponent.parse('feat-cli.spec.json'),), structure=None
+                    ),
+                    AspectNamespace.parse('cli-x'): CorpusNamespace(
+                        files=(SPECS_DIR / PathComponent.parse('feat-cli-x.md'),), structure=None
+                    ),
+                }
+            ),
+            filenames=frozenset(),
+        )
+        model = WorkspaceModel(
+            corpus_values=frozenset({feat}),
+            skills_dirs=frozenset(),
+            skill_location_values=frozenset(),
+            outside_symlink_values=frozenset(),
+            load_failures=(),
+        )
+        name = parse_spec_name('feat-cli-x')
+        expected = parse_spec_name('feat-cli')
+
+        #: When
+        base = model.specification_base(name)
+
+        #: Then
+        assert base == expected, 'a structure-only intermediate spec remains the nearest declared base'
+
     def test_specification_base_chain_returns_all_declared_ancestors_broadest_first(self) -> None:
         #: Given
         code = Corpus(

@@ -731,6 +731,26 @@ class WorkspaceModel:
         base = find_narrowest_ancestor(ref.name, by_name)
         return None if base is None else by_name[base]
 
+    def specification_base(self, name: SpecName) -> SpecName | None:
+        """The nearest broader spec name, including specs represented only by a structure file.
+
+        Args:
+            name: The typed name of the specification whose base is wanted.
+        """
+        names: set[SpecName] = set()
+        corpora = (
+            *self.sorted_corpora,
+            *([self.skills_corpus] if self.skills_corpus is not None else []),
+            *([self.meta_corpus] if self.meta_corpus is not None else []),
+        )
+        for corpus in corpora:
+            names.add(corpus.corpus_spec.name)
+            names.update(spec.name for spec in corpus.namespace_specs)
+        names.update(parse_spec_name(ref.name) for ref in self.listed_specifications)
+        by_name = {str(candidate): candidate for candidate in names}
+        base = find_narrowest_ancestor(str(name), by_name)
+        return None if base is None else by_name[base]
+
     def specification_base_chain(self, ref: SpecRef) -> tuple[SpecRef, ...]:
         """Declared specification ancestors, broadest first; missing names are skipped."""
         by_name = {spec.name: spec for spec in self.specifications()}
@@ -751,11 +771,7 @@ class WorkspaceModel:
             base = found.document_base(name) if found is not None else None
             return None if base is None else base.filename
         if isinstance(name, (CorpusSpecName, NamespaceSpecName)):
-            ref = next((spec for spec in self.specifications() if spec.name == str(name)), None)
-            if ref is None:
-                return None
-            base = self.find_specification_base(ref)
-            return None if base is None else parse_spec_name(base.name)
+            return self.specification_base(name)
         return None
 
     def skills(self) -> tuple[SkillRef, ...]:

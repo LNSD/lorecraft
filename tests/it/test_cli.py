@@ -417,7 +417,9 @@ class TestInspectCommand:
         assert result.exit_code == 0, result.output
         lines = _lines(result.output)
         assert lines[0] == str(workspace.resolve()), 'the tree is headed by the resolved root'
-        assert '│           └── logging.md [code]' in lines, 'a rule document sits under its corpus, with its spec'
+        assert '│           └── logging.md [governed_by: code] [base_chain: logging]' in lines, (
+            'a rule document names its governing spec and its base chain separately'
+        )
 
     def test_inspect_with_json_format_prints_the_model_as_one_json_document(self, workspace: Path) -> None:
         #: Given
